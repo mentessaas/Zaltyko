@@ -1,0 +1,81 @@
+import { NextResponse } from "next/server";
+import { eq } from "drizzle-orm";
+
+import { db } from "@/db";
+import { academies, profiles } from "@/db/schema";
+
+export type ProfileRow = typeof profiles.$inferSelect;
+
+export interface TenantContext<C extends Record<string, unknown> = Record<string, unknown>>
+  extends C {
+  tenantId: string;
+  userId: string;
+  profile: ProfileRow;
+}
+
+export const authzAdapter = {
+  db,
+};
+
+export async function getCurrentProfile(userId: string): Promise<ProfileRow | null> {
+  const [profile] = await authzAdapter.db
+    .select()
+    .from(profiles)
+    .where(eq(profiles.userId, userId))
+    .limit(1);
+  return profile ?? null;
+}
+
+export async function getTenantId(userId: string, academyId?: string): Promise<string | null> {
+  const profile = await getCurrentProfile(userId);
+  if (!profile) {
+    return null;
+  }
+
+  const isAdmin = profile.role === "admin";
+
+  if (isAdmin && academyId) {
+    const [academy] = await authzAdapter.db
+      .select({ tenantId: academies.tenantId })
+      .from(academies)
+      .where(eq(academies.id, academyId))
+      .limit(1);
+
+    return academy?.tenantId ?? null;
+  }
+
+  return profile.tenantId ?? null;
+}
+
+export function withTenant<Ctx extends Record<string, unknown>>(
+  handler: (request: Request, context: TenantContext<Ctx>) => Promise<Response>
+) {
+  return async (request: Request, context: Ctx & { params?: Record<string, string> }) => {
+    const implicitUserId = request.headers.get("x-user-id") ?? context?.params?.userId;
+
+    if (!implicitUserId) {
+      return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
+    }
+
+    const profile = await getCurrentProfile(implicitUserId);
+
+    if (!profile) {
+      return NextResponse.json({ error: "PROFILE_NOT_FOUND" }, { status: 404 });
+    }
+
+    const overrideAcademyId = request.headers.get("x-academy-id") ?? context?.params?.academyId;
+    const tenantId = await getTenantId(implicitUserId, overrideAcademyId ?? undefined);
+
+    if (!tenantId && profile.role !== "admin") {
+      return NextResponse.json({ error: "TENANT_MISSING" }, { status: 403 });
+    }
+
+    return handler(request, {
+      ...(context as Ctx),
+      tenantId: tenantId ?? "",
+      userId: implicitUserId,
+      profile,
+    });
+  };
+}
+
