@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isDevFeaturesEnabled } from "@/lib/dev";
 import { and, count, eq } from "drizzle-orm";
 
 import { db } from "@/db";
@@ -93,10 +94,7 @@ const DEMO_ATTENDANCE = [
 ];
 
 function isDevEnabled() {
-  if (process.env.ENABLE_DEV_SESSION === "true") {
-    return true;
-  }
-  return process.env.NODE_ENV !== "production";
+  return isDevFeaturesEnabled;
 }
 
 async function ensureProfile() {
@@ -131,6 +129,7 @@ async function ensureAcademy(ownerId: string) {
       name: "Aurora Elite Demo",
       country: "ES",
       region: "Madrid",
+      academyType: "artistica",
       ownerId,
     })
     .onConflictDoNothing()
@@ -170,12 +169,12 @@ async function ensureSubscription() {
   await db
     .insert(subscriptions)
     .values({
-      academyId: DEV_ACADEMY_ID,
+      userId: DEV_USER_ID,
       planId: plan?.id ?? null,
       status: "active",
     })
     .onConflictDoUpdate({
-      target: subscriptions.academyId,
+      target: subscriptions.userId,
       set: {
         planId: plan?.id ?? null,
         status: "active",
@@ -302,6 +301,7 @@ export async function ensureDevSessionData() {
     tenantId: DEV_TENANT_ID,
     academyId: academy?.id ?? DEV_ACADEMY_ID,
     academyName: academy?.name ?? "Aurora Elite Demo",
+    academyType: academy?.academyType ?? "artistica",
     sessionId: DEMO_SESSION_ID,
   };
 }

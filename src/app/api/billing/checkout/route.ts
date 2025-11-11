@@ -1,15 +1,11 @@
 import { NextResponse } from "next/server";
-import Stripe from "stripe";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
-import { academies, plans, subscriptions } from "@/db/schema";
+import { academies, plans, subscriptions, profiles } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? "", {
-  apiVersion: "2024-06-20",
-});
+import { getStripeClient } from "@/lib/stripe/client";
 
 const BodySchema = z.object({
   academyId: z.string().uuid(),
@@ -21,17 +17,19 @@ export const POST = withTenant(async (request, context) => {
     return NextResponse.json({ error: "STRIPE_NOT_CONFIGURED" }, { status: 500 });
   }
 
+  const stripe = getStripeClient();
+
   const json = await request.json();
   const body = BodySchema.parse(json);
 
   const [academy] = await db
     .select({
+      id: academies.id,
       tenantId: academies.tenantId,
       name: academies.name,
-      stripeCustomerId: subscriptions.stripeCustomerId,
+      ownerId: academies.ownerId,
     })
     .from(academies)
-    .leftJoin(subscriptions, eq(subscriptions.academyId, academies.id))
     .where(eq(academies.id, body.academyId))
     .limit(1);
 
@@ -39,9 +37,36 @@ export const POST = withTenant(async (request, context) => {
     return NextResponse.json({ error: "ACADEMY_NOT_FOUND" }, { status: 404 });
   }
 
-  if (!context.profile || (context.profile.role !== "admin" && academy.tenantId !== context.tenantId)) {
+  const isAdmin = context.profile?.role === "admin" || context.profile?.role === "super_admin";
+
+  if (!context.profile || (!isAdmin && academy.tenantId !== context.tenantId)) {
     return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
   }
+
+  if (!academy.ownerId) {
+    return NextResponse.json({ error: "ACADEMY_HAS_NO_OWNER" }, { status: 400 });
+  }
+
+  const [owner] = await db
+    .select({
+      userId: profiles.userId,
+      name: profiles.name,
+    })
+    .from(profiles)
+    .where(eq(profiles.id, academy.ownerId))
+    .limit(1);
+
+  if (!owner) {
+    return NextResponse.json({ error: "OWNER_NOT_FOUND" }, { status: 404 });
+  }
+
+  const [existingSubscription] = await db
+    .select({
+      stripeCustomerId: subscriptions.stripeCustomerId,
+    })
+    .from(subscriptions)
+    .where(eq(subscriptions.userId, owner.userId))
+    .limit(1);
 
   const [plan] = await db.select().from(plans).where(eq(plans.code, body.planCode)).limit(1);
 
@@ -49,22 +74,38 @@ export const POST = withTenant(async (request, context) => {
     return NextResponse.json({ error: "PLAN_NOT_AVAILABLE" }, { status: 400 });
   }
 
-  let customerId = academy.stripeCustomerId ?? undefined;
+  let customerId = existingSubscription?.stripeCustomerId ?? undefined;
 
   if (!customerId) {
     const customer = await stripe.customers.create({
-      name: academy.name,
+      name: owner.name ?? academy.name,
       metadata: {
-        academyId: body.academyId,
+        userId: owner.userId,
         tenantId: academy.tenantId,
       },
     });
 
     customerId = customer.id;
-    await db
-      .update(subscriptions)
-      .set({ stripeCustomerId: customerId })
-      .where(eq(subscriptions.academyId, body.academyId));
+    
+    const [existingSub] = await db
+      .select({ id: subscriptions.id })
+      .from(subscriptions)
+      .where(eq(subscriptions.userId, owner.userId))
+      .limit(1);
+
+    if (existingSub) {
+      await db
+        .update(subscriptions)
+        .set({ stripeCustomerId: customerId })
+        .where(eq(subscriptions.userId, owner.userId));
+    } else {
+      await db.insert(subscriptions).values({
+        userId: owner.userId,
+        planId: plan.id,
+        stripeCustomerId: customerId,
+        status: "incomplete",
+      });
+    }
   }
 
   const successUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/billing/success?academy=${body.academyId}`;
@@ -83,13 +124,13 @@ export const POST = withTenant(async (request, context) => {
     ],
     subscription_data: {
       metadata: {
-        academyId: body.academyId,
+        userId: owner.userId,
         tenantId: academy.tenantId,
         planCode: plan.code,
       },
     },
     metadata: {
-      academyId: body.academyId,
+      userId: owner.userId,
       tenantId: academy.tenantId,
       planCode: plan.code,
     },

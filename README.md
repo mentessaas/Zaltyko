@@ -32,8 +32,9 @@ Este repositorio toma ShipFree como plantilla técnica y lo transforma en un Saa
    pnpm db:seed       # inserta planes (free/pro/premium) y el perfil admin
    ```
 
-   > ℹ️ Puedes sobreescribir los `stripe_price_id` de los planes pagados usando
-   > las variables `SEED_STRIPE_PRICE_PRO` y `SEED_STRIPE_PRICE_PREMIUM` al ejecutar el seed.
+  > ℹ️ Puedes sobreescribir los `stripe_price_id` y `stripe_product_id` de los planes pagados usando
+  > las variables `SEED_STRIPE_PRICE_PRO`, `SEED_STRIPE_PRODUCT_PRO`, `SEED_STRIPE_PRICE_PREMIUM`
+  > y `SEED_STRIPE_PRODUCT_PREMIUM` al ejecutar el seed.
 
 4. **Aplica RLS en Supabase**
 
@@ -59,7 +60,7 @@ Este repositorio toma ShipFree como plantilla técnica y lo transforma en un Saa
 
    - Desde la portada pulsa “Crear academia demo” o visita `http://localhost:3000/api/dev/session` (POST) para generar usuario, academia y datos ficticios.
    - El `DevSessionProvider` guarda esta información en `localStorage`; los fetch del frontend envían el header `x-user-id` automáticamente.
-   - Abre `http://localhost:3000/app` para saltar directo al dashboard de la academia demo.
+   - Abre `http://localhost:3000/app/[academyId]/dashboard` para saltar directo al panel multi-academia (sidebar con Atletas, Entrenadores, Clases, Asistencia y Facturación).
 
 ## 📁 Scripts disponibles
 
@@ -75,10 +76,17 @@ Este repositorio toma ShipFree como plantilla técnica y lo transforma en un Saa
 
 ## 📦 Módulos implementados en este bloque
 
+- **Layout multi-academia** (`/app/[academyId]/layout.tsx`) con sidebar/topbar y context provider (`useAcademyContext`).
+- **Atletas** (`/app/[academyId]/athletes`) con formularios modales, contactos familiares y tests para POST/GET/PATCH/DELETE.
+- **Entrenadores** (`/app/[academyId]/coaches`) con asignación de clases desde UI y API.
+- **Clases & Asistencia** (`/app/[academyId]/classes` + `.../classes/[classId]` + `/app/[academyId]/attendance`) para programar sesiones y registrar estados de atletas.
+- **Facturación contextualizada** (`/app/[academyId]/billing`) que consume las APIs `/api/billing/*` con el usuario autenticado.
 - **Esquema Drizzle** dividido por dominio (`src/db/schema/**`).
 - **Migración inicial** (`drizzle/0001_init.sql`) con índices multi-tenant.
-- **Seeds** (`scripts/seed.ts`) que crean planes y el perfil Súper Admin.
-- **Políticas RLS** (`supabase/rls.sql`) con bypass para `admin`.
+- **Seeds** (`scripts/seed.ts`) con datos demo completos (planes, academias, invitaciones, facturación, clases y sesiones de muestra).
+- **Políticas RLS** (`supabase/rls.sql`) con bypass para `admin`/`super_admin`.
+- **Guía de soporte** (`docs/support-handbook.md`) para operaciones, facturación y flujos de usuarios.
+- **Academias** (`/api/academies` + onboarding) con tipo obligatorio (`artistica`, `ritmica`, `trampolin`, `general`) y listados filtrables por `academyType`.
 - **Helpers de autorización** (`src/lib/authz.ts`) con `getCurrentProfile`, `getTenantId`, `withTenant`.
 - **Pruebas de aislamiento** (`tests/tenancy.test.ts`).
 

@@ -22,7 +22,7 @@ export default function LoginForm() {
       password,
     });
     if (error) {
-      console.error("Error logging in:", error.message);
+      console.error("Error al iniciar sesión:", error.message);
     } else {
       router.push("/dashboard");
     }
@@ -32,9 +32,9 @@ export default function LoginForm() {
     e.preventDefault();
     const { error } = await supabase.auth.signInWithOtp({ email });
     if (error) {
-      console.error("Error sending magic link:", error.message);
+      console.error("Error al enviar el enlace mágico:", error.message);
     } else {
-      alert("Check your email for the magic link!");
+      alert("Revisa tu correo para acceder con el enlace mágico.");
     }
   };
 
@@ -46,23 +46,23 @@ export default function LoginForm() {
       },
     });
     if (error) {
-      console.error("Error signing in with Google:", error.message);
+      console.error("Error al iniciar sesión con Google:", error.message);
     }
   };
 
   return (
     <>
       <SEO
-        title="My SaaS Boilerplate"
-        description="A Next.js TypeScript Login form."
-        canonicalUrl="https://yourdomain.com"
-        ogImageUrl="https://yourdomain.com/og-image.png"
-        twitterHandle="yourtwitterhandle"
+        title="GymnaSaaS · Iniciar sesión"
+        description="Accede con tu correo y contraseña para gestionar tu academia."
+        canonicalUrl="https://gymnasaas.com"
+        ogImageUrl="https://gymnasaas.com/og-image.png"
+        twitterHandle="gymnasaas"
       />
       <div className="space-y-6">
         <form onSubmit={handleLogin} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email">Correo electrónico</Label>
             <Input
               id="email"
               type="email"
@@ -72,7 +72,7 @@ export default function LoginForm() {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="password">Contraseña</Label>
             <Input
               id="password"
               type="password"
@@ -82,7 +82,7 @@ export default function LoginForm() {
             />
           </div>
           <Button type="submit" className="w-full">
-            Login
+            Iniciar sesión
           </Button>
         </form>
         <div className="flex flex-col space-y-4">
@@ -91,20 +91,20 @@ export default function LoginForm() {
             variant="outline"
             className="w-full"
           >
-            Send Magic Link
+            Enviarme un enlace mágico
           </Button>
           <Button
             onClick={handleGoogleSignIn}
             variant="outline"
             className="w-full"
           >
-            Sign in with Google
+            Inicia sesión con Google
           </Button>
         </div>
         <p className="text-center text-sm">
-          Don't have an account?{" "}
+          ¿Aún no tienes cuenta?{" "}
           <Link href="/auth/register" className="text-blue-500 hover:underline">
-            Register
+            Regístrate
           </Link>
         </p>
       </div>

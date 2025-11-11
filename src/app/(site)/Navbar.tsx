@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { BarChart3, Menu, X } from "lucide-react";
 import { useState } from "react";
+import { isDevFeaturesEnabled } from "@/lib/dev";
 
 const links = [
   { href: "#caracteristicas", label: "Características" },
@@ -36,13 +37,21 @@ export default function Navbar() {
           ))}
         </div>
 
-        <div className="hidden md:flex">
+        <div className="hidden items-center gap-3 md:flex">
           <Link
-            href="/onboarding"
-            className="rounded-full bg-gradient-to-r from-emerald-400 to-lime-300 px-4 py-2 text-sm font-semibold text-[#0d1b1e] transition hover:from-emerald-300 hover:to-lime-200"
+            href="/auth/login"
+            className="rounded-full border border-white/20 px-4 py-2 text-sm font-semibold text-white transition hover:border-white/40 hover:text-white/90"
           >
-            Crear academia demo
+            Iniciar sesión
           </Link>
+          {isDevFeaturesEnabled && (
+            <Link
+              href="/onboarding"
+              className="rounded-full bg-gradient-to-r from-emerald-400 to-lime-300 px-4 py-2 text-sm font-semibold text-[#0d1b1e] transition hover:from-emerald-300 hover:to-lime-200"
+            >
+              Crear academia demo
+            </Link>
+          )}
         </div>
 
         <button
@@ -69,12 +78,21 @@ export default function Navbar() {
               </Link>
             ))}
             <Link
-              href="/onboarding"
-              className="mt-4 block rounded-full bg-gradient-to-r from-emerald-400 to-lime-300 px-3 py-2 text-center text-sm font-semibold text-[#0d1b1e]"
+              href="/auth/login"
+              className="block rounded-md px-3 py-2 text-base font-semibold text-white/90 hover:bg-white/5"
               onClick={() => setIsMenuOpen(false)}
             >
-              Crear academia demo
+              Iniciar sesión
             </Link>
+            {isDevFeaturesEnabled && (
+              <Link
+                href="/onboarding"
+                className="mt-4 block rounded-full bg-gradient-to-r from-emerald-400 to-lime-300 px-3 py-2 text-center text-sm font-semibold text-[#0d1b1e]"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                Crear academia demo
+              </Link>
+            )}
           </div>
         </div>
       )}

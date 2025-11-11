@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { isDevFeaturesEnabled } from "@/lib/dev";
 
 type DevSession = {
   userId: string;
@@ -42,7 +43,7 @@ async function fetchDevSession(): Promise<DevSession | null> {
 
 export function DevSessionProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<DevSession | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(isDevFeaturesEnabled);
 
   const persist = useCallback((value: DevSession | null) => {
     if (typeof window === "undefined") return;
@@ -54,7 +55,7 @@ export function DevSessionProvider({ children }: { children: React.ReactNode }) 
   }, []);
 
   const refresh = useCallback(async () => {
-    if (typeof window === "undefined") return;
+    if (!isDevFeaturesEnabled || typeof window === "undefined") return;
     setLoading(true);
     const data = await fetchDevSession();
     if (data) {
@@ -76,7 +77,7 @@ export function DevSessionProvider({ children }: { children: React.ReactNode }) 
   );
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (!isDevFeaturesEnabled || typeof window === "undefined") return;
 
     const cached = window.localStorage.getItem(STORAGE_KEY);
     if (cached) {
@@ -98,7 +99,19 @@ export function DevSessionProvider({ children }: { children: React.ReactNode }) 
     [loading, refresh, session, update]
   );
 
-  return <DevSessionContext.Provider value={value}>{children}</DevSessionContext.Provider>;
+  const safeValue = useMemo<DevSessionContextValue>(() => {
+    if (!isDevFeaturesEnabled) {
+      return {
+        session: null,
+        loading: false,
+        refresh: async () => {},
+        update: () => {},
+      };
+    }
+    return value;
+  }, [value]);
+
+  return <DevSessionContext.Provider value={safeValue}>{children}</DevSessionContext.Provider>;
 }
 
 export function useDevSession(): DevSessionContextValue {

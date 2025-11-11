@@ -1,11 +1,12 @@
 import {
-  Mail,
+  Users,
+  UserCog,
   CreditCard,
-  User,
+  ClipboardCheck,
+  CalendarClock,
   Database,
-  FileJson,
-  Paintbrush,
-  MoreHorizontal,
+  Plug,
+  ShieldCheck,
   Check,
 } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -13,152 +14,171 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 export default function FeaturesSection() {
   const features = [
     {
-      id: "emails",
-      icon: Mail,
-      label: "Emails",
+      id: "atletas",
+      icon: Users,
+      label: "Atletas",
       content: {
-        title: "Email Integration",
+        title: "Gestión integral de atletas",
         features: [
-          "Transactional email templates",
-          "Email verification flow",
-          "Newsletter subscription",
-          "Automated welcome emails",
-          "Custom email domains",
-          "Email analytics dashboard",
+          "Fichas con nivel, aparato favorito y seguimiento por lesiones",
+          "Alertas automáticas cuando alcanzas el cupo del plan",
+          "Inscripción masiva vía CSV o API REST",
+          "Historial de asistencia en tiempo real",
+          "Portal para familias (roadmap Q2)",
+          "Cumplimiento RLS por tenant para datos sensibles",
         ],
-        timeSaved: "4 hours",
+        impact: "Reduce 4 h semanales de tareas administrativas",
       },
     },
     {
-      id: "payments",
+      id: "coaches",
+      icon: UserCog,
+      label: "Coaches",
+      content: {
+        title: "Staff coordinado y productivo",
+        features: [
+          "Roles diferenciados: owner, coach, staff y súper admin",
+          "Agenda compartida con toma de asistencia desde móvil",
+          "Notas privadas por atleta y evaluaciones pendientes",
+          "Alertas de rotación de aparatos y recursos",
+          "Panel de horas dictadas y bonificaciones",
+          "Integración con control de acceso por QR (beta)",
+        ],
+        impact: "Evita malentendidos y mejora la comunicación interna",
+      },
+    },
+    {
+      id: "billing",
       icon: CreditCard,
-      label: "Payments",
+      label: "Facturación",
       content: {
-        title: "Payment Processing",
+        title: "Stripe listo para academias",
         features: [
-          "Stripe integration",
-          "Subscription management",
-          "Usage-based billing",
-          "Invoice generation",
-          "Payment analytics",
-          "Refund handling",
+          "Checkout para upgrades Free → Pro → Premium",
+          "Asignación automática de límites por plan",
+          "Webhooks protegidos con verificación de firma",
+          "Recordatorios de pago y recibos automatizados",
+          "Panel de métricas MRR, churn y morosidad",
+          "Integración con LemonSqueezy opcional",
         ],
-        timeSaved: "6 hours",
+        impact: "Conciliar pagos recurrentes sin hojas de cálculo",
       },
     },
     {
-      id: "login",
-      icon: User,
-      label: "Login",
+      id: "evaluaciones",
+      icon: ClipboardCheck,
+      label: "Evaluaciones",
       content: {
-        title: "Authentication",
+        title: "Evaluaciones técnicas y planes de progreso",
         features: [
-          "Social login integration",
-          "Two-factor authentication",
-          "Password reset flow",
-          "Session management",
-          "Role-based access control",
-          "JWT authentication",
+          "Catálogo de habilidades por aparato y dificultad",
+          "Registro de notas y comentarios por atleta",
+          "Seguimiento visual de progreso por temporada",
+          "Exportables PDF para federaciones y padres",
+          "Workflows para lesión/retorno a pista",
+          "Reportes comparativos entre academias",
         ],
-        timeSaved: "5 hours",
+        impact: "Claridad total para directores técnicos y familias",
       },
     },
     {
-      id: "database",
+      id: "eventos",
+      icon: CalendarClock,
+      label: "Eventos",
+      content: {
+        title: "Planificación de eventos y giras",
+        features: [
+          "Calendario unificado de competencias y clínicas",
+          "Asignación de coaches responsables por sede",
+          "Sincronización de listas de viaje y alojamiento",
+          "Notificaciones email/SMS para padres y staff",
+          "Checklist de equipo por atleta",
+          "Integración con Google Calendar (roadmap Q3)",
+        ],
+        impact: "Evita mensajes dispersos y asegura que todos lleguen preparados",
+      },
+    },
+    {
+      id: "datos",
       icon: Database,
-      label: "Database",
+      label: "Datos",
       content: {
-        title: "Database Setup",
+        title: "Arquitectura pensada para escalar",
         features: [
-          "Schema design",
-          "Data migration tools",
-          "Backup automation",
-          "Query optimization",
-          "Data validation",
-          "Real-time sync",
+          "Drizzle ORM con tipado end-to-end",
+          "Migraciones versionadas y seeds para demo",
+          "RLS en Supabase + middleware Multi-tenant",
+          "Testing con pg-mem para APIs críticas",
+          "Jobs serverless con Supabase Edge Functions",
+          "Observabilidad con auditorías por acción",
         ],
-        timeSaved: "7 hours",
+        impact: "Infraestructura lista para producción desde el día uno",
       },
     },
     {
-      id: "seo",
-      icon: FileJson,
-      label: "SEO",
+      id: "integraciones",
+      icon: Plug,
+      label: "Integraciones",
       content: {
-        title: "SEO",
+        title: "Conecta tus herramientas favoritas",
         features: [
-          "Entire blog structure (example)",
-          "All meta tags to rank on Google",
-          "OpenGraph tags to share on social media",
-          "Automated sitemap generation to fasten Google indexing",
-          "Structured data markup for Rich Snippets",
-          "SEO-optimized UI components",
+          "SDK público para crear extensiones internas",
+          "Webhooks listos para ERP o sistemas contables",
+          "Mailgun para comunicaciones transaccionales",
+          "Supabase Storage para compartir rutinas y videos",
+          "Segmentación de audiencias para marketing",
+          "CLI para automatizar seeds y pruebas end-to-end",
         ],
-        timeSaved: "8 hours",
+        impact: "Evita integraciones manuales y mantén un solo origen de datos",
       },
     },
     {
-      id: "style",
-      icon: Paintbrush,
-      label: "Style",
+      id: "seguridad",
+      icon: ShieldCheck,
+      label: "Seguridad",
       content: {
-        title: "Styling System",
+        title: "Tenancy blindado y cumplimiento",
         features: [
-          "Tailwind configuration",
-          "Dark mode support",
-          "Responsive components",
-          "Animation library",
-          "Custom theme system",
-          "Design tokens",
+          "Autenticación NextAuth con Magic Link y Google",
+          "Logs de auditoría con IP y user-agent",
+          "Backups automáticos de base de datos",
+          "Configurable para RGPD y políticas de menores",
+          "CSP estricta y headers de seguridad listos",
+          "Playbooks de respuesta ante incidentes",
         ],
-        timeSaved: "5 hours",
-      },
-    },
-    {
-      id: "more",
-      icon: MoreHorizontal,
-      label: "More",
-      content: {
-        title: "Additional Features",
-        features: [
-          "API rate limiting",
-          "Error tracking",
-          "Performance monitoring",
-          "Automated testing",
-          "CI/CD pipeline",
-          "Documentation",
-        ],
-        timeSaved: "4 hours",
+        impact: "Tranquilidad para dueños y directores financieros",
       },
     },
   ];
 
   return (
-    <div className="bg-zinc-900 min-h-screen text-gray-300 py-16 px-4">
-      <div className="max-w-6xl mx-auto">
-        <div className="text-center mb-16 space-y-6">
-          <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white max-w-4xl mx-auto leading-tight">
-            Supercharge your app instantly, launch faster, make $
+    <section className="bg-[#061014] py-20 px-4 text-white">
+      <div className="mx-auto max-w-6xl">
+        <div className="mb-16 space-y-4 text-center">
+          <span className="text-xs uppercase tracking-[0.45em] text-emerald-300">
+            Módulos conectados
+          </span>
+          <h2 className="mx-auto max-w-4xl text-3xl font-semibold leading-tight sm:text-4xl md:text-5xl">
+            Todo lo que una red de academias necesita para operar sin caos.
           </h2>
-          <p className="text-lg md:text-xl text-gray-400 max-w-3xl mx-auto">
-            Login users, process payments and send emails at lightspeed. Spend
-            your time building your startup, not integrating APIs. ShipFast
-            provides you with the boilerplate code you need to launch, FAST.
+          <p className="mx-auto max-w-3xl text-base text-slate-200/70 md:text-lg">
+            Selecciona un módulo y descubre cómo GymnaSaaS reduce tareas repetitivas, mantiene tus datos seguros y ofrece
+            experiencias impecables a atletas, coaches y familias.
           </p>
         </div>
 
-        <Tabs defaultValue="seo" className="w-full">
-          <TabsList className="h-auto flex flex-wrap justify-center gap-4 bg-transparent mb-8">
+        <Tabs defaultValue="atletas" className="w-full">
+          <TabsList className="mb-10 flex h-auto flex-wrap justify-center gap-4 bg-transparent">
             {features.map((feature) => {
               const Icon = feature.icon;
               return (
                 <TabsTrigger
                   key={feature.id}
                   value={feature.id}
-                  className="flex flex-col items-center gap-2 p-4 data-[state=active]:bg-zinc-800 rounded-lg"
+                  className="flex min-w-[140px] flex-col items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-5 py-4 text-sm font-medium text-slate-200/80 transition data-[state=active]:border-emerald-300/50 data-[state=active]:bg-emerald-300/10 data-[state=active]:text-white"
                 >
-                  <Icon className="w-6 h-6" />
-                  <span className="text-sm">{feature.label}</span>
+                  <Icon className="h-6 w-6" />
+                  <span>{feature.label}</span>
                 </TabsTrigger>
               );
             })}
@@ -168,29 +188,36 @@ export default function FeaturesSection() {
             <TabsContent
               key={feature.id}
               value={feature.id}
-              className="space-y-8"
+              className="space-y-8 rounded-3xl border border-white/10 bg-white/5 p-8 shadow-xl"
             >
               <div className="space-y-6">
-                {feature.content.features.map((item, index) => (
-                  <div key={index} className="flex items-start gap-3">
-                    <Check className="w-5 h-5 text-green-500 mt-1 flex-shrink-0" />
-                    <span className="text-lg text-gray-300">{item}</span>
-                  </div>
-                ))}
-                <div className="flex items-center gap-3 pt-4">
-                  <Check className="w-5 h-5 text-green-500" />
-                  <span className="text-lg">
-                    <span className="text-green-500">Time saved: </span>
-                    <span className="text-green-500">
-                      {feature.content.timeSaved}
-                    </span>
-                  </span>
+                <h3 className="text-2xl font-semibold text-white">
+                  {feature.content.title}
+                </h3>
+                <p className="text-sm uppercase tracking-[0.25em] text-emerald-200">
+                  Impacto
+                </p>
+                <p className="text-base text-slate-200/70">
+                  {feature.content.impact}
+                </p>
+                <div className="grid gap-4 pt-6 md:grid-cols-2">
+                  {feature.content.features.map((item, index) => (
+                    <div
+                      key={index}
+                      className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/5 p-4"
+                    >
+                      <Check className="mt-1 h-5 w-5 flex-shrink-0 text-emerald-300" />
+                      <span className="text-sm leading-relaxed text-slate-100/80">
+                        {item}
+                      </span>
+                    </div>
+                  ))}
                 </div>
               </div>
             </TabsContent>
           ))}
         </Tabs>
       </div>
-    </div>
+    </section>
   );
 }

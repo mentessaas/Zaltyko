@@ -16,4 +16,11 @@ export * from "./skill-catalog";
 export * from "./athlete-assessments";
 export * from "./assessment-scores";
 export * from "./coach-notes";
+export * from "./guardians";
+export * from "./invitations";
+export * from "./auth-users";
+export * from "./class-coach-assignments";
+export * from "./billing-invoices";
+export * from "./billing-events";
+export * from "./groups";
 

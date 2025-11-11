@@ -32,7 +32,7 @@ export async function getTenantId(userId: string, academyId?: string): Promise<s
     return null;
   }
 
-  const isAdmin = profile.role === "admin";
+  const isAdmin = profile.role === "admin" || profile.role === "super_admin";
 
   if (isAdmin && academyId) {
     const [academy] = await authzAdapter.db
@@ -45,6 +45,44 @@ export async function getTenantId(userId: string, academyId?: string): Promise<s
   }
 
   return profile.tenantId ?? null;
+}
+
+export function assertSuperAdmin(profile: ProfileRow | null | undefined) {
+  if (!profile || profile.role !== "super_admin") {
+    const error: any = new Error("SUPER_ADMIN_REQUIRED");
+    error.status = 403;
+    throw error;
+  }
+}
+
+export function withSuperAdmin<Ctx extends Record<string, unknown>>(
+  handler: (request: Request, context: Ctx & { userId: string; profile: ProfileRow }) => Promise<Response>
+) {
+  return async (request: Request, context: Ctx & { params?: Record<string, string> }) => {
+    const implicitUserId = request.headers.get("x-user-id") ?? context?.params?.userId;
+
+    if (!implicitUserId) {
+      return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
+    }
+
+    const profile = await getCurrentProfile(implicitUserId);
+
+    if (!profile) {
+      return NextResponse.json({ error: "PROFILE_NOT_FOUND" }, { status: 404 });
+    }
+
+    try {
+      assertSuperAdmin(profile);
+    } catch (error: any) {
+      return NextResponse.json({ error: error.message ?? "FORBIDDEN" }, { status: error.status ?? 403 });
+    }
+
+    return handler(request, {
+      ...(context as Ctx),
+      userId: implicitUserId,
+      profile,
+    });
+  };
 }
 
 export function withTenant<Ctx extends Record<string, unknown>>(
@@ -66,7 +104,18 @@ export function withTenant<Ctx extends Record<string, unknown>>(
     const overrideAcademyId = request.headers.get("x-academy-id") ?? context?.params?.academyId;
     const tenantId = await getTenantId(implicitUserId, overrideAcademyId ?? undefined);
 
-    if (!tenantId && profile.role !== "admin") {
+    const method = request.method?.toUpperCase();
+    const pathname = new URL(request.url).pathname;
+    const isPublicAcademyFetch = method === "GET" && pathname.startsWith("/api/academies");
+    const isAcademyCreation = method === "POST" && pathname.startsWith("/api/academies");
+
+    if (
+      !tenantId &&
+      !isPublicAcademyFetch &&
+      !isAcademyCreation &&
+      profile.role !== "admin" &&
+      profile.role !== "super_admin"
+    ) {
       return NextResponse.json({ error: "TENANT_MISSING" }, { status: 403 });
     }
 
