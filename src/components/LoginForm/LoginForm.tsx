@@ -23,31 +23,99 @@ export function LoginForm() {
       password,
     });
     if (error) {
-      console.error("Error logging in:", error.message);
-    } else {
-      router.push("/dashboard");
+      console.error("Error al iniciar sesión:", error.message);
+      return;
     }
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    const userId = user?.id ?? null;
+
+    const headers = new Headers();
+    if (userId) {
+      headers.set("x-user-id", userId);
+    }
+
+    try {
+      const profileResponse = await fetch("/api/onboarding/profile", {
+        cache: "no-store",
+        headers,
+      });
+
+      if (profileResponse.ok) {
+        const profile = (await profileResponse.json()) as {
+          role?: string;
+          tenantId?: string | null;
+          profileId?: string;
+          activeAcademyId?: string | null;
+        };
+
+        if (profile.role && ["super_admin", "admin", "owner"].includes(profile.role)) {
+          let targetAcademyId = profile.activeAcademyId ?? null;
+
+          if (!targetAcademyId && userId) {
+            try {
+              const academiesResponse = await fetch("/api/academies", {
+                cache: "no-store",
+                headers,
+              });
+              if (academiesResponse.ok) {
+                const academiesData = (await academiesResponse.json()) as {
+                  items?: { id: string }[];
+                };
+                targetAcademyId = academiesData.items?.[0]?.id ?? null;
+              }
+            } catch (academiesError) {
+              console.error("No se pudo obtener la lista de academias.", academiesError);
+            }
+          }
+
+          if (profile.role === "super_admin") {
+            router.push("/super-admin");
+            return;
+          }
+
+          if (profile.role === "admin") {
+            router.push("/dashboard/users");
+            return;
+          }
+
+          if (targetAcademyId) {
+            router.push(`/app/${targetAcademyId}/dashboard`);
+            return;
+          }
+
+          router.push("/dashboard");
+          return;
+        }
+      }
+    } catch (fetchError) {
+      console.error("No se pudo obtener el perfil tras el login.", fetchError);
+    }
+
+    router.push("/dashboard");
   };
 
   return (
     <>
       <SEO
-        title="My SaaS Boilerplate"
-        description="A Next.js TypeScript Login form."
-        canonicalUrl="https://yourdomain.com"
-        ogImageUrl="https://yourdomain.com/og-image.png"
-        twitterHandle="yourtwitterhandle"
+        title="GymnaSaaS · Iniciar sesión"
+        description="Accede a tu cuenta para gestionar tu academia en GymnaSaaS."
+        canonicalUrl="https://gymnasaas.com"
+        ogImageUrl="https://gymnasaas.com/og-image.png"
+        twitterHandle="gymnasaas"
       />
       <div className="flex min-h-full flex-col justify-center px-6 py-12 lg:px-8">
         <div className="sm:mx-auto sm:w-full sm:max-w-sm">
           <h2 className="mt-10 text-center text-2xl/9 font-bold tracking-tight text-gray-900">
-            Sign in to your account
+            Inicia sesión en tu cuenta
           </h2>
         </div>
         <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-sm">
           <form onSubmit={handleLogin} className="space-y-4 pb-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">Correo electrónico</Label>
               <Input
                 id="email"
                 type="email"
@@ -57,7 +125,7 @@ export function LoginForm() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">Contraseña</Label>
               <Input
                 id="password"
                 type="password"
@@ -67,16 +135,16 @@ export function LoginForm() {
               />
             </div>
             <Button type="submit" className="w-full">
-              Login
+              Iniciar sesión
             </Button>
           </form>
           <p className="text-center text-sm pt-4">
-            Don&apos;t have an account?{" "}
+            ¿Aún no tienes cuenta?{" "}
             <Link
               href="/auth/register"
               className="text-blue-500 hover:underline"
             >
-              Register
+              Regístrate
             </Link>
           </p>
         </div>

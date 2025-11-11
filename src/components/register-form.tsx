@@ -18,7 +18,7 @@ export default function RegisterForm() {
     e.preventDefault();
     const { error } = await supabase.auth.signUp({ email, password });
     if (error) {
-      console.error("Error registering:", error.message);
+      console.error("Error al registrar la cuenta:", error.message);
     } else {
       router.push("/dashboard");
     }
@@ -28,7 +28,7 @@ export default function RegisterForm() {
     <div className="space-y-6">
       <form onSubmit={handleRegister} className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="email">Email</Label>
+          <Label htmlFor="email">Correo electrónico</Label>
           <Input
             id="email"
             type="email"
@@ -38,7 +38,7 @@ export default function RegisterForm() {
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="password">Password</Label>
+          <Label htmlFor="password">Contraseña</Label>
           <Input
             id="password"
             type="password"
@@ -48,13 +48,13 @@ export default function RegisterForm() {
           />
         </div>
         <Button type="submit" className="w-full">
-          Register
+          Registrarme
         </Button>
       </form>
       <p className="text-center text-sm">
-        Already have an account?{" "}
-        <Link href="/login" className="text-blue-500 hover:underline">
-          Login
+        ¿Ya tienes cuenta?{" "}
+        <Link href="/auth/login" className="text-blue-500 hover:underline">
+          Inicia sesión
         </Link>
       </p>
     </div>

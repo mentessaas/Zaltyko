@@ -34,6 +34,22 @@ Además, el `Pool` de `pg` se instancia una sola vez, evitando abrir conexiones 
 
 Las tareas administrativas (`pnpm db:migrate`, `pnpm db:seed`, scripts en `/scripts`) se ejecutan desde el mismo proyecto en desarrollo, por lo que se apoyan en `DATABASE_URL_DIRECT`. En entornos CI/CD asegúrate de exponer esta variable para el paso de migración.
 
+### Reaplicar políticas RLS
+
+Tras modificar `supabase/rls.sql`, vuelve a cargar las políticas en la instancia:
+
+```bash
+pnpm exec supabase db push --file supabase/rls.sql
+```
+
+Si trabajas con una base de datos remota (`supabase db remote commit`), usa:
+
+```bash
+pnpm exec supabase db execute --db-url "$DATABASE_URL_DIRECT" --file supabase/rls.sql
+```
+
+> Asegúrate de ejecutar las migraciones (`drizzle/0004_roles_guardians.sql` y siguientes) antes de aplicar RLS para evitar referencias a tablas inexistentes.
+
 ## Añadir nuevos NCPs
 
 1. Desde Supabase crea un nuevo pool con el tamaño deseado.

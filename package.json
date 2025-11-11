@@ -12,19 +12,24 @@
     "sitemap": "next-sitemap",
     "test": "vitest",
     "lint": "eslint .",
-    "format": "prettier . --write"
+    "format": "prettier . --write",
+    "stripe:sync": "tsx scripts/sync-stripe-plans.ts"
   },
   "dependencies": {
     "@radix-ui/react-avatar": "^1.1.2",
     "@radix-ui/react-label": "^2.1.1",
+    "@radix-ui/react-progress": "^1.1.8",
     "@radix-ui/react-slot": "^1.1.1",
     "@radix-ui/react-tabs": "^1.1.2",
     "@stripe/stripe-js": "^5.6.0",
+    "@supabase/ssr": "^0.7.0",
     "@supabase/supabase-js": "^2.43.0",
     "axios": "^1.7.9",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "crypto": "^1.0.1",
+    "csv-parse": "^6.1.0",
+    "date-fns": "^4.1.0",
     "dotenv": "^16.4.7",
     "drizzle-kit": "^0.31.6",
     "drizzle-orm": "^0.44.7",
@@ -44,6 +49,7 @@
     "stripe": "^17.6.0",
     "tailwind-merge": "^3.0.1",
     "tailwindcss-animate": "^1.0.7",
+    "xlsx": "^0.18.5",
     "zod": "^3.23.8"
   },
   "devDependencies": {
@@ -52,7 +58,7 @@
     "@types/pg": "^8.11.11",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.5",
-    "eslint": "^9",
+    "eslint": "^8.57.0",
     "eslint-config-next": "14.2.3",
     "pg-mem": "^3.0.5",
     "postcss": "^8",

@@ -1,11 +1,19 @@
 import { NextResponse } from "next/server";
+import { asc, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
-import { coaches, memberships, profiles } from "@/db/schema";
+import {
+  academies,
+  classCoachAssignments,
+  classes,
+  coaches,
+  memberships,
+  profiles,
+} from "@/db/schema";
 import { withTenant } from "@/lib/authz";
 
-const BodySchema = z.object({
+const bodySchema = z.object({
   academyId: z.string().uuid(),
   name: z.string().min(1),
   email: z.string().email().optional(),
@@ -13,8 +21,74 @@ const BodySchema = z.object({
   profileId: z.string().uuid().optional(),
 });
 
+const querySchema = z.object({
+  academyId: z.string().uuid().optional(),
+  includeAssignments: z
+    .string()
+    .transform((value) => value === "true" || value === "1")
+    .optional(),
+});
+
+export const GET = withTenant(async (request, context) => {
+  const url = new URL(request.url);
+  const params = querySchema.safeParse(Object.fromEntries(url.searchParams));
+
+  if (!context.tenantId) {
+    return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+  }
+
+  if (!params.success) {
+    return NextResponse.json({ error: "INVALID_FILTERS" }, { status: 400 });
+  }
+
+  const { academyId, includeAssignments } = params.data;
+
+  const coachRows = await db
+    .select({
+      id: coaches.id,
+      name: coaches.name,
+      email: coaches.email,
+      phone: coaches.phone,
+      academyId: coaches.academyId,
+      academyName: academies.name,
+      createdAt: coaches.createdAt,
+    })
+    .from(coaches)
+    .innerJoin(academies, eq(coaches.academyId, academies.id))
+    .where(academyId ? eq(coaches.academyId, academyId) : eq(coaches.tenantId, context.tenantId))
+    .orderBy(asc(coaches.name));
+
+  if (!includeAssignments) {
+    return NextResponse.json({ items: coachRows });
+  }
+
+  const assignmentRows = await db
+    .select({
+      coachId: classCoachAssignments.coachId,
+      classId: classes.id,
+      className: classes.name,
+      classAcademyId: classes.academyId,
+    })
+    .from(classCoachAssignments)
+    .innerJoin(classes, eq(classCoachAssignments.classId, classes.id))
+    .where(eq(classCoachAssignments.tenantId, context.tenantId));
+
+  const items = coachRows.map((row) => ({
+    ...row,
+    classes: assignmentRows
+      .filter((assignment) => assignment.coachId === row.id)
+      .map((assignment) => ({
+        id: assignment.classId,
+        name: assignment.className,
+        academyId: assignment.classAcademyId,
+      })),
+  }));
+
+  return NextResponse.json({ items });
+});
+
 export const POST = withTenant(async (request, context) => {
-  const body = BodySchema.parse(await request.json());
+  const body = bodySchema.parse(await request.json());
 
   if (!context.tenantId) {
     return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });

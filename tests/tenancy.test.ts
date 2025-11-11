@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -10,7 +10,10 @@ vi.mock("@/db", () => {
 
   const dbMem = newDb({ autoCreateForeignKeyIndices: true });
   const pg = dbMem.adapters.createPg();
+  const identity = (value: unknown) => value;
+
   const pool = new pg.Pool();
+  (pool as any).getTypeParser = () => identity;
 
   dbMem.public.registerFunction({
     name: "gen_random_uuid",
@@ -18,19 +21,28 @@ vi.mock("@/db", () => {
     implementation: () => randomUUID(),
   });
 
-  const migrationPath = path.resolve(__dirname, "../drizzle/0001_init.sql");
-  const migrationSql = readFileSync(migrationPath, "utf8").replace(
-    /CREATE EXTENSION[^;]+;/gi,
-    ""
+  dbMem.public.none(
+    `CREATE TYPE "academy_type" AS ENUM ('artistica', 'ritmica', 'trampolin', 'general');`
   );
 
-  dbMem.public.none(migrationSql);
+  const migrationsDir = path.resolve(__dirname, "../drizzle");
+  const migrationFiles = readdirSync(migrationsDir)
+    .filter((file: string) => file.endsWith(".sql"))
+    .sort();
+
+  for (const file of migrationFiles) {
+    const migrationSql = readFileSync(path.join(migrationsDir, file), "utf8")
+      .replace(/CREATE EXTENSION[^;]+;/gi, "")
+      .replace(/DO\s+\$\$[\s\S]*?\$\$\s*;/gi, "");
+    dbMem.public.none(migrationSql);
+  }
 
   const originalPoolQuery = pool.query.bind(pool);
   pool.query = ((config: any, values?: any, callback?: any) => {
-    if (config && typeof config === "object" && "rowMode" in config) {
+    if (config && typeof config === "object") {
       const cloned = { ...config };
       delete cloned.rowMode;
+      delete cloned.types;
       return originalPoolQuery(cloned, values, callback);
     }
     return originalPoolQuery(config, values, callback);
@@ -41,9 +53,10 @@ vi.mock("@/db", () => {
     const client = await originalConnect(...args);
     const originalClientQuery = client.query.bind(client);
     client.query = ((config: any, values?: any, callback?: any) => {
-      if (config && typeof config === "object" && "rowMode" in config) {
+      if (config && typeof config === "object") {
         const cloned = { ...config };
         delete cloned.rowMode;
+        delete cloned.types;
         return originalClientQuery(cloned, values, callback);
       }
       return originalClientQuery(config, values, callback);
@@ -88,6 +101,11 @@ describe("tenant isolation", () => {
       athleteLimit: 50,
       priceEur: 0,
       stripePriceId: null,
+      stripeProductId: null,
+      currency: "eur",
+      billingInterval: "month",
+      nickname: "Free",
+      isArchived: false,
     });
 
     await db.insert(profiles).values({

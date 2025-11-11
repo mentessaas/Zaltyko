@@ -6,20 +6,19 @@ import { db } from "@/db";
 import { attendanceRecords, classSessions } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
 
-const EntrySchema = z.object({
+const entrySchema = z.object({
   athleteId: z.string().uuid(),
-  status: z.string().optional(),
+  status: z.enum(["present", "absent", "late", "excused"]).optional(),
   notes: z.string().optional(),
 });
 
-const BodySchema = z.object({
-  academyId: z.string().uuid(),
+const upsertBodySchema = z.object({
   sessionId: z.string().uuid(),
-  entries: z.array(EntrySchema).min(1),
+  entries: z.array(entrySchema).min(1),
 });
 
 export const POST = withTenant(async (request, context) => {
-  const body = BodySchema.parse(await request.json());
+  const body = upsertBodySchema.parse(await request.json());
 
   if (!context.tenantId) {
     return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
@@ -28,12 +27,7 @@ export const POST = withTenant(async (request, context) => {
   const [sessionRow] = await db
     .select({ id: classSessions.id })
     .from(classSessions)
-    .where(
-      and(
-        eq(classSessions.id, body.sessionId),
-        eq(classSessions.tenantId, context.tenantId)
-      )
-    )
+    .where(and(eq(classSessions.id, body.sessionId), eq(classSessions.tenantId, context.tenantId)))
     .limit(1);
 
   if (!sessionRow) {
@@ -68,4 +62,45 @@ export const POST = withTenant(async (request, context) => {
   }
 
   return NextResponse.json({ ok: true });
+});
+
+const querySchema = z.object({
+  sessionId: z.string().uuid().optional(),
+  academyId: z.string().uuid().optional(),
+});
+
+export const GET = withTenant(async (request, context) => {
+  const search = Object.fromEntries(new URL(request.url).searchParams);
+  const params = querySchema.parse(search);
+
+  if (!context.tenantId) {
+    return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+  }
+
+  if (!params.sessionId && !params.academyId) {
+    return NextResponse.json({ error: "SESSION_OR_ACADEMY_REQUIRED" }, { status: 400 });
+  }
+
+  const whereConditions = [eq(attendanceRecords.tenantId, context.tenantId)];
+
+  if (params.sessionId) {
+    whereConditions.push(eq(attendanceRecords.sessionId, params.sessionId));
+  } else if (params.academyId) {
+    whereConditions.push(eq(classSessions.classId, params.academyId));
+  }
+
+  const rows = await db
+    .select({
+      id: attendanceRecords.id,
+      sessionId: attendanceRecords.sessionId,
+      athleteId: attendanceRecords.athleteId,
+      status: attendanceRecords.status,
+      notes: attendanceRecords.notes,
+      recordedAt: attendanceRecords.recordedAt,
+    })
+    .from(attendanceRecords)
+    .innerJoin(classSessions, eq(classSessions.id, attendanceRecords.sessionId))
+    .where(and(...whereConditions));
+
+  return NextResponse.json({ items: rows });
 });

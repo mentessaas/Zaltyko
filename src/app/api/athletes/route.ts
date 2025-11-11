@@ -1,10 +1,13 @@
+import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
-import { athletes, familyContacts } from "@/db/schema";
+import { academies, athletes, familyContacts, guardianAthletes, groupAthletes, groups } from "@/db/schema";
 import { assertWithinPlanLimits } from "@/lib/limits";
 import { withTenant } from "@/lib/authz";
+import { athleteStatusOptions } from "@/lib/athletes/constants";
 
 const ContactSchema = z.object({
   name: z.string().min(1),
@@ -20,7 +23,9 @@ const BodySchema = z.object({
   name: z.string().min(1),
   dob: z.string().optional(),
   level: z.string().optional(),
+  status: z.enum(athleteStatusOptions).optional(),
   contacts: z.array(ContactSchema).optional(),
+  groupId: z.string().uuid().optional(),
 });
 
 export const POST = withTenant(async (request, context) => {
@@ -32,20 +37,34 @@ export const POST = withTenant(async (request, context) => {
 
   await assertWithinPlanLimits(context.tenantId, body.academyId, "athletes");
 
-  const athleteId = crypto.randomUUID();
+  if (body.groupId) {
+    const [groupRow] = await db
+      .select({ id: groups.id, academyId: groups.academyId, tenantId: groups.tenantId })
+      .from(groups)
+      .where(eq(groups.id, body.groupId))
+      .limit(1);
+
+    if (!groupRow || groupRow.academyId !== body.academyId || groupRow.tenantId !== context.tenantId) {
+      return NextResponse.json({ error: "GROUP_NOT_FOUND" }, { status: 404 });
+    }
+  }
+
+  const athleteId = randomUUID();
 
   await db.insert(athletes).values({
     id: athleteId,
     tenantId: context.tenantId,
     academyId: body.academyId,
     name: body.name,
-    dob: body.dob ? new Date(body.dob) : null,
+    dob: body.dob ?? null,
     level: body.level,
+    status: body.status ?? "active",
+    groupId: body.groupId ?? null,
   });
 
   if (body.contacts?.length) {
     const rows = body.contacts.map((contact) => ({
-      id: crypto.randomUUID(),
+      id: randomUUID(),
       tenantId: context.tenantId!,
       athleteId,
       name: contact.name,
@@ -59,5 +78,113 @@ export const POST = withTenant(async (request, context) => {
     await db.insert(familyContacts).values(rows).onConflictDoNothing();
   }
 
+  if (body.groupId) {
+    await db
+      .insert(groupAthletes)
+      .values({
+        id: randomUUID(),
+        tenantId: context.tenantId,
+        groupId: body.groupId,
+        athleteId,
+      })
+      .onConflictDoNothing();
+  }
+
   return NextResponse.json({ ok: true, id: athleteId });
 });
+
+const levelArraySchema = z
+  .string()
+  .transform((value) => value.split(",").map((item) => item.trim()).filter(Boolean));
+
+const filterSchema = z.object({
+  level: z.union([z.string(), levelArraySchema]).optional(),
+  status: z
+    .union([
+      z.enum(athleteStatusOptions),
+      z
+        .string()
+        .transform((value) =>
+          value
+            .split(",")
+            .map((item) => item.trim())
+            .filter((item): item is (typeof athleteStatusOptions)[number] =>
+              (athleteStatusOptions as readonly string[]).includes(item)
+            )
+        ),
+    ])
+    .optional(),
+  academyId: z.string().uuid().optional(),
+  minAge: z.coerce.number().min(0).optional(),
+  maxAge: z.coerce.number().min(0).optional(),
+  tenantId: z.string().uuid().optional(),
+  groupId: z.string().uuid().optional(),
+});
+
+export const GET = withTenant(async (request, context) => {
+  const url = new URL(request.url);
+  const filters = filterSchema.safeParse(Object.fromEntries(url.searchParams));
+
+  if (!filters.success) {
+    return NextResponse.json({ error: "INVALID_FILTERS" }, { status: 400 });
+  }
+
+  const { level, status, academyId, minAge, maxAge, tenantId: tenantOverride, groupId } = filters.data;
+
+  const effectiveTenantId = context.tenantId ?? tenantOverride ?? null;
+
+  if (!effectiveTenantId) {
+    return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+  }
+
+  const levelList = Array.isArray(level) ? level : level ? [level] : [];
+  const statusList = Array.isArray(status) ? status : status ? [status] : [];
+
+  const ageExpr = sql<number | null>`CASE WHEN ${athletes.dob} IS NULL THEN NULL ELSE floor(date_part('year', age(now(), ${athletes.dob}))) END`;
+  const guardianCount = sql<number>`count(distinct ${guardianAthletes.id})`;
+
+  const whereConditions = [
+    eq(athletes.tenantId, effectiveTenantId),
+    levelList.length ? inArray(athletes.level, levelList) : undefined,
+    statusList.length ? inArray(athletes.status, statusList) : undefined,
+    academyId ? eq(athletes.academyId, academyId) : undefined,
+    groupId ? eq(athletes.groupId, groupId) : undefined,
+    typeof minAge === "number"
+      ? sql`(${ageExpr}) IS NULL OR (${ageExpr}) >= ${minAge}`
+      : undefined,
+    typeof maxAge === "number"
+      ? sql`(${ageExpr}) IS NULL OR (${ageExpr}) <= ${maxAge}`
+      : undefined,
+  ].filter(Boolean) as Array<ReturnType<typeof eq> | ReturnType<typeof sql>>;
+
+  let whereClause: ReturnType<typeof sql> | undefined;
+  for (const condition of whereConditions) {
+    whereClause = whereClause ? and(whereClause, condition) : condition;
+  }
+
+  const rows = await db
+    .select({
+      id: athletes.id,
+      name: athletes.name,
+      level: athletes.level,
+      status: athletes.status,
+      dob: athletes.dob,
+      academyId: athletes.academyId,
+      academyName: academies.name,
+      groupId: athletes.groupId,
+      groupName: groups.name,
+      groupColor: groups.color,
+      age: ageExpr,
+      guardianCount,
+    })
+    .from(athletes)
+    .leftJoin(academies, eq(athletes.academyId, academies.id))
+    .leftJoin(groups, eq(athletes.groupId, groups.id))
+    .leftJoin(guardianAthletes, eq(guardianAthletes.athleteId, athletes.id))
+    .where(whereClause)
+    .groupBy(athletes.id, academies.name)
+    .orderBy(asc(athletes.name));
+
+  return NextResponse.json({ items: rows });
+});
+

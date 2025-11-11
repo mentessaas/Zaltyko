@@ -52,3 +52,11 @@
 - Tests de límite (49→50 OK, 50→51 bloquea en Free).
 - Test upgrade Pro desbloquea (200).
 - Test Premium ilimitado.
+
+# Issues pendientes (Vitest)
+
+- `/api/admin/users`: cubrir invitaciones y validación de tenant.
+- `/api/athletes` (GET/POST) y CRUD de guardianes.
+- `/api/coaches` y `/api/coaches/[coachId]/assignments`.
+- `/api/class-sessions` y `/api/class-sessions/[sessionId]`.
+- `/api/attendance` (GET/POST) con estados `present/absent/late/excused`.

@@ -1,91 +1,131 @@
-import { Metadata } from "next";
+import type { Metadata } from "next";
 import Link from "next/link";
 
-// CHATGPT PROMPT TO GENERATE YOUR TERMS & SERVICES — replace with your own data 👇
+const updatedAt = "8 de noviembre de 2025";
 
-// 1. Go to https://chat.openai.com/
-// 2. Copy paste bellow
-// 3. Replace the data with your own (if needed)
-// 4. Paste the answer from ChatGPT directly in the <pre> tag below
-
-// You are an excellent lawyer.
-
-// I need your help to write a simple Terms & Services for my website. Here is some context:
-// - Website: https://gopump.co
-// - Name: Pump
-// - Contact information: official@gopump.co
-// - Description: An application responsible for help Personal Trainers and People that like to go to the gym improve their performance.
-// - Ownership: when buying a plan/subscription, users can interact with many features. They can ask for a full refund within 7 day after the purchase.
-// - User data collected: name, email, phone and payment information
-// - Non-personal data collection: web cookies
-// - Link to privacy-policy: https://gopump.co/privacy-policy
-// - Governing Law: France
-// - Updates to the Terms: users will be updated by email
-
-// Please write a simple Terms & Services for my site. Add the current date. Do not add or explain your reasoning. Answer:
+const sections = [
+  {
+    title: "1. Objeto",
+    paragraphs: [
+      "Las presentes Condiciones regulan el acceso y uso de GymnaSaaS, plataforma SaaS que permite a academias de gimnasia gestionar atletas, staff, clases, eventos y facturación.",
+      "Al registrarte, acceder o utilizar el servicio confirmas que tienes autoridad para hacerlo en nombre de una organización y aceptas estos términos.",
+    ],
+  },
+  {
+    title: "2. Registro y cuenta",
+    paragraphs: [
+      "El usuario administrador es responsable de la veracidad de los datos proporcionados, así como de configurar los roles (owner, coach, staff, súper admin) dentro de cada academia.",
+      "Debes custodiar tus credenciales y notificar de inmediato cualquier acceso no autorizado a hola@gymna.app. Podemos suspender o cancelar cuentas que infrinjan estos términos.",
+    ],
+  },
+  {
+    title: "3. Planes, pagos y facturación",
+    paragraphs: [
+      "Ofrecemos planes Free, Pro y Premium descritos en https://gymna.app/pricing. Los pagos recurrentes se procesan a través de Stripe u otro proveedor autorizado.",
+      "Puedes cancelar o cambiar de plan en cualquier momento desde el portal de facturación. Si solicitas la baja, el plan continuará activo hasta el final del periodo en curso.",
+      "Para compras realizadas a través de Stripe, aplicamos un periodo de reembolso de 7 días en caso de insatisfacción, siempre que no se haya utilizado de forma abusiva el servicio.",
+    ],
+  },
+  {
+    title: "4. Uso aceptable",
+    paragraphs: [
+      "Queda prohibido subir contenido ilegal, difamatorio o que infrinja derechos de terceros. También se prohíbe el uso del servicio para spam, scraping o cualquier actividad que comprometa la seguridad.",
+      "Mentes SaaS se reserva el derecho de auditar logs de auditoría para detectar uso indebido y tomar medidas correctivas.",
+    ],
+  },
+  {
+    title: "5. Propiedad intelectual",
+    paragraphs: [
+      "GymnaSaaS y sus componentes son propiedad de Mentes SaaS S.L. El uso del servicio no concede derechos de propiedad intelectual sobre el software, salvo las licencias limitadas contempladas en estos términos.",
+      "La información cargada por tu academia seguirá siendo tuya. Tienes derecho a exportarla mientras la cuenta esté activa o durante los 30 días posteriores a la cancelación.",
+    ],
+  },
+  {
+    title: "6. Datos personales y confidencialidad",
+    paragraphs: [
+      "El tratamiento de datos personales se describe en nuestra Política de Privacidad. Nos comprometemos a mantener la confidencialidad de la información de tu academia.",
+      "Puedes firmar un Acuerdo de Encargado de Tratamiento (DPA) solicitándolo a hola@gymna.app para dar cumplimiento a la normativa europea aplicable.",
+    ],
+  },
+  {
+    title: "7. Integraciones de terceros",
+    paragraphs: [
+      "El acceso a integraciones opcionales (Stripe, Mailgun, GymnasticMeet, etc.) está sujeto a los términos de cada proveedor. No somos responsables de su disponibilidad ni de incidencias derivadas de su uso.",
+    ],
+  },
+  {
+    title: "8. Garantías y responsabilidad",
+    paragraphs: [
+      "GymnaSaaS se ofrece \"tal cual\". Aunque trabajamos para garantizar alta disponibilidad, no garantizamos ausencia de interrupciones. No responderemos por daños indirectos, lucro cesante o pérdida de datos ocasionados por terceros.",
+      "Nuestra responsabilidad total frente a tu organización estará limitada al importe abonado en los últimos doce (12) meses previos al incidente que origine la reclamación.",
+    ],
+  },
+  {
+    title: "9. Terminación",
+    paragraphs: [
+      "Puedes dejar de usar el servicio en cualquier momento. También podremos suspender o cancelar tu acceso si incumples estos términos o si lo exige una autoridad competente.",
+      "Salvo obligación legal, eliminaremos los datos de tu cuenta 30 días después de la terminación definitiva.",
+    ],
+  },
+  {
+    title: "10. Cambios en los términos",
+    paragraphs: [
+      "Podemos actualizar estas condiciones para reflejar cambios normativos o mejoras del servicio. Te lo notificaremos con antelación razonable mediante correo electrónico a los administradores registrados.",
+    ],
+  },
+  {
+    title: "11. Legislación aplicable y jurisdicción",
+    paragraphs: [
+      "Estos términos se rigen por la legislación española. Cualquier controversia se someterá a los tribunales de Madrid, salvo que una normativa imperativa establezca otra jurisdicción.",
+    ],
+  },
+  {
+    title: "12. Contacto",
+    paragraphs: [
+      "Si tienes preguntas sobre estos términos, contáctanos en hola@gymna.app.",
+    ],
+  },
+];
 
 export const metadata: Metadata = {
-  title: "Privacy policy",
+  title: "Términos y condiciones | GymnaSaaS",
+  description: "Condiciones de uso de la plataforma GymnaSaaS para academias de gimnasia.",
 };
 
-const TOS = () => {
+export default function TermsOfServicePage() {
   return (
-    <main className="max-w-xl mx-auto">
-      <div className="p-5">
-        <Link href="/" className="btn btn-ghost">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 20 20"
-            fill="currentColor"
-            className="w-5 h-5"
-          >
-            <path
-              fillRule="evenodd"
-              d="M15 10a.75.75 0 01-.75.75H7.612l2.158 1.96a.75.75 0 11-1.04 1.08l-3.5-3.25a.75.75 0 010-1.08l3.5-3.25a.75.75 0 111.04 1.08L7.612 9.25h6.638A.75.75 0 0115 10z"
-              clipRule="evenodd"
-            />
-          </svg>
-          Voltar
-        </Link>
-        <h1 className="text-3xl font-extrabold pb-6">
-          Termos e Condições de Uso do Pump
+    <main className="mx-auto max-w-3xl px-6 py-16 text-slate-200">
+      <Link
+        href="/"
+        className="inline-flex items-center gap-2 text-sm font-semibold text-emerald-300 hover:text-emerald-200"
+      >
+        <span aria-hidden>←</span> Volver al inicio
+      </Link>
+
+      <header className="mt-8 space-y-3">
+        <p className="text-xs uppercase tracking-[0.35em] text-emerald-300">
+          Términos y condiciones
+        </p>
+        <h1 className="text-3xl font-semibold text-white sm:text-4xl">
+          Condiciones de uso de GymnaSaaS
         </h1>
+        <p className="text-sm text-slate-400">
+          Última actualización: {updatedAt}
+        </p>
+      </header>
 
-        <pre
-          className="leading-relaxed whitespace-pre-wrap"
-          style={{ fontFamily: "sans-serif" }}
-        >
-          {`Última atualização: 12/12/2023
-
-Bem-vindo ao Pump (https://gopump.co). Estes Termos e Condições de Uso ("Termos") regem o uso do nosso aplicativo, que visa ajudar treinadores pessoais e pessoas que frequentam academias a melhorarem seu desempenho. Ao acessar ou usar o Pump, você concorda em cumprir estes Termos.
-
-1. Informações de Contato
-
-Para quaisquer dúvidas ou informações, entre em contato conosco pelo e-mail official@gopump.co.
-
-2. Propriedade e Uso do Serviço
-
-Ao adquirir um plano ou assinatura no Pump, você tem acesso a diversas funcionalidades. Caso não esteja satisfeito, oferecemos um reembolso integral dentro de 7 dias após a compra.
-
-3. Coleta de Dados
-
-Coletamos dados pessoais, como nome, e-mail, telefone e informações de pagamento. Também utilizamos cookies da web para coletar dados não pessoais. Mais informações podem ser encontradas em nossa Política de Privacidade: https://gopump.co/privacy-policy.
-
-4. Lei Aplicável
-
-Estes Termos são regidos pelas leis do Brasil.
-
-5. Alterações nos Termos
-
-Reservamo-nos o direito de modificar estes Termos a qualquer momento. As alterações entrarão em vigor imediatamente após a publicação no site. Informaremos sobre alterações significativas através do e-mail fornecido por você.
-
-6. Aceitação dos Termos
-
-Ao usar o Pump, você declara que leu, entendeu e concordou em estar vinculado a estes Termos.`}
-        </pre>
-      </div>
+      <section className="mt-10 space-y-10">
+        {sections.map((section) => (
+          <article key={section.title} className="space-y-4">
+            <h2 className="text-xl font-semibold text-white">{section.title}</h2>
+            <div className="space-y-3 text-sm leading-relaxed text-slate-200/80">
+              {section.paragraphs.map((paragraph) => (
+                <p key={paragraph}>{paragraph}</p>
+              ))}
+            </div>
+          </article>
+        ))}
+      </section>
     </main>
   );
-};
-
-export default TOS;
+}

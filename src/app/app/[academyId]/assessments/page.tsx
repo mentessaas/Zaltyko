@@ -3,7 +3,7 @@ import { asc, eq } from "drizzle-orm";
 
 import { AssessmentForm } from "@/components/assessment-form";
 import { db } from "@/db";
-import { academies, athletes, skillCatalog } from "@/db/schema";
+import { academies, athletes, groups, skillCatalog } from "@/db/schema";
 
 interface PageProps {
   params: {
@@ -23,10 +23,27 @@ export default async function AssessmentsPage({ params }: PageProps) {
   }
 
   const athleteRows = await db
-    .select({ id: athletes.id, name: athletes.name })
+    .select({
+      id: athletes.id,
+      name: athletes.name,
+      groupId: athletes.groupId,
+      groupName: groups.name,
+      groupColor: groups.color,
+    })
     .from(athletes)
+    .leftJoin(groups, eq(athletes.groupId, groups.id))
     .where(eq(athletes.academyId, params.academyId))
     .orderBy(asc(athletes.name));
+  const groupRows = await db
+    .select({
+      id: groups.id,
+      name: groups.name,
+      color: groups.color,
+    })
+    .from(groups)
+    .where(eq(groups.academyId, params.academyId))
+    .orderBy(asc(groups.name));
+
 
   const skillRows = await db
     .select({ id: skillCatalog.id, name: skillCatalog.name, apparatus: skillCatalog.apparatus })
@@ -43,7 +60,16 @@ export default async function AssessmentsPage({ params }: PageProps) {
           Registra evaluaciones por aparato y lleva el historial de progreso.
         </p>
       </div>
-      <AssessmentForm academyId={params.academyId} athletes={athleteRows} skills={skillRows} />
+      <AssessmentForm
+        academyId={params.academyId}
+        athletes={athleteRows}
+        skills={skillRows}
+        groups={groupRows.map((group) => ({
+          id: group.id,
+          name: group.name ?? "Grupo sin nombre",
+          color: group.color ?? null,
+        }))}
+      />
     </div>
   );
 }

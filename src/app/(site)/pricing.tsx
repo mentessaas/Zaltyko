@@ -1,4 +1,4 @@
-import { Check } from "lucide-react";
+import { Check, Shield, Clock, Globe2 } from "lucide-react";
 
 const plans = [
   {
@@ -39,6 +39,24 @@ const plans = [
       "API extendida y soporte prioritario",
       "Plan de cuentas y auditoría multi-sede",
     ],
+  },
+];
+
+const commonBenefits = [
+  {
+    icon: Shield,
+    title: "Seguridad multi-tenant",
+    description: "Políticas RLS activas, auditoría de acciones y cumplimiento RGPD sin configuración adicional.",
+  },
+  {
+    icon: Clock,
+    title: "Operación en tiempo real",
+    description: "Dashboards instantáneos de asistencia, evaluaciones y finanzas en todas tus academias.",
+  },
+  {
+    icon: Globe2,
+    title: "Soporte en español e inglés",
+    description: "Onboarding guiado, documentación clara y acompañamiento para equipos en distintos países.",
   },
 ];
 
@@ -96,6 +114,39 @@ export default function PricingSection() {
               </a>
             </article>
           ))}
+        </div>
+
+        <div className="mt-16 grid gap-6 md:grid-cols-3">
+          {commonBenefits.map((benefit) => {
+            const Icon = benefit.icon;
+            return (
+              <article
+                key={benefit.title}
+                className="rounded-3xl border border-white/10 bg-[#0a161a] p-6 shadow-lg"
+              >
+                <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-emerald-400/20 text-emerald-200">
+                  <Icon className="h-5 w-5" />
+                </span>
+                <h3 className="mt-4 text-lg font-semibold text-white">{benefit.title}</h3>
+                <p className="mt-2 text-sm text-slate-200/75">{benefit.description}</p>
+              </article>
+            );
+          })}
+        </div>
+
+        <div className="mt-16 rounded-3xl border border-white/10 bg-gradient-to-br from-emerald-400/10 via-lime-300/10 to-transparent p-8 text-center text-slate-100">
+          <h3 className="text-2xl font-semibold text-white">
+            ¿Necesitas un acuerdo enterprise o migrar múltiples academias?
+          </h3>
+          <p className="mt-3 text-sm text-slate-200/80">
+            Ofrecemos sesiones de descubrimiento, scripts de migración y un entorno staging para tu equipo técnico.
+          </p>
+          <a
+            href="mailto:ventas@gymna.app"
+            className="mt-6 inline-flex items-center justify-center rounded-full border border-white/30 px-6 py-3 text-sm font-semibold text-white hover:bg-white/15"
+          >
+            Contactar a ventas
+          </a>
         </div>
       </div>
     </section>

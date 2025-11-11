@@ -18,7 +18,7 @@ export function RegisterForm() {
     e.preventDefault();
     const { error } = await supabase.auth.signUp({ email, password });
     if (error) {
-      console.error("Error registering:", error.message);
+      console.error("Error al registrar la cuenta:", error.message);
     } else {
       router.push("/dashboard");
     }
@@ -28,13 +28,13 @@ export function RegisterForm() {
     <div className="flex min-h-full flex-col justify-center px-6 py-12 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-sm">
         <h2 className="mt-10 text-center text-2xl/9 font-bold tracking-tight text-gray-900">
-          Sign in to your account
+          Crea una cuenta nueva
         </h2>
       </div>
       <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-sm">
         <form onSubmit={handleRegister} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email">Correo electrónico</Label>
             <Input
               id="email"
               type="email"
@@ -44,7 +44,7 @@ export function RegisterForm() {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="password">Contraseña</Label>
             <Input
               id="password"
               type="password"
@@ -54,13 +54,13 @@ export function RegisterForm() {
             />
           </div>
           <Button type="submit" className="w-full">
-            Register
+            Registrarme
           </Button>
         </form>
         <p className="text-center text-sm pt-4">
-          Already have an account?{" "}
-          <Link href="/login" className="text-blue-500 hover:underline">
-            Login
+          ¿Ya tienes una cuenta?{" "}
+          <Link href="/auth/login" className="text-blue-500 hover:underline">
+            Inicia sesión
           </Link>
         </p>
       </div>

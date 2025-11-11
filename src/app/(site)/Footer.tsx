@@ -36,9 +36,14 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/docs" className="hover:text-white">
-                  Documentación técnica
-                </Link>
+                <a
+                  href="https://github.com/mentessaas/gym-saas"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="hover:text-white"
+                >
+                  Repositorio GitHub
+                </a>
               </li>
             </ul>
           </div>

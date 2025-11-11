@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 
 import { useDevSession } from "@/components/dev-session-provider";
 
@@ -13,12 +13,20 @@ interface SkillOption {
 interface AthleteOption {
   id: string;
   name: string;
+  groupId: string | null;
+  groupName?: string | null;
+  groupColor?: string | null;
 }
 
 interface AssessmentFormProps {
   academyId: string;
   athletes: AthleteOption[];
   skills: SkillOption[];
+  groups?: {
+    id: string;
+    name: string;
+    color: string | null;
+  }[];
 }
 
 interface ScoreRow {
@@ -27,10 +35,16 @@ interface ScoreRow {
   comments: string;
 }
 
-export function AssessmentForm({ academyId, athletes, skills }: AssessmentFormProps) {
+export function AssessmentForm({ academyId, athletes, skills, groups = [] }: AssessmentFormProps) {
   const { session, refresh } = useDevSession();
 
-  const [athleteId, setAthleteId] = useState(athletes[0]?.id ?? "");
+  const [groupFilter, setGroupFilter] = useState<string>("");
+  const filteredAthletes = useMemo(() => {
+    if (!groupFilter) return athletes;
+    return athletes.filter((athlete) => athlete.groupId === groupFilter);
+  }, [athletes, groupFilter]);
+
+  const [athleteId, setAthleteId] = useState(filteredAthletes[0]?.id ?? "");
   const [assessmentDate, setAssessmentDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [apparatus, setApparatus] = useState<string>("");
   const [assessedBy, setAssessedBy] = useState<string>("");
@@ -56,6 +70,7 @@ export function AssessmentForm({ academyId, athletes, skills }: AssessmentFormPr
   };
 
   const resetForm = () => {
+    setGroupFilter("");
     setAthleteId(athletes[0]?.id ?? "");
     setAssessmentDate(new Date().toISOString().slice(0, 10));
     setApparatus("");
@@ -116,6 +131,12 @@ export function AssessmentForm({ academyId, athletes, skills }: AssessmentFormPr
     }
   };
 
+  useEffect(() => {
+    if (!filteredAthletes.some((athlete) => athlete.id === athleteId)) {
+      setAthleteId(filteredAthletes[0]?.id ?? "");
+    }
+  }, [filteredAthletes, athleteId]);
+
   return (
     <div className="rounded-lg border bg-card p-6 shadow-sm">
       <div className="mb-4 flex items-center justify-between">
@@ -136,6 +157,24 @@ export function AssessmentForm({ academyId, athletes, skills }: AssessmentFormPr
         </p>
       ) : (
         <form className="space-y-4" onSubmit={handleSubmit}>
+          {groups.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium">Filtrar por grupo</label>
+              <select
+                className="mt-1 w-full rounded border px-3 py-2"
+                value={groupFilter}
+                onChange={(event) => setGroupFilter(event.target.value)}
+              >
+                <option value="">Todos los grupos</option>
+                {groups.map((group) => (
+                  <option key={group.id} value={group.id}>
+                    {group.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           <div>
             <label className="block text-sm font-medium">Atleta</label>
             <select
@@ -144,12 +183,21 @@ export function AssessmentForm({ academyId, athletes, skills }: AssessmentFormPr
               onChange={(event) => setAthleteId(event.target.value)}
               required
             >
-              {athletes.map((athlete) => (
+              {filteredAthletes.map((athlete) => (
                 <option key={athlete.id} value={athlete.id}>
                   {athlete.name}
                 </option>
               ))}
             </select>
+            {athleteId && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                {athletes.find((athlete) => athlete.id === athleteId)?.groupName
+                  ? `Grupo: ${
+                      athletes.find((athlete) => athlete.id === athleteId)?.groupName ?? "Sin grupo"
+                    }`
+                  : "Sin grupo asignado"}
+              </p>
+            )}
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
