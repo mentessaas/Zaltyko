@@ -68,8 +68,8 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <a href="mailto:hola@gymna.app" className="hover:text-white">
-                  hola@gymna.app
+                <a href="mailto:hola@zaltyko.com" className="hover:text-white">
+                  hola@zaltyko.com
                 </a>
               </li>
             </ul>

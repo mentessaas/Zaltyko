@@ -15,13 +15,13 @@ const sections = [
     title: "2. Registro y cuenta",
     paragraphs: [
       "El usuario administrador es responsable de la veracidad de los datos proporcionados, así como de configurar los roles (owner, coach, staff, súper admin) dentro de cada academia.",
-      "Debes custodiar tus credenciales y notificar de inmediato cualquier acceso no autorizado a hola@gymna.app. Podemos suspender o cancelar cuentas que infrinjan estos términos.",
+      "Debes custodiar tus credenciales y notificar de inmediato cualquier acceso no autorizado a hola@zaltyko.com. Podemos suspender o cancelar cuentas que infrinjan estos términos.",
     ],
   },
   {
     title: "3. Planes, pagos y facturación",
     paragraphs: [
-      "Ofrecemos planes Free, Pro y Premium descritos en https://gymna.app/pricing. Los pagos recurrentes se procesan a través de Stripe u otro proveedor autorizado.",
+      "Ofrecemos planes Free, Pro y Premium descritos en https://zaltyko.com/pricing. Los pagos recurrentes se procesan a través de Stripe u otro proveedor autorizado.",
       "Puedes cancelar o cambiar de plan en cualquier momento desde el portal de facturación. Si solicitas la baja, el plan continuará activo hasta el final del periodo en curso.",
       "Para compras realizadas a través de Stripe, aplicamos un periodo de reembolso de 7 días en caso de insatisfacción, siempre que no se haya utilizado de forma abusiva el servicio.",
     ],
@@ -44,7 +44,7 @@ const sections = [
     title: "6. Datos personales y confidencialidad",
     paragraphs: [
       "El tratamiento de datos personales se describe en nuestra Política de Privacidad. Nos comprometemos a mantener la confidencialidad de la información de tu academia.",
-      "Puedes firmar un Acuerdo de Encargado de Tratamiento (DPA) solicitándolo a hola@gymna.app para dar cumplimiento a la normativa europea aplicable.",
+      "Puedes firmar un Acuerdo de Encargado de Tratamiento (DPA) solicitándolo a hola@zaltyko.com para dar cumplimiento a la normativa europea aplicable.",
     ],
   },
   {
@@ -82,7 +82,7 @@ const sections = [
   {
     title: "12. Contacto",
     paragraphs: [
-      "Si tienes preguntas sobre estos términos, contáctanos en hola@gymna.app.",
+      "Si tienes preguntas sobre estos términos, contáctanos en hola@zaltyko.com.",
     ],
   },
 ];

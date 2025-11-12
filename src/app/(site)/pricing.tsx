@@ -103,7 +103,7 @@ export default function PricingSection() {
               </ul>
 
               <a
-                href={plan.title === "Premium" ? "mailto:ventas@gymna.app" : "/onboarding"}
+                href={plan.title === "Premium" ? "mailto:ventas@zaltyko.com" : "/onboarding"}
                 className={`mt-8 inline-flex items-center justify-center rounded-full px-6 py-2 text-sm font-semibold transition ${
                   plan.highlight
                     ? "bg-gradient-to-r from-zaltyko-accent to-zaltyko-accent-light text-zaltyko-primary-dark"
@@ -142,7 +142,7 @@ export default function PricingSection() {
             Ofrecemos sesiones de descubrimiento, scripts de migración y un entorno staging para tu equipo técnico.
           </p>
           <a
-            href="mailto:ventas@gymna.app"
+            href="mailto:ventas@zaltyko.com"
             className="mt-6 inline-flex items-center justify-center rounded-full border border-white/30 px-6 py-3 text-sm font-semibold text-white hover:bg-white/15"
           >
             Contactar a ventas

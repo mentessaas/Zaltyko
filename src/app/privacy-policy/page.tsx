@@ -58,7 +58,7 @@ const sections = [
       "Acceder, rectificar o borrar tus datos personales.",
       "Limitar u oponerte a determinados tratamientos.",
       "Solicitar la portabilidad de la información en un formato estructurado.",
-      "Ejercer estos derechos escribiendo a hola@gymna.app, indicando el rol y la academia a la que perteneces.",
+      "Ejercer estos derechos escribiendo a hola@zaltyko.com, indicando el rol y la academia a la que perteneces.",
     ],
   },
   {
@@ -83,7 +83,7 @@ const sections = [
   {
     title: "11. Contacto",
     content: [
-      "Para consultas sobre privacidad o ejercer tus derechos, escríbenos a hola@gymna.app o contáctanos desde la sección de soporte en el dashboard.",
+      "Para consultas sobre privacidad o ejercer tus derechos, escríbenos a hola@zaltyko.com o contáctanos desde la sección de soporte en el dashboard.",
     ],
   },
 ];
