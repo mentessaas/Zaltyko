@@ -231,10 +231,10 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
 
   return (
     <div className="w-full space-y-6">
-      <div className="flex w-full flex-col gap-4 rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-white/90 shadow-md sm:rounded-2xl sm:p-5 lg:flex-row lg:items-end lg:justify-between">
+      <div className="flex w-full flex-col gap-4 rounded-xl border border-white/10 bg-white/5 p-4 font-sans text-sm text-white/90 shadow-md sm:rounded-2xl sm:p-5 lg:flex-row lg:items-end lg:justify-between">
         <div className="min-w-0 space-y-1">
-          <p className="text-xs uppercase tracking-wide text-white/70">Usuarios</p>
-          <h2 className="text-lg font-semibold text-white sm:text-xl">Control de roles y estados</h2>
+          <p className="font-display text-xs uppercase tracking-wide text-zaltyko-accent-light">Usuarios</p>
+          <h2 className="font-display text-lg font-semibold text-white sm:text-xl">Control de roles y estados</h2>
           <p className="break-words text-xs text-white/70 sm:text-sm">
             {items.length} usuarios listados ·{" "}
             {Object.entries(roleCounts)
