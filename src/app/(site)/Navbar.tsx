@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { BarChart3, Menu, X } from "lucide-react";
+import { BarChart3, Menu, X, ArrowRight } from "lucide-react";
 import { useState } from "react";
 import { isDevFeaturesEnabled } from "@/lib/dev";
 
@@ -45,14 +45,13 @@ export default function Navbar() {
           >
             Iniciar sesión
           </Link>
-          {isDevFeaturesEnabled && (
-            <Link
-              href="/onboarding"
-              className="rounded-full bg-gradient-to-r from-zaltyko-accent to-zaltyko-accent-light px-4 py-2 text-sm font-semibold text-zaltyko-primary-dark transition hover:from-zaltyko-accent-light hover:to-zaltyko-accent"
-            >
-              Crear academia demo
-            </Link>
-          )}
+          <Link
+            href="/onboarding"
+            className="group relative inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-zaltyko-accent to-zaltyko-accent-light px-5 py-2.5 text-sm font-bold text-zaltyko-primary-dark shadow-md shadow-zaltyko-accent/20 transition-all duration-300 hover:scale-105 hover:from-zaltyko-accent-light hover:to-zaltyko-accent hover:shadow-lg hover:shadow-zaltyko-accent/30 active:scale-100"
+          >
+            <span>Empezar ahora</span>
+            <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-0.5" />
+          </Link>
         </div>
 
         <button
@@ -85,15 +84,14 @@ export default function Navbar() {
             >
               Iniciar sesión
             </Link>
-            {isDevFeaturesEnabled && (
-              <Link
-                href="/onboarding"
-                className="mt-4 block rounded-full bg-gradient-to-r from-zaltyko-accent to-zaltyko-accent-light px-3 py-2 text-center text-sm font-semibold text-zaltyko-primary-dark"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Crear academia demo
-              </Link>
-            )}
+            <Link
+              href="/onboarding"
+              className="mt-4 inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-zaltyko-accent to-zaltyko-accent-light px-4 py-3 text-center text-sm font-bold text-zaltyko-primary-dark shadow-md shadow-zaltyko-accent/20 transition-all duration-300 hover:scale-105 hover:from-zaltyko-accent-light hover:to-zaltyko-accent hover:shadow-lg hover:shadow-zaltyko-accent/30 active:scale-100"
+              onClick={() => setIsMenuOpen(false)}
+            >
+              <span>Empezar ahora</span>
+              <ArrowRight className="h-4 w-4" />
+            </Link>
           </div>
         </div>
       )}
