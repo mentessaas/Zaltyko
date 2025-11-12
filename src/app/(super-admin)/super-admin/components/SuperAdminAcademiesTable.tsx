@@ -235,11 +235,11 @@ export function SuperAdminAcademiesTable({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/5 p-5 text-sm text-slate-200 lg:flex-row lg:items-end lg:justify-between">
+      <div className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/5 p-5 font-sans text-sm text-white/90 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="text-xs uppercase tracking-wide text-slate-300">Academias</p>
-          <h2 className="text-xl font-semibold text-white">Gestión centralizada</h2>
-          <p className="text-xs text-slate-300">Total: {total} academias registradas.</p>
+          <p className="font-display text-xs uppercase tracking-wide text-zaltyko-accent-light">Academias</p>
+          <h2 className="font-display text-xl font-semibold text-white">Gestión centralizada</h2>
+          <p className="font-sans text-xs text-white/70">Total: {total} academias registradas.</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <select
