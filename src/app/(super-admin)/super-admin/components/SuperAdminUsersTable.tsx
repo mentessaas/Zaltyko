@@ -231,11 +231,11 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
 
   return (
     <div className="w-full space-y-6">
-      <div className="flex w-full flex-col gap-4 rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-slate-200 shadow-md sm:rounded-2xl sm:p-5 lg:flex-row lg:items-end lg:justify-between">
+      <div className="flex w-full flex-col gap-4 rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-white/90 shadow-md sm:rounded-2xl sm:p-5 lg:flex-row lg:items-end lg:justify-between">
         <div className="min-w-0 space-y-1">
-          <p className="text-xs uppercase tracking-wide text-slate-300">Usuarios</p>
+          <p className="text-xs uppercase tracking-wide text-white/70">Usuarios</p>
           <h2 className="text-lg font-semibold text-white sm:text-xl">Control de roles y estados</h2>
-          <p className="break-words text-xs text-slate-300 sm:text-sm">
+          <p className="break-words text-xs text-white/70 sm:text-sm">
             {items.length} usuarios listados ·{" "}
             {Object.entries(roleCounts)
               .map(([role, count]) => `${formatRole(role)}: ${count}`)
@@ -263,7 +263,7 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
             )}
           </Button>
           <select
-            className="h-10 w-full rounded-lg border-2 border-white/20 bg-white/10 px-3 py-2 text-sm font-medium text-slate-100 transition-all duration-200 hover:border-white/40 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20 min-h-[44px] sm:min-h-[40px] sm:w-auto"
+            className="h-10 w-full rounded-lg border-2 border-white/20 bg-white/10 px-3 py-2 text-sm font-medium text-white transition-all duration-200 hover:border-white/40 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20 min-h-[44px] sm:min-h-[40px] sm:w-auto"
             value={filters.role ?? ""}
             onChange={(event) => {
               const roleValue = event.target.value as typeof ROLE_OPTIONS[number] | "";
@@ -278,7 +278,7 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
             ))}
           </select>
           <select
-            className="h-10 w-full rounded-lg border-2 border-white/20 bg-white/10 px-3 py-2 text-sm font-medium text-slate-100 transition-all duration-200 hover:border-white/40 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20 min-h-[44px] sm:min-h-[40px] sm:w-auto"
+            className="h-10 w-full rounded-lg border-2 border-white/20 bg-white/10 px-3 py-2 text-sm font-medium text-white transition-all duration-200 hover:border-white/40 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20 min-h-[44px] sm:min-h-[40px] sm:w-auto"
             value={filters.status ?? ""}
             onChange={(event) =>
               handleFilterChange({
@@ -293,13 +293,13 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
           <input
             type="search"
             placeholder="Buscar por nombre o correo"
-            className="h-10 w-full rounded-lg border-2 border-white/20 bg-white/10 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-400 transition-all duration-200 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20 min-h-[44px] sm:min-h-[40px] sm:max-w-xs"
+            className="h-10 w-full rounded-lg border-2 border-white/20 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/50 transition-all duration-200 focus:border-white/60 focus:outline-none focus:ring-2 focus:ring-white/20 min-h-[44px] sm:min-h-[40px] sm:max-w-xs"
             onBlur={(event) => handleFilterChange({ search: event.target.value || undefined })}
           />
           <Button
             variant="outline"
             size="sm"
-            className="border-white/20 bg-white/10 text-slate-100 hover:border-white/40 hover:bg-white/20"
+            className="border-white/20 bg-white/10 text-white hover:border-white/40 hover:bg-white/20"
             onClick={() => handleFilterChange({ role: undefined, status: undefined, search: undefined })}
             disabled={loading}
           >
@@ -311,7 +311,7 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
       <div className="w-full overflow-hidden rounded-xl border border-white/10 bg-white/5 shadow-md sm:rounded-2xl">
         <div className="w-full overflow-x-auto">
           <table className="min-w-full divide-y divide-white/10 text-sm">
-            <thead className="bg-white/10 text-xs uppercase tracking-wide text-slate-200">
+            <thead className="bg-white/10 font-display text-xs uppercase tracking-wide text-white">
               <tr>
                 <th className="px-3 py-3 text-left font-semibold sm:px-4">Usuario</th>
                 <th className="px-3 py-3 text-left font-semibold sm:px-4">Rol</th>
@@ -320,10 +320,10 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
                 <th className="px-3 py-3 text-right font-semibold sm:px-4">Acciones</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/10 text-slate-100">
+            <tbody className="divide-y divide-white/10 text-white">
             {items.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-10 text-center text-sm text-slate-300">
+                <td colSpan={5} className="px-4 py-10 text-center text-sm text-white/70">
                   No se encontraron usuarios.
                 </td>
               </tr>
@@ -340,8 +340,8 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
                 <td className="px-4 py-4">
                   <div className="space-y-1">
                     <p className="font-semibold text-white">{user.fullName ?? "Sin nombre"}</p>
-                    <p className="text-xs text-slate-300">{user.email ?? "Sin correo"}</p>
-                    <p className="text-xs text-slate-400">
+                    <p className="text-xs text-white/70">{user.email ?? "Sin correo"}</p>
+                    <p className="text-xs text-white/50">
                       Registrado:{" "}
                       {user.createdAt
                         ? new Date(user.createdAt).toLocaleDateString("es-ES")
@@ -351,7 +351,7 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
                 </td>
                 <td className="px-4 py-4">
                   <select
-                    className="rounded-lg border border-white/20 bg-white/10 px-2 py-1 text-xs font-semibold uppercase tracking-wide text-slate-100 focus:border-white/40 focus:outline-none"
+                    className="rounded-lg border border-white/20 bg-white/10 px-2 py-1 text-xs font-semibold uppercase tracking-wide text-white focus:border-white/40 focus:outline-none"
                     value={user.role ?? ""}
                     onChange={(event) => {
                       const newRole = event.target.value as typeof ROLE_OPTIONS[number];
@@ -388,7 +388,7 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
                       {user.planCode}
                     </span>
                   ) : (
-                    <span className="text-xs text-slate-400">Sin plan</span>
+                    <span className="text-xs text-white/50">Sin plan</span>
                   )}
                 </td>
                 <td className="px-4 py-4 text-right">
@@ -396,7 +396,7 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
                     variant="outline"
                     size="sm"
                     className={cn(
-                      "border-white/20 bg-white/10 text-slate-100 hover:border-white/40 hover:bg-white/20",
+                      "border-white/20 bg-white/10 text-white hover:border-white/40 hover:bg-white/20",
                       user.isSuspended && "border-zaltyko-primary/40 text-zaltyko-primary-light",
                     )}
                     onClick={() =>
