@@ -46,7 +46,7 @@ export async function syncAthletesWithUsers(): Promise<{
         .replace(/\s+/g, "_") // Reemplazar espacios con guiones bajos
         .substring(0, 50); // Limitar longitud
 
-      const email = `${sanitizedName}_${athlete.athleteId.substring(0, 8)}@gymnasaas.local`;
+      const email = `${sanitizedName}_${athlete.athleteId.substring(0, 8)}@zaltyko.local`;
 
       // Verificar si ya existe un usuario con este email (por si acaso)
       const existingUser = await adminClient.auth.admin.getUserByEmail(email);
