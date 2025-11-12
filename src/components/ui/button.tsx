@@ -5,26 +5,26 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 disabled:cursor-not-allowed [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 active:scale-[0.98]",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-2xl text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zaltyko-primary-light focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 disabled:cursor-not-allowed [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 active:scale-[0.98]",
   {
     variants: {
       variant: {
         default:
-          "bg-primary text-primary-foreground shadow-md hover:bg-primary/90 hover:shadow-lg",
+          "bg-zaltyko-primary text-white shadow-button hover:bg-zaltyko-primary-light hover:shadow-lg font-display",
         destructive:
           "bg-destructive text-destructive-foreground shadow-md hover:bg-destructive/90 hover:shadow-lg",
         outline:
-          "border-2 border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground hover:border-accent",
+          "border-2 border-zaltyko-primary bg-background text-zaltyko-primary shadow-sm hover:bg-zaltyko-primary-light/10 hover:border-zaltyko-primary-light",
         secondary:
-          "bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80",
-        ghost: "hover:bg-accent hover:text-accent-foreground",
-        link: "text-primary underline-offset-4 hover:underline",
+          "bg-zaltyko-accent text-zaltyko-primary-dark shadow-button hover:bg-zaltyko-accent-light hover:shadow-lg font-display",
+        ghost: "text-zaltyko-primary hover:text-zaltyko-primary-light hover:bg-zaltyko-primary/10",
+        link: "text-zaltyko-primary underline-offset-4 hover:underline hover:text-zaltyko-primary-light",
       },
       size: {
         default: "h-10 px-4 py-2 min-h-[44px] sm:min-h-[40px]",
-        sm: "h-9 rounded-md px-3 text-xs min-h-[40px] sm:min-h-[36px]",
-        lg: "h-12 rounded-lg px-8 text-base min-h-[48px] sm:min-h-[44px]",
-        icon: "h-10 w-10 min-h-[44px] min-w-[44px] sm:min-h-[40px] sm:min-w-[40px]",
+        sm: "h-9 rounded-xl px-3 text-xs min-h-[40px] sm:min-h-[36px]",
+        lg: "h-12 rounded-2xl px-8 text-base min-h-[48px] sm:min-h-[44px]",
+        icon: "h-10 w-10 rounded-2xl min-h-[44px] min-w-[44px] sm:min-h-[40px] sm:min-w-[40px]",
       },
     },
     defaultVariants: {
