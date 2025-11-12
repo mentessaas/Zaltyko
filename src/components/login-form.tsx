@@ -103,7 +103,7 @@ export default function LoginForm() {
         </div>
         <p className="text-center text-sm">
           ¿Aún no tienes cuenta?{" "}
-          <Link href="/auth/register" className="text-blue-500 hover:underline">
+          <Link href="/onboarding" className="text-blue-500 hover:underline">
             Regístrate
           </Link>
         </p>

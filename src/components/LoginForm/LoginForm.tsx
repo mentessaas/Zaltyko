@@ -141,7 +141,7 @@ export function LoginForm() {
           <p className="text-center text-sm pt-4">
             ¿Aún no tienes cuenta?{" "}
             <Link
-              href="/auth/register"
+              href="/onboarding"
               className="text-blue-500 hover:underline"
             >
               Regístrate
