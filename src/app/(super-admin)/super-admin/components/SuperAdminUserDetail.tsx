@@ -445,10 +445,10 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
       {/* Modal de violaciones de límites */}
       {planViolations && planViolations.requiresAction && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="max-w-2xl rounded-2xl border border-amber-400/60 bg-slate-900 p-6 shadow-xl">
+          <div className="max-w-2xl rounded-2xl border border-amber-400/60 bg-zaltyko-primary-dark/50 p-6 shadow-xl">
             <div className="mb-4">
               <h2 className="text-2xl font-semibold text-white">Atención: Límites del plan excedidos</h2>
-              <p className="mt-2 text-sm text-slate-300">
+              <p className="mt-2 text-sm text-white/70">
                 El nuevo plan tiene límites más restrictivos. El usuario tiene los siguientes recursos que exceden el límite:
               </p>
             </div>
@@ -467,18 +467,18 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
                       {violation.currentCount} / {violation.limit ?? "∞"}
                     </span>
                   </div>
-                  <p className="mb-2 text-xs text-slate-400">
+                  <p className="mb-2 text-xs text-white/50">
                     Tienes {violation.currentCount} {violation.resource}, pero el plan solo permite {violation.limit ?? "ilimitados"}.
                   </p>
                   {violation.items.length > 0 && (
                     <div className="mt-2 max-h-32 overflow-y-auto">
-                      <p className="mb-1 text-xs font-semibold text-slate-300">Items afectados:</p>
-                      <ul className="space-y-1 text-xs text-slate-400">
+                      <p className="mb-1 text-xs font-semibold text-white/70">Items afectados:</p>
+                      <ul className="space-y-1 text-xs text-white/50">
                         {violation.items.slice(0, 5).map((item) => (
                           <li key={item.id}>• {item.name ?? `ID: ${item.id}`}</li>
                         ))}
                         {violation.items.length > 5 && (
-                          <li className="text-slate-500">... y {violation.items.length - 5} más</li>
+                          <li className="text-white/40">... y {violation.items.length - 5} más</li>
                         )}
                       </ul>
                     </div>
@@ -514,7 +514,7 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
                 )}
               </Button>
             </div>
-            <p className="mt-4 text-xs text-slate-400">
+            <p className="mt-4 text-xs text-white/50">
               Nota: Si cambias el plan de todas formas, se notificará al usuario para que ajuste manualmente sus recursos.
             </p>
           </div>
@@ -525,7 +525,7 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
         <div className="mb-6 flex items-start justify-between">
           <div>
             <h1 className="text-3xl font-semibold text-white">{user.name ?? "Sin nombre"}</h1>
-            <p className="mt-2 text-sm text-slate-300">
+            <p className="mt-2 text-sm text-white/70">
               ID: <span className="font-mono text-xs">{user.id}</span>
             </p>
           </div>
@@ -606,29 +606,29 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
         <div className="grid gap-6 md:grid-cols-2">
           <div className="space-y-4">
             <div>
-              <Label className="mb-2 flex items-center gap-2 text-xs uppercase tracking-wide text-slate-400">
+              <Label className="mb-2 flex items-center gap-2 text-xs uppercase tracking-wide text-white/50">
                 <User className="h-4 w-4" strokeWidth={1.8} />
                 Información personal
               </Label>
               <div className="mt-2 space-y-3 rounded-xl border border-white/10 bg-white/5 p-4">
                 <div>
-                  <p className="mb-2 text-xs text-slate-400">Nombre</p>
+                  <p className="mb-2 text-xs text-white/50">Nombre</p>
                   <Input
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="border-white/20 bg-white/10 text-white placeholder:text-slate-500"
+                    className="border-white/20 bg-white/10 text-white placeholder:text-white/40"
                     placeholder="Nombre del usuario"
                     disabled={user.role === "super_admin"}
                   />
                 </div>
                 <div>
-                  <p className="mb-2 text-xs text-slate-400">Correo electrónico</p>
+                  <p className="mb-2 text-xs text-white/50">Correo electrónico</p>
                   <div className="flex gap-2">
                     <Input
                       type="email"
                       value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      className="border-white/20 bg-white/10 text-white placeholder:text-slate-500"
+                      className="border-white/20 bg-white/10 text-white placeholder:text-white/40"
                       placeholder="correo@ejemplo.com"
                       disabled={user.role === "super_admin"}
                     />
@@ -645,7 +645,7 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
                   </div>
                 </div>
                 <div>
-                  <p className="mb-2 text-xs text-slate-400">Rol</p>
+                  <p className="mb-2 text-xs text-white/50">Rol</p>
                   <select
                     value={formData.role}
                     onChange={(e) => setFormData({ ...formData, role: e.target.value })}
@@ -663,15 +663,15 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
             </div>
 
             <div>
-              <Label className="mb-2 flex items-center gap-2 text-xs uppercase tracking-wide text-slate-400">
+              <Label className="mb-2 flex items-center gap-2 text-xs uppercase tracking-wide text-white/50">
                 <CreditCard className="h-4 w-4" strokeWidth={1.8} />
                 Plan y Suscripción
               </Label>
               <div className="mt-2 space-y-3 rounded-xl border border-white/10 bg-white/5 p-4">
                 <div>
-                  <p className="mb-2 text-xs text-slate-400">Plan</p>
+                  <p className="mb-2 text-xs text-white/50">Plan</p>
                   {loadingPlans ? (
-                    <div className="flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-sm text-slate-400">
+                    <div className="flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-sm text-white/50">
                       <Loader2 className="h-4 w-4 animate-spin" />
                       Cargando planes...
                     </div>
@@ -698,14 +698,14 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
                   {user.subscription && (
                     <div className="mt-3 space-y-2">
                       <div>
-                        <p className="text-xs text-slate-400">Estado de suscripción</p>
+                        <p className="text-xs text-white/50">Estado de suscripción</p>
                         <p className="text-sm font-medium capitalize text-white">
                           {user.subscription.status ?? "Sin estado"}
                         </p>
                       </div>
                       {user.subscription.stripeCustomerId && (
                         <div>
-                          <p className="text-xs text-slate-400">Stripe Customer ID</p>
+                          <p className="text-xs text-white/50">Stripe Customer ID</p>
                           <p className="mt-1 font-mono text-xs text-white">
                             {user.subscription.stripeCustomerId}
                           </p>
@@ -718,31 +718,31 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
             </div>
 
             <div>
-              <Label className="mb-2 flex items-center gap-2 text-xs uppercase tracking-wide text-slate-400">
+              <Label className="mb-2 flex items-center gap-2 text-xs uppercase tracking-wide text-white/50">
                 <Calendar className="h-4 w-4" strokeWidth={1.8} />
                 Información de cuenta
               </Label>
               <div className="mt-2 space-y-2 rounded-xl border border-white/10 bg-white/5 p-4 text-sm">
                 <div>
-                  <p className="text-xs text-slate-400">Usuario ID</p>
+                  <p className="text-xs text-white/50">Usuario ID</p>
                   <p className="mt-1 font-mono text-xs text-white">{user.userId}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-slate-400">Perfil ID</p>
+                  <p className="text-xs text-white/50">Perfil ID</p>
                   <p className="mt-1 font-mono text-xs text-white">{user.id}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-slate-400">Tenant ID</p>
+                  <p className="text-xs text-white/50">Tenant ID</p>
                   <p className="mt-1 font-mono text-xs text-white">{user.tenantId ?? "Sin tenant"}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-slate-400">Academia activa</p>
+                  <p className="text-xs text-white/50">Academia activa</p>
                   <p className="mt-1 font-mono text-xs text-white">
                     {user.activeAcademyId ?? "Sin academia activa"}
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs text-slate-400">Registrado</p>
+                  <p className="text-xs text-white/50">Registrado</p>
                   <p className="mt-1 text-white">
                     {user.createdAt
                       ? new Date(user.createdAt).toLocaleDateString("es-ES", {
@@ -759,13 +759,13 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
 
           <div className="space-y-4">
             <div>
-              <Label className="mb-2 flex items-center gap-2 text-xs uppercase tracking-wide text-slate-400">
+              <Label className="mb-2 flex items-center gap-2 text-xs uppercase tracking-wide text-white/50">
                 <MessageSquare className="h-4 w-4" strokeWidth={1.8} />
                 Enviar mensaje o notificación
               </Label>
               <div className="mt-2 space-y-3 rounded-xl border border-white/10 bg-white/5 p-4">
                 <div>
-                  <p className="mb-2 text-xs text-slate-400">Tipo de mensaje</p>
+                  <p className="mb-2 text-xs text-white/50">Tipo de mensaje</p>
                   <select
                     value={messageForm.type}
                     onChange={(e) =>
@@ -779,21 +779,21 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
                   </select>
                 </div>
                 <div>
-                  <p className="mb-2 text-xs text-slate-400">Asunto</p>
+                  <p className="mb-2 text-xs text-white/50">Asunto</p>
                   <Input
                     value={messageForm.subject}
                     onChange={(e) => setMessageForm({ ...messageForm, subject: e.target.value })}
-                    className="border-white/20 bg-white/10 text-white placeholder:text-slate-500"
+                    className="border-white/20 bg-white/10 text-white placeholder:text-white/40"
                     placeholder="Asunto del mensaje"
                     disabled={sendingMessage || !user.email}
                   />
                 </div>
                 <div>
-                  <p className="mb-2 text-xs text-slate-400">Mensaje</p>
+                  <p className="mb-2 text-xs text-white/50">Mensaje</p>
                   <textarea
                     value={messageForm.message}
                     onChange={(e) => setMessageForm({ ...messageForm, message: e.target.value })}
-                    className="min-h-[120px] w-full rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:border-white/60 focus:outline-none"
+                    className="min-h-[120px] w-full rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-white/60 focus:outline-none"
                     placeholder="Escribe tu mensaje aquí..."
                     disabled={sendingMessage || !user.email}
                   />
@@ -826,7 +826,7 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
 
             {user.stats && (
               <div>
-                <Label className="mb-2 flex items-center gap-2 text-xs uppercase tracking-wide text-slate-400">
+                <Label className="mb-2 flex items-center gap-2 text-xs uppercase tracking-wide text-white/50">
                   <Shield className="h-4 w-4" strokeWidth={1.8} />
                   Estadísticas
                 </Label>
@@ -835,7 +835,7 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
                     <div className="flex items-center gap-2">
                       <Building2 className="h-4 w-4 text-zaltyko-primary-light" strokeWidth={1.8} />
                       <div>
-                        <p className="text-xs text-slate-400">Academias</p>
+                        <p className="text-xs text-white/50">Academias</p>
                         <p className="text-lg font-semibold text-white">{user.stats.academiesOwned}</p>
                       </div>
                     </div>
@@ -844,7 +844,7 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
                     <div className="flex items-center gap-2">
                       <Users className="h-4 w-4 text-blue-400" strokeWidth={1.8} />
                       <div>
-                        <p className="text-xs text-slate-400">Atletas</p>
+                        <p className="text-xs text-white/50">Atletas</p>
                         <p className="text-lg font-semibold text-white">{user.stats.totalAthletes}</p>
                       </div>
                     </div>
@@ -853,7 +853,7 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
                     <div className="flex items-center gap-2">
                       <GraduationCap className="h-4 w-4 text-purple-400" strokeWidth={1.8} />
                       <div>
-                        <p className="text-xs text-slate-400">Entrenadores</p>
+                        <p className="text-xs text-white/50">Entrenadores</p>
                         <p className="text-lg font-semibold text-white">{user.stats.totalCoaches}</p>
                       </div>
                     </div>
@@ -862,7 +862,7 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
                     <div className="flex items-center gap-2">
                       <BookOpen className="h-4 w-4 text-orange-400" strokeWidth={1.8} />
                       <div>
-                        <p className="text-xs text-slate-400">Clases</p>
+                        <p className="text-xs text-white/50">Clases</p>
                         <p className="text-lg font-semibold text-white">{user.stats.totalClasses}</p>
                       </div>
                     </div>
@@ -872,13 +872,13 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
             )}
 
             <div>
-              <Label className="mb-2 flex items-center gap-2 text-xs uppercase tracking-wide text-slate-400">
+              <Label className="mb-2 flex items-center gap-2 text-xs uppercase tracking-wide text-white/50">
                 <Building2 className="h-4 w-4" strokeWidth={1.8} />
                 Membresías de academias ({user.memberships.length})
               </Label>
               <div className="mt-2 space-y-2 rounded-xl border border-white/10 bg-white/5 p-4">
                 {user.memberships.length === 0 ? (
-                  <p className="text-sm text-slate-400">No tiene membresías activas</p>
+                  <p className="text-sm text-white/50">No tiene membresías activas</p>
                 ) : (
                   user.memberships.map((membership) => (
                     <div
@@ -888,7 +888,7 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <p className="font-semibold text-white">{membership.academyName ?? "Sin nombre"}</p>
-                          <p className="mt-1 text-xs text-slate-300">
+                          <p className="mt-1 text-xs text-white/70">
                             {formatAcademyType(membership.academyType)} · Rol: {formatRole(membership.role)}
                           </p>
                         </div>

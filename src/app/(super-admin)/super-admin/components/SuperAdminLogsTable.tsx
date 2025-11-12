@@ -44,11 +44,11 @@ export function SuperAdminLogsTable({ initialLogs }: SuperAdminLogsTableProps) {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/5 p-5 text-sm text-slate-200 md:flex-row md:items-center md:justify-between">
+      <div className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/5 p-5 text-sm text-white/90 md:flex-row md:items-center md:justify-between">
         <div>
-          <p className="text-xs uppercase tracking-wide text-slate-300">Bitácora</p>
+          <p className="text-xs uppercase tracking-wide text-white/70">Bitácora</p>
           <h2 className="text-xl font-semibold text-white">Registros de acciones críticas</h2>
-          <p className="text-xs text-slate-300">
+          <p className="text-xs text-white/70">
             Conservamos las últimas {logs.length} acciones realizadas por cuentas de admin.
           </p>
         </div>
@@ -65,7 +65,7 @@ export function SuperAdminLogsTable({ initialLogs }: SuperAdminLogsTableProps) {
 
       <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/5">
         <table className="min-w-full divide-y divide-white/10 text-sm">
-          <thead className="bg-white/10 text-xs uppercase tracking-wide text-slate-200">
+          <thead className="bg-white/10 text-xs uppercase tracking-wide text-white/90">
             <tr>
               <th className="px-4 py-3 text-left font-semibold">Acción</th>
               <th className="px-4 py-3 text-left font-semibold">Usuario</th>
@@ -76,7 +76,7 @@ export function SuperAdminLogsTable({ initialLogs }: SuperAdminLogsTableProps) {
           <tbody className="divide-y divide-white/10 text-slate-100">
             {logs.length === 0 && (
               <tr>
-                <td colSpan={4} className="px-4 py-10 text-center text-sm text-slate-300">
+                <td colSpan={4} className="px-4 py-10 text-center text-sm text-white/70">
                   No hay registros recientes.
                 </td>
               </tr>
@@ -88,14 +88,14 @@ export function SuperAdminLogsTable({ initialLogs }: SuperAdminLogsTableProps) {
                 </td>
                 <td className="px-4 py-4">
                   <p className="text-sm text-white">{log.userName ?? "Sin nombre"}</p>
-                  <p className="text-xs text-slate-300">{log.userEmail ?? "—"}</p>
+                  <p className="text-xs text-white/70">{log.userEmail ?? "—"}</p>
                 </td>
                 <td className="px-4 py-4">
-                  <pre className="max-w-md whitespace-pre-wrap text-xs text-slate-300">
+                  <pre className="max-w-md whitespace-pre-wrap text-xs text-white/70">
                     {JSON.stringify(log.meta ?? {}, null, 2)}
                   </pre>
                 </td>
-                <td className="px-4 py-4 text-right text-xs text-slate-300">
+                <td className="px-4 py-4 text-right text-xs text-white/70">
                   {log.createdAt
                     ? new Date(log.createdAt).toLocaleString("es-ES")
                     : "—"}

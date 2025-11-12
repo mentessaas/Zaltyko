@@ -200,7 +200,7 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
         <div className="mb-6 flex items-start justify-between">
           <div>
             <h1 className="text-3xl font-semibold text-white">{academy.name ?? "Sin nombre"}</h1>
-            <p className="mt-2 text-sm text-slate-300">
+            <p className="mt-2 text-sm text-white/70">
               ID: <span className="font-mono text-xs">{academy.id}</span>
             </p>
           </div>
@@ -250,13 +250,13 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
         <div className="grid gap-6 md:grid-cols-2">
           <div className="space-y-4">
             <div>
-              <Label className="mb-2 flex items-center gap-2 text-xs uppercase tracking-wide text-slate-400">
+              <Label className="mb-2 flex items-center gap-2 text-xs uppercase tracking-wide text-white/50">
                 <Building2 className="h-4 w-4" strokeWidth={1.8} />
                 Información básica
               </Label>
               <div className="mt-2 space-y-3 rounded-xl border border-white/10 bg-white/5 p-4">
                 <div>
-                  <p className="text-xs text-slate-400">Nombre</p>
+                  <p className="text-xs text-white/50">Nombre</p>
                   <Input
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
@@ -265,13 +265,13 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
                   />
                 </div>
                 <div>
-                  <p className="text-xs text-slate-400">Tipo</p>
+                  <p className="text-xs text-white/50">Tipo</p>
                   <p className="mt-1 text-sm font-medium text-white">
                     {formatAcademyType(academy.academyType)}
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs text-slate-400">País y Región</p>
+                  <p className="text-xs text-white/50">País y Región</p>
                   <p className="mt-1 flex items-center gap-2 text-sm text-white">
                     <MapPin className="h-4 w-4" strokeWidth={1.8} />
                     {academy.country ?? "Sin país"}
@@ -282,7 +282,7 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
             </div>
 
             <div>
-              <Label className="mb-2 flex items-center gap-2 text-xs uppercase tracking-wide text-slate-400">
+              <Label className="mb-2 flex items-center gap-2 text-xs uppercase tracking-wide text-white/50">
                 <User className="h-4 w-4" strokeWidth={1.8} />
                 Propietario
               </Label>
@@ -291,7 +291,7 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
                   {academy.owner?.name ?? "Sin propietario asignado"}
                 </p>
                 {academy.owner && (
-                  <p className="mt-1 text-xs text-slate-400">
+                  <p className="mt-1 text-xs text-white/50">
                     ID: <span className="font-mono">{academy.owner.id}</span>
                   </p>
                 )}
@@ -301,15 +301,15 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
 
           <div className="space-y-4">
             <div>
-              <Label className="mb-2 flex items-center gap-2 text-xs uppercase tracking-wide text-slate-400">
+              <Label className="mb-2 flex items-center gap-2 text-xs uppercase tracking-wide text-white/50">
                 <CreditCard className="h-4 w-4" strokeWidth={1.8} />
                 Suscripción y Plan
               </Label>
               <div className="mt-2 space-y-3 rounded-xl border border-white/10 bg-white/5 p-4">
                 <div>
-                  <p className="mb-2 text-xs text-slate-400">Plan</p>
+                  <p className="mb-2 text-xs text-white/50">Plan</p>
                   {loading ? (
-                    <div className="flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-sm text-slate-400">
+                    <div className="flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-sm text-white/50">
                       <Loader2 className="h-4 w-4 animate-spin" />
                       Cargando planes...
                     </div>
@@ -334,7 +334,7 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
                   )}
                   {academy.subscription && (
                     <div className="mt-3 space-y-1">
-                      <p className="text-xs text-slate-400">Estado de suscripción</p>
+                      <p className="text-xs text-white/50">Estado de suscripción</p>
                       <p className="text-sm font-medium capitalize text-white">
                         {academy.subscription.status ?? "Sin estado"}
                       </p>
@@ -345,13 +345,13 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
             </div>
 
             <div>
-              <Label className="mb-2 flex items-center gap-2 text-xs uppercase tracking-wide text-slate-400">
+              <Label className="mb-2 flex items-center gap-2 text-xs uppercase tracking-wide text-white/50">
                 <Calendar className="h-4 w-4" strokeWidth={1.8} />
                 Fechas
               </Label>
               <div className="mt-2 space-y-2 rounded-xl border border-white/10 bg-white/5 p-4 text-sm">
                 <div>
-                  <p className="text-xs text-slate-400">Creada</p>
+                  <p className="text-xs text-white/50">Creada</p>
                   <p className="mt-1 text-white">
                     {academy.createdAt
                       ? new Date(academy.createdAt).toLocaleDateString("es-ES", {
@@ -364,7 +364,7 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
                 </div>
                 {academy.suspendedAt && (
                   <div>
-                    <p className="text-xs text-slate-400">Suspendida desde</p>
+                    <p className="text-xs text-white/50">Suspendida desde</p>
                     <p className="mt-1 text-white">
                       {new Date(academy.suspendedAt).toLocaleDateString("es-ES", {
                         year: "numeric",
