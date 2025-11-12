@@ -28,7 +28,7 @@ export default async function SuperAdminLayout({ children }: { children: ReactNo
 
   return (
     <ToastProvider>
-      <div className="min-h-screen overflow-x-hidden bg-[#0f172a]">
+      <div className="min-h-screen overflow-x-hidden bg-zaltyko-primary-dark">
         <GlobalTopNav
           userRole={profile.role}
           userName={profile.name}
@@ -37,8 +37,8 @@ export default async function SuperAdminLayout({ children }: { children: ReactNo
         />
         <div className="flex min-h-[calc(100vh-4rem)] overflow-hidden">
           <SuperAdminSidebar />
-          <div className="flex min-w-0 flex-1 flex-col bg-slate-950/40">
-            <main className="flex-1 overflow-y-auto overflow-x-hidden bg-slate-950/60 px-4 py-6 text-slate-100 sm:px-6 sm:py-8">
+          <div className="flex min-w-0 flex-1 flex-col bg-zaltyko-primary-dark/40">
+            <main className="flex-1 overflow-y-auto overflow-x-hidden bg-zaltyko-primary-dark/60 px-4 py-6 text-white sm:px-6 sm:py-8">
               <div className="mx-auto w-full max-w-6xl">{children}</div>
             </main>
           </div>
