@@ -17,7 +17,7 @@ const testimonials: Testimonial[] = [
   {
     name: "Carolina Torres",
     rating: 5,
-    text: "Con Zaltyko migramos 3 sedes a un mismo panel. <span class='font-bold text-emerald-300'>Los reportes diarios de asistencia</span> nos ahorran horas con los padres y la federación.",
+    text: "Con Zaltyko migramos 3 sedes a un mismo panel. <span class='font-bold text-zaltyko-accent-light'>Los reportes diarios de asistencia</span> nos ahorran horas con los padres y la federación.",
     role: "Directora · Gravity Gym",
     avatar: {
       src: "https://images.unsplash.com/photo-1583413230540-7ddb76f1c9dc?auto=format&fit=facearea&facepad=3&w=160&h=160&q=80",
@@ -27,7 +27,7 @@ const testimonials: Testimonial[] = [
   {
     name: "Julián Andrade",
     rating: 4,
-    text: "Activamos el plan Pro para 180 atletas. <span class='font-bold text-lime-300'>Los límites nos avisaron justo al llegar a 150</span> y el upgrade fue automático por Stripe.",
+    text: "Activamos el plan Pro para 180 atletas. <span class='font-bold text-zaltyko-accent-light'>Los límites nos avisaron justo al llegar a 150</span> y el upgrade fue automático por Stripe.",
     role: "CFO · Escuela Olímpica Medellín",
     avatar: {
       src: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=facearea&facepad=3&w=160&h=160&q=80",
@@ -37,7 +37,7 @@ const testimonials: Testimonial[] = [
   {
     name: "María Fernanda Luna",
     rating: 5,
-    text: "El módulo de eventos nos permitió coordinar la gira estatal. <span class='font-bold text-sky-300'>Coaches y padres reciben notificaciones</span> sin usar grupos de WhatsApp.",
+    text: "El módulo de eventos nos permitió coordinar la gira estatal. <span class='font-bold text-zaltyko-primary-light'>Coaches y padres reciben notificaciones</span> sin usar grupos de WhatsApp.",
     role: "Head Coach · Zenith Elite",
     avatar: {
       src: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=facearea&facepad=3&w=160&h=160&q=80",
@@ -48,13 +48,13 @@ const testimonials: Testimonial[] = [
 
 export default function TestimonialsPage() {
   return (
-    <section id="clientes" className="bg-[#0b1417] px-4 py-20 text-white">
+    <section id="clientes" className="bg-zaltyko-primary-dark px-4 py-20 text-white">
       <div className="mx-auto max-w-5xl">
         <div className="mb-14 text-center">
-          <h2 className="text-3xl font-semibold sm:text-4xl">
+          <h2 className="font-display text-3xl font-semibold sm:text-4xl">
             Equipos de alto rendimiento ya confían en Zaltyko
           </h2>
-          <p className="mt-3 text-sm text-slate-200/70">
+          <p className="mt-3 font-sans text-sm text-white/70">
             Historias reales de academias que coordinan cientos de atletas con nuestra plataforma.
           </p>
         </div>
@@ -76,7 +76,7 @@ export default function TestimonialsPage() {
                 </div>
 
                 <p
-                  className="mb-6 text-sm text-slate-200/80"
+                  className="mb-6 font-sans text-sm text-white/80"
                   dangerouslySetInnerHTML={{ __html: testimonial.text }}
                 />
               </div>
@@ -103,7 +103,7 @@ export default function TestimonialsPage() {
                   <h3 className="text-base font-semibold text-white">
                     {testimonial.name}
                   </h3>
-                  <p className="text-xs uppercase tracking-wide text-slate-300/60">
+                  <p className="font-sans text-xs uppercase tracking-wide text-white/60">
                     {testimonial.role}
                   </p>
                 </div>

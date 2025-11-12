@@ -152,16 +152,16 @@ export default function FeaturesSection() {
   ];
 
   return (
-    <section className="bg-[#061014] py-20 px-4 text-white">
+    <section className="bg-zaltyko-primary-dark py-20 px-4 text-white">
       <div className="mx-auto max-w-6xl">
         <div className="mb-16 space-y-4 text-center">
-          <span className="text-xs uppercase tracking-[0.45em] text-zaltyko-accent">
+          <span className="font-display text-xs uppercase tracking-[0.45em] text-zaltyko-accent">
             Módulos conectados
           </span>
-          <h2 className="mx-auto max-w-4xl text-3xl font-semibold leading-tight sm:text-4xl md:text-5xl">
+          <h2 className="mx-auto max-w-4xl font-display text-3xl font-semibold leading-tight sm:text-4xl md:text-5xl">
             Todo lo que una red de academias necesita para operar sin caos.
           </h2>
-          <p className="mx-auto max-w-3xl text-base text-slate-200/70 md:text-lg">
+          <p className="mx-auto max-w-3xl font-sans text-base text-white/70 md:text-lg">
             Selecciona un módulo y descubre cómo Zaltyko reduce tareas repetitivas, mantiene tus datos seguros y ofrece
             experiencias impecables a atletas, coaches y familias.
           </p>
@@ -191,13 +191,13 @@ export default function FeaturesSection() {
               className="space-y-8 rounded-3xl border border-white/10 bg-white/5 p-8 shadow-xl"
             >
               <div className="space-y-6">
-                <h3 className="text-2xl font-semibold text-white">
+                <h3 className="font-display text-2xl font-semibold text-white">
                   {feature.content.title}
                 </h3>
-                <p className="text-sm uppercase tracking-[0.25em] text-zaltyko-accent">
+                <p className="font-display text-sm uppercase tracking-[0.25em] text-zaltyko-accent">
                   Impacto
                 </p>
-                <p className="text-base text-slate-200/70">
+                <p className="font-sans text-base text-white/70">
                   {feature.content.impact}
                 </p>
                 <div className="grid gap-4 pt-6 md:grid-cols-2">
@@ -207,7 +207,7 @@ export default function FeaturesSection() {
                       className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/5 p-4"
                     >
                       <Check className="mt-1 h-5 w-5 flex-shrink-0 text-zaltyko-accent" />
-                      <span className="text-sm leading-relaxed text-slate-100/80">
+                      <span className="font-sans text-sm leading-relaxed text-white/80">
                         {item}
                       </span>
                     </div>
