@@ -243,7 +243,7 @@ export function SuperAdminAcademiesTable({
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <select
-            className="rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-xs font-semibold text-slate-100 hover:border-white/40 focus:border-white/60 focus:outline-none"
+            className="rounded-xl border border-white/20 bg-white/10 px-3 py-2 font-display text-xs font-semibold text-white hover:border-white/40 focus:border-white/60 focus:outline-none"
             value={filters.plan ?? ""}
             onChange={(event) =>
               handleFilterChange({ plan: event.target.value || undefined })
@@ -257,7 +257,7 @@ export function SuperAdminAcademiesTable({
             ))}
           </select>
           <select
-            className="rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-xs font-semibold text-slate-100 hover:border-white/40 focus:border-white/60 focus:outline-none"
+            className="rounded-xl border border-white/20 bg-white/10 px-3 py-2 font-display text-xs font-semibold text-white hover:border-white/40 focus:border-white/60 focus:outline-none"
             value={filters.type ?? ""}
             onChange={(event) =>
               handleFilterChange({ type: event.target.value || undefined })
@@ -271,7 +271,7 @@ export function SuperAdminAcademiesTable({
             ))}
           </select>
           <select
-            className="rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-xs font-semibold text-slate-100 hover:border-white/40 focus:border-white/60 focus:outline-none"
+            className="rounded-xl border border-white/20 bg-white/10 px-3 py-2 font-display text-xs font-semibold text-white hover:border-white/40 focus:border-white/60 focus:outline-none"
             value={filters.status ?? ""}
             onChange={(event) =>
               handleFilterChange({
@@ -286,7 +286,7 @@ export function SuperAdminAcademiesTable({
           <Button
             variant="outline"
             size="sm"
-            className="border-white/20 bg-white/10 text-slate-100 hover:border-white/40 hover:bg-white/20"
+            className="border-white/20 bg-white/10 text-white hover:border-white/40 hover:bg-white/20"
             onClick={() =>
               handleFilterChange({ plan: undefined, type: undefined, country: undefined, status: undefined })
             }
@@ -299,7 +299,7 @@ export function SuperAdminAcademiesTable({
 
       <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/5">
         <table className="min-w-full divide-y divide-white/10 text-sm">
-          <thead className="bg-white/10 text-xs uppercase tracking-wide text-slate-200">
+          <thead className="bg-white/10 font-display text-xs uppercase tracking-wide text-white">
             <tr>
               <th className="px-4 py-3 text-left font-semibold">Academia</th>
               <th className="px-4 py-3 text-left font-semibold">Plan</th>
@@ -308,10 +308,10 @@ export function SuperAdminAcademiesTable({
               <th className="px-4 py-3 text-right font-semibold">Acciones</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-white/10 text-slate-100">
+          <tbody className="divide-y divide-white/10 font-sans text-white">
             {items.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-10 text-center text-sm text-slate-300">
+                <td colSpan={5} className="px-4 py-10 text-center font-sans text-sm text-white/60">
                   No se encontraron academias con los filtros actuales.
                 </td>
               </tr>
@@ -328,7 +328,7 @@ export function SuperAdminAcademiesTable({
                 <td className="px-4 py-4">
                   <div className="space-y-1">
                     <p className="font-semibold text-white">{academy.name ?? "Sin nombre"}</p>
-                    <p className="text-xs text-slate-300">
+                    <p className="font-sans text-xs text-white/70">
                       {academy.country ?? "Sin país"} · {formatAcademyType(academy.academyType)}
                     </p>
                   </div>
@@ -338,7 +338,7 @@ export function SuperAdminAcademiesTable({
                     <p className="font-semibold uppercase text-white">
                       {academy.planCode ?? "Sin plan"}
                     </p>
-                    <p className="text-xs text-slate-300">{academy.planNickname ?? "—"}</p>
+                    <p className="font-sans text-xs text-white/70">{academy.planNickname ?? "—"}</p>
                   </div>
                 </td>
                 <td className="px-4 py-4">
@@ -353,7 +353,7 @@ export function SuperAdminAcademiesTable({
                     {academy.isSuspended ? "Suspendida" : "Activa"}
                   </span>
                 </td>
-                <td className="px-4 py-4 text-xs text-slate-300">
+                <td className="px-4 py-4 font-sans text-xs text-white/70">
                   {academy.createdAt
                     ? new Date(academy.createdAt).toLocaleDateString("es-ES")
                     : "—"}
@@ -363,7 +363,7 @@ export function SuperAdminAcademiesTable({
                     <Button
                       variant="outline"
                       size="sm"
-                      className="border-white/20 bg-white/5 text-slate-100 hover:border-white/40 hover:bg-white/10"
+                      className="border-white/20 bg-white/5 text-white hover:border-white/40 hover:bg-white/10"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleSuspend(academy);
@@ -417,7 +417,7 @@ export function SuperAdminAcademiesTable({
         </table>
       </div>
 
-      <p className="text-xs text-slate-400">
+      <p className="font-sans text-xs text-white/50">
         ¿Necesitas editar detalles avanzados de una academia? Ingresa como owner desde{" "}
         <Link href="/onboarding" className="font-semibold text-zaltyko-primary-light hover:underline">
           onboarding forzado

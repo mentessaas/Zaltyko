@@ -123,11 +123,11 @@ export function SuperAdminDashboard({ initialMetrics }: SuperAdminDashboardProps
       <section className="flex w-full flex-col gap-4 rounded-2xl border border-white/10 bg-white/5 p-5 shadow-md backdrop-blur sm:rounded-3xl sm:p-6">
         <div className="flex flex-col gap-4 sm:gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="min-w-0 space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-[0.35em] text-slate-300">
+            <p className="font-display text-xs font-semibold uppercase tracking-[0.35em] text-zaltyko-accent-light">
               Salud del SaaS
             </p>
-            <h1 className="text-2xl font-semibold text-white sm:text-3xl">Indicadores globales</h1>
-            <p className="text-sm text-slate-300 sm:text-base">
+            <h1 className="font-display text-2xl font-semibold text-white sm:text-3xl">Indicadores globales</h1>
+            <p className="font-sans text-sm text-white/80 sm:text-base">
               Métricas agregadas en tiempo real conectadas a Supabase.
             </p>
           </div>
@@ -135,7 +135,7 @@ export function SuperAdminDashboard({ initialMetrics }: SuperAdminDashboardProps
             variant="outline"
             onClick={refresh}
             disabled={loading}
-            className="w-full shrink-0 border-white/20 bg-white/10 text-slate-100 hover:border-white/40 hover:bg-white/20 sm:w-auto"
+            className="w-full shrink-0 border-white/20 bg-white/10 text-white hover:border-white/40 hover:bg-white/20 sm:w-auto"
           >
             <Activity className="mr-2 h-4 w-4" strokeWidth={1.8} />
             {loading ? "Actualizando…" : "Refrescar métricas"}
@@ -150,14 +150,14 @@ export function SuperAdminDashboard({ initialMetrics }: SuperAdminDashboardProps
       </section>
 
       <section className="grid w-full grid-cols-1 gap-6 lg:grid-cols-2">
-        <div className="min-w-0 space-y-3 rounded-2xl border border-white/10 bg-white/5 p-5 text-sm text-slate-200">
-          <header className="flex items-center justify-between gap-2 text-xs uppercase tracking-wide text-slate-300">
+        <div className="min-w-0 space-y-3 rounded-2xl border border-white/10 bg-white/5 p-5 font-sans text-sm text-white/90">
+          <header className="flex items-center justify-between gap-2 font-display text-xs uppercase tracking-wide text-zaltyko-accent-light">
             <span className="truncate">Usuarios por rol</span>
             <span className="shrink-0">Total: {metrics.totals.users}</span>
           </header>
           <div className="space-y-2">
             {metrics.usersByRole.length === 0 ? (
-              <p className="rounded-lg border border-dashed border-white/20 bg-white/5 p-4 text-xs text-slate-300">
+              <p className="rounded-lg border border-dashed border-white/20 bg-white/5 p-4 font-sans text-xs text-white/60">
                 Aún no hay usuarios registrados.
               </p>
             ) : (
@@ -174,14 +174,14 @@ export function SuperAdminDashboard({ initialMetrics }: SuperAdminDashboardProps
           </div>
         </div>
 
-        <div className="min-w-0 space-y-3 rounded-2xl border border-white/10 bg-white/5 p-5 text-sm text-slate-200">
-          <header className="flex items-center justify-between gap-2 text-xs uppercase tracking-wide text-slate-300">
+        <div className="min-w-0 space-y-3 rounded-2xl border border-white/10 bg-white/5 p-5 font-sans text-sm text-white/90">
+          <header className="flex items-center justify-between gap-2 font-display text-xs uppercase tracking-wide text-zaltyko-accent-light">
             <span className="truncate">Distribución de planes</span>
             <span className="shrink-0">{metrics.planDistribution.length} planes</span>
           </header>
           <div className="space-y-2">
             {metrics.planDistribution.length === 0 ? (
-              <p className="rounded-lg border border-dashed border-white/20 bg-white/5 p-4 text-xs text-slate-300">
+              <p className="rounded-lg border border-dashed border-white/20 bg-white/5 p-4 font-sans text-xs text-white/60">
                 Todavía no hay suscripciones registradas.
               </p>
             ) : (
@@ -191,8 +191,8 @@ export function SuperAdminDashboard({ initialMetrics }: SuperAdminDashboardProps
                   className="flex items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/10 px-3 py-2"
                 >
                   <div className="min-w-0 flex-1">
-                    <p className="truncate font-semibold text-white uppercase tracking-wide">{plan.code}</p>
-                    {plan.nickname && <p className="truncate text-xs text-slate-300">{plan.nickname}</p>}
+                    <p className="truncate font-display font-semibold text-white uppercase tracking-wide">{plan.code}</p>
+                    {plan.nickname && <p className="truncate font-sans text-xs text-white/60">{plan.nickname}</p>}
                   </div>
                   <span className="shrink-0 font-semibold text-white">{plan.total}</span>
                 </div>
@@ -202,8 +202,8 @@ export function SuperAdminDashboard({ initialMetrics }: SuperAdminDashboardProps
         </div>
       </section>
 
-      <section className="w-full rounded-2xl border border-white/10 bg-white/5 p-5 text-sm text-slate-200">
-        <header className="flex items-center justify-between gap-2 text-xs uppercase tracking-wide text-slate-300">
+      <section className="w-full rounded-2xl border border-white/10 bg-white/5 p-5 font-sans text-sm text-white/90">
+        <header className="flex items-center justify-between gap-2 font-display text-xs uppercase tracking-wide text-zaltyko-accent-light">
           <span className="truncate">Estado de suscripciones</span>
         </header>
         <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
@@ -217,14 +217,14 @@ export function SuperAdminDashboard({ initialMetrics }: SuperAdminDashboardProps
             </div>
           ))}
         </div>
-        <p className="mt-4 break-words text-xs text-slate-400">
+        <p className="mt-4 break-words font-sans text-xs text-white/60">
           Ingresos acumulados: {CURRENCY_FORMATTER.format(metrics.totals.revenue / 100)} · Facturas
           cobradas: {metrics.totals.paidInvoices}
         </p>
       </section>
 
-      <section className="w-full overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-5 text-sm text-slate-200">
-        <header className="flex flex-col gap-1 text-xs uppercase tracking-wide text-slate-300 sm:flex-row sm:items-center sm:justify-between">
+      <section className="w-full overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-5 font-sans text-sm text-white/90">
+        <header className="flex flex-col gap-1 font-display text-xs uppercase tracking-wide text-zaltyko-accent-light sm:flex-row sm:items-center sm:justify-between">
           <span className="truncate">Academias creadas por mes</span>
           <span className="shrink-0">Últimos {chartDataset.length} meses</span>
         </header>
@@ -237,11 +237,11 @@ export function SuperAdminDashboard({ initialMetrics }: SuperAdminDashboardProps
                   className="flex w-full items-end justify-center rounded-t-md bg-gradient-to-t from-zaltyko-primary/40 via-zaltyko-primary-light/60 to-zaltyko-primary-light/80 shadow-inner transition hover:from-zaltyko-primary/50 hover:via-zaltyko-primary-light/80 hover:to-zaltyko-primary-light/90"
                   style={{ height: `${height}%` }}
                 >
-                  <span className="mb-2 text-[11px] font-semibold text-white drop-shadow">
+                  <span className="mb-2 font-display text-[11px] font-semibold text-white drop-shadow">
                     {item.total}
                   </span>
                 </div>
-                <span className="text-[10px] uppercase tracking-wide text-slate-400">
+                <span className="font-sans text-[10px] uppercase tracking-wide text-white/60">
                   {item.label.slice(2).replace("-", "/")}
                 </span>
               </div>
