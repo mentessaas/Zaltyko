@@ -56,9 +56,9 @@ export default function LoginForm() {
       <SEO
         title="Zaltyko · Iniciar sesión"
         description="Accede con tu correo y contraseña para gestionar tu academia."
-        canonicalUrl="https://gymnasaas.com"
-        ogImageUrl="https://gymnasaas.com/og-image.png"
-        twitterHandle="gymnasaas"
+        canonicalUrl="https://zaltyko.com"
+        ogImageUrl="https://zaltyko.com/og-image.png"
+        twitterHandle="zaltyko"
       />
       <div className="space-y-6">
         <div className="flex justify-start">
