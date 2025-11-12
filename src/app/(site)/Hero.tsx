@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BadgeCheck, Users } from "lucide-react";
+import { BadgeCheck, Users, ArrowRight, Sparkles } from "lucide-react";
 
 const stats = [
   { label: "Academias activas", value: "+120" },
@@ -33,16 +33,18 @@ export default function HeroSection() {
             Registra alumnos, controla pagos, organiza competencias y haz crecer tu academia sin complicaciones.
           </p>
 
-          <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-center">
             <Link
               href="/onboarding"
-              className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-zaltyko-accent to-zaltyko-accent-light px-6 py-3 text-sm font-semibold text-zaltyko-primary-dark transition hover:from-zaltyko-accent-light hover:to-zaltyko-accent"
+              className="group relative inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-zaltyko-accent to-zaltyko-accent-light px-8 py-4 text-base font-bold text-zaltyko-primary-dark shadow-lg shadow-zaltyko-accent/30 transition-all duration-300 hover:scale-105 hover:from-zaltyko-accent-light hover:to-zaltyko-accent hover:shadow-xl hover:shadow-zaltyko-accent/40 active:scale-100"
             >
-              Iniciar onboarding guiado
+              <Sparkles className="h-5 w-5 animate-pulse" />
+              <span>Iniciar onboarding guiado</span>
+              <ArrowRight className="h-5 w-5 transition-transform duration-300 group-hover:translate-x-1" />
             </Link>
             <Link
               href="#planes"
-              className="inline-flex items-center justify-center rounded-full border border-white/30 px-6 py-3 text-sm font-semibold text-white hover:bg-white/10"
+              className="inline-flex items-center justify-center rounded-full border-2 border-white/30 px-6 py-3 text-sm font-semibold text-white transition hover:border-white/50 hover:bg-white/10"
             >
               Conoce los planes
             </Link>
