@@ -72,7 +72,7 @@ export function SuperAdminDashboard({ initialMetrics }: SuperAdminDashboardProps
         subtitle: "Total de academias registradas",
         href: "/super-admin/academies",
         icon: Building2,
-        accent: "emerald" as const,
+        accent: "zaltyko-primary" as const,
       },
       {
         title: "Usuarios",
@@ -88,7 +88,7 @@ export function SuperAdminDashboard({ initialMetrics }: SuperAdminDashboardProps
         subtitle: "Perfiles con rol owner",
         href: "/super-admin/users?role=owner",
         icon: ShieldCheck,
-        accent: "emerald" as const,
+        accent: "zaltyko-accent" as const,
       },
       {
         title: "Entrenadores",
@@ -234,7 +234,7 @@ export function SuperAdminDashboard({ initialMetrics }: SuperAdminDashboardProps
             return (
               <div key={item.label} className="flex min-w-[60px] flex-1 flex-col items-center gap-2 text-xs sm:min-w-[80px]">
                 <div
-                  className="flex w-full items-end justify-center rounded-t-md bg-gradient-to-t from-sky-500/40 via-sky-400/60 to-sky-300/80 shadow-inner transition hover:from-sky-500/50 hover:via-sky-400/80 hover:to-sky-200/90"
+                  className="flex w-full items-end justify-center rounded-t-md bg-gradient-to-t from-zaltyko-primary/40 via-zaltyko-primary-light/60 to-zaltyko-primary-light/80 shadow-inner transition hover:from-zaltyko-primary/50 hover:via-zaltyko-primary-light/80 hover:to-zaltyko-primary-light/90"
                   style={{ height: `${height}%` }}
                 >
                   <span className="mb-2 text-[11px] font-semibold text-white drop-shadow">

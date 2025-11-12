@@ -37,7 +37,7 @@ export function SuperAdminHeader({ userName, userEmail }: SuperAdminHeaderProps)
     <header className="border-b border-white/10 bg-[#0f172a] px-6 py-4 text-slate-100">
       <div className="flex items-center justify-between gap-4">
         <div className="space-y-1">
-          <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-300">
+          <div className="inline-flex items-center gap-2 rounded-full bg-zaltyko-accent/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-zaltyko-accent">
             SUPER ADMIN
           </div>
           <p className="text-xl font-semibold text-white">Panel de control global</p>
@@ -92,7 +92,7 @@ export function SuperAdminHeader({ userName, userEmail }: SuperAdminHeaderProps)
         <div className="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-sm lg:hidden">
           <div className="flex items-center justify-between px-6 py-4">
             <div className="space-y-1">
-              <p className="text-xs uppercase tracking-[0.35em] text-emerald-300">Super Admin</p>
+              <p className="text-xs uppercase tracking-[0.35em] text-zaltyko-accent">Super Admin</p>
               <p className="text-lg font-semibold text-white">Menú de navegación</p>
             </div>
             <div className="flex items-center gap-2">
@@ -121,7 +121,7 @@ export function SuperAdminHeader({ userName, userEmail }: SuperAdminHeaderProps)
                   href={item.href}
                   className={cn(
                     "flex items-center gap-3 rounded-2xl border border-white/10 px-4 py-3 text-base font-medium text-slate-200 transition",
-                    active ? "bg-emerald-500/15 text-white" : "bg-white/5 hover:border-white/20 hover:bg-white/10",
+                    active ? "bg-zaltyko-accent/15 text-white" : "bg-white/5 hover:border-white/20 hover:bg-white/10",
                   )}
                   onClick={() => setMobileMenuOpen(false)}
                 >

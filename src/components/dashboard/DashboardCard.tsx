@@ -6,18 +6,18 @@ import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const COLOR_STYLES: Record<
-  "sky" | "emerald" | "violet" | "amber" | "coral" | "slate",
+  "sky" | "emerald" | "violet" | "amber" | "coral" | "slate" | "zaltyko-primary" | "zaltyko-accent",
   { bg: string; text: string; ring: string }
 > = {
   sky: {
-    bg: "bg-sky-500/10",
-    text: "text-sky-600",
-    ring: "group-hover:ring-sky-500/40",
+    bg: "bg-zaltyko-primary-light/10",
+    text: "text-zaltyko-primary-light",
+    ring: "group-hover:ring-zaltyko-primary-light/40",
   },
   emerald: {
-    bg: "bg-emerald-500/10",
-    text: "text-emerald-600",
-    ring: "group-hover:ring-emerald-500/40",
+    bg: "bg-zaltyko-primary/10",
+    text: "text-zaltyko-primary",
+    ring: "group-hover:ring-zaltyko-primary/40",
   },
   violet: {
     bg: "bg-violet-500/10",
@@ -25,9 +25,9 @@ const COLOR_STYLES: Record<
     ring: "group-hover:ring-violet-500/40",
   },
   amber: {
-    bg: "bg-amber-500/10",
-    text: "text-amber-600",
-    ring: "group-hover:ring-amber-500/40",
+    bg: "bg-zaltyko-accent/10",
+    text: "text-zaltyko-accent",
+    ring: "group-hover:ring-zaltyko-accent/40",
   },
   coral: {
     bg: "bg-rose-500/10",
@@ -38,6 +38,16 @@ const COLOR_STYLES: Record<
     bg: "bg-slate-500/10",
     text: "text-slate-600",
     ring: "group-hover:ring-slate-500/40",
+  },
+  "zaltyko-primary": {
+    bg: "bg-zaltyko-primary/10",
+    text: "text-zaltyko-primary",
+    ring: "group-hover:ring-zaltyko-primary/40",
+  },
+  "zaltyko-accent": {
+    bg: "bg-zaltyko-accent/10",
+    text: "text-zaltyko-accent",
+    ring: "group-hover:ring-zaltyko-accent/40",
   },
 };
 

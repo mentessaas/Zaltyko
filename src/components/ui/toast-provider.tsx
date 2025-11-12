@@ -31,10 +31,10 @@ const ToastContext = createContext<ToastContextValue | undefined>(undefined);
 const variantConfig = {
   success: {
     icon: CheckCircle2,
-    borderColor: "border-emerald-500",
-    bgColor: "bg-emerald-50 dark:bg-emerald-950/20",
-    textColor: "text-emerald-800 dark:text-emerald-200",
-    iconColor: "text-emerald-600 dark:text-emerald-400",
+    borderColor: "border-zaltyko-primary",
+    bgColor: "bg-zaltyko-primary/10 dark:bg-zaltyko-primary/20",
+    textColor: "text-zaltyko-primary dark:text-zaltyko-primary-light",
+    iconColor: "text-zaltyko-primary dark:text-zaltyko-primary-light",
   },
   error: {
     icon: XCircle,

@@ -27,8 +27,8 @@ interface CalendarViewProps {
 }
 
 const statusColors: Record<string, string> = {
-  scheduled: "bg-emerald-500/15 text-emerald-700",
-  completed: "bg-blue-500/15 text-blue-700",
+  scheduled: "bg-zaltyko-primary/15 text-zaltyko-primary",
+  completed: "bg-zaltyko-primary-light/15 text-zaltyko-primary-light",
   cancelled: "bg-red-500/15 text-red-700",
 };
 

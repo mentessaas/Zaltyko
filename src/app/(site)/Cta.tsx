@@ -12,7 +12,7 @@ export default function CTA() {
         <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <a
             href="/onboarding"
-            className="rounded-full bg-gradient-to-r from-emerald-400 to-lime-300 px-6 py-3 text-sm font-semibold text-[#0d1b1e] transition hover:from-emerald-300 hover:to-lime-200"
+            className="rounded-full bg-gradient-to-r from-zaltyko-accent to-zaltyko-accent-light px-6 py-3 text-sm font-semibold text-zaltyko-primary-dark transition hover:from-zaltyko-accent-light hover:to-zaltyko-accent"
           >
             Iniciar demo guiada
           </a>
