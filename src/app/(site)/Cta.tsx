@@ -17,7 +17,7 @@ export default function CTA() {
             Iniciar demo guiada
           </a>
           <a
-            href="mailto:hola@gymna.app"
+            href="mailto:hola@zaltyko.com"
             className="rounded-full border border-white/20 px-6 py-3 text-sm font-semibold text-white hover:bg-white/10"
           >
             Agendar demo personalizada

@@ -46,7 +46,7 @@ const faqs: FAQItem[] = [
   {
     question: "¿Hay soporte o acompañamiento?",
     answer:
-      "Para el plan Premium ofrecemos onboarding asistido y soporte prioritario. Escríbenos a ventas@gymna.app y coordinamos una sesión.",
+      "Para el plan Premium ofrecemos onboarding asistido y soporte prioritario. Escríbenos a ventas@zaltyko.com y coordinamos una sesión.",
   },
 ];
 
@@ -64,7 +64,7 @@ export default function FAQ() {
           Preguntas frecuentes
         </h2>
         <p className="mb-10 text-center font-sans text-sm text-white/70">
-          ¿Necesitas algo más? Escríbenos a <a className="underline" href="mailto:hola@gymna.app">hola@gymna.app</a> y te ayudamos a poner tu academia en línea.
+          ¿Necesitas algo más? Escríbenos a <a className="underline" href="mailto:hola@zaltyko.com">hola@zaltyko.com</a> y te ayudamos a poner tu academia en línea.
         </p>
 
         <div className="space-y-[2px]">
