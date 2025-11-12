@@ -81,7 +81,7 @@ export default function AcceptInvitationForm({ token, email, role }: AcceptInvit
   if (completed) {
     return (
       <div className="space-y-3 text-center">
-        <h2 className="text-2xl font-semibold text-emerald-600">Invitación aceptada</h2>
+        <h2 className="text-2xl font-semibold text-zaltyko-primary">Invitación aceptada</h2>
         <p className="text-sm text-muted-foreground">
           Tu cuenta ha sido creada. Serás redirigido al inicio de sesión en unos segundos.
         </p>

@@ -714,7 +714,7 @@ export default function OnboardingWizard() {
                   <span className="rounded-md border border-border bg-background px-3 py-2">
                     Usuario: {email || "Registrado"}
                   </span>
-                  <span className="rounded-md border border-border bg-background px-3 py-2 text-emerald-600">
+                  <span className="rounded-md border border-border bg-background px-3 py-2 text-zaltyko-primary">
                     Paso completado
                   </span>
                 </div>
