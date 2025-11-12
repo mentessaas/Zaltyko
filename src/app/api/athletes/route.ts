@@ -119,6 +119,8 @@ const filterSchema = z.object({
   maxAge: z.coerce.number().min(0).optional(),
   tenantId: z.string().uuid().optional(),
   groupId: z.string().uuid().optional(),
+  page: z.coerce.number().int().min(1).optional(),
+  limit: z.coerce.number().int().min(1).max(200).optional(),
 });
 
 export const GET = withTenant(async (request, context) => {
@@ -129,7 +131,7 @@ export const GET = withTenant(async (request, context) => {
     return NextResponse.json({ error: "INVALID_FILTERS" }, { status: 400 });
   }
 
-  const { level, status, academyId, minAge, maxAge, tenantId: tenantOverride, groupId } = filters.data;
+  const { level, status, academyId, minAge, maxAge, tenantId: tenantOverride, groupId, page = 1, limit = 50 } = filters.data;
 
   const effectiveTenantId = context.tenantId ?? tenantOverride ?? null;
 
@@ -139,6 +141,10 @@ export const GET = withTenant(async (request, context) => {
 
   const levelList = Array.isArray(level) ? level : level ? [level] : [];
   const statusList = Array.isArray(status) ? status : status ? [status] : [];
+
+  // Paginación
+  const pageSize = Math.min(200, Math.max(1, limit));
+  const offset = (page - 1) * pageSize;
 
   const ageExpr = sql<number | null>`CASE WHEN ${athletes.dob} IS NULL THEN NULL ELSE floor(date_part('year', age(now(), ${athletes.dob}))) END`;
   const guardianCount = sql<number>`count(distinct ${guardianAthletes.id})`;
@@ -162,6 +168,17 @@ export const GET = withTenant(async (request, context) => {
     whereClause = whereClause ? and(whereClause, condition) : condition;
   }
 
+  // Contar total (sin paginación)
+  // Usamos una subquery para contar correctamente con los joins
+  const countResult = await db
+    .select({ count: sql<number>`count(distinct ${athletes.id})` })
+    .from(athletes)
+    .leftJoin(guardianAthletes, eq(guardianAthletes.athleteId, athletes.id))
+    .where(whereClause);
+  
+  const total = countResult[0]?.count ? Number(countResult[0].count) : 0;
+
+  // Query paginada
   const rows = await db
     .select({
       id: athletes.id,
@@ -182,9 +199,21 @@ export const GET = withTenant(async (request, context) => {
     .leftJoin(groups, eq(athletes.groupId, groups.id))
     .leftJoin(guardianAthletes, eq(guardianAthletes.athleteId, athletes.id))
     .where(whereClause)
-    .groupBy(athletes.id, academies.name)
-    .orderBy(asc(athletes.name));
+    .groupBy(athletes.id, academies.name, groups.name, groups.color)
+    .orderBy(asc(athletes.name))
+    .limit(pageSize)
+    .offset(offset);
 
-  return NextResponse.json({ items: rows });
+  const totalPages = Math.ceil(total / pageSize);
+
+  return NextResponse.json({
+    total,
+    page,
+    pageSize,
+    totalPages,
+    hasNextPage: page < totalPages,
+    hasPreviousPage: page > 1,
+    items: rows,
+  });
 });
 

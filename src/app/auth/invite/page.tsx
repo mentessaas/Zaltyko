@@ -11,7 +11,7 @@ interface InvitePageProps {
 
 export const metadata: Metadata = {
   title: "Aceptar invitación",
-  description: "Completa tu registro en GymnaSaaS.",
+  description: "Completa tu registro en Zaltyko.",
 };
 
 export default async function InvitePage({ searchParams }: InvitePageProps) {
@@ -75,7 +75,7 @@ export default async function InvitePage({ searchParams }: InvitePageProps) {
   return (
     <div className="mx-auto flex min-h-screen max-w-xl flex-col justify-center gap-6 px-4 py-12">
       <div className="space-y-2 text-center">
-        <h1 className="text-3xl font-semibold">Únete a GymnaSaaS</h1>
+        <h1 className="text-3xl font-semibold">Únete a Zaltyko</h1>
         <p className="text-muted-foreground">
           Completa tu registro para acceder al panel con el rol de <strong>{invitation.role}</strong>.
         </p>

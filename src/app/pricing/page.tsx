@@ -15,7 +15,7 @@ export const metadata: Metadata = {
     title: "Precios | SaaS para academias de gimnasia",
     description: "Compara planes Free, Pro y Premium y crece sin límites.",
     url: `${baseUrl}/pricing`,
-    siteName: "Gym SaaS",
+    siteName: "Zaltyko",
     type: "website",
   },
   twitter: {
@@ -28,7 +28,7 @@ export const metadata: Metadata = {
 const pricingSchema = {
   "@context": "https://schema.org",
   "@type": "Product",
-  name: "Planes Gym SaaS",
+  name: "Planes Zaltyko",
   description: "Software para gestión multi-academia de gimnasia",
   offerCatalog: {
     "@type": "OfferCatalog",

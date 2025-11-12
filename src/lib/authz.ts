@@ -101,6 +101,14 @@ export function withTenant<Ctx extends Record<string, unknown>>(
       return NextResponse.json({ error: "PROFILE_NOT_FOUND" }, { status: 404 });
     }
 
+    // Check if user can login (for athletes and other roles that might be restricted)
+    if (!profile.canLogin && profile.role !== "super_admin") {
+      return NextResponse.json(
+        { error: "LOGIN_DISABLED", message: "Tu cuenta no tiene acceso activado. Contacta al administrador." },
+        { status: 403 }
+      );
+    }
+
     const overrideAcademyId = request.headers.get("x-academy-id") ?? context?.params?.academyId;
     const tenantId = await getTenantId(implicitUserId, overrideAcademyId ?? undefined);
 

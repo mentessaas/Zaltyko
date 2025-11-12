@@ -17,7 +17,7 @@ const testimonials: Testimonial[] = [
   {
     name: "Carolina Torres",
     rating: 5,
-    text: "Con GymnaSaaS migramos 3 sedes a un mismo panel. <span class='font-bold text-emerald-300'>Los reportes diarios de asistencia</span> nos ahorran horas con los padres y la federación.",
+    text: "Con Zaltyko migramos 3 sedes a un mismo panel. <span class='font-bold text-emerald-300'>Los reportes diarios de asistencia</span> nos ahorran horas con los padres y la federación.",
     role: "Directora · Gravity Gym",
     avatar: {
       src: "https://images.unsplash.com/photo-1583413230540-7ddb76f1c9dc?auto=format&fit=facearea&facepad=3&w=160&h=160&q=80",
@@ -52,7 +52,7 @@ export default function TestimonialsPage() {
       <div className="mx-auto max-w-5xl">
         <div className="mb-14 text-center">
           <h2 className="text-3xl font-semibold sm:text-4xl">
-            Equipos de alto rendimiento ya confían en GymnaSaaS
+            Equipos de alto rendimiento ya confían en Zaltyko
           </h2>
           <p className="mt-3 text-sm text-slate-200/70">
             Historias reales de academias que coordinan cientos de atletas con nuestra plataforma.

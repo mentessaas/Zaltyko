@@ -16,13 +16,14 @@ export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   return (
-    <nav className="fixed top-0 z-50 w-full border-b border-white/10 bg-[#111315]/90 backdrop-blur">
+    <nav className="fixed top-0 z-50 w-full border-b border-white/10 bg-zaltyko-primary/95 backdrop-blur">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <Link href="/" className="flex items-center gap-2 text-white">
-          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-lime-300 to-emerald-400 text-[#0d1b1e]">
-            <BarChart3 className="h-5 w-5" />
-          </span>
-          <span className="text-lg font-semibold tracking-tight">GymnaSaaS</span>
+          <img 
+            src="/branding/zaltyko/logo-zaltyko-dark.svg" 
+            alt="Zaltyko" 
+            className="h-8 w-auto"
+          />
         </Link>
 
         <div className="hidden items-center gap-8 md:flex">
@@ -47,7 +48,7 @@ export default function Navbar() {
           {isDevFeaturesEnabled && (
             <Link
               href="/onboarding"
-              className="rounded-full bg-gradient-to-r from-emerald-400 to-lime-300 px-4 py-2 text-sm font-semibold text-[#0d1b1e] transition hover:from-emerald-300 hover:to-lime-200"
+              className="rounded-full bg-gradient-to-r from-zaltyko-accent to-zaltyko-accent-light px-4 py-2 text-sm font-semibold text-zaltyko-primary-dark transition hover:from-zaltyko-accent-light hover:to-zaltyko-accent"
             >
               Crear academia demo
             </Link>
@@ -65,7 +66,7 @@ export default function Navbar() {
       </div>
 
       {isMenuOpen && (
-        <div className="border-t border-white/10 bg-[#111315] md:hidden">
+        <div className="border-t border-white/10 bg-zaltyko-primary md:hidden">
           <div className="space-y-1 px-4 py-3">
             {links.map((link) => (
               <Link
@@ -87,7 +88,7 @@ export default function Navbar() {
             {isDevFeaturesEnabled && (
               <Link
                 href="/onboarding"
-                className="mt-4 block rounded-full bg-gradient-to-r from-emerald-400 to-lime-300 px-3 py-2 text-center text-sm font-semibold text-[#0d1b1e]"
+                className="mt-4 block rounded-full bg-gradient-to-r from-zaltyko-accent to-zaltyko-accent-light px-3 py-2 text-center text-sm font-semibold text-zaltyko-primary-dark"
                 onClick={() => setIsMenuOpen(false)}
               >
                 Crear academia demo

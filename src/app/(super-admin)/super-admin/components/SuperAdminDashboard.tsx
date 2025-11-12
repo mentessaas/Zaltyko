@@ -119,15 +119,15 @@ export function SuperAdminDashboard({ initialMetrics }: SuperAdminDashboardProps
   );
 
   return (
-    <div className="space-y-8">
-      <section className="flex flex-col gap-4 rounded-3xl border border-white/10 bg-white/5 p-6 shadow-sm backdrop-blur">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div>
+    <div className="w-full space-y-6 sm:space-y-8">
+      <section className="flex w-full flex-col gap-4 rounded-2xl border border-white/10 bg-white/5 p-5 shadow-md backdrop-blur sm:rounded-3xl sm:p-6">
+        <div className="flex flex-col gap-4 sm:gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="min-w-0 space-y-2">
             <p className="text-xs font-semibold uppercase tracking-[0.35em] text-slate-300">
               Salud del SaaS
             </p>
-            <h1 className="text-3xl font-semibold text-white">Indicadores globales</h1>
-            <p className="text-sm text-slate-300">
+            <h1 className="text-2xl font-semibold text-white sm:text-3xl">Indicadores globales</h1>
+            <p className="text-sm text-slate-300 sm:text-base">
               Métricas agregadas en tiempo real conectadas a Supabase.
             </p>
           </div>
@@ -135,7 +135,7 @@ export function SuperAdminDashboard({ initialMetrics }: SuperAdminDashboardProps
             variant="outline"
             onClick={refresh}
             disabled={loading}
-            className="border-white/20 bg-white/10 text-slate-100 hover:border-white/40 hover:bg-white/20"
+            className="w-full shrink-0 border-white/20 bg-white/10 text-slate-100 hover:border-white/40 hover:bg-white/20 sm:w-auto"
           >
             <Activity className="mr-2 h-4 w-4" strokeWidth={1.8} />
             {loading ? "Actualizando…" : "Refrescar métricas"}
@@ -143,17 +143,17 @@ export function SuperAdminDashboard({ initialMetrics }: SuperAdminDashboardProps
         </div>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+      <section className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-6">
         {cards.map((card) => (
           <DashboardCard key={card.title} {...card} />
         ))}
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-2">
-        <div className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-5 text-sm text-slate-200">
-          <header className="flex items-center justify-between text-xs uppercase tracking-wide text-slate-300">
-            <span>Usuarios por rol</span>
-            <span>Total: {metrics.totals.users}</span>
+      <section className="grid w-full grid-cols-1 gap-6 lg:grid-cols-2">
+        <div className="min-w-0 space-y-3 rounded-2xl border border-white/10 bg-white/5 p-5 text-sm text-slate-200">
+          <header className="flex items-center justify-between gap-2 text-xs uppercase tracking-wide text-slate-300">
+            <span className="truncate">Usuarios por rol</span>
+            <span className="shrink-0">Total: {metrics.totals.users}</span>
           </header>
           <div className="space-y-2">
             {metrics.usersByRole.length === 0 ? (
@@ -164,20 +164,20 @@ export function SuperAdminDashboard({ initialMetrics }: SuperAdminDashboardProps
               metrics.usersByRole.map((role) => (
                 <div
                   key={role.role}
-                  className="flex items-center justify-between rounded-xl border border-white/10 bg-white/10 px-3 py-2"
+                  className="flex items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/10 px-3 py-2"
                 >
-                  <span className="font-medium capitalize">{role.role ?? "Sin rol"}</span>
-                  <span className="font-semibold text-white">{role.total}</span>
+                  <span className="min-w-0 truncate font-medium capitalize">{role.role ?? "Sin rol"}</span>
+                  <span className="shrink-0 font-semibold text-white">{role.total}</span>
                 </div>
               ))
             )}
           </div>
         </div>
 
-        <div className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-5 text-sm text-slate-200">
-          <header className="flex items-center justify-between text-xs uppercase tracking-wide text-slate-300">
-            <span>Distribución de planes</span>
-            <span>{metrics.planDistribution.length} planes</span>
+        <div className="min-w-0 space-y-3 rounded-2xl border border-white/10 bg-white/5 p-5 text-sm text-slate-200">
+          <header className="flex items-center justify-between gap-2 text-xs uppercase tracking-wide text-slate-300">
+            <span className="truncate">Distribución de planes</span>
+            <span className="shrink-0">{metrics.planDistribution.length} planes</span>
           </header>
           <div className="space-y-2">
             {metrics.planDistribution.length === 0 ? (
@@ -188,13 +188,13 @@ export function SuperAdminDashboard({ initialMetrics }: SuperAdminDashboardProps
               metrics.planDistribution.map((plan) => (
                 <div
                   key={plan.code}
-                  className="flex items-center justify-between rounded-xl border border-white/10 bg-white/10 px-3 py-2"
+                  className="flex items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/10 px-3 py-2"
                 >
-                  <div>
-                    <p className="font-semibold text-white uppercase tracking-wide">{plan.code}</p>
-                    {plan.nickname && <p className="text-xs text-slate-300">{plan.nickname}</p>}
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-semibold text-white uppercase tracking-wide">{plan.code}</p>
+                    {plan.nickname && <p className="truncate text-xs text-slate-300">{plan.nickname}</p>}
                   </div>
-                  <span className="font-semibold text-white">{plan.total}</span>
+                  <span className="shrink-0 font-semibold text-white">{plan.total}</span>
                 </div>
               ))
             )}
@@ -202,37 +202,37 @@ export function SuperAdminDashboard({ initialMetrics }: SuperAdminDashboardProps
         </div>
       </section>
 
-      <section className="rounded-2xl border border-white/10 bg-white/5 p-5 text-sm text-slate-200">
-        <header className="flex items-center justify-between text-xs uppercase tracking-wide text-slate-300">
-          <span>Estado de suscripciones</span>
+      <section className="w-full rounded-2xl border border-white/10 bg-white/5 p-5 text-sm text-slate-200">
+        <header className="flex items-center justify-between gap-2 text-xs uppercase tracking-wide text-slate-300">
+          <span className="truncate">Estado de suscripciones</span>
         </header>
-        <div className="mt-3 grid gap-2 md:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {metrics.planStatuses.map((status) => (
             <div
               key={status.status}
-              className="flex items-center justify-between rounded-xl border border-white/10 bg-white/10 px-3 py-2"
+              className="flex items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/10 px-3 py-2"
             >
-              <span className="font-medium capitalize">{status.status}</span>
-              <span className="font-semibold text-white">{status.total}</span>
+              <span className="min-w-0 truncate font-medium capitalize">{status.status}</span>
+              <span className="shrink-0 font-semibold text-white">{status.total}</span>
             </div>
           ))}
         </div>
-        <p className="mt-4 text-xs text-slate-400">
+        <p className="mt-4 break-words text-xs text-slate-400">
           Ingresos acumulados: {CURRENCY_FORMATTER.format(metrics.totals.revenue / 100)} · Facturas
           cobradas: {metrics.totals.paidInvoices}
         </p>
       </section>
 
-      <section className="rounded-2xl border border-white/10 bg-white/5 p-5 text-sm text-slate-200">
-        <header className="flex items-center justify-between text-xs uppercase tracking-wide text-slate-300">
-          <span>Academias creadas por mes</span>
-          <span>Últimos {chartDataset.length} meses</span>
+      <section className="w-full overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-5 text-sm text-slate-200">
+        <header className="flex flex-col gap-1 text-xs uppercase tracking-wide text-slate-300 sm:flex-row sm:items-center sm:justify-between">
+          <span className="truncate">Academias creadas por mes</span>
+          <span className="shrink-0">Últimos {chartDataset.length} meses</span>
         </header>
-        <div className="mt-6 flex h-48 items-end gap-3">
+        <div className="mt-6 flex h-48 items-end gap-2 overflow-x-auto pb-2 sm:gap-3">
           {chartDataset.map((item) => {
             const height = Math.max((item.total / chartMaxValue) * 100, 6);
             return (
-              <div key={item.label} className="flex flex-1 flex-col items-center gap-2 text-xs">
+              <div key={item.label} className="flex min-w-[60px] flex-1 flex-col items-center gap-2 text-xs sm:min-w-[80px]">
                 <div
                   className="flex w-full items-end justify-center rounded-t-md bg-gradient-to-t from-sky-500/40 via-sky-400/60 to-sky-300/80 shadow-inner transition hover:from-sky-500/50 hover:via-sky-400/80 hover:to-sky-200/90"
                   style={{ height: `${height}%` }}

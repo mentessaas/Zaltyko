@@ -83,7 +83,7 @@ export default function PlanLimitsPage() {
         return;
       }
 
-      alert("Ajustes aplicados correctamente. Puedes continuar usando GymnaSaaS.");
+      alert("Ajustes aplicados correctamente. Puedes continuar usando Zaltyko.");
       router.push("/dashboard");
     } catch (error) {
       console.error("Error saving adjustments", error);
@@ -113,7 +113,7 @@ export default function PlanLimitsPage() {
             <div>
               <h2 className="text-xl font-semibold text-emerald-900">Todo está en orden</h2>
               <p className="mt-1 text-sm text-emerald-700">
-                Tu plan actual no tiene violaciones de límites. Puedes continuar usando GymnaSaaS normalmente.
+                Tu plan actual no tiene violaciones de límites. Puedes continuar usando Zaltyko normalmente.
               </p>
             </div>
           </div>
@@ -138,7 +138,7 @@ export default function PlanLimitsPage() {
           <div className="flex-1">
             <h1 className="text-2xl font-semibold text-amber-900">Ajustes necesarios en tu plan</h1>
             <p className="mt-2 text-sm text-amber-700">
-              Tu plan actual tiene límites que están siendo excedidos. Para continuar usando GymnaSaaS, necesitas ajustar los siguientes recursos.
+              Tu plan actual tiene límites que están siendo excedidos. Para continuar usando Zaltyko, necesitas ajustar los siguientes recursos.
             </p>
           </div>
         </div>

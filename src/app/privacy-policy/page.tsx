@@ -7,7 +7,7 @@ const sections = [
   {
     title: "1. Quiénes somos",
     content: [
-      "GymnaSaaS es una plataforma software-as-a-service operada por Mentes SaaS S.L. que ayuda a academias de gimnasia a gestionar atletas, coaches, clases y facturación en múltiples sedes.",
+      "Zaltyko es una plataforma software-as-a-service operada por Mentes SaaS S.L. que ayuda a academias de gimnasia a gestionar atletas, coaches, clases y facturación en múltiples sedes.",
       "Esta política describe cómo tratamos los datos personales cuando utilizas nuestro sitio web, la aplicación web y las APIs asociadas.",
     ],
   },
@@ -71,7 +71,7 @@ const sections = [
   {
     title: "9. Menores de edad",
     content: [
-      "GymnaSaaS está pensada para administradores y personal autorizado de academias. No recopilamos datos directamente de menores sin consentimiento de su representante legal.",
+      "Zaltyko está pensada para administradores y personal autorizado de academias. No recopilamos datos directamente de menores sin consentimiento de su representante legal.",
     ],
   },
   {
@@ -89,9 +89,9 @@ const sections = [
 ];
 
 export const metadata: Metadata = {
-  title: "Política de privacidad | GymnaSaaS",
+  title: "Política de privacidad | Zaltyko",
   description:
-    "Conoce cómo GymnaSaaS protege los datos de tus academias, atletas y coaches.",
+    "Conoce cómo Zaltyko protege los datos de tus academias, atletas y coaches.",
 };
 
 export default function PrivacyPolicy() {
@@ -109,7 +109,7 @@ export default function PrivacyPolicy() {
           Política de privacidad
         </p>
         <h1 className="text-3xl font-semibold text-white sm:text-4xl">
-          Protegemos los datos que confías a GymnaSaaS
+          Protegemos los datos que confías a Zaltyko
         </h1>
         <p className="text-sm text-slate-400">
           Última actualización: {updatedAt}

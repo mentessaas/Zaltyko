@@ -12,6 +12,23 @@ export default {
   theme: {
     extend: {
       colors: {
+        // Zaltyko Brand Colors
+        zaltyko: {
+          primary: {
+            DEFAULT: "#0D47A1", // Azul profundo
+            light: "#42A5F5", // Azul claro
+            dark: "#002171", // Variante más intensa
+          },
+          accent: {
+            DEFAULT: "#FBC02D", // Dorado principal
+            light: "#FFE082", // Dorado claro
+          },
+          neutral: {
+            light: "#F5F7FA", // Fondo claro
+            dark: "#1E1E1E", // Textos oscuros
+          },
+        },
+        // Mantener compatibilidad con sistema existente
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
         card: {
@@ -53,10 +70,20 @@ export default {
           "5": "hsl(var(--chart-5))",
         },
       },
+      fontFamily: {
+        sans: ["var(--font-inter)", "ui-sans-serif", "system-ui"],
+        display: ["var(--font-poppins)", "ui-sans-serif", "system-ui"],
+      },
+      boxShadow: {
+        card: "0 4px 20px rgba(13, 71, 161, 0.1)",
+        "button": "0 2px 8px rgba(66, 165, 245, 0.3)",
+      },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+        "2xl": "1rem",
+        "3xl": "1.5rem",
       },
     },
   },

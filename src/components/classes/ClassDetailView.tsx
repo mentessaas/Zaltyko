@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 
 import { AttendanceDialog } from "@/components/classes/AttendanceDialog";
 import { CreateSessionDialog } from "@/components/classes/CreateSessionDialog";
+import { GenerateSessionsDialog } from "@/components/classes/GenerateSessionsDialog";
 
 const WEEKDAY_LABELS: Record<number, string> = {
   0: "Domingo",
@@ -72,6 +73,7 @@ export function ClassDetailView({
 }: ClassDetailViewProps) {
   const router = useRouter();
   const [createSessionOpen, setCreateSessionOpen] = useState(false);
+  const [generateSessionsOpen, setGenerateSessionsOpen] = useState(false);
   const [attendanceSessionId, setAttendanceSessionId] = useState<string | null>(null);
   const [attendanceOpen, setAttendanceOpen] = useState(false);
   const [isRefreshing, startTransition] = useTransition();
@@ -136,6 +138,16 @@ export function ClassDetailView({
             >
               Volver a clases
             </Link>
+            {classInfo.weekday !== null && classInfo.weekday !== undefined && (
+              <button
+                type="button"
+                onClick={() => setGenerateSessionsOpen(true)}
+                className="inline-flex items-center justify-center rounded-md border border-primary/20 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary hover:bg-primary/20 disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={isRefreshing}
+              >
+                Generar sesiones
+              </button>
+            )}
             <button
               type="button"
               onClick={() => setCreateSessionOpen(true)}
@@ -222,6 +234,17 @@ export function ClassDetailView({
         open={createSessionOpen}
         onClose={() => setCreateSessionOpen(false)}
         onCreated={refresh}
+      />
+
+      <GenerateSessionsDialog
+        classId={classInfo.id}
+        className={classInfo.name}
+        weekday={classInfo.weekday}
+        startTime={classInfo.startTime}
+        endTime={classInfo.endTime}
+        open={generateSessionsOpen}
+        onClose={() => setGenerateSessionsOpen(false)}
+        onGenerated={refresh}
       />
 
       <AttendanceDialog

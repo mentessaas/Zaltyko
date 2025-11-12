@@ -4,6 +4,8 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
+import { FormField, validators } from "@/components/ui/form-field";
+import { useToast } from "@/components/ui/toast-provider";
 
 type AcademyOption = {
   id: string;
@@ -28,6 +30,7 @@ export default function InviteUserForm({
   defaultTenant = "",
 }: InviteUserFormProps) {
   const router = useRouter();
+  const toast = useToast();
 
   const [email, setEmail] = useState("");
   const [role, setRole] = useState(availableRoles.includes("coach") ? "coach" : availableRoles[0] ?? "");
@@ -35,7 +38,6 @@ export default function InviteUserForm({
   const [defaultAcademyId, setDefaultAcademyId] = useState<string | undefined>();
   const [customTenantId, setCustomTenantId] = useState(defaultTenant);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   const effectiveTenantId = showTenantSelector ? customTenantId || tenantId : tenantId;
 
@@ -105,18 +107,19 @@ export default function InviteUserForm({
         throw new Error(data?.error ?? "No se pudo enviar la invitación");
       }
 
-      setMessage({
-        type: "success",
-        text: "Invitación enviada. El usuario recibirá un correo con instrucciones.",
+      toast.pushToast({
+        title: "Invitación enviada",
+        description: "El usuario recibirá un correo con instrucciones.",
+        variant: "success",
       });
       resetForm();
       router.refresh();
     } catch (error) {
       console.error(error);
-      setMessage({
-        type: "error",
-        text:
-          error instanceof Error ? error.message : "Error inesperado al enviar la invitación.",
+      toast.pushToast({
+        title: "Error al enviar invitación",
+        description: error instanceof Error ? error.message : "Error inesperado al enviar la invitación.",
+        variant: "error",
       });
     } finally {
       setIsSubmitting(false);
@@ -126,35 +129,34 @@ export default function InviteUserForm({
   return (
     <form onSubmit={handleSubmit} className="mt-4 space-y-4">
       {showTenantSelector && (
-        <div className="space-y-2">
-          <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Tenant ID
-          </label>
-          <input
-            type="text"
-            className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-400 disabled:cursor-not-allowed disabled:bg-muted"
-            placeholder="00000000-0000-0000-0000-000000000000"
-            value={customTenantId}
-            onChange={(event) => setCustomTenantId(event.target.value)}
-            disabled={disabled}
-          />
-        </div>
+        <FormField
+          id="tenantId"
+          label="Tenant ID"
+          type="text"
+          placeholder="00000000-0000-0000-0000-000000000000"
+          value={customTenantId}
+          onChange={(event) => setCustomTenantId(event.target.value)}
+          validator={validators.required("El Tenant ID es obligatorio")}
+          validateOnBlur={true}
+          disabled={disabled}
+        />
       )}
 
-      <div className="space-y-2">
-        <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Correo electrónico
-        </label>
-        <input
-          type="email"
-          required
-          placeholder="usuario@academia.com"
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
-          className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-400 disabled:cursor-not-allowed disabled:bg-muted"
-          disabled={disabled || isSubmitting}
-        />
-      </div>
+      <FormField
+        id="email"
+        label="Correo electrónico"
+        type="email"
+        placeholder="usuario@academia.com"
+        value={email}
+        onChange={(event) => setEmail(event.target.value)}
+        validator={validators.combine(
+          validators.required("El correo es obligatorio"),
+          validators.email("Ingresa un correo válido")
+        )}
+        validateOnChange={true}
+        validateOnBlur={true}
+        disabled={disabled || isSubmitting}
+      />
 
       <div className="space-y-2">
         <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -225,20 +227,10 @@ export default function InviteUserForm({
       <Button
         type="submit"
         className="w-full"
-        disabled={disabled || isSubmitting || !availableRoles.length}
+        disabled={disabled || isSubmitting || !availableRoles.length || !email}
       >
         {isSubmitting ? "Enviando..." : "Enviar invitación"}
       </Button>
-
-      {message && (
-        <p
-          className={`text-sm ${
-            message.type === "success" ? "text-emerald-600" : "text-red-600"
-          }`}
-        >
-          {message.text}
-        </p>
-      )}
     </form>
   );
 }

@@ -456,7 +456,9 @@ export async function POST(request: Request) {
     } else if (
       event.type === "invoice.paid" ||
       event.type === "invoice.payment_failed" ||
-      event.type === "invoice.payment_action_required"
+      event.type === "invoice.payment_action_required" ||
+      event.type === "invoice.finalized" ||
+      event.type === "invoice.updated"
     ) {
       const invoice = event.data.object as Stripe.Invoice;
       const context = await getAcademyContextFromInvoice(invoice, stripe);
@@ -471,9 +473,9 @@ export async function POST(request: Request) {
         const amountFormatted = `${(amount / 100).toFixed(2)} ${(invoice.currency ?? "eur").toUpperCase()}`;
 
         if (event.type === "invoice.paid") {
-          const subject = "GymnaSaaS · Pago recibido";
+          const subject = "Zaltyko · Pago recibido";
           const text = `Se registró el pago de la factura ${invoice.number ?? invoice.id} por ${amountFormatted}.`;
-          const html = `<p>Hola,</p><p>Se registró el pago de la factura <strong>${invoice.number ?? invoice.id}</strong>.</p><p>Importe cobrado: <strong>${amountFormatted}</strong>.</p><p>Puedes revisarla en Stripe: <a href="${invoice.hosted_invoice_url ?? invoice.invoice_pdf ?? "#"}">ver factura</a>.</p>`;
+          const html = `<div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;"><h2 style="color: #0D47A1; font-family: Poppins, sans-serif; font-weight: 700;">Zaltyko · Pago recibido</h2><p>Hola,</p><p>Se registró el pago de la factura <strong>${invoice.number ?? invoice.id}</strong>.</p><p>Importe cobrado: <strong>${amountFormatted}</strong>.</p><p>Puedes revisarla en Stripe: <a href="${invoice.hosted_invoice_url ?? invoice.invoice_pdf ?? "#"}" style="color: #0D47A1;">ver factura</a>.</p></div>`;
           await notifyOwners(academyId, subject, html, text);
           await logAuditEvent(tenantId, "billing.invoice_paid", {
             invoiceId: invoice.id,
@@ -483,9 +485,9 @@ export async function POST(request: Request) {
         }
 
       if (event.type === "invoice.payment_failed" || event.type === "invoice.payment_action_required") {
-          const subject = "GymnaSaaS · Acción requerida en factura";
+          const subject = "Zaltyko · Acción requerida en factura";
           const text = `La factura ${invoice.number ?? invoice.id} requiere tu revisión.`;
-          const html = `<p>Hola,</p><p>No se pudo completar el cobro de la factura <strong>${invoice.number ?? invoice.id}</strong>.</p><p>Revisa el método de pago desde el portal de Stripe.</p>`;
+          const html = `<div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;"><h2 style="color: #0D47A1; font-family: Poppins, sans-serif; font-weight: 700;">Zaltyko · Acción requerida</h2><p>Hola,</p><p>No se pudo completar el cobro de la factura <strong>${invoice.number ?? invoice.id}</strong>.</p><p>Revisa el método de pago desde el portal de Stripe.</p></div>`;
           await notifyOwners(academyId, subject, html, text);
           await logAuditEvent(tenantId, "billing.invoice_issue", {
             invoiceId: invoice.id,

@@ -97,7 +97,7 @@ export const onboardingCopy: Record<AcademyType, { steps: StepMap }> = {
       recommendations: [
         [
           "Utiliza un correo que revises a diario para recibir alertas y notificaciones.",
-          "Define una contraseña única para GymnaSaaS y guárdala en tu gestor de contraseñas.",
+          "Define una contraseña única para Zaltyko y guárdala en tu gestor de contraseñas.",
           "Si guardas tu cuenta en equipo compartido, recuerda cerrar sesión al finalizar.",
         ],
         [

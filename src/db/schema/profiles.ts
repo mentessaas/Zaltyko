@@ -11,6 +11,7 @@ export const profiles = pgTable(
     name: text("name"),
     role: profileRoleEnum("role").notNull().default("owner"),
     activeAcademyId: uuid("active_academy_id"),
+    canLogin: boolean("can_login").notNull().default(true),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
     isSuspended: boolean("is_suspended").notNull().default(false),
   },

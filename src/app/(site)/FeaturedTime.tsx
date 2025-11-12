@@ -32,7 +32,7 @@ export default function FeaturedTime() {
           Nacimos en la pista, no en una plantilla genérica.
         </h2>
         <p className="mt-4 text-base text-slate-200/80">
-          GymnaSaaS combina operativa diaria, comunicación y cobros para academias que entrenan élite y base. Multi-campus, multi-rol y con reportes listos para federaciones y padres.
+          Zaltyko combina operativa diaria, comunicación y cobros para academias que entrenan élite y base. Multi-campus, multi-rol y con reportes listos para federaciones y padres.
         </p>
 
         <div className="mt-12 grid gap-6 md:grid-cols-3">

@@ -3,12 +3,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { PauseCircle, PlayCircle, Trash2 } from "lucide-react";
+import { PauseCircle, PlayCircle, Trash2, Loader2 } from "lucide-react";
 
 import type { SuperAdminAcademyRow } from "@/lib/superAdminService";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/components/ui/toast-provider";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 type SuperAdminAcademyFilters = {
   plan?: string;
@@ -43,11 +45,19 @@ export function SuperAdminAcademiesTable({
 }: SuperAdminAcademiesTableProps) {
   const supabase = createClient();
   const router = useRouter();
+  const toast = useToast();
   const [userId, setUserId] = useState<string | null>(null);
   const [items, setItems] = useState<SuperAdminAcademyRow[]>(initialItems);
   const [total, setTotal] = useState(initialTotal || initialItems.length);
   const [loading, setLoading] = useState(false);
+  const [mutatingAcademyId, setMutatingAcademyId] = useState<string | null>(null);
   const [filters, setFilters] = useState<SuperAdminAcademyFilters>({});
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+  const [pendingAction, setPendingAction] = useState<{
+    academyId: string;
+    action: "suspend" | "delete";
+    academyName: string;
+  } | null>(null);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -111,23 +121,116 @@ export function SuperAdminAcademiesTable({
     academyId: string,
     payload: Record<string, unknown>,
     method: "PATCH" | "DELETE",
+    optimisticUpdate = true,
   ) => {
     if (!userId) return;
-    const response = await fetch(`/api/super-admin/academies/${academyId}`, {
-      method,
-      headers: {
-        "Content-Type": "application/json",
-        "x-user-id": userId,
-      },
-      body: method === "PATCH" ? JSON.stringify(payload) : undefined,
-    });
 
-    if (!response.ok) {
-      console.error("Mutation failed", await response.text());
-      return;
+    const academy = items.find((a) => a.id === academyId);
+    if (!academy) return;
+
+    // Optimistic update: actualizar UI inmediatamente
+    if (optimisticUpdate) {
+      if (method === "DELETE") {
+        setItems((prevItems) => prevItems.filter((item) => item.id !== academyId));
+        setTotal((prev) => Math.max(0, prev - 1));
+      } else {
+        setItems((prevItems) =>
+          prevItems.map((item) => {
+            if (item.id === academyId) {
+              return {
+                ...item,
+                ...payload,
+              };
+            }
+            return item;
+          })
+        );
+      }
     }
 
-    await fetchAcademies(filters);
+    setMutatingAcademyId(academyId);
+    try {
+      const response = await fetch(`/api/super-admin/academies/${academyId}`, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": userId,
+        },
+        body: method === "PATCH" ? JSON.stringify(payload) : undefined,
+      });
+
+      if (!response.ok) {
+        // Revertir optimistic update en caso de error
+        if (optimisticUpdate) {
+          await fetchAcademies(filters);
+        }
+        const error = await response.json().catch(() => ({}));
+        toast.pushToast({
+          title: "Error al actualizar academia",
+          description: error.message || "No se pudo completar la operación",
+          variant: "error",
+        });
+        return;
+      }
+
+      toast.pushToast({
+        title: method === "DELETE" ? "Academia eliminada" : "Academia actualizada",
+        description: method === "DELETE" 
+          ? "La academia ha sido eliminada correctamente"
+          : "Los cambios se han aplicado correctamente",
+        variant: "success",
+      });
+
+      // Refrescar datos para asegurar sincronización
+      await fetchAcademies(filters);
+    } catch (error: any) {
+      // Revertir optimistic update en caso de error
+      if (optimisticUpdate) {
+        await fetchAcademies(filters);
+      }
+      console.error("Mutation failed", error);
+      toast.pushToast({
+        title: "Error",
+        description: error.message || "Ocurrió un error inesperado",
+        variant: "error",
+      });
+    } finally {
+      setMutatingAcademyId(null);
+    }
+  };
+
+  const handleSuspend = (academy: SuperAdminAcademyRow) => {
+    setPendingAction({
+      academyId: academy.id,
+      action: "suspend",
+      academyName: academy.name || "Sin nombre",
+    });
+    setConfirmDialogOpen(true);
+  };
+
+  const handleDelete = (academy: SuperAdminAcademyRow) => {
+    setPendingAction({
+      academyId: academy.id,
+      action: "delete",
+      academyName: academy.name || "Sin nombre",
+    });
+    setConfirmDialogOpen(true);
+  };
+
+  const handleConfirmAction = async () => {
+    if (!pendingAction) return;
+
+    if (pendingAction.action === "delete") {
+      await mutateAcademy(pendingAction.academyId, {}, "DELETE");
+    } else {
+      const academy = items.find((a) => a.id === pendingAction.academyId);
+      if (academy) {
+        await mutateAcademy(pendingAction.academyId, { isSuspended: !academy.isSuspended }, "PATCH");
+      }
+    }
+
+    setPendingAction(null);
+    setConfirmDialogOpen(false);
   };
 
   return (
@@ -261,17 +364,18 @@ export function SuperAdminAcademiesTable({
                       variant="outline"
                       size="sm"
                       className="border-white/20 bg-white/5 text-slate-100 hover:border-white/40 hover:bg-white/10"
-                      onClick={() => {
-                        const confirmMessage = academy.isSuspended
-                          ? "¿Reactivar la academia?"
-                          : "¿Suspender la academia? Los usuarios no podrán acceder.";
-                        if (window.confirm(confirmMessage)) {
-                          mutateAcademy(academy.id, { isSuspended: !academy.isSuspended }, "PATCH");
-                        }
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSuspend(academy);
                       }}
-                      disabled={loading}
+                      disabled={loading || mutatingAcademyId === academy.id}
                     >
-                      {academy.isSuspended ? (
+                      {mutatingAcademyId === academy.id ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" strokeWidth={1.8} />
+                          Procesando...
+                        </>
+                      ) : academy.isSuspended ? (
                         <>
                           <PlayCircle className="mr-2 h-4 w-4" strokeWidth={1.8} />
                           Reactivar
@@ -287,19 +391,23 @@ export function SuperAdminAcademiesTable({
                       variant="outline"
                       size="sm"
                       className="border-rose-500/40 bg-rose-500/10 text-rose-200 hover:border-rose-400 hover:bg-rose-400/20"
-                      onClick={() => {
-                        if (
-                          window.confirm(
-                            "Esta acción eliminará la academia y sus datos asociados. ¿Confirmas?",
-                          )
-                        ) {
-                          mutateAcademy(academy.id, {}, "DELETE");
-                        }
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(academy);
                       }}
-                      disabled={loading}
+                      disabled={loading || mutatingAcademyId === academy.id}
                     >
-                      <Trash2 className="mr-2 h-4 w-4" strokeWidth={1.8} />
-                      Eliminar
+                      {mutatingAcademyId === academy.id ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" strokeWidth={1.8} />
+                          Procesando...
+                        </>
+                      ) : (
+                        <>
+                          <Trash2 className="mr-2 h-4 w-4" strokeWidth={1.8} />
+                          Eliminar
+                        </>
+                      )}
                     </Button>
                   </div>
                 </td>
@@ -316,6 +424,31 @@ export function SuperAdminAcademiesTable({
         </Link>{" "}
         mientras desarrollamos la delegación directa.
       </p>
+
+      {pendingAction && (
+        <ConfirmDialog
+          open={confirmDialogOpen}
+          onOpenChange={setConfirmDialogOpen}
+          title={
+            pendingAction.action === "delete"
+              ? "Eliminar academia"
+              : `Suspender academia`
+          }
+          description={
+            pendingAction.action === "delete"
+              ? `¿Estás seguro de eliminar "${pendingAction.academyName}"? Esta acción eliminará la academia y todos sus datos asociados. Esta acción no se puede deshacer.`
+              : `¿Estás seguro de suspender "${pendingAction.academyName}"? Los usuarios no podrán acceder hasta que sea reactivada.`
+          }
+          variant="destructive"
+          confirmText={pendingAction.action === "delete" ? "Eliminar" : "Suspender"}
+          onConfirm={handleConfirmAction}
+          onCancel={() => {
+            setPendingAction(null);
+            setConfirmDialogOpen(false);
+          }}
+          loading={mutatingAcademyId === pendingAction?.academyId}
+        />
+      )}
     </div>
   );
 }
