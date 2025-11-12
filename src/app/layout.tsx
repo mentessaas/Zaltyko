@@ -1,28 +1,39 @@
 import type { Metadata } from "next";
-import { Bricolage_Grotesque } from "next/font/google";
+import { Poppins, Inter } from "next/font/google";
 import "./globals.css";
 import type React from "react";
 import { cn } from "@/lib/utils";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 import { AppProviders } from "./providers";
 
-const bricolageGrotesque = Bricolage_Grotesque({
+const poppins = Poppins({
   subsets: ["latin"],
   display: "swap",
+  weight: ["400", "500", "600", "700", "800"],
+  variable: "--font-poppins",
+});
+
+const inter = Inter({
+  subsets: ["latin"],
+  display: "swap",
+  weight: ["400", "500", "600"],
+  variable: "--font-inter",
 });
 
 export const metadata: Metadata = {
-  title: "Gym SaaS",
+  title: "Zaltyko",
   description:
-    "Plataforma multi-academia para gimnasia con dashboards, Stripe, PWA y control por planes.",
+    "Zaltyko — El sistema definitivo para gestionar academias de gimnasia",
   keywords: [
+    "zaltyko",
     "gimnasia",
+    "academias de gimnasia",
+    "gestión deportiva",
     "multi tenant",
     "stripe",
     "saas",
     "drizzle",
     "supabase",
-    "nextauth",
     "pwa",
   ],
 };
@@ -36,12 +47,12 @@ export default function RootLayout({
     <html lang="es">
       <head>
         <link rel="manifest" href="/manifest.json" />
-        <meta name="theme-color" content="#000000" />
+        <meta name="theme-color" content="#0D47A1" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="mobile-web-app-capable" content="yes" />
       </head>
       <body
-        className={cn(bricolageGrotesque.className, "antialiased")}
+        className={cn(inter.variable, poppins.variable, "font-sans antialiased")}
         suppressHydrationWarning
       >
         <AppProviders>{children}</AppProviders>

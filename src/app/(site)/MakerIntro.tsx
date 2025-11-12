@@ -25,7 +25,7 @@ export default function MakerIntro() {
             Diseñado junto a directores técnicos de gimnasia artística.
           </h2>
           <p className="mt-4 text-base text-slate-200/80">
-            No es otra plantilla. GymnaSaaS nace de academias reales que necesitaban controlar entrenamientos, staff y facturación sin usar hojas de cálculo infinitas. Cada módulo se integra con Stripe, Supabase y nuestras APIs públicas para que puedas extenderlo.
+            No es otra plantilla. Zaltyko nace de academias reales que necesitaban controlar entrenamientos, staff y facturación sin usar hojas de cálculo infinitas. Cada módulo se integra con Stripe, Supabase y nuestras APIs públicas para que puedas extenderlo.
           </p>
           <p className="mt-4 text-base text-slate-200/70">
             ¿Quieres probarlo? Inicia el onboarding, genera datos demo y entra al dashboard multi-academia. No necesitas configurar auth ni llaves de terceros para el modo demostración.

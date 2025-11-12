@@ -15,43 +15,43 @@ const sellingPoints = [
 
 export default function HeroSection() {
   return (
-    <section className="relative mt-16 overflow-hidden bg-[#0d1b1e]">
-      <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top,_#38f9d730,_transparent_60%),radial-gradient(circle_at_bottom,_#9cff6b25,_transparent_55%)]" />
+    <section className="relative mt-16 overflow-hidden bg-zaltyko-primary">
+      <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top,_rgba(66,165,245,0.2),_transparent_60%),radial-gradient(circle_at_bottom,_rgba(251,192,45,0.15),_transparent_55%)]" />
 
       <div className="mx-auto flex max-w-6xl flex-col items-center gap-12 px-4 py-24 md:flex-row md:items-start md:px-6 lg:px-8">
         <div className="flex-1 text-center md:text-left">
-          <span className="inline-flex items-center gap-2 rounded-full border border-emerald-400/40 bg-white/5 px-4 py-1 text-xs font-semibold uppercase tracking-widest text-emerald-200">
+          <span className="inline-flex items-center gap-2 rounded-full border border-zaltyko-accent/40 bg-white/10 px-4 py-1 text-xs font-semibold uppercase tracking-widest text-zaltyko-accent">
             <Users className="h-4 w-4" />
             SaaS para gimnasia artística
           </span>
 
-          <h1 className="mt-6 text-4xl font-extrabold leading-tight text-white sm:text-5xl lg:text-[3.2rem]">
-            Gestiona todas tus academias de gimnasia desde un único panel.
+          <h1 className="mt-6 font-display text-4xl font-extrabold leading-tight text-white sm:text-5xl lg:text-[3.2rem]">
+            Zaltyko — El sistema definitivo para gestionar academias de gimnasia
           </h1>
 
-          <p className="mt-6 text-lg text-slate-200/90 md:max-w-xl">
-            Automatiza altas de atletas, horarios, nómina de coaches y cobros recurrentes. GymnaSaaS centraliza operaciones, métricas y facturación para academias que crecen sin perder control.
+          <p className="mt-6 text-lg text-white/90 md:max-w-xl">
+            Registra alumnos, controla pagos, organiza competencias y haz crecer tu academia sin complicaciones.
           </p>
 
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
             <Link
               href="/onboarding"
-              className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-emerald-400 to-lime-300 px-6 py-3 text-sm font-semibold text-[#0d1b1e] transition hover:from-emerald-300 hover:to-lime-200"
+              className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-zaltyko-accent to-zaltyko-accent-light px-6 py-3 text-sm font-semibold text-zaltyko-primary-dark transition hover:from-zaltyko-accent-light hover:to-zaltyko-accent"
             >
               Iniciar onboarding guiado
             </Link>
             <Link
               href="#planes"
-              className="inline-flex items-center justify-center rounded-full border border-white/20 px-6 py-3 text-sm font-semibold text-white hover:bg-white/10"
+              className="inline-flex items-center justify-center rounded-full border border-white/30 px-6 py-3 text-sm font-semibold text-white hover:bg-white/10"
             >
               Conoce los planes
             </Link>
           </div>
 
-          <ul className="mt-10 space-y-3 text-left text-sm text-slate-200/80">
+          <ul className="mt-10 space-y-3 text-left text-sm text-white/80">
             {sellingPoints.map((point) => (
               <li key={point} className="flex items-start gap-2">
-                <BadgeCheck className="mt-0.5 h-4 w-4 text-emerald-300" />
+                <BadgeCheck className="mt-0.5 h-4 w-4 text-zaltyko-accent" />
                 <span>{point}</span>
               </li>
             ))}
@@ -60,11 +60,11 @@ export default function HeroSection() {
 
         <aside className="w-full max-w-md flex-1 md:max-w-xs">
           <div className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-xl backdrop-blur">
-            <div className="rounded-2xl bg-[#132227] p-5">
-              <p className="text-xs font-medium uppercase tracking-[0.2em] text-emerald-200">
+            <div className="rounded-2xl bg-zaltyko-primary-dark/50 p-5">
+              <p className="text-xs font-medium uppercase tracking-[0.2em] text-zaltyko-accent">
                 Panel en vivo
               </p>
-              <h2 className="mt-3 text-xl font-semibold text-white">
+              <h2 className="mt-3 font-display text-xl font-semibold text-white">
                 Vista general de la academia Aurora Elite
               </h2>
               <div className="mt-6 space-y-4">

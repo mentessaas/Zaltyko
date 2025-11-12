@@ -100,6 +100,8 @@ export default function BillingPage() {
   const [loadingPlans, setLoadingPlans] = useState(true);
   const [history, setHistory] = useState<InvoiceRow[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [isSyncing, setIsSyncing] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -273,6 +275,56 @@ export default function BillingPage() {
     }
   };
 
+  const handleSync = async () => {
+    if (!academyId || !session?.userId) {
+      setError("Activa la sesión demo antes de sincronizar.");
+      return;
+    }
+
+    setIsSyncing(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/billing/sync", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": session.userId,
+        },
+        body: JSON.stringify({ academyId }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data?.message || data?.error || "Error al sincronizar facturas");
+      }
+
+      // Recargar historial después de sincronizar
+      const historyRes = await fetch("/api/billing/history", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": session.userId,
+        },
+        body: JSON.stringify({ academyId }),
+      });
+
+      if (historyRes.ok) {
+        const historyData = (await historyRes.json()) as InvoiceRow[];
+        setHistory(historyData);
+      }
+    } catch (err: any) {
+      setError(err.message ?? "Error al sincronizar facturas");
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const filteredHistory = history.filter((invoice) => {
+    if (statusFilter === "all") return true;
+    return invoice.status === statusFilter;
+  });
+
   const currentPlanInfo = summary
     ? plans.find((plan) => plan.code === summary.planCode) ?? null
     : null;
@@ -402,19 +454,42 @@ export default function BillingPage() {
       </section>
 
       <section className="space-y-3 rounded-lg border bg-card p-6 shadow-sm">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-xl font-medium">Historial de facturación</h2>
             <p className="text-sm text-muted-foreground">
               Facturas emitidas durante los últimos ciclos de facturación.
             </p>
           </div>
-          {loadingHistory && <p className="text-sm text-muted-foreground">Cargando…</p>}
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+            >
+              <option value="all">Todos los estados</option>
+              <option value="paid">Pagadas</option>
+              <option value="open">Abiertas</option>
+              <option value="draft">Borrador</option>
+              <option value="uncollectible">No cobrables</option>
+              <option value="void">Anuladas</option>
+            </select>
+            <button
+              onClick={handleSync}
+              disabled={isSyncing || loadingHistory || !academyId || !session?.userId}
+              className="inline-flex items-center justify-center rounded-md border border-primary/20 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary hover:bg-primary/20 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isSyncing ? "Sincronizando…" : "Sincronizar facturas"}
+            </button>
+            {loadingHistory && <p className="text-sm text-muted-foreground">Cargando…</p>}
+          </div>
         </div>
 
-        {history.length === 0 && !loadingHistory ? (
+        {filteredHistory.length === 0 && !loadingHistory ? (
           <p className="text-sm text-muted-foreground">
-            Aún no hay facturas registradas para esta academia.
+            {history.length === 0
+              ? "Aún no hay facturas registradas para esta academia."
+              : "No hay facturas que coincidan con el filtro seleccionado."}
           </p>
         ) : (
           <div className="overflow-hidden rounded-lg border">
@@ -428,7 +503,7 @@ export default function BillingPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {history.map((invoice) => {
+                {filteredHistory.map((invoice) => {
                   const created = new Date(invoice.createdAt);
                   return (
                     <tr key={invoice.id}>
@@ -440,8 +515,24 @@ export default function BillingPage() {
                         }).format(created)}
                       </td>
                       <td className="px-4 py-3">{formatInvoiceAmount(invoice)}</td>
-                      <td className="px-4 py-3 capitalize">
-                        {invoice.status.replace(/_/g, " ")}
+                      <td className="px-4 py-3">
+                        <span
+                          className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize ${
+                            invoice.status === "paid"
+                              ? "bg-green-100 text-green-800"
+                              : invoice.status === "open"
+                              ? "bg-blue-100 text-blue-800"
+                              : invoice.status === "draft"
+                              ? "bg-gray-100 text-gray-800"
+                              : invoice.status === "uncollectible"
+                              ? "bg-red-100 text-red-800"
+                              : invoice.status === "void"
+                              ? "bg-gray-100 text-gray-600"
+                              : "bg-gray-100 text-gray-800"
+                          }`}
+                        >
+                          {invoice.status.replace(/_/g, " ")}
+                        </span>
                       </td>
                       <td className="px-4 py-3">
                         {invoice.hostedInvoiceUrl || invoice.invoicePdf ? (

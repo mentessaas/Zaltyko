@@ -13,9 +13,9 @@ import { Schema } from "@/components/Schema";
 const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const title = "Gym SaaS · Gestiona múltiples academias de gimnasia";
+  const title = "Zaltyko — El sistema definitivo para gestionar academias de gimnasia";
   const description =
-    "Todo en uno para coordinar atletas, entrenadores y facturación de academias de gimnasia.";
+    "Registra alumnos, controla pagos, organiza competencias y haz crecer tu academia sin complicaciones.";
 
   return {
     title,
@@ -27,7 +27,7 @@ export async function generateMetadata(): Promise<Metadata> {
       title,
       description,
       url: baseUrl,
-      siteName: "Gym SaaS",
+      siteName: "Zaltyko",
       type: "website",
     },
     twitter: {
@@ -54,9 +54,9 @@ export default function Home() {
         json={{
           "@context": "https://schema.org",
           "@type": "SportsClub",
-          name: "Gym SaaS",
+          name: "Zaltyko",
           description:
-            "Software como servicio para academias de gimnasia con dashboards, Stripe y PWA.",
+            "Zaltyko — El sistema definitivo para gestionar academias de gimnasia. Registra alumnos, controla pagos, organiza competencias y haz crecer tu academia sin complicaciones.",
           url: baseUrl,
           sport: "Gymnastics",
         }}

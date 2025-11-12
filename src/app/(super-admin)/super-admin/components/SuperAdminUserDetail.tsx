@@ -55,6 +55,7 @@ interface UserDetail {
   tenantId: string | null;
   activeAcademyId: string | null;
   isSuspended: boolean;
+  canLogin: boolean;
   createdAt: string | null;
   memberships: UserMembership[];
   subscription: UserSubscription | null;
@@ -122,6 +123,7 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
   const [loadingPlans, setLoadingPlans] = useState(false);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [sendingMessage, setSendingMessage] = useState(false);
+  const [activatingAccess, setActivatingAccess] = useState(false);
   const [planViolations, setPlanViolations] = useState<{
     violations: Array<{
       resource: string;
@@ -167,7 +169,58 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
       alert("El usuario no tiene correo electrónico registrado");
       return;
     }
-    window.location.href = `mailto:${user.email}?subject=Contacto desde GymnaSaaS`;
+    window.location.href = `mailto:${user.email}?subject=Contacto desde Zaltyko`;
+  };
+
+  const handleActivateAthleteAccess = async () => {
+    if (!confirm("¿Estás seguro de activar el acceso de este atleta? Se enviará un correo de invitación.")) {
+      return;
+    }
+
+    setActivatingAccess(true);
+    try {
+      const response = await fetch("/api/super-admin/athletes/activate-access", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": userId,
+        },
+        body: JSON.stringify({
+          profileId: user.id,
+          email: user.email || undefined,
+          sendInvitation: true,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(`Error: ${data.message || data.error || "Error desconocido"}`);
+        return;
+      }
+
+      alert(data.message || "Acceso activado correctamente");
+      
+      // Refresh user data
+      const refreshResponse = await fetch(`/api/super-admin/users/${user.id}`, {
+        headers: {
+          "x-user-id": userId,
+        },
+        cache: "no-store",
+      });
+
+      if (refreshResponse.ok) {
+        const refreshed = await refreshResponse.json();
+        setUser(refreshed);
+      }
+
+      router.refresh();
+    } catch (error) {
+      console.error("Error activating athlete access", error);
+      alert("Error al activar el acceso del atleta");
+    } finally {
+      setActivatingAccess(false);
+    }
   };
 
   const handleSendMessage = async () => {
@@ -492,11 +545,32 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
               variant="outline"
               size="sm"
               className="border-purple-500/60 bg-purple-500/20 text-purple-100 font-semibold shadow-sm hover:border-purple-400 hover:bg-purple-500/30 hover:text-white"
-              onClick={() => router.push(`/dashboard/view/${user.id}`)}
+              onClick={() => router.push(`/dashboard/profile/${user.id}`)}
             >
               <LogIn className="mr-2 h-4 w-4" strokeWidth={1.8} />
               Ver como usuario
             </Button>
+            {user.role === "athlete" && !user.canLogin && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-green-500/60 bg-green-500/20 text-green-100 font-semibold shadow-sm hover:border-green-400 hover:bg-green-500/30 hover:text-white"
+                onClick={handleActivateAthleteAccess}
+                disabled={activatingAccess || saving}
+              >
+                {activatingAccess ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Activando...
+                  </>
+                ) : (
+                  <>
+                    <LogIn className="mr-2 h-4 w-4" strokeWidth={1.8} />
+                    Activar acceso
+                  </>
+                )}
+              </Button>
+            )}
             <Button
               variant="outline"
               size="sm"

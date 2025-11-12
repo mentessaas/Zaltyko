@@ -69,12 +69,12 @@ export async function GET() {
 
         await sendEmail({
           to: authUser.user.email,
-          subject: "⚠️ Ajustes necesarios en tu plan - GymnaSaaS",
+          subject: "⚠️ Ajustes necesarios en tu plan - Zaltyko",
           html: `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-              <h2 style="color: #f59e0b;">Ajustes necesarios en tu plan</h2>
+            <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <h2 style="color: #0D47A1; font-family: Poppins, sans-serif; font-weight: 700;">Ajustes necesarios en tu plan</h2>
               <p>Hola ${profile.name ?? "Usuario"},</p>
-              <p>Tu plan actual <strong>${subscription.planCode.toUpperCase()}</strong> tiene límites que están siendo excedidos. Para continuar usando GymnaSaaS, necesitas ajustar los siguientes recursos:</p>
+              <p>Tu plan actual <strong>${subscription.planCode.toUpperCase()}</strong> tiene límites que están siendo excedidos. Para continuar usando Zaltyko, necesitas ajustar los siguientes recursos:</p>
               
               ${academyViolation ? `
                 <div style="background-color: #fef3c7; padding: 15px; border-radius: 8px; margin: 15px 0;">

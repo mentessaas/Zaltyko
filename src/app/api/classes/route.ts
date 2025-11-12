@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { asc, eq } from "drizzle-orm";
+import { asc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
@@ -38,7 +38,30 @@ export const GET = withTenant(async (request, context) => {
 
   const { academyId, includeAssignments } = params.data;
 
-  const classRows = await db
+  if (!includeAssignments) {
+    // Query optimizado sin assignments
+    const classRows = await db
+      .select({
+        id: classes.id,
+        name: classes.name,
+        academyId: classes.academyId,
+        academyName: academies.name,
+        weekday: classes.weekday,
+        startTime: classes.startTime,
+        endTime: classes.endTime,
+        capacity: classes.capacity,
+        createdAt: classes.createdAt,
+      })
+      .from(classes)
+      .innerJoin(academies, eq(classes.academyId, academies.id))
+      .where(academyId ? eq(classes.academyId, academyId) : eq(classes.tenantId, context.tenantId))
+      .orderBy(asc(classes.name));
+
+    return NextResponse.json({ items: classRows });
+  }
+
+  // Query optimizado con assignments usando LEFT JOIN y agregación
+  const classRowsWithAssignments = await db
     .select({
       id: classes.id,
       name: classes.name,
@@ -49,37 +72,63 @@ export const GET = withTenant(async (request, context) => {
       endTime: classes.endTime,
       capacity: classes.capacity,
       createdAt: classes.createdAt,
-    })
-    .from(classes)
-    .innerJoin(academies, eq(classes.academyId, academies.id))
-    .where(academyId ? eq(classes.academyId, academyId) : eq(classes.tenantId, context.tenantId))
-    .orderBy(asc(classes.name));
-
-  if (!includeAssignments) {
-    return NextResponse.json({ items: classRows });
-  }
-
-  const assignments = await db
-    .select({
-      classId: classCoachAssignments.classId,
-      coachId: classCoachAssignments.coachId,
+      coachId: coaches.id,
       coachName: coaches.name,
       coachEmail: coaches.email,
     })
-    .from(classCoachAssignments)
-    .innerJoin(coaches, eq(classCoachAssignments.coachId, coaches.id))
-    .where(eq(classCoachAssignments.tenantId, context.tenantId));
+    .from(classes)
+    .innerJoin(academies, eq(classes.academyId, academies.id))
+    .leftJoin(classCoachAssignments, eq(classes.id, classCoachAssignments.classId))
+    .leftJoin(coaches, eq(classCoachAssignments.coachId, coaches.id))
+    .where(academyId ? eq(classes.academyId, academyId) : eq(classes.tenantId, context.tenantId))
+    .orderBy(asc(classes.name), asc(coaches.name));
 
-  const grouped = classRows.map((row) => ({
-    ...row,
-    coaches: assignments
-      .filter((assignment) => assignment.classId === row.id)
-      .map((assignment) => ({
-        id: assignment.coachId,
-        name: assignment.coachName,
-        email: assignment.coachEmail,
-      })),
-  }));
+  // Agrupar coaches por clase
+  const grouped = classRowsWithAssignments.reduce((acc, row) => {
+    const existing = acc.find((item) => item.id === row.id);
+    
+    if (!existing) {
+      acc.push({
+        id: row.id,
+        name: row.name,
+        academyId: row.academyId,
+        academyName: row.academyName,
+        weekday: row.weekday,
+        startTime: row.startTime,
+        endTime: row.endTime,
+        capacity: row.capacity,
+        createdAt: row.createdAt,
+        coaches: row.coachId
+          ? [
+              {
+                id: row.coachId,
+                name: row.coachName ?? null,
+                email: row.coachEmail ?? null,
+              },
+            ]
+          : [],
+      });
+    } else if (row.coachId && !existing.coaches.find((c) => c.id === row.coachId)) {
+      existing.coaches.push({
+        id: row.coachId,
+        name: row.coachName ?? null,
+        email: row.coachEmail ?? null,
+      });
+    }
+    
+    return acc;
+  }, [] as Array<{
+    id: string;
+    name: string;
+    academyId: string;
+    academyName: string | null;
+    weekday: number | null;
+    startTime: string | null;
+    endTime: string | null;
+    capacity: number | null;
+    createdAt: Date | null;
+    coaches: Array<{ id: string; name: string | null; email: string | null }>;
+  }>);
 
   return NextResponse.json({ items: grouped });
 });

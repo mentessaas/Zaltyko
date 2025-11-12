@@ -5,8 +5,8 @@ export const metadata: Metadata = {
   title: "Crear cuenta",
   description: "Regístrate para comenzar a gestionar tu academia",
   openGraph: {
-    title: "Crear cuenta | GymnaSaaS",
-    description: "Regístrate en GymnaSaaS para habilitar tu academia",
+    title: "Crear cuenta | Zaltyko",
+    description: "Regístrate en Zaltyko para habilitar tu academia",
   },
 };
 

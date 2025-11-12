@@ -7,7 +7,7 @@ const sections = [
   {
     title: "1. Objeto",
     paragraphs: [
-      "Las presentes Condiciones regulan el acceso y uso de GymnaSaaS, plataforma SaaS que permite a academias de gimnasia gestionar atletas, staff, clases, eventos y facturación.",
+      "Las presentes Condiciones regulan el acceso y uso de Zaltyko, plataforma SaaS que permite a academias de gimnasia gestionar atletas, staff, clases, eventos y facturación.",
       "Al registrarte, acceder o utilizar el servicio confirmas que tienes autoridad para hacerlo en nombre de una organización y aceptas estos términos.",
     ],
   },
@@ -36,7 +36,7 @@ const sections = [
   {
     title: "5. Propiedad intelectual",
     paragraphs: [
-      "GymnaSaaS y sus componentes son propiedad de Mentes SaaS S.L. El uso del servicio no concede derechos de propiedad intelectual sobre el software, salvo las licencias limitadas contempladas en estos términos.",
+      "Zaltyko y sus componentes son propiedad de Mentes SaaS S.L. El uso del servicio no concede derechos de propiedad intelectual sobre el software, salvo las licencias limitadas contempladas en estos términos.",
       "La información cargada por tu academia seguirá siendo tuya. Tienes derecho a exportarla mientras la cuenta esté activa o durante los 30 días posteriores a la cancelación.",
     ],
   },
@@ -56,7 +56,7 @@ const sections = [
   {
     title: "8. Garantías y responsabilidad",
     paragraphs: [
-      "GymnaSaaS se ofrece \"tal cual\". Aunque trabajamos para garantizar alta disponibilidad, no garantizamos ausencia de interrupciones. No responderemos por daños indirectos, lucro cesante o pérdida de datos ocasionados por terceros.",
+      "Zaltyko se ofrece \"tal cual\". Aunque trabajamos para garantizar alta disponibilidad, no garantizamos ausencia de interrupciones. No responderemos por daños indirectos, lucro cesante o pérdida de datos ocasionados por terceros.",
       "Nuestra responsabilidad total frente a tu organización estará limitada al importe abonado en los últimos doce (12) meses previos al incidente que origine la reclamación.",
     ],
   },
@@ -88,8 +88,8 @@ const sections = [
 ];
 
 export const metadata: Metadata = {
-  title: "Términos y condiciones | GymnaSaaS",
-  description: "Condiciones de uso de la plataforma GymnaSaaS para academias de gimnasia.",
+  title: "Términos y condiciones | Zaltyko",
+  description: "Condiciones de uso de la plataforma Zaltyko para academias de gimnasia.",
 };
 
 export default function TermsOfServicePage() {
@@ -107,7 +107,7 @@ export default function TermsOfServicePage() {
           Términos y condiciones
         </p>
         <h1 className="text-3xl font-semibold text-white sm:text-4xl">
-          Condiciones de uso de GymnaSaaS
+          Condiciones de uso de Zaltyko
         </h1>
         <p className="text-sm text-slate-400">
           Última actualización: {updatedAt}

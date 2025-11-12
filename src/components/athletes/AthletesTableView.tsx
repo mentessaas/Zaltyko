@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useMemo, useState, useTransition } from "react";
+import { FormEvent, useEffect, useMemo, useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { athleteStatusOptions } from "@/lib/athletes/constants";
+import { useToast } from "@/components/ui/toast-provider";
 
 import { CreateAthleteDialog } from "@/components/athletes/CreateAthleteDialog";
 import { EditAthleteDialog } from "@/components/athletes/EditAthleteDialog";
@@ -42,10 +43,12 @@ interface AthletesTableViewProps {
   };
 }
 
-export function AthletesTableView({ academyId, athletes, levels, groups, filters }: AthletesTableViewProps) {
+export function AthletesTableView({ academyId, athletes: initialAthletes, levels, groups, filters }: AthletesTableViewProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();
+  const toast = useToast();
+  const [athletes, setAthletes] = useState<AthleteListItem[]>(initialAthletes);
   const [query, setQuery] = useState(filters.q ?? "");
   const [statusFilter, setStatusFilter] = useState(filters.status ?? "");
   const [levelFilter, setLevelFilter] = useState(filters.level ?? "");
@@ -53,6 +56,12 @@ export function AthletesTableView({ academyId, athletes, levels, groups, filters
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<AthleteListItem | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [mutatingAthleteId, setMutatingAthleteId] = useState<string | null>(null);
+
+  // Sincronizar athletes cuando cambian los initialAthletes (después de refresh)
+  useEffect(() => {
+    setAthletes(initialAthletes);
+  }, [initialAthletes]);
 
   const applyFilters = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -92,6 +101,47 @@ export function AthletesTableView({ academyId, athletes, levels, groups, filters
     startTransition(() => {
       router.refresh();
     });
+  };
+
+  const handleUpdated = (updatedAthlete: AthleteListItem) => {
+    // Optimistic update: actualizar inmediatamente en la lista
+    setAthletes((prevAthletes) =>
+      prevAthletes.map((athlete) =>
+        athlete.id === updatedAthlete.id ? updatedAthlete : athlete
+      )
+    );
+    
+    toast.pushToast({
+      title: "Atleta actualizado",
+      description: "Los cambios se han guardado correctamente.",
+      variant: "success",
+    });
+    
+    // Refrescar para sincronizar con el servidor
+    handleRefresh();
+  };
+
+  const handleDeleted = (athleteId: string) => {
+    // Optimistic update: eliminar inmediatamente de la lista
+    setAthletes((prevAthletes) => prevAthletes.filter((athlete) => athlete.id !== athleteId));
+    
+    toast.pushToast({
+      title: "Atleta eliminado",
+      description: "El atleta ha sido eliminado correctamente.",
+      variant: "success",
+    });
+    
+    // Refrescar para sincronizar con el servidor
+    handleRefresh();
+  };
+
+  const handleCreated = () => {
+    toast.pushToast({
+      title: "Atleta creado",
+      description: "El nuevo atleta ha sido agregado correctamente.",
+      variant: "success",
+    });
+    handleRefresh();
   };
 
   const emptyStateMessage = useMemo(() => {
@@ -254,7 +304,7 @@ export function AthletesTableView({ academyId, athletes, levels, groups, filters
         academyId={academyId}
         open={createOpen}
         onClose={() => setCreateOpen(false)}
-        onCreated={handleRefresh}
+        onCreated={handleCreated}
         levelSuggestions={levels}
         groups={groups}
       />
@@ -265,8 +315,18 @@ export function AthletesTableView({ academyId, athletes, levels, groups, filters
           academyId={academyId}
           open={Boolean(editing)}
           onClose={() => setEditing(null)}
-          onUpdated={handleRefresh}
-          onDeleted={handleRefresh}
+          onUpdated={() => {
+            // El EditAthleteDialog manejará la actualización optimista internamente
+            handleRefresh();
+          }}
+          onDeleted={() => {
+            // Optimistic update: eliminar inmediatamente de la lista
+            if (editing) {
+              handleDeleted(editing.id);
+            } else {
+              handleRefresh();
+            }
+          }}
           levelSuggestions={levels}
           groups={groups}
         />

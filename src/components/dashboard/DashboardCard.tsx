@@ -64,29 +64,29 @@ export function DashboardCard({
     <Link
       href={href}
       className={cn(
-        "group relative flex flex-col gap-3 rounded-2xl border border-border/60 bg-card/80 p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
+        "group relative flex flex-col gap-3 rounded-xl border border-border/60 bg-card/80 p-4 shadow-md transition-all duration-200 hover:-translate-y-0.5 hover:border-border hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.98] sm:p-5 sm:rounded-2xl",
         accentStyles.ring
       )}
     >
       <div className="flex items-center justify-between gap-3">
-        <div>
+        <div className="min-w-0 flex-1">
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground/90">
             {title}
           </p>
-          <p className="mt-1 text-3xl font-semibold text-foreground">{value}</p>
+          <p className="mt-1 text-2xl font-semibold text-foreground sm:text-3xl">{value}</p>
         </div>
         <div
           className={cn(
-            "rounded-full p-2 transition",
+            "flex-shrink-0 rounded-full p-2.5 transition-all duration-200",
             accentStyles.bg,
             accentStyles.text,
-            "group-hover:scale-105"
+            "group-hover:scale-110"
           )}
         >
-          <Icon className="h-5 w-5" strokeWidth={1.6} />
+          <Icon className="h-5 w-5 sm:h-6 sm:w-6" strokeWidth={1.6} />
         </div>
       </div>
-      <p className="text-sm text-muted-foreground">{subtitle}</p>
+      <p className="text-xs text-muted-foreground sm:text-sm leading-relaxed">{subtitle}</p>
     </Link>
   );
 }

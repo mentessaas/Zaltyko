@@ -10,6 +10,10 @@ const UpdateSchema = z.object({
   name: z.string().min(1).optional(),
   email: z.string().email().optional().nullable(),
   phone: z.string().optional().nullable(),
+  bio: z.string().optional().nullable(),
+  photoUrl: z.string().url().optional().nullable(),
+  isPublic: z.boolean().optional(),
+  specialties: z.array(z.string()).optional().nullable(),
 });
 
 async function getCoach(coachId: string) {
@@ -57,6 +61,10 @@ export const PATCH = withTenant(async (request, context) => {
       ...(body.name !== undefined ? { name: body.name } : {}),
       ...(body.email !== undefined ? { email: body.email ?? null } : {}),
       ...(body.phone !== undefined ? { phone: body.phone ?? null } : {}),
+      ...(body.bio !== undefined ? { bio: body.bio ?? null } : {}),
+      ...(body.photoUrl !== undefined ? { photoUrl: body.photoUrl ?? null } : {}),
+      ...(body.isPublic !== undefined ? { isPublic: body.isPublic } : {}),
+      ...(body.specialties !== undefined ? { specialties: body.specialties ?? null } : {}),
     })
     .where(eq(coaches.id, coachId));
 

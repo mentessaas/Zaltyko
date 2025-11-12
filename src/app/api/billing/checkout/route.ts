@@ -5,6 +5,7 @@ import { z } from "zod";
 import { db } from "@/db";
 import { academies, plans, subscriptions, profiles } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
+import { withRateLimit, getUserIdentifier } from "@/lib/rate-limit";
 import { getStripeClient } from "@/lib/stripe/client";
 
 const BodySchema = z.object({
@@ -12,7 +13,7 @@ const BodySchema = z.object({
   planCode: z.enum(["free", "pro", "premium"]),
 });
 
-export const POST = withTenant(async (request, context) => {
+const handler = withTenant(async (request, context) => {
   if (!process.env.STRIPE_SECRET_KEY) {
     return NextResponse.json({ error: "STRIPE_NOT_CONFIGURED" }, { status: 500 });
   }
@@ -140,3 +141,12 @@ export const POST = withTenant(async (request, context) => {
 
   return NextResponse.json({ checkoutUrl: session.url });
 });
+
+// Aplicar rate limiting: 10 requests por minuto para checkout
+// El rate limiting se aplica antes de withTenant
+export const POST = withRateLimit(
+  async (request) => {
+    return (await handler(request, {} as any)) as NextResponse;
+  },
+  { identifier: getUserIdentifier }
+);

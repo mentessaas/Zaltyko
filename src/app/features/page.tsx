@@ -14,15 +14,15 @@ export const metadata: Metadata = {
     canonical: `${baseUrl}/features`,
   },
   openGraph: {
-    title: "Funciones clave de Gym SaaS",
+    title: "Funciones clave de Zaltyko",
     description: "Gestión multi-academia, facturación Stripe, dashboards y PWA.",
     url: `${baseUrl}/features`,
-    siteName: "Gym SaaS",
+    siteName: "Zaltyko",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Funciones de Gym SaaS",
+    title: "Funciones de Zaltyko",
     description: "Todo lo que necesitas para administrar múltiples academias de gimnasia.",
   },
 };
@@ -30,7 +30,7 @@ export const metadata: Metadata = {
 const featureSchema = {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
-  name: "Gym SaaS",
+  name: "Zaltyko",
   applicationCategory: "BusinessApplication",
   offers: {
     "@type": "Offer",

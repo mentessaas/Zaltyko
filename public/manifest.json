@@ -1,10 +1,10 @@
 {
-  "name": "Gym SaaS",
-  "short_name": "GymSaaS",
+  "name": "Zaltyko",
+  "short_name": "Zaltyko",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#000000",
+  "theme_color": "#0D47A1",
   "icons": [
     {
       "src": "/icons/icon-192.png",

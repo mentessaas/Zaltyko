@@ -6,10 +6,12 @@ import Link from "next/link";
 
 import { useDevSession } from "@/components/dev-session-provider";
 import { Progress } from "@/components/ui/progress";
+import { FormField, validators } from "@/components/ui/form-field";
 import { COUNTRY_REGION_OPTIONS, findRegionsByCountry } from "@/lib/countryRegions";
 import { ACADEMY_TYPES, onboardingCopy } from "@/lib/onboardingCopy";
 import { createClient } from "@/lib/supabase/client";
 import { isDevFeaturesEnabled } from "@/lib/dev";
+import { useToast } from "@/components/ui/toast-provider";
 
 type PlanCode = "free" | "pro" | "premium";
 
@@ -60,6 +62,7 @@ export default function OnboardingWizard() {
   const router = useRouter();
   const { session, loading: loadingSession, update, refresh } = useDevSession();
   const supabase = createClient();
+  const toast = useToast();
   const [step, setStep] = useState<StepKey>(1);
   const [academyId, setAcademyId] = useState<string | null>(null);
   const [tenantId, setTenantId] = useState<string | null>(null);
@@ -308,11 +311,19 @@ export default function OnboardingWizard() {
   const handleAccountRegistration = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (password !== confirmPassword) {
-      setError("Las contraseñas no coinciden.");
+      toast.pushToast({
+        title: "Error de validación",
+        description: "Las contraseñas no coinciden.",
+        variant: "error",
+      });
       return;
     }
     if (password.length < 6) {
-      setError("La contraseña debe tener al menos 6 caracteres.");
+      toast.pushToast({
+        title: "Error de validación",
+        description: "La contraseña debe tener al menos 6 caracteres.",
+        variant: "error",
+      });
       return;
     }
     setLoading(true);
@@ -356,8 +367,20 @@ export default function OnboardingWizard() {
       await ensureProfile(userId, fullName);
       setMaxStep((prev) => (prev < 2 ? 2 : prev));
       setStep(2);
+      
+      toast.pushToast({
+        title: "Cuenta creada",
+        description: "Tu cuenta ha sido creada exitosamente.",
+        variant: "success",
+      });
     } catch (err: any) {
-      setError(err.message ?? "Error al registrar la cuenta");
+      const errorMessage = err.message ?? "Error al registrar la cuenta";
+      setError(errorMessage);
+      toast.pushToast({
+        title: "Error al registrar",
+        description: errorMessage,
+        variant: "error",
+      });
     } finally {
       setLoading(false);
     }
@@ -404,7 +427,7 @@ export default function OnboardingWizard() {
         academyId: data.id,
         tenantId: data.tenantId ?? session?.tenantId ?? tenantId ?? "",
         userId: effectiveUserId,
-        profileId: profileId ?? session?.profileId ?? null,
+        profileId: profileId ?? session?.profileId ?? undefined,
       });
       setMaxStep((prev) => (prev < 3 ? 3 : prev));
       setStep(3);
@@ -604,52 +627,65 @@ export default function OnboardingWizard() {
                   <p className="text-sm text-muted-foreground">{sectionDescription}</p>
                 </div>
                 <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-medium">Nombre completo</label>
-                    <input
-                      name="fullName"
-                      value={fullName}
-                      onChange={(event) => setFullName(event.target.value)}
-                      className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-medium">Correo electrónico</label>
-                    <input
-                      name="email"
-                      type="email"
-                      value={email}
-                      onChange={(event) => setEmail(event.target.value)}
-                      required
-                      className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                    />
-                  </div>
+                  <FormField
+                    id="fullName"
+                    label="Nombre completo"
+                    type="text"
+                    value={fullName}
+                    onChange={(event) => setFullName(event.target.value)}
+                    validator={validators.combine(
+                      validators.required("El nombre es obligatorio"),
+                      validators.minLength(2, "El nombre debe tener al menos 2 caracteres")
+                    )}
+                    validateOnChange={true}
+                    validateOnBlur={true}
+                    disabled={loading}
+                  />
+                  <FormField
+                    id="email"
+                    label="Correo electrónico"
+                    type="email"
+                    value={email || ""}
+                    onChange={(event) => setEmail(event.target.value)}
+                    validator={validators.combine(
+                      validators.required("El correo es obligatorio"),
+                      validators.email("Ingresa un correo válido")
+                    )}
+                    validateOnChange={true}
+                    validateOnBlur={true}
+                    disabled={loading}
+                  />
                 </div>
                 <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-medium">Contraseña</label>
-                    <input
-                      name="password"
-                      type="password"
-                      value={password}
-                      onChange={(event) => setPassword(event.target.value)}
-                      required
-                      minLength={6}
-                      className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-medium">Confirmar contraseña</label>
-                    <input
-                      name="confirmPassword"
-                      type="password"
-                      value={confirmPassword}
-                      onChange={(event) => setConfirmPassword(event.target.value)}
-                      required
-                      minLength={6}
-                      className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                    />
-                  </div>
+                  <FormField
+                    id="password"
+                    label="Contraseña"
+                    type="password"
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    validator={validators.combine(
+                      validators.required("La contraseña es obligatoria"),
+                      validators.minLength(6, "La contraseña debe tener al menos 6 caracteres")
+                    )}
+                    validateOnChange={true}
+                    validateOnBlur={true}
+                    disabled={loading}
+                  />
+                  <FormField
+                    id="confirmPassword"
+                    label="Confirmar contraseña"
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(event) => setConfirmPassword(event.target.value)}
+                    validator={(value) => {
+                      if (!value) return "Confirma tu contraseña";
+                      if (value !== password) return "Las contraseñas no coinciden";
+                      return null;
+                    }}
+                    validateOnChange={true}
+                    validateOnBlur={true}
+                    disabled={loading}
+                  />
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
                   <button

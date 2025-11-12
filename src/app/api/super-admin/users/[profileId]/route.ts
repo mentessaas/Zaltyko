@@ -24,6 +24,7 @@ export const GET = withSuperAdmin(async (_request, context) => {
       tenantId: profiles.tenantId,
       activeAcademyId: profiles.activeAcademyId,
       isSuspended: profiles.isSuspended,
+      canLogin: profiles.canLogin,
       createdAt: profiles.createdAt,
     })
     .from(profiles)
@@ -227,7 +228,7 @@ export const PATCH = withSuperAdmin(async (request, context) => {
 
             await sendEmail({
               to: authUser.user.email,
-              subject: "⚠️ Cambio de plan - Ajustes necesarios - GymnaSaaS",
+              subject: "⚠️ Cambio de plan - Ajustes necesarios - Zaltyko",
               html: `
                 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                   <h2 style="color: #f59e0b;">Cambio de plan completado</h2>

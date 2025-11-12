@@ -2,21 +2,25 @@ import Link from "next/link";
 
 export default function Footer() {
   return (
-    <footer className="border-t border-white/10 bg-[#050b0d] px-4 py-12 md:px-6 lg:px-8">
+    <footer className="border-t border-white/10 bg-zaltyko-primary-dark px-4 py-12 md:px-6 lg:px-8">
       <div className="mx-auto max-w-6xl">
         <div className="grid gap-10 md:grid-cols-3">
           <div className="space-y-3">
-            <h3 className="text-lg font-semibold text-white">GymnaSaaS</h3>
+            <img 
+              src="/branding/zaltyko/logo-zaltyko-dark.svg" 
+              alt="Zaltyko" 
+              className="h-8 w-auto"
+            />
             <p className="text-sm text-slate-300/70">
-              SaaS multi-tenant para academias de gimnasia: dashboards, Stripe, flujos de onboarding y RLS listos para producción.
+              Zaltyko — El sistema definitivo para gestionar academias de gimnasia. Registra alumnos, controla pagos, organiza competencias y haz crecer tu academia sin complicaciones.
             </p>
             <p className="text-xs text-slate-400/70">
-              © {new Date().getFullYear()} GymnaSaaS. Construido con Next.js 14, Drizzle ORM y Supabase.
+              © {new Date().getFullYear()} Zaltyko. Construido con Next.js 14, Drizzle ORM y Supabase.
             </p>
           </div>
 
           <div>
-            <h4 className="text-sm font-semibold uppercase tracking-wide text-emerald-200">
+            <h4 className="text-sm font-semibold uppercase tracking-wide text-zaltyko-accent">
               Recursos
             </h4>
             <ul className="mt-4 space-y-3 text-sm text-slate-200/70">
@@ -49,7 +53,7 @@ export default function Footer() {
           </div>
 
           <div>
-            <h4 className="text-sm font-semibold uppercase tracking-wide text-emerald-200">
+            <h4 className="text-sm font-semibold uppercase tracking-wide text-zaltyko-accent">
               Legal & contacto
             </h4>
             <ul className="mt-4 space-y-3 text-sm text-slate-200/70">

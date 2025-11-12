@@ -100,10 +100,10 @@ export const POST = withTenant(async (request, context) => {
     try {
       await sendEmail({
         to: authUser.user.email,
-        subject: "Ajustes de plan completados - GymnaSaaS",
+        subject: "Ajustes de plan completados - Zaltyko",
         html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2 style="color: #22c55e;">Cambio de plan completado</h2>
+          <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #0D47A1; font-family: Poppins, sans-serif; font-weight: 700;">Cambio de plan completado</h2>
             <p>Hola ${context.profile.name ?? "Usuario"},</p>
             <p>Has completado los ajustes necesarios para tu plan ${subscription.planCode.toUpperCase()}.</p>
             ${academyViolation && body.academyIdsToKeep ? `
@@ -112,11 +112,11 @@ export const POST = withTenant(async (request, context) => {
                 ${body.academyIdsToKeep.map((id) => `<li>${id}</li>`).join("")}
               </ul>
             ` : ""}
-            <p>Puedes continuar usando GymnaSaaS normalmente.</p>
+            <p>Puedes continuar usando Zaltyko normalmente.</p>
             <p>Si tienes alguna pregunta, contacta a nuestro equipo de soporte.</p>
           </div>
         `,
-        text: `Has completado los ajustes necesarios para tu plan ${subscription.planCode.toUpperCase()}. Puedes continuar usando GymnaSaaS normalmente.`,
+        text: `Has completado los ajustes necesarios para tu plan ${subscription.planCode.toUpperCase()}. Puedes continuar usando Zaltyko normalmente.`,
         replyTo: config.mailgun.supportEmail,
       });
     } catch (error) {

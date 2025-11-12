@@ -1,6 +1,8 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { and, asc, eq, gte, lte } from "drizzle-orm";
+import Link from "next/link";
+import { ArrowLeft, Shield } from "lucide-react";
 
 import { db } from "@/db";
 import {
@@ -12,6 +14,7 @@ import {
 } from "@/db/schema";
 import CalendarView from "@/components/calendar/CalendarView";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentProfile } from "@/lib/authz";
 
 interface CalendarPageProps {
   searchParams: Record<string, string | string[] | undefined>;
@@ -41,17 +44,29 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
     redirect("/auth/login");
   }
 
-  const [profile] = await db
-    .select()
-    .from(profiles)
-    .where(eq(profiles.userId, user.id))
-    .limit(1);
-
-  if (!profile) {
+  const currentProfile = await getCurrentProfile(user.id);
+  if (!currentProfile) {
     redirect("/dashboard");
   }
 
-  const tenantId = profile.tenantId;
+  // Si hay un profileId en los searchParams y el usuario es Super Admin, usar ese perfil
+  const profileIdParam = typeof searchParams.profileId === "string" ? searchParams.profileId : undefined;
+  const isViewingAsSuperAdmin = profileIdParam && currentProfile.role === "super_admin";
+
+  let targetProfile = currentProfile;
+  if (isViewingAsSuperAdmin && profileIdParam) {
+    const [profile] = await db
+      .select()
+      .from(profiles)
+      .where(eq(profiles.id, profileIdParam))
+      .limit(1);
+    
+    if (profile) {
+      targetProfile = profile;
+    }
+  }
+
+  const tenantId = targetProfile.tenantId;
 
   if (!tenantId) {
     return (
@@ -116,6 +131,30 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
 
   return (
     <div className="space-y-6 p-8">
+      {isViewingAsSuperAdmin && profileIdParam && (
+        <div className="rounded-lg border border-amber-400/60 bg-amber-400/10 p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Shield className="h-5 w-5 text-amber-600" strokeWidth={2} />
+              <div>
+                <p className="font-semibold text-amber-900">
+                  Modo Super Admin: Viendo calendario de {targetProfile.name ?? "Usuario"}
+                </p>
+                <p className="text-sm text-amber-700">
+                  Estás viendo el calendario de este usuario.
+                </p>
+              </div>
+            </div>
+            <Link
+              href={`/super-admin/users/${profileIdParam}`}
+              className="inline-flex items-center gap-2 rounded-md border border-amber-600/40 bg-white px-3 py-2 text-sm font-semibold text-amber-900 transition hover:bg-amber-50"
+            >
+              <ArrowLeft className="h-4 w-4" strokeWidth={2} />
+              Volver a Super Admin
+            </Link>
+          </div>
+        </div>
+      )}
       <header className="space-y-2">
         <h1 className="text-3xl font-semibold">Calendario de sesiones</h1>
         <p className="text-muted-foreground">

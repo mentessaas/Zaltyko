@@ -4,6 +4,7 @@ import { and, count, eq } from "drizzle-orm";
 
 import { AcademySidebar } from "@/components/academy/AcademySidebar";
 import { ToastProvider } from "@/components/ui/toast-provider";
+import { GlobalTopNav } from "@/components/navigation/GlobalTopNav";
 import { db } from "@/db";
 import { academies, memberships, plans, profiles, subscriptions } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
@@ -154,11 +155,19 @@ export default async function AcademyLayout({ params, children }: LayoutProps) {
   return (
     <AcademyProvider value={contextValue}>
       <ToastProvider>
-        <div className="flex min-h-screen flex-col lg:flex-row">
-          <AcademySidebar />
-          <div className="flex flex-1 flex-col">
-            <AcademyTopNav />
-            <main className="flex-1 bg-muted/10">{children}</main>
+        <div className="flex min-h-screen flex-col">
+          <GlobalTopNav
+            userRole={profile.role}
+            userName={profile.name}
+            userEmail={user.email ?? null}
+            profileId={profile.id}
+          />
+          <div className="flex flex-1 flex-col lg:flex-row">
+            <AcademySidebar />
+            <div className="flex flex-1 flex-col">
+              <AcademyTopNav />
+              <main className="flex-1 bg-muted/10">{children}</main>
+            </div>
           </div>
         </div>
       </ToastProvider>

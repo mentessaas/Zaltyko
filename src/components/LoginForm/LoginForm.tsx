@@ -100,8 +100,8 @@ export function LoginForm() {
   return (
     <>
       <SEO
-        title="GymnaSaaS · Iniciar sesión"
-        description="Accede a tu cuenta para gestionar tu academia en GymnaSaaS."
+        title="Zaltyko · Iniciar sesión"
+        description="Accede a tu cuenta para gestionar tu academia en Zaltyko."
         canonicalUrl="https://gymnasaas.com"
         ogImageUrl="https://gymnasaas.com/og-image.png"
         twitterHandle="gymnasaas"

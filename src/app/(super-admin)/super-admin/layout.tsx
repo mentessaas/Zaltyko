@@ -5,7 +5,8 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/authz";
 import { SuperAdminSidebar } from "./components/SuperAdminSidebar";
-import { SuperAdminHeader } from "./components/SuperAdminHeader";
+import { GlobalTopNav } from "@/components/navigation/GlobalTopNav";
+import { ToastProvider } from "@/components/ui/toast-provider";
 
 export default async function SuperAdminLayout({ children }: { children: ReactNode }) {
   const cookieStore = await cookies();
@@ -26,17 +27,24 @@ export default async function SuperAdminLayout({ children }: { children: ReactNo
   }
 
   return (
-    <div className="min-h-screen bg-[#0f172a]">
-      <div className="flex min-h-screen">
-        <SuperAdminSidebar />
-        <div className="flex flex-1 flex-col bg-slate-950/40">
-          <SuperAdminHeader userName={profile.name ?? user.email ?? null} userEmail={user.email} />
-          <main className="flex-1 overflow-y-auto bg-slate-950/60 px-6 py-8 text-slate-100">
-            <div className="mx-auto w-full max-w-6xl">{children}</div>
-          </main>
+    <ToastProvider>
+      <div className="min-h-screen overflow-x-hidden bg-[#0f172a]">
+        <GlobalTopNav
+          userRole={profile.role}
+          userName={profile.name}
+          userEmail={user.email ?? null}
+          profileId={profile.id}
+        />
+        <div className="flex min-h-[calc(100vh-4rem)] overflow-hidden">
+          <SuperAdminSidebar />
+          <div className="flex min-w-0 flex-1 flex-col bg-slate-950/40">
+            <main className="flex-1 overflow-y-auto overflow-x-hidden bg-slate-950/60 px-4 py-6 text-slate-100 sm:px-6 sm:py-8">
+              <div className="mx-auto w-full max-w-6xl">{children}</div>
+            </main>
+          </div>
         </div>
       </div>
-    </div>
+    </ToastProvider>
   );
 }
 

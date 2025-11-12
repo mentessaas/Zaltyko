@@ -7,6 +7,7 @@ import { academies, invitations, profileRoleEnum } from "@/db/schema";
 import { config } from "@/config";
 import { sendEmail } from "@/lib/mailgun";
 import { withTenant } from "@/lib/authz";
+import { withRateLimit, getUserIdentifier } from "@/lib/rate-limit";
 
 const profileRoles = [
   "super_admin",
@@ -25,7 +26,8 @@ const InviteSchema = z.object({
   defaultAcademyId: z.string().uuid().optional(),
 });
 
-export const POST = withTenant(async (request, context) => {
+// Aplicar rate limiting: 20 requests por minuto para invitaciones
+const handler = withTenant(async (request, context) => {
   const body = InviteSchema.parse(await request.json());
 
   const isSuperAdmin = context.profile.role === "super_admin";
@@ -132,5 +134,14 @@ export const POST = withTenant(async (request, context) => {
 
   return NextResponse.json({ ok: true });
 });
+
+// Aplicar rate limiting: 20 requests por minuto para invitaciones
+// El rate limiting se aplica antes de withTenant
+export const POST = withRateLimit(
+  async (request) => {
+    return (await handler(request, {} as any)) as NextResponse;
+  },
+  { identifier: getUserIdentifier }
+);
 
 

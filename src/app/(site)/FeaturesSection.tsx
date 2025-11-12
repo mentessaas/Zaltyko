@@ -162,7 +162,7 @@ export default function FeaturesSection() {
             Todo lo que una red de academias necesita para operar sin caos.
           </h2>
           <p className="mx-auto max-w-3xl text-base text-slate-200/70 md:text-lg">
-            Selecciona un módulo y descubre cómo GymnaSaaS reduce tareas repetitivas, mantiene tus datos seguros y ofrece
+            Selecciona un módulo y descubre cómo Zaltyko reduce tareas repetitivas, mantiene tus datos seguros y ofrece
             experiencias impecables a atletas, coaches y familias.
           </p>
         </div>

@@ -214,7 +214,7 @@ export default function AccountForm({ user, profile, academies, defaultAcademyId
             <div className="flex-1">
               <h2 className="text-lg font-semibold text-amber-900">Ajustes necesarios en tu plan</h2>
               <p className="mt-1 text-sm text-amber-700">
-                Tu plan actual tiene límites que están siendo excedidos. Para continuar usando GymnaSaaS normalmente, necesitas ajustar los siguientes recursos:
+                Tu plan actual tiene límites que están siendo excedidos. Para continuar usando Zaltyko normalmente, necesitas ajustar los siguientes recursos:
               </p>
               <ul className="mt-3 space-y-2">
                 {limitViolations.violations.map((violation, idx) => (

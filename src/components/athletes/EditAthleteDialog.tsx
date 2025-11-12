@@ -3,6 +3,8 @@
 import { FormEvent, useEffect, useMemo, useState, useTransition } from "react";
 
 import { athleteStatusOptions } from "@/lib/athletes/constants";
+import { useToast } from "@/components/ui/toast-provider";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 import { Modal } from "@/components/ui/modal";
 
@@ -61,6 +63,7 @@ export function EditAthleteDialog({
   levelSuggestions = [],
   groups = [],
 }: EditAthleteDialogProps) {
+  const toast = useToast();
   const [name, setName] = useState(athlete.name);
   const [dob, setDob] = useState(formatDob(athlete.dob));
   const [level, setLevel] = useState(athlete.level ?? "");
@@ -68,6 +71,8 @@ export function EditAthleteDialog({
   const [groupId, setGroupId] = useState<string>(athlete.groupId ?? "");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const [guardianForm, setGuardianForm] = useState({
     name: "",
@@ -132,6 +137,16 @@ export function EditAthleteDialog({
     event.preventDefault();
     setError(null);
 
+    // Optimistic update: actualizar estado local inmediatamente
+    const optimisticUpdate = {
+      ...athlete,
+      name: name.trim(),
+      dob: dob || null,
+      level: level.trim() || null,
+      status,
+      groupId: groupId || null,
+    };
+
     startTransition(async () => {
       try {
         const payload: Record<string, unknown> = {};
@@ -155,22 +170,39 @@ export function EditAthleteDialog({
         });
 
         if (!response.ok) {
+          // Revertir optimistic update en caso de error
+          setName(athlete.name);
+          setDob(formatDob(athlete.dob));
+          setLevel(athlete.level ?? "");
+          setStatus(athlete.status);
+          setGroupId(athlete.groupId ?? "");
+          
           const data = await response.json().catch(() => ({}));
           throw new Error(data.error ?? "No se pudo guardar los cambios.");
         }
 
+        toast.pushToast({
+          title: "Atleta actualizado",
+          description: "Los cambios se han guardado correctamente.",
+          variant: "success",
+        });
+
         onUpdated();
         onClose();
       } catch (err: any) {
-        setError(err.message ?? "Error al guardar cambios.");
+        const errorMessage = err.message ?? "Error al guardar cambios.";
+        setError(errorMessage);
+        toast.pushToast({
+          title: "Error al actualizar",
+          description: errorMessage,
+          variant: "error",
+        });
       }
     });
   };
 
   const handleDelete = async () => {
-    if (!window.confirm("¿Seguro que deseas eliminar este atleta?")) {
-      return;
-    }
+    setIsDeleting(true);
     try {
       const response = await fetch(`/api/athletes/${athlete.id}`, {
         method: "DELETE",
@@ -179,10 +211,26 @@ export function EditAthleteDialog({
         const data = await response.json().catch(() => ({}));
         throw new Error(data.error ?? "No se pudo eliminar el atleta.");
       }
+      
+      toast.pushToast({
+        title: "Atleta eliminado",
+        description: "El atleta ha sido eliminado correctamente.",
+        variant: "success",
+      });
+      
       onDeleted();
+      setDeleteDialogOpen(false);
       onClose();
     } catch (err: any) {
-      setError(err.message ?? "Error al eliminar el atleta.");
+      const errorMessage = err.message ?? "Error al eliminar el atleta.";
+      setError(errorMessage);
+      toast.pushToast({
+        title: "Error al eliminar",
+        description: errorMessage,
+        variant: "error",
+      });
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -281,8 +329,9 @@ export function EditAthleteDialog({
         <div className="flex flex-wrap items-center justify-between gap-4">
           <button
             type="button"
-            onClick={handleDelete}
+            onClick={() => setDeleteDialogOpen(true)}
             className="text-sm font-semibold text-red-600 hover:underline"
+            disabled={isPending || isDeleting}
           >
             Eliminar atleta
           </button>
@@ -508,6 +557,18 @@ export function EditAthleteDialog({
           </button>
         </form>
       </section>
+
+      <ConfirmDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title="Eliminar atleta"
+        description={`¿Estás seguro de eliminar a "${athlete.name}"? Esta acción no se puede deshacer y eliminará todos los datos asociados al atleta.`}
+        variant="destructive"
+        confirmText="Eliminar"
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteDialogOpen(false)}
+        loading={isDeleting}
+      />
     </Modal>
   );
 }
