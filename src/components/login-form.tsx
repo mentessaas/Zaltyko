@@ -4,6 +4,7 @@ import SEO from "@/utils/seo";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -60,6 +61,15 @@ export default function LoginForm() {
         twitterHandle="gymnasaas"
       />
       <div className="space-y-6">
+        <div className="flex justify-start">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Volver
+          </Link>
+        </div>
         <form onSubmit={handleLogin} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="email">Correo electrónico</Label>
