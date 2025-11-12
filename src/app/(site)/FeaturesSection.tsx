@@ -155,7 +155,7 @@ export default function FeaturesSection() {
     <section className="bg-[#061014] py-20 px-4 text-white">
       <div className="mx-auto max-w-6xl">
         <div className="mb-16 space-y-4 text-center">
-          <span className="text-xs uppercase tracking-[0.45em] text-emerald-300">
+          <span className="text-xs uppercase tracking-[0.45em] text-zaltyko-accent">
             Módulos conectados
           </span>
           <h2 className="mx-auto max-w-4xl text-3xl font-semibold leading-tight sm:text-4xl md:text-5xl">
@@ -175,7 +175,7 @@ export default function FeaturesSection() {
                 <TabsTrigger
                   key={feature.id}
                   value={feature.id}
-                  className="flex min-w-[140px] flex-col items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-5 py-4 text-sm font-medium text-slate-200/80 transition data-[state=active]:border-emerald-300/50 data-[state=active]:bg-emerald-300/10 data-[state=active]:text-white"
+                  className="flex min-w-[140px] flex-col items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-5 py-4 text-sm font-medium text-slate-200/80 transition data-[state=active]:border-zaltyko-accent/50 data-[state=active]:bg-zaltyko-accent/10 data-[state=active]:text-white"
                 >
                   <Icon className="h-6 w-6" />
                   <span>{feature.label}</span>
@@ -194,7 +194,7 @@ export default function FeaturesSection() {
                 <h3 className="text-2xl font-semibold text-white">
                   {feature.content.title}
                 </h3>
-                <p className="text-sm uppercase tracking-[0.25em] text-emerald-200">
+                <p className="text-sm uppercase tracking-[0.25em] text-zaltyko-accent">
                   Impacto
                 </p>
                 <p className="text-base text-slate-200/70">
@@ -206,7 +206,7 @@ export default function FeaturesSection() {
                       key={index}
                       className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/5 p-4"
                     >
-                      <Check className="mt-1 h-5 w-5 flex-shrink-0 text-emerald-300" />
+                      <Check className="mt-1 h-5 w-5 flex-shrink-0 text-zaltyko-accent" />
                       <span className="text-sm leading-relaxed text-slate-100/80">
                         {item}
                       </span>

@@ -165,7 +165,7 @@ export default function InviteUserForm({
         <select
           value={role}
           onChange={(event) => setRole(event.target.value)}
-          className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-400 disabled:cursor-not-allowed disabled:bg-muted"
+          className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-zaltyko-primary focus:outline-none focus:ring-1 focus:ring-zaltyko-primary disabled:cursor-not-allowed disabled:bg-muted"
           disabled={disabled || isSubmitting}
         >
           {availableRoles.map((option) => (
@@ -190,7 +190,7 @@ export default function InviteUserForm({
               <label key={academy.id} className="flex items-center gap-2 text-sm">
                 <input
                   type="checkbox"
-                  className="h-4 w-4 rounded border-border text-emerald-500 focus:ring-emerald-400"
+                  className="h-4 w-4 rounded border-border text-zaltyko-primary focus:ring-zaltyko-primary"
                   checked={selectedAcademies.includes(academy.id)}
                   onChange={() => handleToggleAcademy(academy.id)}
                   disabled={disabled || isSubmitting}
@@ -212,7 +212,7 @@ export default function InviteUserForm({
             onChange={(event) =>
               setDefaultAcademyId(event.target.value ? event.target.value : undefined)
             }
-            className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-400 disabled:cursor-not-allowed disabled:bg-muted"
+            className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-zaltyko-primary focus:outline-none focus:ring-1 focus:ring-zaltyko-primary disabled:cursor-not-allowed disabled:bg-muted"
             disabled={disabled || isSubmitting}
           >
             {defaultAcademyOptions.map((option) => (

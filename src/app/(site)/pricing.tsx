@@ -65,7 +65,7 @@ export default function PricingSection() {
     <section id="planes" className="bg-[#071013] py-20">
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <div className="text-center">
-          <span className="text-xs uppercase tracking-[0.35em] text-emerald-300">
+          <span className="text-xs uppercase tracking-[0.35em] text-zaltyko-accent">
             Planes claros
           </span>
           <h2 className="mt-4 text-3xl font-semibold text-white sm:text-4xl">
@@ -80,12 +80,12 @@ export default function PricingSection() {
           {plans.map((plan) => (
             <article
               key={plan.title}
-              className={`relative flex h-full flex-col rounded-3xl border border-white/10 bg-white/5 p-8 shadow-xl transition hover:border-emerald-300/40 ${
-                plan.highlight ? "ring-2 ring-emerald-400/50" : ""
+              className={`relative flex h-full flex-col rounded-3xl border border-white/10 bg-white/5 p-8 shadow-xl transition hover:border-zaltyko-accent/40 ${
+                plan.highlight ? "ring-2 ring-zaltyko-accent/50" : ""
               }`}
             >
               {plan.highlight && (
-                <span className="absolute -top-3 right-6 rounded-full bg-gradient-to-r from-emerald-400 to-lime-300 px-3 py-1 text-xs font-semibold text-[#0d1b1e]">
+                <span className="absolute -top-3 right-6 rounded-full bg-gradient-to-r from-zaltyko-accent to-zaltyko-accent-light px-3 py-1 text-xs font-semibold text-zaltyko-primary-dark">
                   Popular
                 </span>
               )}
@@ -96,7 +96,7 @@ export default function PricingSection() {
               <ul className="mt-6 space-y-3 text-sm text-slate-100/80">
                 {plan.features.map((feature) => (
                   <li key={feature} className="flex items-start gap-2">
-                    <Check className="mt-0.5 h-4 w-4 text-emerald-300" />
+                    <Check className="mt-0.5 h-4 w-4 text-zaltyko-accent" />
                     <span>{feature}</span>
                   </li>
                 ))}
@@ -106,7 +106,7 @@ export default function PricingSection() {
                 href={plan.title === "Premium" ? "mailto:ventas@gymna.app" : "/onboarding"}
                 className={`mt-8 inline-flex items-center justify-center rounded-full px-6 py-2 text-sm font-semibold transition ${
                   plan.highlight
-                    ? "bg-gradient-to-r from-emerald-400 to-lime-300 text-[#0d1b1e]"
+                    ? "bg-gradient-to-r from-zaltyko-accent to-zaltyko-accent-light text-zaltyko-primary-dark"
                     : "border border-white/20 text-white hover:bg-white/10"
                 }`}
               >
@@ -124,7 +124,7 @@ export default function PricingSection() {
                 key={benefit.title}
                 className="rounded-3xl border border-white/10 bg-[#0a161a] p-6 shadow-lg"
               >
-                <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-emerald-400/20 text-emerald-200">
+                <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-zaltyko-accent/20 text-zaltyko-accent">
                   <Icon className="h-5 w-5" />
                 </span>
                 <h3 className="mt-4 text-lg font-semibold text-white">{benefit.title}</h3>
@@ -134,7 +134,7 @@ export default function PricingSection() {
           })}
         </div>
 
-        <div className="mt-16 rounded-3xl border border-white/10 bg-gradient-to-br from-emerald-400/10 via-lime-300/10 to-transparent p-8 text-center text-slate-100">
+        <div className="mt-16 rounded-3xl border border-white/10 bg-gradient-to-br from-zaltyko-accent/10 via-zaltyko-accent-light/10 to-transparent p-8 text-center text-slate-100">
           <h3 className="text-2xl font-semibold text-white">
             ¿Necesitas un acuerdo enterprise o migrar múltiples academias?
           </h3>
