@@ -31,7 +31,7 @@ export default function Navbar() {
             <Link
               key={link.href}
               href={link.href}
-              className="text-sm font-medium text-white/80 transition-colors hover:text-white"
+              className="text-sm font-medium text-white/80 transition-colors hover:text-zaltyko-accent-light"
             >
               {link.label}
             </Link>
@@ -71,7 +71,7 @@ export default function Navbar() {
               <Link
                 key={link.href}
                 href={link.href}
-                className="block rounded-md px-3 py-2 text-base font-medium text-white/80 hover:bg-white/5 hover:text-white"
+                className="block rounded-md px-3 py-2 text-base font-medium text-white/80 hover:bg-white/5 hover:text-zaltyko-accent-light"
                 onClick={() => setIsMenuOpen(false)}
               >
                 {link.label}

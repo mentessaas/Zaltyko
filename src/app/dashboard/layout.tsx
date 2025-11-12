@@ -41,14 +41,14 @@ export default async function DashboardLayout({
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-zaltyko-neutral-light transition-all duration-300">
       <GlobalTopNav
         userRole={profile.role}
         userName={profile.name}
         userEmail={user.email ?? null}
         profileId={profile.id}
       />
-      <main className="mx-auto max-w-7xl px-4 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
+      <main className="mx-auto max-w-7xl px-4 py-4 transition-all duration-300 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
         <RealtimeNotificationsProvider userId={profile.userId} tenantId={profile.tenantId} />
         {children}
       </main>
