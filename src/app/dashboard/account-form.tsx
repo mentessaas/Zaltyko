@@ -306,7 +306,7 @@ export default function AccountForm({ user, profile, academies, defaultAcademyId
           </CardContent>
           <CardFooter className="flex justify-end space-x-3">
             <Button variant="outline" size="sm" asChild>
-              <Link href="mailto:soporte@gymnasaas.com">Solicitar cambios</Link>
+              <Link href="mailto:soporte@zaltyko.com">Solicitar cambios</Link>
             </Button>
           </CardFooter>
         </Card>
