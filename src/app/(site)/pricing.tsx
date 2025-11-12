@@ -62,16 +62,16 @@ const commonBenefits = [
 
 export default function PricingSection() {
   return (
-    <section id="planes" className="bg-[#071013] py-20">
+    <section id="planes" className="bg-zaltyko-primary-dark py-20">
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <div className="text-center">
-          <span className="text-xs uppercase tracking-[0.35em] text-zaltyko-accent">
+          <span className="font-display text-xs uppercase tracking-[0.35em] text-zaltyko-accent">
             Planes claros
           </span>
-          <h2 className="mt-4 text-3xl font-semibold text-white sm:text-4xl">
+          <h2 className="mt-4 font-display text-3xl font-semibold text-white sm:text-4xl">
             Freemium pensado para escalar tu academia sin fricción.
           </h2>
-          <p className="mt-3 text-base text-slate-200/75">
+          <p className="mt-3 font-sans text-base text-white/75">
             Cambia de plan en cualquier momento. Stripe sincroniza límites en segundos y aplicamos prorateo automático.
           </p>
         </div>
@@ -89,11 +89,11 @@ export default function PricingSection() {
                   Popular
                 </span>
               )}
-              <h3 className="text-xl font-semibold text-white">{plan.title}</h3>
-              <p className="mt-2 text-3xl font-bold text-white">{plan.price}</p>
-              <p className="mt-2 text-sm text-slate-200/75">{plan.description}</p>
+              <h3 className="font-display text-xl font-semibold text-white">{plan.title}</h3>
+              <p className="mt-2 font-display text-3xl font-bold text-white">{plan.price}</p>
+              <p className="mt-2 font-sans text-sm text-white/75">{plan.description}</p>
 
-              <ul className="mt-6 space-y-3 text-sm text-slate-100/80">
+              <ul className="mt-6 space-y-3 font-sans text-sm text-white/80">
                 {plan.features.map((feature) => (
                   <li key={feature} className="flex items-start gap-2">
                     <Check className="mt-0.5 h-4 w-4 text-zaltyko-accent" />
@@ -122,23 +122,23 @@ export default function PricingSection() {
             return (
               <article
                 key={benefit.title}
-                className="rounded-3xl border border-white/10 bg-[#0a161a] p-6 shadow-lg"
+                className="rounded-3xl border border-white/10 bg-zaltyko-primary-dark/50 p-6 shadow-lg"
               >
                 <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-zaltyko-accent/20 text-zaltyko-accent">
                   <Icon className="h-5 w-5" />
                 </span>
-                <h3 className="mt-4 text-lg font-semibold text-white">{benefit.title}</h3>
-                <p className="mt-2 text-sm text-slate-200/75">{benefit.description}</p>
+                <h3 className="mt-4 font-display text-lg font-semibold text-white">{benefit.title}</h3>
+                <p className="mt-2 font-sans text-sm text-white/75">{benefit.description}</p>
               </article>
             );
           })}
         </div>
 
-        <div className="mt-16 rounded-3xl border border-white/10 bg-gradient-to-br from-zaltyko-accent/10 via-zaltyko-accent-light/10 to-transparent p-8 text-center text-slate-100">
-          <h3 className="text-2xl font-semibold text-white">
+        <div className="mt-16 rounded-3xl border border-white/10 bg-gradient-to-br from-zaltyko-accent/10 via-zaltyko-accent-light/10 to-transparent p-8 text-center text-white">
+          <h3 className="font-display text-2xl font-semibold text-white">
             ¿Necesitas un acuerdo enterprise o migrar múltiples academias?
           </h3>
-          <p className="mt-3 text-sm text-slate-200/80">
+          <p className="mt-3 font-sans text-sm text-white/80">
             Ofrecemos sesiones de descubrimiento, scripts de migración y un entorno staging para tu equipo técnico.
           </p>
           <a

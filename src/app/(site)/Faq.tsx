@@ -58,12 +58,12 @@ export default function FAQ() {
   };
 
   return (
-    <section id="faq" className="bg-[#071013] px-4 py-16 md:px-6 lg:px-8">
+    <section id="faq" className="bg-zaltyko-primary-dark px-4 py-16 md:px-6 lg:px-8">
       <div className="mx-auto max-w-3xl">
-        <h2 className="mb-4 text-center text-3xl font-semibold text-white sm:text-4xl">
+        <h2 className="mb-4 text-center font-display text-3xl font-semibold text-white sm:text-4xl">
           Preguntas frecuentes
         </h2>
-        <p className="mb-10 text-center text-sm text-slate-200/70">
+        <p className="mb-10 text-center font-sans text-sm text-white/70">
           ¿Necesitas algo más? Escríbenos a <a className="underline" href="mailto:hola@gymna.app">hola@gymna.app</a> y te ayudamos a poner tu academia en línea.
         </p>
 
