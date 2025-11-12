@@ -88,14 +88,14 @@ export function FormField({
           onBlur={handleBlur}
           className={cn(
             displayError && "border-red-500 focus-visible:ring-red-500",
-            isValid && "border-emerald-500 focus-visible:ring-emerald-500",
+            isValid && "border-zaltyko-primary focus-visible:ring-zaltyko-primary",
             className
           )}
           aria-invalid={!!displayError}
           aria-describedby={displayError ? `${props.id}-error` : undefined}
         />
         {isValid && (
-          <CheckCircle2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-500" />
+          <CheckCircle2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zaltyko-primary" />
         )}
         {displayError && (
           <AlertCircle className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-red-500" />

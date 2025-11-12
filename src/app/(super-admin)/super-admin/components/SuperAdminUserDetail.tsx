@@ -554,7 +554,7 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
               <Button
                 variant="outline"
                 size="sm"
-                className="border-green-500/60 bg-green-500/20 text-green-100 font-semibold shadow-sm hover:border-green-400 hover:bg-green-500/30 hover:text-white"
+                className="border-zaltyko-accent/60 bg-zaltyko-accent/20 text-zaltyko-primary-dark font-semibold shadow-sm hover:border-zaltyko-accent-light hover:bg-zaltyko-accent/30 hover:text-zaltyko-primary-dark"
                 onClick={handleActivateAthleteAccess}
                 disabled={activatingAccess || saving}
               >
@@ -574,7 +574,7 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
             <Button
               variant="outline"
               size="sm"
-              className="border-emerald-500/60 bg-emerald-500/20 text-emerald-100 font-semibold shadow-sm hover:border-emerald-400 hover:bg-emerald-500/30 hover:text-white"
+              className="border-zaltyko-primary/60 bg-zaltyko-primary/20 text-zaltyko-primary-light font-semibold shadow-sm hover:border-zaltyko-primary-light hover:bg-zaltyko-primary/30 hover:text-white"
               onClick={handleToggleSuspension}
               disabled={saving || user.role === "super_admin"}
             >
@@ -595,7 +595,7 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
                 "inline-flex rounded-full px-3 py-1.5 text-xs font-semibold uppercase tracking-wide",
                 user.isSuspended
                   ? "bg-rose-500/15 text-rose-300"
-                  : "bg-emerald-500/15 text-emerald-300",
+                  : "bg-zaltyko-primary/15 text-zaltyko-primary-light",
               )}
             >
               {user.isSuspended ? "Suspendido" : "Activo"}
@@ -833,7 +833,7 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
                 <div className="mt-2 grid grid-cols-2 gap-3 rounded-xl border border-white/10 bg-white/5 p-4">
                   <div className="rounded-lg border border-white/10 bg-white/5 p-3">
                     <div className="flex items-center gap-2">
-                      <Building2 className="h-4 w-4 text-emerald-400" strokeWidth={1.8} />
+                      <Building2 className="h-4 w-4 text-zaltyko-primary-light" strokeWidth={1.8} />
                       <div>
                         <p className="text-xs text-slate-400">Academias</p>
                         <p className="text-lg font-semibold text-white">{user.stats.academiesOwned}</p>
@@ -920,7 +920,7 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
             Cancelar
           </Button>
           <Button
-            className="bg-emerald-500 text-white hover:bg-emerald-600"
+            className="bg-zaltyko-primary text-white hover:bg-zaltyko-primary-dark"
             onClick={handleSave}
             disabled={saving || !hasChanges || user.role === "super_admin"}
           >

@@ -347,7 +347,7 @@ export function SuperAdminAcademiesTable({
                       "inline-flex rounded-full px-2.5 py-1 text-xs font-semibold uppercase tracking-wide",
                       academy.isSuspended
                         ? "bg-rose-500/15 text-rose-300"
-                        : "bg-emerald-500/15 text-emerald-300",
+                        : "bg-zaltyko-primary/15 text-zaltyko-primary-light",
                     )}
                   >
                     {academy.isSuspended ? "Suspendida" : "Activa"}
@@ -419,7 +419,7 @@ export function SuperAdminAcademiesTable({
 
       <p className="text-xs text-slate-400">
         ¿Necesitas editar detalles avanzados de una academia? Ingresa como owner desde{" "}
-        <Link href="/onboarding" className="font-semibold text-emerald-300 hover:underline">
+        <Link href="/onboarding" className="font-semibold text-zaltyko-primary-light hover:underline">
           onboarding forzado
         </Link>{" "}
         mientras desarrollamos la delegación directa.

@@ -59,7 +59,7 @@ export function DashboardPage({
       subtitle: "Atletas activos en esta academia",
       href: `/app/${academyId}/athletes`,
       icon: Users,
-      accent: "emerald" as const,
+      accent: "zaltyko-primary" as const,
     },
     {
       title: "Entrenadores",

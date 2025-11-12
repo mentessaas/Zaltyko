@@ -208,7 +208,7 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
             <Button
               variant="outline"
               size="sm"
-              className="border-emerald-500/40 bg-emerald-500/10 text-emerald-200 hover:border-emerald-400 hover:bg-emerald-400/20"
+              className="border-zaltyko-primary/40 bg-zaltyko-primary/10 text-zaltyko-primary-light hover:border-zaltyko-primary-light hover:bg-zaltyko-primary-light/20"
               onClick={() => router.push(`/app/${academy.id}/dashboard`)}
               disabled={academy.isSuspended}
             >
@@ -220,7 +220,7 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
                 "inline-flex rounded-full px-3 py-1.5 text-xs font-semibold uppercase tracking-wide",
                 academy.isSuspended
                   ? "bg-rose-500/15 text-rose-300"
-                  : "bg-emerald-500/15 text-emerald-300",
+                  : "bg-zaltyko-primary/15 text-zaltyko-primary-light",
               )}
             >
               {academy.isSuspended ? "Suspendida" : "Activa"}
@@ -388,7 +388,7 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
             Cancelar
           </Button>
           <Button
-            className="bg-emerald-500 text-white hover:bg-emerald-600"
+            className="bg-zaltyko-primary text-white hover:bg-zaltyko-primary-dark"
             onClick={handleSave}
             disabled={
               saving ||

@@ -15,7 +15,7 @@ interface PlanUsageProps {
 function getProgressColor(percent: number) {
   if (percent >= 90) return "bg-rose-500";
   if (percent >= 75) return "bg-amber-500";
-  return "bg-emerald-500";
+  return "bg-zaltyko-primary";
 }
 
 export function PlanUsage({ plan, academyId }: PlanUsageProps) {

@@ -10,10 +10,10 @@ interface RecentActivityProps {
 }
 
 const ACTION_COLORS: Record<string, string> = {
-  "athlete.created": "bg-emerald-500/15 text-emerald-600",
-  "coach.created": "bg-sky-500/15 text-sky-600",
+  "athlete.created": "bg-zaltyko-primary/15 text-zaltyko-primary",
+  "coach.created": "bg-zaltyko-primary-light/15 text-zaltyko-primary-light",
   "group.created": "bg-violet-500/15 text-violet-600",
-  "assessment.created": "bg-amber-500/15 text-amber-600",
+  "assessment.created": "bg-zaltyko-accent/15 text-zaltyko-accent",
 };
 
 export function RecentActivity({ items }: RecentActivityProps) {

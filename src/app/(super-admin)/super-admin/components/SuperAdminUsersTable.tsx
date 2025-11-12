@@ -246,7 +246,7 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
           <Button
             variant="outline"
             size="sm"
-            className="border-emerald-500/60 bg-emerald-500/20 text-emerald-100 hover:border-emerald-400 hover:bg-emerald-500/30 hover:text-white"
+            className="border-zaltyko-primary/60 bg-zaltyko-primary/20 text-zaltyko-primary-light hover:border-zaltyko-primary-light hover:bg-zaltyko-primary/30 hover:text-white"
             onClick={handleSyncAthletes}
             disabled={syncing || loading}
           >
@@ -375,7 +375,7 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
                       "inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-xs font-semibold uppercase tracking-wide",
                       user.isSuspended
                         ? "bg-rose-500/15 text-rose-300"
-                        : "bg-emerald-500/15 text-emerald-300",
+                        : "bg-zaltyko-primary/15 text-zaltyko-primary-light",
                     )}
                   >
                     <ShieldAlert className="h-3.5 w-3.5" strokeWidth={1.8} />
@@ -384,7 +384,7 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
                 </td>
                 <td className="px-4 py-4">
                   {user.planCode ? (
-                    <span className="inline-flex rounded-full bg-emerald-500/15 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-emerald-300">
+                    <span className="inline-flex rounded-full bg-zaltyko-primary/15 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-zaltyko-primary-light">
                       {user.planCode}
                     </span>
                   ) : (
@@ -397,7 +397,7 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
                     size="sm"
                     className={cn(
                       "border-white/20 bg-white/10 text-slate-100 hover:border-white/40 hover:bg-white/20",
-                      user.isSuspended && "border-emerald-500/40 text-emerald-200",
+                      user.isSuspended && "border-zaltyko-primary/40 text-zaltyko-primary-light",
                     )}
                     onClick={() =>
                       mutateUser(user.id, {
