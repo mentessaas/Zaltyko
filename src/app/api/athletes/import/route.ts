@@ -8,6 +8,9 @@ import { academies, athletes } from "@/db/schema";
 import { athleteStatusOptions } from "@/lib/athletes/constants";
 import { withTenant } from "@/lib/authz";
 import { assertWithinPlanLimits } from "@/lib/limits";
+import { withRateLimit, getUserIdentifier } from "@/lib/rate-limit";
+import { handleApiError } from "@/lib/api-error-handler";
+import { withPayloadValidation } from "@/lib/payload-validator";
 
 const CsvRowSchema = z.object({
   name: z.string().min(1),
@@ -21,9 +24,10 @@ type CsvRow = z.infer<typeof CsvRowSchema>;
 
 export const runtime = "nodejs";
 
-export const POST = withTenant(async (request, context) => {
-  const formData = await request.formData();
-  const file = formData.get("file");
+const handler = withTenant(async (request, context) => {
+  try {
+    const formData = await request.formData();
+    const file = formData.get("file");
 
   if (!(file instanceof File)) {
     return NextResponse.json({ error: "FILE_REQUIRED" }, { status: 400 });
@@ -118,7 +122,16 @@ export const POST = withTenant(async (request, context) => {
     }
   }
 
-  return NextResponse.json(summary);
+    return NextResponse.json(summary);
+  } catch (error) {
+    return handleApiError(error, { endpoint: "/api/athletes/import", method: "POST" });
+  }
 });
+
+// Aplicar rate limiting y validación de payload
+export const POST = withRateLimit(
+  withPayloadValidation(handler, { maxSize: 10 * 1024 * 1024 }), // 10MB para CSV
+  { identifier: getUserIdentifier }
+);
 
 

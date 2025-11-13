@@ -10,6 +10,9 @@ import {
   skillCatalog,
 } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
+import { handleApiError } from "@/lib/api-error-handler";
+import { withTransaction } from "@/lib/db-transactions";
+import { verifyAthleteAccess, verifyAcademyAccess } from "@/lib/permissions";
 
 const ScoreSchema = z.object({
   skillId: z.string().uuid(),
@@ -28,68 +31,73 @@ const BodySchema = z.object({
 });
 
 export const POST = withTenant(async (request, context) => {
-  const body = BodySchema.parse(await request.json());
+  try {
+    const body = BodySchema.parse(await request.json());
 
-  if (!context.tenantId) {
-    return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
-  }
-
-  const [athlete] = await db
-    .select({ id: athletes.id })
-    .from(athletes)
-    .where(
-      and(
-        eq(athletes.id, body.athleteId),
-        eq(athletes.academyId, body.academyId),
-        eq(athletes.tenantId, context.tenantId)
-      )
-    )
-    .limit(1);
-
-  if (!athlete) {
-    return NextResponse.json({ error: "ATHLETE_NOT_FOUND" }, { status: 404 });
-  }
-
-  const assessmentId = crypto.randomUUID();
-
-  await db.insert(athleteAssessments).values({
-    id: assessmentId,
-    tenantId: context.tenantId,
-    academyId: body.academyId,
-    athleteId: body.athleteId,
-    assessedBy: body.assessedBy ?? null,
-    assessmentDate: body.assessmentDate,
-    apparatus: body.apparatus ?? null,
-    overallComment: body.overallComment ?? null,
-  });
-
-  if (body.scores?.length) {
-    const skills = await db
-      .select({ id: skillCatalog.id, apparatus: skillCatalog.apparatus })
-      .from(skillCatalog)
-      .where(eq(skillCatalog.tenantId, context.tenantId));
-
-    const allowedSkillIds = new Set(
-      skills
-        .filter((skill) => !body.apparatus || skill.apparatus === body.apparatus)
-        .map((item) => item.id)
-    );
-
-    for (const score of body.scores) {
-      if (!allowedSkillIds.has(score.skillId)) {
-        continue;
-      }
-
-      await db.insert(assessmentScores).values({
-        id: crypto.randomUUID(),
-        tenantId: context.tenantId,
-        assessmentId,
-        skillId: score.skillId,
-        score: score.score,
-        comments: score.comments ?? null,
-      });
+    if (!context.tenantId) {
+      return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
     }
-  }
 
-  return NextResponse.json({ ok: true, id: assessmentId });
+    // Verificar acceso a la academia
+    const academyAccess = await verifyAcademyAccess(body.academyId, context.tenantId);
+    if (!academyAccess.allowed) {
+      return NextResponse.json({ error: academyAccess.reason ?? "ACADEMY_ACCESS_DENIED" }, { status: 403 });
+    }
+
+    // Verificar acceso al atleta
+    const athleteAccess = await verifyAthleteAccess(body.athleteId, context.tenantId, body.academyId);
+    if (!athleteAccess.allowed) {
+      return NextResponse.json({ error: athleteAccess.reason ?? "ATHLETE_NOT_FOUND" }, { status: 404 });
+    }
+
+    const assessmentId = crypto.randomUUID();
+
+    // Usar transacción para garantizar atomicidad
+    await withTransaction(async (tx) => {
+      // Crear evaluación
+      await tx.insert(athleteAssessments).values({
+        id: assessmentId,
+        tenantId: context.tenantId,
+        academyId: body.academyId,
+        athleteId: body.athleteId,
+        assessedBy: body.assessedBy ?? null,
+        assessmentDate: body.assessmentDate,
+        apparatus: body.apparatus ?? null,
+        overallComment: body.overallComment ?? null,
+      });
+
+      // Crear scores si existen
+      if (body.scores?.length) {
+        const skills = await tx
+          .select({ id: skillCatalog.id, apparatus: skillCatalog.apparatus })
+          .from(skillCatalog)
+          .where(eq(skillCatalog.tenantId, context.tenantId));
+
+        const allowedSkillIds = new Set(
+          skills
+            .filter((skill) => !body.apparatus || skill.apparatus === body.apparatus)
+            .map((item) => item.id)
+        );
+
+        const scoreRows = body.scores
+          .filter((score) => allowedSkillIds.has(score.skillId))
+          .map((score) => ({
+            id: crypto.randomUUID(),
+            tenantId: context.tenantId,
+            assessmentId,
+            skillId: score.skillId,
+            score: score.score,
+            comments: score.comments ?? null,
+          }));
+
+        if (scoreRows.length > 0) {
+          await tx.insert(assessmentScores).values(scoreRows);
+        }
+      }
+    });
+
+    return NextResponse.json({ ok: true, id: assessmentId });
+  } catch (error) {
+    return handleApiError(error);
+  }
 });

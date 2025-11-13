@@ -8,6 +8,9 @@ import { academies, athletes, familyContacts, guardianAthletes, groupAthletes, g
 import { assertWithinPlanLimits } from "@/lib/limits";
 import { withTenant } from "@/lib/authz";
 import { athleteStatusOptions } from "@/lib/athletes/constants";
+import { handleApiError } from "@/lib/api-error-handler";
+import { withTransaction } from "@/lib/db-transactions";
+import { verifyAcademyAccess, verifyGroupAccess } from "@/lib/permissions";
 
 const ContactSchema = z.object({
   name: z.string().min(1),
@@ -24,73 +27,86 @@ const BodySchema = z.object({
   dob: z.string().optional(),
   level: z.string().optional(),
   status: z.enum(athleteStatusOptions).optional(),
+  age: z.number().int().min(0).optional(),
   contacts: z.array(ContactSchema).optional(),
   groupId: z.string().uuid().optional(),
 });
 
 export const POST = withTenant(async (request, context) => {
-  const body = BodySchema.parse(await request.json());
+  try {
+    const body = BodySchema.parse(await request.json());
 
-  if (!context.tenantId) {
-    return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
-  }
-
-  await assertWithinPlanLimits(context.tenantId, body.academyId, "athletes");
-
-  if (body.groupId) {
-    const [groupRow] = await db
-      .select({ id: groups.id, academyId: groups.academyId, tenantId: groups.tenantId })
-      .from(groups)
-      .where(eq(groups.id, body.groupId))
-      .limit(1);
-
-    if (!groupRow || groupRow.academyId !== body.academyId || groupRow.tenantId !== context.tenantId) {
-      return NextResponse.json({ error: "GROUP_NOT_FOUND" }, { status: 404 });
+    if (!context.tenantId) {
+      return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
     }
-  }
 
-  const athleteId = randomUUID();
+    // Verificar acceso a la academia
+    const academyAccess = await verifyAcademyAccess(body.academyId, context.tenantId);
+    if (!academyAccess.allowed) {
+      return NextResponse.json({ error: academyAccess.reason ?? "ACADEMY_ACCESS_DENIED" }, { status: 403 });
+    }
 
-  await db.insert(athletes).values({
-    id: athleteId,
-    tenantId: context.tenantId,
-    academyId: body.academyId,
-    name: body.name,
-    dob: body.dob ?? null,
-    level: body.level,
-    status: body.status ?? "active",
-    groupId: body.groupId ?? null,
-  });
+    await assertWithinPlanLimits(context.tenantId, body.academyId, "athletes");
 
-  if (body.contacts?.length) {
-    const rows = body.contacts.map((contact) => ({
-      id: randomUUID(),
-      tenantId: context.tenantId!,
-      athleteId,
-      name: contact.name,
-      relationship: contact.relationship ?? null,
-      email: contact.email ?? null,
-      phone: contact.phone ?? null,
-      notifyEmail: contact.notifyEmail ?? true,
-      notifySms: contact.notifySms ?? false,
-    }));
+    // Verificar acceso al grupo si se proporciona
+    if (body.groupId) {
+      const groupAccess = await verifyGroupAccess(body.groupId, context.tenantId, body.academyId);
+      if (!groupAccess.allowed) {
+        return NextResponse.json({ error: groupAccess.reason ?? "GROUP_NOT_FOUND" }, { status: 404 });
+      }
+    }
 
-    await db.insert(familyContacts).values(rows).onConflictDoNothing();
-  }
+    const athleteId = randomUUID();
 
-  if (body.groupId) {
-    await db
-      .insert(groupAthletes)
-      .values({
-        id: randomUUID(),
+    // Usar transacción para garantizar atomicidad
+    await withTransaction(async (tx) => {
+      // Crear atleta
+      await tx.insert(athletes).values({
+        id: athleteId,
         tenantId: context.tenantId,
-        groupId: body.groupId,
-        athleteId,
-      })
-      .onConflictDoNothing();
-  }
+        academyId: body.academyId,
+        name: body.name,
+        dob: body.dob ?? null,
+        level: body.level,
+        status: body.status ?? "active",
+        groupId: body.groupId ?? null,
+      });
 
-  return NextResponse.json({ ok: true, id: athleteId });
+      // Crear contactos si existen
+      if (body.contacts?.length) {
+        const rows = body.contacts.map((contact) => ({
+          id: randomUUID(),
+          tenantId: context.tenantId,
+          athleteId,
+          name: contact.name,
+          relationship: contact.relationship ?? null,
+          email: contact.email ?? null,
+          phone: contact.phone ?? null,
+          notifyEmail: contact.notifyEmail ?? true,
+          notifySms: contact.notifySms ?? false,
+        }));
+
+        await tx.insert(familyContacts).values(rows).onConflictDoNothing();
+      }
+
+      // Asociar con grupo si existe
+      if (body.groupId) {
+        await tx
+          .insert(groupAthletes)
+          .values({
+            id: randomUUID(),
+            tenantId: context.tenantId,
+            groupId: body.groupId,
+            athleteId,
+          })
+          .onConflictDoNothing();
+      }
+    });
+
+    return NextResponse.json({ ok: true, id: athleteId });
+  } catch (error) {
+    return handleApiError(error);
+  }
 });
 
 const levelArraySchema = z
@@ -124,12 +140,13 @@ const filterSchema = z.object({
 });
 
 export const GET = withTenant(async (request, context) => {
-  const url = new URL(request.url);
-  const filters = filterSchema.safeParse(Object.fromEntries(url.searchParams));
+  try {
+    const url = new URL(request.url);
+    const filters = filterSchema.safeParse(Object.fromEntries(url.searchParams));
 
-  if (!filters.success) {
-    return NextResponse.json({ error: "INVALID_FILTERS" }, { status: 400 });
-  }
+    if (!filters.success) {
+      return handleApiError(filters.error);
+    }
 
   const { level, status, academyId, minAge, maxAge, tenantId: tenantOverride, groupId, page = 1, limit = 50 } = filters.data;
 
@@ -204,16 +221,19 @@ export const GET = withTenant(async (request, context) => {
     .limit(pageSize)
     .offset(offset);
 
-  const totalPages = Math.ceil(total / pageSize);
+    const totalPages = Math.ceil(total / pageSize);
 
-  return NextResponse.json({
-    total,
-    page,
-    pageSize,
-    totalPages,
-    hasNextPage: page < totalPages,
-    hasPreviousPage: page > 1,
-    items: rows,
-  });
+    return NextResponse.json({
+      total,
+      page,
+      pageSize,
+      totalPages,
+      hasNextPage: page < totalPages,
+      hasPreviousPage: page > 1,
+      items: rows,
+    });
+  } catch (error) {
+    return handleApiError(error);
+  }
 });
 

@@ -57,15 +57,17 @@ export default function Navbar() {
         <button
           type="button"
           onClick={() => setIsMenuOpen((prev) => !prev)}
-          className="inline-flex items-center justify-center rounded-md p-2 text-white md:hidden"
+          aria-expanded={isMenuOpen}
+          aria-controls="mobile-menu"
+          aria-label={isMenuOpen ? "Cerrar menú" : "Abrir menú"}
+          className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md p-2 text-white transition-colors hover:bg-white/10 md:hidden"
         >
-          <span className="sr-only">Abrir menú</span>
           {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
         </button>
       </div>
 
       {isMenuOpen && (
-        <div className="border-t border-white/10 bg-zaltyko-primary md:hidden">
+        <div id="mobile-menu" role="menu" className="border-t border-white/10 bg-zaltyko-primary md:hidden">
           <div className="space-y-1 px-4 py-3">
             {links.map((link) => (
               <Link

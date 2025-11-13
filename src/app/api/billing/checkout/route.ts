@@ -7,6 +7,8 @@ import { academies, plans, subscriptions, profiles } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
 import { withRateLimit, getUserIdentifier } from "@/lib/rate-limit";
 import { getStripeClient } from "@/lib/stripe/client";
+import { handleApiError } from "@/lib/api-error-handler";
+import { verifyAcademyAccess } from "@/lib/permissions";
 
 const BodySchema = z.object({
   academyId: z.string().uuid(),
@@ -14,35 +16,46 @@ const BodySchema = z.object({
 });
 
 const handler = withTenant(async (request, context) => {
-  if (!process.env.STRIPE_SECRET_KEY) {
-    return NextResponse.json({ error: "STRIPE_NOT_CONFIGURED" }, { status: 500 });
-  }
+  try {
+    if (!process.env.STRIPE_SECRET_KEY) {
+      return NextResponse.json({ error: "STRIPE_NOT_CONFIGURED" }, { status: 500 });
+    }
 
-  const stripe = getStripeClient();
+    const stripe = getStripeClient();
 
-  const json = await request.json();
-  const body = BodySchema.parse(json);
+    const json = await request.json();
+    const body = BodySchema.parse(json);
 
-  const [academy] = await db
-    .select({
-      id: academies.id,
-      tenantId: academies.tenantId,
-      name: academies.name,
-      ownerId: academies.ownerId,
-    })
-    .from(academies)
-    .where(eq(academies.id, body.academyId))
-    .limit(1);
+    if (!context.tenantId) {
+      return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+    }
 
-  if (!academy) {
-    return NextResponse.json({ error: "ACADEMY_NOT_FOUND" }, { status: 404 });
-  }
+    // Verificar acceso a la academia
+    const academyAccess = await verifyAcademyAccess(body.academyId, context.tenantId);
+    if (!academyAccess.allowed) {
+      return NextResponse.json({ error: academyAccess.reason ?? "ACADEMY_NOT_FOUND" }, { status: 404 });
+    }
 
-  const isAdmin = context.profile?.role === "admin" || context.profile?.role === "super_admin";
+    const [academy] = await db
+      .select({
+        id: academies.id,
+        tenantId: academies.tenantId,
+        name: academies.name,
+        ownerId: academies.ownerId,
+      })
+      .from(academies)
+      .where(eq(academies.id, body.academyId))
+      .limit(1);
 
-  if (!context.profile || (!isAdmin && academy.tenantId !== context.tenantId)) {
-    return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
-  }
+    if (!academy) {
+      return NextResponse.json({ error: "ACADEMY_NOT_FOUND" }, { status: 404 });
+    }
+
+    const isAdmin = context.profile?.role === "admin" || context.profile?.role === "super_admin";
+
+    if (!context.profile || (!isAdmin && academy.tenantId !== context.tenantId)) {
+      return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+    }
 
   if (!academy.ownerId) {
     return NextResponse.json({ error: "ACADEMY_HAS_NO_OWNER" }, { status: 400 });
@@ -139,7 +152,10 @@ const handler = withTenant(async (request, context) => {
     cancel_url: cancelUrl,
   });
 
-  return NextResponse.json({ checkoutUrl: session.url });
+    return NextResponse.json({ checkoutUrl: session.url });
+  } catch (error) {
+    return handleApiError(error, { endpoint: "/api/billing/checkout", method: "POST" });
+  }
 });
 
 // Aplicar rate limiting: 10 requests por minuto para checkout

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -76,7 +77,6 @@ export default function ImportExportPanel({ tenantId }: ImportExportPanelProps) 
         fileInputRef.current.value = "";
       }
     } catch (error) {
-      console.error(error);
       setMessage(error instanceof Error ? error.message : "Error durante la importación.");
       setSummary(null);
     } finally {
@@ -119,7 +119,14 @@ export default function ImportExportPanel({ tenantId }: ImportExportPanelProps) 
           className="w-full rounded-md border border-dashed border-border px-3 py-2 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-emerald-500/10 file:px-3 file:py-1 file:text-sm file:font-medium file:text-emerald-600"
         />
         <Button type="submit" className="w-full" disabled={isUploading}>
-          {isUploading ? "Importando..." : "Importar CSV"}
+          {isUploading ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Importando...
+            </>
+          ) : (
+            "Importar CSV"
+          )}
         </Button>
       </form>
 

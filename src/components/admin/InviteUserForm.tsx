@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { FormField, validators } from "@/components/ui/form-field";
@@ -229,7 +230,14 @@ export default function InviteUserForm({
         className="w-full"
         disabled={disabled || isSubmitting || !availableRoles.length || !email}
       >
-        {isSubmitting ? "Enviando..." : "Enviar invitación"}
+        {isSubmitting ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Enviando...
+          </>
+        ) : (
+          "Enviar invitación"
+        )}
       </Button>
     </form>
   );

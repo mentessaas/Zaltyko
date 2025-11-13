@@ -305,7 +305,6 @@ export function AthletesTableView({ academyId, athletes: initialAthletes, levels
         open={createOpen}
         onClose={() => setCreateOpen(false)}
         onCreated={handleCreated}
-        levelSuggestions={levels}
         groups={groups}
       />
 
@@ -327,7 +326,6 @@ export function AthletesTableView({ academyId, athletes: initialAthletes, levels
               handleRefresh();
             }
           }}
-          levelSuggestions={levels}
           groups={groups}
         />
       )}

@@ -1,8 +1,13 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { Trash2 } from "lucide-react";
 
 import { useDevSession } from "@/components/dev-session-provider";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 interface SkillOption {
   id: string;
@@ -59,6 +64,21 @@ export function AssessmentForm({ academyId, athletes, skills, groups = [] }: Ass
 
   const handleAddRow = () => {
     setRows((prev) => [...prev, { skillId: "", score: "", comments: "" }]);
+  };
+
+  const [rowToDelete, setRowToDelete] = useState<number | null>(null);
+
+  const handleRemoveRow = (index: number) => {
+    if (rows.length > 1) {
+      setRowToDelete(index);
+    }
+  };
+
+  const confirmRemoveRow = () => {
+    if (rowToDelete !== null) {
+      setRows((prev) => prev.filter((_, i) => i !== rowToDelete));
+      setRowToDelete(null);
+    }
   };
 
   const handleChangeRow = (index: number, patch: Partial<ScoreRow>) => {
@@ -251,49 +271,85 @@ export function AssessmentForm({ academyId, athletes, skills, groups = [] }: Ass
           </div>
 
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold">Puntuaciones por habilidad</h3>
-              <button
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <h3 className="font-display text-sm font-semibold">Puntuaciones por habilidad</h3>
+              <Button
                 type="button"
                 onClick={handleAddRow}
-                className="text-xs text-primary hover:underline"
+                variant="outline"
+                size="sm"
+                className="w-full sm:w-auto"
               >
                 Añadir skill
-              </button>
+              </Button>
             </div>
 
             {rows.map((row, index) => (
-              <div key={index} className="grid gap-3 md:grid-cols-3">
-                <select
-                  className="rounded border px-3 py-2"
-                  value={row.skillId}
-                  onChange={(event) => handleChangeRow(index, { skillId: event.target.value })}
-                >
-                  <option value="">Selecciona skill</option>
-                  {skills
-                    .filter((skill) => !apparatus || skill.apparatus === apparatus)
-                    .map((skill) => (
-                      <option key={skill.id} value={skill.id}>
-                        {skill.name} ({skill.apparatus ?? "general"})
-                      </option>
-                    ))}
-                </select>
-                <input
-                  type="number"
-                  min={0}
-                  max={10}
-                  className="rounded border px-3 py-2"
-                  value={row.score}
-                  onChange={(event) => handleChangeRow(index, { score: event.target.value })}
-                  placeholder="Score"
-                />
-                <input
-                  type="text"
-                  className="rounded border px-3 py-2"
-                  value={row.comments}
-                  onChange={(event) => handleChangeRow(index, { comments: event.target.value })}
-                  placeholder="Comentarios"
-                />
+              <div key={index} className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_120px_1fr] md:grid-cols-3">
+                <div className="space-y-1">
+                  <Label htmlFor={`skill-${index}`} className="sr-only">
+                    Skill {index + 1}
+                  </Label>
+                  <select
+                    id={`skill-${index}`}
+                    aria-label={`Seleccionar skill para fila ${index + 1}`}
+                    className="flex h-11 w-full rounded-xl border-2 border-zaltyko-neutral-light bg-background px-4 py-2 text-base shadow-sm transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zaltyko-primary-light focus-visible:ring-offset-2 focus-visible:border-zaltyko-primary disabled:cursor-not-allowed disabled:opacity-50 md:text-sm min-h-[44px] sm:min-h-[40px]"
+                    value={row.skillId}
+                    onChange={(event) => handleChangeRow(index, { skillId: event.target.value })}
+                  >
+                    <option value="">Selecciona skill</option>
+                    {skills
+                      .filter((skill) => !apparatus || skill.apparatus === apparatus)
+                      .map((skill) => (
+                        <option key={skill.id} value={skill.id}>
+                          {skill.name} ({skill.apparatus ?? "general"})
+                        </option>
+                      ))}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor={`score-${index}`} className="sr-only">
+                    Puntuación {index + 1}
+                  </Label>
+                  <Input
+                    id={`score-${index}`}
+                    type="number"
+                    min={0}
+                    max={10}
+                    aria-label={`Puntuación para fila ${index + 1}`}
+                    value={row.score}
+                    onChange={(event) => handleChangeRow(index, { score: event.target.value })}
+                    placeholder="Score"
+                  />
+                </div>
+                <div className="space-y-1 sm:col-span-1 md:col-span-1">
+                  <Label htmlFor={`comments-${index}`} className="sr-only">
+                    Comentarios {index + 1}
+                  </Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id={`comments-${index}`}
+                      type="text"
+                      aria-label={`Comentarios para fila ${index + 1}`}
+                      value={row.comments}
+                      onChange={(event) => handleChangeRow(index, { comments: event.target.value })}
+                      placeholder="Comentarios"
+                      className="flex-1"
+                    />
+                    {rows.length > 1 && (
+                      <Button
+                        type="button"
+                        onClick={() => handleRemoveRow(index)}
+                        variant="outline"
+                        size="icon"
+                        aria-label={`Eliminar fila ${index + 1}`}
+                        className="shrink-0"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
               </div>
             ))}
           </div>
@@ -305,15 +361,26 @@ export function AssessmentForm({ academyId, athletes, skills, groups = [] }: Ass
             <p className="text-sm text-green-500">Evaluación registrada correctamente.</p>
           )}
 
-          <button
+          <Button
             type="submit"
-            className="rounded-md bg-primary px-4 py-2 text-white disabled:opacity-50"
+            className="w-full sm:w-auto"
             disabled={status === "loading" || !athleteId}
           >
             {status === "loading" ? "Guardando..." : "Guardar evaluación"}
-          </button>
+          </Button>
         </form>
       )}
+
+      <ConfirmDialog
+        open={rowToDelete !== null}
+        onOpenChange={(open) => !open && setRowToDelete(null)}
+        title="Eliminar fila"
+        description="¿Estás seguro de que deseas eliminar esta fila? Esta acción no se puede deshacer."
+        confirmText="Eliminar"
+        cancelText="Cancelar"
+        variant="destructive"
+        onConfirm={confirmRemoveRow}
+      />
     </div>
   );
 }

@@ -17,6 +17,8 @@ import {
 } from "@/db/schema";
 import { sendEmail } from "@/lib/mailgun";
 import { getStripeClient } from "@/lib/stripe/client";
+import { withTransaction } from "@/lib/db-transactions";
+import { logger } from "@/lib/logger";
 
 function unixToDate(value?: number | null): Date | null {
   if (!value) {
@@ -439,39 +441,74 @@ export async function POST(request: Request) {
     let tenantId: string | null = null;
     let userId: string | null = null;
 
-    if (
-      event.type === "customer.subscription.created" ||
-      event.type === "customer.subscription.updated" ||
-      event.type === "customer.subscription.deleted"
-    ) {
-      const subscription = event.data.object as Stripe.Subscription;
-      const context = await getAcademyContextFromSubscription(subscription);
-      academyId = context.academyId;
-      tenantId = context.tenantId;
-      userId = context.userId;
+    // Usar transacción para operaciones críticas de base de datos
+    await withTransaction(async (tx) => {
+      if (
+        event.type === "customer.subscription.created" ||
+        event.type === "customer.subscription.updated" ||
+        event.type === "customer.subscription.deleted"
+      ) {
+        const subscription = event.data.object as Stripe.Subscription;
+        const context = await getAcademyContextFromSubscription(subscription);
+        academyId = context.academyId;
+        tenantId = context.tenantId;
+        userId = context.userId;
 
-      if (userId) {
-        await updateSubscriptionRecord(subscription, userId);
+        if (userId) {
+          await updateSubscriptionRecord(subscription, userId);
+        }
+      } else if (
+        event.type === "invoice.paid" ||
+        event.type === "invoice.payment_failed" ||
+        event.type === "invoice.payment_action_required" ||
+        event.type === "invoice.finalized" ||
+        event.type === "invoice.updated"
+      ) {
+        const invoice = event.data.object as Stripe.Invoice;
+        const context = await getAcademyContextFromInvoice(invoice, stripe);
+        academyId = context.academyId;
+        tenantId = context.tenantId;
+        userId = context.userId;
+
+        await upsertInvoiceRecord(invoice, academyId, tenantId);
+
+        // Actualizar estado del evento dentro de la transacción
+        await tx
+          .update(billingEvents)
+          .set({
+            status: "processed",
+            academyId: academyId ?? undefined,
+            tenantId: tenantId ?? undefined,
+            processedAt: new Date(),
+          })
+          .where(eq(billingEvents.id, eventId));
+      } else {
+        // Para otros tipos de eventos, solo actualizar el estado
+        await tx
+          .update(billingEvents)
+          .set({
+            status: "processed",
+            academyId: academyId ?? undefined,
+            tenantId: tenantId ?? undefined,
+            processedAt: new Date(),
+          })
+          .where(eq(billingEvents.id, eventId));
       }
-    } else if (
-      event.type === "invoice.paid" ||
-      event.type === "invoice.payment_failed" ||
-      event.type === "invoice.payment_action_required" ||
-      event.type === "invoice.finalized" ||
-      event.type === "invoice.updated"
+    });
+
+    // Enviar notificaciones fuera de la transacción (operaciones no críticas)
+    if (
+      (event.type === "invoice.paid" ||
+        event.type === "invoice.payment_failed" ||
+        event.type === "invoice.payment_action_required") &&
+      academyId &&
+      tenantId
     ) {
       const invoice = event.data.object as Stripe.Invoice;
-      const context = await getAcademyContextFromInvoice(invoice, stripe);
-      academyId = context.academyId;
-      tenantId = context.tenantId;
-      userId = context.userId;
+      const amount = invoice.amount_paid ?? invoice.amount_due ?? 0;
+      const amountFormatted = `${(amount / 100).toFixed(2)} ${(invoice.currency ?? "eur").toUpperCase()}`;
 
-      await upsertInvoiceRecord(invoice, academyId, tenantId);
-
-      if (academyId && tenantId) {
-        const amount = invoice.amount_paid ?? invoice.amount_due ?? 0;
-        const amountFormatted = `${(amount / 100).toFixed(2)} ${(invoice.currency ?? "eur").toUpperCase()}`;
-
+      try {
         if (event.type === "invoice.paid") {
           const subject = "Zaltyko · Pago recibido";
           const text = `Se registró el pago de la factura ${invoice.number ?? invoice.id} por ${amountFormatted}.`;
@@ -482,9 +519,7 @@ export async function POST(request: Request) {
             amount,
             currency: invoice.currency,
           });
-        }
-
-      if (event.type === "invoice.payment_failed" || event.type === "invoice.payment_action_required") {
+        } else if (event.type === "invoice.payment_failed" || event.type === "invoice.payment_action_required") {
           const subject = "Zaltyko · Acción requerida en factura";
           const text = `La factura ${invoice.number ?? invoice.id} requiere tu revisión.`;
           const html = `<div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;"><h2 style="color: #0D47A1; font-family: Poppins, sans-serif; font-weight: 700;">Zaltyko · Acción requerida</h2><p>Hola,</p><p>No se pudo completar el cobro de la factura <strong>${invoice.number ?? invoice.id}</strong>.</p><p>Revisa el método de pago desde el portal de Stripe.</p></div>`;
@@ -495,30 +530,36 @@ export async function POST(request: Request) {
             amountDue: invoice.amount_due,
           });
         }
+      } catch (notificationError) {
+        // Log error pero no fallar el webhook
+        logger.error("Error sending notification in Stripe webhook", notificationError, {
+          eventType: event.type,
+          academyId,
+          tenantId,
+        });
       }
     }
 
-    await db
-      .update(billingEvents)
-      .set({
-        status: "processed",
-        academyId: academyId ?? undefined,
-        tenantId: tenantId ?? undefined,
-        processedAt: new Date(),
-      })
-      .where(eq(billingEvents.id, eventId));
-
     return NextResponse.json({ received: true });
   } catch (error: any) {
-    console.error("Stripe webhook processing error", error);
+    logger.error("Stripe webhook processing error", error, {
+      eventId: eventRow.id,
+      eventType: event.type,
+    });
 
-    await db
-      .update(billingEvents)
-      .set({
-        status: "error",
-        errorMessage: error?.message ?? "Unknown error",
-      })
-      .where(eq(billingEvents.id, eventId));
+    try {
+      await db
+        .update(billingEvents)
+        .set({
+          status: "error",
+          errorMessage: error?.message ?? "Unknown error",
+        })
+        .where(eq(billingEvents.id, eventId));
+    } catch (updateError) {
+      logger.error("Failed to update billing event status", updateError, {
+        eventId: eventRow.id,
+      });
+    }
 
     return NextResponse.json({ error: "PROCESSING_FAILED" }, { status: 500 });
   }

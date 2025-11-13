@@ -8,6 +8,8 @@ import { config } from "@/config";
 import { sendEmail } from "@/lib/mailgun";
 import { withTenant } from "@/lib/authz";
 import { withRateLimit, getUserIdentifier } from "@/lib/rate-limit";
+import { handleApiError } from "@/lib/api-error-handler";
+import { verifyAcademyAccess } from "@/lib/permissions";
 
 const profileRoles = [
   "super_admin",
@@ -28,7 +30,8 @@ const InviteSchema = z.object({
 
 // Aplicar rate limiting: 20 requests por minuto para invitaciones
 const handler = withTenant(async (request, context) => {
-  const body = InviteSchema.parse(await request.json());
+  try {
+    const body = InviteSchema.parse(await request.json());
 
   const isSuperAdmin = context.profile.role === "super_admin";
   const isAdmin = isSuperAdmin || context.profile.role === "admin";
@@ -49,23 +52,17 @@ const handler = withTenant(async (request, context) => {
     return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
   }
 
-  const academyIds = body.academyIds ?? [];
+    const academyIds = body.academyIds ?? [];
 
-  if (academyIds.length > 0) {
-    const rows = await db
-      .select({ id: academies.id })
-      .from(academies)
-      .where(
-        and(
-          eq(academies.tenantId, effectiveTenantId),
-          inArray(academies.id, academyIds)
-        )
-      );
-
-    if (rows.length !== academyIds.length) {
-      return NextResponse.json({ error: "ACADEMY_NOT_FOUND" }, { status: 400 });
+    if (academyIds.length > 0) {
+      // Verificar acceso a todas las academias
+      for (const academyId of academyIds) {
+        const academyAccess = await verifyAcademyAccess(academyId, effectiveTenantId);
+        if (!academyAccess.allowed) {
+          return NextResponse.json({ error: academyAccess.reason ?? "ACADEMY_NOT_FOUND" }, { status: 400 });
+        }
+      }
     }
-  }
 
   const defaultAcademyId = body.defaultAcademyId ?? academyIds[0] ?? null;
 
@@ -127,12 +124,15 @@ const handler = withTenant(async (request, context) => {
       replyTo: config.mailgun.forwardRepliesTo,
       text: `Has sido invitado a unirte a ${config.appName}. Visita ${inviteUrl.toString()} para completar tu registro. El enlace expira en 7 días.`,
     });
-  } catch (error) {
-    console.error("Error enviando la invitación", error);
-    return NextResponse.json({ error: "MAIL_ERROR" }, { status: 500 });
-  }
+    } catch (error) {
+      console.error("Error enviando la invitación", error);
+      return NextResponse.json({ error: "MAIL_ERROR" }, { status: 500 });
+    }
 
-  return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    return handleApiError(error);
+  }
 });
 
 // Aplicar rate limiting: 20 requests por minuto para invitaciones

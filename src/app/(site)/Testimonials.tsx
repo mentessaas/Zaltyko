@@ -90,7 +90,7 @@ export default function TestimonialsPage() {
                     />
                   )}
                   <AvatarFallback
-                    className={`bg-gradient-to-br ${testimonial.avatar?.initialsBg ?? "from-slate-500/30 to-slate-700/30"} text-xs font-semibold uppercase text-white`}
+                    className={`bg-gradient-to-br ${testimonial.avatar?.initialsBg ?? "from-zaltyko-primary-dark/50 to-zaltyko-primary/50"} text-xs font-semibold uppercase text-white`}
                   >
                     {testimonial.name
                       .split(" ")

@@ -1,12 +1,14 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState, useTransition } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState, useTransition } from "react";
 
 import { athleteStatusOptions } from "@/lib/athletes/constants";
 import { useToast } from "@/components/ui/toast-provider";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 import { Modal } from "@/components/ui/modal";
+import { Calendar as CalendarIcon } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 
 interface AthleteSummary {
   id: string;
@@ -37,7 +39,6 @@ interface EditAthleteDialogProps {
   onClose: () => void;
   onUpdated: () => void;
   onDeleted: () => void;
-  levelSuggestions?: string[];
   groups?: {
     id: string;
     name: string;
@@ -53,6 +54,85 @@ const formatDob = (value: string | null) => {
   return "";
 };
 
+const composeLevelLabel = (
+  category: (typeof CATEGORY_OPTIONS)[number] | "",
+  level: (typeof LEVEL_OPTIONS)[number] | ""
+): string | null => {
+  if (!category && !level) return null;
+  const parts: string[] = [];
+  if (category) parts.push(`Categoría ${category}`);
+  if (level) {
+    if (level === "Pre-nivel") parts.push("Pre-nivel");
+    else if (level === "FIG") parts.push("FIG");
+    else parts.push(`Nivel ${level}`);
+  }
+  return parts.join(" · ") || null;
+};
+
+const CATEGORY_OPTIONS = ["A", "B", "C", "D", "E", "F"] as const;
+const LEVEL_OPTIONS = [
+  "Pre-nivel",
+  "1",
+  "2",
+  "3",
+  "4",
+  "5",
+  "6",
+  "7",
+  "8",
+  "9",
+  "10",
+  "FIG",
+] as const;
+
+const RELATIONSHIP_OPTIONS = [
+  "Madre",
+  "Padre",
+  "Tutor",
+  "Tutora",
+  "Abuelo",
+  "Abuela",
+  "Hermano",
+  "Hermana",
+  "Tío",
+  "Tía",
+] as const;
+
+function parseLevel(rawLevel: string | null): {
+  category: (typeof CATEGORY_OPTIONS)[number] | "";
+  level: (typeof LEVEL_OPTIONS)[number] | "";
+} {
+  if (!rawLevel) {
+    return { category: "", level: "" };
+  }
+
+  const categoryMatch = rawLevel.match(/Categoría\s([A-F])/i);
+  const levelMatch = rawLevel.match(/Nivel\s(\d+)|FIG|Pre-nivel/i);
+
+  let parsedCategory: (typeof CATEGORY_OPTIONS)[number] | "" = "";
+  let parsedLevel: (typeof LEVEL_OPTIONS)[number] | "" = "";
+
+  if (categoryMatch && CATEGORY_OPTIONS.includes(categoryMatch[1].toUpperCase() as any)) {
+    parsedCategory = categoryMatch[1].toUpperCase() as (typeof CATEGORY_OPTIONS)[number];
+  }
+
+  if (levelMatch) {
+    const value = levelMatch[0];
+    if (/FIG/i.test(value)) {
+      parsedLevel = "FIG";
+    } else if (/Pre-nivel/i.test(value)) {
+      parsedLevel = "Pre-nivel";
+    } else if (value.match(/Nivel\s(\d+)/i)) {
+      const num = value.match(/Nivel\s(\d+)/i)?.[1];
+      if (num && LEVEL_OPTIONS.includes(num as any)) {
+        parsedLevel = num as (typeof LEVEL_OPTIONS)[number];
+      }
+    }
+  }
+
+  return { category: parsedCategory, level: parsedLevel };
+}
+
 export function EditAthleteDialog({
   athlete,
   academyId,
@@ -60,13 +140,14 @@ export function EditAthleteDialog({
   onClose,
   onUpdated,
   onDeleted,
-  levelSuggestions = [],
   groups = [],
 }: EditAthleteDialogProps) {
   const toast = useToast();
   const [name, setName] = useState(athlete.name);
   const [dob, setDob] = useState(formatDob(athlete.dob));
-  const [level, setLevel] = useState(athlete.level ?? "");
+  const initialLevel = useMemo(() => parseLevel(athlete.level ?? null), [athlete.level]);
+  const [category, setCategory] = useState<(typeof CATEGORY_OPTIONS)[number] | "">(initialLevel.category);
+  const [level, setLevel] = useState<(typeof LEVEL_OPTIONS)[number] | "">(initialLevel.level);
   const [status, setStatus] = useState<(typeof athleteStatusOptions)[number]>(athlete.status);
   const [groupId, setGroupId] = useState<string>(athlete.groupId ?? "");
   const [error, setError] = useState<string | null>(null);
@@ -74,11 +155,18 @@ export function EditAthleteDialog({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const [guardianForm, setGuardianForm] = useState({
+  const [guardianForm, setGuardianForm] = useState<{
+    name: string;
+    email: string;
+    phone: string;
+    relationship: string;
+    notifyEmail: boolean;
+    notifySms: boolean;
+  }>({
     name: "",
     email: "",
     phone: "",
-    relationship: "",
+    relationship: RELATIONSHIP_OPTIONS[0],
     notifyEmail: true,
     notifySms: false,
   });
@@ -90,7 +178,9 @@ export function EditAthleteDialog({
     if (!open) return;
     setName(athlete.name);
     setDob(formatDob(athlete.dob));
-    setLevel(athlete.level ?? "");
+    const parsed = parseLevel(athlete.level ?? null);
+    setCategory(parsed.category);
+    setLevel(parsed.level);
     setStatus(athlete.status);
     setGroupId(athlete.groupId ?? "");
     setError(null);
@@ -99,7 +189,7 @@ export function EditAthleteDialog({
       name: "",
       email: "",
       phone: "",
-      relationship: "",
+      relationship: RELATIONSHIP_OPTIONS[0],
       notifyEmail: true,
       notifySms: false,
     });
@@ -112,8 +202,17 @@ export function EditAthleteDialog({
     const fetchGuardians = async () => {
       try {
         setGuardiansLoading(true);
+        const supabase = createClient();
+        const {
+          data: { user: currentUser },
+        } = await supabase.auth.getUser();
+        const headers: Record<string, string> = { "x-academy-id": academyId };
+        if (currentUser?.id) {
+          headers["x-user-id"] = currentUser.id;
+        }
         const response = await fetch(`/api/athletes/${athlete.id}/guardians`, {
           signal: abortController.signal,
+          headers,
         });
         if (!response.ok) {
           throw new Error("No se pudieron cargar los contactos.");
@@ -131,7 +230,28 @@ export function EditAthleteDialog({
 
     fetchGuardians();
     return () => abortController.abort();
-  }, [open, athlete.id]);
+  }, [open, athlete.id, academyId]);
+
+  const composedLevel = useMemo(() => composeLevelLabel(category, level), [category, level]);
+
+  const computedAgeYears = useMemo(() => {
+    if (!dob) return null;
+    const birthDate = new Date(dob);
+    if (Number.isNaN(birthDate.getTime())) return null;
+    const now = new Date();
+    let ageYears = now.getFullYear() - birthDate.getFullYear();
+    const hasBirthday =
+      now.getMonth() > birthDate.getMonth() ||
+      (now.getMonth() === birthDate.getMonth() && now.getDate() >= birthDate.getDate());
+    if (!hasBirthday) ageYears -= 1;
+    return ageYears >= 0 ? ageYears : null;
+  }, [dob]);
+
+  const computedAgeLabel = useMemo(() => {
+    return computedAgeYears != null ? `${computedAgeYears} años` : "";
+  }, [computedAgeYears]);
+
+  const birthdateInputRef = useRef<HTMLInputElement>(null);
 
   const handleSave = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -142,7 +262,7 @@ export function EditAthleteDialog({
       ...athlete,
       name: name.trim(),
       dob: dob || null,
-      level: level.trim() || null,
+      level: composedLevel,
       status,
       groupId: groupId || null,
     };
@@ -152,20 +272,34 @@ export function EditAthleteDialog({
         const payload: Record<string, unknown> = {};
         if (name.trim() !== athlete.name) payload.name = name.trim();
         if (dob !== formatDob(athlete.dob)) payload.dob = dob || null;
-        if (level.trim() !== (athlete.level ?? "")) payload.level = level.trim() || null;
+        const nextLevel = composedLevel;
+        if (nextLevel !== (athlete.level ?? null)) payload.level = nextLevel;
         if (status !== athlete.status) payload.status = status;
         if ((groupId || null) !== (athlete.groupId ?? null)) payload.groupId = groupId || null;
+        if (dob !== formatDob(athlete.dob) && computedAgeYears != null) {
+          payload.age = computedAgeYears;
+        }
 
         if (Object.keys(payload).length === 0) {
+          toast.pushToast({
+            title: "Sin cambios",
+            description: "Realiza una modificación antes de guardar.",
+            variant: "info",
+          });
           onClose();
           return;
         }
 
+        const supabase = createClient();
+        const {
+          data: { user: currentUser },
+        } = await supabase.auth.getUser();
+        const headers: Record<string, string> = { "Content-Type": "application/json", "x-academy-id": academyId };
+        if (currentUser?.id) headers["x-user-id"] = currentUser.id;
+
         const response = await fetch(`/api/athletes/${athlete.id}`, {
           method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers,
           body: JSON.stringify(payload),
         });
 
@@ -173,7 +307,8 @@ export function EditAthleteDialog({
           // Revertir optimistic update en caso de error
           setName(athlete.name);
           setDob(formatDob(athlete.dob));
-          setLevel(athlete.level ?? "");
+          setCategory(initialLevel.category);
+          setLevel(initialLevel.level);
           setStatus(athlete.status);
           setGroupId(athlete.groupId ?? "");
           
@@ -204,8 +339,16 @@ export function EditAthleteDialog({
   const handleDelete = async () => {
     setIsDeleting(true);
     try {
+      const supabase = createClient();
+      const {
+        data: { user: currentUser },
+      } = await supabase.auth.getUser();
+      const headers: Record<string, string> = { "x-academy-id": academyId };
+      if (currentUser?.id) headers["x-user-id"] = currentUser.id;
+
       const response = await fetch(`/api/athletes/${athlete.id}`, {
         method: "DELETE",
+        headers,
       });
       if (!response.ok) {
         const data = await response.json().catch(() => ({}));
@@ -253,11 +396,16 @@ export function EditAthleteDialog({
         notifySms: guardianForm.notifySms,
       };
 
+      const supabase = createClient();
+      const {
+        data: { user: currentUser },
+      } = await supabase.auth.getUser();
+      const headers: Record<string, string> = { "Content-Type": "application/json", "x-academy-id": academyId };
+      if (currentUser?.id) headers["x-user-id"] = currentUser.id;
+
       const response = await fetch(`/api/athletes/${athlete.id}/guardians`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers,
         body: JSON.stringify(payload),
       });
 
@@ -274,7 +422,7 @@ export function EditAthleteDialog({
         name: "",
         email: "",
         phone: "",
-        relationship: "",
+        relationship: RELATIONSHIP_OPTIONS[0],
         notifyEmail: true,
         notifySms: false,
       });
@@ -289,8 +437,17 @@ export function EditAthleteDialog({
     }
 
     try {
+      const supabase = createClient();
+      const {
+        data: { user: currentUser },
+      } = await supabase.auth.getUser();
+      const headers: Record<string, string> = { "x-academy-id": academyId };
+      if (currentUser?.id) {
+        headers["x-user-id"] = currentUser.id;
+      }
       const response = await fetch(`/api/athletes/${athlete.id}/guardians/${linkId}`, {
         method: "DELETE",
+        headers,
       });
       if (!response.ok) {
         const data = await response.json().catch(() => ({}));
@@ -313,11 +470,11 @@ export function EditAthleteDialog({
     return (
       name.trim() !== athlete.name ||
       dob !== formatDob(athlete.dob) ||
-      level.trim() !== (athlete.level ?? "") ||
+      composedLevel !== (athlete.level ?? null) ||
       status !== athlete.status ||
       (groupId || null) !== (athlete.groupId ?? null)
     );
-  }, [name, dob, level, status, groupId, athlete]);
+  }, [name, dob, composedLevel, status, groupId, athlete]);
 
   return (
     <Modal
@@ -373,32 +530,68 @@ export function EditAthleteDialog({
           />
         </div>
 
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-4">
           <div className="space-y-2">
             <label className="text-sm font-medium text-foreground">Fecha de nacimiento</label>
+            <div className="flex items-center gap-2">
+              <input
+                ref={birthdateInputRef}
+                type="date"
+                value={dob}
+                onChange={(event) => setDob(event.target.value)}
+                max={new Date().toISOString().slice(0, 10)}
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+              <button
+                type="button"
+                onClick={() => birthdateInputRef.current?.showPicker?.()}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-border bg-background text-muted-foreground shadow-sm transition hover:bg-muted hover:text-foreground"
+                aria-label="Seleccionar fecha"
+              >
+                <CalendarIcon className="h-4 w-4" strokeWidth={1.8} />
+              </button>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-foreground">Edad</label>
             <input
-              type="date"
-              value={dob}
-              onChange={(event) => setDob(event.target.value)}
-              max={new Date().toISOString().slice(0, 10)}
-              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              value={computedAgeLabel}
+              readOnly
+              placeholder="—"
+              className="w-full cursor-not-allowed rounded-md border border-border bg-muted px-3 py-2 text-sm shadow-sm focus:outline-none"
             />
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">Nivel</label>
-            <input
-              value={level}
-              onChange={(event) => setLevel(event.target.value)}
-              list="edit-athlete-levels"
+            <label className="text-sm font-medium text-foreground">Categoría</label>
+            <select
+              value={category}
+              onChange={(event) =>
+                setCategory(event.target.value as (typeof CATEGORY_OPTIONS)[number] | "")
+              }
               className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-            />
-            {levelSuggestions.length > 0 && (
-              <datalist id="edit-athlete-levels">
-                {levelSuggestions.map((entry) => (
-                  <option key={entry} value={entry} />
-                ))}
-              </datalist>
-            )}
+            >
+              <option value="">Sin categoría</option>
+              {CATEGORY_OPTIONS.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-foreground">Nivel</label>
+            <select
+              value={level}
+              onChange={(event) => setLevel(event.target.value as (typeof LEVEL_OPTIONS)[number] | "")}
+              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+            >
+              <option value="">Selecciona nivel</option>
+              {LEVEL_OPTIONS.map((option) => (
+                <option key={option} value={option}>
+                  {option === "Pre-nivel" ? "Pre-nivel" : option === "FIG" ? "FIG" : `Nivel ${option}`}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="space-y-2">
             <label className="text-sm font-medium text-foreground">Estado</label>
@@ -416,7 +609,7 @@ export function EditAthleteDialog({
               ))}
             </select>
           </div>
-          <div className="space-y-2 md:col-span-3">
+          <div className="space-y-2 md:col-span-4">
             <label className="text-sm font-medium text-foreground">Grupo principal</label>
             <select
               value={groupId}
@@ -509,24 +702,56 @@ export function EditAthleteDialog({
               }
               placeholder="Correo"
               className="rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              required
             />
             <input
               value={guardianForm.phone}
               onChange={(event) =>
-                setGuardianForm((prev) => ({ ...prev, phone: event.target.value }))
+                setGuardianForm((prev) => ({
+                  ...prev,
+                  phone: event.target.value,
+                }))
               }
               placeholder="Teléfono"
               className="rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              required
             />
-            <input
-              value={guardianForm.relationship}
-              onChange={(event) =>
-                setGuardianForm((prev) => ({ ...prev, relationship: event.target.value }))
-              }
-              placeholder="Relación"
-              className="rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-            />
+            <div className="grid gap-2">
+              <select
+                value={RELATIONSHIP_OPTIONS.includes(guardianForm.relationship as any) ? guardianForm.relationship : "Otro"}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setGuardianForm((prev) => ({
+                    ...prev,
+                    relationship: value === "Otro" ? "" : value,
+                  }));
+                }}
+                className="rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              >
+                {RELATIONSHIP_OPTIONS.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+                <option value="Otro">Otro (especificar)</option>
+              </select>
+              {(!RELATIONSHIP_OPTIONS.includes(guardianForm.relationship as any) || guardianForm.relationship === "") && (
+                <input
+                  value={guardianForm.relationship}
+                  onChange={(event) =>
+                    setGuardianForm((prev) => ({
+                      ...prev,
+                      relationship: event.target.value,
+                    }))
+                  }
+                  placeholder="Especifica la relación"
+                  className="rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                  required
+                />
+              )}
+            </div>
           </div>
+ 
           <div className="flex gap-4 text-xs text-muted-foreground">
             <label className="inline-flex items-center gap-2">
               <input
