@@ -6,6 +6,9 @@ import { db } from "@/db";
 import { academies, memberships, plans, profiles, subscriptions } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
 import { assertUserAcademyLimit } from "@/lib/limits";
+import { withRateLimit, getUserIdentifier } from "@/lib/rate-limit";
+import { handleApiError } from "@/lib/api-error-handler";
+import { withPayloadValidation } from "@/lib/payload-validator";
 
 const ACADEMY_TYPES = ["artistica", "ritmica", "trampolin", "general"] as const;
 
@@ -18,8 +21,9 @@ const BodySchema = z.object({
   ownerProfileId: z.string().uuid().optional(),
 });
 
-export const POST = withTenant(async (request, context) => {
-  const body = BodySchema.parse(await request.json());
+const handler = withTenant(async (request, context) => {
+  try {
+    const body = BodySchema.parse(await request.json());
 
   const isAdmin = context.profile.role === "admin" || context.profile.role === "super_admin";
   const requesterRole = context.profile.role;
@@ -119,12 +123,27 @@ export const POST = withTenant(async (request, context) => {
       .onConflictDoNothing();
   }
 
-  return NextResponse.json({
-    id: academyId,
-    tenantId,
-    academyType: body.academyType,
-  });
+    return NextResponse.json({
+      id: academyId,
+      tenantId,
+      academyType: body.academyType,
+    });
+  } catch (error) {
+    return handleApiError(error, { endpoint: "/api/academies", method: "POST" });
+  }
 });
+
+// Aplicar rate limiting y validación de payload
+// Nota: withRateLimit y withPayloadValidation deben envolver el handler directamente
+// pero con withTenant necesitamos un wrapper adicional
+const wrappedHandler = async (request: Request) => {
+  return (await handler(request, {} as any)) as NextResponse;
+};
+
+export const POST = withRateLimit(
+  withPayloadValidation(wrappedHandler, { maxSize: 512 * 1024 }), // 512KB
+  { identifier: getUserIdentifier }
+);
 
 const QuerySchema = z.object({
   tenantId: z.string().uuid().optional(),

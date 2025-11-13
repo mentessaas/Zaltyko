@@ -139,6 +139,46 @@ async function assertAcademyTenant(academyId: string, tenantId: string) {
   }
 }
 
+/**
+ * Valida que el usuario no haya excedido el límite de academias según su plan
+ */
+export async function assertUserAcademyLimit(userId: string): Promise<void> {
+  const subscription = await getUserSubscription(userId);
+  const academyLimit = subscription.academyLimit;
+
+  if (academyLimit === null) {
+    return; // Sin límite
+  }
+
+  const [profile] = await db
+    .select({ id: profiles.id })
+    .from(profiles)
+    .where(eq(profiles.userId, userId))
+    .limit(1);
+
+  if (!profile) {
+    const error: any = new Error("PROFILE_NOT_FOUND");
+    error.status = 404;
+    throw error;
+  }
+
+  const ownedAcademies = await db
+    .select({ id: academies.id })
+    .from(academies)
+    .where(eq(academies.ownerId, profile.id));
+
+  if (ownedAcademies.length >= academyLimit) {
+    const error: any = new Error("ACADEMY_LIMIT_REACHED");
+    error.status = 402;
+    error.payload = {
+      currentCount: ownedAcademies.length,
+      limit: academyLimit,
+      upgradeTo: subscription.planCode === "free" ? "pro" : "premium",
+    };
+    throw error;
+  }
+}
+
 export async function assertWithinPlanLimits(
   tenantId: string,
   academyId: string,

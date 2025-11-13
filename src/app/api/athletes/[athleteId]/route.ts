@@ -16,6 +16,7 @@ const UpdateSchema = z.object({
   level: z.string().max(120).nullable().optional(),
   status: z.enum(athleteStatusOptions).optional(),
   groupId: z.string().uuid().nullable().optional(),
+  age: z.number().int().min(0).optional(),
 });
 
 async function getAthleteTenant(athleteId: string) {

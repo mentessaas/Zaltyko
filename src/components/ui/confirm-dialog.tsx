@@ -39,7 +39,7 @@ export function ConfirmDialog({
       await onConfirm();
       onOpenChange?.(false);
     } catch (error) {
-      console.error("Error en confirmación:", error);
+      // Error manejado por el componente padre
     } finally {
       setIsLoading(false);
     }

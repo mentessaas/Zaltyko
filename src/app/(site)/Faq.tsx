@@ -68,34 +68,40 @@ export default function FAQ() {
         </p>
 
         <div className="space-y-[2px]">
-          {faqs.map((faq, index) => (
-            <div key={index} className="overflow-hidden">
-              <button
-                onClick={() => toggleQuestion(index)}
-                className="flex w-full items-center justify-between bg-zinc-900/50 px-6 py-4 text-left transition-colors hover:bg-zinc-900"
-              >
-                <span className="text-[15px] font-semibold text-white">
-                  {faq.question}
-                </span>
-                <span className="ml-6 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-zinc-700">
-                  <PlusIcon
-                    className={`h-3 w-3 text-white transition-transform duration-200 ${openIndex === index ? "rotate-45" : ""}`}
-                  />
-                </span>
-              </button>
-              <div
-                className={`grid transition-all duration-200 ease-in-out ${
-                  openIndex === index ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
-                }`}
-              >
-                <div className="overflow-hidden">
-                  <div className="bg-zinc-900/30 px-6 py-4 text-base text-zinc-400">
-                    {faq.answer}
+          {faqs.map((faq, index) => {
+            const isOpen = openIndex === index;
+            return (
+              <div key={index} className="overflow-hidden">
+                <button
+                  onClick={() => toggleQuestion(index)}
+                  aria-expanded={isOpen}
+                  aria-controls={`faq-answer-${index}`}
+                  className="flex w-full min-h-[44px] items-center justify-between bg-zaltyko-primary-dark/50 px-6 py-4 text-left transition-colors hover:bg-zaltyko-primary-dark"
+                >
+                  <span className="font-sans text-[15px] font-semibold text-white">
+                    {faq.question}
+                  </span>
+                  <span className="ml-6 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-white/20">
+                    <PlusIcon
+                      className={`h-3 w-3 text-white transition-transform duration-200 ${isOpen ? "rotate-45" : ""}`}
+                    />
+                  </span>
+                </button>
+                <div
+                  id={`faq-answer-${index}`}
+                  className={`grid transition-all duration-200 ease-in-out ${
+                    isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+                  }`}
+                >
+                  <div className="overflow-hidden">
+                    <div className="bg-zaltyko-primary-dark/30 px-6 py-4 font-sans text-base text-white/60">
+                      {faq.answer}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </section>

@@ -4,50 +4,105 @@ import SEO from "@/utils/seo";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useToast } from "@/components/ui/toast-provider";
 
 export default function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [magicLinkLoading, setMagicLinkLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const router = useRouter();
   const supabase = createClient();
+  const toast = useToast();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    if (error) {
-      console.error("Error al iniciar sesión:", error.message);
-    } else {
-      router.push("/dashboard");
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      if (error) {
+        toast.pushToast({
+          title: "Error al iniciar sesión",
+          description: error.message,
+          variant: "error",
+        });
+      } else {
+        toast.pushToast({
+          title: "Sesión iniciada",
+          description: "Redirigiendo al dashboard...",
+          variant: "success",
+        });
+        router.push("/dashboard");
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleMagicLink = async (e: React.FormEvent) => {
     e.preventDefault();
-    const { error } = await supabase.auth.signInWithOtp({ email });
-    if (error) {
-      console.error("Error al enviar el enlace mágico:", error.message);
-    } else {
-      alert("Revisa tu correo para acceder con el enlace mágico.");
+    if (!email) {
+      toast.pushToast({
+        title: "Correo requerido",
+        description: "Por favor ingresa tu correo electrónico",
+        variant: "error",
+      });
+      return;
+    }
+    setMagicLinkLoading(true);
+    try {
+      const { error } = await supabase.auth.signInWithOtp({ email });
+      if (error) {
+        toast.pushToast({
+          title: "Error al enviar enlace mágico",
+          description: error.message,
+          variant: "error",
+        });
+      } else {
+        toast.pushToast({
+          title: "Enlace mágico enviado",
+          description: "Revisa tu correo para acceder con el enlace mágico.",
+          variant: "success",
+        });
+      }
+    } finally {
+      setMagicLinkLoading(false);
     }
   };
 
   const handleGoogleSignIn = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
-      },
-    });
-    if (error) {
-      console.error("Error al iniciar sesión con Google:", error.message);
+    setGoogleLoading(true);
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+      if (error) {
+        toast.pushToast({
+          title: "Error al iniciar sesión con Google",
+          description: error.message,
+          variant: "error",
+        });
+        setGoogleLoading(false);
+      }
+    } catch (err) {
+      toast.pushToast({
+        title: "Error inesperado",
+        description: "No se pudo iniciar sesión con Google",
+        variant: "error",
+      });
+      setGoogleLoading(false);
     }
   };
 
@@ -91,8 +146,15 @@ export default function LoginForm() {
               required
             />
           </div>
-          <Button type="submit" className="w-full">
-            Iniciar sesión
+          <Button type="submit" className="w-full" disabled={loading}>
+            {loading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Iniciando sesión...
+              </>
+            ) : (
+              "Iniciar sesión"
+            )}
           </Button>
         </form>
         <div className="flex flex-col space-y-4">
@@ -100,15 +162,31 @@ export default function LoginForm() {
             onClick={handleMagicLink}
             variant="outline"
             className="w-full"
+            disabled={magicLinkLoading || loading}
           >
-            Enviarme un enlace mágico
+            {magicLinkLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Enviando...
+              </>
+            ) : (
+              "Enviarme un enlace mágico"
+            )}
           </Button>
           <Button
             onClick={handleGoogleSignIn}
             variant="outline"
             className="w-full"
+            disabled={googleLoading || loading}
           >
-            Inicia sesión con Google
+            {googleLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Conectando...
+              </>
+            ) : (
+              "Inicia sesión con Google"
+            )}
           </Button>
         </div>
         <p className="text-center text-sm">

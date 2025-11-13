@@ -5,97 +5,109 @@ import SEO from "@/utils/seo";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, X } from "lucide-react";
+import { ArrowLeft, X, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useToast } from "@/components/ui/toast-provider";
 
 export function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
   const supabase = createClient();
+  const toast = useToast();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    if (error) {
-      console.error("Error al iniciar sesión:", error.message);
-      return;
-    }
-
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    const userId = user?.id ?? null;
-
-    const headers = new Headers();
-    if (userId) {
-      headers.set("x-user-id", userId);
-    }
-
+    setLoading(true);
     try {
-      const profileResponse = await fetch("/api/onboarding/profile", {
-        cache: "no-store",
-        headers,
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
       });
-
-      if (profileResponse.ok) {
-        const profile = (await profileResponse.json()) as {
-          role?: string;
-          tenantId?: string | null;
-          profileId?: string;
-          activeAcademyId?: string | null;
-        };
-
-        if (profile.role && ["super_admin", "admin", "owner"].includes(profile.role)) {
-          let targetAcademyId = profile.activeAcademyId ?? null;
-
-          if (!targetAcademyId && userId) {
-            try {
-              const academiesResponse = await fetch("/api/academies", {
-                cache: "no-store",
-                headers,
-              });
-              if (academiesResponse.ok) {
-                const academiesData = (await academiesResponse.json()) as {
-                  items?: { id: string }[];
-                };
-                targetAcademyId = academiesData.items?.[0]?.id ?? null;
-              }
-            } catch (academiesError) {
-              console.error("No se pudo obtener la lista de academias.", academiesError);
-            }
-          }
-
-          if (profile.role === "super_admin") {
-            router.push("/super-admin");
-            return;
-          }
-
-          if (profile.role === "admin") {
-            router.push("/dashboard/users");
-            return;
-          }
-
-          if (targetAcademyId) {
-            router.push(`/app/${targetAcademyId}/dashboard`);
-            return;
-          }
-
-          router.push("/dashboard");
-          return;
-        }
+      if (error) {
+        toast.pushToast({
+          title: "Error al iniciar sesión",
+          description: error.message,
+          variant: "error",
+        });
+        return;
       }
-    } catch (fetchError) {
-      console.error("No se pudo obtener el perfil tras el login.", fetchError);
-    }
 
-    router.push("/dashboard");
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      const userId = user?.id ?? null;
+
+      const headers = new Headers();
+      if (userId) {
+        headers.set("x-user-id", userId);
+      }
+
+      try {
+        const profileResponse = await fetch("/api/onboarding/profile", {
+          cache: "no-store",
+          headers,
+        });
+
+        if (profileResponse.ok) {
+          const profile = (await profileResponse.json()) as {
+            role?: string;
+            tenantId?: string | null;
+            profileId?: string;
+            activeAcademyId?: string | null;
+          };
+
+          if (profile.role && ["super_admin", "admin", "owner"].includes(profile.role)) {
+            let targetAcademyId = profile.activeAcademyId ?? null;
+
+            if (!targetAcademyId && userId) {
+              try {
+                const academiesResponse = await fetch("/api/academies", {
+                  cache: "no-store",
+                  headers,
+                });
+                if (academiesResponse.ok) {
+                  const academiesData = (await academiesResponse.json()) as {
+                    items?: { id: string }[];
+                  };
+                  targetAcademyId = academiesData.items?.[0]?.id ?? null;
+                }
+              } catch (academiesError) {
+                // Error silencioso, continuamos con el flujo normal
+              }
+            }
+
+            if (profile.role === "super_admin") {
+              router.push("/super-admin");
+              return;
+            }
+
+            if (profile.role === "admin") {
+              router.push("/dashboard/users");
+              return;
+            }
+
+            if (targetAcademyId) {
+              router.push(`/app/${targetAcademyId}/dashboard`);
+              return;
+            }
+
+            router.push("/dashboard");
+            return;
+          }
+        }
+      } catch (fetchError) {
+        // Error silencioso, continuamos con el flujo normal
+      }
+
+      router.push("/dashboard");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -144,8 +156,15 @@ export function LoginForm() {
                 required
               />
             </div>
-            <Button type="submit" className="w-full">
-              Iniciar sesión
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Iniciando sesión...
+                </>
+              ) : (
+                "Iniciar sesión"
+              )}
             </Button>
           </form>
           <p className="text-center text-sm pt-4">

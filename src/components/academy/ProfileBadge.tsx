@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { Menu } from "lucide-react";
 
 import { getRoleLabel } from "@/lib/roles";
 
@@ -61,20 +62,18 @@ export function ProfileBadge({
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        className="flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-sm font-medium text-muted-foreground shadow-sm transition hover:bg-muted hover:text-foreground"
+        aria-label="Menú de usuario"
+        className="inline-flex items-center justify-center rounded-lg border border-border bg-background p-2.5 text-muted-foreground shadow-sm transition hover:bg-muted hover:text-foreground"
       >
-        <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
-          {name?.slice(0, 1)?.toUpperCase() ?? "U"}
-        </span>
-        <span className="text-left leading-tight">
-          <span className="block text-xs text-muted-foreground/80">Sesión activa</span>
-          <span className="block text-sm font-semibold text-foreground">{name ?? "Usuario"}</span>
-        </span>
+        <Menu className="h-5 w-5" strokeWidth={1.8} />
       </button>
 
       {open && (
         <div className="absolute right-0 z-30 mt-2 w-60 rounded-lg border border-border bg-popover p-3 text-sm shadow-lg">
           <div className="space-y-1 border-b border-border pb-3">
+            <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
+              {name?.slice(0, 1)?.toUpperCase() ?? "U"}
+            </span>
             <p className="text-xs uppercase tracking-wide text-muted-foreground">Usuario</p>
             <p className="font-semibold text-foreground">{name ?? "Sin nombre"}</p>
             <p className="text-xs text-muted-foreground">Rol: {displayRole}</p>

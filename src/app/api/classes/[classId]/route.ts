@@ -10,6 +10,9 @@ import {
   coaches,
 } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
+import { handleApiError } from "@/lib/api-error-handler";
+import { withTransaction } from "@/lib/db-transactions";
+import { verifyClassAccess } from "@/lib/permissions";
 
 const updateSchema = z.object({
   name: z.string().min(1).optional(),
@@ -72,53 +75,68 @@ export const GET = withTenant(async (_request, context) => {
 });
 
 export const PUT = withTenant(async (request, context) => {
-  const classId = context.params?.classId;
+  try {
+    const classId = context.params?.classId;
 
-  if (!classId) {
-    return NextResponse.json({ error: "CLASS_ID_REQUIRED" }, { status: 400 });
-  }
-
-  if (!context.tenantId) {
-    return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
-  }
-
-  const body = updateSchema.parse(await request.json());
-
-  const updates: Record<string, unknown> = {};
-
-  if (body.name !== undefined) updates.name = body.name;
-  if (body.weekday !== undefined) updates.weekday = body.weekday;
-  if (body.startTime !== undefined) updates.startTime = body.startTime;
-  if (body.endTime !== undefined) updates.endTime = body.endTime;
-  if (body.capacity !== undefined) updates.capacity = body.capacity;
-
-  if (Object.keys(updates).length > 0) {
-    await db
-      .update(classes)
-      .set(updates)
-      .where(eq(classes.id, classId));
-  }
-
-  if (body.coachIds) {
-    const uniqueCoachIds = Array.from(new Set(body.coachIds));
-
-    await db
-      .delete(classCoachAssignments)
-      .where(eq(classCoachAssignments.classId, classId));
-
-    if (uniqueCoachIds.length > 0) {
-      await db.insert(classCoachAssignments).values(
-        uniqueCoachIds.map((coachId) => ({
-          id: crypto.randomUUID(),
-          tenantId: context.tenantId!,
-          classId,
-          coachId,
-        }))
-      );
+    if (!classId) {
+      return NextResponse.json({ error: "CLASS_ID_REQUIRED" }, { status: 400 });
     }
-  }
 
-  return NextResponse.json({ ok: true });
+    if (!context.tenantId) {
+      return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+    }
+
+    const body = updateSchema.parse(await request.json());
+
+    // Verificar acceso a la clase
+    const classAccess = await verifyClassAccess(classId, context.tenantId);
+    if (!classAccess.allowed) {
+      return NextResponse.json({ error: classAccess.reason ?? "CLASS_NOT_FOUND" }, { status: 404 });
+    }
+
+    // Usar transacción para garantizar atomicidad
+    await withTransaction(async (tx) => {
+      const updates: Record<string, unknown> = {};
+
+      if (body.name !== undefined) updates.name = body.name;
+      if (body.weekday !== undefined) updates.weekday = body.weekday;
+      if (body.startTime !== undefined) updates.startTime = body.startTime;
+      if (body.endTime !== undefined) updates.endTime = body.endTime;
+      if (body.capacity !== undefined) updates.capacity = body.capacity;
+
+      if (Object.keys(updates).length > 0) {
+        await tx
+          .update(classes)
+          .set(updates)
+          .where(eq(classes.id, classId));
+      }
+
+      if (body.coachIds) {
+        const uniqueCoachIds = Array.from(new Set(body.coachIds));
+
+        // Eliminar asignaciones existentes
+        await tx
+          .delete(classCoachAssignments)
+          .where(eq(classCoachAssignments.classId, classId));
+
+        // Crear nuevas asignaciones
+        if (uniqueCoachIds.length > 0) {
+          await tx.insert(classCoachAssignments).values(
+            uniqueCoachIds.map((coachId) => ({
+              id: crypto.randomUUID(),
+              tenantId: context.tenantId,
+              classId,
+              coachId,
+            }))
+          );
+        }
+      }
+    });
+
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    return handleApiError(error, { endpoint: `/api/classes/${context.params?.classId}`, method: "PUT" });
+  }
 });
 
 

@@ -22,10 +22,33 @@ const DEFAULT_WINDOW = 60 * 1000; // 1 minuto en ms
 
 // Límites específicos por ruta
 const ROUTE_LIMITS: Record<string, { limit: number; window: number }> = {
+  // Super Admin - límites moderados
   "/api/super-admin": { limit: 50, window: 60 * 1000 }, // 50 req/min
+  
+  // Billing - límites restrictivos (operaciones sensibles)
   "/api/billing/checkout": { limit: 10, window: 60 * 1000 }, // 10 req/min
-  "/api/admin/users": { limit: 20, window: 60 * 1000 }, // 20 req/min
-  "/api/athletes": { limit: 100, window: 60 * 1000 }, // 100 req/min
+  "/api/billing/portal": { limit: 10, window: 60 * 1000 }, // 10 req/min
+  
+  // Usuarios y autenticación - límites moderados
+  "/api/admin/users": { limit: 20, window: 60 * 1000 }, // 20 req/min (invitaciones)
+  "/api/invitations": { limit: 20, window: 60 * 1000 }, // 20 req/min
+  
+  // Operaciones de escritura - límites más restrictivos
+  "/api/athletes": { limit: 60, window: 60 * 1000 }, // 60 req/min (POST más restrictivo)
+  "/api/assessments": { limit: 30, window: 60 * 1000 }, // 30 req/min
+  "/api/classes": { limit: 30, window: 60 * 1000 }, // 30 req/min
+  "/api/coaches": { limit: 30, window: 60 * 1000 }, // 30 req/min
+  "/api/groups": { limit: 30, window: 60 * 1000 }, // 30 req/min
+  "/api/attendance": { limit: 60, window: 60 * 1000 }, // 60 req/min
+  "/api/class-sessions": { limit: 30, window: 60 * 1000 }, // 30 req/min
+  "/api/academies": { limit: 10, window: 60 * 1000 }, // 10 req/min (creación de academias)
+  
+  // Importación - límites muy restrictivos
+  "/api/athletes/import": { limit: 5, window: 60 * 1000 }, // 5 req/min
+  
+  // Webhooks - sin límites (son llamados por servicios externos)
+  "/api/stripe/webhook": { limit: 1000, window: 60 * 1000 }, // 1000 req/min
+  "/api/lemonsqueezy/webhook": { limit: 1000, window: 60 * 1000 }, // 1000 req/min
 };
 
 /**
