@@ -1,10 +1,13 @@
 import { notFound } from "next/navigation";
-import { asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
   academies,
   athletes,
+  classCoachAssignments,
+  classWeekdays,
+  classes,
   coaches,
   groupAthletes,
   groups,
@@ -102,6 +105,81 @@ export default async function GroupDetailPage({ params }: PageProps) {
     .where(eq(athletes.academyId, academyId))
     .orderBy(asc(athletes.name));
 
+  const coachIdsForClasses = [
+    ...(groupRow.coachId ? [groupRow.coachId] : []),
+    ...assistantIds,
+  ].filter(Boolean);
+
+  let classSummaries: GroupDetail["classes"] = [];
+
+  if (coachIdsForClasses.length > 0) {
+    const classRows = await db
+      .select({
+        classId: classes.id,
+        className: classes.name,
+        startTime: classes.startTime,
+        endTime: classes.endTime,
+        coachName: coaches.name,
+      })
+      .from(classCoachAssignments)
+      .innerJoin(classes, eq(classCoachAssignments.classId, classes.id))
+      .innerJoin(coaches, eq(classCoachAssignments.coachId, coaches.id))
+      .where(
+        and(eq(classes.academyId, academyId), inArray(classCoachAssignments.coachId, coachIdsForClasses))
+      )
+      .orderBy(asc(classes.name));
+
+    const classIdSet = Array.from(new Set(classRows.map((row) => row.classId)));
+
+    const weekdayRows =
+      classIdSet.length > 0
+        ? await db
+            .select({
+              classId: classWeekdays.classId,
+              weekday: classWeekdays.weekday,
+            })
+            .from(classWeekdays)
+            .where(inArray(classWeekdays.classId, classIdSet))
+        : [];
+
+    const weekdayMap = new Map<string, number[]>();
+    weekdayRows.forEach((row) => {
+      const next = weekdayMap.get(row.classId) ?? [];
+      next.push(row.weekday);
+      weekdayMap.set(row.classId, next);
+    });
+
+    const classMap = new Map<string, GroupDetail["classes"][number]>();
+
+    classRows.forEach((row) => {
+      if (!row.classId) return;
+      if (!classMap.has(row.classId)) {
+        classMap.set(row.classId, {
+          id: row.classId,
+          name: row.className ?? "Clase sin nombre",
+          startTime: row.startTime ? String(row.startTime) : null,
+          endTime: row.endTime ? String(row.endTime) : null,
+          weekdays: [],
+          coachNames: row.coachName ? [row.coachName] : [],
+        });
+      } else if (row.coachName) {
+        const existing = classMap.get(row.classId);
+        if (existing && !existing.coachNames.includes(row.coachName)) {
+          existing.coachNames.push(row.coachName);
+        }
+      }
+    });
+
+    weekdayMap.forEach((weekdayList, classId) => {
+      const summary = classMap.get(classId);
+      if (summary) {
+        summary.weekdays = Array.from(new Set(weekdayList)).sort((a, b) => a - b);
+      }
+    });
+
+    classSummaries = Array.from(classMap.values());
+  }
+
   const detail: GroupDetail = {
     id: groupRow.id,
     academyId: groupRow.academyId,
@@ -123,6 +201,7 @@ export default async function GroupDetailPage({ params }: PageProps) {
     })),
     athleteCount: members.length,
     createdAt: groupRow.createdAt ? groupRow.createdAt.toISOString() : new Date().toISOString(),
+    classes: classSummaries,
   };
 
   return (

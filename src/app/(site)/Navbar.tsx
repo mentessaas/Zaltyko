@@ -6,6 +6,7 @@ import { useState } from "react";
 import { isDevFeaturesEnabled } from "@/lib/dev";
 
 const links = [
+  { href: "/academias", label: "Directorio de Academias" },
   { href: "#caracteristicas", label: "Características" },
   { href: "#modulos", label: "Módulos" },
   { href: "#planes", label: "Planes" },

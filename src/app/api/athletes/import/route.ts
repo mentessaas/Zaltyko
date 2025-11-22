@@ -10,7 +10,9 @@ import { withTenant } from "@/lib/authz";
 import { assertWithinPlanLimits } from "@/lib/limits";
 import { withRateLimit, getUserIdentifier } from "@/lib/rate-limit";
 import { handleApiError } from "@/lib/api-error-handler";
-import { withPayloadValidation } from "@/lib/payload-validator";
+import { validatePayloadSize } from "@/lib/payload-validator";
+import { NextRequest } from "next/server";
+import { validateDateWithError, formatDateForDB } from "@/lib/validation/date-utils";
 
 const CsvRowSchema = z.object({
   name: z.string().min(1),
@@ -101,12 +103,27 @@ const handler = withTenant(async (request, context) => {
     try {
       await assertWithinPlanLimits(effectiveTenantId, record.academyId, "athletes");
 
+      // Validar fecha de nacimiento si se proporciona
+      let dobDate: Date | null = null;
+      if (record.dob) {
+        const dateValidation = validateDateWithError(record.dob, "fecha de nacimiento");
+        if (!dateValidation.success) {
+          summary.skipped += 1;
+          summary.errors.push({
+            row: index + 2,
+            reason: dateValidation.error || "Fecha de nacimiento inválida",
+          });
+          continue;
+        }
+        dobDate = dateValidation.date;
+      }
+
       await db.insert(athletes).values({
         id: crypto.randomUUID(),
         tenantId: effectiveTenantId,
         academyId: record.academyId,
         name: record.name,
-        dob: record.dob ? new Date(record.dob) : null,
+        dob: dobDate ? formatDateForDB(dobDate) : null,
         level: record.level ?? null,
         status: record.status ?? "active",
       });
@@ -129,9 +146,28 @@ const handler = withTenant(async (request, context) => {
 });
 
 // Aplicar rate limiting y validación de payload
-export const POST = withRateLimit(
-  withPayloadValidation(handler, { maxSize: 10 * 1024 * 1024 }), // 10MB para CSV
-  { identifier: getUserIdentifier }
-);
+// Nota: withPayloadValidation espera NextRequest, pero withTenant usa Request
+// Aplicamos validación de payload manualmente antes de withTenant
+const handlerWithPayloadCheck = async (request: NextRequest) => {
+  const validation = await validatePayloadSize(request, 10 * 1024 * 1024);
+  
+  if (!validation.valid) {
+    const sizeMB = ((validation.size ?? 0) / (1024 * 1024)).toFixed(2);
+    const maxSizeMB = ((validation.maxSize ?? 0) / (1024 * 1024)).toFixed(2);
+    return NextResponse.json(
+      {
+        error: "PAYLOAD_TOO_LARGE",
+        message: `El payload es demasiado grande (${sizeMB}MB). Tamaño máximo permitido: ${maxSizeMB}MB`,
+        size: validation.size,
+        maxSize: validation.maxSize,
+      },
+      { status: 413 }
+    );
+  }
+  
+  return handler(request as unknown as Request, {} as any) as Promise<NextResponse>;
+};
+
+export const POST = withRateLimit(handlerWithPayloadCheck, { identifier: getUserIdentifier });
 
 

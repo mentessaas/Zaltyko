@@ -33,9 +33,17 @@ vi.mock("@/db", () => {
   for (const file of migrationFiles) {
     const migrationSql = readFileSync(path.join(migrationsDir, file), "utf8")
       .replace(/CREATE EXTENSION[^;]+;/gi, "")
-      .replace(/DO\s+\$\$[\s\S]*?\$\$\s*;/gi, "");
+      .replace(/DO\s+\$\$[\s\S]*?\$\$\s*;/gi, "")
+      .replace(/UPDATE "subscriptions"[\s\S]*?academy_id" IS NOT NULL;\s*/gi, "");
     dbMem.public.none(migrationSql);
   }
+
+  dbMem.public.none(
+    `ALTER TABLE "profiles" ADD COLUMN IF NOT EXISTS "can_login" boolean DEFAULT true;`
+  );
+  dbMem.public.none(
+    `ALTER TABLE "profiles" ADD COLUMN IF NOT EXISTS "is_suspended" boolean DEFAULT false;`
+  );
 
   const originalPoolQuery = pool.query.bind(pool);
   pool.query = ((config: any, values?: any, callback?: any) => {

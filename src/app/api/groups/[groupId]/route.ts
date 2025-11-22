@@ -10,13 +10,9 @@ import {
   groupAthletes,
   groups,
 } from "@/db/schema";
-import { withTenant } from "@/lib/authz";
+import { TenantContext, withTenant } from "@/lib/authz";
 
-type Params = {
-  params: {
-    groupId: string;
-  };
-};
+type RouteContext = TenantContext<{ params?: { groupId?: string } }>;
 
 const DISCIPLINES = ["artistica", "ritmica", "trampolin", "general"] as const;
 
@@ -32,10 +28,12 @@ const GroupUpdateSchema = z.object({
     .regex(/^#([0-9a-fA-F]{3}){1,2}$/)
     .nullable()
     .optional(),
+  monthlyFeeCents: z.number().int().min(0).nullable().optional(), // Cuota mensual en céntimos
+  billingItemId: z.string().uuid().nullable().optional(), // Concepto de cobro asociado
 });
 
-export const PATCH = withTenant(async (request, context: any, { params }: Params) => {
-  const { groupId } = params;
+export const PATCH = withTenant(async (request, context: RouteContext) => {
+  const groupId = context.params?.groupId;
   if (!groupId) {
     return NextResponse.json({ error: "GROUP_ID_REQUIRED" }, { status: 400 });
   }
@@ -121,6 +119,8 @@ export const PATCH = withTenant(async (request, context: any, { params }: Params
       updatePayload.assistantIds = assistantIds.length ? assistantIds : null;
     }
     if (payload.color !== undefined) updatePayload.color = payload.color || null;
+    if (payload.monthlyFeeCents !== undefined) updatePayload.monthlyFeeCents = payload.monthlyFeeCents ?? null;
+    if (payload.billingItemId !== undefined) updatePayload.billingItemId = payload.billingItemId ?? null;
 
     if (Object.keys(updatePayload).length > 0) {
       await tx.update(groups).set(updatePayload).where(eq(groups.id, groupId));
@@ -177,8 +177,8 @@ export const PATCH = withTenant(async (request, context: any, { params }: Params
   return NextResponse.json({ ok: true });
 });
 
-export const DELETE = withTenant(async (request, context: any, { params }: Params) => {
-  const { groupId } = params;
+export const DELETE = withTenant(async (request, context: RouteContext) => {
+  const groupId = context.params?.groupId;
   if (!groupId) {
     return NextResponse.json({ error: "GROUP_ID_REQUIRED" }, { status: 400 });
   }

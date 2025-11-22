@@ -5,13 +5,15 @@ import { db } from "@/db";
 import {
   academies,
   athletes,
+  attendanceRecords,
   classCoachAssignments,
   classSessions,
+  classWeekdays,
   classes,
   coaches,
-  attendanceRecords,
   groups,
 } from "@/db/schema";
+import { getClassAthletes } from "@/lib/classes/get-class-athletes";
 
 import { ClassDetailView } from "@/components/classes/ClassDetailView";
 
@@ -30,7 +32,6 @@ export default async function ClassDetailPage({ params }: PageProps) {
       id: classes.id,
       name: classes.name,
       academyId: classes.academyId,
-      weekday: classes.weekday,
       startTime: classes.startTime,
       endTime: classes.endTime,
       capacity: classes.capacity,
@@ -38,6 +39,14 @@ export default async function ClassDetailPage({ params }: PageProps) {
     .from(classes)
     .where(eq(classes.id, classId))
     .limit(1);
+
+  const weekdayRows = await db
+    .select({
+      weekday: classWeekdays.weekday,
+    })
+    .from(classWeekdays)
+    .where(eq(classWeekdays.classId, classId));
+
 
   if (!classRow || classRow.academyId !== academyId) {
     notFound();
@@ -108,6 +117,11 @@ export default async function ClassDetailPage({ params }: PageProps) {
     attendanceSummary: summaryBySession.get(session.id) ?? { total: 0, present: 0 },
   }));
 
+  // Obtener atletas de la clase (grupo base + enrollments)
+  const classAthletes = await getClassAthletes(classId, academyId);
+
+  // También obtener todos los atletas de la academia para el AttendanceDialog
+  // (necesario para permitir añadir atletas a la asistencia)
   const athleteRows = await db
     .select({
       id: athletes.id,
@@ -135,7 +149,7 @@ export default async function ClassDetailPage({ params }: PageProps) {
     id: classRow.id,
     academyId: classRow.academyId,
     name: classRow.name ?? "Clase",
-    weekday: classRow.weekday,
+  weekdays: weekdayRows.map((row) => row.weekday).sort((a, b) => a - b),
     startTime: classRow.startTime,
     endTime: classRow.endTime,
     capacity: classRow.capacity,
@@ -151,6 +165,7 @@ export default async function ClassDetailPage({ params }: PageProps) {
       <ClassDetailView
         classInfo={classInfo}
         sessions={sessions}
+        classAthletes={classAthletes}
         athleteOptions={athleteRows.map((athlete) => ({
           id: athlete.id,
           name: athlete.name ?? "Sin nombre",

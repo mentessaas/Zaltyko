@@ -15,7 +15,8 @@ import {
   classCoachAssignments,
   classSessions,
   groups,
-  athleteGuardians,
+  guardianAthletes,
+  guardians,
 } from "@/db/schema";
 import { getCurrentProfile } from "@/lib/authz";
 import { OwnerProfile } from "@/components/profiles/OwnerProfile";
@@ -337,10 +338,11 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
         academyName: academies.name,
         dob: athletes.dob,
       })
-      .from(athleteGuardians)
-      .innerJoin(athletes, eq(athleteGuardians.athleteId, athletes.id))
+      .from(guardianAthletes)
+      .innerJoin(guardians, eq(guardianAthletes.guardianId, guardians.id))
+      .innerJoin(athletes, eq(guardianAthletes.athleteId, athletes.id))
       .innerJoin(academies, eq(athletes.academyId, academies.id))
-      .where(eq(athleteGuardians.userId, targetProfile.userId));
+      .where(eq(guardians.profileId, targetProfile.id));
 
     const childrenWithAge = children.map((child) => {
       const age = child.dob

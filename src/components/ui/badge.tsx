@@ -10,6 +10,8 @@ const badgeVariants = cva(
       variant: {
         default:
           "border-transparent bg-zaltyko-primary/10 text-zaltyko-primary hover:bg-zaltyko-primary/20",
+        outline:
+          "border-border bg-transparent text-foreground hover:bg-muted",
         active:
           "border-transparent bg-zaltyko-accent text-zaltyko-primary-dark hover:bg-zaltyko-accent-light",
         pending:

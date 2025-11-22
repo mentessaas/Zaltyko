@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { profiles } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
+import { handleApiError } from "@/lib/api-error-handler";
 
 async function resolveUserId(request: Request) {
   const headerUserId = request.headers.get("x-user-id");
@@ -21,68 +22,76 @@ async function resolveUserId(request: Request) {
 }
 
 export async function GET(request: Request) {
-  const userId = await resolveUserId(request);
+  try {
+    const userId = await resolveUserId(request);
 
-  if (!userId) {
-    return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
+    if (!userId) {
+      return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
+    }
+
+    const [profile] = await db
+      .select()
+      .from(profiles)
+      .where(eq(profiles.userId, userId))
+      .limit(1);
+
+    if (!profile) {
+      return NextResponse.json({ error: "PROFILE_NOT_FOUND" }, { status: 404 });
+    }
+
+    return NextResponse.json({
+      ok: true,
+      profileId: profile.id,
+      userId,
+      name: profile.name,
+      tenantId: profile.tenantId,
+      activeAcademyId: profile.activeAcademyId,
+      role: profile.role,
+    });
+  } catch (error) {
+    return handleApiError(error, { endpoint: "/api/onboarding/profile", method: "GET" });
   }
-
-  const [profile] = await db
-    .select()
-    .from(profiles)
-    .where(eq(profiles.userId, userId))
-    .limit(1);
-
-  if (!profile) {
-    return NextResponse.json({ error: "PROFILE_NOT_FOUND" }, { status: 404 });
-  }
-
-  return NextResponse.json({
-    ok: true,
-    profileId: profile.id,
-    userId,
-    name: profile.name,
-    tenantId: profile.tenantId,
-    activeAcademyId: profile.activeAcademyId,
-    role: profile.role,
-  });
 }
 
 export async function POST(request: Request) {
-  const body = await request.json().catch(() => ({}));
-  const name = typeof body?.name === "string" && body.name.trim().length > 0 ? body.name.trim() : null;
+  try {
+    const body = await request.json().catch(() => ({}));
+    const name = typeof body?.name === "string" && body.name.trim().length > 0 ? body.name.trim() : null;
 
-  const userId = await resolveUserId(request);
+    const userId = await resolveUserId(request);
 
-  if (!userId) {
-    return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
-  }
+    if (!userId) {
+      return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
+    }
 
-  const [profile] = await db
-    .insert(profiles)
-    .values({
-      userId,
-      name,
-      role: "owner",
-    })
-    .onConflictDoUpdate({
-      target: profiles.userId,
-      set: {
-        name: name ?? profiles.name,
+    const [profile] = await db
+      .insert(profiles)
+      .values({
+        userId,
+        name,
         role: "owner",
-      },
-    })
-    .returning();
+      })
+      .onConflictDoUpdate({
+        target: profiles.userId,
+        set: {
+          name: name ?? profiles.name,
+          role: "owner",
+        },
+      })
+      .returning();
 
-  return NextResponse.json({
-    ok: true,
-    profileId: profile.id,
-    userId,
-    name: profile.name,
-    tenantId: profile.tenantId,
-    activeAcademyId: profile.activeAcademyId,
-    role: profile.role,
-  });
+    return NextResponse.json({
+      ok: true,
+      profileId: profile.id,
+      userId,
+      name: profile.name,
+      tenantId: profile.tenantId,
+      activeAcademyId: profile.activeAcademyId,
+      role: profile.role,
+    });
+  } catch (error) {
+    return handleApiError(error, { endpoint: "/api/onboarding/profile", method: "POST" });
+  }
 }
 
 

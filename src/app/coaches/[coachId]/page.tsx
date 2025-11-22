@@ -17,6 +17,7 @@ export default async function CoachPublicPage({ params }: CoachPublicPageProps) 
       id: coaches.id,
       name: coaches.name,
       bio: coaches.bio,
+      publicBio: coaches.publicBio,
       photoUrl: coaches.photoUrl,
       specialties: coaches.specialties,
       email: coaches.email,
@@ -25,6 +26,9 @@ export default async function CoachPublicPage({ params }: CoachPublicPageProps) 
       academyName: academies.name,
       academyType: academies.academyType,
       isPublic: coaches.isPublic,
+      certifications: coaches.certifications,
+      photoGallery: coaches.photoGallery,
+      achievements: coaches.achievements,
     })
     .from(coaches)
     .innerJoin(academies, eq(coaches.academyId, academies.id))
@@ -74,9 +78,11 @@ export default async function CoachPublicPage({ params }: CoachPublicPageProps) 
             </div>
           )}
 
-          {coach.bio && (
+          {(coach.publicBio || coach.bio) && (
             <div className="prose prose-sm max-w-none">
-              <p className="text-muted-foreground whitespace-pre-line">{coach.bio}</p>
+              <p className="text-muted-foreground whitespace-pre-line">
+                {coach.publicBio || coach.bio}
+              </p>
             </div>
           )}
         </div>
@@ -102,6 +108,82 @@ export default async function CoachPublicPage({ params }: CoachPublicPageProps) 
                 </a>
               </p>
             )}
+          </div>
+        </div>
+      )}
+
+      {coach.certifications && Array.isArray(coach.certifications) && coach.certifications.length > 0 && (
+        <div className="rounded-lg border bg-card p-6">
+          <h2 className="mb-4 text-lg font-semibold">Certificaciones</h2>
+          <div className="space-y-3">
+            {coach.certifications.map((cert: any, index: number) => (
+              <div key={index} className="flex items-start justify-between border-b pb-3 last:border-0 last:pb-0">
+                <div>
+                  <p className="font-medium">{cert.name}</p>
+                  <p className="text-sm text-muted-foreground">{cert.issuer}</p>
+                  {cert.date && (
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(cert.date).toLocaleDateString("es-ES", {
+                        year: "numeric",
+                        month: "long",
+                      })}
+                    </p>
+                  )}
+                </div>
+                {cert.url && (
+                  <a
+                    href={cert.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline text-sm"
+                  >
+                    Ver certificado
+                  </a>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {coach.photoGallery && coach.photoGallery.length > 0 && (
+        <div className="rounded-lg border bg-card p-6">
+          <h2 className="mb-4 text-lg font-semibold">Galería</h2>
+          <div className="grid gap-4 md:grid-cols-3">
+            {coach.photoGallery.map((photo, index) => (
+              <div key={index} className="relative aspect-square overflow-hidden rounded-lg">
+                <Image
+                  src={photo}
+                  alt={`Foto ${index + 1}`}
+                  fill
+                  className="object-cover"
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {coach.achievements && Array.isArray(coach.achievements) && coach.achievements.length > 0 && (
+        <div className="rounded-lg border bg-card p-6">
+          <h2 className="mb-4 text-lg font-semibold">Logros y Reconocimientos</h2>
+          <div className="space-y-3">
+            {coach.achievements.map((achievement: any, index: number) => (
+              <div key={index} className="border-b pb-3 last:border-0 last:pb-0">
+                <p className="font-medium">{achievement.title}</p>
+                {achievement.description && (
+                  <p className="text-sm text-muted-foreground mt-1">{achievement.description}</p>
+                )}
+                {achievement.date && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {new Date(achievement.date).toLocaleDateString("es-ES", {
+                      year: "numeric",
+                      month: "long",
+                    })}
+                  </p>
+                )}
+              </div>
+            ))}
           </div>
         </div>
       )}

@@ -17,7 +17,7 @@ const testimonials: Testimonial[] = [
   {
     name: "Carolina Torres",
     rating: 5,
-    text: "Con Zaltyko migramos 3 sedes a un mismo panel. <span class='font-bold text-zaltyko-accent-light'>Los reportes diarios de asistencia</span> nos ahorran horas con los padres y la federación.",
+    text: "Zaltyko nos permitió unificar 3 sedes en un solo panel. <span class='font-bold text-zaltyko-accent-light'>La asistencia diaria se volvió automática</span> y los reportes para padres son impecables.",
     role: "Directora · Gravity Gym",
     avatar: {
       src: "https://images.unsplash.com/photo-1583413230540-7ddb76f1c9dc?auto=format&fit=facearea&facepad=3&w=160&h=160&q=80",
@@ -26,8 +26,8 @@ const testimonials: Testimonial[] = [
   },
   {
     name: "Julián Andrade",
-    rating: 4,
-    text: "Activamos el plan Pro para 180 atletas. <span class='font-bold text-zaltyko-accent-light'>Los límites nos avisaron justo al llegar a 150</span> y el upgrade fue automático por Stripe.",
+    rating: 5,
+    text: "Migramos 180 atletas sin fricción. <span class='font-bold text-zaltyko-accent-light'>Cuando llegamos al límite, Stripe nos guió al upgrade.</span> Flujo limpio y profesional.",
     role: "CFO · Escuela Olímpica Medellín",
     avatar: {
       src: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=facearea&facepad=3&w=160&h=160&q=80",
@@ -37,7 +37,7 @@ const testimonials: Testimonial[] = [
   {
     name: "María Fernanda Luna",
     rating: 5,
-    text: "El módulo de eventos nos permitió coordinar la gira estatal. <span class='font-bold text-zaltyko-primary-light'>Coaches y padres reciben notificaciones</span> sin usar grupos de WhatsApp.",
+    text: "Organizamos la gira estatal sin usar WhatsApp. <span class='font-bold text-zaltyko-accent-light'>Coaches y padres recibieron notificaciones</span> desde la plataforma.",
     role: "Head Coach · Zenith Elite",
     avatar: {
       src: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=facearea&facepad=3&w=160&h=160&q=80",

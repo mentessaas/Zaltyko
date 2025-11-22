@@ -57,11 +57,26 @@ export function handleApiError(error: unknown, context?: { endpoint?: string; me
   // Error estándar de JavaScript
   if (error instanceof Error) {
     logger.apiError(context?.endpoint ?? "unknown", context?.method ?? "unknown", error, context);
+    
+    // En desarrollo, incluir más detalles del error
+    const errorDetails: ApiError = {
+      error: "INTERNAL_ERROR",
+      message: error.message,
+    };
+    
+    if (process.env.NODE_ENV === "development") {
+      (errorDetails as any).stack = error.stack;
+      (errorDetails as any).name = error.name;
+      if ("code" in error) {
+        (errorDetails as any).code = (error as any).code;
+      }
+      if ("detail" in error) {
+        (errorDetails as any).detail = (error as any).detail;
+      }
+    }
+    
     return NextResponse.json(
-      {
-        error: "INTERNAL_ERROR",
-        message: process.env.NODE_ENV === "development" ? error.message : "Ha ocurrido un error interno",
-      },
+      errorDetails,
       { status: 500 }
     );
   }

@@ -107,13 +107,20 @@ export function cleanupExpiredEntries() {
 }
 
 /**
+ * Tipo para el contexto del handler
+ */
+export interface RateLimitContext {
+  [key: string]: unknown;
+}
+
+/**
  * Middleware wrapper para rate limiting
  */
 export function withRateLimit(
-  handler: (request: NextRequest) => Promise<NextResponse>,
+  handler: (request: NextRequest, context?: RateLimitContext) => Promise<NextResponse>,
   options?: { identifier?: (request: NextRequest) => string }
 ) {
-  return async (request: NextRequest): Promise<NextResponse> => {
+  return async (request: NextRequest, context?: RateLimitContext): Promise<NextResponse> => {
     // Limpiar entradas expiradas periódicamente (cada 100 requests aprox)
     if (Math.random() < 0.01) {
       cleanupExpiredEntries();
@@ -149,15 +156,41 @@ export function withRateLimit(
       );
     }
 
-    // Ejecutar handler
-    const response = await handler(request);
+    // Ejecutar handler con manejo de errores
+    try {
+      const response = await handler(request, context);
 
-    // Agregar headers de rate limit
-    response.headers.set("X-RateLimit-Limit", String(getLimitForRoute(pathname).limit));
-    response.headers.set("X-RateLimit-Remaining", String(rateLimit.remaining));
-    response.headers.set("X-RateLimit-Reset", String(rateLimit.resetTime));
+      // Agregar headers de rate limit
+      response.headers.set("X-RateLimit-Limit", String(getLimitForRoute(pathname).limit));
+      response.headers.set("X-RateLimit-Remaining", String(rateLimit.remaining));
+      response.headers.set("X-RateLimit-Reset", String(rateLimit.resetTime));
 
-    return response;
+      return response;
+    } catch (error) {
+      // Asegurar que siempre devolvemos JSON, incluso si hay un error no manejado
+      const errorResponse = error instanceof Error
+        ? NextResponse.json(
+            {
+              error: "INTERNAL_ERROR",
+              message: error.message,
+            },
+            { status: 500 }
+          )
+        : NextResponse.json(
+            {
+              error: "INTERNAL_ERROR",
+              message: "Ha ocurrido un error desconocido",
+            },
+            { status: 500 }
+          );
+      
+      // Agregar headers de rate limit incluso en errores
+      errorResponse.headers.set("X-RateLimit-Limit", String(getLimitForRoute(pathname).limit));
+      errorResponse.headers.set("X-RateLimit-Remaining", String(rateLimit.remaining));
+      errorResponse.headers.set("X-RateLimit-Reset", String(rateLimit.resetTime));
+      
+      return errorResponse;
+    }
   };
 }
 
@@ -172,6 +205,17 @@ export function getUserIdentifier(request: NextRequest): string {
   }
 
   // Fallback a IP
+  return (
+    request.headers.get("x-forwarded-for")?.split(",")[0] ||
+    request.headers.get("x-real-ip") ||
+    "unknown"
+  );
+}
+
+/**
+ * Helper para obtener identificador del cliente (IP) para endpoints públicos
+ */
+export function getClientIdentifier(request: NextRequest): string {
   return (
     request.headers.get("x-forwarded-for")?.split(",")[0] ||
     request.headers.get("x-real-ip") ||

@@ -25,6 +25,7 @@ interface EditCoachDialogProps {
   onClose: () => void;
   onUpdated: () => void;
   onDeleted: () => void;
+  academyId: string;
 }
 
 export function EditCoachDialog({
@@ -34,6 +35,7 @@ export function EditCoachDialog({
   onClose,
   onUpdated,
   onDeleted,
+  academyId,
 }: EditCoachDialogProps) {
   const [name, setName] = useState(coach.name);
   const [email, setEmail] = useState(coach.email ?? "");

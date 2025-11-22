@@ -1,21 +1,25 @@
 import { NextResponse } from "next/server";
-import { asc, eq, sql } from "drizzle-orm";
+import { asc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
-import { academies, classCoachAssignments, classes, coaches } from "@/db/schema";
+import { academies, classCoachAssignments, classWeekdays, classes, coaches } from "@/db/schema";
 import { assertWithinPlanLimits } from "@/lib/limits";
 import { withTenant } from "@/lib/authz";
 import { handleApiError } from "@/lib/api-error-handler";
 import { verifyAcademyAccess } from "@/lib/permissions";
+import { markChecklistItem } from "@/lib/onboarding";
+import { assertPremiumFeatureAccess } from "@/lib/trial";
 
 const bodySchema = z.object({
   academyId: z.string().uuid(),
   name: z.string().min(1),
-  weekday: z.number().int().min(0).max(6).optional(),
+  weekdays: z.array(z.number().int().min(0).max(6)).max(7).optional(),
   startTime: z.string().optional(),
   endTime: z.string().optional(),
   capacity: z.number().int().positive().optional(),
+  isExtra: z.boolean().optional().default(false),
+  groupId: z.string().uuid().nullable().optional(),
 });
 
 const querySchema = z.object({
@@ -39,101 +43,90 @@ export const GET = withTenant(async (request, context) => {
       return handleApiError(params.error);
     }
 
-  const { academyId, includeAssignments } = params.data;
+    const { academyId, includeAssignments } = params.data;
 
-  if (!includeAssignments) {
-    // Query optimizado sin assignments
+    const classFilter = academyId
+      ? eq(classes.academyId, academyId)
+      : eq(classes.tenantId, context.tenantId);
+
     const classRows = await db
       .select({
         id: classes.id,
         name: classes.name,
         academyId: classes.academyId,
         academyName: academies.name,
-        weekday: classes.weekday,
         startTime: classes.startTime,
         endTime: classes.endTime,
         capacity: classes.capacity,
+        isExtra: classes.isExtra,
+        groupId: classes.groupId,
         createdAt: classes.createdAt,
       })
       .from(classes)
       .innerJoin(academies, eq(classes.academyId, academies.id))
-      .where(academyId ? eq(classes.academyId, academyId) : eq(classes.tenantId, context.tenantId))
+      .where(classFilter)
       .orderBy(asc(classes.name));
 
-    return NextResponse.json({ items: classRows });
-  }
+    const classIds = classRows.map((item) => item.id);
+    const weekdayRows =
+      classIds.length === 0
+        ? []
+        : await db
+            .select({
+              classId: classWeekdays.classId,
+              weekday: classWeekdays.weekday,
+            })
+            .from(classWeekdays)
+            .where(inArray(classWeekdays.classId, classIds));
 
-  // Query optimizado con assignments usando LEFT JOIN y agregación
-  const classRowsWithAssignments = await db
-    .select({
-      id: classes.id,
-      name: classes.name,
-      academyId: classes.academyId,
-      academyName: academies.name,
-      weekday: classes.weekday,
-      startTime: classes.startTime,
-      endTime: classes.endTime,
-      capacity: classes.capacity,
-      createdAt: classes.createdAt,
-      coachId: coaches.id,
-      coachName: coaches.name,
-      coachEmail: coaches.email,
-    })
-    .from(classes)
-    .innerJoin(academies, eq(classes.academyId, academies.id))
-    .leftJoin(classCoachAssignments, eq(classes.id, classCoachAssignments.classId))
-    .leftJoin(coaches, eq(classCoachAssignments.coachId, coaches.id))
-    .where(academyId ? eq(classes.academyId, academyId) : eq(classes.tenantId, context.tenantId))
-    .orderBy(asc(classes.name), asc(coaches.name));
+    const weekdayMap = new Map<string, number[]>();
+    weekdayRows.forEach((row) => {
+      const current = weekdayMap.get(row.classId) ?? [];
+      current.push(row.weekday);
+      weekdayMap.set(row.classId, current);
+    });
+    weekdayMap.forEach((list, key) => {
+      list.sort((a, b) => a - b);
+      weekdayMap.set(key, list);
+    });
 
-  // Agrupar coaches por clase
-  const grouped = classRowsWithAssignments.reduce((acc, row) => {
-    const existing = acc.find((item) => item.id === row.id);
-    
-    if (!existing) {
-      acc.push({
-        id: row.id,
-        name: row.name,
-        academyId: row.academyId,
-        academyName: row.academyName,
-        weekday: row.weekday,
-        startTime: row.startTime,
-        endTime: row.endTime,
-        capacity: row.capacity,
-        createdAt: row.createdAt,
-        coaches: row.coachId
-          ? [
-              {
-                id: row.coachId,
-                name: row.coachName ?? null,
-                email: row.coachEmail ?? null,
-              },
-            ]
-          : [],
-      });
-    } else if (row.coachId && !existing.coaches.find((c) => c.id === row.coachId)) {
-      existing.coaches.push({
-        id: row.coachId,
-        name: row.coachName ?? null,
-        email: row.coachEmail ?? null,
-      });
+    const baseItems = classRows.map((clazz) => ({
+      ...clazz,
+      weekdays: (weekdayMap.get(clazz.id) ?? []).sort((a, b) => a - b),
+    }));
+
+    if (!includeAssignments) {
+      return NextResponse.json({ items: baseItems });
     }
-    
-    return acc;
-  }, [] as Array<{
-    id: string;
-    name: string;
-    academyId: string;
-    academyName: string | null;
-    weekday: number | null;
-    startTime: string | null;
-    endTime: string | null;
-    capacity: number | null;
-    createdAt: Date | null;
-    coaches: Array<{ id: string; name: string | null; email: string | null }>;
-  }>);
 
-    return NextResponse.json({ items: grouped });
+    const assignmentRows = await db
+      .select({
+        classId: classes.id,
+        coachId: coaches.id,
+        coachName: coaches.name,
+        coachEmail: coaches.email,
+      })
+      .from(classCoachAssignments)
+      .innerJoin(classes, eq(classCoachAssignments.classId, classes.id))
+      .leftJoin(coaches, eq(classCoachAssignments.coachId, coaches.id))
+      .where(classFilter);
+
+    const enriched = baseItems.map((clazz) => {
+      const coachesForClass = assignmentRows
+        .filter((assignment) => assignment.classId === clazz.id && assignment.coachId)
+        .map((assignment) => ({
+          id: assignment.coachId!,
+          name: assignment.coachName ?? null,
+          email: assignment.coachEmail ?? null,
+        }));
+
+      return {
+        ...clazz,
+        coaches: coachesForClass,
+      };
+    });
+
+    return NextResponse.json({ items: enriched });
   } catch (error) {
     return handleApiError(error);
   }
@@ -153,17 +146,42 @@ export const POST = withTenant(async (request, context) => {
       return NextResponse.json({ error: academyAccess.reason ?? "ACADEMY_ACCESS_DENIED" }, { status: 403 });
     }
 
+    await assertPremiumFeatureAccess(body.academyId, "weekly_schedule");
     await assertWithinPlanLimits(context.tenantId, body.academyId, "classes");
 
+    const normalizedWeekdays = Array.from(new Set(body.weekdays ?? []))
+      .map((day) => Number(day))
+      .filter((day) => Number.isInteger(day));
+
+    const classId = crypto.randomUUID();
+
     await db.insert(classes).values({
-      id: crypto.randomUUID(),
+      id: classId,
       tenantId: context.tenantId,
       academyId: body.academyId,
       name: body.name,
-      weekday: body.weekday ?? null,
       startTime: body.startTime ?? null,
       endTime: body.endTime ?? null,
       capacity: body.capacity ?? null,
+      isExtra: body.isExtra ?? false,
+      groupId: body.groupId ?? null,
+    });
+
+    if (normalizedWeekdays.length > 0) {
+      await db.insert(classWeekdays).values(
+        normalizedWeekdays.map((day) => ({
+          id: crypto.randomUUID(),
+          classId,
+          tenantId: context.tenantId!,
+          weekday: day,
+        }))
+      );
+    }
+
+    await markChecklistItem({
+      academyId: body.academyId,
+      tenantId: context.tenantId,
+      key: "setup_weekly_schedule",
     });
 
     return NextResponse.json({ ok: true });

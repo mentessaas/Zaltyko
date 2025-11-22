@@ -1,11 +1,25 @@
 import { notFound } from "next/navigation";
-import { and, asc, eq, ilike, or } from "drizzle-orm";
+import { and, asc, eq, ilike, inArray, or } from "drizzle-orm";
 
 import { db } from "@/db";
-import { academies, classCoachAssignments, classes, coaches, groups } from "@/db/schema";
+import {
+  academies,
+  classCoachAssignments,
+  classGroups,
+  classWeekdays,
+  classes,
+  coaches,
+  groups,
+} from "@/db/schema";
 
 import { ClassesTableView } from "@/components/classes/ClassesTableView";
 
+/**
+ * AcademyClassesPage - Vista principal de gestión de clases y sesiones
+ * 
+ * Permite crear, listar y gestionar clases con sus horarios, entrenadores asignados
+ * y grupos vinculados. Incluye acceso a creación y edición de clases.
+ */
 interface PageProps {
   params: {
     academyId: string;
@@ -56,7 +70,6 @@ export default async function AcademyClassesPage({ params, searchParams }: PageP
     .select({
       id: classes.id,
       name: classes.name,
-      weekday: classes.weekday,
       startTime: classes.startTime,
       endTime: classes.endTime,
       capacity: classes.capacity,
@@ -65,6 +78,29 @@ export default async function AcademyClassesPage({ params, searchParams }: PageP
     .from(classes)
     .where(whereClause)
     .orderBy(asc(classes.name));
+
+  const classIds = classRows.map((item) => item.id);
+  const weekdayRows =
+    classIds.length === 0
+      ? []
+      : await db
+          .select({
+            classId: classWeekdays.classId,
+            weekday: classWeekdays.weekday,
+          })
+          .from(classWeekdays)
+          .where(inArray(classWeekdays.classId, classIds));
+
+  const weekdayMap = new Map<string, number[]>();
+  weekdayRows.forEach((row) => {
+    const current = weekdayMap.get(row.classId) ?? [];
+    current.push(row.weekday);
+    weekdayMap.set(row.classId, current);
+  });
+  weekdayMap.forEach((list, key) => {
+    list.sort((a, b) => a - b);
+    weekdayMap.set(key, list);
+  });
 
   const assignmentRows = await db
     .select({
@@ -126,11 +162,44 @@ export default async function AcademyClassesPage({ params, searchParams }: PageP
     }
   });
 
+  // Obtener grupos asignados directamente a las clases
+  const classGroupRows =
+    classIds.length === 0
+      ? []
+      : await db
+          .select({
+            classId: classGroups.classId,
+            groupId: groups.id,
+            groupName: groups.name,
+            groupColor: groups.color,
+          })
+          .from(classGroups)
+          .innerJoin(groups, eq(classGroups.groupId, groups.id))
+          .where(inArray(classGroups.classId, classIds));
+
+  const classGroupsMap = new Map<string, { id: string; name: string; color: string | null }[]>();
+  classGroupRows.forEach((row) => {
+    const existing = classGroupsMap.get(row.classId) ?? [];
+    existing.push({
+      id: row.groupId,
+      name: row.groupName ?? "Grupo sin nombre",
+      color: row.groupColor ?? null,
+    });
+    classGroupsMap.set(row.classId, existing);
+  });
+
   const classesList = classRows
     .map((item) => {
       const classCoaches = assignmentRows.filter((assignment) => assignment.classId === item.id);
+      // Obtener grupos asignados directamente a la clase
+      const directGroups = classGroupsMap.get(item.id) ?? [];
+      
+      // También incluir grupos vinculados a través de entrenadores (para retrocompatibilidad)
       const linkedGroupsMap = new Map<string, { id: string; name: string; color: string | null }>();
-
+      directGroups.forEach((group) => {
+        linkedGroupsMap.set(group.id, group);
+      });
+      
       classCoaches.forEach((assignment) => {
         const related = groupByCoach.get(assignment.coachId) ?? [];
         related.forEach((group) => {
@@ -143,7 +212,7 @@ export default async function AcademyClassesPage({ params, searchParams }: PageP
       return {
         id: item.id,
         name: item.name,
-        weekday: item.weekday,
+        weekdays: (weekdayMap.get(item.id) ?? []).sort((a, b) => a - b),
         startTime: item.startTime,
         endTime: item.endTime,
         capacity: item.capacity,
@@ -169,7 +238,7 @@ export default async function AcademyClassesPage({ params, searchParams }: PageP
 
   return (
     <div className="space-y-6 p-4 sm:p-6 lg:p-8">
-      <header className="space-y-2">
+      <header className="space-y-2 py-6">
         <h1 className="text-3xl font-semibold">Clases</h1>
         <p className="text-sm text-muted-foreground">
           Organiza tus clases, gestiona entrenadores y prepara sesiones con facilidad.

@@ -7,12 +7,25 @@ import { db } from "@/db";
 import { athletes, groupAthletes, groups } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
 import { athleteStatusOptions } from "@/lib/athletes/constants";
+import { syncChargesForAthleteCurrentPeriod } from "@/lib/billing/sync-charges";
+import { formatDateForDB } from "@/lib/validation/date-utils";
+
+// Validador custom para fechas en actualización
+const updateDateStringSchema = z
+  .union([z.string().datetime(), z.string().length(10), z.literal(""), z.null()])
+  .optional()
+  .transform((val) => {
+    if (!val || val === "" || val === null) return null;
+    const parsed = new Date(val);
+    if (Number.isNaN(parsed.getTime())) {
+      return "INVALID"; // Marcador para indicar fecha inválida
+    }
+    return parsed;
+  });
 
 const UpdateSchema = z.object({
   name: z.string().min(1).optional(),
-  dob: z
-    .union([z.string().datetime(), z.string().length(10), z.literal(""), z.null()])
-    .optional(),
+  dob: updateDateStringSchema,
   level: z.string().max(120).nullable().optional(),
   status: z.enum(athleteStatusOptions).optional(),
   groupId: z.string().uuid().nullable().optional(),
@@ -34,7 +47,7 @@ async function getAthleteTenant(athleteId: string) {
 }
 
 export const PATCH = withTenant(async (request, context) => {
-  const athleteId = context.params?.athleteId;
+  const athleteId = (context.params as { athleteId?: string })?.athleteId;
 
   if (!athleteId) {
     return NextResponse.json({ error: "ATHLETE_ID_REQUIRED" }, { status: 400 });
@@ -61,14 +74,24 @@ export const PATCH = withTenant(async (request, context) => {
     updates.name = body.name;
   }
   if (body.dob !== undefined) {
-    if (!body.dob) {
+    if (body.dob === null) {
       updates.dob = null;
-    } else {
-      const parsed = new Date(body.dob);
-      if (Number.isNaN(parsed.getTime())) {
-        return NextResponse.json({ error: "INVALID_DOB" }, { status: 400 });
+    } else if (body.dob === "INVALID") {
+      // El transform marcó la fecha como inválida
+      return NextResponse.json(
+        { error: "INVALID_DOB", message: "El formato de fecha de nacimiento no es válido. Use formato YYYY-MM-DD o ISO 8601" },
+        { status: 400 }
+      );
+    } else if (body.dob instanceof Date) {
+      // Validar que la fecha sea razonable
+      const year = body.dob.getFullYear();
+      if (year < 1900 || year > 2100) {
+        return NextResponse.json(
+          { error: "INVALID_DOB", message: "El año de nacimiento debe estar entre 1900 y 2100" },
+          { status: 400 }
+        );
       }
-      updates.dob = parsed;
+      updates.dob = body.dob instanceof Date ? formatDateForDB(body.dob) : null;
     }
   }
   if (body.level !== undefined) {
@@ -115,6 +138,13 @@ export const PATCH = withTenant(async (request, context) => {
           athleteId,
         })
         .onConflictDoNothing();
+      
+      // Sincronizar cargos pendientes del periodo actual con la nueva cuota del grupo
+      await syncChargesForAthleteCurrentPeriod({
+        academyId: athleteRow.academyId,
+        athleteId,
+        groupId: nextGroupId,
+      });
     } else {
       await db.delete(groupAthletes).where(eq(groupAthletes.athleteId, athleteId));
     }
@@ -124,7 +154,7 @@ export const PATCH = withTenant(async (request, context) => {
 });
 
 export const DELETE = withTenant(async (_request, context) => {
-  const athleteId = context.params?.athleteId;
+  const athleteId = (context.params as { athleteId?: string })?.athleteId;
 
   if (!athleteId) {
     return NextResponse.json({ error: "ATHLETE_ID_REQUIRED" }, { status: 400 });

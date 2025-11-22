@@ -1,6 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { TooltipOnboarding } from "@/components/tooltips/TooltipOnboarding";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { StudentChargesTab } from "./StudentChargesTab";
 
 type PlanCode = "free" | "pro" | "premium" | (string & Record<never, never>);
 
@@ -85,6 +89,8 @@ interface BillingPanelProps {
 }
 
 export function BillingPanel({ academyId, userId }: BillingPanelProps) {
+  const searchParams = useSearchParams();
+  const defaultTab = searchParams?.get("tab") === "student-charges" ? "charges" : "plans";
   const [summary, setSummary] = useState<BillingSummary | null>(null);
   const [loadingSummary, setLoadingSummary] = useState(true);
   const [loadingAction, setLoadingAction] = useState<PlanCode | "portal" | null>(null);
@@ -197,14 +203,21 @@ export function BillingPanel({ academyId, userId }: BillingPanelProps) {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data?.error ?? "No se pudo iniciar el checkout");
+        // Mostrar mensaje más descriptivo según el error
+        const errorMessage = data?.message || data?.error || "No se pudo iniciar el checkout";
+        if (data?.error === "STRIPE_NOT_CONFIGURED") {
+          throw new Error("Stripe no está configurado. Los pagos no están disponibles en este momento. Contacta con soporte.");
+        }
+        throw new Error(errorMessage);
       }
 
       if (data.checkoutUrl) {
         window.location.href = data.checkoutUrl;
+      } else {
+        throw new Error("No se recibió una URL de checkout válida");
       }
     } catch (err: any) {
-      setError(err.message ?? "Error desconocido");
+      setError(err.message ?? "Error desconocido al iniciar el checkout");
     } finally {
       setLoadingAction(null);
     }
@@ -252,7 +265,14 @@ export function BillingPanel({ academyId, userId }: BillingPanelProps) {
         </p>
       )}
 
-      <section className="rounded-lg border bg-card p-6 shadow-sm">
+      <Tabs defaultValue={defaultTab} className="w-full">
+        <TabsList>
+          <TabsTrigger value="plans">Planes y facturación</TabsTrigger>
+          <TabsTrigger value="charges">Cobros a alumnos</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="plans" className="space-y-8">
+          <section className="rounded-lg border bg-card p-6 shadow-sm">
         <h2 className="text-xl font-medium">Plan actual</h2>
         {loadingSummary || !summary ? (
           <p className="text-sm text-muted-foreground">Cargando información…</p>
@@ -277,13 +297,18 @@ export function BillingPanel({ academyId, userId }: BillingPanelProps) {
               </p>
             )}
             {summary.hasStripeCustomer && (
-              <button
-                onClick={openPortal}
-                className="mt-3 rounded-md border px-3 py-2 text-sm"
-                disabled={loadingAction === "portal"}
+              <TooltipOnboarding
+                tooltipId="tooltip_payments"
+                message="Configura pagos una sola vez y deja de perseguir a padres cada mes."
               >
-                {loadingAction === "portal" ? "Abriendo portal…" : "Gestionar en Stripe"}
-              </button>
+                <button
+                  onClick={openPortal}
+                  className="mt-3 rounded-md border px-3 py-2 text-sm"
+                  disabled={loadingAction === "portal"}
+                >
+                  {loadingAction === "portal" ? "Abriendo portal…" : "Gestionar en Stripe"}
+                </button>
+              </TooltipOnboarding>
             )}
           </div>
         )}
@@ -404,6 +429,12 @@ export function BillingPanel({ academyId, userId }: BillingPanelProps) {
           </table>
         </div>
       </section>
+        </TabsContent>
+
+        <TabsContent value="charges">
+          <StudentChargesTab academyId={academyId} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

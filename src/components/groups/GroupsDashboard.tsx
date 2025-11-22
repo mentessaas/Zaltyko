@@ -5,8 +5,10 @@ import { useCallback, useEffect, useMemo, useState, useTransition } from "react"
 import { Button } from "@/components/ui/button";
 import { GroupCard } from "./GroupCard";
 import { CreateGroupDialog } from "./CreateGroupDialog";
+import { EditGroupDialog } from "./EditGroupDialog";
 import { AthleteOption, CoachOption, GroupSummary } from "./types";
 import { createClient } from "@/lib/supabase/client";
+import { TooltipOnboarding } from "@/components/tooltips/TooltipOnboarding";
 
 interface GroupsDashboardProps {
   academyId: string;
@@ -23,6 +25,9 @@ export function GroupsDashboard({
 }: GroupsDashboardProps) {
   const [groups, setGroups] = useState(initialGroups);
   const [createOpen, setCreateOpen] = useState(false);
+  const [editingGroup, setEditingGroup] = useState<GroupSummary | null>(null);
+  const [currentAthleteIds, setCurrentAthleteIds] = useState<string[]>([]);
+  const [loadingAthleteIds, setLoadingAthleteIds] = useState(false);
   const [isRefreshing, startRefreshTransition] = useTransition();
 
   const assistantsMap = useMemo(() => {
@@ -47,6 +52,54 @@ export function GroupsDashboard({
   useEffect(() => {
     setGroups(hydrateGroups(initialGroups));
   }, [initialGroups, hydrateGroups]);
+
+  const loadGroupAthleteIds = useCallback(async (groupId: string) => {
+    setLoadingAthleteIds(true);
+    try {
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      const response = await fetch(`/api/groups/${groupId}/athletes`, {
+        headers: {
+          ...(user?.id ? { "x-user-id": user.id } : {}),
+        },
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        console.error("Error loading group athletes:", response.status);
+        setCurrentAthleteIds([]);
+        return;
+      }
+
+      const data = await response.json();
+      if (Array.isArray(data.athleteIds)) {
+        setCurrentAthleteIds(data.athleteIds);
+      } else {
+        setCurrentAthleteIds([]);
+      }
+    } catch (error) {
+      console.error("Error loading group athletes:", error);
+      setCurrentAthleteIds([]);
+    } finally {
+      setLoadingAthleteIds(false);
+    }
+  }, []);
+
+  const handleEdit = useCallback(
+    async (group: GroupSummary) => {
+      setEditingGroup(group);
+      await loadGroupAthleteIds(group.id);
+    },
+    [loadGroupAthleteIds]
+  );
+
+  const handleEditClose = useCallback(() => {
+    setEditingGroup(null);
+    setCurrentAthleteIds([]);
+  }, []);
 
   const refreshGroups = useCallback(async () => {
     startRefreshTransition(async () => {
@@ -84,6 +137,8 @@ export function GroupsDashboard({
               assistantNames: [],
               athleteCount: Number(item.athleteCount ?? 0),
               createdAt: item.createdAt ?? new Date().toISOString(),
+              monthlyFeeCents: item.monthlyFeeCents ?? null,
+              billingItemId: item.billingItemId ?? null,
             }))
           )
         );
@@ -93,36 +148,46 @@ export function GroupsDashboard({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 rounded-xl border bg-card p-6 shadow-sm lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <h2 className="text-2xl font-semibold text-foreground">Grupos de entrenamiento</h2>
-          <p className="text-sm text-muted-foreground">
-            Organiza a tus atletas por niveles o equipos. Los grupos te permiten automatizar asistencia,
-            evaluaciones y facturación.
-          </p>
-        </div>
+      <section className="flex flex-col gap-4 rounded-lg border bg-card p-5 shadow-sm lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex-1" />
         <div className="flex items-center gap-3">
-          <Button variant="outline" size="sm" onClick={() => refreshGroups()} disabled={isRefreshing}>
-            {isRefreshing ? "Actualizando…" : "Refrescar"}
-          </Button>
-          <Button onClick={() => setCreateOpen(true)}>Nuevo grupo</Button>
+          <TooltipOnboarding
+            tooltipId="tooltip_create_group"
+            message="Empieza aquí: crea un grupo para organizar a tus atletas por nivel y horario."
+          >
+            <button
+              type="button"
+              onClick={() => setCreateOpen(true)}
+              className="inline-flex items-center justify-center rounded-md bg-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-emerald-600"
+            >
+              Nuevo grupo
+            </button>
+          </TooltipOnboarding>
         </div>
-      </div>
+      </section>
 
       {groups.length === 0 ? (
-        <div className="flex flex-col items-center justify-center gap-4 rounded-xl border border-dashed border-primary/40 bg-primary/5 p-12 text-center text-muted-foreground">
-          <div>
-            <h3 className="text-lg font-semibold text-foreground">Aún no has creado grupos</h3>
-            <p className="text-sm">
-              Crea tu primer grupo para agrupar atletas por niveles, horarios o equipos de competencia.
-            </p>
-          </div>
-          <Button onClick={() => setCreateOpen(true)}>Crear mi primer grupo</Button>
+        <div className="rounded-lg border bg-card p-12 text-center shadow-sm">
+          <p className="mb-4 text-sm text-muted-foreground">
+            Aún no has creado ningún grupo. Crea tu primer grupo para organizar tus atletas por nivel y horario.
+          </p>
+          <button
+            type="button"
+            onClick={() => setCreateOpen(true)}
+            className="inline-flex items-center justify-center rounded-md bg-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-emerald-600"
+          >
+            Crear primer grupo
+          </button>
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {groups.map((group) => (
-            <GroupCard key={group.id} academyId={academyId} group={group} />
+            <GroupCard
+              key={group.id}
+              academyId={academyId}
+              group={group}
+              onEdit={handleEdit}
+            />
           ))}
         </div>
       )}
@@ -135,6 +200,19 @@ export function GroupsDashboard({
         coaches={coaches}
         athletes={athletes}
       />
+
+      {editingGroup && (
+        <EditGroupDialog
+          academyId={academyId}
+          group={editingGroup}
+          open={!!editingGroup}
+          onClose={handleEditClose}
+          onUpdated={refreshGroups}
+          coaches={coaches}
+          athletes={athletes}
+          currentAthleteIds={currentAthleteIds}
+        />
+      )}
     </div>
   );
 }

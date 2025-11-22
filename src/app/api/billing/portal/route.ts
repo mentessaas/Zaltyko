@@ -6,13 +6,14 @@ import { db } from "@/db";
 import { academies, subscriptions, profiles } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
 import { getStripeClient } from "@/lib/stripe/client";
+import { getAppUrl, getOptionalEnvVar } from "@/lib/env";
 
 const BodySchema = z.object({
   academyId: z.string().uuid(),
 });
 
 export const POST = withTenant(async (request, context) => {
-  if (!process.env.STRIPE_SECRET_KEY) {
+  if (!getOptionalEnvVar("STRIPE_SECRET_KEY")) {
     return NextResponse.json({ error: "STRIPE_NOT_CONFIGURED" }, { status: 500 });
   }
 
@@ -68,7 +69,7 @@ export const POST = withTenant(async (request, context) => {
     return NextResponse.json({ error: "NO_STRIPE_CUSTOMER" }, { status: 400 });
   }
 
-  const returnUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/billing?academy=${body.academyId}`;
+  const returnUrl = `${getAppUrl()}/billing?academy=${body.academyId}`;
 
   const session = await stripe.billingPortal.sessions.create({
     customer: subscription.stripeCustomerId,

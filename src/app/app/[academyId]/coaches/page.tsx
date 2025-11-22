@@ -7,6 +7,12 @@ import { academies, classCoachAssignments, classes, coaches, groups } from "@/db
 
 import { CoachesTableView } from "@/components/coaches/CoachesTableView";
 
+/**
+ * AcademyCoachesPage - Vista principal de gestión de entrenadores
+ * 
+ * Permite listar, filtrar y gestionar entrenadores del staff técnico, con búsqueda
+ * por nombre/correo y filtrado por grupo. Incluye acceso a creación y edición.
+ */
 interface PageProps {
   params: {
     academyId: string;
@@ -153,17 +159,10 @@ export default async function AcademyCoachesPage({ params, searchParams }: PageP
 
   return (
     <div className="space-y-6 p-4 sm:p-6 lg:p-8">
-      <header className="space-y-2">
+      <header className="space-y-2 py-6">
         <h1 className="text-3xl font-semibold">Entrenadores</h1>
         <p className="text-sm text-muted-foreground">
           Controla al staff técnico, asigna clases y mantén sus datos de contacto al día.
-        </p>
-        <p className="text-xs text-muted-foreground">
-          ¿Necesitas reportes avanzados o invitaciones masivas? Usa temporalmente el{" "}
-          <Link href="/dashboard/coaches" className="text-primary underline">
-            panel clásico
-          </Link>{" "}
-          mientras completamos la migración.
         </p>
       </header>
 

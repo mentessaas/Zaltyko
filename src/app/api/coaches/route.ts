@@ -3,15 +3,9 @@ import { asc, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
-import {
-  academies,
-  classCoachAssignments,
-  classes,
-  coaches,
-  memberships,
-  profiles,
-} from "@/db/schema";
+import { academies, classCoachAssignments, classes, coaches, memberships, profiles } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
+import { markChecklistItem, markWizardStep } from "@/lib/onboarding";
 
 const bodySchema = z.object({
   academyId: z.string().uuid(),
@@ -43,28 +37,9 @@ export const GET = withTenant(async (request, context) => {
 
   const { academyId, includeAssignments } = params.data;
 
-  if (!includeAssignments) {
-    // Query optimizado sin assignments
-    const coachRows = await db
-      .select({
-        id: coaches.id,
-        name: coaches.name,
-        email: coaches.email,
-        phone: coaches.phone,
-        academyId: coaches.academyId,
-        academyName: academies.name,
-        createdAt: coaches.createdAt,
-      })
-      .from(coaches)
-      .innerJoin(academies, eq(coaches.academyId, academies.id))
-      .where(academyId ? eq(coaches.academyId, academyId) : eq(coaches.tenantId, context.tenantId))
-      .orderBy(asc(coaches.name));
+  const coachFilter = academyId ? eq(coaches.academyId, academyId) : eq(coaches.tenantId, context.tenantId);
 
-    return NextResponse.json({ items: coachRows });
-  }
-
-  // Query optimizado con assignments usando LEFT JOIN
-  const coachRowsWithAssignments = await db
+  const coachRows = await db
     .select({
       id: coaches.id,
       name: coaches.name,
@@ -73,61 +48,43 @@ export const GET = withTenant(async (request, context) => {
       academyId: coaches.academyId,
       academyName: academies.name,
       createdAt: coaches.createdAt,
+    })
+    .from(coaches)
+    .innerJoin(academies, eq(coaches.academyId, academies.id))
+    .where(coachFilter)
+    .orderBy(asc(coaches.name));
+
+  if (!includeAssignments) {
+    return NextResponse.json({ items: coachRows });
+  }
+
+  const assignmentRows = await db
+    .select({
+      coachId: classCoachAssignments.coachId,
       classId: classes.id,
       className: classes.name,
       classAcademyId: classes.academyId,
     })
-    .from(coaches)
-    .innerJoin(academies, eq(coaches.academyId, academies.id))
-    .leftJoin(classCoachAssignments, eq(coaches.id, classCoachAssignments.coachId))
-    .leftJoin(classes, eq(classCoachAssignments.classId, classes.id))
-    .where(academyId ? eq(coaches.academyId, academyId) : eq(coaches.tenantId, context.tenantId))
-    .orderBy(asc(coaches.name), asc(classes.name));
+    .from(classCoachAssignments)
+    .innerJoin(classes, eq(classCoachAssignments.classId, classes.id))
+    .where(academyId ? eq(classes.academyId, academyId) : eq(classCoachAssignments.tenantId, context.tenantId));
 
-  // Agrupar clases por entrenador
-  const grouped = coachRowsWithAssignments.reduce((acc, row) => {
-    const existing = acc.find((item) => item.id === row.id);
-    
-    if (!existing) {
-      acc.push({
-        id: row.id,
-        name: row.name,
-        email: row.email,
-        phone: row.phone,
-        academyId: row.academyId,
-        academyName: row.academyName,
-        createdAt: row.createdAt,
-        classes: row.classId
-          ? [
-              {
-                id: row.classId,
-                name: row.className ?? null,
-                academyId: row.classAcademyId ?? null,
-              },
-            ]
-          : [],
-      });
-    } else if (row.classId && !existing.classes.find((c) => c.id === row.classId)) {
-      existing.classes.push({
-        id: row.classId,
-        name: row.className ?? null,
-        academyId: row.classAcademyId ?? null,
-      });
-    }
-    
-    return acc;
-  }, [] as Array<{
-    id: string;
-    name: string;
-    email: string | null;
-    phone: string | null;
-    academyId: string;
-    academyName: string | null;
-    createdAt: Date | null;
-    classes: Array<{ id: string; name: string | null; academyId: string | null }>;
-  }>);
+  const enriched = coachRows.map((coach) => {
+    const classesForCoach = assignmentRows
+      .filter((assignment) => assignment.coachId === coach.id && assignment.classId)
+      .map((assignment) => ({
+        id: assignment.classId,
+        name: assignment.className ?? null,
+        academyId: assignment.classAcademyId ?? null,
+      }));
 
-  return NextResponse.json({ items: grouped });
+    return {
+      ...coach,
+      classes: classesForCoach,
+    };
+  });
+
+  return NextResponse.json({ items: enriched });
 });
 
 export const POST = withTenant(async (request, context) => {
@@ -169,6 +126,18 @@ export const POST = withTenant(async (request, context) => {
       })
       .onConflictDoNothing();
   }
+
+  await markWizardStep({
+    academyId: body.academyId,
+    tenantId: context.tenantId,
+    step: "coaches",
+  });
+
+  await markChecklistItem({
+    academyId: body.academyId,
+    tenantId: context.tenantId,
+    key: "invite_first_coach",
+  });
 
   return NextResponse.json({ id: coachId });
 });

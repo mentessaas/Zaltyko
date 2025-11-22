@@ -15,10 +15,13 @@ import {
   classCoachAssignments,
   classSessions,
   groups,
-  athleteGuardians,
+  guardianAthletes,
+  guardians,
 } from "@/db/schema";
 import { getCurrentProfile } from "@/lib/authz";
-import { OwnerProfile } from "@/components/profiles/OwnerProfile";
+import { syncTrialStatus, markChecklistItem } from "@/lib/onboarding";
+import { trackEvent } from "@/lib/analytics";
+import { OptimizedOwnerProfile } from "@/components/profiles/OptimizedOwnerProfile";
 import { CoachProfile } from "@/components/profiles/CoachProfile";
 import { AthleteProfile } from "@/components/profiles/AthleteProfile";
 import { ParentProfile } from "@/components/profiles/ParentProfile";
@@ -71,18 +74,68 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
 
   // Owner o Admin: mostrar perfil de propietario
   if (role === "owner" || role === "admin" || role === "super_admin") {
-    const academyMemberships = await db
-      .select({
-        id: academies.id,
-        name: academies.name,
-        academyType: academies.academyType,
-        createdAt: academies.createdAt,
-        ownerId: academies.ownerId,
-      })
-      .from(memberships)
-      .innerJoin(academies, eq(memberships.academyId, academies.id))
-      .where(eq(memberships.userId, targetProfile.userId))
-      .orderBy(academies.name);
+    if (currentProfile.role === "owner" && currentProfile.activeAcademyId) {
+      await markChecklistItem({
+        academyId: currentProfile.activeAcademyId,
+        tenantId: currentProfile.tenantId ?? undefined,
+        key: "login_again",
+      });
+    }
+
+    let academyMemberships;
+    try {
+      academyMemberships = await db
+        .select({
+          id: academies.id,
+          name: academies.name,
+          academyType: academies.academyType,
+          createdAt: academies.createdAt,
+          ownerId: academies.ownerId,
+          trialStartsAt: academies.trialStartsAt,
+          trialEndsAt: academies.trialEndsAt,
+          isTrialActive: academies.isTrialActive,
+          paymentsConfiguredAt: academies.paymentsConfiguredAt,
+        })
+        .from(memberships)
+        .innerJoin(academies, eq(memberships.academyId, academies.id))
+        .where(eq(memberships.userId, targetProfile.userId))
+        .orderBy(academies.name);
+    } catch (error: any) {
+      console.error("dashboard/profile memberships query error", error);
+      if (
+        error?.message?.includes("DATABASE_URL") ||
+        error?.code === "ECONNREFUSED"
+      ) {
+        return (
+          <div className="min-h-screen bg-zaltyko-neutral-light flex items-center justify-center p-4">
+            <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-6 space-y-4">
+              <h1 className="text-2xl font-bold text-red-600">Error de Configuración</h1>
+              <p className="text-gray-700">
+                La aplicación necesita una conexión a la base de datos para funcionar.
+              </p>
+              <div className="bg-yellow-50 border border-yellow-200 rounded p-4">
+                <p className="text-sm font-semibold text-yellow-800 mb-2">Para solucionarlo:</p>
+                <ol className="text-sm text-yellow-700 list-decimal list-inside space-y-1">
+                  <li>Verifica tu archivo <code className="bg-yellow-100 px-1 rounded">.env.local</code></li>
+                  <li>
+                    Asegúrate de tener <code className="bg-yellow-100 px-1 rounded">DATABASE_URL</code> (o{" "}
+                    <code className="bg-yellow-100 px-1 rounded">DATABASE_URL_DIRECT</code>) apuntando a tu
+                    base de datos PostgreSQL
+                  </li>
+                  <li>Reinicia el servidor de desarrollo</li>
+                </ol>
+              </div>
+              <p className="text-xs text-gray-500">
+                Error: {error?.message ?? "No se pudo conectar a la base de datos"}
+              </p>
+            </div>
+          </div>
+        );
+      }
+      throw error;
+    }
+
+    await Promise.all(academyMemberships.map((academy) => syncTrialStatus(academy.id)));
 
     const academiesWithSubscription = await Promise.all(
       academyMemberships.map(async (academy) => {
@@ -127,6 +180,10 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
           planCode,
           planNickname,
           subscriptionStatus,
+          trialStartsAt: academy.trialStartsAt,
+          trialEndsAt: academy.trialEndsAt,
+          isTrialActive: academy.isTrialActive,
+          paymentsConfiguredAt: academy.paymentsConfiguredAt,
         };
       })
     );
@@ -134,8 +191,8 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
     const defaultActiveAcademyId = targetProfile.activeAcademyId ?? academiesWithSubscription[0]?.id ?? null;
 
     return (
-      <div className="space-y-6 p-4 sm:p-6 lg:p-8">
-        <OwnerProfile
+      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+        <OptimizedOwnerProfile
           user={user}
           profile={targetProfile}
           academies={academiesWithSubscription}
@@ -312,9 +369,11 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
         })()
       : null;
 
-    // Contar clases y sesiones (simplificado por ahora)
-    const classesCount = 0; // TODO: Implementar conteo real
-    const upcomingSessionsCount = 0; // TODO: Implementar conteo real
+    // Contar clases y sesiones
+    // Nota: La implementación completa del conteo de clases y sesiones se realizará
+    // cuando se implemente el módulo de calendario y sesiones de clase completo
+    const classesCount = 0;
+    const upcomingSessionsCount = 0;
 
     return (
       <div className="space-y-6 p-4 sm:p-6 lg:p-8">
@@ -346,10 +405,11 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
         academyName: academies.name,
         dob: athletes.dob,
       })
-      .from(athleteGuardians)
-      .innerJoin(athletes, eq(athleteGuardians.athleteId, athletes.id))
+      .from(guardianAthletes)
+      .innerJoin(guardians, eq(guardianAthletes.guardianId, guardians.id))
+      .innerJoin(athletes, eq(guardianAthletes.athleteId, athletes.id))
       .innerJoin(academies, eq(athletes.academyId, academies.id))
-      .where(eq(athleteGuardians.userId, targetProfile.userId));
+      .where(eq(guardians.profileId, targetProfile.id));
 
     const childrenWithAge = children.map((child) => {
       const age = child.dob
@@ -369,6 +429,11 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
         ...child,
         age,
       };
+    });
+
+    await trackEvent("first_parent_login", {
+      userId: user.id,
+      academyId: children[0]?.academyId ?? null,
     });
 
     return (

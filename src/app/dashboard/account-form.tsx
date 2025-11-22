@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { type ProfileRow } from "@/lib/authz";
+import { ProfileTabs } from "@/components/profiles/ProfileTabs";
 
 interface AcademySummary {
   id: string;
@@ -101,6 +102,8 @@ export default function AccountForm({ user, profile, academies, defaultAcademyId
   const router = useRouter();
   const [activeAcademyId, setActiveAcademyId] = useState(defaultAcademyId ?? "");
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [currentProfile, setCurrentProfile] = useState(profile);
+  const [currentUser, setCurrentUser] = useState(user);
   const [limitViolations, setLimitViolations] = useState<{
     violations: Array<{
       resource: string;
@@ -280,36 +283,14 @@ export default function AccountForm({ user, profile, academies, defaultAcademyId
         </CardContent>
       </Card>
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,2fr)]">
-        <Card>
-          <CardHeader className="p-6 pb-3">
-            <CardTitle className="text-base font-semibold">Datos personales</CardTitle>
-            <CardDescription>
-              Información básica de tu cuenta. Muy pronto podrás actualizar tu nombre y contraseña desde aquí.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="p-6 pt-0">
-            <dl className="space-y-4 text-sm">
-              <div className="flex flex-col">
-                <dt className="text-xs uppercase tracking-wide text-muted-foreground">Nombre</dt>
-                <dd className="font-medium text-foreground">{profile?.name ?? "Añade tu nombre"}</dd>
-              </div>
-              <div className="flex flex-col">
-                <dt className="text-xs uppercase tracking-wide text-muted-foreground">Correo</dt>
-                <dd className="font-medium text-foreground">{user?.email ?? "—"}</dd>
-              </div>
-              <div className="flex flex-col">
-                <dt className="text-xs uppercase tracking-wide text-muted-foreground">Miembro desde</dt>
-                <dd className="font-medium text-foreground">{formatDate(profile?.createdAt ?? null)}</dd>
-              </div>
-            </dl>
-          </CardContent>
-          <CardFooter className="flex justify-end space-x-3">
-            <Button variant="outline" size="sm" asChild>
-              <Link href="mailto:soporte@zaltyko.com">Solicitar cambios</Link>
-            </Button>
-          </CardFooter>
-        </Card>
+      <ProfileTabs
+        user={currentUser}
+        profile={currentProfile}
+        onProfileUpdated={() => {
+          // Recargar datos del perfil
+          window.location.reload();
+        }}
+      />
 
         <Card>
           <CardHeader className="p-6 pb-3">

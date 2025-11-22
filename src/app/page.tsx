@@ -13,9 +13,9 @@ import { Schema } from "@/components/Schema";
 const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const title = "Zaltyko — El sistema definitivo para gestionar academias de gimnasia";
+  const title = "Zaltyko — El software profesional para academias de gimnasia";
   const description =
-    "Registra alumnos, controla pagos, organiza competencias y haz crecer tu academia sin complicaciones.";
+    "Organiza atletas, grupos, horarios, entrenadores, asistencia y pagos… todo desde un solo panel. Sin Excel. Sin caos. Sin WhatsApp.";
 
   return {
     title,
@@ -56,7 +56,7 @@ export default function Home() {
           "@type": "SportsClub",
           name: "Zaltyko",
           description:
-            "Zaltyko — El sistema definitivo para gestionar academias de gimnasia. Registra alumnos, controla pagos, organiza competencias y haz crecer tu academia sin complicaciones.",
+            "Zaltyko — El sistema definitivo para academias de gimnasia. Registra alumnos, controla pagos, organiza clases y crece sin caos.",
           url: baseUrl,
           sport: "Gymnastics",
         }}

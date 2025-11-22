@@ -1,23 +1,41 @@
-import { CalendarRange, Gauge, ShieldCheck } from "lucide-react";
+import { Users, Calendar, UserCog, ClipboardCheck, CreditCard, LayoutDashboard } from "lucide-react";
 
 const features = [
   {
-    title: "Tenancy blindado",
+    title: "Atletas",
     description:
-      "Cada academia opera con su propio tenant, políticas RLS en Supabase y auditorías centralizadas para el Súper Admin.",
-    icon: ShieldCheck,
+      "Fichas completas, contactos de padres, niveles, importación desde Excel.",
+    icon: Users,
   },
   {
-    title: "Operaciones en tiempo real",
+    title: "Grupos y clases",
     description:
-      "Dashboard con KPIs de atletas, coaches y clases. Agenda semanal, eventos, cupos y niveles se actualizan al instante.",
-    icon: Gauge,
+      "Grupos por nivel/edad, horarios, calendario semanal/mensual, sesiones automáticas.",
+    icon: Calendar,
   },
   {
-    title: "Agenda inteligente",
+    title: "Entrenadores",
     description:
-      "Clases por nivel, rotación de aparatos y evaluaciones en un calendario diseñado para gimnasia artística.",
-    icon: CalendarRange,
+      "Acceso solo a sus grupos, asistencia sencilla, clases del día.",
+    icon: UserCog,
+  },
+  {
+    title: "Asistencia",
+    description:
+      "Presente/ausente/tarde, % por grupo, métricas en dashboard.",
+    icon: ClipboardCheck,
+  },
+  {
+    title: "Pagos",
+    description:
+      "Control mensual básico, marca quién pagó, límites automáticos por plan.",
+    icon: CreditCard,
+  },
+  {
+    title: "Dashboard",
+    description:
+      "Atletas activos, grupos, próximas clases, asistencia últimos días.",
+    icon: LayoutDashboard,
   },
 ];
 
@@ -29,13 +47,13 @@ export default function FeaturedTime() {
           Todo en un solo lugar
         </span>
         <h2 className="mt-4 font-display text-3xl font-bold text-white sm:text-4xl">
-          Nacimos en la pista, no en una plantilla genérica.
+          Zaltyko combina operativa diaria, comunicación interna y control financiero en una sola plataforma.
         </h2>
         <p className="mt-4 font-sans text-base text-white/80">
-          Zaltyko combina operativa diaria, comunicación y cobros para academias que entrenan élite y base. Multi-campus, multi-rol y con reportes listos para federaciones y padres.
+          Sin Excel. Sin caos. Sin WhatsApp. Todo lo que necesitas para gestionar tu academia de gimnasia profesionalmente.
         </p>
 
-        <div className="mt-12 grid gap-6 md:grid-cols-3">
+        <div className="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {features.map((feature) => {
             const Icon = feature.icon;
             return (

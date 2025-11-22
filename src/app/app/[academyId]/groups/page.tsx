@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { asc, eq, sql } from "drizzle-orm";
+import { asc, eq, inArray, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -12,6 +12,12 @@ import {
 import { GroupsDashboard } from "@/components/groups/GroupsDashboard";
 import { AthleteOption, CoachOption, GroupSummary } from "@/components/groups/types";
 
+/**
+ * AcademyGroupsPage - Vista principal de gestión de grupos
+ * 
+ * Permite crear y gestionar grupos de entrenamiento, organizando atletas por niveles
+ * y equipos para conectar clases, asistencia y evaluaciones.
+ */
 interface PageProps {
   params: {
     academyId: string;
@@ -31,6 +37,7 @@ export default async function AcademyGroupsPage({ params }: PageProps) {
     notFound();
   }
 
+  // Primero obtener los grupos con el coach
   const groupRows = await db
     .select({
       id: groups.id,
@@ -40,16 +47,40 @@ export default async function AcademyGroupsPage({ params }: PageProps) {
       color: groups.color,
       coachId: groups.coachId,
       assistantIds: groups.assistantIds,
+      monthlyFeeCents: groups.monthlyFeeCents,
+      billingItemId: groups.billingItemId,
       createdAt: groups.createdAt,
       coachName: coaches.name,
-      athleteCount: sql<number>`count(distinct ${groupAthletes.athleteId})`,
     })
     .from(groups)
     .leftJoin(coaches, eq(groups.coachId, coaches.id))
-    .leftJoin(groupAthletes, eq(groupAthletes.groupId, groups.id))
     .where(eq(groups.academyId, academyId))
-    .groupBy(groups.id, coaches.name)
     .orderBy(asc(groups.createdAt));
+
+  // Obtener el conteo de atletas por grupo usando una subconsulta
+  const groupIds = groupRows.map((g) => g.id);
+  const athleteCountsMap = new Map<string, number>();
+
+  if (groupIds.length > 0) {
+    const athleteCountRows = await db
+      .select({
+        groupId: groupAthletes.groupId,
+        count: sql<number>`count(distinct ${groupAthletes.athleteId})`,
+      })
+      .from(groupAthletes)
+      .where(inArray(groupAthletes.groupId, groupIds))
+      .groupBy(groupAthletes.groupId);
+
+    athleteCountRows.forEach((row) => {
+      athleteCountsMap.set(row.groupId, Number(row.count ?? 0));
+    });
+  }
+
+  // Combinar los resultados
+  const groupRowsWithCount: Array<typeof groupRows[number] & { athleteCount: number }> = groupRows.map((group) => ({
+    ...group,
+    athleteCount: athleteCountsMap.get(group.id) ?? 0,
+  }));
 
   const coachRows = await db
     .select({ id: coaches.id, name: coaches.name, email: coaches.email })
@@ -70,7 +101,7 @@ export default async function AcademyGroupsPage({ params }: PageProps) {
 
   const coachNameMap = new Map(coachRows.map((coach) => [coach.id, coach.name]));
 
-  const initialGroups: GroupSummary[] = groupRows.map((group) => ({
+  const initialGroups: GroupSummary[] = groupRowsWithCount.map((group) => ({
     id: group.id,
     academyId,
     name: group.name,
@@ -85,6 +116,8 @@ export default async function AcademyGroupsPage({ params }: PageProps) {
       : [],
     athleteCount: Number(group.athleteCount ?? 0),
     createdAt: group.createdAt ? group.createdAt.toISOString() : new Date().toISOString(),
+    monthlyFeeCents: group.monthlyFeeCents ?? null,
+    billingItemId: group.billingItemId ?? null,
   }));
 
   const coachOptions: CoachOption[] = coachRows.map((coach) => ({
@@ -102,6 +135,13 @@ export default async function AcademyGroupsPage({ params }: PageProps) {
 
   return (
     <div className="space-y-6 p-4 sm:p-6 lg:p-8">
+      <header className="space-y-2 py-6">
+        <h1 className="text-3xl font-semibold">Grupos</h1>
+        <p className="text-sm text-muted-foreground">
+          Organiza a tus atletas por niveles y equipos para conectar clases, asistencia y evaluaciones.
+        </p>
+      </header>
+
       <GroupsDashboard
         academyId={academy.id}
         initialGroups={initialGroups}

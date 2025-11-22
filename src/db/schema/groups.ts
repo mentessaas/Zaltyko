@@ -1,8 +1,9 @@
-import { pgTable, uuid, text, timestamp, index } from "drizzle-orm/pg-core";
+import { integer, pgTable, uuid, text, timestamp, index } from "drizzle-orm/pg-core";
 
 import { academies } from "./academies";
 import { coaches } from "./coaches";
 import { athletes } from "./athletes";
+import { billingItems } from "./billing-items";
 
 export const groups = pgTable(
   "groups",
@@ -18,6 +19,8 @@ export const groups = pgTable(
     coachId: uuid("coach_id").references(() => coaches.id, { onDelete: "set null" }),
     assistantIds: uuid("assistant_ids").array(),
     color: text("color"),
+    monthlyFeeCents: integer("monthly_fee_cents"), // Cuota mensual por defecto del grupo (en céntimos)
+    billingItemId: uuid("billing_item_id").references(() => billingItems.id, { onDelete: "set null" }), // Concepto de cobro asociado (opcional)
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   },
   (table) => ({
@@ -38,6 +41,7 @@ export const groupAthletes = pgTable(
     athleteId: uuid("athlete_id")
       .notNull()
       .references(() => athletes.id, { onDelete: "cascade" }),
+    customFeeCents: integer("custom_fee_cents"), // Cuota personalizada para este atleta en este grupo (becas/descuentos, en céntimos)
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   },
   (table) => ({

@@ -43,6 +43,7 @@ export function CreateGroupDialog({
   const [assistantIds, setAssistantIds] = useState<string[]>([]);
   const [selectedAthletes, setSelectedAthletes] = useState<string[]>([]);
   const [color, setColor] = useState(DEFAULT_COLOR);
+  const [monthlyFeeEuros, setMonthlyFeeEuros] = useState(""); // UI en euros
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -57,6 +58,7 @@ export function CreateGroupDialog({
     setAssistantIds([]);
     setSelectedAthletes([]);
     setColor(DEFAULT_COLOR);
+    setMonthlyFeeEuros("");
     setError(null);
   };
 
@@ -109,6 +111,15 @@ export function CreateGroupDialog({
             assistantIds,
             athleteIds: selectedAthletes,
             color,
+            monthlyFeeCents: monthlyFeeEuros.trim()
+              ? (() => {
+                  const parsed = parseFloat(monthlyFeeEuros.replace(",", "."));
+                  if (isNaN(parsed) || parsed < 0) {
+                    return null;
+                  }
+                  return Math.round(parsed * 100);
+                })()
+              : null,
           }),
         });
 
@@ -216,12 +227,27 @@ export function CreateGroupDialog({
             />
           </div>
           <div className="space-y-1">
+            <label className="font-medium">Cuota mensual (€)</label>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              value={monthlyFeeEuros}
+              onChange={(event) => setMonthlyFeeEuros(event.target.value)}
+              placeholder="Ej: 50.00"
+              className="w-full rounded-md border border-border bg-background px-3 py-2 shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+            <p className="text-xs text-muted-foreground">
+              Cuota mensual por defecto para los atletas de este grupo
+            </p>
+          </div>
+          <div className="space-y-1 md:col-span-2">
             <label className="font-medium">Color</label>
             <input
               type="color"
               value={color}
               onChange={(event) => setColor(event.target.value)}
-              className="h-10 w-full rounded-md border border-border bg-background px-2 py-1"
+              className="h-10 w-full rounded-md border border-border bg-background px-2 py-1 md:w-32"
             />
           </div>
         </div>

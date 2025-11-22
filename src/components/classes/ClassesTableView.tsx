@@ -26,7 +26,7 @@ interface CoachOption {
 interface ClassItem {
   id: string;
   name: string;
-  weekday: number | null;
+  weekdays: number[];
   startTime: string | null;
   endTime: string | null;
   capacity: number | null;
@@ -98,27 +98,31 @@ export function ClassesTableView({
     });
   };
 
+  const handleDeleted = () => {
+    setEditing(null);
+    handleRefresh();
+  };
+
   const formatSchedule = (item: ClassItem) => {
-    const day = item.weekday !== null && item.weekday !== undefined ? WEEKDAY_LABELS[item.weekday] : "Sin día fijo";
+    const days =
+      item.weekdays && item.weekdays.length > 0
+        ? item.weekdays.map((day) => WEEKDAY_LABELS[day] ?? `Día ${day}`).join(", ")
+        : "Sin día fijo";
     const time =
       item.startTime && item.endTime
         ? `${item.startTime} – ${item.endTime}`
         : item.startTime
         ? `Desde ${item.startTime}`
         : "Horario flexible";
-    return `${day} · ${time}`;
+    return `${days} · ${time}`;
   };
 
-  const emptyState = useMemo(() => {
-    if (filters.q || filters.groupId) {
-      return "No se encontraron clases con ese criterios.";
-    }
-    return "Crea tus primeras clases para organizar sesiones y asistencia.";
-  }, [filters]);
+  const hasActiveFilters = filters.q || filters.groupId;
+  const isEmpty = classes.length === 0;
 
   return (
     <div className="space-y-6">
-      <section className="flex flex-col gap-4 rounded-lg border bg-card p-5 shadow-sm xl:flex-row xl:items-center xl:justify-between">
+      <section className="flex flex-col gap-4 rounded-lg border bg-card p-5 shadow-sm lg:flex-row lg:items-center lg:justify-between">
         <form className="flex flex-1 flex-wrap items-center gap-3" onSubmit={applyFilters}>
           <input
             type="search"
@@ -139,43 +143,50 @@ export function ClassesTableView({
               </option>
             ))}
           </select>
-          <button
-            type="submit"
-            className="inline-flex items-center rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white shadow hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={isPending}
-          >
-            {isPending ? "Buscando…" : "Buscar"}
-          </button>
         </form>
-        <button
-          type="button"
-          onClick={() => setCreateOpen(true)}
-          className="inline-flex items-center justify-center rounded-md bg-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-emerald-600"
-        >
-          Nueva clase
-        </button>
+
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setCreateOpen(true)}
+            className="inline-flex items-center justify-center rounded-md bg-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-emerald-600"
+          >
+            Nueva clase
+          </button>
+        </div>
       </section>
 
-      <div className="overflow-hidden rounded-lg border bg-card shadow">
-        <table className="min-w-full divide-y divide-border text-sm">
-          <thead className="bg-muted/60">
-            <tr className="text-left text-xs uppercase tracking-wide text-muted-foreground">
-              <th className="px-4 py-3 font-medium">Nombre</th>
-              <th className="px-4 py-3 font-medium">Horario</th>
-              <th className="px-4 py-3 font-medium text-right">Capacidad</th>
-              <th className="px-4 py-3 font-medium">Entrenadores</th>
-              <th className="px-4 py-3 font-medium">Grupos vinculados</th>
-              <th className="px-4 py-3 font-medium text-right">Acciones</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border bg-background text-foreground">
-            {classes.length === 0 && (
-              <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
-                  {emptyState}
-                </td>
+      {isEmpty ? (
+        <div className="rounded-lg border bg-card p-12 text-center shadow-sm">
+          <p className="mb-4 text-sm text-muted-foreground">
+            {hasActiveFilters
+              ? "No se encontraron clases con esos criterios."
+              : "Aún no has creado ninguna clase. Crea tu primera clase para organizar horarios y sesiones de entrenamiento."}
+          </p>
+          {!hasActiveFilters && (
+            <button
+              type="button"
+              onClick={() => setCreateOpen(true)}
+              className="inline-flex items-center justify-center rounded-md bg-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-emerald-600"
+            >
+              Crear primera clase
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="overflow-hidden rounded-lg border bg-card shadow">
+          <table className="min-w-full divide-y divide-border text-sm">
+            <thead className="bg-muted/60">
+              <tr className="text-left text-xs uppercase tracking-wide text-muted-foreground">
+                <th className="px-4 py-3 font-medium">Nombre</th>
+                <th className="px-4 py-3 font-medium">Horario</th>
+                <th className="px-4 py-3 font-medium text-right">Capacidad</th>
+                <th className="px-4 py-3 font-medium">Entrenadores</th>
+                <th className="px-4 py-3 font-medium">Grupos vinculados</th>
+                <th className="px-4 py-3 font-medium text-right">Acciones</th>
               </tr>
-            )}
+            </thead>
+            <tbody className="divide-y divide-border bg-background text-foreground">
             {classes.map((item) => (
               <tr key={item.id} className="hover:bg-muted/40">
                 <td className="px-4 py-3">
@@ -256,9 +267,10 @@ export function ClassesTableView({
                 </td>
               </tr>
             ))}
-          </tbody>
-        </table>
-      </div>
+            </tbody>
+          </table>
+        </div>
+      )}
 
       <CreateClassDialog
         academyId={academyId}
@@ -271,9 +283,11 @@ export function ClassesTableView({
         <EditClassDialog
           classItem={editing}
           availableCoaches={availableCoaches}
+          availableGroups={groupOptions}
           open={Boolean(editing)}
           onClose={() => setEditing(null)}
           onUpdated={handleRefresh}
+          onDeleted={handleDeleted}
           academyId={academyId}
         />
       )}

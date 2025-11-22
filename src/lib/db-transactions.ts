@@ -7,6 +7,11 @@ import { db } from "@/db";
 export async function withTransaction<T>(
   callback: (tx: Parameters<Parameters<typeof db.transaction>[0]>[0]) => Promise<T>
 ): Promise<T> {
+  if (typeof db.transaction !== "function") {
+    // Entornos de prueba pueden mockear db sin soporte de transacciones
+    return callback(db as unknown as Parameters<Parameters<typeof db.transaction>[0]>[0]);
+  }
+
   return await db.transaction(async (tx) => {
     return await callback(tx);
   });

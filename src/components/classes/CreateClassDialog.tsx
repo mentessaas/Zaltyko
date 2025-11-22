@@ -6,7 +6,6 @@ import { Modal } from "@/components/ui/modal";
 import { createClient } from "@/lib/supabase/client";
 
 const WEEKDAY_OPTIONS = [
-  { value: "", label: "Sin día fijo" },
   { value: "1", label: "Lunes" },
   { value: "2", label: "Martes" },
   { value: "3", label: "Miércoles" },
@@ -25,7 +24,7 @@ interface CreateClassDialogProps {
 
 export function CreateClassDialog({ academyId, open, onClose, onCreated }: CreateClassDialogProps) {
   const [name, setName] = useState("");
-  const [weekday, setWeekday] = useState("");
+  const [weekdays, setWeekdays] = useState<string[]>([]);
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
   const [capacity, setCapacity] = useState("");
@@ -34,11 +33,20 @@ export function CreateClassDialog({ academyId, open, onClose, onCreated }: Creat
 
   const resetForm = () => {
     setName("");
-    setWeekday("");
+    setWeekdays([]);
     setStartTime("");
     setEndTime("");
     setCapacity("");
     setError(null);
+  };
+
+  const toggleWeekday = (value: string) => {
+    setWeekdays((prev) => {
+      if (prev.includes(value)) {
+        return prev.filter((item) => item !== value);
+      }
+      return [...prev, value];
+    });
   };
 
   const handleClose = () => {
@@ -65,7 +73,7 @@ export function CreateClassDialog({ academyId, open, onClose, onCreated }: Creat
         const payload = {
           academyId,
           name: name.trim(),
-          weekday: weekday ? Number(weekday) : undefined,
+          weekdays: weekdays.map((day) => Number(day)),
           startTime: startTime || undefined,
           endTime: endTime || undefined,
           capacity: capacity ? Number(capacity) : undefined,
@@ -142,18 +150,40 @@ export function CreateClassDialog({ academyId, open, onClose, onCreated }: Creat
 
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-1">
-            <label className="text-sm font-medium text-foreground">Día de la semana</label>
-            <select
-              value={weekday}
-              onChange={(event) => setWeekday(event.target.value)}
-              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+          <label className="text-sm font-medium text-foreground">Días de la semana</label>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <button
+              type="button"
+              onClick={() => setWeekdays([])}
+              className={`rounded-md border px-3 py-2 text-xs font-semibold transition ${
+                weekdays.length === 0
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-border bg-background text-muted-foreground"
+              }`}
             >
-              {WEEKDAY_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
+              Sin día fijo
+            </button>
+            {WEEKDAY_OPTIONS.map((option) => {
+              const selected = weekdays.includes(option.value);
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => toggleWeekday(option.value)}
+                  className={`rounded-md border px-3 py-2 text-xs font-semibold transition ${
+                    selected
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border bg-background text-muted-foreground"
+                  }`}
+                >
                   {option.label}
-                </option>
-              ))}
-            </select>
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Puedes seleccionar varios días. Déjalo vacío para horarios flexibles.
+          </p>
           </div>
           <div className="space-y-1">
             <label className="text-sm font-medium text-foreground">Capacidad</label>

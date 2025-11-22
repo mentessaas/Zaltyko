@@ -161,6 +161,11 @@ export default async function AcademyLayout({ params, children }: LayoutProps) {
             userName={profile.name}
             userEmail={user.email ?? null}
             profileId={profile.id}
+            currentAcademyId={academy.id}
+            academyName={academy.name}
+            academyType={academy.academyType}
+            tenantAcademies={tenantAcademies}
+            canCreateAcademies={canCreateAcademies}
           />
           <div className="flex flex-1 flex-col lg:flex-row">
             <AcademySidebar />

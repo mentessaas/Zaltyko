@@ -1,17 +1,12 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { and, asc, eq, gte, lte } from "drizzle-orm";
+import { addDays, getDay } from "date-fns";
+import { and, asc, eq, gte, inArray, lte } from "drizzle-orm";
 import Link from "next/link";
 import { ArrowLeft, Shield } from "lucide-react";
 
 import { db } from "@/db";
-import {
-  academies,
-  classSessions,
-  classes,
-  coaches,
-  profiles,
-} from "@/db/schema";
+import { academies, classSessions, classes, classWeekdays, coaches, profiles } from "@/db/schema";
 import CalendarView from "@/components/calendar/CalendarView";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/authz";
@@ -19,6 +14,20 @@ import { getCurrentProfile } from "@/lib/authz";
 interface CalendarPageProps {
   searchParams: Record<string, string | string[] | undefined>;
 }
+
+type CalendarSessionEntry = {
+  id: string;
+  date: string;
+  startTime: string | null;
+  endTime: string | null;
+  status: string;
+  classId: string | null;
+  className: string | null;
+  academyName: string | null;
+  coachName: string | null;
+  targetUrl?: string;
+  isPlaceholder?: boolean;
+};
 
 function parseDateParam(value?: string): Date {
   if (!value) return new Date();
@@ -31,6 +40,35 @@ function parseDateParam(value?: string): Date {
 
 function toISODate(date: Date) {
   return date.toISOString().slice(0, 10);
+}
+
+function getFirstDateForWeekday(start: Date, weekday: number) {
+  // weekday: 0=Domingo, 1=Lunes, ..., 6=Sábado (formato de la BD)
+  // getDay() de date-fns: 0=Domingo, 1=Lunes, ..., 6=Sábado
+  // Usamos la misma lógica que sessions-generator.ts para mantener consistencia
+  const first = new Date(start);
+  first.setHours(0, 0, 0, 0); // Normalizar a medianoche para evitar problemas de zona horaria
+  
+  const startWeekday = getDay(first); // date-fns: 0 = Domingo, 1 = Lunes, ..., 6 = Sábado
+  
+  // Convertir 0 (Domingo) a 7 para facilitar el cálculo
+  const targetDay = weekday === 0 ? 7 : weekday;
+  const currentDay = startWeekday === 0 ? 7 : startWeekday;
+  
+  let daysToAdd = (targetDay - currentDay + 7) % 7;
+  
+  if (daysToAdd === 0 && startWeekday !== weekday) {
+    daysToAdd = 7;
+  }
+  
+  first.setDate(first.getDate() + daysToAdd);
+  
+  // Si la fecha resultante es anterior al inicio del rango, avanzar una semana
+  if (first < start) {
+    first.setDate(first.getDate() + 7);
+  }
+  
+  return first;
 }
 
 export default async function CalendarPage({ searchParams }: CalendarPageProps) {
@@ -115,6 +153,7 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
       className: classes.name,
       academyName: academies.name,
       coachName: coaches.name,
+      isExtra: classes.isExtra,
     })
     .from(classSessions)
     .innerJoin(classes, eq(classSessions.classId, classes.id))
@@ -128,6 +167,115 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
       )
     )
     .orderBy(asc(classSessions.sessionDate), asc(classSessions.startTime));
+
+  let sessionsForCalendar: CalendarSessionEntry[] = sessions.map((session) => ({
+    id: session.id,
+    date: session.date,
+    startTime: session.startTime,
+    endTime: session.endTime,
+    status: session.status,
+    classId: session.classId ?? null,
+    className: session.className ?? null,
+    academyName: session.academyName ?? null,
+    coachName: session.coachName ?? null,
+    targetUrl: `/dashboard/sessions/${session.id}`,
+    isExtra: session.isExtra ?? false,
+  }));
+
+  let usingPlaceholderSessions = false;
+
+  if (sessionsForCalendar.length === 0) {
+    const fallbackClasses = await db
+      .select({
+        id: classes.id,
+        name: classes.name,
+        academyId: classes.academyId,
+        academyName: academies.name,
+        startTime: classes.startTime,
+        endTime: classes.endTime,
+      })
+      .from(classes)
+      .innerJoin(academies, eq(classes.academyId, academies.id))
+      .where(eq(classes.tenantId, tenantId))
+      .orderBy(asc(classes.name))
+      .limit(15);
+
+    const classIds = fallbackClasses.map((item) => item.id);
+    if (fallbackClasses.length > 0 && classIds.length > 0) {
+      const weekdayRows = await db
+        .select({
+          classId: classWeekdays.classId,
+          weekday: classWeekdays.weekday,
+        })
+        .from(classWeekdays)
+        .where(inArray(classWeekdays.classId, classIds));
+
+      const weekdayMap = weekdayRows.reduce((acc, row) => {
+        const current = acc.get(row.classId) ?? [];
+        current.push(row.weekday);
+        acc.set(row.classId, current);
+        return acc;
+      }, new Map<string, number[]>());
+
+      const placeholderSessions = fallbackClasses.flatMap((classRow) => {
+        const weekdays = weekdayMap.get(classRow.id) ?? [];
+        if (weekdays.length === 0) {
+          return [];
+        }
+
+        const placeholders: Array<{
+          id: string;
+          date: string;
+          startTime: string | null;
+          endTime: string | null;
+          status: string;
+          classId: string;
+          className: string | null;
+          academyName: string | null;
+          coachName: string | null;
+          targetUrl: string;
+          isPlaceholder: boolean;
+        }> = [];
+
+        weekdays.forEach((weekday) => {
+          let currentDate = getFirstDateForWeekday(rangeStart, weekday);
+          // Normalizar rangeEnd a medianoche para comparación correcta
+          const rangeEndNormalized = new Date(rangeEnd);
+          rangeEndNormalized.setHours(23, 59, 59, 999); // Incluir todo el día final
+          
+          while (currentDate <= rangeEndNormalized) {
+            placeholders.push({
+              id: `placeholder-${classRow.id}-${currentDate.toISOString()}`,
+              date: toISODate(currentDate),
+              startTime: classRow.startTime,
+              endTime: classRow.endTime,
+              status: "placeholder",
+              classId: classRow.id,
+              className: classRow.name,
+              academyName: classRow.academyName,
+              coachName: null,
+              targetUrl: `/app/${classRow.academyId}/classes/${classRow.id}`,
+              isPlaceholder: true,
+            });
+            currentDate = addDays(currentDate, 7);
+          }
+        });
+
+        return placeholders;
+      });
+
+      if (placeholderSessions.length > 0) {
+        placeholderSessions.sort((a, b) => {
+          if (a.date === b.date) {
+            return (a.startTime ?? "").localeCompare(b.startTime ?? "");
+          }
+          return a.date.localeCompare(b.date);
+        });
+        sessionsForCalendar = placeholderSessions;
+        usingPlaceholderSessions = true;
+      }
+    }
+  }
 
   return (
     <div className="space-y-6 p-8">
@@ -161,15 +309,21 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
           Visualiza las clases programadas y coordina los entrenadores asignados.
         </p>
       </header>
+      {usingPlaceholderSessions && (
+        <div className="rounded-lg border border-dashed border-amber-400/70 bg-amber-50/80 p-4 text-sm text-amber-900">
+          <p className="font-semibold">No hay sesiones generadas todavía.</p>
+          <p className="text-amber-800">
+            Mostramos tus clases según los días configurados para que puedas visualizar la carga semanal.
+            Usa la opción “Generar sesiones” en el módulo de clases para convertirlas en sesiones reales del calendario.
+          </p>
+        </div>
+      )}
       <CalendarView
         view={viewParam}
         referenceDate={referenceDate.toISOString()}
         rangeStart={rangeStart.toISOString()}
         rangeEnd={rangeEnd.toISOString()}
-        sessions={sessions.map((session) => ({
-          ...session,
-          date: session.date,
-        }))}
+        sessions={sessionsForCalendar}
       />
     </div>
   );

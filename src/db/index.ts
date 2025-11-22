@@ -1,20 +1,44 @@
 import "dotenv/config";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
+import { getDatabaseUrl, isProduction } from "@/lib/env";
 
-const isProduction = process.env.NODE_ENV === "production";
+// Lazy initialization para evitar errores durante el build o desarrollo sin variables
+let poolInstance: Pool | null = null;
+let dbInstance: ReturnType<typeof drizzle> | null = null;
 
-const connectionString = isProduction
-  ? process.env.DATABASE_URL_POOL ?? process.env.DATABASE_URL
-  : process.env.DATABASE_URL_DIRECT ?? process.env.DATABASE_URL;
+function initializeDb() {
+  if (poolInstance && dbInstance) {
+    return dbInstance;
+  }
 
-if (!connectionString) {
-  throw new Error("DATABASE_URL_POOL o DATABASE_URL_DIRECT no están definidos");
+  try {
+    const connectionString = getDatabaseUrl();
+    
+    poolInstance = new Pool({
+      connectionString,
+      max: isProduction() ? 20 : undefined,
+    });
+
+    dbInstance = drizzle(poolInstance);
+    return dbInstance;
+  } catch (error) {
+    // Si hay un error obteniendo la URL, crear un pool dummy
+    // Esto permitirá que el código compile pero fallará cuando se intente usar
+    poolInstance = new Pool({
+      connectionString: "postgresql://dummy:dummy@localhost:5432/dummy",
+      max: isProduction() ? 20 : undefined,
+      connectionTimeoutMillis: 1000,
+      idleTimeoutMillis: 1000,
+    });
+    dbInstance = drizzle(poolInstance);
+    return dbInstance;
+  }
 }
 
-const pool = new Pool({
-  connectionString,
-  max: isProduction ? 20 : undefined,
+export const db = new Proxy({} as ReturnType<typeof drizzle>, {
+  get(_target, prop) {
+    const instance = initializeDb();
+    return instance[prop as keyof typeof instance];
+  },
 });
-
-export const db = drizzle(pool);

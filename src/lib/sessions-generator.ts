@@ -1,7 +1,8 @@
-import { eq, and } from "drizzle-orm";
+import { and, eq, gte, lte } from "drizzle-orm";
+import { addDays, format, getDay } from "date-fns";
+
 import { db } from "@/db";
-import { classes, classSessions, classCoachAssignments } from "@/db/schema";
-import { addDays, getDay, format } from "date-fns";
+import { classCoachAssignments, classSessions, classWeekdays, classes } from "@/db/schema";
 
 export interface GenerateSessionsOptions {
   classId: string;
@@ -36,7 +37,6 @@ export async function generateRecurringSessions(
   const [classData] = await db
     .select({
       id: classes.id,
-      weekday: classes.weekday,
       startTime: classes.startTime,
       endTime: classes.endTime,
     })
@@ -48,7 +48,14 @@ export async function generateRecurringSessions(
     throw new Error("CLASS_NOT_FOUND");
   }
 
-  if (classData.weekday === null || classData.weekday === undefined) {
+  const weekdayRows = await db
+    .select({ weekday: classWeekdays.weekday })
+    .from(classWeekdays)
+    .where(eq(classWeekdays.classId, classId));
+
+  const weekdays = weekdayRows.map((row) => row.weekday).sort((a, b) => a - b);
+
+  if (weekdays.length === 0) {
     throw new Error("CLASS_HAS_NO_WEEKDAY");
   }
 
@@ -87,7 +94,9 @@ export async function generateRecurringSessions(
     .where(
       and(
         eq(classSessions.classId, classId),
-        eq(classSessions.tenantId, tenantId)
+        eq(classSessions.tenantId, tenantId),
+        gte(classSessions.sessionDate, start),
+        lte(classSessions.sessionDate, end)
       )
     );
 
@@ -104,66 +113,56 @@ export async function generateRecurringSessions(
   }> = [];
 
   const endDateObj = end;
-  const targetWeekday = classData.weekday; // 0 = Domingo, 1 = Lunes, ..., 6 = Sábado
 
-  // Encontrar la primera fecha que coincide con el weekday dentro del rango
-  let currentDate = new Date(start);
-  const startWeekday = getDay(currentDate); // date-fns: 0 = Domingo, 1 = Lunes, ..., 6 = Sábado
-  
-  // Calcular días a agregar para llegar al weekday objetivo
-  // Si targetWeekday es 0 (domingo), lo tratamos como 7 para el cálculo
-  const targetDay = targetWeekday === 0 ? 7 : targetWeekday;
-  const currentDay = startWeekday === 0 ? 7 : startWeekday;
-  
-  let daysToAdd = (targetDay - currentDay + 7) % 7;
-  
-  // Si daysToAdd es 0 y la fecha actual no coincide con el weekday objetivo, avanzar una semana
-  if (daysToAdd === 0 && startWeekday !== targetWeekday) {
-    daysToAdd = 7;
-  }
-  
-  currentDate = addDays(currentDate, daysToAdd);
+  for (const targetWeekday of weekdays) {
+    let currentDate = new Date(start);
+    const startWeekday = getDay(currentDate); // date-fns: 0 = Domingo, 1 = Lunes, ..., 6 = Sábado
 
-  // Si la fecha calculada es antes de startDate, avanzar una semana
-  if (currentDate < start) {
-    currentDate = addDays(currentDate, 7);
-  }
+    const targetDay = targetWeekday === 0 ? 7 : targetWeekday;
+    const currentDay = startWeekday === 0 ? 7 : startWeekday;
 
-  // Generar todas las fechas que coinciden con el weekday
-  while (currentDate <= endDateObj) {
-    const dateStr = format(currentDate, "yyyy-MM-dd");
+    let daysToAdd = (targetDay - currentDay + 7) % 7;
 
-    // Solo crear si no existe ya
-    if (!existingDates.has(dateStr)) {
-      // Convertir time a string HH:mm si existe
-      let startTimeStr: string | null = null;
-      let endTimeStr: string | null = null;
-
-      if (classData.startTime) {
-        // startTime puede ser un objeto Time de PostgreSQL o string
-        const timeStr = typeof classData.startTime === "string" 
-          ? classData.startTime 
-          : String(classData.startTime);
-        startTimeStr = timeStr.length === 8 ? timeStr.substring(0, 5) : timeStr; // HH:mm:ss -> HH:mm
-      }
-
-      if (classData.endTime) {
-        const timeStr = typeof classData.endTime === "string"
-          ? classData.endTime
-          : String(classData.endTime);
-        endTimeStr = timeStr.length === 8 ? timeStr.substring(0, 5) : timeStr;
-      }
-
-      sessionsToCreate.push({
-        sessionDate: dateStr,
-        startTime: startTimeStr,
-        endTime: endTimeStr,
-        coachId: assignedCoachId,
-      });
+    if (daysToAdd === 0 && startWeekday !== targetWeekday) {
+      daysToAdd = 7;
     }
 
-    // Avanzar una semana
-    currentDate = addDays(currentDate, 7);
+    currentDate = addDays(currentDate, daysToAdd);
+
+    if (currentDate < start) {
+      currentDate = addDays(currentDate, 7);
+    }
+
+    while (currentDate <= endDateObj) {
+      const dateStr = format(currentDate, "yyyy-MM-dd");
+
+      if (!existingDates.has(dateStr)) {
+        let startTimeStr: string | null = null;
+        let endTimeStr: string | null = null;
+
+        if (classData.startTime) {
+          const timeStr =
+            typeof classData.startTime === "string" ? classData.startTime : String(classData.startTime);
+          startTimeStr = timeStr.length === 8 ? timeStr.substring(0, 5) : timeStr;
+        }
+
+        if (classData.endTime) {
+          const timeStr =
+            typeof classData.endTime === "string" ? classData.endTime : String(classData.endTime);
+          endTimeStr = timeStr.length === 8 ? timeStr.substring(0, 5) : timeStr;
+        }
+
+        sessionsToCreate.push({
+          sessionDate: dateStr,
+          startTime: startTimeStr,
+          endTime: endTimeStr,
+          coachId: assignedCoachId,
+        });
+        existingDates.add(dateStr);
+      }
+
+      currentDate = addDays(currentDate, 7);
+    }
   }
 
   // Insertar sesiones en batch

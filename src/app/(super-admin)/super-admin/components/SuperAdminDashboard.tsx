@@ -8,15 +8,19 @@ import {
   LayoutGrid,
   ShieldCheck,
   Users,
+  TrendingUp,
+  DollarSign,
+  UserCheck,
 } from "lucide-react";
 
 import { DashboardCard } from "@/components/dashboard/DashboardCard";
-import type { SuperAdminMetrics } from "@/lib/superAdminService";
+import type { SuperAdminMetrics, EventLogEntry } from "@/lib/superAdminService";
 import { useSuperAdminData } from "@/hooks/useSuperAdminData";
 import { Button } from "@/components/ui/button";
 
 interface SuperAdminDashboardProps {
   initialMetrics: SuperAdminMetrics;
+  initialEvents?: EventLogEntry[];
 }
 
 const CURRENCY_FORMATTER = new Intl.NumberFormat("es-ES", {
@@ -25,7 +29,15 @@ const CURRENCY_FORMATTER = new Intl.NumberFormat("es-ES", {
   maximumFractionDigits: 0,
 });
 
-export function SuperAdminDashboard({ initialMetrics }: SuperAdminDashboardProps) {
+const EVENT_TYPE_LABELS: Record<string, string> = {
+  academy_created: "Academia creada",
+  group_created: "Grupo creado",
+  athlete_created: "Atleta creado",
+  charge_created: "Cargo creado",
+  charge_marked_paid: "Cargo pagado",
+};
+
+export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: SuperAdminDashboardProps) {
   const { metrics, loading, refresh } = useSuperAdminData(initialMetrics);
 
   const latestAcademyDate = useMemo(() => {
@@ -63,6 +75,11 @@ export function SuperAdminDashboard({ initialMetrics }: SuperAdminDashboardProps
     () => Math.max(...chartDataset.map((d) => d.total), 1),
     [chartDataset]
   );
+
+  const currentMonth = useMemo(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  }, []);
 
   const cards = useMemo(
     () => [
@@ -114,6 +131,38 @@ export function SuperAdminDashboard({ initialMetrics }: SuperAdminDashboardProps
         icon: CreditCard,
         accent: "amber" as const,
       },
+      {
+        title: "Academias activas",
+        value: metrics.totals.activeAcademies,
+        subtitle: "Con al menos 1 atleta o grupo",
+        href: "/super-admin/academies",
+        icon: Building2,
+        accent: "emerald" as const,
+      },
+      {
+        title: "Atletas totales",
+        value: metrics.totals.totalAthletes,
+        subtitle: "En todas las academias",
+        href: "/super-admin/academies",
+        icon: UserCheck,
+        accent: "sky" as const,
+      },
+      {
+        title: "Cobros creados este mes",
+        value: metrics.totals.chargesCreatedThisMonth,
+        subtitle: "Este mes",
+        href: "/super-admin/academies",
+        icon: TrendingUp,
+        accent: "violet" as const,
+      },
+      {
+        title: "Importe cobrado este mes",
+        value: CURRENCY_FORMATTER.format(metrics.totals.chargesPaidThisMonth / 100),
+        subtitle: "Este mes",
+        href: "/super-admin/academies",
+        icon: DollarSign,
+        accent: "emerald" as const,
+      },
     ],
     [metrics, latestAcademyDate, ownerCount, coachCount]
   );
@@ -143,7 +192,7 @@ export function SuperAdminDashboard({ initialMetrics }: SuperAdminDashboardProps
         </div>
       </section>
 
-      <section className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-6">
+      <section className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
         {cards.map((card) => (
           <DashboardCard key={card.title} {...card} />
         ))}
@@ -249,6 +298,47 @@ export function SuperAdminDashboard({ initialMetrics }: SuperAdminDashboardProps
           })}
         </div>
       </section>
+
+      {initialEvents.length > 0 && (
+        <section className="w-full overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-5 font-sans text-sm text-white/90">
+          <header className="flex items-center justify-between gap-2 font-display text-xs uppercase tracking-wide text-zaltyko-accent-light">
+            <span className="truncate">Actividad reciente</span>
+            <span className="shrink-0">Últimos {initialEvents.length} eventos</span>
+          </header>
+          <div className="mt-4 overflow-x-auto">
+            <table className="min-w-full divide-y divide-white/10 text-xs">
+              <thead>
+                <tr className="text-left text-[10px] uppercase tracking-wide text-white/60">
+                  <th className="px-3 py-2 font-medium">Fecha</th>
+                  <th className="px-3 py-2 font-medium">Evento</th>
+                  <th className="px-3 py-2 font-medium">Academia</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/10">
+                {initialEvents.map((event) => (
+                  <tr key={event.id} className="hover:bg-white/5">
+                    <td className="px-3 py-2 text-white/80">
+                      {new Date(event.createdAt).toLocaleDateString("es-ES", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </td>
+                    <td className="px-3 py-2 font-medium text-white">
+                      {EVENT_TYPE_LABELS[event.eventType] || event.eventType}
+                    </td>
+                    <td className="px-3 py-2 text-white/70">
+                      {event.academyName || "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
     </div>
   );
 }
