@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { createCapacityNotifications } from "@/lib/alerts/capacity-alerts";
 import { createPaymentNotifications } from "@/lib/alerts/payment-alerts";
-import { createAttendanceNotifications } from "@/lib/alerts/attendance-alerts";
+import { createAttendanceNotifications } from "@/lib/alerts/attendance/createAttendanceNotifications";
 import { db } from "@/db";
 import { academies } from "@/db/schema";
 import { eq } from "drizzle-orm";
