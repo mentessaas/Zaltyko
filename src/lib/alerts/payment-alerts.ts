@@ -25,10 +25,11 @@ export async function detectPaymentAlerts(
   tenantId: string,
   daysOverdue: number = 7
 ): Promise<PaymentAlert[]> {
-  const today = new Date();
-  const cutoffDate = subDays(today, daysOverdue);
+  try {
+    const today = new Date();
+    const cutoffDate = subDays(today, daysOverdue);
 
-  const overdueCharges = await db
+    const overdueCharges = await db
     .select({
       chargeId: charges.id,
       athleteId: charges.athleteId,
@@ -72,7 +73,11 @@ export async function detectPaymentAlerts(
     });
   }
 
-  return alerts;
+    return alerts;
+  } catch (error) {
+    console.error("Error detecting payment alerts:", error);
+    return [];
+  }
 }
 
 /**
@@ -84,6 +89,11 @@ export async function createPaymentNotifications(
   adminUserIds: string[]
 ) {
   const alerts = await detectPaymentAlerts(academyId, tenantId);
+
+  // Validar que alerts sea un array
+  if (!Array.isArray(alerts) || alerts.length === 0) {
+    return;
+  }
 
   for (const alert of alerts) {
     // Notificar a administradores

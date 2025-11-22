@@ -22,19 +22,20 @@ export async function detectCapacityAlerts(
   tenantId: string,
   threshold: number = 90
 ): Promise<CapacityAlert[]> {
-  // Obtener todas las clases con sus grupos
-  const classGroups = await db
-    .select({
-      classId: classes.id,
-      className: classes.name,
-      groupId: groups.id,
-      maxCapacity: classes.maxCapacity,
-    })
-    .from(classes)
-    .leftJoin(groups, eq(classes.groupId, groups.id))
-    .where(and(eq(classes.academyId, academyId), eq(classes.tenantId, tenantId)));
+  try {
+    // Obtener todas las clases con sus grupos
+    const classGroups = await db
+      .select({
+        classId: classes.id,
+        className: classes.name,
+        groupId: groups.id,
+        maxCapacity: classes.maxCapacity,
+      })
+      .from(classes)
+      .leftJoin(groups, eq(classes.groupId, groups.id))
+      .where(and(eq(classes.academyId, academyId), eq(classes.tenantId, tenantId)));
 
-  const alerts: CapacityAlert[] = [];
+    const alerts: CapacityAlert[] = [];
 
   for (const classGroup of classGroups) {
     if (!classGroup.maxCapacity) continue;
@@ -70,7 +71,11 @@ export async function detectCapacityAlerts(
     }
   }
 
-  return alerts;
+    return alerts;
+  } catch (error) {
+    console.error("Error detecting capacity alerts:", error);
+    return [];
+  }
 }
 
 /**
@@ -82,6 +87,11 @@ export async function createCapacityNotifications(
   adminUserIds: string[]
 ) {
   const alerts = await detectCapacityAlerts(academyId, tenantId);
+
+  // Validar que alerts sea un array
+  if (!Array.isArray(alerts) || alerts.length === 0) {
+    return;
+  }
 
   for (const alert of alerts) {
     for (const userId of adminUserIds) {
