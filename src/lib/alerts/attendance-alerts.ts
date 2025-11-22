@@ -31,11 +31,12 @@ export async function detectAttendanceAlerts(
   threshold: number = 70,
   daysToCheck: number = 30
 ): Promise<AttendanceAlert[]> {
-  const cutoffDate = subDays(new Date(), daysToCheck);
-  const cutoffDateStr = cutoffDate.toISOString().split("T")[0];
+  try {
+    const cutoffDate = subDays(new Date(), daysToCheck);
+    const cutoffDateStr = cutoffDate.toISOString().split("T")[0];
 
-  // Obtener todos los atletas de la academia
-  const academyAthletes = await db
+    // Obtener todos los atletas de la academia
+    const academyAthletes = await db
     .select({
       athleteId: athletes.id,
       athleteName: athletes.name,
@@ -96,7 +97,11 @@ export async function detectAttendanceAlerts(
     }
   }
 
-  return alerts;
+    return alerts;
+  } catch (error) {
+    console.error("Error detecting attendance alerts:", error);
+    return [];
+  }
 }
 
 /**
@@ -109,6 +114,11 @@ export async function createAttendanceNotifications(
   coachUserIds: string[]
 ) {
   const alerts = await detectAttendanceAlerts(academyId, tenantId);
+
+  // Validar que alerts sea un array
+  if (!Array.isArray(alerts) || alerts.length === 0) {
+    return;
+  }
 
   for (const alert of alerts) {
     // Notificar a administradores y coaches
