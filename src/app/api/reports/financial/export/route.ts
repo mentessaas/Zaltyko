@@ -6,6 +6,9 @@ import { calculateFinancialStats, calculateMonthlyRevenue, analyzeDelinquency } 
 import * as XLSX from "xlsx";
 import type { FinancialReportFilters } from "@/lib/reports/financial-calculator";
 
+// Forzar ruta dinámica
+export const dynamic = 'force-dynamic';
+
 const exportSchema = z.object({
   academyId: z.string().uuid(),
   format: z.enum(["pdf", "excel"]).default("pdf"),

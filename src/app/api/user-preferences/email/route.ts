@@ -6,6 +6,9 @@ import { db } from "@/db";
 import { userPreferences, profiles } from "@/db/schema";
 import { getCurrentProfile } from "@/lib/authz";
 
+// Forzar ruta dinámica
+export const dynamic = 'force-dynamic';
+
 const updateSchema = z.object({
   emailNotifications: z.record(z.boolean()).optional(),
 });

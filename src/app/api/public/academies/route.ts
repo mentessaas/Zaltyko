@@ -6,6 +6,9 @@ import { db } from "@/db";
 import { academies } from "@/db/schema";
 import { handleApiError } from "@/lib/api-error-handler";
 
+// Forzar ruta dinámica
+export const dynamic = 'force-dynamic';
+
 const ACADEMY_TYPES = ["artistica", "ritmica", "trampolin", "general", "parkour", "danza"] as const;
 
 const QuerySchema = z.object({
