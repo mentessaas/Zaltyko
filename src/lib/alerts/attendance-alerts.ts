@@ -8,9 +8,6 @@ import {
 } from "@/db/schema";
 import { eq, and, gte, count, sql } from "drizzle-orm";
 import { createNotification } from "@/lib/notifications/notification-service";
-
-// Re-exportar para uso en otros archivos
-export { createAttendanceNotifications };
 import { subDays } from "date-fns";
 
 export interface AttendanceAlert {

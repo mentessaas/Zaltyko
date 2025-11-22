@@ -2,9 +2,6 @@ import { db } from "@/db";
 import { charges, athletes, familyContacts } from "@/db/schema";
 import { eq, and, lte, sql } from "drizzle-orm";
 import { createNotification } from "@/lib/notifications/notification-service";
-
-// Re-exportar para uso en otros archivos
-export { createPaymentNotifications };
 import { subDays } from "date-fns";
 
 export interface PaymentAlert {

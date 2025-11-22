@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { verifySupabaseSetup } from "@/lib/supabase/verify-setup";
 import { getCurrentProfile } from "@/lib/authz";
 
+// Forzar ruta dinámica (no puede ser estática)
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: Request) {
   // Solo administradores pueden verificar la configuración
   const profile = await getCurrentProfile(request);
