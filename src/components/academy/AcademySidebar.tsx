@@ -20,7 +20,8 @@ const NAV_SECTIONS = [
     items: [
       { href: (id: string) => `/app/${id}/athletes`, text: "Atletas" },
       { href: (id: string) => `/app/${id}/coaches`, text: "Entrenadores" },
-      { href: (id: string) => `/app/${id}/classes`, text: "Clases y sesiones" },
+      { href: (id: string) => `/app/${id}/groups`, text: "Grupos" },
+      { href: (id: string) => `/app/${id}/classes`, text: "Clases" },
       { href: (id: string) => `/app/${id}/attendance`, text: "Asistencia" },
     ],
   },

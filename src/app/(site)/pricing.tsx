@@ -3,41 +3,44 @@ import { Check, Shield, Clock, Globe2 } from "lucide-react";
 const plans = [
   {
     title: "Free",
-    price: "0 €",
+    price: "0€",
     description: "Hasta 50 atletas. Ideal para academias en formación o sedes satélite.",
     cta: "Empezar gratis",
     highlight: false,
     features: [
+      "Hasta 50 atletas",
       "1 academia + 5 coaches",
-      "Agenda semanal y registro de asistencia",
-      "Alertas de cupo y métricas básicas",
-      "Checkout para upgrades integrado",
+      "Agenda semanal + asistencia",
+      "Métricas básicas",
+      "Límite controlado vía Stripe",
     ],
   },
   {
     title: "Pro",
-    price: "19 € / mes",
+    price: "19€/mes",
     description: "200 atletas, informes avanzados y seguimiento de evaluaciones técnicas.",
     cta: "Activar Plan Pro",
     highlight: true,
     features: [
-      "Academias ilimitadas por tenant",
-      "KPIs de rendimiento y lesiones",
-      "Automatización de correos a familias",
-      "Exportables para federaciones",
+      "Hasta 200 atletas",
+      "Academias ilimitadas",
+      "KPIs avanzados",
+      "Exportables para federación",
+      "Seguimiento de evaluaciones",
     ],
   },
   {
     title: "Premium",
-    price: "49 € / mes",
+    price: "49€/mes",
     description: "Para redes de academias y programas élite sin límites operativos.",
     cta: "Hablar con ventas",
     highlight: false,
     features: [
       "Atletas y coaches ilimitados",
-      "Integración con GymnasticMeet (fase II)",
-      "API extendida y soporte prioritario",
-      "Plan de cuentas y auditoría multi-sede",
+      "API extendida",
+      "Soporte prioritario",
+      "Auditoría multi-sede",
+      "Integración futura con GymnasticMeet",
     ],
   },
 ];
@@ -45,18 +48,18 @@ const plans = [
 const commonBenefits = [
   {
     icon: Shield,
-    title: "Seguridad multi-tenant",
-    description: "Políticas RLS activas, auditoría de acciones y cumplimiento RGPD sin configuración adicional.",
+    title: "Tenancy blindado",
+    description: "Aislamiento total por tenant con RLS y cumplimiento RGPD.",
   },
   {
     icon: Clock,
-    title: "Operación en tiempo real",
-    description: "Dashboards instantáneos de asistencia, evaluaciones y finanzas en todas tus academias.",
+    title: "Operativa en tiempo real",
+    description: "Todo se actualiza instantáneamente.",
   },
   {
     icon: Globe2,
-    title: "Soporte en español e inglés",
-    description: "Onboarding guiado, documentación clara y acompañamiento para equipos en distintos países.",
+    title: "Pensado exclusivamente para gimnasia",
+    description: "Diseñado junto a directores técnicos de gimnasia artística y rítmica.",
   },
 ];
 
@@ -66,13 +69,13 @@ export default function PricingSection() {
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <div className="text-center">
           <span className="font-display text-xs uppercase tracking-[0.35em] text-zaltyko-accent">
-            Planes claros
+            Planes
           </span>
           <h2 className="mt-4 font-display text-3xl font-semibold text-white sm:text-4xl">
-            Freemium pensado para escalar tu academia sin fricción.
+            Elige el plan que mejor se adapte a tu academia
           </h2>
           <p className="mt-3 font-sans text-base text-white/75">
-            Cambia de plan en cualquier momento. Stripe sincroniza límites en segundos y aplicamos prorateo automático.
+            Todos los planes incluyen las funcionalidades esenciales. Actualiza cuando necesites más capacidad.
           </p>
         </div>
 

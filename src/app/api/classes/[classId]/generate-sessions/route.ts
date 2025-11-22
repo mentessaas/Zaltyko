@@ -25,7 +25,6 @@ export const POST = withTenant(async (request, context) => {
     .select({
       id: classes.id,
       name: classes.name,
-      weekday: classes.weekday,
     })
     .from(classes)
     .where(and(eq(classes.id, body.classId), eq(classes.tenantId, context.tenantId)))
@@ -33,13 +32,6 @@ export const POST = withTenant(async (request, context) => {
 
   if (!classRow) {
     return NextResponse.json({ error: "CLASS_NOT_FOUND" }, { status: 404 });
-  }
-
-  if (classRow.weekday === null || classRow.weekday === undefined) {
-    return NextResponse.json(
-      { error: "CLASS_HAS_NO_WEEKDAY", message: "La clase no tiene un día de la semana configurado" },
-      { status: 400 }
-    );
   }
 
   // Validar fechas

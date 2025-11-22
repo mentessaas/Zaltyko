@@ -9,6 +9,7 @@ import { useToast } from "@/components/ui/toast-provider";
 
 import { CreateAthleteDialog } from "@/components/athletes/CreateAthleteDialog";
 import { EditAthleteDialog } from "@/components/athletes/EditAthleteDialog";
+import { TooltipOnboarding } from "@/components/tooltips/TooltipOnboarding";
 
 interface AthleteListItem {
   id: string;
@@ -144,16 +145,12 @@ export function AthletesTableView({ academyId, athletes: initialAthletes, levels
     handleRefresh();
   };
 
-  const emptyStateMessage = useMemo(() => {
-    if (filters.q || filters.level || filters.status || filters.groupId) {
-      return "No hay atletas que coincidan con los filtros.";
-    }
-    return "Aún no has registrado atletas en esta academia.";
-  }, [filters]);
+  const hasActiveFilters = filters.q || filters.level || filters.status || filters.groupId;
+  const isEmpty = athletes.length === 0;
 
   return (
     <div className="space-y-6">
-      <section className="flex flex-col gap-4 rounded-lg border bg-card p-5 shadow-sm xl:flex-row xl:items-center xl:justify-between">
+      <section className="flex flex-col gap-4 rounded-lg border bg-card p-5 shadow-sm lg:flex-row lg:items-center lg:justify-between">
         <form className="flex flex-1 flex-wrap items-center gap-3" onSubmit={applyFilters}>
           <input
             type="search"
@@ -191,52 +188,63 @@ export function AthletesTableView({ academyId, athletes: initialAthletes, levels
             onChange={(event) => setGroupFilter(event.target.value)}
             className="min-w-[180px] rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
           >
-            <option value="">Grupo</option>
+            <option value="">Grupo principal</option>
             {groups.map((group) => (
               <option key={group.id} value={group.id}>
                 {group.name}
               </option>
             ))}
           </select>
-          <button
-            type="submit"
-            className="inline-flex items-center rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white shadow hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={isPending}
-          >
-            {isPending ? "Aplicando…" : "Aplicar filtros"}
-          </button>
         </form>
 
-        <button
-          type="button"
-          onClick={() => setCreateOpen(true)}
-          className="inline-flex items-center justify-center rounded-md bg-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-emerald-600"
-        >
-          Nuevo atleta
-        </button>
+        <div className="flex items-center gap-3">
+          <TooltipOnboarding
+            tooltipId="tooltip_add_athlete"
+            message="Añade al menos 5 atletas clave para ver todo el valor del sistema."
+          >
+            <button
+              type="button"
+              onClick={() => setCreateOpen(true)}
+              className="inline-flex items-center justify-center rounded-md bg-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-emerald-600"
+            >
+              Nuevo atleta
+            </button>
+          </TooltipOnboarding>
+        </div>
       </section>
 
-      <div className="overflow-hidden rounded-lg border bg-card shadow">
-        <table className="min-w-full divide-y divide-border text-sm">
-          <thead className="bg-muted/60">
-            <tr className="text-left text-xs uppercase tracking-wide text-muted-foreground">
-              <th className="px-4 py-3 font-medium">Nombre</th>
-              <th className="px-4 py-3 font-medium">Nivel</th>
-              <th className="px-4 py-3 font-medium">Estado</th>
-              <th className="px-4 py-3 font-medium text-right">Edad</th>
-              <th className="px-4 py-3 font-medium text-right">Familia</th>
-              <th className="px-4 py-3 font-medium">Grupo</th>
-              <th className="px-4 py-3 font-medium text-right">Acciones</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border bg-background text-foreground">
-            {athletes.length === 0 && (
-              <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">
-                  {emptyStateMessage}
-                </td>
+      {isEmpty ? (
+        <div className="rounded-lg border bg-card p-12 text-center shadow-sm">
+          <p className="mb-4 text-sm text-muted-foreground">
+            {hasActiveFilters
+              ? "No hay atletas que coincidan con los filtros."
+              : "Aún no has creado ningún atleta. Crea tu primer atleta para empezar a gestionar tu academia."}
+          </p>
+          {!hasActiveFilters && (
+            <button
+              type="button"
+              onClick={() => setCreateOpen(true)}
+              className="inline-flex items-center justify-center rounded-md bg-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-emerald-600"
+            >
+              Crear primer atleta
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="overflow-hidden rounded-lg border bg-card shadow">
+          <table className="min-w-full divide-y divide-border text-sm">
+            <thead className="bg-muted/60">
+              <tr className="text-left text-xs uppercase tracking-wide text-muted-foreground">
+                <th className="px-4 py-3 font-medium">Nombre</th>
+                <th className="px-4 py-3 font-medium">Nivel</th>
+                <th className="px-4 py-3 font-medium">Estado</th>
+                <th className="px-4 py-3 font-medium text-right">Edad</th>
+                <th className="px-4 py-3 font-medium text-right">Familia</th>
+                <th className="px-4 py-3 font-medium">Grupo principal</th>
+                <th className="px-4 py-3 font-medium text-right">Acciones</th>
               </tr>
-            )}
+            </thead>
+            <tbody className="divide-y divide-border bg-background text-foreground">
             {athletes.map((athlete) => (
               <tr key={athlete.id} className="hover:bg-muted/40">
                 <td className="px-4 py-3">
@@ -296,9 +304,22 @@ export function AthletesTableView({ academyId, athletes: initialAthletes, levels
                 </td>
               </tr>
             ))}
-          </tbody>
-        </table>
-      </div>
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {process.env.NODE_ENV !== "production" && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+          <p>
+            ¿Necesitas importar datos? Usa el{" "}
+            <Link href="/dashboard/athletes" className="font-semibold underline">
+              módulo clásico
+            </Link>{" "}
+            mientras migramos las herramientas aquí.
+          </p>
+        </div>
+      )}
 
       <CreateAthleteDialog
         academyId={academyId}

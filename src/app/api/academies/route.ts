@@ -6,9 +6,13 @@ import { db } from "@/db";
 import { academies, memberships, plans, profiles, subscriptions } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
 import { assertUserAcademyLimit } from "@/lib/limits";
-import { withRateLimit, getUserIdentifier } from "@/lib/rate-limit";
+import { withRateLimit, getUserIdentifier, type RateLimitContext } from "@/lib/rate-limit";
 import { handleApiError } from "@/lib/api-error-handler";
-import { withPayloadValidation } from "@/lib/payload-validator";
+import { withPayloadValidation, type PayloadValidationContext } from "@/lib/payload-validator";
+import { isAppError } from "@/lib/errors";
+import { seedOnboardingForAcademy, markWizardStep } from "@/lib/onboarding";
+import { trackEvent } from "@/lib/analytics";
+import { logEvent } from "@/lib/event-logging";
 
 const ACADEMY_TYPES = ["artistica", "ritmica", "trampolin", "general"] as const;
 
@@ -16,6 +20,7 @@ const BodySchema = z.object({
   name: z.string().min(3),
   country: z.string().optional(),
   region: z.string().optional(),
+  city: z.string().optional(),
   academyType: z.enum(ACADEMY_TYPES),
   tenantId: z.string().uuid().optional(),
   ownerProfileId: z.string().uuid().optional(),
@@ -23,7 +28,32 @@ const BodySchema = z.object({
 
 const handler = withTenant(async (request, context) => {
   try {
-    const body = BodySchema.parse(await request.json());
+    let body;
+    try {
+      body = BodySchema.parse(await request.json());
+    } catch (parseError) {
+      if (parseError instanceof z.ZodError) {
+        return NextResponse.json(
+          {
+            error: "VALIDATION_ERROR",
+            message: "Los datos proporcionados no son válidos",
+            details: parseError.issues.map((issue) => ({
+              path: issue.path.join("."),
+              message: issue.message,
+            })),
+          },
+          { status: 400 }
+        );
+      }
+      // Error al parsear JSON
+      return NextResponse.json(
+        {
+          error: "INVALID_JSON",
+          message: "El cuerpo de la petición no es un JSON válido",
+        },
+        { status: 400 }
+      );
+    }
 
   const isAdmin = context.profile.role === "admin" || context.profile.role === "super_admin";
   const requesterRole = context.profile.role;
@@ -53,11 +83,12 @@ const handler = withTenant(async (request, context) => {
   try {
     await assertUserAcademyLimit(ownerProfile.userId);
   } catch (error: any) {
-    if (error.status === 402) {
+    if ((error?.status === 402 || error?.statusCode === 402) && error?.code === "ACADEMY_LIMIT_REACHED") {
       return NextResponse.json(
         {
-          error: "LIMIT_REACHED",
-          payload: error.payload,
+          error: "ACADEMY_LIMIT_REACHED",
+          message: `Has alcanzado el límite de academias de tu plan actual (${error.payload?.limit ?? 1} academia). ${error.payload?.upgradeTo ? `Actualiza a ${error.payload.upgradeTo.toUpperCase()} para crear más academias.` : "Contacta con soporte para aumentar tu límite."}`,
+          payload: error.payload || error.details,
         },
         { status: 402 }
       );
@@ -70,14 +101,21 @@ const handler = withTenant(async (request, context) => {
 
   const academyId = crypto.randomUUID();
 
+  const trialStartsAt = new Date();
+  const trialEndsAt = new Date(trialStartsAt.getTime() + 14 * 24 * 60 * 60 * 1000);
+
   await db.insert(academies).values({
     id: academyId,
     tenantId,
     name: body.name,
     country: body.country,
     region: body.region,
+    city: body.city,
     academyType: body.academyType,
     ownerId: ownerProfile.id,
+    trialStartsAt,
+    trialEndsAt,
+    isTrialActive: true,
   });
 
   await db
@@ -88,6 +126,18 @@ const handler = withTenant(async (request, context) => {
       role: "owner",
     })
     .onConflictDoNothing();
+
+  await seedOnboardingForAcademy({
+    academyId,
+    tenantId,
+    ownerProfileId: ownerProfile.id,
+  });
+
+  await markWizardStep({
+    academyId,
+    tenantId,
+    step: "academy",
+  });
 
   const shouldUpdateTenant = ownerProfile.tenantId !== tenantId;
 
@@ -123,10 +173,41 @@ const handler = withTenant(async (request, context) => {
       .onConflictDoNothing();
   }
 
+  await trackEvent("academy_created", {
+    academyId,
+    tenantId,
+    userId: ownerProfile.userId,
+    metadata: {
+      country: body.country,
+      academyType: body.academyType,
+    },
+  });
+
+  await trackEvent("trial_started", {
+    academyId,
+    tenantId,
+    userId: ownerProfile.userId,
+    metadata: {
+      trialEndsAt: trialEndsAt.toISOString(),
+    },
+  });
+
+  // Log event for Super Admin metrics
+  await logEvent({
+    academyId,
+    eventType: "academy_created",
+    metadata: {
+      country: body.country,
+      academyType: body.academyType,
+    },
+  });
+
     return NextResponse.json({
       id: academyId,
       tenantId,
       academyType: body.academyType,
+      trialStartsAt,
+      trialEndsAt,
     });
   } catch (error) {
     return handleApiError(error, { endpoint: "/api/academies", method: "POST" });
@@ -136,8 +217,16 @@ const handler = withTenant(async (request, context) => {
 // Aplicar rate limiting y validación de payload
 // Nota: withRateLimit y withPayloadValidation deben envolver el handler directamente
 // pero con withTenant necesitamos un wrapper adicional
-const wrappedHandler = async (request: Request) => {
-  return (await handler(request, {} as any)) as NextResponse;
+const wrappedHandler = async (
+  request: Request,
+  context?: RateLimitContext & PayloadValidationContext
+) => {
+  try {
+    return (await handler(request, context ?? {})) as NextResponse;
+  } catch (error) {
+    // Asegurar que siempre devolvemos JSON, incluso si hay un error no manejado
+    return handleApiError(error, { endpoint: "/api/academies", method: "POST" });
+  }
 };
 
 export const POST = withRateLimit(
@@ -170,7 +259,7 @@ export const GET = withTenant(async (request, context) => {
     return NextResponse.json({ items: [] });
   }
 
-  const filters: any[] = [];
+  const filters: Array<ReturnType<typeof eq>> = [];
 
   if (effectiveTenantId) {
     filters.push(eq(academies.tenantId, effectiveTenantId));

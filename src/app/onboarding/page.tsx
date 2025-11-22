@@ -11,33 +11,9 @@ import { COUNTRY_REGION_OPTIONS, findRegionsByCountry } from "@/lib/countryRegio
 import { ACADEMY_TYPES, onboardingCopy } from "@/lib/onboardingCopy";
 import { createClient } from "@/lib/supabase/client";
 import { isDevFeaturesEnabled } from "@/lib/dev";
+import { trackEvent } from "@/lib/analytics";
 import { useToast } from "@/components/ui/toast-provider";
-
-type PlanCode = "free" | "pro" | "premium";
-
-const PLAN_STEPS: Record<
-  PlanCode,
-  { title: string; price: string; description: string; action: string }
-> = {
-  free: {
-    title: "Free",
-    price: "0 €",
-    description: "Hasta 50 atletas. Puedes ampliar más adelante.",
-    action: "Continuar con Free",
-  },
-  pro: {
-    title: "Pro",
-    price: "19 €/mes",
-    description: "Hasta 200 atletas, métricas avanzadas y soporte prioritario.",
-    action: "Upgrade a Pro",
-  },
-  premium: {
-    title: "Premium",
-    price: "49 €/mes",
-    description: "Atletas ilimitados e integraciones exclusivas.",
-    action: "Upgrade a Premium",
-  },
-};
+import { getErrorMessage } from "@/lib/errors";
 
 interface CoachInput {
   name: string;
@@ -48,15 +24,23 @@ interface AthleteInput {
   name: string;
 }
 
-type StepKey = 1 | 2 | 3 | 4 | 5;
+type StepKey = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
 const STEP_FLOW: Array<{ id: StepKey; label: string }> = [
   { id: 1, label: "Cuenta" },
   { id: 2, label: "Academia" },
-  { id: 3, label: "Entrenadores" },
-  { id: 4, label: "Atletas" },
-  { id: 5, label: "Plan" },
+  { id: 3, label: "Estructura" },
+  { id: 4, label: "Primer grupo" },
+  { id: 5, label: "Atletas" },
+  { id: 6, label: "Entrenadores" },
+  { id: 7, label: "Pagos" },
 ];
+
+const DISCIPLINE_OPTIONS = [
+  { value: "artistica_femenina", label: "Gimnasia artística femenina" },
+  { value: "artistica_masculina", label: "Gimnasia artística masculina" },
+  { value: "ritmica", label: "Gimnasia rítmica" },
+] as const;
 
 export default function OnboardingWizard() {
   const router = useRouter();
@@ -74,10 +58,25 @@ export default function OnboardingWizard() {
     { name: "" },
     { name: "" },
     { name: "" },
+    { name: "" },
+    { name: "" },
   ]);
+  const [selectedDisciplines, setSelectedDisciplines] = useState<string[]>(["artistica_femenina"]);
+  const [structureGroups, setStructureGroups] = useState<string[]>([
+    "Inicial 6-8 años",
+    "Juvenil 9-12 años",
+    "Competición",
+  ]);
+  const [groupName, setGroupName] = useState("");
+  const [groupDiscipline, setGroupDiscipline] = useState<(typeof ACADEMY_TYPES)[number]["value"]>(
+    ACADEMY_TYPES[0].value
+  );
+  const [groupLevel, setGroupLevel] = useState("Iniciación");
+  const [groupWeekday, setGroupWeekday] = useState("1");
+  const [groupStartTime, setGroupStartTime] = useState("17:00");
+  const [groupEndTime, setGroupEndTime] = useState("18:30");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [planLoading, setPlanLoading] = useState<PlanCode | null>(null);
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -87,6 +86,7 @@ export default function OnboardingWizard() {
   const [maxStep, setMaxStep] = useState<StepKey>(1);
   const [selectedCountry, setSelectedCountry] = useState("");
   const [selectedRegion, setSelectedRegion] = useState("");
+  const [selectedCity, setSelectedCity] = useState("");
   const STORAGE_KEY = "gymna_onboarding_state";
 
   // Cargar estado persistido (si existe) antes de bootstrap de sesión
@@ -102,6 +102,7 @@ export default function OnboardingWizard() {
           academyType: (typeof ACADEMY_TYPES)[number]["value"];
           selectedCountry: string;
           selectedRegion: string;
+          selectedCity: string;
           fullName: string;
           email: string;
         }>;
@@ -111,6 +112,7 @@ export default function OnboardingWizard() {
         if (parsed.academyType) setAcademyType(parsed.academyType);
         if (parsed.selectedCountry) setSelectedCountry(parsed.selectedCountry);
         if (parsed.selectedRegion) setSelectedRegion(parsed.selectedRegion);
+        if (parsed.selectedCity) setSelectedCity(parsed.selectedCity);
         if (parsed.fullName) setFullName(parsed.fullName);
         if (parsed.email) setEmail(parsed.email);
       }
@@ -182,6 +184,7 @@ export default function OnboardingWizard() {
       academyType,
       selectedCountry,
       selectedRegion,
+      selectedCity,
       fullName,
       email,
     };
@@ -212,8 +215,8 @@ export default function OnboardingWizard() {
               user.email ??
               null
           );
-        } catch (err: any) {
-          setError(err.message ?? "No se pudo preparar el perfil");
+        } catch (err: unknown) {
+          setError(getErrorMessage(err));
         }
         setMaxStep((prev) => (prev < 2 ? 2 : prev));
         setStep((prev) => (prev === 1 ? 2 : prev));
@@ -237,10 +240,30 @@ export default function OnboardingWizard() {
     }
   }, [academyId, session?.academyId, session?.profileId, session?.tenantId, session?.userId, tenantId]);
 
+  useEffect(() => {
+    if (!academyId) return;
+    const fetchServerState = async () => {
+      try {
+        const res = await fetch(`/api/onboarding/state?academyId=${academyId}`, { cache: "no-store" });
+        if (!res.ok) return;
+        const data = await res.json();
+        const serverStep = Number(data?.state?.currentStep ?? 0) as StepKey;
+        if (serverStep && serverStep > 0) {
+          setMaxStep((prev) => (prev < serverStep ? serverStep : prev));
+          setStep((prev) => (prev < serverStep ? serverStep : prev));
+        }
+      } catch {
+        // ignore
+      }
+    };
+    fetchServerState();
+  }, [academyId]);
+
   const effectiveUserId = authUserId ?? session?.userId ?? null;
 
   const copy = onboardingCopy[academyType] ?? onboardingCopy.artistica;
-  const stepCopy = copy.steps[step];
+  const safeStep = (step <= 5 ? step : 5) as 1 | 2 | 3 | 4 | 5;
+  const stepCopy = copy.steps[safeStep];
   const { heading, description, sectionTitle, sectionDescription, recommendations } = stepCopy;
   const regionOptions = useMemo(
     () => findRegionsByCountry(selectedCountry),
@@ -301,12 +324,32 @@ export default function OnboardingWizard() {
     }
     if (step === 2) return Boolean(academyId);
     if (step === 3) {
-      return coaches.every(
-        (coach) => (coach.name && coach.email) || (!coach.name && !coach.email)
-      );
+      return selectedDisciplines.length > 0 && structureGroups.some((group) => group.trim().length > 0);
+    }
+    if (step === 4) {
+      return groupName.trim().length > 0 && groupStartTime && groupEndTime;
+    }
+    if (step === 5) {
+      return athletes.some((athlete) => athlete.name.trim().length > 0);
+    }
+    if (step === 6) {
+      return coaches.every((coach) => coach.email.includes("@") || coach.email.trim().length === 0);
     }
     return true;
-  }, [academyId, coaches, confirmPassword, email.length, password, step]);
+  }, [
+    academyId,
+    athletes,
+    coaches,
+    confirmPassword,
+    email.length,
+    groupEndTime,
+    groupName,
+    groupStartTime,
+    password,
+    selectedDisciplines.length,
+    structureGroups,
+    step,
+  ]);
 
   const handleAccountRegistration = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -363,6 +406,7 @@ export default function OnboardingWizard() {
         }
       }
       setAuthUserId(userId);
+      await trackEvent("signup_completed", { userId });
 
       await ensureProfile(userId, fullName);
       setMaxStep((prev) => (prev < 2 ? 2 : prev));
@@ -373,8 +417,23 @@ export default function OnboardingWizard() {
         description: "Tu cuenta ha sido creada exitosamente.",
         variant: "success",
       });
-    } catch (err: any) {
-      const errorMessage = err.message ?? "Error al registrar la cuenta";
+    } catch (err: unknown) {
+      let errorMessage = getErrorMessage(err);
+      
+      // Mejorar mensajes de error específicos de Supabase
+      if (err && typeof err === 'object' && 'message' in err) {
+        const supabaseError = err as { message: string; status?: number };
+        if (supabaseError.status === 500 || supabaseError.message.includes('500') || supabaseError.message.includes('Database error')) {
+          errorMessage = "Error al crear la cuenta. Por favor, verifica que el correo no esté ya registrado o intenta más tarde. Si el problema persiste, contacta con soporte.";
+        } else if (supabaseError.message.includes('already registered') || supabaseError.message.includes('User already exists')) {
+          errorMessage = "Este correo electrónico ya está registrado. Por favor, inicia sesión o usa otro correo.";
+        } else if (supabaseError.message.includes('email')) {
+          errorMessage = "El correo electrónico no es válido o ya está en uso.";
+        } else if (supabaseError.message.includes('password')) {
+          errorMessage = "La contraseña no cumple con los requisitos de seguridad.";
+        }
+      }
+      
       setError(errorMessage);
       toast.pushToast({
         title: "Error al registrar",
@@ -406,6 +465,7 @@ export default function OnboardingWizard() {
           name: form.get("name"),
           country: selectedCountry || form.get("country"),
           region: selectedRegion || form.get("region"),
+          city: selectedCity || form.get("city"),
           academyType,
           ownerProfileId: profileId ?? undefined,
         }),
@@ -419,7 +479,11 @@ export default function OnboardingWizard() {
         if (code === "OWNER_PROFILE_NOT_FOUND") {
           throw new Error("No se encontró el perfil del propietario. Vuelve al paso 1.");
         }
-        throw new Error(data?.error ?? "Error al crear la academia");
+        if (code === "ACADEMY_LIMIT_REACHED" || code === "LIMIT_REACHED") {
+          const message = data?.message || `Has alcanzado el límite de academias de tu plan actual. ${data?.payload?.upgradeTo ? `Actualiza a ${data.payload.upgradeTo.toUpperCase()} para crear más academias.` : "Contacta con soporte para aumentar tu límite."}`;
+          throw new Error(message);
+        }
+        throw new Error(data?.message || (data?.error ?? "Error al crear la academia"));
       }
       setAcademyId(data.id);
       setTenantId(data.tenantId);
@@ -431,8 +495,105 @@ export default function OnboardingWizard() {
       });
       setMaxStep((prev) => (prev < 3 ? 3 : prev));
       setStep(3);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(getErrorMessage(err));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleStructureGroupChange = (index: number, value: string) => {
+    setStructureGroups((prev) => {
+      const clone = [...prev];
+      clone[index] = value;
+      return clone;
+    });
+  };
+
+  const handleAddStructureGroup = () => {
+    setStructureGroups((prev) => [...prev, ""]);
+  };
+
+  const handleStructureSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!academyId) {
+      setError("Crea tu academia antes de definir la estructura.");
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const notes = `Disciplinas: ${selectedDisciplines.join(", ")} · Grupos: ${structureGroups
+        .filter((group) => group.trim().length > 0)
+        .join(", ")}`;
+      await fetch("/api/onboarding/state", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(effectiveUserId ? { "x-user-id": effectiveUserId } : {}),
+        },
+        body: JSON.stringify({
+          academyId,
+          step: "structure",
+          notes,
+        }),
+      });
+      setStep(4);
+      setMaxStep((prev) => (prev < 4 ? 4 : prev));
+    } catch (err: unknown) {
+      setError(getErrorMessage(err) || "No se pudo guardar la estructura.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateFirstGroup = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!academyId || !effectiveUserId) {
+      setError("Completa los pasos previos antes de crear el primer grupo.");
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const groupResponse = await fetch("/api/groups", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": effectiveUserId,
+        },
+        body: JSON.stringify({
+          academyId,
+          name: groupName,
+          discipline: groupDiscipline,
+          level: groupLevel,
+        }),
+      });
+
+      if (!groupResponse.ok) {
+        const body = await groupResponse.json().catch(() => ({}));
+        throw new Error(body?.error ?? "No se pudo crear el grupo");
+      }
+
+      await fetch("/api/classes", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": effectiveUserId,
+        },
+        body: JSON.stringify({
+          academyId,
+          name: `${groupName} · Clase`,
+          weekday: Number(groupWeekday),
+          startTime: groupStartTime,
+          endTime: groupEndTime,
+        }),
+      });
+
+      setStep(6);
+      setMaxStep((prev) => (prev < 6 ? 6 : prev));
+    } catch (err: unknown) {
+      setError(getErrorMessage(err) || "No se pudo crear el primer grupo.");
     } finally {
       setLoading(false);
     }
@@ -440,15 +601,15 @@ export default function OnboardingWizard() {
 
   const handleInviteCoaches = async () => {
     if (!academyId || !effectiveUserId) {
-      setError("Completa el paso anterior o crea tu cuenta.");
+      setError("Completa los pasos previos o crea tu cuenta.");
       return;
     }
     setLoading(true);
     setError(null);
     try {
-      const payload = coaches.filter((coach) => coach.name && coach.email);
+      const payload = coaches.filter((coach) => coach.email);
       for (const coach of payload) {
-        await fetch("/api/coaches", {
+        await fetch("/api/invitations", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -456,15 +617,44 @@ export default function OnboardingWizard() {
           },
           body: JSON.stringify({
             academyId,
-            name: coach.name,
             email: coach.email,
+            role: "coach",
           }),
         });
       }
-      setStep(4);
-      setMaxStep((prev) => (prev < 4 ? 4 : prev));
-    } catch (err: any) {
-      setError(err.message);
+      setStep(7);
+      setMaxStep((prev) => (prev < 7 ? 7 : prev));
+    } catch (err: unknown) {
+      setError(getErrorMessage(err) || "No se pudieron enviar las invitaciones.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleConfigurePayments = async () => {
+    if (!academyId || !effectiveUserId) {
+      setError("Necesitas una academia activa antes de configurar pagos.");
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch("/api/payments/configure", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": effectiveUserId,
+        },
+        body: JSON.stringify({ academyId }),
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data?.error ?? "No se pudo activar la configuración de pagos");
+      }
+      update({ academyId });
+      router.push(`/app/${academyId}/dashboard`);
+    } catch (err: unknown) {
+      setError(getErrorMessage(err) || "Error al configurar pagos");
     } finally {
       setLoading(false);
     }
@@ -479,64 +669,70 @@ export default function OnboardingWizard() {
     setError(null);
     try {
       const payload = athletes.filter((athlete) => athlete.name);
+      let createdCount = 0;
+      let limitError: { message: string; upgradeTo?: string } | null = null;
+
       for (const athlete of payload) {
-        await fetch("/api/athletes", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-user-id": effectiveUserId,
-          },
-          body: JSON.stringify({
-            academyId,
-            name: athlete.name,
-          }),
+        try {
+          const response = await fetch("/api/athletes", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-user-id": effectiveUserId,
+            },
+            body: JSON.stringify({
+              academyId,
+              name: athlete.name,
+            }),
+          });
+
+          if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            if (response.status === 402 && data.error === "LIMIT_REACHED") {
+              limitError = {
+                message: data.message || "Has alcanzado el límite de atletas de tu plan.",
+                upgradeTo: data.details?.upgradeTo,
+              };
+              break; // Detener el loop si se alcanza el límite
+            }
+            throw new Error(data.error || data.message || "Error al crear atleta");
+          }
+          createdCount++;
+        } catch (err: unknown) {
+          // Si es un error de límite, ya lo capturamos arriba
+          if (limitError) break;
+          throw err;
+        }
+      }
+
+      if (limitError) {
+        setError(
+          `${limitError.message} ${createdCount > 0 ? `Se crearon ${createdCount} de ${payload.length} atletas. ` : ""}${limitError.upgradeTo ? `Puedes actualizar tu plan más adelante desde la sección de facturación.` : ""}`
+        );
+        // Continuar al siguiente paso aunque haya error de límite
+        if (createdCount > 0) {
+          setStep(5);
+          setMaxStep((prev) => (prev < 5 ? 5 : prev));
+        }
+      } else if (createdCount > 0) {
+        setStep(5);
+        setMaxStep((prev) => (prev < 5 ? 5 : prev));
+        toast.pushToast({
+          title: "Atletas creados",
+          description: `Se crearon ${createdCount} atleta${createdCount === 1 ? "" : "s"} exitosamente.`,
+          variant: "success",
         });
       }
-      setStep(5);
-      setMaxStep((prev) => (prev < 5 ? 5 : prev));
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      const errorMessage = getErrorMessage(err);
+      setError(errorMessage);
+      toast.pushToast({
+        title: "Error al crear atletas",
+        description: errorMessage,
+        variant: "error",
+      });
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handlePlanSelection = async (plan: PlanCode) => {
-    if (!academyId || !effectiveUserId) {
-      setError("No encontramos una academia activa. Completa los pasos anteriores.");
-      return;
-    }
-    if (plan === "free") {
-      update({ academyId });
-      router.push(`/app/${academyId}/dashboard`);
-      return;
-    }
-
-    setPlanLoading(plan);
-    setError(null);
-    try {
-      const res = await fetch("/api/billing/checkout", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-user-id": effectiveUserId,
-        },
-        body: JSON.stringify({ academyId, planCode: plan }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data?.error ?? "No se pudo iniciar la suscripción");
-      }
-
-      if (data.checkoutUrl) {
-        window.location.href = data.checkoutUrl;
-      }
-    } catch (err: any) {
-      setError(err.message ?? "Error desconocido");
-    } finally {
-      setPlanLoading(null);
     }
   };
 
@@ -745,7 +941,7 @@ export default function OnboardingWizard() {
                   className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                 />
               </div>
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-4 md:grid-cols-3">
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium">País</label>
                 <select
@@ -788,6 +984,17 @@ export default function OnboardingWizard() {
                   ))}
                 </select>
                 </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">Ciudad</label>
+                  <input
+                    name="city"
+                    type="text"
+                    value={selectedCity}
+                    onChange={(event) => setSelectedCity(event.target.value)}
+                    placeholder="Ej: Madrid, Barcelona, Bilbao..."
+                    className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </div>
               </div>
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">Tipo de academia</label>
@@ -829,44 +1036,49 @@ export default function OnboardingWizard() {
           )}
 
           {step === 3 && (
-            <div className="space-y-5">
-            <div className="space-y-1">
-              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Paso {getStepOrder(3)}
-              </span>
-              <h2 className="text-xl font-semibold">{sectionTitle}</h2>
-              <p className="text-sm text-muted-foreground">{sectionDescription}</p>
+            <form onSubmit={handleStructureSubmit} className="space-y-5">
+              <div className="space-y-1">
+                <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Paso {getStepOrder(3)}
+                </span>
+                <h2 className="text-xl font-semibold">{sectionTitle}</h2>
+                <p className="text-sm text-muted-foreground">{sectionDescription}</p>
               </div>
-              {coaches.map((coach, index) => (
-                <div key={index} className="grid gap-3 md:grid-cols-2">
+              <div className="grid gap-4 md:grid-cols-2">
+                {DISCIPLINE_OPTIONS.map((option) => (
+                  <label key={option.value} className="flex items-center gap-3 rounded-lg border bg-background px-3 py-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={selectedDisciplines.includes(option.value)}
+                      onChange={(event) => {
+                        const checked = event.target.checked;
+                        setSelectedDisciplines((prev) =>
+                          checked ? Array.from(new Set([...prev, option.value])) : prev.filter((value) => value !== option.value)
+                        );
+                      }}
+                    />
+                    <span>{option.label}</span>
+                  </label>
+                ))}
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Grupos sugeridos</label>
+                {structureGroups.map((group, index) => (
                   <input
-                    placeholder="Nombre"
-                    value={coach.name}
-                    onChange={(event) => {
-                      const value = event.target.value;
-                      setCoaches((prev) => {
-                        const copy = [...prev];
-                        copy[index] = { ...copy[index], name: value };
-                        return copy;
-                      });
-                    }}
-                    className="rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                    key={`structure-${index}`}
+                    value={group}
+                    onChange={(event) => handleStructureGroupChange(index, event.target.value)}
+                    className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   />
-                  <input
-                    placeholder="Email"
-                    value={coach.email}
-                    onChange={(event) => {
-                      const value = event.target.value;
-                      setCoaches((prev) => {
-                        const copy = [...prev];
-                        copy[index] = { ...copy[index], email: value };
-                        return copy;
-                      });
-                    }}
-                    className="rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                  />
-                </div>
-              ))}
+                ))}
+                <button
+                  type="button"
+                  onClick={handleAddStructureGroup}
+                  className="text-xs font-semibold text-primary hover:underline"
+                >
+                  Añadir otro grupo
+                </button>
+              </div>
               <div className="flex flex-wrap items-center gap-3">
                 <button
                   type="button"
@@ -876,56 +1088,140 @@ export default function OnboardingWizard() {
                   Volver
                 </button>
                 <button
-                  type="button"
-                  className="rounded-md border border-dashed px-3 py-2 text-sm font-medium hover:bg-muted"
-                  onClick={() => setCoaches((prev) => [...prev, { name: "", email: "" }])}
-                >
-                  Añadir coach
-                </button>
-                <button
-                  type="button"
+                  type="submit"
                   className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-70"
                   disabled={loading || !canGoNext}
-                  onClick={handleInviteCoaches}
                 >
                   Guardar y continuar
                 </button>
               </div>
-              {!canGoNext && (
-                <p className="text-xs text-muted-foreground">
-                  Asegúrate de completar nombre y correo para cada entrenador o deja ambos campos
-                  vacíos.
-                </p>
-              )}
-            </div>
+            </form>
           )}
 
           {step === 4 && (
-            <div className="space-y-5">
-            <div className="space-y-1">
-              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Paso {getStepOrder(4)}
-              </span>
-              <h2 className="text-xl font-semibold">{sectionTitle}</h2>
-              <p className="text-sm text-muted-foreground">{sectionDescription}</p>
+            <form onSubmit={handleCreateFirstGroup} className="space-y-5">
+              <div className="space-y-1">
+                <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Paso {getStepOrder(4)}
+                </span>
+                <h2 className="text-xl font-semibold">{sectionTitle}</h2>
+                <p className="text-sm text-muted-foreground">{sectionDescription}</p>
               </div>
-              {athletes.map((athlete, index) => (
-                <div key={index} className="grid gap-3 md:grid-cols-2">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">Nombre del grupo</label>
                   <input
-                    placeholder="Nombre"
-                    value={athlete.name}
-                    onChange={(event) => {
-                      const value = event.target.value;
-                      setAthletes((prev) => {
-                        const copy = [...prev];
-                        copy[index] = { ...copy[index], name: value };
-                        return copy;
-                      });
-                    }}
-                    className="rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                    value={groupName}
+                    onChange={(event) => setGroupName(event.target.value)}
+                    className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                    required
                   />
                 </div>
-              ))}
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">Disciplina</label>
+                  <select
+                    value={groupDiscipline}
+                    onChange={(event) =>
+                      setGroupDiscipline(event.target.value as (typeof ACADEMY_TYPES)[number]["value"])
+                    }
+                    className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                  >
+                    {ACADEMY_TYPES.map((type) => (
+                      <option key={type.value} value={type.value}>
+                        {type.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">Nivel</label>
+                  <select
+                    value={groupLevel}
+                    onChange={(event) => setGroupLevel(event.target.value)}
+                    className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                  >
+                    <option value="Iniciación">Iniciación</option>
+                    <option value="Juvenil">Juvenil</option>
+                    <option value="Competición">Competición</option>
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">Día</label>
+                  <select
+                    value={groupWeekday}
+                    onChange={(event) => setGroupWeekday(event.target.value)}
+                    className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                  >
+                    <option value="1">Lunes</option>
+                    <option value="2">Martes</option>
+                    <option value="3">Miércoles</option>
+                    <option value="4">Jueves</option>
+                    <option value="5">Viernes</option>
+                    <option value="6">Sábado</option>
+                    <option value="0">Domingo</option>
+                  </select>
+                </div>
+              </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">Hora de inicio</label>
+                  <input
+                    type="time"
+                    value={groupStartTime}
+                    onChange={(event) => setGroupStartTime(event.target.value)}
+                    className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                    required
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">Hora de fin</label>
+                  <input
+                    type="time"
+                    value={groupEndTime}
+                    onChange={(event) => setGroupEndTime(event.target.value)}
+                    className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                    required
+                  />
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  onClick={handleGoBack}
+                  className="rounded-md border border-border px-3 py-2 text-sm font-medium hover:bg-muted"
+                >
+                  Volver
+                </button>
+                <button
+                  type="submit"
+                  className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-70"
+                  disabled={loading || !canGoNext}
+                >
+                  Guardar y continuar
+                </button>
+              </div>
+            </form>
+          )}
+
+          {step === 7 && (
+            <div className="space-y-6">
+              <div className="space-y-1">
+                <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Paso {getStepOrder(7)}
+                </span>
+                <h2 className="text-xl font-semibold">{sectionTitle}</h2>
+                <p className="text-sm text-muted-foreground">{sectionDescription}</p>
+              </div>
+              <div className="rounded-xl border border-primary/40 bg-primary/5 p-5 text-sm">
+                <p className="font-semibold text-primary">
+                  Configura tus métodos de cobro con Stripe para automatizar mensualidades y evitar recordatorios manuales.
+                </p>
+                <ul className="mt-3 list-disc space-y-1 pl-5 text-muted-foreground">
+                  <li>No cobramos comisiones adicionales.</li>
+                  <li>Puedes conectar tu cuenta bancaria existente.</li>
+                  <li>Activa recordatorios automáticos para padres.</li>
+                </ul>
+              </div>
               <div className="flex flex-wrap items-center gap-3">
                 <button
                   type="button"
@@ -937,63 +1233,14 @@ export default function OnboardingWizard() {
                 <button
                   type="button"
                   className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-70"
-                  disabled={loading || !canGoNext}
-                  onClick={handleCreateAthletes}
+                  onClick={handleConfigurePayments}
+                  disabled={loading}
                 >
-                  Guardar y continuar
+                  Activar configuración de pagos
                 </button>
               </div>
-              {!canGoNext && (
-                <p className="text-xs text-muted-foreground">
-                  Añade al menos un nombre de atleta para continuar o deja todos los campos vacíos.
-                </p>
-              )}
-            </div>
-          )}
-
-          {step === 5 && (
-            <div className="space-y-6">
-            <div className="space-y-1">
-              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Paso {getStepOrder(5)}
-              </span>
-              <h2 className="text-xl font-semibold">{sectionTitle}</h2>
-              <p className="text-sm text-muted-foreground">{sectionDescription}</p>
-              </div>
-              <div className="flex flex-wrap gap-3">
-                <button
-                  type="button"
-                  onClick={handleGoBack}
-                  className="rounded-md border border-border px-3 py-2 text-sm font-medium hover:bg-muted"
-                >
-                  Volver
-                </button>
-              </div>
-              <div className="grid gap-4 md:grid-cols-3">
-                {(Object.entries(PLAN_STEPS) as [PlanCode, typeof PLAN_STEPS[PlanCode]][]).map(
-                  ([code, info]) => (
-                    <article
-                      key={code}
-                      className={`rounded-xl border bg-card/60 p-6 shadow-sm transition hover:shadow-md ${
-                        code === "pro" ? "border-primary" : ""
-                      }`}
-                    >
-                      <h3 className="text-lg font-semibold">{info.title}</h3>
-                      <p className="mt-1 text-xl font-bold">{info.price}</p>
-                      <p className="mt-2 text-sm text-muted-foreground">{info.description}</p>
-                      <button
-                        onClick={() => handlePlanSelection(code)}
-                        disabled={planLoading === code}
-                        className="mt-4 w-full rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-70"
-                      >
-                        {planLoading === code ? "Redirigiendo…" : info.action}
-                      </button>
-                    </article>
-                  )
-                )}
-              </div>
-              <p className="text-sm text-muted-foreground">
-                ¿No estás listo? Puedes cambiar de plan más tarde desde &quot;Facturación&quot;.
+              <p className="text-xs text-muted-foreground">
+                Si prefieres hacerlo más tarde, puedes acceder desde el módulo de facturación.
               </p>
             </div>
           )}

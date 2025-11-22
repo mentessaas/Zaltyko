@@ -8,6 +8,7 @@ const originalEnv = { ...process.env };
 let selectQueue: any[] = [];
 let insertCalls: Array<{ table: unknown; payload: any }> = [];
 let updateCalls: Array<{ table: unknown; values: unknown }> = [];
+let currentProfileRole: string;
 
 const createSelectChain = (config: { resolveAt: "limit" | "orderBy"; result: any[] }) => {
   const chain: Record<string, any> = {};
@@ -33,6 +34,7 @@ describe("API /api/academies", () => {
     selectQueue = [];
     insertCalls = [];
     updateCalls = [];
+    currentProfileRole = "owner";
 
     vi.mock("@/lib/authz", () => ({
       withTenant:
@@ -41,9 +43,13 @@ describe("API /api/academies", () => {
           handler(request, {
             tenantId: "tenant-123",
             userId: "user-123",
-            profile: { id: "profile-1", userId: "user-123", role: "owner", tenantId: "tenant-123" },
+            profile: { id: "profile-1", userId: "user-123", role: currentProfileRole, tenantId: "tenant-123" },
             ...ctx,
           }),
+    }));
+
+    vi.mock("@/lib/limits", () => ({
+      assertUserAcademyLimit: vi.fn().mockResolvedValue(undefined),
     }));
 
     vi.mock("@/db", () => ({
@@ -129,10 +135,9 @@ describe("API /api/academies", () => {
       }),
     });
 
-    const response = await POST(
-      request,
-      { profile: { id: "profile-2", userId: "user-123", role: "coach", tenantId: "tenant-123" } } as any
-    );
+    currentProfileRole = "coach";
+
+    const response = await POST(request, {} as any);
 
     expect(response.status).toBe(403);
     expect(insertCalls.length).toBe(0);

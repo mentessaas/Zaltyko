@@ -64,6 +64,11 @@ describe("API /api/athletes", () => {
       assertWithinPlanLimits: assertWithinPlanLimitsMock,
     }));
 
+    vi.mock("@/lib/permissions", () => ({
+      verifyAcademyAccess: vi.fn().mockResolvedValue({ allowed: true }),
+      verifyGroupAccess: vi.fn().mockResolvedValue({ allowed: true }),
+    }));
+
     vi.mock("@/db", () => ({
       db: {
         insert: vi.fn((table) => ({

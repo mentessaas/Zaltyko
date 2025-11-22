@@ -1,4 +1,4 @@
-import { boolean, index, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { boolean, index, jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
 import { academies } from "./academies";
 
@@ -17,6 +17,19 @@ export const coaches = pgTable(
     photoUrl: text("photo_url"),
     isPublic: boolean("is_public").notNull().default(false),
     specialties: text("specialties").array(),
+    publicBio: text("public_bio"),
+    certifications: jsonb("certifications").$type<Array<{
+      name: string;
+      issuer: string;
+      date: string;
+      url?: string;
+    }>>().default([]),
+    photoGallery: text("photo_gallery").array(),
+    achievements: jsonb("achievements").$type<Array<{
+      title: string;
+      description?: string;
+      date?: string;
+    }>>().default([]),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   },
   (table) => ({

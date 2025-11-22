@@ -9,6 +9,7 @@ import { withRateLimit, getUserIdentifier } from "@/lib/rate-limit";
 import { getStripeClient } from "@/lib/stripe/client";
 import { handleApiError } from "@/lib/api-error-handler";
 import { verifyAcademyAccess } from "@/lib/permissions";
+import { getAppUrl, getOptionalEnvVar } from "@/lib/env";
 
 const BodySchema = z.object({
   academyId: z.string().uuid(),
@@ -17,23 +18,73 @@ const BodySchema = z.object({
 
 const handler = withTenant(async (request, context) => {
   try {
-    if (!process.env.STRIPE_SECRET_KEY) {
-      return NextResponse.json({ error: "STRIPE_NOT_CONFIGURED" }, { status: 500 });
+    // Verificar Stripe antes de hacer cualquier otra cosa
+    const stripeSecretKey = getOptionalEnvVar("STRIPE_SECRET_KEY");
+    // Verificar que la clave existe y no está vacía
+    if (!stripeSecretKey || stripeSecretKey.trim() === "") {
+      return NextResponse.json({ 
+        error: "STRIPE_NOT_CONFIGURED", 
+        message: "Stripe no está configurado. Contacta con soporte para habilitar los pagos." 
+      }, { status: 503 }); // 503 Service Unavailable es más apropiado que 500
     }
 
-    const stripe = getStripeClient();
+    let json;
+    try {
+      json = await request.json();
+    } catch (error) {
+      return NextResponse.json({ error: "INVALID_JSON", message: "El cuerpo de la petición no es un JSON válido" }, { status: 400 });
+    }
 
-    const json = await request.json();
-    const body = BodySchema.parse(json);
+    let body;
+    try {
+      body = BodySchema.parse(json);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return NextResponse.json({
+          error: "VALIDATION_ERROR",
+          message: "Los datos proporcionados no son válidos",
+          details: error.issues.map((issue) => ({
+            path: issue.path.join("."),
+            message: issue.message,
+          })),
+        }, { status: 400 });
+      }
+      throw error;
+    }
 
-    if (!context.tenantId) {
-      return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+    // Inicializar Stripe después de validar que la clave existe
+    let stripe;
+    try {
+      stripe = getStripeClient();
+    } catch (error) {
+      return NextResponse.json({ 
+        error: "STRIPE_INIT_ERROR", 
+        message: error instanceof Error ? error.message : "Error al inicializar Stripe. Contacta con soporte." 
+      }, { status: 500 });
+    }
+
+    // Obtener tenantId desde la academia si no está disponible en el contexto
+    let effectiveTenantId = context.tenantId;
+    if (!effectiveTenantId && body.academyId) {
+      const [academyForTenant] = await db
+        .select({ tenantId: academies.tenantId })
+        .from(academies)
+        .where(eq(academies.id, body.academyId))
+        .limit(1);
+      
+      if (academyForTenant?.tenantId) {
+        effectiveTenantId = academyForTenant.tenantId;
+      }
+    }
+
+    if (!effectiveTenantId) {
+      return NextResponse.json({ error: "TENANT_REQUIRED", message: "No se pudo determinar el tenant. Asegúrate de tener acceso a la academia." }, { status: 400 });
     }
 
     // Verificar acceso a la academia
-    const academyAccess = await verifyAcademyAccess(body.academyId, context.tenantId);
+    const academyAccess = await verifyAcademyAccess(body.academyId, effectiveTenantId);
     if (!academyAccess.allowed) {
-      return NextResponse.json({ error: academyAccess.reason ?? "ACADEMY_NOT_FOUND" }, { status: 404 });
+      return NextResponse.json({ error: academyAccess.reason ?? "ACADEMY_NOT_FOUND", message: "No tienes acceso a esta academia" }, { status: 404 });
     }
 
     const [academy] = await db
@@ -53,8 +104,8 @@ const handler = withTenant(async (request, context) => {
 
     const isAdmin = context.profile?.role === "admin" || context.profile?.role === "super_admin";
 
-    if (!context.profile || (!isAdmin && academy.tenantId !== context.tenantId)) {
-      return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+    if (!context.profile || (!isAdmin && academy.tenantId !== effectiveTenantId)) {
+      return NextResponse.json({ error: "FORBIDDEN", message: "No tienes permisos para realizar esta acción" }, { status: 403 });
     }
 
   if (!academy.ownerId) {
@@ -122,8 +173,8 @@ const handler = withTenant(async (request, context) => {
     }
   }
 
-  const successUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/billing/success?academy=${body.academyId}`;
-  const cancelUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/billing`;
+  const successUrl = `${getAppUrl()}/billing/success?academy=${body.academyId}`;
+  const cancelUrl = `${getAppUrl()}/billing`;
 
   const session = await stripe.checkout.sessions.create({
     mode: "subscription",

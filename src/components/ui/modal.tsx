@@ -50,7 +50,7 @@ export function Modal({
           <h2 className="text-lg font-semibold">{title}</h2>
           {description && <p className="text-sm text-muted-foreground">{description}</p>}
         </div>
-        <div className="px-6 py-4">{children}</div>
+        <div className="max-h-[calc(100vh-12rem)] overflow-y-auto px-6 py-4">{children}</div>
         {footer && <div className="border-t border-border px-6 py-4">{footer}</div>}
       </div>
     </div>

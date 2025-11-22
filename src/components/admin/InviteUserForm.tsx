@@ -39,6 +39,7 @@ export default function InviteUserForm({
   const [defaultAcademyId, setDefaultAcademyId] = useState<string | undefined>();
   const [customTenantId, setCustomTenantId] = useState(defaultTenant);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [message, setMessage] = useState<{ type: "error" | "success"; text: string } | null>(null);
 
   const effectiveTenantId = showTenantSelector ? customTenantId || tenantId : tenantId;
 
@@ -202,6 +203,18 @@ export default function InviteUserForm({
           )}
         </div>
       </div>
+
+      {message && (
+        <p
+          className={`rounded-md px-3 py-2 text-sm ${
+            message.type === "error"
+              ? "bg-red-50 text-red-700 border border-red-200"
+              : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+          }`}
+        >
+          {message.text}
+        </p>
+      )}
 
       {defaultAcademyOptions.length > 0 && (
         <div className="space-y-2">

@@ -33,6 +33,7 @@ export default async function Dashboard() {
     redirect("/auth/login?error=access_disabled");
   }
 
-  // Redirigir al perfil específico según el rol
-  redirect("/dashboard/profile");
+  // Redirigir a la página de academias (dashboard principal)
+  // "Inicio" lleva aquí, "Mi perfil" lleva a /dashboard/profile
+  redirect("/dashboard/academies");
 }

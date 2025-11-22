@@ -99,6 +99,16 @@ alter table billing_invoices enable row level security;
 alter table billing_events enable row level security;
 alter table groups enable row level security;
 alter table group_athletes enable row level security;
+alter table onboarding_states enable row level security;
+alter table onboarding_checklist_items enable row level security;
+alter table user_preferences enable row level security;
+alter table class_weekdays enable row level security;
+alter table class_groups enable row level security;
+alter table billing_items enable row level security;
+alter table charges enable row level security;
+alter table event_logs enable row level security;
+alter table academy_messages enable row level security;
+alter table academy_geo_groups enable row level security;
 
 -- Academies -----------------------------------------------------------------
 
@@ -116,6 +126,11 @@ create policy "academies_modify" on academies
     is_admin() or tenant_id = get_current_tenant()
   );
 
+-- Public Academies View -----------------------------------------------------
+-- La vista public_academies_view NO tiene RLS (acceso público sin autenticación)
+-- Solo expone campos públicos de academias con is_public = true
+-- Las consultas públicas deben usar esta vista, nunca la tabla academies directamente
+
 -- Profiles ------------------------------------------------------------------
 
 drop policy if exists "profiles_select" on profiles;
@@ -125,6 +140,10 @@ create policy "profiles_select" on profiles
     or user_id = auth.uid()
     or tenant_id = get_current_tenant()
   );
+
+drop policy if exists "profiles_insert_self" on profiles;
+create policy "profiles_insert_self" on profiles
+  for insert with check (user_id = auth.uid());
 
 drop policy if exists "profiles_update_self" on profiles;
 create policy "profiles_update_self" on profiles
@@ -160,15 +179,21 @@ create policy "memberships_modify" on memberships
 drop policy if exists "subscriptions_select" on subscriptions;
 create policy "subscriptions_select" on subscriptions
   for select using (
-    is_admin() or academy_in_current_tenant(academy_id)
+    is_admin() or user_id in (
+      select user_id from profiles where tenant_id = get_current_tenant()
+    )
   );
 
 drop policy if exists "subscriptions_modify" on subscriptions;
 create policy "subscriptions_modify" on subscriptions
   for all using (
-    is_admin() or academy_in_current_tenant(academy_id)
+    is_admin() or user_id in (
+      select user_id from profiles where tenant_id = get_current_tenant()
+    )
   ) with check (
-    is_admin() or academy_in_current_tenant(academy_id)
+    is_admin() or user_id in (
+      select user_id from profiles where tenant_id = get_current_tenant()
+    )
   );
 
 -- Plans ---------------------------------------------------------------------
@@ -503,3 +528,166 @@ create policy "billing_events_modify" on billing_events
   ) with check (
     is_super_admin()
   );
+
+-- Onboarding states ----------------------------------------------------------
+
+drop policy if exists "onboarding_states_select" on onboarding_states;
+create policy "onboarding_states_select" on onboarding_states
+  for select using (
+    is_admin() or tenant_id = get_current_tenant()
+  );
+
+drop policy if exists "onboarding_states_modify" on onboarding_states;
+create policy "onboarding_states_modify" on onboarding_states
+  for all using (
+    is_admin() or tenant_id = get_current_tenant()
+  ) with check (
+    is_admin() or tenant_id = get_current_tenant()
+  );
+
+-- Onboarding checklist items -------------------------------------------------
+
+drop policy if exists "onboarding_checklist_items_select" on onboarding_checklist_items;
+create policy "onboarding_checklist_items_select" on onboarding_checklist_items
+  for select using (
+    is_admin() or tenant_id = get_current_tenant()
+  );
+
+drop policy if exists "onboarding_checklist_items_modify" on onboarding_checklist_items;
+create policy "onboarding_checklist_items_modify" on onboarding_checklist_items
+  for all using (
+    is_admin() or tenant_id = get_current_tenant()
+  ) with check (
+    is_admin() or tenant_id = get_current_tenant()
+  );
+
+-- User preferences ------------------------------------------------------------
+
+drop policy if exists "user_preferences_select" on user_preferences;
+create policy "user_preferences_select" on user_preferences
+  for select using (
+    is_admin()
+    or user_id = auth.uid()
+    or (tenant_id is not null and tenant_id = get_current_tenant())
+  );
+
+drop policy if exists "user_preferences_modify" on user_preferences;
+create policy "user_preferences_modify" on user_preferences
+  for all using (
+    is_admin()
+    or user_id = auth.uid()
+    or (tenant_id is not null and tenant_id = get_current_tenant())
+  ) with check (
+    is_admin()
+    or user_id = auth.uid()
+    or (tenant_id is not null and tenant_id = get_current_tenant())
+  );
+
+-- Class weekdays --------------------------------------------------------------
+
+drop policy if exists "class_weekdays_select" on class_weekdays;
+create policy "class_weekdays_select" on class_weekdays
+  for select using (
+    is_admin() or tenant_id = get_current_tenant()
+  );
+
+drop policy if exists "class_weekdays_modify" on class_weekdays;
+create policy "class_weekdays_modify" on class_weekdays
+  for all using (
+    is_admin() or tenant_id = get_current_tenant()
+  ) with check (
+    is_admin() or tenant_id = get_current_tenant()
+  );
+
+-- Class groups -----------------------------------------------------------------
+
+drop policy if exists "class_groups_select" on class_groups;
+create policy "class_groups_select" on class_groups
+  for select using (
+    is_admin() or tenant_id = get_current_tenant()
+  );
+
+drop policy if exists "class_groups_modify" on class_groups;
+create policy "class_groups_modify" on class_groups
+  for all using (
+    is_admin() or tenant_id = get_current_tenant()
+  ) with check (
+    is_admin() or tenant_id = get_current_tenant()
+  );
+
+-- Billing items ------------------------------------------------------------
+
+drop policy if exists "billing_items_select" on billing_items;
+create policy "billing_items_select" on billing_items
+  for select using (
+    is_admin() or academy_in_current_tenant(academy_id)
+  );
+
+drop policy if exists "billing_items_modify" on billing_items;
+create policy "billing_items_modify" on billing_items
+  for all using (
+    is_admin() or academy_in_current_tenant(academy_id)
+  ) with check (
+    is_admin() or academy_in_current_tenant(academy_id)
+  );
+
+-- Charges -------------------------------------------------------------------
+
+drop policy if exists "charges_select" on charges;
+create policy "charges_select" on charges
+  for select using (
+    is_admin() or academy_in_current_tenant(academy_id)
+  );
+
+drop policy if exists "charges_modify" on charges;
+create policy "charges_modify" on charges
+  for all using (
+    is_admin() or academy_in_current_tenant(academy_id)
+  ) with check (
+    is_admin() or academy_in_current_tenant(academy_id)
+  );
+
+-- Event logs ---------------------------------------------------------------
+
+drop policy if exists "event_logs_select" on event_logs;
+create policy "event_logs_select" on event_logs
+  for select using (
+    is_super_admin() 
+    or (academy_id is not null and academy_in_current_tenant(academy_id))
+  );
+
+drop policy if exists "event_logs_modify" on event_logs;
+create policy "event_logs_modify" on event_logs
+  for all using (
+    is_super_admin() 
+    or (academy_id is not null and academy_in_current_tenant(academy_id))
+  ) with check (
+    is_super_admin() 
+    or (academy_id is not null and academy_in_current_tenant(academy_id))
+  );
+
+-- Academy Messages -----------------------------------------------------------
+-- Tabla preparada para funcionalidad futura de mensajería entre academias
+-- Por ahora, solo super_admin puede acceder
+
+drop policy if exists "academy_messages_select" on academy_messages;
+create policy "academy_messages_select" on academy_messages
+  for select using (is_super_admin());
+
+drop policy if exists "academy_messages_modify" on academy_messages;
+create policy "academy_messages_modify" on academy_messages
+  for all using (is_super_admin())
+  with check (is_super_admin());
+
+-- Academy Geo Groups ----------------------------------------------------------
+-- Tabla preparada para funcionalidad futura de agrupación geográfica
+-- Por ahora, solo super_admin puede acceder
+
+drop policy if exists "academy_geo_groups_select" on academy_geo_groups;
+create policy "academy_geo_groups_select" on academy_geo_groups
+  for select using (is_super_admin());
+
+drop policy if exists "academy_geo_groups_modify" on academy_geo_groups;
+create policy "academy_geo_groups_modify" on academy_geo_groups
+  for all using (is_super_admin())
+  with check (is_super_admin());

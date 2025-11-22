@@ -1,18 +1,18 @@
 const steps = [
   {
-    title: "Onboarding en 4 pasos",
+    title: "Crea tu academia",
     description:
-      "Creamos el tenant, la academia madre y te guiamos para invitar coaches y cargar a tus primeras atletas.",
+      "Registra tu academia, define el tipo (artística, rítmica, trampolín o general) y configura tu ubicación.",
   },
   {
-    title: "Roles y permisos",
+    title: "Configura roles y grupos",
     description:
-      "Owner, coach y staff administrativo con accesos diferenciados. Próximamente, portal para familias.",
+      "Invita entrenadores, crea grupos por nivel/edad y programa horarios de clases semanales.",
   },
   {
-    title: "Reportes accionables",
+    title: "Sube atletas y empieza a operar",
     description:
-      "Indicadores de asistencia, cupo por nivel y seguimiento a lesionadas. Exporta en un clic para la federación.",
+      "Importa atletas desde Excel o créalos manualmente. La asistencia está disponible desde el primer día.",
   },
 ];
 
@@ -22,13 +22,13 @@ export default function MakerIntro() {
       <div className="mx-auto flex max-w-6xl flex-col gap-12 px-4 sm:px-6 lg:flex-row lg:px-8">
         <div className="flex-1">
           <h2 className="font-display text-3xl font-semibold text-white sm:text-4xl">
-            Diseñado junto a directores técnicos de gimnasia artística.
+            Onboarding en 3 pasos
           </h2>
           <p className="mt-4 font-sans text-base text-white/80">
-            No es otra plantilla. Zaltyko nace de academias reales que necesitaban controlar entrenamientos, staff y facturación sin usar hojas de cálculo infinitas. Cada módulo se integra con Stripe, Supabase y nuestras APIs públicas para que puedas extenderlo.
+            Zaltyko está diseñado junto a directores técnicos de gimnasia artística y rítmica. No es otra plantilla genérica: cada módulo está pensado para la operativa real de academias de gimnasia.
           </p>
           <p className="mt-4 font-sans text-base text-white/70">
-            ¿Quieres probarlo? Inicia el onboarding, genera datos demo y entra al dashboard multi-academia. No necesitas configurar auth ni llaves de terceros para el modo demostración.
+            Tenancy blindado con aislamiento total por tenant, RLS y cumplimiento RGPD. Operativa en tiempo real donde todo se actualiza instantáneamente.
           </p>
         </div>
 

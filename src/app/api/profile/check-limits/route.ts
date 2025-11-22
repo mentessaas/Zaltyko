@@ -9,6 +9,7 @@ import { checkPlanLimitViolations } from "@/lib/limits";
 import { sendEmail } from "@/lib/mailgun";
 import { config } from "@/config";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
+import { getAppUrl } from "@/lib/env";
 
 export const dynamic = "force-dynamic";
 
@@ -111,10 +112,10 @@ export async function GET() {
               <div style="background-color: #dbeafe; padding: 15px; border-radius: 8px; margin: 20px 0;">
                 <h3 style="color: #1e40af; margin-top: 0;">¿Qué hacer ahora?</h3>
                 <ol style="color: #1e3a8a; padding-left: 20px;">
-                  <li>Visita tu <a href="${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/dashboard/plan-limits" style="color: #2563eb; font-weight: bold;">panel de ajustes de plan</a></li>
+                  <li>Visita tu <a href="${getAppUrl()}/dashboard/plan-limits" style="color: #2563eb; font-weight: bold;">panel de ajustes de plan</a></li>
                   <li>Revisa los recursos que exceden los límites</li>
                   <li>Elige qué mantener activo según tu plan</li>
-                  <li>O considera <a href="${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/dashboard" style="color: #2563eb; font-weight: bold;">actualizar tu plan</a> para mantener todos tus recursos</li>
+                  <li>O considera <a href="${getAppUrl()}/dashboard" style="color: #2563eb; font-weight: bold;">actualizar tu plan</a> para mantener todos tus recursos</li>
                 </ol>
               </div>
               

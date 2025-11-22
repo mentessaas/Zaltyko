@@ -2,13 +2,33 @@ import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
+const createSelectChain = (result: any[]) => {
+  const chain: any = {
+    from: vi.fn(() => chain),
+    leftJoin: vi.fn(() => chain),
+    where: vi.fn(() => ({
+      limit: vi.fn(() => result),
+    })),
+  };
+  return chain;
+};
+
+let selectQueue: any[] = [];
+
+vi.mock("@/db", () => ({
+  db: {
+    select: vi.fn(() => selectQueue.shift() ?? createSelectChain([])),
+  },
+}));
+
 describe("API /api/super-admin/users/[profileId]", () => {
   beforeEach(() => {
     vi.resetModules();
+    selectQueue = [];
   });
 
   afterEach(() => {
-    vi.restoreAllMocks();
+    vi.clearAllMocks();
   });
 
   it("debe requerir autenticación de Super Admin", async () => {
@@ -30,21 +50,14 @@ describe("API /api/super-admin/users/[profileId]", () => {
       withSuperAdmin: (handler: any) => handler,
     }));
 
-    vi.mock("@/db", () => ({
-      db: {
-        select: vi.fn(() => ({
-          from: vi.fn(() => ({
-            where: vi.fn(() => ({
-              limit: vi.fn(() => []),
-            })),
-          })),
-        })),
-      },
-    }));
+    selectQueue = [createSelectChain([])];
 
     const { GET } = await import("@/app/api/super-admin/users/[profileId]/route");
     const request = new NextRequest("http://localhost/api/super-admin/users/non-existent");
-    const response = await GET(request, { params: Promise.resolve({ profileId: "non-existent" }) });
+    const response = await GET(request, {
+      params: Promise.resolve({ profileId: "non-existent" }),
+      profile: { id: "profile-1", role: "super_admin", tenantId: "tenant-123" },
+    });
     
     expect(response.status).toBe(404);
   });
@@ -54,17 +67,7 @@ describe("API /api/super-admin/users/[profileId]", () => {
       withSuperAdmin: (handler: any) => handler,
     }));
 
-    vi.mock("@/db", () => ({
-      db: {
-        select: vi.fn(() => ({
-          from: vi.fn(() => ({
-            where: vi.fn(() => ({
-              limit: vi.fn(() => [{ id: "test-id", role: "super_admin", isSuspended: false }]),
-            })),
-          })),
-        })),
-      },
-    }));
+    selectQueue = [createSelectChain([{ id: "test-id", role: "super_admin", isSuspended: false }])];
 
     const { PATCH } = await import("@/app/api/super-admin/users/[profileId]/route");
     const request = new NextRequest("http://localhost/api/super-admin/users/test-id", {
@@ -72,7 +75,10 @@ describe("API /api/super-admin/users/[profileId]", () => {
       body: JSON.stringify({ isSuspended: true }),
     });
     
-    const response = await PATCH(request, { params: Promise.resolve({ profileId: "test-id" }) });
+    const response = await PATCH(request, {
+      params: Promise.resolve({ profileId: "test-id" }),
+      profile: { id: "profile-1", role: "super_admin", tenantId: "tenant-123" },
+    });
     
     expect(response.status).toBe(400);
     const data = await response.json();

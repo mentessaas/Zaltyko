@@ -24,6 +24,8 @@ export interface GroupSummary {
   assistantNames: string[];
   athleteCount: number;
   createdAt: string;
+  monthlyFeeCents?: number | null; // Cuota mensual en céntimos
+  billingItemId?: string | null; // Concepto de cobro asociado
 }
 
 export interface GroupCoach extends CoachOption {}
@@ -39,4 +41,14 @@ export interface GroupDetail extends GroupSummary {
   coachEmail: string | null;
   assistants: GroupCoach[];
   members: GroupMember[];
+  classes: GroupClassSummary[];
+}
+
+export interface GroupClassSummary {
+  id: string;
+  name: string;
+  startTime: string | null;
+  endTime: string | null;
+  weekdays: number[];
+  coachNames: string[];
 }

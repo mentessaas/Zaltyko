@@ -14,6 +14,10 @@ import {
   guardians,
   groups,
 } from "@/db/schema";
+import { AthleteAccountSection } from "@/components/athletes/AthleteAccountSection";
+import { AthleteBaseClassesSection } from "@/components/athletes/AthleteBaseClassesSection";
+import { AthleteExtraClassesSection } from "@/components/athletes/AthleteExtraClassesSection";
+import { coaches } from "@/db/schema";
 
 interface PageProps {
   params: {
@@ -136,10 +140,26 @@ export default async function AthleteDetailPage({ params }: PageProps) {
 
   const totalSessions = Object.values(attendanceTotals).reduce((sum, value) => sum + value, 0);
 
-  const formattedDob =
-    athleteRow.dob instanceof Date
-      ? athleteRow.dob.toISOString().slice(0, 10)
-      : athleteRow.dob ?? null;
+  // Obtener coaches disponibles para clases extra
+  const availableCoaches = await db
+    .select({
+      id: coaches.id,
+      name: coaches.name,
+      email: coaches.email,
+    })
+    .from(coaches)
+    .where(eq(coaches.academyId, academyId))
+    .orderBy(asc(coaches.name));
+
+  let formattedDob: string | null = null;
+  if (athleteRow.dob) {
+    if (typeof athleteRow.dob === "string") {
+      formattedDob = athleteRow.dob.slice(0, 10);
+    } else {
+      const dobDate = athleteRow.dob as Date;
+      formattedDob = dobDate.toISOString().slice(0, 10);
+    }
+  }
 
   return (
     <div className="space-y-8 p-4 sm:p-6 lg:p-8">
@@ -339,6 +359,34 @@ export default async function AthleteDetailPage({ params }: PageProps) {
             )}
           </div>
         </div>
+      </section>
+
+      {/* Cuenta del atleta */}
+      <section>
+        <AthleteAccountSection academyId={academyId} athleteId={athleteId} />
+      </section>
+
+      {/* Clases base */}
+      <section>
+        <AthleteBaseClassesSection
+          academyId={academyId}
+          athleteId={athleteId}
+          groupId={athleteRow.groupId}
+          groupName={athleteRow.groupName}
+        />
+      </section>
+
+      {/* Clases extra */}
+      <section>
+        <AthleteExtraClassesSection
+          academyId={academyId}
+          athleteId={athleteId}
+          availableCoaches={availableCoaches.map((coach) => ({
+            id: coach.id,
+            name: coach.name ?? "Sin nombre",
+            email: coach.email,
+          }))}
+        />
       </section>
     </div>
   );

@@ -4,6 +4,8 @@ import Link from "next/link";
 import { db } from "@/db";
 import { coaches, academies } from "@/db/schema";
 
+export const dynamic = "force-dynamic";
+
 export default async function CoachesPublicPage() {
   const publicCoaches = await db
     .select({

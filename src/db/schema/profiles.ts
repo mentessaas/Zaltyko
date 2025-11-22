@@ -14,6 +14,9 @@ export const profiles = pgTable(
     canLogin: boolean("can_login").notNull().default(true),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
     isSuspended: boolean("is_suspended").notNull().default(false),
+    photoUrl: text("photo_url"),
+    phone: text("phone"),
+    bio: text("bio"),
   },
   (table) => ({
     tenantRoleIdx: index("profiles_tenant_role_idx").on(table.tenantId, table.role),

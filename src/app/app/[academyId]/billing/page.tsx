@@ -4,6 +4,12 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { BillingPanel } from "@/components/billing/BillingPanel";
 
+/**
+ * AcademyBillingPage - Vista principal de facturación y planes
+ * 
+ * Permite gestionar la suscripción actual, ver límites de atletas/clases, y acceder
+ * al portal de Stripe para actualizar planes o ver facturas.
+ */
 interface PageProps {
   params: {
     academyId: string;
@@ -24,11 +30,10 @@ export default async function AcademyBillingPage({ params }: PageProps) {
 
   return (
     <div className="space-y-6 p-4 sm:p-6 lg:p-8">
-      <header className="space-y-2">
-        <p className="text-xs uppercase tracking-wide text-muted-foreground">Academia</p>
-        <h1 className="text-3xl font-semibold">Facturación & planes</h1>
+      <header className="space-y-2 py-6">
+        <h1 className="text-3xl font-semibold">Facturación</h1>
         <p className="text-sm text-muted-foreground">
-          Gestiona tus suscripciones, facturas y acceso al portal de Stripe para esta academia.
+          Gestiona tus suscripciones, facturas y acceso al portal de Stripe.
         </p>
       </header>
 

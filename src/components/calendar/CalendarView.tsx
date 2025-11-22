@@ -12,10 +12,13 @@ type SessionEntry = {
   startTime: string | null;
   endTime: string | null;
   status: string;
-  classId: string;
+  classId: string | null;
   className: string | null;
   academyName: string | null;
   coachName: string | null;
+  targetUrl?: string;
+  isPlaceholder?: boolean;
+  isExtra?: boolean;
 };
 
 interface CalendarViewProps {
@@ -30,6 +33,7 @@ const statusColors: Record<string, string> = {
   scheduled: "bg-zaltyko-primary/15 text-zaltyko-primary",
   completed: "bg-zaltyko-primary-light/15 text-zaltyko-primary-light",
   cancelled: "bg-red-500/15 text-red-700",
+  placeholder: "border border-dashed border-amber-400 bg-amber-50 text-amber-900",
 };
 
 function getStatusColor(status: string) {
@@ -181,6 +185,51 @@ export default function CalendarView({
     </div>
   );
 
+  const renderSessionChip = (session: SessionEntry) => {
+    const content = (
+      <>
+        <p className="font-medium">
+          {session.className ?? "Clase sin nombre"}
+        </p>
+        <p>
+          {session.startTime ?? "—"}
+          {session.endTime ? ` · ${session.endTime}` : ""}
+        </p>
+        <p className="text-[10px]">
+          {session.coachName ?? "Sin entrenador"}
+        </p>
+        {session.isPlaceholder && (
+          <p className="text-[10px] font-semibold uppercase text-amber-700">
+            Sesión no generada
+          </p>
+        )}
+      </>
+    );
+
+    // Color según tipo de clase: azul para base, amarillo para extra
+    const baseColorClass = session.isExtra
+      ? "bg-yellow-100 text-yellow-800 border-yellow-200"
+      : "bg-blue-100 text-blue-800 border-blue-200";
+    
+    const className = `block rounded-md border px-2 py-1 text-xs ${baseColorClass} ${getStatusColor(
+      session.status
+    )}`;
+
+    if (session.targetUrl) {
+      return (
+        <Link key={session.id} href={session.targetUrl} className={className}>
+          {content}
+        </Link>
+      );
+    }
+
+    return (
+      <div key={session.id} className={className}>
+        {content}
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-4">
       <BaseControls />
@@ -204,26 +253,7 @@ export default function CalendarView({
                   {daySessions.length === 0 ? (
                     <p className="text-xs text-muted-foreground">Sin sesiones</p>
                   ) : (
-                    daySessions.map((session) => (
-                      <Link
-                        key={session.id}
-                        href={`/dashboard/sessions/${session.id}`}
-                        className={`block rounded-md px-2 py-1 text-xs ${getStatusColor(
-                          session.status
-                        )}`}
-                      >
-                        <p className="font-medium">
-                          {session.className ?? "Clase sin nombre"}
-                        </p>
-                        <p>
-                          {session.startTime ?? "—"}
-                          {session.endTime ? ` · ${session.endTime}` : ""}
-                        </p>
-                        <p className="text-[10px]">
-                          {session.coachName ?? "Sin entrenador"}
-                        </p>
-                      </Link>
-                    ))
+                    daySessions.map((session) => renderSessionChip(session))
                   )}
                 </div>
               </div>
@@ -253,23 +283,9 @@ export default function CalendarView({
                     </span>
                   </div>
                   <div className="space-y-2">
-                    {daySessions.slice(0, 3).map((session) => (
-                      <Link
-                        key={session.id}
-                        href={`/dashboard/sessions/${session.id}`}
-                        className={`block rounded-md px-2 py-1 text-xs ${getStatusColor(
-                          session.status
-                        )}`}
-                      >
-                        <p className="font-medium">
-                          {session.className ?? "Clase sin nombre"}
-                        </p>
-                        <p>
-                          {session.startTime ?? "—"}
-                          {session.endTime ? ` · ${session.endTime}` : ""}
-                        </p>
-                      </Link>
-                    ))}
+                    {daySessions.slice(0, 3).map((session) =>
+                      renderSessionChip(session)
+                    )}
                     {daySessions.length > 3 && (
                       <p className="text-[10px] text-muted-foreground">
                         +{daySessions.length - 3} sesiones

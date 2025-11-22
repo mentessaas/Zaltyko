@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/authz";
-import { getGlobalStats } from "@/lib/superAdminService";
+import { getGlobalStats, getRecentEvents } from "@/lib/superAdminService";
 import { SuperAdminDashboard } from "../components/SuperAdminDashboard";
 
 export const dynamic = "force-dynamic";
@@ -26,8 +26,11 @@ export default async function SuperAdminDashboardPage() {
     redirect("/app");
   }
 
-  const metrics = await getGlobalStats();
+  const [metrics, recentEvents] = await Promise.all([
+    getGlobalStats(),
+    getRecentEvents(10),
+  ]);
 
-  return <SuperAdminDashboard initialMetrics={metrics} />;
+  return <SuperAdminDashboard initialMetrics={metrics} initialEvents={recentEvents} />;
 }
 

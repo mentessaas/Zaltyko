@@ -12,6 +12,7 @@ import {
   billingInvoices,
   classCoachAssignments,
   classSessions,
+  classWeekdays,
   classes,
   coaches,
   guardianAthletes,
@@ -24,6 +25,7 @@ import {
   subscriptions,
 } from "@/db/schema";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
+import { seedOnboardingForAcademy } from "@/lib/onboarding";
 
 const PLAN_SEEDS = [
   {
@@ -317,9 +319,17 @@ async function seedTenantData(planIds: Record<PlanCode, string | undefined>) {
   ] as const;
 
   for (const academy of academySeeds) {
+    const trialStartsAt = new Date();
+    const trialEndsAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+
     await db
       .insert(academies)
-      .values(academy)
+      .values({
+        ...academy,
+        trialStartsAt,
+        trialEndsAt,
+        isTrialActive: true,
+      })
       .onConflictDoUpdate({
         target: academies.id,
         set: {
@@ -328,8 +338,17 @@ async function seedTenantData(planIds: Record<PlanCode, string | undefined>) {
           region: academy.region,
           academyType: academy.academyType,
           ownerId: academy.ownerId,
+          trialStartsAt,
+          trialEndsAt,
+          isTrialActive: true,
         },
       });
+
+    await seedOnboardingForAcademy({
+      academyId: academy.id,
+      tenantId,
+      ownerProfileId: academy.ownerId,
+    });
   }
 
   if (planIds.free) {
@@ -401,7 +420,6 @@ async function seedTenantData(planIds: Record<PlanCode, string | undefined>) {
         tenantId,
         academyId,
         name: "Equipo FIG Avanzado",
-        weekday: 1,
         startTime: "17:00",
         endTime: "19:00",
         capacity: 20,
@@ -411,7 +429,6 @@ async function seedTenantData(planIds: Record<PlanCode, string | undefined>) {
         tenantId,
         academyId,
         name: "Pre-equipo Juvenil",
-        weekday: 3,
         startTime: "18:30",
         endTime: "20:00",
         capacity: 18,
@@ -421,13 +438,30 @@ async function seedTenantData(planIds: Record<PlanCode, string | undefined>) {
       target: classes.id,
       set: {
         name: "Equipo FIG Avanzado",
-        weekday: 1,
         startTime: "17:00",
         endTime: "19:00",
         capacity: 20,
       },
       setWhere: eq(classes.id, CLASS_TEAM_ID),
     });
+
+  await db
+    .insert(classWeekdays)
+    .values([
+      {
+        id: randomUUID(),
+        classId: CLASS_TEAM_ID,
+        tenantId,
+        weekday: 1,
+      },
+      {
+        id: randomUUID(),
+        classId: CLASS_PRETEAM_ID,
+        tenantId,
+        weekday: 3,
+      },
+    ])
+    .onConflictDoNothing();
 
   await db
     .insert(classCoachAssignments)

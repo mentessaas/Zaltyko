@@ -157,132 +157,113 @@ export function AssessmentForm({ academyId, athletes, skills, groups = [] }: Ass
     }
   }, [filteredAthletes, athleteId]);
 
-  return (
-    <div className="rounded-lg border bg-card p-6 shadow-sm">
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-lg font-medium">Registrar evaluación técnica</h2>
-        {!session?.userId && (
-          <button
-            type="button"
-            onClick={refresh}
-            className="rounded-full border border-white/20 px-3 py-1 text-xs text-white hover:bg-white/10"
-          >
-            Refrescar sesión demo
-          </button>
-        )}
-      </div>
-      {athletes.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          Aún no hay atletas registrados en esta academia. Agrega atletas antes de crear evaluaciones.
+  if (athletes.length === 0) {
+    return (
+      <div className="rounded-lg border bg-card p-12 text-center shadow-sm">
+        <p className="mb-4 text-sm text-muted-foreground">
+          Aún no has registrado evaluaciones. Selecciona un atleta y guarda tu primera evaluación técnica.
         </p>
-      ) : (
-        <form className="space-y-4" onSubmit={handleSubmit}>
-          {groups.length > 0 && (
-            <div>
-              <label className="block text-sm font-medium">Filtrar por grupo</label>
-              <select
-                className="mt-1 w-full rounded border px-3 py-2"
-                value={groupFilter}
-                onChange={(event) => setGroupFilter(event.target.value)}
-              >
-                <option value="">Todos los grupos</option>
-                {groups.map((group) => (
-                  <option key={group.id} value={group.id}>
-                    {group.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
+      </div>
+    );
+  }
 
-          <div>
-            <label className="block text-sm font-medium">Atleta</label>
-            <select
-              className="mt-1 w-full rounded border px-3 py-2"
-              value={athleteId}
-              onChange={(event) => setAthleteId(event.target.value)}
-              required
-            >
-              {filteredAthletes.map((athlete) => (
-                <option key={athlete.id} value={athlete.id}>
-                  {athlete.name}
-                </option>
-              ))}
-            </select>
-            {athleteId && (
-              <p className="mt-1 text-xs text-muted-foreground">
-                {athletes.find((athlete) => athlete.id === athleteId)?.groupName
-                  ? `Grupo: ${
-                      athletes.find((athlete) => athlete.id === athleteId)?.groupName ?? "Sin grupo"
-                    }`
-                  : "Sin grupo asignado"}
-              </p>
+  return (
+    <div className="space-y-6">
+      <form className="space-y-6" onSubmit={handleSubmit}>
+        {/* Bloque 1: Datos de evaluación */}
+        <div className="rounded-lg border bg-card p-6 shadow-sm">
+          <h3 className="mb-4 text-lg font-semibold">Datos de evaluación</h3>
+          <div className="space-y-4">
+            {groups.length > 0 && (
+              <div>
+                <Label className="text-sm font-medium">Grupo</Label>
+                <select
+                  className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                  value={groupFilter}
+                  onChange={(event) => setGroupFilter(event.target.value)}
+                >
+                  <option value="">Todos los grupos</option>
+                  {groups.map((group) => (
+                    <option key={group.id} value={group.id}>
+                      {group.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
             )}
-          </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
             <div>
-              <label className="block text-sm font-medium">Fecha</label>
-              <input
-                type="date"
-                className="mt-1 w-full rounded border px-3 py-2"
-                value={assessmentDate}
-                onChange={(event) => setAssessmentDate(event.target.value)}
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium">Aparato</label>
+              <Label className="text-sm font-medium">Atleta</Label>
               <select
-                className="mt-1 w-full rounded border px-3 py-2"
-                value={apparatus}
-                onChange={(event) => setApparatus(event.target.value)}
+                className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                value={athleteId}
+                onChange={(event) => setAthleteId(event.target.value)}
+                required
               >
-                <option value="">Cualquiera</option>
-                {apparatusOptions.map((option) => (
-                  <option key={option} value={option}>
-                    {option || "General"}
+                {filteredAthletes.map((athlete) => (
+                  <option key={athlete.id} value={athlete.id}>
+                    {athlete.name}
                   </option>
                 ))}
               </select>
             </div>
-          </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <Label className="text-sm font-medium">Fecha</Label>
+                <input
+                  type="date"
+                  className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                  value={assessmentDate}
+                  onChange={(event) => setAssessmentDate(event.target.value)}
+                  required
+                />
+              </div>
+              <div>
+                <Label className="text-sm font-medium">Aparato</Label>
+                <select
+                  className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                  value={apparatus}
+                  onChange={(event) => setApparatus(event.target.value)}
+                >
+                  <option value="">Cualquiera</option>
+                  {apparatusOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {option || "General"}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
             <div>
-              <label className="block text-sm font-medium">Evaluador (opcional)</label>
+              <Label className="text-sm font-medium">Evaluador (opcional)</Label>
               <input
                 type="text"
                 placeholder="UUID del coach"
-                className="mt-1 w-full rounded border px-3 py-2"
+                className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                 value={assessedBy}
                 onChange={(event) => setAssessedBy(event.target.value)}
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium">Comentarios generales</label>
-              <input
-                type="text"
-                className="mt-1 w-full rounded border px-3 py-2"
-                value={overallComment}
-                onChange={(event) => setOverallComment(event.target.value)}
-              />
-            </div>
           </div>
+        </div>
 
+        {/* Bloque 2: Puntuaciones por habilidad */}
+        <div className="rounded-lg border bg-card p-6 shadow-sm">
+          <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <h3 className="text-lg font-semibold">Puntuaciones por habilidad</h3>
+            <Button
+              type="button"
+              onClick={handleAddRow}
+              variant="outline"
+              size="sm"
+              className="w-full sm:w-auto"
+            >
+              Añadir skill
+            </Button>
+          </div>
           <div className="space-y-3">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <h3 className="font-display text-sm font-semibold">Puntuaciones por habilidad</h3>
-              <Button
-                type="button"
-                onClick={handleAddRow}
-                variant="outline"
-                size="sm"
-                className="w-full sm:w-auto"
-              >
-                Añadir skill
-              </Button>
-            </div>
 
             {rows.map((row, index) => (
               <div key={index} className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_120px_1fr] md:grid-cols-3">
@@ -353,22 +334,53 @@ export function AssessmentForm({ academyId, athletes, skills, groups = [] }: Ass
               </div>
             ))}
           </div>
+        </div>
 
-          {errorMessage && (
-            <p className="text-sm text-red-500">{errorMessage}</p>
-          )}
-          {status === "success" && (
-            <p className="text-sm text-green-500">Evaluación registrada correctamente.</p>
-          )}
+        {/* Bloque 3: Comentarios generales + Botón guardar */}
+        <div className="rounded-lg border bg-card p-6 shadow-sm">
+          <div className="space-y-4">
+            <div>
+              <Label className="text-sm font-medium">Comentarios generales</Label>
+              <textarea
+                className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                rows={3}
+                value={overallComment}
+                onChange={(event) => setOverallComment(event.target.value)}
+                placeholder="Comentarios adicionales sobre la evaluación..."
+              />
+            </div>
 
-          <Button
-            type="submit"
-            className="w-full sm:w-auto"
-            disabled={status === "loading" || !athleteId}
-          >
-            {status === "loading" ? "Guardando..." : "Guardar evaluación"}
-          </Button>
-        </form>
+            {errorMessage && (
+              <p className="text-sm text-red-500">{errorMessage}</p>
+            )}
+            {status === "success" && (
+              <p className="text-sm text-green-500">Evaluación registrada correctamente.</p>
+            )}
+
+            <Button
+              type="submit"
+              className="w-full sm:w-auto"
+              disabled={status === "loading" || !athleteId}
+            >
+              {status === "loading" ? "Guardando..." : "Guardar evaluación"}
+            </Button>
+          </div>
+        </div>
+      </form>
+
+      {process.env.NODE_ENV !== "production" && !session?.userId && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+          <div className="flex items-center justify-between">
+            <p>Activa la sesión demo para registrar evaluaciones.</p>
+            <button
+              type="button"
+              onClick={refresh}
+              className="ml-4 rounded-md border border-amber-300 bg-white px-3 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-100"
+            >
+              Refrescar sesión demo
+            </button>
+          </div>
+        </div>
       )}
 
       <ConfirmDialog

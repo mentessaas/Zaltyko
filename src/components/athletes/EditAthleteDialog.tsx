@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useRef, useState, useTransition } from "react";
 
 import { athleteStatusOptions } from "@/lib/athletes/constants";
@@ -23,6 +24,7 @@ interface AthleteSummary {
 interface GuardianSummary {
   linkId: string;
   guardianId: string;
+  profileId: string | null;
   name: string | null;
   email: string | null;
   phone: string | null;
@@ -173,6 +175,17 @@ export function EditAthleteDialog({
   const [guardianError, setGuardianError] = useState<string | null>(null);
   const [guardians, setGuardians] = useState<GuardianSummary[]>([]);
   const [guardiansLoading, setGuardiansLoading] = useState(false);
+  const [editingGuardianId, setEditingGuardianId] = useState<string | null>(null);
+  const [editingGuardianForm, setEditingGuardianForm] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    relationship: "",
+    notifyEmail: true,
+    notifySms: false,
+    isPrimary: false,
+  });
+  const [isSavingGuardian, setIsSavingGuardian] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -193,15 +206,23 @@ export function EditAthleteDialog({
       notifyEmail: true,
       notifySms: false,
     });
+    // NO resetear guardians aquí, se cargarán en el useEffect siguiente
   }, [open, athlete]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      // Resetear guardians cuando se cierra el modal
+      setGuardians([]);
+      setGuardiansLoading(false);
+      setGuardianError(null);
+      return;
+    }
 
     const abortController = new AbortController();
     const fetchGuardians = async () => {
       try {
         setGuardiansLoading(true);
+        setGuardianError(null);
         const supabase = createClient();
         const {
           data: { user: currentUser },
@@ -214,14 +235,28 @@ export function EditAthleteDialog({
           signal: abortController.signal,
           headers,
         });
+        
         if (!response.ok) {
-          throw new Error("No se pudieron cargar los contactos.");
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.message ?? `Error ${response.status}: No se pudieron cargar los contactos.`);
         }
+        
         const data = await response.json();
-        setGuardians(data.items ?? []);
+        const items = data.items ?? [];
+        
+        console.log(`[EditAthleteDialog] Respuesta completa de la API:`, data);
+        console.log(`[EditAthleteDialog] Cargados ${items.length} contactos para atleta ${athlete.id}`, items);
+        
+        if (items.length === 0 && !data.error) {
+          console.warn(`[EditAthleteDialog] No se encontraron contactos pero la respuesta fue exitosa. Verificar datos en BD.`);
+        }
+        
+        setGuardians(items);
       } catch (err) {
         if (!(err instanceof DOMException && err.name === "AbortError")) {
-          setGuardianError((err as Error)?.message ?? "Error al cargar contactos.");
+          const errorMessage = (err as Error)?.message ?? "Error al cargar contactos.";
+          console.error(`[EditAthleteDialog] Error al cargar contactos:`, err);
+          setGuardianError(errorMessage);
         }
       } finally {
         setGuardiansLoading(false);
@@ -454,12 +489,90 @@ export function EditAthleteDialog({
         throw new Error(data.error ?? "No se pudo eliminar el contacto.");
       }
       setGuardians((prev) => prev.filter((item) => item.linkId !== linkId));
+      if (editingGuardianId === linkId) {
+        cancelEditGuardian();
+      }
     } catch (err: any) {
       setGuardianError(err.message ?? "Error al eliminar el contacto.");
     }
   };
 
   const guardianCount = guardians.length;
+
+  const beginEditGuardian = (guardian: GuardianSummary) => {
+    setGuardianError(null);
+    setEditingGuardianId(guardian.linkId);
+    setEditingGuardianForm({
+      name: guardian.name ?? "",
+      email: guardian.email ?? "",
+      phone: guardian.phone ?? "",
+    relationship: guardian.linkRelationship ?? "",
+      notifyEmail: guardian.notifyEmail ?? true,
+      notifySms: guardian.notifySms ?? false,
+      isPrimary: guardian.isPrimary ?? false,
+    });
+  };
+
+  const cancelEditGuardian = () => {
+    setEditingGuardianId(null);
+    setIsSavingGuardian(false);
+  };
+
+  const handleUpdateGuardian = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!editingGuardianId) return;
+
+    if (!editingGuardianForm.name.trim()) {
+      setGuardianError("El nombre del contacto es obligatorio.");
+      return;
+    }
+
+    try {
+      setIsSavingGuardian(true);
+      const payload = {
+        name: editingGuardianForm.name.trim(),
+        email: editingGuardianForm.email.trim() || undefined,
+        phone: editingGuardianForm.phone.trim() || undefined,
+        relationship: editingGuardianForm.relationship.trim() || undefined,
+        linkRelationship: editingGuardianForm.relationship.trim() || undefined,
+        notifyEmail: editingGuardianForm.notifyEmail,
+        notifySms: editingGuardianForm.notifySms,
+        isPrimary: editingGuardianForm.isPrimary,
+      };
+
+      const supabase = createClient();
+      const {
+        data: { user: currentUser },
+      } = await supabase.auth.getUser();
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        "x-academy-id": academyId,
+      };
+      if (currentUser?.id) headers["x-user-id"] = currentUser.id;
+
+      const response = await fetch(`/api/athletes/${athlete.id}/guardians/${editingGuardianId}`, {
+        method: "PATCH",
+        headers,
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error ?? "No se pudo actualizar el contacto.");
+      }
+
+      const data = await response.json();
+      if (data.item) {
+        setGuardians((prev) => prev.map((item) => (item.linkId === editingGuardianId ? data.item : item)));
+      }
+
+      cancelEditGuardian();
+    } catch (err: any) {
+      setGuardianError(err.message ?? "Error al actualizar el contacto.");
+    } finally {
+      setIsSavingGuardian(false);
+    }
+  };
 
   const handleClose = () => {
     if (isPending) return;
@@ -513,124 +626,159 @@ export function EditAthleteDialog({
         </div>
       }
     >
-      <form id="edit-athlete-form" onSubmit={handleSave} className="space-y-6">
+      <form id="edit-athlete-form" onSubmit={handleSave} className="space-y-8">
         {error && (
           <div className="rounded-md border border-red-400 bg-red-50 px-3 py-2 text-sm text-red-700">
             {error}
           </div>
         )}
 
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-foreground">Nombre completo</label>
-          <input
-            value={name}
-          onChange={(event) => setName(event.target.value)}
-            className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-            required
-          />
-        </div>
+        <section className="rounded-xl border border-border/80 bg-card/40 p-5 shadow-sm">
+          <header className="mb-4 flex flex-col gap-1">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Información general
+            </p>
+            <h3 className="text-lg font-semibold text-foreground">Datos del atleta</h3>
+            <p className="text-sm text-muted-foreground">
+              Mantén actualizados los datos básicos para reportes y comunicación.
+            </p>
+          </header>
 
-        <div className="grid gap-4 md:grid-cols-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">Fecha de nacimiento</label>
-            <div className="flex items-center gap-2">
+          <div className="grid gap-4 lg:grid-cols-[1.5fr_1fr]">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">Nombre completo</label>
               <input
-                ref={birthdateInputRef}
-                type="date"
-                value={dob}
-                onChange={(event) => setDob(event.target.value)}
-                max={new Date().toISOString().slice(0, 10)}
+                value={name}
+                onChange={(event) => setName(event.target.value)}
                 className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                placeholder="Ej. Sofía Hernández"
+                required
               />
-              <button
-                type="button"
-                onClick={() => birthdateInputRef.current?.showPicker?.()}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-border bg-background text-muted-foreground shadow-sm transition hover:bg-muted hover:text-foreground"
-                aria-label="Seleccionar fecha"
-              >
-                <CalendarIcon className="h-4 w-4" strokeWidth={1.8} />
-              </button>
+            </div>
+            <div className="grid gap-2 rounded-lg border border-border/70 bg-muted/30 p-3 text-xs text-muted-foreground md:grid-cols-3">
+              <div>
+                <p className="uppercase tracking-wide">Edad estimada</p>
+                <p className="text-base font-semibold text-foreground">{computedAgeLabel || "—"}</p>
+              </div>
+              <div>
+                <p className="uppercase tracking-wide">Estado</p>
+                <p className="text-base font-semibold text-foreground">{status}</p>
+              </div>
+              <div>
+                <p className="uppercase tracking-wide">Grupo</p>
+                <p className="text-base font-semibold text-foreground">
+                  {groups.find((group) => group.id === groupId)?.name ?? "Sin asignar"}
+                </p>
+              </div>
             </div>
           </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">Edad</label>
-            <input
-              value={computedAgeLabel}
-              readOnly
-              placeholder="—"
-              className="w-full cursor-not-allowed rounded-md border border-border bg-muted px-3 py-2 text-sm shadow-sm focus:outline-none"
-            />
+
+          <div className="mt-6 grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">Fecha de nacimiento</label>
+              <div className="flex items-center gap-2">
+                <input
+                  ref={birthdateInputRef}
+                  type="date"
+                  value={dob}
+                  onChange={(event) => setDob(event.target.value)}
+                  max={new Date().toISOString().slice(0, 10)}
+                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+                <button
+                  type="button"
+                  onClick={() => birthdateInputRef.current?.showPicker?.()}
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-border bg-background text-muted-foreground shadow-sm transition hover:bg-muted hover:text-foreground"
+                  aria-label="Seleccionar fecha"
+                >
+                  <CalendarIcon className="h-4 w-4" strokeWidth={1.8} />
+                </button>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">Grupo principal</label>
+              <select
+                value={groupId}
+                onChange={(event) => setGroupId(event.target.value)}
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              >
+                <option value="">Sin grupo</option>
+                {groups.map((group) => (
+                  <option key={group.id} value={group.id}>
+                    {group.name}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-muted-foreground">
+                Define el grupo para sincronizar asistencia, evaluaciones y reportes.
+              </p>
+            </div>
           </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">Categoría</label>
-            <select
-              value={category}
-              onChange={(event) =>
-                setCategory(event.target.value as (typeof CATEGORY_OPTIONS)[number] | "")
-              }
-              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-            >
-              <option value="">Sin categoría</option>
-              {CATEGORY_OPTIONS.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">Nivel</label>
-            <select
-              value={level}
-              onChange={(event) => setLevel(event.target.value as (typeof LEVEL_OPTIONS)[number] | "")}
-              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-            >
-              <option value="">Selecciona nivel</option>
-              {LEVEL_OPTIONS.map((option) => (
-                <option key={option} value={option}>
-                  {option === "Pre-nivel" ? "Pre-nivel" : option === "FIG" ? "FIG" : `Nivel ${option}`}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">Estado</label>
-            <select
-              value={status}
-              onChange={(event) =>
-                setStatus(event.target.value as (typeof athleteStatusOptions)[number])
-              }
-              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-            >
-              {athleteStatusOptions.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="space-y-2 md:col-span-4">
-            <label className="text-sm font-medium text-foreground">Grupo principal</label>
-            <select
-              value={groupId}
-              onChange={(event) => setGroupId(event.target.value)}
-              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-            >
-              <option value="">Sin grupo</option>
-              {groups.map((group) => (
-                <option key={group.id} value={group.id}>
-                  {group.name}
-                </option>
-              ))}
-            </select>
-            <p className="text-xs text-muted-foreground">
-              Actualiza el grupo para sincronizar asistencia y evaluaciones del atleta.
+        </section>
+
+        <section className="rounded-xl border border-border/80 bg-card/40 p-5 shadow-sm">
+          <header className="mb-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Nivel competitivo
             </p>
+            <h3 className="text-base font-semibold text-foreground">Categoría, nivel y estado</h3>
+          </header>
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">Categoría</label>
+              <select
+                value={category}
+                onChange={(event) =>
+                  setCategory(event.target.value as (typeof CATEGORY_OPTIONS)[number] | "")
+                }
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              >
+                <option value="">Sin categoría</option>
+                {CATEGORY_OPTIONS.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">Nivel</label>
+              <select
+                value={level}
+                onChange={(event) =>
+                  setLevel(event.target.value as (typeof LEVEL_OPTIONS)[number] | "")
+                }
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              >
+                <option value="">Selecciona nivel</option>
+                {LEVEL_OPTIONS.map((option) => (
+                  <option key={option} value={option}>
+                    {option === "Pre-nivel" ? "Pre-nivel" : option === "FIG" ? "FIG" : `Nivel ${option}`}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">Estado</label>
+              <select
+                value={status}
+                onChange={(event) =>
+                  setStatus(event.target.value as (typeof athleteStatusOptions)[number])
+                }
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              >
+                {athleteStatusOptions.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
-        </div>
+        </section>
       </form>
 
-      <section className="mt-8 space-y-4">
+      <section className="mt-8 space-y-4 rounded-xl border border-border/80 bg-card/40 p-5 shadow-sm">
         <header className="flex items-center justify-between gap-2">
           <div>
             <h3 className="text-sm font-semibold text-foreground">
@@ -649,37 +797,186 @@ export function EditAthleteDialog({
         )}
 
         <div className="space-y-3">
-          {guardiansLoading && <p className="text-sm text-muted-foreground">Cargando contactos…</p>}
-          {!guardiansLoading && guardians.length === 0 && (
-            <p className="text-sm text-muted-foreground">
-              Aún no hay contactos agregados para este atleta.
-            </p>
-          )}
-          {guardians.map((guardian) => (
-            <div
-              key={guardian.linkId}
-              className="rounded-md border border-border/60 bg-muted/40 px-4 py-3 text-sm"
-            >
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="font-semibold">{guardian.name ?? "Sin nombre"}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {guardian.email ?? "Sin correo"} · {guardian.phone ?? "Sin teléfono"}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Relación: {guardian.linkRelationship ?? guardian.email ?? "No especificada"}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleRemoveGuardian(guardian.linkId)}
-                  className="text-xs text-red-600 hover:underline"
-                >
-                  Quitar
-                </button>
-              </div>
+          {guardiansLoading && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+              <span>Cargando contactos…</span>
             </div>
-          ))}
+          )}
+          {!guardiansLoading && guardianError && (
+            <div className="rounded-md border border-yellow-300 bg-yellow-50 px-3 py-2 text-xs text-yellow-700">
+              Error al cargar: {guardianError}
+            </div>
+          )}
+          {!guardiansLoading && guardians.length === 0 && !guardianError && (
+            <div className="rounded-md border border-border/60 bg-muted/20 px-3 py-2 text-sm text-muted-foreground">
+              Aún no hay contactos agregados para este atleta.
+            </div>
+          )}
+          {!guardiansLoading && guardians.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-muted-foreground">
+                {guardians.length} contacto{guardians.length !== 1 ? "s" : ""} encontrado{guardians.length !== 1 ? "s" : ""}
+              </p>
+              {guardians.map((guardian) => (
+                <div
+                  key={guardian.linkId}
+                  className="rounded-md border border-border/60 bg-muted/40 px-4 py-3 text-sm"
+                >
+              {editingGuardianId === guardian.linkId ? (
+                <form onSubmit={handleUpdateGuardian} className="space-y-3">
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <input
+                      value={editingGuardianForm.name}
+                      onChange={(event) =>
+                        setEditingGuardianForm((prev) => ({ ...prev, name: event.target.value }))
+                      }
+                      className="rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                      placeholder="Nombre"
+                      required
+                    />
+                    <input
+                      type="email"
+                      value={editingGuardianForm.email}
+                      onChange={(event) =>
+                        setEditingGuardianForm((prev) => ({ ...prev, email: event.target.value }))
+                      }
+                      className="rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                      placeholder="Correo"
+                    />
+                    <input
+                      value={editingGuardianForm.phone}
+                      onChange={(event) =>
+                        setEditingGuardianForm((prev) => ({ ...prev, phone: event.target.value }))
+                      }
+                      className="rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                      placeholder="Teléfono"
+                    />
+                    <input
+                      value={editingGuardianForm.relationship}
+                      onChange={(event) =>
+                        setEditingGuardianForm((prev) => ({ ...prev, relationship: event.target.value }))
+                      }
+                      className="rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                      placeholder="Relación"
+                    />
+                  </div>
+                  <div className="flex flex-wrap gap-4 text-xs">
+                    <label className="inline-flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={editingGuardianForm.notifyEmail}
+                        onChange={(event) =>
+                          setEditingGuardianForm((prev) => ({ ...prev, notifyEmail: event.target.checked }))
+                        }
+                      />
+                      Recibir correos
+                    </label>
+                    <label className="inline-flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={editingGuardianForm.notifySms}
+                        onChange={(event) =>
+                          setEditingGuardianForm((prev) => ({ ...prev, notifySms: event.target.checked }))
+                        }
+                      />
+                      Recibir SMS
+                    </label>
+                    <label className="inline-flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={editingGuardianForm.isPrimary}
+                        onChange={(event) =>
+                          setEditingGuardianForm((prev) => ({ ...prev, isPrimary: event.target.checked }))
+                        }
+                      />
+                      Contacto principal
+                    </label>
+                  </div>
+                  <div className="flex flex-wrap justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={cancelEditGuardian}
+                      className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-muted"
+                      disabled={isSavingGuardian}
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="submit"
+                      className="rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-white shadow hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
+                      disabled={isSavingGuardian}
+                    >
+                      {isSavingGuardian ? "Guardando…" : "Guardar contacto"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveGuardian(guardian.linkId)}
+                      className="text-xs font-semibold text-red-600 hover:underline"
+                      disabled={isSavingGuardian}
+                    >
+                      Eliminar
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <>
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="space-y-1">
+                      <p className="text-base font-semibold">{guardian.name ?? "Sin nombre"}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {guardian.email ?? "Sin correo"} · {guardian.phone ?? "Sin teléfono"}
+                      </p>
+                      <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                        <span className="rounded-full bg-white/60 px-2 py-0.5 font-semibold text-foreground">
+                          Relación: {guardian.linkRelationship ?? guardian.email ?? "No especificada"}
+                        </span>
+                        {guardian.isPrimary ? (
+                          <span className="rounded-full bg-emerald-100 px-2 py-0.5 font-semibold text-emerald-700">
+                            Principal
+                          </span>
+                        ) : null}
+                        {guardian.notifyEmail
+                          ? <span className="rounded-full bg-blue-100 px-2 py-0.5 font-semibold text-blue-700">Email</span>
+                          : null}
+                        {guardian.notifySms
+                          ? <span className="rounded-full bg-purple-100 px-2 py-0.5 font-semibold text-purple-700">SMS</span>
+                          : null}
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 text-xs font-semibold">
+                      {guardian.profileId ? (
+                        <Link
+                          href={`/dashboard/profile/${guardian.profileId}`}
+                          className="text-primary hover:underline"
+                        >
+                          Ver familiar
+                        </Link>
+                      ) : (
+                        <span className="text-muted-foreground">Sin perfil</span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => beginEditGuardian(guardian)}
+                        className="text-primary hover:underline"
+                      >
+                        Editar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveGuardian(guardian.linkId)}
+                        className="text-red-600 hover:underline"
+                      >
+                        Quitar
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <form onSubmit={handleAddGuardian} className="rounded-md border border-dashed border-border/80 p-4 space-y-3">

@@ -6,11 +6,34 @@ import { profiles, memberships, academies, subscriptions, plans, athletes, coach
 import { withSuperAdmin } from "@/lib/authz";
 import { logAdminAction } from "@/lib/admin-logs";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
+import { getAppUrl } from "@/lib/env";
 
 export const dynamic = "force-dynamic";
 
+interface RouteParams {
+  profileId?: string;
+}
+
+async function resolveParams(params: unknown): Promise<RouteParams> {
+  if (!params) {
+    return {};
+  }
+  if (typeof params === "object" && params !== null && "then" in params && typeof params.then === "function") {
+    return await (params as Promise<RouteParams>);
+  }
+  if (typeof params === "object" && params !== null) {
+    return params as RouteParams;
+  }
+  return {};
+}
+
 export const GET = withSuperAdmin(async (_request, context) => {
-  const profileId = context.params?.profileId;
+  if (!context || !context.profile) {
+    return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+  }
+
+  const resolvedParams = await resolveParams(context.params);
+  const profileId = resolvedParams?.profileId;
   if (!profileId) {
     return NextResponse.json({ error: "PROFILE_ID_REQUIRED" }, { status: 400 });
   }
@@ -128,7 +151,12 @@ export const GET = withSuperAdmin(async (_request, context) => {
 });
 
 export const PATCH = withSuperAdmin(async (request, context) => {
-  const profileId = context.params?.profileId;
+  if (!context || !context.profile) {
+    return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+  }
+
+  const resolvedParams = await resolveParams(context.params);
+  const profileId = resolvedParams?.profileId;
   if (!profileId) {
     return NextResponse.json({ error: "PROFILE_ID_REQUIRED" }, { status: 400 });
   }
@@ -270,10 +298,10 @@ export const PATCH = withSuperAdmin(async (request, context) => {
                   <div style="background-color: #dbeafe; padding: 15px; border-radius: 8px; margin: 20px 0;">
                     <h3 style="color: #1e40af; margin-top: 0;">¿Qué hacer ahora?</h3>
                     <ol style="color: #1e3a8a; padding-left: 20px;">
-                      <li>Visita tu <a href="${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/dashboard/plan-limits" style="color: #2563eb; font-weight: bold;">panel de ajustes de plan</a></li>
+                      <li>Visita tu <a href="${getAppUrl()}/dashboard/plan-limits" style="color: #2563eb; font-weight: bold;">panel de ajustes de plan</a></li>
                       <li>Revisa los recursos que exceden los límites</li>
                       <li>Elige qué mantener activo según tu plan</li>
-                      <li>O considera <a href="${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/dashboard" style="color: #2563eb; font-weight: bold;">actualizar tu plan</a> para mantener todos tus recursos</li>
+                      <li>O considera <a href="${getAppUrl()}/dashboard" style="color: #2563eb; font-weight: bold;">actualizar tu plan</a> para mantener todos tus recursos</li>
                     </ol>
                   </div>
                   

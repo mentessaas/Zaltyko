@@ -5,6 +5,12 @@ import { AssessmentForm } from "@/components/assessment-form";
 import { db } from "@/db";
 import { academies, athletes, groups, skillCatalog } from "@/db/schema";
 
+/**
+ * AssessmentsPage - Vista principal de evaluaciones técnicas
+ * 
+ * Permite registrar evaluaciones por aparato con puntuaciones por habilidad,
+ * comentarios y seguimiento del historial de progreso de los atletas.
+ */
 interface PageProps {
   params: {
     academyId: string;
@@ -53,13 +59,14 @@ export default async function AssessmentsPage({ params }: PageProps) {
     .limit(100);
 
   return (
-    <div className="space-y-6 p-8">
-      <div>
-        <h1 className="text-3xl font-semibold">Evaluaciones técnicas</h1>
-        <p className="text-muted-foreground">
+    <div className="space-y-6 p-4 sm:p-6 lg:p-8">
+      <header className="space-y-2 py-6">
+        <h1 className="text-3xl font-semibold">Evaluaciones</h1>
+        <p className="text-sm text-muted-foreground">
           Registra evaluaciones por aparato y lleva el historial de progreso.
         </p>
-      </div>
+      </header>
+
       <AssessmentForm
         academyId={params.academyId}
         athletes={athleteRows}

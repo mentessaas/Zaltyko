@@ -12,6 +12,7 @@ import {
   coaches,
   profiles,
 } from "@/db/schema";
+import { getClassAthletes } from "@/lib/classes/get-class-athletes";
 import SessionAttendanceForm from "@/components/sessions/SessionAttendanceForm";
 import { createClient } from "@/lib/supabase/server";
 
@@ -75,15 +76,14 @@ export default async function SessionPage({ params }: SessionPageProps) {
     redirect("/dashboard/calendar");
   }
 
-  const athleteRows = await db
-    .select({
-      id: athletes.id,
-      name: athletes.name,
-    })
-    .from(athletes)
-    .where(eq(athletes.academyId, sessionRow.academyId))
-    .orderBy(asc(athletes.name))
-    .limit(200);
+  // Obtener atletas de la clase (grupo base + enrollments)
+  const classAthletes = await getClassAthletes(sessionRow.classId, sessionRow.academyId);
+  
+  // Convertir a formato esperado por SessionAttendanceForm
+  const athleteRows = classAthletes.map((athlete) => ({
+    id: athlete.id,
+    name: athlete.name,
+  }));
 
   const attendanceRows = await db
     .select({

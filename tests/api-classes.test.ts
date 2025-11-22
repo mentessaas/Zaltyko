@@ -52,6 +52,10 @@ describe("API /api/classes", () => {
       typeof vi.fn
     >;
 
+    vi.mock("@/lib/permissions", () => ({
+      verifyAcademyAccess: vi.fn().mockResolvedValue({ allowed: true }),
+    }));
+
     vi.mock("@/db", () => ({
       db: {
         insert: vi.fn((table) => ({
@@ -88,13 +92,13 @@ describe("API /api/classes", () => {
           name: "Equipo FIG Avanzado",
           academyId: ACADEMY_ID,
           academyName: "Gymna Training Center",
-          weekday: 1,
           startTime: "17:00",
           endTime: "19:00",
           capacity: 20,
         },
       ])
     );
+    selectQueue.push(createSelectChain("where", []));
 
     const request = new Request(`http://localhost/api/classes?academyId=${ACADEMY_ID}`);
     const response = await GET(request, {} as any);
@@ -105,6 +109,7 @@ describe("API /api/classes", () => {
     expect(body.items[0]).toMatchObject({
       id: "class-1",
       name: "Equipo FIG Avanzado",
+      weekdays: [],
     });
   });
 
@@ -116,10 +121,17 @@ describe("API /api/classes", () => {
           name: "Equipo FIG Avanzado",
           academyId: ACADEMY_ID,
           academyName: "Gymna Training Center",
-          weekday: 1,
           startTime: "17:00",
           endTime: "19:00",
           capacity: 20,
+        },
+      ])
+    );
+    selectQueue.push(
+      createSelectChain("where", [
+        {
+          classId: "class-1",
+          weekday: 1,
         },
       ])
     );
@@ -141,6 +153,7 @@ describe("API /api/classes", () => {
 
     expect(response.status).toBe(200);
     const body = await response.json();
+    expect(body.items[0].weekdays).toEqual([1]);
     expect(body.items[0].coaches).toEqual([
       {
         id: "coach-1",
@@ -157,7 +170,7 @@ describe("API /api/classes", () => {
       body: JSON.stringify({
         academyId: ACADEMY_ID,
         name: "Grupo Avanzado",
-        weekday: 2,
+        weekdays: [2],
         startTime: "18:00",
         endTime: "20:00",
         capacity: 24,
@@ -167,13 +180,17 @@ describe("API /api/classes", () => {
     const response = await POST(request, {} as any);
 
     expect(response.status).toBe(200);
-    expect(insertCalls).toHaveLength(1);
-    const payload = insertCalls[0]?.payload as Record<string, unknown>;
-    expect(payload).toMatchObject({
+    expect(insertCalls).toHaveLength(2);
+    const classPayload = insertCalls[0]?.payload as Record<string, unknown>;
+    expect(classPayload).toMatchObject({
       academyId: ACADEMY_ID,
       name: "Grupo Avanzado",
-      weekday: 2,
       capacity: 24,
+    });
+    const weekdaysPayload = insertCalls[1]?.payload as Array<Record<string, unknown>>;
+    expect(Array.isArray(weekdaysPayload)).toBe(true);
+    expect(weekdaysPayload?.[0]).toMatchObject({
+      weekday: 2,
     });
     expect(assertWithinPlanLimits).toHaveBeenCalledWith("tenant-123", ACADEMY_ID, "classes");
   });

@@ -29,7 +29,7 @@ const WEEKDAY_LABELS: Record<number, string> = {
 interface GenerateSessionsDialogProps {
   classId: string;
   className: string;
-  weekday: number | null;
+  weekdays: number[];
   startTime: string | null;
   endTime: string | null;
   open: boolean;
@@ -40,7 +40,7 @@ interface GenerateSessionsDialogProps {
 export function GenerateSessionsDialog({
   classId,
   className,
-  weekday,
+  weekdays,
   startTime,
   endTime,
   open,
@@ -61,7 +61,7 @@ export function GenerateSessionsDialog({
   const [preview, setPreview] = useState<number | null>(null);
 
   const calculatePreview = () => {
-    if (!startDate || !endDate || weekday === null || weekday === undefined) {
+    if (!startDate || !endDate || weekdays.length === 0) {
       setPreview(null);
       return;
     }
@@ -75,33 +75,31 @@ export function GenerateSessionsDialog({
         return;
       }
 
-      // Calcular cuántas sesiones se generarán
-      let count = 0;
-      let currentDate = new Date(start);
-      const targetWeekday = weekday;
+      let total = 0;
+      for (const targetWeekday of weekdays) {
+        let currentDate = new Date(start);
+        const startWeekday = getDay(currentDate);
+        const targetDay = targetWeekday === 0 ? 7 : targetWeekday;
+        const currentDay = startWeekday === 0 ? 7 : startWeekday;
+        let daysToAdd = (targetDay - currentDay + 7) % 7;
 
-      // Encontrar la primera fecha que coincide con el weekday
-      const startWeekday = getDay(currentDate);
-      const targetDay = targetWeekday === 0 ? 7 : targetWeekday;
-      const currentDay = startWeekday === 0 ? 7 : startWeekday;
-      let daysToAdd = (targetDay - currentDay + 7) % 7;
+        if (daysToAdd === 0 && startWeekday !== targetWeekday) {
+          daysToAdd = 7;
+        }
 
-      if (daysToAdd === 0 && startWeekday !== targetWeekday) {
-        daysToAdd = 7;
+        currentDate = addDays(currentDate, daysToAdd);
+
+        if (currentDate < start) {
+          currentDate = addDays(currentDate, 7);
+        }
+
+        while (currentDate <= end) {
+          total++;
+          currentDate = addDays(currentDate, 7);
+        }
       }
 
-      currentDate = addDays(currentDate, daysToAdd);
-
-      if (currentDate < start) {
-        currentDate = addDays(currentDate, 7);
-      }
-
-      while (currentDate <= end) {
-        count++;
-        currentDate = addDays(currentDate, 7);
-      }
-
-      setPreview(count);
+      setPreview(total);
     } catch {
       setPreview(null);
     }
@@ -125,8 +123,8 @@ export function GenerateSessionsDialog({
       return;
     }
 
-    if (weekday === null || weekday === undefined) {
-      setError("Esta clase no tiene un día de la semana configurado");
+    if (weekdays.length === 0) {
+      setError("Esta clase no tiene días configurados");
       return;
     }
 
@@ -180,14 +178,14 @@ export function GenerateSessionsDialog({
     }
   };
 
-  if (weekday === null || weekday === undefined) {
+  if (weekdays.length === 0) {
     return (
       <Dialog open={open} onOpenChange={onClose}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Generar sesiones recurrentes</DialogTitle>
             <DialogDescription>
-              Esta clase no tiene un día de la semana configurado. Configura el día de la semana en
+              Esta clase no tiene días semanales configurados. Configura al menos un día en
               la clase antes de generar sesiones recurrentes.
             </DialogDescription>
           </DialogHeader>
@@ -207,8 +205,8 @@ export function GenerateSessionsDialog({
         <DialogHeader>
           <DialogTitle>Generar sesiones recurrentes</DialogTitle>
           <DialogDescription>
-            Genera sesiones automáticamente para <strong>{className}</strong> basándote en el día de
-            la semana configurado ({WEEKDAY_LABELS[weekday]}).
+            Genera sesiones automáticamente para <strong>{className}</strong> basándote en los días
+            configurados ({weekdays.map((day) => WEEKDAY_LABELS[day]).join(", ")}).
           </DialogDescription>
         </DialogHeader>
 
@@ -238,8 +236,8 @@ export function GenerateSessionsDialog({
           {preview !== null && preview > 0 && (
             <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
               <p className="font-medium">
-                Se generarán aproximadamente <strong>{preview} sesiones</strong> para los{" "}
-                {WEEKDAY_LABELS[weekday]}s en el rango seleccionado.
+                Se generarán aproximadamente <strong>{preview} sesiones</strong> para los días
+                seleccionados en el rango elegido.
               </p>
               {startTime && endTime && (
                 <p className="mt-1 text-xs text-blue-700">
@@ -253,7 +251,7 @@ export function GenerateSessionsDialog({
             <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
               <p>No se generarán sesiones en el rango seleccionado.</p>
               <p className="mt-1 text-xs text-amber-700">
-                Asegúrate de que el rango incluya al menos un {WEEKDAY_LABELS[weekday]}.
+                Asegúrate de que el rango incluya al menos uno de los días configurados.
               </p>
             </div>
           )}

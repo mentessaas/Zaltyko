@@ -17,6 +17,10 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { type ProfileRow } from "@/lib/authz";
+import { OnboardingChecklist } from "@/components/dashboard/OnboardingChecklist";
+import { calculateDaysLeft } from "@/lib/onboarding-utils";
+import { AcademyEditSection } from "@/components/academies/AcademyEditSection";
+import { ProfileTabs } from "@/components/profiles/ProfileTabs";
 
 interface AcademySummary {
   id: string;
@@ -26,6 +30,10 @@ interface AcademySummary {
   planCode: string | null;
   planNickname: string | null;
   subscriptionStatus: string | null;
+  trialStartsAt: Date | string | null;
+  trialEndsAt: Date | string | null;
+  isTrialActive: boolean | null;
+  paymentsConfiguredAt: Date | string | null;
 }
 
 interface OwnerProfileProps {
@@ -83,6 +91,8 @@ export function OwnerProfile({ user, profile, academies, defaultAcademyId, targe
   const router = useRouter();
   const [activeAcademyId, setActiveAcademyId] = useState(defaultAcademyId ?? "");
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [currentProfile, setCurrentProfile] = useState(profile);
+  const [currentUser, setCurrentUser] = useState(user);
   const [limitViolations, setLimitViolations] = useState<{
     violations: Array<{
       resource: string;
@@ -133,6 +143,8 @@ export function OwnerProfile({ user, profile, academies, defaultAcademyId, targe
     ? `Gestionas ${academies.length} academia${academies.length === 1 ? "" : "s"}.`
     : "Tu plan actual no permite crear nuevas academias. Actualiza tu plan para ampliarlo.";
 
+  const trialDaysLeft = activeAcademy?.trialEndsAt ? calculateDaysLeft(activeAcademy.trialEndsAt) : null;
+
   const handleAcademyChange = async (event: React.ChangeEvent<HTMLSelectElement>) => {
     const value = event.target.value;
     setActiveAcademyId(value);
@@ -164,10 +176,10 @@ export function OwnerProfile({ user, profile, academies, defaultAcademyId, targe
     }
   };
 
-  const initials = (profile?.name || user?.email || "U").slice(0, 2).toUpperCase();
+  const initials = (currentProfile?.name || currentUser?.email || "U").slice(0, 2).toUpperCase();
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-10">
       {targetProfileId && (
         <div className="rounded-lg border border-amber-400/60 bg-amber-400/10 p-4">
           <div className="flex items-center justify-between">
@@ -223,134 +235,171 @@ export function OwnerProfile({ user, profile, academies, defaultAcademyId, targe
         </div>
       )}
 
-      <header className="flex flex-col gap-4 rounded-xl border bg-card p-6 shadow-sm lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex items-center gap-4">
-          <Avatar className="h-16 w-16">
-            <AvatarFallback className="bg-primary/10 text-lg font-semibold text-primary">
-              {initials}
-            </AvatarFallback>
-          </Avatar>
-          <div className="space-y-1">
-            <h1 className="text-2xl font-semibold">Mi perfil - Propietario</h1>
-            <p className="text-sm text-muted-foreground">
-              Gestiona tus academias, planes de suscripción y configuración de cuenta.
-            </p>
+      <section className="space-y-4">
+        <div className="space-y-1">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+            Panel principal
+          </p>
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <h2 className="text-2xl font-semibold text-foreground">Resumen general</h2>
+              <p className="text-sm text-muted-foreground">
+                Visualiza tu rol, el estado de tus academias y accesos clave de un vistazo.
+              </p>
+            </div>
+            <div className="rounded-full border border-primary/20 bg-primary/5 px-4 py-1 text-xs font-semibold uppercase tracking-wide text-primary">
+              Propietario de Academia
+            </div>
           </div>
         </div>
-        <div className="rounded-full border border-primary/20 bg-primary/5 px-4 py-1 text-xs font-semibold uppercase tracking-wide text-primary">
-          Propietario de Academia
+
+        <Card className="border bg-card p-6 shadow-sm">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-center gap-4">
+              <Avatar className="h-16 w-16">
+                <AvatarFallback className="bg-primary/10 text-lg font-semibold text-primary">
+                  {initials}
+                </AvatarFallback>
+              </Avatar>
+              <div className="space-y-1">
+                <h3 className="text-xl font-semibold text-foreground">Mi perfil - Propietario</h3>
+                <p className="text-sm text-muted-foreground">
+                  Gestiona tus academias, planes de suscripción y configuración de cuenta.
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" size="sm" asChild>
+                <Link href="/dashboard/profile">Ver mi cuenta</Link>
+              </Button>
+              <Button variant="default" size="sm" asChild>
+                <Link href="/dashboard/academies">Ir a academias</Link>
+              </Button>
+            </div>
+          </div>
+        </Card>
+
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+          <Card>
+            <CardHeader className="p-4">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Building2 className="h-4 w-4" />
+                Academias
+              </CardTitle>
+              <CardDescription>Activas en tu cuenta</CardDescription>
+            </CardHeader>
+            <CardContent className="p-4 pt-0">
+              <p className="text-3xl font-semibold text-foreground">{academies.length}</p>
+            </CardContent>
+            <CardFooter className="p-4 pt-0">
+              <Button variant="outline" size="sm" className="w-full" asChild>
+                <Link href="/dashboard/academies">Ver academias</Link>
+              </Button>
+            </CardFooter>
+          </Card>
+
+          <Card>
+            <CardHeader className="p-4">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <CreditCard className="h-4 w-4" />
+                Plan actual
+              </CardTitle>
+              <CardDescription>Estado del plan y beneficios</CardDescription>
+            </CardHeader>
+            <CardContent className="p-4 pt-0">
+              <p className="text-lg font-semibold">{planCopy.label}</p>
+              <p className="text-xs text-muted-foreground">{planCopy.description}</p>
+            </CardContent>
+            <CardFooter className="p-4 pt-0">
+              <Button variant="outline" size="sm" className="w-full" asChild>
+                <Link href={activeAcademy ? `/app/${activeAcademy.id}/billing` : "/billing"}>
+                  {planCopy.cta}
+                </Link>
+              </Button>
+            </CardFooter>
+          </Card>
+
+          <Card>
+            <CardHeader className="p-4">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Users className="h-4 w-4" />
+                Equipo
+              </CardTitle>
+              <CardDescription>Accesos y roles</CardDescription>
+            </CardHeader>
+            <CardContent className="p-4 pt-0">
+              <p className="text-sm text-muted-foreground">
+                Invita administradores, entrenadores y tutores desde un único lugar.
+              </p>
+            </CardContent>
+            <CardFooter className="p-4 pt-0">
+              <Button variant="outline" size="sm" className="w-full" asChild>
+                <Link href="/dashboard/users">Gestionar equipo</Link>
+              </Button>
+            </CardFooter>
+          </Card>
+
+          <Card>
+            <CardHeader className="p-4">
+              <CardTitle className="text-base">Facturación</CardTitle>
+              <CardDescription>Suscripciones y cobros</CardDescription>
+            </CardHeader>
+            <CardContent className="p-4 pt-0">
+              <p className="text-sm text-muted-foreground">
+                Estado: {activeAcademy?.subscriptionStatus ?? "Sin suscripción"}
+              </p>
+            </CardContent>
+            <CardFooter className="p-4 pt-0">
+              <Button variant="outline" size="sm" className="w-full" asChild>
+                <Link href="/billing">Ver facturación</Link>
+              </Button>
+            </CardFooter>
+          </Card>
         </div>
-      </header>
+      </section>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="p-4">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Building2 className="h-4 w-4" />
-              Academias
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-4 pt-0">
-            <p className="text-2xl font-bold">{academies.length}</p>
-            <p className="text-xs text-muted-foreground">Academias gestionadas</p>
-          </CardContent>
-          <CardFooter className="p-4 pt-0">
-            <Button variant="outline" size="sm" className="w-full" asChild>
-              <Link href="/dashboard/academies">Ver academias</Link>
-            </Button>
-          </CardFooter>
-        </Card>
+      <section className="space-y-4">
+        <div className="space-y-1">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+            Gestión de academias
+          </p>
+          <h2 className="text-2xl font-semibold text-foreground">Controla tu academia activa</h2>
+          <p className="text-sm text-muted-foreground">
+            Cambia entre academias, revisa el estado del plan y accede rápidamente al panel operativo.
+          </p>
+        </div>
 
-        <Card>
-          <CardHeader className="p-4">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <CreditCard className="h-4 w-4" />
-              Plan Actual
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-4 pt-0">
-            <p className="text-lg font-bold">{planCopy.label}</p>
-            <p className="text-xs text-muted-foreground">{planCopy.description}</p>
-          </CardContent>
-          <CardFooter className="p-4 pt-0">
-            <Button variant="outline" size="sm" className="w-full" asChild>
-              <Link href={activeAcademy ? `/app/${activeAcademy.id}/billing` : "/billing"}>
-                {planCopy.cta}
-              </Link>
-            </Button>
-          </CardFooter>
-        </Card>
+        {activeAcademy && activeAcademy.trialEndsAt && (
+          <div
+            className={`rounded-lg border px-4 py-3 text-sm ${
+              activeAcademy.isTrialActive
+                ? "border-primary/40 bg-primary/5 text-primary"
+                : "border-amber-400/60 bg-amber-50 text-amber-900"
+            }`}
+          >
+            {activeAcademy.isTrialActive ? (
+              <p>
+                Acceso completo al periodo de prueba. Te quedan {trialDaysLeft ?? 0} días para explorar todas las funciones
+                premium.
+              </p>
+            ) : (
+              <p>
+                Tu periodo de prueba terminó. Activa un plan Pro para mantener automatizaciones y cobranzas sin fricciones.
+              </p>
+            )}
+          </div>
+        )}
 
         <Card>
-          <CardHeader className="p-4">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Users className="h-4 w-4" />
-              Equipo
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-4 pt-0">
-            <p className="text-xs text-muted-foreground">Gestiona tu equipo</p>
-          </CardContent>
-          <CardFooter className="p-4 pt-0">
-            <Button variant="outline" size="sm" className="w-full" asChild>
-              <Link href="/dashboard/users">Ver equipo</Link>
-            </Button>
-          </CardFooter>
-        </Card>
-
-        <Card>
-          <CardHeader className="p-4">
-            <CardTitle className="text-base">Facturación</CardTitle>
-          </CardHeader>
-          <CardContent className="p-4 pt-0">
-            <p className="text-xs text-muted-foreground">Estado: {activeAcademy?.subscriptionStatus ?? "Sin suscripción"}</p>
-          </CardContent>
-          <CardFooter className="p-4 pt-0">
-            <Button variant="outline" size="sm" className="w-full" asChild>
-              <Link href="/billing">Ver facturación</Link>
-            </Button>
-          </CardFooter>
-        </Card>
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,2fr)]">
-        <Card>
-          <CardHeader className="p-6 pb-3">
-            <CardTitle className="text-base font-semibold">Datos personales</CardTitle>
-            <CardDescription>
-              Información básica de tu cuenta.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="p-6 pt-0">
-            <dl className="space-y-4 text-sm">
-              <div className="flex flex-col">
-                <dt className="text-xs uppercase tracking-wide text-muted-foreground">Nombre</dt>
-                <dd className="font-medium text-foreground">{profile?.name ?? "Añade tu nombre"}</dd>
+          <CardContent className="grid gap-6 p-6 lg:grid-cols-2">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Academia activa</p>
+                <p className="text-sm text-muted-foreground">
+                  Selecciona la academia sobre la que quieres operar. Los widgets y accesos rápidos se actualizarán
+                  automáticamente.
+                </p>
               </div>
-              <div className="flex flex-col">
-                <dt className="text-xs uppercase tracking-wide text-muted-foreground">Correo</dt>
-                <dd className="font-medium text-foreground">{user?.email ?? "—"}</dd>
-              </div>
-              <div className="flex flex-col">
-                <dt className="text-xs uppercase tracking-wide text-muted-foreground">Miembro desde</dt>
-                <dd className="font-medium text-foreground">{formatDate(profile?.createdAt ?? null)}</dd>
-              </div>
-            </dl>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="p-6 pb-3">
-            <CardTitle className="text-base font-semibold">Academia activa</CardTitle>
-            <CardDescription>
-              Selecciona tu academia activa para ver sus detalles y gestionar su configuración.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6 p-6 pt-0">
-            <div className="space-y-2">
-              <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Academia activa
-              </label>
               <select
                 value={activeAcademyId}
                 onChange={handleAcademyChange}
@@ -370,31 +419,28 @@ export function OwnerProfile({ user, profile, academies, defaultAcademyId, targe
             </div>
 
             {activeAcademy ? (
-              <div className="space-y-3 rounded-lg border border-dashed border-primary/30 bg-primary/5 p-4 text-sm">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Plan actual</p>
-                    <p className="text-base font-semibold text-foreground">{planCopy.label}</p>
+              <div className="space-y-4 rounded-lg border border-dashed border-primary/30 bg-primary/5 p-4 text-sm">
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-muted-foreground">Plan actual</p>
+                      <p className="text-base font-semibold text-foreground">{planCopy.label}</p>
+                    </div>
+                    <Button size="sm" asChild>
+                      <Link href={`/app/${activeAcademy.id}/dashboard`}>Ir al panel</Link>
+                    </Button>
                   </div>
-                  <Button size="sm" asChild>
-                    <Link href={`/app/${activeAcademy.id}/dashboard`}>Ir al panel</Link>
-                  </Button>
+                  <p className="text-xs text-muted-foreground">{planCopy.description}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Creada el {formatDate(activeAcademy.createdAt)} · Estado: {activeAcademy.subscriptionStatus ?? "sin suscripción"}
+                  </p>
+                  {canCreateAcademies && (
+                    <Button variant="outline" size="sm" onClick={() => router.push("/onboarding")} className="w-full">
+                      Crear nueva academia
+                    </Button>
+                  )}
+                  <p className="text-xs text-muted-foreground">{planLimitLabel}</p>
                 </div>
-                <p className="text-xs text-muted-foreground">{planCopy.description}</p>
-                <p className="text-xs text-muted-foreground">
-                  Creada el {formatDate(activeAcademy.createdAt)} · Estado: {activeAcademy.subscriptionStatus ?? "sin suscripción"}
-                </p>
-                {canCreateAcademies && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => router.push("/onboarding")}
-                    className="w-full"
-                  >
-                    Crear nueva academia
-                  </Button>
-                )}
-                <p className="text-xs text-muted-foreground">{planLimitLabel}</p>
               </div>
             ) : (
               <div className="rounded-lg border border-dashed border-muted-foreground/30 bg-muted/20 p-4 text-sm text-muted-foreground">
@@ -403,7 +449,60 @@ export function OwnerProfile({ user, profile, academies, defaultAcademyId, targe
             )}
           </CardContent>
         </Card>
-      </div>
+      </section>
+
+      {activeAcademy && (
+        <section className="space-y-4">
+          <div className="space-y-1">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+              Configuración de academia
+            </p>
+            <h2 className="text-2xl font-semibold text-foreground">Información y contacto</h2>
+            <p className="text-sm text-muted-foreground">
+              Gestiona los datos públicos de tu academia que aparecerán en el directorio.
+            </p>
+          </div>
+
+          <AcademyEditSection academyId={activeAcademy.id} />
+        </section>
+      )}
+
+      {(activeAcademy?.id ?? defaultAcademyId) && (
+        <section className="space-y-4">
+          <div className="space-y-1">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+              Onboarding y próximos pasos
+            </p>
+            <h2 className="text-2xl font-semibold text-foreground">Checklist de activación</h2>
+            <p className="text-sm text-muted-foreground">
+              Completa las tareas prioritarias para poner en marcha tu academia en menos de 24 horas.
+            </p>
+          </div>
+
+          <OnboardingChecklist academyId={activeAcademy?.id ?? defaultAcademyId} />
+        </section>
+      )}
+
+      <section className="space-y-4">
+        <div className="space-y-1">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+            Configuración personal
+          </p>
+          <h2 className="text-2xl font-semibold text-foreground">Datos de la cuenta</h2>
+          <p className="text-sm text-muted-foreground">
+            Mantén actualizada tu información personal y los accesos principales.
+          </p>
+        </div>
+
+        <ProfileTabs
+          user={currentUser}
+          profile={currentProfile}
+          onProfileUpdated={() => {
+            // Recargar datos del perfil
+            window.location.reload();
+          }}
+        />
+      </section>
     </div>
   );
 }

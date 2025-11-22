@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/toast-provider";
+import { isValidEmail, normalizeEmail } from "@/lib/validation/email-utils";
 
 export default function LoginForm() {
   const [email, setEmail] = useState("");
@@ -23,10 +24,44 @@ export default function LoginForm() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validar email antes de enviar
+    if (!email.trim()) {
+      toast.pushToast({
+        title: "Correo requerido",
+        description: "Por favor ingresa tu correo electrónico",
+        variant: "error",
+      });
+      return;
+    }
+    
+    if (!isValidEmail(email)) {
+      toast.pushToast({
+        title: "Correo inválido",
+        description: "Por favor ingresa un correo electrónico válido",
+        variant: "error",
+      });
+      return;
+    }
+    
+    if (!password.trim()) {
+      toast.pushToast({
+        title: "Contraseña requerida",
+        description: "Por favor ingresa tu contraseña",
+        variant: "error",
+      });
+      return;
+    }
+    
     setLoading(true);
     try {
+      const normalizedEmail = normalizeEmail(email);
+      if (!normalizedEmail) {
+        throw new Error("Email inválido");
+      }
+      
       const { error } = await supabase.auth.signInWithPassword({
-        email,
+        email: normalizedEmail,
         password,
       });
       if (error) {
@@ -50,7 +85,8 @@ export default function LoginForm() {
 
   const handleMagicLink = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email) {
+    
+    if (!email.trim()) {
       toast.pushToast({
         title: "Correo requerido",
         description: "Por favor ingresa tu correo electrónico",
@@ -58,9 +94,24 @@ export default function LoginForm() {
       });
       return;
     }
+    
+    if (!isValidEmail(email)) {
+      toast.pushToast({
+        title: "Correo inválido",
+        description: "Por favor ingresa un correo electrónico válido",
+        variant: "error",
+      });
+      return;
+    }
+    
     setMagicLinkLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithOtp({ email });
+      const normalizedEmail = normalizeEmail(email);
+      if (!normalizedEmail) {
+        throw new Error("Email inválido");
+      }
+      
+      const { error } = await supabase.auth.signInWithOtp({ email: normalizedEmail });
       if (error) {
         toast.pushToast({
           title: "Error al enviar enlace mágico",

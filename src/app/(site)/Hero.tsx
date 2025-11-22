@@ -2,15 +2,15 @@ import Link from "next/link";
 import { BadgeCheck, Users, ArrowRight, Sparkles } from "lucide-react";
 
 const stats = [
-  { label: "Academias activas", value: "+120" },
+  { label: "Academias registradas", value: "+120" },
   { label: "Atletas gestionados", value: "18k" },
   { label: "Pagos conciliados", value: "€3.4M" },
 ];
 
 const sellingPoints = [
-  "Control multi-academia con aislamiento por tenant",
-  "Tableros en tiempo real para atletas, clases y eventos",
-  "Stripe integrado con planes Free, Pro y Premium",
+  "Aislamiento total por tenant con RLS y cumplimiento RGPD",
+  "Operativa en tiempo real: todo se actualiza instantáneamente",
+  "Pensado exclusivamente para gimnasia artística y rítmica",
 ];
 
 export default function HeroSection() {
@@ -26,11 +26,11 @@ export default function HeroSection() {
           </span>
 
           <h1 className="mt-6 font-display text-4xl font-extrabold leading-tight text-white sm:text-5xl lg:text-[3.2rem]">
-            Zaltyko — El sistema definitivo para gestionar academias de gimnasia
+            Zaltyko — El software profesional para academias de gimnasia
           </h1>
 
           <p className="mt-6 text-lg text-white/90 md:max-w-xl">
-            Registra alumnos, controla pagos, organiza competencias y haz crecer tu academia sin complicaciones.
+            Organiza atletas, grupos, horarios, entrenadores, asistencia y pagos… todo desde un solo panel. Sin Excel. Sin caos. Sin WhatsApp.
           </p>
 
           <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-center">
@@ -39,14 +39,14 @@ export default function HeroSection() {
               className="group relative inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-zaltyko-accent to-zaltyko-accent-light px-8 py-4 text-base font-bold text-zaltyko-primary-dark shadow-lg shadow-zaltyko-accent/30 transition-all duration-300 hover:scale-105 hover:from-zaltyko-accent-light hover:to-zaltyko-accent hover:shadow-xl hover:shadow-zaltyko-accent/40 active:scale-100"
             >
               <Sparkles className="h-5 w-5 animate-pulse" />
-              <span>Iniciar onboarding guiado</span>
+              <span>Iniciar demo guiada</span>
               <ArrowRight className="h-5 w-5 transition-transform duration-300 group-hover:translate-x-1" />
             </Link>
             <Link
               href="#planes"
               className="inline-flex items-center justify-center rounded-full border-2 border-white/30 px-6 py-3 text-sm font-semibold text-white transition hover:border-white/50 hover:bg-white/10"
             >
-              Conoce los planes
+              Conocer planes
             </Link>
           </div>
 
@@ -64,10 +64,10 @@ export default function HeroSection() {
           <div className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-xl backdrop-blur">
             <div className="rounded-2xl bg-zaltyko-primary-dark/50 p-5">
               <p className="text-xs font-medium uppercase tracking-[0.2em] text-zaltyko-accent">
-                Panel en vivo
+                Vista general del ecosistema Zaltyko
               </p>
               <h2 className="mt-3 font-display text-xl font-semibold text-white">
-                Vista general de la academia Aurora Elite
+                Métricas en tiempo real
               </h2>
               <div className="mt-6 space-y-4">
                 {stats.map((item) => (
@@ -81,7 +81,7 @@ export default function HeroSection() {
               </div>
             </div>
             <p className="mt-4 text-center text-xs text-slate-300/70">
-              Datos ilustrativos. Conecta tu academia y verás métricas reales en segundos.
+              *(Datos ilustrativos. Al conectar tu academia verás métricas reales en segundos.)
             </p>
           </div>
         </aside>

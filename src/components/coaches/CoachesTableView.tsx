@@ -81,16 +81,12 @@ export function CoachesTableView({ academyId, coaches, classes, groupOptions, fi
     });
   };
 
-  const emptyMessage = useMemo(() => {
-    if (filters.q || filters.groupId) {
-      return "No hay entrenadores que coincidan con la búsqueda.";
-    }
-    return "Registra entrenadores y asígnalos a tus clases para facilitar la operación.";
-  }, [filters]);
+  const hasActiveFilters = filters.q || filters.groupId;
+  const isEmpty = coaches.length === 0;
 
   return (
     <div className="space-y-6">
-      <section className="flex flex-col gap-4 rounded-lg border bg-card p-5 shadow-sm xl:flex-row xl:items-center xl:justify-between">
+      <section className="flex flex-col gap-4 rounded-lg border bg-card p-5 shadow-sm lg:flex-row lg:items-center lg:justify-between">
         <form className="flex flex-1 flex-wrap items-center gap-3" onSubmit={applyFilters}>
           <input
             type="search"
@@ -111,42 +107,49 @@ export function CoachesTableView({ academyId, coaches, classes, groupOptions, fi
               </option>
             ))}
           </select>
-          <button
-            type="submit"
-            className="inline-flex items-center rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white shadow hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={isPending}
-          >
-            {isPending ? "Buscando…" : "Buscar"}
-          </button>
         </form>
-        <button
-          type="button"
-          onClick={() => setCreateOpen(true)}
-          className="inline-flex items-center justify-center rounded-md bg-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-emerald-600"
-        >
-          Nuevo entrenador
-        </button>
+
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setCreateOpen(true)}
+            className="inline-flex items-center justify-center rounded-md bg-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-emerald-600"
+          >
+            Nuevo entrenador
+          </button>
+        </div>
       </section>
 
-      <div className="overflow-hidden rounded-lg border bg-card shadow">
-        <table className="min-w-full divide-y divide-border text-sm">
-          <thead className="bg-muted/60">
-            <tr className="text-left text-xs uppercase tracking-wide text-muted-foreground">
-              <th className="px-4 py-3 font-medium">Nombre</th>
-              <th className="px-4 py-3 font-medium">Contacto</th>
-              <th className="px-4 py-3 font-medium">Clases asignadas</th>
-              <th className="px-4 py-3 font-medium">Grupos</th>
-              <th className="px-4 py-3 font-medium text-right">Acciones</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border bg-background text-foreground">
-            {coaches.length === 0 && (
-              <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
-                  {emptyMessage}
-                </td>
+      {isEmpty ? (
+        <div className="rounded-lg border bg-card p-12 text-center shadow-sm">
+          <p className="mb-4 text-sm text-muted-foreground">
+            {hasActiveFilters
+              ? "No hay entrenadores que coincidan con la búsqueda."
+              : "Aún no has creado ningún entrenador. Crea tu primer entrenador para asignarlo a clases y grupos."}
+          </p>
+          {!hasActiveFilters && (
+            <button
+              type="button"
+              onClick={() => setCreateOpen(true)}
+              className="inline-flex items-center justify-center rounded-md bg-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-emerald-600"
+            >
+              Crear primer entrenador
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="overflow-hidden rounded-lg border bg-card shadow">
+          <table className="min-w-full divide-y divide-border text-sm">
+            <thead className="bg-muted/60">
+              <tr className="text-left text-xs uppercase tracking-wide text-muted-foreground">
+                <th className="px-4 py-3 font-medium">Nombre</th>
+                <th className="px-4 py-3 font-medium">Contacto</th>
+                <th className="px-4 py-3 font-medium">Clases asignadas</th>
+                <th className="px-4 py-3 font-medium">Grupos</th>
+                <th className="px-4 py-3 font-medium text-right">Acciones</th>
               </tr>
-            )}
+            </thead>
+            <tbody className="divide-y divide-border bg-background text-foreground">
             {coaches.map((coach) => (
               <tr key={coach.id} className="hover:bg-muted/40">
                 <td className="px-4 py-3">
@@ -232,9 +235,22 @@ export function CoachesTableView({ academyId, coaches, classes, groupOptions, fi
                 </td>
               </tr>
             ))}
-          </tbody>
-        </table>
-      </div>
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {process.env.NODE_ENV !== "production" && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+          <p>
+            ¿Necesitas reportes avanzados o invitaciones masivas? Usa temporalmente el{" "}
+            <Link href="/dashboard/coaches" className="font-semibold underline">
+              panel clásico
+            </Link>{" "}
+            mientras completamos la migración.
+          </p>
+        </div>
+      )}
 
       <CreateCoachDialog
         academyId={academyId}

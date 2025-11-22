@@ -12,6 +12,12 @@ export interface SuperAdminMetrics {
     plans: number;
     subscriptions: number;
     latestAcademyAt: string | null;
+    // Metrics for student charges
+    activeAcademies: number; // Academies with at least 1 athlete/group
+    totalAthletes: number;
+    chargesCreatedThisMonth: number;
+    chargesPaidThisMonth: number; // Amount in cents
+    recentActivityAcademies: number; // Academies with events in last 7 days
   };
   usersByRole: Array<{ role: string; total: number }>;
   planStatuses: Array<{ status: string; total: number }>;
@@ -61,11 +67,26 @@ function toIso(value: string | Date | null | undefined) {
 export async function getGlobalStats(): Promise<SuperAdminMetrics> {
   // Use Drizzle directly to bypass RLS and get all data
   const { db } = await import("@/db");
-  const { academies, profiles, plans, subscriptions, billingInvoices, athleteAssessments } = await import("@/db/schema");
-  const { desc } = await import("drizzle-orm");
+  const { academies, profiles, plans, subscriptions, billingInvoices, athleteAssessments, athletes, groups, charges, eventLogs } = await import("@/db/schema");
+  const { desc, gte } = await import("drizzle-orm");
 
-  const [academiesList, profilesList, plansList, subscriptionsList, invoicesList, assessmentsList] =
-    await Promise.all([
+  // Get current month for charge metrics
+  const now = new Date();
+  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+  const [
+    academiesList,
+    profilesList,
+    plansList,
+    subscriptionsList,
+    invoicesList,
+    assessmentsList,
+    athletesList,
+    groupsList,
+    chargesList,
+    eventLogsList,
+  ] = await Promise.all([
       db.select({
         id: academies.id,
         createdAt: academies.createdAt,
@@ -94,6 +115,28 @@ export async function getGlobalStats(): Promise<SuperAdminMetrics> {
       db.select({
         id: athleteAssessments.id,
       }).from(athleteAssessments),
+      db.select({
+        id: athletes.id,
+        academyId: athletes.academyId,
+      }).from(athletes),
+      db.select({
+        id: groups.id,
+        academyId: groups.academyId,
+      }).from(groups),
+      db.select({
+        id: charges.id,
+        academyId: charges.academyId,
+        period: charges.period,
+        status: charges.status,
+        amountCents: charges.amountCents,
+      }).from(charges),
+      db.select({
+        id: eventLogs.id,
+        academyId: eventLogs.academyId,
+        createdAt: eventLogs.createdAt,
+      })
+        .from(eventLogs)
+        .where(gte(eventLogs.createdAt, sevenDaysAgo)),
     ]);
 
   const academiesData = academiesList;
@@ -149,6 +192,24 @@ export async function getGlobalStats(): Promise<SuperAdminMetrics> {
 
   const latestAcademyAt = academiesData.length > 0 ? toIso(academiesData[0].createdAt) : null;
 
+  // Calculate active academies (with at least 1 athlete or group)
+  const academiesWithAthletes = new Set(athletesList.map((a) => a.academyId));
+  const academiesWithGroups = new Set(groupsList.map((g) => g.academyId));
+  const activeAcademiesSet = new Set([...academiesWithAthletes, ...academiesWithGroups]);
+  const activeAcademies = activeAcademiesSet.size;
+
+  // Calculate charge metrics for current month
+  const chargesThisMonth = chargesList.filter((c) => c.period === currentMonth);
+  const chargesCreatedThisMonth = chargesThisMonth.length;
+  const chargesPaidThisMonth = chargesThisMonth
+    .filter((c) => c.status === "paid")
+    .reduce((sum, c) => sum + (c.amountCents ?? 0), 0);
+
+  // Calculate academies with recent activity (events in last 7 days)
+  const academiesWithRecentActivity = new Set(
+    eventLogsList.map((e) => e.academyId).filter((id): id is string => id !== null)
+  );
+
   return {
     totals: {
       academies: academiesData.length,
@@ -159,6 +220,11 @@ export async function getGlobalStats(): Promise<SuperAdminMetrics> {
       plans: plansData.length,
       subscriptions: subscriptionsData.length,
       latestAcademyAt,
+      activeAcademies,
+      totalAthletes: athletesList.length,
+      chargesCreatedThisMonth,
+      chargesPaidThisMonth,
+      recentActivityAcademies: academiesWithRecentActivity.size,
     },
     usersByRole: Array.from(usersByRoleMap.entries()).map(([role, total]) => ({ role, total })),
     planStatuses: Array.from(planStatusMap.entries()).map(([status, total]) => ({ status, total })),
@@ -358,5 +424,43 @@ async function fetchAllAuthUsers(client: SupabaseClient): Promise<User[]> {
   }
 
   return users;
+}
+
+export interface EventLogEntry {
+  id: string;
+  academyId: string | null;
+  academyName: string | null;
+  eventType: string;
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
+}
+
+export async function getRecentEvents(limit: number = 10): Promise<EventLogEntry[]> {
+  const { db } = await import("@/db");
+  const { eventLogs, academies } = await import("@/db/schema");
+  const { desc, eq } = await import("drizzle-orm");
+
+  const events = await db
+    .select({
+      id: eventLogs.id,
+      academyId: eventLogs.academyId,
+      eventType: eventLogs.eventType,
+      metadata: eventLogs.metadata,
+      createdAt: eventLogs.createdAt,
+      academyName: academies.name,
+    })
+    .from(eventLogs)
+    .leftJoin(academies, eq(eventLogs.academyId, academies.id))
+    .orderBy(desc(eventLogs.createdAt))
+    .limit(limit);
+
+  return events.map((event) => ({
+    id: event.id,
+    academyId: event.academyId,
+    academyName: event.academyName,
+    eventType: event.eventType,
+    metadata: event.metadata as Record<string, unknown> | null,
+    createdAt: event.createdAt ? (event.createdAt instanceof Date ? event.createdAt.toISOString() : String(event.createdAt)) : new Date().toISOString(),
+  }));
 }
 

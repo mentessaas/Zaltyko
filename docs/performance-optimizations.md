@@ -48,24 +48,51 @@ const grouped = rows.reduce((acc, row) => {
 
 #### Índices de Base de Datos
 
-Índices recomendados y existentes:
+**Índices aplicados vía migración `0017_performance_indexes.sql`**:
 
-```sql
--- Índices existentes en el esquema
-CREATE INDEX athletes_tenant_academy_idx ON athletes(tenant_id, academy_id);
-CREATE INDEX classes_tenant_academy_idx ON classes(tenant_id, academy_id);
-CREATE INDEX subscriptions_user_id_idx ON subscriptions(user_id);
-CREATE INDEX billing_invoices_academy_created_idx ON billing_invoices(academy_id, created_at);
-```
+Los siguientes índices han sido aplicados para optimizar las queries más frecuentes del MVP:
 
-**Índices adicionales recomendados**:
-```sql
--- Para búsquedas frecuentes
-CREATE INDEX profiles_tenant_role_idx ON profiles(tenant_id, role);
-CREATE INDEX athletes_status_idx ON athletes(status);
-CREATE INDEX athletes_level_idx ON athletes(level);
-CREATE INDEX class_sessions_date_idx ON class_sessions(session_date);
-```
+**Perfiles**:
+- `profiles_tenant_role_idx` - Búsquedas por tenant y rol (ya existía en Drizzle)
+- `profiles_user_id_idx` - Búsquedas por user_id
+- `profiles_can_login_idx` - Filtros de usuarios sin acceso
+
+**Atletas**:
+- `athletes_tenant_academy_idx` - Listado por academia (ya existía en Drizzle)
+- `athletes_status_idx` - Filtros por estado (active, inactive, etc.)
+- `athletes_level_idx` - Filtros por nivel
+- `athletes_group_id_idx` - Búsquedas por grupo
+- `athletes_dob_idx` - Búsquedas por fecha de nacimiento
+
+**Sesiones de Clase**:
+- `class_sessions_class_date_idx` - Calendario por clase y fecha (ya existía en Drizzle)
+- `class_sessions_date_idx` - Búsquedas por fecha
+- `class_sessions_coach_date_idx` - Sesiones por entrenador y fecha
+
+**Asistencia**:
+- `attendance_records_session_athlete_uq` - Unique constraint (ya existía en Drizzle)
+- `attendance_records_session_idx` - Por sesión (ya existía en Drizzle)
+- `attendance_records_athlete_idx` - Historial por atleta
+
+**Suscripciones**:
+- `subscriptions_user_id_idx` - Por usuario (ya existía en Drizzle)
+- `subscriptions_user_status_idx` - Suscripciones activas por usuario
+- `subscriptions_plan_status_idx` - Por plan y estado
+
+**Evaluaciones**:
+- `athlete_assessments_athlete_date_idx` - Evaluaciones por atleta y fecha
+- `athlete_assessments_academy_date_idx` - Evaluaciones por academia y fecha
+
+**Otros**:
+- `coach_notes_academy_idx` - Notas por academia
+- `memberships_academy_role_idx` - Miembros por academia y rol
+- `billing_invoices_academy_status_idx` - Facturas por academia y estado
+
+**Índices críticos para el MVP** (ya aplicados):
+- Listado de atletas: `athletes(tenant_id, academy_id)` ✓
+- Calendario de clases: `class_sessions(class_id, session_date)` ✓
+- Asistencia por sesión: `attendance_records(session_id, athlete_id)` ✓
+- Conteo de atletas para límites: `athletes(tenant_id, academy_id)` ✓
 
 ### 2. Optimizaciones de React
 

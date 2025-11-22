@@ -4,10 +4,10 @@ export default function CTA() {
       <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_center,_rgba(66,165,245,0.15),_transparent_65%)]" />
       <div className="mx-auto max-w-3xl text-center">
         <h2 className="font-display text-3xl font-semibold text-white sm:text-4xl">
-          ¿Listo para centralizar tu academia de gimnasia?
+          ¿Listo para organizar tu academia sin caos?
         </h2>
         <p className="mt-4 font-sans text-base text-white/80">
-          Activa el modo demo, carga atletas ficticios y prueba el flujo completo de onboarding, límites por plan y facturación sin introducir tarjetas reales.
+          Activa el modo demo, carga atletas ficticios y prueba todo: onboarding, asistencia, dashboard, límites y facturación sin tarjeta.
         </p>
         <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <a

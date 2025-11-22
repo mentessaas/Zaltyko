@@ -8,6 +8,12 @@ import { athleteStatusOptions } from "@/lib/athletes/constants";
 
 import { AthletesTableView } from "@/components/athletes/AthletesTableView";
 
+/**
+ * AcademyAthletesPage - Vista principal de gestión de atletas
+ * 
+ * Permite listar, filtrar y gestionar atletas de la academia con búsqueda por nombre,
+ * estado, nivel y grupo. Incluye acceso a creación y edición de atletas.
+ */
 interface PageProps {
   params: {
     academyId: string;
@@ -123,33 +129,37 @@ export default async function AcademyAthletesPage({ params, searchParams }: Page
     .where(eq(groups.academyId, academyId))
     .orderBy(asc(groups.name));
 
-  const list = rows.map((row) => ({
-    id: row.id,
-    name: row.name,
-    level: row.level ?? null,
-    status: row.status as (typeof athleteStatusOptions)[number],
-    age: row.age ?? calculateAge(row.dob),
-    dob: row.dob ? (row.dob instanceof Date ? row.dob.toISOString() : row.dob) : null,
-    guardianCount: Number(row.guardianCount ?? 0),
-    createdAt: row.createdAt ? row.createdAt.toISOString() : null,
-    groupId: row.groupId,
-    groupName: row.groupName,
-    groupColor: row.groupColor,
-  }));
+  const list = rows.map((row) => {
+    let dobString: string | null = null;
+    if (row.dob) {
+      const dobValue = row.dob as unknown;
+      if (dobValue instanceof Date) {
+        dobString = dobValue.toISOString();
+      } else if (typeof dobValue === "string") {
+        dobString = dobValue;
+      }
+    }
+    return {
+      id: row.id,
+      name: row.name,
+      level: row.level ?? null,
+      status: row.status as (typeof athleteStatusOptions)[number],
+      age: row.age ?? calculateAge(row.dob),
+      dob: dobString,
+      guardianCount: Number(row.guardianCount ?? 0),
+      createdAt: row.createdAt ? row.createdAt.toISOString() : null,
+      groupId: row.groupId,
+      groupName: row.groupName,
+      groupColor: row.groupColor,
+    };
+  });
 
   return (
     <div className="space-y-6 p-4 sm:p-6 lg:p-8">
-      <header className="space-y-2">
+      <header className="space-y-2 py-6">
         <h1 className="text-3xl font-semibold">Atletas</h1>
         <p className="text-sm text-muted-foreground">
           Gestiona atletas, contactos familiares y niveles de entrenamiento.
-        </p>
-        <p className="text-xs text-muted-foreground">
-          ¿Necesitas importar datos? Usa el{" "}
-          <Link href="/dashboard/athletes" className="text-primary underline">
-            módulo clásico
-          </Link>{" "}
-          mientras migramos las herramientas aquí.
         </p>
       </header>
 

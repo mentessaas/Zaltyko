@@ -31,16 +31,20 @@ describe("API /api/billing/plans", () => {
       withTenant: (handler: any) => handler,
     }));
 
-    const mockPlans = [
+    const plansFixture = [
       { id: "plan-1", code: "free", nickname: "Free" },
       { id: "plan-2", code: "pro", nickname: "Pro" },
     ];
 
-    vi.mock("@/db", () => ({
+    vi.doMock("@/db", () => ({
       db: {
-        select: vi.fn(() => ({
-          from: vi.fn(() => mockPlans),
-        })),
+        select: vi.fn(() => {
+          const chain: any = {};
+          chain.from = vi.fn(() => chain);
+          chain.where = vi.fn(() => chain);
+          chain.orderBy = vi.fn(() => plansFixture);
+          return chain;
+        }),
       },
     }));
 

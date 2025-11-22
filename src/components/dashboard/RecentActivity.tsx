@@ -14,6 +14,7 @@ const ACTION_COLORS: Record<string, string> = {
   "coach.created": "bg-zaltyko-primary-light/15 text-zaltyko-primary-light",
   "group.created": "bg-violet-500/15 text-violet-600",
   "assessment.created": "bg-zaltyko-accent/15 text-zaltyko-accent",
+  "class.created": "bg-amber-500/15 text-amber-600",
 };
 
 export function RecentActivity({ items }: RecentActivityProps) {

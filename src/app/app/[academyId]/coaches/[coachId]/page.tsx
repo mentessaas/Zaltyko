@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { asc, count, desc, eq, sql } from "drizzle-orm";
+import { asc, count, desc, eq, inArray, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -8,10 +8,21 @@ import {
   attendanceRecords,
   classCoachAssignments,
   classSessions,
+  classWeekdays,
   classes,
-  groups,
   coaches,
+  groups,
 } from "@/db/schema";
+
+const WEEKDAY_LABELS: Record<number, string> = {
+  0: "Domingo",
+  1: "Lunes",
+  2: "Martes",
+  3: "Miércoles",
+  4: "Jueves",
+  5: "Viernes",
+  6: "Sábado",
+};
 
 interface PageProps {
   params: {
@@ -45,7 +56,6 @@ export default async function CoachDetailPage({ params }: PageProps) {
     .select({
       id: classes.id,
       name: classes.name,
-      weekday: classes.weekday,
       startTime: classes.startTime,
       endTime: classes.endTime,
     })
@@ -53,6 +63,29 @@ export default async function CoachDetailPage({ params }: PageProps) {
     .innerJoin(classes, eq(classCoachAssignments.classId, classes.id))
     .where(eq(classCoachAssignments.coachId, coachId))
     .orderBy(asc(classes.name));
+
+  const assignmentClassIds = classAssignments.map((entry) => entry.id);
+  const assignmentWeekdays =
+    assignmentClassIds.length === 0
+      ? []
+      : await db
+          .select({
+            classId: classWeekdays.classId,
+            weekday: classWeekdays.weekday,
+          })
+          .from(classWeekdays)
+          .where(inArray(classWeekdays.classId, assignmentClassIds));
+
+  const assignmentWeekdayMap = new Map<string, number[]>();
+  assignmentWeekdays.forEach((row) => {
+    const current = assignmentWeekdayMap.get(row.classId) ?? [];
+    current.push(row.weekday);
+    assignmentWeekdayMap.set(row.classId, current);
+  });
+  assignmentWeekdayMap.forEach((list, key) => {
+    list.sort((a, b) => a - b);
+    assignmentWeekdayMap.set(key, list);
+  });
 
   const groupRows = await db
     .select({
@@ -186,7 +219,14 @@ export default async function CoachDetailPage({ params }: PageProps) {
             </p>
           ) : (
             <div className="space-y-3">
-              {classAssignments.map((classItem) => (
+              {classAssignments.map((classItem) => {
+                const weekdays = assignmentWeekdayMap.get(classItem.id) ?? [];
+                const weekdayLabel =
+                  weekdays.length > 0
+                    ? weekdays.map((day) => WEEKDAY_LABELS[day] ?? `Día ${day}`).join(", ")
+                    : "Día variable";
+
+                return (
                 <div
                   key={classItem.id}
                   className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border/70 bg-muted/30 px-4 py-3 text-sm"
@@ -194,15 +234,12 @@ export default async function CoachDetailPage({ params }: PageProps) {
                   <div>
                     <p className="font-semibold text-foreground">{classItem.name ?? "Clase"}</p>
                     <p className="text-xs text-muted-foreground">
-                      {typeof classItem.weekday === "number"
-                        ? `Día ${classItem.weekday}`
-                        : "Día variable"}{" "}
-                      ·{" "}
-                      {classItem.startTime && classItem.endTime
-                        ? `${classItem.startTime} – ${classItem.endTime}`
-                        : classItem.startTime
-                        ? `Desde ${classItem.startTime}`
-                        : "Horario no definido"}
+                        {weekdayLabel} ·{" "}
+                        {classItem.startTime && classItem.endTime
+                          ? `${classItem.startTime} – ${classItem.endTime}`
+                          : classItem.startTime
+                          ? `Desde ${classItem.startTime}`
+                          : "Horario no definido"}
                     </p>
                   </div>
                   <Link
@@ -212,7 +249,8 @@ export default async function CoachDetailPage({ params }: PageProps) {
                     Ver clase
                   </Link>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

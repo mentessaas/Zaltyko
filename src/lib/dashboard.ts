@@ -1,14 +1,17 @@
-import { addDays, endOfWeek, formatISO, startOfWeek } from "date-fns";
-import { and, asc, count, desc, eq, inArray, sql } from "drizzle-orm";
+import { addDays, endOfWeek, formatISO, startOfWeek, subDays } from "date-fns";
+import { and, asc, count, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
   academies,
   athletes,
   athleteAssessments,
+  attendanceRecords,
   auditLogs,
   classCoachAssignments,
+  classSessions,
   classes,
+  classWeekdays,
   coaches,
   groupAthletes,
   groups,
@@ -24,6 +27,7 @@ export interface DashboardMetrics {
   groups: number;
   classesThisWeek: number;
   assessments: number;
+  attendancePercent: number;
 }
 
 export interface DashboardPlanUsage {
@@ -48,6 +52,7 @@ export interface DashboardUpcomingClass {
   coaches: Array<{ id: string; name: string | null }>;
   groupName: string | null;
   groupColor: string | null;
+  isSessionPlaceholder?: boolean;
 }
 
 export interface DashboardActivity {
@@ -83,9 +88,22 @@ function getWeekBoundaries(): { start: Date; end: Date } {
   return { start, end };
 }
 
+const WEEKDAY_LABELS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+
 function normalizeDate(date: Date | string): string {
   if (typeof date === "string") return date;
   return formatISO(date, { representation: "date" });
+}
+
+function describeWeekdays(weekdays: number[] | undefined): string {
+  if (!weekdays || weekdays.length === 0) {
+    return "Sin días asignados";
+  }
+  const labels = weekdays
+    .slice()
+    .sort((a, b) => a - b)
+    .map((day) => WEEKDAY_LABELS[day] ?? `Día ${day + 1}`);
+  return labels.join(", ");
 }
 
 function summarizeActivity(action: string, meta: Record<string, unknown> | null): string {
@@ -101,6 +119,8 @@ function summarizeActivity(action: string, meta: Record<string, unknown> | null)
       return `Grupo creado ${name ?? ""}`.trim();
     case "assessment.created":
       return `Evaluación registrada${name ? ` para ${name}` : ""}`.trim();
+    case "class.created":
+      return `Clase creada ${name ?? ""}`.trim();
     case "class.session.created":
       return "Sesión de clase programada";
     default:
@@ -143,31 +163,85 @@ export async function getDashboardData(academyId: string): Promise<{
     .where(eq(groups.academyId, academyId));
 
   const week = getWeekBoundaries();
-  const weekDayTargets = Array.from({ length: 7 }, (_, index) =>
-    addDays(week.start, index).getDay()
-  );
+  const weekStartIso = formatISO(week.start, { representation: "date" });
+  const weekEndIso = formatISO(week.end, { representation: "date" });
 
   const [{ value: classesWeekCount }] = await db
     .select({ value: count() })
-    .from(classes)
+    .from(classSessions)
+    .innerJoin(classes, eq(classSessions.classId, classes.id))
     .where(
       and(
         eq(classes.academyId, academyId),
-        inArray(classes.weekday, weekDayTargets)
+        gte(classSessions.sessionDate, weekStartIso),
+        lte(classSessions.sessionDate, weekEndIso)
       )
     );
+
+  const [{ value: scheduledClassesCount }] = await db
+    .select({ value: sql<number>`count(distinct ${classWeekdays.classId})` })
+    .from(classWeekdays)
+    .innerJoin(classes, eq(classWeekdays.classId, classes.id))
+    .where(eq(classes.academyId, academyId));
 
   const [{ value: assessmentsCount }] = await db
     .select({ value: count() })
     .from(athleteAssessments)
     .where(eq(athleteAssessments.academyId, academyId));
 
+  const classesMetric =
+    Number(classesWeekCount ?? 0) > 0
+      ? Number(classesWeekCount ?? 0)
+      : Number(scheduledClassesCount ?? 0);
+
+  // Calcular % de asistencia de los últimos 7 días
+  const now = new Date();
+  const sevenDaysAgo = subDays(now, 7);
+  const sevenDaysAgoIso = formatISO(sevenDaysAgo, { representation: "date" });
+  const nowIso = formatISO(now, { representation: "date" });
+
+  // Contar total de registros de asistencia de los últimos 7 días
+  const [{ value: totalAttendanceCount }] = await db
+    .select({ value: count() })
+    .from(attendanceRecords)
+    .innerJoin(classSessions, eq(attendanceRecords.sessionId, classSessions.id))
+    .innerJoin(classes, eq(classSessions.classId, classes.id))
+    .where(
+      and(
+        eq(classes.academyId, academyId),
+        gte(classSessions.sessionDate, sevenDaysAgoIso),
+        lte(classSessions.sessionDate, nowIso)
+      )
+    );
+
+  // Contar asistencias "present" de los últimos 7 días
+  const [{ value: presentCount }] = await db
+    .select({ value: count() })
+    .from(attendanceRecords)
+    .innerJoin(classSessions, eq(attendanceRecords.sessionId, classSessions.id))
+    .innerJoin(classes, eq(classSessions.classId, classes.id))
+    .where(
+      and(
+        eq(classes.academyId, academyId),
+        eq(attendanceRecords.status, "present"),
+        gte(classSessions.sessionDate, sevenDaysAgoIso),
+        lte(classSessions.sessionDate, nowIso)
+      )
+    );
+
+  // Calcular % de asistencia (present / total registros)
+  const totalAttendances = Number(totalAttendanceCount ?? 0);
+  const presentAttendances = Number(presentCount ?? 0);
+  const attendancePercent =
+    totalAttendances > 0 ? Math.round((presentAttendances / totalAttendances) * 100) : 0;
+
   const metrics: DashboardMetrics = {
     athletes: Number(athleteCount ?? 0),
     coaches: Number(coachCount ?? 0),
     groups: Number(groupCount ?? 0),
-    classesThisWeek: Number(classesWeekCount ?? 0),
+    classesThisWeek: classesMetric,
     assessments: Number(assessmentsCount ?? 0),
+    attendancePercent,
   };
 
   const activePlan = await getActiveSubscription(academyId);
@@ -230,110 +304,141 @@ export async function getDashboardData(academyId: string): Promise<{
         : 0,
   };
 
-  const lookAheadDays = Array.from({ length: 3 }, (_, index) => {
-    const date = addDays(new Date(), index);
-    date.setHours(0, 0, 0, 0);
-    return date;
+  const lookAheadEnd = addDays(now, 7);
+  const lookAheadIso = formatISO(lookAheadEnd, { representation: "date" });
+
+  const upcomingSessionRows = await db
+    .select({
+      sessionId: classSessions.id,
+      classId: classes.id,
+      className: classes.name,
+      sessionDate: classSessions.sessionDate,
+      startTime: classSessions.startTime,
+      endTime: classSessions.endTime,
+    })
+    .from(classSessions)
+    .innerJoin(classes, eq(classSessions.classId, classes.id))
+    .where(
+      and(
+        eq(classes.academyId, academyId),
+        gte(classSessions.sessionDate, nowIso),
+        lte(classSessions.sessionDate, lookAheadIso)
+      )
+    )
+    .orderBy(asc(classSessions.sessionDate), asc(classSessions.startTime))
+    .limit(10);
+
+  const classIds = upcomingSessionRows.map((session) => session.classId);
+
+  let classCoachRows: Array<{ classId: string; coachId: string; coachName: string | null }> = [];
+  if (classIds.length > 0) {
+    classCoachRows = await db
+      .select({
+        classId: classCoachAssignments.classId,
+        coachId: classCoachAssignments.coachId,
+        coachName: coaches.name,
+      })
+      .from(classCoachAssignments)
+      .innerJoin(coaches, eq(classCoachAssignments.coachId, coaches.id))
+      .where(inArray(classCoachAssignments.classId, classIds));
+  }
+
+  const coachIds = Array.from(
+    new Set(classCoachRows.map((assignment) => assignment.coachId).filter(Boolean))
+  );
+
+  let groupsByCoach: Map<string, { name: string | null; color: string | null }> = new Map();
+  if (coachIds.length > 0) {
+    const coachGroups = await db
+      .select({
+        coachId: groups.coachId,
+        name: groups.name,
+        color: groups.color,
+      })
+      .from(groups)
+      .where(and(eq(groups.academyId, academyId), inArray(groups.coachId, coachIds)));
+
+    groupsByCoach = coachGroups.reduce((accumulator, current) => {
+      if (current.coachId) {
+        accumulator.set(current.coachId, {
+          name: current.name ?? null,
+          color: current.color ?? null,
+        });
+      }
+      return accumulator;
+    }, new Map<string, { name: string | null; color: string | null }>());
+  }
+
+  let upcomingClasses: DashboardUpcomingClass[] = upcomingSessionRows.slice(0, 3).map((session) => {
+    const assignedCoaches = classCoachRows
+      .filter((assignment) => assignment.classId === session.classId)
+      .map((assignment) => ({
+        id: assignment.coachId,
+        name: assignment.coachName,
+      }));
+
+    const primaryCoach = assignedCoaches[0];
+    const groupInfo = primaryCoach ? groupsByCoach.get(primaryCoach.id) ?? null : null;
+
+    return {
+      id: session.sessionId,
+      classId: session.classId,
+      className: session.className,
+      sessionDate: session.sessionDate ? normalizeDate(session.sessionDate) : normalizeDate(new Date()),
+      startTime: session.startTime,
+      endTime: session.endTime,
+      coaches: assignedCoaches,
+      groupName: groupInfo?.name ?? null,
+      groupColor: groupInfo?.color ?? null,
+    };
   });
-  const lookAheadWeekdays = Array.from(new Set(lookAheadDays.map((date) => date.getDay())));
 
-  let upcomingClasses: DashboardUpcomingClass[] = [];
-
-  if (lookAheadWeekdays.length > 0) {
-    const classRows = await db
+  if (upcomingClasses.length === 0) {
+    const fallbackClasses = await db
       .select({
         id: classes.id,
         name: classes.name,
-        weekday: classes.weekday,
         startTime: classes.startTime,
         endTime: classes.endTime,
       })
       .from(classes)
-      .where(
-        and(
-          eq(classes.academyId, academyId),
-          inArray(classes.weekday, lookAheadWeekdays)
-        )
-      )
-      .orderBy(asc(classes.weekday ?? 0), asc(classes.startTime ?? ""))
-      .limit(12);
+      .where(eq(classes.academyId, academyId))
+      .orderBy(asc(classes.name))
+      .limit(3);
 
-    const classIds = classRows.map((item) => item.id);
+    if (fallbackClasses.length > 0) {
+      const fallbackIds = fallbackClasses.map((item) => item.id);
+      const weekdayRows =
+        fallbackIds.length === 0
+          ? []
+          : await db
+              .select({
+                classId: classWeekdays.classId,
+                weekday: classWeekdays.weekday,
+              })
+              .from(classWeekdays)
+              .where(inArray(classWeekdays.classId, fallbackIds));
 
-    let classCoachRows: Array<{ classId: string; coachId: string; coachName: string | null }> = [];
-    if (classIds.length > 0) {
-      classCoachRows = await db
-        .select({
-          classId: classCoachAssignments.classId,
-          coachId: classCoachAssignments.coachId,
-          coachName: coaches.name,
-        })
-        .from(classCoachAssignments)
-        .innerJoin(coaches, eq(classCoachAssignments.coachId, coaches.id))
-        .where(inArray(classCoachAssignments.classId, classIds));
+      const weekdayMap = weekdayRows.reduce((acc, row) => {
+        const current = acc.get(row.classId) ?? [];
+        current.push(row.weekday);
+        acc.set(row.classId, current);
+        return acc;
+      }, new Map<string, number[]>());
+
+      upcomingClasses = fallbackClasses.map((item) => ({
+        id: item.id,
+        classId: item.id,
+        className: item.name,
+        sessionDate: describeWeekdays(weekdayMap.get(item.id)),
+        startTime: item.startTime,
+        endTime: item.endTime,
+        coaches: [],
+        groupName: null,
+        groupColor: null,
+        isSessionPlaceholder: true,
+      }));
     }
-
-    const coachIds = Array.from(
-      new Set(classCoachRows.map((assignment) => assignment.coachId).filter(Boolean))
-    );
-
-    let groupsByCoach: Map<string, { name: string | null; color: string | null }> = new Map();
-    if (coachIds.length > 0) {
-      const coachGroups = await db
-        .select({
-          coachId: groups.coachId,
-          name: groups.name,
-          color: groups.color,
-        })
-        .from(groups)
-        .where(and(eq(groups.academyId, academyId), inArray(groups.coachId, coachIds)));
-
-      groupsByCoach = coachGroups.reduce((accumulator, current) => {
-        if (current.coachId) {
-          accumulator.set(current.coachId, {
-            name: current.name ?? null,
-            color: current.color ?? null,
-          });
-        }
-        return accumulator;
-      }, new Map<string, { name: string | null; color: string | null }>());
-    }
-
-    upcomingClasses = classRows
-      .map((row) => {
-        if (row.weekday == null) return null;
-        const targetDate = lookAheadDays.find((date) => date.getDay() === row.weekday);
-        if (!targetDate) return null;
-
-        const assignedCoaches = classCoachRows
-          .filter((assignment) => assignment.classId === row.id)
-          .map((assignment) => ({
-            id: assignment.coachId,
-            name: assignment.coachName,
-          }));
-
-        const primaryCoach = assignedCoaches[0];
-        const groupInfo = primaryCoach ? groupsByCoach.get(primaryCoach.id) ?? null : null;
-
-        return {
-          id: row.id,
-          classId: row.id,
-          className: row.name,
-          sessionDate: normalizeDate(targetDate),
-          startTime: row.startTime,
-          endTime: row.endTime,
-          coaches: assignedCoaches,
-          groupName: groupInfo?.name ?? null,
-          groupColor: groupInfo?.color ?? null,
-        } as DashboardUpcomingClass;
-      })
-      .filter(Boolean)
-      .sort((a, b) => {
-        const dateDiff = a.sessionDate.localeCompare(b.sessionDate);
-        if (dateDiff !== 0) return dateDiff;
-        return (a.startTime ?? "").localeCompare(b.startTime ?? "");
-      })
-      .slice(0, 3);
   }
 
   const activities = await db
@@ -360,6 +465,88 @@ export async function getDashboardData(academyId: string): Promise<{
     createdAt: row.createdAt ?? new Date(),
     userName: row.userName ?? null,
   }));
+
+  let activityFeed = recentActivity;
+
+  if (activityFeed.length === 0) {
+    const [recentAthletes, recentCoaches, recentGroups, recentClasses] = await Promise.all([
+      db
+        .select({
+          id: athletes.id,
+          name: athletes.name,
+          createdAt: athletes.createdAt,
+        })
+        .from(athletes)
+        .where(eq(athletes.academyId, academyId))
+        .orderBy(desc(athletes.createdAt))
+        .limit(5),
+      db
+        .select({
+          id: coaches.id,
+          name: coaches.name,
+          createdAt: coaches.createdAt,
+        })
+        .from(coaches)
+        .where(eq(coaches.academyId, academyId))
+        .orderBy(desc(coaches.createdAt))
+        .limit(5),
+      db
+        .select({
+          id: groups.id,
+          name: groups.name,
+          createdAt: groups.createdAt,
+        })
+        .from(groups)
+        .where(eq(groups.academyId, academyId))
+        .orderBy(desc(groups.createdAt))
+        .limit(5),
+      db
+        .select({
+          id: classes.id,
+          name: classes.name,
+          createdAt: classes.createdAt,
+        })
+        .from(classes)
+        .where(eq(classes.academyId, academyId))
+        .orderBy(desc(classes.createdAt))
+        .limit(5),
+    ]);
+
+    const fallbackEntries: DashboardActivity[] = [
+      ...recentAthletes.map((row) => ({
+        id: `athlete-${row.id}`,
+        action: "athlete.created",
+        description: summarizeActivity("athlete.created", { name: row.name ?? undefined }),
+        createdAt: row.createdAt ?? new Date(),
+        userName: null,
+      })),
+      ...recentCoaches.map((row) => ({
+        id: `coach-${row.id}`,
+        action: "coach.created",
+        description: summarizeActivity("coach.created", { name: row.name ?? undefined }),
+        createdAt: row.createdAt ?? new Date(),
+        userName: null,
+      })),
+      ...recentGroups.map((row) => ({
+        id: `group-${row.id}`,
+        action: "group.created",
+        description: summarizeActivity("group.created", { name: row.name ?? undefined }),
+        createdAt: row.createdAt ?? new Date(),
+        userName: null,
+      })),
+      ...recentClasses.map((row) => ({
+        id: `class-${row.id}`,
+        action: "class.created",
+        description: summarizeActivity("class.created", { name: row.name ?? undefined }),
+        createdAt: row.createdAt ?? new Date(),
+        userName: null,
+      })),
+    ];
+
+    activityFeed = fallbackEntries
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+      .slice(0, 8);
+  }
 
   const groupSummaries = await db
     .select({
@@ -398,7 +585,7 @@ export async function getDashboardData(academyId: string): Promise<{
       metrics,
       plan,
       upcomingClasses,
-      recentActivity,
+      recentActivity: activityFeed,
       groups: groupsList,
     },
   };

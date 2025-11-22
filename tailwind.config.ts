@@ -12,22 +12,46 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Zaltyko Brand Colors
+        // Zaltyko Design System 1.0 - Tokens oficiales
         zaltyko: {
           primary: {
-            DEFAULT: "#0D47A1", // Azul profundo
-            light: "#42A5F5", // Azul claro
-            dark: "#002171", // Variante más intensa
+            DEFAULT: "#B690F0", // Morado principal
+            dark: "#8A63C3", // Morado oscuro
+            light: "#EDEAFE", // Lavanda claro
           },
-          accent: {
-            DEFAULT: "#FBC02D", // Dorado principal
-            light: "#FFE082", // Dorado claro
+          bg: {
+            DEFAULT: "#FAF9FF", // Fondo principal
+            light: "#FFFFFF", // Fondo claro/blanco
           },
-          neutral: {
-            light: "#F5F7FA", // Fondo claro
-            dark: "#1E1E1E", // Textos oscuros
+          text: {
+            main: "#1C1C1E", // Texto principal
+            secondary: "#6D6D6D", // Texto secundario
           },
+          border: "#E6E6EB", // Borde
+          success: "#4CAF79", // Verde éxito
+          danger: "#E75C5A", // Rojo peligro
+          warning: "#F6BC50", // Amarillo advertencia
+          info: "#5E8EEC", // Azul información
         },
+        // Tokens del Design System como colores directos (para uso directo)
+        "primary-ds": {
+          DEFAULT: "#B690F0",
+          dark: "#8A63C3",
+          light: "#EDEAFE",
+        },
+        "bg-ds": {
+          DEFAULT: "#FAF9FF",
+          light: "#FFFFFF",
+        },
+        "text-ds": {
+          main: "#1C1C1E",
+          secondary: "#6D6D6D",
+        },
+        "border-ds": "#E6E6EB",
+        "success-ds": "#4CAF79",
+        "danger-ds": "#E75C5A",
+        "warning-ds": "#F6BC50",
+        "info-ds": "#5E8EEC",
         // Mantener compatibilidad con sistema existente
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
@@ -39,8 +63,11 @@ export default {
           DEFAULT: "hsl(var(--popover))",
           foreground: "hsl(var(--popover-foreground))",
         },
+        // Primary usa los tokens del Design System pero mantiene compatibilidad HSL
         primary: {
-          DEFAULT: "hsl(var(--primary))",
+          DEFAULT: "#B690F0", // Design System primary
+          dark: "#8A63C3",
+          light: "#EDEAFE",
           foreground: "hsl(var(--primary-foreground))",
         },
         secondary: {
@@ -59,7 +86,9 @@ export default {
           DEFAULT: "hsl(var(--destructive))",
           foreground: "hsl(var(--destructive-foreground))",
         },
-        border: "hsl(var(--border))",
+        // Border usa el token del Design System
+        border: "#E6E6EB", // Design System border
+        "border-hsl": "hsl(var(--border))", // Para compatibilidad
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
         chart: {
@@ -75,15 +104,26 @@ export default {
         display: ["var(--font-poppins)", "ui-sans-serif", "system-ui"],
       },
       boxShadow: {
+        soft: "0 1px 3px rgba(0,0,0,0.06)",
+        medium: "0 4px 12px rgba(0,0,0,0.08)",
         card: "0 4px 20px rgba(13, 71, 161, 0.1)",
-        "button": "0 2px 8px rgba(66, 165, 245, 0.3)",
+        button: "0 2px 8px rgba(66, 165, 245, 0.3)",
       },
       borderRadius: {
+        base: "12px",
+        large: "16px",
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
         "2xl": "1rem",
         "3xl": "1.5rem",
+      },
+      spacing: {
+        xs: "4px",
+        sm: "8px",
+        md: "16px",
+        lg: "24px",
+        xl: "32px",
       },
     },
   },

@@ -11,6 +11,10 @@ import { athleteStatusOptions } from "@/lib/athletes/constants";
 import { handleApiError } from "@/lib/api-error-handler";
 import { withTransaction } from "@/lib/db-transactions";
 import { verifyAcademyAccess, verifyGroupAccess } from "@/lib/permissions";
+import { markChecklistItem, markWizardStep } from "@/lib/onboarding";
+import { trackEvent } from "@/lib/analytics";
+import { logEvent } from "@/lib/event-logging";
+import { validateDateWithError, formatDateForDB } from "@/lib/validation/date-utils";
 
 const ContactSchema = z.object({
   name: z.string().min(1),
@@ -21,10 +25,28 @@ const ContactSchema = z.object({
   notifySms: z.boolean().optional(),
 });
 
+// Validador custom para fechas que acepta ISO 8601 y YYYY-MM-DD
+const dateStringSchema = z
+  .string()
+  .optional()
+  .refine(
+    (val) => {
+      if (!val || val.trim() === "") return true; // Permitir vacío
+      const parsed = new Date(val);
+      return !Number.isNaN(parsed.getTime());
+    },
+    { message: "El formato de fecha no es válido. Use formato YYYY-MM-DD o ISO 8601" }
+  )
+  .transform((val) => {
+    if (!val || val.trim() === "") return null;
+    const parsed = new Date(val);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  });
+
 const BodySchema = z.object({
   academyId: z.string().uuid(),
   name: z.string().min(1),
-  dob: z.string().optional(),
+  dob: dateStringSchema,
   level: z.string().optional(),
   status: z.enum(athleteStatusOptions).optional(),
   age: z.number().int().min(0).optional(),
@@ -46,7 +68,22 @@ export const POST = withTenant(async (request, context) => {
       return NextResponse.json({ error: academyAccess.reason ?? "ACADEMY_ACCESS_DENIED" }, { status: 403 });
     }
 
-    await assertWithinPlanLimits(context.tenantId, body.academyId, "athletes");
+    // Verificar límites del plan antes de crear el atleta
+    try {
+      await assertWithinPlanLimits(context.tenantId, body.academyId, "athletes");
+    } catch (error: any) {
+      if (error?.status === 402 && error?.payload?.code === "LIMIT_REACHED") {
+        return NextResponse.json(
+          {
+            error: "LIMIT_REACHED",
+            message: `Has alcanzado el límite de atletas de tu plan actual. ${error.payload.upgradeTo ? `Actualiza a ${error.payload.upgradeTo.toUpperCase()} para agregar más atletas.` : "Contacta con soporte para aumentar tu límite."}`,
+            details: error.payload,
+          },
+          { status: 402 }
+        );
+      }
+      throw error;
+    }
 
     // Verificar acceso al grupo si se proporciona
     if (body.groupId) {
@@ -58,6 +95,29 @@ export const POST = withTenant(async (request, context) => {
 
     const athleteId = randomUUID();
 
+    // Validar fecha de nacimiento si se proporciona
+    let dobDate: Date | null = null;
+    if (body.dob !== null && body.dob !== undefined) {
+      // body.dob ya viene parseado como Date o null del transform
+      if (body.dob instanceof Date) {
+        // Verificar que la fecha sea razonable
+        const year = body.dob.getFullYear();
+        if (year < 1900 || year > 2100) {
+          return NextResponse.json(
+            { error: "INVALID_DOB", message: "El año de nacimiento debe estar entre 1900 y 2100" },
+            { status: 400 }
+          );
+        }
+        dobDate = body.dob;
+      } else {
+        // Si es null del transform, significa que la fecha era inválida
+        return NextResponse.json(
+          { error: "INVALID_DOB", message: "El formato de fecha de nacimiento no es válido. Use formato YYYY-MM-DD o ISO 8601" },
+          { status: 400 }
+        );
+      }
+    }
+
     // Usar transacción para garantizar atomicidad
     await withTransaction(async (tx) => {
       // Crear atleta
@@ -66,7 +126,7 @@ export const POST = withTenant(async (request, context) => {
         tenantId: context.tenantId,
         academyId: body.academyId,
         name: body.name,
-        dob: body.dob ?? null,
+        dob: dobDate ? formatDateForDB(dobDate) : null,
         level: body.level,
         status: body.status ?? "active",
         groupId: body.groupId ?? null,
@@ -101,6 +161,44 @@ export const POST = withTenant(async (request, context) => {
           })
           .onConflictDoNothing();
       }
+    });
+
+    await markWizardStep({
+      academyId: body.academyId,
+      tenantId: context.tenantId,
+      step: "athletes",
+    });
+
+    const countResult = await db
+      .select({
+        value: sql<number>`count(*)`,
+      })
+      .from(athletes)
+      .where(and(eq(athletes.academyId, body.academyId), eq(athletes.tenantId, context.tenantId)));
+
+    const totalAthletes = Number(countResult?.[0]?.value ?? 0);
+
+    if (totalAthletes === 1) {
+      await trackEvent("first_athlete_added", { academyId: body.academyId, tenantId: context.tenantId });
+    }
+
+    if (totalAthletes >= 5) {
+      await markChecklistItem({
+        academyId: body.academyId,
+        tenantId: context.tenantId,
+        key: "add_5_athletes",
+      });
+    }
+
+    // Log event for Super Admin metrics
+    await logEvent({
+      academyId: body.academyId,
+      eventType: "athlete_created",
+      metadata: {
+        athleteId,
+        level: body.level,
+        status: body.status ?? "active",
+      },
     });
 
     return NextResponse.json({ ok: true, id: athleteId });
@@ -185,17 +283,7 @@ export const GET = withTenant(async (request, context) => {
     whereClause = whereClause ? and(whereClause, condition) : condition;
   }
 
-  // Contar total (sin paginación)
-  // Usamos una subquery para contar correctamente con los joins
-  const countResult = await db
-    .select({ count: sql<number>`count(distinct ${athletes.id})` })
-    .from(athletes)
-    .leftJoin(guardianAthletes, eq(guardianAthletes.athleteId, athletes.id))
-    .where(whereClause);
-  
-  const total = countResult[0]?.count ? Number(countResult[0].count) : 0;
-
-  // Query paginada
+  // Query y paginación manejada en memoria (datasets pequeños en onboarding)
   const rows = await db
     .select({
       id: athletes.id,
@@ -217,9 +305,10 @@ export const GET = withTenant(async (request, context) => {
     .leftJoin(guardianAthletes, eq(guardianAthletes.athleteId, athletes.id))
     .where(whereClause)
     .groupBy(athletes.id, academies.name, groups.name, groups.color)
-    .orderBy(asc(athletes.name))
-    .limit(pageSize)
-    .offset(offset);
+    .orderBy(asc(athletes.name));
+
+  const total = rows.length;
+  const paginatedItems = rows.slice(offset, offset + pageSize);
 
     const totalPages = Math.ceil(total / pageSize);
 
@@ -230,7 +319,7 @@ export const GET = withTenant(async (request, context) => {
       totalPages,
       hasNextPage: page < totalPages,
       hasPreviousPage: page > 1,
-      items: rows,
+      items: paginatedItems,
     });
   } catch (error) {
     return handleApiError(error);

@@ -7,9 +7,10 @@ import { academies, invitations, profileRoleEnum } from "@/db/schema";
 import { config } from "@/config";
 import { sendEmail } from "@/lib/mailgun";
 import { withTenant } from "@/lib/authz";
-import { withRateLimit, getUserIdentifier } from "@/lib/rate-limit";
+import { withRateLimit, getUserIdentifier, type RateLimitContext } from "@/lib/rate-limit";
 import { handleApiError } from "@/lib/api-error-handler";
 import { verifyAcademyAccess } from "@/lib/permissions";
+import { getAppUrl } from "@/lib/env";
 
 const profileRoles = [
   "super_admin",
@@ -32,6 +33,10 @@ const InviteSchema = z.object({
 const handler = withTenant(async (request, context) => {
   try {
     const body = InviteSchema.parse(await request.json());
+
+  if (!context || !context.profile) {
+    return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+  }
 
   const isSuperAdmin = context.profile.role === "super_admin";
   const isAdmin = isSuperAdmin || context.profile.role === "admin";
@@ -102,7 +107,7 @@ const handler = withTenant(async (request, context) => {
       },
     });
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const baseUrl = getAppUrl();
   const inviteUrl = new URL("/auth/invite", baseUrl);
   inviteUrl.searchParams.set("token", token);
 
@@ -138,8 +143,8 @@ const handler = withTenant(async (request, context) => {
 // Aplicar rate limiting: 20 requests por minuto para invitaciones
 // El rate limiting se aplica antes de withTenant
 export const POST = withRateLimit(
-  async (request) => {
-    return (await handler(request, {} as any)) as NextResponse;
+  async (request, context?: RateLimitContext) => {
+    return (await handler(request, context ?? {})) as NextResponse;
   },
   { identifier: getUserIdentifier }
 );

@@ -176,15 +176,88 @@ export const METHOD = withTenant(async (request, context) => {
 
 ### Row-Level Security (RLS)
 
-Todas las tablas tienen políticas RLS:
+Todas las tablas tienen políticas RLS activadas para garantizar el aislamiento multi-tenant. Las políticas se definen en `supabase/rls.sql` y se aplican directamente en la base de datos.
+
+#### Estrategia RLS
+
+**Principio fundamental**: Cada usuario solo puede acceder a datos de su propio `tenant_id`, excepto los roles administrativos (`admin` y `super_admin`) que tienen acceso global controlado.
+
+#### Funciones Helper
+
+El sistema utiliza funciones helper definidas en `supabase/rls.sql`:
+
+- **`get_current_tenant()`**: Retorna el `tenant_id` del usuario autenticado desde `profiles.tenant_id` donde `profiles.user_id = auth.uid()`
+- **`is_admin()`**: Verifica si el usuario tiene rol `admin` o `super_admin`
+- **`is_super_admin()`**: Verifica si el usuario tiene rol `super_admin`
+- **`academy_in_current_tenant(target uuid)`**: Valida que una academia pertenece al tenant actual
+
+#### Patrón de Políticas
+
+Todas las tablas core del MVP siguen este patrón:
 
 ```sql
--- Ejemplo: Usuarios solo ven datos de su tenant
-CREATE POLICY "Users see own tenant data"
-ON table_name
-FOR SELECT
-USING (tenant_id = (SELECT tenant_id FROM profiles WHERE user_id = auth.uid()));
+-- SELECT: Admins o usuarios del mismo tenant
+CREATE POLICY "table_select" ON table_name
+  FOR SELECT USING (
+    is_admin() OR tenant_id = get_current_tenant()
+  );
+
+-- INSERT/UPDATE/DELETE: Admins o usuarios del mismo tenant
+CREATE POLICY "table_modify" ON table_name
+  FOR ALL USING (
+    is_admin() OR tenant_id = get_current_tenant()
+  ) WITH CHECK (
+    is_admin() OR tenant_id = get_current_tenant()
+  );
 ```
+
+#### Tablas con RLS Activado
+
+Todas las tablas multi-tenant tienen RLS activado:
+- `academies`, `profiles`, `athletes`, `coaches`, `classes`, `class_sessions`
+- `attendance_records`, `groups`, `group_athletes`, `events`
+- `family_contacts`, `guardians`, `guardian_athletes`
+- `athlete_assessments`, `assessment_scores`, `coach_notes`
+- `memberships`, `subscriptions`, `invitations`
+- `class_coach_assignments`, `billing_invoices`, `billing_events`
+- `audit_logs`, `skill_catalog`
+
+#### Casos Especiales
+
+**`plans`**: 
+- Lectura pública para usuarios autenticados
+- Modificación solo por admins
+
+**`profiles`**:
+- Los usuarios pueden ver su propio perfil (`user_id = auth.uid()`)
+- Los usuarios pueden ver perfiles de su mismo tenant
+- Los usuarios pueden actualizar solo su propio perfil
+- Los admins pueden gestionar todos los perfiles
+
+**`subscriptions` y `memberships`**:
+- Usan `academy_in_current_tenant()` para validar que la academia pertenece al tenant
+
+**`billing_events`**:
+- Solo accesible por `super_admin`
+
+#### Determinación de Tenant ID
+
+El `tenant_id` se determina desde el perfil del usuario autenticado:
+
+1. Supabase Auth proporciona `auth.uid()` (el ID del usuario en Supabase Auth)
+2. La función `get_current_tenant()` busca en `profiles` el registro donde `user_id = auth.uid()`
+3. Retorna `profiles.tenant_id` de ese registro
+
+Este `tenant_id` se usa en todas las políticas RLS para filtrar datos.
+
+#### Bypass para Administradores
+
+Los roles `admin` y `super_admin` tienen bypass en las políticas RLS mediante `is_admin()`. Esto permite:
+- Acceso global a datos para operaciones de soporte
+- Gestión centralizada de academias
+- Auditoría y reporting global
+
+**Importante**: El código de aplicación también valida permisos mediante `withTenant()` y `withSuperAdmin()` para doble capa de seguridad.
 
 ### Validación
 

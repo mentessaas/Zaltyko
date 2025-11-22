@@ -12,7 +12,7 @@ export default function Footer() {
               className="h-8 w-auto"
             />
             <p className="font-sans text-sm text-white/70">
-              Zaltyko — El sistema definitivo para gestionar academias de gimnasia. Registra alumnos, controla pagos, organiza competencias y haz crecer tu academia sin complicaciones.
+              Zaltyko — El sistema definitivo para academias de gimnasia. Registra alumnos, controla pagos, organiza clases y crece sin caos.
             </p>
             <p className="font-sans text-xs text-white/50">
               © {new Date().getFullYear()} Zaltyko. Construido con Next.js 14, Drizzle ORM y Supabase.
@@ -24,6 +24,11 @@ export default function Footer() {
               Recursos
             </h4>
             <ul className="mt-4 space-y-3 font-sans text-sm text-white/70">
+              <li>
+                <Link href="/academias" className="hover:text-white">
+                  Directorio de Academias
+                </Link>
+              </li>
               <li>
                 <Link href="#caracteristicas" className="hover:text-white">
                   Características

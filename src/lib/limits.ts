@@ -170,11 +170,14 @@ export async function assertUserAcademyLimit(userId: string): Promise<void> {
   if (ownedAcademies.length >= academyLimit) {
     const error: any = new Error("ACADEMY_LIMIT_REACHED");
     error.status = 402;
+    error.statusCode = 402;
+    error.code = "ACADEMY_LIMIT_REACHED";
     error.payload = {
       currentCount: ownedAcademies.length,
       limit: academyLimit,
       upgradeTo: subscription.planCode === "free" ? "pro" : "premium",
     };
+    error.details = error.payload;
     throw error;
   }
 }
