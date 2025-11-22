@@ -20,6 +20,8 @@ const securityHeaders = [
 const nextConfig = {
   typescript: { ignoreBuildErrors: true },
   pageExtensions: ["ts", "tsx", "mdx"],
+  // Deshabilitar exportación estática (la app es completamente dinámica)
+  output: undefined, // No usar 'export', usar modo estándar de Next.js
   webpack: (config, { isServer }) => {
     if (!isServer) {
       // Excluir módulos de Node.js del bundle del cliente

@@ -4,6 +4,9 @@ import { withTenant } from "@/lib/authz";
 import { analyzeAthleteProgress, type ProgressReportFilters } from "@/lib/reports/progress-analyzer";
 import { generateAttendancePDF } from "@/lib/reports/pdf-generator";
 
+// Forzar ruta dinámica
+export const dynamic = 'force-dynamic';
+
 const exportSchema = z.object({
   academyId: z.string().uuid(),
   athleteId: z.string().uuid(),
