@@ -3,9 +3,6 @@ import { classes, classSessions, groupAthletes, groups } from "@/db/schema";
 import { eq, and, count, sql } from "drizzle-orm";
 import { createNotification } from "@/lib/notifications/notification-service";
 
-// Re-exportar para uso en otros archivos
-export { createCapacityNotifications };
-
 export interface CapacityAlert {
   classId: string;
   className: string;
