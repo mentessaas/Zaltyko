@@ -17,21 +17,21 @@ interface BreadcrumbProps {
 
 export function Breadcrumb({ items, className }: BreadcrumbProps) {
   return (
-    <nav aria-label="Breadcrumb" className={cn("flex items-center space-x-2 text-sm", className)}>
+    <nav aria-label="Breadcrumb" className={cn("flex items-center space-x-2 text-sm py-2", className)}>
       <Link
         href="/dashboard"
-        className="text-muted-foreground hover:text-foreground transition-colors"
+        className="text-muted-foreground hover:text-foreground transition-colors flex items-center"
         aria-label="Inicio"
       >
         <Home className="h-4 w-4" />
       </Link>
       {items.map((item, index) => (
         <React.Fragment key={index}>
-          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
           {item.href && index < items.length - 1 ? (
             <Link
               href={item.href}
-              className="text-muted-foreground hover:text-foreground transition-colors"
+              className="text-muted-foreground hover:text-foreground transition-colors hover:underline"
             >
               {item.label}
             </Link>

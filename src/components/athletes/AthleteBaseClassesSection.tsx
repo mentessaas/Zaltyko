@@ -103,7 +103,7 @@ export function AthleteBaseClassesSection({
         </p>
       ) : baseClasses.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          El grupo "{groupName}" no tiene clases asignadas actualmente.
+          El grupo «{groupName}» no tiene clases asignadas actualmente.
         </p>
       ) : (
         <div className="space-y-3">

@@ -7,13 +7,22 @@ import Link from "next/link";
 import { useDevSession } from "@/components/dev-session-provider";
 import { Progress } from "@/components/ui/progress";
 import { FormField, validators } from "@/components/ui/form-field";
-import { COUNTRY_REGION_OPTIONS, findRegionsByCountry } from "@/lib/countryRegions";
+import { COUNTRY_REGION_OPTIONS, findRegionsByCountry, getRegionLabel, getRegionPlaceholder, getCityPlaceholder } from "@/lib/countryRegions";
+import { findCitiesByRegion } from "@/lib/citiesByRegion";
 import { ACADEMY_TYPES, onboardingCopy } from "@/lib/onboardingCopy";
 import { createClient } from "@/lib/supabase/client";
 import { isDevFeaturesEnabled } from "@/lib/dev";
 import { trackEvent } from "@/lib/analytics";
 import { useToast } from "@/components/ui/toast-provider";
 import { getErrorMessage } from "@/lib/errors";
+import { LimitIndicator } from "@/components/onboarding/LimitIndicator";
+import { StepPreview } from "@/components/onboarding/StepPreview";
+import { StepCompletionCelebration } from "@/components/onboarding/StepCompletionCelebration";
+import { AutoSaveIndicator } from "@/components/onboarding/AutoSaveIndicator";
+import { InteractiveTutorial } from "@/components/onboarding/InteractiveTutorial";
+import { CsvImportDialog } from "@/components/onboarding/CsvImportDialog";
+import { SearchableSelect } from "@/components/ui/searchable-select";
+import { ArrowUpRight, Clock, HelpCircle, Upload, CheckCircle2, AlertCircle, ArrowRight, Lock, TrendingUp } from "lucide-react";
 
 interface CoachInput {
   name: string;
@@ -87,7 +96,36 @@ export default function OnboardingWizard() {
   const [selectedCountry, setSelectedCountry] = useState("");
   const [selectedRegion, setSelectedRegion] = useState("");
   const [selectedCity, setSelectedCity] = useState("");
+  const [academyName, setAcademyName] = useState("");
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [lastCompletedStep, setLastCompletedStep] = useState<{ number: number; name: string } | null>(null);
+  const [isAutoSaving, setIsAutoSaving] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [showTutorial, setShowTutorial] = useState(false);
+  const [showCsvImport, setShowCsvImport] = useState(false);
+  const [userPlan, setUserPlan] = useState<"free" | "pro" | "premium">("free");
+  const [userHasAcademies, setUserHasAcademies] = useState(false);
+  const [existingAcademies, setExistingAcademies] = useState<Array<{ id: string; name: string | null }>>([]);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [userPlanInfo, setUserPlanInfo] = useState<{
+    planCode: "free" | "pro" | "premium";
+    academyLimit: number | null;
+    currentAcademyCount: number;
+    canCreateMore: boolean;
+    upgradeTo?: "pro" | "premium";
+  } | null>(null);
   const STORAGE_KEY = "gymna_onboarding_state";
+
+  // Tiempo estimado por paso (en minutos)
+  const STEP_TIME_ESTIMATES: Record<StepKey, number> = {
+    1: 2,
+    2: 3,
+    3: 2,
+    4: 3,
+    5: 5,
+    6: 3,
+    7: 5,
+  };
 
   // Cargar estado persistido (si existe) antes de bootstrap de sesión
   useEffect(() => {
@@ -261,6 +299,44 @@ export default function OnboardingWizard() {
 
   const effectiveUserId = authUserId ?? session?.userId ?? null;
 
+  // Verificar si el usuario ya tiene academias y su plan
+  useEffect(() => {
+    const checkUserAcademiesAndPlan = async () => {
+      if (!effectiveUserId || step !== 2) return;
+      try {
+        const res = await fetch("/api/onboarding/user-academies", { cache: "no-store" });
+        if (res.ok) {
+          const data = await res.json();
+          setUserHasAcademies(data.hasAcademies || false);
+          setExistingAcademies(data.academies || []);
+          
+          // Obtener información del plan del usuario
+          const planRes = await fetch("/api/onboarding/user-plan", { cache: "no-store" });
+          if (planRes.ok) {
+            const planData = await planRes.json();
+            setUserPlanInfo({
+              planCode: planData.planCode || "free",
+              academyLimit: planData.academyLimit ?? 1,
+              currentAcademyCount: planData.currentAcademyCount || 0,
+              canCreateMore: planData.canCreateMore !== false,
+              upgradeTo: planData.upgradeTo,
+            });
+          }
+          
+          // Si tiene academias y no hay academyId, usar la primera
+          if (data.hasAcademies && data.academies?.length > 0 && !academyId) {
+            const firstAcademy = data.academies[0];
+            setAcademyId(firstAcademy.id);
+            setMaxStep((prev) => (prev < 3 ? 3 : prev));
+          }
+        }
+      } catch (error) {
+        console.error("Error checking user academies:", error);
+      }
+    };
+    checkUserAcademiesAndPlan();
+  }, [effectiveUserId, step, academyId]);
+
   const copy = onboardingCopy[academyType] ?? onboardingCopy.artistica;
   const safeStep = (step <= 5 ? step : 5) as 1 | 2 | 3 | 4 | 5;
   const stepCopy = copy.steps[safeStep];
@@ -268,6 +344,11 @@ export default function OnboardingWizard() {
   const regionOptions = useMemo(
     () => findRegionsByCountry(selectedCountry),
     [selectedCountry]
+  );
+
+  const cityOptions = useMemo(
+    () => findCitiesByRegion(selectedCountry, selectedRegion),
+    [selectedCountry, selectedRegion]
   );
 
   const totalSteps = STEP_FLOW.length;
@@ -296,23 +377,27 @@ export default function OnboardingWizard() {
     });
   };
 
+  // Validar que la región seleccionada sea válida para el país actual
   useEffect(() => {
-    if (!selectedCountry) {
-      if (selectedRegion !== "") {
-        setSelectedRegion("");
-      }
+    if (!selectedCountry || regionOptions.length === 0) {
       return;
     }
-    if (regionOptions.length === 0) {
-      if (selectedRegion !== "") {
-        setSelectedRegion("");
-      }
-      return;
-    }
-    if (!regionOptions.some((region) => region.value === selectedRegion)) {
+    // Si hay una región seleccionada pero no está en las opciones válidas, resetearla
+    if (selectedRegion && !regionOptions.some((region) => region.value === selectedRegion)) {
       setSelectedRegion("");
     }
   }, [regionOptions, selectedCountry, selectedRegion]);
+
+  // Validar que la ciudad seleccionada sea válida para la región actual
+  useEffect(() => {
+    if (!selectedRegion || cityOptions.length === 0) {
+      return;
+    }
+    // Si hay una ciudad seleccionada pero no está en las opciones válidas, resetearla
+    if (selectedCity && !cityOptions.some((city) => city.value === selectedCity)) {
+      setSelectedCity("");
+    }
+  }, [cityOptions, selectedRegion, selectedCity]);
 
   const canGoNext = useMemo(() => {
     if (step === 1) {
@@ -447,13 +532,74 @@ export default function OnboardingWizard() {
 
   const handleCreateAcademy = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!effectiveUserId) {
-      setError("Debes crear una cuenta antes de registrar tu academia.");
+    
+    // Verificar límite de plan antes de intentar crear
+    if (userPlanInfo && !userPlanInfo.canCreateMore) {
+      setError(`⚠️ Has alcanzado el límite de academias de tu plan ${userPlanInfo.planCode.toUpperCase()}. Actualiza tu plan para crear más academias.`);
+      toast.pushToast({
+        title: "Límite alcanzado",
+        description: `Tu plan permite ${userPlanInfo.academyLimit === null ? "ilimitadas" : userPlanInfo.academyLimit} academias. Actualiza tu plan para crear más.`,
+        variant: "error",
+      });
       return;
     }
+    
+    // Verificar límite de plan antes de intentar crear
+    if (userPlanInfo && !userPlanInfo.canCreateMore) {
+      setError(`⚠️ Has alcanzado el límite de academias de tu plan ${userPlanInfo.planCode.toUpperCase()}. Actualiza tu plan para crear más academias.`);
+      toast.pushToast({
+        title: "Límite alcanzado",
+        description: `Tu plan permite ${userPlanInfo.academyLimit === null ? "ilimitadas" : userPlanInfo.academyLimit} academias. Actualiza tu plan para crear más.`,
+        variant: "error",
+      });
+      return;
+    }
+    
+    // Validación clara de campos requeridos
+    setFieldErrors({});
+    const form = new FormData(event.currentTarget);
+    const name = form.get("name") as string;
+    const country = selectedCountry || (form.get("country") as string);
+    const region = selectedRegion || (form.get("region") as string);
+    const city = selectedCity || (form.get("city") as string);
+    
+    const errors: Record<string, string> = {};
+    
+    if (!effectiveUserId) {
+      setError("❌ Debes crear una cuenta antes de registrar tu academia. Por favor, completa el paso 1 primero.");
+      return;
+    }
+    
+    if (!name || name.trim().length < 2) {
+      errors.name = "El nombre de la academia es obligatorio y debe tener al menos 2 caracteres";
+    }
+    
+    if (!country) {
+      errors.country = "Debes seleccionar un país";
+    }
+    
+    if (!region && regionOptions.length > 0) {
+      errors.region = `Debes seleccionar una ${getRegionLabel(selectedCountry).toLowerCase()}`;
+    }
+    
+    if (!city && cityOptions.length > 0) {
+      errors.city = "Debes seleccionar una ciudad";
+    }
+    
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      const errorMessages = Object.values(errors).join(". ");
+      setError(`⚠️ Por favor completa todos los campos requeridos:\n\n${errorMessages}`);
+      toast.pushToast({
+        title: "Campos incompletos",
+        description: errorMessages,
+        variant: "error",
+      });
+      return;
+    }
+    
     setLoading(true);
     setError(null);
-    const form = new FormData(event.currentTarget);
     try {
       const res = await fetch("/api/academies", {
         method: "POST",
@@ -462,10 +608,10 @@ export default function OnboardingWizard() {
           "x-user-id": effectiveUserId,
         },
         body: JSON.stringify({
-          name: form.get("name"),
-          country: selectedCountry || form.get("country"),
-          region: selectedRegion || form.get("region"),
-          city: selectedCity || form.get("city"),
+          name: name.trim(),
+          country,
+          region,
+          city,
           academyType,
           ownerProfileId: profileId ?? undefined,
         }),
@@ -474,16 +620,35 @@ export default function OnboardingWizard() {
       if (!res.ok) {
         const code = data?.error as string | undefined;
         if (code === "PROFILE_REQUIRED") {
-          throw new Error("Tu perfil aún no está listo. Refresca la sesión e inténtalo de nuevo.");
+          throw new Error("❌ Tu perfil aún no está listo. Por favor, refresca la sesión e inténtalo de nuevo. Si el problema persiste, vuelve al paso 1.");
         }
         if (code === "OWNER_PROFILE_NOT_FOUND") {
-          throw new Error("No se encontró el perfil del propietario. Vuelve al paso 1.");
+          throw new Error("❌ No se encontró tu perfil de propietario. Por favor, vuelve al paso 1 y completa tu información de cuenta.");
         }
         if (code === "ACADEMY_LIMIT_REACHED" || code === "LIMIT_REACHED") {
-          const message = data?.message || `Has alcanzado el límite de academias de tu plan actual. ${data?.payload?.upgradeTo ? `Actualiza a ${data.payload.upgradeTo.toUpperCase()} para crear más academias.` : "Contacta con soporte para aumentar tu límite."}`;
-          throw new Error(message);
+          const upgradeInfo = data?.payload?.upgradeInfo;
+          const currentCount = data?.payload?.currentCount ?? 0;
+          const limit = data?.payload?.limit ?? 1;
+          let message = `⚠️ Has alcanzado el límite de academias de tu plan actual.\n\n`;
+          message += `📊 Estado actual: ${currentCount} de ${limit} academias permitidas.\n\n`;
+          message += `💡 Solución: `;
+          if (upgradeInfo) {
+            message += `Actualiza a ${upgradeInfo.plan.toUpperCase()} (${upgradeInfo.price}) para crear academias ilimitadas.`;
+          } else if (data?.payload?.upgradeTo) {
+            message += `Actualiza a ${data.payload.upgradeTo.toUpperCase()} para crear más academias.`;
+          } else {
+            message += `Actualiza tu plan desde la sección de facturación para crear más academias.`;
+          }
+          const error = new Error(message) as Error & { upgradeInfo?: typeof upgradeInfo; upgradeTo?: string };
+          error.upgradeInfo = upgradeInfo;
+          error.upgradeTo = data?.payload?.upgradeTo;
+          throw error;
         }
-        throw new Error(data?.message || (data?.error ?? "Error al crear la academia"));
+        // Errores de validación del servidor
+        if (data?.message && typeof data.message === "string") {
+          throw new Error(`❌ ${data.message}`);
+        }
+        throw new Error(`❌ Error al crear la academia: ${data?.error ?? "Error desconocido"}`);
       }
       setAcademyId(data.id);
       setTenantId(data.tenantId);
@@ -494,9 +659,38 @@ export default function OnboardingWizard() {
         profileId: profileId ?? session?.profileId ?? undefined,
       });
       setMaxStep((prev) => (prev < 3 ? 3 : prev));
+      setLastCompletedStep({ number: 2, name: "Academia creada" });
+      setShowCelebration(true);
+      
+      // Enviar email de bienvenida
+      if (effectiveUserId && data.id) {
+        try {
+          await fetch("/api/onboarding/welcome-email", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              academyId: data.id,
+              userId: effectiveUserId,
+            }),
+          });
+        } catch (error) {
+          console.error("Error sending welcome email:", error);
+        }
+      }
+      
       setStep(3);
     } catch (err: unknown) {
-      setError(getErrorMessage(err));
+      const errorMessage = getErrorMessage(err);
+      setError(errorMessage);
+      
+      // Si hay información de upgrade, mostrar botón
+      if (err && typeof err === 'object' && 'upgradeInfo' in err) {
+        const upgradeErr = err as { upgradeInfo?: { plan: string; price: string; benefits: string[] }; upgradeTo?: string };
+        if (upgradeErr.upgradeInfo) {
+          // El mensaje ya incluye la información de upgrade
+          // Podríamos agregar un botón aquí si fuera necesario
+        }
+      }
     } finally {
       setLoading(false);
     }
@@ -590,8 +784,8 @@ export default function OnboardingWizard() {
         }),
       });
 
-      setStep(6);
-      setMaxStep((prev) => (prev < 6 ? 6 : prev));
+      setStep(5);
+      setMaxStep((prev) => (prev < 5 ? 5 : prev));
     } catch (err: unknown) {
       setError(getErrorMessage(err) || "No se pudo crear el primer grupo.");
     } finally {
@@ -622,6 +816,8 @@ export default function OnboardingWizard() {
           }),
         });
       }
+      setLastCompletedStep({ number: 6, name: "Entrenadores invitados" });
+      setShowCelebration(true);
       setStep(7);
       setMaxStep((prev) => (prev < 7 ? 7 : prev));
     } catch (err: unknown) {
@@ -660,15 +856,49 @@ export default function OnboardingWizard() {
     }
   };
 
-  const handleCreateAthletes = async () => {
-    if (!academyId || !effectiveUserId) {
-      setError("Completa los pasos previos o crea tu cuenta.");
+  const handleCreateAthletes = async (athletesToCreate?: Array<{ name: string }>) => {
+    if (!academyId) {
+      setError("❌ Primero debes crear una academia. Por favor, completa el paso 2 antes de continuar.");
+      toast.pushToast({
+        title: "Academia requerida",
+        description: "Necesitas crear una academia antes de añadir atletas.",
+        variant: "error",
+      });
       return;
     }
+    if (!effectiveUserId) {
+      setError("❌ Debes crear una cuenta primero. Por favor, completa el paso 1.");
+      return;
+    }
+    
+    const payload = athletesToCreate || athletes.filter((athlete) => athlete.name);
+    
+    if (payload.length === 0) {
+      setError("⚠️ Por favor, añade al menos un atleta. Escribe el nombre en los campos de arriba o importa un archivo CSV.");
+      toast.pushToast({
+        title: "Sin atletas",
+        description: "Debes agregar al menos un atleta para continuar.",
+        variant: "error",
+      });
+      return;
+    }
+    
+    // Validar que todos los nombres sean válidos
+    const invalidAthletes = payload.filter(a => !a.name || a.name.trim().length < 2);
+    if (invalidAthletes.length > 0) {
+      setError(`⚠️ Por favor, corrige los nombres de los atletas. Todos los nombres deben tener al menos 2 caracteres.`);
+      toast.pushToast({
+        title: "Nombres inválidos",
+        description: "Algunos nombres de atletas son muy cortos o están vacíos.",
+        variant: "error",
+      });
+      return;
+    }
+    
     setLoading(true);
     setError(null);
+    const isImport = !!athletesToCreate;
     try {
-      const payload = athletes.filter((athlete) => athlete.name);
       let createdCount = 0;
       let limitError: { message: string; upgradeTo?: string } | null = null;
 
@@ -689,9 +919,14 @@ export default function OnboardingWizard() {
           if (!response.ok) {
             const data = await response.json().catch(() => ({}));
             if (response.status === 402 && data.error === "LIMIT_REACHED") {
+              const upgradeInfo = data.details?.upgradeInfo;
+              let message = data.message || "Has alcanzado el límite de atletas de tu plan.";
+              if (upgradeInfo) {
+                message = `Has alcanzado el límite de atletas de tu plan actual. Actualiza a ${upgradeInfo.plan.toUpperCase()} (${upgradeInfo.price}) para agregar más atletas.`;
+              }
               limitError = {
-                message: data.message || "Has alcanzado el límite de atletas de tu plan.",
-                upgradeTo: data.details?.upgradeTo,
+                message,
+                upgradeTo: upgradeInfo?.plan || data.details?.upgradeTo,
               };
               break; // Detener el loop si se alcanza el límite
             }
@@ -706,22 +941,34 @@ export default function OnboardingWizard() {
       }
 
       if (limitError) {
+        const upgradeMessage = limitError.upgradeTo 
+          ? ` Actualiza a ${limitError.upgradeTo.toUpperCase()} desde la sección de facturación para agregar más atletas.`
+          : "";
         setError(
-          `${limitError.message} ${createdCount > 0 ? `Se crearon ${createdCount} de ${payload.length} atletas. ` : ""}${limitError.upgradeTo ? `Puedes actualizar tu plan más adelante desde la sección de facturación.` : ""}`
+          `${limitError.message} ${createdCount > 0 ? `Se crearon ${createdCount} de ${payload.length} atletas.` : ""}${upgradeMessage}`
         );
         // Continuar al siguiente paso aunque haya error de límite
         if (createdCount > 0) {
-          setStep(5);
-          setMaxStep((prev) => (prev < 5 ? 5 : prev));
+          setLastCompletedStep({ number: 5, name: `${createdCount} atleta${createdCount > 1 ? "s" : ""} creado${createdCount > 1 ? "s" : ""}` });
+          setShowCelebration(true);
+          setStep(6);
+          setMaxStep((prev) => (prev < 6 ? 6 : prev));
         }
       } else if (createdCount > 0) {
-        setStep(5);
-        setMaxStep((prev) => (prev < 5 ? 5 : prev));
+        setLastCompletedStep({ number: 5, name: `${createdCount} atleta${createdCount > 1 ? "s" : ""} creado${createdCount > 1 ? "s" : ""}` });
+        setShowCelebration(true);
+        setStep(6);
+        setMaxStep((prev) => (prev < 6 ? 6 : prev));
         toast.pushToast({
           title: "Atletas creados",
           description: `Se crearon ${createdCount} atleta${createdCount === 1 ? "" : "s"} exitosamente.`,
           variant: "success",
         });
+        
+        // Si se importaron desde CSV, actualizar la lista local
+        if (isImport && athletesToCreate) {
+          setAthletes([...athletesToCreate, ...athletes.filter(a => !a.name)]);
+        }
       }
     } catch (err: unknown) {
       const errorMessage = getErrorMessage(err);
@@ -743,12 +990,13 @@ export default function OnboardingWizard() {
           <h1 className="text-3xl font-semibold tracking-tight lg:text-4xl">{heading}</h1>
           <p className="max-w-3xl text-base text-muted-foreground lg:text-lg">{description}</p>
         </div>
-        <Link
-          href="/"
+        <button
+          type="button"
+          onClick={() => router.back()}
           className="text-sm font-semibold text-muted-foreground underline underline-offset-4 transition hover:text-foreground"
         >
-          Salir y volver al inicio
-        </Link>
+          Salir y volver
+        </button>
       </header>
 
       <div className="space-y-4">
@@ -790,10 +1038,20 @@ export default function OnboardingWizard() {
 
       <div className="grid gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(260px,1fr)]">
         <div className="space-y-6">
+          <AutoSaveIndicator isSaving={isAutoSaving} lastSaved={lastSaved} className="ml-auto" />
           {error && (
-            <p className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-              {error}
-            </p>
+            <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive space-y-2">
+              <p>{error}</p>
+              {(error.includes("ACADEMY_LIMIT_REACHED") || error.includes("LIMIT_REACHED") || error.includes("Actualiza a")) && (
+                <Link
+                  href="/billing"
+                  className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-primary/90"
+                >
+                  Ver planes y actualizar
+                  <ArrowUpRight className="h-3 w-3" />
+                </Link>
+              )}
+            </div>
           )}
 
           {/* Aviso demo: oculto cuando las features de demo están deshabilitadas */}
@@ -925,11 +1183,100 @@ export default function OnboardingWizard() {
             ))}
 
           {step === 2 && (
-            <form onSubmit={handleCreateAcademy} className="space-y-5">
+            <>
+              {/* Si tiene academia y alcanzó el límite de su plan */}
+              {userHasAcademies && existingAcademies.length > 0 && userPlanInfo && !userPlanInfo.canCreateMore && !academyId ? (
+                <div className="space-y-4 rounded-lg border border-amber-400/40 bg-amber-50/50 dark:bg-amber-950/20 p-6">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/50">
+                      <Lock className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                    </div>
+                    <div className="flex-1 space-y-3">
+                      <div>
+                        <h3 className="font-semibold text-foreground mb-2">Límite de academias alcanzado</h3>
+                        <p className="text-sm text-muted-foreground mb-2">
+                          Tu plan <span className="font-semibold text-foreground uppercase">{userPlanInfo.planCode}</span> permite crear hasta{" "}
+                          <span className="font-semibold text-foreground">
+                            {userPlanInfo.academyLimit === null ? "ilimitadas" : userPlanInfo.academyLimit}
+                          </span>{" "}
+                          academia{userPlanInfo.academyLimit === 1 ? "" : "s"}.
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          Actualmente tienes <span className="font-semibold text-foreground">{userPlanInfo.currentAcademyCount}</span> academia
+                          {userPlanInfo.currentAcademyCount !== 1 ? "s" : ""}:{" "}
+                          <span className="font-medium text-foreground">{existingAcademies[0].name || "Sin nombre"}</span>
+                        </p>
+                      </div>
+                      <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (existingAcademies.length > 0) {
+                              setAcademyId(existingAcademies[0].id);
+                              setMaxStep((prev) => (prev < 3 ? 3 : prev));
+                              setStep(3);
+                            }
+                          }}
+                          className="inline-flex items-center justify-center gap-2 rounded-md border border-border bg-background px-4 py-2 text-sm font-semibold shadow-sm transition hover:bg-muted"
+                        >
+                          Continuar con mi academia actual
+                          <ArrowRight className="h-4 w-4" />
+                        </button>
+                        {userPlanInfo.upgradeTo && (
+                          <Link
+                            href="/billing"
+                            className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-primary/90"
+                          >
+                            <TrendingUp className="h-4 w-4" />
+                            Actualizar a {userPlanInfo.upgradeTo.toUpperCase()}
+                          </Link>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : userHasAcademies && existingAcademies.length > 0 && !academyId ? (
+                <div className="space-y-4 rounded-lg border border-primary/40 bg-primary/5 p-6">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
+                      <CheckCircle2 className="h-5 w-5 text-primary" />
+                    </div>
+                    <div className="flex-1 space-y-3">
+                      <div>
+                        <h3 className="font-semibold text-foreground mb-1">Ya tienes una academia creada</h3>
+                        <p className="text-sm text-muted-foreground">
+                          Academia: <span className="font-semibold text-foreground">{existingAcademies[0].name || "Sin nombre"}</span>
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (existingAcademies.length > 0) {
+                            setAcademyId(existingAcademies[0].id);
+                            setMaxStep((prev) => (prev < 3 ? 3 : prev));
+                            setStep(3);
+                          }
+                        }}
+                        className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-primary/90"
+                      >
+                        Ir al siguiente paso
+                        <ArrowRight className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <form onSubmit={handleCreateAcademy} className="space-y-5">
             <div className="space-y-1">
-              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Paso {getStepOrder(2)}
-              </span>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Paso {getStepOrder(2)}
+                </span>
+                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <Clock className="h-3 w-3" />
+                  <span>~{STEP_TIME_ESTIMATES[2]} min</span>
+                </div>
+              </div>
               <h2 className="text-xl font-semibold">{sectionTitle}</h2>
               <p className="text-sm text-muted-foreground">{sectionDescription}</p>
             </div>
@@ -937,62 +1284,68 @@ export default function OnboardingWizard() {
                 <label className="text-sm font-medium">Nombre de la academia</label>
                 <input
                   name="name"
+                  value={academyName}
+                  onChange={(e) => setAcademyName(e.target.value)}
                   required
                   className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                 />
               </div>
+              {(academyName || selectedCountry || selectedRegion || selectedCity || academyType) && (
+                <StepPreview
+                  step={2}
+                  data={{
+                    name: academyName,
+                    academyType,
+                    country: selectedCountry ? COUNTRY_REGION_OPTIONS.find(c => c.value === selectedCountry)?.label : undefined,
+                    region: selectedRegion ? findRegionsByCountry(selectedCountry).find(r => r.value === selectedRegion)?.label : undefined,
+                    city: selectedCity ? findCitiesByRegion(selectedCountry, selectedRegion).find(c => c.value === selectedCity)?.label : undefined,
+                  }}
+                />
+              )}
               <div className="grid gap-4 md:grid-cols-3">
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium">País</label>
-                <select
-                  name="country"
-                  required
-                  value={selectedCountry}
-                  onChange={(event) => {
-                    const value = event.target.value;
-                    setSelectedCountry(value);
-                  }}
-                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                >
-                  <option value="" disabled>
-                    Selecciona un país
-                  </option>
-                  {COUNTRY_REGION_OPTIONS.map((countryOption) => (
-                    <option key={countryOption.value} value={countryOption.value}>
-                      {countryOption.label}
-                    </option>
-                  ))}
-                </select>
+                  <SearchableSelect
+                    options={COUNTRY_REGION_OPTIONS.map(c => ({ value: c.value, label: c.label }))}
+                    value={selectedCountry}
+                    onChange={(value) => {
+                      setSelectedCountry(value);
+                      setSelectedRegion("");
+                      setSelectedCity("");
+                    }}
+                    placeholder="Selecciona un país"
+                    required
+                    name="country"
+                    searchPlaceholder="Buscar país..."
+                  />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium">Región</label>
-                <select
-                  name="region"
-                  value={selectedRegion}
-                  onChange={(event) => setSelectedRegion(event.target.value)}
-                  required={regionOptions.length > 0}
-                  disabled={!selectedCountry || regionOptions.length === 0}
-                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-70"
-                >
-                  <option value="" disabled>
-                    {selectedCountry ? "Selecciona una región" : "Selecciona un país primero"}
-                  </option>
-                  {regionOptions.map((region) => (
-                    <option key={region.value} value={region.value}>
-                      {region.label}
-                    </option>
-                  ))}
-                </select>
+                  <label className="text-sm font-medium">{getRegionLabel(selectedCountry)}</label>
+                  <SearchableSelect
+                    options={regionOptions}
+                    value={selectedRegion}
+                    onChange={(value) => {
+                      setSelectedRegion(value);
+                      setSelectedCity("");
+                    }}
+                    placeholder={getRegionPlaceholder(selectedCountry, !!selectedCountry)}
+                    disabled={!selectedCountry || regionOptions.length === 0}
+                    required={regionOptions.length > 0}
+                    name="region"
+                    searchPlaceholder={`Buscar ${getRegionLabel(selectedCountry).toLowerCase()}...`}
+                  />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium">Ciudad</label>
-                  <input
-                    name="city"
-                    type="text"
+                  <SearchableSelect
+                    options={cityOptions}
                     value={selectedCity}
-                    onChange={(event) => setSelectedCity(event.target.value)}
-                    placeholder="Ej: Madrid, Barcelona, Bilbao..."
-                    className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                    onChange={setSelectedCity}
+                    placeholder={getCityPlaceholder(getRegionLabel(selectedCountry), !!selectedRegion)}
+                    disabled={!selectedRegion || cityOptions.length === 0}
+                    required={cityOptions.length > 0}
+                    name="city"
+                    searchPlaceholder="Buscar ciudad..."
                   />
                 </div>
               </div>
@@ -1016,6 +1369,9 @@ export default function OnboardingWizard() {
                   Personaliza la experiencia según la disciplina principal de tu academia.
                 </p>
               </div>
+              {effectiveUserId && (
+                <LimitIndicator academyId={null} resource="academies" className="mt-2" />
+              )}
               <div className="flex flex-wrap items-center gap-3">
                 <button
                   type="button"
@@ -1033,16 +1389,38 @@ export default function OnboardingWizard() {
                 </button>
               </div>
             </form>
+              )}
+            </>
           )}
 
           {step === 3 && (
             <form onSubmit={handleStructureSubmit} className="space-y-5">
               <div className="space-y-1">
-                <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Paso {getStepOrder(3)}
-                </span>
-                <h2 className="text-xl font-semibold">{sectionTitle}</h2>
-                <p className="text-sm text-muted-foreground">{sectionDescription}</p>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Paso {getStepOrder(3)} (Opcional)
+                      </span>
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Clock className="h-3 w-3" />
+                        <span>~{STEP_TIME_ESTIMATES[3]} min</span>
+                      </div>
+                    </div>
+                    <h2 className="text-xl font-semibold">{sectionTitle}</h2>
+                    <p className="text-sm text-muted-foreground">{sectionDescription}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setStep(4);
+                      setMaxStep((prev) => (prev < 4 ? 4 : prev));
+                    }}
+                    className="text-xs font-semibold text-muted-foreground hover:text-foreground transition"
+                  >
+                    Saltar paso
+                  </button>
+                </div>
               </div>
               <div className="grid gap-4 md:grid-cols-2">
                 {DISCIPLINE_OPTIONS.map((option) => (
@@ -1203,14 +1581,244 @@ export default function OnboardingWizard() {
             </form>
           )}
 
+          {step === 5 && (
+            <div className="space-y-5">
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Paso {getStepOrder(5)}
+                      </span>
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Clock className="h-3 w-3" />
+                        <span>~{STEP_TIME_ESTIMATES[5]} min</span>
+                      </div>
+                    </div>
+                    <h2 className="text-xl font-semibold">{sectionTitle}</h2>
+                    <p className="text-sm text-muted-foreground">{sectionDescription}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setStep(6);
+                      setMaxStep((prev) => (prev < 6 ? 6 : prev));
+                    }}
+                    className="text-xs font-semibold text-muted-foreground hover:text-foreground transition"
+                  >
+                    Saltar paso
+                  </button>
+                </div>
+              </div>
+              {academyId && (
+                <LimitIndicator academyId={academyId} resource="athletes" className="mb-4" />
+              )}
+              {athletes.filter((a) => a.name).length > 0 && (
+                <StepPreview
+                  step={5}
+                  data={{ athletes }}
+                />
+              )}
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm font-medium">Añadir atletas</p>
+                <button
+                  type="button"
+                  onClick={() => setShowCsvImport(true)}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium hover:bg-muted transition-colors"
+                >
+                  <Upload className="h-3.5 w-3.5" />
+                  Importar CSV
+                </button>
+              </div>
+              <div className="space-y-3">
+                {athletes.map((athlete, index) => (
+                  <div key={index} className="flex gap-2">
+                    <input
+                      type="text"
+                      value={athlete.name}
+                      onChange={(event) => {
+                        const updated = [...athletes];
+                        updated[index] = { ...updated[index], name: event.target.value };
+                        setAthletes(updated);
+                      }}
+                      placeholder={`Nombre del atleta ${index + 1}`}
+                      className="flex-1 rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                    {athletes.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAthletes((prev) => prev.filter((_, i) => i !== index));
+                        }}
+                        className="rounded-md border border-border px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted"
+                      >
+                        Eliminar
+                      </button>
+                    )}
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAthletes((prev) => [...prev, { name: "" }]);
+                  }}
+                  className="text-xs font-semibold text-primary hover:underline"
+                >
+                  Añadir otro atleta
+                </button>
+              </div>
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  onClick={handleGoBack}
+                  className="rounded-md border border-border px-3 py-2 text-sm font-medium hover:bg-muted"
+                >
+                  Volver
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleCreateAthletes()}
+                  className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-70"
+                  disabled={loading || !canGoNext}
+                >
+                  {loading ? "Creando..." : "Crear atletas y continuar"}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {step === 6 && (
+            <div className="space-y-5">
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Paso {getStepOrder(6)} (Opcional)
+                      </span>
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Clock className="h-3 w-3" />
+                        <span>~{STEP_TIME_ESTIMATES[6]} min</span>
+                      </div>
+                    </div>
+                    <h2 className="text-xl font-semibold">{sectionTitle}</h2>
+                    <p className="text-sm text-muted-foreground">{sectionDescription}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setStep(7);
+                      setMaxStep((prev) => (prev < 7 ? 7 : prev));
+                    }}
+                    className="text-xs font-semibold text-muted-foreground hover:text-foreground transition"
+                  >
+                    Saltar paso
+                  </button>
+                </div>
+              </div>
+              {coaches.filter((c) => c.email).length > 0 && (
+                <StepPreview
+                  step={6}
+                  data={{ coaches }}
+                />
+              )}
+              <div className="space-y-3">
+                {coaches.map((coach, index) => (
+                  <div key={index} className="grid gap-2 md:grid-cols-2">
+                    <input
+                      type="text"
+                      value={coach.name}
+                      onChange={(event) => {
+                        const updated = [...coaches];
+                        updated[index] = { ...updated[index], name: event.target.value };
+                        setCoaches(updated);
+                      }}
+                      placeholder="Nombre del entrenador"
+                      className="rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                    <div className="flex gap-2">
+                      <input
+                        type="email"
+                        value={coach.email}
+                        onChange={(event) => {
+                          const updated = [...coaches];
+                          updated[index] = { ...updated[index], email: event.target.value };
+                          setCoaches(updated);
+                        }}
+                        placeholder="correo@ejemplo.com"
+                        className="flex-1 rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                      />
+                      {coaches.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCoaches((prev) => prev.filter((_, i) => i !== index));
+                          }}
+                          className="rounded-md border border-border px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted"
+                        >
+                          Eliminar
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCoaches((prev) => [...prev, { name: "", email: "" }]);
+                  }}
+                  className="text-xs font-semibold text-primary hover:underline"
+                >
+                  Añadir otro entrenador
+                </button>
+              </div>
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  onClick={handleGoBack}
+                  className="rounded-md border border-border px-3 py-2 text-sm font-medium hover:bg-muted"
+                >
+                  Volver
+                </button>
+                <button
+                  type="button"
+                  onClick={handleInviteCoaches}
+                  className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-70"
+                  disabled={loading || !canGoNext}
+                >
+                  {loading ? "Enviando invitaciones..." : "Enviar invitaciones y continuar"}
+                </button>
+              </div>
+            </div>
+          )}
+
           {step === 7 && (
             <div className="space-y-6">
               <div className="space-y-1">
-                <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Paso {getStepOrder(7)}
-                </span>
-                <h2 className="text-xl font-semibold">{sectionTitle}</h2>
-                <p className="text-sm text-muted-foreground">{sectionDescription}</p>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Paso {getStepOrder(7)} (Opcional)
+                      </span>
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Clock className="h-3 w-3" />
+                        <span>~{STEP_TIME_ESTIMATES[7]} min</span>
+                      </div>
+                    </div>
+                    <h2 className="text-xl font-semibold">{sectionTitle}</h2>
+                    <p className="text-sm text-muted-foreground">{sectionDescription}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      router.push(`/app/${academyId}/dashboard`);
+                    }}
+                    className="text-xs font-semibold text-muted-foreground hover:text-foreground transition"
+                  >
+                    Saltar y continuar
+                  </button>
+                </div>
               </div>
               <div className="rounded-xl border border-primary/40 bg-primary/5 p-5 text-sm">
                 <p className="font-semibold text-primary">
@@ -1271,6 +1879,58 @@ export default function OnboardingWizard() {
           )}
         </aside>
       </div>
+      
+      {showCelebration && lastCompletedStep && (
+        <StepCompletionCelebration
+          show={showCelebration}
+          stepNumber={lastCompletedStep.number}
+          stepName={lastCompletedStep.name}
+          onComplete={() => {
+            setShowCelebration(false);
+            setLastCompletedStep(null);
+          }}
+        />
+      )}
+
+      {/* Tutorial interactivo - solo para usuarios nuevos en paso 2 */}
+      {step === 2 && !academyId && showTutorial && (
+        <InteractiveTutorial
+          steps={[
+            {
+              id: "academy-name",
+              target: 'input[name="name"]',
+              title: "Nombre de tu academia",
+              description: "Escribe el nombre oficial de tu academia. Este nombre aparecerá en todos los reportes y comunicaciones.",
+              position: "bottom",
+            },
+            {
+              id: "academy-location",
+              target: 'select[name="country"]',
+              title: "Ubicación",
+              description: `Selecciona el país, ${getRegionLabel(selectedCountry).toLowerCase()} y ciudad donde está ubicada tu academia. Esto nos ayuda a personalizar la experiencia.`,
+              position: "bottom",
+            },
+            {
+              id: "academy-type",
+              target: 'select[name="academyType"]',
+              title: "Tipo de academia",
+              description: "Elige el tipo principal de tu academia. Esto personaliza las funcionalidades y reportes específicos para tu disciplina.",
+              position: "bottom",
+            },
+          ]}
+          onComplete={() => setShowTutorial(false)}
+          onSkip={() => setShowTutorial(false)}
+          enabled={showTutorial}
+        />
+      )}
+
+      {/* Dialog de importación CSV */}
+      <CsvImportDialog
+        open={showCsvImport}
+        onClose={() => setShowCsvImport(false)}
+        onImport={handleCreateAthletes}
+        academyId={academyId}
+      />
     </div>
   );
 }

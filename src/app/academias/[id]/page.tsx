@@ -36,19 +36,19 @@ export default async function AcademyDetailPage({ params }: AcademyDetailPagePro
   }
 
   return (
-    <div className="min-h-screen bg-zaltyko-primary-dark">
+    <div className="min-h-screen bg-background">
       <AcademyHero academy={academy} />
       <AcademyInfo academy={academy} />
       <AcademySchedule schedule={academy.schedule} />
 
       {/* Sección de contacto */}
-      <section className="border-b border-white/10 py-12">
+      <section className="border-b border-border py-12">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="rounded-xl border border-white/10 bg-white/5 p-8 text-center">
-            <h2 className="mb-4 font-display text-2xl font-semibold text-white">
+          <div className="rounded-xl border border-border bg-card p-8 text-center shadow-sm">
+            <h2 className="mb-4 font-display text-2xl font-semibold text-foreground">
               ¿Interesado en esta academia?
             </h2>
-            <p className="mb-6 text-white/70">
+            <p className="mb-6 text-muted-foreground">
               Contacta con la academia para más información sobre clases, horarios y disponibilidad.
             </p>
             <ContactAcademyForm academyId={academy.id} academyName={academy.name} />

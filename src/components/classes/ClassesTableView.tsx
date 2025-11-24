@@ -6,6 +6,8 @@ import Link from "next/link";
 
 import { CreateClassDialog } from "@/components/classes/CreateClassDialog";
 import { EditClassDialog } from "@/components/classes/EditClassDialog";
+import { RecurringIndicator } from "@/components/shared/RecurringIndicator";
+import { AlertBadge } from "@/components/shared/AlertBadge";
 
 const WEEKDAY_LABELS: Record<number, string> = {
   0: "Domingo",
@@ -30,6 +32,7 @@ interface ClassItem {
   startTime: string | null;
   endTime: string | null;
   capacity: number | null;
+  autoGenerateSessions: boolean;
   createdAt: string | null;
   coaches: CoachOption[];
   groups: {
@@ -190,13 +193,22 @@ export function ClassesTableView({
             {classes.map((item) => (
               <tr key={item.id} className="hover:bg-muted/40">
                 <td className="px-4 py-3">
-                  <div className="space-y-1">
-                    <Link
-                      href={`/app/${academyId}/classes/${item.id}`}
-                      className="font-semibold text-primary hover:underline"
-                    >
-                      {item.name}
-                    </Link>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Link
+                        href={`/app/${academyId}/classes/${item.id}`}
+                        className="font-semibold text-primary hover:underline"
+                      >
+                        {item.name}
+                      </Link>
+                      {item.autoGenerateSessions && (
+                        <RecurringIndicator
+                          classId={item.id}
+                          academyId={academyId}
+                          autoGenerateSessions={item.autoGenerateSessions}
+                        />
+                      )}
+                    </div>
                     {item.createdAt && (
                       <p className="text-xs text-muted-foreground">
                         Creada el {item.createdAt.slice(0, 10)}
@@ -206,7 +218,12 @@ export function ClassesTableView({
                 </td>
                 <td className="px-4 py-3">{formatSchedule(item)}</td>
                 <td className="px-4 py-3 text-right tabular-nums">
-                  {item.capacity ?? "—"}
+                  <div className="flex flex-col items-end gap-1">
+                    <span>{item.capacity ?? "—"}</span>
+                    {item.capacity && item.capacity > 0 && (
+                      <AlertBadge type="capacity" severity="medium" className="text-[10px]" />
+                    )}
+                  </div>
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex flex-wrap gap-2 text-xs">

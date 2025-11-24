@@ -10,6 +10,7 @@ import { academies, classSessions, classes, classWeekdays, coaches, profiles } f
 import CalendarView from "@/components/calendar/CalendarView";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/authz";
+import { formatDateToISOString, getWeekBoundariesInCountryTimezone, getMonthBoundariesInCountryTimezone, getFirstDateForWeekdayInTimezone } from "@/lib/date-utils";
 
 interface CalendarPageProps {
   searchParams: Record<string, string | string[] | undefined>;
@@ -38,38 +39,12 @@ function parseDateParam(value?: string): Date {
   return parsed;
 }
 
-function toISODate(date: Date) {
-  return date.toISOString().slice(0, 10);
+function toISODate(date: Date, countryCode?: string | null) {
+  // Usar la función que respeta la zona horaria del país
+  return formatDateToISOString(date, countryCode);
 }
 
-function getFirstDateForWeekday(start: Date, weekday: number) {
-  // weekday: 0=Domingo, 1=Lunes, ..., 6=Sábado (formato de la BD)
-  // getDay() de date-fns: 0=Domingo, 1=Lunes, ..., 6=Sábado
-  // Usamos la misma lógica que sessions-generator.ts para mantener consistencia
-  const first = new Date(start);
-  first.setHours(0, 0, 0, 0); // Normalizar a medianoche para evitar problemas de zona horaria
-  
-  const startWeekday = getDay(first); // date-fns: 0 = Domingo, 1 = Lunes, ..., 6 = Sábado
-  
-  // Convertir 0 (Domingo) a 7 para facilitar el cálculo
-  const targetDay = weekday === 0 ? 7 : weekday;
-  const currentDay = startWeekday === 0 ? 7 : startWeekday;
-  
-  let daysToAdd = (targetDay - currentDay + 7) % 7;
-  
-  if (daysToAdd === 0 && startWeekday !== weekday) {
-    daysToAdd = 7;
-  }
-  
-  first.setDate(first.getDate() + daysToAdd);
-  
-  // Si la fecha resultante es anterior al inicio del rango, avanzar una semana
-  if (first < start) {
-    first.setDate(first.getDate() + 7);
-  }
-  
-  return first;
-}
+// Función eliminada - ahora usamos getFirstDateForWeekdayInTimezone de date-utils
 
 export default async function CalendarPage({ searchParams }: CalendarPageProps) {
   const cookieStore = await cookies();
@@ -117,6 +92,17 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
     );
   }
 
+  // Optimización: Obtener el país de la primera academia del tenant para usar su zona horaria
+  // Si hay múltiples academias, usamos la primera para determinar la zona horaria del calendario
+  const [firstAcademy] = await db
+    .select({ country: academies.country })
+    .from(academies)
+    .where(eq(academies.tenantId, tenantId))
+    .orderBy(asc(academies.createdAt)) // Usar la academia más antigua para consistencia
+    .limit(1);
+  
+  const academyCountry = firstAcademy?.country ?? null;
+
   const viewParam =
     typeof searchParams.view === "string" && ["week", "month"].includes(searchParams.view)
       ? (searchParams.view as "week" | "month")
@@ -130,16 +116,15 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
   let rangeEnd: Date;
 
   if (viewParam === "week") {
-    const day = referenceDate.getDay();
-    const diff = day === 0 ? -6 : 1 - day; // start Monday
-    rangeStart = new Date(referenceDate);
-    rangeStart.setDate(referenceDate.getDate() + diff);
-    rangeStart.setHours(0, 0, 0, 0);
-    rangeEnd = new Date(rangeStart);
-    rangeEnd.setDate(rangeStart.getDate() + 6);
+    // Usar la función que respeta la zona horaria del país
+    const weekBoundaries = getWeekBoundariesInCountryTimezone(referenceDate, academyCountry);
+    rangeStart = weekBoundaries.start;
+    rangeEnd = weekBoundaries.end;
   } else {
-    rangeStart = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), 1);
-    rangeEnd = new Date(referenceDate.getFullYear(), referenceDate.getMonth() + 1, 0);
+    // Usar la función que respeta la zona horaria del país para el mes también
+    const monthBoundaries = getMonthBoundariesInCountryTimezone(referenceDate, academyCountry);
+    rangeStart = monthBoundaries.start;
+    rangeEnd = monthBoundaries.end;
   }
 
   const sessions = await db
@@ -162,8 +147,8 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
     .where(
       and(
         eq(classSessions.tenantId, tenantId),
-        gte(classSessions.sessionDate, toISODate(rangeStart)),
-        lte(classSessions.sessionDate, toISODate(rangeEnd))
+        gte(classSessions.sessionDate, toISODate(rangeStart, academyCountry)),
+        lte(classSessions.sessionDate, toISODate(rangeEnd, academyCountry))
       )
     )
     .orderBy(asc(classSessions.sessionDate), asc(classSessions.startTime));
@@ -238,15 +223,15 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
         }> = [];
 
         weekdays.forEach((weekday) => {
-          let currentDate = getFirstDateForWeekday(rangeStart, weekday);
-          // Normalizar rangeEnd a medianoche para comparación correcta
+          let currentDate = getFirstDateForWeekdayInTimezone(rangeStart, weekday, academyCountry);
+          // Normalizar rangeEnd usando la zona horaria del país
           const rangeEndNormalized = new Date(rangeEnd);
           rangeEndNormalized.setHours(23, 59, 59, 999); // Incluir todo el día final
           
           while (currentDate <= rangeEndNormalized) {
             placeholders.push({
               id: `placeholder-${classRow.id}-${currentDate.toISOString()}`,
-              date: toISODate(currentDate),
+              date: toISODate(currentDate, academyCountry),
               startTime: classRow.startTime,
               endTime: classRow.endTime,
               status: "placeholder",
@@ -303,11 +288,13 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
           </div>
         </div>
       )}
-      <header className="space-y-2">
-        <h1 className="text-3xl font-semibold">Calendario de sesiones</h1>
-        <p className="text-muted-foreground">
-          Visualiza las clases programadas y coordina los entrenadores asignados.
-        </p>
+      <header className="space-y-3">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Calendario de sesiones</h1>
+          <p className="mt-2 text-muted-foreground">
+            Visualiza las clases programadas y coordina los entrenadores asignados.
+          </p>
+        </div>
       </header>
       {usingPlaceholderSessions && (
         <div className="rounded-lg border border-dashed border-amber-400/70 bg-amber-50/80 p-4 text-sm text-amber-900">
@@ -320,10 +307,11 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
       )}
       <CalendarView
         view={viewParam}
-        referenceDate={referenceDate.toISOString()}
-        rangeStart={rangeStart.toISOString()}
-        rangeEnd={rangeEnd.toISOString()}
+        referenceDate={formatDateToISOString(referenceDate, academyCountry)}
+        rangeStart={formatDateToISOString(rangeStart, academyCountry)}
+        rangeEnd={formatDateToISOString(rangeEnd, academyCountry)}
         sessions={sessionsForCalendar}
+        academyCountry={academyCountry}
       />
     </div>
   );

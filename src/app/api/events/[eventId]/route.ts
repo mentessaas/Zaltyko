@@ -6,6 +6,8 @@ import { db } from "@/db";
 import { events } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
 
+export const dynamic = "force-dynamic";
+
 const updateSchema = z.object({
   academyId: z.string().uuid(),
   title: z.string().min(1),

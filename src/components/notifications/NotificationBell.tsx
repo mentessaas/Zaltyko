@@ -1,41 +1,45 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { NotificationCenter } from "./NotificationCenter";
-import { useRealtimeNotifications } from "@/lib/notifications/realtime-setup";
+import { useRealtimeNotifications } from "@/hooks/use-realtime-notifications";
+import { useAcademyContext } from "@/hooks/use-academy-context";
+import { createClient } from "@/lib/supabase/client";
 
 export function NotificationBell() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
-  const [tenantId, setTenantId] = useState<string | null>(null);
+  const supabase = useMemo(() => createClient(), []);
+  const academyContext = useAcademyContext();
+  const tenantId = academyContext?.tenantId ?? null;
 
+  // Obtener userId de la sesión
   useEffect(() => {
-    // Obtener userId y tenantId del contexto/sesión
-    // TODO: Obtener de la sesión real
-    loadUnreadCount();
-  }, []);
+    let active = true;
+    supabase.auth.getUser().then(({ data }) => {
+      if (active && data.user) {
+        setUserId(data.user.id);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [supabase]);
 
   // Configurar notificaciones en tiempo real
-  useEffect(() => {
-    if (!userId || !tenantId) return;
-
-    const cleanup = useRealtimeNotifications(
-      userId,
-      tenantId,
-      (notification) => {
-        // Nueva notificación recibida
-        setUnreadCount((prev) => prev + 1);
-        // Opcional: mostrar notificación toast
-        // Puedes agregar un toast aquí si tienes un sistema de toasts
-      }
-    );
-
-    return cleanup;
-  }, [userId, tenantId]);
+  useRealtimeNotifications({
+    userId: userId ?? undefined,
+    tenantId: tenantId ?? undefined,
+    enabled: !!userId && !!tenantId,
+    onNotification: () => {
+      // Nueva notificación recibida
+      setUnreadCount((prev) => prev + 1);
+    },
+  });
 
   useEffect(() => {
     if (userId && tenantId) {

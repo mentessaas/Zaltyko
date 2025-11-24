@@ -345,17 +345,17 @@ export async function checkPlanLimitViolations(userId: string, newPlanCode: Plan
   for (const academy of ownedAcademies) {
     // Check athletes per academy
     if (athleteLimit !== null) {
-      const athletes = await db
+      const academyAthletes = await db
         .select({ id: athletes.id, name: athletes.name })
         .from(athletes)
         .where(eq(athletes.academyId, academy.id));
 
-      if (athletes.length > athleteLimit) {
+      if (academyAthletes.length > athleteLimit) {
         violations.push({
           resource: "athletes",
-          currentCount: athletes.length,
+          currentCount: academyAthletes.length,
           limit: athleteLimit,
-          items: athletes.map((a) => ({ id: a.id, name: a.name })),
+          items: academyAthletes.map((a) => ({ id: a.id, name: a.name })),
           academyId: academy.id,
           academyName: academy.name,
         });
@@ -404,5 +404,117 @@ export async function checkPlanLimitViolations(userId: string, newPlanCode: Plan
   return {
     violations,
     requiresAction: violations.length > 0,
+  };
+}
+
+export interface RemainingLimits {
+  resource: LimitResource;
+  current: number;
+  limit: number | null;
+  remaining: number | null; // null significa ilimitado
+  planCode: PlanCode;
+  upgradeTo?: Exclude<PlanCode, "premium"> | "premium";
+}
+
+/**
+ * Obtiene los límites restantes para un recurso específico en una academia
+ */
+export async function getRemainingLimits(
+  tenantId: string,
+  academyId: string,
+  resource: LimitResource
+): Promise<RemainingLimits> {
+  await assertAcademyTenant(academyId, tenantId);
+  const subscription = await getActiveSubscription(academyId);
+
+  let current = 0;
+  let limit: number | null = null;
+
+  if (resource === "athletes") {
+    limit = subscription.athleteLimit;
+    const [{ value: athleteCount }] = await db
+      .select({ value: count() })
+      .from(athletes)
+      .where(and(eq(athletes.academyId, academyId), eq(athletes.tenantId, tenantId)));
+    current = Number(athleteCount ?? 0);
+  } else if (resource === "classes") {
+    limit = subscription.classLimit;
+    const [{ value: classCount }] = await db
+      .select({ value: count() })
+      .from(classes)
+      .where(and(eq(classes.academyId, academyId), eq(classes.tenantId, tenantId)));
+    current = Number(classCount ?? 0);
+  } else if (resource === "groups") {
+    limit = subscription.groupLimit;
+    const [{ value: groupCount }] = await db
+      .select({ value: count() })
+      .from(groups)
+      .where(and(eq(groups.academyId, academyId), eq(groups.tenantId, tenantId)));
+    current = Number(groupCount ?? 0);
+  } else if (resource === "academies") {
+    // Para academias, necesitamos el userId
+    const [academy] = await db
+      .select({ ownerId: academies.ownerId })
+      .from(academies)
+      .where(eq(academies.id, academyId))
+      .limit(1);
+
+    if (academy?.ownerId) {
+      const [owner] = await db
+        .select({ userId: profiles.userId })
+        .from(profiles)
+        .where(eq(profiles.id, academy.ownerId))
+        .limit(1);
+
+      if (owner?.userId) {
+        const userSubscription = await getUserSubscription(owner.userId);
+        limit = userSubscription.academyLimit;
+        const ownedAcademies = await db
+          .select({ id: academies.id })
+          .from(academies)
+          .where(eq(academies.ownerId, academy.ownerId));
+        current = ownedAcademies.length;
+      }
+    }
+  }
+
+  const remaining = limit === null ? null : Math.max(0, limit - current);
+  const evaluation = limit !== null ? evaluateLimit(subscription.planCode, limit, current, resource) : { exceeded: false };
+
+  return {
+    resource,
+    current,
+    limit,
+    remaining,
+    planCode: subscription.planCode,
+    upgradeTo: evaluation.exceeded ? evaluation.upgradeTo : undefined,
+  };
+}
+
+/**
+ * Obtiene información de upgrade para un plan
+ */
+export function getUpgradeInfo(planCode: PlanCode): {
+  nextPlan: PlanCode;
+  price: string;
+  benefits: string[];
+} {
+  if (planCode === "free") {
+    return {
+      nextPlan: "pro",
+      price: "19€/mes",
+      benefits: ["Academias ilimitadas", "Hasta 200 atletas", "10 grupos", "40 clases"],
+    };
+  } else if (planCode === "pro") {
+    return {
+      nextPlan: "premium",
+      price: "49€/mes",
+      benefits: ["Todo ilimitado", "API extendida", "Soporte prioritario"],
+    };
+  }
+  return {
+    nextPlan: "premium",
+    price: "49€/mes",
+    benefits: [],
   };
 }

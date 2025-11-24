@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { formatLongDateForCountry } from "@/lib/date-utils";
 
 type AthleteRow = {
   id: string;
@@ -31,6 +32,7 @@ interface SessionAttendanceFormProps {
   sessionDate: string;
   athletes: AthleteRow[];
   existingAttendance: AttendanceRow[];
+  academyCountry?: string | null;
 }
 
 export default function SessionAttendanceForm({
@@ -38,6 +40,7 @@ export default function SessionAttendanceForm({
   sessionDate,
   athletes,
   existingAttendance,
+  academyCountry,
 }: SessionAttendanceFormProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [saving, setSaving] = useState(false);
@@ -122,7 +125,7 @@ export default function SessionAttendanceForm({
         <div>
           <h2 className="text-lg font-semibold">Registro de asistencia</h2>
           <p className="text-sm text-muted-foreground">
-            Marca el estado de cada atleta para la sesión del {sessionDate}. Puedes añadir notas
+            Marca el estado de cada atleta para la sesión del {formatLongDateForCountry(sessionDate, academyCountry)}. Puedes añadir notas
             puntuales por atleta.
           </p>
         </div>

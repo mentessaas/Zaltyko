@@ -5,7 +5,7 @@ import { z } from "zod";
 import { db } from "@/db";
 import { academies, memberships, plans, profiles, subscriptions } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
-import { assertUserAcademyLimit } from "@/lib/limits";
+import { assertUserAcademyLimit, getUpgradeInfo } from "@/lib/limits";
 import { withRateLimit, getUserIdentifier, type RateLimitContext } from "@/lib/rate-limit";
 import { handleApiError } from "@/lib/api-error-handler";
 import { withPayloadValidation, type PayloadValidationContext } from "@/lib/payload-validator";
@@ -84,11 +84,21 @@ const handler = withTenant(async (request, context) => {
     await assertUserAcademyLimit(ownerProfile.userId);
   } catch (error: any) {
     if ((error?.status === 402 || error?.statusCode === 402) && error?.code === "ACADEMY_LIMIT_REACHED") {
+      const upgradeTo = error.payload?.upgradeTo ?? "pro";
+      const upgradeInfo = getUpgradeInfo(upgradeTo === "pro" ? "free" : "pro");
+      
       return NextResponse.json(
         {
           error: "ACADEMY_LIMIT_REACHED",
-          message: `Has alcanzado el límite de academias de tu plan actual (${error.payload?.limit ?? 1} academia). ${error.payload?.upgradeTo ? `Actualiza a ${error.payload.upgradeTo.toUpperCase()} para crear más academias.` : "Contacta con soporte para aumentar tu límite."}`,
-          payload: error.payload || error.details,
+          message: `Has alcanzado el límite de academias de tu plan actual (${error.payload?.limit ?? 1} academia). Actualiza a ${upgradeTo.toUpperCase()} (${upgradeInfo.price}) para crear academias ilimitadas.`,
+          payload: {
+            ...error.payload,
+            upgradeInfo: {
+              plan: upgradeTo,
+              price: upgradeInfo.price,
+              benefits: upgradeInfo.benefits,
+            },
+          },
         },
         { status: 402 }
       );
@@ -101,9 +111,7 @@ const handler = withTenant(async (request, context) => {
 
   const academyId = crypto.randomUUID();
 
-  const trialStartsAt = new Date();
-  const trialEndsAt = new Date(trialStartsAt.getTime() + 14 * 24 * 60 * 60 * 1000);
-
+  // No crear trial automático - el plan es "free" por defecto hasta que el usuario pague
   await db.insert(academies).values({
     id: academyId,
     tenantId,
@@ -113,9 +121,9 @@ const handler = withTenant(async (request, context) => {
     city: body.city,
     academyType: body.academyType,
     ownerId: ownerProfile.id,
-    trialStartsAt,
-    trialEndsAt,
-    isTrialActive: true,
+    trialStartsAt: null,
+    trialEndsAt: null,
+    isTrialActive: false,
   });
 
   await db
@@ -183,14 +191,7 @@ const handler = withTenant(async (request, context) => {
     },
   });
 
-  await trackEvent("trial_started", {
-    academyId,
-    tenantId,
-    userId: ownerProfile.userId,
-    metadata: {
-      trialEndsAt: trialEndsAt.toISOString(),
-    },
-  });
+  // No trackear trial_started ya que no se crea trial automático
 
   // Log event for Super Admin metrics
   await logEvent({
@@ -206,8 +207,6 @@ const handler = withTenant(async (request, context) => {
       id: academyId,
       tenantId,
       academyType: body.academyType,
-      trialStartsAt,
-      trialEndsAt,
     });
   } catch (error) {
     return handleApiError(error, { endpoint: "/api/academies", method: "POST" });

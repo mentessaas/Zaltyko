@@ -216,7 +216,7 @@ export function GenerateChargesDialog({
           </Label>
         </div>
         <p className="text-xs text-muted-foreground">
-          Si está marcado, no se crearán cargos si ya existe uno de tipo "cuota mensual" para el mismo atleta y periodo.
+          Si está marcado, no se crearán cargos si ya existe uno de tipo «cuota mensual» para el mismo atleta y periodo.
         </p>
       </form>
     </Modal>

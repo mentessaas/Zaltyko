@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { getRegionLabel } from "@/lib/countryRegions";
 
 interface AcademyDetail {
   id: string;
@@ -271,7 +272,7 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs text-white/50">País y Región</p>
+                  <p className="text-xs text-white/50">País y {getRegionLabel(academy.country)}</p>
                   <p className="mt-1 flex items-center gap-2 text-sm text-white">
                     <MapPin className="h-4 w-4" strokeWidth={1.8} />
                     {academy.country ?? "Sin país"}

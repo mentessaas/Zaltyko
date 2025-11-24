@@ -15,11 +15,11 @@ export function AcademySchedule({ schedule }: AcademyScheduleProps) {
   }
 
   return (
-    <section className="border-b border-white/10 py-12">
+    <section className="border-b border-border py-12">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="mb-6 flex items-center gap-3">
-          <Calendar className="h-6 w-6 text-zaltyko-accent" />
-          <h2 className="font-display text-2xl font-semibold text-white">
+          <Calendar className="h-6 w-6 text-zaltyko-primary" />
+          <h2 className="font-display text-2xl font-semibold text-foreground">
             Horarios
           </h2>
         </div>
@@ -28,17 +28,17 @@ export function AcademySchedule({ schedule }: AcademyScheduleProps) {
           {scheduleEntries.map(([weekday, classes]) => (
             <div
               key={weekday}
-              className="rounded-lg border border-white/10 bg-white/5 p-4"
+              className="rounded-lg border border-border bg-card p-4 shadow-sm"
             >
-              <h3 className="mb-3 font-semibold text-white">
+              <h3 className="mb-3 font-semibold text-foreground">
                 {WEEKDAY_NAMES[Number(weekday)]}
               </h3>
               <ul className="space-y-2">
                 {classes.map((cls, idx) => (
-                  <li key={idx} className="text-sm text-white/70">
-                    <span className="font-medium">{cls.name}</span>
+                  <li key={idx} className="text-sm text-muted-foreground">
+                    <span className="font-medium text-foreground">{cls.name}</span>
                     {cls.startTime && cls.endTime && (
-                      <span className="ml-2 text-white/50">
+                      <span className="ml-2 text-muted-foreground/70">
                         {cls.startTime} - {cls.endTime}
                       </span>
                     )}

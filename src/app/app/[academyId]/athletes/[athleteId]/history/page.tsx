@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { athletes, athleteAssessments } from "@/db/schema";
 import { AthleteHistoryView } from "@/components/athletes/AthleteHistoryView";
 import { ProgressTimeline } from "@/components/athletes/ProgressTimeline";
+import { Breadcrumb } from "@/components/ui/breadcrumb";
 
 interface PageProps {
   params: {
@@ -53,6 +54,14 @@ export default async function AthleteHistoryPage({ params }: PageProps) {
 
   return (
     <div className="space-y-6 p-4 sm:p-6 lg:p-8">
+      <Breadcrumb
+        items={[
+          { label: "Dashboard", href: `/app/${academyId}/dashboard` },
+          { label: "Atletas", href: `/app/${academyId}/athletes` },
+          { label: athlete.name || "Atleta", href: `/app/${academyId}/athletes/${athleteId}` },
+          { label: "Historial" },
+        ]}
+      />
       <div>
         <h1 className="text-2xl font-bold">Historial de {athlete.name}</h1>
         <p className="text-muted-foreground mt-1">

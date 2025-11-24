@@ -1,8 +1,9 @@
 import { eq, and } from "drizzle-orm";
 
 import { db } from "@/db";
-import { events } from "@/db/schema";
+import { events, academies } from "@/db/schema";
 import { EventsList } from "@/components/events/EventsList";
+import { Breadcrumb } from "@/components/ui/breadcrumb";
 
 interface PageProps {
   params: {
@@ -13,13 +14,13 @@ interface PageProps {
 export default async function EventsPage({ params }: PageProps) {
   const { academyId } = params;
 
-  // Obtener tenantId desde la academia
+  // Obtener país de la academia
   const [academy] = await db
     .select({
-      tenantId: events.tenantId,
+      country: academies.country,
     })
-    .from(events)
-    .where(eq(events.academyId, academyId))
+    .from(academies)
+    .where(eq(academies.id, academyId))
     .limit(1);
 
   // Si no hay eventos, intentar obtener tenantId de otra forma
@@ -40,19 +41,23 @@ export default async function EventsPage({ params }: PageProps) {
 
   return (
     <div className="space-y-6 p-4 sm:p-6 lg:p-8">
+      <Breadcrumb
+        items={[
+          { label: "Dashboard", href: `/app/${academyId}/dashboard` },
+          { label: "Eventos" },
+        ]}
+      />
       <EventsList
         academyId={academyId}
         events={eventRows.map((event) => ({
           id: event.id,
           title: event.title,
-          date: event.date?.toISOString().split("T")[0] || null,
+          date: event.date || null,
           location: event.location,
           status: event.status,
           academyId: event.academyId,
         }))}
-        onEventUpdated={() => {
-          // Recargar la página
-        }}
+        academyCountry={academy?.country ?? null}
       />
     </div>
   );

@@ -10,6 +10,7 @@ import { useToast } from "@/components/ui/toast-provider";
 import { CreateAthleteDialog } from "@/components/athletes/CreateAthleteDialog";
 import { EditAthleteDialog } from "@/components/athletes/EditAthleteDialog";
 import { TooltipOnboarding } from "@/components/tooltips/TooltipOnboarding";
+import { AlertBadge } from "@/components/shared/AlertBadge";
 
 interface AthleteListItem {
   id: string;
@@ -58,11 +59,36 @@ export function AthletesTableView({ academyId, athletes: initialAthletes, levels
   const [editing, setEditing] = useState<AthleteListItem | null>(null);
   const [isPending, startTransition] = useTransition();
   const [mutatingAthleteId, setMutatingAthleteId] = useState<string | null>(null);
+  const [athletesWithAlerts, setAthletesWithAlerts] = useState<Set<string>>(new Set());
 
   // Sincronizar athletes cuando cambian los initialAthletes (después de refresh)
   useEffect(() => {
     setAthletes(initialAthletes);
   }, [initialAthletes]);
+
+  // Cargar alertas de asistencia para los atletas
+  useEffect(() => {
+    const loadAttendanceAlerts = async () => {
+      try {
+        const response = await fetch(`/api/alerts/attendance?academyId=${academyId}`);
+        if (response.ok) {
+          const data = await response.json();
+          if (Array.isArray(data.alerts)) {
+            const athleteIdsWithAlerts = new Set(
+              data.alerts.map((alert: any) => alert.athleteId)
+            );
+            setAthletesWithAlerts(athleteIdsWithAlerts);
+          }
+        }
+      } catch (error) {
+        console.error("Error loading attendance alerts:", error);
+      }
+    };
+
+    if (academyId && athletes.length > 0) {
+      loadAttendanceAlerts();
+    }
+  }, [academyId, athletes.length]);
 
   const applyFilters = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -248,13 +274,18 @@ export function AthletesTableView({ academyId, athletes: initialAthletes, levels
             {athletes.map((athlete) => (
               <tr key={athlete.id} className="hover:bg-muted/40">
                 <td className="px-4 py-3">
-                  <div className="space-y-1">
-                    <Link
-                      href={`/app/${academyId}/athletes/${athlete.id}`}
-                      className="font-semibold text-primary transition hover:underline"
-                    >
-                      {athlete.name}
-                    </Link>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Link
+                        href={`/app/${academyId}/athletes/${athlete.id}`}
+                        className="font-semibold text-primary transition hover:underline"
+                      >
+                        {athlete.name}
+                      </Link>
+                      {athletesWithAlerts.has(athlete.id) && (
+                        <AlertBadge type="attendance" severity="medium" className="text-[10px]" />
+                      )}
+                    </div>
                     {athlete.dob && (
                       <p className="text-xs text-muted-foreground">
                         Nacido el {athlete.dob.slice(0, 10)}

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { desc, eq, inArray, count, asc } from "drizzle-orm";
 
 import { db } from "@/db";
+import { formatShortDateForCountry, formatTimeForCountry } from "@/lib/date-utils";
 import {
   academies,
   attendanceRecords,
@@ -31,6 +32,7 @@ export default async function AttendanceOverviewPage({ params }: PageProps) {
     .select({
       id: academies.id,
       name: academies.name,
+      country: academies.country,
     })
     .from(academies)
     .where(eq(academies.id, academyId))
@@ -203,12 +205,12 @@ export default async function AttendanceOverviewPage({ params }: PageProps) {
                 return (
                   <tr key={session.id} className="hover:bg-muted/40">
                     <td className="px-4 py-3 font-medium">{session.className ?? "Clase"}</td>
-                    <td className="px-4 py-3">{session.sessionDate}</td>
+                    <td className="px-4 py-3">{formatShortDateForCountry(session.sessionDate, academy?.country ?? null)}</td>
                     <td className="px-4 py-3">
                       {session.startTime && session.endTime
-                        ? `${session.startTime} – ${session.endTime}`
+                        ? `${formatTimeForCountry(session.sessionDate + "T" + session.startTime, academy?.country ?? null)} – ${formatTimeForCountry(session.sessionDate + "T" + session.endTime, academy?.country ?? null)}`
                         : session.startTime
-                        ? `Desde ${session.startTime}`
+                        ? `Desde ${formatTimeForCountry(session.sessionDate + "T" + session.startTime, academy?.country ?? null)}`
                         : "Sin horario"}
                     </td>
                     <td className="px-4 py-3">{session.coachName ?? "Sin asignar"}</td>

@@ -6,7 +6,7 @@ import { useToast } from "@/components/ui/toast-provider";
 
 interface RealtimeNotification {
   id: string;
-  type: "user_suspended" | "user_reactivated" | "plan_changed" | "subscription_updated" | "academy_created" | "academy_updated" | "class_created" | "class_updated" | "session_created" | "billing_invoice_created";
+  type: "user_suspended" | "user_reactivated" | "plan_changed" | "subscription_updated" | "academy_created" | "academy_updated" | "class_created" | "class_updated" | "session_created" | "billing_invoice_created" | "contact_message";
   title: string;
   description: string;
   userId?: string;
@@ -244,6 +244,52 @@ export function useRealtimeNotifications({
       )
       .subscribe();
 
+    // Suscribirse a cambios en contact_messages para notificaciones de mensajes de contacto
+    const contactMessagesChannel = supabase
+      .channel("contact-messages-changes")
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "contact_messages",
+        },
+        async (payload: any) => {
+          const record = payload.new_record as {
+            id: string;
+            academy_id: string;
+            contact_name: string;
+            contact_email: string;
+          } | null;
+
+          if (!record) return;
+
+          // Obtener información de la academia para verificar acceso
+          const { data: academy } = await supabase
+            .from("academies")
+            .select("id, name, owner_id, tenant_id")
+            .eq("id", record.academy_id)
+            .single();
+
+          if (!academy) return;
+
+          // Verificar que el usuario es propietario de la academia
+          // Nota: userId aquí es el userId de Supabase Auth, necesitamos el profileId
+          // Por ahora, solo notificamos si hay un userId y tenantId
+          if (userId && tenantId && academy.tenant_id === tenantId) {
+            handleNotification({
+              id: `contact-message-${record.id}-${Date.now()}`,
+              type: "contact_message",
+              title: "Nuevo mensaje de contacto",
+              description: `${record.contact_name} te ha enviado un mensaje para ${academy.name || "tu academia"}.`,
+              academyId: record.academy_id,
+              timestamp: new Date().toISOString(),
+            });
+          }
+        }
+      )
+      .subscribe();
+
     channelRef.current = profilesChannel;
 
     return () => {
@@ -252,6 +298,7 @@ export function useRealtimeNotifications({
       academiesChannel.unsubscribe();
       classesChannel.unsubscribe();
       billingChannel.unsubscribe();
+      contactMessagesChannel.unsubscribe();
     };
   }, [enabled, userId, tenantId, handleNotification, supabase]);
 

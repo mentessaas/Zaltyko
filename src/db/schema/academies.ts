@@ -32,7 +32,7 @@ export const academies = pgTable(
     suspendedAt: timestamp("suspended_at", { withTimezone: true }),
     trialStartsAt: timestamp("trial_starts_at", { withTimezone: true }),
     trialEndsAt: timestamp("trial_ends_at", { withTimezone: true }),
-    isTrialActive: boolean("is_trial_active").notNull().default(true),
+    isTrialActive: boolean("is_trial_active").notNull().default(false),
     paymentsConfiguredAt: timestamp("payments_configured_at", { withTimezone: true }),
   },
   (table) => ({

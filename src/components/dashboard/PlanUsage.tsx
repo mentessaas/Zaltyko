@@ -59,6 +59,26 @@ export function PlanUsage({ plan, academyId }: PlanUsageProps) {
           indicatorClassName={cn("transition-all", getProgressColor(plan.athletePercent))}
         />
       </div>
+
+      {/* Links a becas y descuentos (solo si el plan no es "free") */}
+      {plan.planCode !== "free" && (
+        <div className="mt-3 flex flex-wrap gap-2 border-t border-border/40 pt-3">
+          <Link
+            href={`/app/${academyId}/billing/scholarships`}
+            className="inline-flex items-center gap-1 text-[10px] font-semibold text-primary transition hover:underline"
+          >
+            Ver becas
+            <ArrowUpRight className="h-3 w-3" />
+          </Link>
+          <Link
+            href={`/app/${academyId}/billing/discounts`}
+            className="inline-flex items-center gap-1 text-[10px] font-semibold text-primary transition hover:underline"
+          >
+            Ver descuentos
+            <ArrowUpRight className="h-3 w-3" />
+          </Link>
+        </div>
+      )}
     </div>
   );
 }

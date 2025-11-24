@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Calendar, MapPin, Plus, Edit, Trash2, Mail } from "lucide-react";
-import { format } from "date-fns";
-import { es } from "date-fns/locale";
 import Link from "next/link";
+import { formatLongDateForCountry } from "@/lib/date-utils";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,10 +23,11 @@ interface Event {
 interface EventsListProps {
   academyId: string;
   events: Event[];
-  onEventUpdated?: () => void;
+  academyCountry?: string | null;
 }
 
-export function EventsList({ academyId, events, onEventUpdated }: EventsListProps) {
+export function EventsList({ academyId, events, academyCountry }: EventsListProps) {
+  const router = useRouter();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
   const [deletingEventId, setDeletingEventId] = useState<string | null>(null);
@@ -46,7 +47,7 @@ export function EventsList({ academyId, events, onEventUpdated }: EventsListProp
         throw new Error("Error al eliminar evento");
       }
 
-      onEventUpdated?.();
+      router.refresh();
     } catch (error) {
       console.error("Error deleting event:", error);
       alert("Error al eliminar el evento");
@@ -108,7 +109,7 @@ export function EventsList({ academyId, events, onEventUpdated }: EventsListProp
                 {event.date && (
                   <CardDescription className="flex items-center gap-2 mt-2">
                     <Calendar className="h-4 w-4" />
-                    {format(new Date(event.date), "PPP", { locale: es })}
+                    {formatLongDateForCountry(event.date, academyCountry)}
                   </CardDescription>
                 )}
                 {event.location && (
@@ -162,7 +163,7 @@ export function EventsList({ academyId, events, onEventUpdated }: EventsListProp
         onSaved={() => {
           setIsCreateOpen(false);
           setEditingEvent(null);
-          onEventUpdated?.();
+          router.refresh();
         }}
       />
     </div>

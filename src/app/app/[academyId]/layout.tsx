@@ -11,6 +11,7 @@ import { createClient } from "@/lib/supabase/server";
 import { AcademyProvider } from "@/hooks/use-academy-context";
 
 import { AcademyTopNav } from "./top-nav";
+import { AutoBreadcrumb } from "@/components/navigation/AutoBreadcrumb";
 
 interface LayoutProps {
   params: {
@@ -171,7 +172,10 @@ export default async function AcademyLayout({ params, children }: LayoutProps) {
             <AcademySidebar />
             <div className="flex flex-1 flex-col">
               <AcademyTopNav />
-              <main className="flex-1 bg-muted/10">{children}</main>
+              <main className="flex-1 bg-muted/10 px-4 py-4 sm:px-6 lg:px-8">
+                <AutoBreadcrumb />
+                {children}
+              </main>
             </div>
           </div>
         </div>

@@ -369,8 +369,9 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
         <ParentProfile
           user={user}
           profile={targetProfile}
-          children={childrenWithAge}
           targetProfileId={isViewingAsSuperAdmin ? targetProfileId : undefined}
+          // eslint-disable-next-line react/no-children-prop
+          children={childrenWithAge}
         />
       </div>
     );

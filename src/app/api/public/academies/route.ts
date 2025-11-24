@@ -69,15 +69,24 @@ export async function GET(request: Request) {
     }
 
     if (country) {
-      filters.push(eq(academies.country, country));
+      // Normalizar país: puede venir como "es", "ES", "España", etc.
+      // Buscar case-insensitive usando comparación con LOWER
+      const normalizedCountry = country.trim().toLowerCase();
+      filters.push(sql`LOWER(TRIM(${academies.country})) = LOWER(TRIM(${normalizedCountry}))`);
     }
 
     if (region) {
-      filters.push(eq(academies.region, region));
+      // Normalizar región: puede venir como "andalucia", "Andalucía", etc.
+      // Buscar case-insensitive usando comparación con LOWER
+      const normalizedRegion = region.trim().toLowerCase();
+      filters.push(sql`LOWER(TRIM(${academies.region})) = LOWER(TRIM(${normalizedRegion}))`);
     }
 
     if (city) {
-      filters.push(eq(academies.city, city));
+      // Normalizar ciudad: puede venir como "malaga", "Málaga", etc.
+      // Buscar case-insensitive usando comparación con LOWER
+      const normalizedCity = city.trim().toLowerCase();
+      filters.push(sql`LOWER(TRIM(${academies.city})) = LOWER(TRIM(${normalizedCity}))`);
     }
 
     // Contar total de resultados

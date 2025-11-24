@@ -1,6 +1,10 @@
 /**
  * Sistema de logging estructurado para la aplicación
+ * Integrado con Sentry para error tracking en producción
  */
+
+import * as Sentry from "@sentry/nextjs";
+import { isProduction } from "./env";
 
 export enum LogLevel {
   DEBUG = "debug",
@@ -20,6 +24,34 @@ class Logger {
     return `[${timestamp}] [${level.toUpperCase()}] ${message}${contextStr}`;
   }
 
+  private captureToSentry(level: Sentry.SeverityLevel, message: string, error?: Error | unknown, context?: LogContext): void {
+    if (!isProduction()) {
+      return;
+    }
+
+    try {
+      if (error instanceof Error) {
+        Sentry.captureException(error, {
+          level,
+          tags: context as Record<string, string>,
+          extra: {
+            message,
+            ...context,
+          },
+        });
+      } else {
+        Sentry.captureMessage(message, {
+          level,
+          tags: context as Record<string, string>,
+          extra: context,
+        });
+      }
+    } catch (sentryError) {
+      // Fallback a console si Sentry falla
+      console.error("Failed to send to Sentry:", sentryError);
+    }
+  }
+
   debug(message: string, context?: LogContext): void {
     if (process.env.NODE_ENV === "development") {
       console.debug(this.formatMessage(LogLevel.DEBUG, message, context));
@@ -28,10 +60,15 @@ class Logger {
 
   info(message: string, context?: LogContext): void {
     console.info(this.formatMessage(LogLevel.INFO, message, context));
+    // No enviar info a Sentry para evitar ruido
   }
 
   warn(message: string, context?: LogContext): void {
     console.warn(this.formatMessage(LogLevel.WARN, message, context));
+    // Enviar warnings a Sentry solo en producción
+    if (isProduction()) {
+      this.captureToSentry("warning", message, undefined, context);
+    }
   }
 
   error(message: string, error?: Error | unknown, context?: LogContext): void {
@@ -44,6 +81,11 @@ class Logger {
       } : String(error),
     };
     console.error(this.formatMessage(LogLevel.ERROR, message, errorContext));
+    
+    // Enviar errores a Sentry en producción
+    if (isProduction()) {
+      this.captureToSentry("error", message, error, context);
+    }
   }
 
   /**

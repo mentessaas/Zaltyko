@@ -70,6 +70,8 @@ export default async function AcademyCoachesPage({ params, searchParams }: PageP
       name: coaches.name,
       email: coaches.email,
       phone: coaches.phone,
+      isPublic: coaches.isPublic,
+      publicBio: coaches.publicBio,
       createdAt: coaches.createdAt,
     })
     .from(coaches)
@@ -138,6 +140,8 @@ export default async function AcademyCoachesPage({ params, searchParams }: PageP
     name: coach.name,
     email: coach.email,
     phone: coach.phone,
+    isPublic: coach.isPublic,
+    publicBio: coach.publicBio,
     createdAt: coach.createdAt ? coach.createdAt.toISOString() : null,
     classes: assignmentRows
       .filter((assignment) => assignment.coachId === coach.id)

@@ -1,25 +1,17 @@
-# Archivos y carpetas a ignorar en Vercel
-
-# Dependencias
-node_modules/
-.pnp
-.pnp.js
-
-# Testing
-coverage/
-.nyc_output/
-
-# Next.js
-.next/
-out/
-build/
-dist/
+# Archivos y directorios a ignorar en Vercel
 
 # Variables de entorno locales
 .env
-.env*.local
-.env.development
-.env.test
+.env.local
+.env.*.local
+
+# Dependencias (se instalan en Vercel)
+node_modules
+
+# Build local
+.next
+out
+dist
 
 # Logs
 *.log
@@ -27,28 +19,34 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
-lerna-debug.log*
+
+# Testing
+coverage
+.nyc_output
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
 
 # OS
 .DS_Store
 Thumbs.db
 
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# Misc
-.cache/
-.temp/
-.tmp/
-
-# Documentación (opcional, si quieres mantenerla en el repo)
-# docs/
+# Documentación de desarrollo
+docs/development-guide.md
+docs/architecture.md
 
 # Scripts de desarrollo
-scripts/dev-*.ts
-scripts/test-*.ts
+scripts/
 
+# Docker (si no se usa en producción)
+docker/
+
+# Tests
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+**/*.spec.tsx

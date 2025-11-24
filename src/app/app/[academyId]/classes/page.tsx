@@ -73,6 +73,7 @@ export default async function AcademyClassesPage({ params, searchParams }: PageP
       startTime: classes.startTime,
       endTime: classes.endTime,
       capacity: classes.capacity,
+      autoGenerateSessions: classes.autoGenerateSessions,
       createdAt: classes.createdAt,
     })
     .from(classes)
@@ -216,6 +217,7 @@ export default async function AcademyClassesPage({ params, searchParams }: PageP
         startTime: item.startTime,
         endTime: item.endTime,
         capacity: item.capacity,
+        autoGenerateSessions: item.autoGenerateSessions,
         createdAt: item.createdAt ? item.createdAt.toISOString() : null,
         coaches: classCoaches.map((assignment) => ({
           id: assignment.coachId,

@@ -6,6 +6,7 @@ import { createAttendanceNotifications } from "@/lib/alerts/attendance/createAtt
 import { db } from "@/db";
 import { academies } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { logger } from "@/lib/logger";
 
 export async function GET(request: Request) {
   // Verificar que la solicitud viene de Vercel Cron
@@ -42,7 +43,7 @@ export async function GET(request: Request) {
           await createCapacityNotifications(academy.id, academy.tenantId, adminUserIds);
           results.capacityAlerts++;
         } catch (error) {
-          console.error(`Error creating capacity alerts for academy ${academy.id}:`, error);
+          logger.error(`Error creating capacity alerts for academy ${academy.id}`, error, { academyId: academy.id });
         }
 
         // Alertas de pagos
@@ -50,7 +51,7 @@ export async function GET(request: Request) {
           await createPaymentNotifications(academy.id, academy.tenantId, adminUserIds);
           results.paymentAlerts++;
         } catch (error) {
-          console.error(`Error creating payment alerts for academy ${academy.id}:`, error);
+          logger.error(`Error creating payment alerts for academy ${academy.id}`, error, { academyId: academy.id });
         }
 
         // Alertas de asistencia
@@ -63,10 +64,10 @@ export async function GET(request: Request) {
           );
           results.attendanceAlerts++;
         } catch (error) {
-          console.error(`Error creating attendance alerts for academy ${academy.id}:`, error);
+          logger.error(`Error creating attendance alerts for academy ${academy.id}`, error, { academyId: academy.id });
         }
       } catch (error) {
-        console.error(`Error processing alerts for academy ${academy.id}:`, error);
+        logger.error(`Error processing alerts for academy ${academy.id}`, error, { academyId: academy.id });
         // Continuar con la siguiente academia
       }
     }
@@ -78,7 +79,7 @@ export async function GET(request: Request) {
       results,
     });
   } catch (error: any) {
-    console.error("Error in daily alerts cron:", error);
+    logger.error("Error in daily alerts cron", error);
     return NextResponse.json(
       { error: "CRON_FAILED", message: error.message },
       { status: 500 }

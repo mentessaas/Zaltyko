@@ -65,16 +65,16 @@ const commonBenefits = [
 
 export default function PricingSection() {
   return (
-    <section id="planes" className="bg-zaltyko-primary-dark py-20">
+    <section id="planes" className="py-20">
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <div className="text-center">
           <span className="font-display text-xs uppercase tracking-[0.35em] text-zaltyko-accent">
             Planes
           </span>
-          <h2 className="mt-4 font-display text-3xl font-semibold text-white sm:text-4xl">
+          <h2 className="mt-4 font-display text-3xl font-semibold text-foreground sm:text-4xl">
             Elige el plan que mejor se adapte a tu academia
           </h2>
-          <p className="mt-3 font-sans text-base text-white/75">
+          <p className="mt-3 font-sans text-base text-muted-foreground">
             Todos los planes incluyen las funcionalidades esenciales. Actualiza cuando necesites más capacidad.
           </p>
         </div>
@@ -83,7 +83,7 @@ export default function PricingSection() {
           {plans.map((plan) => (
             <article
               key={plan.title}
-              className={`relative flex h-full flex-col rounded-3xl border border-white/10 bg-white/5 p-8 shadow-xl transition hover:border-zaltyko-accent/40 ${
+              className={`relative flex h-full flex-col rounded-3xl border border-border bg-card p-8 shadow-xl transition hover:border-zaltyko-accent/40 ${
                 plan.highlight ? "ring-2 ring-zaltyko-accent/50" : ""
               }`}
             >
@@ -92,11 +92,11 @@ export default function PricingSection() {
                   Popular
                 </span>
               )}
-              <h3 className="font-display text-xl font-semibold text-white">{plan.title}</h3>
-              <p className="mt-2 font-display text-3xl font-bold text-white">{plan.price}</p>
-              <p className="mt-2 font-sans text-sm text-white/75">{plan.description}</p>
+              <h3 className="font-display text-xl font-semibold text-foreground">{plan.title}</h3>
+              <p className="mt-2 font-display text-3xl font-bold text-foreground">{plan.price}</p>
+              <p className="mt-2 font-sans text-sm text-muted-foreground">{plan.description}</p>
 
-              <ul className="mt-6 space-y-3 font-sans text-sm text-white/80">
+              <ul className="mt-6 space-y-3 font-sans text-sm text-foreground">
                 {plan.features.map((feature) => (
                   <li key={feature} className="flex items-start gap-2">
                     <Check className="mt-0.5 h-4 w-4 text-zaltyko-accent" />
@@ -110,7 +110,7 @@ export default function PricingSection() {
                 className={`mt-8 inline-flex items-center justify-center rounded-full px-6 py-2 text-sm font-semibold transition ${
                   plan.highlight
                     ? "bg-gradient-to-r from-zaltyko-accent to-zaltyko-accent-light text-zaltyko-primary-dark"
-                    : "border border-white/20 text-white hover:bg-white/10"
+                    : "border border-border text-foreground hover:bg-muted"
                 }`}
               >
                 {plan.cta}
@@ -125,28 +125,28 @@ export default function PricingSection() {
             return (
               <article
                 key={benefit.title}
-                className="rounded-3xl border border-white/10 bg-zaltyko-primary-dark/50 p-6 shadow-lg"
+                className="rounded-3xl border border-border bg-card p-6 shadow-lg"
               >
                 <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-zaltyko-accent/20 text-zaltyko-accent">
                   <Icon className="h-5 w-5" />
                 </span>
-                <h3 className="mt-4 font-display text-lg font-semibold text-white">{benefit.title}</h3>
-                <p className="mt-2 font-sans text-sm text-white/75">{benefit.description}</p>
+                <h3 className="mt-4 font-display text-lg font-semibold text-foreground">{benefit.title}</h3>
+                <p className="mt-2 font-sans text-sm text-muted-foreground">{benefit.description}</p>
               </article>
             );
           })}
         </div>
 
-        <div className="mt-16 rounded-3xl border border-white/10 bg-gradient-to-br from-zaltyko-accent/10 via-zaltyko-accent-light/10 to-transparent p-8 text-center text-white">
-          <h3 className="font-display text-2xl font-semibold text-white">
+        <div className="mt-16 rounded-3xl border border-border bg-muted/50 p-8 text-center">
+          <h3 className="font-display text-2xl font-semibold text-foreground">
             ¿Necesitas un acuerdo enterprise o migrar múltiples academias?
           </h3>
-          <p className="mt-3 font-sans text-sm text-white/80">
+          <p className="mt-3 font-sans text-sm text-muted-foreground">
             Ofrecemos sesiones de descubrimiento, scripts de migración y un entorno staging para tu equipo técnico.
           </p>
           <a
             href="mailto:ventas@zaltyko.com"
-            className="mt-6 inline-flex items-center justify-center rounded-full border border-white/30 px-6 py-3 text-sm font-semibold text-white hover:bg-white/15"
+            className="mt-6 inline-flex items-center justify-center rounded-full border border-border px-6 py-3 text-sm font-semibold text-foreground hover:bg-muted"
           >
             Contactar a ventas
           </a>

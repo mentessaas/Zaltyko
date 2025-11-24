@@ -82,6 +82,7 @@ export default async function AcademyDashboard({ params }: PageProps) {
       tenantId={academy.tenantId}
       academyName={academy.name}
       academyType={academy.academyType}
+      academyCountry={academy.country}
       profileName={profile?.name ?? user.email ?? null}
       initialData={data}
     />

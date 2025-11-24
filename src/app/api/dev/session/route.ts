@@ -3,6 +3,7 @@ import { isDevFeaturesEnabled } from "@/lib/dev";
 import { and, count, eq } from "drizzle-orm";
 
 import { db } from "@/db";
+import { logger } from "@/lib/logger";
 import {
   academies,
   athletes,
@@ -131,6 +132,9 @@ async function ensureAcademy(ownerId: string) {
       region: "Madrid",
       academyType: "artistica",
       ownerId,
+      trialStartsAt: null,
+      trialEndsAt: null,
+      isTrialActive: false,
     })
     .onConflictDoNothing()
     .returning();
@@ -315,7 +319,7 @@ export async function POST() {
     const payload = await ensureDevSessionData();
     return NextResponse.json(payload);
   } catch (error: any) {
-    console.error("DEV_SESSION_ERROR", error?.message, error?.stack);
+    logger.error("DEV_SESSION_ERROR", error, { message: error?.message });
     return NextResponse.json(
       {
         error: "DEV_SESSION_FAILED",

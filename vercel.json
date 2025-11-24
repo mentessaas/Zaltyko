@@ -2,6 +2,7 @@
   "buildCommand": "pnpm build",
   "installCommand": "pnpm install",
   "framework": "nextjs",
+  "regions": ["iad1"],
   "crons": [
     {
       "path": "/api/cron/class-reminders",
@@ -11,6 +12,14 @@
       "path": "/api/cron/daily-alerts",
       "schedule": "0 9 * * *"
     }
-  ]
+  ],
+  "env": {
+    "NODE_ENV": "production"
+  },
+  "functions": {
+    "src/app/api/cron/**/*.ts": {
+      "maxDuration": 300
+    }
+  }
 }
 
