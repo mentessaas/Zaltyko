@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { Buffer } from "buffer";
 
 const SUPER_ADMIN_COOKIE_HINTS = ["role", "profile", "super-admin"];
 
@@ -12,12 +11,11 @@ function extractAccessToken(req: NextRequest) {
   return candidate?.value ?? null;
 }
 
-const hasAtob = typeof globalThis !== "undefined" && "atob" in globalThis;
-
 function base64Decode(input: string) {
-  if (hasAtob) {
+  if (typeof globalThis !== "undefined" && "atob" in globalThis) {
     return (globalThis as typeof globalThis & { atob: (value: string) => string }).atob(input);
   }
+  // Fallback para Node.js
   return Buffer.from(input, "base64").toString("utf8");
 }
 

@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { db } from "@/db";
 import { profiles } from "@/db/schema";
 import { GlobalTopNav } from "@/components/navigation/GlobalTopNav";
+import { AutoBreadcrumb } from "@/components/navigation/AutoBreadcrumb";
 
 export default async function BillingLayout({
   children,
@@ -47,7 +48,10 @@ export default async function BillingLayout({
         userEmail={user.email ?? null}
         profileId={profile.id}
       />
-      <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">{children}</main>
+      <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+        <AutoBreadcrumb />
+        {children}
+      </main>
     </div>
   );
 }

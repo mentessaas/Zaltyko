@@ -13,7 +13,7 @@ export default function AcademiesLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-zaltyko-primary-dark">
+    <div className="min-h-screen bg-background">
       <Navbar />
       <main>{children}</main>
       <Footer />

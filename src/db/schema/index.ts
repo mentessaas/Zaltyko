@@ -43,4 +43,5 @@ export * from "./scholarships";
 export * from "./discounts";
 export * from "./receipts";
 export * from "./event-invitations";
+export * from "./contact-messages";
 

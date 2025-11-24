@@ -6,6 +6,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { CreateCoachDialog } from "@/components/coaches/CreateCoachDialog";
 import { EditCoachDialog } from "@/components/coaches/EditCoachDialog";
+import { PublicProfileBadge } from "@/components/shared/PublicProfileBadge";
 
 interface ClassOption {
   id: string;
@@ -17,6 +18,8 @@ interface CoachItem {
   name: string;
   email: string | null;
   phone: string | null;
+  isPublic: boolean;
+  publicBio: string | null;
   createdAt: string | null;
   classes: ClassOption[];
   groups: {
@@ -153,13 +156,22 @@ export function CoachesTableView({ academyId, coaches, classes, groupOptions, fi
             {coaches.map((coach) => (
               <tr key={coach.id} className="hover:bg-muted/40">
                 <td className="px-4 py-3">
-                  <div className="space-y-1">
-                    <Link
-                      href={`/app/${academyId}/coaches/${coach.id}`}
-                      className="font-semibold text-primary transition hover:underline"
-                    >
-                      {coach.name}
-                    </Link>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Link
+                        href={`/app/${academyId}/coaches/${coach.id}`}
+                        className="font-semibold text-primary transition hover:underline"
+                      >
+                        {coach.name}
+                      </Link>
+                      {coach.isPublic && (
+                        <PublicProfileBadge
+                          coachId={coach.id}
+                          academyId={academyId}
+                          isPublic={coach.isPublic}
+                        />
+                      )}
+                    </div>
                     {coach.createdAt && (
                       <p className="text-xs text-muted-foreground">
                         Alta: {coach.createdAt.slice(0, 10)}

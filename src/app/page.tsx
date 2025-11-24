@@ -40,7 +40,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default function Home() {
   return (
-    <div className="bg-zaltyko-primary-dark">
+    <div className="bg-muted/10">
       <Navbar />
       <HeroSection />
       <FeaturedTime />

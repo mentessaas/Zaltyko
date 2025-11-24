@@ -1,15 +1,15 @@
 import { notFound } from "next/navigation";
 import { eq, and } from "drizzle-orm";
-import { format } from "date-fns";
-import { es } from "date-fns/locale";
+import { formatLongDateForCountry } from "@/lib/date-utils";
 import { Calendar, MapPin, Mail } from "lucide-react";
 
 import { db } from "@/db";
-import { events, eventInvitations } from "@/db/schema";
+import { events, eventInvitations, academies } from "@/db/schema";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
+import { Breadcrumb } from "@/components/ui/breadcrumb";
 
 interface PageProps {
   params: {
@@ -22,8 +22,17 @@ export default async function EventDetailPage({ params }: PageProps) {
   const { academyId, eventId } = params;
 
   const [eventRow] = await db
-    .select()
+    .select({
+      id: events.id,
+      title: events.title,
+      date: events.date,
+      location: events.location,
+      status: events.status,
+      academyId: events.academyId,
+      country: academies.country,
+    })
     .from(events)
+    .innerJoin(academies, eq(events.academyId, academies.id))
     .where(and(eq(events.id, eventId), eq(events.academyId, academyId)))
     .limit(1);
 
@@ -51,6 +60,13 @@ export default async function EventDetailPage({ params }: PageProps) {
 
   return (
     <div className="space-y-6 p-4 sm:p-6 lg:p-8">
+      <Breadcrumb
+        items={[
+          { label: "Dashboard", href: `/app/${academyId}/dashboard` },
+          { label: "Eventos", href: `/app/${academyId}/events` },
+          { label: eventRow.title },
+        ]}
+      />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">{eventRow.title}</h1>
@@ -79,7 +95,7 @@ export default async function EventDetailPage({ params }: PageProps) {
               <div className="flex items-center gap-2">
                 <Calendar className="h-4 w-4 text-muted-foreground" />
                 <span className="text-sm">
-                  {format(new Date(eventRow.date), "PPP", { locale: es })}
+                  {formatLongDateForCountry(eventRow.date, eventRow.country)}
                 </span>
               </div>
             )}

@@ -58,13 +58,13 @@ export default function FAQ() {
   };
 
   return (
-    <section id="faq" className="bg-zaltyko-primary-dark px-4 py-16 md:px-6 lg:px-8">
+    <section id="faq" className="px-4 py-16 md:px-6 lg:px-8">
       <div className="mx-auto max-w-3xl">
-        <h2 className="mb-4 text-center font-display text-3xl font-semibold text-white sm:text-4xl">
+        <h2 className="mb-4 text-center font-display text-3xl font-semibold text-foreground sm:text-4xl">
           Preguntas frecuentes
         </h2>
-        <p className="mb-10 text-center font-sans text-sm text-white/70">
-          ¿Necesitas algo más? Escríbenos a <a className="underline" href="mailto:hola@zaltyko.com">hola@zaltyko.com</a> y te ayudamos a poner tu academia en línea.
+        <p className="mb-10 text-center font-sans text-sm text-muted-foreground">
+          ¿Necesitas algo más? Escríbenos a <a className="underline text-zaltyko-primary" href="mailto:hola@zaltyko.com">hola@zaltyko.com</a> y te ayudamos a poner tu academia en línea.
         </p>
 
         <div className="space-y-[2px]">
@@ -76,14 +76,14 @@ export default function FAQ() {
                   onClick={() => toggleQuestion(index)}
                   aria-expanded={isOpen}
                   aria-controls={`faq-answer-${index}`}
-                  className="flex w-full min-h-[44px] items-center justify-between bg-zaltyko-primary-dark/50 px-6 py-4 text-left transition-colors hover:bg-zaltyko-primary-dark"
+                  className="flex w-full min-h-[44px] items-center justify-between bg-card border border-border px-6 py-4 text-left transition-colors hover:bg-muted"
                 >
-                  <span className="font-sans text-[15px] font-semibold text-white">
+                  <span className="font-sans text-[15px] font-semibold text-foreground">
                     {faq.question}
                   </span>
-                  <span className="ml-6 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-white/20">
+                  <span className="ml-6 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-border">
                     <PlusIcon
-                      className={`h-3 w-3 text-white transition-transform duration-200 ${isOpen ? "rotate-45" : ""}`}
+                      className={`h-3 w-3 text-foreground transition-transform duration-200 ${isOpen ? "rotate-45" : ""}`}
                     />
                   </span>
                 </button>
@@ -94,7 +94,7 @@ export default function FAQ() {
                   }`}
                 >
                   <div className="overflow-hidden">
-                    <div className="bg-zaltyko-primary-dark/30 px-6 py-4 font-sans text-base text-white/60">
+                    <div className="bg-muted/50 px-6 py-4 font-sans text-base text-muted-foreground">
                       {faq.answer}
                     </div>
                   </div>

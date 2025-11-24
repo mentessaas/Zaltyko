@@ -48,13 +48,13 @@ const testimonials: Testimonial[] = [
 
 export default function TestimonialsPage() {
   return (
-    <section id="clientes" className="bg-zaltyko-primary-dark px-4 py-20 text-white">
+    <section id="clientes" className="px-4 py-20">
       <div className="mx-auto max-w-5xl">
         <div className="mb-14 text-center">
-          <h2 className="font-display text-3xl font-semibold sm:text-4xl">
+          <h2 className="font-display text-3xl font-semibold text-foreground sm:text-4xl">
             Equipos de alto rendimiento ya confían en Zaltyko
           </h2>
-          <p className="mt-3 font-sans text-sm text-white/70">
+          <p className="mt-3 font-sans text-sm text-muted-foreground">
             Historias reales de academias que coordinan cientos de atletas con nuestra plataforma.
           </p>
         </div>
@@ -63,7 +63,7 @@ export default function TestimonialsPage() {
           {testimonials.map((testimonial) => (
             <Card
               key={testimonial.name}
-              className="flex h-full flex-col border border-white/10 bg-white/5 p-6"
+              className="flex h-full flex-col border border-border bg-card p-6"
             >
               <div className="flex-grow">
                 <div className="mb-4 flex gap-1">
@@ -76,12 +76,12 @@ export default function TestimonialsPage() {
                 </div>
 
                 <p
-                  className="mb-6 font-sans text-sm text-white/80"
+                  className="mb-6 font-sans text-sm text-foreground"
                   dangerouslySetInnerHTML={{ __html: testimonial.text }}
                 />
               </div>
 
-              <div className="mt-auto flex items-center gap-3 border-t border-white/10 pt-4">
+              <div className="mt-auto flex items-center gap-3 border-t border-border pt-4">
                 <Avatar>
                   {testimonial.avatar && (
                     <AvatarImage
@@ -90,7 +90,7 @@ export default function TestimonialsPage() {
                     />
                   )}
                   <AvatarFallback
-                    className={`bg-gradient-to-br ${testimonial.avatar?.initialsBg ?? "from-zaltyko-primary-dark/50 to-zaltyko-primary/50"} text-xs font-semibold uppercase text-white`}
+                    className={`bg-gradient-to-br ${testimonial.avatar?.initialsBg ?? "from-zaltyko-primary/20 to-zaltyko-primary-dark/20"} text-xs font-semibold uppercase text-foreground`}
                   >
                     {testimonial.name
                       .split(" ")
@@ -100,10 +100,10 @@ export default function TestimonialsPage() {
                   </AvatarFallback>
                 </Avatar>
                 <div>
-                  <h3 className="text-base font-semibold text-white">
+                  <h3 className="text-base font-semibold text-foreground">
                     {testimonial.name}
                   </h3>
-                  <p className="font-sans text-xs uppercase tracking-wide text-white/60">
+                  <p className="font-sans text-xs uppercase tracking-wide text-muted-foreground">
                     {testimonial.role}
                   </p>
                 </div>

@@ -43,6 +43,16 @@ const serverEnvSchema = z.object({
   DISABLE_ONBOARDING_AUTOMATIONS: z.string().optional(),
   NEXT_PUBLIC_DISABLE_ANALYTICS: z.string().optional(),
 
+  // Sentry
+  SENTRY_DSN: z.string().url().optional(),
+  SENTRY_AUTH_TOKEN: z.string().min(1).optional(),
+  SENTRY_ORG: z.string().optional(),
+  SENTRY_PROJECT: z.string().optional(),
+  NEXT_PUBLIC_SENTRY_DSN: z.string().url().optional(),
+
+  // Cron Jobs
+  CRON_SECRET: z.string().min(1).optional(),
+
   // Seed overrides
   SEED_STRIPE_PRICE_PRO: z.string().optional(),
   SEED_STRIPE_PRODUCT_PRO: z.string().optional(),
@@ -58,6 +68,7 @@ const publicEnvSchema = z.object({
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1).optional(),
   NEXT_PUBLIC_APP_URL: z.string().url().optional(),
   NEXT_PUBLIC_DISABLE_ANALYTICS: z.string().optional(),
+  NEXT_PUBLIC_SENTRY_DSN: z.string().url().optional(),
 });
 
 /**

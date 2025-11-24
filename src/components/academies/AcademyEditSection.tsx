@@ -6,6 +6,7 @@ import { Building2, Edit2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { AcademyEditForm } from "./AcademyEditForm";
+import { getRegionLabel } from "@/lib/countryRegions";
 
 interface AcademyEditSectionProps {
   academyId: string;
@@ -146,7 +147,7 @@ export function AcademyEditSection({ academyId }: AcademyEditSectionProps) {
             <p className="text-sm font-medium text-foreground">{academy.country || "—"}</p>
           </div>
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Región</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{getRegionLabel(academy.country)}</p>
             <p className="text-sm font-medium text-foreground">{academy.region || "—"}</p>
           </div>
           <div>

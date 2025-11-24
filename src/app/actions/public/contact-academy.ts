@@ -4,7 +4,8 @@ import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
-import { academies, profiles } from "@/db/schema";
+import { academies, profiles, contactMessages } from "@/db/schema";
+import { createNotification } from "@/lib/notifications/notification-service";
 
 const ContactAcademySchema = z.object({
   academyId: z.string().uuid(),
@@ -48,6 +49,7 @@ export async function contactAcademy(
       id: academies.id,
       name: academies.name,
       ownerId: academies.ownerId,
+      tenantId: academies.tenantId,
     })
     .from(academies)
     .where(
@@ -66,31 +68,66 @@ export async function contactAcademy(
     };
   }
 
-  // Obtener email del propietario de la academia
-  const [owner] = await db
+  // Obtener perfil del propietario de la academia
+  const [ownerProfile] = await db
     .select({
-      email: profiles.email,
+      id: profiles.id,
       name: profiles.name,
     })
     .from(profiles)
     .where(eq(profiles.id, academy.ownerId))
     .limit(1);
 
-  // TODO: Integrar con servicio de email (Mailgun, SendGrid, etc.)
-  // Por ahora, solo logueamos el contacto
-  console.log("Contact form submitted:", {
-    academyId,
-    academyName: academy.name,
-    contactName: name,
-    contactEmail: email,
-    contactPhone: phone,
-    message,
-    ownerEmail: owner?.email,
-  });
+  if (!ownerProfile) {
+    return {
+      success: false,
+      error: "OWNER_NOT_FOUND",
+    };
+  }
 
-  return {
-    success: true,
-    message: "Tu mensaje ha sido enviado. La academia te contactará pronto.",
-  };
+  try {
+    // Crear mensaje de contacto en la base de datos
+    const [contactMessage] = await db
+      .insert(contactMessages)
+      .values({
+        academyId: academy.id,
+        contactName: name,
+        contactEmail: email,
+        contactPhone: phone || null,
+        message,
+        read: false,
+        responded: false,
+        archived: false,
+      })
+      .returning({ id: contactMessages.id });
+
+    // Crear notificación para el propietario de la academia
+    await createNotification({
+      tenantId: academy.tenantId,
+      userId: academy.ownerId, // profileId del propietario
+      type: "contact_message",
+      title: `Nuevo mensaje de contacto para ${academy.name}`,
+      message: `${name} te ha enviado un mensaje.`,
+      data: {
+        contactMessageId: contactMessage.id,
+        academyId: academy.id,
+        academyName: academy.name,
+        contactName: name,
+        contactEmail: email,
+        contactPhone: phone || null,
+      },
+    });
+
+    return {
+      success: true,
+      message: "Tu mensaje ha sido enviado. La academia te contactará pronto.",
+    };
+  } catch (error) {
+    console.error("Error creating contact message:", error);
+    return {
+      success: false,
+      error: "MESSAGE_CREATION_FAILED",
+    };
+  }
 }
 

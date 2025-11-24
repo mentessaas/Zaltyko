@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Calendar, Download, FileText, BarChart3, Loader2, Filter } from "lucide-react";
 import { format, subDays, subMonths } from "date-fns";
-import { es } from "date-fns/locale";
+import { formatLongDateForCountry } from "@/lib/date-utils";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,13 +22,14 @@ interface AttendanceStats {
 
 interface AttendanceReportProps {
   academyId: string;
+  academyCountry?: string | null;
   initialData?: {
     type: "general" | "athlete" | "group";
     data: any;
   };
 }
 
-export function AttendanceReport({ academyId, initialData }: AttendanceReportProps) {
+export function AttendanceReport({ academyId, academyCountry, initialData }: AttendanceReportProps) {
   const [reportType, setReportType] = useState<"general" | "athlete" | "group">("general");
   const [startDate, setStartDate] = useState(format(subMonths(new Date(), 1), "yyyy-MM-dd"));
   const [endDate, setEndDate] = useState(format(new Date(), "yyyy-MM-dd"));
@@ -354,8 +355,8 @@ export function AttendanceReport({ academyId, initialData }: AttendanceReportPro
           <CardHeader>
             <CardTitle>Resultados del Reporte</CardTitle>
             <CardDescription>
-              Periodo: {format(new Date(startDate), "PPP", { locale: es })} -{" "}
-              {format(new Date(endDate), "PPP", { locale: es })}
+              Periodo: {formatLongDateForCountry(startDate, academyCountry)} -{" "}
+              {formatLongDateForCountry(endDate, academyCountry)}
             </CardDescription>
           </CardHeader>
           <CardContent>

@@ -4,9 +4,11 @@ import { Clock3, Sparkles } from "lucide-react";
 
 import type { DashboardActivity } from "@/lib/dashboard";
 import { cn } from "@/lib/utils";
+import { formatDateTimeForCountry } from "@/lib/date-utils";
 
 interface RecentActivityProps {
   items: DashboardActivity[];
+  academyCountry?: string | null;
 }
 
 const ACTION_COLORS: Record<string, string> = {
@@ -15,9 +17,12 @@ const ACTION_COLORS: Record<string, string> = {
   "group.created": "bg-violet-500/15 text-violet-600",
   "assessment.created": "bg-zaltyko-accent/15 text-zaltyko-accent",
   "class.created": "bg-amber-500/15 text-amber-600",
+  "notification.created": "bg-blue-500/15 text-blue-600",
+  "alert.created": "bg-orange-500/15 text-orange-600",
+  "event.created": "bg-purple-500/15 text-purple-600",
 };
 
-export function RecentActivity({ items }: RecentActivityProps) {
+export function RecentActivity({ items, academyCountry }: RecentActivityProps) {
   return (
     <div className="space-y-4 rounded-2xl border border-border/60 bg-card/80 p-6 shadow-sm">
       <header className="flex items-center justify-between gap-3">
@@ -56,12 +61,7 @@ export function RecentActivity({ items }: RecentActivityProps) {
                 <p className="text-xs text-muted-foreground">
                   {item.userName ?? "Sistema"} ·{" "}
                   <Clock3 className="mr-1 inline-block h-3 w-3 align-middle text-muted-foreground/70" />
-                  {new Date(item.createdAt).toLocaleString("es-ES", {
-                    day: "2-digit",
-                    month: "short",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
+                  {formatDateTimeForCountry(item.createdAt, academyCountry)}
                 </p>
               </div>
             </div>

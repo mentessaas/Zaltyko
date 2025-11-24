@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { TrendingUp, Download, FileText, BarChart3, Loader2, Target } from "lucide-react";
 import { format, subMonths } from "date-fns";
-import { es } from "date-fns/locale";
+import { formatLongDateForCountry } from "@/lib/date-utils";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -41,11 +41,12 @@ interface ProgressReportData {
 
 interface ProgressReportProps {
   academyId: string;
+  academyCountry?: string | null;
   athleteId?: string;
   initialData?: ProgressReportData;
 }
 
-export function ProgressReport({ academyId, athleteId, initialData }: ProgressReportProps) {
+export function ProgressReport({ academyId, academyCountry, athleteId, initialData }: ProgressReportProps) {
   const [selectedAthleteId, setSelectedAthleteId] = useState(athleteId || "");
   const [startDate, setStartDate] = useState(format(subMonths(new Date(), 6), "yyyy-MM-dd"));
   const [endDate, setEndDate] = useState(format(new Date(), "yyyy-MM-dd"));
@@ -210,8 +211,8 @@ export function ProgressReport({ academyId, athleteId, initialData }: ProgressRe
               <CardTitle>{reportData.athleteName}</CardTitle>
               <CardDescription>
                 {reportData.totalAssessments} evaluaciones · Periodo:{" "}
-                {format(new Date(reportData.period.start), "PPP", { locale: es })} -{" "}
-                {format(new Date(reportData.period.end), "PPP", { locale: es })}
+                {formatLongDateForCountry(reportData.period.start, academyCountry)} -{" "}
+                {formatLongDateForCountry(reportData.period.end, academyCountry)}
               </CardDescription>
             </CardHeader>
             <CardContent>

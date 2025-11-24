@@ -33,7 +33,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { type ProfileRow } from "@/lib/authz";
 import { OnboardingChecklist } from "@/components/dashboard/OnboardingChecklist";
 import { calculateDaysLeft } from "@/lib/onboarding-utils";
@@ -209,14 +208,6 @@ export function OptimizedOwnerProfile({
 
   return (
     <div className="space-y-6">
-      {/* Breadcrumbs */}
-      <Breadcrumb
-        items={[
-          { label: "Dashboard", href: "/dashboard" },
-          { label: "Mi perfil" },
-        ]}
-      />
-
       {/* Alertas importantes */}
       {targetProfileId && (
         <div className="rounded-lg border border-amber-400/60 bg-amber-400/10 p-4">

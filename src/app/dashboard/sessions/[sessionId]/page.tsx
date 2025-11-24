@@ -15,6 +15,7 @@ import {
 import { getClassAthletes } from "@/lib/classes/get-class-athletes";
 import SessionAttendanceForm from "@/components/sessions/SessionAttendanceForm";
 import { createClient } from "@/lib/supabase/server";
+import { formatShortDateForCountry, formatTimeForCountry } from "@/lib/date-utils";
 
 interface SessionPageProps {
   params: {
@@ -57,6 +58,7 @@ export default async function SessionPage({ params }: SessionPageProps) {
       className: classes.name,
       academyId: classes.academyId,
       academyName: academies.name,
+      academyCountry: academies.country,
       coachId: classSessions.coachId,
       coachName: coaches.name,
       tenantId: classSessions.tenantId,
@@ -100,9 +102,9 @@ export default async function SessionPage({ params }: SessionPageProps) {
       <header className="space-y-1">
         <h1 className="text-3xl font-semibold">{sessionRow.className ?? "Sesión"}</h1>
         <p className="text-muted-foreground">
-          {sessionRow.academyName ?? "Academia"} · {sessionRow.date}
-          {sessionRow.startTime ? ` · ${sessionRow.startTime}` : ""}{" "}
-          {sessionRow.endTime ? `- ${sessionRow.endTime}` : ""}
+          {sessionRow.academyName ?? "Academia"} · {formatShortDateForCountry(sessionRow.date, sessionRow.academyCountry)}
+          {sessionRow.startTime ? ` · ${formatTimeForCountry(sessionRow.date + "T" + sessionRow.startTime, sessionRow.academyCountry)}` : ""}{" "}
+          {sessionRow.endTime ? `- ${formatTimeForCountry(sessionRow.date + "T" + sessionRow.endTime, sessionRow.academyCountry)}` : ""}
         </p>
         <p className="text-sm text-muted-foreground">
           Entrenador asignado: {sessionRow.coachName ?? "Sin asignar"}
@@ -114,6 +116,7 @@ export default async function SessionPage({ params }: SessionPageProps) {
         sessionDate={sessionRow.date}
         athletes={athleteRows}
         existingAttendance={attendanceRows}
+        academyCountry={sessionRow.academyCountry ?? null}
       />
     </div>
   );

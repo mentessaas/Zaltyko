@@ -24,6 +24,8 @@ import { cn } from "@/lib/utils";
 import { getRoleLabel } from "@/lib/roles";
 import { SUPER_ADMIN_NAV_ITEMS } from "@/app/(super-admin)/super-admin/components/nav-items";
 import { getAcademyNavItems } from "@/lib/academy-nav-items";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { GlobalSearch } from "@/components/search/GlobalSearch";
 
 interface GlobalTopNavProps {
   userRole?: string | null;
@@ -162,6 +164,13 @@ export function GlobalTopNav({
           )}
         </div>
 
+        {/* Búsqueda global (solo desktop, solo cuando hay academia activa) */}
+        {currentAcademyId && (
+          <div className="hidden lg:block flex-1 max-w-md mx-4">
+            <GlobalSearch academyId={currentAcademyId} />
+          </div>
+        )}
+
         {/* Navegación centrada - scroll horizontal en sm/md, no-wrap */}
         <nav
           className={cn(
@@ -213,8 +222,15 @@ export function GlobalTopNav({
           </div>
         </nav>
 
-        {/* Acciones: menú móvil + menú de usuario siempre compacto */}
+        {/* Acciones: menú móvil + notificaciones + menú de usuario siempre compacto */}
         <div className="flex items-center justify-end gap-2 sm:gap-2.5">
+          {/* Notification Bell - Solo mostrar si hay una academia activa */}
+          {currentAcademyId && (
+            <div className="hidden md:block">
+              <NotificationBell />
+            </div>
+          )}
+          
           {/* Menú global (móvil) */}
           <button
             type="button"
@@ -478,6 +494,13 @@ export function GlobalTopNav({
               );
             })}
           </nav>
+
+          {/* Notification Bell en móvil */}
+          {currentAcademyId && (
+            <div className="px-4 py-3 border-b" style={{ borderColor: isDarkTheme ? "rgba(255,255,255,0.1)" : undefined }}>
+              <NotificationBell />
+            </div>
+          )}
 
           {/* Información del usuario y acciones en el drawer */}
           <div

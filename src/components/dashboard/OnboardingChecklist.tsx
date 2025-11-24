@@ -3,6 +3,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { ChevronDown, ChevronUp } from "lucide-react";
 
 import { CHECKLIST_DEFINITIONS, type ChecklistKey } from "@/lib/onboarding-utils";
 import { Progress } from "@/components/ui/progress";
@@ -30,7 +31,7 @@ interface OnboardingChecklistProps {
   academyId: string | null;
 }
 
-const ITEM_ROUTES: Record<
+export const ITEM_ROUTES: Record<
   ChecklistKey,
   {
     href: (academyId: string) => string;
@@ -74,6 +75,7 @@ export function OnboardingChecklist({ academyId }: OnboardingChecklistProps) {
   const [data, setData] = useState<ApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [submittingKey, setSubmittingKey] = useState<ChecklistKey | null>(null);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const fetchChecklist = useCallback(async () => {
     if (!academyId) {
@@ -145,15 +147,29 @@ export function OnboardingChecklist({ academyId }: OnboardingChecklistProps) {
   return (
     <div className="space-y-4 rounded-2xl border border-dashed border-muted bg-card/60 p-6 shadow-sm">
       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-        <div>
+        <div className="flex-1">
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Checklist</p>
           <h2 className="text-xl font-semibold">Completa tu academia</h2>
           <p className="text-sm text-muted-foreground">
             Avanza paso a paso para tener tu academia lista en menos de 24 horas.
           </p>
         </div>
-        <div className="text-right text-sm font-medium text-muted-foreground">
-          {data?.summary ? `${data.summary.completed}/${data.summary.total} completados` : "—"}
+        <div className="flex items-center gap-3">
+          <div className="text-right text-sm font-medium text-muted-foreground">
+            {data?.summary ? `${data.summary.completed}/${data.summary.total} completados` : "—"}
+          </div>
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="flex items-center justify-center rounded-md p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            aria-label={isExpanded ? "Ocultar pasos" : "Mostrar pasos"}
+            aria-expanded={isExpanded}
+          >
+            {isExpanded ? (
+              <ChevronUp className="h-5 w-5" />
+            ) : (
+              <ChevronDown className="h-5 w-5" />
+            )}
+          </button>
         </div>
       </div>
 
@@ -162,7 +178,8 @@ export function OnboardingChecklist({ academyId }: OnboardingChecklistProps) {
         <p className="text-xs text-muted-foreground">{progressPercentage}% completado</p>
       </div>
 
-      <div className="space-y-4">
+      {isExpanded && (
+        <div className="space-y-4">
         {(data?.items ?? CHECKLIST_DEFINITIONS).map((item) => {
           const route = ITEM_ROUTES[item.key];
           const isCompleted = item.status === "completed";
@@ -204,7 +221,8 @@ export function OnboardingChecklist({ academyId }: OnboardingChecklistProps) {
             </div>
           );
         })}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

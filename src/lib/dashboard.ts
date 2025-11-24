@@ -80,9 +80,17 @@ export interface DashboardData {
   groups: DashboardGroupSummary[];
 }
 
-function getWeekBoundaries(): { start: Date; end: Date } {
-  const start = startOfWeek(new Date(), { weekStartsOn: 1 });
-  const end = endOfWeek(new Date(), { weekStartsOn: 1 });
+function getWeekBoundaries(country?: string | null): { start: Date; end: Date } {
+  // Importar dinámicamente para evitar dependencias circulares
+  let now = new Date();
+  try {
+    const { getNowInCountryTimezone } = require("@/lib/date-utils");
+    now = getNowInCountryTimezone(country);
+  } catch {
+    // Si falla, usar fecha local
+  }
+  const start = startOfWeek(now, { weekStartsOn: 1 });
+  const end = endOfWeek(now, { weekStartsOn: 1 });
   start.setHours(0, 0, 0, 0);
   end.setHours(23, 59, 59, 999);
   return { start, end };
@@ -129,7 +137,7 @@ function summarizeActivity(action: string, meta: Record<string, unknown> | null)
 }
 
 export async function getDashboardData(academyId: string): Promise<{
-  academy: { id: string; name: string | null; academyType: string | null; tenantId: string | null };
+  academy: { id: string; name: string | null; academyType: string | null; tenantId: string | null; country: string | null };
   data: DashboardData;
 }> {
   const [academy] = await db
@@ -138,6 +146,7 @@ export async function getDashboardData(academyId: string): Promise<{
       name: academies.name,
       tenantId: academies.tenantId,
       academyType: academies.academyType,
+      country: academies.country,
     })
     .from(academies)
     .where(eq(academies.id, academyId))
@@ -162,7 +171,7 @@ export async function getDashboardData(academyId: string): Promise<{
     .from(groups)
     .where(eq(groups.academyId, academyId));
 
-  const week = getWeekBoundaries();
+  const week = getWeekBoundaries(academy.country);
   const weekStartIso = formatISO(week.start, { representation: "date" });
   const weekEndIso = formatISO(week.end, { representation: "date" });
 
@@ -580,6 +589,7 @@ export async function getDashboardData(academyId: string): Promise<{
       name: academy.name,
       tenantId: academy.tenantId,
       academyType: academy.academyType,
+      country: academy.country ?? null,
     },
     data: {
       metrics,

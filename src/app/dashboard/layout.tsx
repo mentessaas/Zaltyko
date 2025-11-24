@@ -7,6 +7,7 @@ import { db } from "@/db";
 import { profiles } from "@/db/schema";
 import { GlobalTopNav } from "@/components/navigation/GlobalTopNav";
 import { RealtimeNotificationsProvider } from "@/components/providers/RealtimeNotificationsProvider";
+import { AutoBreadcrumb } from "@/components/navigation/AutoBreadcrumb";
 
 export default async function DashboardLayout({
   children,
@@ -94,6 +95,7 @@ export default async function DashboardLayout({
       />
       <main className="mx-auto max-w-7xl px-4 py-4 transition-all duration-300 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
         <RealtimeNotificationsProvider userId={profile.userId} tenantId={profile.tenantId} />
+        <AutoBreadcrumb />
         {children}
       </main>
     </div>

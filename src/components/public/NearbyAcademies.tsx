@@ -41,8 +41,8 @@ export async function NearbyAcademies({ currentAcademy }: NearbyAcademiesProps) 
     <section className="py-12">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="mb-6 flex items-center gap-3">
-          <MapPin className="h-6 w-6 text-zaltyko-accent" />
-          <h2 className="font-display text-2xl font-semibold text-white">
+          <MapPin className="h-6 w-6 text-zaltyko-primary" />
+          <h2 className="font-display text-2xl font-semibold text-foreground">
             Academias cercanas
           </h2>
         </div>

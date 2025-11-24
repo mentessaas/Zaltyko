@@ -5,7 +5,7 @@ import { z } from "zod";
 
 import { db } from "@/db";
 import { academies, athletes, familyContacts, guardianAthletes, groupAthletes, groups } from "@/db/schema";
-import { assertWithinPlanLimits } from "@/lib/limits";
+import { assertWithinPlanLimits, getUpgradeInfo } from "@/lib/limits";
 import { withTenant } from "@/lib/authz";
 import { athleteStatusOptions } from "@/lib/athletes/constants";
 import { handleApiError } from "@/lib/api-error-handler";
@@ -73,11 +73,21 @@ export const POST = withTenant(async (request, context) => {
       await assertWithinPlanLimits(context.tenantId, body.academyId, "athletes");
     } catch (error: any) {
       if (error?.status === 402 && error?.payload?.code === "LIMIT_REACHED") {
+        const upgradeTo = error.payload?.upgradeTo ?? "pro";
+        const upgradeInfo = getUpgradeInfo(upgradeTo === "pro" ? "free" : "pro");
+        
         return NextResponse.json(
           {
             error: "LIMIT_REACHED",
-            message: `Has alcanzado el límite de atletas de tu plan actual. ${error.payload.upgradeTo ? `Actualiza a ${error.payload.upgradeTo.toUpperCase()} para agregar más atletas.` : "Contacta con soporte para aumentar tu límite."}`,
-            details: error.payload,
+            message: `Has alcanzado el límite de atletas de tu plan actual. Actualiza a ${upgradeTo.toUpperCase()} (${upgradeInfo.price}) para agregar más atletas.`,
+            details: {
+              ...error.payload,
+              upgradeInfo: {
+                plan: upgradeTo,
+                price: upgradeInfo.price,
+                benefits: upgradeInfo.benefits,
+              },
+            },
           },
           { status: 402 }
         );

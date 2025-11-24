@@ -19,7 +19,7 @@ export function ContactAcademyForm({ academyId, academyName }: ContactAcademyFor
     phone: "",
     message: "",
   });
-  const { showToast } = useToast();
+  const { pushToast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,7 +32,7 @@ export function ContactAcademyForm({ academyId, academyName }: ContactAcademyFor
       });
 
       if (result.success) {
-        showToast({
+        pushToast({
           title: "Mensaje enviado",
           description: result.message || "Tu mensaje ha sido enviado correctamente.",
           variant: "success",
@@ -40,14 +40,14 @@ export function ContactAcademyForm({ academyId, academyName }: ContactAcademyFor
         setFormData({ name: "", email: "", phone: "", message: "" });
         setIsOpen(false);
       } else {
-        showToast({
+        pushToast({
           title: "Error",
           description: result.error || "No se pudo enviar el mensaje. Intenta de nuevo.",
           variant: "error",
         });
       }
     } catch (error) {
-      showToast({
+      pushToast({
         title: "Error",
         description: "Ocurrió un error al enviar el mensaje.",
         variant: "error",
@@ -71,14 +71,14 @@ export function ContactAcademyForm({ academyId, academyName }: ContactAcademyFor
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-md rounded-xl border border-white/10 bg-zaltyko-primary-dark p-6 shadow-xl">
+      <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-xl">
         <div className="mb-6 flex items-center justify-between">
-          <h3 className="font-display text-xl font-semibold text-white">
+          <h3 className="font-display text-xl font-semibold text-foreground">
             Contactar {academyName}
           </h3>
           <button
             onClick={() => setIsOpen(false)}
-            className="text-white/60 hover:text-white"
+            className="text-muted-foreground hover:text-foreground"
           >
             ✕
           </button>
@@ -86,7 +86,7 @@ export function ContactAcademyForm({ academyId, academyName }: ContactAcademyFor
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="mb-1 block text-sm font-medium text-white/80">
+            <label className="mb-1 block text-sm font-medium text-foreground">
               Nombre *
             </label>
             <input
@@ -94,13 +94,13 @@ export function ContactAcademyForm({ academyId, academyName }: ContactAcademyFor
               required
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-white placeholder:text-white/40 focus:border-zaltyko-accent/50 focus:outline-none"
+              className="w-full rounded-lg border border-border bg-background px-4 py-2 text-foreground placeholder:text-muted-foreground focus:border-zaltyko-primary focus:outline-none focus:ring-2 focus:ring-zaltyko-primary/20"
               placeholder="Tu nombre"
             />
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-white/80">
+            <label className="mb-1 block text-sm font-medium text-foreground">
               Email *
             </label>
             <input
@@ -108,26 +108,26 @@ export function ContactAcademyForm({ academyId, academyName }: ContactAcademyFor
               required
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-white placeholder:text-white/40 focus:border-zaltyko-accent/50 focus:outline-none"
+              className="w-full rounded-lg border border-border bg-background px-4 py-2 text-foreground placeholder:text-muted-foreground focus:border-zaltyko-primary focus:outline-none focus:ring-2 focus:ring-zaltyko-primary/20"
               placeholder="tu@email.com"
             />
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-white/80">
+            <label className="mb-1 block text-sm font-medium text-foreground">
               Teléfono (opcional)
             </label>
             <input
               type="tel"
               value={formData.phone}
               onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-              className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-white placeholder:text-white/40 focus:border-zaltyko-accent/50 focus:outline-none"
+              className="w-full rounded-lg border border-border bg-background px-4 py-2 text-foreground placeholder:text-muted-foreground focus:border-zaltyko-primary focus:outline-none focus:ring-2 focus:ring-zaltyko-primary/20"
               placeholder="+34 600 000 000"
             />
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-white/80">
+            <label className="mb-1 block text-sm font-medium text-foreground">
               Mensaje *
             </label>
             <textarea
@@ -135,7 +135,7 @@ export function ContactAcademyForm({ academyId, academyName }: ContactAcademyFor
               rows={4}
               value={formData.message}
               onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-              className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-white placeholder:text-white/40 focus:border-zaltyko-accent/50 focus:outline-none"
+              className="w-full rounded-lg border border-border bg-background px-4 py-2 text-foreground placeholder:text-muted-foreground focus:border-zaltyko-primary focus:outline-none focus:ring-2 focus:ring-zaltyko-primary/20"
               placeholder="Escribe tu mensaje aquí..."
             />
           </div>
@@ -144,14 +144,14 @@ export function ContactAcademyForm({ academyId, academyName }: ContactAcademyFor
             <button
               type="button"
               onClick={() => setIsOpen(false)}
-              className="flex-1 rounded-lg border border-white/20 bg-white/5 px-4 py-2 font-medium text-white transition hover:bg-white/10"
+              className="flex-1 rounded-lg border border-border bg-muted px-4 py-2 font-medium text-foreground transition hover:bg-muted/80"
             >
               Cancelar
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-zaltyko-accent to-zaltyko-accent-light px-4 py-2 font-semibold text-zaltyko-primary-dark transition hover:scale-105 disabled:opacity-50"
+              className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-zaltyko-primary to-zaltyko-primary-dark px-4 py-2 font-semibold text-white transition hover:scale-105 disabled:opacity-50"
             >
               {isSubmitting ? (
                 "Enviando..."

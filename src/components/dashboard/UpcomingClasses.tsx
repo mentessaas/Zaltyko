@@ -1,21 +1,52 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CalendarClock, Users, ClipboardCheck, ArrowRight } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { AlertBadge } from "@/components/shared/AlertBadge";
 import type { DashboardUpcomingClass } from "@/lib/dashboard";
+import { formatShortDateForCountry, formatTimeForCountry } from "@/lib/date-utils";
 
 interface UpcomingClassesProps {
   classes: DashboardUpcomingClass[];
   academyId: string;
+  academyCountry: string | null;
 }
 
-export function UpcomingClasses({ classes, academyId }: UpcomingClassesProps) {
+export function UpcomingClasses({ classes, academyId, academyCountry }: UpcomingClassesProps) {
   const router = useRouter();
+  const [capacityAlerts, setCapacityAlerts] = useState<Set<string>>(new Set());
+  
   // Limitar a 5 clases para el dashboard
   const displayedClasses = classes.slice(0, 5);
+
+  useEffect(() => {
+    // Obtener alertas de capacidad para mostrar badges
+    const fetchCapacityAlerts = async () => {
+      try {
+        const response = await fetch(`/api/alerts/capacity?academyId=${academyId}`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.alerts && Array.isArray(data.alerts)) {
+            // Crear un Set con los IDs de clases con cupo >= 95%
+            const alertClassIds = new Set<string>(
+              data.alerts
+                .filter((alert: { percentage: number }) => alert.percentage >= 95)
+                .map((alert: { classId: string }) => String(alert.classId))
+            );
+            setCapacityAlerts(alertClassIds);
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching capacity alerts:", error);
+      }
+    };
+
+    fetchCapacityAlerts();
+  }, [academyId]);
 
   return (
     <div className="space-y-5 rounded-2xl border border-border/60 bg-card/80 p-6 shadow-sm">
@@ -57,24 +88,29 @@ export function UpcomingClasses({ classes, academyId }: UpcomingClassesProps) {
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
-                  <Link
-                    href={`/app/${academyId}/classes/${item.classId}`}
-                    className="font-semibold text-foreground transition hover:text-primary"
-                  >
-                    {item.className ?? "Clase sin nombre"}
-                  </Link>
+                  <div className="flex items-center gap-2">
+                    <Link
+                      href={`/app/${academyId}/classes/${item.classId}`}
+                      className="font-semibold text-foreground transition hover:text-primary"
+                    >
+                      {item.className ?? "Clase sin nombre"}
+                    </Link>
+                    {capacityAlerts.has(item.classId) && (
+                      <AlertBadge type="capacity" />
+                    )}
+                  </div>
                   <p className="mt-1 text-xs text-muted-foreground">
                     {item.isSessionPlaceholder ? (
                       <span>
-                        {item.sessionDate} · genera sesiones para ver fechas exactas
+                        {formatShortDateForCountry(item.sessionDate, academyCountry)} · genera sesiones para ver fechas exactas
                       </span>
                     ) : (
                       <>
-                        {item.sessionDate} ·{" "}
+                        {formatShortDateForCountry(item.sessionDate, academyCountry)} ·{" "}
                         {item.startTime && item.endTime
-                          ? `${item.startTime} – ${item.endTime}`
+                          ? `${formatTimeForCountry(item.sessionDate + "T" + item.startTime, academyCountry)} – ${formatTimeForCountry(item.sessionDate + "T" + item.endTime, academyCountry)}`
                           : item.startTime
-                          ? `Desde ${item.startTime}`
+                          ? `Desde ${formatTimeForCountry(item.sessionDate + "T" + item.startTime, academyCountry)}`
                           : "Horario por definir"}
                       </>
                     )}

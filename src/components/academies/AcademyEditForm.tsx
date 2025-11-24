@@ -11,8 +11,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { COUNTRY_REGION_OPTIONS, findRegionsByCountry } from "@/lib/countryRegions";
+import { COUNTRY_REGION_OPTIONS, findRegionsByCountry, getRegionLabel, getRegionPlaceholder, getCityPlaceholder } from "@/lib/countryRegions";
+import { findCitiesByRegion } from "@/lib/citiesByRegion";
 import { ACADEMY_TYPES } from "@/lib/onboardingCopy";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 
 interface AcademyData {
   id: string;
@@ -68,6 +70,11 @@ export function AcademyEditForm({ academy, onSaved, onCancel }: AcademyEditFormP
   const regionOptions = useMemo(
     () => findRegionsByCountry(formData.country),
     [formData.country]
+  );
+
+  const cityOptions = useMemo(
+    () => findCitiesByRegion(formData.country, formData.region),
+    [formData.country, formData.region]
   );
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -213,50 +220,41 @@ export function AcademyEditForm({ academy, onSaved, onCancel }: AcademyEditFormP
           <div className="grid gap-4 md:grid-cols-3">
             <div className="space-y-2">
               <Label htmlFor="country">País</Label>
-              <Select
-                id="country"
+              <SearchableSelect
+                options={COUNTRY_REGION_OPTIONS.map(c => ({ value: c.value, label: c.label }))}
                 value={formData.country}
-                onValueChange={(value) => {
+                onChange={(value) => {
                   setFormData({ ...formData, country: value, region: "", city: "" });
                 }}
-                className="w-full"
-              >
-                <option value="">Selecciona un país</option>
-                {COUNTRY_REGION_OPTIONS.map((country) => (
-                  <option key={country.value} value={country.value}>
-                    {country.label}
-                  </option>
-                ))}
-              </Select>
+                placeholder="Selecciona un país"
+                name="country"
+                searchPlaceholder="Buscar país..."
+              />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="region">Región</Label>
-              <Select
-                id="region"
+              <Label htmlFor="region">{getRegionLabel(formData.country)}</Label>
+              <SearchableSelect
+                options={regionOptions}
                 value={formData.region}
-                onValueChange={(value) => setFormData({ ...formData, region: value, city: "" })}
+                onChange={(value) => setFormData({ ...formData, region: value, city: "" })}
                 disabled={!formData.country || regionOptions.length === 0}
-                className="w-full"
-              >
-                <option value="">
-                  {formData.country ? "Selecciona una región" : "Selecciona un país primero"}
-                </option>
-                {regionOptions.map((region) => (
-                  <option key={region.value} value={region.value}>
-                    {region.label}
-                  </option>
-                ))}
-              </Select>
+                placeholder={getRegionPlaceholder(formData.country, !!formData.country)}
+                name="region"
+                searchPlaceholder={`Buscar ${getRegionLabel(formData.country).toLowerCase()}...`}
+              />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="city">Ciudad</Label>
-              <Input
-                id="city"
+              <SearchableSelect
+                options={cityOptions}
                 value={formData.city}
-                onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                placeholder="Ej: Madrid, Barcelona..."
+                onChange={(value) => setFormData({ ...formData, city: value })}
+                disabled={!formData.region || cityOptions.length === 0}
+                placeholder={getCityPlaceholder(getRegionLabel(formData.country), !!formData.region)}
+                name="city"
+                searchPlaceholder="Buscar ciudad..."
               />
             </div>
           </div>

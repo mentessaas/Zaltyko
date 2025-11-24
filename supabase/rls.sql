@@ -109,6 +109,7 @@ alter table charges enable row level security;
 alter table event_logs enable row level security;
 alter table academy_messages enable row level security;
 alter table academy_geo_groups enable row level security;
+alter table contact_messages enable row level security;
 
 -- Academies -----------------------------------------------------------------
 
@@ -691,3 +692,41 @@ drop policy if exists "academy_geo_groups_modify" on academy_geo_groups;
 create policy "academy_geo_groups_modify" on academy_geo_groups
   for all using (is_super_admin())
   with check (is_super_admin());
+
+-- Contact Messages ------------------------------------------------------------
+-- Mensajes de contacto desde el directorio público de academias
+-- Los propietarios de academias pueden ver y gestionar sus mensajes
+-- Los admins pueden ver todos los mensajes de su tenant
+-- Cualquiera puede crear mensajes (desde el formulario público)
+
+drop policy if exists "contact_messages_select" on contact_messages;
+create policy "contact_messages_select" on contact_messages
+  for select using (
+    is_admin() 
+    or academy_in_current_tenant(academy_id)
+  );
+
+drop policy if exists "contact_messages_insert" on contact_messages;
+create policy "contact_messages_insert" on contact_messages
+  for insert with check (
+    -- Permitir inserción pública (desde formulario de contacto)
+    -- La validación de academia pública se hace en la aplicación
+    true
+  );
+
+drop policy if exists "contact_messages_modify" on contact_messages;
+create policy "contact_messages_modify" on contact_messages
+  for update using (
+    is_admin() 
+    or academy_in_current_tenant(academy_id)
+  ) with check (
+    is_admin() 
+    or academy_in_current_tenant(academy_id)
+  );
+
+drop policy if exists "contact_messages_delete" on contact_messages;
+create policy "contact_messages_delete" on contact_messages
+  for delete using (
+    is_admin() 
+    or academy_in_current_tenant(academy_id)
+  );

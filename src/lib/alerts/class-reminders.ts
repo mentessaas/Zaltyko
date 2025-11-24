@@ -3,7 +3,7 @@ import { classSessions, classes, groupAthletes, groups, athletes } from "@/db/sc
 import { eq, and, gte, lte } from "drizzle-orm";
 import { createNotification } from "@/lib/notifications/notification-service";
 import { addHours, subHours } from "date-fns";
-import { sendAttendanceReminder } from "@/lib/email/triggers";
+// import { sendAttendanceReminder } from "@/lib/email/triggers"; // TODO: Implementar función de envío de recordatorios
 
 export interface ClassReminder {
   sessionId: string;
@@ -99,12 +99,12 @@ export async function sendClassReminders(
 
     for (const athlete of athletesList) {
       if (reminder.athleteIds.includes(athlete.athleteId)) {
-        // Enviar email de recordatorio
-        await sendAttendanceReminder({
-          athleteId: athlete.athleteId,
-          sessionId: reminder.sessionId,
-          academyId,
-        });
+        // TODO: Enviar email de recordatorio
+        // await sendAttendanceReminder({
+        //   athleteId: athlete.athleteId,
+        //   sessionId: reminder.sessionId,
+        //   academyId,
+        // });
 
         // Crear notificación in-app
         // TODO: Obtener userId del atleta/padre

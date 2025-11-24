@@ -4,6 +4,7 @@ import { eq, and } from "drizzle-orm";
 import { db } from "@/db";
 import { athletes, coachNotes } from "@/db/schema";
 import { CoachNotesManager } from "@/components/coaches/CoachNotesManager";
+import { Breadcrumb } from "@/components/ui/breadcrumb";
 
 interface PageProps {
   params: {
@@ -46,6 +47,14 @@ export default async function AthleteNotesPage({ params }: PageProps) {
 
   return (
     <div className="space-y-6 p-4 sm:p-6 lg:p-8">
+      <Breadcrumb
+        items={[
+          { label: "Dashboard", href: `/app/${academyId}/dashboard` },
+          { label: "Atletas", href: `/app/${academyId}/athletes` },
+          { label: athlete.name || "Atleta", href: `/app/${academyId}/athletes/${athleteId}` },
+          { label: "Notas" },
+        ]}
+      />
       <div>
         <h1 className="text-2xl font-bold">Notas sobre {athlete.name}</h1>
         <p className="text-muted-foreground mt-1">

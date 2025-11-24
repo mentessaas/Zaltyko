@@ -4,6 +4,7 @@ import { sendClassReminders } from "@/lib/alerts/class-reminders";
 import { db } from "@/db";
 import { academies } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { logger } from "@/lib/logger";
 
 export async function GET(request: Request) {
   // Verificar que la solicitud viene de Vercel Cron
@@ -30,7 +31,7 @@ export async function GET(request: Request) {
 
         await sendClassReminders(academy.id, academy.tenantId, 24);
       } catch (error) {
-        console.error(`Error sending reminders for academy ${academy.id}:`, error);
+        logger.error(`Error sending reminders for academy ${academy.id}`, error, { academyId: academy.id });
         // Continuar con la siguiente academia
       }
     }
@@ -41,7 +42,7 @@ export async function GET(request: Request) {
       academiesProcessed: allAcademies.length,
     });
   } catch (error: any) {
-    console.error("Error in class reminders cron:", error);
+    logger.error("Error in class reminders cron", error);
     return NextResponse.json(
       { error: "CRON_FAILED", message: error.message },
       { status: 500 }

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { X, Check, CheckCheck, Trash2, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { useRouter } from "next/navigation";
 
 import {
   Dialog,
@@ -40,6 +41,7 @@ export function NotificationCenter({
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [filter, setFilter] = useState<"all" | "unread">("all");
+  const router = useRouter();
 
   useEffect(() => {
     if (open) {
@@ -160,55 +162,78 @@ export function NotificationCenter({
               No hay notificaciones
             </div>
           ) : (
-            notifications.map((notification) => (
-              <Card
-                key={notification.id}
-                className={notification.read ? "opacity-60" : ""}
-              >
-                <CardContent className="p-4">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <p className="font-medium text-sm">{notification.title}</p>
-                        {!notification.read && (
-                          <Badge variant="default" className="h-2 w-2 p-0 rounded-full" />
+            notifications.map((notification) => {
+              const isContactMessage = notification.type === "contact_message";
+              const academyId = notification.data?.academyId as string | undefined;
+
+              const handleClick = () => {
+                if (isContactMessage && academyId) {
+                  router.push(`/app/${academyId}/messages`);
+                  onClose();
+                }
+              };
+
+              return (
+                <Card
+                  key={notification.id}
+                  className={`${notification.read ? "opacity-60" : ""} ${isContactMessage ? "cursor-pointer hover:bg-muted/50 transition-colors" : ""}`}
+                  onClick={isContactMessage ? handleClick : undefined}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="font-medium text-sm">{notification.title}</p>
+                          {!notification.read && (
+                            <Badge variant="default" className="h-2 w-2 p-0 rounded-full" />
+                          )}
+                          {isContactMessage && (
+                            <Badge variant="outline" className="text-xs">
+                              Mensaje
+                            </Badge>
+                          )}
+                        </div>
+                        {notification.message && (
+                          <p className="text-sm text-muted-foreground mb-2">
+                            {notification.message}
+                          </p>
                         )}
-                      </div>
-                      {notification.message && (
-                        <p className="text-sm text-muted-foreground mb-2">
-                          {notification.message}
+                        {isContactMessage && notification.data && (
+                          <p className="text-xs text-muted-foreground mb-1">
+                            De: {notification.data.contactName as string}
+                          </p>
+                        )}
+                        <p className="text-xs text-muted-foreground">
+                          {format(new Date(notification.createdAt), "PPP 'a las' p", {
+                            locale: es,
+                          })}
                         </p>
-                      )}
-                      <p className="text-xs text-muted-foreground">
-                        {format(new Date(notification.createdAt), "PPP 'a las' p", {
-                          locale: es,
-                        })}
-                      </p>
-                    </div>
-                    <div className="flex gap-1">
-                      {!notification.read && (
+                      </div>
+                      <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                        {!notification.read && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => handleMarkAsRead(notification.id)}
+                          >
+                            <Check className="h-4 w-4" />
+                          </Button>
+                        )}
                         <Button
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8"
-                          onClick={() => handleMarkAsRead(notification.id)}
+                          onClick={() => handleDelete(notification.id)}
                         >
-                          <Check className="h-4 w-4" />
+                          <Trash2 className="h-4 w-4" />
                         </Button>
-                      )}
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => handleDelete(notification.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))
+                  </CardContent>
+                </Card>
+              );
+            })
           )}
         </div>
       </DialogContent>

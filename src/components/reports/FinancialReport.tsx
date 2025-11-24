@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { DollarSign, Download, FileText, TrendingUp, AlertCircle, Loader2 } from "lucide-react";
 import { format, subMonths } from "date-fns";
-import { es } from "date-fns/locale";
+import { formatLongDateForCountry, formatDateForCountry } from "@/lib/date-utils";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,10 +25,11 @@ interface FinancialStats {
 
 interface FinancialReportProps {
   academyId: string;
+  academyCountry?: string | null;
   initialData?: FinancialStats;
 }
 
-export function FinancialReport({ academyId, initialData }: FinancialReportProps) {
+export function FinancialReport({ academyId, academyCountry, initialData }: FinancialReportProps) {
   const [startDate, setStartDate] = useState(format(subMonths(new Date(), 3), "yyyy-MM-dd"));
   const [endDate, setEndDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [reportData, setReportData] = useState<FinancialStats | null>(initialData || null);
@@ -334,10 +335,10 @@ export function FinancialReport({ academyId, initialData }: FinancialReportProps
                         <p className="text-sm text-muted-foreground">
                           {item.overdueCharges} cargos vencidos
                           {item.oldestOverdue &&
-                            ` · Más antiguo: ${format(new Date(item.oldestOverdue), "PPP", { locale: es })}`}
+                            ` · Más antiguo: ${formatLongDateForCountry(item.oldestOverdue, academyCountry)}`}
                         </p>
                       </div>
-                      <Badge variant="destructive">{item.totalOverdue.toFixed(2)} €</Badge>
+                      <Badge variant="error">{item.totalOverdue.toFixed(2)} €</Badge>
                     </div>
                   ))}
                 </div>
@@ -355,7 +356,7 @@ export function FinancialReport({ academyId, initialData }: FinancialReportProps
                   {monthlyData.map((month) => (
                     <div key={month.month} className="flex items-center justify-between">
                       <span className="font-medium">
-                        {format(new Date(month.month + "-01"), "MMMM yyyy", { locale: es })}
+                        {formatDateForCountry(month.month + "-01", academyCountry, "MMMM yyyy")}
                       </span>
                       <div className="flex gap-4">
                         <span className="text-sm text-muted-foreground">

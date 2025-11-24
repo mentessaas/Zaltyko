@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 import { useDevSession } from "@/components/dev-session-provider";
+import { createClient } from "@/lib/supabase/client";
 
 type PlanCode = "free" | "pro" | "premium" | (string & Record<never, never>);
 
@@ -84,7 +85,60 @@ function formatInvoiceAmount(invoice: InvoiceRow) {
 
 export default function BillingPage() {
   const searchParams = useSearchParams();
-  const { session, loading: loadingSession, refresh } = useDevSession();
+  const { session: devSession, loading: loadingSession, refresh } = useDevSession();
+  const [userSession, setUserSession] = useState<{ userId: string; academyId: string | null } | null>(null);
+  const [loadingUserSession, setLoadingUserSession] = useState(true);
+
+  // Obtener sesión del usuario autenticado si no hay sesión demo
+  useEffect(() => {
+    const loadUserSession = async () => {
+      try {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (user) {
+          // Intentar obtener la primera academia del usuario
+          const response = await fetch("/api/billing/user-academies", {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            setUserSession({
+              userId: user.id,
+              academyId: data.academyId || null,
+            });
+          } else {
+            setUserSession({
+              userId: user.id,
+              academyId: null,
+            });
+          }
+        }
+      } catch (error) {
+        console.error("Error loading user session:", error);
+      } finally {
+        setLoadingUserSession(false);
+      }
+    };
+
+    // Solo cargar si no hay sesión demo
+    if (!devSession && !loadingSession) {
+      loadUserSession();
+    } else {
+      setLoadingUserSession(false);
+    }
+  }, [devSession, loadingSession]);
+
+  // Usar sesión demo si está disponible, sino usar sesión de usuario
+  const session = devSession 
+    ? { userId: devSession.userId, academyId: devSession.academyId, academyName: devSession.academyName }
+    : userSession 
+    ? { userId: userSession.userId, academyId: userSession.academyId, academyName: undefined }
+    : null;
 
   const academyId = useMemo(() => {
     const fromUrl = searchParams.get("academy");
@@ -108,6 +162,11 @@ export default function BillingPage() {
       if (!academyId || !session?.userId) {
         setSummary(null);
         setLoadingSummary(false);
+        return;
+      }
+
+      // Si estamos cargando la sesión, esperar
+      if (loadingSession || loadingUserSession) {
         return;
       }
 
@@ -137,7 +196,7 @@ export default function BillingPage() {
     };
 
     load();
-  }, [academyId, session?.userId]);
+  }, [academyId, session?.userId, loadingSession, loadingUserSession]);
 
   useEffect(() => {
     const loadPlans = async () => {
@@ -338,9 +397,11 @@ export default function BillingPage() {
         </p>
       </header>
 
-      {!academyId && !loadingSession && (
+      {!academyId && !loadingSession && !loadingUserSession && (
         <p className="rounded border border-amber-400/60 bg-amber-400/10 p-3 text-sm text-amber-200">
-          Inicia el onboarding o refresca la sesión demo para obtener una academia asociada.
+          {session 
+            ? "No tienes academias asociadas. Crea una academia desde el dashboard."
+            : "Inicia el onboarding o refresca la sesión demo para obtener una academia asociada."}
         </p>
       )}
 
@@ -352,8 +413,10 @@ export default function BillingPage() {
 
       <section className="rounded-lg border bg-card p-6 shadow-sm">
         <h2 className="text-xl font-medium">Plan actual</h2>
-        {loadingSession || loadingSummary || !summary ? (
+        {(loadingSession || loadingUserSession || loadingSummary || !summary) && academyId ? (
           <p className="text-sm text-muted-foreground">Cargando información…</p>
+        ) : !academyId ? (
+          <p className="text-sm text-muted-foreground">Selecciona una academia para ver su plan.</p>
         ) : (
           <div className="space-y-2">
             <p className="text-lg font-semibold">

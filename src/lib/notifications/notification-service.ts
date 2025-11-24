@@ -1,6 +1,6 @@
 import { db } from "@/db";
 import { notifications } from "@/db/schema";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, sql } from "drizzle-orm";
 
 export interface CreateNotificationParams {
   tenantId: string;
@@ -122,6 +122,4 @@ export async function getUnreadCount(tenantId: string, userId: string): Promise<
 
   return Number(result?.count || 0);
 }
-
-import { sql } from "drizzle-orm";
 

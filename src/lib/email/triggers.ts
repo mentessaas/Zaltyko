@@ -1,21 +1,21 @@
 import { db } from "@/db";
-import { athletes, guardians, familyContacts, classSessions, classes, charges, events } from "@/db/schema";
+import { athletes, guardians, guardianAthletes, familyContacts, classSessions, classes, charges, events, academies } from "@/db/schema";
 import { eq, and, gte, lte } from "drizzle-orm";
 import { sendEmailWithLogging } from "./email-service";
 import { AttendanceReminderTemplate } from "./templates/attendance-reminder";
 import { PaymentReminderTemplate } from "./templates/payment-reminder";
 import { EventInvitationTemplate } from "./templates/event-invitation";
 import { ClassCancellationTemplate } from "./templates/class-cancellation";
-import { format } from "date-fns";
-import { es } from "date-fns/locale";
+import { formatLongDateForCountry } from "@/lib/date-utils";
 
 /**
  * Envía recordatorios de asistencia 24 horas antes de la clase
  */
 export async function triggerAttendanceReminders(): Promise<number> {
+  // Usar fecha actual en UTC para comparaciones (las fechas en BD están en formato ISO)
   const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const tomorrowStr = format(tomorrow, "yyyy-MM-dd");
+  tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+  const tomorrowStr = tomorrow.toISOString().split("T")[0];
 
   // Obtener sesiones programadas para mañana
   const sessions = await db
@@ -25,10 +25,12 @@ export async function triggerAttendanceReminders(): Promise<number> {
       startTime: classSessions.startTime,
       className: classes.name,
       academyId: classes.academyId,
+      academyCountry: academies.country,
       tenantId: classes.tenantId,
     })
     .from(classSessions)
     .innerJoin(classes, eq(classSessions.classId, classes.id))
+    .innerJoin(academies, eq(classes.academyId, academies.id))
     .where(
       and(
         eq(classSessions.status, "scheduled"),
@@ -48,7 +50,8 @@ export async function triggerAttendanceReminders(): Promise<number> {
         familyContactEmail: familyContacts.email,
       })
       .from(athletes)
-      .leftJoin(guardians, eq(athletes.id, guardians.athleteId))
+      .leftJoin(guardianAthletes, eq(athletes.id, guardianAthletes.athleteId))
+      .leftJoin(guardians, eq(guardianAthletes.guardianId, guardians.id))
       .leftJoin(familyContacts, eq(athletes.id, familyContacts.athleteId))
       .where(eq(athletes.academyId, session.academyId));
 
@@ -60,7 +63,7 @@ export async function triggerAttendanceReminders(): Promise<number> {
         const html = AttendanceReminderTemplate({
           athleteName: athlete.athleteName || "el atleta",
           className: session.className || "Clase",
-          sessionDate: format(new Date(session.sessionDate), "PPP", { locale: es }),
+          sessionDate: formatLongDateForCountry(session.sessionDate, session.academyCountry),
           sessionTime: session.startTime || undefined,
           academyName: "Tu academia", // TODO: obtener nombre de academia
         });
@@ -97,20 +100,23 @@ export async function triggerPaymentReminders(): Promise<number> {
   threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
 
   // Obtener cargos vencidos o próximos a vencer
+  const todayStr = today.toISOString().split("T")[0];
   const overdueCharges = await db
     .select({
       chargeId: charges.id,
-      amount: charges.amount,
+      amountCents: charges.amountCents,
       dueDate: charges.dueDate,
       athleteId: charges.athleteId,
       academyId: charges.academyId,
+      academyCountry: academies.country,
       tenantId: charges.tenantId,
     })
     .from(charges)
+    .innerJoin(academies, eq(charges.academyId, academies.id))
     .where(
       and(
         eq(charges.status, "pending"),
-        lte(charges.dueDate, today)
+        lte(charges.dueDate, todayStr)
       )
     );
 
@@ -127,7 +133,8 @@ export async function triggerPaymentReminders(): Promise<number> {
         familyContactEmail: familyContacts.email,
       })
       .from(athletes)
-      .leftJoin(guardians, eq(athletes.id, guardians.athleteId))
+      .leftJoin(guardianAthletes, eq(athletes.id, guardianAthletes.athleteId))
+      .leftJoin(guardians, eq(guardianAthletes.guardianId, guardians.id))
       .leftJoin(familyContacts, eq(athletes.id, familyContacts.athleteId))
       .where(eq(athletes.id, charge.athleteId))
       .limit(1);
@@ -138,20 +145,18 @@ export async function triggerPaymentReminders(): Promise<number> {
     if (!email) continue;
 
     try {
-      const amount = typeof charge.amount === "string" 
-        ? parseFloat(charge.amount).toFixed(2)
-        : charge.amount?.toFixed(2) || "0.00";
+      const amount = charge.amountCents / 100;
 
       const html = PaymentReminderTemplate({
         athleteName: athlete.athleteName || "el atleta",
-        amount: `${amount} €`,
-        dueDate: format(new Date(charge.dueDate), "PPP", { locale: es }),
+        amount: amount,
+        dueDate: charge.dueDate ? formatLongDateForCountry(charge.dueDate, charge.academyCountry) : "Fecha no especificada",
         academyName: "Tu academia", // TODO: obtener nombre de academia
       });
 
       await sendEmailWithLogging({
         to: email,
-        subject: `Recordatorio de pago pendiente - ${amount} €`,
+        subject: `Recordatorio de pago pendiente - ${amount.toFixed(2)} €`,
         html,
         template: "payment-reminder",
         tenantId: charge.tenantId,
@@ -176,8 +181,18 @@ export async function triggerPaymentReminders(): Promise<number> {
  */
 export async function triggerEventInvitations(eventId: string): Promise<number> {
   const [event] = await db
-    .select()
+    .select({
+      id: events.id,
+      title: events.title,
+      date: events.date,
+      location: events.location,
+      status: events.status,
+      academyId: events.academyId,
+      tenantId: events.tenantId,
+      academyCountry: academies.country,
+    })
     .from(events)
+    .innerJoin(academies, eq(events.academyId, academies.id))
     .where(eq(events.id, eventId))
     .limit(1);
 
@@ -194,7 +209,8 @@ export async function triggerEventInvitations(eventId: string): Promise<number> 
       familyContactEmail: familyContacts.email,
     })
     .from(athletes)
-    .leftJoin(guardians, eq(athletes.id, guardians.athleteId))
+    .leftJoin(guardianAthletes, eq(athletes.id, guardianAthletes.athleteId))
+    .leftJoin(guardians, eq(guardianAthletes.guardianId, guardians.id))
     .leftJoin(familyContacts, eq(athletes.id, familyContacts.athleteId))
     .where(eq(athletes.academyId, event.academyId));
 
@@ -206,10 +222,9 @@ export async function triggerEventInvitations(eventId: string): Promise<number> 
 
     try {
       const html = EventInvitationTemplate({
-        eventTitle: event.title,
-        eventDate: event.date ? format(new Date(event.date), "PPP", { locale: es }) : "Fecha por confirmar",
+        eventName: event.title,
+        eventDate: event.date ? formatLongDateForCountry(event.date, event.academyCountry) : "Fecha por confirmar",
         eventLocation: event.location || undefined,
-        athleteName: athlete.athleteName || "el atleta",
         academyName: "Tu academia", // TODO: obtener nombre de academia
       });
 
@@ -249,10 +264,12 @@ export async function triggerClassCancellation(
       startTime: classSessions.startTime,
       className: classes.name,
       academyId: classes.academyId,
+      academyCountry: academies.country,
       tenantId: classes.tenantId,
     })
     .from(classSessions)
     .innerJoin(classes, eq(classSessions.classId, classes.id))
+    .innerJoin(academies, eq(classes.academyId, academies.id))
     .where(eq(classSessions.id, sessionId))
     .limit(1);
 
@@ -269,7 +286,8 @@ export async function triggerClassCancellation(
       familyContactEmail: familyContacts.email,
     })
     .from(athletes)
-    .leftJoin(guardians, eq(athletes.id, guardians.athleteId))
+    .leftJoin(guardianAthletes, eq(athletes.id, guardianAthletes.athleteId))
+    .leftJoin(guardians, eq(guardianAthletes.guardianId, guardians.id))
     .leftJoin(familyContacts, eq(athletes.id, familyContacts.athleteId))
     .where(eq(athletes.academyId, session.academyId));
 
@@ -283,7 +301,7 @@ export async function triggerClassCancellation(
       const html = ClassCancellationTemplate({
         athleteName: athlete.athleteName || "el atleta",
         className: session.className || "Clase",
-        sessionDate: format(new Date(session.sessionDate), "PPP", { locale: es }),
+        sessionDate: formatLongDateForCountry(session.sessionDate, session.academyCountry),
         sessionTime: session.startTime || undefined,
         academyName: "Tu academia", // TODO: obtener nombre de academia
         reason,

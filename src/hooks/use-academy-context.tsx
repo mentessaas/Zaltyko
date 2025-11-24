@@ -22,7 +22,7 @@ export interface AcademyContextValue {
   tenantAcademies: { id: string; name: string | null }[];
 }
 
-const AcademyContext = createContext<AcademyContextValue | undefined>(undefined);
+export const AcademyContext = createContext<AcademyContextValue | undefined>(undefined);
 
 export function AcademyProvider({
   value,
