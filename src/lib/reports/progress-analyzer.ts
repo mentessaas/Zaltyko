@@ -130,8 +130,13 @@ export async function analyzeAthleteProgress(
       scores: [],
     };
 
+    // Convertir string a Date
+    const assessmentDate = typeof score.assessmentDate === "string" 
+      ? new Date(score.assessmentDate) 
+      : score.assessmentDate;
+
     current.scores.push({
-      date: score.assessmentDate,
+      date: assessmentDate,
       score: score.score,
       comments: score.comments,
     });
@@ -184,7 +189,13 @@ export async function analyzeAthleteProgress(
       ? skills.reduce((sum, s) => sum + s.improvement, 0) / skills.length
       : 0;
 
-  const sortedAssessments = assessments.sort(
+  // Convertir assessmentDate strings a Date para ordenamiento y uso
+  const assessmentsWithDates = assessments.map(a => ({
+    ...a,
+    assessmentDate: typeof a.assessmentDate === "string" ? new Date(a.assessmentDate) : a.assessmentDate,
+  }));
+
+  const sortedAssessments = assessmentsWithDates.sort(
     (a, b) => a.assessmentDate.getTime() - b.assessmentDate.getTime()
   );
 
