@@ -58,13 +58,14 @@ export default async function UsersAdminPage({ searchParams }: UsersPageProps) {
   const hasTenant = Boolean(effectiveTenantId);
 
   const filters = [];
+  const validRoles = ["super_admin", "admin", "owner", "coach", "athlete", "parent"] as const;
 
-  if (hasTenant) {
-    filters.push(eq(profiles.tenantId, effectiveTenantId));
+  if (hasTenant && effectiveTenantId) {
+    filters.push(eq(profiles.tenantId, effectiveTenantId) as any);
   }
 
-  if (roleFilterParam && profileRoleEnum.enumValues.includes(roleFilterParam)) {
-    filters.push(eq(profiles.role, roleFilterParam));
+  if (roleFilterParam && validRoles.includes(roleFilterParam as typeof validRoles[number])) {
+    filters.push(eq(profiles.role, roleFilterParam as typeof validRoles[number]));
   }
 
   if (queryParam) {
@@ -136,7 +137,7 @@ export default async function UsersAdminPage({ searchParams }: UsersPageProps) {
         .orderBy(asc(academies.name))
     : [];
 
-  const availableRoles = profileRoleEnum.enumValues.filter((role) =>
+  const availableRoles = validRoles.filter((role) =>
     role === "super_admin" ? isSuperAdmin : true
   );
 
@@ -166,7 +167,7 @@ export default async function UsersAdminPage({ searchParams }: UsersPageProps) {
             className="min-w-[180px] rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-400"
           >
             <option value="">Todos los roles</option>
-            {profileRoleEnum.enumValues.map((role) => (
+            {validRoles.map((role) => (
               <option key={role} value={role}>
                 {role}
               </option>

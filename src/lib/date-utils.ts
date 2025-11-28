@@ -6,6 +6,7 @@ import { formatInTimeZone, toZonedTime, fromZonedTime } from "date-fns-tz";
 import { es, enUS } from "date-fns/locale";
 import { startOfWeek, endOfWeek, startOfDay, endOfDay, addDays, startOfMonth, endOfMonth, isToday, getDay } from "date-fns";
 import type { Locale } from "date-fns";
+import { logger } from "@/lib/logger";
 
 /**
  * Mapeo de países a zonas horarias IANA
@@ -148,9 +149,27 @@ export function formatDateForCountry(
   
   const timezone = getTimezoneForCountry(country);
   const locale = getLocaleForCountry(country);
-  const dateObj = typeof date === "string" ? new Date(date) : date;
   
-  return formatInTimeZone(dateObj, timezone, formatStr, { locale });
+  // Convertir a Date object si es string
+  let dateObj: Date;
+  if (typeof date === "string") {
+    dateObj = new Date(date);
+  } else {
+    dateObj = date;
+  }
+  
+  // Validar que la fecha sea válida
+  if (!dateObj || isNaN(dateObj.getTime())) {
+    logger.warn("Fecha inválida recibida en formatDateForCountry", { date, dateType: typeof date, country, formatStr });
+    return "—";
+  }
+  
+  try {
+    return formatInTimeZone(dateObj, timezone, formatStr, { locale });
+  } catch (error) {
+    logger.error("Error al formatear fecha", error as Error, { date, country, formatStr, dateObj: dateObj.toISOString() });
+    return "—";
+  }
 }
 
 /**

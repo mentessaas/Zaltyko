@@ -148,8 +148,8 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
           if (item.id === profileId) {
             return {
               ...item,
-              ...(body.role && { role: body.role }),
-              ...(body.isSuspended !== undefined && { isSuspended: body.isSuspended }),
+              ...(body.role && typeof body.role === 'string' ? { role: body.role } : {}),
+              ...(body.isSuspended !== undefined && typeof body.isSuspended === 'boolean' ? { isSuspended: body.isSuspended } : {}),
             };
           }
           return item;

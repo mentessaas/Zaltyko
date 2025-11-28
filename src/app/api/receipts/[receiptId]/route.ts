@@ -24,8 +24,7 @@ export const GET = withTenant(async (_request, context) => {
       athleteId: receipts.athleteId,
       amount: receipts.amount,
       currency: receipts.currency,
-      period: receipts.period,
-      items: receipts.items,
+      metadata: receipts.metadata,
       createdAt: receipts.createdAt,
       academyName: academies.name,
       athleteName: athletes.name,
@@ -40,18 +39,22 @@ export const GET = withTenant(async (_request, context) => {
     return NextResponse.json({ error: "RECEIPT_NOT_FOUND" }, { status: 404 });
   }
 
+  const metadata = receipt.metadata || {};
+  const items = (metadata.items as Array<{ description: string; amount: number }>) || [];
+  const period = (metadata.period as string) || "N/A";
+
   const pdfBuffer = await generateReceiptPDF({
     receiptId: receipt.id,
     academyName: receipt.academyName || "Academia",
     athleteName: receipt.athleteName || "Atleta",
     amount: Number(receipt.amount) / 100,
     currency: receipt.currency,
-    period: receipt.period,
-    items: (receipt.items as Array<{ description: string; amount: number }>) || [],
+    period,
+    items,
     date: receipt.createdAt || new Date(),
   });
 
-  return new NextResponse(pdfBuffer, {
+  return new NextResponse(new Uint8Array(pdfBuffer), {
     headers: {
       "Content-Type": "application/pdf",
       "Content-Disposition": `attachment; filename="recibo-${receiptId}.pdf"`,

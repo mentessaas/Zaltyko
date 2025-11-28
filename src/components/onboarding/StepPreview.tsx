@@ -36,51 +36,51 @@ export function StepPreview({ step, data, className }: StepPreviewProps) {
       case 2:
         return (
           <div className="space-y-2">
-            {data.name && (
+            {(data.name && (
               <div className="flex items-center gap-2">
                 <Check className="h-4 w-4 text-green-600" />
                 <span className="text-sm">Nombre: <strong>{String(data.name)}</strong></span>
               </div>
-            )}
-            {data.academyType && (
+            )) as any}
+            {(data.academyType && (
               <div className="flex items-center gap-2">
                 <Check className="h-4 w-4 text-green-600" />
                 <span className="text-sm">Tipo: <strong>{String(data.academyType)}</strong></span>
               </div>
-            )}
-            {(data.country || data.region || data.city) && (
+            )) as any}
+            {((data.country || data.region || data.city) && (
               <div className="flex items-center gap-2">
                 <Check className="h-4 w-4 text-green-600" />
                 <span className="text-sm">
                   Ubicación: {[data.city, data.region, data.country].filter(Boolean).join(", ")}
                 </span>
               </div>
-            )}
+            )) as any}
           </div>
         );
       case 4:
         return (
           <div className="space-y-2">
-            {data.groupName && (
+            {(data.groupName && (
               <div className="flex items-center gap-2">
                 <Check className="h-4 w-4 text-green-600" />
                 <span className="text-sm">Grupo: <strong>{String(data.groupName)}</strong></span>
               </div>
-            )}
-            {data.groupLevel && (
+            )) as any}
+            {(data.groupLevel && (
               <div className="flex items-center gap-2">
                 <Check className="h-4 w-4 text-green-600" />
                 <span className="text-sm">Nivel: <strong>{String(data.groupLevel)}</strong></span>
               </div>
-            )}
-            {data.groupStartTime && data.groupEndTime && (
+            )) as any}
+            {(data.groupStartTime && data.groupEndTime && (
               <div className="flex items-center gap-2">
                 <Check className="h-4 w-4 text-green-600" />
                 <span className="text-sm">
                   Horario: <strong>{String(data.groupStartTime)} - {String(data.groupEndTime)}</strong>
                 </span>
               </div>
-            )}
+            )) as any}
           </div>
         );
       case 5:

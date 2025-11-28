@@ -165,7 +165,7 @@ export function AthleteHistoryView({
                 className="flex h-10 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
               >
                 <option value="all">Todos</option>
-                {apparatusList.map((app) => (
+                {apparatusList.filter(app => app !== null).map((app) => (
                   <option key={app} value={app}>
                     {app}
                   </option>
@@ -238,7 +238,7 @@ export function AthleteHistoryView({
                       )}
                     </CardDescription>
                   </div>
-                  <Badge variant="secondary">{assessment.skills.length} habilidades</Badge>
+                  <Badge variant="outline">{assessment.skills.length} habilidades</Badge>
                 </div>
               </CardHeader>
               {expandedId === assessment.id && (

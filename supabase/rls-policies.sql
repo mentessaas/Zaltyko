@@ -1,3 +1,18 @@
+-- ============================================================================
+-- ⚠️  DEPRECATION NOTICE ⚠️
+-- ============================================================================
+-- Este archivo está DEPRECADO y será eliminado en futuras versiones.
+-- 
+-- Por favor, usa el archivo consolidado:
+--   → supabase/rls-consolidated.sql
+--
+-- Todas las políticas de este archivo han sido migradas al archivo consolidado.
+-- Este archivo se mantiene temporalmente para referencia, pero NO debe
+-- ser modificado ni usado para aplicar políticas RLS.
+--
+-- Fecha de deprecación: 2025-11-26
+-- ============================================================================
+
 -- ============================================
 -- POLÍTICAS RLS ADICIONALES PARA NUEVAS TABLAS
 -- ============================================

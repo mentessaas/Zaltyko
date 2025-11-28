@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { type ProfileRow } from "@/lib/authz";
 
+import Image from "next/image";
 interface CoachProfileProps {
   user: User | null;
   profile: ProfileRow | null;
@@ -67,11 +68,10 @@ export function CoachProfile({ user, profile, coachData, targetProfileId }: Coac
         <div className="flex items-center gap-4">
           {coachData.photoUrl ? (
             <div className="relative h-16 w-16 overflow-hidden rounded-full">
-              <img
-                src={coachData.photoUrl}
+              <Image src={coachData.photoUrl}
                 alt={coachData.name ?? "Foto del entrenador"}
                 className="h-full w-full object-cover"
-              />
+               />
             </div>
           ) : (
             <Avatar className="h-16 w-16">

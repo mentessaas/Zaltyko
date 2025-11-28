@@ -111,7 +111,7 @@ export default async function AthleteDetailPage({ params }: AthletePageProps) {
     .where(eq(guardianAthletes.athleteId, athleteId))
     .orderBy(guardians.createdAt);
 
-  const age = calculateAge(athleteRow.dob ?? null);
+  const age = calculateAge(athleteRow.dob ? new Date(athleteRow.dob) : null);
 
   return (
     <div className="space-y-8 p-8">
@@ -151,7 +151,7 @@ export default async function AthleteDetailPage({ params }: AthletePageProps) {
                 </div>
                 <div>
                   <p className="text-xs uppercase tracking-wide text-muted-foreground">Fecha alta</p>
-                  <p>{athleteRow.createdAt.toLocaleDateString("es-ES")}</p>
+                  <p>{athleteRow.createdAt ? new Date(athleteRow.createdAt).toLocaleDateString("es-ES") : "N/A"}</p>
                 </div>
               </div>
             </div>
@@ -172,6 +172,7 @@ export default async function AthleteDetailPage({ params }: AthletePageProps) {
         <TabsContent value="familia">
           <GuardianManager
             athleteId={athleteRow.id}
+            academyId={athleteRow.academyId}
             initialGuardians={guardiansRows.map((guardian) => ({
               linkId: guardian.linkId,
               guardianId: guardian.guardianId,

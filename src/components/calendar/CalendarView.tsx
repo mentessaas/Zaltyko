@@ -6,8 +6,9 @@ import { useMemo, useState, useEffect } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { formatDateForCountry, formatTimeForCountry, formatDateToISOString, getNowInCountryTimezone, isTodayInCountryTimezone, convertToCountryTimezone } from "@/lib/date-utils";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, User, AlertCircle } from "lucide-react";
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, User, AlertCircle, List } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { AgendaView } from "@/components/calendar/AgendaView";
 
 type SessionEntry = {
   id: string;
@@ -25,7 +26,7 @@ type SessionEntry = {
 };
 
 interface CalendarViewProps {
-  view: "week" | "month";
+  view: "week" | "month" | "agenda";
   referenceDate: string;
   rangeStart: string;
   rangeEnd: string;
@@ -90,7 +91,7 @@ export default function CalendarView({
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const [currentView, setCurrentView] = useState<"week" | "month">(view);
+  const [currentView, setCurrentView] = useState<"week" | "month" | "agenda">(view);
 
   useEffect(() => {
     setCurrentView(view);
@@ -102,7 +103,7 @@ export default function CalendarView({
     return new Date(year, month - 1, day);
   }, [referenceDate]);
 
-  const updateUrl = (nextView: "week" | "month", nextDate: Date) => {
+  const updateUrl = (nextView: "week" | "month" | "agenda", nextDate: Date) => {
     const params = new URLSearchParams(searchParams?.toString() ?? "");
     params.set("view", nextView);
     // Usar formatDateToISOString para respetar la zona horaria del país
@@ -125,7 +126,7 @@ export default function CalendarView({
     }, {});
   }, [sessions]);
 
-  const toggleView = (mode: "week" | "month") => {
+  const toggleView = (mode: "week" | "month" | "agenda") => {
     if (mode === currentView) {
       return;
     }
@@ -192,6 +193,19 @@ export default function CalendarView({
               <CalendarIcon className="h-4 w-4" />
               Mes
             </button>
+            <button
+              type="button"
+              onClick={() => toggleView("agenda")}
+              className={cn(
+                "flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-all",
+                currentView === "agenda"
+                  ? "bg-zaltyko-primary text-white shadow-sm"
+                  : "text-muted-foreground hover:bg-muted/50"
+              )}
+            >
+              <List className="h-4 w-4" />
+              Agenda
+            </button>
           </div>
 
           {/* Navegación */}
@@ -251,8 +265,8 @@ export default function CalendarView({
       session.isPlaceholder
         ? "border-dashed border-amber-300 bg-amber-50/80 text-amber-900"
         : session.isExtra
-        ? "border-yellow-200 bg-gradient-to-br from-yellow-50 to-yellow-100/50 text-yellow-900"
-        : "border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100/50 text-blue-900",
+          ? "border-yellow-200 bg-gradient-to-br from-yellow-50 to-yellow-100/50 text-yellow-900"
+          : "border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100/50 text-blue-900",
       isSessionToday && "ring-2 ring-zaltyko-primary/30 ring-offset-1",
       getStatusColor(session.status)
     );
@@ -316,7 +330,13 @@ export default function CalendarView({
     <div className="space-y-6">
       <BaseControls />
 
-      {currentView === "week" ? (
+      {currentView === "agenda" ? (
+        <AgendaView
+          sessions={sessions}
+          rangeStart={rangeStart}
+          rangeEnd={rangeEnd}
+        />
+      ) : currentView === "week" ? (
         <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
           <div className="grid grid-cols-1 gap-px bg-border sm:grid-cols-7">
             {weekDays.map((day) => {
@@ -397,14 +417,14 @@ export default function CalendarView({
           {/* Grid del mes */}
           <div className="grid grid-cols-7 gap-px bg-border">
             {monthMatrix.map((week, weekIndex) =>
-            week.map((day) => {
-              const iso = formatDateToISOString(day, academyCountry);
-              const daySessions = sessionsByDate[iso] ?? [];
-              const isCurrentMonth = isSameMonth(day, parseISO(referenceDate));
-              const isDayToday = isTodayInCountryTimezone(day, academyCountry);
-              // Usar la zona horaria del país para determinar el día de la semana
-              const zonedDay = academyCountry ? convertToCountryTimezone(day, academyCountry) : day;
-              const isWeekend = zonedDay.getDay() === 0 || zonedDay.getDay() === 6;
+              week.map((day) => {
+                const iso = formatDateToISOString(day, academyCountry);
+                const daySessions = sessionsByDate[iso] ?? [];
+                const isCurrentMonth = isSameMonth(day, parseISO(referenceDate));
+                const isDayToday = isTodayInCountryTimezone(day, academyCountry);
+                // Usar la zona horaria del país para determinar el día de la semana
+                const zonedDay = academyCountry ? convertToCountryTimezone(day, academyCountry) : day;
+                const isWeekend = zonedDay.getDay() === 0 || zonedDay.getDay() === 6;
 
                 return (
                   <div

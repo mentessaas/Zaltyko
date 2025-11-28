@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-export interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {}
+export interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> { }
 
 export interface SelectContextValue {
   value: string;
@@ -19,7 +19,7 @@ export function Select({ value, onValueChange, children, ...props }: SelectProps
   };
 
   return (
-    <SelectContext.Provider value={{ value: value || "", onValueChange: onValueChange || (() => {}) }}>
+    <SelectContext.Provider value={{ value: String(value || ""), onValueChange: onValueChange || (() => { }) }}>
       <select value={value} onChange={handleChange} {...props} className={`flex h-10 w-full rounded-md border border-border bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${props.className || ""}`}>
         {children}
       </select>

@@ -173,7 +173,7 @@ export function ScholarshipManager({
                   <CardTitle className="text-lg">{scholarship.name}</CardTitle>
                   <CardDescription>{scholarship.athleteName}</CardDescription>
                 </div>
-                <Badge variant={scholarship.isActive ? "default" : "secondary"}>
+                <Badge variant={scholarship.isActive ? "default" : "outline"}>
                   {scholarship.isActive ? "Activa" : "Inactiva"}
                 </Badge>
               </div>

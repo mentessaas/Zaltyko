@@ -8,6 +8,7 @@ import { AttendanceDialog } from "@/components/classes/AttendanceDialog";
 import { CreateSessionDialog } from "@/components/classes/CreateSessionDialog";
 import { GenerateSessionsDialog } from "@/components/classes/GenerateSessionsDialog";
 import { AddAthleteToClassDialog } from "@/components/classes/AddAthleteToClassDialog";
+import { ClassExceptionsDialog } from "@/components/classes/ClassExceptionsDialog";
 import { useToast } from "@/components/ui/toast-provider";
 import { createClient } from "@/lib/supabase/client";
 
@@ -90,6 +91,7 @@ export function ClassDetailView({
   const toast = useToast();
   const [createSessionOpen, setCreateSessionOpen] = useState(false);
   const [generateSessionsOpen, setGenerateSessionsOpen] = useState(false);
+  const [exceptionsOpen, setExceptionsOpen] = useState(false);
   const [attendanceSessionId, setAttendanceSessionId] = useState<string | null>(null);
   const [attendanceOpen, setAttendanceOpen] = useState(false);
   const [addAthleteOpen, setAddAthleteOpen] = useState(false);
@@ -111,8 +113,8 @@ export function ClassDetailView({
       classInfo.startTime && classInfo.endTime
         ? `${classInfo.startTime} – ${classInfo.endTime}`
         : classInfo.startTime
-        ? `Desde ${classInfo.startTime}`
-        : "Horario flexible";
+          ? `Desde ${classInfo.startTime}`
+          : "Horario flexible";
     return `${dayLabel} · ${time}`;
   };
 
@@ -205,14 +207,23 @@ export function ClassDetailView({
               Volver a clases
             </Link>
             {classInfo.weekdays.length > 0 && (
-              <button
-                type="button"
-                onClick={() => setGenerateSessionsOpen(true)}
-                className="inline-flex items-center justify-center rounded-md border border-primary/20 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary hover:bg-primary/20 disabled:cursor-not-allowed disabled:opacity-60"
-                disabled={isRefreshing}
-              >
-                Generar sesiones
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={() => setExceptionsOpen(true)}
+                  className="inline-flex items-center justify-center rounded-md border border-border px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-muted"
+                >
+                  Excepciones
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setGenerateSessionsOpen(true)}
+                  className="inline-flex items-center justify-center rounded-md border border-primary/20 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary hover:bg-primary/20 disabled:cursor-not-allowed disabled:opacity-60"
+                  disabled={isRefreshing}
+                >
+                  Generar sesiones
+                </button>
+              </>
             )}
             <button
               type="button"
@@ -266,8 +277,8 @@ export function ClassDetailView({
                       {session.startTime && session.endTime
                         ? `${session.startTime} – ${session.endTime}`
                         : session.startTime
-                        ? `Desde ${session.startTime}`
-                        : "Sin horario"}
+                          ? `Desde ${session.startTime}`
+                          : "Sin horario"}
                     </td>
                     <td className="px-4 py-3">{session.coachName ?? "Sin asignar"}</td>
                     <td className="px-4 py-3 capitalize">
@@ -333,11 +344,10 @@ export function ClassDetailView({
                 </div>
                 <div className="flex items-center gap-2">
                   <span
-                    className={`rounded-full px-2 py-1 text-xs font-semibold ${
-                      athlete.origin === "group"
+                    className={`rounded-full px-2 py-1 text-xs font-semibold ${athlete.origin === "group"
                         ? "bg-blue-100 text-blue-700"
                         : "bg-purple-100 text-purple-700"
-                    }`}
+                      }`}
                   >
                     {athlete.origin === "group" ? "Por grupo" : "Clase extra"}
                   </span>
@@ -378,6 +388,12 @@ export function ClassDetailView({
         onGenerated={refresh}
       />
 
+      <ClassExceptionsDialog
+        classId={classInfo.id}
+        open={exceptionsOpen}
+        onClose={() => setExceptionsOpen(false)}
+      />
+
       <AttendanceDialog
         sessionId={attendanceSessionId}
         open={attendanceOpen}
@@ -404,5 +420,3 @@ export function ClassDetailView({
     </div>
   );
 }
-
-

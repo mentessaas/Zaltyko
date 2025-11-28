@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { eq } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 
 import { createClient } from "@/lib/supabase/server";
 import { db } from "@/db";
@@ -8,6 +8,7 @@ import { profiles } from "@/db/schema";
 import { GlobalTopNav } from "@/components/navigation/GlobalTopNav";
 import { RealtimeNotificationsProvider } from "@/components/providers/RealtimeNotificationsProvider";
 import { AutoBreadcrumb } from "@/components/navigation/AutoBreadcrumb";
+import { logger } from "@/lib/logger";
 
 export default async function DashboardLayout({
   children,
@@ -27,21 +28,23 @@ export default async function DashboardLayout({
 
   let profile;
   try {
-    const result = await db
-      .select({
-        id: profiles.id,
-        userId: profiles.userId,
-        name: profiles.name,
-        role: profiles.role,
-        tenantId: profiles.tenantId,
-      })
-      .from(profiles)
-      .where(eq(profiles.userId, user.id))
-      .limit(1);
+    // Use raw query to avoid drizzle-orm type conflicts
+    const result = await db.execute(sql`
+      SELECT id, user_id, name, role, tenant_id
+      FROM profiles
+      WHERE user_id = ${user.id}
+      LIMIT 1
+    `);
     
-    profile = result[0];
+    profile = result.rows[0] as {
+      id: string;
+      userId: string;
+      name: string | null;
+      role: string | null;
+      tenantId: string;
+    } | undefined;
   } catch (error: any) {
-    console.error("dashboard/layout profile query error", error);
+    logger.error("Dashboard layout: Profile query error", error, { userId: user.id });
     // Si el error es claramente de configuración de base de datos, mostrar mensaje específico
     if (
       error?.message?.includes("DATABASE_URL") ||

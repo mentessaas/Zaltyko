@@ -37,97 +37,92 @@ body {
 
 @layer base {
   :root {
-    /* Zaltyko Design System 1.0 - Tokens CSS */
-    --color-primary: #B690F0;
-    --color-primary-dark: #8A63C3;
-    --color-primary-light: #EDEAFE;
-    --color-bg: #FAF9FF;
-    --color-bg-light: #FFFFFF;
-    --color-border: #E6E6EB;
-    --color-text-main: #1C1C1E;
-    --color-text-secondary: #6D6D6D;
-    --color-success: #4CAF79;
-    --color-danger: #E75C5A;
-    --color-warning: #F6BC50;
-    --color-info: #5E8EEC;
-    
-    --font-family: "Inter", sans-serif;
-    --radius-base: 12px;
-    --radius-large: 16px;
-    --shadow-soft: 0 1px 3px rgba(0,0,0,0.06);
-    --shadow-medium: 0 4px 12px rgba(0,0,0,0.08);
-    
-    --space-xs: 4px;
-    --space-sm: 8px;
-    --space-md: 16px;
-    --space-lg: 24px;
-    --space-xl: 32px;
-    
-    /* Shadcn compatibility */
-    --background: 0 0% 100%;
-    --foreground: 0 0% 3.9%;
+    /* Zaltyko Premium Design System - Tokens CSS */
+    --background: 210 40% 98%; /* Slate-50 #F8FAFC */
+    --foreground: 222 47% 11%; /* Slate-900 #0F172A */
+
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 3.9%;
+    --card-foreground: 222 47% 11%;
+ 
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 3.9%;
-    --primary: 270 60% 75%; /* #B690F0 en HSL */
-    --primary-foreground: 0 0% 98%;
-    --secondary: 0 0% 96.1%;
-    --secondary-foreground: 0 0% 9%;
-    --muted: 0 0% 96.1%;
-    --muted-foreground: 0 0% 45.1%;
-    --accent: 270 60% 75%; /* Morado principal */
-    --accent-foreground: 0 0% 9%;
+    --popover-foreground: 222 47% 11%;
+ 
+    --primary: 262 83% 58%; /* Violet-600 #7C3AED */
+    --primary-foreground: 210 40% 98%;
+ 
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222 47% 11.2%;
+ 
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+ 
+    --accent: 262 83% 96%; /* Violet-50 */
+    --accent-foreground: 222 47% 11.2%;
+ 
     --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 89.8%;
-    --input: 0 0% 89.8%;
-    --ring: 270 60% 75%; /* Morado principal */
-    --chart-1: 12 76% 61%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 262 83% 58%;
+ 
+    --radius: 0.75rem;
+
+    --chart-1: 262 83% 58%;
     --chart-2: 173 58% 39%;
     --chart-3: 197 37% 24%;
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
-    --radius: 0.75rem;
-    
-    /* Sombras mejoradas */
-    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
   }
-  
+ 
   .dark {
-    --background: 0 0% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 0 0% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 0 0% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 215 85% 50%; /* Azul profundo más claro para dark mode */
-    --primary-foreground: 0 0% 98%;
-    --secondary: 0 0% 14.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 0 0% 14.9%;
-    --muted-foreground: 0 0% 63.9%;
-    --accent: 45 96% 60%; /* Dorado más claro para dark mode */
-    --accent-foreground: 0 0% 9%;
-    --destructive: 0 62.8% 50%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 14.9%;
-    --input: 0 0% 14.9%;
-    --ring: 215 85% 50%; /* Azul profundo */
-    --chart-1: 220 70% 50%;
+    --background: 222 47% 11%;
+    --foreground: 210 40% 98%;
+ 
+    --card: 222 47% 11%;
+    --card-foreground: 210 40% 98%;
+ 
+    --popover: 222 47% 11%;
+    --popover-foreground: 210 40% 98%;
+ 
+    --primary: 263 70% 50%;
+    --primary-foreground: 210 40% 98%;
+ 
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+ 
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+ 
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+ 
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+ 
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 263 70% 50%;
+
+    --chart-1: 263 70% 50%;
     --chart-2: 160 60% 45%;
     --chart-3: 30 80% 55%;
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
-    
-    /* Sombras para dark mode */
-    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
-    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.4), 0 2px 4px -2px rgb(0 0 0 / 0.3);
-    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.4), 0 4px 6px -4px rgb(0 0 0 / 0.3);
-    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.5), 0 8px 10px -6px rgb(0 0 0 / 0.4);
+  }
+}
+
+@layer utilities {
+  .glass-panel {
+    @apply bg-white/70 backdrop-blur-lg border border-white/20 shadow-glass;
+  }
+  
+  .glass-card {
+    @apply bg-white/50 backdrop-blur-md border border-white/30 shadow-soft hover:shadow-medium transition-all duration-300;
+  }
+
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-zaltyko-primary-dark to-zaltyko-primary;
   }
 }
 

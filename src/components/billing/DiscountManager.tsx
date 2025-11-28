@@ -216,7 +216,7 @@ export function DiscountManager({
                     </CardDescription>
                   )}
                 </div>
-                <Badge variant={discount.isActive ? "default" : "secondary"}>
+                <Badge variant={discount.isActive ? "default" : "outline"}>
                   {discount.isActive ? "Activo" : "Inactivo"}
                 </Badge>
               </div>

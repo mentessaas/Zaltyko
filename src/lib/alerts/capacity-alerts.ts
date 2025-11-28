@@ -26,7 +26,7 @@ export async function detectCapacityAlerts(
         classId: classes.id,
         className: classes.name,
         groupId: groups.id,
-        maxCapacity: classes.maxCapacity,
+        maxCapacity: classes.capacity,
       })
       .from(classes)
       .leftJoin(groups, eq(classes.groupId, groups.id))
@@ -34,39 +34,39 @@ export async function detectCapacityAlerts(
 
     const alerts: CapacityAlert[] = [];
 
-  for (const classGroup of classGroups) {
-    if (!classGroup.maxCapacity) continue;
+    for (const classGroup of classGroups) {
+      if (!classGroup.maxCapacity) continue;
 
-    // Contar atletas en el grupo o clase
-    let currentCapacity = 0;
+      // Contar atletas en el grupo o clase
+      let currentCapacity = 0;
 
-    if (classGroup.groupId) {
-      const [countResult] = await db
-        .select({ count: count() })
-        .from(groupAthletes)
-        .where(eq(groupAthletes.groupId, classGroup.groupId));
-      currentCapacity = Number(countResult?.count || 0);
-    } else {
-      // Si no hay grupo, contar sesiones programadas (simplificado)
-      const [countResult] = await db
-        .select({ count: count() })
-        .from(classSessions)
-        .where(eq(classSessions.classId, classGroup.classId));
-      currentCapacity = Number(countResult?.count || 0);
+      if (classGroup.groupId) {
+        const [countResult] = await db
+          .select({ count: count() })
+          .from(groupAthletes)
+          .where(eq(groupAthletes.groupId, classGroup.groupId));
+        currentCapacity = Number(countResult?.count || 0);
+      } else {
+        // Si no hay grupo, contar sesiones programadas (simplificado)
+        const [countResult] = await db
+          .select({ count: count() })
+          .from(classSessions)
+          .where(eq(classSessions.classId, classGroup.classId));
+        currentCapacity = Number(countResult?.count || 0);
+      }
+
+      const percentage = (currentCapacity / classGroup.maxCapacity) * 100;
+
+      if (percentage >= threshold) {
+        alerts.push({
+          classId: classGroup.classId,
+          className: classGroup.className || "Sin nombre",
+          currentCapacity,
+          maxCapacity: classGroup.maxCapacity,
+          percentage: Math.round(percentage * 100) / 100,
+        });
+      }
     }
-
-    const percentage = (currentCapacity / classGroup.maxCapacity) * 100;
-
-    if (percentage >= threshold) {
-      alerts.push({
-        classId: classGroup.classId,
-        className: classGroup.className || "Sin nombre",
-        currentCapacity,
-        maxCapacity: classGroup.maxCapacity,
-        percentage: Math.round(percentage * 100) / 100,
-      });
-    }
-  }
 
     return alerts;
   } catch (error) {

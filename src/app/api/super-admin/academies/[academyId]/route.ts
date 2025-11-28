@@ -9,7 +9,8 @@ import { logAdminAction } from "@/lib/admin-logs";
 export const dynamic = "force-dynamic";
 
 export const GET = withSuperAdmin(async (_request, context) => {
-  const academyId = context.params?.academyId;
+  const params = context.params as { academyId?: string };
+  const academyId = params?.academyId;
   if (!academyId) {
     return NextResponse.json({ error: "ACADEMY_ID_REQUIRED" }, { status: 400 });
   }
@@ -85,7 +86,8 @@ export const GET = withSuperAdmin(async (_request, context) => {
 });
 
 export const PATCH = withSuperAdmin(async (request, context) => {
-  const academyId = context.params?.academyId;
+  const params = context.params as { academyId?: string };
+  const academyId = params?.academyId;
   if (!academyId) {
     return NextResponse.json({ error: "ACADEMY_ID_REQUIRED" }, { status: 400 });
   }
@@ -122,6 +124,7 @@ export const PATCH = withSuperAdmin(async (request, context) => {
       id: academies.id,
       name: academies.name,
       isSuspended: academies.isSuspended,
+      ownerId: academies.ownerId,
     });
 
   if (!updated) {
@@ -129,7 +132,7 @@ export const PATCH = withSuperAdmin(async (request, context) => {
   }
 
   if (planUpdate) {
-    if (!academy.ownerId) {
+    if (!updated.ownerId) {
       return NextResponse.json({ error: "ACADEMY_HAS_NO_OWNER" }, { status: 400 });
     }
 
@@ -138,7 +141,7 @@ export const PATCH = withSuperAdmin(async (request, context) => {
         userId: profiles.userId,
       })
       .from(profiles)
-      .where(eq(profiles.id, academy.ownerId))
+      .where(eq(profiles.id, updated.ownerId))
       .limit(1);
 
     if (!owner) {
@@ -179,7 +182,8 @@ export const PATCH = withSuperAdmin(async (request, context) => {
 });
 
 export const DELETE = withSuperAdmin(async (_request, context) => {
-  const academyId = context.params?.academyId;
+  const params = context.params as { academyId?: string };
+  const academyId = params?.academyId;
   if (!academyId) {
     return NextResponse.json({ error: "ACADEMY_ID_REQUIRED" }, { status: 400 });
   }

@@ -54,7 +54,7 @@ export function ProgressTimeline({ events }: ProgressTimelineProps) {
                         {event.metadata && Object.keys(event.metadata).length > 0 && (
                           <div className="mt-2 flex flex-wrap gap-2">
                             {Object.entries(event.metadata).map(([key, value]) => (
-                              <Badge key={key} variant="secondary" className="text-xs">
+                              <Badge key={key} variant="outline" className="text-xs">
                                 {key}: {String(value)}
                               </Badge>
                             ))}

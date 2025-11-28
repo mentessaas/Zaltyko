@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { withTenant, getCurrentProfile } from "@/lib/authz";
+import { withTenant } from "@/lib/authz";
 import { getUserNotifications } from "@/lib/notifications/notification-service";
 
 const querySchema = z.object({
@@ -13,10 +13,7 @@ export const GET = withTenant(async (request, context) => {
     return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
   }
 
-  const profile = await getCurrentProfile(request);
-  if (!profile) {
-    return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
-  }
+  const profile = context.profile;
 
   const url = new URL(request.url);
   const params = {

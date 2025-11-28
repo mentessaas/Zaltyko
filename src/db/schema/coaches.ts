@@ -15,9 +15,11 @@ export const coaches = pgTable(
     phone: text("phone"),
     bio: text("bio"),
     photoUrl: text("photo_url"),
+    slug: text("slug").unique(),
     isPublic: boolean("is_public").notNull().default(false),
     specialties: text("specialties").array(),
     publicBio: text("public_bio"),
+    yearsExperience: text("years_experience"),
     certifications: jsonb("certifications").$type<Array<{
       name: string;
       issuer: string;
@@ -30,11 +32,19 @@ export const coaches = pgTable(
       description?: string;
       date?: string;
     }>>().default([]),
+    socialLinks: jsonb("social_links").$type<{
+      instagram?: string;
+      facebook?: string;
+      twitter?: string;
+      linkedin?: string;
+      website?: string;
+    }>(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   },
   (table) => ({
     tenantAcademyIdx: index("coaches_tenant_academy_idx").on(table.tenantId, table.academyId),
     publicIdx: index("coaches_public_idx").on(table.isPublic),
+    slugIdx: index("coaches_slug_idx").on(table.slug),
   })
 );
 

@@ -12,47 +12,33 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Zaltyko Design System 1.0 - Tokens oficiales
+        // Zaltyko Premium Design System
         zaltyko: {
           primary: {
-            DEFAULT: "#B690F0", // Morado principal
-            dark: "#8A63C3", // Morado oscuro
-            light: "#EDEAFE", // Lavanda claro
+            DEFAULT: "#8B5CF6", // Violeta vibrante
+            dark: "#7C3AED", // Violeta profundo
+            light: "#A78BFA", // Violeta claro
+            ultralight: "#F5F3FF", // Fondo muy claro
+          },
+          accent: {
+            teal: "#14B8A6", // Teal para éxito/fresco
+            coral: "#F43F5E", // Coral para alertas/acción
+            amber: "#F59E0B", // Ámbar para warnings
           },
           bg: {
-            DEFAULT: "#FAF9FF", // Fondo principal
-            light: "#FFFFFF", // Fondo claro/blanco
+            DEFAULT: "#F8FAFC", // Slate-50 (más frío y limpio)
+            paper: "#FFFFFF",
+            dark: "#0F172A", // Slate-900
           },
           text: {
-            main: "#1C1C1E", // Texto principal
-            secondary: "#6D6D6D", // Texto secundario
+            main: "#1E293B", // Slate-800
+            secondary: "#64748B", // Slate-500
+            light: "#94A3B8", // Slate-400
           },
-          border: "#E6E6EB", // Borde
-          success: "#4CAF79", // Verde éxito
-          danger: "#E75C5A", // Rojo peligro
-          warning: "#F6BC50", // Amarillo advertencia
-          info: "#5E8EEC", // Azul información
+          border: "#E2E8F0", // Slate-200
         },
-        // Tokens del Design System como colores directos (para uso directo)
-        "primary-ds": {
-          DEFAULT: "#B690F0",
-          dark: "#8A63C3",
-          light: "#EDEAFE",
-        },
-        "bg-ds": {
-          DEFAULT: "#FAF9FF",
-          light: "#FFFFFF",
-        },
-        "text-ds": {
-          main: "#1C1C1E",
-          secondary: "#6D6D6D",
-        },
-        "border-ds": "#E6E6EB",
-        "success-ds": "#4CAF79",
-        "danger-ds": "#E75C5A",
-        "warning-ds": "#F6BC50",
-        "info-ds": "#5E8EEC",
-        // Mantener compatibilidad con sistema existente
+
+        // Compatibilidad Shadcn
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
         card: {
@@ -63,11 +49,8 @@ export default {
           DEFAULT: "hsl(var(--popover))",
           foreground: "hsl(var(--popover-foreground))",
         },
-        // Primary usa los tokens del Design System pero mantiene compatibilidad HSL
         primary: {
-          DEFAULT: "#B690F0", // Design System primary
-          dark: "#8A63C3",
-          light: "#EDEAFE",
+          DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
         },
         secondary: {
@@ -86,9 +69,7 @@ export default {
           DEFAULT: "hsl(var(--destructive))",
           foreground: "hsl(var(--destructive-foreground))",
         },
-        // Border usa el token del Design System
-        border: "#E6E6EB", // Design System border
-        "border-hsl": "hsl(var(--border))", // Para compatibilidad
+        border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
         chart: {
@@ -101,29 +82,25 @@ export default {
       },
       fontFamily: {
         sans: ["var(--font-inter)", "ui-sans-serif", "system-ui"],
-        display: ["var(--font-poppins)", "ui-sans-serif", "system-ui"],
+        display: ["var(--font-outfit)", "ui-sans-serif", "system-ui"],
       },
       boxShadow: {
-        soft: "0 1px 3px rgba(0,0,0,0.06)",
-        medium: "0 4px 12px rgba(0,0,0,0.08)",
-        card: "0 4px 20px rgba(13, 71, 161, 0.1)",
-        button: "0 2px 8px rgba(66, 165, 245, 0.3)",
+        soft: "0 2px 10px rgba(0, 0, 0, 0.03)",
+        medium: "0 4px 20px rgba(0, 0, 0, 0.06)",
+        glass: "0 8px 32px 0 rgba(31, 38, 135, 0.07)",
+        glow: "0 0 20px rgba(139, 92, 246, 0.3)", // Glow violeta
       },
       borderRadius: {
-        base: "12px",
-        large: "16px",
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
-        "2xl": "1rem",
-        "3xl": "1.5rem",
+        xl: "1rem",
+        "2xl": "1.5rem",
+        "3xl": "2rem",
       },
-      spacing: {
-        xs: "4px",
-        sm: "8px",
-        md: "16px",
-        lg: "24px",
-        xl: "32px",
+      backgroundImage: {
+        "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",
+        "hero-glow": "conic-gradient(from 180deg at 50% 50%, #E0C6FF 0deg, #F5F3FF 180deg, #E0C6FF 360deg)",
       },
     },
   },

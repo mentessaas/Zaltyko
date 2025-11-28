@@ -17,7 +17,7 @@ export function TogglePublicVisibility({
 }: TogglePublicVisibilityProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isPublic, setIsPublic] = useState(currentValue);
-  const { showToast } = useToast();
+  const { pushToast } = useToast();
 
   const handleToggle = async () => {
     setIsLoading(true);
@@ -34,7 +34,7 @@ export function TogglePublicVisibility({
         if (onToggle) {
           onToggle(newValue);
         }
-        showToast({
+        pushToast({
           title: "Visibilidad actualizada",
           description: newValue
             ? "La academia ahora es visible en el directorio público."
@@ -42,14 +42,14 @@ export function TogglePublicVisibility({
           variant: "success",
         });
       } else {
-        showToast({
+        pushToast({
           title: "Error",
           description: result.error || "No se pudo actualizar la visibilidad.",
           variant: "error",
         });
       }
     } catch (error) {
-      showToast({
+      pushToast({
         title: "Error",
         description: "Ocurrió un error al actualizar la visibilidad.",
         variant: "error",

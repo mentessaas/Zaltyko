@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { z } from "zod";
 import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { userPreferences, profiles } from "@/db/schema";
 import { getCurrentProfile } from "@/lib/authz";
+import { createClient } from "@/lib/supabase/server";
 
 // Forzar ruta dinámica
 export const dynamic = 'force-dynamic';
@@ -15,9 +17,17 @@ const updateSchema = z.object({
 
 export const PUT = async (request: Request) => {
   try {
-    const profile = await getCurrentProfile(request);
-    if (!profile) {
+    const cookieStore = await cookies();
+    const supabase = await createClient(cookieStore);
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
       return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+    }
+    
+    const profile = await getCurrentProfile(user.id);
+    if (!profile) {
+      return NextResponse.json({ error: "PROFILE_NOT_FOUND" }, { status: 404 });
     }
 
     const body = updateSchema.parse(await request.json());
@@ -63,9 +73,17 @@ export const PUT = async (request: Request) => {
 
 export const GET = async (request: Request) => {
   try {
-    const profile = await getCurrentProfile(request);
-    if (!profile) {
+    const cookieStore = await cookies();
+    const supabase = await createClient(cookieStore);
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
       return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+    }
+    
+    const profile = await getCurrentProfile(user.id);
+    if (!profile) {
+      return NextResponse.json({ error: "PROFILE_NOT_FOUND" }, { status: 404 });
     }
 
     const [prefs] = await db

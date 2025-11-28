@@ -60,7 +60,7 @@ export async function POST(request: Request) {
     // Enviar email de bienvenida
     await sendEmail({
       to: user.email!,
-      subject: `¡Bienvenido a Zaltyko, ${profile.fullName || "Usuario"}!`,
+      subject: `¡Bienvenido a Zaltyko, ${profile.name || "Usuario"}!`,
       html: `
         <!DOCTYPE html>
         <html>
@@ -75,7 +75,7 @@ export async function POST(request: Request) {
           
           <div style="background: #f9fafb; padding: 30px; border-radius: 0 0 8px 8px;">
             <p style="font-size: 16px; margin-bottom: 20px;">
-              Hola <strong>${profile.fullName || "Usuario"}</strong>,
+              Hola <strong>${profile.name || "Usuario"}</strong>,
             </p>
             
             <p style="font-size: 16px; margin-bottom: 20px;">
@@ -135,7 +135,7 @@ export async function POST(request: Request) {
       text: `
 ¡Bienvenido a Zaltyko!
 
-Hola ${profile.fullName || "Usuario"},
+Hola ${profile.name || "Usuario"},
 
 ¡Estamos emocionados de tenerte en Zaltyko! Tu academia ${academyName} está lista para comenzar.
 

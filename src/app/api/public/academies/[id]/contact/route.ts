@@ -6,6 +6,7 @@ import { db } from "@/db";
 import { academies, profiles } from "@/db/schema";
 import { handleApiError } from "@/lib/api-error-handler";
 import { withRateLimit, getClientIdentifier } from "@/lib/rate-limit";
+import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 
 const ContactSchema = z.object({
   name: z.string().min(2).max(100),
@@ -13,10 +14,6 @@ const ContactSchema = z.object({
   phone: z.string().optional(),
   message: z.string().min(10).max(1000),
 });
-
-interface RouteContext {
-  params: Promise<{ id: string }>;
-}
 
 /**
  * POST /api/public/academies/[id]/contact
@@ -30,9 +27,10 @@ interface RouteContext {
  * - phone: Teléfono (opcional)
  * - message: Mensaje
  */
-async function contactHandler(request: Request, context: RouteContext) {
+async function contactHandler(request: Request, context?: { params?: Promise<{ id: string }> }) {
   try {
-    const { id } = await context.params;
+    const params = context?.params ? await context.params : { id: new URL(request.url).pathname.split('/').pop() || '' };
+    const { id } = params;
 
     // Verificar que la academia existe y es pública
     const [academy] = await db
@@ -83,15 +81,22 @@ async function contactHandler(request: Request, context: RouteContext) {
 
     const { name, email, phone, message } = parsed.data;
 
-    // Obtener email del propietario de la academia
-    const [owner] = await db
+    // Obtener email del propietario de la academia desde Supabase Auth
+    const [ownerProfile] = await db
       .select({
-        email: profiles.email,
+        userId: profiles.userId,
         name: profiles.name,
       })
       .from(profiles)
       .where(eq(profiles.id, academy.ownerId))
       .limit(1);
+
+    let ownerEmail: string | null = null;
+    if (ownerProfile?.userId) {
+      const adminClient = getSupabaseAdminClient();
+      const { data: authUser } = await adminClient.auth.admin.getUserById(ownerProfile.userId);
+      ownerEmail = authUser?.user?.email || null;
+    }
 
     // TODO: Integrar con servicio de email (Mailgun, SendGrid, etc.)
     // Por ahora, solo retornamos éxito
@@ -105,7 +110,8 @@ async function contactHandler(request: Request, context: RouteContext) {
       contactEmail: email,
       contactPhone: phone,
       message,
-      ownerEmail: owner?.email,
+      ownerEmail: ownerEmail,
+      ownerName: ownerProfile?.name,
     });
 
     return NextResponse.json({
@@ -118,9 +124,14 @@ async function contactHandler(request: Request, context: RouteContext) {
 }
 
 // Aplicar rate limiting: máximo 5 requests por minuto por IP
-export const POST = withRateLimit(contactHandler, {
-  identifier: getClientIdentifier,
-  limit: 5,
-  window: 60 * 1000, // 1 minuto
-});
+export const POST = async (request: Request, context: { params: Promise<{ id: string }> }) => {
+  return withRateLimit(
+    async (req: Request) => {
+      return await contactHandler(req, { params: context.params });
+    },
+    {
+      identifier: getClientIdentifier,
+    }
+  )(request as any, { params: context.params });
+};
 

@@ -14,6 +14,7 @@ import {
 } from '@/db/schema';
 import { eq, and, desc, sql, count, ilike } from 'drizzle-orm';
 import { getDatabaseUrl } from '@/lib/env';
+import { getSupabaseAdminClient } from '@/lib/supabase/admin';
 
 const handler = createMcpHandler(
   (server) => {
@@ -362,10 +363,22 @@ ${academy.trialEndsAt ? `- Trial termina: ${academy.trialEndsAt.toISOString()}` 
       async ({ academyId, limit }) => {
         try {
           const results = await db
-            .select()
+            .select({
+              id: events.id,
+              title: events.title,
+              startDate: events.startDate,
+              endDate: events.endDate,
+              country: events.country,
+              province: events.province,
+              city: events.city,
+              isPublic: events.isPublic,
+              level: events.level,
+              academyId: events.academyId,
+              createdAt: events.createdAt,
+            })
             .from(events)
             .where(eq(events.academyId, academyId))
-            .orderBy(desc(events.date), desc(events.createdAt))
+            .orderBy(desc(events.startDate), desc(events.createdAt))
             .limit(limit);
 
           if (results.length === 0) {
@@ -377,9 +390,15 @@ ${academy.trialEndsAt ? `- Trial termina: ${academy.trialEndsAt.toISOString()}` 
             };
           }
 
-          const list = results.map((event, idx) => 
-            `${idx + 1}. **${event.title}**\n   🆔 ${event.id}\n   📅 ${event.date || 'Sin fecha'}\n   📍 ${event.location || 'Sin ubicación'}\n   📊 Estado: ${event.status || 'draft'}`
-          ).join('\n\n');
+          const list = results.map((event, idx) => {
+            const location = [event.city, event.province, event.country].filter(Boolean).join(", ") || 'Sin ubicación';
+            const dateText = event.startDate 
+              ? event.endDate && event.endDate !== event.startDate
+                ? `${event.startDate} - ${event.endDate}`
+                : event.startDate
+              : 'Sin fecha';
+            return `${idx + 1}. **${event.title}**\n   🆔 ${event.id}\n   📅 ${dateText}\n   📍 ${location}\n   📊 Estado: ${event.isPublic ? 'público' : 'privado'}`;
+          }).join('\n\n');
 
           return {
             content: [{ 
@@ -424,6 +443,11 @@ ${academy.trialEndsAt ? `- Trial termina: ${academy.trialEndsAt.toISOString()}` 
             };
           }
 
+          // Obtener email del usuario desde Supabase Auth
+          const adminClient = getSupabaseAdminClient();
+          const { data: authUser } = await adminClient.auth.admin.getUserById(userId);
+          const userEmail = authUser?.user?.email || 'N/A';
+
           // Obtener suscripción
           const [subscription] = await db
             .select({
@@ -440,7 +464,7 @@ ${academy.trialEndsAt ? `- Trial termina: ${academy.trialEndsAt.toISOString()}` 
 
 📋 **Información:**
 - Nombre: ${profile.name || 'N/A'}
-- Email: ${profile.email || 'N/A'}
+- Email: ${userEmail}
 - ID Usuario: ${profile.userId}
 - ID Perfil: ${profile.id}
 

@@ -58,7 +58,7 @@ export default async function CoachTodayPage({ params }: PageProps) {
       tenantId: coaches.tenantId,
     })
     .from(coaches)
-    .where(and(eq(coaches.academyId, academyId), eq(coaches.email, profile.email ?? "")))
+    .where(and(eq(coaches.academyId, academyId), eq(coaches.email, user.email ?? "")))
     .limit(1);
 
   if (!coach) {

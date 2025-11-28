@@ -385,7 +385,13 @@ export function AssessmentForm({ academyId, athletes, skills, groups = [] }: Ass
 
       <ConfirmDialog
         open={rowToDelete !== null}
-        onOpenChange={(open) => !open && setRowToDelete(null)}
+        onOpenChange={(open) => {
+          console.log('[AssessmentForm] ConfirmDialog onOpenChange called with open:', open);
+          if (!open) {
+            console.log('[AssessmentForm] Setting rowToDelete to null');
+            setRowToDelete(null);
+          }
+        }}
         title="Eliminar fila"
         description="¿Estás seguro de que deseas eliminar esta fila? Esta acción no se puede deshacer."
         confirmText="Eliminar"

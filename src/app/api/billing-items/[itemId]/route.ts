@@ -16,9 +16,14 @@ const UpdateBillingItemSchema = z.object({
   isActive: z.boolean().optional(),
 });
 
-export const PATCH = withTenant(async (request, context, { params }: { params: Promise<{ itemId: string }> }) => {
+export const PATCH = withTenant(async (request, context) => {
   try {
-    const { itemId } = await params;
+    const params = context.params as { itemId?: string };
+    const itemId = params?.itemId;
+    
+    if (!itemId) {
+      return NextResponse.json({ error: "ITEM_ID_REQUIRED" }, { status: 400 });
+    }
     const body = UpdateBillingItemSchema.parse(await request.json());
 
     if (!context.tenantId) {
@@ -56,9 +61,14 @@ export const PATCH = withTenant(async (request, context, { params }: { params: P
   }
 });
 
-export const DELETE = withTenant(async (request, context, { params }: { params: Promise<{ itemId: string }> }) => {
+export const DELETE = withTenant(async (request, context) => {
   try {
-    const { itemId } = await params;
+    const params = context.params as { itemId?: string };
+    const itemId = params?.itemId;
+    
+    if (!itemId) {
+      return NextResponse.json({ error: "ITEM_ID_REQUIRED" }, { status: 400 });
+    }
 
     if (!context.tenantId) {
       return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });

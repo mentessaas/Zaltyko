@@ -6,15 +6,15 @@ import { withTenant, TenantContext } from "@/lib/authz";
  * Combina rate limiting con withTenant
  * Útil para endpoints que requieren ambos
  */
-export function withTenantAndRateLimit<T extends any[]>(
-  handler: (request: NextRequest, context: TenantContext, ...args: T) => Promise<NextResponse>
+export function withTenantAndRateLimit(
+  handler: (request: NextRequest, context: TenantContext) => Promise<NextResponse>
 ) {
   // Primero aplicar rate limiting, luego tenant
   return withRateLimit(
-    (request: NextRequest) => {
-      return withTenant(async (request, context, ...args: T) => {
-        return handler(request, context, ...args);
-      })(request);
+    async (request: NextRequest, context?: any) => {
+      return withTenant(async (req, ctx) => {
+        return handler(req as NextRequest, ctx);
+      })(request, context || {});
     },
     { identifier: getUserIdentifier }
   );

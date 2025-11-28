@@ -39,24 +39,29 @@ export const POST = withTenant(async (request, context) => {
       break;
 
     case "payment-reminder":
+      const amountValue = typeof data.amount === 'string' 
+        ? parseFloat(data.amount.replace(/[^\d.,]/g, '').replace(',', '.')) || 0
+        : typeof data.amount === 'number' 
+          ? data.amount 
+          : 0;
       html = PaymentReminderTemplate({
         athleteName: (data.athleteName as string) || "el atleta",
-        amount: (data.amount as string) || "0.00 €",
+        amount: amountValue,
         dueDate: (data.dueDate as string) || new Date().toLocaleDateString(),
         academyName: (data.academyName as string) || "Tu academia",
-        paymentLink: data.paymentLink as string | undefined,
+        paymentUrl: data.paymentLink as string | undefined,
       });
       subject = `Recordatorio de pago pendiente`;
       break;
 
     case "event-invitation":
       html = EventInvitationTemplate({
-        eventTitle: (data.eventTitle as string) || "Evento",
+        eventName: (data.eventTitle as string) || (data.eventName as string) || "Evento",
         eventDate: (data.eventDate as string) || "Fecha por confirmar",
+        eventTime: data.eventTime as string | undefined,
         eventLocation: data.eventLocation as string | undefined,
-        athleteName: (data.athleteName as string) || "el atleta",
         academyName: (data.academyName as string) || "Tu academia",
-        responseLink: data.responseLink as string | undefined,
+        rsvpUrl: data.responseLink as string | undefined,
       });
       subject = `Invitación: ${data.eventTitle || "Evento"}`;
       break;

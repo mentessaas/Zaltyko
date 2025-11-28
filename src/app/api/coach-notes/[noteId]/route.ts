@@ -4,7 +4,7 @@ import { eq, and } from "drizzle-orm";
 
 import { db } from "@/db";
 import { coachNotes } from "@/db/schema";
-import { withTenant, getCurrentProfile } from "@/lib/authz";
+import { withTenant } from "@/lib/authz";
 
 const updateSchema = z.object({
   note: z.string().min(1),
@@ -17,10 +17,7 @@ export const PUT = withTenant(async (request, context) => {
     return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
   }
 
-  const profile = await getCurrentProfile(request);
-  if (!profile) {
-    return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
-  }
+  const profile = context.profile;
 
   const noteId = (context.params as { noteId?: string } | undefined)?.noteId;
 
@@ -70,10 +67,7 @@ export const DELETE = withTenant(async (_request, context) => {
     return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
   }
 
-  const profile = await getCurrentProfile(_request);
-  if (!profile) {
-    return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
-  }
+  const profile = context.profile;
 
   const noteId = (context.params as { noteId?: string } | undefined)?.noteId;
 

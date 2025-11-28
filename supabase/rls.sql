@@ -1,3 +1,17 @@
+-- ============================================================================
+-- ⚠️  DEPRECATION NOTICE ⚠️
+-- ============================================================================
+-- Este archivo está DEPRECADO y será eliminado en futuras versiones.
+-- 
+-- Por favor, usa el archivo consolidado:
+--   → supabase/rls-consolidated.sql
+--
+-- Este archivo se mantiene temporalmente para referencia, pero NO debe
+-- ser modificado ni usado para aplicar políticas RLS.
+--
+-- Fecha de deprecación: 2025-11-26
+-- ============================================================================
+
 -- Supabase RLS configuration for GymnaSaaS
 -- ----------------------------------------
 
@@ -292,18 +306,34 @@ create policy "attendance_records_modify" on attendance_records
 
 -- Events --------------------------------------------------------------------
 
+-- Política para lectura: eventos públicos o eventos del tenant
 drop policy if exists "events_select" on events;
 create policy "events_select" on events
   for select using (
-    is_admin() or tenant_id = get_current_tenant()
+    is_public = true  -- Eventos públicos son accesibles sin autenticación
+    or is_admin()
+    or tenant_id = get_current_tenant()  -- Usuarios autenticados ven eventos de su tenant
   );
 
+-- Política para modificación: solo academias dueñas pueden modificar sus eventos
 drop policy if exists "events_modify" on events;
 create policy "events_modify" on events
   for all using (
-    is_admin() or tenant_id = get_current_tenant()
+    is_admin()
+    or (
+      tenant_id = get_current_tenant()
+      and academy_id in (
+        select id from academies where tenant_id = get_current_tenant()
+      )
+    )
   ) with check (
-    is_admin() or tenant_id = get_current_tenant()
+    is_admin()
+    or (
+      tenant_id = get_current_tenant()
+      and academy_id in (
+        select id from academies where tenant_id = get_current_tenant()
+      )
+    )
   );
 
 -- Family contacts -----------------------------------------------------------

@@ -8,7 +8,8 @@ import { TenantContext, withTenant } from "@/lib/authz";
 type RouteContext = TenantContext<{ params?: { groupId?: string } }>;
 
 export const GET = withTenant(async (request, context: RouteContext) => {
-  const groupId = context.params?.groupId;
+  const params = context.params as { groupId?: string };
+  const groupId = params?.groupId;
   if (!groupId) {
     return NextResponse.json({ error: "GROUP_ID_REQUIRED" }, { status: 400 });
   }

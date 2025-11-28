@@ -6,7 +6,7 @@ import { db } from "@/db";
 import { academies, memberships, plans, profiles, subscriptions } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
 import { assertUserAcademyLimit, getUpgradeInfo } from "@/lib/limits";
-import { withRateLimit, getUserIdentifier, type RateLimitContext } from "@/lib/rate-limit";
+import { withRateLimit, getUserIdentifier } from "@/lib/rate-limit";
 import { handleApiError } from "@/lib/api-error-handler";
 import { withPayloadValidation, type PayloadValidationContext } from "@/lib/payload-validator";
 import { isAppError } from "@/lib/errors";
@@ -55,153 +55,153 @@ const handler = withTenant(async (request, context) => {
       );
     }
 
-  const isAdmin = context.profile.role === "admin" || context.profile.role === "super_admin";
-  const requesterRole = context.profile.role;
-  if (!["owner", "admin", "super_admin"].includes(requesterRole)) {
-    return NextResponse.json({ error: "PROFILE_REQUIRED" }, { status: 403 });
-  }
+    const isAdmin = context.profile.role === "admin" || context.profile.role === "super_admin";
+    const requesterRole = context.profile.role;
+    if (!["owner", "admin", "super_admin"].includes(requesterRole)) {
+      return NextResponse.json({ error: "PROFILE_REQUIRED" }, { status: 403 });
+    }
 
-  const ownerProfile = body.ownerProfileId
-    ? (
+    const ownerProfile = body.ownerProfileId
+      ? (
         await db
           .select()
           .from(profiles)
           .where(eq(profiles.id, body.ownerProfileId))
           .limit(1)
       )[0]
-    : context.profile;
+      : context.profile;
 
-  if (!ownerProfile) {
-    return NextResponse.json({ error: "OWNER_PROFILE_NOT_FOUND" }, { status: 404 });
-  }
+    if (!ownerProfile) {
+      return NextResponse.json({ error: "OWNER_PROFILE_NOT_FOUND" }, { status: 404 });
+    }
 
-  if (!["owner", "admin"].includes(ownerProfile.role)) {
-    return NextResponse.json({ error: "PROFILE_REQUIRED" }, { status: 403 });
-  }
+    if (!["owner", "admin"].includes(ownerProfile.role)) {
+      return NextResponse.json({ error: "PROFILE_REQUIRED" }, { status: 403 });
+    }
 
-  // Validate academy limit for the user
-  try {
-    await assertUserAcademyLimit(ownerProfile.userId);
-  } catch (error: any) {
-    if ((error?.status === 402 || error?.statusCode === 402) && error?.code === "ACADEMY_LIMIT_REACHED") {
-      const upgradeTo = error.payload?.upgradeTo ?? "pro";
-      const upgradeInfo = getUpgradeInfo(upgradeTo === "pro" ? "free" : "pro");
-      
-      return NextResponse.json(
-        {
-          error: "ACADEMY_LIMIT_REACHED",
-          message: `Has alcanzado el límite de academias de tu plan actual (${error.payload?.limit ?? 1} academia). Actualiza a ${upgradeTo.toUpperCase()} (${upgradeInfo.price}) para crear academias ilimitadas.`,
-          payload: {
-            ...error.payload,
-            upgradeInfo: {
-              plan: upgradeTo,
-              price: upgradeInfo.price,
-              benefits: upgradeInfo.benefits,
+    // Validate academy limit for the user
+    try {
+      await assertUserAcademyLimit(ownerProfile.userId);
+    } catch (error: any) {
+      if ((error?.status === 402 || error?.statusCode === 402) && error?.code === "ACADEMY_LIMIT_REACHED") {
+        const upgradeTo = error.payload?.upgradeTo ?? "pro";
+        const upgradeInfo = getUpgradeInfo(upgradeTo === "pro" ? "free" : "pro");
+
+        return NextResponse.json(
+          {
+            error: "ACADEMY_LIMIT_REACHED",
+            message: `Has alcanzado el límite de academias de tu plan actual (${error.payload?.limit ?? 1} academia). Actualiza a ${upgradeTo.toUpperCase()} (${upgradeInfo.price}) para crear academias ilimitadas.`,
+            payload: {
+              ...error.payload,
+              upgradeInfo: {
+                plan: upgradeTo,
+                price: upgradeInfo.price,
+                benefits: upgradeInfo.benefits,
+              },
             },
           },
-        },
-        { status: 402 }
-      );
+          { status: 402 }
+        );
+      }
+      throw error;
     }
-    throw error;
-  }
 
-  const tenantId =
-    (isAdmin && body.tenantId) || ownerProfile.tenantId || crypto.randomUUID();
+    const tenantId =
+      (isAdmin && body.tenantId) || ownerProfile.tenantId || crypto.randomUUID();
 
-  const academyId = crypto.randomUUID();
+    const academyId = crypto.randomUUID();
 
-  // No crear trial automático - el plan es "free" por defecto hasta que el usuario pague
-  await db.insert(academies).values({
-    id: academyId,
-    tenantId,
-    name: body.name,
-    country: body.country,
-    region: body.region,
-    city: body.city,
-    academyType: body.academyType,
-    ownerId: ownerProfile.id,
-    trialStartsAt: null,
-    trialEndsAt: null,
-    isTrialActive: false,
-  });
-
-  await db
-    .insert(memberships)
-    .values({
-      userId: ownerProfile.userId,
-      academyId,
-      role: "owner",
-    })
-    .onConflictDoNothing();
-
-  await seedOnboardingForAcademy({
-    academyId,
-    tenantId,
-    ownerProfileId: ownerProfile.id,
-  });
-
-  await markWizardStep({
-    academyId,
-    tenantId,
-    step: "academy",
-  });
-
-  const shouldUpdateTenant = ownerProfile.tenantId !== tenantId;
-
-  await db
-    .update(profiles)
-    .set({
-      tenantId: shouldUpdateTenant ? tenantId : ownerProfile.tenantId,
-      activeAcademyId: academyId,
-    })
-    .where(eq(profiles.id, ownerProfile.id));
-
-  // Create or ensure subscription exists for the user (not the academy)
-  const [existingSubscription] = await db
-    .select({ id: subscriptions.id })
-    .from(subscriptions)
-    .where(eq(subscriptions.userId, ownerProfile.userId))
-    .limit(1);
-
-  if (!existingSubscription) {
-    const [freePlan] = await db
-      .select({ id: plans.id })
-      .from(plans)
-      .where(eq(plans.code, "free"))
-      .limit(1);
+    // No crear trial automático - el plan es "free" por defecto hasta que el usuario pague
+    await db.insert(academies).values({
+      id: academyId,
+      tenantId,
+      name: body.name,
+      country: body.country,
+      region: body.region,
+      city: body.city,
+      academyType: body.academyType,
+      ownerId: ownerProfile.id,
+      trialStartsAt: null,
+      trialEndsAt: null,
+      isTrialActive: false,
+    });
 
     await db
-      .insert(subscriptions)
+      .insert(memberships)
       .values({
         userId: ownerProfile.userId,
-        planId: freePlan?.id ?? null,
-        status: "active",
+        academyId,
+        role: "owner",
       })
       .onConflictDoNothing();
-  }
 
-  await trackEvent("academy_created", {
-    academyId,
-    tenantId,
-    userId: ownerProfile.userId,
-    metadata: {
-      country: body.country,
-      academyType: body.academyType,
-    },
-  });
+    await seedOnboardingForAcademy({
+      academyId,
+      tenantId,
+      ownerProfileId: ownerProfile.id,
+    });
 
-  // No trackear trial_started ya que no se crea trial automático
+    await markWizardStep({
+      academyId,
+      tenantId,
+      step: "academy",
+    });
 
-  // Log event for Super Admin metrics
-  await logEvent({
-    academyId,
-    eventType: "academy_created",
-    metadata: {
-      country: body.country,
-      academyType: body.academyType,
-    },
-  });
+    const shouldUpdateTenant = ownerProfile.tenantId !== tenantId;
+
+    await db
+      .update(profiles)
+      .set({
+        tenantId: shouldUpdateTenant ? tenantId : ownerProfile.tenantId,
+        activeAcademyId: academyId,
+      })
+      .where(eq(profiles.id, ownerProfile.id));
+
+    // Create or ensure subscription exists for the user (not the academy)
+    const [existingSubscription] = await db
+      .select({ id: subscriptions.id })
+      .from(subscriptions)
+      .where(eq(subscriptions.userId, ownerProfile.userId))
+      .limit(1);
+
+    if (!existingSubscription) {
+      const [freePlan] = await db
+        .select({ id: plans.id })
+        .from(plans)
+        .where(eq(plans.code, "free"))
+        .limit(1);
+
+      await db
+        .insert(subscriptions)
+        .values({
+          userId: ownerProfile.userId,
+          planId: freePlan?.id ?? null,
+          status: "active",
+        })
+        .onConflictDoNothing();
+    }
+
+    await trackEvent("academy_created", {
+      academyId,
+      tenantId,
+      userId: ownerProfile.userId,
+      metadata: {
+        country: body.country,
+        academyType: body.academyType,
+      },
+    });
+
+    // No trackear trial_started ya que no se crea trial automático
+
+    // Log event for Super Admin metrics
+    await logEvent({
+      academyId,
+      eventType: "academy_created",
+      metadata: {
+        country: body.country,
+        academyType: body.academyType,
+      },
+    });
 
     return NextResponse.json({
       id: academyId,
@@ -218,7 +218,7 @@ const handler = withTenant(async (request, context) => {
 // pero con withTenant necesitamos un wrapper adicional
 const wrappedHandler = async (
   request: Request,
-  context?: RateLimitContext & PayloadValidationContext
+  context?: PayloadValidationContext
 ) => {
   try {
     return (await handler(request, context ?? {})) as NextResponse;
@@ -267,7 +267,7 @@ export const GET = withTenant(async (request, context) => {
     filters.push(eq(academies.academyType, academyType));
   }
 
-  let query = db
+  const baseQuery = db
     .select({
       id: academies.id,
       name: academies.name,
@@ -276,11 +276,9 @@ export const GET = withTenant(async (request, context) => {
     })
     .from(academies);
 
-  if (filters.length > 0) {
-    query = query.where(filters.length === 1 ? filters[0]! : and(...filters));
-  }
-
-  const rows = await query.orderBy(asc(academies.name));
+  const rows = filters.length > 0
+    ? await baseQuery.where(filters.length === 1 ? filters[0]! : and(...filters)).orderBy(asc(academies.name))
+    : await baseQuery.orderBy(asc(academies.name));
 
   return NextResponse.json({ items: rows });
 });

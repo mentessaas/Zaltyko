@@ -74,8 +74,8 @@ export function AthletesTableView({ academyId, athletes: initialAthletes, levels
         if (response.ok) {
           const data = await response.json();
           if (Array.isArray(data.alerts)) {
-            const athleteIdsWithAlerts = new Set(
-              data.alerts.map((alert: any) => alert.athleteId)
+            const athleteIdsWithAlerts = new Set<string>(
+              data.alerts.map((alert: any) => alert.athleteId as string)
             );
             setAthletesWithAlerts(athleteIdsWithAlerts);
           }

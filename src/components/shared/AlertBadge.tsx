@@ -25,9 +25,9 @@ export function AlertBadge({ type, severity = "medium", className }: AlertBadgeP
   };
 
   const getVariant = () => {
-    if (severity === "high") return "destructive";
+    if (severity === "high") return "error";
     if (severity === "medium") return "default";
-    return "secondary";
+    return "outline";
   };
 
   const Icon = getIcon();

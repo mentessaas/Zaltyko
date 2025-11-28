@@ -27,48 +27,48 @@ export async function detectPaymentAlerts(
     const cutoffDate = subDays(today, daysOverdue);
 
     const overdueCharges = await db
-    .select({
-      chargeId: charges.id,
-      athleteId: charges.athleteId,
-      athleteName: athletes.name,
-      amountCents: charges.amountCents,
-      dueDate: charges.dueDate,
-    })
-    .from(charges)
-    .innerJoin(athletes, eq(charges.athleteId, athletes.id))
-    .where(
-      and(
-        eq(charges.academyId, academyId),
-        eq(charges.tenantId, tenantId),
-        eq(charges.status, "pending"),
-        lte(charges.dueDate, cutoffDate)
-      )
-    );
+      .select({
+        chargeId: charges.id,
+        athleteId: charges.athleteId,
+        athleteName: athletes.name,
+        amountCents: charges.amountCents,
+        dueDate: charges.dueDate,
+      })
+      .from(charges)
+      .innerJoin(athletes, eq(charges.athleteId, athletes.id))
+      .where(
+        and(
+          eq(charges.academyId, academyId),
+          eq(charges.tenantId, tenantId),
+          eq(charges.status, "pending"),
+          lte(charges.dueDate, cutoffDate.toISOString().split("T")[0])
+        )
+      );
 
-  const alerts: PaymentAlert[] = [];
+    const alerts: PaymentAlert[] = [];
 
-  for (const charge of overdueCharges) {
-    // Obtener contactos de familia
-    const contacts = await db
-      .select({ contactId: familyContacts.contactId })
-      .from(familyContacts)
-      .where(eq(familyContacts.athleteId, charge.athleteId));
+    for (const charge of overdueCharges) {
+      // Obtener contactos de familia
+      const contacts = await db
+        .select({ contactId: familyContacts.id })
+        .from(familyContacts)
+        .where(eq(familyContacts.athleteId, charge.athleteId));
 
-    const daysOverdueValue = Math.floor(
-      (today.getTime() - (charge.dueDate?.getTime() || today.getTime())) /
+      const daysOverdueValue = Math.floor(
+        (today.getTime() - (charge.dueDate ? new Date(charge.dueDate).getTime() : today.getTime())) /
         (1000 * 60 * 60 * 24)
-    );
+      );
 
-    alerts.push({
-      chargeId: charge.chargeId,
-      athleteId: charge.athleteId,
-      athleteName: charge.athleteName || "Sin nombre",
-      amount: Number(charge.amountCents) / 100,
-      dueDate: charge.dueDate || today,
-      daysOverdue: daysOverdueValue,
-      parentContactIds: contacts.map((c) => c.contactId),
-    });
-  }
+      alerts.push({
+        chargeId: charge.chargeId,
+        athleteId: charge.athleteId,
+        athleteName: charge.athleteName || "Sin nombre",
+        amount: Number(charge.amountCents) / 100,
+        dueDate: charge.dueDate ? new Date(charge.dueDate) : today,
+        daysOverdue: daysOverdueValue,
+        parentContactIds: contacts.map((c) => c.contactId),
+      });
+    }
 
     return alerts;
   } catch (error) {

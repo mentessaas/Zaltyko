@@ -39,27 +39,29 @@ export const GET = withTenant(async (request, context) => {
 
   const { classId, academyId, coachId, from, to } = params.data;
 
-  let whereClause = eq(classSessions.tenantId, context.tenantId);
+  const whereConditions = [eq(classSessions.tenantId, context.tenantId)];
 
   if (classId) {
-    whereClause = and(whereClause, eq(classSessions.classId, classId));
+    whereConditions.push(eq(classSessions.classId, classId));
   }
 
   if (coachId) {
-    whereClause = and(whereClause, eq(classSessions.coachId, coachId));
+    whereConditions.push(eq(classSessions.coachId, coachId));
   }
 
   if (from) {
-    whereClause = and(whereClause, gte(classSessions.sessionDate, from));
+    whereConditions.push(gte(classSessions.sessionDate, from));
   }
 
   if (to) {
-    whereClause = and(whereClause, lte(classSessions.sessionDate, to));
+    whereConditions.push(lte(classSessions.sessionDate, to));
   }
 
   if (academyId) {
-    whereClause = and(whereClause, eq(classes.academyId, academyId));
+    whereConditions.push(eq(classes.academyId, academyId));
   }
+
+  const whereClause = whereConditions.length === 1 ? whereConditions[0]! : and(...whereConditions);
 
   const rows = await db
     .select({

@@ -50,7 +50,55 @@ function tryExtractRoleFromCookies(req: NextRequest) {
   return null;
 }
 
-export function middleware(req: NextRequest) {
+export async function middleware(req: NextRequest) {
+  // 1. Rate Limiting
+  if (!req.nextUrl.pathname.startsWith("/_next") && !req.nextUrl.pathname.startsWith("/static")) {
+    try {
+      const { rateLimit, getLimitForRoute, getClientIdentifier } = await import("@/lib/rate-limit");
+
+      const pathname = req.nextUrl.pathname;
+      const limits = getLimitForRoute(pathname);
+      const identifier = getClientIdentifier(req);
+
+      const result = await rateLimit({
+        identifier: `${pathname}:${identifier}`,
+        limit: limits.limit,
+        window: limits.window,
+      });
+
+      if (!result.success) {
+        return new NextResponse(JSON.stringify({
+          error: "RATE_LIMIT_EXCEEDED",
+          message: "Demasiadas requests. Intenta de nuevo más tarde."
+        }), {
+          status: 429,
+          headers: {
+            "Content-Type": "application/json",
+            "X-RateLimit-Limit": String(result.limit),
+            "X-RateLimit-Remaining": "0",
+            "X-RateLimit-Reset": String(result.reset),
+            "Retry-After": String(result.reset - Math.floor(Date.now() / 1000)),
+          }
+        });
+      }
+
+      // Store rate limit info to add to response later if needed, 
+      // but for middleware we usually just proceed. 
+      // We can add headers to the response object we return at the end.
+      const requestHeaders = new Headers(req.headers);
+      requestHeaders.set("X-RateLimit-Limit", String(result.limit));
+      requestHeaders.set("X-RateLimit-Remaining", String(result.remaining));
+      requestHeaders.set("X-RateLimit-Reset", String(result.reset));
+
+      // Pass these headers to the next request processing
+      // (This modifies the request headers sent to the route handler)
+      // To set response headers, we need to do it on the returned response
+    } catch (error) {
+      console.error("Rate limit error in middleware:", error);
+      // Continue on error (fail open)
+    }
+  }
+
   if (!req.nextUrl.pathname.startsWith("/super-admin")) {
     return NextResponse.next();
   }

@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import Navbar from "@/app/(site)/Navbar";
+import Footer from "@/app/(site)/Footer";
 
 const updatedAt = "8 de noviembre de 2025";
 
@@ -96,38 +98,44 @@ export const metadata: Metadata = {
 
 export default function PrivacyPolicy() {
   return (
-    <main className="mx-auto max-w-3xl px-6 py-16 text-slate-200">
-      <Link
-        href="/"
-        className="inline-flex items-center gap-2 text-sm font-semibold text-emerald-300 hover:text-emerald-200"
-      >
-        <span aria-hidden>←</span> Volver al inicio
-      </Link>
+    <div className="min-h-screen flex flex-col bg-background">
+      <Navbar />
+      <main className="flex-1 pt-32 pb-16">
+        <div className="mx-auto max-w-3xl px-6">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-2 text-sm font-semibold text-zaltyko-primary hover:text-zaltyko-primary-dark transition-colors"
+          >
+            <span aria-hidden>←</span> Volver al inicio
+          </Link>
 
-      <header className="mt-8 space-y-3">
-        <p className="text-xs uppercase tracking-[0.35em] text-emerald-300">
-          Política de privacidad
-        </p>
-        <h1 className="text-3xl font-semibold text-white sm:text-4xl">
-          Protegemos los datos que confías a Zaltyko
-        </h1>
-        <p className="text-sm text-slate-400">
-          Última actualización: {updatedAt}
-        </p>
-      </header>
+          <header className="mt-8 space-y-3">
+            <p className="text-xs uppercase tracking-[0.35em] text-zaltyko-primary font-semibold">
+              Política de privacidad
+            </p>
+            <h1 className="text-3xl font-bold text-zaltyko-text-main sm:text-4xl">
+              Protegemos los datos que confías a Zaltyko
+            </h1>
+            <p className="text-sm text-zaltyko-text-secondary">
+              Última actualización: {updatedAt}
+            </p>
+          </header>
 
-      <section className="mt-10 space-y-10">
-        {sections.map((section) => (
-          <article key={section.title} className="space-y-4">
-            <h2 className="text-xl font-semibold text-white">{section.title}</h2>
-            <div className="space-y-3 text-sm leading-relaxed text-slate-200/80">
-              {section.content.map((paragraph) => (
-                <p key={paragraph}>{paragraph}</p>
-              ))}
-            </div>
-          </article>
-        ))}
-      </section>
-    </main>
+          <section className="mt-10 space-y-10">
+            {sections.map((section) => (
+              <article key={section.title} className="space-y-4">
+                <h2 className="text-xl font-semibold text-zaltyko-text-main">{section.title}</h2>
+                <div className="space-y-3 text-sm leading-relaxed text-zaltyko-text-secondary">
+                  {section.content.map((paragraph) => (
+                    <p key={paragraph}>{paragraph}</p>
+                  ))}
+                </div>
+              </article>
+            ))}
+          </section>
+        </div>
+      </main>
+      <Footer />
+    </div>
   );
 }

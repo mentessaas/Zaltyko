@@ -1,7 +1,10 @@
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { eq, and } from "drizzle-orm";
 
 import { db } from "@/db";
 import { events, academies } from "@/db/schema";
+import { createClient } from "@/lib/supabase/server";
 import { EventsList } from "@/components/events/EventsList";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 
@@ -13,31 +16,69 @@ interface PageProps {
 
 export default async function EventsPage({ params }: PageProps) {
   const { academyId } = params;
+  const cookieStore = await cookies();
+  const supabase = await createClient(cookieStore);
 
-  // Obtener país de la academia
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/auth/login");
+  }
+
+  // Obtener academia con tenantId
   const [academy] = await db
     .select({
+      id: academies.id,
+      tenantId: academies.tenantId,
       country: academies.country,
     })
     .from(academies)
     .where(eq(academies.id, academyId))
     .limit(1);
 
-  // Si no hay eventos, intentar obtener tenantId de otra forma
-  // Por ahora, asumimos que el tenantId se obtiene del contexto de autenticación
-  // En producción, esto debería venir del middleware/authz
+  if (!academy) {
+    redirect("/dashboard");
+  }
 
-  const eventRows = await db
-    .select({
-      id: events.id,
-      title: events.title,
-      date: events.date,
-      location: events.location,
-      status: events.status,
-      academyId: events.academyId,
-    })
-    .from(events)
-    .where(eq(events.academyId, academyId));
+  // Obtener eventos de la academia filtrando por tenantId
+  let eventRows: {
+    id: string;
+    title: string;
+    startDate: string | null;
+    endDate: string | null;
+    country: string | null;
+    province: string | null;
+    city: string | null;
+    level: string;
+    discipline: string | null;
+    isPublic: boolean | null;
+    academyId: string;
+  }[] = [];
+  try {
+    eventRows = await db
+      .select({
+        id: events.id,
+        title: events.title,
+        startDate: events.startDate,
+        endDate: events.endDate,
+        country: events.country,
+        province: events.province,
+        city: events.city,
+        level: events.level,
+        discipline: events.discipline,
+        isPublic: events.isPublic,
+        academyId: events.academyId,
+      })
+      .from(events)
+      .where(and(eq(events.academyId, academyId), eq(events.tenantId, academy.tenantId)));
+  } catch (error: any) {
+    console.error("Error fetching events:", error);
+    // Si hay un error, probablemente la tabla no existe o no tiene la estructura correcta
+    // Retornar array vacío por ahora
+    eventRows = [];
+  }
 
   return (
     <div className="space-y-6 p-4 sm:p-6 lg:p-8">
@@ -52,9 +93,9 @@ export default async function EventsPage({ params }: PageProps) {
         events={eventRows.map((event) => ({
           id: event.id,
           title: event.title,
-          date: event.date || null,
-          location: event.location,
-          status: event.status,
+          date: event.startDate ? String(event.startDate) : null,
+          location: [event.city, event.province, event.country].filter(Boolean).join(", ") || null,
+          status: event.isPublic ? "public" : "private",
           academyId: event.academyId,
         }))}
         academyCountry={academy?.country ?? null}

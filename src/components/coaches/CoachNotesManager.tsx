@@ -209,7 +209,7 @@ export function CoachNotesManager({
                 {note.tags && note.tags.length > 0 && (
                   <div className="flex flex-wrap gap-2 mt-4">
                     {note.tags.map((tag, idx) => (
-                      <Badge key={idx} variant="secondary">
+                      <Badge key={idx} variant="outline">
                         {tag}
                       </Badge>
                     ))}

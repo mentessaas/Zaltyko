@@ -5,6 +5,39 @@ import { db } from "@/db";
 import { plans } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
 
+/**
+ * @swagger
+ * /api/billing/plans:
+ *   get:
+ *     summary: Obtiene los planes de suscripción disponibles
+ *     description: Retorna una lista de planes activos ordenados por precio
+ *     tags:
+ *       - Billing
+ *     responses:
+ *       200:
+ *         description: Lista de planes
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   code:
+ *                     type: string
+ *                   nickname:
+ *                     type: string
+ *                   priceEur:
+ *                     type: number
+ *                   currency:
+ *                     type: string
+ *                   billingInterval:
+ *                     type: string
+ *                   athleteLimit:
+ *                     type: integer
+ *                   stripePriceId:
+ *                     type: string
+ */
 export const GET = withTenant(async () => {
   const items = await db
     .select({

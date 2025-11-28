@@ -24,7 +24,7 @@ export default function CheckoutButton({ priceId }: CheckoutButtonProps) {
 
       const { sessionId } = await response.json();
       const stripe = await getStripe();
-      stripe?.redirectToCheckout({ sessionId });
+      (stripe as any)?.redirectToCheckout({ sessionId });
     } catch (error) {
       console.error("Error:", error);
     } finally {

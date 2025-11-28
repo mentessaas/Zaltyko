@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { Metadata } from "next";
+import { eq } from "drizzle-orm";
 
 import { LoginForm } from "@/components/LoginForm/LoginForm";
 import { createClient } from "@/lib/supabase/server";
@@ -28,7 +29,7 @@ export default async function Login() {
     const [profile] = await db
       .select()
       .from(profiles)
-      .where(profiles.userId.eq(user.id))
+      .where(eq(profiles.userId, user.id))
       .limit(1);
 
     if (profile) {

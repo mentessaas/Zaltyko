@@ -41,6 +41,7 @@ export function EventsList({ academyId, events, academyCountry }: EventsListProp
     try {
       const response = await fetch(`/api/events/${eventId}`, {
         method: "DELETE",
+        credentials: "include", // Incluir cookies para autenticación
       });
 
       if (!response.ok) {

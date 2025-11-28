@@ -22,9 +22,9 @@ const handler = withTenant(async (request, context) => {
     const stripeSecretKey = getOptionalEnvVar("STRIPE_SECRET_KEY");
     // Verificar que la clave existe y no está vacía
     if (!stripeSecretKey || stripeSecretKey.trim() === "") {
-      return NextResponse.json({ 
-        error: "STRIPE_NOT_CONFIGURED", 
-        message: "Stripe no está configurado. Contacta con soporte para habilitar los pagos." 
+      return NextResponse.json({
+        error: "STRIPE_NOT_CONFIGURED",
+        message: "Stripe no está configurado. Contacta con soporte para habilitar los pagos."
       }, { status: 503 }); // 503 Service Unavailable es más apropiado que 500
     }
 
@@ -57,9 +57,9 @@ const handler = withTenant(async (request, context) => {
     try {
       stripe = getStripeClient();
     } catch (error) {
-      return NextResponse.json({ 
-        error: "STRIPE_INIT_ERROR", 
-        message: error instanceof Error ? error.message : "Error al inicializar Stripe. Contacta con soporte." 
+      return NextResponse.json({
+        error: "STRIPE_INIT_ERROR",
+        message: error instanceof Error ? error.message : "Error al inicializar Stripe. Contacta con soporte."
       }, { status: 500 });
     }
 
@@ -71,7 +71,7 @@ const handler = withTenant(async (request, context) => {
         .from(academies)
         .where(eq(academies.id, body.academyId))
         .limit(1);
-      
+
       if (academyForTenant?.tenantId) {
         effectiveTenantId = academyForTenant.tenantId;
       }
@@ -108,100 +108,100 @@ const handler = withTenant(async (request, context) => {
       return NextResponse.json({ error: "FORBIDDEN", message: "No tienes permisos para realizar esta acción" }, { status: 403 });
     }
 
-  if (!academy.ownerId) {
-    return NextResponse.json({ error: "ACADEMY_HAS_NO_OWNER" }, { status: 400 });
-  }
+    if (!academy.ownerId) {
+      return NextResponse.json({ error: "ACADEMY_HAS_NO_OWNER" }, { status: 400 });
+    }
 
-  const [owner] = await db
-    .select({
-      userId: profiles.userId,
-      name: profiles.name,
-    })
-    .from(profiles)
-    .where(eq(profiles.id, academy.ownerId))
-    .limit(1);
+    const [owner] = await db
+      .select({
+        userId: profiles.userId,
+        name: profiles.name,
+      })
+      .from(profiles)
+      .where(eq(profiles.id, academy.ownerId))
+      .limit(1);
 
-  if (!owner) {
-    return NextResponse.json({ error: "OWNER_NOT_FOUND" }, { status: 404 });
-  }
+    if (!owner) {
+      return NextResponse.json({ error: "OWNER_NOT_FOUND" }, { status: 404 });
+    }
 
-  const [existingSubscription] = await db
-    .select({
-      stripeCustomerId: subscriptions.stripeCustomerId,
-    })
-    .from(subscriptions)
-    .where(eq(subscriptions.userId, owner.userId))
-    .limit(1);
-
-  const [plan] = await db.select().from(plans).where(eq(plans.code, body.planCode)).limit(1);
-
-  if (!plan?.stripePriceId) {
-    return NextResponse.json({ error: "PLAN_NOT_AVAILABLE" }, { status: 400 });
-  }
-
-  let customerId = existingSubscription?.stripeCustomerId ?? undefined;
-
-  if (!customerId) {
-    const customer = await stripe.customers.create({
-      name: owner.name ?? academy.name,
-      metadata: {
-        userId: owner.userId,
-        tenantId: academy.tenantId,
-      },
-    });
-
-    customerId = customer.id;
-    
-    const [existingSub] = await db
-      .select({ id: subscriptions.id })
+    const [existingSubscription] = await db
+      .select({
+        stripeCustomerId: subscriptions.stripeCustomerId,
+      })
       .from(subscriptions)
       .where(eq(subscriptions.userId, owner.userId))
       .limit(1);
 
-    if (existingSub) {
-      await db
-        .update(subscriptions)
-        .set({ stripeCustomerId: customerId })
-        .where(eq(subscriptions.userId, owner.userId));
-    } else {
-      await db.insert(subscriptions).values({
-        userId: owner.userId,
-        planId: plan.id,
-        stripeCustomerId: customerId,
-        status: "incomplete",
-      });
+    const [plan] = await db.select().from(plans).where(eq(plans.code, body.planCode)).limit(1);
+
+    if (!plan?.stripePriceId) {
+      return NextResponse.json({ error: "PLAN_NOT_AVAILABLE" }, { status: 400 });
     }
-  }
 
-  const successUrl = `${getAppUrl()}/billing/success?academy=${body.academyId}`;
-  const cancelUrl = `${getAppUrl()}/billing`;
+    let customerId = existingSubscription?.stripeCustomerId ?? undefined;
 
-  const session = await stripe.checkout.sessions.create({
-    mode: "subscription",
-    customer: customerId,
-    allow_promotion_codes: false,
-    payment_method_types: ["card"],
-    line_items: [
-      {
-        price: plan.stripePriceId,
-        quantity: 1,
+    if (!customerId) {
+      const customer = await stripe.customers.create({
+        name: owner.name ?? academy.name,
+        metadata: {
+          userId: owner.userId,
+          tenantId: academy.tenantId,
+        },
+      });
+
+      customerId = customer.id;
+
+      const [existingSub] = await db
+        .select({ id: subscriptions.id })
+        .from(subscriptions)
+        .where(eq(subscriptions.userId, owner.userId))
+        .limit(1);
+
+      if (existingSub) {
+        await db
+          .update(subscriptions)
+          .set({ stripeCustomerId: customerId })
+          .where(eq(subscriptions.userId, owner.userId));
+      } else {
+        await db.insert(subscriptions).values({
+          userId: owner.userId,
+          planId: plan.id,
+          stripeCustomerId: customerId,
+          status: "incomplete",
+        });
+      }
+    }
+
+    const successUrl = `${getAppUrl()}/billing/success?academy=${body.academyId}`;
+    const cancelUrl = `${getAppUrl()}/billing`;
+
+    const session = await stripe.checkout.sessions.create({
+      mode: "subscription",
+      customer: customerId,
+      allow_promotion_codes: false,
+      payment_method_types: ["card"],
+      line_items: [
+        {
+          price: plan.stripePriceId,
+          quantity: 1,
+        },
+      ],
+      subscription_data: {
+        metadata: {
+          userId: owner.userId,
+          tenantId: academy.tenantId,
+          planCode: plan.code,
+        },
       },
-    ],
-    subscription_data: {
       metadata: {
         userId: owner.userId,
         tenantId: academy.tenantId,
         planCode: plan.code,
       },
-    },
-    metadata: {
-      userId: owner.userId,
-      tenantId: academy.tenantId,
-      planCode: plan.code,
-    },
-    success_url: successUrl,
-    cancel_url: cancelUrl,
-  });
+      success_url: successUrl,
+      cancel_url: cancelUrl,
+    });
 
     return NextResponse.json({ checkoutUrl: session.url });
   } catch (error) {
@@ -210,10 +210,9 @@ const handler = withTenant(async (request, context) => {
 });
 
 // Aplicar rate limiting: 10 requests por minuto para checkout
-// El rate limiting se aplica antes de withTenant
 export const POST = withRateLimit(
   async (request) => {
-    return (await handler(request, {} as any)) as NextResponse;
+    return (await handler(request, {} as { params?: Record<string, string> })) as NextResponse;
   },
   { identifier: getUserIdentifier }
 );

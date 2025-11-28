@@ -300,16 +300,16 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
 
   // Athlete: mostrar perfil de atleta
   if (role === "athlete") {
-    // Buscar el atleta asociado a este usuario a través de memberships
-    const athleteMemberships = await db
+    // Buscar el atleta asociado a este usuario directamente
+    const [athleteRecord] = await db
       .select({
-        academyId: memberships.academyId,
+        academyId: athletes.academyId,
       })
-      .from(memberships)
-      .where(and(eq(memberships.userId, targetProfile.userId), eq(memberships.role, "athlete")))
+      .from(athletes)
+      .where(eq(athletes.userId, targetProfile.userId))
       .limit(1);
 
-    if (athleteMemberships.length === 0) {
+    if (!athleteRecord) {
       return (
         <div className="space-y-6 p-4 sm:p-6 lg:p-8">
           <div className="rounded-lg border border-amber-400/60 bg-amber-400/10 p-6">
@@ -321,7 +321,7 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
       );
     }
 
-    const academyId = athleteMemberships[0].academyId;
+    const academyId = athleteRecord.academyId;
 
     // Buscar el atleta en esa academia
     const [athlete] = await db
@@ -382,6 +382,7 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
           profile={targetProfile}
           athleteData={{
             ...athlete,
+            dob: athlete.dob ? new Date(athlete.dob) : null,
             classesCount,
             upcomingSessionsCount,
             age,

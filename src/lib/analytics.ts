@@ -17,7 +17,7 @@ export async function trackEvent(eventName: string, payload: AnalyticsPayload = 
 
   try {
     if (!isProduction()) {
-      logger.info(`analytics.${eventName}`, payload);
+      logger.info(`analytics.${eventName}`, payload as any);
     }
     // Placeholder for future analytics provider integration (PostHog, Segment, etc.)
   } catch (error) {

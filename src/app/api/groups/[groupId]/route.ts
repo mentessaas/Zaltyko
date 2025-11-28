@@ -33,7 +33,8 @@ const GroupUpdateSchema = z.object({
 });
 
 export const PATCH = withTenant(async (request, context: RouteContext) => {
-  const groupId = context.params?.groupId;
+  const params = context.params as { groupId?: string };
+  const groupId = params?.groupId;
   if (!groupId) {
     return NextResponse.json({ error: "GROUP_ID_REQUIRED" }, { status: 400 });
   }
@@ -178,7 +179,8 @@ export const PATCH = withTenant(async (request, context: RouteContext) => {
 });
 
 export const DELETE = withTenant(async (request, context: RouteContext) => {
-  const groupId = context.params?.groupId;
+  const params = context.params as { groupId?: string };
+  const groupId = params?.groupId;
   if (!groupId) {
     return NextResponse.json({ error: "GROUP_ID_REQUIRED" }, { status: 400 });
   }
