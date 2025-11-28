@@ -1,6 +1,7 @@
 import { db } from "@/db";
 import { attendanceRecords, classSessions, athletes, classes, groups } from "@/db/schema";
 import { eq, and, gte, lte, inArray, count, sql } from "drizzle-orm";
+import { format } from "date-fns";
 
 export interface AttendanceReportFilters {
   academyId: string;
@@ -61,10 +62,10 @@ export async function calculateAthleteAttendance(
   ];
 
   if (filters.startDate) {
-    whereConditions.push(gte(classSessions.sessionDate, filters.startDate));
+    whereConditions.push(gte(classSessions.sessionDate, format(filters.startDate, "yyyy-MM-dd")));
   }
   if (filters.endDate) {
-    whereConditions.push(lte(classSessions.sessionDate, filters.endDate));
+    whereConditions.push(lte(classSessions.sessionDate, format(filters.endDate, "yyyy-MM-dd")));
   }
   if (filters.classId) {
     whereConditions.push(eq(classSessions.classId, filters.classId));
@@ -158,10 +159,10 @@ export async function calculateGroupAttendance(
   ];
 
   if (filters.startDate) {
-    whereConditions.push(gte(classSessions.sessionDate, filters.startDate));
+    whereConditions.push(gte(classSessions.sessionDate, format(filters.startDate, "yyyy-MM-dd")));
   }
   if (filters.endDate) {
-    whereConditions.push(lte(classSessions.sessionDate, filters.endDate));
+    whereConditions.push(lte(classSessions.sessionDate, format(filters.endDate, "yyyy-MM-dd")));
   }
 
   // Obtener estadísticas por atleta
@@ -236,10 +237,10 @@ export async function calculateGeneralAttendance(
   const whereConditions = [eq(attendanceRecords.tenantId, filters.tenantId)];
 
   if (filters.startDate) {
-    whereConditions.push(gte(classSessions.sessionDate, filters.startDate));
+    whereConditions.push(gte(classSessions.sessionDate, format(filters.startDate, "yyyy-MM-dd")));
   }
   if (filters.endDate) {
-    whereConditions.push(lte(classSessions.sessionDate, filters.endDate));
+    whereConditions.push(lte(classSessions.sessionDate, format(filters.endDate, "yyyy-MM-dd")));
   }
   if (filters.athleteId) {
     whereConditions.push(eq(attendanceRecords.athleteId, filters.athleteId));
