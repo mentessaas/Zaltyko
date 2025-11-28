@@ -6,7 +6,7 @@ let stripePromise: Promise<Stripe | null>;
 
 export const getStripe = () => {
   if (!stripePromise) {
-    const publishableKey = getOptionalEnvVar("NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY");
+    const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
     if (!publishableKey) {
       throw new Error("NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY must be set");
     }
@@ -31,14 +31,14 @@ export const stripe = new Proxy({} as StripeServer, {
       if (!secretKey) {
         if (isBuildTime) {
           stripeServerInstance = new StripeServer("sk_test_dummy_key_for_build", {
-            apiVersion: "2024-06-20",
+            apiVersion: "2025-02-24.acacia",
           });
         } else {
           throw new Error("STRIPE_SECRET_KEY debe estar definido para operaciones de facturación");
         }
       } else {
         stripeServerInstance = new StripeServer(secretKey, {
-          apiVersion: "2024-06-20",
+          apiVersion: "2025-02-24.acacia",
         });
       }
     }
