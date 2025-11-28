@@ -78,7 +78,7 @@ export function normalizeEventFormData(
   return {
     title: initialData?.title || "",
     description: initialData?.description || "",
-    category: initialData?.category ? (Array.isArray(initialData.category) ? initialData.category.join(", ") : initialData.category) : "",
+    category: Array.isArray(initialData?.category) ? initialData.category : (initialData?.category ? [initialData.category] : []),
     isPublic: initialData?.isPublic ?? false,
     level: (initialData?.level as EventLevel) || "internal",
     discipline: (initialData?.discipline as EventDiscipline) || "",
