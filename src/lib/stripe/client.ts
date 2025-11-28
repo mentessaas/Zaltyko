@@ -15,7 +15,7 @@ export function getStripeClient(): Stripe {
     if (isBuildTime || isTest()) {
       // Retornar un cliente dummy para permitir que el build continúe
       return new Stripe("sk_test_dummy_key_for_build", {
-        apiVersion: "2024-06-20",
+        apiVersion: "2025-02-24.acacia",
       });
     }
     throw new Error("STRIPE_SECRET_KEY debe estar definido para operaciones de facturación");
@@ -23,7 +23,7 @@ export function getStripeClient(): Stripe {
 
   if (!stripeClient) {
     stripeClient = new Stripe(secretKey, {
-      apiVersion: "2024-06-20",
+      apiVersion: "2025-02-24.acacia",
     });
   }
 
