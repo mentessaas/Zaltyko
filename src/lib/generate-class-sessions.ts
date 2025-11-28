@@ -59,8 +59,8 @@ export async function generateClassSessions(
             .where(
                 and(
                     eq(classExceptions.classId, classId),
-                    gte(classExceptions.exceptionDate, today),
-                    lte(classExceptions.exceptionDate, endDate)
+                    gte(classExceptions.exceptionDate, format(today, "yyyy-MM-dd")),
+                    lte(classExceptions.exceptionDate, format(endDate, "yyyy-MM-dd"))
                 )
             );
 
