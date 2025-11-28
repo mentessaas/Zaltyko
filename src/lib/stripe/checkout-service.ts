@@ -2,7 +2,7 @@ import Stripe from "stripe";
 import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
-import { academies, plans, subscriptions, profiles } from "@/db/schema";
+import { academies, plans, subscriptions, profiles, authUsers } from "@/db/schema";
 import { getStripeClient } from "@/lib/stripe/client";
 import { getAppUrl } from "@/lib/env";
 import { verifyAcademyAccess } from "@/lib/permissions";
@@ -41,10 +41,11 @@ export async function getOrCreateStripeCustomer(userId: string): Promise<string>
   // Obtener perfil del usuario para el email
   const [profile] = await db
     .select({
-      email: profiles.email,
+      email: authUsers.email,
       name: profiles.name,
     })
     .from(profiles)
+    .innerJoin(authUsers, eq(authUsers.id, profiles.userId))
     .where(eq(profiles.userId, userId))
     .limit(1);
 
