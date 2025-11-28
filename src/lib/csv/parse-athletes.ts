@@ -5,6 +5,7 @@ export interface AthleteCSVRow {
     apellido?: string;
     email?: string;
     fechaNacimiento?: string;
+    fechanacimiento?: string; // Alternative casing from CSV
     nivel?: string;
     grupo?: string;
 }
