@@ -7,6 +7,7 @@ import {
   coaches,
 } from "@/db/schema";
 import { eq, and, gte, lte, desc, inArray } from "drizzle-orm";
+import { format } from "date-fns";
 
 export interface ProgressReportFilters {
   academyId: string;
@@ -58,10 +59,10 @@ export async function analyzeAthleteProgress(
   ];
 
   if (filters.startDate) {
-    whereConditions.push(gte(athleteAssessments.assessmentDate, filters.startDate));
+    whereConditions.push(gte(athleteAssessments.assessmentDate, format(filters.startDate, "yyyy-MM-dd")));
   }
   if (filters.endDate) {
-    whereConditions.push(lte(athleteAssessments.assessmentDate, filters.endDate));
+    whereConditions.push(lte(athleteAssessments.assessmentDate, format(filters.endDate, "yyyy-MM-dd")));
   }
 
   // Obtener evaluaciones
