@@ -19,7 +19,7 @@ interface StripePlanMetadata {
 
 function resolvePlanCode(price: Stripe.Price): string | null {
   const product = price.product;
-  const productMetadata = typeof product === "string" ? undefined : (product.metadata as StripePlanMetadata);
+  const productMetadata = typeof product === "string" || product.deleted ? undefined : (product.metadata as StripePlanMetadata);
   const priceMetadata = price.metadata as StripePlanMetadata;
 
   const candidate =
