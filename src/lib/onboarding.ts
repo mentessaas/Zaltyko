@@ -89,13 +89,29 @@ export async function markChecklistItem({
 
   const client = tx ?? db;
 
+  // Get tenantId from academy if not provided
+  let finalTenantId = tenantId;
+  if (!finalTenantId) {
+    const [academy] = await client
+      .select({ tenantId: academies.tenantId })
+      .from(academies)
+      .where(eq(academies.id, academyId))
+      .limit(1);
+    
+    if (!academy || !academy.tenantId) {
+      throw new Error(`Academy ${academyId} not found or has no tenantId`);
+    }
+    
+    finalTenantId = academy.tenantId;
+  }
+
   const now = new Date();
 
   await client
     .insert(onboardingChecklistItems)
     .values({
       academyId,
-      tenantId: tenantId ?? null,
+      tenantId: finalTenantId,
       key,
       label: CHECKLIST_DEFINITIONS.find((definition) => definition.key === key)?.label ?? key,
       description:
@@ -114,7 +130,7 @@ export async function markChecklistItem({
 
   const eventName = CHECKLIST_TRACKING_EVENT[key];
   if (status === "completed" && eventName) {
-    await trackEvent(eventName, { academyId, key });
+    await trackEvent(eventName, { academyId, metadata: { key } });
   }
 
   await maybeMarkAcademyActivated(academyId, client);
@@ -165,6 +181,23 @@ export async function markWizardStep({
   }
 
   const client = tx ?? db;
+  
+  // Get tenantId from academy if not provided
+  let finalTenantId = tenantId;
+  if (!finalTenantId) {
+    const [academy] = await client
+      .select({ tenantId: academies.tenantId })
+      .from(academies)
+      .where(eq(academies.id, academyId))
+      .limit(1);
+    
+    if (!academy || !academy.tenantId) {
+      throw new Error(`Academy ${academyId} not found or has no tenantId`);
+    }
+    
+    finalTenantId = academy.tenantId;
+  }
+  
   const [state] = await client
     .select({
       id: onboardingStates.id,
@@ -192,7 +225,7 @@ export async function markWizardStep({
     .insert(onboardingStates)
     .values({
       academyId,
-      tenantId: tenantId ?? null,
+      tenantId: finalTenantId,
       steps: updatedSteps,
       completedWizard,
       currentStep: currentStepValue,
