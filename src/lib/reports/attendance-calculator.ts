@@ -121,7 +121,7 @@ export async function calculateAthleteAttendance(
       attendanceRate: Math.round(attendanceRate * 100) / 100,
     },
     sessions: records.map((r) => ({
-      date: r.sessionDate.toISOString().split("T")[0],
+      date: typeof r.sessionDate === "string" ? r.sessionDate.split("T")[0] : new Date(r.sessionDate).toISOString().split("T")[0],
       className: r.className || "Clase",
       status: r.status,
     })),
@@ -147,7 +147,7 @@ export async function calculateGroupAttendance(
     .from(athletes)
     .where(and(eq(athletes.groupId, filters.groupId), eq(athletes.tenantId, filters.tenantId)));
 
-  const athleteIds = groupAthletes.map((a) => a.id);
+  const athleteIds = groupAthletes.map((a) => a.athleteId);
 
   if (athleteIds.length === 0) {
     return [];
@@ -203,11 +203,11 @@ export async function calculateGroupAttendance(
   }
 
   const athletesData = groupAthletes.map((athlete) => {
-    const stats = athleteStats.get(athlete.id) || { present: 0, total: 0 };
+    const stats = athleteStats.get(athlete.athleteId) || { present: 0, total: 0 };
     const attendanceRate = stats.total > 0 ? (stats.present / stats.total) * 100 : 0;
     return {
-      athleteId: athlete.id,
-      athleteName: athlete.name || "Sin nombre",
+      athleteId: athlete.athleteId,
+      athleteName: athlete.athleteName || "Sin nombre",
       attendanceRate: Math.round(attendanceRate * 100) / 100,
     };
   });
