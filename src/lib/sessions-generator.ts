@@ -95,8 +95,8 @@ export async function generateRecurringSessions(
       and(
         eq(classSessions.classId, classId),
         eq(classSessions.tenantId, tenantId),
-        gte(classSessions.sessionDate, start),
-        lte(classSessions.sessionDate, end)
+        gte(classSessions.sessionDate, format(start, "yyyy-MM-dd")),
+        lte(classSessions.sessionDate, format(end, "yyyy-MM-dd"))
       )
     );
 
