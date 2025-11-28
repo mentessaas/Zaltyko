@@ -1,6 +1,7 @@
 import { db } from "@/db";
 import { charges, athletes, billingItems } from "@/db/schema";
 import { eq, and, gte, lte, sql, sum, count } from "drizzle-orm";
+import { format } from "date-fns";
 
 export interface FinancialReportFilters {
   academyId: string;
@@ -49,10 +50,10 @@ export async function calculateFinancialStats(
   ];
 
   if (filters.startDate) {
-    whereConditions.push(gte(charges.dueDate, filters.startDate));
+    whereConditions.push(gte(charges.dueDate, format(filters.startDate, "yyyy-MM-dd")));
   }
   if (filters.endDate) {
-    whereConditions.push(lte(charges.dueDate, filters.endDate));
+    whereConditions.push(lte(charges.dueDate, format(filters.endDate, "yyyy-MM-dd")));
   }
   if (filters.athleteId) {
     whereConditions.push(eq(charges.athleteId, filters.athleteId));
@@ -107,7 +108,7 @@ export async function calculateFinancialStats(
       and(
         ...whereConditions,
         eq(charges.status, "pending"),
-        lte(charges.dueDate, today)
+        lte(charges.dueDate, format(today, "yyyy-MM-dd"))
       )
     );
 
@@ -161,10 +162,10 @@ export async function calculateMonthlyRevenue(
   ];
 
   if (filters.startDate) {
-    whereConditions.push(gte(charges.dueDate, filters.startDate));
+    whereConditions.push(gte(charges.dueDate, format(filters.startDate, "yyyy-MM-dd")));
   }
   if (filters.endDate) {
-    whereConditions.push(lte(charges.dueDate, filters.endDate));
+    whereConditions.push(lte(charges.dueDate, format(filters.endDate, "yyyy-MM-dd")));
   }
 
   // Agrupar por mes y estado
