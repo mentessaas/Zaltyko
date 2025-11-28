@@ -44,4 +44,5 @@ export * from "./discounts";
 export * from "./receipts";
 export * from "./event-invitations";
 export * from "./contact-messages";
+export * from "./class-exceptions";
 

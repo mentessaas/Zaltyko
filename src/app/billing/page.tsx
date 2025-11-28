@@ -5,83 +5,12 @@ import { useSearchParams } from "next/navigation";
 
 import { useDevSession } from "@/components/dev-session-provider";
 import { createClient } from "@/lib/supabase/client";
-
-type PlanCode = "free" | "pro" | "premium" | (string & Record<never, never>);
-
-interface BillingSummary {
-  planCode: PlanCode;
-  status: string;
-  athleteLimit: number | null;
-  classLimit: number | null;
-  hasStripeCustomer: boolean;
-}
-
-interface PlanSummary {
-  code: string;
-  nickname: string | null;
-  priceEur: number;
-  currency: string;
-  billingInterval: string | null;
-  athleteLimit: number | null;
-}
-
-interface InvoiceRow {
-  id: string;
-  status: string;
-  amountDue: number | null;
-  amountPaid: number | null;
-  currency: string | null;
-  billingReason: string | null;
-  hostedInvoiceUrl: string | null;
-  invoicePdf: string | null;
-  periodStart: string | null;
-  periodEnd: string | null;
-  createdAt: string;
-  stripeInvoiceId: string;
-}
-
-const PLAN_COPY: Record<string, { title: string; description: string }> = {
-  free: {
-    title: "Free",
-    description: "Hasta 50 atletas · ideal para academias en lanzamiento",
-  },
-  pro: {
-    title: "Pro",
-    description: "Hasta 200 atletas · estadísticas y soporte prioritario",
-  },
-  premium: {
-    title: "Premium",
-    description: "Ilimitado · analítica avanzada e integraciones completas",
-  },
-};
-
-function formatPlanPrice(plan: PlanSummary) {
-  const amount = (plan.priceEur ?? 0) / 100;
-  const currency = plan.currency?.toUpperCase() ?? "EUR";
-  return new Intl.NumberFormat("es-ES", {
-    style: "currency",
-    currency,
-    minimumFractionDigits: 2,
-  }).format(amount);
-}
-
-function resolvePlanTitle(plan: PlanSummary) {
-  return PLAN_COPY[plan.code]?.title ?? plan.nickname ?? plan.code.toUpperCase();
-}
-
-function resolvePlanDescription(plan: PlanSummary) {
-  return PLAN_COPY[plan.code]?.description ?? "Plan sincronizado automáticamente desde Stripe.";
-}
-
-function formatInvoiceAmount(invoice: InvoiceRow) {
-  const currency = (invoice.currency ?? "eur").toUpperCase();
-  const cents = invoice.amountPaid ?? invoice.amountDue ?? 0;
-  return new Intl.NumberFormat("es-ES", {
-    style: "currency",
-    currency,
-    minimumFractionDigits: 2,
-  }).format((cents ?? 0) / 100);
-}
+import { BillingSummary } from "@/components/billing/BillingSummary";
+import { PlanSelector } from "@/components/billing/PlanSelector";
+import { InvoiceList } from "@/components/billing/InvoiceList";
+import { useBillingActions } from "@/hooks/use-billing-actions";
+import type { PlanCode, BillingSummary as BillingSummaryType, PlanSummary, InvoiceRow } from "@/types/billing";
+import { logger } from "@/lib/logger";
 
 export default function BillingPage() {
   const searchParams = useSearchParams();
@@ -97,7 +26,6 @@ export default function BillingPage() {
         const { data: { user } } = await supabase.auth.getUser();
         
         if (user) {
-          // Intentar obtener la primera academia del usuario
           const response = await fetch("/api/billing/user-academies", {
             method: "GET",
             headers: {
@@ -119,13 +47,12 @@ export default function BillingPage() {
           }
         }
       } catch (error) {
-        console.error("Error loading user session:", error);
+        logger.error("Error loading user session", error);
       } finally {
         setLoadingUserSession(false);
       }
     };
 
-    // Solo cargar si no hay sesión demo
     if (!devSession && !loadingSession) {
       loadUserSession();
     } else {
@@ -133,7 +60,6 @@ export default function BillingPage() {
     }
   }, [devSession, loadingSession]);
 
-  // Usar sesión demo si está disponible, sino usar sesión de usuario
   const session = devSession 
     ? { userId: devSession.userId, academyId: devSession.academyId, academyName: devSession.academyName }
     : userSession 
@@ -146,246 +72,140 @@ export default function BillingPage() {
     return session?.academyId ?? null;
   }, [searchParams, session?.academyId]);
 
-  const [summary, setSummary] = useState<BillingSummary | null>(null);
+  const [summary, setSummary] = useState<BillingSummaryType | null>(null);
   const [loadingSummary, setLoadingSummary] = useState(true);
-  const [loadingAction, setLoadingAction] = useState<PlanCode | "portal" | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [plans, setPlans] = useState<PlanSummary[]>([]);
   const [loadingPlans, setLoadingPlans] = useState(true);
   const [history, setHistory] = useState<InvoiceRow[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [isSyncing, setIsSyncing] = useState(false);
+
+  // Hook para acciones de billing
+  const { triggerCheckout, openPortal, handleSync, loadingAction, error: actionError } = useBillingActions(
+    academyId,
+    session?.userId ?? null,
+    () => {
+      // Recargar historial después de sincronizar
+      if (academyId && session?.userId) {
+        loadHistory();
+      }
+    }
+  );
+
+  const loadSummary = async () => {
+    if (!academyId || !session?.userId) {
+      setSummary(null);
+      setLoadingSummary(false);
+      return;
+    }
+
+    if (loadingSession || loadingUserSession) {
+      return;
+    }
+
+    setLoadingSummary(true);
+    try {
+      const res = await fetch("/api/billing/status", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": session.userId,
+        },
+        body: JSON.stringify({ academyId }),
+      });
+
+      if (!res.ok) {
+        throw new Error("No se pudo obtener la información de facturación");
+      }
+
+      const data = (await res.json()) as BillingSummaryType;
+      setSummary(data);
+    } catch (err) {
+      logger.error("Error loading billing summary", err);
+    } finally {
+      setLoadingSummary(false);
+    }
+  };
+
+  const loadPlans = async () => {
+    if (!session?.userId) {
+      setPlans([]);
+      setLoadingPlans(false);
+      return;
+    }
+
+    setLoadingPlans(true);
+    try {
+      const res = await fetch("/api/billing/plans", {
+        method: "GET",
+        headers: {
+          "x-user-id": session.userId,
+        },
+      });
+
+      if (!res.ok) {
+        throw new Error("No se pudieron obtener los planes");
+      }
+
+      const data = (await res.json()) as PlanSummary[];
+      setPlans(data);
+    } catch (err) {
+      logger.error("Error loading plans", err);
+      setPlans([]);
+    } finally {
+      setLoadingPlans(false);
+    }
+  };
+
+  const loadHistory = async () => {
+    if (!academyId || !session?.userId) {
+      setHistory([]);
+      return;
+    }
+
+    setLoadingHistory(true);
+    try {
+      const res = await fetch("/api/billing/history", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": session.userId,
+        },
+        body: JSON.stringify({ academyId }),
+      });
+
+      if (!res.ok) {
+        throw new Error("No se pudo obtener el historial de facturación");
+      }
+
+      const data = (await res.json()) as InvoiceRow[];
+      setHistory(data);
+    } catch (err) {
+      logger.error("Error loading history", err);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
 
   useEffect(() => {
-    const load = async () => {
-      if (!academyId || !session?.userId) {
-        setSummary(null);
-        setLoadingSummary(false);
-        return;
-      }
-
-      // Si estamos cargando la sesión, esperar
-      if (loadingSession || loadingUserSession) {
-        return;
-      }
-
-      setLoadingSummary(true);
-      setError(null);
-      try {
-        const res = await fetch("/api/billing/status", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-user-id": session.userId,
-          },
-          body: JSON.stringify({ academyId }),
-        });
-
-        if (!res.ok) {
-          throw new Error("No se pudo obtener la información de facturación");
-        }
-
-        const data = (await res.json()) as BillingSummary;
-        setSummary(data);
-      } catch (err: any) {
-        setError(err.message ?? "Error desconocido");
-      } finally {
-        setLoadingSummary(false);
-      }
-    };
-
-    load();
+    loadSummary();
   }, [academyId, session?.userId, loadingSession, loadingUserSession]);
 
   useEffect(() => {
-    const loadPlans = async () => {
-      if (!session?.userId) {
-        setPlans([]);
-        setLoadingPlans(false);
-        return;
-      }
-
-      setLoadingPlans(true);
-      try {
-        const res = await fetch("/api/billing/plans", {
-          method: "GET",
-          headers: {
-            "x-user-id": session.userId,
-          },
-        });
-
-        if (!res.ok) {
-          throw new Error("No se pudieron obtener los planes");
-        }
-
-        const data = (await res.json()) as PlanSummary[];
-        setPlans(data);
-      } catch (err) {
-        console.error(err);
-        setPlans([]);
-      } finally {
-        setLoadingPlans(false);
-      }
-    };
-
     loadPlans();
   }, [session?.userId]);
 
   useEffect(() => {
-    const loadHistory = async () => {
-      if (!academyId || !session?.userId) {
-        setHistory([]);
-        return;
-      }
-
-      setLoadingHistory(true);
-      try {
-        const res = await fetch("/api/billing/history", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-user-id": session.userId,
-          },
-          body: JSON.stringify({ academyId }),
-        });
-
-        if (!res.ok) {
-          throw new Error("No se pudo obtener el historial de facturación");
-        }
-
-        const data = (await res.json()) as InvoiceRow[];
-        setHistory(data);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoadingHistory(false);
-      }
-    };
-
     loadHistory();
   }, [academyId, session?.userId]);
 
-  const triggerCheckout = async (planCode: PlanCode) => {
-    if (!academyId || !session?.userId) {
-      setError("Activa la sesión demo antes de realizar el checkout.");
-      return;
-    }
-
-    setLoadingAction(planCode);
-    setError(null);
-    try {
-      const res = await fetch("/api/billing/checkout", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-user-id": session.userId,
-        },
-        body: JSON.stringify({ academyId, planCode }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data?.error ?? "No se pudo iniciar el checkout");
-      }
-
-      if (data.checkoutUrl) {
-        window.location.href = data.checkoutUrl;
-      }
-    } catch (err: any) {
-      setError(err.message ?? "Error desconocido");
-    } finally {
-      setLoadingAction(null);
-    }
-  };
-
-  const openPortal = async () => {
-    if (!academyId || !session?.userId) {
-      setError("Activa la sesión demo antes de abrir el portal.");
-      return;
-    }
-
-    setLoadingAction("portal");
-    setError(null);
-    try {
-      const res = await fetch("/api/billing/portal", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-user-id": session.userId,
-        },
-        body: JSON.stringify({ academyId }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data?.error ?? "No se pudo abrir el portal de Stripe");
-      }
-
-      if (data.portalUrl) {
-        window.location.href = data.portalUrl;
-      }
-    } catch (err: any) {
-      setError(err.message ?? "Error desconocido");
-    } finally {
-      setLoadingAction(null);
-    }
-  };
-
-  const handleSync = async () => {
-    if (!academyId || !session?.userId) {
-      setError("Activa la sesión demo antes de sincronizar.");
-      return;
-    }
-
-    setIsSyncing(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/billing/sync", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-user-id": session.userId,
-        },
-        body: JSON.stringify({ academyId }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data?.message || data?.error || "Error al sincronizar facturas");
-      }
-
-      // Recargar historial después de sincronizar
-      const historyRes = await fetch("/api/billing/history", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-user-id": session.userId,
-        },
-        body: JSON.stringify({ academyId }),
-      });
-
-      if (historyRes.ok) {
-        const historyData = (await historyRes.json()) as InvoiceRow[];
-        setHistory(historyData);
-      }
-    } catch (err: any) {
-      setError(err.message ?? "Error al sincronizar facturas");
-    } finally {
-      setIsSyncing(false);
-    }
-  };
-
-  const filteredHistory = history.filter((invoice) => {
-    if (statusFilter === "all") return true;
-    return invoice.status === statusFilter;
-  });
-
   const currentPlanInfo = summary
     ? plans.find((plan) => plan.code === summary.planCode) ?? null
+    : null;
+
+  const isOpeningPortal = loadingAction === "portal";
+  const isSyncing = loadingAction === "sync";
+  const checkoutLoadingAction = typeof loadingAction === "string" && loadingAction !== "portal" && loadingAction !== "sync" 
+    ? (loadingAction as PlanCode)
     : null;
 
   return (
@@ -405,220 +225,36 @@ export default function BillingPage() {
         </p>
       )}
 
-      {error && (
+      {actionError && (
         <p className="rounded border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
-          {error}
+          {actionError}
         </p>
       )}
 
-      <section className="rounded-lg border bg-card p-6 shadow-sm">
-        <h2 className="text-xl font-medium">Plan actual</h2>
-        {(loadingSession || loadingUserSession || loadingSummary || !summary) && academyId ? (
-          <p className="text-sm text-muted-foreground">Cargando información…</p>
-        ) : !academyId ? (
-          <p className="text-sm text-muted-foreground">Selecciona una academia para ver su plan.</p>
-        ) : (
-          <div className="space-y-2">
-            <p className="text-lg font-semibold">
-              {currentPlanInfo
-                ? resolvePlanTitle(currentPlanInfo)
-                : PLAN_COPY[summary.planCode]?.title ?? summary.planCode.toUpperCase()}
-            </p>
-            <p className="text-sm text-muted-foreground">Estado: {summary.status}</p>
-            <p className="text-sm text-muted-foreground">
-              Límite atletas: {summary.athleteLimit ?? "Ilimitado"}
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Límite clases: {summary.classLimit ?? "Ilimitado"}
-            </p>
-            {currentPlanInfo && (
-              <p className="text-sm text-muted-foreground">
-                Cuota: {formatPlanPrice(currentPlanInfo)} /{" "}
-                {currentPlanInfo.billingInterval ?? "mes"}
-              </p>
-            )}
-            {summary.hasStripeCustomer && (
-              <button
-                onClick={openPortal}
-                className="mt-3 rounded-md border px-3 py-2 text-sm"
-                disabled={loadingAction === "portal"}
-              >
-                {loadingAction === "portal" ? "Abriendo portal…" : "Gestionar en Stripe"}
-              </button>
-            )}
-          </div>
-        )}
-      </section>
+      <BillingSummary
+        summary={summary}
+        currentPlan={currentPlanInfo}
+        loading={loadingSession || loadingUserSession || loadingSummary}
+        onOpenPortal={openPortal}
+        isOpeningPortal={isOpeningPortal}
+      />
 
-      <section className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-medium">Planes disponibles</h2>
-          {loadingPlans && <p className="text-sm text-muted-foreground">Sincronizando con Stripe…</p>}
-        </div>
-        <div className="grid gap-4 md:grid-cols-3">
-          {plans.length === 0 && !loadingPlans && (
-            <p className="text-sm text-muted-foreground">
-              No hay planes disponibles. Comprueba la sincronización con Stripe.
-            </p>
-          )}
-          {plans.map((plan) => {
-            const code = plan.code as PlanCode;
-            const isCurrent = summary?.planCode === plan.code;
-            const isFree = plan.priceEur === 0;
-            return (
-              <article
-                key={plan.code}
-                className={`flex h-full flex-col rounded-lg border p-6 shadow-sm ${
-                  plan.code === "pro" ? "border-primary" : ""
-                }`}
-              >
-                <div className="space-y-2">
-                  <h3 className="text-lg font-semibold">{resolvePlanTitle(plan)}</h3>
-                  <p className="text-sm text-muted-foreground">{resolvePlanDescription(plan)}</p>
-                  <p className="mt-2 text-xl font-bold">
-                    {formatPlanPrice(plan)}{" "}
-                    {plan.billingInterval ? (
-                      <span className="text-sm font-normal text-muted-foreground">
-                        / {plan.billingInterval}
-                      </span>
-                    ) : null}
-                  </p>
-                </div>
-                <div className="mt-4 flex flex-1 flex-col justify-end space-y-2">
-                  {plan.athleteLimit != null && (
-                    <p className="text-xs text-muted-foreground">
-                      Hasta {plan.athleteLimit} atletas incluidos
-                    </p>
-                  )}
-                  <button
-                    className="mt-4 w-full rounded-md bg-primary px-4 py-2 text-white disabled:opacity-50"
-                    disabled={
-                      isFree ||
-                      isCurrent ||
-                      loadingAction === code ||
-                      !academyId ||
-                      !session?.userId
-                    }
-                    onClick={() => triggerCheckout(code)}
-                  >
-                    {isCurrent
-                      ? "Plan actual"
-                      : isFree
-                      ? "Incluido"
-                      : loadingAction === code
-                      ? "Redirigiendo…"
-                      : "Seleccionar"}
-                  </button>
-                </div>
-              </article>
-            );
-          })}
-        </div>
-      </section>
+      <PlanSelector
+        plans={plans}
+        currentSummary={summary}
+        loading={loadingPlans}
+        onSelectPlan={triggerCheckout}
+        loadingAction={checkoutLoadingAction}
+        disabled={!academyId || !session?.userId}
+      />
 
-      <section className="space-y-3 rounded-lg border bg-card p-6 shadow-sm">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-xl font-medium">Historial de facturación</h2>
-            <p className="text-sm text-muted-foreground">
-              Facturas emitidas durante los últimos ciclos de facturación.
-            </p>
-          </div>
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="rounded-md border border-input bg-background px-3 py-2 text-sm"
-            >
-              <option value="all">Todos los estados</option>
-              <option value="paid">Pagadas</option>
-              <option value="open">Abiertas</option>
-              <option value="draft">Borrador</option>
-              <option value="uncollectible">No cobrables</option>
-              <option value="void">Anuladas</option>
-            </select>
-            <button
-              onClick={handleSync}
-              disabled={isSyncing || loadingHistory || !academyId || !session?.userId}
-              className="inline-flex items-center justify-center rounded-md border border-primary/20 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary hover:bg-primary/20 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {isSyncing ? "Sincronizando…" : "Sincronizar facturas"}
-            </button>
-            {loadingHistory && <p className="text-sm text-muted-foreground">Cargando…</p>}
-          </div>
-        </div>
-
-        {filteredHistory.length === 0 && !loadingHistory ? (
-          <p className="text-sm text-muted-foreground">
-            {history.length === 0
-              ? "Aún no hay facturas registradas para esta academia."
-              : "No hay facturas que coincidan con el filtro seleccionado."}
-          </p>
-        ) : (
-          <div className="overflow-hidden rounded-lg border">
-            <table className="min-w-full divide-y divide-border text-sm">
-              <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
-                <tr>
-                  <th className="px-4 py-2 text-left">Fecha</th>
-                  <th className="px-4 py-2 text-left">Importe</th>
-                  <th className="px-4 py-2 text-left">Estado</th>
-                  <th className="px-4 py-2 text-left">Acciones</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {filteredHistory.map((invoice) => {
-                  const created = new Date(invoice.createdAt);
-                  return (
-                    <tr key={invoice.id}>
-                      <td className="px-4 py-3">
-                        {new Intl.DateTimeFormat("es-ES", {
-                          day: "2-digit",
-                          month: "short",
-                          year: "numeric",
-                        }).format(created)}
-                      </td>
-                      <td className="px-4 py-3">{formatInvoiceAmount(invoice)}</td>
-                      <td className="px-4 py-3">
-                        <span
-                          className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize ${
-                            invoice.status === "paid"
-                              ? "bg-green-100 text-green-800"
-                              : invoice.status === "open"
-                              ? "bg-blue-100 text-blue-800"
-                              : invoice.status === "draft"
-                              ? "bg-gray-100 text-gray-800"
-                              : invoice.status === "uncollectible"
-                              ? "bg-red-100 text-red-800"
-                              : invoice.status === "void"
-                              ? "bg-gray-100 text-gray-600"
-                              : "bg-gray-100 text-gray-800"
-                          }`}
-                        >
-                          {invoice.status.replace(/_/g, " ")}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        {invoice.hostedInvoiceUrl || invoice.invoicePdf ? (
-                          <a
-                            href={invoice.hostedInvoiceUrl ?? invoice.invoicePdf ?? "#"}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-sm font-medium text-primary hover:underline"
-                          >
-                            Ver factura
-                          </a>
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+      <InvoiceList
+        invoices={history}
+        loading={loadingHistory}
+        onSync={handleSync}
+        isSyncing={isSyncing}
+        disabled={!academyId || !session?.userId}
+      />
 
       <div className="rounded-lg border border-white/10 bg-white/5 p-4 text-sm text-slate-200/80">
         <p>

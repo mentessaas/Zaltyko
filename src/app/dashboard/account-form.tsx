@@ -17,7 +17,8 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { type ProfileRow } from "@/lib/authz";
-import { ProfileTabs } from "@/components/profiles/ProfileTabs";
+import { logger } from "@/lib/logger";
+// import { ProfileTabs } from "@/components/profiles/ProfileTabs";
 
 interface AcademySummary {
   id: string;
@@ -129,7 +130,7 @@ export default function AccountForm({ user, profile, academies, defaultAcademyId
           }
         }
       } catch (error) {
-        console.error("Error checking limits", error);
+        logger.error("AccountForm: Error checking limits", error, { targetProfileId });
       }
     };
 
@@ -182,7 +183,7 @@ export default function AccountForm({ user, profile, academies, defaultAcademyId
       setStatus("saved");
       setTimeout(() => setStatus("idle"), 2000);
     } catch (error) {
-      console.error(error);
+      logger.error("AccountForm: Error updating active academy", error, { academyId: value, targetProfileId });
       setStatus("error");
     }
   };
@@ -283,14 +284,14 @@ export default function AccountForm({ user, profile, academies, defaultAcademyId
         </CardContent>
       </Card>
 
-      <ProfileTabs
+      {/* <ProfileTabs
         user={currentUser}
         profile={currentProfile}
         onProfileUpdated={() => {
           // Recargar datos del perfil
           window.location.reload();
         }}
-      />
+      /> */}
 
         <Card>
           <CardHeader className="p-6 pb-3">
@@ -362,7 +363,6 @@ export default function AccountForm({ user, profile, academies, defaultAcademyId
             )}
           </CardContent>
         </Card>
-      </div>
     </div>
   );
 }

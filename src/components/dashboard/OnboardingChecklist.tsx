@@ -180,47 +180,45 @@ export function OnboardingChecklist({ academyId }: OnboardingChecklistProps) {
 
       {isExpanded && (
         <div className="space-y-4">
-        {(data?.items ?? CHECKLIST_DEFINITIONS).map((item) => {
-          const route = ITEM_ROUTES[item.key];
-          const isCompleted = item.status === "completed";
-          return (
-            <div
-              key={item.key}
-              className={`flex flex-col gap-3 rounded-xl border px-4 py-3 sm:flex-row sm:items-center sm:justify-between ${
-                isCompleted ? "border-emerald-200 bg-emerald-50/80" : "border-border bg-background/70"
-              }`}
-            >
-              <div>
-                <p className="text-sm font-semibold">{item.label}</p>
-                <p className="text-xs text-muted-foreground">{item.description}</p>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                {route && (
-                  <Button variant={isCompleted ? "secondary" : "default"} size="sm" asChild>
-                    <Link href={route.href(academyId)}>{route.cta}</Link>
-                  </Button>
-                )}
-                {route?.allowManualCompletion && !isCompleted && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleManualCompletion(item.key)}
-                    disabled={submittingKey === item.key}
-                  >
-                    {submittingKey === item.key ? "Guardando..." : "Marcar como hecho"}
-                  </Button>
-                )}
-                <span
-                  className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                    isCompleted ? "bg-emerald-100 text-emerald-700" : "bg-muted text-muted-foreground"
+          {(data?.items ?? CHECKLIST_DEFINITIONS.map(item => ({ ...item, status: "pending" as const, completedAt: null, id: item.key }))).map((item) => {
+            const route = ITEM_ROUTES[item.key];
+            const isCompleted = item.status === "completed";
+            return (
+              <div
+                key={item.key}
+                className={`flex flex-col gap-3 rounded-xl border px-4 py-3 sm:flex-row sm:items-center sm:justify-between ${isCompleted ? "border-emerald-200 bg-emerald-50/80" : "border-border bg-background/70"
                   }`}
-                >
-                  {isCompleted ? "Completado" : "Pendiente"}
-                </span>
+              >
+                <div>
+                  <p className="text-sm font-semibold">{item.label}</p>
+                  <p className="text-xs text-muted-foreground">{item.description}</p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  {route && (
+                    <Button variant={isCompleted ? "secondary" : "default"} size="sm" asChild>
+                      <Link href={route.href(academyId)}>{route.cta}</Link>
+                    </Button>
+                  )}
+                  {route?.allowManualCompletion && !isCompleted && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleManualCompletion(item.key)}
+                      disabled={submittingKey === item.key}
+                    >
+                      {submittingKey === item.key ? "Guardando..." : "Marcar como hecho"}
+                    </Button>
+                  )}
+                  <span
+                    className={`rounded-full px-3 py-1 text-xs font-semibold ${isCompleted ? "bg-emerald-100 text-emerald-700" : "bg-muted text-muted-foreground"
+                      }`}
+                  >
+                    {isCompleted ? "Completado" : "Pendiente"}
+                  </span>
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
         </div>
       )}
     </div>

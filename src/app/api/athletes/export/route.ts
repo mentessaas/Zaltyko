@@ -60,12 +60,22 @@ export const GET = withTenant(async (request, context) => {
     .groupBy(athletes.id, academies.name)
     .orderBy(asc(athletes.name));
 
+  // Helper para formatear fecha
+  const formatDate = (date: Date | string | null | undefined): string => {
+    if (!date) return "";
+    if (typeof date === "object" && date instanceof Date) {
+      return date.toISOString().split("T")[0];
+    }
+    const dateStr = String(date);
+    return dateStr.split("T")[0];
+  };
+
   const exportRows = rows.map((row) => ({
     Nombre: row.name,
     Nivel: row.level ?? "",
     Estado: row.status,
     Edad: row.age ?? "",
-    "Fecha de nacimiento": row.dob ? row.dob.toISOString().split("T")[0] : "",
+    "Fecha de nacimiento": formatDate(row.dob),
     Academia: row.academyName ?? "",
     Familia: Array.isArray(row.guardianNames) ? row.guardianNames.join("; ") : "",
   }));

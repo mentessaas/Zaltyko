@@ -2,6 +2,7 @@ import { eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { athletes, profiles, academies } from "@/db/schema";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
+import { logger } from "@/lib/logger";
 
 /**
  * Sincroniza atletas existentes con perfiles de usuario.
@@ -49,10 +50,11 @@ export async function syncAthletesWithUsers(): Promise<{
       const email = `${sanitizedName}_${athlete.athleteId.substring(0, 8)}@zaltyko.local`;
 
       // Verificar si ya existe un usuario con este email (por si acaso)
-      const existingUser = await adminClient.auth.admin.getUserByEmail(email);
-      if (existingUser.data?.user) {
+      const { data: usersData } = await adminClient.auth.admin.listUsers();
+      const existingAuthUser = usersData.users.find(u => u.email === email);
+      if (existingAuthUser) {
         // Si ya existe, usar ese usuario
-        const userId = existingUser.data.user.id;
+        const userId = existingAuthUser.id;
         
         // Verificar si ya tiene un perfil
         const [existingProfile] = await db
@@ -160,7 +162,7 @@ export async function syncAthletesWithUsers(): Promise<{
         userId: null,
         error: error?.message ?? "Error desconocido",
       });
-      console.error(`Error sincronizando atleta ${athlete.athleteId}:`, error);
+      logger.error(`Error sincronizando atleta ${athlete.athleteId}`, error as Error, { athleteId: athlete.athleteId, athleteName: athlete.athleteName });
     }
   }
 

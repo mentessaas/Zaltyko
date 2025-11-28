@@ -54,7 +54,7 @@ export function TooltipOnboarding({ tooltipId, message, children, className }: T
         <div className="w-full max-w-xs rounded-lg border border-primary/40 bg-primary/5 p-3 text-xs shadow-lg">
           <p className="text-primary">{message}</p>
           <div className="mt-3 text-right">
-            <Button size="xs" variant="ghost" onClick={markAsSeen}>
+            <Button size="sm" variant="ghost" onClick={markAsSeen}>
               Entendido
             </Button>
           </div>

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Poppins, Inter } from "next/font/google";
+import { Outfit, Inter } from "next/font/google";
 import "./globals.css";
 import type React from "react";
 import { cn } from "@/lib/utils";
@@ -8,11 +8,10 @@ import { AppProviders } from "./providers";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 
-const poppins = Poppins({
+const outfit = Outfit({
   subsets: ["latin"],
   display: "swap",
-  weight: ["400", "500", "600", "700", "800"],
-  variable: "--font-poppins",
+  variable: "--font-outfit",
 });
 
 const inter = Inter({
@@ -54,7 +53,7 @@ export default function RootLayout({
         <meta name="mobile-web-app-capable" content="yes" />
       </head>
       <body
-        className={cn(inter.variable, poppins.variable, "font-sans antialiased")}
+        className={cn(inter.variable, outfit.variable, "font-sans antialiased")}
         suppressHydrationWarning
       >
         <AppProviders>{children}</AppProviders>

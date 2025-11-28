@@ -68,6 +68,7 @@ export function NoteForm({
       setError(null);
       loadAthletes();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, note, athleteId]);
 
   const loadAthletes = async () => {
@@ -220,7 +221,7 @@ export function NoteForm({
                   {tags.map((tag) => (
                     <Badge
                       key={tag}
-                      variant="secondary"
+                      variant="outline"
                       className="cursor-pointer"
                       onClick={() => handleRemoveTag(tag)}
                     >

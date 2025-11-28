@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { withTenant, getCurrentProfile } from "@/lib/authz";
+import { withTenant } from "@/lib/authz";
 import { uploadFile, generateFilePath } from "@/lib/supabase/storage-helpers";
 
 export const POST = withTenant(async (request, context) => {
@@ -7,10 +7,7 @@ export const POST = withTenant(async (request, context) => {
     return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
   }
 
-  const profile = await getCurrentProfile(request);
-  if (!profile) {
-    return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
-  }
+  const profile = context.profile;
 
   try {
     const formData = await request.formData();

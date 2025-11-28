@@ -84,7 +84,7 @@ export function GlobalTopNav({
   const isSuperAdmin = userRole === "super_admin";
   const isInSuperAdminArea = pathname?.startsWith("/super-admin") ?? false;
   const isDarkTheme = isInSuperAdminArea;
-  
+
   const academyNavItems = currentAcademyId ? getAcademyNavItems(currentAcademyId) : [];
 
   const getNavItems = () => {
@@ -230,7 +230,7 @@ export function GlobalTopNav({
               <NotificationBell />
             </div>
           )}
-          
+
           {/* Menú global (móvil) */}
           <button
             type="button"
@@ -340,7 +340,7 @@ export function GlobalTopNav({
                   >
                     <User className="h-4 w-4" strokeWidth={1.8} /> Mi perfil
                   </button>
-                  
+
                   {/* Sección de academia */}
                   {currentAcademyId && academyName && (
                     <>
@@ -379,7 +379,7 @@ export function GlobalTopNav({
                           <Building2 className="h-4 w-4" strokeWidth={1.8} /> Cambiar de academia
                         </button>
                       </div>
-                      
+
                       {/* Navegación de academia */}
                       <div className={cn("border-t pt-2 mt-2", isDarkTheme ? "border-white/10" : "border-border")}>
                         <p className={cn("text-xs font-semibold mb-1 px-2", isDarkTheme ? "text-white/90" : "text-foreground")}>
@@ -401,8 +401,8 @@ export function GlobalTopNav({
                                       ? "bg-white/10 text-white font-semibold"
                                       : "bg-primary/10 text-primary font-semibold"
                                     : isDarkTheme
-                                    ? "text-white/70 hover:bg-white/10 hover:text-white"
-                                    : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                                      ? "text-white/70 hover:bg-white/10 hover:text-white"
+                                      : "text-muted-foreground hover:bg-muted hover:text-foreground",
                                 )}
                               >
                                 <Icon className="h-4 w-4" strokeWidth={1.8} />
@@ -414,7 +414,7 @@ export function GlobalTopNav({
                       </div>
                     </>
                   )}
-                  
+
                   <div className={cn("border-t pt-2", isDarkTheme ? "border-white/10" : "border-border")}>
                     <button
                       type="button"
@@ -437,8 +437,8 @@ export function GlobalTopNav({
 
       {/* Drawer móvil para navegación */}
       {mobileMenuOpen && (
-        <div className={cn("fixed inset-0 z-[1000] h-screen w-screen overflow-y-auto md:hidden", isDarkTheme ? "bg-zaltyko-primary-dark text-white" : "bg-background")}> 
-          <div className={cn("flex items-center justify-between border-b px-4 py-4", isDarkTheme ? "border-white/10" : "border-border")}> 
+        <div className={cn("fixed inset-0 z-[1000] h-screen w-screen overflow-y-auto md:hidden", isDarkTheme ? "bg-zaltyko-primary-dark text-white" : "bg-background")}>
+          <div className={cn("flex items-center justify-between border-b px-4 py-4", isDarkTheme ? "border-white/10" : "border-border")}>
             <div className="flex items-center gap-2">
               {isDarkTheme ? (
                 <img src="/branding/zaltyko/logo-zaltyko-dark.svg" alt="Zaltyko" className="h-8 w-auto" />

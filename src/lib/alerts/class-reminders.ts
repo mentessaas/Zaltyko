@@ -68,7 +68,7 @@ export async function getClassesNeedingReminders(
     reminders.push({
       sessionId: session.sessionId,
       className: session.className || "Clase",
-      sessionDate: session.sessionDate,
+      sessionDate: new Date(session.sessionDate),
       startTime: session.startTime,
       athleteIds,
     });

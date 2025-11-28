@@ -30,7 +30,8 @@ async function getCoach(coachId: string) {
 }
 
 export const PATCH = withTenant(async (request, context) => {
-  const coachId = context.params?.coachId;
+  const params = context.params as { coachId?: string };
+  const coachId = params?.coachId;
 
   if (!coachId) {
     return NextResponse.json({ error: "COACH_ID_REQUIRED" }, { status: 400 });
@@ -72,7 +73,8 @@ export const PATCH = withTenant(async (request, context) => {
 });
 
 export const DELETE = withTenant(async (_request, context) => {
-  const coachId = context.params?.coachId;
+  const params = context.params as { coachId?: string };
+  const coachId = params?.coachId;
 
   if (!coachId) {
     return NextResponse.json({ error: "COACH_ID_REQUIRED" }, { status: 400 });

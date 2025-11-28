@@ -16,7 +16,8 @@ const updateSchema = z.object({
 });
 
 export const GET = withTenant(async (_request, context) => {
-  const sessionId = context.params?.sessionId;
+  const params = context.params as { sessionId?: string };
+  const sessionId = params?.sessionId;
 
   if (!sessionId) {
     return NextResponse.json({ error: "SESSION_ID_REQUIRED" }, { status: 400 });
@@ -36,7 +37,8 @@ export const GET = withTenant(async (_request, context) => {
 });
 
 export const PUT = withTenant(async (request, context) => {
-  const sessionId = context.params?.sessionId;
+  const params = context.params as { sessionId?: string };
+  const sessionId = params?.sessionId;
 
   if (!sessionId) {
     return NextResponse.json({ error: "SESSION_ID_REQUIRED" }, { status: 400 });

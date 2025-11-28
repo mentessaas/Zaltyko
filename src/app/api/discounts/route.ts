@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { eq, and } from "drizzle-orm";
-import { withTenant, getCurrentProfile } from "@/lib/authz";
+import { withTenant } from "@/lib/authz";
 
 import { db } from "@/db";
 import { discounts } from "@/db/schema";
@@ -55,10 +55,7 @@ export const POST = withTenant(async (request, context) => {
     return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
   }
 
-  const profile = await getCurrentProfile(request);
-  if (!profile) {
-    return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
-  }
+  const profile = context.profile;
 
   const body = createSchema.parse(await request.json());
 

@@ -109,6 +109,7 @@ export function LimitIndicator({ academyId, resource, className, showNotificatio
     );
   }
 
+  const percentage = (limitData.current / limitData.limit) * 100;
   const isNearLimit = percentage >= 80 && percentage < 100;
   const isAtLimit = limitData.remaining === 0;
 
@@ -122,12 +123,11 @@ export function LimitIndicator({ academyId, resource, className, showNotificatio
   const resourceLabel = resourceLabels[resource];
   const upgradeInfo = limitData.upgradeTo ? PLAN_INFO[limitData.upgradeTo] : null;
   const currentPlanInfo = PLAN_INFO[limitData.planCode] || PLAN_INFO.free;
-  const percentage = (limitData.current / limitData.limit) * 100;
 
   const handleUpgradeClick = (e: React.MouseEvent) => {
     e.preventDefault();
     if (!limitData.upgradeTo) return;
-    
+
     trackEvent("upgrade_button_clicked", {
       academyId: academyId || undefined,
       metadata: {
@@ -225,7 +225,7 @@ export function LimitIndicator({ academyId, resource, className, showNotificatio
                 open={showUpgradeModal}
                 onClose={() => setShowUpgradeModal(false)}
                 currentPlan={limitData.planCode}
-                targetPlan={limitData.upgradeTo}
+                targetPlan={limitData.upgradeTo!}
                 price={upgradeInfo.price}
                 benefits={upgradeInfo.benefits}
                 resource={resourceLabel}
@@ -391,7 +391,7 @@ export function LimitIndicator({ academyId, resource, className, showNotificatio
           open={showUpgradeModal}
           onClose={() => setShowUpgradeModal(false)}
           currentPlan={limitData.planCode}
-          targetPlan={limitData.upgradeTo}
+          targetPlan={limitData.upgradeTo!}
           price={upgradeInfo.price}
           benefits={upgradeInfo.benefits}
           resource={resourceLabel}

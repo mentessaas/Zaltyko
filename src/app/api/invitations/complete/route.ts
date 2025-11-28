@@ -56,12 +56,14 @@ const handler = async (request: Request) => {
         createResult.error.message.includes("already registered") ||
         createResult.error.message.includes("User already exists")
       ) {
-        const lookup = await adminClient.auth.admin.getUserByEmail(invitation.email);
-        if (!lookup.data?.user) {
+        // Buscar usuario por email usando listUsers
+        const { data: usersData } = await adminClient.auth.admin.listUsers();
+        const existingUser = usersData.users.find(u => u.email === invitation.email);
+        if (!existingUser) {
           return NextResponse.json({ error: "USER_EXISTS_NO_ACCESS" }, { status: 409 });
         }
 
-        user = lookup.data.user;
+        user = existingUser;
 
         await adminClient.auth.admin.updateUserById(user.id, {
           password: body.password,
@@ -102,7 +104,7 @@ const handler = async (request: Request) => {
     const academyIds = invitation.academyIds ?? [];
 
     if (academyIds.length > 0) {
-      const membershipRole =
+      const membershipRole: "coach" | "owner" | "viewer" =
         invitation.role === "coach"
           ? "coach"
           : invitation.role === "owner"

@@ -161,7 +161,7 @@ export function AdvancedMetrics({ academyId }: AdvancedMetricsProps) {
                 </span>
                 {metrics.periodComparison.change.revenue !== 0 && (
                   <Badge
-                    variant={metrics.periodComparison.change.revenue > 0 ? "default" : "destructive"}
+                    variant={metrics.periodComparison.change.revenue > 0 ? "default" : "error"}
                     className="flex items-center gap-1"
                   >
                     {metrics.periodComparison.change.revenue > 0 ? (
@@ -188,7 +188,7 @@ export function AdvancedMetrics({ academyId }: AdvancedMetricsProps) {
                 {metrics.periodComparison.change.attendance !== 0 && (
                   <Badge
                     variant={
-                      metrics.periodComparison.change.attendance > 0 ? "default" : "destructive"
+                      metrics.periodComparison.change.attendance > 0 ? "default" : "error"
                     }
                     className="flex items-center gap-1"
                   >
@@ -212,7 +212,7 @@ export function AdvancedMetrics({ academyId }: AdvancedMetricsProps) {
               <div className="flex items-center gap-2">
                 <span className="text-lg font-semibold">{metrics.churnRate.toFixed(1)}%</span>
                 {metrics.churnRate > 10 && (
-                  <Badge variant="destructive">Alta</Badge>
+                  <Badge variant="error">Alta</Badge>
                 )}
               </div>
               <p className="text-xs text-muted-foreground mt-1">Últimos 60 días</p>

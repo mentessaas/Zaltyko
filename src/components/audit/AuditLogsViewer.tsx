@@ -80,6 +80,7 @@ export function AuditLogsViewer({ academyId }: AuditLogsViewerProps) {
     ].join("\n");
 
     const blob = new Blob([csv], { type: "text/csv" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -221,7 +222,7 @@ export function AuditLogsViewer({ academyId }: AuditLogsViewerProps) {
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
                       <Badge variant="outline">{log.action}</Badge>
-                      <Badge variant="secondary">{log.tableName}</Badge>
+                      <Badge variant="outline">{log.tableName}</Badge>
                       <span className="text-sm text-muted-foreground">
                         por {log.userName}
                       </span>

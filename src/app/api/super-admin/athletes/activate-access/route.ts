@@ -17,7 +17,7 @@ const ActivateAthleteSchema = z.object({
 /**
  * Función para activar acceso de un atleta
  */
-export async function activateAthleteAccess(
+async function activateAthleteAccess(
   profileId: string,
   email?: string,
   sendInvitation: boolean = true

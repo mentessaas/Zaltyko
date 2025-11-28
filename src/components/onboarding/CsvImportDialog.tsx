@@ -179,7 +179,7 @@ export function CsvImportDialog({ open, onClose, onImport, academyId }: CsvImpor
                 <FileText className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
                 <p className="text-sm font-medium mb-2">Selecciona un archivo CSV</p>
                 <p className="text-xs text-muted-foreground mb-4">
-                  El archivo debe tener una columna "Nombre" o "Name" en la primera fila
+                  El archivo debe tener una columna \"Nombre\" o \"Name\" en la primera fila
                 </p>
                 <input
                   ref={fileInputRef}

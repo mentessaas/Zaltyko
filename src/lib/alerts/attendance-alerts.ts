@@ -33,65 +33,65 @@ export async function detectAttendanceAlerts(
 
     // Obtener todos los atletas de la academia
     const academyAthletes = await db
-    .select({
-      athleteId: athletes.id,
-      athleteName: athletes.name,
-    })
-    .from(athletes)
-    .where(and(eq(athletes.academyId, academyId), eq(athletes.tenantId, tenantId)));
+      .select({
+        athleteId: athletes.id,
+        athleteName: athletes.name,
+      })
+      .from(athletes)
+      .where(and(eq(athletes.academyId, academyId), eq(athletes.tenantId, tenantId)));
 
-  const alerts: AttendanceAlert[] = [];
+    const alerts: AttendanceAlert[] = [];
 
-  for (const athlete of academyAthletes) {
-    // Contar total de sesiones en el período
-    const [totalSessions] = await db
-      .select({ count: sql<number>`count(distinct ${classSessions.id})` })
-      .from(classSessions)
-      .innerJoin(classes, eq(classSessions.classId, classes.id))
-      .where(
-        and(
-          eq(classes.academyId, academyId),
-          eq(classes.tenantId, tenantId),
-          gte(classSessions.sessionDate, cutoffDateStr)
-        )
-      );
+    for (const athlete of academyAthletes) {
+      // Contar total de sesiones en el período
+      const [totalSessions] = await db
+        .select({ count: sql<number>`count(distinct ${classSessions.id})` })
+        .from(classSessions)
+        .innerJoin(classes, eq(classSessions.classId, classes.id))
+        .where(
+          and(
+            eq(classes.academyId, academyId),
+            eq(classes.tenantId, tenantId),
+            gte(classSessions.sessionDate, cutoffDateStr)
+          )
+        );
 
-    // Contar asistencias del atleta
-    const [presentCount] = await db
-      .select({ count: count() })
-      .from(attendanceRecords)
-      .innerJoin(classSessions, eq(attendanceRecords.sessionId, classSessions.id))
-      .innerJoin(classes, eq(classSessions.classId, classes.id))
-      .where(
-        and(
-          eq(attendanceRecords.athleteId, athlete.athleteId),
-          eq(attendanceRecords.status, "present"),
-          eq(classes.academyId, academyId),
-          gte(classSessions.sessionDate, cutoffDateStr)
-        )
-      );
+      // Contar asistencias del atleta
+      const [presentCount] = await db
+        .select({ count: count() })
+        .from(attendanceRecords)
+        .innerJoin(classSessions, eq(attendanceRecords.sessionId, classSessions.id))
+        .innerJoin(classes, eq(classSessions.classId, classes.id))
+        .where(
+          and(
+            eq(attendanceRecords.athleteId, athlete.athleteId),
+            eq(attendanceRecords.status, "present"),
+            eq(classes.academyId, academyId),
+            gte(classSessions.sessionDate, cutoffDateStr)
+          )
+        );
 
-    const total = Number(totalSessions?.count || 0);
-    const present = Number(presentCount?.count || 0);
-    const attendanceRate = total > 0 ? (present / total) * 100 : 0;
+      const total = Number(totalSessions?.count || 0);
+      const present = Number(presentCount?.count || 0);
+      const attendanceRate = total > 0 ? (present / total) * 100 : 0;
 
-    if (attendanceRate < threshold && total > 0) {
-      // Obtener contactos de familia
-      const contacts = await db
-        .select({ contactId: familyContacts.contactId })
-        .from(familyContacts)
-        .where(eq(familyContacts.athleteId, athlete.athleteId));
+      if (attendanceRate < threshold && total > 0) {
+        // Obtener contactos de familia
+        const contacts = await db
+          .select({ contactId: familyContacts.id })
+          .from(familyContacts)
+          .where(eq(familyContacts.athleteId, athlete.athleteId));
 
-      alerts.push({
-        athleteId: athlete.athleteId,
-        athleteName: athlete.athleteName || "Sin nombre",
-        attendanceRate: Math.round(attendanceRate * 100) / 100,
-        threshold,
-        daysChecked: total,
-        parentContactIds: contacts.map((c) => c.contactId),
-      });
+        alerts.push({
+          athleteId: athlete.athleteId,
+          athleteName: athlete.athleteName || "Sin nombre",
+          attendanceRate: Math.round(attendanceRate * 100) / 100,
+          threshold,
+          daysChecked: total,
+          parentContactIds: contacts.map((c) => c.contactId),
+        });
+      }
     }
-  }
 
     return alerts;
   } catch (error) {

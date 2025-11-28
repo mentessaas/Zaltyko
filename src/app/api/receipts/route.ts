@@ -34,8 +34,7 @@ export const GET = withTenant(async (request, context) => {
       athleteName: athletes.name,
       amount: receipts.amount,
       currency: receipts.currency,
-      period: receipts.period,
-      items: receipts.items,
+      metadata: receipts.metadata,
       createdAt: receipts.createdAt,
     })
     .from(receipts)
@@ -44,11 +43,15 @@ export const GET = withTenant(async (request, context) => {
     .orderBy(desc(receipts.createdAt));
 
   return NextResponse.json({
-    items: items.map((item) => ({
-      ...item,
-      amount: Number(item.amount) / 100,
-      items: item.items || [],
-    })),
+    items: items.map((item) => {
+      const metadata = item.metadata || {};
+      return {
+        ...item,
+        amount: Number(item.amount) / 100,
+        items: (metadata.items as Array<{ description: string; amount: number }>) || [],
+        period: (metadata.period as string) || "N/A",
+      };
+    }),
   });
 });
 

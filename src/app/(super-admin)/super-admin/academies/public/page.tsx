@@ -39,6 +39,14 @@ export default async function SuperAdminPublicAcademiesPage() {
       city: academies.city,
       publicDescription: academies.publicDescription,
       logoUrl: academies.logoUrl,
+      website: academies.website,
+      contactEmail: academies.contactEmail,
+      contactPhone: academies.contactPhone,
+      address: academies.address,
+      socialInstagram: academies.socialInstagram,
+      socialFacebook: academies.socialFacebook,
+      socialTwitter: academies.socialTwitter,
+      socialYoutube: academies.socialYoutube,
       isPublic: academies.isPublic,
     })
     .from(academies)
@@ -57,7 +65,7 @@ export default async function SuperAdminPublicAcademiesPage() {
         academies={items.map((item) => ({
           ...item,
           academyType: String(item.academyType),
-        }))}
+        })) as any}
       />
     </div>
   );

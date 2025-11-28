@@ -102,9 +102,19 @@ export const GET = withTenant(async (request, context) => {
     scoresByAssessment.set(score.assessmentId, current);
   }
 
+  // Helper para formatear fecha
+  const formatDate = (date: Date | string | null | undefined): string => {
+    if (!date) return "";
+    if (date instanceof Date) {
+      return date.toISOString().split("T")[0];
+    }
+    const dateStr = String(date);
+    return dateStr.split("T")[0];
+  };
+
   const items = assessments.map((assessment) => ({
     id: assessment.id,
-    assessmentDate: assessment.assessmentDate.toISOString().split("T")[0],
+    assessmentDate: formatDate(assessment.assessmentDate),
     apparatus: assessment.apparatus,
     overallComment: assessment.overallComment,
     assessedByName: assessment.coachName || assessment.profileName,

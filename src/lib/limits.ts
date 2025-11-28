@@ -1,11 +1,13 @@
-import { and, count, eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { academies, athletes, classes, groups, plans, subscriptions, profiles } from "@/db/schema";
+import { LimitError, type PlanCode, type LimitResource } from "./limits/errors";
+import { NotFoundError } from "@/lib/errors";
+import { getResourceCount } from "./limits/resource-counters";
+import { count } from "drizzle-orm";
 
-export type PlanCode = "free" | "pro" | "premium";
-
-export type LimitResource = "athletes" | "classes" | "groups" | "academies";
+export type { PlanCode, LimitResource };
 
 export interface ActiveSubscription {
   planCode: PlanCode;
@@ -125,7 +127,7 @@ export function evaluateLimit(
   };
 }
 
-async function assertAcademyTenant(academyId: string, tenantId: string) {
+async function assertAcademyTenant(academyId: string, tenantId: string): Promise<void> {
   const [academy] = await db
     .select({ id: academies.id })
     .from(academies)
@@ -133,9 +135,7 @@ async function assertAcademyTenant(academyId: string, tenantId: string) {
     .limit(1);
 
   if (!academy) {
-    const error: any = new Error("ACADEMY_NOT_FOUND");
-    error.status = 404;
-    throw error;
+    throw new NotFoundError("ACADEMY_NOT_FOUND");
   }
 }
 
@@ -157,28 +157,20 @@ export async function assertUserAcademyLimit(userId: string): Promise<void> {
     .limit(1);
 
   if (!profile) {
-    const error: any = new Error("PROFILE_NOT_FOUND");
-    error.status = 404;
-    throw error;
+    throw new NotFoundError("PROFILE_NOT_FOUND");
   }
 
-  const ownedAcademies = await db
-    .select({ id: academies.id })
-    .from(academies)
-    .where(eq(academies.ownerId, profile.id));
+  const currentCount = await getResourceCount("academies", "", "", profile.id);
+  const evaluation = evaluateLimit(subscription.planCode, academyLimit, currentCount, "academies");
 
-  if (ownedAcademies.length >= academyLimit) {
-    const error: any = new Error("ACADEMY_LIMIT_REACHED");
-    error.status = 402;
-    error.statusCode = 402;
-    error.code = "ACADEMY_LIMIT_REACHED";
-    error.payload = {
-      currentCount: ownedAcademies.length,
+  if (evaluation.exceeded) {
+    throw new LimitError("ACADEMY_LIMIT_REACHED", {
+      code: "LIMIT_REACHED",
+      resource: "academies",
+      currentCount,
       limit: academyLimit,
-      upgradeTo: subscription.planCode === "free" ? "pro" : "premium",
-    };
-    error.details = error.payload;
-    throw error;
+      upgradeTo: evaluation.upgradeTo,
+    });
   }
 }
 
@@ -186,101 +178,44 @@ export async function assertWithinPlanLimits(
   tenantId: string,
   academyId: string,
   resource: LimitResource
-) {
+): Promise<void> {
   await assertAcademyTenant(academyId, tenantId);
 
   const subscription = await getActiveSubscription(academyId);
 
-  if (resource === "athletes") {
-    if (subscription.athleteLimit == null) {
-      return;
-    }
-
-    const [{ value: athleteCount }] = await db
-      .select({ value: count() })
-      .from(athletes)
-      .where(and(eq(athletes.academyId, academyId), eq(athletes.tenantId, tenantId)));
-
-    const currentCount = Number(athleteCount ?? 0);
-    const evaluation = evaluateLimit(
-      subscription.planCode,
-      subscription.athleteLimit,
-      Number.isNaN(currentCount) ? 0 : currentCount,
-      resource
-    );
-
-    if (evaluation.exceeded) {
-      const error: any = new Error("LIMIT_REACHED");
-      error.status = 402;
-      error.payload = {
-        code: "LIMIT_REACHED",
-        upgradeTo: evaluation.upgradeTo,
-        resource,
-      };
-      throw error;
-    }
+  // Obtener el límite según el recurso
+  let limit: number | null;
+  switch (resource) {
+    case "athletes":
+      limit = subscription.athleteLimit;
+      break;
+    case "classes":
+      limit = subscription.classLimit;
+      break;
+    case "groups":
+      limit = subscription.groupLimit;
+      break;
+    default:
+      throw new Error(`Resource ${resource} is not supported for academy-level limits`);
   }
 
-  if (resource === "classes") {
-    const classLimit = subscription.classLimit;
-    if (classLimit == null) {
-      return;
-    }
-
-    const [{ value: classCount }] = await db
-      .select({ value: count() })
-      .from(classes)
-      .where(and(eq(classes.academyId, academyId), eq(classes.tenantId, tenantId)));
-
-    const currentCount = Number(classCount ?? 0);
-    const evaluation = evaluateLimit(
-      subscription.planCode,
-      classLimit,
-      Number.isNaN(currentCount) ? 0 : currentCount,
-      resource
-    );
-
-    if (evaluation.exceeded) {
-      const error: any = new Error("LIMIT_REACHED");
-      error.status = 402;
-      error.payload = {
-        code: "LIMIT_REACHED",
-        upgradeTo: evaluation.upgradeTo,
-        resource,
-      };
-      throw error;
-    }
+  // Si no hay límite, no validar
+  if (limit === null) {
+    return;
   }
 
-  if (resource === "groups") {
-    const groupLimit = subscription.groupLimit;
-    if (groupLimit == null) {
-      return;
-    }
+  // Obtener conteo actual
+  const currentCount = await getResourceCount(resource, academyId, tenantId);
+  const evaluation = evaluateLimit(subscription.planCode, limit, currentCount, resource);
 
-    const [{ value: groupCount }] = await db
-      .select({ value: count() })
-      .from(groups)
-      .where(and(eq(groups.academyId, academyId), eq(groups.tenantId, tenantId)));
-
-    const currentCount = Number(groupCount ?? 0);
-    const evaluation = evaluateLimit(
-      subscription.planCode,
-      groupLimit,
-      Number.isNaN(currentCount) ? 0 : currentCount,
-      resource
-    );
-
-    if (evaluation.exceeded) {
-      const error: any = new Error("LIMIT_REACHED");
-      error.status = 402;
-      error.payload = {
-        code: "LIMIT_REACHED",
-        upgradeTo: evaluation.upgradeTo,
-        resource,
-      };
-      throw error;
-    }
+  if (evaluation.exceeded) {
+    throw new LimitError("LIMIT_REACHED", {
+      code: "LIMIT_REACHED",
+      resource,
+      currentCount,
+      limit,
+      upgradeTo: evaluation.upgradeTo,
+    });
   }
 }
 
@@ -314,18 +249,19 @@ export async function checkPlanLimitViolations(userId: string, newPlanCode: Plan
     academyName?: string | null;
   }> = [];
 
-  // Check academy limit (user-level)
+  // Check academy limit (user-level) - usar getResourceCount
   const academyLimit = ACADEMY_LIMITS[newPlanCode];
   if (academyLimit !== null) {
-    const ownedAcademies = await db
-      .select({ id: academies.id, name: academies.name })
-      .from(academies)
-      .where(eq(academies.ownerId, profile.id));
-
-    if (ownedAcademies.length > academyLimit) {
+    const currentAcademyCount = await getResourceCount("academies", "", "", profile.id);
+    if (currentAcademyCount > academyLimit) {
+      const ownedAcademies = await db
+        .select({ id: academies.id, name: academies.name })
+        .from(academies)
+        .where(eq(academies.ownerId, profile.id));
+      
       violations.push({
         resource: "academies",
-        currentCount: ownedAcademies.length,
+        currentCount: currentAcademyCount,
         limit: academyLimit,
         items: ownedAcademies.map((a) => ({ id: a.id, name: a.name })),
       });
@@ -334,7 +270,7 @@ export async function checkPlanLimitViolations(userId: string, newPlanCode: Plan
 
   // Check limits per academy (athletes, classes, groups)
   const ownedAcademies = await db
-    .select({ id: academies.id, name: academies.name })
+    .select({ id: academies.id, name: academies.name, tenantId: academies.tenantId })
     .from(academies)
     .where(eq(academies.ownerId, profile.id));
 
@@ -343,17 +279,20 @@ export async function checkPlanLimitViolations(userId: string, newPlanCode: Plan
   const groupLimit = GROUP_LIMITS[newPlanCode];
 
   for (const academy of ownedAcademies) {
-    // Check athletes per academy
-    if (athleteLimit !== null) {
-      const academyAthletes = await db
-        .select({ id: athletes.id, name: athletes.name })
-        .from(athletes)
-        .where(eq(athletes.academyId, academy.id));
+    const tenantId = academy.tenantId ?? "";
 
-      if (academyAthletes.length > athleteLimit) {
+    // Check athletes per academy - usar getResourceCount
+    if (athleteLimit !== null) {
+      const currentAthleteCount = await getResourceCount("athletes", academy.id, tenantId);
+      if (currentAthleteCount > athleteLimit) {
+        const academyAthletes = await db
+          .select({ id: athletes.id, name: athletes.name })
+          .from(athletes)
+          .where(eq(athletes.academyId, academy.id));
+
         violations.push({
           resource: "athletes",
-          currentCount: academyAthletes.length,
+          currentCount: currentAthleteCount,
           limit: athleteLimit,
           items: academyAthletes.map((a) => ({ id: a.id, name: a.name })),
           academyId: academy.id,
@@ -362,17 +301,18 @@ export async function checkPlanLimitViolations(userId: string, newPlanCode: Plan
       }
     }
 
-    // Check classes per academy
+    // Check classes per academy - usar getResourceCount
     if (classLimit !== null) {
-      const classesList = await db
-        .select({ id: classes.id, name: classes.name })
-        .from(classes)
-        .where(eq(classes.academyId, academy.id));
+      const currentClassCount = await getResourceCount("classes", academy.id, tenantId);
+      if (currentClassCount > classLimit) {
+        const classesList = await db
+          .select({ id: classes.id, name: classes.name })
+          .from(classes)
+          .where(eq(classes.academyId, academy.id));
 
-      if (classesList.length > classLimit) {
         violations.push({
           resource: "classes",
-          currentCount: classesList.length,
+          currentCount: currentClassCount,
           limit: classLimit,
           items: classesList.map((c) => ({ id: c.id, name: c.name })),
           academyId: academy.id,
@@ -381,17 +321,18 @@ export async function checkPlanLimitViolations(userId: string, newPlanCode: Plan
       }
     }
 
-    // Check groups per academy
+    // Check groups per academy - usar getResourceCount
     if (groupLimit !== null) {
-      const groupsList = await db
-        .select({ id: groups.id, name: groups.name })
-        .from(groups)
-        .where(eq(groups.academyId, academy.id));
+      const currentGroupCount = await getResourceCount("groups", academy.id, tenantId);
+      if (currentGroupCount > groupLimit) {
+        const groupsList = await db
+          .select({ id: groups.id, name: groups.name })
+          .from(groups)
+          .where(eq(groups.academyId, academy.id));
 
-      if (groupsList.length > groupLimit) {
         violations.push({
           resource: "groups",
-          currentCount: groupsList.length,
+          currentCount: currentGroupCount,
           limit: groupLimit,
           items: groupsList.map((g) => ({ id: g.id, name: g.name })),
           academyId: academy.id,
@@ -427,56 +368,52 @@ export async function getRemainingLimits(
   await assertAcademyTenant(academyId, tenantId);
   const subscription = await getActiveSubscription(academyId);
 
-  let current = 0;
-  let limit: number | null = null;
+  // Obtener el límite según el recurso
+  let limit: number | null;
+  let ownerId: string | undefined;
 
-  if (resource === "athletes") {
-    limit = subscription.athleteLimit;
-    const [{ value: athleteCount }] = await db
-      .select({ value: count() })
-      .from(athletes)
-      .where(and(eq(athletes.academyId, academyId), eq(athletes.tenantId, tenantId)));
-    current = Number(athleteCount ?? 0);
-  } else if (resource === "classes") {
-    limit = subscription.classLimit;
-    const [{ value: classCount }] = await db
-      .select({ value: count() })
-      .from(classes)
-      .where(and(eq(classes.academyId, academyId), eq(classes.tenantId, tenantId)));
-    current = Number(classCount ?? 0);
-  } else if (resource === "groups") {
-    limit = subscription.groupLimit;
-    const [{ value: groupCount }] = await db
-      .select({ value: count() })
-      .from(groups)
-      .where(and(eq(groups.academyId, academyId), eq(groups.tenantId, tenantId)));
-    current = Number(groupCount ?? 0);
-  } else if (resource === "academies") {
-    // Para academias, necesitamos el userId
-    const [academy] = await db
-      .select({ ownerId: academies.ownerId })
-      .from(academies)
-      .where(eq(academies.id, academyId))
-      .limit(1);
-
-    if (academy?.ownerId) {
-      const [owner] = await db
-        .select({ userId: profiles.userId })
-        .from(profiles)
-        .where(eq(profiles.id, academy.ownerId))
+  switch (resource) {
+    case "athletes":
+      limit = subscription.athleteLimit;
+      break;
+    case "classes":
+      limit = subscription.classLimit;
+      break;
+    case "groups":
+      limit = subscription.groupLimit;
+      break;
+    case "academies":
+      // Para academias, necesitamos el ownerId
+      const [academy] = await db
+        .select({ ownerId: academies.ownerId })
+        .from(academies)
+        .where(eq(academies.id, academyId))
         .limit(1);
 
-      if (owner?.userId) {
-        const userSubscription = await getUserSubscription(owner.userId);
-        limit = userSubscription.academyLimit;
-        const ownedAcademies = await db
-          .select({ id: academies.id })
-          .from(academies)
-          .where(eq(academies.ownerId, academy.ownerId));
-        current = ownedAcademies.length;
+      if (academy?.ownerId) {
+        const [owner] = await db
+          .select({ userId: profiles.userId })
+          .from(profiles)
+          .where(eq(profiles.id, academy.ownerId))
+          .limit(1);
+
+        if (owner?.userId) {
+          const userSubscription = await getUserSubscription(owner.userId);
+          limit = userSubscription.academyLimit;
+          ownerId = academy.ownerId;
+        } else {
+          limit = ACADEMY_LIMITS.free;
+        }
+      } else {
+        limit = ACADEMY_LIMITS.free;
       }
-    }
+      break;
+    default:
+      throw new Error(`Resource ${resource} is not supported`);
   }
+
+  // Usar getResourceCount para obtener el conteo actual
+  const current = await getResourceCount(resource, academyId, tenantId, ownerId);
 
   const remaining = limit === null ? null : Math.max(0, limit - current);
   const evaluation = limit !== null ? evaluateLimit(subscription.planCode, limit, current, resource) : { exceeded: false };

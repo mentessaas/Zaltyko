@@ -1,12 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
 import { academies } from "@/db/schema";
-import { getAuthenticatedUser } from "@/lib/authz";
+import { getCurrentProfile } from "@/lib/authz";
+import { createClient } from "@/lib/supabase/server";
 
 const ToggleVisibilitySchema = z.object({
   academyId: z.string().uuid(),
@@ -39,11 +41,22 @@ export async function toggleAcademyVisibility(
     };
   }
 
-  const { user, profile } = await getAuthenticatedUser();
-  if (!user || !profile) {
+  const cookieStore = await cookies();
+  const supabase = await createClient(cookieStore);
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) {
     return {
       success: false,
       error: "UNAUTHENTICATED",
+    };
+  }
+
+  const profile = await getCurrentProfile(user.id);
+  if (!profile) {
+    return {
+      success: false,
+      error: "PROFILE_NOT_FOUND",
     };
   }
 

@@ -11,15 +11,15 @@ const badgeVariants = cva(
         default:
           "border-transparent bg-zaltyko-primary/10 text-zaltyko-primary hover:bg-zaltyko-primary/20",
         outline:
-          "border-border bg-transparent text-foreground hover:bg-muted",
+          "border-zaltyko-border bg-white text-zaltyko-text-main hover:bg-zaltyko-bg",
         active:
-          "border-transparent bg-zaltyko-accent text-zaltyko-primary-dark hover:bg-zaltyko-accent-light",
+          "border-transparent bg-zaltyko-accent-teal/10 text-zaltyko-accent-teal hover:bg-zaltyko-accent-teal/20",
         pending:
-          "border-transparent bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300",
+          "border-transparent bg-zaltyko-accent-amber/10 text-zaltyko-accent-amber hover:bg-zaltyko-accent-amber/20",
         success:
-          "border-transparent bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
+          "border-transparent bg-zaltyko-accent-teal/10 text-zaltyko-accent-teal hover:bg-zaltyko-accent-teal/20",
         error:
-          "border-transparent bg-destructive/10 text-destructive hover:bg-destructive/20",
+          "border-transparent bg-zaltyko-accent-coral/10 text-zaltyko-accent-coral hover:bg-zaltyko-accent-coral/20",
       },
     },
     defaultVariants: {
@@ -30,7 +30,7 @@ const badgeVariants = cva(
 
 export interface BadgeProps
   extends React.HTMLAttributes<HTMLDivElement>,
-    VariantProps<typeof badgeVariants> {}
+  VariantProps<typeof badgeVariants> { }
 
 function Badge({ className, variant, ...props }: BadgeProps) {
   return (

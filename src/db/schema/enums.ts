@@ -56,3 +56,28 @@ export const paymentMethodEnum = pgEnum("payment_method", [
   "other",
 ]);
 
+export const eventLevelEnum = pgEnum("event_level", [
+  "internal",
+  "local",
+  "national",
+  "international",
+]);
+
+export const eventDisciplineEnum = pgEnum("event_discipline", [
+  "artistic_female",
+  "artistic_male",
+  "rhythmic",
+  "trampoline",
+  "parkour",
+]);
+
+export const eventTypeEnum = pgEnum("event_type", [
+  "competitions",
+  "courses",
+  "camps",
+  "workshops",
+  "clinics",
+  "evaluations",
+  "other",
+]);
+

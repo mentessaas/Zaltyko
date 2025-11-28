@@ -1,5 +1,6 @@
 import { authzAdapter } from "@/lib/authz";
 import { auditLogs } from "@/db/schema";
+import { logger } from "@/lib/logger";
 
 type AdminLogMeta = Record<string, unknown>;
 
@@ -17,7 +18,7 @@ export async function logAdminAction(params: {
       meta: params.meta ?? null,
     });
   } catch (error) {
-    console.error("Failed to log admin action", error);
+    logger.error("Failed to log admin action", error as Error, { userId: params.userId, tenantId: params.tenantId, action: params.action });
   }
 }
 

@@ -34,11 +34,14 @@ export function ConfirmDialog({
   const [isLoading, setIsLoading] = React.useState(false);
 
   const handleConfirm = async () => {
+    console.log('[ConfirmDialog] handleConfirm called');
     setIsLoading(true);
     try {
       await onConfirm();
+      console.log('[ConfirmDialog] onConfirm completed, calling onOpenChange(false)');
       onOpenChange?.(false);
     } catch (error) {
+      console.log('[ConfirmDialog] onConfirm error:', error);
       // Error manejado por el componente padre
     } finally {
       setIsLoading(false);
@@ -46,7 +49,9 @@ export function ConfirmDialog({
   };
 
   const handleCancel = () => {
+    console.log('[ConfirmDialog] handleCancel called');
     onCancel?.();
+    console.log('[ConfirmDialog] calling onOpenChange(false)');
     onOpenChange?.(false);
   };
 

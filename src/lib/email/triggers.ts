@@ -184,9 +184,12 @@ export async function triggerEventInvitations(eventId: string): Promise<number> 
     .select({
       id: events.id,
       title: events.title,
-      date: events.date,
-      location: events.location,
-      status: events.status,
+      startDate: events.startDate,
+      endDate: events.endDate,
+      country: events.country,
+      province: events.province,
+      city: events.city,
+      isPublic: events.isPublic,
       academyId: events.academyId,
       tenantId: events.tenantId,
       academyCountry: academies.country,
@@ -221,10 +224,17 @@ export async function triggerEventInvitations(eventId: string): Promise<number> 
     if (!email) continue;
 
     try {
+      const location = [event.city, event.province, event.country].filter(Boolean).join(", ") || undefined;
+      const dateText = event.startDate 
+        ? event.endDate && event.endDate !== event.startDate
+          ? `${formatLongDateForCountry(String(event.startDate), event.academyCountry)} - ${formatLongDateForCountry(String(event.endDate), event.academyCountry)}`
+          : formatLongDateForCountry(String(event.startDate), event.academyCountry)
+        : "Fecha por confirmar";
+
       const html = EventInvitationTemplate({
         eventName: event.title,
-        eventDate: event.date ? formatLongDateForCountry(event.date, event.academyCountry) : "Fecha por confirmar",
-        eventLocation: event.location || undefined,
+        eventDate: dateText,
+        eventLocation: location,
         academyName: "Tu academia", // TODO: obtener nombre de academia
       });
 

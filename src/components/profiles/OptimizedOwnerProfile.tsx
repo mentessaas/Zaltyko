@@ -358,7 +358,7 @@ export function OptimizedOwnerProfile({
           <CardContent>
             <div className="flex items-center gap-2">
               <div className="text-2xl font-bold text-foreground">{planCopy.label}</div>
-              <Badge className={planCopy.color} variant="secondary">
+              <Badge className={planCopy.color} variant="outline">
                 {activeAcademy?.subscriptionStatus || "Sin suscripción"}
               </Badge>
             </div>

@@ -44,13 +44,19 @@ export default async function AthleteHistoryPage({ params }: PageProps) {
     .orderBy(athleteAssessments.assessmentDate);
 
   // Crear eventos para timeline
-  const timelineEvents = initialAssessments.map((assessment) => ({
-    id: assessment.id,
-    type: "assessment" as const,
-    date: assessment.assessmentDate.toISOString(),
-    title: `Evaluación - ${assessment.apparatus || "General"}`,
-    description: assessment.overallComment || undefined,
-  }));
+  const timelineEvents = initialAssessments.map((assessment) => {
+    const dateValue = assessment.assessmentDate as string | Date;
+    const date = typeof dateValue === 'string'
+      ? new Date(dateValue).toISOString()
+      : dateValue.toISOString();
+    return {
+      id: assessment.id,
+      type: "assessment" as const,
+      date,
+      title: `Evaluación - ${assessment.apparatus || "General"}`,
+      description: assessment.overallComment || undefined,
+    };
+  });
 
   return (
     <div className="space-y-6 p-4 sm:p-6 lg:p-8">
@@ -74,14 +80,20 @@ export default async function AthleteHistoryPage({ params }: PageProps) {
       <AthleteHistoryView
         athleteId={athleteId}
         academyId={academyId}
-        initialAssessments={initialAssessments.map((a) => ({
-          id: a.id,
-          assessmentDate: a.assessmentDate.toISOString().split("T")[0],
-          apparatus: a.apparatus,
-          overallComment: a.overallComment,
-          assessedByName: null,
-          skills: [],
-        }))}
+        initialAssessments={initialAssessments.map((a) => {
+          const dateValue = a.assessmentDate as string | Date;
+          const dateStr = typeof dateValue === 'string'
+            ? new Date(dateValue).toISOString().split("T")[0]
+            : dateValue.toISOString().split("T")[0];
+          return {
+            id: a.id,
+            assessmentDate: dateStr,
+            apparatus: a.apparatus,
+            overallComment: a.overallComment,
+            assessedByName: null,
+            skills: [],
+          };
+        })}
       />
     </div>
   );

@@ -87,10 +87,10 @@ export interface PayloadValidationContext {
  * Middleware wrapper para validar tamaño de payload
  */
 export function withPayloadValidation(
-  handler: (request: NextRequest, context?: PayloadValidationContext) => Promise<NextResponse>,
+  handler: (request: NextRequest, context: PayloadValidationContext) => Promise<Response | NextResponse>,
   options?: { maxSize?: number }
 ) {
-  return async (request: NextRequest, context?: PayloadValidationContext): Promise<NextResponse> => {
+  return async (request: NextRequest, context?: PayloadValidationContext): Promise<Response | NextResponse> => {
     const validation = await validatePayloadSize(request, options?.maxSize);
 
     if (!validation.valid) {
@@ -108,7 +108,7 @@ export function withPayloadValidation(
       );
     }
 
-    return handler(request, context);
+    return handler(request, context ?? {});
   };
 }
 

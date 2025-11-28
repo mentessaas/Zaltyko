@@ -1,143 +1,277 @@
+import { kv } from "@vercel/kv";
 import { NextRequest, NextResponse } from "next/server";
 
 /**
- * Rate Limiting Middleware
+ * Rate Limiting using Vercel KV (Redis)
  * 
- * Implementa rate limiting básico usando un Map en memoria.
- * Para producción, considera usar Redis o un servicio dedicado.
+ * Implements sliding window rate limiting for production use.
  */
 
-interface RateLimitStore {
-  count: number;
-  resetTime: number;
+export interface RateLimitConfig {
+  /**
+   * Unique identifier for the rate limit (e.g., IP address, user ID)
+   */
+  identifier: string;
+
+  /**
+   * Maximum number of requests allowed in the time window
+   */
+  limit: number;
+
+  /**
+   * Time window in seconds
+   */
+  window: number;
 }
 
-// Store en memoria (se reinicia en cada deploy)
-// En producción, usa Redis o un servicio dedicado
-const rateLimitStore = new Map<string, RateLimitStore>();
+export interface RateLimitResult {
+  /**
+   * Whether the request is allowed
+   */
+  success: boolean;
 
-// Configuración por defecto
-const DEFAULT_LIMIT = 100; // requests
-const DEFAULT_WINDOW = 60 * 1000; // 1 minuto en ms
+  /**
+   * Maximum number of requests allowed
+   */
+  limit: number;
 
-// Límites específicos por ruta
+  /**
+   * Number of requests remaining in the current window
+   */
+  remaining: number;
+
+  /**
+   * Unix timestamp when the rate limit resets
+   */
+  reset: number;
+}
+
+/**
+ * Implements sliding window rate limiting using Redis (Vercel KV)
+ * 
+ * @param config - Rate limit configuration
+ * @returns Rate limit result with success status and metadata
+ */
+export async function rateLimit(config: RateLimitConfig): Promise<RateLimitResult> {
+  const { identifier, limit, window } = config;
+
+  // Create a unique key for this identifier
+  const key = `rate_limit:${identifier}`;
+
+  // Get current timestamp in seconds
+  const now = Math.floor(Date.now() / 1000);
+  const windowStart = now - window;
+
+  try {
+    // Use Redis sorted set to track requests with timestamps
+    // Remove old requests outside the current window
+    await kv.zremrangebyscore(key, 0, windowStart);
+
+    // Count requests in the current window
+    const requestCount = await kv.zcard(key);
+
+    // Check if limit is exceeded
+    if (requestCount >= limit) {
+      // Get the oldest request timestamp to calculate reset time
+      const oldestRequests = await kv.zrange(key, 0, 0, { withScores: true });
+      const oldestTimestamp = oldestRequests.length > 0
+        ? (oldestRequests[1] as number)
+        : now;
+
+      const reset = Math.ceil(oldestTimestamp + window);
+
+      return {
+        success: false,
+        limit,
+        remaining: 0,
+        reset,
+      };
+    }
+
+    // Add current request to the sorted set
+    await kv.zadd(key, { score: now, member: `${now}:${Math.random()}` });
+
+    // Set expiration on the key to clean up automatically
+    await kv.expire(key, window);
+
+    // Calculate remaining requests
+    const remaining = limit - (requestCount + 1);
+    const reset = now + window;
+
+    return {
+      success: true,
+      limit,
+      remaining,
+      reset,
+    };
+  } catch (error) {
+    console.error("Rate limit error:", error);
+
+    // On error, allow the request but log the issue
+    // This prevents rate limiting from breaking the app if Redis is down
+    return {
+      success: true,
+      limit,
+      remaining: limit,
+      reset: now + window,
+    };
+  }
+}
+
+/**
+ * Rate limit presets for different endpoint types
+ */
+export const RATE_LIMITS = {
+  /**
+   * Public endpoints (100 requests per minute)
+   */
+  PUBLIC: {
+    limit: 100,
+    window: 60,
+  },
+
+  /**
+   * Authenticated endpoints (300 requests per minute)
+   */
+  AUTHENTICATED: {
+    limit: 300,
+    window: 60,
+  },
+
+  /**
+   * Critical endpoints like billing and webhooks (10 requests per minute)
+   */
+  CRITICAL: {
+    limit: 10,
+    window: 60,
+  },
+
+  /**
+   * Strict rate limit for sensitive operations (5 requests per minute)
+   */
+  STRICT: {
+    limit: 5,
+    window: 60,
+  },
+
+  /**
+   * Webhooks - high limit for external services
+   */
+  WEBHOOK: {
+    limit: 1000,
+    window: 60,
+  },
+} as const;
+
+/**
+ * Route-specific rate limits
+ */
 const ROUTE_LIMITS: Record<string, { limit: number; window: number }> = {
-  // Super Admin - límites moderados
-  "/api/super-admin": { limit: 50, window: 60 * 1000 }, // 50 req/min
-  
-  // Billing - límites restrictivos (operaciones sensibles)
-  "/api/billing/checkout": { limit: 10, window: 60 * 1000 }, // 10 req/min
-  "/api/billing/portal": { limit: 10, window: 60 * 1000 }, // 10 req/min
-  
-  // Usuarios y autenticación - límites moderados
-  "/api/admin/users": { limit: 20, window: 60 * 1000 }, // 20 req/min (invitaciones)
-  "/api/invitations": { limit: 20, window: 60 * 1000 }, // 20 req/min
-  
-  // Operaciones de escritura - límites más restrictivos
-  "/api/athletes": { limit: 60, window: 60 * 1000 }, // 60 req/min (POST más restrictivo)
-  "/api/assessments": { limit: 30, window: 60 * 1000 }, // 30 req/min
-  "/api/classes": { limit: 30, window: 60 * 1000 }, // 30 req/min
-  "/api/coaches": { limit: 30, window: 60 * 1000 }, // 30 req/min
-  "/api/groups": { limit: 30, window: 60 * 1000 }, // 30 req/min
-  "/api/attendance": { limit: 60, window: 60 * 1000 }, // 60 req/min
-  "/api/class-sessions": { limit: 30, window: 60 * 1000 }, // 30 req/min
-  "/api/academies": { limit: 10, window: 60 * 1000 }, // 10 req/min (creación de academias)
-  
-  // Importación - límites muy restrictivos
-  "/api/athletes/import": { limit: 5, window: 60 * 1000 }, // 5 req/min
-  
-  // Webhooks - sin límites (son llamados por servicios externos)
-  "/api/stripe/webhook": { limit: 1000, window: 60 * 1000 }, // 1000 req/min
-  "/api/lemonsqueezy/webhook": { limit: 1000, window: 60 * 1000 }, // 1000 req/min
+  // Super Admin - moderate limits
+  "/api/super-admin": { limit: 50, window: 60 },
+
+  // Billing - restrictive (sensitive operations)
+  "/api/billing/checkout": { limit: 10, window: 60 },
+  "/api/billing/portal": { limit: 10, window: 60 },
+
+  // Users and auth - moderate limits
+  "/api/admin/users": { limit: 20, window: 60 },
+  "/api/invitations": { limit: 20, window: 60 },
+
+  // Write operations - more restrictive
+  "/api/athletes": { limit: 60, window: 60 },
+  "/api/assessments": { limit: 30, window: 60 },
+  "/api/classes": { limit: 30, window: 60 },
+  "/api/coaches": { limit: 30, window: 60 },
+  "/api/groups": { limit: 30, window: 60 },
+  "/api/attendance": { limit: 60, window: 60 },
+  "/api/class-sessions": { limit: 30, window: 60 },
+  "/api/academies": { limit: 10, window: 60 },
+
+  // Import - very restrictive
+  "/api/athletes/import": { limit: 5, window: 60 },
+
+  // Webhooks - no limits (called by external services)
+  "/api/stripe/webhook": { limit: 1000, window: 60 },
+  "/api/lemonsqueezy/webhook": { limit: 1000, window: 60 },
+
+  // Public forms - restrictive to prevent spam
+  "/api/public/academies": { limit: 5, window: 60 },
 };
 
 /**
- * Obtiene el límite para una ruta específica
+ * Gets the rate limit for a specific route
  */
-function getLimitForRoute(pathname: string): { limit: number; window: number } {
+export function getLimitForRoute(pathname: string): { limit: number; window: number } {
   for (const [route, limits] of Object.entries(ROUTE_LIMITS)) {
     if (pathname.startsWith(route)) {
       return limits;
     }
   }
-  return { limit: DEFAULT_LIMIT, window: DEFAULT_WINDOW };
+  return { limit: 100, window: 60 }; // Default: 100 req/min
 }
 
 /**
- * Verifica si una request excede el rate limit
+ * Helper function to get client identifier from request
+ * Uses user ID if authenticated, otherwise falls back to IP address
  */
-export function checkRateLimit(
-  identifier: string,
-  pathname: string
-): { allowed: boolean; remaining: number; resetTime: number } {
-  const { limit, window } = getLimitForRoute(pathname);
-  const now = Date.now();
-  const key = `${identifier}:${pathname}`;
-
-  const entry = rateLimitStore.get(key);
-
-  if (!entry || now > entry.resetTime) {
-    // Nueva ventana o ventana expirada
-    const resetTime = now + window;
-    rateLimitStore.set(key, { count: 1, resetTime });
-    return { allowed: true, remaining: limit - 1, resetTime };
+export function getClientIdentifier(request: NextRequest, userId?: string): string {
+  if (userId) {
+    return `user:${userId}`;
   }
 
-  if (entry.count >= limit) {
-    // Límite excedido
-    return { allowed: false, remaining: 0, resetTime: entry.resetTime };
+  // Try to get IP from various headers (Vercel, Cloudflare, etc.)
+  const forwarded = request.headers.get("x-forwarded-for");
+  const realIp = request.headers.get("x-real-ip");
+  const ip = forwarded?.split(",")[0] || realIp || "unknown";
+
+  return `ip:${ip}`;
+}
+
+/**
+ * Helper to get user identifier from request headers
+ */
+export function getUserIdentifier(request: NextRequest): string {
+  const userId = request.headers.get("x-user-id");
+  if (userId) {
+    return `user:${userId}`;
   }
 
-  // Incrementar contador
-  entry.count++;
-  rateLimitStore.set(key, entry);
-  return { allowed: true, remaining: limit - entry.count, resetTime: entry.resetTime };
+  return getClientIdentifier(request);
 }
 
 /**
- * Limpia entradas expiradas del store (ejecutar periódicamente)
- */
-export function cleanupExpiredEntries() {
-  const now = Date.now();
-  for (const [key, entry] of rateLimitStore.entries()) {
-    if (now > entry.resetTime) {
-      rateLimitStore.delete(key);
-    }
-  }
-}
-
-/**
- * Tipo para el contexto del handler
- */
-export interface RateLimitContext {
-  [key: string]: unknown;
-}
-
-/**
- * Middleware wrapper para rate limiting
+ * Middleware wrapper for rate limiting
  */
 export function withRateLimit(
-  handler: (request: NextRequest, context?: RateLimitContext) => Promise<NextResponse>,
-  options?: { identifier?: (request: NextRequest) => string }
+  handler: (request: NextRequest, context?: any) => Promise<Response | NextResponse>,
+  options?: {
+    identifier?: (request: NextRequest) => string;
+    limit?: number;
+    window?: number;
+  }
 ) {
-  return async (request: NextRequest, context?: RateLimitContext): Promise<NextResponse> => {
-    // Limpiar entradas expiradas periódicamente (cada 100 requests aprox)
-    if (Math.random() < 0.01) {
-      cleanupExpiredEntries();
-    }
+  return async (request: NextRequest, context?: any): Promise<Response | NextResponse> => {
+    const pathname = new URL(request.url).pathname;
 
-    // Obtener identificador (IP o user ID)
+    // Get identifier (IP or user ID)
     const identifier = options?.identifier
       ? options.identifier(request)
-      : request.headers.get("x-forwarded-for")?.split(",")[0] ||
-        request.headers.get("x-real-ip") ||
-        "unknown";
+      : getClientIdentifier(request);
 
-    const pathname = new URL(request.url).pathname;
-    const rateLimit = checkRateLimit(identifier, pathname);
+    // Get limits for this route
+    const routeLimits = options?.limit && options?.window
+      ? { limit: options.limit, window: options.window }
+      : getLimitForRoute(pathname);
 
-    if (!rateLimit.allowed) {
-      const resetSeconds = Math.ceil((rateLimit.resetTime - Date.now()) / 1000);
+    // Check rate limit
+    const result = await rateLimit({
+      identifier: `${pathname}:${identifier}`,
+      ...routeLimits,
+    });
+
+    if (!result.success) {
+      const resetSeconds = result.reset - Math.floor(Date.now() / 1000);
       return NextResponse.json(
         {
           error: "RATE_LIMIT_EXCEEDED",
@@ -147,79 +281,48 @@ export function withRateLimit(
         {
           status: 429,
           headers: {
-            "X-RateLimit-Limit": String(getLimitForRoute(pathname).limit),
+            "X-RateLimit-Limit": String(result.limit),
             "X-RateLimit-Remaining": "0",
-            "X-RateLimit-Reset": String(rateLimit.resetTime),
+            "X-RateLimit-Reset": String(result.reset),
             "Retry-After": String(resetSeconds),
           },
         }
       );
     }
 
-    // Ejecutar handler con manejo de errores
+    // Execute handler
     try {
       const response = await handler(request, context);
 
-      // Agregar headers de rate limit
-      response.headers.set("X-RateLimit-Limit", String(getLimitForRoute(pathname).limit));
-      response.headers.set("X-RateLimit-Remaining", String(rateLimit.remaining));
-      response.headers.set("X-RateLimit-Reset", String(rateLimit.resetTime));
+      // Add rate limit headers
+      response.headers.set("X-RateLimit-Limit", String(result.limit));
+      response.headers.set("X-RateLimit-Remaining", String(result.remaining));
+      response.headers.set("X-RateLimit-Reset", String(result.reset));
 
       return response;
     } catch (error) {
-      // Asegurar que siempre devolvemos JSON, incluso si hay un error no manejado
       const errorResponse = error instanceof Error
         ? NextResponse.json(
-            {
-              error: "INTERNAL_ERROR",
-              message: error.message,
-            },
-            { status: 500 }
-          )
+          {
+            error: "INTERNAL_ERROR",
+            message: error.message,
+          },
+          { status: 500 }
+        )
         : NextResponse.json(
-            {
-              error: "INTERNAL_ERROR",
-              message: "Ha ocurrido un error desconocido",
-            },
-            { status: 500 }
-          );
-      
-      // Agregar headers de rate limit incluso en errores
-      errorResponse.headers.set("X-RateLimit-Limit", String(getLimitForRoute(pathname).limit));
-      errorResponse.headers.set("X-RateLimit-Remaining", String(rateLimit.remaining));
-      errorResponse.headers.set("X-RateLimit-Reset", String(rateLimit.resetTime));
-      
+          {
+            error: "INTERNAL_ERROR",
+            message: "Ha ocurrido un error desconocido",
+          },
+          { status: 500 }
+        );
+
+      // Add rate limit headers even on errors
+      errorResponse.headers.set("X-RateLimit-Limit", String(result.limit));
+      errorResponse.headers.set("X-RateLimit-Remaining", String(result.remaining));
+      errorResponse.headers.set("X-RateLimit-Reset", String(result.reset));
+
       return errorResponse;
     }
   };
 }
-
-/**
- * Helper para obtener user ID desde el request (para rate limiting por usuario)
- */
-export function getUserIdentifier(request: NextRequest): string {
-  // Intentar obtener user ID del header (si está disponible)
-  const userId = request.headers.get("x-user-id");
-  if (userId) {
-    return `user:${userId}`;
-  }
-
-  // Fallback a IP
-  return (
-    request.headers.get("x-forwarded-for")?.split(",")[0] ||
-    request.headers.get("x-real-ip") ||
-    "unknown"
-  );
-}
-
-/**
- * Helper para obtener identificador del cliente (IP) para endpoints públicos
- */
-export function getClientIdentifier(request: NextRequest): string {
-  return (
-    request.headers.get("x-forwarded-for")?.split(",")[0] ||
-    request.headers.get("x-real-ip") ||
-    "unknown"
-  );
-}
-

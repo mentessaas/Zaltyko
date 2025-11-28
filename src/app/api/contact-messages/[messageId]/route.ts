@@ -6,20 +6,13 @@ import { contactMessages, academies } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
 import { verifyAcademyAccess } from "@/lib/permissions";
 
-export async function resolveParams(params: unknown): Promise<{ messageId: string }> {
-  if (typeof params === "object" && params !== null && "messageId" in params) {
-    return params as { messageId: string };
-  }
-  return {} as { messageId: string };
-}
-
 export const DELETE = withTenant(async (request, context) => {
   if (!context.tenantId) {
     return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
   }
 
-  const resolvedParams = await resolveParams(context.params);
-  const messageId = resolvedParams?.messageId;
+  const params = context.params as { messageId?: string };
+  const messageId = params?.messageId;
 
   if (!messageId) {
     return NextResponse.json({ error: "MESSAGE_ID_REQUIRED" }, { status: 400 });

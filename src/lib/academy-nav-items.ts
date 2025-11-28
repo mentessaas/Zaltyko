@@ -6,12 +6,13 @@ import {
   CheckSquare,
   CreditCard,
   ClipboardList,
+  type LucideIcon,
 } from "lucide-react";
 
 export interface AcademyNavItem {
   key: string;
   label: string;
-  icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
+  icon: LucideIcon;
   href: string;
 }
 

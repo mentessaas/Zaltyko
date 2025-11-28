@@ -4,7 +4,7 @@ import { eq, and, desc } from "drizzle-orm";
 
 import { db } from "@/db";
 import { coachNotes, athletes, profiles } from "@/db/schema";
-import { withTenant, getCurrentProfile } from "@/lib/authz";
+import { withTenant } from "@/lib/authz";
 
 const createSchema = z.object({
   athleteId: z.string().uuid(),
@@ -68,10 +68,7 @@ export const POST = withTenant(async (request, context) => {
     return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
   }
 
-  const profile = await getCurrentProfile(request);
-  if (!profile) {
-    return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
-  }
+  const profile = context.profile;
 
   const body = createSchema.parse(await request.json());
 

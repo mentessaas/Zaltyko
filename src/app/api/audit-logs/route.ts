@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { eq, and, gte, lte, ilike, or, desc } from "drizzle-orm";
+import { eq, and, gte, lte, desc } from "drizzle-orm";
 import { withTenant } from "@/lib/authz";
 
 import { db } from "@/db";
 import { auditLogs, profiles } from "@/db/schema";
 
 const querySchema = z.object({
-  academyId: z.string().uuid().optional(),
+  // academyId removido - audit_logs no tiene este campo
   q: z.string().optional(),
   action: z.string().optional(),
   table: z.string().optional(),
@@ -23,7 +23,6 @@ export const GET = withTenant(async (request, context) => {
 
   const url = new URL(request.url);
   const params = {
-    academyId: url.searchParams.get("academyId"),
     q: url.searchParams.get("q"),
     action: url.searchParams.get("action"),
     table: url.searchParams.get("table"),
@@ -35,16 +34,16 @@ export const GET = withTenant(async (request, context) => {
   const validated = querySchema.parse(params);
 
   const whereConditions = [eq(auditLogs.tenantId, context.tenantId)];
-
-  if (validated.academyId) {
-    whereConditions.push(eq(auditLogs.academyId, validated.academyId));
-  }
+  
   if (validated.action) {
     whereConditions.push(eq(auditLogs.action, validated.action));
   }
-  if (validated.table) {
-    whereConditions.push(eq(auditLogs.tableName, validated.table));
-  }
+  
+  // tableName no existe en audit_logs, se filtrará después usando meta
+  // if (validated.table) {
+  //   whereConditions.push(eq(auditLogs.tableName, validated.table));
+  // }
+  
   if (validated.startDate) {
     whereConditions.push(gte(auditLogs.createdAt, new Date(validated.startDate)));
   }
@@ -58,11 +57,9 @@ export const GET = withTenant(async (request, context) => {
     .select({
       id: auditLogs.id,
       action: auditLogs.action,
-      tableName: auditLogs.tableName,
-      recordId: auditLogs.recordId,
+      meta: auditLogs.meta,
       userId: auditLogs.userId,
       userName: profiles.name,
-      metadata: auditLogs.metadata,
       createdAt: auditLogs.createdAt,
     })
     .from(auditLogs)
@@ -78,23 +75,33 @@ export const GET = withTenant(async (request, context) => {
     filteredItems = items.filter(
       (item) =>
         item.action.toLowerCase().includes(query) ||
-        item.tableName.toLowerCase().includes(query) ||
         (item.userName && item.userName.toLowerCase().includes(query)) ||
-        item.recordId.toLowerCase().includes(query)
+        (item.meta && JSON.stringify(item.meta).toLowerCase().includes(query))
     );
   }
 
+  // Filtrar por table usando meta si es necesario
+  if (validated.table) {
+    filteredItems = filteredItems.filter((item) => {
+      if (!item.meta || typeof item.meta !== "object") return false;
+      const meta = item.meta as Record<string, unknown>;
+      return meta.table === validated.table || meta.tableName === validated.table;
+    });
+  }
+
   return NextResponse.json({
-    items: filteredItems.map((item) => ({
-      id: item.id,
-      action: item.action,
-      tableName: item.tableName,
-      recordId: item.recordId,
-      userId: item.userId,
-      userName: item.userName || "Desconocido",
-      metadata: item.metadata,
-      createdAt: item.createdAt?.toISOString(),
-    })),
+    items: filteredItems.map((item) => {
+      const meta = (item.meta as Record<string, unknown>) || {};
+      return {
+        id: item.id,
+        action: item.action,
+        tableName: meta.table || meta.tableName || null,
+        recordId: meta.recordId || meta.id || null,
+        userId: item.userId,
+        userName: item.userName || "Desconocido",
+        metadata: item.meta,
+        createdAt: item.createdAt?.toISOString(),
+      };
+    }),
   });
 });
-

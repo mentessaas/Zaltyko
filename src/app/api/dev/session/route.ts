@@ -287,7 +287,7 @@ async function ensureFamilyContacts() {
   }
 }
 
-export async function ensureDevSessionData() {
+async function ensureDevSessionData() {
   const profile = await ensureProfile();
   const academy = await ensureAcademy(profile.id);
   await ensureMembership();

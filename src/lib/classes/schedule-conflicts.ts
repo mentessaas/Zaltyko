@@ -207,12 +207,12 @@ export async function hasScheduleConflictForAthlete(
   const classWeekdayRows =
     allClassIds.length > 0
       ? await db
-          .select({
-            classId: classWeekdays.classId,
-            weekday: classWeekdays.weekday,
-          })
-          .from(classWeekdays)
-          .where(inArray(classWeekdays.classId, allClassIds))
+        .select({
+          classId: classWeekdays.classId,
+          weekday: classWeekdays.weekday,
+        })
+        .from(classWeekdays)
+        .where(inArray(classWeekdays.classId, allClassIds))
       : [];
 
   // Agrupar weekdays por clase
@@ -560,7 +560,7 @@ export async function checkScheduleConflict(params: {
             name: cls.name ?? "Clase sin nombre",
             startTime: String(cls.startTime),
             endTime: String(cls.endTime),
-            type: cls.groupId ? "base" : "extra",
+            type: "base",
           });
         }
       }

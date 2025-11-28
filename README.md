@@ -1,101 +1,82 @@
-# Gym SaaS – Multi-academia de gimnasia
+# Zaltyko SaaS – Plataforma de Gestión para Academias de Gimnasia
 
-Base tecnológica: Next.js 14 (App Router) + Drizzle ORM + Supabase + NextAuth + Stripe + Tailwind/shadcn.
+**Zaltyko SaaS** es una solución tecnológica integral diseñada para modernizar y simplificar la gestión de academias de gimnasia (artística, rítmica, trampolín, etc.). Construida con una arquitectura **multi-tenant** robusta, permite a cada academia operar en un entorno seguro y aislado, mientras escala desde pequeños clubes hasta grandes instituciones.
 
-Este repositorio toma ShipFree como plantilla técnica y lo transforma en un SaaS multi-tenant para academias de gimnasia: cada academia se aísla por `tenant_id`, los planes Free/Pro/Premium controlan límites de atletas y existe un panel global de Súper Admin.
+![Status](https://img.shields.io/badge/Status-Beta_Ready-green) ![Tech](https://img.shields.io/badge/Stack-Next.js_14_|_Supabase_|_Stripe-blue)
 
-## 🌱 Primeros pasos
+## 🚀 Características Principales
 
-1. **Instala dependencias**
+### 🏢 Gestión Multi-Academia (Multi-Tenancy)
+- **Aislamiento Total**: Cada academia tiene sus propios datos, atletas y configuraciones, garantizado por Row Level Security (RLS) a nivel de base de datos.
+- **Roles y Permisos**: Sistema granular con roles de Dueño, Entrenador, Atleta y Administrador.
 
-   ```bash
-   pnpm install
-   ```
+### 👥 Gestión Deportiva
+- **Atletas**: Perfiles completos, historial médico, niveles de habilidad y evaluaciones.
+- **Clases y Asistencia**: Programación flexible de sesiones, control de aforo y registro de asistencia en tiempo real.
+- **Entrenadores**: Gestión de staff, asignación a clases y control de horarios.
 
-2. **Configura variables de entorno**
+### 💳 Facturación y Suscripciones
+- **Integración con Stripe**: Pagos seguros y automatizados.
+- **Planes Flexibles**: Soporte para modelos Freemium, Pro y Premium con límites automáticos de recursos (atletas/clases).
+- **Portal de Cliente**: Autogestión de métodos de pago y facturas.
 
-   Copia `.env.example` → `.env.local` y rellena:
+### 🛠️ Herramientas Administrativas
+- **Onboarding Automatizado**: Flujo guiado para configurar nuevas academias en minutos.
+- **Panel Súper Admin**: Vista global para la administración de la plataforma SaaS.
+- **Notificaciones**: Sistema de emails transaccionales (invitaciones, alertas de pago).
 
-   - `DATABASE_URL` (Postgres/Supabase)
-   - `NEXTAUTH_*`
-   - `SUPABASE_*`
-   - `STRIPE_*`
-   - `MAILGUN_*` (opcional, puede quedarse vacío por ahora)
+## 🛠️ Stack Tecnológico
 
-3. **Genera/actualiza la base de datos**
+La plataforma está construida sobre tecnologías modernas, priorizando rendimiento, seguridad y escalabilidad:
 
-   Asegúrate de que tu instancia de Postgres/Supabase esté **encendida** (por ejemplo, `npx supabase start` o tu cluster remoto). Luego ejecuta:
+- **Frontend**: [Next.js 14](https://nextjs.org/) (App Router), [Tailwind CSS](https://tailwindcss.com/), [shadcn/ui](https://ui.shadcn.com/).
+- **Backend**: Server Actions, [Drizzle ORM](https://orm.drizzle.team/).
+- **Base de Datos**: [Supabase](https://supabase.com/) (PostgreSQL) con RLS.
+- **Auth**: [NextAuth.js](https://next-auth.js.org/) (v5).
+- **Pagos**: [Stripe](https://stripe.com/).
+- **Infraestructura**: Vercel (Frontend/Edge), Supabase (DB).
 
-   ```bash
-   pnpm db:generate   # opcional: inspeccionar SQL generado
-   pnpm db:migrate    # aplica la migración 0001_init.sql y posteriores
-   pnpm db:seed       # inserta planes (free/pro/premium) y el perfil admin
-   ```
+## 🌱 Primeros Pasos (Desarrollo Local)
 
-  > ℹ️ Puedes sobreescribir los `stripe_price_id` y `stripe_product_id` de los planes pagados usando
-  > las variables `SEED_STRIPE_PRICE_PRO`, `SEED_STRIPE_PRODUCT_PRO`, `SEED_STRIPE_PRICE_PREMIUM`
-  > y `SEED_STRIPE_PRODUCT_PREMIUM` al ejecutar el seed.
+Sigue estos pasos para levantar el entorno de desarrollo:
 
-4. **Aplica RLS en Supabase**
+1.  **Requisitos Previos**: Node.js 20+, pnpm, Docker (opcional, para DB local).
 
-   Abre `supabase/rls.sql` y ejecútalo en el SQL editor de tu proyecto Supabase. Activa las políticas por tenant y las funciones helper (`get_current_tenant`, `is_admin`, etc.).
+2.  **Instalación**:
+    ```bash
+    git clone <repo-url>
+    cd zaltyko-saas
+    pnpm install
+    ```
 
-5. **Ejecuta pruebas rápidas**
+3.  **Configuración de Entorno**:
+    Copia el archivo de ejemplo y configura tus claves (Supabase, Stripe, NextAuth):
+    ```bash
+    cp .env.example .env.local
+    ```
 
-   ```bash
-   pnpm test -- --run
-   ```
+4.  **Base de Datos**:
+    ```bash
+    pnpm db:generate   # Generar esquemas SQL
+    pnpm db:migrate    # Aplicar migraciones
+    pnpm db:seed       # Poblar datos iniciales (Planes, Admin)
+    ```
 
-   Incluye aislamiento por tenant y evaluaciones de límites básicos.
+5.  **Ejecutar**:
+    ```bash
+    pnpm dev
+    ```
+    Visita `http://localhost:3000`.
 
-6. **Levanta el entorno de desarrollo**
+## 🧪 Testing
 
-   ```bash
-   pnpm dev
-   ```
+El proyecto cuenta con una suite de tests robusta usando **Vitest**, incluyendo pruebas de aislamiento de datos entre tenants.
 
-   La app queda disponible en `http://localhost:3000`.
+```bash
+pnpm test        # Ejecutar todos los tests
+pnpm test:ui     # Abrir interfaz gráfica de tests
+```
 
-7. **Activa la sesión demo (sin llaves reales)**
+## 📄 Licencia
 
-   - Desde la portada pulsa “Crear academia demo” o visita `http://localhost:3000/api/dev/session` (POST) para generar usuario, academia y datos ficticios.
-   - El `DevSessionProvider` guarda esta información en `localStorage`; los fetch del frontend envían el header `x-user-id` automáticamente.
-   - Abre `http://localhost:3000/app/[academyId]/dashboard` para saltar directo al panel multi-academia (sidebar con Atletas, Entrenadores, Clases, Asistencia y Facturación).
-
-## 📁 Scripts disponibles
-
-| Script           | Descripción                                              |
-| ---------------- | -------------------------------------------------------- |
-| `pnpm dev`       | Arranca Next.js en modo desarrollo                       |
-| `pnpm build`     | Compila la aplicación                                    |
-| `pnpm start`     | Ejecuta el build en modo producción                      |
-| `pnpm db:generate` | Genera SQL desde los schemas Drizzle (solo inspección)    |
-| `pnpm db:migrate`  | Aplica las migraciones a la base de datos                 |
-| `pnpm db:seed`     | Inserta planes y el perfil admin                          |
-| `pnpm test`        | Ejecuta los tests de Vitest                              |
-
-## 📦 Módulos implementados en este bloque
-
-- **Layout multi-academia** (`/app/[academyId]/layout.tsx`) con sidebar/topbar y context provider (`useAcademyContext`).
-- **Atletas** (`/app/[academyId]/athletes`) con formularios modales, contactos familiares y tests para POST/GET/PATCH/DELETE.
-- **Entrenadores** (`/app/[academyId]/coaches`) con asignación de clases desde UI y API.
-- **Clases & Asistencia** (`/app/[academyId]/classes` + `.../classes/[classId]` + `/app/[academyId]/attendance`) para programar sesiones y registrar estados de atletas.
-- **Facturación contextualizada** (`/app/[academyId]/billing`) que consume las APIs `/api/billing/*` con el usuario autenticado.
-- **Esquema Drizzle** dividido por dominio (`src/db/schema/**`).
-- **Migración inicial** (`drizzle/0001_init.sql`) con índices multi-tenant.
-- **Seeds** (`scripts/seed.ts`) con datos demo completos (planes, academias, invitaciones, facturación, clases y sesiones de muestra).
-- **Políticas RLS** (`supabase/rls.sql`) con bypass para `admin`/`super_admin`.
-- **Guía de soporte** (`docs/support-handbook.md`) para operaciones, facturación y flujos de usuarios.
-- **Academias** (`/api/academies` + onboarding) con tipo obligatorio (`artistica`, `ritmica`, `trampolin`, `general`) y listados filtrables por `academyType`.
-- **Helpers de autorización** (`src/lib/authz.ts`) con `getCurrentProfile`, `getTenantId`, `withTenant`.
-- **Pruebas de aislamiento** (`tests/tenancy.test.ts`).
-
-## ➡️ Qué sigue
-
-1. Límites por plan + Stripe checkout/webhooks + onboarding wizard.
-2. CRUDs completos y dashboards (Academia / Súper Admin).
-3. Emails automáticos, eventos externos y módulos extra.
-
----
-
-Cualquier contribución o feedback es bienvenido. ¡Vamos construyendo la plataforma paso a paso! 💪🤸‍♀️
+Este proyecto es propiedad privada. Todos los derechos reservados.

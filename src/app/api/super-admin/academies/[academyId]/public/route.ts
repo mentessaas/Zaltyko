@@ -24,7 +24,8 @@ const UpdateVisibilitySchema = z.object({
  */
 export const PUT = withSuperAdmin(async (request, context) => {
   try {
-    const { academyId: id } = await context.params;
+    const params = await context.params as Promise<{ academyId: string }>;
+    const { academyId: id } = await params;
 
     let body;
     try {
