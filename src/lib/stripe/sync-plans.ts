@@ -53,16 +53,16 @@ function parseAthleteLimit(price: Stripe.Price, fallback: number | null): number
 export async function syncStripePlans(): Promise<PlanSyncResult> {
   const stripe = getStripeClient();
 
-  const pricesIterator = stripe.prices.list({
+  const pricesResponse = await stripe.prices.list({
     active: true,
     limit: 100,
     expand: ["data.product"],
-  }).autoPagingIterable();
+  });
 
   const updatedPlanCodes = new Set<string>();
   const missingStripePrices: string[] = [];
 
-  for await (const price of pricesIterator) {
+  for (const price of pricesResponse.data) {
     if (!price.active || !price.unit_amount) {
       continue;
     }
