@@ -89,7 +89,7 @@ export async function syncStripePlans(): Promise<PlanSyncResult> {
     const billingInterval = price.recurring?.interval ?? null;
     const nickname =
       price.nickname ??
-      (typeof price.product !== "string" ? price.product.name : null) ??
+      (typeof price.product !== "string" && !price.product.deleted ? price.product.name : null) ??
       planCode.toUpperCase();
     const productId = typeof price.product === "string" ? price.product : price.product.id;
 
