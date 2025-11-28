@@ -90,15 +90,17 @@ export async function markChecklistItem({
   const client = tx ?? db;
 
   // Get tenantId from academy if not provided
-  let finalTenantId = tenantId;
-  if (!finalTenantId) {
+  let finalTenantId: string;
+  if (tenantId) {
+    finalTenantId = tenantId;
+  } else {
     const [academy] = await client
       .select({ tenantId: academies.tenantId })
       .from(academies)
       .where(eq(academies.id, academyId))
       .limit(1);
     
-    if (!academy || !academy.tenantId) {
+    if (!academy?.tenantId) {
       throw new Error(`Academy ${academyId} not found or has no tenantId`);
     }
     
@@ -183,15 +185,17 @@ export async function markWizardStep({
   const client = tx ?? db;
   
   // Get tenantId from academy if not provided
-  let finalTenantId = tenantId;
-  if (!finalTenantId) {
+  let finalTenantId: string;
+  if (tenantId) {
+    finalTenantId = tenantId;
+  } else {
     const [academy] = await client
       .select({ tenantId: academies.tenantId })
       .from(academies)
       .where(eq(academies.id, academyId))
       .limit(1);
     
-    if (!academy || !academy.tenantId) {
+    if (!academy?.tenantId) {
       throw new Error(`Academy ${academyId} not found or has no tenantId`);
     }
     
