@@ -220,7 +220,7 @@ export async function analyzeDelinquency(
     eq(charges.tenantId, filters.tenantId),
     eq(charges.academyId, filters.academyId),
     eq(charges.status, "pending"),
-    lte(charges.dueDate, today),
+    lte(charges.dueDate, format(today, "yyyy-MM-dd")),
   ];
 
   if (filters.athleteId) {
@@ -258,8 +258,11 @@ export async function analyzeDelinquency(
     current.total += amount;
     current.count += 1;
 
-    if (!current.oldest || (charge.dueDate && charge.dueDate < current.oldest)) {
-      current.oldest = charge.dueDate || null;
+    if (charge.dueDate) {
+      const dueDate = typeof charge.dueDate === "string" ? new Date(charge.dueDate) : charge.dueDate;
+      if (!current.oldest || dueDate < current.oldest) {
+        current.oldest = dueDate;
+      }
     }
 
     athleteMap.set(charge.athleteId, current);
@@ -315,6 +318,4 @@ export async function projectRevenue(
 
   return projections;
 }
-
-import { format } from "date-fns";
 
