@@ -72,3 +72,52 @@ export const POST = withTenant(async (req, context) => {
         return new NextResponse("Internal Server Error", { status: 500 });
     }
 });
+
+export const DELETE = withTenant(async (req, context) => {
+    try {
+        const { userId } = context;
+
+        // Get current subscription
+        const [currentSubscription] = await db
+            .select()
+            .from(subscriptions)
+            .where(eq(subscriptions.userId, userId))
+            .limit(1);
+
+        if (!currentSubscription) {
+            return new NextResponse("No active subscription found", { status: 404 });
+        }
+
+        if (!currentSubscription.cancelAtPeriodEnd) {
+            return NextResponse.json(
+                {
+                    error: "No scheduled downgrade found",
+                },
+                { status: 400 }
+            );
+        }
+
+        // TODO: Integrate with Stripe to cancel the scheduled downgrade
+        // await stripe.subscriptions.update(currentSubscription.stripeSubscriptionId, {
+        //   cancel_at_period_end: false,
+        // });
+
+        // Remove the scheduled downgrade
+        await db
+            .update(subscriptions)
+            .set({
+                cancelAtPeriodEnd: false,
+                updatedAt: new Date(),
+            })
+            .where(eq(subscriptions.id, currentSubscription.id));
+
+        return NextResponse.json({
+            success: true,
+            cancelled: true,
+            message: "Scheduled downgrade has been cancelled",
+        });
+    } catch (error) {
+        console.error("Error cancelling downgrade:", error);
+        return new NextResponse("Internal Server Error", { status: 500 });
+    }
+});
