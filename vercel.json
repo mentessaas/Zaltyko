@@ -1,5 +1,5 @@
 {
-  "buildCommand": "pnpm build",
+  "buildCommand": "rm -rf .next && pnpm build",
   "installCommand": "pnpm install",
   "framework": "nextjs",
   "regions": [
