@@ -13,10 +13,10 @@ import { z } from "zod";
  * Schema de validación para variables de entorno del servidor
  */
 const serverEnvSchema = z.object({
-  // Base de datos
-  DATABASE_URL: z.string().url().optional(),
-  DATABASE_URL_POOL: z.string().url().optional(),
-  DATABASE_URL_DIRECT: z.string().url().optional(),
+  // Base de datos (no usar .url() porque PostgreSQL URLs no son válidas para el validador URL estándar)
+  DATABASE_URL: z.string().min(1).optional(),
+  DATABASE_URL_POOL: z.string().min(1).optional(),
+  DATABASE_URL_DIRECT: z.string().min(1).optional(),
 
   // Supabase
   NEXT_PUBLIC_SUPABASE_URL: z.string().url().optional(),
