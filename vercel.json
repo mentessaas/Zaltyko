@@ -11,10 +11,6 @@
       "schedule": "0 8 * * *"
     },
     {
-      "path": "/api/cron/daily-alerts",
-      "schedule": "0 9 * * *"
-    },
-    {
       "path": "/api/cron/generate-sessions",
       "schedule": "0 2 * * *"
     }
