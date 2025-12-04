@@ -136,22 +136,32 @@ export default async function CoachPublicPage({ params }: PageProps) {
     );
 }
 
-// Generate static params for all public coaches
-export async function generateStaticParams() {
-    const publicCoaches = await db
-        .select({ slug: coaches.slug })
-        .from(coaches)
-        .where(
-            and(
-                eq(coaches.isPublic, true),
-                isNotNull(coaches.slug)
-            )
-        )
-        .limit(100); // Limit for build performance
+// Allow dynamic params at runtime (pages generated on-demand)
+export const dynamicParams = true;
 
-    return publicCoaches
-        .filter((coach) => coach.slug)
-        .map((coach) => ({
-            slug: coach.slug!,
-        }));
+// Generate static params for all public coaches
+// Returns empty array during build if DB is unavailable, pages will be generated at runtime
+export async function generateStaticParams() {
+    try {
+        const publicCoaches = await db
+            .select({ slug: coaches.slug })
+            .from(coaches)
+            .where(
+                and(
+                    eq(coaches.isPublic, true),
+                    isNotNull(coaches.slug)
+                )
+            )
+            .limit(100); // Limit for build performance
+
+        return publicCoaches
+            .filter((coach) => coach.slug)
+            .map((coach) => ({
+                slug: coach.slug!,
+            }));
+    } catch {
+        // Database not available during build (e.g., Vercel build time)
+        // Pages will be generated dynamically at runtime
+        return [];
+    }
 }
