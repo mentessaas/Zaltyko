@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
@@ -45,6 +45,62 @@ async function getAthleteTenant(athleteId: string) {
 
   return row ?? null;
 }
+
+export const GET = withTenant(async (_request, context) => {
+  const athleteId = (context.params as { athleteId?: string })?.athleteId;
+
+  if (!athleteId) {
+    return NextResponse.json({ error: "ATHLETE_ID_REQUIRED" }, { status: 400 });
+  }
+
+  const { tenantId } = context;
+
+  const [athlete] = await db
+    .select()
+    .from(athletes)
+    .where(and(eq(athletes.id, athleteId), eq(athletes.tenantId, tenantId)))
+    .limit(1);
+
+  if (!athlete) {
+    return NextResponse.json({ error: "ATHLETE_NOT_FOUND" }, { status: 404 });
+  }
+
+  return NextResponse.json(athlete);
+});
+
+export const PUT = withTenant(async (request, context) => {
+  const athleteId = (context.params as { athleteId?: string })?.athleteId;
+
+  if (!athleteId) {
+    return NextResponse.json({ error: "ATHLETE_ID_REQUIRED" }, { status: 400 });
+  }
+
+  const { tenantId } = context;
+
+  // Verify the athlete belongs to the tenant
+  const [existing] = await db
+    .select()
+    .from(athletes)
+    .where(and(eq(athletes.id, athleteId), eq(athletes.tenantId, tenantId)))
+    .limit(1);
+
+  if (!existing) {
+    return NextResponse.json({ error: "ATHLETE_NOT_FOUND" }, { status: 404 });
+  }
+
+  const body = await request.json();
+
+  const [updated] = await db
+    .update(athletes)
+    .set({
+      ...body,
+      updatedAt: new Date(),
+    })
+    .where(eq(athletes.id, athleteId))
+    .returning();
+
+  return NextResponse.json(updated);
+});
 
 export const PATCH = withTenant(async (request, context) => {
   const athleteId = (context.params as { athleteId?: string })?.athleteId;
