@@ -1,0 +1,183 @@
+"use client";
+
+import SEO from "@/utils/seo";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { ArrowLeft, X, Loader2 } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/components/ui/toast-provider";
+
+export function LoginForm() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
+  const supabase = createClient();
+  const toast = useToast();
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      if (error) {
+        toast.pushToast({
+          title: "Error al iniciar sesión",
+          description: error.message,
+          variant: "error",
+        });
+        return;
+      }
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      const userId = user?.id ?? null;
+
+      const headers = new Headers();
+      if (userId) {
+        headers.set("x-user-id", userId);
+      }
+
+      try {
+        const profileResponse = await fetch("/api/onboarding/profile", {
+          cache: "no-store",
+          headers,
+        });
+
+        if (profileResponse.ok) {
+          const profile = (await profileResponse.json()) as {
+            role?: string;
+            tenantId?: string | null;
+            profileId?: string;
+            activeAcademyId?: string | null;
+          };
+
+          if (profile.role && ["super_admin", "admin", "owner"].includes(profile.role)) {
+            let targetAcademyId = profile.activeAcademyId ?? null;
+
+            if (!targetAcademyId && userId) {
+              try {
+                const academiesResponse = await fetch("/api/academies", {
+                  cache: "no-store",
+                  headers,
+                });
+                if (academiesResponse.ok) {
+                  const academiesData = (await academiesResponse.json()) as {
+                    items?: { id: string }[];
+                  };
+                  targetAcademyId = academiesData.items?.[0]?.id ?? null;
+                }
+              } catch (academiesError) {
+                // Error silencioso, continuamos con el flujo normal
+              }
+            }
+
+            if (profile.role === "super_admin") {
+              router.push("/super-admin");
+              return;
+            }
+
+            if (profile.role === "admin") {
+              router.push("/dashboard/users");
+              return;
+            }
+
+            if (targetAcademyId) {
+              router.push(`/app/${targetAcademyId}/dashboard`);
+              return;
+            }
+
+            router.push("/dashboard");
+            return;
+          }
+        }
+      } catch (fetchError) {
+        // Error silencioso, continuamos con el flujo normal
+      }
+
+      router.push("/dashboard");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <>
+      <SEO
+        title="Zaltyko · Iniciar sesión"
+        description="Accede a tu cuenta para gestionar tu academia en Zaltyko."
+        canonicalUrl="https://zaltyko.com"
+        ogImageUrl="https://zaltyko.com/og-image.png"
+        twitterHandle="zaltyko"
+      />
+      <div className="flex min-h-full flex-col justify-center px-6 py-12 lg:px-8">
+        <div className="absolute top-4 left-4 sm:top-6 sm:left-6">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Volver
+          </Link>
+        </div>
+        <div className="sm:mx-auto sm:w-full sm:max-w-sm">
+          <h2 className="mt-10 text-center text-2xl/9 font-bold tracking-tight text-gray-900">
+            Inicia sesión en tu cuenta
+          </h2>
+        </div>
+        <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-sm">
+          <form onSubmit={handleLogin} className="space-y-4 pb-4">
+            <div className="space-y-2">
+              <Label htmlFor="email">Correo electrónico</Label>
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">Contraseña</Label>
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+            </div>
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Iniciando sesión...
+                </>
+              ) : (
+                "Iniciar sesión"
+              )}
+            </Button>
+          </form>
+          <p className="text-center text-sm pt-4">
+            ¿Aún no tienes cuenta?{" "}
+            <Link
+              href="/onboarding"
+              className="text-blue-500 hover:underline"
+            >
+              Regístrate
+            </Link>
+          </p>
+        </div>
+      </div>
+    </>
+  );
+}

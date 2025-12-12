@@ -1,0 +1,26 @@
+{
+  "buildCommand": "rm -rf .next && pnpm build",
+  "installCommand": "pnpm install",
+  "framework": "nextjs",
+  "regions": [
+    "iad1"
+  ],
+  "crons": [
+    {
+      "path": "/api/cron/class-reminders",
+      "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/cron/generate-sessions",
+      "schedule": "0 2 * * *"
+    }
+  ],
+  "env": {
+    "NODE_ENV": "production"
+  },
+  "functions": {
+    "src/app/api/cron/**/*.ts": {
+      "maxDuration": 300
+    }
+  }
+}

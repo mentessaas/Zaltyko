@@ -1,0 +1,177 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  ::selection {
+    background-color: #0D47A1;
+    color: #ffffff;
+  }
+}
+
+html,
+body {
+  height: 100%;
+}
+
+/* Mejoras de accesibilidad y UX móvil */
+@media (max-width: 768px) {
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  button,
+  a,
+  input,
+  select,
+  textarea {
+    font-size: 16px; /* Previene zoom en iOS */
+  }
+}
+
+@layer base {
+  :root {
+    /* Zaltyko Premium Design System - Tokens CSS */
+    --background: 210 40% 98%; /* Slate-50 #F8FAFC */
+    --foreground: 222 47% 11%; /* Slate-900 #0F172A */
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+ 
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+ 
+    --primary: 262 83% 58%; /* Violet-600 #7C3AED */
+    --primary-foreground: 210 40% 98%;
+ 
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222 47% 11.2%;
+ 
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+ 
+    --accent: 262 83% 96%; /* Violet-50 */
+    --accent-foreground: 222 47% 11.2%;
+ 
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 262 83% 58%;
+ 
+    --radius: 0.75rem;
+
+    --chart-1: 262 83% 58%;
+    --chart-2: 173 58% 39%;
+    --chart-3: 197 37% 24%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
+  }
+ 
+  .dark {
+    --background: 222 47% 11%;
+    --foreground: 210 40% 98%;
+ 
+    --card: 222 47% 11%;
+    --card-foreground: 210 40% 98%;
+ 
+    --popover: 222 47% 11%;
+    --popover-foreground: 210 40% 98%;
+ 
+    --primary: 263 70% 50%;
+    --primary-foreground: 210 40% 98%;
+ 
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+ 
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+ 
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+ 
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+ 
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 263 70% 50%;
+
+    --chart-1: 263 70% 50%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+  }
+}
+
+@layer utilities {
+  .glass-panel {
+    @apply bg-white/70 backdrop-blur-lg border border-white/20 shadow-glass;
+  }
+  
+  .glass-card {
+    @apply bg-white/50 backdrop-blur-md border border-white/30 shadow-soft hover:shadow-medium transition-all duration-300;
+  }
+
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-zaltyko-primary-dark to-zaltyko-primary;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+    overflow-x: hidden;
+  }
+  
+  html {
+    overflow-x: hidden;
+  }
+  
+  /* Tipografía Zaltyko */
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display;
+  }
+  
+  h1 {
+    @apply text-3xl font-bold tracking-tight sm:text-4xl;
+    font-weight: 700;
+  }
+  
+  h2 {
+    @apply text-2xl font-semibold tracking-tight sm:text-3xl;
+    font-weight: 700;
+  }
+  
+  h3 {
+    @apply text-xl font-semibold tracking-tight sm:text-2xl;
+    font-weight: 600;
+  }
+  
+  h4 {
+    @apply text-lg font-semibold tracking-tight sm:text-xl;
+    font-weight: 600;
+  }
+  
+  p {
+    @apply leading-7 font-sans;
+  }
+  
+  /* Mejoras de accesibilidad */
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+}
