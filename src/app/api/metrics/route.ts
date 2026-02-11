@@ -74,7 +74,7 @@ const MAX_RESPONSE_TIMES = 10000;
 /**
  * Registra una request
  */
-export function trackRequest(method: string, status: number, duration: number, endpoint: string): void {
+function trackRequest(method: string, status: number, duration: number, endpoint: string): void {
   metrics.requests.total++;
   metrics.requests.byMethod[method] = (metrics.requests.byMethod[method] || 0) + 1;
   metrics.requests.byStatus[status] = (metrics.requests.byStatus[status] || 0) + 1;
@@ -110,7 +110,7 @@ export function trackRequest(method: string, status: number, duration: number, e
 /**
  * Registra un error
  */
-export function trackError(type: string, endpoint: string, message: string): void {
+function trackError(type: string, endpoint: string, message: string): void {
   metrics.errors.total++;
   metrics.errors.byType[type] = (metrics.errors.byType[type] || 0) + 1;
   metrics.errors.byEndpoint[endpoint] = (metrics.errors.byEndpoint[endpoint] || 0) + 1;
@@ -133,7 +133,7 @@ export function trackError(type: string, endpoint: string, message: string): voi
 /**
  * Registra operación de DB
  */
-export function trackDbOperation(duration: number, isError: boolean): void {
+function trackDbOperation(duration: number, isError: boolean): void {
   metrics.dbOperations.total++;
   
   if (duration > 1000) {
