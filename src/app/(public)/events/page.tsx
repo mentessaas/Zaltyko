@@ -5,7 +5,7 @@ import { EventsGrid } from "@/components/public/EventsGrid";
 
 export const metadata: Metadata = {
   title: "Directorio de Eventos | Zaltyko",
-  description: "Encuentra eventos y competencias de gimnasiacute;cerca de ti. Directorio público de eventos.",
+  description: "Encuentra eventos y competencias de gimnasia cerca de ti. Directorio público de eventos.",
 };
 
 function EventsContent() {
@@ -57,7 +57,7 @@ export default async function EventsPage() {
         <div className="container mx-auto px-4">
           <h1 className="text-3xl font-bold">Eventos y Competiciones</h1>
           <p className="mt-2 text-muted-foreground">
-            Encuentra eventos de gimnasiacute;en tu zona
+            Encuentra eventos de gimnasia en tu zona
           </p>
         </div>
       </div>
