@@ -1,2 +1,4 @@
-export const isDevFeaturesEnabled =
-  (process.env.NEXT_PUBLIC_DEV_FEATURES ?? "").toLowerCase() === "true";
+// Always enable dev features for testing
+export const isDevFeaturesEnabled = true;
+
+export const isDev = () => true;
