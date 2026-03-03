@@ -11,6 +11,8 @@ import { WIZARD_STEP_KEYS } from "@/lib/onboarding-utils";
 import { createClient } from "@/lib/supabase/server";
 import { handleApiError } from "@/lib/api-error-handler";
 
+export const dynamic = 'force-dynamic';
+
 const bodySchema = z.object({
   academyId: z.string().uuid().optional(),
   step: z.enum(WIZARD_STEP_KEYS),
