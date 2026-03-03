@@ -7,6 +7,8 @@ import { profiles } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
 import { handleApiError } from "@/lib/api-error-handler";
 
+export const dynamic = 'force-dynamic';
+
 async function resolveUserId(request: Request) {
   const headerUserId = request.headers.get("x-user-id");
   if (headerUserId) {
