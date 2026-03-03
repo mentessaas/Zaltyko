@@ -861,7 +861,7 @@ export default function OnboardingWizard() {
             <div className="space-y-4">
               <div className="h-32 rounded-xl bg-gradient-to-br from-zaltyko-bg to-white border border-zaltyko-border p-4 flex items-center justify-center">
                 <p className="text-center text-sm text-zaltyko-text-secondary italic">
-                  "Zaltyko ha transformado cómo gestionamos nuestras clases. ¡Es increíble!"
+                  &quot;Zaltyko ha transformado cómo gestionamos nuestras clases. ¡Es increíble!&quot;
                 </p>
               </div>
             </div>
