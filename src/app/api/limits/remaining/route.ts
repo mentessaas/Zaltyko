@@ -4,6 +4,8 @@ import { withTenant } from "@/lib/authz";
 import { getRemainingLimits, LimitResource } from "@/lib/limits";
 import { handleApiError } from "@/lib/api-error-handler";
 
+export const dynamic = 'force-dynamic';
+
 const QuerySchema = z.object({
   academyId: z.string().uuid(),
   resource: z.enum(["athletes", "classes", "groups", "academies"]),
