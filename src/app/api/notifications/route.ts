@@ -3,6 +3,8 @@ import { z } from "zod";
 import { withTenant } from "@/lib/authz";
 import { getUserNotifications } from "@/lib/notifications/notification-service";
 
+export const dynamic = 'force-dynamic';
+
 const querySchema = z.object({
   unreadOnly: z.string().optional(),
   limit: z.string().optional(),

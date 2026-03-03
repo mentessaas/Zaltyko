@@ -7,6 +7,8 @@ import { eq } from "drizzle-orm";
 import { getUserSubscription } from "@/lib/limits";
 import { logger } from "@/lib/logger";
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     const cookieStore = await cookies();

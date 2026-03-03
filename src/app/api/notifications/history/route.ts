@@ -4,6 +4,8 @@ import { withTenant } from "@/lib/authz";
 import { db } from "@/db";
 import { emailLogs } from "@/db/schema";
 
+export const dynamic = 'force-dynamic';
+
 export const GET = withTenant(async (request, context) => {
   if (!context.tenantId) {
     return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });

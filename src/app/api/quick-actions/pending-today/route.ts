@@ -4,6 +4,8 @@ import { db } from "@/db";
 import { classSessions, classes, charges, athletes, groupAthletes } from "@/db/schema";
 import { eq, and, gte, lte, isNull } from "drizzle-orm";
 
+export const dynamic = 'force-dynamic';
+
 /**
  * GET /api/quick-actions/pending-today
  * Devuelve los items pendientes para acciones rápidas
