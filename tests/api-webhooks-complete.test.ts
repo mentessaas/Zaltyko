@@ -569,6 +569,9 @@ describe("API Stripe Webhooks Complete", () => {
                     warn: vi.fn((msg: string) => {
                         loggedEvent = msg;
                     }),
+                    error: vi.fn(),
+                    info: vi.fn(),
+                    debug: vi.fn(),
                 },
             }));
 
