@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
 import { db } from "@/db";
-import { profiles } from "@/db/schema";
+import { profiles, academies, memberships } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
 import { handleApiError } from "@/lib/api-error-handler";
 
@@ -66,18 +66,71 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
     }
 
+    // Check if profile already exists with tenant/academy
+    const [existingProfile] = await db
+      .select()
+      .from(profiles)
+      .where(eq(profiles.userId, userId))
+      .limit(1);
+
+    // If profile exists and has tenant_id, just return it
+    if (existingProfile?.tenantId && existingProfile?.activeAcademyId) {
+      return NextResponse.json({
+        ok: true,
+        profileId: existingProfile.id,
+        userId,
+        name: existingProfile.name,
+        tenantId: existingProfile.tenantId,
+        activeAcademyId: existingProfile.activeAcademyId,
+        role: existingProfile.role,
+      });
+    }
+
+    // Create tenant and default academy if they don't exist
+    let tenantId = existingProfile?.tenantId;
+    let activeAcademyId = existingProfile?.activeAcademyId;
+
+    if (!tenantId) {
+      tenantId = crypto.randomUUID();
+    }
+
+    if (!activeAcademyId) {
+      // Create default academy
+      activeAcademyId = crypto.randomUUID();
+      
+      await db.insert(academies).values({
+        id: activeAcademyId,
+        tenantId,
+        name: "Mi Academia",
+        academyType: "general",
+        ownerId: existingProfile?.id ?? userId,
+      });
+
+      // Add owner membership
+      await db.insert(memberships).values({
+        userId,
+        academyId: activeAcademyId,
+        role: "owner",
+      }).onConflictDoNothing();
+    }
+
+    // Create or update profile with tenant and academy
     const [profile] = await db
       .insert(profiles)
       .values({
         userId,
         name,
         role: "owner",
+        tenantId,
+        activeAcademyId,
       })
       .onConflictDoUpdate({
         target: profiles.userId,
         set: {
           name: name ?? profiles.name,
           role: "owner",
+          tenantId: tenantId ?? profiles.tenantId,
+          activeAcademyId: activeAcademyId ?? profiles.activeAcademyId,
         },
       })
       .returning();
