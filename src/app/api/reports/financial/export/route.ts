@@ -3,6 +3,9 @@ import { z } from "zod";
 import { withTenant } from "@/lib/authz";
 import { generateFinancialPDF } from "@/lib/reports/pdf-generator";
 import { calculateFinancialStats, calculateMonthlyRevenue, analyzeDelinquency } from "@/lib/reports/financial-calculator";
+import { db } from "@/db";
+import { academies } from "@/db/schema";
+import { eq } from "drizzle-orm";
 import * as XLSX from "xlsx";
 import type { FinancialReportFilters } from "@/lib/reports/financial-calculator";
 
@@ -106,6 +109,17 @@ export const GET = withTenant(async (request, context) => {
         },
       });
     } else {
+      // Obtener nombre de la academia
+      let academyName = "Academia";
+      const [academy] = await db
+        .select({ name: academies.name })
+        .from(academies)
+        .where(eq(academies.id, validated.academyId))
+        .limit(1);
+      if (academy?.name) {
+        academyName = academy.name;
+      }
+
       // PDF
       const period = validated.startDate && validated.endDate
         ? `${validated.startDate} - ${validated.endDate}`
@@ -113,7 +127,7 @@ export const GET = withTenant(async (request, context) => {
 
       const pdfBuffer = await generateFinancialPDF({
         title: "Reporte Financiero",
-        academyName: "Academia", // TODO: obtener nombre real
+        academyName: academyName,
         period,
         revenue: stats.totalRevenue,
         pending: stats.pendingAmount,

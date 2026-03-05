@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { redirect, notFound } from "next/navigation";
-import { eq, and, count } from "drizzle-orm";
+import { eq, and, count, gte, lt } from "drizzle-orm";
 
 import { createClient } from "@/lib/supabase/server";
 import { db } from "@/db";
@@ -17,6 +17,8 @@ import {
   groups,
   guardianAthletes,
   guardians,
+  attendanceRecords,
+  classes,
 } from "@/db/schema";
 import { getCurrentProfile } from "@/lib/authz";
 import { OwnerProfile } from "@/components/profiles/OwnerProfile";
@@ -308,9 +310,45 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
         })()
       : null;
 
-    // Contar clases y sesiones (simplificado por ahora)
-    const classesCount = 0; // TODO: Implementar conteo real
-    const upcomingSessionsCount = 0; // TODO: Implementar conteo real
+    // Contar clases del mes actual (clases pasadas con asistencia)
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    const startOfMonthStr = startOfMonth.toISOString().split('T')[0];
+
+    const [classesResult] = await db
+      .select({ count: count() })
+      .from(attendanceRecords)
+      .innerJoin(classSessions, eq(attendanceRecords.sessionId, classSessions.id))
+      .where(
+        and(
+          eq(attendanceRecords.athleteId, athlete.id),
+          gte(classSessions.sessionDate, startOfMonthStr)
+        )
+      );
+
+    const classesCount = Number(classesResult?.count ?? 0);
+
+    // Contar próximas sesiones (próximos 30 días)
+    const now = new Date();
+    const nowStr = now.toISOString().split('T')[0];
+    const thirtyDaysFromNow = new Date();
+    thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
+    const thirtyDaysFromNowStr = thirtyDaysFromNow.toISOString().split('T')[0];
+
+    const [sessionsResult] = await db
+      .select({ count: count() })
+      .from(classSessions)
+      .innerJoin(classes, eq(classSessions.classId, classes.id))
+      .where(
+        and(
+          eq(classes.academyId, academyId),
+          eq(classSessions.status, "scheduled"),
+          gte(classSessions.sessionDate, nowStr),
+          lt(classSessions.sessionDate, thirtyDaysFromNowStr)
+        )
+      );
+
+    const upcomingSessionsCount = Number(sessionsResult?.count ?? 0);
 
     return (
       <div className="space-y-6 p-4 sm:p-6 lg:p-8">

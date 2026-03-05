@@ -23,8 +23,7 @@ export function PhotoGallery({ photos, onChange, academyId }: PhotoGalleryProps)
 
     setUploading(true);
     try {
-      // TODO: Implementar upload a Supabase Storage
-      // Por ahora, solo simulamos la URL
+      // Upload a Supabase Storage mediante API
       const formData = new FormData();
       formData.append("file", file);
       formData.append("academyId", academyId);
