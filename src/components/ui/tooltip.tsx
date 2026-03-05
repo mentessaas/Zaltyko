@@ -30,13 +30,22 @@ const TooltipTrigger = React.forwardRef<
   const context = React.useContext(TooltipContext);
   if (!context) throw new Error("TooltipTrigger must be used within Tooltip");
 
+  // Use useMemo to create modified props to avoid accessing refs during render
+  const handleMouseEnter = React.useCallback(() => context.setOpen(true), [context]);
+  const handleMouseLeave = React.useCallback(() => context.setOpen(false), [context]);
+
   if (asChild && React.isValidElement(children)) {
-    return React.cloneElement(children, {
+    // Clone element without ref manipulation during render
+    const childProps = {
       ...props,
-      onMouseEnter: () => context.setOpen(true),
-      onMouseLeave: () => context.setOpen(false),
-      ref,
-    } as any);
+      onMouseEnter: handleMouseEnter,
+      onMouseLeave: handleMouseLeave,
+    };
+    // Use createElement instead of cloneElement to avoid ref issues
+    return React.createElement(
+      children.type as React.ComponentType<any>,
+      { ...children.props, ...childProps, ref }
+    );
   }
 
   return (
@@ -44,8 +53,8 @@ const TooltipTrigger = React.forwardRef<
       ref={ref}
       type="button"
       className={className}
-      onMouseEnter={() => context.setOpen(true)}
-      onMouseLeave={() => context.setOpen(false)}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
       {...props}
     >
       {children}
@@ -101,4 +110,3 @@ const TooltipContent = React.forwardRef<HTMLDivElement, TooltipContentProps>(
 TooltipContent.displayName = "TooltipContent";
 
 export { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider };
-
