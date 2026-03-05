@@ -86,24 +86,35 @@ export async function POST(request: Request) {
       });
     }
 
-    // Create tenant and default academy if they don't exist
-    let tenantId = existingProfile?.tenantId;
-    let activeAcademyId = existingProfile?.activeAcademyId;
+    // Generate IDs first
+    const tenantId = existingProfile?.tenantId ?? crypto.randomUUID();
+    const activeAcademyId = existingProfile?.activeAcademyId ?? crypto.randomUUID();
 
-    if (!tenantId) {
-      tenantId = crypto.randomUUID();
+    // If we need to create academy but don't have profile ID yet, create profile first
+    let profileId = existingProfile?.id;
+    
+    if (!profileId) {
+      // Create profile first (without tenant/academy)
+      const [newProfile] = await db
+        .insert(profiles)
+        .values({
+          userId,
+          name,
+          role: "owner",
+        })
+        .returning();
+      
+      profileId = newProfile.id;
     }
 
-    if (!activeAcademyId) {
-      // Create default academy
-      activeAcademyId = crypto.randomUUID();
-      
+    // Create academy if it doesn't exist
+    if (!existingProfile?.activeAcademyId) {
       await db.insert(academies).values({
         id: activeAcademyId,
         tenantId,
         name: "Mi Academia",
         academyType: "general",
-        ownerId: existingProfile?.id ?? userId,
+        ownerId: profileId,
       });
 
       // Add owner membership
@@ -114,33 +125,14 @@ export async function POST(request: Request) {
       }).onConflictDoNothing();
     }
 
-    // Create or update profile with tenant and academy
-    const profileValues: {
-      userId: string;
-      name: string | null;
-      role: "owner";
-      tenantId: string;
-      activeAcademyId: string;
-    } = {
-      userId,
-      name,
-      role: "owner",
-      tenantId,
-      activeAcademyId,
-    };
-
+    // Update profile with tenant and academy
     const [profile] = await db
-      .insert(profiles)
-      .values(profileValues)
-      .onConflictDoUpdate({
-        target: profiles.userId,
-        set: {
-          name: name ?? profiles.name,
-          role: "owner",
-          tenantId: tenantId,
-          activeAcademyId: activeAcademyId,
-        },
+      .update(profiles)
+      .set({
+        tenantId,
+        activeAcademyId,
       })
+      .where(eq(profiles.id, profileId))
       .returning();
 
     return NextResponse.json({
