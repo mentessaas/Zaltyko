@@ -25,6 +25,7 @@ export async function triggerAttendanceReminders(): Promise<number> {
       startTime: classSessions.startTime,
       className: classes.name,
       academyId: classes.academyId,
+      academyName: academies.name,
       academyCountry: academies.country,
       tenantId: classes.tenantId,
     })
@@ -65,7 +66,7 @@ export async function triggerAttendanceReminders(): Promise<number> {
           className: session.className || "Clase",
           sessionDate: formatLongDateForCountry(session.sessionDate, session.academyCountry),
           sessionTime: session.startTime || undefined,
-          academyName: "Tu academia", // TODO: obtener nombre de academia
+          academyName: session.academyName || "Tu academia"
         });
 
         await sendEmailWithLogging({
@@ -108,6 +109,7 @@ export async function triggerPaymentReminders(): Promise<number> {
       dueDate: charges.dueDate,
       athleteId: charges.athleteId,
       academyId: charges.academyId,
+      academyName: academies.name,
       academyCountry: academies.country,
       tenantId: charges.tenantId,
     })
@@ -151,7 +153,7 @@ export async function triggerPaymentReminders(): Promise<number> {
         athleteName: athlete.athleteName || "el atleta",
         amount: amount,
         dueDate: charge.dueDate ? formatLongDateForCountry(charge.dueDate, charge.academyCountry) : "Fecha no especificada",
-        academyName: "Tu academia", // TODO: obtener nombre de academia
+        academyName: charge.academyName || "Tu academia"
       });
 
       await sendEmailWithLogging({
@@ -192,6 +194,7 @@ export async function triggerEventInvitations(eventId: string): Promise<number> 
       isPublic: events.isPublic,
       academyId: events.academyId,
       tenantId: events.tenantId,
+      academyName: academies.name,
       academyCountry: academies.country,
     })
     .from(events)
@@ -235,7 +238,7 @@ export async function triggerEventInvitations(eventId: string): Promise<number> 
         eventName: event.title,
         eventDate: dateText,
         eventLocation: location,
-        academyName: "Tu academia", // TODO: obtener nombre de academia
+        academyName: event.academyName || "Tu academia"
       });
 
       await sendEmailWithLogging({
@@ -274,6 +277,7 @@ export async function triggerClassCancellation(
       startTime: classSessions.startTime,
       className: classes.name,
       academyId: classes.academyId,
+      academyName: academies.name,
       academyCountry: academies.country,
       tenantId: classes.tenantId,
     })
@@ -313,7 +317,7 @@ export async function triggerClassCancellation(
         className: session.className || "Clase",
         sessionDate: formatLongDateForCountry(session.sessionDate, session.academyCountry),
         sessionTime: session.startTime || undefined,
-        academyName: "Tu academia", // TODO: obtener nombre de academia
+        academyName: session.academyName || "Tu academia",
         reason,
       });
 
