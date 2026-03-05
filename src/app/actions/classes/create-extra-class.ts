@@ -29,6 +29,7 @@ const createExtraClassSchema = z.object({
   duration: z.number().int().min(15).max(180).optional(), // minutos, para validación
   capacity: z.number().int().min(1).default(1),
   createCharge: z.boolean().default(false),
+  amountCents: z.number().int().min(0).optional(), // Monto en céntimos para el cargo
   notes: z.string().optional(),
   academyId: z.string().uuid(),
 });
@@ -196,8 +197,8 @@ export async function createExtraClassAction(input: z.infer<typeof createExtraCl
         const period = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}`;
         const dueDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0); // Último día del mes
 
-        // Por defecto, usar 0 o un valor configurable (por ahora 0)
-        const amountCents = 0; // TODO: Hacer configurable desde settings
+        // Usar el monto proporcionado o un valor por defecto de 15€
+        const amountCents = body.amountCents ?? 1500
 
         await tx.insert(charges).values({
           id: crypto.randomUUID(),

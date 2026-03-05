@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { sendClassReminders } from "@/lib/alerts/class-reminders";
 import { db } from "@/db";
-import { academies } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { academies, profiles } from "@/db/schema";
+import { eq, inArray } from "drizzle-orm";
 import { logger } from "@/lib/logger";
 
 export async function GET(request: Request) {
@@ -25,9 +25,16 @@ export async function GET(request: Request) {
     // Enviar recordatorios para cada academia
     for (const academy of allAcademies) {
       try {
-        // Obtener IDs de usuarios administradores (simplificado)
-        // En producción, deberías obtener los IDs reales de los administradores
-        const adminUserIds: string[] = []; // TODO: Obtener IDs reales
+        // Obtener IDs de usuarios administradores y owners
+        const adminProfiles = await db
+          .select({ userId: profiles.userId })
+          .from(profiles)
+          .where(
+            eq(profiles.tenantId, academy.tenantId) &&
+            inArray(profiles.role, ["owner", "admin", "super_admin"])
+          );
+        
+        const adminUserIds = adminProfiles.map(p => p.userId);
 
         await sendClassReminders(academy.id, academy.tenantId, 24);
       } catch (error) {

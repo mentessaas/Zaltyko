@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { withTenant } from "@/lib/authz";
 import { generateAttendancePDF } from "@/lib/reports/pdf-generator";
+import { db } from "@/db";
+import { athletes, academies } from "@/db/schema";
+import { eq } from "drizzle-orm";
 
 export const GET = withTenant(async (request, context) => {
   if (!context.tenantId) {
@@ -14,6 +17,27 @@ export const GET = withTenant(async (request, context) => {
   }
 
   try {
+    // Obtener nombre de la academia desde el atleta
+    const [athlete] = await db
+      .select({
+        academyId: athletes.academyId,
+      })
+      .from(athletes)
+      .where(eq(athletes.id, athleteId))
+      .limit(1);
+
+    let academyName = "Academia";
+    if (athlete?.academyId) {
+      const [academy] = await db
+        .select({ name: academies.name })
+        .from(academies)
+        .where(eq(academies.id, athlete.academyId))
+        .limit(1);
+      if (academy?.name) {
+        academyName = academy.name;
+      }
+    }
+
     // Obtener historial completo
     const historyResponse = await fetch(
       `${request.url.split("/export-history")[0]}/history`,
@@ -30,10 +54,10 @@ export const GET = withTenant(async (request, context) => {
 
     const historyData = await historyResponse.json();
 
-    // Generar PDF (placeholder hasta instalar jsPDF)
+    // Generar PDF
     const pdfBuffer = await generateAttendancePDF({
       title: `Historial de Evaluaciones`,
-      academyName: "Academia", // TODO: obtener nombre real
+      academyName: academyName,
       stats: {
         totalSessions: historyData.items?.length || 0,
         present: 0,

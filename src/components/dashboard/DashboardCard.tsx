@@ -7,47 +7,55 @@ import { cn } from "@/lib/utils";
 
 const COLOR_STYLES: Record<
   "sky" | "emerald" | "violet" | "amber" | "coral" | "slate" | "zaltyko-primary" | "zaltyko-accent",
-  { bg: string; text: string; ring: string }
+  { bg: string; text: string; ring: string; gradient: string }
 > = {
   sky: {
     bg: "bg-zaltyko-primary-light/10",
     text: "text-zaltyko-primary-light",
     ring: "group-hover:ring-zaltyko-primary-light/40",
+    gradient: "from-zaltyko-primary-light/20 to-transparent",
   },
   emerald: {
     bg: "bg-zaltyko-primary/10",
     text: "text-zaltyko-primary",
     ring: "group-hover:ring-zaltyko-primary/40",
+    gradient: "from-zaltyko-primary/20 to-transparent",
   },
   violet: {
     bg: "bg-violet-500/10",
     text: "text-violet-600",
     ring: "group-hover:ring-violet-500/40",
+    gradient: "from-violet-500/20 to-transparent",
   },
   amber: {
     bg: "bg-zaltyko-accent/10",
     text: "text-zaltyko-accent",
     ring: "group-hover:ring-zaltyko-accent/40",
+    gradient: "from-amber-500/20 to-transparent",
   },
   coral: {
     bg: "bg-rose-500/10",
     text: "text-rose-600",
     ring: "group-hover:ring-rose-500/40",
+    gradient: "from-rose-500/20 to-transparent",
   },
   slate: {
     bg: "bg-slate-500/10",
     text: "text-slate-600",
     ring: "group-hover:ring-slate-500/40",
+    gradient: "from-slate-500/20 to-transparent",
   },
   "zaltyko-primary": {
     bg: "bg-zaltyko-primary/10",
     text: "text-zaltyko-primary",
     ring: "group-hover:ring-zaltyko-primary/40",
+    gradient: "from-zaltyko-primary/20 to-transparent",
   },
   "zaltyko-accent": {
     bg: "bg-zaltyko-accent/10",
     text: "text-zaltyko-accent",
     ring: "group-hover:ring-zaltyko-accent/40",
+    gradient: "from-zaltyko-accent/20 to-transparent",
   },
 };
 
@@ -74,29 +82,35 @@ export function DashboardCard({
     <Link
       href={href}
       className={cn(
-        "group relative flex flex-col gap-3 rounded-xl border border-border/60 bg-card/80 p-4 shadow-md transition-all duration-200 hover:-translate-y-0.5 hover:border-border hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.98] sm:p-5 sm:rounded-2xl",
+        "group relative flex flex-col gap-3 rounded-2xl border border-border/40 bg-card/80 p-5 shadow-md transition-all duration-300 hover:-translate-y-1 hover:border-zaltyko-primary/30 hover:shadow-xl hover:shadow-zaltyko-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.98] overflow-hidden",
         accentStyles.ring
       )}
     >
-      <div className="flex items-center justify-between gap-3">
+      {/* Gradient Background Effect */}
+      <div className={cn(
+        "absolute inset-0 bg-gradient-to-br opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none",
+        accentStyles.gradient
+      )} />
+
+      <div className="relative flex items-center justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground/90">
+          <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground/80">
             {title}
           </p>
-          <p className="mt-1 text-2xl font-semibold text-foreground sm:text-3xl">{value}</p>
+          <p className="mt-1 text-3xl font-bold text-foreground tracking-tight">{value}</p>
         </div>
         <div
           className={cn(
-            "flex-shrink-0 rounded-full p-2.5 transition-all duration-200",
+            "flex-shrink-0 rounded-2xl p-3 transition-all duration-300 shadow-md",
             accentStyles.bg,
             accentStyles.text,
-            "group-hover:scale-110"
+            "group-hover:scale-110 group-hover:shadow-lg"
           )}
         >
-          <Icon className="h-5 w-5 sm:h-6 sm:w-6" strokeWidth={1.6} />
+          <Icon className="h-6 w-6" strokeWidth={1.8} />
         </div>
       </div>
-      <p className="text-xs text-muted-foreground sm:text-sm leading-relaxed">{subtitle}</p>
+      <p className="relative text-sm text-muted-foreground font-medium leading-relaxed">{subtitle}</p>
     </Link>
   );
 }

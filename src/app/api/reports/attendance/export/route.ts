@@ -8,6 +8,9 @@ import {
   calculateGeneralAttendance,
   type AttendanceReportFilters,
 } from "@/lib/reports/attendance-calculator";
+import { db } from "@/db";
+import { academies } from "@/db/schema";
+import { eq } from "drizzle-orm";
 import * as XLSX from "xlsx";
 
 // Forzar ruta dinámica
@@ -128,11 +131,22 @@ export const GET = withTenant(async (request, context) => {
         },
       });
     } else {
-      // Generar PDF (placeholder hasta instalar jsPDF)
+      // Obtener nombre de la academia
+      let academyName = "Academia";
+      const [academy] = await db
+        .select({ name: academies.name })
+        .from(academies)
+        .where(eq(academies.id, validated.academyId))
+        .limit(1);
+      if (academy?.name) {
+        academyName = academy.name;
+      }
+
+      // Generar PDF
       const stats = validated.reportType === "athlete" && reportData ? reportData.stats : reportData;
       const pdfBuffer = await generateAttendancePDF({
         title,
-        academyName: "Academia", // TODO: obtener nombre real
+        academyName: academyName,
         stats,
         details: validated.reportType === "athlete" && reportData ? reportData.sessions : undefined,
       });

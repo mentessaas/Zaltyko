@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { eq, and } from "drizzle-orm";
 
 import { db } from "@/db";
-import { athletes, coachNotes } from "@/db/schema";
+import { athletes, coachNotes, profiles } from "@/db/schema";
 import { CoachNotesManager } from "@/components/coaches/CoachNotesManager";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 
@@ -30,7 +30,7 @@ export default async function AthleteNotesPage({ params }: PageProps) {
     notFound();
   }
 
-  // Cargar notas iniciales
+  // Cargar notas iniciales con datos del autor
   const initialNotes = await db
     .select({
       id: coachNotes.id,
@@ -40,8 +40,10 @@ export default async function AthleteNotesPage({ params }: PageProps) {
       tags: coachNotes.tags,
       createdAt: coachNotes.createdAt,
       authorId: coachNotes.authorId,
+      authorName: profiles.name,
     })
     .from(coachNotes)
+    .leftJoin(profiles, eq(coachNotes.authorId, profiles.id))
     .where(eq(coachNotes.athleteId, athleteId))
     .orderBy(coachNotes.createdAt);
 
@@ -74,7 +76,7 @@ export default async function AthleteNotesPage({ params }: PageProps) {
           tags: note.tags,
           createdAt: note.createdAt?.toISOString() || new Date().toISOString(),
           authorId: note.authorId,
-          authorName: "Entrenador", // TODO: obtener nombre del autor
+          authorName: note.authorName || "Entrenador",
         }))}
       />
     </div>

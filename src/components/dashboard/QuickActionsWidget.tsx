@@ -63,17 +63,19 @@ export function QuickActionsWidget() {
 
     return (
         <>
-            <Card>
-                <CardHeader>
+            <Card className="border-zaltyko-border/40 shadow-lg shadow-zaltyko-primary/5 overflow-hidden">
+                <CardHeader className="bg-gradient-to-r from-zaltyko-primary/5 to-transparent pb-4">
                     <CardTitle className="flex items-center gap-2">
-                        <TrendingUp className="h-5 w-5 text-primary" />
-                        Acciones Rápidas
+                        <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-zaltyko-primary to-zaltyko-primary-dark flex items-center justify-center shadow-lg shadow-zaltyko-primary/20">
+                            <TrendingUp className="h-4 w-4 text-white" />
+                        </div>
+                        <span className="font-display">Acciones Rápidas</span>
                     </CardTitle>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm text-zaltyko-text-secondary">
                         Accede a las tareas más comunes con un solo click
                     </p>
                 </CardHeader>
-                <CardContent className="grid gap-3">
+                <CardContent className="grid gap-3 p-4">
                     <QuickAction
                         icon={<Calendar className="h-5 w-5" />}
                         label="Registrar Asistencia"

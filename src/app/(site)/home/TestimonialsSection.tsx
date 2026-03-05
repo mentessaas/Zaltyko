@@ -51,19 +51,19 @@ export default function TestimonialsSection() {
           {testimonials.map((testimonial) => (
             <div
               key={testimonial.name}
-              className="relative bg-white rounded-2xl border border-zaltyko-border p-8 shadow-soft hover:shadow-medium transition-shadow duration-300"
+              className="relative bg-white rounded-2xl border border-zaltyko-border/50 p-8 shadow-lg hover:shadow-2xl hover:shadow-zaltyko-primary/10 transition-all duration-300 hover:-translate-y-1 group"
             >
               {/* Quote icon */}
               <div className="absolute -top-4 left-8">
-                <div className={`w-8 h-8 rounded-full bg-gradient-to-br ${testimonial.color} flex items-center justify-center`}>
-                  <Quote className="w-4 h-4 text-white" />
+                <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${testimonial.color} flex items-center justify-center shadow-lg`}>
+                  <Quote className="w-5 h-5 text-white" />
                 </div>
               </div>
 
               {/* Rating */}
-              <div className="flex gap-1 mb-4 pt-2">
+              <div className="flex gap-1 mb-4 pt-4">
                 {[...Array(testimonial.rating)].map((_, i) => (
-                  <Star key={i} className="w-4 h-4 fill-amber-400 text-amber-400" />
+                  <Star key={i} className="w-5 h-5 fill-amber-400 text-amber-400" />
                 ))}
               </div>
 
@@ -73,12 +73,12 @@ export default function TestimonialsSection() {
               </p>
 
               {/* Author */}
-              <div className="flex items-center gap-4 pt-6 border-t border-zaltyko-border">
-                <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${testimonial.color} flex items-center justify-center text-white font-bold text-sm`}>
+              <div className="flex items-center gap-4 pt-6 border-t border-zaltyko-border/50">
+                <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${testimonial.color} flex items-center justify-center text-white font-bold text-sm shadow-lg group-hover:scale-110 transition-transform`}>
                   {testimonial.avatar}
                 </div>
                 <div>
-                  <p className="font-semibold text-zaltyko-text-main">{testimonial.name}</p>
+                  <p className="font-bold text-zaltyko-text-main">{testimonial.name}</p>
                   <p className="text-sm text-zaltyko-text-secondary">
                     {testimonial.role} · {testimonial.academy}
                   </p>

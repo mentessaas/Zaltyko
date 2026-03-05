@@ -14,12 +14,12 @@ function initializeDb() {
 
   try {
     const connectionString = getDatabaseUrl();
-    
+
     // Verificar que no sea una URL dummy
     if (connectionString.includes("dummy:dummy@localhost")) {
       console.warn("⚠️  Usando conexión dummy - la base de datos no está configurada correctamente");
     }
-    
+
     poolInstance = new Pool({
       connectionString,
       max: isProduction() ? 20 : undefined,
