@@ -115,22 +115,30 @@ export async function POST(request: Request) {
     }
 
     // Create or update profile with tenant and academy
+    const profileValues: {
+      userId: string;
+      name: string | null;
+      role: "owner";
+      tenantId: string;
+      activeAcademyId: string;
+    } = {
+      userId,
+      name,
+      role: "owner",
+      tenantId,
+      activeAcademyId,
+    };
+
     const [profile] = await db
       .insert(profiles)
-      .values({
-        userId,
-        name,
-        role: "owner",
-        tenantId,
-        activeAcademyId,
-      })
+      .values(profileValues)
       .onConflictDoUpdate({
         target: profiles.userId,
         set: {
           name: name ?? profiles.name,
           role: "owner",
-          tenantId: tenantId ?? profiles.tenantId,
-          activeAcademyId: activeAcademyId ?? profiles.activeAcademyId,
+          tenantId: tenantId,
+          activeAcademyId: activeAcademyId,
         },
       })
       .returning();
