@@ -71,60 +71,97 @@ export async function POST(request: Request) {
     const academyId = crypto.randomUUID();
 
     try {
-      // Try to insert - if profile exists, this will fail due to unique constraint
-      const [newProfile] = await db
-        .insert(profiles)
-        .values({
-          userId,
-          name,
-          role: "owner",
-          tenantId,
-          activeAcademyId: academyId,
+      // Check if profile exists first
+      const [existingProfile] = await db
+        .select({
+          id: profiles.id,
+          tenantId: profiles.tenantId,
+          activeAcademyId: profiles.activeAcademyId,
         })
-        .onConflictDoNothing()
-        .returning();
+        .from(profiles)
+        .where(eq(profiles.userId, userId))
+        .limit(1);
 
-      let profile = newProfile;
+      let profileId: string;
+      let actualTenantId: string;
+      let actualAcademyId: string;
 
-      // If profile already existed, update it
-      if (!profile) {
-        // Get existing profile
-        const [existing] = await db
+      if (existingProfile) {
+        // Profile exists, update it
+        profileId = existingProfile.id;
+        actualTenantId = existingProfile.tenantId ?? tenantId;
+        actualAcademyId = existingProfile.activeAcademyId ?? academyId;
+
+        await db
           .update(profiles)
           .set({
+            tenantId: actualTenantId,
+            activeAcademyId: actualAcademyId,
+          })
+          .where(eq(profiles.id, profileId));
+      } else {
+        // Create new profile
+        const [newProfile] = await db
+          .insert(profiles)
+          .values({
+            userId,
+            name,
+            role: "owner",
             tenantId,
             activeAcademyId: academyId,
           })
-          .where(eq(profiles.userId, userId))
-          .returning();
+          .returning({ id: profiles.id });
 
-        profile = existing;
+        profileId = newProfile.id;
+        actualTenantId = tenantId;
+        actualAcademyId = academyId;
       }
 
-      // Create academy
-      await db.insert(academies).values({
-        id: academyId,
-        tenantId,
-        name: "Mi Academia",
-        academyType: "general",
-        ownerId: profile.id,
-      });
+      // Create academy if it doesn't exist
+      const [existingAcademy] = await db
+        .select({ id: academies.id })
+        .from(academies)
+        .where(eq(academies.id, actualAcademyId))
+        .limit(1);
 
-      // Add owner membership
-      await db.insert(memberships).values({
-        userId,
-        academyId,
-        role: "owner",
-      }).onConflictDoNothing();
+      if (!existingAcademy) {
+        await db.insert(academies).values({
+          id: actualAcademyId,
+          tenantId: actualTenantId,
+          name: "Mi Academia",
+          academyType: "general",
+          ownerId: profileId,
+        });
+
+        // Add owner membership
+        await db.insert(memberships).values({
+          userId,
+          academyId: actualAcademyId,
+          role: "owner",
+        }).onConflictDoNothing();
+      }
+
+      // Get final profile
+      const [finalProfile] = await db
+        .select({
+          id: profiles.id,
+          name: profiles.name,
+          role: profiles.role,
+          tenantId: profiles.tenantId,
+          activeAcademyId: profiles.activeAcademyId,
+        })
+        .from(profiles)
+        .where(eq(profiles.id, profileId))
+        .limit(1);
 
       return NextResponse.json({
         ok: true,
-        profileId: profile.id,
+        profileId: finalProfile.id,
         userId,
-        name: profile.name,
-        tenantId: profile.tenantId,
-        activeAcademyId: profile.activeAcademyId,
-        role: profile.role,
+        name: finalProfile.name,
+        tenantId: finalProfile.tenantId,
+        activeAcademyId: finalProfile.activeAcademyId,
+        role: finalProfile.role,
       });
     } catch (error) {
       console.error("Error in onboarding profile:", error);
