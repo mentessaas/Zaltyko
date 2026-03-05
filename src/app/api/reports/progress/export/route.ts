@@ -3,6 +3,9 @@ import { z } from "zod";
 import { withTenant } from "@/lib/authz";
 import { analyzeAthleteProgress, type ProgressReportFilters } from "@/lib/reports/progress-analyzer";
 import { generateAttendancePDF } from "@/lib/reports/pdf-generator";
+import { db } from "@/db";
+import { academies } from "@/db/schema";
+import { eq } from "drizzle-orm";
 
 // Forzar ruta dinámica
 export const dynamic = 'force-dynamic';
@@ -60,10 +63,21 @@ export const GET = withTenant(async (request, context) => {
       );
     }
 
-    // Generar PDF (placeholder hasta instalar jsPDF)
+    // Obtener nombre de la academia
+    let academyName = "Academia";
+    const [academy] = await db
+      .select({ name: academies.name })
+      .from(academies)
+      .where(eq(academies.id, validated.academyId))
+      .limit(1);
+    if (academy?.name) {
+      academyName = academy.name;
+    }
+
+    // Generar PDF
     const pdfBuffer = await generateAttendancePDF({
       title: `Reporte de Progreso - ${report.athleteName}`,
-      academyName: "Academia", // TODO: obtener nombre real
+      academyName: academyName,
       stats: {
         totalSessions: report.totalAssessments,
         present: report.areasOfImprovement.length,

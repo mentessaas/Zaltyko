@@ -120,11 +120,22 @@ export function AlertsWidget({ academyId }: AlertsWidgetProps) {
   const getSeverityColor = (severity: Alert["severity"]) => {
     switch (severity) {
       case "high":
-        return "border-red-500/50 bg-red-50 dark:bg-red-950/20";
+        return "border-red-500/30 bg-gradient-to-r from-red-50/80 to-red-100/50";
       case "medium":
-        return "border-amber-500/50 bg-amber-50 dark:bg-amber-950/20";
+        return "border-amber-500/30 bg-gradient-to-r from-amber-50/80 to-amber-100/50";
       case "low":
-        return "border-blue-500/50 bg-blue-50 dark:bg-blue-950/20";
+        return "border-blue-500/30 bg-gradient-to-r from-blue-50/80 to-blue-100/50";
+    }
+  };
+
+  const getSeverityIconColor = (severity: Alert["severity"]) => {
+    switch (severity) {
+      case "high":
+        return "bg-gradient-to-br from-red-500 to-red-600";
+      case "medium":
+        return "bg-gradient-to-br from-amber-500 to-amber-600";
+      case "low":
+        return "bg-gradient-to-br from-blue-500 to-blue-600";
     }
   };
 
@@ -137,17 +148,21 @@ export function AlertsWidget({ academyId }: AlertsWidgetProps) {
   }
 
   return (
-    <div className="space-y-4 rounded-2xl border border-border/60 bg-card/80 p-6 shadow-sm">
+    <div className="space-y-4 rounded-2xl border border-red-200/50 bg-gradient-to-br from-red-50/30 via-white to-amber-50/30 p-6 shadow-lg shadow-red-500/10">
       <header className="flex items-center justify-between gap-3">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground/90">
-            Alertas activas
-          </p>
-          <h3 className="text-lg font-semibold text-foreground">
-            {alerts.length} {alerts.length === 1 ? "alerta requiere atención" : "alertas requieren atención"}
-          </h3>
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-red-500 to-amber-500 flex items-center justify-center shadow-lg shadow-red-500/20">
+            <AlertTriangle className="h-5 w-5 text-white" strokeWidth={2} />
+          </div>
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wider text-red-600/80">
+              Alertas activas
+            </p>
+            <h3 className="text-lg font-bold text-zaltyko-text-main">
+              {alerts.length} {alerts.length === 1 ? "alerta requiere atención" : "alertas requieren atención"}
+            </h3>
+          </div>
         </div>
-        <AlertTriangle className="h-5 w-5 text-amber-500" strokeWidth={1.6} />
       </header>
 
       <div className="space-y-3">
@@ -157,34 +172,37 @@ export function AlertsWidget({ academyId }: AlertsWidgetProps) {
             <div
               key={alert.id}
               className={cn(
-                "relative flex items-start gap-3 rounded-lg border p-4 transition",
+                "relative flex items-start gap-3 rounded-xl border p-4 transition-all hover:shadow-md",
                 getSeverityColor(alert.severity)
               )}
             >
-              <div className="flex-shrink-0">
-                <Icon className="h-5 w-5 text-foreground" />
+              <div className={cn("flex-shrink-0 h-10 w-10 rounded-xl flex items-center justify-center shadow-md", getSeverityIconColor(alert.severity))}>
+                <Icon className="h-5 w-5 text-white" />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm text-foreground">{alert.title}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">{alert.message}</p>
+                    <p className="font-bold text-sm text-zaltyko-text-main">{alert.title}</p>
+                    <p className="mt-1 text-xs text-zaltyko-text-secondary">{alert.message}</p>
                   </div>
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-6 w-6 shrink-0"
+                    className="h-8 w-8 shrink-0 rounded-lg hover:bg-white/50"
                     onClick={() => dismissAlert(alert.id)}
                   >
-                    <X className="h-3 w-3" />
+                    <X className="h-4 w-4" />
                   </Button>
                 </div>
                 {alert.link && (
                   <Link
                     href={alert.link}
-                    className="mt-2 inline-block text-xs font-medium text-primary hover:underline"
+                    className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-red-600 hover:underline"
                   >
-                    Ver detalles →
+                    Ver detalles
+                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
                   </Link>
                 )}
               </div>
@@ -194,8 +212,8 @@ export function AlertsWidget({ academyId }: AlertsWidgetProps) {
       </div>
 
       {alerts.length > 3 && (
-        <div className="pt-2 border-t border-border/40">
-          <p className="text-xs text-muted-foreground text-center">
+        <div className="pt-3 border-t border-red-200/30">
+          <p className="text-xs font-semibold text-red-600/70 text-center">
             Y {alerts.length - 3} {alerts.length - 3 === 1 ? "alerta más" : "alertas más"}
           </p>
         </div>

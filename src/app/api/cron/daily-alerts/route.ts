@@ -4,8 +4,8 @@ import { createCapacityNotifications } from "@/lib/alerts/capacity-alerts";
 import { createPaymentNotifications } from "@/lib/alerts/payment-alerts";
 import { createAttendanceNotifications } from "@/lib/alerts/attendance/createAttendanceNotifications";
 import { db } from "@/db";
-import { academies } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { academies, profiles } from "@/db/schema";
+import { eq, inArray } from "drizzle-orm";
 import { logger } from "@/lib/logger";
 
 export async function GET(request: Request) {
@@ -34,9 +34,25 @@ export async function GET(request: Request) {
     for (const academy of allAcademies) {
       try {
         // Obtener IDs de usuarios administradores y coaches
-        // TODO: Obtener IDs reales de la base de datos
-        const adminUserIds: string[] = [];
-        const coachUserIds: string[] = [];
+        const adminProfiles = await db
+          .select({ userId: profiles.userId })
+          .from(profiles)
+          .where(
+            eq(profiles.tenantId, academy.tenantId) &&
+            inArray(profiles.role, ["owner", "admin", "super_admin"])
+          );
+        
+        const adminUserIds = adminProfiles.map(p => p.userId);
+        
+        const coachProfiles = await db
+          .select({ userId: profiles.userId })
+          .from(profiles)
+          .where(
+            eq(profiles.tenantId, academy.tenantId) &&
+            eq(profiles.role, "coach")
+          );
+        
+        const coachUserIds = coachProfiles.map(p => p.userId);
 
         // Alertas de capacidad
         try {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
@@ -33,6 +33,13 @@ export function FormField({
   const [touched, setTouched] = useState(false);
   const [value, setValue] = useState(props.value?.toString() || props.defaultValue?.toString() || "");
 
+  // Sync internal value with prop value when it changes
+  useEffect(() => {
+    if (props.value !== undefined) {
+      setValue(props.value.toString());
+    }
+  }, [props.value]);
+
   const validate = useCallback(
     (val: string) => {
       if (!validator) return null;
@@ -55,9 +62,10 @@ export function FormField({
 
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
-      setValue(e.target.value);
+      const newValue = e.target.value;
+      setValue(newValue);
       if (validateOnChange && touched && validator) {
-        const validationError = validate(e.target.value);
+        const validationError = validate(newValue);
         setLocalError(validationError || null);
       }
       onChange?.(e);
@@ -65,14 +73,12 @@ export function FormField({
     [validateOnChange, touched, validator, validate, onChange]
   );
 
-  useEffect(() => {
-    if (props.value !== undefined) {
-      setValue(props.value.toString());
-    }
-  }, [props.value]);
-
-  const displayError = error || (touched ? localError : null);
-  const isValid = !displayError && touched && value.length > 0 && success !== false;
+  // Memoize the display values to prevent unnecessary re-renders
+  const displayError = useMemo(() => error || (touched ? localError : null), [error, touched, localError]);
+  const isValid = useMemo(
+    () => !displayError && touched && value.length > 0 && success !== false,
+    [displayError, touched, value.length, success]
+  );
 
   return (
     <div className="space-y-2">
@@ -147,4 +153,3 @@ export const validators = {
     return null;
   },
 };
-

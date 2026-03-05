@@ -658,12 +658,51 @@ export default function OnboardingWizard() {
             </div>
 
             {/* Progress Bar */}
-            <div className="mb-8">
-              <div className="flex items-center justify-between text-sm font-medium text-zaltyko-text-secondary mb-2">
-                <span>Paso {step} de {totalSteps}</span>
-                <span>{Math.round(progressValue)}%</span>
+            <div className="mb-10">
+              {/* Step Indicators */}
+              <div className="flex items-center justify-between mb-4">
+                {STEP_FLOW.map((s, idx) => {
+                  const isActive = step === s.id;
+                  const isCompleted = step > s.id;
+                  const order = getStepOrder(s.id);
+                  return (
+                    <div key={s.id} className="flex items-center flex-1">
+                      <button
+                        onClick={() => handleStepChange(s.id)}
+                        disabled={s.id > maxStep}
+                        className={`
+                          relative flex items-center justify-center w-10 h-10 rounded-2xl font-bold text-sm transition-all duration-300
+                          ${isCompleted ? "bg-gradient-to-br from-zaltyko-accent-teal to-zaltyko-accent-teal/80 text-white shadow-lg shadow-zaltyko-accent-teal/30" : ""}
+                          ${isActive ? "bg-gradient-to-br from-zaltyko-primary to-zaltyko-primary-dark text-white shadow-lg shadow-zaltyko-primary/30 scale-110" : ""}
+                          ${!isActive && !isCompleted ? "bg-zaltyko-bg border-2 border-zaltyko-border text-zaltyko-text-secondary" : ""}
+                          ${s.id <= maxStep ? "cursor-pointer hover:scale-105" : "cursor-not-allowed opacity-50"}
+                        `}
+                      >
+                        {isCompleted ? (
+                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                          </svg>
+                        ) : (
+                          order
+                        )}
+                      </button>
+                      <span className={`ml-3 text-sm font-medium ${isActive ? "text-zaltyko-text-main" : "text-zaltyko-text-secondary"}`}>
+                        {s.label}
+                      </span>
+                      {idx < STEP_FLOW.length - 1 && (
+                        <div className={`flex-1 h-0.5 mx-4 ${isCompleted ? "bg-zaltyko-accent-teal/50" : "bg-zaltyko-border"}`} />
+                      )}
+                    </div>
+                  );
+                })}
               </div>
-              <Progress value={progressValue} className="h-2 bg-zaltyko-border" indicatorClassName="bg-gradient-to-r from-zaltyko-primary to-zaltyko-primary-dark" />
+              {/* Progress Line */}
+              <div className="h-1.5 bg-zaltyko-border/50 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-zaltyko-primary via-zaltyko-primary-light to-zaltyko-accent-teal rounded-full transition-all duration-500 ease-out"
+                  style={{ width: `${progressValue}%` }}
+                />
+              </div>
             </div>
 
             {/* Step Content */}
@@ -835,18 +874,19 @@ export default function OnboardingWizard() {
       </div>
 
       {/* Right Panel: Visuals & Preview */}
-      <div className="hidden lg:flex flex-1 bg-zaltyko-bg relative overflow-hidden items-center justify-center p-12">
-        {/* Background Gradients */}
-        <div className="absolute top-0 right-0 -z-10 h-[600px] w-[600px] rounded-full bg-zaltyko-primary/10 blur-[100px]" />
-        <div className="absolute bottom-0 left-0 -z-10 h-[500px] w-[500px] rounded-full bg-zaltyko-accent-teal/10 blur-[100px]" />
+      <div className="hidden lg:flex flex-1 bg-gradient-to-br from-zaltyko-bg via-white to-zaltyko-primary/5 relative overflow-hidden items-center justify-center p-12">
+        {/* Background Effects */}
+        <div className="absolute top-0 right-0 -z-10 h-[600px] w-[600px] rounded-full bg-zaltyko-primary/15 blur-[120px]" />
+        <div className="absolute bottom-0 left-0 -z-10 h-[500px] w-[500px] rounded-full bg-zaltyko-accent-teal/15 blur-[100px]" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full bg-gradient-to-tr from-zaltyko-primary/10 to-transparent blur-[80px]" />
 
         <div className="relative w-full max-w-xl">
           {/* Dynamic Preview Card based on Step */}
-          <div className="glass-panel rounded-3xl p-8 shadow-2xl transform transition-all duration-500 hover:scale-[1.02]">
+          <div className="glass-panel rounded-3xl p-8 shadow-2xl transform transition-all duration-500 hover:scale-[1.02] hover:shadow-3xl">
             <div className="flex items-center gap-4 mb-6">
-              <div className="h-12 w-12 rounded-full bg-zaltyko-primary/10 flex items-center justify-center text-zaltyko-primary">
-                {step === 1 && <Users className="h-6 w-6" />}
-                {step === 2 && <TrendingUp className="h-6 w-6" />}
+              <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-zaltyko-primary/20 to-zaltyko-primary/5 flex items-center justify-center text-zaltyko-primary shadow-lg">
+                {step === 1 && <Users className="h-7 w-7" />}
+                {step === 2 && <TrendingUp className="h-7 w-7" />}
               </div>
               <div>
                 <h3 className="font-display text-xl font-bold text-zaltyko-text-main">
@@ -858,22 +898,52 @@ export default function OnboardingWizard() {
               </div>
             </div>
 
-            <div className="space-y-4">
-              <div className="h-32 rounded-xl bg-gradient-to-br from-zaltyko-bg to-white border border-zaltyko-border p-4 flex items-center justify-center">
-                <p className="text-center text-sm text-zaltyko-text-secondary italic">
-                  &quot;Zaltyko ha transformado cómo gestionamos nuestras clases. ¡Es increíble!&quot;
-                </p>
-              </div>
+            {/* Feature Preview Grid */}
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              {step === 1 ? (
+                <>
+                  <div className="h-20 rounded-2xl bg-gradient-to-br from-zaltyko-bg to-white border border-zaltyko-border/50 p-3 flex flex-col justify-center hover:shadow-md transition-shadow">
+                    <Users className="h-5 w-5 text-zaltyko-primary mb-1" />
+                    <p className="text-xs font-semibold text-zaltyko-text-main">Atletas</p>
+                    <p className="text-[10px] text-zaltyko-text-secondary">Gestión completa</p>
+                  </div>
+                  <div className="h-20 rounded-2xl bg-gradient-to-br from-zaltyko-bg to-white border border-zaltyko-border/50 p-3 flex flex-col justify-center hover:shadow-md transition-shadow">
+                    <TrendingUp className="h-5 w-5 text-zaltyko-accent-teal mb-1" />
+                    <p className="text-xs font-semibold text-zaltyko-text-main">Estadísticas</p>
+                    <p className="text-[10px] text-zaltyko-text-secondary">En tiempo real</p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="h-20 rounded-2xl bg-gradient-to-br from-zaltyko-primary/10 to-white border border-zaltyko-primary/20 p-3 flex flex-col justify-center">
+                    <Sparkles className="h-5 w-5 text-zaltyko-primary mb-1" />
+                    <p className="text-xs font-semibold text-zaltyko-text-main">Panel pro</p>
+                    <p className="text-[10px] text-zaltyko-text-secondary">Dashboard avanzado</p>
+                  </div>
+                  <div className="h-20 rounded-2xl bg-gradient-to-br from-zaltyko-accent-teal/10 to-white border border-zaltyko-accent-teal/20 p-3 flex flex-col justify-center">
+                    <TrendingUp className="h-5 w-5 text-zaltyko-accent-teal mb-1" />
+                    <p className="text-xs font-semibold text-zaltyko-text-main">informes</p>
+                    <p className="text-[10px] text-zaltyko-text-secondary">Analíticas</p>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Quote Card */}
+            <div className="h-28 rounded-2xl bg-gradient-to-br from-zaltyko-bg via-white to-zaltyko-primary/5 border border-zaltyko-border/50 p-4 flex items-center justify-center">
+              <p className="text-center text-sm text-zaltyko-text-secondary italic">
+                &quot;Zaltyko ha transformado cómo gestionamos nuestras clases. ¡Es increíble!&quot;
+              </p>
             </div>
           </div>
 
           {/* Testimonial / Tip */}
-          <div className="mt-8 flex items-start gap-4 p-4 rounded-xl bg-white/40 backdrop-blur border border-white/40">
-            <div className="h-8 w-8 rounded-full bg-zaltyko-accent-amber/20 flex items-center justify-center text-zaltyko-accent-amber shrink-0">
-              <HelpCircle className="h-4 w-4" />
+          <div className="mt-8 flex items-start gap-4 p-5 rounded-2xl bg-white/50 backdrop-blur border border-white/40 shadow-lg hover:shadow-xl transition-shadow">
+            <div className="h-10 w-10 rounded-full bg-gradient-to-br from-zaltyko-accent-amber/20 to-zaltyko-accent-amber/10 flex items-center justify-center text-zaltyko-accent-amber shrink-0">
+              <HelpCircle className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-sm font-medium text-zaltyko-text-main">¿Sabías que?</p>
+              <p className="text-sm font-semibold text-zaltyko-text-main">¿Sabías que?</p>
               <p className="text-xs text-zaltyko-text-secondary mt-1">
                 Las academias que usan software de gestión ahorran un promedio de 15 horas mensuales en tareas administrativas.
               </p>

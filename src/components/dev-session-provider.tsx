@@ -76,23 +76,29 @@ export function DevSessionProvider({ children }: { children: React.ReactNode }) 
     [persist]
   );
 
+  // Inicializar desde localStorage de forma segura
+  const [initialized, setInitialized] = useState(false);
+
   useEffect(() => {
     if (!isDevFeaturesEnabled || typeof window === "undefined") return;
 
     const cached = window.localStorage.getItem(STORAGE_KEY);
-    if (cached) {
+    if (cached && !initialized) {
       try {
         const parsed = JSON.parse(cached) as DevSession;
         setSession(parsed);
         setLoading(false);
+        setInitialized(true);
       } catch (error) {
         console.warn("Sesión demo inválida en caché", error);
         window.localStorage.removeItem(STORAGE_KEY);
       }
     }
 
-    refresh();
-  }, [refresh]);
+    if (!initialized) {
+      refresh().finally(() => setInitialized(true));
+    }
+  }, [refresh, initialized]);
 
   const value = useMemo<DevSessionContextValue>(
     () => ({ session, loading, refresh, update }),
