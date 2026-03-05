@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useCallback, useRef } from "react";
+import { useEffect, useCallback, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/toast-provider";
 
@@ -31,6 +31,7 @@ export function useRealtimeNotifications({
   const supabase = createClient();
   const toast = useToast();
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const [isConnected, setIsConnected] = useState(false);
 
   const handleNotification = useCallback(
     (notification: RealtimeNotification) => {
@@ -291,8 +292,10 @@ export function useRealtimeNotifications({
       .subscribe();
 
     channelRef.current = profilesChannel;
+    setIsConnected(true);
 
     return () => {
+      setIsConnected(false);
       profilesChannel.unsubscribe();
       subscriptionsChannel.unsubscribe();
       academiesChannel.unsubscribe();
@@ -303,7 +306,7 @@ export function useRealtimeNotifications({
   }, [enabled, userId, tenantId, handleNotification, supabase]);
 
   return {
-    isConnected: channelRef.current !== null,
+    isConnected,
   };
 }
 
