@@ -3,88 +3,97 @@ import { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
 // ============================================
-// MOCKS - Module level (hoisted by vi.mock)
+// MOCKS - Use vi.hoisted() to avoid hoisting issues
 // ============================================
 
-// Mock Stripe - shared across tests
-const mockStripe = {
-    subscriptions: {
-        create: vi.fn().mockResolvedValue({
-            id: "sub_123",
-            status: "active",
-            current_period_end: Date.now() + 30 * 24 * 60 * 60 * 1000,
-        }),
-        update: vi.fn().mockResolvedValue({
-            id: "sub_123",
-            status: "active",
-            proration_amount: 1500,
-        }),
-        cancel: vi.fn().mockResolvedValue({
-            id: "sub_123",
-            status: "canceled",
-        }),
-    },
-    customers: {
-        retrieve: vi.fn().mockResolvedValue({
-            id: "cus_123",
-            email: "test@example.com",
-        }),
-        update: vi.fn().mockResolvedValue({
-            id: "cus_123",
-        }),
-    },
-};
+const { mockStripe, mockUser, mockDb } = vi.hoisted(() => {
+    // Mock Stripe - shared across tests
+    const mockStripe = {
+        subscriptions: {
+            create: vi.fn().mockResolvedValue({
+                id: "sub_123",
+                status: "active",
+                current_period_end: Date.now() + 30 * 24 * 60 * 60 * 1000,
+            }),
+            update: vi.fn().mockResolvedValue({
+                id: "sub_123",
+                status: "active",
+                proration_amount: 1500,
+            }),
+            cancel: vi.fn().mockResolvedValue({
+                id: "sub_123",
+                status: "canceled",
+            }),
+        },
+        customers: {
+            retrieve: vi.fn().mockResolvedValue({
+                id: "cus_123",
+                email: "test@example.com",
+            }),
+            update: vi.fn().mockResolvedValue({
+                id: "cus_123",
+            }),
+        },
+    };
 
+    // Mock User - shared across tests  
+    const mockUser = {
+        id: "user-123",
+        tenant_id: "tenant-123",
+        current_plan: "free",
+        email: "test@example.com",
+    };
+
+    // Mock DB - with full chain support
+    const mockDb = {
+        db: {
+            update: vi.fn(() => {
+                const chain: any = {};
+                chain.set = vi.fn(() => chain);
+                chain.where = vi.fn(() => Promise.resolve([{ id: "tenant-123", targetPlan: "pro" }]));
+                return chain;
+            }),
+            select: vi.fn(() => {
+                const chain: any = {};
+                chain.from = vi.fn(() => chain);
+                chain.where = vi.fn(() => chain);
+                chain.leftJoin = vi.fn(() => chain);
+                chain.limit = vi.fn(() => [
+                    { id: "tenant-123", targetPlan: "free", planCode: "free" }
+                ]);
+                return chain;
+            }),
+            insert: vi.fn(() => {
+                const chain: any = {};
+                chain.values = vi.fn(() => chain);
+                chain.returning = vi.fn(() => [{ id: "sub_123" }]);
+                return chain;
+            }),
+            delete: vi.fn(() => {
+                const chain: any = {};
+                chain.where = vi.fn(() => Promise.resolve([]));
+                return chain;
+            }),
+        },
+    };
+
+    return { mockStripe, mockUser, mockDb };
+});
+
+let currentUser = { ...mockUser };
+
+// Mock implementations
 vi.mock("stripe", () => ({
     default: vi.fn(() => mockStripe),
 }));
 
-// Mock User - shared across tests  
-const mockUser = {
-    id: "user-123",
-    tenant_id: "tenant-123",
-    current_targetPlan: "free",
-    email: "test@example.com",
-};
-
 vi.mock("@/lib/authz", () => ({
     withTenant: (handler: any) => async (request: Request, context: any) => {
-        return handler(request, { ...context, user: mockUser, tenantId: "tenant-123" });
+        return handler(request, { ...context, user: currentUser, tenantId: "tenant-123" });
     },
 }));
 
-// Mock DB - with full chain support
-vi.mock("@/db", () => ({
-    db: {
-        update: vi.fn(() => {
-            const chain: any = {};
-            chain.set = vi.fn(() => chain);
-            chain.where = vi.fn(() => Promise.resolve([{ id: "tenant-123", targetPlan: "pro" }]));
-            return chain;
-        }),
-        select: vi.fn(() => {
-            const chain: any = {};
-            chain.from = vi.fn(() => chain);
-            chain.where = vi.fn(() => chain);
-            chain.leftJoin = vi.fn(() => chain);
-            chain.limit = vi.fn(() => [
-                { id: "tenant-123", targetPlan: "free", planCode: "free" }
-            ]);
-            return chain;
-        }),
-        insert: vi.fn(() => {
-            const chain: any = {};
-            chain.values = vi.fn(() => chain);
-            chain.returning = vi.fn(() => [{ id: "sub_123" }]);
-            return chain;
-        }),
-        delete: vi.fn(() => {
-            const chain: any = {};
-            chain.where = vi.fn(() => Promise.resolve([]));
-            return chain;
-        }),
-    },
-}));
+vi.mock("@/db", () => mockDb);
 
 // ============================================
 // TESTS
@@ -99,6 +108,17 @@ describe("API Billing Upgrades & Downgrades", () => {
             status: "active",
             current_period_end: Date.now() + 30 * 24 * 60 * 60 * 1000,
         });
+        vi.mocked(mockStripe.subscriptions.update).mockResolvedValue({
+            id: "sub_123",
+            status: "active",
+            proration_amount: 1500,
+        });
+        vi.mocked(mockStripe.subscriptions.cancel).mockResolvedValue({
+            id: "sub_123",
+            status: "canceled",
+        });
+        // Reset user to default
+        currentUser = { ...mockUser, current_plan: "free" };
     });
 
     afterEach(() => {
@@ -107,7 +127,7 @@ describe("API Billing Upgrades & Downgrades", () => {
 
     describe("Plan Upgrades", () => {
         it("debe permitir upgrade de Free a Pro", async () => {
-            mockUser.current_plan = "free";
+            currentUser.current_plan = "free";
 
             const { POST } = await import("@/app/api/billing/upgrade/route");
             const request = new NextRequest("http://localhost/api/billing/upgrade", {
@@ -124,8 +144,8 @@ describe("API Billing Upgrades & Downgrades", () => {
         });
 
         it("debe calcular prorrateo correctamente en upgrade", async () => {
-            mockUser.current_plan = "pro";
-            mockUser.subscription_end = Date.now() + 15 * 24 * 60 * 60 * 1000;
+            currentUser.current_plan = "pro";
+            currentUser.subscription_end = Date.now() + 15 * 24 * 60 * 60 * 1000;
 
             vi.mocked(mockStripe.subscriptions.update).mockResolvedValue({
                 id: "sub_123",
@@ -147,7 +167,7 @@ describe("API Billing Upgrades & Downgrades", () => {
         });
 
         it("debe rechazar upgrade sin método de pago", async () => {
-            mockUser.current_plan = "free";
+            currentUser.current_plan = "free";
 
             const { POST } = await import("@/app/api/billing/upgrade/route");
             const request = new NextRequest("http://localhost/api/billing/upgrade", {
@@ -163,7 +183,7 @@ describe("API Billing Upgrades & Downgrades", () => {
         });
 
         it("debe actualizar límites del tenant después de upgrade", async () => {
-            mockUser.current_plan = "free";
+            currentUser.current_plan = "free";
 
             const { POST } = await import("@/app/api/billing/upgrade/route");
             const request = new NextRequest("http://localhost/api/billing/upgrade", {
@@ -179,7 +199,7 @@ describe("API Billing Upgrades & Downgrades", () => {
 
     describe("Plan Downgrades", () => {
         it("debe permitir downgrade de Pro a Free", async () => {
-            mockUser.current_plan = "pro";
+            currentUser.current_plan = "pro";
 
             const { POST } = await import("@/app/api/billing/downgrade/route");
             const request = new NextRequest("http://localhost/api/billing/downgrade", {
@@ -194,7 +214,7 @@ describe("API Billing Upgrades & Downgrades", () => {
         });
 
         it("debe advertir sobre pérdida de datos en downgrade", async () => {
-            mockUser.current_plan = "pro";
+            currentUser.current_plan = "pro";
 
             const { POST } = await import("@/app/api/billing/downgrade/route");
             const request = new NextRequest("http://localhost/api/billing/downgrade", {
@@ -210,7 +230,7 @@ describe("API Billing Upgrades & Downgrades", () => {
         });
 
         it("debe programar downgrade para fin de período de facturación", async () => {
-            mockUser.current_plan = "pro";
+            currentUser.current_plan = "pro";
 
             const { POST } = await import("@/app/api/billing/downgrade/route");
             const request = new NextRequest("http://localhost/api/billing/downgrade", {
@@ -225,7 +245,7 @@ describe("API Billing Upgrades & Downgrades", () => {
 
         it.skip("debe permitir cancelar downgrade programado", async () => {
             // Skipped: Route /api/billing/downgrade/cancel does not exist
-            mockUser.current_plan = "pro";
+            currentUser.current_plan = "pro";
 
             const { POST } = await import("@/app/api/billing/downgrade/cancel/route");
             const request = new NextRequest("http://localhost/api/billing/downgrade/cancel", {
@@ -241,7 +261,7 @@ describe("API Billing Upgrades & Downgrades", () => {
 
     describe("Subscription Cancellation", () => {
         it("debe permitir cancelar suscripción", async () => {
-            mockUser.current_plan = "pro";
+            currentUser.current_plan = "pro";
 
             const { POST } = await import("@/app/api/billing/cancel/route");
             const request = new NextRequest("http://localhost/api/billing/cancel", {
@@ -255,7 +275,7 @@ describe("API Billing Upgrades & Downgrades", () => {
         });
 
         it("debe revertir a plan Free después de cancelación", async () => {
-            mockUser.current_plan = "pro";
+            currentUser.current_plan = "pro";
 
             const { POST } = await import("@/app/api/billing/cancel/route");
             const request = new NextRequest("http://localhost/api/billing/cancel", {
@@ -265,13 +285,13 @@ describe("API Billing Upgrades & Downgrades", () => {
             await POST(request, {});
             
             // DB should be updated
-            expect(mockUser.current_plan).toBe("pro"); // Mock doesn't actually change
+            expect(currentUser.current_plan).toBe("pro"); // Mock doesn't actually change
         });
     });
 
     describe("Payment Method Updates", () => {
         it("debe permitir actualizar método de pago", async () => {
-            mockUser.current_plan = "pro";
+            currentUser.current_plan = "pro";
 
             const { POST } = await import("@/app/api/billing/payment-method/route");
             const request = new NextRequest("http://localhost/api/billing/payment-method", {
