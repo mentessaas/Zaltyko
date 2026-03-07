@@ -161,6 +161,23 @@ export default async function AthletesPage({ searchParams }: AthletesPageProps) 
     trial: list.filter(a => a.status === "trial").length,
   };
 
+  // Calculate level distribution
+  const levelDistribution = list.reduce((acc, athlete) => {
+    const level = athlete.level ?? "Sin nivel";
+    acc[level] = (acc[level] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const levelStats = Object.entries(levelDistribution)
+    .map(([level, count]) => ({ level, count }))
+    .sort((a, b) => b.count - a.count);
+
+  // Pagination
+  const page = typeof searchParams.page === "string" ? Number(searchParams.page) : 1;
+  const perPage = 20;
+  const totalPages = Math.ceil(list.length / perPage);
+  const paginatedList = list.slice((page - 1) * perPage, page * perPage);
+
   return (
     <div className="space-y-8 p-8">
       {/* Stats Cards */}
@@ -182,6 +199,27 @@ export default async function AthletesPage({ searchParams }: AthletesPageProps) 
           <p className="text-3xl font-bold text-gray-800">{stats.inactive}</p>
         </div>
       </div>
+
+      {/* Level Distribution Chart */}
+      {levelStats.length > 0 && (
+        <div className="rounded-xl border bg-card p-6 shadow">
+          <h3 className="mb-4 text-lg font-semibold">Distribución por Nivel</h3>
+          <div className="flex flex-wrap gap-3">
+            {levelStats.map(({ level, count }) => {
+              const percentage = stats.total > 0 ? Math.round((count / stats.total) * 100) : 0;
+              return (
+                <div key={level} className="flex items-center gap-2 rounded-full bg-muted px-3 py-1.5 text-sm">
+                  <span className="font-medium">{level}</span>
+                  <span className="text-muted-foreground">({count})</span>
+                  <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">
+                    {percentage}%
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
         <div className="space-y-2">
@@ -277,14 +315,14 @@ export default async function AthletesPage({ searchParams }: AthletesPageProps) 
             </tr>
           </thead>
           <tbody className="divide-y divide-border bg-background text-foreground">
-            {list.length === 0 ? (
+            {paginatedList.length === 0 ? (
               <tr>
                 <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
                   No se encontraron atletas con los filtros actuales.
                 </td>
               </tr>
             ) : (
-              list.map((row) => (
+              paginatedList.map((row) => (
                 <tr key={row.id} className="hover:bg-muted/50">
                   <td className="px-4 py-3">
                     <Link
@@ -318,6 +356,33 @@ export default async function AthletesPage({ searchParams }: AthletesPageProps) 
           </tbody>
         </table>
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-muted-foreground">
+            Mostrando {(page - 1) * perPage + 1} - {Math.min(page * perPage, list.length)} de {list.length}
+          </p>
+          <div className="flex gap-2">
+            {page > 1 && (
+              <Link
+                href={`?${new URLSearchParams({ ...searchParams, page: String(page - 1) }).toString()}`}
+                className="rounded-md border px-3 py-1.5 text-sm hover:bg-muted"
+              >
+                Anterior
+              </Link>
+            )}
+            {page < totalPages && (
+              <Link
+                href={`?${new URLSearchParams({ ...searchParams, page: String(page + 1) }).toString()}`}
+                className="rounded-md border px-3 py-1.5 text-sm hover:bg-muted"
+              >
+                Siguiente
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
