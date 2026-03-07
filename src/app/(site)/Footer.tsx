@@ -29,18 +29,23 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="#caracteristicas" className="hover:text-foreground">
+                <Link href="/features" className="hover:text-foreground">
                   Características
                 </Link>
               </li>
               <li>
-                <Link href="#planes" className="hover:text-foreground">
+                <Link href="/pricing" className="hover:text-foreground">
                   Planes y precios
                 </Link>
               </li>
               <li>
+                <Link href="/integrations" className="hover:text-foreground">
+                  Integraciones
+                </Link>
+              </li>
+              <li>
                 <Link href="/onboarding" className="hover:text-foreground">
-                  Onboarding guiado
+                  Probar gratis
                 </Link>
               </li>
               <li>
@@ -61,6 +66,21 @@ export default function Footer() {
               Legal & contacto
             </h4>
             <ul className="mt-4 space-y-3 font-sans text-sm text-muted-foreground">
+              <li>
+                <Link href="/about" className="hover:text-foreground">
+                  Sobre nosotros
+                </Link>
+              </li>
+              <li>
+                <Link href="/help" className="hover:text-foreground">
+                  Centro de ayuda
+                </Link>
+              </li>
+              <li>
+                <Link href="/contact" className="hover:text-foreground">
+                  Contacto
+                </Link>
+              </li>
               <li>
                 <Link href="/tos" className="hover:text-foreground">
                   Términos del servicio

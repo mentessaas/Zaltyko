@@ -8,9 +8,9 @@ import { buttonVariants } from "@/components/ui/button";
 
 const links = [
   { href: "/academias", label: "Academias" },
-  { href: "#modulos", label: "Características" },
+  { href: "/features", label: "Características" },
   { href: "/pricing", label: "Precios" },
-  { href: "#integraciones", label: "Integraciones" },
+  { href: "/integrations", label: "Integraciones" },
 ];
 
 export default function NavbarHome() {
