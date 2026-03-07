@@ -53,15 +53,29 @@ export function LoginForm() {
           headers,
         });
 
-        if (profileResponse.ok) {
-          const profile = (await profileResponse.json()) as {
-            role?: string;
-            tenantId?: string | null;
-            profileId?: string;
-            activeAcademyId?: string | null;
-          };
+        let profile: {
+          role?: string;
+          tenantId?: string | null;
+          profileId?: string;
+          activeAcademyId?: string | null;
+        } | null = null;
 
-          if (profile.role && ["super_admin", "admin", "owner"].includes(profile.role)) {
+        if (profileResponse.ok) {
+          profile = await profileResponse.json();
+        } else if (profileResponse.status === 404) {
+          // Profile doesn't exist, create it
+          const createProfileResponse = await fetch("/api/onboarding/profile", {
+            method: "POST",
+            cache: "no-store",
+            headers,
+          });
+
+          if (createProfileResponse.ok) {
+            profile = await createProfileResponse.json();
+          }
+        }
+
+        if (profile?.role && ["super_admin", "admin", "owner"].includes(profile.role)) {
             let targetAcademyId = profile.activeAcademyId ?? null;
 
             if (!targetAcademyId && userId) {
@@ -81,12 +95,12 @@ export function LoginForm() {
               }
             }
 
-            if (profile.role === "super_admin") {
+            if (profile?.role === "super_admin") {
               router.push("/super-admin");
               return;
             }
 
-            if (profile.role === "admin") {
+            if (profile?.role === "admin") {
               router.push("/dashboard/users");
               return;
             }
@@ -96,10 +110,12 @@ export function LoginForm() {
               return;
             }
 
-            router.push("/dashboard");
-            return;
-          }
+          router.push("/dashboard");
+          return;
         }
+        // No profile or no valid role, redirect to onboarding
+        router.push("/onboarding");
+        return;
       } catch (fetchError) {
         // Error silencioso, continuamos con el flujo normal
       }
