@@ -80,8 +80,8 @@ export default async function DashboardLayout({
         </div>
       );
     }
-    // Para otros errores, mantener la excepción original
-    throw error;
+    // Para otros errores, redirigir al login en lugar de mostrar error
+    redirect("/auth/login");
   }
 
   if (!profile) {
