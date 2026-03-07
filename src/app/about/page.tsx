@@ -189,7 +189,6 @@ export default function AboutPage() {
             <Link
               href="/contact"
               className="rounded-full border-2 border-white px-8 py-3 font-semibold text-white hover:bg-white/10"
-              href="/contact"
             >
               Contactar
             </Link>
