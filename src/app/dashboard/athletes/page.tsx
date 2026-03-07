@@ -153,8 +153,36 @@ export default async function AthletesPage({ searchParams }: AthletesPageProps) 
     age: row.age ?? calculateAge(row.dob ? new Date(row.dob) : null),
   }));
 
+  // Calculate summary stats
+  const stats = {
+    total: list.length,
+    active: list.filter(a => a.status === "active").length,
+    inactive: list.filter(a => a.status === "inactive").length,
+    trial: list.filter(a => a.status === "trial").length,
+  };
+
   return (
     <div className="space-y-8 p-8">
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-xl p-4 border border-emerald-200">
+          <p className="text-sm font-medium text-emerald-700">Total Atletas</p>
+          <p className="text-3xl font-bold text-emerald-800">{stats.total}</p>
+        </div>
+        <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-4 border border-blue-200">
+          <p className="text-sm font-medium text-blue-700">Activos</p>
+          <p className="text-3xl font-bold text-blue-800">{stats.active}</p>
+        </div>
+        <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-xl p-4 border border-amber-200">
+          <p className="text-sm font-medium text-amber-700">En Prueba</p>
+          <p className="text-3xl font-bold text-amber-800">{stats.trial}</p>
+        </div>
+        <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-4 border border-gray-200">
+          <p className="text-sm font-medium text-gray-700">Inactivos</p>
+          <p className="text-3xl font-bold text-gray-800">{stats.inactive}</p>
+        </div>
+      </div>
+
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
         <div className="space-y-2">
           <h1 className="text-3xl font-semibold">Atletas</h1>
@@ -267,7 +295,18 @@ export default async function AthletesPage({ searchParams }: AthletesPageProps) 
                     </Link>
                   </td>
                   <td className="px-4 py-3">{row.level ?? "—"}</td>
-                  <td className="px-4 py-3 capitalize">{row.status}</td>
+                  <td className="px-4 py-3">
+                    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                      row.status === "active" ? "bg-emerald-100 text-emerald-800" :
+                      row.status === "inactive" ? "bg-gray-100 text-gray-800" :
+                      row.status === "trial" ? "bg-amber-100 text-amber-800" :
+                      "bg-slate-100 text-slate-800"
+                    }`}>
+                      {row.status === "active" ? "Activo" :
+                       row.status === "inactive" ? "Inactivo" :
+                       row.status === "trial" ? "Prueba" : row.status}
+                    </span>
+                  </td>
                   <td className="px-4 py-3 text-right tabular-nums">{row.age ?? "—"}</td>
                   <td className="px-4 py-3">{row.academyName ?? "—"}</td>
                   <td className="px-4 py-3 text-right tabular-nums">
