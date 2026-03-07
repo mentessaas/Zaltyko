@@ -4,8 +4,7 @@ import path from "node:path";
 
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-// Skip entire file due to pg-mem infrastructure issues (type already exists error on re-run)
-describe.skip("Tenant Isolation", () => {
+vi.mock("@/db", () => {
   const { newDb } = require("pg-mem");
   const { drizzle } = require("drizzle-orm/node-postgres");
 
