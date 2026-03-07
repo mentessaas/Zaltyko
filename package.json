@@ -80,6 +80,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.4",
     "@next/eslint-plugin-next": "^14.2.3",
+    "@playwright/test": "^1.58.2",
     "@tailwindcss/typography": "^0.5.16",
     "@types/eslint": "^9.6.1",
     "@types/node": "^20",
@@ -110,5 +111,22 @@
       "@types/react": "18.3.12",
       "@types/react-dom": "18.3.5"
     }
-  }
+  },
+  "main": "fix-athlete-query.js",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mentessaas/Zaltyko.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/mentessaas/Zaltyko/issues"
+  },
+  "homepage": "https://github.com/mentessaas/Zaltyko#readme"
 }
