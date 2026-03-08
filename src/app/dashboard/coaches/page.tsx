@@ -1,6 +1,8 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { asc, eq } from "drizzle-orm";
+import Link from "next/link";
+import { Plus } from "lucide-react";
 
 import { db } from "@/db";
 import {
@@ -12,6 +14,7 @@ import {
 } from "@/db/schema";
 import CoachAssignmentsPanel from "@/components/coaches/CoachAssignmentsPanel";
 import { createClient } from "@/lib/supabase/server";
+import { Button } from "@/components/ui/button";
 
 interface CoachesPageProps {
   searchParams: Record<string, string | string[] | undefined>;
@@ -127,32 +130,40 @@ export default async function CoachesPage({ searchParams }: CoachesPageProps) {
   const totalAssignments = assignments.length;
 
   return (
-    <div className="space-y-8 p-8">
-      <header className="space-y-2">
-        <h1 className="text-3xl font-semibold">Entrenadores</h1>
-        <p className="text-muted-foreground">
-          Asigna entrenadores a clases y academias, sincroniza el calendario y controla quién puede
-          registrar asistencia.
-        </p>
+    <div className="space-y-8 p-4 md:p-8">
+      <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div className="space-y-2">
+          <h1 className="text-2xl md:text-3xl font-semibold">Entrenadores</h1>
+          <p className="text-muted-foreground">
+            Asigna entrenadores a clases y academias, sincroniza el calendario y controla quién puede
+            registrar asistencia.
+          </p>
+        </div>
+        <Button asChild>
+          <Link href="/dashboard/coaches/new">
+            <Plus className="h-4 w-4 mr-2" />
+            Nuevo entrenador
+          </Link>
+        </Button>
       </header>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-gradient-to-br from-violet-50 to-violet-100 rounded-xl p-4 border border-violet-200">
-          <p className="text-sm font-medium text-violet-700">Total Entrenadores</p>
-          <p className="text-3xl font-bold text-violet-800">{coachRows.length}</p>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+        <div className="bg-gradient-to-br from-violet-50 to-violet-100 rounded-xl p-3 md:p-4 border border-violet-200">
+          <p className="text-xs md:text-sm font-medium text-violet-700">Total</p>
+          <p className="text-2xl md:text-3xl font-bold text-violet-800">{coachRows.length}</p>
         </div>
-        <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-xl p-4 border border-emerald-200">
-          <p className="text-sm font-medium text-emerald-700">Clases Asignadas</p>
-          <p className="text-3xl font-bold text-emerald-800">{totalAssignments}</p>
+        <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-xl p-3 md:p-4 border border-emerald-200">
+          <p className="text-xs md:text-sm font-medium text-emerald-700">Asignadas</p>
+          <p className="text-2xl md:text-3xl font-bold text-emerald-800">{totalAssignments}</p>
         </div>
-        <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-4 border border-blue-200">
-          <p className="text-sm font-medium text-blue-700">Academias</p>
-          <p className="text-3xl font-bold text-blue-800">{uniqueAcademies}</p>
+        <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-3 md:p-4 border border-blue-200">
+          <p className="text-xs md:text-sm font-medium text-blue-700">Academias</p>
+          <p className="text-2xl md:text-3xl font-bold text-blue-800">{uniqueAcademies}</p>
         </div>
-        <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-xl p-4 border border-amber-200">
-          <p className="text-sm font-medium text-amber-700">Clases Totales</p>
-          <p className="text-3xl font-bold text-amber-800">{classRows.length}</p>
+        <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-xl p-3 md:p-4 border border-amber-200">
+          <p className="text-xs md:text-sm font-medium text-amber-700">Clases</p>
+          <p className="text-2xl md:text-3xl font-bold text-amber-800">{classRows.length}</p>
         </div>
       </div>
 
