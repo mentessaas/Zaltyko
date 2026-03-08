@@ -7,7 +7,7 @@ import { db } from "@/db";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/authz";
 import { academies, memberships, athletes, coaches, events } from "@/db/schema";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 

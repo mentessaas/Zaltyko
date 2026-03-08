@@ -97,6 +97,12 @@ export default async function EventsPage() {
     ))
     .orderBy(desc(events.startDate), desc(events.createdAt)) : [];
 
+  // Calculate stats
+  const now = new Date();
+  const upcomingEvents = eventRows.filter(e => e.startDate && new Date(e.startDate) >= now).length;
+  const pastEvents = eventRows.filter(e => e.startDate && new Date(e.startDate) < now).length;
+  const publicEvents = eventRows.filter(e => e.isPublic).length;
+
   return (
     <div className="space-y-6">
       <header className="flex items-center justify-between">
@@ -111,6 +117,26 @@ export default async function EventsPage() {
           <Link href="/dashboard/events/new">Nuevo evento</Link>
         </Button>
       </header>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="bg-gradient-to-br from-violet-50 to-violet-100 rounded-xl p-4 border border-violet-200">
+          <p className="text-sm font-medium text-violet-700">Total Eventos</p>
+          <p className="text-3xl font-bold text-violet-800">{eventRows.length}</p>
+        </div>
+        <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-xl p-4 border border-emerald-200">
+          <p className="text-sm font-medium text-emerald-700">Próximos</p>
+          <p className="text-3xl font-bold text-emerald-800">{upcomingEvents}</p>
+        </div>
+        <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-xl p-4 border border-amber-200">
+          <p className="text-sm font-medium text-amber-700">Pasados</p>
+          <p className="text-3xl font-bold text-amber-800">{pastEvents}</p>
+        </div>
+        <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-4 border border-blue-200">
+          <p className="text-sm font-medium text-blue-700">Públicos</p>
+          <p className="text-3xl font-bold text-blue-800">{publicEvents}</p>
+        </div>
+      </div>
 
       {eventRows.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-muted-foreground/30 bg-white p-8 text-center shadow-sm">
