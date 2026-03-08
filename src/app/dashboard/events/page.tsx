@@ -40,7 +40,13 @@ export default async function EventsPage() {
     redirect("/auth/login");
   }
 
-  const currentProfile = await getCurrentProfile(user.id);
+  let currentProfile;
+  try {
+    currentProfile = await getCurrentProfile(user.id);
+  } catch (error) {
+    console.error("Error getting profile:", error);
+    redirect("/onboarding");
+  }
 
   if (!currentProfile || !currentProfile.tenantId) {
     redirect("/dashboard");

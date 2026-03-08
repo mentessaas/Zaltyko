@@ -43,7 +43,13 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
   }
 
   const { profileId } = await params;
-  const currentProfile = await getCurrentProfile(user.id);
+  let currentProfile;
+  try {
+    currentProfile = await getCurrentProfile(user.id);
+  } catch (error) {
+    console.error("Error getting profile:", error);
+    redirect("/onboarding");
+  }
 
   if (!currentProfile) {
     redirect("/dashboard");
