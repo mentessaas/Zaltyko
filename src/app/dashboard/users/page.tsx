@@ -149,7 +149,7 @@ export default async function UsersAdminPage({ searchParams }: UsersPageProps) {
   }, {} as Record<string, number>);
 
   return (
-    <div className="space-y-8 p-8">
+    <div className="space-y-6 p-4 md:p-8">
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-gradient-to-br from-violet-50 to-violet-100 rounded-xl p-4 border border-violet-200">
