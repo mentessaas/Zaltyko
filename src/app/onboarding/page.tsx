@@ -182,6 +182,11 @@ export default function OnboardingWizard() {
       });
       const postData = await postResponse.json();
       if (!postResponse.ok) {
+        // Provide more helpful error message
+        const errorMsg = postData?.error ?? "Error desconocido";
+        if (errorMsg === "INTERNAL_ERROR") {
+          throw new Error("Error de conexión con la base de datos. Por favor, intenta más tarde o contacta soporte.");
+        }
         throw new Error(postData?.error ?? "No se pudo crear el perfil.");
       }
       setProfileId(postData.profileId);
