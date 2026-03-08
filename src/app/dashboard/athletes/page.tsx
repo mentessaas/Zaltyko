@@ -2,6 +2,7 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { and, asc, eq, ilike, sql } from "drizzle-orm";
+import { Plus } from "lucide-react";
 
 import { db } from "@/db";
 import {
@@ -14,6 +15,7 @@ import {
 import { athleteStatusOptions } from "@/lib/athletes/constants";
 import { createClient } from "@/lib/supabase/server";
 import ImportExportPanel from "@/components/athletes/ImportExportPanel";
+import { Button } from "@/components/ui/button";
 
 interface AthletesPageProps {
   searchParams: Record<string, string | string[] | undefined>;
@@ -179,7 +181,7 @@ export default async function AthletesPage({ searchParams }: AthletesPageProps) 
   const paginatedList = list.slice((page - 1) * perPage, page * perPage);
 
   return (
-    <div className="space-y-8 p-8">
+    <div className="space-y-6 p-4 md:p-8">
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-xl p-4 border border-emerald-200">
@@ -299,7 +301,15 @@ export default async function AthletesPage({ searchParams }: AthletesPageProps) 
             </button>
           </form>
         </div>
-        <ImportExportPanel tenantId={tenantId ?? undefined} />
+        <div className="flex gap-2">
+          <Button asChild>
+            <Link href="/dashboard/athletes/new">
+              <Plus className="h-4 w-4 mr-2" />
+              Nuevo atleta
+            </Link>
+          </Button>
+          <ImportExportPanel tenantId={tenantId ?? undefined} />
+        </div>
       </div>
 
       <div className="overflow-hidden rounded-lg border bg-card shadow">
