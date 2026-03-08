@@ -72,7 +72,14 @@ export default async function AcademiesPage() {
     redirect("/auth/login");
   }
 
-  const currentProfile = await getCurrentProfile(user.id);
+  let currentProfile;
+  try {
+    currentProfile = await getCurrentProfile(user.id);
+  } catch (error) {
+    console.error("Error getting profile:", error);
+    // If database error, try to redirect to onboarding to create profile
+    redirect("/onboarding");
+  }
 
   if (!currentProfile) {
     redirect("/dashboard");

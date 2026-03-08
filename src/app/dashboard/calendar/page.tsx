@@ -57,7 +57,13 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
     redirect("/auth/login");
   }
 
-  const currentProfile = await getCurrentProfile(user.id);
+  let currentProfile;
+  try {
+    currentProfile = await getCurrentProfile(user.id);
+  } catch (error) {
+    console.error("Error getting profile:", error);
+    redirect("/onboarding");
+  }
   if (!currentProfile) {
     redirect("/dashboard");
   }
