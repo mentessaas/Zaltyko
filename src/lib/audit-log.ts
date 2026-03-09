@@ -30,13 +30,12 @@ export interface CreateAuditLogParams {
 export async function createAuditLog(params: CreateAuditLogParams) {
   try {
     await db.insert(auditLogs).values({
-      tenantId: params.tenantId,
-      userId: params.userId,
+      tenantId: params.tenantId as any,
+      userId: params.userId as any,
       action: params.action,
       resourceType: params.resourceType,
-      resourceId: params.resourceId,
-      metadata: params.metadata ?? {},
-      createdAt: new Date(),
+      resourceId: params.resourceId as any,
+      meta: params.metadata ?? {},
     });
   } catch (error) {
     // Log error but don't throw - audit logging should not break main operations
