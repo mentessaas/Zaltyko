@@ -6,6 +6,7 @@ import { z } from "zod";
 import { db } from "@/db";
 import { academies, profiles, contactMessages } from "@/db/schema";
 import { createNotification } from "@/lib/notifications/notification-service";
+import { rateLimit } from "@/lib/rate-limit";
 
 const ContactAcademySchema = z.object({
   academyId: z.string().uuid(),
@@ -13,6 +14,11 @@ const ContactAcademySchema = z.object({
   email: z.string().email(),
   phone: z.string().optional(),
   message: z.string().min(10).max(1000),
+});
+
+// Honeypot schema - campo oculto que debe estar vacío (detectar bots)
+const HoneypotSchema = z.object({
+  website: z.string().optional(),
 });
 
 export type ContactAcademyInput = z.infer<typeof ContactAcademySchema>;
@@ -30,8 +36,33 @@ export type ContactAcademyResult = {
  * @returns Resultado de la operación
  */
 export async function contactAcademy(
-  input: ContactAcademyInput
+  input: ContactAcademyInput & { website?: string }
 ): Promise<ContactAcademyResult> {
+  // Verificar honeypot (campo oculto para detectar bots)
+  const honeypot = HoneypotSchema.safeParse({ website: input.website });
+  if (honeypot.success && honeypot.data.website) {
+    // Silenciosamente aceptar pero no hacer nada (detectar bots)
+    return {
+      success: true,
+      message: "Tu mensaje ha sido enviado.",
+    };
+  }
+
+  // Rate limiting - 5 requests por minuto por IP
+  const { success: rateLimited } = await rateLimit({
+    identifier: `contact-academy:${input.email}`,
+    limit: 5,
+    window: 60,
+  });
+
+  if (!rateLimited) {
+    return {
+      success: false,
+      error: "RATE_LIMIT_EXCEEDED",
+      message: "Demasiadas solicitudes. Intenta de nuevo más tarde.",
+    };
+  }
+
   const parsed = ContactAcademySchema.safeParse(input);
 
   if (!parsed.success) {
