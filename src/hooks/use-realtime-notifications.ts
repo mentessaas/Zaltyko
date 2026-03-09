@@ -20,13 +20,39 @@ interface UseRealtimeNotificationsOptions {
   tenantId?: string | null;
   enabled?: boolean;
   onNotification?: (notification: RealtimeNotification) => void;
+  soundEnabled?: boolean;
 }
+
+// Sound notification function
+const playNotificationSound = () => {
+  // Create a simple notification sound using Web Audio API
+  try {
+    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+
+    oscillator.frequency.value = 800;
+    oscillator.type = "sine";
+
+    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+
+    oscillator.start(audioContext.currentTime);
+    oscillator.stop(audioContext.currentTime + 0.3);
+  } catch (error) {
+    console.log("Notification sound not available");
+  }
+};
 
 export function useRealtimeNotifications({
   userId,
   tenantId,
   enabled = true,
   onNotification,
+  soundEnabled = false,
 }: UseRealtimeNotificationsOptions = {}) {
   const supabase = createClient();
   const toast = useToast();
@@ -40,6 +66,11 @@ export function useRealtimeNotifications({
         return;
       }
 
+      // Play notification sound if enabled
+      if (soundEnabled) {
+        playNotificationSound();
+      }
+
       // Mostrar toast
       toast.pushToast({
         title: notification.title,
@@ -51,7 +82,7 @@ export function useRealtimeNotifications({
       // Callback personalizado
       onNotification?.(notification);
     },
-    [userId, toast, onNotification]
+    [userId, toast, onNotification, soundEnabled]
   );
 
   useEffect(() => {
@@ -102,11 +133,11 @@ export function useRealtimeNotifications({
         },
         async (payload) => {
           const newRecord = (payload as any).new_record as { user_id: string; plan_id?: string; status?: string };
-          
+
           // Obtener información del plan si cambió
           if (newRecord.plan_id) {
             const { data: plan } = await supabase.from("plans").select("code, nickname").eq("id", newRecord.plan_id).single();
-            
+
             if (plan) {
               handleNotification({
                 id: `subscription-${newRecord.user_id}-${Date.now()}`,
@@ -213,8 +244,8 @@ export function useRealtimeNotifications({
           filter: tenantId ? `tenant_id=eq.${tenantId}` : undefined,
         },
         (payload: any) => {
-          const record = payload.new_record as { 
-            id: string; 
+          const record = payload.new_record as {
+            id: string;
             tenant_id: string | null;
             academy_id: string;
             amount_paid?: number | null;
@@ -223,7 +254,7 @@ export function useRealtimeNotifications({
           } | null;
 
           if (!record) return;
-          
+
           // Solo mostrar notificaciones para el tenant del usuario actual
           if (tenantId && record.tenant_id !== tenantId) {
             return;
@@ -275,8 +306,6 @@ export function useRealtimeNotifications({
           if (!academy) return;
 
           // Verificar que el usuario es propietario de la academia
-          // Nota: userId aquí es el userId de Supabase Auth, necesitamos el profileId
-          // Por ahora, solo notificamos si hay un userId y tenantId
           if (userId && tenantId && academy.tenant_id === tenantId) {
             handleNotification({
               id: `contact-message-${record.id}-${Date.now()}`,
@@ -307,6 +336,6 @@ export function useRealtimeNotifications({
 
   return {
     isConnected,
+    playNotificationSound,
   };
 }
-

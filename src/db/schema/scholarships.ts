@@ -22,6 +22,8 @@ export const scholarships = pgTable(
     discountValue: numeric("discount_value", { precision: 10, scale: 2 }).notNull(),
     startDate: date("start_date").notNull(),
     endDate: date("end_date"),
+    autoRenew: boolean("auto_renew").notNull().default(false),
+    requiredDocuments: text("required_documents").array(),
     isActive: boolean("is_active").notNull().default(true),
     createdBy: uuid("created_by").references(() => profiles.id, { onDelete: "set null" }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

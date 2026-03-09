@@ -1,21 +1,175 @@
 {
-  "name": "Zaltyko",
+  "name": "Zaltyko - Gestión de Academias",
   "short_name": "Zaltyko",
+  "description": "El sistema definitivo para gestionar academias de gimnasia",
   "start_url": "/",
   "display": "standalone",
+  "orientation": "portrait-primary",
   "background_color": "#ffffff",
   "theme_color": "#0D47A1",
+  "scope": "/",
+  "lang": "es",
+  "categories": ["business", "productivity", "sports"],
   "icons": [
+    {
+      "src": "/icons/icon-72.png",
+      "sizes": "72x72",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-96.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-128.png",
+      "sizes": "128x128",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-144.png",
+      "sizes": "144x144",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-152.png",
+      "sizes": "152x152",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
     {
       "src": "/icons/icon-192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-384.png",
+      "sizes": "384x384",
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
       "src": "/icons/icon-512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
-  ]
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshots/home.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Dashboard principal de Zaltyko"
+    },
+    {
+      "src": "/screenshots/mobile.png",
+      "sizes": "750x1334",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Vista móvil de Zaltyko"
+    }
+  ],
+  "splash_screens": [
+    {
+      "src": "/icons/splash-640x1136.png",
+      "sizes": "640x1136",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "background_color": "#0D47A1"
+    },
+    {
+      "src": "/icons/splash-750x1334.png",
+      "sizes": "750x1334",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "background_color": "#0D47A1"
+    },
+    {
+      "src": "/icons/splash-1242x2208.png",
+      "sizes": "1242x2208",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "background_color": "#0D47A1"
+    },
+    {
+      "src": "/icons/splash-1125x2436.png",
+      "sizes": "1125x2436",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "background_color": "#0D47A1"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Atletas",
+      "short_name": "Atletas",
+      "description": "Ver lista de atletas",
+      "url": "/dashboard/athletes",
+      "icons": [
+        {
+          "src": "/icons/icon-96.png",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "Clases",
+      "short_name": "Clases",
+      "description": "Ver clases programadas",
+      "url": "/dashboard/classes",
+      "icons": [
+        {
+          "src": "/icons/icon-96.png",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "Calendario",
+      "short_name": "Calendario",
+      "description": "Ver calendario",
+      "url": "/dashboard/calendar",
+      "icons": [
+        {
+          "src": "/icons/icon-96.png",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "Nueva Inscripción",
+      "short_name": "Inscribir",
+      "description": "Inscribir nuevo atleta",
+      "url": "/dashboard/athletes/new",
+      "icons": [
+        {
+          "src": "/icons/icon-96.png",
+          "sizes": "96x96"
+        }
+      ]
+    }
+  ],
+  "related_applications": [],
+  "prefer_related_applications": false,
+  "yaru": {
+    "required_version": null
+  },
+  "share_target": {
+    "action": "/api/share",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  }
 }
 
