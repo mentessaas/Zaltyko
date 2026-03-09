@@ -68,9 +68,13 @@ export function AthletesTableView({ academyId, athletes: initialAthletes, levels
 
   // Cargar alertas de asistencia para los atletas
   useEffect(() => {
+    const controller = new AbortController();
+
     const loadAttendanceAlerts = async () => {
       try {
-        const response = await fetch(`/api/alerts/attendance?academyId=${academyId}`);
+        const response = await fetch(`/api/alerts/attendance?academyId=${academyId}`, {
+          signal: controller.signal,
+        });
         if (response.ok) {
           const data = await response.json();
           if (Array.isArray(data.alerts)) {
@@ -81,13 +85,17 @@ export function AthletesTableView({ academyId, athletes: initialAthletes, levels
           }
         }
       } catch (error) {
-        console.error("Error loading attendance alerts:", error);
+        if (error instanceof Error && error.name !== "AbortError") {
+          console.error("Error loading attendance alerts:", error);
+        }
       }
     };
 
     if (academyId && athletes.length > 0) {
       loadAttendanceAlerts();
     }
+
+    return () => controller.abort();
   }, [academyId, athletes.length]);
 
   const applyFilters = (event: FormEvent<HTMLFormElement>) => {
