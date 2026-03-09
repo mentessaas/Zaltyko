@@ -16,11 +16,11 @@ export async function GET(
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
-    // Obtener perfil del usuario
+    // Obtener perfil del usuario usando userId
     const { data: profile } = await supabase
       .from("profiles")
-      .select("id, role")
-      .eq("id", user.id)
+      .select("id, role, user_id")
+      .eq("user_id", user.id)
       .single();
 
     if (!profile) {
@@ -92,11 +92,11 @@ export async function PATCH(
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
-    // Obtener perfil del usuario
+    // Obtener perfil del usuario usando userId
     const { data: profile } = await supabase
       .from("profiles")
-      .select("id, role")
-      .eq("id", user.id)
+      .select("id, role, user_id")
+      .eq("user_id", user.id)
       .single();
 
     if (!profile) {

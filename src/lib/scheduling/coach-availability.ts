@@ -16,12 +16,17 @@ export async function checkCoachAvailability(
   startTime: string,
   endTime: string
 ): Promise<boolean> {
+  // Validar que startTime < endTime
+  if (startTime >= endTime) {
+    throw new Error("startTime must be before endTime");
+  }
+
   const dayStart = new Date(date);
   dayStart.setHours(0, 0, 0, 0);
   const dayEnd = new Date(date);
   dayEnd.setHours(23, 59, 59, 999);
 
-  // Buscar sesiones del coach en esa fecha
+  // Buscar sesiones del coach en esa fecha usando leftJoin para incluir sesiones sin coach
   const existingSessions = await db
     .select({
       id: classSessions.id,
@@ -29,7 +34,7 @@ export async function checkCoachAvailability(
       endTime: classSessions.endTime
     })
     .from(classSessions)
-    .innerJoin(classCoachAssignments, eq(classSessions.id, classCoachAssignments.sessionId))
+    .leftJoin(classCoachAssignments, eq(classSessions.id, classCoachAssignments.sessionId))
     .where(
       and(
         eq(classCoachAssignments.coachId, coachId),
