@@ -18,14 +18,21 @@ export default async function Dashboard() {
     redirect("/auth/login");
   }
 
-  const [profile] = await db
-    .select()
-    .from(profiles)
-    .where(eq(profiles.userId, user.id))
-    .limit(1);
+  let profile;
+  try {
+    const [profileResult] = await db
+      .select()
+      .from(profiles)
+      .where(eq(profiles.userId, user.id))
+      .limit(1);
+    profile = profileResult;
+  } catch (error) {
+    console.error("Error getting profile:", error);
+    redirect("/onboarding");
+  }
 
   if (!profile) {
-    redirect("/auth/login");
+    redirect("/onboarding");
   }
 
   // Check if user can login (for athletes and other roles that might be restricted)

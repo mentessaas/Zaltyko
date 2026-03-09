@@ -1,13 +1,18 @@
-import { AdvancedMetrics } from "@/components/dashboard/AdvancedMetrics";
+import { AnalyticsWidgets } from "@/components/analytics/AnalyticsWidgets";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 
 interface PageProps {
   params: {
     academyId: string;
   };
+  searchParams: {
+    dateRange?: string;
+    classId?: string;
+    coachId?: string;
+  };
 }
 
-export default async function AnalyticsPage({ params }: PageProps) {
+export default async function AnalyticsPage({ params, searchParams }: PageProps) {
   const { academyId } = params;
 
   return (
@@ -21,11 +26,11 @@ export default async function AnalyticsPage({ params }: PageProps) {
       <div>
         <h1 className="text-2xl font-bold">Analytics Avanzado</h1>
         <p className="text-muted-foreground mt-1">
-          Métricas detalladas y análisis de rendimiento
+          Métricas detalladas, gráficos y análisis de rendimiento
         </p>
       </div>
 
-      <AdvancedMetrics academyId={academyId} />
+      <AnalyticsWidgets academyId={academyId} />
     </div>
   );
 }

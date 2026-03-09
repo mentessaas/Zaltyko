@@ -40,6 +40,8 @@ export async function getUserNotifications(
   options?: {
     unreadOnly?: boolean;
     limit?: number;
+    offset?: number;
+    type?: string;
   }
 ) {
   const whereConditions = [
@@ -51,11 +53,19 @@ export async function getUserNotifications(
     whereConditions.push(eq(notifications.read, false));
   }
 
+  if (options?.type) {
+    whereConditions.push(eq(notifications.type, options.type));
+  }
+
   const query = db
     .select()
     .from(notifications)
     .where(and(...whereConditions))
     .orderBy(desc(notifications.createdAt));
+
+  if (options?.offset) {
+    query.offset(options.offset);
+  }
 
   if (options?.limit) {
     return await query.limit(options.limit);
