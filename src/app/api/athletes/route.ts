@@ -293,7 +293,17 @@ export const GET = withTenant(async (request, context) => {
     whereClause = whereClause ? and(whereClause, condition) : condition;
   }
 
-  // Query y paginación manejada en memoria (datasets pequeños en onboarding)
+  // Query con paginación a nivel de base de datos
+  // Primero obtenemos el total
+  const countResult = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(athletes)
+    .where(whereClause)
+    .groupBy(athletes.id);
+
+  const total = countResult.length;
+
+  // Luego obtenemos los datos paginados
   const rows = await db
     .select({
       id: athletes.id,
@@ -315,12 +325,11 @@ export const GET = withTenant(async (request, context) => {
     .leftJoin(guardianAthletes, eq(guardianAthletes.athleteId, athletes.id))
     .where(whereClause)
     .groupBy(athletes.id, academies.name, groups.name, groups.color)
-    .orderBy(asc(athletes.name));
+    .orderBy(asc(athletes.name))
+    .limit(pageSize)
+    .offset(offset);
 
-  const total = rows.length;
-  const paginatedItems = rows.slice(offset, offset + pageSize);
-
-    const totalPages = Math.ceil(total / pageSize);
+  const totalPages = Math.ceil(total / pageSize);
 
     return NextResponse.json({
       total,
@@ -329,7 +338,7 @@ export const GET = withTenant(async (request, context) => {
       totalPages,
       hasNextPage: page < totalPages,
       hasPreviousPage: page > 1,
-      items: paginatedItems,
+      items: rows,
     });
   } catch (error) {
     return handleApiError(error);
