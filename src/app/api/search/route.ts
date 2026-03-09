@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { withTenant } from "@/lib/authz";
-import { globalSearch } from "@/lib/search/search-service";
+import { globalSearch, getSearchableTypes, SearchResultType } from "@/lib/search/search-service";
 
 const querySchema = z.object({
   academyId: z.string().uuid(),
   q: z.string().min(2),
   limit: z.string().optional(),
+  type: z.enum(["athlete", "coach", "class", "group", "event", "academy"]).optional(),
+  includeAllTypes: z.string().optional(),
 });
 
 export const GET = withTenant(async (request, context) => {
@@ -19,6 +21,8 @@ export const GET = withTenant(async (request, context) => {
     academyId: url.searchParams.get("academyId"),
     q: url.searchParams.get("q"),
     limit: url.searchParams.get("limit"),
+    type: url.searchParams.get("type") as SearchResultType | null,
+    includeAllTypes: url.searchParams.get("includeAllTypes"),
   };
 
   const validated = querySchema.parse({
@@ -33,9 +37,17 @@ export const GET = withTenant(async (request, context) => {
 
   try {
     const limit = validated.limit ? parseInt(validated.limit) : 20;
-    const results = await globalSearch(validated.academyId, context.tenantId, validated.q, limit);
+    const results = await globalSearch(validated.academyId, context.tenantId, validated.q, {
+      limit,
+      type: validated.type,
+      includeAllTypes: validated.includeAllTypes !== "false",
+    });
 
-    return NextResponse.json({ items: results });
+    return NextResponse.json({
+      items: results,
+      total: results.length,
+      types: getSearchableTypes(),
+    });
   } catch (error: any) {
     console.error("Error performing search:", error);
     return NextResponse.json(

@@ -88,14 +88,43 @@ export const PUT = withTenant(async (request, context) => {
     return NextResponse.json({ error: "ATHLETE_NOT_FOUND" }, { status: 404 });
   }
 
-  const body = await request.json();
+  const body = UpdateSchema.parse(await request.json());
+
+  const updates: Record<string, unknown> = {};
+
+  if (body.name !== undefined) {
+    updates.name = body.name;
+  }
+  if (body.dob !== undefined) {
+    if (body.dob === null) {
+      updates.dob = null;
+    } else if (body.dob === "INVALID") {
+      return NextResponse.json(
+        { error: "INVALID_DOB", message: "El formato de fecha de nacimiento no es válido" },
+        { status: 400 }
+      );
+    } else if (body.dob instanceof Date) {
+      updates.dob = formatDateForDB(body.dob);
+    }
+  }
+  if (body.level !== undefined) {
+    updates.level = body.level;
+  }
+  if (body.status !== undefined) {
+    updates.status = body.status;
+  }
+  if (body.groupId !== undefined) {
+    updates.groupId = body.groupId;
+  }
+  if (body.age !== undefined) {
+    updates.age = body.age;
+  }
+
+  updates.updatedAt = new Date();
 
   const [updated] = await db
     .update(athletes)
-    .set({
-      ...body,
-      updatedAt: new Date(),
-    })
+    .set(updates)
     .where(eq(athletes.id, athleteId))
     .returning();
 

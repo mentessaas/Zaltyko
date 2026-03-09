@@ -8,6 +8,8 @@ export const dynamic = 'force-dynamic';
 const querySchema = z.object({
   unreadOnly: z.string().optional(),
   limit: z.string().optional(),
+  offset: z.string().optional(),
+  type: z.string().optional(),
 });
 
 export const GET = withTenant(async (request, context) => {
@@ -21,6 +23,8 @@ export const GET = withTenant(async (request, context) => {
   const params = {
     unreadOnly: url.searchParams.get("unreadOnly"),
     limit: url.searchParams.get("limit"),
+    offset: url.searchParams.get("offset"),
+    type: url.searchParams.get("type"),
   };
 
   const validated = querySchema.parse(params);
@@ -28,6 +32,8 @@ export const GET = withTenant(async (request, context) => {
   const notifications = await getUserNotifications(context.tenantId, profile.id, {
     unreadOnly: validated.unreadOnly === "true",
     limit: validated.limit ? parseInt(validated.limit) : undefined,
+    offset: validated.offset ? parseInt(validated.offset) : undefined,
+    type: validated.type || undefined,
   });
 
   return NextResponse.json({
@@ -37,9 +43,9 @@ export const GET = withTenant(async (request, context) => {
       title: n.title,
       message: n.message,
       read: n.read,
+      readAt: n.readAt?.toISOString() || null,
       createdAt: n.createdAt?.toISOString(),
       data: n.data,
     })),
   });
 });
-

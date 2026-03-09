@@ -9,6 +9,7 @@ import { db } from "@/db";
 import { academies, memberships, plans, profiles, subscriptions } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
 import { AcademyProvider } from "@/hooks/use-academy-context";
+import { DashboardSkipLink } from "@/components/dashboard/DashboardSkipLink";
 
 import { AcademyTopNav } from "./top-nav";
 import { AutoBreadcrumb } from "@/components/navigation/AutoBreadcrumb";
@@ -157,6 +158,7 @@ export default async function AcademyLayout({ params, children }: LayoutProps) {
     <AcademyProvider value={contextValue}>
       <ToastProvider>
         <div className="flex min-h-screen flex-col">
+          <DashboardSkipLink />
           <GlobalTopNav
             userRole={profile.role}
             userName={profile.name}
@@ -172,7 +174,7 @@ export default async function AcademyLayout({ params, children }: LayoutProps) {
             <AcademySidebar />
             <div className="flex flex-1 flex-col">
               <AcademyTopNav />
-              <main className="flex-1 bg-muted/10 px-4 py-4 sm:px-6 lg:px-8">
+              <main id="main-content" className="flex-1 bg-muted/10 px-4 py-4 sm:px-6 lg:px-8" tabIndex={-1}>
                 <AutoBreadcrumb />
                 {children}
               </main>
