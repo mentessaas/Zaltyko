@@ -1,6 +1,6 @@
 import { db } from "@/db";
 import { classEnrollments, classes } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, count } from "drizzle-orm";
 
 /**
  * Verifica la capacidad actual de una clase
@@ -24,13 +24,13 @@ export async function checkClassCapacity(classId: string): Promise<{
 
   const capacity = classSession.capacity ?? 1;
 
-  // Contar inscripciones actuales (extras) en esta clase
-  const enrollments = await db
-    .select({ id: classEnrollments.id })
+  // Contar inscripciones actuales usando COUNT de SQL (más eficiente)
+  const [{ count: currentCount }] = await db
+    .select({ count: count() })
     .from(classEnrollments)
     .where(eq(classEnrollments.classId, classId));
 
-  const current = enrollments.length;
+  const current = currentCount ?? 0;
 
   return {
     current,
