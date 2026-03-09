@@ -77,7 +77,7 @@ export function CampaignList({
     const endDate = campaign.endDate ? new Date(campaign.endDate) : null;
 
     if (!campaign.isActive) {
-      return <Badge variant="secondary">Inactiva</Badge>;
+      return <Badge variant="outline">Inactiva</Badge>;
     }
 
     if (startDate > today) {
@@ -85,14 +85,14 @@ export function CampaignList({
     }
 
     if (endDate && endDate < today) {
-      return <Badge variant="destructive">Expirada</Badge>;
+      return <Badge variant="error">Expirada</Badge>;
     }
 
     if (campaign.maxUses && campaign.currentUses >= campaign.maxUses) {
-      return <Badge variant="warning">Agotada</Badge>;
+      return <Badge variant="pending">Agotada</Badge>;
     }
 
-    return <Badge variant="default">Activa</Badge>;
+    return <Badge variant="success">Activa</Badge>;
   };
 
   return (

@@ -132,7 +132,7 @@ export function WhatsAppPage({
       {!config.isConfigured && (
         <div className="rounded-lg border border-amber-400/60 bg-amber-400/10 p-4">
           <p className="text-sm text-amber-900 font-medium">
-            ⚠️ WhatsApp no está configurado. Configura tu cuenta en la pestaña "Configuración" para poder enviar mensajes.
+            ⚠️ WhatsApp no est&aacute; configurado. Configura tu cuenta en la pesta&ntilde;a &quot;Configuraci&oacute;n&quot; para poder enviar mensajes.
           </p>
         </div>
       )}
