@@ -96,7 +96,7 @@ export function ExportButtons({
           <DialogHeader>
             <DialogTitle>Enviar Reporte por Email</DialogTitle>
             <DialogDescription>
-              Envía el reporte "{reportTitle}" a una dirección de email.
+              Env&iacute;a el reporte &quot;{reportTitle}&quot; a una direcci&oacute;n de email.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
