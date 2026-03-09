@@ -4,7 +4,6 @@ import { eq, and, gte, lte, isNull } from "drizzle-orm";
 import { withTenant } from "@/lib/authz";
 import { db } from "@/db";
 import { discounts } from "@/db/schema";
-import { toZod } from "zod";
 
 const validateCodeSchema = z.object({
   academyId: z.string().uuid(),

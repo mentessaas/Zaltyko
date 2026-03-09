@@ -36,7 +36,7 @@ export const PUT = async (request: Request) => {
     const [currentPrefs] = await db
       .select()
       .from(userPreferences)
-      .where(eq(userPreferences.userId, profile.userId))
+      .where(eq(userPreferences.userId, profile.id as any))
       .limit(1);
 
     const updatedEmailNotifications = currentPrefs?.emailNotifications
@@ -51,12 +51,12 @@ export const PUT = async (request: Request) => {
           emailNotifications: updatedEmailNotifications,
           updatedAt: new Date(),
         })
-        .where(eq(userPreferences.userId, profile.userId));
+        .where(eq(userPreferences.userId, profile.id as any));
     } else {
       // Crear nuevas preferencias
       await db.insert(userPreferences).values({
-        userId: profile.userId,
-        tenantId: profile.tenantId,
+        userId: profile.id as any,
+        tenantId: profile.tenantId as any,
         emailNotifications: updatedEmailNotifications,
       });
     }
@@ -91,7 +91,7 @@ export const GET = async (request: Request) => {
         emailNotifications: userPreferences.emailNotifications,
       })
       .from(userPreferences)
-      .where(eq(userPreferences.userId, profile.userId))
+      .where(eq(userPreferences.userId, profile.id as any))
       .limit(1);
 
     return NextResponse.json({
