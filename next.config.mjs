@@ -25,9 +25,9 @@ const nextConfig = {
   typescript: { 
     ignoreBuildErrors: process.env.NODE_ENV === "development",
   },
-  // Deshabilitar ESLint durante el build para evitar errores de configuración
+  // Habilitar ESLint en producción, solo ignorar en desarrollo
   eslint: {
-    ignoreDuringBuilds: true,
+    ignoreDuringBuilds: process.env.NODE_ENV === "development",
   },
   pageExtensions: ["ts", "tsx", "mdx"],
   // Deshabilitar exportación estática (la app es completamente dinámica)

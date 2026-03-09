@@ -2,6 +2,7 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { eq, and, desc, inArray } from "drizzle-orm";
+import { Calendar, CalendarClock, CalendarCheck, Globe, Trophy } from "lucide-react";
 
 import { db } from "@/db";
 import { createClient } from "@/lib/supabase/server";
@@ -10,6 +11,9 @@ import { events, academies, memberships } from "@/db/schema";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { StatsCard } from "@/components/ui/stats-card";
+import { PageHeader } from "@/components/ui/page-header";
+import { EmptyState } from "@/components/shared/EmptyState";
 
 const EVENT_LEVEL_LABELS: Record<string, string> = {
   internal: "Interno",
@@ -40,9 +44,15 @@ export default async function EventsPage() {
     redirect("/auth/login");
   }
 
-  const currentProfile = await getCurrentProfile(user.id);
+  let currentProfile;
+  try {
+    currentProfile = await getCurrentProfile(user.id);
+  } catch (error) {
+    console.error("Error getting profile:", error);
+    redirect("/onboarding");
+  }
 
-  if (!currentProfile || !currentProfile.tenantId) {
+  if (!currentProfile) {
     redirect("/dashboard");
   }
 
@@ -51,10 +61,18 @@ export default async function EventsPage() {
     .select({
       id: academies.id,
       name: academies.name,
+      tenantId: academies.tenantId,
     })
     .from(memberships)
     .innerJoin(academies, eq(memberships.academyId, academies.id))
     .where(eq(memberships.userId, currentProfile.userId));
+
+  // Get tenantId from profile or from user's academies
+  const effectiveTenantId = currentProfile.tenantId ?? userAcademies[0]?.tenantId;
+
+  if (!effectiveTenantId) {
+    redirect("/dashboard");
+  }
 
   if (userAcademies.length === 0) {
     return (
@@ -92,36 +110,72 @@ export default async function EventsPage() {
     .from(events)
     .innerJoin(academies, eq(events.academyId, academies.id))
     .where(and(
-      eq(events.tenantId, currentProfile.tenantId),
+      eq(events.tenantId, effectiveTenantId),
       inArray(events.academyId, academyIds)
     ))
     .orderBy(desc(events.startDate), desc(events.createdAt)) : [];
 
+  // Calculate stats
+  const now = new Date();
+  const upcomingEvents = eventRows.filter(e => e.startDate && new Date(e.startDate) >= now).length;
+  const pastEvents = eventRows.filter(e => e.startDate && new Date(e.startDate) < now).length;
+  const publicEvents = eventRows.filter(e => e.isPublic).length;
+
   return (
     <div className="space-y-6">
-      <header className="flex items-center justify-between">
-        <div className="space-y-2">
-          <p className="text-sm font-semibold text-zaltyko-primary uppercase tracking-wide">Eventos</p>
-          <h1 className="text-3xl font-bold text-zaltyko-neutral-dark">Gestiona tus eventos</h1>
-          <p className="text-muted-foreground">
-            Crea y gestiona eventos y competencias para tus academias.
-          </p>
-        </div>
-        <Button asChild>
-          <Link href="/dashboard/events/new">Nuevo evento</Link>
-        </Button>
-      </header>
+      <PageHeader
+        breadcrumbs={[
+          { label: "Dashboard", href: "/dashboard" },
+          { label: "Eventos" },
+        ]}
+        title="Eventos"
+        description="Crea y gestiona eventos y competencias para tus academias."
+        icon={Trophy}
+        actions={
+          <Button asChild>
+            <Link href="/dashboard/events/new">
+              <Calendar className="h-4 w-4 mr-2" />
+              Nuevo evento
+            </Link>
+          </Button>
+        }
+      />
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <StatsCard
+          title="Total"
+          value={eventRows.length}
+          icon={Calendar}
+          variant="default"
+        />
+        <StatsCard
+          title="Próximos"
+          value={upcomingEvents}
+          icon={CalendarClock}
+          variant="success"
+        />
+        <StatsCard
+          title="Pasados"
+          value={pastEvents}
+          icon={CalendarCheck}
+          variant="warning"
+        />
+        <StatsCard
+          title="Públicos"
+          value={publicEvents}
+          icon={Globe}
+          variant="info"
+        />
+      </div>
 
       {eventRows.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-muted-foreground/30 bg-white p-8 text-center shadow-sm">
-          <p className="text-lg font-semibold text-zaltyko-neutral-dark">No tienes eventos creados.</p>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Crea tu primer evento para comenzar.
-          </p>
-          <Button asChild className="mt-6">
-            <Link href="/dashboard/events/new">Crear evento</Link>
-          </Button>
-        </div>
+        <EmptyState
+          icon={Trophy}
+          title="No hay eventos"
+          description="Aún no has creado ningún evento. Crea tu primer evento para gestionar competencias y actividades."
+          action={{ label: "Crear evento", href: "/dashboard/events/new" }}
+        />
       ) : (
         <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
           {eventRows.map((event) => {

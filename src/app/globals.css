@@ -175,3 +175,88 @@ body {
     @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
   }
 }
+
+/* PWA Mobile Optimizations */
+@layer utilities {
+  /* Safe area padding for notched phones */
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+
+  .safe-area-top {
+    padding-top: env(safe-area-inset-top, 0);
+  }
+
+  .safe-area-left {
+    padding-left: env(safe-area-inset-left, 0);
+  }
+
+  .safe-area-right {
+    padding-right: env(safe-area-inset-right, 0);
+  }
+
+  /* Minimum touch target size (44px as per Apple HIG) */
+  .touch-target {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  /* Hide scrollbar but allow scrolling */
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Mobile-friendly skeleton loaders */
+  .skeleton {
+    @apply animate-pulse bg-gray-200 dark:bg-gray-700 rounded;
+  }
+
+  .skeleton-text {
+    @apply skeleton h-4 w-full;
+  }
+
+  .skeleton-avatar {
+    @apply skeleton h-10 w-10 rounded-full;
+  }
+
+  .skeleton-card {
+    @apply skeleton h-32 w-full rounded-lg;
+  }
+}
+
+/* Pull to refresh animation */
+@keyframes pull-to-refresh {
+  0% {
+    transform: translateY(-100%);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+.pull-to-refresh-active {
+  animation: pull-to-refresh 0.3s ease-out;
+}
+
+/* Offline indicator */
+.offline-banner {
+  @apply fixed top-0 left-0 right-0 z-50 bg-amber-500 text-white text-center py-2 text-sm;
+}
+
+/* PWA install banner (if not installed) */
+@media (display-mode: browser) {
+  .pwa-install-prompt {
+    @apply block;
+  }
+}
+
+@media (display-mode: standalone) {
+  .pwa-install-prompt {
+    @apply hidden;
+  }
+}
