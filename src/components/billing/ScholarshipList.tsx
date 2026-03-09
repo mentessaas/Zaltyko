@@ -57,7 +57,7 @@ export function ScholarshipList({
     const endDate = scholarship.endDate ? new Date(scholarship.endDate) : null;
 
     if (!scholarship.isActive) {
-      return <Badge variant="secondary">Inactiva</Badge>;
+      return <Badge variant="outline">Inactiva</Badge>;
     }
 
     if (startDate > today) {
@@ -65,10 +65,10 @@ export function ScholarshipList({
     }
 
     if (endDate && endDate < today) {
-      return <Badge variant="destructive">Expirada</Badge>;
+      return <Badge variant="error">Expirada</Badge>;
     }
 
-    return <Badge variant="default">Activa</Badge>;
+    return <Badge variant="success">Activa</Badge>;
   };
 
   const getScholarshipType = (discountType: string, discountValue: number) => {

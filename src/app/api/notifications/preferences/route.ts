@@ -35,18 +35,18 @@ export const PATCH = withTenant(async (request, context) => {
     const existing = await db
       .select()
       .from(userPreferences)
-      .where(eq(userPreferences.userId, profile.userId))
+      .where(eq(userPreferences.userId, profile.id))
       .limit(1);
 
     if (existing.length === 0) {
       // Create new preferences
       await db.insert(userPreferences).values({
-        userId: profile.userId,
-        tenantId: context.tenantId,
+        userId: profile.id as any,
+        tenantId: context.tenantId as any,
         emailNotifications: validated.emailNotifications || {},
         inAppNotifications: validated.inAppNotifications || { enabled: true, types: {} },
         classReminders: validated.classReminders || { enabled: true, "24h_before": true, "1h_before": false },
-      });
+      } as any);
     } else {
       // Update existing preferences
       const updateData: Record<string, any> = {};
@@ -67,7 +67,7 @@ export const PATCH = withTenant(async (request, context) => {
           ...updateData,
           updatedAt: new Date(),
         })
-        .where(eq(userPreferences.userId, profile.userId));
+        .where(eq(userPreferences.userId, profile.id as any));
     }
 
     return NextResponse.json({ ok: true });

@@ -22,11 +22,13 @@ export const groups = pgTable(
     monthlyFeeCents: integer("monthly_fee_cents"), // Cuota mensual por defecto del grupo (en céntimos)
     billingItemId: uuid("billing_item_id").references(() => billingItems.id, { onDelete: "set null" }), // Concepto de cobro asociado (opcional)
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
   },
   (table) => ({
     tenantIdx: index("groups_tenant_idx").on(table.tenantId),
     academyIdx: index("groups_academy_idx").on(table.academyId),
     coachIdx: index("groups_coach_idx").on(table.coachId),
+    deletedAtIdx: index("groups_deleted_at_idx").on(table.deletedAt),
   })
 );
 

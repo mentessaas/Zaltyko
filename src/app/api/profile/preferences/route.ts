@@ -6,6 +6,7 @@ import { z } from "zod";
 import { db } from "@/db";
 import { userPreferences } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentProfile } from "@/lib/authz";
 
 const UpdatePreferencesSchema = z.object({
   timezone: z.string().optional(),
@@ -23,6 +24,11 @@ export async function PATCH(request: Request) {
 
     if (!user) {
       return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
+    }
+
+    const profile = await getCurrentProfile(user.id);
+    if (!profile) {
+      return NextResponse.json({ error: "PROFILE_NOT_FOUND" }, { status: 404 });
     }
 
     const body = UpdatePreferencesSchema.parse(await request.json());
@@ -49,7 +55,8 @@ export async function PATCH(request: Request) {
     await db
       .insert(userPreferences)
       .values({
-        userId: user.id,
+        userId: profile.id as any,
+        tenantId: profile.tenantId as any,
         ...updates,
       })
       .onConflictDoUpdate({
@@ -60,7 +67,7 @@ export async function PATCH(request: Request) {
     const [updated] = await db
       .select()
       .from(userPreferences)
-      .where(eq(userPreferences.userId, user.id))
+      .where(eq(userPreferences.userId, profile.id as any))
       .limit(1);
 
     return NextResponse.json(updated);
@@ -85,10 +92,15 @@ export async function GET() {
       return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
     }
 
+    const profile = await getCurrentProfile(user.id);
+    if (!profile) {
+      return NextResponse.json({ error: "PROFILE_NOT_FOUND" }, { status: 404 });
+    }
+
     const [preferences] = await db
       .select()
       .from(userPreferences)
-      .where(eq(userPreferences.userId, user.id))
+      .where(eq(userPreferences.userId, profile.id as any))
       .limit(1);
 
     return NextResponse.json(preferences || null);

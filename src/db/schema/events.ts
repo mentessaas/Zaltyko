@@ -27,8 +27,11 @@ export const events = pgTable(
     provinceName: text("province_name"),
     cityName: text("city_name"),
     // Mantener campos antiguos para migración gradual
+    /** @deprecated Usar countryName en su lugar */
     country: text("country"),
+    /** @deprecated Usar provinceName en su lugar */
     province: text("province"),
+    /** @deprecated Usar cityName en su lugar */
     city: text("city"),
     contactEmail: text("contact_email"),
     contactPhone: text("contact_phone"),

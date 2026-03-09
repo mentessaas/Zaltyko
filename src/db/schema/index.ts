@@ -1,3 +1,14 @@
+/**
+ * Esquemas de Base de Datos - Zaltyko
+ *
+ * Relaciones principales:
+ * - profiles -> memberships -> academies
+ * - athletes -> groups (via groupAthletes)
+ * - classes -> classSessions -> attendanceRecords
+ * - academies -> charges -> billingItems
+ */
+
+// Export all schemas
 export * from "./enums";
 export * from "./plans";
 export * from "./academies";

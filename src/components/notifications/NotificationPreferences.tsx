@@ -108,7 +108,7 @@ export function NotificationPreferences() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
-  const { toast } = useToast();
+  const { pushToast } = useToast();
 
   // Cargar preferencias
   useEffect(() => {
@@ -170,7 +170,7 @@ export function NotificationPreferences() {
 
       if (response.ok) {
         setHasChanges(false);
-        toast.pushToast({
+        pushToast({
           title: "Preferencias guardadas",
           description: "Tus preferencias de notificaciones han sido actualizadas",
           variant: "success",
@@ -179,7 +179,7 @@ export function NotificationPreferences() {
         throw new Error("Error al guardar");
       }
     } catch (error) {
-      toast.pushToast({
+      pushToast({
         title: "Error",
         description: "No se pudieron guardar las preferencias",
         variant: "error",

@@ -23,6 +23,12 @@ export const notifications = pgTable(
     userReadIdx: index("notifications_user_read_idx").on(table.userId, table.read),
     createdAtIndex: index("notifications_created_at_idx").on(table.createdAt),
     typeIdx: index("notifications_type_idx").on(table.type),
+    // Índice compuesto para queries de notificaciones con filtros de lectura y fecha
+    userReadCreatedIdx: index("notifications_user_read_created_idx").on(
+      table.userId,
+      table.read,
+      table.createdAt
+    ),
   })
 );
 
