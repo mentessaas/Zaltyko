@@ -129,6 +129,28 @@ export const POST = withTenant(async (request, context) => {
       );
     }
 
+    // Validar capacidad de la clase
+    const [classWithCapacity] = await db
+      .select({ capacity: classes.capacity })
+      .from(classes)
+      .where(eq(classes.id, body.classId))
+      .limit(1);
+
+    if (classWithCapacity && classWithCapacity.capacity) {
+      // Contar inscripciones actuales (extras) en esta clase
+      const [{ count: currentCount }] = await db
+        .select({ count: classEnrollments.id })
+        .from(classEnrollments)
+        .where(eq(classEnrollments.classId, body.classId));
+
+      if (currentCount >= classWithCapacity.capacity) {
+        return NextResponse.json(
+          { error: "CLASS_FULL", message: "La clase ha alcanzado su capacidad máxima." },
+          { status: 400 }
+        );
+      }
+    }
+
     // Crear el enrollment
     const [enrollment] = await db
       .insert(classEnrollments)

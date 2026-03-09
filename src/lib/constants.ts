@@ -43,9 +43,9 @@ export const USER_ROLES = {
   SUPER_ADMIN: "super_admin",
   ADMIN: "admin",
   OWNER: "owner",
-  COACH: "coach: "athlete",
-",
-  ATHLETE  PARENT: "parent",
+  COACH: "coach",
+  ATHLETE: "athlete",
+  PARENT: "parent",
 } as const;
 
 // Estados de academia
@@ -98,4 +98,25 @@ export const PATTERNS = {
   EMAIL: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
   PHONE: /^\+?[\d\s-()]{9,}$/,
   UUID: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+} as const;
+
+// Códigos de error de API
+export const API_ERROR_CODES = {
+  // Autenticación
+  UNAUTHORIZED: "UNAUTHORIZED",
+  SESSION_EXPIRED: "SESSION_EXPIRED",
+
+  // Recursos
+  NOT_FOUND: "NOT_FOUND",
+  ALREADY_EXISTS: "ALREADY_EXISTS",
+  CLASS_FULL: "CLASS_FULL",
+  INVALID_GROUP: "INVALID_GROUP",
+
+  // Facturación
+  PAYMENT_FAILED: "PAYMENT_FAILED",
+  PLAN_LIMIT_EXCEEDED: "PLAN_LIMIT_EXCEEDED",
+
+  // Validación
+  VALIDATION_ERROR: "VALIDATION_ERROR",
+  INVALID_INPUT: "INVALID_INPUT",
 } as const;
