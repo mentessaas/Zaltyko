@@ -11,16 +11,23 @@ export interface SelectContextValue {
 
 const SelectContext = React.createContext<SelectContextValue | null>(null);
 
-export function Select({ value, onValueChange, children, ...props }: SelectProps & { onValueChange?: (value: string) => void }) {
+export function Select({ value, onValueChange, children, aria-label, aria-describedby, ...props }: SelectProps & { onValueChange?: (value: string) => void; ariaLabel?: string; ariaDescribedBy?: string }) {
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     if (onValueChange) {
       onValueChange(e.target.value);
     }
   };
 
+  // Build aria attributes
+  const ariaProps: Record<string, string> = {};
+  if (aria-label) ariaProps["aria-label"] = aria-label;
+  if (aria-describedby) ariaProps["aria-describedby"] = aria-describedby;
+  if (props.required) ariaProps["aria-required"] = "true";
+  if (props.disabled) ariaProps["aria-disabled"] = "true";
+
   return (
     <SelectContext.Provider value={{ value: String(value || ""), onValueChange: onValueChange || (() => { }) }}>
-      <select value={value} onChange={handleChange} {...props} className={`flex h-10 w-full rounded-md border border-border bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${props.className || ""}`}>
+      <select value={value} onChange={handleChange} {...ariaProps} className={`flex h-10 w-full rounded-md border border-border bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${props.className || ""}`}>
         {children}
       </select>
     </SelectContext.Provider>

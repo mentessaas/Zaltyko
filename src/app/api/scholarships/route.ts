@@ -15,6 +15,8 @@ const createSchema = z.object({
   discountValue: z.number().positive(),
   startDate: z.string(),
   endDate: z.string().nullable().optional(),
+  autoRenew: z.boolean().default(false),
+  requiredDocuments: z.array(z.string()).optional(),
   isActive: z.boolean().default(true),
 });
 
@@ -41,6 +43,8 @@ export const GET = withTenant(async (request, context) => {
       discountValue: scholarships.discountValue,
       startDate: scholarships.startDate,
       endDate: scholarships.endDate,
+      autoRenew: scholarships.autoRenew,
+      requiredDocuments: scholarships.requiredDocuments,
       isActive: scholarships.isActive,
     })
     .from(scholarships)
@@ -91,6 +95,8 @@ export const POST = withTenant(async (request, context) => {
       discountValue: body.discountValue.toString(),
       startDate: body.startDate,
       endDate: body.endDate || null,
+      autoRenew: body.autoRenew,
+      requiredDocuments: body.requiredDocuments || null,
       isActive: body.isActive,
       createdBy: profile.id,
     })

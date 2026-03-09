@@ -20,11 +20,26 @@ function initializeDb() {
       console.warn("⚠️  Usando conexión dummy - la base de datos no está configurada correctamente");
     }
 
+    // For Supabase pooler, we need to handle SSL specially
+    // Extract connection parameters and configure SSL
+    const connectionParams = new URL(connectionString);
+
     poolInstance = new Pool({
-      connectionString,
+      host: connectionParams.hostname,
+      port: parseInt(connectionParams.port || '5432'),
+      database: connectionParams.pathname.replace('/', ''),
+      user: connectionParams.username,
+      password: connectionParams.password,
       max: isProduction() ? 20 : undefined,
-      // Agregar manejo de errores de conexión
       connectionTimeoutMillis: 10000,
+      // SSL configuration for Supabase
+      ssl: isProduction() ? {
+        rejectUnauthorized: false
+      } : false,
+    });
+
+    poolInstance.on('connect', () => {
+      console.log('Database connected successfully');
     });
 
     // Probar la conexión inmediatamente
@@ -36,8 +51,14 @@ function initializeDb() {
     return dbInstance;
   } catch (error) {
     console.error("❌ Error inicializando base de datos:", error);
-    // Si hay un error obteniendo la URL, crear un pool dummy
-    // Esto permitirá que el código compile pero fallará cuando se intente usar
+
+    // En producción, lanzar error para no iniciar con configuración inválida
+    if (isProduction()) {
+      throw new Error("Failed to initialize database connection. Please check DATABASE_URL configuration.");
+    }
+
+    // Solo en desarrollo crear pool dummy para evitar crash inmediato
+    console.warn("Using dummy database connection for development");
     poolInstance = new Pool({
       connectionString: "postgresql://dummy:dummy@localhost:5432/dummy",
       max: isProduction() ? 20 : undefined,
