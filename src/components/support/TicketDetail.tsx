@@ -66,19 +66,19 @@ interface TicketDetailProps {
   onAssign?: (userId: string) => Promise<void>;
 }
 
-const statusConfig: Record<TicketStatus, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
+const statusConfig: Record<TicketStatus, { label: string; variant: "default" | "outline" | "success" | "pending" | "error" }> = {
   open: { label: "Abierto", variant: "default" },
-  in_progress: { label: "En Progreso", variant: "secondary" },
+  in_progress: { label: "En Progreso", variant: "pending" },
   waiting: { label: "Esperando", variant: "outline" },
-  resolved: { label: "Resuelto", variant: "default" },
-  closed: { label: "Cerrado", variant: "secondary" },
+  resolved: { label: "Resuelto", variant: "success" },
+  closed: { label: "Cerrado", variant: "outline" },
 };
 
-const priorityConfig: Record<TicketPriority, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
+const priorityConfig: Record<TicketPriority, { label: string; variant: "default" | "outline" | "error" | "pending" }> = {
   low: { label: "Baja", variant: "outline" },
-  medium: { label: "Media", variant: "secondary" },
+  medium: { label: "Media", variant: "pending" },
   high: { label: "Alta", variant: "default" },
-  urgent: { label: "Urgente", variant: "destructive" },
+  urgent: { label: "Urgente", variant: "error" },
 };
 
 const categoryConfig: Record<TicketCategory, { label: string }> = {
@@ -242,7 +242,7 @@ export function TicketDetail({ ticket, currentUserId, isAdmin = false, onStatusC
                 Esperar Respuesta
               </Button>
             )}
-            {ticket.status !== "resolved" && ticket.status !== "closed" && (
+            {(ticket.status as string) !== "resolved" && (ticket.status as string) !== "closed" && (
               <>
                 <Button
                   variant="default"

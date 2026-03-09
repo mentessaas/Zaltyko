@@ -83,7 +83,7 @@ export function PushNotificationPermission({
           userVisibleOnly: true,
           applicationServerKey: urlBase64ToUint8Array(
             process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || ""
-          ),
+          ) as any,
         });
 
         // Send subscription to server
@@ -307,7 +307,7 @@ export function usePushNotifications() {
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(
         process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || ""
-      ),
+      ) as any,
     });
 
     setSubscription(sub);

@@ -5,9 +5,10 @@ import { profiles } from "./profiles";
 export type TooltipFlagMap = Record<string, boolean>;
 
 export const userPreferences = pgTable("user_preferences", {
+  id: uuid("id").primaryKey().defaultRandom(),
   userId: uuid("user_id")
-    .primaryKey()
-    .references(() => profiles.userId, { onDelete: "cascade" }),
+    .notNull()
+    .references(() => profiles.id, { onDelete: "cascade" }),
   tenantId: uuid("tenant_id"),
   tooltipFlags: jsonb("tooltip_flags").$type<TooltipFlagMap>(),
   firstTimeFlags: jsonb("first_time_flags").$type<Record<string, boolean>>(),

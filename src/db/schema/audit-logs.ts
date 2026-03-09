@@ -7,6 +7,8 @@ export const auditLogs = pgTable(
     tenantId: uuid("tenant_id"),
     userId: uuid("user_id"),
     action: text("action").notNull(),
+    resourceType: text("resource_type"),
+    resourceId: uuid("resource_id"),
     meta: jsonb("meta"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   },
