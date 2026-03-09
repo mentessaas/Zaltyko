@@ -34,6 +34,15 @@ export const academies = pgTable(
     trialEndsAt: timestamp("trial_ends_at", { withTimezone: true }),
     isTrialActive: boolean("is_trial_active").notNull().default(false),
     paymentsConfiguredAt: timestamp("payments_configured_at", { withTimezone: true }),
+    // Settings extendidos
+    timezone: text("timezone"),
+    brandingColors: text("branding_colors"), // JSON con colores y fuentes
+    scheduleConfig: text("schedule_config"), // JSON con horarios
+    stripePublicKey: text("stripe_public_key"),
+    stripeSecretKey: text("stripe_secret_key"),
+    stripeWebhookSecret: text("stripe_webhook_secret"),
+    taxId: text("tax_id"),
+    invoicePrefix: text("invoice_prefix").default("INV"),
   },
   (table) => ({
     tenantIdx: index("academies_tenant_id_idx").on(table.tenantId),

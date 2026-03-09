@@ -1,12 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { and, asc, eq, ilike, sql } from "drizzle-orm";
+import { Users } from "lucide-react";
 
 import { db } from "@/db";
 import { academies, athletes, guardianAthletes, groups } from "@/db/schema";
 import { athleteStatusOptions } from "@/lib/athletes/constants";
 
 import { AthletesTableView } from "@/components/athletes/AthletesTableView";
+import { PageHeader } from "@/components/ui/page-header";
 
 /**
  * AcademyAthletesPage - Vista principal de gestión de atletas
@@ -156,12 +158,16 @@ export default async function AcademyAthletesPage({ params, searchParams }: Page
 
   return (
     <div className="space-y-6 p-4 sm:p-6 lg:p-8">
-      <header className="space-y-2 py-6">
-        <h1 className="text-3xl font-semibold">Atletas</h1>
-        <p className="text-sm text-muted-foreground">
-          Gestiona atletas, contactos familiares y niveles de entrenamiento.
-        </p>
-      </header>
+      <PageHeader
+        breadcrumbs={[
+          { label: "Dashboard", href: "/dashboard" },
+          { label: academy.name ?? "Academia", href: `/app/${academy.id}/dashboard` },
+          { label: "Atletas" },
+        ]}
+        title="Atletas"
+        description="Gestiona atletas, contactos familiares y niveles de entrenamiento."
+        icon={Users}
+      />
 
       <AthletesTableView
         academyId={academy.id}
