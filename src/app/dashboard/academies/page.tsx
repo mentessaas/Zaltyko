@@ -1,15 +1,19 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { eq } from "drizzle-orm";
+import { eq, and, count, sql } from "drizzle-orm";
+import { Plus, Users, UserCheck, UserPlus, UserCog, Calendar, Building2 } from "lucide-react";
 
 import { db } from "@/db";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/authz";
-import { academies, memberships } from "@/db/schema";
+import { academies, memberships, athletes, coaches, events } from "@/db/schema";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { StatsCard } from "@/components/ui/stats-card";
+import { PageHeader } from "@/components/ui/page-header";
+import { BarChart } from "@/components/ui/chart";
 
 function formatAcademyType(value: string | null) {
   switch (value) {
@@ -36,6 +40,30 @@ function formatDate(value: Date | string | null) {
   });
 }
 
+async function getAcademyStats(academyId: string) {
+  const now = new Date();
+
+  const [athleteCount, activeAthletes, trialAthletes, coachCount, upcomingEvents] = await Promise.all([
+    db.select({ count: count() }).from(athletes).where(eq(athletes.academyId, academyId)),
+    db.select({ count: count() }).from(athletes).where(and(eq(athletes.academyId, academyId), eq(athletes.status, "active"))),
+    db.select({ count: count() }).from(athletes).where(and(eq(athletes.academyId, academyId), eq(athletes.status, "trial"))),
+    db.select({ count: count() }).from(coaches).where(eq(coaches.academyId, academyId)),
+    db
+      .select({ count: count() })
+      .from(events)
+      .where(and(eq(events.academyId, academyId), sql`${events.startDate} >= ${now}`)),
+  ]);
+
+  return {
+    totalAthletes: athleteCount[0]?.count || 0,
+    activeAthletes: activeAthletes[0]?.count || 0,
+    trialAthletes: trialAthletes[0]?.count || 0,
+    totalCoaches: coachCount[0]?.count || 0,
+    upcomingEvents: upcomingEvents[0]?.count || 0,
+    monthRevenue: 0,
+  };
+}
+
 export default async function AcademiesPage() {
   const cookieStore = await cookies();
   const supabase = await createClient(cookieStore);
@@ -48,7 +76,14 @@ export default async function AcademiesPage() {
     redirect("/auth/login");
   }
 
-  const currentProfile = await getCurrentProfile(user.id);
+  let currentProfile;
+  try {
+    currentProfile = await getCurrentProfile(user.id);
+  } catch (error) {
+    console.error("Error getting profile:", error);
+    // If database error, try to redirect to onboarding to create profile
+    redirect("/onboarding");
+  }
 
   if (!currentProfile) {
     redirect("/dashboard");
@@ -77,15 +112,124 @@ export default async function AcademiesPage() {
 
   const hasAcademies = academyMemberships.length > 0;
 
+  // Get stats for each academy
+  const academiesWithStats = hasAcademies
+    ? await Promise.all(
+        academyMemberships.map(async (academy) => ({
+          ...academy,
+          stats: await getAcademyStats(academy.id),
+        }))
+      )
+    : [];
+
+  // Calculate totals
+  const totals = academiesWithStats.reduce(
+    (acc, academy) => ({
+      athletes: acc.athletes + academy.stats.totalAthletes,
+      active: acc.active + academy.stats.activeAthletes,
+      trials: acc.trials + academy.stats.trialAthletes,
+      coaches: acc.coaches + academy.stats.totalCoaches,
+      events: acc.events + academy.stats.upcomingEvents,
+    }),
+    { athletes: 0, active: 0, trials: 0, coaches: 0, events: 0 }
+  );
+
   return (
-    <div className="space-y-6">
-      <header className="space-y-2">
-        <p className="text-sm font-semibold text-zaltyko-primary uppercase tracking-wide">Academias</p>
-        <h1 className="text-3xl font-bold text-zaltyko-neutral-dark">Gestiona todas tus academias</h1>
-        <p className="text-muted-foreground">
-          Cambia rápidamente entre academias, revisa su estado de prueba y entra al panel operativo en un clic.
-        </p>
-      </header>
+    <div className="space-y-8">
+      <PageHeader
+        breadcrumbs={[
+          { label: "Dashboard", href: "/dashboard" },
+          { label: "Academias" },
+        ]}
+        title="Dashboard"
+        description="Vista rápida de todas tus academias. Cambia rápidamente entre ellas y accede al panel operativo."
+        icon={Building2}
+        actions={
+          hasAcademies ? (
+            <Button asChild>
+              <Link href="/onboarding">
+                <Plus className="h-4 w-4 mr-2" />
+                Nueva academia
+              </Link>
+            </Button>
+          ) : undefined
+        }
+      />
+
+      {/* Stats Overview */}
+      {hasAcademies && (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+          <StatsCard
+            title="Total Atletas"
+            value={totals.athletes}
+            icon={Users}
+            variant="default"
+          />
+          <StatsCard
+            title="Activos"
+            value={totals.active}
+            icon={UserCheck}
+            variant="success"
+          />
+          <StatsCard
+            title="En Prueba"
+            value={totals.trials}
+            icon={UserPlus}
+            variant="warning"
+          />
+          <StatsCard
+            title="Entrenadores"
+            value={totals.coaches}
+            icon={UserCog}
+            variant="info"
+          />
+          <StatsCard
+            title="Eventos Próximos"
+            value={totals.events}
+            icon={Calendar}
+            variant="danger"
+          />
+        </div>
+      )}
+
+      {/* Chart Section */}
+      {hasAcademies && academiesWithStats.length > 0 && (
+        <div className="grid gap-6 lg:grid-cols-2">
+          <Card className="lg:col-span-1">
+            <CardHeader>
+              <CardTitle className="text-lg font-semibold">Atletas por Academia</CardTitle>
+              <CardDescription>Distribución de atletas en tus academias</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <BarChart
+                data={academiesWithStats.map(a => ({
+                  label: a.name?.substring(0, 12) || "Sin nombre",
+                  value: a.stats.totalAthletes,
+                }))}
+                height={180}
+              />
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Quick Actions */}
+      {hasAcademies && (
+        <div className="flex flex-wrap gap-3">
+          <Button asChild variant="outline">
+            <Link href="/dashboard/athletes">Ver Atletas</Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link href="/dashboard/coaches">Ver Entrenadores</Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link href="/dashboard/events">Ver Eventos</Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link href="/dashboard/sessions">Horarios</Link>
+          </Button>
+        </div>
+      )}
 
       {!hasAcademies ? (
         <div className="rounded-2xl border border-dashed border-muted-foreground/30 bg-white p-8 text-center shadow-sm">
@@ -99,7 +243,7 @@ export default async function AcademiesPage() {
         </div>
       ) : (
         <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-          {academyMemberships.map((academy) => {
+          {academiesWithStats.map((academy) => {
             const isActive = currentProfile.activeAcademyId === academy.id;
             const trialBadge =
               academy.isTrialActive && academy.trialEndsAt
@@ -115,17 +259,32 @@ export default async function AcademiesPage() {
                   </div>
                   <CardDescription>{formatAcademyType(academy.academyType)}</CardDescription>
                 </CardHeader>
-                <CardContent className="flex-1 space-y-3 text-sm text-muted-foreground">
-                  <p>
-                    <span className="font-semibold text-zaltyko-neutral-dark">Creada:</span>{" "}
-                    {formatDate(academy.createdAt)}
-                  </p>
-                  {trialBadge && (
-                    <p className="text-amber-600 font-medium flex items-center gap-2">
-                      <span className="inline-flex h-2 w-2 rounded-full bg-amber-500" aria-hidden />
-                      {trialBadge}
+                <CardContent className="flex-1 space-y-4">
+                  <div className="grid grid-cols-3 gap-2 text-center">
+                    <div className="rounded-lg bg-muted p-2">
+                      <p className="text-lg font-bold">{academy.stats.totalAthletes}</p>
+                      <p className="text-xs text-muted-foreground">Atletas</p>
+                    </div>
+                    <div className="rounded-lg bg-muted p-2">
+                      <p className="text-lg font-bold">{academy.stats.totalCoaches}</p>
+                      <p className="text-xs text-muted-foreground">Coaches</p>
+                    </div>
+                    <div className="rounded-lg bg-muted p-2">
+                      <p className="text-lg font-bold">{academy.stats.upcomingEvents}</p>
+                      <p className="text-xs text-muted-foreground">Eventos</p>
+                    </div>
+                  </div>
+                  <div className="space-y-1 text-sm">
+                    <p>
+                      <span className="font-semibold">Creada:</span> {formatDate(academy.createdAt)}
                     </p>
-                  )}
+                    {trialBadge && (
+                      <p className="text-amber-600 font-medium flex items-center gap-2">
+                        <span className="inline-flex h-2 w-2 rounded-full bg-amber-500" aria-hidden />
+                        {trialBadge}
+                      </p>
+                    )}
+                  </div>
                 </CardContent>
                 <CardFooter>
                   <Button asChild variant={isActive ? "default" : "secondary"} className="w-full">
@@ -140,5 +299,3 @@ export default async function AcademiesPage() {
     </div>
   );
 }
-
-

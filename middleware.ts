@@ -3,6 +3,10 @@ import type { NextRequest } from "next/server";
 
 const SUPER_ADMIN_COOKIE_HINTS = ["role", "profile", "super-admin"];
 
+// Validar que el token viene de Supabase correcto
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const SUPABASE_ANN = process.env.SUPABASE_ANN_KEY || "ann";
+
 function extractAccessToken(req: NextRequest) {
   const cookies = req.cookies.getAll();
   const candidate = cookies.find((cookie) =>
@@ -21,12 +25,29 @@ function base64Decode(input: string) {
 
 function decodeJwtPayload(token: string) {
   try {
-    const payload = token.split(".")[1];
+    const parts = token.split(".");
+    if (parts.length !== 3) return null;
+
+    const payload = parts[1];
     if (!payload) return null;
     const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
     const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), "=");
     const json = base64Decode(padded);
-    return JSON.parse(json);
+    const payloadObj = JSON.parse(json);
+
+    // Validar que el token no está expirado
+    if (payloadObj.exp && Date.now() >= payloadObj.exp * 1000) {
+      console.warn("JWT expired");
+      return null;
+    }
+
+    // Validar que el token no está emitido en el futuro (tolerancia de 60s)
+    if (payloadObj.iat && Date.now() >= (payloadObj.iat + 60) * 1000) {
+      console.warn("JWT issued in the future");
+      return null;
+    }
+
+    return payloadObj;
   } catch {
     return null;
   }
@@ -115,6 +136,12 @@ export async function middleware(req: NextRequest) {
   }
 
   const payload = decodeJwtPayload(token);
+
+  if (!payload) {
+    // Token inválido o expirado
+    return NextResponse.redirect(new URL("/auth/login", req.url));
+  }
+
   const role =
     payload?.user_metadata?.role ??
     payload?.app_metadata?.role ??

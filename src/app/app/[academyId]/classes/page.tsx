@@ -1,5 +1,7 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { and, asc, eq, ilike, inArray, or } from "drizzle-orm";
+import { Dumbbell } from "lucide-react";
 
 import { db } from "@/db";
 import {
@@ -13,6 +15,7 @@ import {
 } from "@/db/schema";
 
 import { ClassesTableView } from "@/components/classes/ClassesTableView";
+import { PageHeader } from "@/components/ui/page-header";
 
 /**
  * AcademyClassesPage - Vista principal de gestión de clases y sesiones
@@ -240,12 +243,16 @@ export default async function AcademyClassesPage({ params, searchParams }: PageP
 
   return (
     <div className="space-y-6 p-4 sm:p-6 lg:p-8">
-      <header className="space-y-2 py-6">
-        <h1 className="text-3xl font-semibold">Clases</h1>
-        <p className="text-sm text-muted-foreground">
-          Organiza tus clases, gestiona entrenadores y prepara sesiones con facilidad.
-        </p>
-      </header>
+      <PageHeader
+        breadcrumbs={[
+          { label: "Dashboard", href: "/dashboard" },
+          { label: academy.name ?? "Academia", href: `/app/${academy.id}/dashboard` },
+          { label: "Clases" },
+        ]}
+        title="Clases"
+        description="Organiza tus clases, gestiona entrenadores y prepara sesiones con facilidad."
+        icon={Dumbbell}
+      />
 
       <ClassesTableView
         academyId={academy.id}

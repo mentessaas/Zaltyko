@@ -1,14 +1,20 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { sql } from "drizzle-orm";
+import type { Metadata } from "next";
 
 import { createClient } from "@/lib/supabase/server";
 import { db } from "@/db";
 import { profiles } from "@/db/schema";
-import { GlobalTopNav } from "@/components/navigation/GlobalTopNav";
+import { Sidebar } from "@/components/dashboard/Sidebar";
 import { RealtimeNotificationsProvider } from "@/components/providers/RealtimeNotificationsProvider";
-import { AutoBreadcrumb } from "@/components/navigation/AutoBreadcrumb";
 import { logger } from "@/lib/logger";
+import { DashboardSkipLink } from "@/components/dashboard/DashboardSkipLink";
+
+export const metadata: Metadata = {
+  title: "Dashboard | Zaltyko",
+  description: "Gestiona tu academia de deportes",
+};
 
 export default async function DashboardLayout({
   children,
@@ -35,7 +41,7 @@ export default async function DashboardLayout({
       WHERE user_id = ${user.id}
       LIMIT 1
     `);
-    
+
     profile = result.rows[0] as {
       id: string;
       userId: string;
@@ -90,16 +96,18 @@ export default async function DashboardLayout({
 
   return (
     <div className="min-h-screen bg-zaltyko-neutral-light transition-all duration-300">
-      <GlobalTopNav
-        userRole={profile.role}
-        userName={profile.name}
-        userEmail={user.email ?? null}
-        profileId={profile.id}
+      <DashboardSkipLink />
+      <Sidebar
+        user={{
+          name: profile.name || "Usuario",
+          email: user.email || "",
+        }}
       />
-      <main className="mx-auto max-w-7xl px-4 py-4 transition-all duration-300 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
-        <RealtimeNotificationsProvider userId={profile.userId} tenantId={profile.tenantId} />
-        <AutoBreadcrumb />
-        {children}
+      <main id="main-content" className="pl-64 transition-all duration-300" tabIndex={-1}>
+        <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
+          <RealtimeNotificationsProvider userId={profile.userId} tenantId={profile.tenantId} />
+          {children}
+        </div>
       </main>
     </div>
   );

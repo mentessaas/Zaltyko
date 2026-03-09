@@ -7,12 +7,15 @@ import { db } from "@/db";
 import { scholarships } from "@/db/schema";
 
 const updateSchema = z.object({
+  athleteId: z.string().uuid().optional(),
   name: z.string().min(1).optional(),
   description: z.string().optional(),
   discountType: z.enum(["percentage", "fixed"]).optional(),
   discountValue: z.number().positive().optional(),
   startDate: z.string().optional(),
   endDate: z.string().nullable().optional(),
+  autoRenew: z.boolean().optional(),
+  requiredDocuments: z.array(z.string()).optional(),
   isActive: z.boolean().optional(),
 });
 
@@ -34,12 +37,15 @@ export const PUT = withTenant(async (request, context) => {
     updatedAt: new Date(),
   };
 
+  if (body.athleteId) updateData.athleteId = body.athleteId;
   if (body.name) updateData.name = body.name;
   if (body.description !== undefined) updateData.description = body.description || null;
   if (body.discountType) updateData.discountType = body.discountType;
   if (body.discountValue) updateData.discountValue = body.discountValue.toString();
   if (body.startDate) updateData.startDate = body.startDate;
   if (body.endDate !== undefined) updateData.endDate = body.endDate || null;
+  if (body.autoRenew !== undefined) updateData.autoRenew = body.autoRenew;
+  if (body.requiredDocuments !== undefined) updateData.requiredDocuments = body.requiredDocuments;
   if (body.isActive !== undefined) updateData.isActive = body.isActive;
 
   await db

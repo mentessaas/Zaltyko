@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { ExportButtons } from "@/components/reports/ExportButtons";
 
 interface SkillProgress {
   skillId: string;
@@ -124,6 +125,56 @@ export function ProgressReport({ academyId, academyCountry, athleteId, initialDa
     }
   };
 
+  const handleExportExcel = async () => {
+    if (!selectedAthleteId) return;
+
+    try {
+      const params = new URLSearchParams({
+        academyId,
+        athleteId: selectedAthleteId,
+        format: "excel",
+        ...(startDate && { startDate }),
+        ...(endDate && { endDate }),
+      });
+
+      const response = await fetch(`/api/reports/progress/export?${params}`);
+      if (!response.ok) throw new Error("Error al exportar Excel");
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `reporte-progreso-${format(new Date(), "yyyy-MM-dd")}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err: any) {
+      alert("Error al exportar Excel: " + err.message);
+    }
+  };
+
+  const handleSendEmail = async (email: string) => {
+    if (!selectedAthleteId) return;
+
+    try {
+      const params = new URLSearchParams({
+        academyId,
+        athleteId: selectedAthleteId,
+        email,
+        ...(startDate && { startDate }),
+        ...(endDate && { endDate }),
+      });
+
+      const response = await fetch(`/api/reports/progress/email?${params}`);
+      if (!response.ok) throw new Error("Error al enviar email");
+
+      alert("Reporte enviado exitosamente");
+    } catch (err: any) {
+      alert("Error al enviar email: " + err.message);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -134,10 +185,12 @@ export function ProgressReport({ academyId, academyCountry, athleteId, initialDa
           </p>
         </div>
         {reportData && (
-          <Button variant="outline" onClick={handleExportPDF}>
-            <FileText className="mr-2 h-4 w-4" />
-            Exportar PDF
-          </Button>
+          <ExportButtons
+            onExportPDF={handleExportPDF}
+            onExportExcel={handleExportExcel}
+            onSendEmail={handleSendEmail}
+            reportTitle="Reporte de Progreso"
+          />
         )}
       </div>
 

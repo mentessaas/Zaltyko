@@ -3,14 +3,16 @@ import { redirect } from "next/navigation";
 import { addDays, getDay } from "date-fns";
 import { and, asc, eq, gte, inArray, lte } from "drizzle-orm";
 import Link from "next/link";
-import { ArrowLeft, Shield } from "lucide-react";
+import { ArrowLeft, Shield, Calendar, CalendarDays } from "lucide-react";
 
 import { db } from "@/db";
-import { academies, classSessions, classes, classWeekdays, coaches, profiles } from "@/db/schema";
+import { academies, classSessions, classes, classWeekdays, coaches, memberships, profiles } from "@/db/schema";
 import CalendarView from "@/components/calendar/CalendarView";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/authz";
 import { formatDateToISOString, getWeekBoundariesInCountryTimezone, getMonthBoundariesInCountryTimezone, getFirstDateForWeekdayInTimezone } from "@/lib/date-utils";
+import { PageHeader } from "@/components/ui/page-header";
+import { EmptyState } from "@/components/shared/EmptyState";
 
 interface CalendarPageProps {
   searchParams: Record<string, string | string[] | undefined>;
@@ -57,7 +59,13 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
     redirect("/auth/login");
   }
 
-  const currentProfile = await getCurrentProfile(user.id);
+  let currentProfile;
+  try {
+    currentProfile = await getCurrentProfile(user.id);
+  } catch (error) {
+    console.error("Error getting profile:", error);
+    redirect("/onboarding");
+  }
   if (!currentProfile) {
     redirect("/dashboard");
   }
@@ -79,7 +87,27 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
     }
   }
 
-  const tenantId = targetProfile.tenantId;
+  let tenantId = targetProfile.tenantId;
+
+  // If no tenantId, try to get from user's academies via memberships
+  if (!tenantId && !isViewingAsSuperAdmin) {
+    try {
+      const userAcademies = await db
+        .select({
+          tenantId: academies.tenantId,
+        })
+        .from(memberships)
+        .innerJoin(academies, eq(memberships.academyId, academies.id))
+        .where(eq(memberships.userId, targetProfile.userId))
+        .limit(1);
+
+      if (userAcademies.length > 0) {
+        tenantId = userAcademies[0].tenantId;
+      }
+    } catch (error) {
+      console.error("Error getting tenant from academies:", error);
+    }
+  }
 
   if (!tenantId) {
     return (
@@ -288,14 +316,15 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
           </div>
         </div>
       )}
-      <header className="space-y-3">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Calendario de sesiones</h1>
-          <p className="mt-2 text-muted-foreground">
-            Visualiza las clases programadas y coordina los entrenadores asignados.
-          </p>
-        </div>
-      </header>
+      <PageHeader
+        breadcrumbs={[
+          { label: "Dashboard", href: "/dashboard" },
+          { label: "Calendario" },
+        ]}
+        title="Calendario de sesiones"
+        description="Visualiza las clases programadas y coordina los entrenadores asignados."
+        icon={CalendarDays}
+      />
       {usingPlaceholderSessions && (
         <div className="rounded-lg border border-dashed border-amber-400/70 bg-amber-50/80 p-4 text-sm text-amber-900">
           <p className="font-semibold">No hay sesiones generadas todavía.</p>

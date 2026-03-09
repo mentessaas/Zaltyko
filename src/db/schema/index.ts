@@ -41,8 +41,12 @@ export * from "./notifications";
 export * from "./email-logs";
 export * from "./scholarships";
 export * from "./discounts";
+export * from "./discount-campaigns";
+export * from "./discount-usage-history";
 export * from "./receipts";
 export * from "./event-invitations";
 export * from "./contact-messages";
 export * from "./class-exceptions";
+export * from "./push-subscriptions";
+export * from "./support-tickets";
 

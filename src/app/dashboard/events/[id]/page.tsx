@@ -6,7 +6,7 @@ import Link from "next/link";
 import { db } from "@/db";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/authz";
-import { events, academies } from "@/db/schema";
+import { events, academies, memberships } from "@/db/schema";
 import { EventForm } from "@/components/events/EventForm";
 import { EventNotifications } from "@/components/events/EventNotifications";
 import { Button } from "@/components/ui/button";
@@ -39,7 +39,32 @@ export default async function EventDetailPage({ params }: PageProps) {
 
   const currentProfile = await getCurrentProfile(user.id);
 
-  if (!currentProfile || !currentProfile.tenantId) {
+  if (!currentProfile) {
+    redirect("/dashboard");
+  }
+
+  // Get tenantId from profile or from user's academies
+  let tenantId = currentProfile.tenantId;
+  if (!tenantId) {
+    try {
+      const userAcademies = await db
+        .select({
+          tenantId: academies.tenantId,
+        })
+        .from(memberships)
+        .innerJoin(academies, eq(memberships.academyId, academies.id))
+        .where(eq(memberships.userId, currentProfile.userId))
+        .limit(1);
+
+      if (userAcademies.length > 0) {
+        tenantId = userAcademies[0].tenantId;
+      }
+    } catch (error) {
+      console.error("Error getting tenant from academies:", error);
+    }
+  }
+
+  if (!tenantId) {
     redirect("/dashboard");
   }
 
@@ -66,7 +91,7 @@ export default async function EventDetailPage({ params }: PageProps) {
       tenantId: events.tenantId,
     })
     .from(events)
-    .where(and(eq(events.id, id), eq(events.tenantId, currentProfile.tenantId)))
+    .where(and(eq(events.id, id), eq(events.tenantId, tenantId)))
     .limit(1);
 
   if (!event) {
@@ -80,7 +105,7 @@ export default async function EventDetailPage({ params }: PageProps) {
     .where(eq(academies.id, event.academyId))
     .limit(1);
 
-  if (!academy || academy.tenantId !== currentProfile.tenantId) {
+  if (!academy || academy.tenantId !== tenantId) {
     notFound();
   }
 

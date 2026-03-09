@@ -10,30 +10,30 @@ interface AlertBadgeProps {
   className?: string;
 }
 
+function getIcon(type: AlertBadgeProps["type"]) {
+  switch (type) {
+    case "capacity":
+      return Users;
+    case "payment":
+      return CreditCard;
+    case "attendance":
+      return TrendingDown;
+    default:
+      return AlertTriangle;
+  }
+}
+
+function getVariant(severity: NonNullable<AlertBadgeProps["severity"]>) {
+  if (severity === "high") return "error";
+  if (severity === "medium") return "default";
+  return "outline";
+}
+
 export function AlertBadge({ type, severity = "medium", className }: AlertBadgeProps) {
-  const getIcon = () => {
-    switch (type) {
-      case "capacity":
-        return Users;
-      case "payment":
-        return CreditCard;
-      case "attendance":
-        return TrendingDown;
-      default:
-        return AlertTriangle;
-    }
-  };
-
-  const getVariant = () => {
-    if (severity === "high") return "error";
-    if (severity === "medium") return "default";
-    return "outline";
-  };
-
-  const Icon = getIcon();
+  const Icon = getIcon(type);
 
   return (
-    <Badge variant={getVariant()} className={cn("gap-1 text-xs", className)}>
+    <Badge variant={getVariant(severity)} className={cn("gap-1 text-xs", className)}>
       <Icon className="h-3 w-3" />
       {type === "capacity" && "Cupo"}
       {type === "payment" && "Pago"}
