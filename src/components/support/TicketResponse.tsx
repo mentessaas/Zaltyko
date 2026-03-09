@@ -6,7 +6,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { toast } from "sonner";
+
+// Toast placeholder - replace with actual toast implementation
+const toast = {
+  error: (msg: string) => console.error(msg),
+  success: (msg: string) => console.log(msg),
+};
 
 interface TicketResponseFormProps {
   ticketId: string;

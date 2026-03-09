@@ -16,7 +16,7 @@ export const GET = withTenant(async (_request, context) => {
       tooltipFlags: userPreferences.tooltipFlags,
     })
     .from(userPreferences)
-    .where(eq(userPreferences.userId, context.userId))
+    .where(eq(userPreferences.userId, context.profile.id as any))
     .limit(1);
 
   return NextResponse.json({
@@ -36,7 +36,7 @@ export const POST = withTenant(async (request, context) => {
       tooltipFlags: userPreferences.tooltipFlags,
     })
     .from(userPreferences)
-    .where(eq(userPreferences.userId, context.userId))
+    .where(eq(userPreferences.userId, context.profile.id as any))
     .limit(1);
 
   const currentFlags = (existing[0]?.tooltipFlags as Record<string, boolean> | null) ?? {};
@@ -48,8 +48,8 @@ export const POST = withTenant(async (request, context) => {
   await db
     .insert(userPreferences)
     .values({
-      userId: context.userId,
-      tenantId: context.tenantId,
+      userId: context.profile.id as any,
+      tenantId: context.tenantId as any,
       tooltipFlags: updatedFlags,
     })
     .onConflictDoUpdate({

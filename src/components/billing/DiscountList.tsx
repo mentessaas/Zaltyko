@@ -118,7 +118,7 @@ export function DiscountList({
                     )}
                   </div>
                   <Badge
-                    variant={discount.isActive ? "default" : "secondary"}
+                    variant={discount.isActive ? "success" : "outline"}
                   >
                     {discount.isActive ? "Activo" : "Inactivo"}
                   </Badge>
@@ -264,7 +264,7 @@ export function DiscountList({
                   </TableCell>
                   <TableCell>
                     <Badge
-                      variant={discount.isActive ? "default" : "secondary"}
+                      variant={discount.isActive ? "success" : "outline"}
                     >
                       {discount.isActive ? "Activo" : "Inactivo"}
                     </Badge>
