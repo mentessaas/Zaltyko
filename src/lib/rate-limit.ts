@@ -107,12 +107,22 @@ export async function rateLimit(config: RateLimitConfig): Promise<RateLimitResul
   } catch (error) {
     console.error("Rate limit error:", error);
 
-    // On error, allow the request but log the issue
-    // This prevents rate limiting from breaking the app if Redis is down
+    // En producción, denegar requests si el sistema de rate limiting falla
+    // para prevenir ataques DDoS cuando Redis no está disponible
+    if (process.env.NODE_ENV === "production") {
+      return {
+        success: false,
+        limit: 0,
+        remaining: 0,
+        reset: now + window,
+      };
+    }
+
+    // Solo en desarrollo permitir fallback para no romper la app local
     return {
       success: true,
-      limit,
-      remaining: limit,
+      limit: 100,
+      remaining: 100,
       reset: now + window,
     };
   }
