@@ -25,5 +25,10 @@ export const attendanceRecords = pgTable(
       table.sessionId,
       table.athleteId
     ),
+    // Índice compuesto para queries por fecha y tenant
+    dateTenantIdx: index("attendance_records_date_tenant_idx").on(
+      table.recordedAt,
+      table.tenantId
+    ),
   })
 );
