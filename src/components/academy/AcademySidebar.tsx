@@ -20,6 +20,7 @@ import {
   BarChart3,
   Shield,
   Badge,
+  Settings,
 } from "lucide-react";
 
 import { useAcademyContext } from "@/hooks/use-academy-context";
@@ -78,6 +79,7 @@ const NAV_SECTIONS: NavSection[] = [
   {
     label: "Administración",
     items: [
+      { href: (id: string) => `/app/${id}/settings`, text: "Configuración", icon: Settings },
       { href: (id: string) => `/app/${id}/dashboard/analytics`, text: "Analítica Avanzada", icon: BarChart3 },
       { href: (id: string) => `/app/${id}/audit-logs`, text: "Logs de Auditoría", icon: Shield },
     ],

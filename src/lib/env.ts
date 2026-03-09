@@ -194,6 +194,7 @@ export function getDatabaseUrl(): string {
   const allowDummyInDev = isDevelopment() && !serverEnv.DATABASE_URL_DIRECT && !serverEnv.DATABASE_URL;
   
   if (isProduction()) {
+    // En producción, usar el pooler por defecto
     const url = serverEnv.DATABASE_URL_POOL ?? serverEnv.DATABASE_URL;
     if (!url) {
       if (isBuildTime) {

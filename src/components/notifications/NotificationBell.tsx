@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
-import { Bell } from "lucide-react";
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { Bell, Settings } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { NotificationCenter } from "./NotificationCenter";
@@ -15,7 +16,9 @@ export function NotificationBell() {
   const [userId, setUserId] = useState<string | null>(null);
   const supabase = useMemo(() => createClient(), []);
   const academyContext = useAcademyContext();
+  const router = useRouter();
   const tenantId = academyContext?.tenantId ?? null;
+  const academyId = academyContext?.academyId ?? null;
 
   // Obtener userId de la sesión
   useEffect(() => {
@@ -41,16 +44,7 @@ export function NotificationBell() {
     },
   });
 
-  useEffect(() => {
-    if (userId && tenantId) {
-      loadUnreadCount();
-      // Recargar cada 30 segundos como fallback
-      const interval = setInterval(loadUnreadCount, 30000);
-      return () => clearInterval(interval);
-    }
-  }, [userId, tenantId]);
-
-  const loadUnreadCount = async () => {
+  const loadUnreadCount = useCallback(async () => {
     try {
       const response = await fetch("/api/notifications/unread-count");
       if (response.ok) {
@@ -60,6 +54,23 @@ export function NotificationBell() {
     } catch (error) {
       console.error("Error loading unread count:", error);
     }
+  }, []);
+
+  useEffect(() => {
+    if (userId && tenantId) {
+      loadUnreadCount();
+      // Recargar cada 30 segundos como fallback
+      const interval = setInterval(loadUnreadCount, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [userId, tenantId, loadUnreadCount]);
+
+  const handleOpenNotifications = () => {
+    if (academyId) {
+      router.push(`/app/${academyId}/notifications`);
+    } else {
+      setIsOpen(true);
+    }
   };
 
   return (
@@ -68,26 +79,31 @@ export function NotificationBell() {
         variant="ghost"
         size="icon"
         className="relative"
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={handleOpenNotifications}
+        title="Notificaciones"
       >
         <Bell className="h-5 w-5" />
         {unreadCount > 0 && (
           <Badge
             variant="error"
-            className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs"
+            className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs animate-pulse"
           >
             {unreadCount > 99 ? "99+" : unreadCount}
           </Badge>
         )}
       </Button>
-      {isOpen && (
-        <NotificationCenter
-          open={isOpen}
-          onClose={() => setIsOpen(false)}
-          onNotificationRead={loadUnreadCount}
-        />
+      {academyId && (
+        <Button
+          variant="ghost"
+          size="icon"
+          asChild
+          title="Configurar notificaciones"
+        >
+          <a href={`/app/${academyId}/notifications`}>
+            <Settings className="h-5 w-5" />
+          </a>
+        </Button>
       )}
     </>
   );
 }
-

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { eq, and, count, sql } from "drizzle-orm";
+import { Plus, Users, UserCheck, UserPlus, UserCog, Calendar, Building2 } from "lucide-react";
 
 import { db } from "@/db";
 import { createClient } from "@/lib/supabase/server";
@@ -10,6 +11,9 @@ import { academies, memberships, athletes, coaches, events } from "@/db/schema";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { StatsCard } from "@/components/ui/stats-card";
+import { PageHeader } from "@/components/ui/page-header";
+import { BarChart } from "@/components/ui/chart";
 
 function formatAcademyType(value: string | null) {
   switch (value) {
@@ -132,55 +136,78 @@ export default async function AcademiesPage() {
 
   return (
     <div className="space-y-8">
-      <header className="space-y-2">
-        <p className="text-sm font-semibold text-zaltyko-primary uppercase tracking-wide">Dashboard</p>
-        <h1 className="text-3xl font-bold text-zaltyko-neutral-dark">Resumen general</h1>
-        <p className="text-muted-foreground">
-          Vista rápida de todas tus academias. Cambia rápidamente entre ellas y accede al panel operativo.
-        </p>
-      </header>
+      <PageHeader
+        breadcrumbs={[
+          { label: "Dashboard", href: "/dashboard" },
+          { label: "Academias" },
+        ]}
+        title="Dashboard"
+        description="Vista rápida de todas tus academias. Cambia rápidamente entre ellas y accede al panel operativo."
+        icon={Building2}
+        actions={
+          hasAcademies ? (
+            <Button asChild>
+              <Link href="/onboarding">
+                <Plus className="h-4 w-4 mr-2" />
+                Nueva academia
+              </Link>
+            </Button>
+          ) : undefined
+        }
+      />
 
       {/* Stats Overview */}
       {hasAcademies && (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-          <Card className="border-l-4 border-l-emerald-500">
-            <CardHeader className="pb-2">
-              <CardDescription className="text-xs font-medium">Total Atletas</CardDescription>
+          <StatsCard
+            title="Total Atletas"
+            value={totals.athletes}
+            icon={Users}
+            variant="default"
+          />
+          <StatsCard
+            title="Activos"
+            value={totals.active}
+            icon={UserCheck}
+            variant="success"
+          />
+          <StatsCard
+            title="En Prueba"
+            value={totals.trials}
+            icon={UserPlus}
+            variant="warning"
+          />
+          <StatsCard
+            title="Entrenadores"
+            value={totals.coaches}
+            icon={UserCog}
+            variant="info"
+          />
+          <StatsCard
+            title="Eventos Próximos"
+            value={totals.events}
+            icon={Calendar}
+            variant="danger"
+          />
+        </div>
+      )}
+
+      {/* Chart Section */}
+      {hasAcademies && academiesWithStats.length > 0 && (
+        <div className="grid gap-6 lg:grid-cols-2">
+          <Card className="lg:col-span-1">
+            <CardHeader>
+              <CardTitle className="text-lg font-semibold">Atletas por Academia</CardTitle>
+              <CardDescription>Distribución de atletas en tus academias</CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-bold">{totals.athletes}</p>
-            </CardContent>
-          </Card>
-          <Card className="border-l-4 border-l-blue-500">
-            <CardHeader className="pb-2">
-              <CardDescription className="text-xs font-medium">Activos</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold">{totals.active}</p>
-            </CardContent>
-          </Card>
-          <Card className="border-l-4 border-l-amber-500">
-            <CardHeader className="pb-2">
-              <CardDescription className="text-xs font-medium">En Prueba</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold">{totals.trials}</p>
-            </CardContent>
-          </Card>
-          <Card className="border-l-4 border-l-purple-500">
-            <CardHeader className="pb-2">
-              <CardDescription className="text-xs font-medium">Entrenadores</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold">{totals.coaches}</p>
-            </CardContent>
-          </Card>
-          <Card className="border-l-4 border-l-cyan-500">
-            <CardHeader className="pb-2">
-              <CardDescription className="text-xs font-medium">Eventos Próximos</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold">{totals.events}</p>
+              <BarChart
+                data={academiesWithStats.map(a => ({
+                  label: a.name?.substring(0, 12) || "Sin nombre",
+                  value: a.stats.totalAthletes,
+                }))}
+                height={180}
+              />
             </CardContent>
           </Card>
         </div>

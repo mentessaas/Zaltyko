@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { and, asc, eq, ilike, sql } from "drizzle-orm";
-import { Plus } from "lucide-react";
+import { and, asc, desc, eq, ilike, sql } from "drizzle-orm";
+import { Plus, Users, UserCog, Calendar, Building2, ArrowUpDown, Eye, Pencil, X } from "lucide-react";
 
 import { db } from "@/db";
 import {
@@ -16,6 +16,11 @@ import { athleteStatusOptions } from "@/lib/athletes/constants";
 import { createClient } from "@/lib/supabase/server";
 import ImportExportPanel from "@/components/athletes/ImportExportPanel";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
+import { EmptyState } from "@/components/shared/EmptyState";
+
+type SortField = "name" | "level" | "status" | "age" | "academyName" | "guardianCount";
+type SortDirection = "asc" | "desc";
 
 interface AthletesPageProps {
   searchParams: Record<string, string | string[] | undefined>;
@@ -53,11 +58,32 @@ export default async function AthletesPage({ searchParams }: AthletesPageProps) 
     redirect("/dashboard");
   }
 
-  if (!profile.tenantId && profile.role !== "super_admin") {
-    redirect("/dashboard");
+  let tenantId = profile.tenantId;
+
+  // If no tenantId, try to get from user's academies via memberships
+  if (!tenantId) {
+    try {
+      const userAcademies = await db
+        .select({
+          tenantId: academies.tenantId,
+        })
+        .from(memberships)
+        .innerJoin(academies, eq(memberships.academyId, academies.id))
+        .where(eq(memberships.userId, profile.id))
+        .limit(1);
+
+      if (userAcademies.length > 0) {
+        tenantId = userAcademies[0].tenantId;
+      }
+    } catch (error) {
+      console.error("Error getting tenant from academies:", error);
+    }
   }
 
-  const tenantId = profile.tenantId;
+  // If still no tenantId, redirect unless user is super_admin
+  if (!tenantId && profile.role !== "super_admin") {
+    redirect("/dashboard");
+  }
 
   const searchTerm =
     typeof searchParams.q === "string" && searchParams.q.trim().length > 0
@@ -156,11 +182,27 @@ export default async function AthletesPage({ searchParams }: AthletesPageProps) 
   }));
 
   // Calculate summary stats
+  const agesWithValue = list.filter(a => a.age !== null).map(a => a.age as number);
+  const avgAge = agesWithValue.length > 0
+    ? Math.round(agesWithValue.reduce((a, b) => a + b, 0) / agesWithValue.length)
+    : 0;
+
+  // Calculate new athletes this month
+  const now = new Date();
+  const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const newThisMonth = list.filter(a => {
+    // We don't have createdAt in the query, so we can't calculate this without modifying the query
+    // For now, we'll show total with families as additional metric
+    return true;
+  }).length;
+
   const stats = {
     total: list.length,
     active: list.filter(a => a.status === "active").length,
     inactive: list.filter(a => a.status === "inactive").length,
     trial: list.filter(a => a.status === "trial").length,
+    avgAge,
+    withFamilies: list.filter(a => Number(a.guardianCount ?? 0) > 0).length,
   };
 
   // Calculate level distribution
@@ -175,15 +217,45 @@ export default async function AthletesPage({ searchParams }: AthletesPageProps) 
     .sort((a, b) => b.count - a.count);
 
   // Pagination
+  // Sorting
+  const sortField: SortField = (searchParams.sort as SortField) || "name";
+  const sortDirection: SortDirection = (searchParams.dir as SortDirection) || "asc";
+
+  // Sort the list
+  const sortedList = [...list].sort((a, b) => {
+    let aVal: string | number | null = a[sortField] ?? "";
+    let bVal: string | number | null = b[sortField] ?? "";
+
+    if (typeof aVal === "string") aVal = aVal.toLowerCase();
+    if (typeof bVal === "string") bVal = bVal.toLowerCase();
+
+    if (aVal === null || aVal === "") return 1;
+    if (bVal === null || bVal === "") return -1;
+
+    if (aVal < bVal) return sortDirection === "asc" ? -1 : 1;
+    if (aVal > bVal) return sortDirection === "asc" ? 1 : -1;
+    return 0;
+  });
+
+  // Pagination
   const page = typeof searchParams.page === "string" ? Number(searchParams.page) : 1;
   const perPage = 20;
-  const totalPages = Math.ceil(list.length / perPage);
-  const paginatedList = list.slice((page - 1) * perPage, page * perPage);
+  const totalPages = Math.ceil(sortedList.length / perPage);
+  const paginatedList = sortedList.slice((page - 1) * perPage, page * perPage);
+
+  // Active filters for display
+  const activeFilters = [];
+  if (searchTerm) activeFilters.push({ key: "q", label: `Busqueda: "${searchTerm}"` });
+  if (statusParam) activeFilters.push({ key: "status", label: `Estado: ${statusParam}` });
+  if (levelParam) activeFilters.push({ key: "level", label: `Nivel: ${levelParam}` });
+  if (academyParam) activeFilters.push({ key: "academy", label: `Academia: ${userAcademies.find(a => a.id === academyParam)?.name || academyParam}` });
+  if (minAgeParam !== undefined) activeFilters.push({ key: "minAge", label: `Edad min: ${minAgeParam}` });
+  if (maxAgeParam !== undefined) activeFilters.push({ key: "maxAge", label: `Edad max: ${maxAgeParam}` });
 
   return (
     <div className="space-y-6 p-4 md:p-8">
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-xl p-4 border border-emerald-200">
           <p className="text-sm font-medium text-emerald-700">Total Atletas</p>
           <p className="text-3xl font-bold text-emerald-800">{stats.total}</p>
@@ -199,6 +271,14 @@ export default async function AthletesPage({ searchParams }: AthletesPageProps) 
         <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-4 border border-gray-200">
           <p className="text-sm font-medium text-gray-700">Inactivos</p>
           <p className="text-3xl font-bold text-gray-800">{stats.inactive}</p>
+        </div>
+        <div className="bg-gradient-to-br from-violet-50 to-violet-100 rounded-xl p-4 border border-violet-200">
+          <p className="text-sm font-medium text-violet-700">Edad Promedio</p>
+          <p className="text-3xl font-bold text-violet-800">{stats.avgAge} <span className="text-lg font-normal">años</span></p>
+        </div>
+        <div className="bg-gradient-to-br from-cyan-50 to-cyan-100 rounded-xl p-4 border border-cyan-200">
+          <p className="text-sm font-medium text-cyan-700">Con Familia</p>
+          <p className="text-3xl font-bold text-cyan-800">{stats.withFamilies}</p>
         </div>
       </div>
 
@@ -223,13 +303,29 @@ export default async function AthletesPage({ searchParams }: AthletesPageProps) 
         </div>
       )}
 
+      <PageHeader
+        breadcrumbs={[
+          { label: "Dashboard", href: "/dashboard" },
+          { label: "Atletas" },
+        ]}
+        title="Atletas"
+        description="Gestiona atletas por nivel, estado y familia. Filtra la vista para detectar riesgos o planificar evaluaciones."
+        icon={Users}
+        actions={
+          <div className="flex gap-2">
+            <Button asChild>
+              <Link href="/dashboard/athletes/new">
+                <Plus className="h-4 w-4 mr-2" />
+                Nuevo atleta
+              </Link>
+            </Button>
+            <ImportExportPanel tenantId={tenantId ?? undefined} />
+          </div>
+        }
+      />
+
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
         <div className="space-y-2">
-          <h1 className="text-3xl font-semibold">Atletas</h1>
-          <p className="text-muted-foreground">
-            Gestiona atletas por nivel, estado y familia. Filtra la vista para detectar riesgos o
-            planificar evaluaciones.
-          </p>
           <form className="flex flex-wrap gap-3" method="get">
             <input
               type="search"
@@ -301,34 +397,145 @@ export default async function AthletesPage({ searchParams }: AthletesPageProps) 
             </button>
           </form>
         </div>
-        <div className="flex gap-2">
-          <Button asChild>
-            <Link href="/dashboard/athletes/new">
-              <Plus className="h-4 w-4 mr-2" />
-              Nuevo atleta
-            </Link>
-          </Button>
-          <ImportExportPanel tenantId={tenantId ?? undefined} />
-        </div>
       </div>
+
+      {/* Active Filters Display */}
+      {activeFilters.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 mb-4">
+          <span className="text-sm text-muted-foreground">Filtros activos:</span>
+          {activeFilters.map((filter) => (
+            <span
+              key={filter.key}
+              className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1 text-sm font-medium text-emerald-800"
+            >
+              {filter.label}
+              <Link
+                href={`?${new URLSearchParams(
+                  Object.entries(searchParams)
+                    .filter(([key]) => key !== filter.key && key !== "page")
+                    .reduce((acc, [key, val]) => {
+                      if (val && typeof val === "string") acc[key] = val;
+                      return acc;
+                    }, {} as Record<string, string>)
+                ).toString()}`}
+                className="ml-1 hover:text-emerald-600"
+              >
+                <X className="h-3 w-3" />
+              </Link>
+            </span>
+          ))}
+          <Link
+            href="?page=1"
+            className="text-sm text-muted-foreground hover:text-emerald-600 underline"
+          >
+            Limpiar todo
+          </Link>
+        </div>
+      )}
 
       <div className="overflow-hidden rounded-lg border bg-card shadow">
         <table className="min-w-full divide-y divide-border text-sm">
           <thead className="bg-muted/60">
             <tr className="text-left text-xs uppercase tracking-wide text-muted-foreground">
-              <th className="px-4 py-3 font-medium">Nombre</th>
-              <th className="px-4 py-3 font-medium">Nivel</th>
-              <th className="px-4 py-3 font-medium">Estado</th>
-              <th className="px-4 py-3 font-medium text-right">Edad</th>
-              <th className="px-4 py-3 font-medium">Academia</th>
-              <th className="px-4 py-3 font-medium text-right">Familia</th>
+              <th className="px-4 py-3 font-medium">
+                <Link
+                  href={`?${new URLSearchParams({
+                    ...searchParams,
+                    sort: "name",
+                    dir: sortField === "name" && sortDirection === "asc" ? "desc" : "asc",
+                  } as Record<string, string>).toString()}`}
+                  className="flex items-center gap-1 hover:text-foreground"
+                >
+                  Nombre
+                  <ArrowUpDown className="h-3 w-3" />
+                </Link>
+              </th>
+              <th className="px-4 py-3 font-medium">
+                <Link
+                  href={`?${new URLSearchParams({
+                    ...searchParams,
+                    sort: "level",
+                    dir: sortField === "level" && sortDirection === "asc" ? "desc" : "asc",
+                  } as Record<string, string>).toString()}`}
+                  className="flex items-center gap-1 hover:text-foreground"
+                >
+                  Nivel
+                  <ArrowUpDown className="h-3 w-3" />
+                </Link>
+              </th>
+              <th className="px-4 py-3 font-medium">
+                <Link
+                  href={`?${new URLSearchParams({
+                    ...searchParams,
+                    sort: "status",
+                    dir: sortField === "status" && sortDirection === "asc" ? "desc" : "asc",
+                  } as Record<string, string>).toString()}`}
+                  className="flex items-center gap-1 hover:text-foreground"
+                >
+                  Estado
+                  <ArrowUpDown className="h-3 w-3" />
+                </Link>
+              </th>
+              <th className="px-4 py-3 font-medium text-right">
+                <Link
+                  href={`?${new URLSearchParams({
+                    ...searchParams,
+                    sort: "age",
+                    dir: sortField === "age" && sortDirection === "asc" ? "desc" : "asc",
+                  } as Record<string, string>).toString()}`}
+                  className="flex items-center justify-end gap-1 hover:text-foreground"
+                >
+                  Edad
+                  <ArrowUpDown className="h-3 w-3" />
+                </Link>
+              </th>
+              <th className="px-4 py-3 font-medium">
+                <Link
+                  href={`?${new URLSearchParams({
+                    ...searchParams,
+                    sort: "academyName",
+                    dir: sortField === "academyName" && sortDirection === "asc" ? "desc" : "asc",
+                  } as Record<string, string>).toString()}`}
+                  className="flex items-center gap-1 hover:text-foreground"
+                >
+                  Academia
+                  <ArrowUpDown className="h-3 w-3" />
+                </Link>
+              </th>
+              <th className="px-4 py-3 font-medium text-right">
+                <Link
+                  href={`?${new URLSearchParams({
+                    ...searchParams,
+                    sort: "guardianCount",
+                    dir: sortField === "guardianCount" && sortDirection === "asc" ? "desc" : "asc",
+                  } as Record<string, string>).toString()}`}
+                  className="flex items-center justify-end gap-1 hover:text-foreground"
+                >
+                  Familia
+                  <ArrowUpDown className="h-3 w-3" />
+                </Link>
+              </th>
+              <th className="px-4 py-3 font-medium text-right">Acciones</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border bg-background text-foreground">
             {paginatedList.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
-                  No se encontraron atletas con los filtros actuales.
+                <td colSpan={6}>
+                  <EmptyState
+                    icon={Users}
+                    title={searchTerm || statusParam || levelParam || academyParam || minAgeParam || maxAgeParam ? "Sin resultados" : "No hay atletas"}
+                    description={
+                      searchTerm || statusParam || levelParam || academyParam || minAgeParam || maxAgeParam
+                        ? "No se encontraron atletas con los filtros actuales. Prueba a modificar los criterios de búsqueda."
+                        : "Aún no has creado ningún atleta. Crea tu primer atleta para gestionar tu academia."
+                    }
+                    action={
+                      !searchTerm && !statusParam && !levelParam && !academyParam && !minAgeParam && !maxAgeParam
+                        ? { label: "Crear primer atleta", href: "/dashboard/athletes/new" }
+                        : undefined
+                    }
+                  />
                 </td>
               </tr>
             ) : (
@@ -360,6 +567,24 @@ export default async function AthletesPage({ searchParams }: AthletesPageProps) 
                   <td className="px-4 py-3 text-right tabular-nums">
                     {Number(row.guardianCount ?? 0)}
                   </td>
+                  <td className="px-4 py-3 text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      <Link
+                        href={`/dashboard/athletes/${row.id}`}
+                        className="rounded p-1 hover:bg-muted"
+                        title="Ver"
+                      >
+                        <Eye className="h-4 w-4 text-muted-foreground" />
+                      </Link>
+                      <Link
+                        href={`/dashboard/athletes/${row.id}/edit`}
+                        className="rounded p-1 hover:bg-muted"
+                        title="Editar"
+                      >
+                        <Pencil className="h-4 w-4 text-muted-foreground" />
+                      </Link>
+                    </div>
+                  </td>
                 </tr>
               ))
             )}
@@ -371,7 +596,7 @@ export default async function AthletesPage({ searchParams }: AthletesPageProps) 
       {totalPages > 1 && (
         <div className="flex items-center justify-between">
           <p className="text-sm text-muted-foreground">
-            Mostrando {(page - 1) * perPage + 1} - {Math.min(page * perPage, list.length)} de {list.length}
+            Mostrando {(page - 1) * perPage + 1} - {Math.min(page * perPage, sortedList.length)} de {sortedList.length}
           </p>
           <div className="flex gap-2">
             {page > 1 && (

@@ -22,6 +22,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
+function isSuperAdmin(role: string | null): boolean {
+  return role === "super_admin";
+}
+
 interface AthletePageProps {
   params: {
     athleteId: string;
@@ -92,6 +96,8 @@ export default async function AthleteDetailPage({ params }: AthletePageProps) {
   const canAccess =
     profile.role === "super_admin" ||
     profile.role === "admin" ||
+    // If profile has no tenantId but is an owner, allow access
+    (profile.role === "owner" && !profile.tenantId) ||
     (profile.tenantId === athleteRow.tenantId && membershipRows.length > 0);
 
   if (!canAccess) {

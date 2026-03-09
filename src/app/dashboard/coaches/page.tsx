@@ -1,8 +1,8 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { asc, eq } from "drizzle-orm";
+import { asc, eq, inArray } from "drizzle-orm";
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { Plus, UserCog } from "lucide-react";
 
 import { db } from "@/db";
 import {
@@ -10,11 +10,14 @@ import {
   classCoachAssignments,
   classes,
   coaches,
+  memberships,
   profiles,
 } from "@/db/schema";
 import CoachAssignmentsPanel from "@/components/coaches/CoachAssignmentsPanel";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
+import { EmptyState } from "@/components/shared/EmptyState";
 
 interface CoachesPageProps {
   searchParams: Record<string, string | string[] | undefined>;
@@ -46,14 +49,34 @@ export default async function CoachesPage({ searchParams }: CoachesPageProps) {
       ? searchParams.tenant.trim()
       : undefined;
 
-  const tenantId = profile.tenantId ?? tenantOverride;
+  let tenantId = profile.tenantId ?? tenantOverride;
+
+  // If no tenantId, try to get from user's academies via memberships
+  if (!tenantId) {
+    try {
+      const userAcademies = await db
+        .select({
+          tenantId: academies.tenantId,
+        })
+        .from(memberships)
+        .innerJoin(academies, eq(memberships.academyId, academies.id))
+        .where(eq(memberships.userId, profile.id))
+        .limit(1);
+
+      if (userAcademies.length > 0) {
+        tenantId = userAcademies[0].tenantId;
+      }
+    } catch (error) {
+      console.error("Error getting tenant from academies:", error);
+    }
+  }
 
   if (!tenantId) {
     return (
       <div className="mx-auto max-w-3xl space-y-4 p-8 text-center">
         <h1 className="text-2xl font-semibold">Selecciona un tenant</h1>
         <p className="text-muted-foreground">
-          Eres Súper Admin sin tenant asignado. Añade `?tenant=&lt;tenant_id&gt;` en la URL para
+          Eres Súper Admin sin tenant asignado. Añade ?tenant=&lt;tenant_id&gt; en la URL para
           revisar los entrenadores de un tenant específico.
         </p>
       </div>
@@ -131,21 +154,23 @@ export default async function CoachesPage({ searchParams }: CoachesPageProps) {
 
   return (
     <div className="space-y-8 p-4 md:p-8">
-      <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div className="space-y-2">
-          <h1 className="text-2xl md:text-3xl font-semibold">Entrenadores</h1>
-          <p className="text-muted-foreground">
-            Asigna entrenadores a clases y academias, sincroniza el calendario y controla quién puede
-            registrar asistencia.
-          </p>
-        </div>
-        <Button asChild>
-          <Link href="/dashboard/coaches/new">
-            <Plus className="h-4 w-4 mr-2" />
-            Nuevo entrenador
-          </Link>
-        </Button>
-      </header>
+      <PageHeader
+        breadcrumbs={[
+          { label: "Dashboard", href: "/dashboard" },
+          { label: "Entrenadores" },
+        ]}
+        title="Entrenadores"
+        description="Asigna entrenadores a clases y academias, sincroniza el calendario y controla quién puede registrar asistencia."
+        icon={UserCog}
+        actions={
+          <Button asChild>
+            <Link href="/dashboard/coaches/new">
+              <Plus className="h-4 w-4 mr-2" />
+              Nuevo entrenador
+            </Link>
+          </Button>
+        }
+      />
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
