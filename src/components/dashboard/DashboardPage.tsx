@@ -45,6 +45,10 @@ import { AlertsWidget } from "@/components/dashboard/AlertsWidget";
 import { UpcomingEventsWidget } from "@/components/dashboard/UpcomingEventsWidget";
 import { QuickReportsWidget } from "@/components/dashboard/QuickReportsWidget";
 import { FinancialMetricsWidget } from "@/components/dashboard/FinancialMetricsWidget";
+import { DelinquencyRiskWidget } from "@/components/dashboard/DelinquencyRiskWidget";
+import { PaymentRemindersWidget } from "@/components/dashboard/PaymentRemindersWidget";
+import { AttendanceRiskWidget } from "@/components/dashboard/AttendanceRiskWidget";
+import { ProgressUpdatesWidget } from "@/components/dashboard/ProgressUpdatesWidget";
 import { WelcomeBanner } from "@/components/onboarding/WelcomeBanner";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import type { DashboardData } from "@/lib/dashboard";
@@ -348,6 +352,26 @@ export function DashboardPage({
         <section className="grid gap-4 lg:grid-cols-2">
           <FinancialMetricsWidget academyId={academyId} />
           <QuickReportsWidget academyId={academyId} />
+        </section>
+      )}
+
+      {/*2.7. AI Billing Widgets - Morosidad y Recordatorios */}
+      {(isAdmin || isOwner) && (
+        <section className="grid gap-4 lg:grid-cols-2">
+          <DelinquencyRiskWidget academyId={academyId} />
+          <PaymentRemindersWidget academyId={academyId} />
+        </section>
+      )}
+
+      {/*2.8. AI Attendance Widget - Riesgo de Abandono */}
+      <section>
+        <AttendanceRiskWidget academyId={academyId} />
+      </section>
+
+      {/*2.9. AI Progress Updates Widget - Comunicación con Padres */}
+      {(isAdmin || isOwner) && (
+        <section>
+          <ProgressUpdatesWidget academyId={academyId} />
         </section>
       )}
 
