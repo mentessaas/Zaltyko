@@ -60,4 +60,5 @@ export * from "./contact-messages";
 export * from "./class-exceptions";
 export * from "./push-subscriptions";
 export * from "./support-tickets";
+export * from "./marketplace";
 
