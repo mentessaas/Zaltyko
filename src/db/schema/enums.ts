@@ -81,3 +81,27 @@ export const eventTypeEnum = pgEnum("event_type", [
   "other",
 ]);
 
+// Marketplace
+export const marketplaceListingTypeEnum = pgEnum("marketplace_listing_type", ["product", "service"]);
+export const marketplaceCategoryEnum = pgEnum("marketplace_category", [
+  "equipment", "clothing", "supplements", "books", "particular_training",
+  "personal_training", "clinics", "arbitration", "physiotherapy", "photography", "other"
+]);
+export const marketplacePriceTypeEnum = pgEnum("marketplace_price_type", ["fixed", "negotiable", "contact"]);
+export const marketplaceListingStatusEnum = pgEnum("marketplace_listing_status", ["active", "sold", "hidden"]);
+
+// Empleo
+export const jobCategoryEnum = pgEnum("job_category", [
+  "coach", "assistant_coach", "administrative", "physiotherapist", "psychologist", "other"
+]);
+export const jobTypeEnum = pgEnum("job_type", ["full_time", "part_time", "internship"]);
+export const jobListingStatusEnum = pgEnum("job_listing_status", ["active", "closed", "draft"]);
+export const applicationStatusEnum = pgEnum("application_status", ["pending", "reviewed", "accepted", "rejected"]);
+
+// Advertising
+export const adTypeEnum = pgEnum("ad_type", ["banner", "featured"]);
+export const adPositionEnum = pgEnum("ad_position", [
+  "marketplace_top", "marketplace_sidebar", "marketplace_between",
+  "empleo_top", "empleo_sidebar", "empleo_between",
+  "events_top", "events_sidebar", "events_between"
+]);
