@@ -62,4 +62,5 @@ export * from "./class-exceptions";
 export * from "./push-subscriptions";
 export * from "./support-tickets";
 export * from "./marketplace";
+export * from "./advertising";
 
