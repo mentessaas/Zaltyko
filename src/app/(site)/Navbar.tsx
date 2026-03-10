@@ -8,6 +8,9 @@ import { buttonVariants } from "@/components/ui/button";
 
 const links = [
   { href: "/academias", label: "Academias" },
+  { href: "/events", label: "Eventos" },
+  { href: "/marketplace", label: "Marketplace" },
+  { href: "/empleo", label: "Empleo" },
   { href: "#caracteristicas", label: "Características" },
   { href: "#planes", label: "Precios" },
   { href: "#faq", label: "Ayuda" },
