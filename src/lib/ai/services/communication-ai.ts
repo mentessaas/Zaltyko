@@ -5,6 +5,7 @@ import {
   generateProgressUpdatePrompt,
   generateClassReminderPrompt,
   generateChatResponsePrompt
+} from '../prompts/communication';
 import { ProgressUpdate, ChatResponse } from '../types';
 
 export async function generateProgressUpdate(athleteData: {
