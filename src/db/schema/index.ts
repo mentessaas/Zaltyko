@@ -19,6 +19,7 @@ export * from "./memberships";
 export * from "./subscriptions";
 export * from "./athletes";
 export * from "./coaches";
+export * from "./empleo";
 export * from "./classes";
 export * from "./class-weekdays";
 export * from "./events";
