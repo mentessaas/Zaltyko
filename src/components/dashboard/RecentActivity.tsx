@@ -14,12 +14,12 @@ interface RecentActivityProps {
 const ACTION_COLORS: Record<string, string> = {
   "athlete.created": "bg-zaltyko-primary/15 text-zaltyko-primary",
   "coach.created": "bg-zaltyko-primary-light/15 text-zaltyko-primary-light",
-  "group.created": "bg-violet-500/15 text-violet-600",
+  "group.created": "bg-red-500/15 text-red-600",
   "assessment.created": "bg-zaltyko-accent/15 text-zaltyko-accent",
   "class.created": "bg-amber-500/15 text-amber-600",
   "notification.created": "bg-blue-500/15 text-blue-600",
   "alert.created": "bg-orange-500/15 text-orange-600",
-  "event.created": "bg-purple-500/15 text-purple-600",
+  "event.created": "bg-red-500/15 text-red-600",
 };
 
 export function RecentActivity({ items, academyCountry }: RecentActivityProps) {

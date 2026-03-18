@@ -31,21 +31,56 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "Zaltyko",
+  title: {
+    default: "Zaltyko - Sistema de Gestión para Academias de Gimnasia",
+    template: "%s | Zaltyko",
+  },
   description:
-    "Zaltyko — El sistema definitivo para gestionar academias de gimnasia",
+    "Zaltyko — El sistema definitivo para gestionar academias de gimansia. Administra atletas, clases, pagos y más.",
   keywords: [
     "zaltyko",
     "gimnasia",
-    "academias de gimnasia",
+    "academias de gimansia",
     "gestión deportiva",
-    "multi tenant",
-    "stripe",
-    "saas",
-    "drizzle",
-    "supabase",
-    "pwa",
+    "gestión de academias",
+    "software para gimansios",
+    "SaaS",
   ],
+  authors: [{ name: "Zaltyko" }],
+  creator: "Zaltyko",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"),
+  openGraph: {
+    type: "website",
+    locale: "es_ES",
+    url: process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000",
+    siteName: "Zaltyko",
+    title: "Zaltyko - Sistema de Gestión para Academias de Gimnasia",
+    description: "El sistema definitivo para gestionar academias de gimansia. Administra atletas, clases, pagos y más.",
+    images: [
+      {
+        url: "/api/og",
+        width: 1200,
+        height: 630,
+        alt: "Zaltyko - Gestión de Academias de Gimnasia",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Zaltyko - Sistema de Gestión para Academias de Gimnasia",
+    description: "El sistema definitivo para gestionar academias de gimansia",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
@@ -54,6 +89,7 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
+      { url: "/favicon.ico", sizes: "any" },
       { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
       { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
     ],

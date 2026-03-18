@@ -6,7 +6,7 @@ import { eq } from "drizzle-orm";
 
 export const POST = withTenant(async (req, context) => {
     try {
-        const { userId, profile } = context;
+        const { userId } = context;
 
         const body = await req.json();
         const { targetPlan } = body;

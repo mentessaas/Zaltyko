@@ -163,8 +163,8 @@ export function MyProgressWidget({
             </Badge>
           )}
           {attendanceData && attendanceData.total >= 10 && (
-            <Badge variant="outline" className="bg-violet-50">
-              <Award className="mr-1 h-3 w-3 text-violet-500" />
+            <Badge variant="outline" className="bg-red-50">
+              <Award className="mr-1 h-3 w-3 text-red-500" />
               Veterano
             </Badge>
           )}

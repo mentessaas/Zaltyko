@@ -1,23 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import {
-  AreaChart,
-  Area,
-  BarChart,
-  Bar,
-  PieChart,
-  Pie,
-  Cell,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Legend,
-} from "recharts";
+import dynamic from "next/dynamic";
 import { Calendar, Download, FileText, Loader2, Users, DollarSign, Activity, GraduationCap } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -25,9 +9,26 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { StatsCard } from "@/components/ui/stats-card";
 import { cn } from "@/lib/utils";
 
+// Lazy load recharts components (~120KB savings)
+const AreaChart = dynamic(() => import("recharts").then((mod) => mod.AreaChart), { ssr: false });
+const Area = dynamic(() => import("recharts").then((mod) => mod.Area), { ssr: false });
+const BarChart = dynamic(() => import("recharts").then((mod) => mod.BarChart), { ssr: false });
+const Bar = dynamic(() => import("recharts").then((mod) => mod.Bar), { ssr: false });
+const PieChart = dynamic(() => import("recharts").then((mod) => mod.PieChart), { ssr: false });
+const Pie = dynamic(() => import("recharts").then((mod) => mod.Pie), { ssr: false });
+const Cell = dynamic(() => import("recharts").then((mod) => mod.Cell), { ssr: false });
+const LineChart = dynamic(() => import("recharts").then((mod) => mod.LineChart), { ssr: false });
+const Line = dynamic(() => import("recharts").then((mod) => mod.Line), { ssr: false });
+const XAxis = dynamic(() => import("recharts").then((mod) => mod.XAxis), { ssr: false });
+const YAxis = dynamic(() => import("recharts").then((mod) => mod.YAxis), { ssr: false });
+const CartesianGrid = dynamic(() => import("recharts").then((mod) => mod.CartesianGrid), { ssr: false });
+const Tooltip = dynamic(() => import("recharts").then((mod) => mod.Tooltip), { ssr: false });
+const ResponsiveContainer = dynamic(() => import("recharts").then((mod) => mod.ResponsiveContainer), { ssr: false });
+const Legend = dynamic(() => import("recharts").then((mod) => mod.Legend), { ssr: false });
+
 // Theme colors
 const COLORS = {
-  violet: "#8B5CF6",
+  red: "#DC2626",
   emerald: "#10B981",
   amber: "#F59E0B",
   rose: "#F43F5E",
@@ -36,7 +37,7 @@ const COLORS = {
   indigo: "#6366F1",
 };
 
-const CHART_COLORS = [COLORS.violet, COLORS.emerald, COLORS.amber, COLORS.rose, COLORS.blue, COLORS.cyan];
+const CHART_COLORS = [COLORS.red, COLORS.emerald, COLORS.amber, COLORS.rose, COLORS.blue, COLORS.cyan];
 
 // Types
 interface AnalyticsData {
@@ -281,7 +282,7 @@ export function AnalyticsWidgets({ academyId }: { academyId: string }) {
           title="Atletas Activos"
           value={formatNumber(data.totalAthletes)}
           subtitle="Total registrados"
-          icon={Users}
+          icon={<Users className="h-6 w-6" strokeWidth={1.5} />}
           trend={{ value: data.athletesTrend, label: "vs mes anterior" }}
           variant="default"
         />
@@ -289,7 +290,7 @@ export function AnalyticsWidgets({ academyId }: { academyId: string }) {
           title="Ingresos del Mes"
           value={formatCurrency(data.monthlyRevenue)}
           subtitle="Facturación"
-          icon={DollarSign}
+          icon={<DollarSign className="h-6 w-6" strokeWidth={1.5} />}
           trend={{ value: data.revenueTrend, label: "vs mes anterior" }}
           variant="success"
         />
@@ -297,7 +298,7 @@ export function AnalyticsWidgets({ academyId }: { academyId: string }) {
           title="Asistencia Promedio"
           value={`${data.averageAttendance.toFixed(1)}%`}
           subtitle="Últimos 30 días"
-          icon={Activity}
+          icon={<Activity className="h-6 w-6" strokeWidth={1.5} />}
           trend={{ value: data.attendanceTrend, label: "vs mes anterior" }}
           variant="warning"
         />
@@ -305,7 +306,7 @@ export function AnalyticsWidgets({ academyId }: { academyId: string }) {
           title="Clases Este Mes"
           value={data.classesThisMonth}
           subtitle="Impartidas"
-          icon={GraduationCap}
+          icon={<GraduationCap className="h-6 w-6" strokeWidth={1.5} />}
           trend={{ value: data.classesTrend, label: "vs mes anterior" }}
           variant="info"
         />
@@ -324,8 +325,8 @@ export function AnalyticsWidgets({ academyId }: { academyId: string }) {
               <AreaChart data={data.athletesEvolution}>
                 <defs>
                   <linearGradient id="athletesGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={COLORS.violet} stopOpacity={0.3} />
-                    <stop offset="95%" stopColor={COLORS.violet} stopOpacity={0} />
+                    <stop offset="5%" stopColor={COLORS.red} stopOpacity={0.3} />
+                    <stop offset="95%" stopColor={COLORS.red} stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
@@ -335,7 +336,7 @@ export function AnalyticsWidgets({ academyId }: { academyId: string }) {
                 <Area
                   type="monotone"
                   dataKey="athletes"
-                  stroke={COLORS.violet}
+                  stroke={COLORS.red}
                   strokeWidth={2}
                   fill="url(#athletesGradient)"
                   name="Atletas"
@@ -502,9 +503,9 @@ export function AnalyticsWidgets({ academyId }: { academyId: string }) {
               <Area
                 type="monotone"
                 dataKey="newAthletes"
-                stroke={COLORS.violet}
+                stroke={COLORS.red}
                 strokeWidth={2}
-                fill={COLORS.violet}
+                fill={COLORS.red}
                 fillOpacity={0.2}
                 name="Nuevos"
               />

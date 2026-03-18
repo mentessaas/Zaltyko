@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useState } from "react";
 import {
   ArrowLeft,
   LayoutDashboard,
@@ -21,6 +22,9 @@ import {
   Shield,
   Badge,
   Settings,
+  Search,
+  Upload,
+  Download,
 } from "lucide-react";
 
 import { useAcademyContext } from "@/hooks/use-academy-context";
@@ -90,6 +94,7 @@ export function AcademySidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const context = useAcademyContext();
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Verificación de seguridad para evitar errores cuando el contexto no está disponible
   if (!context?.academyId) {
@@ -106,8 +111,52 @@ export function AcademySidebar() {
     return pathname.startsWith(href);
   };
 
+  // Quick search handler
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      router.push(`${basePath}/search?q=${encodeURIComponent(searchQuery.trim())}`);
+    }
+  };
+
   return (
     <aside className="hidden w-64 flex-col border-r border-border/80 bg-card/40 p-4 lg:flex">
+      {/* Global Search */}
+      <form onSubmit={handleSearch} className="mb-4">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="search"
+            placeholder="Buscar en la academia..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full rounded-lg border border-border bg-background py-2 pl-9 pr-3 text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+          />
+        </div>
+      </form>
+
+      {/* Quick Actions */}
+      <div className="mb-4 grid grid-cols-2 gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          className="text-xs"
+          onClick={() => router.push(`${basePath}/athletes/new`)}
+        >
+          <Upload className="mr-1 h-3 w-3" />
+          Importar
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          className="text-xs"
+          onClick={() => router.push(`${basePath}/settings/export`)}
+        >
+          <Download className="mr-1 h-3 w-3" />
+          Exportar
+        </Button>
+      </div>
+
       {context.isSuperAdmin && (
         <div className="mb-4">
           <Button

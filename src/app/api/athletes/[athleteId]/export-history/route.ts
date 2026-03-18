@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextResponse } from "next/server";
 import { withTenant } from "@/lib/authz";
 import { generateAttendancePDF } from "@/lib/reports/pdf-generator";

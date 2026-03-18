@@ -323,7 +323,7 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
         ]}
         title="Calendario de sesiones"
         description="Visualiza las clases programadas y coordina los entrenadores asignados."
-        icon={CalendarDays}
+        icon={<CalendarDays className="h-5 w-5" strokeWidth={1.5} />}
       />
       {usingPlaceholderSessions && (
         <div className="rounded-lg border border-dashed border-amber-400/70 bg-amber-50/80 p-4 text-sm text-amber-900">

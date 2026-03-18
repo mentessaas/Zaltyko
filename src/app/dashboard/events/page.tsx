@@ -130,7 +130,7 @@ export default async function EventsPage() {
         ]}
         title="Eventos"
         description="Crea y gestiona eventos y competencias para tus academias."
-        icon={Trophy}
+        icon={<Trophy className="h-5 w-5" strokeWidth={1.5} />}
         actions={
           <Button asChild>
             <Link href="/dashboard/events/new">
@@ -146,32 +146,32 @@ export default async function EventsPage() {
         <StatsCard
           title="Total"
           value={eventRows.length}
-          icon={Calendar}
+          icon={<Calendar className="h-6 w-6" strokeWidth={1.5} />}
           variant="default"
         />
         <StatsCard
           title="Próximos"
           value={upcomingEvents}
-          icon={CalendarClock}
+          icon={<CalendarClock className="h-6 w-6" strokeWidth={1.5} />}
           variant="success"
         />
         <StatsCard
           title="Pasados"
           value={pastEvents}
-          icon={CalendarCheck}
+          icon={<CalendarCheck className="h-6 w-6" strokeWidth={1.5} />}
           variant="warning"
         />
         <StatsCard
           title="Públicos"
           value={publicEvents}
-          icon={Globe}
+          icon={<Globe className="h-6 w-6" strokeWidth={1.5} />}
           variant="info"
         />
       </div>
 
       {eventRows.length === 0 ? (
         <EmptyState
-          icon={Trophy}
+          icon={<Trophy className="h-8 w-8" />}
           title="No hay eventos"
           description="Aún no has creado ningún evento. Crea tu primer evento para gestionar competencias y actividades."
           action={{ label: "Crear evento", href: "/dashboard/events/new" }}

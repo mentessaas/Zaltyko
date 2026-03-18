@@ -193,9 +193,9 @@ export default async function AthleteDetailPage({ params }: AthletePageProps) {
           <p className="text-sm font-medium text-blue-700">Asistencia</p>
           <p className="text-2xl md:text-3xl font-bold text-blue-800">{attendanceRate}%</p>
         </div>
-        <div className="bg-gradient-to-br from-violet-50 to-violet-100 rounded-xl p-4 border border-violet-200">
-          <p className="text-sm font-medium text-violet-700">Clases</p>
-          <p className="text-2xl md:text-3xl font-bold text-violet-800">{totalSessions}</p>
+        <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-xl p-4 border border-red-200">
+          <p className="text-sm font-medium text-red-700">Clases</p>
+          <p className="text-2xl md:text-3xl font-bold text-red-800">{totalSessions}</p>
         </div>
         <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-xl p-4 border border-amber-200">
           <p className="text-sm font-medium text-amber-700">Nivel</p>

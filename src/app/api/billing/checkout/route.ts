@@ -31,7 +31,7 @@ const handler = withTenant(async (request, context) => {
     let json;
     try {
       json = await request.json();
-    } catch (error) {
+    } catch (_error) {
       return NextResponse.json({ error: "INVALID_JSON", message: "El cuerpo de la petición no es un JSON válido" }, { status: 400 });
     }
 

@@ -185,3 +185,119 @@ export async function generateFinancialPDF(
 
   return Buffer.from(doc.output("arraybuffer"));
 }
+
+export async function generateEventsPDF(
+  data: {
+    title: string;
+    academyName: string;
+    period: string;
+    events: Array<{
+      title: string;
+      startDate: string;
+      endDate: string;
+      location: string;
+      level: string;
+      discipline: string;
+      status: string;
+      registrations: number;
+      maxCapacity: number | null;
+      registrationFee: number | null;
+    }>;
+    summary: {
+      total: number;
+      upcoming: number;
+      completed: number;
+      totalRegistrations: number;
+    };
+  },
+  options?: PDFOptions
+): Promise<Buffer> {
+  const doc = new jsPDF();
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const margin = 20;
+  let yPos = margin;
+
+  // Título
+  doc.setFontSize(18);
+  doc.setFont("helvetica", "bold");
+  doc.text(data.title, margin, yPos);
+  yPos += 10;
+
+  // Información
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "normal");
+  doc.text(`Academia: ${data.academyName}`, margin, yPos);
+  yPos += 5;
+  doc.text(`Periodo: ${data.period}`, margin, yPos);
+  yPos += 15;
+
+  // Resumen
+  doc.setFontSize(14);
+  doc.setFont("helvetica", "bold");
+  doc.text("Resumen", margin, yPos);
+  yPos += 10;
+
+  const summaryData = [
+    ["Total de Eventos", data.summary.total.toString()],
+    ["Próximos", data.summary.upcoming.toString()],
+    ["Completados", data.summary.completed.toString()],
+    ["Total de Inscripciones", data.summary.totalRegistrations.toString()],
+  ];
+
+  autoTable(doc, {
+    startY: yPos,
+    head: [["Métrica", "Valor"]],
+    body: summaryData,
+    theme: "striped",
+    headStyles: { fillColor: [66, 139, 202] },
+    margin: { left: margin, right: margin },
+  });
+
+  yPos = (doc as any).lastAutoTable.finalY + 15;
+
+  // Lista de eventos
+  if (data.events.length > 0) {
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.text("Lista de Eventos", margin, yPos);
+    yPos += 10;
+
+    const eventsData = data.events.map((event) => [
+      event.title,
+      event.startDate,
+      event.location,
+      event.status,
+      event.registrations.toString(),
+    ]);
+
+    autoTable(doc, {
+      startY: yPos,
+      head: [["Evento", "Fecha", "Ubicación", "Estado", "Inscripciones"]],
+      body: eventsData,
+      theme: "striped",
+      headStyles: { fillColor: [66, 139, 202] },
+      margin: { left: margin, right: margin },
+      styles: { fontSize: 8 },
+    });
+  }
+
+  // Pie de página
+  const pageCount = doc.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "italic");
+    doc.text(
+      `Página ${i} de ${pageCount}`,
+      pageWidth - margin - 30,
+      doc.internal.pageSize.getHeight() - 10
+    );
+    doc.text(
+      `Generado el ${new Date().toLocaleDateString("es-ES")}`,
+      margin,
+      doc.internal.pageSize.getHeight() - 10
+    );
+  }
+
+  return Buffer.from(doc.output("arraybuffer"));
+}

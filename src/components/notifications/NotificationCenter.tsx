@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { X, Check, CheckCheck, Trash2, Loader2, Bell, Calendar, CreditCard, MessageSquare, Clock, AlertCircle, Mail } from "lucide-react";
+import { X, Check, CheckCheck, Trash2, Loader2, Bell, Calendar, CreditCard, MessageSquare, Clock, AlertCircle, Mail, Volume2, VolumeX, Sparkles } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 import { useRouter } from "next/navigation";
@@ -66,7 +66,7 @@ const getNotificationColor = (type: string) => {
   if (type.includes("invoice_pending")) return "bg-amber-100 text-amber-600";
   if (type.includes("invoice_paid")) return "bg-green-100 text-green-600";
   if (type.includes("class") || type.includes("schedule") || type.includes("reminder")) return "bg-blue-100 text-blue-600";
-  if (type.includes("message") || type.includes("contact")) return "bg-purple-100 text-purple-600";
+  if (type.includes("message") || type.includes("contact")) return "bg-red-100 text-red-600";
   if (type.includes("attendance")) return "bg-yellow-100 text-yellow-600";
   if (type.includes("event")) return "bg-pink-100 text-pink-600";
   return "bg-gray-100 text-gray-600";
@@ -81,6 +81,8 @@ export function NotificationCenter({
   const [isLoading, setIsLoading] = useState(false);
   const [filter, setFilter] = useState<"all" | "unread">("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [showAISummary, setShowAISummary] = useState(false);
   const router = useRouter();
 
   const loadNotifications = useCallback(async () => {
@@ -160,9 +162,29 @@ export function NotificationCenter({
               <Bell className="h-5 w-5" />
               Notificaciones
             </span>
-            <Button variant="ghost" size="icon" onClick={onClose}>
-              <X className="h-4 w-4" />
-            </Button>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => setSoundEnabled(!soundEnabled)}
+                title={soundEnabled ? "Silenciar" : "Activar sonido"}
+              >
+                {soundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => setShowAISummary(!showAISummary)}
+                title="Resumen con IA"
+              >
+                <Sparkles className="h-4 w-4" />
+              </Button>
+              <Button variant="ghost" size="icon" onClick={onClose}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
           </DialogTitle>
           <DialogDescription>
             {/* Type Filter */}
@@ -219,6 +241,30 @@ export function NotificationCenter({
             )}
           </DialogDescription>
         </DialogHeader>
+
+        {/* AI Summary Section */}
+        {showAISummary && (
+          <div className="mx-4 mb-2 rounded-lg border border-primary/20 bg-gradient-to-r from-primary/5 to-purple-500/5 p-3">
+            <div className="flex items-center gap-2 mb-2">
+              <Sparkles className="h-4 w-4 text-purple-500" />
+              <span className="text-sm font-medium">Resumen con IA</span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Tienes <strong className="text-foreground">{unreadCount} notificaciones sin leer</strong>.
+              {unreadCount > 3 && " Las más importantes son:"}
+            </p>
+            {unreadCount > 0 && (
+              <ul className="mt-2 space-y-1">
+                {notifications.slice(0, 3).map((n) => (
+                  <li key={n.id} className="text-xs text-muted-foreground flex items-center gap-2">
+                    <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                    {n.title}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
 
         <div className="flex-1 overflow-y-auto space-y-2 mt-2">
           {isLoading ? (

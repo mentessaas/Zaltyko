@@ -33,6 +33,11 @@ interface ClassItem {
   endTime: string | null;
   capacity: number | null;
   autoGenerateSessions: boolean;
+  allowsFreeTrial: boolean;
+  waitingListEnabled: boolean;
+  cancellationHoursBefore: number;
+  cancellationPolicy: string;
+  currentEnrollment?: number;
   createdAt: string | null;
   coaches: CoachOption[];
   groups: {

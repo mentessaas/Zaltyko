@@ -143,7 +143,7 @@ export const POST = withTenant(async (request, context) => {
         .from(classEnrollments)
         .where(eq(classEnrollments.classId, body.classId));
 
-      if (currentCount >= classWithCapacity.capacity) {
+      if (Number(currentCount) >= classWithCapacity.capacity) {
         return NextResponse.json(
           { error: "CLASS_FULL", message: "La clase ha alcanzado su capacidad máxima." },
           { status: 400 }

@@ -8,12 +8,37 @@ import { getActiveSubscription } from "@/lib/limits";
 import { withTenant } from "@/lib/authz";
 
 const BodySchema = z.object({
-  academyId: z.string().uuid(),
+  academyId: z.string().uuid({
+    message: "El ID de la academia debe ser un UUID válido",
+  }),
 });
 
 export const POST = withTenant(async (request, context) => {
-  const body = BodySchema.parse(await request.json());
+  // Validar body
+  let body;
+  try {
+    body = BodySchema.parse(await request.json());
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        {
+          error: "VALIDATION_ERROR",
+          message: "Los datos proporcionados no son válidos",
+          details: error.issues.map((issue) => ({
+            field: issue.path.join("."),
+            message: issue.message,
+          })),
+        },
+        { status: 400 }
+      );
+    }
+    return NextResponse.json(
+      { error: "INVALID_JSON", message: "El cuerpo de la petición no es un JSON válido" },
+      { status: 400 }
+    );
+  }
 
+  // Obtener academia
   const [academy] = await db
     .select({
       id: academies.id,
@@ -25,49 +50,63 @@ export const POST = withTenant(async (request, context) => {
     .limit(1);
 
   if (!academy) {
-    return NextResponse.json({ error: "ACADEMY_NOT_FOUND" }, { status: 404 });
+    return NextResponse.json(
+      { error: "ACADEMY_NOT_FOUND", message: "La academia especificada no existe" },
+      { status: 404 }
+    );
   }
 
+  // Verificar acceso
   const isAdmin = context.profile.role === "admin" || context.profile.role === "super_admin";
-
   if (!isAdmin && academy.tenantId !== context.tenantId) {
-    return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+    return NextResponse.json(
+      { error: "FORBIDDEN", message: "No tienes acceso a los datos de facturación de esta academia" },
+      { status: 403 }
+    );
   }
 
   let subscription: { stripeCustomerId: string | null; planCode: string | null; status: string | null } | null = null;
 
-  if (academy.ownerId) {
-    const [owner] = await db
-      .select({
-        userId: profiles.userId,
-      })
-      .from(profiles)
-      .where(eq(profiles.id, academy.ownerId))
-      .limit(1);
-
-    if (owner) {
-      const [sub] = await db
+  try {
+    if (academy.ownerId) {
+      const [owner] = await db
         .select({
-          stripeCustomerId: subscriptions.stripeCustomerId,
-          planCode: plans.code,
-          status: subscriptions.status,
+          userId: profiles.userId,
         })
-        .from(subscriptions)
-        .leftJoin(plans, eq(subscriptions.planId, plans.id))
-        .where(eq(subscriptions.userId, owner.userId))
+        .from(profiles)
+        .where(eq(profiles.id, academy.ownerId))
         .limit(1);
-      subscription = sub ?? null;
+
+      if (owner) {
+        const [sub] = await db
+          .select({
+            stripeCustomerId: subscriptions.stripeCustomerId,
+            planCode: plans.code,
+            status: subscriptions.status,
+          })
+          .from(subscriptions)
+          .leftJoin(plans, eq(subscriptions.planId, plans.id))
+          .where(eq(subscriptions.userId, owner.userId))
+          .limit(1);
+        subscription = sub ?? null;
+      }
     }
+
+    const effective = await getActiveSubscription(body.academyId);
+
+    return NextResponse.json({
+      planCode: subscription?.planCode ?? effective.planCode,
+      status: subscription?.status ?? "active",
+      athleteLimit: effective.athleteLimit,
+      classLimit: effective.classLimit,
+      hasStripeCustomer: Boolean(subscription?.stripeCustomerId),
+    });
+  } catch (error) {
+    console.error("[billing/status] Error fetching subscription status:", error);
+    return NextResponse.json(
+      { error: "INTERNAL_ERROR", message: "Error al obtener el estado de facturación. Intenta de nuevo más tarde." },
+      { status: 500 }
+    );
   }
-
-  const effective = await getActiveSubscription(body.academyId);
-
-  return NextResponse.json({
-    planCode: subscription?.planCode ?? effective.planCode,
-    status: subscription?.status ?? "active",
-    athleteLimit: effective.athleteLimit,
-    classLimit: effective.classLimit,
-    hasStripeCustomer: Boolean(subscription?.stripeCustomerId),
-  });
 });
 

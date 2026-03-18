@@ -110,8 +110,8 @@ export function FinancialMetricsWidget({ academyId }: FinancialMetricsWidgetProp
         {/* Becas activas */}
         <div className="rounded-xl border border-border/60 bg-background/80 p-4">
           <div className="flex items-center gap-3">
-            <div className="rounded-lg bg-violet-500/10 p-2">
-              <Award className="h-5 w-5 text-violet-600" />
+            <div className="rounded-lg bg-red-500/10 p-2">
+              <Award className="h-5 w-5 text-red-600" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-xs text-muted-foreground">Becas activas</p>

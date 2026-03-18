@@ -12,30 +12,30 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Zaltyko Premium Design System
+        // Zaltyko Premium Design System - Rojo Cereza Style
         zaltyko: {
           primary: {
-            DEFAULT: "#8B5CF6", // Violeta vibrante
-            dark: "#7C3AED", // Violeta profundo
-            light: "#A78BFA", // Violeta claro
-            ultralight: "#F5F3FF", // Fondo muy claro
+            DEFAULT: "#DC2626", // Rojo cereza vibrante
+            dark: "#B91C1C", // Rojo profundo
+            light: "#EF4444", // Rojo brillante
+            ultralight: "#FEF2F2", // Fondo muy claro rojo
           },
           accent: {
             teal: "#14B8A6", // Teal para éxito/fresco
             coral: "#F43F5E", // Coral para alertas/acción
-            amber: "#F59E0B", // Ámbar para warnings
+            amber: "#F59E0B", // Ámbar/dorado para CTAs
           },
           bg: {
-            DEFAULT: "#F8FAFC", // Slate-50 (más frío y limpio)
+            DEFAULT: "#FFF8F8", // Blanco con tintura roja muy sutil
             paper: "#FFFFFF",
-            dark: "#0F172A", // Slate-900
+            dark: "#1F2937", // Gris oscuro (no rojo para evitar contraste excesivo)
           },
           text: {
-            main: "#1E293B", // Slate-800
-            secondary: "#64748B", // Slate-500
-            light: "#94A3B8", // Slate-400
+            main: "#1F2937", // Gris oscuro
+            secondary: "#6B7280", // Gris medio
+            light: "#9CA3AF", // Gris claro
           },
-          border: "#E2E8F0", // Slate-200
+          border: "#FECACA", // Rojo muy claro para borders
         },
 
         // Compatibilidad Shadcn
@@ -88,7 +88,7 @@ export default {
         soft: "0 2px 10px rgba(0, 0, 0, 0.03)",
         medium: "0 4px 20px rgba(0, 0, 0, 0.06)",
         glass: "0 8px 32px 0 rgba(31, 38, 135, 0.07)",
-        glow: "0 0 20px rgba(139, 92, 246, 0.3)", // Glow violeta
+        glow: "0 0 20px rgba(220, 38, 38, 0.3)", // Glow rojo cereza
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -100,7 +100,7 @@ export default {
       },
       backgroundImage: {
         "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",
-        "hero-glow": "conic-gradient(from 180deg at 50% 50%, #E0C6FF 0deg, #F5F3FF 180deg, #E0C6FF 360deg)",
+        "hero-glow": "conic-gradient(from 180deg at 50% 50%, #FECACA 0deg, #FEF2F2 180deg, #FECACA 360deg)",
       },
     },
   },

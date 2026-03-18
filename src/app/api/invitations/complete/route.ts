@@ -1,13 +1,15 @@
 import { NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
-import { invitations, memberships, profiles } from "@/db/schema";
+import { invitations, memberships, profiles, roleMembers, academyRoles } from "@/db/schema";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { withRateLimit, getUserIdentifier } from "@/lib/rate-limit";
 import { handleApiError } from "@/lib/api-error-handler";
 import { withPayloadValidation } from "@/lib/payload-validator";
+import { createAuditLog } from "@/lib/authz/audit-service";
+import type { AuditAction, AuditModule } from "@/db/schema/audit-logs";
 
 const AcceptSchema = z.object({
   token: z.string().min(1),
@@ -131,6 +133,39 @@ const handler = async (request: Request) => {
         supabaseUserId: user.id,
       })
       .where(eq(invitations.id, invitation.id));
+
+    // Si hay un rol personalizado asignado, crear la membresía de rol
+    if (invitation.roleId && invitation.defaultAcademyId) {
+      const memberRoleMap: Record<string, "owner" | "admin" | "coach" | "assistant" | "viewer" | "parent"> = {
+        owner: "owner",
+        admin: "admin",
+        coach: "coach",
+        parent: "parent",
+      };
+
+      await db
+        .insert(roleMembers)
+        .values({
+          roleId: invitation.roleId,
+          userId: user.id,
+          academyId: invitation.defaultAcademyId,
+          memberRole: memberRoleMap[invitation.role] || "viewer",
+          customPermissions: invitation.permissions as any,
+          assignedBy: invitation.invitedBy,
+        })
+        .onConflictDoNothing();
+
+      // Registrar en audit log
+      await createAuditLog({
+        tenantId: invitation.tenantId,
+        userId: user.id,
+        action: "users.create" as AuditAction,
+        module: "users" as AuditModule,
+        resourceType: "user",
+        resourceId: user.id,
+        description: `Usuario aceptó invitación con rol personalizado`,
+      });
+    }
 
     return NextResponse.json({ ok: true });
   } catch (error) {

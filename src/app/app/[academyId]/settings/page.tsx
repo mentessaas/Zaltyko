@@ -63,9 +63,9 @@ const DEFAULT_SETTINGS: AcademySettings = {
   isPublic: true,
   academyType: "artistica",
   branding: {
-    primaryColor: "#3B82F6",
-    secondaryColor: "#8B5CF6",
-    accentColor: "#10B981",
+    primaryColor: "#DC2626",
+    secondaryColor: "#EF4444",
+    accentColor: "#F59E0B",
     fontHeading: "Inter",
     fontBody: "Inter",
     logoUrl: "",

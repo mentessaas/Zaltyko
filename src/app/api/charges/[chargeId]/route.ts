@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { and, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -135,7 +137,7 @@ export const DELETE = withTenant(async (request, context) => {
       return NextResponse.json({ error: "CHARGE_NOT_FOUND" }, { status: 404 });
     }
 
-    await db.delete(charges).where(eq(charges.id, chargeId));
+    await db.delete(charges).where(and(eq(charges.id, chargeId), eq(charges.tenantId, context.tenantId)));
 
     return NextResponse.json({ ok: true });
   } catch (error) {

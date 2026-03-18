@@ -1,167 +1,204 @@
+"use client";
+
 import Link from "next/link";
-import { ArrowRight, PlayCircle, CheckCircle2, Sparkles } from "lucide-react";
+import { ArrowRight, Play, Check, Sparkles, Users, Calendar, CreditCard, TrendingUp, Star, Shield, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 
 const trustIndicators = [
-  "Sin tarjeta de crédito",
-  "Configuración en 5 minutos",
-  "Soporte incluido",
+  { icon: Shield, text: "Sin tarjeta de crédito" },
+  { icon: Zap, text: "Configuración en 5 minutos" },
+  { icon: Star, text: "Soporte prioritario incluido" },
+];
+
+const stats = [
+  { value: "150+", label: "Academias", suffix: "activas" },
+  { value: "25,000+", label: "Atletas", suffix: "gestionados" },
+  { value: "€4.2M", label: "Pagos", suffix: "procesados" },
+  { value: "98%", label: "Satisfacción", suffix: "de clientes" },
+];
+
+const features = [
+  {
+    title: "Gestión de Atletas",
+    description: "Perfiles completos con historial médico, niveles y evaluaciones técnicas",
+    icon: Users,
+    color: "from-rose-500 to-red-600",
+  },
+  {
+    title: "Clases & Horarios",
+    description: "Programación flexible con control de aforo y asistencia en tiempo real",
+    icon: Calendar,
+    color: "from-teal-500 to-emerald-600",
+  },
+  {
+    title: "Pagos Automatizados",
+    description: "Stripe integrado para cobros recurrentes y gestión de morosos",
+    icon: CreditCard,
+    color: "from-amber-500 to-orange-600",
+  },
+  {
+    title: "Analytics & Reportes",
+    description: "Dashboard con métricas clave y exportación a Excel/PDF",
+    icon: TrendingUp,
+    color: "from-violet-500 to-purple-600",
+  },
 ];
 
 export default function HeroSection() {
   return (
-    <section className="relative overflow-hidden pt-32 pb-20 lg:pt-40 lg:pb-28">
-      {/* Background Effects */}
-      <div className="absolute inset-0 -z-10 bg-hero-glow opacity-30 blur-3xl" />
-      <div className="absolute top-20 right-0 -z-10 h-[600px] w-[600px] rounded-full bg-zaltyko-primary/15 blur-[140px]" />
-      <div className="absolute bottom-0 left-0 -z-10 h-[400px] w-[400px] rounded-full bg-zaltyko-accent-teal/10 blur-[100px]" />
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 -z-10 h-[800px] w-[800px] rounded-full bg-gradient-to-tr from-zaltyko-primary/5 to-transparent blur-[120px]" />
+    <section className="relative min-h-screen flex items-center overflow-hidden bg-white">
+      {/* Premium Background */}
+      <div className="absolute inset-0">
+        {/* Gradient orbs */}
+        <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-gradient-to-br from-red-100 via-rose-50 to-transparent rounded-full blur-3xl opacity-60" />
+        <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-gradient-to-tr from-red-50 via-pink-50 to-transparent rounded-full blur-3xl opacity-60" />
+        
+        {/* Subtle grid pattern */}
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#fecaca1a_1px,transparent_1px),linear-gradient(to_bottom,#fecaca1a_1px,transparent_1px)] bg-[size:60px_60px]" />
+        
+        {/* Diagonal accent line */}
+        <div className="absolute top-40 right-20 w-[400px] h-[400px] border border-red-100 rounded-full rotate-45 opacity-30" />
+        <div className="absolute bottom-20 left-20 w-[300px] h-[300px] border border-rose-100 rounded-full -rotate-12 opacity-40" />
+      </div>
 
-      {/* Decorative grid pattern */}
-      <div className="absolute inset-0 -z-10 bg-[linear-gradient(to_right,#8B5CF610_1px,transparent_1px),linear-gradient(to_bottom,#8B5CF610_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_110%)]" />
+      <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-20 lg:py-32">
+        <div className="grid lg:grid-cols-2 gap-16 lg:gap-20 items-center">
+          {/* Left Content */}
+          <div className="max-w-2xl">
+            {/* Badge */}
+            <div className="inline-flex items-center gap-2 rounded-full bg-red-50 border border-red-100 px-4 py-1.5 text-sm font-medium text-red-700 mb-8 hover:bg-red-100 transition-colors cursor-pointer">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+              </span>
+              #1 Software para Gimnasia en España
+            </div>
 
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-4xl text-center">
-          {/* Badge */}
-          <div className="inline-flex items-center gap-2 rounded-full border border-zaltyko-primary/20 bg-white/80 px-5 py-2.5 text-sm font-semibold text-zaltyko-primary backdrop-blur-sm shadow-lg shadow-zaltyko-primary/10 mb-8 animate-in fade-in slide-in-from-top-4 duration-700">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-zaltyko-accent-teal opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-zaltyko-accent-teal"></span>
-            </span>
-            Software especializado para gimnasia artística, rítmica y acrobática
+            {/* H1 */}
+            <h1 className="font-display text-5xl sm:text-6xl lg:text-7xl font-bold leading-[1.05] tracking-tight text-gray-900 mb-6">
+              Gestiona tu academia de gimansia{" "}
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-600 via-rose-600 to-red-700">
+                sin complicaciones
+              </span>
+            </h1>
+
+            {/* Subtitle */}
+            <p className="text-xl text-gray-600 leading-relaxed mb-8 max-w-xl">
+              La plataforma todo-en-uno para clubes de gimansia artística, rítmica y acrobática. 
+              <strong> 15 horas menos</strong> de trabajo administrativo por semana.
+            </p>
+
+            {/* CTAs */}
+            <div className="flex flex-col sm:flex-row gap-4 mb-12">
+              <Link
+                href="/onboarding"
+                className={cn(
+                  buttonVariants({ variant: "default", size: "lg" }),
+                  "bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-600/25 hover:shadow-red-600/40 transition-all duration-300 text-base px-8 py-6 group"
+                )}
+              >
+                <Sparkles className="mr-2 h-5 w-5" />
+                Empezar gratis
+                <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+              </Link>
+              <Link
+                href="#demo"
+                className={cn(
+                  buttonVariants({ variant: "outline", size: "lg" }),
+                  "border-gray-200 hover:border-red-200 hover:bg-red-50 text-gray-700 text-base px-8 py-6"
+                )}
+              >
+                <Play className="mr-2 h-5 w-5 text-red-500" />
+                Ver demo
+              </Link>
+            </div>
+
+            {/* Trust indicators */}
+            <div className="flex flex-wrap gap-6">
+              {trustIndicators.map((item) => (
+                <div key={item.text} className="flex items-center gap-2 text-gray-600">
+                  <item.icon className="h-5 w-5 text-red-500" />
+                  <span className="text-sm font-medium">{item.text}</span>
+                </div>
+              ))}
+            </div>
           </div>
 
-          {/* H1 - SEO Optimizado */}
-          <h1 className="font-display text-4xl font-bold leading-[1.1] tracking-tight text-zaltyko-text-main sm:text-5xl lg:text-7xl animate-in fade-in slide-in-from-bottom-6 duration-700 delay-100">
-            El software definitivo para{" "}
-            <span className="text-gradient">academias de gimnasia</span>
-          </h1>
+          {/* Right Content - Stats & Features */}
+          <div className="relative">
+            {/* Floating stats cards */}
+            <div className="grid grid-cols-2 gap-4 mb-6">
+              {stats.map((stat, i) => (
+                <div 
+                  key={stat.label}
+                  className={cn(
+                    "bg-white/80 backdrop-blur-sm rounded-2xl p-5 border border-gray-100 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1",
+                    i === 0 && "col-span-2 bg-gradient-to-r from-red-600 to-rose-600 text-white"
+                  )}
+                >
+                  <p className={cn("text-3xl font-bold", i === 0 ? "text-white" : "text-gray-900")}>
+                    {stat.value}
+                  </p>
+                  <p className={cn("text-sm font-medium", i === 0 ? "text-white/80" : "text-gray-500")}>
+                    {stat.label} {stat.suffix && <span className="text-gray-400">{stat.suffix}</span>}
+                  </p>
+                </div>
+              ))}
+            </div>
 
-          {/* Subtítulo descriptivo */}
-          <p className="mt-6 mx-auto max-w-3xl text-lg text-zaltyko-text-secondary sm:text-xl leading-relaxed animate-in fade-in slide-in-from-bottom-6 duration-700 delay-200">
-            Gestiona atletas, clases, pagos, eventos y comunicación desde un solo panel
-            diseñado exclusivamente para gimnasia artística, rítmica y acrobática.
-            Simplifica la administración de tu club deportivo y enfócate en lo que importa:
-            el desarrollo de tus atletas.
-          </p>
+            {/* Features grid */}
+            <div className="grid grid-cols-2 gap-3">
+              {features.map((feature, i) => (
+                <div 
+                  key={feature.title}
+                  className="bg-white/60 backdrop-blur-sm rounded-xl p-4 border border-gray-100 hover:border-red-100 hover:shadow-md transition-all duration-300 group"
+                >
+                  <div className={cn("w-10 h-10 rounded-xl bg-gradient-to-br flex items-center justify-center mb-3", feature.color)}>
+                    <feature.icon className="h-5 w-5 text-white" />
+                  </div>
+                  <h3 className="font-semibold text-gray-900 text-sm mb-1 group-hover:text-red-600 transition-colors">
+                    {feature.title}
+                  </h3>
+                  <p className="text-xs text-gray-500 leading-snug">
+                    {feature.description}
+                  </p>
+                </div>
+              ))}
+            </div>
 
-          {/* CTAs */}
-          <div className="mt-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-center animate-in fade-in slide-in-from-bottom-6 duration-700 delay-300">
-            <Link
-              href="/onboarding"
-              className={cn(
-                buttonVariants({ variant: "default", size: "lg" }),
-                "shadow-glow hover:shadow-[0_0_30px_rgba(139,92,246,0.4)] transition-all duration-300 text-base px-8 py-6 group"
-              )}
-            >
-              <Sparkles className="mr-2 h-5 w-5 group-hover:animate-pulse" />
-              Crear mi academia gratis
-              <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
-            </Link>
-            <Link
-              href="#como-funciona"
-              className={cn(
-                buttonVariants({ variant: "outline", size: "lg" }),
-                "bg-white/60 backdrop-blur-sm hover:bg-white/80 text-base px-8 py-6 border-zaltyko-primary/20 hover:border-zaltyko-primary/40"
-              )}
-            >
-              <PlayCircle className="mr-2 h-5 w-5" />
-              Ver cómo funciona
-            </Link>
-          </div>
-
-          {/* Trust indicators */}
-          <div className="mt-10 flex flex-wrap justify-center gap-x-8 gap-y-4 animate-in fade-in slide-in-from-bottom-6 duration-700 delay-400">
-            {trustIndicators.map((item) => (
-              <div key={item} className="flex items-center gap-2 text-sm font-semibold text-zaltyko-text-secondary">
-                <CheckCircle2 className="h-5 w-5 text-zaltyko-accent-teal" />
-                {item}
+            {/* Floating elements */}
+            <div className="absolute -top-4 -right-4 bg-white rounded-2xl p-3 shadow-xl border border-gray-100 animate-bounce" style={{ animationDuration: '3s' }}>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-green-500 rounded-full" />
+                <span className="text-sm font-medium text-gray-700">Sistema activo</span>
               </div>
-            ))}
+            </div>
           </div>
         </div>
 
-        {/* Hero Visual - Dashboard Preview */}
-        <div className="mt-16 mx-auto max-w-5xl animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-500">
-          <div className="relative">
-            {/* Glow effect behind dashboard */}
-            <div className="absolute -inset-6 bg-gradient-to-r from-zaltyko-primary/30 via-zaltyko-accent-teal/20 to-zaltyko-primary/30 rounded-3xl blur-3xl opacity-70" />
-
-            {/* Dashboard mockup */}
-            <div className="relative glass-panel rounded-2xl p-2 sm:p-3 shadow-2xl">
-              <div className="rounded-xl bg-white border border-zaltyko-border/60 overflow-hidden shadow-xl">
-                {/* Browser bar */}
-                <div className="flex items-center gap-2 px-4 py-3 bg-gradient-to-b from-zaltyko-bg to-white border-b border-zaltyko-border/60">
-                  <div className="flex gap-1.5">
-                    <div className="w-3 h-3 rounded-full bg-red-400 shadow-sm" />
-                    <div className="w-3 h-3 rounded-full bg-yellow-400 shadow-sm" />
-                    <div className="w-3 h-3 rounded-full bg-green-400 shadow-sm" />
-                  </div>
-                  <div className="flex-1 mx-4">
-                    <div className="max-w-md mx-auto bg-white/80 rounded-lg px-4 py-2 text-sm font-medium text-zaltyko-text-secondary border border-zaltyko-border/50 shadow-sm">
-                      app.zaltyko.com/dashboard
-                    </div>
-                  </div>
-                </div>
-
-                {/* Dashboard content preview */}
-                <div className="p-6 bg-gradient-to-br from-zaltyko-bg/80 to-white">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                    {[
-                      { label: "Atletas activos", value: "127", color: "text-zaltyko-primary", icon: "👥" },
-                      { label: "Clases hoy", value: "8", color: "text-zaltyko-accent-teal", icon: "📅" },
-                      { label: "Pagos pendientes", value: "€2,450", color: "text-zaltyko-accent-amber", icon: "💰" },
-                      { label: "Asistencia", value: "94%", color: "text-green-600", icon: "✅" },
-                    ].map((stat) => (
-                      <div key={stat.label} className="bg-white/80 backdrop-blur rounded-2xl p-4 border border-zaltyko-border/50 shadow-md hover:shadow-lg hover:scale-[1.02] transition-all duration-300">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-2xl">{stat.icon}</span>
-                        </div>
-                        <p className="text-xs font-bold uppercase tracking-wider text-zaltyko-text-secondary/80 mb-1">{stat.label}</p>
-                        <p className={cn("text-3xl font-bold", stat.color)}>{stat.value}</p>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="grid md:grid-cols-3 gap-4">
-                    <div className="md:col-span-2 bg-white/80 backdrop-blur rounded-2xl p-5 border border-zaltyko-border/50 shadow-md">
-                      <div className="flex items-center gap-2 mb-4">
-                        <div className="h-2 w-2 rounded-full bg-zaltyko-accent-teal animate-pulse" />
-                        <p className="text-sm font-bold text-zaltyko-text-main">Próximas clases</p>
-                      </div>
-                      <div className="space-y-3">
-                        {["Gimnasia Artística - Nivel Intermedio", "Rítmica Juvenil - Grupo A", "Acrobática Competición"].map((clase, i) => (
-                          <div key={clase} className="flex items-center justify-between py-3 px-4 bg-gradient-to-r from-zaltyko-bg/50 to-transparent rounded-xl border border-zaltyko-border/30 hover:border-zaltyko-primary/30 hover:shadow-md transition-all duration-300">
-                            <span className="text-sm font-medium text-zaltyko-text-secondary">{clase}</span>
-                            <span className="text-xs font-bold px-3 py-1.5 bg-gradient-to-r from-zaltyko-primary to-zaltyko-primary-dark text-white rounded-lg shadow-md">
-                              {["09:00", "11:30", "16:00"][i]}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="bg-white/80 backdrop-blur rounded-2xl p-5 border border-zaltyko-border/50 shadow-md">
-                      <div className="flex items-center gap-2 mb-4">
-                        <div className="h-2 w-2 rounded-full bg-zaltyko-accent-amber animate-pulse" />
-                        <p className="text-sm font-bold text-zaltyko-text-main">Actividad reciente</p>
-                      </div>
-                      <div className="space-y-3">
-                        {[
-                          { text: "Nueva inscripción: María G.", emoji: "🎉" },
-                          { text: "Pago recibido: €85", emoji: "💚" },
-                          { text: "Clase completada: Elite", emoji: "⭐" },
-                        ].map((activity) => (
-                          <div key={activity.text} className="flex items-center gap-3 py-2">
-                            <span className="text-lg">{activity.emoji}</span>
-                            <span className="text-xs font-medium text-zaltyko-text-secondary">{activity.text}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+        {/* Bottom - More social proof */}
+        <div className="mt-20 pt-10 border-t border-gray-100">
+          <p className="text-center text-sm text-gray-500 mb-6">
+            <span className="font-semibold text-gray-900">150+ academias</span> ya confían en Zaltyko
+          </p>
+          <div className="flex items-center justify-center gap-8 opacity-50 grayscale hover:grayscale-0 transition-all duration-500">
+            {/* Placeholder logos - using text as placeholder */}
+            <div className="flex items-center gap-2 text-gray-400 font-bold text-lg">
+              <span className="w-8 h-8 bg-gray-200 rounded-lg flex items-center justify-center">G</span>
+              Gravity Gym
+            </div>
+            <div className="flex items-center gap-2 text-gray-400 font-bold text-lg">
+              <span className="w-8 h-8 bg-gray-200 rounded-lg flex items-center justify-center">E</span>
+              Escuela Olímpica
+            </div>
+            <div className="flex items-center gap-2 text-gray-400 font-bold text-lg">
+              <span className="w-8 h-8 bg-gray-200 rounded-lg flex items-center justify-center">Z</span>
+              Zenith Elite
+            </div>
+            <div className="flex items-center gap-2 text-gray-400 font-bold text-lg">
+              <span className="w-8 h-8 bg-gray-200 rounded-lg flex items-center justify-center">A</span>
+              Academia Reyes
             </div>
           </div>
         </div>
@@ -169,4 +206,3 @@ export default function HeroSection() {
     </section>
   );
 }
-

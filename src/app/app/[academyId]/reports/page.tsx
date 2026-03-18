@@ -15,7 +15,7 @@ const reportTypes = [
     id: "attendance",
     title: "Asistencia",
     description: "Asistencia por atleta, clase y rango de fechas",
-    icon: Calendar,
+    icon: <Calendar className="h-6 w-6 text-white" />,
     href: "/attendance",
     color: "bg-blue-500",
   },
@@ -23,7 +23,7 @@ const reportTypes = [
     id: "financial",
     title: "Financiero",
     description: "Ingresos, facturas, cobros y morosos",
-    icon: DollarSign,
+    icon: <DollarSign className="h-6 w-6 text-white" />,
     href: "/financial",
     color: "bg-green-500",
   },
@@ -31,15 +31,15 @@ const reportTypes = [
     id: "progress",
     title: "Progreso",
     description: "Progreso de atletas por nivel y habilidad",
-    icon: TrendingUp,
+    icon: <TrendingUp className="h-6 w-6 text-white" />,
     href: "/progress",
-    color: "bg-purple-500",
+    color: "bg-red-500",
   },
   {
     id: "class",
     title: "Clases",
     description: "Clases populares y asistencia por clase",
-    icon: GraduationCap,
+    icon: <GraduationCap className="h-6 w-6 text-white" />,
     href: "/class",
     color: "bg-orange-500",
   },
@@ -47,7 +47,7 @@ const reportTypes = [
     id: "coach",
     title: "Entrenadores",
     description: "Rendimiento y métricas de entrenadores",
-    icon: UserCog,
+    icon: <UserCog className="h-6 w-6 text-white" />,
     href: "/coach",
     color: "bg-teal-500",
   },
@@ -55,7 +55,7 @@ const reportTypes = [
     id: "churn",
     title: "Bajas",
     description: "Atletas dados de baja y razones",
-    icon: UserMinus,
+    icon: <UserMinus className="h-6 w-6 text-white" />,
     href: "/churn",
     color: "bg-red-500",
   },
@@ -109,7 +109,7 @@ export default function ReportsPage({ params }: PageProps) {
         <ReportCard
           title="Total Atletas"
           description="Activos actualmente"
-          icon={Users}
+          icon={<Users className="h-5 w-5 text-white" />}
           href={`/app/${academyId}/athletes`}
           color="bg-blue-500"
           compact
@@ -117,7 +117,7 @@ export default function ReportsPage({ params }: PageProps) {
         <ReportCard
           title="Clases Activas"
           description="Este mes"
-          icon={GraduationCap}
+          icon={<GraduationCap className="h-5 w-5 text-white" />}
           href={`/app/${academyId}/classes`}
           color="bg-orange-500"
           compact
@@ -125,7 +125,7 @@ export default function ReportsPage({ params }: PageProps) {
         <ReportCard
           title="Ingresos del Mes"
           description="Ver detalle"
-          icon={DollarSign}
+          icon={<DollarSign className="h-5 w-5 text-white" />}
           href={`/app/${academyId}/reports/financial`}
           color="bg-green-500"
           compact
@@ -133,9 +133,9 @@ export default function ReportsPage({ params }: PageProps) {
         <ReportCard
           title="Tasa de Asistencia"
           description="Promedio general"
-          icon={BarChart3}
+          icon={<BarChart3 className="h-5 w-5 text-white" />}
           href={`/app/${academyId}/reports/attendance`}
-          color="bg-purple-500"
+          color="bg-red-500"
           compact
         />
       </div>

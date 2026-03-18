@@ -11,9 +11,10 @@ export const POST = withTenant(async (request, context) => {
 
   try {
     const formData = await request.formData();
-    const file = formData.get("file") as File;
-    const academyId = formData.get("academyId") as string;
-    const folder = formData.get("folder") as string || "uploads";
+    const fd = formData as unknown as { get(name: string): unknown };
+    const file = fd.get("file") as File;
+    const academyId = fd.get("academyId") as string;
+    const folder = (fd.get("folder") as string) || "uploads";
 
     if (!file) {
       return NextResponse.json({ error: "FILE_REQUIRED" }, { status: 400 });

@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextResponse } from "next/server";
 import { and, eq, inArray } from "drizzle-orm";
 
@@ -11,7 +13,6 @@ import {
   classWeekdays,
   classes,
   coaches,
-  groups,
 } from "@/db/schema";
 import { TenantContext, withTenant } from "@/lib/authz";
 import { handleApiError } from "@/lib/api-error-handler";

@@ -5,6 +5,15 @@ export const DEFAULT_PAGE_SIZE = 50;
 export const MAX_PAGE_SIZE = 200;
 export const MIN_PAGE_SIZE = 10;
 
+// Tamaños de página por contexto
+export const PAGE_SIZES = {
+  TABLE_DEFAULT: 20,
+  TABLE_SMALL: 10,
+  TABLE_LARGE: 50,
+  GRID: 12,
+  AUTOCOMPLETE: 10,
+} as const;
+
 // Rate limiting
 export const RATE_LIMITS = {
   PUBLIC: { limit: 100, window: 60 },

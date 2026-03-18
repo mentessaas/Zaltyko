@@ -34,6 +34,10 @@ interface ClassItem {
   startTime: string | null;
   endTime: string | null;
   capacity: number | null;
+  allowsFreeTrial: boolean;
+  waitingListEnabled: boolean;
+  cancellationHoursBefore: number;
+  cancellationPolicy: string;
   coaches: CoachOption[];
   groups?: GroupOption[];
 }
@@ -72,6 +76,14 @@ export function EditClassDialog({
   const [selectedGroups, setSelectedGroups] = useState<string[]>(
     classItem.groups?.map((group) => group.id) ?? []
   );
+  const [allowsFreeTrial, setAllowsFreeTrial] = useState(classItem.allowsFreeTrial ?? false);
+  const [waitingListEnabled, setWaitingListEnabled] = useState(classItem.waitingListEnabled ?? false);
+  const [cancellationHoursBefore, setCancellationHoursBefore] = useState(
+    classItem.cancellationHoursBefore ?? 24
+  );
+  const [cancellationPolicy, setCancellationPolicy] = useState(
+    classItem.cancellationPolicy ?? "standard"
+  );
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [isDeleting, setIsDeleting] = useState(false);
@@ -85,6 +97,10 @@ export function EditClassDialog({
     setCapacity(classItem.capacity ? String(classItem.capacity) : "");
     setSelectedCoaches(classItem.coaches.map((coach) => coach.id));
     setSelectedGroups(classItem.groups?.map((group) => group.id) ?? []);
+    setAllowsFreeTrial(classItem.allowsFreeTrial ?? false);
+    setWaitingListEnabled(classItem.waitingListEnabled ?? false);
+    setCancellationHoursBefore(classItem.cancellationHoursBefore ?? 24);
+    setCancellationPolicy(classItem.cancellationPolicy ?? "standard");
     setError(null);
   }, [classItem, open]);
 
@@ -137,16 +153,6 @@ export function EditClassDialog({
 
     const hasAnyChanges = nameChanged || weekdaysChanged || startTimeChanged || endTimeChanged || capacityChanged || coachesChanged || groupsChanged;
 
-    console.log("EditClassDialog: hasChanges check", {
-      nameChanged: { original: classItem.name, new: name.trim(), changed: nameChanged },
-      weekdaysChanged: { original: originalWeekdays, new: newWeekdays, changed: weekdaysChanged },
-      startTimeChanged: { original: originalStartTime, new: startTime, changed: startTimeChanged },
-      endTimeChanged: { original: originalEndTime, new: endTime, changed: endTimeChanged },
-      capacityChanged: { original: originalCapacity, new: capacity, changed: capacityChanged },
-      coachesChanged: { original: originalCoachIds, new: newCoachIds, changed: coachesChanged },
-      hasAnyChanges,
-    });
-
     return hasAnyChanges;
   }, [name, selectedWeekdays, startTime, endTime, capacity, selectedCoaches, classItem]);
 
@@ -160,10 +166,6 @@ export function EditClassDialog({
     setError(null);
 
     // Verificar cambios antes de enviar
-    if (!hasChanges && !isPending) {
-      console.warn("EditClassDialog: Intento de guardar sin cambios detectados. Guardando de todas formas...");
-    }
-
     startTransition(async () => {
       try {
         const supabase = createClient();
@@ -185,10 +187,11 @@ export function EditClassDialog({
           capacity: capacity ? Number(capacity) : null,
           coachIds: selectedCoaches,
           groupIds: selectedGroups,
+          allowsFreeTrial,
+          waitingListEnabled,
+          cancellationHoursBefore: cancellationHoursBefore ? Number(cancellationHoursBefore) : 24,
+          cancellationPolicy,
         };
-
-        console.log("EditClassDialog: Enviando payload", payload);
-        console.log("EditClassDialog: Estado actual de hasChanges", hasChanges);
 
         const response = await fetch(`/api/classes/${classItem.id}`, {
           method: "PUT",
@@ -199,8 +202,6 @@ export function EditClassDialog({
           },
           body: JSON.stringify(payload),
         });
-
-        console.log("EditClassDialog: Respuesta recibida", response.status, response.statusText);
 
         if (!response.ok) {
           const data = await response.json().catch(() => ({}));
@@ -238,7 +239,6 @@ export function EditClassDialog({
         }
 
         const result = await response.json().catch(() => ({ ok: true }));
-        console.log("EditClassDialog: Actualización exitosa", result);
 
         // Llamar a onUpdated antes de cerrar para refrescar los datos
         onUpdated();
@@ -542,6 +542,60 @@ export function EditClassDialog({
               )}
             </div>
           </section>
+        </div>
+
+        {/* Opciones avanzadas */}
+        <div className="space-y-4 rounded-lg border border-border bg-muted/30 p-4">
+          <h3 className="text-sm font-semibold text-foreground">Opciones avanzadas</h3>
+
+          <div className="flex flex-wrap gap-4">
+            <label className="flex items-center gap-2 text-sm text-foreground">
+              <input
+                type="checkbox"
+                checked={allowsFreeTrial}
+                onChange={(event) => setAllowsFreeTrial(event.target.checked)}
+                className="rounded border-border text-primary focus:ring-primary"
+              />
+              Permite clase de prueba gratuita
+            </label>
+
+            <label className="flex items-center gap-2 text-sm text-foreground">
+              <input
+                type="checkbox"
+                checked={waitingListEnabled}
+                onChange={(event) => setWaitingListEnabled(event.target.checked)}
+                className="rounded border-border text-primary focus:ring-primary"
+              />
+              Habilitar lista de espera cuando esté llena
+            </label>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-foreground">Política de cancelación</label>
+              <select
+                value={cancellationPolicy}
+                onChange={(event) => setCancellationPolicy(event.target.value)}
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              >
+                <option value="flexible">Flexible (cancelar hasta 2h antes)</option>
+                <option value="standard">Estándar (cancelar hasta 24h antes)</option>
+                <option value="strict">Estricta (cancelar hasta 48h antes)</option>
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-foreground">Horas mínimas para cancelar</label>
+              <input
+                type="number"
+                min={0}
+                max={168}
+                value={cancellationHoursBefore}
+                onChange={(event) => setCancellationHoursBefore(Number(event.target.value))}
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+              <p className="text-xs text-muted-foreground">Horas antes de la clase</p>
+            </div>
+          </div>
         </div>
       </form>
     </Modal>

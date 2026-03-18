@@ -6,7 +6,7 @@ import { academies } from "./academies";
 export const empleoListings = pgTable("empleo_listings", {
   id: uuid("id").primaryKey().defaultRandom(),
   academyId: uuid("academy_id").references(() => academies.id, { onDelete: "cascade" }),
-  userId: uuid("user_id").references(() => profiles.id, { onDelete: "cascade" }),
+  userId: uuid("user_id"), // No FK - puede ser cualquier UUID para listings públicos
   title: text("title").notNull(),
   category: jobCategoryEnum("category").notNull(),
   description: text("description"),

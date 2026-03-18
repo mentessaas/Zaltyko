@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 const COLOR_TO_VARIANT: Record<string, "default" | "success" | "warning" | "danger" | "info"> = {
   sky: "info",
   emerald: "success",
-  violet: "default",
+  red: "default",
   amber: "warning",
   coral: "danger",
   slate: "default",
@@ -24,7 +24,7 @@ export interface DashboardCardProps {
   subtitle: string;
   href: string;
   icon: LucideIcon;
-  accent?: "sky" | "emerald" | "violet" | "amber" | "coral" | "slate" | "zaltyko-primary" | "zaltyko-accent";
+  accent?: "sky" | "emerald" | "red" | "amber" | "coral" | "slate" | "zaltyko-primary" | "zaltyko-accent";
   trend?: {
     value: number;
     direction: "up" | "down";
@@ -59,7 +59,7 @@ export function DashboardCard({
       className={cn(
         "group relative flex flex-col gap-3 rounded-2xl border border-border/40 bg-card/80 p-5 shadow-md transition-all duration-300 hover:-translate-y-1 hover:border-zaltyko-primary/30 hover:shadow-xl hover:shadow-zaltyko-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.98] overflow-hidden",
         accent === "emerald" && "hover:ring-4 hover:ring-zaltyko-primary/20",
-        accent === "violet" && "hover:ring-4 hover:ring-violet-500/20",
+        accent === "red" && "hover:ring-4 hover:ring-red-500/20",
         accent === "amber" && "hover:ring-4 hover:ring-zaltyko-accent/20",
         accent === "coral" && "hover:ring-4 hover:ring-rose-500/20",
         accent === "sky" && "hover:ring-4 hover:ring-zaltyko-primary-light/20",
@@ -70,7 +70,7 @@ export function DashboardCard({
       <div className={cn(
         "absolute inset-0 bg-gradient-to-br opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none",
         accent === "emerald" && "from-zaltyko-primary/20 to-transparent",
-        accent === "violet" && "from-violet-500/20 to-transparent",
+        accent === "red" && "from-red-500/20 to-transparent",
         accent === "amber" && "from-zaltyko-accent/20 to-transparent",
         accent === "coral" && "from-rose-500/20 to-transparent",
         accent === "sky" && "from-zaltyko-primary-light/20 to-transparent",
@@ -105,7 +105,7 @@ export function DashboardCard({
           className={cn(
             "flex-shrink-0 rounded-2xl p-3 transition-all duration-300 shadow-md",
             accent === "emerald" && "bg-zaltyko-primary/10 text-zaltyko-primary group-hover:scale-110",
-            accent === "violet" && "bg-violet-500/10 text-violet-600 group-hover:scale-110",
+            accent === "red" && "bg-red-500/10 text-red-600 group-hover:scale-110",
             accent === "amber" && "bg-zaltyko-accent/10 text-zaltyko-accent group-hover:scale-110",
             accent === "coral" && "bg-rose-500/10 text-rose-600 group-hover:scale-110",
             accent === "sky" && "bg-zaltyko-primary-light/10 text-zaltyko-primary-light group-hover:scale-110",

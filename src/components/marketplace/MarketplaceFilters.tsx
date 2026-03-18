@@ -76,8 +76,8 @@ export function MarketplaceFilters() {
               <Checkbox
                 id={`type-${type.value}`}
                 checked={selectedTypes.includes(type.value)}
-                onCheckedChange={(checked) => {
-                  if (checked) {
+                onChange={(e) => {
+                  if (e.target.checked) {
                     setSelectedTypes([...selectedTypes, type.value]);
                   } else {
                     setSelectedTypes(selectedTypes.filter(t => t !== type.value));
@@ -98,8 +98,8 @@ export function MarketplaceFilters() {
               <Checkbox
                 id={`cat-${cat.value}`}
                 checked={selectedCategories.includes(cat.value)}
-                onCheckedChange={(checked) => {
-                  if (checked) {
+                onChange={(e) => {
+                  if (e.target.checked) {
                     setSelectedCategories([...selectedCategories, cat.value]);
                   } else {
                     setSelectedCategories(selectedCategories.filter(c => c !== cat.value));

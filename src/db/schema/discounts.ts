@@ -3,6 +3,7 @@ import { date } from "drizzle-orm/pg-core";
 
 import { academies } from "./academies";
 import { profiles } from "./profiles";
+import { discountCategoryEnum } from "./enums";
 
 export const discounts = pgTable(
   "discounts",
@@ -15,6 +16,7 @@ export const discounts = pgTable(
     code: text("code"),
     name: text("name").notNull(),
     description: text("description"),
+    discountCategory: discountCategoryEnum("discount_category").notNull().default("regular"),
     discountType: text("discount_type").notNull().default("percentage"),
     discountValue: numeric("discount_value", { precision: 10, scale: 2 }).notNull(),
     applicableTo: text("applicable_to").notNull().default("all"),
@@ -24,6 +26,11 @@ export const discounts = pgTable(
     endDate: date("end_date"),
     maxUses: integer("max_uses"),
     currentUses: integer("current_uses").notNull().default(0),
+    // Early payment discount fields
+    paymentDueDays: integer("payment_due_days"),
+    earlyPaymentDiscount: numeric("early_payment_discount", { precision: 10, scale: 2 }),
+    earlyPaymentDays: integer("early_payment_days"),
+    // end early payment fields
     isActive: boolean("is_active").notNull().default(true),
     createdBy: uuid("created_by").references(() => profiles.id, { onDelete: "set null" }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

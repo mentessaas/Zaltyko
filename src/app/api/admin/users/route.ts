@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { and, eq, inArray } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
-import { academies, invitations, profileRoleEnum } from "@/db/schema";
+import { academies, invitations } from "@/db/schema";
 import { config } from "@/config";
 import { sendEmail } from "@/lib/mailgun";
 import { withTenant } from "@/lib/authz";

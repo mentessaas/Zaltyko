@@ -10,6 +10,7 @@ import { Sidebar } from "@/components/dashboard/Sidebar";
 import { RealtimeNotificationsProvider } from "@/components/providers/RealtimeNotificationsProvider";
 import { logger } from "@/lib/logger";
 import { DashboardSkipLink } from "@/components/dashboard/DashboardSkipLink";
+import { ChatWidgetWrapper } from "@/components/chat/ChatWidgetWrapper";
 
 export const metadata: Metadata = {
   title: "Dashboard | Zaltyko",
@@ -106,6 +107,7 @@ export default async function DashboardLayout({
       <main id="main-content" className="pl-64 transition-all duration-300" tabIndex={-1}>
         <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
           <RealtimeNotificationsProvider userId={profile.userId} tenantId={profile.tenantId} />
+          <ChatWidgetWrapper />
           {children}
         </div>
       </main>

@@ -19,9 +19,8 @@ interface PushNotificationPermissionProps {
 }
 
 // Simple toast helper (replace with your actual toast implementation)
-function showToast(title: string, description?: string, variant?: "default" | "destructive") {
-  // For now, use console - replace with your toast implementation
-  console.log(`[Toast:${variant || "default"}] ${title}: ${description}`);
+function showToast(_title: string, _description?: string, _variant?: "default" | "destructive") {
+  // Toast implementation placeholder - replace with actual toast
 }
 
 export function PushNotificationPermission({

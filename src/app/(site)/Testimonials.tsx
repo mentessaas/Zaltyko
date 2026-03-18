@@ -41,7 +41,7 @@ const testimonials: Testimonial[] = [
     role: "Head Coach · Zenith Elite",
     avatar: {
       src: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=facearea&facepad=3&w=160&h=160&q=80",
-      initialsBg: "from-sky-500/30 to-violet-400/30",
+      initialsBg: "from-sky-500/30 to-red-400/30",
     },
   },
 ];

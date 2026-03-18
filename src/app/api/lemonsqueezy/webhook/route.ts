@@ -1,4 +1,6 @@
 // app/api/webhook/route.ts
+export const dynamic = 'force-dynamic';
+
 import { NextResponse } from "next/server";
 import { handleWebhook } from "@/utils/lemon";
 import crypto from "crypto";

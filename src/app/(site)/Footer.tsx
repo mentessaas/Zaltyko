@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 
 export default function Footer() {
   return (
@@ -6,10 +7,13 @@ export default function Footer() {
       <div className="mx-auto max-w-6xl">
         <div className="grid gap-10 md:grid-cols-3">
           <div className="space-y-3">
-            <img src="/branding/zaltyko/logo-zaltyko-dark.svg" 
-              alt="Zaltyko" 
+            <Image
+              src="/branding/zaltyko/logo-zaltyko-dark.svg"
+              alt="Zaltyko"
+              width={32}
+              height={32}
               className="h-8 w-auto"
-              />
+            />
             <p className="font-sans text-sm text-muted-foreground">
               Zaltyko — El sistema definitivo para academias de gimnasia. Registra alumnos, controla pagos, organiza clases y crece sin caos.
             </p>

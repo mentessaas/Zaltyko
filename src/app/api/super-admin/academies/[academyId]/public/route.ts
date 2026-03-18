@@ -24,8 +24,11 @@ const UpdateVisibilitySchema = z.object({
  */
 export const PUT = withSuperAdmin(async (request, context) => {
   try {
-    const params = await context.params as Promise<{ academyId: string }>;
-    const { academyId: id } = await params;
+    const params = context.params as { academyId?: string };
+    const academyId = params?.academyId;
+    if (!academyId) {
+      return NextResponse.json({ error: "ACADEMY_ID_REQUIRED" }, { status: 400 });
+    }
 
     let body;
     try {
@@ -55,7 +58,7 @@ export const PUT = withSuperAdmin(async (request, context) => {
     const [academy] = await db
       .select({ id: academies.id })
       .from(academies)
-      .where(eq(academies.id, id))
+      .where(eq(academies.id, academyId))
       .limit(1);
 
     if (!academy) {
@@ -69,11 +72,11 @@ export const PUT = withSuperAdmin(async (request, context) => {
     await db
       .update(academies)
       .set({ isPublic })
-      .where(eq(academies.id, id));
+      .where(eq(academies.id, academyId));
 
     // Revalidar rutas públicas
     revalidatePath("/academias");
-    revalidatePath(`/academias/${id}`);
+    revalidatePath(`/academias/${academyId}`);
     revalidatePath("/super-admin/academies/public");
 
     return NextResponse.json({

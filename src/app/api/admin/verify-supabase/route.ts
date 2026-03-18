@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 // Forzar ruta dinámica (no puede ser estática)
 export const dynamic = 'force-dynamic';
 
-export async function GET(request: Request) {
+export async function GET(_request: Request) {
   // Solo administradores pueden verificar la configuración
   const cookieStore = await cookies();
   const supabase = await createClient(cookieStore);

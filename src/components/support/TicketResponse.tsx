@@ -9,8 +9,8 @@ import { Label } from "@/components/ui/label";
 
 // Toast placeholder - replace with actual toast implementation
 const toast = {
-  error: (msg: string) => console.error(msg),
-  success: (msg: string) => console.log(msg),
+  error: (_msg: string) => { /* Handle error toast */ },
+  success: (_msg: string) => { /* Handle success toast */ },
 };
 
 interface TicketResponseFormProps {

@@ -4,7 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { TooltipOnboarding } from "@/components/tooltips/TooltipOnboarding";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 import { StudentChargesTab } from "./StudentChargesTab";
+import { BillingRiskWidget } from "@/components/dashboard/BillingRiskWidget";
 
 type PlanCode = "free" | "pro" | "premium" | (string & Record<never, never>);
 
@@ -81,6 +83,40 @@ function formatInvoiceAmount(invoice: InvoiceRow) {
     currency,
     minimumFractionDigits: 2,
   }).format((cents ?? 0) / 100);
+}
+
+function getInvoiceStatusInfo(status: string | null) {
+  const statusLower = (status ?? "").toLowerCase();
+  switch (statusLower) {
+    case "paid":
+    case "complete":
+      return { label: "Pagada", variant: "success" as const };
+    case "open":
+    case "due":
+    case "unpaid":
+      return { label: "Pendiente", variant: "pending" as const };
+    case "past_due":
+    case "overdue":
+      return { label: "Vencida", variant: "error" as const };
+    case "void":
+    case "cancelled":
+      return { label: "Cancelada", variant: "outline" as const };
+    case "draft":
+      return { label: "Borrador", variant: "outline" as const };
+    case "trialing":
+      return { label: "En prueba", variant: "active" as const };
+    default:
+      return { label: status ?? "Desconocido", variant: "default" as const };
+  }
+}
+
+function formatPeriod(periodStart: string | null, periodEnd: string | null): string {
+  if (!periodStart || !periodEnd) return "—";
+  const start = new Date(periodStart);
+  const end = new Date(periodEnd);
+  const startMonth = start.toLocaleDateString("es-ES", { month: "short", year: "numeric" });
+  const endMonth = end.toLocaleDateString("es-ES", { month: "short", year: "numeric" });
+  return startMonth === endMonth ? startMonth : `${startMonth} - ${endMonth}`;
 }
 
 interface BillingPanelProps {
@@ -277,22 +313,28 @@ export function BillingPanel({ academyId, userId }: BillingPanelProps) {
         {loadingSummary || !summary ? (
           <p className="text-sm text-muted-foreground">Cargando información…</p>
         ) : (
-          <div className="space-y-2">
-            <p className="text-lg font-semibold">
-              {currentPlanInfo
-                ? resolvePlanTitle(currentPlanInfo)
-                : PLAN_COPY[summary.planCode]?.title ?? summary.planCode.toUpperCase()}
-            </p>
-            <p className="text-sm text-muted-foreground">Estado: {summary.status}</p>
-            <p className="text-sm text-muted-foreground">
-              Límite atletas: {summary.athleteLimit ?? "Ilimitado"}
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Límite clases: {summary.classLimit ?? "Ilimitado"}
-            </p>
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+              <p className="text-lg font-semibold">
+                {currentPlanInfo
+                  ? resolvePlanTitle(currentPlanInfo)
+                  : PLAN_COPY[summary.planCode]?.title ?? summary.planCode.toUpperCase()}
+              </p>
+              <Badge variant={summary.status === "active" ? "success" : summary.status === "past_due" ? "error" : "pending"}>
+                {summary.status === "active" ? "Activo" : summary.status === "past_due" ? "Pendiente de pago" : summary.status === "trialing" ? "En período de prueba" : summary.status === "canceled" ? "Cancelado" : summary.status}
+              </Badge>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-muted-foreground">
+              <p>
+                <span className="font-medium text-foreground">Límite atletas:</span> {summary.athleteLimit ?? "Ilimitado"}
+              </p>
+              <p>
+                <span className="font-medium text-foreground">Límite clases:</span> {summary.classLimit ?? "Ilimitado"}
+              </p>
+            </div>
             {currentPlanInfo && (
               <p className="text-sm text-muted-foreground">
-                Cuota: {formatPlanPrice(currentPlanInfo)} /{" "}
+                <span className="font-medium text-foreground">Cuota:</span> {formatPlanPrice(currentPlanInfo)} /{" "}
                 {currentPlanInfo.billingInterval ?? "mes"}
               </p>
             )}
@@ -303,10 +345,26 @@ export function BillingPanel({ academyId, userId }: BillingPanelProps) {
               >
                 <button
                   onClick={openPortal}
-                  className="mt-3 rounded-md border px-3 py-2 text-sm"
+                  className="mt-2 rounded-md border px-3 py-2 text-sm hover:bg-muted/50 transition-colors"
                   disabled={loadingAction === "portal"}
                 >
-                  {loadingAction === "portal" ? "Abriendo portal…" : "Gestionar en Stripe"}
+                  {loadingAction === "portal" ? (
+                    <span className="flex items-center gap-2">
+                      <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      Abriendo portal…
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-2">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
+                        <line x1="1" y1="10" x2="23" y2="10" />
+                      </svg>
+                      Gestionar en Stripe
+                    </span>
+                  )}
                 </button>
               </TooltipOnboarding>
             )}
@@ -384,46 +442,101 @@ export function BillingPanel({ academyId, userId }: BillingPanelProps) {
             <thead className="bg-muted/60">
               <tr className="text-left text-xs uppercase tracking-wide text-muted-foreground">
                 <th className="px-4 py-3 font-medium">Fecha</th>
+                <th className="px-4 py-3 font-medium">Período</th>
                 <th className="px-4 py-3 font-medium">Estado</th>
                 <th className="px-4 py-3 font-medium">Importe</th>
-                <th className="px-4 py-3 font-medium">Motivo</th>
+                <th className="px-4 py-3 font-medium">Notas</th>
                 <th className="px-4 py-3 font-medium text-right">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border bg-background text-foreground">
               {history.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
+                  <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
                     No hay facturas registradas todavía.
                   </td>
                 </tr>
               ) : (
-                history.map((invoice) => (
-                  <tr key={invoice.id} className="hover:bg-muted/40">
-                    <td className="px-4 py-3">
-                      {invoice.createdAt
-                        ? new Date(invoice.createdAt).toLocaleDateString("es-ES")
-                        : "—"}
-                    </td>
-                    <td className="px-4 py-3 capitalize">{invoice.status}</td>
-                    <td className="px-4 py-3">{formatInvoiceAmount(invoice)}</td>
-                    <td className="px-4 py-3 text-xs text-muted-foreground">
-                      {invoice.billingReason ?? "—"}
-                    </td>
-                    <td className="px-4 py-3 text-right text-xs">
-                      {invoice.hostedInvoiceUrl && (
-                        <a
-                          href={invoice.hostedInvoiceUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-primary hover:underline"
-                        >
-                          Ver factura
-                        </a>
-                      )}
-                    </td>
-                  </tr>
-                ))
+                history.map((invoice) => {
+                  const statusInfo = getInvoiceStatusInfo(invoice.status);
+                  return (
+                    <tr key={invoice.id} className="hover:bg-muted/40">
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        {invoice.createdAt
+                          ? new Date(invoice.createdAt).toLocaleDateString("es-ES", {
+                              day: "numeric",
+                              month: "short",
+                              year: "numeric",
+                            })
+                          : "—"}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">
+                        {formatPeriod(invoice.periodStart, invoice.periodEnd)}
+                      </td>
+                      <td className="px-4 py-3">
+                        <Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>
+                      </td>
+                      <td className="px-4 py-3 font-medium">{formatInvoiceAmount(invoice)}</td>
+                      <td className="px-4 py-3">
+                        {"—"}
+                      </td>
+                      <td className="px-4 py-3 text-right whitespace-nowrap">
+                        {invoice.hostedInvoiceUrl && (
+                          <a
+                            href={invoice.hostedInvoiceUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-primary hover:underline inline-flex items-center gap-1 text-xs"
+                          >
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              width="14"
+                              height="14"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                              <polyline points="15 3 21 3 21 9" />
+                              <line x1="10" y1="14" x2="21" y2="3" />
+                            </svg>
+                            Ver
+                          </a>
+                        )}
+                        {invoice.invoicePdf && (
+                          <a
+                            href={invoice.invoicePdf}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-muted-foreground hover:text-primary ml-3 inline-flex items-center gap-1 text-xs"
+                          >
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              width="14"
+                              height="14"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                              <polyline points="14 2 14 8 20 8" />
+                              <line x1="16" y1="13" x2="8" y2="13" />
+                              <line x1="16" y1="17" x2="8" y2="17" />
+                              <polyline points="10 9 9 9 8 9" />
+                            </svg>
+                            PDF
+                          </a>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -431,7 +544,8 @@ export function BillingPanel({ academyId, userId }: BillingPanelProps) {
       </section>
         </TabsContent>
 
-        <TabsContent value="charges">
+        <TabsContent value="charges" className="space-y-6">
+          <BillingRiskWidget academyId={academyId} />
           <StudentChargesTab academyId={academyId} />
         </TabsContent>
       </Tabs>

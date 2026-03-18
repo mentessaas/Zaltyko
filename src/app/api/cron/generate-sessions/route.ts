@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from "next/server";
 import { generateSessionsForAllTenants } from "@/lib/generate-class-sessions";
 import { logger } from "@/lib/logger";

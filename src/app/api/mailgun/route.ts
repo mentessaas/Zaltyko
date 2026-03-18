@@ -7,13 +7,14 @@ import { config } from "@/config";
 export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData();
+    const fd = formData as unknown as { get(name: string): unknown };
 
     // Get your HTTP webhook signing key from https://app.mailgun.com/mg/sending/mg.<yourdomain>/webhooks and add it to .env.local
     const signingKey = process.env.MAILGUN_SIGNING_KEY as string;
 
-    const timestamp = formData.get("timestamp")?.toString() ?? "";
-    const token = formData.get("token")?.toString() ?? "";
-    const signature = formData.get("signature")?.toString() ?? "";
+    const timestamp = fd.get("timestamp")?.toString() ?? "";
+    const token = fd.get("token")?.toString() ?? "";
+    const signature = fd.get("signature")?.toString() ?? "";
 
     const value = timestamp + token;
     const hash = crypto
@@ -26,9 +27,9 @@ export async function POST(req: NextRequest) {
     }
 
     // extract the sender, subject and email content
-    const sender = formData.get("From");
-    const subject = formData.get("Subject");
-    const html = formData.get("body-html");
+    const sender = fd.get("From");
+    const subject = fd.get("Subject");
+    const html = fd.get("body-html");
 
     // send email to the admin if forwardRepliesTo is et & emailData exists
     if (config.mailgun.forwardRepliesTo && html && subject && sender) {

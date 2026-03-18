@@ -134,6 +134,11 @@ export default async function AcademiesPage() {
     { athletes: 0, active: 0, trials: 0, coaches: 0, events: 0 }
   );
 
+  // Sort academies by activity (academies with more athletes first)
+  const sortedAcademies = [...academiesWithStats].sort((a, b) => {
+    return b.stats.totalAthletes - a.stats.totalAthletes;
+  });
+
   return (
     <div className="space-y-8">
       <PageHeader
@@ -143,7 +148,7 @@ export default async function AcademiesPage() {
         ]}
         title="Dashboard"
         description="Vista rápida de todas tus academias. Cambia rápidamente entre ellas y accede al panel operativo."
-        icon={Building2}
+        icon={<Building2 className="h-5 w-5" strokeWidth={1.5} />}
         actions={
           hasAcademies ? (
             <Button asChild>
@@ -162,31 +167,31 @@ export default async function AcademiesPage() {
           <StatsCard
             title="Total Atletas"
             value={totals.athletes}
-            icon={Users}
+            icon={<Users className="h-6 w-6" strokeWidth={1.5} />}
             variant="default"
           />
           <StatsCard
             title="Activos"
             value={totals.active}
-            icon={UserCheck}
+            icon={<UserCheck className="h-6 w-6" strokeWidth={1.5} />}
             variant="success"
           />
           <StatsCard
             title="En Prueba"
             value={totals.trials}
-            icon={UserPlus}
+            icon={<UserPlus className="h-6 w-6" strokeWidth={1.5} />}
             variant="warning"
           />
           <StatsCard
             title="Entrenadores"
             value={totals.coaches}
-            icon={UserCog}
+            icon={<UserCog className="h-6 w-6" strokeWidth={1.5} />}
             variant="info"
           />
           <StatsCard
             title="Eventos Próximos"
             value={totals.events}
-            icon={Calendar}
+            icon={<Calendar className="h-6 w-6" strokeWidth={1.5} />}
             variant="danger"
           />
         </div>
@@ -243,7 +248,7 @@ export default async function AcademiesPage() {
         </div>
       ) : (
         <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-          {academiesWithStats.map((academy) => {
+          {sortedAcademies.map((academy) => {
             const isActive = currentProfile.activeAcademyId === academy.id;
             const trialBadge =
               academy.isTrialActive && academy.trialEndsAt
@@ -255,7 +260,12 @@ export default async function AcademiesPage() {
                 <CardHeader>
                   <div className="flex items-center justify-between gap-3">
                     <CardTitle className="text-xl font-semibold">{academy.name ?? "Sin nombre"}</CardTitle>
-                    {isActive && <Badge variant="active">Academia activa</Badge>}
+                    <div className="flex items-center gap-2">
+                      {academy.isTrialActive && (
+                        <Badge variant="pending">Trial</Badge>
+                      )}
+                      {isActive && <Badge variant="success">Activa</Badge>}
+                    </div>
                   </div>
                   <CardDescription>{formatAcademyType(academy.academyType)}</CardDescription>
                 </CardHeader>
@@ -272,6 +282,29 @@ export default async function AcademiesPage() {
                     <div className="rounded-lg bg-muted p-2">
                       <p className="text-lg font-bold">{academy.stats.upcomingEvents}</p>
                       <p className="text-xs text-muted-foreground">Eventos</p>
+                    </div>
+                  </div>
+                  {/* Active athletes indicator */}
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">Activos</span>
+                      <span className="font-medium">
+                        {academy.stats.totalAthletes > 0
+                          ? Math.round((academy.stats.activeAthletes / academy.stats.totalAthletes) * 100)
+                          : 0}%
+                      </span>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-emerald-500 transition-all"
+                        style={{
+                          width: `${
+                            academy.stats.totalAthletes > 0
+                              ? (academy.stats.activeAthletes / academy.stats.totalAthletes) * 100
+                              : 0
+                          }%`,
+                        }}
+                      />
                     </div>
                   </div>
                   <div className="space-y-1 text-sm">

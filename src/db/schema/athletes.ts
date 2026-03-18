@@ -28,6 +28,9 @@ export const athletes = pgTable(
     tenantAcademyIdx: index("athletes_tenant_academy_idx").on(table.tenantId, table.academyId),
     userIdIdx: index("athletes_user_id_idx").on(table.userId),
     deletedAtIdx: index("athletes_deleted_at_idx").on(table.deletedAt),
+    statusIdx: index("athletes_status_idx").on(table.status),
+    // Índice compuesto para queries comunes de académicos con filtro de status
+    academyStatusIdx: index("athletes_academy_status_idx").on(table.academyId, table.status),
   })
 );
 

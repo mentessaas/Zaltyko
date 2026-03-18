@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { db } from "@/db";
-import { academies, athletes, charges, billingItems, groups } from "@/db/schema";
+import { athletes, charges, billingItems } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
 import { handleApiError } from "@/lib/api-error-handler";
 import { verifyAcademyAccess, verifyGroupAccess } from "@/lib/permissions";

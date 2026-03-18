@@ -29,10 +29,10 @@ interface DonutChartProps {
 }
 
 const defaultColors = [
-  "#8B5CF6", // violet
+  "#DC2626", // red-600 (cereza)
   "#14B8A6", // teal
   "#F59E0B", // amber
-  "#EF4444", // red
+  "#EF4444", // red-500
   "#3B82F6", // blue
   "#EC4899", // pink
   "#10B981", // emerald
@@ -142,7 +142,7 @@ export function LineChart({ data, height = 200, showArea = true, className }: Li
         <path
           d={pathD}
           fill="none"
-          stroke="#8B5CF6"
+          stroke="#DC2626"
           strokeWidth="3"
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -156,7 +156,7 @@ export function LineChart({ data, height = 200, showArea = true, className }: Li
               cy={point.y}
               r="6"
               fill="white"
-              stroke="#8B5CF6"
+              stroke="#DC2626"
               strokeWidth="3"
             />
             <title>{`${point.label}: ${point.value}`}</title>
@@ -166,8 +166,8 @@ export function LineChart({ data, height = 200, showArea = true, className }: Li
         {/* Gradient definition */}
         <defs>
           <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#8B5CF6" stopOpacity="0.3" />
-            <stop offset="100%" stopColor="#8B5CF6" stopOpacity="0" />
+            <stop offset="0%" stopColor="#DC2626" stopOpacity="0.3" />
+            <stop offset="100%" stopColor="#DC2626" stopOpacity="0" />
           </linearGradient>
         </defs>
       </svg>
@@ -282,7 +282,7 @@ export function MiniChart({ data, className }: { data: number[]; className?: str
         strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
-        className="text-violet-500"
+        className="text-red-500"
       />
     </svg>
   );

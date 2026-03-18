@@ -9,6 +9,7 @@ import { athleteStatusOptions } from "@/lib/athletes/constants";
 
 import { AthletesTableView } from "@/components/athletes/AthletesTableView";
 import { PageHeader } from "@/components/ui/page-header";
+import { AttendanceRiskWidget } from "@/components/dashboard/AttendanceRiskWidget";
 
 /**
  * AcademyAthletesPage - Vista principal de gestión de atletas
@@ -166,25 +167,33 @@ export default async function AcademyAthletesPage({ params, searchParams }: Page
         ]}
         title="Atletas"
         description="Gestiona atletas, contactos familiares y niveles de entrenamiento."
-        icon={Users}
+        icon={<Users className="h-5 w-5" strokeWidth={1.5} />}
       />
 
-      <AthletesTableView
-        academyId={academy.id}
-        athletes={list}
-        levels={levels}
-        filters={{
-          status: statusFilter,
-          level: levelFilter,
-          q: searchQuery,
-          groupId: groupFilter,
-        }}
-        groups={groupRows.map((group) => ({
-          id: group.id,
-          name: group.name ?? "Grupo sin nombre",
-          color: group.color ?? null,
-        }))}
-      />
+      {/* Widget de Riesgo de Abandono - AI */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="md:col-span-1 lg:col-span-1">
+          <AttendanceRiskWidget academyId={academy.id} />
+        </div>
+        <div className="md:col-span-2 lg:col-span-2">
+          <AthletesTableView
+            academyId={academy.id}
+            athletes={list}
+            levels={levels}
+            filters={{
+              status: statusFilter,
+              level: levelFilter,
+              q: searchQuery,
+              groupId: groupFilter,
+            }}
+            groups={groupRows.map((group) => ({
+              id: group.id,
+              name: group.name ?? "Grupo sin nombre",
+              color: group.color ?? null,
+            }))}
+          />
+        </div>
+      </div>
     </div>
   );
 }

@@ -3,9 +3,9 @@ import type { NextRequest } from "next/server";
 
 const SUPER_ADMIN_COOKIE_HINTS = ["role", "profile", "super-admin"];
 
-// Validar que el token viene de Supabase correcto
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const SUPABASE_ANN = process.env.SUPABASE_ANN_KEY || "ann";
+// Supabase validation (reserved for future use)
+// const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+// const SUPABASE_ANN = process.env.SUPABASE_ANN_KEY || "ann";
 
 function extractAccessToken(req: NextRequest) {
   const cookies = req.cookies.getAll();
