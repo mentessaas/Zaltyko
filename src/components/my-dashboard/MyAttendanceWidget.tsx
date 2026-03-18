@@ -151,6 +151,7 @@ export function MyAttendanceWidget({ data }: MyAttendanceWidgetProps) {
             <div
               key={index}
               className="flex items-center justify-between rounded-md bg-muted/30 px-2 py-1.5"
+              style={{ animationDelay: `${index * 75}ms` }}
             >
               <div className="flex items-center gap-2">
                 {getStatusIcon(record.status)}

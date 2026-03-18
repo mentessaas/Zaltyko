@@ -105,3 +105,43 @@ export const adPositionEnum = pgEnum("ad_position", [
   "empleo_top", "empleo_sidebar", "empleo_between",
   "events_top", "events_sidebar", "events_between"
 ]);
+
+// Discounts
+export const discountCategoryEnum = pgEnum("discount_category", [
+  "regular",
+  "early_payment",
+  "loyalty",
+  "promotional",
+]);
+
+// Event Registration
+export const eventRegistrationStatusEnum = pgEnum("event_registration_status", [
+  "pending",
+  "confirmed",
+  "cancelled",
+  "waitlisted",
+]);
+
+// Event Waitlist
+export const eventWaitlistStatusEnum = pgEnum("event_waitlist_status", [
+  "waiting",
+  "notified",
+  "converted",
+  "expired",
+]);
+
+// Event Payment
+export const eventPaymentStatusEnum = pgEnum("event_payment_status", [
+  "pending",
+  "paid",
+  "failed",
+  "refunded",
+]);
+
+// Event Status
+export const eventStatusEnum = pgEnum("event_status", [
+  "draft",
+  "published",
+  "cancelled",
+  "completed",
+]);

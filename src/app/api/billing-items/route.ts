@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { and, asc, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -15,15 +17,6 @@ const CreateBillingItemSchema = z.object({
   currency: z.string().default("EUR"),
   periodicity: z.enum(["one_time", "monthly", "yearly"]),
   isActive: z.boolean().default(true),
-});
-
-const UpdateBillingItemSchema = z.object({
-  name: z.string().min(1).optional(),
-  description: z.string().optional(),
-  amountCents: z.number().int().positive().optional(),
-  currency: z.string().optional(),
-  periodicity: z.enum(["one_time", "monthly", "yearly"]).optional(),
-  isActive: z.boolean().optional(),
 });
 
 export const GET = withTenant(async (request, context) => {

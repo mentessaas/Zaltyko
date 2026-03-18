@@ -1,14 +1,15 @@
 "use client";
 
+import { ReactNode } from "react";
 import Link from "next/link";
-import { LucideIcon, TrendingUp, TrendingDown } from "lucide-react";
+import { TrendingUp, TrendingDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface StatsCardProps {
   title: string;
   value: string | number;
   subtitle?: string;
-  icon?: LucideIcon;
+  icon?: ReactNode;
   trend?: {
     value: number;
     label?: string;
@@ -53,8 +54,8 @@ const variantStyles = {
 
 const accentVariantStyles = {
   default: {
-    bg: "bg-gradient-to-br from-violet-500 to-violet-600",
-    border: "border-violet-500",
+    bg: "bg-gradient-to-br from-red-500 to-red-600",
+    border: "border-red-500",
     icon: "bg-white/20 text-white",
     value: "text-white",
   },
@@ -88,7 +89,7 @@ export function StatsCard({
   title,
   value,
   subtitle,
-  icon: Icon,
+  icon,
   trend,
   variant = "default",
   href,
@@ -139,14 +140,14 @@ export function StatsCard({
             </div>
           )}
         </div>
-        {Icon && (
+        {icon && (
           <div
             className={cn(
               "flex h-12 w-12 items-center justify-center rounded-xl",
               styles.icon
             )}
           >
-            <Icon className="h-6 w-6" strokeWidth={1.5} />
+            {icon}
           </div>
         )}
       </div>

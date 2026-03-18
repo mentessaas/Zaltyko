@@ -161,7 +161,7 @@ export default async function CoachesPage({ searchParams }: CoachesPageProps) {
         ]}
         title="Entrenadores"
         description="Asigna entrenadores a clases y academias, sincroniza el calendario y controla quién puede registrar asistencia."
-        icon={UserCog}
+        icon={<UserCog className="h-5 w-5" strokeWidth={1.5} />}
         actions={
           <Button asChild>
             <Link href="/dashboard/coaches/new">
@@ -174,9 +174,9 @@ export default async function CoachesPage({ searchParams }: CoachesPageProps) {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-        <div className="bg-gradient-to-br from-violet-50 to-violet-100 rounded-xl p-3 md:p-4 border border-violet-200">
-          <p className="text-xs md:text-sm font-medium text-violet-700">Total</p>
-          <p className="text-2xl md:text-3xl font-bold text-violet-800">{coachRows.length}</p>
+        <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-xl p-3 md:p-4 border border-red-200">
+          <p className="text-xs md:text-sm font-medium text-red-700">Total</p>
+          <p className="text-2xl md:text-3xl font-bold text-red-800">{coachRows.length}</p>
         </div>
         <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-xl p-3 md:p-4 border border-emerald-200">
           <p className="text-xs md:text-sm font-medium text-emerald-700">Asignadas</p>

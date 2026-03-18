@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextResponse } from "next/server";
 import { withTenant } from "@/lib/authz";
 import { db } from "@/db";
@@ -6,7 +8,7 @@ import { eq } from "drizzle-orm";
 
 export const GET = withTenant(async (req, context) => {
     try {
-        const { userId, tenantId, profile } = context;
+        const { userId } = context;
 
         // Check plan eligibility for advanced analytics
         const [subscription] = await db

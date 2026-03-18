@@ -151,6 +151,12 @@ export function EventForm({
         notifyCityAcademies: formData.notifyCityAcademies,
         notifyProvinceAcademies: formData.notifyProvinceAcademies,
         notifyCountryAcademies: formData.notifyCountryAcademies,
+        // Nuevos campos
+        status: formData.status,
+        maxCapacity: formData.maxCapacity || null,
+        registrationFee: formData.registrationFee || null,
+        allowWaitlist: formData.allowWaitlist,
+        waitlistMaxSize: formData.waitlistMaxSize || null,
       };
 
       const url = effectiveEventId ? `/api/events/${effectiveEventId}` : "/api/events";
@@ -510,6 +516,88 @@ export function EventForm({
             placeholder="https://evento.com"
           />
         </div>
+
+        {/* Inscripciones */}
+        <div className="sm:col-span-2 border-t border-border pt-4">
+          <h3 className="mb-4 text-sm font-semibold text-foreground">Inscripciones</h3>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label htmlFor="status" className="mb-2 block text-sm font-medium text-foreground">
+                Estado del evento
+              </label>
+              <select
+                id="status"
+                value={formData.status}
+                onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
+                className="w-full rounded-lg border border-border bg-card px-4 py-2.5 text-sm text-foreground focus:border-zaltyko-primary focus:outline-none focus:ring-2 focus:ring-zaltyko-primary/20"
+              >
+                <option value="draft">Borrador</option>
+                <option value="published">Publicado</option>
+                <option value="cancelled">Cancelado</option>
+                <option value="completed">Completado</option>
+              </select>
+            </div>
+
+            <div>
+              <label htmlFor="maxCapacity" className="mb-2 block text-sm font-medium text-foreground">
+                Capacidad máxima
+              </label>
+              <input
+                type="number"
+                id="maxCapacity"
+                min="0"
+                value={formData.maxCapacity || ""}
+                onChange={(e) => setFormData({ ...formData, maxCapacity: parseInt(e.target.value) || 0 })}
+                className="w-full rounded-lg border border-border bg-card px-4 py-2.5 text-sm text-foreground focus:border-zaltyko-primary focus:outline-none focus:ring-2 focus:ring-zaltyko-primary/20"
+                placeholder="Sin límite"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="registrationFee" className="mb-2 block text-sm font-medium text-foreground">
+                Precio de inscripción (€)
+              </label>
+              <input
+                type="number"
+                id="registrationFee"
+                min="0"
+                step="0.01"
+                value={formData.registrationFee ? formData.registrationFee / 100 : ""}
+                onChange={(e) => setFormData({ ...formData, registrationFee: Math.round(parseFloat(e.target.value) * 100) || 0 })}
+                className="w-full rounded-lg border border-border bg-card px-4 py-2.5 text-sm text-foreground focus:border-zaltyko-primary focus:outline-none focus:ring-2 focus:ring-zaltyko-primary/20"
+                placeholder="0.00"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="waitlistMaxSize" className="mb-2 block text-sm font-medium text-foreground">
+                Tamaño máximo de lista de espera
+              </label>
+              <input
+                type="number"
+                id="waitlistMaxSize"
+                min="0"
+                value={formData.waitlistMaxSize || ""}
+                onChange={(e) => setFormData({ ...formData, waitlistMaxSize: parseInt(e.target.value) || 0 })}
+                className="w-full rounded-lg border border-border bg-card px-4 py-2.5 text-sm text-foreground focus:border-zaltyko-primary focus:outline-none focus:ring-2 focus:ring-zaltyko-primary/20"
+                placeholder="Sin límite"
+              />
+            </div>
+
+            <div className="sm:col-span-2">
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="allowWaitlist"
+                  checked={formData.allowWaitlist}
+                  onCheckedChange={(checked) => setFormData({ ...formData, allowWaitlist: checked })}
+                />
+                <Label htmlFor="allowWaitlist" className="text-sm font-medium text-foreground cursor-pointer">
+                  Permitir lista de espera cuando el evento esté lleno
+                </Label>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="flex items-center justify-end gap-4">
@@ -530,14 +618,11 @@ export function EventForm({
 
   // Si se usa como modal (con open/onClose)
   if (open !== undefined) {
-    console.log('[EventForm] Rendering dialog with open:', open);
     return (
       <Dialog
         open={open}
         onOpenChange={(isOpen) => {
-          console.log('[EventForm] Dialog onOpenChange called with isOpen:', isOpen);
           if (!isOpen && onClose) {
-            console.log('[EventForm] Calling onClose');
             onClose();
           }
         }}

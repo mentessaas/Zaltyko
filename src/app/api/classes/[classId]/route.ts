@@ -63,6 +63,10 @@ const updateSchema = z.object({
   groupIds: z.array(z.string().uuid()).optional(),
   isExtra: z.boolean().optional(),
   groupId: z.string().uuid().nullable().optional(),
+  allowsFreeTrial: z.boolean().optional(),
+  waitingListEnabled: z.boolean().optional(),
+  cancellationHoursBefore: z.number().int().min(0).max(168).optional(),
+  cancellationPolicy: z.enum(["flexible", "standard", "strict"]).optional(),
 });
 
 export const GET = withTenant(async (_request, context) => {
@@ -85,6 +89,10 @@ export const GET = withTenant(async (_request, context) => {
       startTime: classes.startTime,
       endTime: classes.endTime,
       capacity: classes.capacity,
+      allowsFreeTrial: classes.allowsFreeTrial,
+      waitingListEnabled: classes.waitingListEnabled,
+      cancellationHoursBefore: classes.cancellationHoursBefore,
+      cancellationPolicy: classes.cancellationPolicy,
       createdAt: classes.createdAt,
     })
     .from(classes)
@@ -134,6 +142,10 @@ export const GET = withTenant(async (_request, context) => {
         name: g.groupName,
         color: g.groupColor,
       })),
+      allowsFreeTrial: classRow.allowsFreeTrial ?? false,
+      waitingListEnabled: classRow.waitingListEnabled ?? false,
+      cancellationHoursBefore: classRow.cancellationHoursBefore ?? 24,
+      cancellationPolicy: classRow.cancellationPolicy ?? "standard",
     },
   });
 });
@@ -348,6 +360,10 @@ export const PUT = withTenant(async (request, context) => {
         if (body.capacity !== undefined) updates.capacity = body.capacity;
         if (body.isExtra !== undefined) updates.isExtra = body.isExtra;
         if (body.groupId !== undefined) updates.groupId = body.groupId;
+        if (body.allowsFreeTrial !== undefined) updates.allowsFreeTrial = body.allowsFreeTrial;
+        if (body.waitingListEnabled !== undefined) updates.waitingListEnabled = body.waitingListEnabled;
+        if (body.cancellationHoursBefore !== undefined) updates.cancellationHoursBefore = body.cancellationHoursBefore;
+        if (body.cancellationPolicy !== undefined) updates.cancellationPolicy = body.cancellationPolicy;
         
         const normalizedWeekdays =
           body.weekdays !== undefined ? Array.from(new Set(body.weekdays)).sort((a, b) => a - b) : null;

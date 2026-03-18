@@ -3,7 +3,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
-import { athletes, familyContacts, guardianAthletes, guardians } from "@/db/schema";
+import { familyContacts, guardianAthletes, guardians } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
 
 const UpdateGuardianSchema = z.object({

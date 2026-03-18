@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { Metadata } from "next";
 import { eq } from "drizzle-orm";
 
-import { LoginForm } from "@/components/LoginForm/LoginForm";
+import LoginForm from "@/components/login-form";
 import { createClient } from "@/lib/supabase/server";
 import { db } from "@/db";
 import { profiles } from "@/db/schema";

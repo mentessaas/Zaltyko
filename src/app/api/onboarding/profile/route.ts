@@ -10,17 +10,27 @@ import { handleApiError } from "@/lib/api-error-handler";
 export const dynamic = 'force-dynamic';
 
 async function resolveUserId(request: Request) {
-  const headerUserId = request.headers.get("x-user-id");
-  if (headerUserId) {
-    return headerUserId;
-  }
-
+  // SECURITY: Only use authenticated session, never trust custom headers
   const cookieStore = await cookies();
   const supabase = await createClient(cookieStore);
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  return user?.id ?? null;
+
+  if (!user) {
+    return null;
+  }
+
+  // Log warning if someone tries to use the old x-user-id header (potential attack)
+  const headerUserId = request.headers.get("x-user-id");
+  if (headerUserId && headerUserId !== user.id) {
+    console.warn("SECURITY: Attempted x-user-id header spoofing detected", {
+      headerUserId,
+      actualUserId: user.id,
+    });
+  }
+
+  return user.id;
 }
 
 export async function GET(request: Request) {
@@ -57,8 +67,21 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json().catch(() => ({}));
-    const name = typeof body?.name === "string" && body.name.trim().length > 0 ? body.name.trim() : null;
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "INVALID_JSON" }, { status: 400 });
+    }
+
+    if (!body || typeof body !== "object") {
+      return NextResponse.json({ error: "INVALID_BODY" }, { status: 400 });
+    }
+
+    const bodyObj = body as Record<string, unknown>;
+    const name = typeof bodyObj.name === "string" && bodyObj.name.trim().length > 0
+      ? bodyObj.name.trim()
+      : null;
 
     const userId = await resolveUserId(request);
 

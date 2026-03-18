@@ -28,6 +28,10 @@ export function CreateClassDialog({ academyId, open, onClose, onCreated }: Creat
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
   const [capacity, setCapacity] = useState("");
+  const [allowsFreeTrial, setAllowsFreeTrial] = useState(false);
+  const [waitingListEnabled, setWaitingListEnabled] = useState(false);
+  const [cancellationHoursBefore, setCancellationHoursBefore] = useState(24);
+  const [cancellationPolicy, setCancellationPolicy] = useState("standard");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -37,6 +41,10 @@ export function CreateClassDialog({ academyId, open, onClose, onCreated }: Creat
     setStartTime("");
     setEndTime("");
     setCapacity("");
+    setAllowsFreeTrial(false);
+    setWaitingListEnabled(false);
+    setCancellationHoursBefore(24);
+    setCancellationPolicy("standard");
     setError(null);
   };
 
@@ -77,6 +85,10 @@ export function CreateClassDialog({ academyId, open, onClose, onCreated }: Creat
           startTime: startTime || undefined,
           endTime: endTime || undefined,
           capacity: capacity ? Number(capacity) : undefined,
+          allowsFreeTrial,
+          waitingListEnabled,
+          cancellationHoursBefore: cancellationHoursBefore ? Number(cancellationHoursBefore) : 24,
+          cancellationPolicy,
         };
 
         const response = await fetch("/api/classes", {
@@ -216,6 +228,62 @@ export function CreateClassDialog({ academyId, open, onClose, onCreated }: Creat
               onChange={(event) => setEndTime(event.target.value)}
               className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
             />
+          </div>
+        </div>
+
+        {/* Opciones avanzadas */}
+        <div className="space-y-4 rounded-lg border border-border bg-muted/30 p-4">
+          <h3 className="text-sm font-semibold text-foreground">Opciones avanzadas</h3>
+
+          <div className="flex items-center gap-4">
+            <label className="flex items-center gap-2 text-sm text-foreground">
+              <input
+                type="checkbox"
+                checked={allowsFreeTrial}
+                onChange={(event) => setAllowsFreeTrial(event.target.checked)}
+                className="rounded border-border text-primary focus:ring-primary"
+              />
+              Permite clase de prueba gratuita
+            </label>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <label className="flex items-center gap-2 text-sm text-foreground">
+              <input
+                type="checkbox"
+                checked={waitingListEnabled}
+                onChange={(event) => setWaitingListEnabled(event.target.checked)}
+                className="rounded border-border text-primary focus:ring-primary"
+              />
+              Habilitar lista de espera cuando esté llena
+            </label>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-foreground">Política de cancelación</label>
+              <select
+                value={cancellationPolicy}
+                onChange={(event) => setCancellationPolicy(event.target.value)}
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              >
+                <option value="flexible">Flexible (cancelar hasta 2h antes)</option>
+                <option value="standard">Estándar (cancelar hasta 24h antes)</option>
+                <option value="strict">Estricta (cancelar hasta 48h antes)</option>
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-foreground">Horas mínimas para cancelar</label>
+              <input
+                type="number"
+                min={0}
+                max={168}
+                value={cancellationHoursBefore}
+                onChange={(event) => setCancellationHoursBefore(Number(event.target.value))}
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+              <p className="text-xs text-muted-foreground">Horas antes de la clase para permitir cancelación</p>
+            </div>
           </div>
         </div>
       </form>

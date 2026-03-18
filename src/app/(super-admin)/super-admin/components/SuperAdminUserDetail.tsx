@@ -544,7 +544,7 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
             <Button
               variant="outline"
               size="sm"
-              className="border-purple-500/60 bg-purple-500/20 text-purple-100 font-semibold shadow-sm hover:border-purple-400 hover:bg-purple-500/30 hover:text-white"
+              className="border-red-500/60 bg-red-500/20 text-red-100 font-semibold shadow-sm hover:border-red-400 hover:bg-red-500/30 hover:text-white"
               onClick={() => router.push(`/dashboard/profile/${user.id}`)}
             >
               <LogIn className="mr-2 h-4 w-4" strokeWidth={1.8} />
@@ -851,7 +851,7 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
                   </div>
                   <div className="rounded-lg border border-white/10 bg-white/5 p-3">
                     <div className="flex items-center gap-2">
-                      <GraduationCap className="h-4 w-4 text-purple-400" strokeWidth={1.8} />
+                      <GraduationCap className="h-4 w-4 text-red-400" strokeWidth={1.8} />
                       <div>
                         <p className="text-xs text-white/50">Entrenadores</p>
                         <p className="text-lg font-semibold text-white">{user.stats.totalCoaches}</p>

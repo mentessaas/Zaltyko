@@ -46,7 +46,7 @@ const STATUS_CONFIG: Record<MessageStatus, { label: string; icon: typeof CheckCi
   read: {
     label: "Leído",
     icon: CheckCircle,
-    className: "bg-purple-100 text-purple-800",
+    className: "bg-red-100 text-red-800",
   },
   failed: {
     label: "Fallido",

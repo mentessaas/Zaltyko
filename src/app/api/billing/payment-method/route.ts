@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { withTenant } from "@/lib/authz";
 import { db } from "@/db";
-import { academies, subscriptions } from "@/db/schema";
+import { subscriptions } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
 export const POST = withTenant(async (req, context) => {
     try {
-        const { userId, tenantId } = context;
+        const { userId } = context;
 
         const body = await req.json();
         const { payment_method } = body;

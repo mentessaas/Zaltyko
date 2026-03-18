@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextResponse } from "next/server";
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";

@@ -11,6 +11,9 @@ interface ChargeData {
   period: string;
   status: string;
   dueDate: string | null;
+  notes: string | null;
+  billingItemName: string | null;
+  billingItemDescription: string | null;
 }
 
 interface MyPaymentsWidgetProps {
@@ -163,34 +166,48 @@ export function MyPaymentsWidget({ charges }: MyPaymentsWidgetProps) {
 
       {/* Lista de pagos recientes */}
       <div className="space-y-2">
-        {charges.slice(0, 4).map((charge) => {
+        {charges.slice(0, 4).map((charge, index) => {
           const statusInfo = getStatusInfo(charge.status);
           const StatusIcon = statusInfo.icon;
 
           return (
             <div
               key={charge.id}
-              className={`flex items-center justify-between rounded-lg border p-3 ${statusInfo.bgColor} ${statusInfo.borderColor}`}
+              className={`flex flex-col gap-2 rounded-lg border p-3 ${statusInfo.bgColor} ${statusInfo.borderColor}`}
+              style={{ animationDelay: `${index * 75}ms` }}
             >
-              <div className="flex items-center gap-3">
-                <StatusIcon className={`h-5 w-5 ${statusInfo.color}`} />
-                <div>
-                  <p className="text-sm font-medium text-foreground">
-                    {charge.label}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <StatusIcon className={`h-5 w-5 ${statusInfo.color}`} />
+                  <div>
+                    <p className="text-sm font-medium text-foreground">
+                      {charge.label}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {formatPeriod(charge.period)}
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="font-semibold text-foreground">
+                    {formatCurrency(charge.amountCents)}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {formatPeriod(charge.period)}
+                    {charge.dueDate && `Vence: ${formatDate(charge.dueDate)}`}
                   </p>
                 </div>
               </div>
-              <div className="text-right">
-                <p className="font-semibold text-foreground">
-                  {formatCurrency(charge.amountCents)}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {charge.dueDate && `Vence: ${formatDate(charge.dueDate)}`}
-                </p>
-              </div>
+              {/* Descripción del item de facturación */}
+              {(charge.billingItemDescription || charge.notes) && (
+                <div className="text-xs text-muted-foreground pl-8">
+                  {charge.billingItemDescription && (
+                    <p>{charge.billingItemDescription}</p>
+                  )}
+                  {charge.notes && (
+                    <p className="italic mt-1">{charge.notes}</p>
+                  )}
+                </div>
+              )}
             </div>
           );
         })}

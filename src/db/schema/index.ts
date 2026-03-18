@@ -60,7 +60,15 @@ export * from "./event-invitations";
 export * from "./contact-messages";
 export * from "./class-exceptions";
 export * from "./push-subscriptions";
+export * from "./push-tokens";
 export * from "./support-tickets";
 export * from "./marketplace";
 export * from "./advertising";
+export * from "./event-registration";
+export * from "./assessment-extended";
+export * from "./class-waiting-list";
+export * from "./scheduled-reports";
+export * from "./communication";
+export * from "./permissions";
+export * from "./roles";
 

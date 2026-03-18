@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextResponse } from "next/server";
 import { and, eq, inArray, or, sql, sum } from "drizzle-orm";
 import { format } from "date-fns";

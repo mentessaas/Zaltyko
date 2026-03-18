@@ -4,8 +4,14 @@ import { EventsFilters } from "@/components/public/EventsFilters";
 import { EventsGrid } from "@/components/public/EventsGrid";
 
 export const metadata: Metadata = {
-  title: "Directorio de Eventos | Zaltyko",
-  description: "Encuentra eventos y competencias de gimnasia cerca de ti. Directorio público de eventos.",
+  title: "Eventos y Competiciones de Gimnasia | Zaltyko",
+  description: "Encuentra eventos y competencias de gimansia cerca de ti. Directorio público de eventos y competiciones.",
+  openGraph: {
+    title: "Eventos y Competiciones de Gimnasia | Zaltyko",
+    description: "Encuentra eventos y competencias de gimansia cerca de ti",
+    url: "/events",
+    type: "website",
+  },
 };
 
 function EventsContent() {
@@ -15,7 +21,7 @@ function EventsContent() {
         <aside>
           <EventsFilters />
         </aside>
-        
+
         <main>
           <div className="rounded-xl border border-border bg-card p-16 text-center shadow-sm">
             <div className="mx-auto max-w-md">
@@ -57,11 +63,11 @@ export default async function EventsPage() {
         <div className="container mx-auto px-4">
           <h1 className="text-3xl font-bold">Eventos y Competiciones</h1>
           <p className="mt-2 text-muted-foreground">
-            Encuentra eventos de gimnasia en tu zona
+            Encuentra eventos de gimansia en tu zona
           </p>
         </div>
       </div>
-      
+
       <Suspense fallback={<div className="container mx-auto px-4 py-8">Cargando...</div>}>
         <EventsContent />
       </Suspense>

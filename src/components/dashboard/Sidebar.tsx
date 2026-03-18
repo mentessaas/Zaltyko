@@ -78,13 +78,13 @@ export function Sidebar({ user }: SidebarProps) {
         {/* Logo */}
         <div className="flex h-16 items-center justify-between border-b border-border px-4">
           <Link href="/dashboard" className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-violet-600 text-white shadow-lg shadow-violet-500/25">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-red-500 to-red-600 text-white shadow-lg shadow-red-500/25">
               <Sparkles className="h-5 w-5" />
             </div>
             {!effectiveCollapsed && (
               <div className="flex flex-col">
                 <span className="text-lg font-bold text-zaltyko-text-main">Zaltyko</span>
-                <span className="text-[10px] font-medium uppercase tracking-wider text-violet-600">
+                <span className="text-[10px] font-medium uppercase tracking-wider text-red-600">
                   Pro
                 </span>
               </div>
@@ -111,7 +111,7 @@ export function Sidebar({ user }: SidebarProps) {
               <input
                 type="text"
                 placeholder="Buscar... (Cmd+K)"
-                className="w-full rounded-xl border border-zaltyko-border bg-zaltyko-bg-light px-4 py-2 pl-10 text-sm text-zaltyko-text-main placeholder:text-zaltyko-text-secondary focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                className="w-full rounded-xl border border-zaltyko-border bg-zaltyko-bg-light px-4 py-2 pl-10 text-sm text-zaltyko-text-main placeholder:text-zaltyko-text-secondary focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20"
               />
             </div>
           </div>
@@ -132,7 +132,7 @@ export function Sidebar({ user }: SidebarProps) {
                     className={cn(
                       "group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all",
                       active
-                        ? "bg-gradient-to-r from-violet-50 to-violet-100/50 text-violet-700 border-l-3 border-l-violet-500"
+                        ? "bg-gradient-to-r from-red-50 to-red-100/50 text-red-700 border-l-3 border-l-red-500"
                         : "text-zaltyko-text-secondary hover:bg-zaltyko-bg hover:text-zaltyko-text-main",
                       effectiveCollapsed && "justify-center px-2"
                     )}
@@ -141,7 +141,7 @@ export function Sidebar({ user }: SidebarProps) {
                     <Icon
                       className={cn(
                         "h-5 w-5 flex-shrink-0 transition-colors",
-                        active ? "text-violet-600" : "text-zaltyko-text-secondary group-hover:text-zaltyko-text-main"
+                        active ? "text-red-600" : "text-zaltyko-text-secondary group-hover:text-zaltyko-text-main"
                       )}
                       strokeWidth={1.8}
                     />
@@ -160,7 +160,7 @@ export function Sidebar({ user }: SidebarProps) {
                     )}
                   </Link>
                   {hasChildren && active && !effectiveCollapsed && (
-                    <div className="ml-5 mt-1 space-y-1 border-l border-violet-200/50 pl-3">
+                    <div className="ml-5 mt-1 space-y-1 border-l border-red-200/50 pl-3">
                       {item.children?.map((child) => {
                         const ChildIcon = child.icon;
                         const childActive = isActive(child.href);
@@ -171,7 +171,7 @@ export function Sidebar({ user }: SidebarProps) {
                             className={cn(
                               "flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition-colors",
                               childActive
-                                ? "bg-violet-100 text-violet-700"
+                                ? "bg-red-100 text-red-700"
                                 : "text-zaltyko-text-secondary hover:bg-zaltyko-bg hover:text-zaltyko-text-main"
                             )}
                           >
@@ -198,14 +198,14 @@ export function Sidebar({ user }: SidebarProps) {
                   <Bell className="h-4 w-4" />
                   <span>Notificaciones</span>
                 </div>
-                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-violet-100 text-[10px] font-medium text-violet-600">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-red-100 text-[10px] font-medium text-red-600">
                   3
                 </span>
               </button>
 
               {/* User menu */}
               <div className="flex items-center gap-3 rounded-xl border border-zaltyko-border bg-zaltyko-bg-light p-2">
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-violet-600 text-white text-sm font-medium">
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-red-500 to-red-600 text-white text-sm font-medium">
                   {user?.name?.[0] || "U"}
                 </div>
                 <div className="flex-1 overflow-hidden">
@@ -230,7 +230,7 @@ export function Sidebar({ user }: SidebarProps) {
             <div className="flex flex-col items-center gap-2">
               <button className="relative flex h-9 w-9 items-center justify-center rounded-lg text-zaltyko-text-secondary hover:bg-zaltyko-bg hover:text-zaltyko-text-main">
                 <Bell className="h-4 w-4" />
-                <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-violet-500 text-[8px] font-medium text-white">
+                <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[8px] font-medium text-white">
                   3
                 </span>
               </button>

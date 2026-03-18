@@ -1,6 +1,6 @@
 "use client";
 
-import { LucideIcon } from "lucide-react";
+import { ReactNode } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
@@ -14,7 +14,7 @@ interface PageHeaderProps {
   title: string;
   description?: string;
   actions?: React.ReactNode;
-  icon?: LucideIcon;
+  icon?: React.ReactNode;
   className?: string;
 }
 
@@ -23,7 +23,7 @@ export function PageHeader({
   title,
   description,
   actions,
-  icon: Icon,
+  icon,
   className,
 }: PageHeaderProps) {
   return (
@@ -55,9 +55,9 @@ export function PageHeader({
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-2">
           <div className="flex items-center gap-3">
-            {Icon && (
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100 text-violet-600">
-                <Icon className="h-5 w-5" strokeWidth={1.5} />
+            {icon && (
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-100 text-red-600">
+                {icon}
               </div>
             )}
             <h1 className="text-2xl font-bold tracking-tight text-zaltyko-text-main sm:text-3xl">

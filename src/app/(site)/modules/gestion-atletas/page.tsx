@@ -27,7 +27,7 @@ export const metadata: Metadata = {
   },
 };
 
-const MODULE_COLOR = "from-violet-500 to-purple-600";
+const MODULE_COLOR = "from-red-500 to-red-600";
 
 const problemContent = `Administrar la información de decenas o cientos de gimnastas sin un sistema centralizado es un desafío constante para cualquier academia de gimnasia. Los datos personales se dispersan entre hojas de cálculo, libretas de entrenadores y grupos de mensajería. Cuando un padre solicita información sobre el progreso de su hijo, encontrar los datos actualizados puede tomar minutos valiosos que podrían dedicarse a entrenar.
 

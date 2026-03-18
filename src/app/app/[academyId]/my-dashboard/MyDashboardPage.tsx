@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams, useRouter } from "next/navigation";
+import { useState } from "react";
 import {
   Calendar,
   Clock,
@@ -13,16 +15,28 @@ import {
   Mail,
   Phone,
   GraduationCap,
+  ChevronDown,
+  ClipboardList,
 } from "lucide-react";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { MyScheduleWidget } from "@/components/my-dashboard/MyScheduleWidget";
 import { MyAttendanceWidget } from "@/components/my-dashboard/MyAttendanceWidget";
 import { MyPaymentsWidget } from "@/components/my-dashboard/MyPaymentsWidget";
 import { MyProgressWidget } from "@/components/my-dashboard/MyProgressWidget";
+import { MyAssessmentsWidget } from "@/components/my-dashboard/MyAssessmentsWidget";
+import { MyCalendarWidget } from "@/components/my-dashboard/MyCalendarWidget";
+import { getInitials } from "@/lib/string-utils";
 
 interface AthleteWithDetails {
   id: string;
@@ -38,6 +52,11 @@ interface GuardianWithAthletes {
   guardianId: string;
   athleteId: string;
   athleteName: string;
+  athleteLevel: string | null;
+  athleteGroupId: string | null;
+  athleteGroupName: string | null;
+  athleteGroupColor: string | null;
+  athleteCoachName: string | null;
 }
 
 interface ChargeData {
@@ -47,6 +66,9 @@ interface ChargeData {
   period: string;
   status: string;
   dueDate: string | null;
+  notes: string | null;
+  billingItemName: string | null;
+  billingItemDescription: string | null;
 }
 
 interface AttendanceData {
@@ -78,6 +100,7 @@ interface MyDashboardPageProps {
   academyId: string;
   academyName: string;
   academyCountry: string | null;
+  academyPhone: string | null;
   profileName: string | null;
   profileRole: string;
   profilePhotoUrl: string | null;
@@ -87,6 +110,8 @@ interface MyDashboardPageProps {
   attendanceData: AttendanceData | null;
   chargesData: ChargeData[];
   weeklySchedule: { day: number; className: string; time: string }[];
+  assessmentsData: { id: string; assessmentDate: string; apparatus: string | null; overallComment: string | null; assessedByName: string | null }[];
+  calendarSessions: { date: string; sessions: { id: string; className: string; startTime: string | null; endTime: string | null; groupName: string | null; groupColor: string | null }[] }[];
 }
 
 const DAYS_OF_WEEK = [
@@ -103,6 +128,7 @@ export function MyDashboardPage({
   academyId,
   academyName,
   academyCountry,
+  academyPhone,
   profileName,
   profileRole,
   profilePhotoUrl,
@@ -112,30 +138,45 @@ export function MyDashboardPage({
   attendanceData,
   chargesData,
   weeklySchedule,
+  assessmentsData,
+  calendarSessions,
 }: MyDashboardPageProps) {
   const isParent = profileRole === "parent";
   const isAthlete = profileRole === "athlete";
+  const isCoach = profileRole === "coach";
+  const isAdmin = profileRole === "admin" || profileRole === "owner";
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Estado para el athlete seleccionado (para padres con múltiples hijos)
+  const [selectedAthleteId, setSelectedAthleteId] = useState(
+    isAthlete ? athleteData?.id : guardianAthletes[0]?.athleteId
+  );
+
+  // Obtener el athlete seleccionado de la lista
+  const selectedAthlete = isParent && guardianAthletes.length > 0
+    ? guardianAthletes.find(a => a.athleteId === selectedAthleteId) ?? guardianAthletes[0]
+    : null;
+
+  // Función para cambiar de athlete
+  const handleAthleteChange = (newAthleteId: string) => {
+    setSelectedAthleteId(newAthleteId);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("athleteId", newAthleteId);
+    router.push(`?${params.toString()}`);
+  };
 
   // Obtener el nombre del atleta a mostrar
   const displayAthleteName = isAthlete
     ? athleteData?.name
-    : guardianAthletes.length > 0
-    ? guardianAthletes[0].athleteName
-    : null;
-
-  const getInitials = (name: string | null) => {
-    if (!name) return "U";
-    const parts = name.split(" ");
-    return parts.length > 1
-      ? `${parts[0][0]}${parts[1][0]}`.toUpperCase()
-      : name.substring(0, 2).toUpperCase();
-  };
+    : selectedAthlete?.athleteName ?? null;
 
   // Calcular estado de pagos
   const pendingPayments = chargesData.filter(
     (c) => c.status === "pending" || c.status === "overdue"
   );
   const hasPendingPayments = pendingPayments.length > 0;
+  const totalPendingAmount = pendingPayments.reduce((sum, p) => sum + p.amountCents, 0);
 
   // Calcular tasa de asistencia
   const attendanceRate =
@@ -143,8 +184,73 @@ export function MyDashboardPage({
       ? Math.round((attendanceData.present / attendanceData.total) * 100)
       : 0;
 
+  // Format currency
+  const formatCurrency = (cents: number) => {
+    return new Intl.NumberFormat("es-ES", {
+      style: "currency",
+      currency: "EUR",
+    }).format(cents / 100);
+  };
+
   return (
     <div className="space-y-6">
+      {/* Alerta de pagos pendientes */}
+      {hasPendingPayments && (
+        <div className="flex items-center justify-between rounded-lg border border-amber-200 bg-amber-50 p-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100">
+              <CreditCard className="h-5 w-5 text-amber-600" />
+            </div>
+            <div>
+              <p className="font-semibold text-amber-900">Tienes {pendingPayments.length} pago(s) pendiente(s)</p>
+              <p className="text-sm text-amber-700">Total: {formatCurrency(totalPendingAmount)}</p>
+            </div>
+          </div>
+          <Button asChild size="sm" className="bg-amber-600 hover:bg-amber-700">
+            <Link href={`/app/${academyId}/billing`}>
+              Ver detalles
+            </Link>
+          </Button>
+        </div>
+      )}
+
+      {/* Stats rápidos */}
+      <div className="grid gap-4 sm:grid-cols-3">
+        <div className="rounded-lg border bg-card p-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100">
+              <TrendingUp className="h-5 w-5 text-emerald-600" />
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Asistencia</p>
+              <p className="text-xl font-bold">{attendanceRate}%</p>
+            </div>
+          </div>
+        </div>
+        <div className="rounded-lg border bg-card p-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100">
+              <Calendar className="h-5 w-5 text-blue-600" />
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Clases esta semana</p>
+              <p className="text-xl font-bold">{weeklySchedule.length}</p>
+            </div>
+          </div>
+        </div>
+        <div className="rounded-lg border bg-card p-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-purple-100">
+              <ClipboardList className="h-5 w-5 text-purple-600" />
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Evaluaciones</p>
+              <p className="text-xl font-bold">{assessmentsData.length}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Header con información del perfil */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">
@@ -158,7 +264,7 @@ export function MyDashboardPage({
               ¡Hola, {profileName || "Usuario"}!
             </h1>
             <p className="text-muted-foreground">
-              {isParent ? "Panel de padre/tutor" : "Tu panel personal"}
+              {isParent ? "Panel de padre/tutor" : isAthlete ? "Tu progreso" : isCoach ? "Panel de entrenador" : "Tu panel personal"}
               {" · "}
               <span className="font-medium text-primary">{academyName}</span>
             </p>
@@ -246,15 +352,32 @@ export function MyDashboardPage({
               )}
             </div>
 
-            {/* Si es padre con múltiples hijos */}
+            {/* Selector de hijos para padres con múltiples atletas */}
             {isParent && guardianAthletes.length > 1 && (
-              <div className="mt-4 flex flex-wrap gap-2">
-                <span className="text-sm text-muted-foreground">Tus hijos:</span>
-                {guardianAthletes.map((ga) => (
-                  <Badge key={ga.athleteId} variant="outline">
-                    {ga.athleteName}
-                  </Badge>
-                ))}
+              <div className="mt-4">
+                <label className="text-sm text-muted-foreground mb-2 block">
+                  Ver información de:
+                </label>
+                <Select value={selectedAthleteId ?? ""} onValueChange={handleAthleteChange}>
+                  <SelectTrigger className="w-full sm:w-[240px]">
+                    <SelectValue placeholder="Seleccionar hijo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {guardianAthletes.map((ga) => (
+                      <SelectItem key={ga.athleteId} value={ga.athleteId}>
+                        <div className="flex items-center gap-2">
+                          <User className="h-4 w-4" />
+                          <span>{ga.athleteName}</span>
+                          {ga.athleteLevel && (
+                            <Badge variant="outline" className="text-xs ml-2">
+                              {ga.athleteLevel}
+                            </Badge>
+                          )}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             )}
           </CardContent>
@@ -263,30 +386,27 @@ export function MyDashboardPage({
 
       {/* Widgets principales - Grid responsivo */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {/* Widget de Horario/Próximas clases */}
+        {/* Widget de Calendario Mensual */}
         <Card className="md:col-span-2 lg:col-span-2">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle className="text-base">
-                  <Clock className="mr-2 inline h-4 w-4" />
-                  Próximas Clases
+                  <Calendar className="mr-2 inline h-4 w-4" />
+                  Calendario
                 </CardTitle>
-                <CardDescription>Hoy y los próximos días</CardDescription>
+                <CardDescription>Vista mensual de clases</CardDescription>
               </div>
               <Button variant="ghost" size="sm" asChild>
-                <Link href={`/app/${academyId}/classes`}>
-                  Ver todas
+                <Link href={`/app/${academyId}/calendar`}>
+                  Ver calendario completo
                   <ArrowRight className="ml-1 h-3 w-3" />
                 </Link>
               </Button>
             </div>
           </CardHeader>
           <CardContent>
-            <MyScheduleWidget
-              sessions={upcomingClasses}
-              academyCountry={academyCountry}
-            />
+            <MyCalendarWidget sessionsByDay={calendarSessions} />
           </CardContent>
         </Card>
 
@@ -372,6 +492,35 @@ export function MyDashboardPage({
         </CardContent>
       </Card>
 
+      {/* Widget de Evaluaciones */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-base">
+                <TrendingUp className="mr-2 inline h-4 w-4" />
+                Evaluaciones Técnicas
+              </CardTitle>
+              <CardDescription>
+                Historial de evaluaciones y progreso
+              </CardDescription>
+            </div>
+            <Button variant="ghost" size="sm" asChild>
+              <Link href={`/app/${academyId}/assessments`}>
+                Ver todas
+                <ArrowRight className="ml-1 h-3 w-3" />
+              </Link>
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <MyAssessmentsWidget
+            assessments={assessmentsData}
+            athleteName={displayAthleteName ?? "Atleta"}
+          />
+        </CardContent>
+      </Card>
+
       {/* Acciones rápidas */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Button variant="outline" className="h-auto py-4" asChild>
@@ -407,6 +556,24 @@ export function MyDashboardPage({
             </div>
           </Link>
         </Button>
+        {/* Botón de WhatsApp si hay teléfono */}
+        {academyPhone && (
+          <Button variant="outline" className="h-auto py-4" asChild>
+            <Link
+              href={`https://wa.me/${academyPhone.replace(/\D/g, '')}?text=Hola, me gustaría información sobre la academia`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <div className="flex flex-col items-start gap-1 text-left">
+                <Phone className="h-5 w-5 text-primary" />
+                <span className="font-medium">WhatsApp</span>
+                <span className="text-xs text-muted-foreground">
+                  Chatea directamente
+                </span>
+              </div>
+            </Link>
+          </Button>
+        )}
       </div>
     </div>
   );

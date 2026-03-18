@@ -33,6 +33,12 @@ export interface EventFormData {
   notifyCityAcademies: boolean;
   notifyProvinceAcademies: boolean;
   notifyCountryAcademies: boolean;
+  // Nuevos campos para inscripciones
+  status: "draft" | "published" | "cancelled" | "completed";
+  maxCapacity: number;
+  registrationFee: number;
+  allowWaitlist: boolean;
+  waitlistMaxSize: number;
 }
 
 /**
@@ -67,6 +73,12 @@ export interface EventFormInitialData {
   notifyCityAcademies?: boolean;
   notifyProvinceAcademies?: boolean;
   notifyCountryAcademies?: boolean;
+  // Nuevos campos para inscripciones
+  status?: "draft" | "published" | "cancelled" | "completed" | null;
+  maxCapacity?: number | null;
+  registrationFee?: number | null;
+  allowWaitlist?: boolean;
+  waitlistMaxSize?: number | null;
 }
 
 /**
@@ -104,6 +116,11 @@ export function normalizeEventFormData(
     notifyCityAcademies: initialData?.notifyCityAcademies ?? false,
     notifyProvinceAcademies: initialData?.notifyProvinceAcademies ?? false,
     notifyCountryAcademies: initialData?.notifyCountryAcademies ?? false,
+    status: initialData?.status || "draft",
+    maxCapacity: initialData?.maxCapacity ?? 0,
+    registrationFee: initialData?.registrationFee ?? 0,
+    allowWaitlist: initialData?.allowWaitlist ?? true,
+    waitlistMaxSize: initialData?.waitlistMaxSize ?? 0,
   };
 }
 

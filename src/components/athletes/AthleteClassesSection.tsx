@@ -117,7 +117,7 @@ export function AthleteClassesSection({ athleteId, academyId }: AthleteClassesSe
                     className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
                       classInfo.origin === "group"
                         ? "bg-blue-100 text-blue-700"
-                        : "bg-purple-100 text-purple-700"
+                        : "bg-red-100 text-red-700"
                     }`}
                   >
                     {classInfo.origin === "group" ? "Por grupo principal" : "Clase extra"}

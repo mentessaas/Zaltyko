@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { Home, Users, Calendar, BarChart3, Settings, Menu } from "lucide-react";
+import { Home, Users, Calendar, BarChart3, Settings, Store, MessageCircle, LifeBuoy, Wallet, Plus } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 
@@ -16,6 +16,7 @@ const bottomNavItems: BottomNavItem[] = [
   { label: "Atletas", href: "/dashboard/athletes", icon: Users },
   { label: "Clases", href: "/dashboard/classes", icon: Calendar },
   { label: "Reportes", href: "/dashboard/reports", icon: BarChart3 },
+  { label: "Marketplace", href: "/marketplace", icon: Store },
   { label: "Ajustes", href: "/dashboard/settings", icon: Settings },
 ];
 
@@ -74,16 +75,64 @@ export function BottomNav() {
     router.push(href);
   };
 
+  // Quick actions menu state
+  const [showQuickActions, setShowQuickActions] = useState(false);
+
+  const quickActions = [
+    { label: "Nuevo atleta", href: "/dashboard/athletes/new", icon: Users },
+    { label: "Nueva clase", href: "/dashboard/classes/new", icon: Calendar },
+    { label: "Nuevo evento", href: "/dashboard/events/new", icon: Calendar },
+    { label: "Nuevo mensaje", href: "/dashboard/messages/new", icon: MessageCircle },
+  ];
+
   return (
-    <nav
-      className={cn(
-        "fixed bottom-0 left-0 right-0 z-50 transition-transform duration-300 ease-in-out",
-        isVisible ? "translate-y-0" : "translate-y-full"
+    <>
+      {/* Quick Actions FAB */}
+      <button
+        type="button"
+        onClick={() => setShowQuickActions(!showQuickActions)}
+        className={cn(
+          "fixed right-4 z-50 flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition-all",
+          "bg-primary text-white hover:bg-primary/90 md:hidden",
+          isVisible ? "bottom-20" : "bottom-4 opacity-0 pointer-events-none"
+        )}
+        aria-label="Acciones rápidas"
+      >
+        <Plus className={cn("h-6 w-6 transition-transform", showQuickActions && "rotate-45")} />
+      </button>
+
+      {/* Quick Actions Menu */}
+      {showQuickActions && (
+        <div className="fixed right-4 bottom-36 z-40 space-y-2 md:hidden">
+          {quickActions.map((action) => {
+            const Icon = action.icon;
+            return (
+              <button
+                key={action.href}
+                type="button"
+                onClick={() => {
+                  router.push(action.href);
+                  setShowQuickActions(false);
+                }}
+                className="flex items-center gap-3 rounded-full bg-white dark:bg-gray-800 px-4 py-2 shadow-lg border border-gray-200 dark:border-gray-700"
+              >
+                <Icon className="h-5 w-5 text-primary" />
+                <span className="text-sm font-medium">{action.label}</span>
+              </button>
+            );
+          })}
+        </div>
       )}
-    >
-      <div className="bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 shadow-lg">
-        <div className="flex items-center justify-around h-16 px-2 safe-area-bottom">
-          {bottomNavItems.map((item) => {
+
+      <nav
+        className={cn(
+          "fixed bottom-0 left-0 right-0 z-50 transition-transform duration-300 ease-in-out",
+          isVisible ? "translate-y-0" : "translate-y-full"
+        )}
+      >
+        <div className="bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 shadow-lg">
+          <div className="flex items-center justify-around h-16 px-2 safe-area-bottom">
+            {bottomNavItems.map((item) => {
             const Icon = item.icon;
             const active = isActive(item.href);
 
@@ -116,6 +165,7 @@ export function BottomNav() {
         <div className="h-safe-area-bottom bg-white dark:bg-gray-900" />
       </div>
     </nav>
+    </>
   );
 }
 

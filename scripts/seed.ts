@@ -229,18 +229,21 @@ async function ensureSupabaseSuperAdminUser(): Promise<string> {
 }
 
 async function seedAdminProfile(superAdminUserId: string) {
+  // Super admin uses a nil UUID to indicate no tenant association
+  const NIL_UUID = "00000000-0000-0000-0000-000000000000";
+
   await db
     .insert(profiles)
     .values({
       userId: superAdminUserId,
-      tenantId: null,
+      tenantId: NIL_UUID,
       name: SUPER_ADMIN_NAME,
       role: "super_admin",
     })
     .onConflictDoUpdate({
       target: profiles.userId,
       set: {
-        tenantId: null,
+        tenantId: NIL_UUID,
         name: SUPER_ADMIN_NAME,
         role: "super_admin",
       },

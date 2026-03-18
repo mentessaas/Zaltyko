@@ -68,8 +68,10 @@ async function logAuditEvent(
   meta: Record<string, unknown>
 ): Promise<void> {
   await db.insert(auditLogs).values({
-    tenantId: tenantId ?? undefined,
-    action,
+    tenantId: tenantId as any,
+    action: action as any,
+    module: "billing" as any,
+    status: "success" as any,
     meta,
   });
 }

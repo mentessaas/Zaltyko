@@ -156,52 +156,9 @@ export async function getDashboardData(academyId: string): Promise<{
     throw new Error("ACADEMY_NOT_FOUND");
   }
 
-  const [{ value: athleteCount }] = await db
-    .select({ value: count() })
-    .from(athletes)
-    .where(eq(athletes.academyId, academyId));
-
-  const [{ value: coachCount }] = await db
-    .select({ value: count() })
-    .from(coaches)
-    .where(eq(coaches.academyId, academyId));
-
-  const [{ value: groupCount }] = await db
-    .select({ value: count() })
-    .from(groups)
-    .where(eq(groups.academyId, academyId));
-
   const week = getWeekBoundaries(academy.country);
   const weekStartIso = formatISO(week.start, { representation: "date" });
   const weekEndIso = formatISO(week.end, { representation: "date" });
-
-  const [{ value: classesWeekCount }] = await db
-    .select({ value: count() })
-    .from(classSessions)
-    .innerJoin(classes, eq(classSessions.classId, classes.id))
-    .where(
-      and(
-        eq(classes.academyId, academyId),
-        gte(classSessions.sessionDate, weekStartIso),
-        lte(classSessions.sessionDate, weekEndIso)
-      )
-    );
-
-  const [{ value: scheduledClassesCount }] = await db
-    .select({ value: sql<number>`count(distinct ${classWeekdays.classId})` })
-    .from(classWeekdays)
-    .innerJoin(classes, eq(classWeekdays.classId, classes.id))
-    .where(eq(classes.academyId, academyId));
-
-  const [{ value: assessmentsCount }] = await db
-    .select({ value: count() })
-    .from(athleteAssessments)
-    .where(eq(athleteAssessments.academyId, academyId));
-
-  const classesMetric =
-    Number(classesWeekCount ?? 0) > 0
-      ? Number(classesWeekCount ?? 0)
-      : Number(scheduledClassesCount ?? 0);
 
   // Calcular % de asistencia de los últimos 7 días
   const now = new Date();
@@ -209,34 +166,82 @@ export async function getDashboardData(academyId: string): Promise<{
   const sevenDaysAgoIso = formatISO(sevenDaysAgo, { representation: "date" });
   const nowIso = formatISO(now, { representation: "date" });
 
-  // Contar total de registros de asistencia de los últimos 7 días
-  const [{ value: totalAttendanceCount }] = await db
-    .select({ value: count() })
-    .from(attendanceRecords)
-    .innerJoin(classSessions, eq(attendanceRecords.sessionId, classSessions.id))
-    .innerJoin(classes, eq(classSessions.classId, classes.id))
-    .where(
-      and(
-        eq(classes.academyId, academyId),
-        gte(classSessions.sessionDate, sevenDaysAgoIso),
-        lte(classSessions.sessionDate, nowIso)
-      )
-    );
+  // Ejecutar todas las consultas de métricas en paralelo para mejor rendimiento
+  const [
+    athleteResult,
+    coachResult,
+    groupResult,
+    classesWeekResult,
+    scheduledClassesResult,
+    assessmentsResult,
+    totalAttendanceResult,
+    presentAttendanceResult,
+    classesTotalResult,
+  ] = await Promise.all([
+    db.select({ value: count() }).from(athletes).where(eq(athletes.academyId, academyId)),
+    db.select({ value: count() }).from(coaches).where(eq(coaches.academyId, academyId)),
+    db.select({ value: count() }).from(groups).where(eq(groups.academyId, academyId)),
+    db
+      .select({ value: count() })
+      .from(classSessions)
+      .innerJoin(classes, eq(classSessions.classId, classes.id))
+      .where(
+        and(
+          eq(classes.academyId, academyId),
+          gte(classSessions.sessionDate, weekStartIso),
+          lte(classSessions.sessionDate, weekEndIso)
+        )
+      ),
+    db
+      .select({ value: sql<number>`count(distinct ${classWeekdays.classId})` })
+      .from(classWeekdays)
+      .innerJoin(classes, eq(classWeekdays.classId, classes.id))
+      .where(eq(classes.academyId, academyId)),
+    db
+      .select({ value: count() })
+      .from(athleteAssessments)
+      .where(eq(athleteAssessments.academyId, academyId)),
+    db
+      .select({ value: count() })
+      .from(attendanceRecords)
+      .innerJoin(classSessions, eq(attendanceRecords.sessionId, classSessions.id))
+      .innerJoin(classes, eq(classSessions.classId, classes.id))
+      .where(
+        and(
+          eq(classes.academyId, academyId),
+          gte(classSessions.sessionDate, sevenDaysAgoIso),
+          lte(classSessions.sessionDate, nowIso)
+        )
+      ),
+    db
+      .select({ value: count() })
+      .from(attendanceRecords)
+      .innerJoin(classSessions, eq(attendanceRecords.sessionId, classSessions.id))
+      .innerJoin(classes, eq(classSessions.classId, classes.id))
+      .where(
+        and(
+          eq(classes.academyId, academyId),
+          eq(attendanceRecords.status, "present"),
+          gte(classSessions.sessionDate, sevenDaysAgoIso),
+          lte(classSessions.sessionDate, nowIso)
+        )
+      ),
+    db.select({ value: count() }).from(classes).where(eq(classes.academyId, academyId)),
+  ]);
 
-  // Contar asistencias "present" de los últimos 7 días
-  const [{ value: presentCount }] = await db
-    .select({ value: count() })
-    .from(attendanceRecords)
-    .innerJoin(classSessions, eq(attendanceRecords.sessionId, classSessions.id))
-    .innerJoin(classes, eq(classSessions.classId, classes.id))
-    .where(
-      and(
-        eq(classes.academyId, academyId),
-        eq(attendanceRecords.status, "present"),
-        gte(classSessions.sessionDate, sevenDaysAgoIso),
-        lte(classSessions.sessionDate, nowIso)
-      )
-    );
+  const athleteCount = athleteResult[0]?.value ?? 0;
+  const coachCount = coachResult[0]?.value ?? 0;
+  const groupCount = groupResult[0]?.value ?? 0;
+  const classesWeekCount = classesWeekResult[0]?.value ?? 0;
+  const scheduledClassesCount = scheduledClassesResult[0]?.value ?? 0;
+  const assessmentsCount = assessmentsResult[0]?.value ?? 0;
+  const totalAttendanceCount = totalAttendanceResult[0]?.value ?? 0;
+  const presentCount = presentAttendanceResult[0]?.value ?? 0;
+  const classesTotal = classesTotalResult[0]?.value ?? 0;
+
+  const classesMetric = Number(classesWeekCount ?? 0) > 0
+    ? Number(classesWeekCount ?? 0)
+    : Number(scheduledClassesCount ?? 0);
 
   // Calcular % de asistencia (present / total registros)
   const totalAttendances = Number(totalAttendanceCount ?? 0);
@@ -289,11 +294,6 @@ export async function getDashboardData(academyId: string): Promise<{
       subscription = sub ?? null;
     }
   }
-
-  const [{ value: classesTotal }] = await db
-    .select({ value: count() })
-    .from(classes)
-    .where(eq(classes.academyId, academyId));
 
   const plan: DashboardPlanUsage = {
     planCode: (subscription?.planCode as string | undefined) ?? activePlan.planCode,

@@ -61,3 +61,8 @@ next-env.d.ts
 
 # worktrees
 /.worktrees
+
+# Large directories
+/ZaltykoMobile
+/zaltyko-branding
+/.playwright-mcp

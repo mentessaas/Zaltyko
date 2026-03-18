@@ -68,7 +68,7 @@ export function MarketplaceCard({ listing, sellerRating }: MarketplaceCardProps)
         <CardHeader className="p-3">
           <div className="flex items-center gap-2">
             <Badge variant="outline">{listing.type === "product" ? "Producto" : "Servicio"}</Badge>
-            <Badge variant="secondary">{categoryLabels[listing.category] || listing.category}</Badge>
+            <Badge variant="default">{categoryLabels[listing.category] || listing.category}</Badge>
           </div>
         </CardHeader>
         <CardContent className="p-3 pt-0">

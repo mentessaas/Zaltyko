@@ -43,6 +43,12 @@ const UpdateEventSchema = z.object({
   notifyCityAcademies: z.boolean().optional(),
   notifyProvinceAcademies: z.boolean().optional(),
   notifyCountryAcademies: z.boolean().optional(),
+  // Nuevos campos para inscripciones
+  status: z.enum(["draft", "published", "cancelled", "completed"]).optional(),
+  maxCapacity: z.number().int().positive().optional(),
+  registrationFee: z.number().int().positive().optional(),
+  allowWaitlist: z.boolean().optional(),
+  waitlistMaxSize: z.number().int().positive().optional(),
 }).refine((data) => {
   if (data.registrationStartDate && data.registrationEndDate) {
     return new Date(data.registrationStartDate) <= new Date(data.registrationEndDate);
@@ -221,6 +227,12 @@ export const PATCH = withTenant(async (request, context) => {
     if (body.notifyCityAcademies !== undefined) updateData.notifyCityAcademies = body.notifyCityAcademies;
     if (body.notifyProvinceAcademies !== undefined) updateData.notifyProvinceAcademies = body.notifyProvinceAcademies;
     if (body.notifyCountryAcademies !== undefined) updateData.notifyCountryAcademies = body.notifyCountryAcademies;
+    // Nuevos campos
+    if (body.status !== undefined) updateData.status = body.status;
+    if (body.maxCapacity !== undefined) updateData.maxCapacity = body.maxCapacity ?? null;
+    if (body.registrationFee !== undefined) updateData.registrationFee = body.registrationFee ?? null;
+    if (body.allowWaitlist !== undefined) updateData.allowWaitlist = body.allowWaitlist;
+    if (body.waitlistMaxSize !== undefined) updateData.waitlistMaxSize = body.waitlistMaxSize ?? null;
 
     updateData.updatedAt = new Date();
 
@@ -237,7 +249,7 @@ export const PATCH = withTenant(async (request, context) => {
         const { notifyInternalStaff } = await import("@/lib/notifications/eventsNotifier");
         await notifyInternalStaff(updatedEvent.academyId, id);
       } catch (err) {
-        logger.error("Error enviando notificación a personal interno", err as Error, { academyId: updatedEvent.academyId, eventId: id });
+        logger.error("Error enviando notificación a personal interno", err as Error, { academyId: updatedEvent.academyId, id: id });
       }
     }
     if (body.notifyCityAcademies && (body.cityName || updatedEvent.cityName)) {
@@ -245,7 +257,7 @@ export const PATCH = withTenant(async (request, context) => {
         const { notifyCity } = await import("@/lib/notifications/eventsNotifier");
         await notifyCity(updatedEvent.academyId, id);
       } catch (err) {
-        logger.error("Error enviando notificación a academias de la ciudad", err as Error, { academyId: updatedEvent.academyId, eventId: id });
+        logger.error("Error enviando notificación a academias de la ciudad", err as Error, { academyId: updatedEvent.academyId, id: id });
       }
     }
     if (body.notifyProvinceAcademies && (body.provinceName || updatedEvent.provinceName)) {
@@ -253,7 +265,7 @@ export const PATCH = withTenant(async (request, context) => {
         const { notifyProvince } = await import("@/lib/notifications/eventsNotifier");
         await notifyProvince(updatedEvent.academyId, id);
       } catch (err) {
-        logger.error("Error enviando notificación a academias de la provincia", err as Error, { academyId: updatedEvent.academyId, eventId: id });
+        logger.error("Error enviando notificación a academias de la provincia", err as Error, { academyId: updatedEvent.academyId, id: id });
       }
     }
     if (body.notifyCountryAcademies && (body.countryName || updatedEvent.countryName)) {
@@ -261,7 +273,7 @@ export const PATCH = withTenant(async (request, context) => {
         const { notifyCountry } = await import("@/lib/notifications/eventsNotifier");
         await notifyCountry(updatedEvent.academyId, id);
       } catch (err) {
-        logger.error("Error enviando notificación a academias del país", err as Error, { academyId: updatedEvent.academyId, eventId: id });
+        logger.error("Error enviando notificación a academias del país", err as Error, { academyId: updatedEvent.academyId, id: id });
       }
     }
 

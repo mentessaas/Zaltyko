@@ -10,7 +10,7 @@ html {
 
 body {
   ::selection {
-    background-color: #0D47A1;
+    background-color: #DC2626;
     color: #ffffff;
   }
 }
@@ -47,24 +47,24 @@ body {
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
  
-    --primary: 262 83% 58%; /* Violet-600 #7C3AED */
-    --primary-foreground: 210 40% 98%;
- 
-    --secondary: 210 40% 96.1%;
+    --primary: 0 86% 42%; /* Rojo cereza #DC2626 */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 0 86% 96%; /* Rojo muy claro */
     --secondary-foreground: 222 47% 11.2%;
- 
+
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
- 
-    --accent: 262 83% 96%; /* Violet-50 */
+
+    --accent: 38 92% 50%; /* Ámbar/Dorado #F59E0B */
     --accent-foreground: 222 47% 11.2%;
- 
+
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 262 83% 58%;
+    --border: 0 86% 91%; /* Rojo muy claro */
+    --input: 0 86% 91%;
+    --ring: 0 86% 42%;
  
     --radius: 0.75rem;
 
@@ -85,8 +85,8 @@ body {
     --popover: 222 47% 11%;
     --popover-foreground: 210 40% 98%;
  
-    --primary: 263 70% 50%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 0 84% 37%; /* Rojo cereza oscuro #B91C1C */
+    --primary-foreground: 0 0% 100%;
  
     --secondary: 217.2 32.6% 17.5%;
     --secondary-foreground: 210 40% 98%;
@@ -241,6 +241,122 @@ body {
 
 .pull-to-refresh-active {
   animation: pull-to-refresh 0.3s ease-out;
+}
+
+/* Animaciones adicionales */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+@keyframes pulse-ring {
+  0% { transform: scale(0.8); opacity: 1; }
+  100% { transform: scale(1.3); opacity: 0; }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+.animate-fadeInUp {
+  animation: fadeInUp 0.4s ease-out forwards;
+}
+
+.animate-fadeInDown {
+  animation: fadeInDown 0.4s ease-out forwards;
+}
+
+.animate-scaleIn {
+  animation: scaleIn 0.3s ease-out forwards;
+}
+
+.animate-slideInRight {
+  animation: slideInRight 0.3s ease-out forwards;
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.animate-bounce-subtle {
+  animation: bounce 1s ease-in-out infinite;
+}
+
+/* Delay utilities for staggered animations */
+.delay-75 { animation-delay: 75ms; }
+.delay-150 { animation-delay: 150ms; }
+.delay-225 { animation-delay: 225ms; }
+.delay-300 { animation-delay: 300ms; }
+.delay-375 { animation-delay: 375ms; }
+.delay-450 { animation-delay: 450ms; }
+
+/* Transition utilities */
+.transition-transform-hover {
+  transition: transform 0.2s ease;
+}
+
+.transition-transform-hover:hover {
+  transform: translateY(-2px);
+}
+
+.transition-colors {
+  transition: background-color 0.2s, border-color 0.2s, color 0.2s;
 }
 
 /* Offline indicator */

@@ -1,10 +1,20 @@
 import { Metadata } from "next";
+import Link from "next/link";
+import { Plus } from "lucide-react";
 import { JobCard } from "@/components/empleo/JobCard";
+import { JobFilters } from "@/components/empleo/JobFilters";
 import { AdBanner } from "@/components/advertising/AdBanner";
+import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = {
-  title: "Bolsa de Empleo | Zaltyko",
-  description: "Encuentra trabajo en academias de gimnasia",
+  title: "Bolsa de Empleo en Gimnasia | Zaltyko",
+  description: "Encuentra trabajo en academias de gimansia. Ofertas de empleo para entradores, auxiliares y más.",
+  openGraph: {
+    title: "Bolsa de Empleo en Gimnasia | Zaltyko",
+    description: "Encuentra trabajo en academias de gimansia",
+    url: "/empleo",
+    type: "website",
+  },
 };
 
 async function getJobs(searchParams: { category?: string; jobType?: string; search?: string; page?: string }) {
@@ -37,11 +47,22 @@ export default async function EmpleoPage({
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-8">Bolsa de Empleo</h1>
+      <div className="flex items-center justify-between mb-8">
+        <h1 className="text-3xl font-bold">Bolsa de Empleo</h1>
+        <Link href="/empleo/nuevo">
+          <Button>
+            <Plus className="mr-2 h-4 w-4" />
+            Publicar oferta
+          </Button>
+        </Link>
+      </div>
 
       <AdBanner ads={topAds} position="top" />
 
       <div className="flex gap-8 mt-6">
+        <aside className="w-64 shrink-0">
+          <JobFilters />
+        </aside>
         <main className="flex-1 space-y-4">
           <p className="text-gray-600">{total || 0} ofertas disponibles</p>
 

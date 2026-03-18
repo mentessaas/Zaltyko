@@ -32,7 +32,9 @@ export async function createAuditLog(params: CreateAuditLogParams) {
     await db.insert(auditLogs).values({
       tenantId: params.tenantId as any,
       userId: params.userId as any,
-      action: params.action,
+      action: params.action as any,
+      module: (params.resourceType || "general") as any,
+      status: "success" as any,
       resourceType: params.resourceType,
       resourceId: params.resourceId as any,
       meta: params.metadata ?? {},
