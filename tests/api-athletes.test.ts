@@ -16,6 +16,7 @@ type SelectResponse = {
 };
 
 let selectQueue: SelectResponse[] = [];
+let isCountQuery = false;
 
 const selectChainFactory = () => {
   const response = selectQueue.shift() ?? { items: [] };
@@ -24,8 +25,14 @@ const selectChainFactory = () => {
     leftJoin: vi.fn(() => chain),
     where: vi.fn(() => chain),
     groupBy: vi.fn(() => chain),
-    orderBy: vi.fn(() => Promise.resolve(response.items)),
-    limit: vi.fn(() => Promise.resolve(response.items)),
+    orderBy: vi.fn(() => chain),
+    limit: vi.fn(() => chain),
+    offset: vi.fn(() => {
+      if (isCountQuery) {
+        return Promise.resolve([{ count: response.items.length }]);
+      }
+      return Promise.resolve(response.items);
+    }),
   };
   return chain;
 };
@@ -41,8 +48,9 @@ describe("API /api/athletes", () => {
     process.env = { ...originalEnv };
     insertCalls = [];
     selectQueue = [];
-    currentParams = {};
     selectChain = selectChainFactory();
+    isCountQuery = false;
+    currentParams = {};
 
     vi.mock("@/lib/authz", () => ({
       withTenant:
@@ -79,7 +87,9 @@ describe("API /api/athletes", () => {
             };
           },
         })),
-        select: vi.fn(() => {
+        select: vi.fn((selection?: any) => {
+          // Detect count queries by checking if selection has 'count' key
+          isCountQuery = selection && typeof selection === 'object' && 'count' in selection;
           selectChain = selectChainFactory();
           return selectChain;
         }),
@@ -152,6 +162,10 @@ describe("API /api/athletes", () => {
   });
 
   it("devuelve listado filtrado de atletas", async () => {
+    // First item for count query, second for paginated query
+    selectQueue.push({
+      items: [{ id: "athlete-1" }],
+    });
     selectQueue.push({
       items: [
         {
