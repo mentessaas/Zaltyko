@@ -12,7 +12,7 @@ export async function register() {
       dsn: SENTRY_DSN,
       tracesSampleRate: 1.0,
       debug: false,
-      beforeSend(event, hint) {
+      beforeSend(event) {
         if (process.env.NODE_ENV === "development") {
           return null;
         }
@@ -52,7 +52,7 @@ export async function register() {
       dsn: SENTRY_DSN,
       tracesSampleRate: 1.0,
       debug: false,
-      beforeSend(event, hint) {
+      beforeSend(event) {
         if (process.env.NODE_ENV === "development") {
           return null;
         }

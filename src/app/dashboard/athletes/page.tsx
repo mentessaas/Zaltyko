@@ -272,9 +272,9 @@ export default async function AthletesPage({ searchParams }: AthletesPageProps) 
           <p className="text-sm font-medium text-gray-700">Inactivos</p>
           <p className="text-3xl font-bold text-gray-800">{stats.inactive}</p>
         </div>
-        <div className="bg-gradient-to-br from-violet-50 to-violet-100 rounded-xl p-4 border border-violet-200">
-          <p className="text-sm font-medium text-violet-700">Edad Promedio</p>
-          <p className="text-3xl font-bold text-violet-800">{stats.avgAge} <span className="text-lg font-normal">años</span></p>
+        <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-xl p-4 border border-red-200">
+          <p className="text-sm font-medium text-red-700">Edad Promedio</p>
+          <p className="text-3xl font-bold text-red-800">{stats.avgAge} <span className="text-lg font-normal">años</span></p>
         </div>
         <div className="bg-gradient-to-br from-cyan-50 to-cyan-100 rounded-xl p-4 border border-cyan-200">
           <p className="text-sm font-medium text-cyan-700">Con Familia</p>
@@ -310,7 +310,7 @@ export default async function AthletesPage({ searchParams }: AthletesPageProps) 
         ]}
         title="Atletas"
         description="Gestiona atletas por nivel, estado y familia. Filtra la vista para detectar riesgos o planificar evaluaciones."
-        icon={Users}
+        icon={<Users className="h-5 w-5" strokeWidth={1.5} />}
         actions={
           <div className="flex gap-2">
             <Button asChild>
@@ -523,7 +523,7 @@ export default async function AthletesPage({ searchParams }: AthletesPageProps) 
               <tr>
                 <td colSpan={6}>
                   <EmptyState
-                    icon={Users}
+                    icon={<Users className="h-8 w-8" />}
                     title={searchTerm || statusParam || levelParam || academyParam || minAgeParam || maxAgeParam ? "Sin resultados" : "No hay atletas"}
                     description={
                       searchTerm || statusParam || levelParam || academyParam || minAgeParam || maxAgeParam

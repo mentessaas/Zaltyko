@@ -122,8 +122,9 @@ export async function POST(
     }
 
     const formData = await request.formData();
-    const message = formData.get("message") as string;
-    const isInternal = formData.get("isInternal") === "true";
+    const fd = formData as unknown as { get(name: string): unknown };
+    const message = fd.get("message") as string;
+    const isInternal = fd.get("isInternal") === "true";
 
     if (!message?.trim()) {
       return NextResponse.json(
@@ -153,7 +154,7 @@ export async function POST(
     }
 
     // Procesar archivos adjuntos si hay
-    const files = formData.getAll("files") as File[];
+    const files = formData.getAll("files") as unknown as File[];
     if (files.length > 0) {
       for (const file of files) {
         if (file.size > 0) {

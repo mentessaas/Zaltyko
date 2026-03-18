@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
 import {
   athleteAssessments,
-  athletes,
   assessmentScores,
   skillCatalog,
 } from "@/db/schema";

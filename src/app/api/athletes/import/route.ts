@@ -29,7 +29,7 @@ export const runtime = "nodejs";
 const handler = withTenant(async (request, context) => {
   try {
     const formData = await request.formData();
-    const file = formData.get("file");
+    const file = (formData as unknown as { get(name: string): File | null }).get("file");
 
   if (!(file instanceof File)) {
     return NextResponse.json({ error: "FILE_REQUIRED" }, { status: 400 });
@@ -66,7 +66,7 @@ const handler = withTenant(async (request, context) => {
     return NextResponse.json({ error: "INVALID_CSV" }, { status: 400 });
   }
 
-  const tenantOverride = formData.get("tenantId");
+  const tenantOverride = (formData as unknown as { get(name: string): unknown }).get("tenantId");
   const effectiveTenantId =
     context.tenantId ?? (typeof tenantOverride === "string" ? tenantOverride : null);
 

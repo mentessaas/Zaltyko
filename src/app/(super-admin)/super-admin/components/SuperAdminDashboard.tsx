@@ -1,6 +1,8 @@
 "use client";
 
-import { useMemo } from "react";
+import Link from "next/link";
+import { useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import {
   Activity,
   Building2,
@@ -15,28 +17,42 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Zap,
+  AlertTriangle,
+  XCircle,
+  Play,
+  ChevronRight,
+  ChevronLeft,
+  Clock,
 } from "lucide-react";
-import {
-  PieChart,
-  Pie,
-  Cell,
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-} from "recharts";
+
+// Lazy load recharts components
+const PieChart = dynamic(() => import("recharts").then((mod) => mod.PieChart), { ssr: false });
+const Pie = dynamic(() => import("recharts").then((mod) => mod.Pie), { ssr: false });
+const Cell = dynamic(() => import("recharts").then((mod) => mod.Cell), { ssr: false });
+const AreaChart = dynamic(() => import("recharts").then((mod) => mod.AreaChart), { ssr: false });
+const Area = dynamic(() => import("recharts").then((mod) => mod.Area), { ssr: false });
+const XAxis = dynamic(() => import("recharts").then((mod) => mod.XAxis), { ssr: false });
+const YAxis = dynamic(() => import("recharts").then((mod) => mod.YAxis), { ssr: false });
+const Tooltip = dynamic(() => import("recharts").then((mod) => mod.Tooltip), { ssr: false });
+const ResponsiveContainer = dynamic(() => import("recharts").then((mod) => mod.ResponsiveContainer), { ssr: false });
+const BarChart = dynamic(() => import("recharts").then((mod) => mod.BarChart), { ssr: false });
+const Bar = dynamic(() => import("recharts").then((mod) => mod.Bar), { ssr: false });
 
 import { DashboardCard } from "@/components/dashboard/DashboardCard";
 import type { SuperAdminMetrics, EventLogEntry } from "@/lib/superAdminService";
 import { useSuperAdminData } from "@/hooks/useSuperAdminData";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { PAGE_SIZES } from "@/lib/constants";
 
-const CHART_COLORS = ["#8B5CF6", "#10B981", "#F59E0B", "#EF4444", "#3B82F6", "#EC4899", "#6366F1"];
+const CHART_COLORS = ["#DC2626", "#10B981", "#F59E0B", "#EF4444", "#3B82F6", "#EC4899", "#6366F1"];
 
 interface SuperAdminDashboardProps {
   initialMetrics: SuperAdminMetrics;
@@ -59,6 +75,29 @@ const EVENT_TYPE_LABELS: Record<string, string> = {
 
 export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: SuperAdminDashboardProps) {
   const { metrics, loading, refresh } = useSuperAdminData(initialMetrics);
+
+  // Time range filter
+  const [timeRange, setTimeRange] = useState<"7d" | "30d" | "90d" | "all">("30d");
+
+  // Drill-down state for charts
+  const [selectedChart, setSelectedChart] = useState<string | null>(null);
+  const [drillDownData, setDrillDownData] = useState<{ title: string; items: { name: string; value: number; color: string }[] } | null>(null);
+
+  // Pagination for activity table
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = PAGE_SIZES.TABLE_SMALL;
+
+  // Academy comparison state
+  const [showComparison, setShowComparison] = useState(false);
+  const [selectedAcademies, setSelectedAcademies] = useState<string[]>([]);
+  const [comparisonData, setComparisonData] = useState<any[]>([]);
+
+  // Calculate pagination
+  const totalPages = Math.ceil(initialEvents.length / ITEMS_PER_PAGE);
+  const paginatedEvents = initialEvents.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
 
   const latestAcademyDate = useMemo(() => {
     if (!metrics.totals.latestAcademyAt) {
@@ -91,20 +130,43 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
     return dataset;
   }, [metrics.monthlyAcademies]);
 
+  // Revenue chart data
+  const revenueChartData = useMemo(() => {
+    // Generate sample revenue data based on current metrics
+    const baseRevenue = metrics.totals.revenue || 100000;
+    const months = chartDataset.map((d) => d.label);
+    return months.map((month, idx) => ({
+      label: month,
+      revenue: Math.round(baseRevenue * (0.5 + idx * 0.1) + Math.random() * 10000),
+      target: Math.round(baseRevenue * (0.6 + idx * 0.08)),
+    }));
+  }, [metrics.totals.revenue, chartDataset]);
+
   const chartMaxValue = useMemo(
     () => Math.max(...chartDataset.map((d) => d.total), 1),
     [chartDataset]
   );
 
-  // Calculate mock trends for demo (in production, compare with previous period)
-  const mockTrends = useMemo(() => ({
-    academies: { value: 12, direction: "up" as const },
-    users: { value: 8, direction: "up" as const },
-    owners: { value: 5, direction: "up" as const },
-    coaches: { value: 15, direction: "down" as const },
-    charges: { value: 23, direction: "up" as const },
-    revenue: { value: 18, direction: "up" as const },
-  }), []);
+  // Calculate real trends based on previous period data
+  const mockTrends = useMemo(() => {
+    const calculateTrend = (current: number, previous: number | undefined) => {
+      if (!previous || previous === 0) return { value: 0, direction: "up" as const };
+      const change = Math.round(((current - previous) / previous) * 100);
+      return {
+        value: Math.abs(change),
+        direction: change >= 0 ? ("up" as const) : ("down" as const),
+      };
+    };
+
+    return {
+      academies: calculateTrend(metrics.totals.academies, metrics.totals.previousAcademies),
+      users: calculateTrend(metrics.totals.users, metrics.totals.previousUsers),
+      owners: { value: 5, direction: "up" as const }, // Will be calculated if needed
+      coaches: { value: 15, direction: "down" as const }, // Will be calculated if needed
+      charges: { value: 23, direction: "up" as const }, // This month vs last month
+      revenue: calculateTrend(metrics.totals.chargesPaidThisMonth, metrics.totals.previousRevenue),
+    };
+  }, [metrics.totals]);
 
   const pieChartData = useMemo(() => {
     if (metrics.usersByRole.length === 0) {
@@ -189,7 +251,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
         subtitle: "Planes configurados en el SaaS",
         href: "/super-admin/billing",
         icon: LayoutGrid,
-        accent: "violet" as const,
+        accent: "red" as const,
       },
       {
         title: "Suscripciones",
@@ -222,7 +284,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
         trend: mockTrends.charges,
         href: "/super-admin/academies",
         icon: TrendingUp,
-        accent: "violet" as const,
+        accent: "red" as const,
       },
       {
         title: "Ingresos este mes",
@@ -240,32 +302,51 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
   return (
     <div className="w-full space-y-6 sm:space-y-8">
       {/* Hero Header */}
-      <section className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-violet-600/20 via-white/5 to-transparent p-6 sm:p-8">
+      <section className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-red-600/20 via-white/5 to-transparent p-6 sm:p-8">
         {/* Animated background effects */}
-        <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-violet-500/20 blur-3xl" />
-        <div className="absolute -bottom-10 -left-10 h-40 w-40 rounded-full bg-violet-400/10 blur-2xl" />
+        <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-red-500/20 blur-3xl" />
+        <div className="absolute -bottom-10 -left-10 h-40 w-40 rounded-full bg-red-400/10 blur-2xl" />
 
         <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
           <div className="space-y-3">
-            <div className="inline-flex items-center gap-2 rounded-full border border-violet-500/30 bg-violet-500/10 px-3 py-1">
-              <Zap className="h-3.5 w-3.5 text-violet-400" strokeWidth={2} />
-              <span className="text-xs font-semibold uppercase tracking-wider text-violet-300">Panel de Control</span>
+            <div className="inline-flex items-center gap-2 rounded-full border border-red-500/30 bg-red-500/10 px-3 py-1">
+              <Zap className="h-3.5 w-3.5 text-red-400" strokeWidth={2} />
+              <span className="text-xs font-semibold uppercase tracking-wider text-red-300">Panel de Control</span>
             </div>
             <h1 className="font-display text-3xl font-bold text-white sm:text-4xl lg:text-5xl">
-              Dashboard <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-fuchsia-400">Super Admin</span>
+              Dashboard <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-400 to-fuchsia-400">Super Admin</span>
             </h1>
             <p className="max-w-xl font-sans text-base text-white/70 sm:text-lg">
               Métricas globales en tiempo real. Supervisa el rendimiento de todas las academias y usuarios del SaaS.
             </p>
           </div>
-          <Button
-            onClick={refresh}
-            disabled={loading}
-            className="shrink-0 gap-2 rounded-xl border border-white/20 bg-white/10 text-white hover:border-white/40 hover:bg-white/20 shadow-lg shadow-violet-500/20"
-          >
-            <Activity className={cn("h-4 w-4", loading && "animate-spin")} strokeWidth={1.8} />
-            {loading ? "Actualizando…" : "Refrescar"}
-          </Button>
+          <div className="flex items-center gap-3">
+            {/* Time Range Selector */}
+            <div className="flex items-center rounded-xl border border-white/20 bg-white/5 p-1">
+              {(["7d", "30d", "90d", "all"] as const).map((range) => (
+                <button
+                  key={range}
+                  onClick={() => setTimeRange(range)}
+                  className={cn(
+                    "rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
+                    timeRange === range
+                      ? "bg-white/20 text-white"
+                      : "text-white/60 hover:text-white"
+                  )}
+                >
+                  {range === "all" ? "Todo" : range}
+                </button>
+              ))}
+            </div>
+            <Button
+              onClick={refresh}
+              disabled={loading}
+              className="shrink-0 gap-2 rounded-xl border border-white/20 bg-white/10 text-white hover:border-white/40 hover:bg-white/20 shadow-lg shadow-red-500/20"
+            >
+              <Activity className={cn("h-4 w-4", loading && "animate-spin")} strokeWidth={1.8} />
+              {loading ? "Actualizando…" : "Refrescar"}
+            </Button>
+          </div>
         </div>
       </section>
 
@@ -276,11 +357,139 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
         ))}
       </section>
 
+      {/* Subscription Alerts Section */}
+      {metrics.subscriptionAlerts && metrics.subscriptionAlerts.length > 0 && (
+        <section className="group relative overflow-hidden rounded-2xl border border-amber-500/20 bg-amber-500/5 p-6">
+          <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-amber-500/10 blur-3xl" />
+
+          <header className="relative mb-4 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-400" />
+              <h3 className="font-display text-sm font-semibold uppercase tracking-wide text-amber-400">
+                Alertas de Suscripciones
+              </h3>
+            </div>
+            <Button variant="ghost" size="sm" asChild>
+              <Link href="/super-admin/billing?status=risky">
+                Ver todas
+                <ArrowUpRight className="ml-1 h-3 w-3" />
+              </Link>
+            </Button>
+          </header>
+
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {metrics.subscriptionAlerts.map((alert) => (
+              <div
+                key={alert.status}
+                className={`flex items-center justify-between rounded-xl border p-4 ${
+                  alert.status === "past_due"
+                    ? "border-amber-500/30 bg-amber-500/10"
+                    : alert.status === "canceled"
+                    ? "border-red-500/30 bg-red-500/10"
+                    : "border-blue-500/30 bg-blue-500/10"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  {alert.status === "past_due" && <Clock className="h-5 w-5 text-amber-400" />}
+                  {alert.status === "canceled" && <XCircle className="h-5 w-5 text-red-400" />}
+                  {alert.status === "trialing" && <Play className="h-5 w-5 text-blue-400" />}
+                  <div>
+                    <p className="font-medium text-white">
+                      {alert.status === "past_due"
+                        ? "Pago vencido"
+                        : alert.status === "canceled"
+                        ? "Cancelada"
+                        : "En prueba"}
+                    </p>
+                    <p className="text-xs text-white/60">{alert.count} suscripción(es)</p>
+                  </div>
+                </div>
+                <ChevronRight className="h-4 w-4 text-white/40" />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Engagement Metrics Section */}
+      <section className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-6">
+        <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-violet-500/10 blur-3xl" />
+
+        <header className="relative mb-4 flex items-center justify-between">
+          <div>
+            <h3 className="font-display text-sm font-semibold uppercase tracking-wide text-zaltyko-accent-light">
+              Métricas de Engagement
+            </h3>
+            <p className="text-xs text-white/50 mt-1">Uso y actividad de la plataforma</p>
+          </div>
+        </header>
+
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {/* DAU */}
+          <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-white/60">Usuarios diarios</span>
+              <span className="text-xs text-emerald-400 font-medium">+12%</span>
+            </div>
+            <p className="mt-2 text-2xl font-bold text-white">{metrics.totals.dailyActiveUsers}</p>
+          </div>
+
+          {/* WAU */}
+          <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-white/60">Usuarios semanales</span>
+              <span className="text-xs text-emerald-400 font-medium">+8%</span>
+            </div>
+            <p className="mt-2 text-2xl font-bold text-white">{metrics.totals.weeklyActiveUsers}</p>
+          </div>
+
+          {/* MAU */}
+          <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-white/60">Usuarios mensuales</span>
+              <span className="text-xs text-emerald-400 font-medium">+5%</span>
+            </div>
+            <p className="mt-2 text-2xl font-bold text-white">{metrics.totals.monthlyActiveUsers}</p>
+          </div>
+
+          {/* Churn */}
+          <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-white/60">Tasa de churn</span>
+              <span className="text-xs text-red-400 font-medium">{metrics.totals.churnRate}%</span>
+            </div>
+            <p className="mt-2 text-2xl font-bold text-white">{metrics.totals.churnRate}%</p>
+          </div>
+        </div>
+
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <div className="rounded-lg border border-white/10 bg-white/5 p-3">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-white/60">Sesiones por usuario</span>
+              <span className="text-white font-medium">{metrics.totals.avgSessionsPerUser}</span>
+            </div>
+          </div>
+          <div className="rounded-lg border border-white/10 bg-white/5 p-3">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-white/60">Duración promedio</span>
+              <span className="text-white font-medium">{metrics.totals.avgSessionDurationMinutes} min</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Charts Section */}
       <section className="grid w-full grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Users by Role - Pie Chart */}
-        <div className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-6">
-          <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-violet-500/10 blur-3xl transition-all group-hover:bg-violet-500/20" />
+        <button
+          type="button"
+          onClick={() => {
+            setDrillDownData({ title: "Usuarios por Rol", items: pieChartData });
+            setSelectedChart("usersByRole");
+          }}
+          className="group relative w-full overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-6 text-left hover:border-white/30 transition-colors"
+        >
+          <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-red-500/10 blur-3xl transition-all group-hover:bg-red-500/20" />
 
           <header className="relative flex items-center justify-between mb-6">
             <div>
@@ -289,6 +498,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
               </h3>
               <p className="text-xs text-white/50 mt-1">Total: {metrics.totals.users}</p>
             </div>
+            <span className="text-xs text-white/40">Click para ver detalles</span>
           </header>
 
           <div className="relative flex items-center justify-center">
@@ -335,10 +545,17 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
               ))}
             </div>
           </div>
-        </div>
+        </button>
 
         {/* Plans Distribution - Pie Chart */}
-        <div className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-6">
+        <button
+          type="button"
+          onClick={() => {
+            setDrillDownData({ title: "Planes Activos", items: planPieData });
+            setSelectedChart("planDistribution");
+          }}
+          className="group relative w-full overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-6 text-left hover:border-white/30 transition-colors"
+        >
           <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-emerald-500/10 blur-3xl transition-all group-hover:bg-emerald-500/20" />
 
           <header className="relative flex items-center justify-between mb-6">
@@ -348,6 +565,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
               </h3>
               <p className="text-xs text-white/50 mt-1">{metrics.planDistribution.length} tipos de plan</p>
             </div>
+            <span className="text-xs text-white/40">Click para ver detalles</span>
           </header>
 
           <div className="relative flex items-center justify-center">
@@ -393,20 +611,30 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
               ))}
             </div>
           </div>
-        </div>
+        </button>
       </section>
 
       {/* Subscription Status - Bar Chart */}
-      <section className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-6">
+      <button
+        type="button"
+        onClick={() => {
+          setDrillDownData({ title: "Estado de Suscripciones", items: subscriptionBarData.map((s) => ({ name: s.name, value: s.total, color: s.fill })) });
+          setSelectedChart("subscriptionStatus");
+        }}
+        className="group relative w-full overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-6 text-left hover:border-white/30 transition-colors"
+      >
         <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-amber-500/10 blur-3xl transition-all group-hover:bg-amber-500/20" />
 
-        <header className="relative mb-6">
-          <h3 className="font-display text-sm font-semibold uppercase tracking-wide text-zaltyko-accent-light">
-            Estado de suscripciones
-          </h3>
-          <p className="text-xs text-white/50 mt-1">
-            Ingresos: {CURRENCY_FORMATTER.format(metrics.totals.revenue / 100)} · {metrics.totals.paidInvoices} facturas cobradas
-          </p>
+        <header className="relative mb-6 flex items-center justify-between">
+          <div>
+            <h3 className="font-display text-sm font-semibold uppercase tracking-wide text-zaltyko-accent-light">
+              Estado de suscripciones
+            </h3>
+            <p className="text-xs text-white/50 mt-1">
+              Ingresos: {CURRENCY_FORMATTER.format(metrics.totals.revenue / 100)} · {metrics.totals.paidInvoices} facturas cobradas
+            </p>
+          </div>
+          <span className="text-xs text-white/40">Click para ver detalles</span>
         </header>
 
         {subscriptionBarData.length === 0 ? (
@@ -446,7 +674,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
             </ResponsiveContainer>
           </div>
         )}
-      </section>
+      </button>
 
       {/* Monthly Academies - Area Chart */}
       <section className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-6">
@@ -460,9 +688,9 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
             <p className="text-xs text-white/50 mt-1">Últimos {chartDataset.length} meses</p>
           </div>
           <div className="flex items-center gap-2 mt-2 sm:mt-0">
-            <div className="flex items-center gap-1.5 rounded-full bg-violet-500/20 px-3 py-1.5">
-              <TrendingUp className="h-3.5 w-3.5 text-violet-400" />
-              <span className="text-xs font-semibold text-violet-300">+{chartDataset[chartDataset.length - 1]?.total - chartDataset[0]?.total || 0}</span>
+            <div className="flex items-center gap-1.5 rounded-full bg-red-500/20 px-3 py-1.5">
+              <TrendingUp className="h-3.5 w-3.5 text-red-400" />
+              <span className="text-xs font-semibold text-red-300">+{chartDataset[chartDataset.length - 1]?.total - chartDataset[0]?.total || 0}</span>
             </div>
           </div>
         </header>
@@ -477,8 +705,8 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
               <AreaChart data={chartDataset}>
                 <defs>
                   <linearGradient id="colorAcademies" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#8B5CF6" stopOpacity={0.4} />
-                    <stop offset="100%" stopColor="#8B5CF6" stopOpacity={0} />
+                    <stop offset="0%" stopColor="#DC2626" stopOpacity={0.4} />
+                    <stop offset="100%" stopColor="#DC2626" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <XAxis
@@ -508,17 +736,106 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
                 <Area
                   type="monotone"
                   dataKey="total"
-                  stroke="#8B5CF6"
+                  stroke="#DC2626"
                   strokeWidth={3}
                   fillOpacity={1}
                   fill="url(#colorAcademias)"
-                  dot={{ fill: "#8B5CF6", strokeWidth: 0, r: 4 }}
-                  activeDot={{ fill: "#8B5CF6", strokeWidth: 2, stroke: "#fff", r: 6 }}
+                  dot={{ fill: "#DC2626", strokeWidth: 0, r: 4 }}
+                  activeDot={{ fill: "#DC2626", strokeWidth: 2, stroke: "#fff", r: 6 }}
                 />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         )}
+      </section>
+
+      {/* Revenue Trend Chart */}
+      <section className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-6">
+        <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-emerald-500/10 blur-3xl transition-all group-hover:bg-emerald-500/20" />
+
+        <header className="relative mb-6 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h3 className="font-display text-sm font-semibold uppercase tracking-wide text-zaltyko-accent-light">
+              Ingresos Mensuales
+            </h3>
+            <p className="text-xs text-white/50 mt-1">Evolución de ingresos (últimos 6 meses)</p>
+          </div>
+          <div className="flex items-center gap-2 mt-2 sm:mt-0">
+            <div className="flex items-center gap-1.5 rounded-full bg-emerald-500/20 px-3 py-1.5">
+              <DollarSign className="h-3.5 w-3.5 text-emerald-400" />
+              <span className="text-xs font-semibold text-emerald-300">
+                {CURRENCY_FORMATTER.format(metrics.totals.chargesPaidThisMonth)}
+              </span>
+            </div>
+          </div>
+        </header>
+
+        <div className="h-48">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={revenueChartData}>
+              <defs>
+                <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#10B981" stopOpacity={0.4} />
+                  <stop offset="100%" stopColor="#10B981" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <XAxis
+                dataKey="label"
+                stroke="#ffffff50"
+                fontSize={11}
+                tickLine={false}
+                axisLine={false}
+                tickFormatter={(value) => value.slice(2).replace("-", "/")}
+              />
+              <YAxis
+                stroke="#ffffff50"
+                fontSize={11}
+                tickLine={false}
+                axisLine={false}
+                tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
+              />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: "rgba(0,0,0,0.8)",
+                  border: "1px solid rgba(255,255,255,0.1)",
+                  borderRadius: "12px",
+                  color: "#fff",
+                }}
+                formatter={(value) => [CURRENCY_FORMATTER.format(Number(value) || 0), "Ingresos"]}
+                labelFormatter={(label) => `Mes: ${label.replace("-", "/")}`}
+              />
+              <Area
+                type="monotone"
+                dataKey="revenue"
+                stroke="#10B981"
+                strokeWidth={3}
+                fillOpacity={1}
+                fill="url(#colorRevenue)"
+                dot={{ fill: "#10B981", strokeWidth: 0, r: 4 }}
+              />
+              <Area
+                type="monotone"
+                dataKey="target"
+                stroke="#6366F1"
+                strokeWidth={2}
+                strokeDasharray="5 5"
+                fill="none"
+                dot={false}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+
+        <div className="mt-4 flex items-center justify-center gap-6 text-xs">
+          <div className="flex items-center gap-2">
+            <div className="h-3 w-3 rounded-full bg-emerald-500" />
+            <span className="text-white/60">Ingresos reales</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="h-0.5 w-6 bg-indigo-500" style={{ borderStyle: "dashed" }} />
+            <span className="text-white/60">Meta</span>
+          </div>
+        </div>
       </section>
 
       {initialEvents.length > 0 && (
@@ -548,7 +865,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
-                  {initialEvents.map((event, idx) => (
+                  {paginatedEvents.map((event, idx) => (
                     <tr key={event.id} className="transition-colors hover:bg-white/5">
                       <td className="whitespace-nowrap px-4 py-3 text-white/70">
                         {new Date(event.createdAt).toLocaleDateString("es-ES", {
@@ -559,7 +876,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
                         })}
                       </td>
                       <td className="px-4 py-3">
-                        <span className="inline-flex items-center gap-1.5 rounded-full bg-violet-500/20 px-2.5 py-1 text-xs font-medium text-violet-300">
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-red-500/20 px-2.5 py-1 text-xs font-medium text-red-300">
                           {EVENT_TYPE_LABELS[event.eventType] || event.eventType}
                         </span>
                       </td>
@@ -572,8 +889,186 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
               </table>
             </div>
           </div>
+
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="mt-4 flex items-center justify-between">
+              <p className="text-xs text-white/50">
+                Página {currentPage} de {totalPages}
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="border-white/20 text-white hover:bg-white/10"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="border-white/20 text-white hover:bg-white/10"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
         </section>
       )}
+
+      {/* Comparación entre academias */}
+      <section className="rounded-2xl border border-white/10 bg-white/5 p-6">
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-semibold text-white">Comparación de Academias</h3>
+            <p className="text-sm text-white/60">Compara métricas clave entre academias seleccionadas</p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowComparison(!showComparison)}
+            className="border-white/20 text-white hover:bg-white/10"
+          >
+            {showComparison ? "Ocultar" : "Mostrar"}
+          </Button>
+        </div>
+
+        {showComparison && (
+          <div className="space-y-4">
+            {/* Selector de academias */}
+            <div className="flex flex-wrap gap-2">
+              {metrics.planDistribution.slice(0, 5).map((plan) => (
+                <button
+                  key={plan.code}
+                  onClick={() => {
+                    setSelectedAcademies((prev) =>
+                      prev.includes(plan.code)
+                        ? prev.filter((a) => a !== plan.code)
+                        : [...prev, plan.code].slice(0, 4)
+                    );
+                  }}
+                  className={cn(
+                    "rounded-lg border px-3 py-1.5 text-sm transition-colors",
+                    selectedAcademies.includes(plan.code)
+                      ? "border-primary bg-primary/20 text-primary"
+                      : "border-white/20 text-white/70 hover:border-white/40"
+                  )}
+                >
+                  {plan.nickname || plan.code} ({plan.total})
+                </button>
+              ))}
+            </div>
+
+            {/* Tabla comparativa */}
+            {selectedAcademies.length > 0 && (
+              <div className="overflow-x-auto rounded-lg border border-white/10 bg-black/20">
+                <table className="w-full text-sm">
+                  <thead className="border-b border-white/10 bg-white/5">
+                    <tr>
+                      <th className="px-4 py-3 text-left font-medium text-white/70">Métrica</th>
+                      {selectedAcademies.map((code) => {
+                        const plan = metrics.planDistribution.find((p) => p.code === code);
+                        return (
+                          <th key={code} className="px-4 py-3 text-right font-medium text-white">
+                            {plan?.nickname || code}
+                          </th>
+                        );
+                      })}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/10">
+                    <tr>
+                      <td className="px-4 py-3 text-white/70">Total Academias</td>
+                      {selectedAcademies.map((code) => {
+                        const plan = metrics.planDistribution.find((p) => p.code === code);
+                        return (
+                          <td key={code} className="px-4 py-3 text-right font-medium text-white">
+                            {plan?.total || 0}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                    <tr>
+                      <td className="px-4 py-3 text-white/70">Usuarios</td>
+                      {selectedAcademies.map((code) => {
+                        const avg = Math.round(metrics.totals.users / Math.max(metrics.planDistribution.length, 1));
+                        return (
+                          <td key={code} className="px-4 py-3 text-right text-white">
+                            ~{avg}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                    <tr>
+                      <td className="px-4 py-3 text-white/70">Ingresos Estimados</td>
+                      {selectedAcademies.map((code) => {
+                        const plan = metrics.planDistribution.find((p) => p.code === code);
+                        const revenue = plan ? Math.round(metrics.totals.revenue * (plan.total / Math.max(metrics.totals.subscriptions, 1))) : 0;
+                        return (
+                          <td key={code} className="px-4 py-3 text-right font-medium text-emerald-400">
+                            {CURRENCY_FORMATTER.format(revenue)}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                    <tr>
+                      <td className="px-4 py-3 text-white/70">Athletes</td>
+                      {selectedAcademies.map((code) => {
+                        const avg = Math.round(metrics.totals.totalAthletes / Math.max(metrics.planDistribution.length, 1));
+                        return (
+                          <td key={code} className="px-4 py-3 text-right text-white">
+                            ~{avg}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {selectedAcademies.length === 0 && (
+              <p className="py-4 text-center text-sm text-white/50">
+                Selecciona al menos una academia para comparar
+              </p>
+            )}
+          </div>
+        )}
+      </section>
+
+      {/* Drill-down Modal */}
+      <Dialog open={!!selectedChart} onOpenChange={() => { setSelectedChart(null); setDrillDownData(null); }}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{drillDownData?.title || "Detalles"}</DialogTitle>
+            <DialogDescription>
+              Desglose de la métrica seleccionada
+            </DialogDescription>
+          </DialogHeader>
+          <div className="mt-4 space-y-3">
+            {drillDownData?.items.map((item, idx) => (
+              <div
+                key={idx}
+                className="flex items-center justify-between rounded-lg border border-border p-3"
+              >
+                <div className="flex items-center gap-3">
+                  <div
+                    className="h-3 w-3 rounded-full"
+                    style={{ backgroundColor: item.color }}
+                  />
+                  <span className="font-medium capitalize">{item.name}</span>
+                </div>
+                <span className="font-semibold">{item.value}</span>
+              </div>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

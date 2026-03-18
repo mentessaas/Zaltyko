@@ -35,9 +35,9 @@ const QUICK_REPORTS = [
     description: "Evolucion de atletas y comparativas",
     href: (id: string) => `/app/${id}/reports/progress`,
     icon: FileText,
-    color: "text-violet-600",
-    bgColor: "bg-gradient-to-br from-violet-500 to-violet-600",
-    gradient: "from-violet-500/20 to-transparent",
+    color: "text-red-600",
+    bgColor: "bg-gradient-to-br from-red-500 to-red-600",
+    gradient: "from-red-500/20 to-transparent",
   },
 ];
 

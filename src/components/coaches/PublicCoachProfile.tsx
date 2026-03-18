@@ -52,7 +52,7 @@ export function PublicCoachProfile({ coach }: PublicCoachProfileProps) {
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50">
             {/* Hero Section */}
-            <div className="relative overflow-hidden bg-gradient-to-r from-blue-600 to-purple-600 py-20">
+            <div className="relative overflow-hidden bg-gradient-to-r from-red-600 to-red-700 py-20">
                 <div className="absolute inset-0 bg-grid-white/10"></div>
                 <div className="container relative mx-auto px-4">
                     <div className="flex flex-col items-center gap-8 md:flex-row">
@@ -68,7 +68,7 @@ export function PublicCoachProfile({ coach }: PublicCoachProfileProps) {
                                         className="h-full w-full object-cover"
                                     />
                                 ) : (
-                                    <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-blue-400 to-purple-400 text-6xl font-bold text-white">
+                                    <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-red-400 to-red-500 text-6xl font-bold text-white">
                                         {coach.name.charAt(0)}
                                     </div>
                                 )}
@@ -243,7 +243,7 @@ export function PublicCoachProfile({ coach }: PublicCoachProfileProps) {
                         )}
 
                         {/* Academy Info */}
-                        <section className="rounded-2xl border border-slate-200 bg-gradient-to-br from-blue-50 to-purple-50 p-6 shadow-sm">
+                        <section className="rounded-2xl border border-slate-200 bg-gradient-to-br from-red-50 to-red-100 p-6 shadow-sm">
                             <h3 className="mb-3 text-lg font-bold text-slate-900">
                                 Academia
                             </h3>
@@ -256,7 +256,7 @@ export function PublicCoachProfile({ coach }: PublicCoachProfileProps) {
                         </section>
 
                         {/* CTA */}
-                        <section className="rounded-2xl border-2 border-blue-200 bg-gradient-to-br from-blue-500 to-purple-600 p-6 text-white shadow-lg">
+                        <section className="rounded-2xl border-2 border-red-200 bg-gradient-to-br from-red-500 to-red-600 p-6 text-white shadow-lg">
                             <h3 className="mb-2 text-lg font-bold">
                                 ¿Interesado en clases?
                             </h3>

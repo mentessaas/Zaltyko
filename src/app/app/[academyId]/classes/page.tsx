@@ -1,12 +1,14 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { and, asc, eq, ilike, inArray, or } from "drizzle-orm";
+import { and, asc, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import { Dumbbell } from "lucide-react";
 
 import { db } from "@/db";
 import {
   academies,
+  athletes,
   classCoachAssignments,
+  classEnrollments,
   classGroups,
   classWeekdays,
   classes,
@@ -14,7 +16,7 @@ import {
   groups,
 } from "@/db/schema";
 
-import { ClassesTableView } from "@/components/classes/ClassesTableView";
+import { ClassesClientView } from "@/components/classes/ClassesClientView";
 import { PageHeader } from "@/components/ui/page-header";
 
 /**
@@ -77,6 +79,10 @@ export default async function AcademyClassesPage({ params, searchParams }: PageP
       endTime: classes.endTime,
       capacity: classes.capacity,
       autoGenerateSessions: classes.autoGenerateSessions,
+      allowsFreeTrial: classes.allowsFreeTrial,
+      waitingListEnabled: classes.waitingListEnabled,
+      cancellationHoursBefore: classes.cancellationHoursBefore,
+      cancellationPolicy: classes.cancellationPolicy,
       createdAt: classes.createdAt,
     })
     .from(classes)
@@ -192,6 +198,48 @@ export default async function AcademyClassesPage({ params, searchParams }: PageP
     classGroupsMap.set(row.classId, existing);
   });
 
+  // Obtener conteo de atletas por clase (de grupos y enrollments)
+  const athleteCounts: Record<string, number> = {};
+
+  // Atletas de grupos
+  if (groupRows.length > 0 && classIds.length > 0) {
+    const groupIds = groupRows.map((g) => g.id);
+    const athleteFromGroups = await db
+      .select({
+        classId: classGroups.classId,
+        count: sql<number>`count(*)::int`.as("count"),
+      })
+      .from(classGroups)
+      .innerJoin(athletes, eq(classGroups.groupId, athletes.groupId))
+      .where(
+        and(
+          inArray(classGroups.classId, classIds),
+          inArray(athletes.groupId, groupIds)
+        )
+      )
+      .groupBy(classGroups.classId);
+
+    athleteFromGroups.forEach((row) => {
+      athleteCounts[row.classId] = (athleteCounts[row.classId] || 0) + row.count;
+    });
+  }
+
+  // Atletas extra (enrollments)
+  if (classIds.length > 0) {
+    const extraAthletes = await db
+      .select({
+        classId: classEnrollments.classId,
+        count: sql<number>`count(*)::int`.as("count"),
+      })
+      .from(classEnrollments)
+      .where(inArray(classEnrollments.classId, classIds))
+      .groupBy(classEnrollments.classId);
+
+    extraAthletes.forEach((row) => {
+      athleteCounts[row.classId] = (athleteCounts[row.classId] || 0) + row.count;
+    });
+  }
+
   const classesList = classRows
     .map((item) => {
       const classCoaches = assignmentRows.filter((assignment) => assignment.classId === item.id);
@@ -221,6 +269,11 @@ export default async function AcademyClassesPage({ params, searchParams }: PageP
         endTime: item.endTime,
         capacity: item.capacity,
         autoGenerateSessions: item.autoGenerateSessions,
+        allowsFreeTrial: item.allowsFreeTrial ?? false,
+        waitingListEnabled: item.waitingListEnabled ?? false,
+        cancellationHoursBefore: item.cancellationHoursBefore ?? 24,
+        cancellationPolicy: item.cancellationPolicy ?? "standard",
+        currentEnrollment: athleteCounts[item.id] ?? 0,
         createdAt: item.createdAt ? item.createdAt.toISOString() : null,
         coaches: classCoaches.map((assignment) => ({
           id: assignment.coachId,
@@ -251,10 +304,10 @@ export default async function AcademyClassesPage({ params, searchParams }: PageP
         ]}
         title="Clases"
         description="Organiza tus clases, gestiona entrenadores y prepara sesiones con facilidad."
-        icon={Dumbbell}
+        icon={<Dumbbell className="h-5 w-5" strokeWidth={1.5} />}
       />
 
-      <ClassesTableView
+      <ClassesClientView
         academyId={academy.id}
         classes={classesList}
         availableCoaches={availableCoaches}

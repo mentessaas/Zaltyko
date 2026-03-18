@@ -49,7 +49,7 @@ export function JobCard({ job }: JobCardProps) {
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-1">
                 <Badge variant="outline">{jobTypeLabels[job.jobType] || job.jobType}</Badge>
-                <Badge variant="secondary">{categoryLabels[job.category] || job.category}</Badge>
+                <Badge variant="default">{categoryLabels[job.category] || job.category}</Badge>
               </div>
               <h3 className="font-semibold text-lg">{job.title}</h3>
             </div>

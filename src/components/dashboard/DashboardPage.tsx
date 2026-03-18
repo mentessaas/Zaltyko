@@ -30,6 +30,13 @@ import {
   Circle,
   CreditCard,
   Mail,
+  Store,
+  MessageCircle,
+  LifeBuoy,
+  Wallet,
+  ClipboardList,
+  Bell,
+  FileText,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -47,6 +54,10 @@ import { QuickReportsWidget } from "@/components/dashboard/QuickReportsWidget";
 import { FinancialMetricsWidget } from "@/components/dashboard/FinancialMetricsWidget";
 import { WelcomeBanner } from "@/components/onboarding/WelcomeBanner";
 import { QuickActions } from "@/components/dashboard/QuickActions";
+import { RecommendationsWidget } from "@/components/dashboard/RecommendationsWidget";
+import { AthleteRetentionWidget } from "@/components/dashboard/AthleteRetentionWidget";
+import { PopularClassesWidget } from "@/components/dashboard/PopularClassesWidget";
+import { RevenueTrendChart } from "@/components/dashboard/RevenueTrendChart";
 import type { DashboardData } from "@/lib/dashboard";
 import { formatAcademyType } from "@/lib/formatters";
 import { useAcademyContext } from "@/hooks/use-academy-context";
@@ -88,6 +99,8 @@ export function DashboardPage({
   }>>([]);
   const [isNewUser, setIsNewUser] = useState(false);
   const [showAllSteps, setShowAllSteps] = useState(false);
+  const [showFinancials, setShowFinancials] = useState(false);
+  const [showRecentActivity, setShowRecentActivity] = useState(false);
 
   // Detectar si es un usuario nuevo (menos de 3 días desde creación o configuración mínima)
   useEffect(() => {
@@ -207,7 +220,7 @@ export function DashboardPage({
         subtitle: "Grupos activos",
         href: `/app/${academyId}/groups`,
         icon: LayoutDashboard,
-        accent: "violet" as const,
+        accent: "red" as const,
       },
       {
         title: "Asistencia",
@@ -264,7 +277,7 @@ export function DashboardPage({
   }, [checklistItems, academyId]);
 
   return (
-    <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-6 lg:px-8 lg:py-8">
+    <div className="mx-auto flex max-w-7xl flex-col gap-8 px-4 py-6 lg:px-8 lg:py-8">
       {/*1. Header con bienvenida + CTA contextual + Estado del plan - SIEMPRE PRIMERO */}
       <section className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="flex-1 space-y-3">
@@ -286,17 +299,38 @@ export function DashboardPage({
               {primaryCTA.label}
             </Button>
             {tenantAcademies.length > 1 && (
-              <select
-                className="rounded-full border border-border bg-background px-3 py-1.5 text-xs font-semibold text-muted-foreground transition hover:border-primary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                value={academyId}
-                onChange={(event) => router.push(`/app/${event.target.value}/dashboard`)}
-              >
-                {tenantAcademies.map((academy) => (
-                  <option key={academy.id} value={academy.id}>
-                    {academy.name ?? "Academia sin nombre"}
-                  </option>
-                ))}
-              </select>
+              <div className="relative group">
+                <button
+                  type="button"
+                  className="flex items-center gap-2 rounded-full border border-border bg-background px-3 py-1.5 text-xs font-semibold text-muted-foreground transition hover:border-primary"
+                >
+                  <span className="max-w-[120px] truncate">{academyName ?? "Academia"}</span>
+                  <ChevronDown className="h-3 w-3" />
+                </button>
+                {/* Dropdown de academias */}
+                <div className="absolute right-0 top-full z-50 mt-1 w-56 rounded-lg border border-border bg-background p-1 shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all">
+                  <div className="px-3 py-2 text-xs font-semibold text-muted-foreground border-b border-border mb-1">
+                    Cambiar de academia
+                  </div>
+                  {tenantAcademies.map((academy) => (
+                    <button
+                      key={academy.id}
+                      type="button"
+                      onClick={() => router.push(`/app/${academy.id}/dashboard`)}
+                      className={`flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm transition-colors ${
+                        academy.id === academyId
+                          ? "bg-primary/10 text-primary font-medium"
+                          : "hover:bg-muted"
+                      }`}
+                    >
+                      <span className="truncate">{academy.name ?? "Sin nombre"}</span>
+                      {academy.id === academyId && (
+                        <span className="h-2 w-2 rounded-full bg-primary" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
             )}
           </div>
         </div>
@@ -321,6 +355,20 @@ export function DashboardPage({
         ))}
       </section>
 
+      {/*2.2. Personalized Recommendations */}
+      <section>
+        <RecommendationsWidget
+          userRole={profileName ? "owner" : "admin"}
+          academyId={academyId}
+          metrics={{
+            athletesCount: data.metrics.athletes,
+            classesThisWeek: data.metrics.classesThisWeek,
+            pendingPayments: 0,
+            attendanceRate: data.metrics.attendancePercent,
+          }}
+        />
+      </section>
+
       {/*2.3. Quick Actions Widget - DESTACADO Y ÚTIL */}
       <section className="grid gap-4 lg:grid-cols-3">
         <div className="lg:col-span-1">
@@ -343,11 +391,79 @@ export function DashboardPage({
         </div>
       </section>
 
-      {/*2.6. Métricas financieras y reportes - VALOR INMEDIATO PARA EL DUEÑO */}
+      {/*2.6. Navegación rápida -Solo los 4 más importantes */}
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <a
+          href={`/app/${academyId}/events`}
+          className="flex items-center gap-3 rounded-lg border border-border p-3 transition hover:bg-accent hover:border-primary"
+        >
+          <Calendar className="h-5 w-5 text-blue-500" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium">Eventos</p>
+            <p className="text-xs text-muted-foreground">Competencias</p>
+          </div>
+        </a>
+        <a
+          href={`/app/${academyId}/billing`}
+          className="flex items-center gap-3 rounded-lg border border-border p-3 transition hover:bg-accent hover:border-primary"
+        >
+          <Wallet className="h-5 w-5 text-emerald-500" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium">Facturación</p>
+            <p className="text-xs text-muted-foreground">Pagos</p>
+          </div>
+        </a>
+        <a
+          href={`/app/${academyId}/assessments`}
+          className="flex items-center gap-3 rounded-lg border border-border p-3 transition hover:bg-accent hover:border-primary"
+        >
+          <ClipboardList className="h-5 w-5 text-red-500" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium">Evaluaciones</p>
+            <p className="text-xs text-muted-foreground">Técnicas</p>
+          </div>
+        </a>
+        <a
+          href={`/app/${academyId}/messages`}
+          className="flex items-center gap-3 rounded-lg border border-border p-3 transition hover:bg-accent hover:border-primary"
+        >
+          <MessageCircle className="h-5 w-5 text-green-500" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium">Mensajes</p>
+            <p className="text-xs text-muted-foreground">Comunicación</p>
+          </div>
+        </a>
+      </section>
+
+      {/*2.7. Métricas financieras (colapsable) - SOLO ADMIN/OWNER */}
       {(isAdmin || isOwner) && (
-        <section className="grid gap-4 lg:grid-cols-2">
-          <FinancialMetricsWidget academyId={academyId} />
-          <QuickReportsWidget academyId={academyId} />
+        <section className="rounded-lg border bg-card">
+          <button
+            type="button"
+            onClick={() => setShowFinancials(!showFinancials)}
+            className="flex w-full items-center justify-between p-4 text-left hover:bg-muted/50"
+          >
+            <div className="flex items-center gap-2">
+              <Wallet className="h-5 w-5 text-emerald-500" />
+              <span className="font-medium">Métricas Financieras</span>
+            </div>
+            {showFinancials ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </button>
+          {showFinancials && (
+            <div className="space-y-4 p-4 pt-0">
+              <div className="grid gap-4 lg:grid-cols-2">
+                <FinancialMetricsWidget academyId={academyId} />
+                <QuickReportsWidget academyId={academyId} />
+              </div>
+              {/* Nuevos widgets de analytics */}
+              <div className="grid gap-4 lg:grid-cols-2">
+                <RevenueTrendChart academyId={academyId} />
+                <AthleteRetentionWidget academyId={academyId} />
+              </div>
+              {/* Widget de clases populares */}
+              <PopularClassesWidget academyId={academyId} />
+            </div>
+          )}
         </section>
       )}
 
@@ -458,25 +574,32 @@ export function DashboardPage({
         <AlertsWidget academyId={academyId} />
       </section>
 
-      {/*4. Contenido secundario en grid */}
-      <section className="grid gap-6 lg:grid-cols-2">
-        {/*Próximos eventos */}
-        <UpcomingEventsWidget academyId={academyId} academyCountry={academyCountry} />
-
-      </section>
-
-      {/*5. Grupos activos */}
+      {/*4. Próximos eventos - Compacto */}
       <section>
-        <GroupsOverview groups={data.groups} academyId={academyId} />
+        <UpcomingEventsWidget academyId={academyId} academyCountry={academyCountry} />
       </section>
 
       {/*6. Acciones rápidas (FAB) */}
       <QuickActions academyId={academyId} />
 
-      {/*7. Actividad reciente - AL FINAL */}
-      <section>
-        <RecentActivity items={data.recentActivity} academyCountry={academyCountry} />
-
+      {/*7. Actividad reciente (colapsable) */}
+      <section className="rounded-lg border bg-card">
+        <button
+          type="button"
+          onClick={() => setShowRecentActivity(!showRecentActivity)}
+          className="flex w-full items-center justify-between p-4 text-left hover:bg-muted/50"
+        >
+          <div className="flex items-center gap-2">
+            <ClipboardList className="h-5 w-5 text-muted-foreground" />
+            <span className="font-medium">Actividad Reciente</span>
+          </div>
+          {showRecentActivity ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+        </button>
+        {showRecentActivity && (
+          <div className="p-4 pt-0">
+            <RecentActivity items={data.recentActivity} academyCountry={academyCountry} />
+          </div>
+        )}
       </section>
     </div>
   );

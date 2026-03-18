@@ -346,7 +346,7 @@ export function ClassDetailView({
                   <span
                     className={`rounded-full px-2 py-1 text-xs font-semibold ${athlete.origin === "group"
                         ? "bg-blue-100 text-blue-700"
-                        : "bg-purple-100 text-purple-700"
+                        : "bg-red-100 text-red-700"
                       }`}
                   >
                     {athlete.origin === "group" ? "Por grupo" : "Clase extra"}

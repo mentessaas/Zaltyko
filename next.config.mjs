@@ -20,6 +20,7 @@ const securityHeaders = [
 import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig = {
+
   // En producción, NO ignorar errores de TypeScript
   // Esto ayuda a detectar problemas antes del deploy
   typescript: { 

@@ -386,9 +386,7 @@ export function AssessmentForm({ academyId, athletes, skills, groups = [] }: Ass
       <ConfirmDialog
         open={rowToDelete !== null}
         onOpenChange={(open) => {
-          console.log('[AssessmentForm] ConfirmDialog onOpenChange called with open:', open);
           if (!open) {
-            console.log('[AssessmentForm] Setting rowToDelete to null');
             setRowToDelete(null);
           }
         }}

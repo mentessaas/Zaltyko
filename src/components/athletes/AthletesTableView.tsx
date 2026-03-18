@@ -3,34 +3,19 @@
 import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { Download, LayoutGrid, List, CheckSquare, Square, MoreHorizontal, Trash2, Mail, Users } from "lucide-react";
 
 import { athleteStatusOptions } from "@/lib/athletes/constants";
+import { PAGE_SIZES } from "@/lib/constants";
 import { useToast } from "@/components/ui/toast-provider";
+import { Button } from "@/components/ui/button";
 
 import { CreateAthleteDialog } from "@/components/athletes/CreateAthleteDialog";
 import { EditAthleteDialog } from "@/components/athletes/EditAthleteDialog";
+import { AthletesKanbanView } from "@/components/athletes/AthletesKanbanView";
 import { TooltipOnboarding } from "@/components/tooltips/TooltipOnboarding";
 import { AlertBadge } from "@/components/shared/AlertBadge";
-
-interface AthleteListItem {
-  id: string;
-  name: string;
-  level: string | null;
-  status: (typeof athleteStatusOptions)[number];
-  age: number | null;
-  dob: string | null;
-  guardianCount: number;
-  createdAt: string | null;
-  groupId: string | null;
-  groupName: string | null;
-  groupColor: string | null;
-}
-
-interface GroupOption {
-  id: string;
-  name: string;
-  color: string | null;
-}
+import type { AthleteListItem, GroupOption } from "@/types";
 
 interface AthletesTableViewProps {
   academyId: string;
@@ -55,11 +40,18 @@ export function AthletesTableView({ academyId, athletes: initialAthletes, levels
   const [statusFilter, setStatusFilter] = useState(filters.status ?? "");
   const [levelFilter, setLevelFilter] = useState(filters.level ?? "");
   const [groupFilter, setGroupFilter] = useState(filters.groupId ?? "");
+  const [ageRange, setAgeRange] = useState<{ min?: number; max?: number }>({});
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<AthleteListItem | null>(null);
   const [isPending, startTransition] = useTransition();
   const [mutatingAthleteId, setMutatingAthleteId] = useState<string | null>(null);
   const [athletesWithAlerts, setAthletesWithAlerts] = useState<Set<string>>(new Set());
+  const [viewMode, setViewMode] = useState<"table" | "kanban">("table");
+  const [selectedAthletes, setSelectedAthletes] = useState<Set<string>>(new Set());
+  const [sortBy, setSortBy] = useState<"name" | "age" | "createdAt">("name");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = PAGE_SIZES.TABLE_DEFAULT;
 
   // Sincronizar athletes cuando cambian los initialAthletes (después de refresh)
   useEffect(() => {
@@ -156,6 +148,58 @@ export function AthletesTableView({ academyId, athletes: initialAthletes, levels
     handleRefresh();
   };
 
+  // Export to CSV
+  const handleExportCSV = () => {
+    const headers = ["Nombre", "Nivel", "Estado", "Edad", "Grupo", "Familia", "Fecha creación"];
+    const rows = filteredAthletes.map((athlete) => [
+      athlete.name,
+      athlete.level || "",
+      athlete.status,
+      athlete.age?.toString() || "",
+      athlete.groupName || "",
+      athlete.guardianCount?.toString() || "0",
+      athlete.createdAt ? new Date(athlete.createdAt).toLocaleDateString("es-ES") : "",
+    ]);
+
+    const csvContent = [
+      headers.join(","),
+      ...rows.map((row) => row.map((cell) => `"${cell}"`).join(","))
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `atletas_${new Date().toISOString().split("T")[0]}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+
+    toast.pushToast({
+      title: "Exportación completada",
+      description: `Se han exportado ${filteredAthletes.length} atletas.`,
+      variant: "success",
+    });
+  };
+
+  // Selection handlers
+  const toggleSelectAll = () => {
+    if (selectedAthletes.size === paginatedAthletes.length) {
+      setSelectedAthletes(new Set());
+    } else {
+      setSelectedAthletes(new Set(paginatedAthletes.map((a) => a.id)));
+    }
+  };
+
+  const toggleSelectAthlete = (id: string) => {
+    const newSelected = new Set(selectedAthletes);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedAthletes(newSelected);
+  };
+
   const handleDeleted = (athleteId: string) => {
     // Optimistic update: eliminar inmediatamente de la lista
     setAthletes((prevAthletes) => prevAthletes.filter((athlete) => athlete.id !== athleteId));
@@ -179,8 +223,48 @@ export function AthletesTableView({ academyId, athletes: initialAthletes, levels
     handleRefresh();
   };
 
-  const hasActiveFilters = filters.q || filters.level || filters.status || filters.groupId;
+  const hasActiveFilters = filters.q || filters.level || filters.status || filters.groupId || ageRange.min || ageRange.max;
   const isEmpty = athletes.length === 0;
+
+  // Filter and sort athletes
+  const filteredAthletes = useMemo(() => {
+    let result = [...athletes];
+
+    // Filter by age range
+    if (ageRange.min !== undefined) {
+      result = result.filter((a) => a.age !== null && a.age >= ageRange.min!);
+    }
+    if (ageRange.max !== undefined) {
+      result = result.filter((a) => a.age !== null && a.age <= ageRange.max!);
+    }
+
+    // Sort
+    result.sort((a, b) => {
+      if (sortBy === "name") {
+        return sortOrder === "asc" ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name);
+      }
+      if (sortBy === "age") {
+        const ageA = a.age ?? 0;
+        const ageB = b.age ?? 0;
+        return sortOrder === "asc" ? ageA - ageB : ageB - ageA;
+      }
+      if (sortBy === "createdAt") {
+        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return sortOrder === "asc" ? dateA - dateB : dateB - dateA;
+      }
+      return 0;
+    });
+
+    return result;
+  }, [athletes, ageRange, sortBy, sortOrder]);
+
+  // Pagination
+  const totalPages = Math.ceil(filteredAthletes.length / ITEMS_PER_PAGE);
+  const paginatedAthletes = filteredAthletes.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
 
   return (
     <div className="space-y-6">
@@ -229,9 +313,120 @@ export function AthletesTableView({ academyId, athletes: initialAthletes, levels
               </option>
             ))}
           </select>
+          <div className="flex items-center gap-1">
+            <input
+              type="number"
+              placeholder="Edad min"
+              min="1"
+              max="99"
+              value={ageRange.min ?? ""}
+              onChange={(e) => setAgeRange((prev) => ({ ...prev, min: e.target.value ? parseInt(e.target.value) : undefined }))}
+              className="w-20 rounded-md border border-border bg-background px-2 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+            <span className="text-muted-foreground">-</span>
+            <input
+              type="number"
+              placeholder="Edad max"
+              min="1"
+              max="99"
+              value={ageRange.max ?? ""}
+              onChange={(e) => setAgeRange((prev) => ({ ...prev, max: e.target.value ? parseInt(e.target.value) : undefined }))}
+              className="w-20 rounded-md border border-border bg-background px-2 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+          </div>
+          {/* Quick Filters */}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setStatusFilter("active")}
+              className="rounded-md border border-emerald-500/50 bg-emerald-500/10 px-3 py-2 text-xs font-medium text-emerald-600 hover:bg-emerald-500/20"
+            >
+              Activos
+            </button>
+            <button
+              type="button"
+              onClick={() => setStatusFilter("trial")}
+              className="rounded-md border border-amber-500/50 bg-amber-500/10 px-3 py-2 text-xs font-medium text-amber-600 hover:bg-amber-500/20"
+            >
+              Prueba
+            </button>
+            <button
+              type="button"
+              onClick={() => { setStatusFilter(""); setLevelFilter(""); setGroupFilter(""); setAgeRange({}); setQuery(""); }}
+              className="rounded-md border border-border bg-background px-3 py-2 text-xs text-muted-foreground hover:bg-muted"
+            >
+              Limpiar
+            </button>
+          </div>
         </form>
 
         <div className="flex items-center gap-3">
+          {/* View Toggle */}
+          <div className="flex items-center rounded-md border border-border">
+            <button
+              type="button"
+              onClick={() => setViewMode("table")}
+              className={`p-2 ${viewMode === "table" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}
+              title="Vista de tabla"
+            >
+              <List className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("kanban")}
+              className={`p-2 ${viewMode === "kanban" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}
+              title="Vista Kanban"
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </button>
+          </div>
+
+          {/* Export Button */}
+          <button
+            type="button"
+            onClick={handleExportCSV}
+            className="inline-flex items-center justify-center rounded-md border border-border bg-background px-3 py-2 text-sm font-medium shadow hover:bg-muted"
+          >
+            <Download className="mr-2 h-4 w-4" />
+            Exportar
+          </button>
+
+          {/* Batch Actions (when items selected) */}
+          {selectedAthletes.size > 0 && (
+            <div className="flex items-center gap-2 rounded-md border border-primary bg-primary/10 px-3 py-2">
+              <span className="text-sm font-medium">{selectedAthletes.size} seleccionados</span>
+              <select
+                className="rounded-md border border-border bg-background px-2 py-1 text-xs"
+                defaultValue=""
+                onChange={(e) => {
+                  if (e.target.value === "delete") {
+                    if (confirm(`¿Eliminar ${selectedAthletes.size} atletas?`)) {
+                      toast.pushToast({
+                        title: "Eliminación masiva",
+                        description: `Se eliminarán ${selectedAthletes.size} atletas`,
+                        variant: "warning",
+                      });
+                      setSelectedAthletes(new Set());
+                    }
+                  }
+                  e.target.value = "";
+                }}
+              >
+                <option value="">Acciones...</option>
+                <option value="delete">Eliminar</option>
+                <option value="export">Exportar seleccionados</option>
+                <option value="message">Enviar mensaje</option>
+              </select>
+              <button
+                type="button"
+                onClick={() => setSelectedAthletes(new Set())}
+                className="text-xs text-muted-foreground hover:text-foreground"
+              >
+                Cancelar
+              </button>
+            </div>
+          )}
+
           <TooltipOnboarding
             tooltipId="tooltip_add_athlete"
             message="Añade al menos 5 atletas clave para ver todo el valor del sistema."
@@ -248,39 +443,99 @@ export function AthletesTableView({ academyId, athletes: initialAthletes, levels
       </section>
 
       {isEmpty ? (
-        <div className="rounded-lg border bg-card p-12 text-center shadow-sm">
-          <p className="mb-4 text-sm text-muted-foreground">
+        <div className="flex flex-col items-center justify-center rounded-lg border bg-card p-12 text-center shadow-sm">
+          <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted">
+            <Users className="h-8 w-8 text-muted-foreground" />
+          </div>
+          <p className="mb-2 text-sm font-medium text-foreground">
             {hasActiveFilters
-              ? "No hay atletas que coincidan con los filtros."
-              : "Aún no has creado ningún atleta. Crea tu primer atleta para empezar a gestionar tu academia."}
+              ? "No hay atletas que coincidan con los filtros"
+              : "Aún no has creado ningún atleta"}
+          </p>
+          <p className="mb-6 text-sm text-muted-foreground">
+            {hasActiveFilters
+              ? "Intenta ajustar los filtros de búsqueda"
+              : "Crea tu primer atleta para empezar a gestionar tu academia"}
           </p>
           {!hasActiveFilters && (
             <button
               type="button"
               onClick={() => setCreateOpen(true)}
-              className="inline-flex items-center justify-center rounded-md bg-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-emerald-600"
+              className="inline-flex items-center justify-center rounded-md bg-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:bg-emerald-600 hover:shadow-md"
             >
               Crear primer atleta
             </button>
           )}
         </div>
+      ) : viewMode === "kanban" ? (
+        <AthletesKanbanView
+          athletes={athletes}
+          academyId={academyId}
+          onStatusChange={() => {
+            // Status change will be handled by the API
+          }}
+        />
       ) : (
         <div className="overflow-hidden rounded-lg border bg-card shadow">
           <table className="min-w-full divide-y divide-border text-sm">
             <thead className="bg-muted/60">
               <tr className="text-left text-xs uppercase tracking-wide text-muted-foreground">
-                <th className="px-4 py-3 font-medium">Nombre</th>
+                <th className="px-2 py-3 font-medium w-8">
+                  <button
+                    type="button"
+                    onClick={toggleSelectAll}
+                    className="p-1 hover:text-primary"
+                  >
+                    {selectedAthletes.size === athletes.length && athletes.length > 0 ? (
+                      <CheckSquare className="h-4 w-4" />
+                    ) : (
+                      <Square className="h-4 w-4" />
+                    )}
+                  </button>
+                </th>
+                <th className="px-4 py-3 font-medium">
+                  <button
+                    type="button"
+                    onClick={() => { setSortBy("name"); setSortOrder(sortBy === "name" && sortOrder === "asc" ? "desc" : "asc"); }}
+                    className="flex items-center gap-1 hover:text-primary"
+                  >
+                    Nombre
+                    {sortBy === "name" && (sortOrder === "asc" ? " ↑" : " ↓")}
+                  </button>
+                </th>
                 <th className="px-4 py-3 font-medium">Nivel</th>
                 <th className="px-4 py-3 font-medium">Estado</th>
-                <th className="px-4 py-3 font-medium text-right">Edad</th>
+                <th className="px-4 py-3 font-medium text-right">
+                  <button
+                    type="button"
+                    onClick={() => { setSortBy("age"); setSortOrder(sortBy === "age" && sortOrder === "asc" ? "desc" : "asc"); }}
+                    className="flex items-center gap-1 hover:text-primary ml-auto"
+                  >
+                    Edad
+                    {sortBy === "age" && (sortOrder === "asc" ? " ↑" : " ↓")}
+                  </button>
+                </th>
                 <th className="px-4 py-3 font-medium text-right">Familia</th>
                 <th className="px-4 py-3 font-medium">Grupo principal</th>
                 <th className="px-4 py-3 font-medium text-right">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border bg-background text-foreground">
-            {athletes.map((athlete) => (
+            {paginatedAthletes.map((athlete) => (
               <tr key={athlete.id} className="hover:bg-muted/40">
+                <td className="px-2 py-3">
+                  <button
+                    type="button"
+                    onClick={() => toggleSelectAthlete(athlete.id)}
+                    className="p-1 hover:text-primary"
+                  >
+                    {selectedAthletes.has(athlete.id) ? (
+                      <CheckSquare className="h-4 w-4" />
+                    ) : (
+                      <Square className="h-4 w-4" />
+                    )}
+                  </button>
+                </td>
                 <td className="px-4 py-3">
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
@@ -345,6 +600,35 @@ export function AthletesTableView({ academyId, athletes: initialAthletes, levels
             ))}
             </tbody>
           </table>
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between border-t border-border px-4 py-3">
+              <p className="text-sm text-muted-foreground">
+                Mostrando {((currentPage - 1) * ITEMS_PER_PAGE) + 1} - {Math.min(currentPage * ITEMS_PER_PAGE, filteredAthletes.length)} de {filteredAthletes.length} atletas
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                >
+                  Anterior
+                </Button>
+                <span className="text-sm">
+                  {currentPage} / {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                >
+                  Siguiente
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -370,7 +654,15 @@ export function AthletesTableView({ academyId, athletes: initialAthletes, levels
 
       {editing && (
         <EditAthleteDialog
-          athlete={editing}
+          athlete={{
+            id: editing.id,
+            name: editing.name,
+            level: editing.level,
+            status: editing.status,
+            dob: editing.dob ?? null,
+            groupId: editing.groupId ?? null,
+            groupName: editing.groupName,
+          }}
           academyId={academyId}
           open={Boolean(editing)}
           onClose={() => setEditing(null)}

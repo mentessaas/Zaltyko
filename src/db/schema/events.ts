@@ -1,7 +1,7 @@
-import { boolean, date, index, jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { boolean, date, index, integer, jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
 import { academies } from "./academies";
-import { eventDisciplineEnum, eventLevelEnum, eventTypeEnum } from "./enums";
+import { eventDisciplineEnum, eventLevelEnum, eventStatusEnum, eventTypeEnum } from "./enums";
 
 export const events = pgTable(
   "events",
@@ -43,6 +43,12 @@ export const events = pgTable(
     notifyCityAcademies: boolean("notify_city_academies").default(false),
     notifyProvinceAcademies: boolean("notify_province_academies").default(false),
     notifyCountryAcademies: boolean("notify_country_academies").default(false),
+    // Nuevos campos para inscripciones
+    status: eventStatusEnum("status").notNull().default("draft"),
+    maxCapacity: integer("max_capacity"),
+    registrationFee: integer("registration_fee"), // En centavos
+    allowWaitlist: boolean("allow_waitlist").notNull().default(true),
+    waitlistMaxSize: integer("waitlist_max_size"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
   },
@@ -59,5 +65,6 @@ export const events = pgTable(
     registrationEndDateIdx: index("events_registration_end_date_idx").on(table.registrationEndDate),
     countryCodeIdx: index("events_country_code_idx").on(table.countryCode),
     isPublicIdx: index("events_is_public_idx").on(table.isPublic),
+    statusIdx: index("events_status_idx").on(table.status),
   })
 );

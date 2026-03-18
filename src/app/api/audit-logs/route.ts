@@ -1,107 +1,90 @@
+export const dynamic = 'force-dynamic';
+
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { eq, and, gte, lte, desc } from "drizzle-orm";
+
+import {
+  getAuditLogs,
+  getAuditLogsCount,
+  exportAuditLogs,
+  type AuditLogFilters,
+} from "@/lib/authz/audit-service";
 import { withTenant } from "@/lib/authz";
 
-import { db } from "@/db";
-import { auditLogs, profiles } from "@/db/schema";
-
 const querySchema = z.object({
-  // academyId removido - audit_logs no tiene este campo
-  q: z.string().optional(),
+  userId: z.string().optional(),
+  module: z.string().optional(),
   action: z.string().optional(),
-  table: z.string().optional(),
+  resourceType: z.string().optional(),
+  resourceId: z.string().optional(),
+  status: z.enum(["success", "failed", "warning"]).optional(),
   startDate: z.string().optional(),
   endDate: z.string().optional(),
+  search: z.string().optional(),
   limit: z.string().optional(),
+  offset: z.string().optional(),
+  export: z.string().optional(),
 });
 
+// GET /api/audit-logs
 export const GET = withTenant(async (request, context) => {
-  if (!context.tenantId) {
-    return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
-  }
+  const { searchParams } = new URL(request.url);
 
-  const url = new URL(request.url);
   const params = {
-    q: url.searchParams.get("q"),
-    action: url.searchParams.get("action"),
-    table: url.searchParams.get("table"),
-    startDate: url.searchParams.get("startDate"),
-    endDate: url.searchParams.get("endDate"),
-    limit: url.searchParams.get("limit"),
+    userId: searchParams.get("userId") || undefined,
+    module: searchParams.get("module") as any || undefined,
+    action: searchParams.get("action") || undefined,
+    resourceType: searchParams.get("resourceType") || undefined,
+    resourceId: searchParams.get("resourceId") || undefined,
+    status: searchParams.get("status") as any || undefined,
+    startDate: searchParams.get("startDate") ? new Date(searchParams.get("startDate")!) : undefined,
+    endDate: searchParams.get("endDate") ? new Date(searchParams.get("endDate")!) : undefined,
+    search: searchParams.get("search") || undefined,
+    limit: searchParams.get("limit") ? parseInt(searchParams.get("limit")!) : 50,
+    offset: searchParams.get("offset") ? parseInt(searchParams.get("offset")!) : 0,
   };
 
   const validated = querySchema.parse(params);
 
-  const whereConditions = [eq(auditLogs.tenantId, context.tenantId)];
-  
-  if (validated.action) {
-    whereConditions.push(eq(auditLogs.action, validated.action));
-  }
-  
-  // tableName no existe en audit_logs, se filtrará después usando meta
-  // if (validated.table) {
-  //   whereConditions.push(eq(auditLogs.tableName, validated.table));
-  // }
-  
-  if (validated.startDate) {
-    whereConditions.push(gte(auditLogs.createdAt, new Date(validated.startDate)));
-  }
-  if (validated.endDate) {
-    whereConditions.push(lte(auditLogs.createdAt, new Date(validated.endDate)));
-  }
+  // Preparar filtros para el servicio (excluir strings de pagination)
+  const filters: AuditLogFilters = {
+    userId: validated.userId,
+    module: validated.module as any,
+    action: validated.action as any,
+    resourceType: validated.resourceType,
+    resourceId: validated.resourceId,
+    status: validated.status as any,
+    startDate: validated.startDate ? new Date(validated.startDate) : undefined,
+    endDate: validated.endDate ? new Date(validated.endDate) : undefined,
+    search: validated.search,
+    limit: validated.limit ? parseInt(validated.limit) : 50,
+    offset: validated.offset ? parseInt(validated.offset) : 0,
+    academyId: context.tenantId,
+  };
 
-  const limit = validated.limit ? parseInt(validated.limit) : 100;
+  // Si es exportación, devolver CSV
+  if (validated.export === "csv") {
+    const csv = await exportAuditLogs(filters);
 
-  const items = await db
-    .select({
-      id: auditLogs.id,
-      action: auditLogs.action,
-      meta: auditLogs.meta,
-      userId: auditLogs.userId,
-      userName: profiles.name,
-      createdAt: auditLogs.createdAt,
-    })
-    .from(auditLogs)
-    .leftJoin(profiles, eq(auditLogs.userId, profiles.id))
-    .where(and(...whereConditions))
-    .orderBy(desc(auditLogs.createdAt))
-    .limit(limit);
-
-  // Filtrar por búsqueda de texto si existe
-  let filteredItems = items;
-  if (validated.q) {
-    const query = validated.q.toLowerCase();
-    filteredItems = items.filter(
-      (item) =>
-        item.action.toLowerCase().includes(query) ||
-        (item.userName && item.userName.toLowerCase().includes(query)) ||
-        (item.meta && JSON.stringify(item.meta).toLowerCase().includes(query))
-    );
-  }
-
-  // Filtrar por table usando meta si es necesario
-  if (validated.table) {
-    filteredItems = filteredItems.filter((item) => {
-      if (!item.meta || typeof item.meta !== "object") return false;
-      const meta = item.meta as Record<string, unknown>;
-      return meta.table === validated.table || meta.tableName === validated.table;
+    return new NextResponse(csv, {
+      headers: {
+        "Content-Type": "text/csv",
+        "Content-Disposition": `attachment; filename="audit-logs-${new Date().toISOString().split("T")[0]}.csv"`,
+      },
     });
   }
 
+  const [logs, total] = await Promise.all([
+    getAuditLogs(filters),
+    getAuditLogsCount(filters),
+  ]);
+
   return NextResponse.json({
-    items: filteredItems.map((item) => {
-      const meta = (item.meta as Record<string, unknown>) || {};
-      return {
-        id: item.id,
-        action: item.action,
-        tableName: meta.table || meta.tableName || null,
-        recordId: meta.recordId || meta.id || null,
-        userId: item.userId,
-        userName: item.userName || "Desconocido",
-        metadata: item.meta,
-        createdAt: item.createdAt?.toISOString(),
-      };
-    }),
+    logs,
+    pagination: {
+      total,
+      limit: validated.limit,
+      offset: validated.offset,
+    },
   });
 });

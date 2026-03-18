@@ -1,10 +1,20 @@
 import { Metadata } from "next";
+import Link from "next/link";
+import { Plus } from "lucide-react";
 import { MarketplaceCard } from "@/components/marketplace/MarketplaceCard";
+import { MarketplaceFilters } from "@/components/marketplace/MarketplaceFilters";
 import { AdBanner } from "@/components/advertising/AdBanner";
+import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = {
-  title: "Marketplace | Zaltyko",
-  description: "Compra y vende productos y servicios para gimnastas",
+  title: "Marketplace de Gimnasia | Zaltyko",
+  description: "Compra y vende productos y servicios para gimnastas. Encuentra ropa, equipamiento, suplementos y más.",
+  openGraph: {
+    title: "Marketplace de Gimnasia | Zaltyko",
+    description: "Compra y vende productos y servicios para gimnastas",
+    url: "/marketplace",
+    type: "website",
+  },
 };
 
 async function getListings(searchParams: { category?: string; type?: string; search?: string; page?: string }) {
@@ -37,11 +47,22 @@ export default async function MarketplacePage({
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-8">Marketplace</h1>
+      <div className="flex items-center justify-between mb-8">
+        <h1 className="text-3xl font-bold">Marketplace</h1>
+        <Link href="/marketplace/nuevo">
+          <Button>
+            <Plus className="mr-2 h-4 w-4" />
+            Publicar
+          </Button>
+        </Link>
+      </div>
 
       <AdBanner ads={topAds} position="top" />
 
       <div className="flex gap-8 mt-6">
+        <aside className="w-64 shrink-0">
+          <MarketplaceFilters />
+        </aside>
         <main className="flex-1">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {listings?.map((listing: any) => (

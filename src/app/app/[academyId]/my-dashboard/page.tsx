@@ -4,7 +4,7 @@ import { Metadata } from "next";
 import { and, eq, inArray } from "drizzle-orm";
 
 import { db } from "@/db";
-import { academies, memberships, profiles, athletes, guardians, guardianAthletes, groups, classes, classSessions, classEnrollments, attendanceRecords, charges, groupAthletes, coaches } from "@/db/schema";
+import { academies, memberships, profiles, athletes, guardians, guardianAthletes, groups, classes, classSessions, classEnrollments, attendanceRecords, charges, groupAthletes, coaches, billingItems } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
 import { MyDashboardPage } from "./MyDashboardPage";
 
@@ -45,6 +45,11 @@ interface GuardianWithAthletes {
   guardianId: string;
   athleteId: string;
   athleteName: string;
+  athleteLevel: string | null;
+  athleteGroupId: string | null;
+  athleteGroupName: string | null;
+  athleteGroupColor: string | null;
+  athleteCoachName: string | null;
 }
 
 interface ChargeData {
@@ -54,6 +59,9 @@ interface ChargeData {
   period: string;
   status: string;
   dueDate: string | null;
+  notes: string | null;
+  billingItemName: string | null;
+  billingItemDescription: string | null;
 }
 
 interface AttendanceData {
@@ -140,6 +148,7 @@ export default async function MyDashboard({ params }: PageProps) {
       id: academies.id,
       name: academies.name,
       country: academies.country,
+      phone: academies.contactPhone,
     })
     .from(academies)
     .where(eq(academies.id, academyId))
@@ -220,15 +229,27 @@ export default async function MyDashboard({ params }: PageProps) {
         .select({
           athleteId: guardianAthletes.athleteId,
           athleteName: athletes.name,
+          athleteLevel: athletes.level,
+          athleteGroupId: athletes.groupId,
+          groupName: groups.name,
+          groupColor: groups.color,
+          coachName: coaches.name,
         })
         .from(guardianAthletes)
         .leftJoin(athletes, eq(guardianAthletes.athleteId, athletes.id))
+        .leftJoin(groups, eq(athletes.groupId, groups.id))
+        .leftJoin(coaches, eq(groups.coachId, coaches.id))
         .where(eq(guardianAthletes.guardianId, guardian.id));
 
       guardianAthletesList = athletesData.map((a) => ({
         guardianId: guardian.id,
         athleteId: a.athleteId,
         athleteName: a.athleteName ?? "Sin nombre",
+        athleteLevel: a.athleteLevel ?? null,
+        athleteGroupId: a.athleteGroupId ?? null,
+        athleteGroupName: a.groupName ?? null,
+        athleteGroupColor: a.groupColor ?? null,
+        athleteCoachName: a.coachName ?? null,
       }));
     }
   }
@@ -377,8 +398,12 @@ export default async function MyDashboard({ params }: PageProps) {
         period: charges.period,
         status: charges.status,
         dueDate: charges.dueDate,
+        notes: charges.notes,
+        billingItemName: billingItems.name,
+        billingItemDescription: billingItems.description,
       })
       .from(charges)
+      .leftJoin(billingItems, eq(charges.billingItemId, billingItems.id))
       .where(
         and(
           eq(charges.athleteId, targetAthleteId),
@@ -395,6 +420,9 @@ export default async function MyDashboard({ params }: PageProps) {
       period: c.period,
       status: c.status,
       dueDate: c.dueDate,
+      notes: c.notes ?? null,
+      billingItemName: c.billingItemName ?? null,
+      billingItemDescription: c.billingItemDescription ?? null,
     }));
   }
 
@@ -424,6 +452,7 @@ export default async function MyDashboard({ params }: PageProps) {
       academyId={academyId}
       academyName={academy.name}
       academyCountry={academy.country}
+      academyPhone={academy.phone}
       profileName={profile.name}
       profileRole={profile.role}
       profilePhotoUrl={profile.photoUrl}
@@ -433,6 +462,8 @@ export default async function MyDashboard({ params }: PageProps) {
       attendanceData={attendanceData}
       chargesData={chargesData}
       weeklySchedule={weeklySchedule}
+      assessmentsData={[]}
+      calendarSessions={[]}
     />
   );
 }

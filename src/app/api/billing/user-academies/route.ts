@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 
 import { createClient } from "@/lib/supabase/server";
 import { db } from "@/db";
-import { profiles, memberships, academies } from "@/db/schema";
+import { profiles, memberships } from "@/db/schema";
 
 export async function GET() {
   const cookieStore = await cookies();

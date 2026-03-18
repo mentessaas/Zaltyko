@@ -1,4 +1,6 @@
 // src/app/api/ai/billing/predict-delinquency/route.ts
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { getAIOrchestrator } from '@/lib/ai/orchestrator';
 import { BILLING_SYSTEM_PROMPT, generateDelinquencyPrompt } from '@/lib/ai/prompts/billing';

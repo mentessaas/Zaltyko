@@ -46,6 +46,12 @@ const CreateEventSchema = z.object({
   notifyCityAcademies: z.boolean().default(false),
   notifyProvinceAcademies: z.boolean().default(false),
   notifyCountryAcademies: z.boolean().default(false),
+  // Nuevos campos para inscripciones
+  status: z.enum(["draft", "published", "cancelled", "completed"]).default("draft"),
+  maxCapacity: z.number().int().positive().optional(),
+  registrationFee: z.number().int().positive().optional(),
+  allowWaitlist: z.boolean().default(true),
+  waitlistMaxSize: z.number().int().positive().optional(),
 }).refine((data) => {
   // Validar fechas de inscripción
   if (data.registrationStartDate && data.registrationEndDate) {
@@ -188,6 +194,12 @@ export const POST = withRateLimit(
             notifyCityAcademies: body.notifyCityAcademies ?? false,
             notifyProvinceAcademies: body.notifyProvinceAcademies ?? false,
             notifyCountryAcademies: body.notifyCountryAcademies ?? false,
+            // Nuevos campos
+            status: body.status ?? "draft",
+            maxCapacity: body.maxCapacity ?? null,
+            registrationFee: body.registrationFee ?? null,
+            allowWaitlist: body.allowWaitlist ?? true,
+            waitlistMaxSize: body.waitlistMaxSize ?? null,
           })
           .returning();
 

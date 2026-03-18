@@ -1,27 +1,28 @@
-# ZALTYKO – Guía de Marca Oficial
+# ZALTYKO – Guía de Marca Oficial (Rojo Cereza)
 
 ## 1. Identidad
 
-Zaltyko es un SaaS creado para revolucionar la gestión de academias de gimnasia.  
-Representa disciplina, precisión y crecimiento constante.
+Zaltyko es un SaaS creado para revolucionar la gestión de academias de gimnasia.
+Representa **energía, pasión y acción**. El rojo cereza transmite vitalidad y determinación.
 
-**Eslogan:**  
+**Eslogan:**
 "Gestión inteligente para academias imbatibles."
 
 ## 2. Logotipo
 
 ### Versión Principal
-- **Archivo:** `logo-zaltyko.svg`
-- **Descripción:** Logo con zorro estilizado geométrico mirando a la derecha + texto "Zaltyko" en azul profundo
-- **Colores:** Azul profundo `#0D47A1` y dorado `#FBC02D`
+- **Archivo:** `logo-red.svg`
+- **Descripción:** Logo con zorro estilizado geométrico mirando a la derecha + texto "Zaltyko" en rojo cereza
+- **Colores:** Rojo cereza `#DC2626` y dorado `#F59E0B`
 - **Tipografía:** Poppins Bold
 
 ### Versiones Disponibles
 
-1. **logo-zaltyko.svg** - Versión principal (azul profundo)
-2. **logo-zaltyko-dark.svg** - Para fondos oscuros (zorro dorado, texto blanco)
-3. **logo-zaltyko-light.svg** - Para fondos claros (zorro azul, texto dorado)
-4. **logo-zaltyko-monochrome.svg** - Versión monocromática gris para documentos
+1. **logo-red.svg** - Versión principal (zorro rojo, texto rojo cereza)
+2. **logo-red-dark.svg** - Para fondos oscuros (zorro dorado, texto blanco)
+3. **logo-red-light.svg** - Para fondos claros (zorro rojo, texto dorado)
+4. **logo-zaltyko.svg** - Versión legacy (azul, mantener para compatibilidad)
+5. **favicon-red.svg** - Favicon SVG rojo
 
 ### Espaciado Mínimo
 - Mantener al menos **1x del tamaño del logotipo** alrededor del logo
@@ -38,23 +39,24 @@ Representa disciplina, precisión y crecimiento constante.
 
 | Color | Hex | Uso Principal | HSL |
 |--------|------|----------------|-----|
-| Azul profundo | `#0D47A1` | Fondo primario, textos principales | hsl(215, 85%, 34%) |
-| Azul claro | `#42A5F5` | Botones, acentos, hover states | hsl(207, 90%, 61%) |
-| Dorado | `#FBC02D` | Íconos, highlights, CTAs | hsl(45, 96%, 54%) |
-| Dorado claro | `#FFE082` | Hover states, variantes | hsl(45, 100%, 75%) |
-| Blanco | `#FFFFFF` | Fondo claro, textos sobre azul | - |
-| Gris neutro | `#F5F7FA` | Fondos UI, divisores | - |
-| Gris oscuro | `#1E1E1E` | Textos oscuros | - |
+| Rojo cereza | `#DC2626` | Fondo primario, textos principales | hsl(0, 86%, 42%) |
+| Rojo brillante | `#EF4444` | Botones, acentos, hover states | hsl(0, 90%, 59%) |
+| Rojo profundo | `#B91C1C` | Estados activos, énfasis | hsl(0, 84%, 37%) |
+| Dorado | `#F59E0B` | Íconos, highlights, CTAs | hsl(38, 92%, 50%) |
+| Dorado claro | `#FCD34D` | Hover states, variantes | hsl(45, 96%, 71%) |
+| Blanco | `#FFFFFF` | Fondo claro, textos sobre rojo | - |
+| Rojo ultralight | `#FEF2F2` | Fondos UI, highlight suave | hsl(0, 86%, 97%) |
+| Gris oscuro | `#1F2937` | Textos oscuros | - |
 
 ### Uso Recomendado
 
-**Primario (Azul profundo):**
+**Primario (Rojo cereza):**
 - Navbar y headers principales
 - Botones primarios
 - Links importantes
 - Fondos de secciones destacadas
 
-**Secundario (Azul claro):**
+**Secundario (Rojo brillante):**
 - Botones hover
 - Acentos en cards
 - Estados activos
@@ -98,7 +100,7 @@ p: Inter 400, base
 - **Símbolo:** Cabeza de zorro geométrica minimalista
 - **Estilo:** Líneas suaves y angulosas, diseño geométrico
 - **Orientación:** Mirando hacia la derecha (progreso, avance)
-- **Colores:** Azul profundo + dorado
+- **Colores:** Rojo cereza `#DC2626` + dorado `#F59E0B`
 
 ### Símbolo Alternativo
 - **Letra Z estilizada** dentro de un círculo dorado
@@ -113,42 +115,42 @@ p: Inter 400, base
 ## 6. Aplicaciones Visuales
 
 ### Navbar
-- **Fondo:** Azul profundo `#0D47A1`
+- **Fondo:** Rojo cereza `#DC2626`
 - **Logo:** Versión dark (zorro dorado, texto blanco)
 - **Texto:** Blanco o dorado claro
-- **Hover:** Azul claro `#42A5F5`
+- **Hover:** Rojo brillante `#EF4444`
 
 ### Dashboard
-- **Fondo:** Gris neutro `#F5F7FA` o blanco
+- **Fondo:** Rojo ultralight `#FEF2F2` o blanco
 - **Cards:** Blanco con sombra suave
-- **Botones primarios:** Azul profundo
+- **Botones primarios:** Rojo cereza
 - **Botones secundarios:** Dorado
-- **Acentos:** Azul claro para estados activos
+- **Acentos:** Rojo brillante para estados activos
 
 ### Landing Page
-- **Hero:** Contraste azul profundo + dorado
-- **Gradientes:** Azul profundo → azul claro
-- **CTAs:** Dorado sobre azul profundo
+- **Hero:** Contraste rojo cereza + dorado
+- **Gradientes:** Rojo cereza → rojo brillante
+- **CTAs:** Dorado sobre rojo cereza
 - **Tipografía:** Poppins para títulos, Inter para textos
 
 ### Login y Formularios
-- **Fondo:** Blanco o gris neutro claro
-- **Inputs:** Bordes azul claro, focus azul profundo
-- **Botones:** Azul profundo con hover azul claro
-- **Logo:** Versión principal (azul)
+- **Fondo:** Blanco o rojo ultralight
+- **Inputs:** Bordes rojo claro, focus rojo cereza
+- **Botones:** Rojo cereza con hover rojo brillante
+- **Logo:** Versión principal (rojo)
 
 ## 7. Archivos del Kit
 
 Todos los archivos están disponibles en `/public/branding/zaltyko/`:
 
 ```
-logo-zaltyko.svg              # Versión principal
-logo-zaltyko-dark.svg         # Para fondos oscuros
-logo-zaltyko-light.svg        # Para fondos claros
-logo-zaltyko-monochrome.svg   # Versión monocromática
-favicon-zaltyko.svg           # Favicon SVG
-favicon-zaltyko.ico           # Favicon ICO (generar desde SVG)
-branding.md                   # Esta guía
+logo-red.svg              # Versión principal roja
+logo-red-dark.svg         # Para fondos oscuros
+logo-red-light.svg        # Para fondos claros
+logo-zaltyko.svg          # Versión legacy (azul)
+favicon-red.svg          # Favicon SVG rojo
+favicon-zaltyko.ico       # Favicon ICO legacy
+branding.md              # Esta guía
 ```
 
 ## 8. Uso en Código
@@ -158,24 +160,24 @@ branding.md                   # Esta guía
 ```tsx
 import Image from "next/image";
 
-// Logo principal
-<Image 
-  src="/branding/zaltyko/logo-zaltyko.svg" 
-  alt="Zaltyko" 
-  width={160} 
-  height={40} 
+// Logo principal rojo
+<Image
+  src="/branding/zaltyko/logo-red.svg"
+  alt="Zaltyko"
+  width={160}
+  height={40}
 />
 
 // Logo para navbar oscuro
-<Image 
-  src="/branding/zaltyko/logo-zaltyko-dark.svg" 
-  alt="Zaltyko" 
-  width={160} 
-  height={40} 
+<Image
+  src="/branding/zaltyko/logo-red-dark.svg"
+  alt="Zaltyko"
+  width={160}
+  height={40}
 />
 
 // Favicon (en layout.tsx)
-<link rel="icon" href="/branding/zaltyko/favicon-zaltyko.svg" />
+<link rel="icon" href="/branding/zaltyko/favicon-red.svg" />
 ```
 
 ### Tailwind CSS
@@ -183,7 +185,7 @@ import Image from "next/image";
 ```tsx
 // Usar colores de marca
 <div className="bg-zaltyko-primary text-white">
-<div className="bg-zaltyko-accent text-zaltyko-primary-dark">
+<div className="bg-zaltyko-accent-amber text-white">
 <div className="text-zaltyko-primary-light">
 
 // Usar fuentes
@@ -194,9 +196,9 @@ import Image from "next/image";
 ## 9. Tono de Marca
 
 ### Personalidad
-- **Profesional:** Serio pero accesible
-- **Inspirador:** Motiva a la excelencia
-- **Confiable:** Transmite seguridad y estabilidad
+- **Energético:** Transmite vitalidad y acción
+- **Apasionado:** Comprometido con la excelencia
+- **Confiable:** Serio pero accesible
 - **Moderno:** Tecnológico y actualizado
 
 ### Mensajes
@@ -238,15 +240,15 @@ import Image from "next/image";
 - **Hover:** Escala sutil (scale-[0.98]) en botones
 
 ### Estados Interactivos
-- **Hover:** Cambio de color suave (azul profundo → azul claro)
+- **Hover:** Cambio de color suave (rojo cereza → rojo brillante)
 - **Active:** Escala ligeramente reducida
-- **Focus:** Ring azul profundo con offset
+- **Focus:** Ring rojo cereza con offset
 
 ## 12. Accesibilidad
 
 ### Contraste
-- **Texto sobre azul profundo:** Blanco o dorado claro (WCAG AA)
-- **Texto sobre blanco:** Azul profundo o gris oscuro
+- **Texto sobre rojo cereza:** Blanco o dorado claro (WCAG AA)
+- **Texto sobre blanco:** Rojo cereza o gris oscuro
 - **Ratios mínimos:** 4.5:1 para texto normal, 3:1 para texto grande
 
 ### Tamaños Mínimos
@@ -256,11 +258,10 @@ import Image from "next/image";
 
 ## 13. Versiones y Actualizaciones
 
-**Versión actual:** 1.0  
-**Fecha:** 2025-01  
-**Última actualización:** Rebranding completo a Zaltyko
+**Versión actual:** 2.0
+**Fecha:** 2026-03
+**Cambio:** Rebranding a estilo Rojo Cereza - energía, pasión, acción
 
 ---
 
 **Contacto:** Para preguntas sobre el uso de la marca, contacta al equipo de diseño.
-

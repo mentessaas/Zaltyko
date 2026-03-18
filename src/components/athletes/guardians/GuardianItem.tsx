@@ -135,7 +135,7 @@ export function GuardianItem({
               ? <span className="rounded-full bg-blue-100 px-2 py-0.5 font-semibold text-blue-700">Email</span>
               : null}
             {guardian.notifySms
-              ? <span className="rounded-full bg-purple-100 px-2 py-0.5 font-semibold text-purple-700">SMS</span>
+              ? <span className="rounded-full bg-red-100 px-2 py-0.5 font-semibold text-red-700">SMS</span>
               : null}
           </div>
         </div>

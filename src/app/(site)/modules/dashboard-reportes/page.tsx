@@ -27,7 +27,7 @@ export const metadata: Metadata = {
   },
 };
 
-const MODULE_COLOR = "from-fuchsia-500 to-purple-600";
+const MODULE_COLOR = "from-red-500 to-red-600";
 
 const problemContent = `Tomar decisiones estratégicas sobre tu academia sin datos confiables es como navegar sin brújula. La información está dispersa entre hojas de asistencia, registros de pago y anotaciones de entrenadores. Cuando necesitas saber cuántos atletas has perdido este trimestre, cuál es tu tasa real de asistencia o qué grupos están más saturados, debes invertir horas compilando datos manualmente.
 

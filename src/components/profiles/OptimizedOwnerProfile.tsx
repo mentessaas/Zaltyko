@@ -79,7 +79,7 @@ const PLAN_COPY: Record<string, { label: string; description: string; cta: strin
     label: "Plan Premium",
     description: "Soporte prioritario y módulos avanzados.",
     cta: "Gestionar suscripción",
-    color: "bg-purple-100 text-purple-800",
+    color: "bg-red-100 text-red-800",
   },
 };
 

@@ -170,7 +170,7 @@ export function ChurnReport({ academyId, academyCountry }: ChurnReportProps) {
       "relocation": "bg-blue-100 text-blue-800",
       "dissatisfaction": "bg-orange-100 text-orange-800",
       "injury": "bg-yellow-100 text-yellow-800",
-      "schedule": "bg-purple-100 text-purple-800",
+      "schedule": "bg-red-100 text-red-800",
       "other": "bg-gray-100 text-gray-800",
       "payment_failed": "bg-red-100 text-red-800",
     };

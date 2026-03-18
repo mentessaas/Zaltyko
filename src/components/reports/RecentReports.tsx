@@ -68,7 +68,7 @@ export function RecentReports({ academyId }: RecentReportsProps) {
     const colors: Record<string, string> = {
       attendance: "bg-blue-500",
       financial: "bg-green-500",
-      progress: "bg-purple-500",
+      progress: "bg-red-500",
       class: "bg-orange-500",
       coach: "bg-teal-500",
       churn: "bg-red-500",

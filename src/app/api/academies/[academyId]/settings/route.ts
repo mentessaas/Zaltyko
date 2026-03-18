@@ -129,9 +129,9 @@ export const GET = withTenant(async (request, context) => {
     // Parsear branding colors
     let branding = {
       logoUrl: academy.logoUrl || "",
-      primaryColor: "#3B82F6",
-      secondaryColor: "#8B5CF6",
-      accentColor: "#10B981",
+      primaryColor: "#DC2626",
+      secondaryColor: "#EF4444",
+      accentColor: "#F59E0B",
       fontHeading: "Inter",
       fontBody: "Inter",
       faviconUrl: "",
@@ -288,9 +288,9 @@ export const PATCH = withTenant(async (request, context) => {
     // Branding se almacena en branding_colors (JSON)
     if (data.branding) {
       const brandingJson = JSON.stringify({
-        primaryColor: data.branding.primaryColor || "#3B82F6",
-        secondaryColor: data.branding.secondaryColor || "#8B5CF6",
-        accentColor: data.branding.accentColor || "#10B981",
+        primaryColor: data.branding.primaryColor || "#DC2626",
+        secondaryColor: data.branding.secondaryColor || "#EF4444",
+        accentColor: data.branding.accentColor || "#F59E0B",
         fontHeading: data.branding.fontHeading || "Inter",
         fontBody: data.branding.fontBody || "Inter",
         faviconUrl: data.branding.faviconUrl || "",

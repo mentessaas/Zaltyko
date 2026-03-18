@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { and, asc, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -9,7 +11,6 @@ import { assertUserAcademyLimit, getUpgradeInfo } from "@/lib/limits";
 import { withRateLimit, getUserIdentifier } from "@/lib/rate-limit";
 import { handleApiError } from "@/lib/api-error-handler";
 import { withPayloadValidation, type PayloadValidationContext } from "@/lib/payload-validator";
-import { isAppError } from "@/lib/errors";
 import { seedOnboardingForAcademy, markWizardStep } from "@/lib/onboarding";
 import { trackEvent } from "@/lib/analytics";
 import { logEvent } from "@/lib/event-logging";

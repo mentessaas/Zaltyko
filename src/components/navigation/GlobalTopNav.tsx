@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import {
   Calendar,
@@ -152,9 +153,9 @@ export function GlobalTopNav({
         <div className="flex min-w-0 shrink-0 items-center gap-2 sm:gap-2.5">
           <Link href={isSuperAdmin ? "/super-admin" : "/dashboard"} className="flex shrink-0 items-center gap-2">
             {isDarkTheme ? (
-              <img src="/branding/zaltyko/logo-zaltyko-dark.svg" alt="Zaltyko" className="h-8 w-auto shrink-0" />
+              <Image src="/branding/zaltyko/logo-zaltyko-dark.svg" alt="Zaltyko" width={32} height={32} className="h-8 w-auto shrink-0" />
             ) : (
-              <img src="/branding/zaltyko/logo-zaltyko.svg" alt="Zaltyko" className="h-8 w-auto shrink-0" />
+              <Image src="/branding/zaltyko/logo-zaltyko.svg" alt="Zaltyko" width={32} height={32} className="h-8 w-auto shrink-0" />
             )}
           </Link>
           {isSuperAdmin && (
@@ -441,9 +442,9 @@ export function GlobalTopNav({
           <div className={cn("flex items-center justify-between border-b px-4 py-4", isDarkTheme ? "border-white/10" : "border-border")}>
             <div className="flex items-center gap-2">
               {isDarkTheme ? (
-                <img src="/branding/zaltyko/logo-zaltyko-dark.svg" alt="Zaltyko" className="h-8 w-auto" />
+                <Image src="/branding/zaltyko/logo-zaltyko-dark.svg" alt="Zaltyko" width={32} height={32} className="h-8 w-auto" />
               ) : (
-                <img src="/branding/zaltyko/logo-zaltyko.svg" alt="Zaltyko" className="h-8 w-auto" />
+                <Image src="/branding/zaltyko/logo-zaltyko.svg" alt="Zaltyko" width={32} height={32} className="h-8 w-auto" />
               )}
             </div>
             <button

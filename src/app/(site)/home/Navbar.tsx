@@ -1,16 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { Menu, X, ArrowRight } from "lucide-react";
+import { Menu, X, ArrowRight, Check } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 
 const links = [
-  { href: "/academias", label: "Academias" },
   { href: "/features", label: "Características" },
   { href: "/pricing", label: "Precios" },
-  { href: "/integrations", label: "Integraciones" },
+  { href: "/academias", label: "Academias" },
 ];
 
 export default function NavbarHome() {
@@ -26,95 +25,103 @@ export default function NavbarHome() {
   }, []);
 
   return (
-    <header>
+    <header className="fixed top-0 left-0 right-0 z-50">
       <nav
         className={cn(
-          "fixed top-0 z-50 w-full transition-all duration-300",
+          "transition-all duration-300",
           scrolled
-            ? "bg-white/95 backdrop-blur-md border-b border-zaltyko-border/50 shadow-soft py-2"
-            : "bg-white/80 backdrop-blur-sm border-b border-transparent py-4"
+            ? "bg-white/95 backdrop-blur-lg border-b border-gray-100 shadow-sm py-2"
+            : "bg-white/80 backdrop-blur-md border-b border-transparent py-3"
         )}
       >
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-          {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 group">
-            <div className="relative flex items-center justify-center h-10 w-10 rounded-xl bg-gradient-to-br from-zaltyko-primary to-zaltyko-primary-dark text-white font-bold text-xl shadow-lg transition-transform group-hover:scale-105">
-              Z
-            </div>
-            <span className="font-display text-xl font-bold text-zaltyko-text-main tracking-tight">
-              Zaltyko
-            </span>
-          </Link>
-
-          {/* Desktop Navigation */}
-          <div className="hidden items-center gap-8 md:flex">
-            {links.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className="text-sm font-medium text-zaltyko-text-secondary transition-colors hover:text-zaltyko-primary"
-              >
-                {link.label}
-              </Link>
-            ))}
-          </div>
-
-          {/* Desktop Actions */}
-          <div className="hidden items-center gap-4 md:flex">
-            <Link
-              href="/auth/login"
-              className="text-sm font-semibold text-zaltyko-text-main hover:text-zaltyko-primary transition-colors"
-            >
-              Iniciar sesión
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="flex h-16 items-center justify-between">
+            {/* Logo */}
+            <Link href="/" className="flex items-center gap-2.5 group">
+              <div className="relative flex items-center justify-center h-9 w-9 rounded-lg bg-gradient-to-br from-red-600 to-red-700 text-white font-bold text-lg shadow-md group-hover:shadow-lg transition-all group-hover:scale-105">
+                Z
+              </div>
+              <span className="font-bold text-xl text-gray-900 tracking-tight">
+                Zaltyko
+              </span>
             </Link>
-            <Link
-              href="/onboarding"
-              className={cn(buttonVariants({ variant: "default", size: "sm" }), "rounded-full px-6")}
-            >
-              Crear academia
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Link>
-          </div>
 
-          {/* Mobile Menu Button */}
-          <button
-            type="button"
-            onClick={() => setIsMenuOpen((prev) => !prev)}
-            className="inline-flex items-center justify-center rounded-lg p-2 text-zaltyko-text-main hover:bg-zaltyko-bg md:hidden"
-            aria-label={isMenuOpen ? "Cerrar menú" : "Abrir menú"}
-          >
-            {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-          </button>
-        </div>
-
-        {/* Mobile Menu */}
-        {isMenuOpen && (
-          <div className="absolute top-full left-0 w-full glass-panel border-t border-white/20 md:hidden animate-in slide-in-from-top-5">
-            <div className="space-y-2 px-4 py-6">
+            {/* Desktop Navigation */}
+            <div className="hidden md:flex items-center gap-8">
               {links.map((link) => (
                 <Link
                   key={link.href}
                   href={link.href}
-                  className="block rounded-lg px-4 py-3 text-base font-medium text-zaltyko-text-secondary hover:bg-zaltyko-primary/5 hover:text-zaltyko-primary"
+                  className="text-sm font-medium text-gray-600 hover:text-red-600 transition-colors"
+                >
+                  {link.label}
+                </Link>
+              ))}
+            </div>
+
+            {/* Desktop Actions */}
+            <div className="hidden md:flex items-center gap-4">
+              <Link
+                href="/login"
+                className="text-sm font-semibold text-gray-700 hover:text-red-600 transition-colors"
+              >
+                Iniciar sesión
+              </Link>
+              <Link
+                href="/onboarding"
+                className={cn(
+                  buttonVariants({ variant: "default", size: "sm" }),
+                  "bg-red-600 hover:bg-red-700 shadow-md hover:shadow-lg rounded-full px-5"
+                )}
+              >
+                Empezar gratis
+                <ArrowRight className="ml-1.5 h-4 w-4" />
+              </Link>
+            </div>
+
+            {/* Mobile Menu Button */}
+            <button
+              type="button"
+              onClick={() => setIsMenuOpen((prev) => !prev)}
+              className="inline-flex items-center justify-center rounded-lg p-2 text-gray-600 hover:bg-gray-100 md:hidden"
+              aria-label={isMenuOpen ? "Cerrar menú" : "Abrir menú"}
+            >
+              {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+            </button>
+          </div>
+        </div>
+
+        {/* Mobile Menu */}
+        {isMenuOpen && (
+          <div className="absolute top-full left-0 right-0 bg-white border-b border-gray-100 md:hidden animate-in slide-in-from-top-5">
+            <div className="space-y-1 px-4 py-6">
+              {links.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className="block rounded-lg px-4 py-3 text-base font-medium text-gray-600 hover:bg-gray-50 hover:text-red-600"
                   onClick={() => setIsMenuOpen(false)}
                 >
                   {link.label}
                 </Link>
               ))}
-              <div className="mt-6 flex flex-col gap-3">
+              <div className="mt-6 pt-4 border-t border-gray-100 space-y-3">
                 <Link
-                  href="/auth/login"
-                  className="block w-full rounded-lg px-4 py-3 text-center text-base font-semibold text-zaltyko-text-main hover:bg-zaltyko-bg"
+                  href="/login"
+                  className="block w-full rounded-lg px-4 py-3 text-center text-base font-semibold text-gray-700 hover:bg-gray-50"
                   onClick={() => setIsMenuOpen(false)}
                 >
                   Iniciar sesión
                 </Link>
                 <Link
                   href="/onboarding"
-                  className={cn(buttonVariants({ variant: "default", size: "lg" }), "w-full justify-center")}
+                  className={cn(
+                    buttonVariants({ variant: "default", size: "lg" }),
+                    "w-full justify-center bg-red-600 hover:bg-red-700"
+                  )}
                   onClick={() => setIsMenuOpen(false)}
                 >
-                  Crear mi academia gratis
+                  Empezar gratis
                 </Link>
               </div>
             </div>
@@ -124,4 +131,3 @@ export default function NavbarHome() {
     </header>
   );
 }
-

@@ -36,6 +36,11 @@
     ".next/dev/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "ZaltykoMobile",
+    "zaltyko-branding",
+    ".playwright-mcp",
+    "scripts/fix-fk.ts",
+    "smoke-test.ts"
   ]
 }

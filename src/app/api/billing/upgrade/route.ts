@@ -7,7 +7,7 @@ import { calculateProration } from "@/lib/billing/proration";
 
 export const POST = withTenant(async (req, context) => {
     try {
-        const { userId, profile } = context;
+        const { userId } = context;
 
         const body = await req.json();
         const { targetPlan } = body;

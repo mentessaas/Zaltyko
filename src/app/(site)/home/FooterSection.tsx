@@ -30,7 +30,7 @@ export default function FooterSection() {
     <footer className="bg-gradient-to-b from-zaltyko-text-main to-slate-900 text-white relative overflow-hidden">
       {/* Background effects */}
       <div className="absolute top-0 left-1/4 w-96 h-96 bg-zaltyko-primary/10 rounded-full blur-3xl" />
-      <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl" />
+      <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-red-500/10 rounded-full blur-3xl" />
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 relative">
         {/* Main footer */}

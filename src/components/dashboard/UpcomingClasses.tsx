@@ -77,8 +77,14 @@ export function UpcomingClasses({ classes, academyId, academyCountry }: Upcoming
 
       <div className="space-y-3">
         {displayedClasses.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-border/80 bg-muted/40 px-4 py-6 text-sm text-muted-foreground">
-            Agenda nuevas clases para visualizar tu calendario aquí.
+          <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border/80 bg-muted/40 px-4 py-8 text-center">
+            <CalendarClock className="mb-2 h-8 w-8 text-muted-foreground/60" />
+            <p className="text-sm text-muted-foreground">
+              No hay clases próximas programadas
+            </p>
+            <p className="text-xs text-muted-foreground/70">
+              Agenda nuevas clases para visualizar tu calendario aquí
+            </p>
           </div>
         ) : (
           displayedClasses.map((item) => (

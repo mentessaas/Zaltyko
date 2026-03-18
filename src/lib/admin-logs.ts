@@ -12,9 +12,11 @@ export async function logAdminAction(params: {
 }) {
   try {
     await authzAdapter.db.insert(auditLogs).values({
-      userId: params.userId,
       tenantId: params.tenantId ?? null,
-      action: params.action,
+      userId: params.userId,
+      action: params.action as any,
+      module: "admin" as any,
+      status: "success" as any,
       meta: params.meta ?? null,
     });
   } catch (error) {

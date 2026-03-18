@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextResponse } from "next/server";
 import { asc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
@@ -20,6 +22,10 @@ const bodySchema = z.object({
   capacity: z.number().int().positive().optional(),
   isExtra: z.boolean().optional().default(false),
   groupId: z.string().uuid().nullable().optional(),
+  allowsFreeTrial: z.boolean().optional().default(false),
+  waitingListEnabled: z.boolean().optional().default(false),
+  cancellationHoursBefore: z.number().int().min(0).max(168).optional().default(24),
+  cancellationPolicy: z.enum(["flexible", "standard", "strict"]).optional().default("standard"),
 });
 
 const querySchema = z.object({
@@ -165,6 +171,10 @@ export const POST = withTenant(async (request, context) => {
       capacity: body.capacity ?? null,
       isExtra: body.isExtra ?? false,
       groupId: body.groupId ?? null,
+      allowsFreeTrial: body.allowsFreeTrial ?? false,
+      waitingListEnabled: body.waitingListEnabled ?? false,
+      cancellationHoursBefore: body.cancellationHoursBefore ?? 24,
+      cancellationPolicy: body.cancellationPolicy ?? "standard",
     });
 
     if (normalizedWeekdays.length > 0) {

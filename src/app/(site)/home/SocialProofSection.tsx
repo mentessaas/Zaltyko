@@ -1,43 +1,35 @@
+"use client";
+
+import { cn } from "@/lib/utils";
+
+const stats = [
+  { value: "150+", label: "Academias activas", sublabel: "en España y LATAM" },
+  { value: "25,000+", label: "Atletas gestionados", sublabel: "a nivel nacional" },
+  { value: "€4.2M", label: "Procesado en pagos", sublabel: "últimos 12 meses" },
+  { value: "98%", label: "Satisfacción", sublabel: "de nuestros clientes" },
+];
+
 export default function SocialProofSection() {
   return (
-    <section className="py-16 border-y border-zaltyko-border/50 bg-white/50">
+    <section className="py-16 bg-white border-y border-gray-100">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="text-center">
-          <p className="text-base font-medium text-zaltyko-text-secondary mb-8">
-            Más academias están simplificando su gestión con Zaltyko
-          </p>
-          
-          {/* Logo placeholders - para futuros logos de clientes */}
-          <div className="flex flex-wrap items-center justify-center gap-x-12 gap-y-8">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <div
-                key={i}
-                className="flex items-center justify-center h-12 w-32 rounded-lg bg-zaltyko-bg border border-zaltyko-border/50"
-              >
-                <span className="text-sm text-zaltyko-text-light font-medium">
-                  Academia {i}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+          {stats.map((stat, i) => (
+            <div 
+              key={i}
+              className="text-center group"
+            >
+              <div className="inline-flex flex-col items-center">
+                <span className="text-4xl sm:text-5xl font-bold bg-gradient-to-r from-red-600 to-rose-600 bg-clip-text text-transparent group-hover:scale-110 transition-transform duration-300">
+                  {stat.value}
                 </span>
+                <span className="text-sm font-semibold text-gray-900 mt-2">{stat.label}</span>
+                <span className="text-xs text-gray-500">{stat.sublabel}</span>
               </div>
-            ))}
-          </div>
-          
-          {/* Stats */}
-          <div className="mt-12 grid grid-cols-2 md:grid-cols-4 gap-8 max-w-4xl mx-auto">
-            {[
-              { value: "+150", label: "Academias activas" },
-              { value: "25,000+", label: "Atletas gestionados" },
-              { value: "€4.2M", label: "Procesado en pagos" },
-              { value: "98%", label: "Satisfacción" },
-            ].map((stat) => (
-              <div key={stat.label} className="text-center">
-                <p className="text-3xl sm:text-4xl font-bold text-zaltyko-primary">{stat.value}</p>
-                <p className="mt-1 text-sm text-zaltyko-text-secondary">{stat.label}</p>
-              </div>
-            ))}
-          </div>
+            </div>
+          ))}
         </div>
       </div>
     </section>
   );
 }
-

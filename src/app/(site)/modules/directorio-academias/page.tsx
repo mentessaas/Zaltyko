@@ -27,7 +27,7 @@ export const metadata: Metadata = {
   },
 };
 
-const MODULE_COLOR = "from-indigo-500 to-violet-600";
+const MODULE_COLOR = "from-indigo-500 to-red-600";
 
 const problemContent = `Captar nuevos atletas es uno de los mayores desafíos para cualquier academia de gimnasia. Muchos padres buscan opciones online pero tu club no aparece en los resultados o aparece con información desactualizada. Tu presencia digital se limita quizás a una página de Facebook que actualizas cuando puedes o una web básica que no refleja la calidad de tu trabajo.
 

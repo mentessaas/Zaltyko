@@ -152,9 +152,9 @@ export default async function UsersAdminPage({ searchParams }: UsersPageProps) {
     <div className="space-y-6 p-4 md:p-8">
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-gradient-to-br from-violet-50 to-violet-100 rounded-xl p-4 border border-violet-200">
-          <p className="text-sm font-medium text-violet-700">Total Usuarios</p>
-          <p className="text-3xl font-bold text-violet-800">{usersList.length}</p>
+        <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-xl p-4 border border-red-200">
+          <p className="text-sm font-medium text-red-700">Total Usuarios</p>
+          <p className="text-3xl font-bold text-red-800">{usersList.length}</p>
         </div>
         <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-xl p-4 border border-emerald-200">
           <p className="text-sm font-medium text-emerald-700">Propietarios/Admin</p>

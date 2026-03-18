@@ -398,4 +398,35 @@ export function getFirstDateForWeekdayInTimezone(
   return fromZonedTime(result, timezone);
 }
 
+/**
+ * Formatea una fecha de forma relativa (Hoy, Mañana, Ayer, o fecha)
+ * @param dateStr Fecha en formato string
+ * @param countryCode Código del país para determinar la zona horaria
+ * @returns String formateado de forma relativa
+ */
+export function formatRelativeDate(
+  dateStr: string | null | undefined,
+  countryCode: string | null | undefined = null
+): string {
+  if (!dateStr) return "";
+
+  const date = new Date(dateStr);
+  const today = getTodayInCountryTimezone(countryCode);
+  const targetDate = countryCode
+    ? convertToCountryTimezone(date, countryCode)
+    : date;
+
+  const diffTime = targetDate.getTime() - today.getTime();
+  const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+  if (diffDays === 0) return "Hoy";
+  if (diffDays === 1) return "Mañana";
+  if (diffDays === -1) return "Ayer";
+  if (diffDays > 1 && diffDays <= 7) return `En ${diffDays} días`;
+  if (diffDays >= -7 && diffDays < -1) return `Hace ${Math.abs(diffDays)} días`;
+
+  // Si no es cercano, return fecha formateada
+  return formatShortDateForCountry(dateStr, countryCode);
+}
+
 

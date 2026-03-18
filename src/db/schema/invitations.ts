@@ -11,6 +11,7 @@ export const invitations = pgTable(
     tenantId: uuid("tenant_id").notNull(),
     email: text("email").notNull(),
     role: profileRoleEnum("role").notNull(),
+    roleId: uuid("role_id"), // Rol personalizado de academy_roles
     token: text("token").notNull(),
     status: text("status").notNull().default("pending"),
     invitedBy: uuid("invited_by")
@@ -24,13 +25,18 @@ export const invitations = pgTable(
     defaultAcademyId: uuid("default_academy_id").references(() => academies.id, {
       onDelete: "set null",
     }),
+    // Nuevos campos para invitación mejorada
+    customMessage: text("custom_message"),
+    permissions: text("permissions").array(), // Permisos específicos si no se usa rol
+    sendEmail: text("send_email").notNull().default("true"),
+    resendCount: text("resend_count").notNull().default("0"),
+    lastResentAt: timestamp("last_resent_at", { withTimezone: true }),
   },
   (table) => ({
     tenantIdx: index("invitations_tenant_idx").on(table.tenantId),
     statusIdx: index("invitations_status_idx").on(table.status),
     tokenUnique: uniqueIndex("invitations_token_unique").on(table.token),
     emailTenantUnique: uniqueIndex("invitations_email_tenant_unique").on(table.tenantId, table.email),
+    roleIdx: index("invitations_role_idx").on(table.roleId),
   })
 );
-
-

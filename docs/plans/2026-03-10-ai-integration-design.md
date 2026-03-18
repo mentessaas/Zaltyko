@@ -151,7 +151,7 @@ Integrar IA de nivel intermedio en el workflow del dashboard de Zaltyko, comenza
 ### 4.4 Variables de Entorno
 
 ```env
-MINIMAX_API_KEY=sk-cp-kmoKsXuWMyockn_MSYJNpG9Jh9_HeN7PIsndX_rWYajhJRU7rbX_zBw6Qavb1U6Dd-B9uM4XN6NhaOTUB6av17njTTHAuLN3Mh5wl52ToNexBXgFbeGoGUc
+MINIMAX_API_KEY=sk-***
 ```
 
 ---

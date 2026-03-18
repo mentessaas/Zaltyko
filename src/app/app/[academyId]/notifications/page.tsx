@@ -41,6 +41,7 @@ import {
 } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { NotificationPreferences } from "@/components/notifications/NotificationPreferences";
+import { PushNotificationPermission } from "@/components/notifications/PushNotificationPermission";
 import { useAcademyContext } from "@/hooks/use-academy-context";
 
 interface Notification {
@@ -74,7 +75,7 @@ const getNotificationIcon = (type: string) => {
 const getNotificationColor = (type: string) => {
   if (type.includes("invoice") || type.includes("payment")) return "bg-blue-100 text-blue-600";
   if (type.includes("class") || type.includes("schedule")) return "bg-green-100 text-green-600";
-  if (type.includes("message") || type.includes("contact")) return "bg-purple-100 text-purple-600";
+  if (type.includes("message") || type.includes("contact")) return "bg-red-100 text-red-600";
   if (type.includes("attendance")) return "bg-yellow-100 text-yellow-600";
   if (type.includes("event")) return "bg-pink-100 text-pink-600";
   return "bg-gray-100 text-gray-600";
@@ -396,7 +397,11 @@ export default function NotificationsPage() {
         </TabsContent>
 
         {/* Preferences Tab */}
-        <TabsContent value="preferences" className="mt-6">
+        <TabsContent value="preferences" className="mt-6 space-y-6">
+          {/* Push Notifications */}
+          <PushNotificationPermission variant="card" />
+
+          {/* In-App & Email Notifications */}
           <NotificationPreferences />
         </TabsContent>
       </Tabs>

@@ -108,7 +108,7 @@ export function StepPreview({ step, data, className }: StepPreviewProps) {
         return (
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <Users className="h-4 w-4 text-purple-600" />
+              <Users className="h-4 w-4 text-red-600" />
               <span className="text-sm">
                 <strong>{coaches.length}</strong> entrenador{coaches.length !== 1 ? "es" : ""} listo{coaches.length !== 1 ? "s" : ""} para invitar
               </span>

@@ -20,7 +20,9 @@ export const billingInvoices = pgTable(
     invoicePdf: text("invoice_pdf"),
     periodStart: timestamp("period_start", { withTimezone: true }),
     periodEnd: timestamp("period_end", { withTimezone: true }),
+    notes: text("notes"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
     metadata: jsonb("metadata"),
   },
   (table) => ({

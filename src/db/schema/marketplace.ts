@@ -4,7 +4,7 @@ import { profiles } from "./profiles";
 
 export const marketplaceListings = pgTable("marketplace_listings", {
   id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id").references(() => profiles.id, { onDelete: "cascade" }),
+  userId: uuid("user_id"), // No FK - puede ser cualquier UUID para listings públicos
   sellerType: text("seller_type").notNull(), // academy, coach, athlete, external
   type: marketplaceListingTypeEnum("type").notNull(),
   category: marketplaceCategoryEnum("category").notNull(),
