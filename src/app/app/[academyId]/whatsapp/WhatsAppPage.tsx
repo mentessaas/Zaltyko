@@ -93,7 +93,7 @@ export function WhatsAppPage({
   const mockHistory = [
     {
       id: "1",
-      content: "Recordatorio: Clase de gimansia mañana a las 10:00",
+      content: "Recordatorio: Clase de gimnasia mañana a las 10:00",
       recipientCount: 15,
       status: "delivered" as const,
       createdAt: new Date(Date.now() - 86400000).toISOString(),

@@ -5,10 +5,10 @@ import { getPublicAcademies } from "@/app/actions/public/get-public-academies";
 
 export const metadata: Metadata = {
   title: "Directorio de Academias de Gimnasia | Zaltyko",
-  description: "Encuentra academias de gimansia cerca de ti. Directorio público de academias de gimansia artística, rítmica, trampolín y más.",
+  description: "Encuentra academias de gimnasia cerca de ti. Directorio público de academias de gimnasia artística, rítmica, trampolín y más.",
   openGraph: {
     title: "Directorio de Academias de Gimnasia | Zaltyko",
-    description: "Encuentra academias de gimansia cerca de ti",
+    description: "Encuentra academias de gimnasia cerca de ti",
     url: "/academias",
     type: "website",
   },
@@ -55,7 +55,7 @@ export default async function AcademiesPage({ searchParams }: AcademiesPageProps
               Encuentra tu academia
             </h1>
             <p className="mt-4 text-lg text-muted-foreground sm:text-xl">
-              Descubre academias de gimansia cerca de ti y conecta con la comunidad
+              Descubre academias de gimnasia cerca de ti y conecta con la comunidad
             </p>
             <div className="mt-8 flex flex-wrap items-center justify-center gap-6 text-sm">
               <div className="flex items-center gap-2 text-muted-foreground">

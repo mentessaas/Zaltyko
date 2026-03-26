@@ -27,10 +27,10 @@ export default function WhyZaltykoSection() {
             ¿Por qué Zaltyko?
           </span>
           <h2 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-6">
-            Software específico para gimansia
+            Software específico para gimnasia
           </h2>
           <p className="text-xl text-gray-600">
-            Los clubes de gimansia tienen necesidades únicas que los sistemas genéricos no cubren
+            Los clubes de gimnasia tienen necesidades únicas que los sistemas genéricos no cubren
           </p>
         </div>
 
@@ -92,7 +92,7 @@ export default function WhyZaltykoSection() {
         {/* Bottom message */}
         <div className="text-center mt-10">
           <p className="text-lg text-gray-600">
-            <span className="font-semibold text-red-600">Zaltyko</span> está diseñado exclusivamente para gimansia artística, rítmica y acrobática
+            <span className="font-semibold text-red-600">Zaltyko</span> está diseñado exclusivamente para gimnasia artística, rítmica y acrobática
           </p>
         </div>
       </div>

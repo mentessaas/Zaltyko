@@ -5,10 +5,10 @@ import { EventsGrid } from "@/components/public/EventsGrid";
 
 export const metadata: Metadata = {
   title: "Eventos y Competiciones de Gimnasia | Zaltyko",
-  description: "Encuentra eventos y competencias de gimansia cerca de ti. Directorio público de eventos y competiciones.",
+  description: "Encuentra eventos y competencias de gimnasia cerca de ti. Directorio público de eventos y competiciones.",
   openGraph: {
     title: "Eventos y Competiciones de Gimnasia | Zaltyko",
-    description: "Encuentra eventos y competencias de gimansia cerca de ti",
+    description: "Encuentra eventos y competencias de gimnasia cerca de ti",
     url: "/events",
     type: "website",
   },
@@ -63,7 +63,7 @@ export default async function EventsPage() {
         <div className="container mx-auto px-4">
           <h1 className="text-3xl font-bold">Eventos y Competiciones</h1>
           <p className="mt-2 text-muted-foreground">
-            Encuentra eventos de gimansia en tu zona
+            Encuentra eventos de gimnasia en tu zona
           </p>
         </div>
       </div>

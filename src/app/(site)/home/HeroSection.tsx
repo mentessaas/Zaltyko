@@ -77,7 +77,7 @@ export default function HeroSection() {
 
             {/* H1 */}
             <h1 className="font-display text-5xl sm:text-6xl lg:text-7xl font-bold leading-[1.05] tracking-tight text-gray-900 mb-6">
-              Gestiona tu academia de gimansia{" "}
+              Gestiona tu academia de gimnasia{" "}
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-600 via-rose-600 to-red-700">
                 sin complicaciones
               </span>
@@ -85,7 +85,7 @@ export default function HeroSection() {
 
             {/* Subtitle */}
             <p className="text-xl text-gray-600 leading-relaxed mb-8 max-w-xl">
-              La plataforma todo-en-uno para clubes de gimansia artística, rítmica y acrobática. 
+              La plataforma todo-en-uno para clubes de gimnasia artística, rítmica y acrobática. 
               <strong> 15 horas menos</strong> de trabajo administrativo por semana.
             </p>
 
