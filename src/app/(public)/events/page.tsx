@@ -4,10 +4,10 @@ import { EventsFilters } from "@/components/public/EventsFilters";
 import { EventsGrid } from "@/components/public/EventsGrid";
 
 export const metadata: Metadata = {
-  title: "Eventos y Competiciones de Gimnasia | Zaltyko",
+  title: "Eventos y Competiciones de Gimnasia",
   description: "Encuentra eventos y competencias de gimnasia cerca de ti. Directorio público de eventos y competiciones.",
   openGraph: {
-    title: "Eventos y Competiciones de Gimnasia | Zaltyko",
+    title: "Eventos y Competiciones de Gimnasia",
     description: "Encuentra eventos y competencias de gimnasia cerca de ti",
     url: "/events",
     type: "website",

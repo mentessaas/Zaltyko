@@ -90,7 +90,7 @@ const sections = [
 ];
 
 export const metadata: Metadata = {
-  title: "Términos y condiciones | Zaltyko",
+  title: "Términos y condiciones",
   description: "Condiciones de uso de la plataforma Zaltyko para academias de gimnasia.",
 };
 

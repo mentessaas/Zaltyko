@@ -7,7 +7,7 @@ import { Users, Target, Heart, Award, TrendingUp, Shield } from "lucide-react";
 const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
 export const metadata: Metadata = {
-  title: "Sobre Nosotros | Zaltyko - Software para academias de gimnasi",
+  title: "Sobre Nosotros",
   description:
     "Conoce la historia de Zaltyko. Nuestra misión es digitalizar y simplificar la gestión de academias de gimnasi en España y Latinoamérica.",
   alternates: {

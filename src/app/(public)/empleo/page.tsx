@@ -7,10 +7,10 @@ import { AdBanner } from "@/components/advertising/AdBanner";
 import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = {
-  title: "Bolsa de Empleo en Gimnasia | Zaltyko",
+  title: "Bolsa de Empleo en Gimnasia",
   description: "Encuentra trabajo en academias de gimnasia. Ofertas de empleo para entradores, auxiliares y más.",
   openGraph: {
-    title: "Bolsa de Empleo en Gimnasia | Zaltyko",
+    title: "Bolsa de Empleo en Gimnasia",
     description: "Encuentra trabajo en academias de gimnasia",
     url: "/empleo",
     type: "website",

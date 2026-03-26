@@ -41,7 +41,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
         : `${coach.name} - Coach de gimnasia artística en ${coach.academyName}`;
 
     return {
-        title: `${coach.name} - Coach de Gimnasia | Zaltyko`,
+        title: `${coach.name} - Coach de Gimnasia`,
         description,
         openGraph: {
             title: `${coach.name} - Coach de Gimnasia`,

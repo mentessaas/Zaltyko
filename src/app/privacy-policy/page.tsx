@@ -91,7 +91,7 @@ const sections = [
 ];
 
 export const metadata: Metadata = {
-  title: "Política de privacidad | Zaltyko",
+  title: "Política de privacidad",
   description:
     "Conoce cómo Zaltyko protege los datos de tus academias, atletas y coaches.",
 };

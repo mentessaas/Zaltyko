@@ -17,12 +17,12 @@ export async function generateMetadata({ params }: AcademyDetailPageProps): Prom
 
   if (!academy) {
     return {
-      title: "Academia no encontrada | Zaltyko",
+      title: "Academia no encontrada",
     };
   }
 
   return {
-    title: `${academy.name} | Directorio de Academias | Zaltyko`,
+    title: `${academy.name} | Directorio de Academias`,
     description: academy.publicDescription || `Información sobre ${academy.name}`,
   };
 }

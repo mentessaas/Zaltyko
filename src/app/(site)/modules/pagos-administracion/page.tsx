@@ -10,7 +10,7 @@ import {
 } from "../components/ModuleSections";
 
 export const metadata: Metadata = {
-  title: "Cobros y Facturación para Gimnasia | Zaltyko",
+  title: "Cobros y Facturación para Gimnasia",
   description: "Automatiza cobros, cuotas y facturación de tu academia de gimnasia. Pagos online con Stripe, recordatorios automáticos y control de morosidad.",
   keywords: [
     "cobros automáticos gimnasia",
@@ -21,7 +21,7 @@ export const metadata: Metadata = {
     "gestión financiera clubes",
   ],
   openGraph: {
-    title: "Cobros y Facturación para Gimnasia | Zaltyko",
+    title: "Cobros y Facturación para Gimnasia",
     description: "Automatiza cobros, cuotas y facturación de tu academia de gimnasia. Pagos online con Stripe y recordatorios automáticos.",
     type: "website",
   },

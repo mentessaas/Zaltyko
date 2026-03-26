@@ -10,7 +10,7 @@ import {
 } from "../components/ModuleSections";
 
 export const metadata: Metadata = {
-  title: "Gestión de Clases y Horarios | Zaltyko",
+  title: "Gestión de Clases y Horarios",
   description: "Organiza clases, horarios y asistencia de tu academia de gimnasia. Calendario visual con inscripciones automáticas y control de capacidad.",
   keywords: [
     "gestión de clases de gimnasia",
@@ -21,7 +21,7 @@ export const metadata: Metadata = {
     "software horarios gimnasio",
   ],
   openGraph: {
-    title: "Gestión de Clases y Horarios | Zaltyko",
+    title: "Gestión de Clases y Horarios",
     description: "Organiza clases, horarios y asistencia de tu academia de gimnasia. Calendario visual con inscripciones automáticas.",
     type: "website",
   },

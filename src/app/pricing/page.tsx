@@ -14,7 +14,7 @@ export const metadata: Metadata = {
     canonical: `${baseUrl}/pricing`,
   },
   openGraph: {
-    title: "Precios | Zaltyko - Software para academias de gimnasia",
+    title: "Precios",
     description: "Compara planes Free, Pro y Premium y crece sin límites.",
     url: `${baseUrl}/pricing`,
     siteName: "Zaltyko",

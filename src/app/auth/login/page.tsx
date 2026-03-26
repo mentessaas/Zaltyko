@@ -12,7 +12,7 @@ export const metadata: Metadata = {
   title: "Iniciar sesión",
   description: "Accede a tu cuenta para gestionar tu academia",
   openGraph: {
-    title: "Iniciar sesión | Zaltyko",
+    title: "Iniciar sesión",
     description: "Accede a tu cuenta de Zaltyko",
   },
 };

@@ -7,7 +7,7 @@ import { Mail, Phone, MapPin, Clock, MessageCircle, Send } from "lucide-react";
 const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
 export const metadata: Metadata = {
-  title: "Contacto | Zaltyko - Software para academias de gimnasi",
+  title: "Contacto",
   description:
     "Contacta con el equipo de Zaltyko. Estamos disponibles para ayudarte con tu academia de gimnasi.",
   alternates: {

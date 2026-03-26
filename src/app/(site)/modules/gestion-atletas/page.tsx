@@ -10,7 +10,7 @@ import {
 } from "../components/ModuleSections";
 
 export const metadata: Metadata = {
-  title: "Gestión de Atletas para Gimnasia | Zaltyko",
+  title: "Gestión de Atletas para Gimnasia",
   description: "Centraliza fichas de atletas, niveles técnicos y progresiones. Software especializado para academias de gimnasia artística y rítmica.",
   keywords: [
     "software gestión de atletas",
@@ -21,7 +21,7 @@ export const metadata: Metadata = {
     "software gimnasia artística",
   ],
   openGraph: {
-    title: "Gestión de Atletas para Gimnasia | Zaltyko",
+    title: "Gestión de Atletas para Gimnasia",
     description: "Centraliza fichas de atletas, niveles técnicos y progresiones. Software especializado para academias de gimnasia.",
     type: "website",
   },
