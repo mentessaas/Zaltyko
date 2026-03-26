@@ -8,7 +8,7 @@ import { Schema } from "@/components/Schema";
 const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
 export const metadata: Metadata = {
-  title: "Funcionalidades | Software para academias de gimnasia | Zaltyko",
+  title: "Funcionalidades | Software para academias de gimnasia",
   description:
     "Gestión de atletas, clases, pagos, eventos y comunicación. Todo lo que necesitas para administrar tu academia de gimnasia.",
   alternates: {

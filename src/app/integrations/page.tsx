@@ -7,7 +7,7 @@ import { Check, CreditCard, Calendar, Mail, Zap } from "lucide-react";
 const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
 export const metadata: Metadata = {
-  title: "Integraciones | Software para academias de gimnasia | Zaltyko",
+  title: "Integraciones | Software para academias de gimnasia",
   description:
     "Conecta Zaltyko con Stripe, Google Calendar, email transaccional y más. Automatiza pagos, horarios y comunicaciones.",
   alternates: {

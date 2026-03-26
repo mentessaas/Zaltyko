@@ -7,7 +7,7 @@ import { BookOpen, Users, CreditCard, Calendar, MessageCircle, Mail, ChevronRigh
 const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
 export const metadata: Metadata = {
-  title: "Centro de Ayuda | Zaltyko - Software para academias de gimnasi",
+  title: "Centro de Ayuda para Academias de Gimnasia",
   description:
     "Encuentra respuestas a tus preguntas sobre Zaltyko. Guías, tutoriales y documentación para administrar tu academia de gimnasi",
   alternates: {

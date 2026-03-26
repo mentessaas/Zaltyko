@@ -8,7 +8,7 @@ import { Schema } from "@/components/Schema";
 const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
 export const metadata: Metadata = {
-  title: "Precios | Software para academias de gimnasia | Zaltyko",
+  title: "Planes y Precios para Academias de Gimnasia",
   description: "Planes Free, Pro y Premium diseñados para escalar tu academia de gimnasia. Empieza gratis y crece sin límites.",
   alternates: {
     canonical: `${baseUrl}/pricing`,
@@ -22,7 +22,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Planes para academias de gimnasia | Zaltyko",
+    title: "Planes para Academias de Gimnasia",
     description: "Cambia de plan cuando lo necesites. Free, Pro y Premium.",
   },
 };
