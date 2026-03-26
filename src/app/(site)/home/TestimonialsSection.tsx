@@ -1,6 +1,7 @@
 "use client";
 
-import { Quote } from "lucide-react";
+import { Quote, ArrowRight } from "lucide-react";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 
 const testimonials = [
@@ -90,6 +91,17 @@ export default function TestimonialsSection() {
               </div>
             </div>
           ))}
+        </div>
+
+        {/* CTA: ver directorio */}
+        <div className="mt-8 text-center">
+          <Link
+            href="/academias"
+            className="inline-flex items-center gap-2 text-red-600 font-semibold hover:gap-3 transition-all text-sm"
+          >
+            Ver directorio de academias
+            <ArrowRight className="w-4 h-4" />
+          </Link>
         </div>
 
         {/* Stats row */}

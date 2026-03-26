@@ -1,8 +1,10 @@
 import { notFound } from "next/navigation";
+import { cookies } from "next/headers";
 import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { invitations } from "@/db/schema";
+import { createClient } from "@/lib/supabase/server";
 import AcceptInvitationForm from "@/components/AcceptInvitationForm";
 
 interface ParentInviteProps {
@@ -36,6 +38,13 @@ export default async function ParentInvitationPage({ searchParams }: ParentInvit
     notFound();
   }
 
+  const cookieStore = await cookies();
+  const supabase = await createClient(cookieStore);
+  const { data: { user } } = await supabase.auth.getUser();
+  const userEmail = user?.email?.toLowerCase() ?? null;
+  const isSameEmail = userEmail === invitation.email.toLowerCase();
+  const isAuthenticated = Boolean(user);
+
   return (
     <div className="mx-auto flex min-h-screen max-w-3xl flex-col gap-6 px-4 py-12">
       <div className="rounded-xl border bg-card/80 p-6 shadow-sm">
@@ -65,9 +74,15 @@ export default async function ParentInvitationPage({ searchParams }: ParentInvit
       </div>
 
       <div className="rounded-xl border bg-card p-6 shadow">
-        <AcceptInvitationForm token={token} email={invitation.email} role={invitation.role} />
+        <AcceptInvitationForm
+          token={token}
+          email={invitation.email}
+          role={invitation.role}
+          isAuthenticated={isAuthenticated}
+          isSameEmail={isSameEmail}
+          userEmail={userEmail}
+        />
       </div>
     </div>
   );
 }
-

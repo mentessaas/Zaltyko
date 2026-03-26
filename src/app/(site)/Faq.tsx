@@ -9,44 +9,44 @@ interface FAQItem {
 
 const faqs: FAQItem[] = [
   {
-    question: "¿Necesito integrar mis llaves reales para probar?",
+    question: "¿Puedo probarlo sin dar datos de pago?",
     answer:
-      "No. Activa el modo demo desde el onboarding y generamos perfiles, academia y datos ficticios para que explores el dashboard sin configurar NextAuth ni Stripe.",
+      "Sí. Puedes crear tu cuenta gratis y usar Zaltyko hasta 50 atletas sin introducir ningún dato de pago. El trial de 14 días te da acceso completo al plan Pro para que pruebes todo sin compromiso.",
   },
   {
-    question: "¿Cómo se maneja el multi-tenant?",
+    question: "¿Cuánto tiempo tarda en configurarse?",
     answer:
-      "Cada academia se crea con un tenant_id único. Las políticas RLS de Supabase y nuestro middleware withTenant garantizan aislamiento total. El Súper Admin puede cambiar de tenant sin salir de la sesión.",
+      "La mayoría de academias están operativas en menos de 2 horas. Importas tus atletas (desde Excel o manualmente), configuras tus clases y horarios, y listo. Nuestro equipo de soporte te ayuda en el proceso si lo necesitas.",
   },
   {
-    question: "¿Puedo migrar mis atletas desde Excel?",
+    question: "¿Mis datos están aislados de otras academias?",
     answer:
-      "Sí. Ofrecemos scripts de importación a través de la API y, en el roadmap, un cargador CSV desde el dashboard. Mientras tanto, puedes usar las rutas de `/api/athletes`.",
+      "Sí. Cada academia tiene sus datos completamente aislados. Usamos Row Level Security (RLS) a nivel de base de datos, lo que garantiza que solo tú puedas ver la información de tu academia. Cumplimos con el RGPD.",
   },
   {
-    question: "¿Stripe es obligatorio?",
+    question: "¿Puedo migrar mis datos desde Excel o Google Sheets?",
     answer:
-      "Stripe gestiona los upgrades entre Free, Pro y Premium. Si prefieres facturar manualmente, mantente en Free y configura los límites mediante nuestros helpers.",
+      "Sí. Zaltyko permite importar atletas, grupos y datos históricos desde archivos Excel o CSV. Si tienes un archivo con tus atletas, en minutos los tendrás todos dentro de la plataforma.",
   },
   {
-    question: "¿Qué pasa si supero el límite de atletas?",
+    question: "¿Qué pasa si tengo más de 50 atletas?",
     answer:
-      "Los endpoints de creación validan los límites con `assertWithinPlanLimits`. Si alcanzas el tope, devolvemos un error 402 con CTA para actualizar de plan. No perderás datos existentes.",
+      "El plan Free cubre hasta 50 atletas. Cuando llegues al límite, te recomendamos el plan Pro (19€/mes) que soporta hasta 200 atletas. Puedes hacer el upgrade desde el panel de tu cuenta en cualquier momento.",
   },
   {
-    question: "¿Puedo personalizar roles y permisos?",
+    question: "¿Puedo cancelar en cualquier momento?",
     answer:
-      "Actualmente incluimos owner, coach, staff y súper admin. Puedes extender el enum en `src/db/schema/enums.ts` y los checks en `authz.ts`.",
+      "Sí. No hay permanencia ni penalizaciones. Cancela cuando quieras desde tu panel de cuenta. Si cancelas el plan de pago, volverás automáticamente al plan gratuito.",
   },
   {
-    question: "¿Cómo se integra GymnasticMeet?",
+    question: "¿Qué pasa con mis datos si cancelo?",
     answer:
-      "En la fase II exponemos endpoints para sincronizar inscripciones y resultados. Ya estamos modelando el esquema para no romper compatibilidad.",
+      "Tus datos se mantienen disponibles durante 30 días después de cancelar. Puedes exportar toda tu información en cualquier momento. Pasados los 30 días, se eliminan de nuestros servidores según nuestra política de retención.",
   },
   {
-    question: "¿Hay soporte o acompañamiento?",
+    question: "¿Funciona en móvil para los coaches?",
     answer:
-      "Para el plan Premium ofrecemos onboarding asistido y soporte prioritario. Escríbenos a ventas@zaltyko.com y coordinamos una sesión.",
+      "Sí. Zaltyko es una aplicación web responsive que funciona perfectamente en móvil, tablet y escritorio. Los coaches pueden marcar asistencia desde su teléfono al llegar a clase sin instalar nada.",
   },
 ];
 

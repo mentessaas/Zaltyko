@@ -274,7 +274,7 @@ export async function checkPlanLimitViolations(userId: string, newPlanCode: Plan
     .from(academies)
     .where(eq(academies.ownerId, profile.id));
 
-  const athleteLimit = newPlanCode === "premium" ? null : 50;
+  const athleteLimit = newPlanCode === "premium" ? null : (newPlanCode === "pro" ? 200 : 50);
   const classLimit = CLASS_LIMITS[newPlanCode];
   const groupLimit = GROUP_LIMITS[newPlanCode];
 

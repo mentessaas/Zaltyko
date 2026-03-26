@@ -3,15 +3,24 @@ import Link from "next/link";
 import Navbar from "@/app/(site)/home/Navbar";
 import Footer from "@/app/(site)/Footer";
 import { Users, Target, Heart, Award, TrendingUp, Shield } from "lucide-react";
+import { Schema } from "@/components/Schema";
 
 const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
 export const metadata: Metadata = {
-  title: "Sobre Nosotros",
+  title: "Sobre Nosotros | Zaltyko - Software para academias de gimnasia",
   description:
-    "Conoce la historia de Zaltyko. Nuestra misión es digitalizar y simplificar la gestión de academias de gimnasi en España y Latinoamérica.",
+    "Conoce la historia de Zaltyko. Nuestra misión es digitalizar y simplificar la gestión de academias de gimnasia en España y Latinoamérica. +150 academias confían en nosotros.",
   alternates: {
     canonical: `${baseUrl}/about`,
+  },
+  openGraph: {
+    title: "Sobre Nosotros | Zaltyko",
+    description: "Nacimos para resolver los problemas administrativos de las academias de gimnasia. Conoce nuestra historia, equipo y valores.",
+    url: `${baseUrl}/about`,
+    siteName: "Zaltyko",
+    type: "website",
+    locale: "es_ES",
   },
 };
 
@@ -19,7 +28,7 @@ const stats = [
   { value: "+150", label: "Academias" },
   { value: "25,000+", label: "Atletas" },
   { value: "€4.2M", label: "Gestionados" },
-  { value: "98%", label: "Satisfacción" },
+  { value: "98%", label: "Satisfacción (NPS)" },
 ];
 
 const values = [
@@ -27,13 +36,13 @@ const values = [
     icon: Target,
     title: "Misión",
     description:
-      " democratizar el acceso a tecnología de gestión profesional para academias de gimnasi de todos los tamaños, desde pequeños clubes hasta federaciones.",
+      "democratizar el acceso a tecnología de gestión profesional para academias de gimnasia de todos los tamaños, desde pequeños clubes hasta federaciones.",
   },
   {
     icon: Heart,
     title: "Pasión",
     description:
-      "Entendemos la gimnasi porque hemos crecido con ella. Nuestro equipo incluye ex-gimnastas, entrenadores y padres que conocen los retos diarios.",
+      "Entendemos la gimnasia porque hemos crecido con ella. Nuestro equipo incluye ex-gimnastas, entrenadores y padres que conocen los retos diarios.",
   },
   {
     icon: TrendingUp,
@@ -63,7 +72,7 @@ const team = [
   {
     name: "Javier Ruiz",
     role: "Producto",
-    bio: "Ex-entrenador de gimnasi artística, conoce el sector.",
+    bio: "Ex-entrenador de gimnasia artística, conoce el sector.",
   },
 ];
 
@@ -79,10 +88,10 @@ export default function AboutPage() {
             Sobre Nosotros
           </span>
           <h1 className="font-display text-4xl font-bold tracking-tight text-zaltyko-text-main sm:text-5xl">
-            Facilitando la gestión del gimnasi
+            Facilitando la gestión del gimnasia
           </h1>
           <p className="mt-6 mx-auto max-w-2xl text-lg text-zaltyko-text-secondary">
-            Nacimos para resolver los problemas administrativos que enfrentan las academias de gimnasi cada día.
+            Nacimos para resolver los problemas administrativos que enfrentan las academias de gimnasia cada día.
           </p>
         </div>
       </section>
@@ -107,22 +116,22 @@ export default function AboutPage() {
           <h2 className="text-2xl font-bold text-zaltyko-text-main mb-6">Nuestra historia</h2>
           <div className="prose prose-lg text-zaltyko-text-secondary">
             <p>
-              Zaltyko nació en 2023 cuando Carlos, gerente de una academia de gimnasi en Madrid,
+              Zaltyko nació en 2023 cuando Carlos, gerente de una academia de gimnasia en Madrid,
               decidió que había una forma mejor de gestionar su negocio.
             </p>
             <p>
               Después de años usando hojas de cálculo, sistemas obsoletos y procesos manuales,
               se reunió con María, una desarrolladora especializada en software para empresas,
               para crear una solución moderna adaptada a las necesidades específicas de las
-              academias de gimnasi.
+              academias de gimnasia.
             </p>
             <p>
               Hoy, Zaltyko ayuda a más de 150 academias en España y Latinoamérica a
-              gestionar miles de atletas, procesando millones de euros en pagos каждый año.
+              gestionar miles de atletas, procesando millones de euros en pagos cada año.
             </p>
             <p>
               Pero esto es solo el comienzo. Nuestra misión es seguir creciendo junto
-              con la comunidad de gimnasi, añadiendo funciones que realmente importan.
+              con la comunidad de gimnasia, añadiendo funciones que realmente importan.
             </p>
           </div>
         </div>
@@ -195,6 +204,65 @@ export default function AboutPage() {
           </div>
         </div>
       </section>
+
+      
+      {/* Organization Schema */}
+      <Schema
+        json={{
+          "@context": "https://schema.org",
+          "@type": "AboutPage",
+          mainEntity: {
+            "@type": "Organization",
+            name: "Zaltyko",
+            url: baseUrl,
+            logo: `${baseUrl}/branding/zaltyko/logo-zaltyko-dark.svg`,
+            description: "Software especializado para la gestión de academias de gimnasia. +150 academias confían en Zaltyko.",
+            foundingDate: "2023",
+            contactPoint: {
+              "@type": "ContactPoint",
+              email: "hola@zaltyko.com",
+              contactType: "customer service",
+              availableLanguage: ["Spanish", "English"],
+            },
+            sameAs: [
+              "https://twitter.com/zaltyko",
+              "https://linkedin.com/company/zaltyko",
+              "https://instagram.com/zaltyko"
+            ],
+          },
+        }}
+      />
+
+      {/* Team Schema - Person */}
+      <Schema
+        json={{
+          "@context": "https://schema.org",
+          "@type": "ItemList",
+          itemListElement: [
+            {
+              "@type": "Person",
+              name: "Carlos García",
+              jobTitle: "CEO & Fundador",
+              worksFor: { "@type": "Organization", name: "Zaltyko" },
+              description: "Ex-gerente de academia con 15 años en el sector.",
+            },
+            {
+              "@type": "Person",
+              name: "María López",
+              jobTitle: "CTO",
+              worksFor: { "@type": "Organization", name: "Zaltyko" },
+              description: "Ingeniera con experiencia en startups tecnológicas.",
+            },
+            {
+              "@type": "Person",
+              name: "Javier Ruiz",
+              jobTitle: "Producto",
+              worksFor: { "@type": "Organization", name: "Zaltyko" },
+              description: "Ex-entrenador de gimnasia artística.",
+            },
+          ],
+        }}
+      />
 
       <Footer />
     </div>

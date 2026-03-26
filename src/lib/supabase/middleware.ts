@@ -45,6 +45,7 @@ export async function updateSession(request: NextRequest) {
     "/auth",
     "/academias",
     "/api/public",
+    "/invite", // Páginas de invitación (para usuarios sin cuenta)
   ];
 
   const isPublicPath = publicPaths.some((path) =>

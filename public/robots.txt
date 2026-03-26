@@ -1,6 +1,12 @@
 
 User-agent: *
-Disallow: /auth/
 Allow: /
 
-Sitemap: https://shipfree.idee8.agency.com/sitemap.xml
+# Block auth routes
+Disallow: /auth/
+Disallow: /invite/
+Disallow: /app/
+Disallow: /dashboard/
+Disallow: /onboarding*
+
+Sitemap: https://zaltyko.com/sitemap.xml

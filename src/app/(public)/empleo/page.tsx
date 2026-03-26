@@ -1,16 +1,14 @@
 import { Metadata } from "next";
-import Link from "next/link";
-import { Plus } from "lucide-react";
 import { JobCard } from "@/components/empleo/JobCard";
 import { JobFilters } from "@/components/empleo/JobFilters";
 import { AdBanner } from "@/components/advertising/AdBanner";
-import { Button } from "@/components/ui/button";
+import { PublicPageHeader } from "@/components/public/PublicPageHeader";
 
 export const metadata: Metadata = {
-  title: "Bolsa de Empleo en Gimnasia",
+  title: "Bolsa de Empleo en Gimnasia | Zaltyko",
   description: "Encuentra trabajo en academias de gimnasia. Ofertas de empleo para entradores, auxiliares y más.",
   openGraph: {
-    title: "Bolsa de Empleo en Gimnasia",
+    title: "Bolsa de Empleo en Gimnasia | Zaltyko",
     description: "Encuentra trabajo en academias de gimnasia",
     url: "/empleo",
     type: "website",
@@ -47,15 +45,13 @@ export default async function EmpleoPage({
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="text-3xl font-bold">Bolsa de Empleo</h1>
-        <Link href="/empleo/nuevo">
-          <Button>
-            <Plus className="mr-2 h-4 w-4" />
-            Publicar oferta
-          </Button>
-        </Link>
-      </div>
+      <PublicPageHeader
+        title="Bolsa de Empleo"
+        publishHref="/empleo/nuevo"
+        publishLabel="Publicar oferta"
+        dashboardHref="/dashboard/empleo/mis-postulaciones"
+        dashboardLabel="Mis postulaciones"
+      />
 
       <AdBanner ads={topAds} position="top" />
 

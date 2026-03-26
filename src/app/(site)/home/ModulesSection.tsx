@@ -19,10 +19,10 @@ import { cn } from "@/lib/utils";
 const modules = [
   {
     title: "Atletas",
-    description: "Gestión completa de atletas con perfiles detallados, historial médico, niveles de habilidad y evaluaciones técnicas.",
+    description: "Gestión completa de atletas con perfiles detallados, niveles de habilidad y evaluaciones técnicas.",
     icon: Users,
     color: "bg-rose-500",
-    features: ["Perfiles completos", "Historial médico", "Evaluaciones técnicas", "Documentación"],
+    features: ["Perfiles completos", "Niveles y categorías", "Evaluaciones técnicas", "Documentación"],
   },
   {
     title: "Clases & Horarios",
@@ -68,10 +68,10 @@ const modules = [
   },
   {
     title: "Multi-Academia",
-    description: "Gestión multi-tenant con Row Level Security, roles granulares y panel de super-admin.",
+    description: "Gestión de varias sedes o academias desde un solo panel, con control de acceso por rol.",
     icon: Shield,
     color: "bg-gray-700",
-    features: ["Aislamiento total", "Roles granulares", "Super admin panel", "Escalable"],
+    features: ["Varias sedes", "Roles por usuario", "Panel de director", "Datos aislados"],
   },
 ];
 
