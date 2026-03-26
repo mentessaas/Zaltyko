@@ -24,6 +24,6 @@ test-results
 tsconfig.tsbuildinfo
 drizzle.config.ts
 proxy.ts
-supabase
+/supabase
 docker
 tailwind.config.ts
