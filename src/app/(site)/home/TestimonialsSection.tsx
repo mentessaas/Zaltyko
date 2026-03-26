@@ -46,7 +46,7 @@ export default function TestimonialsSection() {
             Academias que transformaron su gestión
           </h2>
           <p className="text-xl text-gray-600">
-            Descubre cómo otros clubes de gimansia han simplificado sus operaciones con Zaltyko
+            Descubre cómo otros clubes de gimnasia han simplificado sus operaciones con Zaltyko
           </p>
         </div>
 

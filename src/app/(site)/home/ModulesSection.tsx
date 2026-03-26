@@ -94,7 +94,7 @@ export default function ModulesSection() {
             Todo lo que tu academia necesita
           </h2>
           <p className="text-xl text-gray-600">
-            Módulos diseñados específicamente para la gestión integral de academias de gimansia. 
+            Módulos diseñados específicamente para la gestión integral de academias de gimnasia. 
             Sin Excel, sin caos, sin perder tiempo.
           </p>
         </div>

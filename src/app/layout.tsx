@@ -36,11 +36,11 @@ export const metadata: Metadata = {
     template: "%s | Zaltyko",
   },
   description:
-    "Zaltyko — El sistema definitivo para gestionar academias de gimansia. Administra atletas, clases, pagos y más.",
+    "Zaltyko — El sistema definitivo para gestionar academias de gimnasia. Administra atletas, clases, pagos y más.",
   keywords: [
     "zaltyko",
     "gimnasia",
-    "academias de gimansia",
+    "academias de gimnasia",
     "gestión deportiva",
     "gestión de academias",
     "software para gimansios",
@@ -55,7 +55,7 @@ export const metadata: Metadata = {
     url: process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000",
     siteName: "Zaltyko",
     title: "Zaltyko - Sistema de Gestión para Academias de Gimnasia",
-    description: "El sistema definitivo para gestionar academias de gimansia. Administra atletas, clases, pagos y más.",
+    description: "El sistema definitivo para gestionar academias de gimnasia. Administra atletas, clases, pagos y más.",
     images: [
       {
         url: "/api/og",
@@ -68,7 +68,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "Zaltyko - Sistema de Gestión para Academias de Gimnasia",
-    description: "El sistema definitivo para gestionar academias de gimansia",
+    description: "El sistema definitivo para gestionar academias de gimnasia",
   },
   robots: {
     index: true,
