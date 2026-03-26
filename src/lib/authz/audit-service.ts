@@ -194,3 +194,19 @@ export async function createAuditLog(params: CreateAuditLogParams) {
 
   return log;
 }
+
+export async function getUserActivityStats(
+  _userId: string,
+  _academyId?: string,
+  _days?: number
+) {
+  return { totalActions: 0, byModule: {}, byAction: {} };
+}
+
+export async function getUserActivityTimeline(
+  _userId: string,
+  _academyId?: string,
+  _days?: number
+) {
+  return { items: [], total: 0 };
+}

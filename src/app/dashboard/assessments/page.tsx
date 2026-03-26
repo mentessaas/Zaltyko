@@ -98,7 +98,7 @@ export default async function AssessmentsPage({ searchParams }: AssessmentsPageP
     baseConditions.push(eq(athleteAssessments.academyId, academyParam));
   }
   if (athleteParam) baseConditions.push(eq(athleteAssessments.athleteId, athleteParam));
-  if (typeParam) baseConditions.push(eq(athleteAssessments.assessmentType, typeParam));
+  if (typeParam) baseConditions.push(eq(athleteAssessments.assessmentType as any, typeParam));
   if (fromParam) baseConditions.push(gte(athleteAssessments.assessmentDate, fromParam));
   if (toParam) baseConditions.push(lte(athleteAssessments.assessmentDate, toParam));
 

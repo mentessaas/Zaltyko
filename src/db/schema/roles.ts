@@ -25,6 +25,10 @@ export const roleMembers = pgTable(
     academyId: uuid("academy_id").notNull(),
     memberRole: text("member_role").notNull().default("viewer"),
     permissions: jsonb("permissions"), // Custom permissions override
+    assignedAt: timestamp("assigned_at", { withTimezone: true }).defaultNow(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    customPermissions: jsonb("custom_permissions"),
+    assignedBy: uuid("assigned_by"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   },
   (table) => ({
@@ -49,7 +53,12 @@ export const academyRoles = pgTable(
     description: text("description"),
     permissions: jsonb("permissions").notNull().default([]),
     isDefault: text("is_default").notNull().default("false"),
+    type: text("type").notNull().default("custom"),
+    inheritsFrom: uuid("inherits_from"),
+    isActive: text("is_active").notNull().default("true"),
+    updatedAt: timestamp("updated_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+    createdBy: uuid("created_by"),
   },
   (table) => ({
     academyIdx: index("academy_roles_academy_idx").on(table.academyId),
