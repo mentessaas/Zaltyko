@@ -9,4 +9,4 @@ export const assessmentTypeEnum = pgEnum("assessment_type", [
   "practice",
 ]);
 
-export type AssessmentType = typeof assessmentTypeEnum[number];
+export type AssessmentType = "technical" | "artistic" | "execution" | "coach_feedback" | "competition" | "practice";

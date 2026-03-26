@@ -399,7 +399,7 @@ export default function NotificationsPage() {
         {/* Preferences Tab */}
         <TabsContent value="preferences" className="mt-6 space-y-6">
           {/* Push Notifications */}
-          <PushNotificationPermission variant="card" />
+          <PushNotificationPermission />
 
           {/* In-App & Email Notifications */}
           <NotificationPreferences />
