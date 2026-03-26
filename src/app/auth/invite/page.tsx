@@ -1,9 +1,12 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { invitations } from "@/db/schema";
+import { createClient } from "@/lib/supabase/server";
 import AcceptInvitationForm from "@/components/AcceptInvitationForm";
+import AcceptExistingUserForm from "@/components/AcceptInvitationForm";
 
 interface InvitePageProps {
   searchParams: Record<string, string | string[] | undefined>;
@@ -30,10 +33,13 @@ export default async function InvitePage({ searchParams }: InvitePageProps) {
 
   const [invitation] = await db
     .select({
+      id: invitations.id,
       email: invitations.email,
       role: invitations.role,
       status: invitations.status,
       expiresAt: invitations.expiresAt,
+      academyIds: invitations.academyIds,
+      defaultAcademyId: invitations.defaultAcademyId,
     })
     .from(invitations)
     .where(eq(invitations.token, token))
@@ -72,17 +78,37 @@ export default async function InvitePage({ searchParams }: InvitePageProps) {
     );
   }
 
+  // Verificar si el usuario actual ya tiene sesión con el mismo email
+  const cookieStore = await cookies();
+  const supabase = await createClient(cookieStore);
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const userEmail = user?.email?.toLowerCase();
+  const isSameEmail = userEmail === invitation.email.toLowerCase();
+  const isAuthenticated = Boolean(user);
+
   return (
     <div className="mx-auto flex min-h-screen max-w-xl flex-col justify-center gap-6 px-4 py-12">
       <div className="space-y-2 text-center">
         <h1 className="text-3xl font-semibold">Únete a Zaltyko</h1>
         <p className="text-muted-foreground">
-          Completa tu registro para acceder al panel con el rol de <strong>{invitation.role}</strong>.
+          {isAuthenticated && isSameEmail
+            ? <>Te están invitando como <strong>{invitation.role}</strong>. Confirma para unirte.</>
+            : <>Completa tu registro para acceder al panel con el rol de <strong>{invitation.role}</strong>.</>}
         </p>
       </div>
 
       <div className="rounded-lg border bg-card p-6 shadow">
-        <AcceptInvitationForm token={token} email={invitation.email} role={invitation.role} />
+        <AcceptInvitationForm
+          token={token}
+          email={invitation.email}
+          role={invitation.role}
+          isAuthenticated={isAuthenticated}
+          isSameEmail={isSameEmail}
+          userEmail={userEmail ?? null}
+        />
       </div>
     </div>
   );

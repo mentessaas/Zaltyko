@@ -14,6 +14,8 @@ import {
   Search,
   Bell,
   LogOut,
+  ShoppingBag,
+  Briefcase,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -32,6 +34,8 @@ const navItems: NavItem[] = [
   { label: "Entrenadores", href: "/dashboard/coaches", icon: UserCog },
   { label: "Eventos", href: "/dashboard/events", icon: Calendar },
   { label: "Calendario", href: "/dashboard/calendar", icon: Calendar },
+  { label: "Marketplace", href: "/dashboard/marketplace/mis-productos", icon: ShoppingBag },
+  { label: "Bolsa de Empleo", href: "/dashboard/empleo/mis-postulaciones", icon: Briefcase },
   { label: "Usuarios", href: "/dashboard/users", icon: Users },
   { label: "Perfil", href: "/dashboard/profile", icon: Settings },
 ];

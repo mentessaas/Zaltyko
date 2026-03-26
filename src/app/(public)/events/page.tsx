@@ -1,28 +1,42 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
+import Link from "next/link";
+import { Plus } from "lucide-react";
 import { EventsFilters } from "@/components/public/EventsFilters";
 import { EventsGrid } from "@/components/public/EventsGrid";
+import { PublicPageHeader } from "@/components/public/PublicPageHeader";
 
 export const metadata: Metadata = {
-  title: "Eventos y Competiciones de Gimnasia",
+  title: "Eventos y Competiciones de Gimnasia | Zaltyko",
   description: "Encuentra eventos y competencias de gimnasia cerca de ti. Directorio público de eventos y competiciones.",
   openGraph: {
-    title: "Eventos y Competiciones de Gimnasia",
+    title: "Eventos y Competiciones de Gimnasia | Zaltyko",
     description: "Encuentra eventos y competencias de gimnasia cerca de ti",
     url: "/events",
     type: "website",
   },
 };
 
-function EventsContent() {
-  return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="grid gap-8 lg:grid-cols-[250px_1fr]">
-        <aside>
-          <EventsFilters />
-        </aside>
+async function getEvents() {
+  const res = await fetch(
+    `${process.env.NEXT_PUBLIC_URL || "http://localhost:3000"}/api/public/events?limit=50`,
+    { cache: "no-store" }
+  );
+  if (!res.ok) return { events: [], total: 0 };
+  return res.json();
+}
 
-        <main>
+function EventsContent({ events }: { events: any[] }) {
+  return (
+    <div className="grid gap-8 lg:grid-cols-[250px_1fr]">
+      <aside>
+        <EventsFilters />
+      </aside>
+
+      <main>
+        {events.length > 0 ? (
+          <EventsGrid events={events} />
+        ) : (
           <div className="rounded-xl border border-border bg-card p-16 text-center shadow-sm">
             <div className="mx-auto max-w-md">
               <div className="mb-6 flex justify-center">
@@ -43,34 +57,41 @@ function EventsContent() {
                 </div>
               </div>
               <h3 className="mb-2 text-xl font-semibold">
-                Eventos proximamente
+                No hay eventos públicos todavía
               </h3>
               <p className="text-muted-foreground">
-                Las academias pueden publicar sus eventos y competiciones pronto.
+                Las academias pueden publicar sus eventos y competiciones desde su panel de gestión.
               </p>
             </div>
           </div>
-        </main>
-      </div>
+        )}
+      </main>
     </div>
   );
 }
 
 export default async function EventsPage() {
+  const { events } = await getEvents();
+
   return (
     <div className="min-h-screen bg-background">
       <div className="border-b border-border bg-card py-8">
         <div className="container mx-auto px-4">
-          <h1 className="text-3xl font-bold">Eventos y Competiciones</h1>
-          <p className="mt-2 text-muted-foreground">
-            Encuentra eventos de gimnasia en tu zona
-          </p>
+          <PublicPageHeader
+            title="Eventos y Competiciones"
+            publishHref="/dashboard/events/new"
+            publishLabel="Crear evento"
+            dashboardHref="/dashboard/events"
+            dashboardLabel="Mis eventos"
+          />
         </div>
       </div>
 
-      <Suspense fallback={<div className="container mx-auto px-4 py-8">Cargando...</div>}>
-        <EventsContent />
-      </Suspense>
+      <div className="container mx-auto px-4 py-8">
+        <Suspense fallback={<div className="container mx-auto px-4 py-8">Cargando...</div>}>
+          <EventsContent events={events} />
+        </Suspense>
+      </div>
     </div>
   );
 }

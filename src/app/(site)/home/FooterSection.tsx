@@ -2,26 +2,26 @@ import Link from "next/link";
 
 const footerLinks = {
   producto: [
-    { label: "Características", href: "#modulos" },
+    { label: "Características", href: "/features" },
     { label: "Precios", href: "/pricing" },
-    { label: "Integraciones", href: "#integraciones" },
-    { label: "Actualizaciones", href: "#" },
+    { label: "Integraciones", href: "/features#integraciones" },
+    { label: "Actualizaciones", href: "/blog" },
   ],
   recursos: [
     { label: "Directorio de Academias", href: "/academias" },
-    { label: "Centro de Ayuda", href: "#" },
-    { label: "Guía de inicio", href: "#" },
-    { label: "Blog", href: "#" },
+    { label: "Centro de Ayuda", href: "mailto:soporte@zaltyko.com" },
+    { label: "Guía de inicio", href: "/onboarding" },
+    { label: "Blog", href: "/blog" },
   ],
   empresa: [
-    { label: "Sobre nosotros", href: "#" },
+    { label: "Sobre nosotros", href: "/about" },
     { label: "Contacto", href: "mailto:hola@zaltyko.com" },
-    { label: "Trabaja con nosotros", href: "#" },
+    { label: "Trabaja con nosotros", href: "mailto:hola@zaltyko.com" },
   ],
   legal: [
     { label: "Términos del servicio", href: "/tos" },
     { label: "Política de privacidad", href: "/privacy-policy" },
-    { label: "Cookies", href: "#" },
+    { label: "Cookies", href: "/privacy-policy#cookies" },
   ],
 };
 
@@ -33,6 +33,28 @@ export default function FooterSection() {
       <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-red-500/10 rounded-full blur-3xl" />
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 relative">
+        {/* Trust badges */}
+        <div className="py-8 border-b border-white/10">
+          <div className="flex flex-wrap items-center justify-center gap-6 md:gap-10">
+            {[
+              { label: "RGPD Compliant", desc: "Datos protegidos" },
+              { label: "SSL Encriptado", desc: "Conexión segura" },
+              { label: "Cancelación libre", desc: "Sin permanencia" },
+              { label: "Soporte en español", desc: "Respuesta 24h" },
+            ].map((badge) => (
+              <div key={badge.label} className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center">
+                  <span className="text-xs font-bold text-white/80">✓</span>
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-white">{badge.label}</p>
+                  <p className="text-xs text-white/40">{badge.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
         {/* Main footer */}
         <div className="py-16 grid grid-cols-2 md:grid-cols-5 gap-8">
           {/* Brand */}
@@ -46,7 +68,7 @@ export default function FooterSection() {
               </span>
             </Link>
             <p className="mt-5 text-sm text-white/70 leading-relaxed max-w-xs font-medium">
-              El software definitivo para academias de gimnasiia artistica, ritmica y acrobatica.
+              El software definitivo para academias de gimnasia artística, rítmica y acrobática.
               Gestiona atletas, clases, pagos y eventos desde un solo panel.
             </p>
 
@@ -148,7 +170,7 @@ export default function FooterSection() {
           </p>
           <div className="flex items-center gap-6">
             <span className="text-xs text-white/40 font-medium">
-              Software para academias de gimnasiia
+              Software para academias de gimnasia
             </span>
             <span className="text-xs text-white/40">•</span>
             <span className="text-xs text-white/40 font-medium">

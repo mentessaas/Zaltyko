@@ -1,10 +1,8 @@
 import { Metadata } from "next";
-import Link from "next/link";
-import { Plus } from "lucide-react";
 import { MarketplaceCard } from "@/components/marketplace/MarketplaceCard";
 import { MarketplaceFilters } from "@/components/marketplace/MarketplaceFilters";
 import { AdBanner } from "@/components/advertising/AdBanner";
-import { Button } from "@/components/ui/button";
+import { PublicPageHeader } from "@/components/public/PublicPageHeader";
 
 export const metadata: Metadata = {
   title: "Marketplace de Gimnasia",
@@ -47,15 +45,13 @@ export default async function MarketplacePage({
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="text-3xl font-bold">Marketplace</h1>
-        <Link href="/marketplace/nuevo">
-          <Button>
-            <Plus className="mr-2 h-4 w-4" />
-            Publicar
-          </Button>
-        </Link>
-      </div>
+      <PublicPageHeader
+        title="Marketplace"
+        publishHref="/marketplace/nuevo"
+        publishLabel="Publicar"
+        dashboardHref="/dashboard/marketplace/mis-productos"
+        dashboardLabel="Mis productos"
+      />
 
       <AdBanner ads={topAds} position="top" />
 
