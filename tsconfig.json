@@ -41,6 +41,7 @@
     "zaltyko-branding",
     ".playwright-mcp",
     "scripts/fix-fk.ts",
-    "smoke-test.ts"
+    "smoke-test.ts",
+    "tests"
   ]
 }
