@@ -1,6 +1,4 @@
 {
-  "buildCommand": "rm -rf .next && pnpm build",
-  "installCommand": "pnpm install",
   "framework": "nextjs",
   "regions": [
     "iad1"
