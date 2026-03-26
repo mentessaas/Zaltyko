@@ -26,4 +26,3 @@ drizzle.config.ts
 proxy.ts
 /supabase
 docker
-tailwind.config.ts
