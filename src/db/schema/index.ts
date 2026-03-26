@@ -13,6 +13,7 @@ export * from "./enums";
 export * from "./plans";
 export * from "./academies";
 export * from "./academy-messages";
+export * from "./message-history";
 export * from "./academy-geo-groups";
 export * from "./profiles";
 export * from "./memberships";

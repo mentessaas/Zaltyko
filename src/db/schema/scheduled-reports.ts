@@ -1,0 +1,1 @@
+// Scheduled reports schema - placeholder
