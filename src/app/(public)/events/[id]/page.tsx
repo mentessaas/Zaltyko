@@ -16,12 +16,12 @@ export async function generateMetadata({ params }: EventDetailPageProps): Promis
 
   if (!event) {
     return {
-      title: "Evento no encontrado | Zaltyko",
+      title: "Evento no encontrado",
     };
   }
 
   return {
-    title: `${event.title} | Directorio de Eventos | Zaltyko`,
+    title: `${event.title} | Directorio de Eventos`,
     description: event.description || `Información sobre ${event.title}`,
   };
 }

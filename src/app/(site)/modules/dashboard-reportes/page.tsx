@@ -10,7 +10,7 @@ import {
 } from "../components/ModuleSections";
 
 export const metadata: Metadata = {
-  title: "Dashboard y Reportes Deportivos | Zaltyko",
+  title: "Dashboard y Reportes Deportivos",
   description: "Visualiza métricas clave de tu academia de gimnasia. Dashboard con KPIs, reportes de asistencia, análisis financiero y exportación a Excel.",
   keywords: [
     "reportes deportivos",
@@ -21,7 +21,7 @@ export const metadata: Metadata = {
     "análisis rendimiento club",
   ],
   openGraph: {
-    title: "Dashboard y Reportes Deportivos | Zaltyko",
+    title: "Dashboard y Reportes Deportivos",
     description: "Visualiza métricas clave de tu academia de gimnasia. Dashboard con KPIs, reportes y análisis financiero.",
     type: "website",
   },

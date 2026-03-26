@@ -13,7 +13,7 @@ import { DashboardSkipLink } from "@/components/dashboard/DashboardSkipLink";
 import { ChatWidgetWrapper } from "@/components/chat/ChatWidgetWrapper";
 
 export const metadata: Metadata = {
-  title: "Dashboard | Zaltyko",
+  title: "Dashboard",
   description: "Gestiona tu academia de deportes",
 };
 

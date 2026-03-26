@@ -10,7 +10,7 @@ import {
 } from "../components/ModuleSections";
 
 export const metadata: Metadata = {
-  title: "Gestión de Competiciones de Gimnasia | Zaltyko",
+  title: "Gestión de Competiciones de Gimnasia",
   description: "Organiza inscripciones a competiciones, torneos y eventos deportivos. Selección de atletas, cuotas de participación y comunicación con familias.",
   keywords: [
     "inscripciones a competiciones",
@@ -21,7 +21,7 @@ export const metadata: Metadata = {
     "inscripción atletas competiciones",
   ],
   openGraph: {
-    title: "Gestión de Competiciones de Gimnasia | Zaltyko",
+    title: "Gestión de Competiciones de Gimnasia",
     description: "Organiza inscripciones a competiciones, torneos y eventos deportivos. Gestión completa de la participación de atletas.",
     type: "website",
   },

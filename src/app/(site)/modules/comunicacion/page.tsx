@@ -10,7 +10,7 @@ import {
 } from "../components/ModuleSections";
 
 export const metadata: Metadata = {
-  title: "Comunicación con Padres y Staff | Zaltyko",
+  title: "Comunicación con Padres y Staff",
   description: "Centraliza la comunicación de tu academia de gimnasia. Notificaciones a padres, mensajes al staff y comunicados oficiales sin depender de WhatsApp.",
   keywords: [
     "notificaciones a padres",
@@ -21,7 +21,7 @@ export const metadata: Metadata = {
     "notificaciones academia deportiva",
   ],
   openGraph: {
-    title: "Comunicación con Padres y Staff | Zaltyko",
+    title: "Comunicación con Padres y Staff",
     description: "Centraliza la comunicación de tu academia de gimnasia. Notificaciones a padres y staff sin depender de WhatsApp.",
     type: "website",
   },

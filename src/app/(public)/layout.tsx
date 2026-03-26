@@ -3,7 +3,7 @@ import Navbar from "@/app/(site)/Navbar";
 import Footer from "@/app/(site)/Footer";
 
 export const metadata: Metadata = {
-  title: "Directorio Público | Zaltyko",
+  title: "Directorio Público",
   description: "Directorio público de eventos y competencias de gimnasia.",
 };
 

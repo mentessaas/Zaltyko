@@ -4,10 +4,10 @@ import { AcademiesGrid } from "@/components/public/AcademiesGrid";
 import { getPublicAcademies } from "@/app/actions/public/get-public-academies";
 
 export const metadata: Metadata = {
-  title: "Directorio de Academias de Gimnasia | Zaltyko",
+  title: "Directorio de Academias de Gimnasia",
   description: "Encuentra academias de gimnasia cerca de ti. Directorio público de academias de gimnasia artística, rítmica, trampolín y más.",
   openGraph: {
-    title: "Directorio de Academias de Gimnasia | Zaltyko",
+    title: "Directorio de Academias de Gimnasia",
     description: "Encuentra academias de gimnasia cerca de ti",
     url: "/academias",
     type: "website",

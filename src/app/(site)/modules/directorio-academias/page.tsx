@@ -10,7 +10,7 @@ import {
 } from "../components/ModuleSections";
 
 export const metadata: Metadata = {
-  title: "Directorio de Academias de Gimnasia | Zaltyko",
+  title: "Directorio de Academias de Gimnasia",
   description: "Aumenta la visibilidad de tu club de gimnasia con un perfil público optimizado. Aparece en búsquedas locales y capta nuevos atletas.",
   keywords: [
     "directorio gimnasia",
@@ -21,7 +21,7 @@ export const metadata: Metadata = {
     "directorio clubes gimnasia artística",
   ],
   openGraph: {
-    title: "Directorio de Academias de Gimnasia | Zaltyko",
+    title: "Directorio de Academias de Gimnasia",
     description: "Aumenta la visibilidad de tu club de gimnasia con un perfil público optimizado. Capta nuevos atletas.",
     type: "website",
   },

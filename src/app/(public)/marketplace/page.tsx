@@ -7,10 +7,10 @@ import { AdBanner } from "@/components/advertising/AdBanner";
 import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = {
-  title: "Marketplace de Gimnasia | Zaltyko",
+  title: "Marketplace de Gimnasia",
   description: "Compra y vende productos y servicios para gimnastas. Encuentra ropa, equipamiento, suplementos y más.",
   openGraph: {
-    title: "Marketplace de Gimnasia | Zaltyko",
+    title: "Marketplace de Gimnasia",
     description: "Compra y vende productos y servicios para gimnastas",
     url: "/marketplace",
     type: "website",
