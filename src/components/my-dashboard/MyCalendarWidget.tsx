@@ -1,10 +1,11 @@
 "use client";
 
 interface MyCalendarWidgetProps {
-  profileId: string;
+  profileId?: string;
+  sessionsByDay?: { date: string; sessions: unknown[] }[];
 }
 
-export function MyCalendarWidget({ profileId }: MyCalendarWidgetProps) {
+export function MyCalendarWidget({ sessionsByDay }: MyCalendarWidgetProps) {
   return (
     <div className="p-4 border rounded-lg">
       <h3 className="font-semibold mb-2">Calendario</h3>

@@ -469,11 +469,7 @@ export function AthletesTableView({ academyId, athletes: initialAthletes, levels
         </div>
       ) : viewMode === "kanban" ? (
         <AthletesKanbanView
-          athletes={athletes}
           academyId={academyId}
-          onStatusChange={() => {
-            // Status change will be handled by the API
-          }}
         />
       ) : (
         <div className="overflow-hidden rounded-lg border bg-card shadow">
