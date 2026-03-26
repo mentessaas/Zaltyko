@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,9 +14,19 @@ interface AcceptInvitationFormProps {
   token: string;
   email: string;
   role: string;
+  isAuthenticated: boolean;
+  isSameEmail: boolean;
+  userEmail: string | null;
 }
 
-export default function AcceptInvitationForm({ token, email, role }: AcceptInvitationFormProps) {
+export default function AcceptInvitationForm({
+  token,
+  email,
+  role,
+  isAuthenticated,
+  isSameEmail,
+  userEmail,
+}: AcceptInvitationFormProps) {
   const router = useRouter();
   const toast = useToast();
   const [name, setName] = useState("");
@@ -24,7 +35,118 @@ export default function AcceptInvitationForm({ token, email, role }: AcceptInvit
   const [pending, setPending] = useState(false);
   const [completed, setCompleted] = useState(false);
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+  // Usuario autenticado con el mismo email → solo botón de aceptar
+  if (isAuthenticated && isSameEmail) {
+    if (completed) {
+      return (
+        <div className="space-y-3 text-center">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
+            <svg className="h-8 w-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <h2 className="text-2xl font-semibold text-green-700">Invitación aceptada</h2>
+          <p className="text-sm text-muted-foreground">
+            Bienvenido/a. Serás redirigido/a a tu dashboard en unos segundos.
+          </p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-4">
+        <div className="rounded-lg bg-green-50 border border-green-200 p-4 space-y-2">
+          <p className="font-medium text-green-800">¡Hola! Estás a un paso de unirte.</p>
+          <p className="text-sm text-green-700">
+            Te están invitando como <strong>{role}</strong> usando tu cuenta de <strong>{email}</strong>.
+          </p>
+        </div>
+
+        <Button onClick={handleAcceptExisting} className="w-full" disabled={pending}>
+          {pending ? "Procesando..." : "Aceptar invitación"}
+        </Button>
+      </div>
+    );
+  }
+
+  // Usuario autenticado con email diferente
+  if (isAuthenticated && !isSameEmail) {
+    return (
+      <div className="space-y-4">
+        <div className="rounded-lg bg-amber-50 border border-amber-200 p-4 space-y-2">
+          <p className="font-medium text-amber-800">Estás usando una cuenta diferente</p>
+          <p className="text-sm text-amber-700">
+            La invitación es para <strong>{email}</strong>, pero estás logueado como{" "}
+            <strong>{userEmail}</strong>.
+          </p>
+        </div>
+
+        <div className="space-y-3">
+          <Button variant="outline" className="w-full" onClick={() => router.push("/auth/login")}>
+            Cerrar sesión y usar otra cuenta
+          </Button>
+          <Button variant="ghost" className="w-full" onClick={() => router.push("/dashboard")}>
+            Ir a mi dashboard actual
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Usuario no autenticado → formulario de registro completo
+  if (completed) {
+    return (
+      <div className="space-y-3 text-center">
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
+          <svg className="h-8 w-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+        </div>
+        <h2 className="text-2xl font-semibold text-green-700">¡Cuenta creada!</h2>
+        <p className="text-sm text-muted-foreground">
+          Tu cuenta ha sido creada y la invitación aceptada. Serás redirigido al inicio de sesión.
+        </p>
+      </div>
+    );
+  }
+
+  async function handleAcceptExisting() {
+    setPending(true);
+    try {
+      const response = await fetch("/api/invitations/complete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data?.error ?? "No se pudo completar la invitación.");
+      }
+
+      toast.pushToast({
+        title: "Invitación aceptada",
+        description: "Redirigiendo a tu dashboard...",
+        variant: "success",
+      });
+
+      setCompleted(true);
+      setTimeout(() => {
+        router.push("/dashboard");
+      }, 2000);
+    } catch (error) {
+      console.error(error);
+      toast.pushToast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Error inesperado.",
+        variant: "error",
+      });
+    } finally {
+      setPending(false);
+    }
+  }
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (password !== confirmPassword) {
@@ -41,14 +163,8 @@ export default function AcceptInvitationForm({ token, email, role }: AcceptInvit
     try {
       const response = await fetch("/api/invitations/complete", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          token,
-          password,
-          name,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, password, name }),
       });
 
       if (!response.ok) {
@@ -58,7 +174,7 @@ export default function AcceptInvitationForm({ token, email, role }: AcceptInvit
 
       toast.pushToast({
         title: "Cuenta creada",
-        description: "Tu cuenta ha sido creada exitosamente.",
+        description: "Tu cuenta ha sido creada exitosamente. Redirigiendo...",
         variant: "success",
       });
 
@@ -76,30 +192,20 @@ export default function AcceptInvitationForm({ token, email, role }: AcceptInvit
     } finally {
       setPending(false);
     }
-  };
-
-  if (completed) {
-    return (
-      <div className="space-y-3 text-center">
-        <h2 className="text-2xl font-semibold text-zaltyko-primary">Invitación aceptada</h2>
-        <p className="text-sm text-muted-foreground">
-          Tu cuenta ha sido creada. Serás redirigido al inicio de sesión en unos segundos.
-        </p>
-      </div>
-    );
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="space-y-1">
-        <Label className="text-xs uppercase tracking-wide text-muted-foreground">Correo</Label>
-        <Input value={email} disabled />
+      <div className="rounded-lg bg-blue-50 border border-blue-200 p-4">
+        <p className="text-sm text-blue-700">
+          <strong>Rol:</strong> {role} &nbsp;|&nbsp; <strong>Email:</strong> {email}
+        </p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <FormField
           id="name"
-          label="Nombre"
+          label="Nombre completo"
           type="text"
           placeholder="Tu nombre completo"
           value={name}
@@ -152,10 +258,15 @@ export default function AcceptInvitationForm({ token, email, role }: AcceptInvit
       />
 
       <Button type="submit" className="w-full" disabled={pending}>
-        {pending ? "Creando cuenta..." : "Aceptar invitación"}
+        {pending ? "Creando cuenta..." : "Crear cuenta y aceptar invitación"}
       </Button>
+
+      <p className="text-center text-sm text-muted-foreground">
+        ¿Ya tienes cuenta?{" "}
+        <Link href="/auth/login" className="font-medium text-primary hover:underline">
+          Inicia sesión
+        </Link>
+      </p>
     </form>
   );
 }
-
-

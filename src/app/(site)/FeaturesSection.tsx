@@ -8,6 +8,7 @@ import {
   Plug,
   ShieldCheck,
   Check,
+  ArrowRight,
 } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
@@ -20,12 +21,12 @@ export default function FeaturesSection() {
       content: {
         title: "Gestión integral de atletas",
         features: [
-          "Fichas con nivel, aparato favorito y seguimiento por lesiones",
-          "Alertas automáticas cuando alcanzas el cupo del plan",
-          "Inscripción masiva vía CSV o API REST",
-          "Historial de asistencia en tiempo real",
-          "Portal para familias (roadmap Q2)",
-          "Cumplimiento RLS por tenant para datos sensibles",
+          "Fichas con nivel, aparato favorito y seguimiento de progreso",
+          "Historial de asistencia y pago en tiempo real",
+          "Importación masiva desde Excel o CSV",
+          "Portal para que familias vean progreso de sus hijas",
+          "Datos siempre sincronizados, sin errores de importación",
+          "Cumplimiento RGPD y políticas de protección de menores",
         ],
         impact: "Reduce 4 h semanales de tareas administrativas",
       },
@@ -37,12 +38,12 @@ export default function FeaturesSection() {
       content: {
         title: "Staff coordinado y productivo",
         features: [
-          "Roles diferenciados: owner, coach, staff y súper admin",
+          "Roles diferenciados: director, coach, staff y admin",
           "Agenda compartida con toma de asistencia desde móvil",
           "Notas privadas por atleta y evaluaciones pendientes",
-          "Alertas de rotación de aparatos y recursos",
-          "Panel de horas dictadas y bonificaciones",
-          "Integración con control de acceso por QR (beta)",
+          "Alertas cuando un atleta necesita atención especial",
+          "Panel de horas dictadas y seguimiento de bonificaciones",
+          "Control de acceso por academias con múltiples sedes",
         ],
         impact: "Evita malentendidos y mejora la comunicación interna",
       },
@@ -54,12 +55,12 @@ export default function FeaturesSection() {
       content: {
         title: "Stripe listo para academias",
         features: [
-          "Checkout para upgrades Free → Pro → Premium",
-          "Asignación automática de límites por plan",
-          "Webhooks protegidos con verificación de firma",
+          "Cobros automáticos mensuales con Stripe",
           "Recordatorios de pago y recibos automatizados",
-          "Panel de métricas MRR, churn y morosidad",
-          "Integración con LemonSqueezy opcional",
+          "Portal para familias con historial de pagos",
+          "Gestión de morosos con avisos automáticos",
+          "Panel de métricas de ingresos y morosidad",
+          "Facturación sin errores ni hojas de cálculo",
         ],
         impact: "Conciliar pagos recurrentes sin hojas de cálculo",
       },
@@ -91,9 +92,9 @@ export default function FeaturesSection() {
           "Calendario unificado de competencias y clínicas",
           "Asignación de coaches responsables por sede",
           "Sincronización de listas de viaje y alojamiento",
-          "Notificaciones email/SMS para padres y staff",
+          "Notificaciones automáticas para padres y staff",
           "Checklist de equipo por atleta",
-          "Integración con Google Calendar (roadmap Q3)",
+          "Inscripción online para padres sin WhatsApp",
         ],
         impact: "Evita mensajes dispersos y asegura que todos lleguen preparados",
       },
@@ -103,16 +104,16 @@ export default function FeaturesSection() {
       icon: Database,
       label: "Datos",
       content: {
-        title: "Arquitectura pensada para escalar",
+        title: "Datos siempre sincronizados y seguros",
         features: [
-          "Drizzle ORM con tipado end-to-end",
-          "Migraciones versionadas y seeds para demo",
-          "RLS en Supabase + middleware Multi-tenant",
-          "Testing con pg-mem para APIs críticas",
-          "Jobs serverless con Supabase Edge Functions",
-          "Observabilidad con auditorías por acción",
+          "Sincronización en tiempo real sin errores",
+          "Importación desde Excel o CSV sin complicaciones",
+          "Copias de seguridad automáticas diarias",
+          "Acceso multi-usuario sin conflictos de datos",
+          "Historial completo de cambios por seguridad",
+          "Infraestructura de nivel empresarial",
         ],
-        impact: "Infraestructura lista para producción desde el día uno",
+        impact: "Datos siempre controlados, sin importar el tamaño de tu academia",
       },
     },
     {
@@ -122,14 +123,14 @@ export default function FeaturesSection() {
       content: {
         title: "Conecta tus herramientas favoritas",
         features: [
-          "SDK público para crear extensiones internas",
-          "Webhooks listos para ERP o sistemas contables",
-          "Mailgun para comunicaciones transaccionales",
-          "Supabase Storage para compartir rutinas y videos",
-          "Segmentación de audiencias para marketing",
-          "CLI para automatizar seeds y pruebas end-to-end",
+          "Envío de comunicaciones automáticas a familias",
+          "Almacenamiento de rutinas y vídeos de entrenamiento",
+          "Compartición de archivos con coaches y padres",
+          "Notificaciones push para提醒 de clases y eventos",
+          "Sincronización con calendarios externos",
+          "Copias de seguridad en la nube automáticas",
         ],
-        impact: "Evita integraciones manuales y mantén un solo origen de datos",
+        impact: "Un solo origen de datos, sin duplicados ni confusiones",
       },
     },
     {
@@ -137,16 +138,16 @@ export default function FeaturesSection() {
       icon: ShieldCheck,
       label: "Seguridad",
       content: {
-        title: "Tenancy blindado y cumplimiento",
+        title: "Datos protegidos y cumplimiento RGPD",
         features: [
-          "Autenticación NextAuth con Magic Link y Google",
-          "Logs de auditoría con IP y user-agent",
-          "Backups automáticos de base de datos",
-          "Configurable para RGPD y políticas de menores",
-          "CSP estricta y headers de seguridad listos",
-          "Playbooks de respuesta ante incidentes",
+          "Login sin contraseña (Magic Link) o con Google",
+          "Registro de actividad por seguridad",
+          "Copias de seguridad automáticas diarias",
+          "Cumplimiento RGPD y normativa de menores",
+          "Encriptación de datos en tránsito y en reposo",
+          "Planes de respuesta ante incidentes",
         ],
-        impact: "Tranquilidad para dueños y directores financieros",
+        impact: "Tranquilidad para dueños, padres y directores financieros",
       },
     },
   ];
@@ -212,6 +213,16 @@ export default function FeaturesSection() {
                       </span>
                     </div>
                   ))}
+                </div>
+                {/* CTA dentro del tab */}
+                <div className="mt-8 pt-6 border-t border-white/10">
+                  <a
+                    href="/onboarding"
+                    className="inline-flex items-center gap-2 bg-white text-red-700 font-semibold px-6 py-3 rounded-xl hover:bg-gray-100 transition-colors text-sm"
+                  >
+                    Probar 14 días gratis
+                    <ArrowRight className="w-4 h-4" />
+                  </a>
                 </div>
               </div>
             </TabsContent>

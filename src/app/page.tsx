@@ -7,18 +7,22 @@ import HeroSection from "@/app/(site)/home/HeroSection";
 import SocialProofSection from "@/app/(site)/home/SocialProofSection";
 import WhyZaltykoSection from "@/app/(site)/home/WhyZaltykoSection";
 import ModulesSection from "@/app/(site)/home/ModulesSection";
+import ComparisonSection from "@/app/(site)/home/ComparisonSection";
 import SeoExtendedSection from "@/app/(site)/home/SeoExtendedSection";
 import TestimonialsSection from "@/app/(site)/home/TestimonialsSection";
+import DemoSection from "@/app/(site)/home/DemoSection";
+import FaqSection from "@/app/(site)/home/FaqSection";
 import IntegrationsSection from "@/app/(site)/home/IntegrationsSection";
 import FinalCtaSection from "@/app/(site)/home/FinalCtaSection";
 import FooterSection from "@/app/(site)/home/FooterSection";
+import StickyCtaBar from "@/app/(site)/home/StickyCtaBar";
 
 const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://zaltyko.com";
 
 export const metadata: Metadata = {
-  title: "Zaltyko – El software definitivo para academias de gimnasia",
+  title: "Zaltyko – Gestión Automática para Academias de Gimnasia | 15h menos/semana",
   description:
-    "Software especializado para la gestión de academias de gimnasia artística, rítmica y acrobática. Gestiona atletas, clases, horarios, pagos, inscripciones a competiciones y comunicación con padres desde un solo panel. Prueba gratis el mejor software para clubes deportivos.",
+    "Gestiona atletas, cobros y horarios en 1 plataforma. 15h menos de admin. Prueba gratis 14 días. Sin tarjeta de crédito.",
   keywords: [
     "software para academias de gimnasia",
     "gestión de gimnasios de gimnasia",
@@ -37,16 +41,16 @@ export const metadata: Metadata = {
     canonical: baseUrl,
   },
   openGraph: {
-    title: "Zaltyko – El software definitivo para academias de gimnasia",
+    title: "Zaltyko – Gestión Automática para Academias de Gimnasia",
     description:
-      "Gestiona atletas, clases, pagos, eventos y comunicación desde un solo panel diseñado exclusivamente para gimnasia artística, rítmica y acrobática.",
+      "Recupera 15 horas semanales. Gestiona atletas, cobros y horarios en 1 plataforma. Prueba gratis 14 días sin compromiso.",
     url: baseUrl,
     siteName: "Zaltyko",
     type: "website",
     locale: "es_ES",
     images: [
       {
-        url: `${baseUrl}/og-image.png`,
+        url: `${baseUrl}/og-image.svg`,
         width: 1200,
         height: 630,
         alt: "Zaltyko - Software para academias de gimnasia",
@@ -55,9 +59,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Zaltyko – El software definitivo para academias de gimnasia",
+    title: "Zaltyko – Gestión Automática para Academias de Gimnasia",
     description:
-      "Gestiona atletas, clases, pagos, eventos y comunicación desde un solo panel diseñado exclusivamente para gimnasia artística, rítmica y acrobática.",
+      "Recupera 15 horas semanales. Gestiona atletas, cobros y horarios en 1 plataforma. Prueba gratis 14 días.",
     images: [`${baseUrl}/og-image.png`],
   },
   robots: {
@@ -80,34 +84,46 @@ export default function HomePage() {
   return (
     <>
       <NavbarHome />
-      
+
       <main>
         {/* Hero con H1 principal */}
         <HeroSection />
-        
+
         {/* Social proof - logos y estadísticas */}
         <SocialProofSection />
-        
+
+        {/* Comparativa vs Excel y alternativas */}
+        <ComparisonSection />
+
         {/* Por qué Zaltyko - texto SEO extenso */}
         <WhyZaltykoSection />
-        
+
         {/* Módulos principales - cada uno con descripción SEO */}
         <ModulesSection />
-        
+
+        {/* Demo con video */}
+        <DemoSection />
+
         {/* Sección SEO extendida - 300-400 palabras */}
         <SeoExtendedSection />
-        
+
         {/* Testimonios */}
         <TestimonialsSection />
-        
+
+        {/* FAQ con preguntas de negocio */}
+        <FaqSection />
+
         {/* Integraciones */}
         <IntegrationsSection />
-        
+
         {/* CTA Final */}
         <FinalCtaSection />
       </main>
-      
+
       <FooterSection />
+
+      {/* CTA Sticky en scroll */}
+      <StickyCtaBar />
       
       {/* Schema.org structured data */}
       <Schema
@@ -124,12 +140,7 @@ export default function HomePage() {
             "@type": "Offer",
             price: "0",
             priceCurrency: "EUR",
-            description: "Plan gratuito disponible",
-          },
-          aggregateRating: {
-            "@type": "AggregateRating",
-            ratingValue: "4.9",
-            reviewCount: "127",
+            description: "Plan gratuito disponible hasta 50 atletas",
           },
           author: {
             "@type": "Organization",
@@ -171,34 +182,66 @@ export default function HomePage() {
           mainEntity: [
             {
               "@type": "Question",
-              name: "¿Qué es Zaltyko?",
+              name: "¿Puedo probarlo sin dar datos de pago?",
               acceptedAnswer: {
                 "@type": "Answer",
-                text: "Zaltyko es un software especializado para la gestión de academias de gimnasia artística, rítmica y acrobática. Permite gestionar atletas, clases, horarios, pagos, inscripciones a competiciones y comunicación con padres desde un solo panel.",
+                text: "Sí. Puedes crear tu cuenta gratis y usar Zaltyko hasta 50 atletas sin introducir ningún dato de pago. El trial de 14 días te da acceso completo al plan Pro para que pruebes todo sin compromiso.",
               },
             },
             {
               "@type": "Question",
-              name: "¿Zaltyko es gratuito?",
+              name: "¿Cuánto tiempo tarda en configurarse?",
               acceptedAnswer: {
                 "@type": "Answer",
-                text: "Sí, Zaltyko ofrece un plan gratuito que permite gestionar hasta 30 atletas. Para academias más grandes, ofrecemos planes de pago con funcionalidades avanzadas y sin límite de atletas.",
+                text: "La mayoría de academias están operativas en menos de 2 horas. Importas tus atletas desde Excel o manualmente, configuras tus clases y horarios, y listo. Soporte incluido.",
               },
             },
             {
               "@type": "Question",
-              name: "¿Qué diferencia a Zaltyko de otros software de gestión deportiva?",
+              name: "¿Mis datos están aislados de otras academias?",
               acceptedAnswer: {
                 "@type": "Answer",
-                text: "Zaltyko está diseñado específicamente para gimnasia artística, rítmica y acrobática. Incluye funcionalidades específicas como seguimiento de nivel por aparato, gestión de inscripciones a competiciones, y comunicación especializada con familias de atletas menores de edad.",
+                text: "Sí. Cada academia tiene sus datos completamente aislados. Usamos Row Level Security a nivel de base de datos. Cumplimos con el RGPD.",
               },
             },
             {
               "@type": "Question",
-              name: "¿Puedo migrar mis datos desde Excel?",
+              name: "¿Puedo migrar mis datos desde Excel o Google Sheets?",
               acceptedAnswer: {
                 "@type": "Answer",
-                text: "Sí, Zaltyko permite importar atletas, clases y datos históricos desde archivos Excel o CSV. Nuestro equipo de soporte te ayuda durante todo el proceso de migración.",
+                text: "Sí. Zaltyko permite importar atletas, grupos y datos históricos desde archivos Excel o CSV. Si tienes un archivo con tus atletas, en minutos los tendrás dentro de la plataforma.",
+              },
+            },
+            {
+              "@type": "Question",
+              name: "¿Qué pasa si tengo más de 50 atletas?",
+              acceptedAnswer: {
+                "@type": "Answer",
+                text: "El plan Free cubre hasta 50 atletas. Cuando llegues al límite, el plan Pro (19€/mes) soporta hasta 200 atletas. Haz el upgrade desde tu panel en cualquier momento.",
+              },
+            },
+            {
+              "@type": "Question",
+              name: "¿Puedo cancelar en cualquier momento?",
+              acceptedAnswer: {
+                "@type": "Answer",
+                text: "Sí. No hay permanencia ni penalizaciones. Cancela cuando quieras desde tu panel de cuenta. Si cancelas el plan de pago, vuelves automáticamente al plan gratuito.",
+              },
+            },
+            {
+              "@type": "Question",
+              name: "¿Qué pasa con mis datos si cancelo?",
+              acceptedAnswer: {
+                "@type": "Answer",
+                text: "Tus datos se mantienen disponibles durante 30 días después de cancelar. Puedes exportar toda tu información en cualquier momento. Pasados los 30 días se eliminan según nuestra política de retención.",
+              },
+            },
+            {
+              "@type": "Question",
+              name: "¿Funciona en móvil para los coaches?",
+              acceptedAnswer: {
+                "@type": "Answer",
+                text: "Sí. Zaltyko es una aplicación web responsive que funciona en móvil, tablet y escritorio. Los coaches pueden marcar asistencia desde su teléfono sin instalar nada.",
               },
             },
           ],

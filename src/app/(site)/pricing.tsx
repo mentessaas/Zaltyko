@@ -1,6 +1,17 @@
 import { Check, Shield, Clock, Globe2 } from "lucide-react";
 
-const plans = [
+type Plan = {
+  title: string;
+  price: string;
+  description: string;
+  cta: string;
+  highlight: boolean;
+  features: string[];
+  annualPrice: string;
+  annualSavings?: string;
+};
+
+const plans: Plan[] = [
   {
     title: "Free",
     price: "0€",
@@ -14,12 +25,13 @@ const plans = [
       "Métricas básicas",
       "Límite controlado vía Stripe",
     ],
+    annualPrice: "0€/año",
   },
   {
     title: "Pro",
     price: "19€/mes",
     description: "200 atletas, informes avanzados y seguimiento de evaluaciones técnicas.",
-    cta: "Activar Plan Pro",
+    cta: "Probar 14 días gratis",
     highlight: true,
     features: [
       "Hasta 200 atletas",
@@ -28,6 +40,8 @@ const plans = [
       "Exportables para federación",
       "Seguimiento de evaluaciones",
     ],
+    annualPrice: "182€/año",
+    annualSavings: "Ahorra 46€",
   },
   {
     title: "Premium",
@@ -42,24 +56,26 @@ const plans = [
       "Auditoría multi-sede",
       "Integración futura con GymnasticMeet",
     ],
+    annualPrice: "470€/año",
+    annualSavings: "Ahorra 118€",
   },
 ];
 
 const commonBenefits = [
   {
     icon: Shield,
-    title: "Tenancy blindado",
-    description: "Aislamiento total por tenant con RLS y cumplimiento RGPD.",
+    title: "Datos 100% seguros",
+    description: "Aislamiento total por academia con encriptación y cumplimiento RGPD.",
   },
   {
     icon: Clock,
-    title: "Operativa en tiempo real",
-    description: "Todo se actualiza instantáneamente.",
+    title: "Configuración en 2h",
+    description: "Desde cero hasta operativo en una mañana. Sin conocimientos técnicos.",
   },
   {
     icon: Globe2,
-    title: "Pensado exclusivamente para gimnasia",
-    description: "Diseñado junto a directores técnicos de gimnasia artística y rítmica.",
+    title: "Diseñado para gimnasia",
+    description: "Creado junto a directores técnicos de gimnasia artística y rítmica.",
   },
 ];
 
@@ -67,6 +83,17 @@ export default function PricingSection() {
   return (
     <section id="planes" className="py-20">
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+        {/* Urgency banner */}
+        <div className="mb-8 text-center">
+          <div className="inline-flex items-center gap-2 rounded-full bg-amber-50 border border-amber-200 px-5 py-2 text-sm font-medium text-amber-800">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500" />
+            </span>
+            Precio de lanzamiento · 19€/mes → 29€/mes a partir de Q3 2026
+          </div>
+        </div>
+
         <div className="text-center">
           <span className="font-display text-xs uppercase tracking-[0.35em] text-zaltyko-accent">
             Planes
@@ -79,7 +106,17 @@ export default function PricingSection() {
           </p>
         </div>
 
-        <div className="mt-12 grid gap-6 md:grid-cols-3">
+        {/* Annual billing toggle */}
+        <div className="mt-8 flex justify-center">
+          <div className="inline-flex items-center gap-3 bg-muted/60 rounded-full px-1 py-1">
+            <span className="px-4 py-1.5 rounded-full text-sm font-medium text-muted-foreground">Mensual</span>
+            <span className="px-4 py-1.5 rounded-full bg-zaltyko-accent text-zaltyko-primary-dark text-sm font-bold shadow-sm">
+              Anual — hasta 20% dto. <span className="text-xs opacity-70">(próximamente)</span>
+            </span>
+          </div>
+        </div>
+
+        <div className="mt-8 grid gap-6 md:grid-cols-3">
           {plans.map((plan) => (
             <article
               key={plan.title}
@@ -93,7 +130,12 @@ export default function PricingSection() {
                 </span>
               )}
               <h3 className="font-display text-xl font-semibold text-foreground">{plan.title}</h3>
-              <p className="mt-2 font-display text-3xl font-bold text-foreground">{plan.price}</p>
+              <p className="mt-2 font-display text-3xl font-bold text-foreground">{plan.annualPrice}</p>
+              {plan.annualSavings && (
+                <span className="mt-1 inline-block text-xs font-semibold text-green-600 bg-green-50 px-2 py-0.5 rounded-full w-fit">
+                  {plan.annualSavings}
+                </span>
+              )}
               <p className="mt-2 font-sans text-sm text-muted-foreground">{plan.description}</p>
 
               <ul className="mt-6 space-y-3 font-sans text-sm text-foreground">
@@ -106,7 +148,7 @@ export default function PricingSection() {
               </ul>
 
               <a
-                href={plan.title === "Premium" ? "mailto:ventas@zaltyko.com" : "/onboarding"}
+                href={plan.title === "Premium" ? "mailto:ventas@zaltyko.com" : `/onboarding${plan.title !== "Free" ? "?plan=" + plan.title.toLowerCase() : ""}`}
                 className={`mt-8 inline-flex items-center justify-center rounded-full px-6 py-2 text-sm font-semibold transition ${
                   plan.highlight
                     ? "bg-gradient-to-r from-zaltyko-accent to-zaltyko-accent-light text-zaltyko-primary-dark"

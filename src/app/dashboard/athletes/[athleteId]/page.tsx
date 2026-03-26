@@ -18,6 +18,7 @@ import {
 } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
 import GuardianManager from "@/components/athletes/GuardianManager";
+import AthleteEvaluationsTab from "@/components/assessments/AthleteEvaluationsTab";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -206,6 +207,7 @@ export default async function AthleteDetailPage({ params }: AthletePageProps) {
       <Tabs defaultValue="datos" className="space-y-6">
         <TabsList className="flex flex-wrap">
           <TabsTrigger value="datos">Datos generales</TabsTrigger>
+          <TabsTrigger value="evaluaciones">Evaluaciones</TabsTrigger>
           <TabsTrigger value="familia">Familia</TabsTrigger>
           <TabsTrigger value="asistencia">Asistencia</TabsTrigger>
         </TabsList>
@@ -287,6 +289,10 @@ export default async function AthleteDetailPage({ params }: AthletePageProps) {
               </div>
             </div>
           </div>
+        </TabsContent>
+
+        <TabsContent value="evaluaciones">
+          <AthleteEvaluationsTab athleteId={athleteRow.id} athleteName={athleteRow.name} />
         </TabsContent>
 
         <TabsContent value="familia">

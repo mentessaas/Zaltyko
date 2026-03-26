@@ -1,0 +1,15 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Zorro mini para favicon - Rojo Cereza -->
+  <g id="fox-icon">
+    <!-- Cabeza -->
+    <circle cx="16" cy="18" r="8" fill="#DC2626"/>
+    <!-- Orejas -->
+    <path d="M10 10 L14 6 L18 10 L16 14 L12 14 Z" fill="#DC2626"/>
+    <path d="M14 10 L18 6 L22 10 L20 14 L16 14 Z" fill="#DC2626"/>
+    <!-- Ojos -->
+    <circle cx="13" cy="17" r="1.5" fill="#F59E0B"/>
+    <circle cx="19" cy="17" r="1.5" fill="#F59E0B"/>
+    <!-- Nariz -->
+    <circle cx="16" cy="21" r="1" fill="#F59E0B"/>
+  </g>
+</svg>

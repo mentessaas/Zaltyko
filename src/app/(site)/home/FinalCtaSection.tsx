@@ -6,7 +6,7 @@ import Link from "next/link";
 
 const benefits = [
   "Configuración en menos de 5 minutos",
-  "Plan gratuito hasta 30 atletas",
+  "Plan gratuito hasta 50 atletas",
   "Soporte prioritario incluido",
   "Datos 100% seguros y encriptados",
 ];
@@ -36,7 +36,7 @@ export default function FinalCtaSection() {
         {/* Subtitle */}
         <p className="text-xl text-white/80 mb-10 max-w-2xl mx-auto leading-relaxed">
           Únete a más de 150 academias que ya están usando Zaltyko para gestionar su día a día. 
-          Tu primera academia es gratis hasta 30 atletas.
+          Tu primera academia es gratis hasta 50 atletas.
         </p>
 
         {/* Benefits */}

@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { eq, and } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
-import { invitations, memberships, profiles, roleMembers, academyRoles } from "@/db/schema";
+import { invitations, memberships, profiles, roleMembers } from "@/db/schema";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { withRateLimit, getUserIdentifier } from "@/lib/rate-limit";
 import { handleApiError } from "@/lib/api-error-handler";
@@ -13,7 +13,8 @@ import type { AuditAction, AuditModule } from "@/db/schema/audit-logs";
 
 const AcceptSchema = z.object({
   token: z.string().min(1),
-  password: z.string().min(8),
+  // Password es opcional si el usuario ya existe y está autenticado
+  password: z.string().min(8).optional(),
   name: z.string().min(2).max(120).optional(),
 });
 
@@ -43,39 +44,56 @@ const handler = async (request: Request) => {
 
     let user = null;
 
-    const createResult = await adminClient.auth.admin.createUser({
-      email: invitation.email,
-      password: body.password,
-      email_confirm: true,
-      user_metadata: {
-        tenantId: invitation.tenantId,
-        role: invitation.role,
-      },
-    });
-
-    if (createResult.error) {
-      if (
-        createResult.error.message.includes("already registered") ||
-        createResult.error.message.includes("User already exists")
-      ) {
-        // Buscar usuario por email usando listUsers
-        const { data: usersData } = await adminClient.auth.admin.listUsers();
-        const existingUser = usersData.users.find(u => u.email === invitation.email);
-        if (!existingUser) {
-          return NextResponse.json({ error: "USER_EXISTS_NO_ACCESS" }, { status: 409 });
-        }
-
-        user = existingUser;
-
-        await adminClient.auth.admin.updateUserById(user.id, {
-          password: body.password,
-        });
-      } else {
-        console.error(createResult.error);
-        return NextResponse.json({ error: "SUPABASE_ERROR" }, { status: 500 });
+    // Sin contraseña → buscar usuario existente (flujo "ya tengo cuenta")
+    if (!body.password) {
+      const { data: usersData } = await adminClient.auth.admin.listUsers();
+      const existingUser = usersData.users.find((u) => u.email === invitation.email);
+      if (!existingUser) {
+        return NextResponse.json(
+          {
+            error: "USER_NOT_FOUND",
+            message:
+              "No se encontró un usuario existente con este email. Se requiere contraseña para crear la cuenta.",
+          },
+          { status: 400 }
+        );
       }
+      user = existingUser;
     } else {
-      user = createResult.data.user;
+      // Crear nuevo usuario o usar existente (flujo "crear cuenta nueva")
+      const createResult = await adminClient.auth.admin.createUser({
+        email: invitation.email,
+        password: body.password,
+        email_confirm: true,
+        user_metadata: {
+          tenantId: invitation.tenantId,
+          role: invitation.role,
+        },
+      });
+
+      if (createResult.error) {
+        if (
+          createResult.error.message.includes("already registered") ||
+          createResult.error.message.includes("User already exists")
+        ) {
+          const { data: usersData } = await adminClient.auth.admin.listUsers();
+          const existingUser = usersData.users.find((u) => u.email === invitation.email);
+          if (!existingUser) {
+            return NextResponse.json({ error: "USER_EXISTS_NO_ACCESS" }, { status: 409 });
+          }
+          user = existingUser;
+          if (body.password) {
+            await adminClient.auth.admin.updateUserById(user.id, {
+              password: body.password,
+            });
+          }
+        } else {
+          console.error(createResult.error);
+          return NextResponse.json({ error: "SUPABASE_ERROR" }, { status: 500 });
+        }
+      } else {
+        user = createResult.data.user;
+      }
     }
 
     if (!user) {
@@ -106,6 +124,7 @@ const handler = async (request: Request) => {
     const academyIds = invitation.academyIds ?? [];
 
     if (academyIds.length > 0) {
+      // athlete → viewer (puede ver su propio perfil/datos)
       const membershipRole: "coach" | "owner" | "viewer" =
         invitation.role === "coach"
           ? "coach"
@@ -134,13 +153,13 @@ const handler = async (request: Request) => {
       })
       .where(eq(invitations.id, invitation.id));
 
-    // Si hay un rol personalizado asignado, crear la membresía de rol
     if (invitation.roleId && invitation.defaultAcademyId) {
       const memberRoleMap: Record<string, "owner" | "admin" | "coach" | "assistant" | "viewer" | "parent"> = {
         owner: "owner",
         admin: "admin",
         coach: "coach",
         parent: "parent",
+        athlete: "viewer", // atletas tienen rol viewer en membership
       };
 
       await db
@@ -155,7 +174,6 @@ const handler = async (request: Request) => {
         })
         .onConflictDoNothing();
 
-      // Registrar en audit log
       await createAuditLog({
         tenantId: invitation.tenantId,
         userId: user.id,
@@ -173,10 +191,7 @@ const handler = async (request: Request) => {
   }
 };
 
-// Aplicar rate limiting y validación de payload
 export const POST = withRateLimit(
-  withPayloadValidation(handler, { maxSize: 256 * 1024 }), // 256KB
+  withPayloadValidation(handler, { maxSize: 256 * 1024 }),
   { identifier: getUserIdentifier }
 );
-
-
