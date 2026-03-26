@@ -43,7 +43,7 @@ export const metadata: Metadata = {
     "academias de gimnasia",
     "gestión deportiva",
     "gestión de academias",
-    "software para gimansios",
+    "software para gimnasios",
     "SaaS",
   ],
   authors: [{ name: "Zaltyko" }],

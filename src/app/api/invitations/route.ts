@@ -18,7 +18,7 @@ import type { AuditAction, AuditModule } from "@/db/schema/audit-logs";
 const bodySchema = z.object({
   academyId: z.string().uuid(),
   email: z.string().email(),
-  role: z.enum(["coach", "parent", "admin"]),
+  role: z.enum(["coach", "parent", "admin", "athlete"]),
   roleId: z.string().uuid().optional(), // Rol personalizado de academy_roles
   customPermissions: z.array(z.string()).optional(), // Permisos específicos si no hay roleId
   customMessage: z.string().optional(),
@@ -113,6 +113,8 @@ export const POST = withTenant(async (request, context) => {
   const invitationUrl =
     parsed.data.role === "parent"
       ? `${origin}/invite/parent?token=${token}`
+      : parsed.data.role === "athlete"
+      ? `${origin}/invite/athlete?token=${token}`
       : `${origin}/invite/accept?token=${token}`;
 
   await trackEvent("invitation_sent", {
@@ -129,6 +131,17 @@ export const POST = withTenant(async (request, context) => {
 
   if (parsed.data.role === "parent") {
     await trackEvent("first_parent_invited", {
+      academyId: parsed.data.academyId,
+      tenantId: context.tenantId,
+      userId: context.userId,
+      metadata: {
+        email: parsed.data.email,
+      },
+    });
+  }
+
+  if (parsed.data.role === "athlete") {
+    await trackEvent("first_athlete_invited", {
       academyId: parsed.data.academyId,
       tenantId: context.tenantId,
       userId: context.userId,

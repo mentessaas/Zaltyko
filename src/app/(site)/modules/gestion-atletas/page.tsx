@@ -35,17 +35,17 @@ El seguimiento de niveles técnicos por aparato se complica cuando cada entrenad
 
 Esta fragmentación de información afecta directamente la calidad del servicio que ofrece tu academia y la confianza de las familias en tu gestión profesional.`;
 
-const solutionContent = `Zaltyko transforma la gestión de atletas en un proceso fluido y profesional. Nuestro módulo de fichas de atletas centraliza toda la información relevante de cada gimnasta en un perfil digital completo y siempre actualizado. Desde datos de contacto de emergencia hasta historial de lesiones, todo está a un clic de distancia para entrenadores y administrativos autorizados.
+const solutionContent = `Zaltyko transforma la gestión de atletas en un proceso fluido y profesional. Nuestro módulo de fichas de atletas centraliza toda la información relevante de cada gimnasta en un perfil digital completo y siempre actualizado. Desde datos de contacto de emergencia hasta niveles técnicos por aparato, todo está a un clic de distancia para entrenadores y administrativos autorizados.
 
 El sistema de seguimiento de progresiones te permite registrar los niveles técnicos de cada atleta en los diferentes aparatos de gimnasia artística, rítmica o acrobática. Los entrenadores pueden actualizar evaluaciones después de cada sesión, creando un historial detallado que facilita la planificación del entrenamiento personalizado y la comunicación con las familias sobre el desarrollo deportivo de sus hijos.
 
-La digitalización de documentos elimina el caos de las carpetas físicas. Sube permisos, certificados médicos y autorizaciones directamente al perfil del atleta. El sistema te alerta cuando un documento está por vencer, asegurando que tu academia siempre cumpla con los requisitos legales y federativos.`;
+La gestión centralizada elimina el caos de las carpetas físicas. Toda la información de contacto y niveles técnicos está organizada y accesible desde el perfil del atleta.`;
 
 const solutionFeatures = [
   "Fichas completas con datos personales, contactos de emergencia y fotografía",
   "Seguimiento de nivel técnico por aparato y categoría competitiva",
-  "Historial médico con registro de lesiones y condiciones especiales",
-  "Almacenamiento digital de documentos con alertas de vencimiento",
+  "Historial de niveles y evaluaciones técnicas por aparelho",
+  "Contactos de emergencia y datos familiares centralizados",
   "Importación masiva desde Excel o CSV para migrar datos existentes",
   "Búsqueda y filtrado avanzado por grupo, nivel o entrenador asignado",
 ];
@@ -122,7 +122,7 @@ export default function GestionAtletasPage() {
       <ModuleHero
         icon={Users}
         title="Gestión de Atletas"
-        subtitle="Centraliza toda la información de tus gimnastas en fichas digitales completas. Seguimiento de niveles, historial médico y documentación en un solo lugar."
+        subtitle="Centraliza toda la información de tus gimnastas en fichas digitales completas. Seguimiento de niveles, evaluaciones técnicas y contactos en un solo lugar."
         color={MODULE_COLOR}
       />
 

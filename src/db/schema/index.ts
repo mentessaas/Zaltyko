@@ -48,8 +48,6 @@ export * from "./user-preferences";
 export * from "./billing-items";
 export * from "./charges";
 export * from "./event-logs";
-export * from "./academy-messages";
-export * from "./academy-geo-groups";
 export * from "./notifications";
 export * from "./email-logs";
 export * from "./scholarships";

@@ -1,0 +1,59 @@
+<!--
+  OG IMAGE PLACEHOLDER — REEMPLAZAR POR PNG 1200x630px
+  Herramienta sugerida: https://www.canva.com o https://studio.tailwindlabs.ai
+  Este archivo SVG sirve como placeholder. Redes sociales requieren PNG/JPG.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#B91C1C"/>
+      <stop offset="50%" style="stop-color:#E11D48"/>
+      <stop offset="100%" style="stop-color:#BE123C"/>
+    </linearGradient>
+    <linearGradient id="text" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#FFFFFF"/>
+      <stop offset="100%" style="stop-color:#FECACA"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bg)"/>
+
+  <!-- Decorative circles -->
+  <circle cx="1000" cy="100" r="300" fill="#ffffff" opacity="0.05"/>
+  <circle cx="200" cy="600" r="200" fill="#ffffff" opacity="0.05"/>
+  <circle cx="1100" cy="500" r="150" fill="#ffffff" opacity="0.03"/>
+
+  <!-- Logo badge -->
+  <rect x="80" y="80" width="80" height="80" rx="20" fill="white" opacity="0.95"/>
+  <text x="120" y="130" font-family="system-ui, sans-serif" font-size="52" font-weight="bold" fill="#B91C1C" text-anchor="middle">Z</text>
+
+  <!-- Brand name -->
+  <text x="180" y="130" font-family="system-ui, sans-serif" font-size="44" font-weight="bold" fill="white">Zaltyko</text>
+
+  <!-- Headline -->
+  <text x="80" y="270" font-family="system-ui, sans-serif" font-size="72" font-weight="bold" fill="url(#text)">
+    Gestión Automática para
+  </text>
+  <text x="80" y="360" font-family="system-ui, sans-serif" font-size="72" font-weight="bold" fill="url(#text)">
+    Academias de Gimnasia
+  </text>
+
+  <!-- Sub-headline -->
+  <text x="80" y="440" font-family="system-ui, sans-serif" font-size="32" fill="#FECACA">
+    Recupera 15 horas semanales sin complicaciones
+  </text>
+
+  <!-- Stats row -->
+  <rect x="80" y="490" width="320" height="80" rx="16" fill="white" opacity="0.15"/>
+  <text x="120" y="540" font-family="system-ui, sans-serif" font-size="28" font-weight="bold" fill="white">150+</text>
+  <text x="200" y="540" font-family="system-ui, sans-serif" font-size="20" fill="#FECACA">academias</text>
+
+  <rect x="420" y="490" width="320" height="80" rx="16" fill="white" opacity="0.15"/>
+  <text x="460" y="540" font-family="system-ui, sans-serif" font-size="28" font-weight="bold" fill="white">25k+</text>
+  <text x="550" y="540" font-family="system-ui, sans-serif" font-size="20" fill="#FECACA">atletas</text>
+
+  <rect x="760" y="490" width="320" height="80" rx="16" fill="white" opacity="0.15"/>
+  <text x="800" y="540" font-family="system-ui, sans-serif" font-size="28" font-weight="bold" fill="white">€4.2M</text>
+  <text x="900" y="540" font-family="system-ui, sans-serif" font-size="20" fill="#FECACA">procesados</text>
+</svg>

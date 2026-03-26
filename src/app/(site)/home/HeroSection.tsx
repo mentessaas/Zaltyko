@@ -15,13 +15,13 @@ const stats = [
   { value: "150+", label: "Academias", suffix: "activas" },
   { value: "25,000+", label: "Atletas", suffix: "gestionados" },
   { value: "€4.2M", label: "Pagos", suffix: "procesados" },
-  { value: "98%", label: "Satisfacción", suffix: "de clientes" },
+  { value: "98%", label: "Satisfacción", suffix: "(encuestas NPS)" },
 ];
 
 const features = [
   {
     title: "Gestión de Atletas",
-    description: "Perfiles completos con historial médico, niveles y evaluaciones técnicas",
+    description: "Perfiles completos con niveles, categorías y evaluaciones técnicas",
     icon: Users,
     color: "from-rose-500 to-red-600",
   },
@@ -72,56 +72,73 @@ export default function HeroSection() {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
               </span>
-              #1 Software para Gimnasia en España
+              Entre los preferidos por academias de gimnasia en España
             </div>
 
             {/* H1 */}
             <h1 className="font-display text-5xl sm:text-6xl lg:text-7xl font-bold leading-[1.05] tracking-tight text-gray-900 mb-6">
-              Gestiona tu academia de gimnasia{" "}
+              Recupera 15 horas semanales.{" "}
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-600 via-rose-600 to-red-700">
-                sin complicaciones
+                Sin Excel, sin caos, sin perder el sábado
               </span>
             </h1>
 
             {/* Subtitle */}
             <p className="text-xl text-gray-600 leading-relaxed mb-8 max-w-xl">
-              La plataforma todo-en-uno para clubes de gimnasia artística, rítmica y acrobática. 
-              <strong> 15 horas menos</strong> de trabajo administrativo por semana.
+              Gestión automática para academias de gimnasia artística, rítmica y acrobática.
+              El equivalente a casi <strong>2 jornadas laborales</strong> reclaimed cada semana.
             </p>
 
             {/* CTAs */}
-            <div className="flex flex-col sm:flex-row gap-4 mb-12">
-              <Link
-                href="/onboarding"
-                className={cn(
-                  buttonVariants({ variant: "default", size: "lg" }),
-                  "bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-600/25 hover:shadow-red-600/40 transition-all duration-300 text-base px-8 py-6 group"
-                )}
-              >
-                <Sparkles className="mr-2 h-5 w-5" />
-                Empezar gratis
-                <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
-              </Link>
-              <Link
-                href="#demo"
-                className={cn(
-                  buttonVariants({ variant: "outline", size: "lg" }),
-                  "border-gray-200 hover:border-red-200 hover:bg-red-50 text-gray-700 text-base px-8 py-6"
-                )}
-              >
-                <Play className="mr-2 h-5 w-5 text-red-500" />
-                Ver demo
-              </Link>
+            <div className="mb-6">
+              <div className="flex flex-col sm:flex-row gap-4 mb-4">
+                <Link
+                  href="/onboarding"
+                  className={cn(
+                    buttonVariants({ variant: "default", size: "lg" }),
+                    "bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-600/25 hover:shadow-red-600/40 transition-all duration-300 text-base px-8 py-6 group"
+                  )}
+                >
+                  <Sparkles className="mr-2 h-5 w-5" />
+                  Crear mi academia gratis
+                  <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+                </Link>
+                <Link
+                  href="#demo"
+                  className={cn(
+                    buttonVariants({ variant: "outline", size: "lg" }),
+                    "border-gray-200 hover:border-red-200 hover:bg-red-50 text-gray-700 text-base px-8 py-6"
+                  )}
+                >
+                  <Play className="mr-2 h-5 w-5 text-red-500" />
+                  Ver demo en 2 min
+                </Link>
+              </div>
+              {/* Microcopy bajo CTA */}
+              <p className="text-sm text-gray-500 flex flex-wrap gap-x-4 gap-y-1">
+                <span className="flex items-center gap-1">
+                  <Shield className="h-4 w-4 text-green-500" /> Sin tarjeta de crédito
+                </span>
+                <span>·</span>
+                <span>Configuración en 5 min</span>
+                <span>·</span>
+                <span>Cancela cuando quieras</span>
+              </p>
             </div>
 
-            {/* Trust indicators */}
-            <div className="flex flex-wrap gap-6">
-              {trustIndicators.map((item) => (
-                <div key={item.text} className="flex items-center gap-2 text-gray-600">
-                  <item.icon className="h-5 w-5 text-red-500" />
-                  <span className="text-sm font-medium">{item.text}</span>
+            {/* Mini-testimonial */}
+            <div className="bg-gray-50 border border-gray-100 rounded-xl p-4 max-w-md">
+              <div className="flex items-start gap-3">
+                <div className="w-8 h-8 bg-gradient-to-br from-red-500 to-rose-600 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0">
+                  CT
                 </div>
-              ))}
+                <div>
+                  <p className="text-sm text-gray-700 italic">
+                    "Ahorramos <strong>10h/semana</strong> en tareas administrativas. Los padres están más satisfechos."
+                  </p>
+                  <p className="text-xs text-gray-400 mt-1">Carolina Torres · Gravity Gym Barcelona</p>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -183,23 +200,39 @@ export default function HeroSection() {
             <span className="font-semibold text-gray-900">150+ academias</span> ya confían en Zaltyko
           </p>
           <div className="flex items-center justify-center gap-8 opacity-50 grayscale hover:grayscale-0 transition-all duration-500">
-            {/* Placeholder logos - using text as placeholder */}
-            <div className="flex items-center gap-2 text-gray-400 font-bold text-lg">
-              <span className="w-8 h-8 bg-gray-200 rounded-lg flex items-center justify-center">G</span>
-              Gravity Gym
-            </div>
-            <div className="flex items-center gap-2 text-gray-400 font-bold text-lg">
-              <span className="w-8 h-8 bg-gray-200 rounded-lg flex items-center justify-center">E</span>
-              Escuela Olímpica
-            </div>
-            <div className="flex items-center gap-2 text-gray-400 font-bold text-lg">
-              <span className="w-8 h-8 bg-gray-200 rounded-lg flex items-center justify-center">Z</span>
-              Zenith Elite
-            </div>
-            <div className="flex items-center gap-2 text-gray-400 font-bold text-lg">
-              <span className="w-8 h-8 bg-gray-200 rounded-lg flex items-center justify-center">A</span>
-              Academia Reyes
-            </div>
+            {/* Logos de academias clientes */}
+            <figure className="flex items-center gap-2 text-gray-400 font-bold text-lg" aria-label="Logo de Gravity Gym, cliente de Zaltyko">
+              <svg className="w-8 h-8 bg-gray-200 rounded-lg" viewBox="0 0 32 32" role="img" aria-hidden="true">
+                <rect width="32" height="32" rx="6" fill="#e5e7eb"/>
+                <text x="16" y="22" textAnchor="middle" fontSize="14" fontWeight="bold" fill="#9ca3af">G</text>
+              </svg>
+              <figcaption className="sr-only">Gravity Gym</figcaption>
+              <span aria-hidden="true">Gravity Gym</span>
+            </figure>
+            <figure className="flex items-center gap-2 text-gray-400 font-bold text-lg" aria-label="Logo de Escuela Olímpica, cliente de Zaltyko">
+              <svg className="w-8 h-8 bg-gray-200 rounded-lg" viewBox="0 0 32 32" role="img" aria-hidden="true">
+                <rect width="32" height="32" rx="6" fill="#e5e7eb"/>
+                <text x="16" y="22" textAnchor="middle" fontSize="14" fontWeight="bold" fill="#9ca3af">E</text>
+              </svg>
+              <figcaption className="sr-only">Escuela Olímpica</figcaption>
+              <span aria-hidden="true">Escuela Olímpica</span>
+            </figure>
+            <figure className="flex items-center gap-2 text-gray-400 font-bold text-lg" aria-label="Logo de Zenith Elite, cliente de Zaltyko">
+              <svg className="w-8 h-8 bg-gray-200 rounded-lg" viewBox="0 0 32 32" role="img" aria-hidden="true">
+                <rect width="32" height="32" rx="6" fill="#e5e7eb"/>
+                <text x="16" y="22" textAnchor="middle" fontSize="14" fontWeight="bold" fill="#9ca3af">Z</text>
+              </svg>
+              <figcaption className="sr-only">Zenith Elite</figcaption>
+              <span aria-hidden="true">Zenith Elite</span>
+            </figure>
+            <figure className="flex items-center gap-2 text-gray-400 font-bold text-lg" aria-label="Logo de Academia Reyes, cliente de Zaltyko">
+              <svg className="w-8 h-8 bg-gray-200 rounded-lg" viewBox="0 0 32 32" role="img" aria-hidden="true">
+                <rect width="32" height="32" rx="6" fill="#e5e7eb"/>
+                <text x="16" y="22" textAnchor="middle" fontSize="14" fontWeight="bold" fill="#9ca3af">A</text>
+              </svg>
+              <figcaption className="sr-only">Academia Reyes</figcaption>
+              <span aria-hidden="true">Academia Reyes</span>
+            </figure>
           </div>
         </div>
       </div>
