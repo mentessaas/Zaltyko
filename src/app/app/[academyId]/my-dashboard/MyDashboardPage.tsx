@@ -256,7 +256,7 @@ export function MyDashboardPage({
         <div className="flex items-center gap-4">
           <Avatar className="h-16 w-16 text-xl">
             <AvatarFallback className="bg-primary/20 text-primary">
-              {getInitials(profileName)}
+              {getInitials(profileName ?? "")}
             </AvatarFallback>
           </Avatar>
           <div>

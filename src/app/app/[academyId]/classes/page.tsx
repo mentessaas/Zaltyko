@@ -307,17 +307,7 @@ export default async function AcademyClassesPage({ params, searchParams }: PageP
         icon={<Dumbbell className="h-5 w-5" strokeWidth={1.5} />}
       />
 
-      <ClassesClientView
-        academyId={academy.id}
-        classes={classesList}
-        availableCoaches={availableCoaches}
-        groupOptions={groupRows.map((group) => ({
-          id: group.id,
-          name: group.name ?? "Grupo sin nombre",
-          color: group.color ?? null,
-        }))}
-        filters={{ q: query, groupId: groupFilter }}
-      />
+      <ClassesClientView academyId={academy.id} />
     </div>
   );
 }

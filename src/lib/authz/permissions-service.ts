@@ -219,6 +219,7 @@ export async function createAcademyRole(
   isDefault: string | null = null,
   createdBy: string
 ) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [role] = await db
     .insert(academyRoles)
     .values({
@@ -227,11 +228,11 @@ export async function createAcademyRole(
       description,
       type: "custom",
       permissions,
-      inheritsFrom,
+      inheritsFrom: inheritsFrom ?? undefined,
       isDefault,
       isActive: "true",
       createdBy,
-    })
+    } as any)
     .returning();
 
   return role;
@@ -256,7 +257,7 @@ export async function updateAcademyRole(
     .set({
       ...updates,
       updatedAt: new Date(),
-    })
+    } as Record<string, unknown>)
     .where(eq(academyRoles.id, roleId))
     .returning();
 
