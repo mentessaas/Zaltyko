@@ -1,0 +1,61 @@
+{
+  "meta": {
+    "title": "Software para Gimnasia Artística en Colombia | Zaltyko - Gestión FCG",
+    "description": "Gestiona tu escuela de gimnasia artística federada con Zaltyko. Control total sobre atletas FCG, categorías oficiales, niveles, Copa Colombia y licencias.",
+    "keywords": [
+      "gimnasia artística colombia",
+      "software fcg",
+      "gestión gimnasia artística colombia",
+      "academia gimnasia artística",
+      "copa colombia gimnasia",
+      "selectivos colombia",
+      "juegos Bolivarianos",
+      "renovar licencia fcg"
+    ]
+  },
+  "hero": {
+    "badge": "Líder en Colombia · +30 academias",
+    "headline": "Gestiona tu escuela de gimnasia artística federada sin complicaciones",
+    "subheadline": "Control total sobre atletas FCG-Mindeporte, categorías oficiales, niveles de competencia, Copa Colombia, selectivos y licencias."
+  },
+  "federation": {
+    "name": "Federación Colombiana de Gimnasia (FCG)",
+    "competitions": [
+      "Nacional Absoluto",
+      "Copa Colombia de Gimnasia Artística",
+      "Selectivos para Juegos Bolivarianos",
+      "Clasificatorios Panamericanos",
+      "Torneos Departamentales"
+    ]
+  },
+  "categories": {
+    "preinfantil": "6-7 años - Iniciación",
+    "infantil": "8-9 años - Nivel 1-2",
+    "juvenil": "10-11 años - Nivel 3-4",
+    "prejunior": "12-13 años - Nivel 5-6",
+    "junior": "14-15 años - Nivel 7-8",
+    "senior": "16-17 años - Nivel 9-10",
+    "absoluta": "18+ años - Nivel Élite/FIG"
+  },
+  "painPoints": {
+    "generic": "Gestionar federaciones y licencias en papel o Excel consume horas que podrías dedicar a entrenar. La información se pierde entre oficinas.",
+    "specific": "Renovar licencias FCG, gestionar selectivos para Nacional Absoluto, tracking de niveles numéricos por categoría, coordinación con Mindeporte."
+  },
+  "socialProof": {
+    "academies": [
+      "Gimnasia Bogotá",
+      "Club Medellín GA",
+      "Academia Cali Gymnastics",
+      "Club Barranquilla",
+      "Escuela Gymnastics Pereira"
+    ],
+    "stats": {
+      "athletes": "7,000+",
+      "academies": "30+"
+    }
+  },
+  "interlinking": {
+    "relatedCountries": ["espana", "mexico", "argentina", "chile", "peru"],
+    "relatedModalities": ["rhythmic", "acrobatic", "trampoline"]
+  }
+}

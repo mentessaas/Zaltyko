@@ -1,0 +1,60 @@
+{
+  "meta": {
+    "title": "Software para Gimnasia Artística en Perú | Zaltyko - Gestión FPG",
+    "description": "Gestiona tu escuela de gimnasia artística federada con Zaltyko. Control total sobre atletas FPG-IPD, categorías oficiales, niveles, selectivos y licencias.",
+    "keywords": [
+      "gimnasia artística perú",
+      "software fpg",
+      "gestión gimnasia artística perú",
+      "academia gimnasia artística",
+      "selectivo nacional perú",
+      "ipd perú",
+      "renovar licencia fpg"
+    ]
+  },
+  "hero": {
+    "badge": "Líder en Perú · +20 academias",
+    "headline": "Gestiona tu escuela de gimnasia artística federada sin complicaciones",
+    "subheadline": "Control total sobre atletas FPG-IPD, categorías oficiales, niveles de competencia, selectivos nacionales y licencias."
+  },
+  "federation": {
+    "name": "Federación Peruana de Gimnasia (FPG) + IPD",
+    "competitions": [
+      "Nacional de Gimnasia",
+      "Selectivo Nacional",
+      "Torneos Departamentales",
+      "Circuitos Nacional",
+      "Clasificatorios para Juegos Panamericanos"
+    ]
+  },
+  "categories": {
+    "preinfantil": "6-7 años - Iniciación",
+    "infantil": "8-9 años - Nivel 1-2",
+    "prejuvenil": "10-11 años - Nivel 3-4",
+    "juvenil": "12-13 años - Nivel 5-6",
+    "junior": "14-15 años - Nivel 7-8",
+    "senior": "16-17 años - Nivel 9-10",
+    "absoluta": "18+ años - Nivel Élite/FIG"
+  },
+  "painPoints": {
+    "generic": "Gestionar federaciones y licencias en papel consume horas que podrías dedicar a entrenar. La información se pierde.",
+    "specific": "Renovar licencias FPG, gestionar selectivos para Nacional, tracking de niveles por categoría, coordinación con IPD."
+  },
+  "socialProof": {
+    "academies": [
+      "Gimnasia Lima",
+      "Club Arequipa GA",
+      "Academia Trujillo Gymnastics",
+      "Club Cusco",
+      "Escuela Gymnastics Piura"
+    ],
+    "stats": {
+      "athletes": "4,000+",
+      "academies": "20+"
+    }
+  },
+  "interlinking": {
+    "relatedCountries": ["espana", "mexico", "argentina", "colombia", "chile"],
+    "relatedModalities": ["rhythmic", "acrobatic", "trampoline"]
+  }
+}

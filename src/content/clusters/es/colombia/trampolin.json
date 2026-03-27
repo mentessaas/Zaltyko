@@ -1,0 +1,58 @@
+{
+  "meta": {
+    "title": "Software para Trampolín en Colombia | Zaltyko - Gestión FCG",
+    "description": "Gestiona tu escuela de trampolín federada con Zaltyko. Control total sobre atletas, categorías, niveles, Tumbling, DMT, Sincronizado y licencias FCG.",
+    "keywords": [
+      "trampolín colombia",
+      "software fcg",
+      "gestión trampolín colombia",
+      "academia trampolín",
+      "tumbling colombia",
+      "double mini trampolín colombia"
+    ]
+  },
+  "hero": {
+    "badge": "Líder en Colombia · +12 academias",
+    "headline": "Gestiona tu escuela de trampolín federada sin complicaciones",
+    "subheadline": "Control total sobre atletas, categorías, niveles de Tumbling, DMT, Sincronizado y licencias. Copa Colombia y selectivos."
+  },
+  "federation": {
+    "name": "Federación Colombiana de Gimnasia (FCG)",
+    "competitions": [
+      "Nacional Absoluto",
+      "Copa Colombia de Trampolín",
+      "Selectivos para Juegos Bolivarianos",
+      "Clasificatorios Panamericanos",
+      "Torneos Departamentales"
+    ]
+  },
+  "categories": {
+    "preinfantil": "5-7 años - Iniciación",
+    "infantil": "8-9 años - Nivel 1-2",
+    "juvenil": "10-11 años - Nivel 3-4",
+    "prejunior": "12-13 años - Nivel 5-6",
+    "junior": "14-15 años - Nivel 7-8",
+    "senior": "16+ años - Nivel 9-10 / Élite"
+  },
+  "painPoints": {
+    "generic": "Gestionar gimnastas de Tumbling, DMT y Sincronizado en papel es un caos. El tracking de niveles es inexistente.",
+    "specific": "Coordinar pruebas de sincronización, gestionar puntuaciones de dificultad, renovar licencias FCG."
+  },
+  "socialProof": {
+    "academies": [
+      "Trampolín Bogotá",
+      "Club Medellín Trampolín",
+      "Academia Cali Trampoline",
+      "Club Barranquilla Trampolín",
+      "Escuela Pereira Trampolín"
+    ],
+    "stats": {
+      "athletes": "2,000+",
+      "academies": "12+"
+    }
+  },
+  "interlinking": {
+    "relatedCountries": ["espana", "mexico", "argentina", "chile", "peru"],
+    "relatedModalities": ["artistic", "rhythmic", "acrobatic"]
+  }
+}

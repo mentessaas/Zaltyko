@@ -1,0 +1,60 @@
+{
+  "meta": {
+    "title": "Acrobatic Gymnastics Club Management Software in Spain | Zaltyko",
+    "description": "Manage your federated acrobatic gymnastics club with Zaltyko. Full control over athletes, categories, difficulty levels, pairs, groups and licenses.",
+    "keywords": [
+      "acrobatic gymnastics spain",
+      "software fga",
+      "acrobatic gymnastics club management",
+      "acrobatic pairs",
+      "acrobatic groups",
+      "difficulty levels acrobatic",
+      "campeonato espana acrobatica"
+    ]
+  },
+  "hero": {
+    "badge": "Leader in Spain · +45 clubs",
+    "headline": "Manage your federated acrobatic gymnastics club with ease",
+    "subheadline": "Full control over athletes, official categories, difficulty levels, D/E scores and licenses. Manage pairs and groups from Base to Elite."
+  },
+  "federation": {
+    "name": "Real Federación Española de Gimnasia (RFEG)",
+    "competitions": [
+      "Campeonato de España Absoluto",
+      "Nacional Base",
+      "Copa de España",
+      "Circuitos Autonómicos",
+      "Selectivos para competiciones internacionales"
+    ]
+  },
+  "categories": {
+    "pre_initiation": "5-7 years - Non-competitive",
+    "initiation": "8-9 years - Levels A-B",
+    "alevin": "10-11 years - Levels C-D",
+    "infantil": "12-13 years - Levels E-F",
+    "junior": "14-15 years - Levels 1-2",
+    "senior": "16-17 years - Levels 3-4",
+    "absoluta": "18+ years - FIG/Elite Level"
+  },
+  "painPoints": {
+    "generic": "Coordinating acrobatic pairs and groups is chaos without the right tool. Tracking difficulty levels, compositions and scores in Excel is a disaster.",
+    "specific": "Managing pair and group combinations, coordinating when a gymnast changes category, tracking D (difficulty) and E (execution) scores."
+  },
+  "socialProof": {
+    "academies": [
+      "Club Gimnasia Acrobática Barcelona",
+      "Acrobática Girona",
+      "Madrid Gymnastics Academy",
+      "Club Acrobática Coruña",
+      "Gimnasia Acrobática Sevilla"
+    ],
+    "stats": {
+      "athletes": "8,000+",
+      "academies": "45+"
+    }
+  },
+  "interlinking": {
+    "relatedCountries": ["mexico", "argentina", "colombia", "chile", "peru"],
+    "relatedModalities": ["artistic", "rhythmic", "trampoline"]
+  }
+}

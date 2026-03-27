@@ -1,0 +1,57 @@
+{
+  "meta": {
+    "title": "Trampoline Gymnastics Club Management Software in Peru | Zaltyko - FPG",
+    "description": "Manage your federated trampoline club with Zaltyko. Full control over athletes, categories, levels, Tumbling, DMT, Synchronized and FPG licenses.",
+    "keywords": [
+      "trampoline peru",
+      "fpg software",
+      "trampoline club management peru",
+      "tumbling peru",
+      "double mini trampoline peru"
+    ]
+  },
+  "hero": {
+    "badge": "Leader in Peru · +8 clubs",
+    "headline": "Manage your federated trampoline club with ease",
+    "subheadline": "Full control over athletes, categories, Tumbling, DMT, Synchronized levels and licenses. National selectivos and tournaments."
+  },
+  "federation": {
+    "name": "Federación Peruana de Gimnasia (FPG) + IPD",
+    "competitions": [
+      "Nacional de Trampolín",
+      "Selectivo Nacional",
+      "Torneos Departamentales",
+      "Circuitos Nacional",
+      "Pan American Qualifiers"
+    ]
+  },
+  "categories": {
+    "preinfantil": "5-7 years - Initiation",
+    "infantil": "8-9 years - Level 1-2",
+    "prejuvenil": "10-11 years - Level 3-4",
+    "juvenil": "12-13 years - Level 5-6",
+    "junior": "14-15 years - Level 7-8",
+    "senior": "16+ years - Level 9-10 / Elite"
+  },
+  "painPoints": {
+    "generic": "Managing Tumbling, DMT and Synchronized gymnasts on paper is chaos. Level tracking doesn't exist.",
+    "specific": "Coordinating synchronized routines, managing difficulty scores, renewing FPG licenses."
+  },
+  "socialProof": {
+    "academies": [
+      "Trampolín Lima",
+      "Club Arequipa Trampolín",
+      "Academia Trujillo Trampoline",
+      "Club Cusco Trampolín",
+      "Escuela Piura Trampolín"
+    ],
+    "stats": {
+      "athletes": "1,200+",
+      "academies": "8+"
+    }
+  },
+  "interlinking": {
+    "relatedCountries": ["spain", "mexico", "argentina", "colombia", "chile"],
+    "relatedModalities": ["artistic", "rhythmic", "acrobatic"]
+  }
+}

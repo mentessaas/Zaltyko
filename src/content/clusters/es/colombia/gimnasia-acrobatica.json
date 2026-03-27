@@ -1,0 +1,58 @@
+{
+  "meta": {
+    "title": "Software para Gimnasia Acrobática en Colombia | Zaltyko - Gestión FCG",
+    "description": "Gestiona tu escuela de gimnasia acrobática federada con Zaltyko. Control total sobre atletas, categorías, parejas, grupos, niveles y licencias FCG.",
+    "keywords": [
+      "gimnasia acrobática colombia",
+      "software fcg",
+      "gestión acrobática colombia",
+      "academia acrobática",
+      "parejas gimnásticas colombia",
+      "grupos acrobáticos colombia"
+    ]
+  },
+  "hero": {
+    "badge": "Líder en Colombia · +15 academias",
+    "headline": "Gestiona tu escuela de gimnasia acrobática federada sin complicaciones",
+    "subheadline": "Control total sobre atletas, categorías, parejas y grupos acrobáticos, niveles de dificultad y licencias. Copa Colombia y selectivos."
+  },
+  "federation": {
+    "name": "Federación Colombiana de Gimnasia (FCG)",
+    "competitions": [
+      "Nacional Absoluto",
+      "Copa Colombia de Acrobática",
+      "Selectivos para Juegos Bolivarianos",
+      "Clasificatorios Panamericanos",
+      "Torneos Departamentales"
+    ]
+  },
+  "categories": {
+    "preinfantil": "5-7 años - Iniciación",
+    "infantil": "8-9 años - Nivel 1-2",
+    "juvenil": "10-11 años - Nivel 3-4",
+    "prejunior": "12-13 años - Nivel 5-6",
+    "junior": "14-15 años - Nivel 7-8",
+    "senior": "16+ años - Nivel 9-10 / Élite"
+  },
+  "painPoints": {
+    "generic": "Coordinar parejas y grupos acrobáticos es caótico. Tracking de niveles y composiciones en papel es un desastre.",
+    "specific": "Gestionar combinaciones de parejas y grupos, coordinar cambios de categoría, seguir puntuaciones D y E."
+  },
+  "socialProof": {
+    "academies": [
+      "Acrobática Bogotá",
+      "Club Medellín Acrobática",
+      "Academia Cali Acrobática",
+      "Club Barranquilla Acrobática",
+      "Escuela Pereira Acrobática"
+    ],
+    "stats": {
+      "athletes": "2,500+",
+      "academies": "15+"
+    }
+  },
+  "interlinking": {
+    "relatedCountries": ["espana", "mexico", "argentina", "chile", "peru"],
+    "relatedModalities": ["artistic", "rhythmic", "trampoline"]
+  }
+}
