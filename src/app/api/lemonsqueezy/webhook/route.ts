@@ -79,12 +79,22 @@ export async function POST(request: Request) {
     // Verify signature using constant-time comparison
     const hmac = crypto.createHmac("sha256", secret);
     const digest = hmac.update(body).digest("hex");
-    
+
+    // Ensure both buffers have the same length before timing-safe comparison
+    // timingSafeEqual throws if lengths don't match (CRITICAL BUG FIX)
+    const signatureBuffer = Buffer.from(signature);
+    const digestBuffer = Buffer.from(digest);
+
+    if (signatureBuffer.length !== digestBuffer.length) {
+      console.error("LemonSqueezy webhook signature length mismatch");
+      return NextResponse.json(
+        { error: "INVALID_SIGNATURE" },
+        { status: 401 }
+      );
+    }
+
     // Use timing-safe comparison to prevent timing attacks
-    const isValid = crypto.timingSafeEqual(
-      Buffer.from(signature),
-      Buffer.from(digest)
-    );
+    const isValid = crypto.timingSafeEqual(signatureBuffer, digestBuffer);
 
     if (!isValid) {
       console.error("LemonSqueezy webhook signature verification failed");

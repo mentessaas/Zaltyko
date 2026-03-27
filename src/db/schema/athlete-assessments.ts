@@ -1,4 +1,4 @@
-import { date, index, jsonb, pgTable, text, timestamp, uuid, pgEnum, varchar } from "drizzle-orm/pg-core";
+import { date, index, integer, jsonb, pgTable, text, timestamp, uuid, pgEnum, varchar } from "drizzle-orm/pg-core";
 
 import { athletes } from "./athletes";
 import { coaches } from "./coaches";
@@ -48,9 +48,9 @@ export const rubricCriteria = pgTable(
       .references(() => assessmentRubrics.id, { onDelete: "cascade" }),
     name: varchar("name", { length: 200 }).notNull(),
     description: text("description"),
-    maxPoints: uuid("max_points").defaultRandom(),
-    weight: uuid("weight").defaultRandom(),
-    orderIndex: uuid("order_index").defaultRandom(),
+    maxPoints: integer("max_points").default(0),
+    weight: integer("weight").default(0),
+    orderIndex: integer("order_index").default(0),
   },
   (table) => ({
     rubricIdx: index("rubric_criteria_rubric_idx").on(table.rubricId),

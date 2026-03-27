@@ -28,11 +28,15 @@ function getLocaleFromRequest(request: NextRequest): Locale {
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Skip for API routes, static files, etc.
+  // Skip for API routes, static files, auth routes, and internal paths
+  // Auth routes (/login, /auth/*) should not be redirected to locale
   if (
     pathname.startsWith('/api') ||
     pathname.startsWith('/_next') ||
     pathname.startsWith('/static') ||
+    pathname.startsWith('/auth') ||
+    pathname.startsWith('/login') ||
+    pathname.startsWith('/invite') ||
     pathname.includes('.')
   ) {
     return NextResponse.next();
@@ -70,7 +74,7 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  // Only run on specific paths
+  // Only run on specific paths (excluding auth routes)
   matcher: [
     /*
      * Match all request paths except for:
@@ -78,7 +82,8 @@ export const config = {
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - public files (public folder)
+     * - auth routes (/auth/*, /login, /invite)
      */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\..*$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|.*\\..*$/|auth/|login|invite).*)',
   ],
 };

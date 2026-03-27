@@ -5,6 +5,7 @@ import { z } from "zod";
 import { db } from "@/db";
 import { classCoachAssignments, coaches } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
+import { withTransaction } from "@/lib/db-transactions";
 
 const UpdateSchema = z.object({
   name: z.string().min(1).optional(),
@@ -93,8 +94,11 @@ export const DELETE = withTenant(async (_request, context) => {
     return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
   }
 
-  await db.delete(classCoachAssignments).where(eq(classCoachAssignments.coachId, coachId));
-  await db.delete(coaches).where(eq(coaches.id, coachId));
+  // Use transaction to ensure atomicity: delete assignments first, then coach
+  await withTransaction(async (tx) => {
+    await tx.delete(classCoachAssignments).where(eq(classCoachAssignments.coachId, coachId));
+    await tx.delete(coaches).where(eq(coaches.id, coachId));
+  });
 
   return NextResponse.json({ ok: true });
 });

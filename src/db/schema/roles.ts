@@ -1,4 +1,5 @@
 import {
+  boolean,
   index,
   jsonb,
   pgTable,
@@ -52,10 +53,10 @@ export const academyRoles = pgTable(
     name: varchar("name", { length: 100 }).notNull(),
     description: text("description"),
     permissions: jsonb("permissions").notNull().default([]),
-    isDefault: text("is_default").notNull().default("false"),
+    isDefault: boolean("is_default").notNull().default(false),
     type: text("type").notNull().default("custom"),
     inheritsFrom: uuid("inherits_from"),
-    isActive: text("is_active").notNull().default("true"),
+    isActive: boolean("is_active").notNull().default(true),
     updatedAt: timestamp("updated_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
     createdBy: uuid("created_by"),
