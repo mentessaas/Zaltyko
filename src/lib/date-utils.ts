@@ -429,4 +429,70 @@ export function formatRelativeDate(
   return formatShortDateForCountry(dateStr, countryCode);
 }
 
+/**
+ * Calcula la edad exacta a partir de una fecha de nacimiento.
+ * Versión unificada - usar esta función en lugar de implementaciones duplicadas.
+ *
+ * @param dob - Fecha de nacimiento (puede ser Date, string ISO, o null)
+ * @returns Edad en años (entero), o 0 si dob es null/inválida
+ */
+export function calculateAge(dob: Date | string | null | undefined): number {
+  if (!dob) return 0;
 
+  const birthDate = typeof dob === "string" ? new Date(dob) : dob;
+
+  // Validar que la fecha sea válida
+  if (isNaN(birthDate.getTime())) {
+    logger.warn("Fecha de nacimiento inválida en calculateAge", { dob });
+    return 0;
+  }
+
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const monthDiff = today.getMonth() - birthDate.getMonth();
+
+  // Restar un año si aún no ha pasado el cumpleaños este año
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+    age -= 1;
+  }
+
+  // Asegurar que la edad no sea negativa
+  return Math.max(0, age);
+}
+
+/**
+ * Calcula la edad para un atleta dado su fecha de nacimiento y país de la academia.
+ * Versión específica para atletas con soporte de zona horaria.
+ *
+ * @param dob - Fecha de nacimiento del atleta
+ * @param countryCode - Código del país de la academia (para zona horaria)
+ * @returns Edad en años
+ */
+export function calculateAthleteAge(
+  dob: Date | string | null | undefined,
+  countryCode?: string | null
+): number {
+  if (!dob) return 0;
+
+  // Si hay país, usar la zona horaria para cálculos precisos
+  if (countryCode) {
+    const timezone = getTimezoneForCountry(countryCode);
+    const birthDate = typeof dob === "string"
+      ? toZonedTime(new Date(dob), timezone)
+      : toZonedTime(dob, timezone);
+    const today = new Date();
+    const todayZoned = toZonedTime(today, timezone);
+
+    let age = todayZoned.getFullYear() - birthDate.getFullYear();
+    const monthDiff = todayZoned.getMonth() - birthDate.getMonth();
+
+    if (monthDiff < 0 || (monthDiff === 0 && todayZoned.getDate() < birthDate.getDate())) {
+      age -= 1;
+    }
+
+    return Math.max(0, age);
+  }
+
+  // Sin país, usar cálculo simple
+  return calculateAge(dob);
+}

@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { type ProfileRow } from "@/lib/authz";
+import { calculateAge } from "@/lib/date-utils";
 
 interface AthleteProfileProps {
   user: User | null;
@@ -33,18 +34,6 @@ interface AthleteProfileProps {
     age: number | null;
   };
   targetProfileId?: string | null;
-}
-
-function calculateAge(dob: Date | null): number | null {
-  if (!dob) return null;
-  const today = new Date();
-  const birthDate = new Date(dob);
-  let age = today.getFullYear() - birthDate.getFullYear();
-  const monthDiff = today.getMonth() - birthDate.getMonth();
-  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-    age--;
-  }
-  return age;
 }
 
 export function AthleteProfile({ user, profile, athleteData, targetProfileId }: AthleteProfileProps) {

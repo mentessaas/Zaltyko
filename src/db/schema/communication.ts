@@ -1,5 +1,5 @@
 // Communication schema
-import { index, jsonb, pgTable, text, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
+import { boolean, index, integer, jsonb, pgTable, text, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
 
 export const messageTemplates = pgTable(
   "message_templates",
@@ -13,9 +13,9 @@ export const messageTemplates = pgTable(
     subject: varchar("subject", { length: 200 }),
     body: text("body").notNull(),
     variables: jsonb("variables").$type<string[]>(),
-    isSystem: text("is_system").notNull().default("false"),
-    isActive: text("is_active").notNull().default("true"),
-    usageCount: uuid("usage_count").defaultRandom(),
+    isSystem: boolean("is_system").notNull().default(false),
+    isActive: boolean("is_active").notNull().default(true),
+    usageCount: integer("usage_count").default(0),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }),
   },
@@ -31,7 +31,7 @@ export const messageGroups = pgTable(
     tenantId: uuid("tenant_id"),
     name: varchar("name", { length: 200 }).notNull(),
     description: text("description"),
-    recipientCount: uuid("recipient_count").defaultRandom(),
+    recipientCount: integer("recipient_count").default(0),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   },
   (table) => ({
@@ -65,7 +65,7 @@ export const notificationPreferences = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     profileId: uuid("profile_id").notNull(),
     channel: varchar("channel", { length: 50 }).notNull().default("whatsapp"),
-    enabled: text("enabled").notNull().default("true"),
+    enabled: boolean("enabled").notNull().default(true),
     updatedAt: timestamp("updated_at", { withTimezone: true }),
   },
   (table) => ({

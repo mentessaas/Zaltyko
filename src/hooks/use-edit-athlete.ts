@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/toast-provider";
 import type { AthleteSummary, GuardianSummary, GuardianFormData, ParsedLevel } from "@/types/athlete-edit";
-import { formatDob, parseLevel, composeLevelLabel, calculateAge } from "@/lib/athletes/level-utils";
+import { formatDob, parseLevel, composeLevelLabel, calculateAgeFromString } from "@/lib/athletes/level-utils";
 import { RELATIONSHIP_OPTIONS } from "@/types/athlete-edit";
 
 interface UseEditAthleteProps {
@@ -130,7 +130,7 @@ export function useEditAthlete({
   }, [open, athlete.id, academyId]);
 
   const composedLevel = useMemo(() => composeLevelLabel(category, level), [category, level]);
-  const computedAgeYears = useMemo(() => calculateAge(dob), [dob]);
+  const computedAgeYears = useMemo(() => calculateAgeFromString(dob), [dob]);
   const computedAgeLabel = useMemo(() => {
     return computedAgeYears != null ? `${computedAgeYears} años` : "";
   }, [computedAgeYears]);
