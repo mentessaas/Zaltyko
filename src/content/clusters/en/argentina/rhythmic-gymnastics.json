@@ -1,0 +1,58 @@
+{
+  "meta": {
+    "title": "Rhythmic Gymnastics Club Management Software in Argentina | Zaltyko - CGG",
+    "description": "Manage your federated rhythmic gymnastics club with Zaltyko. Full control over athletes, categories, levels 1-10, 5 apparatus and CGG licenses.",
+    "keywords": [
+      "rhythmic gymnastics argentina",
+      "cgg software",
+      "rhythmic gymnastics club management argentina",
+      "campeonato argentino ritmica",
+      "selectivos ritmica argentina",
+      "apparatus rhythmic gymnastics"
+    ]
+  },
+  "hero": {
+    "badge": "Leader in Argentina · +35 clubs",
+    "headline": "Manage your federated rhythmic gymnastics club with ease",
+    "subheadline": "Full control over CGG athletes, official categories, levels 1-10, 5 apparatus and licenses. Argentine Championship and provincial selectivos."
+  },
+  "federation": {
+    "name": "Confederación Gimnasia Argentina (CGG)",
+    "competitions": [
+      "Campeonato Argentino Absoluto",
+      "Torneo Nacional de Conjuntos",
+      "Selectivos para Juegos Panamericanos",
+      "Juegos Deportivos Nacionales",
+      "Torneos Provinciales y Regionales"
+    ]
+  },
+  "categories": {
+    "preinfantil": "5-7 years - Initiation",
+    "infantil": "8-10 years - Level 1-2",
+    "prejuvenil": "11-12 years - Level 3-4",
+    "juvenil": "13-14 years - Level 5-6",
+    "junior": "15-16 years - Level 7-8",
+    "senior": "17+ years - Level 9-10 / Elite"
+  },
+  "painPoints": {
+    "generic": "Managing federations, licenses and apparatus equipment on paper is chaos. Little time for training due to excess paperwork.",
+    "specific": "Renewing CGG licenses, managing gymnastic equipment (ropes, hoops, balls, clubs, ribbons), tracking technical levels 1-10 and required exercises."
+  },
+  "socialProof": {
+    "academies": [
+      "Rítmica Club Buenos Aires",
+      "Gimnasia Rítmica Córdoba",
+      "Academia Rosario RG",
+      "Club Mendoza Rítmica",
+      "Escuela Rítmica Tucumán"
+    ],
+    "stats": {
+      "athletes": "8,000+",
+      "academies": "35+"
+    }
+  },
+  "interlinking": {
+    "relatedCountries": ["spain", "mexico", "colombia", "chile", "peru"],
+    "relatedModalities": ["artistic", "acrobatic", "trampoline"]
+  }
+}

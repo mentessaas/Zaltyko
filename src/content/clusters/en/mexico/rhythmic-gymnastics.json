@@ -1,0 +1,58 @@
+{
+  "meta": {
+    "title": "Rhythmic Gymnastics Club Management Software in Mexico | Zaltyko - FMGM",
+    "description": "Manage your federated rhythmic gymnastics club with Zaltyko. Full control over athletes, categories, levels 1-10, 5 apparatus and FMGM-CONADE licenses.",
+    "keywords": [
+      "rhythmic gymnastics mexico",
+      "fmgm software",
+      "rhythmic gymnastics club management mexico",
+      "olimpiada nacional",
+      "apparatus rhythmic gymnastics mexico",
+      "copa nacional rhythmic gymnastics"
+    ]
+  },
+  "hero": {
+    "badge": "Leader in Mexico · +50 clubs",
+    "headline": "Manage your federated rhythmic gymnastics club with ease",
+    "subheadline": "Full control over FMGM-CONADE athletes, categories, levels 1-10, 5 apparatus and licenses. Olimpiada Nacional and Circuito Nacional."
+  },
+  "federation": {
+    "name": "Federación Mexicana de Gimnasia (FMGM) + CONADE",
+    "competitions": [
+      "Olimpiada Nacional (CONADE)",
+      "Circuito Nacional de Gimnasia Rítmica",
+      "Campeonato Nacional de Conjuntos",
+      "Selectivos para Juegos Panamericanos",
+      "Torneos Estatales"
+    ]
+  },
+  "categories": {
+    "preinfantil": "5-6 years - Initiation",
+    "infantil": "7-8 years - Level 1-2",
+    "prejuvenil": "9-10 years - Level 3-4",
+    "juvenil": "11-12 years - Level 5-6",
+    "junior": "13-15 years - Level 7-8",
+    "senior": "16+ years - Level 9-10 / Elite"
+  },
+  "painPoints": {
+    "generic": "Managing the dual FMGM + CONADE system takes time you could spend training. Gymnastic equipment for 5 apparatus is expensive and hard to track.",
+    "specific": "Renewing FMGM licenses and CONADE registration, managing equipment (ropes, hoops, balls, clubs, ribbons), tracking levels 1-10 and required exercises."
+  },
+  "socialProof": {
+    "academies": [
+      "Rítmica Club México",
+      "Gimnasia Rítmica Jalisco",
+      "Academia Rítmica Monterrey",
+      "Club Puebla Rítmica",
+      "Elite RG Estado de México"
+    ],
+    "stats": {
+      "athletes": "14,000+",
+      "academies": "50+"
+    }
+  },
+  "interlinking": {
+    "relatedCountries": ["spain", "argentina", "colombia", "chile", "peru"],
+    "relatedModalities": ["artistic", "acrobatic", "trampoline"]
+  }
+}

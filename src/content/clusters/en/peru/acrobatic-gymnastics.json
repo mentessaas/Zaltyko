@@ -1,0 +1,57 @@
+{
+  "meta": {
+    "title": "Acrobatic Gymnastics Club Management Software in Peru | Zaltyko - FPG",
+    "description": "Manage your federated acrobatic gymnastics club with Zaltyko. Full control over athletes, categories, pairs, groups, difficulty levels and FPG licenses.",
+    "keywords": [
+      "acrobatic gymnastics peru",
+      "fpg software",
+      "acrobatic club management peru",
+      "acrobatic pairs peru",
+      "acrobatic groups peru"
+    ]
+  },
+  "hero": {
+    "badge": "Leader in Peru · +10 clubs",
+    "headline": "Manage your federated acrobatic gymnastics club with ease",
+    "subheadline": "Full control over athletes, categories, acrobatic pairs and groups, difficulty levels and licenses. National selectivos."
+  },
+  "federation": {
+    "name": "Federación Peruana de Gimnasia (FPG) + IPD",
+    "competitions": [
+      "Nacional de Gimnasia Acrobática",
+      "Selectivo Nacional",
+      "Torneos Departamentales",
+      "Circuitos Nacional",
+      "Pan American Qualifiers"
+    ]
+  },
+  "categories": {
+    "preinfantil": "5-7 years - Initiation",
+    "infantil": "8-9 years - Level 1-2",
+    "prejuvenil": "10-11 years - Level 3-4",
+    "juvenil": "12-13 years - Level 5-6",
+    "junior": "14-15 years - Level 7-8",
+    "senior": "16+ years - Level 9-10 / Elite"
+  },
+  "painPoints": {
+    "generic": "Coordinating acrobatic pairs and groups is chaotic. Tracking levels and compositions on paper is a disaster.",
+    "specific": "Managing pair and group combinations, coordinating category changes, tracking D and E scores."
+  },
+  "socialProof": {
+    "academies": [
+      "Acrobática Lima",
+      "Club Arequipa Acrobática",
+      "Academia Trujillo Acrobática",
+      "Club Cusco Acrobática",
+      "Escuela Piura Acrobática"
+    ],
+    "stats": {
+      "athletes": "1,500+",
+      "academies": "10+"
+    }
+  },
+  "interlinking": {
+    "relatedCountries": ["spain", "mexico", "argentina", "colombia", "chile"],
+    "relatedModalities": ["artistic", "rhythmic", "trampoline"]
+  }
+}

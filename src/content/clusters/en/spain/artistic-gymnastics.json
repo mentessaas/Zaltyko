@@ -1,0 +1,61 @@
+{
+  "meta": {
+    "title": "Gymnastics Club Management Software in Spain | Zaltyko - RFEG Management",
+    "description": "Manage your federated artistic gymnastics club with Zaltyko. Full control over RFEG athletes, official categories (Initiation to Elite), competition levels, and licenses.",
+    "keywords": [
+      "artistic gymnastics spain",
+      "rfeg software",
+      "gymnastics club management spain",
+      "liga iberdrola",
+      "copa de la reina",
+      "gymnastics levels spain",
+      "renew rfeg license",
+      "artistic gymnastics clubs"
+    ]
+  },
+  "hero": {
+    "badge": "Leader in Spain · +85 clubs",
+    "headline": "Manage your federated artistic gymnastics club with ease",
+    "subheadline": "Full control over RFEG athletes, official categories (Pre-initiation to Elite), competition levels and licenses. Liga Iberdrola, Copa España and more."
+  },
+  "federation": {
+    "name": "Real Federación Española de Gimnasia (RFEG)",
+    "competitions": [
+      "Liga Iberdrola de Clubes (GAF/GAM)",
+      "Copa de la Reina de Gimnasia Artística",
+      "Campeonato de España Absoluto",
+      "Copa de España por Equipos",
+      "Nacional Base (qualifying)"
+    ]
+  },
+  "categories": {
+    "pre_initiation": "5-7 years - Non-competitive",
+    "initiation": "8-9 years - Levels A and B",
+    "alevin": "10-11 years - Levels C and D",
+    "infantil": "12-13 years - Levels E and F",
+    "junior": "14-15 years - Levels 1-2",
+    "senior": "16-17 years - Levels 3-4",
+    "absoluta": "18+ years - FIG/Elite Level"
+  },
+  "painPoints": {
+    "generic": "Managing federations, licenses and competitions in spreadsheets takes hours you could spend training. Information gets lost, data gets duplicated and errors are constant.",
+    "specific": "Renewing RFEG licenses before each competition, managing autonomic qualifiers for Liga Iberdrola, tracking technical progress by category from Initiation to FIG."
+  },
+  "socialProof": {
+    "academies": [
+      "Gravity Gym Barcelona",
+      "Club Gimnasia Artística Madrid",
+      "Gimnasia Elite Valencia",
+      "Club Olympus Sevilla",
+      "Esportiu Gymnastics Girona"
+    ],
+    "stats": {
+      "athletes": "15,000+",
+      "academies": "85+"
+    }
+  },
+  "interlinking": {
+    "relatedCountries": ["mexico", "argentina", "colombia", "chile", "peru"],
+    "relatedModalities": ["rhythmic", "acrobatic", "trampoline"]
+  }
+}

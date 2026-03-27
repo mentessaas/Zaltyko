@@ -1,0 +1,74 @@
+{
+  "meta": {
+    "title": "Software para Gimnasia Artística en España | Zaltyko - Gestión RFEG",
+    "description": "Gestiona tu escuela de gimnasia artística federada con Zaltyko. Control total sobre atletas RFEG, categorías oficiales (Iniciación, Alevín, Infantil, Junior, Senior), licencias y Liga Iberdrola.",
+    "keywords": [
+      "gimnasia artística españa",
+      "software rfeg",
+      "gestión gimnasia artística",
+      "academia gimnasia artística",
+      "liga iberdrola",
+      "copa de la reina",
+      "niveles alevín infantil junior",
+      "renovar licencia rfeg",
+      "gimnasia artística femenina",
+      "gimnasia artística masculina"
+    ]
+  },
+  "hero": {
+    "badge": "Líder en España · +85 academias",
+    "headline": "Gestiona tu escuela de gimnasia artística federada sin complicaciones",
+    "subheadline": "Control total sobre atletas RFEG, categorías oficiales (Pre-iniciación hasta Absoluta), niveles de competencia y licencias. Liga Iberdrola, Copa de España y más."
+  },
+  "federation": {
+    "name": "Real Federación Española de Gimnasia (RFEG)",
+    "competitions": [
+      "Liga Iberdrola de Clubes (GAF/GAM)",
+      "Copa de la Reina de Gimnasia Artística",
+      "Campeonato de España Absoluto",
+      "Copa de España por Equipos",
+      "Nacional Base (clasificatorio)"
+    ]
+  },
+  "categories": {
+    "gaf": {
+      "Pre-iniciación": "5-7 años - No competitivo",
+      "Iniciación": "8-9 años - Niveles A y B",
+      "Alevín": "10-11 años - Niveles C y D",
+      "Infantil": "12-13 años - Niveles E y F",
+      "Junior": "14-15 años - Niveles 1-2",
+      "Senior": "16-17 años - Niveles 3-4",
+      "Absoluta": "18+ años - Nivel FIG/Élite"
+    },
+    "gam": {
+      "Pre-iniciación": "5-7 años - No competitivo",
+      "Iniciación": "8-9 años - Niveles A y B",
+      "Alevín": "10-11 años - Niveles C y D",
+      "Infantil": "12-13 años - Niveles E y F",
+      "Junior": "14-15 años - Niveles 1-2",
+      "Senior": "16-17 años - Niveles 3-4",
+      "Absoluta": "18+ años - Nivel FIG/Élite"
+    }
+  },
+  "painPoints": {
+    "generic": "Gestionar federaciones, licencias y competiciones en hojas de cálculo consume horas que podrías dedicar a entrenar. La información se pierde, los datos se duplican y los errores son constantes.",
+    "specific": "Renovar licencias RFEG antes de cada competición, gestionar los selectivos autonómicos para Liga Iberdrola, tracking del progreso técnico por categoría desde Iniciación hasta FIG."
+  },
+  "socialProof": {
+    "academies": [
+      "Gravity Gym Barcelona",
+      "Club Gimnasia Artística Madrid",
+      "Gimnasia Elite Valencia",
+      "Club Olympus Sevilla",
+      "Esportiu Gymnastics Girona"
+    ],
+    "stats": {
+      "athletes": "15,000+",
+      "academies": "85+"
+    }
+  },
+  "interlinking": {
+    "relatedCountries": ["mexico", "argentina", "colombia", "chile", "peru"],
+    "relatedModalities": ["rhythmic", "acrobatic", "trampoline"]
+  }
+}

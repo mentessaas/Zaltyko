@@ -1,0 +1,58 @@
+{
+  "meta": {
+    "title": "Trampoline Gymnastics Club Management Software in Mexico | Zaltyko - FMGM",
+    "description": "Manage your federated trampoline club with Zaltyko. Full control over athletes, categories, levels, Tumbling, DMT, Synchronized and FMGM-CONADE licenses.",
+    "keywords": [
+      "trampoline mexico",
+      "fmgm software",
+      "trampoline club management mexico",
+      "tumbling mexico",
+      "double mini trampoline mexico",
+      "olimpiada nacional trampoline"
+    ]
+  },
+  "hero": {
+    "badge": "Leader in Mexico · +25 clubs",
+    "headline": "Manage your federated trampoline club with ease",
+    "subheadline": "Full control over athletes, categories, Tumbling, DMT, Synchronized levels and licenses. Olimpiada Nacional and Circuito Nacional."
+  },
+  "federation": {
+    "name": "Federación Mexicana de Gimnasia (FMGM) + CONADE",
+    "competitions": [
+      "Olimpiada Nacional (CONADE)",
+      "Circuito Nacional de Trampolín",
+      "Campeonato Nacional",
+      "Selectivos para Juegos Panamericanos",
+      "Torneos Estatales"
+    ]
+  },
+  "categories": {
+    "preinfantil": "5-7 years - Initiation",
+    "infantil": "8-9 years - Level 1-2",
+    "prejuvenil": "10-11 years - Level 3-4",
+    "juvenil": "12-13 years - Level 5-6",
+    "junior": "14-15 years - Level 7-8",
+    "senior": "16+ years - Level 9-10 / Elite"
+  },
+  "painPoints": {
+    "generic": "Managing Tumbling, DMT and Synchronized gymnasts is challenging. Difficulty level and training session tracking is chaotic.",
+    "specific": "Coordinating synchronized routines between gymnasts, managing difficulty score tracking, renewing FMGM licenses and CONADE registration."
+  },
+  "socialProof": {
+    "academies": [
+      "Trampolín Club México",
+      "Gimnasia Trampolín Jalisco",
+      "Academia Monterrey Trampoline",
+      "Club Puebla Trampolín",
+      "Elite Tramp México CDMX"
+    ],
+    "stats": {
+      "athletes": "4,000+",
+      "academies": "25+"
+    }
+  },
+  "interlinking": {
+    "relatedCountries": ["spain", "argentina", "colombia", "chile", "peru"],
+    "relatedModalities": ["artistic", "rhythmic", "acrobatic"]
+  }
+}

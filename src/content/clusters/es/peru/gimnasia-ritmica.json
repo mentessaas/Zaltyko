@@ -1,0 +1,58 @@
+{
+  "meta": {
+    "title": "Software para Gimnasia Rítmica en Perú | Zaltyko - Gestión FPG",
+    "description": "Gestiona tu escuela de gimnasia rítmica federada con Zaltyko. Control total sobre atletas, categorías, niveles 1-10, 5 aparatos y licencias FPG.",
+    "keywords": [
+      "gimnasia rítmica perú",
+      "software fpg",
+      "gestión rítmica perú",
+      "academia rítmica",
+      "selectivo nacional rítmica",
+      "aparatos gimnasia rítmica perú"
+    ]
+  },
+  "hero": {
+    "badge": "Líder en Perú · +18 academias",
+    "headline": "Gestiona tu escuela de gimnasia rítmica federada sin complicaciones",
+    "subheadline": "Control total sobre atletas FPG, categorías oficiales, niveles 1-10, 5 aparatos y licencias. Selectivos nacionales y torneos."
+  },
+  "federation": {
+    "name": "Federación Peruana de Gimnasia (FPG) + IPD",
+    "competitions": [
+      "Nacional de Gimnasia Rítmica",
+      "Selectivo Nacional",
+      "Torneos Departamentales",
+      "Circuitos Nacional",
+      "Clasificatorios para Juegos Panamericanos"
+    ]
+  },
+  "categories": {
+    "preinfantil": "5-6 años - Iniciación",
+    "infantil": "7-8 años - Nivel 1-2",
+    "prejuvenil": "9-10 años - Nivel 3-4",
+    "juvenil": "11-12 años - Nivel 5-6",
+    "junior": "13-15 años - Nivel 7-8",
+    "senior": "16+ años - Nivel 9-10 / Élite"
+  },
+  "painPoints": {
+    "generic": "Gestionar federaciones y material de los 5 aparatos en papel es un caos. Poco tiempo para entrenar.",
+    "specific": "Renovar licencias FPG, gestionar material gimnástico (cintas, aros, bolas, mazas), seguir niveles técnicos 1-10."
+  },
+  "socialProof": {
+    "academies": [
+      "Rítmica Lima",
+      "Club Arequipa RG",
+      "Academia Trujillo Rítmica",
+      "Club Cusco Rítmica",
+      "Escuela Piura Rítmica"
+    ],
+    "stats": {
+      "athletes": "3,500+",
+      "academies": "18+"
+    }
+  },
+  "interlinking": {
+    "relatedCountries": ["espana", "mexico", "argentina", "colombia", "chile"],
+    "relatedModalities": ["artistic", "acrobatic", "trampoline"]
+  }
+}

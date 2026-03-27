@@ -1,0 +1,60 @@
+{
+  "meta": {
+    "title": "Rhythmic Gymnastics Club Management Software in Spain | Zaltyko",
+    "description": "Manage your federated rhythmic gymnastics club with Zaltyko. Full control over athletes, categories, levels 1-10, 5 apparatus, and RFEG licenses.",
+    "keywords": [
+      "rhythmic gymnastics spain",
+      "rfeg software",
+      "rhythmic gymnastics club management",
+      "gymnastics levels spain",
+      "apparatus rhythmic gymnastics",
+      "copa espana rhythmic",
+      "renew rfeg license"
+    ]
+  },
+  "hero": {
+    "badge": "Leader in Spain · +70 clubs",
+    "headline": "Manage your federated rhythmic gymnastics club with ease",
+    "subheadline": "Full control over RFEG athletes, official categories, levels 1-10, Copa de España and licenses. Manage all 5 apparatus: rope, ball, clubs, hoop and ribbon."
+  },
+  "federation": {
+    "name": "Real Federación Española de Gimnasia (RFEG)",
+    "competitions": [
+      "Copa Base Conjuntos",
+      "Copa de la Reina Individual",
+      "Nacional Base Individual (Oviedo)",
+      "Copa de España Conjuntos (Santander)",
+      "Campeonato de España en Edad Escolar"
+    ]
+  },
+  "categories": {
+    "pre_initiation": "5-7 years - Non-competitive",
+    "initiation": "8-9 years - Levels 1-2",
+    "alevin": "10-11 years - Levels 3-4",
+    "infantil": "12-13 years - Levels 5-6",
+    "junior": "14-15 years - Levels 7-8",
+    "senior": "16-17 years - Levels 9-10",
+    "absoluta": "18+ years - FIG/Elite Level"
+  },
+  "painPoints": {
+    "generic": "Managing federations, licenses and apparatus equipment in spreadsheets takes hours you could spend training. Information gets lost between offices.",
+    "specific": "Renewing RFEG licenses, managing gymnastic equipment (ropes, hoops, balls, clubs, ribbons), tracking technical levels 1-10 and required exercises per category."
+  },
+  "socialProof": {
+    "academies": [
+      "Gimnasia Rítmica Élite Barcelona",
+      "Club Deportivo Orense",
+      "Gimnasia Rítmica Galicia",
+      "Escuela Profesional Madrid",
+      "Club Ritmica Valencia"
+    ],
+    "stats": {
+      "athletes": "12,000+",
+      "academies": "70+"
+    }
+  },
+  "interlinking": {
+    "relatedCountries": ["mexico", "argentina", "colombia", "chile", "peru"],
+    "relatedModalities": ["artistic", "acrobatic", "trampoline"]
+  }
+}

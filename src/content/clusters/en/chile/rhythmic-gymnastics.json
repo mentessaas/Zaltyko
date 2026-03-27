@@ -1,0 +1,57 @@
+{
+  "meta": {
+    "title": "Rhythmic Gymnastics Club Management Software in Chile | Zaltyko - FGCh",
+    "description": "Manage your federated rhythmic gymnastics club with Zaltyko. Full control over athletes, categories, levels 1-10, 5 apparatus and FGCh licenses.",
+    "keywords": [
+      "rhythmic gymnastics chile",
+      "fgch software",
+      "rhythmic club management chile",
+      "campeonato nacional rhythmic chile",
+      "apparatus rhythmic gymnastics"
+    ]
+  },
+  "hero": {
+    "badge": "Leader in Chile · +20 clubs",
+    "headline": "Manage your federated rhythmic gymnastics club with ease",
+    "subheadline": "Full control over FGCh athletes, official categories, levels 1-10, 5 apparatus and licenses. National Championship and selectivos."
+  },
+  "federation": {
+    "name": "Federación de Gimnasia de Chile (FGCh)",
+    "competitions": [
+      "Campeonato Nacional Absoluto",
+      "Selectivo Nacional",
+      "Torneos Regionales",
+      "Pan American Qualifiers",
+      "Ligas Regionales"
+    ]
+  },
+  "categories": {
+    "preinfantil": "5-7 years - Initiation",
+    "infantil": "8-10 years - Level 1-2",
+    "juvenil": "11-13 years - Level 3-4",
+    "junior": "14-15 years - Level 5-6",
+    "senior": "16-17 years - Level 7-8",
+    "absoluta": "18+ years - Elite/FIG Level"
+  },
+  "painPoints": {
+    "generic": "Managing federations and equipment for 5 apparatus on paper is chaos. Little time for training.",
+    "specific": "Renewing FGCh licenses, managing equipment (ropes, hoops, balls, clubs, ribbons), tracking technical levels."
+  },
+  "socialProof": {
+    "academies": [
+      "Rítmica Santiago",
+      "Club Valparaíso RG",
+      "Academia Concepción Rítmica",
+      "Club La Serena Rítmica",
+      "Escuela Antofagasta Rítmica"
+    ],
+    "stats": {
+      "athletes": "4,000+",
+      "academies": "20+"
+    }
+  },
+  "interlinking": {
+    "relatedCountries": ["spain", "mexico", "argentina", "colombia", "peru"],
+    "relatedModalities": ["artistic", "acrobatic", "trampoline"]
+  }
+}

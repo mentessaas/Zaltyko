@@ -1,0 +1,65 @@
+{
+  "meta": {
+    "title": "Gymnastics Club Management Software in the US | Zaltyko - USAG Management",
+    "description": "Manage your USAG gymnastics club with Zaltyko. Full control over athletes, Levels 1-10, Xcel program, meets, D-score/E-score tracking, and USAG membership management.",
+    "keywords": [
+      "gymnastics club management usa",
+      "usag software",
+      "gymnastics club management software",
+      "jo levels gymnastics",
+      "xcel program gymnastics",
+      "d-score e-score tracking",
+      "gymnastics meet management",
+      "usag membership"
+    ]
+  },
+  "hero": {
+    "badge": "Trusted by 200+ US gyms",
+    "headline": "Manage your USAG gymnastics club with ease",
+    "subheadline": "Full control over athletes, Levels 1-10, Xcel program, meet registration, D-score/E-score tracking and USAG membership. From Level 1 to Senior Elite."
+  },
+  "federation": {
+    "name": "USA Gymnastics (USAG)",
+    "competitions": [
+      "Winter Cup Challenge",
+      "U.S. Classic",
+      "Xfinity U.S. Gymnastics Championships",
+      "Development Program National Championships",
+      "State and Regional Championships"
+    ]
+  },
+  "categories": {
+    "level_1_3": "Level 1-3 - Compulsory (fixed routines, 10.0 scoring)",
+    "level_4_5": "Level 4-5 - Transition (compulsory to optional)",
+    "level_6_7": "Level 6-7 - Optional with simplified requirements",
+    "level_8": "Level 8 - State/regional competitive",
+    "level_9": "Level 9 - Regional Championships qualification",
+    "level_10": "Level 10 - National qualification, highest JO level",
+    "xcel_bronze_silver": "Xcel Bronze/Silver - Entry level optional",
+    "xcel_gold_diamond": "Xcel Gold/Platinum/Diamond - Advanced optional",
+    "hopes": "Hopes - Elite development pathway",
+    "junior_elite": "Junior Elite - National team pathway",
+    "senior_elite": "Senior Elite - International competition"
+  },
+  "painPoints": {
+    "generic": "Managing meet registrations, USAG memberships, and competition scoring in spreadsheets takes hours you could spend coaching. Duplicated data, missed deadlines, and calculation errors are constant.",
+    "specific": "Tracking D-scores and E-scores per routine, managing Xcel vs JO level assignments, handling meet sanctions and registration deadlines, USAG membership renewals."
+  },
+  "socialProof": {
+    "academies": [
+      "Elite Gymnastics Academy CA",
+      "Champions Gym Texas",
+      "Metro Gymnastics NYC",
+      "Pacific Coast Gymnastics",
+      "Ascension Gymnastics FL"
+    ],
+    "stats": {
+      "athletes": "25,000+",
+      "academies": "200+"
+    }
+  },
+  "interlinking": {
+    "relatedCountries": ["spain", "mexico", "argentina", "colombia", "chile", "peru"],
+    "relatedModalities": ["rhythmic", "acrobatic", "trampoline"]
+  }
+}

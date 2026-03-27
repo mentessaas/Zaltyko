@@ -1,0 +1,61 @@
+{
+  "meta": {
+    "title": "Software para Gimnasia Rítmica en España | Zaltyko - Gestión FRG",
+    "description": "Gestiona tu escuela de gimnasia rítmica federada con Zaltyko. Control total sobre atletas, categorías oficiales (Iniciación hasta Absoluta), niveles 1-10, aparatos y licencias RFEG.",
+    "keywords": [
+      "gimnasia rítmica españa",
+      "software rfeg",
+      "gestión gimnasia rítmica",
+      "academia gimnasia rítmica",
+      "niveles gimnasia rítmica",
+      "aparatos gimnasia rítmica",
+      "copa de españa gimnasia rítmica",
+      "renovar licencia rfeg"
+    ]
+  },
+  "hero": {
+    "badge": "Líder en España · +70 academias",
+    "headline": "Gestiona tu escuela de gimnasia rítmica federada sin complicaciones",
+    "subheadline": "Control total sobre atletas RFEG, categorías oficiales, niveles 1-10, Copa de España y licencias. Gestiona los 5 aparatos: cuerda, pelota, mazas, aro y cinta."
+  },
+  "federation": {
+    "name": "Real Federación Española de Gimnasia (RFEG)",
+    "competitions": [
+      "Copa Base Conjuntos",
+      "Copa de la Reina Individual",
+      "Nacional Base Individual (Oviedo)",
+      "Copa de España Conjuntos (Santander)",
+      "Campeonato de España en Edad Escolar"
+    ]
+  },
+  "categories": {
+    "pre_iniciacion": "5-7 años - No competitivo",
+    "iniciacion": "8-9 años - Niveles 1-2",
+    "alevin": "10-11 años - Niveles 3-4",
+    "infantil": "12-13 años - Niveles 5-6",
+    "junior": "14-15 años - Niveles 7-8",
+    "senior": "16-17 años - Niveles 9-10",
+    "absoluta": "18+ años - Nivel FIG/Élite"
+  },
+  "painPoints": {
+    "generic": "Gestionar federaciones, licencias y material de los 5 aparatos en hojas de cálculo consume horas que podrías dedicar a entrenar. La información se pierde entre oficinas.",
+    "specific": "Renovar licencias RFEG, gestionar el material gimnástico (cintas, aros, bolas, mazas), seguir los niveles técnicos 1-10 y los ejercicios obligatorios de cada categoría."
+  },
+  "socialProof": {
+    "academies": [
+      "Gimnasia Rítmica Élite Barcelona",
+      "Club Deportivo Orense",
+      "Gimnasia Rítmica Galicia",
+      "Escuela Profesional Madrid",
+      "Club Ritmica Valencia"
+    ],
+    "stats": {
+      "athletes": "12,000+",
+      "academies": "70+"
+    }
+  },
+  "interlinking": {
+    "relatedCountries": ["mexico", "argentina", "colombia", "chile", "peru"],
+    "relatedModalities": ["artistic", "acrobatic", "trampoline"]
+  }
+}

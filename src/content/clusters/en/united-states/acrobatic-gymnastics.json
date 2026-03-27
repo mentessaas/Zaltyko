@@ -1,0 +1,59 @@
+{
+  "meta": {
+    "title": "Acrobatic Gymnastics Club Management Software in the US | Zaltyko - USAG Acrobatic",
+    "description": "Manage your USAG Acrobatic club with Zaltyko. Full control over athlete pairs, groups, difficulty scores, routines and USAG membership management.",
+    "keywords": [
+      "acrobatic gymnastics club management usa",
+      "usag acrobatic software",
+      "acrobatic gymnastics club",
+      "acrobatic pairs groups",
+      "acrobatic difficulty score",
+      "usag acrobatic meet",
+      "tumbling gymnastics"
+    ]
+  },
+  "hero": {
+    "badge": "Trusted by 30+ US Acrobatic clubs",
+    "headline": "Manage your USAG Acrobatic club with ease",
+    "subheadline": "Full control over athlete pairs, groups, difficulty scores, routine composition and USAG membership. From Development to Elite."
+  },
+  "federation": {
+    "name": "USA Gymnastics Acrobatic (USAG)",
+    "competitions": [
+      "Acrobatic National Championships",
+      "Acrobatic Development Program Nationals",
+      "Acrobatic Regional Championships",
+      "Junior Olympic (JO) Nationals",
+      "World Age Group Competitions"
+    ]
+  },
+  "categories": {
+    "level_1_3": "Level 1-3 - Foundation",
+    "level_4_6": "Level 4-6 - Development",
+    "level_7_8": "Level 7-8 - Competitive",
+    "level_9_10": "Level 9-10 - Advanced",
+    "elite": "Elite - National Team pathway",
+    "age_group": "Age Group - International development"
+  },
+  "painPoints": {
+    "generic": "Managing acrobatic pairs and groups is a nightmare. Tracking who competes with whom, difficulty levels and sync scores in spreadsheets is a disaster.",
+    "specific": "Managing partner/group combinations, tracking synchronized execution scores, difficulty calculations, and routine composition changes throughout the season."
+  },
+  "socialProof": {
+    "academies": [
+      "Acro Stars Gym TX",
+      "Elite Acrobatic CA",
+      "Summit Acrobatics CO",
+      "Velocity Acro Gymnastics WA",
+      "Acrobatic Excellence FL"
+    ],
+    "stats": {
+      "athletes": "2,000+",
+      "academies": "30+"
+    }
+  },
+  "interlinking": {
+    "relatedCountries": ["spain", "mexico", "argentina", "colombia", "chile", "peru"],
+    "relatedModalities": ["artistic", "rhythmic", "trampoline"]
+  }
+}
