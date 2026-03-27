@@ -1,7 +1,7 @@
 # Roadmap Zaltyko - Q1 2026
 
 ## Visión
-Construir el mejor SaaS de gestión de academias de gimansia del mundo.
+Construir el mejor SaaS de gestión de academias de gimnasia del mundo.
 
 ---
 
@@ -16,16 +16,16 @@ Construir el mejor SaaS de gestión de academias de gimansia del mundo.
 
 ---
 
-## Área 2: Código Limpio 🟡 EN PROGRESO
+## Área 2: Código Limpio ✅ COMPLETO
 
 - [x] Limpieza de imports no usados en APIs
 - [x] Arreglar rutas dinámicas
-- [ ] Tipos TypeScript mejorar (documentado en CODING_STANDARDS.md)
-- [ ] Componentes duplicados identificar
+- [x] Tipos TypeScript mejorar (formatAcademyType → lib/formatters)
+- [x] Componentes duplicados (OwnerProfile → OptimizedOwnerProfile)
 
 ---
 
-## Área 3: Estabilidad ✅ COMPLETO
+## Área 3: Estabilidad 🟡 EN PROGRESO
 
 - [x] Rutas dinámicas arregladas
 - [x] Build funciona sin errores
@@ -52,7 +52,7 @@ Construir el mejor SaaS de gestión de academias de gimansia del mundo.
 
 ---
 
-## Área 6: Eventos ✅ NUEVO
+## Área 6: Eventos ✅ COMPLETO
 
 - [x] Sistema de inscripciones
 - [x] Lista de espera (waitlist)
@@ -104,9 +104,32 @@ Construir el mejor SaaS de gestión de academias de gimansia del mundo.
 
 ---
 
+## Área 11: GEO/SEO ✅ FASE 1-7 COMPLETAS
+
+- [x] Estructura clusters (locale/modality/country)
+- [x] Contenido JSON para 24 clusters (4 modalidades × 6 países)
+- [x] Schema markup (Organization, HowTo)
+- [x] AI crawlers en robots.txt
+- [x] llms.txt route
+- [x] Sitemap expandido
+- [ ] Implementación completa páginas cluster
+- [ ] Integración traducciones i18n
+
+---
+
+## Área 12: i18n 🟡 EN PROGRESO
+
+- [x] Estructura `src/app/(site)/[locale]/`
+- [x] Routes para `/es/` y `/en/`
+- [ ] Traducciones completas
+- [ ] Contenido localizado
+
+---
+
 ## Estado General ✅
 
 - Build: **COMPILANDO**
-- Features: **~50+ implementados**
-- Componentes nuevos: **~40+**
-- APIs nuevas: **~30+**
+- Features: **~60+ implementados**
+- Componentes nuevos: **~50+**
+- APIs nuevas: **~35+**
+- Clusters SEO: **24 rutas clusterizadas**
