@@ -1,0 +1,60 @@
+{
+  "meta": {
+    "title": "Trampoline & Tumbling Club Management Software in the US | Zaltyko - USAG T&T",
+    "description": "Manage your USAG Trampoline & Tumbling club with Zaltyko. Full control over athletes, Trampoline, Tumbling, DMT, synchronized routines and USAG membership.",
+    "keywords": [
+      "trampoline gymnastics club management usa",
+      "usag trampoline software",
+      "trampoline tumbling club",
+      "tumbling gymnastics",
+      "double mini trampoline",
+      "usag tt meet",
+      "synchronized trampoline"
+    ]
+  },
+  "hero": {
+    "badge": "Trusted by 25+ US T&T clubs",
+    "headline": "Manage your USAG Trampoline & Tumbling club with ease",
+    "subheadline": "Full control over Trampoline, Tumbling, Double Mini-Tramp and Synchronized athletes. D-scores, routine tracking and USAG membership management."
+  },
+  "federation": {
+    "name": "USA Gymnastics Trampoline & Tumbling (USAG)",
+    "competitions": [
+      "Trampoline & Tumbling National Championships",
+      "Junior Olympic (JO) Nationals",
+      "World Trampoline Championships",
+      "DTB Pokal Team Challenge",
+      "Olympic Qualifying Events"
+    ]
+  },
+  "categories": {
+    "trampoline_level_1_5": "Trampoline Level 1-5 - Foundation",
+    "trampoline_level_6_8": "Trampoline Level 6-8 - Development",
+    "trampoline_level_9_10": "Trampoline Level 9-10 - Advanced",
+    "trampoline_elite": "Trampoline Elite - National Team",
+    "tumbling": "Tumbling - Levels 1-10",
+    "dmt": "Double Mini-Trampoline - Levels 1-10",
+    "synchro": "Synchronized Trampoline - Pairs competition"
+  },
+  "painPoints": {
+    "generic": "Managing Trampoline, Tumbling, DMT and Synchronized athletes is complex. Each discipline has different scoring and level requirements.",
+    "specific": "Tracking routine difficulty scores (D-scores), coordinating synchronized pairs, managing athletes competing in multiple T&T disciplines, and handling USAG membership renewals."
+  },
+  "socialProof": {
+    "academies": [
+      "Air Trampoline TX",
+      "Flight Gym CO",
+      "Skyhigh Acrobatics CA",
+      "Altitude T&T UT",
+      "Bounce Gymnastics WA"
+    ],
+    "stats": {
+      "athletes": "1,500+",
+      "academies": "25+"
+    }
+  },
+  "interlinking": {
+    "relatedCountries": ["spain", "mexico", "argentina", "colombia", "chile", "peru"],
+    "relatedModalities": ["artistic", "rhythmic", "acrobatic"]
+  }
+}

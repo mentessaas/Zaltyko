@@ -1,0 +1,61 @@
+{
+  "meta": {
+    "title": "Software para Trampolín en España | Zaltyko - Gestión RFEG",
+    "description": "Gestiona tu escuela de trampolín federada con Zaltyko. Control total sobre atletas, categorías, niveles (Base hasta Elite), Tumbling, DMT y licencias.",
+    "keywords": [
+      "trampolín españa",
+      "software rfeg",
+      "gestión gimnasia trampolín",
+      "academia trampolín",
+      "tumbling",
+      "double mini trampolín",
+      "sincronizado trampolín",
+      "campeonato españa trampolín"
+    ]
+  },
+  "hero": {
+    "badge": "Líder en España · +35 academias",
+    "headline": "Gestiona tu escuela de trampolín federada sin complicaciones",
+    "subheadline": "Control total sobre atletas, categorías oficiales, niveles de Tumbling, DMT, Sincronizado y licencias. Desde Nacional Base hasta Campeonato de España."
+  },
+  "federation": {
+    "name": "Real Federación Española de Gimnasia (RFEG)",
+    "competitions": [
+      "Campeonato de España Absoluto",
+      "Nacional Base",
+      "Copa de España",
+      "Liga de Clubes",
+      "Selectivos para competiciones internacionales"
+    ]
+  },
+  "categories": {
+    "pre_iniciacion": "5-7 años - No competitivo",
+    "iniciacion": "8-9 años - Niveles A-B",
+    "alevin": "10-11 años - Niveles C-D",
+    "infantil": "12-13 años - Niveles E-F",
+    "junior": "14-15 años - Niveles 1-2",
+    "senior": "16-17 años - Niveles 3-4",
+    "absoluta": "18+ años - Nivel FIG/Élite"
+  },
+  "painPoints": {
+    "generic": "Gestionar gimnastas de Tumbling, DMT y Sincronizado en hojas de cálculo es un caos. El tracking de niveles de dificultad y sesiones de entrenamiento es inexistente.",
+    "specific": "Coordinar pruebas de sincronización entre gimnastas, gestionar el seguimiento de puntuaciones de dificultad, y renovar licencias para cada competición nacional."
+  },
+  "socialProof": {
+    "academies": [
+      "Trampolín Club Madrid",
+      "Barcelona Trampoline Academy",
+      "Gimnasia Trampolín Valencia",
+      "Club Trampolín Coruña",
+      "Elite Trampoline Sevilla"
+    ],
+    "stats": {
+      "athletes": "6,000+",
+      "academies": "35+"
+    }
+  },
+  "interlinking": {
+    "relatedCountries": ["mexico", "argentina", "colombia", "chile", "peru"],
+    "relatedModalities": ["artistic", "rhythmic", "acrobatic"]
+  }
+}

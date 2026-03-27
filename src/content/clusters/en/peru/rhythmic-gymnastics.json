@@ -1,0 +1,57 @@
+{
+  "meta": {
+    "title": "Rhythmic Gymnastics Club Management Software in Peru | Zaltyko - FPG",
+    "description": "Manage your federated rhythmic gymnastics club with Zaltyko. Full control over athletes, categories, levels 1-10, 5 apparatus and FPG licenses.",
+    "keywords": [
+      "rhythmic gymnastics peru",
+      "fpg software",
+      "rhythmic club management peru",
+      "selectivo nacional rhythmic",
+      "apparatus rhythmic gymnastics peru"
+    ]
+  },
+  "hero": {
+    "badge": "Leader in Peru · +18 clubs",
+    "headline": "Manage your federated rhythmic gymnastics club with ease",
+    "subheadline": "Full control over FPG athletes, official categories, levels 1-10, 5 apparatus and licenses. National selectivos and tournaments."
+  },
+  "federation": {
+    "name": "Federación Peruana de Gimnasia (FPG) + IPD",
+    "competitions": [
+      "Nacional de Gimnasia Rítmica",
+      "Selectivo Nacional",
+      "Torneos Departamentales",
+      "Circuitos Nacional",
+      "Pan American Qualifiers"
+    ]
+  },
+  "categories": {
+    "preinfantil": "5-6 years - Initiation",
+    "infantil": "7-8 years - Level 1-2",
+    "prejuvenil": "9-10 years - Level 3-4",
+    "juvenil": "11-12 years - Level 5-6",
+    "junior": "13-15 years - Level 7-8",
+    "senior": "16+ years - Level 9-10 / Elite"
+  },
+  "painPoints": {
+    "generic": "Managing federations and equipment for 5 apparatus on paper is chaos. Little time for training.",
+    "specific": "Renewing FPG licenses, managing equipment (ropes, hoops, balls, clubs, ribbons), tracking technical levels 1-10."
+  },
+  "socialProof": {
+    "academies": [
+      "Rítmica Lima",
+      "Club Arequipa RG",
+      "Academia Trujillo Rítmica",
+      "Club Cusco Rítmica",
+      "Escuela Piura Rítmica"
+    ],
+    "stats": {
+      "athletes": "3,500+",
+      "academies": "18+"
+    }
+  },
+  "interlinking": {
+    "relatedCountries": ["spain", "mexico", "argentina", "colombia", "chile"],
+    "relatedModalities": ["artistic", "acrobatic", "trampoline"]
+  }
+}

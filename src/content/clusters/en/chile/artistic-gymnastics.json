@@ -1,0 +1,58 @@
+{
+  "meta": {
+    "title": "Artistic Gymnastics Club Management Software in Chile | Zaltyko - FGCh",
+    "description": "Manage your federated artistic gymnastics club with Zaltyko. Full control over FGCh athletes, official categories, levels, National Championship and licenses.",
+    "keywords": [
+      "artistic gymnastics chile",
+      "fgch software",
+      "gymnastics club management chile",
+      "campeonato nacional chile",
+      "selectivos chile",
+      "renew fgch license"
+    ]
+  },
+  "hero": {
+    "badge": "Leader in Chile · +25 clubs",
+    "headline": "Manage your federated artistic gymnastics club with ease",
+    "subheadline": "Full control over FGCh athletes, official categories, competition levels, National Championship, selectivos and licenses."
+  },
+  "federation": {
+    "name": "Federación de Gimnasia de Chile (FGCh)",
+    "competitions": [
+      "Campeonato Nacional Absoluto",
+      "Selectivo Nacional",
+      "Torneos Regionales",
+      "Pan American Qualifiers",
+      "Ligas Regionales"
+    ]
+  },
+  "categories": {
+    "preinfantil": "5-7 years - Initiation",
+    "infantil": "8-10 years - Level 1-2",
+    "juvenil": "11-13 years - Level 3-4",
+    "junior": "14-15 years - Level 5-6",
+    "senior": "16-17 years - Level 7-8",
+    "absoluta": "18+ years - Elite/FIG Level"
+  },
+  "painPoints": {
+    "generic": "Managing federations and licenses on paper takes hours you could spend training. Information gets lost between regional offices.",
+    "specific": "Renewing FGCh licenses, managing national selectivos, tracking levels by category."
+  },
+  "socialProof": {
+    "academies": [
+      "Gimnasia Santiago",
+      "Club Valparaíso GA",
+      "Academia Concepción Gymnastics",
+      "Club La Serena",
+      "Escuela Gymnastics Antofagasta"
+    ],
+    "stats": {
+      "athletes": "5,000+",
+      "academies": "25+"
+    }
+  },
+  "interlinking": {
+    "relatedCountries": ["spain", "mexico", "argentina", "colombia", "peru"],
+    "relatedModalities": ["rhythmic", "acrobatic", "trampoline"]
+  }
+}

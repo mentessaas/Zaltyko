@@ -1,0 +1,58 @@
+{
+  "meta": {
+    "title": "Software para Gimnasia Rítmica en Colombia | Zaltyko - Gestión FCG",
+    "description": "Gestiona tu escuela de gimnasia rítmica federada con Zaltyko. Control total sobre atletas, categorías, niveles 1-10, 5 aparatos y licencias FCG.",
+    "keywords": [
+      "gimnasia rítmica colombia",
+      "software fcg",
+      "gestión rítmica colombia",
+      "academia rítmica",
+      "copa colombia rítmica",
+      "aparatos gimnasia rítmica colombia"
+    ]
+  },
+  "hero": {
+    "badge": "Líder en Colombia · +25 academias",
+    "headline": "Gestiona tu escuela de gimnasia rítmica federada sin complicaciones",
+    "subheadline": "Control total sobre atletas FCG, categorías oficiales, niveles 1-10, 5 aparatos y licencias. Copa Colombia y selectivos nacionales."
+  },
+  "federation": {
+    "name": "Federación Colombiana de Gimnasia (FCG)",
+    "competitions": [
+      "Nacional Absoluto",
+      "Copa Colombia de Gimnasia Rítmica",
+      "Selectivos para Juegos Bolivarianos",
+      "Clasificatorios Panamericanos",
+      "Torneos Departamentales"
+    ]
+  },
+  "categories": {
+    "preinfantil": "5-6 años - Iniciación",
+    "infantil": "7-8 años - Nivel 1-2",
+    "prejuvenil": "9-10 años - Nivel 3-4",
+    "juvenil": "11-12 años - Nivel 5-6",
+    "junior": "13-15 años - Nivel 7-8",
+    "senior": "16+ años - Nivel 9-10 / Élite"
+  },
+  "painPoints": {
+    "generic": "Gestionar federaciones y material de los 5 aparatos en papel es un caos. Poco tiempo para entrenar por exceso de paperwork.",
+    "specific": "Renovar licencias FCG, gestionar material gimnástico (cintas, aros, bolas, mazas), seguir niveles técnicos 1-10."
+  },
+  "socialProof": {
+    "academies": [
+      "Rítmica Bogotá",
+      "Club Medellín RG",
+      "Academia Cali Rítmica",
+      "Club Barranquilla Rítmica",
+      "Escuela Pereira Rítmica"
+    ],
+    "stats": {
+      "athletes": "5,500+",
+      "academies": "25+"
+    }
+  },
+  "interlinking": {
+    "relatedCountries": ["espana", "mexico", "argentina", "chile", "peru"],
+    "relatedModalities": ["artistic", "acrobatic", "trampoline"]
+  }
+}

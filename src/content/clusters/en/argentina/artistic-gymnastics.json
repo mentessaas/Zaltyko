@@ -1,0 +1,58 @@
+{
+  "meta": {
+    "title": "Artistic Gymnastics Club Management Software in Argentina | Zaltyko - CGG",
+    "description": "Manage your federated artistic gymnastics club with Zaltyko. Full control over CGG athletes, official categories, levels, Argentine Championship and licenses.",
+    "keywords": [
+      "artistic gymnastics argentina",
+      "cgg software",
+      "gymnastics club management argentina",
+      "campeonato argentino gymnastica",
+      "selectivos argentina gymnastics",
+      "renew cgg license"
+    ]
+  },
+  "hero": {
+    "badge": "Leader in Argentina · +40 clubs",
+    "headline": "Manage your federated artistic gymnastics club with ease",
+    "subheadline": "Full control over CGG athletes, official categories (Pre-Infantil to Absoluta), competition levels, selectivos and licenses. Argentine Championship and Juegos Deportivos Nacionales."
+  },
+  "federation": {
+    "name": "Confederación Gimnasia Argentina (CGG)",
+    "competitions": [
+      "Campeonato Argentino Absoluto",
+      "Torneo Nacional por Categorías",
+      "Selectivos para Juegos Panamericanos",
+      "Juegos Deportivos Nacionales",
+      "Torneos Provinciales y Regionales"
+    ]
+  },
+  "categories": {
+    "pre_infantil": "5-7 years - Initiation",
+    "infantil": "8-10 years - Level 1-2",
+    "juvenil": "11-13 years - Level 3-4",
+    "junior": "14-15 years - Level 5-6",
+    "senior": "16-17 years - Level 7-8",
+    "absoluta": "18+ years - Elite/FIG Level"
+  },
+  "painPoints": {
+    "generic": "Managing federations, licenses and competitions on paper or Excel takes hours you could spend training. Information gets lost between coaches.",
+    "specific": "Renewing CGG licenses, managing provincial selectivos for Argentine Championship, tracking technical progress by category from Pre-Infantil to Absoluta."
+  },
+  "socialProof": {
+    "academies": [
+      "Club Gimnasia Buenos Aires",
+      "Gimnasia Artística Córdoba",
+      "Academia Rosario Gymnastics",
+      "Club Mendoza GA",
+      "Escuela Gimnasia Tucumán"
+    ],
+    "stats": {
+      "athletes": "10,000+",
+      "academies": "40+"
+    }
+  },
+  "interlinking": {
+    "relatedCountries": ["spain", "mexico", "colombia", "chile", "peru"],
+    "relatedModalities": ["rhythmic", "acrobatic", "trampoline"]
+  }
+}
