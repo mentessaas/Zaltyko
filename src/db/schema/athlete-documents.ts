@@ -1,4 +1,4 @@
-import { date, index, pgEnum, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { boolean, date, index, pgEnum, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
 import { athletes } from "./athletes";
 
@@ -28,10 +28,10 @@ export const athleteDocuments = pgTable(
     mimeType: text("mime_type"),
     issuedDate: date("issued_date"),
     expiryDate: date("expiry_date"),
-    isVerified: text("is_verified").notNull().default("false"),
+    isVerified: boolean("is_verified").notNull().default(false),
     verifiedBy: uuid("verified_by"),
     verifiedAt: timestamp("verified_at", { withTimezone: true }),
-    alertSent: text("alert_sent").notNull().default("false"),
+    alertSent: boolean("alert_sent").notNull().default(false),
     notes: text("notes"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),

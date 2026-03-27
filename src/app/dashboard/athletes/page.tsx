@@ -18,23 +18,13 @@ import ImportExportPanel from "@/components/athletes/ImportExportPanel";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { calculateAge } from "@/lib/date-utils";
 
 type SortField = "name" | "level" | "status" | "age" | "academyName" | "guardianCount";
 type SortDirection = "asc" | "desc";
 
 interface AthletesPageProps {
   searchParams: Record<string, string | string[] | undefined>;
-}
-
-function calculateAge(dob: Date | null): number | null {
-  if (!dob) return null;
-  const today = new Date();
-  let age = today.getFullYear() - dob.getFullYear();
-  const m = today.getMonth() - dob.getMonth();
-  if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) {
-    age -= 1;
-  }
-  return age;
 }
 
 export default async function AthletesPage({ searchParams }: AthletesPageProps) {
@@ -178,7 +168,7 @@ export default async function AthletesPage({ searchParams }: AthletesPageProps) 
 
   const list = athleteRows.map((row) => ({
     ...row,
-    age: row.age ?? calculateAge(row.dob ? new Date(row.dob) : null),
+    age: row.age ?? calculateAge(row.dob),
   }));
 
   // Calculate summary stats
