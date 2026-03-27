@@ -13,6 +13,8 @@ import {
   classes,
   classWeekdays,
   coaches,
+  events,
+  federativeLicenses,
   groupAthletes,
   groups,
   plans,
@@ -72,12 +74,45 @@ export interface DashboardGroupSummary {
   athleteCount: number;
 }
 
+export interface AthleteCategoryCount {
+  category: string;
+  count: number;
+}
+
+export interface ExpiringLicense {
+  id: string;
+  personId: string;
+  personName: string | null;
+  licenseType: string;
+  federation: string;
+  validUntil: string;
+  daysUntilExpiry: number;
+}
+
+export interface UpcomingCompetition {
+  id: string;
+  title: string;
+  startDate: string;
+  level: string;
+  status: string;
+}
+
 export interface DashboardData {
   metrics: DashboardMetrics;
   plan: DashboardPlanUsage;
   upcomingClasses: DashboardUpcomingClass[];
   recentActivity: DashboardActivity[];
   groups: DashboardGroupSummary[];
+  // GR-specific metrics
+  grMetrics?: {
+    athletesByCategory: AthleteCategoryCount[];
+    expiringLicenses: ExpiringLicense[];
+    expiringLicensesThisWeek: number;
+    expiringLicensesThisMonth: number;
+    upcomingCompetitions: UpcomingCompetition[];
+    assessmentsThisMonth: number;
+    totalAthletesWithActiveLicense: number;
+  };
 }
 
 function getWeekBoundaries(country?: string | null): { start: Date; end: Date } {
@@ -583,6 +618,160 @@ export async function getDashboardData(academyId: string): Promise<{
     athleteCount: Number(row.athleteCount ?? 0),
   }));
 
+  // GR-specific metrics if academy has a template (ritmica or artistica)
+  let grMetrics = undefined;
+  if (academy.academyType === "ritmica" || academy.academyType === "artistica") {
+    const today = new Date();
+    const todayIso = formatISO(today, { representation: "date" });
+    const thirtyDaysFromNow = addDays(today, 30);
+    const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    const firstDayOfMonthIso = formatISO(firstDayOfMonth, { representation: "date" });
+
+    // Get athlete IDs for this academy
+    const academyAthletesResult = await db
+      .select({ id: athletes.id })
+      .from(athletes)
+      .where(eq(athletes.academyId, academyId));
+
+    const athleteIdsForLicenses = academyAthletesResult.map((a) => a.id);
+
+    // Athletes by level (using 'level' field which exists in schema)
+    const athleteLevelsResult = await db
+      .select({
+        level: athletes.level,
+        count: count(),
+      })
+      .from(athletes)
+      .where(eq(athletes.academyId, academyId))
+      .groupBy(athletes.level);
+
+    const athletesByCategory: AthleteCategoryCount[] = athleteLevelsResult
+      .filter((row) => row.level !== null)
+      .map((row) => ({
+        category: row.level ?? "sin nivel",
+        count: Number(row.count ?? 0),
+      }));
+
+    let expiringLicenses: ExpiringLicense[] = [];
+    let expiringLicensesThisWeek = 0;
+    let expiringLicensesThisMonth = 0;
+    let totalAthletesWithActiveLicense = 0;
+
+    if (athleteIdsForLicenses.length > 0) {
+      // Get all athlete licenses with person info
+      const athleteLicensesResult = await db
+        .select({
+          id: federativeLicenses.id,
+          personId: federativeLicenses.personId,
+          personName: athletes.name,
+          licenseType: federativeLicenses.licenseType,
+          federation: federativeLicenses.federation,
+          validUntil: federativeLicenses.validUntil,
+          status: federativeLicenses.status,
+        })
+        .from(federativeLicenses)
+        .leftJoin(athletes, eq(federativeLicenses.personId, athletes.id))
+        .where(
+          and(
+            eq(federativeLicenses.tenantId, academy.tenantId),
+            eq(federativeLicenses.personType, "athlete"),
+            inArray(federativeLicenses.personId, athleteIdsForLicenses)
+          )
+        );
+
+      // Calculate days until expiry and categorize
+      const now = new Date();
+      const processedLicenses = athleteLicensesResult
+        .filter((l) => l.validUntil !== null)
+        .map((l) => {
+          const expiryDate = new Date(l.validUntil as string);
+          const daysUntil = Math.ceil((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+          return {
+            id: l.id,
+            personId: l.personId,
+            personName: l.personName,
+            licenseType: l.licenseType,
+            federation: l.federation,
+            validUntil: l.validUntil as string,
+            daysUntilExpiry: daysUntil,
+          };
+        });
+
+      expiringLicensesThisWeek = processedLicenses.filter(
+        (l) => l.daysUntilExpiry >= 0 && l.daysUntilExpiry <= 7
+      ).length;
+
+      expiringLicensesThisMonth = processedLicenses.filter(
+        (l) => l.daysUntilExpiry > 7 && l.daysUntilExpiry <= 30
+      ).length;
+
+      totalAthletesWithActiveLicense = processedLicenses.filter(
+        (l) => l.daysUntilExpiry > 0
+      ).length;
+
+      expiringLicenses = processedLicenses
+        .filter((l) => l.daysUntilExpiry >= 0 && l.daysUntilExpiry <= 30)
+        .sort((a, b) => a.daysUntilExpiry - b.daysUntilExpiry)
+        .slice(0, 5);
+    }
+
+    // Upcoming competitions (next 60 days)
+    const sixtyDaysFromNow = addDays(today, 60);
+    const sixtyDaysFromNowIso = formatISO(sixtyDaysFromNow, { representation: "date" });
+
+    const upcomingCompetitionsResult = await db
+      .select({
+        id: events.id,
+        title: events.title,
+        startDate: events.startDate,
+        level: events.level,
+        status: events.status,
+      })
+      .from(events)
+      .where(
+        and(
+          eq(events.academyId, academyId),
+          gte(events.startDate, todayIso),
+          lte(events.startDate, sixtyDaysFromNowIso),
+          eq(events.status, "published")
+        )
+      )
+      .orderBy(events.startDate)
+      .limit(5);
+
+    const upcomingCompetitions: UpcomingCompetition[] = upcomingCompetitionsResult.map((e) => ({
+      id: e.id,
+      title: e.title,
+      startDate: e.startDate as string,
+      level: e.level,
+      status: e.status,
+    }));
+
+    // Assessments this month
+    const assessmentsThisMonthResult = await db
+      .select({ count: count() })
+      .from(athleteAssessments)
+      .where(
+        and(
+          eq(athleteAssessments.academyId, academyId),
+          gte(athleteAssessments.assessmentDate, firstDayOfMonthIso),
+          lte(athleteAssessments.assessmentDate, todayIso)
+        )
+      );
+
+    const assessmentsThisMonth = Number(assessmentsThisMonthResult[0]?.count ?? 0);
+
+    grMetrics = {
+      athletesByCategory,
+      expiringLicenses,
+      expiringLicensesThisWeek,
+      expiringLicensesThisMonth,
+      upcomingCompetitions,
+      assessmentsThisMonth,
+      totalAthletesWithActiveLicense,
+    };
+  }
+
   return {
     academy: {
       id: academy.id,
@@ -597,6 +786,7 @@ export async function getDashboardData(academyId: string): Promise<{
       upcomingClasses,
       recentActivity: activityFeed,
       groups: groupsList,
+      grMetrics,
     },
   };
 }
