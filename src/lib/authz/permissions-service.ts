@@ -202,8 +202,8 @@ export async function getAcademyRoles(academyId: string): Promise<RoleWithPermis
     description: r.description,
     permissions: (r.permissions || []) as Permission[],
     inheritsFrom: r.inheritsFrom,
-    isDefault: r.isDefault,
-    isActive: r.isActive === "true",
+    isDefault: r.isDefault ? String(r.isDefault) : null,
+    isActive: r.isActive,
   }));
 }
 
@@ -325,7 +325,7 @@ export async function getRoleMembers(roleId: string) {
 export async function deleteAcademyRole(roleId: string) {
   return db
     .update(academyRoles)
-    .set({ isActive: "false", updatedAt: new Date() })
+    .set({ isActive: false, updatedAt: new Date() })
     .where(eq(academyRoles.id, roleId));
 }
 
