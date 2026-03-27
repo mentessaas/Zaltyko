@@ -1,5 +1,5 @@
 // Event registration schema
-import { index, pgTable, text, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
+import { index, integer, pgTable, text, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
 
 export const eventRegistrations = pgTable(
   "event_registrations",
@@ -23,7 +23,7 @@ export const eventWaitlist = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     eventId: uuid("event_id").notNull(),
     profileId: uuid("profile_id").notNull(),
-    position: uuid("position").notNull(),
+    position: integer("position").notNull(),
     addedAt: timestamp("added_at", { withTimezone: true }).defaultNow(),
   },
   (table) => ({
@@ -51,7 +51,7 @@ export const eventPayments = pgTable(
     registrationId: uuid("registration_id")
       .notNull()
       .references(() => eventRegistrations.id, { onDelete: "cascade" }),
-    amount: uuid("amount").notNull(),
+    amount: integer("amount").notNull(),
     currency: varchar("currency", { length: 10 }).notNull().default("EUR"),
     status: varchar("status", { length: 50 }).notNull().default("pending"),
     paidAt: timestamp("paid_at", { withTimezone: true }),

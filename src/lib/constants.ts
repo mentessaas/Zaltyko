@@ -28,6 +28,7 @@ export const ATHLETE_STATUS = {
   ACTIVE: "active",
   TRIAL: "trial",
   INACTIVE: "inactive",
+  PAUSED: "paused", // Pausado temporalmente
   ARCHIVED: "archived",
 } as const;
 

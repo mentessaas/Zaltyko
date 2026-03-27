@@ -1,5 +1,6 @@
 import type { CategoryOption, LevelOption, ParsedLevel } from "@/types/athlete-edit";
 import { CATEGORY_OPTIONS, LEVEL_OPTIONS } from "@/types/athlete-edit";
+import { calculateAge } from "@/lib/date-utils";
 
 export function formatDob(value: string | null): string {
   if (!value) return "";
@@ -56,17 +57,14 @@ export function composeLevelLabel(
   return parts.join(" · ") || null;
 }
 
-export function calculateAge(dob: string | null): number | null {
+/**
+ * Calculate age from date of birth string.
+ * @deprecated Use calculateAge from @/lib/date-utils instead
+ */
+export function calculateAgeFromString(dob: string | null): number | null {
   if (!dob) return null;
-  const birthDate = new Date(dob);
-  if (Number.isNaN(birthDate.getTime())) return null;
-  const now = new Date();
-  let ageYears = now.getFullYear() - birthDate.getFullYear();
-  const hasBirthday =
-    now.getMonth() > birthDate.getMonth() ||
-    (now.getMonth() === birthDate.getMonth() && now.getDate() >= birthDate.getDate());
-  if (!hasBirthday) ageYears -= 1;
-  return ageYears >= 0 ? ageYears : null;
+  const age = calculateAge(dob);
+  return age >= 0 ? age : null;
 }
 
 export function formatAge(ageYears: number | null): string {

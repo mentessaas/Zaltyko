@@ -15,7 +15,7 @@ export const classExceptions = pgTable(
         reason: text("reason"),
         tenantId: uuid("tenant_id")
             .notNull()
-            .references(() => academies.tenantId, { onDelete: "cascade" }),
+            .references(() => academies.id, { onDelete: "cascade" }),
         createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
         updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
     },
