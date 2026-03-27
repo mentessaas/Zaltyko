@@ -134,7 +134,7 @@ export async function seedEspanaGA() {
     { code: "copa_autonomica", name: "Copa Autonómica", description: "Competición de ámbito autonómico", level: "autonomic", stageOrder: 2, requirements: { minAge: null, requiredLicense: true, previousStage: "concentracion_autonomica" } },
     { code: "campeonato_autonomico", name: "Campeonato Autonómico", description: "Campeonato de la comunidad autónoma", level: "autonomic", stageOrder: 3, requirements: { minAge: null, requiredLicense: true, previousStage: "copa_autonomica" } },
     { code: "clasificacion_nacional", name: "Clasificación Nacional", description: "Clasificación para competiciones nacionales", level: "national", stageOrder: 4, requirements: { minAge: null, requiredLicense: true, previousStage: "campeonato_autonomico", qualificationRequired: true } },
-    { code: "copa_espana", name: "Copa de España", description: "Copa de España小女孩", level: "national", stageOrder: 5, requirements: { minAge: null, requiredLicense: true, previousStage: "clasificacion_nacional", qualificationRequired: true, maxParticipants: 24 } },
+    { code: "copa_espana", name: "Copa de España", description: "Copa de España", level: "national", stageOrder: 5, requirements: { minAge: null, requiredLicense: true, previousStage: "clasificacion_nacional", qualificationRequired: true, maxParticipants: 24 } },
     { code: "campeonato_espana", name: "Campeonato de España", description: "Campeonato nacional absoluto", level: "national", stageOrder: 6, requirements: { minAge: null, requiredLicense: true, previousStage: null, qualificationRequired: true, maxParticipants: 24 } },
     { code: "europeas", name: "Europeas", description: "Campeonatos europeos", level: "international", stageOrder: 7, requirements: { minAge: 14, requiredLicense: true, federationQualification: true, figLicense: true } },
     { code: "mundiales", name: "Mundiales", description: "Campeonatos mundiales", level: "international", stageOrder: 8, requirements: { minAge: 14, requiredLicense: true, federationQualification: true, figLicense: true } },
@@ -206,10 +206,3 @@ export async function seedEspanaGA() {
   return template;
 }
 
-// Run if executed directly
-seedEspanaGA()
-  .then(() => process.exit(0))
-  .catch((e) => {
-    console.error(e);
-    process.exit(1);
-  });

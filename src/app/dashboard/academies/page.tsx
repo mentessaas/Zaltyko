@@ -14,21 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { StatsCard } from "@/components/ui/stats-card";
 import { PageHeader } from "@/components/ui/page-header";
 import { BarChart } from "@/components/ui/chart";
-
-function formatAcademyType(value: string | null) {
-  switch (value) {
-    case "artistica":
-      return "Gimnasia artística";
-    case "ritmica":
-      return "Gimnasia rítmica";
-    case "trampolin":
-      return "Trampolín";
-    case "general":
-      return "General / Mixta";
-    default:
-      return "Sin tipo definido";
-  }
-}
+import { formatAcademyType } from "@/lib/formatters";
 
 function formatDate(value: Date | string | null) {
   if (!value) return "—";

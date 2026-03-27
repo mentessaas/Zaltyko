@@ -39,6 +39,7 @@ import { calculateDaysLeft } from "@/lib/onboarding-utils";
 import { AcademyEditSection } from "@/components/academies/AcademyEditSection";
 import { ProfileTabs } from "@/components/profiles/ProfileTabs";
 import { formatPhoneNumber } from "@/lib/validation/phone";
+import { formatAcademyType } from "@/lib/formatters";
 
 interface AcademySummary {
   id: string;
@@ -82,21 +83,6 @@ const PLAN_COPY: Record<string, { label: string; description: string; cta: strin
     color: "bg-red-100 text-red-800",
   },
 };
-
-function formatAcademyType(value: string | null | undefined) {
-  switch (value) {
-    case "artistica":
-      return "Gimnasia artística";
-    case "ritmica":
-      return "Gimnasia rítmica";
-    case "trampolin":
-      return "Trampolín";
-    case "general":
-      return "General / Mixta";
-    default:
-      return "Sin tipo definido";
-  }
-}
 
 function formatDate(value: Date | string | null | undefined) {
   if (!value) return "—";

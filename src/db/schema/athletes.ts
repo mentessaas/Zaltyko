@@ -3,6 +3,7 @@ import { date, index, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core
 import { academies } from "./academies";
 import { groups } from "./groups";
 import { profiles } from "./profiles";
+import { templates } from "./templates/templates";
 
 export const athletes = pgTable(
   "athletes",
@@ -21,6 +22,14 @@ export const athletes = pgTable(
      * @deprecated Usar groupAthletes en lugar de este campo para la pertenencia a grupos
      */
     groupId: uuid("group_id").references(() => groups.id, { onDelete: "set null" }),
+    // Template de la academia (para categorías, niveles, aparatos)
+    templateId: uuid("template_id").references(() => templates.id, { onDelete: "set null" }),
+    // Categoría de edad calculada automáticamente de DOB + template
+    ageCategory: text("age_category"),
+    // Nivel competitivo (ej: "Pre-iniciación", "Iniciación", "Alevín", "Infantil", etc.)
+    competitiveLevel: text("competitive_level"),
+    // Aparato principal para conjuntos/individual
+    primaryApparatus: text("primary_apparatus"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
   },

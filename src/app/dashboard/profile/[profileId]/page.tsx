@@ -21,7 +21,7 @@ import {
   classes,
 } from "@/db/schema";
 import { getCurrentProfile } from "@/lib/authz";
-import { OwnerProfile } from "@/components/profiles/OwnerProfile";
+import { OptimizedOwnerProfile as OwnerProfile } from "@/components/profiles/OptimizedOwnerProfile";
 import { CoachProfile } from "@/components/profiles/CoachProfile";
 import { AthleteProfile } from "@/components/profiles/AthleteProfile";
 import { ParentProfile } from "@/components/profiles/ParentProfile";
