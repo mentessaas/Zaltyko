@@ -18,6 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { type ProfileRow } from "@/lib/authz";
 import { logger } from "@/lib/logger";
+import { formatAcademyType } from "@/lib/formatters";
 // import { ProfileTabs } from "@/components/profiles/ProfileTabs";
 
 interface AcademySummary {
@@ -55,21 +56,6 @@ const PLAN_COPY: Record<string, { label: string; description: string; cta: strin
     cta: "Gestionar suscripción",
   },
 };
-
-function formatAcademyType(value: string | null | undefined) {
-  switch (value) {
-    case "artistica":
-      return "Gimnasia artística";
-    case "ritmica":
-      return "Gimnasia rítmica";
-    case "trampolin":
-      return "Trampolín";
-    case "general":
-      return "General / Mixta";
-    default:
-      return "Sin tipo definido";
-  }
-}
 
 function formatDate(value: Date | string | null | undefined) {
   if (!value) return "—";

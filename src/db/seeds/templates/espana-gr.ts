@@ -444,11 +444,3 @@ export async function seedEspanaGR() {
   console.log("🎉 España - Gimnasia Rítmica seed completed!");
   return template;
 }
-
-// Run if executed directly
-seedEspanaGR()
-  .then(() => process.exit(0))
-  .catch((e) => {
-    console.error(e);
-    process.exit(1);
-  });

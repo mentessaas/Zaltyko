@@ -3,6 +3,11 @@ import "dotenv/config";
 import { randomUUID } from "node:crypto";
 import { eq, inArray } from "drizzle-orm";
 
+import { seedEspanaGR } from "@/db/seeds/templates/espana-gr";
+import { seedEspanaGA } from "@/db/seeds/templates/espana-ga";
+import { seedEspanaGRElements } from "@/db/seeds/templates/espana-gr-elements";
+import { seedEspanaGAElements } from "@/db/seeds/templates/espana-ga-elements";
+
 import { db } from "@/db";
 import {
   academies,
@@ -785,6 +790,11 @@ async function main() {
   await seedAdminProfile(superAdminUserId);
   await seedTenantData(planIds);
   await seedSkillCatalog();
+  // Seed España templates (GR y GA)
+  await seedEspanaGR();
+  await seedEspanaGA();
+  await seedEspanaGRElements(TENANT_ID);
+  await seedEspanaGAElements(TENANT_ID);
 }
 
 main()
