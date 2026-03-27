@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { getRegionLabel } from "@/lib/countryRegions";
+import { formatAcademyType } from "@/lib/formatters";
 
 interface AcademyDetail {
   id: string;
@@ -50,21 +51,6 @@ interface AcademyDetail {
 interface SuperAdminAcademyDetailProps {
   initialAcademy: AcademyDetail;
   userId: string;
-}
-
-function formatAcademyType(value: string | null) {
-  switch (value) {
-    case "artistica":
-      return "Gimnasia artística";
-    case "ritmica":
-      return "Gimnasia rítmica";
-    case "trampolin":
-      return "Trampolín";
-    case "general":
-      return "General / Mixta";
-    default:
-      return value ?? "Sin tipo";
-  }
 }
 
 interface Plan {

@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui/toast-provider";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { formatAcademyType } from "@/lib/formatters";
 
 type SuperAdminAcademyFilters = {
   plan?: string;
@@ -18,21 +19,6 @@ type SuperAdminAcademyFilters = {
   country?: string;
   status?: "active" | "suspended";
 };
-
-function formatAcademyType(value: string | null) {
-  switch (value) {
-    case "artistica":
-      return "Gimnasia artística";
-    case "ritmica":
-      return "Gimnasia rítmica";
-    case "trampolin":
-      return "Trampolín";
-    case "general":
-      return "General / Mixta";
-    default:
-      return value ?? "Sin tipo";
-  }
-}
 
 interface SuperAdminAcademiesTableProps {
   initialItems: SuperAdminAcademyRow[];

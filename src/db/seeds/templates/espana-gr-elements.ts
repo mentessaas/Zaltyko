@@ -121,11 +121,11 @@ const grElements: GRElement[] = [
   { skillCode: "RI-G5-PI", name: "Pivot indirecto", description: "Pivot con cambio de dirección", apparatus: "ribbon", difficulty: 2 },
 ];
 
-export async function seedEspanaGRElements() {
+export async function seedEspanaGRElements(tenantId?: string) {
   console.log("🌱 Seeding España GR elements...");
 
-  // Tenant placeholder - in production should be tied to actual tenant
-  const tenantId = "00000000-0000-0000-0000-000000000001";
+  // Default tenant placeholder - can be overridden
+  const effectiveTenantId = tenantId ?? "00000000-0000-0000-0000-000000000001";
 
   const insertedElements = [];
 
@@ -133,7 +133,7 @@ export async function seedEspanaGRElements() {
     const [inserted] = await db
       .insert(skillCatalog)
       .values({
-        tenantId,
+        tenantId: effectiveTenantId,
         apparatus: element.apparatus,
         skillCode: element.skillCode,
         name: element.name,
@@ -148,11 +148,3 @@ export async function seedEspanaGRElements() {
   console.log(`✅ ${insertedElements.length} GR elements seeded`);
   return insertedElements;
 }
-
-// Run if executed directly
-seedEspanaGRElements()
-  .then(() => process.exit(0))
-  .catch((e) => {
-    console.error(e);
-    process.exit(1);
-  });
