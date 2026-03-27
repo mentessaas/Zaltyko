@@ -7,6 +7,7 @@ import HeroSection from "@/app/(site)/home/HeroSection";
 import SocialProofSection from "@/app/(site)/home/SocialProofSection";
 import WhyZaltykoSection from "@/app/(site)/home/WhyZaltykoSection";
 import ModulesSection from "@/app/(site)/home/ModulesSection";
+import ClusterDiscoverySection from "@/app/(site)/home/ClusterDiscoverySection";
 import ComparisonSection from "@/app/(site)/home/ComparisonSection";
 import SeoExtendedSection from "@/app/(site)/home/SeoExtendedSection";
 import TestimonialsSection from "@/app/(site)/home/TestimonialsSection";
@@ -101,6 +102,9 @@ export default function HomePage() {
         {/* Módulos principales - cada uno con descripción SEO */}
         <ModulesSection />
 
+        {/* Clusters SEO - países y modalidades */}
+        <ClusterDiscoverySection />
+
         {/* Demo con video */}
         <DemoSection />
 
@@ -166,6 +170,15 @@ export default function HomePage() {
             contactType: "customer service",
             availableLanguage: ["Spanish", "English"],
           },
+          address: {
+            "@type": "PostalAddress",
+            addressCountry: "ES",
+          },
+          geo: {
+            "@type": "GeoCoordinates",
+            addressCountry: "ES",
+          },
+          priceRange: "€€",
           sameAs: [
             "https://twitter.com/zaltyko",
             "https://linkedin.com/company/zaltyko",
@@ -243,6 +256,49 @@ export default function HomePage() {
                 "@type": "Answer",
                 text: "Sí. Zaltyko es una aplicación web responsive que funciona en móvil, tablet y escritorio. Los coaches pueden marcar asistencia desde su teléfono sin instalar nada.",
               },
+            },
+          ],
+        }}
+      />
+
+      {/* HowTo Schema for SEO */}
+      <Schema
+        json={{
+          "@context": "https://schema.org",
+          "@type": "HowTo",
+          name: "Cómo gestionar una academia de gimnasia",
+          description:
+            "Guía paso a paso para gestionar eficientemente una academia de gimnasia: desde la inscripción de atletas hasta la renovación de licencias federativas.",
+          step: [
+            {
+              "@type": "HowToStep",
+              name: "Configurar tu academia",
+              text: "Crea tu cuenta en Zaltyko, configura los datos de tu academia, añade las modalidades que ofreces (artística, rítmica, acrobática, trampolín) y personaliza las categorías según la federación de tu país.",
+            },
+            {
+              "@type": "HowToStep",
+              name: "Importar atletas",
+              text: "Importa tus atletas desde Excel o añádelos manualmente. Incluye datos personales, categoría federativa, nivel y fecha de nacimiento. Zaltyko calcula automáticamente la categoría según la normativa de tu federación.",
+            },
+            {
+              "@type": "HowToStep",
+              name: "Programar clases y horarios",
+              text: "Configura tus clases con días, horarios y profesores asignados. Controla el aforo máximo y gestiona waiting lists automáticamente cuando una clase está completa.",
+            },
+            {
+              "@type": "HowToStep",
+              name: "Gestionar cobros",
+              text: "Configura tus planes de facturación (mensual, trimestral, anual), emite facturas automáticas y recibe pagos online vía Stripe. Gestiona descuentos, becas y morosos desde un solo panel.",
+            },
+            {
+              "@type": "HowToStep",
+              name: "Inscribir a competiciones",
+              text: "Gestiona las inscripciones de tus atletas a competiciones federativas. Zaltyko filtra automáticamente por categoría y edad, genera las listas de inscripción y comunica a los padres.",
+            },
+            {
+              "@type": "HowToStep",
+              name: "Renovar licencias",
+              text: "Recibe alertas cuando una licencia federativa está próxima a caducar. Genera los documentos necesarios para la renovación y lleva un registro histórico de todas las licencias.",
             },
           ],
         }}

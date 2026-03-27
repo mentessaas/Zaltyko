@@ -1,6 +1,7 @@
 import { boolean, index, jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
 import { academies } from "./academies";
+import { profiles } from "./profiles";
 
 export const coaches = pgTable(
   "coaches",
@@ -16,6 +17,9 @@ export const coaches = pgTable(
     bio: text("bio"),
     photoUrl: text("photo_url"),
     slug: text("slug").unique(),
+    // Auth & Profile linkage - allows coach to login
+    profileId: uuid("profile_id").references(() => profiles.id, { onDelete: "cascade" }),
+    userId: uuid("user_id"), // Supabase auth user ID
     isPublic: boolean("is_public").notNull().default(false),
     specialties: text("specialties").array(),
     publicBio: text("public_bio"),

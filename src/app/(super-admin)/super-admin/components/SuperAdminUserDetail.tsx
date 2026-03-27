@@ -27,6 +27,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { formatAcademyType } from "@/lib/formatters";
 
 interface UserMembership {
   id: string;
@@ -96,21 +97,6 @@ function formatRole(role: string | null) {
       return "Super Admin";
     default:
       return role;
-  }
-}
-
-function formatAcademyType(value: string | null) {
-  switch (value) {
-    case "artistica":
-      return "Gimnasia artística";
-    case "ritmica":
-      return "Gimnasia rítmica";
-    case "trampolin":
-      return "Trampolín";
-    case "general":
-      return "General / Mixta";
-    default:
-      return value ?? "Sin tipo";
   }
 }
 

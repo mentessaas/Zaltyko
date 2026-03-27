@@ -355,6 +355,16 @@ export function DashboardPage({
         ))}
       </section>
 
+      {/*2.1. GymMetricsWidget - SOLO PARA GIMNASIA RÍTMICA - REQUIERE DATOS PRE-CARGADOS */}
+      {/* NOTE: GymMetricsWidget requiere datos de licencias, categorías de atletas, etc.
+          que deben ser obtenidos previamente. Por ahora se omite hasta implementar
+          la carga de estos datos en el dashboard. */}
+      {/* academyType === "ritmica" && (
+        <section>
+          <GymMetricsWidget academyId={academyId} {...data.gymMetrics} />
+        </section>
+      ) */}
+
       {/*2.2. Personalized Recommendations */}
       <section>
         <RecommendationsWidget

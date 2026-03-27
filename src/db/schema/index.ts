@@ -73,4 +73,5 @@ export * from "./scheduled-reports";
 export * from "./communication";
 export * from "./permissions";
 export * from "./roles";
+export * from "./templates";
 

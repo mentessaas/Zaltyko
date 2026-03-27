@@ -13,6 +13,7 @@ import { athleteStatusOptions } from "@/lib/athletes/constants";
 import { handleApiError } from "@/lib/api-error-handler";
 import { withTransaction } from "@/lib/db-transactions";
 import { verifyAcademyAccess, verifyGroupAccess } from "@/lib/permissions";
+import { calculateAgeCategoryForAthlete } from "@/lib/athletes/age-category";
 import { markChecklistItem, markWizardStep } from "@/lib/onboarding";
 import { trackEvent } from "@/lib/analytics";
 import { logEvent } from "@/lib/event-logging";
@@ -130,6 +131,35 @@ export const POST = withTenant(async (request, context) => {
       }
     }
 
+    // Calcular ageCategory automático si se proporcionó DOB
+    let templateId: string | null = null;
+    let ageCategory: string | null = null;
+
+    if (dobDate) {
+      // Obtener info de la academia para calcular ageCategory
+      const [academyRow] = await db
+        .select({
+          country: academies.country,
+          academyType: academies.academyType,
+        })
+        .from(academies)
+        .where(eq(academies.id, body.academyId))
+        .limit(1);
+
+      if (academyRow?.country) {
+        const result = await calculateAgeCategoryForAthlete({
+          dob: dobDate,
+          academyCountry: academyRow.country,
+          academyType: academyRow.academyType ?? "ritmica",
+        });
+
+        if (result) {
+          templateId = result.templateId;
+          ageCategory = result.ageCategory;
+        }
+      }
+    }
+
     // Usar transacción para garantizar atomicidad
     await withTransaction(async (tx) => {
       // Crear atleta
@@ -142,6 +172,8 @@ export const POST = withTenant(async (request, context) => {
         level: body.level,
         status: body.status ?? "active",
         groupId: body.groupId ?? null,
+        templateId,
+        ageCategory,
       });
 
       // Crear contactos si existen
