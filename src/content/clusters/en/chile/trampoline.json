@@ -1,0 +1,57 @@
+{
+  "meta": {
+    "title": "Trampoline Gymnastics Club Management Software in Chile | Zaltyko - FGCh",
+    "description": "Manage your federated trampoline club with Zaltyko. Full control over athletes, categories, levels, Tumbling, DMT, Synchronized and FGCh licenses.",
+    "keywords": [
+      "trampoline chile",
+      "fgch software",
+      "trampoline club management chile",
+      "tumbling chile",
+      "double mini trampoline chile"
+    ]
+  },
+  "hero": {
+    "badge": "Leader in Chile · +10 clubs",
+    "headline": "Manage your federated trampoline club with ease",
+    "subheadline": "Full control over athletes, categories, Tumbling, DMT, Synchronized levels and licenses. National Championship and selectivos."
+  },
+  "federation": {
+    "name": "Federación de Gimnasia de Chile (FGCh)",
+    "competitions": [
+      "Campeonato Nacional Absoluto",
+      "Selectivo Nacional",
+      "Torneos Regionales",
+      "Pan American Qualifiers",
+      "Ligas Regionales"
+    ]
+  },
+  "categories": {
+    "preinfantil": "5-7 years - Initiation",
+    "infantil": "8-10 years - Level 1-2",
+    "juvenil": "11-13 years - Level 3-4",
+    "junior": "14-15 years - Level 5-6",
+    "senior": "16-17 years - Level 7-8",
+    "absoluta": "18+ years - Elite/FIG Level"
+  },
+  "painPoints": {
+    "generic": "Managing Tumbling, DMT and Synchronized gymnasts on paper is chaos. Level tracking doesn't exist.",
+    "specific": "Coordinating synchronized routines, managing difficulty scores, renewing FGCh licenses."
+  },
+  "socialProof": {
+    "academies": [
+      "Trampolín Santiago",
+      "Club Valparaíso Trampolín",
+      "Academia Concepción Trampoline",
+      "Club La Serena Trampolín",
+      "Escuela Antofagasta Trampolín"
+    ],
+    "stats": {
+      "athletes": "1,500+",
+      "academies": "10+"
+    }
+  },
+  "interlinking": {
+    "relatedCountries": ["spain", "mexico", "argentina", "colombia", "peru"],
+    "relatedModalities": ["artistic", "rhythmic", "acrobatic"]
+  }
+}

@@ -1,0 +1,57 @@
+{
+  "meta": {
+    "title": "Acrobatic Gymnastics Club Management Software in Colombia | Zaltyko - FCG",
+    "description": "Manage your federated acrobatic gymnastics club with Zaltyko. Full control over athletes, categories, pairs, groups, difficulty levels and FCG licenses.",
+    "keywords": [
+      "acrobatic gymnastics colombia",
+      "fcg software",
+      "acrobatic club management colombia",
+      "acrobatic pairs colombia",
+      "acrobatic groups colombia"
+    ]
+  },
+  "hero": {
+    "badge": "Leader in Colombia · +15 clubs",
+    "headline": "Manage your federated acrobatic gymnastics club with ease",
+    "subheadline": "Full control over athletes, categories, acrobatic pairs and groups, difficulty levels and licenses. Copa Colombia and selectivos."
+  },
+  "federation": {
+    "name": "Federación Colombiana de Gimnasia (FCG)",
+    "competitions": [
+      "Nacional Absoluto",
+      "Copa Colombia de Acrobática",
+      "Selectivos para Juegos Bolivarianos",
+      "Pan American Qualifiers",
+      "Torneos Departamentales"
+    ]
+  },
+  "categories": {
+    "preinfantil": "5-7 years - Initiation",
+    "infantil": "8-9 years - Level 1-2",
+    "juvenil": "10-11 years - Level 3-4",
+    "prejunior": "12-13 years - Level 5-6",
+    "junior": "14-15 years - Level 7-8",
+    "senior": "16+ years - Level 9-10 / Elite"
+  },
+  "painPoints": {
+    "generic": "Coordinating acrobatic pairs and groups is chaotic. Tracking levels and compositions on paper is a disaster.",
+    "specific": "Managing pair and group combinations, coordinating category changes, tracking D and E scores."
+  },
+  "socialProof": {
+    "academies": [
+      "Acrobática Bogotá",
+      "Club Medellín Acrobática",
+      "Academia Cali Acrobática",
+      "Club Barranquilla Acrobática",
+      "Escuela Pereira Acrobática"
+    ],
+    "stats": {
+      "athletes": "2,500+",
+      "academies": "15+"
+    }
+  },
+  "interlinking": {
+    "relatedCountries": ["spain", "mexico", "argentina", "chile", "peru"],
+    "relatedModalities": ["artistic", "rhythmic", "trampoline"]
+  }
+}

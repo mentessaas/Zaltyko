@@ -1,0 +1,58 @@
+{
+  "meta": {
+    "title": "Software para Trampolín en Perú | Zaltyko - Gestión FPG",
+    "description": "Gestiona tu escuela de trampolín federada con Zaltyko. Control total sobre atletas, categorías, niveles, Tumbling, DMT, Sincronizado y licencias FPG.",
+    "keywords": [
+      "trampolín perú",
+      "software fpg",
+      "gestión trampolín perú",
+      "academia trampolín",
+      "tumbling perú",
+      "double mini trampolín perú"
+    ]
+  },
+  "hero": {
+    "badge": "Líder en Perú · +8 academias",
+    "headline": "Gestiona tu escuela de trampolín federada sin complicaciones",
+    "subheadline": "Control total sobre atletas, categorías, niveles de Tumbling, DMT, Sincronizado y licencias. Selectivos nacionales y torneos."
+  },
+  "federation": {
+    "name": "Federación Peruana de Gimnasia (FPG) + IPD",
+    "competitions": [
+      "Nacional de Trampolín",
+      "Selectivo Nacional",
+      "Torneos Departamentales",
+      "Circuitos Nacional",
+      "Clasificatorios para Juegos Panamericanos"
+    ]
+  },
+  "categories": {
+    "preinfantil": "5-7 años - Iniciación",
+    "infantil": "8-9 años - Nivel 1-2",
+    "prejuvenil": "10-11 años - Nivel 3-4",
+    "juvenil": "12-13 años - Nivel 5-6",
+    "junior": "14-15 años - Nivel 7-8",
+    "senior": "16+ años - Nivel 9-10 / Élite"
+  },
+  "painPoints": {
+    "generic": "Gestionar gimnastas de Tumbling, DMT y Sincronizado en papel es un caos. El tracking de niveles es inexistente.",
+    "specific": "Coordinar pruebas de sincronización, gestionar puntuaciones de dificultad, renovar licencias FPG."
+  },
+  "socialProof": {
+    "academies": [
+      "Trampolín Lima",
+      "Club Arequipa Trampolín",
+      "Academia Trujillo Trampoline",
+      "Club Cusco Trampolín",
+      "Escuela Piura Trampolín"
+    ],
+    "stats": {
+      "athletes": "1,200+",
+      "academies": "8+"
+    }
+  },
+  "interlinking": {
+    "relatedCountries": ["espana", "mexico", "argentina", "colombia", "chile"],
+    "relatedModalities": ["artistic", "rhythmic", "acrobatic"]
+  }
+}

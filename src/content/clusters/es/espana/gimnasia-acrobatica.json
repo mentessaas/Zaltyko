@@ -1,0 +1,61 @@
+{
+  "meta": {
+    "title": "Software para Gimnasia Acrobática en España | Zaltyko - Gestión FGA",
+    "description": "Gestiona tu escuela de gimnasia acrobática federada con Zaltyko. Control total sobre atletas, categorías, niveles de dificultad, licencias y competiciones nacionales.",
+    "keywords": [
+      "gimnasia acrobática españa",
+      "software fga",
+      "gestión gimnasia acrobática",
+      "academia gimnasia acrobática",
+      "parejas acrobáticas",
+      "grupos acrobáticos",
+      "niveles dificultad acrobática",
+      "campeonato españa acrobática"
+    ]
+  },
+  "hero": {
+    "badge": "Líder en España · +45 academias",
+    "headline": "Gestiona tu escuela de gimnasia acrobática federada sin complicaciones",
+    "subheadline": "Control total sobre atletas, categorías oficiales, niveles de dificultad, puntuaciones D/E y licencias. Gestiona parejas y grupos desde Base hasta Élite."
+  },
+  "federation": {
+    "name": "Real Federación Española de Gimnasia (RFEG)",
+    "competitions": [
+      "Campeonato de España Absoluto",
+      "Nacional Base",
+      "Copa de España",
+      "Circuitos Autonómicos",
+      "Selectivos para competiciones internacionales"
+    ]
+  },
+  "categories": {
+    "pre_iniciacion": "5-7 años - No competitivo",
+    "iniciacion": "8-9 años - Niveles A-B",
+    "alevin": "10-11 años - Niveles C-D",
+    "infantil": "12-13 años - Niveles E-F",
+    "junior": "14-15 años - Niveles 1-2",
+    "senior": "16-17 años - Niveles 3-4",
+    "absoluta": "18+ años - Nivel FIG/Élite"
+  },
+  "painPoints": {
+    "generic": "Coordinar parejas y grupos acrobáticos es un caos sin la herramienta adecuada. Tracking de niveles de dificultad, composiciones y puntuaciones en Excel es un desastre.",
+    "specific": "Gestionar las combinaciones de parejas y grupos, coordinar cuando un gimnasta cambia de categoría, seguir las puntuaciones D (dificultad) y E (ejecución)."
+  },
+  "socialProof": {
+    "academies": [
+      "Club Gimnasia Acrobática Barcelona",
+      "Acrobática Girona",
+      "Madrid Gymnastics Academy",
+      "Club Acrobática Coruña",
+      "Gimnasia Acrobática Sevilla"
+    ],
+    "stats": {
+      "athletes": "8,000+",
+      "academies": "45+"
+    }
+  },
+  "interlinking": {
+    "relatedCountries": ["mexico", "argentina", "colombia", "chile", "peru"],
+    "relatedModalities": ["artistic", "rhythmic", "trampoline"]
+  }
+}

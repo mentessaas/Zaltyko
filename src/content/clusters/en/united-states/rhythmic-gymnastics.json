@@ -1,0 +1,59 @@
+{
+  "meta": {
+    "title": "Rhythmic Gymnastics Club Management Software in the US | Zaltyko - USAG Rhythmic",
+    "description": "Manage your USAG Rhythmic club with Zaltyko. Full control over athletes, levels, routines, apparatus (rope, hoop, ball, clubs, ribbon) and competition management.",
+    "keywords": [
+      "rhythmic gymnastics club management usa",
+      "usag rhythmic software",
+      "rhythmic gymnastics club",
+      "rhythmic gymnastics levels usa",
+      "apparatus rhythmic gymnastics",
+      "rhythmic meet management",
+      "usag rhythmic membership"
+    ]
+  },
+  "hero": {
+    "badge": "Trusted by 50+ US Rhythmic clubs",
+    "headline": "Manage your USAG Rhythmic club with ease",
+    "subheadline": "Full control over athletes, competition levels, routines with 4/5 apparatus, D-score/E-score tracking and USAG membership. From Development to Elite."
+  },
+  "federation": {
+    "name": "USA Gymnastics Rhythmic (USAG)",
+    "competitions": [
+      "Rhythmic National Championships",
+      "Rhythmic Development Program Nationals",
+      "Xcel Rhythmic Championships",
+      "World Cup Circuit (Sofia, etc.)",
+      "Regional Rhythmic Championships"
+    ]
+  },
+  "categories": {
+    "junior_1_4": "Junior 1-4 - Foundation levels",
+    "junior_5_6": "Junior 5-6 - Development",
+    "junior_7_8": "Junior 7-8 - Competitive development",
+    "junior_10": "Junior 10 - Pre-Elite",
+    "elite": "Elite - National Team pathway",
+    "xcel": "Xcel Rhythmic - Alternative competitive track"
+  },
+  "painPoints": {
+    "generic": "Managing rhythmic routines with 4/5 apparatus pieces, competition levels and USAG membership is a nightmare in spreadsheets. Equipment tracking alone is chaos.",
+    "specific": "Tracking apparatus (rope, hoop, ball, clubs, ribbon), managing routine difficulty for D-scores, handling competition qualifiers and USAG rhythmic membership renewals."
+  },
+  "socialProof": {
+    "academies": [
+      "Rhythmic Academy of Champions",
+      "Metro Rhythmic NYC",
+      "Pacific Rhythmics CA",
+      "Bullseye Rhythmic TX",
+      "Gymnastics Spectrum Rhythmic FL"
+    ],
+    "stats": {
+      "athletes": "3,500+",
+      "academies": "50+"
+    }
+  },
+  "interlinking": {
+    "relatedCountries": ["spain", "mexico", "argentina", "colombia", "chile", "peru"],
+    "relatedModalities": ["artistic", "acrobatic", "trampoline"]
+  }
+}
