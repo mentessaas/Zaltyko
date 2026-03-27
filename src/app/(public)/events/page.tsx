@@ -1,10 +1,12 @@
-import { Suspense } from "react";
 import type { Metadata } from "next";
-import Link from "next/link";
-import { Plus } from "lucide-react";
+
+export const dynamic = "force-dynamic";
+import { desc, eq } from "drizzle-orm";
 import { EventsFilters } from "@/components/public/EventsFilters";
 import { EventsGrid } from "@/components/public/EventsGrid";
 import { PublicPageHeader } from "@/components/public/PublicPageHeader";
+import { db } from "@/db";
+import { events, academies } from "@/db/schema";
 
 export const metadata: Metadata = {
   title: "Eventos y Competiciones de Gimnasia | Zaltyko",
@@ -18,12 +20,52 @@ export const metadata: Metadata = {
 };
 
 async function getEvents() {
-  const res = await fetch(
-    `${process.env.NEXT_PUBLIC_URL || "http://localhost:3000"}/api/public/events?limit=50`,
-    { cache: "no-store" }
-  );
-  if (!res.ok) return { events: [], total: 0 };
-  return res.json();
+  try {
+    const eventItems = await db
+      .select({
+        id: events.id,
+        title: events.title,
+        description: events.description,
+        category: events.category,
+        level: events.level,
+        discipline: events.discipline,
+        eventType: events.eventType,
+        startDate: events.startDate,
+        endDate: events.endDate,
+        registrationStartDate: events.registrationStartDate,
+        registrationEndDate: events.registrationEndDate,
+        countryCode: events.countryCode,
+        countryName: events.countryName,
+        provinceName: events.provinceName,
+        cityName: events.cityName,
+        contactEmail: events.contactEmail,
+        contactPhone: events.contactPhone,
+        contactInstagram: events.contactInstagram,
+        contactWebsite: events.contactWebsite,
+        images: events.images,
+        academyId: events.academyId,
+        createdAt: events.createdAt,
+      })
+      .from(events)
+      .where(eq(events.isPublic, true))
+      .orderBy(desc(events.startDate), desc(events.createdAt))
+      .limit(50);
+
+    const academyIds = Array.from(new Set(eventItems.map(e => e.academyId)));
+    const academyData = academyIds.length > 0 ? await db
+      .select({ id: academies.id, name: academies.name, logoUrl: academies.logoUrl })
+      .from(academies)
+      .then(rows => new Map(rows.map(a => [a.id, a])))
+      : new Map();
+
+    return eventItems.map(event => ({
+      ...event,
+      academyName: academyData.get(event.academyId)?.name || null,
+      academyLogoUrl: academyData.get(event.academyId)?.logoUrl || null,
+    }));
+  } catch {
+    return [];
+  }
 }
 
 function EventsContent({ events }: { events: any[] }) {
@@ -71,7 +113,7 @@ function EventsContent({ events }: { events: any[] }) {
 }
 
 export default async function EventsPage() {
-  const { events } = await getEvents();
+  const events = await getEvents();
 
   return (
     <div className="min-h-screen bg-background">
@@ -88,9 +130,7 @@ export default async function EventsPage() {
       </div>
 
       <div className="container mx-auto px-4 py-8">
-        <Suspense fallback={<div className="container mx-auto px-4 py-8">Cargando...</div>}>
-          <EventsContent events={events} />
-        </Suspense>
+        <EventsContent events={events} />
       </div>
     </div>
   );
