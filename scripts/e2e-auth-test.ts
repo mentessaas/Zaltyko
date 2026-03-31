@@ -84,7 +84,7 @@ async function runTests() {
   console.log("🧪 E2E Auth Flow Tests with Playwright");
   console.log("====================================\n");
   
-  let browser: Browser;
+  let browser: Browser | null = null;
   try {
     browser = await chromium.launch({ headless: true });
     console.log("✅ Browser launched");
