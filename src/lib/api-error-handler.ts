@@ -102,7 +102,7 @@ export function withErrorHandler<T extends unknown[]>(
     try {
       return await handler(...args);
     } catch (error) {
-      return handleApiError(error);
+      return handleApiError(error as Error);
     }
   };
 }

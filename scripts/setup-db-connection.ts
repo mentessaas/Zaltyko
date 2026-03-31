@@ -6,7 +6,7 @@
 import { writeFileSync, readFileSync, existsSync } from "fs";
 import { resolve } from "path";
 
-const projectRef = "***REMOVED***";
+const projectRef = "jegxfahsvugilbthbked";
 const supabaseUrl = `https://${projectRef}.supabase.co`;
 const anonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImplZ3hmYWhzdnVnaWxidGhia2VkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI1MjU5MjgsImV4cCI6MjA3ODEwMTkyOH0.1AnSfOAxpt0eUJnHk5UG0AnwyEkgsfbjU8cR76E-wv8";
 

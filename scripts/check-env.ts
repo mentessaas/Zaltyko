@@ -32,10 +32,10 @@ for (const [key, value] of Object.entries(requiredVars)) {
 if (!allOk) {
   console.log("\n⚠️  Faltan variables por completar.");
   console.log("\n📝 Para obtener las credenciales:");
-  console.log("   1. Ve a: https://app.supabase.com/project/***REMOVED***/settings/database");
+  console.log("   1. Ve a: https://app.supabase.com/project/jegxfahsvugilbthbked/settings/database");
   console.log("   2. Haz clic en 'Connect' o busca 'Connection string'");
   console.log("   3. Copia la contraseña y reemplaza [TU_PASSWORD] en .env.local");
-  console.log("   4. Para Service Role Key: https://app.supabase.com/project/***REMOVED***/settings/api");
+  console.log("   4. Para Service Role Key: https://app.supabase.com/project/jegxfahsvugilbthbked/settings/api");
   process.exit(1);
 }
 
