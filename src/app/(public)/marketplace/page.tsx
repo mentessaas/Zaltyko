@@ -22,14 +22,18 @@ async function getListings(searchParams: { category?: string; type?: string; sea
   if (searchParams.search) params.set("search", searchParams.search);
   if (searchParams.page) params.set("page", searchParams.page);
 
-  const res = await fetch(`${process.env.NEXT_PUBLIC_URL || "http://localhost:3000"}/api/marketplace?${params}`, {
+  // Use relative URL for server-side fetches in Next.js
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  const res = await fetch(`${baseUrl}/api/marketplace?${params}`, {
     cache: "no-store",
   });
   return res.json();
 }
 
 async function getAds(zone: string) {
-  const res = await fetch(`${process.env.NEXT_PUBLIC_URL || "http://localhost:3000"}/api/advertising/zones/${zone}`, {
+  // Use relative URL for server-side fetches in Next.js
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  const res = await fetch(`${baseUrl}/api/advertising/zones/${zone}`, {
     cache: "no-store",
   });
   return res.json();
