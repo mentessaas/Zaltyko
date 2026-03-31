@@ -69,7 +69,7 @@ type PlanCode = (typeof PLAN_SEEDS)[number]["code"];
 
 const SUPER_ADMIN_NAME = process.env.SEED_SUPER_ADMIN_NAME ?? "MenetesSaas";
 const SUPER_ADMIN_EMAIL = process.env.SEED_SUPER_ADMIN_EMAIL ?? "mentessaas@gmail.com";
-const SUPER_ADMIN_PASSWORD = process.env.SEED_SUPER_ADMIN_PASSWORD ?? "***REMOVED***";
+const SUPER_ADMIN_PASSWORD = process.env.SEED_SUPER_ADMIN_PASSWORD ?? "Mentessaas550501";
 const SUPER_ADMIN_USER_ID_FALLBACK =
   process.env.SEED_SUPER_ADMIN_USER_ID ?? "00000000-0000-0000-0000-000000000001";
 
