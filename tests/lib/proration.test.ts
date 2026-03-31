@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   calculateProration,
   PLAN_PRICES,
-  type ProrationResult,
 } from "@/lib/billing/proration";
 
 describe("PLAN_PRICES", () => {

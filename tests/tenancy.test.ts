@@ -1,6 +1,4 @@
-import from "node:crypto";
-
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
 // Skip entire test suite - pg-mem infrastructure has issues with type re-registration
 // This test requires a real database or better mocking infrastructure
@@ -11,7 +9,7 @@ describe.skip("Tenant Isolation", () => {
     expect(true).toBe(true);
   });
 
-  it("bloquea acceso a academias de otro tenant", async () => {
+  it("previene acceso a tenant diferente", async () => {
     // Skipped - requires database setup
     expect(true).toBe(true);
   });

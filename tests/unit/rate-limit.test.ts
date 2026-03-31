@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach } from "vitest";
-import { rateLimit, RATE_LIMITS, getLimitForRoute } from "@/lib/rate-limit";
+import { describe, it, expect } from "vitest";
+import { RATE_LIMITS, getLimitForRoute } from "@/lib/rate-limit";
 
 describe("Rate Limiting", () => {
     describe("getLimitForRoute", () => {

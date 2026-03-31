@@ -10,7 +10,7 @@ Esta guía te ayudará a configurar Zaltyko para producción en Vercel.
 URL del Transaction Pooler de Supabase (puerto 6543). Recomendado para serverless/edge functions.
 
 **Cómo obtenerla:**
-1. Ve a [Supabase Dashboard](https://app.supabase.com/project/***REMOVED***?showConnect=true)
+1. Ve a [Supabase Dashboard](https://app.supabase.com/project/jegxfahsvugilbthbked?showConnect=true)
 2. En "Connection String", cambia "Method" a "Transaction pooler"
 3. Copia la URL completa (formato: `postgresql://postgres.[PROJECT_REF]:[PASSWORD]@aws-1-[REGION].pooler.supabase.com:6543/postgres`)
 
@@ -18,7 +18,7 @@ URL del Transaction Pooler de Supabase (puerto 6543). Recomendado para serverles
 URL del Session Pooler (puerto 5432) o conexión directa. Usada para migraciones y scripts.
 
 **Cómo obtenerla:**
-1. Ve a [Supabase Dashboard](https://app.supabase.com/project/***REMOVED***?showConnect=true)
+1. Ve a [Supabase Dashboard](https://app.supabase.com/project/jegxfahsvugilbthbked?showConnect=true)
 2. En "Connection String", cambia "Method" a "Session pooler"
 3. Copia la URL completa
 
@@ -26,7 +26,7 @@ URL del Session Pooler (puerto 5432) o conexión directa. Usada para migraciones
 
 #### `NEXT_PUBLIC_SUPABASE_URL`
 ```
-https://***REMOVED***.supabase.co
+https://jegxfahsvugilbthbked.supabase.co
 ```
 
 #### `NEXT_PUBLIC_SUPABASE_ANON_KEY`
@@ -36,7 +36,7 @@ eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImplZ3hmYWh
 
 #### `SUPABASE_SERVICE_ROLE_KEY` (Requerido)
 **Cómo obtenerla:**
-1. Ve a [Supabase Dashboard → Settings → API](https://app.supabase.com/project/***REMOVED***/settings/api)
+1. Ve a [Supabase Dashboard → Settings → API](https://app.supabase.com/project/jegxfahsvugilbthbked/settings/api)
 2. Busca "service_role" en "Project API keys"
 3. Copia el key (empieza con `eyJ...`)
 
