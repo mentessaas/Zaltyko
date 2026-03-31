@@ -21,8 +21,8 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(request: Request) {
   // Allow unauthenticated for academy-triggered messages
-  let tenantId: string | null = null;
-  let profileId: string | null = null;
+  const tenantId: string | null = null;
+  const profileId: string | null = null;
 
   try {
     const body = await request.json();
