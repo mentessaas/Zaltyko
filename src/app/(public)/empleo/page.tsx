@@ -22,14 +22,18 @@ async function getJobs(searchParams: { category?: string; jobType?: string; sear
   if (searchParams.search) params.set("search", searchParams.search);
   if (searchParams.page) params.set("page", searchParams.page);
 
-  const res = await fetch(`${process.env.NEXT_PUBLIC_URL || "http://localhost:3000"}/api/empleo?${params}`, {
+  // Use relative URL for server-side fetches in Next.js
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  const res = await fetch(`${baseUrl}/api/empleo?${params}`, {
     cache: "no-store",
   });
   return res.json();
 }
 
 async function getAds(zone: string) {
-  const res = await fetch(`${process.env.NEXT_PUBLIC_URL || "http://localhost:3000"}/api/advertising/zones/${zone}`, {
+  // Use relative URL for server-side fetches in Next.js
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  const res = await fetch(`${baseUrl}/api/advertising/zones/${zone}`, {
     cache: "no-store",
   });
   return res.json();

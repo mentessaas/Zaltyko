@@ -20,7 +20,7 @@ describe("Session Generation Logic", () => {
             endTime: "11:00",
         };
 
-        const mockWeekdays = [
+        const _mockWeekdays = [
             { weekday: 1, classId: "class-123" }, // Lunes
             { weekday: 3, classId: "class-123" }, // Miércoles
         ];

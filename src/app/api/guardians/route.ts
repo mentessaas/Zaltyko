@@ -77,7 +77,7 @@ export const GET = withTenant(async (request, context) => {
       }
     }
 
-    let whereClause = and(...conditions);
+    const whereClause = and(...conditions);
 
     // Get total count
     const countResult = await db
