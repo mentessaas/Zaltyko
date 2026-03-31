@@ -20,7 +20,7 @@ export async function syncAthletesWithUsers(): Promise<{
   const adminClient = getSupabaseAdminClient();
   const details: Array<{ athleteId: string; athleteName: string; userId: string | null; error?: string }> = [];
   let synced = 0;
-  let skipped = 0;
+  const skipped = 0;
   let errors = 0;
 
   // Obtener todos los atletas sin user_id
