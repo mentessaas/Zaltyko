@@ -5,48 +5,94 @@ import { NextResponse } from "next/server";
  * Usar estos helpers para consistencia: { ok, data, error }
  */
 
+export interface ResponseMeta {
+  total?: number;
+  page?: number;
+  pageSize?: number;
+}
+
 export interface ApiSuccessResponse<T = unknown> {
   ok: true;
   data?: T;
   id?: string;
   message?: string;
+  meta?: ResponseMeta;
 }
 
 export interface ApiErrorResponse {
   ok: false;
   error: string;
+  code?: string;
   message?: string;
   details?: unknown;
 }
 
 export type ApiResponse<T = unknown> = ApiSuccessResponse<T> | ApiErrorResponse;
 
+// ============================================
+// NEW standardized helpers (recommended)
+// ============================================
+
 /**
- * Crea una respuesta exitosa con datos opcionales
+ * Standard success response for GET, PUT, PATCH operations
+ * Usage: return apiSuccess({ user: ... }, { total: 100, page: 1 })
  */
-export function apiSuccess<T = unknown>(
-  data?: T,
-  options?: { id?: string; message?: string }
-): NextResponse<ApiSuccessResponse<T>> {
+export function apiSuccess<T>(data: T, meta?: ResponseMeta): NextResponse<ApiSuccessResponse<T>> {
   return NextResponse.json({
     ok: true,
-    ...(data !== undefined && { data }),
-    ...(options?.id && { id: options.id }),
-    ...(options?.message && { message: options.message }),
+    data,
+    ...(meta && Object.keys(meta).length > 0 ? { meta } : {}),
   } as ApiSuccessResponse<T>);
 }
 
 /**
- * Crea una respuesta exitosa simple (sin datos)
+ * Success response for POST operations that create resources
+ * Usage: return apiCreated({ id: ... }, { total: 1 })
+ */
+export function apiCreated<T>(data: T, meta?: ResponseMeta): NextResponse<ApiSuccessResponse<T>> {
+  return NextResponse.json(
+    {
+      ok: true,
+      data,
+      ...(meta && Object.keys(meta).length > 0 ? { meta } : {}),
+    } as ApiSuccessResponse<T>,
+    { status: 201 }
+  );
+}
+
+/**
+ * Error response with code, message and HTTP status
+ * Usage: return apiError('NOT_FOUND', 'Resource not found', 404)
+ */
+export function apiError(code: string, message: string, status: number): NextResponse<ApiErrorResponse> {
+  return NextResponse.json(
+    {
+      ok: false,
+      error: code,
+      code,
+      message,
+    } as ApiErrorResponse,
+    { status }
+  );
+}
+
+// ============================================
+// Legacy helpers (for backward compatibility)
+// ============================================
+
+/**
+ * Crea una respuesta exitosa con datos opcionales
+ * @deprecated Usar apiSuccess() en su lugar
  */
 export function apiOk(): NextResponse<ApiSuccessResponse> {
   return NextResponse.json({ ok: true });
 }
 
 /**
- * Crea una respuesta de error
+ * Crea una respuesta de error (legacy signature)
+ * @deprecated Usar apiError(code, message, status) en su lugar
  */
-export function apiError(
+export function apiErrorLegacy(
   error: string,
   message?: string,
   status: number = 400,

@@ -36,7 +36,7 @@ interface ClassItem {
   capacity: number | null;
   allowsFreeTrial: boolean;
   waitingListEnabled: boolean;
-  cancellationHoursBefore: number;
+  cancellationHoursBefore: number | null;
   cancellationPolicy: string;
   coaches: CoachOption[];
   groups?: GroupOption[];

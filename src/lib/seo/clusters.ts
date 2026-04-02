@@ -77,6 +77,48 @@ export type CountrySlug = keyof typeof COUNTRIES;
 // Full cluster key: "modality-country" e.g., "artistic-espana"
 export type ClusterKey = `${ModalitySlug}-${CountrySlug}`;
 
+// Public academy type for cluster pages
+export interface PublicAcademy {
+  id: string;
+  name: string;
+  city: string | null;
+  region: string | null;
+  country: string | null;
+  academyType: string | null;
+  publicDescription: string | null;
+  logoUrl: string | null;
+  website: string | null;
+  socialInstagram: string | null;
+}
+
+// Public coach type for cluster pages
+export interface PublicCoach {
+  id: string;
+  name: string;
+  photoUrl: string | null;
+  academyName?: string;
+  academySlug?: string;
+  publicBio?: string | null;
+  specialties?: string[];
+  yearsExperience?: number;
+}
+
+// Public event type for cluster pages
+export interface PublicEvent {
+  id: string;
+  title: string;
+  startDate: string | null;
+  endDate: string | null;
+  cityName?: string | null;
+  provinceName?: string | null;
+  countryName?: string | null;
+  level?: string;
+  academyName?: string;
+  description?: string | null;
+  maxCapacity?: number | null;
+  registrationFee?: number | null;
+}
+
 // Cluster content interface
 export interface ClusterContent {
   meta: {
@@ -262,3 +304,158 @@ export function getRelatedByCountry(
 
   return related;
 }
+
+// Get academies for a cluster (filtered by modality/country)
+export async function getClusterAcademies(
+  locale: Locale,
+  modality: ModalitySlug,
+  country: CountrySlug,
+  limit = 12
+) {
+  const { db } = await import('@/db');
+  const { academies } = await import('@/db/schema');
+  const { eq, and } = await import('drizzle-orm');
+
+  const countryCode = COUNTRIES[country]?.code;
+  if (!countryCode) return [];
+
+  const dbType = MODALITY_DB_TYPES[modality];
+
+  const conditions = [
+    eq(academies.isPublic, true),
+    eq(academies.isSuspended, false),
+  ];
+
+  // @ts-ignore - country is stored as code
+  conditions.push(eq(academies.country, countryCode));
+
+  if (dbType && dbType !== 'general') {
+    conditions.push(eq(academies.academyType, dbType as any));
+  }
+
+  const result = await db
+    .select({
+      id: academies.id,
+      name: academies.name,
+      city: academies.city,
+      region: academies.region,
+      logoUrl: academies.logoUrl,
+    })
+    .from(academies)
+    .where(and(...conditions))
+    .limit(limit);
+
+  return result;
+}
+
+// Get coaches for a cluster
+export async function getClusterCoaches(
+  locale: Locale,
+  modality: ModalitySlug,
+  country: CountrySlug,
+  limit = 12
+) {
+  const { db } = await import('@/db');
+  const { coaches, academies } = await import('@/db/schema');
+  const { eq, and, sql } = await import('drizzle-orm');
+
+  const countryCode = COUNTRIES[country]?.code;
+  if (!countryCode) return [];
+
+  const result = await db
+    .select({
+      id: coaches.id,
+      name: coaches.name,
+      specialties: coaches.specialties,
+      publicBio: coaches.publicBio,
+      photoUrl: coaches.photoUrl,
+      yearsExperience: coaches.yearsExperience,
+      academyName: academies.name,
+    })
+    .from(coaches)
+    .innerJoin(academies, eq(coaches.academyId, academies.id))
+    .where(
+      and(
+        eq(academies.isPublic, true),
+        eq(academies.isSuspended, false),
+        sql`${academies.country} = ${countryCode}`
+      )
+    )
+    .limit(limit);
+
+  // Map to PublicCoach interface
+  return result.map(c => ({
+    id: c.id,
+    name: c.name,
+    photoUrl: c.photoUrl,
+    academyName: c.academyName,
+    publicBio: c.publicBio,
+    specialties: c.specialties ?? [],
+    yearsExperience: c.yearsExperience ? parseInt(String(c.yearsExperience), 10) : undefined,
+  }));
+}
+
+// Get events for a cluster
+export async function getClusterEvents(
+  locale: Locale,
+  modality: ModalitySlug,
+  country: CountrySlug,
+  limit = 12
+) {
+  const { db } = await import('@/db');
+  const { events, academies } = await import('@/db/schema');
+  const { eq, and, sql } = await import('drizzle-orm');
+
+  const countryCode = COUNTRIES[country]?.code;
+  if (!countryCode) return [];
+
+  const dbDiscipline = MODALITY_DB_DISCIPLINES[modality];
+
+  const conditions = [
+    eq(events.isPublic, true),
+    eq(events.status, 'published' as any),
+    sql`${events.countryCode} = ${countryCode}`,
+  ];
+
+  if (dbDiscipline) {
+    conditions.push(eq(events.discipline, dbDiscipline as any));
+  }
+
+  const result = await db
+    .select({
+      id: events.id,
+      title: events.title,
+      startDate: events.startDate,
+      endDate: events.endDate,
+      cityName: events.cityName,
+      provinceName: events.provinceName,
+      countryName: events.countryName,
+      level: events.level,
+      description: events.description,
+      maxCapacity: events.maxCapacity,
+      registrationFee: events.registrationFee,
+      academyName: academies.name,
+    })
+    .from(events)
+    .innerJoin(academies, eq(events.academyId, academies.id))
+    .where(and(...conditions))
+    .limit(limit);
+
+  return result;
+}
+
+// Mapping from modality to academy type
+const MODALITY_DB_TYPES: Record<ModalitySlug, string> = {
+  artistic: 'artistica',
+  rhythmic: 'ritmica',
+  acrobatic: 'general',
+  trampoline: 'trampolin',
+};
+
+// Mapping from modality to event discipline
+const MODALITY_DB_DISCIPLINES: Record<ModalitySlug, string> = {
+  artistic: 'artistic_female',
+  rhythmic: 'rhythmic',
+  acrobatic: 'artistic_female',
+  trampoline: 'trampoline',
+};
