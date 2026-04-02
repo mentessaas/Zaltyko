@@ -20,6 +20,20 @@ interface AthleteOption {
   level: string | null;
 }
 
+interface EnrollmentApiItem {
+  id: string;
+  athleteId: string;
+  athleteName?: string;
+  athleteLevel?: string | null;
+  createdAt: string;
+}
+
+interface AthleteApiItem {
+  id: string;
+  name: string;
+  level?: string | null;
+}
+
 interface EnrollmentManagerProps {
   classId: string;
   className: string;
@@ -72,7 +86,7 @@ export function EnrollmentManager({
 
       const data = await response.json();
       setEnrollments(
-        (data.items ?? []).map((item: any) => ({
+        (data.items ?? []).map((item: EnrollmentApiItem) => ({
           id: item.id,
           athleteId: item.athleteId,
           athleteName: item.athleteName ?? "Sin nombre",
@@ -118,8 +132,8 @@ export function EnrollmentManager({
 
       setAvailableAthletes(
         (data.items ?? [])
-          .filter((athlete: any) => !enrolledAthleteIds.has(athlete.id))
-          .map((athlete: any) => ({
+          .filter((athlete: AthleteApiItem) => !enrolledAthleteIds.has(athlete.id))
+          .map((athlete: AthleteApiItem) => ({
             id: athlete.id,
             name: athlete.name,
             level: athlete.level,

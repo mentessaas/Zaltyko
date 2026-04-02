@@ -8,6 +8,7 @@ import { db } from "@/db";
 import { academies, classCoachAssignments, classes, coaches, memberships, profiles } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
 import { markChecklistItem, markWizardStep } from "@/lib/onboarding";
+import { apiSuccess, apiCreated } from "@/lib/api-response";
 
 const bodySchema = z.object({
   academyId: z.string().uuid(),
@@ -57,7 +58,7 @@ export const GET = withTenant(async (request, context) => {
     .orderBy(asc(coaches.name));
 
   if (!includeAssignments) {
-    return NextResponse.json({ items: coachRows });
+    return apiSuccess({ items: coachRows });
   }
 
   const assignmentRows = await db
@@ -86,7 +87,7 @@ export const GET = withTenant(async (request, context) => {
     };
   });
 
-  return NextResponse.json({ items: enriched });
+  return apiSuccess({ items: enriched });
 });
 
 export const POST = withTenant(async (request, context) => {
@@ -141,5 +142,5 @@ export const POST = withTenant(async (request, context) => {
     key: "invite_first_coach",
   });
 
-  return NextResponse.json({ id: coachId });
+  return apiCreated({ id: coachId });
 });

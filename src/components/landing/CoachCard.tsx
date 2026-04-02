@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import Link from "next/link";
 import { Award, Clock } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,7 +11,7 @@ interface CoachCardProps {
   locale: "es" | "en";
 }
 
-export default function CoachCard({ coach, locale }: CoachCardProps) {
+const CoachCard = memo(function CoachCard({ coach, locale }: CoachCardProps) {
   const labels = {
     es: {
       experience: "experiencia",
@@ -113,4 +114,6 @@ export default function CoachCard({ coach, locale }: CoachCardProps) {
       </CardContent>
     </Card>
   );
-}
+});
+
+export default CoachCard;
