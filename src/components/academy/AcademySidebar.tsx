@@ -46,46 +46,21 @@ interface NavSection {
 
 const NAV_SECTIONS: NavSection[] = [
   {
-    label: "Resumen",
+    label: "Principal",
     items: [
       { href: (id: string) => `/app/${id}/dashboard`, text: "Dashboard", icon: LayoutDashboard },
-    ],
-  },
-  {
-    label: "Operación",
-    items: [
       { href: (id: string) => `/app/${id}/athletes`, text: "Atletas", icon: Users },
-      { href: (id: string) => `/app/${id}/coaches`, text: "Entrenadores", icon: GraduationCap },
-      { href: (id: string) => `/app/${id}/groups`, text: "Grupos", icon: FolderTree },
       { href: (id: string) => `/app/${id}/classes`, text: "Clases", icon: Calendar },
-      { href: (id: string) => `/app/${id}/attendance`, text: "Asistencia", icon: ClipboardCheck },
-      { href: (id: string) => `/app/${id}/events`, text: "Eventos", icon: CalendarDays, badge: "new" },
+      { href: (id: string) => `/app/${id}/events`, text: "Eventos", icon: CalendarDays },
+      { href: (id: string) => `/app/${id}/reports/attendance`, text: "Reportes", icon: BarChart3 },
     ],
   },
   {
-    label: "Reportes",
-    items: [
-      { href: (id: string) => `/app/${id}/reports/attendance`, text: "Asistencia", icon: FileText },
-      { href: (id: string) => `/app/${id}/reports/financial`, text: "Financiero", icon: DollarSign },
-      { href: (id: string) => `/app/${id}/reports/progress`, text: "Progreso", icon: TrendingUp },
-    ],
-  },
-  {
-    label: "Negocio",
-    items: [
-      { href: (id: string) => `/app/${id}/billing`, text: "Facturación", icon: Receipt },
-      { href: (id: string) => `/app/${id}/billing/scholarships`, text: "Becas", icon: Award },
-      { href: (id: string) => `/app/${id}/billing/discounts`, text: "Descuentos", icon: Badge },
-      { href: (id: string) => `/app/${id}/billing/receipts`, text: "Recibos", icon: FileSearch },
-      { href: (id: string) => `/app/${id}/assessments`, text: "Evaluaciones", icon: FileText },
-    ],
-  },
-  {
-    label: "Administración",
+    label: "Ajustes",
     items: [
       { href: (id: string) => `/app/${id}/settings`, text: "Configuración", icon: Settings },
-      { href: (id: string) => `/app/${id}/dashboard/analytics`, text: "Analítica Avanzada", icon: BarChart3 },
-      { href: (id: string) => `/app/${id}/audit-logs`, text: "Logs de Auditoría", icon: Shield },
+      { href: (id: string) => `/app/${id}/coaches`, text: "Entrenadores", icon: GraduationCap },
+      { href: (id: string) => `/app/${id}/billing`, text: "Facturación", icon: Receipt },
     ],
   },
 ];
