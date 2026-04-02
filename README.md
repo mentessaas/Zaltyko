@@ -1,82 +1,158 @@
-# Zaltyko SaaS – Plataforma de Gestión para Academias de Gimnasia
+# Zaltyko SaaS - Plataforma de Gestión para Academias de Gimnasia
 
-**Zaltyko SaaS** es una solución tecnológica integral diseñada para modernizar y simplificar la gestión de academias de gimnasia (artística, rítmica, trampolín, etc.). Construida con una arquitectura **multi-tenant** robusta, permite a cada academia operar en un entorno seguro y aislado, mientras escala desde pequeños clubes hasta grandes instituciones.
+![Status](https://img.shields.io/badge/Status-Production_Ready-green) ![Tech](https://img.shields.io/badge/Stack-Next.js_14_|_Supabase_|_Stripe-blue) ![License](https://img.shields.io/badge/License-Private-red)
 
-![Status](https://img.shields.io/badge/Status-Beta_Ready-green) ![Tech](https://img.shields.io/badge/Stack-Next.js_14_|_Supabase_|_Stripe-blue)
+**Zaltyko** es una plataforma SaaS multi-tenant para gestionar academias de gimnasia. Construida con Next.js 14, Supabase (PostgreSQL + RLS), y Stripe.
 
-## 🚀 Características Principales
+---
 
-### 🏢 Gestión Multi-Academia (Multi-Tenancy)
-- **Aislamiento Total**: Cada academia tiene sus propios datos, atletas y configuraciones, garantizado por Row Level Security (RLS) a nivel de base de datos.
-- **Roles y Permisos**: Sistema granular con roles de Dueño, Entrenador, Atleta y Administrador.
-
-### 👥 Gestión Deportiva
-- **Atletas**: Perfiles completos, historial médico, niveles de habilidad y evaluaciones.
-- **Clases y Asistencia**: Programación flexible de sesiones, control de aforo y registro de asistencia en tiempo real.
-- **Entrenadores**: Gestión de staff, asignación a clases y control de horarios.
-
-### 💳 Facturación y Suscripciones
-- **Integración con Stripe**: Pagos seguros y automatizados.
-- **Planes Flexibles**: Soporte para modelos Freemium, Pro y Premium con límites automáticos de recursos (atletas/clases).
-- **Portal de Cliente**: Autogestión de métodos de pago y facturas.
-
-### 🛠️ Herramientas Administrativas
-- **Onboarding Automatizado**: Flujo guiado para configurar nuevas academias en minutos.
-- **Panel Súper Admin**: Vista global para la administración de la plataforma SaaS.
-- **Notificaciones**: Sistema de emails transaccionales (invitaciones, alertas de pago).
-
-## 🛠️ Stack Tecnológico
-
-La plataforma está construida sobre tecnologías modernas, priorizando rendimiento, seguridad y escalabilidad:
-
-- **Frontend**: [Next.js 14](https://nextjs.org/) (App Router), [Tailwind CSS](https://tailwindcss.com/), [shadcn/ui](https://ui.shadcn.com/).
-- **Backend**: Server Actions, [Drizzle ORM](https://orm.drizzle.team/).
-- **Base de Datos**: [Supabase](https://supabase.com/) (PostgreSQL) con RLS.
-- **Auth**: [NextAuth.js](https://next-auth.js.org/) (v5).
-- **Pagos**: [Stripe](https://stripe.com/).
-- **Infraestructura**: Vercel (Frontend/Edge), Supabase (DB).
-
-## 🌱 Primeros Pasos (Desarrollo Local)
-
-Sigue estos pasos para levantar el entorno de desarrollo:
-
-1.  **Requisitos Previos**: Node.js 20+, pnpm, Docker (opcional, para DB local).
-
-2.  **Instalación**:
-    ```bash
-    git clone <repo-url>
-    cd zaltyko-saas
-    pnpm install
-    ```
-
-3.  **Configuración de Entorno**:
-    Copia el archivo de ejemplo y configura tus claves (Supabase, Stripe, NextAuth):
-    ```bash
-    cp .env.example .env.local
-    ```
-
-4.  **Base de Datos**:
-    ```bash
-    pnpm db:generate   # Generar esquemas SQL
-    pnpm db:migrate    # Aplicar migraciones
-    pnpm db:seed       # Poblar datos iniciales (Planes, Admin)
-    ```
-
-5.  **Ejecutar**:
-    ```bash
-    pnpm dev
-    ```
-    Visita `http://localhost:3000`.
-
-## 🧪 Testing
-
-El proyecto cuenta con una suite de tests robusta usando **Vitest**, incluyendo pruebas de aislamiento de datos entre tenants.
+## Quick Start
 
 ```bash
-pnpm test        # Ejecutar todos los tests
-pnpm test:ui     # Abrir interfaz gráfica de tests
+# 1. Clonar
+git clone https://github.com/mentessaas/Zaltyko.git
+cd Zaltyko
+
+# 2. Instalar
+pnpm install
+
+# 3. Configurar entorno
+cp .env.example .env.local
+# Editar .env.local con tus credenciales
+
+# 4. Base de datos
+pnpm db:generate
+pnpm db:migrate
+pnpm db:seed
+
+# 5. Ejecutar
+pnpm dev
 ```
 
-## 📄 Licencia
+Visita `http://localhost:3000`
 
-Este proyecto es propiedad privada. Todos los derechos reservados.
+---
+
+## Stack Tecnológico
+
+| Capa | Tecnología |
+|------|------------|
+| Frontend | Next.js 14 (App Router), Tailwind CSS, shadcn/ui |
+| Backend | Next.js API Routes, Drizzle ORM |
+| Database | Supabase PostgreSQL + Row Level Security (RLS) |
+| Auth | NextAuth.js v5 (Supabase) |
+| Payments | Stripe (Subscriptions, One-time) |
+| Infrastructure | Vercel (Frontend), Supabase (DB) |
+
+---
+
+## Módulos Principales
+
+| Módulo | Descripción | Status |
+|--------|-------------|--------|
+| **Athletes** | Perfiles, evaluaciones, documentos, historial | ✅ |
+| **Classes** | Grupos, calendario, asistencia, sesiones | ✅ |
+| **Events** | Competiciones, inscripciones, waitlist | ✅ |
+| **Coaches** | Gestión de entrenadores, asignaciones | ✅ |
+| **Billing** | Planes, facturas, descuentos, scholarships | ✅ |
+| **Super Admin** | Gestión centralizada de academias | ✅ |
+| **Landing Pages** | SEO clusterizado por modalidad/país | ✅ |
+
+---
+
+## Arquitectura
+
+```
+src/
+├── app/                    # Next.js App Router
+│   ├── app/               # Dashboard de academias (/app/[academyId]/...)
+│   ├── api/               # API Routes (protegidas con withTenant)
+│   ├── (site)/           # Landing pages públicas
+│   └── (super-admin)/    # Panel Super Admin
+├── components/
+│   ├── ui/               # Componentes shadcn/ui base
+│   ├── athletes/         # Componentes módulo atletas
+│   ├── classes/          # Componentes módulo clases
+│   ├── events/           # Componentes módulo eventos
+│   ├── billing/          # Componentes módulo facturación
+│   └── landing/          # Componentes landing pages
+├── db/
+│   └── schema/           # 68+ tablas Drizzle ORM
+├── lib/
+│   ├── authz.ts         # Wrapper de autenticación multi-tenant
+│   ├── api-response.ts   # Respuestas API estandarizadas
+│   └── seo/clusters.ts  # Utilidades SEO clusterizado
+└── types/                # Tipos TypeScript centralizados
+```
+
+---
+
+## Scripts Disponibles
+
+```bash
+pnpm dev              # Desarrollo local
+pnpm build            # Build producción
+pnpm start            # Iniciar producción
+pnpm db:generate      # Generar migraciones Drizzle
+pnpm db:migrate       # Aplicar migraciones
+pnpm db:seed          # Poblar datos iniciales
+pnpm lint             # Linting ESLint
+pnpm typecheck        # Verificación TypeScript
+pnpm test             # Ejecutar tests
+```
+
+---
+
+## Seguridad
+
+- **Multi-Tenancy**: Aislamiento via RLS de PostgreSQL
+- **Auth**: NextAuth.js con JWT, `withTenant` wrapper obligatorio
+- **Rate Limiting**: Vercel KV (Redis) con límites por ruta
+- **Input Validation**: Zod schemas en todas las APIs
+- **Webhook Security**: Firma verificable en Stripe/LemonSqueezy
+
+---
+
+## Documentación Detallada
+
+| Documento | Descripción |
+|-----------|-------------|
+| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | Arquitectura técnica profunda |
+| [API.md](docs/API.md) | Referencia de APIs |
+| [DEPLOYMENT.md](docs/DEPLOYMENT.md) | Guía de deploy a producción |
+| [DEVELOPMENT.md](docs/development-guide.md) | Guía para desarrolladores |
+| [PRODUCTION_CHECKLIST.md](docs/PRODUCTION_CHECKLIST.md) | Checklist pre-lanzamiento |
+
+---
+
+## Variables de Entorno
+
+```env
+# Supabase (requerido)
+DATABASE_URL=postgresql://...
+NEXT_PUBLIC_SUPABASE_URL=https://...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+SUPABASE_SERVICE_ROLE_KEY=...
+
+# Stripe (requerido para producción)
+STRIPE_SECRET_KEY=sk_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+
+# NextAuth
+NEXTAUTH_SECRET=...
+```
+
+Ver `.env.example` para plantilla completa.
+
+---
+
+## Licencia
+
+Proprietario - Todos los derechos reservados. MentesSaaS.
+
+---
+
+##Contacto
+
+- **GitHub**: https://github.com/mentessaas/Zaltyko
+- **Issues**: https://github.com/mentessaas/Zaltyko/issues
