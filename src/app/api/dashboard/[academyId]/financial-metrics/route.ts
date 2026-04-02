@@ -1,5 +1,3 @@
-// @ts-nocheck - Conflictos de tipos entre múltiples versiones de drizzle-orm en node_modules
-// Estos errores son causados por duplicados de dependencias y no afectan la ejecución del código
 import { NextResponse } from "next/server";
 import { eq, and, lte, sql } from "drizzle-orm";
 

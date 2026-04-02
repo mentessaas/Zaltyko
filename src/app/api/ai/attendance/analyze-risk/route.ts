@@ -1,11 +1,12 @@
 // src/app/api/ai/attendance/analyze-risk/route.ts
 import { NextRequest, NextResponse } from 'next/server';
+import { withTenant } from '@/lib/authz';
 import { getAIOrchestrator } from '@/lib/ai/orchestrator';
 import { ATTENDANCE_SYSTEM_PROMPT, generateRiskAnalysisPrompt } from '@/lib/ai/prompts/attendance';
 
-export async function POST(req: NextRequest) {
+export const POST = withTenant(async (request: Request) => {
   try {
-    const body = await req.json();
+    const body = await request.json();
     const { athleteId, name, attendanceHistory, totalClasses, lastAttendance } = body;
 
     if (!name || !attendanceHistory || !totalClasses) {
@@ -47,4 +48,4 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
-}
+});

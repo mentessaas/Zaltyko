@@ -7,12 +7,14 @@ import { NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
 import { isProduction } from "@/lib/env";
 import { metrics, responseTimes, trackRequest, trackError, trackDbOperation } from "@/lib/metrics";
+import { withTenant } from "@/lib/authz";
 
 /**
  * GET /api/metrics
  * Devuelve métricas actuales del sistema
+ * Requiere autenticación de tenant
  */
-export async function GET(): Promise<NextResponse> {
+export const GET = withTenant(async (): Promise<NextResponse> => {
   const uptime = Date.now() - metrics.uptime;
   
   const health = {
@@ -36,17 +38,17 @@ export async function GET(): Promise<NextResponse> {
     },
     timestamp: new Date().toISOString(),
   });
-}
+});
 
 /**
  * POST /api/metrics/reset
- * Resetea las métricas
+ * Resetea las métricas (solo disponible en desarrollo)
  */
 export async function POST(req: Request): Promise<NextResponse> {
   if (isProduction()) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
-  
+
   // Reset metrics
   metrics.requests = { total: 0, byMethod: {}, byStatus: {} };
   metrics.errors = { total: 0, byType: {}, byEndpoint: {}, recent: [] };
@@ -54,9 +56,9 @@ export async function POST(req: Request): Promise<NextResponse> {
   metrics.dbOperations = { total: 0, slowQueries: 0, errors: 0 };
   metrics.lastReset = new Date().toISOString();
   responseTimes.length = 0;
-  
+
   logger.info("Metrics reset");
-  
+
   return NextResponse.json({
     message: "Metrics reset successfully",
     timestamp: metrics.lastReset,

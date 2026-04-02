@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { memo, useState } from "react";
 import { Mail, MailOpen, Check, X, Clock, AlertCircle, MoreVertical } from "lucide-react";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -77,7 +77,7 @@ const statusConfig = {
   },
 };
 
-export function InvitationCard({
+export const InvitationCard = memo(function InvitationCard({
   invitation,
   onUpdateStatus,
   onDelete,
@@ -262,7 +262,7 @@ export function InvitationCard({
       </AlertDialog>
     </>
   );
-}
+});
 
 export function InvitationCardSkeleton() {
   return (

@@ -1,11 +1,12 @@
 // src/app/api/ai/communication/chat/route.ts
 import { NextRequest, NextResponse } from 'next/server';
+import { withTenant } from '@/lib/authz';
 import { getAIOrchestrator } from '@/lib/ai/orchestrator';
 import { COMMUNICATION_SYSTEM_PROMPT, generateChatResponsePrompt } from '@/lib/ai/prompts/communication';
 
-export async function POST(req: NextRequest) {
+export const POST = withTenant(async (request: Request) => {
   try {
-    const body = await req.json();
+    const body = await request.json();
     const { question, athleteInfo, faq } = body;
 
     if (!question) {
@@ -37,4 +38,4 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
-}
+});

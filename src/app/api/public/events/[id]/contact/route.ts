@@ -6,6 +6,7 @@ import { db } from "@/db";
 import { events } from "@/db/schema";
 import { handleApiError } from "@/lib/api-error-handler";
 import { withRateLimit, getClientIdentifier } from "@/lib/rate-limit";
+import { logger } from "@/lib/logger";
 
 const ContactSchema = z.object({
   name: z.string().min(2).max(100),
@@ -81,7 +82,7 @@ async function contactHandler(request: Request, context: RouteContext) {
     // En producción, aquí se enviaría el email al organizador del evento
 
     // Log del contacto (opcional, para debugging)
-    console.log("Event contact form submitted:", {
+    logger.info("Event contact form submitted", {
       eventId: id,
       eventTitle: event.title,
       contactName: name,

@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import Link from "next/link";
 import { MapPin, Globe, Instagram } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,7 +11,7 @@ interface AcademyCardProps {
   locale: "es" | "en";
 }
 
-export default function AcademyCard({ academy, locale }: AcademyCardProps) {
+const AcademyCard = memo(function AcademyCard({ academy, locale }: AcademyCardProps) {
   const labels = {
     es: {
       viewDetails: "Ver detalles",
@@ -92,4 +93,6 @@ export default function AcademyCard({ academy, locale }: AcademyCardProps) {
       </CardContent>
     </Card>
   );
-}
+});
+
+export default AcademyCard;
