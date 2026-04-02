@@ -2,107 +2,134 @@
 
 ## Stack
 
-- **Framework:** Next.js 14 (App Router)
-- **Database:** Supabase (PostgreSQL)
+- **Framework:** Next.js 14.2 (App Router)
+- **Database:** Supabase PostgreSQL + RLS
 - **ORM:** Drizzle ORM
 - **Styling:** Tailwind CSS + shadcn/ui
-- **Auth:** Supabase Auth
+- **Auth:** NextAuth.js v5 (Supabase)
+- **Payments:** Stripe
 - **Deployment:** Vercel
 
-## Estructura del Proyecto
+## Project Structure
 
 ```
 src/
-├── app/                    # Next.js App Router
-│   ├── app/               # Rutas de academias (/app/[academyId]/...)
-│   ├── dashboard/         # Dashboard general
-│   ├── api/               # API routes
-│   ├── (super-admin)/    # Rutas de super admin
-│   ├── (site)/           # Landing pages públicas
-│   │   ├── [locale]/     # i18n (es, en)
-│   │   │   ├── [modality]/  # Modalidades (gimnasia-artistica, etc)
-│   │   │   │   └── [country]/  # Países (espana, mexico, etc)
-│   │   └── home/         # Landing principal
-│   └── llms.txt/         # AI crawler compatibility
+├── app/
+│   ├── app/[academyId]/     # Academy dashboard routes
+│   ├── api/                 # API routes (all use withTenant)
+│   ├── (site)/             # Public landing pages
+│   └── (super-admin)/      # Super admin panel
 ├── components/
-│   ├── athletes/         # Componentes de atletas
-│   ├── landing/          # Componentes de landing
-│   ├── profiles/         # Perfiles (Owner, Coach, Athlete, Parent)
-│   ├── ui/               # Componentes shadcn/ui
-│   └── dashboard/        # Widgets de dashboard
-├── content/              # Contenido estructurado (clusters JSON)
-│   └── clusters/         # Contenido SEO por locale/país/modalidad
-├── db/
-│   ├── schema/           # Tablas Drizzle
-│   └── seeds/templates/  # Seeds por país/federación
-├── hooks/                # Custom React hooks
-├── lib/                  # Utilidades y servicios
-│   └── seo/              # Utilidades SEO/GEO (clusters.ts)
-└── types/                # TypeScript types
+│   ├── ui/                 # shadcn/ui base + new: combobox, data-table, date-picker, file-upload
+│   ├── athletes/           # Athlete module components
+│   ├── classes/            # Classes module components
+│   ├── events/            # Events module components
+│   ├── billing/           # Billing module components
+│   └── landing/           # Landing page sections (memoized cards)
+├── db/schema/             # 68+ Drizzle tables
+├── lib/
+│   ├── authz.ts           # withTenant auth wrapper (REQUIRED for all APIs)
+│   ├── api-response.ts    # apiSuccess(), apiCreated(), apiError()
+│   ├── seo/clusters.ts   # Cluster page utilities
+│   ├── mcp/              # MCP tools (modularized)
+│   ├── dashboard/        # Dashboard types (extracted)
+│   └── geo-loader.ts     # Lazy city loading
+└── types/                # Centralized types (athletes.ts)
+```
+
+## Critical Patterns
+
+### API Auth (MANDATORY)
+```typescript
+// ✅ CORRECT - all APIs use withTenant
+import { withTenant } from '@/lib/authz';
+export const POST = withTenant(async (request: Request) => { ... });
+
+// ❌ WRONG - missing auth
+export async function POST(request: Request) { ... }
+```
+
+### API Responses (STANDARDIZED)
+```typescript
+// ✅ CORRECT
+import { apiSuccess, apiCreated } from '@/lib/api-response';
+return apiSuccess({ items }, { total, page, pageSize });
+return apiCreated({ id: newId });
+
+// ❌ WRONG
+return NextResponse.json({ ok: true, data: items });
+```
+
+### Component Memoization
+```typescript
+// ✅ CORRECT - memoized cards
+import { memo } from 'react';
+const EventCard = memo(function EventCard({ event }: Props) { ... });
+export default EventCard;
 ```
 
 ## Scripts
 
-| Comando | Descripción |
+| Command | Description |
 |---------|-------------|
-| `npm run dev` | Iniciar servidor de desarrollo |
-| `npm run build` | Build para producción |
-| `npm run start` | Iniciar servidor de producción |
-| `npm run db:push` | Sincronizar schema con Supabase |
-| `npm run db:studio` | Abrir Drizzle Studio |
+| `pnpm dev` | Start dev server |
+| `pnpm build` | Production build |
+| `pnpm db:generate` | Generate Drizzle migrations |
+| `pnpm db:migrate` | Push schema to Supabase |
+| `pnpm db:seed` | Seed initial data |
+| `pnpm lint` | ESLint check |
+| `pnpm typecheck` | TypeScript check |
 
-## Convenciones de Código
+## Environment Variables
 
-- **Componentes:** Functional components con TypeScript
-- **Estilos:** Tailwind CSS con clases de shadcn/ui
-- **Estado:** React hooks (useState, useEffect)
-- **Fetching:** Server components para data fetching, client components para interactividad
-- **Forms:** Controlled inputs con validación
+See `.env.example`. Required:
+- `DATABASE_URL` - Supabase PostgreSQL
+- `NEXT_PUBLIC_SUPABASE_URL` - Supabase project URL
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` - Supabase anon key
+- `SUPABASE_SERVICE_ROLE_KEY` - Supabase service role (for admin)
+- `STRIPE_SECRET_KEY` - Stripe secret key
+- `NEXTAUTH_SECRET` - NextAuth secret
 
-## Workflow de Desarrollo
+## Key Files
 
-1. **Desarrollo local:** `npm run dev`
-2. **Probar cambios**
-3. **Commit:** `git add . && git commit -m "description"`
-4. **Push:** `git push origin main`
-5. **Verificar Vercel**
+| File | Purpose |
+|------|---------|
+| `src/lib/authz.ts` | Auth wrapper with tenant context |
+| `src/lib/api-response.ts` | Standardized API responses |
+| `src/lib/rate-limit.ts` | Rate limiting with Vercel KV |
+| `src/db/schema/` | All database tables |
+| `src/components/ui/skeletons/` | Loading skeletons |
 
-## Features Implementadas
+## Security
 
-### Módulos Principales
-- **Atletas:** Perfiles, evaluaciones, historial, guardianes, progreso
-- **Eventos:** Inscripciones, waitlist, categorías, estados
-- **Clases/Grupos:** Calendario, asistencia, ocupación, políticas cancelación
-- **Coach Dashboard:** Vista khusus para entrenadores
-- **Facturación:** Planes, descuentos, scholarships, campañas
-- **Super Admin:** Gestión centralizada de academias y usuarios
+- All APIs use `withTenant` for multi-tenant isolation
+- RLS policies enforce tenant isolation at DB level
+- Zod validation on all API inputs
+- Stripe webhook signature verification
+- Rate limiting on all endpoints
 
-### SEO/GEO (Generative Engine Optimization)
-- Rutas clusterizadas: `/es/gimnasia-artistica/espana`
-- Contenido JSON en `src/content/clusters/`
-- Schema markup (Organization, HowTo, FAQPage)
-- `robots.txt` con AI crawlers permitidos (GPTBot, ClaudeBot, PerplexityBot)
-- `llms.txt` para AI crawler compatibility
-- Sitemap expandido con clusters
+## Recent Changes (2026-04-02)
 
-### APIs
-- `/api/assessments` - Evaluaciones con paginación
-- `/api/athletes` - Atletas con validación
-- `/api/events/[id]/registrations` - Inscripciones con filtros
-- `/api/guardians` - Gestión de guardianes
+- Added `combobox`, `data-table`, `date-picker`, `file-upload` UI primitives
+- Memoized landing cards: AcademyCard, CoachCard, EventCard, InvitationCard
+- Standardized API responses with apiSuccess/apiCreated
+- Fixed AI endpoint auth (all now protected with withTenant)
+- Added MCP tools modularization
+- Extracted dashboard types and GR metrics
 
-## Pendiente
+## Documentation
 
-- Testing coverage
-- Mejora tipos TypeScript
-- Implementación completa landing clusters
-- Integración traducciones i18n
+See `docs/` directory:
+- `SUMMARY.md` - Document index
+- `PROJECT_STRUCTURE.md` - Full project tree
+- `ARCHITECTURE.md` - Technical architecture
+- `API.md` - API reference
 
-## Skills Recomendados
+## Deployment
 
-Usa las skills personalizadas para este proyecto:
-- `local-dev-verification` - Para verificar antes de commit
-- `frontend-iterative` - Para desarrollo iterativo de UI
-- `api-integration` - Para integrar API calls
-- `react-component-structure` - Para estructura de componentes
-- `responsive-design` - Para diseño responsive
+1. Push to GitHub
+2. Connect repo to Vercel
+3. Set environment variables in Vercel dashboard
+4. Deploy
+
+**IMPORTANT**: Rotate all credentials before production deployment.
