@@ -218,10 +218,26 @@ export function GridSkeleton({
   );
 }
 
-// Re-export individual skeletons for backwards compatibility
+// Deprecated: use TableSkeleton or GridSkeleton from this file instead
+// These are kept for backwards compatibility during migration
+/**
+ * @deprecated Use TableSkeleton with columns prop instead
+ */
 export { AthletesTableSkeleton } from "./AthletesTableSkeleton";
+/**
+ * @deprecated Use GridSkeleton instead
+ */
 export { AcademiesGridSkeleton } from "./AcademiesGridSkeleton";
+/**
+ * @deprecated Use GridSkeleton instead
+ */
 export { EventsGridSkeleton } from "./EventsGridSkeleton";
 export { CalendarSkeleton } from "./CalendarSkeleton";
+/**
+ * @deprecated Use TableSkeleton with columns prop instead
+ */
 export { ClassesTableSkeleton } from "./ClassesTableSkeleton";
+/**
+ * @deprecated Use TableSkeleton with columns prop instead
+ */
 export { CoachesTableSkeleton } from "./CoachesTableSkeleton";
