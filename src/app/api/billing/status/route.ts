@@ -6,6 +6,7 @@ import { db } from "@/db";
 import { academies, plans, subscriptions, profiles } from "@/db/schema";
 import { getActiveSubscription } from "@/lib/limits";
 import { withTenant } from "@/lib/authz";
+import { apiSuccess } from "@/lib/api-response";
 
 const BodySchema = z.object({
   academyId: z.string().uuid({
@@ -94,7 +95,7 @@ export const POST = withTenant(async (request, context) => {
 
     const effective = await getActiveSubscription(body.academyId);
 
-    return NextResponse.json({
+    return apiSuccess({
       planCode: subscription?.planCode ?? effective.planCode,
       status: subscription?.status ?? "active",
       athleteLimit: effective.athleteLimit,

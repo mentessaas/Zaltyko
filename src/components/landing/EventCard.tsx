@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import Link from "next/link";
 import { Calendar, MapPin, Users, Ticket } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,7 +11,7 @@ interface EventCardProps {
   locale: "es" | "en";
 }
 
-export default function EventCard({ event, locale }: EventCardProps) {
+const EventCard = memo(function EventCard({ event, locale }: EventCardProps) {
   const labels = {
     es: {
       register: "Registrarse",
@@ -132,4 +133,6 @@ export default function EventCard({ event, locale }: EventCardProps) {
       </CardContent>
     </Card>
   );
-}
+});
+
+export default EventCard;

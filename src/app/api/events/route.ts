@@ -9,6 +9,7 @@ import { handleApiError } from "@/lib/api-error-handler";
 import { withRateLimit, getUserIdentifier } from "@/lib/rate-limit";
 import { withPayloadValidation, type PayloadValidationContext } from "@/lib/payload-validator";
 import { logger } from "@/lib/logger";
+import { apiSuccess, apiCreated } from "@/lib/api-response";
 
 export const dynamic = "force-dynamic";
 
@@ -237,7 +238,7 @@ export const POST = withRateLimit(
           }
         }
 
-        return NextResponse.json({ ok: true, event: newEvent });
+        return apiCreated({ event: newEvent });
       } catch (error: any) {
         if (error instanceof z.ZodError) {
           return NextResponse.json(
@@ -375,15 +376,10 @@ export const GET = withTenant(async (request, context) => {
       .limit(limit)
       .offset(offset);
 
-    return NextResponse.json({
-      total,
-      page,
-      pageSize: limit,
-      totalPages,
-      hasNextPage: page < totalPages,
-      hasPreviousPage: page > 1,
-      items,
-    });
+    return apiSuccess(
+      { items },
+      { total, page, pageSize: limit }
+    );
   } catch (error) {
     return handleApiError(error, { endpoint: "/api/events", method: "GET" });
   }

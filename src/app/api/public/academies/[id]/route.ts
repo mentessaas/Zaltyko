@@ -5,6 +5,7 @@ import { createClient } from "@supabase/supabase-js";
 import { db } from "@/db";
 import { academies, classes, classWeekdays } from "@/db/schema";
 import { handleApiError } from "@/lib/api-error-handler";
+import { logger } from "@/lib/logger";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -98,8 +99,8 @@ export async function GET(request: Request, context: RouteContext) {
       }
     } catch (dbError) {
       // Si falla, usar Supabase REST API como fallback
-      console.error("Error al obtener academia con Drizzle:", dbError);
-      console.log("🔄 Intentando usar Supabase REST API como fallback...");
+      logger.error("Error al obtener academia con Drizzle", dbError);
+      logger.info("Intentando usar Supabase REST API como fallback");
       
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
       const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -126,7 +127,7 @@ export async function GET(request: Request, context: RouteContext) {
             publicDescription: academyData.public_description,
             logoUrl: academyData.logo_url,
           };
-          console.log(`✅ Fallback exitoso: Academia ${academy.name} encontrada`);
+          logger.info(`Fallback exitoso: Academia ${academy.name} encontrada`);
           
           // Obtener horarios (simplificado para el fallback)
           const { data: scheduleData } = await supabase

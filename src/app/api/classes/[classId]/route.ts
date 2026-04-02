@@ -19,6 +19,7 @@ import { handleApiError } from "@/lib/api-error-handler";
 import { withTransaction } from "@/lib/db-transactions";
 import { verifyClassAccess } from "@/lib/permissions";
 import { hasScheduleConflictForAthlete } from "@/lib/classes/schedule-conflicts";
+import { logger } from "@/lib/logger";
 
 type PgLikeError = {
   code?: string;
@@ -165,25 +166,25 @@ export const PUT = withTenant(async (request, context) => {
     try {
       body = updateSchema.parse(await request.json());
     } catch (error) {
-      console.error("PUT /api/classes/[classId]: Error de validación", error);
+      logger.error("PUT /api/classes/[classId]: Error de validación", error);
       return handleApiError(error, { endpoint: `/api/classes/${classId}`, method: "PUT" });
     }
 
     // Verificar acceso a la clase
     const classAccess = await verifyClassAccess(classId, context.tenantId);
     if (!classAccess.allowed) {
-      console.error("PUT /api/classes/[classId]: Acceso denegado", { classId, tenantId: context.tenantId, reason: classAccess.reason });
+      logger.error("PUT /api/classes/[classId]: Acceso denegado", undefined, { classId, tenantId: context.tenantId, reason: classAccess.reason });
       return NextResponse.json({ 
         error: classAccess.reason ?? "CLASS_NOT_FOUND", 
         message: "No se encontró la clase o no tienes acceso a ella" 
       }, { status: 404 });
     }
 
-    console.log("PUT /api/classes/[classId]: Iniciando actualización", { classId, body, tenantId: context.tenantId });
+    logger.debug("PUT /api/classes/[classId]: Iniciando actualización", { classId, body, tenantId: context.tenantId });
 
     // Validar tenantId antes de continuar
     if (!context.tenantId) {
-      console.error("PUT /api/classes/[classId]: tenantId es undefined");
+      logger.error("PUT /api/classes/[classId]: tenantId es undefined");
       return NextResponse.json({ 
         error: "TENANT_REQUIRED", 
         message: "El tenant ID es requerido para actualizar la clase" 
@@ -213,7 +214,7 @@ export const PUT = withTenant(async (request, context) => {
       body.endTime !== undefined;
     const isChangingGroups = body.groupIds !== undefined;
 
-    console.log("PUT /api/classes/[classId]: Validación de conflictos", {
+    logger.debug("PUT /api/classes/[classId]: Validación de conflictos", {
       isChangingSchedule,
       isChangingGroups,
       weekdays: body.weekdays,
@@ -286,7 +287,7 @@ export const PUT = withTenant(async (request, context) => {
 
       // Validar conflictos para cada atleta
       if (athleteIds.size > 0 && finalWeekdays.length > 0 && finalStartTime && finalEndTime) {
-        console.log("PUT /api/classes/[classId]: Validando conflictos", {
+        logger.debug("PUT /api/classes/[classId]: Validando conflictos", {
           athleteCount: athleteIds.size,
           weekdays: finalWeekdays,
           startTime: finalStartTime,
@@ -311,7 +312,7 @@ export const PUT = withTenant(async (request, context) => {
               conflicts.push({ athleteId, conflictingClass: conflict.conflictingClass });
             }
           } catch (validationError: any) {
-            console.error("PUT /api/classes/[classId]: Error en validación de conflicto", {
+            logger.error("PUT /api/classes/[classId]: Error en validación de conflicto", validationError, {
               athleteId,
               error: validationError?.message,
             });
@@ -321,7 +322,7 @@ export const PUT = withTenant(async (request, context) => {
         }
 
         if (conflicts.length > 0) {
-          console.log("PUT /api/classes/[classId]: Conflictos detectados", {
+          logger.warn("PUT /api/classes/[classId]: Conflictos detectados", {
             conflictsCount: conflicts.length,
             conflicts: conflicts.map((c) => ({
               athleteId: c.athleteId,
@@ -338,9 +339,9 @@ export const PUT = withTenant(async (request, context) => {
           );
         }
 
-        console.log("PUT /api/classes/[classId]: No se detectaron conflictos, continuando con el guardado");
+        logger.debug("PUT /api/classes/[classId]: No se detectaron conflictos, continuando con el guardado");
       } else {
-        console.log("PUT /api/classes/[classId]: Saltando validación de conflictos", {
+        logger.debug("PUT /api/classes/[classId]: Saltando validación de conflictos", {
           athleteCount: athleteIds.size,
           weekdaysCount: finalWeekdays.length,
           hasStartTime: !!finalStartTime,
@@ -369,7 +370,7 @@ export const PUT = withTenant(async (request, context) => {
           body.weekdays !== undefined ? Array.from(new Set(body.weekdays)).sort((a, b) => a - b) : null;
 
         if (Object.keys(updates).length > 0) {
-          console.log("PUT /api/classes/[classId]: Actualizando clase", updates);
+          logger.debug("PUT /api/classes/[classId]: Actualizando clase", updates);
           await tx
             .update(classes)
             .set(updates)
@@ -377,7 +378,7 @@ export const PUT = withTenant(async (request, context) => {
         }
 
         if (normalizedWeekdays !== null) {
-          console.log("PUT /api/classes/[classId]: Actualizando weekdays", normalizedWeekdays);
+          logger.debug("PUT /api/classes/[classId]: Actualizando weekdays", { normalizedWeekdays });
           await tx
             .delete(classWeekdays)
             .where(
@@ -391,7 +392,7 @@ export const PUT = withTenant(async (request, context) => {
               tenantId: context.tenantId!,
               weekday,
             }));
-            console.log("PUT /api/classes/[classId]: Insertando weekdays", weekdayValues);
+            logger.debug("PUT /api/classes/[classId]: Insertando weekdays", { weekdayValues });
             await tx.insert(classWeekdays).values(weekdayValues);
           }
         }
@@ -399,7 +400,7 @@ export const PUT = withTenant(async (request, context) => {
         if (body.coachIds !== undefined) {
           const uniqueCoachIds = Array.from(new Set(body.coachIds));
 
-          console.log("PUT /api/classes/[classId]: Actualizando coaches", uniqueCoachIds);
+          logger.debug("PUT /api/classes/[classId]: Actualizando coaches", { uniqueCoachIds });
           await tx
             .delete(classCoachAssignments)
             .where(
@@ -416,7 +417,7 @@ export const PUT = withTenant(async (request, context) => {
               classId,
               coachId,
             }));
-            console.log("PUT /api/classes/[classId]: Insertando coaches", coachValues);
+            logger.debug("PUT /api/classes/[classId]: Insertando coaches", { coachValues });
             await tx.insert(classCoachAssignments).values(coachValues);
           }
         }
@@ -424,7 +425,7 @@ export const PUT = withTenant(async (request, context) => {
         if (body.groupIds !== undefined) {
           const uniqueGroupIds = Array.from(new Set(body.groupIds));
 
-          console.log("PUT /api/classes/[classId]: Actualizando grupos", uniqueGroupIds);
+          logger.debug("PUT /api/classes/[classId]: Actualizando grupos", { uniqueGroupIds });
           await tx
             .delete(classGroups)
             .where(
@@ -441,16 +442,16 @@ export const PUT = withTenant(async (request, context) => {
               classId,
               groupId,
             }));
-            console.log("PUT /api/classes/[classId]: Insertando grupos", groupValues);
+            logger.debug("PUT /api/classes/[classId]: Insertando grupos", { groupValues });
             await tx.insert(classGroups).values(groupValues);
           }
         }
       });
 
-      console.log("PUT /api/classes/[classId]: Actualización completada exitosamente");
+      logger.info("PUT /api/classes/[classId]: Actualización completada exitosamente");
       return NextResponse.json({ ok: true, message: "Clase actualizada correctamente" });
     } catch (transactionError: any) {
-      console.error("PUT /api/classes/[classId]: Error en la transacción", {
+      logger.error("PUT /api/classes/[classId]: Error en la transacción", transactionError, {
         error: transactionError?.message,
         stack: transactionError?.stack,
         code: transactionError?.code,
@@ -460,8 +461,7 @@ export const PUT = withTenant(async (request, context) => {
       throw transactionError;
     }
   } catch (error) {
-    console.error("PUT /api/classes/[classId]: Error capturado en el catch principal", {
-      error,
+    logger.error("PUT /api/classes/[classId]: Error capturado en el catch principal", error, {
       classId,
       tenantId: context.tenantId,
     });
