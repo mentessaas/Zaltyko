@@ -12,6 +12,7 @@ import { handleApiError } from "@/lib/api-error-handler";
 import { verifyAcademyAccess } from "@/lib/permissions";
 import { markChecklistItem } from "@/lib/onboarding";
 import { assertPremiumFeatureAccess } from "@/lib/trial";
+import { apiSuccess, apiCreated } from "@/lib/api-response";
 
 const bodySchema = z.object({
   academyId: z.string().uuid(),
@@ -102,7 +103,7 @@ export const GET = withTenant(async (request, context) => {
     }));
 
     if (!includeAssignments) {
-      return NextResponse.json({ items: baseItems });
+      return apiSuccess({ items: baseItems });
     }
 
     const assignmentRows = await db
@@ -132,7 +133,7 @@ export const GET = withTenant(async (request, context) => {
       };
     });
 
-    return NextResponse.json({ items: enriched });
+    return apiSuccess({ items: enriched });
   } catch (error) {
     return handleApiError(error);
   }
@@ -194,7 +195,7 @@ export const POST = withTenant(async (request, context) => {
       key: "setup_weekly_schedule",
     });
 
-    return NextResponse.json({ ok: true });
+    return apiCreated({ id: classId });
   } catch (error) {
     return handleApiError(error);
   }

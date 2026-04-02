@@ -8,6 +8,7 @@ import { db } from "@/db";
 import { athletes, guardians, guardianAthletes } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
 import { handleApiError } from "@/lib/api-error-handler";
+import { apiSuccess, apiCreated } from "@/lib/api-response";
 
 const GuardianSchema = z.object({
   athleteId: z.string().uuid().optional(),
@@ -65,15 +66,7 @@ export const GET = withTenant(async (request, context) => {
         conditions.push(sql`${guardians.id} = ANY(${ids})`);
       } else {
         // No guardians found for this athlete
-        return NextResponse.json({
-          total: 0,
-          page,
-          pageSize,
-          totalPages: 0,
-          hasNextPage: false,
-          hasPreviousPage: false,
-          items: [],
-        });
+        return apiSuccess([], { total: 0, page, pageSize });
       }
     }
 
@@ -145,15 +138,7 @@ export const GET = withTenant(async (request, context) => {
 
     const totalPages = Math.ceil(total / pageSize);
 
-    return NextResponse.json({
-      total,
-      page,
-      pageSize,
-      totalPages,
-      hasNextPage: page < totalPages,
-      hasPreviousPage: page > 1,
-      items: itemsWithAthletes,
-    });
+    return apiSuccess(itemsWithAthletes, { total, page, pageSize });
   } catch (error) {
     return handleApiError(error);
   }
@@ -195,7 +180,7 @@ export const POST = withTenant(async (request, context) => {
       await db.insert(guardianAthletes).values(associations).onConflictDoNothing();
     }
 
-    return NextResponse.json({ ok: true, id: guardianId });
+    return apiCreated({ id: guardianId });
   } catch (error) {
     return handleApiError(error);
   }

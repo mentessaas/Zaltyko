@@ -18,6 +18,7 @@ import { markChecklistItem, markWizardStep } from "@/lib/onboarding";
 import { trackEvent } from "@/lib/analytics";
 import { logEvent } from "@/lib/event-logging";
 import { formatDateForDB } from "@/lib/validation/date-utils";
+import { apiSuccess, apiCreated } from "@/lib/api-response";
 
 const ContactSchema = z.object({
   name: z.string().min(1),
@@ -245,7 +246,7 @@ export const POST = withTenant(async (request, context) => {
       },
     });
 
-    return NextResponse.json({ ok: true, id: athleteId });
+    return apiCreated({ id: athleteId });
   } catch (error) {
     return handleApiError(error);
   }
@@ -399,15 +400,7 @@ export const GET = withTenant(async (request, context) => {
 
   const totalPages = Math.ceil(total / pageSize);
 
-  return NextResponse.json({
-    total,
-    page,
-    pageSize,
-    totalPages,
-    hasNextPage: page < totalPages,
-    hasPreviousPage: page > 1,
-    items: paginatedItems,
-  });
+  return apiSuccess(paginatedItems, { total, page, pageSize });
   } catch (error) {
     return handleApiError(error);
   }
