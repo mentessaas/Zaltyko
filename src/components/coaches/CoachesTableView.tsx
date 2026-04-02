@@ -141,7 +141,7 @@ export function CoachesTableView({ academyId, coaches, classes, groupOptions, fi
           )}
         </div>
       ) : (
-        <div className="overflow-hidden rounded-lg border bg-card shadow">
+        <div className="overflow-x-auto rounded-lg border bg-card shadow">
           <table className="min-w-full divide-y divide-border text-sm">
             <thead className="bg-muted/60">
               <tr className="text-left text-xs uppercase tracking-wide text-muted-foreground">
