@@ -1,0 +1,75 @@
+{
+  "meta": {
+    "title": "Software para Danza en Espana | Zaltyko - Gestion Integral",
+    "description": "Gestiona tu escuela de danza con Zaltyko. Control total sobre bailarines, clases por disciplinas (clasico, contemporaneo, urbano), eventos, examenes y espectaculos.",
+    "keywords": [
+      "danza espana",
+      "software danza",
+      "gestion ballet",
+      "escuela danza",
+      "bailarines",
+      "danza contemporanea",
+      "baile urbano",
+      "academia danza espana",
+      "examenes danza"
+    ]
+  },
+  "hero": {
+    "badge": "Solucion completa para escuelas de danza",
+    "headline": "Gestiona tu escuela de danza sin complicaciones",
+    "subheadline": "Control total sobre bailarines, clases por disciplinas (Clasico, Contemporaneo, Urbano), examenes, espectaculos y eventos. Todo en una sola plataforma."
+  },
+  "federation": {
+    "name": "Federacion Espanola de Deportes de Baile y Danza",
+    "competitions": [
+      "Campeonato Nacional de Danza",
+      "Copa de Espana de Baile Deportivo",
+      "Juegos Deportivos Estatales - Seccion Danza",
+      "Festival Nacional de Danza Clasica"
+    ]
+  },
+  "categories": {
+    "disciplines": {
+      "Clasico": {
+        "Pre-iniciacion": "4-6 anos - Expresion corporal",
+        "Iniciacion": "7-8 anos - Base del clasico",
+        "Basico": "9-11 anos - Tecnica primaria",
+        "Intermedio": "12-14 anos - Tecnica intermedia",
+        "Avanzado": "15-17 anos - Tecnica avanzada",
+        "Pre-profesional": "18+ anos - Preparacion profesional"
+      },
+      "Contemporaneo": {
+        "Iniciacion": "10+ anos - Bases contemporaneas",
+        "Intermedio": "13+ anos - Tecnica mixta",
+        "Avanzado": "16+ anos - Coreografia y estilos"
+      },
+      "Urbano": {
+        "Iniciacion": "8+ anos - Hip hop y estilos urbanos",
+        "Basico": "10+ anos - Tecnicas urbanas base",
+        "Intermedio": "13+ anos - Combinaciones y Free style",
+        "Avanzado": "16+ anos - Competencia y shows"
+      }
+    }
+  },
+  "painPoints": {
+    "generic": "Gestionar examenes de danza, espectaculos y clases de diferentes disciplinas con hojas de calculo es frustrante. La informacion se pierde y los padres no estan bien informados.",
+    "specific": "Coordinar examenes de ballet RAD/Vaganova, gestionar inspecciones para espectaculos, tracking del progreso tecnico por disciplina y comunicacion con padres."
+  },
+  "socialProof": {
+    "academies": [
+      "Ballet Antonio Madrid",
+      "Danza Contemporanea Barcelona",
+      "Estudio Urban Dance Valencia",
+      "Academia Ballet Sevilla",
+      "Move & Dance Bilbao"
+    ],
+    "stats": {
+      "athletes": "8,000+",
+      "academies": "45+"
+    }
+  },
+  "interlinking": {
+    "relatedCountries": ["mexico", "argentina", "colombia", "chile", "peru"],
+    "relatedModalities": ["artistic", "rhythmic", "acrobatic", "parkour"]
+  }
+}
