@@ -1,11 +1,12 @@
 // src/app/api/ai/billing/generate-reminder/route.ts
 import { NextRequest, NextResponse } from 'next/server';
+import { withTenant } from '@/lib/authz';
 import { getAIOrchestrator } from '@/lib/ai/orchestrator';
 import { BILLING_SYSTEM_PROMPT, generateReminderPrompt } from '@/lib/ai/prompts/billing';
 
-export async function POST(req: NextRequest) {
+export const POST = withTenant(async (request: Request) => {
   try {
-    const body = await req.json();
+    const body = await request.json();
     const { athleteId, name, pendingAmount, dueDate, academyName } = body;
 
     if (!name || !pendingAmount || !dueDate || !academyName) {
@@ -40,4 +41,4 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
-}
+});

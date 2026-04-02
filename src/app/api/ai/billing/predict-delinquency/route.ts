@@ -2,6 +2,7 @@
 export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
+import { withTenant } from '@/lib/authz';
 import { getAIOrchestrator } from '@/lib/ai/orchestrator';
 import { BILLING_SYSTEM_PROMPT, generateDelinquencyPrompt } from '@/lib/ai/prompts/billing';
 
@@ -27,9 +28,9 @@ function checkRateLimit(ip: string): boolean {
   return true;
 }
 
-export async function POST(req: NextRequest) {
+export const POST = withTenant(async (request: Request) => {
   // Rate limit check
-  const ip = req.headers.get('x-forwarded-for') || 'unknown';
+  const ip = request.headers.get('x-forwarded-for') || 'unknown';
   if (!checkRateLimit(ip)) {
     return NextResponse.json(
       { error: 'Rate limit exceeded' },
@@ -38,7 +39,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const body = await req.json();
+    const body = await request.json();
     const { athleteId, name, paymentHistory, lastPaymentDate, pendingAmount } = body;
 
     if (!name || !paymentHistory) {
@@ -76,4 +77,4 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
-}
+});

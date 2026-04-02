@@ -9,6 +9,7 @@ import { academies, profiles } from "@/db/schema";
 import { handleApiError } from "@/lib/api-error-handler";
 import { withRateLimit, getClientIdentifier } from "@/lib/rate-limit";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
+import { logger } from "@/lib/logger";
 
 const ContactSchema = z.object({
   name: z.string().min(2).max(100),
@@ -105,7 +106,7 @@ async function contactHandler(request: Request, context?: { params?: Promise<{ i
     // En producción, aquí se enviaría el email al propietario de la academia
 
     // Log del contacto (opcional, para debugging)
-    console.log("Contact form submitted:", {
+    logger.info("Contact form submitted", {
       academyId: id,
       academyName: academy.name,
       contactName: name,

@@ -2,12 +2,14 @@
 export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from "next/server";
+import { withTenant } from "@/lib/authz";
 import { getAIOrchestrator } from "@/lib/ai/orchestrator";
 import { ATTENDANCE_SYSTEM_PROMPT, generateAbsencePredictionPrompt } from "@/lib/ai/prompts/attendance";
 
-export async function GET(req: NextRequest) {
+export const GET = withTenant(async (request: Request) => {
   try {
-    const { searchParams } = new URL(req.url);
+    const url = new URL(request.url);
+    const { searchParams } = url;
     const athleteId = searchParams.get("athleteId");
     const academyId = searchParams.get("academyId");
 
@@ -20,7 +22,7 @@ export async function GET(req: NextRequest) {
 
     // Obtener datos de asistencia del atleta
     const attendanceRes = await fetch(
-      `${req.nextUrl.origin}/api/attendance/records?academyId=${academyId}&athleteId=${athleteId}`
+      `${url.origin}/api/attendance/records?academyId=${academyId}&athleteId=${athleteId}`
     );
 
     let attendanceData: any = {};
@@ -79,4 +81,4 @@ export async function GET(req: NextRequest) {
       { status: 500 }
     );
   }
-}
+});

@@ -6,6 +6,7 @@ import { db } from "@/db";
 import { profiles, academies, memberships } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
 import { handleApiError } from "@/lib/api-error-handler";
+import { logger } from "@/lib/logger";
 
 export const dynamic = 'force-dynamic';
 
@@ -24,7 +25,7 @@ async function resolveUserId(request: Request) {
   // Log warning if someone tries to use the old x-user-id header (potential attack)
   const headerUserId = request.headers.get("x-user-id");
   if (headerUserId && headerUserId !== user.id) {
-    console.warn("SECURITY: Attempted x-user-id header spoofing detected", {
+    logger.warn("SECURITY: Attempted x-user-id header spoofing detected", {
       headerUserId,
       actualUserId: user.id,
     });
@@ -187,7 +188,7 @@ export async function POST(request: Request) {
         role: finalProfile.role,
       });
     } catch (error) {
-      console.error("Error in onboarding profile:", error);
+      logger.error("Error in onboarding profile", error);
       return handleApiError(error, { endpoint: "/api/onboarding/profile", method: "POST" });
     }
   } catch (error) {
