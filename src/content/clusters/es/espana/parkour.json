@@ -1,0 +1,61 @@
+{
+  "meta": {
+    "title": "Software para Parkour en Espana | Zaltyko - Gestion Integral",
+    "description": "Gestiona tu escuela de parkour con Zaltyko. Control total sobre atletas, grupos por niveles (Iniciacion, Basico, Intermedio, Avanzado, Elite), eventos y competiciones de parkour en Espana.",
+    "keywords": [
+      "parkour espana",
+      "software parkour",
+      "gestion parkour",
+      "escuela parkour",
+      "competiciones parkour espana",
+      "freerunning",
+      "niveles parkour",
+      "atletas parkour",
+      "federacion parkour espana"
+    ]
+  },
+  "hero": {
+    "badge": "Gestion inteligente para escuelas de parkour",
+    "headline": "Gestiona tu escuela de parkour sin complicaciones",
+    "subheadline": "Control total sobre atletas, grupos por niveles (Iniciacion hasta Elite), clases, eventos y competiciones. Todo en una sola plataforma."
+  },
+  "federation": {
+    "name": "Federacion Espanola de Gimnasia (FEG) - Seccion Parkour",
+    "competitions": [
+      "Campeonato de Espana de Parkour",
+      "Copa de Espana de Freerunning",
+      "Circuito Nacional Parkour",
+      "Clasificatorios para Europa Parkour Cup"
+    ]
+  },
+  "categories": {
+    "levels": {
+      "Iniciacion": "4-7 anos - Introduccion al movimiento",
+      "Basico": "8-10 anos - Fundamentos del parkour",
+      "Intermedio": "11-13 anos - Tecnicas intermedias",
+      "Avanzado": "14-16 anos - Rutinas y combinaciones",
+      "Elite": "17+ anos - Competicion y shows"
+    }
+  },
+  "painPoints": {
+    "generic": "Gestionar grupos por niveles, asistir a clases y organizar eventos de parkour con hojas de calculo es caotico. La informacion se pierde y el seguimiento del progreso es casi imposible.",
+    "specific": "Coordinar clases de freerunning con diferentes niveles, gestionar la progresion de atletas desde Iniciacion hasta Elite, y organizar exhibitions para competiciones locales."
+  },
+  "socialProof": {
+    "academies": [
+      "Parkour Madrid",
+      "Urban Flow Barcelona",
+      "Traceurs Valencia",
+      "Move Academy Bilbao",
+      "FreeMove Sevilla"
+    ],
+    "stats": {
+      "athletes": "3,500+",
+      "academies": "25+"
+    }
+  },
+  "interlinking": {
+    "relatedCountries": ["mexico", "argentina", "colombia", "chile", "peru"],
+    "relatedModalities": ["artistic", "rhythmic", "trampoline", "danza"]
+  }
+}

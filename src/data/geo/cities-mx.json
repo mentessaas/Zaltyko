@@ -1,0 +1,238 @@
+{
+  "ags": [
+    { "value": "aguascalientes", "label": "Aguascalientes" },
+    { "value": "jesus-maria", "label": "Jesús María" }
+  ],
+  "bc": [
+    { "value": "tijuana", "label": "Tijuana" },
+    { "value": "mexicali", "label": "Mexicali" },
+    { "value": "ensenada", "label": "Ensenada" },
+    { "value": "rosarito", "label": "Playas de Rosarito" }
+  ],
+  "bcs": [
+    { "value": "la-paz", "label": "La Paz" },
+    { "value": "cabo-san-lucas", "label": "Cabo San Lucas" },
+    { "value": "san-jose-del-cabo", "label": "San José del Cabo" }
+  ],
+  "cam": [
+    { "value": "campeche", "label": "Campeche" },
+    { "value": "ciudad-del-carmen", "label": "Ciudad del Carmen" }
+  ],
+  "chp": [
+    { "value": "tuxtla-gutierrez", "label": "Tuxtla Gutiérrez" },
+    { "value": "tapachula", "label": "Tapachula" },
+    { "value": "san-cristobal", "label": "San Cristóbal de las Casas" }
+  ],
+  "chh": [
+    { "value": "chihuahua", "label": "Chihuahua" },
+    { "value": "ciudad-juarez", "label": "Ciudad Juárez" },
+    { "value": "parral", "label": "Hidalgo del Parral" }
+  ],
+  "cmx": [
+    { "value": "ciudad-mexico", "label": "Ciudad de México" },
+    { "value": "iztapalapa", "label": "Iztapalapa" },
+    { "value": "gustavo-madero", "label": "Gustavo A. Madero" },
+    { "value": "alvaro-obregon", "label": "Álvaro Obregón" },
+    { "value": "azcapotzalco", "label": "Azcapotzalco" },
+    { "value": "benito-juarez", "label": "Benito Juárez" },
+    { "value": "coyoacan", "label": "Coyoacán" },
+    { "value": "cuajimalpa", "label": "Cuajimalpa de Morelos" },
+    { "value": "cuauhtemoc", "label": "Cuauhtémoc" },
+    { "value": "iztacalco", "label": "Iztacalco" },
+    { "value": "magdalena-contreras", "label": "La Magdalena Contreras" },
+    { "value": "miguel-hidalgo", "label": "Miguel Hidalgo" },
+    { "value": "milpa-alta", "label": "Milpa Alta" },
+    { "value": "tlahuac", "label": "Tláhuac" },
+    { "value": "tlalpan", "label": "Tlalpan" },
+    { "value": "venustiano-carranza", "label": "Venustiano Carranza" },
+    { "value": "xochimilco", "label": "Xochimilco" }
+  ],
+  "coah": [
+    { "value": "saltillo", "label": "Saltillo" },
+    { "value": "torreon", "label": "Torreón" },
+    { "value": "monclova", "label": "Monclova" }
+  ],
+  "col": [
+    { "value": "colima", "label": "Colima" },
+    { "value": "manzanillo", "label": "Manzanillo" }
+  ],
+  "dgo": [
+    { "value": "durango", "label": "Durango" },
+    { "value": "gomez-palacio", "label": "Gómez Palacio" }
+  ],
+  "gto": [
+    { "value": "guanajuato", "label": "Guanajuato" },
+    { "value": "leon", "label": "León" },
+    { "value": "celaya", "label": "Celaya" },
+    { "value": "salamanca", "label": "Salamanca" },
+    { "value": "irosto", "label": "Irapuato" },
+    { "value": "silao", "label": "Silao" },
+    { "value": "san-miguel", "label": "San Miguel de Allende" },
+    { "value": "dolores-hidalgo", "label": "Dolores Hidalgo" },
+    { "value": "san-francisco", "label": "San Francisco del Rincón" },
+    { "value": "purisima", "label": "Purísima del Rincón" },
+    { "value": "valle-santiago", "label": "Valle de Santiago" },
+    { "value": "moroleon", "label": "Moroleón" },
+    { "value": "yuriria", "label": "Yuriria" },
+    { "value": "penjamo", "label": "Pénjamo" },
+    { "value": "abasolo", "label": "Abasolo" }
+  ],
+  "gro": [
+    { "value": "chilpancingo", "label": "Chilpancingo de los Bravo" },
+    { "value": "acapulco", "label": "Acapulco de Juárez" },
+    { "value": "taxco", "label": "Taxco de Alarcón" }
+  ],
+  "hgo": [
+    { "value": "pachuca", "label": "Pachuca de Soto" },
+    { "value": "tulancingo", "label": "Tulancingo" }
+  ],
+  "jal": [
+    { "value": "guadalajara", "label": "Guadalajara" },
+    { "value": "zapopan", "label": "Zapopan" },
+    { "value": "tlaquepaque", "label": "Tlaquepaque" },
+    { "value": "tonala", "label": "Tonalá" },
+    { "value": "tlajomulco", "label": "Tlajomulco de Zúñiga" },
+    { "value": "el-salto", "label": "El Salto" },
+    { "value": "puerto-vallarta", "label": "Puerto Vallarta" },
+    { "value": "tlaquepaque", "label": "San Pedro Tlaquepaque" },
+    { "value": "ocotlan", "label": "Ocotlán" },
+    { "value": "ciudad-guzman", "label": "Ciudad Guzmán" },
+    { "value": "lago-de-moreno", "label": "Lagos de Moreno" },
+    { "value": "tepatitlan", "label": "Tepatitlán de Morelos" },
+    { "value": "tala", "label": "Tala" },
+    { "value": "ameca", "label": "Ameca" },
+    { "value": "arandas", "label": "Arandas" },
+    { "value": "tequila", "label": "Tequila" },
+    { "value": "chapala", "label": "Chapala" },
+    { "value": "zapotlanejo", "label": "Zapotlanejo" },
+    { "value": "tomatlan", "label": "Tomatlán" },
+    { "value": "autlan", "label": "Autlán de Navarro" }
+  ],
+  "mex": [
+    { "value": "toluca", "label": "Toluca de Lerdo" },
+    { "value": "naucalpan", "label": "Naucalpan de Juárez" },
+    { "value": "tlalnepantla", "label": "Tlalnepantla de Baz" },
+    { "value": "ecatepec", "label": "Ecatepec de Morelos" },
+    { "value": "nezahualcoyotl", "label": "Nezahualcóyotl" },
+    { "value": "chimalhuacan", "label": "Chimalhuacán" },
+    { "value": "cuautitlan-izcalli", "label": "Cuautitlán Izcalli" },
+    { "value": "tultitlan", "label": "Tultitlán" },
+    { "value": "atizapan", "label": "Atizapán de Zaragoza" },
+    { "value": "nicolas-romero", "label": "Nicolás Romero" },
+    { "value": "tecamac", "label": "Tecámac" },
+    { "value": "coacalco", "label": "Coacalco de Berriozábal" },
+    { "value": "huixquilucan", "label": "Huixquilucan" },
+    { "value": "zumpango", "label": "Zumpango" },
+    { "value": "chicoloapan", "label": "Chicoloapan" },
+    { "value": "ixtapaluca", "label": "Ixtapaluca" },
+    { "value": "valle-chalco", "label": "Valle de Chalco Solidaridad" },
+    { "value": "teotihuacan", "label": "Teotihuacán" },
+    { "value": "metepec", "label": "Metepec" },
+    { "value": "lerma", "label": "Lerma" }
+  ],
+  "mich": [
+    { "value": "morelia", "label": "Morelia" },
+    { "value": "zamora", "label": "Zamora de Hidalgo" },
+    { "value": "uruapan", "label": "Uruapan" }
+  ],
+  "mor": [
+    { "value": "cuernavaca", "label": "Cuernavaca" },
+    { "value": "cuautla", "label": "Cuautla" }
+  ],
+  "nay": [
+    { "value": "tepic", "label": "Tepic" },
+    { "value": "bahia-banderas", "label": "Bahía de Banderas" }
+  ],
+  "nl": [
+    { "value": "monterrey", "label": "Monterrey" },
+    { "value": "san-nicolas", "label": "San Nicolás de los Garza" },
+    { "value": "guadalupe", "label": "Guadalupe" },
+    { "value": "apodaca", "label": "Apodaca" },
+    { "value": "santa-catarina", "label": "Santa Catarina" },
+    { "value": "san-pedro", "label": "San Pedro Garza García" },
+    { "value": "escobedo", "label": "General Escobedo" },
+    { "value": "garcia", "label": "García" },
+    { "value": "juarez", "label": "Ciudad Juárez" },
+    { "value": "cadereyta", "label": "Cadereyta Jiménez" },
+    { "value": "cienega-flores", "label": "Ciénega de Flores" },
+    { "value": "el-carmen", "label": "El Carmen" },
+    { "value": "hidalgo", "label": "Hidalgo" },
+    { "value": "salinas-victoria", "label": "Salinas Victoria" }
+  ],
+  "oax": [
+    { "value": "oaxaca", "label": "Oaxaca de Juárez" },
+    { "value": "santa-cruz", "label": "Santa Cruz Xoxocotlán" }
+  ],
+  "pue": [
+    { "value": "puebla", "label": "Puebla de Zaragoza" },
+    { "value": "cholula", "label": "Cholula" },
+    { "value": "tehuacan", "label": "Tehuacán" },
+    { "value": "chignahuapan", "label": "Chignahuapan" },
+    { "value": "atlixco", "label": "Atlixco" },
+    { "value": "san-martin", "label": "San Martín Texmelucan" },
+    { "value": "zacatlan", "label": "Zacatlán" },
+    { "value": "teziutlan", "label": "Teziutlán" },
+    { "value": "huejotzingo", "label": "Huejotzingo" },
+    { "value": "san-pedro", "label": "San Pedro Cholula" },
+    { "value": "izucar", "label": "Izúcar de Matamoros" },
+    { "value": "tepeaca", "label": "Tepeaca" },
+    { "value": "tlaxcala-puebla", "label": "Tlaxcala" }
+  ],
+  "qro": [
+    { "value": "queretaro", "label": "Querétaro" },
+    { "value": "san-juan", "label": "San Juan del Río" }
+  ],
+  "qroo": [
+    { "value": "cancun", "label": "Cancún" },
+    { "value": "chetumal", "label": "Chetumal" },
+    { "value": "playa-del-carmen", "label": "Playa del Carmen" }
+  ],
+  "slp": [
+    { "value": "san-luis-potosi", "label": "San Luis Potosí" },
+    { "value": "ciudad-valles", "label": "Ciudad Valles" }
+  ],
+  "sin": [
+    { "value": "culiacan", "label": "Culiacán Rosales" },
+    { "value": "mazatlan", "label": "Mazatlán" }
+  ],
+  "son": [
+    { "value": "hermosillo", "label": "Hermosillo" },
+    { "value": "ciudad-obregon", "label": "Ciudad Obregón" },
+    { "value": "nogales", "label": "Nogales" }
+  ],
+  "tab": [
+    { "value": "villahermosa", "label": "Villahermosa" },
+    { "value": "ciudad-del-carmen", "label": "Ciudad del Carmen" }
+  ],
+  "tam": [
+    { "value": "ciudad-victoria", "label": "Ciudad Victoria" },
+    { "value": "reynosa", "label": "Reynosa" },
+    { "value": "matamoros", "label": "Matamoros" }
+  ],
+  "tlx": [{ "value": "tlaxcala", "label": "Tlaxcala de Xicohténcatl" }],
+  "ver": [
+    { "value": "xalapa", "label": "Xalapa-Enríquez" },
+    { "value": "veracruz", "label": "Veracruz" },
+    { "value": "cordoba", "label": "Córdoba" },
+    { "value": "poza-rica", "label": "Poza Rica de Hidalgo" },
+    { "value": "coatzacoalcos", "label": "Coatzacoalcos" },
+    { "value": "orizaba", "label": "Orizaba" },
+    { "value": "minatitlan", "label": "Minatitlán" },
+    { "value": "coatepec", "label": "Coatepec" },
+    { "value": "papantla", "label": "Papantla" },
+    { "value": "tuxpan", "label": "Tuxpan" },
+    { "value": "martinez", "label": "Martínez de la Torre" },
+    { "value": "alvarado", "label": "Alvarado" },
+    { "value": "boca-del-rio", "label": "Boca del Río" },
+    { "value": "fortin", "label": "Fortín de las Flores" },
+    { "value": "cosamaloapan", "label": "Cosamaloapan" }
+  ],
+  "yuc": [
+    { "value": "merida", "label": "Mérida" },
+    { "value": "valladolid", "label": "Valladolid" }
+  ],
+  "zac": [
+    { "value": "zacatecas", "label": "Zacatecas" },
+    { "value": "fresnillo", "label": "Fresnillo" }
+  ]
+}
