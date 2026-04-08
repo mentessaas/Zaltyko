@@ -33,7 +33,7 @@ const createChainableMock = (resolveWith: unknown = []) => {
   return thenable;
 };
 
-// Create column mock
+// Create column mock with $type support (for jsonb, json columns)
 const createColumnMock = (name: string) => {
   const col: Record<string, unknown> = { _name: name };
   const methods = [
@@ -44,6 +44,8 @@ const createColumnMock = (name: string) => {
   methods.forEach((method) => {
     col[method] = vi.fn().mockReturnThis();
   });
+  // Support $type<T>() for typed JSON columns
+  col.$type = vi.fn().mockReturnThis();
   return col;
 };
 
@@ -94,7 +96,12 @@ vi.mock("drizzle-orm/pg-core", () => {
     uniqueIndex: vi.fn((name: string) => ({ _name: name })),
     foreignKey: vi.fn((name: string) => ({ _name: name })),
     primaryKey: vi.fn(() => createColumnMock("pk")),
-    pgSchema: vi.fn((name: string) => ({})),
+    pgSchema: vi.fn((name: string) => ({
+      table: vi.fn((tableName: string, columns: Record<string, unknown>) => ({
+        _name: `${name}.${tableName}`,
+        ...columns,
+      })),
+    })),
   };
 });
 
