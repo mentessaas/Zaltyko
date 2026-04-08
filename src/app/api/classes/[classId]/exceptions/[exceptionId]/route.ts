@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { apiSuccess, apiError } from "@/lib/api-response";
 import { db } from "@/db";
 import { classExceptions } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
@@ -30,19 +30,13 @@ async function deleteException(
             .returning();
 
         if (deleted.length === 0) {
-            return NextResponse.json(
-                { error: "Exception not found" },
-                { status: 404 }
-            );
+            return apiError("EXCEPTION_NOT_FOUND", "Exception not found", 404);
         }
 
-        return NextResponse.json({ success: true });
+        return apiSuccess({ success: true });
     } catch (error) {
         logger.error("Error deleting class exception:", error);
-        return NextResponse.json(
-            { error: "Error deleting exception" },
-            { status: 500 }
-        );
+        return apiError("DELETE_EXCEPTION_FAILED", "Error deleting exception", 500);
     }
 }
 

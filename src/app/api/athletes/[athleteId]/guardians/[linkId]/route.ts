@@ -1,10 +1,10 @@
-import { NextResponse } from "next/server";
 import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
 import { familyContacts, guardianAthletes, guardians } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
+import { apiSuccess, apiError } from "@/lib/api-response";
 
 const UpdateGuardianSchema = z.object({
   name: z.string().min(1).optional(),
@@ -58,13 +58,13 @@ export const PATCH = withTenant(async (request, context) => {
   const { athleteId, linkId } = (context.params ?? {}) as { athleteId?: string; linkId?: string };
 
   if (!athleteId || !linkId) {
-    return NextResponse.json({ error: "IDENTIFIERS_REQUIRED" }, { status: 400 });
+    return apiError("IDENTIFIERS_REQUIRED", "Athlete ID and Link ID are required", 400);
   }
 
   const link = await getGuardianLink(linkId, athleteId);
 
   if (!link) {
-    return NextResponse.json({ error: "GUARDIAN_NOT_FOUND" }, { status: 404 });
+    return apiError("GUARDIAN_NOT_FOUND", "Guardian not found", 404);
   }
 
   if (
@@ -72,13 +72,13 @@ export const PATCH = withTenant(async (request, context) => {
     context.profile.role !== "admin" &&
     link.tenantId !== context.tenantId
   ) {
-    return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+    return apiError("FORBIDDEN", "Access denied", 403);
   }
 
   const body = UpdateGuardianSchema.parse(await request.json());
 
   if (Object.keys(body).length === 0) {
-    return NextResponse.json({ error: "NO_CHANGES" }, { status: 400 });
+    return apiError("NO_CHANGES", "No changes provided", 400);
   }
 
   // Verificar si es de family_contacts (sistema antiguo) o guardian_athletes (sistema nuevo)
@@ -118,7 +118,7 @@ export const PATCH = withTenant(async (request, context) => {
       .where(eq(familyContacts.id, linkId))
       .limit(1);
 
-    return NextResponse.json({ item: updated });
+    return apiSuccess({ item: updated });
   } else {
     // Actualizar en guardians y guardian_athletes (sistema nuevo)
     if (link.guardianId && (body.name || body.email || body.phone || body.relationship || body.notifyEmail !== undefined || body.notifySms !== undefined)) {
@@ -165,7 +165,7 @@ export const PATCH = withTenant(async (request, context) => {
       .where(eq(guardianAthletes.id, linkId))
       .limit(1);
 
-    return NextResponse.json({ item: updated });
+    return apiSuccess({ item: updated });
   }
 });
 
@@ -173,13 +173,13 @@ export const DELETE = withTenant(async (_request, context) => {
   const { athleteId, linkId } = (context.params ?? {}) as { athleteId?: string; linkId?: string };
 
   if (!athleteId || !linkId) {
-    return NextResponse.json({ error: "IDENTIFIERS_REQUIRED" }, { status: 400 });
+    return apiError("IDENTIFIERS_REQUIRED", "Athlete ID and Link ID are required", 400);
   }
 
   const link = await getGuardianLink(linkId, athleteId);
 
   if (!link) {
-    return NextResponse.json({ error: "GUARDIAN_NOT_FOUND" }, { status: 404 });
+    return apiError("GUARDIAN_NOT_FOUND", "Guardian not found", 404);
   }
 
   if (
@@ -187,7 +187,7 @@ export const DELETE = withTenant(async (_request, context) => {
     context.profile.role !== "admin" &&
     link.tenantId !== context.tenantId
   ) {
-    return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+    return apiError("FORBIDDEN", "Access denied", 403);
   }
 
   // Verificar si es de family_contacts (sistema antiguo) o guardian_athletes (sistema nuevo)
@@ -214,7 +214,7 @@ export const DELETE = withTenant(async (_request, context) => {
     }
   }
 
-  return NextResponse.json({ ok: true });
+  return apiSuccess({ ok: true });
 });
 
 

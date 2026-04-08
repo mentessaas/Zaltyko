@@ -1,11 +1,11 @@
 export const dynamic = 'force-dynamic';
 
-import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { withTenant } from "@/lib/authz";
 import { getChecklist } from "@/lib/onboarding";
 import { CHECKLIST_DEFINITIONS } from "@/lib/onboarding-utils";
+import { apiSuccess, apiError } from "@/lib/api-response";
 
 const querySchema = z.object({
   academyId: z.string().uuid().optional(),
@@ -16,19 +16,19 @@ export const GET = withTenant(async (request, context) => {
   const params = querySchema.safeParse(Object.fromEntries(url.searchParams));
 
   if (!params.success) {
-    return NextResponse.json({ error: "INVALID_QUERY" }, { status: 400 });
+    return apiError("INVALID_QUERY", "Query inválido", 400);
   }
 
   const academyId = params.data.academyId ?? context.profile.activeAcademyId ?? null;
   if (!academyId) {
-    return NextResponse.json({ error: "ACADEMY_REQUIRED" }, { status: 400 });
+    return apiError("ACADEMY_REQUIRED", "Academy requerido", 400);
   }
 
   const items = await getChecklist(academyId);
   const completed = items.filter((item) => item.status === "completed").length;
   const total = CHECKLIST_DEFINITIONS.length;
 
-  return NextResponse.json({
+  return apiSuccess({
     items,
     summary: {
       completed,
@@ -36,4 +36,3 @@ export const GET = withTenant(async (request, context) => {
     },
   });
 });
-

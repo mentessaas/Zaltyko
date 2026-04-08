@@ -1,14 +1,16 @@
 import { randomUUID } from "node:crypto";
-import { NextResponse } from "next/server";
 import { eq, and } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
 import { athletes, groupAthletes, groups } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
+import { rateLimit, getUserIdentifier, withRateLimit } from "@/lib/rate-limit";
 import { athleteStatusOptions } from "@/lib/athletes/constants";
 import { syncChargesForAthleteCurrentPeriod } from "@/lib/billing/sync-charges";
 import { formatDateForDB } from "@/lib/validation/date-utils";
+import { apiSuccess, apiError } from "@/lib/api-response";
+import { NextResponse } from "next/server";
 
 // Validador custom para fechas en actualización
 const updateDateStringSchema = z
@@ -46,11 +48,12 @@ async function getAthleteTenant(athleteId: string) {
   return row ?? null;
 }
 
-export const GET = withTenant(async (_request, context) => {
+// Handler for GET - rate limited: 100 requests per minute
+const getAthleteHandler = withTenant(async (_request, context) => {
   const athleteId = (context.params as { athleteId?: string })?.athleteId;
 
   if (!athleteId) {
-    return NextResponse.json({ error: "ATHLETE_ID_REQUIRED" }, { status: 400 });
+    return apiError("ATHLETE_ID_REQUIRED", "Athlete ID is required", 400);
   }
 
   const { tenantId } = context;
@@ -62,17 +65,25 @@ export const GET = withTenant(async (_request, context) => {
     .limit(1);
 
   if (!athlete) {
-    return NextResponse.json({ error: "ATHLETE_NOT_FOUND" }, { status: 404 });
+    return apiError("ATHLETE_NOT_FOUND", "Athlete not found", 404);
   }
 
-  return NextResponse.json(athlete);
+  return apiSuccess(athlete);
 });
 
-export const PUT = withTenant(async (request, context) => {
+export const GET = withRateLimit(
+  async (request) => {
+    return (await getAthleteHandler(request, {} as any)) as NextResponse;
+  },
+  { identifier: getUserIdentifier, limit: 100, window: 60 }
+);
+
+// Handler for PUT - rate limited: 30 requests per minute
+const updateAthleteHandler = withTenant(async (request, context) => {
   const athleteId = (context.params as { athleteId?: string })?.athleteId;
 
   if (!athleteId) {
-    return NextResponse.json({ error: "ATHLETE_ID_REQUIRED" }, { status: 400 });
+    return apiError("ATHLETE_ID_REQUIRED", "Athlete ID is required", 400);
   }
 
   const { tenantId } = context;
@@ -85,7 +96,7 @@ export const PUT = withTenant(async (request, context) => {
     .limit(1);
 
   if (!existing) {
-    return NextResponse.json({ error: "ATHLETE_NOT_FOUND" }, { status: 404 });
+    return apiError("ATHLETE_NOT_FOUND", "Athlete not found", 404);
   }
 
   const body = UpdateSchema.parse(await request.json());
@@ -99,10 +110,7 @@ export const PUT = withTenant(async (request, context) => {
     if (body.dob === null) {
       updates.dob = null;
     } else if (body.dob === "INVALID") {
-      return NextResponse.json(
-        { error: "INVALID_DOB", message: "El formato de fecha de nacimiento no es válido" },
-        { status: 400 }
-      );
+      return apiError("INVALID_DOB", "El formato de fecha de nacimiento no es válido", 400);
     } else if (body.dob instanceof Date) {
       updates.dob = formatDateForDB(body.dob);
     }
@@ -128,27 +136,35 @@ export const PUT = withTenant(async (request, context) => {
     .where(eq(athletes.id, athleteId))
     .returning();
 
-  return NextResponse.json(updated);
+  return apiSuccess(updated);
 });
 
-export const PATCH = withTenant(async (request, context) => {
+export const PUT = withRateLimit(
+  async (request) => {
+    return (await updateAthleteHandler(request, {} as any)) as NextResponse;
+  },
+  { identifier: getUserIdentifier, limit: 30, window: 60 }
+);
+
+// Handler for PATCH - rate limited: 30 requests per minute
+const patchAthleteHandler = withTenant(async (request, context) => {
   const athleteId = (context.params as { athleteId?: string })?.athleteId;
 
   if (!athleteId) {
-    return NextResponse.json({ error: "ATHLETE_ID_REQUIRED" }, { status: 400 });
+    return apiError("ATHLETE_ID_REQUIRED", "Athlete ID is required", 400);
   }
 
   const athleteRow = await getAthleteTenant(athleteId);
 
   if (!athleteRow) {
-    return NextResponse.json({ error: "ATHLETE_NOT_FOUND" }, { status: 404 });
+    return apiError("ATHLETE_NOT_FOUND", "Athlete not found", 404);
   }
 
   if (
     context.profile.role !== "super_admin" &&
     athleteRow.tenantId !== context.tenantId
   ) {
-    return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+    return apiError("FORBIDDEN", "Access denied", 403);
   }
 
   const body = UpdateSchema.parse(await request.json());
@@ -162,19 +178,11 @@ export const PATCH = withTenant(async (request, context) => {
     if (body.dob === null) {
       updates.dob = null;
     } else if (body.dob === "INVALID") {
-      // El transform marcó la fecha como inválida
-      return NextResponse.json(
-        { error: "INVALID_DOB", message: "El formato de fecha de nacimiento no es válido. Use formato YYYY-MM-DD o ISO 8601" },
-        { status: 400 }
-      );
+      return apiError("INVALID_DOB", "El formato de fecha de nacimiento no es válido. Use formato YYYY-MM-DD o ISO 8601", 400);
     } else if (body.dob instanceof Date) {
-      // Validar que la fecha sea razonable
       const year = body.dob.getFullYear();
       if (year < 1900 || year > 2100) {
-        return NextResponse.json(
-          { error: "INVALID_DOB", message: "El año de nacimiento debe estar entre 1900 y 2100" },
-          { status: 400 }
-        );
+        return apiError("INVALID_DOB", "El año de nacimiento debe estar entre 1900 y 2100", 400);
       }
       updates.dob = body.dob instanceof Date ? formatDateForDB(body.dob) : null;
     }
@@ -193,7 +201,7 @@ export const PATCH = withTenant(async (request, context) => {
         .limit(1);
 
       if (!groupRow || groupRow.tenantId !== athleteRow.tenantId || groupRow.academyId !== athleteRow.academyId) {
-        return NextResponse.json({ error: "GROUP_NOT_FOUND" }, { status: 404 });
+        return apiError("GROUP_NOT_FOUND", "Group not found", 404);
       }
       nextGroupId = groupRow.id;
     } else {
@@ -207,7 +215,7 @@ export const PATCH = withTenant(async (request, context) => {
   }
 
   if (Object.keys(updates).length === 0) {
-    return NextResponse.json({ ok: true });
+    return apiSuccess({ ok: true });
   }
 
   await db.update(athletes).set(updates).where(eq(athletes.id, athleteId));
@@ -223,8 +231,7 @@ export const PATCH = withTenant(async (request, context) => {
           athleteId,
         })
         .onConflictDoNothing();
-      
-      // Sincronizar cargos pendientes del periodo actual con la nueva cuota del grupo
+
       await syncChargesForAthleteCurrentPeriod({
         academyId: athleteRow.academyId,
         athleteId,
@@ -235,32 +242,47 @@ export const PATCH = withTenant(async (request, context) => {
     }
   }
 
-  return NextResponse.json({ ok: true });
+  return apiSuccess({ ok: true });
 });
 
-export const DELETE = withTenant(async (_request, context) => {
+export const PATCH = withRateLimit(
+  async (request) => {
+    return (await patchAthleteHandler(request, {} as any)) as NextResponse;
+  },
+  { identifier: getUserIdentifier, limit: 30, window: 60 }
+);
+
+// Handler for DELETE - rate limited: 5 requests per minute
+const deleteAthleteHandler = withTenant(async (_request, context) => {
   const athleteId = (context.params as { athleteId?: string })?.athleteId;
 
   if (!athleteId) {
-    return NextResponse.json({ error: "ATHLETE_ID_REQUIRED" }, { status: 400 });
+    return apiError("ATHLETE_ID_REQUIRED", "Athlete ID is required", 400);
   }
 
   const athleteRow = await getAthleteTenant(athleteId);
 
   if (!athleteRow) {
-    return NextResponse.json({ error: "ATHLETE_NOT_FOUND" }, { status: 404 });
+    return apiError("ATHLETE_NOT_FOUND", "Athlete not found", 404);
   }
 
   if (
     context.profile.role !== "super_admin" &&
     athleteRow.tenantId !== context.tenantId
   ) {
-    return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+    return apiError("FORBIDDEN", "Access denied", 403);
   }
 
   await db.delete(athletes).where(eq(athletes.id, athleteId));
 
-  return NextResponse.json({ ok: true });
+  return apiSuccess({ ok: true });
 });
+
+export const DELETE = withRateLimit(
+  async (request) => {
+    return (await deleteAthleteHandler(request, {} as any)) as NextResponse;
+  },
+  { identifier: getUserIdentifier, limit: 5, window: 60 }
+);
 
 

@@ -1,12 +1,14 @@
-import { NextResponse } from "next/server";
+import { apiSuccess, apiError } from "@/lib/api-response";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
 import { academies, subscriptions, profiles } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
+import { rateLimit, getUserIdentifier, withRateLimit } from "@/lib/rate-limit";
 import { getStripeClient } from "@/lib/stripe/client";
 import { getAppUrl, getOptionalEnvVar } from "@/lib/env";
+import { NextResponse } from "next/server";
 
 const BodySchema = z.object({
   academyId: z.string().uuid({
@@ -14,17 +16,12 @@ const BodySchema = z.object({
   }),
 });
 
-export const POST = withTenant(async (request, context) => {
+// Handler for POST - separated to apply rate limiting
+const portalHandler = withTenant(async (request, context) => {
   // Verificar configuración de Stripe
   const stripeSecretKey = getOptionalEnvVar("STRIPE_SECRET_KEY");
   if (!stripeSecretKey || stripeSecretKey.trim() === "") {
-    return NextResponse.json(
-      {
-        error: "STRIPE_NOT_CONFIGURED",
-        message: "El sistema de pagos no está configurado. Contacta con soporte para habilitar la gestión de pagos.",
-      },
-      { status: 503 }
-    );
+    return apiError("STRIPE_NOT_CONFIGURED", "El sistema de pagos no está configurado. Contacta con soporte para habilitar la gestión de pagos.", 503);
   }
 
   let stripe;
@@ -32,13 +29,7 @@ export const POST = withTenant(async (request, context) => {
     stripe = getStripeClient();
   } catch (error) {
     console.error("[billing/portal] Error initializing Stripe:", error);
-    return NextResponse.json(
-      {
-        error: "STRIPE_INIT_ERROR",
-        message: "Error al conectar con el sistema de pagos. Intenta de nuevo más tarde.",
-      },
-      { status: 500 }
-    );
+    return apiError("STRIPE_INIT_ERROR", "Error al conectar con el sistema de pagos. Intenta de nuevo más tarde.", 500);
   }
 
   // Validar body
@@ -47,22 +38,9 @@ export const POST = withTenant(async (request, context) => {
     body = BodySchema.parse(await request.json());
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        {
-          error: "VALIDATION_ERROR",
-          message: "Los datos proporcionados no son válidos",
-          details: error.issues.map((issue) => ({
-            field: issue.path.join("."),
-            message: issue.message,
-          })),
-        },
-        { status: 400 }
-      );
+      return apiError("VALIDATION_ERROR", "Los datos proporcionados no son válidos", 400);
     }
-    return NextResponse.json(
-      { error: "INVALID_JSON", message: "El cuerpo de la petición no es un JSON válido" },
-      { status: 400 }
-    );
+    return apiError("INVALID_JSON", "El cuerpo de la petición no es un JSON válido", 400);
   }
 
   // Obtener academia
@@ -77,27 +55,18 @@ export const POST = withTenant(async (request, context) => {
     .limit(1);
 
   if (!academy) {
-    return NextResponse.json(
-      { error: "ACADEMY_NOT_FOUND", message: "La academia especificada no existe" },
-      { status: 404 }
-    );
+    return apiError("ACADEMY_NOT_FOUND", "La academia especificada no existe", 404);
   }
 
   // Verificar acceso
   const isAdmin = context.profile.role === "admin" || context.profile.role === "super_admin";
   if (!isAdmin && academy.tenantId !== context.tenantId) {
-    return NextResponse.json(
-      { error: "FORBIDDEN", message: "No tienes acceso a los datos de facturación de esta academia" },
-      { status: 403 }
-    );
+    return apiError("FORBIDDEN", "No tienes acceso a los datos de facturación de esta academia", 403);
   }
 
   // Verificar que la academia tiene owner
   if (!academy.ownerId) {
-    return NextResponse.json(
-      { error: "ACADEMY_HAS_NO_OWNER", message: "La academia no tiene un propietario asignado" },
-      { status: 400 }
-    );
+    return apiError("ACADEMY_HAS_NO_OWNER", "La academia no tiene un propietario asignado", 400);
   }
 
   // Obtener owner
@@ -110,10 +79,7 @@ export const POST = withTenant(async (request, context) => {
     .limit(1);
 
   if (!owner) {
-    return NextResponse.json(
-      { error: "OWNER_NOT_FOUND", message: "No se encontró el propietario de la academia" },
-      { status: 404 }
-    );
+    return apiError("OWNER_NOT_FOUND", "No se encontró el propietario de la academia", 404);
   }
 
   // Obtener suscripción
@@ -126,13 +92,7 @@ export const POST = withTenant(async (request, context) => {
     .limit(1);
 
   if (!subscription?.stripeCustomerId) {
-    return NextResponse.json(
-      {
-        error: "NO_STRIPE_CUSTOMER",
-        message: "No existe un cliente de Stripe asociado a esta cuenta. Parece que no has completado el proceso de suscripción.",
-      },
-      { status: 400 }
-    );
+    return apiError("NO_STRIPE_CUSTOMER", "No existe un cliente de Stripe asociado a esta cuenta. Parece que no has completado el proceso de suscripción.", 400);
   }
 
   const returnUrl = `${getAppUrl()}/billing?academy=${body.academyId}`;
@@ -143,16 +103,18 @@ export const POST = withTenant(async (request, context) => {
       return_url: returnUrl,
     });
 
-    return NextResponse.json({ portalUrl: session.url });
+    return apiSuccess({ portalUrl: session.url });
   } catch (stripeError) {
     console.error("[billing/portal] Stripe error:", stripeError);
-    return NextResponse.json(
-      {
-        error: "STRIPE_ERROR",
-        message: "Error al conectar con el portal de pagos. Intenta de nuevo más tarde.",
-      },
-      { status: 500 }
-    );
+    return apiError("STRIPE_ERROR", "Error al conectar con el portal de pagos. Intenta de nuevo más tarde.", 500);
   }
 });
+
+// Rate-limited POST handler: 10 requests per minute
+export const POST = withRateLimit(
+  async (request) => {
+    return (await portalHandler(request, {} as any)) as NextResponse;
+  },
+  { identifier: getUserIdentifier, limit: 10, window: 60 }
+);
 

@@ -1,12 +1,10 @@
-import { NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
 import { academies, plans, subscriptions, profiles } from "@/db/schema";
 import { getActiveSubscription } from "@/lib/limits";
 import { withTenant } from "@/lib/authz";
-import { apiSuccess } from "@/lib/api-response";
+import { apiSuccess, apiError } from "@/lib/api-response";
 
 const BodySchema = z.object({
   academyId: z.string().uuid({
@@ -21,22 +19,9 @@ export const POST = withTenant(async (request, context) => {
     body = BodySchema.parse(await request.json());
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        {
-          error: "VALIDATION_ERROR",
-          message: "Los datos proporcionados no son válidos",
-          details: error.issues.map((issue) => ({
-            field: issue.path.join("."),
-            message: issue.message,
-          })),
-        },
-        { status: 400 }
-      );
+      return apiError("VALIDATION_ERROR", "Los datos proporcionados no son válidos", 400);
     }
-    return NextResponse.json(
-      { error: "INVALID_JSON", message: "El cuerpo de la petición no es un JSON válido" },
-      { status: 400 }
-    );
+    return apiError("INVALID_JSON", "El cuerpo de la petición no es un JSON válido", 400);
   }
 
   // Obtener academia
@@ -51,19 +36,13 @@ export const POST = withTenant(async (request, context) => {
     .limit(1);
 
   if (!academy) {
-    return NextResponse.json(
-      { error: "ACADEMY_NOT_FOUND", message: "La academia especificada no existe" },
-      { status: 404 }
-    );
+    return apiError("ACADEMY_NOT_FOUND", "La academia especificada no existe", 404);
   }
 
   // Verificar acceso
   const isAdmin = context.profile.role === "admin" || context.profile.role === "super_admin";
   if (!isAdmin && academy.tenantId !== context.tenantId) {
-    return NextResponse.json(
-      { error: "FORBIDDEN", message: "No tienes acceso a los datos de facturación de esta academia" },
-      { status: 403 }
-    );
+    return apiError("FORBIDDEN", "No tienes acceso a los datos de facturación de esta academia", 403);
   }
 
   let subscription: { stripeCustomerId: string | null; planCode: string | null; status: string | null } | null = null;
@@ -104,10 +83,7 @@ export const POST = withTenant(async (request, context) => {
     });
   } catch (error) {
     console.error("[billing/status] Error fetching subscription status:", error);
-    return NextResponse.json(
-      { error: "INTERNAL_ERROR", message: "Error al obtener el estado de facturación. Intenta de nuevo más tarde." },
-      { status: 500 }
-    );
+    return apiError("INTERNAL_ERROR", "Error al obtener el estado de facturación. Intenta de nuevo más tarde.", 500);
   }
 });
 

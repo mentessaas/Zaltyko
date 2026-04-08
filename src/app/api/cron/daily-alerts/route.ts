@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { createCapacityNotifications } from "@/lib/alerts/capacity-alerts";
 import { createPaymentNotifications } from "@/lib/alerts/payment-alerts";
@@ -7,12 +6,13 @@ import { db } from "@/db";
 import { academies, profiles } from "@/db/schema";
 import { eq, inArray } from "drizzle-orm";
 import { logger } from "@/lib/logger";
+import { apiSuccess, apiError } from "@/lib/api-response";
 
 export async function GET(request: Request) {
   // Verificar que la solicitud viene de Vercel Cron
   const authHeader = headers().get("authorization");
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+    return apiError("UNAUTHORIZED", "No autorizado", 401);
   }
 
   try {
@@ -41,9 +41,9 @@ export async function GET(request: Request) {
             eq(profiles.tenantId, academy.tenantId) &&
             inArray(profiles.role, ["owner", "admin", "super_admin"])
           );
-        
+
         const adminUserIds = adminProfiles.map(p => p.userId);
-        
+
         const coachProfiles = await db
           .select({ userId: profiles.userId })
           .from(profiles)
@@ -51,7 +51,7 @@ export async function GET(request: Request) {
             eq(profiles.tenantId, academy.tenantId) &&
             eq(profiles.role, "coach")
           );
-        
+
         const coachUserIds = coachProfiles.map(p => p.userId);
 
         // Alertas de capacidad
@@ -88,7 +88,7 @@ export async function GET(request: Request) {
       }
     }
 
-    return NextResponse.json({
+    return apiSuccess({
       ok: true,
       message: "Daily alerts processed successfully",
       academiesProcessed: allAcademies.length,
@@ -96,10 +96,6 @@ export async function GET(request: Request) {
     });
   } catch (error: any) {
     logger.error("Error in daily alerts cron", error);
-    return NextResponse.json(
-      { error: "CRON_FAILED", message: error.message },
-      { status: 500 }
-    );
+    return apiError("CRON_FAILED", error.message, 500);
   }
 }
-

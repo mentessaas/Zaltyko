@@ -1,7 +1,7 @@
-// src/app/api/ai/communication/generate-progress-update/route.ts
-import { NextRequest, NextResponse } from 'next/server';
-import { getAIOrchestrator } from '@/lib/ai/orchestrator';
-import { COMMUNICATION_SYSTEM_PROMPT, generateProgressUpdatePrompt } from '@/lib/ai/prompts/communication';
+import { NextRequest } from "next/server";
+import { getAIOrchestrator } from "@/lib/ai/orchestrator";
+import { COMMUNICATION_SYSTEM_PROMPT, generateProgressUpdatePrompt } from "@/lib/ai/prompts/communication";
+import { apiSuccess, apiError } from "@/lib/api-response";
 
 export async function POST(req: NextRequest) {
   try {
@@ -9,10 +9,7 @@ export async function POST(req: NextRequest) {
     const { athleteId, name, age, recentAssessments, attendanceRate, classesThisMonth } = body;
 
     if (!name || !age || !recentAssessments) {
-      return NextResponse.json(
-        { error: 'Missing required fields: name, age, recentAssessments' },
-        { status: 400 }
-      );
+      return apiError("VALIDATION_ERROR", "Faltan campos requeridos: name, age, recentAssessments", 400);
     }
 
     const orchestrator = getAIOrchestrator();
@@ -29,15 +26,12 @@ export async function POST(req: NextRequest) {
       maxTokens: 800,
     });
 
-    return NextResponse.json({
+    return apiSuccess({
       athleteId,
       summary: response.content,
     });
   } catch (error) {
-    console.error('AI progress update error:', error);
-    return NextResponse.json(
-      { error: 'Failed to generate progress update' },
-      { status: 500 }
-    );
+    console.error("AI progress update error:", error);
+    return apiError("INTERNAL_ERROR", "Error al generar la actualización", 500);
   }
 }

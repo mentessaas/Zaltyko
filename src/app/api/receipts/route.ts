@@ -1,15 +1,15 @@
-import { NextResponse } from "next/server";
 import { eq, and, desc } from "drizzle-orm";
 import { withTenant } from "@/lib/authz";
 
 import { db } from "@/db";
 import { receipts, athletes } from "@/db/schema";
+import { apiSuccess, apiError } from "@/lib/api-response";
 
 export const dynamic = 'force-dynamic';
 
 export const GET = withTenant(async (request, context) => {
   if (!context.tenantId) {
-    return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+    return apiError("TENANT_REQUIRED", "Tenant requerido", 400);
   }
 
   const url = new URL(request.url);
@@ -17,7 +17,7 @@ export const GET = withTenant(async (request, context) => {
   const athleteId = url.searchParams.get("athleteId");
 
   if (!academyId) {
-    return NextResponse.json({ error: "ACADEMY_ID_REQUIRED" }, { status: 400 });
+    return apiError("ACADEMY_ID_REQUIRED", "academyId requerido", 400);
   }
 
   const whereConditions = [
@@ -44,7 +44,7 @@ export const GET = withTenant(async (request, context) => {
     .where(and(...whereConditions))
     .orderBy(desc(receipts.createdAt));
 
-  return NextResponse.json({
+  return apiSuccess({
     items: items.map((item) => {
       const metadata = item.metadata || {};
       return {
@@ -56,4 +56,3 @@ export const GET = withTenant(async (request, context) => {
     }),
   });
 });
-

@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 
@@ -7,6 +6,7 @@ import { events, eventRegistrations, profiles } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
 import { handleApiError } from "@/lib/api-error-handler";
 import { logger } from "@/lib/logger";
+import { apiSuccess, apiError } from "@/lib/api-response";
 
 export const dynamic = 'force-dynamic';
 
@@ -22,7 +22,7 @@ export const POST = withTenant(async (request, context) => {
     const body = notifySchema.parse(await request.json());
 
     if (!context.tenantId) {
-      return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+      return apiError("TENANT_REQUIRED", "Tenant required", 400);
     }
 
     // Verify event exists and belongs to tenant
@@ -37,7 +37,7 @@ export const POST = withTenant(async (request, context) => {
       .limit(1);
 
     if (!eventRow) {
-      return NextResponse.json({ error: "EVENT_NOT_FOUND" }, { status: 404 });
+      return apiError("EVENT_NOT_FOUND", "Event not found", 404);
     }
 
     // Get recipients based on sendTo filter
@@ -101,7 +101,7 @@ export const POST = withTenant(async (request, context) => {
       recipients: profileRows.map((p) => ({ id: p.id, email: p.userId })),
     });
 
-    return NextResponse.json({
+    return apiSuccess({
       ok: true,
       message: "Notification sent successfully",
       recipientCount: uniqueRecipients.length,

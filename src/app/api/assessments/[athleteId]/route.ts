@@ -1,6 +1,5 @@
 export const dynamic = 'force-dynamic';
 
-import { NextResponse } from "next/server";
 import { and, eq, desc, inArray } from "drizzle-orm";
 import { z } from "zod";
 
@@ -9,6 +8,7 @@ import { athleteAssessments, assessmentScores, athletes, coaches, skillCatalog }
 import { withTenant } from "@/lib/authz";
 import { handleApiError } from "@/lib/api-error-handler";
 import { withTransaction } from "@/lib/db-transactions";
+import { apiSuccess, apiError } from "@/lib/api-response";
 
 const scoreSchema = z.object({
   skillId: z.string().uuid(),
@@ -31,7 +31,7 @@ export const POST = withTenant(async (request, context) => {
     const body = createAssessmentSchema.parse(await request.json());
 
     if (!context.tenantId) {
-      return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+      return apiError("TENANT_REQUIRED", "Tenant context is required", 400);
     }
 
     // Verify athlete exists and belongs to tenant
@@ -46,7 +46,7 @@ export const POST = withTenant(async (request, context) => {
       .limit(1);
 
     if (!athleteRow) {
-      return NextResponse.json({ error: "ATHLETE_NOT_FOUND" }, { status: 404 });
+      return apiError("ATHLETE_NOT_FOUND", "Athlete not found", 404);
     }
 
     const assessmentId = crypto.randomUUID();
@@ -78,7 +78,7 @@ export const POST = withTenant(async (request, context) => {
       }
     });
 
-    return NextResponse.json({ ok: true, id: assessmentId });
+    return apiSuccess({ id: assessmentId });
   } catch (error) {
     return handleApiError(error);
   }
@@ -89,7 +89,7 @@ export const GET = withTenant(async (request, context) => {
     const { athleteId } = context.params as { athleteId: string };
 
     if (!context.tenantId) {
-      return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+      return apiError("TENANT_REQUIRED", "Tenant context is required", 400);
     }
 
     // Verify athlete belongs to tenant
@@ -104,7 +104,7 @@ export const GET = withTenant(async (request, context) => {
       .limit(1);
 
     if (!athleteRow) {
-      return NextResponse.json({ error: "ATHLETE_NOT_FOUND" }, { status: 404 });
+      return apiError("ATHLETE_NOT_FOUND", "Athlete not found", 404);
     }
 
     // Get assessments for this athlete with scores
@@ -161,7 +161,7 @@ export const GET = withTenant(async (request, context) => {
       scores: scoresByAssessmentId.get(assessment.id) || [],
     }));
 
-    return NextResponse.json({ items: enrichedAssessments, total: enrichedAssessments.length });
+    return apiSuccess(enrichedAssessments, { total: enrichedAssessments.length });
   } catch (error) {
     return handleApiError(error);
   }

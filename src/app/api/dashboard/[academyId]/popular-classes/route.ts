@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
+import { apiSuccess, apiError } from "@/lib/api-response";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/authz";
 import { db } from "@/db";
@@ -21,12 +22,12 @@ export async function GET(
     } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+      return apiError("No autorizado", "No autorizado", 401);
     }
 
     const profile = await getCurrentProfile(user.id);
     if (!profile) {
-      return NextResponse.json({ error: "Perfil no encontrado" }, { status: 404 });
+      return apiError("Perfil no encontrado", "Perfil no encontrado", 404);
     }
 
     // Get all classes with their group info
@@ -92,14 +93,11 @@ export async function GET(
       (a, b) => b.totalEnrollments - a.totalEnrollments
     );
 
-    return NextResponse.json({
+    return apiSuccess({
       classes: sortedClasses,
     });
   } catch (error) {
     console.error("Error loading popular classes:", error);
-    return NextResponse.json(
-      { error: "Error al cargar clases populares" },
-      { status: 500 }
-    );
+    return apiError("Error al cargar clases populares", "Error al cargar clases populares", 500);
   }
 }

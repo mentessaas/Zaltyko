@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import { createClient } from "@/lib/supabase/server";
 import { db } from "@/db";
 import { profiles, memberships } from "@/db/schema";
+import { apiSuccess, apiError } from "@/lib/api-response";
 
 export async function GET() {
   const cookieStore = await cookies();
@@ -15,7 +16,7 @@ export async function GET() {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+    return apiError("UNAUTHORIZED", "User not authenticated", 401);
   }
 
   const [profile] = await db
@@ -29,12 +30,12 @@ export async function GET() {
     .limit(1);
 
   if (!profile) {
-    return NextResponse.json({ academyId: null });
+    return apiSuccess({ academyId: null });
   }
 
   // Si tiene una academia activa, usarla
   if (profile.activeAcademyId) {
-    return NextResponse.json({ academyId: profile.activeAcademyId });
+    return apiSuccess({ academyId: profile.activeAcademyId });
   }
 
   // Si no, obtener la primera academia del usuario
@@ -46,8 +47,6 @@ export async function GET() {
     .where(eq(memberships.userId, user.id))
     .limit(1);
 
-  return NextResponse.json({ 
-    academyId: firstMembership?.academyId ?? null 
-  });
+  return apiSuccess({ academyId: firstMembership?.academyId ?? null });
 }
 

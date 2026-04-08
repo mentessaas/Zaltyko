@@ -1,4 +1,4 @@
-export type StepKey = 1 | 2 | 3 | 4 | 5 | 6 | 7;
+export type StepKey = "academy" | "athletes" | "payments-team" | "brand" | "activation";
 
 export interface StepDefinition {
   id: StepKey;

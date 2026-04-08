@@ -1,10 +1,12 @@
-import { NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
 import { athletes, familyContacts, guardianAthletes, guardians } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
+import { rateLimit, getUserIdentifier, withRateLimit } from "@/lib/rate-limit";
+import { apiSuccess, apiError, apiCreated } from "@/lib/api-response";
+import { NextResponse } from "next/server";
 
 const GuardianBodySchema = z.object({
   name: z.string().min(1),
@@ -29,17 +31,18 @@ async function ensureAthleteTenant(athleteId: string) {
   return row ?? null;
 }
 
-export const GET = withTenant(async (_request, context) => {
+// Handler for GET - separated to apply rate limiting
+const getGuardiansHandler = withTenant(async (_request, context) => {
   const { athleteId } = (context.params ?? {}) as { athleteId?: string };
 
   if (!athleteId) {
-    return NextResponse.json({ error: "ATHLETE_ID_REQUIRED" }, { status: 400 });
+    return apiError("ATHLETE_ID_REQUIRED", "Athlete ID is required", 400);
   }
 
   const athleteRow = await ensureAthleteTenant(athleteId);
 
   if (!athleteRow) {
-    return NextResponse.json({ error: "ATHLETE_NOT_FOUND" }, { status: 404 });
+    return apiError("ATHLETE_NOT_FOUND", "Athlete not found", 404);
   }
 
   if (
@@ -47,7 +50,7 @@ export const GET = withTenant(async (_request, context) => {
     context.profile.role !== "admin" &&
     athleteRow.tenantId !== context.tenantId
   ) {
-    return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+    return apiError("FORBIDDEN", "Access denied", 403);
   }
 
   // Obtener contactos de guardian_athletes (sistema nuevo)
@@ -122,20 +125,29 @@ export const GET = withTenant(async (_request, context) => {
     return dateA - dateB;
   });
 
-  return NextResponse.json({ items: allItems });
+  return apiSuccess({ items: allItems });
 });
 
-export const POST = withTenant(async (request, context) => {
+// Rate-limited GET handler: 100 requests per minute
+export const GET = withRateLimit(
+  async (request) => {
+    return (await getGuardiansHandler(request, {} as any)) as NextResponse;
+  },
+  { identifier: getUserIdentifier, limit: 100, window: 60 }
+);
+
+// Handler for POST - separated to apply rate limiting
+const createGuardianHandler = withTenant(async (request, context) => {
   const { athleteId } = (context.params ?? {}) as { athleteId?: string };
 
   if (!athleteId) {
-    return NextResponse.json({ error: "ATHLETE_ID_REQUIRED" }, { status: 400 });
+    return apiError("ATHLETE_ID_REQUIRED", "Athlete ID is required", 400);
   }
 
   const athleteRow = await ensureAthleteTenant(athleteId);
 
   if (!athleteRow) {
-    return NextResponse.json({ error: "ATHLETE_NOT_FOUND" }, { status: 404 });
+    return apiError("ATHLETE_NOT_FOUND", "Athlete not found", 404);
   }
 
   if (
@@ -143,7 +155,7 @@ export const POST = withTenant(async (request, context) => {
     context.profile.role !== "admin" &&
     athleteRow.tenantId !== context.tenantId
   ) {
-    return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+    return apiError("FORBIDDEN", "Access denied", 403);
   }
 
   const body = GuardianBodySchema.parse(await request.json());
@@ -222,7 +234,15 @@ export const POST = withTenant(async (request, context) => {
     .where(eq(guardianAthletes.id, linkId))
     .limit(1);
 
-  return NextResponse.json({ item: guardianRow });
+  return apiSuccess({ item: guardianRow });
 });
+
+// Rate-limited POST handler: 10 requests per minute
+export const POST = withRateLimit(
+  async (request) => {
+    return (await createGuardianHandler(request, {} as any)) as NextResponse;
+  },
+  { identifier: getUserIdentifier, limit: 10, window: 60 }
+);
 
 

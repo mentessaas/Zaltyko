@@ -1,6 +1,5 @@
 export const dynamic = 'force-dynamic';
 
-import { NextResponse } from "next/server";
 import { z } from "zod";
 import { and, eq, desc } from "drizzle-orm";
 
@@ -8,6 +7,7 @@ import { db } from "@/db";
 import { contactMessages, academies } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
 import { verifyAcademyAccess } from "@/lib/permissions";
+import { apiSuccess, apiError } from "@/lib/api-response";
 
 const querySchema = z.object({
   academyId: z.string().uuid(),
@@ -18,7 +18,7 @@ const querySchema = z.object({
 
 export const GET = withTenant(async (request, context) => {
   if (!context.tenantId) {
-    return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+    return apiError("TENANT_REQUIRED", "Tenant requerido", 400);
   }
 
   const url = new URL(request.url);
@@ -34,10 +34,7 @@ export const GET = withTenant(async (request, context) => {
   // Verificar acceso a la academia
   const academyAccess = await verifyAcademyAccess(validated.academyId, context.tenantId);
   if (!academyAccess.allowed) {
-    return NextResponse.json(
-      { error: academyAccess.reason ?? "ACADEMY_NOT_FOUND" },
-      { status: 403 }
-    );
+    return apiError("ACADEMY_NOT_FOUND", academyAccess.reason ?? "Academia no encontrada", 403);
   }
 
   // Verificar que el usuario es propietario o admin de la academia
@@ -50,14 +47,14 @@ export const GET = withTenant(async (request, context) => {
     .limit(1);
 
   if (!academy) {
-    return NextResponse.json({ error: "ACADEMY_NOT_FOUND" }, { status: 404 });
+    return apiError("ACADEMY_NOT_FOUND", "Academia no encontrada", 404);
   }
 
   const isAdmin = context.profile.role === "admin" || context.profile.role === "super_admin";
   const isOwner = academy.ownerId === context.profile.id;
 
   if (!isAdmin && !isOwner) {
-    return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+    return apiError("FORBIDDEN", "No autorizado", 403);
   }
 
   // Construir condiciones de filtro
@@ -91,7 +88,7 @@ export const GET = withTenant(async (request, context) => {
 
   const messages = await query;
 
-  return NextResponse.json({
+  return apiSuccess({
     items: messages.map((m) => ({
       id: m.id,
       academyId: m.academyId,
@@ -108,4 +105,3 @@ export const GET = withTenant(async (request, context) => {
     })),
   });
 });
-

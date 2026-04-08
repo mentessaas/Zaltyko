@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 
-import { NextResponse } from "next/server";
+import { apiError, apiSuccess } from "@/lib/api-response";
 import { z } from "zod";
 import { eq, and } from "drizzle-orm";
 import { withTenant } from "@/lib/authz";
@@ -21,14 +21,14 @@ const createCampaignSchema = z.object({
 
 export const GET = withTenant(async (request, context) => {
   if (!context.tenantId) {
-    return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+    return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
   }
 
   const url = new URL(request.url);
   const academyId = url.searchParams.get("academyId");
 
   if (!academyId) {
-    return NextResponse.json({ error: "ACADEMY_ID_REQUIRED" }, { status: 400 });
+    return apiError("ACADEMY_ID_REQUIRED", "Academy ID is required", 400);
   }
 
   const items = await db
@@ -57,7 +57,7 @@ export const GET = withTenant(async (request, context) => {
       )
     );
 
-  return NextResponse.json({
+  return apiSuccess({
     items: items.map((item) => ({
       ...item,
       discountValue: Number(item.discountValue),
@@ -68,7 +68,7 @@ export const GET = withTenant(async (request, context) => {
 
 export const POST = withTenant(async (request, context) => {
   if (!context.tenantId) {
-    return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+    return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
   }
 
   const profile = context.profile;
@@ -89,7 +89,7 @@ export const POST = withTenant(async (request, context) => {
     .limit(1);
 
   if (!discount) {
-    return NextResponse.json({ error: "DISCOUNT_NOT_FOUND" }, { status: 404 });
+    return apiError("DISCOUNT_NOT_FOUND", "Discount not found", 404);
   }
 
   const [newCampaign] = await db
@@ -108,5 +108,5 @@ export const POST = withTenant(async (request, context) => {
     })
     .returning({ id: discountCampaigns.id });
 
-  return NextResponse.json({ ok: true, id: newCampaign.id });
+  return apiSuccess({ ok: true, id: newCampaign.id });
 });

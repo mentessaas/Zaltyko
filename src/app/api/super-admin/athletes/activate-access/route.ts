@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { apiSuccess, apiError } from "@/lib/api-response";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
@@ -138,17 +138,10 @@ export const POST = withSuperAdmin(async (request) => {
     );
 
     if (!result.ok) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: result.error,
-          message: getErrorMessage(result.error),
-        },
-        { status: 400 }
-      );
+      return apiError(result.error ?? "ACTIVATION_FAILED", getErrorMessage(result.error), 400);
     }
 
-    return NextResponse.json({
+    return apiSuccess({
       ok: true,
       message: "Acceso de atleta activado correctamente",
       userId: result.userId,
@@ -156,14 +149,7 @@ export const POST = withSuperAdmin(async (request) => {
     });
   } catch (error: any) {
     console.error("Error activando acceso de atleta:", error);
-    return NextResponse.json(
-      {
-        ok: false,
-        error: "ACTIVATION_FAILED",
-        message: error?.message ?? "Error al activar acceso del atleta",
-      },
-      { status: 500 }
-    );
+    return apiError("ACTIVATION_FAILED", error?.message ?? "Error al activar acceso del atleta", 500);
   }
 });
 

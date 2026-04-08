@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { apiSuccess, apiError } from "@/lib/api-response";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 
@@ -25,7 +25,7 @@ export const POST = withTenant(async (request, context) => {
     const body = BodySchema.parse(await request.json());
 
     if (!context.tenantId) {
-      return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+      return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
     }
 
     // Verificar que la academia existe y pertenece al tenant
@@ -36,11 +36,11 @@ export const POST = withTenant(async (request, context) => {
       .limit(1);
 
     if (!academyRow) {
-      return NextResponse.json({ error: "ACADEMY_NOT_FOUND" }, { status: 404 });
+      return apiError("ACADEMY_NOT_FOUND", "Academy not found", 404);
     }
 
     if (academyRow.tenantId !== context.tenantId && context.profile.role !== "super_admin") {
-      return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+      return apiError("FORBIDDEN", "Access denied", 403);
     }
 
     // Verificar que la clase existe y pertenece a la academia
@@ -57,7 +57,7 @@ export const POST = withTenant(async (request, context) => {
       .limit(1);
 
     if (!classRow) {
-      return NextResponse.json({ error: "CLASS_NOT_FOUND" }, { status: 404 });
+      return apiError("CLASS_NOT_FOUND", "Class not found", 404);
     }
 
     // Obtener weekdays de la clase
@@ -88,13 +88,11 @@ export const POST = withTenant(async (request, context) => {
         ? `Conflicto de horario: este atleta ya está en la clase "${conflict.conflictingClass.name}" de ${conflict.conflictingClass.startTime}-${conflict.conflictingClass.endTime} el mismo día. No puede estar en dos clases a la vez.`
         : `Conflicto de horario: este atleta ya está en la clase "${conflict.conflictingClass.name}" el mismo día. No puede estar en dos clases a la vez.`;
 
-      return NextResponse.json(
-        {
-          error: "SCHEDULE_CONFLICT",
-          message: conflictMessage,
-          conflictingClass: conflict.conflictingClass,
-        },
-        { status: 409 }
+      return apiError(
+        "SCHEDULE_CONFLICT",
+        conflictMessage,
+        409,
+        { conflictingClass: conflict.conflictingClass }
       );
     }
 
@@ -106,7 +104,7 @@ export const POST = withTenant(async (request, context) => {
       .limit(1);
 
     if (!athleteRow) {
-      return NextResponse.json({ error: "ATHLETE_NOT_FOUND" }, { status: 404 });
+      return apiError("ATHLETE_NOT_FOUND", "Athlete not found", 404);
     }
 
     // Verificar si ya existe el enrollment (evitar duplicados)
@@ -123,10 +121,7 @@ export const POST = withTenant(async (request, context) => {
       .limit(1);
 
     if (existing) {
-      return NextResponse.json(
-        { error: "ENROLLMENT_EXISTS", message: "El atleta ya está inscrito en esta clase como extra." },
-        { status: 409 }
-      );
+      return apiError("ENROLLMENT_EXISTS", "El atleta ya está inscrito en esta clase como extra.", 409);
     }
 
     // Validar capacidad de la clase
@@ -144,10 +139,7 @@ export const POST = withTenant(async (request, context) => {
         .where(eq(classEnrollments.classId, body.classId));
 
       if (Number(currentCount) >= classWithCapacity.capacity) {
-        return NextResponse.json(
-          { error: "CLASS_FULL", message: "La clase ha alcanzado su capacidad máxima." },
-          { status: 400 }
-        );
+        return apiError("CLASS_FULL", "La clase ha alcanzado su capacidad máxima.", 400);
       }
     }
 
@@ -163,7 +155,7 @@ export const POST = withTenant(async (request, context) => {
       })
       .returning();
 
-    return NextResponse.json({ ok: true, id: enrollment.id });
+    return apiSuccess({ ok: true, id: enrollment.id });
   } catch (error) {
     return handleApiError(error);
   }

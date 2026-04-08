@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { db } from "@/db";
@@ -6,6 +5,7 @@ import { profiles, academies, subscriptions, plans } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { getUserSubscription } from "@/lib/limits";
 import { logger } from "@/lib/logger";
+import { apiSuccess, apiError } from "@/lib/api-response";
 
 export const dynamic = 'force-dynamic';
 
@@ -18,7 +18,7 @@ export async function GET() {
     } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+      return apiError("UNAUTHORIZED", "No autorizado", 401);
     }
 
     const [profile] = await db
@@ -28,7 +28,7 @@ export async function GET() {
       .limit(1);
 
     if (!profile) {
-      return NextResponse.json({
+      return apiSuccess({
         planCode: "free",
         academyLimit: 1,
         currentAcademyCount: 0,
@@ -38,7 +38,7 @@ export async function GET() {
 
     // Obtener suscripción y plan
     const subscription = await getUserSubscription(user.id);
-    
+
     // Contar academias del usuario
     const userAcademies = await db
       .select({ id: academies.id })
@@ -48,7 +48,7 @@ export async function GET() {
     const academyCount = userAcademies.length;
     const academyLimit = subscription.academyLimit;
     const canCreateMore = academyLimit === null || academyCount < academyLimit;
-    
+
     // Determinar plan de upgrade sugerido
     let upgradeTo: "pro" | "premium" | undefined = undefined;
     if (!canCreateMore) {
@@ -59,7 +59,7 @@ export async function GET() {
       }
     }
 
-    return NextResponse.json({
+    return apiSuccess({
       planCode: subscription.planCode,
       academyLimit,
       currentAcademyCount: academyCount,
@@ -68,10 +68,6 @@ export async function GET() {
     });
   } catch (error: any) {
     logger.error("Error fetching user plan", error);
-    return NextResponse.json(
-      { error: "SERVER_ERROR", message: error?.message ?? "Error al obtener información del plan" },
-      { status: 500 }
-    );
+    return apiError("SERVER_ERROR", error?.message ?? "Error al obtener información del plan", 500);
   }
 }
-

@@ -1,9 +1,7 @@
-export const dynamic = 'force-dynamic';
-
-import { NextResponse } from "next/server";
 import { z } from "zod";
 import { withTenant } from "@/lib/authz";
 import { globalSearch, getSearchableTypes, SearchResultType } from "@/lib/search/search-service";
+import { apiSuccess, apiError } from "@/lib/api-response";
 
 const querySchema = z.object({
   academyId: z.string().uuid(),
@@ -15,7 +13,7 @@ const querySchema = z.object({
 
 export const GET = withTenant(async (request, context) => {
   if (!context.tenantId) {
-    return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+    return apiError("TENANT_REQUIRED", "Tenant requerido", 400);
   }
 
   const url = new URL(request.url);
@@ -34,7 +32,7 @@ export const GET = withTenant(async (request, context) => {
   });
 
   if (!validated.academyId || !validated.q) {
-    return NextResponse.json({ error: "ACADEMY_ID_AND_QUERY_REQUIRED" }, { status: 400 });
+    return apiError("ACADEMY_ID_AND_QUERY_REQUIRED", "academyId y query son requeridos", 400);
   }
 
   try {
@@ -45,17 +43,13 @@ export const GET = withTenant(async (request, context) => {
       includeAllTypes: validated.includeAllTypes !== "false",
     });
 
-    return NextResponse.json({
+    return apiSuccess({
       items: results,
       total: results.length,
       types: getSearchableTypes(),
     });
   } catch (error: any) {
     console.error("Error performing search:", error);
-    return NextResponse.json(
-      { error: "SEARCH_FAILED", message: error.message },
-      { status: 500 }
-    );
+    return apiError("SEARCH_FAILED", error.message, 500);
   }
 });
-

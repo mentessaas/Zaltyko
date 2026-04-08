@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { apiSuccess, apiError } from "@/lib/api-response";
 import { z } from "zod";
 import { eq, and } from "drizzle-orm";
 
@@ -15,7 +15,7 @@ const bodySchema = z.object({
 
 export const POST = withTenant(async (request, context) => {
   if (!context.tenantId) {
-    return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+    return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
   }
 
   const body = bodySchema.parse(await request.json());
@@ -31,7 +31,7 @@ export const POST = withTenant(async (request, context) => {
     .limit(1);
 
   if (!classRow) {
-    return NextResponse.json({ error: "CLASS_NOT_FOUND" }, { status: 404 });
+    return apiError("CLASS_NOT_FOUND", "Class not found", 404);
   }
 
   // Validar fechas
@@ -39,14 +39,11 @@ export const POST = withTenant(async (request, context) => {
   const endDate = new Date(body.endDate);
 
   if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-    return NextResponse.json({ error: "INVALID_DATE_FORMAT" }, { status: 400 });
+    return apiError("INVALID_DATE_FORMAT", "Invalid date format", 400);
   }
 
   if (startDate > endDate) {
-    return NextResponse.json(
-      { error: "INVALID_DATE_RANGE", message: "La fecha de inicio debe ser anterior a la fecha de fin" },
-      { status: 400 }
-    );
+    return apiError("INVALID_DATE_RANGE", "La fecha de inicio debe ser anterior a la fecha de fin", 400);
   }
 
   try {
@@ -57,36 +54,27 @@ export const POST = withTenant(async (request, context) => {
       endDate,
     });
 
-    return NextResponse.json({
+    return apiSuccess({
       ok: true,
       ...result,
       className: classRow.name,
     });
   } catch (error: any) {
     console.error("Error generating sessions", error);
-    
+
     if (error.message === "CLASS_NOT_FOUND") {
-      return NextResponse.json({ error: "CLASS_NOT_FOUND" }, { status: 404 });
+      return apiError("CLASS_NOT_FOUND", "Class not found", 404);
     }
-    
+
     if (error.message === "CLASS_HAS_NO_WEEKDAY") {
-      return NextResponse.json(
-        { error: "CLASS_HAS_NO_WEEKDAY", message: error.message },
-        { status: 400 }
-      );
+      return apiError("CLASS_HAS_NO_WEEKDAY", error.message, 400);
     }
 
     if (error.message?.includes("RANGE_TOO_LARGE")) {
-      return NextResponse.json(
-        { error: "RANGE_TOO_LARGE", message: error.message },
-        { status: 400 }
-      );
+      return apiError("RANGE_TOO_LARGE", error.message, 400);
     }
 
-    return NextResponse.json(
-      { error: "GENERATION_FAILED", message: error.message ?? "Error al generar sesiones" },
-      { status: 500 }
-    );
+    return apiError("GENERATION_FAILED", error.message ?? "Error al generar sesiones", 500);
   }
 });
 

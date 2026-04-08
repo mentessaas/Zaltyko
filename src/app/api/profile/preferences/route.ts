@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { z } from "zod";
@@ -7,6 +6,7 @@ import { db } from "@/db";
 import { userPreferences } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/authz";
+import { apiSuccess, apiError } from "@/lib/api-response";
 
 const UpdatePreferencesSchema = z.object({
   timezone: z.string().optional(),
@@ -23,12 +23,12 @@ export async function PATCH(request: Request) {
     } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
+      return apiError("UNAUTHORIZED", "No autorizado", 401);
     }
 
     const profile = await getCurrentProfile(user.id);
     if (!profile) {
-      return NextResponse.json({ error: "PROFILE_NOT_FOUND" }, { status: 404 });
+      return apiError("PROFILE_NOT_FOUND", "Perfil no encontrado", 404);
     }
 
     const body = UpdatePreferencesSchema.parse(await request.json());
@@ -47,7 +47,7 @@ export async function PATCH(request: Request) {
     }
 
     if (Object.keys(updates).length === 0) {
-      return NextResponse.json({ error: "NO_CHANGES" }, { status: 400 });
+      return apiError("NO_CHANGES", "No hay cambios", 400);
     }
 
     updates.updatedAt = new Date();
@@ -70,13 +70,13 @@ export async function PATCH(request: Request) {
       .where(eq(userPreferences.userId, profile.id as any))
       .limit(1);
 
-    return NextResponse.json(updated);
+    return apiSuccess(updated);
   } catch (error: any) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: "INVALID_INPUT", details: error.errors }, { status: 400 });
+      return apiError("INVALID_INPUT", "Entrada inválida", 400);
     }
     console.error("Error updating preferences:", error);
-    return NextResponse.json({ error: "INTERNAL_ERROR", message: error.message }, { status: 500 });
+    return apiError("INTERNAL_ERROR", error.message, 500);
   }
 }
 
@@ -89,12 +89,12 @@ export async function GET() {
     } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
+      return apiError("UNAUTHORIZED", "No autorizado", 401);
     }
 
     const profile = await getCurrentProfile(user.id);
     if (!profile) {
-      return NextResponse.json({ error: "PROFILE_NOT_FOUND" }, { status: 404 });
+      return apiError("PROFILE_NOT_FOUND", "Perfil no encontrado", 404);
     }
 
     const [preferences] = await db
@@ -103,10 +103,9 @@ export async function GET() {
       .where(eq(userPreferences.userId, profile.id as any))
       .limit(1);
 
-    return NextResponse.json(preferences || null);
+    return apiSuccess(preferences || null);
   } catch (error: any) {
     console.error("Error fetching preferences:", error);
-    return NextResponse.json({ error: "INTERNAL_ERROR", message: error.message }, { status: 500 });
+    return apiError("INTERNAL_ERROR", error.message, 500);
   }
 }
-

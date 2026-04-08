@@ -1,11 +1,11 @@
 export const dynamic = 'force-dynamic';
 
-import { NextResponse } from "next/server";
 import { and, asc, eq, gte, lte, sql, inArray } from "drizzle-orm";
 
 import { db } from "@/db";
 import { academies, athletes, athleteAssessments, coaches } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
+import { apiError } from "@/lib/api-response";
 
 export const runtime = "nodejs";
 
@@ -15,7 +15,7 @@ export const GET = withTenant(async (request, context) => {
   const effectiveTenantId = context.tenantId ?? tenantOverride ?? null;
 
   if (!effectiveTenantId) {
-    return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+    return apiError("TENANT_REQUIRED", "Tenant context is required", 400);
   }
 
   const academyId = url.searchParams.get("academyId");

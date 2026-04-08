@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 
@@ -9,6 +8,7 @@ import {
   coaches,
 } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
+import { apiSuccess, apiError } from "@/lib/api-response";
 import { handleApiError } from "@/lib/api-error-handler";
 import { withTransaction } from "@/lib/db-transactions";
 
@@ -20,7 +20,7 @@ export const GET = withTenant(async (_request, context) => {
   const coachId = (context.params as { coachId?: string })?.coachId;
 
   if (!coachId) {
-    return NextResponse.json({ error: "COACH_ID_REQUIRED" }, { status: 400 });
+    return apiError("COACH_ID_REQUIRED", "coachId es requerido", 400);
   }
 
   const assignmentRows = await db
@@ -33,7 +33,7 @@ export const GET = withTenant(async (_request, context) => {
     .innerJoin(classes, eq(classCoachAssignments.classId, classes.id))
     .where(eq(classCoachAssignments.coachId, coachId));
 
-  return NextResponse.json({ items: assignmentRows });
+  return apiSuccess({ items: assignmentRows });
 });
 
 export const PUT = withTenant(async (request, context) => {
@@ -41,11 +41,11 @@ export const PUT = withTenant(async (request, context) => {
     const coachId = (context.params as { coachId?: string })?.coachId;
 
     if (!coachId) {
-      return NextResponse.json({ error: "COACH_ID_REQUIRED" }, { status: 400 });
+      return apiError("COACH_ID_REQUIRED", "coachId es requerido", 400);
     }
 
     if (!context.tenantId) {
-      return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+      return apiError("TENANT_REQUIRED", "tenantId es requerido", 400);
     }
 
     const body = updateSchema.parse(await request.json());
@@ -57,7 +57,7 @@ export const PUT = withTenant(async (request, context) => {
       .limit(1);
 
     if (!coachRow || coachRow.tenantId !== context.tenantId) {
-      return NextResponse.json({ error: "COACH_NOT_FOUND" }, { status: 404 });
+      return apiError("COACH_NOT_FOUND", "Coach no encontrado", 404);
     }
 
     // Usar transacción para garantizar atomicidad
@@ -81,7 +81,7 @@ export const PUT = withTenant(async (request, context) => {
       }
     });
 
-    return NextResponse.json({ ok: true });
+    return apiSuccess({ ok: true });
   } catch (error) {
     const coachId = (context.params as { coachId?: string })?.coachId;
     return handleApiError(error, { endpoint: `/api/coaches/${coachId}/assignments`, method: "PUT" });

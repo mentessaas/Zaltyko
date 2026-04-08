@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { apiSuccess, apiError } from "@/lib/api-response";
 import { z } from "zod";
 
 import { withSuperAdmin } from "@/lib/authz";
@@ -27,7 +27,7 @@ export const POST = withSuperAdmin(async (request, context) => {
     .limit(1);
 
   if (!targetProfile) {
-    return NextResponse.json({ error: "USER_NOT_FOUND" }, { status: 404 });
+    return apiError("USER_NOT_FOUND", "User not found", 404);
   }
 
   // Get user email from Supabase Auth
@@ -35,7 +35,7 @@ export const POST = withSuperAdmin(async (request, context) => {
   const { data: authUser } = await adminClient.auth.admin.getUserById(targetProfile.userId);
 
   if (!authUser?.user?.email) {
-    return NextResponse.json({ error: "USER_EMAIL_NOT_FOUND" }, { status: 400 });
+    return apiError("USER_EMAIL_NOT_FOUND", "User email not found", 400);
   }
 
   if (body.type === "email") {
@@ -61,18 +61,15 @@ export const POST = withSuperAdmin(async (request, context) => {
         replyTo: config.mailgun.supportEmail,
       });
 
-      return NextResponse.json({ ok: true, message: "Correo enviado correctamente" });
+      return apiSuccess({ ok: true, message: "Correo enviado correctamente" });
     } catch (error: any) {
       console.error("Error sending email", error);
-      return NextResponse.json(
-        { error: "EMAIL_SEND_FAILED", message: error?.message ?? "Error al enviar el correo" },
-        { status: 500 }
-      );
+      return apiError("EMAIL_SEND_FAILED", error?.message ?? "Error al enviar el correo", 500);
     }
   }
 
   // For notifications, we could store them in a notifications table
   // For now, we'll just send an email
-  return NextResponse.json({ error: "NOTIFICATION_TYPE_NOT_IMPLEMENTED" }, { status: 400 });
+  return apiError("NOTIFICATION_TYPE_NOT_IMPLEMENTED", "Notification type not implemented", 400);
 });
 

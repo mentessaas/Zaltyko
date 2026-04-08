@@ -1,7 +1,6 @@
 export const dynamic = 'force-dynamic';
 
 import { randomUUID } from "node:crypto";
-import { NextResponse } from "next/server";
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 
@@ -9,6 +8,7 @@ import { db } from "@/db";
 import { academies, athletes, familyContacts, guardianAthletes, groupAthletes, groups } from "@/db/schema";
 import { assertWithinPlanLimits, getUpgradeInfo } from "@/lib/limits";
 import { withTenant } from "@/lib/authz";
+import { rateLimit, getUserIdentifier, withRateLimit } from "@/lib/rate-limit";
 import { athleteStatusOptions } from "@/lib/athletes/constants";
 import { handleApiError } from "@/lib/api-error-handler";
 import { withTransaction } from "@/lib/db-transactions";
@@ -18,7 +18,8 @@ import { markChecklistItem, markWizardStep } from "@/lib/onboarding";
 import { trackEvent } from "@/lib/analytics";
 import { logEvent } from "@/lib/event-logging";
 import { formatDateForDB } from "@/lib/validation/date-utils";
-import { apiSuccess, apiCreated } from "@/lib/api-response";
+import { apiSuccess, apiCreated, apiError } from "@/lib/api-response";
+import { NextResponse } from "next/server";
 
 const ContactSchema = z.object({
   name: z.string().min(1),
@@ -58,18 +59,19 @@ const BodySchema = z.object({
   groupId: z.string().uuid().optional(),
 });
 
-export const POST = withTenant(async (request, context) => {
+// Handler for POST - separated to apply rate limiting
+const createAthleteHandler = withTenant(async (request, context) => {
   try {
     const body = BodySchema.parse(await request.json());
 
     if (!context.tenantId) {
-      return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+      return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
     }
 
     // Verificar acceso a la academia
     const academyAccess = await verifyAcademyAccess(body.academyId, context.tenantId);
     if (!academyAccess.allowed) {
-      return NextResponse.json({ error: academyAccess.reason ?? "ACADEMY_ACCESS_DENIED" }, { status: 403 });
+      return apiError(academyAccess.reason ?? "ACADEMY_ACCESS_DENIED", "Access denied", 403);
     }
 
     // Verificar límites del plan antes de crear el atleta
@@ -79,9 +81,10 @@ export const POST = withTenant(async (request, context) => {
       if (error?.status === 402 && error?.payload?.code === "LIMIT_REACHED") {
         const upgradeTo = error.payload?.upgradeTo ?? "pro";
         const upgradeInfo = getUpgradeInfo(upgradeTo === "pro" ? "free" : "pro");
-        
+
         return NextResponse.json(
           {
+            ok: false,
             error: "LIMIT_REACHED",
             message: `Has alcanzado el límite de atletas de tu plan actual. Actualiza a ${upgradeTo.toUpperCase()} (${upgradeInfo.price}) para agregar más atletas.`,
             details: {
@@ -103,7 +106,7 @@ export const POST = withTenant(async (request, context) => {
     if (body.groupId) {
       const groupAccess = await verifyGroupAccess(body.groupId, context.tenantId, body.academyId);
       if (!groupAccess.allowed) {
-        return NextResponse.json({ error: groupAccess.reason ?? "GROUP_NOT_FOUND" }, { status: 404 });
+        return apiError(groupAccess.reason ?? "GROUP_NOT_FOUND", "Group not found", 404);
       }
     }
 
@@ -117,18 +120,12 @@ export const POST = withTenant(async (request, context) => {
         // Verificar que la fecha sea razonable
         const year = body.dob.getFullYear();
         if (year < 1900 || year > 2100) {
-          return NextResponse.json(
-            { error: "INVALID_DOB", message: "El año de nacimiento debe estar entre 1900 y 2100" },
-            { status: 400 }
-          );
+          return apiError("INVALID_DOB", "El año de nacimiento debe estar entre 1900 y 2100", 400);
         }
         dobDate = body.dob;
       } else {
         // Si es null del transform, significa que la fecha era inválida
-        return NextResponse.json(
-          { error: "INVALID_DOB", message: "El formato de fecha de nacimiento no es válido. Use formato YYYY-MM-DD o ISO 8601" },
-          { status: 400 }
-        );
+        return apiError("INVALID_DOB", "El formato de fecha de nacimiento no es válido. Use formato YYYY-MM-DD o ISO 8601", 400);
       }
     }
 
@@ -252,6 +249,14 @@ export const POST = withTenant(async (request, context) => {
   }
 });
 
+// Rate-limited POST handler: 10 requests per minute for athlete creation
+export const POST = withRateLimit(
+  async (request) => {
+    return (await createAthleteHandler(request, {} as any)) as NextResponse;
+  },
+  { identifier: getUserIdentifier, limit: 10, window: 60 }
+);
+
 const levelArraySchema = z
   .string()
   .transform((value) => value.split(",").map((item) => item.trim()).filter(Boolean));
@@ -296,7 +301,7 @@ export const GET = withTenant(async (request, context) => {
   const effectiveTenantId = context.tenantId ?? tenantOverride ?? null;
 
   if (!effectiveTenantId) {
-    return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+    return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
   }
 
   const levelList = Array.isArray(level) ? level : level ? [level] : [];

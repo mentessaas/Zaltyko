@@ -1,6 +1,5 @@
 export const dynamic = 'force-dynamic';
 
-import { NextResponse } from "next/server";
 import { and, eq, count } from "drizzle-orm";
 import { z } from "zod";
 
@@ -8,6 +7,7 @@ import { db } from "@/db";
 import { events, eventInvitations, profiles, athletes, guardians } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
 import { handleApiError } from "@/lib/api-error-handler";
+import { apiSuccess, apiCreated, apiError } from "@/lib/api-response";
 
 const createInvitationSchema = z.object({
   email: z.string().email(),
@@ -20,7 +20,7 @@ export const GET = withTenant(async (request: Request, context: { tenantId: stri
     const { id: eventId } = context.params;
 
     if (!context.tenantId) {
-      return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+      return apiError("TENANT_REQUIRED", "Tenant required", 400);
     }
 
     // Verify event exists and belongs to tenant
@@ -31,7 +31,7 @@ export const GET = withTenant(async (request: Request, context: { tenantId: stri
       .limit(1);
 
     if (!eventRow) {
-      return NextResponse.json({ error: "EVENT_NOT_FOUND" }, { status: 404 });
+      return apiError("EVENT_NOT_FOUND", "Event not found", 404);
     }
 
     // Get invitations with related info
@@ -69,7 +69,7 @@ export const GET = withTenant(async (request: Request, context: { tenantId: stri
       expired: invitations.filter(i => i.status === "expired").length,
     };
 
-    return NextResponse.json({
+    return apiSuccess({
       items: invitations.map(inv => ({
         ...inv,
         athleteName: inv.athleteName ?? undefined,
@@ -89,7 +89,7 @@ export const POST = withTenant(async (request: Request, context: { tenantId: str
     const body = createInvitationSchema.parse(await request.json());
 
     if (!context.tenantId) {
-      return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+      return apiError("TENANT_REQUIRED", "Tenant required", 400);
     }
 
     // Verify event exists and belongs to tenant
@@ -100,7 +100,7 @@ export const POST = withTenant(async (request: Request, context: { tenantId: str
       .limit(1);
 
     if (!eventRow) {
-      return NextResponse.json({ error: "EVENT_NOT_FOUND" }, { status: 404 });
+      return apiError("EVENT_NOT_FOUND", "Event not found", 404);
     }
 
     // Verify athlete exists if provided
@@ -112,7 +112,7 @@ export const POST = withTenant(async (request: Request, context: { tenantId: str
         .limit(1);
 
       if (!athlete) {
-        return NextResponse.json({ error: "ATHLETE_NOT_FOUND" }, { status: 404 });
+        return apiError("ATHLETE_NOT_FOUND", "Athlete not found", 404);
       }
     }
 
@@ -125,7 +125,7 @@ export const POST = withTenant(async (request: Request, context: { tenantId: str
         .limit(1);
 
       if (!guardian) {
-        return NextResponse.json({ error: "GUARDIAN_NOT_FOUND" }, { status: 404 });
+        return apiError("GUARDIAN_NOT_FOUND", "Guardian not found", 404);
       }
     }
 
@@ -140,7 +140,7 @@ export const POST = withTenant(async (request: Request, context: { tenantId: str
       .limit(1);
 
     if (existing) {
-      return NextResponse.json({ error: "INVITATION_EXISTS" }, { status: 409 });
+      return apiError("INVITATION_EXISTS", "Invitation already exists", 409);
     }
 
     // Create invitation
@@ -158,7 +158,7 @@ export const POST = withTenant(async (request: Request, context: { tenantId: str
       })
       .returning();
 
-    return NextResponse.json({ ok: true, id: invitation.id }, { status: 201 });
+    return apiCreated({ id: invitation.id });
   } catch (error) {
     return handleApiError(error);
   }

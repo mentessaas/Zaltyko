@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { apiSuccess } from "@/lib/api-response";
 
 import { withSuperAdmin } from "@/lib/authz";
 import { getSuperAdminLogs } from "@/lib/super-admin";
@@ -12,6 +12,6 @@ export const GET = withSuperAdmin(async (request) => {
 
   const logs = await getSuperAdminLogs(limit);
 
-  return NextResponse.json({ items: logs });
+  return apiSuccess({ items: logs });
 });
 

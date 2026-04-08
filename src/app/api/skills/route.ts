@@ -1,6 +1,3 @@
-export const dynamic = 'force-dynamic';
-
-import { NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 
@@ -8,6 +5,7 @@ import { db } from "@/db";
 import { skillCatalog } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
 import { handleApiError } from "@/lib/api-error-handler";
+import { apiSuccess, apiError } from "@/lib/api-response";
 
 const querySchema = z.object({
   apparatus: z.string().optional(),
@@ -26,7 +24,7 @@ export const GET = withTenant(async (request: Request, context: Record<string, u
 
     const tenantId = context.tenantId as string;
     if (!tenantId) {
-      return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+      return apiError("TENANT_REQUIRED", "Tenant requerido", 400);
     }
 
     const whereConditions = [eq(skillCatalog.tenantId, tenantId)];
@@ -53,7 +51,7 @@ export const GET = withTenant(async (request: Request, context: Record<string, u
       .limit(limit)
       .offset(offset);
 
-    return NextResponse.json({
+    return apiSuccess({
       items: rows,
       limit,
       offset,

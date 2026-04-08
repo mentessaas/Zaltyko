@@ -1,21 +1,21 @@
-import { NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { contactMessages, academies } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
 import { verifyAcademyAccess } from "@/lib/permissions";
+import { apiSuccess, apiError } from "@/lib/api-response";
 
 export const DELETE = withTenant(async (request, context) => {
   if (!context.tenantId) {
-    return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+    return apiError("TENANT_REQUIRED", "Tenant requerido", 400);
   }
 
   const params = context.params as { messageId?: string };
   const messageId = params?.messageId;
 
   if (!messageId) {
-    return NextResponse.json({ error: "MESSAGE_ID_REQUIRED" }, { status: 400 });
+    return apiError("MESSAGE_ID_REQUIRED", "ID de mensaje requerido", 400);
   }
 
   // Obtener el mensaje y su academia
@@ -29,16 +29,13 @@ export const DELETE = withTenant(async (request, context) => {
     .limit(1);
 
   if (!message) {
-    return NextResponse.json({ error: "MESSAGE_NOT_FOUND" }, { status: 404 });
+    return apiError("MESSAGE_NOT_FOUND", "Mensaje no encontrado", 404);
   }
 
   // Verificar acceso a la academia
   const academyAccess = await verifyAcademyAccess(message.academyId, context.tenantId);
   if (!academyAccess.allowed) {
-    return NextResponse.json(
-      { error: academyAccess.reason ?? "ACADEMY_NOT_FOUND" },
-      { status: 403 }
-    );
+    return apiError("ACADEMY_NOT_FOUND", academyAccess.reason ?? "Academia no encontrada", 403);
   }
 
   // Verificar que el usuario es propietario o admin de la academia
@@ -51,19 +48,18 @@ export const DELETE = withTenant(async (request, context) => {
     .limit(1);
 
   if (!academy) {
-    return NextResponse.json({ error: "ACADEMY_NOT_FOUND" }, { status: 404 });
+    return apiError("ACADEMY_NOT_FOUND", "Academia no encontrada", 404);
   }
 
   const isAdmin = context.profile.role === "admin" || context.profile.role === "super_admin";
   const isOwner = academy.ownerId === context.profile.id;
 
   if (!isAdmin && !isOwner) {
-    return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+    return apiError("FORBIDDEN", "No autorizado", 403);
   }
 
   // Eliminar mensaje
   await db.delete(contactMessages).where(eq(contactMessages.id, messageId));
 
-  return NextResponse.json({ ok: true });
+  return apiSuccess({ ok: true });
 });
-
