@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { cookies } from "next/headers";
 
@@ -6,6 +5,7 @@ import { db } from "@/db";
 import { athletes, academies } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
 import { logger } from "@/lib/logger";
+import { apiSuccess, apiError } from "@/lib/api-response";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +23,7 @@ export async function GET() {
     } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+      return apiError("UNAUTHORIZED", "No autorizado", 401);
     }
 
     const userAthletes = await db
@@ -38,7 +38,7 @@ export async function GET() {
       .where(eq(athletes.userId, user.id));
 
     if (userAthletes.length === 0) {
-      return NextResponse.json({ academies: [], hasAcademies: false });
+      return apiSuccess({ academies: [], hasAcademies: false });
     }
 
     // Get unique academy IDs
@@ -54,16 +54,13 @@ export async function GET() {
 
     const filtered = academyRecords.filter((a) => academyIds.includes(a.id));
 
-    return NextResponse.json({
+    return apiSuccess({
       academies: filtered,
       hasAcademies: filtered.length > 0,
       count: filtered.length,
     });
   } catch (error) {
     logger.error("Error fetching athlete academies", error);
-    return NextResponse.json(
-      { error: "SERVER_ERROR", message: "Error al obtener academias del atleta" },
-      { status: 500 }
-    );
+    return apiError("SERVER_ERROR", "Error al obtener academias del atleta", 500);
   }
 }

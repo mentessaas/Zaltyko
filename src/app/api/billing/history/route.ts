@@ -1,5 +1,5 @@
 import { desc, eq } from "drizzle-orm";
-import { NextResponse } from "next/server";
+import { apiSuccess, apiError } from "@/lib/api-response";
 import { z } from "zod";
 
 import { db } from "@/db";
@@ -24,22 +24,9 @@ export const POST = withTenant(async (request, context) => {
     body = BodySchema.parse(await request.json());
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        {
-          error: "VALIDATION_ERROR",
-          message: "Los datos proporcionados no son válidos",
-          details: error.issues.map((issue) => ({
-            field: issue.path.join("."),
-            message: issue.message,
-          })),
-        },
-        { status: 400 }
-      );
+      return apiError("VALIDATION_ERROR", "Los datos proporcionados no son válidos", 400);
     }
-    return NextResponse.json(
-      { error: "INVALID_JSON", message: "El cuerpo de la petición no es un JSON válido" },
-      { status: 400 }
-    );
+    return apiError("INVALID_JSON", "El cuerpo de la petición no es un JSON válido", 400);
   }
 
   // Obtener academia y verificar acceso
@@ -50,18 +37,12 @@ export const POST = withTenant(async (request, context) => {
     .limit(1);
 
   if (!academy) {
-    return NextResponse.json(
-      { error: "ACADEMY_NOT_FOUND", message: "La academia especificada no existe" },
-      { status: 404 }
-    );
+    return apiError("ACADEMY_NOT_FOUND", "La academia especificada no existe", 404);
   }
 
   const isAdmin = context.profile.role === "admin" || context.profile.role === "super_admin";
   if (!isAdmin && academy.tenantId !== context.tenantId) {
-    return NextResponse.json(
-      { error: "FORBIDDEN", message: "No tienes acceso a los datos de facturación de esta academia" },
-      { status: 403 }
-    );
+    return apiError("FORBIDDEN", "No tienes acceso a los datos de facturación de esta academia", 403);
   }
 
   const limit = body.limit ?? 20;
@@ -88,13 +69,10 @@ export const POST = withTenant(async (request, context) => {
       .orderBy(desc(billingInvoices.createdAt))
       .limit(limit);
 
-    return NextResponse.json(rows);
+    return apiSuccess(rows);
   } catch (error) {
     console.error("[billing/history] Error fetching invoices:", error);
-    return NextResponse.json(
-      { error: "INTERNAL_ERROR", message: "Error al obtener el historial de facturación. Intenta de nuevo más tarde." },
-      { status: 500 }
-    );
+    return apiError("INTERNAL_ERROR", "Error al obtener el historial de facturación. Intenta de nuevo más tarde.", 500);
   }
 });
 

@@ -1,6 +1,5 @@
 export const dynamic = 'force-dynamic';
 
-import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { marketplaceListings } from "@/db/schema";
 import { marketplaceCategoryEnum, marketplaceListingTypeEnum } from "@/db/schema/enums";
@@ -8,6 +7,7 @@ import { eq, desc, like, and, or } from "drizzle-orm";
 import { z } from "zod";
 import { withTenant, type TenantContext } from "@/lib/authz";
 import { escapeLikeSearch } from "@/lib/helpers";
+import { apiSuccess, apiError, apiCreated } from "@/lib/api-response";
 
 // Validation schemas
 const CreateMarketplaceSchema = z.object({
@@ -81,7 +81,7 @@ export async function GET(request: Request) {
     .from(marketplaceListings)
     .where(whereClause);
 
-  return NextResponse.json({
+  return apiSuccess({
     items: listings,
     total: total.length,
     page,
@@ -93,7 +93,7 @@ export async function GET(request: Request) {
 export const POST = withTenant(async (request: Request, context: TenantContext) => {
   try {
     if (!context.tenantId) {
-      return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 403 });
+      return apiError("TENANT_REQUIRED", "Tenant requerido", 403);
     }
 
     const body = await request.json();
@@ -113,12 +113,12 @@ export const POST = withTenant(async (request: Request, context: TenantContext) 
       location: validated.location,
     }).returning();
 
-    return NextResponse.json({ item: listing }, { status: 201 });
+    return apiCreated({ item: listing });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: "VALIDATION_ERROR", details: error.errors }, { status: 400 });
+      return apiError("VALIDATION_ERROR", "Error de validación", 400);
     }
     console.error("Error creating marketplace listing:", error);
-    return NextResponse.json({ error: "INTERNAL_ERROR" }, { status: 500 });
+    return apiError("INTERNAL_ERROR", "Error interno", 500);
   }
 });

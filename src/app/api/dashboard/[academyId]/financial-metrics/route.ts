@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { apiSuccess, apiError } from "@/lib/api-response";
 import { eq, and, lte, sql } from "drizzle-orm";
 
 import { db } from "@/db";
@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 
 export const GET = withTenant(async (_request, context) => {
   if (!context.tenantId) {
-    return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+    return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
   }
 
   const params = context.params as { academyId?: string };
@@ -18,7 +18,7 @@ export const GET = withTenant(async (_request, context) => {
   logger.debug("Financial metrics endpoint called - validating cache clear", { academyId });
 
   if (!academyId) {
-    return NextResponse.json({ error: "ACADEMY_ID_REQUIRED" }, { status: 400 });
+    return apiError("ACADEMY_ID_REQUIRED", "Academy ID is required", 400);
   }
 
   try {
@@ -79,7 +79,7 @@ export const GET = withTenant(async (_request, context) => {
 
     const activeScholarships = Number(activeScholarshipsResult[0]?.count || 0);
 
-    return NextResponse.json({
+    return apiSuccess({
       monthlyRevenue: Math.round(monthlyRevenue * 100) / 100,
       pendingPayments: Math.round(pendingPayments * 100) / 100,
       pendingPaymentsCount,
@@ -87,9 +87,6 @@ export const GET = withTenant(async (_request, context) => {
     });
   } catch (error: any) {
     logger.error("Error calculating financial metrics", error, { academyId });
-    return NextResponse.json(
-      { error: "CALCULATION_FAILED", message: error.message },
-      { status: 500 }
-    );
+    return apiError("CALCULATION_FAILED", error.message, 500);
   }
 });

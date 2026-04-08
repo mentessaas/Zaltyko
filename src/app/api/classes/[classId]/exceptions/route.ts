@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { apiSuccess, apiError } from "@/lib/api-response";
 import { db } from "@/db";
 import { classExceptions, classes } from "@/db/schema";
 import { eq, and, asc } from "drizzle-orm";
@@ -61,13 +61,10 @@ async function getExceptions(
             .where(eq(classExceptions.classId, classId))
             .orderBy(asc(classExceptions.exceptionDate));
 
-        return NextResponse.json({ exceptions });
+        return apiSuccess({ exceptions });
     } catch (error) {
         logger.error("Error fetching class exceptions:", error);
-        return NextResponse.json(
-            { error: "Error fetching exceptions" },
-            { status: 500 }
-        );
+        return apiError("FETCH_EXCEPTIONS_FAILED", "Error fetching exceptions", 500);
     }
 }
 
@@ -86,10 +83,7 @@ async function createException(
         const { exceptionDate, reason, exceptionType = "holiday" } = body;
 
         if (!exceptionDate) {
-            return NextResponse.json(
-                { error: "Date is required" },
-                { status: 400 }
-            );
+            return apiError("DATE_REQUIRED", "Date is required", 400);
         }
 
         // Obtener tenantId de la clase (o del contexto si estuviera disponible, pero mejor consultar DB para seguridad)
@@ -102,7 +96,7 @@ async function createException(
             .limit(1);
 
         if (!classInfo) {
-            return NextResponse.json({ error: "Class not found" }, { status: 404 });
+            return apiError("CLASS_NOT_FOUND", "Class not found", 404);
         }
 
         const newException = await db
@@ -116,13 +110,10 @@ async function createException(
             })
             .returning();
 
-        return NextResponse.json({ exception: newException[0] });
+        return apiSuccess({ exception: newException[0] });
     } catch (error) {
         logger.error("Error creating class exception:", error);
-        return NextResponse.json(
-            { error: "Error creating exception" },
-            { status: 500 }
-        );
+        return apiError("CREATE_EXCEPTION_FAILED", "Error creating exception", 500);
     }
 }
 

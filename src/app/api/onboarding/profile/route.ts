@@ -1,12 +1,13 @@
 import { eq } from "drizzle-orm";
 import { cookies } from "next/headers";
-import { NextResponse } from "next/server";
+import { z } from "zod";
 
 import { db } from "@/db";
 import { profiles, academies, memberships } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
 import { handleApiError } from "@/lib/api-error-handler";
 import { logger } from "@/lib/logger";
+import { apiSuccess, apiError } from "@/lib/api-response";
 
 export const dynamic = 'force-dynamic';
 
@@ -39,7 +40,7 @@ export async function GET(request: Request) {
     const userId = await resolveUserId(request);
 
     if (!userId) {
-      return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
+      return apiError("UNAUTHENTICATED", "No autenticado", 401);
     }
 
     const [profile] = await db
@@ -49,11 +50,10 @@ export async function GET(request: Request) {
       .limit(1);
 
     if (!profile) {
-      return NextResponse.json({ error: "PROFILE_NOT_FOUND" }, { status: 404 });
+      return apiError("PROFILE_NOT_FOUND", "Perfil no encontrado", 404);
     }
 
-    return NextResponse.json({
-      ok: true,
+    return apiSuccess({
       profileId: profile.id,
       userId,
       name: profile.name,
@@ -72,11 +72,11 @@ export async function POST(request: Request) {
     try {
       body = await request.json();
     } catch {
-      return NextResponse.json({ error: "INVALID_JSON" }, { status: 400 });
+      return apiError("INVALID_JSON", "JSON inválido", 400);
     }
 
     if (!body || typeof body !== "object") {
-      return NextResponse.json({ error: "INVALID_BODY" }, { status: 400 });
+      return apiError("INVALID_BODY", "Body inválido", 400);
     }
 
     const bodyObj = body as Record<string, unknown>;
@@ -87,7 +87,7 @@ export async function POST(request: Request) {
     const userId = await resolveUserId(request);
 
     if (!userId) {
-      return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
+      return apiError("UNAUTHENTICATED", "No autenticado", 401);
     }
 
     // Generate IDs
@@ -178,8 +178,7 @@ export async function POST(request: Request) {
         .where(eq(profiles.id, profileId))
         .limit(1);
 
-      return NextResponse.json({
-        ok: true,
+      return apiSuccess({
         profileId: finalProfile.id,
         userId,
         name: finalProfile.name,
@@ -195,5 +194,3 @@ export async function POST(request: Request) {
     return handleApiError(error, { endpoint: "/api/onboarding/profile", method: "POST" });
   }
 }
-
-

@@ -1,12 +1,12 @@
 export const dynamic = 'force-dynamic';
 
 import { and, asc, eq } from "drizzle-orm";
-import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { db } from "@/db";
 import { academies, memberships, plans, profiles, subscriptions } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
+import { apiSuccess, apiError, apiCreated } from "@/lib/api-response";
 import { assertUserAcademyLimit, getUpgradeInfo } from "@/lib/limits";
 import { withRateLimit, getUserIdentifier } from "@/lib/rate-limit";
 import { handleApiError } from "@/lib/api-error-handler";
@@ -34,32 +34,24 @@ const handler = withTenant(async (request, context) => {
       body = BodySchema.parse(await request.json());
     } catch (parseError) {
       if (parseError instanceof z.ZodError) {
-        return NextResponse.json(
-          {
-            error: "VALIDATION_ERROR",
-            message: "Los datos proporcionados no son válidos",
-            details: parseError.issues.map((issue) => ({
-              path: issue.path.join("."),
-              message: issue.message,
-            })),
-          },
-          { status: 400 }
+        return apiError(
+          "VALIDATION_ERROR",
+          "Los datos proporcionados no son válidos",
+          400,
+          parseError.issues.map((issue) => ({
+            path: issue.path.join("."),
+            message: issue.message,
+          }))
         );
       }
       // Error al parsear JSON
-      return NextResponse.json(
-        {
-          error: "INVALID_JSON",
-          message: "El cuerpo de la petición no es un JSON válido",
-        },
-        { status: 400 }
-      );
+      return apiError("INVALID_JSON", "El cuerpo de la petición no es un JSON válido", 400);
     }
 
     const isAdmin = context.profile.role === "admin" || context.profile.role === "super_admin";
     const requesterRole = context.profile.role;
     if (!["owner", "admin", "super_admin"].includes(requesterRole)) {
-      return NextResponse.json({ error: "PROFILE_REQUIRED" }, { status: 403 });
+      return apiError("PROFILE_REQUIRED", "No tienes permisos para crear academias", 403);
     }
 
     const ownerProfile = body.ownerProfileId
@@ -73,11 +65,11 @@ const handler = withTenant(async (request, context) => {
       : context.profile;
 
     if (!ownerProfile) {
-      return NextResponse.json({ error: "OWNER_PROFILE_NOT_FOUND" }, { status: 404 });
+      return apiError("OWNER_PROFILE_NOT_FOUND", "No se encontró el perfil del propietario", 404);
     }
 
     if (!["owner", "admin"].includes(ownerProfile.role)) {
-      return NextResponse.json({ error: "PROFILE_REQUIRED" }, { status: 403 });
+      return apiError("PROFILE_REQUIRED", "No tienes permisos para crear academias", 403);
     }
 
     // Validate academy limit for the user
@@ -88,20 +80,18 @@ const handler = withTenant(async (request, context) => {
         const upgradeTo = error.payload?.upgradeTo ?? "pro";
         const upgradeInfo = getUpgradeInfo(upgradeTo === "pro" ? "free" : "pro");
 
-        return NextResponse.json(
+        return apiError(
+          "ACADEMY_LIMIT_REACHED",
+          `Has alcanzado el límite de academias de tu plan actual (${error.payload?.limit ?? 1} academia). Actualiza a ${upgradeTo.toUpperCase()} (${upgradeInfo.price}) para crear academias ilimitadas.`,
+          402,
           {
-            error: "ACADEMY_LIMIT_REACHED",
-            message: `Has alcanzado el límite de academias de tu plan actual (${error.payload?.limit ?? 1} academia). Actualiza a ${upgradeTo.toUpperCase()} (${upgradeInfo.price}) para crear academias ilimitadas.`,
-            payload: {
-              ...error.payload,
-              upgradeInfo: {
-                plan: upgradeTo,
-                price: upgradeInfo.price,
-                benefits: upgradeInfo.benefits,
-              },
+            ...error.payload,
+            upgradeInfo: {
+              plan: upgradeTo,
+              price: upgradeInfo.price,
+              benefits: upgradeInfo.benefits,
             },
-          },
-          { status: 402 }
+          }
         );
       }
       throw error;
@@ -204,7 +194,7 @@ const handler = withTenant(async (request, context) => {
       },
     });
 
-    return NextResponse.json({
+    return apiCreated({
       id: academyId,
       tenantId,
       academyType: body.academyType,
@@ -244,7 +234,7 @@ export const GET = withTenant(async (request, context) => {
   const parsed = QuerySchema.safeParse(Object.fromEntries(url.searchParams));
 
   if (!parsed.success) {
-    return NextResponse.json({ error: "INVALID_FILTERS" }, { status: 400 });
+    return apiError("INVALID_FILTERS", "Los filtros proporcionados no son válidos", 400);
   }
 
   const { tenantId, academyType } = parsed.data;
@@ -256,7 +246,7 @@ export const GET = withTenant(async (request, context) => {
 
   // Si aún no hay tenant (p.ej. usuario recién creado en onboarding), devolvemos lista vacía
   if (!effectiveTenantId && !isSuperAdmin) {
-    return NextResponse.json({ items: [] });
+    return apiSuccess({ items: [] });
   }
 
   const filters: Array<ReturnType<typeof eq>> = [];
@@ -281,5 +271,5 @@ export const GET = withTenant(async (request, context) => {
     ? await baseQuery.where(filters.length === 1 ? filters[0]! : and(...filters)).orderBy(asc(academies.name))
     : await baseQuery.orderBy(asc(academies.name));
 
-  return NextResponse.json({ items: rows });
+  return apiSuccess({ items: rows });
 });

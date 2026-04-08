@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 
-import { NextResponse } from "next/server";
+import { apiError, apiSuccess } from "@/lib/api-response";
 import { z } from "zod";
 import { withTenant } from "@/lib/authz";
 import { calculateClassReport, type ClassReportFilters } from "@/lib/reports/class-report";
@@ -15,7 +15,7 @@ const reportSchema = z.object({
 
 export const GET = withTenant(async (request, context) => {
   if (!context.tenantId) {
-    return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+    return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
   }
 
   const url = new URL(request.url);
@@ -33,7 +33,7 @@ export const GET = withTenant(async (request, context) => {
   });
 
   if (!validated.academyId) {
-    return NextResponse.json({ error: "ACADEMY_ID_REQUIRED" }, { status: 400 });
+    return apiError("ACADEMY_ID_REQUIRED", "Academy ID is required", 400);
   }
 
   const filters: ClassReportFilters = {
@@ -47,12 +47,9 @@ export const GET = withTenant(async (request, context) => {
 
   try {
     const stats = await calculateClassReport(filters);
-    return NextResponse.json({ data: stats });
+    return apiSuccess({ data: stats });
   } catch (error: any) {
     console.error("Error generating class report:", error);
-    return NextResponse.json(
-      { error: "REPORT_FAILED", message: error.message },
-      { status: 500 }
-    );
+    return apiError("REPORT_FAILED", error.message, 500);
   }
 });

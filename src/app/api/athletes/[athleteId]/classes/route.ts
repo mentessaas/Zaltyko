@@ -1,6 +1,5 @@
 export const dynamic = 'force-dynamic';
 
-import { NextResponse } from "next/server";
 import { and, eq, inArray } from "drizzle-orm";
 
 import { db } from "@/db";
@@ -15,33 +14,36 @@ import {
   coaches,
 } from "@/db/schema";
 import { TenantContext, withTenant } from "@/lib/authz";
+import { rateLimit, getUserIdentifier, withRateLimit } from "@/lib/rate-limit";
 import { handleApiError } from "@/lib/api-error-handler";
+import { apiSuccess, apiError } from "@/lib/api-response";
+import { NextResponse } from "next/server";
 
 type RouteContext = TenantContext<{ params?: { athleteId?: string } }>;
 
 /**
  * GET /api/athletes/[athleteId]/classes
  * Obtiene todas las clases donde aparece un atleta
- * 
+ *
  * Retorna clases de su grupo principal (vía classGroups) + clases extra (vía classEnrollments)
  */
-export const GET = withTenant(async (request, context) => {
+const getAthleteClassesHandler = withTenant(async (request, context) => {
   try {
     const athleteId = (context as RouteContext).params?.athleteId;
 
     if (!athleteId || typeof athleteId !== "string") {
-      return NextResponse.json({ error: "ATHLETE_ID_REQUIRED" }, { status: 400 });
+      return apiError("ATHLETE_ID_REQUIRED", "Athlete ID is required", 400);
     }
 
     if (!context.tenantId) {
-      return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+      return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
     }
 
     const url = new URL(request.url);
     const academyId = url.searchParams.get("academyId");
 
     if (!academyId) {
-      return NextResponse.json({ error: "ACADEMY_ID_REQUIRED" }, { status: 400 });
+      return apiError("ACADEMY_ID_REQUIRED", "Academy ID is required", 400);
     }
 
     // Verificar que el atleta existe y pertenece a la academia
@@ -56,7 +58,7 @@ export const GET = withTenant(async (request, context) => {
       .limit(1);
 
     if (!athleteRow) {
-      return NextResponse.json({ error: "ATHLETE_NOT_FOUND" }, { status: 404 });
+      return apiError("ATHLETE_NOT_FOUND", "Athlete not found", 404);
     }
 
     const classMap = new Map<string, {
@@ -184,9 +186,17 @@ export const GET = withTenant(async (request, context) => {
       classInfo.coachNames.sort();
     }
 
-    return NextResponse.json({ items: Array.from(classMap.values()) });
+    return apiSuccess({ items: Array.from(classMap.values()) });
   } catch (error) {
-    return handleApiError(error);
+    return handleApiError(error) as ReturnType<typeof apiSuccess>;
   }
 });
+
+// Rate-limited GET handler: 100 requests per minute
+export const GET = withRateLimit(
+  async (request) => {
+    return (await getAthleteClassesHandler(request, {} as any)) as NextResponse;
+  },
+  { identifier: getUserIdentifier, limit: 100, window: 60 }
+);
 

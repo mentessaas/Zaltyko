@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { apiSuccess, apiError } from "@/lib/api-response";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 
@@ -20,7 +20,7 @@ export const GET = withTenant(async (_request, context) => {
   const sessionId = params?.sessionId;
 
   if (!sessionId) {
-    return NextResponse.json({ error: "SESSION_ID_REQUIRED" }, { status: 400 });
+    return apiError("SESSION_ID_REQUIRED", "Session ID is required", 400);
   }
 
   const [sessionRow] = await db
@@ -30,10 +30,10 @@ export const GET = withTenant(async (_request, context) => {
     .limit(1);
 
   if (!sessionRow) {
-    return NextResponse.json({ error: "SESSION_NOT_FOUND" }, { status: 404 });
+    return apiError("SESSION_NOT_FOUND", "Session not found", 404);
   }
 
-  return NextResponse.json({ item: sessionRow });
+  return apiSuccess({ item: sessionRow });
 });
 
 export const PUT = withTenant(async (request, context) => {
@@ -41,11 +41,11 @@ export const PUT = withTenant(async (request, context) => {
   const sessionId = params?.sessionId;
 
   if (!sessionId) {
-    return NextResponse.json({ error: "SESSION_ID_REQUIRED" }, { status: 400 });
+    return apiError("SESSION_ID_REQUIRED", "Session ID is required", 400);
   }
 
   if (!context.tenantId) {
-    return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+    return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
   }
 
   const body = updateSchema.parse(await request.json());
@@ -60,7 +60,7 @@ export const PUT = withTenant(async (request, context) => {
     .limit(1);
 
   if (!sessionRow) {
-    return NextResponse.json({ error: "SESSION_NOT_FOUND" }, { status: 404 });
+    return apiError("SESSION_NOT_FOUND", "Session not found", 404);
   }
 
   if (body.coachId) {
@@ -71,7 +71,7 @@ export const PUT = withTenant(async (request, context) => {
       .limit(1);
 
     if (!classRow) {
-      return NextResponse.json({ error: "CLASS_NOT_FOUND" }, { status: 404 });
+      return apiError("CLASS_NOT_FOUND", "Class not found", 404);
     }
   }
 
@@ -91,7 +91,7 @@ export const PUT = withTenant(async (request, context) => {
       .where(eq(classSessions.id, sessionId));
   }
 
-  return NextResponse.json({ ok: true });
+  return apiSuccess({ ok: true });
 });
 
 

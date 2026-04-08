@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 
-import { NextResponse } from "next/server";
+import { apiSuccess, apiError } from "@/lib/api-response";
 import { and, asc, eq, gte, lte } from "drizzle-orm";
 import { z } from "zod";
 
@@ -32,11 +32,11 @@ export const GET = withTenant(async (request, context) => {
   const params = querySchema.safeParse(Object.fromEntries(url.searchParams));
 
   if (!context.tenantId) {
-    return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+    return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
   }
 
   if (!params.success) {
-    return NextResponse.json({ error: "INVALID_FILTERS" }, { status: 400 });
+    return apiError("INVALID_FILTERS", "Invalid filters", 400);
   }
 
   const { classId, academyId, coachId, from, to } = params.data;
@@ -87,14 +87,14 @@ export const GET = withTenant(async (request, context) => {
     .where(whereClause)
     .orderBy(asc(classSessions.sessionDate), asc(classSessions.startTime));
 
-  return NextResponse.json({ items: rows });
+  return apiSuccess({ items: rows });
 });
 
 export const POST = withTenant(async (request, context) => {
   const body = bodySchema.parse(await request.json());
 
   if (!context.tenantId) {
-    return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+    return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
   }
 
   const [classRow] = await db
@@ -104,7 +104,7 @@ export const POST = withTenant(async (request, context) => {
     .limit(1);
 
   if (!classRow) {
-    return NextResponse.json({ error: "CLASS_NOT_FOUND" }, { status: 404 });
+    return apiError("CLASS_NOT_FOUND", "Class not found", 404);
   }
 
   const sessionId = crypto.randomUUID();
@@ -121,5 +121,5 @@ export const POST = withTenant(async (request, context) => {
     notes: body.notes ?? null,
   });
 
-  return NextResponse.json({ ok: true, id: sessionId });
+  return apiSuccess({ ok: true, id: sessionId });
 });

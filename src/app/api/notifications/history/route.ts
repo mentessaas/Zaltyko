@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { apiSuccess, apiError } from "@/lib/api-response";
 import { eq, and, desc } from "drizzle-orm";
 import { withTenant } from "@/lib/authz";
 import { db } from "@/db";
@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 
 export const GET = withTenant(async (request, context) => {
   if (!context.tenantId) {
-    return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+    return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
   }
 
   const url = new URL(request.url);
@@ -34,7 +34,7 @@ export const GET = withTenant(async (request, context) => {
     .from(emailLogs)
     .where(and(...whereConditions));
 
-  return NextResponse.json({
+  return apiSuccess({
     items: logs.map((log) => ({
       id: log.id,
       toEmail: log.toEmail,

@@ -1,7 +1,4 @@
-export const dynamic = 'force-dynamic';
-
 import { randomUUID } from "node:crypto";
-import { NextResponse } from "next/server";
 import { z } from "zod";
 import { eq, and, isNull } from "drizzle-orm";
 
@@ -14,13 +11,14 @@ import { trackEvent } from "@/lib/analytics";
 import { getAppUrl } from "@/lib/env";
 import { createAuditLog } from "@/lib/authz/audit-service";
 import type { AuditAction, AuditModule } from "@/db/schema/audit-logs";
+import { apiSuccess, apiError } from "@/lib/api-response";
 
 const bodySchema = z.object({
   academyId: z.string().uuid(),
   email: z.string().email(),
   role: z.enum(["coach", "parent", "admin", "athlete"]),
-  roleId: z.string().uuid().optional(), // Rol personalizado de academy_roles
-  customPermissions: z.array(z.string()).optional(), // Permisos específicos si no hay roleId
+  roleId: z.string().uuid().optional(),
+  customPermissions: z.array(z.string()).optional(),
   customMessage: z.string().optional(),
   groupsAssigned: z.array(z.string().uuid()).optional(),
   expiresInDays: z.number().int().min(1).max(30).default(7),
@@ -29,21 +27,21 @@ const bodySchema = z.object({
 
 export const POST = withTenant(async (request, context) => {
   if (!context.tenantId) {
-    return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+    return apiError("TENANT_REQUIRED", "Tenant requerido", 400);
   }
 
   if (!["owner", "admin", "super_admin"].includes(context.profile.role)) {
-    return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+    return apiError("FORBIDDEN", "Prohibido", 403);
   }
 
   const parsed = bodySchema.safeParse(await request.json());
   if (!parsed.success) {
-    return NextResponse.json({ error: "INVALID_PAYLOAD" }, { status: 400 });
+    return apiError("INVALID_PAYLOAD", "Payload inválido", 400);
   }
 
   const access = await verifyAcademyAccess(parsed.data.academyId, context.tenantId);
   if (!access.allowed) {
-    return NextResponse.json({ error: access.reason ?? "FORBIDDEN" }, { status: 403 });
+    return apiError("FORBIDDEN", access.reason ?? "Prohibido", 403);
   }
 
   const token = randomUUID();
@@ -151,8 +149,7 @@ export const POST = withTenant(async (request, context) => {
     });
   }
 
-  return NextResponse.json({
-    ok: true,
+  return apiSuccess({
     invitationUrl,
     expiresAt: expiresAt.toISOString(),
     roleName,
@@ -162,19 +159,19 @@ export const POST = withTenant(async (request, context) => {
 // GET - Listar invitaciones pendientes
 export const GET = withTenant(async (request, context) => {
   if (!context.tenantId) {
-    return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+    return apiError("TENANT_REQUIRED", "Tenant requerido", 400);
   }
 
   const { searchParams } = new URL(request.url);
   const academyId = searchParams.get("academyId");
 
   if (!academyId) {
-    return NextResponse.json({ error: "ACADEMY_REQUIRED" }, { status: 400 });
+    return apiError("ACADEMY_REQUIRED", "Academy requerido", 400);
   }
 
   const access = await verifyAcademyAccess(academyId, context.tenantId);
   if (!access.allowed) {
-    return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+    return apiError("FORBIDDEN", "Prohibido", 403);
   }
 
   const invites = await db
@@ -196,5 +193,5 @@ export const GET = withTenant(async (request, context) => {
       )
     );
 
-  return NextResponse.json({ invitations: invites });
+  return apiSuccess({ invitations: invites });
 });

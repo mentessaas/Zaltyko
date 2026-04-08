@@ -1,7 +1,7 @@
-import { NextResponse } from "next/server";
+import { apiError } from "@/lib/api-response";
 
 export const dynamic = 'force-dynamic';
 
 export async function POST() {
-  return NextResponse.json({ error: "NOT_IMPLEMENTED" }, { status: 501 });
+  return apiError("NOT_IMPLEMENTED", "This endpoint is not implemented", 501);
 }

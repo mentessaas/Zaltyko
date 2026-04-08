@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { apiError, apiSuccess } from "@/lib/api-response";
 import { z } from "zod";
 import { eq, and, sql } from "drizzle-orm";
 import { withTenant } from "@/lib/authz";
@@ -23,13 +23,13 @@ const updateSchema = z.object({
 
 export const PUT = withTenant(async (request, context) => {
   if (!context.tenantId) {
-    return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+    return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
   }
 
   const discountId = (context.params as { discountId?: string } | undefined)?.discountId;
 
   if (!discountId) {
-    return NextResponse.json({ error: "DISCOUNT_ID_REQUIRED" }, { status: 400 });
+    return apiError("DISCOUNT_ID_REQUIRED", "Discount ID is required", 400);
   }
 
   const body = updateSchema.parse(await request.json());
@@ -48,7 +48,7 @@ export const PUT = withTenant(async (request, context) => {
       .limit(1);
 
     if (existing) {
-      return NextResponse.json({ error: "CODE_ALREADY_EXISTS" }, { status: 400 });
+      return apiError("CODE_ALREADY_EXISTS", "Discount code already exists", 400);
     }
   }
 
@@ -74,24 +74,24 @@ export const PUT = withTenant(async (request, context) => {
     .set(updateData)
     .where(and(eq(discounts.id, discountId), eq(discounts.tenantId, context.tenantId)));
 
-  return NextResponse.json({ ok: true });
+  return apiSuccess({ ok: true });
 });
 
 export const DELETE = withTenant(async (_request, context) => {
   if (!context.tenantId) {
-    return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+    return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
   }
 
   const discountId = (context.params as { discountId?: string } | undefined)?.discountId;
 
   if (!discountId) {
-    return NextResponse.json({ error: "DISCOUNT_ID_REQUIRED" }, { status: 400 });
+    return apiError("DISCOUNT_ID_REQUIRED", "Discount ID is required", 400);
   }
 
   await db
     .delete(discounts)
     .where(and(eq(discounts.id, discountId), eq(discounts.tenantId, context.tenantId)));
 
-  return NextResponse.json({ ok: true });
+  return apiSuccess({ ok: true });
 });
 

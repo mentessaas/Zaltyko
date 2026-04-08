@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { apiSuccess, apiError } from "@/lib/api-response";
 import { eq, count, inArray, sql } from "drizzle-orm";
 
 import { db } from "@/db";
@@ -29,13 +29,13 @@ async function resolveParams(params: unknown): Promise<RouteParams> {
 
 export const GET = withSuperAdmin(async (_request, context) => {
   if (!context || !context.profile) {
-    return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+    return apiError("UNAUTHORIZED", "Unauthorized", 401);
   }
 
   const resolvedParams = await resolveParams(context.params);
   const profileId = resolvedParams?.profileId;
   if (!profileId) {
-    return NextResponse.json({ error: "PROFILE_ID_REQUIRED" }, { status: 400 });
+    return apiError("PROFILE_ID_REQUIRED", "Profile ID is required", 400);
   }
 
   const [profile] = await db
@@ -55,7 +55,7 @@ export const GET = withSuperAdmin(async (_request, context) => {
     .limit(1);
 
   if (!profile) {
-    return NextResponse.json({ error: "PROFILE_NOT_FOUND" }, { status: 404 });
+    return apiError("PROFILE_NOT_FOUND", "Profile not found", 404);
   }
 
   const userMemberships = await db
@@ -125,7 +125,7 @@ export const GET = withSuperAdmin(async (_request, context) => {
   const adminClient = getSupabaseAdminClient();
   const { data: authUser } = await adminClient.auth.admin.getUserById(profile.userId);
 
-  return NextResponse.json({
+  return apiSuccess({
     ...profile,
     email: authUser?.user?.email ?? null,
     subscription: userSubscription
@@ -152,13 +152,13 @@ export const GET = withSuperAdmin(async (_request, context) => {
 
 export const PATCH = withSuperAdmin(async (request, context) => {
   if (!context || !context.profile) {
-    return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+    return apiError("UNAUTHORIZED", "Unauthorized", 401);
   }
 
   const resolvedParams = await resolveParams(context.params);
   const profileId = resolvedParams?.profileId;
   if (!profileId) {
-    return NextResponse.json({ error: "PROFILE_ID_REQUIRED" }, { status: 400 });
+    return apiError("PROFILE_ID_REQUIRED", "Profile ID is required", 400);
   }
 
   const [existing] = await db
@@ -168,11 +168,11 @@ export const PATCH = withSuperAdmin(async (request, context) => {
     .limit(1);
 
   if (!existing) {
-    return NextResponse.json({ error: "PROFILE_NOT_FOUND" }, { status: 404 });
+    return apiError("PROFILE_NOT_FOUND", "Profile not found", 404);
   }
 
   if (existing.role === "super_admin") {
-    return NextResponse.json({ error: "IMMUTABLE_SUPER_ADMIN" }, { status: 400 });
+    return apiError("IMMUTABLE_SUPER_ADMIN", "Cannot modify super admin profile", 400);
   }
 
   const body = await request.json().catch(() => ({}));
@@ -196,7 +196,7 @@ export const PATCH = withSuperAdmin(async (request, context) => {
       email: body.email.trim(),
     });
     if (updateError) {
-      return NextResponse.json({ error: "EMAIL_UPDATE_FAILED", message: updateError.message }, { status: 400 });
+      return apiError("EMAIL_UPDATE_FAILED", updateError.message, 400);
     }
   }
 
@@ -210,14 +210,7 @@ export const PATCH = withSuperAdmin(async (request, context) => {
 
       // If there are violations and force flag is not set, return violations info
       if (violations.requiresAction && !body.force) {
-        return NextResponse.json(
-          {
-            error: "PLAN_LIMIT_VIOLATIONS",
-            violations: violations.violations,
-            requiresAction: true,
-          },
-          { status: 400 }
-        );
+        return apiError("PLAN_LIMIT_VIOLATIONS", "Plan limit violations detected", 400);
       }
 
       const [existingSubscription] = await db
@@ -322,7 +315,7 @@ export const PATCH = withSuperAdmin(async (request, context) => {
   }
 
   if (Object.keys(updates).length === 0 && !body?.email && !body?.planId) {
-    return NextResponse.json({ error: "NO_CHANGES" }, { status: 400 });
+    return apiError("NO_CHANGES", "No changes provided", 400);
   }
 
   const [updated] = await db
@@ -344,6 +337,6 @@ export const PATCH = withSuperAdmin(async (request, context) => {
     meta: { profileId, updates },
   });
 
-  return NextResponse.json(updated);
+  return apiSuccess(updated);
 });
 

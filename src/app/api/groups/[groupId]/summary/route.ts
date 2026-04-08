@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 
-import { NextResponse } from "next/server";
+import { apiError, apiSuccess } from "@/lib/api-response";
 import { and, eq, inArray, or, sql, sum } from "drizzle-orm";
 import { format } from "date-fns";
 
@@ -18,11 +18,11 @@ export const GET = withTenant(async (request, context) => {
     const period = url.searchParams.get("period") || format(new Date(), "yyyy-MM");
 
     if (!groupId) {
-      return NextResponse.json({ error: "GROUP_ID_REQUIRED" }, { status: 400 });
+      return apiError("GROUP_ID_REQUIRED", "Group ID is required", 400);
     }
 
     if (!context.tenantId) {
-      return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+      return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
     }
 
     // Get group info
@@ -38,13 +38,13 @@ export const GET = withTenant(async (request, context) => {
       .limit(1);
 
     if (!group) {
-      return NextResponse.json({ error: "GROUP_NOT_FOUND" }, { status: 404 });
+      return apiError("GROUP_NOT_FOUND", "Group not found", 404);
     }
 
     // Verify group access
     const groupAccess = await verifyGroupAccess(groupId, group.academyId, context.tenantId);
     if (!groupAccess.allowed) {
-      return NextResponse.json({ error: groupAccess.reason ?? "GROUP_ACCESS_DENIED" }, { status: 403 });
+      return apiError(groupAccess.reason ?? "GROUP_ACCESS_DENIED", "Access denied", 403);
     }
 
     // Get active athletes in the group
@@ -105,7 +105,7 @@ export const GET = withTenant(async (request, context) => {
       .filter((c) => c.status === "pending" || c.status === "overdue")
       .reduce((sum, c) => sum + c.amountCents, 0);
 
-    return NextResponse.json({
+    return apiSuccess({
       groupId: group.id,
       groupName: group.name,
       activeAthletesCount,

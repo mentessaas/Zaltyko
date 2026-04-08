@@ -1,6 +1,5 @@
 export const dynamic = 'force-dynamic';
 
-import { NextResponse } from "next/server";
 import { and, eq, desc } from "drizzle-orm";
 import { z } from "zod";
 import { randomUUID } from "crypto";
@@ -9,6 +8,7 @@ import { db } from "@/db";
 import { athleteExtraClasses, athletes, classes, classWeekdays, classCoachAssignments, coaches } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
 import { handleApiError } from "@/lib/api-error-handler";
+import { apiSuccess, apiError, apiCreated } from "@/lib/api-response";
 
 const createExtraClassSchema = z.object({
   classId: z.string().uuid(),
@@ -20,11 +20,11 @@ export const GET = withTenant(async (request, context) => {
     const athleteId = params?.athleteId;
 
     if (!athleteId) {
-      return NextResponse.json({ error: "ATHLETE_ID_REQUIRED" }, { status: 400 });
+      return apiError("ATHLETE_ID_REQUIRED", "Athlete ID is required", 400);
     }
 
     if (!context.tenantId) {
-      return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+      return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
     }
 
     // Verify athlete belongs to tenant
@@ -38,7 +38,7 @@ export const GET = withTenant(async (request, context) => {
       .limit(1);
 
     if (!athlete) {
-      return NextResponse.json({ error: "ATHLETE_NOT_FOUND" }, { status: 404 });
+      return apiError("ATHLETE_NOT_FOUND", "Athlete not found", 404);
     }
 
     // Get extra classes with class details
@@ -94,11 +94,7 @@ export const GET = withTenant(async (request, context) => {
       coachNames: coachesByClassId.get(ec.classId) || [],
     }));
 
-    return NextResponse.json({
-      success: true,
-      data: enrichedClasses,
-      total: enrichedClasses.length,
-    });
+    return apiSuccess({ items: enrichedClasses }, { total: enrichedClasses.length });
   } catch (error) {
     return handleApiError(error);
   }
@@ -110,12 +106,12 @@ export const POST = withTenant(async (request, context) => {
     const athleteId = params?.athleteId;
 
     if (!athleteId) {
-      return NextResponse.json({ error: "ATHLETE_ID_REQUIRED" }, { status: 400 });
+      return apiError("ATHLETE_ID_REQUIRED", "Athlete ID is required", 400);
     }
     const body = createExtraClassSchema.parse(await request.json());
 
     if (!context.tenantId) {
-      return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+      return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
     }
 
     // Verify athlete belongs to tenant
@@ -129,7 +125,7 @@ export const POST = withTenant(async (request, context) => {
       .limit(1);
 
     if (!athlete) {
-      return NextResponse.json({ error: "ATHLETE_NOT_FOUND" }, { status: 404 });
+      return apiError("ATHLETE_NOT_FOUND", "Athlete not found", 404);
     }
 
     // Verify class exists and belongs to same academy
@@ -143,7 +139,7 @@ export const POST = withTenant(async (request, context) => {
       .limit(1);
 
     if (!classInfo) {
-      return NextResponse.json({ error: "CLASS_NOT_FOUND" }, { status: 404 });
+      return apiError("CLASS_NOT_FOUND", "Class not found", 404);
     }
 
     const enrollmentId = randomUUID();
@@ -156,7 +152,7 @@ export const POST = withTenant(async (request, context) => {
       classId: body.classId,
     });
 
-    return NextResponse.json({ success: true, id: enrollmentId });
+    return apiCreated({ id: enrollmentId });
   } catch (error) {
     return handleApiError(error);
   }
@@ -168,17 +164,17 @@ export const DELETE = withTenant(async (request, context) => {
     const athleteId = params?.athleteId;
 
     if (!athleteId) {
-      return NextResponse.json({ error: "ATHLETE_ID_REQUIRED" }, { status: 400 });
+      return apiError("ATHLETE_ID_REQUIRED", "Athlete ID is required", 400);
     }
     const url = new URL(request.url);
     const enrollmentId = url.searchParams.get("enrollmentId");
 
     if (!context.tenantId) {
-      return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+      return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
     }
 
     if (!enrollmentId) {
-      return NextResponse.json({ error: "ENROLLMENT_ID_REQUIRED" }, { status: 400 });
+      return apiError("ENROLLMENT_ID_REQUIRED", "Enrollment ID is required", 400);
     }
 
     // Verify enrollment belongs to this athlete and tenant
@@ -193,14 +189,14 @@ export const DELETE = withTenant(async (request, context) => {
       .limit(1);
 
     if (!enrollment) {
-      return NextResponse.json({ error: "ENROLLMENT_NOT_FOUND" }, { status: 404 });
+      return apiError("ENROLLMENT_NOT_FOUND", "Enrollment not found", 404);
     }
 
     await db
       .delete(athleteExtraClasses)
       .where(eq(athleteExtraClasses.id, enrollmentId));
 
-    return NextResponse.json({ success: true });
+    return apiSuccess({ ok: true });
   } catch (error) {
     return handleApiError(error);
   }

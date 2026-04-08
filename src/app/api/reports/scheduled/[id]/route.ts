@@ -1,15 +1,15 @@
-import { NextResponse } from "next/server";
+import { apiError, apiSuccess } from "@/lib/api-response";
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  return NextResponse.json({ item: null });
+  return apiSuccess({ item: null });
 }
 
 export async function PATCH() {
-  return NextResponse.json({ error: "NOT_IMPLEMENTED" }, { status: 501 });
+  return apiError("NOT_IMPLEMENTED", "Not implemented", 501);
 }
 
 export async function DELETE() {
-  return NextResponse.json({ error: "NOT_IMPLEMENTED" }, { status: 501 });
+  return apiError("NOT_IMPLEMENTED", "Not implemented", 501);
 }

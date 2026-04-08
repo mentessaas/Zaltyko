@@ -1,7 +1,7 @@
-import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { empleoListings } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { apiSuccess, apiError } from "@/lib/api-response";
 
 export async function GET(
   request: Request,
@@ -16,13 +16,13 @@ export async function GET(
       .limit(1);
 
     if (!listing) {
-      return NextResponse.json({ error: "Listing not found" }, { status: 404 });
+      return apiError("NOT_FOUND", "Listing no encontrado", 404);
     }
 
-    return NextResponse.json({ item: listing });
+    return apiSuccess({ item: listing });
   } catch (error) {
     console.error("Error fetching employment listing:", error);
-    return NextResponse.json({ error: "Internal error" }, { status: 500 });
+    return apiError("INTERNAL_ERROR", "Error interno", 500);
   }
 }
 
@@ -43,13 +43,13 @@ export async function PATCH(
       .returning();
 
     if (!updated) {
-      return NextResponse.json({ error: "Listing not found" }, { status: 404 });
+      return apiError("NOT_FOUND", "Listing no encontrado", 404);
     }
 
-    return NextResponse.json({ item: updated });
+    return apiSuccess({ item: updated });
   } catch (error) {
     console.error("Error updating employment listing:", error);
-    return NextResponse.json({ error: "Internal error" }, { status: 500 });
+    return apiError("INTERNAL_ERROR", "Error interno", 500);
   }
 }
 
@@ -65,12 +65,12 @@ export async function DELETE(
       .returning();
 
     if (!deleted) {
-      return NextResponse.json({ error: "Listing not found" }, { status: 404 });
+      return apiError("NOT_FOUND", "Listing no encontrado", 404);
     }
 
-    return NextResponse.json({ success: true });
+    return apiSuccess({ success: true });
   } catch (error) {
     console.error("Error deleting employment listing:", error);
-    return NextResponse.json({ error: "Internal error" }, { status: 500 });
+    return apiError("INTERNAL_ERROR", "Error interno", 500);
   }
 }

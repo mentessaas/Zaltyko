@@ -1,5 +1,5 @@
 import { and, eq, inArray } from "drizzle-orm";
-import { NextResponse } from "next/server";
+import { apiCreated, apiError, apiSuccess } from "@/lib/api-response";
 import { z } from "zod";
 
 import { db } from "@/db";
@@ -21,19 +21,19 @@ export const POST = withTenant(async (request, context) => {
     const body = BulkCreateChargesSchema.parse(await request.json());
 
     if (!context.tenantId) {
-      return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+      return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
     }
 
     // Verify academy access
     const academyAccess = await verifyAcademyAccess(body.academyId, context.tenantId);
     if (!academyAccess.allowed) {
-      return NextResponse.json({ error: academyAccess.reason ?? "ACADEMY_ACCESS_DENIED" }, { status: 403 });
+      return apiError(academyAccess.reason ?? "ACADEMY_ACCESS_DENIED", "Access denied", 403);
     }
 
     // Verify group access
     const groupAccess = await verifyGroupAccess(body.groupId, body.academyId, context.tenantId);
     if (!groupAccess.allowed) {
-      return NextResponse.json({ error: groupAccess.reason ?? "GROUP_ACCESS_DENIED" }, { status: 403 });
+      return apiError(groupAccess.reason ?? "GROUP_ACCESS_DENIED", "Access denied", 403);
     }
 
     // Get billing item
@@ -44,7 +44,7 @@ export const POST = withTenant(async (request, context) => {
       .limit(1);
 
     if (!billingItem) {
-      return NextResponse.json({ error: "BILLING_ITEM_NOT_FOUND" }, { status: 404 });
+      return apiError("BILLING_ITEM_NOT_FOUND", "Billing item not found", 404);
     }
 
     // Get all athletes in the group
@@ -55,7 +55,7 @@ export const POST = withTenant(async (request, context) => {
       .limit(1000); // Reasonable limit
 
     if (groupAthletesList.length === 0) {
-      return NextResponse.json({ error: "NO_ATHLETES_IN_GROUP" }, { status: 400 });
+      return apiError("NO_ATHLETES_IN_GROUP", "No athletes in group", 400);
     }
 
     const athleteIds = groupAthletesList.map((a) => a.id);
@@ -93,7 +93,7 @@ export const POST = withTenant(async (request, context) => {
       }));
 
     if (newCharges.length === 0) {
-      return NextResponse.json({
+      return apiSuccess({
         message: "All athletes in this group already have charges for this period",
         created: 0,
         skipped: groupAthletesList.length,
@@ -102,13 +102,12 @@ export const POST = withTenant(async (request, context) => {
 
     await db.insert(charges).values(newCharges);
 
-    return NextResponse.json(
+    return apiCreated(
       {
         message: `Created ${newCharges.length} charge(s)`,
         created: newCharges.length,
         skipped: existingCharges.length,
-      },
-      { status: 201 }
+      }
     );
   } catch (error) {
     return handleApiError(error, { endpoint: "/api/charges/bulk", method: "POST" });

@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 
-import { NextResponse } from "next/server";
+import { apiError, apiSuccess } from "@/lib/api-response";
 import { z } from "zod";
 import { eq, and, desc } from "drizzle-orm";
 import { withTenant } from "@/lib/authz";
@@ -10,7 +10,7 @@ import { discountUsageHistory, discounts, athletes } from "@/db/schema";
 
 export const GET = withTenant(async (request, context) => {
   if (!context.tenantId) {
-    return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+    return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
   }
 
   const url = new URL(request.url);
@@ -20,7 +20,7 @@ export const GET = withTenant(async (request, context) => {
   const limit = parseInt(url.searchParams.get("limit") || "50");
 
   if (!academyId) {
-    return NextResponse.json({ error: "ACADEMY_ID_REQUIRED" }, { status: 400 });
+    return apiError("ACADEMY_ID_REQUIRED", "Academy ID is required", 400);
   }
 
   const conditions = [
@@ -70,7 +70,7 @@ export const GET = withTenant(async (request, context) => {
     0
   );
 
-  return NextResponse.json({
+  return apiSuccess({
     items: items.map((item) => ({
       ...item,
       discountAmount: Number(item.discountAmount),

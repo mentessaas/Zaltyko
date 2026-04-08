@@ -5,16 +5,17 @@ import { generateReceiptPDF } from "@/lib/receipts/receipt-generator";
 
 import { db } from "@/db";
 import { receipts, athletes, academies } from "@/db/schema";
+import { apiSuccess, apiError } from "@/lib/api-response";
 
 export const GET = withTenant(async (_request, context) => {
   if (!context.tenantId) {
-    return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+    return apiError("TENANT_REQUIRED", "Tenant requerido", 400);
   }
 
   const receiptId = (context.params as { receiptId?: string } | undefined)?.receiptId;
 
   if (!receiptId) {
-    return NextResponse.json({ error: "RECEIPT_ID_REQUIRED" }, { status: 400 });
+    return apiError("RECEIPT_ID_REQUIRED", "ID de recibo requerido", 400);
   }
 
   const [receipt] = await db
@@ -36,7 +37,7 @@ export const GET = withTenant(async (_request, context) => {
     .limit(1);
 
   if (!receipt) {
-    return NextResponse.json({ error: "RECEIPT_NOT_FOUND" }, { status: 404 });
+    return apiError("RECEIPT_NOT_FOUND", "Recibo no encontrado", 404);
   }
 
   const metadata = receipt.metadata || {};
@@ -61,4 +62,3 @@ export const GET = withTenant(async (_request, context) => {
     },
   });
 });
-

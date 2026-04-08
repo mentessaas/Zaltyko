@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { apiError, apiSuccess } from "@/lib/api-response";
 import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
@@ -11,7 +11,7 @@ export const GET = withTenant(async (request, context: RouteContext) => {
   const params = context.params as { groupId?: string };
   const groupId = params?.groupId;
   if (!groupId) {
-    return NextResponse.json({ error: "GROUP_ID_REQUIRED" }, { status: 400 });
+    return apiError("GROUP_ID_REQUIRED", "Group ID is required", 400);
   }
 
   // Verificar que el grupo existe y el usuario tiene acceso
@@ -22,7 +22,7 @@ export const GET = withTenant(async (request, context: RouteContext) => {
     .limit(1);
 
   if (!group) {
-    return NextResponse.json({ error: "GROUP_NOT_FOUND" }, { status: 404 });
+    return apiError("GROUP_NOT_FOUND", "Group not found", 404);
   }
 
   const role = context.profile.role;
@@ -33,7 +33,7 @@ export const GET = withTenant(async (request, context: RouteContext) => {
     group.tenantId === context.tenantId;
 
   if (!hasAccess) {
-    return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+    return apiError("FORBIDDEN", "Access denied", 403);
   }
 
   const athleteRows = await db
@@ -43,6 +43,6 @@ export const GET = withTenant(async (request, context: RouteContext) => {
 
   const athleteIds = athleteRows.map((row) => row.athleteId);
 
-  return NextResponse.json({ athleteIds });
+  return apiSuccess({ athleteIds });
 });
 

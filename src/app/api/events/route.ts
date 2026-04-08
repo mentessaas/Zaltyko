@@ -1,5 +1,4 @@
 import { and, asc, desc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
-import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { db } from "@/db";
@@ -9,7 +8,7 @@ import { handleApiError } from "@/lib/api-error-handler";
 import { withRateLimit, getUserIdentifier } from "@/lib/rate-limit";
 import { withPayloadValidation, type PayloadValidationContext } from "@/lib/payload-validator";
 import { logger } from "@/lib/logger";
-import { apiSuccess, apiCreated } from "@/lib/api-response";
+import { apiSuccess, apiCreated, apiError } from "@/lib/api-response";
 
 export const dynamic = "force-dynamic";
 
@@ -121,7 +120,7 @@ export const POST = withRateLimit(
             .limit(1);
 
           if (!academy) {
-            return NextResponse.json({ error: "ACADEMY_NOT_FOUND" }, { status: 404 });
+            return apiError("ACADEMY_NOT_FOUND", "Academy not found", 404);
           }
 
           // Verificar que el usuario tiene acceso a esta academia
@@ -139,7 +138,7 @@ export const POST = withRateLimit(
               .limit(1);
 
             if (!membership) {
-              return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+              return apiError("FORBIDDEN", "Forbidden", 403);
             }
           }
 
@@ -153,11 +152,11 @@ export const POST = withRateLimit(
             .limit(1);
 
           if (!academy) {
-            return NextResponse.json({ error: "ACADEMY_NOT_FOUND" }, { status: 404 });
+            return apiError("ACADEMY_NOT_FOUND", "Academy not found", 404);
           }
 
           if (academy.tenantId !== effectiveTenantId) {
-            return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+            return apiError("FORBIDDEN", "Forbidden", 403);
           }
         }
 
@@ -241,10 +240,7 @@ export const POST = withRateLimit(
         return apiCreated({ event: newEvent });
       } catch (error: any) {
         if (error instanceof z.ZodError) {
-          return NextResponse.json(
-            { error: "VALIDATION_ERROR", details: error.errors },
-            { status: 400 }
-          );
+          return apiError("VALIDATION_ERROR", "Validation failed", 400);
         }
         return handleApiError(error, { endpoint: "/api/events", method: "POST" });
       }
@@ -265,14 +261,7 @@ export const GET = withTenant(async (request, context) => {
     const parsed = QuerySchema.safeParse(Object.fromEntries(url.searchParams));
 
     if (!parsed.success) {
-      return NextResponse.json(
-        {
-          error: "INVALID_FILTERS",
-          message: "Los filtros proporcionados no son válidos",
-          details: parsed.error.issues,
-        },
-        { status: 400 }
-      );
+      return apiError("INVALID_FILTERS", "Los filtros proporcionados no son válidos", 400);
     }
 
     const { academyId, country, province, city, discipline, level, startDate, endDate, search, page, limit } = parsed.data;

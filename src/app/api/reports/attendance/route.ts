@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 
-import { NextResponse } from "next/server";
+import { apiError, apiSuccess } from "@/lib/api-response";
 import { z } from "zod";
 import { withTenant } from "@/lib/authz";
 import {
@@ -22,7 +22,7 @@ const reportSchema = z.object({
 
 export const GET = withTenant(async (request, context) => {
   if (!context.tenantId) {
-    return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+    return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
   }
 
   const url = new URL(request.url);
@@ -42,7 +42,7 @@ export const GET = withTenant(async (request, context) => {
   });
 
   if (!validated.academyId) {
-    return NextResponse.json({ error: "ACADEMY_ID_REQUIRED" }, { status: 400 });
+    return apiError("ACADEMY_ID_REQUIRED", "Academy ID is required", 400);
   }
 
   const filters: AttendanceReportFilters = {
@@ -59,29 +59,26 @@ export const GET = withTenant(async (request, context) => {
     switch (validated.reportType) {
       case "athlete":
         if (!validated.athleteId) {
-          return NextResponse.json({ error: "ATHLETE_ID_REQUIRED" }, { status: 400 });
+          return apiError("ATHLETE_ID_REQUIRED", "Athlete ID is required", 400);
         }
         const athleteReport = await calculateAthleteAttendance(filters);
-        return NextResponse.json({ type: "athlete", data: athleteReport });
+        return apiSuccess({ type: "athlete", data: athleteReport });
 
       case "group":
         if (!validated.groupId) {
-          return NextResponse.json({ error: "GROUP_ID_REQUIRED" }, { status: 400 });
+          return apiError("GROUP_ID_REQUIRED", "Group ID is required", 400);
         }
         const groupReports = await calculateGroupAttendance(filters);
-        return NextResponse.json({ type: "group", data: groupReports });
+        return apiSuccess({ type: "group", data: groupReports });
 
       case "general":
       default:
         const generalStats = await calculateGeneralAttendance(filters);
-        return NextResponse.json({ type: "general", data: generalStats });
+        return apiSuccess({ type: "general", data: generalStats });
     }
   } catch (error: any) {
     console.error("Error generating attendance report:", error);
-    return NextResponse.json(
-      { error: "REPORT_FAILED", message: error.message },
-      { status: 500 }
-    );
+    return apiError("REPORT_FAILED", error.message, 500);
   }
 });
 

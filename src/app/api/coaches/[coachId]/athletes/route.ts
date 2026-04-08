@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 
 import { db } from "@/db";
@@ -12,17 +11,17 @@ import {
   groups,
 } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
-import { handleApiError } from "@/lib/api-error-handler";
+import { apiSuccess, apiError } from "@/lib/api-response";
 
 export const GET = withTenant(async (_request, context) => {
   const coachId = (context.params as { coachId?: string })?.coachId;
 
   if (!coachId) {
-    return NextResponse.json({ error: "COACH_ID_REQUIRED" }, { status: 400 });
+    return apiError("COACH_ID_REQUIRED", "coachId es requerido", 400);
   }
 
   if (!context.tenantId) {
-    return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+    return apiError("TENANT_REQUIRED", "tenantId es requerido", 400);
   }
 
   // Verificar que el coach existe y pertenece al tenant
@@ -33,7 +32,7 @@ export const GET = withTenant(async (_request, context) => {
     .limit(1);
 
   if (!coach || coach.tenantId !== context.tenantId) {
-    return NextResponse.json({ error: "COACH_NOT_FOUND" }, { status: 404 });
+    return apiError("COACH_NOT_FOUND", "Coach no encontrado", 404);
   }
 
   // Obtener clases asignadas al coach
@@ -126,5 +125,5 @@ export const GET = withTenant(async (_request, context) => {
 
   const uniqueAthletes = Array.from(allAthletesMap.values());
 
-  return NextResponse.json({ items: uniqueAthletes });
+  return apiSuccess({ items: uniqueAthletes });
 });

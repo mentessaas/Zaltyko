@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { eq, and } from "drizzle-orm";
 import { z } from "zod";
 import Stripe from "stripe";
@@ -7,6 +6,7 @@ import { db } from "@/db";
 import { academies, subscriptions, profiles, billingInvoices } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
 import { getStripeClient } from "@/lib/stripe/client";
+import { apiSuccess, apiError } from "@/lib/api-response";
 
 const bodySchema = z.object({
   academyId: z.string().uuid(),
@@ -37,7 +37,7 @@ function metadataToRecord(metadata: Stripe.Metadata | undefined | null) {
 
 export const POST = withTenant(async (request, context) => {
   if (!process.env.STRIPE_SECRET_KEY) {
-    return NextResponse.json({ error: "STRIPE_NOT_CONFIGURED" }, { status: 500 });
+    return apiError("STRIPE_NOT_CONFIGURED", "Stripe is not configured", 500);
   }
 
   const stripe = getStripeClient();
@@ -55,12 +55,12 @@ export const POST = withTenant(async (request, context) => {
     .limit(1);
 
   if (!academy) {
-    return NextResponse.json({ error: "ACADEMY_NOT_FOUND" }, { status: 404 });
+    return apiError("ACADEMY_NOT_FOUND", "Academy not found", 404);
   }
 
   // Obtener el customer ID de Stripe desde la suscripción del owner
   if (!academy.ownerId) {
-    return NextResponse.json({ error: "ACADEMY_HAS_NO_OWNER" }, { status: 400 });
+    return apiError("ACADEMY_HAS_NO_OWNER", "Academy has no owner", 400);
   }
 
   const [owner] = await db
@@ -72,7 +72,7 @@ export const POST = withTenant(async (request, context) => {
     .limit(1);
 
   if (!owner) {
-    return NextResponse.json({ error: "OWNER_NOT_FOUND" }, { status: 404 });
+    return apiError("OWNER_NOT_FOUND", "Owner not found", 404);
   }
 
   const [subscription] = await db
@@ -84,10 +84,7 @@ export const POST = withTenant(async (request, context) => {
     .limit(1);
 
   if (!subscription?.stripeCustomerId) {
-    return NextResponse.json(
-      { error: "NO_STRIPE_CUSTOMER", message: "No hay un cliente de Stripe asociado" },
-      { status: 400 }
-    );
+    return apiError("NO_STRIPE_CUSTOMER", "No Stripe customer associated", 400);
   }
 
   try {
@@ -156,18 +153,9 @@ export const POST = withTenant(async (request, context) => {
       }
     }
 
-    return NextResponse.json({
-      ok: true,
-      synced,
-      updated,
-      errors,
-      total: invoices.data.length,
-    });
+    return apiSuccess({ synced, updated, errors, total: invoices.data.length });
   } catch (error: any) {
     console.error("Error syncing invoices", error);
-    return NextResponse.json(
-      { error: "SYNC_FAILED", message: error?.message ?? "Error al sincronizar facturas" },
-      { status: 500 }
-    );
+    return apiError("SYNC_FAILED", error?.message ?? "Error al sincronizar facturas", 500);
   }
 });

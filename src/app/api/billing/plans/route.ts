@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { asc, eq } from "drizzle-orm";
-import { NextResponse } from "next/server";
+import { apiSuccess } from "@/lib/api-response";
 
 import { db } from "@/db";
 import { plans } from "@/db/schema";
@@ -56,7 +56,7 @@ export const GET = withTenant(async () => {
     .where(eq(plans.isArchived, false))
     .orderBy(asc(plans.priceEur));
 
-  return NextResponse.json(items);
+  return apiSuccess(items);
 });
 
 

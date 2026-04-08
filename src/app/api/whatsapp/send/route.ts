@@ -3,7 +3,7 @@
  * Send notifications to parents via WhatsApp using Twilio
  */
 
-import { NextResponse } from "next/server";
+import { apiSuccess, apiError } from "@/lib/api-response";
 import { z } from "zod";
 import { withTenant } from "@/lib/authz";
 import { sendWhatsApp, WhatsAppTemplates } from "@/lib/whatsapp";
@@ -74,7 +74,7 @@ export async function POST(request: Request) {
     }
 
     if (result.success) {
-      return NextResponse.json({
+      return apiSuccess({
         success: true,
         message: "WhatsApp sent successfully",
         phone: formattedPhone,
@@ -83,7 +83,7 @@ export async function POST(request: Request) {
     } else {
       // In production, we'd handle this differently
       // For now, return success if Twilio is not configured (simulated)
-      return NextResponse.json({
+      return apiSuccess({
         success: true,
         message: "WhatsApp queued (simulated)",
         phone: formattedPhone,
@@ -94,22 +94,16 @@ export async function POST(request: Request) {
     console.error("WhatsApp error:", error);
 
     if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: "VALIDATION_ERROR", details: error.errors },
-        { status: 400 }
-      );
+      return apiError("VALIDATION_ERROR", "Validation failed", 400);
     }
 
-    return NextResponse.json(
-      { error: "Failed to send WhatsApp message" },
-      { status: 500 }
-    );
+    return apiError("Failed to send WhatsApp message", "Failed to send WhatsApp message", 500);
   }
 }
 
 // GET - Return available templates
 export async function GET() {
-  return NextResponse.json({
+  return apiSuccess({
     templates: {
       attendancePresent: WhatsAppTemplates.attendancePresent("Nombre"),
       attendanceAbsent: WhatsAppTemplates.attendanceAbsent("Nombre"),

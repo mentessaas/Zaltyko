@@ -1,10 +1,13 @@
-import { NextResponse } from "next/server";
+import { apiSuccess, apiError } from "@/lib/api-response";
 import { withTenant } from "@/lib/authz";
+import { rateLimit, getUserIdentifier, withRateLimit } from "@/lib/rate-limit";
 import { db } from "@/db";
 import { subscriptions } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { NextResponse } from "next/server";
 
-export const POST = withTenant(async (req, context) => {
+// Handler for POST - separated to apply rate limiting
+const updatePaymentMethodHandler = withTenant(async (req, context) => {
     try {
         const { userId } = context;
 
@@ -12,7 +15,7 @@ export const POST = withTenant(async (req, context) => {
         const { payment_method } = body;
 
         if (!payment_method) {
-            return new NextResponse("Payment method is required", { status: 400 });
+            return apiError("MISSING_PAYMENT_METHOD", "Payment method is required", 400);
         }
 
         // Get user's subscription to find Stripe customer ID
@@ -23,7 +26,7 @@ export const POST = withTenant(async (req, context) => {
             .limit(1);
 
         if (!subscription) {
-            return new NextResponse("No subscription found", { status: 404 });
+            return apiError("NOT_FOUND", "No subscription found", 404);
         }
 
         // TODO: Integrate with Stripe to update payment method
@@ -42,18 +45,23 @@ export const POST = withTenant(async (req, context) => {
         // This should be handled by Stripe directly when implemented
         // For now, we'll just return success
 
-        return NextResponse.json({
-            success: true,
-            payment_method,
-            message: "Payment method updated successfully",
-        });
+        return apiSuccess({ payment_method, message: "Payment method updated successfully" });
     } catch (error) {
         console.error("Error updating payment method:", error);
-        return new NextResponse("Internal Server Error", { status: 500 });
+        return apiError("INTERNAL_ERROR", "Internal Server Error", 500);
     }
 });
 
-export const GET = withTenant(async (req, context) => {
+// Rate-limited POST handler: 10 requests per minute
+export const POST = withRateLimit(
+    async (request) => {
+        return (await updatePaymentMethodHandler(request, {} as any)) as NextResponse;
+    },
+    { identifier: getUserIdentifier, limit: 10, window: 60 }
+);
+
+// Handler for GET - separated to apply rate limiting
+const getPaymentMethodHandler = withTenant(async (req, context) => {
     try {
         const { userId } = context;
 
@@ -64,15 +72,20 @@ export const GET = withTenant(async (req, context) => {
             .limit(1);
 
         if (!subscription) {
-            return new NextResponse("No subscription found", { status: 404 });
+            return apiError("NOT_FOUND", "No subscription found", 404);
         }
 
-        return NextResponse.json({
-            // Payment method is managed by Stripe, not stored locally
-            payment_method: null,
-        });
+        return apiSuccess({ payment_method: null });
     } catch (error) {
         console.error("Error fetching payment method:", error);
-        return new NextResponse("Internal Server Error", { status: 500 });
+        return apiError("INTERNAL_ERROR", "Internal Server Error", 500);
     }
 });
+
+// Rate-limited GET handler: 100 requests per minute
+export const GET = withRateLimit(
+    async (request) => {
+        return (await getPaymentMethodHandler(request, {} as any)) as NextResponse;
+    },
+    { identifier: getUserIdentifier, limit: 100, window: 60 }
+);

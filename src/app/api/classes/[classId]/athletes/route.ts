@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { apiSuccess, apiError } from "@/lib/api-response";
 import { and, eq } from "drizzle-orm";
 
 import { db } from "@/db";
@@ -20,11 +20,11 @@ export const GET = withTenant(async (request, context) => {
     const classId = (context as RouteContext).params?.classId;
 
     if (!classId || typeof classId !== "string") {
-      return NextResponse.json({ error: "CLASS_ID_REQUIRED" }, { status: 400 });
+      return apiError("CLASS_ID_REQUIRED", "Class ID is required", 400);
     }
 
     if (!context.tenantId) {
-      return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+      return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
     }
 
     // Obtener información de la clase para validar acceso
@@ -39,18 +39,18 @@ export const GET = withTenant(async (request, context) => {
       .limit(1);
 
     if (!classRow) {
-      return NextResponse.json({ error: "CLASS_NOT_FOUND" }, { status: 404 });
+      return apiError("CLASS_NOT_FOUND", "Class not found", 404);
     }
 
     // Verificar acceso al tenant
     if (classRow.tenantId !== context.tenantId && context.profile.role !== "super_admin") {
-      return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+      return apiError("FORBIDDEN", "Access denied", 403);
     }
 
     // Obtener atletas usando la función helper
     const athletes = await getClassAthletes(classId, classRow.academyId);
 
-    return NextResponse.json({ items: athletes });
+    return apiSuccess({ items: athletes });
   } catch (error) {
     return handleApiError(error);
   }

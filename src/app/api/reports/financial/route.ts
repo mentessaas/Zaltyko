@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 
-import { NextResponse } from "next/server";
+import { apiError, apiSuccess } from "@/lib/api-response";
 import { z } from "zod";
 import { withTenant } from "@/lib/authz";
 import {
@@ -20,7 +20,7 @@ const reportSchema = z.object({
 
 export const GET = withTenant(async (request, context) => {
   if (!context.tenantId) {
-    return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+    return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
   }
 
   const url = new URL(request.url);
@@ -39,7 +39,7 @@ export const GET = withTenant(async (request, context) => {
   });
 
   if (!validated.academyId) {
-    return NextResponse.json({ error: "ACADEMY_ID_REQUIRED" }, { status: 400 });
+    return apiError("ACADEMY_ID_REQUIRED", "Academy ID is required", 400);
   }
 
   const filters: FinancialReportFilters = {
@@ -53,29 +53,26 @@ export const GET = withTenant(async (request, context) => {
   try {
     if (path.includes("/monthly")) {
       const monthlyData = await calculateMonthlyRevenue(filters);
-      return NextResponse.json({ data: monthlyData });
+      return apiSuccess({ data: monthlyData });
     }
 
     if (path.includes("/delinquency")) {
       const delinquencyData = await analyzeDelinquency(filters);
-      return NextResponse.json({ data: delinquencyData });
+      return apiSuccess({ data: delinquencyData });
     }
 
     if (path.includes("/projections")) {
       const months = parseInt(url.searchParams.get("months") || "3");
       const projections = await projectRevenue(filters, months);
-      return NextResponse.json({ data: projections });
+      return apiSuccess({ data: projections });
     }
 
     // Reporte general
     const stats = await calculateFinancialStats(filters);
-    return NextResponse.json({ data: stats });
+    return apiSuccess({ data: stats });
   } catch (error: any) {
     console.error("Error generating financial report:", error);
-    return NextResponse.json(
-      { error: "REPORT_FAILED", message: error.message },
-      { status: 500 }
-    );
+    return apiError("REPORT_FAILED", error.message, 500);
   }
 });
 

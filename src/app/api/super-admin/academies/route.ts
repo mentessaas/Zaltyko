@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { apiSuccess } from "@/lib/api-response";
 
 import { withSuperAdmin } from "@/lib/authz";
 import { getAllAcademies } from "@/lib/superAdminService";
@@ -40,7 +40,7 @@ export const GET = withSuperAdmin(async (request) => {
   const offset = (page - 1) * pageSize;
   const paginatedItems = filtered.slice(offset, offset + pageSize);
 
-  return NextResponse.json({
+  return apiSuccess({
     total,
     page,
     pageSize,

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { apiError, apiSuccess } from "@/lib/api-response";
 import { z } from "zod";
 import { withTenant } from "@/lib/authz";
 import { generateAttendancePDF } from "@/lib/reports/pdf-generator";
@@ -29,7 +30,7 @@ const exportSchema = z.object({
 
 export const GET = withTenant(async (request, context) => {
   if (!context.tenantId) {
-    return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+    return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
   }
 
   const url = new URL(request.url);
@@ -50,7 +51,7 @@ export const GET = withTenant(async (request, context) => {
   });
 
   if (!validated.academyId) {
-    return NextResponse.json({ error: "ACADEMY_ID_REQUIRED" }, { status: 400 });
+    return apiError("ACADEMY_ID_REQUIRED", "Academy ID is required", 400);
   }
 
   const filters: AttendanceReportFilters = {
@@ -70,7 +71,7 @@ export const GET = withTenant(async (request, context) => {
     switch (validated.reportType) {
       case "athlete":
         if (!validated.athleteId) {
-          return NextResponse.json({ error: "ATHLETE_ID_REQUIRED" }, { status: 400 });
+          return apiError("ATHLETE_ID_REQUIRED", "Athlete ID is required", 400);
         }
         reportData = await calculateAthleteAttendance(filters);
         title = `Reporte de Asistencia - ${reportData?.athleteName || "Atleta"}`;
@@ -78,7 +79,7 @@ export const GET = withTenant(async (request, context) => {
 
       case "group":
         if (!validated.groupId) {
-          return NextResponse.json({ error: "GROUP_ID_REQUIRED" }, { status: 400 });
+          return apiError("GROUP_ID_REQUIRED", "Group ID is required", 400);
         }
         reportData = await calculateGroupAttendance(filters);
         title = `Reporte de Asistencia - Grupo`;
@@ -160,10 +161,7 @@ export const GET = withTenant(async (request, context) => {
     }
   } catch (error: any) {
     console.error("Error exporting report:", error);
-    return NextResponse.json(
-      { error: "EXPORT_FAILED", message: error.message },
-      { status: 500 }
-    );
+    return apiError("EXPORT_FAILED", error.message, 500);
   }
 });
 

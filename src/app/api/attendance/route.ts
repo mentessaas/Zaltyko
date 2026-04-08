@@ -1,6 +1,3 @@
-export const dynamic = 'force-dynamic';
-
-import { NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 
@@ -9,6 +6,7 @@ import { attendanceRecords, classSessions } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
 import { handleApiError } from "@/lib/api-error-handler";
 import { withTransaction } from "@/lib/db-transactions";
+import { apiSuccess, apiError } from "@/lib/api-response";
 
 const entrySchema = z.object({
   athleteId: z.string().uuid(),
@@ -26,7 +24,7 @@ export const POST = withTenant(async (request, context) => {
     const body = upsertBodySchema.parse(await request.json());
 
     if (!context.tenantId) {
-      return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+      return apiError("TENANT_REQUIRED", "Tenant requerido", 400);
     }
 
     const [sessionRow] = await db
@@ -36,7 +34,7 @@ export const POST = withTenant(async (request, context) => {
       .limit(1);
 
     if (!sessionRow) {
-      return NextResponse.json({ error: "SESSION_NOT_FOUND" }, { status: 404 });
+      return apiError("SESSION_NOT_FOUND", "Sesión no encontrada", 404);
     }
 
     const now = new Date();
@@ -69,7 +67,7 @@ export const POST = withTenant(async (request, context) => {
       }
     });
 
-    return NextResponse.json({ ok: true });
+    return apiSuccess({ ok: true });
   } catch (error) {
     return handleApiError(error);
   }
@@ -90,11 +88,11 @@ export const GET = withTenant(async (request, context) => {
     }
 
     if (!context.tenantId) {
-      return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+      return apiError("TENANT_REQUIRED", "Tenant requerido", 400);
     }
 
     if (!params.data.sessionId && !params.data.academyId) {
-      return NextResponse.json({ error: "SESSION_OR_ACADEMY_REQUIRED" }, { status: 400 });
+      return apiError("SESSION_OR_ACADEMY_REQUIRED", "sessionId o academyId requerido", 400);
     }
 
     const whereConditions = [eq(attendanceRecords.tenantId, context.tenantId)];
@@ -118,7 +116,7 @@ export const GET = withTenant(async (request, context) => {
       .innerJoin(classSessions, eq(classSessions.id, attendanceRecords.sessionId))
       .where(and(...whereConditions));
 
-    return NextResponse.json({ items: rows });
+    return apiSuccess({ items: rows });
   } catch (error) {
     return handleApiError(error);
   }

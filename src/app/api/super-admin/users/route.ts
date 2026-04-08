@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { apiSuccess } from "@/lib/api-response";
 
 import { withSuperAdmin } from "@/lib/authz";
 import { withRateLimit, getUserIdentifier } from "@/lib/rate-limit";
@@ -15,7 +16,7 @@ const handler = withSuperAdmin(async (request) => {
   const roleFilter = url.searchParams.get("role") ?? undefined;
   const searchQuery = url.searchParams.get("q")?.toLowerCase() ?? undefined;
   const statusFilter = url.searchParams.get("status") as "active" | "suspended" | undefined;
-  
+
   // Paginación
   const page = Math.max(1, parseInt(url.searchParams.get("page") ?? "1", 10));
   const pageSize = Math.min(
@@ -43,7 +44,7 @@ const handler = withSuperAdmin(async (request) => {
   const offset = (page - 1) * pageSize;
   const paginatedItems = filtered.slice(offset, offset + pageSize);
 
-  return NextResponse.json({
+  return apiSuccess({
     total,
     page,
     pageSize,

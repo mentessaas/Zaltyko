@@ -1,12 +1,9 @@
-export const dynamic = 'force-dynamic';
-
-import { NextResponse } from "next/server";
-import { z } from "zod";
 import { eq, and, desc } from "drizzle-orm";
 
 import { db } from "@/db";
 import { coachNotes, athletes, profiles } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
+import { apiSuccess, apiError } from "@/lib/api-response";
 
 const createSchema = z.object({
   athleteId: z.string().uuid(),
@@ -17,7 +14,7 @@ const createSchema = z.object({
 
 export const GET = withTenant(async (request, context) => {
   if (!context.tenantId) {
-    return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+    return apiError("TENANT_REQUIRED", "Tenant requerido", 400);
   }
 
   const url = new URL(request.url);
@@ -50,7 +47,7 @@ export const GET = withTenant(async (request, context) => {
     .where(and(...whereConditions))
     .orderBy(desc(coachNotes.createdAt));
 
-  return NextResponse.json({
+  return apiSuccess({
     items: notes.map((note) => ({
       id: note.id,
       athleteId: note.athleteId,
@@ -67,7 +64,7 @@ export const GET = withTenant(async (request, context) => {
 
 export const POST = withTenant(async (request, context) => {
   if (!context.tenantId) {
-    return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+    return apiError("TENANT_REQUIRED", "Tenant requerido", 400);
   }
 
   const profile = context.profile;
@@ -85,7 +82,7 @@ export const POST = withTenant(async (request, context) => {
     .limit(1);
 
   if (!athlete) {
-    return NextResponse.json({ error: "ATHLETE_NOT_FOUND" }, { status: 404 });
+    return apiError("ATHLETE_NOT_FOUND", "Atleta no encontrado", 404);
   }
 
   // Crear nota
@@ -104,5 +101,5 @@ export const POST = withTenant(async (request, context) => {
 
   // TODO: Si sharedWithParents es true, enviar notificación a padres
 
-  return NextResponse.json({ ok: true, id: newNote.id });
+  return apiSuccess({ ok: true, id: newNote.id });
 });
