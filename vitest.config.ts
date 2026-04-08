@@ -12,13 +12,11 @@ export default defineConfig({
     globals: true,
     setupFiles: ["./tests/setup.ts"],
     include: ["tests/**/*.test.ts", "tests/**/*.test.tsx"],
-    // Exclude API integration tests that require drizzle-orm/pg-core
-    // These tests have module resolution issues with pnpm + vitest
+    // Exclude tests that require real database
     exclude: [
       "node_modules",
       ".next",
       "coverage",
-      // API tests that import DB schema and fail due to drizzle-orm/pg-core resolution
       "tests/api-academies.test.ts",
       "tests/api-admin-users.test.ts",
       "tests/api-athletes.test.ts",
@@ -31,7 +29,6 @@ export default defineConfig({
       "tests/api-super-admin-users.test.ts",
       "tests/api-stripe-webhook.test.ts",
       "tests/api-webhooks-complete.test.ts",
-      // Unit tests that also import DB schema
       "tests/limits.test.ts",
       "tests/unit/session-generation.test.ts",
     ],
