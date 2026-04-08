@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { subscriptions } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
+import { logger } from "@/lib/logger";
 
 // Handler for POST - separated to apply rate limiting
 const cancelHandler = withTenant(async (req, context) => {
@@ -43,7 +44,7 @@ const cancelHandler = withTenant(async (req, context) => {
 
         return apiSuccess({ status: "canceled", message: "Subscription canceled successfully" });
     } catch (error) {
-        console.error("Error canceling subscription:", error);
+        logger.error("Error canceling subscription:", error);
         return apiError("INTERNAL_ERROR", "Internal Server Error", 500);
     }
 });

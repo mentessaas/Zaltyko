@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { randomUUID } from "crypto";
 import { apiSuccess, apiError } from "@/lib/api-response";
+import { logger } from "@/lib/logger";
 
 export async function POST(request: Request) {
   try {
@@ -66,7 +67,7 @@ export async function POST(request: Request) {
       path: filePath,
     });
   } catch (error: any) {
-    console.error("Error uploading photo:", error);
+    logger.error("Error uploading photo:", error);
     return apiError("INTERNAL_ERROR", error.message, 500);
   }
 }

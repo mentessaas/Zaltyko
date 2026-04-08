@@ -4,6 +4,7 @@ import { apiError, apiSuccess } from "@/lib/api-response";
 import { z } from "zod";
 import { withTenant } from "@/lib/authz";
 import { calculateCoachReport, type CoachReportFilters } from "@/lib/reports/coach-report";
+import { logger } from "@/lib/logger";
 
 const reportSchema = z.object({
   academyId: z.string().uuid(),
@@ -46,7 +47,7 @@ export const GET = withTenant(async (request, context) => {
     const stats = await calculateCoachReport(filters);
     return apiSuccess({ data: stats });
   } catch (error: any) {
-    console.error("Error generating coach report:", error);
+    logger.error("Error generating coach report:", error);
     return apiError("REPORT_FAILED", error.message, 500);
   }
 });

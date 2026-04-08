@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withTenant } from '@/lib/authz';
 import { getAIOrchestrator } from '@/lib/ai/orchestrator';
 import { COMMUNICATION_SYSTEM_PROMPT, generateChatResponsePrompt } from '@/lib/ai/prompts/communication';
+import { logger } from "@/lib/logger";
 
 export const POST = withTenant(async (request: Request) => {
   try {
@@ -32,7 +33,7 @@ export const POST = withTenant(async (request: Request) => {
       answer: response.content,
     });
   } catch (error) {
-    console.error('AI chat error:', error);
+    logger.error('AI chat error:', error);
     return NextResponse.json(
       { error: 'Failed to get chat response' },
       { status: 500 }

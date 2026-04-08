@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextResponse } from "next/server";
 import { stripe } from "@/utils/stripe";
+import { logger } from "@/lib/logger";
 
 export async function POST(req: Request) {
   const { priceId } = await req.json();
@@ -22,7 +23,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ sessionId: session.id });
   } catch (err: any) {
-    console.error("Error creating checkout session:", err);
+    logger.error("Error creating checkout session:", err);
     return NextResponse.json(
       { error: { message: err.message } },
       { status: 500 }

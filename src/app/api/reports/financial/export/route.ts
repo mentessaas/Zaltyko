@@ -9,6 +9,7 @@ import { academies } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import * as XLSX from "xlsx";
 import type { FinancialReportFilters } from "@/lib/reports/financial-calculator";
+import { logger } from "@/lib/logger";
 
 // Forzar ruta dinámica
 export const dynamic = 'force-dynamic';
@@ -143,7 +144,7 @@ export const GET = withTenant(async (request, context) => {
       });
     }
   } catch (error: any) {
-    console.error("Error exporting financial report:", error);
+    logger.error("Error exporting financial report:", error);
     return apiError("EXPORT_FAILED", error.message, 500);
   }
 });

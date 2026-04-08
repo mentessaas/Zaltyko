@@ -2,6 +2,7 @@ import { z } from "zod";
 import { withTenant } from "@/lib/authz";
 import { sendClassReminders } from "@/lib/alerts/class-reminders";
 import { apiSuccess, apiError } from "@/lib/api-response";
+import { logger } from "@/lib/logger";
 
 const querySchema = z.object({
   academyId: z.string().uuid(),
@@ -29,7 +30,7 @@ export const POST = withTenant(async (request, context) => {
 
     return apiSuccess({ ok: true });
   } catch (error: any) {
-    console.error("Error sending class reminders:", error);
+    logger.error("Error sending class reminders:", error);
     return apiError("REMINDERS_FAILED", error.message, 500);
   }
 });

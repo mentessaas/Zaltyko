@@ -3,6 +3,7 @@ import { verifySupabaseSetup } from "@/lib/supabase/verify-setup";
 import { getCurrentProfile } from "@/lib/authz";
 import { createClient } from "@/lib/supabase/server";
 import { apiSuccess, apiError } from "@/lib/api-response";
+import { logger } from "@/lib/logger";
 
 // Forzar ruta dinámica (no puede ser estática)
 export const dynamic = 'force-dynamic';
@@ -40,7 +41,7 @@ export async function GET(_request: Request) {
         : "Algunas configuraciones faltan. Revisa la documentación.",
     });
   } catch (error: any) {
-    console.error("Error verifying Supabase setup:", error);
+    logger.error("Error verifying Supabase setup:", error);
     return apiError("VERIFICATION_FAILED", error.message, 500);
   }
 }

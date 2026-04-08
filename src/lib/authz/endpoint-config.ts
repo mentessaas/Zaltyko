@@ -1,5 +1,10 @@
 /**
  * Configuración de endpoints que requieren casos especiales de autenticación/autorización
+ *
+ * ⚠️ SECURITY WARNING: isFlexibleTenantEndpoint permite obtener tenantId de forma flexible.
+ * Esto confía en que cada handler NO OLVIDE validar el tenant. Use con precaución.
+ * Los endpoints que usan tenant flexible deben VALIDAR EXPLÍCITAMENTE que el tenantId
+ * del request coincide con el tenantId del usuario autenticado.
  */
 
 export interface EndpointConfig {

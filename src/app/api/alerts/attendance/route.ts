@@ -2,6 +2,7 @@ import { z } from "zod";
 import { withTenant } from "@/lib/authz";
 import { detectAttendanceAlerts } from "@/lib/alerts/attendance-alerts";
 import { apiSuccess, apiError } from "@/lib/api-response";
+import { logger } from "@/lib/logger";
 
 const querySchema = z.object({
   academyId: z.string().uuid(),
@@ -42,7 +43,7 @@ export const GET = withTenant(async (request, context) => {
 
     return apiSuccess({ items: alerts });
   } catch (error: any) {
-    console.error("Error detecting attendance alerts:", error);
+    logger.error("Error detecting attendance alerts:", error);
     return apiError("ALERTS_FAILED", error.message, 500);
   }
 });

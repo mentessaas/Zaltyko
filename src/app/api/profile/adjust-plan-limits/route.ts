@@ -9,6 +9,7 @@ import { sendEmail } from "@/lib/mailgun";
 import { config } from "@/config";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { apiSuccess, apiError } from "@/lib/api-response";
+import { logger } from "@/lib/logger";
 
 const BodySchema = z.object({
   academyIdsToKeep: z.array(z.string().uuid()).optional(),
@@ -120,7 +121,7 @@ export const POST = withTenant(async (request, context) => {
         replyTo: config.mailgun.supportEmail,
       });
     } catch (error) {
-      console.error("Error sending notification email", error);
+      logger.error("Error sending notification email", error);
     }
   }
 

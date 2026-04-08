@@ -4,6 +4,7 @@ import { apiError, apiSuccess } from "@/lib/api-response";
 import { z } from "zod";
 import { withTenant } from "@/lib/authz";
 import { analyzeAthleteProgress, compareAssessments, type ProgressReportFilters } from "@/lib/reports/progress-analyzer";
+import { logger } from "@/lib/logger";
 
 const reportSchema = z.object({
   academyId: z.string().uuid(),
@@ -84,7 +85,7 @@ export const GET = withTenant(async (request, context) => {
       });
     }
   } catch (error: any) {
-    console.error("Error generating progress report:", error);
+    logger.error("Error generating progress report:", error);
     return apiError("REPORT_FAILED", error.message, 500);
   }
 });
