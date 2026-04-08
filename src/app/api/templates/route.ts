@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { templates } from "@/db/schema/templates/templates";
 import { withTenant } from "@/lib/authz";
 import { apiSuccess, apiError } from "@/lib/api-response";
+import { logger } from "@/lib/logger";
 
 const QuerySchema = z.object({
   countryCode: z.string().optional(),
@@ -57,7 +58,7 @@ export const GET = withTenant(async (request) => {
 
     return apiSuccess({ items: rows });
   } catch (error) {
-    console.error("Error fetching templates:", error);
+    logger.error("Error fetching templates:", error);
     return apiError("INTERNAL_ERROR", "Error al obtener templates", 500);
   }
 });

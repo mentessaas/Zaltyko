@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withTenant } from '@/lib/authz';
 import { getAIOrchestrator } from '@/lib/ai/orchestrator';
 import { BILLING_SYSTEM_PROMPT, generateReminderPrompt } from '@/lib/ai/prompts/billing';
+import { logger } from "@/lib/logger";
 
 export const POST = withTenant(async (request: Request) => {
   try {
@@ -35,7 +36,7 @@ export const POST = withTenant(async (request: Request) => {
       tone: 'friendly',
     });
   } catch (error) {
-    console.error('AI reminder error:', error);
+    logger.error('AI reminder error:', error);
     return NextResponse.json(
       { error: 'Failed to generate reminder' },
       { status: 500 }

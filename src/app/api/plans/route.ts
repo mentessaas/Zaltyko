@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { eq, asc } from "drizzle-orm";
 import { db } from "@/db";
 import { plans } from "@/db/schema";
+import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +24,7 @@ export async function GET() {
 
     return NextResponse.json({ plans: allPlans });
   } catch (error) {
-    console.error("Error fetching plans:", error);
+    logger.error("Error fetching plans:", error);
     return NextResponse.json({ error: "Failed to fetch plans", plans: [] }, { status: 500 });
   }
 }

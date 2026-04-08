@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { classSessions, classes, charges, athletes, groupAthletes } from "@/db/schema";
 import { eq, and, gte, lte, isNull } from "drizzle-orm";
 import { apiSuccess, apiError } from "@/lib/api-response";
+import { logger } from "@/lib/logger";
 
 /**
  * GET /api/quick-actions/pending-today
@@ -85,7 +86,7 @@ export const GET = withTenant(async (req, context) => {
             },
         });
     } catch (error) {
-        console.error("Error fetching quick actions data:", error);
+        logger.error("Error fetching quick actions data:", error);
         return apiError("INTERNAL_ERROR", "Error al obtener datos", 500);
     }
 });

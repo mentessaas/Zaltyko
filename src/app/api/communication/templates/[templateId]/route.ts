@@ -2,6 +2,7 @@ import { apiSuccess, apiError } from "@/lib/api-response";
 import { z } from "zod";
 import { withTenant } from "@/lib/authz";
 import { getMessageTemplateById, updateMessageTemplate, deleteMessageTemplate } from "@/lib/communication-service";
+import { logger } from "@/lib/logger";
 
 export const dynamic = 'force-dynamic';
 
@@ -89,7 +90,7 @@ export const PATCH = withTenant(async (request, context) => {
     if (error instanceof z.ZodError) {
       return apiError("VALIDATION_ERROR", "Validation failed", 400);
     }
-    console.error("Error updating template:", error);
+    logger.error("Error updating template:", error);
     return apiError("INTERNAL_ERROR", "Internal server error", 500);
   }
 });

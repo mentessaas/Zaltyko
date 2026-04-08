@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { marketplaceListings } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { logger } from "@/lib/logger";
 
 export async function GET(
   request: Request,
@@ -21,7 +22,7 @@ export async function GET(
 
     return NextResponse.json({ item: listing });
   } catch (error) {
-    console.error("Error fetching marketplace listing:", error);
+    logger.error("Error fetching marketplace listing:", error);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }
@@ -48,7 +49,7 @@ export async function PATCH(
 
     return NextResponse.json({ item: updated });
   } catch (error) {
-    console.error("Error updating marketplace listing:", error);
+    logger.error("Error updating marketplace listing:", error);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }
@@ -70,7 +71,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Error deleting marketplace listing:", error);
+    logger.error("Error deleting marketplace listing:", error);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

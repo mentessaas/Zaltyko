@@ -8,6 +8,7 @@ import { db } from "@/db";
 import { profiles } from "@/db/schema/profiles";
 import { academies } from "@/db/schema/academies";
 import { eq } from "drizzle-orm";
+import { logger } from "@/lib/logger";
 
 export const dynamic = 'force-dynamic';
 
@@ -85,11 +86,11 @@ async function processNotification(
         case "whatsapp":
           // WhatsApp would be processed here
           // For now, just log it
-          console.log(`WhatsApp notification for ${recipient.phone}: ${template?.body}`);
+          logger.info(`WhatsApp notification for ${recipient.phone}: ${template?.body}`);
           break;
       }
     } catch (error) {
-      console.error(`Failed to send ${notification.channel} notification to ${recipient.userId}:`, error);
+      logger.error(`Failed to send ${notification.channel} notification to ${recipient.userId}:`, error);
     }
   }
 }
@@ -156,7 +157,7 @@ export async function POST(request: Request) {
           await markScheduledNotificationSent(notification.id);
         }
       } catch (error) {
-        console.error(`Failed to process scheduled notification ${notification.id}:`, error);
+        logger.error(`Failed to process scheduled notification ${notification.id}:`, error);
         failed++;
       }
     }
@@ -167,7 +168,7 @@ export async function POST(request: Request) {
       total: pending.length,
     });
   } catch (error) {
-    console.error("Error processing scheduled notifications:", error);
+    logger.error("Error processing scheduled notifications:", error);
     return NextResponse.json({ error: "INTERNAL_ERROR" }, { status: 500 });
   }
 }

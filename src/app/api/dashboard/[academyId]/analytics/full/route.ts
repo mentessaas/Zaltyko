@@ -11,6 +11,7 @@ import {
 } from "@/db/schema";
 import { eq, and, gte, lte, count, sql, sum, desc } from "drizzle-orm";
 import { subMonths, subDays, startOfMonth, endOfMonth, format } from "date-fns";
+import { logger } from "@/lib/logger";
 
 interface FullAnalyticsData {
   // Stats
@@ -47,7 +48,7 @@ export const GET = withTenant(async (request, context) => {
     const analytics = await calculateFullAnalytics(academyId, context.tenantId);
     return apiSuccess({ data: analytics });
   } catch (error: any) {
-    console.error("Error calculating full analytics:", error);
+    logger.error("Error calculating full analytics:", error);
     return apiError("ANALYTICS_FAILED", error.message, 500);
   }
 });

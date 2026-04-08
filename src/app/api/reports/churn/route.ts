@@ -4,6 +4,7 @@ import { apiError, apiSuccess } from "@/lib/api-response";
 import { z } from "zod";
 import { withTenant } from "@/lib/authz";
 import { calculateChurnReport, type ChurnReportFilters } from "@/lib/reports/churn-report";
+import { logger } from "@/lib/logger";
 
 const reportSchema = z.object({
   academyId: z.string().uuid(),
@@ -43,7 +44,7 @@ export const GET = withTenant(async (request, context) => {
     const stats = await calculateChurnReport(filters);
     return apiSuccess({ data: stats });
   } catch (error: any) {
-    console.error("Error generating churn report:", error);
+    logger.error("Error generating churn report:", error);
     return apiError("REPORT_FAILED", error.message, 500);
   }
 });

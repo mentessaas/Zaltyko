@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withTenant } from '@/lib/authz';
 import { getAIOrchestrator } from '@/lib/ai/orchestrator';
 import { BILLING_SYSTEM_PROMPT, generateDelinquencyPrompt } from '@/lib/ai/prompts/billing';
+import { logger } from "@/lib/logger";
 
 // Rate limiting (simple in-memory)
 const rateLimit = new Map<string, { count: number; timestamp: number }>();
@@ -71,7 +72,7 @@ export const POST = withTenant(async (request: Request) => {
       analysis: response.content,
     });
   } catch (error) {
-    console.error('AI billing error:', error);
+    logger.error('AI billing error:', error);
     return NextResponse.json(
       { error: 'Failed to analyze delinquency risk' },
       { status: 500 }

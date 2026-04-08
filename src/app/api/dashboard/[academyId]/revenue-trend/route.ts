@@ -5,6 +5,7 @@ import { getCurrentProfile } from "@/lib/authz";
 import { db } from "@/db";
 import { charges } from "@/db/schema";
 import { eq, and, gte, lt, sql, desc } from "drizzle-orm";
+import { logger } from "@/lib/logger";
 
 export async function GET(
   request: NextRequest,
@@ -129,7 +130,7 @@ export async function GET(
       revenueBySource,
     });
   } catch (error) {
-    console.error("Error loading revenue trend:", error);
+    logger.error("Error loading revenue trend:", error);
     return apiError("Error al cargar tendencia de ingresos", "Error al cargar tendencia de ingresos", 500);
   }
 }

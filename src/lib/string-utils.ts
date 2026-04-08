@@ -8,7 +8,10 @@ export function capitalize(str: string): string {
 }
 
 export function slugify(str: string): string {
+  if (!str) return "";
   return str
+    .normalize("NFD") // Decompose accents (María → Maria + combining accent)
+    .replace(/[\u0300-\u036f]/g, "") // Remove combining diacritical marks
     .toLowerCase()
     .replace(/[^\w\s-]/g, "")
     .replace(/[\s_-]+/g, "-")

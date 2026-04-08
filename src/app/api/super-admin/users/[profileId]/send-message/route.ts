@@ -8,6 +8,7 @@ import { db } from "@/db";
 import { profiles } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
+import { logger } from "@/lib/logger";
 
 const BodySchema = z.object({
   profileId: z.string().uuid(),
@@ -63,7 +64,7 @@ export const POST = withSuperAdmin(async (request, context) => {
 
       return apiSuccess({ ok: true, message: "Correo enviado correctamente" });
     } catch (error: any) {
-      console.error("Error sending email", error);
+      logger.error("Error sending email", error);
       return apiError("EMAIL_SEND_FAILED", error?.message ?? "Error al enviar el correo", 500);
     }
   }

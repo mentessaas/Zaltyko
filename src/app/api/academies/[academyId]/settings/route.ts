@@ -6,6 +6,7 @@ import { academies } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { handleApiError } from "@/lib/api-error-handler";
+import { logger } from "@/lib/logger";
 
 const ACADEMY_TYPES = ["artistica", "ritmica", "trampolin", "general", "parkour", "danza"] as const;
 
@@ -140,7 +141,7 @@ export const GET = withTenant(async (request, context) => {
       try {
         branding = { ...branding, ...JSON.parse(academy.brandingColors) };
       } catch (e) {
-        console.error("Error parsing branding colors:", e);
+        logger.error("Error parsing branding colors:", e);
       }
     }
 
@@ -150,7 +151,7 @@ export const GET = withTenant(async (request, context) => {
       try {
         schedule = JSON.parse(academy.scheduleConfig);
       } catch (e) {
-        console.error("Error parsing schedule config:", e);
+        logger.error("Error parsing schedule config:", e);
       }
     }
 

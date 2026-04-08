@@ -5,6 +5,7 @@ import { getCurrentProfile } from "@/lib/authz";
 import { db } from "@/db";
 import { classes as classesTable, classGroups, groups, groupAthletes } from "@/db/schema";
 import { eq, sql, desc, count } from "drizzle-orm";
+import { logger } from "@/lib/logger";
 
 const WEEKDAYS = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
 
@@ -97,7 +98,7 @@ export async function GET(
       classes: sortedClasses,
     });
   } catch (error) {
-    console.error("Error loading popular classes:", error);
+    logger.error("Error loading popular classes:", error);
     return apiError("Error al cargar clases populares", "Error al cargar clases populares", 500);
   }
 }

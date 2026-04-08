@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { withTenant } from "@/lib/authz";
 import { uploadFile, generateFilePath } from "@/lib/supabase/storage-helpers";
+import { logger } from "@/lib/logger";
 
 export const POST = withTenant(async (request, context) => {
   if (!context.tenantId) {
@@ -57,7 +58,7 @@ export const POST = withTenant(async (request, context) => {
       path,
     });
   } catch (error: any) {
-    console.error("Error in upload endpoint:", error);
+    logger.error("Error in upload endpoint:", error);
     return NextResponse.json(
       { error: "UPLOAD_FAILED", message: error.message },
       { status: 500 }

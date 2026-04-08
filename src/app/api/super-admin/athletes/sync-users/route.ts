@@ -1,6 +1,7 @@
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { withSuperAdmin } from "@/lib/authz";
 import { syncAthletesWithUsers } from "@/lib/athletes/sync-users";
+import { logger } from "@/lib/logger";
 
 /**
  * Endpoint para sincronizar atletas con usuarios
@@ -16,7 +17,7 @@ export const POST = withSuperAdmin(async () => {
       ...result,
     });
   } catch (error: any) {
-    console.error("Error en sincronización de atletas:", error);
+    logger.error("Error en sincronización de atletas:", error);
     return apiError("SYNC_FAILED", error?.message ?? "Error al sincronizar atletas con usuarios", 500);
   }
 });

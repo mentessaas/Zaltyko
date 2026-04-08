@@ -3,6 +3,7 @@ import crypto from "crypto";
 import { NextResponse, NextRequest } from "next/server";
 import { sendEmail } from "@/lib/mailgun";
 import { config } from "@/config";
+import { logger } from "@/lib/logger";
 
 export async function POST(req: NextRequest) {
   try {
@@ -43,7 +44,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({});
   } catch (e: any) {
-    console.error(e?.message);
+    logger.error(e?.message);
     return NextResponse.json({ error: e?.message }, { status: 500 });
   }
 }

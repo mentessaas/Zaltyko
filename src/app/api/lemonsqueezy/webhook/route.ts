@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from "next/server";
 import { handleWebhook } from "@/utils/lemon";
 import crypto from "crypto";
+import { logger } from "@/lib/logger";
 
 // Known IP ranges for Lemon Squeezy (updated 2024)
 // These are Cloudflare IPs that Lemon Squeezy uses
@@ -39,7 +40,7 @@ export async function POST(request: Request) {
   try {
     // Verify request comes from Lemon Squeezy (optional, signature provides main security)
     if (!isFromLemonSqueezy(request)) {
-      console.error("LemonSqueezy webhook request from unknown source");
+      logger.error("LemonSqueezy webhook request from unknown source");
       return NextResponse.json(
         { error: "INVALID_SOURCE" },
         { status: 401 }
@@ -48,7 +49,7 @@ export async function POST(request: Request) {
 
     const secret = process.env.LEMON_SQUEEZY_WEBHOOK_SECRET;
     if (!secret) {
-      console.error("LEMON_SQUEEZY_WEBHOOK_SECRET is not configured");
+      logger.error("LEMON_SQUEEZY_WEBHOOK_SECRET is not configured");
       return NextResponse.json(
         { error: "WEBHOOK_NOT_CONFIGURED" },
         { status: 500 }
@@ -86,7 +87,7 @@ export async function POST(request: Request) {
     const digestBuffer = Buffer.from(digest);
 
     if (signatureBuffer.length !== digestBuffer.length) {
-      console.error("LemonSqueezy webhook signature length mismatch");
+      logger.error("LemonSqueezy webhook signature length mismatch");
       return NextResponse.json(
         { error: "INVALID_SIGNATURE" },
         { status: 401 }
@@ -97,7 +98,7 @@ export async function POST(request: Request) {
     const isValid = crypto.timingSafeEqual(signatureBuffer, digestBuffer);
 
     if (!isValid) {
-      console.error("LemonSqueezy webhook signature verification failed");
+      logger.error("LemonSqueezy webhook signature verification failed");
       return NextResponse.json(
         { error: "INVALID_SIGNATURE" },
         { status: 401 }
@@ -107,7 +108,7 @@ export async function POST(request: Request) {
     await handleWebhook(payload);
     return NextResponse.json({ success: true });
   } catch (error: any) {
-    console.error("LemonSqueezy webhook processing error", error);
+    logger.error("LemonSqueezy webhook processing error", error);
     return NextResponse.json(
       { error: "PROCESSING_FAILED", message: error?.message ?? "Unknown error" },
       { status: 500 }

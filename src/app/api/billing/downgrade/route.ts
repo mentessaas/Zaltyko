@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { subscriptions, plans } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
+import { logger } from "@/lib/logger";
 
 // Handler for POST - separated to apply rate limiting
 const downgradeHandler = withTenant(async (req, context) => {
@@ -68,7 +69,7 @@ const downgradeHandler = withTenant(async (req, context) => {
 
         return apiSuccess({ message: `Plan downgrade to ${targetPlan} processed` });
     } catch (error) {
-        console.error("Error downgrading plan:", error);
+        logger.error("Error downgrading plan:", error);
         return apiError("INTERNAL_ERROR", "Internal Server Error", 500);
     }
 });
@@ -117,7 +118,7 @@ const cancelDowngradeHandler = withTenant(async (req, context) => {
 
         return apiSuccess({ cancelled: true, message: "Scheduled downgrade has been cancelled" });
     } catch (error) {
-        console.error("Error cancelling downgrade:", error);
+        logger.error("Error cancelling downgrade:", error);
         return apiError("INTERNAL_ERROR", "Internal Server Error", 500);
     }
 });

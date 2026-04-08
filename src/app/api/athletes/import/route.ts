@@ -14,6 +14,7 @@ import { validatePayloadSize } from "@/lib/payload-validator";
 import { NextRequest } from "next/server";
 import { validateDateWithError, formatDateForDB } from "@/lib/validation/date-utils";
 import { apiSuccess, apiError } from "@/lib/api-response";
+import { logger } from "@/lib/logger";
 
 const CsvRowSchema = z.object({
   name: z.string().min(1),
@@ -63,7 +64,7 @@ const handler = withTenant(async (request, context) => {
       return CsvRowSchema.parse(normalized);
     });
   } catch (error) {
-    console.error("CSV parse error", error);
+    logger.error("CSV parse error", error);
     return apiError("INVALID_CSV", "Invalid CSV format", 400);
   }
 
@@ -131,7 +132,7 @@ const handler = withTenant(async (request, context) => {
 
       summary.created += 1;
     } catch (error) {
-      console.error("Import athlete error", error);
+      logger.error("Import athlete error", error);
       summary.skipped += 1;
       summary.errors.push({
         row: index + 2,

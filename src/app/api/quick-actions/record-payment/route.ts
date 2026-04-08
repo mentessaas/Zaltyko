@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { charges } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { apiSuccess, apiError } from "@/lib/api-response";
+import { logger } from "@/lib/logger";
 
 /**
  * POST /api/quick-actions/record-payment
@@ -45,7 +46,7 @@ export const POST = withTenant(async (req, context) => {
 
         return apiSuccess({ success: true, data: updatedCharge });
     } catch (error) {
-        console.error("Error recording payment:", error);
+        logger.error("Error recording payment:", error);
         return apiError("INTERNAL_ERROR", "Error al registrar el pago", 500);
     }
 });

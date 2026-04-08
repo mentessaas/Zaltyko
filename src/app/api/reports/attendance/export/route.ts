@@ -13,6 +13,7 @@ import { db } from "@/db";
 import { academies } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import * as XLSX from "xlsx";
+import { logger } from "@/lib/logger";
 
 // Forzar ruta dinámica
 export const dynamic = 'force-dynamic';
@@ -160,7 +161,7 @@ export const GET = withTenant(async (request, context) => {
       });
     }
   } catch (error: any) {
-    console.error("Error exporting report:", error);
+    logger.error("Error exporting report:", error);
     return apiError("EXPORT_FAILED", error.message, 500);
   }
 });

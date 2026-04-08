@@ -12,6 +12,7 @@ import { assertWithinPlanLimits } from "@/lib/limits";
 import { markChecklistItem, markWizardStep } from "@/lib/onboarding";
 import { logEvent } from "@/lib/event-logging";
 import { NextResponse } from "next/server";
+import { logger } from "@/lib/logger";
 
 const DISCIPLINES = ["artistica", "ritmica", "trampolin", "general"] as const;
 
@@ -105,7 +106,7 @@ export const GET = withTenant(async (request, context) => {
 
     return apiSuccess({ items: rows });
   } catch (error) {
-    console.error("Error in GET /api/groups:", error);
+    logger.error("Error in GET /api/groups:", error);
     return apiError("INTERNAL_ERROR", "Error al cargar los grupos", 500);
   }
 });

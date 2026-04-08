@@ -1,4 +1,5 @@
 import { apiSuccess, apiError } from "@/lib/api-response";
+import { logger } from "@/lib/logger";
 
 export async function POST(request: NextRequest) {
   try {
@@ -27,7 +28,7 @@ export async function POST(request: NextRequest) {
       message: "Conexión verificada exitosamente",
     });
   } catch (error) {
-    console.error("WhatsApp verify error:", error);
+    logger.error("WhatsApp verify error:", error);
     return apiError("Error al verificar la conexión", "Connection error", 500);
   }
 }

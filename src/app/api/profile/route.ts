@@ -7,6 +7,7 @@ import { profiles } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { apiSuccess, apiError } from "@/lib/api-response";
+import { logger } from "@/lib/logger";
 
 const UpdateProfileSchema = z.object({
   name: z.string().min(1).max(200).optional(),
@@ -74,7 +75,7 @@ export async function PATCH(request: Request) {
         });
 
         if (verificationError) {
-          console.error("Error sending verification email:", verificationError);
+          logger.error("Error sending verification email", verificationError);
           // No fallamos si el email de verificación no se puede enviar
           // El usuario puede solicitar uno nuevo desde la UI
         }
@@ -138,7 +139,7 @@ export async function PATCH(request: Request) {
     if (error instanceof z.ZodError) {
       return apiError("INVALID_INPUT", "Entrada inválida", 400);
     }
-    console.error("Error updating profile:", error);
+    logger.error("Error updating profile", error);
     return apiError("INTERNAL_ERROR", error.message, 500);
   }
 }

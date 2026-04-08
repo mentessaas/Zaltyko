@@ -5,6 +5,7 @@ import { academies, plans, subscriptions, profiles } from "@/db/schema";
 import { getActiveSubscription } from "@/lib/limits";
 import { withTenant } from "@/lib/authz";
 import { apiSuccess, apiError } from "@/lib/api-response";
+import { logger } from "@/lib/logger";
 
 const BodySchema = z.object({
   academyId: z.string().uuid({
@@ -82,7 +83,7 @@ export const POST = withTenant(async (request, context) => {
       hasStripeCustomer: Boolean(subscription?.stripeCustomerId),
     });
   } catch (error) {
-    console.error("[billing/status] Error fetching subscription status:", error);
+    logger.error("[billing/status] Error fetching subscription status:", error);
     return apiError("INTERNAL_ERROR", "Error al obtener el estado de facturación. Intenta de nuevo más tarde.", 500);
   }
 });
