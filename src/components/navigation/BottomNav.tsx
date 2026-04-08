@@ -15,8 +15,8 @@ const bottomNavItems: BottomNavItem[] = [
   { label: "Inicio", href: "/dashboard", icon: Home },
   { label: "Atletas", href: "/dashboard/athletes", icon: Users },
   { label: "Clases", href: "/dashboard/classes", icon: Calendar },
+  { label: "Mensajes", href: "/dashboard/messages", icon: MessageCircle },
   { label: "Reportes", href: "/dashboard/reports", icon: BarChart3 },
-  { label: "Marketplace", href: "/marketplace", icon: Store },
   { label: "Ajustes", href: "/dashboard/settings", icon: Settings },
 ];
 
