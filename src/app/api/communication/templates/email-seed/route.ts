@@ -1,6 +1,7 @@
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { withTenant } from "@/lib/authz";
 import { seedEmailTemplates } from "@/lib/notifications/email-templates-service";
+import { logger } from "@/lib/logger";
 
 export const dynamic = 'force-dynamic';
 
@@ -22,7 +23,7 @@ export const POST = withTenant(async (request, context) => {
       })),
     });
   } catch (error) {
-    console.error("Error seeding email templates:", error);
+    logger.error("Error seeding email templates:", error);
     return apiError("INTERNAL_ERROR", "Internal server error", 500);
   }
 });

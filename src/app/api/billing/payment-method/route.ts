@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { subscriptions } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
+import { logger } from "@/lib/logger";
 
 // Handler for POST - separated to apply rate limiting
 const updatePaymentMethodHandler = withTenant(async (req, context) => {
@@ -47,7 +48,7 @@ const updatePaymentMethodHandler = withTenant(async (req, context) => {
 
         return apiSuccess({ payment_method, message: "Payment method updated successfully" });
     } catch (error) {
-        console.error("Error updating payment method:", error);
+        logger.error("Error updating payment method:", error);
         return apiError("INTERNAL_ERROR", "Internal Server Error", 500);
     }
 });
@@ -77,7 +78,7 @@ const getPaymentMethodHandler = withTenant(async (req, context) => {
 
         return apiSuccess({ payment_method: null });
     } catch (error) {
-        console.error("Error fetching payment method:", error);
+        logger.error("Error fetching payment method:", error);
         return apiError("INTERNAL_ERROR", "Internal Server Error", 500);
     }
 });

@@ -1,6 +1,7 @@
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { withTenant } from "@/lib/authz";
 import { seedWhatsAppTemplates } from "@/lib/notifications/whatsapp-service";
+import { logger } from "@/lib/logger";
 
 export const dynamic = 'force-dynamic';
 
@@ -22,7 +23,7 @@ export const POST = withTenant(async (request, context) => {
       })),
     });
   } catch (error) {
-    console.error("Error seeding templates:", error);
+    logger.error("Error seeding templates:", error);
     return apiError("INTERNAL_ERROR", "Internal server error", 500);
   }
 });

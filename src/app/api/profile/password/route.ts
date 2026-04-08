@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { apiSuccess, apiError } from "@/lib/api-response";
+import { logger } from "@/lib/logger";
 
 const ChangePasswordSchema = z.object({
   currentPassword: z.string().min(1),
@@ -50,7 +51,7 @@ export async function PATCH(request: Request) {
     if (error instanceof z.ZodError) {
       return apiError("INVALID_INPUT", "Entrada inválida", 400);
     }
-    console.error("Error updating password:", error);
+    logger.error("Error updating password:", error);
     return apiError("INTERNAL_ERROR", error.message, 500);
   }
 }

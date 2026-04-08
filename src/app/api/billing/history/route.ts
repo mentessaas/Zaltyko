@@ -5,6 +5,7 @@ import { z } from "zod";
 import { db } from "@/db";
 import { academies, billingInvoices } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
+import { logger } from "@/lib/logger";
 
 const BodySchema = z.object({
   academyId: z.string().uuid({
@@ -71,7 +72,7 @@ export const POST = withTenant(async (request, context) => {
 
     return apiSuccess(rows);
   } catch (error) {
-    console.error("[billing/history] Error fetching invoices:", error);
+    logger.error("[billing/history] Error fetching invoices:", error);
     return apiError("INTERNAL_ERROR", "Error al obtener el historial de facturación. Intenta de nuevo más tarde.", 500);
   }
 });

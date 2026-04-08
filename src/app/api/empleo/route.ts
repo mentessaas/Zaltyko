@@ -6,6 +6,7 @@ import { z } from "zod";
 import { withTenant, type TenantContext } from "@/lib/authz";
 import { escapeLikeSearch } from "@/lib/helpers";
 import { apiSuccess, apiError, apiCreated } from "@/lib/api-response";
+import { logger } from "@/lib/logger";
 
 // Validation schemas
 const CreateEmpleoSchema = z.object({
@@ -111,7 +112,7 @@ export const POST = withTenant(async (request: Request, context: TenantContext) 
     if (error instanceof z.ZodError) {
       return apiError("VALIDATION_ERROR", "Error de validación", 400);
     }
-    console.error("Error creating employment listing:", error);
+    logger.error("Error creating employment listing:", error);
     return apiError("INTERNAL_ERROR", "Error al crear el listing", 500);
   }
 });

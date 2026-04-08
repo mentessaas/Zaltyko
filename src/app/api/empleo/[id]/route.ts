@@ -2,6 +2,7 @@ import { db } from "@/db";
 import { empleoListings } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { apiSuccess, apiError } from "@/lib/api-response";
+import { logger } from "@/lib/logger";
 
 export async function GET(
   request: Request,
@@ -21,7 +22,7 @@ export async function GET(
 
     return apiSuccess({ item: listing });
   } catch (error) {
-    console.error("Error fetching employment listing:", error);
+    logger.error("Error fetching employment listing:", error);
     return apiError("INTERNAL_ERROR", "Error interno", 500);
   }
 }
@@ -48,7 +49,7 @@ export async function PATCH(
 
     return apiSuccess({ item: updated });
   } catch (error) {
-    console.error("Error updating employment listing:", error);
+    logger.error("Error updating employment listing:", error);
     return apiError("INTERNAL_ERROR", "Error interno", 500);
   }
 }
@@ -70,7 +71,7 @@ export async function DELETE(
 
     return apiSuccess({ success: true });
   } catch (error) {
-    console.error("Error deleting employment listing:", error);
+    logger.error("Error deleting employment listing:", error);
     return apiError("INTERNAL_ERROR", "Error interno", 500);
   }
 }

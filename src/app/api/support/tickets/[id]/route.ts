@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
+import { logger } from "@/lib/logger";
 
 export async function GET(
   request: NextRequest,
@@ -73,7 +74,7 @@ export async function GET(
       })) || [],
     });
   } catch (error) {
-    console.error("Error in GET /api/support/tickets/[id]:", error);
+    logger.error("Error in GET /api/support/tickets/[id]:", error);
     return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   }
 }
@@ -162,7 +163,7 @@ export async function PATCH(
       .single();
 
     if (error) {
-      console.error("Error updating ticket:", error);
+      logger.error("Error updating ticket:", error);
       return NextResponse.json(
         { error: "Error al actualizar el ticket" },
         { status: 500 }
@@ -171,7 +172,7 @@ export async function PATCH(
 
     return NextResponse.json(ticket);
   } catch (error) {
-    console.error("Error in PATCH /api/support/tickets/[id]:", error);
+    logger.error("Error in PATCH /api/support/tickets/[id]:", error);
     return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   }
 }

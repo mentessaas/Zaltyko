@@ -6,6 +6,7 @@ import { subscriptions, plans } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { calculateProration } from "@/lib/billing/proration";
 import { NextResponse } from "next/server";
+import { logger } from "@/lib/logger";
 
 // Handler for POST - separated to apply rate limiting
 const upgradeHandler = withTenant(async (req, context) => {
@@ -80,7 +81,7 @@ const upgradeHandler = withTenant(async (req, context) => {
 
         return apiSuccess({ message: `Plan upgraded to ${targetPlan}`, proration });
     } catch (error) {
-        console.error("Error upgrading plan:", error);
+        logger.error("Error upgrading plan:", error);
         return apiError("INTERNAL_ERROR", "Internal Server Error", 500);
     }
 });

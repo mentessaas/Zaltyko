@@ -7,6 +7,7 @@ import { userPreferences, profiles } from "@/db/schema";
 import { getCurrentProfile } from "@/lib/authz";
 import { createClient } from "@/lib/supabase/server";
 import { apiSuccess, apiError } from "@/lib/api-response";
+import { logger } from "@/lib/logger";
 
 // Forzar ruta dinámica
 export const dynamic = 'force-dynamic';
@@ -63,7 +64,7 @@ export const PUT = async (request: Request) => {
 
     return apiSuccess({ ok: true });
   } catch (error: any) {
-    console.error("Error updating email preferences:", error);
+    logger.error("Error updating email preferences:", error);
     return apiError("UPDATE_FAILED", error.message, 500);
   }
 };
@@ -95,7 +96,7 @@ export const GET = async (request: Request) => {
       emailNotifications: prefs?.emailNotifications || {},
     });
   } catch (error: any) {
-    console.error("Error fetching email preferences:", error);
+    logger.error("Error fetching email preferences:", error);
     return apiError("FETCH_FAILED", error.message, 500);
   }
 };

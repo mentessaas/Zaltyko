@@ -7,6 +7,7 @@ import { withSuperAdmin } from "@/lib/authz";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { sendEmail } from "@/lib/mailgun";
 import { config } from "@/config";
+import { logger } from "@/lib/logger";
 
 const ActivateAthleteSchema = z.object({
   profileId: z.string().uuid(),
@@ -111,7 +112,7 @@ async function activateAthleteAccess(
         replyTo: config.mailgun.supportEmail,
       });
     } catch (emailError) {
-      console.error("Error enviando correo de activación:", emailError);
+      logger.error("Error enviando correo de activación:", emailError);
       // No fallar si el correo no se puede enviar
     }
   }
@@ -148,7 +149,7 @@ export const POST = withSuperAdmin(async (request) => {
       email: result.email,
     });
   } catch (error: any) {
-    console.error("Error activando acceso de atleta:", error);
+    logger.error("Error activando acceso de atleta:", error);
     return apiError("ACTIVATION_FAILED", error?.message ?? "Error al activar acceso del atleta", 500);
   }
 });

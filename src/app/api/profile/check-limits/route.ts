@@ -10,6 +10,7 @@ import { sendEmail } from "@/lib/mailgun";
 import { config } from "@/config";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getAppUrl } from "@/lib/env";
+import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -128,7 +129,7 @@ export async function GET() {
           replyTo: config.mailgun.supportEmail,
         });
       } catch (error) {
-        console.error("Error sending violation notification email", error);
+        logger.error("Error sending violation notification email", error);
       }
     }
   }

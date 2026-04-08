@@ -5,6 +5,7 @@ import { withTenant } from "@/lib/authz";
 import { db } from "@/db";
 import { subscriptions, plans } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { logger } from "@/lib/logger";
 
 export const GET = withTenant(async (req, context) => {
     try {
@@ -58,7 +59,7 @@ export const GET = withTenant(async (req, context) => {
 
         return NextResponse.json(analytics);
     } catch (error) {
-        console.error("Error fetching advanced analytics:", error);
+        logger.error("Error fetching advanced analytics:", error);
         return new NextResponse("Internal Server Error", { status: 500 });
     }
 });

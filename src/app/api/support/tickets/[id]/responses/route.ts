@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { ticketAttachments, ticketResponses } from "@/db/schema/support-tickets";
+import { logger } from "@/lib/logger";
 
 export async function GET(
   request: NextRequest,
@@ -54,7 +55,7 @@ export async function GET(
       .order("created_at", { ascending: true });
 
     if (error) {
-      console.error("Error fetching responses:", error);
+      logger.error("Error fetching responses:", error);
       return NextResponse.json(
         { error: "Error al obtener respuestas" },
         { status: 500 }
@@ -69,7 +70,7 @@ export async function GET(
       })) || []
     );
   } catch (error) {
-    console.error("Error in GET /api/support/tickets/[id]/responses:", error);
+    logger.error("Error in GET /api/support/tickets/[id]/responses:", error);
     return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   }
 }
@@ -146,7 +147,7 @@ export async function POST(
       .single();
 
     if (error) {
-      console.error("Error creating response:", error);
+      logger.error("Error creating response:", error);
       return NextResponse.json(
         { error: "Error al crear la respuesta" },
         { status: 500 }
@@ -201,7 +202,7 @@ export async function POST(
 
     return NextResponse.json(response, { status: 201 });
   } catch (error) {
-    console.error("Error in POST /api/support/tickets/[id]/responses:", error);
+    logger.error("Error in POST /api/support/tickets/[id]/responses:", error);
     return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   }
 }

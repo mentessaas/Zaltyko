@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { academies, billingInvoices } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
 import { apiSuccess, apiError } from "@/lib/api-response";
+import { logger } from "@/lib/logger";
 
 const BodySchema = z.object({
   academyId: z.string().uuid({
@@ -81,7 +82,7 @@ export const POST = withTenant(async (request, context) => {
 
     return apiSuccess({ invoice: updated });
   } catch (error) {
-    console.error("[billing/invoice/notes] Error updating invoice notes:", error);
+    logger.error("[billing/invoice/notes] Error updating invoice notes:", error);
     return apiError("INTERNAL_ERROR", "Error al actualizar las notas de la factura. Intenta de nuevo más tarde.", 500);
   }
 });

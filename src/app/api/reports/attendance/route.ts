@@ -4,6 +4,7 @@ import { apiError, apiSuccess } from "@/lib/api-response";
 import { z } from "zod";
 import { withTenant } from "@/lib/authz";
 import {
+import { logger } from "@/lib/logger";
   calculateAthleteAttendance,
   calculateGroupAttendance,
   calculateGeneralAttendance,
@@ -77,7 +78,7 @@ export const GET = withTenant(async (request, context) => {
         return apiSuccess({ type: "general", data: generalStats });
     }
   } catch (error: any) {
-    console.error("Error generating attendance report:", error);
+    logger.error("Error generating attendance report:", error);
     return apiError("REPORT_FAILED", error.message, 500);
   }
 });

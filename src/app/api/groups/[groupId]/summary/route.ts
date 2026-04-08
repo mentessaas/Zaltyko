@@ -10,6 +10,7 @@ import { withTenant } from "@/lib/authz";
 import { handleApiError } from "@/lib/api-error-handler";
 import { verifyGroupAccess } from "@/lib/permissions";
 import { getMonthlyFeeForAthlete } from "@/lib/billing/athlete-fees";
+import { logger } from "@/lib/logger";
 
 export const GET = withTenant(async (request, context) => {
   try {
@@ -74,7 +75,7 @@ export const GET = withTenant(async (request, context) => {
           const fee = await getMonthlyFeeForAthlete(group.academyId, athlete.athleteId, groupId);
           expectedTotalCents += fee;
         } catch (error) {
-          console.error(`Error calculating fee for athlete ${athlete.athleteId}:`, error);
+          logger.error(`Error calculating fee for athlete ${athlete.athleteId}:`, error);
         }
       }
     }
