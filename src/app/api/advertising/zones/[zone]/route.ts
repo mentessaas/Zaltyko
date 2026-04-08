@@ -1,7 +1,9 @@
-import { NextResponse } from "next/server";
+import { eq } from "drizzle-orm";
+
 import { db } from "@/db";
 import { advertisements } from "@/db/schema";
-import { eq, and, lte, gte } from "drizzle-orm";
+import { and, lte, gte } from "drizzle-orm";
+import { apiSuccess } from "@/lib/api-response";
 
 export async function GET(
   request: Request,
@@ -20,5 +22,5 @@ export async function GET(
     ))
     .limit(10);
 
-  return NextResponse.json({ ads });
+  return apiSuccess({ ads });
 }

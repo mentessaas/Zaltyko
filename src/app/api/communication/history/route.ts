@@ -1,7 +1,7 @@
-import { NextResponse } from "next/server";
+import { apiSuccess } from "@/lib/api-response";
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  return NextResponse.json({ items: [], total: 0 });
+  return apiSuccess({ items: [], total: 0 });
 }

@@ -1,10 +1,10 @@
-import { NextResponse } from "next/server";
 import { z } from "zod";
-import { eq, and } from "drizzle-orm";
-import { withTenant } from "@/lib/authz";
+import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { scholarships } from "@/db/schema";
+import { withTenant } from "@/lib/authz";
+import { apiSuccess, apiError } from "@/lib/api-response";
 
 const updateSchema = z.object({
   athleteId: z.string().uuid().optional(),
@@ -21,14 +21,14 @@ const updateSchema = z.object({
 
 export const PUT = withTenant(async (request, context) => {
   if (!context.tenantId) {
-    return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+    return apiError("TENANT_REQUIRED", "Tenant requerido", 400);
   }
 
   const scholarshipId = (context.params as { scholarshipId?: string } | undefined)
     ?.scholarshipId;
 
   if (!scholarshipId) {
-    return NextResponse.json({ error: "SCHOLARSHIP_ID_REQUIRED" }, { status: 400 });
+    return apiError("SCHOLARSHIP_ID_REQUIRED", "ID de beca requerido", 400);
   }
 
   const body = updateSchema.parse(await request.json());
@@ -55,19 +55,19 @@ export const PUT = withTenant(async (request, context) => {
       and(eq(scholarships.id, scholarshipId), eq(scholarships.tenantId, context.tenantId))
     );
 
-  return NextResponse.json({ ok: true });
+  return apiSuccess({ ok: true });
 });
 
 export const DELETE = withTenant(async (_request, context) => {
   if (!context.tenantId) {
-    return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+    return apiError("TENANT_REQUIRED", "Tenant requerido", 400);
   }
 
   const scholarshipId = (context.params as { scholarshipId?: string } | undefined)
     ?.scholarshipId;
 
   if (!scholarshipId) {
-    return NextResponse.json({ error: "SCHOLARSHIP_ID_REQUIRED" }, { status: 400 });
+    return apiError("SCHOLARSHIP_ID_REQUIRED", "ID de beca requerido", 400);
   }
 
   await db
@@ -76,6 +76,5 @@ export const DELETE = withTenant(async (_request, context) => {
       and(eq(scholarships.id, scholarshipId), eq(scholarships.tenantId, context.tenantId))
     );
 
-  return NextResponse.json({ ok: true });
+  return apiSuccess({ ok: true });
 });
-

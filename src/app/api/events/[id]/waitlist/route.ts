@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { and, eq, count } from "drizzle-orm";
 import { z } from "zod";
 
@@ -6,7 +5,7 @@ import { db } from "@/db";
 import { events, eventWaitlist, eventRegistrations, profiles } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
 import { handleApiError } from "@/lib/api-error-handler";
-import { apiSuccess } from "@/lib/api-response";
+import { apiSuccess, apiCreated, apiError } from "@/lib/api-response";
 
 export const dynamic = 'force-dynamic';
 
@@ -15,7 +14,7 @@ export const GET = withTenant(async (_request, context) => {
     const { id: eventId } = context.params as { id: string };
 
     if (!context.tenantId) {
-      return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+      return apiError("TENANT_REQUIRED", "Tenant required", 400);
     }
 
     // Verify event exists and belongs to tenant
@@ -26,7 +25,7 @@ export const GET = withTenant(async (_request, context) => {
       .limit(1);
 
     if (!eventRow) {
-      return NextResponse.json({ error: "EVENT_NOT_FOUND" }, { status: 404 });
+      return apiError("EVENT_NOT_FOUND", "Event not found", 404);
     }
 
     // Get waitlist entries with profile info
@@ -65,7 +64,7 @@ export const POST = withTenant(async (request, context) => {
     const body = addToWaitlistSchema.parse(await request.json());
 
     if (!context.tenantId) {
-      return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+      return apiError("TENANT_REQUIRED", "Tenant required", 400);
     }
 
     // Verify event exists and belongs to tenant
@@ -81,11 +80,11 @@ export const POST = withTenant(async (request, context) => {
       .limit(1);
 
     if (!eventRow) {
-      return NextResponse.json({ error: "EVENT_NOT_FOUND" }, { status: 404 });
+      return apiError("EVENT_NOT_FOUND", "Event not found", 404);
     }
 
     if (!eventRow.allowWaitlist) {
-      return NextResponse.json({ error: "WAITLIST_NOT_ALLOWED" }, { status: 400 });
+      return apiError("WAITLIST_NOT_ALLOWED", "Waitlist not allowed", 400);
     }
 
     // Check if already on waitlist
@@ -99,7 +98,7 @@ export const POST = withTenant(async (request, context) => {
       .limit(1);
 
     if (existingWaitlist) {
-      return NextResponse.json({ error: "ALREADY_ON_WAITLIST" }, { status: 409 });
+      return apiError("ALREADY_ON_WAITLIST", "Already on waitlist", 409);
     }
 
     // Check if already registered (not waitlisted)
@@ -113,7 +112,7 @@ export const POST = withTenant(async (request, context) => {
       .limit(1);
 
     if (existingRegistration && existingRegistration.status !== "waitlisted") {
-      return NextResponse.json({ error: "ALREADY_REGISTERED" }, { status: 409 });
+      return apiError("ALREADY_REGISTERED", "Already registered", 409);
     }
 
     // Check waitlist max size
@@ -124,7 +123,7 @@ export const POST = withTenant(async (request, context) => {
         .where(eq(eventWaitlist.eventId, eventId));
 
       if (Number(total) >= eventRow.waitlistMaxSize) {
-        return NextResponse.json({ error: "WAITLIST_FULL" }, { status: 400 });
+        return apiError("WAITLIST_FULL", "Waitlist full", 400);
       }
     }
 
@@ -149,7 +148,7 @@ export const POST = withTenant(async (request, context) => {
       })
       .returning();
 
-    return NextResponse.json({ ok: true, id: entry.id, position: entry.position }, { status: 201 });
+    return apiCreated({ id: entry.id, position: entry.position });
   } catch (error) {
     return handleApiError(error);
   }

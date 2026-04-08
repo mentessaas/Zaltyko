@@ -1,5 +1,5 @@
+import { apiSuccess, apiError } from "@/lib/api-response";
 import { eq } from "drizzle-orm";
-import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { db } from "@/db";
@@ -27,29 +27,19 @@ export const PUT = withSuperAdmin(async (request, context) => {
     const params = context.params as { academyId?: string };
     const academyId = params?.academyId;
     if (!academyId) {
-      return NextResponse.json({ error: "ACADEMY_ID_REQUIRED" }, { status: 400 });
+      return apiError("ACADEMY_ID_REQUIRED", "Academy ID is required", 400);
     }
 
     let body;
     try {
       body = await request.json();
     } catch {
-      return NextResponse.json(
-        { error: "INVALID_JSON", message: "El cuerpo de la solicitud no es JSON válido" },
-        { status: 400 }
-      );
+      return apiError("INVALID_JSON", "El cuerpo de la solicitud no es JSON válido", 400);
     }
 
     const parsed = UpdateVisibilitySchema.safeParse(body);
     if (!parsed.success) {
-      return NextResponse.json(
-        {
-          error: "VALIDATION_ERROR",
-          message: "Los datos proporcionados no son válidos",
-          details: parsed.error.issues,
-        },
-        { status: 400 }
-      );
+      return apiError("VALIDATION_ERROR", "Los datos proporcionados no son válidos", 400);
     }
 
     const { isPublic } = parsed.data;
@@ -62,10 +52,7 @@ export const PUT = withSuperAdmin(async (request, context) => {
       .limit(1);
 
     if (!academy) {
-      return NextResponse.json(
-        { error: "ACADEMY_NOT_FOUND", message: "Academia no encontrada" },
-        { status: 404 }
-      );
+      return apiError("ACADEMY_NOT_FOUND", "Academia no encontrada", 404);
     }
 
     // Actualizar visibilidad
@@ -79,7 +66,7 @@ export const PUT = withSuperAdmin(async (request, context) => {
     revalidatePath(`/academias/${academyId}`);
     revalidatePath("/super-admin/academies/public");
 
-    return NextResponse.json({
+    return apiSuccess({
       success: true,
       isPublic,
     });

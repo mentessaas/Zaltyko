@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
-import { NextResponse } from "next/server";
+import { apiCreated, apiError, apiSuccess } from "@/lib/api-response";
 import { z } from "zod";
 
 import { db } from "@/db";
@@ -75,29 +75,27 @@ export const GET = withTenant(async (request, context) => {
       query = QuerySchema.parse(Object.fromEntries(url.searchParams));
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return NextResponse.json(
-          {
-            error: "VALIDATION_ERROR",
-            message: "Parámetros de consulta inválidos",
-            details: error.errors.map((e) => ({
-              field: e.path.join("."),
-              message: e.message,
-            })),
-          },
-          { status: 400 }
+        return apiError(
+          "VALIDATION_ERROR",
+          "Parámetros de consulta inválidos",
+          400,
+          error.errors.map((e) => ({
+            field: e.path.join("."),
+            message: e.message,
+          }))
         );
       }
       throw error;
     }
 
     if (!context.tenantId) {
-      return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+      return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
     }
 
     // Verify academy access
     const academyAccess = await verifyAcademyAccess(query.academyId, context.tenantId);
     if (!academyAccess.allowed) {
-      return NextResponse.json({ error: academyAccess.reason ?? "ACADEMY_ACCESS_DENIED" }, { status: 403 });
+      return apiError(academyAccess.reason ?? "ACADEMY_ACCESS_DENIED", "Access denied", 403);
     }
 
     const conditions = [
@@ -138,7 +136,7 @@ export const GET = withTenant(async (request, context) => {
 
       athleteIds = groupAthletes.map((a) => a.athleteId);
       if (athleteIds.length === 0) {
-        return NextResponse.json({ items: [], total: 0, page: query.page, limit: query.limit });
+        return apiSuccess({ items: [], total: 0, page: query.page, limit: query.limit });
       }
       conditions.push(inArray(charges.athleteId, athleteIds));
     }
@@ -188,7 +186,7 @@ export const GET = withTenant(async (request, context) => {
       .limit(pageSize)
       .offset(offset);
 
-    return NextResponse.json({
+    return apiSuccess({
       items,
       total,
       page: query.page,
@@ -205,13 +203,13 @@ export const POST = withTenant(async (request, context) => {
     const body = CreateChargeSchema.parse(await request.json());
 
     if (!context.tenantId) {
-      return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+      return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
     }
 
     // Verify academy access
     const academyAccess = await verifyAcademyAccess(body.academyId, context.tenantId);
     if (!academyAccess.allowed) {
-      return NextResponse.json({ error: academyAccess.reason ?? "ACADEMY_ACCESS_DENIED" }, { status: 403 });
+      return apiError(academyAccess.reason ?? "ACADEMY_ACCESS_DENIED", "Access denied", 403);
     }
 
     // Verify athlete belongs to academy
@@ -222,7 +220,7 @@ export const POST = withTenant(async (request, context) => {
       .limit(1);
 
     if (!athlete) {
-      return NextResponse.json({ error: "ATHLETE_NOT_FOUND" }, { status: 404 });
+      return apiError("ATHLETE_NOT_FOUND", "Athlete not found", 404);
     }
 
     // If billingItemId is provided, verify it exists and optionally auto-fill data
@@ -238,7 +236,7 @@ export const POST = withTenant(async (request, context) => {
         .limit(1);
 
       if (!billingItem) {
-        return NextResponse.json({ error: "BILLING_ITEM_NOT_FOUND" }, { status: 404 });
+        return apiError("BILLING_ITEM_NOT_FOUND", "Billing item not found", 404);
       }
 
       // Auto-fill if not provided
@@ -280,7 +278,7 @@ export const POST = withTenant(async (request, context) => {
       },
     });
 
-    return NextResponse.json({ charge }, { status: 201 });
+    return apiCreated({ charge });
   } catch (error) {
     return handleApiError(error, { endpoint: "/api/charges", method: "POST" });
   }

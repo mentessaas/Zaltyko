@@ -10,6 +10,7 @@ import { getStripeClient } from "@/lib/stripe/client";
 import { handleApiError } from "@/lib/api-error-handler";
 import { verifyAcademyAccess } from "@/lib/permissions";
 import { getAppUrl, getOptionalEnvVar } from "@/lib/env";
+import { apiSuccess, apiError } from "@/lib/api-response";
 
 const BodySchema = z.object({
   academyId: z.string().uuid(),
@@ -22,17 +23,14 @@ const handler = withTenant(async (request, context) => {
     const stripeSecretKey = getOptionalEnvVar("STRIPE_SECRET_KEY");
     // Verificar que la clave existe y no está vacía
     if (!stripeSecretKey || stripeSecretKey.trim() === "") {
-      return NextResponse.json({
-        error: "STRIPE_NOT_CONFIGURED",
-        message: "Stripe no está configurado. Contacta con soporte para habilitar los pagos."
-      }, { status: 503 }); // 503 Service Unavailable es más apropiado que 500
+      return apiError("STRIPE_NOT_CONFIGURED", "Stripe no está configurado. Contacta con soporte para habilitar los pagos.", 503);
     }
 
     let json;
     try {
       json = await request.json();
     } catch (_error) {
-      return NextResponse.json({ error: "INVALID_JSON", message: "El cuerpo de la petición no es un JSON válido" }, { status: 400 });
+      return apiError("INVALID_JSON", "El cuerpo de la petición no es un JSON válido", 400);
     }
 
     let body;
@@ -40,14 +38,7 @@ const handler = withTenant(async (request, context) => {
       body = BodySchema.parse(json);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return NextResponse.json({
-          error: "VALIDATION_ERROR",
-          message: "Los datos proporcionados no son válidos",
-          details: error.issues.map((issue) => ({
-            path: issue.path.join("."),
-            message: issue.message,
-          })),
-        }, { status: 400 });
+        return apiError("VALIDATION_ERROR", "Los datos proporcionados no son válidos", 400);
       }
       throw error;
     }
@@ -57,10 +48,7 @@ const handler = withTenant(async (request, context) => {
     try {
       stripe = getStripeClient();
     } catch (error) {
-      return NextResponse.json({
-        error: "STRIPE_INIT_ERROR",
-        message: error instanceof Error ? error.message : "Error al inicializar Stripe. Contacta con soporte."
-      }, { status: 500 });
+      return apiError("STRIPE_INIT_ERROR", error instanceof Error ? error.message : "Error al inicializar Stripe. Contacta con soporte.", 500);
     }
 
     // Obtener tenantId desde la academia si no está disponible en el contexto
@@ -78,13 +66,13 @@ const handler = withTenant(async (request, context) => {
     }
 
     if (!effectiveTenantId) {
-      return NextResponse.json({ error: "TENANT_REQUIRED", message: "No se pudo determinar el tenant. Asegúrate de tener acceso a la academia." }, { status: 400 });
+      return apiError("TENANT_REQUIRED", "No se pudo determinar el tenant. Asegúrate de tener acceso a la academia.", 400);
     }
 
     // Verificar acceso a la academia
     const academyAccess = await verifyAcademyAccess(body.academyId, effectiveTenantId);
     if (!academyAccess.allowed) {
-      return NextResponse.json({ error: academyAccess.reason ?? "ACADEMY_NOT_FOUND", message: "No tienes acceso a esta academia" }, { status: 404 });
+      return apiError(academyAccess.reason ?? "ACADEMY_NOT_FOUND", "No tienes acceso a esta academia", 404);
     }
 
     const [academy] = await db
@@ -99,17 +87,17 @@ const handler = withTenant(async (request, context) => {
       .limit(1);
 
     if (!academy) {
-      return NextResponse.json({ error: "ACADEMY_NOT_FOUND" }, { status: 404 });
+      return apiError("ACADEMY_NOT_FOUND", "Academia no encontrada", 404);
     }
 
     const isAdmin = context.profile?.role === "admin" || context.profile?.role === "super_admin";
 
     if (!context.profile || (!isAdmin && academy.tenantId !== effectiveTenantId)) {
-      return NextResponse.json({ error: "FORBIDDEN", message: "No tienes permisos para realizar esta acción" }, { status: 403 });
+      return apiError("FORBIDDEN", "No tienes permisos para realizar esta acción", 403);
     }
 
     if (!academy.ownerId) {
-      return NextResponse.json({ error: "ACADEMY_HAS_NO_OWNER" }, { status: 400 });
+      return apiError("ACADEMY_HAS_NO_OWNER", "Academia sin propietario asignado", 400);
     }
 
     const [owner] = await db
@@ -122,7 +110,7 @@ const handler = withTenant(async (request, context) => {
       .limit(1);
 
     if (!owner) {
-      return NextResponse.json({ error: "OWNER_NOT_FOUND" }, { status: 404 });
+      return apiError("OWNER_NOT_FOUND", "Propietario no encontrado", 404);
     }
 
     const [existingSubscription] = await db
@@ -136,7 +124,7 @@ const handler = withTenant(async (request, context) => {
     const [plan] = await db.select().from(plans).where(eq(plans.code, body.planCode)).limit(1);
 
     if (!plan?.stripePriceId) {
-      return NextResponse.json({ error: "PLAN_NOT_AVAILABLE" }, { status: 400 });
+      return apiError("PLAN_NOT_AVAILABLE", "Plan no disponible", 400);
     }
 
     let customerId = existingSubscription?.stripeCustomerId ?? undefined;
@@ -203,9 +191,9 @@ const handler = withTenant(async (request, context) => {
       cancel_url: cancelUrl,
     });
 
-    return NextResponse.json({ checkoutUrl: session.url });
+    return apiSuccess({ checkoutUrl: session.url });
   } catch (error) {
-    return handleApiError(error, { endpoint: "/api/billing/checkout", method: "POST" });
+    return handleApiError(error, { endpoint: "/api/billing/checkout", method: "POST" }) as NextResponse;
   }
 });
 

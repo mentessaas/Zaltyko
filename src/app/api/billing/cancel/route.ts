@@ -1,10 +1,13 @@
-import { NextResponse } from "next/server";
+import { apiSuccess, apiError } from "@/lib/api-response";
 import { withTenant } from "@/lib/authz";
+import { rateLimit, getUserIdentifier, withRateLimit } from "@/lib/rate-limit";
 import { db } from "@/db";
 import { subscriptions } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { NextResponse } from "next/server";
 
-export const POST = withTenant(async (req, context) => {
+// Handler for POST - separated to apply rate limiting
+const cancelHandler = withTenant(async (req, context) => {
     try {
         const { userId } = context;
 
@@ -19,7 +22,7 @@ export const POST = withTenant(async (req, context) => {
             .limit(1);
 
         if (!currentSubscription) {
-            return new NextResponse("No active subscription found", { status: 404 });
+            return apiError("NOT_FOUND", "No active subscription found", 404);
         }
 
         // TODO: Integrate with Stripe to cancel subscription
@@ -38,13 +41,17 @@ export const POST = withTenant(async (req, context) => {
         // Note: In this application, plan information is managed through subscriptions
         // Academy-level data doesn't store plan information directly
 
-        return NextResponse.json({
-            success: true,
-            status: "canceled",
-            message: "Subscription canceled successfully",
-        });
+        return apiSuccess({ status: "canceled", message: "Subscription canceled successfully" });
     } catch (error) {
         console.error("Error canceling subscription:", error);
-        return new NextResponse("Internal Server Error", { status: 500 });
+        return apiError("INTERNAL_ERROR", "Internal Server Error", 500);
     }
 });
+
+// Rate-limited POST handler: 10 requests per minute
+export const POST = withRateLimit(
+    async (request) => {
+        return (await cancelHandler(request, {} as any)) as NextResponse;
+    },
+    { identifier: getUserIdentifier, limit: 10, window: 60 }
+);

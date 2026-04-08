@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { and, eq } from "drizzle-orm";
-import { NextResponse } from "next/server";
+import { apiError, apiSuccess } from "@/lib/api-response";
 import { z } from "zod";
 
 import { db } from "@/db";
@@ -28,13 +28,13 @@ export const PATCH = withTenant(async (request, context) => {
     const chargeId = pathMatch?.[1];
 
     if (!chargeId) {
-      return NextResponse.json({ error: "CHARGE_ID_REQUIRED" }, { status: 400 });
+      return apiError("CHARGE_ID_REQUIRED", "Charge ID is required", 400);
     }
 
     const body = UpdateChargeSchema.parse(await request.json());
 
     if (!context.tenantId) {
-      return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+      return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
     }
 
     // Verify charge exists and belongs to tenant
@@ -45,7 +45,7 @@ export const PATCH = withTenant(async (request, context) => {
       .limit(1);
 
     if (!existing) {
-      return NextResponse.json({ error: "CHARGE_NOT_FOUND" }, { status: 404 });
+      return apiError("CHARGE_NOT_FOUND", "Charge not found", 404);
     }
 
     const updateData: Partial<typeof charges.$inferInsert> = {};
@@ -105,7 +105,7 @@ export const PATCH = withTenant(async (request, context) => {
       });
     }
 
-    return NextResponse.json({ charge: updated });
+    return apiSuccess({ charge: updated });
   } catch (error) {
     return handleApiError(error, { endpoint: "/api/charges/[chargeId]", method: "PATCH" });
   }
@@ -119,11 +119,11 @@ export const DELETE = withTenant(async (request, context) => {
     const chargeId = pathMatch?.[1];
 
     if (!chargeId) {
-      return NextResponse.json({ error: "CHARGE_ID_REQUIRED" }, { status: 400 });
+      return apiError("CHARGE_ID_REQUIRED", "Charge ID is required", 400);
     }
 
     if (!context.tenantId) {
-      return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+      return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
     }
 
     // Verify charge exists and belongs to tenant
@@ -134,12 +134,12 @@ export const DELETE = withTenant(async (request, context) => {
       .limit(1);
 
     if (!existing) {
-      return NextResponse.json({ error: "CHARGE_NOT_FOUND" }, { status: 404 });
+      return apiError("CHARGE_NOT_FOUND", "Charge not found", 404);
     }
 
     await db.delete(charges).where(and(eq(charges.id, chargeId), eq(charges.tenantId, context.tenantId)));
 
-    return NextResponse.json({ ok: true });
+    return apiSuccess({ ok: true });
   } catch (error) {
     return handleApiError(error, { endpoint: "/api/charges/[chargeId]", method: "DELETE" });
   }

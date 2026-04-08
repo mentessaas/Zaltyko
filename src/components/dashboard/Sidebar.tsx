@@ -8,14 +8,16 @@ import {
   Users,
   Calendar,
   UserCog,
-  Settings,
   Sparkles,
   ChevronLeft,
+  ChevronDown,
   Search,
   Bell,
   LogOut,
   ShoppingBag,
   Briefcase,
+  CreditCard,
+  MoreHorizontal,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -30,14 +32,37 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { label: "Dashboard", href: "/dashboard/academies", icon: LayoutDashboard },
-  { label: "Atletas", href: "/dashboard/athletes", icon: Users },
-  { label: "Entrenadores", href: "/dashboard/coaches", icon: UserCog },
+  {
+    label: "Atletas",
+    href: "/dashboard/athletes",
+    icon: Users,
+    children: [
+      { label: "Entrenadores", href: "/dashboard/coaches", icon: UserCog },
+    ],
+  },
+  {
+    label: "Clases",
+    href: "/dashboard/calendar",
+    icon: Calendar,
+  },
   { label: "Eventos", href: "/dashboard/events", icon: Calendar },
-  { label: "Calendario", href: "/dashboard/calendar", icon: Calendar },
-  { label: "Marketplace", href: "/dashboard/marketplace/mis-productos", icon: ShoppingBag },
-  { label: "Bolsa de Empleo", href: "/dashboard/empleo/mis-postulaciones", icon: Briefcase },
-  { label: "Usuarios", href: "/dashboard/users", icon: Users },
-  { label: "Perfil", href: "/dashboard/profile", icon: Settings },
+  {
+    label: "Facturacion",
+    href: "/dashboard/profile",
+    icon: CreditCard,
+    children: [
+      { label: "Usuarios", href: "/dashboard/users", icon: Users },
+    ],
+  },
+  {
+    label: "Mas",
+    href: "#",
+    icon: MoreHorizontal,
+    children: [
+      { label: "Marketplace", href: "/dashboard/marketplace/mis-productos", icon: ShoppingBag },
+      { label: "Bolsa de Empleo", href: "/dashboard/empleo/mis-postulaciones", icon: Briefcase },
+    ],
+  },
 ];
 
 interface SidebarProps {
@@ -51,16 +76,24 @@ interface SidebarProps {
 export function Sidebar({ user }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({});
   const pathname = usePathname();
 
   // Calculate effective collapsed state
   const effectiveCollapsed = isCollapsed && !isHovered;
 
   const isActive = (href: string) => {
-    if (href === "/dashboard") {
+    if (href === "/dashboard" || href === "/dashboard/academies") {
       return pathname === href || pathname === "/dashboard/";
     }
     return pathname?.startsWith(href);
+  };
+
+  const toggleMenu = (label: string) => {
+    setExpandedMenus((prev) => ({
+      ...prev,
+      [label]: !prev[label],
+    }));
   };
 
   const handleLogout = async () => {
@@ -128,63 +161,148 @@ export function Sidebar({ user }: SidebarProps) {
               const Icon = item.icon;
               const active = isActive(item.href);
               const hasChildren = item.children && item.children.length > 0;
+              const isExpanded = expandedMenus[item.label] || false;
+              const isMas = item.label === "Mas";
 
               return (
-                <div key={item.href}>
-                  <Link
-                    href={item.href}
-                    className={cn(
-                      "group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all",
-                      active
-                        ? "bg-gradient-to-r from-red-50 to-red-100/50 text-red-700 border-l-3 border-l-red-500"
-                        : "text-zaltyko-text-secondary hover:bg-zaltyko-bg hover:text-zaltyko-text-main",
-                      effectiveCollapsed && "justify-center px-2"
-                    )}
-                    title={effectiveCollapsed ? item.label : undefined}
-                  >
-                    <Icon
-                      className={cn(
-                        "h-5 w-5 flex-shrink-0 transition-colors",
-                        active ? "text-red-600" : "text-zaltyko-text-secondary group-hover:text-zaltyko-text-main"
-                      )}
-                      strokeWidth={1.8}
-                    />
-                    {!effectiveCollapsed && (
-                      <>
-                        <span>{item.label}</span>
-                        {hasChildren && (
-                          <ChevronLeft
-                            className={cn(
-                              "ml-auto h-4 w-4 transition-transform",
-                              active && "rotate-[-90deg]"
-                            )}
-                          />
+                <div key={item.label}>
+                  {isMas ? (
+                    // Mas dropdown - always shows children when expanded
+                    <div>
+                      <button
+                        onClick={() => toggleMenu(item.label)}
+                        className={cn(
+                          "group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all",
+                          isExpanded
+                            ? "bg-gradient-to-r from-red-50 to-red-100/50 text-red-700 border-l-3 border-l-red-500"
+                            : "text-zaltyko-text-secondary hover:bg-zaltyko-bg hover:text-zaltyko-text-main",
+                          effectiveCollapsed && "justify-center px-2"
                         )}
-                      </>
-                    )}
-                  </Link>
-                  {hasChildren && active && !effectiveCollapsed && (
-                    <div className="ml-5 mt-1 space-y-1 border-l border-red-200/50 pl-3">
-                      {item.children?.map((child) => {
-                        const ChildIcon = child.icon;
-                        const childActive = isActive(child.href);
-                        return (
-                          <Link
-                            key={child.href}
-                            href={child.href}
-                            className={cn(
-                              "flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition-colors",
-                              childActive
-                                ? "bg-red-100 text-red-700"
-                                : "text-zaltyko-text-secondary hover:bg-zaltyko-bg hover:text-zaltyko-text-main"
-                            )}
-                          >
-                            <ChildIcon className="h-3.5 w-3.5" strokeWidth={1.8} />
-                            <span>{child.label}</span>
-                          </Link>
-                        );
-                      })}
+                        title={effectiveCollapsed ? item.label : undefined}
+                      >
+                        <Icon
+                          className={cn(
+                            "h-5 w-5 flex-shrink-0 transition-colors",
+                            isExpanded ? "text-red-600" : "text-zaltyko-text-secondary group-hover:text-zaltyko-text-main"
+                          )}
+                          strokeWidth={1.8}
+                        />
+                        {!effectiveCollapsed && (
+                          <>
+                            <span>{item.label}</span>
+                            <ChevronDown
+                              className={cn(
+                                "ml-auto h-4 w-4 transition-transform",
+                                isExpanded && "rotate-180deg"
+                              )}
+                            />
+                          </>
+                        )}
+                      </button>
+                      {isExpanded && !effectiveCollapsed && (
+                        <div className="ml-5 mt-1 space-y-1 border-l border-red-200/50 pl-3">
+                          {item.children?.map((child) => {
+                            const ChildIcon = child.icon;
+                            const childActive = isActive(child.href);
+                            return (
+                              <Link
+                                key={child.href}
+                                href={child.href}
+                                onClick={() => setExpandedMenus((prev) => ({ ...prev, Mas: false }))}
+                                className={cn(
+                                  "flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition-colors",
+                                  childActive
+                                    ? "bg-red-100 text-red-700"
+                                    : "text-zaltyko-text-secondary hover:bg-zaltyko-bg hover:text-zaltyko-text-main"
+                                )}
+                              >
+                                <ChildIcon className="h-3.5 w-3.5" strokeWidth={1.8} />
+                                <span>{child.label}</span>
+                              </Link>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
+                  ) : hasChildren ? (
+                    // Items with submenu (Atletas, Facturacion)
+                    <div>
+                      <button
+                        onClick={() => toggleMenu(item.label)}
+                        className={cn(
+                          "group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all",
+                          active
+                            ? "bg-gradient-to-r from-red-50 to-red-100/50 text-red-700 border-l-3 border-l-red-500"
+                            : "text-zaltyko-text-secondary hover:bg-zaltyko-bg hover:text-zaltyko-text-main",
+                          effectiveCollapsed && "justify-center px-2"
+                        )}
+                        title={effectiveCollapsed ? item.label : undefined}
+                      >
+                        <Icon
+                          className={cn(
+                            "h-5 w-5 flex-shrink-0 transition-colors",
+                            active ? "text-red-600" : "text-zaltyko-text-secondary group-hover:text-zaltyko-text-main"
+                          )}
+                          strokeWidth={1.8}
+                        />
+                        {!effectiveCollapsed && (
+                          <>
+                            <span>{item.label}</span>
+                            <ChevronLeft
+                              className={cn(
+                                "ml-auto h-4 w-4 transition-transform",
+                                isExpanded && "rotate-[-90deg]"
+                              )}
+                            />
+                          </>
+                        )}
+                      </button>
+                      {isExpanded && !effectiveCollapsed && (
+                        <div className="ml-5 mt-1 space-y-1 border-l border-red-200/50 pl-3">
+                          {item.children?.map((child) => {
+                            const ChildIcon = child.icon;
+                            const childActive = isActive(child.href);
+                            return (
+                              <Link
+                                key={child.href}
+                                href={child.href}
+                                className={cn(
+                                  "flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition-colors",
+                                  childActive
+                                    ? "bg-red-100 text-red-700"
+                                    : "text-zaltyko-text-secondary hover:bg-zaltyko-bg hover:text-zaltyko-text-main"
+                                )}
+                              >
+                                <ChildIcon className="h-3.5 w-3.5" strokeWidth={1.8} />
+                                <span>{child.label}</span>
+                              </Link>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    // Simple items without children
+                    <Link
+                      href={item.href}
+                      className={cn(
+                        "group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all",
+                        active
+                          ? "bg-gradient-to-r from-red-50 to-red-100/50 text-red-700 border-l-3 border-l-red-500"
+                          : "text-zaltyko-text-secondary hover:bg-zaltyko-bg hover:text-zaltyko-text-main",
+                        effectiveCollapsed && "justify-center px-2"
+                      )}
+                      title={effectiveCollapsed ? item.label : undefined}
+                    >
+                      <Icon
+                        className={cn(
+                          "h-5 w-5 flex-shrink-0 transition-colors",
+                          active ? "text-red-600" : "text-zaltyko-text-secondary group-hover:text-zaltyko-text-main"
+                        )}
+                        strokeWidth={1.8}
+                      />
+                      {!effectiveCollapsed && <span>{item.label}</span>}
+                    </Link>
                   )}
                 </div>
               );

@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { eq, desc } from "drizzle-orm";
 import { cookies } from "next/headers";
 
@@ -6,6 +5,7 @@ import { db } from "@/db";
 import { empleoApplications, empleoListings, academies, profiles } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
 import { logger } from "@/lib/logger";
+import { apiSuccess, apiError } from "@/lib/api-response";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +20,7 @@ export async function GET() {
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+      return apiError("UNAUTHORIZED", "No autorizado", 401);
     }
 
     // Get user's profile
@@ -31,7 +31,7 @@ export async function GET() {
       .limit(1);
 
     if (!profile) {
-      return NextResponse.json({ error: "PROFILE_NOT_FOUND" }, { status: 404 });
+      return apiError("PROFILE_NOT_FOUND", "Perfil no encontrado", 404);
     }
 
     const applications = await db
@@ -56,9 +56,9 @@ export async function GET() {
       .where(eq(empleoApplications.userId, profile.id))
       .orderBy(desc(empleoApplications.createdAt));
 
-    return NextResponse.json({ applications });
+    return apiSuccess({ applications });
   } catch (error) {
     logger.error("Error fetching applications", error);
-    return NextResponse.json({ error: "SERVER_ERROR" }, { status: 500 });
+    return apiError("SERVER_ERROR", "Error del servidor", 500);
   }
 }

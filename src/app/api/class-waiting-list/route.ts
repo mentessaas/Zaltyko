@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 
-import { NextResponse } from "next/server";
+import { apiSuccess, apiError } from "@/lib/api-response";
 import { and, asc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 
@@ -20,7 +20,7 @@ export const POST = withTenant(async (request, context) => {
     const body = AddToWaitingListSchema.parse(await request.json());
 
     if (!context.tenantId) {
-      return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+      return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
     }
 
     // Verificar que la clase existe
@@ -31,7 +31,7 @@ export const POST = withTenant(async (request, context) => {
       .limit(1);
 
     if (!classRow) {
-      return NextResponse.json({ error: "CLASS_NOT_FOUND" }, { status: 404 });
+      return apiError("CLASS_NOT_FOUND", "Class not found", 404);
     }
 
     // Verificar que el atleta existe
@@ -42,7 +42,7 @@ export const POST = withTenant(async (request, context) => {
       .limit(1);
 
     if (!athlete) {
-      return NextResponse.json({ error: "ATHLETE_NOT_FOUND" }, { status: 404 });
+      return apiError("ATHLETE_NOT_FOUND", "Athlete not found", 404);
     }
 
     // Verificar que no esté ya en la lista
@@ -58,7 +58,7 @@ export const POST = withTenant(async (request, context) => {
       .limit(1);
 
     if (existing) {
-      return NextResponse.json({ error: "ALREADY_IN_WAITING_LIST" }, { status: 409 });
+      return apiError("ALREADY_IN_WAITING_LIST", "Already in waiting list", 409);
     }
 
     // Obtener la siguiente posición
@@ -79,7 +79,7 @@ export const POST = withTenant(async (request, context) => {
       notes: body.notes ?? null,
     });
 
-    return NextResponse.json({ ok: true, id: entryId, position });
+    return apiSuccess({ ok: true, id: entryId, position });
   } catch (error) {
     return handleApiError(error);
   }
@@ -101,7 +101,7 @@ export const GET = withTenant(async (request, context) => {
     }
 
     if (!context.tenantId) {
-      return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+      return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
     }
 
     const { classId, page = 1, limit = 50 } = filters.data;
@@ -142,7 +142,7 @@ export const GET = withTenant(async (request, context) => {
 
     const totalPages = Math.ceil(total / pageSize);
 
-    return NextResponse.json({
+    return apiSuccess({
       total,
       page,
       pageSize,

@@ -1,10 +1,10 @@
-import { NextResponse } from "next/server";
-import { z } from "zod";
 import { eq, and } from "drizzle-orm";
+import { z } from "zod";
 
 import { db } from "@/db";
 import { coaches } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
+import { apiSuccess, apiError } from "@/lib/api-response";
 
 const certificationSchema = z.object({
   name: z.string().min(1),
@@ -29,13 +29,13 @@ const updateSchema = z.object({
 
 export const PUT = withTenant(async (request, context) => {
   if (!context.tenantId) {
-    return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+    return apiError("TENANT_REQUIRED", "tenantId es requerido", 400);
   }
 
   const coachId = (context.params as { coachId?: string } | undefined)?.coachId;
 
   if (!coachId) {
-    return NextResponse.json({ error: "COACH_ID_REQUIRED" }, { status: 400 });
+    return apiError("COACH_ID_REQUIRED", "coachId es requerido", 400);
   }
 
   const body = updateSchema.parse(await request.json());
@@ -50,7 +50,7 @@ export const PUT = withTenant(async (request, context) => {
     .limit(1);
 
   if (!coachRow) {
-    return NextResponse.json({ error: "COACH_NOT_FOUND" }, { status: 404 });
+    return apiError("COACH_NOT_FOUND", "Coach no encontrado", 404);
   }
 
   // Actualizar perfil público
@@ -65,18 +65,18 @@ export const PUT = withTenant(async (request, context) => {
     })
     .where(eq(coaches.id, coachId));
 
-  return NextResponse.json({ ok: true });
+  return apiSuccess({ ok: true });
 });
 
 export const GET = withTenant(async (_request, context) => {
   if (!context.tenantId) {
-    return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+    return apiError("TENANT_REQUIRED", "tenantId es requerido", 400);
   }
 
   const coachId = (context.params as { coachId?: string } | undefined)?.coachId;
 
   if (!coachId) {
-    return NextResponse.json({ error: "COACH_ID_REQUIRED" }, { status: 400 });
+    return apiError("COACH_ID_REQUIRED", "coachId es requerido", 400);
   }
 
   const [coachRow] = await db
@@ -92,10 +92,10 @@ export const GET = withTenant(async (_request, context) => {
     .limit(1);
 
   if (!coachRow) {
-    return NextResponse.json({ error: "COACH_NOT_FOUND" }, { status: 404 });
+    return apiError("COACH_NOT_FOUND", "Coach no encontrado", 404);
   }
 
-  return NextResponse.json({
+  return apiSuccess({
     isPublic: coachRow.isPublic ?? false,
     publicBio: coachRow.publicBio,
     certifications: coachRow.certifications || [],

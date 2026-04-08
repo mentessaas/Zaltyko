@@ -1,10 +1,10 @@
-import { NextResponse } from "next/server";
+export const dynamic = 'force-dynamic';
+
 import { withTenant } from "@/lib/authz";
 import { db } from "@/db";
 import { classSessions, classes, charges, athletes, groupAthletes } from "@/db/schema";
 import { eq, and, gte, lte, isNull } from "drizzle-orm";
-
-export const dynamic = 'force-dynamic';
+import { apiSuccess, apiError } from "@/lib/api-response";
 
 /**
  * GET /api/quick-actions/pending-today
@@ -67,8 +67,7 @@ export const GET = withTenant(async (req, context) => {
         const assignedIds = new Set(athletesWithGroups.map((a) => a.athleteId));
         const unassignedCount = allAthletes.filter((a) => !assignedIds.has(a.id)).length;
 
-        return NextResponse.json({
-            success: true,
+        return apiSuccess({
             data: {
                 pendingClasses: todaysSessions.length,
                 overduePayments: overduePayments.length,
@@ -87,9 +86,6 @@ export const GET = withTenant(async (req, context) => {
         });
     } catch (error) {
         console.error("Error fetching quick actions data:", error);
-        return NextResponse.json(
-            { error: "Failed to fetch pending items" },
-            { status: 500 }
-        );
+        return apiError("INTERNAL_ERROR", "Error al obtener datos", 500);
     }
 });

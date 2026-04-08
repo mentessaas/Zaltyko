@@ -1,15 +1,17 @@
 export const dynamic = 'force-dynamic';
 
-import { NextResponse } from "next/server";
+import { apiError, apiSuccess } from "@/lib/api-response";
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
 import { academies, athletes, coaches, groupAthletes, groups } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
+import { rateLimit, getUserIdentifier, withRateLimit } from "@/lib/rate-limit";
 import { assertWithinPlanLimits } from "@/lib/limits";
 import { markChecklistItem, markWizardStep } from "@/lib/onboarding";
 import { logEvent } from "@/lib/event-logging";
+import { NextResponse } from "next/server";
 
 const DISCIPLINES = ["artistica", "ritmica", "trampolin", "general"] as const;
 
@@ -38,7 +40,7 @@ export const GET = withTenant(async (request, context) => {
     const targetAcademyId = academyIdParam ?? activeAcademyId ?? null;
 
     if (!targetAcademyId) {
-      return NextResponse.json({ error: "ACADEMY_REQUIRED" }, { status: 400 });
+      return apiError("ACADEMY_REQUIRED", "Academy ID is required", 400);
     }
 
     const [academyRow] = await db
@@ -48,7 +50,7 @@ export const GET = withTenant(async (request, context) => {
       .limit(1);
 
     if (!academyRow) {
-      return NextResponse.json({ error: "ACADEMY_NOT_FOUND" }, { status: 404 });
+      return apiError("ACADEMY_NOT_FOUND", "Academy not found", 404);
     }
 
     const hasAccess =
@@ -57,7 +59,7 @@ export const GET = withTenant(async (request, context) => {
       academyRow.tenantId === context.tenantId;
 
     if (!hasAccess) {
-      return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+      return apiError("FORBIDDEN", "Access denied", 403);
     }
 
     // Primero obtener los grupos con sus coaches
@@ -101,17 +103,15 @@ export const GET = withTenant(async (request, context) => {
       athleteCount: countMap.get(group.id) ?? 0,
     }));
 
-    return NextResponse.json({ items: rows });
+    return apiSuccess({ items: rows });
   } catch (error) {
     console.error("Error in GET /api/groups:", error);
-    return NextResponse.json(
-      { error: "INTERNAL_ERROR", message: "Error al cargar los grupos" },
-      { status: 500 }
-    );
+    return apiError("INTERNAL_ERROR", "Error al cargar los grupos", 500);
   }
 });
 
-export const POST = withTenant(async (request, context) => {
+// Handler for POST - separated to apply rate limiting
+const createGroupHandler = withTenant(async (request, context) => {
   const body = GroupBodySchema.parse(await request.json());
 
   const [academyRow] = await db
@@ -121,18 +121,18 @@ export const POST = withTenant(async (request, context) => {
     .limit(1);
 
   if (!academyRow) {
-    return NextResponse.json({ error: "ACADEMY_NOT_FOUND" }, { status: 404 });
+    return apiError("ACADEMY_NOT_FOUND", "Academy not found", 404);
   }
 
   const tenantId = academyRow.tenantId;
   const role = context.profile.role;
 
   if (role !== "super_admin" && role !== "admin" && role !== "owner") {
-    return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+    return apiError("FORBIDDEN", "Access denied", 403);
   }
 
   if (role !== "super_admin" && tenantId !== context.tenantId) {
-    return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+    return apiError("FORBIDDEN", "Access denied", 403);
   }
 
   const assistantIds = body.assistantIds?.length ? Array.from(new Set(body.assistantIds)) : [];
@@ -147,7 +147,7 @@ export const POST = withTenant(async (request, context) => {
     : [];
 
   if (body.coachId && !coachRow) {
-    return NextResponse.json({ error: "COACH_NOT_FOUND" }, { status: 404 });
+    return apiError("COACH_NOT_FOUND", "Coach not found", 404);
   }
 
   if (assistantIds.length) {
@@ -157,7 +157,7 @@ export const POST = withTenant(async (request, context) => {
       .where(and(eq(coaches.academyId, body.academyId), inArray(coaches.id, assistantIds)));
 
     if (assistantRows.length !== assistantIds.length) {
-      return NextResponse.json({ error: "ASSISTANT_NOT_FOUND" }, { status: 404 });
+      return apiError("ASSISTANT_NOT_FOUND", "Assistant not found", 404);
     }
   }
 
@@ -170,7 +170,7 @@ export const POST = withTenant(async (request, context) => {
       );
 
     if (athleteRows.length !== athleteIds.length) {
-      return NextResponse.json({ error: "ATHLETE_NOT_FOUND" }, { status: 404 });
+      return apiError("ATHLETE_NOT_FOUND", "Athlete not found", 404);
     }
   }
 
@@ -178,7 +178,7 @@ export const POST = withTenant(async (request, context) => {
     await assertWithinPlanLimits(tenantId, body.academyId, "groups");
   } catch (error: any) {
     if (error?.payload?.code === "LIMIT_REACHED") {
-      return NextResponse.json({ error: "LIMIT_REACHED", details: error.payload }, { status: error.status ?? 402 });
+      return apiError("LIMIT_REACHED", error.payload?.message || "Limit reached", error.status ?? 402);
     }
     throw error;
   }
@@ -242,7 +242,7 @@ export const POST = withTenant(async (request, context) => {
     },
   });
 
-  return NextResponse.json({
+  return apiSuccess({
     id: group.id,
     academyId: group.academyId,
     name: group.name,
@@ -256,3 +256,11 @@ export const POST = withTenant(async (request, context) => {
     createdAt: group.createdAt,
   });
 });
+
+// Rate-limited POST handler: 10 requests per minute for group creation
+export const POST = withRateLimit(
+  async (request) => {
+    return (await createGroupHandler(request, {} as any)) as NextResponse;
+  },
+  { identifier: getUserIdentifier, limit: 10, window: 60 }
+);

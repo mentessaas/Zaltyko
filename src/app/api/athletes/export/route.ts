@@ -13,6 +13,7 @@ import {
 } from "@/db/schema";
 import { athleteStatusOptions } from "@/lib/athletes/constants";
 import { withTenant } from "@/lib/authz";
+import { apiError } from "@/lib/api-response";
 
 export const runtime = "nodejs";
 
@@ -22,7 +23,7 @@ export const GET = withTenant(async (request, context) => {
   const effectiveTenantId = context.tenantId ?? tenantOverride ?? null;
 
   if (!effectiveTenantId) {
-    return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+    return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
   }
 
   const statusFilter = url.searchParams.get("status");

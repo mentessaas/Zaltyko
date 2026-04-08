@@ -1,10 +1,10 @@
-import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { db } from "@/db";
 import { profiles, academies } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { logger } from "@/lib/logger";
+import { apiSuccess, apiError } from "@/lib/api-response";
 
 export const dynamic = 'force-dynamic';
 
@@ -17,7 +17,7 @@ export async function GET() {
     } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+      return apiError("UNAUTHORIZED", "No autorizado", 401);
     }
 
     const [profile] = await db
@@ -27,7 +27,7 @@ export async function GET() {
       .limit(1);
 
     if (!profile) {
-      return NextResponse.json({ academies: [], hasAcademies: false });
+      return apiSuccess({ academies: [], hasAcademies: false });
     }
 
     const userAcademies = await db
@@ -39,17 +39,13 @@ export async function GET() {
       .from(academies)
       .where(eq(academies.ownerId, profile.id));
 
-    return NextResponse.json({
+    return apiSuccess({
       academies: userAcademies,
       hasAcademies: userAcademies.length > 0,
       count: userAcademies.length,
     });
   } catch (error: any) {
     logger.error("Error fetching user academies", error);
-    return NextResponse.json(
-      { error: "SERVER_ERROR", message: error?.message ?? "Error al obtener academias" },
-      { status: 500 }
-    );
+    return apiError("SERVER_ERROR", error?.message ?? "Error al obtener academias", 500);
   }
 }
-

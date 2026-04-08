@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { z } from "zod";
@@ -6,6 +5,7 @@ import { z } from "zod";
 import { db } from "@/db";
 import { memberships, profiles } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
+import { apiSuccess, apiError } from "@/lib/api-response";
 
 const BodySchema = z.object({
   academyId: z.string().uuid().nullable().optional(),
@@ -22,7 +22,7 @@ export async function PATCH(request: Request) {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
+    return apiError("UNAUTHORIZED", "No autorizado", 401);
   }
 
   const [currentProfile] = await db
@@ -32,7 +32,7 @@ export async function PATCH(request: Request) {
     .limit(1);
 
   if (!currentProfile) {
-    return NextResponse.json({ error: "PROFILE_NOT_FOUND" }, { status: 404 });
+    return apiError("PROFILE_NOT_FOUND", "Perfil no encontrado", 404);
   }
 
   // Si se proporciona profileId y el usuario es Super Admin, actualizar el perfil objetivo
@@ -46,7 +46,7 @@ export async function PATCH(request: Request) {
     .limit(1);
 
   if (!targetProfile) {
-    return NextResponse.json({ error: "TARGET_PROFILE_NOT_FOUND" }, { status: 404 });
+    return apiError("TARGET_PROFILE_NOT_FOUND", "Perfil objetivo no encontrado", 404);
   }
 
   const academyId = body.academyId ?? null;
@@ -59,7 +59,7 @@ export async function PATCH(request: Request) {
       .limit(1);
 
     if (!membership) {
-      return NextResponse.json({ error: "ACADEMY_NOT_ALLOWED" }, { status: 403 });
+      return apiError("ACADEMY_NOT_ALLOWED", "Academy no permitido", 403);
     }
   }
 
@@ -68,7 +68,5 @@ export async function PATCH(request: Request) {
     .set({ activeAcademyId: academyId })
     .where(eq(profiles.id, targetProfileId));
 
-  return NextResponse.json({ ok: true });
+  return apiSuccess({ ok: true });
 }
-
-

@@ -6,16 +6,17 @@ import { generateAttendancePDF } from "@/lib/reports/pdf-generator";
 import { db } from "@/db";
 import { athletes, academies } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { apiError } from "@/lib/api-response";
 
 export const GET = withTenant(async (request, context) => {
   if (!context.tenantId) {
-    return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+    return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
   }
 
   const athleteId = (context.params as { athleteId?: string } | undefined)?.athleteId;
 
   if (!athleteId) {
-    return NextResponse.json({ error: "ATHLETE_ID_REQUIRED" }, { status: 400 });
+    return apiError("ATHLETE_ID_REQUIRED", "Athlete ID is required", 400);
   }
 
   try {
@@ -78,10 +79,7 @@ export const GET = withTenant(async (request, context) => {
     });
   } catch (error: any) {
     console.error("Error exporting history:", error);
-    return NextResponse.json(
-      { error: "EXPORT_FAILED", message: error.message },
-      { status: 500 }
-    );
+    return apiError("EXPORT_FAILED", error.message || "Export failed", 500);
   }
 });
 

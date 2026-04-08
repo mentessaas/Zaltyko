@@ -1,6 +1,5 @@
 export const dynamic = 'force-dynamic';
 
-import { NextResponse } from "next/server";
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 
@@ -8,7 +7,7 @@ import { db } from "@/db";
 import { athletes, guardians, guardianAthletes } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
 import { handleApiError } from "@/lib/api-error-handler";
-import { apiSuccess, apiCreated } from "@/lib/api-response";
+import { apiSuccess, apiError, apiCreated } from "@/lib/api-response";
 
 const GuardianSchema = z.object({
   athleteId: z.string().uuid().optional(),
@@ -45,7 +44,7 @@ export const GET = withTenant(async (request, context) => {
     const { athleteId, academyId, page = 1, limit = 50 } = filters.data;
 
     if (!context.tenantId) {
-      return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+      return apiError("TENANT_REQUIRED", "Tenant context is required", 400);
     }
 
     const pageSize = Math.min(200, Math.max(1, limit));
@@ -149,7 +148,7 @@ export const POST = withTenant(async (request, context) => {
     const body = CreateBodySchema.parse(await request.json());
 
     if (!context.tenantId) {
-      return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+      return apiError("TENANT_REQUIRED", "Tenant context is required", 400);
     }
 
     const guardianId = crypto.randomUUID();

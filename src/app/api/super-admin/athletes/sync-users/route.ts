@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { apiSuccess, apiError } from "@/lib/api-response";
 import { withSuperAdmin } from "@/lib/authz";
 import { syncAthletesWithUsers } from "@/lib/athletes/sync-users";
 
@@ -10,21 +10,14 @@ export const POST = withSuperAdmin(async () => {
   try {
     const result = await syncAthletesWithUsers();
     
-    return NextResponse.json({
+    return apiSuccess({
       ok: true,
       message: `Sincronización completada: ${result.synced} atletas sincronizados, ${result.errors} errores`,
       ...result,
     });
   } catch (error: any) {
     console.error("Error en sincronización de atletas:", error);
-    return NextResponse.json(
-      {
-        ok: false,
-        error: "SYNC_FAILED",
-        message: error?.message ?? "Error al sincronizar atletas con usuarios",
-      },
-      { status: 500 }
-    );
+    return apiError("SYNC_FAILED", error?.message ?? "Error al sincronizar atletas con usuarios", 500);
   }
 });
 

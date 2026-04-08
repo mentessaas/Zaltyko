@@ -1,10 +1,10 @@
-import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { empleoListings, empleoApplications } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
+import { apiSuccess, apiError, apiCreated } from "@/lib/api-response";
 
 const ApplySchema = z.object({
   message: z.string().max(2000).optional(),
@@ -32,10 +32,7 @@ export async function POST(
     // Verificar autenticación
     const user = await getUser();
     if (!user) {
-      return NextResponse.json(
-        { error: "AUTH_REQUIRED", message: "Debes iniciar sesión para aplicar" },
-        { status: 401 }
-      );
+      return apiError("AUTH_REQUIRED", "Debes iniciar sesión para aplicar", 401);
     }
 
     const { id } = await params;
@@ -52,10 +49,7 @@ export async function POST(
       .limit(1);
 
     if (!listing) {
-      return NextResponse.json(
-        { error: "LISTING_NOT_FOUND", message: "El empleo no existe o ya no está activo" },
-        { status: 404 }
-      );
+      return apiError("LISTING_NOT_FOUND", "El empleo no existe o ya no está activo", 404);
     }
 
     // Verificar que no haya aplicado ya
@@ -68,10 +62,7 @@ export async function POST(
       .limit(1);
 
     if (existingApp) {
-      return NextResponse.json(
-        { error: "ALREADY_APPLIED", message: "Ya has aplicado a este puesto" },
-        { status: 400 }
-      );
+      return apiError("ALREADY_APPLIED", "Ya has aplicado a este puesto", 400);
     }
 
     // Crear la aplicación
@@ -83,19 +74,13 @@ export async function POST(
       status: "pending",
     }).returning();
 
-    return NextResponse.json({ application }, { status: 201 });
+    return apiCreated({ application });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: "VALIDATION_ERROR", details: error.errors },
-        { status: 400 }
-      );
+      return apiError("VALIDATION_ERROR", "Error de validación", 400);
     }
     console.error("Error applying to job:", error);
-    return NextResponse.json(
-      { error: "INTERNAL_ERROR", message: "Error al procesar la solicitud" },
-      { status: 500 }
-    );
+    return apiError("INTERNAL_ERROR", "Error al procesar la solicitud", 500);
   }
 }
 
@@ -107,10 +92,7 @@ export async function GET(
     // Verificar autenticación
     const user = await getUser();
     if (!user) {
-      return NextResponse.json(
-        { error: "AUTH_REQUIRED", message: "Debes iniciar sesión" },
-        { status: 401 }
-      );
+      return apiError("AUTH_REQUIRED", "Debes iniciar sesión", 401);
     }
 
     const { id } = await params;
@@ -125,15 +107,12 @@ export async function GET(
       .limit(1);
 
     if (!application) {
-      return NextResponse.json({ hasApplied: false });
+      return apiSuccess({ hasApplied: false });
     }
 
-    return NextResponse.json({ hasApplied: true, application });
+    return apiSuccess({ hasApplied: true, application });
   } catch (error) {
     console.error("Error checking application status:", error);
-    return NextResponse.json(
-      { error: "INTERNAL_ERROR" },
-      { status: 500 }
-    );
+    return apiError("INTERNAL_ERROR", "Error interno", 500);
   }
 }

@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { NextResponse } from "next/server";
+import { apiCreated, apiError, apiSuccess } from "@/lib/api-response";
 import { and, eq, inArray, or, sql } from "drizzle-orm";
 import { z } from "zod";
 
@@ -23,20 +23,20 @@ export const POST = withTenant(async (request, context) => {
     const body = GenerateMonthlyChargesSchema.parse(await request.json());
 
     if (!context.tenantId) {
-      return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+      return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
     }
 
     // Verify academy access
     const academyAccess = await verifyAcademyAccess(body.academyId, context.tenantId);
     if (!academyAccess.allowed) {
-      return NextResponse.json({ error: academyAccess.reason ?? "ACADEMY_ACCESS_DENIED" }, { status: 403 });
+      return apiError(academyAccess.reason ?? "ACADEMY_ACCESS_DENIED", "Access denied", 403);
     }
 
     // Verify group access if groupId is provided
     if (body.groupId) {
       const groupAccess = await verifyGroupAccess(body.groupId, body.academyId, context.tenantId);
       if (!groupAccess.allowed) {
-        return NextResponse.json({ error: groupAccess.reason ?? "GROUP_ACCESS_DENIED" }, { status: 403 });
+        return apiError(groupAccess.reason ?? "GROUP_ACCESS_DENIED", "Access denied", 403);
       }
     }
 
@@ -90,9 +90,8 @@ export const POST = withTenant(async (request, context) => {
     }
 
     if (athletesList.length === 0) {
-      return NextResponse.json(
-        { message: "No hay atletas activos para generar cargos.", created: 0, skipped: 0 },
-        { status: 200 }
+      return apiSuccess(
+        { message: "No hay atletas activos para generar cargos.", created: 0, skipped: 0 }
       );
     }
 
@@ -192,26 +191,24 @@ export const POST = withTenant(async (request, context) => {
     }
 
     if (newCharges.length === 0) {
-      return NextResponse.json(
+      return apiSuccess(
         {
           message: skipped > 0 ? "Todos los atletas ya tienen cargos para este periodo o no tienen cuota definida." : "No se pudieron generar cargos.",
           created: 0,
           skipped,
-        },
-        { status: 200 }
+        }
       );
     }
 
     // Insert charges in batch
     await db.insert(charges).values(newCharges);
 
-    return NextResponse.json(
+    return apiCreated(
       {
         message: `Se generaron ${newCharges.length} cargo${newCharges.length === 1 ? "" : "s"}.`,
         created: newCharges.length,
         skipped,
-      },
-      { status: 201 }
+      }
     );
   } catch (error) {
     return handleApiError(error, { endpoint: "/api/charges/generate-monthly", method: "POST" });

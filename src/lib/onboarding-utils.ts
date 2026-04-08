@@ -70,22 +70,20 @@ export const CHECKLIST_DEFINITIONS: ChecklistDefinition[] = [
 
 export const WIZARD_STEP_KEYS = [
   "academy",
-  "structure",
-  "group",
   "athletes",
-  "coaches",
-  "payments",
+  "payments-team",
+  "brand",
+  "activation",
 ] as const;
 
 export type WizardStepKey = (typeof WIZARD_STEP_KEYS)[number];
 
-export const WIZARD_STEPS: Array<{ key: WizardStepKey; label: string }> = [
-  { key: "academy", label: "Academia" },
-  { key: "structure", label: "Disciplinas" },
-  { key: "group", label: "Primer grupo" },
-  { key: "athletes", label: "Atletas" },
-  { key: "coaches", label: "Entrenadores" },
-  { key: "payments", label: "Pagos" },
+export const WIZARD_STEPS: Array<{ key: WizardStepKey; label: string; skippable: boolean }> = [
+  { key: "academy", label: "Perfil + Clases", skippable: true },
+  { key: "athletes", label: "Atletas", skippable: false },
+  { key: "payments-team", label: "Pagos + Equipo", skippable: true },
+  { key: "brand", label: "Marca", skippable: true },
+  { key: "activation", label: "Activacion", skippable: false },
 ];
 
 export function calculateDaysLeft(trialEndsAt: Date | string | null | undefined): number | null {

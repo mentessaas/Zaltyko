@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { apiSuccess, apiError } from "@/lib/api-response";
 import { withTenant } from "@/lib/authz";
 import { db } from "@/db";
 import {
@@ -34,24 +34,21 @@ interface FullAnalyticsData {
 
 export const GET = withTenant(async (request, context) => {
   if (!context.tenantId) {
-    return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+    return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
   }
 
   const academyId = (context.params as { academyId?: string } | undefined)?.academyId;
 
   if (!academyId) {
-    return NextResponse.json({ error: "ACADEMY_ID_REQUIRED" }, { status: 400 });
+    return apiError("ACADEMY_ID_REQUIRED", "Academy ID is required", 400);
   }
 
   try {
     const analytics = await calculateFullAnalytics(academyId, context.tenantId);
-    return NextResponse.json({ data: analytics });
+    return apiSuccess({ data: analytics });
   } catch (error: any) {
     console.error("Error calculating full analytics:", error);
-    return NextResponse.json(
-      { error: "ANALYTICS_FAILED", message: error.message },
-      { status: 500 }
-    );
+    return apiError("ANALYTICS_FAILED", error.message, 500);
   }
 });
 

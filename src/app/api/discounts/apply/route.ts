@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { apiError, apiSuccess } from "@/lib/api-response";
 import { z } from "zod";
 import { eq, and } from "drizzle-orm";
 import { withTenant } from "@/lib/authz";
@@ -16,7 +16,7 @@ const applyDiscountSchema = z.object({
 
 export const POST = withTenant(async (request, context) => {
   if (!context.tenantId) {
-    return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+    return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
   }
 
   const body = applyDiscountSchema.parse(await request.json());
@@ -38,32 +38,26 @@ export const POST = withTenant(async (request, context) => {
     .limit(1);
 
   if (!discount) {
-    return NextResponse.json({ error: "DISCOUNT_NOT_FOUND" }, { status: 404 });
+    return apiError("DISCOUNT_NOT_FOUND", "Discount not found", 404);
   }
 
   // Verificar fecha de vigencia
   if (discount.startDate > todayStr) {
-    return NextResponse.json(
-      { error: "DISCOUNT_NOT_YET_VALID" },
-      { status: 400 }
-    );
+    return apiError("DISCOUNT_NOT_YET_VALID", "Discount is not yet valid", 400);
   }
 
   if (discount.endDate && discount.endDate < todayStr) {
-    return NextResponse.json({ error: "DISCOUNT_EXPIRED" }, { status: 400 });
+    return apiError("DISCOUNT_EXPIRED", "Discount has expired", 400);
   }
 
   // Verificar límite de usos
   if (discount.maxUses && Number(discount.currentUses) >= discount.maxUses) {
-    return NextResponse.json({ error: "MAX_USES_REACHED" }, { status: 400 });
+    return apiError("MAX_USES_REACHED", "Maximum uses reached", 400);
   }
 
   // Verificar monto mínimo
   if (discount.minAmount && body.amount < Number(discount.minAmount)) {
-    return NextResponse.json(
-      { error: "BELOW_MIN_AMOUNT", minAmount: Number(discount.minAmount) },
-      { status: 400 }
-    );
+    return apiError("BELOW_MIN_AMOUNT", `Minimum amount is ${Number(discount.minAmount)}`, 400);
   }
 
   // Verificar que el cargo existe
@@ -80,7 +74,7 @@ export const POST = withTenant(async (request, context) => {
     .limit(1);
 
   if (!charge) {
-    return NextResponse.json({ error: "CHARGE_NOT_FOUND" }, { status: 404 });
+    return apiError("CHARGE_NOT_FOUND", "Charge not found", 404);
   }
 
   // Calcular el descuento
@@ -124,7 +118,7 @@ export const POST = withTenant(async (request, context) => {
     })
     .where(eq(discounts.id, body.discountId));
 
-  return NextResponse.json({
+  return apiSuccess({
     success: true,
     appliedDiscount: {
       discountId: discount.id,

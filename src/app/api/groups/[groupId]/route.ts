@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { apiError, apiSuccess } from "@/lib/api-response";
 import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 
@@ -11,6 +11,8 @@ import {
   groups,
 } from "@/db/schema";
 import { TenantContext, withTenant } from "@/lib/authz";
+import { rateLimit, getUserIdentifier, withRateLimit } from "@/lib/rate-limit";
+import { NextResponse } from "next/server";
 
 type RouteContext = TenantContext<{ params?: { groupId?: string } }>;
 
@@ -32,11 +34,12 @@ const GroupUpdateSchema = z.object({
   billingItemId: z.string().uuid().nullable().optional(), // Concepto de cobro asociado
 });
 
-export const PATCH = withTenant(async (request, context: RouteContext) => {
+// Handler for PATCH - separated to apply rate limiting
+const patchGroupHandler = withTenant(async (request, context: RouteContext) => {
   const params = context.params as { groupId?: string };
   const groupId = params?.groupId;
   if (!groupId) {
-    return NextResponse.json({ error: "GROUP_ID_REQUIRED" }, { status: 400 });
+    return apiError("GROUP_ID_REQUIRED", "Group ID is required", 400);
   }
 
   const [group] = await db
@@ -52,18 +55,18 @@ export const PATCH = withTenant(async (request, context: RouteContext) => {
     .limit(1);
 
   if (!group) {
-    return NextResponse.json({ error: "GROUP_NOT_FOUND" }, { status: 404 });
+    return apiError("GROUP_NOT_FOUND", "Group not found", 404);
   }
 
   const role = context.profile.role;
   const isElevated = role === "super_admin" || role === "admin" || role === "owner";
 
   if (!isElevated) {
-    return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+    return apiError("FORBIDDEN", "Access denied", 403);
   }
 
   if (role !== "super_admin" && group.tenantId !== context.tenantId) {
-    return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+    return apiError("FORBIDDEN", "Access denied", 403);
   }
 
   const payload = GroupUpdateSchema.parse(await request.json());
@@ -76,7 +79,7 @@ export const PATCH = withTenant(async (request, context: RouteContext) => {
       .limit(1);
 
     if (!coachRow) {
-      return NextResponse.json({ error: "COACH_NOT_FOUND" }, { status: 404 });
+      return apiError("COACH_NOT_FOUND", "Coach not found", 404);
     }
   }
 
@@ -88,7 +91,7 @@ export const PATCH = withTenant(async (request, context: RouteContext) => {
       .where(and(eq(coaches.academyId, group.academyId), inArray(coaches.id, assistantIds)));
 
     if (assistantRows.length !== assistantIds.length) {
-      return NextResponse.json({ error: "ASSISTANT_NOT_FOUND" }, { status: 404 });
+      return apiError("ASSISTANT_NOT_FOUND", "Assistant not found", 404);
     }
   }
 
@@ -106,7 +109,7 @@ export const PATCH = withTenant(async (request, context: RouteContext) => {
       );
 
     if (athleteRows.length !== athleteIds.length) {
-      return NextResponse.json({ error: "ATHLETE_NOT_FOUND" }, { status: 404 });
+      return apiError("ATHLETE_NOT_FOUND", "Athlete not found", 404);
     }
   }
 
@@ -175,14 +178,23 @@ export const PATCH = withTenant(async (request, context: RouteContext) => {
     }
   });
 
-  return NextResponse.json({ ok: true });
+  return apiSuccess({ ok: true });
 });
 
-export const DELETE = withTenant(async (request, context: RouteContext) => {
+// Rate-limited PATCH handler: 30 requests per minute
+export const PATCH = withRateLimit(
+  async (request) => {
+    return (await patchGroupHandler(request, {} as any)) as NextResponse;
+  },
+  { identifier: getUserIdentifier, limit: 30, window: 60 }
+);
+
+// Handler for DELETE - separated to apply rate limiting
+const deleteGroupHandler = withTenant(async (request, context: RouteContext) => {
   const params = context.params as { groupId?: string };
   const groupId = params?.groupId;
   if (!groupId) {
-    return NextResponse.json({ error: "GROUP_ID_REQUIRED" }, { status: 400 });
+    return apiError("GROUP_ID_REQUIRED", "Group ID is required", 400);
   }
 
   const [group] = await db
@@ -196,18 +208,18 @@ export const DELETE = withTenant(async (request, context: RouteContext) => {
     .limit(1);
 
   if (!group) {
-    return NextResponse.json({ error: "GROUP_NOT_FOUND" }, { status: 404 });
+    return apiError("GROUP_NOT_FOUND", "Group not found", 404);
   }
 
   const role = context.profile.role;
   const isElevated = role === "super_admin" || role === "admin" || role === "owner";
 
   if (!isElevated) {
-    return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+    return apiError("FORBIDDEN", "Access denied", 403);
   }
 
   if (role !== "super_admin" && group.tenantId !== context.tenantId) {
-    return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+    return apiError("FORBIDDEN", "Access denied", 403);
   }
 
   await db.transaction(async (tx) => {
@@ -220,5 +232,13 @@ export const DELETE = withTenant(async (request, context: RouteContext) => {
     await tx.delete(groups).where(eq(groups.id, groupId));
   });
 
-  return NextResponse.json({ ok: true });
+  return apiSuccess({ ok: true });
 });
+
+// Rate-limited DELETE handler: 5 requests per minute
+export const DELETE = withRateLimit(
+  async (request) => {
+    return (await deleteGroupHandler(request, {} as any)) as NextResponse;
+  },
+  { identifier: getUserIdentifier, limit: 5, window: 60 }
+);

@@ -13,6 +13,7 @@ import { handleApiError } from "@/lib/api-error-handler";
 import { validatePayloadSize } from "@/lib/payload-validator";
 import { NextRequest } from "next/server";
 import { validateDateWithError, formatDateForDB } from "@/lib/validation/date-utils";
+import { apiSuccess, apiError } from "@/lib/api-response";
 
 const CsvRowSchema = z.object({
   name: z.string().min(1),
@@ -32,14 +33,14 @@ const handler = withTenant(async (request, context) => {
     const file = (formData as unknown as { get(name: string): File | null }).get("file");
 
   if (!(file instanceof File)) {
-    return NextResponse.json({ error: "FILE_REQUIRED" }, { status: 400 });
+    return apiError("FILE_REQUIRED", "File is required", 400);
   }
 
   const buffer = Buffer.from(await file.arrayBuffer());
   const csvText = buffer.toString("utf-8");
 
   if (!csvText.trim()) {
-    return NextResponse.json({ error: "EMPTY_FILE" }, { status: 400 });
+    return apiError("EMPTY_FILE", "File is empty", 400);
   }
 
   let records: CsvRow[];
@@ -63,7 +64,7 @@ const handler = withTenant(async (request, context) => {
     });
   } catch (error) {
     console.error("CSV parse error", error);
-    return NextResponse.json({ error: "INVALID_CSV" }, { status: 400 });
+    return apiError("INVALID_CSV", "Invalid CSV format", 400);
   }
 
   const tenantOverride = (formData as unknown as { get(name: string): unknown }).get("tenantId");
@@ -71,7 +72,7 @@ const handler = withTenant(async (request, context) => {
     context.tenantId ?? (typeof tenantOverride === "string" ? tenantOverride : null);
 
   if (!effectiveTenantId) {
-    return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+    return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
   }
 
   const academyIds = Array.from(new Set(records.map((row) => row.academyId)));
@@ -139,7 +140,7 @@ const handler = withTenant(async (request, context) => {
     }
   }
 
-    return NextResponse.json(summary);
+    return apiSuccess(summary);
   } catch (error) {
     return handleApiError(error, { endpoint: "/api/athletes/import", method: "POST" });
   }
@@ -156,6 +157,7 @@ const handlerWithPayloadCheck = async (request: NextRequest) => {
     const maxSizeMB = ((validation.maxSize ?? 0) / (1024 * 1024)).toFixed(2);
     return NextResponse.json(
       {
+        ok: false,
         error: "PAYLOAD_TOO_LARGE",
         message: `El payload es demasiado grande (${sizeMB}MB). Tamaño máximo permitido: ${maxSizeMB}MB`,
         size: validation.size,

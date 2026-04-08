@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { apiSuccess, apiError } from "@/lib/api-response";
 import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
@@ -12,7 +12,7 @@ export const GET = withSuperAdmin(async (_request, context) => {
   const params = context.params as { academyId?: string };
   const academyId = params?.academyId;
   if (!academyId) {
-    return NextResponse.json({ error: "ACADEMY_ID_REQUIRED" }, { status: 400 });
+    return apiError("ACADEMY_ID_REQUIRED", "Academy ID is required", 400);
   }
 
   const [academy] = await db
@@ -33,7 +33,7 @@ export const GET = withSuperAdmin(async (_request, context) => {
     .limit(1);
 
   if (!academy) {
-    return NextResponse.json({ error: "ACADEMY_NOT_FOUND" }, { status: 404 });
+    return apiError("ACADEMY_NOT_FOUND", "Academy not found", 404);
   }
 
   const [subscription] = academy.ownerId
@@ -78,7 +78,7 @@ export const GET = withSuperAdmin(async (_request, context) => {
         .limit(1)
     : [null];
 
-  return NextResponse.json({
+  return apiSuccess({
     ...academy,
     subscription: subscription || null,
     owner: owner || null,
@@ -89,7 +89,7 @@ export const PATCH = withSuperAdmin(async (request, context) => {
   const params = context.params as { academyId?: string };
   const academyId = params?.academyId;
   if (!academyId) {
-    return NextResponse.json({ error: "ACADEMY_ID_REQUIRED" }, { status: 400 });
+    return apiError("ACADEMY_ID_REQUIRED", "Academy ID is required", 400);
   }
 
   const body = await request.json().catch(() => ({}));
@@ -113,7 +113,7 @@ export const PATCH = withSuperAdmin(async (request, context) => {
   }
 
   if (Object.keys(updates).length === 0 && !planUpdate) {
-    return NextResponse.json({ error: "NO_CHANGES" }, { status: 400 });
+    return apiError("NO_CHANGES", "No changes provided", 400);
   }
 
   const [updated] = await db
@@ -128,12 +128,12 @@ export const PATCH = withSuperAdmin(async (request, context) => {
     });
 
   if (!updated) {
-    return NextResponse.json({ error: "ACADEMY_NOT_FOUND" }, { status: 404 });
+    return apiError("ACADEMY_NOT_FOUND", "Academy not found", 404);
   }
 
   if (planUpdate) {
     if (!updated.ownerId) {
-      return NextResponse.json({ error: "ACADEMY_HAS_NO_OWNER" }, { status: 400 });
+      return apiError("ACADEMY_HAS_NO_OWNER", "Academy has no owner", 400);
     }
 
     const [owner] = await db
@@ -145,7 +145,7 @@ export const PATCH = withSuperAdmin(async (request, context) => {
       .limit(1);
 
     if (!owner) {
-      return NextResponse.json({ error: "OWNER_NOT_FOUND" }, { status: 404 });
+      return apiError("OWNER_NOT_FOUND", "Owner not found", 404);
     }
 
     const [existingSubscription] = await db
@@ -178,14 +178,14 @@ export const PATCH = withSuperAdmin(async (request, context) => {
     },
   });
 
-  return NextResponse.json(updated);
+  return apiSuccess(updated);
 });
 
 export const DELETE = withSuperAdmin(async (_request, context) => {
   const params = context.params as { academyId?: string };
   const academyId = params?.academyId;
   if (!academyId) {
-    return NextResponse.json({ error: "ACADEMY_ID_REQUIRED" }, { status: 400 });
+    return apiError("ACADEMY_ID_REQUIRED", "Academy ID is required", 400);
   }
 
   const [removed] = await db
@@ -194,7 +194,7 @@ export const DELETE = withSuperAdmin(async (_request, context) => {
     .returning({ id: academies.id, name: academies.name });
 
   if (!removed) {
-    return NextResponse.json({ error: "ACADEMY_NOT_FOUND" }, { status: 404 });
+    return apiError("ACADEMY_NOT_FOUND", "Academy not found", 404);
   }
 
   await logAdminAction({
@@ -204,6 +204,6 @@ export const DELETE = withSuperAdmin(async (_request, context) => {
     meta: { academyId },
   });
 
-  return NextResponse.json({ ok: true });
+  return apiSuccess({ ok: true });
 });
 

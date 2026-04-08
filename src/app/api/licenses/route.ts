@@ -1,6 +1,3 @@
-export const dynamic = 'force-dynamic';
-
-import { NextResponse } from "next/server";
 import { and, desc, eq, gte, lte, sql, type SQL } from "drizzle-orm";
 import { z } from "zod";
 
@@ -8,6 +5,7 @@ import { db } from "@/db";
 import { federativeLicenses } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
 import { handleApiError } from "@/lib/api-error-handler";
+import { apiSuccess, apiError, apiCreated } from "@/lib/api-response";
 
 const createLicenseSchema = z.object({
   personId: z.string().uuid(),
@@ -44,7 +42,7 @@ export const GET = withTenant(async (request: Request, context: Record<string, u
 
     const tenantId = context.tenantId as string;
     if (!tenantId) {
-      return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+      return apiError("TENANT_REQUIRED", "Tenant requerido", 400);
     }
 
     const conditions: SQL[] = [eq(federativeLicenses.tenantId, tenantId)];
@@ -111,7 +109,7 @@ export const GET = withTenant(async (request: Request, context: Record<string, u
       .from(federativeLicenses)
       .where(and(...expiringConditions));
 
-    return NextResponse.json({
+    return apiSuccess({
       items: rows,
       total,
       expiringCount: expiringCountResult[0]?.count ?? 0,
@@ -129,7 +127,7 @@ export const POST = withTenant(async (request: Request, context: Record<string, 
 
     const tenantId = context.tenantId as string;
     if (!tenantId) {
-      return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+      return apiError("TENANT_REQUIRED", "Tenant requerido", 400);
     }
 
     const [license] = await db
@@ -152,7 +150,7 @@ export const POST = withTenant(async (request: Request, context: Record<string, 
       })
       .returning();
 
-    return NextResponse.json(license, { status: 201 });
+    return apiCreated(license);
   } catch (error) {
     return handleApiError(error);
   }
