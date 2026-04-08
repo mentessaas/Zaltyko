@@ -5,6 +5,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
 import { apiSuccess, apiError, apiCreated } from "@/lib/api-response";
+import { logger } from "@/lib/logger";
 
 const ApplySchema = z.object({
   message: z.string().max(2000).optional(),
@@ -79,7 +80,7 @@ export async function POST(
     if (error instanceof z.ZodError) {
       return apiError("VALIDATION_ERROR", "Error de validación", 400);
     }
-    console.error("Error applying to job:", error);
+    logger.error("Error applying to job:", error);
     return apiError("INTERNAL_ERROR", "Error al procesar la solicitud", 500);
   }
 }
@@ -112,7 +113,7 @@ export async function GET(
 
     return apiSuccess({ hasApplied: true, application });
   } catch (error) {
-    console.error("Error checking application status:", error);
+    logger.error("Error checking application status:", error);
     return apiError("INTERNAL_ERROR", "Error interno", 500);
   }
 }

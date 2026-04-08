@@ -7,6 +7,7 @@ import { generateAttendancePDF } from "@/lib/reports/pdf-generator";
 import { db } from "@/db";
 import { academies } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { logger } from "@/lib/logger";
 
 // Forzar ruta dinámica
 export const dynamic = 'force-dynamic';
@@ -90,7 +91,7 @@ export const GET = withTenant(async (request, context) => {
       },
     });
   } catch (error: any) {
-    console.error("Error exporting progress report:", error);
+    logger.error("Error exporting progress report:", error);
     return apiError("EXPORT_FAILED", error.message, 500);
   }
 });

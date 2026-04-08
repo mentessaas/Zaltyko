@@ -2,6 +2,7 @@ import { z } from "zod";
 import { withTenant } from "@/lib/authz";
 import { globalSearch, getSearchableTypes, SearchResultType } from "@/lib/search/search-service";
 import { apiSuccess, apiError } from "@/lib/api-response";
+import { logger } from "@/lib/logger";
 
 const querySchema = z.object({
   academyId: z.string().uuid(),
@@ -49,7 +50,7 @@ export const GET = withTenant(async (request, context) => {
       types: getSearchableTypes(),
     });
   } catch (error: any) {
-    console.error("Error performing search:", error);
+    logger.error("Error performing search:", error);
     return apiError("SEARCH_FAILED", error.message, 500);
   }
 });

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import {
+import { logger } from "@/lib/logger";
   MODALITIES,
   COUNTRIES,
   getClusterAcademies,
@@ -119,7 +120,7 @@ export async function GET(request: Request) {
       countries: Object.keys(COUNTRIES),
     });
   } catch (error) {
-    console.error("Error in public clusters API:", error);
+    logger.error("Error in public clusters API:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

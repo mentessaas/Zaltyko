@@ -10,6 +10,7 @@ import { handleApiError } from "@/lib/api-error-handler";
 import { verifyAcademyAccess, verifyGroupAccess } from "@/lib/permissions";
 import { getMonthlyFeeForAthlete } from "@/lib/billing/athlete-fees";
 import { formatPeriodToMonthName } from "@/lib/billing/athlete-fees";
+import { logger } from "@/lib/logger";
 
 const GenerateMonthlyChargesSchema = z.object({
   academyId: z.string().uuid(),
@@ -141,7 +142,7 @@ export const POST = withTenant(async (request, context) => {
       try {
         monthlyFeeCents = await getMonthlyFeeForAthlete(body.academyId, athlete.id, athlete.groupId);
       } catch (error) {
-        console.error(`Error calculating fee for athlete ${athlete.id}:`, error);
+        logger.error(`Error calculating fee for athlete ${athlete.id}:`, error);
         skipped++;
         continue;
       }

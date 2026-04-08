@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { classSessions, classes } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { apiSuccess, apiError } from "@/lib/api-response";
+import { logger } from "@/lib/logger";
 
 /**
  * POST /api/quick-actions/create-class
@@ -54,7 +55,7 @@ export const POST = withTenant(async (req, context) => {
 
         return apiSuccess({ success: true, data: newSession });
     } catch (error) {
-        console.error("Error creating quick class:", error);
+        logger.error("Error creating quick class:", error);
         return apiError("INTERNAL_ERROR", "Error al crear la sesión", 500);
     }
 });

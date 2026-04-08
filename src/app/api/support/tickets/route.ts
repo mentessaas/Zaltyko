@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { tickets } from "@/db/schema/support-tickets";
 import { eq, desc, and, or, ilike } from "drizzle-orm";
+import { logger } from "@/lib/logger";
 
 export async function GET(request: NextRequest) {
   try {
@@ -68,7 +69,7 @@ export async function GET(request: NextRequest) {
     const { data: tickets, error } = await query;
 
     if (error) {
-      console.error("Error fetching tickets:", error);
+      logger.error("Error fetching tickets:", error);
       return NextResponse.json({ error: "Error al obtener tickets" }, { status: 500 });
     }
 
@@ -85,7 +86,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(transformedTickets);
   } catch (error) {
-    console.error("Error in GET /api/support/tickets:", error);
+    logger.error("Error in GET /api/support/tickets:", error);
     return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   }
 }
@@ -150,7 +151,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) {
-      console.error("Error creating ticket:", error);
+      logger.error("Error creating ticket:", error);
       return NextResponse.json(
         { error: "Error al crear el ticket" },
         { status: 500 }
@@ -162,7 +163,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(ticket, { status: 201 });
   } catch (error) {
-    console.error("Error in POST /api/support/tickets:", error);
+    logger.error("Error in POST /api/support/tickets:", error);
     return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   }
 }

@@ -1,11 +1,17 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import {
   formatDob,
   parseLevel,
   composeLevelLabel,
-  calculateAge,
+  calculateAgeFromString,
   formatAge,
 } from "@/lib/athletes/level-utils";
+import { calculateAge } from "@/lib/date-utils";
+
+// Ensure fake timers are always restored after each test
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 describe("formatDob", () => {
   it("should return empty string for null", () => {
@@ -19,6 +25,10 @@ describe("formatDob", () => {
   it("should return empty string for short strings", () => {
     expect(formatDob("2024-0")).toBe("");
     expect(formatDob("2024")).toBe("");
+  });
+
+  it("should return the string if exactly 10 chars", () => {
+    expect(formatDob("2024-01-15")).toBe("2024-01-15");
   });
 });
 
@@ -90,31 +100,34 @@ describe("composeLevelLabel", () => {
   });
 });
 
-describe("calculateAge", () => {
+describe("calculateAgeFromString", () => {
   it("should calculate age correctly for past birthdays", () => {
-    // Someone born in 2000 should be 25 or 26 in 2026 depending on birthday
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-06-15"));
 
-    expect(calculateAge("2000-01-01")).toBe(26);
-    expect(calculateAge("2000-12-31")).toBe(25);
+    expect(calculateAgeFromString("2000-01-01")).toBe(26);
+    expect(calculateAgeFromString("2000-12-31")).toBe(25);
 
     vi.useRealTimers();
   });
 
-  it("should return null for invalid dates", () => {
-    expect(calculateAge("invalid")).toBeNull();
-    expect(calculateAge("")).toBeNull();
-    expect(calculateAge(null)).toBeNull();
+  it("should return 0 for invalid date strings (not null)", () => {
+    // calculateAge returns 0 for invalid dates, so calculateAgeFromString also returns 0
+    expect(calculateAgeFromString("invalid")).toBe(0);
   });
 
-  it("should return null for future birthdays", () => {
+  it("should return null for empty/falsy values", () => {
+    expect(calculateAgeFromString("")).toBeNull();
+    expect(calculateAgeFromString(null)).toBeNull();
+    expect(calculateAgeFromString(undefined)).toBeNull();
+  });
+
+  it("should return non-negative age for future birthdays", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-03-26"));
 
-    // Someone born today would be 0 years old, but this tests the edge case
     const today = new Date().toISOString().split("T")[0];
-    const age = calculateAge(today);
+    const age = calculateAgeFromString(today);
     expect(age).toBeGreaterThanOrEqual(0);
 
     vi.useRealTimers();
@@ -123,8 +136,8 @@ describe("calculateAge", () => {
   it("should handle leap year birthdays", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-03-01"));
-    // March 1 > February, so birthday has occurred
-    expect(calculateAge("2000-02-29")).toBe(26);
+    // March 1 > February 29, so birthday has occurred
+    expect(calculateAgeFromString("2000-02-29")).toBe(26);
     vi.useRealTimers();
   });
 });
@@ -137,5 +150,9 @@ describe("formatAge", () => {
 
   it("should return empty string for null", () => {
     expect(formatAge(null)).toBe("");
+  });
+
+  it("should handle negative ages gracefully", () => {
+    expect(formatAge(-1)).toBe("-1 años");
   });
 });

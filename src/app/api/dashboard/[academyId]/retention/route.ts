@@ -5,6 +5,7 @@ import { getCurrentProfile } from "@/lib/authz";
 import { db } from "@/db";
 import { athletes, groups, classEnrollments, classes } from "@/db/schema";
 import { eq, and, gte, lt, sql } from "drizzle-orm";
+import { logger } from "@/lib/logger";
 
 export async function GET(
   request: NextRequest,
@@ -127,7 +128,7 @@ export async function GET(
       monthlyData,
     });
   } catch (error) {
-    console.error("Error loading retention data:", error);
+    logger.error("Error loading retention data:", error);
     return apiError("Error al cargar datos de retención", "Error al cargar datos de retención", 500);
   }
 }

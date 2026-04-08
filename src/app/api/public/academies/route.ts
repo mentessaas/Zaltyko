@@ -5,6 +5,7 @@ import { z } from "zod";
 import { db } from "@/db";
 import { academies } from "@/db/schema";
 import { handleApiError } from "@/lib/api-error-handler";
+import { logger } from "@/lib/logger";
 
 // Forzar ruta dinámica
 export const dynamic = 'force-dynamic';
@@ -147,7 +148,7 @@ export async function GET(request: Request) {
     } catch (dbError) {
       // Si hay un error de conexión a la base de datos, retornar resultados vacíos
       // Esto permite que la API responda sin fallar completamente
-      console.error("Error al consultar base de datos:", dbError);
+      logger.error("Error al consultar base de datos:", dbError);
       // Continuar con valores por defecto (total=0, items=[])
     }
 

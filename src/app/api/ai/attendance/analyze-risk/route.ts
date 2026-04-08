@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withTenant } from '@/lib/authz';
 import { getAIOrchestrator } from '@/lib/ai/orchestrator';
 import { ATTENDANCE_SYSTEM_PROMPT, generateRiskAnalysisPrompt } from '@/lib/ai/prompts/attendance';
+import { logger } from "@/lib/logger";
 
 export const POST = withTenant(async (request: Request) => {
   try {
@@ -42,7 +43,7 @@ export const POST = withTenant(async (request: Request) => {
       analysis: response.content,
     });
   } catch (error) {
-    console.error('AI attendance risk error:', error);
+    logger.error('AI attendance risk error:', error);
     return NextResponse.json(
       { error: 'Failed to analyze attendance risk' },
       { status: 500 }

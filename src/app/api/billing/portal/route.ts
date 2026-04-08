@@ -9,6 +9,7 @@ import { rateLimit, getUserIdentifier, withRateLimit } from "@/lib/rate-limit";
 import { getStripeClient } from "@/lib/stripe/client";
 import { getAppUrl, getOptionalEnvVar } from "@/lib/env";
 import { NextResponse } from "next/server";
+import { logger } from "@/lib/logger";
 
 const BodySchema = z.object({
   academyId: z.string().uuid({
@@ -28,7 +29,7 @@ const portalHandler = withTenant(async (request, context) => {
   try {
     stripe = getStripeClient();
   } catch (error) {
-    console.error("[billing/portal] Error initializing Stripe:", error);
+    logger.error("[billing/portal] Error initializing Stripe:", error);
     return apiError("STRIPE_INIT_ERROR", "Error al conectar con el sistema de pagos. Intenta de nuevo más tarde.", 500);
   }
 
@@ -105,7 +106,7 @@ const portalHandler = withTenant(async (request, context) => {
 
     return apiSuccess({ portalUrl: session.url });
   } catch (stripeError) {
-    console.error("[billing/portal] Stripe error:", stripeError);
+    logger.error("[billing/portal] Stripe error:", stripeError);
     return apiError("STRIPE_ERROR", "Error al conectar con el portal de pagos. Intenta de nuevo más tarde.", 500);
   }
 });

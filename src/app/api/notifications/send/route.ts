@@ -8,6 +8,7 @@ import { EventInvitationTemplate } from "@/lib/email/templates/event-invitation"
 import { ClassCancellationTemplate } from "@/lib/email/templates/class-cancellation";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { logger } from "@/lib/logger";
 
 const sendSchema = z.object({
   to: z.string().email(),
@@ -96,7 +97,7 @@ export const POST = withTenant(async (request, context) => {
 
     return apiSuccess({ ok: true });
   } catch (error: any) {
-    console.error("Error sending email:", error);
+    logger.error("Error sending email:", error);
     return apiError("SEND_FAILED", error.message || "Failed to send email", 500);
   }
 });

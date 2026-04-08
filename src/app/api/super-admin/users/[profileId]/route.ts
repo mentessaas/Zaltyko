@@ -7,6 +7,7 @@ import { withSuperAdmin } from "@/lib/authz";
 import { logAdminAction } from "@/lib/admin-logs";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getAppUrl } from "@/lib/env";
+import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -307,7 +308,7 @@ export const PATCH = withSuperAdmin(async (request, context) => {
               replyTo: config.mailgun.supportEmail,
             });
           } catch (error) {
-            console.error("Error sending plan change notification", error);
+            logger.error("Error sending plan change notification", error);
           }
         }
       }

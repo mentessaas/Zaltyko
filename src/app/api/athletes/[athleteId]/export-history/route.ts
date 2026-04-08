@@ -7,6 +7,7 @@ import { db } from "@/db";
 import { athletes, academies } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { apiError } from "@/lib/api-response";
+import { logger } from "@/lib/logger";
 
 export const GET = withTenant(async (request, context) => {
   if (!context.tenantId) {
@@ -78,7 +79,7 @@ export const GET = withTenant(async (request, context) => {
       },
     });
   } catch (error: any) {
-    console.error("Error exporting history:", error);
+    logger.error("Error exporting history:", error);
     return apiError("EXPORT_FAILED", error.message || "Export failed", 500);
   }
 });

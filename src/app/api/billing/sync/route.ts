@@ -7,6 +7,7 @@ import { academies, subscriptions, profiles, billingInvoices } from "@/db/schema
 import { withTenant } from "@/lib/authz";
 import { getStripeClient } from "@/lib/stripe/client";
 import { apiSuccess, apiError } from "@/lib/api-response";
+import { logger } from "@/lib/logger";
 
 const bodySchema = z.object({
   academyId: z.string().uuid(),
@@ -148,14 +149,14 @@ export const POST = withTenant(async (request, context) => {
           synced++;
         }
       } catch (error) {
-        console.error(`Error syncing invoice ${invoice.id}`, error);
+        logger.error(`Error syncing invoice ${invoice.id}`, error);
         errors++;
       }
     }
 
     return apiSuccess({ synced, updated, errors, total: invoices.data.length });
   } catch (error: any) {
-    console.error("Error syncing invoices", error);
+    logger.error("Error syncing invoices", error);
     return apiError("SYNC_FAILED", error?.message ?? "Error al sincronizar facturas", 500);
   }
 });

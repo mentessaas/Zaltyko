@@ -8,6 +8,7 @@ import { z } from "zod";
 import { withTenant } from "@/lib/authz";
 import { sendWhatsApp, WhatsAppTemplates } from "@/lib/whatsapp";
 import { createMessageHistory, updateMessageHistoryStatus, getMessageTemplateById } from "@/lib/communication-service";
+import { logger } from "@/lib/logger";
 
 const sendWhatsAppSchema = z.object({
   phone: z.string().min(1, "Phone is required"),
@@ -91,7 +92,7 @@ export async function POST(request: Request) {
       });
     }
   } catch (error) {
-    console.error("WhatsApp error:", error);
+    logger.error("WhatsApp error:", error);
 
     if (error instanceof z.ZodError) {
       return apiError("VALIDATION_ERROR", "Validation failed", 400);

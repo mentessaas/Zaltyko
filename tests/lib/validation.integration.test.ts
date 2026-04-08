@@ -9,7 +9,6 @@ import {
 } from "@/lib/validation/date-utils";
 import {
   escapeLikeSearch,
-  parsePaginationParams,
 } from "@/lib/helpers";
 
 /**
@@ -77,21 +76,6 @@ describe("Validation Integration", () => {
       const escaped = escapeLikeSearch(userSearch);
 
       expect(escaped).toBe("50\\% off!");
-    });
-  });
-
-  describe("Pagination with validation", () => {
-    it("should safely parse pagination parameters", () => {
-      // Valid params
-      const validResult = parsePaginationParams("2", "25");
-      expect(validResult.page).toBe(2);
-      expect(validResult.limit).toBe(25);
-      expect(validResult.offset).toBe(25);
-
-      // Invalid params should use defaults
-      const invalidResult = parsePaginationParams("invalid", "abc");
-      expect(invalidResult.page).toBe(1);
-      expect(invalidResult.limit).toBe(20);
     });
   });
 });

@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { withTenant } from "@/lib/authz";
 import { db } from "@/db";
 import { userPreferences } from "@/db/schema";
+import { logger } from "@/lib/logger";
 
 export const dynamic = 'force-dynamic';
 
@@ -75,7 +76,7 @@ export const PATCH = withTenant(async (request, context) => {
     if (error instanceof z.ZodError) {
       return apiError("VALIDATION_ERROR", "Validation failed", 400);
     }
-    console.error("Error updating preferences:", error);
+    logger.error("Error updating preferences:", error);
     return apiError("INTERNAL_ERROR", "Internal server error", 500);
   }
 });

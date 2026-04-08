@@ -2,6 +2,7 @@ import { apiSuccess, apiError } from "@/lib/api-response";
 import { z } from "zod";
 import { withTenant } from "@/lib/authz";
 import { subscribeUser, getVapidPublicKey, isPushConfigured } from "@/lib/notifications/push-service";
+import { logger } from "@/lib/logger";
 
 export const dynamic = 'force-dynamic';
 
@@ -53,7 +54,7 @@ export const POST = withTenant(async (request, context) => {
     if (error instanceof z.ZodError) {
       return apiError("VALIDATION_ERROR", "Validation failed", 400);
     }
-    console.error("Error subscribing to push:", error);
+    logger.error("Error subscribing to push:", error);
     return apiError("INTERNAL_ERROR", "Internal server error", 500);
   }
 });

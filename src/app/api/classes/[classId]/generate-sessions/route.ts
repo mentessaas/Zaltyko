@@ -6,6 +6,7 @@ import { db } from "@/db";
 import { classes } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
 import { generateRecurringSessions } from "@/lib/sessions-generator";
+import { logger } from "@/lib/logger";
 
 const bodySchema = z.object({
   classId: z.string().uuid(),
@@ -60,7 +61,7 @@ export const POST = withTenant(async (request, context) => {
       className: classRow.name,
     });
   } catch (error: any) {
-    console.error("Error generating sessions", error);
+    logger.error("Error generating sessions", error);
 
     if (error.message === "CLASS_NOT_FOUND") {
       return apiError("CLASS_NOT_FOUND", "Class not found", 404);

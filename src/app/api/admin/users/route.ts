@@ -11,6 +11,7 @@ import { handleApiError } from "@/lib/api-error-handler";
 import { verifyAcademyAccess } from "@/lib/permissions";
 import { getAppUrl } from "@/lib/env";
 import { apiSuccess, apiError } from "@/lib/api-response";
+import { logger } from "@/lib/logger";
 
 const profileRoles = [
   "super_admin",
@@ -130,7 +131,7 @@ const handler = withTenant(async (request, context) => {
         text: `Has sido invitado a unirte a ${config.appName}. Visita ${inviteUrl.toString()} para completar tu registro. El enlace expira en 7 días.`,
       });
     } catch (error) {
-      console.error("Error enviando la invitación", error);
+      logger.error("Error enviando la invitación", error);
       return apiError("MAIL_ERROR", "Error al enviar el correo", 500);
     }
 

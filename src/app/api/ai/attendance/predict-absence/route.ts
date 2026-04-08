@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { withTenant } from "@/lib/authz";
 import { getAIOrchestrator } from "@/lib/ai/orchestrator";
 import { ATTENDANCE_SYSTEM_PROMPT, generateAbsencePredictionPrompt } from "@/lib/ai/prompts/attendance";
+import { logger } from "@/lib/logger";
 
 export const GET = withTenant(async (request: Request) => {
   try {
@@ -64,7 +65,7 @@ export const GET = withTenant(async (request: Request) => {
         prediction = Math.min(prediction, 0.2);
       }
     } catch (aiError) {
-      console.error("AI prediction error:", aiError);
+      logger.error("AI prediction error:", aiError);
       // Usar predicción basada en datos históricos
     }
 
@@ -75,7 +76,7 @@ export const GET = withTenant(async (request: Request) => {
       date: new Date().toISOString().split("T")[0],
     });
   } catch (error) {
-    console.error("AI predict absence error:", error);
+    logger.error("AI predict absence error:", error);
     return NextResponse.json(
       { error: "Failed to predict absence" },
       { status: 500 }

@@ -7,6 +7,7 @@ import { userPreferences } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/authz";
 import { apiSuccess, apiError } from "@/lib/api-response";
+import { logger } from "@/lib/logger";
 
 const UpdatePreferencesSchema = z.object({
   timezone: z.string().optional(),
@@ -75,7 +76,7 @@ export async function PATCH(request: Request) {
     if (error instanceof z.ZodError) {
       return apiError("INVALID_INPUT", "Entrada inválida", 400);
     }
-    console.error("Error updating preferences:", error);
+    logger.error("Error updating preferences:", error);
     return apiError("INTERNAL_ERROR", error.message, 500);
   }
 }
@@ -105,7 +106,7 @@ export async function GET() {
 
     return apiSuccess(preferences || null);
   } catch (error: any) {
-    console.error("Error fetching preferences:", error);
+    logger.error("Error fetching preferences:", error);
     return apiError("INTERNAL_ERROR", error.message, 500);
   }
 }
