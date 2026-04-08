@@ -12,7 +12,8 @@ export default defineConfig({
     globals: true,
     setupFiles: ["./tests/setup.ts"],
     include: ["tests/**/*.test.ts", "tests/**/*.test.tsx"],
-    // Exclude tests that require real database
+    // Exclude API integration tests that require real database
+    // These need: running PostgreSQL, migrations, Vercel KV for rate limiting
     exclude: [
       "node_modules",
       ".next",
@@ -29,8 +30,11 @@ export default defineConfig({
       "tests/api-super-admin-users.test.ts",
       "tests/api-stripe-webhook.test.ts",
       "tests/api-webhooks-complete.test.ts",
+      "tests/api-auth-complete.test.ts",
+      "tests/api-limits-validation.test.ts",
       "tests/limits.test.ts",
       "tests/unit/session-generation.test.ts",
+      "tests/tenancy.test.ts",
     ],
     coverage: {
       provider: "v8",

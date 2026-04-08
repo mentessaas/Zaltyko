@@ -28,6 +28,10 @@ export type NotificationType =
   | "event"
   | "event_reminder"
   | "message"
+  | "new_message"
+  | "announcement"
+  | "coach_reply"
+  | "payment_received"
   | "renewal"
   | "system"
   | "push_notification";
@@ -386,6 +390,90 @@ export const notificationDispatcher = {
       body: `Te lembramos que ${data.eventName} es el ${data.eventDate} a las ${data.eventTime}.`,
       data,
       priority: "normal",
+    });
+  },
+
+  async newMessage(
+    tenantId: string,
+    userId: string,
+    data: {
+      senderName: string;
+      conversationId: string;
+      messagePreview: string;
+    }
+  ) {
+    return dispatch({
+      tenantId,
+      userId,
+      type: "new_message",
+      title: `Mensaje de ${data.senderName}`,
+      body: data.messagePreview,
+      data,
+      priority: "normal",
+      channels: ["push", "in_app"],
+    });
+  },
+
+  async announcement(
+    tenantId: string,
+    userId: string,
+    data: {
+      academyName: string;
+      announcementTitle: string;
+      priority?: "low" | "normal" | "high" | "urgent";
+    }
+  ) {
+    const priority = data.priority || "normal";
+    return dispatch({
+      tenantId,
+      userId,
+      type: "announcement",
+      title: `Anuncio${priority === "urgent" ? " urgente" : ""}: ${data.announcementTitle}`,
+      body: `Desde ${data.academyName}`,
+      data,
+      priority,
+      channels: priority === "urgent" || priority === "high" ? ["push", "email", "in_app"] : ["in_app"],
+    });
+  },
+
+  async coachReply(
+    tenantId: string,
+    userId: string,
+    data: {
+      coachName: string;
+      athleteName: string;
+      replyPreview: string;
+      noteId: string;
+    }
+  ) {
+    return dispatch({
+      tenantId,
+      userId,
+      type: "coach_reply",
+      title: `Respuesta de ${data.coachName}`,
+      body: `${data.coachName} respondió sobre ${data.athleteName}: "${data.replyPreview.substring(0, 50)}..."`,
+      data,
+      priority: "normal",
+    });
+  },
+
+  async paymentReceived(
+    tenantId: string,
+    userId: string,
+    data: {
+      athleteName: string;
+      amount: number;
+      paymentId: string;
+    }
+  ) {
+    return dispatch({
+      tenantId,
+      userId,
+      type: "payment_received",
+      title: "Pago recibido",
+      body: `Se recibió un pago de €${data.amount} por ${data.athleteName}.`,
+      data,
+      priority: "high",
     });
   },
 };
