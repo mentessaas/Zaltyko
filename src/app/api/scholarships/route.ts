@@ -1,12 +1,10 @@
-export const dynamic = 'force-dynamic';
-
-import { NextResponse } from "next/server";
 import { z } from "zod";
 import { eq, and } from "drizzle-orm";
 import { withTenant } from "@/lib/authz";
 
 import { db } from "@/db";
 import { scholarships, athletes } from "@/db/schema";
+import { apiSuccess, apiError, apiCreated } from "@/lib/api-response";
 
 const createSchema = z.object({
   academyId: z.string().uuid(),
@@ -24,14 +22,14 @@ const createSchema = z.object({
 
 export const GET = withTenant(async (request, context) => {
   if (!context.tenantId) {
-    return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+    return apiError("TENANT_REQUIRED", "Tenant requerido", 400);
   }
 
   const url = new URL(request.url);
   const academyId = url.searchParams.get("academyId");
 
   if (!academyId) {
-    return NextResponse.json({ error: "ACADEMY_ID_REQUIRED" }, { status: 400 });
+    return apiError("ACADEMY_ID_REQUIRED", "academyId requerido", 400);
   }
 
   const items = await db
@@ -55,7 +53,7 @@ export const GET = withTenant(async (request, context) => {
       and(eq(scholarships.academyId, academyId), eq(scholarships.tenantId, context.tenantId))
     );
 
-  return NextResponse.json({
+  return apiSuccess({
     items: items.map((item) => ({
       ...item,
       discountValue: Number(item.discountValue),
@@ -65,7 +63,7 @@ export const GET = withTenant(async (request, context) => {
 
 export const POST = withTenant(async (request, context) => {
   if (!context.tenantId) {
-    return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+    return apiError("TENANT_REQUIRED", "Tenant requerido", 400);
   }
 
   const profile = context.profile;
@@ -82,7 +80,7 @@ export const POST = withTenant(async (request, context) => {
     .limit(1);
 
   if (!athlete) {
-    return NextResponse.json({ error: "ATHLETE_NOT_FOUND" }, { status: 404 });
+    return apiError("ATHLETE_NOT_FOUND", "Atleta no encontrado", 404);
   }
 
   const [newScholarship] = await db
@@ -104,6 +102,5 @@ export const POST = withTenant(async (request, context) => {
     })
     .returning({ id: scholarships.id });
 
-  return NextResponse.json({ ok: true, id: newScholarship.id });
+  return apiCreated({ ok: true, id: newScholarship.id });
 });
-

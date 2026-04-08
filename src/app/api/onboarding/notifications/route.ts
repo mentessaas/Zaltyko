@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { z } from "zod";
@@ -7,6 +6,7 @@ import { db } from "@/db";
 import { profiles, userPreferences } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
 import { logger } from "@/lib/logger";
+import { apiSuccess, apiError } from "@/lib/api-response";
 
 export const dynamic = "force-dynamic";
 
@@ -31,22 +31,19 @@ export async function POST(request: Request) {
     } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+      return apiError("UNAUTHORIZED", "No autorizado", 401);
     }
 
     let body: unknown;
     try {
       body = await request.json();
     } catch {
-      return NextResponse.json({ error: "INVALID_JSON" }, { status: 400 });
+      return apiError("INVALID_JSON", "JSON inválido", 400);
     }
 
     const parsed = NotificationsSchema.safeParse(body);
     if (!parsed.success) {
-      return NextResponse.json(
-        { error: "VALIDATION_ERROR", details: parsed.error.errors },
-        { status: 400 }
-      );
+      return apiError("VALIDATION_ERROR", "Error de validación", 400);
     }
 
     const notifications = parsed.data;
@@ -59,7 +56,7 @@ export async function POST(request: Request) {
       .limit(1);
 
     if (!profile) {
-      return NextResponse.json({ error: "PROFILE_NOT_FOUND" }, { status: 404 });
+      return apiError("PROFILE_NOT_FOUND", "Perfil no encontrado", 404);
     }
 
     // Build emailNotifications object from flat keys
@@ -102,9 +99,9 @@ export async function POST(request: Request) {
       } as any);
     }
 
-    return NextResponse.json({ ok: true });
+    return apiSuccess({ ok: true });
   } catch (error) {
     logger.error("Error saving onboarding notifications", error);
-    return NextResponse.json({ error: "SERVER_ERROR" }, { status: 500 });
+    return apiError("SERVER_ERROR", "Error del servidor", 500);
   }
 }

@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { apiSuccess, apiError } from "@/lib/api-response";
 import { and, eq } from "drizzle-orm";
 
 import { db } from "@/db";
@@ -19,11 +19,11 @@ export const DELETE = withTenant(async (request, context) => {
     const enrollmentId = (context as RouteContext).params?.enrollmentId;
 
     if (!enrollmentId || typeof enrollmentId !== "string") {
-      return NextResponse.json({ error: "ENROLLMENT_ID_REQUIRED" }, { status: 400 });
+      return apiError("ENROLLMENT_ID_REQUIRED", "Enrollment ID is required", 400);
     }
 
     if (!context.tenantId) {
-      return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+      return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
     }
 
     // Verificar que el enrollment existe y pertenece al tenant
@@ -37,11 +37,11 @@ export const DELETE = withTenant(async (request, context) => {
       .limit(1);
 
     if (!enrollment) {
-      return NextResponse.json({ error: "ENROLLMENT_NOT_FOUND" }, { status: 404 });
+      return apiError("ENROLLMENT_NOT_FOUND", "Enrollment not found", 404);
     }
 
     if (enrollment.tenantId !== context.tenantId && context.profile.role !== "super_admin") {
-      return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+      return apiError("FORBIDDEN", "Access denied", 403);
     }
 
     // Eliminar el enrollment
@@ -49,7 +49,7 @@ export const DELETE = withTenant(async (request, context) => {
       .delete(classEnrollments)
       .where(eq(classEnrollments.id, enrollmentId));
 
-    return NextResponse.json({ ok: true });
+    return apiSuccess({ ok: true });
   } catch (error) {
     return handleApiError(error);
   }

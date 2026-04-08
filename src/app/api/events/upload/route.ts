@@ -1,7 +1,7 @@
-import { NextResponse } from "next/server";
 import { withTenant } from "@/lib/authz";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { handleApiError } from "@/lib/api-error-handler";
+import { apiSuccess, apiError } from "@/lib/api-response";
 
 export const dynamic = "force-dynamic";
 
@@ -10,7 +10,7 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 export const POST = withTenant(async (request, context) => {
   try {
     if (!context.tenantId) {
-      return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+      return apiError("TENANT_REQUIRED", "Tenant required", 400);
     }
 
     const formData = await request.formData();
@@ -20,14 +20,11 @@ export const POST = withTenant(async (request, context) => {
     const eventId = fd.get("eventId") as string | null;
 
     if (!file) {
-      return NextResponse.json({ error: "FILE_REQUIRED" }, { status: 400 });
+      return apiError("FILE_REQUIRED", "File required", 400);
     }
 
     if (file.size > MAX_FILE_SIZE) {
-      return NextResponse.json(
-        { error: "FILE_TOO_LARGE", message: `El archivo excede el tamaño máximo de ${MAX_FILE_SIZE / 1024 / 1024}MB` },
-        { status: 400 }
-      );
+      return apiError("FILE_TOO_LARGE", `El archivo excede el tamaño máximo de ${MAX_FILE_SIZE / 1024 / 1024}MB`, 400);
     }
 
     const supabase = getSupabaseAdminClient();
@@ -50,17 +47,14 @@ export const POST = withTenant(async (request, context) => {
       });
 
     if (uploadError) {
-      return NextResponse.json(
-        { error: "UPLOAD_FAILED", message: uploadError.message },
-        { status: 500 }
-      );
+      return apiError("UPLOAD_FAILED", uploadError.message, 500);
     }
 
     const { data: { publicUrl } } = supabase.storage
       .from("events")
       .getPublicUrl(filePath);
 
-    return NextResponse.json({ url: publicUrl, path: filePath });
+    return apiSuccess({ url: publicUrl, path: filePath });
   } catch (error) {
     return handleApiError(error, { endpoint: "/api/events/upload", method: "POST" });
   }

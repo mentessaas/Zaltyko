@@ -1,6 +1,5 @@
 export const dynamic = 'force-dynamic';
 
-import { NextResponse } from "next/server";
 import { asc, eq } from "drizzle-orm";
 import { z } from "zod";
 
@@ -8,7 +7,7 @@ import { db } from "@/db";
 import { academies, classCoachAssignments, classes, coaches, memberships, profiles } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
 import { markChecklistItem, markWizardStep } from "@/lib/onboarding";
-import { apiSuccess, apiCreated } from "@/lib/api-response";
+import { apiSuccess, apiError, apiCreated } from "@/lib/api-response";
 
 const bodySchema = z.object({
   academyId: z.string().uuid(),
@@ -31,11 +30,11 @@ export const GET = withTenant(async (request, context) => {
   const params = querySchema.safeParse(Object.fromEntries(url.searchParams));
 
   if (!context.tenantId) {
-    return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+    return apiError("TENANT_REQUIRED", "tenantId es requerido", 400);
   }
 
   if (!params.success) {
-    return NextResponse.json({ error: "INVALID_FILTERS" }, { status: 400 });
+    return apiError("INVALID_FILTERS", "Los filtros proporcionados no son válidos", 400);
   }
 
   const { academyId, includeAssignments } = params.data;
@@ -94,7 +93,7 @@ export const POST = withTenant(async (request, context) => {
   const body = bodySchema.parse(await request.json());
 
   if (!context.tenantId) {
-    return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+    return apiError("TENANT_REQUIRED", "tenantId es requerido", 400);
   }
 
   const coachId = crypto.randomUUID();
@@ -116,7 +115,7 @@ export const POST = withTenant(async (request, context) => {
       .limit(1);
 
     if (!linkedProfile) {
-      return NextResponse.json({ error: "PROFILE_NOT_FOUND" }, { status: 404 });
+      return apiError("PROFILE_NOT_FOUND", "Perfil no encontrado", 404);
     }
 
     await db

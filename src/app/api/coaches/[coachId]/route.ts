@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 
@@ -6,6 +5,7 @@ import { db } from "@/db";
 import { classCoachAssignments, coaches } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
 import { withTransaction } from "@/lib/db-transactions";
+import { apiSuccess, apiError } from "@/lib/api-response";
 
 const UpdateSchema = z.object({
   name: z.string().min(1).optional(),
@@ -35,26 +35,26 @@ export const PATCH = withTenant(async (request, context) => {
   const coachId = params?.coachId;
 
   if (!coachId) {
-    return NextResponse.json({ error: "COACH_ID_REQUIRED" }, { status: 400 });
+    return apiError("COACH_ID_REQUIRED", "coachId es requerido", 400);
   }
 
   const coach = await getCoach(coachId);
 
   if (!coach) {
-    return NextResponse.json({ error: "COACH_NOT_FOUND" }, { status: 404 });
+    return apiError("COACH_NOT_FOUND", "Coach no encontrado", 404);
   }
 
   if (
     context.profile.role !== "super_admin" &&
     coach.tenantId !== context.tenantId
   ) {
-    return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+    return apiError("FORBIDDEN", "No tienes permisos para actualizar este coach", 403);
   }
 
   const body = UpdateSchema.parse(await request.json());
 
   if (Object.keys(body).length === 0) {
-    return NextResponse.json({ ok: true });
+    return apiSuccess({ ok: true });
   }
 
   await db
@@ -70,7 +70,7 @@ export const PATCH = withTenant(async (request, context) => {
     })
     .where(eq(coaches.id, coachId));
 
-  return NextResponse.json({ ok: true });
+  return apiSuccess({ ok: true });
 });
 
 export const DELETE = withTenant(async (_request, context) => {
@@ -78,20 +78,20 @@ export const DELETE = withTenant(async (_request, context) => {
   const coachId = params?.coachId;
 
   if (!coachId) {
-    return NextResponse.json({ error: "COACH_ID_REQUIRED" }, { status: 400 });
+    return apiError("COACH_ID_REQUIRED", "coachId es requerido", 400);
   }
 
   const coach = await getCoach(coachId);
 
   if (!coach) {
-    return NextResponse.json({ error: "COACH_NOT_FOUND" }, { status: 404 });
+    return apiError("COACH_NOT_FOUND", "Coach no encontrado", 404);
   }
 
   if (
     context.profile.role !== "super_admin" &&
     coach.tenantId !== context.tenantId
   ) {
-    return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+    return apiError("FORBIDDEN", "No tienes permisos para eliminar este coach", 403);
   }
 
   // Use transaction to ensure atomicity: delete assignments first, then coach
@@ -100,7 +100,7 @@ export const DELETE = withTenant(async (_request, context) => {
     await tx.delete(coaches).where(eq(coaches.id, coachId));
   });
 
-  return NextResponse.json({ ok: true });
+  return apiSuccess({ ok: true });
 });
 
 

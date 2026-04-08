@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 
@@ -11,6 +10,7 @@ import { withRateLimit, getUserIdentifier } from "@/lib/rate-limit";
 import { handleApiError } from "@/lib/api-error-handler";
 import { verifyAcademyAccess } from "@/lib/permissions";
 import { getAppUrl } from "@/lib/env";
+import { apiSuccess, apiError } from "@/lib/api-response";
 
 const profileRoles = [
   "super_admin",
@@ -35,18 +35,18 @@ const handler = withTenant(async (request, context) => {
     const body = InviteSchema.parse(await request.json());
 
     if (!context || !context.profile) {
-      return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+      return apiError("UNAUTHORIZED", "No autorizado", 401);
     }
 
     const isSuperAdmin = context.profile.role === "super_admin";
     const isAdmin = isSuperAdmin || context.profile.role === "admin";
 
     if (body.role === "super_admin" && !isSuperAdmin) {
-      return NextResponse.json({ error: "NO_AUTH_SUPER_ADMIN" }, { status: 403 });
+      return apiError("NO_AUTH_SUPER_ADMIN", "No autorizado para crear super_admin", 403);
     }
 
     if (!isAdmin && context.profile.role !== "owner") {
-      return NextResponse.json({ error: "NO_AUTH" }, { status: 403 });
+      return apiError("NO_AUTH", "No autorizado", 403);
     }
 
     const effectiveTenantId = isSuperAdmin
@@ -54,7 +54,7 @@ const handler = withTenant(async (request, context) => {
       : context.tenantId;
 
     if (!effectiveTenantId) {
-      return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+      return apiError("TENANT_REQUIRED", "Tenant requerido", 400);
     }
 
     const academyIds = body.academyIds ?? [];
@@ -64,7 +64,7 @@ const handler = withTenant(async (request, context) => {
       for (const academyId of academyIds) {
         const academyAccess = await verifyAcademyAccess(academyId, effectiveTenantId);
         if (!academyAccess.allowed) {
-          return NextResponse.json({ error: academyAccess.reason ?? "ACADEMY_NOT_FOUND" }, { status: 400 });
+          return apiError("ACADEMY_NOT_FOUND", academyAccess.reason ?? "Academia no encontrada", 400);
         }
       }
     }
@@ -131,10 +131,10 @@ const handler = withTenant(async (request, context) => {
       });
     } catch (error) {
       console.error("Error enviando la invitación", error);
-      return NextResponse.json({ error: "MAIL_ERROR" }, { status: 500 });
+      return apiError("MAIL_ERROR", "Error al enviar el correo", 500);
     }
 
-    return NextResponse.json({ ok: true });
+    return apiSuccess({ ok: true });
   } catch (error) {
     return handleApiError(error);
   }
@@ -144,9 +144,7 @@ const handler = withTenant(async (request, context) => {
 // El rate limiting se aplica antes de withTenant
 export const POST = withRateLimit(
   async (request, context?: any) => {
-    return (await handler(request, context ?? {})) as NextResponse;
+    return (await handler(request, context ?? {})) as any;
   },
   { identifier: getUserIdentifier }
 );
-
-

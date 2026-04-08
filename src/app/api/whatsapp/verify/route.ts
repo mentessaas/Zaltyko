@@ -1,14 +1,11 @@
-import { NextRequest, NextResponse } from "next/server";
+import { apiSuccess, apiError } from "@/lib/api-response";
 
 export async function POST(request: NextRequest) {
   try {
     const { phone, apiKey } = await request.json();
 
     if (!phone || !apiKey) {
-      return NextResponse.json(
-        { error: "Se requiere número de teléfono y API key" },
-        { status: 400 }
-      );
+      return apiError("Se requiere número de teléfono y API key", "Validation error", 400);
     }
 
     // Verify the WhatsApp API credentials
@@ -22,21 +19,15 @@ export async function POST(request: NextRequest) {
     });
 
     if (!response.ok) {
-      return NextResponse.json(
-        { error: "Credenciales inválidas" },
-        { status: 401 }
-      );
+      return apiError("Credenciales inválidas", "Invalid credentials", 401);
     }
 
-    return NextResponse.json({
+    return apiSuccess({
       success: true,
       message: "Conexión verificada exitosamente",
     });
   } catch (error) {
     console.error("WhatsApp verify error:", error);
-    return NextResponse.json(
-      { error: "Error al verificar la conexión" },
-      { status: 500 }
-    );
+    return apiError("Error al verificar la conexión", "Connection error", 500);
   }
 }

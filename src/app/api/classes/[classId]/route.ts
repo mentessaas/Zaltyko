@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { apiSuccess, apiError } from "@/lib/api-response";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 
@@ -15,11 +15,13 @@ import {
   groups,
 } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
+import { rateLimit, getUserIdentifier, withRateLimit } from "@/lib/rate-limit";
 import { handleApiError } from "@/lib/api-error-handler";
 import { withTransaction } from "@/lib/db-transactions";
 import { verifyClassAccess } from "@/lib/permissions";
 import { hasScheduleConflictForAthlete } from "@/lib/classes/schedule-conflicts";
 import { logger } from "@/lib/logger";
+import { NextResponse } from "next/server";
 
 type PgLikeError = {
   code?: string;
@@ -74,11 +76,11 @@ export const GET = withTenant(async (_request, context) => {
   const classId = (context.params as { classId?: string } | undefined)?.classId;
 
   if (!classId) {
-    return NextResponse.json({ error: "CLASS_ID_REQUIRED" }, { status: 400 });
+    return apiError("CLASS_ID_REQUIRED", "Class ID is required", 400);
   }
 
   if (!context.tenantId) {
-    return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+    return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
   }
 
   const [classRow] = await db
@@ -102,7 +104,7 @@ export const GET = withTenant(async (_request, context) => {
     .limit(1);
 
   if (!classRow) {
-    return NextResponse.json({ error: "CLASS_NOT_FOUND" }, { status: 404 });
+    return apiError("CLASS_NOT_FOUND", "Class not found", 404);
   }
 
   const weekdayRows = await db
@@ -133,7 +135,7 @@ export const GET = withTenant(async (_request, context) => {
     .innerJoin(groups, eq(classGroups.groupId, groups.id))
     .where(eq(classGroups.classId, classId));
 
-  return NextResponse.json({
+  return apiSuccess({
     item: {
       ...classRow,
       weekdays: weekdayRows.map((row) => row.weekday).sort((a, b) => a - b),
@@ -155,11 +157,11 @@ export const PUT = withTenant(async (request, context) => {
   const classId = (context.params as { classId?: string } | undefined)?.classId;
   try {
     if (!classId) {
-      return NextResponse.json({ error: "CLASS_ID_REQUIRED", message: "El ID de la clase es requerido" }, { status: 400 });
+      return apiError("CLASS_ID_REQUIRED", "El ID de la clase es requerido", 400);
     }
 
     if (!context.tenantId) {
-      return NextResponse.json({ error: "TENANT_REQUIRED", message: "El tenant ID es requerido" }, { status: 400 });
+      return apiError("TENANT_REQUIRED", "El tenant ID es requerido", 400);
     }
 
     let body;
@@ -174,10 +176,7 @@ export const PUT = withTenant(async (request, context) => {
     const classAccess = await verifyClassAccess(classId, context.tenantId);
     if (!classAccess.allowed) {
       logger.error("PUT /api/classes/[classId]: Acceso denegado", undefined, { classId, tenantId: context.tenantId, reason: classAccess.reason });
-      return NextResponse.json({ 
-        error: classAccess.reason ?? "CLASS_NOT_FOUND", 
-        message: "No se encontró la clase o no tienes acceso a ella" 
-      }, { status: 404 });
+      return apiError(classAccess.reason ?? "CLASS_NOT_FOUND", "No se encontró la clase o no tienes acceso a ella", 404);
     }
 
     logger.debug("PUT /api/classes/[classId]: Iniciando actualización", { classId, body, tenantId: context.tenantId });
@@ -185,10 +184,7 @@ export const PUT = withTenant(async (request, context) => {
     // Validar tenantId antes de continuar
     if (!context.tenantId) {
       logger.error("PUT /api/classes/[classId]: tenantId es undefined");
-      return NextResponse.json({ 
-        error: "TENANT_REQUIRED", 
-        message: "El tenant ID es requerido para actualizar la clase" 
-      }, { status: 400 });
+      return apiError("TENANT_REQUIRED", "El tenant ID es requerido para actualizar la clase", 400);
     }
 
     // Obtener información actual de la clase para validación
@@ -204,7 +200,7 @@ export const PUT = withTenant(async (request, context) => {
       .limit(1);
 
     if (!currentClass) {
-      return NextResponse.json({ error: "CLASS_NOT_FOUND" }, { status: 404 });
+      return apiError("CLASS_NOT_FOUND", "Class not found", 404);
     }
 
     // Determinar si se están modificando horarios o grupos (necesita validación)
@@ -329,13 +325,11 @@ export const PUT = withTenant(async (request, context) => {
               conflictingClass: c.conflictingClass.name,
             })),
           });
-          return NextResponse.json(
-            {
-              error: "SCHEDULE_CONFLICT",
-              message: `No se puede guardar este horario porque hay ${conflicts.length} atleta${conflicts.length !== 1 ? "s" : ""} que ya tienen otra clase en esa misma franja. Ajusta la hora o revisa los grupos/asignaciones.`,
-              conflictsCount: conflicts.length,
-            },
-            { status: 409 }
+          return apiError(
+            "SCHEDULE_CONFLICT",
+            `No se puede guardar este horario porque hay ${conflicts.length} atleta${conflicts.length !== 1 ? "s" : ""} que ya tienen otra clase en esa misma franja. Ajusta la hora o revisa los grupos/asignaciones.`,
+            409,
+            { conflictsCount: conflicts.length }
           );
         }
 
@@ -449,7 +443,7 @@ export const PUT = withTenant(async (request, context) => {
       });
 
       logger.info("PUT /api/classes/[classId]: Actualización completada exitosamente");
-      return NextResponse.json({ ok: true, message: "Clase actualizada correctamente" });
+      return apiSuccess({ ok: true, message: "Clase actualizada correctamente" });
     } catch (transactionError: any) {
       logger.error("PUT /api/classes/[classId]: Error en la transacción", transactionError, {
         error: transactionError?.message,
@@ -473,19 +467,16 @@ export const DELETE = withTenant(async (_request, context) => {
   const classId = (context.params as { classId?: string } | undefined)?.classId;
   try {
     if (!classId) {
-      return NextResponse.json({ error: "CLASS_ID_REQUIRED", message: "El ID de la clase es requerido" }, { status: 400 });
+      return apiError("CLASS_ID_REQUIRED", "El ID de la clase es requerido", 400);
     }
 
     if (!context.tenantId) {
-      return NextResponse.json({ error: "TENANT_REQUIRED", message: "El tenant ID es requerido" }, { status: 400 });
+      return apiError("TENANT_REQUIRED", "El tenant ID es requerido", 400);
     }
 
     const classAccess = await verifyClassAccess(classId, context.tenantId);
     if (!classAccess.allowed) {
-      return NextResponse.json(
-        { error: classAccess.reason ?? "CLASS_NOT_FOUND", message: "No se encontró la clase o no tienes acceso a ella" },
-        { status: 404 }
-      );
+      return apiError(classAccess.reason ?? "CLASS_NOT_FOUND", "No se encontró la clase o no tienes acceso a ella", 404);
     }
 
     await withTransaction(async (tx) => {
@@ -559,7 +550,7 @@ export const DELETE = withTenant(async (_request, context) => {
       }
     });
 
-    return NextResponse.json({ ok: true });
+    return apiSuccess({ ok: true });
   } catch (error) {
     return handleApiError(error, { endpoint: `/api/classes/${classId ?? "unknown"}`, method: "DELETE" });
   }

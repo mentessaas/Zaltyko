@@ -1,100 +1,59 @@
+import { apiSuccess, apiError } from "@/lib/api-response";
+import { z } from "zod";
+import { withTenant } from "@/lib/authz";
+import { subscribeUser, getVapidPublicKey, isPushConfigured } from "@/lib/notifications/push-service";
+
 export const dynamic = 'force-dynamic';
 
-import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+const subscribeSchema = z.object({
+  endpoint: z.string().url(),
+  keys: z.object({
+    p256dh: z.string(),
+    auth: z.string(),
+  }),
+});
 
-// Initialize Supabase admin client
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
-interface PushSubscription {
-  endpoint: string;
-  keys: {
-    p256dh: string;
-    auth: string;
-  };
-}
-
-export async function POST(request: NextRequest) {
-  try {
-    // Get user from auth header
-    const authHeader = request.headers.get("authorization");
-    const token = authHeader?.replace("Bearer ", "");
-
-    if (!token) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
-    }
-
-    // Verify user
-    const {
-      data: { user },
-      error: authError,
-    } = await supabaseAdmin.auth.getUser(token);
-
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: "Invalid token" },
-        { status: 401 }
-      );
-    }
-
-    const subscription: PushSubscription = await request.json();
-
-    if (!subscription?.endpoint || !subscription?.keys) {
-      return NextResponse.json(
-        { error: "Invalid subscription" },
-        { status: 400 }
-      );
-    }
-
-    // Store subscription in database
-    const { data: existingSub } = await supabaseAdmin
-      .from("push_subscriptions")
-      .select("*")
-      .eq("endpoint", subscription.endpoint)
-      .single();
-
-    if (existingSub) {
-      // Update existing subscription
-      await supabaseAdmin
-        .from("push_subscriptions")
-        .update({
-          user_id: user.id,
-          p256dh: subscription.keys.p256dh,
-          auth: subscription.keys.auth,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("endpoint", subscription.endpoint);
-    } else {
-      // Insert new subscription
-      await supabaseAdmin
-        .from("push_subscriptions")
-        .insert({
-          user_id: user.id,
-          endpoint: subscription.endpoint,
-          p256dh: subscription.keys.p256dh,
-          auth: subscription.keys.auth,
-        });
-    }
-
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error("Error subscribing to push:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+export const GET = withTenant(async () => {
+  // Return VAPID public key for client subscription
+  if (!isPushConfigured()) {
+    return apiSuccess({
+      configured: false,
+      publicKey: null,
+    });
   }
-}
 
-export async function GET() {
-  // Return public VAPID key for client
-  const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || "";
+  return apiSuccess({
+    configured: true,
+    publicKey: getVapidPublicKey(),
+  });
+});
 
-  return NextResponse.json({ publicKey: vapidPublicKey });
-}
+export const POST = withTenant(async (request, context) => {
+  const profile = context.profile;
+
+  if (!profile?.id) {
+    return apiError("PROFILE_REQUIRED", "Profile is required", 400);
+  }
+
+  try {
+    const body = await request.json();
+    const validated = subscribeSchema.parse(body);
+
+    const subscription = await subscribeUser(profile.id, {
+      endpoint: validated.endpoint,
+      p256dh: validated.keys.p256dh,
+      auth: validated.keys.auth,
+    });
+
+    return apiSuccess({
+      ok: true,
+      id: subscription?.id,
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return apiError("VALIDATION_ERROR", "Validation failed", 400);
+    }
+    console.error("Error subscribing to push:", error);
+    return apiError("INTERNAL_ERROR", "Internal server error", 500);
+  }
+});

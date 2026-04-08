@@ -16,11 +16,13 @@ interface OnboardingState {
   email: string;
 }
 
+const DEFAULT_STEP: StepKey = "academy";
+
 /**
  * Hook para manejar el estado del onboarding con persistencia
  */
 export function useOnboardingState() {
-  const [step, setStep] = useState<StepKey>(1);
+  const [step, setStep] = useState<StepKey>(DEFAULT_STEP);
   const [academyId, setAcademyId] = useState<string | null>(null);
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [academyType, setAcademyType] = useState<string>("");
@@ -29,7 +31,7 @@ export function useOnboardingState() {
   const [selectedCity, setSelectedCity] = useState("");
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
-  const [maxStep, setMaxStep] = useState<StepKey>(1);
+  const [maxStep, setMaxStep] = useState<StepKey>(DEFAULT_STEP);
 
   // Cargar estado persistido
   useEffect(() => {

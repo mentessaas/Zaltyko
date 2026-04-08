@@ -1,6 +1,5 @@
 export const dynamic = 'force-dynamic';
 
-import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 
@@ -8,6 +7,7 @@ import { db } from "@/db";
 import { guardians, guardianAthletes } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
 import { handleApiError } from "@/lib/api-error-handler";
+import { apiSuccess, apiError } from "@/lib/api-response";
 
 const UpdateSchema = z.object({
   name: z.string().min(1).optional(),
@@ -29,7 +29,7 @@ export const GET = withTenant(async (request, context) => {
     const { guardianId } = context.params as { guardianId: string };
 
     if (!context.tenantId) {
-      return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+      return apiError("TENANT_REQUIRED", "Tenant context is required", 400);
     }
 
     const [guardian] = await db
@@ -39,7 +39,7 @@ export const GET = withTenant(async (request, context) => {
       .limit(1);
 
     if (!guardian || guardian.tenantId !== context.tenantId) {
-      return NextResponse.json({ error: "GUARDIAN_NOT_FOUND" }, { status: 404 });
+      return apiError("GUARDIAN_NOT_FOUND", "Guardian not found", 404);
     }
 
     // Get athlete associations
@@ -52,7 +52,7 @@ export const GET = withTenant(async (request, context) => {
       .from(guardianAthletes)
       .where(eq(guardianAthletes.guardianId, guardianId));
 
-    return NextResponse.json({
+    return apiSuccess({
       ...guardian,
       athletes: associations,
     });
@@ -67,7 +67,7 @@ export const PUT = withTenant(async (request, context) => {
     const body = UpdateSchema.parse(await request.json());
 
     if (!context.tenantId) {
-      return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+      return apiError("TENANT_REQUIRED", "Tenant context is required", 400);
     }
 
     // Verify guardian exists and belongs to tenant
@@ -78,7 +78,7 @@ export const PUT = withTenant(async (request, context) => {
       .limit(1);
 
     if (!existing || existing.tenantId !== context.tenantId) {
-      return NextResponse.json({ error: "GUARDIAN_NOT_FOUND" }, { status: 404 });
+      return apiError("GUARDIAN_NOT_FOUND", "Guardian not found", 404);
     }
 
     await db
@@ -93,7 +93,7 @@ export const PUT = withTenant(async (request, context) => {
       })
       .where(eq(guardians.id, guardianId));
 
-    return NextResponse.json({ ok: true });
+    return apiSuccess({ ok: true });
   } catch (error) {
     return handleApiError(error);
   }
@@ -104,7 +104,7 @@ export const DELETE = withTenant(async (request, context) => {
     const { guardianId } = context.params as { guardianId: string };
 
     if (!context.tenantId) {
-      return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+      return apiError("TENANT_REQUIRED", "Tenant context is required", 400);
     }
 
     // Verify guardian exists and belongs to tenant
@@ -115,13 +115,13 @@ export const DELETE = withTenant(async (request, context) => {
       .limit(1);
 
     if (!existing || existing.tenantId !== context.tenantId) {
-      return NextResponse.json({ error: "GUARDIAN_NOT_FOUND" }, { status: 404 });
+      return apiError("GUARDIAN_NOT_FOUND", "Guardian not found", 404);
     }
 
     // Delete guardian (cascades to guardianAthletes due to FK)
     await db.delete(guardians).where(eq(guardians.id, guardianId));
 
-    return NextResponse.json({ ok: true });
+    return apiSuccess({ ok: true });
   } catch (error) {
     return handleApiError(error);
   }

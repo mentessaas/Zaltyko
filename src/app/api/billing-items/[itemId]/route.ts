@@ -1,11 +1,11 @@
-import { and, eq } from "drizzle-orm";
-import { NextResponse } from "next/server";
+import { eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
 import { billingItems } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
 import { handleApiError } from "@/lib/api-error-handler";
+import { apiSuccess, apiError } from "@/lib/api-response";
 
 const UpdateBillingItemSchema = z.object({
   name: z.string().min(1).optional(),
@@ -20,14 +20,14 @@ export const PATCH = withTenant(async (request, context) => {
   try {
     const params = context.params as { itemId?: string };
     const itemId = params?.itemId;
-    
+
     if (!itemId) {
-      return NextResponse.json({ error: "ITEM_ID_REQUIRED" }, { status: 400 });
+      return apiError("ITEM_ID_REQUIRED", "ID de item requerido", 400);
     }
     const body = UpdateBillingItemSchema.parse(await request.json());
 
     if (!context.tenantId) {
-      return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+      return apiError("TENANT_REQUIRED", "Tenant requerido", 400);
     }
 
     // Verify item exists and belongs to tenant
@@ -38,7 +38,7 @@ export const PATCH = withTenant(async (request, context) => {
       .limit(1);
 
     if (!existing) {
-      return NextResponse.json({ error: "BILLING_ITEM_NOT_FOUND" }, { status: 404 });
+      return apiError("BILLING_ITEM_NOT_FOUND", "Item de facturación no encontrado", 404);
     }
 
     const updateData: Partial<typeof billingItems.$inferInsert> = {};
@@ -55,7 +55,7 @@ export const PATCH = withTenant(async (request, context) => {
       .where(eq(billingItems.id, itemId))
       .returning();
 
-    return NextResponse.json({ item: updated });
+    return apiSuccess({ item: updated });
   } catch (error) {
     return handleApiError(error, { endpoint: "/api/billing-items/[itemId]", method: "PATCH" });
   }
@@ -65,13 +65,13 @@ export const DELETE = withTenant(async (request, context) => {
   try {
     const params = context.params as { itemId?: string };
     const itemId = params?.itemId;
-    
+
     if (!itemId) {
-      return NextResponse.json({ error: "ITEM_ID_REQUIRED" }, { status: 400 });
+      return apiError("ITEM_ID_REQUIRED", "ID de item requerido", 400);
     }
 
     if (!context.tenantId) {
-      return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+      return apiError("TENANT_REQUIRED", "Tenant requerido", 400);
     }
 
     // Verify item exists and belongs to tenant
@@ -82,14 +82,13 @@ export const DELETE = withTenant(async (request, context) => {
       .limit(1);
 
     if (!existing) {
-      return NextResponse.json({ error: "BILLING_ITEM_NOT_FOUND" }, { status: 404 });
+      return apiError("BILLING_ITEM_NOT_FOUND", "Item de facturación no encontrado", 404);
     }
 
     await db.delete(billingItems).where(eq(billingItems.id, itemId));
 
-    return NextResponse.json({ ok: true });
+    return apiSuccess({ ok: true });
   } catch (error) {
     return handleApiError(error, { endpoint: "/api/billing-items/[itemId]", method: "DELETE" });
   }
 });
-

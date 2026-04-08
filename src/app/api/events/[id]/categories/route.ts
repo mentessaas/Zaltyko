@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 
@@ -6,7 +5,7 @@ import { db } from "@/db";
 import { events, eventCategories } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
 import { handleApiError } from "@/lib/api-error-handler";
-import { apiSuccess } from "@/lib/api-response";
+import { apiSuccess, apiCreated, apiError } from "@/lib/api-response";
 
 export const dynamic = 'force-dynamic';
 
@@ -15,7 +14,7 @@ export const GET = withTenant(async (_request, context) => {
     const { id: eventId } = context.params as { id: string };
 
     if (!context.tenantId) {
-      return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+      return apiError("TENANT_REQUIRED", "Tenant required", 400);
     }
 
     // Verify event exists and belongs to tenant
@@ -26,7 +25,7 @@ export const GET = withTenant(async (_request, context) => {
       .limit(1);
 
     if (!eventRow) {
-      return NextResponse.json({ error: "EVENT_NOT_FOUND" }, { status: 404 });
+      return apiError("EVENT_NOT_FOUND", "Event not found", 404);
     }
 
     // Get categories for this event
@@ -56,7 +55,7 @@ export const POST = withTenant(async (request, context) => {
     const body = createCategorySchema.parse(await request.json());
 
     if (!context.tenantId) {
-      return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+      return apiError("TENANT_REQUIRED", "Tenant required", 400);
     }
 
     // Verify event exists and belongs to tenant
@@ -67,7 +66,7 @@ export const POST = withTenant(async (request, context) => {
       .limit(1);
 
     if (!eventRow) {
-      return NextResponse.json({ error: "EVENT_NOT_FOUND" }, { status: 404 });
+      return apiError("EVENT_NOT_FOUND", "Event not found", 404);
     }
 
     const [category] = await db
@@ -80,7 +79,7 @@ export const POST = withTenant(async (request, context) => {
       })
       .returning();
 
-    return NextResponse.json({ ok: true, id: category.id }, { status: 201 });
+    return apiCreated({ id: category.id });
   } catch (error) {
     return handleApiError(error);
   }

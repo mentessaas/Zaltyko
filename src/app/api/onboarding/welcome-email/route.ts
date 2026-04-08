@@ -1,5 +1,3 @@
-import { NextResponse } from "next/server";
-import { z } from "zod";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { sendEmail } from "@/lib/mailgun";
@@ -8,6 +6,7 @@ import { db } from "@/db";
 import { profiles, academies } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { logger } from "@/lib/logger";
+import { apiSuccess, apiError } from "@/lib/api-response";
 
 const BodySchema = z.object({
   academyId: z.string().uuid(),
@@ -19,10 +18,7 @@ export async function POST(request: Request) {
     const body = BodySchema.safeParse(await request.json());
 
     if (!body.success) {
-      return NextResponse.json(
-        { error: "INVALID_PAYLOAD", details: body.error.issues },
-        { status: 400 }
-      );
+      return apiError("INVALID_PAYLOAD", "Payload inválido", 400);
     }
 
     const { academyId, userId } = body.data;
@@ -35,7 +31,7 @@ export async function POST(request: Request) {
     } = await supabase.auth.getUser();
 
     if (!user || user.id !== userId) {
-      return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+      return apiError("UNAUTHORIZED", "No autorizado", 401);
     }
 
     const [profile] = await db
@@ -45,7 +41,7 @@ export async function POST(request: Request) {
       .limit(1);
 
     if (!profile) {
-      return NextResponse.json({ error: "PROFILE_NOT_FOUND" }, { status: 404 });
+      return apiError("PROFILE_NOT_FOUND", "Perfil no encontrado", 404);
     }
 
     // Obtener información de la academia
@@ -60,7 +56,7 @@ export async function POST(request: Request) {
     // Enviar email de bienvenida
     await sendEmail({
       to: user.email!,
-      subject: `¡Bienvenido a Zaltyko, ${profile.name || "Usuario"}!`,
+      subject: `Bienvenido a Zaltyko, ${profile.name || "Usuario"}!`,
       html: `
         <!DOCTYPE html>
         <html>
@@ -70,20 +66,20 @@ export async function POST(request: Request) {
         </head>
         <body style="font-family: Inter, Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
           <div style="background: linear-gradient(135deg, #0D47A1 0%, #1976D2 100%); padding: 30px; text-align: center; border-radius: 8px 8px 0 0;">
-            <h1 style="color: white; margin: 0; font-size: 28px; font-weight: 700;">¡Bienvenido a Zaltyko!</h1>
+            <h1 style="color: white; margin: 0; font-size: 28px; font-weight: 700;">Bienvenido a Zaltyko!</h1>
           </div>
-          
+
           <div style="background: #f9fafb; padding: 30px; border-radius: 0 0 8px 8px;">
             <p style="font-size: 16px; margin-bottom: 20px;">
               Hola <strong>${profile.name || "Usuario"}</strong>,
             </p>
-            
+
             <p style="font-size: 16px; margin-bottom: 20px;">
-              ¡Estamos emocionados de tenerte en Zaltyko! Tu academia <strong>${academyName}</strong> está lista para comenzar.
+              Estamos emocionados de tenerte en Zaltyko! Tu academia <strong>${academyName}</strong> está lista para comenzar.
             </p>
-            
+
             <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #0D47A1;">
-              <h2 style="color: #0D47A1; margin-top: 0; font-size: 20px;">Próximos pasos recomendados:</h2>
+              <h2 style="color: #0D47A1; margin-top: 0; font-size: 20px;">Proximos pasos recomendados:</h2>
               <ul style="list-style: none; padding: 0;">
                 <li style="padding: 8px 0; border-bottom: 1px solid #e5e7eb;">
                   ✓ Crea tu primer grupo de entrenamiento
@@ -99,31 +95,31 @@ export async function POST(request: Request) {
                 </li>
               </ul>
             </div>
-            
+
             <div style="text-align: center; margin: 30px 0;">
-              <a href="${config.appUrl}/app/${academyId}/dashboard" 
+              <a href="${config.appUrl}/app/${academyId}/dashboard"
                  style="display: inline-block; background: #0D47A1; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;">
                 Ir a mi dashboard
               </a>
             </div>
-            
+
             <div style="background: #e3f2fd; padding: 15px; border-radius: 6px; margin: 20px 0;">
               <p style="margin: 0; font-size: 14px; color: #1565c0;">
-                <strong>💡 Tip:</strong> Completa el checklist de onboarding para aprovechar al máximo todas las funcionalidades de Zaltyko.
+                <strong>Tip:</strong> Completa el checklist de onboarding para aprovechar al máximo todas las funcionalidades de Zaltyko.
               </p>
             </div>
-            
+
             <p style="font-size: 14px; color: #6b7280; margin-top: 30px;">
-              Si tienes alguna pregunta, no dudes en contactarnos en 
+              Si tienes alguna pregunta, no dudes en contactarnos en
               <a href="mailto:${config.mailgun.supportEmail}" style="color: #0D47A1;">${config.mailgun.supportEmail}</a>
             </p>
-            
+
             <p style="font-size: 14px; color: #6b7280; margin-top: 20px;">
-              ¡Que tengas un excelente día!<br>
+              Que tengas un excelente dia!<br>
               <strong>El equipo de Zaltyko</strong>
             </p>
           </div>
-          
+
           <div style="text-align: center; margin-top: 20px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
             <p style="font-size: 12px; color: #9ca3af;">
               Este es un correo automático. Por favor no respondas a este mensaje.
@@ -133,13 +129,13 @@ export async function POST(request: Request) {
         </html>
       `,
       text: `
-¡Bienvenido a Zaltyko!
+Bienvenido a Zaltyko!
 
 Hola ${profile.name || "Usuario"},
 
-¡Estamos emocionados de tenerte en Zaltyko! Tu academia ${academyName} está lista para comenzar.
+Estamos emocionados de tenerte en Zaltyko! Tu academia ${academyName} está lista para comenzar.
 
-Próximos pasos recomendados:
+Proximos pasos recomendados:
 - Crea tu primer grupo de entrenamiento
 - Añade atletas a tu academia
 - Invita a tus entrenadores
@@ -149,19 +145,15 @@ Accede a tu dashboard: ${config.appUrl}/app/${academyId}/dashboard
 
 Si tienes alguna pregunta, contacta a ${config.mailgun.supportEmail}
 
-¡Que tengas un excelente día!
+Que tengas un excelente dia!
 El equipo de Zaltyko
       `,
       replyTo: config.mailgun.supportEmail,
     });
 
-    return NextResponse.json({ ok: true, message: "Email de bienvenida enviado" });
+    return apiSuccess({ ok: true, message: "Email de bienvenida enviado" });
   } catch (error: any) {
     logger.error("Error sending welcome email", error);
-    return NextResponse.json(
-      { error: "EMAIL_SEND_FAILED", message: error?.message ?? "Error al enviar el email" },
-      { status: 500 }
-    );
+    return apiError("EMAIL_SEND_FAILED", error?.message ?? "Error al enviar el email", 500);
   }
 }
-

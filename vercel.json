@@ -11,6 +11,10 @@
     {
       "path": "/api/cron/generate-sessions",
       "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/scheduled-notifications",
+      "schedule": "*/5 * * * *"
     }
   ],
   "env": {

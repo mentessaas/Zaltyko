@@ -1,23 +1,23 @@
 export const dynamic = 'force-dynamic';
 
-import { NextResponse } from "next/server";
 import { eq, and, desc } from "drizzle-orm";
 
 import { db } from "@/db";
 import { events, eventRegistrations, academies } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
 import { handleApiError } from "@/lib/api-error-handler";
+import { apiSuccess, apiError } from "@/lib/api-response";
 
 export const GET = withTenant(async (request: Request, context: { tenantId: string; profile: { id: string } }) => {
   try {
     if (!context.tenantId) {
-      return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+      return apiError("TENANT_REQUIRED", "Tenant required", 400);
     }
 
     const profileId = context.profile?.id;
 
     if (!profileId) {
-      return NextResponse.json({ error: "PROFILE_ID_REQUIRED" }, { status: 400 });
+      return apiError("PROFILE_ID_REQUIRED", "Profile ID required", 400);
     }
 
     // Get user's registrations
@@ -44,7 +44,7 @@ export const GET = withTenant(async (request: Request, context: { tenantId: stri
       ))
       .orderBy(desc(events.startDate));
 
-    return NextResponse.json({
+    return apiSuccess({
       items: userRegistrations.map(reg => ({
         id: reg.registrationId,
         eventId: reg.eventId,

@@ -1,12 +1,9 @@
-export const dynamic = 'force-dynamic';
-
-import { eq, and } from "drizzle-orm";
-import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { db } from "@/db";
 import { templates } from "@/db/schema/templates/templates";
 import { withTenant } from "@/lib/authz";
+import { apiSuccess, apiError } from "@/lib/api-response";
 
 const QuerySchema = z.object({
   countryCode: z.string().optional(),
@@ -20,7 +17,7 @@ export const GET = withTenant(async (request) => {
     const parsed = QuerySchema.safeParse(Object.fromEntries(url.searchParams));
 
     if (!parsed.success) {
-      return NextResponse.json({ error: "INVALID_FILTERS" }, { status: 400 });
+      return apiError("INVALID_FILTERS", "Filtros inválidos", 400);
     }
 
     const { countryCode, discipline, isActive } = parsed.data;
@@ -58,12 +55,9 @@ export const GET = withTenant(async (request) => {
       .where(whereClause)
       .orderBy(templates.name);
 
-    return NextResponse.json({ items: rows });
+    return apiSuccess({ items: rows });
   } catch (error) {
     console.error("Error fetching templates:", error);
-    return NextResponse.json(
-      { error: "INTERNAL_ERROR", message: "Error fetching templates" },
-      { status: 500 }
-    );
+    return apiError("INTERNAL_ERROR", "Error al obtener templates", 500);
   }
 });

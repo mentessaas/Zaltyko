@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { apiError, apiSuccess } from "@/lib/api-response";
 import { z } from "zod";
 import { withTenant } from "@/lib/authz";
 import { analyzeAthleteProgress, type ProgressReportFilters } from "@/lib/reports/progress-analyzer";
@@ -20,7 +21,7 @@ const exportSchema = z.object({
 
 export const GET = withTenant(async (request, context) => {
   if (!context.tenantId) {
-    return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+    return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
   }
 
   const url = new URL(request.url);
@@ -39,10 +40,7 @@ export const GET = withTenant(async (request, context) => {
   });
 
   if (!validated.academyId || !validated.athleteId) {
-    return NextResponse.json(
-      { error: "ACADEMY_ID_AND_ATHLETE_ID_REQUIRED" },
-      { status: 400 }
-    );
+    return apiError("ACADEMY_ID_AND_ATHLETE_ID_REQUIRED", "Academy ID and Athlete ID are required", 400);
   }
 
   const filters: ProgressReportFilters = {
@@ -57,10 +55,7 @@ export const GET = withTenant(async (request, context) => {
     const report = await analyzeAthleteProgress(filters);
 
     if (!report) {
-      return NextResponse.json(
-        { error: "NO_ASSESSMENTS_FOUND" },
-        { status: 404 }
-      );
+      return apiError("NO_ASSESSMENTS_FOUND", "No assessments found", 404);
     }
 
     // Obtener nombre de la academia
@@ -96,10 +91,7 @@ export const GET = withTenant(async (request, context) => {
     });
   } catch (error: any) {
     console.error("Error exporting progress report:", error);
-    return NextResponse.json(
-      { error: "EXPORT_FAILED", message: error.message },
-      { status: 500 }
-    );
+    return apiError("EXPORT_FAILED", error.message, 500);
   }
 });
 

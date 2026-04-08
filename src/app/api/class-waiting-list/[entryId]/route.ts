@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 
-import { NextResponse } from "next/server";
+import { apiSuccess, apiError } from "@/lib/api-response";
 import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
@@ -14,14 +14,14 @@ export const DELETE = withTenant(async (request, context) => {
     const entryId = params?.entryId;
 
     if (!entryId) {
-      return NextResponse.json({ error: "ENTRY_ID_REQUIRED" }, { status: 400 });
+      return apiError("ENTRY_ID_REQUIRED", "Entry ID is required", 400);
     }
 
     await db
       .delete(classWaitingList)
       .where(eq(classWaitingList.id, entryId));
 
-    return NextResponse.json({ success: true });
+    return apiSuccess({ success: true });
   } catch (error) {
     return handleApiError(error);
   }

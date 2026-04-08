@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { apiError, apiSuccess } from "@/lib/api-response";
 import { z } from "zod";
 import { eq, and } from "drizzle-orm";
 import { withTenant } from "@/lib/authz";
@@ -18,7 +18,7 @@ const updateCampaignSchema = z.object({
 
 export const GET = withTenant(async (request, context) => {
   if (!context.tenantId) {
-    return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+    return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
   }
 
   const { discountId } = context.params as { discountId: string };
@@ -51,10 +51,10 @@ export const GET = withTenant(async (request, context) => {
     .limit(1);
 
   if (!campaign) {
-    return NextResponse.json({ error: "CAMPAIGN_NOT_FOUND" }, { status: 404 });
+    return apiError("CAMPAIGN_NOT_FOUND", "Campaign not found", 404);
   }
 
-  return NextResponse.json({
+  return apiSuccess({
     ...campaign,
     discountValue: Number(campaign.discountValue),
     currentUses: Number(campaign.currentUses),
@@ -63,7 +63,7 @@ export const GET = withTenant(async (request, context) => {
 
 export const PUT = withTenant(async (request, context) => {
   if (!context.tenantId) {
-    return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+    return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
   }
 
   const { discountId } = context.params as { discountId: string };
@@ -82,7 +82,7 @@ export const PUT = withTenant(async (request, context) => {
     .limit(1);
 
   if (!existing) {
-    return NextResponse.json({ error: "CAMPAIGN_NOT_FOUND" }, { status: 404 });
+    return apiError("CAMPAIGN_NOT_FOUND", "Campaign not found", 404);
   }
 
   // Si se proporciona un nuevo discountId, verificar que existe
@@ -99,7 +99,7 @@ export const PUT = withTenant(async (request, context) => {
       .limit(1);
 
     if (!discount) {
-      return NextResponse.json({ error: "DISCOUNT_NOT_FOUND" }, { status: 404 });
+      return apiError("DISCOUNT_NOT_FOUND", "Discount not found", 404);
     }
   }
 
@@ -117,12 +117,12 @@ export const PUT = withTenant(async (request, context) => {
     )
     .returning({ id: discountCampaigns.id });
 
-  return NextResponse.json({ ok: true, id: updated.id });
+  return apiSuccess({ ok: true, id: updated.id });
 });
 
 export const DELETE = withTenant(async (request, context) => {
   if (!context.tenantId) {
-    return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+    return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
   }
 
   const { discountId } = context.params as { discountId: string };
@@ -138,8 +138,8 @@ export const DELETE = withTenant(async (request, context) => {
     .returning({ id: discountCampaigns.id });
 
   if (!deleted) {
-    return NextResponse.json({ error: "CAMPAIGN_NOT_FOUND" }, { status: 404 });
+    return apiError("CAMPAIGN_NOT_FOUND", "Campaign not found", 404);
   }
 
-  return NextResponse.json({ ok: true });
+  return apiSuccess({ ok: true });
 });

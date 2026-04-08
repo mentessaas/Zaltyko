@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
+import { apiSuccess, apiError } from "@/lib/api-response";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/authz";
 import { db } from "@/db";
@@ -19,12 +20,12 @@ export async function GET(
     } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+      return apiError("No autorizado", "No autorizado", 401);
     }
 
     const profile = await getCurrentProfile(user.id);
     if (!profile) {
-      return NextResponse.json({ error: "Perfil no encontrado" }, { status: 404 });
+      return apiError("Perfil no encontrado", "Perfil no encontrado", 404);
     }
 
     // Get current date info
@@ -116,7 +117,7 @@ export async function GET(
       });
     }
 
-    return NextResponse.json({
+    return apiSuccess({
       totalAthletes,
       activeAthletes,
       newAthletesThisMonth,
@@ -127,9 +128,6 @@ export async function GET(
     });
   } catch (error) {
     console.error("Error loading retention data:", error);
-    return NextResponse.json(
-      { error: "Error al cargar datos de retención" },
-      { status: 500 }
-    );
+    return apiError("Error al cargar datos de retención", "Error al cargar datos de retención", 500);
   }
 }

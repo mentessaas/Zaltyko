@@ -1,7 +1,7 @@
-import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { apiSuccess, apiError } from "@/lib/api-response";
 
 const ChangePasswordSchema = z.object({
   currentPassword: z.string().min(1),
@@ -21,7 +21,7 @@ export async function PATCH(request: Request) {
     } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
+      return apiError("UNAUTHORIZED", "No autorizado", 401);
     }
 
     const body = ChangePasswordSchema.parse(await request.json());
@@ -33,10 +33,7 @@ export async function PATCH(request: Request) {
     });
 
     if (signInError) {
-      return NextResponse.json(
-        { error: "INVALID_CURRENT_PASSWORD", message: "La contraseña actual es incorrecta" },
-        { status: 400 }
-      );
+      return apiError("INVALID_CURRENT_PASSWORD", "La contraseña actual es incorrecta", 400);
     }
 
     // Actualizar contraseña
@@ -45,19 +42,15 @@ export async function PATCH(request: Request) {
     });
 
     if (updateError) {
-      return NextResponse.json(
-        { error: "PASSWORD_UPDATE_FAILED", message: updateError.message },
-        { status: 400 }
-      );
+      return apiError("PASSWORD_UPDATE_FAILED", updateError.message, 400);
     }
 
-    return NextResponse.json({ ok: true, message: "Contraseña actualizada correctamente" });
+    return apiSuccess({ ok: true, message: "Contraseña actualizada correctamente" });
   } catch (error: any) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: "INVALID_INPUT", details: error.errors }, { status: 400 });
+      return apiError("INVALID_INPUT", "Entrada inválida", 400);
     }
     console.error("Error updating password:", error);
-    return NextResponse.json({ error: "INTERNAL_ERROR", message: error.message }, { status: 500 });
+    return apiError("INTERNAL_ERROR", error.message, 500);
   }
 }
-

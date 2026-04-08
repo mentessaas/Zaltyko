@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { apiError, apiSuccess } from "@/lib/api-response";
 import { z } from "zod";
 import { eq, and, gte, lte, isNull } from "drizzle-orm";
 import { withTenant } from "@/lib/authz";
@@ -13,7 +13,7 @@ const validateCodeSchema = z.object({
 
 export const POST = withTenant(async (request, context) => {
   if (!context.tenantId) {
-    return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+    return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
   }
 
   const body = validateCodeSchema.parse(await request.json());
@@ -35,10 +35,7 @@ export const POST = withTenant(async (request, context) => {
     .limit(1);
 
   if (!discount) {
-    return NextResponse.json(
-      { valid: false, error: "Código promocional no válido o expirado" },
-      { status: 404 }
-    );
+    return apiError("INVALID_CODE", "Código promocional no válido o expirado", 404);
   }
 
   const discountValue = Number(discount.discountValue);
@@ -47,39 +44,24 @@ export const POST = withTenant(async (request, context) => {
 
   // Verificar fecha de inicio
   if (startDate > todayStr) {
-    return NextResponse.json(
-      { valid: false, error: "El código promocional aún no está vigente" },
-      { status: 400 }
-    );
+    return apiError("CODE_NOT_YET_VALID", "El código promocional aún no está vigente", 400);
   }
 
   // Verificar fecha de fin
   if (endDate && endDate < todayStr) {
-    return NextResponse.json(
-      { valid: false, error: "El código promocional ha expirado" },
-      { status: 400 }
-    );
+    return apiError("CODE_EXPIRED", "El código promocional ha expirado", 400);
   }
 
   // Verificar límite de usos
   if (discount.maxUses && Number(discount.currentUses) >= discount.maxUses) {
-    return NextResponse.json(
-      { valid: false, error: "El código promocional ha alcanzado su límite de usos" },
-      { status: 400 }
-    );
+    return apiError("CODE_MAX_USES_REACHED", "El código promocional ha alcanzado su límite de usos", 400);
   }
 
   // Verificar monto mínimo
   if (body.amount && discount.minAmount) {
     const minAmount = Number(discount.minAmount);
     if (body.amount < minAmount) {
-      return NextResponse.json(
-        {
-          valid: false,
-          error: `El monto mínimo para aplicar este descuento es de ${minAmount}`,
-        },
-        { status: 400 }
-      );
+      return apiError("BELOW_MIN_AMOUNT", `El monto mínimo para aplicar este descuento es de ${minAmount}`, 400);
     }
   }
 
@@ -103,7 +85,7 @@ export const POST = withTenant(async (request, context) => {
 
   finalAmount = Math.max(0, finalAmount - discountAmount);
 
-  return NextResponse.json({
+  return apiSuccess({
     valid: true,
     discount: {
       id: discount.id,

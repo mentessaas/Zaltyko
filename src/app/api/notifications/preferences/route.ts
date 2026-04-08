@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { apiSuccess, apiError } from "@/lib/api-response";
 import { z } from "zod";
 import { eq } from "drizzle-orm";
 import { withTenant } from "@/lib/authz";
@@ -22,7 +22,7 @@ const updatePreferencesSchema = z.object({
 
 export const PATCH = withTenant(async (request, context) => {
   if (!context.tenantId) {
-    return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+    return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
   }
 
   const profile = context.profile;
@@ -70,12 +70,12 @@ export const PATCH = withTenant(async (request, context) => {
         .where(eq(userPreferences.userId, profile.id as any));
     }
 
-    return NextResponse.json({ ok: true });
+    return apiSuccess({ ok: true });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: "VALIDATION_ERROR", details: error.errors }, { status: 400 });
+      return apiError("VALIDATION_ERROR", "Validation failed", 400);
     }
     console.error("Error updating preferences:", error);
-    return NextResponse.json({ error: "INTERNAL_ERROR" }, { status: 500 });
+    return apiError("INTERNAL_ERROR", "Internal server error", 500);
   }
 });

@@ -1,10 +1,13 @@
-import { NextResponse } from "next/server";
+import { apiSuccess, apiError } from "@/lib/api-response";
 import { withTenant } from "@/lib/authz";
+import { rateLimit, getUserIdentifier, withRateLimit } from "@/lib/rate-limit";
 import { db } from "@/db";
 import { subscriptions, plans } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { NextResponse } from "next/server";
 
-export const POST = withTenant(async (req, context) => {
+// Handler for POST - separated to apply rate limiting
+const downgradeHandler = withTenant(async (req, context) => {
     try {
         const { userId } = context;
 
@@ -12,7 +15,7 @@ export const POST = withTenant(async (req, context) => {
         const { targetPlan } = body;
 
         if (!targetPlan) {
-            return new NextResponse("Missing target plan", { status: 400 });
+            return apiError("MISSING_TARGET_PLAN", "Missing target plan", 400);
         }
 
         // Obtener suscripción actual
@@ -23,7 +26,7 @@ export const POST = withTenant(async (req, context) => {
             .limit(1);
 
         if (!currentSubscription) {
-            return new NextResponse("No active subscription found", { status: 404 });
+            return apiError("NOT_FOUND", "No active subscription found", 404);
         }
 
         // Obtener detalles del nuevo plan
@@ -34,7 +37,7 @@ export const POST = withTenant(async (req, context) => {
             .limit(1);
 
         if (!newPlanDetails) {
-            return new NextResponse("Target plan not found", { status: 404 });
+            return apiError("NOT_FOUND", "Target plan not found", 404);
         }
 
         // TODO: Integrar con Stripe para manejar el downgrade (generalmente al final del periodo)
@@ -63,17 +66,23 @@ export const POST = withTenant(async (req, context) => {
                 .where(eq(subscriptions.id, currentSubscription.id));
         }
 
-        return NextResponse.json({
-            success: true,
-            message: `Plan downgrade to ${targetPlan} processed`,
-        });
+        return apiSuccess({ message: `Plan downgrade to ${targetPlan} processed` });
     } catch (error) {
         console.error("Error downgrading plan:", error);
-        return new NextResponse("Internal Server Error", { status: 500 });
+        return apiError("INTERNAL_ERROR", "Internal Server Error", 500);
     }
 });
 
-export const DELETE = withTenant(async (req, context) => {
+// Rate-limited POST handler: 10 requests per minute
+export const POST = withRateLimit(
+    async (request) => {
+        return (await downgradeHandler(request, {} as any)) as NextResponse;
+    },
+    { identifier: getUserIdentifier, limit: 10, window: 60 }
+);
+
+// Handler for DELETE - separated to apply rate limiting
+const cancelDowngradeHandler = withTenant(async (req, context) => {
     try {
         const { userId } = context;
 
@@ -85,16 +94,11 @@ export const DELETE = withTenant(async (req, context) => {
             .limit(1);
 
         if (!currentSubscription) {
-            return new NextResponse("No active subscription found", { status: 404 });
+            return apiError("NOT_FOUND", "No active subscription found", 404);
         }
 
         if (!currentSubscription.cancelAtPeriodEnd) {
-            return NextResponse.json(
-                {
-                    error: "No scheduled downgrade found",
-                },
-                { status: 400 }
-            );
+            return apiError("NO_SCHEDULED_DOWNGRADE", "No scheduled downgrade found", 400);
         }
 
         // TODO: Integrate with Stripe to cancel the scheduled downgrade
@@ -111,13 +115,17 @@ export const DELETE = withTenant(async (req, context) => {
             })
             .where(eq(subscriptions.id, currentSubscription.id));
 
-        return NextResponse.json({
-            success: true,
-            cancelled: true,
-            message: "Scheduled downgrade has been cancelled",
-        });
+        return apiSuccess({ cancelled: true, message: "Scheduled downgrade has been cancelled" });
     } catch (error) {
         console.error("Error cancelling downgrade:", error);
-        return new NextResponse("Internal Server Error", { status: 500 });
+        return apiError("INTERNAL_ERROR", "Internal Server Error", 500);
     }
 });
+
+// Rate-limited DELETE handler: 5 requests per minute
+export const DELETE = withRateLimit(
+    async (request) => {
+        return (await cancelDowngradeHandler(request, {} as any)) as NextResponse;
+    },
+    { identifier: getUserIdentifier, limit: 5, window: 60 }
+);

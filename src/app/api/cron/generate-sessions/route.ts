@@ -1,13 +1,14 @@
 export const dynamic = 'force-dynamic';
 
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { generateSessionsForAllTenants } from "@/lib/generate-class-sessions";
 import { logger } from "@/lib/logger";
+import { apiSuccess, apiError } from "@/lib/api-response";
 
 /**
  * Cron job para generar sesiones automáticamente
  * Se ejecuta diariamente a las 2:00 AM
- * 
+ *
  * Configuración en vercel.json:
  * {
  *   "crons": [{
@@ -24,10 +25,7 @@ export async function GET(request: NextRequest) {
 
         if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
             logger.warn("Intento de acceso no autorizado al cron job");
-            return NextResponse.json(
-                { error: "Unauthorized" },
-                { status: 401 }
-            );
+            return apiError("UNAUTHORIZED", "No autorizado", 401);
         }
 
         logger.info("Iniciando generación automática de sesiones (cron job)");
@@ -49,7 +47,7 @@ export async function GET(request: NextRequest) {
             logger.error("Errores durante generación:", result.errors);
         }
 
-        return NextResponse.json({
+        return apiSuccess({
             success: true,
             timestamp: new Date().toISOString(),
             result: {
@@ -63,13 +61,10 @@ export async function GET(request: NextRequest) {
     } catch (error) {
         logger.error("Error fatal en cron job de generación de sesiones:", error);
 
-        return NextResponse.json(
-            {
-                success: false,
-                error: error instanceof Error ? error.message : "Unknown error",
-                timestamp: new Date().toISOString(),
-            },
-            { status: 500 }
+        return apiError(
+            "CRON_FAILED",
+            error instanceof Error ? error.message : "Unknown error",
+            500
         );
     }
 }

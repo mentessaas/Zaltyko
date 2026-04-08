@@ -1,11 +1,14 @@
-import { NextResponse } from "next/server";
+import { apiSuccess, apiError, apiCreated } from "@/lib/api-response";
 import { withTenant } from "@/lib/authz";
+import { rateLimit, getUserIdentifier, withRateLimit } from "@/lib/rate-limit";
 import { db } from "@/db";
 import { subscriptions, plans } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { calculateProration } from "@/lib/billing/proration";
+import { NextResponse } from "next/server";
 
-export const POST = withTenant(async (req, context) => {
+// Handler for POST - separated to apply rate limiting
+const upgradeHandler = withTenant(async (req, context) => {
     try {
         const { userId } = context;
 
@@ -13,7 +16,7 @@ export const POST = withTenant(async (req, context) => {
         const { targetPlan } = body;
 
         if (!targetPlan) {
-            return new NextResponse("Missing target plan", { status: 400 });
+            return apiError("MISSING_TARGET_PLAN", "Missing target plan", 400);
         }
 
         // Obtener suscripción actual
@@ -37,7 +40,7 @@ export const POST = withTenant(async (req, context) => {
             .limit(1);
 
         if (!newPlanDetails) {
-            return new NextResponse("Target plan not found", { status: 404 });
+            return apiError("NOT_FOUND", "Target plan not found", 404);
         }
 
         // Calcular prorrateo (simulado)
@@ -75,13 +78,17 @@ export const POST = withTenant(async (req, context) => {
             });
         }
 
-        return NextResponse.json({
-            success: true,
-            message: `Plan upgraded to ${targetPlan}`,
-            proration,
-        });
+        return apiSuccess({ message: `Plan upgraded to ${targetPlan}`, proration });
     } catch (error) {
         console.error("Error upgrading plan:", error);
-        return new NextResponse("Internal Server Error", { status: 500 });
+        return apiError("INTERNAL_ERROR", "Internal Server Error", 500);
     }
 });
+
+// Rate-limited POST handler: 10 requests per minute
+export const POST = withRateLimit(
+    async (request) => {
+        return (await upgradeHandler(request, {} as any)) as NextResponse;
+    },
+    { identifier: getUserIdentifier, limit: 10, window: 60 }
+);

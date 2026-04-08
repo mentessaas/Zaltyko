@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 
-import { NextResponse } from "next/server";
+import { apiSuccess, apiError, apiCreated } from "@/lib/api-response";
 import { asc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 
@@ -8,11 +8,12 @@ import { db } from "@/db";
 import { academies, classCoachAssignments, classWeekdays, classes, coaches } from "@/db/schema";
 import { assertWithinPlanLimits } from "@/lib/limits";
 import { withTenant } from "@/lib/authz";
+import { rateLimit, getUserIdentifier, withRateLimit } from "@/lib/rate-limit";
 import { handleApiError } from "@/lib/api-error-handler";
 import { verifyAcademyAccess } from "@/lib/permissions";
 import { markChecklistItem } from "@/lib/onboarding";
 import { assertPremiumFeatureAccess } from "@/lib/trial";
-import { apiSuccess, apiCreated } from "@/lib/api-response";
+import { NextResponse } from "next/server";
 
 const bodySchema = z.object({
   academyId: z.string().uuid(),
@@ -43,7 +44,7 @@ export const GET = withTenant(async (request, context) => {
     const params = querySchema.safeParse(Object.fromEntries(url.searchParams));
 
     if (!context.tenantId) {
-      return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+      return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
     }
 
     if (!params.success) {
@@ -139,18 +140,19 @@ export const GET = withTenant(async (request, context) => {
   }
 });
 
-export const POST = withTenant(async (request, context) => {
+// Rate-limited POST handler: 10 requests per minute for class creation
+const createClassHandler = withTenant(async (request, context) => {
   try {
     const body = bodySchema.parse(await request.json());
 
     if (!context.tenantId) {
-      return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+      return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
     }
 
     // Verificar acceso a la academia
     const academyAccess = await verifyAcademyAccess(body.academyId, context.tenantId);
     if (!academyAccess.allowed) {
-      return NextResponse.json({ error: academyAccess.reason ?? "ACADEMY_ACCESS_DENIED" }, { status: 403 });
+      return apiError(academyAccess.reason ?? "ACADEMY_ACCESS_DENIED", "Academy access denied", 403);
     }
 
     await assertPremiumFeatureAccess(body.academyId, "weekly_schedule");
@@ -200,3 +202,10 @@ export const POST = withTenant(async (request, context) => {
     return handleApiError(error);
   }
 });
+
+export const POST = withRateLimit(
+  async (request) => {
+    return (await createClassHandler(request, {} as any)) as NextResponse;
+  },
+  { identifier: getUserIdentifier, limit: 10, window: 60 }
+);

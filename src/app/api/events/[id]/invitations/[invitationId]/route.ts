@@ -1,6 +1,5 @@
 export const dynamic = 'force-dynamic';
 
-import { NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 
@@ -8,6 +7,7 @@ import { db } from "@/db";
 import { events, eventInvitations } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
 import { handleApiError } from "@/lib/api-error-handler";
+import { apiSuccess, apiError } from "@/lib/api-response";
 
 const updateInvitationSchema = z.object({
   status: z.enum(["pending", "sent", "accepted", "declined", "expired"]).optional(),
@@ -19,7 +19,7 @@ export const GET = withTenant(async (request: Request, context: { tenantId: stri
     const { id: eventId, invitationId } = context.params;
 
     if (!context.tenantId) {
-      return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+      return apiError("TENANT_REQUIRED", "Tenant required", 400);
     }
 
     // Verify event exists and belongs to tenant
@@ -30,7 +30,7 @@ export const GET = withTenant(async (request: Request, context: { tenantId: stri
       .limit(1);
 
     if (!eventRow) {
-      return NextResponse.json({ error: "EVENT_NOT_FOUND" }, { status: 404 });
+      return apiError("EVENT_NOT_FOUND", "Event not found", 404);
     }
 
     // Get invitation
@@ -44,10 +44,10 @@ export const GET = withTenant(async (request: Request, context: { tenantId: stri
       .limit(1);
 
     if (!invitation) {
-      return NextResponse.json({ error: "INVITATION_NOT_FOUND" }, { status: 404 });
+      return apiError("INVITATION_NOT_FOUND", "Invitation not found", 404);
     }
 
-    return NextResponse.json(invitation);
+    return apiSuccess(invitation);
   } catch (error) {
     return handleApiError(error);
   }
@@ -59,7 +59,7 @@ export const PATCH = withTenant(async (request: Request, context: { tenantId: st
     const body = updateInvitationSchema.parse(await request.json());
 
     if (!context.tenantId) {
-      return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+      return apiError("TENANT_REQUIRED", "Tenant required", 400);
     }
 
     // Verify event exists and belongs to tenant
@@ -70,7 +70,7 @@ export const PATCH = withTenant(async (request: Request, context: { tenantId: st
       .limit(1);
 
     if (!eventRow) {
-      return NextResponse.json({ error: "EVENT_NOT_FOUND" }, { status: 404 });
+      return apiError("EVENT_NOT_FOUND", "Event not found", 404);
     }
 
     // Verify invitation exists and belongs to event
@@ -84,7 +84,7 @@ export const PATCH = withTenant(async (request: Request, context: { tenantId: st
       .limit(1);
 
     if (!existing) {
-      return NextResponse.json({ error: "INVITATION_NOT_FOUND" }, { status: 404 });
+      return apiError("INVITATION_NOT_FOUND", "Invitation not found", 404);
     }
 
     // Build update object
@@ -103,7 +103,7 @@ export const PATCH = withTenant(async (request: Request, context: { tenantId: st
     }
 
     if (Object.keys(updateData).length === 0) {
-      return NextResponse.json({ error: "NO_FIELDS_TO_UPDATE" }, { status: 400 });
+      return apiError("NO_FIELDS_TO_UPDATE", "No fields to update", 400);
     }
 
     const [updated] = await db
@@ -115,7 +115,7 @@ export const PATCH = withTenant(async (request: Request, context: { tenantId: st
       ))
       .returning();
 
-    return NextResponse.json({ ok: true, invitation: updated });
+    return apiSuccess({ ok: true, invitation: updated });
   } catch (error) {
     return handleApiError(error);
   }
@@ -126,7 +126,7 @@ export const DELETE = withTenant(async (request: Request, context: { tenantId: s
     const { id: eventId, invitationId } = context.params;
 
     if (!context.tenantId) {
-      return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+      return apiError("TENANT_REQUIRED", "Tenant required", 400);
     }
 
     // Verify event exists and belongs to tenant
@@ -137,7 +137,7 @@ export const DELETE = withTenant(async (request: Request, context: { tenantId: s
       .limit(1);
 
     if (!eventRow) {
-      return NextResponse.json({ error: "EVENT_NOT_FOUND" }, { status: 404 });
+      return apiError("EVENT_NOT_FOUND", "Event not found", 404);
     }
 
     // Delete invitation
@@ -148,7 +148,7 @@ export const DELETE = withTenant(async (request: Request, context: { tenantId: s
         eq(eventInvitations.eventId, eventId)
       ));
 
-    return NextResponse.json({ ok: true });
+    return apiSuccess({ ok: true });
   } catch (error) {
     return handleApiError(error);
   }

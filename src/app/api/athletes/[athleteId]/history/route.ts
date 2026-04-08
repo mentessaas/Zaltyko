@@ -1,9 +1,9 @@
 export const dynamic = 'force-dynamic';
 
-import { NextResponse } from "next/server";
 import { z } from "zod";
 import { eq, and, gte, lte, desc } from "drizzle-orm";
 import { withTenant } from "@/lib/authz";
+import { apiSuccess, apiError } from "@/lib/api-response";
 
 import { db } from "@/db";
 import {
@@ -24,13 +24,13 @@ const querySchema = z.object({
 
 export const GET = withTenant(async (request, context) => {
   if (!context.tenantId) {
-    return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+    return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
   }
 
   const athleteId = (context.params as { athleteId?: string } | undefined)?.athleteId;
 
   if (!athleteId) {
-    return NextResponse.json({ error: "ATHLETE_ID_REQUIRED" }, { status: 400 });
+    return apiError("ATHLETE_ID_REQUIRED", "Athlete ID is required", 400);
   }
 
   const url = new URL(request.url);
@@ -127,6 +127,6 @@ export const GET = withTenant(async (request, context) => {
     })),
   }));
 
-  return NextResponse.json({ items });
+  return apiSuccess({ items });
 });
 

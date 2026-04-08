@@ -1,8 +1,10 @@
-import { NextResponse } from "next/server";
+export const dynamic = 'force-dynamic';
+
 import { withTenant } from "@/lib/authz";
 import { db } from "@/db";
 import { classSessions, classes } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { apiSuccess, apiError } from "@/lib/api-response";
 
 /**
  * POST /api/quick-actions/create-class
@@ -10,16 +12,13 @@ import { eq } from "drizzle-orm";
  */
 export const POST = withTenant(async (req, context) => {
     try {
-        const { tenantId, profile } = context;
+        const { tenantId } = context;
         const body = await req.json();
 
         const { classId, date, startTime, endTime } = body;
 
         if (!classId) {
-            return NextResponse.json(
-                { error: "classId is required" },
-                { status: 400 }
-            );
+            return apiError("VALIDATION_ERROR", "classId es requerido", 400);
         }
 
         // Verificar que la clase existe y pertenece al tenant
@@ -30,10 +29,7 @@ export const POST = withTenant(async (req, context) => {
             .limit(1);
 
         if (!classData || classData.tenantId !== tenantId) {
-            return NextResponse.json(
-                { error: "Class not found" },
-                { status: 404 }
-            );
+            return apiError("NOT_FOUND", "Clase no encontrada", 404);
         }
 
         // Usar fecha de hoy si no se especifica
@@ -56,15 +52,9 @@ export const POST = withTenant(async (req, context) => {
             })
             .returning();
 
-        return NextResponse.json({
-            success: true,
-            data: newSession,
-        });
+        return apiSuccess({ success: true, data: newSession });
     } catch (error) {
         console.error("Error creating quick class:", error);
-        return NextResponse.json(
-            { error: "Failed to create class session" },
-            { status: 500 }
-        );
+        return apiError("INTERNAL_ERROR", "Error al crear la sesión", 500);
     }
 });

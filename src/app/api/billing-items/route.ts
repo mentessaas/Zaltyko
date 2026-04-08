@@ -1,13 +1,11 @@
-export const dynamic = 'force-dynamic';
-
 import { and, asc, eq } from "drizzle-orm";
-import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { db } from "@/db";
 import { academies, billingItems } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
 import { handleApiError } from "@/lib/api-error-handler";
+import { apiSuccess, apiError, apiCreated } from "@/lib/api-response";
 
 const CreateBillingItemSchema = z.object({
   academyId: z.string().uuid(),
@@ -26,11 +24,11 @@ export const GET = withTenant(async (request, context) => {
     const isActive = url.searchParams.get("isActive");
 
     if (!context.tenantId) {
-      return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+      return apiError("TENANT_REQUIRED", "Tenant requerido", 400);
     }
 
     if (!academyId) {
-      return NextResponse.json({ error: "ACADEMY_ID_REQUIRED" }, { status: 400 });
+      return apiError("ACADEMY_ID_REQUIRED", "academyId requerido", 400);
     }
 
     // Verify academy access
@@ -41,7 +39,7 @@ export const GET = withTenant(async (request, context) => {
       .limit(1);
 
     if (!academy || academy.tenantId !== context.tenantId) {
-      return NextResponse.json({ error: "ACADEMY_NOT_FOUND" }, { status: 404 });
+      return apiError("ACADEMY_NOT_FOUND", "Academia no encontrada", 404);
     }
 
     const conditions = [
@@ -59,7 +57,7 @@ export const GET = withTenant(async (request, context) => {
       .where(and(...conditions))
       .orderBy(asc(billingItems.name));
 
-    return NextResponse.json({ items });
+    return apiSuccess({ items });
   } catch (error) {
     return handleApiError(error, { endpoint: "/api/billing-items", method: "GET" });
   }
@@ -70,7 +68,7 @@ export const POST = withTenant(async (request, context) => {
     const body = CreateBillingItemSchema.parse(await request.json());
 
     if (!context.tenantId) {
-      return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+      return apiError("TENANT_REQUIRED", "Tenant requerido", 400);
     }
 
     // Verify academy access
@@ -81,7 +79,7 @@ export const POST = withTenant(async (request, context) => {
       .limit(1);
 
     if (!academy || academy.tenantId !== context.tenantId) {
-      return NextResponse.json({ error: "ACADEMY_NOT_FOUND" }, { status: 404 });
+      return apiError("ACADEMY_NOT_FOUND", "Academia no encontrada", 404);
     }
 
     const [item] = await db
@@ -99,9 +97,8 @@ export const POST = withTenant(async (request, context) => {
       })
       .returning();
 
-    return NextResponse.json({ item }, { status: 201 });
+    return apiCreated({ item });
   } catch (error) {
     return handleApiError(error, { endpoint: "/api/billing-items", method: "POST" });
   }
 });
-

@@ -1,10 +1,10 @@
-import { NextResponse } from "next/server";
 import { z } from "zod";
 import { eq, and } from "drizzle-orm";
 
 import { db } from "@/db";
 import { coachNotes } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
+import { apiSuccess, apiError } from "@/lib/api-response";
 
 const updateSchema = z.object({
   note: z.string().min(1),
@@ -14,7 +14,7 @@ const updateSchema = z.object({
 
 export const PUT = withTenant(async (request, context) => {
   if (!context.tenantId) {
-    return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+    return apiError("TENANT_REQUIRED", "Tenant requerido", 400);
   }
 
   const profile = context.profile;
@@ -22,7 +22,7 @@ export const PUT = withTenant(async (request, context) => {
   const noteId = (context.params as { noteId?: string } | undefined)?.noteId;
 
   if (!noteId) {
-    return NextResponse.json({ error: "NOTE_ID_REQUIRED" }, { status: 400 });
+    return apiError("NOTE_ID_REQUIRED", "ID de nota requerido", 400);
   }
 
   const body = updateSchema.parse(await request.json());
@@ -38,12 +38,12 @@ export const PUT = withTenant(async (request, context) => {
     .limit(1);
 
   if (!noteRow) {
-    return NextResponse.json({ error: "NOTE_NOT_FOUND" }, { status: 404 });
+    return apiError("NOTE_NOT_FOUND", "Nota no encontrada", 404);
   }
 
   // Solo el autor puede editar (o admin)
   if (noteRow.authorId !== profile.id && profile.role !== "admin" && profile.role !== "owner") {
-    return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+    return apiError("FORBIDDEN", "Prohibido", 403);
   }
 
   // Actualizar nota
@@ -59,12 +59,12 @@ export const PUT = withTenant(async (request, context) => {
 
   // TODO: Si sharedWithParents cambió a true, enviar notificación a padres
 
-  return NextResponse.json({ ok: true });
+  return apiSuccess({ ok: true });
 });
 
 export const DELETE = withTenant(async (_request, context) => {
   if (!context.tenantId) {
-    return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+    return apiError("TENANT_REQUIRED", "Tenant requerido", 400);
   }
 
   const profile = context.profile;
@@ -72,7 +72,7 @@ export const DELETE = withTenant(async (_request, context) => {
   const noteId = (context.params as { noteId?: string } | undefined)?.noteId;
 
   if (!noteId) {
-    return NextResponse.json({ error: "NOTE_ID_REQUIRED" }, { status: 400 });
+    return apiError("NOTE_ID_REQUIRED", "ID de nota requerido", 400);
   }
 
   // Validar que la nota existe y pertenece al tenant
@@ -86,17 +86,16 @@ export const DELETE = withTenant(async (_request, context) => {
     .limit(1);
 
   if (!noteRow) {
-    return NextResponse.json({ error: "NOTE_NOT_FOUND" }, { status: 404 });
+    return apiError("NOTE_NOT_FOUND", "Nota no encontrada", 404);
   }
 
   // Solo el autor puede eliminar (o admin)
   if (noteRow.authorId !== profile.id && profile.role !== "admin" && profile.role !== "owner") {
-    return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+    return apiError("FORBIDDEN", "Prohibido", 403);
   }
 
   // Eliminar nota
   await db.delete(coachNotes).where(eq(coachNotes.id, noteId));
 
-  return NextResponse.json({ ok: true });
+  return apiSuccess({ ok: true });
 });
-

@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { z } from "zod";
 import { eq } from "drizzle-orm";
@@ -7,6 +6,7 @@ import { db } from "@/db";
 import { userPreferences, profiles } from "@/db/schema";
 import { getCurrentProfile } from "@/lib/authz";
 import { createClient } from "@/lib/supabase/server";
+import { apiSuccess, apiError } from "@/lib/api-response";
 
 // Forzar ruta dinámica
 export const dynamic = 'force-dynamic';
@@ -20,14 +20,14 @@ export const PUT = async (request: Request) => {
     const cookieStore = await cookies();
     const supabase = await createClient(cookieStore);
     const { data: { user } } = await supabase.auth.getUser();
-    
+
     if (!user) {
-      return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+      return apiError("UNAUTHORIZED", "No autorizado", 401);
     }
-    
+
     const profile = await getCurrentProfile(user.id);
     if (!profile) {
-      return NextResponse.json({ error: "PROFILE_NOT_FOUND" }, { status: 404 });
+      return apiError("PROFILE_NOT_FOUND", "Perfil no encontrado", 404);
     }
 
     const body = updateSchema.parse(await request.json());
@@ -61,13 +61,10 @@ export const PUT = async (request: Request) => {
       });
     }
 
-    return NextResponse.json({ ok: true });
+    return apiSuccess({ ok: true });
   } catch (error: any) {
     console.error("Error updating email preferences:", error);
-    return NextResponse.json(
-      { error: "UPDATE_FAILED", message: error.message },
-      { status: 500 }
-    );
+    return apiError("UPDATE_FAILED", error.message, 500);
   }
 };
 
@@ -76,14 +73,14 @@ export const GET = async (request: Request) => {
     const cookieStore = await cookies();
     const supabase = await createClient(cookieStore);
     const { data: { user } } = await supabase.auth.getUser();
-    
+
     if (!user) {
-      return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+      return apiError("UNAUTHORIZED", "No autorizado", 401);
     }
-    
+
     const profile = await getCurrentProfile(user.id);
     if (!profile) {
-      return NextResponse.json({ error: "PROFILE_NOT_FOUND" }, { status: 404 });
+      return apiError("PROFILE_NOT_FOUND", "Perfil no encontrado", 404);
     }
 
     const [prefs] = await db
@@ -94,15 +91,11 @@ export const GET = async (request: Request) => {
       .where(eq(userPreferences.userId, profile.id as any))
       .limit(1);
 
-    return NextResponse.json({
+    return apiSuccess({
       emailNotifications: prefs?.emailNotifications || {},
     });
   } catch (error: any) {
     console.error("Error fetching email preferences:", error);
-    return NextResponse.json(
-      { error: "FETCH_FAILED", message: error.message },
-      { status: 500 }
-    );
+    return apiError("FETCH_FAILED", error.message, 500);
   }
 };
-

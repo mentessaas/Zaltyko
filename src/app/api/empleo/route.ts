@@ -1,6 +1,3 @@
-export const dynamic = 'force-dynamic';
-
-import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { empleoListings } from "@/db/schema";
 import { jobCategoryEnum, jobTypeEnum } from "@/db/schema/enums";
@@ -8,6 +5,7 @@ import { eq, desc, like, and, count } from "drizzle-orm";
 import { z } from "zod";
 import { withTenant, type TenantContext } from "@/lib/authz";
 import { escapeLikeSearch } from "@/lib/helpers";
+import { apiSuccess, apiError, apiCreated } from "@/lib/api-response";
 
 // Validation schemas
 const CreateEmpleoSchema = z.object({
@@ -75,18 +73,18 @@ export async function GET(request: Request) {
     .from(empleoListings)
     .where(and(...conditions));
 
-  return NextResponse.json({
+  return apiSuccess({
     items: listings,
     total: countResult?.count ?? 0,
     page,
     pageSize: limit,
-  });
+  }, { total: countResult?.count ?? 0, page, pageSize: limit });
 }
 
 export const POST = withTenant(async (request: Request, context: TenantContext) => {
   try {
     if (!context.tenantId) {
-      return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 403 });
+      return apiError("TENANT_REQUIRED", "Tenant requerido", 403);
     }
 
     const body = await request.json();
@@ -108,15 +106,12 @@ export const POST = withTenant(async (request: Request, context: TenantContext) 
       status: "active",
     }).returning();
 
-    return NextResponse.json(newListing, { status: 201 });
+    return apiCreated(newListing);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: "VALIDATION_ERROR", details: error.errors }, { status: 400 });
+      return apiError("VALIDATION_ERROR", "Error de validación", 400);
     }
     console.error("Error creating employment listing:", error);
-    return NextResponse.json(
-      { error: "Failed to create employment listing" },
-      { status: 500 }
-    );
+    return apiError("INTERNAL_ERROR", "Error al crear el listing", 500);
   }
 });

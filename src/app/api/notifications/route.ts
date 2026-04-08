@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { apiSuccess, apiError } from "@/lib/api-response";
 import { z } from "zod";
 import { withTenant } from "@/lib/authz";
 import { getUserNotifications } from "@/lib/notifications/notification-service";
@@ -14,7 +14,7 @@ const querySchema = z.object({
 
 export const GET = withTenant(async (request, context) => {
   if (!context.tenantId) {
-    return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+    return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
   }
 
   const profile = context.profile;
@@ -36,7 +36,7 @@ export const GET = withTenant(async (request, context) => {
     type: validated.type || undefined,
   });
 
-  return NextResponse.json({
+  return apiSuccess({
     items: notifications.map((n) => ({
       id: n.id,
       type: n.type,

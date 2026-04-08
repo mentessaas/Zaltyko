@@ -1,12 +1,14 @@
 import { and, eq } from "drizzle-orm";
-import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { db } from "@/db";
 import { events, academies } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
+import { rateLimit, getUserIdentifier, withRateLimit } from "@/lib/rate-limit";
 import { handleApiError } from "@/lib/api-error-handler";
 import { logger } from "@/lib/logger";
+import { apiSuccess, apiError } from "@/lib/api-response";
+import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
@@ -119,10 +121,7 @@ export async function GET(request: Request, context: RouteContext) {
       .limit(1);
 
     if (!event) {
-      return NextResponse.json(
-        { error: "EVENT_NOT_FOUND", message: "Evento no encontrado" },
-        { status: 404 }
-      );
+      return apiError("EVENT_NOT_FOUND", "Evento no encontrado", 404);
     }
 
     // Si el evento no es público, verificar autenticación y tenant
@@ -143,7 +142,7 @@ export async function GET(request: Request, context: RouteContext) {
       .where(eq(academies.id, event.academyId))
       .limit(1);
 
-    return NextResponse.json({
+    return apiSuccess({
       ...event,
       academy: academy || null,
     });
@@ -154,15 +153,15 @@ export async function GET(request: Request, context: RouteContext) {
 
 /**
  * PATCH /api/events/[id]
- * 
+ *
  * Edita un evento (solo dueño de la academia)
  */
-export const PATCH = withTenant(async (request, context) => {
+const patchEventHandler = withTenant(async (request, context) => {
   try {
     const { id } = await (context.params as Promise<{ id: string }>);
 
     if (!context.tenantId) {
-      return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+      return apiError("TENANT_REQUIRED", "Tenant required", 400);
     }
 
     const body = UpdateEventSchema.parse(await request.json());
@@ -179,10 +178,7 @@ export const PATCH = withTenant(async (request, context) => {
       .limit(1);
 
     if (!event) {
-      return NextResponse.json(
-        { error: "EVENT_NOT_FOUND", message: "Evento no encontrado" },
-        { status: 404 }
-      );
+      return apiError("EVENT_NOT_FOUND", "Evento no encontrado", 404);
     }
 
     // Verificar que la academia pertenece al tenant
@@ -193,7 +189,7 @@ export const PATCH = withTenant(async (request, context) => {
       .limit(1);
 
     if (!academy || academy.tenantId !== context.tenantId) {
-      return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+      return apiError("FORBIDDEN", "Forbidden", 403);
     }
 
     // Construir objeto de actualización solo con campos presentes
@@ -277,29 +273,34 @@ export const PATCH = withTenant(async (request, context) => {
       }
     }
 
-    return NextResponse.json({ ok: true, event: updatedEvent });
+    return apiSuccess({ event: updatedEvent });
   } catch (error: any) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: "VALIDATION_ERROR", details: error.errors },
-        { status: 400 }
-      );
+      return apiError("VALIDATION_ERROR", "Validation failed", 400);
     }
     return handleApiError(error, { endpoint: "/api/events/[id]", method: "PATCH" });
   }
 });
 
+// Rate-limited PATCH handler: 30 requests per minute
+export const PATCH = withRateLimit(
+  async (request) => {
+    return (await patchEventHandler(request, {} as any)) as NextResponse;
+  },
+  { identifier: getUserIdentifier, limit: 30, window: 60 }
+);
+
 /**
  * DELETE /api/events/[id]
- * 
+ *
  * Elimina un evento (solo dueño de la academia)
  */
-export const DELETE = withTenant(async (request, context) => {
+const deleteEventHandler = withTenant(async (request, context) => {
   try {
     const { id } = await (context.params as Promise<{ id: string }>);
 
     if (!context.tenantId) {
-      return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+      return apiError("TENANT_REQUIRED", "Tenant required", 400);
     }
 
     // Verificar que el evento existe y pertenece al tenant
@@ -314,10 +315,7 @@ export const DELETE = withTenant(async (request, context) => {
       .limit(1);
 
     if (!event) {
-      return NextResponse.json(
-        { error: "EVENT_NOT_FOUND", message: "Evento no encontrado" },
-        { status: 404 }
-      );
+      return apiError("EVENT_NOT_FOUND", "Evento no encontrado", 404);
     }
 
     // Verificar que la academia pertenece al tenant
@@ -328,15 +326,23 @@ export const DELETE = withTenant(async (request, context) => {
       .limit(1);
 
     if (!academy || academy.tenantId !== context.tenantId) {
-      return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+      return apiError("FORBIDDEN", "Forbidden", 403);
     }
 
     // Eliminar evento
     await db.delete(events).where(eq(events.id, id));
 
-    return NextResponse.json({ ok: true });
+    return apiSuccess({ ok: true });
   } catch (error) {
     return handleApiError(error, { endpoint: "/api/events/[id]", method: "DELETE" });
   }
 });
+
+// Rate-limited DELETE handler: 5 requests per minute
+export const DELETE = withRateLimit(
+  async (request) => {
+    return (await deleteEventHandler(request, {} as any)) as NextResponse;
+  },
+  { identifier: getUserIdentifier, limit: 5, window: 60 }
+);
 

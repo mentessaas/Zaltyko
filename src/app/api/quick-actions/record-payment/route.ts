@@ -1,8 +1,10 @@
-import { NextResponse } from "next/server";
+import { z } from "zod";
+
 import { withTenant } from "@/lib/authz";
 import { db } from "@/db";
 import { charges } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { apiSuccess, apiError } from "@/lib/api-response";
 
 /**
  * POST /api/quick-actions/record-payment
@@ -16,10 +18,7 @@ export const POST = withTenant(async (req, context) => {
         const { chargeId, amountCents, paymentMethod = "cash" } = body;
 
         if (!chargeId) {
-            return NextResponse.json(
-                { error: "chargeId is required" },
-                { status: 400 }
-            );
+            return apiError("VALIDATION_ERROR", "chargeId es requerido", 400);
         }
 
         // Verificar que el cargo existe
@@ -30,10 +29,7 @@ export const POST = withTenant(async (req, context) => {
             .limit(1);
 
         if (!charge || charge.tenantId !== tenantId) {
-            return NextResponse.json(
-                { error: "Charge not found" },
-                { status: 404 }
-            );
+            return apiError("NOT_FOUND", "Cargo no encontrado", 404);
         }
 
         // Actualizar el cargo como pagado
@@ -47,15 +43,9 @@ export const POST = withTenant(async (req, context) => {
             .where(eq(charges.id, chargeId))
             .returning();
 
-        return NextResponse.json({
-            success: true,
-            data: updatedCharge,
-        });
+        return apiSuccess({ success: true, data: updatedCharge });
     } catch (error) {
         console.error("Error recording payment:", error);
-        return NextResponse.json(
-            { error: "Failed to record payment" },
-            { status: 500 }
-        );
+        return apiError("INTERNAL_ERROR", "Error al registrar el pago", 500);
     }
 });

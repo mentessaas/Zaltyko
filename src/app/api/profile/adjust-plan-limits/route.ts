@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { z } from "zod";
 import { eq } from "drizzle-orm";
 
@@ -9,6 +8,7 @@ import { checkPlanLimitViolations } from "@/lib/limits";
 import { sendEmail } from "@/lib/mailgun";
 import { config } from "@/config";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
+import { apiSuccess, apiError } from "@/lib/api-response";
 
 const BodySchema = z.object({
   academyIdsToKeep: z.array(z.string().uuid()).optional(),
@@ -18,7 +18,7 @@ export const POST = withTenant(async (request, context) => {
   const body = BodySchema.parse(await request.json());
 
   if (!context.profile) {
-    return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
+    return apiError("UNAUTHENTICATED", "No autenticado", 401);
   }
 
   // Get user's current subscription
@@ -33,7 +33,7 @@ export const POST = withTenant(async (request, context) => {
     .limit(1);
 
   if (!subscription || !subscription.planCode) {
-    return NextResponse.json({ error: "NO_SUBSCRIPTION" }, { status: 400 });
+    return apiError("NO_SUBSCRIPTION", "Sin suscripción", 400);
   }
 
   // Check violations for current plan
@@ -43,7 +43,7 @@ export const POST = withTenant(async (request, context) => {
   );
 
   if (!violations.requiresAction) {
-    return NextResponse.json({ ok: true, message: "No se requieren acciones" });
+    return apiSuccess({ ok: true, message: "No se requieren acciones" });
   }
 
   // Handle academy limit violations
@@ -124,6 +124,5 @@ export const POST = withTenant(async (request, context) => {
     }
   }
 
-  return NextResponse.json({ ok: true, message: "Ajustes aplicados correctamente" });
+  return apiSuccess({ ok: true, message: "Ajustes aplicados correctamente" });
 });
-

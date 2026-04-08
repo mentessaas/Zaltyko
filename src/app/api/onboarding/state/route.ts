@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { z } from "zod";
 import { eq } from "drizzle-orm";
 import { cookies } from "next/headers";
@@ -10,6 +9,7 @@ import { markWizardStep, getOnboardingStatus } from "@/lib/onboarding";
 import { WIZARD_STEP_KEYS } from "@/lib/onboarding-utils";
 import { createClient } from "@/lib/supabase/server";
 import { handleApiError } from "@/lib/api-error-handler";
+import { apiSuccess, apiError } from "@/lib/api-response";
 
 export const dynamic = 'force-dynamic';
 
@@ -30,7 +30,7 @@ export const GET = async (request: Request) => {
     const params = querySchema.safeParse(Object.fromEntries(url.searchParams));
 
     if (!params.success) {
-      return NextResponse.json({ error: "INVALID_QUERY" }, { status: 400 });
+      return apiError("INVALID_QUERY", "Query inválido", 400);
     }
 
     const academyId = params.data.academyId;
@@ -44,15 +44,15 @@ export const GET = async (request: Request) => {
       } = await supabase.auth.getUser();
 
       if (!user) {
-        return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
+        return apiError("UNAUTHENTICATED", "No autenticado", 401);
       }
 
       // Si no hay academyId, retornar estado vacío
-      return NextResponse.json({ state: null });
+      return apiSuccess({ state: null });
     }
 
     const state = await getOnboardingStatus(academyId);
-    return NextResponse.json({ state });
+    return apiSuccess({ state });
   } catch (error) {
     return handleApiError(error, { endpoint: "/api/onboarding/state", method: "GET" });
   }
@@ -62,12 +62,12 @@ export const POST = withTenant(async (request, context) => {
   const body = bodySchema.safeParse(await request.json());
 
   if (!body.success) {
-    return NextResponse.json({ error: "INVALID_PAYLOAD" }, { status: 400 });
+    return apiError("INVALID_PAYLOAD", "Payload inválido", 400);
   }
 
   const academyId = body.data.academyId ?? context.profile.activeAcademyId ?? null;
   if (!academyId) {
-    return NextResponse.json({ error: "ACADEMY_REQUIRED" }, { status: 400 });
+    return apiError("ACADEMY_REQUIRED", "Academy requerido", 400);
   }
 
   await markWizardStep({
@@ -88,9 +88,8 @@ export const POST = withTenant(async (request, context) => {
 
   const state = await getOnboardingStatus(academyId);
 
-  return NextResponse.json({
+  return apiSuccess({
     ok: true,
     state,
   });
 });
-

@@ -1,10 +1,10 @@
 import { eq } from "drizzle-orm";
-import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { db } from "@/db";
 import { academies } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
+import { apiSuccess, apiError } from "@/lib/api-response";
 import { handleApiError } from "@/lib/api-error-handler";
 
 const ACADEMY_TYPES = ["artistica", "ritmica", "trampolin", "general", "parkour", "danza"] as const;
@@ -79,7 +79,7 @@ export const GET = withTenant(async (request, context) => {
     const academyId = (context.params as { academyId?: string })?.academyId;
 
     if (!academyId) {
-      return NextResponse.json({ error: "ACADEMY_ID_REQUIRED" }, { status: 400 });
+      return apiError("ACADEMY_ID_REQUIRED", "academyId es requerido", 400);
     }
 
     const [academy] = await db
@@ -114,7 +114,7 @@ export const GET = withTenant(async (request, context) => {
       .limit(1);
 
     if (!academy) {
-      return NextResponse.json({ error: "ACADEMY_NOT_FOUND" }, { status: 404 });
+      return apiError("ACADEMY_NOT_FOUND", "Academia no encontrada", 404);
     }
 
     // Verificar permisos
@@ -123,7 +123,7 @@ export const GET = withTenant(async (request, context) => {
     const isSameTenant = academy.tenantId === context.tenantId;
 
     if (!isSuperAdmin && !isOwner && !isSameTenant) {
-      return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+      return apiError("FORBIDDEN", "No tienes permisos para ver esta academia", 403);
     }
 
     // Parsear branding colors
@@ -155,7 +155,7 @@ export const GET = withTenant(async (request, context) => {
     }
 
     // Devolver configuración completa
-    return NextResponse.json({
+    return apiSuccess({
       name: academy.name,
       academyType: academy.academyType,
       publicDescription: academy.publicDescription,
@@ -196,7 +196,7 @@ export const PATCH = withTenant(async (request, context) => {
     const academyId = (context.params as { academyId?: string })?.academyId;
 
     if (!academyId) {
-      return NextResponse.json({ error: "ACADEMY_ID_REQUIRED" }, { status: 400 });
+      return apiError("ACADEMY_ID_REQUIRED", "academyId es requerido", 400);
     }
 
     // Verificar que la academia existe y pertenece al tenant
@@ -211,7 +211,7 @@ export const PATCH = withTenant(async (request, context) => {
       .limit(1);
 
     if (!academy) {
-      return NextResponse.json({ error: "ACADEMY_NOT_FOUND" }, { status: 404 });
+      return apiError("ACADEMY_NOT_FOUND", "Academia no encontrada", 404);
     }
 
     // Verificar permisos
@@ -220,20 +220,18 @@ export const PATCH = withTenant(async (request, context) => {
     const isSameTenant = academy.tenantId === context.tenantId;
 
     if (!isSuperAdmin && !isOwner && !isSameTenant) {
-      return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+      return apiError("FORBIDDEN", "No tienes permisos para ver esta academia", 403);
     }
 
     const body = await request.json();
     const parsed = SettingsSchema.safeParse(body);
 
     if (!parsed.success) {
-      return NextResponse.json(
-        {
-          error: "VALIDATION_ERROR",
-          message: "Los datos proporcionados no son válidos",
-          details: parsed.error.issues,
-        },
-        { status: 400 }
+      return apiError(
+        "VALIDATION_ERROR",
+        "Los datos proporcionados no son válidos",
+        400,
+        parsed.error.issues
       );
     }
 
@@ -326,7 +324,7 @@ export const PATCH = withTenant(async (request, context) => {
     }
 
     if (Object.keys(updates).length === 0) {
-      return NextResponse.json({ error: "NO_CHANGES" }, { status: 400 });
+      return apiError("NO_CHANGES", "No se proporcionaron cambios para actualizar", 400);
     }
 
     const [updated] = await db
@@ -351,13 +349,10 @@ export const PATCH = withTenant(async (request, context) => {
       });
 
     if (!updated) {
-      return NextResponse.json({ error: "ACADEMY_NOT_FOUND" }, { status: 404 });
+      return apiError("ACADEMY_NOT_FOUND", "Academia no encontrada", 404);
     }
 
-    return NextResponse.json({
-      success: true,
-      message: "Configuración guardada correctamente",
-      data: {
+    return apiSuccess({
         name: updated.name,
         academyType: updated.academyType,
         publicDescription: updated.publicDescription,
@@ -371,8 +366,7 @@ export const PATCH = withTenant(async (request, context) => {
         socialFacebook: updated.socialFacebook,
         socialTwitter: updated.socialTwitter,
         socialYoutube: updated.socialYoutube,
-      },
-    });
+      });
   } catch (error) {
     return handleApiError(error, { endpoint: "/api/academies/[academyId]/settings", method: "PATCH" });
   }

@@ -1,6 +1,5 @@
 export const dynamic = 'force-dynamic';
 
-import { NextResponse } from "next/server";
 import { and, eq, desc } from "drizzle-orm";
 import { z } from "zod";
 
@@ -10,6 +9,7 @@ import { athletes } from "@/db/schema/athletes";
 import { withTenant } from "@/lib/authz";
 import { handleApiError } from "@/lib/api-error-handler";
 import { DOCUMENT_TYPES } from "@/types/athletes";
+import { apiSuccess, apiError, apiCreated } from "@/lib/api-response";
 
 const createDocumentSchema = z.object({
   documentType: z.enum(DOCUMENT_TYPES),
@@ -28,11 +28,11 @@ export const GET = withTenant(async (request, context) => {
     const athleteId = params?.athleteId;
 
     if (!athleteId) {
-      return NextResponse.json({ error: "ATHLETE_ID_REQUIRED" }, { status: 400 });
+      return apiError("ATHLETE_ID_REQUIRED", "Athlete ID is required", 400);
     }
 
     if (!context.tenantId) {
-      return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+      return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
     }
 
     const documents = await db
@@ -44,11 +44,7 @@ export const GET = withTenant(async (request, context) => {
       ))
       .orderBy(desc(athleteDocuments.createdAt));
 
-    return NextResponse.json({
-      success: true,
-      data: documents,
-      total: documents.length,
-    });
+    return apiSuccess({ items: documents }, { total: documents.length });
   } catch (error) {
     return handleApiError(error);
   }
@@ -61,11 +57,11 @@ export const POST = withTenant(async (request, context) => {
     const body = createDocumentSchema.parse(await request.json());
 
     if (!athleteId) {
-      return NextResponse.json({ error: "ATHLETE_ID_REQUIRED" }, { status: 400 });
+      return apiError("ATHLETE_ID_REQUIRED", "Athlete ID is required", 400);
     }
 
     if (!context.tenantId) {
-      return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+      return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
     }
 
     // Verify athlete belongs to tenant
@@ -79,7 +75,7 @@ export const POST = withTenant(async (request, context) => {
       .limit(1);
 
     if (!athlete) {
-      return NextResponse.json({ error: "ATHLETE_NOT_FOUND" }, { status: 404 });
+      return apiError("ATHLETE_NOT_FOUND", "Athlete not found", 404);
     }
 
     // Build insert values
@@ -100,7 +96,7 @@ export const POST = withTenant(async (request, context) => {
 
     const [inserted] = await db.insert(athleteDocuments).values(insertValues as typeof athleteDocuments.$inferInsert).returning({ id: athleteDocuments.id });
 
-    return NextResponse.json({ success: true, id: inserted.id });
+    return apiCreated({ id: inserted.id });
   } catch (error) {
     return handleApiError(error);
   }
@@ -114,15 +110,15 @@ export const DELETE = withTenant(async (request, context) => {
     const documentId = url.searchParams.get("documentId");
 
     if (!athleteId) {
-      return NextResponse.json({ error: "ATHLETE_ID_REQUIRED" }, { status: 400 });
+      return apiError("ATHLETE_ID_REQUIRED", "Athlete ID is required", 400);
     }
 
     if (!context.tenantId) {
-      return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+      return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
     }
 
     if (!documentId) {
-      return NextResponse.json({ error: "DOCUMENT_ID_REQUIRED" }, { status: 400 });
+      return apiError("DOCUMENT_ID_REQUIRED", "Document ID is required", 400);
     }
 
     await db
@@ -133,7 +129,7 @@ export const DELETE = withTenant(async (request, context) => {
         eq(athleteDocuments.tenantId, context.tenantId)
       ));
 
-    return NextResponse.json({ success: true });
+    return apiSuccess({ ok: true });
   } catch (error) {
     return handleApiError(error);
   }

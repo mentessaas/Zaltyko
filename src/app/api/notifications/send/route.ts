@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { apiSuccess, apiError } from "@/lib/api-response";
 import { z } from "zod";
 import { withTenant } from "@/lib/authz";
 import { sendEmailWithLogging } from "@/lib/email/email-service";
@@ -17,7 +17,7 @@ const sendSchema = z.object({
 
 export const POST = withTenant(async (request, context) => {
   if (!context.tenantId) {
-    return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+    return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
   }
 
   const body = sendSchema.parse(await request.json());
@@ -39,10 +39,10 @@ export const POST = withTenant(async (request, context) => {
       break;
 
     case "payment-reminder":
-      const amountValue = typeof data.amount === 'string' 
+      const amountValue = typeof data.amount === 'string'
         ? parseFloat(data.amount.replace(/[^\d.,]/g, '').replace(',', '.')) || 0
-        : typeof data.amount === 'number' 
-          ? data.amount 
+        : typeof data.amount === 'number'
+          ? data.amount
           : 0;
       html = PaymentReminderTemplate({
         athleteName: (data.athleteName as string) || "el atleta",
@@ -79,7 +79,7 @@ export const POST = withTenant(async (request, context) => {
       break;
 
     default:
-      return NextResponse.json({ error: "INVALID_TEMPLATE" }, { status: 400 });
+      return apiError("INVALID_TEMPLATE", "Invalid template", 400);
   }
 
   try {
@@ -94,13 +94,10 @@ export const POST = withTenant(async (request, context) => {
       metadata: data,
     });
 
-    return NextResponse.json({ ok: true });
+    return apiSuccess({ ok: true });
   } catch (error: any) {
     console.error("Error sending email:", error);
-    return NextResponse.json(
-      { error: "SEND_FAILED", message: error.message },
-      { status: 500 }
-    );
+    return apiError("SEND_FAILED", error.message || "Failed to send email", 500);
   }
 });
 

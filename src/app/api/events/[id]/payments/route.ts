@@ -1,11 +1,10 @@
-import { NextResponse } from "next/server";
 import { and, eq, inArray } from "drizzle-orm";
 
 import { db } from "@/db";
 import { events, eventRegistrations, eventPayments } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
 import { handleApiError } from "@/lib/api-error-handler";
-import { apiSuccess } from "@/lib/api-response";
+import { apiSuccess, apiError } from "@/lib/api-response";
 
 export const dynamic = 'force-dynamic';
 
@@ -14,7 +13,7 @@ export const GET = withTenant(async (_request, context) => {
     const { id: eventId } = context.params as { id: string };
 
     if (!context.tenantId) {
-      return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+      return apiError("TENANT_REQUIRED", "Tenant required", 400);
     }
 
     // Verify event exists and belongs to tenant
@@ -29,7 +28,7 @@ export const GET = withTenant(async (_request, context) => {
       .limit(1);
 
     if (!eventRow) {
-      return NextResponse.json({ error: "EVENT_NOT_FOUND" }, { status: 404 });
+      return apiError("EVENT_NOT_FOUND", "Event not found", 404);
     }
 
     // Get all registrations for this event

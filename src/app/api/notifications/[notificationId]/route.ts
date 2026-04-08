@@ -1,10 +1,10 @@
-import { NextResponse } from "next/server";
+import { apiSuccess, apiError } from "@/lib/api-response";
 import { withTenant } from "@/lib/authz";
 import { deleteNotification } from "@/lib/notifications/notification-service";
 
 export const DELETE = withTenant(async (_request, context) => {
   if (!context.tenantId) {
-    return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+    return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
   }
 
   const profile = context.profile;
@@ -13,11 +13,11 @@ export const DELETE = withTenant(async (_request, context) => {
     ?.notificationId;
 
   if (!notificationId) {
-    return NextResponse.json({ error: "NOTIFICATION_ID_REQUIRED" }, { status: 400 });
+    return apiError("NOTIFICATION_ID_REQUIRED", "Notification ID is required", 400);
   }
 
   await deleteNotification(notificationId, context.tenantId);
 
-  return NextResponse.json({ ok: true });
+  return apiSuccess({ ok: true });
 });
 

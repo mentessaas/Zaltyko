@@ -1,7 +1,7 @@
-import { NextResponse } from "next/server";
 import { z } from "zod";
 import { withTenant } from "@/lib/authz";
 import { sendClassReminders } from "@/lib/alerts/class-reminders";
+import { apiSuccess, apiError } from "@/lib/api-response";
 
 const querySchema = z.object({
   academyId: z.string().uuid(),
@@ -10,7 +10,7 @@ const querySchema = z.object({
 
 export const POST = withTenant(async (request, context) => {
   if (!context.tenantId) {
-    return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+    return apiError("TENANT_REQUIRED", "Tenant requerido", 400);
   }
 
   const body = await request.json().catch(() => ({}));
@@ -20,20 +20,16 @@ export const POST = withTenant(async (request, context) => {
   });
 
   if (!validated.academyId) {
-    return NextResponse.json({ error: "ACADEMY_ID_REQUIRED" }, { status: 400 });
+    return apiError("ACADEMY_ID_REQUIRED", "academyId requerido", 400);
   }
 
   try {
     const hoursBefore = validated.hoursBefore ? parseInt(validated.hoursBefore) : 24;
     await sendClassReminders(validated.academyId, context.tenantId, hoursBefore);
 
-    return NextResponse.json({ ok: true });
+    return apiSuccess({ ok: true });
   } catch (error: any) {
     console.error("Error sending class reminders:", error);
-    return NextResponse.json(
-      { error: "REMINDERS_FAILED", message: error.message },
-      { status: 500 }
-    );
+    return apiError("REMINDERS_FAILED", error.message, 500);
   }
 });
-
