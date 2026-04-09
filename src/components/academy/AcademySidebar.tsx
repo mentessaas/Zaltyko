@@ -25,6 +25,7 @@ import {
   Search,
   Upload,
   Download,
+  Megaphone,
 } from "lucide-react";
 
 import { useAcademyContext } from "@/hooks/use-academy-context";
@@ -52,6 +53,7 @@ const NAV_SECTIONS: NavSection[] = [
       { href: (id: string) => `/app/${id}/athletes`, text: "Atletas", icon: Users },
       { href: (id: string) => `/app/${id}/classes`, text: "Clases", icon: Calendar },
       { href: (id: string) => `/app/${id}/events`, text: "Eventos", icon: CalendarDays },
+      { href: (id: string) => `/app/${id}/announcements`, text: "Anuncios", icon: Megaphone, badge: "new" },
       { href: (id: string) => `/app/${id}/reports/attendance`, text: "Reportes", icon: BarChart3 },
     ],
   },
