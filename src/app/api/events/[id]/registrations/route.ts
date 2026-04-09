@@ -7,7 +7,7 @@ import { db } from "@/db";
 import { events, eventRegistrations, profiles } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
 import { handleApiError } from "@/lib/api-error-handler";
-import { apiSuccess, apiError } from "@/lib/api-response";
+import { apiSuccess, apiCreated, apiError } from "@/lib/api-response";
 
 const registerSchema = z.object({
   profileId: z.string().uuid(),

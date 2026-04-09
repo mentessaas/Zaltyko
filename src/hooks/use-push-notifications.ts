@@ -64,7 +64,7 @@ export function usePushNotifications(options: UsePushNotificationsOptions = {}) 
   useEffect(() => {
     if (!isSupported || typeof window === "undefined") return;
 
-    const handlePush = (event: PushEvent) => {
+    const handlePush = (event: any) => {
       if (!event.data) return;
 
       try {
@@ -159,7 +159,7 @@ export function usePushNotifications(options: UsePushNotificationsOptions = {}) 
       const registration = await navigator.serviceWorker.ready;
       const pushSubscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
+        applicationServerKey: urlBase64ToUint8Array(vapidPublicKey) as BufferSource,
       });
 
       const subscriptionJson = pushSubscription.toJSON();

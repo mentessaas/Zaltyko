@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 import { apiError, apiSuccess } from "@/lib/api-response";
 import { z } from "zod";
 import { withTenant } from "@/lib/authz";
+import { logger } from "@/lib/logger";
 import {
   calculateAthleteAttendance,
   calculateGroupAttendance,

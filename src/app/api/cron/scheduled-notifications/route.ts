@@ -131,25 +131,23 @@ export async function POST(request: Request) {
           const adminProfiles = await db
             .select({
               id: profiles.id,
-              email: profiles.email,
-              fullName: profiles.fullName,
+              name: profiles.name,
             })
             .from(profiles)
-            .innerJoin(academies, eq(academies.tenantId, notification.tenantId))
-            .where(eq(profiles.academyId, academies.id))
+            .where(notification.tenantId ? eq(profiles.tenantId, notification.tenantId) : undefined)
             .limit(10);
 
           recipients.push(
             ...adminProfiles.map((p) => ({
               userId: p.id,
-              email: p.email || undefined,
-              name: p.fullName || undefined,
+              name: p.name || undefined,
             }))
           );
         }
 
-        if (recipients.length > 0) {
-          await processNotification(notification, recipients);
+        if (recipients.length > 0 && notification.tenantId) {
+          const validNotification = notification as typeof notification & { tenantId: string };
+          await processNotification(validNotification, recipients);
           await markScheduledNotificationSent(notification.id);
           processed++;
         } else {

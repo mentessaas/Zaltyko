@@ -10,6 +10,7 @@ import {
   type ModalitySlug,
   type CountrySlug,
 } from "@/lib/seo/clusters";
+import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 

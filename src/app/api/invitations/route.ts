@@ -92,7 +92,7 @@ export const POST = withTenant(async (request, context) => {
     await markWizardStep({
       academyId: parsed.data.academyId,
       tenantId: context.tenantId,
-      step: "coaches",
+      step: "payments-team",
     });
   }
 
