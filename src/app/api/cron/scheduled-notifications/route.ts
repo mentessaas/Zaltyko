@@ -3,7 +3,7 @@ import { getPendingScheduledNotifications, markScheduledNotificationSent } from 
 import { getMessageTemplateById } from "@/lib/communication-service";
 import { sendPushToUser } from "@/lib/notifications/push-service";
 import { createNotification } from "@/lib/notifications/notification-service";
-import { sendEmail } from "@/lib/mailgun";
+import { sendEmail } from "@/lib/brevo";
 import { db } from "@/db";
 import { profiles } from "@/db/schema/profiles";
 import { academies } from "@/db/schema/academies";

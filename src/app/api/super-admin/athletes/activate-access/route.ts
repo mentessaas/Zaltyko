@@ -5,7 +5,7 @@ import { db } from "@/db";
 import { profiles } from "@/db/schema";
 import { withSuperAdmin } from "@/lib/authz";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
-import { sendEmail } from "@/lib/mailgun";
+import { sendEmail } from "@/lib/brevo";
 import { config } from "@/config";
 import { logger } from "@/lib/logger";
 
@@ -104,12 +104,12 @@ async function activateAthleteAccess(
               Si no solicitaste esta activación, puedes ignorar este correo.
             </p>
             <p style="color: #6b7280; font-size: 12px;">
-              Si tienes alguna pregunta, contacta a tu academia o a nuestro equipo de soporte en ${config.mailgun.supportEmail}
+              Si tienes alguna pregunta, contacta a tu academia o a nuestro equipo de soporte en ${config.brevo.supportEmail}
             </p>
           </div>
         `,
         text: `Tu cuenta de atleta ha sido activada. Visita ${resetLink} para establecer tu contraseña.`,
-        replyTo: config.mailgun.supportEmail,
+        replyTo: config.brevo.supportEmail,
       });
     } catch (emailError) {
       logger.error("Error enviando correo de activación:", emailError);

@@ -3,7 +3,7 @@ import { and, eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { memberships, profiles, authUsers, auditLogs } from "@/db/schema";
-import { sendEmail } from "@/lib/mailgun";
+import { sendEmail } from "@/lib/brevo";
 import { config } from "@/config";
 import { logger } from "@/lib/logger";
 import type { WebhookContext } from "@/lib/stripe/webhook-handler";
@@ -27,7 +27,7 @@ async function getOwnerEmails(academyId: string): Promise<string[]> {
     .filter((value): value is string => Boolean(value));
 
   const uniqueEmails = Array.from(new Set(emails));
-  return uniqueEmails.length > 0 ? uniqueEmails : [config.mailgun.supportEmail];
+  return uniqueEmails.length > 0 ? uniqueEmails : [config.brevo.supportEmail];
 }
 
 /**
@@ -48,7 +48,7 @@ async function notifyOwners(
         subject,
         html,
         text,
-        replyTo: config.mailgun.supportEmail,
+        replyTo: config.brevo.supportEmail,
       });
     } catch (error) {
       logger.error("Error sending billing notification", error, {
