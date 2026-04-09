@@ -141,7 +141,7 @@ export async function createAcademy(body: z.infer<typeof CreateAcademyBodySchema
   await db
     .update(profiles)
     .set({
-      tenantId: shouldUpdateTenant ? tenantId : ownerProfile.tenantId,
+      tenantId: shouldUpdateTenant ? tenantId : ownerProfile.tenantId ?? undefined,
       activeAcademyId: academyId,
     })
     .where(eq(profiles.id, ownerProfile.id));
@@ -219,7 +219,7 @@ export async function listAcademies(params: ListAcademiesParams, context: { prof
     filters.push(eq(academies.tenantId, effectiveTenantId));
   }
   if (params.academyType) {
-    filters.push(eq(academies.academyType, params.academyType));
+    filters.push(eq(academies.academyType, params.academyType as typeof ACADEMY_TYPES[number]));
   }
 
   const baseQuery = db
