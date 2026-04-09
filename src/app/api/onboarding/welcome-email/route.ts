@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { sendEmail } from "@/lib/mailgun";
+import { sendEmail } from "@/lib/brevo";
 import { config } from "@/config";
 import { db } from "@/db";
 import { profiles, academies } from "@/db/schema";
@@ -112,7 +112,7 @@ export async function POST(request: Request) {
 
             <p style="font-size: 14px; color: #6b7280; margin-top: 30px;">
               Si tienes alguna pregunta, no dudes en contactarnos en
-              <a href="mailto:${config.mailgun.supportEmail}" style="color: #0D47A1;">${config.mailgun.supportEmail}</a>
+              <a href="mailto:${config.brevo.supportEmail}" style="color: #0D47A1;">${config.brevo.supportEmail}</a>
             </p>
 
             <p style="font-size: 14px; color: #6b7280; margin-top: 20px;">
@@ -144,12 +144,12 @@ Proximos pasos recomendados:
 
 Accede a tu dashboard: ${config.appUrl}/app/${academyId}/dashboard
 
-Si tienes alguna pregunta, contacta a ${config.mailgun.supportEmail}
+Si tienes alguna pregunta, contacta a ${config.brevo.supportEmail}
 
 Que tengas un excelente dia!
 El equipo de Zaltyko
       `,
-      replyTo: config.mailgun.supportEmail,
+      replyTo: config.brevo.supportEmail,
     });
 
     return apiSuccess({ ok: true, message: "Email de bienvenida enviado" });

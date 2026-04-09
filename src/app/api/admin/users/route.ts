@@ -4,7 +4,7 @@ import { z } from "zod";
 import { db } from "@/db";
 import { academies, invitations } from "@/db/schema";
 import { config } from "@/config";
-import { sendEmail } from "@/lib/mailgun";
+import { sendEmail } from "@/lib/brevo";
 import { withTenant } from "@/lib/authz";
 import { withRateLimit, getUserIdentifier } from "@/lib/rate-limit";
 import { handleApiError } from "@/lib/api-error-handler";
@@ -127,7 +127,7 @@ const handler = withTenant(async (request, context) => {
         <p>Este enlace expira en 7 días.</p>
         <p>Si no esperabas esta invitación, ignora este mensaje.</p>
       `,
-        replyTo: config.mailgun.forwardRepliesTo,
+        replyTo: config.brevo.forwardRepliesTo,
         text: `Has sido invitado a unirte a ${config.appName}. Visita ${inviteUrl.toString()} para completar tu registro. El enlace expira en 7 días.`,
       });
     } catch (error) {

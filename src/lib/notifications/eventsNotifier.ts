@@ -79,7 +79,7 @@ async function sendEventNotification(
   const result = await sendBulkEmails(
     emails,
     emailContent,
-    event.contactEmail || config.mailgun.supportEmail
+    event.contactEmail || config.brevo.supportEmail
   );
 
   return {

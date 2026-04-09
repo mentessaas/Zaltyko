@@ -2,7 +2,7 @@ import { apiSuccess, apiError } from "@/lib/api-response";
 import { z } from "zod";
 
 import { withSuperAdmin } from "@/lib/authz";
-import { sendEmail } from "@/lib/mailgun";
+import { sendEmail } from "@/lib/brevo";
 import { config } from "@/config";
 import { db } from "@/db";
 import { profiles } from "@/db/schema";
@@ -54,12 +54,12 @@ export const POST = withSuperAdmin(async (request, context) => {
               Este mensaje fue enviado por el equipo de soporte de Zaltyko.
             </p>
             <p style="color: #6b7280; font-size: 12px;">
-              Si tienes alguna pregunta, puedes responder a este correo o contactarnos en ${config.mailgun.supportEmail}
+              Si tienes alguna pregunta, puedes responder a este correo o contactarnos en ${config.brevo.supportEmail}
             </p>
           </div>
         `,
         text: body.message,
-        replyTo: config.mailgun.supportEmail,
+        replyTo: config.brevo.supportEmail,
       });
 
       return apiSuccess({ ok: true, message: "Correo enviado correctamente" });
