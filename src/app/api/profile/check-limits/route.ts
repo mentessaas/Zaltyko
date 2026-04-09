@@ -6,7 +6,7 @@ import { db } from "@/db";
 import { profiles, subscriptions, plans } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
 import { checkPlanLimitViolations } from "@/lib/limits";
-import { sendEmail } from "@/lib/mailgun";
+import { sendEmail } from "@/lib/brevo";
 import { config } from "@/config";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getAppUrl } from "@/lib/env";
@@ -121,12 +121,12 @@ export async function GET() {
               </div>
               
               <p style="color: #6b7280; font-size: 12px; margin-top: 30px;">
-                Si tienes alguna pregunta, contacta a nuestro equipo de soporte en ${config.mailgun.supportEmail}
+                Si tienes alguna pregunta, contacta a nuestro equipo de soporte en ${config.brevo.supportEmail}
               </p>
             </div>
           `,
           text: `Tu plan ${subscription.planCode.toUpperCase()} tiene límites que están siendo excedidos. Visita tu panel para ajustar los recursos.`,
-          replyTo: config.mailgun.supportEmail,
+          replyTo: config.brevo.supportEmail,
         });
       } catch (error) {
         logger.error("Error sending violation notification email", error);

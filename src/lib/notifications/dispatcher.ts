@@ -10,7 +10,7 @@
 import { createNotification } from "./notification-service";
 import { sendPushToUser, isPushConfigured as isPushAvailable } from "./push-service";
 import { sendWhatsAppWithTemplate } from "./whatsapp-service";
-import { sendEmail } from "@/lib/mailgun";
+import { sendEmail } from "@/lib/brevo";
 import { getNotificationPreferences, getNotificationPreferenceByChannel } from "@/lib/communication-service";
 import { db } from "@/db";
 import { profiles } from "@/db/schema/profiles";

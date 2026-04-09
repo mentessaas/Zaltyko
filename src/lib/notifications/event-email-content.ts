@@ -66,7 +66,7 @@ export function generateEventEmailContent(
         Has recibido esta notificación porque formas parte del ${notificationTypeText} de ${academyName}.
       </p>
       <p style="color: #6b7280; font-size: 12px;">
-        Si tienes alguna pregunta, puedes responder a este correo o contactarnos en ${config.mailgun.supportEmail}
+        Si tienes alguna pregunta, puedes responder a este correo o contactarnos en ${config.brevo.supportEmail}
       </p>
     </div>
   `;

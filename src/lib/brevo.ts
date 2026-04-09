@@ -1,28 +1,19 @@
-import { config } from "@/config";
-import formData from "form-data";
-import Mailgun from "mailgun.js";
-import { getOptionalEnvVar, isDevelopment } from "@/lib/env";
 import { isValidEmail, normalizeEmail } from "@/lib/validation/email-utils";
+import { isDevelopment } from "@/lib/env";
 
-const mailgun = new Mailgun(formData);
+const BREVO_API_KEY = process.env.BREVO_API_KEY || "";
+const SENDER_EMAIL = process.env.BREVO_SENDER_EMAIL || "admin@zaltyko.com";
+const SENDER_NAME = process.env.BREVO_SENDER_NAME || "Zaltyko";
+const hasBrevoCredentials = Boolean(BREVO_API_KEY);
 
-const mailgunApiKey = getOptionalEnvVar("MAILGUN_API_KEY") || "dummy";
-const mailgunDomain = config.domainName?.replace(/^https?:\/\//, "") ?? "";
-const hasMailgunCredentials = Boolean(mailgunApiKey && mailgunApiKey !== "dummy" && mailgunDomain);
-
-const mg = mailgun.client({
-  username: "api",
-  key: mailgunApiKey,
-});
-
-if (!hasMailgunCredentials && isDevelopment()) {
-  console.group("⚠️ MAILGUN no configurado");
-  console.warn("MAILGUN_API_KEY o domainName faltan. Se omitirá el envío real de correos en desarrollo.");
+if (!hasBrevoCredentials && isDevelopment()) {
+  console.group("⚠️ BREVO no configurado");
+  console.warn("BREVO_API_KEY falta. Se omitirá el envío real de correos en desarrollo.");
   console.groupEnd();
 }
 
 /**
- * Sends an email using the provided parameters.
+ * Sends an email using Brevo SMTP API.
  *
  * @async
  * @param {string} to - The recipient's email address.
@@ -50,46 +41,54 @@ export const sendEmail = async ({
   if (!to || typeof to !== "string" || !to.trim()) {
     throw new Error("El campo 'to' (destinatario) es requerido");
   }
-  
+
   if (!isValidEmail(to)) {
     throw new Error(`El email del destinatario no es válido: ${to}`);
   }
-  
+
   if (!subject || typeof subject !== "string" || !subject.trim()) {
     throw new Error("El campo 'subject' (asunto) es requerido y no puede estar vacío");
   }
-  
+
   if (!html || typeof html !== "string" || !html.trim()) {
     throw new Error("El campo 'html' (contenido HTML) es requerido y no puede estar vacío");
   }
-  
+
   if (replyTo && !isValidEmail(replyTo)) {
     throw new Error(`El email 'replyTo' no es válido: ${replyTo}`);
   }
-  
-  if (!hasMailgunCredentials) {
+
+  if (!hasBrevoCredentials) {
     if (isDevelopment()) {
-      console.info("[mailgun] Envío simulado (sin credenciales).", { to, subject });
+      console.info("[brevo] Envío simulado (sin credenciales).", { to, subject });
     }
     return;
   }
-  
+
   // Normalizar email del destinatario
   const normalizedTo = normalizeEmail(to);
   if (!normalizedTo) {
     throw new Error("No se pudo normalizar el email del destinatario");
   }
 
-  const data = {
-    from: config.mailgun.fromAdmin,
-    to: [normalizedTo],
-    subject: subject.trim(),
-    text: text?.trim(),
-    html: html.trim(),
-    ...(replyTo && { "h:Reply-To": normalizeEmail(replyTo) || replyTo }),
-  };
+  const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": BREVO_API_KEY,
+    },
+    body: JSON.stringify({
+      sender: { name: SENDER_NAME, email: SENDER_EMAIL },
+      to: [{ email: normalizedTo }],
+      subject: subject.trim(),
+      htmlContent: html.trim(),
+      textContent: text?.trim(),
+      replyTo: replyTo ? { email: normalizeEmail(replyTo) || replyTo } : undefined,
+    }),
+  });
 
-  const domain = `${config.mailgun.subdomain ? `${config.mailgun.subdomain}.` : ""}${mailgunDomain}`;
-
-  await mg.messages.create(domain, data);
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Brevo API error: ${response.status} - ${errorText}`);
+  }
 };

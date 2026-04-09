@@ -5,7 +5,7 @@ import { db } from "@/db";
 import { academies, profiles, subscriptions, plans } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
 import { checkPlanLimitViolations } from "@/lib/limits";
-import { sendEmail } from "@/lib/mailgun";
+import { sendEmail } from "@/lib/brevo";
 import { config } from "@/config";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { apiSuccess, apiError } from "@/lib/api-response";
@@ -118,7 +118,7 @@ export const POST = withTenant(async (request, context) => {
           </div>
         `,
         text: `Has completado los ajustes necesarios para tu plan ${subscription.planCode.toUpperCase()}. Puedes continuar usando Zaltyko normalmente.`,
-        replyTo: config.mailgun.supportEmail,
+        replyTo: config.brevo.supportEmail,
       });
     } catch (error) {
       logger.error("Error sending notification email", error);
