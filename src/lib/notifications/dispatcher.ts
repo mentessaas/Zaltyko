@@ -38,7 +38,7 @@ export type NotificationType =
 
 export type Channel = "push" | "email" | "whatsapp" | "in_app";
 
-export type Priority = "high" | "normal" | "low";
+export type Priority = "high" | "normal" | "low" | "urgent";
 
 export interface DispatchOptions {
   tenantId: string;
@@ -63,6 +63,7 @@ const DEFAULT_CHANNEL_PRIORITY: Record<Priority, Channel[]> = {
   high: ["push", "email", "in_app"],
   normal: ["push", "in_app", "email"],
   low: ["in_app"],
+  urgent: ["push", "email", "in_app"],
 };
 
 // Fallback order when a channel fails
@@ -75,8 +76,7 @@ async function getUserProfile(userId: string) {
   const [profile] = await db
     .select({
       id: profiles.id,
-      email: profiles.email,
-      fullName: profiles.fullName,
+      name: profiles.name,
       phone: profiles.phone,
     })
     .from(profiles)
@@ -98,8 +98,8 @@ async function isChannelAvailable(
       return isPushAvailable();
 
     case "email":
-      const profile = await getUserProfile(userId);
-      return Boolean(profile?.email);
+      // Email not available via profiles table - requires auth.users lookup
+      return false;
 
     case "whatsapp":
       const phoneProfile = await getUserProfile(userId);
@@ -171,16 +171,8 @@ async function sendViaChannel(
         return { success: pushResult.sent > 0, error: pushResult.failed > 0 ? "Some push subscriptions failed" : undefined };
 
       case "email":
-        if (!profile?.email) {
-          return { success: false, error: "No email on profile" };
-        }
-        await sendEmail({
-          to: profile.email,
-          subject: options.title,
-          html: `<p>${options.body}</p>`,
-          replyTo: process.env.EMAIL_FROM || "noreply@zaltyko.com",
-        });
-        return { success: true };
+        // Email not available via profiles table - requires auth.users lookup
+        return { success: false, error: "Email not available" };
 
       case "whatsapp":
         if (!profile?.phone) {
@@ -188,7 +180,7 @@ async function sendViaChannel(
         }
         const waResult = await sendWhatsAppWithTemplate({
           to: profile.phone,
-          templateType: "generic", // Need to map types to templates
+          templateType: "welcome",
           variables: {
             title: options.title,
             body: options.body,

@@ -235,8 +235,8 @@ export interface ListEventsParams {
   startDate?: string;
   endDate?: string;
   search?: string;
-  page: number;
-  limit: number;
+  page?: number;
+  limit?: number;
 }
 
 export async function listEvents(params: ListEventsParams, tenantId: string | null) {
@@ -267,11 +267,11 @@ export async function listEvents(params: ListEventsParams, tenantId: string | nu
   }
 
   if (params.discipline) {
-    filters.push(eq(events.discipline, params.discipline));
+    filters.push(eq(events.discipline, params.discipline as typeof EVENT_DISCIPLINES[number]));
   }
 
   if (params.level) {
-    filters.push(eq(events.level, params.level));
+    filters.push(eq(events.level, params.level as typeof EVENT_LEVELS[number]));
   }
 
   if (params.country) {
@@ -303,7 +303,9 @@ export async function listEvents(params: ListEventsParams, tenantId: string | nu
     .where(and(...filters));
 
   const total = Number(countResult?.count ?? 0);
-  const offset = (params.page - 1) * params.limit;
+  const page = params.page ?? 1;
+  const limit = params.limit ?? 20;
+  const offset = (page - 1) * limit;
 
   const items = await db
     .select({
@@ -330,7 +332,7 @@ export async function listEvents(params: ListEventsParams, tenantId: string | nu
     .from(events)
     .where(and(...filters))
     .orderBy(desc(events.startDate), desc(events.createdAt))
-    .limit(params.limit)
+    .limit(limit)
     .offset(offset);
 
   return { items, total };

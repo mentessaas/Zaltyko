@@ -229,7 +229,7 @@ const createGroupHandler = withTenant(async (request, context) => {
   await markWizardStep({
     academyId: body.academyId,
     tenantId,
-    step: "group",
+    step: "academy",
   });
 
   // Log event for Super Admin metrics

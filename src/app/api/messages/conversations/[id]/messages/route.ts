@@ -19,18 +19,19 @@ import { trackEvent } from "@/lib/analytics";
 
 export const dynamic = "force-dynamic";
 
+type RouteContext = { tenantId: string; params: { id: string }; profile?: { id: string } };
+
 /**
  * GET - Obtener mensajes con cursor-based pagination
  */
-export const GET = withTenant(async (request, context) => {
+export const GET = withTenant(async (request: Request, context: RouteContext) => {
   try {
     const profile = context.profile;
     if (!profile) {
       return apiError("UNAUTHORIZED", "No autenticado", 401);
     }
 
-    const { params } = context;
-    const conversationId = params.id;
+    const { id: conversationId } = context.params;
 
     if (!conversationId) {
       return apiError("VALIDATION_ERROR", "ID de conversación requerido", 400);
@@ -56,7 +57,10 @@ export const GET = withTenant(async (request, context) => {
     const limit = parseInt(url.searchParams.get("limit") || "50");
     const cursor = url.searchParams.get("cursor"); // ISO date cursor
 
-    let query = db
+    const baseCondition = eq(conversationMessages.conversationId, conversationId);
+    const cursorCondition = cursor ? gt(conversationMessages.createdAt, new Date(cursor)) : undefined;
+
+    const messages = await db
       .select({
         id: conversationMessages.id,
         senderId: conversationMessages.senderId,
@@ -70,15 +74,7 @@ export const GET = withTenant(async (request, context) => {
         createdAt: conversationMessages.createdAt,
       })
       .from(conversationMessages)
-      .where(eq(conversationMessages.conversationId, conversationId));
-
-    if (cursor) {
-      query = query.where(
-        gt(conversationMessages.createdAt, new Date(cursor))
-      ) as any;
-    }
-
-    const messages = await query
+      .where(cursorCondition ? and(baseCondition, cursorCondition) : baseCondition)
       .orderBy(conversationMessages.createdAt)
       .limit(limit + 1); // Fetch one extra to check if there's more
 
@@ -116,15 +112,14 @@ export const GET = withTenant(async (request, context) => {
 /**
  * POST - Enviar un mensaje
  */
-export const POST = withTenant(async (request, context) => {
+export const POST = withTenant(async (request: Request, context: RouteContext) => {
   try {
     const profile = context.profile;
     if (!profile) {
       return apiError("UNAUTHORIZED", "No autenticado", 401);
     }
 
-    const { params } = context;
-    const conversationId = params.id;
+    const { id: conversationId } = context.params;
 
     if (!conversationId) {
       return apiError("VALIDATION_ERROR", "ID de conversación requerido", 400);
@@ -270,9 +265,11 @@ export const POST = withTenant(async (request, context) => {
 
     // Track event
     trackEvent("message_sent", {
-      conversationId,
-      messageId: message.id,
-      hasAttachment: !!attachmentUrl,
+      metadata: {
+        conversationId,
+        messageId: message.id,
+        hasAttachment: !!attachmentUrl,
+      },
     });
 
     return apiSuccess({
