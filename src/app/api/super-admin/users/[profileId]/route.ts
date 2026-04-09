@@ -240,7 +240,7 @@ export const PATCH = withSuperAdmin(async (request, context) => {
 
         if (authUser?.user?.email) {
           try {
-            const { sendEmail } = await import("@/lib/mailgun");
+            const { sendEmail } = await import("@/lib/brevo");
             const { config } = await import("@/config");
 
             const academyViolation = violations.violations.find((v) => v.resource === "academies");
@@ -300,12 +300,12 @@ export const PATCH = withSuperAdmin(async (request, context) => {
                   </div>
                   
                   <p style="color: #6b7280; font-size: 12px; margin-top: 30px;">
-                    Si tienes alguna pregunta, contacta a nuestro equipo de soporte en ${config.mailgun.supportEmail}
+                    Si tienes alguna pregunta, contacta a nuestro equipo de soporte en ${config.brevo.supportEmail}
                   </p>
                 </div>
               `,
               text: `Tu plan ha sido cambiado a ${plan.code.toUpperCase()}. Algunos recursos exceden los límites. Visita tu panel para ajustar.`,
-              replyTo: config.mailgun.supportEmail,
+              replyTo: config.brevo.supportEmail,
             });
           } catch (error) {
             logger.error("Error sending plan change notification", error);

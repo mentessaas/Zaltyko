@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { emailLogs } from "@/db/schema";
-import { sendEmail } from "@/lib/mailgun";
+import { sendEmail } from "@/lib/brevo";
 import { config } from "@/config";
 
 export interface SendEmailOptions {
@@ -39,7 +39,7 @@ export async function sendEmailWithLogging(options: SendEmailOptions): Promise<v
       to,
       subject,
       html,
-      replyTo: config.mailgun.fromAdmin,
+      replyTo: config.brevo.fromAdmin,
     });
 
     // Actualizar log como enviado

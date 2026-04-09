@@ -1,7 +1,7 @@
 import crypto from "crypto";
 
 import { NextResponse, NextRequest } from "next/server";
-import { sendEmail } from "@/lib/mailgun";
+import { sendEmail } from "@/lib/brevo";
 import { config } from "@/config";
 import { logger } from "@/lib/logger";
 
@@ -33,9 +33,9 @@ export async function POST(req: NextRequest) {
     const html = fd.get("body-html");
 
     // send email to the admin if forwardRepliesTo is et & emailData exists
-    if (config.mailgun.forwardRepliesTo && html && subject && sender) {
+    if (config.brevo.forwardRepliesTo && html && subject && sender) {
       await sendEmail({
-        to: config.mailgun.forwardRepliesTo,
+        to: config.brevo.forwardRepliesTo,
         subject: `${config?.appName} | ${subject}`,
         html: `<div><p><b>- Subject:</b> ${subject}</p><p><b>- From:</b> ${sender}</p><p><b>- Content:</b></p><div>${html}</div></div>`,
         replyTo: String(sender),

@@ -1,4 +1,4 @@
-import { sendEmail } from "@/lib/mailgun";
+import { sendEmail } from "@/lib/brevo";
 import { config } from "@/config";
 import { logger } from "@/lib/logger";
 
@@ -37,7 +37,7 @@ export async function sendBulkEmails(
         subject: content.subject,
         html: content.html,
         text: content.text,
-        replyTo: replyTo || config.mailgun.supportEmail,
+        replyTo: replyTo || config.brevo.supportEmail,
       });
       sent++;
     } catch (error) {
