@@ -73,8 +73,7 @@ export const PATCH = withTenant(async (request, context) => {
       return apiError(
         "VALIDATION_ERROR",
         "Los datos proporcionados no son válidos",
-        400,
-        parsed.error.issues
+        400
       );
     }
 

@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import {
-import { logger } from "@/lib/logger";
   MODALITIES,
   COUNTRIES,
   getClusterAcademies,
