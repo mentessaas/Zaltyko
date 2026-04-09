@@ -132,7 +132,7 @@ export const POST = withTenant(async (request, context) => {
   await markWizardStep({
     academyId: body.academyId,
     tenantId: context.tenantId,
-    step: "coaches",
+    step: "payments-team",
   });
 
   await markChecklistItem({

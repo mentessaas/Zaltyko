@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { eq, and } from "drizzle-orm";
 
 import { db } from "@/db";
 import { templates } from "@/db/schema/templates/templates";
