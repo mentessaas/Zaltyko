@@ -8,11 +8,6 @@ import { z } from "zod";
 
 import { withTenant } from "@/lib/authz";
 import { apiSuccess, apiError } from "@/lib/api-response";
-import {
-  announcements,
-  conversationParticipants,
-  conversationMessages,
-} from "@/db/schema/direct-messages";
 import { db } from "@/db";
 import { announcements as announcementsTable, announcementReadStatus } from "@/db/schema/announcements";
 import { memberships } from "@/db/schema/memberships";
@@ -32,7 +27,7 @@ export const GET = withTenant(async (request, context) => {
     }
 
     const { params } = context;
-    const academyId = params.academyId;
+    const academyId = (params as { academyId?: string })?.academyId;
 
     if (!academyId) {
       return apiError("VALIDATION_ERROR", "Academy ID requerido", 400);
@@ -146,7 +141,7 @@ export const POST = withTenant(async (request, context) => {
     }
 
     const { params } = context;
-    const academyId = params.academyId;
+    const academyId = (params as { academyId?: string })?.academyId;
 
     if (!academyId) {
       return apiError("VALIDATION_ERROR", "Academy ID requerido", 400);
@@ -266,8 +261,7 @@ export const POST = withTenant(async (request, context) => {
       return apiError(
         "VALIDATION_ERROR",
         "Datos inválidos",
-        400,
-        error.issues.map((i) => ({ path: i.path.join("."), message: i.message }))
+        400
       );
     }
     console.error("Error creating announcement:", error);

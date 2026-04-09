@@ -72,8 +72,8 @@ export const GET = withTenant(async (request, context) => {
     const [author] = await db
       .select({
         id: profiles.id,
-        fullName: profiles.fullName,
-        avatarUrl: profiles.avatarUrl,
+        name: profiles.name,
+        photoUrl: profiles.photoUrl,
       })
       .from(profiles)
       .where(eq(profiles.id, announcement.authorId))
@@ -214,7 +214,7 @@ export const PATCH = withTenant(async (request, context) => {
     return apiSuccess({ success: true });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return apiError("VALIDATION_ERROR", "Datos inválidos", 400, error.issues);
+      return apiError("VALIDATION_ERROR", "Datos inválidos", 400);
     }
     console.error("Error updating announcement:", error);
     return apiError("INTERNAL_ERROR", "Error al actualizar anuncio", 500);

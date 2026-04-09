@@ -61,16 +61,18 @@ export function apiCreated<T>(data: T, meta?: ResponseMeta): NextResponse<ApiSuc
 }
 
 /**
- * Error response with code, message and HTTP status
+ * Error response with code, message, HTTP status and optional details
  * Usage: return apiError('NOT_FOUND', 'Resource not found', 404)
+ *        return apiError('VALIDATION_ERROR', 'Invalid data', 400, { field: 'email' })
  */
-export function apiError(code: string, message: string, status: number): NextResponse<ApiErrorResponse> {
+export function apiError(code: string, message: string, status: number, details?: unknown): NextResponse<ApiErrorResponse> {
   return NextResponse.json(
     {
       ok: false,
       error: code,
       code,
       message,
+      ...(details !== undefined ? { details } : {}),
     } as ApiErrorResponse,
     { status }
   );

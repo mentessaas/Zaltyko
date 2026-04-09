@@ -8,7 +8,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { withTenant } from "@/lib/authz";
-import { apiSuccess, apiError } from "@/lib/api-response";
+import { apiSuccess, apiError, apiCreated } from "@/lib/api-response";
 import { withRateLimit, getUserIdentifier } from "@/lib/rate-limit";
 import { withPayloadValidation } from "@/lib/payload-validator";
 import { handleApiError } from "@/lib/api-error-handler";
