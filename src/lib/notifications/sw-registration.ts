@@ -87,10 +87,12 @@ export async function getSWVersion(): Promise<string | null> {
     channel.port1.onmessage = (event) => {
       resolve(event.data?.version || null);
     };
-    navigator.serviceWorker.controller.postMessage(
-      { type: "GET_VERSION" },
-      [channel.port2]
-    );
+    if (navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage(
+        { type: "GET_VERSION" },
+        [channel.port2]
+      );
+    }
 
     // Timeout after 1 second
     setTimeout(() => resolve(null), 1000);
@@ -117,10 +119,8 @@ export async function requestBackgroundSync(tag: string = "sync-pending-operatio
   }
 
   try {
-    // @ts-expect-error - Background Sync API not in TypeScript types yet
     if ("sync" in swRegistration!) {
-      // @ts-expect-error
-      await swRegistration.sync.register(tag);
+      await (swRegistration as any).sync.register(tag);
       return true;
     }
     return false;

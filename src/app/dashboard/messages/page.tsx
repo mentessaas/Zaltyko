@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { cookies } from "next/headers";
 import { db } from "@/db";
 import { eq, sql } from "drizzle-orm";
 import { profiles } from "@/db/schema";
@@ -11,7 +12,8 @@ export const metadata = {
 };
 
 export default async function MessagesPage() {
-  const supabase = await createClient();
+  const cookieStore = await cookies();
+  const supabase = await createClient(cookieStore);
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -23,9 +25,9 @@ export default async function MessagesPage() {
   // Get current user's profile
   const [profile] = await db
     .select({
-      id: sql<string>`id`,
-      fullName: sql<string>`full_name`,
-      avatarUrl: sql<string>`avatar_url`,
+      id: profiles.id,
+      name: profiles.name,
+      photoUrl: profiles.photoUrl,
     })
     .from(profiles)
     .where(eq(profiles.userId, user.id))
@@ -40,8 +42,8 @@ export default async function MessagesPage() {
       <MessagesPageComponent
         currentUserId={profile.id}
         currentUserProfile={{
-          fullName: profile.fullName || undefined,
-          avatarUrl: profile.avatarUrl || undefined,
+          fullName: profile.name || undefined,
+          avatarUrl: profile.photoUrl || undefined,
         }}
       />
     </div>

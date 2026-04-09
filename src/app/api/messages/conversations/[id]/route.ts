@@ -17,18 +17,19 @@ import { db } from "@/db";
 
 export const dynamic = "force-dynamic";
 
+type RouteContext = { tenantId: string; params: { id: string }; profile?: { id: string } };
+
 /**
  * GET - Obtener una conversación con sus participantes y mensajes
  */
-export const GET = withTenant(async (request, context) => {
+export const GET = withTenant(async (request: Request, context: RouteContext) => {
   try {
     const profile = context.profile;
     if (!profile) {
       return apiError("UNAUTHORIZED", "No autenticado", 401);
     }
 
-    const { params } = context;
-    const conversationId = params.id;
+    const { id: conversationId } = context.params;
 
     if (!conversationId) {
       return apiError("VALIDATION_ERROR", "ID de conversación requerido", 400);
@@ -100,8 +101,12 @@ export const GET = withTenant(async (request, context) => {
     const offset = parseInt(url.searchParams.get("offset") || "0");
     const before = url.searchParams.get("before"); // ISO date for cursor pagination
 
-    // Build message query
-    let messageQuery = db
+    const baseCondition = eq(conversationMessages.conversationId, conversationId);
+    const beforeCondition = before
+      ? sql`${conversationMessages.createdAt} < ${before}`
+      : undefined;
+
+    const messages = await db
       .select({
         id: conversationMessages.id,
         conversationId: conversationMessages.conversationId,
@@ -116,16 +121,7 @@ export const GET = withTenant(async (request, context) => {
         createdAt: conversationMessages.createdAt,
       })
       .from(conversationMessages)
-      .where(eq(conversationMessages.conversationId, conversationId));
-
-    // Add cursor pagination if 'before' is provided
-    if (before) {
-      messageQuery = messageQuery.where(
-        sql`${conversationMessages.createdAt} < ${before}`
-      ) as any;
-    }
-
-    const messages = await messageQuery
+      .where(beforeCondition ? and(baseCondition, beforeCondition) : baseCondition)
       .orderBy(desc(conversationMessages.createdAt))
       .limit(limit)
       .offset(offset);
@@ -163,15 +159,14 @@ export const GET = withTenant(async (request, context) => {
 /**
  * PATCH - Actualizar conversación (título, notificaciones, etc.)
  */
-export const PATCH = withTenant(async (request, context) => {
+export const PATCH = withTenant(async (request: Request, context: RouteContext) => {
   try {
     const profile = context.profile;
     if (!profile) {
       return apiError("UNAUTHORIZED", "No autenticado", 401);
     }
 
-    const { params } = context;
-    const conversationId = params.id;
+    const { id: conversationId } = context.params;
 
     if (!conversationId) {
       return apiError("VALIDATION_ERROR", "ID de conversación requerido", 400);
@@ -250,15 +245,14 @@ export const PATCH = withTenant(async (request, context) => {
 /**
  * DELETE - Ocultar conversación para el usuario actual
  */
-export const DELETE = withTenant(async (request, context) => {
+export const DELETE = withTenant(async (request: Request, context: RouteContext) => {
   try {
     const profile = context.profile;
     if (!profile) {
       return apiError("UNAUTHORIZED", "No autenticado", 401);
     }
 
-    const { params } = context;
-    const conversationId = params.id;
+    const { id: conversationId } = context.params;
 
     if (!conversationId) {
       return apiError("VALIDATION_ERROR", "ID de conversación requerido", 400);

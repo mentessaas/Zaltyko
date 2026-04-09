@@ -1,4 +1,5 @@
 import { eq, and, desc } from "drizzle-orm";
+import { z } from "zod";
 
 import { db } from "@/db";
 import { coachNotes, athletes, profiles } from "@/db/schema";

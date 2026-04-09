@@ -277,7 +277,7 @@ export function NotificationCenter({
     });
   };
 
-  const toggleSelectAll = () => {
+  const toggleSelectAll = (_e: React.ChangeEvent<HTMLInputElement>) => {
     if (selectedIds.size === filteredNotifications.length) {
       setSelectedIds(new Set());
     } else {
@@ -309,7 +309,7 @@ export function NotificationCenter({
               <Bell className="h-5 w-5" />
               Notificaciones
               {unreadCount > 0 && (
-                <Badge variant="destructive" className="h-5 text-xs">
+                <Badge variant="error" className="h-5 text-xs">
                   {unreadCount}
                 </Badge>
               )}
@@ -354,7 +354,7 @@ export function NotificationCenter({
                 </SelectContent>
               </Select>
 
-              <Select value={dateFilter} onValueChange={setDateFilter}>
+              <Select value={dateFilter} onValueChange={(v) => setDateFilter(v as "all" | "week" | "today")}>
                 <SelectTrigger className="h-8 w-[120px]">
                   <SelectValue placeholder="Fecha" />
                 </SelectTrigger>
@@ -444,7 +444,7 @@ export function NotificationCenter({
               <div className="flex items-center gap-2 px-1">
                 <Checkbox
                   checked={selectedIds.size === filteredNotifications.length && filteredNotifications.length > 0}
-                  onCheckedChange={toggleSelectAll}
+                  onChange={toggleSelectAll}
                 />
                 <span className="text-xs text-muted-foreground">
                   {selectedIds.size === filteredNotifications.length ? "Deseleccionar todo" : "Seleccionar todo"}
@@ -478,7 +478,7 @@ export function NotificationCenter({
                         {/* Checkbox */}
                         <Checkbox
                           checked={selectedIds.has(notification.id)}
-                          onCheckedChange={() => toggleSelect(notification.id)}
+                          onChange={() => toggleSelect(notification.id)}
                           className="mt-1"
                           onClick={(e) => e.stopPropagation()}
                         />
