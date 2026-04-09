@@ -188,7 +188,7 @@ const getAthleteClassesHandler = withTenant(async (request, context) => {
 
     return apiSuccess({ items: Array.from(classMap.values()) });
   } catch (error) {
-    return handleApiError(error) as ReturnType<typeof apiSuccess>;
+    return handleApiError(error, { endpoint: "/api/athletes/classes" }) as unknown as ReturnType<typeof apiSuccess>;
   }
 });
 

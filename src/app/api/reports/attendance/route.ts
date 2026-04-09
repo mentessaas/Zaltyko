@@ -4,7 +4,6 @@ import { apiError, apiSuccess } from "@/lib/api-response";
 import { z } from "zod";
 import { withTenant } from "@/lib/authz";
 import {
-import { logger } from "@/lib/logger";
   calculateAthleteAttendance,
   calculateGroupAttendance,
   calculateGeneralAttendance,
