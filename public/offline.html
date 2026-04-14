@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0D47A1">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <title>Sin conexión - Zaltyko</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --primary: #0D47A1;
+      --primary-light: #2196F3;
+      --text-main: #1a1a2e;
+      --text-muted: #6b7280;
+      --bg: #f8fafc;
+      --border: #e5e7eb;
+      --accent-coral: #EF6B6B;
+    }
+
+    body {
+      font-family: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      padding-top: calc(20px + env(safe-area-inset-top));
+      padding-bottom: calc(20px + env(safe-area-inset-bottom));
+    }
+
+    .container {
+      text-align: center;
+      max-width: 320px;
+    }
+
+    .icon {
+      width: 80px;
+      height: 80px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 24px;
+    }
+
+    .icon svg {
+      width: 40px;
+      height: 40px;
+      color: white;
+    }
+
+    h1 {
+      font-size: 24px;
+      font-weight: 700;
+      color: white;
+      margin-bottom: 12px;
+    }
+
+    p {
+      font-size: 16px;
+      color: rgba(255, 255, 255, 0.85);
+      line-height: 1.5;
+      margin-bottom: 32px;
+    }
+
+    .retry-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: white;
+      color: var(--primary);
+      font-size: 16px;
+      font-weight: 600;
+      padding: 14px 28px;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .retry-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+    }
+
+    .retry-btn:active {
+      transform: translateY(0);
+    }
+
+    .retry-btn svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    .retry-btn.loading svg {
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="icon">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829m-4.243 2.829a4.978 4.978 0 01-1.414-2.83m-1.414 5.658a9 9 0 01-2.167-9.238m7.824 9.238l2.829-2.829m-2.829 2.829L21 21m-6.363-6.363a5 5 0 01-7.072 0m0 0L9.66 8.464m4.243-2.829a4.978 4.978 0 012.83-1.414m1.414 5.658a9 9 0 012.167-9.238m-7.824 9.238l2.829 2.829" />
+      </svg>
+    </div>
+
+    <h1>Sin conexión</h1>
+    <p>No se pudo conectar con el servidor. Verifica tu conexión a internet e intenta de nuevo.</p>
+
+    <button class="retry-btn" onclick="retry()">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+      </svg>
+      Reintentar
+    </button>
+  </div>
+
+  <script>
+    const btn = document.querySelector('.retry-btn');
+
+    function retry() {
+      if (!navigator.onLine) {
+        return;
+      }
+
+      btn.classList.add('loading');
+      btn.disabled = true;
+      btn.querySelector('svg').style.animation = 'spin 1s linear infinite';
+
+      // Check connection by trying to fetch a small resource
+      fetch('/manifest.json', { method: 'HEAD', cache: 'no-store' })
+        .then(() => {
+          window.location.href = '/';
+        })
+        .catch(() => {
+          btn.classList.remove('loading');
+          btn.disabled = false;
+        });
+    }
+
+    // Listen for online event to auto-reload
+    window.addEventListener('online', () => {
+      window.location.href = '/';
+    });
+  </script>
+</body>
+</html>
