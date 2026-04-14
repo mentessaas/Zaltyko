@@ -3,6 +3,52 @@ const CACHE_NAME = 'zaltyko-v1';
 const STATIC_CACHE = 'zaltyko-static-v1';
 const DYNAMIC_CACHE = 'zaltyko-dynamic-v1';
 const API_CACHE = 'zaltyko-api-v1';
+const OFFLINE_URL = '/offline.html';
+
+// IndexedDB helper functions (inline for service worker)
+const DB_NAME = 'zaltyko-offline';
+const DB_VERSION = 1;
+
+function openDatabase() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+    request.onerror = () => reject(new Error('Failed to open IndexedDB'));
+    request.onsuccess = () => resolve(request.result);
+
+    request.onupgradeneeded = (event) => {
+      const db = event.target.result;
+      if (!db.objectStoreNames.contains('pendingOperations')) {
+        db.createObjectStore('pendingOperations', { keyPath: 'id' });
+      }
+      if (!db.objectStoreNames.contains('cachedData')) {
+        db.createObjectStore('cachedData', { keyPath: 'key' });
+      }
+    };
+
+    resolve(request.result);
+  });
+}
+
+function getAllFromStore(db, storeName) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(storeName, 'readonly');
+    const store = tx.objectStore(storeName);
+    const request = store.getAll();
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+function deleteFromStore(db, storeName, key) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(storeName, 'readwrite');
+    const store = tx.objectStore(storeName);
+    const request = store.delete(key);
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+  });
+}
 
 // Static assets to cache immediately
 const STATIC_ASSETS = [
@@ -10,6 +56,7 @@ const STATIC_ASSETS = [
   '/manifest.json',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
+  '/offline.html',
 ];
 
 // Install event - cache static assets
@@ -69,7 +116,17 @@ self.addEventListener('fetch', (event) => {
 
   // HTML pages - Network first with cache fallback
   if (request.mode === 'navigate' || request.headers.get('accept')?.includes('text/html')) {
-    event.respondWith(networkFirstWithCache(request, DYNAMIC_CACHE));
+    event.respondWith(networkFirstWithCache(request, DYNAMIC_CACHE).catch(() => {
+      // Return offline page if network fails and no cache
+      return caches.match(OFFLINE_URL).then(offlineResponse => {
+        if (offlineResponse) return offlineResponse;
+        // Last resort: return a simple offline response
+        return new Response(
+          '<html><body><h1>Sin conexión</h1><p>No se pudo cargar la página.</p></body></html>',
+          { headers: { 'Content-Type': 'text/html' } }
+        );
+      });
+    }));
     return;
   }
 
@@ -179,15 +236,66 @@ self.addEventListener('notificationclick', (event) => {
 
 // Background sync for offline operations
 self.addEventListener('sync', (event) => {
-  if (event.tag === 'sync-pending-operations') {
+  if (event.tag === 'pending-operations' || event.tag === 'sync-pending-operations') {
     event.waitUntil(syncPendingOperations());
   }
 });
 
 async function syncPendingOperations() {
-  // Get pending operations from IndexedDB
-  // This is a placeholder - implement based on your offline queue needs
-  console.log('Background sync triggered');
+  try {
+    const db = await openDatabase();
+    const operations = await getAllFromStore(db, 'pendingOperations');
+
+    if (!operations || operations.length === 0) {
+      console.log('No pending operations to sync');
+      return;
+    }
+
+    console.log(`Syncing ${operations.length} pending operations`);
+
+    for (const operation of operations) {
+      const result = await executeOperation(operation);
+
+      if (result.success) {
+        await deleteFromStore(db, 'pendingOperations', operation.id);
+        console.log(`Synced operation ${operation.id}`);
+      } else {
+        console.error(`Failed to sync operation ${operation.id}:`, result.error);
+      }
+    }
+  } catch (error) {
+    console.error('Background sync failed:', error);
+  }
+}
+
+async function executeOperation(operation) {
+  const endpointMap = {
+    'athlete:create': { endpoint: '/api/athletes', method: 'POST' },
+    'athlete:update': { endpoint: `/api/athletes/${operation.payload?.id}`, method: 'PATCH' },
+    'athlete:delete': { endpoint: `/api/athletes/${operation.payload?.id}`, method: 'DELETE' },
+    'enrollment:create': { endpoint: '/api/enrollments', method: 'POST' },
+    'enrollment:cancel': { endpoint: `/api/enrollments/${operation.payload?.id}`, method: 'DELETE' },
+    'class:update': { endpoint: `/api/classes/${operation.payload?.id}`, method: 'PATCH' },
+    'attendance:mark': { endpoint: '/api/attendance', method: 'POST' },
+    'payment:record': { endpoint: '/api/payments', method: 'POST' },
+  };
+
+  const config = endpointMap[operation.type];
+  if (!config) {
+    return { success: false, error: `Unknown operation type: ${operation.type}` };
+  }
+
+  try {
+    const response = await fetch(config.endpoint, {
+      method: config.method,
+      headers: { 'Content-Type': 'application/json' },
+      body: config.method !== 'DELETE' ? JSON.stringify(operation.payload) : undefined,
+    });
+
+    return { success: response.ok, error: response.ok ? null : `HTTP ${response.status}` };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
 }
 
 // Message handler for cache management
@@ -201,7 +309,28 @@ self.addEventListener('message', (event) => {
         event.waitUntil(clearAllCaches());
         break;
       case 'GET_VERSION':
-        event.ports[0].postMessage({ version: CACHE_NAME });
+        if (event.ports && event.ports[0]) {
+          event.ports[0].postMessage({ version: CACHE_NAME });
+        } else {
+          event.source.postMessage({ version: CACHE_NAME });
+        }
+        break;
+      case 'GET_PENDING_COUNT':
+        openDatabase().then(db => {
+          return getAllFromStore(db, 'pendingOperations');
+        }).then(operations => {
+          if (event.ports && event.ports[0]) {
+            event.ports[0].postMessage({ pendingCount: operations.length });
+          } else {
+            event.source.postMessage({ pendingCount: operations.length });
+          }
+        }).catch(() => {
+          if (event.ports && event.ports[0]) {
+            event.ports[0].postMessage({ pendingCount: 0 });
+          } else {
+            event.source.postMessage({ pendingCount: 0 });
+          }
+        });
         break;
     }
   }
@@ -218,6 +347,24 @@ self.addEventListener('periodicsync', (event) => {
     event.waitUntil(updateContent());
   }
 });
+
+// Notify clients of pending operation count
+async function notifyPendingCount() {
+  try {
+    const db = await openDatabase();
+    const operations = await getAllFromStore(db, 'pendingOperations');
+    const clientCount = await clients.matchAll();
+
+    for (const client of clientCount) {
+      client.postMessage({
+        type: 'PENDING_OPERATIONS',
+        count: operations.length,
+      });
+    }
+  } catch (e) {
+    // Ignore errors in notification
+  }
+}
 
 async function updateContent() {
   // Pre-cache important pages for offline access

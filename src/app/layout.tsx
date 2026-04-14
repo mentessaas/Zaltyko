@@ -8,6 +8,9 @@ import { BottomNav } from "@/components/navigation/BottomNav";
 import { AppProviders } from "./providers";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import { OfflineBanner } from "@/components/ui/offline-banner";
+import { UpdateBanner } from "@/components/ui/update-banner";
+import { InstallPrompt } from "@/components/ui/install-prompt";
 
 const outfit = Outfit({
   subsets: ["latin"],
@@ -28,6 +31,7 @@ export const viewport: Viewport = {
   maximumScale: 5,
   userScalable: true,
   themeColor: "#0D47A1",
+  viewportFit: "cover",
 };
 
 export const metadata: Metadata = {
@@ -118,6 +122,9 @@ export default function RootLayout({
         className={cn(inter.variable, outfit.variable, "font-sans antialiased")}
         suppressHydrationWarning
       >
+        <OfflineBanner />
+        <UpdateBanner />
+        <InstallPrompt />
         <AppProviders>
           {children}
           <BottomNav />
