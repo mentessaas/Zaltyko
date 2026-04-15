@@ -12,16 +12,17 @@ import { academies, athletes, groups, skillCatalog } from "@/db/schema";
  * comentarios y seguimiento del historial de progreso de los atletas.
  */
 interface PageProps {
-  params: {
+  params: Promise<{
     academyId: string;
-  };
+  }>;
 }
 
 export default async function AssessmentsPage({ params }: PageProps) {
+  const { academyId } = await params;
   const [academy] = await db
     .select({ tenantId: academies.tenantId, name: academies.name })
     .from(academies)
-    .where(eq(academies.id, params.academyId))
+    .where(eq(academies.id, academyId))
     .limit(1);
 
   if (!academy) {
@@ -38,7 +39,7 @@ export default async function AssessmentsPage({ params }: PageProps) {
     })
     .from(athletes)
     .leftJoin(groups, eq(athletes.groupId, groups.id))
-    .where(eq(athletes.academyId, params.academyId))
+    .where(eq(athletes.academyId, academyId))
     .orderBy(asc(athletes.name));
   const groupRows = await db
     .select({
@@ -47,7 +48,7 @@ export default async function AssessmentsPage({ params }: PageProps) {
       color: groups.color,
     })
     .from(groups)
-    .where(eq(groups.academyId, params.academyId))
+    .where(eq(groups.academyId, academyId))
     .orderBy(asc(groups.name));
 
 
@@ -68,7 +69,7 @@ export default async function AssessmentsPage({ params }: PageProps) {
       </header>
 
       <AssessmentForm
-        academyId={params.academyId}
+        academyId={academyId}
         athletes={athleteRows}
         skills={skillRows}
         groups={groupRows.map((group) => ({

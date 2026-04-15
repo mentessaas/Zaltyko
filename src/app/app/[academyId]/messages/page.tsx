@@ -10,18 +10,19 @@ import { ContactMessagesList } from "@/components/messages/ContactMessagesList";
 import { desc } from "drizzle-orm";
 
 interface PageProps {
-  params: {
+  params: Promise<{
     academyId: string;
-  };
+  }>;
 }
 
 export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { academyId } = await params;
   const [academy] = await db
     .select({ name: academies.name })
     .from(academies)
-    .where(eq(academies.id, params.academyId))
+    .where(eq(academies.id, academyId))
     .limit(1);
 
   const name = academy?.name ?? "Academia";
@@ -33,7 +34,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function MessagesPage({ params }: PageProps) {
-  const { academyId } = params;
+  const { academyId } = await params;
   const cookieStore = await cookies();
   const supabase = await createClient(cookieStore);
 

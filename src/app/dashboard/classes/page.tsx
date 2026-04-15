@@ -12,10 +12,11 @@ import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 
 interface ClassesPageProps {
-  searchParams: Record<string, string | string[] | undefined>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
 export default async function ClassesPage({ searchParams }: ClassesPageProps) {
+  const params = await searchParams;
   const cookieStore = await cookies();
   const supabase = await createClient(cookieStore);
   const {
@@ -75,8 +76,8 @@ export default async function ClassesPage({ searchParams }: ClassesPageProps) {
 
   // Usar la academia del filtro o la primera disponible
   const academyParam =
-    typeof searchParams.academy === "string" && searchParams.academy !== ""
-      ? searchParams.academy
+    typeof params.academy === "string" && params.academy !== ""
+      ? params.academy
       : undefined;
 
   const currentAcademy = academyParam

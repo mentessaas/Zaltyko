@@ -7,14 +7,14 @@ import { RecurringSessionsManager } from "@/components/classes/RecurringSessions
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 
 interface PageProps {
-  params: {
+  params: Promise<{
     academyId: string;
     classId: string;
-  };
+  }>;
 }
 
 export default async function RecurringSessionsPage({ params }: PageProps) {
-  const { academyId, classId } = params;
+  const { academyId, classId } = await params;
 
   const [classRow] = await db
     .select({

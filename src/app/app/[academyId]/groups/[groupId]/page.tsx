@@ -16,14 +16,14 @@ import { GroupView } from "@/components/groups/GroupView";
 import { AthleteOption, CoachOption, GroupDetail } from "@/components/groups/types";
 
 interface PageProps {
-  params: {
+  params: Promise<{
     academyId: string;
     groupId: string;
-  };
+  }>;
 }
 
 export default async function GroupDetailPage({ params }: PageProps) {
-  const { academyId, groupId } = params;
+  const { academyId, groupId } = await params;
 
   const [groupRow] = await db
     .select({

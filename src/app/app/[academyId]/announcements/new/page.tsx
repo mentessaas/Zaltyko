@@ -8,13 +8,13 @@ import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { AnnouncementForm } from "@/components/announcements/AnnouncementForm";
 
 interface PageProps {
-  params: {
+  params: Promise<{
     academyId: string;
-  };
+  }>;
 }
 
 export default async function NewAnnouncementPage({ params }: PageProps) {
-  const { academyId } = params;
+  const { academyId } = await params;
   const cookieStore = await cookies();
   const supabase = await createClient(cookieStore);
 

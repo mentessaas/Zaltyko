@@ -18,14 +18,14 @@ import { getClassAthletes } from "@/lib/classes/get-class-athletes";
 import { ClassDetailView } from "@/components/classes/ClassDetailView";
 
 interface PageProps {
-  params: {
+  params: Promise<{
     academyId: string;
     classId: string;
-  };
+  }>;
 }
 
 export default async function ClassDetailPage({ params }: PageProps) {
-  const { academyId, classId } = params;
+  const { academyId, classId } = await params;
 
   const [classRow] = await db
     .select({

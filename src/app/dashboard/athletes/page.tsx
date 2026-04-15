@@ -24,10 +24,11 @@ type SortField = "name" | "level" | "status" | "age" | "academyName" | "guardian
 type SortDirection = "asc" | "desc";
 
 interface AthletesPageProps {
-  searchParams: Record<string, string | string[] | undefined>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
 export default async function AthletesPage({ searchParams }: AthletesPageProps) {
+  const params = await searchParams;
   const cookieStore = await cookies();
   const supabase = await createClient(cookieStore);
   const {
@@ -76,29 +77,29 @@ export default async function AthletesPage({ searchParams }: AthletesPageProps) 
   }
 
   const searchTerm =
-    typeof searchParams.q === "string" && searchParams.q.trim().length > 0
-      ? searchParams.q.trim()
+    typeof params.q === "string" && params.q.trim().length > 0
+      ? params.q.trim()
       : undefined;
   const statusParam =
-    typeof searchParams.status === "string" &&
-    (athleteStatusOptions as readonly string[]).includes(searchParams.status)
-      ? (searchParams.status as (typeof athleteStatusOptions)[number])
+    typeof params.status === "string" &&
+    (athleteStatusOptions as readonly string[]).includes(params.status)
+      ? (params.status as (typeof athleteStatusOptions)[number])
       : undefined;
   const levelParam =
-    typeof searchParams.level === "string" && searchParams.level.trim().length > 0
-      ? searchParams.level.trim()
+    typeof params.level === "string" && params.level.trim().length > 0
+      ? params.level.trim()
       : undefined;
   const academyParam =
-    typeof searchParams.academy === "string" && searchParams.academy !== ""
-      ? searchParams.academy
+    typeof params.academy === "string" && params.academy !== ""
+      ? params.academy
       : undefined;
   const minAgeParam =
-    typeof searchParams.minAge === "string" && searchParams.minAge !== ""
-      ? Number(searchParams.minAge)
+    typeof params.minAge === "string" && params.minAge !== ""
+      ? Number(params.minAge)
       : undefined;
   const maxAgeParam =
-    typeof searchParams.maxAge === "string" && searchParams.maxAge !== ""
-      ? Number(searchParams.maxAge)
+    typeof params.maxAge === "string" && params.maxAge !== ""
+      ? Number(params.maxAge)
       : undefined;
 
   const userAcademies = await db
@@ -208,8 +209,8 @@ export default async function AthletesPage({ searchParams }: AthletesPageProps) 
 
   // Pagination
   // Sorting
-  const sortField: SortField = (searchParams.sort as SortField) || "name";
-  const sortDirection: SortDirection = (searchParams.dir as SortDirection) || "asc";
+  const sortField: SortField = (params.sort as SortField) || "name";
+  const sortDirection: SortDirection = (params.dir as SortDirection) || "asc";
 
   // Sort the list
   const sortedList = [...list].sort((a, b) => {
@@ -228,7 +229,7 @@ export default async function AthletesPage({ searchParams }: AthletesPageProps) 
   });
 
   // Pagination
-  const page = typeof searchParams.page === "string" ? Number(searchParams.page) : 1;
+  const page = typeof params.page === "string" ? Number(params.page) : 1;
   const perPage = 20;
   const totalPages = Math.ceil(sortedList.length / perPage);
   const paginatedList = sortedList.slice((page - 1) * perPage, page * perPage);
@@ -401,7 +402,7 @@ export default async function AthletesPage({ searchParams }: AthletesPageProps) 
               {filter.label}
               <Link
                 href={`?${new URLSearchParams(
-                  Object.entries(searchParams)
+                  Object.entries(params)
                     .filter(([key]) => key !== filter.key && key !== "page")
                     .reduce((acc, [key, val]) => {
                       if (val && typeof val === "string") acc[key] = val;
@@ -430,7 +431,7 @@ export default async function AthletesPage({ searchParams }: AthletesPageProps) 
               <th className="px-4 py-3 font-medium">
                 <Link
                   href={`?${new URLSearchParams({
-                    ...searchParams,
+                    ...params,
                     sort: "name",
                     dir: sortField === "name" && sortDirection === "asc" ? "desc" : "asc",
                   } as Record<string, string>).toString()}`}
@@ -443,7 +444,7 @@ export default async function AthletesPage({ searchParams }: AthletesPageProps) 
               <th className="px-4 py-3 font-medium">
                 <Link
                   href={`?${new URLSearchParams({
-                    ...searchParams,
+                    ...params,
                     sort: "level",
                     dir: sortField === "level" && sortDirection === "asc" ? "desc" : "asc",
                   } as Record<string, string>).toString()}`}
@@ -456,7 +457,7 @@ export default async function AthletesPage({ searchParams }: AthletesPageProps) 
               <th className="px-4 py-3 font-medium">
                 <Link
                   href={`?${new URLSearchParams({
-                    ...searchParams,
+                    ...params,
                     sort: "status",
                     dir: sortField === "status" && sortDirection === "asc" ? "desc" : "asc",
                   } as Record<string, string>).toString()}`}
@@ -469,7 +470,7 @@ export default async function AthletesPage({ searchParams }: AthletesPageProps) 
               <th className="px-4 py-3 font-medium text-right">
                 <Link
                   href={`?${new URLSearchParams({
-                    ...searchParams,
+                    ...params,
                     sort: "age",
                     dir: sortField === "age" && sortDirection === "asc" ? "desc" : "asc",
                   } as Record<string, string>).toString()}`}
@@ -482,7 +483,7 @@ export default async function AthletesPage({ searchParams }: AthletesPageProps) 
               <th className="px-4 py-3 font-medium">
                 <Link
                   href={`?${new URLSearchParams({
-                    ...searchParams,
+                    ...params,
                     sort: "academyName",
                     dir: sortField === "academyName" && sortDirection === "asc" ? "desc" : "asc",
                   } as Record<string, string>).toString()}`}
@@ -495,7 +496,7 @@ export default async function AthletesPage({ searchParams }: AthletesPageProps) 
               <th className="px-4 py-3 font-medium text-right">
                 <Link
                   href={`?${new URLSearchParams({
-                    ...searchParams,
+                    ...params,
                     sort: "guardianCount",
                     dir: sortField === "guardianCount" && sortDirection === "asc" ? "desc" : "asc",
                   } as Record<string, string>).toString()}`}
@@ -591,7 +592,7 @@ export default async function AthletesPage({ searchParams }: AthletesPageProps) 
           <div className="flex gap-2">
             {page > 1 && (
               <Link
-                href={`?${new URLSearchParams({ ...searchParams, page: String(page - 1) }).toString()}`}
+                href={`?${new URLSearchParams({ ...params, page: String(page - 1) }).toString()}`}
                 className="rounded-md border px-3 py-1.5 text-sm hover:bg-muted"
               >
                 Anterior
@@ -599,7 +600,7 @@ export default async function AthletesPage({ searchParams }: AthletesPageProps) 
             )}
             {page < totalPages && (
               <Link
-                href={`?${new URLSearchParams({ ...searchParams, page: String(page + 1) }).toString()}`}
+                href={`?${new URLSearchParams({ ...params, page: String(page + 1) }).toString()}`}
                 className="rounded-md border px-3 py-1.5 text-sm hover:bg-muted"
               >
                 Siguiente

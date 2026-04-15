@@ -18,12 +18,13 @@ import { createClient } from "@/lib/supabase/server";
 import { formatShortDateForCountry, formatTimeForCountry } from "@/lib/date-utils";
 
 interface SessionPageProps {
-  params: {
+  params: Promise<{
     sessionId: string;
-  };
+  }>;
 }
 
 export default async function SessionPage({ params }: SessionPageProps) {
+  const { sessionId } = await params;
   const cookieStore = await cookies();
   const supabase = await createClient(cookieStore);
   const {
@@ -43,8 +44,6 @@ export default async function SessionPage({ params }: SessionPageProps) {
   if (!profile) {
     redirect("/dashboard");
   }
-
-  const sessionId = params.sessionId;
 
   const [sessionRow] = await db
     .select({

@@ -23,18 +23,19 @@ import { createClient } from "@/lib/supabase/server";
 import { CoachDashboardPage } from "@/components/coach/CoachDashboardPage";
 
 interface PageProps {
-  params: {
+  params: Promise<{
     academyId: string;
-  };
+  }>;
 }
 
 export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { academyId } = await params;
   const [academy] = await db
     .select({ name: academies.name })
     .from(academies)
-    .where(eq(academies.id, params.academyId))
+    .where(eq(academies.id, academyId))
     .limit(1);
 
   const name = academy?.name ?? "Academia";
@@ -95,7 +96,7 @@ interface AttendanceStats {
 }
 
 export default async function CoachDashboard({ params }: PageProps) {
-  const { academyId } = params;
+  const { academyId } = await params;
   const cookieStore = await cookies();
   const supabase = await createClient(cookieStore);
 

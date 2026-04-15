@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { Calendar, MapPin, Clock, CheckCircle, XCircle, AlertCircle, Trophy } from "lucide-react";
 
@@ -27,15 +27,9 @@ interface MyEventRegistration {
   academyName: string;
 }
 
-interface MyEventsPageProps {
-  params: {
-    academyId: string;
-  };
-}
-
-export default function MyEventsPage({ params }: MyEventsPageProps) {
+export default function MyEventsPage() {
   const router = useRouter();
-  const { academyId } = params;
+  const { academyId } = useParams();
 
   const [registrations, setRegistrations] = useState<MyEventRegistration[]>([]);
   const [loading, setLoading] = useState(true);

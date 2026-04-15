@@ -24,10 +24,10 @@ import { ProgressChart } from "@/components/assessments/ProgressChart";
 import type { AssessmentWithScores } from "@/types";
 
 interface AthleteProgressPageProps {
-  params: {
+  params: Promise<{
     academyId: string;
     athleteId: string;
-  };
+  }>;
 }
 
 function calculateAge(dob: Date | null): number | null {
@@ -58,7 +58,7 @@ export default async function AthleteProgressPage({ params }: AthleteProgressPag
 
   if (!profile) redirect("/dashboard");
 
-  const { academyId, athleteId } = params;
+  const { academyId, athleteId } = await params;
 
   // Get athlete with academy
   const [athleteRow] = await db

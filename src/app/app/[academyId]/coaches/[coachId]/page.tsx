@@ -25,14 +25,14 @@ const WEEKDAY_LABELS: Record<number, string> = {
 };
 
 interface PageProps {
-  params: {
+  params: Promise<{
     academyId: string;
     coachId: string;
-  };
+  }>;
 }
 
 export default async function CoachDetailPage({ params }: PageProps) {
-  const { academyId, coachId } = params;
+  const { academyId, coachId } = await params;
 
   const [coachRow] = await db
     .select({

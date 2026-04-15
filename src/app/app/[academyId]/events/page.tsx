@@ -9,13 +9,13 @@ import { EventsList } from "@/components/events/EventsList";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 
 interface PageProps {
-  params: {
+  params: Promise<{
     academyId: string;
-  };
+  }>;
 }
 
 export default async function EventsPage({ params }: PageProps) {
-  const { academyId } = params;
+  const { academyId } = await params;
   const cookieStore = await cookies();
   const supabase = await createClient(cookieStore);
 

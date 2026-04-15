@@ -6,13 +6,14 @@ import { eq, and, isNotNull } from "drizzle-orm";
 import { PublicCoachProfile } from "@/components/coaches/PublicCoachProfile";
 
 interface PageProps {
-    params: {
+    params: Promise<{
         slug: string;
-    };
+    }>;
 }
 
 // Generate metadata for SEO
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+    const { slug } = await params;
     const [coach] = await db
         .select({
             name: coaches.name,
@@ -24,7 +25,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
         .innerJoin(academies, eq(coaches.academyId, academies.id))
         .where(
             and(
-                eq(coaches.slug, params.slug),
+                eq(coaches.slug, slug),
                 eq(coaches.isPublic, true)
             )
         )
@@ -59,6 +60,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function CoachPublicPage({ params }: PageProps) {
+    const { slug } = await params;
     // Fetch coach data
     const [coach] = await db
         .select({
@@ -80,7 +82,7 @@ export default async function CoachPublicPage({ params }: PageProps) {
         .innerJoin(academies, eq(coaches.academyId, academies.id))
         .where(
             and(
-                eq(coaches.slug, params.slug),
+                eq(coaches.slug, slug),
                 eq(coaches.isPublic, true)
             )
         )

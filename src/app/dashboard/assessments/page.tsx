@@ -20,10 +20,11 @@ import AssessmentsClientView from "@/components/assessments/AssessmentsClientVie
 import type { AssessmentWithScores, AssessmentType } from "@/types";
 
 interface AssessmentsPageProps {
-  searchParams: Record<string, string | string[] | undefined>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
 export default async function AssessmentsPage({ searchParams }: AssessmentsPageProps) {
+  const params = await searchParams;
   const cookieStore = await cookies();
   const supabase = await createClient(cookieStore);
   const {
@@ -79,18 +80,18 @@ export default async function AssessmentsPage({ searchParams }: AssessmentsPageP
 
   // Filters
   const academyParam =
-    typeof searchParams.academy === "string" && searchParams.academy !== "" ? searchParams.academy : undefined;
+    typeof params.academy === "string" && params.academy !== "" ? params.academy : undefined;
   const athleteParam =
-    typeof searchParams.athlete === "string" && searchParams.athlete !== "" ? searchParams.athlete : undefined;
+    typeof params.athlete === "string" && params.athlete !== "" ? params.athlete : undefined;
   const typeParam =
-    typeof searchParams.type === "string" &&
-    ["technical", "artistic", "physical", "behavioral", "overall"].includes(searchParams.type)
-      ? (searchParams.type as AssessmentType)
+    typeof params.type === "string" &&
+    ["technical", "artistic", "physical", "behavioral", "overall"].includes(params.type)
+      ? (params.type as AssessmentType)
       : undefined;
   const fromParam =
-    typeof searchParams.from === "string" && searchParams.from !== "" ? searchParams.from : undefined;
+    typeof params.from === "string" && params.from !== "" ? params.from : undefined;
   const toParam =
-    typeof searchParams.to === "string" && searchParams.to !== "" ? searchParams.to : undefined;
+    typeof params.to === "string" && params.to !== "" ? params.to : undefined;
 
   // Build conditions
   const baseConditions = tenantId ? [eq(athleteAssessments.tenantId, tenantId)] : [];
@@ -105,7 +106,7 @@ export default async function AssessmentsPage({ searchParams }: AssessmentsPageP
   const whereClause = baseConditions.length > 1 ? and(...baseConditions) : baseConditions[0];
 
   // Pagination
-  const page = typeof searchParams.page === "string" ? Number(searchParams.page) : 1;
+  const page = typeof params.page === "string" ? Number(params.page) : 1;
   const perPage = 20;
   const offset = (page - 1) * perPage;
 
@@ -250,7 +251,7 @@ export default async function AssessmentsPage({ searchParams }: AssessmentsPageP
         assessments={assessments}
         athletes={athletesForSelect.map((a) => ({ id: a.id, name: a.name }))}
         academies={userAcademies}
-        searchParams={searchParams}
+        searchParams={params}
         page={page}
         totalPages={totalPages}
         totalCount={Number(count)}

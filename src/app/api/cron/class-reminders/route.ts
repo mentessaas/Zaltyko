@@ -8,7 +8,7 @@ import { apiSuccess, apiError } from "@/lib/api-response";
 
 export async function GET(request: Request) {
   // Verificar que la solicitud viene de Vercel Cron
-  const authHeader = headers().get("authorization");
+  const authHeader = (await headers()).get("authorization");
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return apiError("UNAUTHORIZED", "No autorizado", 401);
   }

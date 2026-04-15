@@ -21,14 +21,12 @@ import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig = {
 
-  // En producción, NO ignorar errores de TypeScript
-  // Esto ayuda a detectar problemas antes del deploy
-  typescript: { 
-    ignoreBuildErrors: process.env.NODE_ENV === "development",
+  // Verificar TypeScript y ESLint siempre - los errores deben arreglarse, no ignorarse
+  typescript: {
+    ignoreBuildErrors: false,
   },
-  // Habilitar ESLint en producción, solo ignorar en desarrollo
   eslint: {
-    ignoreDuringBuilds: process.env.NODE_ENV === "development",
+    ignoreDuringBuilds: false,
   },
   pageExtensions: ["ts", "tsx", "mdx"],
   // Deshabilitar exportación estática (la app es completamente dinámica)
@@ -64,7 +62,6 @@ const nextConfig = {
   },
   
   // Optimizaciones de compilación
-  swcMinify: true,
   compress: true,
   poweredByHeader: false,
   reactStrictMode: true,

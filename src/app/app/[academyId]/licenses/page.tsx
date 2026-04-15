@@ -20,9 +20,9 @@ import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/ui/page-header";
 
 interface LicensesPageProps {
-  params: {
+  params: Promise<{
     academyId: string;
-  };
+  }>;
 }
 
 function getLicenseStatus(license: { validUntil: string | null; medicalCertificateExpiry: string | null }) {
@@ -59,7 +59,7 @@ export default async function LicensesPage({ params }: LicensesPageProps) {
 
   if (!profile) redirect("/dashboard");
 
-  const { academyId } = params;
+  const { academyId } = await params;
 
   // Check academy exists and user has access
   const [academy] = await db

@@ -7,19 +7,20 @@ import { academies, athletes, guardians, guardianAthletes, profiles } from "@/db
 import { GuardiansPage } from "@/components/athletes/guardians/GuardiansPage";
 
 interface PageProps {
-  params: {
+  params: Promise<{
     academyId: string;
     athleteId: string;
-  };
+  }>;
 }
 
 export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { athleteId } = await params;
   const [athlete] = await db
     .select({ name: athletes.name })
     .from(athletes)
-    .where(eq(athletes.id, params.athleteId))
+    .where(eq(athletes.id, athleteId))
     .limit(1);
 
   const name = athlete?.name ?? "Atleta";
@@ -31,7 +32,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function AthleteGuardiansPage({ params }: PageProps) {
-  const { academyId, athleteId } = params;
+  const { academyId, athleteId } = await params;
 
   // Verificar que el atleta existe y pertenece a la academia
   const [athlete] = await db

@@ -14,14 +14,15 @@ import { CoachesTableView } from "@/components/coaches/CoachesTableView";
  * por nombre/correo y filtrado por grupo. Incluye acceso a creación y edición.
  */
 interface PageProps {
-  params: {
+  params: Promise<{
     academyId: string;
-  };
-  searchParams: Record<string, string | string[] | undefined>;
+  }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
 export default async function AcademyCoachesPage({ params, searchParams }: PageProps) {
-  const { academyId } = params;
+  const { academyId } = await params;
+  const resolvedSearchParams = await searchParams;
 
   const [academy] = await db
     .select({
@@ -37,13 +38,13 @@ export default async function AcademyCoachesPage({ params, searchParams }: PageP
   }
 
   const searchQuery =
-    typeof searchParams.q === "string" && searchParams.q.trim().length > 0
-      ? searchParams.q.trim()
+    typeof resolvedSearchParams.q === "string" && resolvedSearchParams.q.trim().length > 0
+      ? resolvedSearchParams.q.trim()
       : undefined;
 
   const groupFilter =
-    typeof searchParams.group === "string" && searchParams.group.trim().length > 0
-      ? searchParams.group.trim()
+    typeof resolvedSearchParams.group === "string" && resolvedSearchParams.group.trim().length > 0
+      ? resolvedSearchParams.group.trim()
       : undefined;
 
   const searchCondition = searchQuery

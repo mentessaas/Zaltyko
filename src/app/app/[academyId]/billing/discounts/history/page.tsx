@@ -6,9 +6,9 @@ import { DiscountHistory } from "@/components/billing/DiscountHistory";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 
 interface PageProps {
-  params: {
+  params: Promise<{
     academyId: string;
-  };
+  }>;
 }
 
 export default async function DiscountHistoryPage({ params }: PageProps) {
@@ -23,7 +23,7 @@ export default async function DiscountHistoryPage({ params }: PageProps) {
     redirect("/auth/login");
   }
 
-  const { academyId } = params;
+  const { academyId } = await params;
 
   return (
     <div className="space-y-6 p-4 sm:p-6 lg:p-8">

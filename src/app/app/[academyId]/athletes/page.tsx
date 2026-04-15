@@ -18,10 +18,10 @@ import { AttendanceRiskWidget } from "@/components/dashboard/AttendanceRiskWidge
  * estado, nivel y grupo. Incluye acceso a creación y edición de atletas.
  */
 interface PageProps {
-  params: {
+  params: Promise<{
     academyId: string;
-  };
-  searchParams: Record<string, string | string[] | undefined>;
+  }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
 function calculateAge(dob: Date | string | null): number | null {
@@ -38,7 +38,8 @@ function calculateAge(dob: Date | string | null): number | null {
 }
 
 export default async function AcademyAthletesPage({ params, searchParams }: PageProps) {
-  const { academyId } = params;
+  const { academyId } = await params;
+  const resolvedSearchParams = await searchParams;
 
   const [academy] = await db
     .select({
@@ -54,24 +55,24 @@ export default async function AcademyAthletesPage({ params, searchParams }: Page
   }
 
   const statusFilter =
-    typeof searchParams.status === "string" &&
-    (athleteStatusOptions as readonly string[]).includes(searchParams.status)
-      ? (searchParams.status as (typeof athleteStatusOptions)[number])
+    typeof resolvedSearchParams.status === "string" &&
+    (athleteStatusOptions as readonly string[]).includes(resolvedSearchParams.status)
+      ? (resolvedSearchParams.status as (typeof athleteStatusOptions)[number])
       : undefined;
 
   const levelFilter =
-    typeof searchParams.level === "string" && searchParams.level.trim().length > 0
-      ? searchParams.level.trim()
+    typeof resolvedSearchParams.level === "string" && resolvedSearchParams.level.trim().length > 0
+      ? resolvedSearchParams.level.trim()
       : undefined;
 
   const searchQuery =
-    typeof searchParams.q === "string" && searchParams.q.trim().length > 0
-      ? searchParams.q.trim()
+    typeof resolvedSearchParams.q === "string" && resolvedSearchParams.q.trim().length > 0
+      ? resolvedSearchParams.q.trim()
       : undefined;
 
   const groupFilter =
-    typeof searchParams.group === "string" && searchParams.group.trim().length > 0
-      ? searchParams.group.trim()
+    typeof resolvedSearchParams.group === "string" && resolvedSearchParams.group.trim().length > 0
+      ? resolvedSearchParams.group.trim()
       : undefined;
 
   const ageExpr = sql<number | null>`CASE WHEN ${athletes.dob} IS NULL THEN NULL ELSE floor(date_part('year', age(now(), ${athletes.dob}))) END`;

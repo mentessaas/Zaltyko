@@ -11,6 +11,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import { OfflineBanner } from "@/components/ui/offline-banner";
 import { UpdateBanner } from "@/components/ui/update-banner";
 import { InstallPrompt } from "@/components/ui/install-prompt";
+import { PostHogProvider } from "@/components/PostHogProvider";
 
 const outfit = Outfit({
   subsets: ["latin"],
@@ -126,8 +127,10 @@ export default function RootLayout({
         <UpdateBanner />
         <InstallPrompt />
         <AppProviders>
-          {children}
-          <BottomNav />
+          <PostHogProvider>
+            {children}
+            <BottomNav />
+          </PostHogProvider>
         </AppProviders>
         <ServiceWorkerRegister />
         <Analytics />

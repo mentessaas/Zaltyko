@@ -45,9 +45,20 @@ export function assertSuperAdmin(profile: ProfileRow | null | undefined): void {
 export function withSuperAdmin<Ctx extends Record<string, unknown>>(
   handler: (request: Request, context: Ctx & { userId: string; profile: ProfileRow }) => Promise<Response>
 ) {
-  return async (request: Request, context: Ctx & { params?: Record<string, string> }) => {
+  // Next.js 15 passes context where params is a Promise for dynamic routes
+  return async (request: Request, context: any) => {
     try {
-      const userId = await resolveUserId(request, context);
+      // Resolve params if they're a Promise (Next.js 15 pattern)
+      const params = context.params
+        ? await context.params
+        : context.params;
+
+      const contextWithParams = {
+        ...context,
+        params,
+      };
+
+      const userId = await resolveUserId(request, contextWithParams);
 
       if (!userId) {
         return NextResponse.json(
@@ -68,7 +79,7 @@ export function withSuperAdmin<Ctx extends Record<string, unknown>>(
       assertSuperAdmin(profile);
 
       return handler(request, {
-        ...(context as Ctx),
+        ...contextWithParams,
         userId,
         profile,
       });
@@ -95,10 +106,22 @@ export function withSuperAdmin<Ctx extends Record<string, unknown>>(
 export function withTenant<Ctx extends Record<string, unknown>>(
   handler: (request: Request, context: TenantContext<Ctx>) => Promise<Response>
 ) {
-  return async (request: Request, context: Ctx & { params?: Record<string, string> }) => {
+  // Next.js 15 passes context where params is a Promise for dynamic routes
+  return async (request: Request, context: any) => {
     try {
+      // Resolve params if they're a Promise (Next.js 15 pattern)
+      const params = context.params
+        ? await context.params
+        : context.params;
+
+      // Create resolved context for functions that need params synchronously
+      const contextWithParams = {
+        ...context,
+        params,
+      };
+
       // Resolver userId
-      const userId = await resolveUserId(request, context);
+      const userId = await resolveUserId(request, contextWithParams);
       if (!userId) {
         return NextResponse.json(
           { error: "UNAUTHENTICATED" },
@@ -127,7 +150,7 @@ export function withTenant<Ctx extends Record<string, unknown>>(
       }
 
       // Extraer academyId desde diferentes fuentes
-      const effectiveAcademyId = extractAcademyId(request, context);
+      const effectiveAcademyId = extractAcademyId(request, contextWithParams);
 
       // Resolver tenantId
       let tenantId = await getTenantId(userId, effectiveAcademyId);
@@ -179,7 +202,7 @@ export function withTenant<Ctx extends Record<string, unknown>>(
         : (tenantId ?? "");
 
       return handler(request, {
-        ...(context as Ctx),
+        ...contextWithParams,
         tenantId: handlerTenantId,
         userId,
         profile,

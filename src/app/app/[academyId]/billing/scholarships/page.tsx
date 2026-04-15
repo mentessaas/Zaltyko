@@ -2,13 +2,13 @@ import { ScholarshipManager } from "@/components/billing/ScholarshipManager";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 
 interface PageProps {
-  params: {
+  params: Promise<{
     academyId: string;
-  };
+  }>;
 }
 
 export default async function ScholarshipsPage({ params }: PageProps) {
-  const { academyId } = params;
+  const { academyId } = await params;
 
   return (
     <div className="space-y-6 p-4 sm:p-6 lg:p-8">

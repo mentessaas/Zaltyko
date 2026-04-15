@@ -6,6 +6,7 @@ import { subscriptions, plans } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
+import { getStripeClient } from "@/lib/stripe/client";
 
 // Handler for POST - separated to apply rate limiting
 const downgradeHandler = withTenant(async (req, context) => {
@@ -41,13 +42,19 @@ const downgradeHandler = withTenant(async (req, context) => {
             return apiError("NOT_FOUND", "Target plan not found", 404);
         }
 
-        // TODO: Integrar con Stripe para manejar el downgrade (generalmente al final del periodo)
-        // await stripe.subscriptions.update(currentSubscription.stripeSubscriptionId, {
-        //   cancel_at_period_end: true, // O programar cambio
-        // });
+        // Integrar con Stripe
+        if (!currentSubscription.stripeSubscriptionId) {
+            return apiError("STRIPE_NOT_CONFIGURED", "Stripe subscription not configured", 400);
+        }
 
-        // Para este MVP, actualizamos directamente o marcamos para cancelación si es a free
+        const stripe = getStripeClient();
+
         if (targetPlan === "free") {
+            // Schedule cancellation at period end
+            await stripe.subscriptions.update(currentSubscription.stripeSubscriptionId, {
+                cancel_at_period_end: true,
+            });
+
             await db
                 .update(subscriptions)
                 .set({
@@ -56,8 +63,17 @@ const downgradeHandler = withTenant(async (req, context) => {
                 })
                 .where(eq(subscriptions.id, currentSubscription.id));
         } else {
-            // Downgrade a otro plan de pago (ej. Premium -> Pro)
-            // Idealmente esto se programa, aquí lo hacemos inmediato para simplificar
+            // Downgrade a otro plan de pago - programar cambio al final del periodo
+            await stripe.subscriptions.update(currentSubscription.stripeSubscriptionId, {
+                items: [{
+                    id: currentSubscription.stripeSubscriptionId,
+                    price: newPlanDetails.stripePriceId || "",
+                }],
+                cancel_at_period_end: false,
+                proration_behavior: "create_prorations",
+                billing_cycle_anchor: "unchanged",
+            });
+
             await db
                 .update(subscriptions)
                 .set({
@@ -82,7 +98,7 @@ export const POST = withRateLimit(
     { identifier: getUserIdentifier, limit: 10, window: 60 }
 );
 
-// Handler for DELETE - separated to apply rate limiting
+// Handler for DELETE - cancel scheduled downgrade
 const cancelDowngradeHandler = withTenant(async (req, context) => {
     try {
         const { userId } = context;
@@ -102,10 +118,13 @@ const cancelDowngradeHandler = withTenant(async (req, context) => {
             return apiError("NO_SCHEDULED_DOWNGRADE", "No scheduled downgrade found", 400);
         }
 
-        // TODO: Integrate with Stripe to cancel the scheduled downgrade
-        // await stripe.subscriptions.update(currentSubscription.stripeSubscriptionId, {
-        //   cancel_at_period_end: false,
-        // });
+        // Cancel scheduled downgrade in Stripe
+        if (currentSubscription.stripeSubscriptionId) {
+            const stripe = getStripeClient();
+            await stripe.subscriptions.update(currentSubscription.stripeSubscriptionId, {
+                cancel_at_period_end: false,
+            });
+        }
 
         // Remove the scheduled downgrade
         await db

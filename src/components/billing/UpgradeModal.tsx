@@ -22,7 +22,7 @@ interface UpgradeModalProps {
 const PLAN_DETAILS = {
     pro: {
         name: "Pro",
-        price: 29,
+        price: 19,
         color: "from-zaltyko-primary to-zaltyko-accent-teal",
         features: [
             "200 atletas",
@@ -35,7 +35,7 @@ const PLAN_DETAILS = {
     },
     premium: {
         name: "Premium",
-        price: 79,
+        price: 49,
         color: "from-zaltyko-accent-coral to-zaltyko-accent-amber",
         features: [
             "Atletas ilimitados",
@@ -96,9 +96,11 @@ export function UpgradeModal({ open, onClose, currentPlan, targetPlan, onConfirm
     const [clientSecret, setClientSecret] = useState<string | null>(null);
 
     const planDetails = PLAN_DETAILS[targetPlan];
-    const currentPlanPrice = currentPlan === "free" ? 0 : currentPlan === "pro" ? 29 : 79;
+    const PLAN_PRICES: Record<string, number> = { free: 0, pro: 19, premium: 49 };
+    const currentPlanPrice = PLAN_PRICES[currentPlan] || 0;
     const priceDifference = planDetails.price - currentPlanPrice;
-    const prorationAmount = Math.round(priceDifference * 0.5); // Ejemplo: 50% de prorrateo
+    // Real proration will be calculated server-side; show indicative amount
+    const prorationAmount = Math.round(priceDifference * 0.5);
 
     const handleContinueToPayment = async () => {
         setLoading(true);
@@ -162,7 +164,7 @@ export function UpgradeModal({ open, onClose, currentPlan, targetPlan, onConfirm
                                 </Badge>
                             </div>
                             <div className="flex items-baseline gap-2 mb-4">
-                                <span className="text-4xl font-bold">${planDetails.price}</span>
+                                <span className="text-4xl font-bold">€{planDetails.price}</span>
                                 <span className="text-white/80">/mes</span>
                             </div>
                             <div className="space-y-2">
@@ -179,22 +181,22 @@ export function UpgradeModal({ open, onClose, currentPlan, targetPlan, onConfirm
                         <div className="space-y-3 p-4 rounded-lg bg-zaltyko-bg-secondary">
                             <div className="flex justify-between text-sm">
                                 <span className="text-zaltyko-text-light">Plan {planDetails.name}</span>
-                                <span className="font-semibold">${planDetails.price}/mes</span>
+                                <span className="font-semibold">€{planDetails.price}/mes</span>
                             </div>
                             {currentPlan !== "free" && (
                                 <>
                                     <div className="flex justify-between text-sm">
                                         <span className="text-zaltyko-text-light">Crédito por tiempo restante</span>
-                                        <span className="font-semibold text-zaltyko-primary">-${prorationAmount}</span>
+                                        <span className="font-semibold text-zaltyko-primary">-€{prorationAmount}</span>
                                     </div>
                                     <div className="border-t border-zaltyko-border pt-2 flex justify-between">
                                         <span className="font-semibold">Total hoy</span>
-                                        <span className="font-bold text-lg">${planDetails.price - prorationAmount}</span>
+                                        <span className="font-bold text-lg">€{planDetails.price - prorationAmount}</span>
                                     </div>
                                 </>
                             )}
                             <p className="text-xs text-zaltyko-text-light">
-                                A partir del próximo ciclo de facturación, se cobrará ${planDetails.price}/mes
+                                A partir del próximo ciclo de facturación, se cobrará €{planDetails.price}/mes
                             </p>
                         </div>
 

@@ -12,14 +12,14 @@ import Link from "next/link";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 
 interface PageProps {
-  params: {
+  params: Promise<{
     academyId: string;
     eventId: string;
-  };
+  }>;
 }
 
 export default async function EventDetailPage({ params }: PageProps) {
-  const { academyId, eventId } = params;
+  const { academyId, eventId } = await params;
 
   const [eventRow] = await db
     .select({

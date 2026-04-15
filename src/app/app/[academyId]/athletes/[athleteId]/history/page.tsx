@@ -8,14 +8,14 @@ import { ProgressTimeline } from "@/components/athletes/ProgressTimeline";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 
 interface PageProps {
-  params: {
+  params: Promise<{
     academyId: string;
     athleteId: string;
-  };
+  }>;
 }
 
 export default async function AthleteHistoryPage({ params }: PageProps) {
-  const { academyId, athleteId } = params;
+  const { academyId, athleteId } = await params;
 
   const [athlete] = await db
     .select({
