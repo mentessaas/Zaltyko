@@ -42,9 +42,10 @@ async function getAds(zone: string) {
 export default async function EmpleoPage({
   searchParams,
 }: {
-  searchParams: { category?: string; jobType?: string; search?: string; page?: string };
+  searchParams: Promise<{ category?: string; jobType?: string; search?: string; page?: string }>;
 }) {
-  const { items: jobs, total } = await getJobs(searchParams);
+  const resolvedSearchParams = await searchParams;
+  const { items: jobs, total } = await getJobs(resolvedSearchParams);
   const { ads: topAds } = await getAds("empleo_top");
 
   return (

@@ -16,10 +16,11 @@ import InviteUserForm from "@/components/admin/InviteUserForm";
 import { getRoleLabel } from "@/lib/roles";
 
 interface UsersPageProps {
-  searchParams: Record<string, string | string[] | undefined>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
 export default async function UsersAdminPage({ searchParams }: UsersPageProps) {
+  const params = await searchParams;
   const cookieStore = await cookies();
   const supabase = await createClient(cookieStore);
   const {
@@ -47,9 +48,9 @@ export default async function UsersAdminPage({ searchParams }: UsersPageProps) {
     redirect("/dashboard");
   }
 
-  const roleFilterParam = typeof searchParams.role === "string" ? searchParams.role : undefined;
-  const queryParam = typeof searchParams.q === "string" ? searchParams.q : undefined;
-  const tenantParam = typeof searchParams.tenant === "string" ? searchParams.tenant : undefined;
+  const roleFilterParam = typeof params.role === "string" ? params.role : undefined;
+  const queryParam = typeof params.q === "string" ? params.q : undefined;
+  const tenantParam = typeof params.tenant === "string" ? params.tenant : undefined;
 
   const effectiveTenantId = isSuperAdmin
     ? tenantParam ?? profile.tenantId ?? null
@@ -186,11 +187,12 @@ export default async function UsersAdminPage({ searchParams }: UsersPageProps) {
             name="q"
             placeholder="Buscar por nombre o correo"
             defaultValue={queryParam ?? ""}
-            className="flex-1 min-w-[220px] rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-400"
+            key={queryParam}
           />
           <select
             name="role"
             defaultValue={roleFilterParam ?? ""}
+            key={roleFilterParam}
             className="min-w-[180px] rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-400"
           >
             <option value="">Todos los roles</option>

@@ -5,9 +5,9 @@ import { RecentReports } from "@/components/reports/RecentReports";
 import { ScheduledReports } from "@/components/reports/ScheduledReports";
 
 interface PageProps {
-  params: {
+  params: Promise<{
     academyId: string;
-  };
+  }>;
 }
 
 const reportTypes = [
@@ -61,8 +61,8 @@ const reportTypes = [
   },
 ];
 
-export default function ReportsPage({ params }: PageProps) {
-  const { academyId } = params;
+export default async function ReportsPage({ params }: PageProps) {
+  const { academyId } = await params;
 
   return (
     <div className="space-y-6 p-4 sm:p-6 lg:p-8">

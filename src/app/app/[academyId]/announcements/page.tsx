@@ -41,13 +41,13 @@ function formatDate(dateStr: Date | string | null): string {
 }
 
 interface PageProps {
-  params: {
+  params: Promise<{
     academyId: string;
-  };
+  }>;
 }
 
 export default async function AnnouncementsPage({ params }: PageProps) {
-  const { academyId } = params;
+  const { academyId } = await params;
   const cookieStore = await cookies();
   const supabase = await createClient(cookieStore);
 

@@ -5,13 +5,13 @@ import { academies } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
 interface PageProps {
-  params: {
+  params: Promise<{
     academyId: string;
-  };
+  }>;
 }
 
 export default async function FinancialReportsPage({ params }: PageProps) {
-  const { academyId } = params;
+  const { academyId } = await params;
 
   const [academy] = await db
     .select({ country: academies.country })

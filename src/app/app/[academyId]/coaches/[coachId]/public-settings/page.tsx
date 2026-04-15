@@ -7,14 +7,14 @@ import { CoachPublicProfileEditor } from "@/components/coaches/CoachPublicProfil
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 
 interface PageProps {
-  params: {
+  params: Promise<{
     academyId: string;
     coachId: string;
-  };
+  }>;
 }
 
 export default async function CoachPublicSettingsPage({ params }: PageProps) {
-  const { academyId, coachId } = params;
+  const { academyId, coachId } = await params;
 
   const [coach] = await db
     .select({

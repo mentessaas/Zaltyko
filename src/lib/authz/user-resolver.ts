@@ -41,7 +41,7 @@ export async function resolveUserId(
 
   // Desde cookies (Supabase Auth)
   try {
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const supabase = await createSupabaseServerClient(cookieStore);
     const {
       data: { user },

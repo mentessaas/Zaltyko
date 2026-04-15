@@ -28,9 +28,9 @@ function isSuperAdmin(role: string | null): boolean {
 }
 
 interface AthletePageProps {
-  params: {
+  params: Promise<{
     athleteId: string;
-  };
+  }>;
 }
 
 function calculateAge(dob: Date | null): number | null {
@@ -45,6 +45,7 @@ function calculateAge(dob: Date | null): number | null {
 }
 
 export default async function AthleteDetailPage({ params }: AthletePageProps) {
+  const { athleteId } = await params;
   const cookieStore = await cookies();
   const supabase = await createClient(cookieStore);
   const {
@@ -64,8 +65,6 @@ export default async function AthleteDetailPage({ params }: AthletePageProps) {
   if (!profile) {
     redirect("/dashboard");
   }
-
-  const athleteId = params.athleteId;
 
   const [athleteRow] = await db
     .select({

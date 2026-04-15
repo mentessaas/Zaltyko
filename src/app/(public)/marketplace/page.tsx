@@ -42,9 +42,10 @@ async function getAds(zone: string) {
 export default async function MarketplacePage({
   searchParams,
 }: {
-  searchParams: { category?: string; type?: string; search?: string; page?: string };
+  searchParams: Promise<{ category?: string; type?: string; search?: string; page?: string }>;
 }) {
-  const { items: listings, total, page, totalPages } = await getListings(searchParams);
+  const resolvedSearchParams = await searchParams;
+  const { items: listings, total, page, totalPages } = await getListings(resolvedSearchParams);
   const { ads: topAds } = await getAds("marketplace_top");
 
   return (

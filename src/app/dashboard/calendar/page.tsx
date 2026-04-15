@@ -15,7 +15,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/shared/EmptyState";
 
 interface CalendarPageProps {
-  searchParams: Record<string, string | string[] | undefined>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
 type CalendarSessionEntry = {
@@ -49,6 +49,7 @@ function toISODate(date: Date, countryCode?: string | null) {
 // Función eliminada - ahora usamos getFirstDateForWeekdayInTimezone de date-utils
 
 export default async function CalendarPage({ searchParams }: CalendarPageProps) {
+  const params = await searchParams;
   const cookieStore = await cookies();
   const supabase = await createClient(cookieStore);
   const {
@@ -71,7 +72,7 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
   }
 
   // Si hay un profileId en los searchParams y el usuario es Super Admin, usar ese perfil
-  const profileIdParam = typeof searchParams.profileId === "string" ? searchParams.profileId : undefined;
+  const profileIdParam = typeof params.profileId === "string" ? params.profileId : undefined;
   const isViewingAsSuperAdmin = profileIdParam && currentProfile.role === "super_admin";
 
   let targetProfile = currentProfile;
@@ -132,12 +133,12 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
   const academyCountry = firstAcademy?.country ?? null;
 
   const viewParam =
-    typeof searchParams.view === "string" && ["week", "month"].includes(searchParams.view)
-      ? (searchParams.view as "week" | "month")
+    typeof params.view === "string" && ["week", "month"].includes(params.view)
+      ? (params.view as "week" | "month")
       : "week";
 
   const referenceDate = parseDateParam(
-    typeof searchParams.date === "string" ? searchParams.date : undefined
+    typeof params.date === "string" ? params.date : undefined
   );
 
   let rangeStart: Date;

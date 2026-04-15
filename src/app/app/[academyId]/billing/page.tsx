@@ -11,12 +11,13 @@ import { BillingPanel } from "@/components/billing/BillingPanel";
  * al portal de Stripe para actualizar planes o ver facturas.
  */
 interface PageProps {
-  params: {
+  params: Promise<{
     academyId: string;
-  };
+  }>;
 }
 
 export default async function AcademyBillingPage({ params }: PageProps) {
+  const { academyId } = await params;
   const cookieStore = await cookies();
   const supabase = await createClient(cookieStore);
 
@@ -37,7 +38,7 @@ export default async function AcademyBillingPage({ params }: PageProps) {
         </p>
       </header>
 
-      <BillingPanel academyId={params.academyId} userId={user.id} />
+      <BillingPanel academyId={academyId} userId={user.id} />
     </div>
   );
 }

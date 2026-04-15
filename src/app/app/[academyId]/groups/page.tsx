@@ -19,13 +19,13 @@ import { AthleteOption, CoachOption, GroupSummary } from "@/components/groups/ty
  * y equipos para conectar clases, asistencia y evaluaciones.
  */
 interface PageProps {
-  params: {
+  params: Promise<{
     academyId: string;
-  };
+  }>;
 }
 
 export default async function AcademyGroupsPage({ params }: PageProps) {
-  const { academyId } = params;
+  const { academyId } = await params;
 
   const [academy] = await db
     .select({ id: academies.id, name: academies.name })

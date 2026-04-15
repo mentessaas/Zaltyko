@@ -76,4 +76,5 @@ export * from "./communication";
 export * from "./permissions";
 export * from "./roles";
 export * from "./templates";
+export * from "./leads";
 

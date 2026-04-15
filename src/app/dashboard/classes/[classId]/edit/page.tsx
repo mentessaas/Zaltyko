@@ -29,7 +29,7 @@ import { CreateSessionDialog } from "@/components/classes/CreateSessionDialog";
 
 interface EditClassPageProps {
   params: Promise<{ classId: string }>;
-  searchParams: Record<string, string | string[] | undefined>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
 const WEEKDAY_LABELS: Record<number, string> = {
@@ -44,6 +44,7 @@ const WEEKDAY_LABELS: Record<number, string> = {
 
 export default async function EditClassPage({ params, searchParams }: EditClassPageProps) {
   const { classId } = await params;
+  const resolvedSearchParams = await searchParams;
 
   const cookieStore = await cookies();
   const supabase = await createClient(cookieStore);

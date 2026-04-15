@@ -8,12 +8,13 @@ import { createClient } from "@/lib/supabase/server";
 import { WhatsAppPage } from "./WhatsAppPage";
 
 interface PageProps {
-  params: {
+  params: Promise<{
     academyId: string;
-  };
+  }>;
 }
 
 export default async function WhatsAppRoutePage({ params }: PageProps) {
+  const { academyId } = await params;
   const cookieStore = await cookies();
   const supabase = await createClient(cookieStore);
 
@@ -42,7 +43,7 @@ export default async function WhatsAppRoutePage({ params }: PageProps) {
     .where(
       and(
         eq(memberships.userId, profile.id),
-        eq(memberships.academyId, params.academyId)
+        eq(memberships.academyId, academyId)
       )
     )
     .limit(1);
@@ -64,7 +65,7 @@ export default async function WhatsAppRoutePage({ params }: PageProps) {
       name: academies.name,
     })
     .from(academies)
-    .where(eq(academies.id, params.academyId))
+    .where(eq(academies.id, academyId))
     .limit(1);
 
   if (!academy) {
@@ -86,7 +87,7 @@ export default async function WhatsAppRoutePage({ params }: PageProps) {
       name: classes.name,
     })
     .from(classes)
-    .where(eq(classes.academyId, params.academyId))
+    .where(eq(classes.academyId, academyId))
     .orderBy(classes.name);
 
   // Get groups for recipient selection
@@ -97,7 +98,7 @@ export default async function WhatsAppRoutePage({ params }: PageProps) {
       name: groups.name,
     })
     .from(groups)
-    .where(eq(groups.academyId, params.academyId))
+    .where(eq(groups.academyId, academyId))
     .orderBy(groups.name);
 
   // Get athletes for recipient selection
@@ -109,12 +110,12 @@ export default async function WhatsAppRoutePage({ params }: PageProps) {
     })
     .from(profiles)
     .innerJoin(memberships, eq(memberships.userId, profiles.id))
-    .where(eq(memberships.academyId, params.academyId))
+    .where(eq(memberships.academyId, academyId))
     .orderBy(profiles.name);
 
   return (
     <WhatsAppPage
-      academyId={params.academyId}
+      academyId={academyId}
       academyName={academy.name}
       whatsappConfig={whatsappConfig}
       classes={classRows.map((c) => ({ id: c.id, name: c.name }))}

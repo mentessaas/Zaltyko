@@ -6,6 +6,7 @@ import { subscriptions } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
+import { getStripeClient } from "@/lib/stripe/client";
 
 // Handler for POST - separated to apply rate limiting
 const cancelHandler = withTenant(async (req, context) => {
@@ -26,8 +27,13 @@ const cancelHandler = withTenant(async (req, context) => {
             return apiError("NOT_FOUND", "No active subscription found", 404);
         }
 
-        // TODO: Integrate with Stripe to cancel subscription
-        // await stripe.subscriptions.cancel(currentSubscription.stripeSubscriptionId);
+        // Integrate with Stripe to cancel subscription
+        if (currentSubscription.stripeSubscriptionId) {
+            const stripe = getStripeClient();
+            await stripe.subscriptions.update(currentSubscription.stripeSubscriptionId, {
+                cancel_at_period_end: true,
+            });
+        }
 
         // Mark subscription for cancellation at period end
         await db

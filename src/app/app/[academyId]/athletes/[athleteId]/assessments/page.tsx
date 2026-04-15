@@ -8,19 +8,20 @@ import { Breadcrumb } from "@/components/ui/breadcrumb";
 import AthleteEvaluationsTab from "@/components/assessments/AthleteEvaluationsTab";
 
 interface PageProps {
-  params: {
+  params: Promise<{
     academyId: string;
     athleteId: string;
-  };
+  }>;
 }
 
 export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { athleteId } = await params;
   const [athlete] = await db
     .select({ name: athletes.name })
     .from(athletes)
-    .where(eq(athletes.id, params.athleteId))
+    .where(eq(athletes.id, athleteId))
     .limit(1);
 
   const name = athlete?.name ?? "Atleta";
@@ -32,7 +33,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function AthleteAssessmentsPage({ params }: PageProps) {
-  const { academyId, athleteId } = params;
+  const { academyId, athleteId } = await params;
 
   // Fetch athlete
   const [athlete] = await db

@@ -3,6 +3,7 @@
 import { Sparkles, ArrowRight, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
+import { EmailCapture } from "@/components/EmailCapture";
 
 const benefits = [
   "Configuración en menos de 5 minutos",
@@ -67,6 +68,19 @@ export default function FinalCtaSection() {
           >
             Ver planes y precios
           </Link>
+        </div>
+
+        {/* Email Capture */}
+        <div className="mt-8 p-6 rounded-2xl bg-white/10 backdrop-blur-sm border border-white/20">
+          <p className="text-white/80 text-sm mb-4">
+            ¿No estás listo para crear cuenta? Recibe nuestro newsletter con tips de gestión.
+          </p>
+          <EmailCapture
+            source="final_cta"
+            variant="inline"
+            placeholder="tu@email.com"
+            buttonText="Suscribirme"
+          />
         </div>
 
         {/* Trust */}

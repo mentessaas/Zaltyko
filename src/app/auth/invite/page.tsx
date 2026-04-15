@@ -9,7 +9,7 @@ import AcceptInvitationForm from "@/components/AcceptInvitationForm";
 import AcceptExistingUserForm from "@/components/AcceptInvitationForm";
 
 interface InvitePageProps {
-  searchParams: Record<string, string | string[] | undefined>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
 export const metadata: Metadata = {
@@ -18,7 +18,8 @@ export const metadata: Metadata = {
 };
 
 export default async function InvitePage({ searchParams }: InvitePageProps) {
-  const token = typeof searchParams.token === "string" ? searchParams.token : undefined;
+  const params = await searchParams;
+  const token = typeof params.token === "string" ? params.token : undefined;
 
   if (!token) {
     return (

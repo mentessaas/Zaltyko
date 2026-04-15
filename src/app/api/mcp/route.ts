@@ -90,12 +90,9 @@ const handler = createMcpHandler(
  * Auth wrapper for MCP handler
  * Verifies Bearer token before processing requests
  */
-async function authHandler(
-  request: Request,
-  options?: { method: 'GET' | 'POST' }
-): Promise<Response> {
+async function authHandler(request: Request): Promise<Response> {
   // Skip auth for GET requests (MCP protocol uses POST for tool calls)
-  if (options?.method === 'GET') {
+  if (request.method === 'GET') {
     return handler(request);
   }
 

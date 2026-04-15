@@ -16,13 +16,14 @@ import { AcademyTopNav } from "./top-nav";
 import { AutoBreadcrumb } from "@/components/navigation/AutoBreadcrumb";
 
 interface LayoutProps {
-  params: {
+  params: Promise<{
     academyId: string;
-  };
+  }>;
   children: React.ReactNode;
 }
 
 export default async function AcademyLayout({ params, children }: LayoutProps) {
+  const { academyId } = await params;
   const cookieStore = await cookies();
   const supabase = await createClient(cookieStore);
 
@@ -59,7 +60,7 @@ export default async function AcademyLayout({ params, children }: LayoutProps) {
       ownerId: academies.ownerId,
     })
     .from(academies)
-    .where(eq(academies.id, params.academyId))
+    .where(eq(academies.id, academyId))
     .limit(1);
 
   if (!academy) {

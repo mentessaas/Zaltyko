@@ -11,10 +11,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import AssessmentForm from "@/components/assessments/AssessmentForm";
 
 interface EvaluatePageProps {
-  params: {
+  params: Promise<{
     academyId: string;
     athleteId: string;
-  };
+  }>;
 }
 
 export default async function AthleteEvaluatePage({ params }: EvaluatePageProps) {
@@ -34,7 +34,7 @@ export default async function AthleteEvaluatePage({ params }: EvaluatePageProps)
 
   if (!profile) redirect("/dashboard");
 
-  const { academyId, athleteId } = params;
+  const { academyId, athleteId } = await params;
 
   // Get athlete with academy
   const [athleteRow] = await db

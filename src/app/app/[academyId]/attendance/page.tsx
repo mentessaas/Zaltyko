@@ -20,13 +20,13 @@ import {
  * acceder rápidamente al detalle de cada sesión para revisar o registrar asistencia.
  */
 interface PageProps {
-  params: {
+  params: Promise<{
     academyId: string;
-  };
+  }>;
 }
 
 export default async function AttendanceOverviewPage({ params }: PageProps) {
-  const { academyId } = params;
+  const { academyId } = await params;
 
   const [academy] = await db
     .select({

@@ -21,14 +21,14 @@ import { AthleteDetailTabs } from "@/components/athletes/AthleteDetailTabs";
 import { coaches } from "@/db/schema";
 
 interface PageProps {
-  params: {
+  params: Promise<{
     academyId: string;
     athleteId: string;
-  };
+  }>;
 }
 
 export default async function AthleteDetailPage({ params }: PageProps) {
-  const { academyId, athleteId } = params;
+  const { academyId, athleteId } = await params;
 
   const [athleteRow] = await db
     .select({

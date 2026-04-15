@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { notFound } from "next/navigation";
 import { Plus, Mail, Search } from "lucide-react";
 
@@ -42,16 +42,9 @@ interface Invitation {
   invitedByName?: string;
 }
 
-interface InvitationsPageProps {
-  params: {
-    academyId: string;
-    eventId: string;
-  };
-}
-
-export default function EventInvitationsPage({ params }: InvitationsPageProps) {
+export default function EventInvitationsPage() {
   const router = useRouter();
-  const { academyId, eventId } = params;
+  const { academyId, eventId } = useParams();
 
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [loading, setLoading] = useState(true);

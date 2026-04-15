@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { notFound } from "next/navigation";
 import { formatLongDateForCountry } from "@/lib/date-utils";
 import { Calendar, MapPin, Users, Clock, AlertCircle, CheckCircle } from "lucide-react";
@@ -52,13 +52,11 @@ interface EventDetails {
   };
 }
 
-export default function EventRegistrationPage({
-  params,
-}: {
-  params: { academyId: string; eventId: string };
-}) {
+export default function EventRegistrationPage() {
   const router = useRouter();
-  const { academyId, eventId } = params;
+  const params = useParams();
+  const academyId = params.academyId as string;
+  const eventId = params.eventId as string;
 
   const [event, setEvent] = useState<EventDetails | null>(null);
   const [loading, setLoading] = useState(true);

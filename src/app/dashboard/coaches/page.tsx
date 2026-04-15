@@ -20,10 +20,11 @@ import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/shared/EmptyState";
 
 interface CoachesPageProps {
-  searchParams: Record<string, string | string[] | undefined>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
 export default async function CoachesPage({ searchParams }: CoachesPageProps) {
+  const params = await searchParams;
   const cookieStore = await cookies();
   const supabase = await createClient(cookieStore);
   const {
@@ -45,8 +46,8 @@ export default async function CoachesPage({ searchParams }: CoachesPageProps) {
   }
 
   const tenantOverride =
-    typeof searchParams.tenant === "string" && searchParams.tenant.trim().length > 0
-      ? searchParams.tenant.trim()
+    typeof params.tenant === "string" && params.tenant.trim().length > 0
+      ? params.tenant.trim()
       : undefined;
 
   let tenantId = profile.tenantId ?? tenantOverride;

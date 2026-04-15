@@ -2,18 +2,19 @@ import { AnalyticsWidgets } from "@/components/analytics/AnalyticsWidgets";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 
 interface PageProps {
-  params: {
+  params: Promise<{
     academyId: string;
-  };
-  searchParams: {
+  }>;
+  searchParams: Promise<{
     dateRange?: string;
     classId?: string;
     coachId?: string;
-  };
+  }>;
 }
 
 export default async function AnalyticsPage({ params, searchParams }: PageProps) {
-  const { academyId } = params;
+  const { academyId } = await params;
+  const searchParamsResolved = await searchParams;
 
   return (
     <div className="space-y-6 p-4 sm:p-6 lg:p-8">

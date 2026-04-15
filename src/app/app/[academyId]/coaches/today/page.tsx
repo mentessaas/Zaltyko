@@ -20,13 +20,13 @@ import { getCoachSchedule } from "@/app/actions/classes/get-coach-schedule";
 import CoachTodayView from "@/components/coaches/CoachTodayView";
 
 interface PageProps {
-  params: {
+  params: Promise<{
     academyId: string;
-  };
+  }>;
 }
 
 export default async function CoachTodayPage({ params }: PageProps) {
-  const { academyId } = params;
+  const { academyId } = await params;
 
   const cookieStore = await cookies();
   const supabase = await createClient(cookieStore);

@@ -8,11 +8,12 @@ import { createClient } from "@/lib/supabase/server";
 import AcceptInvitationForm from "@/components/AcceptInvitationForm";
 
 interface ParentInviteProps {
-  searchParams: Record<string, string | string[] | undefined>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
 export default async function ParentInvitationPage({ searchParams }: ParentInviteProps) {
-  const token = typeof searchParams.token === "string" ? searchParams.token : null;
+  const params = await searchParams;
+  const token = typeof params.token === "string" ? params.token : null;
   if (!token) {
     notFound();
   }
