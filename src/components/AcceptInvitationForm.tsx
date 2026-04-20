@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { createClient } from "@/lib/supabase/client";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -161,10 +162,28 @@ export default function AcceptInvitationForm({
     setPending(true);
 
     try {
+      const supabase = createClient();
+
+      // First, sign up with Supabase Auth
+      const { error: signUpError } = await supabase.auth.signUp({
+        email: email,
+        password: password,
+        options: {
+          data: {
+            full_name: name,
+          },
+        },
+      });
+
+      if (signUpError) {
+        throw new Error(signUpError.message || "No se pudo crear la cuenta.");
+      }
+
+      // Then call the complete endpoint to accept invitation
       const response = await fetch("/api/invitations/complete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, password, name }),
+        body: JSON.stringify({ token, name }),
       });
 
       if (!response.ok) {
@@ -174,7 +193,7 @@ export default function AcceptInvitationForm({
 
       toast.pushToast({
         title: "Cuenta creada",
-        description: "Tu cuenta ha sido creada exitosamente. Redirigiendo...",
+        description: "Tu cuenta ha sido creada y la invitación aceptada. Redirigiendo...",
         variant: "success",
       });
 

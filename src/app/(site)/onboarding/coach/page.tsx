@@ -153,11 +153,21 @@ export default function CoachOnboardingPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("No user");
 
+      // First, ensure profile exists with owner role
+      await fetch("/api/onboarding/profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: academy.name || "Owner",
+          role: "owner",
+        }),
+      });
+
       // Create academy if provided
       if (academy.name && academy.type) {
         const academyRes = await fetch("/api/academies", {
           method: "POST",
-          headers: { "Content-Type": "application/json", "x-user-id": user.id },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             name: academy.name,
             type: academy.type,

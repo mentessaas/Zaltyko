@@ -124,15 +124,21 @@ export async function POST(request: Request) {
           })
           .where(eq(profiles.id, profileId));
       } else {
+        // Determine role from body or default to owner
+        const profileRole = (bodyObj.role as string) || "owner";
+        const validRoles = ["owner", "admin", "coach", "athlete", "parent"];
+        const finalRole = validRoles.includes(profileRole) ? profileRole : "owner";
+
         // Create new profile
         const [newProfile] = await db
           .insert(profiles)
           .values({
             userId,
             name,
-            role: "owner",
+            role: finalRole as any,
             tenantId,
             activeAcademyId: academyId,
+            canLogin: true,
           })
           .returning({ id: profiles.id });
 
