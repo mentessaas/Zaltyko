@@ -16,7 +16,8 @@ interface VideoUploaderProps {
   maxVideos?: number;
   maxSizeMB?: number;
   disabled?: boolean;
-  uploadEndpoint?: string;
+  academyId: string;
+  assessmentId?: string;
 }
 
 interface UploadingVideo {
@@ -33,7 +34,8 @@ export function VideoUploader({
   maxVideos = 5,
   maxSizeMB = 100,
   disabled = false,
-  uploadEndpoint = "/api/upload",
+  academyId,
+  assessmentId,
 }: VideoUploaderProps) {
   const [uploading, setUploading] = useState<UploadingVideo[]>([]);
   const [dragActive, setDragActive] = useState(false);
@@ -75,7 +77,6 @@ export function VideoUploader({
     if (!e.target.files) return;
     const files = Array.from(e.target.files);
     await processFiles(files);
-    // Reset input
     if (inputRef.current) {
       inputRef.current.value = "";
     }
@@ -97,7 +98,6 @@ export function VideoUploader({
         continue;
       }
 
-      // Start upload
       setUploading((prev) => [
         ...prev,
         { id: uploadId, file, progress: 0, status: "pending" },
@@ -113,7 +113,7 @@ export function VideoUploader({
     );
 
     try {
-      // Simulate progress
+      // Simulate progress updates
       const progressInterval = setInterval(() => {
         setUploading((prev) =>
           prev.map((u) => {
@@ -125,43 +125,81 @@ export function VideoUploader({
         );
       }, 200);
 
-      // In a real implementation, this would upload to the server
-      // For now, create a local URL
-      const url = URL.createObjectURL(file);
+      // Upload to server if assessmentId is provided, otherwise use local URL
+      let url: string;
+      let serverId: string | undefined;
 
-      clearInterval(progressInterval);
+      if (assessmentId && academyId) {
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("academyId", academyId);
+        formData.append("assessmentId", assessmentId);
+
+        const response = await fetch("/api/assessments/videos", {
+          method: "POST",
+          body: formData,
+        });
+
+        clearInterval(progressInterval);
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || "Error uploading video");
+        }
+
+        const data = await response.json();
+        url = data.url;
+        serverId = data.id as string;
+      } else {
+        // For new assessments without ID yet, use local URL
+        clearInterval(progressInterval);
+        url = URL.createObjectURL(file);
+        serverId = undefined;
+      }
 
       setUploading((prev) =>
         prev.map((u) => (u.id === id ? { ...u, progress: 100, status: "complete" } : u))
       );
 
-      // Add to videos list
       const newVideo: AssessmentVideo = {
         id,
         url,
         title: file.name.replace(/\.[^/.]+$/, ""),
         description: null,
         uploadedAt: new Date().toISOString(),
+        serverId: serverId as string | undefined,
       };
 
       onChange([...videos, newVideo]);
 
-      // Remove from uploading list after a delay
       setTimeout(() => {
         setUploading((prev) => prev.filter((u) => u.id !== id));
       }, 1000);
-    } catch (error) {
+    } catch (error: any) {
       setUploading((prev) =>
         prev.map((u) =>
           u.id === id
-            ? { ...u, status: "error", error: "Error al subir el video" }
+            ? { ...u, status: "error", error: error.message || "Error al subir el video" }
             : u
         )
       );
     }
   };
 
-  const removeVideo = (id: string) => {
+  const removeVideo = async (id: string) => {
+    const video = videos.find((v) => v.id === id);
+
+    // If video has serverId and assessmentId, delete from server
+    if (video?.serverId && assessmentId) {
+      try {
+        await fetch(`/api/assessments/videos?id=${video.serverId}`, {
+          method: "DELETE",
+        });
+      } catch (error) {
+        console.error("Error deleting video from server:", error);
+      }
+    }
+
     onChange(videos.filter((v) => v.id !== id));
   };
 

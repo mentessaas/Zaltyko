@@ -183,6 +183,8 @@ export interface AssessmentVideo {
   title: string | null;
   description: string | null;
   uploadedAt: string;
+  /** Server-assigned ID for API delete operations (falls back to id if not set) */
+  serverId?: string;
 }
 
 // Progreso del atleta
