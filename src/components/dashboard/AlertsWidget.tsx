@@ -120,22 +120,22 @@ export function AlertsWidget({ academyId }: AlertsWidgetProps) {
   const getSeverityColor = (severity: Alert["severity"]) => {
     switch (severity) {
       case "high":
-        return "border-red-500/30 bg-gradient-to-r from-red-50/80 to-red-100/50";
+        return "border-red-200 bg-red-50/80";
       case "medium":
-        return "border-amber-500/30 bg-gradient-to-r from-amber-50/80 to-amber-100/50";
+        return "border-amber-200 bg-amber-50/80";
       case "low":
-        return "border-blue-500/30 bg-gradient-to-r from-blue-50/80 to-blue-100/50";
+        return "border-sky-200 bg-sky-50/80";
     }
   };
 
   const getSeverityIconColor = (severity: Alert["severity"]) => {
     switch (severity) {
       case "high":
-        return "bg-gradient-to-br from-red-500 to-red-600";
+        return "bg-red-100 text-red-700";
       case "medium":
-        return "bg-gradient-to-br from-amber-500 to-amber-600";
+        return "bg-amber-100 text-amber-700";
       case "low":
-        return "bg-gradient-to-br from-blue-500 to-blue-600";
+        return "bg-sky-100 text-sky-700";
     }
   };
 
@@ -148,17 +148,17 @@ export function AlertsWidget({ academyId }: AlertsWidgetProps) {
   }
 
   return (
-    <div className="space-y-4 rounded-2xl border border-red-200/50 bg-gradient-to-br from-red-50/30 via-white to-amber-50/30 p-6 shadow-lg shadow-red-500/10">
+    <div className="space-y-4 rounded-lg border border-border bg-card p-6 shadow-sm">
       <header className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-red-500 to-amber-500 flex items-center justify-center shadow-lg shadow-red-500/20">
-            <AlertTriangle className="h-5 w-5 text-white" strokeWidth={2} />
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-100 text-red-700">
+            <AlertTriangle className="h-5 w-5" strokeWidth={2} />
           </div>
           <div>
-            <p className="text-xs font-bold uppercase tracking-wider text-red-600/80">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Alertas activas
             </p>
-            <h3 className="text-lg font-bold text-zaltyko-text-main">
+            <h3 className="text-lg font-semibold text-foreground">
               {alerts.length} {alerts.length === 1 ? "alerta requiere atención" : "alertas requieren atención"}
             </h3>
           </div>
@@ -172,18 +172,18 @@ export function AlertsWidget({ academyId }: AlertsWidgetProps) {
             <div
               key={alert.id}
               className={cn(
-                "relative flex items-start gap-3 rounded-xl border p-4 transition-all hover:shadow-md",
+                "relative flex items-start gap-3 rounded-lg border p-4 transition-all hover:shadow-sm",
                 getSeverityColor(alert.severity)
               )}
             >
-              <div className={cn("flex-shrink-0 h-10 w-10 rounded-xl flex items-center justify-center shadow-md", getSeverityIconColor(alert.severity))}>
-                <Icon className="h-5 w-5 text-white" />
+              <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-lg", getSeverityIconColor(alert.severity))}>
+                <Icon className="h-5 w-5" />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
-                    <p className="font-bold text-sm text-zaltyko-text-main">{alert.title}</p>
-                    <p className="mt-1 text-xs text-zaltyko-text-secondary">{alert.message}</p>
+                    <p className="text-sm font-semibold text-foreground">{alert.title}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{alert.message}</p>
                   </div>
                   <Button
                     variant="ghost"
@@ -197,7 +197,7 @@ export function AlertsWidget({ academyId }: AlertsWidgetProps) {
                 {alert.link && (
                   <Link
                     href={alert.link}
-                    className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-red-600 hover:underline"
+                    className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
                   >
                     Ver detalles
                     <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -212,8 +212,8 @@ export function AlertsWidget({ academyId }: AlertsWidgetProps) {
       </div>
 
       {alerts.length > 3 && (
-        <div className="pt-3 border-t border-red-200/30">
-          <p className="text-xs font-semibold text-red-600/70 text-center">
+        <div className="border-t border-border pt-3">
+          <p className="text-center text-xs font-medium text-muted-foreground">
             Y {alerts.length - 3} {alerts.length - 3 === 1 ? "alerta más" : "alertas más"}
           </p>
         </div>
@@ -221,4 +221,3 @@ export function AlertsWidget({ academyId }: AlertsWidgetProps) {
     </div>
   );
 }
-

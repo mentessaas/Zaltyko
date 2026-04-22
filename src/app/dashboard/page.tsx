@@ -1,10 +1,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { eq } from "drizzle-orm";
-
 import { createClient } from "@/lib/supabase/server";
-import { db } from "@/db";
-import { profiles } from "@/db/schema";
+import { resolveUserHome } from "@/lib/auth/resolve-user-home";
 
 export default async function Dashboard() {
   const cookieStore = await cookies();
@@ -18,29 +15,10 @@ export default async function Dashboard() {
     redirect("/auth/login");
   }
 
-  let profile;
-  try {
-    const [profileResult] = await db
-      .select()
-      .from(profiles)
-      .where(eq(profiles.userId, user.id))
-      .limit(1);
-    profile = profileResult;
-  } catch (error) {
-    console.error("Error getting profile:", error);
-    redirect("/onboarding");
-  }
+  const home = await resolveUserHome({
+    userId: user.id,
+    email: user.email,
+  });
 
-  if (!profile) {
-    redirect("/onboarding");
-  }
-
-  // Check if user can login (for athletes and other roles that might be restricted)
-  if (!profile.canLogin && profile.role !== "super_admin") {
-    redirect("/auth/login?error=access_disabled");
-  }
-
-  // Redirigir a la página de academias (dashboard principal)
-  // "Inicio" lleva aquí, "Mi perfil" lleva a /dashboard/profile
-  redirect("/dashboard/academies");
+  redirect(home.redirectUrl);
 }

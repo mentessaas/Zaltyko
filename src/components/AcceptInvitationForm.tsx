@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { CheckCircle2, ShieldAlert, UserPlus } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 import { Button } from "@/components/ui/button";
@@ -18,6 +19,18 @@ interface AcceptInvitationFormProps {
   isAuthenticated: boolean;
   isSameEmail: boolean;
   userEmail: string | null;
+}
+
+function getRoleLabel(role: string) {
+  const labels: Record<string, string> = {
+    owner: "Propietario",
+    admin: "Administrador",
+    coach: "Entrenador",
+    athlete: "Atleta",
+    parent: "Tutor",
+  };
+
+  return labels[role] ?? role;
 }
 
 export default function AcceptInvitationForm({
@@ -41,12 +54,10 @@ export default function AcceptInvitationForm({
     if (completed) {
       return (
         <div className="space-y-3 text-center">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
-            <svg className="h-8 w-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-zaltyko-primary/12">
+            <CheckCircle2 className="h-8 w-8 text-zaltyko-primary" />
           </div>
-          <h2 className="text-2xl font-semibold text-green-700">Invitación aceptada</h2>
+          <h2 className="text-2xl font-semibold text-foreground">Invitación aceptada</h2>
           <p className="text-sm text-muted-foreground">
             Bienvenido/a. Serás redirigido/a a tu dashboard en unos segundos.
           </p>
@@ -56,11 +67,16 @@ export default function AcceptInvitationForm({
 
     return (
       <div className="space-y-4">
-        <div className="rounded-lg bg-green-50 border border-green-200 p-4 space-y-2">
-          <p className="font-medium text-green-800">¡Hola! Estás a un paso de unirte.</p>
-          <p className="text-sm text-green-700">
-            Te están invitando como <strong>{role}</strong> usando tu cuenta de <strong>{email}</strong>.
-          </p>
+        <div className="rounded-md border border-zaltyko-primary/20 bg-zaltyko-primary/5 p-4">
+          <div className="flex items-start gap-3">
+            <UserPlus className="mt-0.5 h-5 w-5 shrink-0 text-zaltyko-primary" />
+            <div className="space-y-1.5">
+              <p className="font-medium text-foreground">Ya estás dentro con la cuenta correcta</p>
+              <p className="text-sm text-muted-foreground">
+                Te están invitando como <strong>{getRoleLabel(role)}</strong> usando <strong>{email}</strong>.
+              </p>
+            </div>
+          </div>
         </div>
 
         <Button onClick={handleAcceptExisting} className="w-full" disabled={pending}>
@@ -74,12 +90,17 @@ export default function AcceptInvitationForm({
   if (isAuthenticated && !isSameEmail) {
     return (
       <div className="space-y-4">
-        <div className="rounded-lg bg-amber-50 border border-amber-200 p-4 space-y-2">
-          <p className="font-medium text-amber-800">Estás usando una cuenta diferente</p>
-          <p className="text-sm text-amber-700">
-            La invitación es para <strong>{email}</strong>, pero estás logueado como{" "}
-            <strong>{userEmail}</strong>.
-          </p>
+        <div className="rounded-md border border-amber-300/70 bg-amber-50 p-4">
+          <div className="flex items-start gap-3">
+            <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+            <div className="space-y-1.5">
+              <p className="font-medium text-amber-900">Estás usando una cuenta diferente</p>
+              <p className="text-sm text-amber-800">
+                La invitación es para <strong>{email}</strong>, pero ahora mismo estás dentro como{" "}
+                <strong>{userEmail}</strong>.
+              </p>
+            </div>
+          </div>
         </div>
 
         <div className="space-y-3">
@@ -98,12 +119,10 @@ export default function AcceptInvitationForm({
   if (completed) {
     return (
       <div className="space-y-3 text-center">
-        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
-          <svg className="h-8 w-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-          </svg>
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-zaltyko-primary/12">
+          <CheckCircle2 className="h-8 w-8 text-zaltyko-primary" />
         </div>
-        <h2 className="text-2xl font-semibold text-green-700">¡Cuenta creada!</h2>
+        <h2 className="text-2xl font-semibold text-foreground">Cuenta creada</h2>
         <p className="text-sm text-muted-foreground">
           Tu cuenta ha sido creada y la invitación aceptada. Serás redirigido al inicio de sesión.
         </p>
@@ -125,6 +144,9 @@ export default function AcceptInvitationForm({
         throw new Error(data?.error ?? "No se pudo completar la invitación.");
       }
 
+      const payload = await response.json().catch(() => ({}));
+      const redirectUrl = payload?.data?.redirectUrl ?? payload?.redirectUrl ?? "/dashboard";
+
       toast.pushToast({
         title: "Invitación aceptada",
         description: "Redirigiendo a tu dashboard...",
@@ -133,7 +155,7 @@ export default function AcceptInvitationForm({
 
       setCompleted(true);
       setTimeout(() => {
-        router.push("/dashboard");
+        router.push(redirectUrl);
       }, 2000);
     } catch (error) {
       console.error(error);
@@ -191,6 +213,9 @@ export default function AcceptInvitationForm({
         throw new Error(data?.error ?? "No se pudo completar la invitación.");
       }
 
+      const payload = await response.json().catch(() => ({}));
+      const redirectUrl = payload?.data?.redirectUrl ?? payload?.redirectUrl ?? "/dashboard";
+
       toast.pushToast({
         title: "Cuenta creada",
         description: "Tu cuenta ha sido creada y la invitación aceptada. Redirigiendo...",
@@ -199,7 +224,7 @@ export default function AcceptInvitationForm({
 
       setCompleted(true);
       setTimeout(() => {
-        router.push("/auth/login");
+        router.push(redirectUrl);
       }, 2500);
     } catch (error) {
       console.error(error);
@@ -215,9 +240,9 @@ export default function AcceptInvitationForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="rounded-lg bg-blue-50 border border-blue-200 p-4">
-        <p className="text-sm text-blue-700">
-          <strong>Rol:</strong> {role} &nbsp;|&nbsp; <strong>Email:</strong> {email}
+      <div className="rounded-md border border-border bg-muted/40 p-4">
+        <p className="text-sm text-foreground">
+          <strong>Rol:</strong> {getRoleLabel(role)} &nbsp;|&nbsp; <strong>Email:</strong> {email}
         </p>
       </div>
 
@@ -239,7 +264,7 @@ export default function AcceptInvitationForm({
         />
         <div className="space-y-1">
           <Label className="text-xs uppercase tracking-wide text-muted-foreground">Rol asignado</Label>
-          <Input value={role} disabled />
+          <Input value={getRoleLabel(role)} disabled />
         </div>
       </div>
 

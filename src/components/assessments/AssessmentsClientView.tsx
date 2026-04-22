@@ -40,6 +40,7 @@ const typeColors: Record<AssessmentType, string> = {
 };
 
 interface AssessmentsClientViewProps {
+  academyId?: string;
   assessments: AssessmentWithScores[];
   athletes: Array<{ id: string; name: string }>;
   academies: Array<{ id: string; name: string }>;
@@ -51,6 +52,7 @@ interface AssessmentsClientViewProps {
 }
 
 export default function AssessmentsClientView({
+  academyId,
   assessments,
   athletes,
   academies,
@@ -65,6 +67,8 @@ export default function AssessmentsClientView({
   const [historyAssessments, setHistoryAssessments] = useState<AssessmentWithScores[] | null>(null);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  const assessmentsBasePath = academyId ? `/app/${academyId}/assessments` : "/dashboard/assessments";
+  const athletesBasePath = academyId ? `/app/${academyId}/athletes` : "/dashboard/athletes";
 
   // Active filters
   const activeFilters = Object.entries(searchParams)
@@ -77,7 +81,7 @@ export default function AssessmentsClientView({
       Object.entries(merged).filter(([, v]) => v !== undefined && v !== "")
     );
     const qs = new URLSearchParams(cleaned as unknown as Record<string, string>).toString();
-    return `/dashboard/assessments${qs ? `?${qs}` : ""}`;
+    return `${assessmentsBasePath}${qs ? `?${qs}` : ""}`;
   }
 
   async function loadAthleteHistory(athleteId: string) {
@@ -132,7 +136,7 @@ export default function AssessmentsClientView({
               </Badge>
             ))}
         </div>
-        <Link href="/dashboard/athletes">
+        <Link href={athletesBasePath}>
           <Button variant="outline" size="sm" className="gap-1">
             <Plus className="h-3 w-3" />
             Nueva evaluación
@@ -208,7 +212,7 @@ export default function AssessmentsClientView({
                 type="button"
                 variant="ghost"
                 size="sm"
-                onClick={() => router.push("/dashboard/assessments")}
+                onClick={() => router.push(assessmentsBasePath)}
               >
                 Limpiar
               </Button>
@@ -257,7 +261,7 @@ export default function AssessmentsClientView({
               No hay evaluaciones registradas con los filtros actuales.
             </p>
             <Button asChild variant="outline" size="sm">
-              <Link href="/dashboard/athletes">
+              <Link href={athletesBasePath}>
                 Ir a atletas
               </Link>
             </Button>
@@ -293,7 +297,7 @@ export default function AssessmentsClientView({
                         {format(new Date(assessment.assessmentDate), "PPP", { locale: es })}
                       </span>
                       <Link
-                        href={`/dashboard/athletes/${assessment.athleteId}`}
+                        href={`${athletesBasePath}/${assessment.athleteId}`}
                         className="font-medium text-emerald-500 hover:underline"
                       >
                         {assessment.athleteName}

@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Calendar, DollarSign, UserPlus, Users, TrendingUp } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { QuickAction } from "./QuickAction";
 import { QuickClassModal } from "./QuickClassModal";
 import { QuickPaymentModal } from "./QuickPaymentModal";
+import { useAcademyContext } from "@/hooks/use-academy-context";
 
 interface QuickActionsData {
     pendingClasses: number;
@@ -20,7 +22,13 @@ interface QuickActionsData {
     overduePaymentsTotal: number;
 }
 
-export function QuickActionsWidget() {
+interface QuickActionsWidgetProps {
+    academyId: string;
+}
+
+export function QuickActionsWidget({ academyId }: QuickActionsWidgetProps) {
+    const router = useRouter();
+    const { specialization } = useAcademyContext();
     const [data, setData] = useState<QuickActionsData | null>(null);
     const [loading, setLoading] = useState(true);
     const [showClassModal, setShowClassModal] = useState(false);
@@ -34,8 +42,8 @@ export function QuickActionsWidget() {
         try {
             const res = await fetch("/api/quick-actions/pending-today");
             const json = await res.json();
-            if (json.success) {
-                setData(json.data);
+            if (json.ok) {
+                setData(json.data ?? null);
             }
         } catch (error) {
             console.error("Error fetching quick actions:", error);
@@ -63,16 +71,16 @@ export function QuickActionsWidget() {
 
     return (
         <>
-            <Card className="border-zaltyko-border/40 shadow-lg shadow-zaltyko-primary/5 overflow-hidden">
-                <CardHeader className="bg-gradient-to-r from-zaltyko-primary/5 to-transparent pb-4">
+            <Card className="overflow-hidden border shadow-sm">
+                <CardHeader className="pb-4">
                     <CardTitle className="flex items-center gap-2">
-                        <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-zaltyko-primary to-zaltyko-primary-dark flex items-center justify-center shadow-lg shadow-zaltyko-primary/20">
-                            <TrendingUp className="h-4 w-4 text-white" />
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                            <TrendingUp className="h-4 w-4" />
                         </div>
-                        <span className="font-display">Acciones Rápidas</span>
+                        <span>Acciones rápidas</span>
                     </CardTitle>
-                    <p className="text-sm text-zaltyko-text-secondary">
-                        Accede a las tareas más comunes con un solo click
+                    <p className="text-sm text-muted-foreground">
+                        Accede a las tareas operativas más comunes con un solo clic
                     </p>
                 </CardHeader>
                 <CardContent className="grid gap-3 p-4">
@@ -81,14 +89,13 @@ export function QuickActionsWidget() {
                         label="Registrar Asistencia"
                         description={
                             data?.pendingClasses
-                                ? `${data.pendingClasses} ${data.pendingClasses === 1 ? "clase" : "clases"} de hoy`
-                                : "No hay clases hoy"
+                                ? `${data.pendingClasses} ${data.pendingClasses === 1 ? specialization.labels.classLabel.toLowerCase() : `${specialization.labels.classLabel.toLowerCase()}s`} de hoy`
+                                : `No hay ${specialization.labels.classLabel.toLowerCase()}s hoy`
                         }
                         badge={data?.pendingClasses}
                         onClick={() => {
                             if (data?.todaysSessions && data.todaysSessions.length > 0) {
-                                // Navegar a la primera clase del día
-                                window.location.href = `/app/attendance?session=${data.todaysSessions[0].id}`;
+                                router.push(`/dashboard/sessions/${data.todaysSessions[0].id}`);
                             }
                         }}
                         variant="default"
@@ -111,15 +118,15 @@ export function QuickActionsWidget() {
 
                     <QuickAction
                         icon={<UserPlus className="h-5 w-5" />}
-                        label="Atletas sin Grupo"
+                        label={`${specialization.labels.athletesPlural} sin ${specialization.labels.groupLabel}`}
                         description={
                             data?.unassignedAthletes
-                                ? `${data.unassignedAthletes} ${data.unassignedAthletes === 1 ? "atleta" : "atletas"} sin asignar`
-                                : "Todos asignados"
+                                ? `${data.unassignedAthletes} ${data.unassignedAthletes === 1 ? specialization.labels.athleteSingular.toLowerCase() : specialization.labels.athletesPlural.toLowerCase()} sin asignar`
+                                : `Todos los ${specialization.labels.athletesPlural.toLowerCase()} están asignados`
                         }
                         badge={data?.unassignedAthletes}
                         onClick={() => {
-                            window.location.href = "/app/athletes";
+                            router.push(`/app/${academyId}/athletes`);
                         }}
                         variant="secondary"
                         disabled={!data?.unassignedAthletes}
@@ -127,8 +134,8 @@ export function QuickActionsWidget() {
 
                     <QuickAction
                         icon={<Users className="h-5 w-5" />}
-                        label="Nueva Clase Rápida"
-                        description="Crear sesión para hoy"
+                        label={`Nuevo ${specialization.labels.classLabel}`}
+                        description={`Crear ${specialization.labels.sessionLabel.toLowerCase()} para hoy`}
                         onClick={() => setShowClassModal(true)}
                         variant="outline"
                     />

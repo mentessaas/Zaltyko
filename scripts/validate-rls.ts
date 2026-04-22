@@ -160,8 +160,6 @@ export function validateRLS(): ValidationResult {
 
     const files = [
         { path: join(supabasePath, 'rls-consolidated.sql'), name: 'rls-consolidated.sql' },
-        { path: join(supabasePath, 'rls.sql'), name: 'rls.sql' },
-        { path: join(supabasePath, 'rls-policies.sql'), name: 'rls-policies.sql' },
     ];
 
     let allPolicies: Policy[] = [];

@@ -72,7 +72,6 @@ export function EnrollmentManager({
         "Content-Type": "application/json",
       };
       if (user?.id) {
-        headers["x-user-id"] = user.id;
       }
 
       const response = await fetch(`/api/class-enrollments?classId=${classId}`, {
@@ -114,7 +113,6 @@ export function EnrollmentManager({
         "Content-Type": "application/json",
       };
       if (user?.id) {
-        headers["x-user-id"] = user.id;
       }
 
       // Obtener atletas del tenant (limitado para evitar sobrecarga)
@@ -166,7 +164,6 @@ export function EnrollmentManager({
         "Content-Type": "application/json",
       };
       if (user?.id) {
-        headers["x-user-id"] = user.id;
       }
 
       const response = await fetch("/api/class-enrollments", {
@@ -212,7 +209,6 @@ export function EnrollmentManager({
           "Content-Type": "application/json",
         };
         if (user?.id) {
-          headers["x-user-id"] = user.id;
         }
 
         const response = await fetch(`/api/class-enrollments/${enrollmentId}`, {

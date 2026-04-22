@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { redirect, notFound } from "next/navigation";
-import { eq, and, count, gte, lt } from "drizzle-orm";
+import { eq, and, count } from "drizzle-orm";
 
 import { createClient } from "@/lib/supabase/server";
 import { db } from "@/db";
@@ -17,14 +17,14 @@ import {
   groups,
   guardianAthletes,
   guardians,
-  attendanceRecords,
-  classes,
 } from "@/db/schema";
 import { getCurrentProfile } from "@/lib/authz";
+import { getAthleteMetrics } from "@/lib/profile/athlete-metrics";
 import { OptimizedOwnerProfile as OwnerProfile } from "@/components/profiles/OptimizedOwnerProfile";
 import { CoachProfile } from "@/components/profiles/CoachProfile";
 import { AthleteProfile } from "@/components/profiles/AthleteProfile";
 import { ParentProfile } from "@/components/profiles/ParentProfile";
+import { resolveAcademySpecialization } from "@/lib/specialization/registry";
 
 interface ProfilePageProps {
   params: Promise<{ profileId?: string }>;
@@ -274,6 +274,13 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
         dob: athletes.dob,
         academyId: athletes.academyId,
         academyName: academies.name,
+        academyType: academies.academyType,
+        country: academies.country,
+        countryCode: academies.countryCode,
+        discipline: academies.discipline,
+        disciplineVariant: academies.disciplineVariant,
+        federationConfigVersion: academies.federationConfigVersion,
+        specializationStatus: academies.specializationStatus,
         groupId: athletes.groupId,
         groupName: groups.name,
         groupColor: groups.color,
@@ -310,45 +317,20 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
         })()
       : null;
 
-    // Contar clases del mes actual (clases pasadas con asistencia)
-    const startOfMonth = new Date();
-    startOfMonth.setDate(1);
-    const startOfMonthStr = startOfMonth.toISOString().split('T')[0];
-
-    const [classesResult] = await db
-      .select({ count: count() })
-      .from(attendanceRecords)
-      .innerJoin(classSessions, eq(attendanceRecords.sessionId, classSessions.id))
-      .where(
-        and(
-          eq(attendanceRecords.athleteId, athlete.id),
-          gte(classSessions.sessionDate, startOfMonthStr)
-        )
-      );
-
-    const classesCount = Number(classesResult?.count ?? 0);
-
-    // Contar próximas sesiones (próximos 30 días)
-    const now = new Date();
-    const nowStr = now.toISOString().split('T')[0];
-    const thirtyDaysFromNow = new Date();
-    thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
-    const thirtyDaysFromNowStr = thirtyDaysFromNow.toISOString().split('T')[0];
-
-    const [sessionsResult] = await db
-      .select({ count: count() })
-      .from(classSessions)
-      .innerJoin(classes, eq(classSessions.classId, classes.id))
-      .where(
-        and(
-          eq(classes.academyId, academyId),
-          eq(classSessions.status, "scheduled"),
-          gte(classSessions.sessionDate, nowStr),
-          lt(classSessions.sessionDate, thirtyDaysFromNowStr)
-        )
-      );
-
-    const upcomingSessionsCount = Number(sessionsResult?.count ?? 0);
+    const { classesCount, upcomingSessionsCount } = await getAthleteMetrics({
+      athleteId: athlete.id,
+      academyId,
+      groupId: athlete.groupId,
+    });
+    const athleteSpecialization = resolveAcademySpecialization({
+      academyType: athlete.academyType,
+      country: athlete.country,
+      countryCode: athlete.countryCode,
+      discipline: athlete.discipline,
+      disciplineVariant: athlete.disciplineVariant,
+      federationConfigVersion: athlete.federationConfigVersion,
+      specializationStatus: athlete.specializationStatus,
+    });
 
     return (
       <div className="space-y-6 p-4 sm:p-6 lg:p-8">
@@ -362,6 +344,7 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
             upcomingSessionsCount,
             age,
           }}
+          labels={athleteSpecialization.labels}
           targetProfileId={isViewingAsSuperAdmin ? targetProfileId : undefined}
         />
       </div>
@@ -379,6 +362,13 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
         status: athletes.status,
         academyId: athletes.academyId,
         academyName: academies.name,
+        academyType: academies.academyType,
+        country: academies.country,
+        countryCode: academies.countryCode,
+        discipline: academies.discipline,
+        disciplineVariant: academies.disciplineVariant,
+        federationConfigVersion: academies.federationConfigVersion,
+        specializationStatus: academies.specializationStatus,
         dob: athletes.dob,
       })
       .from(guardianAthletes)
@@ -387,31 +377,53 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
       .innerJoin(academies, eq(athletes.academyId, academies.id))
       .where(eq(guardians.profileId, targetProfile.id));
 
-    const childrenWithAge = children.map((child) => {
-      const age = child.dob
-        ? (() => {
-            const today = new Date();
-            const birthDate = new Date(child.dob);
-            let age = today.getFullYear() - birthDate.getFullYear();
-            const monthDiff = today.getMonth() - birthDate.getMonth();
-            if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-              age--;
-            }
-            return age;
-          })()
-        : null;
+    const childrenWithAge = await Promise.all(
+      children.map(async (child) => {
+        const age = child.dob
+          ? (() => {
+              const today = new Date();
+              const birthDate = new Date(child.dob);
+              let age = today.getFullYear() - birthDate.getFullYear();
+              const monthDiff = today.getMonth() - birthDate.getMonth();
+              if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+                age--;
+              }
+              return age;
+            })()
+          : null;
 
-      return {
-        ...child,
-        age,
-      };
-    });
+        const metrics = await getAthleteMetrics({
+          athleteId: child.id,
+          academyId: child.academyId,
+        });
+
+        return {
+          ...child,
+          age,
+          classesCount: metrics.classesCount,
+          upcomingSessionsCount: metrics.upcomingSessionsCount,
+        };
+      })
+    );
 
     return (
       <div className="space-y-6 p-4 sm:p-6 lg:p-8">
         <ParentProfile
           user={user}
           profile={targetProfile}
+          labels={
+            childrenWithAge[0]
+              ? resolveAcademySpecialization({
+                  academyType: childrenWithAge[0].academyType,
+                  country: childrenWithAge[0].country,
+                  countryCode: childrenWithAge[0].countryCode,
+                  discipline: childrenWithAge[0].discipline,
+                  disciplineVariant: childrenWithAge[0].disciplineVariant,
+                  federationConfigVersion: childrenWithAge[0].federationConfigVersion,
+                  specializationStatus: childrenWithAge[0].specializationStatus,
+                }).labels
+              : null
+          }
           targetProfileId={isViewingAsSuperAdmin ? targetProfileId : undefined}
           // eslint-disable-next-line react/no-children-prop
           children={childrenWithAge}
@@ -431,4 +443,3 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
     </div>
   );
 }
-

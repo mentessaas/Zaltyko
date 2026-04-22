@@ -2,12 +2,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { Plus, X } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { QUICK_ACTIONS } from "@/lib/quick-actions";
+import { getQuickActions } from "@/lib/quick-actions";
+import { useAcademyContext } from "@/hooks/use-academy-context";
+import { isFeatureEnabled } from "@/lib/product/features";
 
 interface QuickActionsProps {
   academyId: string;
@@ -16,7 +16,10 @@ interface QuickActionsProps {
 
 export function QuickActions({ academyId, className }: QuickActionsProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const router = useRouter();
+  const { specialization } = useAcademyContext();
+  const quickActions = getQuickActions(specialization.labels, {
+    reportsEnabled: isFeatureEnabled("reportsHub"),
+  });
 
   if (!isOpen) {
     return (
@@ -47,7 +50,7 @@ export function QuickActions({ academyId, className }: QuickActionsProps) {
         </div>
       </div>
       <div className="space-y-2 rounded-lg border bg-card p-2 shadow-lg">
-        {QUICK_ACTIONS.map((action) => {
+        {quickActions.map((action) => {
           const Icon = action.icon;
           return (
             <Link
@@ -70,4 +73,3 @@ export function QuickActions({ academyId, className }: QuickActionsProps) {
     </div>
   );
 }
-

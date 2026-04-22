@@ -8,7 +8,6 @@ import { createClient } from "@/lib/supabase/server";
 import { checkPlanLimitViolations } from "@/lib/limits";
 import { sendEmail } from "@/lib/brevo";
 import { config } from "@/config";
-import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getAppUrl } from "@/lib/env";
 import { logger } from "@/lib/logger";
 
@@ -59,10 +58,7 @@ export async function GET() {
 
   // Send notification email if violations exist
   if (violations.requiresAction) {
-    const adminClient = getSupabaseAdminClient();
-    const { data: authUser } = await adminClient.auth.admin.getUserById(user.id);
-
-    if (authUser?.user?.email) {
+    if (user.email) {
       try {
         const academyViolation = violations.violations.find((v) => v.resource === "academies");
         const athleteViolation = violations.violations.find((v) => v.resource === "athletes");
@@ -70,7 +66,7 @@ export async function GET() {
         const groupViolation = violations.violations.find((v) => v.resource === "groups");
 
         await sendEmail({
-          to: authUser.user.email,
+          to: user.email,
           subject: "⚠️ Ajustes necesarios en tu plan - Zaltyko",
           html: `
             <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -136,4 +132,3 @@ export async function GET() {
 
   return Response.json(violations);
 }
-

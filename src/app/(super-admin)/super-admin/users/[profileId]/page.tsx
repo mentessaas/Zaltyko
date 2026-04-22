@@ -37,7 +37,6 @@ export default async function SuperAdminUserDetailPage({
     `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/super-admin/users/${profileId}`,
     {
       headers: {
-        "x-user-id": user.id,
       },
       cache: "no-store",
     },

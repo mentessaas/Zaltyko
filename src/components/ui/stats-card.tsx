@@ -2,7 +2,8 @@
 
 import { ReactNode } from "react";
 import Link from "next/link";
-import { TrendingUp, TrendingDown } from "lucide-react";
+import { TrendingDown, TrendingUp } from "lucide-react";
+
 import { cn } from "@/lib/utils";
 
 interface StatsCardProps {
@@ -21,69 +22,36 @@ interface StatsCardProps {
 
 const variantStyles = {
   default: {
-    bg: "bg-gradient-to-br from-slate-50 to-slate-100",
-    border: "border-slate-200",
-    icon: "bg-slate-100 text-slate-600",
-    value: "text-slate-900",
+    bg: "bg-card",
+    border: "border-border",
+    icon: "bg-muted text-foreground",
+    value: "text-foreground",
   },
   success: {
-    bg: "bg-gradient-to-br from-emerald-50 to-emerald-100",
+    bg: "bg-emerald-50/70",
     border: "border-emerald-200",
-    icon: "bg-emerald-100 text-emerald-600",
-    value: "text-emerald-900",
+    icon: "bg-emerald-100 text-emerald-700",
+    value: "text-foreground",
   },
   warning: {
-    bg: "bg-gradient-to-br from-amber-50 to-amber-100",
+    bg: "bg-amber-50/70",
     border: "border-amber-200",
-    icon: "bg-amber-100 text-amber-600",
-    value: "text-amber-900",
+    icon: "bg-amber-100 text-amber-700",
+    value: "text-foreground",
   },
   danger: {
-    bg: "bg-gradient-to-br from-rose-50 to-rose-100",
+    bg: "bg-rose-50/70",
     border: "border-rose-200",
-    icon: "bg-rose-100 text-rose-600",
-    value: "text-rose-900",
+    icon: "bg-rose-100 text-rose-700",
+    value: "text-foreground",
   },
   info: {
-    bg: "bg-gradient-to-br from-blue-50 to-blue-100",
-    border: "border-blue-200",
-    icon: "bg-blue-100 text-blue-600",
-    value: "text-blue-900",
+    bg: "bg-sky-50/80",
+    border: "border-sky-200",
+    icon: "bg-sky-100 text-sky-700",
+    value: "text-foreground",
   },
-};
-
-const accentVariantStyles = {
-  default: {
-    bg: "bg-gradient-to-br from-red-500 to-red-600",
-    border: "border-red-500",
-    icon: "bg-white/20 text-white",
-    value: "text-white",
-  },
-  success: {
-    bg: "bg-gradient-to-br from-teal-500 to-teal-600",
-    border: "border-teal-500",
-    icon: "bg-white/20 text-white",
-    value: "text-white",
-  },
-  warning: {
-    bg: "bg-gradient-to-br from-orange-500 to-orange-600",
-    border: "border-orange-500",
-    icon: "bg-white/20 text-white",
-    value: "text-white",
-  },
-  danger: {
-    bg: "bg-gradient-to-br from-rose-500 to-rose-600",
-    border: "border-rose-500",
-    icon: "bg-white/20 text-white",
-    value: "text-white",
-  },
-  info: {
-    bg: "bg-gradient-to-br from-cyan-500 to-cyan-600",
-    border: "border-cyan-500",
-    icon: "bg-white/20 text-white",
-    value: "text-white",
-  },
-};
+} as const;
 
 export function StatsCard({
   title,
@@ -95,28 +63,23 @@ export function StatsCard({
   href,
   className,
 }: StatsCardProps) {
-  const isAccent = ["success", "warning", "danger", "info"].includes(variant);
-  const styles = isAccent ? accentVariantStyles[variant] : variantStyles[variant];
+  const styles = variantStyles[variant];
 
   const cardContent = (
     <div
       className={cn(
-        "relative overflow-hidden rounded-2xl border p-5 transition-all duration-200 hover:shadow-lg",
+        "rounded-lg border p-5 transition-all duration-200 hover:shadow-md",
         styles.bg,
         styles.border,
         className
       )}
     >
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between gap-3">
         <div className="space-y-1">
-          <p className="text-sm font-medium text-zaltyko-text-secondary">{title}</p>
-          <p className={cn("text-3xl font-bold tracking-tight", styles.value)}>
-            {value}
-          </p>
-          {subtitle && (
-            <p className="text-xs text-zaltyko-text-secondary">{subtitle}</p>
-          )}
-          {trend && (
+          <p className="text-sm font-medium text-muted-foreground">{title}</p>
+          <p className={cn("text-3xl font-bold tracking-tight", styles.value)}>{value}</p>
+          {subtitle ? <p className="text-xs text-muted-foreground">{subtitle}</p> : null}
+          {trend ? (
             <div className="flex items-center gap-1 pt-1">
               {trend.value >= 0 ? (
                 <TrendingUp className="h-3 w-3 text-emerald-600" />
@@ -132,37 +95,17 @@ export function StatsCard({
                 {trend.value > 0 ? "+" : ""}
                 {trend.value}%
               </span>
-              {trend.label && (
-                <span className="text-xs text-zaltyko-text-secondary">
-                  {trend.label}
-                </span>
-              )}
+              {trend.label ? <span className="text-xs text-muted-foreground">{trend.label}</span> : null}
             </div>
-          )}
+          ) : null}
         </div>
-        {icon && (
-          <div
-            className={cn(
-              "flex h-12 w-12 items-center justify-center rounded-xl",
-              styles.icon
-            )}
-          >
+
+        {icon ? (
+          <div className={cn("flex h-12 w-12 items-center justify-center rounded-lg", styles.icon)}>
             {icon}
           </div>
-        )}
+        ) : null}
       </div>
-
-      {/* Decorative gradient blob */}
-      <div
-        className={cn(
-          "absolute -right-4 -top-4 h-24 w-24 rounded-full opacity-20 blur-2xl",
-          variant === "success" && "bg-emerald-400",
-          variant === "warning" && "bg-amber-400",
-          variant === "danger" && "bg-rose-400",
-          variant === "info" && "bg-cyan-400",
-          variant === "default" && "bg-slate-400"
-        )}
-      />
     </div>
   );
 

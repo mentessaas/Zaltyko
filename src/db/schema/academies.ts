@@ -10,9 +10,14 @@ export const academies = pgTable(
     tenantId: uuid("tenant_id").notNull(),
     name: text("name").notNull(),
     country: text("country"),
+    countryCode: text("country_code"),
     region: text("region"),
     city: text("city"),
     academyType: academyTypeEnum("academy_type").notNull().default("artistica"),
+    discipline: text("discipline"),
+    disciplineVariant: text("discipline_variant"),
+    federationConfigVersion: text("federation_config_version"),
+    specializationStatus: text("specialization_status").notNull().default("legacy"),
     publicDescription: text("public_description"),
     isPublic: boolean("is_public").notNull().default(true),
     logoUrl: text("logo_url"),
@@ -49,8 +54,9 @@ export const academies = pgTable(
     publicIdx: index("academies_is_public_idx").on(table.isPublic),
     locationIdx: index("academies_location_idx").on(table.country, table.region, table.city),
     typeIdx: index("academies_type_idx").on(table.academyType),
+    countryCodeIdx: index("academies_country_code_idx").on(table.countryCode),
+    disciplineVariantIdx: index("academies_discipline_variant_idx").on(table.disciplineVariant),
     contactEmailIdx: index("academies_contact_email_idx").on(table.contactEmail),
     contactPhoneIdx: index("academies_contact_phone_idx").on(table.contactPhone),
   })
 );
-

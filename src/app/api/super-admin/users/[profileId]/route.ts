@@ -5,11 +5,12 @@ import { db } from "@/db";
 import { profiles, memberships, academies, subscriptions, plans, athletes, coaches, classes } from "@/db/schema";
 import { withSuperAdmin } from "@/lib/authz";
 import { logAdminAction } from "@/lib/admin-logs";
-import { getSupabaseAdminClient } from "@/lib/supabase/admin";
+import { getAuthUserEmail, updateAuthUserEmail } from "@/lib/supabase/admin-operations";
 import { getAppUrl } from "@/lib/env";
 import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
+// @service-role auth-admin:read-update-email. Super-admin user management requires Supabase Auth admin APIs.
 
 interface RouteParams {
   profileId?: string;
@@ -123,12 +124,11 @@ export const GET = withSuperAdmin(async (_request, context) => {
     stats.totalClasses = Number(classesResult?.count ?? 0);
   }
 
-  const adminClient = getSupabaseAdminClient();
-  const { data: authUser } = await adminClient.auth.admin.getUserById(profile.userId);
+  const authEmail = await getAuthUserEmail(profile.userId);
 
   return apiSuccess({
     ...profile,
-    email: authUser?.user?.email ?? null,
+    email: authEmail,
     subscription: userSubscription
       ? {
           id: userSubscription.id,
@@ -192,13 +192,10 @@ export const PATCH = withSuperAdmin(async (request, context) => {
   }
 
   if (typeof body?.email === "string" && body.email.trim().length > 0) {
-    const adminClient = getSupabaseAdminClient();
-    const { error: updateError } = await adminClient.auth.admin.updateUserById(existing.userId, {
+    await updateAuthUserEmail({
+      userId: existing.userId,
       email: body.email.trim(),
     });
-    if (updateError) {
-      return apiError("EMAIL_UPDATE_FAILED", updateError.message, 400);
-    }
   }
 
   // Handle plan update
@@ -235,10 +232,9 @@ export const PATCH = withSuperAdmin(async (request, context) => {
 
       // If violations exist and force is true, send notification email
       if (violations.requiresAction && body.force) {
-        const adminClient = getSupabaseAdminClient();
-        const { data: authUser } = await adminClient.auth.admin.getUserById(existing.userId);
+        const authEmail = await getAuthUserEmail(existing.userId);
 
-        if (authUser?.user?.email) {
+        if (authEmail) {
           try {
             const { sendEmail } = await import("@/lib/brevo");
             const { config } = await import("@/config");
@@ -249,7 +245,7 @@ export const PATCH = withSuperAdmin(async (request, context) => {
             const groupViolation = violations.violations.find((v) => v.resource === "groups");
 
             await sendEmail({
-              to: authUser.user.email,
+              to: authEmail,
               subject: "⚠️ Cambio de plan - Ajustes necesarios - Zaltyko",
               html: `
                 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -340,4 +336,3 @@ export const PATCH = withSuperAdmin(async (request, context) => {
 
   return apiSuccess(updated);
 });
-

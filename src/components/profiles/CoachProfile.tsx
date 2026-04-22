@@ -106,7 +106,7 @@ export function CoachProfile({ user, profile, coachData, targetProfileId }: Coac
           </CardContent>
           <CardHeader className="p-4 pt-0">
             <Button variant="outline" size="sm" className="w-full" asChild>
-              <Link href="/dashboard/coaches">Ver mis clases</Link>
+              <Link href={`/app/${coachData.academyId}/classes`}>Ver mis clases</Link>
             </Button>
           </CardHeader>
         </Card>
@@ -247,4 +247,3 @@ export function CoachProfile({ user, profile, coachData, targetProfileId }: Coac
     </div>
   );
 }
-

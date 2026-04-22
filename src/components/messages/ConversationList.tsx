@@ -29,7 +29,9 @@ interface ConversationListProps {
   conversations: ConversationPreview[];
   selectedId?: string;
   onSelect: (id: string) => void;
-  onNewConversation: () => void;
+  onNewConversation?: () => void;
+  canStartConversation?: boolean;
+  emptyStateHint?: string;
 }
 
 export const ConversationList = memo(function ConversationList({
@@ -37,31 +39,35 @@ export const ConversationList = memo(function ConversationList({
   selectedId,
   onSelect,
   onNewConversation,
+  canStartConversation = true,
+  emptyStateHint,
 }: ConversationListProps) {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="p-4 border-b flex items-center justify-between">
         <h2 className="font-semibold">Mensajes</h2>
-        <button
-          onClick={onNewConversation}
-          className="p-2 rounded-full hover:bg-muted transition-colors"
-          title="Nueva conversación"
-        >
-          <svg
-            className="w-5 h-5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
+        {canStartConversation && onNewConversation ? (
+          <button
+            onClick={onNewConversation}
+            className="p-2 rounded-full hover:bg-muted transition-colors"
+            title="Nueva conversación"
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 4v16m8-8H4"
-            />
-          </svg>
-        </button>
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 4v16m8-8H4"
+              />
+            </svg>
+          </button>
+        ) : null}
       </div>
 
       {/* Conversation List */}
@@ -69,12 +75,18 @@ export const ConversationList = memo(function ConversationList({
         {conversations.length === 0 ? (
           <div className="p-4 text-center text-muted-foreground">
             <p className="text-sm">No hay conversaciones aún</p>
-            <button
-              onClick={onNewConversation}
-              className="mt-2 text-sm text-primary hover:underline"
-            >
-              Iniciar una conversación
-            </button>
+            {canStartConversation && onNewConversation ? (
+              <button
+                onClick={onNewConversation}
+                className="mt-2 text-sm text-primary hover:underline"
+              >
+                Iniciar una conversación
+              </button>
+            ) : (
+              <p className="mt-2 text-xs text-muted-foreground">
+                {emptyStateHint ?? "Las nuevas conversaciones se habilitan desde la academia o por invitación del staff."}
+              </p>
+            )}
           </div>
         ) : (
           conversations.map((conv) => {

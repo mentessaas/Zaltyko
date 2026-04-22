@@ -1,10 +1,10 @@
-import { NextRequest } from "next/server";
 import { getAIOrchestrator } from "@/lib/ai/orchestrator";
 import { COMMUNICATION_SYSTEM_PROMPT, generateProgressUpdatePrompt } from "@/lib/ai/prompts/communication";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { logger } from "@/lib/logger";
+import { withTenant } from "@/lib/authz";
 
-export async function POST(req: NextRequest) {
+export const POST = withTenant(async (req: Request) => {
   try {
     const body = await req.json();
     const { athleteId, name, age, recentAssessments, attendanceRate, classesThisMonth } = body;
@@ -35,4 +35,4 @@ export async function POST(req: NextRequest) {
     logger.error("AI progress update error:", error);
     return apiError("INTERNAL_ERROR", "Error al generar la actualización", 500);
   }
-}
+});

@@ -11,6 +11,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { ExportButtons } from "@/components/reports/ExportButtons";
+import { useToast } from "@/components/ui/toast-provider";
+import { useAcademyContext } from "@/hooks/use-academy-context";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface SkillProgress {
   skillId: string;
@@ -30,6 +33,13 @@ interface ProgressReportData {
   athleteId: string;
   athleteName: string;
   totalAssessments: number;
+  technicalContext?: {
+    primaryApparatus: string | null;
+    groupName: string | null;
+    technicalFocus: string | null;
+    apparatus: string[];
+    sessionBlocks: string[];
+  } | null;
   period: {
     start: string;
     end: string;
@@ -48,12 +58,32 @@ interface ProgressReportProps {
 }
 
 export function ProgressReport({ academyId, academyCountry, athleteId, initialData }: ProgressReportProps) {
+  const toast = useToast();
+  const { specialization } = useAcademyContext();
   const [selectedAthleteId, setSelectedAthleteId] = useState(athleteId || "");
   const [startDate, setStartDate] = useState(format(subMonths(new Date(), 6), "yyyy-MM-dd"));
   const [endDate, setEndDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [reportData, setReportData] = useState<ProgressReportData | null>(initialData || null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [athletes, setAthletes] = useState<Array<{ id: string; name: string }>>([]);
+
+  useEffect(() => {
+    const fetchAthletes = async () => {
+      try {
+        const response = await fetch(`/api/reports/filter-options?academyId=${academyId}`, {
+          cache: "no-store",
+        });
+        const payload = await response.json();
+        if (!response.ok || !payload.ok) return;
+        setAthletes(Array.isArray(payload.data?.athletes) ? payload.data.athletes : []);
+      } catch (fetchError) {
+        console.error("Error loading progress report athletes:", fetchError);
+      }
+    };
+
+    fetchAthletes();
+  }, [academyId]);
 
   const loadReport = async () => {
     if (!selectedAthleteId) {
@@ -121,7 +151,11 @@ export function ProgressReport({ academyId, academyCountry, athleteId, initialDa
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
     } catch (err: any) {
-      alert("Error al exportar PDF: " + err.message);
+      toast.pushToast({
+        title: "No se pudo exportar el PDF",
+        description: err.message || "Inténtalo de nuevo en unos segundos.",
+        variant: "error",
+      });
     }
   };
 
@@ -150,7 +184,11 @@ export function ProgressReport({ academyId, academyCountry, athleteId, initialDa
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
     } catch (err: any) {
-      alert("Error al exportar Excel: " + err.message);
+      toast.pushToast({
+        title: "No se pudo exportar el Excel",
+        description: err.message || "Inténtalo de nuevo en unos segundos.",
+        variant: "error",
+      });
     }
   };
 
@@ -169,9 +207,17 @@ export function ProgressReport({ academyId, academyCountry, athleteId, initialDa
       const response = await fetch(`/api/reports/progress/email?${params}`);
       if (!response.ok) throw new Error("Error al enviar email");
 
-      alert("Reporte enviado exitosamente");
+      toast.pushToast({
+        title: "Reporte enviado",
+        description: `Enviamos el reporte de progreso a ${email}.`,
+        variant: "success",
+      });
     } catch (err: any) {
-      alert("Error al enviar email: " + err.message);
+      toast.pushToast({
+        title: "No se pudo enviar el reporte",
+        description: err.message || "Revisa el correo e inténtalo otra vez.",
+        variant: "error",
+      });
     }
   };
 
@@ -181,7 +227,7 @@ export function ProgressReport({ academyId, academyCountry, athleteId, initialDa
         <div>
           <h2 className="text-2xl font-bold">Reporte de Progreso</h2>
           <p className="text-muted-foreground mt-1">
-            Análisis del progreso de habilidades de atletas
+            Análisis del progreso técnico de {specialization.labels.athletesPlural.toLowerCase()}
           </p>
         </div>
         {reportData && (
@@ -202,14 +248,20 @@ export function ProgressReport({ academyId, academyCountry, athleteId, initialDa
           <div className="grid gap-4 md:grid-cols-3">
             {!athleteId && (
               <div className="space-y-2">
-                <Label htmlFor="athlete-id">ID de Atleta *</Label>
-                <Input
-                  id="athlete-id"
-                  value={selectedAthleteId}
-                  onChange={(e) => setSelectedAthleteId(e.target.value)}
-                  placeholder="UUID del atleta"
-                  required
-                />
+                <Label htmlFor="athlete-id">ID de {specialization.labels.athleteSingular} *</Label>
+                <Select value={selectedAthleteId || "all"} onValueChange={(value) => setSelectedAthleteId(value === "all" ? "" : value)}>
+                  <SelectTrigger id="athlete-id">
+                    <SelectValue placeholder={`Selecciona ${specialization.labels.athleteSingular.toLowerCase()}`} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Selecciona</SelectItem>
+                    {athletes.map((athlete) => (
+                      <SelectItem key={athlete.id} value={athlete.id}>
+                        {athlete.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             )}
             <div className="space-y-2">
@@ -269,6 +321,32 @@ export function ProgressReport({ academyId, academyCountry, athleteId, initialDa
               </CardDescription>
             </CardHeader>
             <CardContent>
+              {reportData.technicalContext && (
+                <div className="mb-6 rounded-lg border border-primary/20 bg-primary/5 p-4">
+                  <div className="space-y-2">
+                    <p className="text-sm font-semibold text-foreground">Contexto técnico actual</p>
+                    {reportData.technicalContext.groupName && (
+                      <p className="text-sm text-muted-foreground">
+                        {specialization.labels.groupLabel}: {reportData.technicalContext.groupName}
+                      </p>
+                    )}
+                    {reportData.technicalContext.technicalFocus && (
+                      <p className="text-sm text-muted-foreground">
+                        {reportData.technicalContext.technicalFocus}
+                      </p>
+                    )}
+                    {(reportData.technicalContext.apparatus?.length ?? 0) > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {reportData.technicalContext.apparatus.map((item) => (
+                          <Badge key={item} variant="outline">
+                            {item}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
               <div className="grid gap-4 md:grid-cols-3">
                 <div>
                   <p className="text-sm text-muted-foreground">Mejora General</p>
@@ -396,4 +474,3 @@ export function ProgressReport({ academyId, academyCountry, athleteId, initialDa
     </div>
   );
 }
-

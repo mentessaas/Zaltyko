@@ -5,6 +5,7 @@ import { advertisements } from "@/db/schema";
 import { and, lte, gte } from "drizzle-orm";
 import { apiSuccess } from "@/lib/api-response";
 
+// @route-auth public
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ zone: string }> }

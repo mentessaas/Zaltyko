@@ -62,6 +62,8 @@ const updateSchema = z.object({
   startTime: z.string().nullable().optional(),
   endTime: z.string().nullable().optional(),
   capacity: z.number().int().positive().nullable().optional(),
+  technicalFocus: z.string().max(500).nullable().optional(),
+  apparatus: z.array(z.string().trim().min(1).max(120)).max(12).optional(),
   coachIds: z.array(z.string().uuid()).optional(),
   groupIds: z.array(z.string().uuid()).optional(),
   isExtra: z.boolean().optional(),
@@ -92,6 +94,8 @@ export const GET = withTenant(async (_request, context) => {
       startTime: classes.startTime,
       endTime: classes.endTime,
       capacity: classes.capacity,
+      technicalFocus: classes.technicalFocus,
+      apparatus: classes.apparatus,
       allowsFreeTrial: classes.allowsFreeTrial,
       waitingListEnabled: classes.waitingListEnabled,
       cancellationHoursBefore: classes.cancellationHoursBefore,
@@ -353,6 +357,12 @@ export const PUT = withTenant(async (request, context) => {
         if (body.startTime !== undefined) updates.startTime = body.startTime;
         if (body.endTime !== undefined) updates.endTime = body.endTime;
         if (body.capacity !== undefined) updates.capacity = body.capacity;
+        if (body.technicalFocus !== undefined) updates.technicalFocus = body.technicalFocus?.trim() || null;
+        if (body.apparatus !== undefined) {
+          updates.apparatus = body.apparatus.length
+            ? Array.from(new Set(body.apparatus.map((item) => item.trim()).filter(Boolean)))
+            : null;
+        }
         if (body.isExtra !== undefined) updates.isExtra = body.isExtra;
         if (body.groupId !== undefined) updates.groupId = body.groupId;
         if (body.allowsFreeTrial !== undefined) updates.allowsFreeTrial = body.allowsFreeTrial;
@@ -555,5 +565,4 @@ export const DELETE = withTenant(async (_request, context) => {
     return handleApiError(error, { endpoint: `/api/classes/${classId ?? "unknown"}`, method: "DELETE" });
   }
 });
-
 

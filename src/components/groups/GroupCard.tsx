@@ -3,6 +3,8 @@
 import Link from "next/link";
 
 import { GroupSummary } from "./types";
+import { useAcademyContext } from "@/hooks/use-academy-context";
+import { getStarterGroupPresets } from "@/lib/specialization/operational-presets";
 
 interface GroupCardProps {
   academyId: string;
@@ -11,17 +13,29 @@ interface GroupCardProps {
 }
 
 export function GroupCard({ academyId, group, onEdit }: GroupCardProps) {
+  const { specialization } = useAcademyContext();
   const coachCount = (group.coachId ? 1 : 0) + group.assistantIds.length;
   const createdAtDate = new Date(group.createdAt).toLocaleDateString("es-ES", {
     year: "numeric",
     month: "short",
     day: "numeric",
   });
+  const starterGroupNames = new Set(
+    getStarterGroupPresets(specialization).map((preset) => preset.name)
+  );
+  const isStarterGroup = starterGroupNames.has(group.name);
 
   return (
     <article className="flex flex-col gap-4 rounded-xl border border-border bg-card p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
       <header>
-        <h3 className="text-lg font-semibold text-foreground">{group.name}</h3>
+        <div className="flex items-center gap-2">
+          <h3 className="text-lg font-semibold text-foreground">{group.name}</h3>
+          {isStarterGroup && (
+            <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
+              Plantilla inicial
+            </span>
+          )}
+        </div>
         <p className="text-sm text-muted-foreground">{group.discipline}</p>
       </header>
 

@@ -1,21 +1,17 @@
 export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createBearerSupabaseClient, getBearerToken } from "@/lib/supabase/bearer-client";
 import { logger } from "@/lib/logger";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://jegxfahsvugilbthbked.supabase.co';
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseKey);
 
 export async function GET(request: NextRequest) {
   try {
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader) {
+    const token = getBearerToken(request);
+    if (!token) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const token = authHeader.replace('Bearer ', '');
+    const supabase = createBearerSupabaseClient(token);
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
 
     if (authError || !user) {

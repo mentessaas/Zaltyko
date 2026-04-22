@@ -70,7 +70,6 @@ export function UpdateGroupMembersDialog({
           headers: {
             "Content-Type": "application/json",
             "x-academy-id": academyId,
-            ...(user?.id ? { "x-user-id": user.id } : {}),
           },
           body: JSON.stringify({ athleteIds: selection }),
         });

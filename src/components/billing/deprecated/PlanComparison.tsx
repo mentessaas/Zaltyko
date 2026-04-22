@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Check, Sparkles, Zap, Crown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -272,7 +273,7 @@ export function PlanComparison({ currentPlan = "free", onSelectPlan, loading = f
             {/* FAQ Section */}
             <div className="mt-16 text-center">
                 <p className="text-sm text-zaltyko-text-light">
-                    ¿Tienes preguntas? <a href="/contact" className="text-zaltyko-primary hover:underline">Contáctanos</a>
+                    ¿Tienes preguntas? <Link href="/contact" className="text-zaltyko-primary hover:underline">Contáctanos</Link>
                 </p>
             </div>
         </div>

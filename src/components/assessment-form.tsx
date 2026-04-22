@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { useAcademyContext } from "@/hooks/use-academy-context";
+import { getSpecializedEvaluationTemplate } from "@/lib/specialization/registry";
 
 interface SkillOption {
   id: string;
@@ -42,6 +44,11 @@ interface ScoreRow {
 
 export function AssessmentForm({ academyId, athletes, skills, groups = [] }: AssessmentFormProps) {
   const { session, refresh } = useDevSession();
+  const { specialization } = useAcademyContext();
+  const evaluationTemplate = getSpecializedEvaluationTemplate(specialization);
+  const apparatusLabels = Object.fromEntries(
+    evaluationTemplate.apparatus.map((item) => [item.code, item.label])
+  ) as Record<string, string>;
 
   const [groupFilter, setGroupFilter] = useState<string>("");
   const filteredAthletes = useMemo(() => {
@@ -59,8 +66,9 @@ export function AssessmentForm({ academyId, athletes, skills, groups = [] }: Ass
   const [errorMessage, setErrorMessage] = useState<string>("");
 
   const apparatusOptions = useMemo(() => {
-    return Array.from(new Set(skills.map((skill) => skill.apparatus ?? "")));
-  }, [skills]);
+    const fromSkills = Array.from(new Set(skills.map((skill) => skill.apparatus ?? "")));
+    return fromSkills.length > 0 ? fromSkills : evaluationTemplate.apparatus.map((item) => item.code);
+  }, [evaluationTemplate.apparatus, skills]);
 
   const handleAddRow = () => {
     setRows((prev) => [...prev, { skillId: "", score: "", comments: "" }]);
@@ -133,7 +141,6 @@ export function AssessmentForm({ academyId, athletes, skills, groups = [] }: Ass
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-user-id": session.userId,
         },
         body: JSON.stringify(payload),
       });
@@ -161,7 +168,7 @@ export function AssessmentForm({ academyId, athletes, skills, groups = [] }: Ass
     return (
       <div className="rounded-lg border bg-card p-12 text-center shadow-sm">
         <p className="mb-4 text-sm text-muted-foreground">
-          Aún no has registrado evaluaciones. Selecciona un atleta y guarda tu primera evaluación técnica.
+          Aún no has registrado evaluaciones. Selecciona un {specialization.labels.athleteSingular.toLowerCase()} y guarda tu primera evaluación técnica.
         </p>
       </div>
     );
@@ -182,7 +189,7 @@ export function AssessmentForm({ academyId, athletes, skills, groups = [] }: Ass
                   value={groupFilter}
                   onChange={(event) => setGroupFilter(event.target.value)}
                 >
-                  <option value="">Todos los grupos</option>
+                  <option value="">Todos los {specialization.labels.groupLabel.toLowerCase()}s</option>
                   {groups.map((group) => (
                     <option key={group.id} value={group.id}>
                       {group.name}
@@ -229,7 +236,7 @@ export function AssessmentForm({ academyId, athletes, skills, groups = [] }: Ass
                   <option value="">Cualquiera</option>
                   {apparatusOptions.map((option) => (
                     <option key={option} value={option}>
-                      {option || "General"}
+                      {apparatusLabels[option] || option || "General"}
                     </option>
                   ))}
                 </select>
@@ -252,7 +259,10 @@ export function AssessmentForm({ academyId, athletes, skills, groups = [] }: Ass
         {/* Bloque 2: Puntuaciones por habilidad */}
         <div className="rounded-lg border bg-card p-6 shadow-sm">
           <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <h3 className="text-lg font-semibold">Puntuaciones por habilidad</h3>
+            <h3 className="text-lg font-semibold">
+              Puntuaciones por habilidad
+              {apparatus ? ` · ${apparatusLabels[apparatus] || apparatus}` : ""}
+            </h3>
             <Button
               type="button"
               onClick={handleAddRow}
@@ -260,7 +270,7 @@ export function AssessmentForm({ academyId, athletes, skills, groups = [] }: Ass
               size="sm"
               className="w-full sm:w-auto"
             >
-              Añadir skill
+              Añadir habilidad
             </Button>
           </div>
           <div className="space-y-3">
@@ -273,17 +283,17 @@ export function AssessmentForm({ academyId, athletes, skills, groups = [] }: Ass
                   </Label>
                   <select
                     id={`skill-${index}`}
-                    aria-label={`Seleccionar skill para fila ${index + 1}`}
+                    aria-label={`Seleccionar habilidad para fila ${index + 1}`}
                     className="flex h-11 w-full rounded-xl border-2 border-zaltyko-neutral-light bg-background px-4 py-2 text-base shadow-sm transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zaltyko-primary-light focus-visible:ring-offset-2 focus-visible:border-zaltyko-primary disabled:cursor-not-allowed disabled:opacity-50 md:text-sm min-h-[44px] sm:min-h-[40px]"
                     value={row.skillId}
                     onChange={(event) => handleChangeRow(index, { skillId: event.target.value })}
                   >
-                    <option value="">Selecciona skill</option>
+                    <option value="">Selecciona habilidad</option>
                     {skills
                       .filter((skill) => !apparatus || skill.apparatus === apparatus)
                       .map((skill) => (
                         <option key={skill.id} value={skill.id}>
-                          {skill.name} ({skill.apparatus ?? "general"})
+                          {skill.name} ({apparatusLabels[skill.apparatus ?? ""] || skill.apparatus || "general"})
                         </option>
                       ))}
                   </select>
@@ -300,7 +310,7 @@ export function AssessmentForm({ academyId, athletes, skills, groups = [] }: Ass
                     aria-label={`Puntuación para fila ${index + 1}`}
                     value={row.score}
                     onChange={(event) => handleChangeRow(index, { score: event.target.value })}
-                    placeholder="Score"
+                    placeholder="Puntuación"
                   />
                 </div>
                 <div className="space-y-1 sm:col-span-1 md:col-span-1">
@@ -314,7 +324,7 @@ export function AssessmentForm({ academyId, athletes, skills, groups = [] }: Ass
                       aria-label={`Comentarios para fila ${index + 1}`}
                       value={row.comments}
                       onChange={(event) => handleChangeRow(index, { comments: event.target.value })}
-                      placeholder="Comentarios"
+                      placeholder="Comentario técnico"
                       className="flex-1"
                     />
                     {rows.length > 1 && (
@@ -346,7 +356,7 @@ export function AssessmentForm({ academyId, athletes, skills, groups = [] }: Ass
                 rows={3}
                 value={overallComment}
                 onChange={(event) => setOverallComment(event.target.value)}
-                placeholder="Comentarios adicionales sobre la evaluación..."
+                placeholder={`Comentarios adicionales sobre la evolución de la ${specialization.labels.disciplineName.toLowerCase()}...`}
               />
             </div>
 

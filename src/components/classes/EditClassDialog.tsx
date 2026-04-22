@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useMemo, useState, useTransition } from "react";
 
 import { Modal } from "@/components/ui/modal";
 import { createClient } from "@/lib/supabase/client";
+import { useAcademyContext } from "@/hooks/use-academy-context";
 
 const WEEKDAY_OPTIONS = [
   { value: "1", label: "Lunes" },
@@ -34,6 +35,8 @@ interface ClassItem {
   startTime: string | null;
   endTime: string | null;
   capacity: number | null;
+  technicalFocus?: string | null;
+  apparatus?: string[];
   allowsFreeTrial: boolean;
   waitingListEnabled: boolean;
   cancellationHoursBefore: number | null;
@@ -63,6 +66,7 @@ export function EditClassDialog({
   onDeleted,
   academyId,
 }: EditClassDialogProps) {
+  const { specialization } = useAcademyContext();
   const [name, setName] = useState(classItem.name);
   const [selectedWeekdays, setSelectedWeekdays] = useState<string[]>(
     classItem.weekdays.map((day) => String(day))
@@ -70,6 +74,8 @@ export function EditClassDialog({
   const [startTime, setStartTime] = useState(classItem.startTime ?? "");
   const [endTime, setEndTime] = useState(classItem.endTime ?? "");
   const [capacity, setCapacity] = useState(classItem.capacity ? String(classItem.capacity) : "");
+  const [technicalFocus, setTechnicalFocus] = useState(classItem.technicalFocus ?? "");
+  const [selectedApparatus, setSelectedApparatus] = useState<string[]>(classItem.apparatus ?? []);
   const [selectedCoaches, setSelectedCoaches] = useState<string[]>(
     classItem.coaches.map((coach) => coach.id)
   );
@@ -95,6 +101,8 @@ export function EditClassDialog({
     setStartTime(classItem.startTime ?? "");
     setEndTime(classItem.endTime ?? "");
     setCapacity(classItem.capacity ? String(classItem.capacity) : "");
+    setTechnicalFocus(classItem.technicalFocus ?? "");
+    setSelectedApparatus(classItem.apparatus ?? []);
     setSelectedCoaches(classItem.coaches.map((coach) => coach.id));
     setSelectedGroups(classItem.groups?.map((group) => group.id) ?? []);
     setAllowsFreeTrial(classItem.allowsFreeTrial ?? false);
@@ -103,6 +111,12 @@ export function EditClassDialog({
     setCancellationPolicy(classItem.cancellationPolicy ?? "standard");
     setError(null);
   }, [classItem, open]);
+
+  const toggleApparatus = (value: string) => {
+    setSelectedApparatus((prev) =>
+      prev.includes(value) ? prev.filter((item) => item !== value) : [...prev, value]
+    );
+  };
 
   const hasChanges = useMemo(() => {
     const originalCoachIds = classItem.coaches.map((coach) => coach.id).sort();
@@ -185,6 +199,8 @@ export function EditClassDialog({
           startTime: startTime || null,
           endTime: endTime || null,
           capacity: capacity ? Number(capacity) : null,
+          technicalFocus: technicalFocus.trim() || null,
+          apparatus: selectedApparatus,
           coachIds: selectedCoaches,
           groupIds: selectedGroups,
           allowsFreeTrial,
@@ -198,7 +214,6 @@ export function EditClassDialog({
           headers: {
             "Content-Type": "application/json",
             "x-academy-id": academyId,
-            ...(currentUser?.id ? { "x-user-id": currentUser.id } : {}),
           },
           body: JSON.stringify(payload),
         });
@@ -275,7 +290,6 @@ export function EditClassDialog({
         headers: {
           "Content-Type": "application/json",
           "x-academy-id": academyId,
-          ...(currentUser?.id ? { "x-user-id": currentUser.id } : {}),
         },
       });
 
@@ -457,6 +471,43 @@ export function EditClassDialog({
           </div>
         </div>
 
+        <div className="space-y-2">
+          <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Foco técnico del bloque
+          </label>
+          <textarea
+            value={technicalFocus}
+            onChange={(event) => setTechnicalFocus(event.target.value)}
+            className="min-h-24 w-full rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+            placeholder="Describe el objetivo técnico principal de este entrenamiento."
+          />
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Aparatos / material principal
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {specialization.evaluation.apparatus.map((item) => {
+              const selected = selectedApparatus.includes(item.label);
+              return (
+                <button
+                  key={item.code}
+                  type="button"
+                  onClick={() => toggleApparatus(item.label)}
+                  className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                    selected
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border bg-background text-muted-foreground"
+                  }`}
+                >
+                  {item.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         <div className="grid gap-4 md:grid-cols-2">
           <section className="space-y-3 rounded-md border border-dashed border-border/70 p-4">
             <header>
@@ -601,5 +652,4 @@ export function EditClassDialog({
     </Modal>
   );
 }
-
 

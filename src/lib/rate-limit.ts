@@ -243,7 +243,11 @@ export function getClientIdentifier(request: NextRequest, userId?: string): stri
  */
 export function getUserIdentifier(request: NextRequest): string {
   const userId = request.headers.get("x-user-id");
-  if (userId) {
+  const internalSecret = process.env.INTERNAL_AUTH_SECRET;
+  const trustedInternalRequest =
+    internalSecret && request.headers.get("x-internal-auth-secret") === internalSecret;
+
+  if (userId && trustedInternalRequest) {
     return `user:${userId}`;
   }
 

@@ -1,18 +1,30 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { addDays, getDay } from "date-fns";
-import { and, asc, eq, gte, inArray, lte } from "drizzle-orm";
+import { addDays } from "date-fns";
+import { and, asc, eq, gte, inArray, lte, or } from "drizzle-orm";
 import Link from "next/link";
 import { ArrowLeft, Shield, Calendar, CalendarDays } from "lucide-react";
 
 import { db } from "@/db";
-import { academies, classSessions, classes, classWeekdays, coaches, memberships, profiles } from "@/db/schema";
+import {
+  academies,
+  athletes,
+  classEnrollments,
+  classGroups,
+  classSessions,
+  classes,
+  classWeekdays,
+  coaches,
+  guardianAthletes,
+  guardians,
+  memberships,
+  profiles,
+} from "@/db/schema";
 import CalendarView from "@/components/calendar/CalendarView";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/authz";
 import { formatDateToISOString, getWeekBoundariesInCountryTimezone, getMonthBoundariesInCountryTimezone, getFirstDateForWeekdayInTimezone } from "@/lib/date-utils";
 import { PageHeader } from "@/components/ui/page-header";
-import { EmptyState } from "@/components/shared/EmptyState";
 
 interface CalendarPageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -65,7 +77,7 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
     currentProfile = await getCurrentProfile(user.id);
   } catch (error) {
     console.error("Error getting profile:", error);
-    redirect("/onboarding");
+    redirect("/onboarding/owner");
   }
   if (!currentProfile) {
     redirect("/dashboard");
@@ -136,6 +148,7 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
     typeof params.view === "string" && ["week", "month"].includes(params.view)
       ? (params.view as "week" | "month")
       : "week";
+  const athleteIdParam = typeof params.athleteId === "string" ? params.athleteId : undefined;
 
   const referenceDate = parseDateParam(
     typeof params.date === "string" ? params.date : undefined
@@ -154,6 +167,125 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
     const monthBoundaries = getMonthBoundariesInCountryTimezone(referenceDate, academyCountry);
     rangeStart = monthBoundaries.start;
     rangeEnd = monthBoundaries.end;
+  }
+
+  let allowedClassIds: string[] | null = null;
+  let calendarTitle = "Calendario de sesiones";
+  let calendarDescription = "Visualiza las clases programadas y coordina los entrenadores asignados.";
+  let limitedCalendarContext: string | null = null;
+  const canOpenSessionDetails =
+    targetProfile.role === "owner" || targetProfile.role === "admin" || targetProfile.role === "coach";
+
+  if (targetProfile.role === "athlete") {
+    const [athleteRow] = await db
+      .select({
+        id: athletes.id,
+        academyId: athletes.academyId,
+        groupId: athletes.groupId,
+      })
+      .from(athletes)
+      .where(eq(athletes.userId, targetProfile.userId))
+      .limit(1);
+
+    if (athleteRow) {
+      const classIdSet = new Set<string>();
+
+      if (athleteRow.groupId) {
+        const groupClassRows = await db
+          .select({ classId: classes.id })
+          .from(classes)
+          .leftJoin(classGroups, eq(classGroups.classId, classes.id))
+          .where(
+            and(
+              eq(classes.academyId, athleteRow.academyId),
+              or(eq(classes.groupId, athleteRow.groupId), eq(classGroups.groupId, athleteRow.groupId))
+            )
+          );
+
+        groupClassRows.forEach((row) => classIdSet.add(row.classId));
+      }
+
+      const enrollmentRows = await db
+        .select({ classId: classEnrollments.classId })
+        .from(classEnrollments)
+        .where(
+          and(
+            eq(classEnrollments.athleteId, athleteRow.id),
+            eq(classEnrollments.academyId, athleteRow.academyId)
+          )
+        );
+
+      enrollmentRows.forEach((row) => classIdSet.add(row.classId));
+      allowedClassIds = Array.from(classIdSet);
+    } else {
+      allowedClassIds = [];
+    }
+
+    calendarTitle = "Mi calendario";
+    calendarDescription = "Consulta solo tus clases y sesiones programadas.";
+    limitedCalendarContext = "Mostramos unicamente las actividades asociadas a tu perfil de atleta.";
+  }
+
+  if (targetProfile.role === "parent") {
+    const linkedChildren = await db
+      .select({
+        athleteId: athletes.id,
+        academyId: athletes.academyId,
+        groupId: athletes.groupId,
+        athleteName: athletes.name,
+      })
+      .from(guardianAthletes)
+      .innerJoin(guardians, eq(guardianAthletes.guardianId, guardians.id))
+      .innerJoin(athletes, eq(guardianAthletes.athleteId, athletes.id))
+      .where(eq(guardians.profileId, targetProfile.id));
+
+    const selectedChildren =
+      athleteIdParam && linkedChildren.some((child) => child.athleteId === athleteIdParam)
+        ? linkedChildren.filter((child) => child.athleteId === athleteIdParam)
+        : linkedChildren;
+
+    const classIdSet = new Set<string>();
+
+    for (const child of selectedChildren) {
+      if (child.groupId) {
+        const groupClassRows = await db
+          .select({ classId: classes.id })
+          .from(classes)
+          .leftJoin(classGroups, eq(classGroups.classId, classes.id))
+          .where(
+            and(
+              eq(classes.academyId, child.academyId),
+              or(eq(classes.groupId, child.groupId), eq(classGroups.groupId, child.groupId))
+            )
+          );
+
+        groupClassRows.forEach((row) => classIdSet.add(row.classId));
+      }
+
+      const enrollmentRows = await db
+        .select({ classId: classEnrollments.classId })
+        .from(classEnrollments)
+        .where(
+          and(
+            eq(classEnrollments.athleteId, child.athleteId),
+            eq(classEnrollments.academyId, child.academyId)
+          )
+        );
+
+      enrollmentRows.forEach((row) => classIdSet.add(row.classId));
+    }
+
+    allowedClassIds = Array.from(classIdSet);
+    const selectedChildName =
+      athleteIdParam ? selectedChildren[0]?.athleteName ?? null : null;
+
+    calendarTitle = selectedChildName ? `Calendario de ${selectedChildName}` : "Calendario familiar";
+    calendarDescription = selectedChildName
+      ? `Consulta las actividades programadas para ${selectedChildName}.`
+      : "Consulta las actividades programadas para tus hijos asociados.";
+    limitedCalendarContext = selectedChildName
+      ? `Filtramos las sesiones para ${selectedChildName}.`
+      : "Mostramos solo las actividades vinculadas a tus hijos.";
   }
 
   const sessions = await db
@@ -177,7 +309,8 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
       and(
         eq(classSessions.tenantId, tenantId),
         gte(classSessions.sessionDate, toISODate(rangeStart, academyCountry)),
-        lte(classSessions.sessionDate, toISODate(rangeEnd, academyCountry))
+        lte(classSessions.sessionDate, toISODate(rangeEnd, academyCountry)),
+        allowedClassIds !== null ? inArray(classes.id, allowedClassIds.length > 0 ? allowedClassIds : ["__no-match__"]) : undefined
       )
     )
     .orderBy(asc(classSessions.sessionDate), asc(classSessions.startTime));
@@ -192,7 +325,7 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
     className: session.className ?? null,
     academyName: session.academyName ?? null,
     coachName: session.coachName ?? null,
-    targetUrl: `/dashboard/sessions/${session.id}`,
+    targetUrl: canOpenSessionDetails ? `/dashboard/sessions/${session.id}` : undefined,
     isExtra: session.isExtra ?? false,
   }));
 
@@ -210,7 +343,12 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
       })
       .from(classes)
       .innerJoin(academies, eq(classes.academyId, academies.id))
-      .where(eq(classes.tenantId, tenantId))
+      .where(
+        and(
+          eq(classes.tenantId, tenantId),
+          allowedClassIds !== null ? inArray(classes.id, allowedClassIds.length > 0 ? allowedClassIds : ["__no-match__"]) : undefined
+        )
+      )
       .orderBy(asc(classes.name))
       .limit(15);
 
@@ -247,7 +385,7 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
           className: string | null;
           academyName: string | null;
           coachName: string | null;
-          targetUrl: string;
+          targetUrl?: string;
           isPlaceholder: boolean;
         }> = [];
 
@@ -268,7 +406,7 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
               className: classRow.name,
               academyName: classRow.academyName,
               coachName: null,
-              targetUrl: `/app/${classRow.academyId}/classes/${classRow.id}`,
+              targetUrl: canOpenSessionDetails ? `/app/${classRow.academyId}/classes/${classRow.id}` : undefined,
               isPlaceholder: true,
             });
             currentDate = addDays(currentDate, 7);
@@ -322,16 +460,22 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
           { label: "Dashboard", href: "/dashboard" },
           { label: "Calendario" },
         ]}
-        title="Calendario de sesiones"
-        description="Visualiza las clases programadas y coordina los entrenadores asignados."
+        title={calendarTitle}
+        description={calendarDescription}
         icon={<CalendarDays className="h-5 w-5" strokeWidth={1.5} />}
       />
+      {limitedCalendarContext && (
+        <div className="rounded-lg border border-border bg-card/70 p-4 text-sm text-muted-foreground">
+          {limitedCalendarContext}
+        </div>
+      )}
       {usingPlaceholderSessions && (
         <div className="rounded-lg border border-dashed border-amber-400/70 bg-amber-50/80 p-4 text-sm text-amber-900">
           <p className="font-semibold">No hay sesiones generadas todavía.</p>
           <p className="text-amber-800">
-            Mostramos tus clases según los días configurados para que puedas visualizar la carga semanal.
-            Usa la opción “Generar sesiones” en el módulo de clases para convertirlas en sesiones reales del calendario.
+            {canOpenSessionDetails
+              ? "Mostramos tus clases según los dias configurados para que puedas visualizar la carga semanal. Usa la opcion Generar sesiones en el modulo de clases para convertirlas en sesiones reales del calendario."
+              : "Mostramos las actividades segun los dias configurados para que puedas visualizar la agenda prevista aunque todavia no existan sesiones generadas."}
           </p>
         </div>
       )}
@@ -346,5 +490,3 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
     </div>
   );
 }
-
-

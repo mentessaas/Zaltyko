@@ -51,22 +51,22 @@ export function FinancialMetricsWidget({ academyId }: FinancialMetricsWidgetProp
   }
 
   return (
-    <div className="space-y-4 rounded-2xl border border-zaltyko-border/40 bg-gradient-to-br from-white via-white to-zaltyko-primary/5 p-6 shadow-lg shadow-zaltyko-primary/5">
+    <div className="space-y-4 rounded-lg border bg-card p-6 shadow-sm">
       <header className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-lg shadow-green-500/20">
-            <DollarSign className="h-5 w-5 text-white" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700">
+            <DollarSign className="h-5 w-5" />
           </div>
           <div>
-            <p className="text-xs font-bold uppercase tracking-wider text-zaltyko-text-secondary/80">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Métricas financieras
             </p>
-            <h3 className="text-lg font-bold text-zaltyko-text-main">Resumen financiero</h3>
+            <h3 className="text-lg font-semibold text-foreground">Resumen financiero</h3>
           </div>
         </div>
         <Link
           href={`/app/${academyId}/reports/financial`}
-          className="inline-flex items-center gap-1 text-xs font-bold text-zaltyko-primary transition hover:underline"
+          className="inline-flex items-center gap-1 text-xs font-semibold text-primary transition hover:underline"
         >
           Ver reporte completo
           <ArrowRight className="h-3 w-3" />
@@ -75,13 +75,13 @@ export function FinancialMetricsWidget({ academyId }: FinancialMetricsWidgetProp
 
       <div className="grid gap-4 sm:grid-cols-3">
         {/* Ingresos del mes */}
-        <div className="rounded-2xl border border-zaltyko-border/30 bg-white/80 p-4 shadow-md hover:shadow-lg transition-shadow">
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50/70 p-4 transition-shadow hover:shadow-sm">
           <div className="flex items-center gap-3">
-            <div className="rounded-xl bg-gradient-to-br from-green-500/20 to-emerald-600/10 p-2.5">
+            <div className="rounded-lg bg-emerald-100 p-2.5">
               <TrendingUp className="h-5 w-5 text-green-600" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-zaltyko-text-secondary">Ingresos del mes</p>
+              <p className="text-xs font-semibold text-muted-foreground">Ingresos del mes</p>
               <p className="mt-1 text-xl font-bold text-green-600">
                 €{metrics.monthlyRevenue.toFixed(2)}
               </p>
@@ -125,4 +125,3 @@ export function FinancialMetricsWidget({ academyId }: FinancialMetricsWidgetProp
     </div>
   );
 }
-

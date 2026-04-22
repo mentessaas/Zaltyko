@@ -8,7 +8,6 @@ import { db } from "@/db";
 import { academies, profiles } from "@/db/schema";
 import { handleApiError } from "@/lib/api-error-handler";
 import { withRateLimit, getClientIdentifier } from "@/lib/rate-limit";
-import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { logger } from "@/lib/logger";
 
 const ContactSchema = z.object({
@@ -94,13 +93,6 @@ async function contactHandler(request: Request, context?: { params?: Promise<{ i
       .where(eq(profiles.id, academy.ownerId))
       .limit(1);
 
-    let ownerEmail: string | null = null;
-    if (ownerProfile?.userId) {
-      const adminClient = getSupabaseAdminClient();
-      const { data: authUser } = await adminClient.auth.admin.getUserById(ownerProfile.userId);
-      ownerEmail = authUser?.user?.email || null;
-    }
-
     // TODO: Integrar con servicio de email (Mailgun, SendGrid, etc.)
     // Por ahora, solo retornamos éxito
     // En producción, aquí se enviaría el email al propietario de la academia
@@ -113,7 +105,6 @@ async function contactHandler(request: Request, context?: { params?: Promise<{ i
       contactEmail: email,
       contactPhone: phone,
       message,
-      ownerEmail: ownerEmail,
       ownerName: ownerProfile?.name,
     });
 
@@ -137,4 +128,3 @@ export const POST = async (request: Request, context: { params: Promise<{ id: st
     }
   )(request as any, { params: context.params });
 };
-

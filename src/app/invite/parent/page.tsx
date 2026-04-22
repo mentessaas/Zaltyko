@@ -6,6 +6,7 @@ import { db } from "@/db";
 import { invitations } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
 import AcceptInvitationForm from "@/components/AcceptInvitationForm";
+import { InvitationPageShell } from "@/components/invitations/InvitationPageShell";
 
 interface ParentInviteProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -47,34 +48,16 @@ export default async function ParentInvitationPage({ searchParams }: ParentInvit
   const isAuthenticated = Boolean(user);
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-3xl flex-col gap-6 px-4 py-12">
-      <div className="rounded-xl border bg-card/80 p-6 shadow-sm">
-        <p className="text-xs uppercase tracking-wide text-muted-foreground">Invitación para padres</p>
-        <h1 className="mt-2 text-3xl font-semibold">Consulta la información de tus hijos en tiempo real</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Registra tu cuenta para ver horarios, asistencia y próximas cuotas desde cualquier dispositivo.
-        </p>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          <div className="rounded-lg border border-dashed p-4 text-sm">
-            <p className="font-semibold text-foreground">Qué verás al entrar</p>
-            <ul className="mt-2 list-disc space-y-1 pl-5 text-muted-foreground">
-              <li>Grupo y entrenador asignado.</li>
-              <li>Próxima clase y estado de asistencia.</li>
-              <li>Mensajes importantes del club.</li>
-            </ul>
-          </div>
-          <div className="rounded-lg border border-dashed p-4 text-sm">
-            <p className="font-semibold text-foreground">Después de registrarte</p>
-            <ul className="mt-2 list-disc space-y-1 pl-5 text-muted-foreground">
-              <li>Actualiza datos de contacto.</li>
-              <li>Configura métodos de pago si están disponibles.</li>
-              <li>Descarga la app para recibir notificaciones.</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-
-      <div className="rounded-xl border bg-card p-6 shadow">
+    <InvitationPageShell
+      eyebrow="Invitación para tutores"
+      title="Consulta la información de tus hijos en tiempo real"
+      description="Registra tu cuenta para ver horarios, asistencia y próximas cuotas desde cualquier dispositivo."
+      highlights={[
+        "Verás el grupo, el entrenador asignado y la próxima clase disponible.",
+        "Podrás seguir asistencia, avisos importantes y movimientos relevantes de tus hijos.",
+        "Después podrás actualizar tus datos de contacto y, si aplica, gestionar pagos.",
+      ]}
+      form={
         <AcceptInvitationForm
           token={token}
           email={invitation.email}
@@ -83,7 +66,7 @@ export default async function ParentInvitationPage({ searchParams }: ParentInvit
           isSameEmail={isSameEmail}
           userEmail={userEmail}
         />
-      </div>
-    </div>
+      }
+    />
   );
 }

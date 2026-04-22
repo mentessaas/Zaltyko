@@ -103,6 +103,7 @@ export default async function AthleteAssessmentsPage({ params }: PageProps) {
       </div>
 
       <AthleteEvaluationsTab
+        academyId={academyId}
         athleteId={athleteId}
         athleteName={athlete.name}
       />

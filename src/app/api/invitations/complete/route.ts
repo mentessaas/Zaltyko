@@ -7,6 +7,7 @@ import { invitations, profiles, memberships } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { handleApiError } from "@/lib/api-error-handler";
+import { resolveUserHome } from "@/lib/auth/resolve-user-home";
 
 export const dynamic = "force-dynamic";
 
@@ -161,16 +162,16 @@ export async function POST(request: Request) {
       })
       .where(eq(invitations.id, invitation.id));
 
-    // Get the primary academy for redirect
-    const primaryAcademyId = invitation.defaultAcademyId || academyIds[0];
+    const home = await resolveUserHome({
+      userId: user.id,
+      email: user.email,
+    });
 
     return apiSuccess({
       success: true,
       role: invitation.role,
-      academyId: primaryAcademyId,
-      redirectUrl: primaryAcademyId
-        ? `/app/${primaryAcademyId}/dashboard`
-        : "/dashboard/academies",
+      academyId: home.activeAcademyId,
+      redirectUrl: home.redirectUrl,
     });
   } catch (error) {
     console.error("Error accepting invitation:", error);

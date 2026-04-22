@@ -1,8 +1,8 @@
-import { NextRequest } from "next/server";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { logger } from "@/lib/logger";
+import { withTenant } from "@/lib/authz";
 
-export async function POST(request: NextRequest) {
+export const POST = withTenant(async (request: Request) => {
   try {
     const { phone, apiKey } = await request.json();
 
@@ -32,4 +32,4 @@ export async function POST(request: NextRequest) {
     logger.error("WhatsApp verify error:", error);
     return apiError("Error al verificar la conexión", "Connection error", 500);
   }
-}
+});

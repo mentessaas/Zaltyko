@@ -10,6 +10,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/components/ui/toast-provider";
+import { useAcademyContext } from "@/hooks/use-academy-context";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface AttendanceStats {
   totalSessions: number;
@@ -30,6 +33,8 @@ interface AttendanceReportProps {
 }
 
 export function AttendanceReport({ academyId, academyCountry, initialData }: AttendanceReportProps) {
+  const toast = useToast();
+  const { specialization } = useAcademyContext();
   const [reportType, setReportType] = useState<"general" | "athlete" | "group">("general");
   const [startDate, setStartDate] = useState(format(subMonths(new Date(), 1), "yyyy-MM-dd"));
   const [endDate, setEndDate] = useState(format(new Date(), "yyyy-MM-dd"));
@@ -39,6 +44,26 @@ export function AttendanceReport({ academyId, academyCountry, initialData }: Att
   const [reportData, setReportData] = useState<any>(initialData?.data);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [athletes, setAthletes] = useState<Array<{ id: string; name: string }>>([]);
+  const [groups, setGroups] = useState<Array<{ id: string; name: string }>>([]);
+
+  useEffect(() => {
+    const fetchOptions = async () => {
+      try {
+        const response = await fetch(`/api/reports/filter-options?academyId=${academyId}`, {
+          cache: "no-store",
+        });
+        const payload = await response.json();
+        if (!response.ok || !payload.ok) return;
+        setAthletes(Array.isArray(payload.data?.athletes) ? payload.data.athletes : []);
+        setGroups(Array.isArray(payload.data?.groups) ? payload.data.groups : []);
+      } catch (fetchError) {
+        console.error("Error loading attendance report options:", fetchError);
+      }
+    };
+
+    fetchOptions();
+  }, [academyId]);
 
   const loadReport = async () => {
     setIsLoading(true);
@@ -102,8 +127,17 @@ export function AttendanceReport({ academyId, academyCountry, initialData }: Att
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
+      toast.pushToast({
+        title: "PDF exportado",
+        description: "El reporte de asistencia se descargó correctamente.",
+        variant: "success",
+      });
     } catch (err: any) {
-      alert("Error al exportar PDF: " + err.message);
+      toast.pushToast({
+        title: "No se pudo exportar el PDF",
+        description: err.message || "Inténtalo de nuevo en unos segundos.",
+        variant: "error",
+      });
     }
   };
 
@@ -132,8 +166,17 @@ export function AttendanceReport({ academyId, academyCountry, initialData }: Att
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
+      toast.pushToast({
+        title: "Excel exportado",
+        description: "El reporte de asistencia se descargó correctamente.",
+        variant: "success",
+      });
     } catch (err: any) {
-      alert("Error al exportar Excel: " + err.message);
+      toast.pushToast({
+        title: "No se pudo exportar el Excel",
+        description: err.message || "Inténtalo de nuevo en unos segundos.",
+        variant: "error",
+      });
     }
   };
 
@@ -246,7 +289,7 @@ export function AttendanceReport({ academyId, academyCountry, initialData }: Att
         <div>
           <h2 className="text-2xl font-bold">Reporte de Asistencia</h2>
           <p className="text-muted-foreground mt-1">
-            Genera reportes detallados de asistencia de atletas
+            Genera reportes detallados de asistencia de {specialization.labels.athletesPlural.toLowerCase()}
           </p>
         </div>
         <div className="flex gap-2">
@@ -279,8 +322,8 @@ export function AttendanceReport({ academyId, academyCountry, initialData }: Att
                 className="flex h-10 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
               >
                 <option value="general">General</option>
-                <option value="athlete">Por Atleta</option>
-                <option value="group">Por Grupo</option>
+                <option value="athlete">Por {specialization.labels.athleteSingular}</option>
+                <option value="group">Por {specialization.labels.groupLabel}</option>
               </select>
             </div>
             <div className="space-y-2">
@@ -303,24 +346,38 @@ export function AttendanceReport({ academyId, academyCountry, initialData }: Att
             </div>
             {reportType === "athlete" && (
               <div className="space-y-2">
-                <Label htmlFor="athlete-id">ID de Atleta</Label>
-                <Input
-                  id="athlete-id"
-                  value={athleteId}
-                  onChange={(e) => setAthleteId(e.target.value)}
-                  placeholder="UUID del atleta"
-                />
+                <Label htmlFor="athlete-id">{specialization.labels.athleteSingular}</Label>
+                <Select value={athleteId || "all"} onValueChange={(value) => setAthleteId(value === "all" ? "" : value)}>
+                  <SelectTrigger id="athlete-id">
+                    <SelectValue placeholder={`Selecciona ${specialization.labels.athleteSingular.toLowerCase()}`} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Selecciona</SelectItem>
+                    {athletes.map((athlete) => (
+                      <SelectItem key={athlete.id} value={athlete.id}>
+                        {athlete.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             )}
             {reportType === "group" && (
               <div className="space-y-2">
-                <Label htmlFor="group-id">ID de Grupo</Label>
-                <Input
-                  id="group-id"
-                  value={groupId}
-                  onChange={(e) => setGroupId(e.target.value)}
-                  placeholder="UUID del grupo"
-                />
+                <Label htmlFor="group-id">{specialization.labels.groupLabel}</Label>
+                <Select value={groupId || "all"} onValueChange={(value) => setGroupId(value === "all" ? "" : value)}>
+                  <SelectTrigger id="group-id">
+                    <SelectValue placeholder={`Selecciona ${specialization.labels.groupLabel.toLowerCase()}`} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Selecciona</SelectItem>
+                    {groups.map((group) => (
+                      <SelectItem key={group.id} value={group.id}>
+                        {group.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             )}
           </div>
@@ -397,4 +454,3 @@ export function AttendanceReport({ academyId, academyCountry, initialData }: Att
     </div>
   );
 }
-

@@ -8,6 +8,8 @@ import { CreateClassDialog } from "@/components/classes/CreateClassDialog";
 import { EditClassDialog } from "@/components/classes/EditClassDialog";
 import { RecurringIndicator } from "@/components/shared/RecurringIndicator";
 import { AlertBadge } from "@/components/shared/AlertBadge";
+import { useAcademyContext } from "@/hooks/use-academy-context";
+import { getStarterClassPresets, getStarterGroupPresets } from "@/lib/specialization/operational-presets";
 
 const WEEKDAY_LABELS: Record<number, string> = {
   0: "Domingo",
@@ -32,6 +34,8 @@ interface ClassItem {
   startTime: string | null;
   endTime: string | null;
   capacity: number | null;
+  technicalFocus?: string | null;
+  apparatus?: string[];
   autoGenerateSessions: boolean;
   allowsFreeTrial: boolean;
   waitingListEnabled: boolean;
@@ -69,6 +73,7 @@ export function ClassesTableView({
   groupOptions,
   filters,
 }: ClassesTableViewProps) {
+  const { specialization } = useAcademyContext();
   const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();
@@ -127,6 +132,9 @@ export function ClassesTableView({
 
   const hasActiveFilters = filters.q || filters.groupId;
   const isEmpty = classes.length === 0;
+  const starterClassNames = new Set(
+    getStarterClassPresets(specialization, getStarterGroupPresets(specialization)).map((preset) => preset.name)
+  );
 
   return (
     <div className="space-y-6">
@@ -206,6 +214,11 @@ export function ClassesTableView({
                       >
                         {item.name}
                       </Link>
+                      {starterClassNames.has(item.name) && (
+                        <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
+                          Plantilla inicial
+                        </span>
+                      )}
                       {item.autoGenerateSessions && (
                         <RecurringIndicator
                           classId={item.id}
@@ -316,5 +329,3 @@ export function ClassesTableView({
     </div>
   );
 }
-
-

@@ -16,6 +16,8 @@ import {
 import { getClassAthletes } from "@/lib/classes/get-class-athletes";
 
 import { ClassDetailView } from "@/components/classes/ClassDetailView";
+import { resolveAcademySpecialization } from "@/lib/specialization/registry";
+import { getGroupTechnicalGuidance } from "@/lib/specialization/technical-guidance";
 
 interface PageProps {
   params: Promise<{
@@ -35,6 +37,8 @@ export default async function ClassDetailPage({ params }: PageProps) {
       startTime: classes.startTime,
       endTime: classes.endTime,
       capacity: classes.capacity,
+      technicalFocus: classes.technicalFocus,
+      apparatus: classes.apparatus,
     })
     .from(classes)
     .where(eq(classes.id, classId))
@@ -145,14 +149,38 @@ export default async function ClassDetailPage({ params }: PageProps) {
     .where(eq(coaches.academyId, academyId))
     .orderBy(asc(coaches.name));
 
+  const [academy] = await db
+    .select({
+      id: academies.id,
+      academyType: academies.academyType,
+      country: academies.country,
+      countryCode: academies.countryCode,
+      discipline: academies.discipline,
+      disciplineVariant: academies.disciplineVariant,
+      federationConfigVersion: academies.federationConfigVersion,
+      specializationStatus: academies.specializationStatus,
+    })
+    .from(academies)
+    .where(eq(academies.id, academyId))
+    .limit(1);
+
+  if (!academy) {
+    notFound();
+  }
+
+  const specialization = resolveAcademySpecialization(academy);
+  const classTechnicalGuidance = getGroupTechnicalGuidance(specialization);
+
   const classInfo = {
     id: classRow.id,
     academyId: classRow.academyId,
     name: classRow.name ?? "Clase",
-  weekdays: weekdayRows.map((row) => row.weekday).sort((a, b) => a - b),
+    weekdays: weekdayRows.map((row) => row.weekday).sort((a, b) => a - b),
     startTime: classRow.startTime,
     endTime: classRow.endTime,
     capacity: classRow.capacity,
+    technicalFocus: classRow.technicalFocus ?? classTechnicalGuidance.focusAreas.join(". "),
+    apparatus: classRow.apparatus?.length ? classRow.apparatus : classTechnicalGuidance.apparatus,
     coaches: coachAssignments.map((assignment) => ({
       id: assignment.coachId,
       name: assignment.coachName ?? "Sin nombre",
@@ -182,5 +210,4 @@ export default async function ClassDetailPage({ params }: PageProps) {
     </div>
   );
 }
-
 

@@ -31,14 +31,14 @@ export const stripe = new Proxy({} as StripeServer, {
       if (!secretKey) {
         if (isBuildTime) {
           stripeServerInstance = new StripeServer("sk_test_dummy_key_for_build", {
-            apiVersion: "2025-02-24.acacia",
+            apiVersion: "2026-03-25.dahlia",
           });
         } else {
           throw new Error("STRIPE_SECRET_KEY debe estar definido para operaciones de facturación");
         }
       } else {
         stripeServerInstance = new StripeServer(secretKey, {
-          apiVersion: "2025-02-24.acacia",
+          apiVersion: "2026-03-25.dahlia",
         });
       }
     }

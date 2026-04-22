@@ -60,12 +60,15 @@ import { PopularClassesWidget } from "@/components/dashboard/PopularClassesWidge
 import { RevenueTrendChart } from "@/components/dashboard/RevenueTrendChart";
 import { GymMetricsWidgetLoader } from "@/components/dashboard/GymMetricsWidgetLoader";
 import type { DashboardData } from "@/lib/dashboard";
-import { formatAcademyType } from "@/lib/formatters";
 import { useAcademyContext } from "@/hooks/use-academy-context";
 import { useDashboardData } from "@/hooks/useDashboardData";
 import { ITEM_ROUTES } from "@/components/dashboard/OnboardingChecklist";
 import type { ChecklistKey } from "@/lib/onboarding-utils";
 import { isSameDayInTimezone, getTodayInCountryTimezone, formatShortDateForCountry } from "@/lib/date-utils";
+import { getSpecializedLabels } from "@/lib/specialization/registry";
+import { getStarterClassPresets, getStarterGroupPresets } from "@/lib/specialization/operational-presets";
+import { summarizeStarterClassSetup, type StarterSetupSummary } from "@/lib/classes/starter-setup";
+import { summarizeStarterGroupSetup, type StarterGroupSetupSummary } from "@/lib/groups/starter-setup";
 
 interface DashboardPageProps {
   academyId: string;
@@ -89,8 +92,9 @@ export function DashboardPage({
   initialData,
 }: DashboardPageProps) {
   const router = useRouter();
-  const { tenantAcademies, isAdmin, isOwner } = useAcademyContext();
+  const { tenantAcademies, isAdmin, isOwner, specialization } = useAcademyContext();
   const { data, loading } = useDashboardData({ academyId, tenantId, initialData });
+  const labels = getSpecializedLabels(specialization);
   const [checklistProgress, setChecklistProgress] = useState<{ completed: number; total: number } | null>(null);
   const [checklistItems, setChecklistItems] = useState<Array<{
     key: string;
@@ -102,6 +106,8 @@ export function DashboardPage({
   const [showAllSteps, setShowAllSteps] = useState(false);
   const [showFinancials, setShowFinancials] = useState(false);
   const [showRecentActivity, setShowRecentActivity] = useState(false);
+  const [starterSetupSummary, setStarterSetupSummary] = useState<StarterSetupSummary | null>(null);
+  const [starterGroupSummary, setStarterGroupSummary] = useState<StarterGroupSetupSummary | null>(null);
 
   // Detectar si es un usuario nuevo (menos de 3 días desde creación o configuración mínima)
   useEffect(() => {
@@ -200,9 +206,9 @@ export function DashboardPage({
   const metricCards = useMemo(
     () => [
       {
-        title: "Atletas",
+        title: labels.athletesPlural,
         value: data.metrics.athletes,
-        subtitle: "Atletas activos",
+        subtitle: `${labels.athletesPlural} activas`,
         href: `/app/${academyId}/athletes`,
         icon: Users,
         accent: "zaltyko-primary" as const,
@@ -216,9 +222,9 @@ export function DashboardPage({
         accent: "sky" as const,
       },
       {
-        title: "Grupos",
+        title: `${labels.groupLabel}s`,
         value: data.metrics.groups,
-        subtitle: "Grupos activos",
+        subtitle: `${labels.groupLabel}s activos`,
         href: `/app/${academyId}/groups`,
         icon: LayoutDashboard,
         accent: "red" as const,
@@ -236,6 +242,187 @@ export function DashboardPage({
   );
 
   const CTAIcon = primaryCTA.icon;
+  const starterGroupPresets = useMemo(
+    () => getStarterGroupPresets(specialization),
+    [specialization]
+  );
+  const starterClassPresets = useMemo(
+    () => getStarterClassPresets(specialization, starterGroupPresets),
+    [specialization, starterGroupPresets]
+  );
+  const shouldShowStarterSetupBanner = useMemo(() => {
+    if (data.metrics.groups === 0 && data.metrics.classesThisWeek === 0) {
+      return false;
+    }
+
+    return (
+      data.metrics.groups <= starterGroupPresets.length &&
+      data.metrics.classesThisWeek <= Math.max(starterClassPresets.length * 3, starterClassPresets.length)
+    );
+  }, [data.metrics.classesThisWeek, data.metrics.groups, starterClassPresets.length, starterGroupPresets.length]);
+
+  useEffect(() => {
+    if (!shouldShowStarterSetupBanner) {
+      setStarterSetupSummary(null);
+      setStarterGroupSummary(null);
+      return;
+    }
+
+    let isMounted = true;
+
+    const fetchStarterSetup = async () => {
+      try {
+        const [classesResponse, groupsResponse] = await Promise.all([
+          fetch(`/api/classes?academyId=${academyId}&limit=100`, {
+            cache: "no-store",
+          }),
+          fetch(`/api/groups?academyId=${academyId}`, {
+            cache: "no-store",
+          }),
+        ]);
+
+        if (classesResponse.ok) {
+          const json = await classesResponse.json();
+          const summary = summarizeStarterClassSetup(specialization, json.items ?? []);
+
+          if (isMounted) {
+            setStarterSetupSummary(summary);
+          }
+        }
+
+        if (groupsResponse.ok) {
+          const json = await groupsResponse.json();
+          const summary = summarizeStarterGroupSetup(specialization, json.items ?? []);
+
+          if (isMounted) {
+            setStarterGroupSummary(summary);
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching starter setup summary:", error);
+      }
+    };
+
+    fetchStarterSetup();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [academyId, shouldShowStarterSetupBanner, specialization]);
+
+  const nextStarterRecommendation = useMemo(() => {
+    if (starterGroupSummary && starterGroupSummary.starterGroupCount > 0) {
+      if (starterGroupSummary.missingCoachCount > 0) {
+        const focusGroupId = starterGroupSummary.items.find((item) =>
+          item.issues.includes("Sin responsable asignado")
+        )?.id;
+        return {
+          title: `Asigna responsables a la plantilla base de ${labels.groupLabel.toLowerCase()}s`,
+          description: `Todavía tienes ${starterGroupSummary.missingCoachCount} ${starterGroupSummary.missingCoachCount === 1 ? `${labels.groupLabel.toLowerCase()} sin responsable` : `${labels.groupLabel.toLowerCase()}s sin responsable`} en la estructura inicial.`,
+          href: focusGroupId ? `/app/${academyId}/groups?focusGroup=${focusGroupId}` : `/app/${academyId}/groups`,
+          cta: `Ajustar ${labels.groupLabel.toLowerCase()}s`,
+        };
+      }
+
+      if (starterGroupSummary.missingLevelCount > 0) {
+        const focusGroupId = starterGroupSummary.items.find((item) =>
+          item.issues.includes("Nivel pendiente")
+        )?.id;
+        return {
+          title: `Define el nivel técnico de tus ${labels.groupLabel.toLowerCase()}s base`,
+          description: `Quedan ${starterGroupSummary.missingLevelCount} ${starterGroupSummary.missingLevelCount === 1 ? `${labels.groupLabel.toLowerCase()} con nivel pendiente` : `${labels.groupLabel.toLowerCase()}s con nivel pendiente`} en la plantilla inicial.`,
+          href: focusGroupId ? `/app/${academyId}/groups?focusGroup=${focusGroupId}` : `/app/${academyId}/groups`,
+          cta: "Revisar niveles",
+        };
+      }
+
+      if (starterGroupSummary.emptyGroupCount > 0) {
+        const focusGroupId = starterGroupSummary.items.find((item) =>
+          item.issues.includes("Sin gimnastas asignadas")
+        )?.id;
+        return {
+          title: `Empieza a poblar tus ${labels.groupLabel.toLowerCase()}s iniciales`,
+          description: `Aún hay ${starterGroupSummary.emptyGroupCount} ${starterGroupSummary.emptyGroupCount === 1 ? `${labels.groupLabel.toLowerCase()} sin gimnastas` : `${labels.groupLabel.toLowerCase()}s sin gimnastas`} asignadas.`,
+          href: focusGroupId ? `/app/${academyId}/groups?focusGroup=${focusGroupId}` : `/app/${academyId}/groups`,
+          cta: "Asignar gimnastas",
+        };
+      }
+
+      if (starterGroupSummary.missingTemplateCount > 0) {
+        return {
+          title: "Completa la estructura inicial de grupos",
+          description: `Todavía faltan ${starterGroupSummary.missingTemplateCount} ${starterGroupSummary.missingTemplateCount === 1 ? labels.groupLabel.toLowerCase() : `${labels.groupLabel.toLowerCase()}s`} sugeridos por la plantilla base.`,
+          href: `/app/${academyId}/groups`,
+          cta: `Crear ${labels.groupLabel.toLowerCase()}s`,
+        };
+      }
+    }
+
+    if (!starterSetupSummary || starterSetupSummary.starterClassCount === 0) {
+      return null;
+    }
+
+    if (starterSetupSummary.missingCoachCount > 0) {
+      const focusClassId = starterSetupSummary.items.find((item) =>
+        item.issues.includes("Sin responsable asignado")
+      )?.id;
+      return {
+        title: `Asigna ${labels.coachLabel.toLowerCase()}s a la plantilla base`,
+        description: `Todavía tienes ${starterSetupSummary.missingCoachCount} ${starterSetupSummary.missingCoachCount === 1 ? `${labels.classLabel.toLowerCase()} sin responsable` : `${labels.classLabel.toLowerCase()}s sin responsable`} en la estructura inicial.`,
+        href: focusClassId ? `/app/${academyId}/classes?focusClass=${focusClassId}` : `/app/${academyId}/classes`,
+        cta: `Ajustar ${labels.classLabel.toLowerCase()}s`,
+      };
+    }
+
+    if (starterSetupSummary.flexibleScheduleCount > 0) {
+      const focusClassId = starterSetupSummary.items.find((item) =>
+        item.issues.includes("Horario pendiente")
+      )?.id;
+      return {
+        title: `Cierra los horarios semanales de ${labels.classLabel.toLowerCase()}s`,
+        description: `Aún quedan ${starterSetupSummary.flexibleScheduleCount} bloques base con días u horas pendientes.`,
+        href: focusClassId ? `/app/${academyId}/classes?focusClass=${focusClassId}` : `/app/${academyId}/classes`,
+        cta: "Revisar horarios",
+      };
+    }
+
+    if (starterSetupSummary.missingTemplateCount > 0) {
+      return {
+        title: "Completa la estructura sugerida de arranque",
+        description: `Todavía faltan ${starterSetupSummary.missingTemplateCount} ${starterSetupSummary.missingTemplateCount === 1 ? labels.classLabel.toLowerCase() : `${labels.classLabel.toLowerCase()}s`} de la plantilla inicial.`,
+        href: `/app/${academyId}/classes`,
+        cta: `Crear ${labels.classLabel.toLowerCase()}s`,
+      };
+    }
+
+    if (starterSetupSummary.missingCapacityCount > 0 || starterSetupSummary.missingGroupCount > 0) {
+      const focusClassId = starterSetupSummary.items.find(
+        (item) =>
+          item.issues.includes("Sin aforo definido") || item.issues.includes("Sin grupo vinculado")
+      )?.id;
+      return {
+        title: "Afina aforo y vínculos de la estructura inicial",
+        description: "Quedan detalles operativos por cerrar para que la plantilla funcione como tu base diaria.",
+        href: focusClassId ? `/app/${academyId}/classes?focusClass=${focusClassId}` : `/app/${academyId}/classes`,
+        cta: "Completar ajustes",
+      };
+    }
+
+    return {
+      title: "La base inicial ya está lista para operar",
+      description: `Tu academia ya tiene la plantilla principal afinada para ${labels.disciplineName.toLowerCase()}.`,
+      href: `/app/${academyId}/classes`,
+      cta: `Ver ${labels.classLabel.toLowerCase()}s`,
+    };
+  }, [
+    academyId,
+    labels.classLabel,
+    labels.coachLabel,
+    labels.disciplineName,
+    labels.groupLabel,
+    starterGroupSummary,
+    starterSetupSummary,
+  ]);
 
   // Determinar si mostrar guías de onboarding
   const showOnboardingGuides = useMemo(() => {
@@ -284,7 +471,7 @@ export function DashboardPage({
         <div className="flex-1 space-y-3">
           <div className="space-y-1">
             <h1 className="text-2xl font-semibold text-foreground lg:text-3xl">
-              {academyName ?? "Academia"} · {formatAcademyType(academyType)}
+              {academyName ?? "Academia"} · {labels.disciplineName}
             </h1>
             <p className="text-sm text-muted-foreground">
               👋 Hola {profileName ?? "equipo"}, {welcomeMessage}
@@ -356,6 +543,49 @@ export function DashboardPage({
         ))}
       </section>
 
+      {shouldShowStarterSetupBanner && (
+        <section className="rounded-lg border border-primary/20 bg-primary/5 p-4">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="space-y-1">
+              <p className="text-sm font-semibold text-foreground">
+                Tu academia ya arrancó con una base recomendada para {labels.disciplineName.toLowerCase()}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Ahora toca revisar responsables, ajustar horarios y adaptar la plantilla inicial a tu realidad diaria.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" variant="outline" onClick={() => router.push(`/app/${academyId}/groups`)}>
+                Revisar {labels.groupLabel.toLowerCase()}s
+              </Button>
+              <Button size="sm" onClick={() => router.push(`/app/${academyId}/classes`)}>
+                Ajustar {labels.classLabel.toLowerCase()}s
+              </Button>
+            </div>
+          </div>
+          {nextStarterRecommendation && (
+            <div className="mt-4 rounded-md border bg-background/80 p-4">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <div className="space-y-1">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-primary">
+                    Siguiente ajuste recomendado
+                  </p>
+                  <p className="text-sm font-semibold text-foreground">
+                    {nextStarterRecommendation.title}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {nextStarterRecommendation.description}
+                  </p>
+                </div>
+                <Button size="sm" variant="outline" onClick={() => router.push(nextStarterRecommendation.href)}>
+                  {nextStarterRecommendation.cta}
+                </Button>
+              </div>
+            </div>
+          )}
+        </section>
+      )}
+
       {/*2.1. GymMetricsWidget - SOLO PARA GIMNASIA RÍTMICA */}
       {(academyType === "ritmica" || academyType === "artistica") && (
         <section>
@@ -380,7 +610,7 @@ export function DashboardPage({
       {/*2.3. Quick Actions Widget - DESTACADO Y ÚTIL */}
       <section className="grid gap-4 lg:grid-cols-3">
         <div className="lg:col-span-1">
-          <QuickActionsWidget />
+          <QuickActionsWidget academyId={academyId} />
         </div>
         <div className="lg:col-span-2">
           {/*2.5. Clases de hoy - DESTACADO SI HAY CLASES HOY */}
@@ -477,7 +707,7 @@ export function DashboardPage({
 
       {/*2.7. Widget de onboarding consolidado (solo si es necesario) - COMPACTO */}
       {showOnboardingGuides && (
-        <section className="rounded-xl border border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10 p-4 shadow-sm">
+        <section className="rounded-lg border bg-card p-4 shadow-sm">
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1 space-y-2">
               <div className="flex items-center gap-2">
@@ -496,7 +726,7 @@ export function DashboardPage({
                 </button>
                 <h3 className="text-sm font-semibold text-foreground">Próximo paso</h3>
                 {checklistProgress && (
-                  <span className="rounded-full bg-primary/20 px-2 py-0.5 text-xs font-semibold text-primary">
+                  <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-foreground">
                     {checklistProgress.completed}/{checklistProgress.total}
                   </span>
                 )}
@@ -524,7 +754,7 @@ export function DashboardPage({
 
           {/*Lista de pasos pendientes cuando está expandido */}
           {showAllSteps && allPendingSteps.length > 0 && (
-            <div className="mt-4 space-y-2 border-t border-primary/20 pt-4">
+            <div className="mt-4 space-y-2 border-t border-border pt-4">
               <p className="text-xs font-semibold text-muted-foreground mb-2">
                 Pasos pendientes ({allPendingSteps.length}):
               </p>
@@ -612,4 +842,3 @@ export function DashboardPage({
     </div>
   );
 }
-

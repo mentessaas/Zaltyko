@@ -59,7 +59,6 @@ export function CreateCoachDialog({ academyId, open, onClose, onCreated }: Creat
           headers: {
             "Content-Type": "application/json",
             "x-academy-id": academyId,
-            ...(currentUser?.id ? { "x-user-id": currentUser.id } : {}),
           },
           body: JSON.stringify(payload),
         });

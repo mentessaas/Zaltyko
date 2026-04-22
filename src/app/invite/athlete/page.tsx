@@ -6,6 +6,7 @@ import { db } from "@/db";
 import { invitations } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
 import AcceptInvitationForm from "@/components/AcceptInvitationForm";
+import { InvitationPageShell } from "@/components/invitations/InvitationPageShell";
 
 interface AthleteInviteProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -47,35 +48,16 @@ export default async function AthleteInvitationPage({ searchParams }: AthleteInv
   const isAuthenticated = Boolean(user);
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-3xl flex-col gap-6 px-4 py-12">
-      <div className="rounded-xl border bg-card/80 p-6 shadow-sm">
-        <p className="text-xs uppercase tracking-wide text-muted-foreground">Invitación para atleta</p>
-        <h1 className="mt-2 text-3xl font-semibold">Bienvenido/a gimnasta</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Tu academia te ha invitado a unirte a Zaltyko. Crea tu cuenta para acceder a tu perfil,
-          calendario de clases y seguimiento de tu progreso.
-        </p>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          <div className="rounded-lg border border-dashed p-4 text-sm">
-            <p className="font-semibold text-foreground">Qué tendrás disponible</p>
-            <ul className="mt-2 list-disc space-y-1 pl-5 text-muted-foreground">
-              <li>Tu perfil de gimnasta y estadísticas.</li>
-              <li>Calendario de clases y eventos.</li>
-              <li>Historial de evaluaciones técnicas.</li>
-            </ul>
-          </div>
-          <div className="rounded-lg border border-dashed p-4 text-sm">
-            <p className="font-semibold text-foreground">Después de registrarte</p>
-            <ul className="mt-2 list-disc space-y-1 pl-5 text-muted-foreground">
-              <li>Revisa tu perfil y categoría.</li>
-              <li>Consulta tu calendario de entrenos.</li>
-              <li>Comparte tu progreso con tu familia.</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-
-      <div className="rounded-xl border bg-card p-6 shadow">
+    <InvitationPageShell
+      eyebrow="Invitación para atletas"
+      title="Bienvenido a tu espacio de atleta"
+      description="Tu academia te ha invitado a unirte a Zaltyko para acceder a tu perfil, calendario de clases y seguimiento de tu progreso."
+      highlights={[
+        "Tendrás a mano tu perfil, categoría y calendario de entrenamientos.",
+        "Podrás consultar evaluaciones, eventos y avisos importantes del club.",
+        "Tu experiencia queda separada del shell administrativo para que todo sea más claro.",
+      ]}
+      form={
         <AcceptInvitationForm
           token={token}
           email={invitation.email}
@@ -84,7 +66,7 @@ export default async function AthleteInvitationPage({ searchParams }: AthleteInv
           isSameEmail={isSameEmail}
           userEmail={userEmail}
         />
-      </div>
-    </div>
+      }
+    />
   );
 }

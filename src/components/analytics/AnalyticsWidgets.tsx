@@ -134,8 +134,7 @@ export function AnalyticsWidgets({ academyId }: { academyId: string }) {
       setData(result.data);
     } catch (err: any) {
       setError(err.message || "Error al cargar datos de analítica");
-      // Generate mock data for demo
-      setData(generateMockData());
+      setData(null);
     } finally {
       setIsLoading(false);
     }
@@ -174,8 +173,7 @@ export function AnalyticsWidgets({ academyId }: { academyId: string }) {
   };
 
   const handleExportPDF = () => {
-    // In a real app, this would generate a PDF
-    alert("La exportación a PDF se implementaría con una librería como jsPDF o react-pdf");
+    setError("La exportación PDF todavía no está disponible en esta versión.");
   };
 
   if (isLoading) {
@@ -515,55 +513,6 @@ export function AnalyticsWidgets({ academyId }: { academyId: string }) {
       </Card>
     </div>
   );
-}
-
-// Generate mock data for demo
-function generateMockData(): AnalyticsData {
-  const months = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
-  const days = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
-
-  return {
-    totalAthletes: 156,
-    monthlyRevenue: 12450.0,
-    averageAttendance: 87.5,
-    classesThisMonth: 48,
-    athletesTrend: 5.2,
-    revenueTrend: 12.3,
-    attendanceTrend: -2.1,
-    classesTrend: 8.0,
-    athletesEvolution: months.map((month, i) => ({
-      month,
-      athletes: 100 + Math.floor(Math.random() * 30) + i * 5,
-    })),
-    revenueByMonth: months.map((month, i) => ({
-      month,
-      revenue: 8000 + Math.floor(Math.random() * 3000) + i * 400,
-    })),
-    athletesByLevel: [
-      { name: "Principiante", value: 45 },
-      { name: "Intermedio", value: 62 },
-      { name: "Avanzado", value: 35 },
-      { name: "Experto", value: 14 },
-    ],
-    dailyAttendance: days.map((day) => ({
-      day,
-      present: 20 + Math.floor(Math.random() * 15),
-      absent: 3 + Math.floor(Math.random() * 8),
-    })),
-    topClasses: [
-      { name: "Karate Kids", students: 32 },
-      { name: "Karate Adulto", students: 28 },
-      { name: "Jiu Jitsu", students: 24 },
-      { name: "Krav Magá", students: 18 },
-      { name: "Boxeo", students: 15 },
-    ],
-    retentionChurn: months.slice(-6).map((month, i) => ({
-      month,
-      retained: 120 + Math.floor(Math.random() * 20),
-      churned: 2 + Math.floor(Math.random() * 8),
-      newAthletes: 5 + Math.floor(Math.random() * 15),
-    })),
-  };
 }
 
 export default AnalyticsWidgets;

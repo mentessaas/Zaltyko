@@ -3,6 +3,7 @@ import { withRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 
 // Export dynamic to prevent static generation
 export const dynamic = "force-dynamic";
+// @route-auth dev
 
 /**
  * @swagger

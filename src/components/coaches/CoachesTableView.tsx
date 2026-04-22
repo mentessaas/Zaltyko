@@ -256,7 +256,7 @@ export function CoachesTableView({ academyId, coaches, classes, groupOptions, fi
         <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
           <p>
             ¿Necesitas reportes avanzados o invitaciones masivas? Usa temporalmente el{" "}
-            <Link href="/dashboard/coaches" className="font-semibold underline">
+            <Link href={`/app/${academyId}/coaches`} className="font-semibold underline">
               panel clásico
             </Link>{" "}
             mientras completamos la migración.
@@ -285,5 +285,4 @@ export function CoachesTableView({ academyId, coaches, classes, groupOptions, fi
     </div>
   );
 }
-
 

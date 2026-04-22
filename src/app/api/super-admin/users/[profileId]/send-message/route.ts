@@ -7,7 +7,7 @@ import { config } from "@/config";
 import { db } from "@/db";
 import { profiles } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { getSupabaseAdminClient } from "@/lib/supabase/admin";
+import { getAuthUserEmail } from "@/lib/supabase/admin-operations";
 import { logger } from "@/lib/logger";
 
 const BodySchema = z.object({
@@ -16,6 +16,7 @@ const BodySchema = z.object({
   message: z.string().min(1).max(5000),
   type: z.enum(["email", "notification"]).default("email"),
 });
+// @service-role auth-admin:read-email. Super-admin messaging needs the target Supabase Auth email.
 
 export const POST = withSuperAdmin(async (request, context) => {
   const body = BodySchema.parse(await request.json());
@@ -31,18 +32,16 @@ export const POST = withSuperAdmin(async (request, context) => {
     return apiError("USER_NOT_FOUND", "User not found", 404);
   }
 
-  // Get user email from Supabase Auth
-  const adminClient = getSupabaseAdminClient();
-  const { data: authUser } = await adminClient.auth.admin.getUserById(targetProfile.userId);
+  const authEmail = await getAuthUserEmail(targetProfile.userId);
 
-  if (!authUser?.user?.email) {
+  if (!authEmail) {
     return apiError("USER_EMAIL_NOT_FOUND", "User email not found", 400);
   }
 
   if (body.type === "email") {
     try {
       await sendEmail({
-        to: authUser.user.email,
+        to: authEmail,
         subject: body.subject,
         html: `
           <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -73,4 +72,3 @@ export const POST = withSuperAdmin(async (request, context) => {
   // For now, we'll just send an email
   return apiError("NOTIFICATION_TYPE_NOT_IMPLEMENTED", "Notification type not implemented", 400);
 });
-

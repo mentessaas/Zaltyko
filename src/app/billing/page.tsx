@@ -108,7 +108,6 @@ export default function BillingPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-user-id": session.userId,
         },
         body: JSON.stringify({ academyId }),
       });
@@ -138,7 +137,6 @@ export default function BillingPage() {
       const res = await fetch("/api/billing/plans", {
         method: "GET",
         headers: {
-          "x-user-id": session.userId,
         },
       });
 
@@ -168,7 +166,6 @@ export default function BillingPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-user-id": session.userId,
         },
         body: JSON.stringify({ academyId }),
       });

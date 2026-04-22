@@ -11,6 +11,7 @@ import {
 } from "@/db/schema";
 import { GroupsDashboard } from "@/components/groups/GroupsDashboard";
 import { AthleteOption, CoachOption, GroupSummary } from "@/components/groups/types";
+import { resolveAcademySpecialization } from "@/lib/specialization/registry";
 
 /**
  * AcademyGroupsPage - Vista principal de gestión de grupos
@@ -22,13 +23,25 @@ interface PageProps {
   params: Promise<{
     academyId: string;
   }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
-export default async function AcademyGroupsPage({ params }: PageProps) {
+export default async function AcademyGroupsPage({ params, searchParams }: PageProps) {
   const { academyId } = await params;
+  const resolvedSearchParams = await searchParams;
 
   const [academy] = await db
-    .select({ id: academies.id, name: academies.name })
+    .select({
+      id: academies.id,
+      name: academies.name,
+      academyType: academies.academyType,
+      country: academies.country,
+      countryCode: academies.countryCode,
+      discipline: academies.discipline,
+      disciplineVariant: academies.disciplineVariant,
+      federationConfigVersion: academies.federationConfigVersion,
+      specializationStatus: academies.specializationStatus,
+    })
     .from(academies)
     .where(eq(academies.id, academyId))
     .limit(1);
@@ -37,6 +50,12 @@ export default async function AcademyGroupsPage({ params }: PageProps) {
     notFound();
   }
 
+  const specialization = resolveAcademySpecialization(academy);
+  const focusGroupId =
+    typeof resolvedSearchParams.focusGroup === "string" && resolvedSearchParams.focusGroup.trim().length > 0
+      ? resolvedSearchParams.focusGroup.trim()
+      : undefined;
+
   // Primero obtener los grupos con el coach
   const groupRows = await db
     .select({
@@ -44,6 +63,9 @@ export default async function AcademyGroupsPage({ params }: PageProps) {
       name: groups.name,
       discipline: groups.discipline,
       level: groups.level,
+      technicalFocus: groups.technicalFocus,
+      apparatus: groups.apparatus,
+      sessionBlocks: groups.sessionBlocks,
       color: groups.color,
       coachId: groups.coachId,
       assistantIds: groups.assistantIds,
@@ -107,6 +129,9 @@ export default async function AcademyGroupsPage({ params }: PageProps) {
     name: group.name,
     discipline: group.discipline,
     level: group.level ?? null,
+    technicalFocus: group.technicalFocus ?? null,
+    apparatus: group.apparatus ?? [],
+    sessionBlocks: group.sessionBlocks ?? [],
     color: group.color ?? null,
     coachId: group.coachId ?? null,
     coachName: group.coachName ?? null,
@@ -136,9 +161,9 @@ export default async function AcademyGroupsPage({ params }: PageProps) {
   return (
     <div className="space-y-6 p-4 sm:p-6 lg:p-8">
       <header className="space-y-2 py-6">
-        <h1 className="text-3xl font-semibold">Grupos</h1>
+        <h1 className="text-3xl font-semibold">{specialization.labels.groupLabel}s</h1>
         <p className="text-sm text-muted-foreground">
-          Organiza a tus atletas por niveles y equipos para conectar clases, asistencia y evaluaciones.
+          Organiza tus {specialization.labels.groupLabel.toLowerCase()}s por nivel y responsables para conectar {specialization.labels.classLabel.toLowerCase()}s, asistencia y evaluaciones.
         </p>
       </header>
 
@@ -147,6 +172,7 @@ export default async function AcademyGroupsPage({ params }: PageProps) {
         initialGroups={initialGroups}
         coaches={coachOptions}
         athletes={athleteOptions}
+        initialFocusGroupId={focusGroupId}
       />
     </div>
   );

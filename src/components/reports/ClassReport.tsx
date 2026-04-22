@@ -8,8 +8,10 @@ import { formatLongDateForCountry } from "@/lib/date-utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/components/ui/toast-provider";
 import { ReportFilters, ReportFilters as ReportFiltersType } from "@/components/reports/ReportFilters";
 import { ExportButtons } from "@/components/reports/ExportButtons";
+import { useAcademyContext } from "@/hooks/use-academy-context";
 
 interface ClassStats {
   totalClasses: number;
@@ -33,6 +35,8 @@ interface ClassReportProps {
 }
 
 export function ClassReport({ academyId, academyCountry }: ClassReportProps) {
+  const toast = useToast();
+  const { specialization } = useAcademyContext();
   const [filters, setFilters] = useState<ReportFiltersType>({
     startDate: format(subMonths(new Date(), 1), "yyyy-MM-dd"),
     endDate: format(new Date(), "yyyy-MM-dd"),
@@ -91,8 +95,17 @@ export function ClassReport({ academyId, academyCountry }: ClassReportProps) {
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
+      toast.pushToast({
+        title: "PDF exportado",
+        description: "El reporte de clases se descargó correctamente.",
+        variant: "success",
+      });
     } catch (err: any) {
-      alert("Error al exportar PDF: " + err.message);
+      toast.pushToast({
+        title: "No se pudo exportar el PDF",
+        description: err.message || "Inténtalo de nuevo en unos segundos.",
+        variant: "error",
+      });
     }
   };
 
@@ -117,8 +130,17 @@ export function ClassReport({ academyId, academyCountry }: ClassReportProps) {
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
+      toast.pushToast({
+        title: "Excel exportado",
+        description: "El reporte de clases se descargó correctamente.",
+        variant: "success",
+      });
     } catch (err: any) {
-      alert("Error al exportar Excel: " + err.message);
+      toast.pushToast({
+        title: "No se pudo exportar el Excel",
+        description: err.message || "Inténtalo de nuevo en unos segundos.",
+        variant: "error",
+      });
     }
   };
 
@@ -134,9 +156,17 @@ export function ClassReport({ academyId, academyCountry }: ClassReportProps) {
       const response = await fetch(`/api/reports/class/email?${params}`);
       if (!response.ok) throw new Error("Error al enviar email");
 
-      alert("Reporte enviado exitosamente");
+      toast.pushToast({
+        title: "Reporte enviado",
+        description: `Enviamos el reporte de clases a ${email}.`,
+        variant: "success",
+      });
     } catch (err: any) {
-      alert("Error al enviar email: " + err.message);
+      toast.pushToast({
+        title: "No se pudo enviar el reporte",
+        description: err.message || "Revisa el correo e inténtalo otra vez.",
+        variant: "error",
+      });
     }
   };
 
@@ -153,10 +183,10 @@ export function ClassReport({ academyId, academyCountry }: ClassReportProps) {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <BarChart3 className="h-5 w-5" />
-            Clases Más Populares
+            {specialization.labels.classLabel}s Más Populares
           </CardTitle>
           <CardDescription>
-            Clases con mayor inscripción y asistencia
+            {specialization.labels.classLabel}s con mayor inscripción y asistencia
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -197,7 +227,7 @@ export function ClassReport({ academyId, academyCountry }: ClassReportProps) {
         <div>
           <h2 className="text-2xl font-bold">Reporte de Clases</h2>
           <p className="text-muted-foreground mt-1">
-            Análisis de clases populares y asistencia
+            Análisis de {specialization.labels.classLabel.toLowerCase()}s populares y asistencia
           </p>
         </div>
         <ExportButtons
@@ -212,6 +242,7 @@ export function ClassReport({ academyId, academyCountry }: ClassReportProps) {
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-1">
           <ReportFilters
+            academyId={academyId}
             onFilterChange={setFilters}
             onGenerate={loadReport}
             isLoading={isLoading}

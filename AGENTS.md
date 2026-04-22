@@ -2,7 +2,7 @@
 
 ## Stack
 
-- **Framework:** Next.js 14.2 (App Router)
+- **Framework:** Next.js 15.5 (App Router)
 - **Database:** Supabase PostgreSQL + RLS
 - **ORM:** Drizzle ORM
 - **Styling:** Tailwind CSS + shadcn/ui

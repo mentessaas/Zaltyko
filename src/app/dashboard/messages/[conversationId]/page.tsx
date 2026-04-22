@@ -21,7 +21,7 @@ export default async function ConversationPage({ params }: PageProps) {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect("/login");
+    redirect("/auth/login");
   }
 
   // Get current user's profile
@@ -36,7 +36,7 @@ export default async function ConversationPage({ params }: PageProps) {
     .limit(1);
 
   if (!profile) {
-    redirect("/login");
+    redirect("/auth/login");
   }
 
   // Verify user has access to this conversation

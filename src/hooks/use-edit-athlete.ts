@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
-import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/toast-provider";
 import type { AthleteSummary, GuardianSummary, GuardianFormData, ParsedLevel } from "@/types/athlete-edit";
 import { formatDob, parseLevel, composeLevelLabel, calculateAgeFromString } from "@/lib/athletes/level-utils";
@@ -94,14 +93,7 @@ export function useEditAthlete({
       try {
         setGuardiansLoading(true);
         setGuardianError(null);
-        const supabase = createClient();
-        const {
-          data: { user: currentUser },
-        } = await supabase.auth.getUser();
         const headers: Record<string, string> = { "x-academy-id": academyId };
-        if (currentUser?.id) {
-          headers["x-user-id"] = currentUser.id;
-        }
         const response = await fetch(`/api/athletes/${athlete.id}/guardians`, {
           signal: abortController.signal,
           headers,
@@ -171,12 +163,7 @@ export function useEditAthlete({
           return;
         }
 
-        const supabase = createClient();
-        const {
-          data: { user: currentUser },
-        } = await supabase.auth.getUser();
         const headers: Record<string, string> = { "Content-Type": "application/json", "x-academy-id": academyId };
-        if (currentUser?.id) headers["x-user-id"] = currentUser.id;
 
         const response = await fetch(`/api/athletes/${athlete.id}`, {
           method: "PATCH",
@@ -211,12 +198,7 @@ export function useEditAthlete({
   const handleDelete = async () => {
     setIsDeleting(true);
     try {
-      const supabase = createClient();
-      const {
-        data: { user: currentUser },
-      } = await supabase.auth.getUser();
       const headers: Record<string, string> = { "x-academy-id": academyId };
-      if (currentUser?.id) headers["x-user-id"] = currentUser.id;
 
       const response = await fetch(`/api/athletes/${athlete.id}`, {
         method: "DELETE",
@@ -267,12 +249,7 @@ export function useEditAthlete({
         notifySms: guardianForm.notifySms,
       };
 
-      const supabase = createClient();
-      const {
-        data: { user: currentUser },
-      } = await supabase.auth.getUser();
       const headers: Record<string, string> = { "Content-Type": "application/json", "x-academy-id": academyId };
-      if (currentUser?.id) headers["x-user-id"] = currentUser.id;
 
       const response = await fetch(`/api/athletes/${athlete.id}/guardians`, {
         method: "POST",
@@ -308,14 +285,7 @@ export function useEditAthlete({
     }
 
     try {
-      const supabase = createClient();
-      const {
-        data: { user: currentUser },
-      } = await supabase.auth.getUser();
       const headers: Record<string, string> = { "x-academy-id": academyId };
-      if (currentUser?.id) {
-        headers["x-user-id"] = currentUser.id;
-      }
       const response = await fetch(`/api/athletes/${athlete.id}/guardians/${linkId}`, {
         method: "DELETE",
         headers,
@@ -374,15 +344,10 @@ export function useEditAthlete({
         isPrimary: editingGuardianForm.isPrimary,
       };
 
-      const supabase = createClient();
-      const {
-        data: { user: currentUser },
-      } = await supabase.auth.getUser();
       const headers: Record<string, string> = {
         "Content-Type": "application/json",
         "x-academy-id": academyId,
       };
-      if (currentUser?.id) headers["x-user-id"] = currentUser.id;
 
       const response = await fetch(`/api/athletes/${athlete.id}/guardians/${editingGuardianId}`, {
         method: "PATCH",
@@ -450,4 +415,3 @@ export function useEditAthlete({
     handleUpdateGuardian,
   };
 }
-

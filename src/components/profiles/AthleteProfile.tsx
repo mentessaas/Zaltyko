@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { type User } from "@supabase/supabase-js";
-import { Calendar, Trophy, Users, Mail, Phone, ArrowLeft, Shield } from "lucide-react";
+import { Calendar, Trophy, Users, Mail, ArrowLeft, Shield } from "lucide-react";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { type ProfileRow } from "@/lib/authz";
 import { calculateAge } from "@/lib/date-utils";
+import type { SpecializedLabels } from "@/lib/specialization/registry";
 
 interface AthleteProfileProps {
   user: User | null;
@@ -33,12 +34,17 @@ interface AthleteProfileProps {
     upcomingSessionsCount: number;
     age: number | null;
   };
+  labels?: SpecializedLabels | null;
   targetProfileId?: string | null;
 }
 
-export function AthleteProfile({ user, profile, athleteData, targetProfileId }: AthleteProfileProps) {
+export function AthleteProfile({ user, profile, athleteData, labels, targetProfileId }: AthleteProfileProps) {
   const initials = (athleteData.name || user?.email || "A").slice(0, 2).toUpperCase();
   const age = athleteData.age ?? calculateAge(athleteData.dob);
+  const athleteLabel = labels?.athleteSingular ?? "Atleta";
+  const classLabel = labels?.classLabel ?? "Clase";
+  const sessionLabel = labels?.sessionLabel ?? "Sesión";
+  const levelLabel = labels?.levelLabel ?? "Nivel";
 
   return (
     <div className="space-y-8">
@@ -74,7 +80,7 @@ export function AthleteProfile({ user, profile, athleteData, targetProfileId }: 
             </AvatarFallback>
           </Avatar>
           <div className="space-y-1">
-            <h1 className="text-2xl font-semibold">Mi perfil - Atleta</h1>
+            <h1 className="text-2xl font-semibold">Mi perfil - {athleteLabel}</h1>
             <p className="text-sm text-muted-foreground">
               {athleteData.academyName ?? "Academia"} · {athleteData.groupName ? `Grupo: ${athleteData.groupName}` : "Sin grupo asignado"}
             </p>
@@ -90,16 +96,16 @@ export function AthleteProfile({ user, profile, athleteData, targetProfileId }: 
           <CardHeader className="p-4">
             <CardTitle className="flex items-center gap-2 text-base">
               <Calendar className="h-4 w-4" />
-              Clases
+              {classLabel}s
             </CardTitle>
           </CardHeader>
           <CardContent className="p-4 pt-0">
             <p className="text-2xl font-bold">{athleteData.classesCount}</p>
-            <p className="text-xs text-muted-foreground">Clases inscritas</p>
+            <p className="text-xs text-muted-foreground">{classLabel}s inscritas</p>
           </CardContent>
           <CardHeader className="p-4 pt-0">
             <Button variant="outline" size="sm" className="w-full" asChild>
-              <Link href={`/app/${athleteData.academyId}/classes`}>Ver clases</Link>
+              <Link href="/dashboard/calendar">Ver calendario</Link>
             </Button>
           </CardHeader>
         </Card>
@@ -108,12 +114,12 @@ export function AthleteProfile({ user, profile, athleteData, targetProfileId }: 
           <CardHeader className="p-4">
             <CardTitle className="flex items-center gap-2 text-base">
               <Calendar className="h-4 w-4" />
-              Próximas sesiones
+              Próximas {sessionLabel.toLowerCase()}es
             </CardTitle>
           </CardHeader>
           <CardContent className="p-4 pt-0">
             <p className="text-2xl font-bold">{athleteData.upcomingSessionsCount}</p>
-            <p className="text-xs text-muted-foreground">Sesiones programadas</p>
+            <p className="text-xs text-muted-foreground">{sessionLabel}es programadas</p>
           </CardContent>
           <CardHeader className="p-4 pt-0">
             <Button variant="outline" size="sm" className="w-full" asChild>
@@ -128,12 +134,12 @@ export function AthleteProfile({ user, profile, athleteData, targetProfileId }: 
           <CardHeader className="p-4">
             <CardTitle className="flex items-center gap-2 text-base">
               <Trophy className="h-4 w-4" />
-              Nivel
+              {levelLabel}
             </CardTitle>
           </CardHeader>
           <CardContent className="p-4 pt-0">
             <p className="text-lg font-bold">{athleteData.level ?? "No definido"}</p>
-            <p className="text-xs text-muted-foreground">Nivel actual</p>
+            <p className="text-xs text-muted-foreground">{levelLabel} actual</p>
           </CardContent>
         </Card>
       </div>
@@ -223,9 +229,9 @@ export function AthleteProfile({ user, profile, athleteData, targetProfileId }: 
             </Link>
           </Button>
           <Button variant="outline" className="justify-start" asChild>
-            <Link href={`/app/${athleteData.academyId}/classes`}>
+            <Link href="/dashboard/calendar">
               <Users className="mr-2 h-4 w-4" />
-              Ver mis clases
+              Ver mi agenda semanal
             </Link>
           </Button>
         </CardContent>
@@ -233,4 +239,3 @@ export function AthleteProfile({ user, profile, athleteData, targetProfileId }: 
     </div>
   );
 }
-

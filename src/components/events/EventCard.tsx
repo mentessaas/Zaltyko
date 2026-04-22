@@ -14,6 +14,7 @@ type EventLevel = "internal" | "local" | "national" | "international";
 interface EventCardProps {
   event: {
     id: string;
+    academyId?: string | null;
     title: string;
     description?: string | null;
     startDate: string | Date | null;
@@ -72,6 +73,10 @@ export function EventCard({
     event.registrationEndDate &&
     new Date(event.registrationStartDate) <= now &&
     new Date(event.registrationEndDate) >= now;
+
+  const detailHref = event.academyId
+    ? `/app/${event.academyId}/events/${event.id}`
+    : `/dashboard/events/${event.id}`;
 
   return (
     <Card className={cn("flex flex-col h-full overflow-hidden", className)}>
@@ -164,7 +169,7 @@ export function EventCard({
 
       <CardFooter className="pt-2">
         <Button asChild variant="secondary" className="w-full">
-          <Link href={`/dashboard/events/${event.id}`}>Ver detalles</Link>
+          <Link href={detailHref}>Ver detalles</Link>
         </Button>
       </CardFooter>
     </Card>

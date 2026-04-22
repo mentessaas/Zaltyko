@@ -118,10 +118,11 @@ export async function getAcademyContextFromInvoice(
   }
 
   // Intentar obtener desde la suscripción asociada
+  const invoiceSubscription = invoice.parent?.subscription_details?.subscription;
   const subscriptionId =
-    typeof invoice.subscription === "string"
-      ? invoice.subscription
-      : invoice.subscription?.id ?? null;
+    typeof invoiceSubscription === "string"
+      ? invoiceSubscription
+      : invoiceSubscription?.id ?? null;
 
   if (subscriptionId) {
     // Primero intentar desde la base de datos
@@ -208,4 +209,3 @@ export async function getAcademyContextFromInvoice(
 
   return { academyId, tenantId, userId };
 }
-

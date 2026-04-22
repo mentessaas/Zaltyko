@@ -12,18 +12,27 @@ import { assertUserAcademyLimit, getUpgradeInfo } from "@/lib/limits";
 import { seedOnboardingForAcademy, markWizardStep } from "@/lib/onboarding";
 import { trackEvent } from "@/lib/analytics";
 import { logEvent } from "@/lib/event-logging";
+import {
+  inferDisciplineFromVariant,
+  mapDisciplineVariantToAcademyType,
+  normalizeCountryCode,
+  getCountryNameFromCode,
+} from "@/lib/specialization/registry";
 
 export const dynamic = "force-dynamic";
 
 const ACADEMY_TYPES = ["artistica", "ritmica", "trampolin", "general"] as const;
+const DISCIPLINE_VARIANTS = ["artistic_female", "artistic_male", "rhythmic", "trampoline", "general"] as const;
 export const ACADEMY_TYPES_CONST = ACADEMY_TYPES;
 
 export const CreateAcademyBodySchema = z.object({
   name: z.string().min(3),
   country: z.string().optional(),
+  countryCode: z.string().min(2).max(8).optional(),
   region: z.string().optional(),
   city: z.string().optional(),
-  academyType: z.enum(ACADEMY_TYPES),
+  academyType: z.enum(ACADEMY_TYPES).optional(),
+  disciplineVariant: z.enum(DISCIPLINE_VARIANTS).optional(),
   tenantId: z.string().uuid().optional(),
   ownerProfileId: z.string().uuid().optional(),
 });
@@ -100,15 +109,34 @@ export async function createAcademy(body: z.infer<typeof CreateAcademyBodySchema
     (isAdmin && body.tenantId) || ownerProfile.tenantId || crypto.randomUUID();
 
   const academyId = crypto.randomUUID();
+  const disciplineVariant = body.disciplineVariant ?? "rhythmic";
+  const normalizedCountryCode = normalizeCountryCode(body.countryCode ?? body.country);
+  const academyType = (body.academyType ?? mapDisciplineVariantToAcademyType(disciplineVariant)) as
+    | "artistica"
+    | "ritmica"
+    | "trampolin"
+    | "general"
+    | "parkour"
+    | "danza";
+  const discipline = inferDisciplineFromVariant(disciplineVariant);
+  const countryName = body.country ?? getCountryNameFromCode(normalizedCountryCode);
 
   await db.insert(academies).values({
     id: academyId,
     tenantId,
     name: body.name,
-    country: body.country,
+    country: countryName,
+    countryCode: normalizedCountryCode,
     region: body.region,
     city: body.city,
-    academyType: body.academyType,
+    academyType,
+    discipline,
+    disciplineVariant,
+    federationConfigVersion:
+      normalizedCountryCode === "ES" && ["artistic_female", "artistic_male", "rhythmic"].includes(disciplineVariant)
+        ? "rfeg-2026-v1"
+        : "legacy-default-v1",
+    specializationStatus: "configured",
     ownerId: ownerProfile.id,
     trialStartsAt: null,
     trialEndsAt: null,
@@ -175,8 +203,10 @@ export async function createAcademy(body: z.infer<typeof CreateAcademyBodySchema
     tenantId,
     userId: ownerProfile.userId,
     metadata: {
-      country: body.country,
-      academyType: body.academyType,
+      country: countryName,
+      countryCode: normalizedCountryCode,
+      academyType,
+      disciplineVariant,
     },
   });
 
@@ -184,15 +214,17 @@ export async function createAcademy(body: z.infer<typeof CreateAcademyBodySchema
     academyId,
     eventType: "academy_created",
     metadata: {
-      country: body.country,
-      academyType: body.academyType,
+      country: countryName,
+      countryCode: normalizedCountryCode,
+      academyType,
+      disciplineVariant,
     },
   });
 
   return {
     id: academyId,
     tenantId,
-    academyType: body.academyType,
+    academyType,
   };
 }
 

@@ -1,15 +1,20 @@
-import { apiSuccess, apiError } from "@/lib/api-response";
+import { apiError } from "@/lib/api-response";
 import { withTenant } from "@/lib/authz";
-import { rateLimit, getUserIdentifier, withRateLimit } from "@/lib/rate-limit";
+import { getUserIdentifier, withRateLimit } from "@/lib/rate-limit";
 import { db } from "@/db";
 import { subscriptions } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
+import { isFeatureEnabled } from "@/lib/product/features";
 
 // Handler for POST - separated to apply rate limiting
 const updatePaymentMethodHandler = withTenant(async (req, context) => {
     try {
+        if (!isFeatureEnabled("paymentMethods")) {
+            return apiError("FEATURE_DISABLED", "Métodos de pago no disponibles en esta versión", 404);
+        }
+
         const { userId } = context;
 
         const body = await req.json();
@@ -41,12 +46,7 @@ const updatePaymentMethodHandler = withTenant(async (req, context) => {
         //     },
         // });
 
-        // TODO: Store payment method reference
-        // Note: The subscription schema doesn't currently have a field for payment method ID
-        // This should be handled by Stripe directly when implemented
-        // For now, we'll just return success
-
-        return apiSuccess({ payment_method, message: "Payment method updated successfully" });
+        return apiError("FEATURE_DISABLED", "Métodos de pago no disponibles en esta versión", 404);
     } catch (error) {
         logger.error("Error updating payment method:", error);
         return apiError("INTERNAL_ERROR", "Internal Server Error", 500);
@@ -64,6 +64,10 @@ export const POST = withRateLimit(
 // Handler for GET - separated to apply rate limiting
 const getPaymentMethodHandler = withTenant(async (req, context) => {
     try {
+        if (!isFeatureEnabled("paymentMethods")) {
+            return apiError("FEATURE_DISABLED", "Métodos de pago no disponibles en esta versión", 404);
+        }
+
         const { userId } = context;
 
         const [subscription] = await db
@@ -76,7 +80,7 @@ const getPaymentMethodHandler = withTenant(async (req, context) => {
             return apiError("NOT_FOUND", "No subscription found", 404);
         }
 
-        return apiSuccess({ payment_method: null });
+        return apiError("FEATURE_DISABLED", "Métodos de pago no disponibles en esta versión", 404);
     } catch (error) {
         logger.error("Error fetching payment method:", error);
         return apiError("INTERNAL_ERROR", "Internal Server Error", 500);

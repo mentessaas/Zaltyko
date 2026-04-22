@@ -16,13 +16,22 @@ import { findCitiesByRegion } from "@/lib/citiesByRegion";
 import { ACADEMY_TYPES } from "@/lib/onboardingCopy";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 
+const DISCIPLINE_VARIANTS = [
+  { value: "artistic_female", label: "Gimnasia artística femenina" },
+  { value: "artistic_male", label: "Gimnasia artística masculina" },
+  { value: "rhythmic", label: "Gimnasia rítmica" },
+] as const;
+
 interface AcademyData {
   id: string;
   name: string;
   country: string | null;
+  countryCode?: string | null;
   region: string | null;
   city: string | null;
   academyType: string;
+  disciplineVariant?: string | null;
+  specializationStatus?: string | null;
   publicDescription: string | null;
   isPublic: boolean;
   logoUrl: string | null;
@@ -51,9 +60,11 @@ export function AcademyEditForm({ academy, onSaved, onCancel }: AcademyEditFormP
   const [formData, setFormData] = useState({
     name: academy.name || "",
     country: academy.country || "",
+    countryCode: academy.countryCode || "ES",
     region: academy.region || "",
     city: academy.city || "",
     academyType: academy.academyType || "artistica",
+    disciplineVariant: academy.disciplineVariant || "artistic_female",
     publicDescription: academy.publicDescription || "",
     isPublic: academy.isPublic ?? true,
     logoUrl: academy.logoUrl || "",
@@ -68,13 +79,13 @@ export function AcademyEditForm({ academy, onSaved, onCancel }: AcademyEditFormP
   });
 
   const regionOptions = useMemo(
-    () => findRegionsByCountry(formData.country),
-    [formData.country]
+    () => findRegionsByCountry(formData.countryCode.toLowerCase()),
+    [formData.countryCode]
   );
 
   const cityOptions = useMemo(
-    () => findCitiesByRegion(formData.country, formData.region),
-    [formData.country, formData.region]
+    () => findCitiesByRegion(formData.countryCode.toLowerCase(), formData.region),
+    [formData.countryCode, formData.region]
   );
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -92,9 +103,11 @@ export function AcademyEditForm({ academy, onSaved, onCancel }: AcademyEditFormP
         body: JSON.stringify({
           name: formData.name.trim() || undefined,
           country: formData.country || null,
+          countryCode: formData.countryCode || null,
           region: formData.region || null,
           city: formData.city || null,
           academyType: formData.academyType,
+          disciplineVariant: formData.disciplineVariant,
           publicDescription: formData.publicDescription.trim() || null,
           isPublic: formData.isPublic,
           logoUrl: formData.logoUrl.trim() || null,
@@ -178,6 +191,33 @@ export function AcademyEditForm({ academy, onSaved, onCancel }: AcademyEditFormP
           </div>
 
           <div className="space-y-2">
+            <Label htmlFor="disciplineVariant">Especialización *</Label>
+            <Select
+              id="disciplineVariant"
+              value={formData.disciplineVariant}
+              onValueChange={(value) =>
+                setFormData({
+                  ...formData,
+                  disciplineVariant: value,
+                  academyType: value.startsWith("artistic") ? "artistica" : value === "rhythmic" ? "ritmica" : formData.academyType,
+                })
+              }
+              className="w-full"
+            >
+              {DISCIPLINE_VARIANTS.map((type) => (
+                <option key={type.value} value={type.value}>
+                  {type.label}
+                </option>
+              ))}
+            </Select>
+            {academy.specializationStatus === "configured" && (
+              <p className="text-xs text-muted-foreground">
+                Si esta academia ya está operativa, cambiar la especialización puede requerir una migración guiada.
+              </p>
+            )}
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="publicDescription">Descripción pública</Label>
             <Textarea
               id="publicDescription"
@@ -222,9 +262,16 @@ export function AcademyEditForm({ academy, onSaved, onCancel }: AcademyEditFormP
               <Label htmlFor="country">País</Label>
               <SearchableSelect
                 options={COUNTRY_REGION_OPTIONS.map(c => ({ value: c.value, label: c.label }))}
-                value={formData.country}
+                value={formData.countryCode.toLowerCase()}
                 onChange={(value) => {
-                  setFormData({ ...formData, country: value, region: "", city: "" });
+                  const countryLabel = COUNTRY_REGION_OPTIONS.find((country) => country.value === value)?.label ?? value;
+                  setFormData({
+                    ...formData,
+                    countryCode: value.toUpperCase(),
+                    country: countryLabel,
+                    region: "",
+                    city: "",
+                  });
                 }}
                 placeholder="Selecciona un país"
                 name="country"
@@ -233,15 +280,15 @@ export function AcademyEditForm({ academy, onSaved, onCancel }: AcademyEditFormP
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="region">{getRegionLabel(formData.country)}</Label>
+              <Label htmlFor="region">{getRegionLabel(formData.countryCode)}</Label>
               <SearchableSelect
                 options={regionOptions}
                 value={formData.region}
                 onChange={(value) => setFormData({ ...formData, region: value, city: "" })}
-                disabled={!formData.country || regionOptions.length === 0}
-                placeholder={getRegionPlaceholder(formData.country, !!formData.country)}
+                disabled={!formData.countryCode || regionOptions.length === 0}
+                placeholder={getRegionPlaceholder(formData.countryCode, !!formData.countryCode)}
                 name="region"
-                searchPlaceholder={`Buscar ${getRegionLabel(formData.country).toLowerCase()}...`}
+                searchPlaceholder={`Buscar ${getRegionLabel(formData.countryCode).toLowerCase()}...`}
               />
             </div>
 
@@ -252,7 +299,7 @@ export function AcademyEditForm({ academy, onSaved, onCancel }: AcademyEditFormP
                 value={formData.city}
                 onChange={(value) => setFormData({ ...formData, city: value })}
                 disabled={!formData.region || cityOptions.length === 0}
-                placeholder={getCityPlaceholder(getRegionLabel(formData.country), !!formData.region)}
+                placeholder={getCityPlaceholder(getRegionLabel(formData.countryCode), !!formData.region)}
                 name="city"
                 searchPlaceholder="Buscar ciudad..."
               />
@@ -422,4 +469,3 @@ export function AcademyEditForm({ academy, onSaved, onCancel }: AcademyEditFormP
     </form>
   );
 }
-

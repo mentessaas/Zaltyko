@@ -3,6 +3,10 @@ import { empleoListings } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { logger } from "@/lib/logger";
+import { withTenant, type TenantContext } from "@/lib/authz";
+import { verifyAcademyAccess } from "@/lib/permissions";
+
+type RouteContext = TenantContext<{ params: { id: string } }>;
 
 export async function GET(
   request: Request,
@@ -27,13 +31,15 @@ export async function GET(
   }
 }
 
-export async function PATCH(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export const PATCH = withTenant(async (request: Request, context: RouteContext) => {
   try {
-    const { id } = await params;
+    const { id } = context.params;
     const body = await request.json();
+
+    const access = await canManageListing(id, context);
+    if (!access.allowed) {
+      return apiError(access.reason ?? "FORBIDDEN", "No autorizado", access.status);
+    }
 
     const [updated] = await db.update(empleoListings)
       .set({
@@ -52,14 +58,16 @@ export async function PATCH(
     logger.error("Error updating employment listing:", error);
     return apiError("INTERNAL_ERROR", "Error interno", 500);
   }
-}
+});
 
-export async function DELETE(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export const DELETE = withTenant(async (_request: Request, context: RouteContext) => {
   try {
-    const { id } = await params;
+    const { id } = context.params;
+
+    const access = await canManageListing(id, context);
+    if (!access.allowed) {
+      return apiError(access.reason ?? "FORBIDDEN", "No autorizado", access.status);
+    }
 
     const [deleted] = await db.delete(empleoListings)
       .where(eq(empleoListings.id, id))
@@ -74,4 +82,40 @@ export async function DELETE(
     logger.error("Error deleting employment listing:", error);
     return apiError("INTERNAL_ERROR", "Error interno", 500);
   }
+});
+
+async function canManageListing(
+  id: string,
+  context: RouteContext
+): Promise<{ allowed: boolean; status: number; reason?: string }> {
+  const [listing] = await db
+    .select({
+      id: empleoListings.id,
+      academyId: empleoListings.academyId,
+      userId: empleoListings.userId,
+    })
+    .from(empleoListings)
+    .where(eq(empleoListings.id, id))
+    .limit(1);
+
+  if (!listing) {
+    return { allowed: false, status: 404, reason: "NOT_FOUND" };
+  }
+
+  if (context.profile.role === "admin" || context.profile.role === "super_admin") {
+    return { allowed: true, status: 200 };
+  }
+
+  if (listing.userId === context.userId) {
+    return { allowed: true, status: 200 };
+  }
+
+  if (listing.academyId && context.tenantId) {
+    const academyAccess = await verifyAcademyAccess(listing.academyId, context.tenantId);
+    if (academyAccess.allowed) {
+      return { allowed: true, status: 200 };
+    }
+  }
+
+  return { allowed: false, status: 403, reason: "FORBIDDEN" };
 }

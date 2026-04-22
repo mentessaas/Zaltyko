@@ -48,7 +48,6 @@ export function WaitingListDialog({
         "Content-Type": "application/json",
       };
       if (user?.id) {
-        headers["x-user-id"] = user.id;
       }
 
       // Obtener lista de espera desde la API de reportes

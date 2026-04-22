@@ -34,7 +34,7 @@ export async function updateSubscriptionRecord(
 
   const cancelAtPeriodEnd = Boolean(subscription.cancel_at_period_end);
   const status = subscription.status ?? "incomplete";
-  const currentPeriodEnd = unixToDate(subscription.current_period_end);
+  const currentPeriodEnd = unixToDate(subscription.items?.data?.[0]?.current_period_end);
 
   await db
     .insert(subscriptions)
@@ -91,4 +91,3 @@ export async function handleSubscriptionEvent(
     return context;
   });
 }
-

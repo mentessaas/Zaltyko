@@ -1,12 +1,9 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { Metadata } from "next";
-import { eq } from "drizzle-orm";
-
 import LoginForm from "@/components/login-form";
 import { createClient } from "@/lib/supabase/server";
-import { db } from "@/db";
-import { profiles } from "@/db/schema";
+import { resolveUserHome } from "@/lib/auth/resolve-user-home";
 
 export const metadata: Metadata = {
   title: "Iniciar sesión",
@@ -26,22 +23,11 @@ export default async function Login() {
   } = await supabase.auth.getUser();
 
   if (user) {
-    const [profile] = await db
-      .select()
-      .from(profiles)
-      .where(eq(profiles.userId, user.id))
-      .limit(1);
-
-    if (profile) {
-      if (profile.role === "super_admin") {
-        redirect("/super-admin");
-      }
-
-      if (["admin", "owner"].includes(profile.role)) {
-        redirect("/dashboard/users");
-      }
-    }
-    redirect("/dashboard");
+    const home = await resolveUserHome({
+      userId: user.id,
+      email: user.email,
+    });
+    redirect(home.redirectUrl);
   }
 
   return <LoginForm />;

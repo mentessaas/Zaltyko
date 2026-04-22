@@ -6,6 +6,7 @@ import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
 
+// @route-auth public
 const handler = withRateLimit(async (req) => {
   try {
     const body = await req.json();

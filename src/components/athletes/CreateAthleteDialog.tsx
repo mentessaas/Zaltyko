@@ -168,7 +168,6 @@ export function CreateAthleteDialog({
         };
 
         if (currentUser?.id) {
-          headers["x-user-id"] = currentUser.id;
         }
 
         const response = await fetch("/api/athletes", {

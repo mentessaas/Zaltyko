@@ -1,18 +1,14 @@
 "use client";
 
-import { FormEvent, useMemo, useState, useTransition } from "react";
+import { FormEvent, useEffect, useMemo, useState, useTransition } from "react";
 
 import { Modal } from "@/components/ui/modal";
 import { useToast } from "@/components/ui/toast-provider";
 import { CoachOption, AthleteOption } from "./types";
 import { createClient } from "@/lib/supabase/client";
-
-const DISCIPLINE_OPTIONS = [
-  { value: "artistica", label: "Gimnasia artística" },
-  { value: "ritmica", label: "Gimnasia rítmica" },
-  { value: "trampolin", label: "Trampolín" },
-  { value: "general", label: "General / Mixta" },
-] as const;
+import { useAcademyContext } from "@/hooks/use-academy-context";
+import type { StarterGroupPreset } from "@/lib/specialization/operational-presets";
+import { getGroupTechnicalGuidance } from "@/lib/specialization/technical-guidance";
 
 interface CreateGroupDialogProps {
   academyId: string;
@@ -21,6 +17,7 @@ interface CreateGroupDialogProps {
   onCreated: () => Promise<void> | void;
   coaches: CoachOption[];
   athletes: AthleteOption[];
+  initialPreset?: StarterGroupPreset | null;
 }
 
 const DEFAULT_COLOR = "#2563eb";
@@ -32,13 +29,16 @@ export function CreateGroupDialog({
   onCreated,
   coaches,
   athletes,
+  initialPreset,
 }: CreateGroupDialogProps) {
   const { pushToast } = useToast();
+  const { specialization, academyType } = useAcademyContext();
   const [name, setName] = useState("");
-  const [discipline, setDiscipline] = useState<typeof DISCIPLINE_OPTIONS[number]["value"]>(
-    "artistica"
-  );
+  const [discipline, setDiscipline] = useState<string>(academyType ?? "artistica");
   const [level, setLevel] = useState("");
+  const [technicalFocus, setTechnicalFocus] = useState("");
+  const [selectedApparatus, setSelectedApparatus] = useState<string[]>([]);
+  const [sessionBlocks, setSessionBlocks] = useState<string[]>([]);
   const [coachId, setCoachId] = useState("");
   const [assistantIds, setAssistantIds] = useState<string[]>([]);
   const [selectedAthletes, setSelectedAthletes] = useState<string[]>([]);
@@ -49,11 +49,18 @@ export function CreateGroupDialog({
 
   const assistantsLookup = useMemo(() => new Set(assistantIds), [assistantIds]);
   const athleteLookup = useMemo(() => new Set(selectedAthletes), [selectedAthletes]);
+  const technicalGuidance = useMemo(
+    () => getGroupTechnicalGuidance(specialization, level),
+    [level, specialization]
+  );
 
   const resetForm = () => {
     setName("");
-    setDiscipline("artistica");
+    setDiscipline(academyType ?? "artistica");
     setLevel("");
+    setTechnicalFocus("");
+    setSelectedApparatus([]);
+    setSessionBlocks([]);
     setCoachId("");
     setAssistantIds([]);
     setSelectedAthletes([]);
@@ -61,6 +68,26 @@ export function CreateGroupDialog({
     setMonthlyFeeEuros("");
     setError(null);
   };
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    if (initialPreset) {
+      setName(initialPreset.name);
+      setLevel(initialPreset.level);
+      const presetGuidance = getGroupTechnicalGuidance(specialization, initialPreset.level);
+      setTechnicalFocus(presetGuidance.focusAreas.join(". "));
+      setSelectedApparatus(presetGuidance.apparatus);
+      setSessionBlocks(presetGuidance.suggestedSessionBlocks);
+      return;
+    }
+
+    if (!level && specialization.categories.levelOptions.length > 0) {
+      setLevel(specialization.categories.levelOptions[0] ?? "");
+    }
+  }, [initialPreset, level, open, specialization.categories.levelOptions]);
 
   const toggleAssistant = (id: string) => {
     setAssistantIds((prev) =>
@@ -71,6 +98,18 @@ export function CreateGroupDialog({
   const toggleAthlete = (id: string) => {
     setSelectedAthletes((prev) =>
       prev.includes(id) ? prev.filter((value) => value !== id) : [...prev, id]
+    );
+  };
+
+  const toggleApparatus = (value: string) => {
+    setSelectedApparatus((prev) =>
+      prev.includes(value) ? prev.filter((item) => item !== value) : [...prev, value]
+    );
+  };
+
+  const toggleSessionBlock = (value: string) => {
+    setSessionBlocks((prev) =>
+      prev.includes(value) ? prev.filter((item) => item !== value) : [...prev, value]
     );
   };
 
@@ -100,13 +139,15 @@ export function CreateGroupDialog({
           headers: {
             "Content-Type": "application/json",
             "x-academy-id": academyId,
-            ...(user?.id ? { "x-user-id": user.id } : {}),
           },
           body: JSON.stringify({
             academyId,
             name: name.trim(),
             discipline,
             level: level.trim() || undefined,
+            technicalFocus: technicalFocus.trim() || undefined,
+            apparatus: selectedApparatus,
+            sessionBlocks,
             coachId: coachId || undefined,
             assistantIds,
             athleteIds: selectedAthletes,
@@ -205,26 +246,34 @@ export function CreateGroupDialog({
             <label className="font-medium">Disciplina</label>
             <select
               value={discipline}
-              onChange={(event) =>
-                setDiscipline(event.target.value as (typeof DISCIPLINE_OPTIONS)[number]["value"])
-              }
+              onChange={(event) => setDiscipline(event.target.value)}
+              disabled
               className="w-full rounded-md border border-border bg-background px-3 py-2 shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
             >
-              {DISCIPLINE_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
+              <option value={discipline}>{specialization.labels.disciplineName}</option>
             </select>
           </div>
           <div className="space-y-1">
-            <label className="font-medium">Nivel / Categoría</label>
+            <label className="font-medium">{specialization.labels.levelLabel}</label>
             <input
+              list="group-level-options"
               value={level}
               onChange={(event) => setLevel(event.target.value)}
-              placeholder="Ej. Nivel 1, Preteam, Competencia regional"
+              placeholder={specialization.categories.levelPlaceholder}
               className="w-full rounded-md border border-border bg-background px-3 py-2 shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
             />
+            {specialization.categories.levelOptions.length > 0 && (
+              <datalist id="group-level-options">
+                {specialization.categories.levelOptions.map((option) => (
+                  <option key={option} value={option} />
+                ))}
+              </datalist>
+            )}
+            {specialization.categories.levelOptions.length > 0 && (
+              <p className="text-xs text-muted-foreground">
+                Sugerencias: {specialization.categories.levelOptions.slice(0, 4).join(", ")}
+              </p>
+            )}
           </div>
           <div className="space-y-1">
             <label className="font-medium">Cuota mensual (€)</label>
@@ -249,6 +298,71 @@ export function CreateGroupDialog({
               onChange={(event) => setColor(event.target.value)}
               className="h-10 w-full rounded-md border border-border bg-background px-2 py-1 md:w-32"
             />
+          </div>
+        </div>
+
+        <div className="space-y-4 rounded-lg border border-border bg-muted/20 p-4">
+          <div className="space-y-1">
+            <h3 className="text-sm font-semibold text-foreground">{technicalGuidance.headline}</h3>
+            <p className="text-xs text-muted-foreground">
+              Sugerencia técnica para este {specialization.labels.groupLabel.toLowerCase()} según disciplina y nivel.
+            </p>
+          </div>
+
+          <div className="space-y-1">
+            <label className="font-medium">Foco técnico</label>
+            <textarea
+              value={technicalFocus}
+              onChange={(event) => setTechnicalFocus(event.target.value)}
+              className="min-h-24 w-full rounded-md border border-border bg-background px-3 py-2 shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              placeholder={technicalGuidance.focusAreas.join(". ")}
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="font-medium">Aparatos / material</label>
+            <div className="flex flex-wrap gap-2">
+              {technicalGuidance.apparatus.map((item) => {
+                const selected = selectedApparatus.includes(item);
+                return (
+                  <button
+                    key={item}
+                    type="button"
+                    onClick={() => toggleApparatus(item)}
+                    className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                      selected
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border bg-background text-muted-foreground"
+                    }`}
+                  >
+                    {item}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <label className="font-medium">Bloques recomendados</label>
+            <div className="flex flex-wrap gap-2">
+              {technicalGuidance.suggestedSessionBlocks.map((item) => {
+                const selected = sessionBlocks.includes(item);
+                return (
+                  <button
+                    key={item}
+                    type="button"
+                    onClick={() => toggleSessionBlock(item)}
+                    className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                      selected
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border bg-background text-muted-foreground"
+                    }`}
+                  >
+                    {item}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
 

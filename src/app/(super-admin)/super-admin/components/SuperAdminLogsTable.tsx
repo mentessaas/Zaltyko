@@ -28,7 +28,7 @@ export function SuperAdminLogsTable({ initialLogs }: SuperAdminLogsTableProps) {
     setLoading(true);
     try {
       const response = await fetch("/api/super-admin/logs?limit=200", {
-        headers: { "x-user-id": userId },
+        headers: {},
         cache: "no-store",
       });
       if (!response.ok) {

@@ -5,10 +5,12 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
 import { db } from "@/db";
-import { academies, athletes, memberships, profiles } from "@/db/schema";
+import { academies, athletes, memberships, profiles, groups } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import AssessmentForm from "@/components/assessments/AssessmentForm";
+import { resolveAcademySpecialization } from "@/lib/specialization/registry";
+import { resolveSpecializedApparatusCodes } from "@/lib/specialization/technical-guidance";
 
 interface EvaluatePageProps {
   params: Promise<{
@@ -44,8 +46,17 @@ export default async function AthleteEvaluatePage({ params }: EvaluatePageProps)
       level: athletes.level,
       status: athletes.status,
       dob: athletes.dob,
+      primaryApparatus: athletes.primaryApparatus,
+      groupId: athletes.groupId,
       academyId: athletes.academyId,
       academyName: academies.name,
+      academyType: academies.academyType,
+      country: academies.country,
+      countryCode: academies.countryCode,
+      discipline: academies.discipline,
+      disciplineVariant: academies.disciplineVariant,
+      federationConfigVersion: academies.federationConfigVersion,
+      specializationStatus: academies.specializationStatus,
       tenantId: athletes.tenantId,
     })
     .from(athletes)
@@ -70,20 +81,40 @@ export default async function AthleteEvaluatePage({ params }: EvaluatePageProps)
 
   if (!canAccess) redirect("/dashboard");
 
-  // Determine apparatus list based on academy type
-  const APPARATUS_BY_TYPE: Record<string, string[]> = {
-    ritmica: ["rope", "ball", "clubs", "hoop", "ribbon"],
-    artistica: ["vt", "ub", "bb", "fx"],
-    trampolin: ["trampoline"],
-    parkour: ["parkour"],
-    default: ["rope", "ball", "clubs", "hoop", "ribbon"],
-  };
+  const specialization = resolveAcademySpecialization({
+    academyType: athleteRow.academyType,
+    country: athleteRow.country,
+    countryCode: athleteRow.countryCode,
+    discipline: athleteRow.discipline,
+    disciplineVariant: athleteRow.disciplineVariant,
+    federationConfigVersion: athleteRow.federationConfigVersion,
+    specializationStatus: athleteRow.specializationStatus,
+  });
+  const [groupRow] = athleteRow.groupId
+    ? await db
+        .select({
+          id: groups.id,
+          name: groups.name,
+          technicalFocus: groups.technicalFocus,
+          apparatus: groups.apparatus,
+        })
+        .from(groups)
+        .where(eq(groups.id, athleteRow.groupId))
+        .limit(1)
+    : [];
 
-  const academyType = athleteRow.academyId === academyId
-    ? "ritmica" // Default for now, could be enriched from academy data
-    : "ritmica";
-
-  const apparatusList = APPARATUS_BY_TYPE[academyType] || APPARATUS_BY_TYPE.default;
+  const contextualApparatusCodes = resolveSpecializedApparatusCodes(
+    specialization,
+    [
+      ...(athleteRow.primaryApparatus ? [athleteRow.primaryApparatus] : []),
+      ...((groupRow?.apparatus ?? []) as string[]),
+    ]
+  );
+  const apparatusList =
+    contextualApparatusCodes.length > 0
+      ? contextualApparatusCodes
+      : specialization.evaluation.apparatus.map((item) => item.code);
+  const recommendedFocus = groupRow?.technicalFocus ?? null;
 
   return (
     <div className="space-y-6 p-4 md:p-8">
@@ -97,9 +128,11 @@ export default async function AthleteEvaluatePage({ params }: EvaluatePageProps)
             <ArrowLeft className="h-3 w-3" />
             Volver al progreso
           </Link>
-          <h1 className="text-2xl md:text-3xl font-semibold">Evaluar atleta</h1>
+          <h1 className="text-2xl md:text-3xl font-semibold">
+            Evaluar {specialization.labels.athleteSingular.toLowerCase()}
+          </h1>
           <p className="text-muted-foreground">
-            {athleteRow.name} · {athleteRow.academyName}
+            {athleteRow.name} · {athleteRow.academyName} · {specialization.labels.disciplineName}
           </p>
         </div>
       </div>
@@ -114,6 +147,7 @@ export default async function AthleteEvaluatePage({ params }: EvaluatePageProps)
             athleteId={athleteId}
             athleteName={athleteRow.name}
             apparatusList={apparatusList}
+            recommendedFocus={recommendedFocus}
             onSuccess={() => {
               // Redirect to progress page on success
               redirect(`/app/${academyId}/athletes/${athleteId}/progress`);

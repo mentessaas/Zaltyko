@@ -8,11 +8,12 @@ import type { AssessmentWithScores } from "@/types";
 import { Button } from "@/components/ui/button";
 
 interface AthleteEvaluationsTabProps {
+  academyId: string;
   athleteId: string;
   athleteName: string;
 }
 
-export default function AthleteEvaluationsTab({ athleteId, athleteName }: AthleteEvaluationsTabProps) {
+export default function AthleteEvaluationsTab({ academyId, athleteId, athleteName }: AthleteEvaluationsTabProps) {
   const [assessments, setAssessments] = useState<AssessmentWithScores[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -41,7 +42,7 @@ export default function AthleteEvaluationsTab({ athleteId, athleteName }: Athlet
             : `${assessments.length} evaluación${assessments.length !== 1 ? "es" : ""} registrada${assessments.length === 1 ? "" : "s"}.`}
         </p>
         <Button variant="outline" size="sm" asChild>
-          <Link href={`/dashboard/assessments?athlete=${athleteId}`}>
+          <Link href={`/app/${academyId}/assessments?athlete=${athleteId}`}>
             Ver todas en evaluaciones
           </Link>
         </Button>

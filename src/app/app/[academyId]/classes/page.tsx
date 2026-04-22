@@ -16,8 +16,9 @@ import {
   groups,
 } from "@/db/schema";
 
-import { ClassesClientView } from "@/components/classes/ClassesClientView";
+import { ClassesDashboard } from "@/components/classes/ClassesDashboard";
 import { PageHeader } from "@/components/ui/page-header";
+import { resolveAcademySpecialization } from "@/lib/specialization/registry";
 
 /**
  * AcademyClassesPage - Vista principal de gestión de clases y sesiones
@@ -41,6 +42,13 @@ export default async function AcademyClassesPage({ params, searchParams }: PageP
       id: academies.id,
       name: academies.name,
       tenantId: academies.tenantId,
+      academyType: academies.academyType,
+      country: academies.country,
+      countryCode: academies.countryCode,
+      discipline: academies.discipline,
+      disciplineVariant: academies.disciplineVariant,
+      federationConfigVersion: academies.federationConfigVersion,
+      specializationStatus: academies.specializationStatus,
     })
     .from(academies)
     .where(eq(academies.id, academyId))
@@ -50,6 +58,8 @@ export default async function AcademyClassesPage({ params, searchParams }: PageP
     notFound();
   }
 
+  const specialization = resolveAcademySpecialization(academy);
+
   const query =
     typeof resolvedSearchParams.q === "string" && resolvedSearchParams.q.trim().length > 0
       ? resolvedSearchParams.q.trim()
@@ -58,6 +68,11 @@ export default async function AcademyClassesPage({ params, searchParams }: PageP
   const groupFilter =
     typeof resolvedSearchParams.group === "string" && resolvedSearchParams.group.trim().length > 0
       ? resolvedSearchParams.group.trim()
+      : undefined;
+
+  const focusClassId =
+    typeof resolvedSearchParams.focusClass === "string" && resolvedSearchParams.focusClass.trim().length > 0
+      ? resolvedSearchParams.focusClass.trim()
       : undefined;
 
   const conditions = [
@@ -79,6 +94,9 @@ export default async function AcademyClassesPage({ params, searchParams }: PageP
       startTime: classes.startTime,
       endTime: classes.endTime,
       capacity: classes.capacity,
+      technicalFocus: classes.technicalFocus,
+      apparatus: classes.apparatus,
+      isExtra: classes.isExtra,
       autoGenerateSessions: classes.autoGenerateSessions,
       allowsFreeTrial: classes.allowsFreeTrial,
       waitingListEnabled: classes.waitingListEnabled,
@@ -269,6 +287,9 @@ export default async function AcademyClassesPage({ params, searchParams }: PageP
         startTime: item.startTime,
         endTime: item.endTime,
         capacity: item.capacity,
+        technicalFocus: item.technicalFocus ?? null,
+        apparatus: item.apparatus ?? [],
+        isExtra: item.isExtra,
         autoGenerateSessions: item.autoGenerateSessions,
         allowsFreeTrial: item.allowsFreeTrial ?? false,
         waitingListEnabled: item.waitingListEnabled ?? false,
@@ -295,22 +316,32 @@ export default async function AcademyClassesPage({ params, searchParams }: PageP
     email: entry.email ?? null,
   }));
 
+  const groupOptions = groupRows.map((group) => ({
+    id: group.id,
+    name: group.name ?? "Grupo sin nombre",
+    color: group.color ?? null,
+  }));
+
   return (
     <div className="space-y-6 p-4 sm:p-6 lg:p-8">
       <PageHeader
         breadcrumbs={[
           { label: "Dashboard", href: "/dashboard" },
           { label: academy.name ?? "Academia", href: `/app/${academy.id}/dashboard` },
-          { label: "Clases" },
+          { label: `${specialization.labels.classLabel}s` },
         ]}
-        title="Clases"
-        description="Organiza tus clases, gestiona entrenadores y prepara sesiones con facilidad."
+        title={`${specialization.labels.classLabel}s`}
+        description={`Organiza tus ${specialization.labels.classLabel.toLowerCase()}s, coordina ${specialization.labels.coachLabel.toLowerCase()}es y prepara ${specialization.labels.sessionLabel.toLowerCase()}es con facilidad.`}
         icon={<Dumbbell className="h-5 w-5" strokeWidth={1.5} />}
       />
 
-      <ClassesClientView academyId={academy.id} />
+      <ClassesDashboard
+        academyId={academy.id}
+        initialClasses={classesList}
+        availableCoaches={availableCoaches}
+        groupOptions={groupOptions}
+        initialFocusClassId={focusClassId}
+      />
     </div>
   );
 }
-
-
