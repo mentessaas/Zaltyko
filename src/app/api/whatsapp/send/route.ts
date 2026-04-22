@@ -20,17 +20,7 @@ const sendWhatsAppSchema = z.object({
 
 export const dynamic = 'force-dynamic';
 
-export async function POST(request: Request) {
-  /**
-   * SECURITY NOTE: This endpoint is intentionally unauthenticated to support
-   * academy-triggered automated messages (e.g., attendance notifications via
-   * system schedulers). The academyId must be provided in the request body.
-   * This should only be exposed via internal network or webhook restrictions.
-   * Consider adding IP allowlisting or a static API key for production.
-   */
-  const tenantId: string | null = null;
-  const profileId: string | null = null;
-
+export const POST = withTenant(async (request: Request, context) => {
   try {
     const body = await request.json();
     const validated = sendWhatsAppSchema.parse(body);
@@ -100,7 +90,7 @@ export async function POST(request: Request) {
 
     return apiError("Failed to send WhatsApp message", "Failed to send WhatsApp message", 500);
   }
-}
+});
 
 // GET - Return available templates
 export async function GET() {

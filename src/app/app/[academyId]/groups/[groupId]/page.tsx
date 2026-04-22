@@ -14,6 +14,8 @@ import {
 } from "@/db/schema";
 import { GroupView } from "@/components/groups/GroupView";
 import { AthleteOption, CoachOption, GroupDetail } from "@/components/groups/types";
+import { resolveAcademySpecialization } from "@/lib/specialization/registry";
+import { getGroupTechnicalGuidance } from "@/lib/specialization/technical-guidance";
 
 interface PageProps {
   params: Promise<{
@@ -33,6 +35,9 @@ export default async function GroupDetailPage({ params }: PageProps) {
       name: groups.name,
       discipline: groups.discipline,
       level: groups.level,
+      technicalFocus: groups.technicalFocus,
+      apparatus: groups.apparatus,
+      sessionBlocks: groups.sessionBlocks,
       color: groups.color,
       coachId: groups.coachId,
       assistantIds: groups.assistantIds,
@@ -47,7 +52,16 @@ export default async function GroupDetailPage({ params }: PageProps) {
   }
 
   const [academy] = await db
-    .select({ id: academies.id })
+    .select({
+      id: academies.id,
+      academyType: academies.academyType,
+      country: academies.country,
+      countryCode: academies.countryCode,
+      discipline: academies.discipline,
+      disciplineVariant: academies.disciplineVariant,
+      federationConfigVersion: academies.federationConfigVersion,
+      specializationStatus: academies.specializationStatus,
+    })
     .from(academies)
     .where(eq(academies.id, academyId))
     .limit(1);
@@ -55,6 +69,9 @@ export default async function GroupDetailPage({ params }: PageProps) {
   if (!academy) {
     notFound();
   }
+
+  const specialization = resolveAcademySpecialization(academy);
+  const guidance = getGroupTechnicalGuidance(specialization, groupRow.level);
 
   const [coach] = groupRow.coachId
     ? await db
@@ -186,6 +203,9 @@ export default async function GroupDetailPage({ params }: PageProps) {
     name: groupRow.name,
     discipline: groupRow.discipline,
     level: groupRow.level ?? null,
+    technicalFocus: groupRow.technicalFocus ?? guidance.focusAreas.join(". "),
+    apparatus: groupRow.apparatus?.length ? groupRow.apparatus : guidance.apparatus,
+    sessionBlocks: groupRow.sessionBlocks?.length ? groupRow.sessionBlocks : guidance.suggestedSessionBlocks,
     color: groupRow.color ?? null,
     coachId: groupRow.coachId ?? null,
     coachName: coach?.name ?? null,

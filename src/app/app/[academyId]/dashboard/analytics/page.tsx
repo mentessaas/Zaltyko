@@ -1,5 +1,7 @@
 import { AnalyticsWidgets } from "@/components/analytics/AnalyticsWidgets";
+import { FeatureUnavailableState } from "@/components/product/FeatureUnavailableState";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
+import { isFeatureEnabled } from "@/lib/product/features";
 
 interface PageProps {
   params: Promise<{
@@ -14,7 +16,18 @@ interface PageProps {
 
 export default async function AnalyticsPage({ params, searchParams }: PageProps) {
   const { academyId } = await params;
-  const searchParamsResolved = await searchParams;
+  await searchParams;
+
+  if (!isFeatureEnabled("advancedAnalytics")) {
+    return (
+      <FeatureUnavailableState
+        title="Analítica avanzada"
+        description="Esta área todavía no forma parte del primer release para clientes. Cuando esté lista, aparecerá aquí con datos verificados y exportación estable."
+        backHref={`/app/${academyId}/dashboard`}
+        backLabel="Volver al dashboard"
+      />
+    );
+  }
 
   return (
     <div className="space-y-6 p-4 sm:p-6 lg:p-8">
@@ -35,4 +48,3 @@ export default async function AnalyticsPage({ params, searchParams }: PageProps)
     </div>
   );
 }
-

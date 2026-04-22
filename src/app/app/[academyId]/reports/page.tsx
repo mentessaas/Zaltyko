@@ -1,8 +1,14 @@
 import { Users, DollarSign, TrendingUp, GraduationCap, UserCog, UserMinus, Calendar, BarChart3 } from "lucide-react";
+import { eq } from "drizzle-orm";
+import { FeatureUnavailableState } from "@/components/product/FeatureUnavailableState";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { ReportCard } from "@/components/reports/ReportCard";
 import { RecentReports } from "@/components/reports/RecentReports";
 import { ScheduledReports } from "@/components/reports/ScheduledReports";
+import { isFeatureEnabled } from "@/lib/product/features";
+import { db } from "@/db";
+import { academies } from "@/db/schema";
+import { resolveAcademySpecialization } from "@/lib/specialization/registry";
 
 interface PageProps {
   params: Promise<{
@@ -63,6 +69,31 @@ const reportTypes = [
 
 export default async function ReportsPage({ params }: PageProps) {
   const { academyId } = await params;
+  const [academy] = await db
+    .select({
+      academyType: academies.academyType,
+      country: academies.country,
+      countryCode: academies.countryCode,
+      discipline: academies.discipline,
+      disciplineVariant: academies.disciplineVariant,
+      federationConfigVersion: academies.federationConfigVersion,
+      specializationStatus: academies.specializationStatus,
+    })
+    .from(academies)
+    .where(eq(academies.id, academyId))
+    .limit(1);
+  const specialization = resolveAcademySpecialization(academy ?? {});
+
+  if (!isFeatureEnabled("reportsHub")) {
+    return (
+      <FeatureUnavailableState
+        title="Centro de reportes"
+        description="Los reportes multi-módulo y la programación automática todavía no están habilitados para los primeros clientes."
+        backHref={`/app/${academyId}/dashboard`}
+        backLabel="Volver al dashboard"
+      />
+    );
+  }
 
   return (
     <div className="space-y-6 p-4 sm:p-6 lg:p-8">
@@ -77,7 +108,7 @@ export default async function ReportsPage({ params }: PageProps) {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Centro de Reportes</h1>
           <p className="text-muted-foreground mt-1">
-            Genera y gestiona todos los reportes de tu academia
+            Genera y gestiona reportes de {specialization.labels.athletesPlural.toLowerCase()}, {specialization.labels.classLabel.toLowerCase()}s y rendimiento deportivo
           </p>
         </div>
       </div>
@@ -115,7 +146,7 @@ export default async function ReportsPage({ params }: PageProps) {
           compact
         />
         <ReportCard
-          title="Clases Activas"
+          title={`${specialization.labels.classLabel}s activas`}
           description="Este mes"
           icon={<GraduationCap className="h-5 w-5 text-white" />}
           href={`/app/${academyId}/classes`}

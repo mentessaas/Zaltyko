@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { 
   Users, 
   Calendar, 
@@ -137,13 +138,13 @@ export default function ModulesSection() {
 
         {/* Bottom CTA */}
         <div className="text-center mt-12">
-          <a 
+          <Link
             href="/features" 
             className="inline-flex items-center gap-2 text-red-600 font-semibold hover:gap-3 transition-all"
           >
             Ver todas las funcionalidades
             <span className="text-xl">→</span>
-          </a>
+          </Link>
         </div>
       </div>
     </section>

@@ -19,7 +19,7 @@ export default async function MessagesPage() {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect("/login");
+    redirect("/auth/login");
   }
 
   // Get current user's profile
@@ -28,19 +28,21 @@ export default async function MessagesPage() {
       id: profiles.id,
       name: profiles.name,
       photoUrl: profiles.photoUrl,
+      role: profiles.role,
     })
     .from(profiles)
     .where(eq(profiles.userId, user.id))
     .limit(1);
 
   if (!profile) {
-    redirect("/login");
+    redirect("/auth/login");
   }
 
   return (
     <div className="h-[calc(100vh-4rem)]">
       <MessagesPageComponent
         currentUserId={profile.id}
+        currentUserRole={profile.role ?? undefined}
         currentUserProfile={{
           fullName: profile.name || undefined,
           avatarUrl: profile.photoUrl || undefined,

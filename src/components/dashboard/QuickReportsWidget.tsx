@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { FileText, TrendingUp, DollarSign, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAcademyContext } from "@/hooks/use-academy-context";
 
 interface QuickReportsWidgetProps {
   academyId: string;
@@ -15,9 +16,7 @@ const QUICK_REPORTS = [
     description: "Analisis de asistencia por atleta, grupo o periodo",
     href: (id: string) => `/app/${id}/reports/attendance`,
     icon: TrendingUp,
-    color: "text-emerald-600",
-    bgColor: "bg-gradient-to-br from-emerald-500 to-emerald-600",
-    gradient: "from-emerald-500/20 to-transparent",
+    accent: "border-emerald-200 bg-emerald-50/80 text-emerald-700",
   },
   {
     id: "financial",
@@ -25,9 +24,7 @@ const QUICK_REPORTS = [
     description: "Ingresos, pagos pendientes y proyecciones",
     href: (id: string) => `/app/${id}/reports/financial`,
     icon: DollarSign,
-    color: "text-blue-600",
-    bgColor: "bg-gradient-to-br from-blue-500 to-blue-600",
-    gradient: "from-blue-500/20 to-transparent",
+    accent: "border-sky-200 bg-sky-50/80 text-sky-700",
   },
   {
     id: "progress",
@@ -35,31 +32,31 @@ const QUICK_REPORTS = [
     description: "Evolucion de atletas y comparativas",
     href: (id: string) => `/app/${id}/reports/progress`,
     icon: FileText,
-    color: "text-red-600",
-    bgColor: "bg-gradient-to-br from-red-500 to-red-600",
-    gradient: "from-red-500/20 to-transparent",
+    accent: "border-rose-200 bg-rose-50/80 text-rose-700",
   },
 ];
 
 export function QuickReportsWidget({ academyId }: QuickReportsWidgetProps) {
+  const { specialization } = useAcademyContext();
+
   return (
-    <div className="space-y-4 rounded-2xl border border-zaltyko-border/40 bg-gradient-to-br from-white via-white to-zaltyko-primary/5 p-6 shadow-lg shadow-zaltyko-primary/5">
+    <div className="space-y-4 rounded-lg border bg-card p-6 shadow-sm">
       <header>
         <div className="flex items-center gap-3 mb-3">
-          <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-zaltyko-primary to-zaltyko-primary-dark flex items-center justify-center shadow-lg shadow-zaltyko-primary/20">
-            <FileText className="h-5 w-5 text-white" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <FileText className="h-5 w-5" />
           </div>
           <div>
-            <p className="text-xs font-bold uppercase tracking-wider text-zaltyko-text-secondary/80">
-              Reportes rapidos
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Reportes rápidos
             </p>
-            <h3 className="text-lg font-bold text-zaltyko-text-main">
+            <h3 className="text-lg font-semibold text-foreground">
               Accesos directos
             </h3>
           </div>
         </div>
-        <p className="text-xs text-zaltyko-text-secondary">
-          Genera y exporta reportes detallados en segundos
+        <p className="text-xs text-muted-foreground">
+          Genera y exporta reportes detallados sobre {specialization.labels.athletesPlural.toLowerCase()}, {specialization.labels.classLabel.toLowerCase()}s y rendimiento
         </p>
       </header>
 
@@ -70,17 +67,16 @@ export function QuickReportsWidget({ academyId }: QuickReportsWidgetProps) {
             <Link
               key={report.id}
               href={report.href(academyId)}
-              className="group relative flex flex-col gap-3 rounded-2xl border border-zaltyko-border/30 bg-white/80 p-4 transition-all hover:border-zaltyko-primary/40 hover:shadow-xl hover:shadow-zaltyko-primary/10 hover:-translate-y-1 overflow-hidden"
+              className="group flex flex-col gap-3 rounded-lg border border-border bg-background p-4 transition-all hover:border-primary/30 hover:shadow-sm"
             >
-              <div className={cn("absolute inset-0 bg-gradient-to-br opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none", report.gradient)} />
-              <div className={cn("relative inline-flex h-12 w-12 items-center justify-center rounded-2xl shadow-lg", report.bgColor)}>
-                <Icon className="h-6 w-6 text-white" />
+              <div className={cn("inline-flex h-12 w-12 items-center justify-center rounded-lg border", report.accent)}>
+                <Icon className="h-6 w-6" />
               </div>
-              <div className="relative">
-                <p className="font-bold text-sm text-zaltyko-text-main group-hover:text-zaltyko-primary transition-colors">{report.title}</p>
-                <p className="mt-1 text-xs text-zaltyko-text-secondary">{report.description}</p>
+              <div>
+                <p className="text-sm font-semibold text-foreground transition-colors group-hover:text-primary">{report.title}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{report.description}</p>
               </div>
-              <div className="relative mt-auto flex items-center gap-1 text-xs font-bold text-zaltyko-primary opacity-0 transition-all group-hover:opacity-100 group-hover:translate-x-1">
+              <div className="mt-auto flex items-center gap-1 text-xs font-semibold text-primary opacity-0 transition-all group-hover:opacity-100 group-hover:translate-x-1">
                 Ver reporte
                 <ArrowRight className="h-3 w-3" />
               </div>
@@ -91,4 +87,3 @@ export function QuickReportsWidget({ academyId }: QuickReportsWidgetProps) {
     </div>
   );
 }
-

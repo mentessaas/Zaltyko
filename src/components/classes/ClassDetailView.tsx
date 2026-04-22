@@ -36,6 +36,8 @@ interface ClassInfo {
   startTime: string | null;
   endTime: string | null;
   capacity: number | null;
+  technicalFocus: string | null;
+  apparatus: string[];
   coaches: CoachOption[];
 }
 
@@ -140,7 +142,6 @@ export function ClassDetailView({
       };
 
       if (currentUser?.id) {
-        headers["x-user-id"] = currentUser.id;
       }
 
       const response = await fetch(`/api/class-enrollments/${enrollmentId}`, {
@@ -182,6 +183,21 @@ export function ClassDetailView({
             <p className="text-xs text-muted-foreground">
               Capacidad objetivo: {classInfo.capacity ?? "No definida"}
             </p>
+            {classInfo.technicalFocus && (
+              <p className="text-sm text-muted-foreground">{classInfo.technicalFocus}</p>
+            )}
+            {classInfo.apparatus.length > 0 && (
+              <div className="flex flex-wrap gap-2 text-xs">
+                {classInfo.apparatus.map((item) => (
+                  <span
+                    key={item}
+                    className="rounded-full border border-primary/20 bg-primary/5 px-3 py-1 font-semibold text-primary"
+                  >
+                    {item}
+                  </span>
+                ))}
+              </div>
+            )}
             <div className="flex flex-wrap gap-2 text-xs">
               {classInfo.coaches.length === 0 ? (
                 <span className="rounded-full bg-muted px-3 py-1 text-muted-foreground">

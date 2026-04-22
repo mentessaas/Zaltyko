@@ -4,15 +4,16 @@ import SEO from "@/utils/seo";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/toast-provider";
+import { AuthPageShell } from "@/components/auth/AuthPageShell";
 import { isValidEmail, normalizeEmail } from "@/lib/validation/email-utils";
 
-export default function LoginForm() {
+export function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -166,16 +167,25 @@ export default function LoginForm() {
         ogImageUrl="https://zaltyko.com/og-image.png"
         twitterHandle="zaltyko"
       />
-      <div className="space-y-6">
-        <div className="flex justify-start">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Volver
-          </Link>
-        </div>
+      <AuthPageShell
+        title="Bienvenido de nuevo"
+        description="Accede con tu cuenta y vuelve exactamente al espacio que te corresponde dentro del producto."
+        footer={
+          <>
+            ¿Aún no tienes cuenta?{" "}
+            <Link href="/onboarding/owner" className="font-semibold text-zaltyko-primary hover:underline">
+              Regístrate como owner
+            </Link>
+          </>
+        }
+        sideTitle="Un acceso más claro para cada tipo de usuario"
+        sideDescription="El inicio de sesión ya está pensado para llevar a owners, coaches, atletas y tutores a su experiencia real, sin atajos ambiguos ni saltos extra."
+        highlights={[
+          "Owners y admins vuelven a su academia activa cuando ya están operando.",
+          "Coaches aterrizan en el workspace donde trabajan a diario.",
+          "Atletas y tutores se quedan fuera del shell administrativo y ven solo su experiencia útil.",
+        ]}
+      >
         <form onSubmit={handleLogin} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="email">Correo electrónico</Label>
@@ -185,6 +195,7 @@ export default function LoginForm() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              autoComplete="email"
             />
           </div>
           <div className="space-y-2">
@@ -195,6 +206,7 @@ export default function LoginForm() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              autoComplete="current-password"
             />
           </div>
           <Button type="submit" className="w-full" disabled={loading}>
@@ -208,7 +220,8 @@ export default function LoginForm() {
             )}
           </Button>
         </form>
-        <div className="flex flex-col space-y-4">
+
+        <div className="mt-4 flex flex-col gap-3">
           <Button
             onClick={handleMagicLink}
             variant="outline"
@@ -236,17 +249,13 @@ export default function LoginForm() {
                 Conectando...
               </>
             ) : (
-              "Inicia sesión con Google"
+              "Entrar con Google"
             )}
           </Button>
         </div>
-        <p className="text-center text-sm">
-          ¿Aún no tienes cuenta?{" "}
-          <Link href="/onboarding" className="text-blue-500 hover:underline">
-            Regístrate
-          </Link>
-        </p>
-      </div>
+      </AuthPageShell>
     </>
   );
 }
+
+export default LoginForm;

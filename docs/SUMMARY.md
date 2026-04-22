@@ -38,6 +38,7 @@
 |-----------|-------------|
 | [state-audit-2025-11.md](./state-audit-2025-11.md) | Auditoría de estado |
 | [PRODUCTION_ANALYSIS.md](./PRODUCTION_ANALYSIS.md) | Análisis de producción |
+| [GO_LIVE_REVIEW_2026-04.md](./GO_LIVE_REVIEW_2026-04.md) | Inventario de primer release, flags y riesgos de salida |
 
 ## 📈 Plans (Roadmaps)
 

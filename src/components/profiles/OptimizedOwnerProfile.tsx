@@ -519,7 +519,7 @@ export function OptimizedOwnerProfile({
                     {activeAcademy.subscriptionStatus ?? "sin suscripción"}
                   </p>
                   {canCreateAcademies && (
-                    <Button variant="outline" size="sm" onClick={() => router.push("/onboarding")} className="w-full">
+                    <Button variant="outline" size="sm" onClick={() => router.push("/onboarding/owner")} className="w-full">
                       Crear nueva academia
                     </Button>
                   )}
@@ -583,4 +583,3 @@ export function OptimizedOwnerProfile({
     </div>
   );
 }
-

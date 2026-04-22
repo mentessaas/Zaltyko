@@ -1,9 +1,10 @@
 import { withTenant } from "@/lib/authz";
-import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { handleApiError } from "@/lib/api-error-handler";
 import { apiSuccess, apiError } from "@/lib/api-response";
+import { uploadEventStorageObject } from "@/lib/supabase/admin-operations";
 
 export const dynamic = "force-dynamic";
+// @service-role storage:events-upload. Required because event media is written to a server-owned bucket.
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
@@ -27,7 +28,6 @@ export const POST = withTenant(async (request, context) => {
       return apiError("FILE_TOO_LARGE", `El archivo excede el tamaño máximo de ${MAX_FILE_SIZE / 1024 / 1024}MB`, 400);
     }
 
-    const supabase = getSupabaseAdminClient();
     const fileExt = file.name.split(".").pop();
     const timestamp = Date.now();
     const fileName = eventId ? `${eventId}/${timestamp}.${fileExt}` : `${timestamp}.${fileExt}`;
@@ -38,25 +38,14 @@ export const POST = withTenant(async (request, context) => {
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    const { data, error: uploadError } = await supabase.storage
-      .from("events")
-      .upload(filePath, buffer, {
-        contentType: file.type,
-        cacheControl: "3600",
-        upsert: false,
-      });
-
-    if (uploadError) {
-      return apiError("UPLOAD_FAILED", uploadError.message, 500);
-    }
-
-    const { data: { publicUrl } } = supabase.storage
-      .from("events")
-      .getPublicUrl(filePath);
+    const { publicUrl } = await uploadEventStorageObject({
+      path: filePath,
+      body: buffer,
+      contentType: file.type,
+    });
 
     return apiSuccess({ url: publicUrl, path: filePath });
   } catch (error) {
     return handleApiError(error, { endpoint: "/api/events/upload", method: "POST" });
   }
 });
-

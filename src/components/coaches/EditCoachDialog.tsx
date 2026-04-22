@@ -97,7 +97,6 @@ export function EditCoachDialog({
             headers: {
               "Content-Type": "application/json",
               "x-academy-id": academyId,
-              ...(currentUser?.id ? { "x-user-id": currentUser.id } : {}),
             },
             body: JSON.stringify(payload),
           });
@@ -129,7 +128,6 @@ export function EditCoachDialog({
       headers: {
         "Content-Type": "application/json",
         "x-academy-id": academyId,
-        ...(userId ? { "x-user-id": userId } : {}),
       },
       body: JSON.stringify({ classIds }),
     });
@@ -155,7 +153,6 @@ export function EditCoachDialog({
         method: "DELETE",
         headers: {
           "x-academy-id": academyId,
-          ...(currentUser?.id ? { "x-user-id": currentUser.id } : {}),
         },
       });
 

@@ -37,7 +37,6 @@ export default async function SuperAdminAcademyDetailPage({
     `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/super-admin/academies/${academyId}`,
     {
       headers: {
-        "x-user-id": user.id,
       },
       cache: "no-store",
     },

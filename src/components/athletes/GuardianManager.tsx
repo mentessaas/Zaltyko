@@ -71,7 +71,6 @@ export default function GuardianManager({
         headers: {
           "Content-Type": "application/json",
           "x-academy-id": academyId,
-          ...(user?.id ? { "x-user-id": user.id } : {}),
         },
         body: JSON.stringify({
           name: form.name,
@@ -128,7 +127,6 @@ export default function GuardianManager({
           headers: {
             "Content-Type": "application/json",
             "x-academy-id": academyId,
-            ...(user?.id ? { "x-user-id": user.id } : {}),
           },
           body: JSON.stringify({
             name: updates.name ?? guardian.name,
@@ -191,7 +189,6 @@ export default function GuardianManager({
           method: "DELETE",
           headers: {
             "x-academy-id": academyId,
-            ...(user?.id ? { "x-user-id": user.id } : {}),
           },
         }
       );

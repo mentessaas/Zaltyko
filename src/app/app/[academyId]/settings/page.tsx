@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
   Save,
@@ -22,6 +22,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Select } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 
 import { SettingsLayout } from "@/components/settings/SettingsLayout";
 import { BrandingEditor, type BrandingData } from "@/components/settings/BrandingEditor";
@@ -29,6 +30,14 @@ import { ScheduleEditor, type ScheduleData } from "@/components/settings/Schedul
 import { SocialLinksEditor, type SocialLinksData } from "@/components/settings/SocialLinksEditor";
 import { TimezoneSelector } from "@/components/settings/TimezoneSelector";
 import { useAcademyContext } from "@/hooks/use-academy-context";
+import {
+  COUNTRY_REGION_OPTIONS,
+  findRegionsByCountry,
+  getCityPlaceholder,
+  getRegionLabel,
+  getRegionPlaceholder,
+} from "@/lib/countryRegions";
+import { findCitiesByRegion } from "@/lib/citiesByRegion";
 
 interface AcademySettings {
   // Basic info
@@ -36,6 +45,13 @@ interface AcademySettings {
   publicDescription: string;
   isPublic: boolean;
   academyType: string;
+  country: string;
+  countryCode: string;
+  region: string;
+  city: string;
+  disciplineVariant: string;
+  federationConfigVersion: string;
+  specializationStatus: string;
 
   // Branding
   branding: BrandingData;
@@ -62,6 +78,13 @@ const DEFAULT_SETTINGS: AcademySettings = {
   publicDescription: "",
   isPublic: true,
   academyType: "artistica",
+  country: "España",
+  countryCode: "ES",
+  region: "",
+  city: "",
+  disciplineVariant: "artistic_female",
+  federationConfigVersion: "legacy-default-v1",
+  specializationStatus: "legacy",
   branding: {
     primaryColor: "#DC2626",
     secondaryColor: "#EF4444",
@@ -101,6 +124,12 @@ const ACADEMY_TYPES = [
   { value: "general", label: "Gimnasia General" },
 ];
 
+const DISCIPLINE_VARIANTS = [
+  { value: "artistic_female", label: "Gimnasia artística femenina" },
+  { value: "artistic_male", label: "Gimnasia artística masculina" },
+  { value: "rhythmic", label: "Gimnasia rítmica" },
+];
+
 export default function SettingsPage() {
   const router = useRouter();
   const context = useAcademyContext();
@@ -111,6 +140,14 @@ export default function SettingsPage() {
 
   const [settings, setSettings] = useState<AcademySettings>(DEFAULT_SETTINGS);
   const [activeTab, setActiveTab] = useState("basic");
+  const regionOptions = useMemo(
+    () => findRegionsByCountry(settings.countryCode.toLowerCase()),
+    [settings.countryCode]
+  );
+  const cityOptions = useMemo(
+    () => findCitiesByRegion(settings.countryCode.toLowerCase(), settings.region),
+    [settings.countryCode, settings.region]
+  );
 
   // Cargar settings existentes
   useEffect(() => {
@@ -121,7 +158,8 @@ export default function SettingsPage() {
         const response = await fetch(`/api/academies/${context.academyId}/settings`);
 
         if (response.ok) {
-          const data = await response.json();
+          const payload = await response.json();
+          const data = payload.data ?? payload;
           setSettings({
             ...DEFAULT_SETTINGS,
             ...data,
@@ -268,19 +306,81 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="academyType">Tipo de academia</Label>
+                  <Label htmlFor="disciplineVariant">Especialización deportiva</Label>
                   <Select
-                    id="academyType"
-                    value={settings.academyType}
-                    onValueChange={(value) => updateSettings("academyType", value)}
+                    id="disciplineVariant"
+                    value={settings.disciplineVariant}
+                    onValueChange={(value) => updateSettings("disciplineVariant", value)}
                     className="w-full"
                   >
-                    {ACADEMY_TYPES.map((type) => (
+                    {DISCIPLINE_VARIANTS.map((type) => (
                       <option key={type.value} value={type.value}>
                         {type.label}
                       </option>
                     ))}
                   </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Esta especialización define niveles, aparatos, evaluaciones y etiquetas visibles en la operación diaria.
+                  </p>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="countryCode">País base</Label>
+                    <SearchableSelect
+                      options={COUNTRY_REGION_OPTIONS.map((country) => ({
+                        value: country.value.toUpperCase(),
+                        label: country.label,
+                      }))}
+                      value={settings.countryCode}
+                      onChange={(value) => {
+                        updateSettings("countryCode", value);
+                        updateSettings("country", COUNTRY_REGION_OPTIONS.find((item) => item.value.toUpperCase() === value)?.label ?? value);
+                        updateSettings("region", "");
+                        updateSettings("city", "");
+                      }}
+                      placeholder="Selecciona un país"
+                      name="countryCode"
+                      searchPlaceholder="Buscar país..."
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="region">{getRegionLabel(settings.countryCode)}</Label>
+                    <SearchableSelect
+                      options={regionOptions}
+                      value={settings.region}
+                      onChange={(value) => {
+                        updateSettings("region", value);
+                        updateSettings("city", "");
+                      }}
+                      disabled={!settings.countryCode || regionOptions.length === 0}
+                      placeholder={getRegionPlaceholder(settings.countryCode, !!settings.countryCode)}
+                      name="region"
+                      searchPlaceholder={`Buscar ${getRegionLabel(settings.countryCode).toLowerCase()}...`}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="city">Ciudad</Label>
+                    <SearchableSelect
+                      options={cityOptions}
+                      value={settings.city}
+                      onChange={(value) => updateSettings("city", value)}
+                      disabled={!settings.region || cityOptions.length === 0}
+                      placeholder={getCityPlaceholder(getRegionLabel(settings.countryCode), !!settings.region)}
+                      name="city"
+                      searchPlaceholder="Buscar ciudad..."
+                    />
+                  </div>
+                </div>
+
+                <div className="rounded-lg border border-border/60 bg-muted/20 p-4 text-sm">
+                  <p className="font-medium">Configuración técnica activa</p>
+                  <p className="mt-1 text-muted-foreground">
+                    {settings.federationConfigVersion} · estado {settings.specializationStatus}
+                  </p>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Si la academia ya opera con datos reales, cambiar disciplina o país debe tratarse como migración guiada.
+                  </p>
                 </div>
 
                 <div className="space-y-2">

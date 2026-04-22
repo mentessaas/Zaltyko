@@ -21,10 +21,12 @@ import {
 import { getCurrentProfile } from "@/lib/authz";
 import { syncTrialStatus, markChecklistItem } from "@/lib/onboarding";
 import { trackEvent } from "@/lib/analytics";
+import { getAthleteMetrics } from "@/lib/profile/athlete-metrics";
 import { OptimizedOwnerProfile } from "@/components/profiles/OptimizedOwnerProfile";
 import { CoachProfile } from "@/components/profiles/CoachProfile";
 import { AthleteProfile } from "@/components/profiles/AthleteProfile";
 import { ParentProfile } from "@/components/profiles/ParentProfile";
+import { resolveAcademySpecialization } from "@/lib/specialization/registry";
 
 interface ProfilePageProps {
   params: Promise<{ profileId?: string }>;
@@ -48,7 +50,7 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
     currentProfile = await getCurrentProfile(user.id);
   } catch (error) {
     console.error("Error getting profile:", error);
-    redirect("/onboarding");
+    redirect("/onboarding/owner");
   }
 
   if (!currentProfile) {
@@ -339,6 +341,13 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
         dob: athletes.dob,
         academyId: athletes.academyId,
         academyName: academies.name,
+        academyType: academies.academyType,
+        country: academies.country,
+        countryCode: academies.countryCode,
+        discipline: academies.discipline,
+        disciplineVariant: academies.disciplineVariant,
+        federationConfigVersion: academies.federationConfigVersion,
+        specializationStatus: academies.specializationStatus,
         groupId: athletes.groupId,
         groupName: groups.name,
         groupColor: groups.color,
@@ -375,11 +384,20 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
         })()
       : null;
 
-    // Contar clases y sesiones
-    // Nota: La implementación completa del conteo de clases y sesiones se realizará
-    // cuando se implemente el módulo de calendario y sesiones de clase completo
-    const classesCount = 0;
-    const upcomingSessionsCount = 0;
+    const { classesCount, upcomingSessionsCount } = await getAthleteMetrics({
+      athleteId: athlete.id,
+      academyId,
+      groupId: athlete.groupId,
+    });
+    const athleteSpecialization = resolveAcademySpecialization({
+      academyType: athlete.academyType,
+      country: athlete.country,
+      countryCode: athlete.countryCode,
+      discipline: athlete.discipline,
+      disciplineVariant: athlete.disciplineVariant,
+      federationConfigVersion: athlete.federationConfigVersion,
+      specializationStatus: athlete.specializationStatus,
+    });
 
     return (
       <div className="space-y-6 p-4 sm:p-6 lg:p-8">
@@ -393,6 +411,7 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
             upcomingSessionsCount,
             age,
           }}
+          labels={athleteSpecialization.labels}
           targetProfileId={isViewingAsSuperAdmin ? targetProfileId : undefined}
         />
       </div>
@@ -410,6 +429,13 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
         status: athletes.status,
         academyId: athletes.academyId,
         academyName: academies.name,
+        academyType: academies.academyType,
+        country: academies.country,
+        countryCode: academies.countryCode,
+        discipline: academies.discipline,
+        disciplineVariant: academies.disciplineVariant,
+        federationConfigVersion: academies.federationConfigVersion,
+        specializationStatus: academies.specializationStatus,
         dob: athletes.dob,
       })
       .from(guardianAthletes)
@@ -418,25 +444,34 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
       .innerJoin(academies, eq(athletes.academyId, academies.id))
       .where(eq(guardians.profileId, targetProfile.id));
 
-    const childrenWithAge = children.map((child) => {
-      const age = child.dob
-        ? (() => {
-            const today = new Date();
-            const birthDate = new Date(child.dob);
-            let age = today.getFullYear() - birthDate.getFullYear();
-            const monthDiff = today.getMonth() - birthDate.getMonth();
-            if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-              age--;
-            }
-            return age;
-          })()
-        : null;
+    const childrenWithAge = await Promise.all(
+      children.map(async (child) => {
+        const age = child.dob
+          ? (() => {
+              const today = new Date();
+              const birthDate = new Date(child.dob);
+              let age = today.getFullYear() - birthDate.getFullYear();
+              const monthDiff = today.getMonth() - birthDate.getMonth();
+              if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+                age--;
+              }
+              return age;
+            })()
+          : null;
 
-      return {
-        ...child,
-        age,
-      };
-    });
+        const metrics = await getAthleteMetrics({
+          athleteId: child.id,
+          academyId: child.academyId,
+        });
+
+        return {
+          ...child,
+          age,
+          classesCount: metrics.classesCount,
+          upcomingSessionsCount: metrics.upcomingSessionsCount,
+        };
+      })
+    );
 
     await trackEvent("first_parent_login", {
       userId: user.id,
@@ -448,6 +483,19 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
         <ParentProfile
           user={user}
           profile={targetProfile}
+          labels={
+            childrenWithAge[0]
+              ? resolveAcademySpecialization({
+                  academyType: childrenWithAge[0].academyType,
+                  country: childrenWithAge[0].country,
+                  countryCode: childrenWithAge[0].countryCode,
+                  discipline: childrenWithAge[0].discipline,
+                  disciplineVariant: childrenWithAge[0].disciplineVariant,
+                  federationConfigVersion: childrenWithAge[0].federationConfigVersion,
+                  specializationStatus: childrenWithAge[0].specializationStatus,
+                }).labels
+              : null
+          }
           targetProfileId={isViewingAsSuperAdmin ? targetProfileId : undefined}
           // eslint-disable-next-line react/no-children-prop
           children={childrenWithAge}
@@ -467,4 +515,3 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
     </div>
   );
 }
-

@@ -86,7 +86,7 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
       if (activeFilters.search) params.set("q", activeFilters.search);
 
       const response = await fetch(`/api/super-admin/users?${params.toString()}`, {
-        headers: { "x-user-id": userId },
+        headers: {},
         cache: "no-store",
       });
       if (!response.ok) {
@@ -112,7 +112,7 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
     try {
       const response = await fetch("/api/super-admin/athletes/sync-users", {
         method: "POST",
-        headers: { "x-user-id": userId },
+        headers: {},
       });
       const data = await response.json();
       if (data.ok) {
@@ -163,7 +163,6 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          "x-user-id": userId,
         },
         body: JSON.stringify(body),
       });

@@ -5,10 +5,11 @@ import { z } from "zod";
 import { db } from "@/db";
 import { profiles } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
-import { getSupabaseAdminClient } from "@/lib/supabase/admin";
+import { updateAuthUserEmail } from "@/lib/supabase/admin-operations";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { logger } from "@/lib/logger";
 
+// @service-role auth-admin:update-email. Required for Supabase Auth email changes.
 const UpdateProfileSchema = z.object({
   name: z.string().min(1).max(200).optional(),
   email: z.string().email().optional(),
@@ -41,6 +42,7 @@ export async function PATCH(request: Request) {
 
     const body = UpdateProfileSchema.parse(await request.json());
     const updates: Record<string, unknown> = {};
+    let responseEmail = user.email ?? null;
 
     // Actualizar nombre si se proporciona
     if (body.name !== undefined && body.name.trim().length > 0) {
@@ -56,17 +58,12 @@ export async function PATCH(request: Request) {
       const currentEmail = user.email;
 
       if (trimmedEmail !== currentEmail) {
-        // Actualizar email en Supabase Auth usando admin client
-        // No confirmamos el email automáticamente para requerir verificación
-        const adminClient = getSupabaseAdminClient();
-        const { error: updateError } = await adminClient.auth.admin.updateUserById(user.id, {
+        await updateAuthUserEmail({
+          userId: user.id,
           email: trimmedEmail,
-          email_confirm: false, // Requiere verificación
+          emailConfirm: false,
         });
-
-        if (updateError) {
-          return apiError("EMAIL_UPDATE_FAILED", updateError.message, 400);
-        }
+        responseEmail = trimmedEmail;
 
         // Enviar email de verificación
         const { error: verificationError } = await supabase.auth.resend({
@@ -127,13 +124,9 @@ export async function PATCH(request: Request) {
         photoUrl: profiles.photoUrl,
       });
 
-    // Obtener el email actualizado de Supabase Auth
-    const adminClient = getSupabaseAdminClient();
-    const { data: authUser } = await adminClient.auth.admin.getUserById(user.id);
-
     return apiSuccess({
       ...updatedProfile,
-      email: authUser?.user?.email ?? user.email,
+      email: responseEmail,
     });
   } catch (error: any) {
     if (error instanceof z.ZodError) {

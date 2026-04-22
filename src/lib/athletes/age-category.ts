@@ -1,25 +1,10 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { templateAgeCategories } from "@/db/schema";
 import { calculateAge } from "@/lib/date-utils";
+import { inferDisciplineVariantFromAcademyType, normalizeCountryCode } from "@/lib/specialization/registry";
 
 export type { TemplateAgeCategory } from "@/db/schema";
-
-/**
- * Map academyType to template discipline
- * Note: "acrobática" (with tilde) maps to "acrobatic" discipline
- */
-const ACADEMY_TYPE_TO_DISCIPLINE: Record<string, string> = {
-  ritmica: "rhythmic",
-  artistica: "artistic_female",
-  artistica_femenina: "artistic_female",
-  artistica_masculina: "artistic_male",
-  trampolin: "trampoline",
-  parkour: "parkour",
-  acrobática: "acrobatic", // tilde → no tilde for FIG compatibility
-  acrobatic: "acrobatic",  // fallback without tilde
-  general: "rhythmic",
-};
 
 /**
  * Calculate ageCategory for an athlete based on DOB and academy
@@ -33,22 +18,56 @@ export async function calculateAgeCategoryForAthlete(params: {
   dob: Date;
   academyCountry: string;
   academyType: string;
+  disciplineVariant?: string | null;
 }): Promise<{ templateId: string; ageCategory: string } | null> {
-  const { dob, academyCountry, academyType } = params;
+  const { dob, academyCountry, academyType, disciplineVariant } = params;
 
   const age = calculateAge(dob);
-  const discipline = ACADEMY_TYPE_TO_DISCIPLINE[academyType] ?? academyType;
+  const countryCode = normalizeCountryCode(academyCountry);
+  const resolvedDisciplineVariant =
+    disciplineVariant ?? inferDisciplineVariantFromAcademyType(academyType);
 
   // Find template matching country code (academy's country = template's countryCode)
   const { templates } = await import("@/db/schema");
   const [template] = await db
     .select()
     .from(templates)
-    .where(eq(templates.countryCode, academyCountry))
+    .where(
+      and(
+        eq(templates.countryCode, countryCode ?? academyCountry),
+        eq(templates.discipline, resolvedDisciplineVariant)
+      )
+    )
     .limit(1);
 
   if (!template) {
-    return null;
+    const [fallbackTemplate] = await db
+      .select()
+      .from(templates)
+      .where(eq(templates.countryCode, countryCode ?? academyCountry))
+      .limit(1);
+
+    if (!fallbackTemplate) {
+      return null;
+    }
+
+    const categories = await db
+      .select()
+      .from(templateAgeCategories)
+      .where(eq(templateAgeCategories.templateId, fallbackTemplate.id));
+
+    const matchingCategory = categories.find(
+      (cat) => age >= cat.minAge && age <= cat.maxAge
+    );
+
+    if (!matchingCategory) {
+      return null;
+    }
+
+    return {
+      templateId: fallbackTemplate.id,
+      ageCategory: matchingCategory.code,
+    };
   }
 
   // Find matching age category based on age

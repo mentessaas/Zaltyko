@@ -69,21 +69,19 @@ export const GET = withTenant(async (req, context) => {
         const unassignedCount = allAthletes.filter((a) => !assignedIds.has(a.id)).length;
 
         return apiSuccess({
-            data: {
-                pendingClasses: todaysSessions.length,
-                overduePayments: overduePayments.length,
-                unassignedAthletes: unassignedCount,
-                todaysSessions: todaysSessions.map((s) => ({
-                    id: s.id,
-                    className: s.className,
-                    time: s.startTime,
-                    classId: s.classId,
-                })),
-                overduePaymentsTotal: overduePayments.reduce(
-                    (sum, p) => sum + Number(p.amountCents),
-                    0
-                ),
-            },
+            pendingClasses: todaysSessions.length,
+            overduePayments: overduePayments.length,
+            unassignedAthletes: unassignedCount,
+            todaysSessions: todaysSessions.map((s) => ({
+                id: s.id,
+                className: s.className,
+                time: s.startTime,
+                classId: s.classId,
+            })),
+            overduePaymentsTotal: overduePayments.reduce(
+                (sum, p) => sum + Number(p.amountCents),
+                0
+            ),
         });
     } catch (error) {
         logger.error("Error fetching quick actions data:", error);

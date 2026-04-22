@@ -335,7 +335,7 @@ export default function AccountForm({ user, profile, academies, defaultAcademyId
                     if (!canCreateAcademies) {
                       return;
                     }
-                    router.push("/onboarding");
+                    router.push("/onboarding/owner");
                   }}
                 >
                   Crear nueva academia

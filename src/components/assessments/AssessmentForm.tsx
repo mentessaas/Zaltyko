@@ -3,14 +3,15 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
-import { X, Plus, Loader2, Save } from "lucide-react";
+import { X, Loader2, Save } from "lucide-react";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { cn } from "@/lib/utils";
+import { useAcademyContext } from "@/hooks/use-academy-context";
+import { getSpecializedEvaluationTemplate } from "@/lib/specialization/registry";
 
 interface Skill {
   id: string;
@@ -24,6 +25,7 @@ interface AssessmentFormProps {
   athleteId: string;
   athleteName: string;
   apparatusList?: string[]; // e.g., ["rope", "ball", "clubs", "hoop", "ribbon"]
+  recommendedFocus?: string | null;
   onSuccess?: () => void;
   onCancel?: () => void;
 }
@@ -44,29 +46,28 @@ const APPARATUS_LABELS: Record<string, string> = {
   hb: "Barra Fija",
 };
 
-const ASSESSMENT_TYPES = [
-  { value: "technical", label: "Técnica" },
-  { value: "artistic", label: "Artística" },
-  { value: "execution", label: "Ejecución" },
-  { value: "coach_feedback", label: "Feedback Entrenador" },
-  { value: "competition", label: "Competición" },
-  { value: "practice", label: "Práctica" },
-] as const;
-
 export default function AssessmentForm({
   athleteId,
   athleteName,
   apparatusList = ["rope", "ball", "clubs", "hoop", "ribbon"],
+  recommendedFocus,
   onSuccess,
   onCancel,
 }: AssessmentFormProps) {
   const router = useRouter();
+  const { specialization } = useAcademyContext();
+  const evaluationTemplate = getSpecializedEvaluationTemplate(specialization);
+  const effectiveApparatusList =
+    apparatusList.length > 0 ? apparatusList : evaluationTemplate.apparatus.map((item) => item.code);
+  const apparatusLabels = Object.fromEntries(
+    evaluationTemplate.apparatus.map((item) => [item.code, item.label])
+  ) as Record<string, string>;
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Form state
-  const [apparatus, setApparatus] = useState<string>(apparatusList[0] || "rope");
+  const [apparatus, setApparatus] = useState<string>(effectiveApparatusList[0] || "general");
   const [assessmentType, setAssessmentType] = useState<string>("technical");
   const [assessmentDate, setAssessmentDate] = useState<string>(format(new Date(), "yyyy-MM-dd"));
   const [overallComment, setOverallComment] = useState<string>("");
@@ -154,7 +155,9 @@ export default function AssessmentForm({
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold">Nueva evaluación</h2>
-          <p className="text-sm text-muted-foreground">{athleteName}</p>
+          <p className="text-sm text-muted-foreground">
+            {athleteName} · {specialization.labels.disciplineName}
+          </p>
         </div>
         {onCancel && (
           <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
@@ -181,9 +184,9 @@ export default function AssessmentForm({
             className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
             required
           >
-            {apparatusList.map((ap) => (
+            {effectiveApparatusList.map((ap) => (
               <option key={ap} value={ap}>
-                {APPARATUS_LABELS[ap] || ap}
+                {apparatusLabels[ap] || APPARATUS_LABELS[ap] || ap}
               </option>
             ))}
           </select>
@@ -199,7 +202,7 @@ export default function AssessmentForm({
             className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
             required
           >
-            {ASSESSMENT_TYPES.map((type) => (
+            {evaluationTemplate.assessmentTypes.map((type) => (
               <option key={type.value} value={type.value}>
                 {type.label}
               </option>
@@ -221,10 +224,21 @@ export default function AssessmentForm({
         </div>
       </div>
 
+      {recommendedFocus && (
+        <Card className="border-primary/20 bg-primary/5">
+          <CardContent className="py-4">
+            <p className="text-sm font-semibold text-foreground">Referencia técnica actual</p>
+            <p className="mt-1 text-sm text-muted-foreground">{recommendedFocus}</p>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Skills Grid */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <Label>Skills a evaluar</Label>
+          <Label>
+            Habilidades a evaluar en {apparatusLabels[apparatus] || APPARATUS_LABELS[apparatus] || apparatus}
+          </Label>
           {loading && <Loader2 className="h-4 w-4 animate-spin" />}
         </div>
 
@@ -232,10 +246,11 @@ export default function AssessmentForm({
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-8 text-center">
               <p className="text-sm text-muted-foreground mb-2">
-                No hay skills disponibles para {APPARATUS_LABELS[apparatus] || apparatus}
+                No hay habilidades disponibles para{" "}
+                {apparatusLabels[apparatus] || APPARATUS_LABELS[apparatus] || apparatus}
               </p>
               <p className="text-xs text-muted-foreground">
-                Agrega skills en el catálogo para poder evaluar.
+                Añade habilidades al catálogo técnico para poder evaluar este aparato.
               </p>
             </CardContent>
           </Card>
@@ -301,7 +316,7 @@ export default function AssessmentForm({
           id="overallComment"
           value={overallComment}
           onChange={(e) => setOverallComment(e.target.value)}
-          placeholder="Observaciones generales sobre la evaluación..."
+          placeholder={`Observaciones generales sobre este ${specialization.labels.classLabel.toLowerCase()} o seguimiento técnico...`}
           rows={3}
         />
       </div>
@@ -316,7 +331,7 @@ export default function AssessmentForm({
             </div>
           )}
           <div className="text-sm text-muted-foreground">
-            {Object.keys(scores).length} skill{Object.keys(scores).length !== 1 ? "s" : ""} evaluado{Object.keys(scores).length !== 1 ? "s" : ""}
+            {Object.keys(scores).length} habilidad{Object.keys(scores).length !== 1 ? "es" : ""} evaluada{Object.keys(scores).length !== 1 ? "s" : ""}
           </div>
         </div>
         <div className="flex gap-2">

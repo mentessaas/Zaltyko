@@ -5,17 +5,11 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  Calendar,
-  Users,
-  CreditCard,
-  BarChart3,
-  Shield,
   LogOut,
   Menu,
   X,
   User,
   Home,
-  BookOpen,
   Building2,
 } from "lucide-react";
 
@@ -23,10 +17,18 @@ import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { getRoleLabel } from "@/lib/roles";
-import { SUPER_ADMIN_NAV_ITEMS } from "@/app/(super-admin)/super-admin/components/nav-items";
-import { getAcademyNavItems } from "@/lib/academy-nav-items";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { GlobalSearch } from "@/components/search/GlobalSearch";
+import {
+  getAcademyNavigation,
+  getGlobalNavigation,
+  getSuperAdminNavigation,
+} from "@/lib/navigation/registry";
+import {
+  getPreferredHomePath,
+  isProfileRole,
+} from "@/lib/product/roles";
+import { resolveAcademySpecialization } from "@/lib/specialization/registry";
 
 interface GlobalTopNavProps {
   userRole?: string | null;
@@ -39,25 +41,6 @@ interface GlobalTopNavProps {
   tenantAcademies?: { id: string; name: string | null }[];
   canCreateAcademies?: boolean;
 }
-
-const OWNER_NAV_ITEMS = [
-  { href: "/dashboard/academies", label: "Academias", icon: Building2 },
-  { href: "/dashboard/profile", label: "Mi perfil", icon: User },
-  { href: "/dashboard/calendar", label: "Calendario", icon: Calendar },
-  { href: "/dashboard/users", label: "Equipo", icon: Users },
-  { href: "/billing", label: "Facturación", icon: CreditCard },
-];
-
-const COACH_NAV_ITEMS = [
-  { href: "/dashboard/profile", label: "Mi perfil", icon: User },
-  { href: "/dashboard/coaches", label: "Mis clases", icon: BookOpen },
-  { href: "/dashboard/calendar", label: "Calendario", icon: Calendar },
-];
-
-const ATHLETE_NAV_ITEMS = [
-  { href: "/dashboard/profile", label: "Mi perfil", icon: User },
-  { href: "/dashboard/calendar", label: "Calendario", icon: Calendar },
-];
 
 function formatAcademyType(value: string | null | undefined): string {
   if (!value) return "—";
@@ -85,17 +68,21 @@ export function GlobalTopNav({
   const isSuperAdmin = userRole === "super_admin";
   const isInSuperAdminArea = pathname?.startsWith("/super-admin") ?? false;
   const isDarkTheme = isInSuperAdminArea;
-
-  const academyNavItems = currentAcademyId ? getAcademyNavItems(currentAcademyId) : [];
-
-  const getNavItems = () => {
-    if (isSuperAdmin) return SUPER_ADMIN_NAV_ITEMS;
-    if (userRole === "owner" || userRole === "admin") return OWNER_NAV_ITEMS;
-    if (userRole === "coach") return COACH_NAV_ITEMS;
-    return ATHLETE_NAV_ITEMS;
-  };
-
-  const navItems = getNavItems();
+  const normalizedRole = isProfileRole(userRole) ? userRole : "owner";
+  const homePath = getPreferredHomePath({
+    profileRole: isSuperAdmin ? "super_admin" : normalizedRole,
+    academyId: currentAcademyId,
+  });
+  const academyNavItems = currentAcademyId
+    ? getAcademyNavigation({
+        academyId: currentAcademyId,
+        profileRole: normalizedRole,
+        specialization: resolveAcademySpecialization({
+          academyType,
+        }),
+      })
+    : [];
+  const navItems = isSuperAdmin ? getSuperAdminNavigation() : getGlobalNavigation(normalizedRole);
 
   useEffect(() => {
     if (pathname) {
@@ -127,13 +114,7 @@ export function GlobalTopNav({
   };
 
   const handleGoToHome = () => {
-    // "Inicio" siempre lleva al dashboard principal (donde se ven todas las academias)
-    // No al dashboard de una academia específica
-    if (isSuperAdmin) {
-      router.push("/super-admin");
-    } else {
-      router.push("/dashboard");
-    }
+    router.push(homePath);
     setProfileMenuOpen(false);
   };
 
@@ -151,7 +132,7 @@ export function GlobalTopNav({
       <div className="mx-auto grid max-w-[1920px] grid-cols-[auto,1fr,auto] items-center gap-2 overflow-visible px-4 py-2.5 sm:gap-3 md:gap-4 md:px-6 lg:gap-6 lg:px-8">
         {/* Logo */}
         <div className="flex min-w-0 shrink-0 items-center gap-2 sm:gap-2.5">
-          <Link href={isSuperAdmin ? "/super-admin" : "/dashboard"} className="flex shrink-0 items-center gap-2">
+          <Link href={homePath} className="flex shrink-0 items-center gap-2">
             {isDarkTheme ? (
               <Image src="/branding/zaltyko/logo-zaltyko-dark.svg" alt="Zaltyko" width={32} height={32} className="h-8 w-auto shrink-0" />
             ) : (
@@ -367,9 +348,9 @@ export function GlobalTopNav({
                             setProfileMenuOpen(false);
                             if (tenantAcademies.length > 0) {
                               // Si hay múltiples academias, ir al dashboard para cambiar
-                              router.push("/dashboard");
+                              router.push("/dashboard/academies");
                             } else if (canCreateAcademies) {
-                              router.push("/onboarding");
+                              router.push("/onboarding/owner");
                             }
                           }}
                           className={cn(
@@ -600,4 +581,3 @@ export function GlobalTopNav({
     </header>
   );
 }
-

@@ -1,8 +1,8 @@
 # Zaltyko SaaS - Plataforma de Gestión para Academias de Gimnasia
 
-![Status](https://img.shields.io/badge/Status-Production_Ready-green) ![Tech](https://img.shields.io/badge/Stack-Next.js_14_|_Supabase_|_Stripe-blue) ![License](https://img.shields.io/badge/License-Private-red)
+![Status](https://img.shields.io/badge/Status-Hardening-yellow) ![Tech](https://img.shields.io/badge/Stack-Next.js_15_|_Supabase_|_Stripe-blue) ![License](https://img.shields.io/badge/License-Private-red)
 
-**Zaltyko** es una plataforma SaaS multi-tenant para gestionar academias de gimnasia. Construida con Next.js 14, Supabase (PostgreSQL + RLS), y Stripe.
+**Zaltyko** es una plataforma SaaS multi-tenant para gestionar academias de gimnasia. Construida con Next.js 15, Supabase (PostgreSQL + RLS), y Stripe.
 
 ---
 
@@ -37,7 +37,7 @@ Visita `http://localhost:3000`
 
 | Capa | Tecnología |
 |------|------------|
-| Frontend | Next.js 14 (App Router), Tailwind CSS, shadcn/ui |
+| Frontend | Next.js 15 (App Router), Tailwind CSS, shadcn/ui |
 | Backend | Next.js API Routes, Drizzle ORM |
 | Database | Supabase PostgreSQL + Row Level Security (RLS) |
 | Auth | NextAuth.js v5 (Supabase) |

@@ -7,6 +7,7 @@ import { events, academies } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
 import { EventsList } from "@/components/events/EventsList";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
+import { resolveAcademySpecialization } from "@/lib/specialization/registry";
 
 interface PageProps {
   params: Promise<{
@@ -33,6 +34,12 @@ export default async function EventsPage({ params }: PageProps) {
       id: academies.id,
       tenantId: academies.tenantId,
       country: academies.country,
+      academyType: academies.academyType,
+      countryCode: academies.countryCode,
+      discipline: academies.discipline,
+      disciplineVariant: academies.disciplineVariant,
+      federationConfigVersion: academies.federationConfigVersion,
+      specializationStatus: academies.specializationStatus,
     })
     .from(academies)
     .where(eq(academies.id, academyId))
@@ -41,6 +48,8 @@ export default async function EventsPage({ params }: PageProps) {
   if (!academy) {
     redirect("/dashboard");
   }
+
+  const specialization = resolveAcademySpecialization(academy);
 
   // Obtener eventos de la academia filtrando por tenantId
   let eventRows: {
@@ -85,7 +94,7 @@ export default async function EventsPage({ params }: PageProps) {
       <Breadcrumb
         items={[
           { label: "Dashboard", href: `/app/${academyId}/dashboard` },
-          { label: "Eventos" },
+          { label: `Eventos de ${specialization.labels.disciplineName}` },
         ]}
       />
       <EventsList
@@ -103,4 +112,3 @@ export default async function EventsPage({ params }: PageProps) {
     </div>
   );
 }
-

@@ -16,6 +16,8 @@ export const classes = pgTable(
     startTime: time("start_time"),
     endTime: time("end_time"),
     capacity: integer("capacity").default(1),
+    technicalFocus: text("technical_focus"),
+    apparatus: text("apparatus").array(),
     isExtra: boolean("is_extra").default(false).notNull(),
     groupId: uuid("group_id").references(() => groups.id, { onDelete: "set null" }),
     autoGenerateSessions: boolean("auto_generate_sessions").notNull().default(false),
@@ -37,4 +39,3 @@ export const classes = pgTable(
     deletedAtIdx: index("classes_deleted_at_idx").on(table.deletedAt),
   })
 );
-

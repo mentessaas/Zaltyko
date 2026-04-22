@@ -11,6 +11,8 @@ import { academies, memberships, plans, profiles, subscriptions } from "@/db/sch
 import { createClient } from "@/lib/supabase/server";
 import { AcademyProvider } from "@/hooks/use-academy-context";
 import { DashboardSkipLink } from "@/components/dashboard/DashboardSkipLink";
+import { canAccessAcademyWorkspace } from "@/lib/product/roles";
+import { resolveAcademySpecialization } from "@/lib/specialization/registry";
 
 import { AcademyTopNav } from "./top-nav";
 import { AutoBreadcrumb } from "@/components/navigation/AutoBreadcrumb";
@@ -56,7 +58,13 @@ export default async function AcademyLayout({ params, children }: LayoutProps) {
       id: academies.id,
       name: academies.name,
       tenantId: academies.tenantId,
+      country: academies.country,
+      countryCode: academies.countryCode,
       academyType: academies.academyType,
+      discipline: academies.discipline,
+      disciplineVariant: academies.disciplineVariant,
+      federationConfigVersion: academies.federationConfigVersion,
+      specializationStatus: academies.specializationStatus,
       ownerId: academies.ownerId,
     })
     .from(academies)
@@ -119,12 +127,15 @@ export default async function AcademyLayout({ params, children }: LayoutProps) {
 
   const canAccess =
     isSuperAdmin ||
-    isOwner ||
-    (isAdmin && tenantMatches) ||
-    (isMember && tenantMatches);
+    (tenantMatches &&
+      canAccessAcademyWorkspace(
+        profile.role,
+        membership?.role ?? null
+      ) &&
+      (isOwner || isAdmin || isMember));
 
   if (!canAccess) {
-    redirect("/dashboard");
+    redirect(profile.role === "athlete" || profile.role === "parent" ? "/dashboard/profile" : "/dashboard");
   }
 
   const planCode = subscription?.planCode ?? "free";
@@ -135,11 +146,21 @@ export default async function AcademyLayout({ params, children }: LayoutProps) {
   const planLimitLabel = canCreateAcademies
     ? `Actualmente gestionas ${academyCount} academia${academyCount === 1 ? "" : "s"}.`
     : "Tu plan actual no permite crear nuevas academias. Actualiza tu plan para ampliarlo.";
+  const specialization = resolveAcademySpecialization({
+    academyType: academy.academyType,
+    country: academy.country,
+    countryCode: academy.countryCode,
+    discipline: academy.discipline,
+    disciplineVariant: academy.disciplineVariant,
+    federationConfigVersion: academy.federationConfigVersion,
+    specializationStatus: academy.specializationStatus,
+  });
 
   const contextValue = {
     academyId: academy.id,
     academyName: academy.name ?? "Academia",
     academyType: academy.academyType ?? null,
+    academyCountry: academy.country ?? null,
     tenantId: academy.tenantId,
     profileId: profile.id,
     profileName: profile.name,
@@ -154,6 +175,7 @@ export default async function AcademyLayout({ params, children }: LayoutProps) {
     academyCount,
     planLimitLabel,
     tenantAcademies,
+    specialization,
   };
 
   return (
@@ -188,5 +210,3 @@ export default async function AcademyLayout({ params, children }: LayoutProps) {
     </AcademyProvider>
   );
 }
-
-

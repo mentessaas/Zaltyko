@@ -51,9 +51,6 @@ export function useDashboardData({ academyId, tenantId, initialData }: UseDashbo
     setLoading(true);
     try {
       const response = await fetch(`/api/dashboard/${academyId}`, {
-        headers: {
-          "x-user-id": userId,
-        },
         cache: "no-store",
         signal: abortController.signal,
       });
@@ -154,4 +151,3 @@ export function useDashboardData({ academyId, tenantId, initialData }: UseDashbo
     loading,
   };
 }
-

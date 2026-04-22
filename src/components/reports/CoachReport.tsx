@@ -8,6 +8,7 @@ import { formatLongDateForCountry } from "@/lib/date-utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/components/ui/toast-provider";
 import { ReportFilters, ReportFilters as ReportFiltersType } from "@/components/reports/ReportFilters";
 import { ExportButtons } from "@/components/reports/ExportButtons";
 
@@ -34,6 +35,7 @@ interface CoachReportProps {
 }
 
 export function CoachReport({ academyId, academyCountry }: CoachReportProps) {
+  const toast = useToast();
   const [filters, setFilters] = useState<ReportFiltersType>({
     startDate: format(subMonths(new Date(), 1), "yyyy-MM-dd"),
     endDate: format(new Date(), "yyyy-MM-dd"),
@@ -91,8 +93,17 @@ export function CoachReport({ academyId, academyCountry }: CoachReportProps) {
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
+      toast.pushToast({
+        title: "PDF exportado",
+        description: "El reporte de entrenadores se descargó correctamente.",
+        variant: "success",
+      });
     } catch (err: any) {
-      alert("Error al exportar PDF: " + err.message);
+      toast.pushToast({
+        title: "No se pudo exportar el PDF",
+        description: err.message || "Inténtalo de nuevo en unos segundos.",
+        variant: "error",
+      });
     }
   };
 
@@ -117,8 +128,17 @@ export function CoachReport({ academyId, academyCountry }: CoachReportProps) {
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
+      toast.pushToast({
+        title: "Excel exportado",
+        description: "El reporte de entrenadores se descargó correctamente.",
+        variant: "success",
+      });
     } catch (err: any) {
-      alert("Error al exportar Excel: " + err.message);
+      toast.pushToast({
+        title: "No se pudo exportar el Excel",
+        description: err.message || "Inténtalo de nuevo en unos segundos.",
+        variant: "error",
+      });
     }
   };
 
@@ -134,9 +154,17 @@ export function CoachReport({ academyId, academyCountry }: CoachReportProps) {
       const response = await fetch(`/api/reports/coach/email?${params}`);
       if (!response.ok) throw new Error("Error al enviar email");
 
-      alert("Reporte enviado exitosamente");
+      toast.pushToast({
+        title: "Reporte enviado",
+        description: `Enviamos el reporte de entrenadores a ${email}.`,
+        variant: "success",
+      });
     } catch (err: any) {
-      alert("Error al enviar email: " + err.message);
+      toast.pushToast({
+        title: "No se pudo enviar el reporte",
+        description: err.message || "Revisa el correo e inténtalo otra vez.",
+        variant: "error",
+      });
     }
   };
 
@@ -222,6 +250,7 @@ export function CoachReport({ academyId, academyCountry }: CoachReportProps) {
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-1">
           <ReportFilters
+            academyId={academyId}
             onFilterChange={setFilters}
             onGenerate={loadReport}
             isLoading={isLoading}

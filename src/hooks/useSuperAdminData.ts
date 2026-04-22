@@ -30,9 +30,6 @@ export function useSuperAdminData(initial: SuperAdminMetrics) {
     setLoading(true);
     try {
       const response = await fetch("/api/super-admin/metrics", {
-        headers: {
-          "x-user-id": userId,
-        },
         cache: "no-store",
       });
       if (!response.ok) return;
@@ -83,4 +80,3 @@ export function useSuperAdminData(initial: SuperAdminMetrics) {
     loading,
   };
 }
-

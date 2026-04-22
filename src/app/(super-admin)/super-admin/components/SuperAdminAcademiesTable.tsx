@@ -85,7 +85,6 @@ export function SuperAdminAcademiesTable({
 
       const response = await fetch(`/api/super-admin/academies?${params.toString()}`, {
         headers: {
-          "x-user-id": userId,
         },
         cache: "no-store",
       });
@@ -140,7 +139,6 @@ export function SuperAdminAcademiesTable({
         method,
         headers: {
           "Content-Type": "application/json",
-          "x-user-id": userId,
         },
         body: method === "PATCH" ? JSON.stringify(payload) : undefined,
       });
@@ -405,7 +403,7 @@ export function SuperAdminAcademiesTable({
 
       <p className="font-sans text-xs text-white/50">
         ¿Necesitas editar detalles avanzados de una academia? Ingresa como owner desde{" "}
-        <Link href="/onboarding" className="font-semibold text-zaltyko-primary-light hover:underline">
+        <Link href="/onboarding/owner" className="font-semibold text-zaltyko-primary-light hover:underline">
           onboarding forzado
         </Link>{" "}
         mientras desarrollamos la delegación directa.
@@ -438,4 +436,3 @@ export function SuperAdminAcademiesTable({
     </div>
   );
 }
-

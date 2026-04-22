@@ -5,37 +5,27 @@ import { logger } from "@/lib/logger";
 
 // UUID v4 regex for validation
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const INTERNAL_AUTH_HEADER = "x-internal-auth-secret";
 
 /**
- * Obtiene el userId desde diferentes fuentes (header, params, cookies)
- * ⚠️ x-user-id header SOLO se acepta si es un UUID válido y request es interna
+ * Obtiene el userId desde la sesión autenticada.
+ * Los headers/params de identidad solo se aceptan en llamadas internas firmadas.
  */
 export async function resolveUserId(
   request: Request,
   context?: { params?: Record<string, string> }
 ): Promise<string | null> {
-  // Desde header - solo si es UUID válido Y request interna
+  const isInternal = isTrustedInternalRequest(request);
   const headerUserId = request.headers.get("x-user-id");
-  if (headerUserId) {
-    // Validate UUID format to prevent spoofing
-    if (!UUID_REGEX.test(headerUserId)) {
-      logger.warn("Invalid x-user-id format rejected", { value: headerUserId });
-      return null;
-    }
-    // Only accept from internal/originated requests (not directly from client)
-    const origin = request.headers.get("origin");
-    const forwardedFor = request.headers.get("x-forwarded-for");
-    if (origin && !isInternalOrigin(origin) && forwardedFor) {
-      // External request with x-user-id is suspicious
-      logger.warn("External request with x-user-id rejected");
-      return null;
-    }
+  if (headerUserId && isInternal && UUID_REGEX.test(headerUserId)) {
     return headerUserId;
   }
+  if (headerUserId && !isInternal) {
+    logger.warn("SECURITY: rejected untrusted x-user-id header");
+  }
 
-  // Desde params
   const paramUserId = context?.params?.userId;
-  if (paramUserId && UUID_REGEX.test(paramUserId)) {
+  if (paramUserId && isInternal && UUID_REGEX.test(paramUserId)) {
     return paramUserId;
   }
 
@@ -59,22 +49,8 @@ export async function resolveUserId(
   return null;
 }
 
-/**
- * Verifica si el origen es interno (mismo host o dominios conocidos de confianza)
- */
-function isInternalOrigin(origin: string): boolean {
-  try {
-    const url = new URL(origin);
-    // Internal origins: same host, localhost, or known internal domains
-    const internalHosts = [
-      "localhost",
-      "127.0.0.1",
-      "0.0.0.0",
-      // Add known internal domains here
-    ];
-    return internalHosts.some((host) => url.hostname === host || url.hostname.endsWith(".internal"));
-  } catch {
-    return false;
-  }
+function isTrustedInternalRequest(request: Request): boolean {
+  const secret = process.env.INTERNAL_AUTH_SECRET;
+  if (!secret) return false;
+  return request.headers.get(INTERNAL_AUTH_HEADER) === secret;
 }
-

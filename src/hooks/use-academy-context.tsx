@@ -1,11 +1,13 @@
 "use client";
 
 import { createContext, useContext } from "react";
+import type { AcademySpecializationContext } from "@/lib/specialization/registry";
 
 export interface AcademyContextValue {
   academyId: string;
   academyName: string;
   academyType: string | null;
+  academyCountry: string | null;
   tenantId: string | null;
   profileId: string;
   profileName: string | null;
@@ -20,6 +22,7 @@ export interface AcademyContextValue {
   academyCount: number;
   planLimitLabel: string;
   tenantAcademies: { id: string; name: string | null }[];
+  specialization: AcademySpecializationContext;
 }
 
 export const AcademyContext = createContext<AcademyContextValue | undefined>(undefined);
@@ -43,5 +46,4 @@ export function useAcademyContext() {
 
   return context;
 }
-
 

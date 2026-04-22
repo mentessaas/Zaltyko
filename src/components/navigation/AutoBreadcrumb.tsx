@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { useContext } from "react";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { AcademyContext } from "@/hooks/use-academy-context";
+import { getAcademyBreadcrumbLabel, getGlobalBreadcrumbLabel } from "@/lib/navigation/registry";
 
 // Mapeo de rutas a nombres legibles
 const routeLabels: Record<string, string> = {
@@ -82,7 +83,11 @@ export function AutoBreadcrumb() {
       }
       
       // Usar el label del mapeo o capitalizar el segmento
-      const label = routeLabels[segment] || segment.charAt(0).toUpperCase() + segment.slice(1).replace(/-/g, " ");
+      const label =
+        getAcademyBreadcrumbLabel(segment) ||
+        getGlobalBreadcrumbLabel(segment) ||
+        routeLabels[segment] ||
+        segment.charAt(0).toUpperCase() + segment.slice(1).replace(/-/g, " ");
       
       // El último item no tiene href
       const isLast = i === segments.length - 1;
@@ -111,4 +116,3 @@ export function AutoBreadcrumb() {
     </div>
   );
 }
-

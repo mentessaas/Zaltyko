@@ -6,7 +6,7 @@ import { db } from "@/db";
 import { invitations } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
 import AcceptInvitationForm from "@/components/AcceptInvitationForm";
-import AcceptExistingUserForm from "@/components/AcceptInvitationForm";
+import { InvitationPageShell } from "@/components/invitations/InvitationPageShell";
 
 interface InvitePageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -23,12 +23,16 @@ export default async function InvitePage({ searchParams }: InvitePageProps) {
 
   if (!token) {
     return (
-      <div className="mx-auto flex min-h-screen max-w-xl flex-col justify-center gap-4 px-4 text-center">
-        <h1 className="text-3xl font-semibold">Invitación no válida</h1>
-        <p className="text-muted-foreground">
-          Falta el token de invitación. Revisa el enlace que recibiste o solicita uno nuevo.
-        </p>
-      </div>
+      <InvitationPageShell
+        eyebrow="Invitación"
+        title="Invitación no válida"
+        description="Falta el token de invitación. Revisa el enlace que recibiste o solicita uno nuevo."
+        highlights={[
+          "Las invitaciones deben abrirse desde el enlace original recibido por correo.",
+          "Si el enlace se cortó o expiró, tu academia puede enviarte uno nuevo.",
+        ]}
+        form={<p className="text-sm leading-6 text-muted-foreground">No pudimos validar esta invitación.</p>}
+      />
     );
   }
 
@@ -48,34 +52,46 @@ export default async function InvitePage({ searchParams }: InvitePageProps) {
 
   if (!invitation) {
     return (
-      <div className="mx-auto flex min-h-screen max-w-xl flex-col justify-center gap-4 px-4 text-center">
-        <h1 className="text-3xl font-semibold">Invitación no encontrada</h1>
-        <p className="text-muted-foreground">
-          El enlace pudo expirar o ya fue utilizado. Pide a tu administrador que te envíe una nueva invitación.
-        </p>
-      </div>
+      <InvitationPageShell
+        eyebrow="Invitación"
+        title="Invitación no encontrada"
+        description="El enlace pudo expirar o ya fue utilizado. Pide a tu administrador que te envíe una nueva invitación."
+        highlights={[
+          "Cada invitación está asociada a un correo y a un tiempo de validez.",
+          "Si el enlace ya fue usado, tendrás que entrar con la cuenta ya creada.",
+        ]}
+        form={<p className="text-sm leading-6 text-muted-foreground">No encontramos una invitación activa con ese enlace.</p>}
+      />
     );
   }
 
   if (invitation.status !== "pending") {
     return (
-      <div className="mx-auto flex min-h-screen max-w-xl flex-col justify-center gap-4 px-4 text-center">
-        <h1 className="text-3xl font-semibold">Invitación utilizada</h1>
-        <p className="text-muted-foreground">
-          Esta invitación ya fue aceptada. Si no recuerdas tu contraseña, utiliza la opción de recuperación.
-        </p>
-      </div>
+      <InvitationPageShell
+        eyebrow="Invitación"
+        title="Invitación ya utilizada"
+        description="Esta invitación ya fue aceptada. Si no recuerdas tu contraseña, utiliza la opción de recuperación."
+        highlights={[
+          "La cuenta ya debería existir con el correo invitado.",
+          "Puedes volver a entrar desde el acceso principal.",
+        ]}
+        form={<p className="text-sm leading-6 text-muted-foreground">Esta invitación ya no puede volver a aceptarse.</p>}
+      />
     );
   }
 
   if (invitation.expiresAt && invitation.expiresAt < new Date()) {
     return (
-      <div className="mx-auto flex min-h-screen max-w-xl flex-col justify-center gap-4 px-4 text-center">
-        <h1 className="text-3xl font-semibold">Invitación expirada</h1>
-        <p className="text-muted-foreground">
-          Han pasado más de 7 días desde el envío. Solicita una nueva invitación para continuar.
-        </p>
-      </div>
+      <InvitationPageShell
+        eyebrow="Invitación"
+        title="Invitación expirada"
+        description="Han pasado más de 7 días desde el envío. Solicita una nueva invitación para continuar."
+        highlights={[
+          "Las invitaciones tienen vencimiento para evitar accesos huérfanos o enlaces viejos.",
+          "Tu academia puede reenviarte una nueva en segundos.",
+        ]}
+        form={<p className="text-sm leading-6 text-muted-foreground">Este enlace ya caducó y no puede reutilizarse.</p>}
+      />
     );
   }
 
@@ -91,17 +107,22 @@ export default async function InvitePage({ searchParams }: InvitePageProps) {
   const isAuthenticated = Boolean(user);
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-xl flex-col justify-center gap-6 px-4 py-12">
-      <div className="space-y-2 text-center">
-        <h1 className="text-3xl font-semibold">Únete a Zaltyko</h1>
-        <p className="text-muted-foreground">
+    <InvitationPageShell
+      eyebrow="Invitación"
+      title="Únete a Zaltyko"
+      description={
+        <>
           {isAuthenticated && isSameEmail
             ? <>Te están invitando como <strong>{invitation.role}</strong>. Confirma para unirte.</>
             : <>Completa tu registro para acceder al panel con el rol de <strong>{invitation.role}</strong>.</>}
-        </p>
-      </div>
-
-      <div className="rounded-lg border bg-card p-6 shadow">
+        </>
+      }
+      highlights={[
+        "El acceso final depende de tu rol y de la academia a la que te invitaron.",
+        "Si ya tienes sesión con el mismo correo, puedes aceptar la invitación en un paso.",
+        "Si es tu primera vez, aquí mismo creas la cuenta y quedas vinculado al tenant correcto.",
+      ]}
+      form={
         <AcceptInvitationForm
           token={token}
           email={invitation.email}
@@ -110,9 +131,8 @@ export default async function InvitePage({ searchParams }: InvitePageProps) {
           isSameEmail={isSameEmail}
           userEmail={userEmail ?? null}
         />
-      </div>
-    </div>
+      }
+    />
   );
 }
-
 

@@ -6,15 +6,24 @@ import { academies } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { handleApiError } from "@/lib/api-error-handler";
+import {
+  getCountryNameFromCode,
+  inferDisciplineFromVariant,
+  mapDisciplineVariantToAcademyType,
+  normalizeCountryCode,
+} from "@/lib/specialization/registry";
 
 const ACADEMY_TYPES = ["artistica", "ritmica", "trampolin", "general", "parkour", "danza"] as const;
+const DISCIPLINE_VARIANTS = ["artistic_female", "artistic_male", "rhythmic", "trampoline", "parkour", "dance", "general"] as const;
 
 const UpdateSchema = z.object({
   name: z.string().min(3).optional(),
   country: z.string().optional().nullable(),
+  countryCode: z.string().optional().nullable(),
   region: z.string().optional().nullable(),
   city: z.string().optional().nullable(),
   academyType: z.enum(ACADEMY_TYPES).optional(),
+  disciplineVariant: z.enum(DISCIPLINE_VARIANTS).optional(),
   publicDescription: z.string().optional().nullable(),
   isPublic: z.boolean().optional(),
   logoUrl: z.string().url().optional().nullable().or(z.literal("")),
@@ -48,6 +57,10 @@ export const PATCH = withTenant(async (request, context) => {
         id: academies.id,
         tenantId: academies.tenantId,
         ownerId: academies.ownerId,
+        country: academies.country,
+        countryCode: academies.countryCode,
+        disciplineVariant: academies.disciplineVariant,
+        specializationStatus: academies.specializationStatus,
       })
       .from(academies)
       .where(eq(academies.id, academyId))
@@ -85,6 +98,12 @@ export const PATCH = withTenant(async (request, context) => {
     if (parsed.data.country !== undefined) {
       updates.country = parsed.data.country || null;
     }
+    if (parsed.data.countryCode !== undefined) {
+      updates.countryCode = normalizeCountryCode(parsed.data.countryCode) ?? null;
+      if (parsed.data.countryCode) {
+        updates.country = getCountryNameFromCode(parsed.data.countryCode);
+      }
+    }
     if (parsed.data.region !== undefined) {
       updates.region = parsed.data.region || null;
     }
@@ -93,6 +112,25 @@ export const PATCH = withTenant(async (request, context) => {
     }
     if (parsed.data.academyType !== undefined) {
       updates.academyType = parsed.data.academyType;
+    }
+    if (parsed.data.disciplineVariant !== undefined) {
+      const specializationChanged =
+        academy.specializationStatus === "configured" &&
+        academy.disciplineVariant &&
+        academy.disciplineVariant !== parsed.data.disciplineVariant;
+
+      if (specializationChanged) {
+        return apiError(
+          "SPECIALIZATION_MIGRATION_REQUIRED",
+          "Cambiar la disciplina principal requiere una migración guiada. Por ahora crea una academia nueva o solicita la migración.",
+          409
+        );
+      }
+
+      updates.disciplineVariant = parsed.data.disciplineVariant;
+      updates.discipline = inferDisciplineFromVariant(parsed.data.disciplineVariant);
+      updates.academyType = mapDisciplineVariantToAcademyType(parsed.data.disciplineVariant);
+      updates.specializationStatus = "configured";
     }
     if (parsed.data.publicDescription !== undefined) {
       updates.publicDescription = parsed.data.publicDescription || null;
@@ -140,9 +178,12 @@ export const PATCH = withTenant(async (request, context) => {
         id: academies.id,
         name: academies.name,
         country: academies.country,
+        countryCode: academies.countryCode,
         region: academies.region,
         city: academies.city,
         academyType: academies.academyType,
+        disciplineVariant: academies.disciplineVariant,
+        specializationStatus: academies.specializationStatus,
         publicDescription: academies.publicDescription,
         isPublic: academies.isPublic,
         logoUrl: academies.logoUrl,
@@ -184,9 +225,12 @@ export const GET = withTenant(async (request, context) => {
         id: academies.id,
         name: academies.name,
         country: academies.country,
+        countryCode: academies.countryCode,
         region: academies.region,
         city: academies.city,
         academyType: academies.academyType,
+        disciplineVariant: academies.disciplineVariant,
+        specializationStatus: academies.specializationStatus,
         publicDescription: academies.publicDescription,
         isPublic: academies.isPublic,
         logoUrl: academies.logoUrl,
@@ -224,4 +268,3 @@ export const GET = withTenant(async (request, context) => {
     return handleApiError(error, { endpoint: "/api/academies/[academyId]", method: "GET" });
   }
 });
-

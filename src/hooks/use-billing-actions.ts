@@ -34,7 +34,6 @@ export function useBillingActions(
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-user-id": userId,
         },
         body: JSON.stringify({ academyId, planCode }),
       });
@@ -69,7 +68,6 @@ export function useBillingActions(
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-user-id": userId,
         },
         body: JSON.stringify({ academyId }),
       });
@@ -104,7 +102,6 @@ export function useBillingActions(
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-user-id": userId,
         },
         body: JSON.stringify({ academyId }),
       });
@@ -133,4 +130,3 @@ export function useBillingActions(
     error,
   };
 }
-

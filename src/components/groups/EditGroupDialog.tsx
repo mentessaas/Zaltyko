@@ -6,13 +6,8 @@ import { Modal } from "@/components/ui/modal";
 import { useToast } from "@/components/ui/toast-provider";
 import { CoachOption, AthleteOption, GroupSummary } from "./types";
 import { createClient } from "@/lib/supabase/client";
-
-const DISCIPLINE_OPTIONS = [
-  { value: "artistica", label: "Gimnasia artística" },
-  { value: "ritmica", label: "Gimnasia rítmica" },
-  { value: "trampolin", label: "Trampolín" },
-  { value: "general", label: "General / Mixta" },
-] as const;
+import { useAcademyContext } from "@/hooks/use-academy-context";
+import { getGroupTechnicalGuidance } from "@/lib/specialization/technical-guidance";
 
 interface EditGroupDialogProps {
   academyId: string;
@@ -38,11 +33,13 @@ export function EditGroupDialog({
   currentAthleteIds = [],
 }: EditGroupDialogProps) {
   const { pushToast } = useToast();
+  const { specialization, academyType } = useAcademyContext();
   const [name, setName] = useState(group.name);
-  const [discipline, setDiscipline] = useState<typeof DISCIPLINE_OPTIONS[number]["value"]>(
-    group.discipline as typeof DISCIPLINE_OPTIONS[number]["value"]
-  );
+  const [discipline, setDiscipline] = useState<string>(group.discipline || academyType || "artistica");
   const [level, setLevel] = useState(group.level ?? "");
+  const [technicalFocus, setTechnicalFocus] = useState(group.technicalFocus ?? "");
+  const [selectedApparatus, setSelectedApparatus] = useState<string[]>(group.apparatus ?? []);
+  const [sessionBlocks, setSessionBlocks] = useState<string[]>(group.sessionBlocks ?? []);
   const [coachId, setCoachId] = useState(group.coachId ?? "");
   const [assistantIds, setAssistantIds] = useState<string[]>(group.assistantIds);
   const [selectedAthletes, setSelectedAthletes] = useState<string[]>(currentAthleteIds);
@@ -55,12 +52,19 @@ export function EditGroupDialog({
 
   const assistantsLookup = useMemo(() => new Set(assistantIds), [assistantIds]);
   const athleteLookup = useMemo(() => new Set(selectedAthletes), [selectedAthletes]);
+  const technicalGuidance = useMemo(
+    () => getGroupTechnicalGuidance(specialization, level),
+    [level, specialization]
+  );
 
   useEffect(() => {
     if (open) {
       setName(group.name);
-      setDiscipline(group.discipline as typeof DISCIPLINE_OPTIONS[number]["value"]);
+      setDiscipline(group.discipline || academyType || "artistica");
       setLevel(group.level ?? "");
+      setTechnicalFocus(group.technicalFocus ?? "");
+      setSelectedApparatus(group.apparatus ?? []);
+      setSessionBlocks(group.sessionBlocks ?? []);
       setCoachId(group.coachId ?? "");
       setAssistantIds(group.assistantIds);
       setSelectedAthletes(currentAthleteIds);
@@ -81,6 +85,18 @@ export function EditGroupDialog({
   const toggleAthlete = (id: string) => {
     setSelectedAthletes((prev) =>
       prev.includes(id) ? prev.filter((value) => value !== id) : [...prev, id]
+    );
+  };
+
+  const toggleApparatus = (value: string) => {
+    setSelectedApparatus((prev) =>
+      prev.includes(value) ? prev.filter((item) => item !== value) : [...prev, value]
+    );
+  };
+
+  const toggleSessionBlock = (value: string) => {
+    setSessionBlocks((prev) =>
+      prev.includes(value) ? prev.filter((item) => item !== value) : [...prev, value]
     );
   };
 
@@ -110,12 +126,14 @@ export function EditGroupDialog({
           headers: {
             "Content-Type": "application/json",
             "x-academy-id": academyId,
-            ...(user?.id ? { "x-user-id": user.id } : {}),
           },
           body: JSON.stringify({
             name: name.trim(),
             discipline,
             level: level.trim() || null,
+            technicalFocus: technicalFocus.trim() || null,
+            apparatus: selectedApparatus,
+            sessionBlocks,
             coachId: coachId || null,
             assistantIds,
             athleteIds: selectedAthletes,
@@ -205,26 +223,34 @@ export function EditGroupDialog({
             <label className="font-medium">Disciplina</label>
             <select
               value={discipline}
-              onChange={(event) =>
-                setDiscipline(event.target.value as (typeof DISCIPLINE_OPTIONS)[number]["value"])
-              }
+              onChange={(event) => setDiscipline(event.target.value)}
+              disabled
               className="w-full rounded-md border border-border bg-background px-3 py-2 shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
             >
-              {DISCIPLINE_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
+              <option value={discipline}>{specialization.labels.disciplineName}</option>
             </select>
           </div>
           <div className="space-y-1">
-            <label className="font-medium">Nivel / Categoría</label>
+            <label className="font-medium">{specialization.labels.levelLabel}</label>
             <input
+              list="edit-group-level-options"
               value={level}
               onChange={(event) => setLevel(event.target.value)}
-              placeholder="Ej. Nivel 1, Preteam, Competencia regional"
+              placeholder={specialization.categories.levelPlaceholder}
               className="w-full rounded-md border border-border bg-background px-3 py-2 shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
             />
+            {specialization.categories.levelOptions.length > 0 && (
+              <datalist id="edit-group-level-options">
+                {specialization.categories.levelOptions.map((option) => (
+                  <option key={option} value={option} />
+                ))}
+              </datalist>
+            )}
+            {specialization.categories.levelOptions.length > 0 && (
+              <p className="text-xs text-muted-foreground">
+                Sugerencias: {specialization.categories.levelOptions.slice(0, 4).join(", ")}
+              </p>
+            )}
           </div>
           <div className="space-y-1">
             <label className="font-medium">Cuota mensual (€)</label>
@@ -249,6 +275,71 @@ export function EditGroupDialog({
               onChange={(event) => setColor(event.target.value)}
               className="h-10 w-full rounded-md border border-border bg-background px-2 py-1 md:w-32"
             />
+          </div>
+        </div>
+
+        <div className="space-y-4 rounded-lg border border-border bg-muted/20 p-4">
+          <div className="space-y-1">
+            <h3 className="text-sm font-semibold text-foreground">{technicalGuidance.headline}</h3>
+            <p className="text-xs text-muted-foreground">
+              Ajusta esta referencia técnica para que refleje cómo trabaja realmente el grupo.
+            </p>
+          </div>
+
+          <div className="space-y-1">
+            <label className="font-medium">Foco técnico</label>
+            <textarea
+              value={technicalFocus}
+              onChange={(event) => setTechnicalFocus(event.target.value)}
+              className="min-h-24 w-full rounded-md border border-border bg-background px-3 py-2 shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              placeholder={technicalGuidance.focusAreas.join(". ")}
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="font-medium">Aparatos / material</label>
+            <div className="flex flex-wrap gap-2">
+              {technicalGuidance.apparatus.map((item) => {
+                const selected = selectedApparatus.includes(item);
+                return (
+                  <button
+                    key={item}
+                    type="button"
+                    onClick={() => toggleApparatus(item)}
+                    className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                      selected
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border bg-background text-muted-foreground"
+                    }`}
+                  >
+                    {item}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <label className="font-medium">Bloques recomendados</label>
+            <div className="flex flex-wrap gap-2">
+              {technicalGuidance.suggestedSessionBlocks.map((item) => {
+                const selected = sessionBlocks.includes(item);
+                return (
+                  <button
+                    key={item}
+                    type="button"
+                    onClick={() => toggleSessionBlock(item)}
+                    className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                      selected
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border bg-background text-muted-foreground"
+                    }`}
+                  >
+                    {item}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
 
@@ -336,4 +427,3 @@ export function EditGroupDialog({
     </Modal>
   );
 }
-

@@ -17,6 +17,9 @@ export interface GroupSummary {
   name: string;
   discipline: string;
   level: string | null;
+  technicalFocus?: string | null;
+  apparatus?: string[];
+  sessionBlocks?: string[];
   color: string | null;
   coachId: string | null;
   coachName: string | null;
@@ -51,4 +54,6 @@ export interface GroupClassSummary {
   endTime: string | null;
   weekdays: number[];
   coachNames: string[];
+  technicalFocus?: string | null;
+  apparatus?: string[];
 }

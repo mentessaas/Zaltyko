@@ -7,7 +7,8 @@ import { withTenant } from "@/lib/authz";
 import { checkPlanLimitViolations } from "@/lib/limits";
 import { sendEmail } from "@/lib/brevo";
 import { config } from "@/config";
-import { getSupabaseAdminClient } from "@/lib/supabase/admin";
+import { cookies } from "next/headers";
+import { createClient } from "@/lib/supabase/server";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { logger } from "@/lib/logger";
 
@@ -94,13 +95,16 @@ export const POST = withTenant(async (request, context) => {
   }
 
   // Send notification email
-  const adminClient = getSupabaseAdminClient();
-  const { data: authUser } = await adminClient.auth.admin.getUserById(context.profile.userId);
+  const cookieStore = await cookies();
+  const supabase = await createClient(cookieStore);
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  if (authUser?.user?.email) {
+  if (user?.email) {
     try {
       await sendEmail({
-        to: authUser.user.email,
+        to: user.email,
         subject: "Ajustes de plan completados - Zaltyko",
         html: `
           <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">

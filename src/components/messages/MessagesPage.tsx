@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import { ConversationList } from "./ConversationList";
 import { MessageBubble } from "./MessageBubble";
 import { MessageInput } from "./MessageInput";
@@ -33,31 +32,43 @@ interface Conversation {
 
 interface MessagesPageProps {
   currentUserId: string;
+  currentUserRole?: string;
   currentUserProfile?: {
     fullName?: string;
     avatarUrl?: string;
   };
 }
 
-export function MessagesPage({ currentUserId, currentUserProfile }: MessagesPageProps) {
-  const router = useRouter();
+export function MessagesPage({
+  currentUserId,
+  currentUserRole,
+  currentUserProfile,
+}: MessagesPageProps) {
   const [conversations, setConversations] = useState<any[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const canStartConversation = false;
+  const emptyStateHint =
+    currentUserRole === "parent" || currentUserRole === "athlete"
+      ? "Las nuevas conversaciones se habilitan desde la academia o por invitación del staff."
+      : "La creación manual de conversaciones desde este panel se habilitará cuando esté lista la selección guiada de destinatarios.";
 
   // Fetch conversations
   const fetchConversations = useCallback(async () => {
     try {
       const res = await fetch("/api/messages/conversations");
       const data = await res.json();
-      if (data.success) {
+      if (data.ok) {
         setConversations(data.data.items);
+      } else {
+        setError("No se pudieron cargar las conversaciones.");
       }
     } catch (err) {
       console.error("Error fetching conversations:", err);
+      setError("No se pudieron cargar las conversaciones.");
     } finally {
       setIsLoading(false);
     }
@@ -73,9 +84,10 @@ export function MessagesPage({ currentUserId, currentUserProfile }: MessagesPage
     try {
       const res = await fetch(`/api/messages/conversations/${conversationId}`);
       const data = await res.json();
-      if (data.success) {
+      if (data.ok) {
         setSelectedConversation(data.data.conversation);
         setMessages(data.data.messages);
+        setError(null);
       }
     } catch (err) {
       console.error("Error fetching messages:", err);
@@ -100,7 +112,7 @@ export function MessagesPage({ currentUserId, currentUserProfile }: MessagesPage
       );
 
       const data = await res.json();
-      if (data.success) {
+      if (data.ok) {
         // Add new message to list
         setMessages((prev) => [
           ...prev,
@@ -113,49 +125,11 @@ export function MessagesPage({ currentUserId, currentUserProfile }: MessagesPage
         ]);
         // Refresh conversations to update last message
         fetchConversations();
+      } else {
+        setError(data?.message || "No se pudo enviar el mensaje.");
       }
     },
     [selectedConversation, currentUserId, fetchConversations]
-  );
-
-  // Start new conversation
-  const handleNewConversation = useCallback(() => {
-    // For now, show an alert. In a full implementation, this would open a modal
-    // to select a user to message
-    const recipientId = prompt("Ingresa el ID del usuario con quien quieres conversar:");
-    if (recipientId) {
-      // Create conversation and send initial message
-      const initialMessage = prompt("Primer mensaje:");
-      if (initialMessage) {
-        createConversation([recipientId], initialMessage);
-      }
-    }
-  }, []);
-
-  const createConversation = useCallback(
-    async (participantIds: string[], initialMessage?: string) => {
-      try {
-        const res = await fetch("/api/messages/conversations", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            participantIds,
-            initialMessage,
-          }),
-        });
-        const data = await res.json();
-        if (data.success) {
-          fetchConversations();
-          if (data.data.id) {
-            selectConversation(data.data.id);
-          }
-        }
-      } catch (err) {
-        console.error("Error creating conversation:", err);
-        setError("Error al crear conversación");
-      }
-    },
-    [fetchConversations, selectConversation]
   );
 
   // Get other participant's name for message display
@@ -189,12 +163,18 @@ export function MessagesPage({ currentUserId, currentUserProfile }: MessagesPage
           conversations={conversations}
           selectedId={selectedConversation?.id}
           onSelect={selectConversation}
-          onNewConversation={handleNewConversation}
+          canStartConversation={canStartConversation}
+          emptyStateHint={emptyStateHint}
         />
       </div>
 
       {/* Messages Area */}
       <div className="flex-1 flex flex-col">
+        {error && (
+          <div className="border-b border-border bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            {error}
+          </div>
+        )}
         {selectedConversation ? (
           <>
             {/* Header */}

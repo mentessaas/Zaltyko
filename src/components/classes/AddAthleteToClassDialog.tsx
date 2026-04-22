@@ -93,7 +93,6 @@ export function AddAthleteToClassDialog({
         };
 
         if (currentUser?.id) {
-          headers["x-user-id"] = currentUser.id;
         }
 
         // Crear enrollments para cada atleta seleccionado

@@ -8,8 +8,11 @@ import { LocationSelect } from "./LocationSelect";
 import { FileUpload } from "./FileUpload";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { normalizeEventFormData, type EventFormInitialData } from "@/types/event-form";
+import { normalizeEventFormData, type EventFormInitialData, type EventFormData } from "@/types/event-form";
+import type { EventDiscipline } from "@/types/events";
 import { validateEventForm } from "@/lib/validation/event-form-validator";
+import { useAcademyContext } from "@/hooks/use-academy-context";
+import { getSpecializedEventTypes } from "@/lib/specialization/registry";
 
 const EVENT_LEVELS = [
   { value: "internal", label: "Interno" },
@@ -26,15 +29,11 @@ const EVENT_DISCIPLINES = [
   { value: "parkour", label: "Parkour" },
 ] as const;
 
-const EVENT_TYPES = [
-  { value: "competitions", label: "Competición" },
-  { value: "courses", label: "Curso" },
-  { value: "camps", label: "Campamento" },
-  { value: "workshops", label: "Taller" },
-  { value: "clinics", label: "Clínica" },
-  { value: "evaluations", label: "Evaluación" },
-  { value: "other", label: "Otro" },
-] as const;
+const EVENT_DISCIPLINE_VALUES = new Set(EVENT_DISCIPLINES.map((item) => item.value));
+
+function getDefaultEventDiscipline(value: string): EventDiscipline | "" {
+  return EVENT_DISCIPLINE_VALUES.has(value as EventDiscipline) ? (value as EventDiscipline) : "";
+}
 
 interface EventFormProps {
   academyId: string;
@@ -65,6 +64,8 @@ export function EventForm({
   onSaved,
 }: EventFormProps) {
   const router = useRouter();
+  const { specialization } = useAcademyContext();
+  const eventTypes = getSpecializedEventTypes(specialization);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -96,6 +97,21 @@ export function EventForm({
       setFormData(normalizeEventFormData(effectiveInitialData));
     }
   }, [event, initialData, effectiveInitialData]);
+
+  useEffect(() => {
+    const defaultDiscipline = getDefaultEventDiscipline(specialization.disciplineVariant);
+
+    setFormData((current): EventFormData => {
+      if (current.discipline || !defaultDiscipline) {
+        return current;
+      }
+
+      return {
+        ...current,
+        discipline: defaultDiscipline,
+      };
+    });
+  }, [specialization.disciplineVariant]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -182,7 +198,7 @@ export function EventForm({
       } else if (onSuccess) {
         onSuccess();
       } else {
-        router.push("/dashboard/events");
+        router.push(`/app/${academyId}/events`);
         router.refresh();
       }
     } catch (err) {
@@ -213,7 +229,7 @@ export function EventForm({
             value={formData.title}
             onChange={(e) => setFormData({ ...formData, title: e.target.value })}
             className="w-full rounded-lg border border-border bg-card px-4 py-2.5 text-sm text-foreground focus:border-zaltyko-primary focus:outline-none focus:ring-2 focus:ring-zaltyko-primary/20"
-            placeholder="Nombre del evento"
+            placeholder={`Nombre del evento o cita de ${specialization.labels.disciplineName.toLowerCase()}`}
           />
         </div>
 
@@ -227,7 +243,7 @@ export function EventForm({
             value={formData.description}
             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
             className="w-full rounded-lg border border-border bg-card px-4 py-2.5 text-sm text-foreground focus:border-zaltyko-primary focus:outline-none focus:ring-2 focus:ring-zaltyko-primary/20"
-            placeholder="Descripción del evento..."
+            placeholder="Información clave, participantes, objetivos o notas importantes..."
           />
         </div>
 
@@ -258,15 +274,14 @@ export function EventForm({
             id="discipline"
             value={formData.discipline}
             onChange={(e) => setFormData({ ...formData, discipline: e.target.value as any })}
+            disabled
             className="w-full rounded-lg border border-border bg-card px-4 py-2.5 text-sm text-foreground focus:border-zaltyko-primary focus:outline-none focus:ring-2 focus:ring-zaltyko-primary/20"
           >
-            <option value="">Selecciona una disciplina</option>
-            {EVENT_DISCIPLINES.map((d) => (
-              <option key={d.value} value={d.value}>
-                {d.label}
-              </option>
-            ))}
+            <option value={specialization.disciplineVariant}>{specialization.labels.disciplineName}</option>
           </select>
+          <p className="mt-2 text-xs text-muted-foreground">
+            La academia trabaja principalmente en {specialization.labels.disciplineName.toLowerCase()}.
+          </p>
         </div>
 
         <div>
@@ -280,7 +295,7 @@ export function EventForm({
             className="w-full rounded-lg border border-border bg-card px-4 py-2.5 text-sm text-foreground focus:border-zaltyko-primary focus:outline-none focus:ring-2 focus:ring-zaltyko-primary/20"
           >
             <option value="">Selecciona un tipo</option>
-            {EVENT_TYPES.map((t) => (
+            {eventTypes.map((t) => (
               <option key={t.value} value={t.value}>
                 {t.label}
               </option>

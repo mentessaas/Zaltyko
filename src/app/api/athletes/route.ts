@@ -138,7 +138,9 @@ const createAthleteHandler = withTenant(async (request, context) => {
       const [academyRow] = await db
         .select({
           country: academies.country,
+          countryCode: academies.countryCode,
           academyType: academies.academyType,
+          disciplineVariant: academies.disciplineVariant,
         })
         .from(academies)
         .where(eq(academies.id, body.academyId))
@@ -147,8 +149,9 @@ const createAthleteHandler = withTenant(async (request, context) => {
       if (academyRow?.country) {
         const result = await calculateAgeCategoryForAthlete({
           dob: dobDate,
-          academyCountry: academyRow.country,
+          academyCountry: academyRow.countryCode ?? academyRow.country,
           academyType: academyRow.academyType ?? "ritmica",
+          disciplineVariant: academyRow.disciplineVariant,
         });
 
         if (result) {
@@ -410,4 +413,3 @@ export const GET = withTenant(async (request, context) => {
     return handleApiError(error);
   }
 });
-

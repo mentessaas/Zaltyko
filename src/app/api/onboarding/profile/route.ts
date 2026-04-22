@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { z } from "zod";
 
 import { db } from "@/db";
-import { profiles, academies, memberships } from "@/db/schema";
+import { profiles } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
 import { handleApiError } from "@/lib/api-error-handler";
 import { logger } from "@/lib/logger";
@@ -90,10 +90,6 @@ export async function POST(request: Request) {
       return apiError("UNAUTHENTICATED", "No autenticado", 401);
     }
 
-    // Generate IDs
-    const tenantId = crypto.randomUUID();
-    const academyId = crypto.randomUUID();
-
     try {
       // Check if profile exists first
       const [existingProfile] = await db
@@ -101,6 +97,8 @@ export async function POST(request: Request) {
           id: profiles.id,
           tenantId: profiles.tenantId,
           activeAcademyId: profiles.activeAcademyId,
+          role: profiles.role,
+          name: profiles.name,
         })
         .from(profiles)
         .where(eq(profiles.userId, userId))
@@ -108,28 +106,27 @@ export async function POST(request: Request) {
 
       let profileId: string;
       let actualTenantId: string;
-      let actualAcademyId: string;
+      let actualAcademyId: string | null;
+      let finalRole: string;
 
       if (existingProfile) {
-        // Profile exists, update it
         profileId = existingProfile.id;
-        actualTenantId = existingProfile.tenantId ?? tenantId;
-        actualAcademyId = existingProfile.activeAcademyId ?? academyId;
+        actualTenantId = existingProfile.tenantId;
+        actualAcademyId = existingProfile.activeAcademyId ?? null;
+        finalRole = existingProfile.role;
 
         await db
           .update(profiles)
           .set({
-            tenantId: actualTenantId,
-            activeAcademyId: actualAcademyId,
+            name: name ?? existingProfile.name,
           })
           .where(eq(profiles.id, profileId));
       } else {
-        // Determine role from body or default to owner
+        const tenantId = crypto.randomUUID();
         const profileRole = (bodyObj.role as string) || "owner";
         const validRoles = ["owner", "admin", "coach", "athlete", "parent"];
-        const finalRole = validRoles.includes(profileRole) ? profileRole : "owner";
+        finalRole = validRoles.includes(profileRole) ? profileRole : "owner";
 
-        // Create new profile
         const [newProfile] = await db
           .insert(profiles)
           .values({
@@ -137,38 +134,14 @@ export async function POST(request: Request) {
             name,
             role: finalRole as any,
             tenantId,
-            activeAcademyId: academyId,
+            activeAcademyId: null,
             canLogin: true,
           })
           .returning({ id: profiles.id });
 
         profileId = newProfile.id;
         actualTenantId = tenantId;
-        actualAcademyId = academyId;
-      }
-
-      // Create academy if it doesn't exist
-      const [existingAcademy] = await db
-        .select({ id: academies.id })
-        .from(academies)
-        .where(eq(academies.id, actualAcademyId))
-        .limit(1);
-
-      if (!existingAcademy) {
-        await db.insert(academies).values({
-          id: actualAcademyId,
-          tenantId: actualTenantId,
-          name: "Mi Academia",
-          academyType: "general",
-          ownerId: profileId,
-        });
-
-        // Add owner membership
-        await db.insert(memberships).values({
-          userId,
-          academyId: actualAcademyId,
-          role: "owner",
-        }).onConflictDoNothing();
+        actualAcademyId = null;
       }
 
       // Get final profile

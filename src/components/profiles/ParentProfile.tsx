@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { type User } from "@supabase/supabase-js";
-import { Users, Mail, Phone, Calendar, ArrowLeft, Shield } from "lucide-react";
+import { Users, Mail, Calendar, ArrowLeft, Shield } from "lucide-react";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { type ProfileRow } from "@/lib/authz";
+import type { SpecializedLabels } from "@/lib/specialization/registry";
 
 interface ChildAthlete {
   id: string;
@@ -23,17 +24,28 @@ interface ChildAthlete {
   academyId: string;
   academyName: string | null;
   age: number | null;
+  classesCount: number;
+  upcomingSessionsCount: number;
 }
 
 interface ParentProfileProps {
   user: User | null;
   profile: ProfileRow | null;
   children: ChildAthlete[];
+  labels?: SpecializedLabels | null;
   targetProfileId?: string | null;
 }
 
-export function ParentProfile({ user, profile, children, targetProfileId }: ParentProfileProps) {
+export function ParentProfile({ user, profile, children, labels, targetProfileId }: ParentProfileProps) {
   const initials = (profile?.name || user?.email || "T").slice(0, 2).toUpperCase();
+  const totalClasses = children.reduce((sum, child) => sum + child.classesCount, 0);
+  const totalUpcomingSessions = children.reduce(
+    (sum, child) => sum + child.upcomingSessionsCount,
+    0
+  );
+  const athletePlural = labels?.athletesPlural ?? "Atletas";
+  const classLabel = labels?.classLabel ?? "Clase";
+  const sessionLabel = labels?.sessionLabel ?? "Sesión";
 
   return (
     <div className="space-y-8">
@@ -80,11 +92,34 @@ export function ParentProfile({ user, profile, children, targetProfileId }: Pare
         </div>
       </header>
 
+      {children.length > 0 && (
+        <div className="grid gap-4 md:grid-cols-2">
+          <Card>
+            <CardHeader className="p-4 pb-2">
+              <CardDescription>Clases vinculadas</CardDescription>
+              <CardTitle className="text-3xl font-semibold">{totalClasses}</CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 pt-0 text-sm text-muted-foreground">
+              Suma de {classLabel.toLowerCase()}s asociadas a tus hijos según sus grupos y asignaciones actuales.
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="p-4 pb-2">
+              <CardDescription>Proximas sesiones</CardDescription>
+              <CardTitle className="text-3xl font-semibold">{totalUpcomingSessions}</CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 pt-0 text-sm text-muted-foreground">
+              {sessionLabel}es programadas para los próximos 30 días dentro de su agenda deportiva.
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       <Card>
         <CardHeader className="p-6 pb-3">
           <CardTitle className="flex items-center gap-2 text-base font-semibold">
             <Users className="h-4 w-4" />
-            Mis hijos atletas
+            Mis hijos {athletePlural.toLowerCase()}
           </CardTitle>
           <CardDescription>
             Información sobre los atletas que tienes a cargo.
@@ -121,11 +156,21 @@ export function ParentProfile({ user, profile, children, targetProfileId }: Pare
                         <dt className="text-muted-foreground">Estado</dt>
                         <dd className="font-medium capitalize">{child.status ?? "Sin estado"}</dd>
                       </div>
+                      <div className="flex justify-between">
+                        <dt className="text-muted-foreground">Clases</dt>
+                        <dd className="font-medium">{child.classesCount}</dd>
+                      </div>
+                      <div className="flex justify-between">
+                        <dt className="text-muted-foreground">Proximas sesiones</dt>
+                        <dd className="font-medium">{child.upcomingSessionsCount}</dd>
+                      </div>
                     </dl>
                   </CardContent>
                   <CardHeader className="p-4 pt-0">
                     <Button variant="outline" size="sm" className="w-full" asChild>
-                      <Link href={`/dashboard/athletes/${child.id}`}>Ver detalles</Link>
+                      <Link href={`/dashboard/calendar?athleteId=${child.id}`}>
+                        Ver calendario
+                      </Link>
                     </Button>
                   </CardHeader>
                 </Card>
@@ -176,9 +221,9 @@ export function ParentProfile({ user, profile, children, targetProfileId }: Pare
             {children.length > 0 && (
               <>
                 <Button variant="outline" className="justify-start" asChild>
-                  <Link href="/dashboard/athletes">
+                  <Link href={children[0] ? `/dashboard/calendar?athleteId=${children[0].id}` : "/dashboard/profile"}>
                     <Users className="mr-2 h-4 w-4" />
-                    Ver información de mis hijos
+                    Ver calendario de mis hijos
                   </Link>
                 </Button>
                 <Button variant="outline" className="justify-start" asChild>
@@ -195,4 +240,3 @@ export function ParentProfile({ user, profile, children, targetProfileId }: Pare
     </div>
   );
 }
-

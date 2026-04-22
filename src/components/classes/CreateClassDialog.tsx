@@ -5,6 +5,8 @@ import { ChevronDown, ChevronUp } from "lucide-react";
 
 import { Modal } from "@/components/ui/modal";
 import { createClient } from "@/lib/supabase/client";
+import { useAcademyContext } from "@/hooks/use-academy-context";
+import { getSpecializedClassNameSuggestions } from "@/lib/specialization/technical-guidance";
 
 const WEEKDAY_OPTIONS = [
   { value: "1", label: "Lunes" },
@@ -24,11 +26,14 @@ interface CreateClassDialogProps {
 }
 
 export function CreateClassDialog({ academyId, open, onClose, onCreated }: CreateClassDialogProps) {
+  const { specialization } = useAcademyContext();
   const [name, setName] = useState("");
   const [weekdays, setWeekdays] = useState<string[]>([]);
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
   const [capacity, setCapacity] = useState("");
+  const [technicalFocus, setTechnicalFocus] = useState("");
+  const [selectedApparatus, setSelectedApparatus] = useState<string[]>([]);
   const [allowsFreeTrial, setAllowsFreeTrial] = useState(false);
   const [waitingListEnabled, setWaitingListEnabled] = useState(false);
   const [cancellationHoursBefore, setCancellationHoursBefore] = useState(24);
@@ -36,6 +41,7 @@ export function CreateClassDialog({ academyId, open, onClose, onCreated }: Creat
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const classNameSuggestions = getSpecializedClassNameSuggestions(specialization);
 
   const resetForm = () => {
     setName("");
@@ -43,6 +49,8 @@ export function CreateClassDialog({ academyId, open, onClose, onCreated }: Creat
     setStartTime("");
     setEndTime("");
     setCapacity("");
+    setTechnicalFocus("");
+    setSelectedApparatus([]);
     setAllowsFreeTrial(false);
     setWaitingListEnabled(false);
     setCancellationHoursBefore(24);
@@ -58,6 +66,12 @@ export function CreateClassDialog({ academyId, open, onClose, onCreated }: Creat
       }
       return [...prev, value];
     });
+  };
+
+  const toggleApparatus = (value: string) => {
+    setSelectedApparatus((prev) =>
+      prev.includes(value) ? prev.filter((item) => item !== value) : [...prev, value]
+    );
   };
 
   const handleClose = () => {
@@ -88,6 +102,8 @@ export function CreateClassDialog({ academyId, open, onClose, onCreated }: Creat
           startTime: startTime || undefined,
           endTime: endTime || undefined,
           capacity: capacity ? Number(capacity) : undefined,
+          technicalFocus: technicalFocus.trim() || undefined,
+          apparatus: selectedApparatus,
           allowsFreeTrial,
           waitingListEnabled,
           cancellationHoursBefore: cancellationHoursBefore ? Number(cancellationHoursBefore) : 24,
@@ -99,7 +115,6 @@ export function CreateClassDialog({ academyId, open, onClose, onCreated }: Creat
           headers: {
             "Content-Type": "application/json",
             "x-academy-id": academyId,
-            ...(currentUser?.id ? { "x-user-id": currentUser.id } : {}),
           },
           body: JSON.stringify(payload),
         });
@@ -122,8 +137,8 @@ export function CreateClassDialog({ academyId, open, onClose, onCreated }: Creat
     <Modal
       open={open}
       onClose={handleClose}
-      title="Crear nueva clase"
-      description="Define los datos básicos de la clase."
+      title={`Crear nuevo ${specialization.labels.classLabel.toLowerCase()}`}
+      description={`Define los datos básicos del ${specialization.labels.classLabel.toLowerCase()} y parte de una propuesta coherente para ${specialization.labels.disciplineName.toLowerCase()}.`}
       footer={
         <div className="flex justify-end gap-2">
           <button
@@ -155,14 +170,30 @@ export function CreateClassDialog({ academyId, open, onClose, onCreated }: Creat
         {/* Campos esenciales */}
         <div className="space-y-4">
           <div className="space-y-1">
-            <label className="text-sm font-medium text-foreground">Nombre de la clase *</label>
+            <label className="text-sm font-medium text-foreground">Nombre del {specialization.labels.classLabel.toLowerCase()} *</label>
             <input
               value={name}
               onChange={(event) => setName(event.target.value)}
               className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-              placeholder="Ej: Equipo FIG Avanzado"
+              placeholder={`Ej: ${classNameSuggestions[0]?.name ?? `${specialization.labels.classLabel} base`}`}
               required
             />
+            <div className="flex flex-wrap gap-2 pt-2">
+              {classNameSuggestions.map((suggestion) => (
+                <button
+                  key={suggestion.name}
+                  type="button"
+                  onClick={() => setName(suggestion.name)}
+                  className="rounded-full border border-border bg-background px-3 py-1.5 text-xs font-semibold text-foreground transition hover:border-primary hover:bg-primary/5"
+                  title={suggestion.description}
+                >
+                  {suggestion.name}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Sugerencias técnicas para {specialization.labels.disciplineName.toLowerCase()}.
+            </p>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -231,6 +262,39 @@ export function CreateClassDialog({ academyId, open, onClose, onCreated }: Creat
                 onChange={(event) => setEndTime(event.target.value)}
                 className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
               />
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-foreground">Foco técnico del bloque</label>
+            <textarea
+              value={technicalFocus}
+              onChange={(event) => setTechnicalFocus(event.target.value)}
+              className="min-h-24 w-full rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              placeholder={classNameSuggestions[0]?.description ?? "Describe el objetivo técnico principal de este entrenamiento."}
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-foreground">Aparatos / material principal</label>
+            <div className="flex flex-wrap gap-2">
+              {specialization.evaluation.apparatus.map((item) => {
+                const selected = selectedApparatus.includes(item.label);
+                return (
+                  <button
+                    key={item.code}
+                    type="button"
+                    onClick={() => toggleApparatus(item.label)}
+                    className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                      selected
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border bg-background text-muted-foreground"
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>

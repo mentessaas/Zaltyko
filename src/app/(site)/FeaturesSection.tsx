@@ -1,3 +1,4 @@
+import Link from "next/link";
 import {
   Users,
   UserCog,
@@ -216,13 +217,13 @@ export default function FeaturesSection() {
                 </div>
                 {/* CTA dentro del tab */}
                 <div className="mt-8 pt-6 border-t border-white/10">
-                  <a
+                  <Link
                     href="/onboarding"
                     className="inline-flex items-center gap-2 bg-white text-red-700 font-semibold px-6 py-3 rounded-xl hover:bg-gray-100 transition-colors text-sm"
                   >
                     Probar 14 días gratis
                     <ArrowRight className="w-4 h-4" />
-                  </a>
+                  </Link>
                 </div>
               </div>
             </TabsContent>

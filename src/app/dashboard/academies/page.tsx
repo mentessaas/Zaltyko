@@ -68,7 +68,7 @@ export default async function AcademiesPage() {
   } catch (error) {
     console.error("Error getting profile:", error);
     // If database error, try to redirect to onboarding to create profile
-    redirect("/onboarding");
+    redirect("/onboarding/owner");
   }
 
   if (!currentProfile) {
@@ -124,6 +124,7 @@ export default async function AcademiesPage() {
   const sortedAcademies = [...academiesWithStats].sort((a, b) => {
     return b.stats.totalAthletes - a.stats.totalAthletes;
   });
+  const primaryAcademyId = currentProfile.activeAcademyId ?? sortedAcademies[0]?.id ?? null;
 
   return (
     <div className="space-y-8">
@@ -138,7 +139,7 @@ export default async function AcademiesPage() {
         actions={
           hasAcademies ? (
             <Button asChild>
-              <Link href="/onboarding">
+              <Link href="/onboarding/owner">
                 <Plus className="h-4 w-4 mr-2" />
                 Nueva academia
               </Link>
@@ -207,15 +208,19 @@ export default async function AcademiesPage() {
       {/* Quick Actions */}
       {hasAcademies && (
         <div className="flex flex-wrap gap-3">
-          <Button asChild variant="outline">
-            <Link href="/dashboard/athletes">Ver Atletas</Link>
-          </Button>
-          <Button asChild variant="outline">
-            <Link href="/dashboard/coaches">Ver Entrenadores</Link>
-          </Button>
-          <Button asChild variant="outline">
-            <Link href="/dashboard/events">Ver Eventos</Link>
-          </Button>
+          {primaryAcademyId ? (
+            <>
+              <Button asChild variant="outline">
+                <Link href={`/app/${primaryAcademyId}/athletes`}>Ver atletas</Link>
+              </Button>
+              <Button asChild variant="outline">
+                <Link href={`/app/${primaryAcademyId}/coaches`}>Ver entrenadores</Link>
+              </Button>
+              <Button asChild variant="outline">
+                <Link href={`/app/${primaryAcademyId}/events`}>Ver eventos</Link>
+              </Button>
+            </>
+          ) : null}
           <Button asChild variant="outline">
             <Link href="/dashboard/sessions">Horarios</Link>
           </Button>
@@ -229,7 +234,7 @@ export default async function AcademiesPage() {
             Crea tu primera academia desde el onboarding o invita a tu equipo para comenzar.
           </p>
           <Button asChild className="mt-6">
-            <Link href="/onboarding">Crear academia</Link>
+            <Link href="/onboarding/owner">Crear academia</Link>
           </Button>
         </div>
       ) : (

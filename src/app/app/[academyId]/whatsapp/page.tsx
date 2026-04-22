@@ -4,6 +4,8 @@ import { eq, and } from "drizzle-orm";
 
 import { db } from "@/db";
 import { academies, memberships, profiles } from "@/db/schema";
+import { FeatureUnavailableState } from "@/components/product/FeatureUnavailableState";
+import { isFeatureEnabled } from "@/lib/product/features";
 import { createClient } from "@/lib/supabase/server";
 import { WhatsAppPage } from "./WhatsAppPage";
 
@@ -15,6 +17,17 @@ interface PageProps {
 
 export default async function WhatsAppRoutePage({ params }: PageProps) {
   const { academyId } = await params;
+
+  if (!isFeatureEnabled("whatsapp")) {
+    return (
+      <FeatureUnavailableState
+        title="WhatsApp Business"
+        description="La mensajería por WhatsApp todavía no está activada en la versión para primeros clientes. Seguimos priorizando email, notificaciones internas y mensajes auditables."
+        backHref={`/app/${academyId}/dashboard`}
+        backLabel="Volver al dashboard"
+      />
+    );
+  }
   const cookieStore = await cookies();
   const supabase = await createClient(cookieStore);
 
@@ -33,7 +46,7 @@ export default async function WhatsAppRoutePage({ params }: PageProps) {
     .limit(1);
 
   if (!profile) {
-    redirect("/onboarding");
+    redirect("/onboarding/owner");
   }
 
   // Check if user has access to this academy

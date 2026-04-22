@@ -169,7 +169,6 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-user-id": userId,
         },
         body: JSON.stringify({
           profileId: user.id,
@@ -190,7 +189,6 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
       // Refresh user data
       const refreshResponse = await fetch(`/api/super-admin/users/${user.id}`, {
         headers: {
-          "x-user-id": userId,
         },
         cache: "no-store",
       });
@@ -221,7 +219,6 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-user-id": userId,
         },
         body: JSON.stringify({
           profileId: user.id,
@@ -255,7 +252,6 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          "x-user-id": userId,
         },
         body: JSON.stringify({
           name: formData.name.trim() || null,
@@ -295,7 +291,6 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
 
       const refreshResponse = await fetch(`/api/super-admin/users/${user.id}`, {
         headers: {
-          "x-user-id": userId,
         },
         cache: "no-store",
       });
@@ -333,7 +328,6 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          "x-user-id": userId,
         },
         body: JSON.stringify({
           planId: formData.planId || null,
@@ -349,7 +343,6 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
 
       const refreshResponse = await fetch(`/api/super-admin/users/${user.id}`, {
         headers: {
-          "x-user-id": userId,
         },
         cache: "no-store",
       });
@@ -385,7 +378,6 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          "x-user-id": userId,
         },
         body: JSON.stringify({
           isSuspended: !formData.isSuspended,
@@ -400,7 +392,6 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
 
       const refreshResponse = await fetch(`/api/super-admin/users/${user.id}`, {
         headers: {
-          "x-user-id": userId,
         },
         cache: "no-store",
       });

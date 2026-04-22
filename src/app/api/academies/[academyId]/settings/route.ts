@@ -7,8 +7,15 @@ import { withTenant } from "@/lib/authz";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { handleApiError } from "@/lib/api-error-handler";
 import { logger } from "@/lib/logger";
+import {
+  getCountryNameFromCode,
+  inferDisciplineFromVariant,
+  mapDisciplineVariantToAcademyType,
+  normalizeCountryCode,
+} from "@/lib/specialization/registry";
 
 const ACADEMY_TYPES = ["artistica", "ritmica", "trampolin", "general", "parkour", "danza"] as const;
+const DISCIPLINE_VARIANTS = ["artistic_female", "artistic_male", "rhythmic", "trampoline", "parkour", "dance", "general"] as const;
 
 const BrandingSchema = z.object({
   primaryColor: z.string().optional(),
@@ -49,6 +56,8 @@ const SettingsSchema = z.object({
   publicDescription: z.string().optional(),
   isPublic: z.boolean().optional(),
   academyType: z.enum(ACADEMY_TYPES).optional(),
+  countryCode: z.string().optional(),
+  disciplineVariant: z.enum(DISCIPLINE_VARIANTS).optional(),
 
   // Branding
   branding: BrandingSchema.optional(),
@@ -88,6 +97,14 @@ export const GET = withTenant(async (request, context) => {
         id: academies.id,
         name: academies.name,
         academyType: academies.academyType,
+        country: academies.country,
+        countryCode: academies.countryCode,
+        region: academies.region,
+        city: academies.city,
+        discipline: academies.discipline,
+        disciplineVariant: academies.disciplineVariant,
+        federationConfigVersion: academies.federationConfigVersion,
+        specializationStatus: academies.specializationStatus,
         publicDescription: academies.publicDescription,
         isPublic: academies.isPublic,
         logoUrl: academies.logoUrl,
@@ -159,6 +176,13 @@ export const GET = withTenant(async (request, context) => {
     return apiSuccess({
       name: academy.name,
       academyType: academy.academyType,
+      country: academy.country,
+      countryCode: academy.countryCode || academy.country || "",
+      region: academy.region || "",
+      city: academy.city || "",
+      disciplineVariant: academy.disciplineVariant || "rhythmic",
+      federationConfigVersion: academy.federationConfigVersion || "legacy-default-v1",
+      specializationStatus: academy.specializationStatus,
       publicDescription: academy.publicDescription,
       isPublic: academy.isPublic,
       branding,
@@ -206,6 +230,10 @@ export const PATCH = withTenant(async (request, context) => {
         id: academies.id,
         tenantId: academies.tenantId,
         ownerId: academies.ownerId,
+        country: academies.country,
+        countryCode: academies.countryCode,
+        disciplineVariant: academies.disciplineVariant,
+        specializationStatus: academies.specializationStatus,
       })
       .from(academies)
       .where(eq(academies.id, academyId))
@@ -250,6 +278,34 @@ export const PATCH = withTenant(async (request, context) => {
     }
     if (data.academyType !== undefined) {
       updates.academyType = data.academyType;
+    }
+    if (data.countryCode !== undefined) {
+      updates.countryCode = normalizeCountryCode(data.countryCode) ?? null;
+      updates.country = data.countryCode ? getCountryNameFromCode(data.countryCode) : academy.country;
+    }
+    if (data.disciplineVariant !== undefined) {
+      const specializationChanged =
+        academy.specializationStatus === "configured" &&
+        academy.disciplineVariant &&
+        academy.disciplineVariant !== data.disciplineVariant;
+
+      if (specializationChanged) {
+        return apiError(
+          "SPECIALIZATION_MIGRATION_REQUIRED",
+          "Cambiar la disciplina principal requiere una migración guiada. Por ahora crea una academia nueva o solicita la migración.",
+          409
+        );
+      }
+
+      updates.disciplineVariant = data.disciplineVariant;
+      updates.discipline = inferDisciplineFromVariant(data.disciplineVariant);
+      updates.academyType = mapDisciplineVariantToAcademyType(data.disciplineVariant);
+      updates.federationConfigVersion =
+        (normalizeCountryCode(data.countryCode ?? academy.countryCode ?? academy.country) === "ES" &&
+          ["artistic_female", "artistic_male", "rhythmic"].includes(data.disciplineVariant))
+          ? "rfeg-2026-v1"
+          : "legacy-default-v1";
+      updates.specializationStatus = "configured";
     }
 
     // Mapeo de contacto
@@ -335,6 +391,13 @@ export const PATCH = withTenant(async (request, context) => {
         id: academies.id,
         name: academies.name,
         academyType: academies.academyType,
+        country: academies.country,
+        countryCode: academies.countryCode,
+        region: academies.region,
+        city: academies.city,
+        disciplineVariant: academies.disciplineVariant,
+        federationConfigVersion: academies.federationConfigVersion,
+        specializationStatus: academies.specializationStatus,
         publicDescription: academies.publicDescription,
         isPublic: academies.isPublic,
         logoUrl: academies.logoUrl,
@@ -355,6 +418,13 @@ export const PATCH = withTenant(async (request, context) => {
     return apiSuccess({
         name: updated.name,
         academyType: updated.academyType,
+        country: updated.country,
+        countryCode: updated.countryCode,
+        region: updated.region,
+        city: updated.city,
+        disciplineVariant: updated.disciplineVariant,
+        federationConfigVersion: updated.federationConfigVersion,
+        specializationStatus: updated.specializationStatus,
         publicDescription: updated.publicDescription,
         isPublic: updated.isPublic,
         logoUrl: updated.logoUrl,

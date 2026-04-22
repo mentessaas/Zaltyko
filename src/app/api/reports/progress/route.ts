@@ -5,6 +5,9 @@ import { z } from "zod";
 import { withTenant } from "@/lib/authz";
 import { analyzeAthleteProgress, compareAssessments, type ProgressReportFilters } from "@/lib/reports/progress-analyzer";
 import { logger } from "@/lib/logger";
+import { db } from "@/db";
+import { athletes, groups } from "@/db/schema";
+import { eq } from "drizzle-orm";
 
 const reportSchema = z.object({
   academyId: z.string().uuid(),
@@ -72,11 +75,34 @@ export const GET = withTenant(async (request, context) => {
         return apiError("NO_ASSESSMENTS_FOUND", "No assessments found", 404);
       }
 
+      const [athleteContext] = await db
+        .select({
+          athleteId: athletes.id,
+          primaryApparatus: athletes.primaryApparatus,
+          groupName: groups.name,
+          groupTechnicalFocus: groups.technicalFocus,
+          groupApparatus: groups.apparatus,
+          sessionBlocks: groups.sessionBlocks,
+        })
+        .from(athletes)
+        .leftJoin(groups, eq(athletes.groupId, groups.id))
+        .where(eq(athletes.id, validated.athleteId))
+        .limit(1);
+
       // Convertir fechas a strings para JSON
       return apiSuccess({
         type: "progress",
         data: {
           ...report,
+          technicalContext: athleteContext
+            ? {
+                primaryApparatus: athleteContext.primaryApparatus ?? null,
+                groupName: athleteContext.groupName ?? null,
+                technicalFocus: athleteContext.groupTechnicalFocus ?? null,
+                apparatus: athleteContext.groupApparatus ?? [],
+                sessionBlocks: athleteContext.sessionBlocks ?? [],
+              }
+            : null,
           period: {
             start: report.period.start.toISOString(),
             end: report.period.end.toISOString(),
@@ -89,4 +115,3 @@ export const GET = withTenant(async (request, context) => {
     return apiError("REPORT_FAILED", error.message, 500);
   }
 });
-

@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/components/ui/toast-provider";
 
 interface FinancialStats {
   totalRevenue: number;
@@ -30,6 +31,7 @@ interface FinancialReportProps {
 }
 
 export function FinancialReport({ academyId, academyCountry, initialData }: FinancialReportProps) {
+  const toast = useToast();
   const [startDate, setStartDate] = useState(format(subMonths(new Date(), 3), "yyyy-MM-dd"));
   const [endDate, setEndDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [reportData, setReportData] = useState<FinancialStats | null>(initialData || null);
@@ -106,8 +108,17 @@ export function FinancialReport({ academyId, academyCountry, initialData }: Fina
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
+      toast.pushToast({
+        title: "PDF exportado",
+        description: "El reporte financiero se descargó correctamente.",
+        variant: "success",
+      });
     } catch (err: any) {
-      alert("Error al exportar PDF: " + err.message);
+      toast.pushToast({
+        title: "No se pudo exportar el PDF",
+        description: err.message || "Inténtalo de nuevo en unos segundos.",
+        variant: "error",
+      });
     }
   };
 
@@ -132,8 +143,17 @@ export function FinancialReport({ academyId, academyCountry, initialData }: Fina
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
+      toast.pushToast({
+        title: "Excel exportado",
+        description: "El reporte financiero se descargó correctamente.",
+        variant: "success",
+      });
     } catch (err: any) {
-      alert("Error al exportar Excel: " + err.message);
+      toast.pushToast({
+        title: "No se pudo exportar el Excel",
+        description: err.message || "Inténtalo de nuevo en unos segundos.",
+        variant: "error",
+      });
     }
   };
 
@@ -380,4 +400,3 @@ export function FinancialReport({ academyId, academyCountry, initialData }: Fina
     </div>
   );
 }
-

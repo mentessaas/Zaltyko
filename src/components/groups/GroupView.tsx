@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { GroupDetail, AthleteOption, CoachOption } from "./types";
 import { UpdateGroupMembersDialog } from "./UpdateGroupMembersDialog";
 import { UpdateGroupCoachesDialog } from "./UpdateGroupCoachesDialog";
+import { useAcademyContext } from "@/hooks/use-academy-context";
+import { getGroupTechnicalGuidance } from "@/lib/specialization/technical-guidance";
 
 interface GroupViewProps {
   academyId: string;
@@ -28,6 +30,7 @@ interface GroupSummary {
 }
 
 export function GroupView({ academyId, group, availableAthletes, availableCoaches }: GroupViewProps) {
+  const { specialization } = useAcademyContext();
   const [detail, setDetail] = useState(group);
   const [membersDialogOpen, setMembersDialogOpen] = useState(false);
   const [coachesDialogOpen, setCoachesDialogOpen] = useState(false);
@@ -48,6 +51,10 @@ export function GroupView({ academyId, group, availableAthletes, availableCoache
   }, [detail.discipline]);
 
   const assistantsLookup = useMemo(() => new Set(detail.assistantIds), [detail.assistantIds]);
+  const technicalGuidance = useMemo(
+    () => getGroupTechnicalGuidance(specialization, detail.level),
+    [detail.level, specialization]
+  );
 
   // Load economic summary
   useEffect(() => {
@@ -122,6 +129,49 @@ export function GroupView({ academyId, group, availableAthletes, availableCoache
             <SummaryCard title="Entrenadores" value={`${(detail.coachId ? 1 : 0) + detail.assistantIds.length}`} />
             <SummaryCard title="Atletas" value={`${detail.athleteCount}`} />
           </div>
+          <section className="rounded-lg border border-primary/20 bg-primary/5 p-5">
+            <div className="space-y-1">
+              <h3 className="text-base font-semibold text-foreground">{technicalGuidance.headline}</h3>
+              <p className="text-sm text-muted-foreground">
+                Referencia sugerida para este {specialization.labels.groupLabel.toLowerCase()} según {specialization.labels.disciplineName.toLowerCase()}
+                {detail.level ? ` y el nivel ${detail.level}` : ""}.
+              </p>
+            </div>
+            <div className="mt-4 grid gap-4 lg:grid-cols-3">
+              <div>
+                <h4 className="text-sm font-semibold text-foreground">Focos técnicos</h4>
+                <ul className="mt-2 space-y-2 text-sm text-muted-foreground">
+                  {technicalGuidance.focusAreas.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-foreground">Aparatos / material</h4>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {(detail.apparatus?.length ? detail.apparatus : technicalGuidance.apparatus).map((item) => (
+                    <span
+                      key={item}
+                      className="rounded-full border border-primary/20 bg-background px-3 py-1 text-xs font-semibold text-foreground"
+                    >
+                      {item}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-foreground">Bloques recomendados</h4>
+                <ul className="mt-2 space-y-2 text-sm text-muted-foreground">
+                  {(detail.sessionBlocks?.length ? detail.sessionBlocks : technicalGuidance.suggestedSessionBlocks).map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+            {detail.technicalFocus && (
+              <p className="mt-4 text-sm text-muted-foreground">{detail.technicalFocus}</p>
+            )}
+          </section>
           <p className="text-sm text-muted-foreground">
             Los grupos te permiten automatizar asistencia, evaluaciones y notificaciones. Asigna atletas y
             entrenadores para empezar a usarlos en tus flujos diarios.

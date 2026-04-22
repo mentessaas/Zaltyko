@@ -632,7 +632,7 @@ export function AthletesTableView({ academyId, athletes: initialAthletes, levels
         <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
           <p>
             ¿Necesitas importar datos? Usa el{" "}
-            <Link href="/dashboard/athletes" className="font-semibold underline">
+            <Link href={`/app/${academyId}/athletes`} className="font-semibold underline">
               módulo clásico
             </Link>{" "}
             mientras migramos las herramientas aquí.
@@ -680,5 +680,4 @@ export function AthletesTableView({ academyId, athletes: initialAthletes, levels
     </div>
   );
 }
-
 

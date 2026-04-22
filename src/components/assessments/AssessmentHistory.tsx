@@ -47,20 +47,6 @@ export function AssessmentHistory({ assessments, athleteName, onSelectAssessment
     setExpandedId(expandedId === id ? null : id);
   };
 
-  if (assessments.length === 0) {
-    return (
-      <Card>
-        <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-          <FileText className="h-12 w-12 text-muted-foreground mb-4" />
-          <h3 className="font-semibold mb-2">Sin evaluaciones</h3>
-          <p className="text-sm text-muted-foreground">
-            {athleteName} aún no tiene evaluaciones registradas
-          </p>
-        </CardContent>
-      </Card>
-    );
-  }
-
   // Agrupar evaluaciones por año/mes
   const groupedAssessments = useMemo(() => {
     const groups: Record<string, AssessmentWithScores[]> = {};
@@ -74,6 +60,20 @@ export function AssessmentHistory({ assessments, athleteName, onSelectAssessment
   }, [filteredAssessments]);
 
   const sortedGroupKeys = Object.keys(groupedAssessments).sort((a, b) => b.localeCompare(a));
+
+  if (assessments.length === 0) {
+    return (
+      <Card>
+        <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+          <FileText className="h-12 w-12 text-muted-foreground mb-4" />
+          <h3 className="font-semibold mb-2">Sin evaluaciones</h3>
+          <p className="text-sm text-muted-foreground">
+            {athleteName} aún no tiene evaluaciones registradas
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <div className="space-y-4">

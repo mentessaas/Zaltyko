@@ -1,7 +1,7 @@
 import { createMcpHandler } from 'mcp-handler';
 import { NextResponse } from 'next/server';
 import { eq } from 'drizzle-orm';
-import { getSupabaseAdminClient } from '@/lib/supabase/admin';
+import { createBearerSupabaseClient } from '@/lib/supabase/bearer-client';
 import { getCurrentProfile } from '@/lib/authz/profile-service';
 import { getTenantId } from '@/lib/authz/tenant-resolver';
 import { db } from '@/db';
@@ -30,8 +30,8 @@ async function verifyAuth(request: Request): Promise<McpAuthContext | null> {
   }
 
   try {
-    const adminClient = getSupabaseAdminClient();
-    const { data: { user }, error } = await adminClient.auth.getUser(token);
+    const supabase = createBearerSupabaseClient(token);
+    const { data: { user }, error } = await supabase.auth.getUser(token);
 
     if (error || !user) {
       return null;

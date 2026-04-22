@@ -1,13 +1,8 @@
 export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createBearerSupabaseClient, getBearerToken } from "@/lib/supabase/bearer-client";
 import { logger } from "@/lib/logger";
-
-// Initialize Supabase admin client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://jegxfahsvugilbthbked.supabase.co';
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseKey);
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,12 +14,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Get user from auth header
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader) {
+    const authToken = getBearerToken(request);
+    if (!authToken) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const authToken = authHeader.replace('Bearer ', '');
+    const supabase = createBearerSupabaseClient(authToken);
     const { data: { user }, error: authError } = await supabase.auth.getUser(authToken);
 
     if (authError || !user) {
@@ -67,12 +62,12 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Get user from auth header
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader) {
+    const tokenValue = getBearerToken(request);
+    if (!tokenValue) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const tokenValue = authHeader.replace('Bearer ', '');
+    const supabase = createBearerSupabaseClient(tokenValue);
     const { data: { user }, error: authError } = await supabase.auth.getUser(tokenValue);
 
     if (authError || !user) {

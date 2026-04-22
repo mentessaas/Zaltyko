@@ -4,7 +4,11 @@ import { z } from "zod";
 import { db } from "@/db";
 import { profiles } from "@/db/schema";
 import { withSuperAdmin } from "@/lib/authz";
-import { getSupabaseAdminClient } from "@/lib/supabase/admin";
+import {
+  generatePasswordRecoveryLink,
+  getAuthUserEmail,
+  updateAuthUserEmail,
+} from "@/lib/supabase/admin-operations";
 import { sendEmail } from "@/lib/brevo";
 import { config } from "@/config";
 import { logger } from "@/lib/logger";
@@ -14,6 +18,7 @@ const ActivateAthleteSchema = z.object({
   email: z.string().email().optional(),
   sendInvitation: z.boolean().default(true),
 });
+// @service-role auth-admin:read-update-generate-link. Super-admin activation requires Supabase Auth admin APIs.
 
 /**
  * Función para activar acceso de un atleta
@@ -23,8 +28,6 @@ async function activateAthleteAccess(
   email?: string,
   sendInvitation: boolean = true
 ): Promise<{ ok: boolean; userId: string; email: string; error?: string }> {
-  const adminClient = getSupabaseAdminClient();
-
   // Obtener el perfil del atleta
   const [profile] = await db
     .select({
@@ -48,24 +51,23 @@ async function activateAthleteAccess(
     return { ok: false, userId: "", email: "", error: "NOT_AN_ATHLETE" };
   }
 
-  // Obtener el usuario de auth
-  const { data: authUser, error: authError } = await adminClient.auth.admin.getUserById(profile.userId);
-
-  if (authError || !authUser?.user) {
+  const currentEmail = await getAuthUserEmail(profile.userId);
+  if (!currentEmail && !email) {
     return { ok: false, userId: profile.userId, email: "", error: "AUTH_USER_NOT_FOUND" };
   }
 
-  const targetEmail = email ?? authUser.user.email ?? "";
+  const targetEmail = email ?? currentEmail ?? "";
 
   if (!targetEmail) {
     return { ok: false, userId: profile.userId, email: "", error: "EMAIL_REQUIRED" };
   }
 
   // Actualizar el email del usuario si es diferente
-  if (targetEmail !== authUser.user.email) {
-    await adminClient.auth.admin.updateUserById(profile.userId, {
+  if (targetEmail !== currentEmail) {
+    await updateAuthUserEmail({
+      userId: profile.userId,
       email: targetEmail,
-      email_confirm: true,
+      emailConfirm: true,
     });
   }
 
@@ -79,12 +81,7 @@ async function activateAthleteAccess(
   if (sendInvitation) {
     try {
       // Generar token de reset de contraseña
-      const { data: resetData } = await adminClient.auth.admin.generateLink({
-        type: "recovery",
-        email: targetEmail,
-      });
-
-      const resetLink = resetData?.properties?.action_link ?? `${config.appUrl}/auth/reset-password`;
+      const resetLink = await generatePasswordRecoveryLink(targetEmail) ?? `${config.appUrl}/auth/reset-password`;
       
       await sendEmail({
         to: targetEmail,

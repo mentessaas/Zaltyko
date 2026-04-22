@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EventForm } from "./EventForm";
+import { useAcademyContext } from "@/hooks/use-academy-context";
 
 interface Event {
   id: string;
@@ -28,6 +29,7 @@ interface EventsListProps {
 
 export function EventsList({ academyId, events, academyCountry }: EventsListProps) {
   const router = useRouter();
+  const { specialization } = useAcademyContext();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
   const [deletingEventId, setDeletingEventId] = useState<string | null>(null);
@@ -76,7 +78,7 @@ export function EventsList({ academyId, events, academyCountry }: EventsListProp
         <div>
           <h2 className="text-2xl font-bold">Eventos</h2>
           <p className="text-muted-foreground mt-1">
-            Gestiona los eventos y competencias de tu academia
+            Gestiona competiciones, evaluaciones y citas clave de {specialization.labels.disciplineName.toLowerCase()}
           </p>
         </div>
         <Button onClick={() => setIsCreateOpen(true)}>
@@ -90,7 +92,7 @@ export function EventsList({ academyId, events, academyCountry }: EventsListProp
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Calendar className="h-12 w-12 text-muted-foreground mb-4" />
             <p className="text-muted-foreground text-center mb-4">
-              No hay eventos creados aún
+              No hay eventos creados aún para esta academia
             </p>
             <Button onClick={() => setIsCreateOpen(true)}>
               <Plus className="mr-2 h-4 w-4" />
@@ -170,4 +172,3 @@ export function EventsList({ academyId, events, academyCountry }: EventsListProp
     </div>
   );
 }
-

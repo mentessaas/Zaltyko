@@ -22,6 +22,9 @@ const GroupUpdateSchema = z.object({
   name: z.string().min(1).optional(),
   discipline: z.enum(DISCIPLINES).optional(),
   level: z.string().max(120).optional().nullable(),
+  technicalFocus: z.string().max(500).optional().nullable(),
+  apparatus: z.array(z.string().trim().min(1).max(120)).max(12).optional(),
+  sessionBlocks: z.array(z.string().trim().min(1).max(160)).max(8).optional(),
   coachId: z.string().uuid().nullable().optional(),
   assistantIds: z.array(z.string().uuid()).optional(),
   athleteIds: z.array(z.string().uuid()).optional(),
@@ -118,6 +121,17 @@ const patchGroupHandler = withTenant(async (request, context: RouteContext) => {
     if (payload.name !== undefined) updatePayload.name = payload.name.trim();
     if (payload.discipline !== undefined) updatePayload.discipline = payload.discipline;
     if (payload.level !== undefined) updatePayload.level = payload.level || null;
+    if (payload.technicalFocus !== undefined) updatePayload.technicalFocus = payload.technicalFocus?.trim() || null;
+    if (payload.apparatus !== undefined) {
+      updatePayload.apparatus = payload.apparatus.length
+        ? Array.from(new Set(payload.apparatus.map((item) => item.trim()).filter(Boolean)))
+        : null;
+    }
+    if (payload.sessionBlocks !== undefined) {
+      updatePayload.sessionBlocks = payload.sessionBlocks.length
+        ? Array.from(new Set(payload.sessionBlocks.map((item) => item.trim()).filter(Boolean)))
+        : null;
+    }
     if (payload.coachId !== undefined) updatePayload.coachId = payload.coachId || null;
     if (assistantIds !== undefined) {
       updatePayload.assistantIds = assistantIds.length ? assistantIds : null;

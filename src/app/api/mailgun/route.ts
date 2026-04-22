@@ -5,6 +5,7 @@ import { sendEmail } from "@/lib/brevo";
 import { config } from "@/config";
 import { logger } from "@/lib/logger";
 
+// @route-auth webhook
 export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData();
@@ -12,6 +13,10 @@ export async function POST(req: NextRequest) {
 
     // Get your HTTP webhook signing key from https://app.mailgun.com/mg/sending/mg.<yourdomain>/webhooks and add it to .env.local
     const signingKey = process.env.MAILGUN_SIGNING_KEY as string;
+    if (!signingKey) {
+      logger.error("MAILGUN_SIGNING_KEY is not configured");
+      return NextResponse.json({ error: "Webhook unavailable" }, { status: 503 });
+    }
 
     const timestamp = fd.get("timestamp")?.toString() ?? "";
     const token = fd.get("token")?.toString() ?? "";

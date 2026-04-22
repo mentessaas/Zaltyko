@@ -14,6 +14,9 @@ import {
 import { createClient } from "@/lib/supabase/server";
 import InviteUserForm from "@/components/admin/InviteUserForm";
 import { getRoleLabel } from "@/lib/roles";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatsCard } from "@/components/ui/stats-card";
+import { MailPlus, ShieldCheck, UserCog, Users as UsersIcon } from "lucide-react";
 
 interface UsersPageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -150,50 +153,58 @@ export default async function UsersAdminPage({ searchParams }: UsersPageProps) {
   }, {} as Record<string, number>);
 
   return (
-    <div className="space-y-6 p-4 md:p-8">
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-xl p-4 border border-red-200">
-          <p className="text-sm font-medium text-red-700">Total Usuarios</p>
-          <p className="text-3xl font-bold text-red-800">{usersList.length}</p>
-        </div>
-        <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-xl p-4 border border-emerald-200">
-          <p className="text-sm font-medium text-emerald-700">Propietarios/Admin</p>
-          <p className="text-3xl font-bold text-emerald-800">{(roleStats.owner || 0) + (roleStats.admin || 0)}</p>
-        </div>
-        <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-4 border border-blue-200">
-          <p className="text-sm font-medium text-blue-700">Entrenadores</p>
-          <p className="text-3xl font-bold text-blue-800">{roleStats.coach || 0}</p>
-        </div>
-        <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-xl p-4 border border-amber-200">
-          <p className="text-sm font-medium text-amber-700">Invitaciones Pend.</p>
-          <p className="text-3xl font-bold text-amber-800">{pendingInvitations.length}</p>
-        </div>
+    <div className="space-y-6">
+      <PageHeader
+        breadcrumbs={[
+          { label: "Dashboard", href: "/dashboard" },
+          { label: "Equipo" },
+        ]}
+        title="Equipo"
+        description="Gestiona usuarios, roles e invitaciones dentro de tu tenant."
+      />
+
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+        <StatsCard
+          title="Total usuarios"
+          value={usersList.length}
+          icon={<UsersIcon className="h-6 w-6" strokeWidth={1.5} />}
+          variant="default"
+        />
+        <StatsCard
+          title="Propietarios y admins"
+          value={(roleStats.owner || 0) + (roleStats.admin || 0)}
+          icon={<ShieldCheck className="h-6 w-6" strokeWidth={1.5} />}
+          variant="success"
+        />
+        <StatsCard
+          title="Entrenadores"
+          value={roleStats.coach || 0}
+          icon={<UserCog className="h-6 w-6" strokeWidth={1.5} />}
+          variant="info"
+        />
+        <StatsCard
+          title="Invitaciones pendientes"
+          value={pendingInvitations.length}
+          icon={<MailPlus className="h-6 w-6" strokeWidth={1.5} />}
+          variant="warning"
+        />
       </div>
 
-      <header className="flex flex-col gap-2">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-semibold">Usuarios de la academia</h1>
-            <p className="text-muted-foreground">
-              Gestiona roles, invitaciones y membresías dentro del tenant.
-            </p>
-          </div>
-        </div>
-
-        <form className="flex flex-wrap gap-3 pt-4" method="get">
+      <section className="rounded-lg border bg-card p-5 shadow-sm">
+        <form className="flex flex-wrap gap-3" method="get">
           <input
             type="search"
             name="q"
             placeholder="Buscar por nombre o correo"
             defaultValue={queryParam ?? ""}
             key={queryParam}
+            className="min-w-[220px] rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
           />
           <select
             name="role"
             defaultValue={roleFilterParam ?? ""}
             key={roleFilterParam}
-            className="min-w-[180px] rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-400"
+            className="min-w-[180px] rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
           >
             <option value="">Todos los roles</option>
             {validRoles.map((role) => (
@@ -208,20 +219,20 @@ export default async function UsersAdminPage({ searchParams }: UsersPageProps) {
               name="tenant"
               placeholder="Tenant ID"
               defaultValue={tenantParam ?? ""}
-              className="min-w-[240px] rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-400"
+              className="min-w-[240px] rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
             />
           )}
           <button
             type="submit"
-            className="rounded-md bg-gradient-to-r from-emerald-400 to-lime-300 px-4 py-2 text-sm font-semibold text-slate-900 shadow hover:from-emerald-300 hover:to-lime-200"
+            className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow hover:bg-primary/90"
           >
             Aplicar filtros
           </button>
         </form>
-      </header>
+      </section>
 
       {isSuperAdmin && !hasTenant && (
-        <div className="rounded-md border border-dashed border-emerald-300 bg-emerald-50/50 p-4 text-sm text-emerald-900">
+        <div className="rounded-md border border-dashed border-border bg-muted/30 p-4 text-sm text-muted-foreground">
           Selecciona un tenant en el filtro para visualizar usuarios e invitar nuevos miembros.
         </div>
       )}
@@ -290,7 +301,7 @@ export default async function UsersAdminPage({ searchParams }: UsersPageProps) {
                 pendingInvitations.map((invite) => (
                   <li
                     key={invite.id}
-                    className="rounded-md border border-dashed border-emerald-200 bg-emerald-50/70 p-3"
+                    className="rounded-md border border-dashed border-border bg-muted/30 p-3"
                   >
                     <div className="flex items-center justify-between gap-3">
                       <div>
@@ -316,5 +327,4 @@ export default async function UsersAdminPage({ searchParams }: UsersPageProps) {
     </div>
   );
 }
-
 

@@ -99,7 +99,6 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          "x-user-id": userId,
         },
         body: JSON.stringify({
           name: formData.name.trim() || null,
@@ -118,7 +117,6 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
       
       const refreshResponse = await fetch(`/api/super-admin/academies/${academy.id}`, {
         headers: {
-          "x-user-id": userId,
         },
         cache: "no-store",
       });
@@ -156,7 +154,6 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          "x-user-id": userId,
         },
         body: JSON.stringify({
           isSuspended: !formData.isSuspended,

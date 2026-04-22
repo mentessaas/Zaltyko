@@ -145,7 +145,6 @@ export function BillingPanel({ academyId, userId }: BillingPanelProps) {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "x-user-id": userId,
           },
           body: JSON.stringify({ academyId }),
         });
@@ -173,7 +172,6 @@ export function BillingPanel({ academyId, userId }: BillingPanelProps) {
         const res = await fetch("/api/billing/plans", {
           method: "GET",
           headers: {
-            "x-user-id": userId,
           },
         });
 
@@ -202,7 +200,6 @@ export function BillingPanel({ academyId, userId }: BillingPanelProps) {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "x-user-id": userId,
           },
           body: JSON.stringify({ academyId }),
         });
@@ -231,7 +228,6 @@ export function BillingPanel({ academyId, userId }: BillingPanelProps) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-user-id": userId,
         },
         body: JSON.stringify({ academyId, planCode }),
       });
@@ -267,7 +263,6 @@ export function BillingPanel({ academyId, userId }: BillingPanelProps) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-user-id": userId,
         },
         body: JSON.stringify({ academyId }),
       });
