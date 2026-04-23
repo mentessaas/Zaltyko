@@ -41,8 +41,8 @@ export async function updateSession(request: NextRequest) {
 
   // Rutas públicas que no requieren autenticación
   const publicPaths = [
-    "/login",
     "/auth",
+    "/login",
     "/academias",
     "/api/public",
     "/invite", // Páginas de invitación (para usuarios sin cuenta)
@@ -58,7 +58,7 @@ export async function updateSession(request: NextRequest) {
   ) {
     // no user, potentially respond by redirecting the user to the login page
     const url = request.nextUrl.clone();
-    url.pathname = "/login";
+    url.pathname = "/auth/login";
     return NextResponse.redirect(url);
   }
 

@@ -53,23 +53,29 @@ export default async function AcademyLayout({ params, children }: LayoutProps) {
     redirect("/dashboard");
   }
 
-  const [academy] = await db
-    .select({
-      id: academies.id,
-      name: academies.name,
-      tenantId: academies.tenantId,
-      country: academies.country,
-      countryCode: academies.countryCode,
-      academyType: academies.academyType,
-      discipline: academies.discipline,
-      disciplineVariant: academies.disciplineVariant,
-      federationConfigVersion: academies.federationConfigVersion,
-      specializationStatus: academies.specializationStatus,
-      ownerId: academies.ownerId,
-    })
-    .from(academies)
-    .where(eq(academies.id, academyId))
-    .limit(1);
+  let academy = null;
+  try {
+    const [result] = await db
+      .select({
+        id: academies.id,
+        name: academies.name,
+        tenantId: academies.tenantId,
+        country: academies.country,
+        countryCode: academies.countryCode,
+        academyType: academies.academyType,
+        discipline: academies.discipline,
+        disciplineVariant: academies.disciplineVariant,
+        federationConfigVersion: academies.federationConfigVersion,
+        specializationStatus: academies.specializationStatus,
+        ownerId: academies.ownerId,
+      })
+      .from(academies)
+      .where(eq(academies.id, academyId))
+      .limit(1);
+    academy = result;
+  } catch (error) {
+    console.error("Failed to fetch academy:", error);
+  }
 
   if (!academy) {
     notFound();

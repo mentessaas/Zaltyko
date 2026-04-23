@@ -10,7 +10,7 @@ const PUBLIC_ROUTES = [
   "/marketplace",
   "/empleo",
   "/events",
-  "/login",
+  "/auth/login",
 ] as const;
 
 // Cluster routes: 24 clusters (4 modalities x 6 countries)

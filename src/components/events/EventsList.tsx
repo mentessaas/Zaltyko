@@ -11,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { EventForm } from "./EventForm";
 import { useAcademyContext } from "@/hooks/use-academy-context";
+import { useToast } from "@/components/ui/toast-provider";
 
 interface Event {
   id: string;
@@ -30,6 +31,7 @@ interface EventsListProps {
 export function EventsList({ academyId, events, academyCountry }: EventsListProps) {
   const router = useRouter();
   const { specialization } = useAcademyContext();
+  const toast = useToast();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
   const [deletingEventId, setDeletingEventId] = useState<string | null>(null);
@@ -53,7 +55,11 @@ export function EventsList({ academyId, events, academyCountry }: EventsListProp
       router.refresh();
     } catch (error) {
       console.error("Error deleting event:", error);
-      alert("Error al eliminar el evento");
+      toast.pushToast({
+        title: "No se pudo eliminar el evento",
+        description: "Inténtalo de nuevo en unos segundos.",
+        variant: "error",
+      });
     } finally {
       setDeletingEventId(null);
     }

@@ -21,6 +21,7 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { getRegionLabel } from "@/lib/countryRegions";
 import { formatAcademyType } from "@/lib/formatters";
+import { useToast } from "@/components/ui/toast-provider";
 
 interface AcademyDetail {
   id: string;
@@ -62,6 +63,7 @@ interface Plan {
 
 export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAcademyDetailProps) {
   const router = useRouter();
+  const toast = useToast();
   const [academy, setAcademy] = useState<AcademyDetail>(initialAcademy);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -109,7 +111,11 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
 
       if (!response.ok) {
         const error = await response.text();
-        alert(`Error al guardar: ${error}`);
+        toast.pushToast({
+          title: "No se pudieron guardar los cambios",
+          description: error || "Inténtalo de nuevo en unos segundos.",
+          variant: "error",
+        });
         return;
       }
 
@@ -133,11 +139,19 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
         setAcademy({ ...academy, ...updated });
       }
       
-      alert("Cambios guardados correctamente");
+      toast.pushToast({
+        title: "Cambios guardados",
+        description: "La academia se actualizó correctamente.",
+        variant: "success",
+      });
       router.refresh();
     } catch (error) {
       console.error("Error saving academy", error);
-      alert("Error al guardar los cambios");
+      toast.pushToast({
+        title: "No se pudieron guardar los cambios",
+        description: "Inténtalo de nuevo en unos segundos.",
+        variant: "error",
+      });
     } finally {
       setSaving(false);
     }
@@ -162,7 +176,11 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
 
       if (!response.ok) {
         const error = await response.text();
-        alert(`Error: ${error}`);
+        toast.pushToast({
+          title: "No se pudo cambiar el estado de la academia",
+          description: error || "Inténtalo de nuevo en unos segundos.",
+          variant: "error",
+        });
         return;
       }
 
@@ -172,7 +190,11 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
       router.refresh();
     } catch (error) {
       console.error("Error toggling suspension", error);
-      alert("Error al cambiar el estado");
+      toast.pushToast({
+        title: "No se pudo cambiar el estado de la academia",
+        description: "Inténtalo de nuevo en unos segundos.",
+        variant: "error",
+      });
     } finally {
       setSaving(false);
     }
@@ -398,4 +420,3 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
     </div>
   );
 }
-

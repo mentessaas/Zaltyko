@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Image as ImageIcon, Trash2, Upload } from "lucide-react";
 import Image from "next/image";
+import { useToast } from "@/components/ui/toast-provider";
 
 interface PhotoGalleryProps {
   photos: string[];
@@ -15,6 +16,7 @@ interface PhotoGalleryProps {
 }
 
 export function PhotoGallery({ photos, onChange, academyId }: PhotoGalleryProps) {
+  const toast = useToast();
   const [uploading, setUploading] = useState(false);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -42,7 +44,11 @@ export function PhotoGallery({ photos, onChange, academyId }: PhotoGalleryProps)
       onChange([...photos, data.url]);
     } catch (error) {
       console.error("Error uploading photo:", error);
-      alert("Error al subir la imagen");
+      toast.pushToast({
+        title: "No se pudo subir la imagen",
+        description: "Revisa el archivo e inténtalo de nuevo.",
+        variant: "error",
+      });
     } finally {
       setUploading(false);
     }
@@ -102,4 +108,3 @@ export function PhotoGallery({ photos, onChange, academyId }: PhotoGalleryProps)
     </div>
   );
 }
-

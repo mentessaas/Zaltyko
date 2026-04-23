@@ -1,16 +1,19 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { Metadata } from "next";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, gte, inArray, lte } from "drizzle-orm";
 
 import { db } from "@/db";
-import { academies, memberships, profiles, athletes, guardians, guardianAthletes, groups, classes, classSessions, classEnrollments, attendanceRecords, charges, groupAthletes, coaches, billingItems } from "@/db/schema";
+import { academies, memberships, profiles, athletes, guardians, guardianAthletes, groups, classes, classSessions, classEnrollments, attendanceRecords, charges, groupAthletes, coaches, billingItems, athleteAssessments } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
 import { MyDashboardPage } from "./MyDashboardPage";
 
 interface PageProps {
   params: Promise<{
     academyId: string;
+  }>;
+  searchParams?: Promise<{
+    athleteId?: string;
   }>;
 }
 
@@ -88,11 +91,14 @@ interface SessionData {
   groupName: string | null;
   groupColor: string | null;
   coachName: string | null;
+  technicalFocus: string | null;
+  apparatus: string[];
   status: string;
 }
 
-export default async function MyDashboard({ params }: PageProps) {
+export default async function MyDashboard({ params, searchParams }: PageProps) {
   const { academyId } = await params;
+  const resolvedSearchParams = (await searchParams) ?? {};
   const cookieStore = await cookies();
   const supabase = await createClient(cookieStore);
 
@@ -256,9 +262,22 @@ export default async function MyDashboard({ params }: PageProps) {
     }
   }
 
-  // Obtener clases próximas (para athlete o primer athlete del padre)
+  const selectedParentAthleteId =
+    profile.role === "parent" && guardianAthletesList.length > 0
+      ? guardianAthletesList.some((athlete) => athlete.athleteId === resolvedSearchParams.athleteId)
+        ? resolvedSearchParams.athleteId
+        : guardianAthletesList[0]?.athleteId
+      : undefined;
+
+  // Obtener clases próximas (para athlete o athlete seleccionado del padre)
   let upcomingClasses: SessionData[] = [];
-  const targetAthleteId = profile.role === "athlete" ? athleteData?.id : guardianAthletesList[0]?.athleteId;
+  const targetAthleteId =
+    profile.role === "athlete" ? athleteData?.id : selectedParentAthleteId;
+  const targetGroupId =
+    profile.role === "athlete"
+      ? athleteData?.groupId
+      : guardianAthletesList.find((athlete) => athlete.athleteId === selectedParentAthleteId)
+          ?.athleteGroupId;
 
   if (targetAthleteId) {
     // Buscar inscripciones del atleta en clases
@@ -310,6 +329,8 @@ export default async function MyDashboard({ params }: PageProps) {
           groupName: groups.name,
           groupColor: groups.color,
           coachName: coaches.name,
+          technicalFocus: classes.technicalFocus,
+          apparatus: classes.apparatus,
         })
         .from(classSessions)
         .leftJoin(classes, eq(classSessions.classId, classes.id))
@@ -319,7 +340,8 @@ export default async function MyDashboard({ params }: PageProps) {
           and(
             inArray(classSessions.classId, classIds),
             inArray(classSessions.status, ["scheduled", "in_progress"]),
-            eq(classSessions.sessionDate, todayStr) // Solo hoy para mostrar primero
+            gte(classSessions.sessionDate, todayStr),
+            lte(classSessions.sessionDate, nextWeekStr)
           )
         )
         .orderBy(classSessions.sessionDate, classSessions.startTime)
@@ -335,6 +357,8 @@ export default async function MyDashboard({ params }: PageProps) {
         groupName: s.groupName,
         groupColor: s.groupColor,
         coachName: s.coachName,
+        technicalFocus: s.technicalFocus ?? null,
+        apparatus: s.apparatus ?? [],
         status: s.status,
       }));
     }
@@ -364,8 +388,8 @@ export default async function MyDashboard({ params }: PageProps) {
         and(
           eq(attendanceRecords.athleteId, targetAthleteId),
           inArray(attendanceRecords.status, ["present", "absent", "excused"]),
-          // @ts-ignore - sessionDate comparison
-          inArray(classSessions.sessionDate, [thirtyDaysAgoStr, new Date().toISOString().split("T")[0]])
+          gte(classSessions.sessionDate, thirtyDaysAgoStr),
+          lte(classSessions.sessionDate, new Date().toISOString().split("T")[0])
         )
       )
       .orderBy(classSessions.sessionDate)
@@ -431,7 +455,7 @@ export default async function MyDashboard({ params }: PageProps) {
   // Obtener información de horarios semanales (clases programadas por grupo)
   let weeklySchedule: { day: number; className: string; time: string }[] = [];
 
-  if (targetAthleteId && athleteData?.groupId) {
+  if (targetAthleteId && targetGroupId) {
     const weeklyClasses = await db
       .select({
         weekday: classes.weekday,
@@ -440,13 +464,153 @@ export default async function MyDashboard({ params }: PageProps) {
         endTime: classes.endTime,
       })
       .from(classes)
-      .where(eq(classes.groupId, athleteData.groupId));
+      .where(eq(classes.groupId, targetGroupId));
 
     weeklySchedule = weeklyClasses.map((c) => ({
       day: c.weekday ?? 0,
       className: c.name ?? "Clase",
       time: c.startTime ? `${c.startTime.substring(0, 5)}${c.endTime ? ` - ${c.endTime.substring(0, 5)}` : ""}` : "Por definir",
     }));
+  }
+
+  let assessmentsData: {
+    id: string;
+    assessmentDate: string;
+    apparatus: string | null;
+    overallComment: string | null;
+    assessedByName: string | null;
+  }[] = [];
+
+  if (targetAthleteId) {
+    const assessmentRows = await db
+      .select({
+        id: athleteAssessments.id,
+        assessmentDate: athleteAssessments.assessmentDate,
+        apparatus: athleteAssessments.apparatus,
+        overallComment: athleteAssessments.overallComment,
+      })
+      .from(athleteAssessments)
+      .where(eq(athleteAssessments.athleteId, targetAthleteId))
+      .orderBy(athleteAssessments.assessmentDate)
+      .limit(5);
+
+    assessmentsData = assessmentRows
+      .map((item) => ({
+        id: item.id,
+        assessmentDate: String(item.assessmentDate),
+        apparatus: item.apparatus,
+        overallComment: item.overallComment ?? null,
+        assessedByName: null,
+      }))
+      .reverse();
+  }
+
+  let calendarSessions: {
+    date: string;
+    sessions: {
+      id: string;
+      className: string;
+      startTime: string | null;
+      endTime: string | null;
+      groupName: string | null;
+      groupColor: string | null;
+      technicalFocus: string | null;
+      apparatus: string[];
+    }[];
+  }[] = [];
+
+  if (targetAthleteId) {
+    const enrollments = await db
+      .select({ classId: classEnrollments.classId })
+      .from(classEnrollments)
+      .where(eq(classEnrollments.athleteId, targetAthleteId));
+
+    const enrolledClassIds = enrollments.map((e) => e.classId);
+    const athleteGroupMemberships = await db
+      .select({ groupId: groupAthletes.groupId })
+      .from(groupAthletes)
+      .where(eq(groupAthletes.athleteId, targetAthleteId));
+
+    const athleteGroupIds = athleteGroupMemberships.map((g) => g.groupId);
+    let relatedClassIds: string[] = [...enrolledClassIds];
+
+    if (athleteGroupIds.length > 0) {
+      const groupClasses = await db
+        .select({ id: classes.id })
+        .from(classes)
+        .where(inArray(classes.groupId, athleteGroupIds));
+
+      relatedClassIds = [...new Set([...relatedClassIds, ...groupClasses.map((c) => c.id)])];
+    }
+
+    if (relatedClassIds.length > 0) {
+      const today = new Date();
+      const nextFourteenDays = new Date(today);
+      nextFourteenDays.setDate(nextFourteenDays.getDate() + 14);
+      const todayStr = today.toISOString().split("T")[0];
+      const nextStr = nextFourteenDays.toISOString().split("T")[0];
+
+      const calendarRows = await db
+        .select({
+          id: classSessions.id,
+          classId: classSessions.classId,
+          className: classes.name,
+          sessionDate: classSessions.sessionDate,
+          startTime: classSessions.startTime,
+          endTime: classSessions.endTime,
+          groupName: groups.name,
+          groupColor: groups.color,
+          technicalFocus: classes.technicalFocus,
+          apparatus: classes.apparatus,
+        })
+        .from(classSessions)
+        .leftJoin(classes, eq(classSessions.classId, classes.id))
+        .leftJoin(groups, eq(classes.groupId, groups.id))
+        .where(
+          and(
+            inArray(classSessions.classId, relatedClassIds),
+            inArray(classSessions.status, ["scheduled", "in_progress"]),
+            gte(classSessions.sessionDate, todayStr),
+            lte(classSessions.sessionDate, nextStr)
+          )
+        )
+        .orderBy(classSessions.sessionDate, classSessions.startTime);
+
+      const grouped = new Map<
+        string,
+        {
+          id: string;
+          className: string;
+          startTime: string | null;
+          endTime: string | null;
+          groupName: string | null;
+          groupColor: string | null;
+          technicalFocus: string | null;
+          apparatus: string[];
+        }[]
+      >();
+
+      calendarRows.forEach((row) => {
+        const key = row.sessionDate;
+        const current = grouped.get(key) ?? [];
+        current.push({
+          id: row.id,
+          className: row.className ?? "Clase",
+          startTime: row.startTime,
+          endTime: row.endTime,
+          groupName: row.groupName,
+          groupColor: row.groupColor,
+          technicalFocus: row.technicalFocus ?? null,
+          apparatus: row.apparatus ?? [],
+        });
+        grouped.set(key, current);
+      });
+
+      calendarSessions = Array.from(grouped.entries()).map(([date, sessions]) => ({
+        date,
+        sessions,
+      }));
+    }
   }
 
   return (
@@ -464,8 +628,8 @@ export default async function MyDashboard({ params }: PageProps) {
       attendanceData={attendanceData}
       chargesData={chargesData}
       weeklySchedule={weeklySchedule}
-      assessmentsData={[]}
-      calendarSessions={[]}
+      assessmentsData={assessmentsData}
+      calendarSessions={calendarSessions}
     />
   );
 }

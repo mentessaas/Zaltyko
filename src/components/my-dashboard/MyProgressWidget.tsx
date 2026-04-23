@@ -1,9 +1,18 @@
 "use client";
 
-import { TrendingUp, Award, Target, Star, Medal } from "lucide-react";
+import {
+  Activity,
+  Award,
+  CalendarClock,
+  ClipboardList,
+  Target,
+  TrendingUp,
+} from "lucide-react";
+
 import { Badge } from "@/components/ui/badge";
 import { LineChart } from "@/components/ui/chart";
 import { Progress } from "@/components/ui/progress";
+import { useAcademyContext } from "@/hooks/use-academy-context";
 
 interface AthleteWithDetails {
   id: string;
@@ -27,57 +36,68 @@ interface AttendanceData {
   }[];
 }
 
+interface AssessmentData {
+  id: string;
+  assessmentDate: string;
+  apparatus: string | null;
+  overallComment: string | null;
+  assessedByName: string | null;
+}
+
 interface MyProgressWidgetProps {
   athleteData: AthleteWithDetails | null;
   attendanceData: AttendanceData | null;
+  assessmentsData: AssessmentData[];
 }
 
 export function MyProgressWidget({
   athleteData,
   attendanceData,
+  assessmentsData,
 }: MyProgressWidgetProps) {
+  const { specialization } = useAcademyContext();
+
   if (!athleteData) {
     return (
       <div className="flex flex-col items-center justify-center py-8 text-center">
-        <Star className="h-10 w-10 text-muted-foreground/50" />
+        <Award className="h-10 w-10 text-muted-foreground/50" />
         <p className="mt-2 text-sm text-muted-foreground">
-          Sin información del atleta
+          Sin información de {specialization.labels.athleteSingular.toLowerCase()}
         </p>
         <p className="text-xs text-muted-foreground">
-          Los datos de progreso aparecerán aquí
+          Los datos de progreso aparecerán aquí cuando haya actividad registrada.
         </p>
       </div>
     );
   }
 
-  // Calcular métricas
   const attendanceRate =
     attendanceData && attendanceData.total > 0
       ? Math.round((attendanceData.present / attendanceData.total) * 100)
       : 0;
-
-  // Generar datos de tendencia (simulado con datos reales si existen)
   const trendData = generateTrendData(attendanceData);
-
-  // Obtener nivel o habilidad
-  const currentLevel = athleteData.level || "Principiante";
-
-  // Definir progreso hacia el siguiente nivel
-  const levelProgress = getLevelProgress(currentLevel);
+  const currentLevel = athleteData.level || "Por definir";
+  const latestAssessment = assessmentsData[0] ?? null;
+  const distinctApparatusCount = new Set(
+    assessmentsData.map((assessment) => assessment.apparatus).filter(Boolean)
+  ).size;
+  const progressSnapshot = getProgressSnapshot({
+    attendanceData,
+    assessmentsCount: assessmentsData.length,
+  });
 
   return (
     <div className="space-y-6">
-      {/* Información del nivel actual */}
       <div className="flex items-center justify-between rounded-lg bg-muted/30 p-4">
         <div className="flex items-center gap-3">
           <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/20">
             <Award className="h-6 w-6 text-primary" />
           </div>
           <div>
-            <p className="text-sm text-muted-foreground">Nivel actual</p>
-            <p className="text-lg font-semibold text-foreground">
-              {currentLevel}
+            <p className="text-sm text-muted-foreground">
+              {specialization.labels.levelLabel} actual
             </p>
+            <p className="text-lg font-semibold text-foreground">{currentLevel}</p>
           </div>
         </div>
         {athleteData.groupName && (
@@ -99,44 +119,37 @@ export function MyProgressWidget({
         )}
       </div>
 
-      {/* Progreso hacia siguiente nivel */}
       <div className="space-y-2">
         <div className="flex items-center justify-between text-sm">
           <span className="flex items-center gap-1 text-muted-foreground">
             <Target className="h-4 w-4" />
-            Progreso hacia siguiente nivel
+            Señal de seguimiento reciente
           </span>
           <span className="font-medium text-foreground">
-            {levelProgress.current} / {levelProgress.target}
+            {progressSnapshot.completed} / {progressSnapshot.total}
           </span>
         </div>
-        <Progress value={levelProgress.percentage} className="h-2" />
-        <p className="text-xs text-muted-foreground">
-          {levelProgress.percentage >= 100
-            ? "¡Has alcanzado el nivel máximo!"
-            : `Completa ${levelProgress.target - levelProgress.current} clases más para avanzar`}
-        </p>
+        <Progress value={progressSnapshot.percentage} className="h-2" />
+        <p className="text-xs text-muted-foreground">{progressSnapshot.message}</p>
       </div>
 
-      {/* Estadísticas de rendimiento */}
       <div className="grid grid-cols-2 gap-4">
         <div className="rounded-lg border bg-card p-4 text-center">
           <TrendingUp className="mx-auto h-6 w-6 text-primary" />
           <p className="mt-1 text-2xl font-bold text-foreground">
-            {attendanceRate}%
+            {attendanceData ? `${attendanceRate}%` : "Sin datos"}
           </p>
           <p className="text-xs text-muted-foreground">Asistencia</p>
         </div>
         <div className="rounded-lg border bg-card p-4 text-center">
-          <Medal className="mx-auto h-6 w-6 text-amber-500" />
+          <ClipboardList className="mx-auto h-6 w-6 text-amber-500" />
           <p className="mt-1 text-2xl font-bold text-foreground">
-            {athleteData.coachName ? "1" : "0"}
+            {assessmentsData.length}
           </p>
-          <p className="text-xs text-muted-foreground">Entrenador</p>
+          <p className="text-xs text-muted-foreground">Evaluaciones registradas</p>
         </div>
       </div>
 
-      {/* Gráfico de tendencia de asistencia */}
       {trendData.length > 0 && (
         <div className="space-y-2">
           <p className="text-sm font-medium text-muted-foreground">
@@ -146,29 +159,39 @@ export function MyProgressWidget({
         </div>
       )}
 
-      {/* Habilidades o logros */}
       <div className="space-y-2">
         <p className="text-sm font-medium text-muted-foreground">
-          Habilidades desbloqueadas
+          Última referencia técnica
         </p>
-        <div className="flex flex-wrap gap-2">
-          <Badge variant="outline" className="bg-amber-50">
-            <Star className="mr-1 h-3 w-3 text-amber-500" />
-            Asistente
-          </Badge>
-          {attendanceRate >= 80 && (
-            <Badge variant="outline" className="bg-emerald-50">
-              <Medal className="mr-1 h-3 w-3 text-emerald-500" />
-              Constante
-            </Badge>
-          )}
-          {attendanceData && attendanceData.total >= 10 && (
-            <Badge variant="outline" className="bg-red-50">
-              <Award className="mr-1 h-3 w-3 text-red-500" />
-              Veterano
-            </Badge>
-          )}
-        </div>
+        {latestAssessment ? (
+          <div className="rounded-lg border bg-card p-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="outline" className="bg-primary/5">
+                <CalendarClock className="mr-1 h-3 w-3 text-primary" />
+                {formatDate(latestAssessment.assessmentDate)}
+              </Badge>
+              {latestAssessment.apparatus && (
+                <Badge variant="outline">
+                  <Activity className="mr-1 h-3 w-3 text-primary" />
+                  {latestAssessment.apparatus}
+                </Badge>
+              )}
+              {distinctApparatusCount > 1 && (
+                <Badge variant="outline">
+                  {distinctApparatusCount} aparatos registrados
+                </Badge>
+              )}
+            </div>
+            <p className="mt-3 text-sm text-muted-foreground">
+              {latestAssessment.overallComment?.trim() ||
+                "La última evaluación ya está registrada y disponible en el historial."}
+            </p>
+          </div>
+        ) : (
+          <div className="rounded-lg border border-dashed bg-muted/20 p-4 text-sm text-muted-foreground">
+            Todavía no hay evaluaciones registradas para mostrar una referencia técnica aquí.
+          </div>
+        )}
       </div>
     </div>
   );
@@ -176,16 +199,9 @@ export function MyProgressWidget({
 
 function generateTrendData(attendanceData: AttendanceData | null) {
   if (!attendanceData || attendanceData.recentRecords.length === 0) {
-    // Generar datos de ejemplo
-    return [
-      { label: "Sem 1", value: 85 },
-      { label: "Sem 2", value: 90 },
-      { label: "Sem 3", value: 75 },
-      { label: "Sem 4", value: 95 },
-    ];
+    return [];
   }
 
-  // Agrupar por semana los datos reales
   const weeks: Record<string, { present: number; total: number }> = {};
 
   attendanceData.recentRecords.forEach((record) => {
@@ -209,20 +225,52 @@ function generateTrendData(attendanceData: AttendanceData | null) {
   }));
 }
 
-function getLevelProgress(level: string | null) {
-  // Simular progreso basado en nivel
-  const levels: Record<string, { current: number; target: number }> = {
-    "Principiante": { current: 8, target: 20 },
-    "Intermedio": { current: 15, target: 30 },
-    "Avanzado": { current: 25, target: 40 },
-    "Élite": { current: 35, target: 50 },
-    "Profesional": { current: 45, target: 60 },
-  };
+function getProgressSnapshot({
+  attendanceData,
+  assessmentsCount,
+}: {
+  attendanceData: AttendanceData | null;
+  assessmentsCount: number;
+}) {
+  const milestones = [
+    Boolean(attendanceData && attendanceData.total >= 4),
+    Boolean(attendanceData && attendanceData.present >= 3),
+    Boolean(assessmentsCount >= 1),
+    Boolean(assessmentsCount >= 3),
+  ];
+  const completed = milestones.filter(Boolean).length;
+  const total = milestones.length;
+  const percentage = Math.round((completed / total) * 100);
 
-  const progress = levels[level || "Principiante"] || { current: 5, target: 20 };
+  let message = "Aún faltan registros para dibujar una evolución fiable.";
+  if (assessmentsCount >= 3) {
+    message =
+      "Ya hay suficiente seguimiento para revisar evolución técnica y constancia.";
+  } else if (assessmentsCount >= 1) {
+    message =
+      "Ya existe una evaluación registrada; conviene sumar más seguimiento para ver tendencia.";
+  } else if (attendanceData && attendanceData.total >= 4) {
+    message =
+      "La asistencia ya empieza a dar contexto, pero aún faltan evaluaciones técnicas.";
+  }
 
   return {
-    ...progress,
-    percentage: Math.min(Math.round((progress.current / progress.target) * 100), 100),
+    completed,
+    total,
+    percentage,
+    message,
   };
+}
+
+function formatDate(value: string) {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat("es-ES", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(parsed);
 }

@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/components/ui/toast-provider";
 
 interface Assessment {
   id: string;
@@ -28,13 +29,24 @@ interface AthleteHistoryViewProps {
   athleteId: string;
   academyId: string;
   initialAssessments?: Assessment[];
+  technicalContext?: {
+    groupName: string | null;
+    technicalFocus: string | null;
+    apparatus: string[];
+  } | null;
+  apparatusLabels?: Record<string, string>;
+  athleteLabel?: string;
 }
 
 export function AthleteHistoryView({
   athleteId,
   academyId,
   initialAssessments = [],
+  technicalContext,
+  apparatusLabels = {},
+  athleteLabel = "atleta",
 }: AthleteHistoryViewProps) {
+  const toast = useToast();
   const [assessments, setAssessments] = useState<Assessment[]>(initialAssessments);
   const [filteredAssessments, setFilteredAssessments] = useState<Assessment[]>(initialAssessments);
   const [searchQuery, setSearchQuery] = useState("");
@@ -119,7 +131,11 @@ export function AthleteHistoryView({
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
     } catch (err: any) {
-      alert("Error al exportar PDF: " + err.message);
+      toast.pushToast({
+        title: "No se pudo exportar el PDF",
+        description: err.message || "Inténtalo de nuevo en unos segundos.",
+        variant: "error",
+      });
     }
   };
 
@@ -129,7 +145,7 @@ export function AthleteHistoryView({
         <div>
           <h2 className="text-2xl font-bold">Historial de Evaluaciones</h2>
           <p className="text-muted-foreground mt-1">
-            Todas las evaluaciones y progreso del atleta
+            Todas las evaluaciones y progreso de {athleteLabel}
           </p>
         </div>
         <Button variant="outline" onClick={handleExportPDF}>
@@ -137,6 +153,31 @@ export function AthleteHistoryView({
           Exportar PDF
         </Button>
       </div>
+
+      {technicalContext && (
+        <Card className="border-primary/20 bg-primary/5">
+          <CardContent className="space-y-3 pt-6">
+            <div>
+              <p className="text-sm font-semibold text-foreground">Contexto técnico actual</p>
+              {technicalContext.groupName && (
+                <p className="text-sm text-muted-foreground">Grupo: {technicalContext.groupName}</p>
+              )}
+              {technicalContext.technicalFocus && (
+                <p className="mt-1 text-sm text-muted-foreground">{technicalContext.technicalFocus}</p>
+              )}
+            </div>
+            {(technicalContext.apparatus?.length ?? 0) > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {technicalContext.apparatus.map((item) => (
+                  <Badge key={item} variant="outline">
+                    {apparatusLabels[item] || item}
+                  </Badge>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
@@ -167,7 +208,7 @@ export function AthleteHistoryView({
                 <option value="all">Todos</option>
                 {apparatusList.filter(app => app !== null).map((app) => (
                   <option key={app} value={app}>
-                    {app}
+                    {apparatusLabels[app ?? ""] || app}
                   </option>
                 ))}
               </select>
@@ -230,7 +271,7 @@ export function AthleteHistoryView({
                     <CardDescription>
                       {assessment.apparatus && (
                         <Badge variant="outline" className="mt-2">
-                          {assessment.apparatus}
+                          {apparatusLabels[assessment.apparatus] || assessment.apparatus}
                         </Badge>
                       )}
                       {assessment.assessedByName && (
@@ -278,4 +319,3 @@ export function AthleteHistoryView({
     </div>
   );
 }
-

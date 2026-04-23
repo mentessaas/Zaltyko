@@ -1,16 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type { SuperAdminMetrics } from "@/lib/superAdminService";
+import { isSuperAdminMetrics, normalizeSuperAdminMetrics } from "@/lib/super-admin-metrics";
 import { createClient } from "@/lib/supabase/client";
 
 export function useSuperAdminData(initial: SuperAdminMetrics) {
   const supabase = useMemo(() => createClient(), []);
-  const [metrics, setMetrics] = useState<SuperAdminMetrics>(initial);
+  const [metrics, setMetrics] = useState<SuperAdminMetrics>(() => normalizeSuperAdminMetrics(initial));
   const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    setMetrics(initial);
+    setMetrics(normalizeSuperAdminMetrics(initial));
   }, [initial]);
 
   useEffect(() => {
@@ -33,8 +34,15 @@ export function useSuperAdminData(initial: SuperAdminMetrics) {
         cache: "no-store",
       });
       if (!response.ok) return;
-      const payload = (await response.json()) as SuperAdminMetrics;
-      setMetrics(payload);
+      const json = await response.json();
+      const unwrapped = json.ok ? json.data : json;
+      if (isSuperAdminMetrics(unwrapped)) {
+        setMetrics(normalizeSuperAdminMetrics(unwrapped));
+      } else {
+        console.warn("[useSuperAdminData] Invalid metrics payload from API:", unwrapped);
+      }
+    } catch (err) {
+      console.error("[useSuperAdminData] Failed to refresh metrics:", err);
     } finally {
       setLoading(false);
     }

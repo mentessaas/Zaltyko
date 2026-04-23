@@ -3,6 +3,7 @@
 import { CalendarClock, MapPin, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { formatShortDateForCountry, formatTimeForCountry } from "@/lib/date-utils";
+import { useAcademyContext } from "@/hooks/use-academy-context";
 
 interface SessionData {
   id: string;
@@ -14,6 +15,8 @@ interface SessionData {
   groupName: string | null;
   groupColor: string | null;
   coachName: string | null;
+  technicalFocus: string | null;
+  apparatus: string[];
   status: string;
 }
 
@@ -23,6 +26,11 @@ interface MyScheduleWidgetProps {
 }
 
 export function MyScheduleWidget({ sessions, academyCountry }: MyScheduleWidgetProps) {
+  const { specialization } = useAcademyContext();
+  const apparatusLabels = Object.fromEntries(
+    specialization.evaluation.apparatus.map((item) => [item.code, item.label])
+  );
+
   if (sessions.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-8 text-center">
@@ -123,6 +131,23 @@ export function MyScheduleWidget({ sessions, academyCountry }: MyScheduleWidgetP
               >
                 {session.groupName}
               </Badge>
+            )}
+            {(session.technicalFocus || session.apparatus.length > 0) && (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {session.technicalFocus && (
+                  <span className="rounded-full bg-muted px-2 py-1 text-[11px] text-muted-foreground">
+                    {session.technicalFocus}
+                  </span>
+                )}
+                {session.apparatus.slice(0, 2).map((item) => (
+                  <span
+                    key={item}
+                    className="rounded-full border border-border bg-background px-2 py-1 text-[11px] text-muted-foreground"
+                  >
+                    {apparatusLabels[item] || item}
+                  </span>
+                ))}
+              </div>
             )}
           </div>
         </div>

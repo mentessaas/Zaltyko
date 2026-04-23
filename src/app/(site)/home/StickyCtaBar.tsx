@@ -9,8 +9,15 @@ import { buttonVariants } from "@/components/ui/button";
 export default function StickyCtaBar() {
   const [visible, setVisible] = useState(false);
   const [dismissed, setDismissed] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+
     const handleScroll = () => {
       // Show after scrolling past 50vh
       if (window.scrollY > window.innerHeight * 0.5 && !dismissed) {
@@ -22,9 +29,10 @@ export default function StickyCtaBar() {
 
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
-  }, [dismissed]);
+  }, [mounted, dismissed]);
 
-  if (!visible || dismissed) return null;
+  // Don't render anything until mounted to avoid hydration mismatch
+  if (!mounted || !visible || dismissed) return null;
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 animate-in slide-in-from-bottom-5">

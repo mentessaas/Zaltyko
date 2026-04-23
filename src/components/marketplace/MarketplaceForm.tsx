@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useToast } from "@/components/ui/toast-provider";
 
 const CATEGORIES = [
   { value: "equipment", label: "Equipamiento" },
@@ -31,6 +32,7 @@ interface MarketplaceFormProps {
 
 export function MarketplaceForm({ userId, sellerType = "external", onSuccess }: MarketplaceFormProps) {
   const router = useRouter();
+  const toast = useToast();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     type: "product",
@@ -85,11 +87,19 @@ export function MarketplaceForm({ userId, sellerType = "external", onSuccess }: 
         }
       } else {
         const error = await response.json();
-        alert(error.message || "Error al crear el listing");
+        toast.pushToast({
+          title: "No se pudo publicar el anuncio",
+          description: error.message || "Revisa los datos e inténtalo de nuevo.",
+          variant: "error",
+        });
       }
     } catch (error) {
       console.error(error);
-      alert("Error al crear el listing");
+      toast.pushToast({
+        title: "No se pudo publicar el anuncio",
+        description: "Inténtalo de nuevo en unos segundos.",
+        variant: "error",
+      });
     } finally {
       setLoading(false);
     }

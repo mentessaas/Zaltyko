@@ -89,26 +89,6 @@ export function WhatsAppPage({
     return response.ok;
   };
 
-  // Mock history data - in production, fetch from API
-  const mockHistory = [
-    {
-      id: "1",
-      content: "Recordatorio: Clase de gimnasia mañana a las 10:00",
-      recipientCount: 15,
-      status: "delivered" as const,
-      createdAt: new Date(Date.now() - 86400000).toISOString(),
-      sentAt: new Date(Date.now() - 86400000).toISOString(),
-    },
-    {
-      id: "2",
-      content: "Tienes un pago pendiente de €50",
-      recipientCount: 3,
-      status: "sent" as const,
-      createdAt: new Date(Date.now() - 172800000).toISOString(),
-      sentAt: new Date(Date.now() - 172800000).toISOString(),
-    },
-  ];
-
   return (
     <div className="space-y-6 p-4 sm:p-6 lg:p-8">
       <Breadcrumb
@@ -186,7 +166,7 @@ export function WhatsAppPage({
         </TabsContent>
 
         <TabsContent value="history" className="mt-6">
-          <WhatsAppHistory messages={mockHistory} />
+          <WhatsAppHistory messages={[]} />
         </TabsContent>
 
         <TabsContent value="settings" className="mt-6">

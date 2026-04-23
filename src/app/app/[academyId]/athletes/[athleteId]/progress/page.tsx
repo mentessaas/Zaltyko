@@ -15,6 +15,7 @@ import {
   skillCatalog,
   memberships,
   profiles,
+  groups,
 } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ProgressChart } from "@/components/assessments/ProgressChart";
 import type { AssessmentWithScores } from "@/types";
+import { resolveAcademySpecialization } from "@/lib/specialization/registry";
+import { resolveSpecializedApparatusCodes } from "@/lib/specialization/technical-guidance";
 
 interface AthleteProgressPageProps {
   params: Promise<{
@@ -68,8 +71,17 @@ export default async function AthleteProgressPage({ params }: AthleteProgressPag
       level: athletes.level,
       status: athletes.status,
       dob: athletes.dob,
+      primaryApparatus: athletes.primaryApparatus,
+      groupId: athletes.groupId,
       academyId: athletes.academyId,
       academyName: academies.name,
+      academyType: academies.academyType,
+      country: academies.country,
+      countryCode: academies.countryCode,
+      discipline: academies.discipline,
+      disciplineVariant: academies.disciplineVariant,
+      federationConfigVersion: academies.federationConfigVersion,
+      specializationStatus: academies.specializationStatus,
       tenantId: athletes.tenantId,
     })
     .from(athletes)
@@ -95,6 +107,35 @@ export default async function AthleteProgressPage({ params }: AthleteProgressPag
   if (!canAccess) redirect("/dashboard");
 
   const age = calculateAge(athleteRow.dob ? new Date(athleteRow.dob) : null);
+  const specialization = resolveAcademySpecialization({
+    academyType: athleteRow.academyType,
+    country: athleteRow.country,
+    countryCode: athleteRow.countryCode,
+    discipline: athleteRow.discipline,
+    disciplineVariant: athleteRow.disciplineVariant,
+    federationConfigVersion: athleteRow.federationConfigVersion,
+    specializationStatus: athleteRow.specializationStatus,
+  });
+  const apparatusLabels = Object.fromEntries(
+    specialization.evaluation.apparatus.map((item) => [item.code, item.label])
+  );
+  const [groupRow] = athleteRow.groupId
+    ? await db
+        .select({
+          id: groups.id,
+          name: groups.name,
+          technicalFocus: groups.technicalFocus,
+          apparatus: groups.apparatus,
+          sessionBlocks: groups.sessionBlocks,
+        })
+        .from(groups)
+        .where(eq(groups.id, athleteRow.groupId))
+        .limit(1)
+    : [];
+  const contextualApparatus = resolveSpecializedApparatusCodes(specialization, [
+    ...(athleteRow.primaryApparatus ? [athleteRow.primaryApparatus] : []),
+    ...((groupRow?.apparatus ?? []) as string[]),
+  ]);
 
   // Get all assessments for this athlete
   const assessmentRows = await db
@@ -173,22 +214,6 @@ export default async function AthleteProgressPage({ params }: AthleteProgressPag
       : 0;
   });
 
-  const APPARATUS_LABELS: Record<string, string> = {
-    rope: "Cuerda",
-    ball: "Pelota",
-    clubs: "Mazas",
-    hoop: "Aro",
-    ribbon: "Cinta",
-    vt: "Salto",
-    ub: "Barras Asimétricas",
-    bb: "Viga",
-    fx: "Suelo",
-    ph: "Caballo con Arcos",
-    sr: "Anillas",
-    pb: "Paralelas",
-    hb: "Barra Fija",
-  };
-
   return (
     <div className="space-y-6 p-4 md:p-8">
       {/* Header */}
@@ -211,8 +236,44 @@ export default async function AthleteProgressPage({ params }: AthleteProgressPag
             {athleteRow.academyName} · {athleteRow.level ?? "Nivel no definido"}
             {age !== null && ` · ${age} años`}
           </p>
+          <p className="text-sm text-muted-foreground">
+            Progreso técnico de {specialization.labels.athleteSingular.toLowerCase()} en{" "}
+            {specialization.labels.disciplineName}
+          </p>
         </div>
       </div>
+
+      {(groupRow || athleteRow.primaryApparatus || contextualApparatus.length > 0) && (
+        <Card className="border-primary/20 bg-primary/5">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Contexto técnico actual</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {groupRow?.name && (
+              <p className="text-sm text-muted-foreground">
+                {specialization.labels.groupLabel}: {groupRow.name}
+              </p>
+            )}
+            {groupRow?.technicalFocus && (
+              <p className="text-sm text-muted-foreground">{groupRow.technicalFocus}</p>
+            )}
+            {(contextualApparatus.length > 0 || athleteRow.primaryApparatus) && (
+              <div className="flex flex-wrap gap-2">
+                {(contextualApparatus.length > 0
+                  ? contextualApparatus
+                  : athleteRow.primaryApparatus
+                    ? [athleteRow.primaryApparatus]
+                    : []
+                ).map((apparatus) => (
+                  <Badge key={apparatus} variant="outline">
+                    {apparatusLabels[apparatus] || apparatus}
+                  </Badge>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -281,7 +342,7 @@ export default async function AthleteProgressPage({ params }: AthleteProgressPag
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
               {Object.entries(apparatusStats).map(([apparatus, stats]) => (
                 <div key={apparatus} className="rounded-lg border p-3 text-center">
-                  <p className="font-medium text-sm">{APPARATUS_LABELS[apparatus] || apparatus}</p>
+                  <p className="font-medium text-sm">{apparatusLabels[apparatus] || apparatus}</p>
                   <p className="text-2xl font-bold mt-1">{stats.avgScore.toFixed(1)}</p>
                   <p className="text-xs text-muted-foreground">/10 promedio</p>
                   <p className="text-xs text-muted-foreground mt-1">
@@ -312,7 +373,7 @@ export default async function AthleteProgressPage({ params }: AthleteProgressPag
                     </div>
                     <div>
                       <p className="font-medium text-sm">
-                        {APPARATUS_LABELS[assessment.apparatus ?? ""] || assessment.apparatus || "General"}
+                        {apparatusLabels[assessment.apparatus ?? ""] || assessment.apparatus || "General"}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {format(new Date(assessment.assessmentDate), "PPP", { locale: es })}

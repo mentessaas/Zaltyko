@@ -11,12 +11,13 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast-provider";
 import { ReportFilters, ReportFilters as ReportFiltersType } from "@/components/reports/ReportFilters";
 import { ExportButtons } from "@/components/reports/ExportButtons";
+import { useAcademyContext } from "@/hooks/use-academy-context";
 
 interface CoachStats {
   totalCoaches: number;
   activeCoaches: number;
   totalClasses: number;
-  averageRating: number;
+  averageAttendance: number;
   coachPerformance: CoachPerformance[];
 }
 
@@ -27,6 +28,8 @@ interface CoachPerformance {
   athletesCount: number;
   averageAttendance: number;
   sessionsConducted: number;
+  technicalFocuses: string[];
+  apparatus: string[];
 }
 
 interface CoachReportProps {
@@ -36,6 +39,7 @@ interface CoachReportProps {
 
 export function CoachReport({ academyId, academyCountry }: CoachReportProps) {
   const toast = useToast();
+  const { specialization } = useAcademyContext();
   const [filters, setFilters] = useState<ReportFiltersType>({
     startDate: format(subMonths(new Date(), 1), "yyyy-MM-dd"),
     endDate: format(new Date(), "yyyy-MM-dd"),
@@ -44,6 +48,9 @@ export function CoachReport({ academyId, academyCountry }: CoachReportProps) {
   const [reportData, setReportData] = useState<CoachStats | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const apparatusLabels = Object.fromEntries(
+    specialization.evaluation.apparatus.map((item) => [item.code, item.label])
+  );
 
   const loadReport = async () => {
     setIsLoading(true);
@@ -207,6 +214,20 @@ export function CoachReport({ academyId, academyCountry }: CoachReportProps) {
                     {coach.averageAttendance}% asistencia
                   </Badge>
                 </div>
+                {(coach.technicalFocuses.length > 0 || coach.apparatus.length > 0) && (
+                  <div className="mb-3 flex flex-wrap gap-2">
+                    {coach.technicalFocuses.map((focus) => (
+                      <Badge key={`${coach.coachId}-${focus}`} variant="pending">
+                        {focus}
+                      </Badge>
+                    ))}
+                    {coach.apparatus.map((apparatus) => (
+                      <Badge key={`${coach.coachId}-${apparatus}`} variant="outline">
+                        {apparatusLabels[apparatus] || apparatus}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
                 <div className="grid grid-cols-3 gap-4 text-center">
                   <div className="p-2 rounded bg-muted/50">
                     <p className="text-lg font-bold">{coach.sessionsConducted}</p>
@@ -235,7 +256,7 @@ export function CoachReport({ academyId, academyCountry }: CoachReportProps) {
         <div>
           <h2 className="text-2xl font-bold">Reporte de Entrenadores</h2>
           <p className="text-muted-foreground mt-1">
-            Análisis de rendimiento de entrenadores
+            Análisis operativo del staff y su carga técnica
           </p>
         </div>
         <ExportButtons
@@ -299,11 +320,13 @@ export function CoachReport({ academyId, academyCountry }: CoachReportProps) {
                 </Card>
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-sm font-medium">Calificación Prom.</CardTitle>
+                    <CardTitle className="text-sm font-medium">Asistencia Media</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold">
-                      {reportData.averageRating > 0 ? reportData.averageRating.toFixed(1) : "N/A"}
+                      {reportData.averageAttendance > 0
+                        ? `${reportData.averageAttendance.toFixed(1)}%`
+                        : "N/A"}
                     </div>
                   </CardContent>
                 </Card>

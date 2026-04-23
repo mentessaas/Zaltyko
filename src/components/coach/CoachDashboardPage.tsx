@@ -14,6 +14,7 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { DashboardCard } from "@/components/dashboard/DashboardCard";
+import { useAcademyContext } from "@/hooks/use-academy-context";
 
 interface CoachAthlete {
   id: string;
@@ -34,6 +35,8 @@ interface CoachClass {
   groupName: string | null;
   groupColor: string | null;
   athleteCount: number;
+  technicalFocus: string | null;
+  apparatus: string[];
 }
 
 interface TodaySession {
@@ -45,6 +48,8 @@ interface TodaySession {
   endTime: string | null;
   groupName: string | null;
   groupColor: string | null;
+  technicalFocus: string | null;
+  apparatus: string[];
   status: string;
 }
 
@@ -99,10 +104,14 @@ export function CoachDashboardPage({
   recentAssessments,
 }: CoachDashboardPageProps) {
   const router = useRouter();
+  const { specialization } = useAcademyContext();
   const attendancePercent =
     attendanceStats.total > 0
       ? Math.round((attendanceStats.present / attendanceStats.total) * 100)
       : 0;
+  const apparatusLabels = Object.fromEntries(
+    specialization.evaluation.apparatus.map((item) => [item.code, item.label])
+  );
 
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-8 px-4 py-6 lg:px-8 lg:py-8">
@@ -110,17 +119,17 @@ export function CoachDashboardPage({
       <section className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="space-y-1">
           <h1 className="text-2xl font-semibold text-foreground lg:text-3xl">
-            {academyName ?? "Academia"} · Panel del Entrenador
+            {academyName ?? "Academia"} · Panel de {specialization.labels.coachLabel}
           </h1>
           <p className="text-sm text-muted-foreground">
-            Hola {profileName ?? "entrenador"}, bienvenido a tu panel personal.
+            Hola {profileName ?? specialization.labels.coachLabel.toLowerCase()}, bienvenido a tu panel personal.
           </p>
         </div>
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
             size="sm"
-            onClick={() => router.push(`/app/${academyId}/coach/attendance`)}
+            onClick={() => router.push(`/app/${academyId}/attendance`)}
             className="gap-2"
           >
             <UserCheck className="h-4 w-4" />
@@ -128,7 +137,7 @@ export function CoachDashboardPage({
           </Button>
           <Button
             size="sm"
-            onClick={() => router.push(`/app/${academyId}/assessments/new`)}
+            onClick={() => router.push(`/app/${academyId}/assessments`)}
             className="gap-2"
           >
             <ClipboardList className="h-4 w-4" />
@@ -140,7 +149,7 @@ export function CoachDashboardPage({
       {/* KPIs */}
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <DashboardCard
-          title="Atletas"
+          title={specialization.labels.athletesPlural}
           value={athletes.length}
           subtitle="En tus clases"
           href={`/app/${academyId}/athletes`}
@@ -209,6 +218,23 @@ export function CoachDashboardPage({
                       {session.groupName && `${session.groupName} · `}
                       {formatTime(session.startTime)} - {formatTime(session.endTime)}
                     </p>
+                    {(session.technicalFocus || session.apparatus.length > 0) && (
+                      <div className="mt-1 flex flex-wrap gap-2">
+                        {session.technicalFocus && (
+                          <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                            {session.technicalFocus}
+                          </span>
+                        )}
+                        {session.apparatus.slice(0, 2).map((apparatus) => (
+                          <span
+                            key={`${session.id}-${apparatus}`}
+                            className="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary"
+                          >
+                            {apparatusLabels[apparatus] || apparatus}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -246,7 +272,7 @@ export function CoachDashboardPage({
           <div className="flex items-center justify-between border-b p-4">
             <div className="flex items-center gap-2">
               <Users className="h-5 w-5 text-primary" />
-              <h2 className="font-semibold">Mis Atletas</h2>
+              <h2 className="font-semibold">Mis {specialization.labels.athletesPlural}</h2>
             </div>
             <Button
               variant="ghost"
@@ -261,7 +287,7 @@ export function CoachDashboardPage({
             {athletes.length === 0 ? (
               <div className="p-8 text-center text-muted-foreground">
                 <Users className="mx-auto h-8 w-8 mb-2 opacity-50" />
-                <p>No tienes atletas asignados</p>
+                <p>No tienes {specialization.labels.athletesPlural.toLowerCase()} asignados</p>
               </div>
             ) : (
               athletes.slice(0, 10).map((athlete) => (
@@ -297,7 +323,7 @@ export function CoachDashboardPage({
                 size="sm"
                 onClick={() => router.push(`/app/${academyId}/athletes`)}
               >
-                Ver los {athletes.length} atletas
+                Ver los {athletes.length} {specialization.labels.athletesPlural.toLowerCase()}
               </Button>
             </div>
           )}
@@ -335,7 +361,7 @@ export function CoachDashboardPage({
                   <div>
                     <p className="font-medium">{assessment.athleteName}</p>
                     <p className="text-sm text-muted-foreground">
-                      {assessment.apparatus ?? "Evaluación general"} ·{" "}
+                      {assessment.apparatus ? apparatusLabels[assessment.apparatus] || assessment.apparatus : "Evaluación general"} ·{" "}
                       {new Date(assessment.assessmentDate).toLocaleDateString("es-ES", {
                         day: "numeric",
                         month: "short",
@@ -382,10 +408,10 @@ export function CoachDashboardPage({
         </div>
         <div className="divide-y">
           {classes.length === 0 ? (
-            <div className="p-8 text-center text-muted-foreground">
-              <Calendar className="mx-auto h-8 w-8 mb-2 opacity-50" />
-              <p>No tienes clases asignadas</p>
-            </div>
+              <div className="p-8 text-center text-muted-foreground">
+                <Calendar className="mx-auto h-8 w-8 mb-2 opacity-50" />
+              <p>No tienes {specialization.labels.classLabel.toLowerCase()}s asignados</p>
+              </div>
           ) : (
             classes
               .sort((a, b) => (a.weekday ?? 0) - (b.weekday ?? 0))
@@ -407,6 +433,23 @@ export function CoachDashboardPage({
                         {cls.groupName && `${cls.groupName} · `}
                         {cls.athleteCount} atletas
                       </p>
+                      {(cls.technicalFocus || cls.apparatus.length > 0) && (
+                        <div className="mt-1 flex flex-wrap gap-2">
+                          {cls.technicalFocus && (
+                            <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                              {cls.technicalFocus}
+                            </span>
+                          )}
+                          {cls.apparatus.slice(0, 2).map((apparatus) => (
+                            <span
+                              key={`${cls.id}-${apparatus}`}
+                              className="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary"
+                            >
+                              {apparatusLabels[apparatus] || apparatus}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div className="text-right">
