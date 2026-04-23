@@ -45,11 +45,16 @@ export interface ReportFilters {
 interface ClassOption {
   id: string;
   name: string;
+  technicalFocus?: string | null;
+  apparatus?: string[];
 }
 
 interface GroupOption {
   id: string;
   name: string;
+  technicalFocus?: string | null;
+  apparatus?: string[];
+  sessionBlocks?: string[];
 }
 
 interface CoachOption {
@@ -84,6 +89,9 @@ export function ReportFilters({
   const [coaches, setCoaches] = useState<CoachOption[]>([]);
   const [athletes, setAthletes] = useState<AthleteOption[]>([]);
   const [isLoadingOptions, setIsLoadingOptions] = useState(false);
+  const apparatusLabels = Object.fromEntries(
+    specialization.evaluation.apparatus.map((item) => [item.code, item.label])
+  );
 
   useEffect(() => {
     const fetchOptions = async () => {
@@ -188,6 +196,20 @@ export function ReportFilters({
     filters.groupId ||
     filters.coachId ||
     filters.datePreset !== "last-30-days";
+
+  const formatOptionMeta = (item: {
+    technicalFocus?: string | null;
+    apparatus?: string[];
+    sessionBlocks?: string[];
+  }) => {
+    const metadata = [
+      item.technicalFocus?.trim() || null,
+      ...(item.apparatus ?? []).slice(0, 2).map((value) => apparatusLabels[value] || value),
+      ...(item.sessionBlocks ?? []).slice(0, 1),
+    ].filter(Boolean);
+
+    return metadata.length > 0 ? metadata.join(" · ") : null;
+  };
 
   return (
     <Card>
@@ -303,7 +325,7 @@ export function ReportFilters({
                     <SelectItem value="all">Todos</SelectItem>
                     {classes.map((cls) => (
                       <SelectItem key={cls.id} value={cls.id}>
-                        {cls.name}
+                        {[cls.name, formatOptionMeta(cls)].filter(Boolean).join(" · ")}
                       </SelectItem>
                     ))}
                   </>
@@ -333,7 +355,7 @@ export function ReportFilters({
                     <SelectItem value="all">Todos</SelectItem>
                     {groups.map((group) => (
                       <SelectItem key={group.id} value={group.id}>
-                        {group.name}
+                        {[group.name, formatOptionMeta(group)].filter(Boolean).join(" · ")}
                       </SelectItem>
                     ))}
                   </>

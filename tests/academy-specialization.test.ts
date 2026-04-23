@@ -10,6 +10,7 @@ import { getAcademyNavigation } from "@/lib/navigation/registry";
 import { getQuickActions } from "@/lib/quick-actions";
 import { summarizeStarterClassSetup } from "@/lib/classes/starter-setup";
 import { summarizeStarterGroupSetup } from "@/lib/groups/starter-setup";
+import { summarizeTechnicalDashboard } from "@/lib/dashboard/technical-summary";
 import {
   getGroupTechnicalGuidance,
   getSpecializedClassNameSuggestions,
@@ -185,5 +186,48 @@ describe("academy specialization", () => {
     expect(suggestions.map((item) => item.name)).toContain("Pases de conjunto");
     expect(guidance.apparatus).toContain("Cinta");
     expect(guidance.focusAreas).toContain("Intercambios y sincronía de conjunto");
+  });
+
+  it("summarizes technical dashboard context with specialized apparatus labels", () => {
+    const summary = summarizeTechnicalDashboard({
+      groups: [
+        {
+          technicalFocus: "Base corporal y sincronía",
+          apparatus: ["hoop", "ball"],
+          sessionBlocks: ["Base corporal", "Pases parciales"],
+        },
+        {
+          technicalFocus: "Base corporal y sincronía",
+          apparatus: ["ball"],
+          sessionBlocks: ["Base corporal"],
+        },
+      ],
+      classes: [
+        {
+          technicalFocus: "Montaje competitivo",
+          apparatus: ["ribbon"],
+        },
+      ],
+      apparatusLabels: {
+        hoop: "Aro",
+        ball: "Pelota",
+        ribbon: "Cinta",
+      },
+    });
+
+    expect(summary.groupsWithTechnicalFocus).toBe(2);
+    expect(summary.classesWithTechnicalFocus).toBe(1);
+    expect(summary.topFocuses[0]).toEqual({
+      label: "Base corporal y sincronía",
+      count: 2,
+    });
+    expect(summary.topApparatus[0]).toEqual({
+      label: "Pelota",
+      count: 2,
+    });
+    expect(summary.topSessionBlocks[0]).toEqual({
+      label: "Base corporal",
+      count: 2,
+    });
   });
 });

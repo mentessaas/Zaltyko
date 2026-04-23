@@ -30,10 +30,10 @@ interface ChurnReason {
 interface ChurnedAthlete {
   athleteId: string;
   athleteName: string;
-  churnDate: string;
+  churnDate: string | null;
   reason: string;
-  membershipEndDate: string;
-  monthsActive: number;
+  membershipEndDate: string | null;
+  monthsActive: number | null;
 }
 
 interface ChurnReportProps {
@@ -178,6 +178,9 @@ export function ChurnReport({ academyId, academyCountry }: ChurnReportProps) {
       "schedule": "Horario",
       "other": "Otro",
       "payment_failed": "Pago fallido",
+      "archived": "Archivado",
+      "deleted": "Eliminado",
+      "unregistered": "Sin motivo registrado",
     };
     return labels[reason] || reason;
   };
@@ -191,6 +194,9 @@ export function ChurnReport({ academyId, academyCountry }: ChurnReportProps) {
       "schedule": "bg-red-100 text-red-800",
       "other": "bg-gray-100 text-gray-800",
       "payment_failed": "bg-red-100 text-red-800",
+      "archived": "bg-slate-100 text-slate-800",
+      "deleted": "bg-slate-100 text-slate-800",
+      "unregistered": "bg-gray-100 text-gray-800",
     };
     return colors[reason] || "bg-gray-100";
   };
@@ -259,8 +265,13 @@ export function ChurnReport({ academyId, academyCountry }: ChurnReportProps) {
                 <div>
                   <p className="font-medium">{athlete.athleteName}</p>
                   <p className="text-xs text-muted-foreground">
-                    {athlete.monthsActive} meses activo{athlete.monthsActive !== 1 ? "s" : ""} · Dio baja el{" "}
-                    {formatLongDateForCountry(athlete.churnDate, academyCountry)}
+                    {athlete.monthsActive !== null
+                      ? `${athlete.monthsActive} meses activo${athlete.monthsActive !== 1 ? "s" : ""}`
+                      : "Antigüedad no registrada"}
+                    {" · "}
+                    {athlete.churnDate
+                      ? `Cambio detectado el ${formatLongDateForCountry(athlete.churnDate, academyCountry)}`
+                      : "Sin fecha de cambio registrada"}
                   </p>
                 </div>
                 <Badge className={getReasonColor(athlete.reason)}>

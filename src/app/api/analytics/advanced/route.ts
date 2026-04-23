@@ -6,9 +6,19 @@ import { db } from "@/db";
 import { subscriptions, plans } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { logger } from "@/lib/logger";
+import { apiError } from "@/lib/api-response";
+import { isFeatureEnabled } from "@/lib/product/features";
 
 export const GET = withTenant(async (req, context) => {
     try {
+        if (!isFeatureEnabled("advancedAnalytics")) {
+            return apiError(
+                "FEATURE_DISABLED",
+                "La analítica avanzada todavía no está activada para esta versión.",
+                403
+            );
+        }
+
         const { userId } = context;
 
         // Check plan eligibility for advanced analytics
@@ -35,29 +45,11 @@ export const GET = withTenant(async (req, context) => {
             );
         }
 
-        // TODO: Implement actual advanced analytics logic
-        // For now, return mock data structure
-        const analytics = {
-            revenue: {
-                total: 0,
-                monthly: 0,
-                growth: 0,
-            },
-            attendance: {
-                average: 0,
-                trends: [],
-            },
-            retention: {
-                rate: 0,
-                churnRate: 0,
-            },
-            performance: {
-                topClasses: [],
-                topCoaches: [],
-            },
-        };
-
-        return NextResponse.json(analytics);
+        return apiError(
+            "FEATURE_NOT_READY",
+            "La analítica avanzada requiere activar el módulo antes de exponer datos.",
+            501
+        );
     } catch (error) {
         logger.error("Error fetching advanced analytics:", error);
         return new NextResponse("Internal Server Error", { status: 500 });

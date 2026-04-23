@@ -21,9 +21,9 @@ import StickyCtaBar from "@/app/(site)/home/StickyCtaBar";
 const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://zaltyko.com";
 
 export const metadata: Metadata = {
-  title: "Zaltyko – Gestión Automática para Academias de Gimnasia | 15h menos/semana",
+  title: "Zaltyko – Software de Gestión para Academias de Gimnasia",
   description:
-    "Gestiona atletas, cobros y horarios en 1 plataforma. 15h menos de admin. Prueba gratis 14 días. Sin tarjeta de crédito.",
+    "Gestiona atletas, cobros, horarios y evaluaciones técnicas en 1 plataforma. Prueba gratis 14 días. Sin tarjeta de crédito.",
   keywords: [
     "software para academias de gimnasia",
     "gestión de gimnasios de gimnasia",
@@ -42,9 +42,9 @@ export const metadata: Metadata = {
     canonical: baseUrl,
   },
   openGraph: {
-    title: "Zaltyko – Gestión Automática para Academias de Gimnasia",
+    title: "Zaltyko – Software de Gestión para Academias de Gimnasia",
     description:
-      "Recupera 15 horas semanales. Gestiona atletas, cobros y horarios en 1 plataforma. Prueba gratis 14 días sin compromiso.",
+      "Gestiona atletas, cobros, horarios y evaluaciones técnicas en 1 plataforma. Prueba gratis 14 días sin compromiso.",
     url: baseUrl,
     siteName: "Zaltyko",
     type: "website",
@@ -60,9 +60,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Zaltyko – Gestión Automática para Academias de Gimnasia",
+    title: "Zaltyko – Software de Gestión para Academias de Gimnasia",
     description:
-      "Recupera 15 horas semanales. Gestiona atletas, cobros y horarios en 1 plataforma. Prueba gratis 14 días.",
+      "Gestiona atletas, cobros, horarios y evaluaciones técnicas en 1 plataforma. Prueba gratis 14 días.",
     images: [`${baseUrl}/og-image.png`],
   },
   robots: {
@@ -206,7 +206,7 @@ export default function HomePage() {
               name: "¿Cuánto tiempo tarda en configurarse?",
               acceptedAnswer: {
                 "@type": "Answer",
-                text: "La mayoría de academias están operativas en menos de 2 horas. Importas tus atletas desde Excel o manualmente, configuras tus clases y horarios, y listo. Soporte incluido.",
+                text: "Configura tu academia en minutos. Importa tus atletas desde Excel o añádelos manualmente, configura tus clases y horarios, y listo. Soporte incluido.",
               },
             },
             {

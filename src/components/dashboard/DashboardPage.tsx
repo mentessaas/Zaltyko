@@ -69,6 +69,11 @@ import { getSpecializedLabels } from "@/lib/specialization/registry";
 import { getStarterClassPresets, getStarterGroupPresets } from "@/lib/specialization/operational-presets";
 import { summarizeStarterClassSetup, type StarterSetupSummary } from "@/lib/classes/starter-setup";
 import { summarizeStarterGroupSetup, type StarterGroupSetupSummary } from "@/lib/groups/starter-setup";
+import {
+  summarizeTechnicalDashboard,
+  type TechnicalSummarySourceItem,
+} from "@/lib/dashboard/technical-summary";
+import { TechnicalOverviewWidget } from "@/components/dashboard/TechnicalOverviewWidget";
 
 interface DashboardPageProps {
   academyId: string;
@@ -108,6 +113,8 @@ export function DashboardPage({
   const [showRecentActivity, setShowRecentActivity] = useState(false);
   const [starterSetupSummary, setStarterSetupSummary] = useState<StarterSetupSummary | null>(null);
   const [starterGroupSummary, setStarterGroupSummary] = useState<StarterGroupSetupSummary | null>(null);
+  const [technicalGroups, setTechnicalGroups] = useState<TechnicalSummarySourceItem[]>([]);
+  const [technicalClasses, setTechnicalClasses] = useState<TechnicalSummarySourceItem[]>([]);
 
   // Detectar si es un usuario nuevo (menos de 3 días desde creación o configuración mínima)
   useEffect(() => {
@@ -309,6 +316,59 @@ export function DashboardPage({
       isMounted = false;
     };
   }, [academyId, shouldShowStarterSetupBanner, specialization]);
+
+  useEffect(() => {
+    if (data.metrics.groups === 0 && data.metrics.classesThisWeek === 0) {
+      setTechnicalGroups([]);
+      setTechnicalClasses([]);
+      return;
+    }
+
+    let isMounted = true;
+
+    const fetchTechnicalSummary = async () => {
+      try {
+        const [groupsResponse, classesResponse] = await Promise.all([
+          fetch(`/api/groups?academyId=${academyId}`, { cache: "no-store" }),
+          fetch(`/api/classes?academyId=${academyId}&limit=100`, { cache: "no-store" }),
+        ]);
+
+        if (groupsResponse.ok) {
+          const json = await groupsResponse.json();
+          if (isMounted) {
+            setTechnicalGroups(Array.isArray(json.items) ? json.items : []);
+          }
+        }
+
+        if (classesResponse.ok) {
+          const json = await classesResponse.json();
+          if (isMounted) {
+            setTechnicalClasses(Array.isArray(json.items) ? json.items : []);
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching technical dashboard summary:", error);
+      }
+    };
+
+    fetchTechnicalSummary();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [academyId, data.metrics.classesThisWeek, data.metrics.groups]);
+
+  const technicalDashboardSummary = useMemo(() => {
+    const apparatusLabels = Object.fromEntries(
+      specialization.evaluation.apparatus.map((item) => [item.code, item.label])
+    );
+
+    return summarizeTechnicalDashboard({
+      groups: technicalGroups,
+      classes: technicalClasses,
+      apparatusLabels,
+    });
+  }, [specialization, technicalGroups, technicalClasses]);
 
   const nextStarterRecommendation = useMemo(() => {
     if (starterGroupSummary && starterGroupSummary.starterGroupCount > 0) {
@@ -583,6 +643,18 @@ export function DashboardPage({
               </div>
             </div>
           )}
+        </section>
+      )}
+
+      {(specialization.disciplineVariant === "artistic_female" ||
+        specialization.disciplineVariant === "artistic_male" ||
+        specialization.disciplineVariant === "rhythmic") && (
+        <section>
+          <TechnicalOverviewWidget
+            academyId={academyId}
+            specialization={specialization}
+            summary={technicalDashboardSummary}
+          />
         </section>
       )}
 

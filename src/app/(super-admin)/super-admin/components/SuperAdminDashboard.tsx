@@ -39,6 +39,7 @@ const BarChart = dynamic(() => import("recharts").then((mod) => mod.BarChart), {
 const Bar = dynamic(() => import("recharts").then((mod) => mod.Bar), { ssr: false });
 
 import { DashboardCard } from "@/components/dashboard/DashboardCard";
+import { normalizeSuperAdminMetrics } from "@/lib/super-admin-metrics";
 import type { SuperAdminMetrics, EventLogEntry } from "@/lib/superAdminService";
 import { useSuperAdminData } from "@/hooks/useSuperAdminData";
 import { Button } from "@/components/ui/button";
@@ -75,6 +76,7 @@ const EVENT_TYPE_LABELS: Record<string, string> = {
 
 export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: SuperAdminDashboardProps) {
   const { metrics, loading, refresh } = useSuperAdminData(initialMetrics);
+  const safeMetrics = useMemo(() => normalizeSuperAdminMetrics(metrics), [metrics]);
 
   // Time range filter
   const [timeRange, setTimeRange] = useState<"7d" | "30d" | "90d" | "all">("30d");
@@ -100,25 +102,29 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
   );
 
   const latestAcademyDate = useMemo(() => {
-    if (!metrics.totals.latestAcademyAt) {
+    if (!safeMetrics.totals.latestAcademyAt) {
       return "Sin registros";
     }
-    return new Date(metrics.totals.latestAcademyAt).toLocaleDateString("es-ES");
-  }, [metrics.totals.latestAcademyAt]);
+    const parsedDate = new Date(safeMetrics.totals.latestAcademyAt);
+    if (Number.isNaN(parsedDate.getTime())) {
+      return "Sin registros";
+    }
+    return parsedDate.toLocaleDateString("es-ES");
+  }, [safeMetrics.totals.latestAcademyAt]);
 
   const ownerCount = useMemo(
-    () => metrics.usersByRole.find((entry) => entry.role === "owner")?.total ?? 0,
-    [metrics.usersByRole]
+    () => safeMetrics.usersByRole.find((entry) => entry.role === "owner")?.total ?? 0,
+    [safeMetrics.usersByRole]
   );
   const coachCount = useMemo(
-    () => metrics.usersByRole.find((entry) => entry.role === "coach")?.total ?? 0,
-    [metrics.usersByRole]
+    () => safeMetrics.usersByRole.find((entry) => entry.role === "coach")?.total ?? 0,
+    [safeMetrics.usersByRole]
   );
 
   const chartDataset = useMemo(() => {
     const dataset =
-      metrics.monthlyAcademies.length > 0
-        ? metrics.monthlyAcademies
+      safeMetrics.monthlyAcademies.length > 0
+        ? safeMetrics.monthlyAcademies
         : [
             { label: "2025-03", total: 6 },
             { label: "2025-04", total: 8 },
@@ -128,19 +134,19 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
             { label: "2025-08", total: 15 },
           ];
     return dataset;
-  }, [metrics.monthlyAcademies]);
+  }, [safeMetrics.monthlyAcademies]);
 
   // Revenue chart data
   const revenueChartData = useMemo(() => {
     // Generate sample revenue data based on current metrics
-    const baseRevenue = metrics.totals.revenue || 100000;
+    const baseRevenue = safeMetrics.totals.revenue || 100000;
     const months = chartDataset.map((d) => d.label);
     return months.map((month, idx) => ({
       label: month,
       revenue: Math.round(baseRevenue * (0.5 + idx * 0.1) + Math.random() * 10000),
       target: Math.round(baseRevenue * (0.6 + idx * 0.08)),
     }));
-  }, [metrics.totals.revenue, chartDataset]);
+  }, [safeMetrics.totals.revenue, chartDataset]);
 
   const chartMaxValue = useMemo(
     () => Math.max(...chartDataset.map((d) => d.total), 1),
@@ -159,48 +165,48 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
     };
 
     return {
-      academies: calculateTrend(metrics.totals.academies, metrics.totals.previousAcademies),
-      users: calculateTrend(metrics.totals.users, metrics.totals.previousUsers),
+      academies: calculateTrend(safeMetrics.totals.academies, safeMetrics.totals.previousAcademies),
+      users: calculateTrend(safeMetrics.totals.users, safeMetrics.totals.previousUsers),
       owners: { value: 5, direction: "up" as const }, // Will be calculated if needed
       coaches: { value: 15, direction: "down" as const }, // Will be calculated if needed
       charges: { value: 23, direction: "up" as const }, // This month vs last month
-      revenue: calculateTrend(metrics.totals.chargesPaidThisMonth, metrics.totals.previousRevenue),
+      revenue: calculateTrend(safeMetrics.totals.chargesPaidThisMonth, safeMetrics.totals.previousRevenue),
     };
-  }, [metrics.totals]);
+  }, [safeMetrics.totals]);
 
   const pieChartData = useMemo(() => {
-    if (metrics.usersByRole.length === 0) {
+    if (safeMetrics.usersByRole.length === 0) {
       return [
         { name: "Sin datos", value: 1, color: "#374151" }
       ];
     }
-    return metrics.usersByRole.map((role, idx) => ({
+    return safeMetrics.usersByRole.map((role, idx) => ({
       name: role.role ?? "Sin rol",
       value: role.total,
       color: CHART_COLORS[idx % CHART_COLORS.length],
     }));
-  }, [metrics.usersByRole]);
+  }, [safeMetrics.usersByRole]);
 
   const planPieData = useMemo(() => {
-    if (metrics.planDistribution.length === 0) {
+    if (safeMetrics.planDistribution.length === 0) {
       return [{ name: "Sin datos", value: 1, color: "#374151" }];
     }
-    return metrics.planDistribution.map((plan, idx) => ({
+    return safeMetrics.planDistribution.map((plan, idx) => ({
       name: plan.code,
       value: plan.total,
       color: CHART_COLORS[idx % CHART_COLORS.length],
     }));
-  }, [metrics.planDistribution]);
+  }, [safeMetrics.planDistribution]);
 
   const subscriptionBarData = useMemo(() => {
-    return metrics.planStatuses.map((status) => ({
+    return safeMetrics.planStatuses.map((status) => ({
       name: status.status,
       total: status.total,
       fill: status.status === "active" ? "#10B981" :
             status.status === "past_due" ? "#F59E0B" :
             status.status === "canceled" ? "#EF4444" : "#6B7280",
     }));
-  }, [metrics.planStatuses]);
+  }, [safeMetrics.planStatuses]);
 
   const currentMonth = useMemo(() => {
     const now = new Date();
@@ -211,7 +217,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
     () => [
       {
         title: "Academias",
-        value: metrics.totals.academies,
+        value: safeMetrics.totals.academies,
         subtitle: "Total de academias registradas",
         trend: mockTrends.academies,
         href: "/super-admin/academies",
@@ -220,7 +226,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
       },
       {
         title: "Usuarios",
-        value: metrics.totals.users,
+        value: safeMetrics.totals.users,
         subtitle: `Última alta: ${latestAcademyDate}`,
         trend: mockTrends.users,
         href: "/super-admin/users",
@@ -247,7 +253,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
       },
       {
         title: "Planes activos",
-        value: metrics.totals.plans,
+        value: safeMetrics.totals.plans,
         subtitle: "Planes configurados en el SaaS",
         href: "/super-admin/billing",
         icon: LayoutGrid,
@@ -255,15 +261,15 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
       },
       {
         title: "Suscripciones",
-        value: metrics.totals.subscriptions,
-        subtitle: `${metrics.totals.paidInvoices} facturas cobradas`,
+        value: safeMetrics.totals.subscriptions,
+        subtitle: `${safeMetrics.totals.paidInvoices} facturas cobradas`,
         href: "/super-admin/billing",
         icon: CreditCard,
         accent: "amber" as const,
       },
       {
         title: "Academias activas",
-        value: metrics.totals.activeAcademies,
+        value: safeMetrics.totals.activeAcademies,
         subtitle: "Con al menos 1 atleta o grupo",
         href: "/super-admin/academies",
         icon: Building2,
@@ -271,7 +277,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
       },
       {
         title: "Atletas totales",
-        value: metrics.totals.totalAthletes,
+        value: safeMetrics.totals.totalAthletes,
         subtitle: "En todas las academias",
         href: "/super-admin/academies",
         icon: UserCheck,
@@ -279,7 +285,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
       },
       {
         title: "Cobros este mes",
-        value: metrics.totals.chargesCreatedThisMonth,
+        value: safeMetrics.totals.chargesCreatedThisMonth,
         subtitle: "Cargos creados",
         trend: mockTrends.charges,
         href: "/super-admin/academies",
@@ -288,7 +294,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
       },
       {
         title: "Ingresos este mes",
-        value: CURRENCY_FORMATTER.format(metrics.totals.chargesPaidThisMonth / 100),
+        value: CURRENCY_FORMATTER.format(safeMetrics.totals.chargesPaidThisMonth / 100),
         subtitle: "Total cobrado",
         trend: mockTrends.revenue,
         href: "/super-admin/academies",
@@ -296,7 +302,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
         accent: "emerald" as const,
       },
     ],
-    [metrics, latestAcademyDate, ownerCount, coachCount, mockTrends]
+    [safeMetrics, latestAcademyDate, ownerCount, coachCount, mockTrends]
   );
 
   return (
@@ -358,7 +364,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
       </section>
 
       {/* Subscription Alerts Section */}
-      {metrics.subscriptionAlerts && metrics.subscriptionAlerts.length > 0 && (
+      {safeMetrics.subscriptionAlerts && safeMetrics.subscriptionAlerts.length > 0 && (
         <section className="group relative overflow-hidden rounded-2xl border border-amber-500/20 bg-amber-500/5 p-6">
           <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-amber-500/10 blur-3xl" />
 
@@ -378,7 +384,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
           </header>
 
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {metrics.subscriptionAlerts.map((alert) => (
+            {safeMetrics.subscriptionAlerts.map((alert) => (
               <div
                 key={alert.status}
                 className={`flex items-center justify-between rounded-xl border p-4 ${
@@ -431,7 +437,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
               <span className="text-xs text-white/60">Usuarios diarios</span>
               <span className="text-xs text-emerald-400 font-medium">+12%</span>
             </div>
-            <p className="mt-2 text-2xl font-bold text-white">{metrics.totals.dailyActiveUsers}</p>
+            <p className="mt-2 text-2xl font-bold text-white">{safeMetrics.totals.dailyActiveUsers}</p>
           </div>
 
           {/* WAU */}
@@ -440,7 +446,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
               <span className="text-xs text-white/60">Usuarios semanales</span>
               <span className="text-xs text-emerald-400 font-medium">+8%</span>
             </div>
-            <p className="mt-2 text-2xl font-bold text-white">{metrics.totals.weeklyActiveUsers}</p>
+            <p className="mt-2 text-2xl font-bold text-white">{safeMetrics.totals.weeklyActiveUsers}</p>
           </div>
 
           {/* MAU */}
@@ -449,16 +455,16 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
               <span className="text-xs text-white/60">Usuarios mensuales</span>
               <span className="text-xs text-emerald-400 font-medium">+5%</span>
             </div>
-            <p className="mt-2 text-2xl font-bold text-white">{metrics.totals.monthlyActiveUsers}</p>
+            <p className="mt-2 text-2xl font-bold text-white">{safeMetrics.totals.monthlyActiveUsers}</p>
           </div>
 
           {/* Churn */}
           <div className="rounded-xl border border-white/10 bg-white/5 p-4">
             <div className="flex items-center justify-between">
               <span className="text-xs text-white/60">Tasa de churn</span>
-              <span className="text-xs text-red-400 font-medium">{metrics.totals.churnRate}%</span>
+              <span className="text-xs text-red-400 font-medium">{safeMetrics.totals.churnRate}%</span>
             </div>
-            <p className="mt-2 text-2xl font-bold text-white">{metrics.totals.churnRate}%</p>
+            <p className="mt-2 text-2xl font-bold text-white">{safeMetrics.totals.churnRate}%</p>
           </div>
         </div>
 
@@ -466,13 +472,13 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
           <div className="rounded-lg border border-white/10 bg-white/5 p-3">
             <div className="flex items-center justify-between text-xs">
               <span className="text-white/60">Sesiones por usuario</span>
-              <span className="text-white font-medium">{metrics.totals.avgSessionsPerUser}</span>
+              <span className="text-white font-medium">{safeMetrics.totals.avgSessionsPerUser}</span>
             </div>
           </div>
           <div className="rounded-lg border border-white/10 bg-white/5 p-3">
             <div className="flex items-center justify-between text-xs">
               <span className="text-white/60">Duración promedio</span>
-              <span className="text-white font-medium">{metrics.totals.avgSessionDurationMinutes} min</span>
+              <span className="text-white font-medium">{safeMetrics.totals.avgSessionDurationMinutes} min</span>
             </div>
           </div>
         </div>
@@ -496,13 +502,13 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
               <h3 className="font-display text-sm font-semibold uppercase tracking-wide text-zaltyko-accent-light">
                 Usuarios por rol
               </h3>
-              <p className="text-xs text-white/50 mt-1">Total: {metrics.totals.users}</p>
+              <p className="text-xs text-white/50 mt-1">Total: {safeMetrics.totals.users}</p>
             </div>
             <span className="text-xs text-white/40">Click para ver detalles</span>
           </header>
 
           <div className="relative flex items-center justify-center">
-            {metrics.usersByRole.length === 0 ? (
+            {safeMetrics.usersByRole.length === 0 ? (
               <div className="flex h-48 items-center justify-center rounded-xl border border-dashed border-white/20 bg-white/5">
                 <p className="text-sm text-white/50">Sin datos disponibles</p>
               </div>
@@ -563,13 +569,13 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
               <h3 className="font-display text-sm font-semibold uppercase tracking-wide text-zaltyko-accent-light">
                 Planes activos
               </h3>
-              <p className="text-xs text-white/50 mt-1">{metrics.planDistribution.length} tipos de plan</p>
+              <p className="text-xs text-white/50 mt-1">{safeMetrics.planDistribution.length} tipos de plan</p>
             </div>
             <span className="text-xs text-white/40">Click para ver detalles</span>
           </header>
 
           <div className="relative flex items-center justify-center">
-            {metrics.planDistribution.length === 0 ? (
+            {safeMetrics.planDistribution.length === 0 ? (
               <div className="flex h-48 items-center justify-center rounded-xl border border-dashed border-white/20 bg-white/5">
                 <p className="text-sm text-white/50">Sin suscripciones</p>
               </div>
@@ -631,7 +637,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
               Estado de suscripciones
             </h3>
             <p className="text-xs text-white/50 mt-1">
-              Ingresos: {CURRENCY_FORMATTER.format(metrics.totals.revenue / 100)} · {metrics.totals.paidInvoices} facturas cobradas
+              Ingresos: {CURRENCY_FORMATTER.format(safeMetrics.totals.revenue / 100)} · {safeMetrics.totals.paidInvoices} facturas cobradas
             </p>
           </div>
           <span className="text-xs text-white/40">Click para ver detalles</span>
@@ -642,8 +648,8 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
             <p className="text-sm text-white/50">Sin datos de suscripciones</p>
           </div>
         ) : (
-          <div className="h-48">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="h-48 min-w-0">
+            <ResponsiveContainer width="100%" height={192}>
               <BarChart data={subscriptionBarData} layout="vertical" barCategoryGap="30%">
                 <XAxis type="number" stroke="#ffffff50" fontSize={11} tickLine={false} axisLine={false} />
                 <YAxis
@@ -700,8 +706,8 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
             <p className="text-sm text-white/50">Sin datos de academias</p>
           </div>
         ) : (
-          <div className="h-56">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="h-56 min-w-0">
+            <ResponsiveContainer width="100%" height={224}>
               <AreaChart data={chartDataset}>
                 <defs>
                   <linearGradient id="colorAcademies" x1="0" y1="0" x2="0" y2="1">
@@ -764,14 +770,14 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
             <div className="flex items-center gap-1.5 rounded-full bg-emerald-500/20 px-3 py-1.5">
               <DollarSign className="h-3.5 w-3.5 text-emerald-400" />
               <span className="text-xs font-semibold text-emerald-300">
-                {CURRENCY_FORMATTER.format(metrics.totals.chargesPaidThisMonth)}
+                {CURRENCY_FORMATTER.format(safeMetrics.totals.chargesPaidThisMonth)}
               </span>
             </div>
           </div>
         </header>
 
-        <div className="h-48">
-          <ResponsiveContainer width="100%" height="100%">
+        <div className="h-48 min-w-0">
+          <ResponsiveContainer width="100%" height={192}>
             <AreaChart data={revenueChartData}>
               <defs>
                 <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
@@ -942,7 +948,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
           <div className="space-y-4">
             {/* Selector de academias */}
             <div className="flex flex-wrap gap-2">
-              {metrics.planDistribution.slice(0, 5).map((plan) => (
+              {safeMetrics.planDistribution.slice(0, 5).map((plan) => (
                 <button
                   key={plan.code}
                   onClick={() => {
@@ -972,7 +978,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
                     <tr>
                       <th className="px-4 py-3 text-left font-medium text-white/70">Métrica</th>
                       {selectedAcademies.map((code) => {
-                        const plan = metrics.planDistribution.find((p) => p.code === code);
+                        const plan = safeMetrics.planDistribution.find((p) => p.code === code);
                         return (
                           <th key={code} className="px-4 py-3 text-right font-medium text-white">
                             {plan?.nickname || code}
@@ -985,7 +991,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
                     <tr>
                       <td className="px-4 py-3 text-white/70">Total Academias</td>
                       {selectedAcademies.map((code) => {
-                        const plan = metrics.planDistribution.find((p) => p.code === code);
+                        const plan = safeMetrics.planDistribution.find((p) => p.code === code);
                         return (
                           <td key={code} className="px-4 py-3 text-right font-medium text-white">
                             {plan?.total || 0}
@@ -996,7 +1002,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
                     <tr>
                       <td className="px-4 py-3 text-white/70">Usuarios</td>
                       {selectedAcademies.map((code) => {
-                        const avg = Math.round(metrics.totals.users / Math.max(metrics.planDistribution.length, 1));
+                        const avg = Math.round(safeMetrics.totals.users / Math.max(safeMetrics.planDistribution.length, 1));
                         return (
                           <td key={code} className="px-4 py-3 text-right text-white">
                             ~{avg}
@@ -1007,8 +1013,8 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
                     <tr>
                       <td className="px-4 py-3 text-white/70">Ingresos Estimados</td>
                       {selectedAcademies.map((code) => {
-                        const plan = metrics.planDistribution.find((p) => p.code === code);
-                        const revenue = plan ? Math.round(metrics.totals.revenue * (plan.total / Math.max(metrics.totals.subscriptions, 1))) : 0;
+                        const plan = safeMetrics.planDistribution.find((p) => p.code === code);
+                        const revenue = plan ? Math.round(safeMetrics.totals.revenue * (plan.total / Math.max(safeMetrics.totals.subscriptions, 1))) : 0;
                         return (
                           <td key={code} className="px-4 py-3 text-right font-medium text-emerald-400">
                             {CURRENCY_FORMATTER.format(revenue)}
@@ -1019,7 +1025,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
                     <tr>
                       <td className="px-4 py-3 text-white/70">Athletes</td>
                       {selectedAcademies.map((code) => {
-                        const avg = Math.round(metrics.totals.totalAthletes / Math.max(metrics.planDistribution.length, 1));
+                        const avg = Math.round(safeMetrics.totals.totalAthletes / Math.max(safeMetrics.planDistribution.length, 1));
                         return (
                           <td key={code} className="px-4 py-3 text-right text-white">
                             ~{avg}
@@ -1072,4 +1078,3 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
     </div>
   );
 }
-

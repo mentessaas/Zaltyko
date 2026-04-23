@@ -15,14 +15,21 @@ const links = [
 export default function NavbarHome() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+
     const handleScroll = () => {
       setScrolled(window.scrollY > 20);
     };
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
+  }, [mounted]);
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50">
@@ -62,7 +69,7 @@ export default function NavbarHome() {
             {/* Desktop Actions */}
             <div className="hidden md:flex items-center gap-4">
               <Link
-                href="/login"
+                href="/auth/login"
                 className="text-sm font-semibold text-gray-700 hover:text-red-600 transition-colors"
               >
                 Iniciar sesión
@@ -107,7 +114,7 @@ export default function NavbarHome() {
               ))}
               <div className="mt-6 pt-4 border-t border-gray-100 space-y-3">
                 <Link
-                  href="/login"
+                  href="/auth/login"
                   className="block w-full rounded-lg px-4 py-3 text-center text-base font-semibold text-gray-700 hover:bg-gray-50"
                   onClick={() => setIsMenuOpen(false)}
                 >

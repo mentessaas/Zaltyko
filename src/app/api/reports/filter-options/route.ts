@@ -19,7 +19,12 @@ export const GET = withTenant(async (request, context) => {
 
   const [classRows, groupRows, coachRows, athleteRows] = await Promise.all([
     db
-      .select({ id: classes.id, name: classes.name })
+      .select({
+        id: classes.id,
+        name: classes.name,
+        technicalFocus: classes.technicalFocus,
+        apparatus: classes.apparatus,
+      })
       .from(classes)
       .where(
         and(
@@ -30,7 +35,13 @@ export const GET = withTenant(async (request, context) => {
       )
       .orderBy(asc(classes.name)),
     db
-      .select({ id: groups.id, name: groups.name })
+      .select({
+        id: groups.id,
+        name: groups.name,
+        technicalFocus: groups.technicalFocus,
+        apparatus: groups.apparatus,
+        sessionBlocks: groups.sessionBlocks,
+      })
       .from(groups)
       .where(
         and(

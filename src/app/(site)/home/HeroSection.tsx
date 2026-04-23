@@ -7,16 +7,12 @@ import { buttonVariants } from "@/components/ui/button";
 
 const trustIndicators = [
   { icon: Shield, text: "Sin tarjeta de crédito" },
-  { icon: Zap, text: "Configuración en 5 minutos" },
-  { icon: Star, text: "Soporte prioritario incluido" },
+  { icon: Zap, text: "Prueba gratis 14 días" },
+  { icon: Star, text: "Sin permanencia" },
 ];
 
-const stats = [
-  { value: "150+", label: "Academias", suffix: "activas" },
-  { value: "25,000+", label: "Atletas", suffix: "gestionados" },
-  { value: "€4.2M", label: "Pagos", suffix: "procesados" },
-  { value: "98%", label: "Satisfacción", suffix: "(encuestas NPS)" },
-];
+// Stats removed - no longerinflated numbers
+// TODO: Add real stats when available from production data
 
 const features = [
   {
@@ -67,26 +63,25 @@ export default function HeroSection() {
           {/* Left Content */}
           <div className="max-w-2xl">
             {/* Badge */}
-            <div className="inline-flex items-center gap-2 rounded-full bg-red-50 border border-red-100 px-4 py-1.5 text-sm font-medium text-red-700 mb-8 hover:bg-red-100 transition-colors cursor-pointer">
+            <div className="inline-flex items-center gap-2 rounded-full bg-red-50 border border-red-100 px-4 py-1.5 text-sm font-medium text-red-700 mb-8">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
               </span>
-              Entre los preferidos por academias de gimnasia en España
+              Software para gimnasia artística, rítmica y acrobática
             </div>
 
             {/* H1 */}
             <h1 className="font-display text-5xl sm:text-6xl lg:text-7xl font-bold leading-[1.05] tracking-tight text-gray-900 mb-6">
-              Recupera 15 horas semanales.{" "}
+              Gestiona tu academia{" "}
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-600 via-rose-600 to-red-700">
-                Sin Excel, sin caos, sin perder el sábado
+                sin Excel, sin caos
               </span>
             </h1>
 
             {/* Subtitle */}
             <p className="text-xl text-gray-600 leading-relaxed mb-8 max-w-xl">
-              Gestión automática para academias de gimnasia artística, rítmica y acrobática.
-              El equivalente a casi <strong>2 jornadas laborales</strong> reclaimed cada semana.
+              Gestión automática para academias de gimnasia. Atletas, clases, horarios, pagos y evaluaciones técnicas en una sola plataforma.
             </p>
 
             {/* CTAs */}
@@ -120,54 +115,19 @@ export default function HeroSection() {
                   <Shield className="h-4 w-4 text-green-500" /> Sin tarjeta de crédito
                 </span>
                 <span>·</span>
-                <span>Configuración en 5 min</span>
+                <span>Prueba gratis 14 días</span>
                 <span>·</span>
                 <span>Cancela cuando quieras</span>
               </p>
             </div>
-
-            {/* Mini-testimonial */}
-            <div className="bg-gray-50 border border-gray-100 rounded-xl p-4 max-w-md">
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 bg-gradient-to-br from-red-500 to-rose-600 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0">
-                  CT
-                </div>
-                <div>
-                  <p className="text-sm text-gray-700 italic">
-                    "Ahorramos <strong>10h/semana</strong> en tareas administrativas. Los padres están más satisfechos."
-                  </p>
-                  <p className="text-xs text-gray-400 mt-1">Carolina Torres · Gravity Gym Barcelona</p>
-                </div>
-              </div>
-            </div>
           </div>
 
-          {/* Right Content - Stats & Features */}
+          {/* Right Content - Features */}
           <div className="relative">
-            {/* Floating stats cards */}
-            <div className="grid grid-cols-2 gap-4 mb-6">
-              {stats.map((stat, i) => (
-                <div 
-                  key={stat.label}
-                  className={cn(
-                    "bg-white/80 backdrop-blur-sm rounded-2xl p-5 border border-gray-100 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1",
-                    i === 0 && "col-span-2 bg-gradient-to-r from-red-600 to-rose-600 text-white"
-                  )}
-                >
-                  <p className={cn("text-3xl font-bold", i === 0 ? "text-white" : "text-gray-900")}>
-                    {stat.value}
-                  </p>
-                  <p className={cn("text-sm font-medium", i === 0 ? "text-white/80" : "text-gray-500")}>
-                    {stat.label} {stat.suffix && <span className="text-gray-400">{stat.suffix}</span>}
-                  </p>
-                </div>
-              ))}
-            </div>
-
             {/* Features grid */}
             <div className="grid grid-cols-2 gap-3">
               {features.map((feature, i) => (
-                <div 
+                <div
                   key={feature.title}
                   className="bg-white/60 backdrop-blur-sm rounded-xl p-4 border border-gray-100 hover:border-red-100 hover:shadow-md transition-all duration-300 group"
                 >
@@ -188,51 +148,9 @@ export default function HeroSection() {
             <div className="absolute -top-4 -right-4 bg-white rounded-2xl p-3 shadow-xl border border-gray-100 animate-bounce" style={{ animationDuration: '3s' }}>
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 bg-green-500 rounded-full" />
-                <span className="text-sm font-medium text-gray-700">Sistema activo</span>
+                <span className="text-sm font-medium text-gray-700">Trial 14 días</span>
               </div>
             </div>
-          </div>
-        </div>
-
-        {/* Bottom - More social proof */}
-        <div className="mt-20 pt-10 border-t border-gray-100">
-          <p className="text-center text-sm text-gray-500 mb-6">
-            <span className="font-semibold text-gray-900">150+ academias</span> ya confían en Zaltyko
-          </p>
-          <div className="flex items-center justify-center gap-8 opacity-50 grayscale hover:grayscale-0 transition-all duration-500">
-            {/* Logos de academias clientes */}
-            <figure className="flex items-center gap-2 text-gray-400 font-bold text-lg" aria-label="Logo de Gravity Gym, cliente de Zaltyko">
-              <svg className="w-8 h-8 bg-gray-200 rounded-lg" viewBox="0 0 32 32" role="img" aria-hidden="true">
-                <rect width="32" height="32" rx="6" fill="#e5e7eb"/>
-                <text x="16" y="22" textAnchor="middle" fontSize="14" fontWeight="bold" fill="#9ca3af">G</text>
-              </svg>
-              <figcaption className="sr-only">Gravity Gym</figcaption>
-              <span aria-hidden="true">Gravity Gym</span>
-            </figure>
-            <figure className="flex items-center gap-2 text-gray-400 font-bold text-lg" aria-label="Logo de Escuela Olímpica, cliente de Zaltyko">
-              <svg className="w-8 h-8 bg-gray-200 rounded-lg" viewBox="0 0 32 32" role="img" aria-hidden="true">
-                <rect width="32" height="32" rx="6" fill="#e5e7eb"/>
-                <text x="16" y="22" textAnchor="middle" fontSize="14" fontWeight="bold" fill="#9ca3af">E</text>
-              </svg>
-              <figcaption className="sr-only">Escuela Olímpica</figcaption>
-              <span aria-hidden="true">Escuela Olímpica</span>
-            </figure>
-            <figure className="flex items-center gap-2 text-gray-400 font-bold text-lg" aria-label="Logo de Zenith Elite, cliente de Zaltyko">
-              <svg className="w-8 h-8 bg-gray-200 rounded-lg" viewBox="0 0 32 32" role="img" aria-hidden="true">
-                <rect width="32" height="32" rx="6" fill="#e5e7eb"/>
-                <text x="16" y="22" textAnchor="middle" fontSize="14" fontWeight="bold" fill="#9ca3af">Z</text>
-              </svg>
-              <figcaption className="sr-only">Zenith Elite</figcaption>
-              <span aria-hidden="true">Zenith Elite</span>
-            </figure>
-            <figure className="flex items-center gap-2 text-gray-400 font-bold text-lg" aria-label="Logo de Academia Reyes, cliente de Zaltyko">
-              <svg className="w-8 h-8 bg-gray-200 rounded-lg" viewBox="0 0 32 32" role="img" aria-hidden="true">
-                <rect width="32" height="32" rx="6" fill="#e5e7eb"/>
-                <text x="16" y="22" textAnchor="middle" fontSize="14" fontWeight="bold" fill="#9ca3af">A</text>
-              </svg>
-              <figcaption className="sr-only">Academia Reyes</figcaption>
-              <span aria-hidden="true">Academia Reyes</span>
-            </figure>
           </div>
         </div>
       </div>

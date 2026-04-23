@@ -65,6 +65,8 @@ interface CoachClass {
   groupName: string | null;
   groupColor: string | null;
   athleteCount: number;
+  technicalFocus: string | null;
+  apparatus: string[];
 }
 
 interface TodaySession {
@@ -76,6 +78,8 @@ interface TodaySession {
   endTime: string | null;
   groupName: string | null;
   groupColor: string | null;
+  technicalFocus: string | null;
+  apparatus: string[];
   status: string;
 }
 
@@ -277,6 +281,8 @@ export default async function CoachDashboard({ params }: PageProps) {
         startTime: classes.startTime,
         endTime: classes.endTime,
         groupId: classes.groupId,
+        technicalFocus: classes.technicalFocus,
+        apparatus: classes.apparatus,
       })
       .from(classes)
       .where(
@@ -331,6 +337,8 @@ export default async function CoachDashboard({ params }: PageProps) {
           groupName: groupInfo?.name ?? null,
           groupColor: groupInfo?.color ?? null,
           athleteCount: athleteCountMap.get(c.id) ?? 0,
+          technicalFocus: c.technicalFocus ?? null,
+          apparatus: c.apparatus ?? [],
         };
       })
     );
@@ -352,6 +360,8 @@ export default async function CoachDashboard({ params }: PageProps) {
         status: classSessions.status,
         groupName: groups.name,
         groupColor: groups.color,
+        technicalFocus: classes.technicalFocus,
+        apparatus: classes.apparatus,
       })
       .from(classSessions)
       .leftJoin(classes, eq(classSessions.classId, classes.id))
@@ -374,6 +384,8 @@ export default async function CoachDashboard({ params }: PageProps) {
       endTime: s.endTime,
       groupName: s.groupName,
       groupColor: s.groupColor,
+      technicalFocus: s.technicalFocus ?? null,
+      apparatus: s.apparatus ?? [],
       status: s.status,
     }));
   }

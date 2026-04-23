@@ -7,6 +7,7 @@ import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/components/ui/toast-provider";
 
 interface Violation {
   resource: string;
@@ -22,6 +23,7 @@ interface PlanLimitsData {
 
 export default function PlanLimitsPage() {
   const router = useRouter();
+  const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<PlanLimitsData | null>(null);
   const [selectedAcademies, setSelectedAcademies] = useState<string[]>([]);
@@ -60,7 +62,11 @@ export default function PlanLimitsPage() {
     
     if (academyViolation && academyViolation.limit !== null) {
       if (selectedAcademies.length !== academyViolation.limit) {
-        alert(`Debes seleccionar exactamente ${academyViolation.limit} ${academyViolation.limit === 1 ? "academia" : "academias"}`);
+        toast.pushToast({
+          title: "Revisa la selección",
+          description: `Debes seleccionar exactamente ${academyViolation.limit} ${academyViolation.limit === 1 ? "academia" : "academias"}.`,
+          variant: "warning",
+        });
         return;
       }
     }
@@ -79,15 +85,27 @@ export default function PlanLimitsPage() {
 
       if (!response.ok) {
         const error = await response.json();
-        alert(`Error: ${error.message || error.error || "Error desconocido"}`);
+        toast.pushToast({
+          title: "No se pudieron aplicar los ajustes",
+          description: error.message || error.error || "Error desconocido",
+          variant: "error",
+        });
         return;
       }
 
-      alert("Ajustes aplicados correctamente. Puedes continuar usando Zaltyko.");
+      toast.pushToast({
+        title: "Ajustes aplicados",
+        description: "Puedes continuar usando Zaltyko.",
+        variant: "success",
+      });
       router.push("/dashboard");
     } catch (error) {
       console.error("Error saving adjustments", error);
-      alert("Error al guardar los ajustes");
+      toast.pushToast({
+        title: "No se pudieron guardar los ajustes",
+        description: "Inténtalo de nuevo en unos segundos.",
+        variant: "error",
+      });
     } finally {
       setSaving(false);
     }
@@ -245,4 +263,3 @@ export default function PlanLimitsPage() {
     </div>
   );
 }
-

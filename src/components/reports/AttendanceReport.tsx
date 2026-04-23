@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Calendar, Download, FileText, BarChart3, Loader2, Filter } from "lucide-react";
 import { format, subDays, subMonths } from "date-fns";
 import { formatLongDateForCountry } from "@/lib/date-utils";
@@ -45,7 +45,18 @@ export function AttendanceReport({ academyId, academyCountry, initialData }: Att
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [athletes, setAthletes] = useState<Array<{ id: string; name: string }>>([]);
-  const [groups, setGroups] = useState<Array<{ id: string; name: string }>>([]);
+  const [groups, setGroups] = useState<
+    Array<{
+      id: string;
+      name: string;
+      technicalFocus?: string | null;
+      apparatus?: string[];
+      sessionBlocks?: string[];
+    }>
+  >([]);
+  const apparatusLabels = Object.fromEntries(
+    specialization.evaluation.apparatus.map((item) => [item.code, item.label])
+  );
 
   useEffect(() => {
     const fetchOptions = async () => {
@@ -64,6 +75,11 @@ export function AttendanceReport({ academyId, academyCountry, initialData }: Att
 
     fetchOptions();
   }, [academyId]);
+
+  const selectedGroupMeta = useMemo(
+    () => groups.find((item) => item.id === groupId) ?? null,
+    [groupId, groups]
+  );
 
   const loadReport = async () => {
     setIsLoading(true);
@@ -396,6 +412,38 @@ export function AttendanceReport({ academyId, academyCountry, initialData }: Att
           </Button>
         </CardContent>
       </Card>
+
+      {reportType === "group" && selectedGroupMeta && (
+        <Card className="border-primary/20 bg-primary/5">
+          <CardHeader>
+            <CardTitle className="text-base">Contexto técnico del {specialization.labels.groupLabel.toLowerCase()}</CardTitle>
+            <CardDescription>{selectedGroupMeta.name}</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {selectedGroupMeta.technicalFocus && (
+              <p className="text-sm text-muted-foreground">{selectedGroupMeta.technicalFocus}</p>
+            )}
+            {(selectedGroupMeta.apparatus?.length ?? 0) > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {selectedGroupMeta.apparatus?.map((item) => (
+                  <Badge key={item} variant="outline">
+                    {apparatusLabels[item] || item}
+                  </Badge>
+                ))}
+              </div>
+            )}
+            {(selectedGroupMeta.sessionBlocks?.length ?? 0) > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {selectedGroupMeta.sessionBlocks?.map((item) => (
+                  <Badge key={item} variant="outline" className="bg-background">
+                    {item}
+                  </Badge>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {error && (
         <Card>

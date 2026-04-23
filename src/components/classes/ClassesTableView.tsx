@@ -135,6 +135,9 @@ export function ClassesTableView({
   const starterClassNames = new Set(
     getStarterClassPresets(specialization, getStarterGroupPresets(specialization)).map((preset) => preset.name)
   );
+  const apparatusLabels = Object.fromEntries(
+    specialization.evaluation.apparatus.map((item) => [item.code, item.label])
+  );
 
   return (
     <div className="space-y-6">
@@ -231,6 +234,23 @@ export function ClassesTableView({
                       <p className="text-xs text-muted-foreground">
                         Creada el {item.createdAt.slice(0, 10)}
                       </p>
+                    )}
+                    {(item.technicalFocus || (item.apparatus?.length ?? 0) > 0) && (
+                      <div className="flex flex-wrap gap-2">
+                        {item.technicalFocus && (
+                          <span className="rounded-full bg-muted px-2.5 py-1 text-[11px] text-muted-foreground">
+                            {item.technicalFocus}
+                          </span>
+                        )}
+                        {(item.apparatus ?? []).map((apparatus) => (
+                          <span
+                            key={apparatus}
+                            className="rounded-full border border-border bg-background px-2.5 py-1 text-[11px] text-muted-foreground"
+                          >
+                            {apparatusLabels[apparatus] || apparatus}
+                          </span>
+                        ))}
+                      </div>
                     )}
                   </div>
                 </td>

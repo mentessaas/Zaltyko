@@ -28,6 +28,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { formatAcademyType } from "@/lib/formatters";
+import { useToast } from "@/components/ui/toast-provider";
 
 interface UserMembership {
   id: string;
@@ -104,6 +105,7 @@ const ROLE_OPTIONS = ["owner", "admin", "coach", "athlete", "parent", "super_adm
 
 export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDetailProps) {
   const router = useRouter();
+  const toast = useToast();
   const [user, setUser] = useState<UserDetail>(initialUser);
   const [saving, setSaving] = useState(false);
   const [loadingPlans, setLoadingPlans] = useState(false);
@@ -152,7 +154,11 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
 
   const handleSendEmail = () => {
     if (!user.email) {
-      alert("El usuario no tiene correo electrónico registrado");
+      toast.pushToast({
+        title: "Correo no disponible",
+        description: "El usuario no tiene correo electrónico registrado.",
+        variant: "warning",
+      });
       return;
     }
     window.location.href = `mailto:${user.email}?subject=Contacto desde Zaltyko`;
@@ -180,11 +186,19 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
       const data = await response.json();
 
       if (!response.ok) {
-        alert(`Error: ${data.message || data.error || "Error desconocido"}`);
+        toast.pushToast({
+          title: "No se pudo activar el acceso",
+          description: data.message || data.error || "Error desconocido",
+          variant: "error",
+        });
         return;
       }
 
-      alert(data.message || "Acceso activado correctamente");
+      toast.pushToast({
+        title: "Acceso activado",
+        description: data.message || "Acceso activado correctamente.",
+        variant: "success",
+      });
       
       // Refresh user data
       const refreshResponse = await fetch(`/api/super-admin/users/${user.id}`, {
@@ -201,7 +215,11 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
       router.refresh();
     } catch (error) {
       console.error("Error activating athlete access", error);
-      alert("Error al activar el acceso del atleta");
+      toast.pushToast({
+        title: "No se pudo activar el acceso",
+        description: "Inténtalo de nuevo en unos segundos.",
+        variant: "error",
+      });
     } finally {
       setActivatingAccess(false);
     }
@@ -209,7 +227,11 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
 
   const handleSendMessage = async () => {
     if (!messageForm.subject.trim() || !messageForm.message.trim()) {
-      alert("Por favor completa el asunto y el mensaje");
+      toast.pushToast({
+        title: "Mensaje incompleto",
+        description: "Completa el asunto y el mensaje antes de enviar.",
+        variant: "warning",
+      });
       return;
     }
 
@@ -230,16 +252,28 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
 
       if (!response.ok) {
         const error = await response.json();
-        alert(`Error al enviar: ${error.message || error.error || "Error desconocido"}`);
+        toast.pushToast({
+          title: "No se pudo enviar el mensaje",
+          description: error.message || error.error || "Error desconocido",
+          variant: "error",
+        });
         return;
       }
 
       const result = await response.json();
-      alert(result.message || "Mensaje enviado correctamente");
+      toast.pushToast({
+        title: "Mensaje enviado",
+        description: result.message || "Mensaje enviado correctamente.",
+        variant: "success",
+      });
       setMessageForm({ subject: "", message: "", type: "email" });
     } catch (error) {
       console.error("Error sending message", error);
-      alert("Error al enviar el mensaje");
+      toast.pushToast({
+        title: "No se pudo enviar el mensaje",
+        description: "Inténtalo de nuevo en unos segundos.",
+        variant: "error",
+      });
     } finally {
       setSendingMessage(false);
     }
@@ -285,7 +319,11 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
           return;
         }
         
-        alert(`Error al guardar: ${errorData.error || "Error desconocido"}`);
+        toast.pushToast({
+          title: "No se pudieron guardar los cambios",
+          description: errorData.error || "Error desconocido",
+          variant: "error",
+        });
         return;
       }
 
@@ -307,11 +345,19 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
         });
       }
 
-      alert("Cambios guardados correctamente");
+      toast.pushToast({
+        title: "Cambios guardados",
+        description: "El usuario se actualizó correctamente.",
+        variant: "success",
+      });
       router.refresh();
     } catch (error) {
       console.error("Error saving user", error);
-      alert("Error al guardar los cambios");
+      toast.pushToast({
+        title: "No se pudieron guardar los cambios",
+        description: "Inténtalo de nuevo en unos segundos.",
+        variant: "error",
+      });
     } finally {
       setSaving(false);
     }
@@ -337,7 +383,11 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
 
       if (!response.ok) {
         const error = await response.text();
-        alert(`Error: ${error}`);
+        toast.pushToast({
+          title: "No se pudo cambiar el plan",
+          description: error || "Inténtalo de nuevo en unos segundos.",
+          variant: "error",
+        });
         return;
       }
 
@@ -357,11 +407,19 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
         setPlanViolations(null);
       }
 
-      alert("Plan cambiado. Se ha notificado al usuario sobre los ajustes necesarios.");
+      toast.pushToast({
+        title: "Plan cambiado",
+        description: "Se ha notificado al usuario sobre los ajustes necesarios.",
+        variant: "success",
+      });
       router.refresh();
     } catch (error) {
       console.error("Error forcing plan change", error);
-      alert("Error al cambiar el plan");
+      toast.pushToast({
+        title: "No se pudo cambiar el plan",
+        description: "Inténtalo de nuevo en unos segundos.",
+        variant: "error",
+      });
     } finally {
       setSaving(false);
     }
@@ -386,7 +444,11 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
 
       if (!response.ok) {
         const error = await response.text();
-        alert(`Error: ${error}`);
+        toast.pushToast({
+          title: "No se pudo cambiar el estado del usuario",
+          description: error || "Inténtalo de nuevo en unos segundos.",
+          variant: "error",
+        });
         return;
       }
 
@@ -404,7 +466,11 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
       }
     } catch (error) {
       console.error("Error toggling suspension", error);
-      alert("Error al cambiar el estado");
+      toast.pushToast({
+        title: "No se pudo cambiar el estado del usuario",
+        description: "Inténtalo de nuevo en unos segundos.",
+        variant: "error",
+      });
     } finally {
       setSaving(false);
     }
@@ -918,4 +984,3 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
     </div>
   );
 }
-

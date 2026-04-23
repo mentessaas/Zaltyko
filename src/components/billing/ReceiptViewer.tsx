@@ -8,6 +8,7 @@ import { es } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/components/ui/toast-provider";
 
 interface Receipt {
   id: string;
@@ -28,6 +29,7 @@ interface ReceiptViewerProps {
 }
 
 export function ReceiptViewer({ academyId, initialReceipts = [] }: ReceiptViewerProps) {
+  const toast = useToast();
   const [receipts, setReceipts] = useState<Receipt[]>(initialReceipts);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -68,7 +70,11 @@ export function ReceiptViewer({ academyId, initialReceipts = [] }: ReceiptViewer
       document.body.removeChild(a);
     } catch (error) {
       console.error("Error downloading receipt:", error);
-      alert("Error al descargar el recibo");
+      toast.pushToast({
+        title: "No se pudo descargar el recibo",
+        description: "Inténtalo de nuevo en unos segundos.",
+        variant: "error",
+      });
     }
   };
 
@@ -144,4 +150,3 @@ export function ReceiptViewer({ academyId, initialReceipts = [] }: ReceiptViewer
     </div>
   );
 }
-

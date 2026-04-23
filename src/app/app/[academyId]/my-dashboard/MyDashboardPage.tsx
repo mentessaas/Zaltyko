@@ -37,6 +37,7 @@ import { MyProgressWidget } from "@/components/my-dashboard/MyProgressWidget";
 import { MyAssessmentsWidget } from "@/components/my-dashboard/MyAssessmentsWidget";
 import { MyCalendarWidget } from "@/components/my-dashboard/MyCalendarWidget";
 import { getInitials } from "@/lib/string-utils";
+import { useAcademyContext } from "@/hooks/use-academy-context";
 
 interface AthleteWithDetails {
   id: string;
@@ -93,6 +94,8 @@ interface SessionData {
   groupName: string | null;
   groupColor: string | null;
   coachName: string | null;
+  technicalFocus: string | null;
+  apparatus: string[];
   status: string;
 }
 
@@ -111,7 +114,19 @@ interface MyDashboardPageProps {
   chargesData: ChargeData[];
   weeklySchedule: { day: number; className: string; time: string }[];
   assessmentsData: { id: string; assessmentDate: string; apparatus: string | null; overallComment: string | null; assessedByName: string | null }[];
-  calendarSessions: { date: string; sessions: { id: string; className: string; startTime: string | null; endTime: string | null; groupName: string | null; groupColor: string | null }[] }[];
+  calendarSessions: {
+    date: string;
+    sessions: {
+      id: string;
+      className: string;
+      startTime: string | null;
+      endTime: string | null;
+      groupName: string | null;
+      groupColor: string | null;
+      technicalFocus: string | null;
+      apparatus: string[];
+    }[];
+  }[];
 }
 
 const DAYS_OF_WEEK = [
@@ -141,6 +156,7 @@ export function MyDashboardPage({
   assessmentsData,
   calendarSessions,
 }: MyDashboardPageProps) {
+  const { specialization } = useAcademyContext();
   const isParent = profileRole === "parent";
   const isAthlete = profileRole === "athlete";
   const isCoach = profileRole === "coach";
@@ -157,6 +173,20 @@ export function MyDashboardPage({
   const selectedAthlete = isParent && guardianAthletes.length > 0
     ? guardianAthletes.find(a => a.athleteId === selectedAthleteId) ?? guardianAthletes[0]
     : null;
+
+  const activeAthleteData: AthleteWithDetails | null = isAthlete
+    ? athleteData
+    : selectedAthlete
+      ? {
+          id: selectedAthlete.athleteId,
+          name: selectedAthlete.athleteName,
+          level: selectedAthlete.athleteLevel,
+          groupId: selectedAthlete.athleteGroupId,
+          groupName: selectedAthlete.athleteGroupName,
+          groupColor: selectedAthlete.athleteGroupColor,
+          coachName: selectedAthlete.athleteCoachName,
+        }
+      : null;
 
   // Función para cambiar de athlete
   const handleAthleteChange = (newAthleteId: string) => {
@@ -264,7 +294,13 @@ export function MyDashboardPage({
               ¡Hola, {profileName || "Usuario"}!
             </h1>
             <p className="text-muted-foreground">
-              {isParent ? "Panel de padre/tutor" : isAthlete ? "Tu progreso" : isCoach ? "Panel de entrenador" : "Tu panel personal"}
+              {isParent
+                ? "Panel familiar"
+                : isAthlete
+                  ? `Tu progreso como ${specialization.labels.athleteSingular.toLowerCase()}`
+                  : isCoach
+                    ? `Panel de ${specialization.labels.coachLabel.toLowerCase()}`
+                    : "Tu panel personal"}
               {" · "}
               <span className="font-medium text-primary">{academyName}</span>
             </p>
@@ -300,32 +336,32 @@ export function MyDashboardPage({
                     {displayAthleteName}
                   </h2>
                   <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                    {athleteData?.level && (
+                    {activeAthleteData?.level && (
                       <Badge variant="outline" className="bg-background">
                         <GraduationCap className="mr-1 h-3 w-3" />
-                        Nivel: {athleteData.level}
+                        {specialization.labels.levelLabel}: {activeAthleteData.level}
                       </Badge>
                     )}
-                    {athleteData?.groupName && (
+                    {activeAthleteData?.groupName && (
                       <Badge
                         variant="outline"
                         className="bg-background"
                         style={
-                          athleteData.groupColor
+                          activeAthleteData.groupColor
                             ? {
-                                borderColor: athleteData.groupColor,
-                                color: athleteData.groupColor,
+                                borderColor: activeAthleteData.groupColor,
+                                color: activeAthleteData.groupColor,
                               }
                             : undefined
                         }
                       >
-                        {athleteData.groupName}
+                        {activeAthleteData.groupName}
                       </Badge>
                     )}
-                    {athleteData?.coachName && (
+                    {activeAthleteData?.coachName && (
                       <span className="flex items-center gap-1">
                         <Users className="h-3 w-3" />
-                        {athleteData.coachName}
+                        {activeAthleteData.coachName}
                       </span>
                     )}
                   </div>
@@ -468,10 +504,10 @@ export function MyDashboardPage({
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="text-base">
-                <TrendingUp className="mr-2 inline h-4 w-4" />
-                Progreso del Atleta
-              </CardTitle>
+                <CardTitle className="text-base">
+                  <TrendingUp className="mr-2 inline h-4 w-4" />
+                  Progreso de {specialization.labels.athleteSingular}
+                </CardTitle>
               <CardDescription>
                 Evolución y nivel actual
               </CardDescription>
@@ -486,8 +522,9 @@ export function MyDashboardPage({
         </CardHeader>
         <CardContent>
           <MyProgressWidget
-            athleteData={athleteData}
+            athleteData={activeAthleteData}
             attendanceData={attendanceData}
+            assessmentsData={assessmentsData}
           />
         </CardContent>
       </Card>
@@ -515,8 +552,10 @@ export function MyDashboardPage({
         </CardHeader>
         <CardContent>
           <MyAssessmentsWidget
+            academyId={academyId}
+            athleteId={isAthlete ? athleteData?.id ?? undefined : selectedAthleteId ?? undefined}
             assessments={assessmentsData}
-            athleteName={displayAthleteName ?? "Atleta"}
+            athleteName={displayAthleteName ?? specialization.labels.athleteSingular}
           />
         </CardContent>
       </Card>

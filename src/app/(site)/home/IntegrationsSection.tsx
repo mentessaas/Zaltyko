@@ -1,6 +1,6 @@
 "use client";
 
-import { CreditCard, Calendar, Mail, Globe, ArrowRight } from "lucide-react";
+import { CreditCard, Mail, Globe, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 
@@ -13,25 +13,25 @@ const integrations = [
     color: "from-violet-600 to-indigo-600",
   },
   {
-    name: "Google Calendar",
-    description: "Sincroniza clases y eventos con el calendario de entrenadores y familias. Never miss a practice or competition again.",
-    icon: Calendar,
-    features: ["Sincronización bidireccional", "Recordatorios automáticos", "Eventos compartidos"],
-    color: "from-blue-500 to-cyan-500",
-  },
-  {
-    name: "Email",
-    description: "Envía comunicaciones profesionales con tu dominio. Plantillas personalizables y seguimiento de aperturas.",
+    name: "Email Transaccional",
+    description: "Envía comunicaciones profesionales a familias y entrenadores. Plantillas personalizables para notificaciones y recordatorios.",
     icon: Mail,
-    features: ["Dominio propio", "Plantillas HTML", "Analytics de apertura"],
+    features: ["Notificaciones automáticas", "Plantillas personalizables", "Envío por eventos"],
     color: "from-amber-500 to-orange-500",
   },
   {
-    name: "Webhooks",
-    description: "Conecta Zaltyko con cualquier herramienta. Automatiza procesos y mantén todo sincronizado.",
+    name: "WhatsApp",
+    description: "Envía mensajes directos a padres y entrenadores. Notificaciones de clase, eventos y recordatorios de pago.",
     icon: Globe,
-    features: ["API REST completa", "Integración Zapier", "Eventos en tiempo real"],
+    features: ["Mensajes directos", "Notificaciones automáticas", "Plantillas predefinidas"],
     color: "from-green-500 to-emerald-600",
+  },
+  {
+    name: "API para Desarrolladores",
+    description: "Integra Zaltyko con tus sistemas. Webhooks para automatizar procesos y mantener todo sincronizado.",
+    icon: Globe,
+    features: ["API REST", "Webhooks", "Eventos en tiempo real"],
+    color: "from-blue-500 to-indigo-600",
   },
 ];
 

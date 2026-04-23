@@ -351,16 +351,36 @@ export async function POST() {
     const payload = await ensureDevSessionData();
     return NextResponse.json(payload);
   } catch (error: any) {
-    logger.error("DEV_SESSION_ERROR", error, { message: error?.message });
+    logger.error("DEV_SESSION_ERROR", error, {
+      message: error?.message,
+      stack: error?.stack,
+      cause: error?.cause,
+      code: error?.code,
+      detail: error?.detail,
+      constraint: error?.constraint,
+      table: error?.table,
+    });
+
+    const fallbackPayload = {
+      userId: DEV_USER_ID,
+      profileId: DEV_PROFILE_ID,
+      tenantId: DEV_TENANT_ID,
+      academyId: DEV_ACADEMY_ID,
+      academyName: "Aurora Elite Demo",
+      academyType: "artistica",
+      sessionId: DEMO_SESSION_ID,
+      degraded: true,
+    };
+
     return NextResponse.json(
       {
-        error: "DEV_SESSION_FAILED",
+        ...fallbackPayload,
+        warning: "DEV_SESSION_DEGRADED",
         message: error?.message ?? "Unknown error",
       },
-      { status: 500 }
+      { status: 200 }
     );
   }
 }
 
 export const GET = POST;
-

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Users, MapPin, Building2, Globe } from "lucide-react";
+import { useToast } from "@/components/ui/toast-provider";
 
 interface EventNotificationsProps {
   eventId: string;
@@ -10,6 +11,7 @@ interface EventNotificationsProps {
 }
 
 export function EventNotifications({ eventId, academyId }: EventNotificationsProps) {
+  const toast = useToast();
   const [loading, setLoading] = useState<string | null>(null);
   const [result, setResult] = useState<{ type: string; sent: number; errors: number } | null>(null);
 
@@ -30,11 +32,19 @@ export function EventNotifications({ eventId, academyId }: EventNotificationsPro
         setResult(data);
       } else {
         const data = await response.json();
-        alert(data.message || "Error al enviar notificaciones");
+        toast.pushToast({
+          title: "No se pudieron enviar las notificaciones",
+          description: data.message || "Inténtalo de nuevo en unos segundos.",
+          variant: "error",
+        });
       }
     } catch (error) {
       console.error("Error sending notifications:", error);
-      alert("Error al enviar notificaciones");
+      toast.pushToast({
+        title: "No se pudieron enviar las notificaciones",
+        description: "Inténtalo de nuevo en unos segundos.",
+        variant: "error",
+      });
     } finally {
       setLoading(null);
     }
@@ -114,4 +124,3 @@ export function EventNotifications({ eventId, academyId }: EventNotificationsPro
     </div>
   );
 }
-
