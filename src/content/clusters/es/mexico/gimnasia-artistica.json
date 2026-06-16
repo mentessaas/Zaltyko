@@ -1,0 +1,61 @@
+{
+  "meta": {
+    "title": "Software para Gimnasia Artística en México | Zaltyko - Gestión FMGM",
+    "description": "Gestiona tu escuela de gimnasia artística federada con Zaltyko. Control total sobre atletas FMGM-CONADE, categorías oficiales, niveles 1-10, Olimpiada Nacional y licencias.",
+    "keywords": [
+      "gimnasia artística méxico",
+      "software fmgm",
+      "gestión gimnasia artística méxico",
+      "academia gimnasia artística",
+      "olimpiada nacional gimnasia",
+      "conade gimnasia",
+      "categorías gimnasia méxico",
+      "renovar licencia fmgm"
+    ]
+  },
+  "hero": {
+    "badge": "Líder en México · +60 academias",
+    "headline": "Gestiona tu escuela de gimnasia artística federada sin complicaciones",
+    "subheadline": "Control total sobre atletas FMGM-CONADE, categorías oficiales, niveles 1-10 y licencias. Olimpiada Nacional, Circuito Nacional y más."
+  },
+  "federation": {
+    "name": "Federación Mexicana de Gimnasia (FMGM) + CONADE",
+    "competitions": [
+      "Olimpiada Nacional (CONADE)",
+      "Circuito Nacional de Gimnasia Artística",
+      "Campeonato Nacional",
+      "Selectivos para Juegos Panamericanos",
+      "Juegos Nacionales"
+    ]
+  },
+  "categories": {
+    "preinfantil": "6-7 años - Iniciación",
+    "infantil": "8-9 años - Nivel 1-2",
+    "prejuvenil": "10-11 años - Nivel 3-4",
+    "juvenil": "12-13 años - Nivel 5-6",
+    " junior": "14-15 años - Nivel 7-8",
+    "senior": "16-17 años - Nivel 9-10",
+    "absoluta": "18+ años - Nivel Élite/FIG"
+  },
+  "painPoints": {
+    "generic": "Gestionar el doble sistema FMGM + CONADE es un dolor de cabeza. Licencias duplicadas, paperwork excesivo y poco tiempo para entrenar.",
+    "specific": "Renovar licencias FMGM y registro CONADE, gestionar selectivos para Olimpiada Nacional, tracking de niveles numéricos 1-10 por categoría."
+  },
+  "socialProof": {
+    "academies": [
+      "Gimnasia Integral CDMX",
+      "Club de Gimnasia Jalisco",
+      "Academia Monterrey",
+      "Gimnasia Puebla",
+      "Elite Gymnastics Estado de México"
+    ],
+    "stats": {
+      "athletes": "18,000+",
+      "academies": "60+"
+    }
+  },
+  "interlinking": {
+    "relatedCountries": ["espana", "argentina", "colombia", "chile", "peru"],
+    "relatedModalities": ["rhythmic", "acrobatic", "trampoline"]
+  }
+}

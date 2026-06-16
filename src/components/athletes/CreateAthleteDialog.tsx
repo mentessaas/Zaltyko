@@ -1,0 +1,511 @@
+"use client";
+
+import { FormEvent, useMemo, useRef, useState, useTransition } from "react";
+
+import { athleteStatusOptions } from "@/lib/athletes/constants";
+import { createClient } from "@/lib/supabase/client";
+
+import { Modal } from "@/components/ui/modal";
+import { Calendar as CalendarIcon, ChevronDown, ChevronUp } from "lucide-react";
+
+interface ContactInput {
+  name: string;
+  email: string;
+  relationship: string;
+  phone: string;
+  notifyEmail: boolean;
+  notifySms: boolean;
+}
+
+const CATEGORY_OPTIONS = ["A", "B", "C", "D", "E", "F"] as const;
+const LEVEL_OPTIONS = [
+  "Pre-nivel",
+  "1",
+  "2",
+  "3",
+  "4",
+  "5",
+  "6",
+  "7",
+  "8",
+  "9",
+  "10",
+  "FIG",
+] as const;
+
+const RELATIONSHIP_OPTIONS = [
+  "Madre",
+  "Padre",
+  "Tutor",
+  "Abuelo",
+  "Abuela",
+  "Hermano",
+  "Hermana",
+  "Tío",
+  "Tía",
+] as const;
+
+const fieldClassName =
+  "w-full rounded-[10px] border border-zaltyko-mist bg-white px-3 py-2 text-sm shadow-none focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15";
+const compactFieldClassName =
+  "rounded-[10px] border border-zaltyko-mist bg-white px-3 py-2 text-sm shadow-none focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15";
+
+interface CreateAthleteDialogProps {
+  academyId: string;
+  open: boolean;
+  onClose: () => void;
+  onCreated: () => void;
+  groups?: {
+    id: string;
+    name: string;
+    color: string | null;
+  }[];
+}
+
+const createEmptyContact = (): ContactInput => ({
+  name: "",
+  email: "",
+  relationship: "Madre",
+  phone: "",
+  notifyEmail: true,
+  notifySms: false,
+});
+
+export function CreateAthleteDialog({
+  academyId,
+  open,
+  onClose,
+  onCreated,
+  groups = [],
+}: CreateAthleteDialogProps) {
+  const [name, setName] = useState("");
+  const [dob, setDob] = useState("");
+  const [category, setCategory] = useState<(typeof CATEGORY_OPTIONS)[number] | "">("");
+  const [level, setLevel] = useState<(typeof LEVEL_OPTIONS)[number] | "">("");
+  const [status, setStatus] = useState<(typeof athleteStatusOptions)[number]>("active");
+  const [groupId, setGroupId] = useState("");
+  const [contacts, setContacts] = useState<ContactInput[]>([createEmptyContact()]);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  const computedAgeYears = useMemo(() => {
+    if (!dob) return null;
+    const birthDate = new Date(dob);
+    if (Number.isNaN(birthDate.getTime())) return null;
+    const now = new Date();
+    let ageYears = now.getFullYear() - birthDate.getFullYear();
+    const hasHadBirthdayThisYear =
+      now.getMonth() > birthDate.getMonth() ||
+      (now.getMonth() === birthDate.getMonth() && now.getDate() >= birthDate.getDate());
+    if (!hasHadBirthdayThisYear) {
+      ageYears -= 1;
+    }
+    return ageYears >= 0 ? ageYears : null;
+  }, [dob]);
+
+  const computedAgeLabel = useMemo(() => {
+    return computedAgeYears != null ? `${computedAgeYears} años` : "";
+  }, [computedAgeYears]);
+
+  const birthdateInputRef = useRef<HTMLInputElement>(null);
+
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError(null);
+
+    if (!name.trim()) {
+      setError("El nombre es obligatorio.");
+      return;
+    }
+
+    const hasIncompleteContact = contacts.some(
+      (contact) =>
+        !contact.name.trim() ||
+        !contact.email.trim() ||
+        !contact.phone.trim() ||
+        !contact.relationship.trim()
+    );
+
+    if (hasIncompleteContact) {
+      setError("Todos los datos del contacto familiar son obligatorios.");
+      return;
+    }
+
+    startTransition(async () => {
+      try {
+        const supabase = createClient();
+        const {
+          data: { user: currentUser },
+        } = await supabase.auth.getUser();
+
+        const payload = {
+          academyId,
+          name: name.trim(),
+          dob: dob ? dob : undefined,
+          level:
+            category || level
+              ? [
+                  category ? `Categoría ${category}` : null,
+                  level ? (level === "Pre-nivel" ? "Pre-nivel" : `Nivel ${level}`) : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")
+              : undefined,
+          status,
+          groupId: groupId || undefined,
+          contacts: contacts
+            .map((contact) => ({
+              name: contact.name.trim(),
+              relationship: contact.relationship.trim() || undefined,
+              email: contact.email.trim() || undefined,
+              phone: contact.phone.trim() || undefined,
+              notifyEmail: contact.notifyEmail,
+              notifySms: contact.notifySms,
+            }))
+            .filter((contact) => contact.name.length > 0),
+          ...(computedAgeYears != null ? { age: computedAgeYears } : {}),
+        };
+
+        const headers: Record<string, string> = {
+          "Content-Type": "application/json",
+          "x-academy-id": academyId,
+        };
+
+        if (currentUser?.id) {
+        }
+
+        const response = await fetch("/api/athletes", {
+          method: "POST",
+          headers,
+          body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) {
+          const data = await response.json().catch(() => ({}));
+          throw new Error(data.error ?? "No se pudo crear el atleta.");
+        }
+
+        setName("");
+        setDob("");
+        setCategory("");
+        setLevel("");
+        setStatus("active");
+        setGroupId("");
+        setContacts([createEmptyContact()]);
+        setShowAdvanced(false);
+        onCreated();
+        onClose();
+      } catch (err: any) {
+        setError(err.message ?? "Error desconocido al crear el atleta.");
+      }
+    });
+  };
+
+  const handleClose = () => {
+    if (isPending) return;
+    setError(null);
+    onClose();
+  };
+
+  return (
+    <Modal
+      open={open}
+      onClose={handleClose}
+      title="Registrar nuevo atleta"
+      description="Añade un atleta a tu academia."
+      footer={
+        <div className="flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={handleClose}
+            className="min-h-11 rounded-xl border border-zaltyko-indigo px-4 py-2 text-sm font-medium text-zaltyko-indigo transition hover:bg-zaltyko-indigo/5 disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={isPending}
+          >
+            Cancelar
+          </button>
+          <button
+            type="submit"
+            form="create-athlete-form"
+            className="min-h-11 rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white shadow-soft transition hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={isPending}
+          >
+            {isPending ? "Guardando..." : "Guardar atleta"}
+          </button>
+        </div>
+      }
+    >
+      <form id="create-athlete-form" onSubmit={handleSubmit} className="space-y-5">
+        {error && (
+          <div className="rounded-xl border border-zaltyko-coral/35 bg-zaltyko-coral/10 px-3 py-2 text-sm text-zaltyko-coral">
+            {error}
+          </div>
+        )}
+
+        {/* Campos esenciales */}
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">Nombre completo *</label>
+            <input
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              className={fieldClassName}
+              placeholder="Ej: María García López"
+              required
+            />
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">Fecha de nacimiento</label>
+              <div className="flex items-center gap-2">
+                <input
+                  ref={birthdateInputRef}
+                  type="date"
+                  value={dob}
+                  onChange={(event) => setDob(event.target.value)}
+                  max={new Date().toISOString().slice(0, 10)}
+                  className={fieldClassName}
+                />
+                <button
+                  type="button"
+                  onClick={() => birthdateInputRef.current?.showPicker?.()}
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-zaltyko-mist bg-white text-zaltyko-text-secondary transition hover:border-zaltyko-teal hover:text-zaltyko-teal"
+                  aria-label="Seleccionar fecha"
+                >
+                  <CalendarIcon className="h-4 w-4" strokeWidth={1.8} />
+                </button>
+              </div>
+              {computedAgeLabel && (
+                <p className="text-xs text-zaltyko-text-secondary">Edad: {computedAgeLabel}</p>
+              )}
+            </div>
+
+            {groups.length > 0 && (
+              <div className="space-y-2">
+                <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">Grupo</label>
+                <select
+                  value={groupId}
+                  onChange={(event) => setGroupId(event.target.value)}
+                  className={fieldClassName}
+                >
+                  <option value="">Sin grupo</option>
+                  {groups.map((group) => (
+                    <option key={group.id} value={group.id}>
+                      {group.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Opción avanzada */}
+        <button
+          type="button"
+          onClick={() => setShowAdvanced(!showAdvanced)}
+          className="flex w-full items-center justify-between rounded-xl border border-zaltyko-mist bg-zaltyko-warm-white px-3 py-2 text-sm font-medium text-zaltyko-text-secondary transition hover:border-zaltyko-teal hover:text-zaltyko-teal"
+        >
+          <span>Configuración avanzada</span>
+          {showAdvanced ? (
+            <ChevronUp className="h-4 w-4" />
+          ) : (
+            <ChevronDown className="h-4 w-4" />
+          )}
+        </button>
+
+        {showAdvanced && (
+          <div className="space-y-4">
+            {/* Nivel y categoría */}
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div className="space-y-2">
+                <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">Categoría</label>
+                <select
+                  value={category}
+                  onChange={(event) =>
+                    setCategory(event.target.value as (typeof CATEGORY_OPTIONS)[number] | "")
+                  }
+                  className={fieldClassName}
+                >
+                  <option value="">Sin categoría</option>
+                  {CATEGORY_OPTIONS.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">Nivel</label>
+                <select
+                  value={level}
+                  onChange={(event) => setLevel(event.target.value as (typeof LEVEL_OPTIONS)[number] | "")}
+                  className={fieldClassName}
+                >
+                  <option value="">Selecciona nivel</option>
+                  {LEVEL_OPTIONS.map((option) => (
+                    <option key={option} value={option}>
+                      {option === "Pre-nivel" ? "Pre-nivel" : option === "FIG" ? "FIG" : `Nivel ${option}`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">Estado</label>
+                <select
+                  value={status}
+                  onChange={(event) =>
+                    setStatus(event.target.value as (typeof athleteStatusOptions)[number])
+                  }
+                  className={fieldClassName}
+                >
+                  {athleteStatusOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Contactos familiares */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-zaltyko-navy">
+                  Contactos familiares {contacts.length > 1 ? `(${contacts.length})` : ""}
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setContacts((prev) => [...prev, createEmptyContact()])}
+                  className="rounded-full border border-zaltyko-indigo px-3 py-1.5 text-xs font-medium text-zaltyko-indigo transition hover:bg-zaltyko-indigo/5"
+                >
+                  + Añadir
+                </button>
+              </div>
+
+              {contacts.map((contact, index) => (
+                <div key={index} className="space-y-3 rounded-xl border border-zaltyko-mist/70 bg-white p-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold uppercase tracking-[0.05em] text-zaltyko-text-secondary">
+                      Contacto #{index + 1}
+                    </p>
+                    {contacts.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setContacts((prev) => prev.filter((_, contactIndex) => contactIndex !== index))
+                        }
+                        className="text-xs font-medium text-zaltyko-coral hover:underline"
+                      >
+                        Quitar
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <input
+                      value={contact.name}
+                      onChange={(event) =>
+                        setContacts((prev) => {
+                          const copy = [...prev];
+                          copy[index] = { ...copy[index], name: event.target.value };
+                          return copy;
+                        })
+                      }
+                      placeholder="Nombre *"
+                      className={compactFieldClassName}
+                      required
+                    />
+                    <input
+                      type="email"
+                      value={contact.email}
+                      onChange={(event) =>
+                        setContacts((prev) => {
+                          const copy = [...prev];
+                          copy[index] = { ...copy[index], email: event.target.value };
+                          return copy;
+                        })
+                      }
+                      placeholder="Correo *"
+                      className={compactFieldClassName}
+                      required
+                    />
+                    <input
+                      value={contact.phone}
+                      onChange={(event) =>
+                        setContacts((prev) => {
+                          const copy = [...prev];
+                          copy[index] = { ...copy[index], phone: event.target.value };
+                          return copy;
+                        })
+                      }
+                      placeholder="Teléfono *"
+                      className={compactFieldClassName}
+                      required
+                    />
+                    <select
+                      value={RELATIONSHIP_OPTIONS.includes(contact.relationship as any) ? contact.relationship : "Otro"}
+                      onChange={(event) => {
+                        const value = event.target.value;
+                        setContacts((prev) => {
+                          const copy = [...prev];
+                          copy[index] = {
+                            ...copy[index],
+                            relationship: value === "Otro" ? "" : value,
+                          };
+                          return copy;
+                        });
+                      }}
+                      className={compactFieldClassName}
+                    >
+                      {RELATIONSHIP_OPTIONS.map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                      <option value="Otro">Otro</option>
+                    </select>
+                  </div>
+
+                  <div className="flex gap-4 text-xs text-zaltyko-text-secondary">
+                    <label className="inline-flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={contact.notifyEmail}
+                        onChange={(event) =>
+                          setContacts((prev) => {
+                            const copy = [...prev];
+                            copy[index] = { ...copy[index], notifyEmail: event.target.checked };
+                            return copy;
+                          })
+                        }
+                        className="rounded border-zaltyko-mist text-zaltyko-teal focus:ring-zaltyko-teal"
+                      />
+                      Recibir correos
+                    </label>
+                    <label className="inline-flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={contact.notifySms}
+                        onChange={(event) =>
+                          setContacts((prev) => {
+                            const copy = [...prev];
+                            copy[index] = { ...copy[index], notifySms: event.target.checked };
+                            return copy;
+                          })
+                        }
+                        className="rounded border-zaltyko-mist text-zaltyko-teal focus:ring-zaltyko-teal"
+                      />
+                      Recibir SMS
+                    </label>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </form>
+    </Modal>
+  );
+}

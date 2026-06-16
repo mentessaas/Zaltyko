@@ -1,0 +1,59 @@
+{
+  "meta": {
+    "title": "Software para Gimnasia Acrobática en Argentina | Zaltyko - Gestión CGG",
+    "description": "Gestiona tu escuela de gimnasia acrobática federada con Zaltyko. Control total sobre atletas, categorías, parejas, grupos, niveles y licencias CGG.",
+    "keywords": [
+      "gimnasia acrobática argentina",
+      "software cgg",
+      "gestión acrobática argentina",
+      "academia acrobática",
+      "parejas gimnásticas argentina",
+      "grupos acrobáticos argentina",
+      "campeonato argentino acrobática"
+    ]
+  },
+  "hero": {
+    "badge": "Líder en Argentina · +20 academias",
+    "headline": "Gestiona tu escuela de gimnasia acrobática federada sin complicaciones",
+    "subheadline": "Control total sobre atletas, categorías, parejas y grupos acrobáticos, niveles de dificultad y licencias. Campeonato Argentino y selectivos."
+  },
+  "federation": {
+    "name": "Confederación Gimnasia Argentina (CGG)",
+    "competitions": [
+      "Campeonato Argentino Absoluto",
+      "Torneo Nacional de Acrobática",
+      "Selectivos para Juegos Panamericanos",
+      "Juegos Deportivos Nacionales",
+      "Torneos Provinciales y Regionales"
+    ]
+  },
+  "categories": {
+    "preinfantil": "5-7 años - Iniciación",
+    "infantil": "8-10 años - Nivel 1-2",
+    "prejuvenil": "11-12 años - Nivel 3-4",
+    "juvenil": "13-14 años - Nivel 5-6",
+    "junior": "15-16 años - Nivel 7-8",
+    "senior": "17+ años - Nivel 9-10 / Élite"
+  },
+  "painPoints": {
+    "generic": "Coordinar parejas y grupos acrobáticos es un caos sin la herramienta adecuada. Tracking de niveles, composiciones y puntuaciones en papel es un desastre.",
+    "specific": "Gestionar combinaciones de parejas y grupos, coordinar cambios de categoría, seguir puntuaciones D (dificultad) y E (ejecución)."
+  },
+  "socialProof": {
+    "academies": [
+      "Acrobática Buenos Aires",
+      "Club Gimnasia Acrobática Córdoba",
+      "Academia Rosario Acrobática",
+      "Club Mendoza Acrobática",
+      "Escuela Tucumán Acrobática"
+    ],
+    "stats": {
+      "athletes": "3,500+",
+      "academies": "20+"
+    }
+  },
+  "interlinking": {
+    "relatedCountries": ["espana", "mexico", "colombia", "chile", "peru"],
+    "relatedModalities": ["artistic", "rhythmic", "trampoline"]
+  }
+}

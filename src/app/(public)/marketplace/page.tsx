@@ -1,0 +1,83 @@
+import { Metadata } from "next";
+import { MarketplaceCard } from "@/components/marketplace/MarketplaceCard";
+import { MarketplaceFilters } from "@/components/marketplace/MarketplaceFilters";
+import { AdBanner } from "@/components/advertising/AdBanner";
+import { PublicPageHeader } from "@/components/public/PublicPageHeader";
+
+export const metadata: Metadata = {
+  title: "Marketplace de Gimnasia",
+  description: "Compra y vende productos y servicios para gimnastas. Encuentra ropa, equipamiento, suplementos y más.",
+  openGraph: {
+    title: "Marketplace de Gimnasia",
+    description: "Compra y vende productos y servicios para gimnastas",
+    url: "/marketplace",
+    type: "website",
+  },
+};
+
+async function getListings(searchParams: { category?: string; type?: string; search?: string; page?: string }) {
+  const params = new URLSearchParams();
+  if (searchParams.category) params.set("category", searchParams.category);
+  if (searchParams.type) params.set("type", searchParams.type);
+  if (searchParams.search) params.set("search", searchParams.search);
+  if (searchParams.page) params.set("page", searchParams.page);
+
+  // Use relative URL for server-side fetches in Next.js
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  const res = await fetch(`${baseUrl}/api/marketplace?${params}`, {
+    cache: "no-store",
+  });
+  return res.json();
+}
+
+async function getAds(zone: string) {
+  // Use relative URL for server-side fetches in Next.js
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  const res = await fetch(`${baseUrl}/api/advertising/zones/${zone}`, {
+    cache: "no-store",
+  });
+  return res.json();
+}
+
+export default async function MarketplacePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ category?: string; type?: string; search?: string; page?: string }>;
+}) {
+  const resolvedSearchParams = await searchParams;
+  const { items: listings, total, page, totalPages } = await getListings(resolvedSearchParams);
+  const { ads: topAds } = await getAds("marketplace_top");
+
+  return (
+    <div className="container mx-auto px-4 py-8">
+      <PublicPageHeader
+        title="Marketplace"
+        publishHref="/marketplace/nuevo"
+        publishLabel="Publicar"
+        dashboardHref="/dashboard/marketplace/mis-productos"
+        dashboardLabel="Mis productos"
+      />
+
+      <AdBanner ads={topAds} position="top" />
+
+      <div className="flex gap-8 mt-6">
+        <aside className="w-64 shrink-0">
+          <MarketplaceFilters />
+        </aside>
+        <main className="flex-1">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {listings?.map((listing: any) => (
+              <MarketplaceCard key={listing.id} listing={listing} />
+            ))}
+          </div>
+
+          {listings?.length === 0 && (
+            <p className="text-center text-gray-500 py-12">
+              No hay productos o servicios disponibles
+            </p>
+          )}
+        </main>
+      </div>
+    </div>
+  );
+}

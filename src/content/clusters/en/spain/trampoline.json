@@ -1,0 +1,60 @@
+{
+  "meta": {
+    "title": "Trampoline Gymnastics Club Management Software in Spain | Zaltyko",
+    "description": "Manage your federated trampoline club with Zaltyko. Full control over athletes, categories, levels (Base to Elite), Tumbling, DMT and licenses.",
+    "keywords": [
+      "trampoline spain",
+      "rfeg software",
+      "trampoline club management",
+      "tumbling",
+      "double mini trampoline",
+      "trampoline synchronized",
+      "campeonato espana trampoline"
+    ]
+  },
+  "hero": {
+    "badge": "Leader in Spain · +35 clubs",
+    "headline": "Manage your federated trampoline club with ease",
+    "subheadline": "Full control over athletes, official categories, Tumbling, DMT, Synchronized levels and licenses. From Nacional Base to Campeonato de España."
+  },
+  "federation": {
+    "name": "Real Federación Española de Gimnasia (RFEG)",
+    "competitions": [
+      "Campeonato de España Absoluto",
+      "Nacional Base",
+      "Copa de España",
+      "Liga de Clubes",
+      "Selectivos para competiciones internacionales"
+    ]
+  },
+  "categories": {
+    "pre_initiation": "5-7 years - Non-competitive",
+    "initiation": "8-9 years - Levels A-B",
+    "alevin": "10-11 years - Levels C-D",
+    "infantil": "12-13 years - Levels E-F",
+    "junior": "14-15 years - Levels 1-2",
+    "senior": "16-17 years - Levels 3-4",
+    "absoluta": "18+ years - FIG/Elite Level"
+  },
+  "painPoints": {
+    "generic": "Managing Tumbling, DMT and Synchronized gymnasts in spreadsheets is chaos. Tracking difficulty levels and training sessions doesn't exist.",
+    "specific": "Coordinating synchronized routines between gymnasts, managing difficulty score tracking, and renewing licenses for each national competition."
+  },
+  "socialProof": {
+    "academies": [
+      "Trampolín Club Madrid",
+      "Barcelona Trampoline Academy",
+      "Gimnasia Trampolín Valencia",
+      "Club Trampolín Coruña",
+      "Elite Trampoline Sevilla"
+    ],
+    "stats": {
+      "athletes": "6,000+",
+      "academies": "35+"
+    }
+  },
+  "interlinking": {
+    "relatedCountries": ["mexico", "argentina", "colombia", "chile", "peru"],
+    "relatedModalities": ["artistic", "rhythmic", "acrobatic"]
+  }
+}

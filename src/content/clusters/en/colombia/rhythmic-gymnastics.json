@@ -1,0 +1,57 @@
+{
+  "meta": {
+    "title": "Rhythmic Gymnastics Club Management Software in Colombia | Zaltyko - FCG",
+    "description": "Manage your federated rhythmic gymnastics club with Zaltyko. Full control over athletes, categories, levels 1-10, 5 apparatus and FCG licenses.",
+    "keywords": [
+      "rhythmic gymnastics colombia",
+      "fcg software",
+      "rhythmic club management colombia",
+      "copa colombia rhythmic",
+      "apparatus rhythmic gymnastics colombia"
+    ]
+  },
+  "hero": {
+    "badge": "Leader in Colombia · +25 clubs",
+    "headline": "Manage your federated rhythmic gymnastics club with ease",
+    "subheadline": "Full control over FCG athletes, official categories, levels 1-10, 5 apparatus and licenses. Copa Colombia and national selectivos."
+  },
+  "federation": {
+    "name": "Federación Colombiana de Gimnasia (FCG)",
+    "competitions": [
+      "Nacional Absoluto",
+      "Copa Colombia de Gimnasia Rítmica",
+      "Selectivos para Juegos Bolivarianos",
+      "Pan American Qualifiers",
+      "Torneos Departamentales"
+    ]
+  },
+  "categories": {
+    "preinfantil": "5-6 years - Initiation",
+    "infantil": "7-8 years - Level 1-2",
+    "prejuvenil": "9-10 years - Level 3-4",
+    "juvenil": "11-12 years - Level 5-6",
+    "junior": "13-15 years - Level 7-8",
+    "senior": "16+ years - Level 9-10 / Elite"
+  },
+  "painPoints": {
+    "generic": "Managing federations and equipment for 5 apparatus on paper is chaos. Little time for training due to excess paperwork.",
+    "specific": "Renewing FCG licenses, managing equipment (ropes, hoops, balls, clubs, ribbons), tracking technical levels 1-10."
+  },
+  "socialProof": {
+    "academies": [
+      "Rítmica Bogotá",
+      "Club Medellín RG",
+      "Academia Cali Rítmica",
+      "Club Barranquilla Rítmica",
+      "Escuela Pereira Rítmica"
+    ],
+    "stats": {
+      "athletes": "5,500+",
+      "academies": "25+"
+    }
+  },
+  "interlinking": {
+    "relatedCountries": ["spain", "mexico", "argentina", "chile", "peru"],
+    "relatedModalities": ["artistic", "acrobatic", "trampoline"]
+  }
+}

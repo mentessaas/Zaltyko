@@ -1,0 +1,36 @@
+# dependencies
+/node_modules
+
+# next.js
+/.next/
+/out/
+
+# generated / local
+/.vercel
+/.worktrees
+/.DS_Store
+/*.tsbuildinfo
+/next-env.d.ts
+/.env
+/.env.*
+/.npmrc
+/.prettierrc
+/.dockerignore
+/.build-trigger
+/.deploy-trigger
+/.redeploy-trigger
+
+# large or duplicate dirs
+/Zaltyko
+/ZaltykoMobile
+/brand kit
+/test-results
+/waitlist.tar.gz
+/waitlist.zip
+/drizzle
+/supabase/.temp
+
+# editor / repo metadata that we don't need right now
+/.github
+/.vscode
+/.vercelignore

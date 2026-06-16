@@ -1,0 +1,386 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  ::selection {
+    background-color: #1FC7B6;
+    color: #ffffff;
+  }
+}
+
+html,
+body {
+  height: 100%;
+}
+
+/* Mejoras de accesibilidad y UX móvil */
+@media (max-width: 768px) {
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  button,
+  a,
+  input,
+  select,
+  textarea {
+    font-size: 16px; /* Previene zoom en iOS */
+  }
+}
+
+@layer base {
+  :root {
+    /* Zaltyko Brand Book v1 */
+    --background: 210 40% 98%; /* Warm White #F8FAFC */
+    --foreground: 222 47% 11%; /* Midnight Navy #0F172A */
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+ 
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+ 
+    --primary: 175 74% 45%; /* Electric Teal #1FC7B6 */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 238 51% 34%; /* Deep Indigo #2B2E83 */
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+
+    --accent: 238 51% 34%; /* Deep Indigo */
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 7 100% 67%; /* Coral Accent #FF6B57 */
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 213 27% 84%; /* Mist Gray #CBD5E1 */
+    --input: 213 27% 84%;
+    --ring: 175 74% 45%;
+ 
+    --radius: 1rem;
+
+    --chart-1: 175 74% 45%;
+    --chart-2: 238 51% 34%;
+    --chart-3: 213 27% 84%;
+    --chart-4: 7 100% 67%;
+    --chart-5: 222 47% 11%;
+  }
+ 
+  .dark {
+    --background: 222 47% 11%;
+    --foreground: 210 40% 98%;
+ 
+    --card: 222 47% 11%;
+    --card-foreground: 210 40% 98%;
+ 
+    --popover: 222 47% 11%;
+    --popover-foreground: 210 40% 98%;
+ 
+    --primary: 175 74% 45%;
+    --primary-foreground: 0 0% 100%;
+ 
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+ 
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+ 
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+ 
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+ 
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 175 74% 45%;
+
+    --chart-1: 175 74% 45%;
+    --chart-2: 238 51% 54%;
+    --chart-3: 213 27% 84%;
+    --chart-4: 7 100% 67%;
+    --chart-5: 210 40% 98%;
+  }
+}
+
+@layer utilities {
+  .glass-panel {
+    @apply border border-zaltyko-mist/70 bg-white shadow-soft;
+  }
+  
+  .glass-card {
+    @apply border border-zaltyko-mist/70 bg-white shadow-soft transition-colors duration-150;
+  }
+
+  .text-gradient {
+    @apply text-zaltyko-teal;
+    background-image: none;
+  }
+
+  .zaltyko-motion-lines {
+    background-image: url("data:image/svg+xml,%3Csvg width='680' height='180' viewBox='0 0 680 180' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 115C110 78 190 164 292 96C395 27 478 20 680 66' stroke='%231FC7B6' stroke-opacity='.12'/%3E%3Cpath d='M0 145C120 110 204 184 308 120C420 51 494 52 680 90' stroke='%232B2E83' stroke-opacity='.16' stroke-dasharray='5 7'/%3E%3Cpath d='M0 84C118 58 204 130 312 66C425 0 520 6 680 42' stroke='%23FF6B57' stroke-opacity='.10'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right top;
+    background-size: min(680px, 100%) auto;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+    overflow-x: hidden;
+  }
+  
+  html {
+    overflow-x: hidden;
+  }
+  
+  /* Tipografía Zaltyko */
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display;
+  }
+  
+  h1 {
+    @apply text-3xl font-bold tracking-normal sm:text-4xl;
+    font-weight: 700;
+  }
+  
+  h2 {
+    @apply text-2xl font-semibold tracking-normal sm:text-3xl;
+    font-weight: 600;
+  }
+  
+  h3 {
+    @apply text-xl font-medium tracking-normal sm:text-2xl;
+    font-weight: 500;
+  }
+  
+  h4 {
+    @apply text-lg font-semibold tracking-normal sm:text-xl;
+    font-weight: 600;
+  }
+  
+  p {
+    @apply leading-7 font-sans;
+  }
+  
+  /* Mejoras de accesibilidad */
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+}
+
+/* PWA Mobile Optimizations */
+@layer utilities {
+  /* Safe area padding for notched phones */
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+
+  .safe-area-top {
+    padding-top: env(safe-area-inset-top, 0);
+  }
+
+  .safe-area-left {
+    padding-left: env(safe-area-inset-left, 0);
+  }
+
+  .safe-area-right {
+    padding-right: env(safe-area-inset-right, 0);
+  }
+
+  /* Minimum touch target size (44px as per Apple HIG) */
+  .touch-target {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  /* Hide scrollbar but allow scrolling */
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Mobile-friendly skeleton loaders */
+  .skeleton {
+    @apply animate-pulse bg-gray-200 dark:bg-gray-700 rounded;
+  }
+
+  .skeleton-text {
+    @apply skeleton h-4 w-full;
+  }
+
+  .skeleton-avatar {
+    @apply skeleton h-10 w-10 rounded-full;
+  }
+
+  .skeleton-card {
+    @apply skeleton h-32 w-full rounded-lg;
+  }
+}
+
+/* Pull to refresh animation */
+@keyframes pull-to-refresh {
+  0% {
+    transform: translateY(-100%);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+.pull-to-refresh-active {
+  animation: pull-to-refresh 0.3s ease-out;
+}
+
+/* Animaciones adicionales */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+@keyframes pulse-ring {
+  0% { transform: scale(0.8); opacity: 1; }
+  100% { transform: scale(1.3); opacity: 0; }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+.animate-fadeInUp {
+  animation: fadeInUp 0.4s ease-out forwards;
+}
+
+.animate-fadeInDown {
+  animation: fadeInDown 0.4s ease-out forwards;
+}
+
+.animate-scaleIn {
+  animation: scaleIn 0.3s ease-out forwards;
+}
+
+.animate-slideInRight {
+  animation: slideInRight 0.3s ease-out forwards;
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.animate-bounce-subtle {
+  animation: bounce 1s ease-in-out infinite;
+}
+
+/* Delay utilities for staggered animations */
+.delay-75 { animation-delay: 75ms; }
+.delay-150 { animation-delay: 150ms; }
+.delay-225 { animation-delay: 225ms; }
+.delay-300 { animation-delay: 300ms; }
+.delay-375 { animation-delay: 375ms; }
+.delay-450 { animation-delay: 450ms; }
+
+/* Transition utilities */
+.transition-transform-hover {
+  transition: transform 0.2s ease;
+}
+
+.transition-transform-hover:hover {
+  transform: translateY(-2px);
+}
+
+.transition-colors {
+  transition: background-color 0.2s, border-color 0.2s, color 0.2s;
+}
+
+/* Offline indicator */
+.offline-banner {
+  @apply fixed top-0 left-0 right-0 z-50 bg-zaltyko-coral text-white text-center py-2 text-sm;
+}
+
+/* PWA install banner (if not installed) */
+@media (display-mode: browser) {
+  .pwa-install-prompt {
+    @apply block;
+  }
+}
+
+@media (display-mode: standalone) {
+  .pwa-install-prompt {
+    @apply hidden;
+  }
+}

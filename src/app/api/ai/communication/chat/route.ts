@@ -1,0 +1,42 @@
+// src/app/api/ai/communication/chat/route.ts
+import { NextRequest, NextResponse } from 'next/server';
+import { withTenant } from '@/lib/authz';
+import { getAIOrchestrator } from '@/lib/ai/orchestrator';
+import { COMMUNICATION_SYSTEM_PROMPT, generateChatResponsePrompt } from '@/lib/ai/prompts/communication';
+import { logger } from "@/lib/logger";
+
+export const POST = withTenant(async (request: Request) => {
+  try {
+    const body = await request.json();
+    const { question, athleteInfo, faq } = body;
+
+    if (!question) {
+      return NextResponse.json(
+        { error: 'Missing required field: question' },
+        { status: 400 }
+      );
+    }
+
+    const orchestrator = getAIOrchestrator();
+    const prompt = generateChatResponsePrompt({
+      question,
+      athleteInfo,
+      faq,
+    });
+
+    const response = await orchestrator.execute(prompt, COMMUNICATION_SYSTEM_PROMPT, {
+      temperature: 0.7,
+      maxTokens: 500,
+    });
+
+    return NextResponse.json({
+      answer: response.content,
+    });
+  } catch (error) {
+    logger.error('AI chat error:', error);
+    return NextResponse.json(
+      { error: 'Failed to get chat response' },
+      { status: 500 }
+    );
+  }
+});

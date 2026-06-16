@@ -1,0 +1,522 @@
+"use client";
+
+import { useState, useEffect, useCallback, useMemo } from "react";
+import {
+  Save,
+  Building2,
+  Palette,
+  Clock,
+  Globe,
+  CreditCard,
+  CheckCircle,
+  AlertCircle,
+  Loader2,
+} from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
+import { Select } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
+
+import { SettingsLayout } from "@/components/settings/SettingsLayout";
+import { BrandingEditor, type BrandingData } from "@/components/settings/BrandingEditor";
+import { ScheduleEditor, type ScheduleData } from "@/components/settings/ScheduleEditor";
+import { SocialLinksEditor, type SocialLinksData } from "@/components/settings/SocialLinksEditor";
+import { TimezoneSelector } from "@/components/settings/TimezoneSelector";
+import { useAcademyContext } from "@/hooks/use-academy-context";
+import {
+  COUNTRY_REGION_OPTIONS,
+  findRegionsByCountry,
+  getCityPlaceholder,
+  getRegionLabel,
+  getRegionPlaceholder,
+} from "@/lib/countryRegions";
+import { findCitiesByRegion } from "@/lib/citiesByRegion";
+
+interface AcademySettings {
+  // Basic info
+  name: string;
+  publicDescription: string;
+  isPublic: boolean;
+  academyType: string;
+  country: string;
+  countryCode: string;
+  region: string;
+  city: string;
+  disciplineVariant: string;
+  federationConfigVersion: string;
+  specializationStatus: string;
+
+  // Branding
+  branding: BrandingData;
+
+  // Schedule
+  schedule: ScheduleData;
+
+  // Contact & Social
+  contact: SocialLinksData;
+
+  // Timezone
+  timezone: string;
+
+  // Billing (Stripe)
+  stripePublicKey: string;
+  stripeSecretKey: string;
+  stripeWebhookSecret: string;
+  taxId: string;
+  invoicePrefix: string;
+}
+
+const DEFAULT_SETTINGS: AcademySettings = {
+  name: "",
+  publicDescription: "",
+  isPublic: true,
+  academyType: "artistica",
+  country: "España",
+  countryCode: "ES",
+  region: "",
+  city: "",
+  disciplineVariant: "artistic_female",
+  federationConfigVersion: "legacy-default-v1",
+  specializationStatus: "legacy",
+  branding: {
+    primaryColor: "#1FC7B6",
+    secondaryColor: "#2B2E83",
+    accentColor: "#FF6B57",
+    fontHeading: "Space Grotesk",
+    fontBody: "Inter",
+    logoUrl: "",
+    faviconUrl: "",
+  },
+  schedule: {
+    slots: [],
+  },
+  contact: {
+    website: "",
+    contactEmail: "",
+    contactPhone: "",
+    address: "",
+    socialInstagram: "",
+    socialFacebook: "",
+    socialTwitter: "",
+    socialYoutube: "",
+  },
+  timezone: "America/Mexico_City",
+  stripePublicKey: "",
+  stripeSecretKey: "",
+  stripeWebhookSecret: "",
+  taxId: "",
+  invoicePrefix: "INV",
+};
+
+const DISCIPLINE_VARIANTS = [
+  { value: "artistic_female", label: "Gimnasia artística femenina" },
+  { value: "artistic_male", label: "Gimnasia artística masculina" },
+  { value: "rhythmic", label: "Gimnasia rítmica" },
+  { value: "general", label: "Mixta artística/rítmica" },
+];
+
+export default function SettingsPage() {
+  const context = useAcademyContext();
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+
+  const [settings, setSettings] = useState<AcademySettings>(DEFAULT_SETTINGS);
+  const [activeTab, setActiveTab] = useState("basic");
+  const regionOptions = useMemo(
+    () => findRegionsByCountry(settings.countryCode.toLowerCase()),
+    [settings.countryCode]
+  );
+  const cityOptions = useMemo(
+    () => findCitiesByRegion(settings.countryCode.toLowerCase(), settings.region),
+    [settings.countryCode, settings.region]
+  );
+
+  // Cargar settings existentes
+  useEffect(() => {
+    async function loadSettings() {
+      if (!context?.academyId) return;
+
+      try {
+        const response = await fetch(`/api/academies/${context.academyId}/settings`);
+
+        if (response.ok) {
+          const payload = await response.json();
+          const data = payload.data ?? payload;
+          setSettings({
+            ...DEFAULT_SETTINGS,
+            ...data,
+            branding: { ...DEFAULT_SETTINGS.branding, ...data.branding },
+            schedule: { ...DEFAULT_SETTINGS.schedule, ...data.schedule },
+            contact: { ...DEFAULT_SETTINGS.contact, ...data.contact },
+          });
+        }
+      } catch (err) {
+        console.error("Error loading settings:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadSettings();
+  }, [context?.academyId]);
+
+  // Guardar cambios
+  const handleSave = useCallback(async () => {
+    if (!context?.academyId) return;
+
+    setSaving(true);
+    setError(null);
+    setSuccess(false);
+
+    try {
+      const response = await fetch(`/api/academies/${context.academyId}/settings`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(settings),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || "Error al guardar la configuración");
+      }
+
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 3000);
+    } catch (err: any) {
+      setError(err.message || "Error al guardar los cambios");
+    } finally {
+      setSaving(false);
+    }
+  }, [context?.academyId, settings]);
+
+  const updateSettings = <K extends keyof AcademySettings>(key: K, value: AcademySettings[K]) => {
+    setSettings((prev) => ({ ...prev, [key]: value }));
+  };
+
+  if (loading) {
+    return (
+      <div className="flex h-[400px] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-zaltyko-text-secondary" />
+      </div>
+    );
+  }
+
+  return (
+    <SettingsLayout activeSection={activeTab}>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="relative overflow-hidden rounded-2xl border border-zaltyko-mist bg-white p-6 shadow-soft">
+          <div className="zaltyko-motion-lines pointer-events-none absolute inset-x-0 top-0 h-24 opacity-70" />
+          <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-teal">Configuración</p>
+            <h1 className="font-display text-3xl font-semibold text-zaltyko-navy">Ajustes de la academia</h1>
+            <p className="text-zaltyko-text-secondary">
+              Gestiona la información, branding y configuración de tu academia
+            </p>
+          </div>
+          <Button onClick={handleSave} disabled={saving}>
+            {saving ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : success ? (
+              <CheckCircle className="mr-2 h-4 w-4" />
+            ) : (
+              <Save className="mr-2 h-4 w-4" />
+            )}
+            {saving ? "Guardando..." : success ? "Guardado" : "Guardar cambios"}
+          </Button>
+          </div>
+        </div>
+
+        {error && (
+          <div className="flex items-center gap-2 rounded-xl border border-zaltyko-coral/35 bg-zaltyko-coral/10 p-4 text-sm text-zaltyko-coral">
+            <AlertCircle className="h-4 w-4" />
+            {error}
+          </div>
+        )}
+
+        {success && (
+          <div className="flex items-center gap-2 rounded-xl border border-zaltyko-teal/25 bg-zaltyko-teal/10 p-4 text-sm text-zaltyko-teal">
+            <CheckCircle className="h-4 w-4" />
+            Configuración guardada correctamente
+          </div>
+        )}
+
+        {/* Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="grid w-full grid-cols-5">
+            <TabsTrigger value="basic" className="gap-2">
+              <Building2 className="h-4 w-4" />
+              <span className="hidden sm:inline">Básico</span>
+            </TabsTrigger>
+            <TabsTrigger value="branding" className="gap-2">
+              <Palette className="h-4 w-4" />
+              <span className="hidden sm:inline">Branding</span>
+            </TabsTrigger>
+            <TabsTrigger value="schedule" className="gap-2">
+              <Clock className="h-4 w-4" />
+              <span className="hidden sm:inline">Horarios</span>
+            </TabsTrigger>
+            <TabsTrigger value="contact" className="gap-2">
+              <Globe className="h-4 w-4" />
+              <span className="hidden sm:inline">Contacto</span>
+            </TabsTrigger>
+            <TabsTrigger value="billing" className="gap-2">
+              <CreditCard className="h-4 w-4" />
+              <span className="hidden sm:inline">Facturación</span>
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Basic Info Tab */}
+          <TabsContent value="basic" className="mt-6 space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Información básica</CardTitle>
+                <CardDescription>
+                  Datos principales de tu academia
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Nombre de la academia *</Label>
+                  <Input
+                    id="name"
+                    value={settings.name}
+                    onChange={(e) => updateSettings("name", e.target.value)}
+                    required
+                    minLength={3}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="disciplineVariant">Especialización de gimnasia</Label>
+                  <Select
+                    id="disciplineVariant"
+                    value={settings.disciplineVariant}
+                    onValueChange={(value) => updateSettings("disciplineVariant", value)}
+                    className="w-full"
+                  >
+                    {DISCIPLINE_VARIANTS.map((type) => (
+                      <option key={type.value} value={type.value}>
+                        {type.label}
+                      </option>
+                    ))}
+                  </Select>
+                  <p className="text-xs text-zaltyko-text-secondary">
+                    Esta especialización define niveles, aparatos, evaluaciones y etiquetas visibles en la operación diaria.
+                  </p>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="countryCode">País base</Label>
+                    <SearchableSelect
+                      options={COUNTRY_REGION_OPTIONS.map((country) => ({
+                        value: country.value.toUpperCase(),
+                        label: country.label,
+                      }))}
+                      value={settings.countryCode}
+                      onChange={(value) => {
+                        updateSettings("countryCode", value);
+                        updateSettings("country", COUNTRY_REGION_OPTIONS.find((item) => item.value.toUpperCase() === value)?.label ?? value);
+                        updateSettings("region", "");
+                        updateSettings("city", "");
+                      }}
+                      placeholder="Selecciona un país"
+                      name="countryCode"
+                      searchPlaceholder="Buscar país..."
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="region">{getRegionLabel(settings.countryCode)}</Label>
+                    <SearchableSelect
+                      options={regionOptions}
+                      value={settings.region}
+                      onChange={(value) => {
+                        updateSettings("region", value);
+                        updateSettings("city", "");
+                      }}
+                      disabled={!settings.countryCode || regionOptions.length === 0}
+                      placeholder={getRegionPlaceholder(settings.countryCode, !!settings.countryCode)}
+                      name="region"
+                      searchPlaceholder={`Buscar ${getRegionLabel(settings.countryCode).toLowerCase()}...`}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="city">Ciudad</Label>
+                    <SearchableSelect
+                      options={cityOptions}
+                      value={settings.city}
+                      onChange={(value) => updateSettings("city", value)}
+                      disabled={!settings.region || cityOptions.length === 0}
+                      placeholder={getCityPlaceholder(getRegionLabel(settings.countryCode), !!settings.region)}
+                      name="city"
+                      searchPlaceholder="Buscar ciudad..."
+                    />
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-zaltyko-mist bg-zaltyko-warm-white p-4 text-sm">
+                  <p className="font-medium text-zaltyko-navy">Configuración técnica activa</p>
+                  <p className="mt-1 text-zaltyko-text-secondary">
+                    {settings.federationConfigVersion} · estado {settings.specializationStatus}
+                  </p>
+                  <p className="mt-2 text-xs text-zaltyko-text-secondary">
+                    Si la academia ya opera con datos reales, cambiar disciplina o país debe tratarse como migración guiada.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="publicDescription">Descripción pública</Label>
+                  <Textarea
+                    id="publicDescription"
+                    value={settings.publicDescription}
+                    onChange={(e) => updateSettings("publicDescription", e.target.value)}
+                    placeholder="Describe tu academia para el directorio público..."
+                    rows={4}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="isPublic">Visible en directorio público</Label>
+                    <p className="text-xs text-zaltyko-text-secondary">
+                      Permite que tu academia aparezca en búsquedas públicas
+                    </p>
+                  </div>
+                  <Switch
+                    id="isPublic"
+                    checked={settings.isPublic}
+                    onCheckedChange={(checked) => updateSettings("isPublic", checked)}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Zona horaria</CardTitle>
+                <CardDescription>
+                  Configura la zona horaria para tu academia
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <TimezoneSelector
+                  value={settings.timezone}
+                  onChange={(value) => updateSettings("timezone", value)}
+                />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Branding Tab */}
+          <TabsContent value="branding" className="mt-6">
+            <BrandingEditor
+              data={settings.branding}
+              onChange={(data) => updateSettings("branding", data)}
+            />
+          </TabsContent>
+
+          {/* Schedule Tab */}
+          <TabsContent value="schedule" className="mt-6">
+            <ScheduleEditor
+              data={settings.schedule}
+              onChange={(data) => updateSettings("schedule", data)}
+            />
+          </TabsContent>
+
+          {/* Contact Tab */}
+          <TabsContent value="contact" className="mt-6">
+            <SocialLinksEditor
+              data={settings.contact}
+              onChange={(data) => updateSettings("contact", data)}
+            />
+          </TabsContent>
+
+          {/* Billing Tab */}
+          <TabsContent value="billing" className="mt-6 space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Configuración de Stripe</CardTitle>
+                <CardDescription>
+                  Configura las credenciales de Stripe para procesar pagos
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="stripePublicKey">Stripe Public Key</Label>
+                  <Input
+                    id="stripePublicKey"
+                    type="text"
+                    value={settings.stripePublicKey}
+                    onChange={(e) => updateSettings("stripePublicKey", e.target.value)}
+                    placeholder="pk_live_..."
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="stripeSecretKey">Stripe Secret Key</Label>
+                  <Input
+                    id="stripeSecretKey"
+                    type="password"
+                    value={settings.stripeSecretKey}
+                    onChange={(e) => updateSettings("stripeSecretKey", e.target.value)}
+                    placeholder="sk_live_..."
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="stripeWebhookSecret">Stripe Webhook Secret</Label>
+                  <Input
+                    id="stripeWebhookSecret"
+                    type="password"
+                    value={settings.stripeWebhookSecret}
+                    onChange={(e) => updateSettings("stripeWebhookSecret", e.target.value)}
+                    placeholder="whsec_..."
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Información fiscal</CardTitle>
+                <CardDescription>
+                  Configura los datos para facturacion
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="taxId">RFC / NIF / Tax ID</Label>
+                  <Input
+                    id="taxId"
+                    value={settings.taxId}
+                    onChange={(e) => updateSettings("taxId", e.target.value)}
+                    placeholder="X1234567XX"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="invoicePrefix">Prefijo de facturas</Label>
+                  <Input
+                    id="invoicePrefix"
+                    value={settings.invoicePrefix}
+                    onChange={(e) => updateSettings("invoicePrefix", e.target.value)}
+                    placeholder="INV"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </div>
+    </SettingsLayout>
+  );
+}

@@ -1,0 +1,96 @@
+export const dynamic = 'force-dynamic';
+
+import { NextRequest } from "next/server";
+import { generateSessionsForAllTenants } from "@/lib/generate-class-sessions";
+import { logger } from "@/lib/logger";
+import { apiSuccess, apiError } from "@/lib/api-response";
+
+const MAX_RETRIES = 3;
+const RETRY_DELAY_MS = 5000;
+
+/**
+ * Cron job para generar sesiones automáticamente
+ * Se ejecuta diariamente a las 2:00 AM
+ *
+ * Configuración en vercel.json:
+ * {
+ *   "crons": [{
+ *     "path": "/api/cron/generate-sessions",
+ *     "schedule": "0 2 * * *"
+ *   }]
+ * }
+ *
+ * Nota: Vercel Cron no tiene retry incorporado. Este handler implementa
+ * retry interno simple para errores transitorios. Para retry robusto,
+ * considerar BullMQ + Vercel KV o un sistema de cola externo.
+ */
+export async function GET(request: NextRequest) {
+    const retryCount = parseInt(request.headers.get("x-retry-count") || "0", 10);
+
+    try {
+        // Verificar que la request viene de Vercel Cron
+        const authHeader = request.headers.get("authorization");
+        const cronSecret = process.env.CRON_SECRET;
+
+        if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+            logger.warn("Intento de acceso no autorizado al cron job");
+            return apiError("UNAUTHORIZED", "No autorizado", 401);
+        }
+
+        logger.info("Iniciando generación automática de sesiones (cron job)", { retryCount });
+
+        // Generar sesiones para las próximas 4 semanas
+        const result = await generateSessionsForAllTenants(4);
+
+        // Log del resultado
+        logger.info("Cron job completado:", {
+            tenants: result.total_tenants,
+            classes: result.total_classes,
+            generated: result.total_generated,
+            skipped: result.total_skipped,
+            errors: Object.keys(result.errors).length,
+        });
+
+        // Si hay errores, logearlos pero no fallar el cron
+        if (Object.keys(result.errors).length > 0) {
+            logger.error("Errores durante generación:", result.errors);
+            // Continuar even with partial errors - most tenants succeeded
+        }
+
+        return apiSuccess({
+            success: true,
+            timestamp: new Date().toISOString(),
+            result: {
+                tenants_processed: result.total_tenants,
+                classes_processed: result.total_classes,
+                sessions_generated: result.total_generated,
+                sessions_skipped: result.total_skipped,
+                errors_count: Object.keys(result.errors).length,
+            },
+        });
+    } catch (error) {
+        logger.error("Error en cron job de generación de sesiones:", error, { retryCount });
+
+        // Retry logic for transient errors
+        if (retryCount < MAX_RETRIES) {
+            logger.info(`Reintentando en ${RETRY_DELAY_MS}ms (intento ${retryCount + 1}/${MAX_RETRIES})`);
+            await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
+
+            // Create a new request with incremented retry count
+            const newRequest = new NextRequest(request.url, {
+                headers: new Headers(request.headers),
+                method: request.method,
+            });
+            newRequest.headers.set("x-retry-count", String(retryCount + 1));
+
+            return GET(newRequest);
+        }
+
+        logger.error("Max retries exceeded, cron job failed permanently");
+        return apiError(
+            "CRON_FAILED",
+            error instanceof Error ? error.message : "Unknown error",
+            500
+        );
+    }
+}

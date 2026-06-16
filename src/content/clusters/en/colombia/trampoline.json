@@ -1,0 +1,57 @@
+{
+  "meta": {
+    "title": "Trampoline Gymnastics Club Management Software in Colombia | Zaltyko - FCG",
+    "description": "Manage your federated trampoline club with Zaltyko. Full control over athletes, categories, levels, Tumbling, DMT, Synchronized and FCG licenses.",
+    "keywords": [
+      "trampoline colombia",
+      "fcg software",
+      "trampoline club management colombia",
+      "tumbling colombia",
+      "double mini trampoline colombia"
+    ]
+  },
+  "hero": {
+    "badge": "Leader in Colombia · +12 clubs",
+    "headline": "Manage your federated trampoline club with ease",
+    "subheadline": "Full control over athletes, categories, Tumbling, DMT, Synchronized levels and licenses. Copa Colombia and selectivos."
+  },
+  "federation": {
+    "name": "Federación Colombiana de Gimnasia (FCG)",
+    "competitions": [
+      "Nacional Absoluto",
+      "Copa Colombia de Trampolín",
+      "Selectivos para Juegos Bolivarianos",
+      "Pan American Qualifiers",
+      "Torneos Departamentales"
+    ]
+  },
+  "categories": {
+    "preinfantil": "5-7 years - Initiation",
+    "infantil": "8-9 years - Level 1-2",
+    "juvenil": "10-11 years - Level 3-4",
+    "prejunior": "12-13 years - Level 5-6",
+    "junior": "14-15 years - Level 7-8",
+    "senior": "16+ years - Level 9-10 / Elite"
+  },
+  "painPoints": {
+    "generic": "Managing Tumbling, DMT and Synchronized gymnasts on paper is chaos. Level tracking doesn't exist.",
+    "specific": "Coordinating synchronized routines, managing difficulty scores, renewing FCG licenses."
+  },
+  "socialProof": {
+    "academies": [
+      "Trampolín Bogotá",
+      "Club Medellín Trampolín",
+      "Academia Cali Trampoline",
+      "Club Barranquilla Trampolín",
+      "Escuela Pereira Trampolín"
+    ],
+    "stats": {
+      "athletes": "2,000+",
+      "academies": "12+"
+    }
+  },
+  "interlinking": {
+    "relatedCountries": ["spain", "mexico", "argentina", "chile", "peru"],
+    "relatedModalities": ["artistic", "rhythmic", "acrobatic"]
+  }
+}

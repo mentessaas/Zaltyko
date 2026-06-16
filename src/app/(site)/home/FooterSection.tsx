@@ -1,0 +1,187 @@
+import Link from "next/link";
+import Image from "next/image";
+
+const footerLinks = {
+  producto: [
+    { label: "Producto", href: "/features" },
+    { label: "Precios", href: "/pricing" },
+    { label: "Integraciones", href: "/features#integraciones" },
+    { label: "Documentación", href: "/docs" },
+  ],
+  recursos: [
+    { label: "Directorio de Academias", href: "/academias" },
+    { label: "Centro de Ayuda", href: "mailto:soporte@zaltyko.com" },
+    { label: "Solicitar demo", href: "/contact?type=demo" },
+    { label: "Centro de soporte", href: "/help" },
+  ],
+  empresa: [
+    { label: "Sobre nosotros", href: "/about" },
+    { label: "Contacto", href: "mailto:hola@zaltyko.com" },
+    { label: "Trabaja con nosotros", href: "mailto:hola@zaltyko.com" },
+  ],
+  legal: [
+    { label: "Términos del servicio", href: "/tos" },
+    { label: "Política de privacidad", href: "/privacy-policy" },
+    { label: "Cookies", href: "/privacy-policy#cookies" },
+  ],
+};
+
+export default function FooterSection() {
+  return (
+    <footer className="relative overflow-hidden bg-zaltyko-navy text-white">
+      {/* Background effects */}
+      <div className="absolute inset-0 zaltyko-motion-lines opacity-50" />
+      <div className="absolute top-0 left-1/4 h-96 w-96 rounded-full bg-zaltyko-indigo/20 blur-3xl" />
+      <div className="absolute bottom-0 right-1/4 h-96 w-96 rounded-full bg-zaltyko-teal/10 blur-3xl" />
+
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 relative">
+        {/* Trust badges */}
+        <div className="py-8 border-b border-white/10">
+          <div className="flex flex-wrap items-center justify-center gap-6 md:gap-10">
+            {[
+              { label: "RGPD Compliant", desc: "Datos protegidos" },
+              { label: "SSL Encriptado", desc: "Conexión segura" },
+              { label: "Cancelación libre", desc: "Sin permanencia" },
+              { label: "Soporte en español", desc: "Respuesta 24h" },
+            ].map((badge) => (
+              <div key={badge.label} className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center">
+                  <span className="text-xs font-bold text-white/80">✓</span>
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-white">{badge.label}</p>
+                  <p className="text-xs text-white/40">{badge.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Main footer */}
+        <div className="py-16 grid grid-cols-2 md:grid-cols-5 gap-8">
+          {/* Brand */}
+          <div className="col-span-2 md:col-span-1">
+            <Link href="/" className="flex items-center gap-2 group">
+              <Image
+                src="/branding/zaltyko/logo-zaltyko-dark.svg"
+                alt="Zaltyko"
+                width={142}
+                height={42}
+                className="h-11 w-auto transition-transform duration-150 group-hover:scale-[1.02]"
+              />
+            </Link>
+            <p className="mt-5 text-sm text-white/70 leading-relaxed max-w-xs font-medium">
+              El sistema de dirección para academias de gimnasia artística y rítmica.
+              Gestiona gimnastas, grupos, cobros y familias desde un solo panel.
+            </p>
+
+            {/* Social links */}
+            <div className="mt-6 flex gap-3">
+              {["twitter", "linkedin", "instagram"].map((social) => (
+                <a
+                  key={social}
+                  href={`https://${social}.com/zaltyko`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center hover:bg-gradient-to-br hover:from-zaltyko-primary hover:to-zaltyko-primary-dark transition-all duration-300 hover:scale-110 hover:shadow-lg hover:shadow-zaltyko-primary/30"
+                  aria-label={social}
+                >
+                  <span className="text-xs uppercase font-bold">{social[0]}</span>
+                </a>
+              ))}
+            </div>
+          </div>
+
+          {/* Links */}
+          <div>
+            <h4 className="text-sm font-bold uppercase tracking-wider text-white/90 mb-5">
+              Producto
+            </h4>
+            <ul className="space-y-3">
+              {footerLinks.producto.map((link) => (
+                <li key={link.label}>
+                  <Link
+                    href={link.href}
+                    className="text-sm text-white/60 hover:text-white hover:translate-x-1 transition-all duration-200 font-medium"
+                  >
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div>
+            <h4 className="text-sm font-bold uppercase tracking-wider text-white/90 mb-5">
+              Recursos
+            </h4>
+            <ul className="space-y-3">
+              {footerLinks.recursos.map((link) => (
+                <li key={link.label}>
+                  <Link
+                    href={link.href}
+                    className="text-sm text-white/60 hover:text-white hover:translate-x-1 transition-all duration-200 font-medium"
+                  >
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div>
+            <h4 className="text-sm font-bold uppercase tracking-wider text-white/90 mb-5">
+              Empresa
+            </h4>
+            <ul className="space-y-3">
+              {footerLinks.empresa.map((link) => (
+                <li key={link.label}>
+                  <Link
+                    href={link.href}
+                    className="text-sm text-white/60 hover:text-white hover:translate-x-1 transition-all duration-200 font-medium"
+                  >
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div>
+            <h4 className="text-sm font-bold uppercase tracking-wider text-white/90 mb-5">
+              Legal
+            </h4>
+            <ul className="space-y-3">
+              {footerLinks.legal.map((link) => (
+                <li key={link.label}>
+                  <Link
+                    href={link.href}
+                    className="text-sm text-white/60 hover:text-white hover:translate-x-1 transition-all duration-200 font-medium"
+                  >
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+
+        {/* Bottom bar */}
+        <div className="py-6 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <p className="text-sm text-white/50 font-medium">
+            © {new Date().getFullYear()} Zaltyko. Todos los derechos reservados.
+          </p>
+          <div className="flex items-center gap-6">
+            <span className="text-xs text-white/40 font-medium">
+              Software para academias de gimnasia
+            </span>
+            <span className="text-xs text-white/40">•</span>
+            <span className="text-xs text-white/40 font-medium">
+              Artística femenina, masculina y rítmica
+            </span>
+          </div>
+        </div>
+      </div>
+    </footer>
+  );
+}

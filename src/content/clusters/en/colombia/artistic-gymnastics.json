@@ -1,0 +1,60 @@
+{
+  "meta": {
+    "title": "Artistic Gymnastics Club Management Software in Colombia | Zaltyko - FCG",
+    "description": "Manage your federated artistic gymnastics club with Zaltyko. Full control over FCG athletes, official categories, levels, Copa Colombia and licenses.",
+    "keywords": [
+      "artistic gymnastics colombia",
+      "fcg software",
+      "gymnastics club management colombia",
+      "copa colombia gymnastics",
+      "selectivos colombia",
+      "juegos Bolivarianos",
+      "renew fcg license"
+    ]
+  },
+  "hero": {
+    "badge": "Leader in Colombia · +30 clubs",
+    "headline": "Manage your federated artistic gymnastics club with ease",
+    "subheadline": "Full control over FCG-Mindeporte athletes, official categories, competition levels, Copa Colombia, selectivos and licenses."
+  },
+  "federation": {
+    "name": "Federación Colombiana de Gimnasia (FCG)",
+    "competitions": [
+      "Nacional Absoluto",
+      "Copa Colombia de Gimnasia Artística",
+      "Selectivos para Juegos Bolivarianos",
+      "Pan American Qualifiers",
+      "Torneos Departamentales"
+    ]
+  },
+  "categories": {
+    "preinfantil": "6-7 years - Initiation",
+    "infantil": "8-9 years - Level 1-2",
+    "juvenil": "10-11 years - Level 3-4",
+    "prejunior": "12-13 years - Level 5-6",
+    "junior": "14-15 years - Level 7-8",
+    "senior": "16-17 years - Level 9-10",
+    "absoluta": "18+ years - Elite/FIG Level"
+  },
+  "painPoints": {
+    "generic": "Managing federations and licenses on paper or Excel takes hours you could spend training. Information gets lost between offices.",
+    "specific": "Renewing FCG licenses, managing selectivos for Nacional Absoluto, tracking numerical levels by category, coordination with Mindeporte."
+  },
+  "socialProof": {
+    "academies": [
+      "Gimnasia Bogotá",
+      "Club Medellín GA",
+      "Academia Cali Gymnastics",
+      "Club Barranquilla",
+      "Escuela Gymnastics Pereira"
+    ],
+    "stats": {
+      "athletes": "7,000+",
+      "academies": "30+"
+    }
+  },
+  "interlinking": {
+    "relatedCountries": ["spain", "mexico", "argentina", "chile", "peru"],
+    "relatedModalities": ["rhythmic", "acrobatic", "trampoline"]
+  }
+}

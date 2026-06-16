@@ -1,0 +1,98 @@
+import { NextResponse } from "next/server";
+import { apiError, apiSuccess } from "@/lib/api-response";
+import { z } from "zod";
+import { withTenant } from "@/lib/authz";
+import { analyzeAthleteProgress, type ProgressReportFilters } from "@/lib/reports/progress-analyzer";
+import { generateAttendancePDF } from "@/lib/reports/pdf-generator";
+import { db } from "@/db";
+import { academies } from "@/db/schema";
+import { eq } from "drizzle-orm";
+import { logger } from "@/lib/logger";
+
+// Forzar ruta dinámica
+export const dynamic = 'force-dynamic';
+
+const exportSchema = z.object({
+  academyId: z.string().uuid(),
+  athleteId: z.string().uuid(),
+  format: z.enum(["pdf"]).default("pdf"),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
+});
+
+export const GET = withTenant(async (request, context) => {
+  if (!context.tenantId) {
+    return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
+  }
+
+  const url = new URL(request.url);
+  const params = {
+    academyId: url.searchParams.get("academyId"),
+    athleteId: url.searchParams.get("athleteId"),
+    format: url.searchParams.get("format") || "pdf",
+    startDate: url.searchParams.get("startDate"),
+    endDate: url.searchParams.get("endDate"),
+  };
+
+  const validated = exportSchema.parse({
+    ...params,
+    academyId: params.academyId || undefined,
+    athleteId: params.athleteId || undefined,
+  });
+
+  if (!validated.academyId || !validated.athleteId) {
+    return apiError("ACADEMY_ID_AND_ATHLETE_ID_REQUIRED", "Academy ID and Athlete ID are required", 400);
+  }
+
+  const filters: ProgressReportFilters = {
+    academyId: validated.academyId,
+    tenantId: context.tenantId,
+    athleteId: validated.athleteId,
+    startDate: validated.startDate ? new Date(validated.startDate) : undefined,
+    endDate: validated.endDate ? new Date(validated.endDate) : undefined,
+  };
+
+  try {
+    const report = await analyzeAthleteProgress(filters);
+
+    if (!report) {
+      return apiError("NO_ASSESSMENTS_FOUND", "No assessments found", 404);
+    }
+
+    // Obtener nombre de la academia
+    let academyName = "Academia";
+    const [academy] = await db
+      .select({ name: academies.name })
+      .from(academies)
+      .where(eq(academies.id, validated.academyId))
+      .limit(1);
+    if (academy?.name) {
+      academyName = academy.name;
+    }
+
+    // Generar PDF
+    const pdfBuffer = await generateAttendancePDF({
+      title: `Reporte de Progreso - ${report.athleteName}`,
+      academyName: academyName,
+      stats: {
+        totalSessions: report.totalAssessments,
+        present: report.areasOfImprovement.length,
+        absent: report.areasOfConcern.length,
+        late: 0,
+        excused: 0,
+        attendanceRate: report.overallImprovement,
+      },
+    });
+
+    return new NextResponse(new Uint8Array(pdfBuffer), {
+      headers: {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `attachment; filename="reporte-progreso-${report.athleteName}.pdf"`,
+      },
+    });
+  } catch (error: any) {
+    logger.error("Error exporting progress report:", error);
+    return apiError("EXPORT_FAILED", error.message, 500);
+  }
+});
+
