@@ -195,8 +195,6 @@ zaltyko/
 │   │   │   ├── CoachCard.tsx         # NEW: memoized
 │   │   │   ├── ClusterAcademiesSection.tsx
 │   │   │   ├── ClusterCTASection.tsx
-│   │   │   ├── ClusterCoachesSection.tsx
-│   │   │   ├── ClusterEventsSection.tsx
 │   │   │   ├── ClusterStatsSection.tsx
 │   │   │   ├── ClusterDiscoverySection.tsx
 │   │   │   ├── ComparisonSection.tsx

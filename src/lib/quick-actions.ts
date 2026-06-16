@@ -1,6 +1,6 @@
 /**
  * Constantes de acciones rápidas compartidas
- * Usadas por QuickActions y QuickAccessBar
+ * Usadas por QuickActions
  */
 
 import {
