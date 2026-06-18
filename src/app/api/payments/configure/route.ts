@@ -1,10 +1,10 @@
-import { NextResponse } from "next/server";
 import { z } from "zod";
 import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { academies } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
+import { apiError, apiSuccess } from "@/lib/api-response";
 import { verifyAcademyAccess } from "@/lib/permissions";
 import { markChecklistItem, markWizardStep } from "@/lib/onboarding";
 import { trackEvent } from "@/lib/analytics";
@@ -15,17 +15,17 @@ const bodySchema = z.object({
 
 export const POST = withTenant(async (request, context) => {
   if (!context.tenantId) {
-    return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+    return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
   }
 
   const parsed = bodySchema.safeParse(await request.json());
   if (!parsed.success) {
-    return NextResponse.json({ error: "INVALID_PAYLOAD" }, { status: 400 });
+    return apiError("INVALID_PAYLOAD", "Payload inválido", 400, parsed.error.issues);
   }
 
   const access = await verifyAcademyAccess(parsed.data.academyId, context.tenantId);
   if (!access.allowed) {
-    return NextResponse.json({ error: access.reason ?? "FORBIDDEN" }, { status: 403 });
+    return apiError(access.reason ?? "FORBIDDEN", "Access denied", 403);
   }
 
   const now = new Date();
@@ -55,6 +55,5 @@ export const POST = withTenant(async (request, context) => {
     userId: context.userId,
   });
 
-  return NextResponse.json({ ok: true, configuredAt: now.toISOString() });
+  return apiSuccess({ configuredAt: now.toISOString() });
 });
-

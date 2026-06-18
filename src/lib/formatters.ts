@@ -4,8 +4,10 @@ export function formatAcademyType(value: string | null | undefined): string {
       return "Gimnasia artística";
     case "ritmica":
       return "Gimnasia rítmica";
+    case "trampolin":
+      return "Trampolín";
     case "general":
-      return "Mixta artística/rítmica";
+      return "General / Mixta";
     default:
       return "Disciplina no definida";
   }

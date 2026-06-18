@@ -12,6 +12,7 @@ import {
 import { eq, and, gte, lte, count, sql, sum, desc } from "drizzle-orm";
 import { subMonths, subDays, startOfMonth, endOfMonth, format } from "date-fns";
 import { logger } from "@/lib/logger";
+import { verifyAcademyAccessForProfile } from "@/lib/permissions";
 
 interface FullAnalyticsData {
   // Stats
@@ -45,11 +46,20 @@ export const GET = withTenant(async (request, context) => {
   }
 
   try {
+    const access = await verifyAcademyAccessForProfile({
+      academyId,
+      tenantId: context.tenantId,
+      profile: context.profile,
+    });
+    if (!access.allowed) {
+      return apiError(access.reason ?? "FORBIDDEN", "Access denied", 403);
+    }
+
     const analytics = await calculateFullAnalytics(academyId, context.tenantId);
     return apiSuccess({ data: analytics });
   } catch (error: any) {
     logger.error("Error calculating full analytics:", error);
-    return apiError("ANALYTICS_FAILED", error.message, 500);
+    return apiError("ANALYTICS_FAILED", "Failed to calculate analytics", 500);
   }
 });
 
@@ -186,17 +196,6 @@ async function calculateFullAnalytics(
     value: Number(row.count),
   }));
 
-  // If no levels, create sample data
-  if (athletesByLevel.length === 0 || athletesByLevel.every((l) => l.value === 0)) {
-    athletesByLevel.length = 0;
-    athletesByLevel.push(
-      { name: "Principiante", value: Math.floor(totalAthletes * 0.3) },
-      { name: "Intermedio", value: Math.floor(totalAthletes * 0.4) },
-      { name: "Avanzado", value: Math.floor(totalAthletes * 0.2) },
-      { name: "Experto", value: Math.floor(totalAthletes * 0.1) }
-    );
-  }
-
   // 7. Monthly revenue for last 12 months
   const monthlyRevenueData = [];
   for (let i = 11; i >= 0; i--) {
@@ -226,21 +225,8 @@ async function calculateFullAnalytics(
   const athletesEvolutionData = [];
   for (let i = 11; i >= 0; i--) {
     const monthDate = subMonths(now, i);
-    const monthStart = startOfMonth(monthDate);
     const monthEnd = endOfMonth(monthDate);
     const monthLabel = format(monthDate, "MMM");
-
-    const [monthAthletes] = await db
-      .select({ count: count() })
-      .from(athletes)
-      .where(
-        and(
-          eq(athletes.academyId, academyId),
-          eq(athletes.tenantId, tenantId),
-          gte(athletes.createdAt, monthStart),
-          lte(athletes.createdAt, monthEnd)
-        )
-      );
 
     // Get cumulative count up to that month
     const [cumulativeAthletes] = await db
@@ -323,17 +309,6 @@ async function calculateFullAnalytics(
     students: Number(row.count),
   }));
 
-  // If no data, use sample data
-  if (topClasses.length === 0) {
-    topClasses.push(
-      { name: "Karate Principiantes", students: 25 },
-      { name: "Karate Avanzados", students: 20 },
-      { name: "Jiu Jitsu", students: 18 },
-      { name: "Krav Magá", students: 15 },
-      { name: "Boxeo", students: 12 }
-    );
-  }
-
   // 11. Retention/Churn for last 6 months
   const retentionChurnData = [];
   for (let i = 5; i >= 0; i--) {
@@ -352,6 +327,7 @@ async function calculateFullAnalytics(
       .where(
         and(
           eq(athletes.academyId, academyId),
+          eq(athletes.tenantId, tenantId),
           eq(classes.tenantId, tenantId),
           gte(classSessions.sessionDate, monthStart.toISOString().split("T")[0]),
           lte(classSessions.sessionDate, monthEnd.toISOString().split("T")[0])
@@ -373,21 +349,105 @@ async function calculateFullAnalytics(
 
     retentionChurnData.push({
       month: monthLabel,
-      retained: Math.max(Number(retained?.count || 0), totalAthletes - Math.floor(Math.random() * 20)),
-      churned: Math.floor(Math.random() * 5) + 1,
-      newAthletes: Number(newAthletes?.count || 0) || Math.floor(Math.random() * 10) + 3,
+      retained: Number(retained?.count || 0),
+      churned: 0,
+      newAthletes: Number(newAthletes?.count || 0),
     });
   }
+
+  const [previousAthletesCount] = await db
+    .select({ count: count() })
+    .from(athletes)
+    .where(
+      and(
+        eq(athletes.academyId, academyId),
+        eq(athletes.tenantId, tenantId),
+        lte(athletes.createdAt, previousMonthEnd)
+      )
+    );
+
+  const previousTotalAthletes = Number(previousAthletesCount?.count || 0);
+  const athletesTrend =
+    previousTotalAthletes > 0
+      ? ((totalAthletes - previousTotalAthletes) / previousTotalAthletes) * 100
+      : totalAthletes > 0
+        ? 100
+        : 0;
+
+  const previousMonthAttendanceStart = previousMonthStart.toISOString().split("T")[0];
+  const previousMonthAttendanceEnd = previousMonthEnd.toISOString().split("T")[0];
+
+  const [previousTotalAttendance] = await db
+    .select({ count: count() })
+    .from(attendanceRecords)
+    .innerJoin(classSessions, eq(attendanceRecords.sessionId, classSessions.id))
+    .innerJoin(classes, eq(classSessions.classId, classes.id))
+    .where(
+      and(
+        eq(classes.academyId, academyId),
+        eq(classes.tenantId, tenantId),
+        gte(classSessions.sessionDate, previousMonthAttendanceStart),
+        lte(classSessions.sessionDate, previousMonthAttendanceEnd)
+      )
+    );
+
+  const [previousPresentAttendance] = await db
+    .select({ count: count() })
+    .from(attendanceRecords)
+    .innerJoin(classSessions, eq(attendanceRecords.sessionId, classSessions.id))
+    .innerJoin(classes, eq(classSessions.classId, classes.id))
+    .where(
+      and(
+        eq(classes.academyId, academyId),
+        eq(classes.tenantId, tenantId),
+        eq(attendanceRecords.status, "present"),
+        gte(classSessions.sessionDate, previousMonthAttendanceStart),
+        lte(classSessions.sessionDate, previousMonthAttendanceEnd)
+      )
+    );
+
+  const previousAverageAttendance =
+    Number(previousTotalAttendance?.count || 0) > 0
+      ? (Number(previousPresentAttendance?.count || 0) / Number(previousTotalAttendance.count)) * 100
+      : 0;
+
+  const attendanceTrend =
+    previousAverageAttendance > 0
+      ? ((averageAttendance - previousAverageAttendance) / previousAverageAttendance) * 100
+      : averageAttendance > 0
+        ? 100
+        : 0;
+
+  const [previousClassesCount] = await db
+    .select({ count: count() })
+    .from(classSessions)
+    .innerJoin(classes, eq(classSessions.classId, classes.id))
+    .where(
+      and(
+        eq(classes.academyId, academyId),
+        eq(classes.tenantId, tenantId),
+        gte(classSessions.sessionDate, previousMonthAttendanceStart),
+        lte(classSessions.sessionDate, previousMonthAttendanceEnd)
+      )
+    );
+
+  const previousClassesThisMonth = Number(previousClassesCount?.count || 0);
+  const classesTrend =
+    previousClassesThisMonth > 0
+      ? ((classesThisMonth - previousClassesThisMonth) / previousClassesThisMonth) * 100
+      : classesThisMonth > 0
+        ? 100
+        : 0;
 
   return {
     totalAthletes,
     monthlyRevenue: Math.round(monthlyRevenue * 100) / 100,
     averageAttendance: Math.round(averageAttendance * 10) / 10,
     classesThisMonth,
-    athletesTrend: Math.round(revenueTrend * 0.3 * 10) / 10, // Simplified
+    athletesTrend: Math.round(athletesTrend * 10) / 10,
     revenueTrend: Math.round(revenueTrend * 10) / 10,
-    attendanceTrend: Math.round((Math.random() * 10 - 5) * 10) / 10, // Simplified
-    classesTrend: Math.round((Math.random() * 20) * 10) / 10,
+    attendanceTrend: Math.round(attendanceTrend * 10) / 10,
+    classesTrend: Math.round(classesTrend * 10) / 10,
     athletesEvolution: athletesEvolutionData,
     revenueByMonth: monthlyRevenueData,
     athletesByLevel,

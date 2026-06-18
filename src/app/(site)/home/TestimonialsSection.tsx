@@ -16,13 +16,13 @@ export default function TestimonialsSection() {
         {/* Section header */}
         <div className="text-center max-w-3xl mx-auto mb-16">
           <span className="inline-block px-4 py-1.5 bg-zaltyko-teal/10 text-zaltyko-indigo text-sm font-semibold rounded-full mb-4">
-            Testimonios
+            Próximamente
           </span>
           <h2 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-6">
-            Lo que dicen nuestras academias
+            Testimonios de academias reales
           </h2>
           <p className="text-xl text-gray-600">
-            Descubre cómo clubes de gimnasia han simplificado su gestión con Zaltyko
+            Publicaremos experiencias verificadas cuando haya casos de producción disponibles.
           </p>
         </div>
 

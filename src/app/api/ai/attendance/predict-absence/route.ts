@@ -1,11 +1,11 @@
 // src/app/api/ai/attendance/predict-absence/route.ts
 export const dynamic = 'force-dynamic';
 
-import { NextRequest, NextResponse } from "next/server";
 import { withTenant } from "@/lib/authz";
 import { getAIOrchestrator } from "@/lib/ai/orchestrator";
 import { ATTENDANCE_SYSTEM_PROMPT, generateAbsencePredictionPrompt } from "@/lib/ai/prompts/attendance";
 import { logger } from "@/lib/logger";
+import { apiError, apiSuccess } from "@/lib/api-response";
 
 export const GET = withTenant(async (request: Request) => {
   try {
@@ -15,10 +15,7 @@ export const GET = withTenant(async (request: Request) => {
     const academyId = searchParams.get("academyId");
 
     if (!athleteId || !academyId) {
-      return NextResponse.json(
-        { error: "Missing required parameters: athleteId, academyId" },
-        { status: 400 }
-      );
+      return apiError("INVALID_QUERY", "Missing required parameters: athleteId, academyId", 400);
     }
 
     // Obtener datos de asistencia del atleta
@@ -69,7 +66,7 @@ export const GET = withTenant(async (request: Request) => {
       // Usar predicción basada en datos históricos
     }
 
-    return NextResponse.json({
+    return apiSuccess({
       athleteId,
       probability: prediction,
       confidence: attendanceRate > 0.8 ? 0.9 : attendanceRate > 0.5 ? 0.7 : 0.5,
@@ -77,9 +74,6 @@ export const GET = withTenant(async (request: Request) => {
     });
   } catch (error) {
     logger.error("AI predict absence error:", error);
-    return NextResponse.json(
-      { error: "Failed to predict absence" },
-      { status: 500 }
-    );
+    return apiError("AI_ABSENCE_PREDICTION_FAILED", "Failed to predict absence", 500);
   }
 });

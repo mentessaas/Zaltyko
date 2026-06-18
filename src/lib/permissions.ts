@@ -1,6 +1,6 @@
 import { eq, and } from "drizzle-orm";
 import { db } from "@/db";
-import { academies, athletes, classes, groups, profiles } from "@/db/schema";
+import { academies, athletes, classes, groups, memberships, profiles } from "@/db/schema";
 import { ProfileRow } from "./authz";
 
 export interface PermissionCheck {
@@ -124,6 +124,87 @@ export async function verifyAcademyAccess(
   return { allowed: true };
 }
 
+export async function verifyAcademyAccessForProfile({
+  academyId,
+  tenantId,
+  profile,
+}: {
+  academyId: string;
+  tenantId: string;
+  profile: Pick<ProfileRow, "id" | "userId" | "role" | "tenantId">;
+}): Promise<PermissionCheck> {
+  if (profile.role === "super_admin") {
+    const [academy] = await db
+      .select({ id: academies.id })
+      .from(academies)
+      .where(eq(academies.id, academyId))
+      .limit(1);
+
+    if (!academy) {
+      return {
+        allowed: false,
+        reason: "ACADEMY_NOT_FOUND_OR_ACCESS_DENIED",
+      };
+    }
+
+    return { allowed: true };
+  }
+
+  const [academy] = await db
+    .select({
+      id: academies.id,
+      tenantId: academies.tenantId,
+      ownerId: academies.ownerId,
+    })
+    .from(academies)
+    .where(and(eq(academies.id, academyId), eq(academies.tenantId, tenantId)))
+    .limit(1);
+
+  if (!academy) {
+    return {
+      allowed: false,
+      reason: "ACADEMY_NOT_FOUND_OR_ACCESS_DENIED",
+    };
+  }
+
+  if (profile.role === "admin") {
+    return { allowed: true };
+  }
+
+  if (profile.tenantId !== tenantId) {
+    return {
+      allowed: false,
+      reason: "TENANT_MISMATCH",
+    };
+  }
+
+  if (profile.role === "owner" || academy.ownerId === profile.id) {
+    return { allowed: true };
+  }
+
+  if (profile.role !== "coach") {
+    return {
+      allowed: false,
+      reason: "INSUFFICIENT_PERMISSIONS",
+    };
+  }
+
+  const [membership] = await db
+    .select({ role: memberships.role })
+    .from(memberships)
+    .where(and(eq(memberships.academyId, academyId), eq(memberships.userId, profile.userId)))
+    .limit(1);
+
+  if (!membership || membership.role === "viewer") {
+    return {
+      allowed: false,
+      reason: "ACADEMY_MEMBERSHIP_REQUIRED",
+    };
+  }
+
+  return { allowed: true };
+}
+
 /**
  * Verifica que el usuario tenga permisos para realizar una acción según su rol
  */
@@ -181,4 +262,3 @@ export async function verifyResourceAccess(
       };
   }
 }
-

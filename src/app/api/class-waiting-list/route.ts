@@ -73,6 +73,8 @@ export const POST = withTenant(async (request, context) => {
 
     await db.insert(classWaitingList).values({
       id: entryId,
+      tenantId: context.tenantId,
+      academyId: classRow.academyId,
       classId: body.classId,
       athleteId: body.athleteId,
       position,
@@ -109,14 +111,27 @@ export const GET = withTenant(async (request, context) => {
     const pageSize = Math.min(200, Math.max(1, limit));
     const offset = (page - 1) * pageSize;
 
-    // Construir condiciones
-    const conditions = [eq(classWaitingList.classId, classId ?? classWaitingList.classId)];
+    const conditions = classId
+      ? and(eq(classWaitingList.tenantId, context.tenantId), eq(classWaitingList.classId, classId))
+      : eq(classWaitingList.tenantId, context.tenantId);
+
+    if (classId) {
+      const [classRow] = await db
+        .select({ id: classes.id })
+        .from(classes)
+        .where(and(eq(classes.id, classId), eq(classes.tenantId, context.tenantId)))
+        .limit(1);
+
+      if (!classRow) {
+        return apiError("CLASS_NOT_FOUND", "Class not found", 404);
+      }
+    }
 
     // Obtener total
     const allEntries = await db
       .select({ id: classWaitingList.id })
       .from(classWaitingList)
-      .where(conditions[0]);
+      .where(conditions);
 
     const total = allEntries.length;
 
@@ -133,9 +148,15 @@ export const GET = withTenant(async (request, context) => {
         className: classes.name,
       })
       .from(classWaitingList)
-      .leftJoin(athletes, eq(classWaitingList.athleteId, athletes.id))
-      .leftJoin(classes, eq(classWaitingList.classId, classes.id))
-      .where(conditions[0])
+      .leftJoin(
+        athletes,
+        and(eq(classWaitingList.athleteId, athletes.id), eq(athletes.tenantId, context.tenantId))
+      )
+      .leftJoin(
+        classes,
+        and(eq(classWaitingList.classId, classes.id), eq(classes.tenantId, context.tenantId))
+      )
+      .where(conditions)
       .orderBy(asc(classWaitingList.position))
       .limit(pageSize)
       .offset(offset);

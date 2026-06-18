@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { isDevFeaturesEnabled } from "@/lib/dev";
+import { isDevSessionEnabled } from "@/lib/dev";
 import { DEV_SESSION_COOKIE, serializeDevSession } from "@/lib/dev-session";
 import { and, count, eq } from "drizzle-orm";
 
@@ -96,7 +96,17 @@ const DEMO_ATTENDANCE = [
 ];
 
 function isDevEnabled() {
-  return isDevFeaturesEnabled;
+  return isDevSessionEnabled;
+}
+
+function getDbErrorCode(error: unknown): string | undefined {
+  if (!error || typeof error !== "object") return undefined;
+  const maybeError = error as { code?: string; cause?: { code?: string } };
+  return maybeError.code ?? maybeError.cause?.code;
+}
+
+function isSchemaDriftError(error: unknown): boolean {
+  return getDbErrorCode(error) === "42703";
 }
 
 async function ensureProfile() {
@@ -310,6 +320,7 @@ async function ensureFamilyContacts() {
 async function ensureDevSessionData() {
   let profile;
   let academy;
+  let degraded = false;
   
   try {
     profile = await ensureProfile();
@@ -318,12 +329,14 @@ async function ensureDevSessionData() {
     // Try to get existing profile
     const [existingProfile] = await db.select().from(profiles).where(eq(profiles.userId, DEV_USER_ID)).limit(1);
     profile = existingProfile;
+    degraded = degraded || isSchemaDriftError(e);
   }
   
   try {
     academy = await ensureAcademy(profile?.id ?? DEV_USER_ID);
   } catch (e) {
     logger.debug("ensureAcademy failed", { error: e });
+    degraded = degraded || isSchemaDriftError(e);
     const [existingAcademy] = await db
       .select({
         id: academies.id,
@@ -336,6 +349,19 @@ async function ensureDevSessionData() {
       .where(eq(academies.id, DEV_ACADEMY_ID))
       .limit(1);
     academy = existingAcademy;
+  }
+
+  if (degraded) {
+    return {
+      userId: DEV_USER_ID,
+      profileId: profile?.id ?? DEV_PROFILE_ID,
+      tenantId: DEV_TENANT_ID,
+      academyId: academy?.id ?? DEV_ACADEMY_ID,
+      academyName: academy?.name ?? "Aurora Elite Demo",
+      academyType: academy?.academyType ?? "artistica",
+      sessionId: DEMO_SESSION_ID,
+      degraded: true,
+    };
   }
   
   // These are non-critical, wrap in try-catch

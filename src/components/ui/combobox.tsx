@@ -226,7 +226,7 @@ function ComboboxInner<TValue = string>(
       <PopoverContent
         className="w-[var(--radix-popover-trigger-width)] p-0"
         align="start"
-        onOpenAutoFocus={(e) => e.preventDefault()}
+        onOpenAutoFocus={(e: Event) => e.preventDefault()}
       >
         <Command shouldFilter={true}>
           <CommandInput

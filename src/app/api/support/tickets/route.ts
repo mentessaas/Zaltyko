@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
-import { tickets } from "@/db/schema/support-tickets";
-import { eq, desc, and, or, ilike } from "drizzle-orm";
 import { logger } from "@/lib/logger";
+import { getCurrentProfile } from "@/lib/authz";
+import { verifyAcademyAccessForProfile } from "@/lib/permissions";
 
 export async function GET(request: NextRequest) {
   try {
@@ -15,12 +15,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
-    // Obtener perfil del usuario usando userId
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("id, role, user_id")
-      .eq("user_id", user.id)
-      .single();
+    const profile = await getCurrentProfile(user.id);
 
     if (!profile) {
       return NextResponse.json({ error: "Perfil no encontrado" }, { status: 404 });
@@ -46,12 +41,21 @@ export async function GET(request: NextRequest) {
       `)
       .order("created_at", { ascending: false });
 
-    if (!isSuperAdmin) {
-      // Usuarios normales solo ven sus propios tickets
-      query = query.eq("created_by", user.id);
-    } else if (academyId) {
-      // Super admin puede filtrar por academia
+    if (academyId) {
+      if (!isSuperAdmin) {
+        const access = await verifyAcademyAccessForProfile({
+          academyId,
+          tenantId: profile.tenantId,
+          profile,
+        });
+        if (!access.allowed) {
+          return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+        }
+      }
       query = query.eq("academy_id", academyId);
+    } else if (!isSuperAdmin) {
+      // Usuarios normales solo ven sus propios tickets si no filtran por academia autorizada
+      query = query.eq("created_by", profile.id);
     }
 
     if (status && status !== "all") {
@@ -111,12 +115,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Obtener perfil del usuario usando userId
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("id, role, user_id")
-      .eq("user_id", user.id)
-      .single();
+    const profile = await getCurrentProfile(user.id);
 
     if (!profile) {
       return NextResponse.json({ error: "Perfil no encontrado" }, { status: 404 });
@@ -124,6 +123,17 @@ export async function POST(request: NextRequest) {
 
     // Si es super admin y proporciona academyId, usar ese; de lo contrario buscar membresía
     let finalAcademyId = academyId;
+
+    if (finalAcademyId && profile.role !== "super_admin") {
+      const access = await verifyAcademyAccessForProfile({
+        academyId: finalAcademyId,
+        tenantId: profile.tenantId,
+        profile,
+      });
+      if (!access.allowed) {
+        return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+      }
+    }
 
     if (!finalAcademyId && profile.role !== "super_admin") {
       const { data: membership } = await supabase
@@ -144,7 +154,7 @@ export async function POST(request: NextRequest) {
         category,
         priority: priority || "medium",
         status: "open",
-        created_by: user.id,
+        created_by: profile.id,
         academy_id: finalAcademyId,
       })
       .select()

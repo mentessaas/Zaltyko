@@ -1,11 +1,11 @@
 // src/app/api/ai/billing/predict-delinquency/route.ts
 export const dynamic = 'force-dynamic';
 
-import { NextRequest, NextResponse } from 'next/server';
 import { withTenant } from '@/lib/authz';
 import { getAIOrchestrator } from '@/lib/ai/orchestrator';
 import { BILLING_SYSTEM_PROMPT, generateDelinquencyPrompt } from '@/lib/ai/prompts/billing';
 import { logger } from "@/lib/logger";
+import { apiError, apiSuccess } from "@/lib/api-response";
 
 // Rate limiting (simple in-memory)
 const rateLimit = new Map<string, { count: number; timestamp: number }>();
@@ -33,10 +33,7 @@ export const POST = withTenant(async (request: Request) => {
   // Rate limit check
   const ip = request.headers.get('x-forwarded-for') || 'unknown';
   if (!checkRateLimit(ip)) {
-    return NextResponse.json(
-      { error: 'Rate limit exceeded' },
-      { status: 429 }
-    );
+    return apiError("RATE_LIMIT_EXCEEDED", "Rate limit exceeded", 429);
   }
 
   try {
@@ -44,10 +41,7 @@ export const POST = withTenant(async (request: Request) => {
     const { athleteId, name, paymentHistory, lastPaymentDate, pendingAmount } = body;
 
     if (!name || !paymentHistory) {
-      return NextResponse.json(
-        { error: 'Missing required fields: name, paymentHistory' },
-        { status: 400 }
-      );
+      return apiError("INVALID_PAYLOAD", "Missing required fields: name, paymentHistory", 400);
     }
 
     const orchestrator = getAIOrchestrator();
@@ -66,16 +60,13 @@ export const POST = withTenant(async (request: Request) => {
       ? parseInt(probabilityMatch[1]) / 100
       : 0.5;
 
-    return NextResponse.json({
+    return apiSuccess({
       athleteId,
       probability,
       analysis: response.content,
     });
   } catch (error) {
     logger.error('AI billing error:', error);
-    return NextResponse.json(
-      { error: 'Failed to analyze delinquency risk' },
-      { status: 500 }
-    );
+    return apiError("AI_DELINQUENCY_FAILED", "Failed to analyze delinquency risk", 500);
   }
 });

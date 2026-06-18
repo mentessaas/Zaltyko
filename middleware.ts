@@ -107,7 +107,6 @@ async function applyRateLimit(req: NextRequest) {
 function extractRole(payload: Record<string, unknown> | null) {
   if (!payload) return null;
   return (
-    (payload.user_metadata as Record<string, unknown>)?.role ??
     (payload.app_metadata as Record<string, unknown>)?.role ??
     payload.role ??
     null

@@ -1,125 +1,85 @@
-import { NextRequest } from "next/server";
-import { apiSuccess, apiError } from "@/lib/api-response";
-import { createClient } from "@/lib/supabase/server";
-import { getCurrentProfile } from "@/lib/authz";
+import { and, desc, eq } from "drizzle-orm";
+
 import { db } from "@/db";
 import { charges } from "@/db/schema";
-import { eq, and, gte, lt, sql, desc } from "drizzle-orm";
+import { apiError, apiSuccess } from "@/lib/api-response";
+import { withTenant } from "@/lib/authz";
 import { logger } from "@/lib/logger";
+import { verifyAcademyAccessForProfile } from "@/lib/permissions";
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ academyId: string }> }
-) {
+function periodFor(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
+export const GET = withTenant(async (_request, context) => {
+  const academyId = (context.params as { academyId?: string } | undefined)?.academyId;
+
+  if (!academyId) {
+    return apiError("ACADEMY_ID_REQUIRED", "Academy ID is required", 400);
+  }
+
   try {
-    const { academyId } = await params;
-    const cookieStore = await import("next/headers").then(m => m.cookies());
-    const supabase = await createClient(cookieStore);
-
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      return apiError("No autorizado", "No autorizado", 401);
+    const access = await verifyAcademyAccessForProfile({
+      academyId,
+      tenantId: context.tenantId,
+      profile: context.profile,
+    });
+    if (!access.allowed) {
+      return apiError(access.reason ?? "FORBIDDEN", "Access denied", 403);
     }
 
-    const profile = await getCurrentProfile(user.id);
-    if (!profile) {
-      return apiError("Perfil no encontrado", "Perfil no encontrado", 404);
-    }
-
-    // Get current date info
     const now = new Date();
-    const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-    const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const lastMonthLabel = `${lastMonth.getFullYear()}-${String(lastMonth.getMonth() + 1).padStart(2, "0")}`;
+    const currentMonth = periodFor(now);
+    const lastMonthLabel = periodFor(new Date(now.getFullYear(), now.getMonth() - 1, 1));
 
-    // Get all charges for this academy
     const allCharges = await db
       .select({
         id: charges.id,
         period: charges.period,
         amountCents: charges.amountCents,
         status: charges.status,
-        dueDate: charges.dueDate,
       })
       .from(charges)
-      .where(eq(charges.academyId, academyId))
+      .where(and(eq(charges.academyId, academyId), eq(charges.tenantId, context.tenantId)))
       .orderBy(desc(charges.period));
 
-    // Calculate current month revenue
-    const currentMonthCharges = allCharges.filter((c) => c.period === currentMonth);
-    const currentMonthRevenue = currentMonthCharges
-      .filter((c) => c.status === "paid")
-      .reduce((sum, c) => sum + (c.amountCents || 0), 0) / 100;
+    const paidRevenueForPeriod = (period: string) =>
+      allCharges
+        .filter((charge) => charge.period === period && charge.status === "paid")
+        .reduce((sum, charge) => sum + (charge.amountCents || 0), 0) / 100;
 
-    // Calculate previous month revenue
-    const previousMonthCharges = allCharges.filter((c) => c.period === lastMonthLabel);
-    const previousMonthRevenue = previousMonthCharges
-      .filter((c) => c.status === "paid")
-      .reduce((sum, c) => sum + (c.amountCents || 0), 0) / 100;
-
-    // Calculate pending payments (non-paid charges)
+    const currentMonthCharges = allCharges.filter((charge) => charge.period === currentMonth);
+    const currentMonthRevenue = paidRevenueForPeriod(currentMonth);
+    const previousMonthRevenue = paidRevenueForPeriod(lastMonthLabel);
     const pendingPayments = currentMonthCharges
-      .filter((c) => c.status !== "paid")
-      .reduce((sum, c) => sum + (c.amountCents || 0), 0) / 100;
+      .filter((charge) => charge.status !== "paid")
+      .reduce((sum, charge) => sum + (charge.amountCents || 0), 0) / 100;
 
-    // Projected revenue (based on average of last 3 months)
-    const lastThreeMonths = allCharges.slice(0, 30);
-    const avgRevenue = lastThreeMonths.length > 0
-      ? lastThreeMonths
-          .filter((c) => c.status === "paid")
-          .reduce((sum, c) => sum + (c.amountCents || 0), 0) / lastThreeMonths.length / 100
-      : currentMonthRevenue;
-    const projectedRevenue = Math.round(avgRevenue * 1.1); // 10% growth projection
+    const lastThreePeriods = [1, 2, 3].map((offset) =>
+      periodFor(new Date(now.getFullYear(), now.getMonth() - offset, 1))
+    );
+    const lastThreeRevenues = lastThreePeriods.map(paidRevenueForPeriod);
+    const projectedRevenue =
+      lastThreeRevenues.length > 0
+        ? Math.round(lastThreeRevenues.reduce((sum, value) => sum + value, 0) / lastThreeRevenues.length)
+        : 0;
 
-    // Calculate monthly trend for last 6 months
     const monthlyTrend = [];
     for (let i = 5; i >= 0; i--) {
       const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const monthLabel = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-      const monthCharges = allCharges.filter((c) => c.period === monthLabel);
-
-      const revenue = monthCharges
-        .filter((c) => c.status === "paid")
-        .reduce((sum, c) => sum + (c.amountCents || 0), 0) / 100;
-
-      // Expected revenue (simple estimate based on average)
-      let expectedRevenue: number;
-      if (i === 5) {
-        expectedRevenue = revenue * 1.1;
-      } else if (monthlyTrend[i - 1]) {
-        expectedRevenue = monthlyTrend[i - 1].revenue * 1.05;
-      } else {
-        expectedRevenue = revenue;
-      }
+      const monthLabel = periodFor(date);
+      const revenue = Math.round(paidRevenueForPeriod(monthLabel));
 
       monthlyTrend.push({
         month: monthLabel,
-        revenue: Math.round(revenue),
-        expected: Math.round(expectedRevenue),
+        revenue,
+        expected: revenue,
       });
     }
 
-    // Revenue by source (simplified - could be expanded to track payment methods)
-    const revenueBySource = [
-      {
-        source: "Membresías",
-        amount: Math.round(currentMonthRevenue * 0.8),
-        percentage: 80,
-      },
-      {
-        source: "Clases adicionales",
-        amount: Math.round(currentMonthRevenue * 0.15),
-        percentage: 15,
-      },
-      {
-        source: "Otros",
-        amount: Math.round(currentMonthRevenue * 0.05),
-        percentage: 5,
-      },
-    ];
+    const revenueBySource = currentMonthRevenue > 0
+      ? [{ source: "Pagos", amount: Math.round(currentMonthRevenue), percentage: 100 }]
+      : [];
 
     return apiSuccess({
       currentMonthRevenue,
@@ -131,6 +91,6 @@ export async function GET(
     });
   } catch (error) {
     logger.error("Error loading revenue trend:", error);
-    return apiError("Error al cargar tendencia de ingresos", "Error al cargar tendencia de ingresos", 500);
+    return apiError("REVENUE_TREND_FAILED", "Error al cargar tendencia de ingresos", 500);
   }
-}
+});

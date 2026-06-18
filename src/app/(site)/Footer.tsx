@@ -10,9 +10,9 @@ export default function Footer() {
             <Image
               src="/branding/zaltyko/logo-zaltyko-dark.svg"
               alt="Zaltyko"
-              width={32}
-              height={32}
-              className="h-8 w-auto"
+              width={200}
+              height={60}
+              style={{ width: 107, height: "auto" }}
             />
             <p className="font-sans text-sm text-zaltyko-text-secondary">
               Zaltyko — El sistema definitivo para academias de gimnasia. Registra alumnos, controla pagos, organiza clases y crece sin caos.

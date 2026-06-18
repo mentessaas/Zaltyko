@@ -2,6 +2,7 @@ export type ProductFeatureKey =
   | "advancedAnalytics"
   | "reportsHub"
   | "scheduledReports"
+  | "leakProfitability"
   | "whatsapp"
   | "paymentMethods"
   | "communicationTemplateUse";
@@ -10,6 +11,7 @@ const FEATURE_ENV: Record<ProductFeatureKey, string> = {
   advancedAnalytics: "NEXT_PUBLIC_FEATURE_ADVANCED_ANALYTICS",
   reportsHub: "NEXT_PUBLIC_FEATURE_REPORTS_HUB",
   scheduledReports: "NEXT_PUBLIC_FEATURE_SCHEDULED_REPORTS",
+  leakProfitability: "NEXT_PUBLIC_FEATURE_LEAK_PROFITABILITY",
   whatsapp: "NEXT_PUBLIC_FEATURE_WHATSAPP",
   paymentMethods: "NEXT_PUBLIC_FEATURE_PAYMENT_METHODS",
   communicationTemplateUse: "NEXT_PUBLIC_FEATURE_TEMPLATE_USE",
@@ -19,6 +21,7 @@ const FEATURE_DEFAULTS: Record<ProductFeatureKey, boolean> = {
   advancedAnalytics: false,
   reportsHub: false,
   scheduledReports: false,
+  leakProfitability: false,
   whatsapp: false,
   paymentMethods: false,
   communicationTemplateUse: false,
@@ -46,6 +49,8 @@ export function getFeatureLabel(feature: ProductFeatureKey): string {
       return "Centro de reportes";
     case "scheduledReports":
       return "Reportes programados";
+    case "leakProfitability":
+      return "Fugas y rentabilidad";
     case "whatsapp":
       return "WhatsApp Business";
     case "paymentMethods":

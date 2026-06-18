@@ -4,12 +4,12 @@ Este directorio contiene las políticas de Row Level Security (RLS) para Zaltyko
 
 ## 📁 Archivos
 
-### ✅ Archivo Activo
+### ✅ Fuentes Activas
 
-- **`rls-consolidated.sql`** - **USAR ESTE ARCHIVO**
-  - Archivo maestro consolidado con todas las políticas RLS
-  - Última actualización: 2025-11-26
-  - Este es el único archivo que debe ser usado y modificado
+- **`migrations/*.sql`** - fuente ejecutable de producción para cambios versionados.
+- **`rls-consolidated.sql`** - snapshot consolidado de políticas RLS para revisión y bootstrap manual.
+  - Debe mantenerse sincronizado con las migraciones cuando se agregan tablas tenant-scoped.
+  - No reemplaza el historial de migraciones versionadas.
 
 ### ⚠️ Archivos Deprecados
 
@@ -25,8 +25,8 @@ Estos archivos serán eliminados en futuras versiones. **NO modificar**.
 1. Ir a [Supabase Dashboard](https://app.supabase.com)
 2. Seleccionar tu proyecto
 3. Ir a **SQL Editor**
-4. Copiar y pegar el contenido de `rls-consolidated.sql`
-5. Ejecutar el script
+4. Aplicar primero las migraciones versionadas de `supabase/migrations`
+5. Usar `rls-consolidated.sql` solo como bootstrap/revisión cuando el entorno lo requiera
 
 ### Opción 2: CLI de Supabase
 
@@ -53,8 +53,9 @@ npx tsx scripts/validate-rls.ts
 
 El script de validación verificará:
 - ✅ No hay políticas duplicadas
-- ✅ Todas las tablas esperadas tienen políticas
-- ✅ Cobertura de políticas RLS
+- ✅ Todas las tablas tenant-scoped del schema Drizzle tienen RLS en SQL
+- ✅ Todas las tablas tenant-scoped tienen al menos una política
+- ✅ Se revisan tanto `rls-consolidated.sql` como `supabase/migrations/*.sql`
 
 ## 🏗️ Estructura de las Políticas
 
@@ -120,12 +121,12 @@ CREATE POLICY "table_select" ON table_name
 
 ## ✏️ Cómo Agregar Nuevas Políticas
 
-1. **Editar solo** `rls-consolidated.sql`
-2. Seguir el patrón existente para el tipo de tabla
-3. Agregar comentarios descriptivos
-4. Ejecutar validación: `npm run validate:rls`
-5. Aplicar en Supabase
-6. Verificar con tests
+1. Cambiar el schema Drizzle.
+2. Crear/revisar una migración versionada en `supabase/migrations`.
+3. Agregar RLS en la misma migración y sincronizar `rls-consolidated.sql` si aplica.
+4. Ejecutar validación: `pnpm validate:rls`.
+5. Aplicar en Supabase.
+6. Verificar con tests.
 
 ### Ejemplo de Nueva Política
 

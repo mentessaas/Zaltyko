@@ -1,11 +1,11 @@
-import { NextResponse } from "next/server";
-
 import { withTenant } from "@/lib/authz";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { calculateGrMetrics } from "@/lib/dashboard/gr-metrics";
 import { db } from "@/db";
 import { athletes } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
+import { logger } from "@/lib/logger";
+import { verifyAcademyAccessForProfile } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -22,11 +22,20 @@ export const GET = withTenant(async (_request, context) => {
   }
 
   try {
+    const access = await verifyAcademyAccessForProfile({
+      academyId,
+      tenantId: context.tenantId,
+      profile: context.profile,
+    });
+    if (!access.allowed) {
+      return apiError(access.reason ?? "FORBIDDEN", "Access denied", 403);
+    }
+
     // Get all athlete IDs for this academy
     const athleteRows = await db
       .select({ id: athletes.id })
       .from(athletes)
-      .where(eq(athletes.academyId, academyId));
+      .where(and(eq(athletes.academyId, academyId), eq(athletes.tenantId, context.tenantId)));
 
     const athleteIds = athleteRows.map((a) => a.id);
 
@@ -43,7 +52,7 @@ export const GET = withTenant(async (_request, context) => {
 
     return apiSuccess(grMetrics);
   } catch (error: any) {
-    console.error("Error calculating GR metrics:", error);
+    logger.error("Error calculating GR metrics:", error);
     return apiError("INTERNAL_ERROR", "Failed to calculate GR metrics", 500);
   }
 });

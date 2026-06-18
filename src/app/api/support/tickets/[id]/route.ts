@@ -2,6 +2,26 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { logger } from "@/lib/logger";
+import { getCurrentProfile } from "@/lib/authz";
+import { verifyAcademyAccessForProfile } from "@/lib/permissions";
+
+async function canAccessTicket(profile: NonNullable<Awaited<ReturnType<typeof getCurrentProfile>>>, ticket: { created_by: string; academy_id: string | null }) {
+  if (profile.role === "super_admin" || ticket.created_by === profile.id) {
+    return true;
+  }
+
+  if (!ticket.academy_id) {
+    return false;
+  }
+
+  const access = await verifyAcademyAccessForProfile({
+    academyId: ticket.academy_id,
+    tenantId: profile.tenantId,
+    profile,
+  });
+
+  return access.allowed;
+}
 
 export async function GET(
   request: NextRequest,
@@ -17,18 +37,11 @@ export async function GET(
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
-    // Obtener perfil del usuario usando userId
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("id, role, user_id")
-      .eq("user_id", user.id)
-      .single();
+    const profile = await getCurrentProfile(user.id);
 
     if (!profile) {
       return NextResponse.json({ error: "Perfil no encontrado" }, { status: 404 });
     }
-
-    const isSuperAdmin = profile.role === "super_admin";
 
     // Obtener ticket
     const { data: ticket, error: ticketError } = await supabase
@@ -46,8 +59,7 @@ export async function GET(
       return NextResponse.json({ error: "Ticket no encontrado" }, { status: 404 });
     }
 
-    // Verificar acceso
-    if (!isSuperAdmin && ticket.created_by !== user.id) {
+    if (!(await canAccessTicket(profile, ticket))) {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
 
@@ -93,12 +105,7 @@ export async function PATCH(
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
-    // Obtener perfil del usuario usando userId
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("id, role, user_id")
-      .eq("user_id", user.id)
-      .single();
+    const profile = await getCurrentProfile(user.id);
 
     if (!profile) {
       return NextResponse.json({ error: "Perfil no encontrado" }, { status: 404 });
@@ -117,7 +124,7 @@ export async function PATCH(
     // Verificar que el ticket existe
     const { data: existingTicket, error: ticketError } = await supabase
       .from("tickets")
-      .select("id, status, created_by")
+      .select("id, status, created_by, academy_id")
       .eq("id", id)
       .single();
 
@@ -127,9 +134,10 @@ export async function PATCH(
 
     // Solo el creador o admins pueden cambiar el estado
     const isSuperAdmin = profile.role === "super_admin";
-    const isOwner = existingTicket.created_by === user.id;
+    const isOwner = existingTicket.created_by === profile.id;
+    const hasAcademyAccess = await canAccessTicket(profile, existingTicket);
 
-    if (!isSuperAdmin && !isOwner && status) {
+    if (!isSuperAdmin && !isOwner && (!hasAcademyAccess || status)) {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
 

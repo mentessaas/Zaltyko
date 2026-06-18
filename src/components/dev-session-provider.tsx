@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { isDevFeaturesEnabled } from "@/lib/dev";
+import { isDevSessionEnabled } from "@/lib/dev";
 
 type DevSession = {
   userId: string;
@@ -43,7 +43,7 @@ async function fetchDevSession(): Promise<DevSession | null> {
 
 export function DevSessionProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<DevSession | null>(null);
-  const [loading, setLoading] = useState(isDevFeaturesEnabled);
+  const [loading, setLoading] = useState(isDevSessionEnabled);
 
   const persist = useCallback((value: DevSession | null) => {
     if (typeof window === "undefined") return;
@@ -55,7 +55,7 @@ export function DevSessionProvider({ children }: { children: React.ReactNode }) 
   }, []);
 
   const refresh = useCallback(async () => {
-    if (!isDevFeaturesEnabled || typeof window === "undefined") return;
+    if (!isDevSessionEnabled || typeof window === "undefined") return;
     setLoading(true);
     const data = await fetchDevSession();
     if (data) {
@@ -80,7 +80,7 @@ export function DevSessionProvider({ children }: { children: React.ReactNode }) 
   const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
-    if (!isDevFeaturesEnabled || typeof window === "undefined") return;
+    if (!isDevSessionEnabled || typeof window === "undefined") return;
 
     const cached = window.localStorage.getItem(STORAGE_KEY);
     if (cached && !initialized) {
@@ -106,7 +106,7 @@ export function DevSessionProvider({ children }: { children: React.ReactNode }) 
   );
 
   const safeValue = useMemo<DevSessionContextValue>(() => {
-    if (!isDevFeaturesEnabled) {
+    if (!isDevSessionEnabled) {
       return {
         session: null,
         loading: false,
@@ -127,4 +127,3 @@ export function useDevSession(): DevSessionContextValue {
   }
   return context;
 }
-

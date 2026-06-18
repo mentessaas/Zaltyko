@@ -1,8 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
-import { ticketAttachments, ticketResponses } from "@/db/schema/support-tickets";
 import { logger } from "@/lib/logger";
+import { getCurrentProfile } from "@/lib/authz";
+import { verifyAcademyAccessForProfile } from "@/lib/permissions";
+
+async function canAccessTicket(profile: NonNullable<Awaited<ReturnType<typeof getCurrentProfile>>>, ticket: { created_by: string; academy_id: string | null }) {
+  if (profile.role === "super_admin" || ticket.created_by === profile.id) {
+    return true;
+  }
+
+  if (!ticket.academy_id) {
+    return false;
+  }
+
+  const access = await verifyAcademyAccessForProfile({
+    academyId: ticket.academy_id,
+    tenantId: profile.tenantId,
+    profile,
+  });
+
+  return access.allowed;
+}
 
 export async function GET(
   request: NextRequest,
@@ -29,17 +48,13 @@ export async function GET(
       return NextResponse.json({ error: "Ticket no encontrado" }, { status: 404 });
     }
 
-    // Obtener perfil del usuario
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("id, role")
-      .eq("id", user.id)
-      .single();
-
-    const isSuperAdmin = profile?.role === "super_admin";
+    const profile = await getCurrentProfile(user.id);
+    if (!profile) {
+      return NextResponse.json({ error: "Perfil no encontrado" }, { status: 404 });
+    }
 
     // Verificar acceso
-    if (!isSuperAdmin && ticket.created_by !== user.id) {
+    if (!(await canAccessTicket(profile, ticket))) {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
 
@@ -92,7 +107,7 @@ export async function POST(
     // Verificar que el ticket existe y está abierto
     const { data: ticket, error: ticketError } = await supabase
       .from("tickets")
-      .select("id, status, created_by")
+      .select("id, status, created_by, academy_id")
       .eq("id", id)
       .single();
 
@@ -107,18 +122,16 @@ export async function POST(
       );
     }
 
-    // Obtener perfil del usuario
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("id, role")
-      .eq("id", user.id)
-      .single();
+    const profile = await getCurrentProfile(user.id);
+    if (!profile) {
+      return NextResponse.json({ error: "Perfil no encontrado" }, { status: 404 });
+    }
 
-    const isSuperAdmin = profile?.role === "super_admin";
-    const isOwner = ticket.created_by === user.id;
+    const isSuperAdmin = profile.role === "super_admin";
+    const isOwner = ticket.created_by === profile.id;
 
     // Verificar acceso
-    if (!isSuperAdmin && !isOwner) {
+    if (!isSuperAdmin && !isOwner && !(await canAccessTicket(profile, ticket))) {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
 
@@ -139,7 +152,7 @@ export async function POST(
       .from("ticket_responses")
       .insert({
         ticket_id: id,
-        user_id: user.id,
+        user_id: profile.id,
         message: message.trim(),
         is_internal: isSuperAdmin ? isInternal : false,
       })
@@ -181,7 +194,7 @@ export async function POST(
               file_url: publicUrl,
               file_type: file.type,
               file_size: String(file.size),
-              uploaded_by: user.id,
+              uploaded_by: profile.id,
             });
           }
         }

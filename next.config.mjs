@@ -1,3 +1,9 @@
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { withSentryConfig } from "@sentry/nextjs";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
 const securityHeaders = [
   {
     key: "Strict-Transport-Security",
@@ -17,8 +23,6 @@ const securityHeaders = [
   },
 ];
 
-import { withSentryConfig } from "@sentry/nextjs";
-
 const nextConfig = {
 
   // Verificar TypeScript y ESLint siempre - los errores deben arreglarse, no ignorarse
@@ -31,6 +35,7 @@ const nextConfig = {
   pageExtensions: ["ts", "tsx", "mdx"],
   // Deshabilitar exportación estática (la app es completamente dinámica)
   output: undefined, // No usar 'export', usar modo estándar de Next.js
+  outputFileTracingRoot: resolve(__dirname),
   
   // Configuración de imágenes para optimización
   images: {
@@ -101,13 +106,9 @@ export default withSentryConfig(nextConfig, {
   // Route browser requests to Sentry through a Next.js rewrite to circumvent ad-blockers.
   tunnelRoute: "/monitoring",
   
-  // Hides source maps from generated client bundles
-  hideSourceMaps: true,
-  
   // Automatically tree-shake Sentry logger statements to reduce bundle size
   disableLogger: true,
   
   // Enables automatic instrumentation of Vercel Cron Monitors.
   automaticVercelMonitors: true,
 });
-

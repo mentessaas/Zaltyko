@@ -122,6 +122,14 @@ ALTER TABLE coaches ENABLE ROW LEVEL SECURITY;
 ALTER TABLE classes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE class_sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE attendance_records ENABLE ROW LEVEL SECURITY;
+ALTER TABLE assessment_rubrics ENABLE ROW LEVEL SECURITY;
+ALTER TABLE athlete_documents ENABLE ROW LEVEL SECURITY;
+ALTER TABLE athlete_extra_classes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE class_enrollments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE competition_results ENABLE ROW LEVEL SECURITY;
+ALTER TABLE conversations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE discount_campaigns ENABLE ROW LEVEL SECURITY;
+ALTER TABLE discount_usage_history ENABLE ROW LEVEL SECURITY;
 ALTER TABLE events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE family_contacts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE skill_catalog ENABLE ROW LEVEL SECURITY;
@@ -142,6 +150,12 @@ ALTER TABLE onboarding_checklist_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_preferences ENABLE ROW LEVEL SECURITY;
 ALTER TABLE class_weekdays ENABLE ROW LEVEL SECURITY;
 ALTER TABLE class_groups ENABLE ROW LEVEL SECURITY;
+ALTER TABLE class_waiting_list ENABLE ROW LEVEL SECURITY;
+ALTER TABLE coach_compensation ENABLE ROW LEVEL SECURITY;
+ALTER TABLE academy_expenses ENABLE ROW LEVEL SECURITY;
+ALTER TABLE churn_reasons ENABLE ROW LEVEL SECURITY;
+ALTER TABLE academy_diagnostics ENABLE ROW LEVEL SECURITY;
+ALTER TABLE leak_action_history ENABLE ROW LEVEL SECURITY;
 ALTER TABLE billing_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE charges ENABLE ROW LEVEL SECURITY;
 ALTER TABLE event_logs ENABLE ROW LEVEL SECURITY;
@@ -150,6 +164,11 @@ ALTER TABLE academy_geo_groups ENABLE ROW LEVEL SECURITY;
 ALTER TABLE contact_messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE email_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE federative_licenses ENABLE ROW LEVEL SECURITY;
+ALTER TABLE message_groups ENABLE ROW LEVEL SECURITY;
+ALTER TABLE message_history ENABLE ROW LEVEL SECURITY;
+ALTER TABLE message_templates ENABLE ROW LEVEL SECURITY;
+ALTER TABLE scheduled_notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE scholarships ENABLE ROW LEVEL SECURITY;
 ALTER TABLE discounts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE receipts ENABLE ROW LEVEL SECURITY;
@@ -586,6 +605,113 @@ CREATE POLICY "class_groups_modify" ON class_groups
   ) WITH CHECK (
     is_admin() OR tenant_id = get_current_tenant()
   );
+
+-- CLASS WAITING LIST
+DROP POLICY IF EXISTS "class_waiting_list_select" ON class_waiting_list;
+CREATE POLICY "class_waiting_list_select" ON class_waiting_list
+  FOR SELECT USING (
+    is_admin() OR tenant_id = get_current_tenant()
+  );
+
+DROP POLICY IF EXISTS "class_waiting_list_modify" ON class_waiting_list;
+CREATE POLICY "class_waiting_list_modify" ON class_waiting_list
+  FOR ALL USING (
+    is_admin() OR tenant_id = get_current_tenant()
+  ) WITH CHECK (
+    is_admin() OR tenant_id = get_current_tenant()
+  );
+
+-- LEAK PROFITABILITY
+DROP POLICY IF EXISTS "coach_compensation_tenant_access" ON coach_compensation;
+CREATE POLICY "coach_compensation_tenant_access" ON coach_compensation
+  FOR ALL USING (is_admin() OR tenant_id = get_current_tenant())
+  WITH CHECK (is_admin() OR tenant_id = get_current_tenant());
+
+DROP POLICY IF EXISTS "academy_expenses_tenant_access" ON academy_expenses;
+CREATE POLICY "academy_expenses_tenant_access" ON academy_expenses
+  FOR ALL USING (is_admin() OR tenant_id = get_current_tenant())
+  WITH CHECK (is_admin() OR tenant_id = get_current_tenant());
+
+DROP POLICY IF EXISTS "churn_reasons_tenant_access" ON churn_reasons;
+CREATE POLICY "churn_reasons_tenant_access" ON churn_reasons
+  FOR ALL USING (is_admin() OR tenant_id = get_current_tenant())
+  WITH CHECK (is_admin() OR tenant_id = get_current_tenant());
+
+DROP POLICY IF EXISTS "academy_diagnostics_tenant_access" ON academy_diagnostics;
+CREATE POLICY "academy_diagnostics_tenant_access" ON academy_diagnostics
+  FOR ALL USING (is_admin() OR tenant_id = get_current_tenant())
+  WITH CHECK (is_admin() OR tenant_id = get_current_tenant());
+
+DROP POLICY IF EXISTS "leak_action_history_tenant_access" ON leak_action_history;
+CREATE POLICY "leak_action_history_tenant_access" ON leak_action_history
+  FOR ALL USING (is_admin() OR tenant_id = get_current_tenant())
+  WITH CHECK (is_admin() OR tenant_id = get_current_tenant());
+
+-- ADDITIONAL TENANT-SCOPED TABLES
+DROP POLICY IF EXISTS "assessment_rubrics_tenant_access" ON assessment_rubrics;
+CREATE POLICY "assessment_rubrics_tenant_access" ON assessment_rubrics
+  FOR ALL USING (is_admin() OR tenant_id = get_current_tenant())
+  WITH CHECK (is_admin() OR tenant_id = get_current_tenant());
+
+DROP POLICY IF EXISTS "athlete_documents_tenant_access" ON athlete_documents;
+CREATE POLICY "athlete_documents_tenant_access" ON athlete_documents
+  FOR ALL USING (is_admin() OR tenant_id = get_current_tenant())
+  WITH CHECK (is_admin() OR tenant_id = get_current_tenant());
+
+DROP POLICY IF EXISTS "athlete_extra_classes_tenant_access" ON athlete_extra_classes;
+CREATE POLICY "athlete_extra_classes_tenant_access" ON athlete_extra_classes
+  FOR ALL USING (is_admin() OR tenant_id = get_current_tenant())
+  WITH CHECK (is_admin() OR tenant_id = get_current_tenant());
+
+DROP POLICY IF EXISTS "class_enrollments_tenant_access" ON class_enrollments;
+CREATE POLICY "class_enrollments_tenant_access" ON class_enrollments
+  FOR ALL USING (is_admin() OR tenant_id = get_current_tenant())
+  WITH CHECK (is_admin() OR tenant_id = get_current_tenant());
+
+DROP POLICY IF EXISTS "competition_results_tenant_access" ON competition_results;
+CREATE POLICY "competition_results_tenant_access" ON competition_results
+  FOR ALL USING (is_admin() OR tenant_id = get_current_tenant())
+  WITH CHECK (is_admin() OR tenant_id = get_current_tenant());
+
+DROP POLICY IF EXISTS "conversations_tenant_access" ON conversations;
+CREATE POLICY "conversations_tenant_access" ON conversations
+  FOR ALL USING (is_admin() OR tenant_id = get_current_tenant())
+  WITH CHECK (is_admin() OR tenant_id = get_current_tenant());
+
+DROP POLICY IF EXISTS "discount_campaigns_tenant_access" ON discount_campaigns;
+CREATE POLICY "discount_campaigns_tenant_access" ON discount_campaigns
+  FOR ALL USING (is_admin() OR tenant_id = get_current_tenant())
+  WITH CHECK (is_admin() OR tenant_id = get_current_tenant());
+
+DROP POLICY IF EXISTS "discount_usage_history_tenant_access" ON discount_usage_history;
+CREATE POLICY "discount_usage_history_tenant_access" ON discount_usage_history
+  FOR ALL USING (is_admin() OR tenant_id = get_current_tenant())
+  WITH CHECK (is_admin() OR tenant_id = get_current_tenant());
+
+DROP POLICY IF EXISTS "federative_licenses_tenant_access" ON federative_licenses;
+CREATE POLICY "federative_licenses_tenant_access" ON federative_licenses
+  FOR ALL USING (is_admin() OR tenant_id = get_current_tenant())
+  WITH CHECK (is_admin() OR tenant_id = get_current_tenant());
+
+DROP POLICY IF EXISTS "message_groups_tenant_access" ON message_groups;
+CREATE POLICY "message_groups_tenant_access" ON message_groups
+  FOR ALL USING (is_admin() OR tenant_id = get_current_tenant())
+  WITH CHECK (is_admin() OR tenant_id = get_current_tenant());
+
+DROP POLICY IF EXISTS "message_history_tenant_access" ON message_history;
+CREATE POLICY "message_history_tenant_access" ON message_history
+  FOR ALL USING (is_admin() OR tenant_id = get_current_tenant())
+  WITH CHECK (is_admin() OR tenant_id = get_current_tenant());
+
+DROP POLICY IF EXISTS "message_templates_tenant_access" ON message_templates;
+CREATE POLICY "message_templates_tenant_access" ON message_templates
+  FOR ALL USING (is_admin() OR tenant_id = get_current_tenant() OR tenant_id IS NULL)
+  WITH CHECK (is_admin() OR tenant_id = get_current_tenant() OR tenant_id IS NULL);
+
+DROP POLICY IF EXISTS "scheduled_notifications_tenant_access" ON scheduled_notifications;
+CREATE POLICY "scheduled_notifications_tenant_access" ON scheduled_notifications
+  FOR ALL USING (is_admin() OR tenant_id = get_current_tenant())
+  WITH CHECK (is_admin() OR tenant_id = get_current_tenant());
 
 -- ============================================================================
 -- EVENTS (Public + Tenant-scoped)

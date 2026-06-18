@@ -1,265 +1,238 @@
 /**
  * RLS Policy Validation Script
- * 
- * Este script valida las políticas RLS para:
- * - Detectar políticas duplicadas
- * - Verificar que todas las tablas tengan políticas
- * - Validar sintaxis de políticas
- * - Generar reporte de cobertura
+ *
+ * Validates tenant-scoped Drizzle tables against the SQL sources used by the
+ * project: supabase/rls-consolidated.sql plus supabase/migrations/*.sql.
  */
 
-import { readFileSync } from 'fs';
-import { join } from 'path';
+import { existsSync, readdirSync, readFileSync, statSync } from "fs";
+import { basename, join, relative } from "path";
 
-interface Policy {
-    name: string;
-    table: string;
-    type: 'SELECT' | 'INSERT' | 'UPDATE' | 'DELETE' | 'ALL';
-    file: string;
-    lineNumber: number;
+interface SchemaTable {
+  table: string;
+  file: string;
+  tenantScoped: boolean;
+}
+
+interface SqlPolicy {
+  name: string;
+  table: string;
+  file: string;
+  lineNumber: number;
 }
 
 interface ValidationResult {
-    success: boolean;
-    duplicates: Policy[][];
-    missingPolicies: string[];
-    coverage: number;
-    errors: string[];
+  success: boolean;
+  duplicatePolicies: SqlPolicy[][];
+  missingRls: SchemaTable[];
+  missingPolicies: SchemaTable[];
+  tenantTables: SchemaTable[];
+  policyTables: string[];
+  coverage: number;
+  errors: string[];
 }
 
-// Tablas que deberían tener políticas RLS
-const EXPECTED_TABLES = [
-    'academies',
-    'profiles',
-    'memberships',
-    'subscriptions',
-    'plans',
-    'athletes',
-    'coaches',
-    'classes',
-    'class_sessions',
-    'attendance_records',
-    'events',
-    'family_contacts',
-    'skill_catalog',
-    'athlete_assessments',
-    'assessment_scores',
-    'coach_notes',
-    'audit_logs',
-    'guardians',
-    'guardian_athletes',
-    'invitations',
-    'class_coach_assignments',
-    'billing_invoices',
-    'billing_events',
-    'groups',
-    'group_athletes',
-    'onboarding_states',
-    'onboarding_checklist_items',
-    'user_preferences',
-    'class_weekdays',
-    'class_groups',
-    'billing_items',
-    'charges',
-    'event_logs',
-    'academy_messages',
-    'academy_geo_groups',
-    'contact_messages',
-    'notifications',
-    'email_logs',
-    'scholarships',
-    'discounts',
-    'receipts',
-    'event_invitations',
-    'notification_preferences',
-];
+const ROOT = process.cwd();
+const SCHEMA_DIR = join(ROOT, "src/db/schema");
+const SUPABASE_DIR = join(ROOT, "supabase");
 
-/**
- * Extrae políticas de un archivo SQL
- */
-function extractPolicies(filePath: string, fileName: string): Policy[] {
-    const content = readFileSync(filePath, 'utf-8');
-    const policies: Policy[] = [];
+function walk(dir: string): string[] {
+  return readdirSync(dir).flatMap((entry) => {
+    const fullPath = join(dir, entry);
+    const stat = statSync(fullPath);
+    if (stat.isDirectory()) return walk(fullPath);
+    return entry.endsWith(".ts") ? [fullPath] : [];
+  });
+}
 
-    // Regex mejorado para detectar CREATE POLICY (case insensitive, multiline)
-    const policyRegex = /CREATE\s+POLICY\s+"([^"]+)"\s+ON\s+(\w+)/gi;
+function extractSchemaTables(): SchemaTable[] {
+  const files = walk(SCHEMA_DIR);
+  const tables: SchemaTable[] = [];
 
-    let match;
-    while ((match = policyRegex.exec(content)) !== null) {
-        // Encontrar el número de línea
-        const beforeMatch = content.substring(0, match.index);
-        const lineNumber = beforeMatch.split('\n').length;
+  for (const file of files) {
+    const source = readFileSync(file, "utf8");
+    const matches = [...source.matchAll(/pgTable\(\s*["']([^"']+)["']/g)];
 
-        // Determinar el tipo de política (SELECT, INSERT, UPDATE, DELETE, ALL)
-        // Se busca en un bloque de texto después del CREATE POLICY para encontrar el FOR <type>
-        const policyBlock = content.substring(match.index, match.index + 500); // Buscar en los siguientes 500 caracteres
-        let type: Policy['type'] = 'ALL'; // Default a ALL si no se especifica
-        if (/FOR\s+SELECT/i.test(policyBlock)) type = 'SELECT';
-        else if (/FOR\s+INSERT/i.test(policyBlock)) type = 'INSERT';
-        else if (/FOR\s+UPDATE/i.test(policyBlock)) type = 'UPDATE';
-        else if (/FOR\s+DELETE/i.test(policyBlock)) type = 'DELETE';
-        else if (/FOR\s+ALL/i.test(policyBlock)) type = 'ALL';
+    for (let index = 0; index < matches.length; index++) {
+      const match = matches[index];
+      const start = match.index ?? 0;
+      const end = matches[index + 1]?.index ?? source.length;
+      const block = source.slice(start, end);
 
-        policies.push({
-            name: match[1],
-            table: match[2],
-            type,
-            file: fileName,
-            lineNumber,
-        });
+      tables.push({
+        table: match[1],
+        file: relative(ROOT, file),
+        tenantScoped: /\btenantId\s*:|["']tenant_id["']/.test(block),
+      });
     }
+  }
 
-    return policies;
+  return tables.sort((a, b) => a.table.localeCompare(b.table));
 }
 
-/**
- * Encuentra políticas duplicadas
- */
-function findDuplicates(policies: Policy[]): Policy[][] {
-    const policyMap = new Map<string, Policy[]>();
+function sqlFiles(): Array<{ path: string; name: string }> {
+  const files = [{ path: join(SUPABASE_DIR, "rls-consolidated.sql"), name: "rls-consolidated.sql" }];
+  const migrationsDir = join(SUPABASE_DIR, "migrations");
 
-    policies.forEach(policy => {
-        const key = `${policy.table}:${policy.name}`;
-        if (!policyMap.has(key)) {
-            policyMap.set(key, []);
-        }
-        policyMap.get(key)!.push(policy);
+  if (existsSync(migrationsDir)) {
+    for (const entry of readdirSync(migrationsDir).sort()) {
+      if (entry.endsWith(".sql")) {
+        files.push({ path: join(migrationsDir, entry), name: `migrations/${entry}` });
+      }
+    }
+  }
+
+  return files;
+}
+
+function extractPolicies(filePath: string, fileName: string): SqlPolicy[] {
+  const content = readFileSync(filePath, "utf8");
+  const policies: SqlPolicy[] = [];
+  const policyRegex = /CREATE\s+POLICY\s+"([^"]+)"\s+ON\s+"?([a-zA-Z0-9_]+)"?/gi;
+
+  let match;
+  while ((match = policyRegex.exec(content)) !== null) {
+    policies.push({
+      name: match[1],
+      table: match[2],
+      file: fileName,
+      lineNumber: content.slice(0, match.index).split("\n").length,
     });
+  }
 
-    const duplicates: Policy[][] = [];
-    policyMap.forEach(policies => {
-        if (policies.length > 1) {
-            duplicates.push(policies);
-        }
-    });
-
-    return duplicates;
+  return policies;
 }
 
-/**
- * Encuentra tablas sin políticas
- */
-function findMissingPolicies(policies: Policy[]): string[] {
-    const tablesWithPolicies = new Set(policies.map(p => p.table));
-    return EXPECTED_TABLES.filter(table => !tablesWithPolicies.has(table));
+function extractRlsTables(filePath: string): Set<string> {
+  const content = readFileSync(filePath, "utf8");
+  const tables = new Set<string>();
+  const rlsRegex = /ALTER\s+TABLE\s+"?([a-zA-Z0-9_]+)"?\s+ENABLE\s+ROW\s+LEVEL\s+SECURITY/gi;
+
+  let match;
+  while ((match = rlsRegex.exec(content)) !== null) {
+    tables.add(match[1]);
+  }
+
+  return tables;
 }
 
-/**
- * Calcula cobertura de políticas
- */
-function calculateCoverage(policies: Policy[]): number {
-    const tablesWithPolicies = new Set(policies.map(p => p.table));
-    return (tablesWithPolicies.size / EXPECTED_TABLES.length) * 100;
+function findDuplicatePolicies(policies: SqlPolicy[]): SqlPolicy[][] {
+  const grouped = new Map<string, SqlPolicy[]>();
+
+  for (const policy of policies) {
+    const key = `${policy.table}:${policy.name}`;
+    grouped.set(key, [...(grouped.get(key) ?? []), policy]);
+  }
+
+  return [...grouped.values()].filter((items) => items.length > 1);
 }
 
-/**
- * Valida políticas RLS
- */
 export function validateRLS(): ValidationResult {
-    const supabasePath = join(process.cwd(), 'supabase');
+  const errors: string[] = [];
+  const schemaTables = extractSchemaTables();
+  const tenantTables = schemaTables.filter((table) => table.tenantScoped);
+  const files = sqlFiles();
+  const allPolicies: SqlPolicy[] = [];
+  const rlsTables = new Set<string>();
 
-    const files = [
-        { path: join(supabasePath, 'rls-consolidated.sql'), name: 'rls-consolidated.sql' },
-    ];
+  for (const file of files) {
+    try {
+      allPolicies.push(...extractPolicies(file.path, file.name));
+      for (const table of extractRlsTables(file.path)) {
+        rlsTables.add(table);
+      }
+    } catch (error) {
+      errors.push(`Error reading ${file.name}: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
 
-    let allPolicies: Policy[] = [];
-    const errors: string[] = [];
+  const policyTables = new Set(allPolicies.map((policy) => policy.table));
+  const missingRls = tenantTables.filter((table) => !rlsTables.has(table.table));
+  const missingPolicies = tenantTables.filter((table) => !policyTables.has(table.table));
+  const duplicatePolicies = findDuplicatePolicies(allPolicies);
+  const covered = tenantTables.filter(
+    (table) => rlsTables.has(table.table) && policyTables.has(table.table)
+  ).length;
+  const coverage = tenantTables.length === 0 ? 100 : (covered / tenantTables.length) * 100;
 
-    // Extraer políticas de todos los archivos
-    files.forEach(file => {
-        try {
-            const policies = extractPolicies(file.path, file.name);
-            allPolicies = allPolicies.concat(policies);
-        } catch (error) {
-            if (error instanceof Error) {
-                errors.push(`Error leyendo ${file.name}: ${error.message}`);
-            }
-        }
-    });
-
-    // Validar
-    const duplicates = findDuplicates(allPolicies);
-    const missingPolicies = findMissingPolicies(allPolicies);
-    const coverage = calculateCoverage(allPolicies);
-
-    return {
-        success: duplicates.length === 0 && missingPolicies.length === 0 && errors.length === 0,
-        duplicates,
-        missingPolicies,
-        coverage,
-        errors,
-    };
+  return {
+    success:
+      errors.length === 0 &&
+      duplicatePolicies.length === 0 &&
+      missingRls.length === 0 &&
+      missingPolicies.length === 0,
+    duplicatePolicies,
+    missingRls,
+    missingPolicies,
+    tenantTables,
+    policyTables: [...policyTables].sort(),
+    coverage,
+    errors,
+  };
 }
 
-/**
- * Genera reporte de validación
- */
+function formatTable(table: SchemaTable) {
+  return `${table.table} (${table.file})`;
+}
+
 function generateReport(result: ValidationResult): string {
-    let report = '\n';
-    report += '═══════════════════════════════════════════════════════════\n';
-    report += '  RLS POLICY VALIDATION REPORT\n';
-    report += '═══════════════════════════════════════════════════════════\n\n';
+  const lines: string[] = [
+    "",
+    "===========================================================",
+    "  RLS POLICY VALIDATION REPORT",
+    "===========================================================",
+    "",
+    `Status: ${result.success ? "PASS" : "FAIL"}`,
+    `Tenant-scoped tables: ${result.tenantTables.length}`,
+    `Coverage: ${result.coverage.toFixed(1)}%`,
+    "",
+  ];
 
-    // Estado general
-    report += `Status: ${result.success ? '✅ PASS' : '❌ FAIL'}\n`;
-    report += `Coverage: ${result.coverage.toFixed(1)}%\n\n`;
+  if (result.errors.length > 0) {
+    lines.push("ERRORS:");
+    result.errors.forEach((error) => lines.push(`  - ${error}`));
+    lines.push("");
+  }
 
-    // Errores
-    if (result.errors.length > 0) {
-        report += '❌ ERRORS:\n';
-        result.errors.forEach(error => {
-            report += `  - ${error}\n`;
-        });
-        report += '\n';
+  if (result.duplicatePolicies.length > 0) {
+    lines.push(`DUPLICATE POLICIES (${result.duplicatePolicies.length}):`);
+    for (const group of result.duplicatePolicies) {
+      lines.push(`  - ${group[0].table}.${group[0].name}`);
+      group.forEach((policy) => lines.push(`    ${policy.file}:${policy.lineNumber}`));
     }
+    lines.push("");
+  } else {
+    lines.push("No duplicate policies found", "");
+  }
 
-    // Duplicados
-    if (result.duplicates.length > 0) {
-        report += `⚠️  DUPLICATE POLICIES (${result.duplicates.length}):\n`;
-        result.duplicates.forEach(group => {
-            report += `\n  Policy: "${group[0].name}" on table "${group[0].table}"\n`;
-            group.forEach(policy => {
-                report += `    - ${policy.file}:${policy.lineNumber}\n`;
-            });
-        });
-        report += '\n';
-    } else {
-        report += '✅ No duplicate policies found\n\n';
-    }
+  if (result.missingRls.length > 0) {
+    lines.push(`TENANT TABLES WITHOUT RLS (${result.missingRls.length}):`);
+    result.missingRls.forEach((table) => lines.push(`  - ${formatTable(table)}`));
+    lines.push("");
+  } else {
+    lines.push("All tenant-scoped tables have RLS enabled in SQL sources", "");
+  }
 
-    // Tablas sin políticas
-    if (result.missingPolicies.length > 0) {
-        report += `⚠️  TABLES WITHOUT POLICIES (${result.missingPolicies.length}):\n`;
-        result.missingPolicies.forEach(table => {
-            report += `  - ${table}\n`;
-        });
-        report += '\n';
-    } else {
-        report += '✅ All expected tables have policies\n\n';
-    }
+  if (result.missingPolicies.length > 0) {
+    lines.push(`TENANT TABLES WITHOUT POLICIES (${result.missingPolicies.length}):`);
+    result.missingPolicies.forEach((table) => lines.push(`  - ${formatTable(table)}`));
+    lines.push("");
+  } else {
+    lines.push("All tenant-scoped tables have at least one policy in SQL sources", "");
+  }
 
-    // Recomendaciones
-    if (!result.success) {
-        report += '📋 RECOMMENDATIONS:\n';
-        if (result.duplicates.length > 0) {
-            report += '  1. Remove duplicate policies from deprecated files (rls.sql, rls-policies.sql)\n';
-            report += '  2. Use only rls-consolidated.sql as the source of truth\n';
-        }
-        if (result.missingPolicies.length > 0) {
-            report += '  3. Add policies for missing tables\n';
-        }
-        report += '\n';
-    }
+  lines.push("SQL sources checked:");
+  sqlFiles().forEach((file) => lines.push(`  - ${file.name}`));
+  lines.push("", "===========================================================");
 
-    report += '═══════════════════════════════════════════════════════════\n';
-
-    return report;
+  return lines.join("\n");
 }
 
-// Ejecutar validación si se llama directamente
 if (require.main === module) {
-    const result = validateRLS();
-    const report = generateReport(result);
-    console.log(report);
-    process.exit(result.success ? 0 : 1);
+  const result = validateRLS();
+  console.log(generateReport(result));
+
+  if (!result.success) {
+    process.exitCode = 1;
+  }
 }

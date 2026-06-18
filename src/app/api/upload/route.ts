@@ -1,50 +1,57 @@
-import { NextResponse } from "next/server";
+import { z } from "zod";
+
 import { withTenant } from "@/lib/authz";
 import { uploadFile, generateFilePath } from "@/lib/supabase/storage-helpers";
 import { logger } from "@/lib/logger";
+import { apiError, apiSuccess } from "@/lib/api-response";
+import { verifyAcademyAccess } from "@/lib/permissions";
+
+const UploadFieldsSchema = z.object({
+  academyId: z.string().uuid(),
+  folder: z.string().regex(/^[a-zA-Z0-9/_-]+$/).default("uploads"),
+});
 
 export const POST = withTenant(async (request, context) => {
   if (!context.tenantId) {
-    return NextResponse.json({ error: "TENANT_REQUIRED" }, { status: 400 });
+    return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
   }
-
-  const profile = context.profile;
 
   try {
     const formData = await request.formData();
     const fd = formData as unknown as { get(name: string): unknown };
     const file = fd.get("file") as File;
-    const academyId = fd.get("academyId") as string;
-    const folder = (fd.get("folder") as string) || "uploads";
+    const parsed = UploadFieldsSchema.safeParse({
+      academyId: fd.get("academyId"),
+      folder: fd.get("folder") || "uploads",
+    });
 
-    if (!file) {
-      return NextResponse.json({ error: "FILE_REQUIRED" }, { status: 400 });
+    if (!parsed.success) {
+      return apiError("INVALID_PAYLOAD", "Datos de subida inválidos", 400, parsed.error.issues);
     }
 
-    if (!academyId) {
-      return NextResponse.json({ error: "ACADEMY_ID_REQUIRED" }, { status: 400 });
+    if (!file) {
+      return apiError("FILE_REQUIRED", "File is required", 400);
+    }
+
+    const access = await verifyAcademyAccess(parsed.data.academyId, context.tenantId);
+    if (!access.allowed) {
+      return apiError(access.reason ?? "FORBIDDEN", "Access denied", 403);
     }
 
     // Validar tipo de archivo
     const allowedTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"];
     if (!allowedTypes.includes(file.type)) {
-      return NextResponse.json(
-        { error: "INVALID_FILE_TYPE", message: "Solo se permiten imágenes (JPEG, PNG, GIF, WEBP)" },
-        { status: 400 }
-      );
+      return apiError("INVALID_FILE_TYPE", "Solo se permiten imágenes (JPEG, PNG, GIF, WEBP)", 400);
     }
 
     // Validar tamaño (máximo 5MB)
     const maxSize = 5 * 1024 * 1024; // 5MB
     if (file.size > maxSize) {
-      return NextResponse.json(
-        { error: "FILE_TOO_LARGE", message: "El archivo no puede ser mayor a 5MB" },
-        { status: 400 }
-      );
+      return apiError("FILE_TOO_LARGE", "El archivo no puede ser mayor a 5MB", 400);
     }
 
     // Generar ruta única para el archivo
-    const fileName = generateFilePath(context.tenantId, academyId, folder, file.name);
+    const fileName = generateFilePath(context.tenantId, parsed.data.academyId, parsed.data.folder, file.name);
 
     // Subir a Supabase Storage
     const { url, path } = await uploadFile(file, fileName, {
@@ -52,17 +59,12 @@ export const POST = withTenant(async (request, context) => {
       upsert: false,
     });
 
-    return NextResponse.json({
-      ok: true,
+    return apiSuccess({
       url,
       path,
     });
   } catch (error: any) {
     logger.error("Error in upload endpoint:", error);
-    return NextResponse.json(
-      { error: "UPLOAD_FAILED", message: error.message },
-      { status: 500 }
-    );
+    return apiError("UPLOAD_FAILED", error.message, 500);
   }
 });
-

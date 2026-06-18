@@ -1,37 +1,38 @@
-import { NextRequest } from "next/server";
-import { apiSuccess, apiError } from "@/lib/api-response";
-import { createClient } from "@/lib/supabase/server";
-import { getCurrentProfile } from "@/lib/authz";
+import { and, count, eq, inArray } from "drizzle-orm";
+
 import { db } from "@/db";
-import { classes as classesTable, classGroups, groups, groupAthletes } from "@/db/schema";
-import { eq, sql, desc, count } from "drizzle-orm";
+import {
+  attendanceRecords,
+  classGroups,
+  classSessions,
+  classes as classesTable,
+  groupAthletes,
+  groups,
+} from "@/db/schema";
+import { apiError, apiSuccess } from "@/lib/api-response";
+import { withTenant } from "@/lib/authz";
 import { logger } from "@/lib/logger";
+import { verifyAcademyAccessForProfile } from "@/lib/permissions";
 
 const WEEKDAYS = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ academyId: string }> }
-) {
+export const GET = withTenant(async (_request, context) => {
+  const academyId = (context.params as { academyId?: string } | undefined)?.academyId;
+
+  if (!academyId) {
+    return apiError("ACADEMY_ID_REQUIRED", "Academy ID is required", 400);
+  }
+
   try {
-    const { academyId } = await params;
-    const cookieStore = await import("next/headers").then(m => m.cookies());
-    const supabase = await createClient(cookieStore);
-
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      return apiError("No autorizado", "No autorizado", 401);
+    const access = await verifyAcademyAccessForProfile({
+      academyId,
+      tenantId: context.tenantId,
+      profile: context.profile,
+    });
+    if (!access.allowed) {
+      return apiError(access.reason ?? "FORBIDDEN", "Access denied", 403);
     }
 
-    const profile = await getCurrentProfile(user.id);
-    if (!profile) {
-      return apiError("Perfil no encontrado", "Perfil no encontrado", 404);
-    }
-
-    // Get all classes with their group info
     const classesData = await db
       .select({
         id: classesTable.id,
@@ -40,38 +41,57 @@ export async function GET(
         startTime: classesTable.startTime,
         endTime: classesTable.endTime,
         groupId: classesTable.groupId,
-        groupName: groups.name,
         groupLevel: groups.level,
       })
       .from(classesTable)
       .leftJoin(groups, eq(classesTable.groupId, groups.id))
-      .where(eq(classesTable.academyId, academyId));
+      .where(and(eq(classesTable.academyId, academyId), eq(classesTable.tenantId, context.tenantId)));
 
-    // Get athlete counts for each class via its groups
     const classesWithCounts = await Promise.all(
       classesData.map(async (cls) => {
-        // Get groups associated with this class
         const classGroupRows = await db
           .select({ groupId: classGroups.groupId })
           .from(classGroups)
-          .where(eq(classGroups.classId, cls.id));
+          .where(and(eq(classGroups.classId, cls.id), eq(classGroups.tenantId, context.tenantId)));
 
-        // If no groups directly linked, use the class's own group
         const groupIds = classGroupRows.length > 0
-          ? classGroupRows.map(g => g.groupId)
-          : (cls.groupId ? [cls.groupId] : []);
+          ? classGroupRows.map((group) => group.groupId)
+          : cls.groupId
+            ? [cls.groupId]
+            : [];
 
-        // Count athletes in those groups
         let totalEnrollments = 0;
         if (groupIds.length > 0) {
-          const athleteCounts = await db
+          const [athleteCounts] = await db
             .select({ count: count() })
             .from(groupAthletes)
-            .where(sql`${groupAthletes.groupId} IN ${groupIds}`);
-          totalEnrollments = athleteCounts[0]?.count || 0;
+            .where(and(eq(groupAthletes.tenantId, context.tenantId), inArray(groupAthletes.groupId, groupIds)));
+          totalEnrollments = Number(athleteCounts?.count ?? 0);
         }
 
-        // Format schedule
+        const [attendanceTotal] = await db
+          .select({ count: count() })
+          .from(attendanceRecords)
+          .innerJoin(classSessions, eq(attendanceRecords.sessionId, classSessions.id))
+          .where(and(eq(classSessions.classId, cls.id), eq(attendanceRecords.tenantId, context.tenantId)));
+
+        const [attendancePresent] = await db
+          .select({ count: count() })
+          .from(attendanceRecords)
+          .innerJoin(classSessions, eq(attendanceRecords.sessionId, classSessions.id))
+          .where(
+            and(
+              eq(classSessions.classId, cls.id),
+              eq(attendanceRecords.tenantId, context.tenantId),
+              eq(attendanceRecords.status, "present")
+            )
+          );
+
+        const totalAttendance = Number(attendanceTotal?.count ?? 0);
+        const averageAttendance = totalAttendance > 0
+          ? Math.round((Number(attendancePresent?.count ?? 0) / totalAttendance) * 1000) / 10
+          : 0;
+
         const weekday = cls.weekday !== null ? WEEKDAYS[cls.weekday] : "Sin horario";
         const time = cls.startTime && cls.endTime
           ? `${cls.startTime.slice(0, 5)} - ${cls.endTime.slice(0, 5)}`
@@ -83,22 +103,17 @@ export async function GET(
           level: cls.groupLevel || "general",
           schedule: `${weekday} ${time}`,
           totalEnrollments,
-          averageAttendance: 85, // Default placeholder
+          averageAttendance,
           avgAge: 0,
         };
       })
     );
 
-    // Sort by total enrollments
-    const sortedClasses = classesWithCounts.sort(
-      (a, b) => b.totalEnrollments - a.totalEnrollments
-    );
-
     return apiSuccess({
-      classes: sortedClasses,
+      classes: classesWithCounts.sort((a, b) => b.totalEnrollments - a.totalEnrollments),
     });
   } catch (error) {
     logger.error("Error loading popular classes:", error);
-    return apiError("Error al cargar clases populares", "Error al cargar clases populares", 500);
+    return apiError("POPULAR_CLASSES_FAILED", "Error al cargar clases populares", 500);
   }
-}
+});

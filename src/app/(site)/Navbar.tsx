@@ -45,9 +45,10 @@ export default function Navbar() {
           <Image
             src="/branding/zaltyko/logo-zaltyko.svg"
             alt="Zaltyko"
-            width={132}
-            height={40}
-            className="h-10 w-auto transition-transform duration-150 group-hover:scale-[1.02]"
+            width={200}
+            height={60}
+            className="transition-transform duration-150 group-hover:scale-[1.02]"
+            style={{ width: 132, height: "auto" }}
             priority
           />
         </Link>

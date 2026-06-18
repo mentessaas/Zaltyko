@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { getPendingScheduledNotifications, markScheduledNotificationSent } from "@/lib/communication-service";
 import { getMessageTemplateById } from "@/lib/communication-service";
 import { sendPushToUser } from "@/lib/notifications/push-service";
@@ -9,6 +8,8 @@ import { profiles } from "@/db/schema/profiles";
 import { academies } from "@/db/schema/academies";
 import { eq } from "drizzle-orm";
 import { logger } from "@/lib/logger";
+import { apiError, apiSuccess } from "@/lib/api-response";
+import { requireCronAuth } from "@/lib/cron-auth";
 
 export const dynamic = 'force-dynamic';
 
@@ -96,19 +97,14 @@ async function processNotification(
 }
 
 export async function POST(request: Request) {
-  // Verify cron secret
-  const authHeader = request.headers.get("authorization");
-  const cronSecret = process.env.CRON_SECRET;
-
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-    return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
-  }
+  const authError = requireCronAuth(request);
+  if (authError) return authError;
 
   try {
     const pending = await getPendingScheduledNotifications();
 
     if (pending.length === 0) {
-      return NextResponse.json({
+      return apiSuccess({
         processed: 0,
         message: "No pending notifications",
       });
@@ -160,13 +156,13 @@ export async function POST(request: Request) {
       }
     }
 
-    return NextResponse.json({
+    return apiSuccess({
       processed,
       failed,
       total: pending.length,
     });
   } catch (error) {
     logger.error("Error processing scheduled notifications:", error);
-    return NextResponse.json({ error: "INTERNAL_ERROR" }, { status: 500 });
+    return apiError("INTERNAL_ERROR", "Error interno del servidor", 500);
   }
 }

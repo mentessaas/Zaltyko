@@ -2,6 +2,7 @@ import { readdirSync, readFileSync, statSync } from "fs";
 import { join, relative } from "path";
 
 const API_DIR = join(process.cwd(), "src/app/api");
+const PROXY_SOURCE = readFileSync(join(process.cwd(), "proxy.ts"), "utf8");
 const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 const METHOD_RE = /export\s+(?:async\s+function\s+|const\s+)(GET|POST|PUT|PATCH|DELETE)\b/g;
 
@@ -55,14 +56,21 @@ function auditRoute(filePath: string): RouteAudit {
   const source = readFileSync(filePath, "utf8");
   const route = relative(process.cwd(), filePath);
   const methods = getMethods(source);
+  const mutates = methods.some((method) => MUTATING_METHODS.has(method));
+  const globallyRateLimited =
+    mutates &&
+    PROXY_SOURCE.includes("applyApiMutationRateLimit") &&
+    !route.includes("/webhook/") &&
+    !route.includes("/cron/") &&
+    !route.includes("/api/dev/");
 
   return {
     route,
     methods,
     auth: classify(route, source),
-    mutates: methods.some((method) => MUTATING_METHODS.has(method)),
+    mutates,
     standardizedResponse: /api(Success|Created|Error)\(/.test(source),
-    rateLimited: source.includes("withRateLimit(") || source.includes("rateLimit("),
+    rateLimited: globallyRateLimited || source.includes("withRateLimit(") || source.includes("rateLimit("),
     serviceRole:
       source.includes("@service-role") ||
       source.includes("SUPABASE_SERVICE_ROLE_KEY") ||

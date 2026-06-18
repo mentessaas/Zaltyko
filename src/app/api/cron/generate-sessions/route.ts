@@ -4,6 +4,7 @@ import { NextRequest } from "next/server";
 import { generateSessionsForAllTenants } from "@/lib/generate-class-sessions";
 import { logger } from "@/lib/logger";
 import { apiSuccess, apiError } from "@/lib/api-response";
+import { requireCronAuth } from "@/lib/cron-auth";
 
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 5000;
@@ -28,14 +29,8 @@ export async function GET(request: NextRequest) {
     const retryCount = parseInt(request.headers.get("x-retry-count") || "0", 10);
 
     try {
-        // Verificar que la request viene de Vercel Cron
-        const authHeader = request.headers.get("authorization");
-        const cronSecret = process.env.CRON_SECRET;
-
-        if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-            logger.warn("Intento de acceso no autorizado al cron job");
-            return apiError("UNAUTHORIZED", "No autorizado", 401);
-        }
+        const authError = requireCronAuth(request);
+        if (authError) return authError;
 
         logger.info("Iniciando generación automática de sesiones (cron job)", { retryCount });
 
@@ -89,7 +84,7 @@ export async function GET(request: NextRequest) {
         logger.error("Max retries exceeded, cron job failed permanently");
         return apiError(
             "CRON_FAILED",
-            error instanceof Error ? error.message : "Unknown error",
+            "Cron job failed",
             500
         );
     }

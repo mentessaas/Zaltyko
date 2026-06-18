@@ -1,19 +1,16 @@
-import { headers } from "next/headers";
 import { createCapacityNotifications } from "@/lib/alerts/capacity-alerts";
 import { createPaymentNotifications } from "@/lib/alerts/payment-alerts";
 import { createAttendanceNotifications } from "@/lib/alerts/attendance/createAttendanceNotifications";
 import { db } from "@/db";
 import { academies, profiles } from "@/db/schema";
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { logger } from "@/lib/logger";
 import { apiSuccess, apiError } from "@/lib/api-response";
+import { requireCronAuth } from "@/lib/cron-auth";
 
 export async function GET(request: Request) {
-  // Verificar que la solicitud viene de Vercel Cron
-  const authHeader = (await headers()).get("authorization");
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return apiError("UNAUTHORIZED", "No autorizado", 401);
-  }
+  const authError = requireCronAuth(request);
+  if (authError) return authError;
 
   try {
     // Obtener todas las academias activas
@@ -37,20 +34,20 @@ export async function GET(request: Request) {
         const adminProfiles = await db
           .select({ userId: profiles.userId })
           .from(profiles)
-          .where(
-            eq(profiles.tenantId, academy.tenantId) &&
+          .where(and(
+            eq(profiles.tenantId, academy.tenantId),
             inArray(profiles.role, ["owner", "admin", "super_admin"])
-          );
+          ));
 
         const adminUserIds = adminProfiles.map(p => p.userId);
 
         const coachProfiles = await db
           .select({ userId: profiles.userId })
           .from(profiles)
-          .where(
-            eq(profiles.tenantId, academy.tenantId) &&
+          .where(and(
+            eq(profiles.tenantId, academy.tenantId),
             eq(profiles.role, "coach")
-          );
+          ));
 
         const coachUserIds = coachProfiles.map(p => p.userId);
 
@@ -96,6 +93,6 @@ export async function GET(request: Request) {
     });
   } catch (error: any) {
     logger.error("Error in daily alerts cron", error);
-    return apiError("CRON_FAILED", error.message, 500);
+    return apiError("CRON_FAILED", "Cron job failed", 500);
   }
 }

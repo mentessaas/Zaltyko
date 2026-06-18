@@ -1,9 +1,9 @@
 // src/app/api/ai/attendance/analyze-risk/route.ts
-import { NextRequest, NextResponse } from 'next/server';
 import { withTenant } from '@/lib/authz';
 import { getAIOrchestrator } from '@/lib/ai/orchestrator';
 import { ATTENDANCE_SYSTEM_PROMPT, generateRiskAnalysisPrompt } from '@/lib/ai/prompts/attendance';
 import { logger } from "@/lib/logger";
+import { apiError, apiSuccess } from "@/lib/api-response";
 
 export const POST = withTenant(async (request: Request) => {
   try {
@@ -11,10 +11,7 @@ export const POST = withTenant(async (request: Request) => {
     const { athleteId, name, attendanceHistory, totalClasses, lastAttendance } = body;
 
     if (!name || !attendanceHistory || !totalClasses) {
-      return NextResponse.json(
-        { error: 'Missing required fields: name, attendanceHistory, totalClasses' },
-        { status: 400 }
-      );
+      return apiError("INVALID_PAYLOAD", "Missing required fields: name, attendanceHistory, totalClasses", 400);
     }
 
     const orchestrator = getAIOrchestrator();
@@ -37,16 +34,13 @@ export const POST = withTenant(async (request: Request) => {
       riskLevel = 'high';
     }
 
-    return NextResponse.json({
+    return apiSuccess({
       athleteId,
       riskLevel,
       analysis: response.content,
     });
   } catch (error) {
     logger.error('AI attendance risk error:', error);
-    return NextResponse.json(
-      { error: 'Failed to analyze attendance risk' },
-      { status: 500 }
-    );
+    return apiError("AI_ATTENDANCE_RISK_FAILED", "Failed to analyze attendance risk", 500);
   }
 });

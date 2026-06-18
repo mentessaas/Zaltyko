@@ -77,4 +77,4 @@ export * from "./permissions";
 export * from "./roles";
 export * from "./templates";
 export * from "./leads";
-
+export * from "./leak-profitability";

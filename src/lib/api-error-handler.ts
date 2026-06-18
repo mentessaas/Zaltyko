@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
+import { apiError as standardizedApiError } from "./api-response";
 import { logger } from "./logger";
 
 export interface ApiError {
@@ -24,14 +25,7 @@ export function handleApiError(error: unknown, context?: { endpoint?: string; me
       issues,
     });
 
-    return NextResponse.json(
-      {
-        error: "VALIDATION_ERROR",
-        message: "Los datos proporcionados no son válidos",
-        details: issues,
-      },
-      { status: 400 }
-    );
+    return standardizedApiError("VALIDATION_ERROR", "Los datos proporcionados no son válidos", 400, issues);
   }
 
   // Error con status code personalizado
@@ -45,13 +39,7 @@ export function handleApiError(error: unknown, context?: { endpoint?: string; me
       logger.warn(`API error with status ${status}`, { ...context, message });
     }
 
-    return NextResponse.json(
-      {
-        error: message ?? "UNKNOWN_ERROR",
-        message: message,
-      },
-      { status }
-    );
+    return standardizedApiError(message ?? "UNKNOWN_ERROR", message ?? "Error de API", status);
   }
 
   // Error estándar de JavaScript
@@ -75,21 +63,12 @@ export function handleApiError(error: unknown, context?: { endpoint?: string; me
       }
     }
     
-    return NextResponse.json(
-      errorDetails,
-      { status: 500 }
-    );
+    return standardizedApiError("INTERNAL_ERROR", error.message, 500, errorDetails);
   }
 
   // Error desconocido
   logger.error("Unknown API error", error, context);
-  return NextResponse.json(
-    {
-      error: "UNKNOWN_ERROR",
-      message: "Ha ocurrido un error desconocido",
-    },
-    { status: 500 }
-  );
+  return standardizedApiError("UNKNOWN_ERROR", "Ha ocurrido un error desconocido", 500);
 }
 
 /**
@@ -133,4 +112,3 @@ export function createSuccessResponse<T = unknown>(
 ): NextResponse<{ ok: true; data: T }> {
   return NextResponse.json({ ok: true, data }, { status });
 }
-

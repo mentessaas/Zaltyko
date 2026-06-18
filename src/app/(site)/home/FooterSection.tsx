@@ -65,9 +65,10 @@ export default function FooterSection() {
               <Image
                 src="/branding/zaltyko/logo-zaltyko-dark.svg"
                 alt="Zaltyko"
-                width={142}
-                height={42}
-                className="h-11 w-auto transition-transform duration-150 group-hover:scale-[1.02]"
+                width={200}
+                height={60}
+                className="transition-transform duration-150 group-hover:scale-[1.02]"
+                style={{ width: 142, height: "auto" }}
               />
             </Link>
             <p className="mt-5 text-sm text-white/70 leading-relaxed max-w-xs font-medium">

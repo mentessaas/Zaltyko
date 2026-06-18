@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { charges, scholarships } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
 import { logger } from "@/lib/logger";
+import { verifyAcademyAccessForProfile } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +23,15 @@ export const GET = withTenant(async (_request, context) => {
   }
 
   try {
+    const access = await verifyAcademyAccessForProfile({
+      academyId,
+      tenantId: context.tenantId,
+      profile: context.profile,
+    });
+    if (!access.allowed) {
+      return apiError(access.reason ?? "FORBIDDEN", "Access denied", 403);
+    }
+
     // Calcular ingresos del mes actual
     const now = new Date();
     const currentPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
@@ -87,6 +97,6 @@ export const GET = withTenant(async (_request, context) => {
     });
   } catch (error: any) {
     logger.error("Error calculating financial metrics", error, { academyId });
-    return apiError("CALCULATION_FAILED", error.message, 500);
+    return apiError("CALCULATION_FAILED", "Failed to calculate financial metrics", 500);
   }
 });
