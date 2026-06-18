@@ -1,0 +1,128 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { createClient } from "@/lib/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { isValidEmail, normalizeEmail } from "@/lib/validation/email-utils";
+import { useToast } from "@/components/ui/toast-provider";
+
+export default function RegisterForm() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const router = useRouter();
+  const supabase = createClient();
+  const toast = useToast();
+
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Validar email
+    if (!email.trim()) {
+      toast.pushToast({
+        title: "Correo requerido",
+        description: "Por favor ingresa tu correo electrónico",
+        variant: "error",
+      });
+      return;
+    }
+    
+    if (!isValidEmail(email)) {
+      toast.pushToast({
+        title: "Correo inválido",
+        description: "Por favor ingresa un correo electrónico válido",
+        variant: "error",
+      });
+      return;
+    }
+    
+    // Validar contraseña
+    if (!password.trim()) {
+      toast.pushToast({
+        title: "Contraseña requerida",
+        description: "Por favor ingresa una contraseña",
+        variant: "error",
+      });
+      return;
+    }
+    
+    if (password.length < 6) {
+      toast.pushToast({
+        title: "Contraseña muy corta",
+        description: "La contraseña debe tener al menos 6 caracteres",
+        variant: "error",
+      });
+      return;
+    }
+    
+    const normalizedEmail = normalizeEmail(email);
+    if (!normalizedEmail) {
+      toast.pushToast({
+        title: "Error",
+        description: "Email inválido",
+        variant: "error",
+      });
+      return;
+    }
+    
+    const { error } = await supabase.auth.signUp({ 
+      email: normalizedEmail, 
+      password 
+    });
+    
+    if (error) {
+      toast.pushToast({
+        title: "Error al registrar",
+        description: error.message,
+        variant: "error",
+      });
+      console.error("Error al registrar la cuenta:", error.message);
+    } else {
+      toast.pushToast({
+        title: "Cuenta creada",
+        description: "Redirigiendo al dashboard...",
+        variant: "success",
+      });
+      router.push("/dashboard");
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <form onSubmit={handleRegister} className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="email">Correo electrónico</Label>
+          <Input
+            id="email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="password">Contraseña</Label>
+          <Input
+            id="password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+        </div>
+        <Button type="submit" className="w-full">
+          Registrarme
+        </Button>
+      </form>
+      <p className="text-center text-sm">
+        ¿Ya tienes cuenta?{" "}
+        <Link href="/auth/login" className="text-blue-500 hover:underline">
+          Inicia sesión
+        </Link>
+      </p>
+    </div>
+  );
+}
