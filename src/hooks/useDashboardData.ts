@@ -65,11 +65,11 @@ export function useDashboardData({ academyId, tenantId, initialData }: UseDashbo
         return;
       }
 
-      const payload = (await response.json()) as DashboardData;
+      const payload = (await response.json()) as { ok: boolean; data: DashboardData };
       
       // Verificar nuevamente si fue cancelada antes de actualizar el estado
       if (!abortController.signal.aborted) {
-        setData(payload);
+        setData(payload.data);
       }
     } catch (error: any) {
       // Ignorar errores de cancelación
