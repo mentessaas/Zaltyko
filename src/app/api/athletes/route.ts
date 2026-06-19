@@ -5,7 +5,7 @@ import { and, asc, count, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
-import { academies, athletes, familyContacts, guardianAthletes, groupAthletes, groups } from "@/db/schema";
+import { academies, athleteSportConfigs, athletes, familyContacts, guardianAthletes, groupAthletes, groups } from "@/db/schema";
 import { assertWithinPlanLimits, getUpgradeInfo } from "@/lib/limits";
 import { withTenant } from "@/lib/authz";
 import { rateLimit, getUserIdentifier, withRateLimit } from "@/lib/rate-limit";
@@ -19,6 +19,12 @@ import { trackEvent } from "@/lib/analytics";
 import { logEvent } from "@/lib/event-logging";
 import { formatDateForDB } from "@/lib/validation/date-utils";
 import { apiSuccess, apiCreated, apiError } from "@/lib/api-response";
+import { getAcademySportConfigOptions, verifyAcademySportConfig } from "@/lib/sport-config/service";
+import {
+  isCategoryCodeAllowed,
+  isLevelCodeAllowed,
+  isProgramCodeAllowed,
+} from "@/lib/sport-config/validation";
 import { NextResponse } from "next/server";
 
 const ContactSchema = z.object({
@@ -57,6 +63,10 @@ const BodySchema = z.object({
   age: z.number().int().min(0).optional(),
   contacts: z.array(ContactSchema).optional(),
   groupId: z.string().uuid().optional(),
+  primarySportConfigId: z.string().uuid().nullable().optional(),
+  programCode: z.string().trim().min(1).max(80).nullable().optional(),
+  levelCode: z.string().trim().min(1).max(80).nullable().optional(),
+  categoryCode: z.string().trim().min(1).max(80).nullable().optional(),
 });
 
 // Handler for POST - separated to apply rate limiting
@@ -102,11 +112,69 @@ const createAthleteHandler = withTenant(async (request, context) => {
       throw error;
     }
 
+    let groupRow: {
+      id: string;
+      sportConfigId: string | null;
+      programCode: string | null;
+      levelCode: string | null;
+      categoryCode: string | null;
+    } | null = null;
+
     // Verificar acceso al grupo si se proporciona
     if (body.groupId) {
       const groupAccess = await verifyGroupAccess(body.groupId, context.tenantId, body.academyId);
       if (!groupAccess.allowed) {
         return apiError(groupAccess.reason ?? "GROUP_NOT_FOUND", "Group not found", 404);
+      }
+
+      const [selectedGroup] = await db
+        .select({
+          id: groups.id,
+          sportConfigId: groups.sportConfigId,
+          programCode: groups.programCode,
+          levelCode: groups.levelCode,
+          categoryCode: groups.categoryCode,
+        })
+        .from(groups)
+        .where(and(eq(groups.id, body.groupId), eq(groups.tenantId, context.tenantId), eq(groups.academyId, body.academyId)))
+        .limit(1);
+
+      groupRow = selectedGroup ?? null;
+    }
+
+    const effectiveSportConfigId = body.primarySportConfigId ?? groupRow?.sportConfigId ?? null;
+    const effectiveProgramCode = body.programCode ?? groupRow?.programCode ?? null;
+    const effectiveLevelCode = body.levelCode ?? groupRow?.levelCode ?? null;
+    const effectiveCategoryCode = body.categoryCode ?? groupRow?.categoryCode ?? null;
+
+    if (effectiveSportConfigId) {
+      const verifiedConfig = await verifyAcademySportConfig({
+        academyId: body.academyId,
+        tenantId: context.tenantId,
+        sportConfigId: effectiveSportConfigId,
+      });
+
+      if (!verifiedConfig) {
+        return apiError("SPORT_CONFIG_NOT_FOUND", "La configuración deportiva no está activa en esta academia", 400);
+      }
+
+      const activeConfigs = await getAcademySportConfigOptions(body.academyId);
+      const selectedConfig = activeConfigs.find((config) => config.id === effectiveSportConfigId);
+
+      if (!selectedConfig) {
+        return apiError("SPORT_CONFIG_NOT_FOUND", "La configuración deportiva no está disponible", 400);
+      }
+
+      if (!isProgramCodeAllowed(selectedConfig, effectiveProgramCode)) {
+        return apiError("INVALID_PROGRAM", "El programa no pertenece a la configuración deportiva seleccionada", 400);
+      }
+
+      if (!isLevelCodeAllowed(selectedConfig, effectiveLevelCode, effectiveProgramCode)) {
+        return apiError("INVALID_LEVEL", "El nivel no pertenece a la configuración deportiva seleccionada", 400);
+      }
+
+      if (!isCategoryCodeAllowed(selectedConfig, effectiveCategoryCode)) {
+        return apiError("INVALID_CATEGORY", "La categoría no pertenece a la configuración deportiva seleccionada", 400);
       }
     }
 
@@ -172,10 +240,29 @@ const createAthleteHandler = withTenant(async (request, context) => {
         dob: dobDate ? formatDateForDB(dobDate) : null,
         level: body.level,
         status: body.status ?? "active",
+        primarySportConfigId: effectiveSportConfigId,
+        programCode: effectiveProgramCode,
+        levelCode: effectiveLevelCode,
+        categoryCode: effectiveCategoryCode,
         groupId: body.groupId ?? null,
         templateId,
         ageCategory,
       });
+
+      if (effectiveSportConfigId) {
+        await tx
+          .insert(athleteSportConfigs)
+          .values({
+            id: randomUUID(),
+            tenantId: context.tenantId,
+            athleteId,
+            academySportConfigId: effectiveSportConfigId,
+            programCode: effectiveProgramCode,
+            levelCode: effectiveLevelCode,
+            categoryCode: effectiveCategoryCode,
+          })
+          .onConflictDoNothing();
+      }
 
       // Crear contactos si existen
       if (body.contacts?.length) {
@@ -286,6 +373,7 @@ const filterSchema = z.object({
   maxAge: z.coerce.number().min(0).optional(),
   tenantId: z.string().uuid().optional(),
   groupId: z.string().uuid().optional(),
+  sportConfigId: z.string().uuid().optional(),
   page: z.coerce.number().int().min(1).optional(),
   limit: z.coerce.number().int().min(1).max(200).optional(),
 });
@@ -299,7 +387,7 @@ export const GET = withTenant(async (request, context) => {
       return handleApiError(filters.error);
     }
 
-  const { level, status, academyId, minAge, maxAge, tenantId: tenantOverride, groupId, page = 1, limit = 50 } = filters.data;
+  const { level, status, academyId, minAge, maxAge, tenantId: tenantOverride, groupId, sportConfigId, page = 1, limit = 50 } = filters.data;
 
   const effectiveTenantId = context.tenantId ?? tenantOverride ?? null;
 
@@ -351,6 +439,10 @@ export const GET = withTenant(async (request, context) => {
     conditions.push(sql`${athletes.groupId} = ${groupId}`);
   }
 
+  if (sportConfigId) {
+    conditions.push(sql`${athletes.primarySportConfigId} = ${sportConfigId}`);
+  }
+
   if (typeof minAge === "number") {
     conditions.push(sql`(${ageExpr}) IS NULL OR (${ageExpr}) >= ${minAge}`);
   }
@@ -390,6 +482,14 @@ export const GET = withTenant(async (request, context) => {
       groupId: athletes.groupId,
       groupName: groups.name,
       groupColor: groups.color,
+      primarySportConfigId: athletes.primarySportConfigId,
+      programCode: athletes.programCode,
+      levelCode: athletes.levelCode,
+      categoryCode: athletes.categoryCode,
+      groupSportConfigId: groups.sportConfigId,
+      groupProgramCode: groups.programCode,
+      groupLevelCode: groups.levelCode,
+      groupCategoryCode: groups.categoryCode,
       age: ageExpr,
       guardianCount,
     })
@@ -398,7 +498,7 @@ export const GET = withTenant(async (request, context) => {
     .leftJoin(groups, eq(athletes.groupId, groups.id))
     .leftJoin(guardianAthletes, eq(guardianAthletes.athleteId, athletes.id))
     .where(whereClause)
-    .groupBy(athletes.id, academies.name, groups.name, groups.color)
+    .groupBy(athletes.id, academies.name, groups.name, groups.color, groups.sportConfigId, groups.programCode, groups.levelCode, groups.categoryCode)
     .orderBy(asc(athletes.name))
     .limit(pageSize)
     .offset(offset);

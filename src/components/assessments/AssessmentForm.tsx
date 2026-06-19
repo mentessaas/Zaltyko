@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useAcademyContext } from "@/hooks/use-academy-context";
 import { getSpecializedEvaluationTemplate } from "@/lib/specialization/registry";
+import { getTerminology } from "@/lib/sport-config/terminology";
 
 interface Skill {
   id: string;
@@ -25,6 +26,9 @@ interface AssessmentFormProps {
   athleteId: string;
   athleteName: string;
   apparatusList?: string[]; // e.g., ["rope", "ball", "clubs", "hoop", "ribbon"]
+  apparatusLabels?: Record<string, string>;
+  sportConfigId?: string | null;
+  terminology?: Record<string, string>;
   recommendedFocus?: string | null;
   onSuccess?: () => void;
   onCancel?: () => void;
@@ -50,6 +54,9 @@ export default function AssessmentForm({
   athleteId,
   athleteName,
   apparatusList = ["rope", "ball", "clubs", "hoop", "ribbon"],
+  apparatusLabels: configuredApparatusLabels,
+  sportConfigId,
+  terminology,
   recommendedFocus,
   onSuccess,
   onCancel,
@@ -57,11 +64,13 @@ export default function AssessmentForm({
   const router = useRouter();
   const { specialization } = useAcademyContext();
   const evaluationTemplate = getSpecializedEvaluationTemplate(specialization);
+  const terms = getTerminology({ terminology });
   const effectiveApparatusList =
     apparatusList.length > 0 ? apparatusList : evaluationTemplate.apparatus.map((item) => item.code);
-  const apparatusLabels = Object.fromEntries(
-    evaluationTemplate.apparatus.map((item) => [item.code, item.label])
-  ) as Record<string, string>;
+  const apparatusLabels = {
+    ...Object.fromEntries(evaluationTemplate.apparatus.map((item) => [item.code, item.label])),
+    ...(configuredApparatusLabels ?? {}),
+  } as Record<string, string>;
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -125,6 +134,7 @@ export default function AssessmentForm({
           assessmentDate,
           assessmentType,
           apparatus,
+          sportConfigId: sportConfigId || undefined,
           overallComment: overallComment || undefined,
           scores: scoresArray,
         }),
@@ -176,7 +186,7 @@ export default function AssessmentForm({
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         {/* Apparatus */}
         <div className="space-y-2">
-          <Label htmlFor="apparatus">Aparato</Label>
+          <Label htmlFor="apparatus">{terms.apparatus}</Label>
           <select
             id="apparatus"
             value={apparatus}
@@ -250,7 +260,7 @@ export default function AssessmentForm({
                 {apparatusLabels[apparatus] || APPARATUS_LABELS[apparatus] || apparatus}
               </p>
               <p className="text-xs text-muted-foreground">
-                Añade habilidades al catálogo técnico para poder evaluar este aparato.
+                Añade habilidades al catálogo técnico para poder evaluar este {terms.apparatus.toLowerCase()}.
               </p>
             </CardContent>
           </Card>
@@ -316,7 +326,7 @@ export default function AssessmentForm({
           id="overallComment"
           value={overallComment}
           onChange={(e) => setOverallComment(e.target.value)}
-          placeholder={`Observaciones generales sobre este ${specialization.labels.classLabel.toLowerCase()} o seguimiento técnico...`}
+          placeholder={`Observaciones generales sobre este ${terms.athlete.toLowerCase()} o seguimiento técnico...`}
           rows={3}
         />
       </div>

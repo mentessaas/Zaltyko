@@ -9,6 +9,9 @@ import { AthleteLevelForm } from "./forms/AthleteLevelForm";
 import { GuardiansSection } from "./guardians/GuardiansSection";
 import type { CategoryOption, LevelOption } from "@/types/athlete-edit";
 import { athleteStatusOptions } from "@/lib/athletes/constants";
+import type { SportConfigOption } from "@/components/groups/types";
+import type { GroupOption } from "@/types";
+import { getTerminology } from "@/lib/sport-config/terminology";
 
 interface EditAthleteDialogProps {
   athlete: AthleteSummary;
@@ -17,11 +20,8 @@ interface EditAthleteDialogProps {
   onClose: () => void;
   onUpdated: () => void;
   onDeleted: () => void;
-  groups?: {
-    id: string;
-    name: string;
-    color: string | null;
-  }[];
+  groups?: GroupOption[];
+  sportConfigs?: SportConfigOption[];
 }
 
 export function EditAthleteDialog({
@@ -32,6 +32,7 @@ export function EditAthleteDialog({
   onUpdated,
   onDeleted,
   groups = [],
+  sportConfigs = [],
 }: EditAthleteDialogProps) {
         const {
     // Form state
@@ -47,6 +48,10 @@ export function EditAthleteDialog({
     setStatus,
     groupId,
     setGroupId,
+    sportConfigId,
+    setSportConfigId,
+    programCode,
+    setProgramCode,
     error,
     isPending,
     deleteDialogOpen,
@@ -91,12 +96,24 @@ export function EditAthleteDialog({
     onClose();
   };
 
+  const selectedGroup = groups.find((group) => group.id === groupId) ?? null;
+  const effectiveSportConfigId = selectedGroup?.sportConfigId ?? sportConfigId;
+  const selectedSportConfig = sportConfigs.find((config) => config.id === effectiveSportConfigId) ?? null;
+  const terms = getTerminology(selectedSportConfig);
+  const programOptions = selectedSportConfig?.programs ?? [];
+  const categoryOptions =
+    selectedSportConfig?.categories.map((option) => ({ code: option.code, name: option.name })) ?? undefined;
+  const levelOptions =
+    selectedSportConfig?.levels
+      .filter((option) => !programCode || !option.programCode || option.programCode === programCode)
+      .map((option) => ({ code: option.code, name: option.name })) ?? undefined;
+
   return (
     <Modal
       open={open}
       onClose={handleClose}
-      title="Editar atleta"
-      description="Actualiza la información del atleta y gestiona sus contactos familiares."
+      title={`Editar ${terms.athlete.toLowerCase()}`}
+      description={`Actualiza la información del ${terms.athlete.toLowerCase()} y gestiona sus contactos familiares.`}
       footer={
         <div className="flex flex-wrap items-center justify-between gap-4">
           <button
@@ -105,7 +122,7 @@ export function EditAthleteDialog({
             className="text-sm font-semibold text-red-600 hover:underline"
             disabled={isPending || isDeleting}
           >
-            Eliminar atleta
+            Eliminar {terms.athlete.toLowerCase()}
           </button>
           <div className="flex gap-2">
             <button
@@ -142,15 +159,42 @@ export function EditAthleteDialog({
           computedAgeLabel={computedAgeLabel}
           status={status}
           groups={groups}
+          athleteLabel={terms.athlete}
+          groupLabel={terms.group}
           onNameChange={setName}
           onDobChange={setDob}
-          onGroupIdChange={setGroupId}
+          onGroupIdChange={(nextGroupId) => {
+            const nextGroup = groups.find((group) => group.id === nextGroupId);
+            setGroupId(nextGroupId);
+            setSportConfigId(nextGroup?.sportConfigId ?? "");
+            setProgramCode(nextGroup?.programCode ?? "");
+            setCategory(nextGroup?.categoryCode ?? "");
+            setLevel(nextGroup?.levelCode ?? "");
+          }}
         />
 
         <AthleteLevelForm
+          sportConfigId={effectiveSportConfigId}
+          sportConfigs={sportConfigs}
+          programCode={programCode}
+          programOptions={programOptions}
           category={category}
           level={level}
           status={status}
+          categoryOptions={categoryOptions}
+          levelOptions={levelOptions}
+          categoryLabel={terms.category}
+          levelLabel={terms.level}
+          onSportConfigChange={(value) => {
+            setSportConfigId(value);
+            setProgramCode("");
+            setCategory("");
+            setLevel("");
+          }}
+          onProgramChange={(value) => {
+            setProgramCode(value);
+            setLevel("");
+          }}
           onCategoryChange={(value) => setCategory(value as CategoryOption | "")}
           onLevelChange={(value) => setLevel(value as LevelOption | "")}
           onStatusChange={(value) => setStatus(value as (typeof athleteStatusOptions)[number])}
@@ -177,8 +221,8 @@ export function EditAthleteDialog({
       <ConfirmDialog
         open={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}
-        title="Eliminar atleta"
-        description={`¿Estás seguro de eliminar a "${athlete.name}"? Esta acción no se puede deshacer y eliminará todos los datos asociados al atleta.`}
+        title={`Eliminar ${terms.athlete.toLowerCase()}`}
+        description={`¿Estás seguro de eliminar a "${athlete.name}"? Esta acción no se puede deshacer y eliminará todos los datos asociados al ${terms.athlete.toLowerCase()}.`}
         variant="destructive"
         confirmText="Eliminar"
         onConfirm={handleDelete}

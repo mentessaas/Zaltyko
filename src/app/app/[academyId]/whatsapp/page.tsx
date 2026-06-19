@@ -1,12 +1,14 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { eq, and } from "drizzle-orm";
+import { desc, eq, and } from "drizzle-orm";
 
 import { db } from "@/db";
-import { academies, memberships, profiles } from "@/db/schema";
+import { academies, athletes, familyContacts, memberships, messageTemplates, profiles } from "@/db/schema";
 import { FeatureUnavailableState } from "@/components/product/FeatureUnavailableState";
 import { isFeatureEnabled } from "@/lib/product/features";
 import { createClient } from "@/lib/supabase/server";
+import { DEFAULT_WHATSAPP_TEMPLATES } from "@/lib/communication/default-whatsapp-templates";
+import { getAcademySportConfigOptions } from "@/lib/sport-config/service";
 import { WhatsAppPage } from "./WhatsAppPage";
 
 interface PageProps {
@@ -76,6 +78,7 @@ export default async function WhatsAppRoutePage({ params }: PageProps) {
     .select({
       id: academies.id,
       name: academies.name,
+      tenantId: academies.tenantId,
     })
     .from(academies)
     .where(eq(academies.id, academyId))
@@ -98,6 +101,7 @@ export default async function WhatsAppRoutePage({ params }: PageProps) {
     .select({
       id: classes.id,
       name: classes.name,
+      sportConfigId: classes.sportConfigId,
     })
     .from(classes)
     .where(eq(classes.academyId, academyId))
@@ -109,35 +113,91 @@ export default async function WhatsAppRoutePage({ params }: PageProps) {
     .select({
       id: groups.id,
       name: groups.name,
+      sportConfigId: groups.sportConfigId,
     })
     .from(groups)
     .where(eq(groups.academyId, academyId))
     .orderBy(groups.name);
 
-  // Get athletes for recipient selection
-  const athleteRows = await db
+  // Get athletes with family contact phones for recipient selection
+  const recipientRows = await db
     .select({
-      id: profiles.id,
-      name: profiles.name,
-      phone: profiles.phone,
+      id: athletes.id,
+      name: athletes.name,
+      phone: familyContacts.phone,
+      sportConfigId: athletes.primarySportConfigId,
     })
-    .from(profiles)
-    .innerJoin(memberships, eq(memberships.userId, profiles.id))
-    .where(eq(memberships.academyId, academyId))
-    .orderBy(profiles.name);
+    .from(athletes)
+    .innerJoin(familyContacts, eq(familyContacts.athleteId, athletes.id))
+    .where(eq(athletes.academyId, academyId))
+    .orderBy(athletes.name);
+
+  const recipientMap = new Map<string, {
+    id: string;
+    name: string;
+    phone: string;
+    sportConfigId: string | null;
+  }>();
+
+  for (const row of recipientRows) {
+    if (!row.phone) continue;
+    if (recipientMap.has(row.id)) continue;
+    recipientMap.set(row.id, {
+      id: row.id,
+      name: row.name,
+      phone: row.phone,
+      sportConfigId: row.sportConfigId,
+    });
+  }
+
+  const sportConfigs = await getAcademySportConfigOptions(academyId);
+  const templateRows = await db
+    .select({
+      id: messageTemplates.id,
+      name: messageTemplates.name,
+      body: messageTemplates.body,
+      templateType: messageTemplates.templateType,
+      sportConfigId: messageTemplates.sportConfigId,
+    })
+    .from(messageTemplates)
+    .where(and(
+      eq(messageTemplates.tenantId, academy.tenantId),
+      eq(messageTemplates.channel, "whatsapp"),
+      eq(messageTemplates.isActive, true)
+    ))
+    .orderBy(desc(messageTemplates.createdAt));
+
+  const templates = templateRows.length > 0
+    ? templateRows.map((template) => ({
+        id: template.id,
+        name: template.name,
+        content: template.body,
+        category: template.templateType.includes("payment")
+          ? "payment" as const
+          : template.templateType.includes("event")
+            ? "event" as const
+            : template.templateType.includes("schedule") || template.templateType.includes("class")
+              ? "schedule" as const
+              : "reminder" as const,
+        sportConfigId: template.sportConfigId,
+      }))
+    : DEFAULT_WHATSAPP_TEMPLATES;
 
   return (
     <WhatsAppPage
       academyId={academyId}
       academyName={academy.name}
       whatsappConfig={whatsappConfig}
-      classes={classRows.map((c) => ({ id: c.id, name: c.name }))}
-      groups={groupRows.map((g) => ({ id: g.id, name: g.name }))}
-      recipients={athleteRows.map((a) => ({
-        id: a.id,
-        name: a.name ?? "Sin nombre",
-        phone: a.phone ?? "",
+      classes={classRows.map((c) => ({ id: c.id, name: c.name, sportConfigId: c.sportConfigId }))}
+      groups={groupRows.map((g) => ({ id: g.id, name: g.name, sportConfigId: g.sportConfigId }))}
+      recipients={Array.from(recipientMap.values())}
+      sportConfigs={sportConfigs.map((config) => ({
+        id: config.id,
+        branchName: config.branchName,
+        disciplineName: config.disciplineName,
+        terminology: config.terminology,
       }))}
+      templates={templates}
     />
   );
 }

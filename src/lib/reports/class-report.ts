@@ -16,6 +16,7 @@ export interface ClassReportFilters {
   endDate?: Date;
   classId?: string;
   groupId?: string;
+  sportConfigId?: string;
 }
 
 export interface PopularClass {
@@ -40,6 +41,7 @@ export async function calculateClassReport(filters: ClassReportFilters): Promise
     filters.tenantId ? eq(classes.tenantId, filters.tenantId) : undefined,
     filters.classId ? eq(classes.id, filters.classId) : undefined,
     filters.groupId ? eq(classes.groupId, filters.groupId) : undefined,
+    filters.sportConfigId ? eq(classes.sportConfigId, filters.sportConfigId) : undefined,
     isNull(classes.deletedAt),
   ].filter(Boolean);
 

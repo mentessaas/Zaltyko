@@ -1,7 +1,7 @@
 import { db } from "@/db";
 import { messageHistory } from "@/db/schema/message-history";
 import { messageTemplates, messageGroups, scheduledNotifications, notificationPreferences } from "@/db/schema/communication";
-import { eq, and, desc, sql, isNull, or, lte } from "drizzle-orm";
+import { eq, and, desc, sql, isNull, or, lte, type SQL } from "drizzle-orm";
 import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
 
 // --- Types ---
@@ -50,11 +50,37 @@ export async function getMessageTemplateById(id: string) {
   return template || null;
 }
 
-export async function getMessageTemplates(tenantId: string) {
+export async function getMessageTemplates(
+  tenantId: string,
+  filters: {
+    channel?: string;
+    sportConfigId?: string;
+    includeGlobal?: boolean;
+  } = {}
+) {
+  const conditions: SQL[] = [eq(messageTemplates.tenantId, tenantId)];
+
+  if (filters.channel) {
+    conditions.push(eq(messageTemplates.channel, filters.channel));
+  }
+
+  if (filters.sportConfigId) {
+    conditions.push(
+      filters.includeGlobal === false
+        ? eq(messageTemplates.sportConfigId, filters.sportConfigId)
+        : or(
+            isNull(messageTemplates.sportConfigId),
+            eq(messageTemplates.sportConfigId, filters.sportConfigId)
+          )!
+    );
+  } else if (filters.includeGlobal === false) {
+    conditions.push(isNull(messageTemplates.sportConfigId));
+  }
+
   return db
     .select()
     .from(messageTemplates)
-    .where(eq(messageTemplates.tenantId, tenantId))
+    .where(and(...conditions))
     .orderBy(desc(messageTemplates.createdAt));
 }
 
@@ -298,11 +324,12 @@ export async function getMessageHistory(
     channel?: string;
     status?: string;
     profileId?: string;
+    sportConfigId?: string;
     limit?: number;
     offset?: number;
   }
 ) {
-  const { channel, status, profileId, limit = 50, offset = 0 } = params || {};
+  const { channel, status, profileId, sportConfigId, limit = 50, offset = 0 } = params || {};
 
   const conditions = [eq(messageHistory.tenantId, tenantId)];
   if (channel) {
@@ -313,6 +340,9 @@ export async function getMessageHistory(
   }
   if (profileId) {
     conditions.push(eq(messageHistory.profileId, profileId));
+  }
+  if (sportConfigId) {
+    conditions.push(eq(messageHistory.sportConfigId, sportConfigId));
   }
 
   const items = await db

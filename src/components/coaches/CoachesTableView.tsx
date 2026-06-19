@@ -7,10 +7,20 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { CreateCoachDialog } from "@/components/coaches/CreateCoachDialog";
 import { EditCoachDialog } from "@/components/coaches/EditCoachDialog";
 import { PublicProfileBadge } from "@/components/shared/PublicProfileBadge";
+import { getTerminologyForSportConfig } from "@/lib/sport-config/terminology";
 
 interface ClassOption {
   id: string;
   name: string;
+  sportConfigId: string | null;
+}
+
+interface SportConfigOption {
+  id: string;
+  name: string;
+  disciplineName: string;
+  branchName: string;
+  terminology?: Record<string, string>;
 }
 
 interface CoachItem {
@@ -18,6 +28,7 @@ interface CoachItem {
   name: string;
   email: string | null;
   phone: string | null;
+  sportConfigIds: string[];
   isPublic: boolean;
   publicBio: string | null;
   createdAt: string | null;
@@ -26,6 +37,7 @@ interface CoachItem {
     id: string;
     name: string;
     color: string | null;
+    sportConfigId: string | null;
     role: "principal" | "asistente";
   }[];
 }
@@ -34,24 +46,28 @@ interface CoachesTableViewProps {
   academyId: string;
   coaches: CoachItem[];
   classes: ClassOption[];
+  sportConfigs: SportConfigOption[];
   groupOptions: {
     id: string;
     name: string;
     color: string | null;
+    sportConfigId: string | null;
   }[];
   filters: {
     q?: string;
     groupId?: string;
+    sportConfigId?: string;
   };
 }
 
-export function CoachesTableView({ academyId, coaches, classes, groupOptions, filters }: CoachesTableViewProps) {
+export function CoachesTableView({ academyId, coaches, classes, sportConfigs, groupOptions, filters }: CoachesTableViewProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();
 
   const [query, setQuery] = useState(filters.q ?? "");
   const [groupFilter, setGroupFilter] = useState(filters.groupId ?? "");
+  const [sportConfigFilter, setSportConfigFilter] = useState(filters.sportConfigId ?? "");
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<CoachItem | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -72,6 +88,12 @@ export function CoachesTableView({ academyId, coaches, classes, groupOptions, fi
       params.delete("group");
     }
 
+    if (sportConfigFilter) {
+      params.set("sportConfigId", sportConfigFilter);
+    } else {
+      params.delete("sportConfigId");
+    }
+
     startTransition(() => {
       router.replace(`${pathname}?${params.toString()}`);
       router.refresh();
@@ -84,8 +106,20 @@ export function CoachesTableView({ academyId, coaches, classes, groupOptions, fi
     });
   };
 
-  const hasActiveFilters = filters.q || filters.groupId;
+  const hasActiveFilters = filters.q || filters.groupId || filters.sportConfigId;
   const isEmpty = coaches.length === 0;
+  const sportConfigNameById = new Map(sportConfigs.map((config) => [config.id, config.branchName]));
+  const selectedSportConfig = sportConfigs.find((config) => config.id === sportConfigFilter) ?? null;
+  const terms = getTerminologyForSportConfig(sportConfigs, sportConfigFilter === "unscoped" ? null : sportConfigFilter);
+  const coachTermLower = terms.coach.toLowerCase();
+  const coachTermPluralLower = `${coachTermLower}s`;
+  const groupTermLower = terms.group.toLowerCase();
+  const selectedSportConfigLabel =
+    sportConfigFilter === "unscoped"
+      ? `${terms.coach}s sin rama asignada`
+      : selectedSportConfig
+        ? `${terms.coach}s disponibles para ${selectedSportConfig.branchName}`
+        : null;
 
   return (
     <div className="space-y-6">
@@ -103,13 +137,33 @@ export function CoachesTableView({ academyId, coaches, classes, groupOptions, fi
             onChange={(event) => setGroupFilter(event.target.value)}
             className="min-w-[200px] rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
           >
-            <option value="">Todos los grupos</option>
+            <option value="">Todos los {groupTermLower}s</option>
             {groupOptions.map((group) => (
               <option key={group.id} value={group.id}>
                 {group.name}
               </option>
             ))}
           </select>
+          <select
+            value={sportConfigFilter}
+            onChange={(event) => setSportConfigFilter(event.target.value)}
+            className="min-w-[220px] rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+          >
+            <option value="">Todas las ramas</option>
+            <option value="unscoped">Sin rama asignada</option>
+            {sportConfigs.map((config) => (
+              <option key={config.id} value={config.id}>
+                {config.branchName} · {config.disciplineName}
+              </option>
+            ))}
+          </select>
+          <button
+            type="submit"
+            disabled={isPending}
+            className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow hover:bg-primary/90 disabled:opacity-60"
+          >
+            Filtrar
+          </button>
         </form>
 
         <div className="flex items-center gap-3">
@@ -118,17 +172,23 @@ export function CoachesTableView({ academyId, coaches, classes, groupOptions, fi
             onClick={() => setCreateOpen(true)}
             className="inline-flex items-center justify-center rounded-md bg-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-emerald-600"
           >
-            Nuevo entrenador
+            Nuevo {coachTermLower}
           </button>
         </div>
       </section>
+
+      {selectedSportConfigLabel && (
+        <div className="rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-muted-foreground">
+          {selectedSportConfigLabel}. Los {coachTermPluralLower} sin rama asignada siguen disponibles para todas las ramas.
+        </div>
+      )}
 
       {isEmpty ? (
         <div className="rounded-lg border bg-card p-12 text-center shadow-sm">
           <p className="mb-4 text-sm text-muted-foreground">
             {hasActiveFilters
-              ? "No hay entrenadores que coincidan con la búsqueda."
-              : "Aún no has creado ningún entrenador. Crea tu primer entrenador para asignarlo a clases y grupos."}
+              ? `No hay ${coachTermPluralLower} que coincidan con la búsqueda.`
+              : `Aún no has creado ningún ${coachTermLower}. Crea tu primer ${coachTermLower} para asignarlo a clases y ${groupTermLower}s.`}
           </p>
           {!hasActiveFilters && (
             <button
@@ -136,7 +196,7 @@ export function CoachesTableView({ academyId, coaches, classes, groupOptions, fi
               onClick={() => setCreateOpen(true)}
               className="inline-flex items-center justify-center rounded-md bg-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-emerald-600"
             >
-              Crear primer entrenador
+              Crear primer {coachTermLower}
             </button>
           )}
         </div>
@@ -147,8 +207,9 @@ export function CoachesTableView({ academyId, coaches, classes, groupOptions, fi
               <tr className="text-left text-xs uppercase tracking-wide text-muted-foreground">
                 <th className="px-4 py-3 font-medium">Nombre</th>
                 <th className="px-4 py-3 font-medium">Contacto</th>
+                <th className="px-4 py-3 font-medium">Ramas</th>
                 <th className="px-4 py-3 font-medium">Clases asignadas</th>
-                <th className="px-4 py-3 font-medium">Grupos</th>
+                <th className="px-4 py-3 font-medium">{terms.groups}</th>
                 <th className="px-4 py-3 font-medium text-right">Acciones</th>
               </tr>
             </thead>
@@ -187,6 +248,21 @@ export function CoachesTableView({ academyId, coaches, classes, groupOptions, fi
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex flex-wrap gap-2 text-xs">
+                    {coach.sportConfigIds.length === 0 ? (
+                      <span className="rounded-full bg-muted px-3 py-1 text-muted-foreground">
+                        Todas
+                      </span>
+                    ) : (
+                      coach.sportConfigIds.map((sportConfigId) => (
+                        <span key={sportConfigId} className="rounded-full bg-sky-500/10 px-3 py-1 text-sky-700">
+                          {sportConfigNameById.get(sportConfigId) ?? "Rama"}
+                        </span>
+                      ))
+                    )}
+                  </div>
+                </td>
+                <td className="px-4 py-3">
+                  <div className="flex flex-wrap gap-2 text-xs">
                     {coach.classes.length === 0 ? (
                       <span className="rounded-full bg-muted px-3 py-1 text-muted-foreground">
                         Sin asignaciones
@@ -207,7 +283,7 @@ export function CoachesTableView({ academyId, coaches, classes, groupOptions, fi
                   <div className="flex flex-wrap gap-2 text-xs">
                     {coach.groups.length === 0 ? (
                       <span className="rounded-full bg-muted px-3 py-1 text-muted-foreground">
-                        Sin grupo
+                        Sin {groupTermLower}
                       </span>
                     ) : (
                       coach.groups.map((group) => (
@@ -266,6 +342,7 @@ export function CoachesTableView({ academyId, coaches, classes, groupOptions, fi
 
       <CreateCoachDialog
         academyId={academyId}
+        sportConfigs={sportConfigs}
         open={createOpen}
         onClose={() => setCreateOpen(false)}
         onCreated={handleRefresh}
@@ -276,6 +353,7 @@ export function CoachesTableView({ academyId, coaches, classes, groupOptions, fi
           coach={editing}
           academyId={academyId}
           availableClasses={classes}
+          sportConfigs={sportConfigs}
           open={Boolean(editing)}
           onClose={() => setEditing(null)}
           onUpdated={handleRefresh}
@@ -285,4 +363,3 @@ export function CoachesTableView({ academyId, coaches, classes, groupOptions, fi
     </div>
   );
 }
-

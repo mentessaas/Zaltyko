@@ -13,6 +13,9 @@ import { markChecklistItem, markWizardStep } from "@/lib/onboarding";
 import { logEvent } from "@/lib/event-logging";
 import { NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
+import { getAcademySportConfigOptions, verifyAcademySportConfig } from "@/lib/sport-config/service";
+import { assertCoachesCanHandleSportConfig } from "@/lib/coaches/sport-scope";
+import { isProgramCodeAllowed, normalizeApparatusCodes } from "@/lib/sport-config/validation";
 
 const DISCIPLINES = ["artistica", "ritmica", "general"] as const;
 
@@ -20,6 +23,10 @@ const GroupBodySchema = z.object({
   academyId: z.string().uuid(),
   name: z.string().min(1),
   discipline: z.enum(DISCIPLINES),
+  sportConfigId: z.string().uuid().optional().nullable(),
+  programCode: z.string().trim().min(1).max(80).optional().nullable(),
+  levelCode: z.string().trim().min(1).max(80).optional().nullable(),
+  categoryCode: z.string().trim().min(1).max(80).optional().nullable(),
   level: z.string().max(120).optional(),
   technicalFocus: z.string().max(500).optional().nullable(),
   apparatus: z.array(z.string().trim().min(1).max(120)).max(12).optional(),
@@ -39,6 +46,7 @@ export const GET = withTenant(async (request, context) => {
   try {
     const url = new URL(request.url);
     const academyIdParam = url.searchParams.get("academyId");
+    const sportConfigId = url.searchParams.get("sportConfigId");
     const activeAcademyId = context.profile.activeAcademyId;
 
     const targetAcademyId = academyIdParam ?? activeAcademyId ?? null;
@@ -72,6 +80,10 @@ export const GET = withTenant(async (request, context) => {
         id: groups.id,
         name: groups.name,
         discipline: groups.discipline,
+        sportConfigId: groups.sportConfigId,
+        programCode: groups.programCode,
+        levelCode: groups.levelCode,
+        categoryCode: groups.categoryCode,
         level: groups.level,
         technicalFocus: groups.technicalFocus,
         apparatus: groups.apparatus,
@@ -87,7 +99,13 @@ export const GET = withTenant(async (request, context) => {
       })
       .from(groups)
       .leftJoin(coaches, eq(groups.coachId, coaches.id))
-      .where(and(eq(groups.tenantId, academyRow.tenantId), eq(groups.academyId, targetAcademyId)))
+      .where(
+        and(
+          eq(groups.tenantId, academyRow.tenantId),
+          eq(groups.academyId, targetAcademyId),
+          sportConfigId ? eq(groups.sportConfigId, sportConfigId) : undefined
+        )
+      )
       .orderBy(asc(groups.name));
 
     // Luego obtener los conteos de atletas por grupo
@@ -110,7 +128,9 @@ export const GET = withTenant(async (request, context) => {
       athleteCount: countMap.get(group.id) ?? 0,
     }));
 
-    return apiSuccess({ items: rows });
+    const sportConfigs = await getAcademySportConfigOptions(targetAcademyId);
+
+    return apiSuccess({ items: rows, sportConfigs });
   } catch (error) {
     logger.error("Error in GET /api/groups:", error);
     return apiError("INTERNAL_ERROR", "Error al cargar los grupos", 500);
@@ -181,6 +201,44 @@ const createGroupHandler = withTenant(async (request, context) => {
     }
   }
 
+  const sportConfig = await verifyAcademySportConfig({
+    academyId: body.academyId,
+    tenantId,
+    sportConfigId: body.sportConfigId,
+  });
+
+  if (body.sportConfigId && !sportConfig) {
+    return apiError("SPORT_CONFIG_NOT_FOUND", "La configuración deportiva no pertenece a esta academia", 404);
+  }
+
+  if (sportConfig) {
+    if (!isProgramCodeAllowed(sportConfig, body.programCode)) {
+      return apiError("INVALID_PROGRAM", "El programa no está activo para esta rama/modalidad", 400);
+    }
+
+    const apparatusValidation = normalizeApparatusCodes(sportConfig, body.apparatus);
+    if (!apparatusValidation.ok) {
+      return apiError("INVALID_APPARATUS", "Hay aparatos que no pertenecen a la rama seleccionada", 400);
+    }
+  }
+
+  const coachScope = await assertCoachesCanHandleSportConfig({
+    coachIds: [body.coachId, ...assistantIds].filter((value): value is string => Boolean(value)),
+    academyId: body.academyId,
+    tenantId,
+    sportConfigId: body.sportConfigId,
+  });
+
+  if (!coachScope.ok) {
+    return apiError(
+      coachScope.reason,
+      coachScope.reason === "COACH_NOT_FOUND"
+        ? "Uno o más entrenadores no pertenecen a esta academia"
+        : "Uno o más entrenadores no pueden asignarse a esa rama/modalidad",
+      coachScope.reason === "COACH_NOT_FOUND" ? 404 : 400
+    );
+  }
+
   try {
     await assertWithinPlanLimits(tenantId, body.academyId, "groups");
   } catch (error: any) {
@@ -197,7 +255,11 @@ const createGroupHandler = withTenant(async (request, context) => {
         academyId: body.academyId,
         tenantId,
         name: body.name,
-        discipline: body.discipline,
+        discipline: sportConfig?.defaultAcademyType ?? body.discipline,
+        sportConfigId: body.sportConfigId ?? null,
+        programCode: body.programCode ?? null,
+        levelCode: body.levelCode ?? null,
+        categoryCode: body.categoryCode ?? null,
         level: body.level ?? null,
         technicalFocus: body.technicalFocus?.trim() || null,
         apparatus: body.apparatus?.length ? Array.from(new Set(body.apparatus.map((item) => item.trim()).filter(Boolean))) : null,
@@ -257,6 +319,10 @@ const createGroupHandler = withTenant(async (request, context) => {
     academyId: group.academyId,
     name: group.name,
     discipline: group.discipline,
+    sportConfigId: group.sportConfigId,
+    programCode: group.programCode,
+    levelCode: group.levelCode,
+    categoryCode: group.categoryCode,
     level: group.level,
     technicalFocus: group.technicalFocus,
     apparatus: group.apparatus ?? [],

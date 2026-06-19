@@ -29,6 +29,8 @@ export function useEditAthlete({
   const [level, setLevel] = useState(initialLevel.level);
   const [status, setStatus] = useState(athlete.status);
   const [groupId, setGroupId] = useState(athlete.groupId ?? "");
+  const [sportConfigId, setSportConfigId] = useState(athlete.primarySportConfigId ?? "");
+  const [programCode, setProgramCode] = useState(athlete.programCode ?? "");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -67,6 +69,10 @@ export function useEditAthlete({
     setLevel(parsed.level);
     setStatus(athlete.status);
     setGroupId(athlete.groupId ?? "");
+    setSportConfigId(athlete.primarySportConfigId ?? "");
+    setProgramCode(athlete.programCode ?? "");
+    setCategory(athlete.categoryCode ?? parsed.category);
+    setLevel(athlete.levelCode ?? parsed.level);
     setError(null);
     setGuardianError(null);
     setGuardianForm({
@@ -122,6 +128,7 @@ export function useEditAthlete({
   }, [open, athlete.id, academyId]);
 
   const composedLevel = useMemo(() => composeLevelLabel(category, level), [category, level]);
+  const usesSportConfig = Boolean(sportConfigId || athlete.primarySportConfigId);
   const computedAgeYears = useMemo(() => calculateAgeFromString(dob), [dob]);
   const computedAgeLabel = useMemo(() => {
     return computedAgeYears != null ? `${computedAgeYears} años` : "";
@@ -131,11 +138,15 @@ export function useEditAthlete({
     return (
       name.trim() !== athlete.name ||
       dob !== formatDob(athlete.dob) ||
-      composedLevel !== (athlete.level ?? null) ||
+      (!usesSportConfig && composedLevel !== (athlete.level ?? null)) ||
       status !== athlete.status ||
-      (groupId || null) !== (athlete.groupId ?? null)
+      (groupId || null) !== (athlete.groupId ?? null) ||
+      (sportConfigId || null) !== (athlete.primarySportConfigId ?? null) ||
+      (programCode || null) !== (athlete.programCode ?? null) ||
+      (category || null) !== (athlete.categoryCode ?? null) ||
+      (level || null) !== (athlete.levelCode ?? null)
     );
-  }, [name, dob, composedLevel, status, groupId, athlete]);
+  }, [name, dob, composedLevel, usesSportConfig, status, groupId, sportConfigId, programCode, category, level, athlete]);
 
   const handleSave = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -147,9 +158,15 @@ export function useEditAthlete({
         if (name.trim() !== athlete.name) payload.name = name.trim();
         if (dob !== formatDob(athlete.dob)) payload.dob = dob || null;
         const nextLevel = composedLevel;
-        if (nextLevel !== (athlete.level ?? null)) payload.level = nextLevel;
+        if (!usesSportConfig && nextLevel !== (athlete.level ?? null)) payload.level = nextLevel;
         if (status !== athlete.status) payload.status = status;
         if ((groupId || null) !== (athlete.groupId ?? null)) payload.groupId = groupId || null;
+        if ((sportConfigId || null) !== (athlete.primarySportConfigId ?? null)) {
+          payload.primarySportConfigId = sportConfigId || null;
+        }
+        if ((programCode || null) !== (athlete.programCode ?? null)) payload.programCode = programCode || null;
+        if ((category || null) !== (athlete.categoryCode ?? null)) payload.categoryCode = category || null;
+        if ((level || null) !== (athlete.levelCode ?? null)) payload.levelCode = level || null;
         if (dob !== formatDob(athlete.dob) && computedAgeYears != null) {
           payload.age = computedAgeYears;
         }
@@ -387,6 +404,10 @@ export function useEditAthlete({
     setStatus,
     groupId,
     setGroupId,
+    sportConfigId,
+    setSportConfigId,
+    programCode,
+    setProgramCode,
     error,
     isPending,
     deleteDialogOpen,

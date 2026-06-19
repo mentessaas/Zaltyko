@@ -11,6 +11,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import AssessmentForm from "@/components/assessments/AssessmentForm";
 import { resolveAcademySpecialization } from "@/lib/specialization/registry";
 import { resolveSpecializedApparatusCodes } from "@/lib/specialization/technical-guidance";
+import { getAcademySportConfigOptions } from "@/lib/sport-config/service";
+import { getTerminology } from "@/lib/sport-config/terminology";
 
 interface EvaluatePageProps {
   params: Promise<{
@@ -47,6 +49,7 @@ export default async function AthleteEvaluatePage({ params }: EvaluatePageProps)
       status: athletes.status,
       dob: athletes.dob,
       primaryApparatus: athletes.primaryApparatus,
+      primarySportConfigId: athletes.primarySportConfigId,
       groupId: athletes.groupId,
       academyId: athletes.academyId,
       academyName: academies.name,
@@ -95,6 +98,7 @@ export default async function AthleteEvaluatePage({ params }: EvaluatePageProps)
         .select({
           id: groups.id,
           name: groups.name,
+          sportConfigId: groups.sportConfigId,
           technicalFocus: groups.technicalFocus,
           apparatus: groups.apparatus,
         })
@@ -102,6 +106,13 @@ export default async function AthleteEvaluatePage({ params }: EvaluatePageProps)
         .where(eq(groups.id, athleteRow.groupId))
         .limit(1)
     : [];
+
+  const sportConfigs = await getAcademySportConfigOptions(academyId);
+  const selectedSportConfig =
+    sportConfigs.find((config) => config.id === athleteRow.primarySportConfigId) ??
+    sportConfigs.find((config) => config.id === groupRow?.sportConfigId) ??
+    null;
+  const terms = getTerminology(selectedSportConfig);
 
   const contextualApparatusCodes = resolveSpecializedApparatusCodes(
     specialization,
@@ -111,9 +122,14 @@ export default async function AthleteEvaluatePage({ params }: EvaluatePageProps)
     ]
   );
   const apparatusList =
-    contextualApparatusCodes.length > 0
+    selectedSportConfig
+      ? selectedSportConfig.apparatus.map((item) => item.code)
+      : contextualApparatusCodes.length > 0
       ? contextualApparatusCodes
       : specialization.evaluation.apparatus.map((item) => item.code);
+  const apparatusLabels = selectedSportConfig
+    ? Object.fromEntries(selectedSportConfig.apparatus.map((item) => [item.code, item.name]))
+    : undefined;
   const recommendedFocus = groupRow?.technicalFocus ?? null;
 
   return (
@@ -129,7 +145,7 @@ export default async function AthleteEvaluatePage({ params }: EvaluatePageProps)
             Volver al progreso
           </Link>
           <h1 className="text-2xl md:text-3xl font-semibold">
-            Evaluar {specialization.labels.athleteSingular.toLowerCase()}
+            Evaluar {terms.athlete.toLowerCase()}
           </h1>
           <p className="text-muted-foreground">
             {athleteRow.name} · {athleteRow.academyName} · {specialization.labels.disciplineName}
@@ -147,6 +163,9 @@ export default async function AthleteEvaluatePage({ params }: EvaluatePageProps)
             athleteId={athleteId}
             athleteName={athleteRow.name}
             apparatusList={apparatusList}
+            apparatusLabels={apparatusLabels}
+            sportConfigId={selectedSportConfig?.id ?? null}
+            terminology={selectedSportConfig?.terminology}
             recommendedFocus={recommendedFocus}
             onSuccess={() => {
               // Redirect to progress page on success

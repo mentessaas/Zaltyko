@@ -11,6 +11,7 @@ import { CreateChargeDialog } from "./CreateChargeDialog";
 import { EditChargeDialog } from "./EditChargeDialog";
 import { GenerateChargesDialog } from "./GenerateChargesDialog";
 import { RegisterPaymentDialog } from "./RegisterPaymentDialog";
+import { getTerminologyForSportConfig } from "@/lib/sport-config/terminology";
 
 interface ChargeItem {
   id: string;
@@ -36,6 +37,13 @@ interface ChargeItem {
 
 interface StudentChargesTabProps {
   academyId: string;
+  sportConfigs?: Array<{
+    id: string;
+    name: string;
+    disciplineName: string;
+    branchName: string;
+    terminology?: Record<string, string>;
+  }>;
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -76,7 +84,7 @@ function formatPeriod(period: string): string {
   return date.toLocaleDateString("es-ES", { year: "numeric", month: "long" });
 }
 
-export function StudentChargesTab({ academyId }: StudentChargesTabProps) {
+export function StudentChargesTab({ academyId, sportConfigs = [] }: StudentChargesTabProps) {
   const searchParams = useSearchParams();
   const [charges, setCharges] = useState<ChargeItem[]>([]);
   const [allChargesForPeriod, setAllChargesForPeriod] = useState<ChargeItem[]>([]); // Para métricas sin filtro de estado
@@ -92,18 +100,24 @@ export function StudentChargesTab({ academyId }: StudentChargesTabProps) {
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [onlyPendingOverdue, setOnlyPendingOverdue] = useState(false);
   const [groupId, setGroupId] = useState<string>("");
-  const [groups, setGroups] = useState<Array<{ id: string; name: string }>>([]);
+  const [sportConfigId, setSportConfigId] = useState<string>("");
+  const [groups, setGroups] = useState<Array<{ id: string; name: string; sportConfigId?: string | null }>>([]);
   const [loadingGroups, setLoadingGroups] = useState(true);
+  const terms = getTerminologyForSportConfig(sportConfigs, sportConfigId);
+  const athletesTermLower = terms.athletes.toLowerCase();
+  const groupsTermLower = terms.groups.toLowerCase();
 
   // Initialize from URL params in useEffect to avoid render-time state updates
   useEffect(() => {
     if (searchParams) {
       const urlStatus = searchParams.get("status");
       const urlGroupId = searchParams.get("groupId");
+      const urlSportConfigId = searchParams.get("sportConfigId");
       const urlAthleteId = searchParams.get("athleteId");
       
       if (urlStatus) setStatusFilter(urlStatus);
       if (urlGroupId) setGroupId(urlGroupId);
+      if (urlSportConfigId) setSportConfigId(urlSportConfigId);
       // Note: athleteId filter is handled by the API call in loadCharges
     }
   }, [searchParams]);
@@ -141,6 +155,7 @@ export function StudentChargesTab({ academyId }: StudentChargesTabProps) {
         period,
         ...(effectiveStatusFilter && { status: effectiveStatusFilter }),
         ...(groupId && { groupId }),
+        ...(sportConfigId && { sportConfigId }),
         ...(athleteId && { athleteId }),
       });
 
@@ -156,6 +171,7 @@ export function StudentChargesTab({ academyId }: StudentChargesTabProps) {
         academyId,
         period,
         ...(groupId && { groupId }), // Mantener filtro de grupo si existe
+        ...(sportConfigId && { sportConfigId }),
         // No incluir statusFilter para obtener todos los estados
       });
 
@@ -174,7 +190,11 @@ export function StudentChargesTab({ academyId }: StudentChargesTabProps) {
   const loadGroups = async () => {
     setLoadingGroups(true);
     try {
-      const res = await fetch(`/api/groups?academyId=${academyId}`);
+      const params = new URLSearchParams({
+        academyId,
+        ...(sportConfigId && { sportConfigId }),
+      });
+      const res = await fetch(`/api/groups?${params}`);
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
         console.error("Error loading groups:", res.status, errorData);
@@ -198,11 +218,12 @@ export function StudentChargesTab({ academyId }: StudentChargesTabProps) {
 
   useEffect(() => {
     loadCharges();
-  }, [academyId, period, statusFilter, onlyPendingOverdue, groupId, searchParams]);
+  }, [academyId, period, statusFilter, onlyPendingOverdue, groupId, sportConfigId, searchParams]);
 
   useEffect(() => {
+    setGroupId("");
     loadGroups();
-  }, [academyId]);
+  }, [academyId, sportConfigId]);
 
   const handleMarkPaid = async (chargeId: string) => {
     try {
@@ -235,9 +256,9 @@ export function StudentChargesTab({ academyId }: StudentChargesTabProps) {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="font-display text-2xl font-semibold text-zaltyko-navy">Cobros a alumnos</h2>
+        <h2 className="font-display text-2xl font-semibold text-zaltyko-navy">Cobros a {athletesTermLower}</h2>
         <p className="text-sm text-muted-foreground">
-          Controla cuotas, matrículas y otros cargos a atletas.
+          Controla cuotas, matrículas y otros cargos a {athletesTermLower}.
         </p>
       </div>
 
@@ -251,19 +272,31 @@ export function StudentChargesTab({ academyId }: StudentChargesTabProps) {
             className="min-h-11 rounded-[10px] border border-zaltyko-mist bg-white px-3 py-2 text-sm focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15"
           />
           <select
+            value={sportConfigId}
+            onChange={(e) => setSportConfigId(e.target.value)}
+            className="min-h-11 rounded-[10px] border border-zaltyko-mist bg-white px-3 py-2 text-sm focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15"
+          >
+            <option value="">Todas las ramas</option>
+            {sportConfigs.map((config) => (
+              <option key={config.id} value={config.id}>
+                {config.branchName} · {config.disciplineName}
+              </option>
+            ))}
+          </select>
+          <select
             value={groupId}
             onChange={(e) => setGroupId(e.target.value)}
             className="min-h-11 rounded-[10px] border border-zaltyko-mist bg-white px-3 py-2 text-sm focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15"
             disabled={loadingGroups}
           >
-            <option value="">Todos los grupos</option>
+            <option value="">Todos los {groupsTermLower}</option>
             {loadingGroups ? (
               <option value="" disabled>
-                Cargando grupos...
+                Cargando {groupsTermLower}...
               </option>
             ) : groups.length === 0 ? (
               <option value="" disabled>
-                No hay grupos
+                No hay {groupsTermLower}
               </option>
             ) : (
               groups.map((g) => (
@@ -350,7 +383,7 @@ export function StudentChargesTab({ academyId }: StudentChargesTabProps) {
       ) : charges.length === 0 ? (
         <div className="rounded-2xl border border-zaltyko-mist bg-white p-12 text-center shadow-soft">
           <p className="mb-4 text-sm text-muted-foreground">
-            Aún no has creado ningún cargo para este periodo. Crea tu primer cargo para empezar a gestionar los cobros a tus atletas.
+            Aún no has creado ningún cargo para este periodo. Crea tu primer cargo para empezar a gestionar los cobros a tus {athletesTermLower}.
           </p>
           <Button onClick={() => setCreateOpen(true)} className="mt-4" variant="default">
             Crear primer cargo
@@ -361,8 +394,8 @@ export function StudentChargesTab({ academyId }: StudentChargesTabProps) {
           <table className="min-w-full divide-y divide-slate-100 text-sm">
             <thead className="bg-zaltyko-white">
               <tr className="text-left text-xs uppercase tracking-[0.05em] text-slate-400">
-                <th className="px-4 py-3 font-medium">Atleta</th>
-                <th className="px-4 py-3 font-medium">Grupo</th>
+                <th className="px-4 py-3 font-medium">{terms.athlete}</th>
+                <th className="px-4 py-3 font-medium">{terms.group}</th>
                 <th className="px-4 py-3 font-medium">Concepto</th>
                 <th className="px-4 py-3 font-medium">Periodo</th>
                 <th className="px-4 py-3 font-medium">Importe</th>
@@ -444,6 +477,8 @@ export function StudentChargesTab({ academyId }: StudentChargesTabProps) {
 
       <CreateChargeDialog
         academyId={academyId}
+        sportConfigId={sportConfigId}
+        sportConfigs={sportConfigs}
         open={createOpen}
         onClose={() => setCreateOpen(false)}
         onCreated={loadCharges}
@@ -461,7 +496,9 @@ export function StudentChargesTab({ academyId }: StudentChargesTabProps) {
 
       <GenerateChargesDialog
         academyId={academyId}
+        sportConfigId={sportConfigId}
         groups={groups.map((g) => ({ id: g.id, name: g.name, color: null }))}
+        terminology={terms}
         open={generateOpen}
         onClose={() => setGenerateOpen(false)}
         onGenerated={loadCharges}

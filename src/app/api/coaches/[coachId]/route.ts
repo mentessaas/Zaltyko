@@ -6,6 +6,7 @@ import { classCoachAssignments, coaches } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
 import { withTransaction } from "@/lib/db-transactions";
 import { apiSuccess, apiError } from "@/lib/api-response";
+import { replaceCoachSportConfigScope } from "@/lib/coaches/sport-scope";
 
 const UpdateSchema = z.object({
   name: z.string().min(1).optional(),
@@ -15,6 +16,7 @@ const UpdateSchema = z.object({
   photoUrl: z.string().url().optional().nullable(),
   isPublic: z.boolean().optional(),
   specialties: z.array(z.string()).optional().nullable(),
+  sportConfigIds: z.array(z.string().uuid()).optional(),
 });
 
 async function getCoach(coachId: string) {
@@ -22,6 +24,7 @@ async function getCoach(coachId: string) {
     .select({
       id: coaches.id,
       tenantId: coaches.tenantId,
+      academyId: coaches.academyId,
     })
     .from(coaches)
     .where(eq(coaches.id, coachId))
@@ -57,18 +60,32 @@ export const PATCH = withTenant(async (request, context) => {
     return apiSuccess({ ok: true });
   }
 
-  await db
-    .update(coaches)
-    .set({
-      ...(body.name !== undefined ? { name: body.name } : {}),
-      ...(body.email !== undefined ? { email: body.email ?? null } : {}),
-      ...(body.phone !== undefined ? { phone: body.phone ?? null } : {}),
-      ...(body.bio !== undefined ? { bio: body.bio ?? null } : {}),
-      ...(body.photoUrl !== undefined ? { photoUrl: body.photoUrl ?? null } : {}),
-      ...(body.isPublic !== undefined ? { isPublic: body.isPublic } : {}),
-      ...(body.specialties !== undefined ? { specialties: body.specialties ?? null } : {}),
-    })
-    .where(eq(coaches.id, coachId));
+  const updatePayload = {
+    ...(body.name !== undefined ? { name: body.name } : {}),
+    ...(body.email !== undefined ? { email: body.email ?? null } : {}),
+    ...(body.phone !== undefined ? { phone: body.phone ?? null } : {}),
+    ...(body.bio !== undefined ? { bio: body.bio ?? null } : {}),
+    ...(body.photoUrl !== undefined ? { photoUrl: body.photoUrl ?? null } : {}),
+    ...(body.isPublic !== undefined ? { isPublic: body.isPublic } : {}),
+    ...(body.specialties !== undefined ? { specialties: body.specialties ?? null } : {}),
+  };
+
+  if (Object.keys(updatePayload).length > 0) {
+    await db.update(coaches).set(updatePayload).where(eq(coaches.id, coachId));
+  }
+
+  if (body.sportConfigIds !== undefined) {
+    const scope = await replaceCoachSportConfigScope({
+      coachId,
+      academyId: coach.academyId,
+      tenantId: coach.tenantId,
+      sportConfigIds: body.sportConfigIds,
+    });
+
+    if (!scope.ok) {
+      return apiError("SPORT_CONFIG_NOT_FOUND", "Una o más ramas no están activas en esta academia", 400);
+    }
+  }
 
   return apiSuccess({ ok: true });
 });
@@ -102,5 +119,4 @@ export const DELETE = withTenant(async (_request, context) => {
 
   return apiSuccess({ ok: true });
 });
-
 

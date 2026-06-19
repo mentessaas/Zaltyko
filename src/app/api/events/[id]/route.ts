@@ -8,6 +8,7 @@ import { rateLimit, getUserIdentifier, withRateLimit } from "@/lib/rate-limit";
 import { handleApiError } from "@/lib/api-error-handler";
 import { logger } from "@/lib/logger";
 import { apiSuccess, apiError } from "@/lib/api-response";
+import { getAcademySportConfigOptions, verifyAcademySportConfig } from "@/lib/sport-config/service";
 import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
@@ -22,7 +23,9 @@ const UpdateEventSchema = z.object({
   isPublic: z.boolean().optional(),
   level: z.enum(EVENT_LEVELS).optional(),
   discipline: z.enum(EVENT_DISCIPLINES).optional(),
+  sportConfigId: z.string().uuid().nullable().optional(),
   eventType: z.enum(["competitions", "courses", "camps", "workshops", "clinics", "evaluations", "other"]).optional(),
+  competitionTypeCode: z.string().trim().min(1).max(80).nullable().optional(),
   startDate: z.string().optional(),
   endDate: z.string().optional(),
   registrationStartDate: z.string().optional(),
@@ -102,6 +105,9 @@ export async function GET(request: Request, context: RouteContext) {
         isPublic: events.isPublic,
         level: events.level,
         discipline: events.discipline,
+        sportConfigId: events.sportConfigId,
+        competitionTypeCode: events.competitionTypeCode,
+        eventType: events.eventType,
         startDate: events.startDate,
         endDate: events.endDate,
         country: events.country,
@@ -172,6 +178,7 @@ const patchEventHandler = withTenant(async (request, context) => {
         id: events.id,
         academyId: events.academyId,
         tenantId: events.tenantId,
+        sportConfigId: events.sportConfigId,
       })
       .from(events)
       .where(and(eq(events.id, id), eq(events.tenantId, context.tenantId)))
@@ -192,6 +199,35 @@ const patchEventHandler = withTenant(async (request, context) => {
       return apiError("FORBIDDEN", "Forbidden", 403);
     }
 
+    const effectiveSportConfigId =
+      body.sportConfigId !== undefined ? body.sportConfigId : event.sportConfigId;
+    let sportConfigDiscipline = body.discipline ?? null;
+
+    if (effectiveSportConfigId) {
+      const verifiedConfig = await verifyAcademySportConfig({
+        academyId: event.academyId,
+        tenantId: context.tenantId,
+        sportConfigId: effectiveSportConfigId,
+      });
+
+      if (!verifiedConfig) {
+        return apiError("SPORT_CONFIG_NOT_FOUND", "La rama/modalidad no está activa en esta academia", 400);
+      }
+
+      sportConfigDiscipline = verifiedConfig.defaultDisciplineVariant as typeof EVENT_DISCIPLINES[number];
+
+      if (body.competitionTypeCode) {
+        const activeConfigs = await getAcademySportConfigOptions(event.academyId);
+        const selectedConfig = activeConfigs.find((config) => config.id === effectiveSportConfigId);
+        const validCompetitionTypes = new Set(selectedConfig?.competitionTypes.map((item) => item.code) ?? []);
+        if (validCompetitionTypes.size > 0 && !validCompetitionTypes.has(body.competitionTypeCode)) {
+          return apiError("INVALID_COMPETITION_TYPE", "El tipo de competición no pertenece a esta rama/modalidad", 400);
+        }
+      }
+    } else if (body.competitionTypeCode) {
+      return apiError("SPORT_CONFIG_REQUIRED", "Selecciona una rama/modalidad para usar un tipo de competición configurado", 400);
+    }
+
     // Construir objeto de actualización solo con campos presentes
     const updateData: Partial<typeof events.$inferInsert> = {};
     if (body.title !== undefined) updateData.title = body.title;
@@ -199,8 +235,10 @@ const patchEventHandler = withTenant(async (request, context) => {
     if (body.category !== undefined) updateData.category = body.category || null;
     if (body.isPublic !== undefined) updateData.isPublic = body.isPublic;
     if (body.level !== undefined) updateData.level = body.level;
-    if (body.discipline !== undefined) updateData.discipline = body.discipline || null;
+    if (body.discipline !== undefined || body.sportConfigId !== undefined) updateData.discipline = sportConfigDiscipline;
+    if (body.sportConfigId !== undefined) updateData.sportConfigId = body.sportConfigId || null;
     if (body.eventType !== undefined) updateData.eventType = body.eventType || null;
+    if (body.competitionTypeCode !== undefined) updateData.competitionTypeCode = body.competitionTypeCode || null;
     if (body.startDate !== undefined) updateData.startDate = body.startDate;
     if (body.endDate !== undefined) updateData.endDate = body.endDate || null;
     if (body.registrationStartDate !== undefined) updateData.registrationStartDate = body.registrationStartDate || null;

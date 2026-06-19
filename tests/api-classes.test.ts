@@ -211,5 +211,3 @@ describe("API /api/classes", () => {
     expect(insertCalls).toHaveLength(0);
   });
 });
-
-

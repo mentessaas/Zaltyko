@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast-provider";
 import { useAcademyContext } from "@/hooks/use-academy-context";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { getTerminologyForSportConfig } from "@/lib/sport-config/terminology";
 
 interface AttendanceStats {
   totalSessions: number;
@@ -26,13 +27,27 @@ interface AttendanceStats {
 interface AttendanceReportProps {
   academyId: string;
   academyCountry?: string | null;
+  initialSportConfigs?: SportConfigOption[];
   initialData?: {
     type: "general" | "athlete" | "group";
     data: any;
   };
 }
 
-export function AttendanceReport({ academyId, academyCountry, initialData }: AttendanceReportProps) {
+interface SportConfigOption {
+  id: string;
+  name: string;
+  disciplineName: string;
+  branchName: string;
+  terminology?: Record<string, string>;
+}
+
+export function AttendanceReport({
+  academyId,
+  academyCountry,
+  initialSportConfigs = [],
+  initialData,
+}: AttendanceReportProps) {
   const toast = useToast();
   const { specialization } = useAcademyContext();
   const [reportType, setReportType] = useState<"general" | "athlete" | "group">("general");
@@ -41,6 +56,7 @@ export function AttendanceReport({ academyId, academyCountry, initialData }: Att
   const [athleteId, setAthleteId] = useState("");
   const [groupId, setGroupId] = useState("");
   const [classId, setClassId] = useState("");
+  const [sportConfigId, setSportConfigId] = useState("");
   const [reportData, setReportData] = useState<any>(initialData?.data);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -54,6 +70,11 @@ export function AttendanceReport({ academyId, academyCountry, initialData }: Att
       sessionBlocks?: string[];
     }>
   >([]);
+  const [sportConfigs, setSportConfigs] = useState<SportConfigOption[]>(initialSportConfigs);
+  const terms = getTerminologyForSportConfig(sportConfigs, sportConfigId);
+  const athleteTermLower = terms.athlete.toLowerCase();
+  const athletesTermLower = terms.athletes.toLowerCase();
+  const groupTermLower = terms.group.toLowerCase();
   const apparatusLabels = Object.fromEntries(
     specialization.evaluation.apparatus.map((item) => [item.code, item.label])
   );
@@ -68,6 +89,7 @@ export function AttendanceReport({ academyId, academyCountry, initialData }: Att
         if (!response.ok || !payload.ok) return;
         setAthletes(Array.isArray(payload.data?.athletes) ? payload.data.athletes : []);
         setGroups(Array.isArray(payload.data?.groups) ? payload.data.groups : []);
+        setSportConfigs(Array.isArray(payload.data?.sportConfigs) ? payload.data.sportConfigs : []);
       } catch (fetchError) {
         console.error("Error loading attendance report options:", fetchError);
       }
@@ -94,6 +116,7 @@ export function AttendanceReport({ academyId, academyCountry, initialData }: Att
         ...(athleteId && { athleteId }),
         ...(groupId && { groupId }),
         ...(classId && { classId }),
+        ...(sportConfigId && { sportConfigId }),
       });
 
       const response = await fetch(`/api/reports/attendance?${params}`);
@@ -129,6 +152,7 @@ export function AttendanceReport({ academyId, academyCountry, initialData }: Att
         ...(athleteId && { athleteId }),
         ...(groupId && { groupId }),
         ...(classId && { classId }),
+        ...(sportConfigId && { sportConfigId }),
       });
 
       const response = await fetch(`/api/reports/attendance/export?${params}`);
@@ -145,7 +169,7 @@ export function AttendanceReport({ academyId, academyCountry, initialData }: Att
       document.body.removeChild(a);
       toast.pushToast({
         title: "PDF exportado",
-        description: "El reporte de asistencia se descargó correctamente.",
+        description: `El reporte de ${terms.attendance.toLowerCase()} se descargó correctamente.`,
         variant: "success",
       });
     } catch (err: any) {
@@ -168,6 +192,7 @@ export function AttendanceReport({ academyId, academyCountry, initialData }: Att
         ...(athleteId && { athleteId }),
         ...(groupId && { groupId }),
         ...(classId && { classId }),
+        ...(sportConfigId && { sportConfigId }),
       });
 
       const response = await fetch(`/api/reports/attendance/export?${params}`);
@@ -184,7 +209,7 @@ export function AttendanceReport({ academyId, academyCountry, initialData }: Att
       document.body.removeChild(a);
       toast.pushToast({
         title: "Excel exportado",
-        description: "El reporte de asistencia se descargó correctamente.",
+        description: `El reporte de ${terms.attendance.toLowerCase()} se descargó correctamente.`,
         variant: "success",
       });
     } catch (err: any) {
@@ -209,7 +234,7 @@ export function AttendanceReport({ academyId, academyCountry, initialData }: Att
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm font-medium">Tasa de Asistencia</CardTitle>
+            <CardTitle className="text-sm font-medium">Tasa de {terms.attendance}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.attendanceRate}%</div>
@@ -227,7 +252,7 @@ export function AttendanceReport({ academyId, academyCountry, initialData }: Att
 
       <Card>
         <CardHeader>
-          <CardTitle>Desglose de Asistencia</CardTitle>
+          <CardTitle>Desglose de {terms.attendance}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
@@ -264,7 +289,7 @@ export function AttendanceReport({ academyId, academyCountry, initialData }: Att
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <BarChart3 className="h-5 w-5" />
-            Gráfico de Asistencia
+            Gráfico de {terms.attendance}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -303,9 +328,9 @@ export function AttendanceReport({ academyId, academyCountry, initialData }: Att
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold">Reporte de Asistencia</h2>
+          <h2 className="text-2xl font-bold">Reporte de {terms.attendance}</h2>
           <p className="text-muted-foreground mt-1">
-            Genera reportes detallados de asistencia de {specialization.labels.athletesPlural.toLowerCase()}
+            Genera reportes detallados de {terms.attendance.toLowerCase()} de {athletesTermLower}
           </p>
         </div>
         <div className="flex gap-2">
@@ -338,9 +363,25 @@ export function AttendanceReport({ academyId, academyCountry, initialData }: Att
                 className="flex h-10 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
               >
                 <option value="general">General</option>
-                <option value="athlete">Por {specialization.labels.athleteSingular}</option>
-                <option value="group">Por {specialization.labels.groupLabel}</option>
+                <option value="athlete">Por {terms.athlete}</option>
+                <option value="group">Por {terms.group}</option>
               </select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="sport-config-id">Rama / modalidad</Label>
+              <Select value={sportConfigId || "all"} onValueChange={(value) => setSportConfigId(value === "all" ? "" : value)}>
+                <SelectTrigger id="sport-config-id">
+                  <SelectValue placeholder="Todas las ramas" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas</SelectItem>
+                  {sportConfigs.map((config) => (
+                    <SelectItem key={config.id} value={config.id}>
+                      {config.branchName} · {config.disciplineName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="start-date">Fecha Inicio</Label>
@@ -362,10 +403,10 @@ export function AttendanceReport({ academyId, academyCountry, initialData }: Att
             </div>
             {reportType === "athlete" && (
               <div className="space-y-2">
-                <Label htmlFor="athlete-id">{specialization.labels.athleteSingular}</Label>
+                <Label htmlFor="athlete-id">{terms.athlete}</Label>
                 <Select value={athleteId || "all"} onValueChange={(value) => setAthleteId(value === "all" ? "" : value)}>
                   <SelectTrigger id="athlete-id">
-                    <SelectValue placeholder={`Selecciona ${specialization.labels.athleteSingular.toLowerCase()}`} />
+                    <SelectValue placeholder={`Selecciona ${athleteTermLower}`} />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Selecciona</SelectItem>
@@ -380,10 +421,10 @@ export function AttendanceReport({ academyId, academyCountry, initialData }: Att
             )}
             {reportType === "group" && (
               <div className="space-y-2">
-                <Label htmlFor="group-id">{specialization.labels.groupLabel}</Label>
+                <Label htmlFor="group-id">{terms.group}</Label>
                 <Select value={groupId || "all"} onValueChange={(value) => setGroupId(value === "all" ? "" : value)}>
                   <SelectTrigger id="group-id">
-                    <SelectValue placeholder={`Selecciona ${specialization.labels.groupLabel.toLowerCase()}`} />
+                    <SelectValue placeholder={`Selecciona ${groupTermLower}`} />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Selecciona</SelectItem>
@@ -416,7 +457,7 @@ export function AttendanceReport({ academyId, academyCountry, initialData }: Att
       {reportType === "group" && selectedGroupMeta && (
         <Card className="border-primary/20 bg-primary/5">
           <CardHeader>
-            <CardTitle className="text-base">Contexto técnico del {specialization.labels.groupLabel.toLowerCase()}</CardTitle>
+            <CardTitle className="text-base">Contexto técnico del {groupTermLower}</CardTitle>
             <CardDescription>{selectedGroupMeta.name}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -479,7 +520,7 @@ export function AttendanceReport({ academyId, academyCountry, initialData }: Att
                     <CardHeader>
                       <CardTitle>{group.groupName}</CardTitle>
                       <CardDescription>
-                        {group.totalAthletes} atletas · Tasa promedio: {group.averageAttendanceRate}%
+                        {group.totalAthletes} {athletesTermLower} · Tasa promedio: {group.averageAttendanceRate}%
                       </CardDescription>
                     </CardHeader>
                     <CardContent>

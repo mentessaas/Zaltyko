@@ -16,7 +16,9 @@ export interface Event {
   isPublic: boolean;
   level: EventLevel;
   discipline: EventDiscipline | null;
+  sportConfigId: string | null;
   eventType: EventType | null;
+  competitionTypeCode: string | null;
   startDate: string | null;
   endDate: string | null;
   registrationStartDate: string | null;
@@ -70,7 +72,9 @@ export interface CreateEventInput {
   isPublic?: boolean;
   level?: EventLevel;
   discipline?: EventDiscipline;
+  sportConfigId?: string;
   eventType?: EventType;
+  competitionTypeCode?: string;
   startDate?: string;
   endDate?: string;
   registrationStartDate?: string;

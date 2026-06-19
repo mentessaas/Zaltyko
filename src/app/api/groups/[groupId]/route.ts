@@ -13,6 +13,9 @@ import {
 import { TenantContext, withTenant } from "@/lib/authz";
 import { rateLimit, getUserIdentifier, withRateLimit } from "@/lib/rate-limit";
 import { NextResponse } from "next/server";
+import { verifyAcademySportConfig } from "@/lib/sport-config/service";
+import { isProgramCodeAllowed, normalizeApparatusCodes } from "@/lib/sport-config/validation";
+import { assertCoachesCanHandleSportConfig } from "@/lib/coaches/sport-scope";
 
 type RouteContext = TenantContext<{ params?: { groupId?: string } }>;
 
@@ -21,6 +24,10 @@ const DISCIPLINES = ["artistica", "ritmica", "general"] as const;
 const GroupUpdateSchema = z.object({
   name: z.string().min(1).optional(),
   discipline: z.enum(DISCIPLINES).optional(),
+  sportConfigId: z.string().uuid().nullable().optional(),
+  programCode: z.string().trim().min(1).max(80).nullable().optional(),
+  levelCode: z.string().trim().min(1).max(80).nullable().optional(),
+  categoryCode: z.string().trim().min(1).max(80).nullable().optional(),
   level: z.string().max(120).optional().nullable(),
   technicalFocus: z.string().max(500).optional().nullable(),
   apparatus: z.array(z.string().trim().min(1).max(120)).max(12).optional(),
@@ -50,6 +57,7 @@ const patchGroupHandler = withTenant(async (request, context: RouteContext) => {
       id: groups.id,
       tenantId: groups.tenantId,
       academyId: groups.academyId,
+      sportConfigId: groups.sportConfigId,
       coachId: groups.coachId,
       assistantIds: groups.assistantIds,
     })
@@ -73,6 +81,29 @@ const patchGroupHandler = withTenant(async (request, context: RouteContext) => {
   }
 
   const payload = GroupUpdateSchema.parse(await request.json());
+
+  const effectiveSportConfigId =
+    payload.sportConfigId !== undefined ? payload.sportConfigId : group.sportConfigId;
+  const sportConfig = await verifyAcademySportConfig({
+    academyId: group.academyId,
+    tenantId: group.tenantId,
+    sportConfigId: effectiveSportConfigId,
+  });
+
+  if (effectiveSportConfigId && !sportConfig) {
+    return apiError("SPORT_CONFIG_NOT_FOUND", "La configuración deportiva no pertenece a esta academia", 404);
+  }
+
+  if (sportConfig) {
+    if (!isProgramCodeAllowed(sportConfig, payload.programCode)) {
+      return apiError("INVALID_PROGRAM", "El programa no está activo para esta rama/modalidad", 400);
+    }
+
+    const apparatusValidation = normalizeApparatusCodes(sportConfig, payload.apparatus);
+    if (!apparatusValidation.ok) {
+      return apiError("INVALID_APPARATUS", "Hay aparatos que no pertenecen a la rama seleccionada", 400);
+    }
+  }
 
   if (payload.coachId) {
     const [coachRow] = await db
@@ -98,6 +129,27 @@ const patchGroupHandler = withTenant(async (request, context: RouteContext) => {
     }
   }
 
+  const effectiveCoachIds = [
+    payload.coachId !== undefined ? payload.coachId : group.coachId,
+    ...(assistantIds !== undefined ? assistantIds : group.assistantIds ?? []),
+  ].filter((value): value is string => Boolean(value));
+  const coachScope = await assertCoachesCanHandleSportConfig({
+    coachIds: effectiveCoachIds,
+    academyId: group.academyId,
+    tenantId: group.tenantId,
+    sportConfigId: effectiveSportConfigId,
+  });
+
+  if (!coachScope.ok) {
+    return apiError(
+      coachScope.reason,
+      coachScope.reason === "COACH_NOT_FOUND"
+        ? "Uno o más entrenadores no pertenecen a esta academia"
+        : "Uno o más entrenadores no pueden asignarse a esa rama/modalidad",
+      coachScope.reason === "COACH_NOT_FOUND" ? 404 : 400
+    );
+  }
+
   const athleteIds = payload.athleteIds ? Array.from(new Set(payload.athleteIds)) : undefined;
   if (athleteIds && athleteIds.length) {
     const athleteRows = await db
@@ -120,6 +172,11 @@ const patchGroupHandler = withTenant(async (request, context: RouteContext) => {
     const updatePayload: Record<string, unknown> = {};
     if (payload.name !== undefined) updatePayload.name = payload.name.trim();
     if (payload.discipline !== undefined) updatePayload.discipline = payload.discipline;
+    if (sportConfig) updatePayload.discipline = sportConfig.defaultAcademyType;
+    if (payload.sportConfigId !== undefined) updatePayload.sportConfigId = payload.sportConfigId || null;
+    if (payload.programCode !== undefined) updatePayload.programCode = payload.programCode || null;
+    if (payload.levelCode !== undefined) updatePayload.levelCode = payload.levelCode || null;
+    if (payload.categoryCode !== undefined) updatePayload.categoryCode = payload.categoryCode || null;
     if (payload.level !== undefined) updatePayload.level = payload.level || null;
     if (payload.technicalFocus !== undefined) updatePayload.technicalFocus = payload.technicalFocus?.trim() || null;
     if (payload.apparatus !== undefined) {

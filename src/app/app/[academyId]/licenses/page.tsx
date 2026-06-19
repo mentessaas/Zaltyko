@@ -1,9 +1,9 @@
 import { notFound, redirect } from "next/navigation";
 import { cookies } from "next/headers";
-import { and, desc, eq, gte, lte, sql } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { format, differenceInDays } from "date-fns";
 import { es } from "date-fns/locale";
-import { Shield, AlertTriangle, CheckCircle, XCircle, Plus, Calendar, FileText } from "lucide-react";
+import { Shield, AlertTriangle, CheckCircle, XCircle, Calendar, FileText } from "lucide-react";
 
 import { db } from "@/db";
 import {
@@ -14,10 +14,12 @@ import {
   profiles,
 } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/ui/page-header";
+import { getAcademySportConfigOptions } from "@/lib/sport-config/service";
+import { getTerminologyForSportConfig } from "@/lib/sport-config/terminology";
+import { CreateLicenseDialog } from "@/components/licenses/CreateLicenseDialog";
 
 interface LicensesPageProps {
   params: Promise<{
@@ -27,8 +29,6 @@ interface LicensesPageProps {
 
 function getLicenseStatus(license: { validUntil: string | null; medicalCertificateExpiry: string | null }) {
   const now = new Date();
-  const today = now.toISOString().split("T")[0];
-
   if (!license.validUntil) return { status: "unknown", label: "Sin fecha", variant: "outline" as const };
 
   const daysUntilExpiry = differenceInDays(new Date(license.validUntil), now);
@@ -84,13 +84,13 @@ export default async function LicensesPage({ params }: LicensesPageProps) {
 
   if (!canAccess) redirect("/dashboard");
 
-  const today = new Date().toISOString().split("T")[0];
-  const thirtyDaysFromNow = new Date();
-  thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
-
   // Get athletes for this academy
   const academyAthletes = await db
-    .select({ id: athletes.id, name: athletes.name })
+    .select({
+      id: athletes.id,
+      name: athletes.name,
+      primarySportConfigId: athletes.primarySportConfigId,
+    })
     .from(athletes)
     .where(eq(athletes.academyId, academyId))
     .orderBy(athletes.name);
@@ -104,6 +104,7 @@ export default async function LicensesPage({ params }: LicensesPageProps) {
           id: federativeLicenses.id,
           personId: federativeLicenses.personId,
           personType: federativeLicenses.personType,
+          sportConfigId: federativeLicenses.sportConfigId,
           licenseNumber: federativeLicenses.licenseNumber,
           licenseType: federativeLicenses.licenseType,
           federation: federativeLicenses.federation,
@@ -114,9 +115,14 @@ export default async function LicensesPage({ params }: LicensesPageProps) {
           notes: federativeLicenses.notes,
         })
         .from(federativeLicenses)
-        .where(eq(federativeLicenses.tenantId, academy.tenantId))
+        .where(and(eq(federativeLicenses.tenantId, academy.tenantId), inArray(federativeLicenses.personId, athleteIds)))
         .orderBy(desc(federativeLicenses.validUntil))
     : [];
+  const sportConfigs = await getAcademySportConfigOptions(academyId);
+  const terms = getTerminologyForSportConfig(sportConfigs);
+  const sportConfigNameById = new Map(
+    sportConfigs.map((config) => [config.id, `${config.branchName} · ${config.disciplineName}`])
+  );
 
   // Stats
   const activeLicenses = licenses.filter((l) => {
@@ -144,11 +150,23 @@ export default async function LicensesPage({ params }: LicensesPageProps) {
       <PageHeader
         breadcrumbs={[
           { label: "Dashboard", href: `/app/${academyId}/dashboard` },
-          { label: "Licencias" },
+          { label: terms.license },
         ]}
-        title="Licencias Federativas"
-        description="Gestión de licencias federativas y certificados médicos."
+        title={terms.license}
+        description={`Gestión de ${terms.license.toLowerCase()}s federativas y certificados médicos.`}
         icon={<Shield className="h-5 w-5" strokeWidth={1.5} />}
+        actions={
+          <CreateLicenseDialog
+            academyId={academyId}
+            athletes={academyAthletes}
+            sportConfigs={sportConfigs.map((config) => ({
+              id: config.id,
+              branchName: config.branchName,
+              disciplineName: config.disciplineName,
+              terminology: config.terminology,
+            }))}
+          />
+        }
       />
 
       {/* Stats */}
@@ -265,6 +283,11 @@ export default async function LicensesPage({ params }: LicensesPageProps) {
                                 <p className="text-xs text-zaltyko-text-secondary">
                                   {license.federation} · {license.licenseNumber}
                                 </p>
+                                {license.sportConfigId && (
+                                  <p className="text-xs text-zaltyko-text-secondary">
+                                    Rama: {sportConfigNameById.get(license.sportConfigId) ?? "Configurada"}
+                                  </p>
+                                )}
                                 <div className="mt-1 flex items-center gap-3 text-xs text-zaltyko-text-secondary">
                                   <span className="flex items-center gap-1">
                                     <Calendar className="h-3 w-3" />

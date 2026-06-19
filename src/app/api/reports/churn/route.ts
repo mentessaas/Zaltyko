@@ -10,6 +10,7 @@ const reportSchema = z.object({
   academyId: z.string().uuid(),
   startDate: z.string().optional(),
   endDate: z.string().optional(),
+  sportConfigId: z.string().uuid().optional(),
 });
 
 export const GET = withTenant(async (request, context) => {
@@ -22,6 +23,7 @@ export const GET = withTenant(async (request, context) => {
     academyId: url.searchParams.get("academyId"),
     startDate: url.searchParams.get("startDate"),
     endDate: url.searchParams.get("endDate"),
+    sportConfigId: url.searchParams.get("sportConfigId"),
   };
 
   const validated = reportSchema.parse({
@@ -38,6 +40,7 @@ export const GET = withTenant(async (request, context) => {
     tenantId: context.tenantId,
     startDate: validated.startDate ? new Date(validated.startDate) : undefined,
     endDate: validated.endDate ? new Date(validated.endDate) : undefined,
+    sportConfigId: validated.sportConfigId,
   };
 
   try {

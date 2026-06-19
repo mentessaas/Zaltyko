@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import Navbar from "@/app/(site)/home/Navbar";
+import Navbar from "@/app/(site)/Navbar";
 import Footer from "@/app/(site)/Footer";
 import { BookOpen, Users, CreditCard, Calendar, MessageCircle, Mail, ChevronRight, Search } from "lucide-react";
 

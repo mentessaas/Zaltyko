@@ -49,6 +49,7 @@ export const POST = withTenant(async (request, context) => {
         id: classes.id,
         academyId: classes.academyId,
         name: classes.name,
+        sportConfigId: classes.sportConfigId,
         startTime: classes.startTime,
         endTime: classes.endTime,
       })
@@ -98,13 +99,29 @@ export const POST = withTenant(async (request, context) => {
 
     // Verificar que el atleta existe y pertenece a la academia
     const [athleteRow] = await db
-      .select({ id: athletes.id, academyId: athletes.academyId })
+      .select({
+        id: athletes.id,
+        academyId: athletes.academyId,
+        primarySportConfigId: athletes.primarySportConfigId,
+      })
       .from(athletes)
       .where(and(eq(athletes.id, body.athleteId), eq(athletes.academyId, body.academyId)))
       .limit(1);
 
     if (!athleteRow) {
       return apiError("ATHLETE_NOT_FOUND", "Athlete not found", 404);
+    }
+
+    if (
+      classRow.sportConfigId &&
+      athleteRow.primarySportConfigId &&
+      athleteRow.primarySportConfigId !== classRow.sportConfigId
+    ) {
+      return apiError(
+        "ATHLETE_SPORT_CONFIG_MISMATCH",
+        "El atleta pertenece a otra modalidad/rama y no puede añadirse a esta clase.",
+        400
+      );
     }
 
     // Verificar si ya existe el enrollment (evitar duplicados)
@@ -160,4 +177,3 @@ export const POST = withTenant(async (request, context) => {
     return handleApiError(error);
   }
 });
-

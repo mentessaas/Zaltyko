@@ -14,6 +14,7 @@ interface UpdateGroupCoachesDialogProps {
   coachId: string | null;
   assistantIds: string[];
   coaches: CoachOption[];
+  sportConfigId?: string | null;
   onClose: () => void;
   onUpdated: (coachId: string | null, assistantIds: string[]) => Promise<void> | void;
 }
@@ -25,6 +26,7 @@ export function UpdateGroupCoachesDialog({
   coachId,
   assistantIds,
   coaches,
+  sportConfigId,
   onClose,
   onUpdated,
 }: UpdateGroupCoachesDialogProps) {
@@ -42,6 +44,28 @@ export function UpdateGroupCoachesDialog({
   }, [open, coachId, assistantIds]);
 
   const assistantLookup = useMemo(() => new Set(selectedAssistants), [selectedAssistants]);
+  const compatibleCoaches = useMemo(
+    () =>
+      sportConfigId
+        ? coaches.filter((coach) => !coach.sportConfigIds?.length || coach.sportConfigIds.includes(sportConfigId))
+        : coaches,
+    [coaches, sportConfigId]
+  );
+
+  useEffect(() => {
+    if (!sportConfigId) return;
+    setSelectedCoach((current) => {
+      if (!current) return current;
+      const coach = coaches.find((item) => item.id === current);
+      return !coach?.sportConfigIds?.length || coach.sportConfigIds.includes(sportConfigId) ? current : "";
+    });
+    setSelectedAssistants((current) =>
+      current.filter((coachId) => {
+        const coach = coaches.find((item) => item.id === coachId);
+        return !coach?.sportConfigIds?.length || coach.sportConfigIds.includes(sportConfigId);
+      })
+    );
+  }, [coaches, sportConfigId]);
 
   const toggleAssistant = (id: string) => {
     setSelectedAssistants((prev) =>
@@ -160,7 +184,7 @@ export function UpdateGroupCoachesDialog({
             className="w-full rounded-md border border-border bg-background px-3 py-2 shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
           >
             <option value="">Sin asignar</option>
-            {coaches.map((coach) => (
+            {compatibleCoaches.map((coach) => (
               <option key={coach.id} value={coach.id}>
                 {coach.name}
               </option>
@@ -180,12 +204,12 @@ export function UpdateGroupCoachesDialog({
             </button>
           </div>
           <div className="grid max-h-56 gap-2 overflow-y-auto rounded-md border border-border p-3">
-            {coaches.length === 0 ? (
+            {compatibleCoaches.length === 0 ? (
               <p className="text-xs text-muted-foreground">
-                No hay entrenadores registrados en la academia.
+                No hay entrenadores disponibles para esta rama.
               </p>
             ) : (
-              coaches.map((coach) => (
+              compatibleCoaches.map((coach) => (
                 <label key={coach.id} className="flex items-center gap-2">
                   <input
                     type="checkbox"

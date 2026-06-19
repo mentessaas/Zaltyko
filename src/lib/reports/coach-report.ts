@@ -5,6 +5,7 @@ import {
   attendanceRecords,
   classCoachAssignments,
   classEnrollments,
+  classGroups,
   classes,
   classSessions,
   coaches,
@@ -18,6 +19,7 @@ export interface CoachReportFilters {
   startDate?: Date;
   endDate?: Date;
   coachId?: string;
+  sportConfigId?: string;
 }
 
 export interface CoachPerformance {
@@ -76,6 +78,7 @@ export async function calculateCoachReport(filters: CoachReportFilters): Promise
         id: classes.id,
         name: classes.name,
         groupId: classes.groupId,
+        sportConfigId: classes.sportConfigId,
         technicalFocus: classes.technicalFocus,
         apparatus: classes.apparatus,
       })
@@ -85,6 +88,7 @@ export async function calculateCoachReport(filters: CoachReportFilters): Promise
       .select({
         id: groups.id,
         coachId: groups.coachId,
+        sportConfigId: groups.sportConfigId,
         technicalFocus: groups.technicalFocus,
         apparatus: groups.apparatus,
         sessionBlocks: groups.sessionBlocks,
@@ -94,6 +98,7 @@ export async function calculateCoachReport(filters: CoachReportFilters): Promise
         and(
           eq(groups.academyId, filters.academyId),
           filters.tenantId ? eq(groups.tenantId, filters.tenantId) : undefined,
+          filters.sportConfigId ? eq(groups.sportConfigId, filters.sportConfigId) : undefined,
           isNull(groups.deletedAt)
         )
       ),
@@ -103,7 +108,43 @@ export async function calculateCoachReport(filters: CoachReportFilters): Promise
       .where(and(...classWhere)),
   ]);
 
-  const classIds = allClasses.map((item) => item.id);
+  const allClassIds = allClasses.map((item) => item.id);
+  const classGroupLinks =
+    allClassIds.length > 0
+      ? await db
+          .select({
+            classId: classGroups.classId,
+            groupId: classGroups.groupId,
+            groupSportConfigId: groups.sportConfigId,
+          })
+          .from(classGroups)
+          .innerJoin(groups, eq(classGroups.groupId, groups.id))
+          .where(
+            and(
+              inArray(classGroups.classId, allClassIds),
+              filters.tenantId ? eq(classGroups.tenantId, filters.tenantId) : undefined
+            )
+          )
+      : [];
+
+  const groupLinksByClass = new Map<string, typeof classGroupLinks>();
+  classGroupLinks.forEach((link) => {
+    const list = groupLinksByClass.get(link.classId) ?? [];
+    list.push(link);
+    groupLinksByClass.set(link.classId, list);
+  });
+
+  const scopedClasses = filters.sportConfigId
+    ? allClasses.filter((classRow) => {
+        if (classRow.sportConfigId === filters.sportConfigId) return true;
+        return (groupLinksByClass.get(classRow.id) ?? []).some(
+          (link) => link.groupSportConfigId === filters.sportConfigId
+        );
+      })
+    : allClasses;
+  const scopedClassIds = new Set(scopedClasses.map((item) => item.id));
+
+  const classIds = scopedClasses.map((item) => item.id);
   const groupIds = allGroups.map((item) => item.id);
 
   const [assignments, groupMemberships, classEnrollmentRows, sessionRows] = await Promise.all([
@@ -216,7 +257,7 @@ export async function calculateCoachReport(filters: CoachReportFilters): Promise
   };
 
   const recordTechnicalContext = (coachId: string, classId: string) => {
-    const classRow = allClasses.find((item) => item.id === classId);
+    const classRow = scopedClasses.find((item) => item.id === classId);
     if (!classRow) return;
 
     const focusCounter = ensureCounter(focusByCoach, coachId);
@@ -246,7 +287,7 @@ export async function calculateCoachReport(filters: CoachReportFilters): Promise
     }
   };
 
-  allClasses.forEach((classRow) => {
+  scopedClasses.forEach((classRow) => {
     const group = classRow.groupId ? groupMap.get(classRow.groupId) : null;
     if (group?.coachId) {
       ensureSet(classesByCoach, group.coachId).add(classRow.id);
@@ -255,6 +296,7 @@ export async function calculateCoachReport(filters: CoachReportFilters): Promise
   });
 
   assignments.forEach((assignment) => {
+    if (!scopedClassIds.has(assignment.classId)) return;
     ensureSet(classesByCoach, assignment.coachId).add(assignment.classId);
     recordTechnicalContext(assignment.coachId, assignment.classId);
   });
@@ -352,7 +394,7 @@ export async function calculateCoachReport(filters: CoachReportFilters): Promise
   return {
     totalCoaches: allCoaches.length,
     activeCoaches,
-    totalClasses: totalClassesResult[0]?.count || 0,
+    totalClasses: filters.sportConfigId ? scopedClasses.length : totalClassesResult[0]?.count || 0,
     averageAttendance:
       attendanceAverages.length > 0
         ? Number(

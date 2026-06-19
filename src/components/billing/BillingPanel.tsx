@@ -7,6 +7,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { StudentChargesTab } from "./StudentChargesTab";
 import { BillingRiskWidget } from "@/components/dashboard/BillingRiskWidget";
+import { getTerminologyForSportConfig } from "@/lib/sport-config/terminology";
 
 type PlanCode = "free" | "pro" | "premium" | (string & Record<never, never>);
 
@@ -45,11 +46,11 @@ interface InvoiceRow {
 const PLAN_COPY: Record<string, { title: string; description: string }> = {
   free: {
     title: "Free",
-    description: "Hasta 50 atletas · ideal para academias en lanzamiento",
+    description: "Plan inicial para academias en lanzamiento",
   },
   pro: {
     title: "Pro",
-    description: "Hasta 200 atletas · estadísticas y soporte prioritario",
+    description: "Estadísticas y soporte prioritario",
   },
   premium: {
     title: "Premium",
@@ -71,7 +72,9 @@ function resolvePlanTitle(plan: PlanSummary) {
   return PLAN_COPY[plan.code]?.title ?? plan.nickname ?? plan.code.toUpperCase();
 }
 
-function resolvePlanDescription(plan: PlanSummary) {
+function resolvePlanDescription(plan: PlanSummary, athletesTermLower: string) {
+  if (plan.code === "free") return `Hasta 50 ${athletesTermLower} · ideal para academias en lanzamiento`;
+  if (plan.code === "pro") return `Hasta 200 ${athletesTermLower} · estadísticas y soporte prioritario`;
   return PLAN_COPY[plan.code]?.description ?? "Plan sincronizado automáticamente desde Stripe.";
 }
 
@@ -122,11 +125,20 @@ function formatPeriod(periodStart: string | null, periodEnd: string | null): str
 interface BillingPanelProps {
   academyId: string;
   userId: string;
+  sportConfigs?: Array<{
+    id: string;
+    name: string;
+    disciplineName: string;
+    branchName: string;
+    terminology?: Record<string, string>;
+  }>;
 }
 
-export function BillingPanel({ academyId, userId }: BillingPanelProps) {
+export function BillingPanel({ academyId, userId, sportConfigs = [] }: BillingPanelProps) {
   const searchParams = useSearchParams();
   const defaultTab = searchParams?.get("tab") === "student-charges" ? "charges" : "plans";
+  const terms = getTerminologyForSportConfig(sportConfigs);
+  const athletesTermLower = terms.athletes.toLowerCase();
   const [summary, setSummary] = useState<BillingSummary | null>(null);
   const [loadingSummary, setLoadingSummary] = useState(true);
   const [loadingAction, setLoadingAction] = useState<PlanCode | "portal" | null>(null);
@@ -299,7 +311,7 @@ export function BillingPanel({ academyId, userId }: BillingPanelProps) {
       <Tabs defaultValue={defaultTab} className="w-full">
         <TabsList>
           <TabsTrigger value="plans">Planes y facturación</TabsTrigger>
-          <TabsTrigger value="charges">Cobros a alumnos</TabsTrigger>
+          <TabsTrigger value="charges">Cobros a {athletesTermLower}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="plans" className="space-y-8">
@@ -321,7 +333,7 @@ export function BillingPanel({ academyId, userId }: BillingPanelProps) {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-muted-foreground">
               <p>
-                <span className="font-medium text-zaltyko-navy">Límite atletas:</span> {summary.athleteLimit ?? "Ilimitado"}
+                <span className="font-medium text-zaltyko-navy">Límite {athletesTermLower}:</span> {summary.athleteLimit ?? "Ilimitado"}
               </p>
               <p>
                 <span className="font-medium text-zaltyko-navy">Límite clases:</span> {summary.classLimit ?? "Ilimitado"}
@@ -391,7 +403,7 @@ export function BillingPanel({ academyId, userId }: BillingPanelProps) {
               >
                 <div className="space-y-2">
                   <h3 className="font-display text-lg font-semibold text-zaltyko-navy">{resolvePlanTitle(plan)}</h3>
-                  <p className="text-sm text-muted-foreground">{resolvePlanDescription(plan)}</p>
+                  <p className="text-sm text-muted-foreground">{resolvePlanDescription(plan, athletesTermLower)}</p>
                   <p className="mt-2 font-display text-2xl font-bold text-zaltyko-navy">
                     {formatPlanPrice(plan)}{" "}
                     {plan.billingInterval ? (
@@ -404,7 +416,7 @@ export function BillingPanel({ academyId, userId }: BillingPanelProps) {
                 <div className="mt-4 flex flex-1 flex-col justify-end space-y-2">
                   {plan.athleteLimit != null && (
                     <p className="text-xs text-muted-foreground">
-                      Hasta {plan.athleteLimit} atletas incluidos
+                      Hasta {plan.athleteLimit} {athletesTermLower} incluidos
                     </p>
                   )}
                   <button
@@ -541,10 +553,9 @@ export function BillingPanel({ academyId, userId }: BillingPanelProps) {
 
         <TabsContent value="charges" className="space-y-6">
           <BillingRiskWidget academyId={academyId} />
-          <StudentChargesTab academyId={academyId} />
+          <StudentChargesTab academyId={academyId} sportConfigs={sportConfigs} />
         </TabsContent>
       </Tabs>
     </div>
   );
 }
-

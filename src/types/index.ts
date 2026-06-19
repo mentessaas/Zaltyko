@@ -101,12 +101,20 @@ export interface AthleteListItem {
   groupId?: string | null;
   groupName: string | null;
   groupColor: string | null;
+  primarySportConfigId?: string | null;
+  programCode?: string | null;
+  levelCode?: string | null;
+  categoryCode?: string | null;
 }
 
 export interface GroupOption {
   id: string;
   name: string;
   color: string | null;
+  sportConfigId?: string | null;
+  programCode?: string | null;
+  levelCode?: string | null;
+  categoryCode?: string | null;
 }
 
 export interface Registration {

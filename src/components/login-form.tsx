@@ -24,6 +24,10 @@ export function LoginForm() {
   const supabase = createClient();
   const toast = useToast();
   const noticeShownRef = useRef(false);
+  const callbackUrl = searchParams.get("callbackUrl");
+  const nextPath = callbackUrl?.startsWith("/") && !callbackUrl.startsWith("//")
+    ? callbackUrl
+    : "/auth/redirect";
 
   useEffect(() => {
     if (noticeShownRef.current) return;
@@ -34,6 +38,15 @@ export function LoginForm() {
         title: "Revisa tu correo",
         description: "Confirma tu cuenta desde el email y luego inicia sesión para continuar.",
         variant: "success",
+      });
+    }
+
+    if (searchParams.get("error") === "callback_failed") {
+      noticeShownRef.current = true;
+      toast.pushToast({
+        title: "No pudimos completar el acceso",
+        description: "Inténtalo de nuevo. Si el enlace expiró, solicita uno nuevo.",
+        variant: "error",
       });
     }
   }, [searchParams, toast]);
@@ -89,10 +102,11 @@ export function LoginForm() {
       } else {
         toast.pushToast({
           title: "Sesión iniciada",
-          description: "Redirigiendo al dashboard...",
+          description: "Redirigiendo a tu espacio de trabajo...",
           variant: "success",
         });
-        router.push("/dashboard");
+        router.push(nextPath);
+        router.refresh();
       }
     } finally {
       setLoading(false);
@@ -127,7 +141,12 @@ export function LoginForm() {
         throw new Error("Email inválido");
       }
       
-      const { error } = await supabase.auth.signInWithOtp({ email: normalizedEmail });
+      const { error } = await supabase.auth.signInWithOtp({
+        email: normalizedEmail,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextPath)}`,
+        },
+      });
       if (error) {
         toast.pushToast({
           title: "Error al enviar enlace mágico",
@@ -152,7 +171,7 @@ export function LoginForm() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextPath)}`,
         },
       });
       if (error) {
@@ -184,21 +203,21 @@ export function LoginForm() {
       />
       <AuthPageShell
         title="Bienvenido de nuevo"
-        description="Gestiona tu academia con precisión y elegancia."
+        description="Accede para gestionar atletas, clases, pagos y comunicación desde tu academia."
         footer={
           <>
             ¿Aún no tienes cuenta?{" "}
             <Link href="/auth/register" className="font-semibold text-zaltyko-teal hover:underline">
-              Regístrate como owner
+              Crea una cuenta
             </Link>
           </>
         }
-        sideTitle="Ordena tu academia. Eleva tu gestión."
-        sideDescription="Centraliza atletas, clases, pagos y comunicación en una experiencia clara, moderna y confiable."
+        sideTitle="Todo tu equipo en el lugar correcto"
+        sideDescription="Zaltyko lleva a cada usuario a su espacio: dirección, entrenadores, familias o administración."
         highlights={[
-          "Owners y admins vuelven a su academia activa.",
-          "Entrenadores aterrizan en su espacio operativo diario.",
-          "Atletas y tutores ven solo la información que necesitan.",
+          "Dirección y administración entran directamente al panel de la academia.",
+          "Entrenadores acceden a sus clases, atletas y tareas del día.",
+          "Familias y atletas ven solo la información que necesitan.",
         ]}
       >
         <form onSubmit={handleLogin} className="space-y-4">

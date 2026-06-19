@@ -14,6 +14,7 @@ interface WhatsAppMessage {
   content: string;
   recipientCount: number;
   status: MessageStatus;
+  sportConfigName?: string | null;
   createdAt: string;
   scheduledAt?: string;
   sentAt?: string;
@@ -106,6 +107,12 @@ export function WhatsAppHistory({ messages, isLoading, onLoadMore, hasMore }: Wh
                   <p className="font-medium truncate pr-4">{message.content}</p>
                   <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
                     <span>{message.recipientCount} destinatario(s)</span>
+                    {message.sportConfigName && (
+                      <>
+                        <span>•</span>
+                        <span>{message.sportConfigName}</span>
+                      </>
+                    )}
                     <span>•</span>
                     <span>
                       {new Date(message.scheduledAt || message.createdAt).toLocaleDateString("es-ES", {

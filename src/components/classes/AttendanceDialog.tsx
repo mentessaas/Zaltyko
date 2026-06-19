@@ -3,6 +3,8 @@
 import { FormEvent, useEffect, useMemo, useState, useTransition } from "react";
 
 import { Modal } from "@/components/ui/modal";
+import type { SportConfigOption } from "@/components/groups/types";
+import { getTerminology, getTerminologyForSportConfig } from "@/lib/sport-config/terminology";
 
 type AttendanceStatus = "present" | "absent" | "late" | "excused";
 
@@ -22,6 +24,8 @@ interface AthleteOption {
   groupId: string | null;
   groupName: string | null;
   groupColor: string | null;
+  primarySportConfigId?: string | null;
+  groupSportConfigId?: string | null;
 }
 
 interface AttendanceDialogProps {
@@ -30,6 +34,7 @@ interface AttendanceDialogProps {
   onClose: () => void;
   onSaved: () => void;
   athletes: AthleteOption[];
+  sportConfigs?: SportConfigOption[];
 }
 
 interface AttendanceRecord {
@@ -44,11 +49,13 @@ export function AttendanceDialog({
   onClose,
   onSaved,
   athletes,
+  sportConfigs = [],
 }: AttendanceDialogProps) {
   const [statusMap, setStatusMap] = useState<Record<string, AttendanceStatus>>({});
   const [notesMap, setNotesMap] = useState<Record<string, string>>({});
   const [search, setSearch] = useState("");
   const [groupFilter, setGroupFilter] = useState<string>("");
+  const [sportConfigFilter, setSportConfigFilter] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -67,7 +74,7 @@ export function AttendanceDialog({
         const data = await response.json();
         const newStatus: Record<string, AttendanceStatus> = {};
         const newNotes: Record<string, string> = {};
-        (data.items as AttendanceRecord[]).forEach((record) => {
+        ((data.data?.items ?? data.items ?? []) as AttendanceRecord[]).forEach((record) => {
           newStatus[record.athleteId] = record.status;
           if (record.notes) {
             newNotes[record.athleteId] = record.notes;
@@ -94,6 +101,7 @@ export function AttendanceDialog({
       setNotesMap({});
       setError(null);
       setGroupFilter("");
+      setSportConfigFilter("");
     }
   }, [open]);
 
@@ -108,12 +116,22 @@ export function AttendanceDialog({
       if (groupFilter && athlete.groupId !== groupFilter) {
         return false;
       }
+      const athleteSportConfigId = athlete.primarySportConfigId ?? athlete.groupSportConfigId ?? "";
+      if (sportConfigFilter && athleteSportConfigId !== sportConfigFilter) {
+        return false;
+      }
       if (!needle) {
         return true;
       }
       return athlete.name.toLowerCase().includes(needle);
     });
-  }, [athletes, search, groupFilter]);
+  }, [athletes, search, groupFilter, sportConfigFilter]);
+
+  const terms = getTerminologyForSportConfig(sportConfigs, sportConfigFilter);
+  const athleteTermLower = terms.athlete.toLowerCase();
+  const athleteTermPluralLower = terms.athletes.toLowerCase();
+  const groupTermLower = terms.group.toLowerCase();
+  const attendanceTermLower = terms.attendance.toLowerCase();
 
   const groupOptions = useMemo(() => {
     const map = new Map<string, { id: string; name: string; color: string | null }>();
@@ -121,13 +139,32 @@ export function AttendanceDialog({
       if (athlete.groupId && !map.has(athlete.groupId)) {
         map.set(athlete.groupId, {
           id: athlete.groupId,
-          name: athlete.groupName ?? "Grupo sin nombre",
+          name: athlete.groupName ?? `${terms.group} sin nombre`,
           color: athlete.groupColor ?? null,
         });
       }
     });
     return Array.from(map.values());
+  }, [athletes, terms.group]);
+
+  const sportConfigOptions = useMemo(() => {
+    const ids = new Set<string>();
+    athletes.forEach((athlete) => {
+      const sportConfigId = athlete.primarySportConfigId ?? athlete.groupSportConfigId;
+      if (sportConfigId) ids.add(sportConfigId);
+    });
+    return Array.from(ids);
   }, [athletes]);
+  const sportConfigLabelById = useMemo(
+    () =>
+      new Map(
+        sportConfigs.map((config) => [
+          config.id,
+          `${config.branchName} · ${config.disciplineName}`,
+        ])
+      ),
+    [sportConfigs]
+  );
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -145,7 +182,7 @@ export function AttendanceDialog({
       }));
 
     if (entries.length === 0) {
-      setError("Registra al menos un atleta para guardar.");
+      setError(`Registra al menos un ${athleteTermLower} para guardar.`);
       return;
     }
 
@@ -164,13 +201,13 @@ export function AttendanceDialog({
 
         if (!response.ok) {
           const data = await response.json().catch(() => ({}));
-          throw new Error(data.error ?? "No se pudo guardar la asistencia.");
+          throw new Error(data.error ?? `No se pudo guardar la ${attendanceTermLower}.`);
         }
 
         onSaved();
         onClose();
       } catch (err: any) {
-        setError(err.message ?? "Error al guardar la asistencia.");
+        setError(err.message ?? `Error al guardar la ${attendanceTermLower}.`);
       }
     });
   };
@@ -179,8 +216,8 @@ export function AttendanceDialog({
     <Modal
       open={open}
       onClose={handleClose}
-      title="Registrar asistencia"
-      description="Marca el estado de cada atleta para esta sesión."
+      title={`Registrar ${attendanceTermLower}`}
+      description={`Marca el estado de cada ${athleteTermLower} para esta sesión.`}
       widthClassName="w-full max-w-4xl"
       footer={
         <div className="flex justify-end gap-2">
@@ -198,7 +235,7 @@ export function AttendanceDialog({
             className="min-h-11 rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white shadow-soft transition hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-60"
             disabled={isPending}
           >
-            {isPending ? "Guardando…" : "Guardar asistencia"}
+            {isPending ? "Guardando…" : `Guardar ${attendanceTermLower}`}
           </button>
         </div>
       }
@@ -213,7 +250,7 @@ export function AttendanceDialog({
         <div className="flex flex-wrap items-center gap-3">
           <input
             type="search"
-            placeholder="Buscar atleta"
+            placeholder={`Buscar ${athleteTermLower}`}
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             className={`${fieldClassName} min-w-[220px] flex-1`}
@@ -223,13 +260,27 @@ export function AttendanceDialog({
             onChange={(event) => setGroupFilter(event.target.value)}
             className={`${fieldClassName} min-w-[200px]`}
           >
-            <option value="">Todos los grupos</option>
+            <option value="">Todos los {groupTermLower}s</option>
             {groupOptions.map((group) => (
               <option key={group.id} value={group.id}>
                 {group.name}
               </option>
             ))}
           </select>
+          {sportConfigOptions.length > 1 && (
+            <select
+              value={sportConfigFilter}
+              onChange={(event) => setSportConfigFilter(event.target.value)}
+              className={`${fieldClassName} min-w-[200px]`}
+            >
+              <option value="">Todas las ramas</option>
+              {sportConfigOptions.map((sportConfigId) => (
+                <option key={sportConfigId} value={sportConfigId}>
+                  {sportConfigLabelById.get(sportConfigId) ?? `Rama ${sportConfigId.slice(0, 8)}`}
+                </option>
+              ))}
+            </select>
+          )}
           <button
             type="button"
             onClick={() => {
@@ -248,7 +299,7 @@ export function AttendanceDialog({
         <div className="max-h-[420px] space-y-3 overflow-y-auto pr-2">
           {filteredAthletes.length === 0 && (
             <p className="text-sm text-zaltyko-text-secondary">
-              No se encontraron atletas con ese criterio.
+              No se encontraron {athleteTermPluralLower} con ese criterio.
             </p>
           )}
           {filteredAthletes.map((athlete) => (
@@ -320,4 +371,3 @@ export function AttendanceDialog({
     </Modal>
   );
 }
-

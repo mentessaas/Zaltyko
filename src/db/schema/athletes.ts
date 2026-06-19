@@ -3,6 +3,7 @@ import { date, index, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core
 import { academies } from "./academies";
 import { groups } from "./groups";
 import { profiles } from "./profiles";
+import { academySportConfigs } from "./sport-config";
 import { templates } from "./templates/templates";
 
 export const athletes = pgTable(
@@ -18,6 +19,12 @@ export const athletes = pgTable(
     dob: date("dob"),
     level: text("level"),
     status: text("status").notNull().default("active"),
+    primarySportConfigId: uuid("primary_sport_config_id").references(() => academySportConfigs.id, {
+      onDelete: "set null",
+    }),
+    programCode: text("program_code"),
+    levelCode: text("level_code"),
+    categoryCode: text("category_code"),
     /**
      * @deprecated Usar groupAthletes en lugar de este campo para la pertenencia a grupos
      */
@@ -38,8 +45,8 @@ export const athletes = pgTable(
     userIdIdx: index("athletes_user_id_idx").on(table.userId),
     deletedAtIdx: index("athletes_deleted_at_idx").on(table.deletedAt),
     statusIdx: index("athletes_status_idx").on(table.status),
+    primarySportConfigIdx: index("athletes_primary_sport_config_idx").on(table.primarySportConfigId),
     // Índice compuesto para queries comunes de académicos con filtro de status
     academyStatusIdx: index("athletes_academy_status_idx").on(table.academyId, table.status),
   })
 );
-

@@ -8,6 +8,10 @@ export interface AthleteCSVRow {
     fechanacimiento?: string; // Alternative casing from CSV
     nivel?: string;
     grupo?: string;
+    sportconfigcode?: string;
+    programcode?: string;
+    levelcode?: string;
+    categorycode?: string;
 }
 
 export interface ParsedAthlete {
@@ -139,14 +143,29 @@ function isValidDate(dateString: string): boolean {
  * Generate CSV template content
  */
 export function generateCSVTemplate(): string {
-    const headers = ["Nombre", "Apellido", "Email", "Fecha Nacimiento", "Nivel", "Grupo (opcional)"];
+    const headers = [
+        "Nombre",
+        "Apellido",
+        "Email",
+        "Fecha Nacimiento",
+        "Nivel",
+        "Grupo (opcional)",
+        "sportConfigCode",
+        "programCode",
+        "levelCode",
+        "categoryCode",
+    ];
     const exampleRow = [
         "Juan",
         "Pérez",
         "juan@email.com",
         "2010-05-15",
-        "Principiante",
-        "Grupo A",
+        "Base 3",
+        "Artística Femenina Base 3",
+        "ES:artistic_female",
+        "base",
+        "base_3",
+        "infantil",
     ];
 
     return `${headers.join(",")}\n${exampleRow.join(",")}`;

@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
+import { getTerminologyForSportConfig } from "@/lib/sport-config/terminology";
 
 interface BillingItem {
   id: string;
@@ -18,6 +19,14 @@ interface AthleteOption {
 
 interface CreateChargeDialogProps {
   academyId: string;
+  sportConfigId?: string | null;
+  sportConfigs?: Array<{
+    id: string;
+    name: string;
+    disciplineName: string;
+    branchName: string;
+    terminology?: Record<string, string>;
+  }>;
   open: boolean;
   onClose: () => void;
   onCreated: () => void;
@@ -26,6 +35,8 @@ interface CreateChargeDialogProps {
 
 export function CreateChargeDialog({
   academyId,
+  sportConfigId,
+  sportConfigs = [],
   open,
   onClose,
   onCreated,
@@ -46,6 +57,8 @@ export function CreateChargeDialog({
   const [athletes, setAthletes] = useState<AthleteOption[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const terms = getTerminologyForSportConfig(sportConfigs, sportConfigId);
+  const athleteTermLower = terms.athlete.toLowerCase();
 
   useEffect(() => {
     if (!open) return;
@@ -66,11 +79,16 @@ export function CreateChargeDialog({
       .catch(console.error);
 
     // Load athletes
-    fetch(`/api/athletes?academyId=${academyId}&limit=1000`)
+    const athleteParams = new URLSearchParams({
+      academyId,
+      limit: "1000",
+      ...(sportConfigId && { sportConfigId }),
+    });
+    fetch(`/api/athletes?${athleteParams}`)
       .then((res) => res.json())
       .then((data) => setAthletes(data.items || []))
       .catch(console.error);
-  }, [open, academyId, preselectedAthleteId]);
+  }, [open, academyId, preselectedAthleteId, sportConfigId]);
 
   // Helper para formatear periodo a nombre de mes en español
   const formatPeriodToMonthName = (periodStr: string): string => {
@@ -164,7 +182,7 @@ export function CreateChargeDialog({
   return (
     <Modal
       title="Nuevo cargo"
-      description="Crea un nuevo cargo para un atleta"
+      description={`Crea un nuevo cargo para un ${athleteTermLower}`}
       open={open}
       onClose={onClose}
       footer={
@@ -186,7 +204,7 @@ export function CreateChargeDialog({
         )}
 
         <div>
-          <label className="block text-sm font-medium mb-1">Atleta *</label>
+          <label className="block text-sm font-medium mb-1">{terms.athlete} *</label>
           <select
             value={athleteId}
             onChange={(e) => setAthleteId(e.target.value)}
@@ -194,7 +212,7 @@ export function CreateChargeDialog({
             required
             disabled={!!preselectedAthleteId}
           >
-            <option value="">Seleccionar atleta</option>
+            <option value="">Seleccionar {athleteTermLower}</option>
             {athletes.map((a) => (
               <option key={a.id} value={a.id}>
                 {a.name}
@@ -229,7 +247,7 @@ export function CreateChargeDialog({
               setLabelWasManuallyEdited(true);
             }}
             className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-            placeholder="Ej: Cuota grupo Principiantes – noviembre 2025"
+            placeholder="Ej: Cuota mensual – noviembre 2025"
             required
           />
         </div>
@@ -298,4 +316,3 @@ export function CreateChargeDialog({
     </Modal>
   );
 }
-

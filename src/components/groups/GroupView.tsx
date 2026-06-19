@@ -395,6 +395,7 @@ export function GroupView({ academyId, group, availableAthletes, availableCoache
         coachId={detail.coachId}
         assistantIds={detail.assistantIds}
         coaches={availableCoaches}
+        sportConfigId={detail.sportConfigId}
         onClose={() => setCoachesDialogOpen(false)}
         onUpdated={async (coach, assistants) => {
           const coachOption = coach ? availableCoaches.find((c) => c.id === coach) ?? null : null;

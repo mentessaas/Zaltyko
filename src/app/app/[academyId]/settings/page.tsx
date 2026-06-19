@@ -11,6 +11,7 @@ import {
   CheckCircle,
   AlertCircle,
   Loader2,
+  Eye,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,8 @@ import { SettingsLayout } from "@/components/settings/SettingsLayout";
 import { BrandingEditor, type BrandingData } from "@/components/settings/BrandingEditor";
 import { ScheduleEditor, type ScheduleData } from "@/components/settings/ScheduleEditor";
 import { SocialLinksEditor, type SocialLinksData } from "@/components/settings/SocialLinksEditor";
+import { SportConfigurationDashboard } from "@/components/settings/SportConfigurationDashboard";
+import { SportLegacyMigrationAssistant } from "@/components/settings/SportLegacyMigrationAssistant";
 import { TimezoneSelector } from "@/components/settings/TimezoneSelector";
 import { useAcademyContext } from "@/hooks/use-academy-context";
 import {
@@ -37,6 +40,12 @@ import {
   getRegionPlaceholder,
 } from "@/lib/countryRegions";
 import { findCitiesByRegion } from "@/lib/citiesByRegion";
+import { TERMINOLOGY_KEYS, getSportConfigSeedByVariant } from "@/lib/sport-config/catalog";
+import {
+  getTerminology,
+  getTerminologyWarnings,
+  TERMINOLOGY_KEY_LABELS,
+} from "@/lib/sport-config/terminology";
 
 interface AcademySettings {
   // Basic info
@@ -49,6 +58,24 @@ interface AcademySettings {
   region: string;
   city: string;
   disciplineVariant: string;
+  activeDisciplineVariants: string[];
+  activeProgramCodesByVariant: Record<string, string[]>;
+  activeApparatusCodesByVariant: Record<string, string[]>;
+  terminologyOverridesByVariant: Record<string, Record<string, string>>;
+  sportConfigs: Array<{
+    id: string;
+    name: string;
+    defaultDisciplineVariant: string;
+    disciplineName: string;
+    branchName: string;
+    activeProgramCodes?: string[] | null;
+    activeApparatusCodes?: string[] | null;
+    usedProgramCodes?: string[];
+    usedApparatusCodes?: string[];
+    apparatus: Array<{ code: string; name: string }>;
+    programs: Array<{ code: string; name: string }>;
+    terminology: Record<string, string>;
+  }>;
   federationConfigVersion: string;
   specializationStatus: string;
 
@@ -82,6 +109,11 @@ const DEFAULT_SETTINGS: AcademySettings = {
   region: "",
   city: "",
   disciplineVariant: "artistic_female",
+  activeDisciplineVariants: ["artistic_female"],
+  activeProgramCodesByVariant: {},
+  activeApparatusCodesByVariant: {},
+  terminologyOverridesByVariant: {},
+  sportConfigs: [],
   federationConfigVersion: "legacy-default-v1",
   specializationStatus: "legacy",
   branding: {
@@ -121,6 +153,8 @@ const DISCIPLINE_VARIANTS = [
   { value: "general", label: "Mixta artística/rítmica" },
 ];
 
+const MULTI_BRANCH_VARIANTS = DISCIPLINE_VARIANTS.filter((type) => type.value !== "general");
+
 export default function SettingsPage() {
   const context = useAcademyContext();
   const [loading, setLoading] = useState(true);
@@ -138,6 +172,36 @@ export default function SettingsPage() {
     () => findCitiesByRegion(settings.countryCode.toLowerCase(), settings.region),
     [settings.countryCode, settings.region]
   );
+  const activeSportConfigEditors = useMemo(
+    () =>
+      settings.activeDisciplineVariants.map((variant) => {
+        const seed = getSportConfigSeedByVariant(settings.countryCode, variant);
+        const config = settings.sportConfigs.find((item) => item.defaultDisciplineVariant === variant);
+        return {
+          variant,
+          seed,
+          config,
+          label: config?.branchName
+            ? `${config.branchName} · ${config.disciplineName}`
+            : seed?.name ?? variant,
+          programs: seed?.programs ?? config?.programs ?? [],
+          apparatus: seed?.evaluation.apparatus.map((item) => ({ code: item.code, name: item.label })) ?? config?.apparatus ?? [],
+          terminology:
+            settings.terminologyOverridesByVariant[variant] ??
+            config?.terminology ??
+            seed?.terminology ??
+            {},
+          usedProgramCodes: config?.usedProgramCodes ?? [],
+          usedApparatusCodes: config?.usedApparatusCodes ?? [],
+        };
+      }),
+    [
+      settings.activeDisciplineVariants,
+      settings.countryCode,
+      settings.sportConfigs,
+      settings.terminologyOverridesByVariant,
+    ]
+  );
 
   // Cargar settings existentes
   useEffect(() => {
@@ -150,9 +214,30 @@ export default function SettingsPage() {
         if (response.ok) {
           const payload = await response.json();
           const data = payload.data ?? payload;
+          const activeProgramCodesByVariant = Object.fromEntries(
+            (data.sportConfigs ?? []).map((config: AcademySettings["sportConfigs"][number]) => [
+              config.defaultDisciplineVariant,
+              config.activeProgramCodes ?? config.programs.map((program) => program.code),
+            ])
+          );
+          const activeApparatusCodesByVariant = Object.fromEntries(
+            (data.sportConfigs ?? []).map((config: AcademySettings["sportConfigs"][number]) => [
+              config.defaultDisciplineVariant,
+              config.activeApparatusCodes ?? config.apparatus.map((apparatus) => apparatus.code),
+            ])
+          );
+          const terminologyOverridesByVariant = Object.fromEntries(
+            (data.sportConfigs ?? []).map((config: AcademySettings["sportConfigs"][number]) => [
+              config.defaultDisciplineVariant,
+              config.terminology,
+            ])
+          );
           setSettings({
             ...DEFAULT_SETTINGS,
             ...data,
+            activeProgramCodesByVariant,
+            activeApparatusCodesByVariant,
+            terminologyOverridesByVariant,
             branding: { ...DEFAULT_SETTINGS.branding, ...data.branding },
             schedule: { ...DEFAULT_SETTINGS.schedule, ...data.schedule },
             contact: { ...DEFAULT_SETTINGS.contact, ...data.contact },
@@ -201,6 +286,57 @@ export default function SettingsPage() {
 
   const updateSettings = <K extends keyof AcademySettings>(key: K, value: AcademySettings[K]) => {
     setSettings((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const toggleActiveDisciplineVariant = (value: string) => {
+    setSettings((prev) => {
+      const current = new Set(prev.activeDisciplineVariants);
+      if (current.has(value)) {
+        current.delete(value);
+      } else {
+        current.add(value);
+      }
+      const activeDisciplineVariants = Array.from(current);
+      return {
+        ...prev,
+        activeDisciplineVariants: activeDisciplineVariants.length > 0 ? activeDisciplineVariants : [value],
+        disciplineVariant: activeDisciplineVariants[0] ?? prev.disciplineVariant,
+      };
+    });
+  };
+
+  const toggleSportConfigCode = (
+    variant: string,
+    code: string,
+    key: "activeProgramCodesByVariant" | "activeApparatusCodesByVariant"
+  ) => {
+    setSettings((prev) => {
+      const selected = prev[key][variant] ?? [];
+      if (selected.includes(code) && selected.length <= 1) return prev;
+
+      return {
+        ...prev,
+        [key]: {
+          ...prev[key],
+          [variant]: selected.includes(code)
+            ? selected.filter((item) => item !== code)
+            : [...selected, code],
+        },
+      };
+    });
+  };
+
+  const updateTerminologyOverride = (variant: string, key: string, value: string) => {
+    setSettings((prev) => ({
+      ...prev,
+      terminologyOverridesByVariant: {
+        ...prev.terminologyOverridesByVariant,
+        [variant]: {
+          ...(prev.terminologyOverridesByVariant[variant] ?? {}),
+          [key]: value,
+        },
+      },
+    }));
   };
 
   if (loading) {
@@ -316,6 +452,169 @@ export default function SettingsPage() {
                     Esta especialización define niveles, aparatos, evaluaciones y etiquetas visibles en la operación diaria.
                   </p>
                 </div>
+
+                <div className="space-y-3 rounded-xl border border-zaltyko-mist bg-zaltyko-warm-white p-4">
+                  <div>
+                    <Label>Ramas activas</Label>
+                    <p className="text-xs text-zaltyko-text-secondary">
+                      Una misma academia puede operar varias ramas sin mezclar aparatos, programas ni terminología.
+                    </p>
+                  </div>
+                  <div className="grid gap-2 md:grid-cols-3">
+                    {MULTI_BRANCH_VARIANTS.map((type) => (
+                      <label
+                        key={type.value}
+                        className="flex items-start gap-2 rounded-lg border border-zaltyko-mist bg-white p-3 text-sm"
+                      >
+                        <input
+                          type="checkbox"
+                          className="mt-1"
+                          checked={settings.activeDisciplineVariants.includes(type.value)}
+                          onChange={() => toggleActiveDisciplineVariant(type.value)}
+                        />
+                        <span>
+                          <span className="block font-medium text-zaltyko-navy">{type.label}</span>
+                          <span className="text-xs text-zaltyko-text-secondary">
+                            {settings.sportConfigs.find((config) => config.defaultDisciplineVariant === type.value)
+                              ?.apparatus.map((item) => item.name)
+                              .slice(0, 4)
+                              .join(", ") || "Se precargará al guardar"}
+                          </span>
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-3 rounded-xl border border-zaltyko-mist bg-white p-4">
+                  <div>
+                    <Label>Programas y aparatos activos por rama</Label>
+                    <p className="text-xs text-zaltyko-text-secondary">
+                      Estos códigos controlan qué opciones aparecen al crear grupos, clases, evaluaciones y resultados.
+                    </p>
+                  </div>
+                  <div className="grid gap-3">
+                    {activeSportConfigEditors.map((editor) => (
+                      <div key={editor.variant} className="space-y-3 rounded-lg border border-zaltyko-mist bg-zaltyko-warm-white p-4">
+                        <div>
+                          <p className="font-medium text-zaltyko-navy">{editor.label}</p>
+                          <p className="text-xs text-zaltyko-text-secondary">
+                            Mantén al menos un programa y un aparato activo.
+                          </p>
+                        </div>
+
+                        <div className="space-y-2">
+                          <p className="text-xs font-medium uppercase text-zaltyko-text-secondary">Programas</p>
+                          <div className="flex flex-wrap gap-2">
+                            {editor.programs.map((program) => {
+                              const selected = (settings.activeProgramCodesByVariant[editor.variant] ?? []).includes(program.code);
+                              const locked = selected && editor.usedProgramCodes.includes(program.code);
+                              return (
+                                <label
+                                  key={program.code}
+                                  className={`flex items-center gap-2 rounded-full border px-3 py-1 text-xs ${
+                                    locked
+                                      ? "border-zaltyko-teal/30 bg-zaltyko-teal/10 text-zaltyko-navy"
+                                      : "border-zaltyko-mist bg-white text-zaltyko-text-secondary"
+                                  }`}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={selected}
+                                    disabled={locked}
+                                    title={locked ? "Este programa ya está en uso y no se puede desactivar desde aquí." : undefined}
+                                    onChange={() =>
+                                      toggleSportConfigCode(editor.variant, program.code, "activeProgramCodesByVariant")
+                                    }
+                                  />
+                                  {program.name}
+                                  {locked && <span className="font-medium text-zaltyko-teal">en uso</span>}
+                                </label>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <p className="text-xs font-medium uppercase text-zaltyko-text-secondary">Aparatos</p>
+                          <div className="flex flex-wrap gap-2">
+                            {editor.apparatus.map((apparatus) => {
+                              const selected = (settings.activeApparatusCodesByVariant[editor.variant] ?? []).includes(apparatus.code);
+                              const locked = selected && editor.usedApparatusCodes.includes(apparatus.code);
+                              return (
+                                <label
+                                  key={apparatus.code}
+                                  className={`flex items-center gap-2 rounded-full border px-3 py-1 text-xs ${
+                                    locked
+                                      ? "border-zaltyko-teal/30 bg-zaltyko-teal/10 text-zaltyko-navy"
+                                      : "border-zaltyko-mist bg-white text-zaltyko-text-secondary"
+                                  }`}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={selected}
+                                    disabled={locked}
+                                    title={locked ? "Este aparato ya está en uso y no se puede desactivar desde aquí." : undefined}
+                                    onChange={() =>
+                                      toggleSportConfigCode(editor.variant, apparatus.code, "activeApparatusCodesByVariant")
+                                    }
+                                  />
+                                  {apparatus.name}
+                                  {locked && <span className="font-medium text-zaltyko-teal">en uso</span>}
+                                </label>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        <div className="space-y-3 rounded-lg border border-zaltyko-mist bg-white p-3">
+                          <div>
+                            <p className="text-xs font-medium uppercase text-zaltyko-text-secondary">
+                              Terminología visible
+                            </p>
+                            <p className="text-xs text-zaltyko-text-secondary">
+                              Estos términos se aplican solo a esta rama dentro de esta academia.
+                            </p>
+                          </div>
+                          <div className="grid gap-3 md:grid-cols-2">
+                            {TERMINOLOGY_KEYS.map((key) => (
+                              <div key={key} className="space-y-1">
+                                <Label htmlFor={`terminology-${editor.variant}-${key}`} className="text-xs">
+                                  {TERMINOLOGY_KEY_LABELS[key]}
+                                </Label>
+                                <Input
+                                  id={`terminology-${editor.variant}-${key}`}
+                                  value={editor.terminology[key] ?? ""}
+                                  maxLength={80}
+                                  onChange={(event) =>
+                                    updateTerminologyOverride(editor.variant, key, event.target.value)
+                                  }
+                                />
+                              </div>
+                            ))}
+                          </div>
+                          <TerminologyPreview terminology={editor.terminology} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {context?.academyId && (
+                  <SportConfigurationDashboard academyId={context.academyId} />
+                )}
+
+                {context?.academyId && settings.sportConfigs.length > 0 && (
+                  <SportLegacyMigrationAssistant
+                    academyId={context.academyId}
+                    sportConfigs={settings.sportConfigs.map((config) => ({
+                      id: config.id,
+                      branchName: config.branchName,
+                      disciplineName: config.disciplineName,
+                      terminology: config.terminology,
+                    }))}
+                  />
+                )}
 
                 <div className="grid gap-4 md:grid-cols-3">
                   <div className="space-y-2">
@@ -518,5 +817,66 @@ export default function SettingsPage() {
         </Tabs>
       </div>
     </SettingsLayout>
+  );
+}
+
+function TerminologyPreview({ terminology }: { terminology: Record<string, string> }) {
+  const terms = getTerminology({ terminology });
+  const warnings = getTerminologyWarnings({ terminology });
+  const lower = (value: string) => value.toLocaleLowerCase();
+
+  return (
+    <div className="rounded-lg border border-zaltyko-mist bg-zaltyko-warm-white p-3">
+      <div className="flex items-center gap-2 text-xs font-medium uppercase text-zaltyko-text-secondary">
+        <Eye className="h-3.5 w-3.5" />
+        Vista previa operativa
+      </div>
+
+      <div className="mt-3 grid gap-3 lg:grid-cols-3">
+        <div className="rounded-lg border border-zaltyko-mist bg-white p-3">
+          <p className="text-xs font-medium text-zaltyko-text-secondary">Acciones</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <span className="rounded-md bg-zaltyko-teal px-2 py-1 text-xs font-medium text-white">
+              Nuevo {lower(terms.athlete)}
+            </span>
+            <span className="rounded-md border border-zaltyko-mist px-2 py-1 text-xs text-zaltyko-navy">
+              Crear {lower(terms.group)}
+            </span>
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-zaltyko-mist bg-white p-3">
+          <p className="text-xs font-medium text-zaltyko-text-secondary">Listado</p>
+          <div className="mt-2 grid grid-cols-3 gap-1 text-[11px] text-zaltyko-text-secondary">
+            <span>{terms.athlete}</span>
+            <span>{terms.group}</span>
+            <span>{terms.apparatus}</span>
+          </div>
+          <div className="mt-1 grid grid-cols-3 gap-1 rounded bg-zaltyko-warm-white px-2 py-1 text-xs text-zaltyko-navy">
+            <span>Lucía</span>
+            <span>{terms.team}</span>
+            <span>{terms.routine}</span>
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-zaltyko-mist bg-white p-3">
+          <p className="text-xs font-medium text-zaltyko-text-secondary">Estados</p>
+          <p className="mt-2 text-xs text-zaltyko-navy">
+            Sin {lower(terms.group)} asignado
+          </p>
+          <p className="mt-1 text-xs text-zaltyko-text-secondary">
+            {terms.license}: pendiente · {terms.attendance}: registrada
+          </p>
+        </div>
+      </div>
+
+      {warnings.length > 0 && (
+        <div className="mt-3 rounded-lg border border-zaltyko-coral/25 bg-zaltyko-coral/10 p-3 text-xs text-zaltyko-coral">
+          {warnings.map((warning) => (
+            <p key={warning}>{warning}</p>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

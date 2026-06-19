@@ -1,9 +1,11 @@
 "use client";
 
-import { FormEvent, useState, useTransition } from "react";
+import { FormEvent, useMemo, useState, useTransition } from "react";
 
 import { Modal } from "@/components/ui/modal";
 import { createClient } from "@/lib/supabase/client";
+import type { SportConfigOption } from "@/components/groups/types";
+import { getTerminology } from "@/lib/sport-config/terminology";
 
 const fieldClassName =
   "w-full rounded-[10px] border border-zaltyko-mist bg-white px-3 py-2 text-sm shadow-none focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15";
@@ -12,12 +14,15 @@ const labelClassName = "text-xs font-medium uppercase tracking-[0.05em] text-zal
 interface CoachOption {
   id: string;
   name: string;
+  sportConfigIds?: string[];
 }
 
 interface CreateSessionDialogProps {
   classId: string;
   academyId: string;
   coaches: CoachOption[];
+  sportConfigId?: string | null;
+  sportConfigs?: SportConfigOption[];
   open: boolean;
   onClose: () => void;
   onCreated: () => void;
@@ -27,6 +32,8 @@ export function CreateSessionDialog({
   classId,
   academyId,
   coaches,
+  sportConfigId,
+  sportConfigs = [],
   open,
   onClose,
   onCreated,
@@ -39,6 +46,19 @@ export function CreateSessionDialog({
   const [notes, setNotes] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const compatibleCoaches = useMemo(
+    () =>
+      sportConfigId
+        ? coaches.filter((coach) => !coach.sportConfigIds?.length || coach.sportConfigIds.includes(sportConfigId))
+        : coaches,
+    [coaches, sportConfigId]
+  );
+  const selectedSportConfig = useMemo(
+    () => sportConfigs.find((config) => config.id === sportConfigId) ?? null,
+    [sportConfigId, sportConfigs]
+  );
+  const terms = getTerminology(selectedSportConfig);
+  const coachTermLower = terms.coach.toLowerCase();
 
   const resetForm = () => {
     setSessionDate("");
@@ -110,7 +130,7 @@ export function CreateSessionDialog({
       open={open}
       onClose={handleClose}
       title="Programar sesión"
-      description="Define la próxima sesión de esta clase y asigna un coach responsable."
+      description={`Define la próxima sesión y asigna ${coachTermLower} responsable.`}
       footer={
         <div className="flex justify-end gap-2">
           <button
@@ -172,14 +192,14 @@ export function CreateSessionDialog({
         </div>
 
         <div className="space-y-1">
-          <label className={labelClassName}>Coach responsable</label>
+          <label className={labelClassName}>{terms.coach} responsable</label>
           <select
             value={coachId}
             onChange={(event) => setCoachId(event.target.value)}
             className={fieldClassName}
           >
             <option value="">Sin asignar</option>
-            {coaches.map((coach) => (
+            {compatibleCoaches.map((coach) => (
               <option key={coach.id} value={coach.id}>
                 {coach.name}
               </option>
@@ -215,4 +235,3 @@ export function CreateSessionDialog({
     </Modal>
   );
 }
-

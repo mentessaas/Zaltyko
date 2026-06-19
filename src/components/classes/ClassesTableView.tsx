@@ -10,6 +10,8 @@ import { RecurringIndicator } from "@/components/shared/RecurringIndicator";
 import { AlertBadge } from "@/components/shared/AlertBadge";
 import { useAcademyContext } from "@/hooks/use-academy-context";
 import { getStarterClassPresets, getStarterGroupPresets } from "@/lib/specialization/operational-presets";
+import type { SportConfigOption } from "@/components/groups/types";
+import { getTerminologyForSportConfig } from "@/lib/sport-config/terminology";
 
 const WEEKDAY_LABELS: Record<number, string> = {
   0: "Domingo",
@@ -25,6 +27,7 @@ interface CoachOption {
   id: string;
   name: string;
   email: string | null;
+  sportConfigIds?: string[];
 }
 
 interface ClassItem {
@@ -36,6 +39,7 @@ interface ClassItem {
   capacity: number | null;
   technicalFocus?: string | null;
   apparatus?: string[];
+  sportConfigId?: string | null;
   autoGenerateSessions: boolean;
   allowsFreeTrial: boolean;
   waitingListEnabled: boolean;
@@ -48,6 +52,7 @@ interface ClassItem {
     id: string;
     name: string;
     color: string | null;
+    sportConfigId?: string | null;
   }[];
 }
 
@@ -59,10 +64,13 @@ interface ClassesTableViewProps {
     id: string;
     name: string;
     color: string | null;
+    sportConfigId?: string | null;
   }[];
+  sportConfigs?: SportConfigOption[];
   filters: {
     q?: string;
     groupId?: string;
+    sportConfigId?: string;
   };
 }
 
@@ -71,6 +79,7 @@ export function ClassesTableView({
   classes,
   availableCoaches,
   groupOptions,
+  sportConfigs = [],
   filters,
 }: ClassesTableViewProps) {
   const { specialization } = useAcademyContext();
@@ -79,6 +88,7 @@ export function ClassesTableView({
   const pathname = usePathname();
   const [query, setQuery] = useState(filters.q ?? "");
   const [groupFilter, setGroupFilter] = useState(filters.groupId ?? "");
+  const [sportConfigFilter, setSportConfigFilter] = useState(filters.sportConfigId ?? "");
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<ClassItem | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -97,6 +107,12 @@ export function ClassesTableView({
       params.set("group", groupFilter);
     } else {
       params.delete("group");
+    }
+
+    if (sportConfigFilter) {
+      params.set("sportConfigId", sportConfigFilter);
+    } else {
+      params.delete("sportConfigId");
     }
 
     startTransition(() => {
@@ -130,13 +146,21 @@ export function ClassesTableView({
     return `${days} · ${time}`;
   };
 
-  const hasActiveFilters = filters.q || filters.groupId;
+  const hasActiveFilters = filters.q || filters.groupId || filters.sportConfigId;
+  const terms = getTerminologyForSportConfig(sportConfigs, sportConfigFilter || filters.sportConfigId);
+  const classTerm = specialization.labels.classLabel;
+  const classTermLower = classTerm.toLowerCase();
+  const groupTermLower = terms.group.toLowerCase();
+  const coachTermPluralLower = `${terms.coach.toLowerCase()}s`;
   const isEmpty = classes.length === 0;
   const starterClassNames = new Set(
     getStarterClassPresets(specialization, getStarterGroupPresets(specialization)).map((preset) => preset.name)
   );
   const apparatusLabels = Object.fromEntries(
     specialization.evaluation.apparatus.map((item) => [item.code, item.label])
+  );
+  const sportConfigNameById = new Map(
+    sportConfigs.map((config) => [config.id, `${config.branchName} · ${config.disciplineName}`])
   );
 
   return (
@@ -155,13 +179,32 @@ export function ClassesTableView({
             onChange={(event) => setGroupFilter(event.target.value)}
             className="min-h-11 min-w-[200px] rounded-[10px] border border-zaltyko-mist bg-white px-3 py-2 text-sm focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15"
           >
-            <option value="">Todos los grupos</option>
+            <option value="">Todos los {groupTermLower}s</option>
             {groupOptions.map((group) => (
               <option key={group.id} value={group.id}>
                 {group.name}
               </option>
             ))}
           </select>
+          <select
+            value={sportConfigFilter}
+            onChange={(event) => setSportConfigFilter(event.target.value)}
+            className="min-h-11 min-w-[210px] rounded-[10px] border border-zaltyko-mist bg-white px-3 py-2 text-sm focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15"
+          >
+            <option value="">Todas las ramas</option>
+            {sportConfigs.map((config) => (
+              <option key={config.id} value={config.id}>
+                {config.branchName} · {config.disciplineName}
+              </option>
+            ))}
+          </select>
+          <button
+            type="submit"
+            disabled={isPending}
+            className="min-h-10 rounded-full bg-zaltyko-teal px-4 py-2 text-xs font-semibold text-white hover:bg-primary-dark disabled:opacity-60"
+          >
+            Filtrar
+          </button>
         </form>
 
         <div className="flex items-center gap-3">
@@ -170,7 +213,7 @@ export function ClassesTableView({
             onClick={() => setCreateOpen(true)}
             className="inline-flex min-h-11 items-center justify-center rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white shadow-soft hover:bg-primary-dark"
           >
-            Nueva clase
+            Nueva {classTermLower}
           </button>
         </div>
       </section>
@@ -179,8 +222,8 @@ export function ClassesTableView({
         <div className="rounded-2xl border border-zaltyko-mist bg-white p-12 text-center shadow-soft">
           <p className="mb-4 text-sm text-muted-foreground">
             {hasActiveFilters
-              ? "No se encontraron clases con esos criterios."
-              : "Aún no has creado ninguna clase. Crea tu primera clase para organizar horarios y sesiones de entrenamiento."}
+              ? `No se encontraron ${classTermLower}s con esos criterios.`
+              : `Aún no has creado ninguna ${classTermLower}. Crea tu primera ${classTermLower} para organizar horarios y sesiones de entrenamiento.`}
           </p>
           {!hasActiveFilters && (
             <button
@@ -188,7 +231,7 @@ export function ClassesTableView({
               onClick={() => setCreateOpen(true)}
               className="inline-flex min-h-11 items-center justify-center rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white shadow-soft hover:bg-primary-dark"
             >
-              Crear primera clase
+              Crear primera {classTermLower}
             </button>
           )}
         </div>
@@ -200,8 +243,8 @@ export function ClassesTableView({
                 <th className="px-4 py-3 font-medium">Nombre</th>
                 <th className="px-4 py-3 font-medium">Horario</th>
                 <th className="px-4 py-3 font-medium text-right">Capacidad</th>
-                <th className="px-4 py-3 font-medium">Entrenadores</th>
-                <th className="px-4 py-3 font-medium">Grupos vinculados</th>
+                <th className="px-4 py-3 font-medium">{terms.coach}s</th>
+                <th className="px-4 py-3 font-medium">{terms.groups} vinculados</th>
                 <th className="px-4 py-3 font-medium text-right">Acciones</th>
               </tr>
             </thead>
@@ -235,6 +278,11 @@ export function ClassesTableView({
                         Creada el {item.createdAt.slice(0, 10)}
                       </p>
                     )}
+                    {item.sportConfigId && (
+                      <span className="inline-flex w-fit rounded-full border border-zaltyko-mist bg-zaltyko-white px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+                        {sportConfigNameById.get(item.sportConfigId) ?? "Configuración deportiva"}
+                      </span>
+                    )}
                     {(item.technicalFocus || (item.apparatus?.length ?? 0) > 0) && (
                       <div className="flex flex-wrap gap-2">
                         {item.technicalFocus && (
@@ -267,7 +315,7 @@ export function ClassesTableView({
                   <div className="flex flex-wrap gap-2 text-xs">
                     {item.coaches.length === 0 ? (
                       <span className="rounded-full bg-muted px-3 py-1 text-muted-foreground">
-                        Sin asignar
+                        Sin {coachTermPluralLower} asignados
                       </span>
                     ) : (
                       item.coaches.map((coach) => (
@@ -285,7 +333,7 @@ export function ClassesTableView({
                   <div className="flex flex-wrap gap-2 text-xs">
                     {item.groups.length === 0 ? (
                       <span className="rounded-full bg-muted px-3 py-1 text-muted-foreground">
-                        Sin vínculo
+                        Sin {groupTermLower} vinculado
                       </span>
                     ) : (
                       item.groups.map((group) => (
@@ -332,6 +380,10 @@ export function ClassesTableView({
         open={createOpen}
         onClose={() => setCreateOpen(false)}
         onCreated={handleRefresh}
+        groupOptions={groupOptions}
+        coachOptions={availableCoaches}
+        sportConfigs={sportConfigs}
+        initialSportConfigId={sportConfigFilter || undefined}
       />
 
       {editing && (
@@ -339,6 +391,7 @@ export function ClassesTableView({
           classItem={editing}
           availableCoaches={availableCoaches}
           availableGroups={groupOptions}
+          sportConfigs={sportConfigs}
           open={Boolean(editing)}
           onClose={() => setEditing(null)}
           onUpdated={handleRefresh}

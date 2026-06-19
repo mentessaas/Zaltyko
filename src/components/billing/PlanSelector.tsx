@@ -1,23 +1,27 @@
 "use client";
 
 import type { PlanSummary, BillingSummary, PlanCode } from "@/types/billing";
+import { PRODUCT_PLAN_BY_CODE, formatPlanAmount } from "@/lib/plans/catalog";
 
 const PLAN_COPY: Record<string, { title: string; description: string }> = {
   free: {
-    title: "Free",
-    description: "Hasta 50 atletas · ideal para academias en lanzamiento",
+    title: PRODUCT_PLAN_BY_CODE.free.publicName,
+    description: PRODUCT_PLAN_BY_CODE.free.shortDescription,
   },
   pro: {
-    title: "Pro",
-    description: "Hasta 200 atletas · estadísticas y soporte prioritario",
+    title: PRODUCT_PLAN_BY_CODE.pro.publicName,
+    description: PRODUCT_PLAN_BY_CODE.pro.shortDescription,
   },
   premium: {
-    title: "Premium",
-    description: "Ilimitado · analítica avanzada e integraciones completas",
+    title: PRODUCT_PLAN_BY_CODE.premium.publicName,
+    description: PRODUCT_PLAN_BY_CODE.premium.shortDescription,
   },
 };
 
 function formatPlanPrice(plan: PlanSummary) {
+  const catalogPlan = PRODUCT_PLAN_BY_CODE[plan.code as PlanCode];
+  if (catalogPlan) return formatPlanAmount(catalogPlan.priceEurCents);
+
   const amount = (plan.priceEur ?? 0) / 100;
   const currency = plan.currency?.toUpperCase() ?? "EUR";
   return new Intl.NumberFormat("es-ES", {
@@ -114,4 +118,3 @@ export function PlanSelector({
     </section>
   );
 }
-

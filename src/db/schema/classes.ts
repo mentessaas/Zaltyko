@@ -2,6 +2,7 @@ import { boolean, index, integer, pgTable, text, time, timestamp, uuid } from "d
 
 import { academies } from "./academies";
 import { groups } from "./groups";
+import { academySportConfigs } from "./sport-config";
 
 export const classes = pgTable(
   "classes",
@@ -19,6 +20,7 @@ export const classes = pgTable(
     technicalFocus: text("technical_focus"),
     apparatus: text("apparatus").array(),
     isExtra: boolean("is_extra").default(false).notNull(),
+    sportConfigId: uuid("sport_config_id").references(() => academySportConfigs.id, { onDelete: "set null" }),
     groupId: uuid("group_id").references(() => groups.id, { onDelete: "set null" }),
     autoGenerateSessions: boolean("auto_generate_sessions").notNull().default(false),
     autoGenerateFrequency: text("auto_generate_frequency").default("monthly"),
@@ -35,6 +37,7 @@ export const classes = pgTable(
   (table) => ({
     tenantAcademyIdx: index("classes_tenant_academy_idx").on(table.tenantId, table.academyId),
     groupIdIdx: index("classes_group_id_idx").on(table.groupId),
+    sportConfigIdx: index("classes_sport_config_idx").on(table.sportConfigId),
     startTimeEndTimeIdx: index("classes_start_time_end_time_idx").on(table.startTime, table.endTime),
     deletedAtIdx: index("classes_deleted_at_idx").on(table.deletedAt),
   })

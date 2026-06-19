@@ -6,6 +6,7 @@ import { withTenant } from "@/lib/authz";
 import { apiError, apiSuccess } from "@/lib/api-response";
 import { db } from "@/db";
 import { athletes, classes, coaches, groups } from "@/db/schema";
+import { getAcademySportConfigOptions } from "@/lib/sport-config/service";
 
 export const GET = withTenant(async (request, context) => {
   const url = new URL(request.url);
@@ -17,11 +18,12 @@ export const GET = withTenant(async (request, context) => {
 
   const tenantId = context.tenantId;
 
-  const [classRows, groupRows, coachRows, athleteRows] = await Promise.all([
+  const [classRows, groupRows, coachRows, athleteRows, sportConfigs] = await Promise.all([
     db
       .select({
         id: classes.id,
         name: classes.name,
+        sportConfigId: classes.sportConfigId,
         technicalFocus: classes.technicalFocus,
         apparatus: classes.apparatus,
       })
@@ -38,6 +40,7 @@ export const GET = withTenant(async (request, context) => {
       .select({
         id: groups.id,
         name: groups.name,
+        sportConfigId: groups.sportConfigId,
         technicalFocus: groups.technicalFocus,
         apparatus: groups.apparatus,
         sessionBlocks: groups.sessionBlocks,
@@ -57,7 +60,7 @@ export const GET = withTenant(async (request, context) => {
       .where(and(eq(coaches.tenantId, tenantId), eq(coaches.academyId, academyId)))
       .orderBy(asc(coaches.name)),
     db
-      .select({ id: athletes.id, name: athletes.name })
+      .select({ id: athletes.id, name: athletes.name, sportConfigId: athletes.primarySportConfigId })
       .from(athletes)
       .where(
         and(
@@ -67,6 +70,7 @@ export const GET = withTenant(async (request, context) => {
         )
       )
       .orderBy(asc(athletes.name)),
+    getAcademySportConfigOptions(academyId),
   ]);
 
   return apiSuccess({
@@ -74,5 +78,6 @@ export const GET = withTenant(async (request, context) => {
     groups: groupRows,
     coaches: coachRows,
     athletes: athleteRows,
+    sportConfigs,
   });
 });

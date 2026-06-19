@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { getTerminologyForSportConfig } from "@/lib/sport-config/terminology";
 
 interface AthleteInfo {
   id: string;
@@ -13,6 +14,8 @@ interface AthleteInfo {
   groupId: string | null;
   groupName: string | null;
   groupColor: string | null;
+  primarySportConfigId?: string | null;
+  groupSportConfigId?: string | null;
 }
 
 interface Contact {
@@ -60,6 +63,13 @@ interface AthleteDetailTabsProps {
   recentSessions: RecentSession[];
   accountSection: React.ReactNode;
   classesSection: React.ReactNode;
+  competitionSection?: React.ReactNode;
+  sportConfigs?: Array<{
+    id: string;
+    branchName: string;
+    disciplineName: string;
+    terminology?: Record<string, string>;
+  }>;
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -80,7 +90,16 @@ export function AthleteDetailTabs({
   recentSessions,
   accountSection,
   classesSection,
+  competitionSection,
+  sportConfigs = [],
 }: AthleteDetailTabsProps) {
+  const terms = getTerminologyForSportConfig(
+    sportConfigs,
+    athlete.primarySportConfigId ?? athlete.groupSportConfigId
+  );
+  const athleteTermLower = terms.athlete.toLowerCase();
+  const attendanceTermLower = terms.attendance.toLowerCase();
+
   const attendanceTotals = attendanceSummary.reduce(
     (accumulator, item) => ({
       ...accumulator,
@@ -98,10 +117,11 @@ export function AthleteDetailTabs({
 
   return (
     <Tabs defaultValue="info" className="w-full">
-      <TabsList className="mb-6 grid h-auto w-full grid-cols-2 p-1 sm:grid-cols-5">
+      <TabsList className="mb-6 grid h-auto w-full grid-cols-2 p-1 sm:grid-cols-6">
         <TabsTrigger value="info" className="text-xs sm:text-sm">Info</TabsTrigger>
-        <TabsTrigger value="attendance" className="text-xs sm:text-sm">Asistencia</TabsTrigger>
+        <TabsTrigger value="attendance" className="text-xs sm:text-sm">{terms.attendance}</TabsTrigger>
         <TabsTrigger value="classes" className="text-xs sm:text-sm">Clases</TabsTrigger>
+        <TabsTrigger value="competition" className="text-xs sm:text-sm">{terms.competition}</TabsTrigger>
         <TabsTrigger value="account" className="text-xs sm:text-sm">Cuenta</TabsTrigger>
         <TabsTrigger value="contacts" className="text-xs sm:text-sm">Contactos</TabsTrigger>
       </TabsList>
@@ -110,7 +130,7 @@ export function AthleteDetailTabs({
         <section className={detailCardClass}>
           <header className="flex flex-wrap items-center justify-between gap-4">
             <div>
-              <p className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-teal">Atleta</p>
+              <p className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-teal">{terms.athlete}</p>
               <h1 className="font-display text-3xl font-semibold text-zaltyko-navy">{athlete.name}</h1>
               <div className="mt-3 flex flex-wrap gap-3 text-xs">
                 <span className="rounded-full bg-zaltyko-teal/10 px-3 py-1 font-medium text-zaltyko-teal">
@@ -118,7 +138,7 @@ export function AthleteDetailTabs({
                 </span>
                 {athlete.level && (
                   <span className="rounded-full bg-zaltyko-indigo/10 px-3 py-1 font-medium text-zaltyko-indigo">
-                    Nivel: {athlete.level}
+                    {terms.level}: {athlete.level}
                   </span>
                 )}
                 {athlete.groupName && (
@@ -156,7 +176,7 @@ export function AthleteDetailTabs({
         </section>
 
         <section className={detailCardClass}>
-          <h2 className="font-display text-lg font-semibold text-zaltyko-navy">Resumen de asistencia</h2>
+          <h2 className="font-display text-lg font-semibold text-zaltyko-navy">Resumen de {attendanceTermLower}</h2>
           <p className="text-sm text-zaltyko-text-secondary">
             Total de sesiones con registro: {totalSessions}
           </p>
@@ -179,12 +199,12 @@ export function AthleteDetailTabs({
           <header>
             <h2 className="font-display text-lg font-semibold text-zaltyko-navy">Sesiones recientes</h2>
             <p className="text-sm text-zaltyko-text-secondary">
-              Últimos registros de asistencia y su estado.
+              Últimos registros de {attendanceTermLower} y su estado.
             </p>
           </header>
           {recentSessions.length === 0 ? (
             <p className="text-sm text-zaltyko-text-secondary">
-              Todavía no hay sesiones con asistencia registrada para este atleta.
+              Todavía no hay sesiones con {attendanceTermLower} registrada para este {athleteTermLower}.
             </p>
           ) : (
             <div className="space-y-3">
@@ -218,6 +238,16 @@ export function AthleteDetailTabs({
         {classesSection}
       </TabsContent>
 
+      <TabsContent value="competition" className="space-y-4">
+        {competitionSection ?? (
+          <section className={detailCardClass}>
+            <p className="text-sm text-zaltyko-text-secondary">
+              Todavía no hay historial de {terms.competition.toLowerCase()} configurado para este {athleteTermLower}.
+            </p>
+          </section>
+        )}
+      </TabsContent>
+
       <TabsContent value="account" className="space-y-4">
         {accountSection}
       </TabsContent>
@@ -234,7 +264,7 @@ export function AthleteDetailTabs({
           <div className="space-y-3">
             {contacts.length === 0 && guardians.length === 0 ? (
               <p className="text-sm text-zaltyko-text-secondary">
-                No hay contactos registrados para este atleta.
+                No hay contactos registrados para este {athleteTermLower}.
               </p>
             ) : (
               <>

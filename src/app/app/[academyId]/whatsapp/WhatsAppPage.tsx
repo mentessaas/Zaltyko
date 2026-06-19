@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { MessageCircle, Send, History, Settings } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { WhatsAppSettingsPanel, DEFAULT_SETTINGS } from "@/components/whatsapp/WhatsAppSettings";
-import { WhatsAppMessagePanel, DEFAULT_TEMPLATES } from "@/components/whatsapp/WhatsAppMessagePanel";
-import { WhatsAppHistory } from "@/components/whatsapp/WhatsAppHistory";
+import { WhatsAppMessagePanel, type WhatsAppTemplate } from "@/components/whatsapp/WhatsAppMessagePanel";
+import { WhatsAppHistory, type MessageStatus, type WhatsAppMessage } from "@/components/whatsapp/WhatsAppHistory";
+import { getTerminologyForSportConfig } from "@/lib/sport-config/terminology";
 
 interface WhatsAppConfig {
   phone: string;
@@ -18,15 +19,18 @@ interface Recipient {
   id: string;
   name: string;
   phone: string;
+  sportConfigId: string | null;
 }
 
 interface WhatsAppPageProps {
   academyId: string;
   academyName: string;
   whatsappConfig: WhatsAppConfig;
-  classes: Array<{ id: string; name: string }>;
-  groups: Array<{ id: string; name: string }>;
+  classes: Array<{ id: string; name: string; sportConfigId: string | null }>;
+  groups: Array<{ id: string; name: string; sportConfigId: string | null }>;
   recipients: Recipient[];
+  sportConfigs: Array<{ id: string; branchName: string; disciplineName: string; terminology?: Record<string, string> }>;
+  templates: WhatsAppTemplate[];
 }
 
 export function WhatsAppPage({
@@ -36,13 +40,25 @@ export function WhatsAppPage({
   classes,
   groups,
   recipients,
+  sportConfigs,
+  templates,
 }: WhatsAppPageProps) {
   const [config, setConfig] = useState(initialConfig);
   const [activeTab, setActiveTab] = useState("send");
+  const [historySportConfig, setHistorySportConfig] = useState("");
+  const [historyMessages, setHistoryMessages] = useState<WhatsAppMessage[]>([]);
+  const [isHistoryLoading, setIsHistoryLoading] = useState(false);
+
+  const sportConfigNameById = useMemo(
+    () => new Map(sportConfigs.map((config) => [config.id, `${config.branchName} · ${config.disciplineName}`])),
+    [sportConfigs]
+  );
+  const terms = getTerminologyForSportConfig(sportConfigs, historySportConfig);
 
   const handleSendMessage = async (data: {
     recipientType: string;
     recipientIds: string[];
+    sportConfigId?: string;
     message: string;
     scheduledAt?: string;
   }) => {
@@ -89,6 +105,58 @@ export function WhatsAppPage({
     return response.ok;
   };
 
+  useEffect(() => {
+    if (activeTab !== "history") return;
+
+    const loadHistory = async () => {
+      setIsHistoryLoading(true);
+      try {
+        const params = new URLSearchParams({
+          academyId,
+          channel: "whatsapp",
+          limit: "50",
+        });
+        if (historySportConfig) {
+          params.set("sportConfigId", historySportConfig);
+        }
+
+        const response = await fetch(`/api/communication/history?${params.toString()}`, {
+          headers: { "x-academy-id": academyId },
+        });
+        if (!response.ok) {
+          setHistoryMessages([]);
+          return;
+        }
+
+        const payload = await response.json();
+        const items = payload.data?.items ?? [];
+        setHistoryMessages(items.map((item: {
+          id: string;
+          body: string;
+          status: MessageStatus;
+          sportConfigId: string | null;
+          createdAt: string;
+          sentAt: string | null;
+          failedAt: string | null;
+          meta: { errorMessage?: string } | null;
+        }) => ({
+          id: item.id,
+          content: item.body,
+          recipientCount: 1,
+          status: item.status,
+          sportConfigName: item.sportConfigId ? sportConfigNameById.get(item.sportConfigId) ?? "Rama configurada" : null,
+          createdAt: item.createdAt,
+          sentAt: item.sentAt ?? undefined,
+          failureReason: item.meta?.errorMessage ?? (item.failedAt ? "Error de envío" : undefined),
+        })));
+      } finally {
+        setIsHistoryLoading(false);
+      }
+    };
+
+    void loadHistory();
+  }, [academyId, activeTab, historySportConfig, sportConfigNameById]);
+
   return (
     <div className="space-y-6 p-4 sm:p-6 lg:p-8">
       <Breadcrumb
@@ -105,7 +173,9 @@ export function WhatsAppPage({
         </div>
         <div>
           <h1 className="text-2xl font-bold">WhatsApp Business</h1>
-          <p className="text-muted-foreground">Envía mensajes a atletas y padres de {academyName}</p>
+          <p className="text-muted-foreground">
+            Envía mensajes a {terms.athletes.toLowerCase()} y {terms.parent.toLowerCase()}s de {academyName}
+          </p>
         </div>
       </div>
 
@@ -140,6 +210,8 @@ export function WhatsAppPage({
               classes={classes}
               groups={groups}
               recipients={recipients}
+              sportConfigs={sportConfigs}
+              templates={templates}
               onSend={handleSendMessage}
               disabled={!config.isConfigured}
             />
@@ -148,7 +220,7 @@ export function WhatsAppPage({
             <div className="space-y-4">
               <h3 className="font-semibold">Plantillas disponibles</h3>
               <div className="space-y-3">
-                {DEFAULT_TEMPLATES.map((template) => (
+                {templates.map((template) => (
                   <div
                     key={template.id}
                     className="rounded-lg border p-4 hover:bg-muted/50 transition-colors cursor-pointer"
@@ -166,7 +238,25 @@ export function WhatsAppPage({
         </TabsContent>
 
         <TabsContent value="history" className="mt-6">
-          <WhatsAppHistory messages={[]} />
+          <div className="space-y-4">
+            {sportConfigs.length > 0 && (
+              <div className="max-w-sm">
+                <select
+                  value={historySportConfig}
+                  onChange={(event) => setHistorySportConfig(event.target.value)}
+                  className="h-10 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                >
+                  <option value="">Todas las ramas</option>
+                  {sportConfigs.map((config) => (
+                    <option key={config.id} value={config.id}>
+                      {config.branchName} · {config.disciplineName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <WhatsAppHistory messages={historyMessages} isLoading={isHistoryLoading} />
+          </div>
         </TabsContent>
 
         <TabsContent value="settings" className="mt-6">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
@@ -20,6 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAcademyContext } from "@/hooks/use-academy-context";
 import { summarizeStarterClassSetup } from "@/lib/classes/starter-setup";
+import type { SportConfigOption } from "@/components/groups/types";
 
 interface ClassItem {
   id: string;
@@ -30,6 +31,7 @@ interface ClassItem {
   capacity: number | null;
   technicalFocus?: string | null;
   apparatus?: string[];
+  sportConfigId?: string | null;
   isExtra: boolean;
   autoGenerateSessions: boolean;
   allowsFreeTrial: boolean;
@@ -39,19 +41,21 @@ interface ClassItem {
   currentEnrollment?: number;
   createdAt: string | null;
   coaches: Array<{ id: string; name: string; email: string | null }>;
-  groups: Array<{ id: string; name: string; color: string | null }>;
+  groups: Array<{ id: string; name: string; color: string | null; sportConfigId?: string | null }>;
 }
 
 interface CoachOption {
   id: string;
   name: string;
   email: string | null;
+  sportConfigIds?: string[];
 }
 
 interface GroupOption {
   id: string;
   name: string;
   color: string | null;
+  sportConfigId?: string | null;
 }
 
 interface StatsCardProps {
@@ -108,6 +112,7 @@ interface ClassesDashboardProps {
   initialClasses?: ClassItem[];
   availableCoaches: CoachOption[];
   groupOptions: GroupOption[];
+  sportConfigs?: SportConfigOption[];
   initialFocusClassId?: string;
 }
 
@@ -116,12 +121,14 @@ export function ClassesDashboard({
   initialClasses = [],
   availableCoaches,
   groupOptions,
+  sportConfigs = [],
   initialFocusClassId,
 }: ClassesDashboardProps) {
   const { specialization } = useAcademyContext();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const sportConfigFilter = searchParams?.get("sportConfigId") ?? "";
   const [classes, setClasses] = useState<ClassItem[]>(initialClasses);
   const [stats, setStats] = useState({
     totalClasses: 0,
@@ -136,27 +143,36 @@ export function ClassesDashboard({
   const starterSetup = summarizeStarterClassSetup(specialization, classes);
   const starterClassCount = starterSetup.starterClassCount;
 
+  useEffect(() => {
+    setClasses(initialClasses);
+  }, [initialClasses]);
+
   // Cargar clases desde la API
-  const fetchClasses = async () => {
+  const fetchClasses = useCallback(async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(`/api/classes?academyId=${academyId}&limit=100`);
+      const params = new URLSearchParams({ academyId, limit: "100" });
+      if (sportConfigFilter) {
+        params.set("sportConfigId", sportConfigFilter);
+      }
+
+      const response = await fetch(`/api/classes?${params.toString()}`);
       if (response.ok) {
         const data = await response.json();
-        setClasses(data.items ?? []);
+        setClasses(data.data?.items ?? data.items ?? []);
       }
     } catch (error) {
       console.error("Error fetching classes:", error);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [academyId, sportConfigFilter]);
 
   useEffect(() => {
     if (initialClasses.length === 0) {
       fetchClasses();
     }
-  }, [academyId]);
+  }, [academyId, fetchClasses, initialClasses.length]);
 
   useEffect(() => {
     if (!initialFocusClassId || guidedEditingClass) {
@@ -400,7 +416,8 @@ export function ClassesDashboard({
           classes={classes}
           availableCoaches={availableCoaches}
           groupOptions={groupOptions}
-          filters={{}}
+          sportConfigs={sportConfigs}
+          filters={{ sportConfigId: sportConfigFilter }}
         />
       )}
 
@@ -409,6 +426,10 @@ export function ClassesDashboard({
         open={createOpen}
         onClose={() => setCreateOpen(false)}
         onCreated={handleCreated}
+        groupOptions={groupOptions}
+        coachOptions={availableCoaches}
+        sportConfigs={sportConfigs}
+        initialSportConfigId={sportConfigFilter || undefined}
       />
 
       {guidedEditingClass && (
@@ -416,6 +437,7 @@ export function ClassesDashboard({
           classItem={guidedEditingClass}
           availableCoaches={availableCoaches}
           availableGroups={groupOptions}
+          sportConfigs={sportConfigs}
           open={Boolean(guidedEditingClass)}
           onClose={() => setGuidedEditingClass(null)}
           onUpdated={() => {

@@ -9,6 +9,7 @@ export interface ChurnReportFilters {
   tenantId?: string;
   startDate?: Date;
   endDate?: Date;
+  sportConfigId?: string;
 }
 
 export interface ChurnReason {
@@ -45,6 +46,7 @@ export async function calculateChurnReport(filters: ChurnReportFilters): Promise
   const athleteWhere = [
     eq(athletes.academyId, filters.academyId),
     filters.tenantId ? eq(athletes.tenantId, filters.tenantId) : undefined,
+    filters.sportConfigId ? eq(athletes.primarySportConfigId, filters.sportConfigId) : undefined,
   ].filter(Boolean);
 
   const athleteRows = await db

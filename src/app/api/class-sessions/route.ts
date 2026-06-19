@@ -73,6 +73,7 @@ export const GET = withTenant(async (request, context) => {
       endTime: classSessions.endTime,
       status: classSessions.status,
       notes: classSessions.notes,
+      sportConfigId: classSessions.sportConfigId,
       classId: classes.id,
       className: classes.name,
       academyId: classes.academyId,
@@ -98,7 +99,7 @@ export const POST = withTenant(async (request, context) => {
   }
 
   const [classRow] = await db
-    .select({ id: classes.id })
+    .select({ id: classes.id, sportConfigId: classes.sportConfigId })
     .from(classes)
     .where(and(eq(classes.id, body.classId), eq(classes.tenantId, context.tenantId)))
     .limit(1);
@@ -113,6 +114,7 @@ export const POST = withTenant(async (request, context) => {
     id: sessionId,
     tenantId: context.tenantId,
     classId: body.classId,
+    sportConfigId: classRow.sportConfigId,
     coachId: body.coachId ?? null,
     sessionDate: body.sessionDate,
     startTime: body.startTime ?? null,

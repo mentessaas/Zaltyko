@@ -62,6 +62,7 @@ const QuerySchema = z.object({
   period: z.string().regex(/^\d{4}-\d{2}$/).optional(),
   groupId: z.string().uuid().optional(),
   athleteId: z.string().uuid().optional(),
+  sportConfigId: z.string().uuid().optional(),
   status: z.string().optional(), // Allow comma-separated values like "pending,overdue"
   page: safeNumberSchema("page", 1).pipe(z.number().int().min(1).optional().default(1)),
   limit: safeNumberSchema("limit", 1, 200).pipe(z.number().int().min(1).max(200).optional().default(50)),
@@ -125,13 +126,20 @@ export const GET = withTenant(async (request, context) => {
       conditions.push(eq(charges.athleteId, query.athleteId));
     }
 
-    // If groupId is provided, filter by athletes in that group
+    // If groupId or sportConfigId is provided, filter by matching athletes.
     let athleteIds: string[] | undefined;
-    if (query.groupId) {
+    if (query.groupId || query.sportConfigId) {
       const groupAthletes = await db
         .select({ athleteId: athletes.id })
         .from(athletes)
-        .where(and(eq(athletes.groupId, query.groupId), eq(athletes.academyId, query.academyId)))
+        .where(
+          and(
+            eq(athletes.academyId, query.academyId),
+            eq(athletes.tenantId, context.tenantId),
+            query.groupId ? eq(athletes.groupId, query.groupId) : undefined,
+            query.sportConfigId ? eq(athletes.primarySportConfigId, query.sportConfigId) : undefined
+          )
+        )
         .limit(1000); // Reasonable limit
 
       athleteIds = groupAthletes.map((a) => a.athleteId);
@@ -283,4 +291,3 @@ export const POST = withTenant(async (request, context) => {
     return handleApiError(error, { endpoint: "/api/charges", method: "POST" });
   }
 });
-

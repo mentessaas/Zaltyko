@@ -2,7 +2,6 @@
 
 import { FormEvent, useEffect, useState, useTransition } from "react";
 import { format } from "date-fns";
-import { CalendarIcon } from "lucide-react";
 import { z } from "zod";
 
 import { Modal } from "@/components/ui/modal";
@@ -14,6 +13,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/components/ui/toast-provider";
 import { es } from "date-fns/locale";
+import type { SportTerminology } from "@/lib/sport-config/catalog";
+import { DEFAULT_TERMINOLOGY } from "@/lib/sport-config/terminology";
 
 interface GroupOption {
   id: string;
@@ -23,7 +24,9 @@ interface GroupOption {
 
 interface GenerateChargesDialogProps {
   academyId: string;
+  sportConfigId?: string | null;
   groups: GroupOption[];
+  terminology?: SportTerminology;
   open: boolean;
   onClose: () => void;
   onGenerated: () => void;
@@ -38,12 +41,19 @@ const formSchema = z.object({
 
 export function GenerateChargesDialog({
   academyId,
+  sportConfigId,
   groups,
+  terminology,
   open,
   onClose,
   onGenerated,
 }: GenerateChargesDialogProps) {
   const toast = useToast();
+  const terms = terminology ?? DEFAULT_TERMINOLOGY;
+  const athleteTermLower = terms.athlete.toLowerCase();
+  const athletesTermLower = terms.athletes.toLowerCase();
+  const groupTermLower = terms.group.toLowerCase();
+  const groupsTermLower = terms.groups.toLowerCase();
   const [isPending, startTransition] = useTransition();
   const [scope, setScope] = useState<"all" | "group">("all");
   const [groupId, setGroupId] = useState<string>("");
@@ -90,7 +100,7 @@ export function GenerateChargesDialog({
     }
 
     if (scope === "group" && !groupId) {
-      setError("Debes seleccionar un grupo.");
+      setError(`Debes seleccionar un ${groupTermLower}.`);
       return;
     }
 
@@ -102,6 +112,7 @@ export function GenerateChargesDialog({
           body: JSON.stringify({
             academyId,
             groupId: scope === "group" ? groupId : null,
+            sportConfigId: sportConfigId || null,
             period: validation.data.period,
             skipDuplicates: validation.data.skipDuplicates,
           }),
@@ -129,7 +140,7 @@ export function GenerateChargesDialog({
   return (
     <Modal
       title="Generar cargos de este mes"
-      description="Genera cargos mensuales automáticamente para los atletas activos basándote en las cuotas de sus grupos."
+      description={`Genera cargos mensuales automáticamente para los ${athletesTermLower} activos basándote en las cuotas de sus ${groupsTermLower}.`}
       open={open}
       onClose={onClose}
       footer={
@@ -158,7 +169,7 @@ export function GenerateChargesDialog({
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="group" id="scope-group" />
               <Label htmlFor="scope-group" className="font-normal cursor-pointer">
-                Solo un grupo
+                Solo un {groupTermLower}
               </Label>
             </div>
           </RadioGroup>
@@ -167,15 +178,15 @@ export function GenerateChargesDialog({
         {scope === "group" && (
           <div>
             <Label htmlFor="groupId" className="mb-1 block text-sm font-medium">
-              Grupo <span className="text-destructive">*</span>
+              {terms.group} <span className="text-destructive">*</span>
             </Label>
             <Select value={groupId} onValueChange={setGroupId} disabled={isPending}>
               <SelectTrigger>
-                <SelectValue placeholder="Selecciona un grupo" />
+                <SelectValue placeholder={`Selecciona un ${groupTermLower}`} />
               </SelectTrigger>
               <SelectContent>
                 {groups.length === 0 ? (
-                  <div className="p-2 text-sm text-muted-foreground">No hay grupos disponibles.</div>
+                  <div className="p-2 text-sm text-muted-foreground">No hay {groupsTermLower} disponibles.</div>
                 ) : (
                   groups.map((group) => (
                     <SelectItem key={group.id} value={group.id}>
@@ -216,10 +227,9 @@ export function GenerateChargesDialog({
           </Label>
         </div>
         <p className="text-xs text-muted-foreground">
-          Si está marcado, no se crearán cargos si ya existe uno de tipo «cuota mensual» para el mismo atleta y periodo.
+          Si está marcado, no se crearán cargos si ya existe uno de tipo «cuota mensual» para el mismo {athleteTermLower} y periodo.
         </p>
       </form>
     </Modal>
   );
 }
-

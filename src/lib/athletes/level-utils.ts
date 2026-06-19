@@ -21,8 +21,8 @@ export function parseLevel(rawLevel: string | null): ParsedLevel {
   let parsedCategory: CategoryOption | "" = "";
   let parsedLevel: LevelOption | "" = "";
 
-  if (categoryMatch && CATEGORY_OPTIONS.includes(categoryMatch[1].toUpperCase() as CategoryOption)) {
-    parsedCategory = categoryMatch[1].toUpperCase() as CategoryOption;
+  if (categoryMatch && (CATEGORY_OPTIONS as readonly string[]).includes(categoryMatch[1].toUpperCase())) {
+    parsedCategory = categoryMatch[1].toUpperCase();
   }
 
   if (levelMatch) {
@@ -33,8 +33,8 @@ export function parseLevel(rawLevel: string | null): ParsedLevel {
       parsedLevel = "Pre-nivel";
     } else if (value.match(/Nivel\s(\d+)/i)) {
       const num = value.match(/Nivel\s(\d+)/i)?.[1];
-      if (num && LEVEL_OPTIONS.includes(num as LevelOption)) {
-        parsedLevel = num as LevelOption;
+      if (num && (LEVEL_OPTIONS as readonly string[]).includes(num)) {
+        parsedLevel = num;
       }
     }
   }
@@ -70,4 +70,3 @@ export function calculateAgeFromString(dob: string | null): number | null {
 export function formatAge(ageYears: number | null): string {
   return ageYears != null ? `${ageYears} años` : "";
 }
-

@@ -26,9 +26,9 @@ export default function ImportExportPanel({ tenantId }: ImportExportPanelProps) 
   const [customTenantId, setCustomTenantId] = useState(tenantId ?? "");
 
   const templateCsv = [
-    "name,academyId,dob,level,status",
-    "Lucía Márquez,ACADEMY_UUID,2010-05-14,FIG 5,active",
-    "Martín Ortega,ACADEMY_UUID,2011-09-02,FIG 4,active",
+    "name,academyId,dob,level,status,groupId,groupName,sportConfigCode,programCode,levelCode,categoryCode",
+    "Lucía Márquez,ACADEMY_UUID,2010-05-14,Base 3,active,,Artística Femenina Base 3,ES:artistic_female,base,base_3,infantil",
+    "Martín Ortega,ACADEMY_UUID,2011-09-02,Iniciación,active,,Artística Masculina Iniciación,ES:artistic_male,recreativo,,alevin",
   ]
     .map((line) => line.trim())
     .join("\n");
@@ -68,7 +68,8 @@ export default function ImportExportPanel({ tenantId }: ImportExportPanelProps) 
         throw new Error(error?.error ?? "No se pudo importar el archivo.");
       }
 
-      const data = (await response.json()) as ImportSummary;
+      const responseBody = (await response.json()) as { data?: ImportSummary } & Partial<ImportSummary>;
+      const data = responseBody.data ?? (responseBody as ImportSummary);
       setSummary(data);
       setMessage(
         `Importación completada: ${data.created} creados, ${data.skipped} omitidos de ${data.total} filas.`
@@ -94,7 +95,8 @@ export default function ImportExportPanel({ tenantId }: ImportExportPanelProps) 
       <div className="space-y-1">
         <h2 className="text-lg font-semibold">Importar / Exportar</h2>
         <p className="text-sm text-muted-foreground">
-          Carga atletas desde CSV (columnas: name, academyId, dob, level, status) o descarga el
+          Carga atletas desde CSV. Puedes usar groupId/groupName o sportConfigCode con programCode,
+          levelCode y categoryCode para respetar modalidad/rama. Descarga el
           listado en XLSX.
         </p>
       </div>
@@ -138,7 +140,7 @@ export default function ImportExportPanel({ tenantId }: ImportExportPanelProps) 
 
       <Button asChild variant="ghost" className="w-full justify-start text-left text-sm text-muted-foreground">
         <a href={templateHref} download="athletes-template.csv">
-          Descargar plantilla CSV (name, academyId, dob, level, status)
+          Descargar plantilla CSV
         </a>
       </Button>
 
@@ -163,5 +165,3 @@ export default function ImportExportPanel({ tenantId }: ImportExportPanelProps) 
     </div>
   );
 }
-
-

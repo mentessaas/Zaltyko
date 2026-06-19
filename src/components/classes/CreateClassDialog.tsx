@@ -1,12 +1,14 @@
 "use client";
 
-import { FormEvent, useState, useTransition } from "react";
+import { FormEvent, useEffect, useMemo, useState, useTransition } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 
 import { Modal } from "@/components/ui/modal";
 import { createClient } from "@/lib/supabase/client";
 import { useAcademyContext } from "@/hooks/use-academy-context";
 import { getSpecializedClassNameSuggestions } from "@/lib/specialization/technical-guidance";
+import type { SportConfigOption } from "@/components/groups/types";
+import { getTerminology } from "@/lib/sport-config/terminology";
 
 const WEEKDAY_OPTIONS = [
   { value: "1", label: "Lunes" },
@@ -30,9 +32,22 @@ interface CreateClassDialogProps {
   open: boolean;
   onClose: () => void;
   onCreated: () => void;
+  groupOptions?: Array<{ id: string; name: string; color: string | null; sportConfigId?: string | null }>;
+  coachOptions?: Array<{ id: string; name: string; email: string | null; sportConfigIds?: string[] }>;
+  sportConfigs?: SportConfigOption[];
+  initialSportConfigId?: string;
 }
 
-export function CreateClassDialog({ academyId, open, onClose, onCreated }: CreateClassDialogProps) {
+export function CreateClassDialog({
+  academyId,
+  open,
+  onClose,
+  onCreated,
+  groupOptions = [],
+  coachOptions = [],
+  sportConfigs = [],
+  initialSportConfigId,
+}: CreateClassDialogProps) {
   const { specialization } = useAcademyContext();
   const [name, setName] = useState("");
   const [weekdays, setWeekdays] = useState<string[]>([]);
@@ -40,6 +55,8 @@ export function CreateClassDialog({ academyId, open, onClose, onCreated }: Creat
   const [endTime, setEndTime] = useState("");
   const [capacity, setCapacity] = useState("");
   const [technicalFocus, setTechnicalFocus] = useState("");
+  const [groupId, setGroupId] = useState("");
+  const [sportConfigId, setSportConfigId] = useState("");
   const [selectedApparatus, setSelectedApparatus] = useState<string[]>([]);
   const [allowsFreeTrial, setAllowsFreeTrial] = useState(false);
   const [waitingListEnabled, setWaitingListEnabled] = useState(false);
@@ -48,7 +65,45 @@ export function CreateClassDialog({ academyId, open, onClose, onCreated }: Creat
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const resolvedInitialSportConfigId = useMemo(
+    () =>
+      initialSportConfigId && sportConfigs.some((config) => config.id === initialSportConfigId)
+        ? initialSportConfigId
+        : "",
+    [initialSportConfigId, sportConfigs]
+  );
   const classNameSuggestions = getSpecializedClassNameSuggestions(specialization);
+  const selectedGroup = useMemo(
+    () => groupOptions.find((group) => group.id === groupId) ?? null,
+    [groupId, groupOptions]
+  );
+  const effectiveSportConfigId = selectedGroup?.sportConfigId ?? sportConfigId;
+  const selectedSportConfig = useMemo(
+    () => sportConfigs.find((config) => config.id === effectiveSportConfigId) ?? null,
+    [effectiveSportConfigId, sportConfigs]
+  );
+  const terms = getTerminology(selectedSportConfig);
+  const groupTermLower = terms.group.toLowerCase();
+  const coachTermLower = terms.coach.toLowerCase();
+  const classTerm = specialization.labels.classLabel;
+  const classTermLower = classTerm.toLowerCase();
+  const apparatusOptions =
+    selectedSportConfig?.apparatus.map((item) => ({ code: item.code, label: item.name })) ??
+    specialization.evaluation.apparatus.map((item) => ({ code: item.code, label: item.label }));
+  const compatibleGroupOptions = useMemo(
+    () =>
+      sportConfigId
+        ? groupOptions.filter((group) => !group.sportConfigId || group.sportConfigId === sportConfigId)
+        : groupOptions,
+    [groupOptions, sportConfigId]
+  );
+  const compatibleCoachOptions = useMemo(
+    () =>
+      effectiveSportConfigId
+        ? coachOptions.filter((coach) => !coach.sportConfigIds?.length || coach.sportConfigIds.includes(effectiveSportConfigId))
+        : coachOptions,
+    [coachOptions, effectiveSportConfigId]
+  );
 
   const resetForm = () => {
     setName("");
@@ -57,6 +112,8 @@ export function CreateClassDialog({ academyId, open, onClose, onCreated }: Creat
     setEndTime("");
     setCapacity("");
     setTechnicalFocus("");
+    setGroupId("");
+    setSportConfigId(resolvedInitialSportConfigId);
     setSelectedApparatus([]);
     setAllowsFreeTrial(false);
     setWaitingListEnabled(false);
@@ -65,6 +122,13 @@ export function CreateClassDialog({ academyId, open, onClose, onCreated }: Creat
     setShowAdvanced(false);
     setError(null);
   };
+
+  useEffect(() => {
+    if (!open || groupId || !resolvedInitialSportConfigId) {
+      return;
+    }
+    setSportConfigId(resolvedInitialSportConfigId);
+  }, [groupId, open, resolvedInitialSportConfigId]);
 
   const toggleWeekday = (value: string) => {
     setWeekdays((prev) => {
@@ -91,7 +155,7 @@ export function CreateClassDialog({ academyId, open, onClose, onCreated }: Creat
     setError(null);
 
     if (!name.trim()) {
-      setError("El nombre de la clase es obligatorio.");
+      setError(`El nombre de la ${classTermLower} es obligatorio.`);
       return;
     }
 
@@ -111,6 +175,8 @@ export function CreateClassDialog({ academyId, open, onClose, onCreated }: Creat
           capacity: capacity ? Number(capacity) : undefined,
           technicalFocus: technicalFocus.trim() || undefined,
           apparatus: selectedApparatus,
+          groupId: groupId || undefined,
+          sportConfigId: effectiveSportConfigId || undefined,
           allowsFreeTrial,
           waitingListEnabled,
           cancellationHoursBefore: cancellationHoursBefore ? Number(cancellationHoursBefore) : 24,
@@ -128,14 +194,14 @@ export function CreateClassDialog({ academyId, open, onClose, onCreated }: Creat
 
         if (!response.ok) {
           const data = await response.json().catch(() => ({}));
-          throw new Error(data.error ?? "No se pudo crear la clase.");
+          throw new Error(data.error ?? `No se pudo crear la ${classTermLower}.`);
         }
 
         resetForm();
         onCreated();
         onClose();
       } catch (err: any) {
-        setError(err.message ?? "Error desconocido al crear la clase.");
+        setError(err.message ?? `Error desconocido al crear la ${classTermLower}.`);
       }
     });
   };
@@ -144,8 +210,8 @@ export function CreateClassDialog({ academyId, open, onClose, onCreated }: Creat
     <Modal
       open={open}
       onClose={handleClose}
-      title={`Crear nuevo ${specialization.labels.classLabel.toLowerCase()}`}
-      description={`Define los datos básicos del ${specialization.labels.classLabel.toLowerCase()} y parte de una propuesta coherente para ${specialization.labels.disciplineName.toLowerCase()}.`}
+      title={`Crear nueva ${classTermLower}`}
+      description={`Define los datos básicos de la ${classTermLower}, ${terms.apparatus.toLowerCase()}s y ${coachTermLower}s compatibles con la rama.`}
       footer={
         <div className="flex justify-end gap-2">
           <button
@@ -162,7 +228,7 @@ export function CreateClassDialog({ academyId, open, onClose, onCreated }: Creat
             className="min-h-11 rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white shadow-soft transition hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-60"
             disabled={isPending}
           >
-            {isPending ? "Guardando…" : "Guardar clase"}
+            {isPending ? "Guardando…" : `Guardar ${classTermLower}`}
           </button>
         </div>
       }
@@ -177,7 +243,7 @@ export function CreateClassDialog({ academyId, open, onClose, onCreated }: Creat
         {/* Campos esenciales */}
         <div className="space-y-4">
           <div className="space-y-1">
-            <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">Nombre del {specialization.labels.classLabel.toLowerCase()} *</label>
+            <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">Nombre de la {classTermLower} *</label>
             <input
               value={name}
               onChange={(event) => setName(event.target.value)}
@@ -282,16 +348,74 @@ export function CreateClassDialog({ academyId, open, onClose, onCreated }: Creat
             />
           </div>
 
+          {coachOptions.length > 0 && (
+            <div className="rounded-xl border border-zaltyko-mist bg-zaltyko-warm-white px-3 py-2 text-xs text-zaltyko-text-secondary">
+              {compatibleCoachOptions.length} de {coachOptions.length} {coachTermLower}s disponibles para esta rama.
+            </div>
+          )}
+
+          {(groupOptions.length > 0 || sportConfigs.length > 0) && (
+            <div className="grid gap-4 sm:grid-cols-2">
+              {groupOptions.length > 0 && (
+                <div className="space-y-1">
+                  <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">{terms.group} vinculado</label>
+                  <select
+                    value={groupId}
+                    onChange={(event) => {
+                      const nextGroupId = event.target.value;
+                      const nextGroup = groupOptions.find((group) => group.id === nextGroupId);
+                      setGroupId(nextGroupId);
+                      if (nextGroup?.sportConfigId) {
+                        setSportConfigId(nextGroup.sportConfigId);
+                        setSelectedApparatus([]);
+                      }
+                    }}
+                    className={fieldClassName}
+                  >
+                    <option value="">Sin {groupTermLower}</option>
+                  {compatibleGroupOptions.map((group) => (
+                    <option key={group.id} value={group.id}>
+                      {group.name}
+                    </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {sportConfigs.length > 0 && (
+                <div className="space-y-1">
+                  <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">Modalidad / rama</label>
+                  <select
+                    value={effectiveSportConfigId}
+                    onChange={(event) => {
+                      setSportConfigId(event.target.value);
+                      setSelectedApparatus([]);
+                    }}
+                    className={fieldClassName}
+                    disabled={Boolean(selectedGroup?.sportConfigId)}
+                  >
+                    <option value="">Sin asignar</option>
+                    {sportConfigs.map((config) => (
+                      <option key={config.id} value={config.id}>
+                        {config.disciplineName} · {config.branchName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="space-y-1">
-            <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">Aparatos / material principal</label>
+            <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">{terms.apparatus}s / material principal</label>
             <div className="flex flex-wrap gap-2">
-              {specialization.evaluation.apparatus.map((item) => {
-                const selected = selectedApparatus.includes(item.label);
+              {apparatusOptions.map((item) => {
+                const selected = selectedApparatus.includes(item.code);
                 return (
                   <button
                     key={item.code}
                     type="button"
-                    onClick={() => toggleApparatus(item.label)}
+                    onClick={() => toggleApparatus(item.code)}
                     className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
                       selected
                         ? selectedChipClassName
@@ -330,7 +454,7 @@ export function CreateClassDialog({ academyId, open, onClose, onCreated }: Creat
                   onChange={(event) => setAllowsFreeTrial(event.target.checked)}
                   className="rounded border-zaltyko-mist text-zaltyko-teal focus:ring-zaltyko-teal"
                 />
-                Permite clase de prueba gratuita
+                Permite {classTermLower} de prueba gratuita
               </label>
             </div>
 

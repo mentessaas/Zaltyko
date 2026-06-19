@@ -2,6 +2,7 @@ import { boolean, date, index, integer, jsonb, pgTable, text, timestamp, uuid } 
 
 import { academies } from "./academies";
 import { eventDisciplineEnum, eventLevelEnum, eventStatusEnum, eventTypeEnum } from "./enums";
+import { academySportConfigs } from "./sport-config";
 
 export const events = pgTable(
   "events",
@@ -17,7 +18,9 @@ export const events = pgTable(
     isPublic: boolean("is_public").notNull().default(false),
     level: eventLevelEnum("level").notNull().default("internal"),
     discipline: eventDisciplineEnum("discipline"),
+    sportConfigId: uuid("sport_config_id").references(() => academySportConfigs.id, { onDelete: "set null" }),
     eventType: eventTypeEnum("event_type"),
+    competitionTypeCode: text("competition_type_code"),
     startDate: date("start_date").notNull(),
     endDate: date("end_date"),
     registrationStartDate: date("registration_start_date"),
@@ -60,6 +63,8 @@ export const events = pgTable(
     disciplineIdx: index("events_discipline_idx").on(table.discipline),
     levelIdx: index("events_level_idx").on(table.level),
     eventTypeIdx: index("events_event_type_idx").on(table.eventType),
+    sportConfigIdx: index("events_sport_config_idx").on(table.sportConfigId),
+    competitionTypeIdx: index("events_competition_type_idx").on(table.competitionTypeCode),
     startDateIdx: index("events_start_date_idx").on(table.startDate),
     registrationStartDateIdx: index("events_registration_start_date_idx").on(table.registrationStartDate),
     registrationEndDateIdx: index("events_registration_end_date_idx").on(table.registrationEndDate),

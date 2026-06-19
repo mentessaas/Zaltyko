@@ -4,11 +4,12 @@ import { and, eq, desc } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
-import { athleteAssessments, assessmentScores, athletes, academies, coaches } from "@/db/schema";
+import { athleteAssessments, assessmentScores, athletes, coaches, groups } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
 import { handleApiError } from "@/lib/api-error-handler";
 import { withTransaction } from "@/lib/db-transactions";
 import { apiSuccess, apiError } from "@/lib/api-response";
+import { getAcademySportConfigOptions, verifyAcademySportConfig } from "@/lib/sport-config/service";
 
 const scoreSchema = z.object({
   skillId: z.string().uuid(),
@@ -21,6 +22,7 @@ const createAssessmentSchema = z.object({
   assessmentDate: z.string(), // YYYY-MM-DD
   assessmentType: z.enum(["technical", "artistic", "execution", "coach_feedback", "competition", "practice"]),
   apparatus: z.string().nullable().optional(),
+  sportConfigId: z.string().uuid().nullable().optional(),
   scores: z.array(scoreSchema).optional(),
   overallComment: z.string().nullable().optional(),
   totalScore: z.number().nullable().optional(),
@@ -40,6 +42,8 @@ export const POST = withTenant(async (request, context) => {
         id: athletes.id,
         academyId: athletes.academyId,
         tenantId: athletes.tenantId,
+        groupId: athletes.groupId,
+        primarySportConfigId: athletes.primarySportConfigId,
       })
       .from(athletes)
       .where(and(eq(athletes.id, body.athleteId), eq(athletes.tenantId, context.tenantId)))
@@ -47,6 +51,38 @@ export const POST = withTenant(async (request, context) => {
 
     if (!athleteRow) {
       return apiError("ATHLETE_NOT_FOUND", "Athlete not found", 404);
+    }
+
+    const [groupRow] = athleteRow.groupId
+      ? await db
+          .select({
+            sportConfigId: groups.sportConfigId,
+          })
+          .from(groups)
+          .where(and(eq(groups.id, athleteRow.groupId), eq(groups.tenantId, context.tenantId)))
+          .limit(1)
+      : [];
+
+    const effectiveSportConfigId = body.sportConfigId ?? athleteRow.primarySportConfigId ?? groupRow?.sportConfigId ?? null;
+
+    if (effectiveSportConfigId) {
+      const verifiedConfig = await verifyAcademySportConfig({
+        academyId: athleteRow.academyId,
+        tenantId: context.tenantId,
+        sportConfigId: effectiveSportConfigId,
+      });
+
+      if (!verifiedConfig) {
+        return apiError("SPORT_CONFIG_NOT_FOUND", "La configuración deportiva no está activa en esta academia", 400);
+      }
+
+      const activeConfigs = await getAcademySportConfigOptions(athleteRow.academyId);
+      const selectedConfig = activeConfigs.find((config) => config.id === effectiveSportConfigId);
+      const apparatusCodes = new Set(selectedConfig?.apparatus.map((item) => item.code) ?? []);
+
+      if (body.apparatus && apparatusCodes.size > 0 && !apparatusCodes.has(body.apparatus)) {
+        return apiError("INVALID_APPARATUS", "El aparato no pertenece a la modalidad/rama de esta gimnasta", 400);
+      }
     }
 
     const assessmentId = crypto.randomUUID();
@@ -58,6 +94,7 @@ export const POST = withTenant(async (request, context) => {
         tenantId: context.tenantId,
         academyId: athleteRow.academyId,
         athleteId: body.athleteId,
+        sportConfigId: effectiveSportConfigId,
         assessmentDate: body.assessmentDate,
         assessmentType: body.assessmentType,
         apparatus: body.apparatus ?? null,
@@ -132,6 +169,7 @@ export const GET = withTenant(async (request, context) => {
         assessmentDate: athleteAssessments.assessmentDate,
         assessmentType: athleteAssessments.assessmentType,
         apparatus: athleteAssessments.apparatus,
+        sportConfigId: athleteAssessments.sportConfigId,
         overallComment: athleteAssessments.overallComment,
         totalScore: athleteAssessments.totalScore,
         assessedBy: athleteAssessments.assessedBy,

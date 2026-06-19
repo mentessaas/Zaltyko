@@ -7,20 +7,39 @@ import { classes, classWeekdays, groups, memberships, profiles } from "@/db/sche
 import { createClient } from "@/lib/supabase/server";
 import { apiCreated, apiError } from "@/lib/api-response";
 import { createAcademy } from "@/app/api/academies/academies.lib";
-import { getCountryNameFromCode, mapDisciplineVariantToAcademyType, normalizeCountryCode } from "@/lib/specialization/registry";
+import {
+  getCountryNameFromCode,
+  mapDisciplineVariantToAcademyType,
+  normalizeCountryCode,
+  resolveAcademySpecialization,
+} from "@/lib/specialization/registry";
 import { getStarterClassPresets, getStarterGroupPresets } from "@/lib/specialization/operational-presets";
 import { markChecklistItem } from "@/lib/onboarding";
+import { activateAcademySportConfig } from "@/lib/sport-config/seed";
+import { getSportConfigSeedByVariant } from "@/lib/sport-config/catalog";
 
 const bodySchema = z.object({
   fullName: z.string().trim().min(2).max(120),
   academyName: z.string().trim().min(3).max(120),
   disciplineVariant: z.enum(["artistic_female", "artistic_male", "rhythmic", "general"]),
+  activeDisciplineVariants: z.array(z.enum(["artistic_female", "artistic_male", "rhythmic", "general"])).optional(),
+  academyKind: z.enum(["recreational", "competitive", "mixed"]).optional(),
   countryCode: z.string().trim().min(2).max(8),
   country: z.string().trim().max(80).optional(),
   region: z.string().trim().max(80).optional(),
   city: z.string().trim().max(80).optional(),
+  activeProgramCodesByVariant: z.record(z.array(z.string().trim().min(1).max(80))).optional(),
+  activeApparatusCodesByVariant: z.record(z.array(z.string().trim().min(1).max(80))).optional(),
   starterGroupKeys: z.array(z.string().trim().min(1).max(80)).optional(),
+  starterGroupsByVariant: z.record(z.array(z.string().trim().min(1).max(80))).optional(),
 });
+
+const BRANCH_PREFIX: Record<string, string> = {
+  artistic_female: "GAF",
+  artistic_male: "GAM",
+  rhythmic: "GR",
+  general: "General",
+};
 
 export const dynamic = "force-dynamic";
 
@@ -136,47 +155,56 @@ export async function POST(request: Request) {
     return result.error;
   }
 
-  const starterPresets = getStarterGroupPresets({
-    countryCode: normalizeCountryCode(parsed.data.countryCode) ?? "ES",
-    countryName: parsed.data.country ?? getCountryNameFromCode(parsed.data.countryCode),
-    discipline: parsed.data.disciplineVariant === "rhythmic" ? "rhythmic" : "artistic",
-    disciplineVariant: parsed.data.disciplineVariant,
-    locale: "es-ES",
-    timezone: "Europe/Madrid",
-    federationConfigVersion: "rfeg-2026-v1",
-    status: "configured",
-    academyType: mapDisciplineVariantToAcademyType(parsed.data.disciplineVariant),
-    key: {
-      countryCode: normalizeCountryCode(parsed.data.countryCode) ?? "ES",
-      discipline: parsed.data.disciplineVariant === "rhythmic" ? "rhythmic" : "artistic",
-      disciplineVariant: parsed.data.disciplineVariant,
-    },
-    labels: {
-      disciplineName:
-        parsed.data.disciplineVariant === "rhythmic"
-          ? "Gimnasia rítmica"
-          : parsed.data.disciplineVariant === "artistic_male"
-            ? "Gimnasia artística masculina"
-            : "Gimnasia artística femenina",
-      athleteSingular: "Gimnasta",
-      athletesPlural: "Gimnastas",
-      groupLabel: parsed.data.disciplineVariant === "rhythmic" ? "Conjunto" : "Equipo",
-      classLabel: "Entrenamiento",
-      sessionLabel: parsed.data.disciplineVariant === "rhythmic" ? "Pase" : "Sesión",
-      levelLabel: parsed.data.disciplineVariant === "rhythmic" ? "Categoría" : "Nivel técnico",
-      coachLabel:
-        parsed.data.disciplineVariant === "artistic_male" ? "Entrenador" : "Entrenadora",
-      dashboardHeadline: "Panel técnico de la academia",
-      familyHeadline: "Seguimiento deportivo familiar",
-    },
-    evaluation: { apparatus: [], assessmentTypes: [] },
-    categories: { levelOptions: [], levelPlaceholder: "" },
-  });
-  const selectedStarterGroups = starterPresets.filter((preset) =>
-    (parsed.data.starterGroupKeys ?? []).includes(preset.key)
+  const activeVariants = Array.from(
+    new Set([parsed.data.disciplineVariant, ...(parsed.data.activeDisciplineVariants ?? [])])
   );
+  const activeConfigByVariant = new Map<string, Awaited<ReturnType<typeof activateAcademySportConfig>>>();
+  for (const variant of activeVariants) {
+    const activeConfig = await activateAcademySportConfig({
+      tenantId: result.tenantId,
+      academyId: result.id,
+      countryCode: parsed.data.countryCode,
+      disciplineVariant: variant,
+      academyKind: parsed.data.academyKind ?? "mixed",
+      activeProgramCodes: parsed.data.activeProgramCodesByVariant?.[variant],
+      activeApparatusCodes: parsed.data.activeApparatusCodesByVariant?.[variant],
+    });
+    activeConfigByVariant.set(variant, activeConfig);
+  }
 
-  if (selectedStarterGroups.length > 0) {
+  let createdStarterGroupCount = 0;
+
+  for (const variant of activeVariants) {
+    const specialization = resolveAcademySpecialization({
+      countryCode: parsed.data.countryCode,
+      country: parsed.data.country,
+      disciplineVariant: variant,
+      academyType: mapDisciplineVariantToAcademyType(variant),
+      specializationStatus: "configured",
+    });
+    const starterPresets = getStarterGroupPresets(specialization);
+    const selectedKeys =
+      parsed.data.starterGroupsByVariant?.[variant] ??
+      (variant === parsed.data.disciplineVariant ? parsed.data.starterGroupKeys : undefined) ??
+      starterPresets.map((preset) => preset.key);
+    const selectedStarterGroups = starterPresets.filter((preset) => selectedKeys.includes(preset.key));
+
+    if (selectedStarterGroups.length === 0) continue;
+
+    const activeConfig = activeConfigByVariant.get(variant);
+    const seed = getSportConfigSeedByVariant(parsed.data.countryCode, variant);
+    const activeProgramCodes =
+      activeConfig?.activeProgramCodes ??
+      parsed.data.activeProgramCodesByVariant?.[variant] ??
+      seed?.programs.map((program) => program.code) ??
+      [];
+    const activeApparatusCodes =
+      activeConfig?.activeApparatusCodes ??
+      parsed.data.activeApparatusCodesByVariant?.[variant] ??
+      seed?.evaluation.apparatus.map((item) => item.code) ??
+      [];
+    const prefix = activeVariants.length > 1 ? `${BRANCH_PREFIX[variant] ?? specialization.labels.disciplineName} · ` : "";
+
     const createdGroups = await db
       .insert(groups)
       .values(
@@ -184,54 +212,22 @@ export async function POST(request: Request) {
           id: crypto.randomUUID(),
           academyId: result.id,
           tenantId: result.tenantId,
-          name: preset.name,
-          discipline: result.academyType,
+          name: `${prefix}${preset.name}`,
+          discipline: mapDisciplineVariantToAcademyType(variant),
+          sportConfigId: activeConfig?.id ?? null,
+          programCode: activeProgramCodes[0] ?? seed?.programs[0]?.code ?? null,
           level: preset.level,
-          color: ["#2563eb", "#db2777", "#059669"][index % 3],
+          apparatus: activeApparatusCodes.length > 0 ? activeApparatusCodes : null,
+          color: ["#2563eb", "#db2777", "#059669", "#7c3aed", "#ea580c"][index % 5],
         }))
       )
       .returning();
 
-    const groupByName = new Map(createdGroups.map((group) => [group.name, group]));
-    const starterClassPresets = getStarterClassPresets(
-      {
-        countryCode: normalizeCountryCode(parsed.data.countryCode) ?? "ES",
-        countryName: parsed.data.country ?? getCountryNameFromCode(parsed.data.countryCode),
-        discipline: parsed.data.disciplineVariant === "rhythmic" ? "rhythmic" : "artistic",
-        disciplineVariant: parsed.data.disciplineVariant,
-        locale: "es-ES",
-        timezone: "Europe/Madrid",
-        federationConfigVersion: "rfeg-2026-v1",
-        status: "configured",
-        academyType: mapDisciplineVariantToAcademyType(parsed.data.disciplineVariant),
-        key: {
-          countryCode: normalizeCountryCode(parsed.data.countryCode) ?? "ES",
-          discipline: parsed.data.disciplineVariant === "rhythmic" ? "rhythmic" : "artistic",
-          disciplineVariant: parsed.data.disciplineVariant,
-        },
-        labels: {
-          disciplineName:
-            parsed.data.disciplineVariant === "rhythmic"
-              ? "Gimnasia rítmica"
-              : parsed.data.disciplineVariant === "artistic_male"
-                ? "Gimnasia artística masculina"
-                : "Gimnasia artística femenina",
-          athleteSingular: "Gimnasta",
-          athletesPlural: "Gimnastas",
-          groupLabel: parsed.data.disciplineVariant === "rhythmic" ? "Conjunto" : "Equipo",
-          classLabel: "Entrenamiento",
-          sessionLabel: parsed.data.disciplineVariant === "rhythmic" ? "Pase" : "Sesión",
-          levelLabel: parsed.data.disciplineVariant === "rhythmic" ? "Categoría" : "Nivel técnico",
-          coachLabel:
-            parsed.data.disciplineVariant === "artistic_male" ? "Entrenador" : "Entrenadora",
-          dashboardHeadline: "Panel técnico de la academia",
-          familyHeadline: "Seguimiento deportivo familiar",
-        },
-        evaluation: { apparatus: [], assessmentTypes: [] },
-        categories: { levelOptions: [], levelPlaceholder: "" },
-      },
-      selectedStarterGroups
+    createdStarterGroupCount += createdGroups.length;
+    const groupByPresetKey = new Map(
+      selectedStarterGroups.map((preset, index) => [preset.key, createdGroups[index]])
     );
+    const starterClassPresets = getStarterClassPresets(specialization, selectedStarterGroups);
 
     const createdClasses = await db
       .insert(classes)
@@ -240,17 +236,12 @@ export async function POST(request: Request) {
           id: crypto.randomUUID(),
           academyId: result.id,
           tenantId: result.tenantId,
-          name: preset.name,
+          name: `${prefix}${preset.name}`,
           startTime: preset.startTime,
           endTime: preset.endTime,
           capacity: preset.capacity,
-          groupId: preset.groupPresetKey
-            ? (selectedStarterGroups.find((groupPreset) => groupPreset.key === preset.groupPresetKey)
-                ? groupByName.get(
-                    selectedStarterGroups.find((groupPreset) => groupPreset.key === preset.groupPresetKey)!.name
-                  )?.id ?? null
-                : null)
-            : null,
+          groupId: preset.groupPresetKey ? groupByPresetKey.get(preset.groupPresetKey)?.id ?? null : null,
+          sportConfigId: activeConfig?.id ?? null,
           waitingListEnabled: true,
           allowsFreeTrial: false,
           cancellationHoursBefore: 24,
@@ -271,7 +262,9 @@ export async function POST(request: Request) {
         )
       );
     }
+  }
 
+  if (createdStarterGroupCount > 0) {
     await markChecklistItem({
       academyId: result.id,
       tenantId: result.tenantId,

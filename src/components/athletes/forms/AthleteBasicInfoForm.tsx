@@ -2,7 +2,7 @@
 
 import { useRef } from "react";
 import { Calendar as CalendarIcon } from "lucide-react";
-import type { AthleteSummary } from "@/types/athlete-edit";
+import type { GroupOption } from "@/types";
 
 interface AthleteBasicInfoFormProps {
   name: string;
@@ -10,7 +10,9 @@ interface AthleteBasicInfoFormProps {
   groupId: string;
   computedAgeLabel: string;
   status: string;
-  groups: Array<{ id: string; name: string; color: string | null }>;
+  groups: GroupOption[];
+  athleteLabel?: string;
+  groupLabel?: string;
   onNameChange: (value: string) => void;
   onDobChange: (value: string) => void;
   onGroupIdChange: (value: string) => void;
@@ -23,6 +25,8 @@ export function AthleteBasicInfoForm({
   computedAgeLabel,
   status,
   groups,
+  athleteLabel = "atleta",
+  groupLabel = "Grupo",
   onNameChange,
   onDobChange,
   onGroupIdChange,
@@ -35,7 +39,7 @@ export function AthleteBasicInfoForm({
         <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           Información general
         </p>
-        <h3 className="text-lg font-semibold text-foreground">Datos del atleta</h3>
+        <h3 className="text-lg font-semibold text-foreground">Datos del {athleteLabel.toLowerCase()}</h3>
         <p className="text-sm text-muted-foreground">
           Mantén actualizados los datos básicos para reportes y comunicación.
         </p>
@@ -62,7 +66,7 @@ export function AthleteBasicInfoForm({
             <p className="text-base font-semibold text-foreground">{status}</p>
           </div>
           <div>
-            <p className="uppercase tracking-wide">Grupo</p>
+            <p className="uppercase tracking-wide">{groupLabel}</p>
             <p className="text-base font-semibold text-foreground">
               {groups.find((group) => group.id === groupId)?.name ?? "Sin asignar"}
             </p>
@@ -93,13 +97,13 @@ export function AthleteBasicInfoForm({
           </div>
         </div>
         <div className="space-y-2">
-          <label className="text-sm font-medium text-foreground">Grupo principal</label>
+          <label className="text-sm font-medium text-foreground">{groupLabel} principal</label>
           <select
             value={groupId}
             onChange={(event) => onGroupIdChange(event.target.value)}
             className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
           >
-            <option value="">Sin grupo</option>
+            <option value="">Sin {groupLabel.toLowerCase()}</option>
             {groups.map((group) => (
               <option key={group.id} value={group.id}>
                 {group.name}
@@ -107,11 +111,10 @@ export function AthleteBasicInfoForm({
             ))}
           </select>
           <p className="text-xs text-muted-foreground">
-            Define el grupo para sincronizar asistencia, evaluaciones y reportes.
+            Define el {groupLabel.toLowerCase()} para sincronizar asistencia, evaluaciones y reportes.
           </p>
         </div>
       </div>
     </section>
   );
 }
-

@@ -5,6 +5,8 @@ import { FormEvent, useEffect, useMemo, useState, useTransition } from "react";
 import { Modal } from "@/components/ui/modal";
 import { createClient } from "@/lib/supabase/client";
 import { useAcademyContext } from "@/hooks/use-academy-context";
+import type { SportConfigOption } from "@/components/groups/types";
+import { getTerminology } from "@/lib/sport-config/terminology";
 
 const WEEKDAY_OPTIONS = [
   { value: "1", label: "Lunes" },
@@ -27,12 +29,14 @@ interface CoachOption {
   id: string;
   name: string;
   email: string | null;
+  sportConfigIds?: string[];
 }
 
 interface GroupOption {
   id: string;
   name: string;
   color: string | null;
+  sportConfigId?: string | null;
 }
 
 interface ClassItem {
@@ -44,6 +48,7 @@ interface ClassItem {
   capacity: number | null;
   technicalFocus?: string | null;
   apparatus?: string[];
+  sportConfigId?: string | null;
   allowsFreeTrial: boolean;
   waitingListEnabled: boolean;
   cancellationHoursBefore: number | null;
@@ -56,6 +61,7 @@ interface EditClassDialogProps {
   classItem: ClassItem;
   availableCoaches: CoachOption[];
   availableGroups?: GroupOption[];
+  sportConfigs?: SportConfigOption[];
   open: boolean;
   onClose: () => void;
   onUpdated: () => void;
@@ -67,6 +73,7 @@ export function EditClassDialog({
   classItem,
   availableCoaches,
   availableGroups = [],
+  sportConfigs = [],
   open,
   onClose,
   onUpdated,
@@ -82,6 +89,7 @@ export function EditClassDialog({
   const [endTime, setEndTime] = useState(classItem.endTime ?? "");
   const [capacity, setCapacity] = useState(classItem.capacity ? String(classItem.capacity) : "");
   const [technicalFocus, setTechnicalFocus] = useState(classItem.technicalFocus ?? "");
+  const [sportConfigId, setSportConfigId] = useState(classItem.sportConfigId ?? "");
   const [selectedApparatus, setSelectedApparatus] = useState<string[]>(classItem.apparatus ?? []);
   const [selectedCoaches, setSelectedCoaches] = useState<string[]>(
     classItem.coaches.map((coach) => coach.id)
@@ -109,6 +117,7 @@ export function EditClassDialog({
     setEndTime(classItem.endTime ?? "");
     setCapacity(classItem.capacity ? String(classItem.capacity) : "");
     setTechnicalFocus(classItem.technicalFocus ?? "");
+    setSportConfigId(classItem.sportConfigId ?? "");
     setSelectedApparatus(classItem.apparatus ?? []);
     setSelectedCoaches(classItem.coaches.map((coach) => coach.id));
     setSelectedGroups(classItem.groups?.map((group) => group.id) ?? []);
@@ -124,6 +133,50 @@ export function EditClassDialog({
       prev.includes(value) ? prev.filter((item) => item !== value) : [...prev, value]
     );
   };
+
+  const selectedGroupObjects = availableGroups.filter((group) => selectedGroups.includes(group.id));
+  const groupSportConfigIds = Array.from(
+    new Set(selectedGroupObjects.map((group) => group.sportConfigId).filter((value): value is string => Boolean(value)))
+  );
+  const effectiveSportConfigId =
+    groupSportConfigIds.length === 1 ? groupSportConfigIds[0] : sportConfigId;
+  const selectedSportConfig = sportConfigs.find((config) => config.id === effectiveSportConfigId) ?? null;
+  const terms = getTerminology(selectedSportConfig);
+  const classTerm = specialization.labels.classLabel;
+  const classTermLower = classTerm.toLowerCase();
+  const groupTermLower = terms.group.toLowerCase();
+  const coachTermPluralLower = `${terms.coach.toLowerCase()}s`;
+  const apparatusOptions =
+    selectedSportConfig?.apparatus.map((item) => ({ code: item.code, label: item.name })) ??
+    specialization.evaluation.apparatus.map((item) => ({ code: item.code, label: item.label }));
+  const compatibleGroups = useMemo(
+    () =>
+      effectiveSportConfigId
+        ? availableGroups.filter((group) => !group.sportConfigId || group.sportConfigId === effectiveSportConfigId)
+        : availableGroups,
+    [availableGroups, effectiveSportConfigId]
+  );
+  const compatibleCoaches = useMemo(
+    () =>
+      effectiveSportConfigId
+        ? availableCoaches.filter((coach) => !coach.sportConfigIds?.length || coach.sportConfigIds.includes(effectiveSportConfigId))
+        : availableCoaches,
+    [availableCoaches, effectiveSportConfigId]
+  );
+
+  useEffect(() => {
+    if (!selectedSportConfig) return;
+    setSelectedApparatus((current) => {
+      const allowed = new Set(selectedSportConfig.apparatus.map((item) => item.code));
+      return current.filter((item) => allowed.has(item));
+    });
+    setSelectedCoaches((current) =>
+      current.filter((coachId) => {
+        const coach = availableCoaches.find((item) => item.id === coachId);
+        return !coach?.sportConfigIds?.length || coach.sportConfigIds.includes(selectedSportConfig.id);
+      })
+    );
+  }, [selectedSportConfig]);
 
   const hasChanges = useMemo(() => {
     const originalCoachIds = classItem.coaches.map((coach) => coach.id).sort();
@@ -172,10 +225,23 @@ export function EditClassDialog({
       originalGroupIds.every((value, index) => value === newGroupIds[index]);
     const groupsChanged = !sameGroups;
 
-    const hasAnyChanges = nameChanged || weekdaysChanged || startTimeChanged || endTimeChanged || capacityChanged || coachesChanged || groupsChanged;
+    const sportConfigChanged = (effectiveSportConfigId || null) !== (classItem.sportConfigId ?? null);
+    const apparatusChanged = selectedApparatus.join(",") !== (classItem.apparatus ?? []).join(",");
+    const technicalFocusChanged = technicalFocus !== (classItem.technicalFocus ?? "");
+    const hasAnyChanges =
+      nameChanged ||
+      weekdaysChanged ||
+      startTimeChanged ||
+      endTimeChanged ||
+      capacityChanged ||
+      coachesChanged ||
+      groupsChanged ||
+      sportConfigChanged ||
+      apparatusChanged ||
+      technicalFocusChanged;
 
     return hasAnyChanges;
-  }, [name, selectedWeekdays, startTime, endTime, capacity, selectedCoaches, classItem]);
+  }, [name, selectedWeekdays, startTime, endTime, capacity, selectedCoaches, selectedGroups, effectiveSportConfigId, selectedApparatus, technicalFocus, classItem]);
 
   const handleClose = () => {
     if (isPending) return;
@@ -208,6 +274,7 @@ export function EditClassDialog({
           capacity: capacity ? Number(capacity) : null,
           technicalFocus: technicalFocus.trim() || null,
           apparatus: selectedApparatus,
+          sportConfigId: effectiveSportConfigId || null,
           coachIds: selectedCoaches,
           groupIds: selectedGroups,
           allowsFreeTrial,
@@ -276,7 +343,7 @@ export function EditClassDialog({
   const handleDelete = async () => {
     if (isPending || isDeleting) return;
     const confirmed = typeof window !== "undefined"
-      ? window.confirm("¿Seguro que quieres eliminar esta clase? Esta acción no se puede deshacer.")
+      ? window.confirm(`¿Seguro que quieres eliminar esta ${classTermLower}? Esta acción no se puede deshacer.`)
       : true;
 
     if (!confirmed) {
@@ -306,7 +373,7 @@ export function EditClassDialog({
           data.error ||
           data.message ||
           data.detail ||
-          `No se pudo eliminar la clase (código ${response.status}).`;
+          `No se pudo eliminar la ${classTermLower} (código ${response.status}).`;
         throw new Error(errorMessage);
       }
 
@@ -318,7 +385,7 @@ export function EditClassDialog({
       onClose();
     } catch (error: any) {
       console.error("EditClassDialog: Error al eliminar la clase", error);
-      setError(error?.message ?? "No se pudo eliminar la clase. Intenta nuevamente.");
+      setError(error?.message ?? `No se pudo eliminar la ${classTermLower}. Intenta nuevamente.`);
     } finally {
       setIsDeleting(false);
     }
@@ -337,17 +404,30 @@ export function EditClassDialog({
   };
 
   const toggleGroup = (groupId: string) => {
-    setSelectedGroups((prev) =>
-      prev.includes(groupId) ? prev.filter((id) => id !== groupId) : [...prev, groupId]
-    );
+    const targetGroup = availableGroups.find((group) => group.id === groupId) ?? null;
+    setSelectedGroups((prev) => {
+      if (prev.includes(groupId)) {
+        return prev.filter((id) => id !== groupId);
+      }
+
+      if (targetGroup?.sportConfigId && effectiveSportConfigId && targetGroup.sportConfigId !== effectiveSportConfigId) {
+        return [groupId];
+      }
+
+      return [...prev, groupId];
+    });
+    if (targetGroup?.sportConfigId && targetGroup.sportConfigId !== effectiveSportConfigId) {
+      setSportConfigId(targetGroup.sportConfigId);
+      setSelectedApparatus([]);
+    }
   };
 
   return (
     <Modal
       open={open}
       onClose={handleClose}
-      title="Editar clase"
-      description="Actualiza el horario, capacidad y entrenadores asignados."
+      title={`Editar ${classTermLower}`}
+      description={`Actualiza horario, capacidad, ${coachTermPluralLower}, ${terms.group.toLowerCase()}s y ${terms.apparatus.toLowerCase()}s.`}
       footer={
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <button
@@ -356,7 +436,7 @@ export function EditClassDialog({
             className="inline-flex min-h-11 items-center justify-center rounded-xl border border-zaltyko-coral/35 px-4 py-2 text-sm font-semibold text-zaltyko-coral transition hover:bg-zaltyko-coral/10 disabled:cursor-not-allowed disabled:opacity-60"
             disabled={isPending || isDeleting}
           >
-            {isDeleting ? "Eliminando…" : "Eliminar clase"}
+            {isDeleting ? "Eliminando…" : `Eliminar ${classTermLower}`}
           </button>
           <div className="flex justify-end gap-2">
             <button
@@ -390,7 +470,7 @@ export function EditClassDialog({
 
         <div className="space-y-2">
           <label className={labelClassName}>
-            Nombre de la clase
+            Nombre de la {classTermLower}
           </label>
           <input
             value={name}
@@ -436,7 +516,7 @@ export function EditClassDialog({
               })}
             </div>
             <p className="text-xs text-zaltyko-text-secondary">
-              Selecciona uno o varios días. Déjalo vacío para clases flexibles.
+              Selecciona uno o varios días. Déjalo vacío para {classTermLower}s flexibles.
             </p>
           </div>
           <div className="space-y-2">
@@ -492,16 +572,49 @@ export function EditClassDialog({
 
         <div className="space-y-2">
           <label className={labelClassName}>
-            Aparatos / material principal
+            {terms.apparatus}s / material principal
           </label>
+          {sportConfigs.length > 0 && (
+            <div className="mb-3 max-w-md">
+              <select
+                value={effectiveSportConfigId}
+                onChange={(event) => {
+                  const nextSportConfigId = event.target.value;
+                  setSportConfigId(nextSportConfigId);
+                  setSelectedApparatus([]);
+                  setSelectedGroups((current) => {
+                    if (!nextSportConfigId) return current;
+                    return current.filter((groupId) => {
+                      const group = availableGroups.find((item) => item.id === groupId);
+                      return !group?.sportConfigId || group.sportConfigId === nextSportConfigId;
+                    });
+                  });
+                }}
+                className={fieldClassName}
+                disabled={groupSportConfigIds.length === 1}
+              >
+                <option value="">Sin modalidad/rama</option>
+                {sportConfigs.map((config) => (
+                  <option key={config.id} value={config.id}>
+                    {config.disciplineName} · {config.branchName}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+          {groupSportConfigIds.length > 1 && (
+            <p className="text-xs text-zaltyko-coral">
+              Hay {groupTermLower}s de distintas ramas. Selecciona una modalidad/rama explícita antes de guardar.
+            </p>
+          )}
           <div className="flex flex-wrap gap-2">
-            {specialization.evaluation.apparatus.map((item) => {
-              const selected = selectedApparatus.includes(item.label);
+            {apparatusOptions.map((item) => {
+              const selected = selectedApparatus.includes(item.code);
               return (
                 <button
                   key={item.code}
                   type="button"
-                  onClick={() => toggleApparatus(item.label)}
+                  onClick={() => toggleApparatus(item.code)}
                   className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
                     selected
                       ? selectedChipClassName
@@ -518,19 +631,19 @@ export function EditClassDialog({
         <div className="grid gap-4 md:grid-cols-2">
           <section className="space-y-3 rounded-2xl border border-dashed border-zaltyko-mist p-4">
             <header>
-              <h3 className="text-sm font-semibold text-zaltyko-navy">Entrenadores asignados</h3>
+              <h3 className="text-sm font-semibold text-zaltyko-navy">{terms.coach}s asignados</h3>
               <p className="text-xs text-zaltyko-text-secondary">
-                Selecciona quiénes tienen acceso directo a esta clase.
+                Selecciona quiénes tienen acceso directo a esta {classTermLower}.
               </p>
             </header>
 
             <div className="grid gap-2">
-              {availableCoaches.length === 0 ? (
+              {compatibleCoaches.length === 0 ? (
                 <p className="text-sm text-zaltyko-text-secondary">
-                  No hay entrenadores registrados en la academia.
+                  No hay {coachTermPluralLower} disponibles para esta rama.
                 </p>
               ) : (
-                availableCoaches.map((coach) => {
+                compatibleCoaches.map((coach) => {
                   const checked = selectedCoaches.includes(coach.id);
                   return (
                     <label
@@ -560,19 +673,19 @@ export function EditClassDialog({
 
           <section className="space-y-3 rounded-2xl border border-dashed border-zaltyko-mist p-4">
             <header>
-              <h3 className="text-sm font-semibold text-zaltyko-navy">Grupos asignados</h3>
+              <h3 className="text-sm font-semibold text-zaltyko-navy">{terms.groups} asignados</h3>
               <p className="text-xs text-zaltyko-text-secondary">
-                Selecciona los grupos que participan en esta clase.
+                Selecciona los {groupTermLower}s que participan en esta {classTermLower}.
               </p>
             </header>
 
             <div className="grid gap-2">
               {availableGroups.length === 0 ? (
                 <p className="text-sm text-zaltyko-text-secondary">
-                  No hay grupos registrados en la academia.
+                  No hay {groupTermLower}s registrados en la academia.
                 </p>
               ) : (
-                availableGroups.map((group) => {
+                compatibleGroups.map((group) => {
                   const checked = selectedGroups.includes(group.id);
                   return (
                     <label
@@ -616,7 +729,7 @@ export function EditClassDialog({
                 onChange={(event) => setAllowsFreeTrial(event.target.checked)}
                 className="rounded border-zaltyko-mist text-zaltyko-teal focus:ring-zaltyko-teal"
               />
-              Permite clase de prueba gratuita
+              Permite {classTermLower} de prueba gratuita
             </label>
 
             <label className="flex items-center gap-2 text-sm text-zaltyko-navy">
@@ -653,7 +766,7 @@ export function EditClassDialog({
                 onChange={(event) => setCancellationHoursBefore(Number(event.target.value))}
                 className={fieldClassName}
               />
-              <p className="text-xs text-zaltyko-text-secondary">Horas antes de la clase</p>
+              <p className="text-xs text-zaltyko-text-secondary">Horas antes de la {classTermLower}</p>
             </div>
           </div>
         </div>
