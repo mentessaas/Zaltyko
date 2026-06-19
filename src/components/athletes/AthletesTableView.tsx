@@ -15,6 +15,8 @@ import { EditAthleteDialog } from "@/components/athletes/EditAthleteDialog";
 import { AthletesKanbanView } from "@/components/athletes/AthletesKanbanView";
 import { TooltipOnboarding } from "@/components/tooltips/TooltipOnboarding";
 import { AlertBadge } from "@/components/shared/AlertBadge";
+import type { SportConfigOption } from "@/components/groups/types";
+import { getTerminologyForSportConfig } from "@/lib/sport-config/terminology";
 import type { AthleteListItem, GroupOption } from "@/types";
 
 interface AthletesTableViewProps {
@@ -22,15 +24,24 @@ interface AthletesTableViewProps {
   athletes: AthleteListItem[];
   levels: string[];
   groups: GroupOption[];
+  sportConfigs?: SportConfigOption[];
   filters: {
     status?: (typeof athleteStatusOptions)[number];
     level?: string;
     q?: string;
     groupId?: string;
+    sportConfigId?: string;
   };
 }
 
-export function AthletesTableView({ academyId, athletes: initialAthletes, levels, groups, filters }: AthletesTableViewProps) {
+export function AthletesTableView({
+  academyId,
+  athletes: initialAthletes,
+  levels,
+  groups,
+  sportConfigs = [],
+  filters,
+}: AthletesTableViewProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();
@@ -40,6 +51,7 @@ export function AthletesTableView({ academyId, athletes: initialAthletes, levels
   const [statusFilter, setStatusFilter] = useState(filters.status ?? "");
   const [levelFilter, setLevelFilter] = useState(filters.level ?? "");
   const [groupFilter, setGroupFilter] = useState(filters.groupId ?? "");
+  const [sportConfigFilter, setSportConfigFilter] = useState(filters.sportConfigId ?? "");
   const [ageRange, setAgeRange] = useState<{ min?: number; max?: number }>({});
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<AthleteListItem | null>(null);
@@ -118,6 +130,12 @@ export function AthletesTableView({ academyId, athletes: initialAthletes, levels
       params.delete("group");
     }
 
+    if (sportConfigFilter) {
+      params.set("sportConfigId", sportConfigFilter);
+    } else {
+      params.delete("sportConfigId");
+    }
+
     startTransition(() => {
       router.replace(`${pathname}?${params.toString()}`);
       router.refresh();
@@ -139,7 +157,7 @@ export function AthletesTableView({ academyId, athletes: initialAthletes, levels
     );
     
     toast.pushToast({
-      title: "Atleta actualizado",
+      title: `${terms.athlete} actualizado`,
       description: "Los cambios se han guardado correctamente.",
       variant: "success",
     });
@@ -150,13 +168,29 @@ export function AthletesTableView({ academyId, athletes: initialAthletes, levels
 
   // Export to CSV
   const handleExportCSV = () => {
-    const headers = ["Nombre", "Nivel", "Estado", "Edad", "Grupo", "Familia", "Fecha creación"];
+    const headers = [
+      "Nombre",
+      "Nivel",
+      "Estado",
+      "Edad",
+      terms.group,
+      "sportConfigId",
+      "programCode",
+      "levelCode",
+      "categoryCode",
+      "Familia",
+      "Fecha creación",
+    ];
     const rows = filteredAthletes.map((athlete) => [
       athlete.name,
       athlete.level || "",
       athlete.status,
       athlete.age?.toString() || "",
       athlete.groupName || "",
+      athlete.primarySportConfigId || "",
+      athlete.programCode || "",
+      athlete.levelCode || "",
+      athlete.categoryCode || "",
       athlete.guardianCount?.toString() || "0",
       athlete.createdAt ? new Date(athlete.createdAt).toLocaleDateString("es-ES") : "",
     ]);
@@ -170,13 +204,13 @@ export function AthletesTableView({ academyId, athletes: initialAthletes, levels
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `atletas_${new Date().toISOString().split("T")[0]}.csv`;
+    link.download = `${terms.athletes.toLowerCase()}_${new Date().toISOString().split("T")[0]}.csv`;
     link.click();
     URL.revokeObjectURL(url);
 
     toast.pushToast({
       title: "Exportación completada",
-      description: `Se han exportado ${filteredAthletes.length} atletas.`,
+      description: `Se han exportado ${filteredAthletes.length} ${terms.athletes.toLowerCase()}.`,
       variant: "success",
     });
   };
@@ -205,8 +239,8 @@ export function AthletesTableView({ academyId, athletes: initialAthletes, levels
     setAthletes((prevAthletes) => prevAthletes.filter((athlete) => athlete.id !== athleteId));
     
     toast.pushToast({
-      title: "Atleta eliminado",
-      description: "El atleta ha sido eliminado correctamente.",
+      title: `${terms.athlete} eliminado`,
+      description: `${terms.athlete} eliminado correctamente.`,
       variant: "success",
     });
     
@@ -216,15 +250,29 @@ export function AthletesTableView({ academyId, athletes: initialAthletes, levels
 
   const handleCreated = () => {
     toast.pushToast({
-      title: "Atleta creado",
-      description: "El nuevo atleta ha sido agregado correctamente.",
+      title: `${terms.athlete} creado`,
+      description: `El nuevo ${terms.athlete.toLowerCase()} ha sido agregado correctamente.`,
       variant: "success",
     });
     handleRefresh();
   };
 
-  const hasActiveFilters = filters.q || filters.level || filters.status || filters.groupId || ageRange.min || ageRange.max;
+  const hasActiveFilters = filters.q || filters.level || filters.status || filters.groupId || filters.sportConfigId || ageRange.min || ageRange.max;
   const isEmpty = athletes.length === 0;
+  const sportConfigNameById = useMemo(
+    () =>
+      new Map(
+        sportConfigs.map((config) => [
+          config.id,
+          `${config.branchName} · ${config.disciplineName}`,
+        ])
+      ),
+    [sportConfigs]
+  );
+  const terms = useMemo(
+    () => getTerminologyForSportConfig(sportConfigs, sportConfigFilter || filters.sportConfigId),
+    [filters.sportConfigId, sportConfigFilter, sportConfigs]
+  );
 
   // Filter and sort athletes
   const filteredAthletes = useMemo(() => {
@@ -306,10 +354,22 @@ export function AthletesTableView({ academyId, athletes: initialAthletes, levels
             onChange={(event) => setGroupFilter(event.target.value)}
             className="min-h-11 min-w-[180px] rounded-[10px] border border-zaltyko-mist bg-white px-3 py-2 text-sm focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15"
           >
-            <option value="">Grupo principal</option>
+            <option value="">{terms.group} principal</option>
             {groups.map((group) => (
               <option key={group.id} value={group.id}>
                 {group.name}
+              </option>
+            ))}
+          </select>
+          <select
+            value={sportConfigFilter}
+            onChange={(event) => setSportConfigFilter(event.target.value)}
+            className="min-h-11 min-w-[210px] rounded-[10px] border border-zaltyko-mist bg-white px-3 py-2 text-sm focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15"
+          >
+            <option value="">Todas las ramas</option>
+            {sportConfigs.map((config) => (
+              <option key={config.id} value={config.id}>
+                {config.branchName} · {config.disciplineName}
               </option>
             ))}
           </select>
@@ -334,6 +394,13 @@ export function AthletesTableView({ academyId, athletes: initialAthletes, levels
               className="min-h-11 w-20 rounded-[10px] border border-zaltyko-mist bg-white px-2 py-2 text-sm focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15"
             />
           </div>
+          <button
+            type="submit"
+            disabled={isPending}
+            className="min-h-10 rounded-full bg-zaltyko-teal px-4 py-2 text-xs font-semibold text-white hover:bg-primary-dark disabled:opacity-60"
+          >
+            Filtrar
+          </button>
           {/* Quick Filters */}
           <div className="flex items-center gap-2">
             <button
@@ -352,7 +419,7 @@ export function AthletesTableView({ academyId, athletes: initialAthletes, levels
             </button>
             <button
               type="button"
-              onClick={() => { setStatusFilter(""); setLevelFilter(""); setGroupFilter(""); setAgeRange({}); setQuery(""); }}
+              onClick={() => { setStatusFilter(""); setLevelFilter(""); setGroupFilter(""); setSportConfigFilter(""); setAgeRange({}); setQuery(""); }}
               className="min-h-10 rounded-full border border-zaltyko-mist bg-white px-3 py-2 text-xs text-zaltyko-text-secondary hover:bg-zaltyko-white"
             >
               Limpiar
@@ -400,10 +467,10 @@ export function AthletesTableView({ academyId, athletes: initialAthletes, levels
                 defaultValue=""
                 onChange={(e) => {
                   if (e.target.value === "delete") {
-                    if (confirm(`¿Eliminar ${selectedAthletes.size} atletas?`)) {
+                    if (confirm(`¿Eliminar ${selectedAthletes.size} ${terms.athletes.toLowerCase()}?`)) {
                       toast.pushToast({
                         title: "Eliminación masiva",
-                        description: `Se eliminarán ${selectedAthletes.size} atletas`,
+                        description: `Se eliminarán ${selectedAthletes.size} ${terms.athletes.toLowerCase()}`,
                         variant: "warning",
                       });
                       setSelectedAthletes(new Set());
@@ -436,7 +503,7 @@ export function AthletesTableView({ academyId, athletes: initialAthletes, levels
               onClick={() => setCreateOpen(true)}
               className="inline-flex min-h-11 items-center justify-center rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white shadow-soft hover:bg-primary-dark"
             >
-              Nuevo atleta
+              Nuevo {terms.athlete.toLowerCase()}
             </button>
           </TooltipOnboarding>
         </div>
@@ -449,13 +516,13 @@ export function AthletesTableView({ academyId, athletes: initialAthletes, levels
           </div>
           <p className="mb-2 text-sm font-medium text-foreground">
             {hasActiveFilters
-              ? "No hay atletas que coincidan con los filtros"
-              : "Aún no has creado ningún atleta"}
+              ? `No hay ${terms.athletes.toLowerCase()} que coincidan con los filtros`
+              : `Aún no has creado ningún ${terms.athlete.toLowerCase()}`}
           </p>
           <p className="mb-6 text-sm text-muted-foreground">
             {hasActiveFilters
               ? "Intenta ajustar los filtros de búsqueda"
-              : "Crea tu primer atleta para empezar a gestionar tu academia"}
+              : `Crea tu primer ${terms.athlete.toLowerCase()} para empezar a gestionar tu academia`}
           </p>
           {!hasActiveFilters && (
             <button
@@ -463,7 +530,7 @@ export function AthletesTableView({ academyId, athletes: initialAthletes, levels
               onClick={() => setCreateOpen(true)}
               className="inline-flex min-h-11 items-center justify-center rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white shadow-soft transition-all hover:bg-primary-dark"
             >
-              Crear primer atleta
+              Crear primer {terms.athlete.toLowerCase()}
             </button>
           )}
         </div>
@@ -512,7 +579,7 @@ export function AthletesTableView({ academyId, athletes: initialAthletes, levels
                   </button>
                 </th>
                 <th className="px-4 py-3 font-medium text-right">Familia</th>
-                <th className="px-4 py-3 font-medium">Grupo principal</th>
+                <th className="px-4 py-3 font-medium">{terms.group} principal</th>
                 <th className="px-4 py-3 font-medium text-right">Acciones</th>
               </tr>
             </thead>
@@ -550,6 +617,11 @@ export function AthletesTableView({ academyId, athletes: initialAthletes, levels
                         Nacido el {athlete.dob.slice(0, 10)}
                       </p>
                     )}
+                    {athlete.primarySportConfigId && (
+                      <span className="inline-flex w-fit rounded-full border border-zaltyko-mist bg-zaltyko-white px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+                        {sportConfigNameById.get(athlete.primarySportConfigId) ?? "Configuración deportiva"}
+                      </span>
+                    )}
                   </div>
                 </td>
                 <td className="px-4 py-3">{athlete.level ?? "—"}</td>
@@ -580,7 +652,7 @@ export function AthletesTableView({ academyId, athletes: initialAthletes, levels
                       {athlete.groupName}
                     </span>
                   ) : (
-                    <span className="text-xs text-muted-foreground">Sin grupo</span>
+                    <span className="text-xs text-muted-foreground">Sin {terms.group.toLowerCase()}</span>
                   )}
                 </td>
                 <td className="px-4 py-3 text-right">
@@ -600,7 +672,7 @@ export function AthletesTableView({ academyId, athletes: initialAthletes, levels
           {totalPages > 1 && (
             <div className="flex items-center justify-between border-t border-zaltyko-mist px-4 py-3">
               <p className="text-sm text-muted-foreground">
-                Mostrando {((currentPage - 1) * ITEMS_PER_PAGE) + 1} - {Math.min(currentPage * ITEMS_PER_PAGE, filteredAthletes.length)} de {filteredAthletes.length} atletas
+                Mostrando {((currentPage - 1) * ITEMS_PER_PAGE) + 1} - {Math.min(currentPage * ITEMS_PER_PAGE, filteredAthletes.length)} de {filteredAthletes.length} {terms.athletes.toLowerCase()}
               </p>
               <div className="flex items-center gap-2">
                 <Button
@@ -646,6 +718,8 @@ export function AthletesTableView({ academyId, athletes: initialAthletes, levels
         onClose={() => setCreateOpen(false)}
         onCreated={handleCreated}
         groups={groups}
+        sportConfigs={sportConfigs}
+        initialSportConfigId={sportConfigFilter || undefined}
       />
 
       {editing && (
@@ -658,6 +732,10 @@ export function AthletesTableView({ academyId, athletes: initialAthletes, levels
             dob: editing.dob ?? null,
             groupId: editing.groupId ?? null,
             groupName: editing.groupName,
+            primarySportConfigId: editing.primarySportConfigId ?? null,
+            programCode: editing.programCode ?? null,
+            levelCode: editing.levelCode ?? null,
+            categoryCode: editing.categoryCode ?? null,
           }}
           academyId={academyId}
           open={Boolean(editing)}
@@ -675,6 +753,7 @@ export function AthletesTableView({ academyId, athletes: initialAthletes, levels
             }
           }}
           groups={groups}
+          sportConfigs={sportConfigs}
         />
       )}
     </div>

@@ -15,6 +15,7 @@ const reportSchema = z.object({
   startDate: z.string().optional(),
   endDate: z.string().optional(),
   skillId: z.string().uuid().optional(),
+  sportConfigId: z.string().uuid().optional(),
   compare: z.enum(["true", "false"]).optional(),
 });
 
@@ -30,6 +31,7 @@ export const GET = withTenant(async (request, context) => {
     startDate: url.searchParams.get("startDate"),
     endDate: url.searchParams.get("endDate"),
     skillId: url.searchParams.get("skillId"),
+    sportConfigId: url.searchParams.get("sportConfigId"),
     compare: url.searchParams.get("compare"),
   };
 
@@ -50,6 +52,7 @@ export const GET = withTenant(async (request, context) => {
     startDate: validated.startDate ? new Date(validated.startDate) : undefined,
     endDate: validated.endDate ? new Date(validated.endDate) : undefined,
     skillId: validated.skillId,
+    sportConfigId: validated.sportConfigId,
   };
 
   try {
@@ -79,7 +82,9 @@ export const GET = withTenant(async (request, context) => {
         .select({
           athleteId: athletes.id,
           primaryApparatus: athletes.primaryApparatus,
+          primarySportConfigId: athletes.primarySportConfigId,
           groupName: groups.name,
+          groupSportConfigId: groups.sportConfigId,
           groupTechnicalFocus: groups.technicalFocus,
           groupApparatus: groups.apparatus,
           sessionBlocks: groups.sessionBlocks,
@@ -97,7 +102,9 @@ export const GET = withTenant(async (request, context) => {
           technicalContext: athleteContext
             ? {
                 primaryApparatus: athleteContext.primaryApparatus ?? null,
+                primarySportConfigId: athleteContext.primarySportConfigId ?? null,
                 groupName: athleteContext.groupName ?? null,
+                groupSportConfigId: athleteContext.groupSportConfigId ?? null,
                 technicalFocus: athleteContext.groupTechnicalFocus ?? null,
                 apparatus: athleteContext.groupApparatus ?? [],
                 sessionBlocks: athleteContext.sessionBlocks ?? [],

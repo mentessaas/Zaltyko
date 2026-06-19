@@ -4,10 +4,20 @@ import { FormEvent, useEffect, useMemo, useState, useTransition } from "react";
 
 import { Modal } from "@/components/ui/modal";
 import { createClient } from "@/lib/supabase/client";
+import { getTerminologyForSportConfig } from "@/lib/sport-config/terminology";
 
 interface ClassOption {
   id: string;
   name: string;
+  sportConfigId: string | null;
+}
+
+interface SportConfigOption {
+  id: string;
+  name: string;
+  disciplineName: string;
+  branchName: string;
+  terminology?: Record<string, string>;
 }
 
 interface CoachWithAssignments {
@@ -15,12 +25,14 @@ interface CoachWithAssignments {
   name: string;
   email: string | null;
   phone: string | null;
+  sportConfigIds: string[];
   classes: ClassOption[];
 }
 
 interface EditCoachDialogProps {
   coach: CoachWithAssignments;
   availableClasses: ClassOption[];
+  sportConfigs: SportConfigOption[];
   open: boolean;
   onClose: () => void;
   onUpdated: () => void;
@@ -31,6 +43,7 @@ interface EditCoachDialogProps {
 export function EditCoachDialog({
   coach,
   availableClasses,
+  sportConfigs,
   open,
   onClose,
   onUpdated,
@@ -43,9 +56,12 @@ export function EditCoachDialog({
   const [selectedClasses, setSelectedClasses] = useState<string[]>(
     coach.classes.map((item) => item.id)
   );
+  const [selectedSportConfigs, setSelectedSportConfigs] = useState<string[]>(coach.sportConfigIds);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [isAssigning, setIsAssigning] = useState(false);
+  const terms = getTerminologyForSportConfig(sportConfigs, selectedSportConfigs[0]);
+  const coachTermLower = terms.coach.toLowerCase();
 
   useEffect(() => {
     if (!open) return;
@@ -53,17 +69,29 @@ export function EditCoachDialog({
     setEmail(coach.email ?? "");
     setPhone(coach.phone ?? "");
     setSelectedClasses(coach.classes.map((item) => item.id));
+    setSelectedSportConfigs(coach.sportConfigIds);
     setError(null);
   }, [coach, open]);
+
+  useEffect(() => {
+    if (selectedSportConfigs.length === 0) return;
+    const allowedClassIds = new Set(
+      availableClasses
+        .filter((entry) => !entry.sportConfigId || selectedSportConfigs.includes(entry.sportConfigId))
+        .map((entry) => entry.id)
+    );
+    setSelectedClasses((current) => current.filter((classId) => allowedClassIds.has(classId)));
+  }, [availableClasses, selectedSportConfigs]);
 
   const hasChanges = useMemo(() => {
     return (
       name.trim() !== coach.name ||
       email.trim() !== (coach.email ?? "") ||
       phone.trim() !== (coach.phone ?? "") ||
-      !arrayEquals(selectedClasses.sort(), coach.classes.map((item) => item.id).sort())
+      !arrayEquals([...selectedSportConfigs].sort(), [...coach.sportConfigIds].sort()) ||
+      !arrayEquals([...selectedClasses].sort(), coach.classes.map((item) => item.id).sort())
     );
-  }, [name, email, phone, selectedClasses, coach]);
+  }, [name, email, phone, selectedClasses, selectedSportConfigs, coach]);
 
   const handleClose = () => {
     if (isPending) return;
@@ -90,6 +118,9 @@ export function EditCoachDialog({
         if (name.trim() !== coach.name) payload.name = name.trim();
         if (email.trim() !== (coach.email ?? "")) payload.email = email.trim() || null;
         if (phone.trim() !== (coach.phone ?? "")) payload.phone = phone.trim() || null;
+        if (!arrayEquals([...selectedSportConfigs].sort(), [...coach.sportConfigIds].sort())) {
+          payload.sportConfigIds = selectedSportConfigs;
+        }
 
         if (Object.keys(payload).length > 0) {
           const response = await fetch(`/api/coaches/${coach.id}`, {
@@ -103,7 +134,7 @@ export function EditCoachDialog({
 
           if (!response.ok) {
             const data = await response.json().catch(() => ({}));
-            throw new Error(data.error ?? "No se pudo actualizar el entrenador.");
+            throw new Error(data.error ?? `No se pudo actualizar el ${coachTermLower}.`);
           }
         }
 
@@ -139,7 +170,7 @@ export function EditCoachDialog({
   };
 
   const handleDelete = async () => {
-    if (!window.confirm("¿Eliminar este entrenador? Se quitarán también sus asignaciones.")) {
+    if (!window.confirm(`¿Eliminar este ${coachTermLower}? Se quitarán también sus asignaciones.`)) {
       return;
     }
 
@@ -158,13 +189,13 @@ export function EditCoachDialog({
 
       if (!response.ok) {
         const data = await response.json().catch(() => ({}));
-        throw new Error(data.error ?? "No se pudo eliminar el entrenador.");
+        throw new Error(data.error ?? `No se pudo eliminar el ${coachTermLower}.`);
       }
 
       onDeleted();
       onClose();
     } catch (err: any) {
-      setError(err.message ?? "Error al eliminar el entrenador.");
+      setError(err.message ?? `Error al eliminar el ${coachTermLower}.`);
     } finally {
       setIsAssigning(false);
     }
@@ -176,14 +207,27 @@ export function EditCoachDialog({
     );
   };
 
+  const toggleSportConfig = (sportConfigId: string) => {
+    setSelectedSportConfigs((current) =>
+      current.includes(sportConfigId)
+        ? current.filter((id) => id !== sportConfigId)
+        : [...current, sportConfigId]
+    );
+  };
+
+  const isClassAllowed = (entry: ClassOption) =>
+    selectedSportConfigs.length === 0 || !entry.sportConfigId || selectedSportConfigs.includes(entry.sportConfigId);
+
+  const sportConfigNameById = new Map(sportConfigs.map((config) => [config.id, config.branchName]));
+
   const assignedCount = selectedClasses.length;
 
   return (
     <Modal
       open={open}
       onClose={handleClose}
-      title="Editar entrenador"
-      description="Actualiza la información básica y las clases asignadas al entrenador."
+      title={`Editar ${coachTermLower}`}
+      description={`Actualiza la información básica y las clases asignadas al ${coachTermLower}.`}
       footer={
         <div className="flex flex-wrap items-center justify-between gap-4">
           <button
@@ -191,7 +235,7 @@ export function EditCoachDialog({
             onClick={handleDelete}
             className="text-sm font-semibold text-red-600 hover:underline"
           >
-            Eliminar entrenador
+            Eliminar {coachTermLower}
           </button>
           <div className="flex gap-2">
             <button
@@ -253,11 +297,39 @@ export function EditCoachDialog({
         </div>
 
         <section className="space-y-3 rounded-md border border-dashed border-border/70 p-4">
+          <div>
+            <h3 className="text-sm font-semibold text-foreground">Ramas habilitadas</h3>
+            <p className="text-xs text-muted-foreground">
+              Sin selección equivale a todas las ramas. Si eliges ramas, las clases fuera de ese alcance quedan bloqueadas.
+            </p>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {sportConfigs.map((config) => (
+              <label
+                key={config.id}
+                className="flex items-start gap-2 rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm hover:border-primary/60"
+              >
+                <input
+                  type="checkbox"
+                  className="mt-1"
+                  checked={selectedSportConfigs.includes(config.id)}
+                  onChange={() => toggleSportConfig(config.id)}
+                />
+                <span>
+                  <span className="block font-medium">{config.branchName}</span>
+                  <span className="block text-xs text-muted-foreground">{config.disciplineName}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+        </section>
+
+        <section className="space-y-3 rounded-md border border-dashed border-border/70 p-4">
           <header className="flex items-center justify-between gap-3">
             <div>
               <h3 className="text-sm font-semibold text-foreground">Clases asignadas</h3>
               <p className="text-xs text-muted-foreground">
-                Marca las clases donde el entrenador participa. Asignadas: {assignedCount}
+                Marca las clases donde el {coachTermLower} participa. Asignadas: {assignedCount}
               </p>
             </div>
             <button
@@ -274,19 +346,30 @@ export function EditCoachDialog({
                 No hay clases disponibles en esta academia. Crea clases primero.
               </p>
             ) : (
-              availableClasses.map((entry) => (
+              availableClasses.map((entry) => {
+                const allowed = isClassAllowed(entry);
+                return (
                 <label
                   key={entry.id}
-                  className="flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm hover:border-primary/60"
+                  className="flex items-start gap-2 rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm hover:border-primary/60 has-[:disabled]:opacity-60"
                 >
                   <input
                     type="checkbox"
                     checked={selectedClasses.includes(entry.id)}
+                    disabled={!allowed}
                     onChange={() => toggleClass(entry.id)}
                   />
-                  <span>{entry.name}</span>
+                  <span>
+                    <span className="block">{entry.name}</span>
+                    {entry.sportConfigId && (
+                      <span className="block text-xs text-muted-foreground">
+                        {sportConfigNameById.get(entry.sportConfigId) ?? "Rama configurada"}
+                      </span>
+                    )}
+                  </span>
                 </label>
-              ))
+              );
+              })
             )}
           </div>
         </section>
@@ -300,5 +383,3 @@ function arrayEquals<T>(a: T[], b: T[]) {
   const setB = new Set(b);
   return a.every((item) => setB.has(item));
 }
-
-

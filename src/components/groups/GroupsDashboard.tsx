@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { GroupCard } from "./GroupCard";
 import { CreateGroupDialog } from "./CreateGroupDialog";
 import { EditGroupDialog } from "./EditGroupDialog";
-import { AthleteOption, CoachOption, GroupSummary } from "./types";
+import { AthleteOption, CoachOption, GroupSummary, SportConfigOption } from "./types";
 import { createClient } from "@/lib/supabase/client";
 import { TooltipOnboarding } from "@/components/tooltips/TooltipOnboarding";
 import { useAcademyContext } from "@/hooks/use-academy-context";
@@ -22,6 +22,7 @@ interface GroupsDashboardProps {
   initialGroups: GroupSummary[];
   coaches: CoachOption[];
   athletes: AthleteOption[];
+  sportConfigs?: SportConfigOption[];
   initialFocusGroupId?: string;
 }
 
@@ -30,13 +31,16 @@ export function GroupsDashboard({
   initialGroups,
   coaches,
   athletes,
+  sportConfigs: initialSportConfigs = [],
   initialFocusGroupId,
 }: GroupsDashboardProps) {
   const { specialization } = useAcademyContext();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const sportConfigFilter = searchParams?.get("sportConfigId") ?? "";
   const [groups, setGroups] = useState(initialGroups);
+  const [sportConfigs, setSportConfigs] = useState<SportConfigOption[]>(initialSportConfigs);
   const [createOpen, setCreateOpen] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState<StarterGroupPreset | null>(null);
   const [editingGroup, setEditingGroup] = useState<GroupSummary | null>(null);
@@ -70,6 +74,35 @@ export function GroupsDashboard({
   const starterSetup = useMemo(
     () => summarizeStarterGroupSetup(specialization, groups),
     [groups, specialization]
+  );
+  const selectedSportConfig = useMemo(
+    () => sportConfigs.find((config) => config.id === sportConfigFilter) ?? null,
+    [sportConfigFilter, sportConfigs]
+  );
+  const sportConfigLabelById = useMemo(
+    () =>
+      new Map(
+        sportConfigs.map((config) => [
+          config.id,
+          `${config.branchName} · ${config.disciplineName}`,
+        ])
+      ),
+    [sportConfigs]
+  );
+
+  const updateSportConfigFilter = useCallback(
+    (value: string) => {
+      const params = new URLSearchParams(searchParams?.toString());
+      if (value) {
+        params.set("sportConfigId", value);
+      } else {
+        params.delete("sportConfigId");
+      }
+      const nextUrl = params.toString() ? `${pathname}?${params.toString()}` : pathname;
+      router.replace(nextUrl, { scroll: false });
+      router.refresh();
+    },
+    [pathname, router, searchParams]
   );
 
   useEffect(() => {
@@ -159,7 +192,12 @@ export function GroupsDashboard({
         data: { user },
       } = await supabase.auth.getUser();
 
-      const response = await fetch(`/api/groups?academyId=${academyId}`, {
+      const params = new URLSearchParams({ academyId });
+      if (sportConfigFilter) {
+        params.set("sportConfigId", sportConfigFilter);
+      }
+
+      const response = await fetch(`/api/groups?${params.toString()}`, {
         headers: {
         },
         cache: "no-store",
@@ -170,7 +208,11 @@ export function GroupsDashboard({
         return;
       }
 
-      const data = await response.json();
+      const payload = await response.json();
+      const data = payload.data ?? payload;
+      if (Array.isArray(data.sportConfigs)) {
+        setSportConfigs(data.sportConfigs);
+      }
       if (Array.isArray(data.items)) {
         setGroups(
           hydrateGroups(
@@ -179,6 +221,10 @@ export function GroupsDashboard({
               academyId,
               name: item.name,
               discipline: item.discipline,
+              sportConfigId: item.sportConfigId ?? null,
+              programCode: item.programCode ?? null,
+              levelCode: item.levelCode ?? null,
+              categoryCode: item.categoryCode ?? null,
               level: item.level ?? null,
               technicalFocus: item.technicalFocus ?? null,
               apparatus: item.apparatus ?? [],
@@ -197,7 +243,11 @@ export function GroupsDashboard({
         );
       }
     });
-  }, [academyId, hydrateGroups]);
+  }, [academyId, hydrateGroups, sportConfigFilter]);
+
+  useEffect(() => {
+    void refreshGroups();
+  }, [refreshGroups]);
 
   return (
     <div className="space-y-6">
@@ -357,6 +407,18 @@ export function GroupsDashboard({
           </div>
         </div>
         <div className="flex items-center gap-3">
+          <select
+            value={sportConfigFilter}
+            onChange={(event) => updateSportConfigFilter(event.target.value)}
+            className="min-h-10 min-w-[220px] rounded-md border border-border bg-background px-3 py-2 text-sm"
+          >
+            <option value="">Todas las ramas</option>
+            {sportConfigs.map((config) => (
+              <option key={config.id} value={config.id}>
+                {config.branchName} · {config.disciplineName}
+              </option>
+            ))}
+          </select>
           <TooltipOnboarding
             tooltipId="tooltip_create_group"
             message="Empieza aquí: crea un grupo para organizar a tus atletas por nivel y horario."
@@ -375,10 +437,22 @@ export function GroupsDashboard({
         </div>
       </section>
 
+      {selectedSportConfig && (
+        <div className="rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-muted-foreground">
+          Mostrando solo grupos de{" "}
+          <span className="font-semibold text-foreground">
+            {selectedSportConfig.branchName} · {selectedSportConfig.disciplineName}
+          </span>
+          .
+        </div>
+      )}
+
       {groups.length === 0 ? (
         <div className="rounded-lg border bg-card p-12 text-center shadow-sm">
           <p className="mb-4 text-sm text-muted-foreground">
-            Aún no has creado ningún grupo. Crea tu primer grupo para organizar tus atletas por nivel y horario.
+            {selectedSportConfig
+              ? `No hay grupos para ${selectedSportConfig.branchName} · ${selectedSportConfig.disciplineName}.`
+              : "Aún no has creado ningún grupo. Crea tu primer grupo para organizar tus atletas por nivel y horario."}
           </p>
           <button
             type="button"
@@ -398,6 +472,9 @@ export function GroupsDashboard({
               key={group.id}
               academyId={academyId}
               group={group}
+              sportConfigLabel={
+                group.sportConfigId ? sportConfigLabelById.get(group.sportConfigId) ?? null : null
+              }
               onEdit={handleEdit}
             />
           ))}
@@ -415,6 +492,8 @@ export function GroupsDashboard({
         coaches={coaches}
         athletes={athletes}
         initialPreset={selectedPreset}
+        sportConfigs={sportConfigs}
+        initialSportConfigId={sportConfigFilter || undefined}
       />
 
       {editingGroup && (
@@ -427,6 +506,7 @@ export function GroupsDashboard({
           coaches={coaches}
           athletes={athletes}
           currentAthleteIds={currentAthleteIds}
+          sportConfigs={sportConfigs}
         />
       )}
     </div>

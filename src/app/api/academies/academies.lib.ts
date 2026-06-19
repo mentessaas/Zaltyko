@@ -12,6 +12,7 @@ import { assertUserAcademyLimit, getUpgradeInfo } from "@/lib/limits";
 import { seedOnboardingForAcademy, markWizardStep } from "@/lib/onboarding";
 import { trackEvent } from "@/lib/analytics";
 import { logEvent } from "@/lib/event-logging";
+import { activateAcademySportConfig } from "@/lib/sport-config/seed";
 import {
   inferDisciplineFromVariant,
   mapDisciplineVariantToAcademyType,
@@ -138,6 +139,14 @@ export async function createAcademy(body: z.infer<typeof CreateAcademyBodySchema
     trialStartsAt: null,
     trialEndsAt: null,
     isTrialActive: false,
+  });
+
+  await activateAcademySportConfig({
+    tenantId,
+    academyId,
+    countryCode: normalizedCountryCode,
+    disciplineVariant,
+    academyKind: "mixed",
   });
 
   await db

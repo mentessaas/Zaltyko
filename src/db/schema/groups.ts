@@ -1,6 +1,7 @@
 import { integer, pgTable, uuid, text, timestamp, index } from "drizzle-orm/pg-core";
 
 import { academies } from "./academies";
+import { academySportConfigs } from "./sport-config";
 import { coaches } from "./coaches";
 import { athletes } from "./athletes";
 import { billingItems } from "./billing-items";
@@ -15,6 +16,10 @@ export const groups = pgTable(
       .references(() => academies.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
     discipline: text("discipline").notNull(),
+    sportConfigId: uuid("sport_config_id").references(() => academySportConfigs.id, { onDelete: "set null" }),
+    programCode: text("program_code"),
+    levelCode: text("level_code"),
+    categoryCode: text("category_code"),
     level: text("level"),
     technicalFocus: text("technical_focus"),
     apparatus: text("apparatus").array(),
@@ -30,6 +35,7 @@ export const groups = pgTable(
   (table) => ({
     tenantIdx: index("groups_tenant_idx").on(table.tenantId),
     academyIdx: index("groups_academy_idx").on(table.academyId),
+    sportConfigIdx: index("groups_sport_config_idx").on(table.sportConfigId),
     coachIdx: index("groups_coach_idx").on(table.coachId),
     deletedAtIdx: index("groups_deleted_at_idx").on(table.deletedAt),
   })

@@ -16,6 +16,7 @@ export interface ProgressReportFilters {
   startDate?: Date;
   endDate?: Date;
   skillId?: string;
+  sportConfigId?: string;
 }
 
 export interface SkillProgress {
@@ -63,6 +64,9 @@ export async function analyzeAthleteProgress(
   }
   if (filters.endDate) {
     whereConditions.push(lte(athleteAssessments.assessmentDate, format(filters.endDate, "yyyy-MM-dd")));
+  }
+  if (filters.sportConfigId) {
+    whereConditions.push(eq(athleteAssessments.sportConfigId, filters.sportConfigId));
   }
 
   // Obtener evaluaciones
@@ -274,4 +278,3 @@ export async function compareAssessments(
     comparison,
   };
 }
-

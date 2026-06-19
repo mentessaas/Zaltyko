@@ -10,7 +10,9 @@ export interface EventFormData {
   isPublic: boolean;
   level: EventLevel;
   discipline: EventDiscipline | "";
+  sportConfigId: string;
   eventType: EventType | "";
+  competitionTypeCode: string;
   startDate: string;
   endDate: string;
   registrationStartDate: string;
@@ -51,7 +53,9 @@ export interface EventFormInitialData {
   isPublic?: boolean;
   level?: string;
   discipline?: string;
+  sportConfigId?: string | null;
   eventType?: EventType | null;
+  competitionTypeCode?: string | null;
   startDate?: string;
   endDate?: string;
   registrationStartDate?: string | null;
@@ -94,7 +98,9 @@ export function normalizeEventFormData(
     isPublic: initialData?.isPublic ?? false,
     level: (initialData?.level as EventLevel) || "internal",
     discipline: (initialData?.discipline as EventDiscipline) || "",
+    sportConfigId: initialData?.sportConfigId || "",
     eventType: initialData?.eventType || "",
+    competitionTypeCode: initialData?.competitionTypeCode || "",
     startDate: initialData?.startDate || "",
     endDate: initialData?.endDate || "",
     registrationStartDate: initialData?.registrationStartDate || "",
@@ -123,4 +129,3 @@ export function normalizeEventFormData(
     waitlistMaxSize: initialData?.waitlistMaxSize ?? 0,
   };
 }
-

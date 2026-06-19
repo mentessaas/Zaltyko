@@ -21,6 +21,9 @@ import { withTransaction } from "@/lib/db-transactions";
 import { verifyClassAccess } from "@/lib/permissions";
 import { hasScheduleConflictForAthlete } from "@/lib/classes/schedule-conflicts";
 import { logger } from "@/lib/logger";
+import { getAcademySportConfigOptions, verifyAcademySportConfig } from "@/lib/sport-config/service";
+import { normalizeApparatusCodes } from "@/lib/sport-config/validation";
+import { assertCoachesCanHandleSportConfig } from "@/lib/coaches/sport-scope";
 import { NextResponse } from "next/server";
 
 type PgLikeError = {
@@ -68,6 +71,7 @@ const updateSchema = z.object({
   groupIds: z.array(z.string().uuid()).optional(),
   isExtra: z.boolean().optional(),
   groupId: z.string().uuid().nullable().optional(),
+  sportConfigId: z.string().uuid().nullable().optional(),
   allowsFreeTrial: z.boolean().optional(),
   waitingListEnabled: z.boolean().optional(),
   cancellationHoursBefore: z.number().int().min(0).max(168).optional(),
@@ -96,6 +100,7 @@ export const GET = withTenant(async (_request, context) => {
       capacity: classes.capacity,
       technicalFocus: classes.technicalFocus,
       apparatus: classes.apparatus,
+      sportConfigId: classes.sportConfigId,
       allowsFreeTrial: classes.allowsFreeTrial,
       waitingListEnabled: classes.waitingListEnabled,
       cancellationHoursBefore: classes.cancellationHoursBefore,
@@ -134,6 +139,7 @@ export const GET = withTenant(async (_request, context) => {
       groupId: classGroups.groupId,
       groupName: groups.name,
       groupColor: groups.color,
+      sportConfigId: groups.sportConfigId,
     })
     .from(classGroups)
     .innerJoin(groups, eq(classGroups.groupId, groups.id))
@@ -148,6 +154,7 @@ export const GET = withTenant(async (_request, context) => {
         id: g.groupId,
         name: g.groupName,
         color: g.groupColor,
+        sportConfigId: g.sportConfigId,
       })),
       allowsFreeTrial: classRow.allowsFreeTrial ?? false,
       waitingListEnabled: classRow.waitingListEnabled ?? false,
@@ -196,6 +203,7 @@ export const PUT = withTenant(async (request, context) => {
       .select({
         id: classes.id,
         academyId: classes.academyId,
+        sportConfigId: classes.sportConfigId,
         startTime: classes.startTime,
         endTime: classes.endTime,
       })
@@ -205,6 +213,110 @@ export const PUT = withTenant(async (request, context) => {
 
     if (!currentClass) {
       return apiError("CLASS_NOT_FOUND", "Class not found", 404);
+    }
+
+    const currentGroupIds = await db
+      .select({ groupId: classGroups.groupId })
+      .from(classGroups)
+      .where(eq(classGroups.classId, classId));
+
+    const candidateGroupIds =
+      body.groupIds !== undefined
+        ? body.groupIds
+        : body.groupId !== undefined
+        ? body.groupId
+          ? [body.groupId]
+          : []
+        : currentGroupIds.map((row) => row.groupId);
+
+    const uniqueCandidateGroupIds = Array.from(new Set(candidateGroupIds));
+    const selectedGroups =
+      uniqueCandidateGroupIds.length > 0
+        ? await db
+            .select({
+              id: groups.id,
+              sportConfigId: groups.sportConfigId,
+            })
+            .from(groups)
+            .where(
+              and(
+                eq(groups.tenantId, context.tenantId),
+                eq(groups.academyId, currentClass.academyId),
+                inArray(groups.id, uniqueCandidateGroupIds)
+              )
+            )
+        : [];
+
+    if (selectedGroups.length !== uniqueCandidateGroupIds.length) {
+      return apiError("GROUP_NOT_FOUND", "Uno o más grupos no pertenecen a esta academia", 404);
+    }
+
+    const groupSportConfigIds = Array.from(
+      new Set(selectedGroups.map((group) => group.sportConfigId).filter((value): value is string => Boolean(value)))
+    );
+    const effectiveSportConfigId =
+      body.sportConfigId !== undefined
+        ? body.sportConfigId
+        : groupSportConfigIds.length === 1
+        ? groupSportConfigIds[0]
+        : currentClass.sportConfigId ?? null;
+
+    if (groupSportConfigIds.length > 1 && !body.sportConfigId) {
+      return apiError(
+        "MIXED_SPORT_CONFIG_GROUPS",
+        "No se puede vincular una clase a grupos de distintas ramas sin seleccionar una configuración deportiva explícita",
+        400
+      );
+    }
+
+    let normalizedApparatus =
+      body.apparatus !== undefined
+        ? body.apparatus.length
+          ? Array.from(new Set(body.apparatus.map((item) => item.trim()).filter(Boolean)))
+          : null
+        : undefined;
+
+    if (effectiveSportConfigId) {
+      const verifiedConfig = await verifyAcademySportConfig({
+        academyId: currentClass.academyId,
+        tenantId: context.tenantId,
+        sportConfigId: effectiveSportConfigId,
+      });
+
+      if (!verifiedConfig) {
+        return apiError("SPORT_CONFIG_NOT_FOUND", "La configuración deportiva no está activa en esta academia", 400);
+      }
+
+      const activeConfigs = await getAcademySportConfigOptions(currentClass.academyId);
+      const selectedConfig = activeConfigs.find((config) => config.id === effectiveSportConfigId);
+
+      if (normalizedApparatus !== undefined && normalizedApparatus !== null) {
+        const apparatusValidation = normalizeApparatusCodes(selectedConfig ?? {}, normalizedApparatus);
+        if (!apparatusValidation.ok) {
+          return apiError("INVALID_APPARATUS", "Uno o más aparatos no pertenecen a la modalidad/rama de esta clase", 400);
+        }
+
+        normalizedApparatus = apparatusValidation.codes ?? [];
+      }
+    }
+
+    if (body.coachIds !== undefined) {
+      const coachScope = await assertCoachesCanHandleSportConfig({
+        coachIds: body.coachIds,
+        academyId: currentClass.academyId,
+        tenantId: context.tenantId,
+        sportConfigId: effectiveSportConfigId,
+      });
+
+      if (!coachScope.ok) {
+        return apiError(
+          coachScope.reason,
+          coachScope.reason === "COACH_NOT_FOUND"
+            ? "Uno o más entrenadores no pertenecen a esta academia"
+            : "Uno o más entrenadores no pueden asignarse a esa rama/modalidad",
+          coachScope.reason === "COACH_NOT_FOUND" ? 404 : 400
+        );
+      }
     }
 
     // Determinar si se están modificando horarios o grupos (necesita validación)
@@ -359,11 +471,16 @@ export const PUT = withTenant(async (request, context) => {
         if (body.capacity !== undefined) updates.capacity = body.capacity;
         if (body.technicalFocus !== undefined) updates.technicalFocus = body.technicalFocus?.trim() || null;
         if (body.apparatus !== undefined) {
-          updates.apparatus = body.apparatus.length
-            ? Array.from(new Set(body.apparatus.map((item) => item.trim()).filter(Boolean)))
-            : null;
+          updates.apparatus = normalizedApparatus ?? null;
         }
         if (body.isExtra !== undefined) updates.isExtra = body.isExtra;
+        if (
+          body.sportConfigId !== undefined ||
+          body.groupIds !== undefined ||
+          body.groupId !== undefined
+        ) {
+          updates.sportConfigId = effectiveSportConfigId;
+        }
         if (body.groupId !== undefined) updates.groupId = body.groupId;
         if (body.allowsFreeTrial !== undefined) updates.allowsFreeTrial = body.allowsFreeTrial;
         if (body.waitingListEnabled !== undefined) updates.waitingListEnabled = body.waitingListEnabled;
@@ -565,4 +682,3 @@ export const DELETE = withTenant(async (_request, context) => {
     return handleApiError(error, { endpoint: `/api/classes/${classId ?? "unknown"}`, method: "DELETE" });
   }
 });
-

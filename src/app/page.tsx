@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Schema } from "@/components/Schema";
 
 // Componentes de la Home
-import NavbarHome from "@/app/(site)/home/Navbar";
+import Navbar from "@/app/(site)/Navbar";
 import HeroSection from "@/app/(site)/home/HeroSection";
 import SocialProofSection from "@/app/(site)/home/SocialProofSection";
 import WhyZaltykoSection from "@/app/(site)/home/WhyZaltykoSection";
@@ -15,7 +15,7 @@ import DemoSection from "@/app/(site)/home/DemoSection";
 import FaqSection from "@/app/(site)/home/FaqSection";
 import IntegrationsSection from "@/app/(site)/home/IntegrationsSection";
 import FinalCtaSection from "@/app/(site)/home/FinalCtaSection";
-import FooterSection from "@/app/(site)/home/FooterSection";
+import Footer from "@/app/(site)/Footer";
 import StickyCtaBar from "@/app/(site)/home/StickyCtaBar";
 
 const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://zaltyko.com";
@@ -82,7 +82,7 @@ export const metadata: Metadata = {
 export default function HomePage() {
   return (
     <>
-      <NavbarHome />
+      <Navbar />
 
       <main>
         {/* Hero con H1 principal */}
@@ -122,7 +122,7 @@ export default function HomePage() {
         <FinalCtaSection />
       </main>
 
-      <FooterSection />
+      <Footer />
 
       {/* CTA Sticky en scroll */}
       <StickyCtaBar />

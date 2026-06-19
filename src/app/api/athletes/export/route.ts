@@ -7,9 +7,12 @@ import * as XLSX from "xlsx";
 import { db } from "@/db";
 import {
   academies,
+  academySportConfigs,
   athletes,
   guardianAthletes,
   guardians,
+  groups,
+  sportLocaleConfigs,
 } from "@/db/schema";
 import { athleteStatusOptions } from "@/lib/athletes/constants";
 import { withTenant } from "@/lib/authz";
@@ -52,15 +55,27 @@ export const GET = withTenant(async (request, context) => {
       status: athletes.status,
       dob: athletes.dob,
       academyName: academies.name,
+      academyId: athletes.academyId,
+      groupName: groups.name,
+      groupId: athletes.groupId,
+      sportConfigId: athletes.primarySportConfigId,
+      sportConfigCode: sportLocaleConfigs.code,
+      sportConfigName: sportLocaleConfigs.name,
+      programCode: athletes.programCode,
+      levelCode: athletes.levelCode,
+      categoryCode: athletes.categoryCode,
       guardianNames,
       age: ageExpr,
     })
     .from(athletes)
     .leftJoin(academies, eq(athletes.academyId, academies.id))
+    .leftJoin(groups, eq(athletes.groupId, groups.id))
+    .leftJoin(academySportConfigs, eq(athletes.primarySportConfigId, academySportConfigs.id))
+    .leftJoin(sportLocaleConfigs, eq(academySportConfigs.sportLocaleConfigId, sportLocaleConfigs.id))
     .leftJoin(guardianAthletes, eq(guardianAthletes.athleteId, athletes.id))
     .leftJoin(guardians, eq(guardianAthletes.guardianId, guardians.id))
     .where(whereClause)
-    .groupBy(athletes.id, academies.name)
+    .groupBy(athletes.id, academies.name, groups.name, sportLocaleConfigs.code, sportLocaleConfigs.name)
     .orderBy(asc(athletes.name));
 
   // Helper para formatear fecha
@@ -76,10 +91,19 @@ export const GET = withTenant(async (request, context) => {
   const exportRows = rows.map((row) => ({
     Nombre: row.name,
     Nivel: row.level ?? "",
+    "Configuración deportiva": row.sportConfigName ?? "",
+    sportConfigId: row.sportConfigId ?? "",
+    sportConfigCode: row.sportConfigCode ?? "",
+    programCode: row.programCode ?? "",
+    levelCode: row.levelCode ?? "",
+    categoryCode: row.categoryCode ?? "",
     Estado: row.status,
     Edad: row.age ?? "",
     "Fecha de nacimiento": formatDate(row.dob),
     Academia: row.academyName ?? "",
+    academyId: row.academyId ?? "",
+    Grupo: row.groupName ?? "",
+    groupId: row.groupId ?? "",
     Familia: Array.isArray(row.guardianNames) ? row.guardianNames.join("; ") : "",
   }));
 
@@ -99,5 +123,3 @@ export const GET = withTenant(async (request, context) => {
     },
   });
 });
-
-

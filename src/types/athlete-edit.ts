@@ -8,6 +8,10 @@ export interface AthleteSummary {
   dob: string | null;
   groupId: string | null;
   groupName?: string | null;
+  primarySportConfigId?: string | null;
+  programCode?: string | null;
+  levelCode?: string | null;
+  categoryCode?: string | null;
 }
 
 export interface GuardianSummary {
@@ -43,7 +47,7 @@ export interface AthleteFormData {
 }
 
 export const CATEGORY_OPTIONS = ["A", "B", "C", "D", "E", "F"] as const;
-export type CategoryOption = (typeof CATEGORY_OPTIONS)[number];
+export type CategoryOption = string;
 
 export const LEVEL_OPTIONS = [
   "Pre-nivel",
@@ -59,7 +63,7 @@ export const LEVEL_OPTIONS = [
   "10",
   "FIG",
 ] as const;
-export type LevelOption = (typeof LEVEL_OPTIONS)[number];
+export type LevelOption = string;
 
 export const RELATIONSHIP_OPTIONS = [
   "Madre",
@@ -79,4 +83,3 @@ export interface ParsedLevel {
   category: CategoryOption | "";
   level: LevelOption | "";
 }
-

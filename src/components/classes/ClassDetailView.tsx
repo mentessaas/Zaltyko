@@ -11,6 +11,8 @@ import { AddAthleteToClassDialog } from "@/components/classes/AddAthleteToClassD
 import { ClassExceptionsDialog } from "@/components/classes/ClassExceptionsDialog";
 import { useToast } from "@/components/ui/toast-provider";
 import { createClient } from "@/lib/supabase/client";
+import type { SportConfigOption } from "@/components/groups/types";
+import { getTerminology } from "@/lib/sport-config/terminology";
 
 const WEEKDAY_LABELS: Record<number, string> = {
   0: "Domingo",
@@ -26,6 +28,7 @@ interface CoachOption {
   id: string;
   name: string;
   email: string | null;
+  sportConfigIds?: string[];
 }
 
 interface ClassInfo {
@@ -38,6 +41,7 @@ interface ClassInfo {
   capacity: number | null;
   technicalFocus: string | null;
   apparatus: string[];
+  sportConfigId: string | null;
   coaches: CoachOption[];
 }
 
@@ -50,6 +54,7 @@ interface SessionItem {
   notes: string | null;
   coachId: string | null;
   coachName: string | null;
+  sportConfigId: string | null;
   attendanceSummary: {
     total: number;
     present: number;
@@ -62,6 +67,8 @@ interface AthleteOption {
   groupId: string | null;
   groupName: string | null;
   groupColor: string | null;
+  primarySportConfigId?: string | null;
+  groupSportConfigId?: string | null;
 }
 
 interface ClassAthlete {
@@ -70,6 +77,8 @@ interface ClassAthlete {
   groupId: string | null;
   groupName: string | null;
   groupColor: string | null;
+  primarySportConfigId: string | null;
+  groupSportConfigId: string | null;
   origin: "group" | "enrollment";
   enrollmentId?: string;
 }
@@ -80,6 +89,7 @@ interface ClassDetailViewProps {
   classAthletes: ClassAthlete[];
   athleteOptions: AthleteOption[];
   coachOptions: CoachOption[];
+  sportConfigs?: SportConfigOption[];
 }
 
 export function ClassDetailView({
@@ -88,6 +98,7 @@ export function ClassDetailView({
   classAthletes,
   athleteOptions,
   coachOptions,
+  sportConfigs = [],
 }: ClassDetailViewProps) {
   const router = useRouter();
   const toast = useToast();
@@ -99,6 +110,15 @@ export function ClassDetailView({
   const [addAthleteOpen, setAddAthleteOpen] = useState(false);
   const [removingEnrollmentId, setRemovingEnrollmentId] = useState<string | null>(null);
   const [isRefreshing, startTransition] = useTransition();
+  const selectedSportConfig = sportConfigs.find((config) => config.id === classInfo.sportConfigId) ?? null;
+  const terms = getTerminology(selectedSportConfig);
+  const classTerm = "Clase";
+  const classTermLower = classTerm.toLowerCase();
+  const athleteTermLower = terms.athlete.toLowerCase();
+  const athleteTermPlural = terms.athletes;
+  const athleteTermPluralLower = athleteTermPlural.toLowerCase();
+  const groupTermLower = terms.group.toLowerCase();
+  const attendanceTermLower = terms.attendance.toLowerCase();
 
   const refresh = () => {
     startTransition(() => {
@@ -126,7 +146,7 @@ export function ClassDetailView({
   };
 
   const handleRemoveEnrollment = async (enrollmentId: string) => {
-    if (!window.confirm("¿Quitar este atleta de la clase? Esto solo elimina la inscripción extra, no afecta su grupo principal.")) {
+    if (!window.confirm(`¿Quitar este ${athleteTermLower} de la ${classTermLower}? Esto solo elimina la inscripción extra, no afecta su ${groupTermLower} principal.`)) {
       return;
     }
 
@@ -151,12 +171,12 @@ export function ClassDetailView({
 
       if (!response.ok) {
         const data = await response.json().catch(() => ({}));
-        throw new Error(data.error ?? "No se pudo quitar el atleta de la clase.");
+        throw new Error(data.error ?? `No se pudo quitar el ${athleteTermLower} de la ${classTermLower}.`);
       }
 
       toast.pushToast({
-        title: "Atleta quitado",
-        description: "El atleta ha sido quitado de la clase.",
+        title: `${terms.athlete} quitado`,
+        description: `El ${athleteTermLower} ha sido quitado de la ${classTermLower}.`,
         variant: "success",
       });
 
@@ -164,7 +184,7 @@ export function ClassDetailView({
     } catch (err: any) {
       toast.pushToast({
         title: "Error",
-        description: err.message ?? "Error al quitar el atleta de la clase.",
+        description: err.message ?? `Error al quitar el ${athleteTermLower} de la ${classTermLower}.`,
         variant: "error",
       });
     } finally {
@@ -185,7 +205,7 @@ export function ClassDetailView({
         <div className="zaltyko-motion-lines pointer-events-none absolute inset-x-0 top-0 h-24 opacity-70" />
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div className="relative space-y-2">
-            <p className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-teal">Clase</p>
+            <p className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-teal">{classTerm}</p>
             <h1 className="font-display text-3xl font-semibold text-zaltyko-navy">{classInfo.name}</h1>
             <p className="text-sm text-zaltyko-text-secondary">{formatSchedule()}</p>
             <p className="text-xs text-zaltyko-text-secondary">
@@ -209,7 +229,7 @@ export function ClassDetailView({
             <div className="flex flex-wrap gap-2 text-xs">
               {classInfo.coaches.length === 0 ? (
                 <span className="rounded-full bg-zaltyko-mist/30 px-3 py-1 text-zaltyko-text-secondary">
-                  Sin entrenadores asignados
+                  Sin {terms.coach.toLowerCase()}s asignados
                 </span>
               ) : (
                 classInfo.coaches.map((coach) => (
@@ -228,7 +248,7 @@ export function ClassDetailView({
               href={`/app/${classInfo.academyId}/classes`}
               className={outlineButtonClass}
             >
-              Volver a clases
+              Volver a {classTermLower}s
             </Link>
             {classInfo.weekdays.length > 0 && (
               <>
@@ -265,7 +285,7 @@ export function ClassDetailView({
         <header className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
           <h2 className="font-display text-xl font-semibold text-zaltyko-navy">Sesiones recientes</h2>
           <p className="text-xs text-zaltyko-text-secondary">
-            Haz clic en “Registrar asistencia” para actualizar el estado de los atletas.
+            Haz clic en “Registrar {attendanceTermLower}” para actualizar el estado de los {athleteTermPluralLower}.
           </p>
         </header>
 
@@ -275,9 +295,9 @@ export function ClassDetailView({
               <tr className="text-left text-xs uppercase tracking-[0.05em] text-zaltyko-text-secondary">
                 <th className="px-4 py-3 font-medium">Fecha</th>
                 <th className="px-4 py-3 font-medium">Horario</th>
-                <th className="px-4 py-3 font-medium">Coach</th>
+                <th className="px-4 py-3 font-medium">{terms.coach}</th>
                 <th className="px-4 py-3 font-medium">Estado</th>
-                <th className="px-4 py-3 font-medium text-right">Asistencia</th>
+                <th className="px-4 py-3 font-medium text-right">{terms.attendance}</th>
                 <th className="px-4 py-3 font-medium text-right">Acciones</th>
               </tr>
             </thead>
@@ -317,7 +337,7 @@ export function ClassDetailView({
                         onClick={() => handleOpenAttendance(session.id)}
                         className="text-xs font-semibold text-zaltyko-teal hover:underline"
                       >
-                        Registrar asistencia
+                        Registrar {attendanceTermLower}
                       </button>
                     </td>
                   </tr>
@@ -331,9 +351,9 @@ export function ClassDetailView({
       <section className="space-y-4 rounded-2xl border border-zaltyko-mist bg-white p-6 shadow-soft">
         <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="font-display text-xl font-semibold text-zaltyko-navy">Atletas de esta clase</h2>
+            <h2 className="font-display text-xl font-semibold text-zaltyko-navy">{athleteTermPlural} de esta {classTermLower}</h2>
             <p className="text-xs text-zaltyko-text-secondary">
-              Lista de atletas que participan en esta clase. Incluye atletas del grupo base y atletas extra añadidos manualmente.
+              Lista de {athleteTermPluralLower} que participan en esta {classTermLower}. Incluye {athleteTermPluralLower} del {groupTermLower} base y extras añadidos manualmente.
             </p>
           </div>
           <button
@@ -341,13 +361,13 @@ export function ClassDetailView({
             onClick={() => setAddAthleteOpen(true)}
             className={primaryButtonClass}
           >
-            Añadir atleta extra
+            Añadir {athleteTermLower} extra
           </button>
         </header>
 
         {classAthletes.length === 0 ? (
           <p className="text-sm text-zaltyko-text-secondary">
-            No hay atletas asignados a esta clase. Añade grupos a la clase o atletas extra manualmente.
+            No hay {athleteTermPluralLower} asignados a esta {classTermLower}. Añade {groupTermLower}s a la {classTermLower} o {athleteTermPluralLower} extra manualmente.
           </p>
         ) : (
           <div className="space-y-2">
@@ -361,7 +381,7 @@ export function ClassDetailView({
                     <p className="font-semibold text-zaltyko-navy">{athlete.name}</p>
                     {athlete.groupName && (
                       <p className="text-xs text-zaltyko-text-secondary">
-                        Grupo principal: {athlete.groupName}
+                        {terms.group} principal: {athlete.groupName}
                       </p>
                     )}
                   </div>
@@ -373,7 +393,7 @@ export function ClassDetailView({
                         : "bg-zaltyko-coral/10 text-zaltyko-coral"
                       }`}
                   >
-                    {athlete.origin === "group" ? "Por grupo" : "Clase extra"}
+                    {athlete.origin === "group" ? `Por ${groupTermLower}` : `${classTerm} extra`}
                   </span>
                   {athlete.origin === "enrollment" && athlete.enrollmentId && (
                     <button
@@ -396,6 +416,8 @@ export function ClassDetailView({
         classId={classInfo.id}
         academyId={classInfo.academyId}
         coaches={coachOptions}
+        sportConfigId={classInfo.sportConfigId}
+        sportConfigs={sportConfigs}
         open={createSessionOpen}
         onClose={() => setCreateSessionOpen(false)}
         onCreated={refresh}
@@ -429,7 +451,10 @@ export function ClassDetailView({
           groupId: a.groupId,
           groupName: a.groupName,
           groupColor: a.groupColor,
+          primarySportConfigId: a.primarySportConfigId,
+          groupSportConfigId: a.groupSportConfigId,
         }))}
+        sportConfigs={sportConfigs}
       />
 
       <AddAthleteToClassDialog
@@ -440,6 +465,10 @@ export function ClassDetailView({
         onAdded={refresh}
         athletes={athleteOptions}
         existingAthleteIds={classAthletes.map((a) => a.id)}
+        athleteLabel={terms.athlete}
+        athletesLabel={terms.athletes}
+        groupLabel={terms.group}
+        classLabel={classTerm}
       />
     </div>
   );

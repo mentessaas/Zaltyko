@@ -18,6 +18,7 @@ const reportSchema = z.object({
   athleteId: z.string().uuid().optional(),
   groupId: z.string().uuid().optional(),
   classId: z.string().uuid().optional(),
+  sportConfigId: z.string().uuid().optional(),
   reportType: z.enum(["athlete", "group", "general"]).default("general"),
 });
 
@@ -34,6 +35,7 @@ export const GET = withTenant(async (request, context) => {
     athleteId: url.searchParams.get("athleteId"),
     groupId: url.searchParams.get("groupId"),
     classId: url.searchParams.get("classId"),
+    sportConfigId: url.searchParams.get("sportConfigId"),
     reportType: url.searchParams.get("reportType") || "general",
   };
 
@@ -54,6 +56,7 @@ export const GET = withTenant(async (request, context) => {
     athleteId: validated.athleteId,
     groupId: validated.groupId,
     classId: validated.classId,
+    sportConfigId: validated.sportConfigId,
   };
 
   try {
@@ -82,4 +85,3 @@ export const GET = withTenant(async (request, context) => {
     return apiError("REPORT_FAILED", error.message, 500);
   }
 });
-

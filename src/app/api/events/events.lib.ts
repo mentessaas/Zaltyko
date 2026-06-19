@@ -9,6 +9,7 @@ import { db } from "@/db";
 import { events, academies, memberships } from "@/db/schema";
 import { apiSuccess, apiCreated, apiError } from "@/lib/api-response";
 import { logger } from "@/lib/logger";
+import { getAcademySportConfigOptions, verifyAcademySportConfig } from "@/lib/sport-config/service";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +27,9 @@ export const CreateEventSchema = z.object({
   isPublic: z.boolean().default(false),
   level: z.enum(EVENT_LEVELS).default("internal"),
   discipline: z.enum(EVENT_DISCIPLINES).optional(),
+  sportConfigId: z.string().uuid().optional().nullable(),
   eventType: z.enum(["competitions", "courses", "camps", "workshops", "clinics", "evaluations", "other"]).optional(),
+  competitionTypeCode: z.string().trim().min(1).max(80).optional().nullable(),
   startDate: z.string().min(1, "La fecha de inicio es requerida"),
   endDate: z.string().optional(),
   registrationStartDate: z.string().optional(),
@@ -85,6 +88,7 @@ export const QuerySchema = z.object({
   province: z.string().optional(),
   city: z.string().optional(),
   discipline: z.enum(EVENT_DISCIPLINES).optional(),
+  sportConfigId: z.string().uuid().optional(),
   level: z.enum(EVENT_LEVELS).optional(),
   startDate: z.string().optional(),
   endDate: z.string().optional(),
@@ -147,6 +151,32 @@ export async function createEvent(body: z.infer<typeof CreateEventSchema>, conte
     }
   }
 
+  let sportConfigDiscipline = body.discipline ?? null;
+  if (body.sportConfigId) {
+    const verifiedConfig = await verifyAcademySportConfig({
+      academyId: body.academyId,
+      tenantId: effectiveTenantId,
+      sportConfigId: body.sportConfigId,
+    });
+
+    if (!verifiedConfig) {
+      return { error: apiError("SPORT_CONFIG_NOT_FOUND", "La rama/modalidad no está activa en esta academia", 400) };
+    }
+
+    sportConfigDiscipline = verifiedConfig.defaultDisciplineVariant as typeof EVENT_DISCIPLINES[number];
+
+    if (body.competitionTypeCode) {
+      const activeConfigs = await getAcademySportConfigOptions(body.academyId);
+      const selectedConfig = activeConfigs.find((config) => config.id === body.sportConfigId);
+      const validCompetitionTypes = new Set(selectedConfig?.competitionTypes.map((item) => item.code) ?? []);
+      if (validCompetitionTypes.size > 0 && !validCompetitionTypes.has(body.competitionTypeCode)) {
+        return { error: apiError("INVALID_COMPETITION_TYPE", "El tipo de competición no pertenece a esta rama/modalidad", 400) };
+      }
+    }
+  } else if (body.competitionTypeCode) {
+    return { error: apiError("SPORT_CONFIG_REQUIRED", "Selecciona una rama/modalidad para usar un tipo de competición configurado", 400) };
+  }
+
   const [newEvent] = await db
     .insert(events)
     .values({
@@ -157,8 +187,10 @@ export async function createEvent(body: z.infer<typeof CreateEventSchema>, conte
       category: body.category || null,
       isPublic: body.isPublic ?? false,
       level: body.level || "internal",
-      discipline: body.discipline || null,
+      discipline: sportConfigDiscipline,
+      sportConfigId: body.sportConfigId || null,
       eventType: body.eventType || null,
+      competitionTypeCode: body.competitionTypeCode || null,
       startDate: body.startDate || new Date().toISOString().split("T")[0],
       endDate: body.endDate || null,
       registrationStartDate: body.registrationStartDate || null,
@@ -231,6 +263,7 @@ export interface ListEventsParams {
   province?: string;
   city?: string;
   discipline?: string;
+  sportConfigId?: string;
   level?: string;
   startDate?: string;
   endDate?: string;
@@ -268,6 +301,10 @@ export async function listEvents(params: ListEventsParams, tenantId: string | nu
 
   if (params.discipline) {
     filters.push(eq(events.discipline, params.discipline as typeof EVENT_DISCIPLINES[number]));
+  }
+
+  if (params.sportConfigId) {
+    filters.push(eq(events.sportConfigId, params.sportConfigId));
   }
 
   if (params.level) {
@@ -316,6 +353,7 @@ export async function listEvents(params: ListEventsParams, tenantId: string | nu
       isPublic: events.isPublic,
       level: events.level,
       discipline: events.discipline,
+      sportConfigId: events.sportConfigId,
       startDate: events.startDate,
       endDate: events.endDate,
       country: events.country,

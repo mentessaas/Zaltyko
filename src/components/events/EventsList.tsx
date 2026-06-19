@@ -20,15 +20,26 @@ interface Event {
   location: string | null;
   status: string | null;
   academyId: string;
+  sportConfigName?: string | null;
 }
 
 interface EventsListProps {
   academyId: string;
   events: Event[];
+  sportConfigs?: SportConfigOption[];
   academyCountry?: string | null;
 }
 
-export function EventsList({ academyId, events, academyCountry }: EventsListProps) {
+interface SportConfigOption {
+  id: string;
+  name: string;
+  disciplineName: string;
+  branchName: string;
+  defaultDisciplineVariant: string;
+  competitionTypes: Array<{ code: string; name: string }>;
+}
+
+export function EventsList({ academyId, events, sportConfigs = [], academyCountry }: EventsListProps) {
   const router = useRouter();
   const { specialization } = useAcademyContext();
   const toast = useToast();
@@ -133,6 +144,11 @@ export function EventsList({ academyId, events, academyCountry }: EventsListProp
                     {event.location}
                   </CardDescription>
                 )}
+                {event.sportConfigName && (
+                  <CardDescription className="mt-1">
+                    <Badge variant="outline">{event.sportConfigName}</Badge>
+                  </CardDescription>
+                )}
               </CardHeader>
               <CardContent>
                 <div className="flex gap-2">
@@ -170,6 +186,7 @@ export function EventsList({ academyId, events, academyCountry }: EventsListProp
 
       <EventForm
         academyId={academyId}
+        sportConfigs={sportConfigs}
         open={isCreateOpen || editingEvent !== null}
         onClose={() => {
           setIsCreateOpen(false);

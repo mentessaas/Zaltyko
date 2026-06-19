@@ -17,8 +17,11 @@ import {
 import { AthleteAccountSection } from "@/components/athletes/AthleteAccountSection";
 import { AthleteBaseClassesSection } from "@/components/athletes/AthleteBaseClassesSection";
 import { AthleteExtraClassesSection } from "@/components/athletes/AthleteExtraClassesSection";
+import { AthleteCompetitionHistory } from "@/components/athletes/AthleteCompetitionHistory";
 import { AthleteDetailTabs } from "@/components/athletes/AthleteDetailTabs";
 import { coaches } from "@/db/schema";
+import { getAcademySportConfigOptions } from "@/lib/sport-config/service";
+import { getTerminologyForSportConfig } from "@/lib/sport-config/terminology";
 
 interface PageProps {
   params: Promise<{
@@ -41,6 +44,8 @@ export default async function AthleteDetailPage({ params }: PageProps) {
       groupId: athletes.groupId,
       groupName: groups.name,
       groupColor: groups.color,
+      primarySportConfigId: athletes.primarySportConfigId,
+      groupSportConfigId: groups.sportConfigId,
       tenantId: athletes.tenantId,
       academyOwner: athletes.academyId,
     })
@@ -131,6 +136,11 @@ export default async function AthleteDetailPage({ params }: PageProps) {
     .from(coaches)
     .where(eq(coaches.academyId, academyId))
     .orderBy(asc(coaches.name));
+  const sportConfigs = await getAcademySportConfigOptions(academyId);
+  const athleteTerms = getTerminologyForSportConfig(
+    sportConfigs,
+    athleteRow.primarySportConfigId ?? athleteRow.groupSportConfigId
+  );
 
   let formattedDob: string | null = null;
   if (athleteRow.dob) {
@@ -148,7 +158,7 @@ export default async function AthleteDetailPage({ params }: PageProps) {
         href={`/app/${academyId}/athletes`}
         className="inline-flex items-center gap-2 text-sm font-semibold text-zaltyko-text-secondary transition hover:text-zaltyko-teal"
       >
-        ← Volver a atletas
+        ← Volver a {athleteTerms.athletes.toLowerCase()}
       </Link>
 
       <AthleteDetailTabs
@@ -163,6 +173,8 @@ export default async function AthleteDetailPage({ params }: PageProps) {
           groupId: athleteRow.groupId,
           groupName: athleteRow.groupName,
           groupColor: athleteRow.groupColor,
+          primarySportConfigId: athleteRow.primarySportConfigId,
+          groupSportConfigId: athleteRow.groupSportConfigId,
         }}
         age={age}
         formattedDob={formattedDob}
@@ -200,6 +212,28 @@ export default async function AthleteDetailPage({ params }: PageProps) {
             />
           </>
         }
+        competitionSection={
+          <AthleteCompetitionHistory
+            academyId={academyId}
+            athleteId={athleteId}
+            sportConfigs={sportConfigs.map((config) => ({
+              id: config.id,
+              branchName: config.branchName,
+              disciplineName: config.disciplineName,
+              terminology: config.terminology,
+              apparatus: config.apparatus.map((item) => ({
+                code: item.code,
+                name: item.name,
+              })),
+            }))}
+          />
+        }
+        sportConfigs={sportConfigs.map((config) => ({
+          id: config.id,
+          branchName: config.branchName,
+          disciplineName: config.disciplineName,
+          terminology: config.terminology,
+        }))}
       />
     </div>
   );

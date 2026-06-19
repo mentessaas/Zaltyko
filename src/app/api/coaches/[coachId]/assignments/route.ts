@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
@@ -11,6 +11,7 @@ import { withTenant } from "@/lib/authz";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { handleApiError } from "@/lib/api-error-handler";
 import { withTransaction } from "@/lib/db-transactions";
+import { assertCoachesCanHandleSportConfig } from "@/lib/coaches/sport-scope";
 
 const updateSchema = z.object({
   classIds: z.array(z.string().uuid()),
@@ -28,6 +29,7 @@ export const GET = withTenant(async (_request, context) => {
       classId: classCoachAssignments.classId,
       className: classes.name,
       academyId: classes.academyId,
+      sportConfigId: classes.sportConfigId,
     })
     .from(classCoachAssignments)
     .innerJoin(classes, eq(classCoachAssignments.classId, classes.id))
@@ -51,13 +53,40 @@ export const PUT = withTenant(async (request, context) => {
     const body = updateSchema.parse(await request.json());
 
     const [coachRow] = await db
-      .select({ tenantId: coaches.tenantId })
+      .select({ tenantId: coaches.tenantId, academyId: coaches.academyId })
       .from(coaches)
       .where(eq(coaches.id, coachId))
       .limit(1);
 
     if (!coachRow || coachRow.tenantId !== context.tenantId) {
       return apiError("COACH_NOT_FOUND", "Coach no encontrado", 404);
+    }
+
+    const uniqueClassIds = Array.from(new Set(body.classIds));
+    if (uniqueClassIds.length > 0) {
+      const classRows = await db
+        .select({ id: classes.id, sportConfigId: classes.sportConfigId })
+        .from(classes)
+        .where(
+          and(eq(classes.tenantId, context.tenantId), eq(classes.academyId, coachRow.academyId), inArray(classes.id, uniqueClassIds))
+        );
+
+      if (classRows.length !== uniqueClassIds.length) {
+        return apiError("CLASS_NOT_FOUND", "Una o más clases no pertenecen a esta academia", 404);
+      }
+
+      for (const classRow of classRows) {
+        const scope = await assertCoachesCanHandleSportConfig({
+          coachIds: [coachId],
+          academyId: coachRow.academyId,
+          tenantId: context.tenantId,
+          sportConfigId: classRow.sportConfigId,
+        });
+
+        if (!scope.ok) {
+          return apiError("COACH_SPORT_CONFIG_SCOPE_MISMATCH", "El entrenador no puede asignarse a clases de esa rama", 400);
+        }
+      }
     }
 
     // Usar transacción para garantizar atomicidad
@@ -69,7 +98,6 @@ export const PUT = withTenant(async (request, context) => {
 
       // Crear nuevas asignaciones
       if (body.classIds.length > 0) {
-        const uniqueClassIds = Array.from(new Set(body.classIds));
         const records = uniqueClassIds.map((classId) => ({
           id: crypto.randomUUID(),
           tenantId: context.tenantId,
@@ -87,5 +115,4 @@ export const PUT = withTenant(async (request, context) => {
     return handleApiError(error, { endpoint: `/api/coaches/${coachId}/assignments`, method: "PUT" });
   }
 });
-
 

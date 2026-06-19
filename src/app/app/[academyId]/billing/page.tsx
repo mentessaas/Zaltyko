@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 import { BillingPanel } from "@/components/billing/BillingPanel";
+import { getAcademySportConfigOptions } from "@/lib/sport-config/service";
 
 /**
  * AcademyBillingPage - Vista principal de facturación y planes
@@ -29,6 +30,8 @@ export default async function AcademyBillingPage({ params }: PageProps) {
     redirect("/auth/login");
   }
 
+  const sportConfigs = await getAcademySportConfigOptions(academyId);
+
   return (
     <div className="space-y-6 py-6 lg:py-8">
       <header className="zaltyko-motion-lines rounded-2xl border border-zaltyko-mist/70 bg-white px-5 py-5 shadow-soft lg:px-6">
@@ -41,8 +44,17 @@ export default async function AcademyBillingPage({ params }: PageProps) {
         </p>
       </header>
 
-      <BillingPanel academyId={academyId} userId={user.id} />
+      <BillingPanel
+        academyId={academyId}
+        userId={user.id}
+        sportConfigs={sportConfigs.map((config) => ({
+          id: config.id,
+          name: config.name,
+          disciplineName: config.disciplineName,
+          branchName: config.branchName,
+          terminology: config.terminology,
+        }))}
+      />
     </div>
   );
 }
-

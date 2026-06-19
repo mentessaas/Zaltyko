@@ -4,6 +4,7 @@ import Navbar from "@/app/(site)/Navbar";
 import Footer from "@/app/(site)/Footer";
 import PricingSection from "@/app/(site)/pricing";
 import { Schema } from "@/components/Schema";
+import { PRODUCT_PLAN_BY_CODE } from "@/lib/plans/catalog";
 
 const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
@@ -39,19 +40,19 @@ const pricingSchema = {
       {
         "@type": "Offer",
         name: "Starter",
-        price: "49",
+        price: String(PRODUCT_PLAN_BY_CODE.free.priceEurCents / 100),
         priceCurrency: "EUR",
       },
       {
         "@type": "Offer",
         name: "Growth",
-        price: "99",
+        price: String(PRODUCT_PLAN_BY_CODE.pro.priceEurCents / 100),
         priceCurrency: "EUR",
       },
       {
         "@type": "Offer",
         name: "Network",
-        price: "199",
+        price: String(PRODUCT_PLAN_BY_CODE.premium.priceEurCents / 100),
         priceCurrency: "EUR",
       },
     ],

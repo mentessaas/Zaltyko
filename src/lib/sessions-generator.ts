@@ -37,6 +37,7 @@ export async function generateRecurringSessions(
   const [classData] = await db
     .select({
       id: classes.id,
+      sportConfigId: classes.sportConfigId,
       startTime: classes.startTime,
       endTime: classes.endTime,
     })
@@ -179,6 +180,7 @@ export async function generateRecurringSessions(
       id: crypto.randomUUID(),
       tenantId,
       classId,
+      sportConfigId: classData.sportConfigId,
       sessionDate: session.sessionDate,
       startTime: session.startTime,
       endTime: session.endTime,
@@ -203,4 +205,3 @@ export async function generateRecurringSessions(
     sessions: createdSessions,
   };
 }
-

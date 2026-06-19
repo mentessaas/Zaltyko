@@ -13,25 +13,20 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 interface MessageHistoryItem {
   id: string;
   templateId: string | null;
-  groupId: string | null;
+  sportConfigId: string | null;
   channel: string;
-  subject: string | null;
   body: string;
-  recipients: {
-    type: "individual" | "group" | "broadcast";
-    ids: string[];
-    count: number;
-  } | null;
   status: string;
   sentAt: string | null;
   deliveredAt: string | null;
   failedAt: string | null;
-  errorMessage: string | null;
+  meta: { errorMessage?: string } | null;
   createdAt: string;
 }
 
 interface CommunicationHistoryProps {
   academyId: string;
+  sportConfigs?: Array<{ id: string; branchName: string; disciplineName: string }>;
 }
 
 const CHANNEL_ICONS: Record<string, React.ElementType> = {
@@ -48,10 +43,15 @@ const STATUS_CONFIG: Record<string, { icon: React.ElementType; color: string; la
   failed: { icon: XCircle, color: "bg-red-100 text-red-600", label: "Fallido" },
 };
 
-export function CommunicationHistory({ academyId }: CommunicationHistoryProps) {
+export function CommunicationHistory({ academyId, sportConfigs = [] }: CommunicationHistoryProps) {
   const [history, setHistory] = useState<MessageHistoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "whatsapp" | "email">("all");
+  const [sportConfigFilter, setSportConfigFilter] = useState("");
+
+  const sportConfigNameById = new Map(
+    sportConfigs.map((config) => [config.id, `${config.branchName} · ${config.disciplineName}`])
+  );
 
   useEffect(() => {
     async function loadHistory() {
@@ -61,12 +61,16 @@ export function CommunicationHistory({ academyId }: CommunicationHistoryProps) {
         if (filter !== "all") {
           params.set("channel", filter);
         }
+        if (sportConfigFilter) {
+          params.set("academyId", academyId);
+          params.set("sportConfigId", sportConfigFilter);
+        }
         params.set("limit", "20");
 
         const response = await fetch(`/api/communication/history?${params}`);
         if (response.ok) {
           const data = await response.json();
-          setHistory(data.items || []);
+          setHistory(data.data?.items || []);
         }
       } catch (error) {
         console.error("Error loading history:", error);
@@ -76,7 +80,7 @@ export function CommunicationHistory({ academyId }: CommunicationHistoryProps) {
     }
 
     loadHistory();
-  }, [academyId, filter]);
+  }, [academyId, filter, sportConfigFilter]);
 
   const filteredHistory = filter === "all"
     ? history
@@ -101,6 +105,21 @@ export function CommunicationHistory({ academyId }: CommunicationHistoryProps) {
             <TabsTrigger value="email">Email</TabsTrigger>
           </TabsList>
         </Tabs>
+
+        {sportConfigs.length > 0 && (
+          <select
+            value={sportConfigFilter}
+            onChange={(event) => setSportConfigFilter(event.target.value)}
+            className="h-10 w-full rounded-md border border-border bg-background px-3 py-2 text-sm sm:max-w-xs"
+          >
+            <option value="">Todas las ramas</option>
+            {sportConfigs.map((config) => (
+              <option key={config.id} value={config.id}>
+                {config.branchName} · {config.disciplineName}
+              </option>
+            ))}
+          </select>
+        )}
 
         {isLoading ? (
           <div className="flex items-center justify-center py-8">
@@ -141,9 +160,9 @@ export function CommunicationHistory({ academyId }: CommunicationHistoryProps) {
                     </p>
 
                     <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
-                      {item.recipients?.count && (
+                      {item.sportConfigId && (
                         <span>
-                          {item.recipients.count} destinatario{item.recipients.count > 1 ? "s" : ""}
+                          {sportConfigNameById.get(item.sportConfigId) ?? "Rama configurada"}
                         </span>
                       )}
                       <span>
@@ -155,9 +174,9 @@ export function CommunicationHistory({ academyId }: CommunicationHistoryProps) {
                     </div>
                   </div>
 
-                  {item.status === "failed" && item.errorMessage && (
+                  {item.status === "failed" && item.meta?.errorMessage && (
                     <div className="text-xs text-red-500 max-w-[150px] truncate">
-                      {item.errorMessage}
+                      {item.meta.errorMessage}
                     </div>
                   )}
                 </div>

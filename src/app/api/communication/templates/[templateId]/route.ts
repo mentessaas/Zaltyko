@@ -3,10 +3,13 @@ import { z } from "zod";
 import { withTenant } from "@/lib/authz";
 import { getMessageTemplateById, updateMessageTemplate, deleteMessageTemplate } from "@/lib/communication-service";
 import { logger } from "@/lib/logger";
+import { verifyAcademySportConfig } from "@/lib/sport-config/service";
 
 export const dynamic = 'force-dynamic';
 
 const updateTemplateSchema = z.object({
+  academyId: z.string().uuid().optional(),
+  sportConfigId: z.string().uuid().optional().nullable(),
   name: z.string().min(1).max(200).optional(),
   description: z.string().optional(),
   channel: z.enum(["whatsapp", "email", "push", "in_app"]).optional(),
@@ -33,6 +36,7 @@ export const GET = withTenant(async (request, context) => {
 
   return apiSuccess({
     id: template.id,
+    sportConfigId: template.sportConfigId,
     name: template.name,
     description: template.description,
     channel: template.channel,
@@ -64,8 +68,28 @@ export const PATCH = withTenant(async (request, context) => {
   try {
     const body = await request.json();
     const validated = updateTemplateSchema.parse(body);
+    const { academyId, sportConfigId, ...templateData } = validated;
 
-    const template = await updateMessageTemplate(templateId, validated);
+    if (sportConfigId) {
+      if (!academyId) {
+        return apiError("ACADEMY_REQUIRED", "Academia requerida para validar la rama/modalidad", 400);
+      }
+
+      const verifiedConfig = await verifyAcademySportConfig({
+        academyId,
+        tenantId: context.tenantId,
+        sportConfigId,
+      });
+
+      if (!verifiedConfig) {
+        return apiError("SPORT_CONFIG_NOT_FOUND", "La rama/modalidad no está activa en esta academia", 400);
+      }
+    }
+
+    const template = await updateMessageTemplate(templateId, {
+      ...templateData,
+      ...(sportConfigId !== undefined ? { sportConfigId } : {}),
+    });
 
     if (!template) {
       return apiError("NOT_FOUND", "Template not found", 404);
@@ -73,6 +97,7 @@ export const PATCH = withTenant(async (request, context) => {
 
     return apiSuccess({
       id: template.id,
+      sportConfigId: template.sportConfigId,
       name: template.name,
       description: template.description,
       channel: template.channel,

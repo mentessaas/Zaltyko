@@ -26,6 +26,7 @@ const exportSchema = z.object({
   athleteId: z.string().uuid().optional(),
   groupId: z.string().uuid().optional(),
   classId: z.string().uuid().optional(),
+  sportConfigId: z.string().uuid().optional(),
   reportType: z.enum(["athlete", "group", "general"]).default("general"),
 });
 
@@ -43,6 +44,7 @@ export const GET = withTenant(async (request, context) => {
     athleteId: url.searchParams.get("athleteId"),
     groupId: url.searchParams.get("groupId"),
     classId: url.searchParams.get("classId"),
+    sportConfigId: url.searchParams.get("sportConfigId"),
     reportType: url.searchParams.get("reportType") || "general",
   };
 
@@ -63,6 +65,7 @@ export const GET = withTenant(async (request, context) => {
     athleteId: validated.athleteId,
     groupId: validated.groupId,
     classId: validated.classId,
+    sportConfigId: validated.sportConfigId,
   };
 
   try {
@@ -107,6 +110,10 @@ export const GET = withTenant(async (request, context) => {
           { Métrica: "Tasa de Asistencia (%)", Valor: reportData.attendanceRate },
         ]);
         XLSX.utils.book_append_sheet(workbook, worksheet, "Asistencia");
+        if (reportData.bySportConfig?.length) {
+          const sportSheet = XLSX.utils.json_to_sheet(reportData.bySportConfig);
+          XLSX.utils.book_append_sheet(workbook, sportSheet, "Por rama");
+        }
       } else if (validated.reportType === "athlete" && reportData) {
         const statsSheet = XLSX.utils.json_to_sheet([
           { Métrica: "Total Sesiones", Valor: reportData.stats.totalSessions },
@@ -165,4 +172,3 @@ export const GET = withTenant(async (request, context) => {
     return apiError("EXPORT_FAILED", error.message, 500);
   }
 });
-

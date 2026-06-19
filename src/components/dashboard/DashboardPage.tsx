@@ -270,6 +270,18 @@ export function DashboardPage({
     );
   }, [data.metrics.classesThisWeek, data.metrics.groups, starterClassPresets.length, starterGroupPresets.length]);
 
+  const visibleSportBreakdown = useMemo(
+    () =>
+      (data.sportConfigBreakdown ?? []).filter(
+        (item) =>
+          data.sportConfigBreakdown.length > 1 ||
+          item.athletes > 0 ||
+          item.groups > 0 ||
+          item.classes > 0
+      ),
+    [data.sportConfigBreakdown]
+  );
+
   useEffect(() => {
     if (!shouldShowStarterSetupBanner) {
       setStarterSetupSummary(null);
@@ -599,6 +611,46 @@ export function DashboardPage({
         academyId={academyId}
         labels={labels}
       />
+
+      {visibleSportBreakdown.length > 0 && (
+        <section className="rounded-2xl border border-zaltyko-mist bg-white p-5 shadow-soft">
+          <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-teal">
+                Distribución deportiva
+              </p>
+              <h2 className="font-display text-xl font-semibold text-zaltyko-navy">
+                Actividad por rama
+              </h2>
+            </div>
+            <Button size="sm" variant="outline" onClick={() => router.push(`/app/${academyId}/settings`)}>
+              Gestionar ramas
+            </Button>
+          </div>
+          <div className="grid gap-3 md:grid-cols-3">
+            {visibleSportBreakdown.map((item) => (
+              <div key={item.sportConfigId} className="rounded-xl border border-zaltyko-mist bg-zaltyko-warm-white p-4">
+                <p className="text-sm font-semibold text-zaltyko-navy">{item.branchName}</p>
+                <p className="text-xs text-zaltyko-text-secondary">{item.disciplineName}</p>
+                <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+                  <div>
+                    <p className="font-display text-xl font-semibold text-zaltyko-navy">{item.athletes}</p>
+                    <p className="text-[11px] text-zaltyko-text-secondary">{labels.athletesPlural}</p>
+                  </div>
+                  <div>
+                    <p className="font-display text-xl font-semibold text-zaltyko-navy">{item.groups}</p>
+                    <p className="text-[11px] text-zaltyko-text-secondary">{labels.groupLabel}s</p>
+                  </div>
+                  <div>
+                    <p className="font-display text-xl font-semibold text-zaltyko-navy">{item.classes}</p>
+                    <p className="text-[11px] text-zaltyko-text-secondary">{labels.classLabel}s</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {shouldShowStarterSetupBanner && (
         <section className="rounded-2xl border border-zaltyko-teal/20 bg-zaltyko-teal/5 p-5 shadow-soft">

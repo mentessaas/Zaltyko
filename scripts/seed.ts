@@ -31,37 +31,39 @@ import {
 } from "@/db/schema";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { seedOnboardingForAcademy } from "@/lib/onboarding";
+import { activateAcademySportConfig, seedSportConfigurations } from "@/lib/sport-config/seed";
+import { PRODUCT_PLAN_BY_CODE } from "@/lib/plans/catalog";
 
 const PLAN_SEEDS = [
   {
     code: "free" as const,
-    athleteLimit: 50,
-    priceEur: 0,
+    athleteLimit: PRODUCT_PLAN_BY_CODE.free.athleteLimit,
+    priceEur: PRODUCT_PLAN_BY_CODE.free.priceEurCents,
     stripePriceId: null,
     stripeProductId: null,
     currency: "eur",
     billingInterval: "month",
-    nickname: "Free",
+    nickname: PRODUCT_PLAN_BY_CODE.free.publicName,
   },
   {
     code: "pro" as const,
-    athleteLimit: 200,
-    priceEur: 1900,
+    athleteLimit: PRODUCT_PLAN_BY_CODE.pro.athleteLimit,
+    priceEur: PRODUCT_PLAN_BY_CODE.pro.priceEurCents,
     stripePriceId: process.env.SEED_STRIPE_PRICE_PRO ?? "price_pro_PLACEHOLDER",
     stripeProductId: process.env.SEED_STRIPE_PRODUCT_PRO ?? null,
     currency: "eur",
     billingInterval: "month",
-    nickname: "Pro",
+    nickname: PRODUCT_PLAN_BY_CODE.pro.publicName,
   },
   {
     code: "premium" as const,
-    athleteLimit: null,
-    priceEur: 4900,
+    athleteLimit: PRODUCT_PLAN_BY_CODE.premium.athleteLimit,
+    priceEur: PRODUCT_PLAN_BY_CODE.premium.priceEurCents,
     stripePriceId: process.env.SEED_STRIPE_PRICE_PREMIUM ?? "price_premium_PLACEHOLDER",
     stripeProductId: process.env.SEED_STRIPE_PRODUCT_PREMIUM ?? null,
     currency: "eur",
     billingInterval: "month",
-    nickname: "Premium",
+    nickname: PRODUCT_PLAN_BY_CODE.premium.publicName,
   },
 ] as const;
 
@@ -358,6 +360,28 @@ async function seedTenantData(planIds: Record<PlanCode, string | undefined>) {
       ownerProfileId: academy.ownerId,
     });
   }
+
+  await activateAcademySportConfig({
+    tenantId,
+    academyId,
+    countryCode: "ES",
+    disciplineVariant: "artistic_female",
+    academyKind: "mixed",
+  });
+  await activateAcademySportConfig({
+    tenantId,
+    academyId,
+    countryCode: "ES",
+    disciplineVariant: "artistic_male",
+    academyKind: "mixed",
+  });
+  await activateAcademySportConfig({
+    tenantId,
+    academyId: secondaryAcademyId,
+    countryCode: "ES",
+    disciplineVariant: "rhythmic",
+    academyKind: "mixed",
+  });
 
   if (planIds.free) {
     await db
@@ -785,6 +809,7 @@ async function seedSkillCatalog() {
 }
 
 async function main() {
+  await seedSportConfigurations();
   const superAdminUserId = await ensureSupabaseSuperAdminUser();
   const planIds = await seedPlans();
   await seedAdminProfile(superAdminUserId);
@@ -806,4 +831,3 @@ main()
     console.error("❌ Seed failed", error);
     process.exit(1);
   });
-

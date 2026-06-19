@@ -1,6 +1,8 @@
 import { Check, Shield, Clock, Globe2 } from "lucide-react";
 import Link from "next/link";
 
+import { PRODUCT_PLANS, formatPlanAmount } from "@/lib/plans/catalog";
+
 type Plan = {
   title: string;
   price: string;
@@ -12,54 +14,19 @@ type Plan = {
   annualSavings?: string;
 };
 
-const plans: Plan[] = [
-  {
-    title: "Starter",
-    price: "49€/mes",
-    description: "Para academias pequeñas de artística o rítmica que quieren ordenar operación y cobros.",
-    cta: "Solicitar demo",
-    highlight: false,
-    features: [
-      "Hasta 80 gimnastas",
-      "1 academia",
-      "Grupos, horarios y asistencia",
-      "Cobros y pagos pendientes",
-      "Perfil público básico",
-    ],
-    annualPrice: "490€/año",
-  },
-  {
-    title: "Growth",
-    price: "99€/mes",
-    description: "Para academias en crecimiento con más grupos, familias, cobros y seguimiento técnico.",
-    cta: "Solicitar demo",
-    highlight: true,
-    features: [
-      "Hasta 250 gimnastas",
-      "Cobros recurrentes y recordatorios",
-      "Informes de asistencia y pagos",
-      "Seguimiento por aparatos o rutinas",
-      "Perfil público optimizado",
-    ],
-    annualPrice: "990€/año",
-    annualSavings: "Ahorra 198€",
-  },
-  {
-    title: "Network",
-    price: "Desde 199€/mes",
-    description: "Para academias multi-sede o programas con operación avanzada.",
-    cta: "Hablar con Zaltyko",
-    highlight: false,
-    features: [
-      "Multi-sede",
-      "Migración asistida",
-      "Soporte prioritario",
-      "Informes de dirección",
-      "Plan de crecimiento y captación",
-    ],
-    annualPrice: "Plan anual a medida",
-  },
-];
+const plans: Plan[] = PRODUCT_PLANS.map((plan) => ({
+  title: plan.publicName,
+  price: plan.priceEurCents === 0 ? "Incluido" : `${formatPlanAmount(plan.priceEurCents)}/mes`,
+  description: plan.description,
+  cta: plan.cta,
+  highlight: Boolean(plan.highlight),
+  features: plan.features,
+  annualPrice:
+    plan.priceEurCents === 0
+      ? "Incluido"
+      : `${formatPlanAmount(plan.priceEurCents * 10)}/año`,
+  annualSavings: plan.priceEurCents > 0 ? "2 meses incluidos" : undefined,
+}));
 
 const commonBenefits = [
   {
@@ -130,13 +97,16 @@ export default function PricingSection() {
                 </span>
               )}
               <h3 className="font-display text-xl font-semibold text-foreground">{plan.title}</h3>
-              <p className="mt-2 font-display text-3xl font-bold text-foreground">{plan.annualPrice}</p>
+              <p className="mt-2 font-display text-3xl font-bold text-foreground">{plan.price}</p>
               {plan.annualSavings && (
                 <span className="mt-1 inline-block text-xs font-semibold text-green-600 bg-green-50 px-2 py-0.5 rounded-full w-fit">
                   {plan.annualSavings}
                 </span>
               )}
               <p className="mt-2 font-sans text-sm text-muted-foreground">{plan.description}</p>
+              <p className="mt-2 font-sans text-xs text-muted-foreground">
+                Anual: {plan.annualPrice}
+              </p>
 
               <ul className="mt-6 space-y-3 font-sans text-sm text-foreground">
                 {plan.features.map((feature) => (

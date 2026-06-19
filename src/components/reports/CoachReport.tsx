@@ -12,6 +12,7 @@ import { useToast } from "@/components/ui/toast-provider";
 import { ReportFilters, ReportFilters as ReportFiltersType } from "@/components/reports/ReportFilters";
 import { ExportButtons } from "@/components/reports/ExportButtons";
 import { useAcademyContext } from "@/hooks/use-academy-context";
+import { getTerminologyForSportConfig } from "@/lib/sport-config/terminology";
 
 interface CoachStats {
   totalCoaches: number;
@@ -35,9 +36,16 @@ interface CoachPerformance {
 interface CoachReportProps {
   academyId: string;
   academyCountry?: string | null;
+  sportConfigs?: Array<{
+    id: string;
+    name: string;
+    disciplineName: string;
+    branchName: string;
+    terminology?: Record<string, string>;
+  }>;
 }
 
-export function CoachReport({ academyId, academyCountry }: CoachReportProps) {
+export function CoachReport({ academyId, academyCountry, sportConfigs = [] }: CoachReportProps) {
   const toast = useToast();
   const { specialization } = useAcademyContext();
   const [filters, setFilters] = useState<ReportFiltersType>({
@@ -48,6 +56,9 @@ export function CoachReport({ academyId, academyCountry }: CoachReportProps) {
   const [reportData, setReportData] = useState<CoachStats | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const terms = getTerminologyForSportConfig(sportConfigs, filters.sportConfigId);
+  const coachTermLower = terms.coach.toLowerCase();
+  const athletesTermLower = terms.athletes.toLowerCase();
   const apparatusLabels = Object.fromEntries(
     specialization.evaluation.apparatus.map((item) => [item.code, item.label])
   );
@@ -62,6 +73,7 @@ export function CoachReport({ academyId, academyCountry }: CoachReportProps) {
         startDate: filters.startDate,
         endDate: filters.endDate,
         ...(filters.coachId && { coachId: filters.coachId }),
+        ...(filters.sportConfigId && { sportConfigId: filters.sportConfigId }),
       });
 
       const response = await fetch(`/api/reports/coach?${params}`);
@@ -86,6 +98,7 @@ export function CoachReport({ academyId, academyCountry }: CoachReportProps) {
         format: "pdf",
         startDate: filters.startDate,
         endDate: filters.endDate,
+        ...(filters.sportConfigId && { sportConfigId: filters.sportConfigId }),
       });
 
       const response = await fetch(`/api/reports/coach/export?${params}`);
@@ -102,7 +115,7 @@ export function CoachReport({ academyId, academyCountry }: CoachReportProps) {
       document.body.removeChild(a);
       toast.pushToast({
         title: "PDF exportado",
-        description: "El reporte de entrenadores se descargó correctamente.",
+        description: `El reporte de ${coachTermLower}s se descargó correctamente.`,
         variant: "success",
       });
     } catch (err: any) {
@@ -121,6 +134,7 @@ export function CoachReport({ academyId, academyCountry }: CoachReportProps) {
         format: "excel",
         startDate: filters.startDate,
         endDate: filters.endDate,
+        ...(filters.sportConfigId && { sportConfigId: filters.sportConfigId }),
       });
 
       const response = await fetch(`/api/reports/coach/export?${params}`);
@@ -137,7 +151,7 @@ export function CoachReport({ academyId, academyCountry }: CoachReportProps) {
       document.body.removeChild(a);
       toast.pushToast({
         title: "Excel exportado",
-        description: "El reporte de entrenadores se descargó correctamente.",
+        description: `El reporte de ${coachTermLower}s se descargó correctamente.`,
         variant: "success",
       });
     } catch (err: any) {
@@ -163,7 +177,7 @@ export function CoachReport({ academyId, academyCountry }: CoachReportProps) {
 
       toast.pushToast({
         title: "Reporte enviado",
-        description: `Enviamos el reporte de entrenadores a ${email}.`,
+        description: `Enviamos el reporte de ${coachTermLower}s a ${email}.`,
         variant: "success",
       });
     } catch (err: any) {
@@ -188,10 +202,10 @@ export function CoachReport({ academyId, academyCountry }: CoachReportProps) {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <TrendingUp className="h-5 w-5" />
-            Rendimiento por Entrenador
+            Rendimiento por {terms.coach}
           </CardTitle>
           <CardDescription>
-            Métricas de rendimiento de cada entrenador
+            Métricas de rendimiento de cada {coachTermLower}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -206,12 +220,12 @@ export function CoachReport({ academyId, academyCountry }: CoachReportProps) {
                     <div>
                       <p className="font-medium">{coach.coachName}</p>
                       <p className="text-xs text-muted-foreground">
-                        {coach.classesCount} clases · {coach.athletesCount} atletas
+                        {coach.classesCount} clases · {coach.athletesCount} {athletesTermLower}
                       </p>
                     </div>
                   </div>
                   <Badge variant="outline" className="bg-green-50">
-                    {coach.averageAttendance}% asistencia
+                    {coach.averageAttendance}% {terms.attendance.toLowerCase()}
                   </Badge>
                 </div>
                 {(coach.technicalFocuses.length > 0 || coach.apparatus.length > 0) && (
@@ -239,7 +253,7 @@ export function CoachReport({ academyId, academyCountry }: CoachReportProps) {
                   </div>
                   <div className="p-2 rounded bg-muted/50">
                     <p className="text-lg font-bold">{coach.athletesCount}</p>
-                    <p className="text-xs text-muted-foreground">Atletas</p>
+                    <p className="text-xs text-muted-foreground">{terms.athletes}</p>
                   </div>
                 </div>
               </div>
@@ -254,7 +268,7 @@ export function CoachReport({ academyId, academyCountry }: CoachReportProps) {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold">Reporte de Entrenadores</h2>
+          <h2 className="text-2xl font-bold">Reporte de {terms.coach}s</h2>
           <p className="text-muted-foreground mt-1">
             Análisis operativo del staff y su carga técnica
           </p>
@@ -263,7 +277,7 @@ export function CoachReport({ academyId, academyCountry }: CoachReportProps) {
           onExportPDF={handleExportPDF}
           onExportExcel={handleExportExcel}
           onSendEmail={handleSendEmail}
-          reportTitle="Reporte de Entrenadores"
+          reportTitle={`Reporte de ${terms.coach}s`}
           isExporting={isLoading}
         />
       </div>
@@ -276,6 +290,7 @@ export function CoachReport({ academyId, academyCountry }: CoachReportProps) {
             onGenerate={loadReport}
             isLoading={isLoading}
             showCoachFilter
+            showSportConfigFilter
           />
         </div>
 
@@ -296,7 +311,7 @@ export function CoachReport({ academyId, academyCountry }: CoachReportProps) {
               <div className="grid gap-4 md:grid-cols-4">
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-sm font-medium">Total Entrenadores</CardTitle>
+                    <CardTitle className="text-sm font-medium">Total {terms.coach}s</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold">{reportData.totalCoaches}</div>
@@ -320,7 +335,7 @@ export function CoachReport({ academyId, academyCountry }: CoachReportProps) {
                 </Card>
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-sm font-medium">Asistencia Media</CardTitle>
+                    <CardTitle className="text-sm font-medium">{terms.attendance} Media</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold">

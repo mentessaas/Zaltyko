@@ -40,6 +40,7 @@ function getDefaultEventDiscipline(value: string): EventDiscipline | "" {
 
 interface EventFormProps {
   academyId: string;
+  sportConfigs?: SportConfigOption[];
   eventId?: string;
   initialData?: EventFormInitialData;
   onSuccess?: () => void;
@@ -56,8 +57,18 @@ interface EventFormProps {
   onSaved?: () => void;
 }
 
+interface SportConfigOption {
+  id: string;
+  name: string;
+  disciplineName: string;
+  branchName: string;
+  defaultDisciplineVariant: string;
+  competitionTypes: Array<{ code: string; name: string }>;
+}
+
 export function EventForm({
   academyId,
+  sportConfigs = [],
   eventId,
   initialData,
   onSuccess,
@@ -93,6 +104,11 @@ export function EventForm({
   } : undefined);
 
   const [formData, setFormData] = useState(normalizeEventFormData(effectiveInitialData));
+  const selectedSportConfig = sportConfigs.find((config) => config.id === formData.sportConfigId);
+  const displayedEventTypes =
+    selectedSportConfig && selectedSportConfig.competitionTypes.length > 0
+      ? selectedSportConfig.competitionTypes.map((item) => ({ value: item.code, label: item.name }))
+      : eventTypes;
 
   // Resetear formulario cuando cambia el evento
   useEffect(() => {
@@ -144,7 +160,9 @@ export function EventForm({
         isPublic: formData.isPublic,
         level: formData.level,
         discipline: formData.discipline || undefined,
+        sportConfigId: formData.sportConfigId || undefined,
         eventType: formData.eventType || undefined,
+        competitionTypeCode: formData.competitionTypeCode || undefined,
         startDate: formData.startDate || undefined,
         endDate: formData.endDate || undefined,
         registrationStartDate: formData.registrationStartDate || undefined,
@@ -270,35 +288,53 @@ export function EventForm({
         </div>
 
         <div>
-          <label htmlFor="discipline" className={labelClassName}>
-            Disciplina
+          <label htmlFor="sportConfigId" className={labelClassName}>
+            Rama / modalidad
           </label>
           <select
-            id="discipline"
-            value={formData.discipline}
-            onChange={(e) => setFormData({ ...formData, discipline: e.target.value as any })}
-            disabled
+            id="sportConfigId"
+            value={formData.sportConfigId}
+            onChange={(e) => {
+              const config = sportConfigs.find((item) => item.id === e.target.value);
+              setFormData({
+                ...formData,
+                sportConfigId: e.target.value,
+                discipline: (config?.defaultDisciplineVariant as any) || formData.discipline,
+                competitionTypeCode: "",
+              });
+            }}
             className={fieldClassName}
           >
-            <option value={specialization.disciplineVariant}>{specialization.labels.disciplineName}</option>
+            <option value="">Sin rama específica</option>
+            {sportConfigs.map((config) => (
+              <option key={config.id} value={config.id}>
+                {config.branchName} · {config.disciplineName}
+              </option>
+            ))}
           </select>
           <p className="mt-2 text-xs text-zaltyko-text-secondary">
-            La academia trabaja principalmente en {specialization.labels.disciplineName.toLowerCase()}.
+            Se usa para cargar tipos de competición y evitar mezclar ramas.
           </p>
         </div>
 
         <div>
           <label htmlFor="eventType" className={labelClassName}>
-            Tipo de evento
+            Tipo de competición / evento
           </label>
           <select
             id="eventType"
-            value={formData.eventType}
-            onChange={(e) => setFormData({ ...formData, eventType: e.target.value as any })}
+            value={selectedSportConfig ? formData.competitionTypeCode : formData.eventType}
+            onChange={(e) =>
+              setFormData(
+                selectedSportConfig
+                  ? { ...formData, competitionTypeCode: e.target.value }
+                  : { ...formData, eventType: e.target.value as any }
+              )
+            }
             className={fieldClassName}
           >
             <option value="">Selecciona un tipo</option>
-            {eventTypes.map((t) => (
+            {displayedEventTypes.map((t) => (
               <option key={t.value} value={t.value}>
                 {t.label}
               </option>

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { PRODUCT_PLANS } from "@/lib/plans/catalog";
 
 interface Plan {
     id: string;
@@ -25,88 +26,33 @@ interface Plan {
     color: string;
 }
 
-const PLANS: Plan[] = [
-    {
-        id: "free",
-        name: "Free",
-        code: "free",
-        price: 0,
+const PLAN_DECOR = {
+    free: { icon: Sparkles, color: "from-gray-500 to-gray-600", coaches: 2, storage_gb: 0.1 },
+    pro: { icon: Zap, color: "from-zaltyko-primary to-zaltyko-accent-teal", coaches: 10, storage_gb: 1 },
+    premium: { icon: Crown, color: "from-zaltyko-accent-coral to-zaltyko-accent-amber", coaches: "unlimited" as const, storage_gb: "unlimited" as const },
+};
+
+const PLANS: Plan[] = PRODUCT_PLANS.map((plan) => {
+    const decor = PLAN_DECOR[plan.code];
+    return {
+        id: plan.code,
+        name: plan.publicName,
+        code: plan.code,
+        price: plan.priceEurCents / 100,
         interval: "month",
-        description: "Perfecto para empezar",
-        icon: Sparkles,
-        color: "from-gray-500 to-gray-600",
-        features: [
-            "Hasta 50 atletas",
-            "2 entrenadores",
-            "5 clases activas",
-            "100 MB de almacenamiento",
-            "Asistencia básica",
-            "Reportes básicos",
-        ],
+        description: plan.description,
+        icon: decor.icon,
+        color: decor.color,
+        popular: plan.highlight,
+        features: plan.features,
         limits: {
-            athletes: 50,
-            coaches: 2,
-            classes: 5,
-            storage_gb: 0.1,
+            athletes: plan.athleteLimit ?? "unlimited",
+            coaches: decor.coaches,
+            classes: plan.classLimit ?? "unlimited",
+            storage_gb: decor.storage_gb,
         },
-    },
-    {
-        id: "pro",
-        name: "Pro",
-        code: "pro",
-        price: 29,
-        interval: "month",
-        description: "Para academias en crecimiento",
-        icon: Zap,
-        color: "from-zaltyko-primary to-zaltyko-accent-teal",
-        popular: true,
-        features: [
-            "Hasta 200 atletas",
-            "10 entrenadores",
-            "50 clases activas",
-            "1 GB de almacenamiento",
-            "Asistencia prioritaria",
-            "Reportes avanzados",
-            "Análisis de rendimiento",
-            "Exportación de datos",
-            "Integraciones básicas",
-        ],
-        limits: {
-            athletes: 200,
-            coaches: 10,
-            classes: 50,
-            storage_gb: 1,
-        },
-    },
-    {
-        id: "premium",
-        name: "Premium",
-        code: "premium",
-        price: 79,
-        interval: "month",
-        description: "Para academias profesionales",
-        icon: Crown,
-        color: "from-zaltyko-accent-coral to-zaltyko-accent-amber",
-        features: [
-            "Atletas ilimitados",
-            "Entrenadores ilimitados",
-            "Clases ilimitadas",
-            "Almacenamiento ilimitado",
-            "Soporte dedicado 24/7",
-            "Reportes personalizados",
-            "API completa",
-            "White-label disponible",
-            "Todas las integraciones",
-            "Gestor de cuenta dedicado",
-        ],
-        limits: {
-            athletes: "unlimited",
-            coaches: "unlimited",
-            classes: "unlimited",
-            storage_gb: "unlimited",
-        },
-    },
-];
+    };
+});
 
 interface PlanComparisonProps {
     currentPlan?: "free" | "pro" | "premium";
@@ -189,7 +135,7 @@ export function PlanComparison({ currentPlan = "free", onSelectPlan, loading = f
                             <div className="mb-6">
                                 <div className="flex items-baseline gap-2">
                                     <span className="text-5xl font-bold">
-                                        ${plan.price}
+                                        €{plan.price}
                                     </span>
                                     <span className="text-zaltyko-text-light">
                                         /{plan.interval === "month" ? "mes" : "año"}

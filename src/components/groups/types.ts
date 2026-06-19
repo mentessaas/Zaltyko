@@ -2,6 +2,7 @@ export interface CoachOption {
   id: string;
   name: string;
   email: string | null;
+  sportConfigIds?: string[];
 }
 
 export interface AthleteOption {
@@ -16,6 +17,10 @@ export interface GroupSummary {
   academyId: string;
   name: string;
   discipline: string;
+  sportConfigId?: string | null;
+  programCode?: string | null;
+  levelCode?: string | null;
+  categoryCode?: string | null;
   level: string | null;
   technicalFocus?: string | null;
   apparatus?: string[];
@@ -29,6 +34,21 @@ export interface GroupSummary {
   createdAt: string;
   monthlyFeeCents?: number | null; // Cuota mensual en céntimos
   billingItemId?: string | null; // Concepto de cobro asociado
+}
+
+export interface SportConfigOption {
+  id: string;
+  name: string;
+  code: string;
+  defaultAcademyType: string;
+  defaultDisciplineVariant: string;
+  disciplineName: string;
+  branchName: string;
+  terminology: Record<string, string>;
+  apparatus: Array<{ code: string; name: string; shortName: string | null }>;
+  programs: Array<{ code: string; name: string }>;
+  levels: Array<{ code: string; name: string; programCode: string | null }>;
+  categories: Array<{ code: string; name: string }>;
 }
 
 export interface GroupCoach extends CoachOption {}

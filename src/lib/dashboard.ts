@@ -23,6 +23,7 @@ import {
 } from "@/db/schema";
 import { getActiveSubscription } from "@/lib/limits";
 import { logger } from "@/lib/logger";
+import { getAcademySportConfigOptions } from "@/lib/sport-config/service";
 
 export interface DashboardMetrics {
   athletes: number;
@@ -31,6 +32,16 @@ export interface DashboardMetrics {
   classesThisWeek: number;
   assessments: number;
   attendancePercent: number;
+}
+
+export interface DashboardSportConfigBreakdown {
+  sportConfigId: string;
+  label: string;
+  disciplineName: string;
+  branchName: string;
+  athletes: number;
+  groups: number;
+  classes: number;
 }
 
 export interface DashboardPlanUsage {
@@ -104,6 +115,7 @@ export interface DashboardData {
   upcomingClasses: DashboardUpcomingClass[];
   recentActivity: DashboardActivity[];
   groups: DashboardGroupSummary[];
+  sportConfigBreakdown: DashboardSportConfigBreakdown[];
   // GR-specific metrics
   grMetrics?: {
     athletesByCategory: AthleteCategoryCount[];
@@ -293,6 +305,51 @@ export async function getDashboardData(academyId: string): Promise<{
     assessments: Number(assessmentsCount ?? 0),
     attendancePercent,
   };
+
+  const sportConfigs = await getAcademySportConfigOptions(academyId);
+  const activeSportConfigIds = sportConfigs.map((config) => config.id);
+  const [athleteSportCounts, groupSportCounts, classSportCounts] =
+    activeSportConfigIds.length > 0
+      ? await Promise.all([
+          db
+            .select({
+              sportConfigId: athletes.primarySportConfigId,
+              count: count(),
+            })
+            .from(athletes)
+            .where(and(eq(athletes.academyId, academyId), inArray(athletes.primarySportConfigId, activeSportConfigIds)))
+            .groupBy(athletes.primarySportConfigId),
+          db
+            .select({
+              sportConfigId: groups.sportConfigId,
+              count: count(),
+            })
+            .from(groups)
+            .where(and(eq(groups.academyId, academyId), inArray(groups.sportConfigId, activeSportConfigIds)))
+            .groupBy(groups.sportConfigId),
+          db
+            .select({
+              sportConfigId: classes.sportConfigId,
+              count: count(),
+            })
+            .from(classes)
+            .where(and(eq(classes.academyId, academyId), inArray(classes.sportConfigId, activeSportConfigIds)))
+            .groupBy(classes.sportConfigId),
+        ])
+      : [[], [], []];
+
+  const athleteCountBySport = new Map(athleteSportCounts.map((row) => [row.sportConfigId, Number(row.count ?? 0)]));
+  const groupCountBySport = new Map(groupSportCounts.map((row) => [row.sportConfigId, Number(row.count ?? 0)]));
+  const classCountBySport = new Map(classSportCounts.map((row) => [row.sportConfigId, Number(row.count ?? 0)]));
+  const sportConfigBreakdown: DashboardSportConfigBreakdown[] = sportConfigs.map((config) => ({
+    sportConfigId: config.id,
+    label: config.branchName,
+    disciplineName: config.disciplineName,
+    branchName: config.branchName,
+    athletes: athleteCountBySport.get(config.id) ?? 0,
+    groups: groupCountBySport.get(config.id) ?? 0,
+    classes: classCountBySport.get(config.id) ?? 0,
+  }));
 
   const activePlan = await getActiveSubscription(academyId);
   
@@ -789,6 +846,7 @@ export async function getDashboardData(academyId: string): Promise<{
       upcomingClasses,
       recentActivity: activityFeed,
       groups: groupsList,
+      sportConfigBreakdown,
       grMetrics,
     },
   };

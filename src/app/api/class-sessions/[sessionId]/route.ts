@@ -54,6 +54,7 @@ export const PUT = withTenant(async (request, context) => {
     .select({
       id: classSessions.id,
       classId: classSessions.classId,
+      sportConfigId: classSessions.sportConfigId,
     })
     .from(classSessions)
     .where(and(eq(classSessions.id, sessionId), eq(classSessions.tenantId, context.tenantId)))
@@ -93,5 +94,4 @@ export const PUT = withTenant(async (request, context) => {
 
   return apiSuccess({ ok: true });
 });
-
 

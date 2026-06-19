@@ -15,6 +15,7 @@ import { logger } from "@/lib/logger";
 const GenerateMonthlyChargesSchema = z.object({
   academyId: z.string().uuid(),
   groupId: z.string().uuid().nullable().optional(),
+  sportConfigId: z.string().uuid().nullable().optional(),
   period: z.string().regex(/^\d{4}-\d{2}$/, "El periodo debe tener formato YYYY-MM"),
   skipDuplicates: z.boolean().default(true),
 });
@@ -59,7 +60,8 @@ export const POST = withTenant(async (request, context) => {
             eq(groupAthletes.groupId, body.groupId),
             eq(groupAthletes.tenantId, context.tenantId),
             eq(athletes.academyId, body.academyId),
-            eq(athletes.status, "active")
+            eq(athletes.status, "active"),
+            body.sportConfigId ? eq(athletes.primarySportConfigId, body.sportConfigId) : undefined
           )
         )
         .limit(1000);
@@ -82,7 +84,8 @@ export const POST = withTenant(async (request, context) => {
           and(
             eq(athletes.academyId, body.academyId),
             eq(athletes.tenantId, context.tenantId),
-            eq(athletes.status, "active")
+            eq(athletes.status, "active"),
+            body.sportConfigId ? eq(athletes.primarySportConfigId, body.sportConfigId) : undefined
           )
         )
         .limit(1000);
@@ -92,7 +95,7 @@ export const POST = withTenant(async (request, context) => {
 
     if (athletesList.length === 0) {
       return apiSuccess(
-        { message: "No hay atletas activos para generar cargos.", created: 0, skipped: 0 }
+        { message: "No hay personas activas para generar cargos.", created: 0, skipped: 0 }
       );
     }
 
@@ -182,7 +185,7 @@ export const POST = withTenant(async (request, context) => {
         tenantId: context.tenantId,
         academyId: body.academyId,
         athleteId: athlete.id,
-        label: `Cuota grupo ${groupName} – ${monthName}`,
+        label: `Cuota ${groupName} – ${monthName}`,
         amountCents: monthlyFeeCents,
         currency: "EUR",
         period: body.period,
@@ -194,7 +197,7 @@ export const POST = withTenant(async (request, context) => {
     if (newCharges.length === 0) {
       return apiSuccess(
         {
-          message: skipped > 0 ? "Todos los atletas ya tienen cargos para este periodo o no tienen cuota definida." : "No se pudieron generar cargos.",
+          message: skipped > 0 ? "Todas las personas ya tienen cargos para este periodo o no tienen cuota definida." : "No se pudieron generar cargos.",
           created: 0,
           skipped,
         }
@@ -215,4 +218,3 @@ export const POST = withTenant(async (request, context) => {
     return handleApiError(error, { endpoint: "/api/charges/generate-monthly", method: "POST" });
   }
 });
-

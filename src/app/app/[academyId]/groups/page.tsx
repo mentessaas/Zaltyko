@@ -1,17 +1,19 @@
 import { notFound } from "next/navigation";
-import { asc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
   academies,
   athletes,
   coaches,
+  coachSportConfigs,
   groupAthletes,
   groups,
 } from "@/db/schema";
 import { GroupsDashboard } from "@/components/groups/GroupsDashboard";
 import { AthleteOption, CoachOption, GroupSummary } from "@/components/groups/types";
 import { resolveAcademySpecialization } from "@/lib/specialization/registry";
+import { getAcademySportConfigOptions } from "@/lib/sport-config/service";
 
 /**
  * AcademyGroupsPage - Vista principal de gestión de grupos
@@ -55,6 +57,10 @@ export default async function AcademyGroupsPage({ params, searchParams }: PagePr
     typeof resolvedSearchParams.focusGroup === "string" && resolvedSearchParams.focusGroup.trim().length > 0
       ? resolvedSearchParams.focusGroup.trim()
       : undefined;
+  const sportConfigFilter =
+    typeof resolvedSearchParams.sportConfigId === "string" && resolvedSearchParams.sportConfigId.trim().length > 0
+      ? resolvedSearchParams.sportConfigId.trim()
+      : undefined;
 
   // Primero obtener los grupos con el coach
   const groupRows = await db
@@ -62,6 +68,10 @@ export default async function AcademyGroupsPage({ params, searchParams }: PagePr
       id: groups.id,
       name: groups.name,
       discipline: groups.discipline,
+      sportConfigId: groups.sportConfigId,
+      programCode: groups.programCode,
+      levelCode: groups.levelCode,
+      categoryCode: groups.categoryCode,
       level: groups.level,
       technicalFocus: groups.technicalFocus,
       apparatus: groups.apparatus,
@@ -76,7 +86,7 @@ export default async function AcademyGroupsPage({ params, searchParams }: PagePr
     })
     .from(groups)
     .leftJoin(coaches, eq(groups.coachId, coaches.id))
-    .where(eq(groups.academyId, academyId))
+    .where(and(eq(groups.academyId, academyId), sportConfigFilter ? eq(groups.sportConfigId, sportConfigFilter) : undefined))
     .orderBy(asc(groups.createdAt));
 
   // Obtener el conteo de atletas por grupo usando una subconsulta
@@ -109,6 +119,22 @@ export default async function AcademyGroupsPage({ params, searchParams }: PagePr
     .from(coaches)
     .where(eq(coaches.academyId, academyId))
     .orderBy(asc(coaches.name));
+  const coachScopeRows =
+    coachRows.length === 0
+      ? []
+      : await db
+          .select({
+            coachId: coachSportConfigs.coachId,
+            sportConfigId: coachSportConfigs.academySportConfigId,
+          })
+          .from(coachSportConfigs)
+          .where(inArray(coachSportConfigs.coachId, coachRows.map((coach) => coach.id)));
+  const sportConfigIdsByCoach = new Map<string, string[]>();
+  coachScopeRows.forEach((row) => {
+    const current = sportConfigIdsByCoach.get(row.coachId) ?? [];
+    current.push(row.sportConfigId);
+    sportConfigIdsByCoach.set(row.coachId, current);
+  });
 
   const athleteRows = await db
     .select({
@@ -122,12 +148,17 @@ export default async function AcademyGroupsPage({ params, searchParams }: PagePr
     .orderBy(asc(athletes.name));
 
   const coachNameMap = new Map(coachRows.map((coach) => [coach.id, coach.name]));
+  const sportConfigs = await getAcademySportConfigOptions(academyId);
 
   const initialGroups: GroupSummary[] = groupRowsWithCount.map((group) => ({
     id: group.id,
     academyId,
     name: group.name,
     discipline: group.discipline,
+    sportConfigId: group.sportConfigId,
+    programCode: group.programCode,
+    levelCode: group.levelCode,
+    categoryCode: group.categoryCode,
     level: group.level ?? null,
     technicalFocus: group.technicalFocus ?? null,
     apparatus: group.apparatus ?? [],
@@ -149,6 +180,7 @@ export default async function AcademyGroupsPage({ params, searchParams }: PagePr
     id: coach.id,
     name: coach.name,
     email: coach.email,
+    sportConfigIds: sportConfigIdsByCoach.get(coach.id) ?? [],
   }));
 
   const athleteOptions: AthleteOption[] = athleteRows.map((athlete) => ({
@@ -173,6 +205,7 @@ export default async function AcademyGroupsPage({ params, searchParams }: PagePr
         coaches={coachOptions}
         athletes={athleteOptions}
         initialFocusGroupId={focusGroupId}
+        sportConfigs={sportConfigs}
       />
     </div>
   );

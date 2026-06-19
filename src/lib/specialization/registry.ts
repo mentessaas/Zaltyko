@@ -1,4 +1,5 @@
 import { getTimezoneForCountry } from "@/lib/date-utils";
+import { SPORT_CONFIG_SEEDS, getSportConfigSeedByVariant } from "@/lib/sport-config/catalog";
 
 export type SupportedCountryCode = "ES" | string;
 export type AcademyDiscipline = "artistic" | "rhythmic" | "trampoline" | "parkour" | "dance" | "general";
@@ -71,110 +72,23 @@ export interface AcademySpecializationContext {
   categories: SpecializedCategoryRules;
 }
 
-const DEFAULT_ASSESSMENT_TYPES = [
-  { value: "technical", label: "Técnica" },
-  { value: "artistic", label: "Artística" },
-  { value: "execution", label: "Ejecución" },
-  { value: "coach_feedback", label: "Feedback entrenador" },
-  { value: "competition", label: "Competición" },
-  { value: "practice", label: "Entrenamiento" },
-] as const;
-
-const REGISTRY: Record<string, SpecializationRegistryEntry> = {
-  "ES:artistic_female": {
-    key: { countryCode: "ES", discipline: "artistic", disciplineVariant: "artistic_female" },
-    locale: "es-ES",
-    federationConfigVersion: "rfeg-2026-v1",
-    labels: {
-      disciplineName: "Gimnasia artística femenina",
-      athleteSingular: "Gimnasta",
-      athletesPlural: "Gimnastas",
-      groupLabel: "Equipo",
-      classLabel: "Entrenamiento",
-      sessionLabel: "Sesión",
-      levelLabel: "Nivel técnico",
-      coachLabel: "Entrenadora",
-      dashboardHeadline: "Panel técnico de la academia",
-      familyHeadline: "Seguimiento deportivo familiar",
+const REGISTRY: Record<string, SpecializationRegistryEntry> = Object.fromEntries(
+  SPORT_CONFIG_SEEDS.map((config) => [
+    config.code,
+    {
+      key: {
+        countryCode: config.country.code,
+        discipline: config.discipline.code,
+        disciplineVariant: config.defaultDisciplineVariant,
+      },
+      locale: config.country.locale,
+      federationConfigVersion: config.configVersion,
+      labels: config.labels,
+      evaluation: config.evaluation,
+      categories: config.categories,
     },
-    evaluation: {
-      apparatus: [
-        { code: "vt", label: "Salto" },
-        { code: "ub", label: "Barras asimétricas" },
-        { code: "bb", label: "Viga" },
-        { code: "fx", label: "Suelo" },
-      ],
-      assessmentTypes: [...DEFAULT_ASSESSMENT_TYPES],
-    },
-    categories: {
-      levelOptions: ["Pre-iniciación", "Iniciación", "Alevín", "Infantil", "Junior", "Senior", "Absoluta"],
-      levelPlaceholder: "Ej. Alevín, Nivel C, Base autonómica",
-    },
-  },
-  "ES:artistic_male": {
-    key: { countryCode: "ES", discipline: "artistic", disciplineVariant: "artistic_male" },
-    locale: "es-ES",
-    federationConfigVersion: "rfeg-2026-v1",
-    labels: {
-      disciplineName: "Gimnasia artística masculina",
-      athleteSingular: "Gimnasta",
-      athletesPlural: "Gimnastas",
-      groupLabel: "Equipo",
-      classLabel: "Entrenamiento",
-      sessionLabel: "Sesión",
-      levelLabel: "Nivel técnico",
-      coachLabel: "Entrenador",
-      dashboardHeadline: "Panel técnico de la academia",
-      familyHeadline: "Seguimiento deportivo familiar",
-    },
-    evaluation: {
-      apparatus: [
-        { code: "fx", label: "Suelo" },
-        { code: "ph", label: "Caballo con arcos" },
-        { code: "sr", label: "Anillas" },
-        { code: "vt", label: "Salto" },
-        { code: "pb", label: "Paralelas" },
-        { code: "hb", label: "Barra fija" },
-      ],
-      assessmentTypes: [...DEFAULT_ASSESSMENT_TYPES],
-    },
-    categories: {
-      levelOptions: ["Pre-iniciación", "Iniciación", "Alevín", "Infantil", "Junior", "Senior", "Absoluta"],
-      levelPlaceholder: "Ej. Infantil, Nivel 2, Base nacional",
-    },
-  },
-  "ES:rhythmic": {
-    key: { countryCode: "ES", discipline: "rhythmic", disciplineVariant: "rhythmic" },
-    locale: "es-ES",
-    federationConfigVersion: "rfeg-2026-v1",
-    labels: {
-      disciplineName: "Gimnasia rítmica",
-      athleteSingular: "Gimnasta",
-      athletesPlural: "Gimnastas",
-      groupLabel: "Conjunto",
-      classLabel: "Entrenamiento",
-      sessionLabel: "Pase",
-      levelLabel: "Categoría",
-      coachLabel: "Entrenadora",
-      dashboardHeadline: "Panel técnico de la academia",
-      familyHeadline: "Seguimiento deportivo familiar",
-    },
-    evaluation: {
-      apparatus: [
-        { code: "rope", label: "Cuerda" },
-        { code: "ball", label: "Pelota" },
-        { code: "clubs", label: "Mazas" },
-        { code: "hoop", label: "Aro" },
-        { code: "ribbon", label: "Cinta" },
-      ],
-      assessmentTypes: [...DEFAULT_ASSESSMENT_TYPES],
-    },
-    categories: {
-      levelOptions: ["Pre-iniciación", "Iniciación", "Alevín", "Infantil", "Junior", "Senior", "Absoluta"],
-      levelPlaceholder: "Ej. Alevín, Base, Copa autonómica",
-    },
-  },
-};
+  ])
+);
 
 const DEFAULT_ENTRY: SpecializationRegistryEntry = {
   key: { countryCode: "ES", discipline: "general", disciplineVariant: "general" },
@@ -200,7 +114,7 @@ const DEFAULT_ENTRY: SpecializationRegistryEntry = {
       { code: "ribbon", label: "Cinta" },
       { code: "hoop", label: "Aro" },
     ],
-    assessmentTypes: [...DEFAULT_ASSESSMENT_TYPES],
+    assessmentTypes: SPORT_CONFIG_SEEDS[0]?.evaluation.assessmentTypes ?? [],
   },
   categories: {
     levelOptions: [],
@@ -282,6 +196,10 @@ export function buildSpecializationLookupKey(countryCode?: string | null, discip
 export function getSpecializationRegistryEntry(key: SpecializationKey): SpecializationRegistryEntry | null {
   const lookupKey = buildSpecializationLookupKey(key.countryCode, key.disciplineVariant ?? null);
   if (!lookupKey) return null;
+  const configured = getSportConfigSeedByVariant(key.countryCode, key.disciplineVariant ?? null);
+  if (configured) {
+    return REGISTRY[configured.code] ?? null;
+  }
   return REGISTRY[lookupKey] ?? null;
 }
 

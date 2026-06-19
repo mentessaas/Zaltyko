@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useAcademyContext } from "@/hooks/use-academy-context";
+import { getTerminologyForSportConfig } from "@/lib/sport-config/terminology";
 
 interface FilterOption {
   value: string;
@@ -30,6 +31,7 @@ interface ReportFiltersProps {
   showGroupFilter?: boolean;
   showCoachFilter?: boolean;
   showAthleteFilter?: boolean;
+  showSportConfigFilter?: boolean;
 }
 
 export interface ReportFilters {
@@ -39,6 +41,7 @@ export interface ReportFilters {
   classId?: string;
   groupId?: string;
   coachId?: string;
+  sportConfigId?: string;
   datePreset?: string;
 }
 
@@ -67,6 +70,14 @@ interface AthleteOption {
   name: string;
 }
 
+interface SportConfigOption {
+  id: string;
+  name: string;
+  disciplineName: string;
+  branchName: string;
+  terminology?: Record<string, string>;
+}
+
 export function ReportFilters({
   academyId,
   onFilterChange,
@@ -76,6 +87,7 @@ export function ReportFilters({
   showGroupFilter = false,
   showCoachFilter = false,
   showAthleteFilter = false,
+  showSportConfigFilter = false,
 }: ReportFiltersProps) {
   const { specialization } = useAcademyContext();
   const [filters, setFilters] = useState<ReportFilters>({
@@ -88,7 +100,12 @@ export function ReportFilters({
   const [groups, setGroups] = useState<GroupOption[]>([]);
   const [coaches, setCoaches] = useState<CoachOption[]>([]);
   const [athletes, setAthletes] = useState<AthleteOption[]>([]);
+  const [sportConfigs, setSportConfigs] = useState<SportConfigOption[]>([]);
   const [isLoadingOptions, setIsLoadingOptions] = useState(false);
+  const terms = getTerminologyForSportConfig(sportConfigs, filters.sportConfigId);
+  const athletesTermLower = terms.athletes.toLowerCase();
+  const groupsTermLower = terms.groups.toLowerCase();
+  const coachTermLower = terms.coach.toLowerCase();
   const apparatusLabels = Object.fromEntries(
     specialization.evaluation.apparatus.map((item) => [item.code, item.label])
   );
@@ -111,19 +128,21 @@ export function ReportFilters({
         setGroups(Array.isArray(data.groups) ? data.groups : []);
         setCoaches(Array.isArray(data.coaches) ? data.coaches : []);
         setAthletes(Array.isArray(data.athletes) ? data.athletes : []);
+        setSportConfigs(Array.isArray(data.sportConfigs) ? data.sportConfigs : []);
       } catch (error) {
         console.error("Error fetching filter options:", error);
         setClasses([]);
         setGroups([]);
         setCoaches([]);
         setAthletes([]);
+        setSportConfigs([]);
       } finally {
         setIsLoadingOptions(false);
       }
     };
 
     fetchOptions();
-  }, [academyId, showAthleteFilter, showClassFilter, showCoachFilter, showGroupFilter]);
+  }, [academyId, showAthleteFilter, showClassFilter, showCoachFilter, showGroupFilter, showSportConfigFilter]);
 
   const handleDatePresetChange = (preset: string) => {
     const now = new Date();
@@ -195,6 +214,7 @@ export function ReportFilters({
     filters.classId ||
     filters.groupId ||
     filters.coachId ||
+    filters.sportConfigId ||
     filters.datePreset !== "last-30-days";
 
   const formatOptionMeta = (item: {
@@ -275,15 +295,45 @@ export function ReportFilters({
         </div>
 
         {/* Additional Filters */}
+        {showSportConfigFilter && (
+          <div className="space-y-2">
+            <Label>Rama / modalidad</Label>
+            <Select
+              value={filters.sportConfigId || "all"}
+              onValueChange={(value) => handleFilterChange("sportConfigId", value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Todas las ramas" />
+              </SelectTrigger>
+              <SelectContent>
+                {isLoadingOptions ? (
+                  <div className="flex items-center justify-center p-4">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  </div>
+                ) : (
+                  <>
+                    <SelectItem value="all">Todas</SelectItem>
+                    {sportConfigs.map((config) => (
+                      <SelectItem key={config.id} value={config.id}>
+                        {config.branchName} · {config.disciplineName}
+                      </SelectItem>
+                    ))}
+                  </>
+                )}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
         {showAthleteFilter && (
           <div className="space-y-2">
-            <Label>{specialization.labels.athleteSingular}</Label>
+            <Label>{terms.athlete}</Label>
             <Select
               value={filters.athleteId || "all"}
               onValueChange={(value) => handleFilterChange("athleteId", value)}
             >
               <SelectTrigger>
-                <SelectValue placeholder={`Todos los ${specialization.labels.athletesPlural.toLowerCase()}`} />
+                <SelectValue placeholder={`Todos los ${athletesTermLower}`} />
               </SelectTrigger>
               <SelectContent>
                 {isLoadingOptions ? (
@@ -337,13 +387,13 @@ export function ReportFilters({
 
         {showGroupFilter && (
           <div className="space-y-2">
-            <Label>{specialization.labels.groupLabel}</Label>
+            <Label>{terms.group}</Label>
             <Select
               value={filters.groupId || "all"}
               onValueChange={(value) => handleFilterChange("groupId", value)}
             >
               <SelectTrigger>
-                <SelectValue placeholder={`Todos los ${specialization.labels.groupLabel.toLowerCase()}s`} />
+                <SelectValue placeholder={`Todos los ${groupsTermLower}`} />
               </SelectTrigger>
               <SelectContent>
                 {isLoadingOptions ? (
@@ -367,13 +417,13 @@ export function ReportFilters({
 
         {showCoachFilter && (
           <div className="space-y-2">
-            <Label>{specialization.labels.coachLabel}</Label>
+            <Label>{terms.coach}</Label>
             <Select
               value={filters.coachId || "all"}
               onValueChange={(value) => handleFilterChange("coachId", value)}
             >
               <SelectTrigger>
-                <SelectValue placeholder={`Todos los ${specialization.labels.coachLabel.toLowerCase()}es`} />
+                <SelectValue placeholder={`Todos los ${coachTermLower}s`} />
               </SelectTrigger>
               <SelectContent>
                 {isLoadingOptions ? (

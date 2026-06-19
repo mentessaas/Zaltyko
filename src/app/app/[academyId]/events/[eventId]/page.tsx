@@ -1,15 +1,17 @@
 import { notFound } from "next/navigation";
-import { eq, and } from "drizzle-orm";
+import { eq, and, isNull } from "drizzle-orm";
 import { formatLongDateForCountry } from "@/lib/date-utils";
 import { Calendar, MapPin, Mail } from "lucide-react";
 
 import { db } from "@/db";
-import { events, eventInvitations, academies } from "@/db/schema";
+import { athletes, events, eventInvitations, academies } from "@/db/schema";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
+import { getAcademySportConfigOptions } from "@/lib/sport-config/service";
+import { CompetitionResultsPanel } from "@/components/events/CompetitionResultsPanel";
 
 interface PageProps {
   params: Promise<{
@@ -32,7 +34,9 @@ export default async function EventDetailPage({ params }: PageProps) {
       city: events.city,
       isPublic: events.isPublic,
       level: events.level,
+      sportConfigId: events.sportConfigId,
       academyId: events.academyId,
+      tenantId: events.tenantId,
       academyCountry: academies.country,
     })
     .from(events)
@@ -48,6 +52,20 @@ export default async function EventDetailPage({ params }: PageProps) {
     .select()
     .from(eventInvitations)
     .where(eq(eventInvitations.eventId, eventId));
+
+  const sportConfigs = await getAcademySportConfigOptions(academyId);
+  const selectedSportConfig = eventRow.sportConfigId
+    ? sportConfigs.find((config) => config.id === eventRow.sportConfigId) ?? null
+    : null;
+
+  const athleteRows = await db
+    .select({
+      id: athletes.id,
+      name: athletes.name,
+      sportConfigId: athletes.primarySportConfigId,
+    })
+    .from(athletes)
+    .where(and(eq(athletes.academyId, academyId), eq(athletes.tenantId, eventRow.tenantId), isNull(athletes.deletedAt)));
 
   const getStatusBadge = (isPublic: boolean) => {
     if (isPublic) {
@@ -133,7 +151,23 @@ export default async function EventDetailPage({ params }: PageProps) {
           </CardContent>
         </Card>
       </div>
+
+      <CompetitionResultsPanel
+        academyId={academyId}
+        eventId={eventId}
+        sportConfigId={eventRow.sportConfigId}
+        sportConfigName={selectedSportConfig?.branchName ?? null}
+        terminology={selectedSportConfig?.terminology}
+        apparatus={(selectedSportConfig?.apparatus ?? []).map((item) => ({
+          code: item.code,
+          name: item.name,
+        }))}
+        athletes={athleteRows.map((athlete) => ({
+          id: athlete.id,
+          name: athlete.name,
+          sportConfigId: athlete.sportConfigId,
+        }))}
+      />
     </div>
   );
 }
-

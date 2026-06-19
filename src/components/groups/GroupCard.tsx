@@ -9,10 +9,11 @@ import { getStarterGroupPresets } from "@/lib/specialization/operational-presets
 interface GroupCardProps {
   academyId: string;
   group: GroupSummary;
+  sportConfigLabel?: string | null;
   onEdit?: (group: GroupSummary) => void;
 }
 
-export function GroupCard({ academyId, group, onEdit }: GroupCardProps) {
+export function GroupCard({ academyId, group, sportConfigLabel, onEdit }: GroupCardProps) {
   const { specialization } = useAcademyContext();
   const coachCount = (group.coachId ? 1 : 0) + group.assistantIds.length;
   const apparatusLabels = Object.fromEntries(
@@ -42,6 +43,11 @@ export function GroupCard({ academyId, group, onEdit }: GroupCardProps) {
         <p className="text-sm text-muted-foreground">
           {group.level ? `${specialization.labels.levelLabel}: ${group.level}` : specialization.labels.disciplineName}
         </p>
+        {sportConfigLabel && (
+          <span className="mt-2 inline-flex rounded-full border border-border bg-background px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+            {sportConfigLabel}
+          </span>
+        )}
       </header>
 
       <div className="space-y-3 text-sm">

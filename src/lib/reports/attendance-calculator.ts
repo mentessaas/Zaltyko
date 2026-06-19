@@ -11,6 +11,7 @@ export interface AttendanceReportFilters {
   athleteId?: string;
   groupId?: string;
   classId?: string;
+  sportConfigId?: string;
 }
 
 export interface AttendanceStats {
@@ -20,6 +21,12 @@ export interface AttendanceStats {
   late: number;
   excused: number;
   attendanceRate: number;
+  bySportConfig?: Array<{
+    sportConfigId: string;
+    totalSessions: number;
+    present: number;
+    attendanceRate: number;
+  }>;
 }
 
 export interface AthleteAttendanceReport {
@@ -69,6 +76,11 @@ export async function calculateAthleteAttendance(
   }
   if (filters.classId) {
     whereConditions.push(eq(classSessions.classId, filters.classId));
+  }
+  if (filters.sportConfigId) {
+    whereConditions.push(
+      sql`coalesce(${classSessions.sportConfigId}, ${classes.sportConfigId}) = ${filters.sportConfigId}`
+    );
   }
 
   // Obtener registros de asistencia
@@ -164,6 +176,11 @@ export async function calculateGroupAttendance(
   if (filters.endDate) {
     whereConditions.push(lte(classSessions.sessionDate, format(filters.endDate, "yyyy-MM-dd")));
   }
+  if (filters.sportConfigId) {
+    whereConditions.push(
+      sql`coalesce(${classSessions.sportConfigId}, ${classes.sportConfigId}) = ${filters.sportConfigId}`
+    );
+  }
 
   // Obtener estadísticas por atleta
   const stats = await db
@@ -174,6 +191,7 @@ export async function calculateGroupAttendance(
     })
     .from(attendanceRecords)
     .innerJoin(classSessions, eq(attendanceRecords.sessionId, classSessions.id))
+    .innerJoin(classes, eq(classSessions.classId, classes.id))
     .where(and(...whereConditions))
     .groupBy(attendanceRecords.athleteId, attendanceRecords.status);
 
@@ -248,6 +266,11 @@ export async function calculateGeneralAttendance(
   if (filters.classId) {
     whereConditions.push(eq(classSessions.classId, filters.classId));
   }
+  if (filters.sportConfigId) {
+    whereConditions.push(
+      sql`coalesce(${classSessions.sportConfigId}, ${classes.sportConfigId}) = ${filters.sportConfigId}`
+    );
+  }
 
   const stats = await db
     .select({
@@ -256,6 +279,7 @@ export async function calculateGeneralAttendance(
     })
     .from(attendanceRecords)
     .innerJoin(classSessions, eq(attendanceRecords.sessionId, classSessions.id))
+    .innerJoin(classes, eq(classSessions.classId, classes.id))
     .where(and(...whereConditions))
     .groupBy(attendanceRecords.status);
 
@@ -286,6 +310,28 @@ export async function calculateGeneralAttendance(
 
   const attendanceRate = totalSessions > 0 ? (present / totalSessions) * 100 : 0;
 
+  const bySportRows = await db
+    .select({
+      sportConfigId: sql<string | null>`coalesce(${classSessions.sportConfigId}, ${classes.sportConfigId})`,
+      status: attendanceRecords.status,
+      total: count(attendanceRecords.id),
+    })
+    .from(attendanceRecords)
+    .innerJoin(classSessions, eq(attendanceRecords.sessionId, classSessions.id))
+    .innerJoin(classes, eq(classSessions.classId, classes.id))
+    .where(and(...whereConditions))
+    .groupBy(sql`coalesce(${classSessions.sportConfigId}, ${classes.sportConfigId})`, attendanceRecords.status);
+
+  const bySportMap = new Map<string, { totalSessions: number; present: number }>();
+  for (const row of bySportRows) {
+    if (!row.sportConfigId) continue;
+    const current = bySportMap.get(row.sportConfigId) ?? { totalSessions: 0, present: 0 };
+    const value = Number(row.total);
+    current.totalSessions += value;
+    if (row.status === "present") current.present += value;
+    bySportMap.set(row.sportConfigId, current);
+  }
+
   return {
     totalSessions,
     present,
@@ -293,6 +339,12 @@ export async function calculateGeneralAttendance(
     late,
     excused,
     attendanceRate: Math.round(attendanceRate * 100) / 100,
+    bySportConfig: Array.from(bySportMap.entries()).map(([sportConfigId, value]) => ({
+      sportConfigId,
+      totalSessions: value.totalSessions,
+      present: value.present,
+      attendanceRate:
+        value.totalSessions > 0 ? Math.round((value.present / value.totalSessions) * 10000) / 100 : 0,
+    })),
   };
 }
-

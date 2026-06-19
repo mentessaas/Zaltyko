@@ -4,7 +4,7 @@ import { parse } from "csv-parse/sync";
 import { z } from "zod";
 
 import { db } from "@/db";
-import { academies, athletes } from "@/db/schema";
+import { academies, athleteSportConfigs, athletes, groupAthletes, groups } from "@/db/schema";
 import { athleteStatusOptions } from "@/lib/athletes/constants";
 import { withTenant } from "@/lib/authz";
 import { assertWithinPlanLimits } from "@/lib/limits";
@@ -15,6 +15,14 @@ import { NextRequest } from "next/server";
 import { validateDateWithError, formatDateForDB } from "@/lib/validation/date-utils";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { logger } from "@/lib/logger";
+import { getAcademySportConfigOptions, verifyAcademySportConfig } from "@/lib/sport-config/service";
+
+const optionalUuid = z
+  .string()
+  .trim()
+  .optional()
+  .transform((value) => (value ? value : undefined))
+  .pipe(z.string().uuid().optional());
 
 const CsvRowSchema = z.object({
   name: z.string().min(1),
@@ -22,6 +30,13 @@ const CsvRowSchema = z.object({
   dob: z.string().optional(),
   level: z.string().optional(),
   status: z.enum(athleteStatusOptions).optional(),
+  groupId: optionalUuid,
+  groupName: z.string().optional(),
+  sportConfigId: optionalUuid,
+  sportConfigCode: z.string().optional(),
+  programCode: z.string().optional(),
+  levelCode: z.string().optional(),
+  categoryCode: z.string().optional(),
 });
 
 type CsvRow = z.infer<typeof CsvRowSchema>;
@@ -60,6 +75,13 @@ const handler = withTenant(async (request, context) => {
         dob: row.dob ?? row.DOB ?? row.birthdate ?? undefined,
         level: row.level ?? row.Level ?? undefined,
         status: row.status ?? row.Status ?? undefined,
+        groupId: row.groupId ?? row.group_id ?? row.GroupId ?? undefined,
+        groupName: row.groupName ?? row.group_name ?? row.group ?? row.Grupo ?? undefined,
+        sportConfigId: row.sportConfigId ?? row.sport_config_id ?? row.SportConfigId ?? undefined,
+        sportConfigCode: row.sportConfigCode ?? row.sport_config_code ?? row.SportConfigCode ?? undefined,
+        programCode: row.programCode ?? row.program_code ?? row.ProgramCode ?? undefined,
+        levelCode: row.levelCode ?? row.level_code ?? row.LevelCode ?? undefined,
+        categoryCode: row.categoryCode ?? row.category_code ?? row.CategoryCode ?? undefined,
       };
       return CsvRowSchema.parse(normalized);
     });
@@ -84,6 +106,7 @@ const handler = withTenant(async (request, context) => {
     .where(and(eq(academies.tenantId, effectiveTenantId), inArray(academies.id, academyIds)));
 
   const validAcademyIds = new Set(academiesRows.map((row) => row.id));
+  const configsByAcademy = new Map<string, Awaited<ReturnType<typeof getAcademySportConfigOptions>>>();
 
   const summary = {
     total: records.length,
@@ -105,6 +128,131 @@ const handler = withTenant(async (request, context) => {
     try {
       await assertWithinPlanLimits(effectiveTenantId, record.academyId, "athletes");
 
+      let selectedGroup:
+        | {
+            id: string;
+            sportConfigId: string | null;
+            programCode: string | null;
+            levelCode: string | null;
+            categoryCode: string | null;
+          }
+        | null = null;
+
+      if (record.groupId || record.groupName) {
+        const groupConditions = [
+          eq(groups.tenantId, effectiveTenantId),
+          eq(groups.academyId, record.academyId),
+          record.groupId ? eq(groups.id, record.groupId) : eq(groups.name, record.groupName ?? ""),
+        ];
+
+        const [groupRow] = await db
+          .select({
+            id: groups.id,
+            sportConfigId: groups.sportConfigId,
+            programCode: groups.programCode,
+            levelCode: groups.levelCode,
+            categoryCode: groups.categoryCode,
+          })
+          .from(groups)
+          .where(and(...groupConditions))
+          .limit(1);
+
+        if (!groupRow) {
+          summary.skipped += 1;
+          summary.errors.push({
+            row: index + 2,
+            reason: record.groupId
+              ? `Grupo ${record.groupId} no pertenece a la academia.`
+              : `Grupo "${record.groupName}" no encontrado en la academia.`,
+          });
+          continue;
+        }
+
+        selectedGroup = groupRow;
+      }
+
+      let academyConfigs = configsByAcademy.get(record.academyId);
+      if (!academyConfigs) {
+        academyConfigs = await getAcademySportConfigOptions(record.academyId);
+        configsByAcademy.set(record.academyId, academyConfigs);
+      }
+
+      const effectiveSportConfigId =
+        record.sportConfigId ??
+        selectedGroup?.sportConfigId ??
+        (record.sportConfigCode
+          ? academyConfigs.find((config) => config.code === record.sportConfigCode)?.id
+          : null) ??
+        null;
+      const effectiveProgramCode = record.programCode ?? selectedGroup?.programCode ?? null;
+      const effectiveLevelCode = record.levelCode ?? selectedGroup?.levelCode ?? null;
+      const effectiveCategoryCode = record.categoryCode ?? selectedGroup?.categoryCode ?? null;
+
+      if (record.sportConfigCode && !effectiveSportConfigId) {
+        summary.skipped += 1;
+        summary.errors.push({
+          row: index + 2,
+          reason: `Configuración deportiva "${record.sportConfigCode}" no activa en la academia.`,
+        });
+        continue;
+      }
+
+      if (effectiveSportConfigId) {
+        const verifiedConfig = await verifyAcademySportConfig({
+          academyId: record.academyId,
+          tenantId: effectiveTenantId,
+          sportConfigId: effectiveSportConfigId,
+        });
+
+        if (!verifiedConfig) {
+          summary.skipped += 1;
+          summary.errors.push({
+            row: index + 2,
+            reason: "La configuración deportiva no está activa en esta academia.",
+          });
+          continue;
+        }
+
+        const selectedConfig = academyConfigs.find((config) => config.id === effectiveSportConfigId);
+
+        if (effectiveProgramCode && !selectedConfig?.programs.some((program) => program.code === effectiveProgramCode)) {
+          summary.skipped += 1;
+          summary.errors.push({
+            row: index + 2,
+            reason: `Programa "${effectiveProgramCode}" no válido para la configuración deportiva.`,
+          });
+          continue;
+        }
+
+        if (
+          effectiveLevelCode &&
+          !selectedConfig?.levels.some(
+            (level) =>
+              level.code === effectiveLevelCode &&
+              (!effectiveProgramCode || !level.programCode || level.programCode === effectiveProgramCode)
+          )
+        ) {
+          summary.skipped += 1;
+          summary.errors.push({
+            row: index + 2,
+            reason: `Nivel "${effectiveLevelCode}" no válido para la configuración deportiva.`,
+          });
+          continue;
+        }
+
+        if (
+          effectiveCategoryCode &&
+          !selectedConfig?.categories.some((category) => category.code === effectiveCategoryCode)
+        ) {
+          summary.skipped += 1;
+          summary.errors.push({
+            row: index + 2,
+            reason: `Categoría "${effectiveCategoryCode}" no válida para la configuración deportiva.`,
+          });
+          continue;
+        }
+      }
+
       // Validar fecha de nacimiento si se proporciona
       let dobDate: Date | null = null;
       if (record.dob) {
@@ -120,15 +268,49 @@ const handler = withTenant(async (request, context) => {
         dobDate = dateValidation.date;
       }
 
+      const athleteId = crypto.randomUUID();
+
       await db.insert(athletes).values({
-        id: crypto.randomUUID(),
+        id: athleteId,
         tenantId: effectiveTenantId,
         academyId: record.academyId,
         name: record.name,
         dob: dobDate ? formatDateForDB(dobDate) : null,
         level: record.level ?? null,
         status: record.status ?? "active",
+        groupId: selectedGroup?.id ?? null,
+        primarySportConfigId: effectiveSportConfigId,
+        programCode: effectiveProgramCode,
+        levelCode: effectiveLevelCode,
+        categoryCode: effectiveCategoryCode,
       });
+
+      if (selectedGroup) {
+        await db
+          .insert(groupAthletes)
+          .values({
+            id: crypto.randomUUID(),
+            tenantId: effectiveTenantId,
+            groupId: selectedGroup.id,
+            athleteId,
+          })
+          .onConflictDoNothing();
+      }
+
+      if (effectiveSportConfigId) {
+        await db
+          .insert(athleteSportConfigs)
+          .values({
+            id: crypto.randomUUID(),
+            tenantId: effectiveTenantId,
+            athleteId,
+            academySportConfigId: effectiveSportConfigId,
+            programCode: effectiveProgramCode,
+            levelCode: effectiveLevelCode,
+            categoryCode: effectiveCategoryCode,
+          })
+          .onConflictDoNothing();
+      }
 
       summary.created += 1;
     } catch (error) {
@@ -172,5 +354,4 @@ const handlerWithPayloadCheck = async (request: NextRequest) => {
 };
 
 export const POST = withRateLimit(handlerWithPayloadCheck, { identifier: getUserIdentifier });
-
 

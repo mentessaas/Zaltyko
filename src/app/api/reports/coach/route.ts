@@ -11,6 +11,7 @@ const reportSchema = z.object({
   startDate: z.string().optional(),
   endDate: z.string().optional(),
   coachId: z.string().uuid().optional(),
+  sportConfigId: z.string().uuid().optional(),
 });
 
 export const GET = withTenant(async (request, context) => {
@@ -24,6 +25,7 @@ export const GET = withTenant(async (request, context) => {
     startDate: url.searchParams.get("startDate"),
     endDate: url.searchParams.get("endDate"),
     coachId: url.searchParams.get("coachId"),
+    sportConfigId: url.searchParams.get("sportConfigId"),
   };
 
   const validated = reportSchema.parse({
@@ -41,11 +43,12 @@ export const GET = withTenant(async (request, context) => {
     startDate: validated.startDate ? new Date(validated.startDate) : undefined,
     endDate: validated.endDate ? new Date(validated.endDate) : undefined,
     coachId: validated.coachId,
+    sportConfigId: validated.sportConfigId,
   };
 
   try {
     const stats = await calculateCoachReport(filters);
-    return apiSuccess({ data: stats });
+    return apiSuccess(stats);
   } catch (error: any) {
     logger.error("Error generating coach report:", error);
     return apiError("REPORT_FAILED", error.message, 500);

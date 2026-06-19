@@ -3,10 +3,13 @@ import { z } from "zod";
 import { withTenant } from "@/lib/authz";
 import { getMessageTemplates, createMessageTemplate } from "@/lib/communication-service";
 import { logger } from "@/lib/logger";
+import { verifyAcademySportConfig } from "@/lib/sport-config/service";
 
 export const dynamic = 'force-dynamic';
 
 const createTemplateSchema = z.object({
+  academyId: z.string().uuid().optional(),
+  sportConfigId: z.string().uuid().optional().nullable(),
   name: z.string().min(1).max(200),
   description: z.string().optional(),
   channel: z.enum(["whatsapp", "email", "push", "in_app"]).default("whatsapp"),
@@ -18,16 +21,45 @@ const createTemplateSchema = z.object({
   isActive: z.boolean().default(true),
 });
 
+const querySchema = z.object({
+  academyId: z.string().uuid().optional(),
+  channel: z.enum(["whatsapp", "email", "push", "in_app"]).optional(),
+  sportConfigId: z.string().uuid().optional(),
+  includeGlobal: z.enum(["true", "false"]).optional().default("true"),
+});
+
 export const GET = withTenant(async (request, context) => {
   if (!context.tenantId) {
     return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
   }
 
-  const templates = await getMessageTemplates(context.tenantId);
+  const params = querySchema.safeParse(Object.fromEntries(new URL(request.url).searchParams));
+  if (!params.success) {
+    return apiError("VALIDATION_ERROR", "Validation failed", 400);
+  }
+
+  if (params.data.sportConfigId && params.data.academyId) {
+    const verifiedConfig = await verifyAcademySportConfig({
+      academyId: params.data.academyId,
+      tenantId: context.tenantId,
+      sportConfigId: params.data.sportConfigId,
+    });
+
+    if (!verifiedConfig) {
+      return apiError("SPORT_CONFIG_NOT_FOUND", "La rama/modalidad no está activa en esta academia", 400);
+    }
+  }
+
+  const templates = await getMessageTemplates(context.tenantId, {
+    channel: params.data.channel,
+    sportConfigId: params.data.sportConfigId,
+    includeGlobal: params.data.includeGlobal !== "false",
+  });
 
   return apiSuccess({
     items: templates.map((t) => ({
       id: t.id,
+      sportConfigId: t.sportConfigId,
       name: t.name,
       description: t.description,
       channel: t.channel,
@@ -53,14 +85,33 @@ export const POST = withTenant(async (request, context) => {
   try {
     const body = await request.json();
     const validated = createTemplateSchema.parse(body);
+    const { academyId, sportConfigId, ...templateData } = validated;
+
+    if (sportConfigId) {
+      if (!academyId) {
+        return apiError("ACADEMY_REQUIRED", "Academia requerida para validar la rama/modalidad", 400);
+      }
+
+      const verifiedConfig = await verifyAcademySportConfig({
+        academyId,
+        tenantId: context.tenantId,
+        sportConfigId,
+      });
+
+      if (!verifiedConfig) {
+        return apiError("SPORT_CONFIG_NOT_FOUND", "La rama/modalidad no está activa en esta academia", 400);
+      }
+    }
 
     const template = await createMessageTemplate({
       tenantId: context.tenantId,
-      ...validated,
+      sportConfigId: sportConfigId ?? null,
+      ...templateData,
     });
 
     return apiCreated({
       id: template.id,
+      sportConfigId: template.sportConfigId,
       name: template.name,
       description: template.description,
       channel: template.channel,

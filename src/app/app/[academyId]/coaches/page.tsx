@@ -1,9 +1,11 @@
 import Link from "next/link";
-import { and, asc, eq, ilike, or } from "drizzle-orm";
+import { and, asc, eq, ilike, inArray, or } from "drizzle-orm";
 import { notFound } from "next/navigation";
 
 import { db } from "@/db";
-import { academies, classCoachAssignments, classes, coaches, groups } from "@/db/schema";
+import { academies, classCoachAssignments, classes, coaches, coachSportConfigs, groups } from "@/db/schema";
+import { getAcademySportConfigOptions } from "@/lib/sport-config/service";
+import { getTerminologyForSportConfig } from "@/lib/sport-config/terminology";
 
 import { CoachesTableView } from "@/components/coaches/CoachesTableView";
 
@@ -47,6 +49,11 @@ export default async function AcademyCoachesPage({ params, searchParams }: PageP
       ? resolvedSearchParams.group.trim()
       : undefined;
 
+  const sportConfigFilter =
+    typeof resolvedSearchParams.sportConfigId === "string" && resolvedSearchParams.sportConfigId.trim().length > 0
+      ? resolvedSearchParams.sportConfigId.trim()
+      : undefined;
+
   const searchCondition = searchQuery
     ? or(
         ilike(coaches.name, `%${searchQuery}%`),
@@ -84,6 +91,7 @@ export default async function AcademyCoachesPage({ params, searchParams }: PageP
       coachId: classCoachAssignments.coachId,
       classId: classes.id,
       className: classes.name,
+      sportConfigId: classes.sportConfigId,
     })
     .from(classCoachAssignments)
     .innerJoin(classes, eq(classCoachAssignments.classId, classes.id))
@@ -93,6 +101,7 @@ export default async function AcademyCoachesPage({ params, searchParams }: PageP
     .select({
       id: classes.id,
       name: classes.name,
+      sportConfigId: classes.sportConfigId,
     })
     .from(classes)
     .where(eq(classes.academyId, academyId))
@@ -103,6 +112,7 @@ export default async function AcademyCoachesPage({ params, searchParams }: PageP
       id: groups.id,
       name: groups.name,
       color: groups.color,
+      sportConfigId: groups.sportConfigId,
       coachId: groups.coachId,
       assistantIds: groups.assistantIds,
     })
@@ -110,13 +120,38 @@ export default async function AcademyCoachesPage({ params, searchParams }: PageP
     .where(eq(groups.academyId, academyId))
     .orderBy(asc(groups.name));
 
-  const groupsByCoach = new Map<string, { id: string; name: string; color: string | null; role: "principal" | "asistente" }[]>();
+  const coachIds = coachRows.map((coach) => coach.id);
+  const coachSportScopeRows =
+    coachIds.length > 0
+      ? await db
+          .select({
+            coachId: coachSportConfigs.coachId,
+            sportConfigId: coachSportConfigs.academySportConfigId,
+          })
+          .from(coachSportConfigs)
+          .where(inArray(coachSportConfigs.coachId, coachIds))
+      : [];
+  const scopeByCoach = new Map<string, string[]>();
+  coachSportScopeRows.forEach((row) => {
+    const list = scopeByCoach.get(row.coachId) ?? [];
+    list.push(row.sportConfigId);
+    scopeByCoach.set(row.coachId, list);
+  });
+
+  const sportConfigs = await getAcademySportConfigOptions(academyId);
+  const terms = getTerminologyForSportConfig(
+    sportConfigs,
+    sportConfigFilter === "unscoped" ? null : sportConfigFilter
+  );
+
+  const groupsByCoach = new Map<string, { id: string; name: string; color: string | null; sportConfigId: string | null; role: "principal" | "asistente" }[]>();
 
   groupRows.forEach((group) => {
     const baseInfo = {
       id: group.id,
       name: group.name ?? "Grupo sin nombre",
       color: group.color ?? null,
+      sportConfigId: group.sportConfigId ?? null,
     };
     if (group.coachId) {
       const list = groupsByCoach.get(group.coachId) ?? [];
@@ -144,22 +179,34 @@ export default async function AcademyCoachesPage({ params, searchParams }: PageP
     isPublic: coach.isPublic,
     publicBio: coach.publicBio,
     createdAt: coach.createdAt ? coach.createdAt.toISOString() : null,
+    sportConfigIds: scopeByCoach.get(coach.id) ?? [],
     classes: assignmentRows
       .filter((assignment) => assignment.coachId === coach.id)
       .map((assignment) => ({
         id: assignment.classId,
         name: assignment.className ?? "Sin nombre",
+        sportConfigId: assignment.sportConfigId ?? null,
       })),
     groups: groupsByCoach.get(coach.id) ?? [],
   }));
 
-  const filteredCoaches = groupFilter
-    ? coachesList.filter((coach) => coach.groups.some((group) => group.id === groupFilter))
-    : coachesList;
+  const filteredCoaches = coachesList.filter((coach) => {
+    if (groupFilter && !coach.groups.some((group) => group.id === groupFilter)) {
+      return false;
+    }
+    if (sportConfigFilter === "unscoped") {
+      return coach.sportConfigIds.length === 0;
+    }
+    if (sportConfigFilter) {
+      return coach.sportConfigIds.length === 0 || coach.sportConfigIds.includes(sportConfigFilter);
+    }
+    return true;
+  });
 
   const classOptions = classRows.map((entry) => ({
     id: entry.id,
     name: entry.name ?? "Sin nombre",
+    sportConfigId: entry.sportConfigId ?? null,
   }));
 
   return (
@@ -168,7 +215,7 @@ export default async function AcademyCoachesPage({ params, searchParams }: PageP
         <div className="zaltyko-motion-lines pointer-events-none absolute inset-x-0 top-0 h-24 opacity-70" />
         <div className="relative space-y-2">
           <p className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-teal">Staff técnico</p>
-          <h1 className="font-display text-3xl font-semibold text-zaltyko-navy">Entrenadores</h1>
+          <h1 className="font-display text-3xl font-semibold text-zaltyko-navy">{terms.coach}s</h1>
           <p className="text-sm text-zaltyko-text-secondary">
             Controla al staff técnico, asigna clases y mantén sus datos de contacto al día.
           </p>
@@ -179,12 +226,20 @@ export default async function AcademyCoachesPage({ params, searchParams }: PageP
         academyId={academy.id}
         coaches={filteredCoaches}
         classes={classOptions}
+        sportConfigs={sportConfigs.map((config) => ({
+          id: config.id,
+          name: config.name,
+          disciplineName: config.disciplineName,
+          branchName: config.branchName,
+          terminology: config.terminology,
+        }))}
         groupOptions={groupRows.map((group) => ({
           id: group.id,
           name: group.name ?? "Grupo sin nombre",
           color: group.color ?? null,
+          sportConfigId: group.sportConfigId ?? null,
         }))}
-        filters={{ q: searchQuery, groupId: groupFilter }}
+        filters={{ q: searchQuery, groupId: groupFilter, sportConfigId: sportConfigFilter }}
       />
     </div>
   );

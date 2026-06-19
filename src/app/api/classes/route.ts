@@ -1,11 +1,11 @@
 export const dynamic = 'force-dynamic';
 
 import { apiSuccess, apiError, apiCreated } from "@/lib/api-response";
-import { asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
-import { academies, classCoachAssignments, classWeekdays, classes, coaches } from "@/db/schema";
+import { academies, classCoachAssignments, classGroups, classWeekdays, classes, coaches, groups } from "@/db/schema";
 import { assertWithinPlanLimits } from "@/lib/limits";
 import { withTenant } from "@/lib/authz";
 import { rateLimit, getUserIdentifier, withRateLimit } from "@/lib/rate-limit";
@@ -13,6 +13,8 @@ import { handleApiError } from "@/lib/api-error-handler";
 import { verifyAcademyAccess } from "@/lib/permissions";
 import { markChecklistItem } from "@/lib/onboarding";
 import { assertPremiumFeatureAccess } from "@/lib/trial";
+import { getAcademySportConfigOptions, verifyAcademySportConfig } from "@/lib/sport-config/service";
+import { normalizeApparatusCodes } from "@/lib/sport-config/validation";
 import { NextResponse } from "next/server";
 
 const bodySchema = z.object({
@@ -26,6 +28,7 @@ const bodySchema = z.object({
   apparatus: z.array(z.string().trim().min(1).max(120)).max(12).optional(),
   isExtra: z.boolean().optional().default(false),
   groupId: z.string().uuid().nullable().optional(),
+  sportConfigId: z.string().uuid().nullable().optional(),
   allowsFreeTrial: z.boolean().optional().default(false),
   waitingListEnabled: z.boolean().optional().default(false),
   cancellationHoursBefore: z.number().int().min(0).max(168).optional().default(24),
@@ -34,6 +37,7 @@ const bodySchema = z.object({
 
 const querySchema = z.object({
   academyId: z.string().uuid().optional(),
+  sportConfigId: z.string().uuid().optional(),
   includeAssignments: z
     .string()
     .transform((value) => value === "true" || value === "1")
@@ -53,11 +57,16 @@ export const GET = withTenant(async (request, context) => {
       return handleApiError(params.error);
     }
 
-    const { academyId, includeAssignments } = params.data;
+    const { academyId, sportConfigId, includeAssignments } = params.data;
 
-    const classFilter = academyId
-      ? eq(classes.academyId, academyId)
-      : eq(classes.tenantId, context.tenantId);
+    const classConditions = [
+      academyId ? eq(classes.academyId, academyId) : eq(classes.tenantId, context.tenantId),
+      sportConfigId ? eq(classes.sportConfigId, sportConfigId) : undefined,
+    ].filter(Boolean) as any[];
+    const classFilter = classConditions.reduce<any>(
+      (accumulator, condition) => (accumulator ? and(accumulator, condition) : condition),
+      undefined
+    );
 
     const classRows = await db
       .select({
@@ -71,6 +80,7 @@ export const GET = withTenant(async (request, context) => {
         technicalFocus: classes.technicalFocus,
         apparatus: classes.apparatus,
         isExtra: classes.isExtra,
+        sportConfigId: classes.sportConfigId,
         groupId: classes.groupId,
         createdAt: classes.createdAt,
       })
@@ -166,6 +176,52 @@ const createClassHandler = withTenant(async (request, context) => {
       .map((day) => Number(day))
       .filter((day) => Number.isInteger(day));
 
+    let selectedGroup: { id: string; sportConfigId: string | null } | null = null;
+    if (body.groupId) {
+      const [groupRow] = await db
+        .select({
+          id: groups.id,
+          sportConfigId: groups.sportConfigId,
+        })
+        .from(groups)
+        .where(and(eq(groups.id, body.groupId), eq(groups.tenantId, context.tenantId), eq(groups.academyId, body.academyId)))
+        .limit(1);
+
+      if (!groupRow) {
+        return apiError("GROUP_NOT_FOUND", "Group not found", 404);
+      }
+
+      selectedGroup = groupRow;
+    }
+
+    const effectiveSportConfigId = body.sportConfigId ?? selectedGroup?.sportConfigId ?? null;
+    let normalizedApparatus = body.apparatus?.length
+      ? Array.from(new Set(body.apparatus.map((item) => item.trim()).filter(Boolean)))
+      : null;
+
+    if (effectiveSportConfigId) {
+      const verifiedConfig = await verifyAcademySportConfig({
+        academyId: body.academyId,
+        tenantId: context.tenantId,
+        sportConfigId: effectiveSportConfigId,
+      });
+
+      if (!verifiedConfig) {
+        return apiError("SPORT_CONFIG_NOT_FOUND", "La configuración deportiva no está activa en esta academia", 400);
+      }
+
+      const activeConfigs = await getAcademySportConfigOptions(body.academyId);
+      const selectedConfig = activeConfigs.find((config) => config.id === effectiveSportConfigId);
+
+      if (normalizedApparatus) {
+        const apparatusValidation = normalizeApparatusCodes(selectedConfig ?? {}, normalizedApparatus);
+        if (!apparatusValidation.ok) {
+          return apiError("INVALID_APPARATUS", "Uno o más aparatos no pertenecen a la modalidad/rama de esta clase", 400);
+        }
+        normalizedApparatus = apparatusValidation.codes;
+      }
+    }
+
     const classId = crypto.randomUUID();
 
     await db.insert(classes).values({
@@ -177,14 +233,27 @@ const createClassHandler = withTenant(async (request, context) => {
       endTime: body.endTime ?? null,
       capacity: body.capacity ?? null,
       technicalFocus: body.technicalFocus?.trim() || null,
-      apparatus: body.apparatus?.length ? Array.from(new Set(body.apparatus.map((item) => item.trim()).filter(Boolean))) : null,
+      apparatus: normalizedApparatus,
       isExtra: body.isExtra ?? false,
+      sportConfigId: effectiveSportConfigId,
       groupId: body.groupId ?? null,
       allowsFreeTrial: body.allowsFreeTrial ?? false,
       waitingListEnabled: body.waitingListEnabled ?? false,
       cancellationHoursBefore: body.cancellationHoursBefore ?? 24,
       cancellationPolicy: body.cancellationPolicy ?? "standard",
     });
+
+    if (selectedGroup) {
+      await db
+        .insert(classGroups)
+        .values({
+          id: crypto.randomUUID(),
+          tenantId: context.tenantId,
+          classId,
+          groupId: selectedGroup.id,
+        })
+        .onConflictDoNothing();
+    }
 
     if (normalizedWeekdays.length > 0) {
       await db.insert(classWeekdays).values(

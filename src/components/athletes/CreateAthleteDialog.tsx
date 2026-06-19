@@ -1,12 +1,15 @@
 "use client";
 
-import { FormEvent, useMemo, useRef, useState, useTransition } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState, useTransition } from "react";
 
 import { athleteStatusOptions } from "@/lib/athletes/constants";
 import { createClient } from "@/lib/supabase/client";
 
 import { Modal } from "@/components/ui/modal";
 import { Calendar as CalendarIcon, ChevronDown, ChevronUp } from "lucide-react";
+import type { SportConfigOption } from "@/components/groups/types";
+import type { GroupOption } from "@/types";
+import { getTerminology } from "@/lib/sport-config/terminology";
 
 interface ContactInput {
   name: string;
@@ -55,11 +58,9 @@ interface CreateAthleteDialogProps {
   open: boolean;
   onClose: () => void;
   onCreated: () => void;
-  groups?: {
-    id: string;
-    name: string;
-    color: string | null;
-  }[];
+  groups?: GroupOption[];
+  sportConfigs?: SportConfigOption[];
+  initialSportConfigId?: string;
 }
 
 const createEmptyContact = (): ContactInput => ({
@@ -77,17 +78,68 @@ export function CreateAthleteDialog({
   onClose,
   onCreated,
   groups = [],
+  sportConfigs = [],
+  initialSportConfigId,
 }: CreateAthleteDialogProps) {
   const [name, setName] = useState("");
   const [dob, setDob] = useState("");
-  const [category, setCategory] = useState<(typeof CATEGORY_OPTIONS)[number] | "">("");
-  const [level, setLevel] = useState<(typeof LEVEL_OPTIONS)[number] | "">("");
+  const [sportConfigId, setSportConfigId] = useState("");
+  const [programCode, setProgramCode] = useState("");
+  const [category, setCategory] = useState("");
+  const [level, setLevel] = useState("");
   const [status, setStatus] = useState<(typeof athleteStatusOptions)[number]>("active");
   const [groupId, setGroupId] = useState("");
   const [contacts, setContacts] = useState<ContactInput[]>([createEmptyContact()]);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const resolvedInitialSportConfigId = useMemo(
+    () =>
+      initialSportConfigId && sportConfigs.some((config) => config.id === initialSportConfigId)
+        ? initialSportConfigId
+        : "",
+    [initialSportConfigId, sportConfigs]
+  );
+
+  const selectedGroup = useMemo(
+    () => groups.find((group) => group.id === groupId) ?? null,
+    [groupId, groups]
+  );
+
+  const effectiveSportConfigId = selectedGroup?.sportConfigId ?? sportConfigId;
+  const selectedSportConfig = useMemo(
+    () => sportConfigs.find((config) => config.id === effectiveSportConfigId) ?? null,
+    [effectiveSportConfigId, sportConfigs]
+  );
+  const terms = getTerminology(selectedSportConfig);
+  const athleteTerm = terms.athlete;
+  const athleteTermLower = athleteTerm.toLowerCase();
+  const groupTerm = terms.group;
+
+  const programOptions = selectedSportConfig?.programs ?? [];
+  const levelOptions = selectedSportConfig
+    ? selectedSportConfig.levels.filter(
+        (option) => !programCode || !option.programCode || option.programCode === programCode
+      )
+    : LEVEL_OPTIONS.map((option) => ({
+        code: option,
+        name: option === "Pre-nivel" ? "Pre-nivel" : option === "FIG" ? "FIG" : `Nivel ${option}`,
+      }));
+  const categoryOptions = selectedSportConfig
+    ? selectedSportConfig.categories
+    : CATEGORY_OPTIONS.map((option) => ({ code: option, name: option }));
+
+  const selectedProgramName = programOptions.find((option) => option.code === programCode)?.name ?? null;
+  const selectedCategoryName = categoryOptions.find((option) => option.code === category)?.name ?? null;
+  const selectedLevelName = levelOptions.find((option) => option.code === level)?.name ?? null;
+
+  const levelDisplay = [
+    selectedProgramName,
+    selectedCategoryName ? `${terms.category} ${selectedCategoryName}` : null,
+    selectedLevelName,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   const computedAgeYears = useMemo(() => {
     if (!dob) return null;
@@ -110,12 +162,19 @@ export function CreateAthleteDialog({
 
   const birthdateInputRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => {
+    if (!open || groupId || !resolvedInitialSportConfigId) {
+      return;
+    }
+    setSportConfigId(resolvedInitialSportConfigId);
+  }, [groupId, open, resolvedInitialSportConfigId]);
+
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError(null);
 
     if (!name.trim()) {
-      setError("El nombre es obligatorio.");
+      setError(`El nombre del ${athleteTermLower} es obligatorio.`);
       return;
     }
 
@@ -143,17 +202,13 @@ export function CreateAthleteDialog({
           academyId,
           name: name.trim(),
           dob: dob ? dob : undefined,
-          level:
-            category || level
-              ? [
-                  category ? `Categoría ${category}` : null,
-                  level ? (level === "Pre-nivel" ? "Pre-nivel" : `Nivel ${level}`) : null,
-                ]
-                  .filter(Boolean)
-                  .join(" · ")
-              : undefined,
+          level: levelDisplay || undefined,
           status,
           groupId: groupId || undefined,
+          primarySportConfigId: effectiveSportConfigId || undefined,
+          programCode: programCode || selectedGroup?.programCode || undefined,
+          levelCode: level || selectedGroup?.levelCode || undefined,
+          categoryCode: category || selectedGroup?.categoryCode || undefined,
           contacts: contacts
             .map((contact) => ({
               name: contact.name.trim(),
@@ -183,13 +238,15 @@ export function CreateAthleteDialog({
 
         if (!response.ok) {
           const data = await response.json().catch(() => ({}));
-          throw new Error(data.error ?? "No se pudo crear el atleta.");
+          throw new Error(data.error ?? `No se pudo crear el ${athleteTermLower}.`);
         }
 
         setName("");
         setDob("");
         setCategory("");
         setLevel("");
+        setSportConfigId(resolvedInitialSportConfigId);
+        setProgramCode("");
         setStatus("active");
         setGroupId("");
         setContacts([createEmptyContact()]);
@@ -197,7 +254,7 @@ export function CreateAthleteDialog({
         onCreated();
         onClose();
       } catch (err: any) {
-        setError(err.message ?? "Error desconocido al crear el atleta.");
+        setError(err.message ?? `Error desconocido al crear el ${athleteTermLower}.`);
       }
     });
   };
@@ -212,8 +269,8 @@ export function CreateAthleteDialog({
     <Modal
       open={open}
       onClose={handleClose}
-      title="Registrar nuevo atleta"
-      description="Añade un atleta a tu academia."
+      title={`Registrar nuevo ${athleteTermLower}`}
+      description={`Añade un ${athleteTermLower} a tu academia.`}
       footer={
         <div className="flex justify-end gap-2">
           <button
@@ -230,7 +287,7 @@ export function CreateAthleteDialog({
             className="min-h-11 rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white shadow-soft transition hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-60"
             disabled={isPending}
           >
-            {isPending ? "Guardando..." : "Guardar atleta"}
+            {isPending ? "Guardando..." : `Guardar ${athleteTermLower}`}
           </button>
         </div>
       }
@@ -283,16 +340,48 @@ export function CreateAthleteDialog({
 
             {groups.length > 0 && (
               <div className="space-y-2">
-                <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">Grupo</label>
+                <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">{groupTerm}</label>
                 <select
                   value={groupId}
-                  onChange={(event) => setGroupId(event.target.value)}
+                  onChange={(event) => {
+                    const nextGroupId = event.target.value;
+                    const nextGroup = groups.find((group) => group.id === nextGroupId);
+                    setGroupId(nextGroupId);
+                    if (nextGroup?.sportConfigId) setSportConfigId(nextGroup.sportConfigId);
+                    if (nextGroup?.programCode) setProgramCode(nextGroup.programCode);
+                    if (nextGroup?.levelCode) setLevel(nextGroup.levelCode);
+                    if (nextGroup?.categoryCode) setCategory(nextGroup.categoryCode);
+                  }}
                   className={fieldClassName}
                 >
-                  <option value="">Sin grupo</option>
+                  <option value="">Sin {groupTerm.toLowerCase()}</option>
                   {groups.map((group) => (
                     <option key={group.id} value={group.id}>
                       {group.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {sportConfigs.length > 0 && (
+              <div className="space-y-2">
+                <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">Modalidad / rama</label>
+                <select
+                  value={effectiveSportConfigId}
+                  onChange={(event) => {
+                    setSportConfigId(event.target.value);
+                    setProgramCode("");
+                    setLevel("");
+                    setCategory("");
+                  }}
+                  className={fieldClassName}
+                  disabled={Boolean(selectedGroup?.sportConfigId)}
+                >
+                  <option value="">Sin asignar</option>
+                  {sportConfigs.map((config) => (
+                    <option key={config.id} value={config.id}>
+                      {config.disciplineName} · {config.branchName}
                     </option>
                   ))}
                 </select>
@@ -318,35 +407,53 @@ export function CreateAthleteDialog({
         {showAdvanced && (
           <div className="space-y-4">
             {/* Nivel y categoría */}
-            <div className="grid gap-4 sm:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-4">
+              {programOptions.length > 0 && (
+                <div className="space-y-2">
+                  <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">Programa</label>
+                  <select
+                    value={programCode}
+                    onChange={(event) => {
+                      setProgramCode(event.target.value);
+                      setLevel("");
+                    }}
+                    className={fieldClassName}
+                  >
+                    <option value="">Sin programa</option>
+                    {programOptions.map((option) => (
+                      <option key={option.code} value={option.code}>
+                        {option.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <div className="space-y-2">
-                <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">Categoría</label>
+                <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">{terms.category}</label>
                 <select
                   value={category}
-                  onChange={(event) =>
-                    setCategory(event.target.value as (typeof CATEGORY_OPTIONS)[number] | "")
-                  }
+                  onChange={(event) => setCategory(event.target.value)}
                   className={fieldClassName}
                 >
-                  <option value="">Sin categoría</option>
-                  {CATEGORY_OPTIONS.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
+                  <option value="">Sin {terms.category.toLowerCase()}</option>
+                  {categoryOptions.map((option) => (
+                    <option key={option.code} value={option.code}>
+                      {option.name}
                     </option>
                   ))}
                 </select>
               </div>
               <div className="space-y-2">
-                <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">Nivel</label>
+                <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">{terms.level}</label>
                 <select
                   value={level}
-                  onChange={(event) => setLevel(event.target.value as (typeof LEVEL_OPTIONS)[number] | "")}
+                  onChange={(event) => setLevel(event.target.value)}
                   className={fieldClassName}
                 >
-                  <option value="">Selecciona nivel</option>
-                  {LEVEL_OPTIONS.map((option) => (
-                    <option key={option} value={option}>
-                      {option === "Pre-nivel" ? "Pre-nivel" : option === "FIG" ? "FIG" : `Nivel ${option}`}
+                  <option value="">Selecciona {terms.level.toLowerCase()}</option>
+                  {levelOptions.map((option) => (
+                    <option key={option.code} value={option.code}>
+                      {option.name}
                     </option>
                   ))}
                 </select>

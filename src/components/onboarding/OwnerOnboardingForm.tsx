@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import { useRouter } from "next/navigation";
 import { Building2, Loader2 } from "lucide-react";
 
@@ -20,50 +20,162 @@ import {
 import { findCitiesByRegion } from "@/lib/citiesByRegion";
 import { resolveAcademySpecialization } from "@/lib/specialization/registry";
 import { getStarterClassPresets, getStarterGroupPresets } from "@/lib/specialization/operational-presets";
+import { getSportConfigSeedByVariant, getSportConfigSeedsByCountry } from "@/lib/sport-config/catalog";
 
-const DISCIPLINE_OPTIONS = [
-  { value: "artistic_female", label: "Gimnasia artística femenina" },
-  { value: "artistic_male", label: "Gimnasia artística masculina" },
-  { value: "rhythmic", label: "Gimnasia rítmica" },
-  { value: "general", label: "Mixta artística/rítmica" },
+const ACADEMY_KIND_OPTIONS = [
+  { value: "recreational", label: "Recreativa" },
+  { value: "competitive", label: "Competitiva" },
+  { value: "mixed", label: "Mixta" },
 ] as const;
 
 export function OwnerOnboardingForm() {
+  const initialSeed = getSportConfigSeedsByCountry("es")[0];
   const router = useRouter();
   const toast = useToast();
   const [pending, setPending] = useState(false);
   const [fullName, setFullName] = useState("");
   const [academyName, setAcademyName] = useState("");
-  const [disciplineVariant, setDisciplineVariant] = useState<string>("artistic_female");
+  const [disciplineVariant, setDisciplineVariant] = useState<string>(
+    initialSeed?.defaultDisciplineVariant ?? "general"
+  );
+  const [activeDisciplineVariants, setActiveDisciplineVariants] = useState<string[]>([
+    initialSeed?.defaultDisciplineVariant ?? "general",
+  ]);
+  const [academyKind, setAcademyKind] = useState<string>("mixed");
   const [countryCode, setCountryCode] = useState("es");
   const [region, setRegion] = useState("");
   const [city, setCity] = useState("");
-  const specialization = useMemo(
-    () =>
+  const [activeProgramCodesByVariant, setActiveProgramCodesByVariant] = useState<Record<string, string[]>>({});
+  const [activeApparatusCodesByVariant, setActiveApparatusCodesByVariant] = useState<Record<string, string[]>>({});
+  const [starterGroupsByVariant, setStarterGroupsByVariant] = useState<Record<string, string[]>>({
+    [initialSeed?.defaultDisciplineVariant ?? "general"]: getStarterGroupPresets(
       resolveAcademySpecialization({
-        countryCode,
-        disciplineVariant,
+        countryCode: "es",
+        disciplineVariant: initialSeed?.defaultDisciplineVariant ?? "general",
+      })
+    ).map((preset) => preset.key),
+  });
+  const sportSeeds = useMemo(() => getSportConfigSeedsByCountry(countryCode), [countryCode]);
+  const disciplineOptions = useMemo(
+    () =>
+      sportSeeds.map((seed) => ({
+        value: seed.defaultDisciplineVariant,
+        label: seed.labels.disciplineName,
+        seed,
+      })),
+    [sportSeeds]
+  );
+  const activeBranchSummaries = useMemo(
+    () =>
+      activeDisciplineVariants.map((variant) => {
+        const branchSpecialization = resolveAcademySpecialization({
+          countryCode,
+          disciplineVariant: variant,
+        });
+        const branchStarterPresets = getStarterGroupPresets(branchSpecialization);
+        const seed = getSportConfigSeedByVariant(countryCode, variant);
+        return {
+          variant,
+          specialization: branchSpecialization,
+          starterPresets: branchStarterPresets,
+          starterClassPresets: getStarterClassPresets(branchSpecialization, branchStarterPresets),
+          seed,
+        };
       }),
-    [countryCode, disciplineVariant]
-  );
-  const starterPresets = useMemo(
-    () => getStarterGroupPresets(specialization),
-    [specialization]
-  );
-  const starterClassPresets = useMemo(
-    () => getStarterClassPresets(specialization, starterPresets),
-    [specialization, starterPresets]
-  );
-  const [starterGroupKeys, setStarterGroupKeys] = useState<string[]>(
-    starterPresets.map((preset) => preset.key)
+    [activeDisciplineVariants, countryCode]
   );
 
   const regionOptions = useMemo(() => findRegionsByCountry(countryCode), [countryCode]);
   const cityOptions = useMemo(() => findCitiesByRegion(countryCode, region), [countryCode, region]);
 
   useEffect(() => {
-    setStarterGroupKeys(starterPresets.map((preset) => preset.key));
-  }, [starterPresets]);
+    if (disciplineOptions.length === 0) return;
+
+    setActiveDisciplineVariants((current) => {
+      const availableVariants = new Set<string>(disciplineOptions.map((option) => option.value));
+      const currentAvailable = current.filter((variant) => availableVariants.has(variant));
+      return currentAvailable.length > 0 ? currentAvailable : [disciplineOptions[0].value];
+    });
+
+    setDisciplineVariant((current) =>
+      disciplineOptions.some((option) => option.value === current) ? current : disciplineOptions[0].value
+    );
+  }, [disciplineOptions]);
+
+  useEffect(() => {
+    setActiveProgramCodesByVariant((current) => {
+      const next: Record<string, string[]> = {};
+      for (const branch of activeBranchSummaries) {
+        next[branch.variant] =
+          current[branch.variant] ?? branch.seed?.programs.map((program) => program.code) ?? [];
+      }
+      return next;
+    });
+
+    setActiveApparatusCodesByVariant((current) => {
+      const next: Record<string, string[]> = {};
+      for (const branch of activeBranchSummaries) {
+        next[branch.variant] =
+          current[branch.variant] ?? branch.seed?.evaluation.apparatus.map((item) => item.code) ?? [];
+      }
+      return next;
+    });
+  }, [activeBranchSummaries]);
+
+  useEffect(() => {
+    setStarterGroupsByVariant((current) => {
+      const next: Record<string, string[]> = {};
+      for (const branch of activeBranchSummaries) {
+        next[branch.variant] =
+          current[branch.variant] ?? branch.starterPresets.map((preset) => preset.key);
+      }
+      return next;
+    });
+  }, [activeBranchSummaries]);
+
+  const toggleActiveBranch = (variant: string) => {
+    setActiveDisciplineVariants((current) => {
+      const next = current.includes(variant)
+        ? current.filter((item) => item !== variant)
+        : [...current, variant];
+      const normalized = next.length > 0 ? next : [variant];
+      if (!normalized.includes(disciplineVariant)) {
+        setDisciplineVariant(normalized[0]);
+      }
+      return normalized;
+    });
+  };
+
+  const toggleStarterGroup = (variant: string, key: string) => {
+    setStarterGroupsByVariant((current) => {
+      const selected = current[variant] ?? [];
+      return {
+        ...current,
+        [variant]: selected.includes(key)
+          ? selected.filter((item) => item !== key)
+          : [...selected, key],
+      };
+    });
+  };
+
+  const toggleCodeByVariant = (
+    variant: string,
+    code: string,
+    setter: Dispatch<SetStateAction<Record<string, string[]>>>
+  ) => {
+    setter((current) => {
+      const selected = current[variant] ?? [];
+      if (selected.includes(code) && selected.length <= 1) {
+        return current;
+      }
+      return {
+        ...current,
+        [variant]: selected.includes(code)
+          ? selected.filter((item) => item !== code)
+          : [...selected, code],
+      };
+    });
+  };
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -77,11 +189,15 @@ export function OwnerOnboardingForm() {
           fullName,
           academyName,
           disciplineVariant,
+          activeDisciplineVariants,
+          academyKind,
           countryCode,
           country: COUNTRY_REGION_OPTIONS.find((item) => item.value === countryCode)?.label ?? countryCode,
           region,
           city,
-          starterGroupKeys,
+          activeProgramCodesByVariant,
+          activeApparatusCodesByVariant,
+          starterGroupsByVariant,
         }),
       });
 
@@ -136,88 +252,6 @@ export function OwnerOnboardingForm() {
           />
         </div>
         <div className="space-y-2 sm:col-span-2">
-          <Label>Disciplina principal</Label>
-          <Select value={disciplineVariant} onValueChange={setDisciplineVariant} disabled={pending}>
-            <SelectTrigger>
-              <SelectValue placeholder="Selecciona una disciplina" />
-            </SelectTrigger>
-            <SelectContent>
-              {DISCIPLINE_OPTIONS.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <p className="text-xs text-muted-foreground">
-            Esta especialización define aparatos, categorías y lenguaje técnico por defecto.
-          </p>
-        </div>
-        <div className="space-y-3 sm:col-span-2">
-          <div className="space-y-1">
-            <Label>Estructura inicial sugerida</Label>
-            <p className="text-xs text-muted-foreground">
-              Puedes entrar con grupos base ya preparados para {specialization.labels.disciplineName.toLowerCase()}.
-            </p>
-          </div>
-          <div className="grid gap-3">
-            {starterPresets.map((preset) => {
-              const selected = starterGroupKeys.includes(preset.key);
-              return (
-                <label
-                  key={preset.key}
-                  className="flex items-start gap-3 rounded-lg border border-border bg-card px-4 py-3 text-sm"
-                >
-                  <input
-                    type="checkbox"
-                    checked={selected}
-                    onChange={() =>
-                      setStarterGroupKeys((current) =>
-                        current.includes(preset.key)
-                          ? current.filter((key) => key !== preset.key)
-                          : [...current, preset.key]
-                      )
-                    }
-                    disabled={pending}
-                    className="mt-1"
-                  />
-                  <div className="space-y-1">
-                    <p className="font-medium text-foreground">{preset.name}</p>
-                    <p className="text-xs text-muted-foreground">{preset.level}</p>
-                    <p className="text-xs text-muted-foreground">{preset.description}</p>
-                  </div>
-                </label>
-              );
-            })}
-          </div>
-        </div>
-        <div className="space-y-3 sm:col-span-2">
-          <div className="space-y-1">
-            <Label>Bloques semanales sugeridos</Label>
-            <p className="text-xs text-muted-foreground">
-              Si mantienes la estructura inicial, estos {specialization.labels.classLabel.toLowerCase()}s se crearán automáticamente.
-            </p>
-          </div>
-          <div className="grid gap-3">
-            {starterClassPresets
-              .filter((preset) => !preset.groupPresetKey || starterGroupKeys.includes(preset.groupPresetKey))
-              .map((preset) => (
-                <div
-                  key={preset.key}
-                  className="rounded-lg border border-border bg-card px-4 py-3 text-sm"
-                >
-                  <p className="font-medium text-foreground">{preset.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {preset.description}
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {preset.weekdays.length} días por semana · {preset.startTime} - {preset.endTime}
-                  </p>
-                </div>
-              ))}
-          </div>
-        </div>
-        <div className="space-y-2 sm:col-span-2">
           <Label htmlFor="countryCode">Pais base</Label>
           <SearchableSelect
             options={COUNTRY_REGION_OPTIONS.map((country) => ({
@@ -262,6 +296,238 @@ export function OwnerOnboardingForm() {
             name="city"
             searchPlaceholder="Buscar ciudad..."
           />
+        </div>
+        <div className="space-y-2 sm:col-span-2">
+          <Label>Disciplina principal</Label>
+          <Select
+            value={disciplineVariant}
+            onValueChange={(value) => {
+              setDisciplineVariant(value);
+              setActiveDisciplineVariants((current) =>
+                current.includes(value) ? current : [...current, value]
+              );
+            }}
+            disabled={pending}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Selecciona una disciplina" />
+            </SelectTrigger>
+            <SelectContent>
+              {disciplineOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            Esta especialización define aparatos, categorías y lenguaje técnico por defecto.
+          </p>
+        </div>
+        <div className="space-y-3 sm:col-span-2">
+          <div className="space-y-1">
+            <Label>Ramas activas</Label>
+            <p className="text-xs text-muted-foreground">
+              Puedes activar artística femenina, artística masculina y rítmica en la misma academia.
+            </p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-3">
+            {disciplineOptions.map((option) => {
+              const selected = activeDisciplineVariants.includes(option.value);
+              const seed = option.seed;
+              return (
+                <label
+                  key={option.value}
+                  className="rounded-lg border border-border bg-card px-4 py-3 text-sm"
+                >
+                  <div className="flex items-start gap-3">
+                    <input
+                      type="checkbox"
+                      checked={selected}
+                      onChange={() => toggleActiveBranch(option.value)}
+                      disabled={pending}
+                      className="mt-1"
+                    />
+                    <div className="space-y-1">
+                      <p className="font-medium text-foreground">{option.label}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {seed?.evaluation.apparatus.map((item) => item.label).slice(0, 3).join(", ") ??
+                          "Configuración base"}
+                      </p>
+                    </div>
+                  </div>
+                </label>
+              );
+            })}
+            {disciplineOptions.length === 0 && (
+              <p className="text-sm text-muted-foreground">
+                Todavía no hay configuraciones deportivas disponibles para este país.
+              </p>
+            )}
+          </div>
+        </div>
+        <div className="space-y-2 sm:col-span-2">
+          <Label>Tipo de academia</Label>
+          <Select value={academyKind} onValueChange={setAcademyKind} disabled={pending}>
+            <SelectTrigger>
+              <SelectValue placeholder="Selecciona el tipo de academia" />
+            </SelectTrigger>
+            <SelectContent>
+              {ACADEMY_KIND_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-3 sm:col-span-2">
+          <div className="space-y-1">
+            <Label>Estructura inicial sugerida</Label>
+            <p className="text-xs text-muted-foreground">
+              Puedes entrar con grupos base ya preparados por cada rama activa.
+            </p>
+          </div>
+          <div className="grid gap-3">
+            {activeBranchSummaries.map((branch) => (
+              <div key={branch.variant} className="space-y-3 rounded-lg border border-border bg-muted/20 p-4">
+                <div className="space-y-1">
+                  <p className="text-sm font-semibold text-foreground">
+                    {branch.specialization.labels.disciplineName}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Programas: {branch.seed?.programs.map((program) => program.name).join(", ") ?? "Base"}
+                  </p>
+                </div>
+                {branch.starterPresets.map((preset) => {
+                  const selected = (starterGroupsByVariant[branch.variant] ?? []).includes(preset.key);
+                  return (
+                    <label
+                      key={preset.key}
+                      className="flex items-start gap-3 rounded-lg border border-border bg-card px-4 py-3 text-sm"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selected}
+                        onChange={() => toggleStarterGroup(branch.variant, preset.key)}
+                        disabled={pending}
+                        className="mt-1"
+                      />
+                      <div className="space-y-1">
+                        <p className="font-medium text-foreground">{preset.name}</p>
+                        <p className="text-xs text-muted-foreground">{preset.level}</p>
+                        <p className="text-xs text-muted-foreground">{preset.description}</p>
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="space-y-3 sm:col-span-2">
+          <div className="space-y-1">
+            <Label>Programas y aparatos activos</Label>
+            <p className="text-xs text-muted-foreground">
+              Se guardarán por rama y no se mezclarán entre configuraciones.
+            </p>
+          </div>
+          <div className="grid gap-3">
+            {activeBranchSummaries.map((branch) => (
+              <div key={branch.variant} className="space-y-3 rounded-lg border border-border bg-card px-4 py-3 text-sm">
+                <p className="font-medium text-foreground">{branch.specialization.labels.disciplineName}</p>
+                <div className="space-y-2">
+                  <p className="text-xs font-medium uppercase text-muted-foreground">Programas</p>
+                  <div className="flex flex-wrap gap-2">
+                    {(branch.seed?.programs ?? []).map((program) => {
+                      const selected = (activeProgramCodesByVariant[branch.variant] ?? []).includes(program.code);
+                      return (
+                        <label
+                          key={program.code}
+                          className="flex items-center gap-2 rounded-full border border-border px-3 py-1 text-xs text-muted-foreground"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selected}
+                            onChange={() =>
+                              toggleCodeByVariant(branch.variant, program.code, setActiveProgramCodesByVariant)
+                            }
+                            disabled={pending}
+                          />
+                          {program.name}
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-xs font-medium uppercase text-muted-foreground">Aparatos</p>
+                  <div className="flex flex-wrap gap-2">
+                    {(branch.seed?.evaluation.apparatus ?? branch.specialization.evaluation.apparatus).map((item) => {
+                      const selected = (activeApparatusCodesByVariant[branch.variant] ?? []).includes(item.code);
+                      return (
+                        <label
+                          key={item.code}
+                          className="flex items-center gap-2 rounded-full border border-border px-3 py-1 text-xs text-muted-foreground"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selected}
+                            onChange={() =>
+                              toggleCodeByVariant(branch.variant, item.code, setActiveApparatusCodesByVariant)
+                            }
+                            disabled={pending}
+                          />
+                          {item.label}
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="space-y-3 sm:col-span-2">
+          <div className="space-y-1">
+            <Label>Bloques semanales sugeridos</Label>
+            <p className="text-xs text-muted-foreground">
+              Si mantienes la estructura inicial, estos entrenamientos se crearán automáticamente.
+            </p>
+          </div>
+          <div className="grid gap-3">
+            {activeBranchSummaries.map((branch) => {
+              const selectedKeys = starterGroupsByVariant[branch.variant] ?? [];
+              return (
+                <div key={branch.variant} className="space-y-3 rounded-lg border border-border bg-muted/20 p-4">
+                  <p className="text-sm font-semibold text-foreground">
+                    {branch.specialization.labels.disciplineName}
+                  </p>
+                  {branch.starterClassPresets
+                    .filter((preset) => !preset.groupPresetKey || selectedKeys.includes(preset.groupPresetKey))
+                    .map((preset) => (
+                      <div
+                        key={preset.key}
+                        className="rounded-lg border border-border bg-card px-4 py-3 text-sm"
+                      >
+                        <p className="font-medium text-foreground">{preset.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {preset.description}
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {preset.weekdays.length} días por semana · {preset.startTime} - {preset.endTime}
+                        </p>
+                      </div>
+                    ))}
+                  {selectedKeys.length === 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      No se crearán grupos iniciales para esta rama.
+                    </p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
 

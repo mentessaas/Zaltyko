@@ -3,13 +3,19 @@ import { eq, and } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
-import { athletes, groupAthletes, groups } from "@/db/schema";
+import { athleteSportConfigs, athletes, groupAthletes, groups } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
 import { rateLimit, getUserIdentifier, withRateLimit } from "@/lib/rate-limit";
 import { athleteStatusOptions } from "@/lib/athletes/constants";
 import { syncChargesForAthleteCurrentPeriod } from "@/lib/billing/sync-charges";
 import { formatDateForDB } from "@/lib/validation/date-utils";
 import { apiSuccess, apiError } from "@/lib/api-response";
+import { getAcademySportConfigOptions, verifyAcademySportConfig } from "@/lib/sport-config/service";
+import {
+  isCategoryCodeAllowed,
+  isLevelCodeAllowed,
+  isProgramCodeAllowed,
+} from "@/lib/sport-config/validation";
 import { NextResponse } from "next/server";
 
 // Validador custom para fechas en actualización
@@ -31,6 +37,10 @@ const UpdateSchema = z.object({
   level: z.string().max(120).nullable().optional(),
   status: z.enum(athleteStatusOptions).optional(),
   groupId: z.string().uuid().nullable().optional(),
+  primarySportConfigId: z.string().uuid().nullable().optional(),
+  programCode: z.string().trim().min(1).max(80).nullable().optional(),
+  levelCode: z.string().trim().min(1).max(80).nullable().optional(),
+  categoryCode: z.string().trim().min(1).max(80).nullable().optional(),
   age: z.number().int().min(0).optional(),
 });
 
@@ -40,12 +50,89 @@ async function getAthleteTenant(athleteId: string) {
       id: athletes.id,
       tenantId: athletes.tenantId,
       academyId: athletes.academyId,
+      primarySportConfigId: athletes.primarySportConfigId,
+      programCode: athletes.programCode,
+      levelCode: athletes.levelCode,
+      categoryCode: athletes.categoryCode,
     })
     .from(athletes)
     .where(eq(athletes.id, athleteId))
     .limit(1);
 
   return row ?? null;
+}
+
+async function validateSportAssignment(params: {
+  academyId: string;
+  tenantId: string;
+  sportConfigId: string | null;
+  programCode: string | null;
+  levelCode: string | null;
+  categoryCode: string | null;
+}) {
+  if (!params.sportConfigId) return null;
+
+  const verifiedConfig = await verifyAcademySportConfig({
+    academyId: params.academyId,
+    tenantId: params.tenantId,
+    sportConfigId: params.sportConfigId,
+  });
+
+  if (!verifiedConfig) {
+    return apiError("SPORT_CONFIG_NOT_FOUND", "La configuración deportiva no está activa en esta academia", 400);
+  }
+
+  const activeConfigs = await getAcademySportConfigOptions(params.academyId);
+  const selectedConfig = activeConfigs.find((config) => config.id === params.sportConfigId);
+
+  if (!selectedConfig) {
+    return apiError("SPORT_CONFIG_NOT_FOUND", "La configuración deportiva no está disponible", 400);
+  }
+
+  if (!isProgramCodeAllowed(selectedConfig, params.programCode)) {
+    return apiError("INVALID_PROGRAM", "El programa no pertenece a la configuración deportiva seleccionada", 400);
+  }
+
+  if (!isLevelCodeAllowed(selectedConfig, params.levelCode, params.programCode)) {
+    return apiError("INVALID_LEVEL", "El nivel no pertenece a la configuración deportiva seleccionada", 400);
+  }
+
+  if (!isCategoryCodeAllowed(selectedConfig, params.categoryCode)) {
+    return apiError("INVALID_CATEGORY", "La categoría no pertenece a la configuración deportiva seleccionada", 400);
+  }
+
+  return null;
+}
+
+async function upsertAthleteSportConfig(params: {
+  tenantId: string;
+  athleteId: string;
+  sportConfigId: string | null;
+  programCode: string | null;
+  levelCode: string | null;
+  categoryCode: string | null;
+}) {
+  if (!params.sportConfigId) return;
+
+  await db
+    .insert(athleteSportConfigs)
+    .values({
+      id: randomUUID(),
+      tenantId: params.tenantId,
+      athleteId: params.athleteId,
+      academySportConfigId: params.sportConfigId,
+      programCode: params.programCode,
+      levelCode: params.levelCode,
+      categoryCode: params.categoryCode,
+    })
+    .onConflictDoUpdate({
+      target: [athleteSportConfigs.athleteId, athleteSportConfigs.academySportConfigId],
+      set: {
+        programCode: params.programCode,
+        levelCode: params.levelCode,
+        categoryCode: params.categoryCode,
+      },
+    });
 }
 
 // Handler for GET - rate limited: 100 requests per minute
@@ -121,8 +208,79 @@ const updateAthleteHandler = withTenant(async (request, context) => {
   if (body.status !== undefined) {
     updates.status = body.status;
   }
+
+  let selectedGroup:
+    | {
+        id: string;
+        academyId: string;
+        tenantId: string;
+        sportConfigId: string | null;
+        programCode: string | null;
+        levelCode: string | null;
+        categoryCode: string | null;
+      }
+    | null = null;
+
   if (body.groupId !== undefined) {
-    updates.groupId = body.groupId;
+    if (body.groupId) {
+      const [groupRow] = await db
+        .select({
+          id: groups.id,
+          academyId: groups.academyId,
+          tenantId: groups.tenantId,
+          sportConfigId: groups.sportConfigId,
+          programCode: groups.programCode,
+          levelCode: groups.levelCode,
+          categoryCode: groups.categoryCode,
+        })
+        .from(groups)
+        .where(eq(groups.id, body.groupId))
+        .limit(1);
+
+      if (!groupRow || groupRow.tenantId !== existing.tenantId || groupRow.academyId !== existing.academyId) {
+        return apiError("GROUP_NOT_FOUND", "Group not found", 404);
+      }
+
+      selectedGroup = groupRow;
+      updates.groupId = groupRow.id;
+    } else {
+      updates.groupId = null;
+    }
+  }
+
+  const nextSportConfigId =
+    body.primarySportConfigId !== undefined
+      ? body.primarySportConfigId
+      : selectedGroup?.sportConfigId ?? existing.primarySportConfigId ?? null;
+  const nextProgramCode =
+    body.programCode !== undefined ? body.programCode : selectedGroup?.programCode ?? existing.programCode ?? null;
+  const nextLevelCode =
+    body.levelCode !== undefined ? body.levelCode : selectedGroup?.levelCode ?? existing.levelCode ?? null;
+  const nextCategoryCode =
+    body.categoryCode !== undefined ? body.categoryCode : selectedGroup?.categoryCode ?? existing.categoryCode ?? null;
+
+  if (
+    body.primarySportConfigId !== undefined ||
+    body.programCode !== undefined ||
+    body.levelCode !== undefined ||
+    body.categoryCode !== undefined ||
+    selectedGroup
+  ) {
+    const validationError = await validateSportAssignment({
+      academyId: existing.academyId,
+      tenantId: existing.tenantId,
+      sportConfigId: nextSportConfigId,
+      programCode: nextProgramCode,
+      levelCode: nextLevelCode,
+      categoryCode: nextCategoryCode,
+    });
+
+    if (validationError) return validationError;
+
+    updates.primarySportConfigId = nextSportConfigId;
+    updates.programCode = nextProgramCode;
+    updates.levelCode = nextLevelCode;
+    updates.categoryCode = nextCategoryCode;
   }
   if (body.age !== undefined) {
     updates.age = body.age;
@@ -135,6 +293,15 @@ const updateAthleteHandler = withTenant(async (request, context) => {
     .set(updates)
     .where(eq(athletes.id, athleteId))
     .returning();
+
+  await upsertAthleteSportConfig({
+    tenantId: existing.tenantId,
+    athleteId,
+    sportConfigId: nextSportConfigId,
+    programCode: nextProgramCode,
+    levelCode: nextLevelCode,
+    categoryCode: nextCategoryCode,
+  });
 
   return apiSuccess(updated);
 });
@@ -191,11 +358,30 @@ const patchAthleteHandler = withTenant(async (request, context) => {
     updates.level = body.level ?? null;
   }
   let nextGroupId: string | null | undefined;
+  let selectedGroup:
+    | {
+        id: string;
+        academyId: string;
+        tenantId: string;
+        sportConfigId: string | null;
+        programCode: string | null;
+        levelCode: string | null;
+        categoryCode: string | null;
+      }
+    | null = null;
 
   if (body.groupId !== undefined) {
     if (body.groupId) {
       const [groupRow] = await db
-        .select({ id: groups.id, academyId: groups.academyId, tenantId: groups.tenantId })
+        .select({
+          id: groups.id,
+          academyId: groups.academyId,
+          tenantId: groups.tenantId,
+          sportConfigId: groups.sportConfigId,
+          programCode: groups.programCode,
+          levelCode: groups.levelCode,
+          categoryCode: groups.categoryCode,
+        })
         .from(groups)
         .where(eq(groups.id, body.groupId))
         .limit(1);
@@ -203,6 +389,7 @@ const patchAthleteHandler = withTenant(async (request, context) => {
       if (!groupRow || groupRow.tenantId !== athleteRow.tenantId || groupRow.academyId !== athleteRow.academyId) {
         return apiError("GROUP_NOT_FOUND", "Group not found", 404);
       }
+      selectedGroup = groupRow;
       nextGroupId = groupRow.id;
     } else {
       nextGroupId = null;
@@ -212,6 +399,41 @@ const patchAthleteHandler = withTenant(async (request, context) => {
 
   if (body.status !== undefined) {
     updates.status = body.status;
+  }
+
+  const nextSportConfigId =
+    body.primarySportConfigId !== undefined
+      ? body.primarySportConfigId
+      : selectedGroup?.sportConfigId ?? athleteRow.primarySportConfigId ?? null;
+  const nextProgramCode =
+    body.programCode !== undefined ? body.programCode : selectedGroup?.programCode ?? athleteRow.programCode ?? null;
+  const nextLevelCode =
+    body.levelCode !== undefined ? body.levelCode : selectedGroup?.levelCode ?? athleteRow.levelCode ?? null;
+  const nextCategoryCode =
+    body.categoryCode !== undefined ? body.categoryCode : selectedGroup?.categoryCode ?? athleteRow.categoryCode ?? null;
+
+  if (
+    body.primarySportConfigId !== undefined ||
+    body.programCode !== undefined ||
+    body.levelCode !== undefined ||
+    body.categoryCode !== undefined ||
+    selectedGroup
+  ) {
+    const validationError = await validateSportAssignment({
+      academyId: athleteRow.academyId,
+      tenantId: athleteRow.tenantId,
+      sportConfigId: nextSportConfigId,
+      programCode: nextProgramCode,
+      levelCode: nextLevelCode,
+      categoryCode: nextCategoryCode,
+    });
+
+    if (validationError) return validationError;
+
+    updates.primarySportConfigId = nextSportConfigId;
+    updates.programCode = nextProgramCode;
+    updates.levelCode = nextLevelCode;
+    updates.categoryCode = nextCategoryCode;
   }
 
   if (Object.keys(updates).length === 0) {
@@ -241,6 +463,15 @@ const patchAthleteHandler = withTenant(async (request, context) => {
       await db.delete(groupAthletes).where(eq(groupAthletes.athleteId, athleteId));
     }
   }
+
+  await upsertAthleteSportConfig({
+    tenantId: athleteRow.tenantId,
+    athleteId,
+    sportConfigId: nextSportConfigId,
+    programCode: nextProgramCode,
+    levelCode: nextLevelCode,
+    categoryCode: nextCategoryCode,
+  });
 
   return apiSuccess({ ok: true });
 });
@@ -284,5 +515,3 @@ export const DELETE = withRateLimit(
   },
   { identifier: getUserIdentifier, limit: 5, window: 60 }
 );
-
-

@@ -11,6 +11,7 @@ import {
   classWeekdays,
   classes,
   coaches,
+  coachSportConfigs,
   groups,
 } from "@/db/schema";
 import { getClassAthletes } from "@/lib/classes/get-class-athletes";
@@ -18,6 +19,7 @@ import { getClassAthletes } from "@/lib/classes/get-class-athletes";
 import { ClassDetailView } from "@/components/classes/ClassDetailView";
 import { resolveAcademySpecialization } from "@/lib/specialization/registry";
 import { getGroupTechnicalGuidance } from "@/lib/specialization/technical-guidance";
+import { getAcademySportConfigOptions } from "@/lib/sport-config/service";
 
 interface PageProps {
   params: Promise<{
@@ -39,6 +41,7 @@ export default async function ClassDetailPage({ params }: PageProps) {
       capacity: classes.capacity,
       technicalFocus: classes.technicalFocus,
       apparatus: classes.apparatus,
+      sportConfigId: classes.sportConfigId,
     })
     .from(classes)
     .where(eq(classes.id, classId))
@@ -75,6 +78,7 @@ export default async function ClassDetailPage({ params }: PageProps) {
       endTime: classSessions.endTime,
       status: classSessions.status,
       notes: classSessions.notes,
+      sportConfigId: classSessions.sportConfigId,
       coachId: classSessions.coachId,
       coachName: coaches.name,
     })
@@ -133,6 +137,8 @@ export default async function ClassDetailPage({ params }: PageProps) {
       groupId: athletes.groupId,
       groupName: groups.name,
       groupColor: groups.color,
+      primarySportConfigId: athletes.primarySportConfigId,
+      groupSportConfigId: groups.sportConfigId,
     })
     .from(athletes)
     .leftJoin(groups, eq(athletes.groupId, groups.id))
@@ -148,6 +154,22 @@ export default async function ClassDetailPage({ params }: PageProps) {
     .from(coaches)
     .where(eq(coaches.academyId, academyId))
     .orderBy(asc(coaches.name));
+  const coachScopeRows =
+    coachOptions.length === 0
+      ? []
+      : await db
+          .select({
+            coachId: coachSportConfigs.coachId,
+            sportConfigId: coachSportConfigs.academySportConfigId,
+          })
+          .from(coachSportConfigs)
+          .where(inArray(coachSportConfigs.coachId, coachOptions.map((coach) => coach.id)));
+  const sportConfigIdsByCoach = new Map<string, string[]>();
+  coachScopeRows.forEach((row) => {
+    const current = sportConfigIdsByCoach.get(row.coachId) ?? [];
+    current.push(row.sportConfigId);
+    sportConfigIdsByCoach.set(row.coachId, current);
+  });
 
   const [academy] = await db
     .select({
@@ -170,6 +192,7 @@ export default async function ClassDetailPage({ params }: PageProps) {
 
   const specialization = resolveAcademySpecialization(academy);
   const classTechnicalGuidance = getGroupTechnicalGuidance(specialization);
+  const sportConfigs = await getAcademySportConfigOptions(academyId);
 
   const classInfo = {
     id: classRow.id,
@@ -181,6 +204,7 @@ export default async function ClassDetailPage({ params }: PageProps) {
     capacity: classRow.capacity,
     technicalFocus: classRow.technicalFocus ?? classTechnicalGuidance.focusAreas.join(". "),
     apparatus: classRow.apparatus?.length ? classRow.apparatus : classTechnicalGuidance.apparatus,
+    sportConfigId: classRow.sportConfigId,
     coaches: coachAssignments.map((assignment) => ({
       id: assignment.coachId,
       name: assignment.coachName ?? "Sin nombre",
@@ -200,12 +224,16 @@ export default async function ClassDetailPage({ params }: PageProps) {
           groupId: athlete.groupId,
           groupName: athlete.groupName,
           groupColor: athlete.groupColor,
+          primarySportConfigId: athlete.primarySportConfigId,
+          groupSportConfigId: athlete.groupSportConfigId,
         }))}
         coachOptions={coachOptions.map((coach) => ({
           id: coach.id,
           name: coach.name ?? "Sin nombre",
           email: coach.email,
+          sportConfigIds: sportConfigIdsByCoach.get(coach.id) ?? [],
         }))}
+        sportConfigs={sportConfigs}
       />
     </div>
   );

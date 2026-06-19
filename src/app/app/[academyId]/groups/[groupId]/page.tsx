@@ -9,6 +9,7 @@ import {
   classWeekdays,
   classes,
   coaches,
+  coachSportConfigs,
   groupAthletes,
   groups,
 } from "@/db/schema";
@@ -34,6 +35,10 @@ export default async function GroupDetailPage({ params }: PageProps) {
       tenantId: groups.tenantId,
       name: groups.name,
       discipline: groups.discipline,
+      sportConfigId: groups.sportConfigId,
+      programCode: groups.programCode,
+      levelCode: groups.levelCode,
+      categoryCode: groups.categoryCode,
       level: groups.level,
       technicalFocus: groups.technicalFocus,
       apparatus: groups.apparatus,
@@ -110,6 +115,25 @@ export default async function GroupDetailPage({ params }: PageProps) {
     .from(coaches)
     .where(eq(coaches.academyId, academyId))
     .orderBy(asc(coaches.name));
+  const coachScopeRows =
+    availableCoaches.length === 0
+      ? []
+      : await db
+          .select({
+            coachId: coachSportConfigs.coachId,
+            sportConfigId: coachSportConfigs.academySportConfigId,
+          })
+          .from(coachSportConfigs)
+          .where(inArray(coachSportConfigs.coachId, availableCoaches.map((coach) => coach.id)));
+  const sportConfigIdsByCoach = new Map<string, string[]>();
+  coachScopeRows.forEach((row) => {
+    const current = sportConfigIdsByCoach.get(row.coachId) ?? [];
+    current.push(row.sportConfigId);
+    sportConfigIdsByCoach.set(row.coachId, current);
+  });
+  availableCoaches.forEach((coach) => {
+    coach.sportConfigIds = sportConfigIdsByCoach.get(coach.id) ?? [];
+  });
 
   const availableAthletes: AthleteOption[] = await db
     .select({
@@ -202,6 +226,10 @@ export default async function GroupDetailPage({ params }: PageProps) {
     academyId: groupRow.academyId,
     name: groupRow.name,
     discipline: groupRow.discipline,
+    sportConfigId: groupRow.sportConfigId,
+    programCode: groupRow.programCode,
+    levelCode: groupRow.levelCode,
+    categoryCode: groupRow.categoryCode,
     level: groupRow.level ?? null,
     technicalFocus: groupRow.technicalFocus ?? guidance.focusAreas.join(". "),
     apparatus: groupRow.apparatus?.length ? groupRow.apparatus : guidance.apparatus,

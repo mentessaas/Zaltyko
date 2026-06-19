@@ -20,6 +20,8 @@ export interface ClassAthlete {
   groupId: string | null;
   groupName: string | null;
   groupColor: string | null;
+  primarySportConfigId: string | null;
+  groupSportConfigId: string | null;
   origin: "group" | "enrollment"; // De dónde viene la relación
   enrollmentId?: string; // ID del enrollment si origin === "enrollment"
 }
@@ -67,6 +69,8 @@ export async function getClassAthletes(
         groupId: athletes.groupId,
         groupName: groups.name,
         groupColor: groups.color,
+        primarySportConfigId: athletes.primarySportConfigId,
+        groupSportConfigId: groups.sportConfigId,
       })
       .from(athletes)
       .leftJoin(groups, eq(athletes.groupId, groups.id))
@@ -85,6 +89,8 @@ export async function getClassAthletes(
         groupId: row.groupId,
         groupName: row.groupName,
         groupColor: row.groupColor,
+        primarySportConfigId: row.primarySportConfigId,
+        groupSportConfigId: row.groupSportConfigId,
         origin: "group" as const,
       }))
     );
@@ -99,6 +105,8 @@ export async function getClassAthletes(
       groupId: athletes.groupId,
       groupName: groups.name,
       groupColor: groups.color,
+      primarySportConfigId: athletes.primarySportConfigId,
+      groupSportConfigId: groups.sportConfigId,
     })
     .from(classEnrollments)
     .innerJoin(athletes, eq(classEnrollments.athleteId, athletes.id))
@@ -117,6 +125,8 @@ export async function getClassAthletes(
     groupId: row.groupId,
     groupName: row.groupName,
     groupColor: row.groupColor,
+    primarySportConfigId: row.primarySportConfigId,
+    groupSportConfigId: row.groupSportConfigId,
     origin: "enrollment" as const,
     enrollmentId: row.enrollmentId,
   }));
@@ -139,4 +149,3 @@ export async function getClassAthletes(
   // 6. Retornar lista ordenada
   return Array.from(athleteMap.values()).sort((a, b) => a.name.localeCompare(b.name));
 }
-

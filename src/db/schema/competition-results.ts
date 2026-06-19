@@ -2,6 +2,7 @@ import { date, index, integer, pgTable, text, timestamp, uuid } from "drizzle-or
 
 import { athletes } from "./athletes";
 import { events } from "./events";
+import { academySportConfigs } from "./sport-config";
 
 export const competitionResults = pgTable(
   "competition_results",
@@ -12,6 +13,7 @@ export const competitionResults = pgTable(
       .notNull()
       .references(() => athletes.id, { onDelete: "cascade" }),
     eventId: uuid("event_id").references(() => events.id, { onDelete: "set null" }),
+    sportConfigId: uuid("sport_config_id").references(() => academySportConfigs.id, { onDelete: "set null" }),
     apparatus: text("apparatus"), // e.g., "rope", "ball", "hoop", "ribbon", "clubs"
     // D-Score (difficulty)
     dScore: integer("d_score"), // Stored as integer (e.g., 15 = 1.5)
@@ -35,6 +37,7 @@ export const competitionResults = pgTable(
     tenantIdx: index("competition_results_tenant_idx").on(table.tenantId),
     athleteIdx: index("competition_results_athlete_idx").on(table.athleteId),
     eventIdx: index("competition_results_event_idx").on(table.eventId),
+    sportConfigIdx: index("competition_results_sport_config_idx").on(table.sportConfigId),
     apparatusIdx: index("competition_results_apparatus_idx").on(table.apparatus),
     rankIdx: index("competition_results_rank_idx").on(table.rank),
   })

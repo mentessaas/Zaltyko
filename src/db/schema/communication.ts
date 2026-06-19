@@ -1,11 +1,14 @@
 // Communication schema
 import { boolean, index, integer, jsonb, pgTable, text, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
 
+import { academySportConfigs } from "./sport-config";
+
 export const messageTemplates = pgTable(
   "message_templates",
   {
     id: uuid("id").primaryKey().defaultRandom(),
     tenantId: uuid("tenant_id"),
+    sportConfigId: uuid("sport_config_id").references(() => academySportConfigs.id, { onDelete: "set null" }),
     name: varchar("name", { length: 200 }).notNull(),
     description: text("description"),
     channel: varchar("channel", { length: 50 }).notNull().default("whatsapp"),
@@ -21,6 +24,7 @@ export const messageTemplates = pgTable(
   },
   (table) => ({
     tenantIdx: index("message_templates_tenant_idx").on(table.tenantId),
+    sportConfigIdx: index("message_templates_sport_config_idx").on(table.sportConfigId),
   })
 );
 

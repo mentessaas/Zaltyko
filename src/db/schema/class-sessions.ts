@@ -2,6 +2,7 @@ import { date, index, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core
 
 import { classes } from "./classes";
 import { coaches } from "./coaches";
+import { academySportConfigs } from "./sport-config";
 
 export const classSessions = pgTable(
   "class_sessions",
@@ -11,6 +12,7 @@ export const classSessions = pgTable(
     classId: uuid("class_id")
       .notNull()
       .references(() => classes.id, { onDelete: "cascade" }),
+    sportConfigId: uuid("sport_config_id").references(() => academySportConfigs.id, { onDelete: "set null" }),
     coachId: uuid("coach_id").references(() => coaches.id, { onDelete: "set null" }),
     sessionDate: date("session_date").notNull(),
     startTime: text("start_time"),
@@ -23,5 +25,6 @@ export const classSessions = pgTable(
   (table) => ({
     tenantIdx: index("class_sessions_tenant_idx").on(table.tenantId),
     classDateIdx: index("class_sessions_class_date_idx").on(table.classId, table.sessionDate),
+    sportConfigIdx: index("class_sessions_sport_config_idx").on(table.sportConfigId),
   })
 );

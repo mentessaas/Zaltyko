@@ -1,13 +1,14 @@
 export const dynamic = 'force-dynamic';
 
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
-import { academies, classCoachAssignments, classes, coaches, memberships, profiles } from "@/db/schema";
+import { academies, classCoachAssignments, classes, coaches, coachSportConfigs, memberships, profiles } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
 import { markChecklistItem, markWizardStep } from "@/lib/onboarding";
 import { apiSuccess, apiError, apiCreated } from "@/lib/api-response";
+import { replaceCoachSportConfigScope, validateSportConfigIdsForAcademy } from "@/lib/coaches/sport-scope";
 
 const bodySchema = z.object({
   academyId: z.string().uuid(),
@@ -15,6 +16,7 @@ const bodySchema = z.object({
   email: z.string().email().optional(),
   phone: z.string().optional(),
   profileId: z.string().uuid().optional(),
+  sportConfigIds: z.array(z.string().uuid()).optional(),
 });
 
 const querySchema = z.object({
@@ -39,7 +41,9 @@ export const GET = withTenant(async (request, context) => {
 
   const { academyId, includeAssignments } = params.data;
 
-  const coachFilter = academyId ? eq(coaches.academyId, academyId) : eq(coaches.tenantId, context.tenantId);
+  const coachFilter = academyId
+    ? and(eq(coaches.academyId, academyId), eq(coaches.tenantId, context.tenantId))
+    : eq(coaches.tenantId, context.tenantId);
 
   const coachRows = await db
     .select({
@@ -56,8 +60,31 @@ export const GET = withTenant(async (request, context) => {
     .where(coachFilter)
     .orderBy(asc(coaches.name));
 
+  const sportScopeRows =
+    coachRows.length === 0
+      ? []
+      : await db
+          .select({
+            coachId: coachSportConfigs.coachId,
+            sportConfigId: coachSportConfigs.academySportConfigId,
+          })
+          .from(coachSportConfigs)
+          .where(inArray(coachSportConfigs.coachId, coachRows.map((coach) => coach.id)));
+
+  const sportScopesByCoach = new Map<string, string[]>();
+  sportScopeRows.forEach((row) => {
+    const list = sportScopesByCoach.get(row.coachId) ?? [];
+    list.push(row.sportConfigId);
+    sportScopesByCoach.set(row.coachId, list);
+  });
+
+  const coachesWithScopes = coachRows.map((coach) => ({
+    ...coach,
+    sportConfigIds: sportScopesByCoach.get(coach.id) ?? [],
+  }));
+
   if (!includeAssignments) {
-    return apiSuccess({ items: coachRows });
+    return apiSuccess({ items: coachesWithScopes });
   }
 
   const assignmentRows = await db
@@ -69,9 +96,13 @@ export const GET = withTenant(async (request, context) => {
     })
     .from(classCoachAssignments)
     .innerJoin(classes, eq(classCoachAssignments.classId, classes.id))
-    .where(academyId ? eq(classes.academyId, academyId) : eq(classCoachAssignments.tenantId, context.tenantId));
+    .where(
+      academyId
+        ? and(eq(classes.academyId, academyId), eq(classCoachAssignments.tenantId, context.tenantId))
+        : eq(classCoachAssignments.tenantId, context.tenantId)
+    );
 
-  const enriched = coachRows.map((coach) => {
+  const enriched = coachesWithScopes.map((coach) => {
     const classesForCoach = assignmentRows
       .filter((assignment) => assignment.coachId === coach.id && assignment.classId)
       .map((assignment) => ({
@@ -96,7 +127,26 @@ export const POST = withTenant(async (request, context) => {
     return apiError("TENANT_REQUIRED", "tenantId es requerido", 400);
   }
 
+  const [academy] = await db
+    .select({ tenantId: academies.tenantId })
+    .from(academies)
+    .where(and(eq(academies.id, body.academyId), eq(academies.tenantId, context.tenantId)))
+    .limit(1);
+
+  if (!academy) {
+    return apiError("ACADEMY_NOT_FOUND", "Academia no encontrada", 404);
+  }
+
   const coachId = crypto.randomUUID();
+  const sportConfigIds = await validateSportConfigIdsForAcademy({
+    academyId: body.academyId,
+    tenantId: context.tenantId,
+    sportConfigIds: body.sportConfigIds ?? [],
+  });
+
+  if (!sportConfigIds) {
+    return apiError("SPORT_CONFIG_NOT_FOUND", "Una o más ramas no están activas en esta academia", 400);
+  }
 
   await db.insert(coaches).values({
     id: coachId,
@@ -106,6 +156,19 @@ export const POST = withTenant(async (request, context) => {
     email: body.email,
     phone: body.phone,
   });
+
+  if (sportConfigIds.length > 0) {
+    const scope = await replaceCoachSportConfigScope({
+      coachId,
+      academyId: body.academyId,
+      tenantId: context.tenantId,
+      sportConfigIds,
+    });
+
+    if (!scope.ok) {
+      return apiError("SPORT_CONFIG_NOT_FOUND", "Una o más ramas no están activas en esta academia", 400);
+    }
+  }
 
   if (body.profileId) {
     const [linkedProfile] = await db

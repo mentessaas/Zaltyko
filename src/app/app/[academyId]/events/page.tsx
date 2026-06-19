@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/server";
 import { EventsList } from "@/components/events/EventsList";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { resolveAcademySpecialization } from "@/lib/specialization/registry";
+import { getAcademySportConfigOptions } from "@/lib/sport-config/service";
 
 interface PageProps {
   params: Promise<{
@@ -62,6 +63,7 @@ export default async function EventsPage({ params }: PageProps) {
     city: string | null;
     level: string;
     discipline: string | null;
+    sportConfigId: string | null;
     isPublic: boolean | null;
     academyId: string;
   }[] = [];
@@ -77,6 +79,7 @@ export default async function EventsPage({ params }: PageProps) {
         city: events.city,
         level: events.level,
         discipline: events.discipline,
+        sportConfigId: events.sportConfigId,
         isPublic: events.isPublic,
         academyId: events.academyId,
       })
@@ -88,6 +91,8 @@ export default async function EventsPage({ params }: PageProps) {
     // Retornar array vacío por ahora
     eventRows = [];
   }
+  const sportConfigs = await getAcademySportConfigOptions(academyId);
+  const sportConfigNameById = new Map(sportConfigs.map((config) => [config.id, config.branchName]));
 
   return (
     <div className="space-y-6 py-6 lg:py-8">
@@ -106,6 +111,18 @@ export default async function EventsPage({ params }: PageProps) {
           location: [event.city, event.province, event.country].filter(Boolean).join(", ") || null,
           status: event.isPublic ? "public" : "private",
           academyId: event.academyId,
+          sportConfigName: event.sportConfigId ? sportConfigNameById.get(event.sportConfigId) ?? null : null,
+        }))}
+        sportConfigs={sportConfigs.map((config) => ({
+          id: config.id,
+          name: config.name,
+          disciplineName: config.disciplineName,
+          branchName: config.branchName,
+          defaultDisciplineVariant: config.defaultDisciplineVariant,
+          competitionTypes: config.competitionTypes.map((item) => ({
+            code: item.code,
+            name: item.name,
+          })),
         }))}
         academyCountry={academy?.country ?? null}
       />

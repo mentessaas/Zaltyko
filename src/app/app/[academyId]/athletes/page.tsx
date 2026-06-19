@@ -6,6 +6,7 @@ import { Users } from "lucide-react";
 import { db } from "@/db";
 import { academies, athletes, guardianAthletes, groups } from "@/db/schema";
 import { athleteStatusOptions } from "@/lib/athletes/constants";
+import { getAcademySportConfigOptions } from "@/lib/sport-config/service";
 
 import { AthletesTableView } from "@/components/athletes/AthletesTableView";
 import { PageHeader } from "@/components/ui/page-header";
@@ -75,6 +76,11 @@ export default async function AcademyAthletesPage({ params, searchParams }: Page
       ? resolvedSearchParams.group.trim()
       : undefined;
 
+  const sportConfigFilter =
+    typeof resolvedSearchParams.sportConfigId === "string" && resolvedSearchParams.sportConfigId.trim().length > 0
+      ? resolvedSearchParams.sportConfigId.trim()
+      : undefined;
+
   const ageExpr = sql<number | null>`CASE WHEN ${athletes.dob} IS NULL THEN NULL ELSE floor(date_part('year', age(now(), ${athletes.dob}))) END`;
   const guardianCount = sql<number>`count(distinct ${guardianAthletes.id})`;
 
@@ -84,6 +90,7 @@ export default async function AcademyAthletesPage({ params, searchParams }: Page
     levelFilter ? eq(athletes.level, levelFilter) : undefined,
     searchQuery ? ilike(athletes.name, `%${searchQuery}%`) : undefined,
     groupFilter ? eq(athletes.groupId, groupFilter) : undefined,
+    sportConfigFilter ? eq(athletes.primarySportConfigId, sportConfigFilter) : undefined,
   ].filter(Boolean) as any[];
 
   const whereClause = conditions.reduce<any>(
@@ -104,6 +111,10 @@ export default async function AcademyAthletesPage({ params, searchParams }: Page
       groupId: athletes.groupId,
       groupName: groups.name,
       groupColor: groups.color,
+      primarySportConfigId: athletes.primarySportConfigId,
+      programCode: athletes.programCode,
+      levelCode: athletes.levelCode,
+      categoryCode: athletes.categoryCode,
     })
     .from(athletes)
     .leftJoin(groups, eq(athletes.groupId, groups.id))
@@ -128,10 +139,16 @@ export default async function AcademyAthletesPage({ params, searchParams }: Page
       id: groups.id,
       name: groups.name,
       color: groups.color,
+      sportConfigId: groups.sportConfigId,
+      programCode: groups.programCode,
+      levelCode: groups.levelCode,
+      categoryCode: groups.categoryCode,
     })
     .from(groups)
     .where(eq(groups.academyId, academyId))
     .orderBy(asc(groups.name));
+
+  const sportConfigs = await getAcademySportConfigOptions(academyId);
 
   const list = rows.map((row) => {
     let dobString: string | null = null;
@@ -155,6 +172,10 @@ export default async function AcademyAthletesPage({ params, searchParams }: Page
       groupId: row.groupId,
       groupName: row.groupName,
       groupColor: row.groupColor,
+      primarySportConfigId: row.primarySportConfigId,
+      programCode: row.programCode,
+      levelCode: row.levelCode,
+      categoryCode: row.categoryCode,
     };
   });
 
@@ -186,16 +207,21 @@ export default async function AcademyAthletesPage({ params, searchParams }: Page
               level: levelFilter,
               q: searchQuery,
               groupId: groupFilter,
+              sportConfigId: sportConfigFilter,
             }}
             groups={groupRows.map((group) => ({
               id: group.id,
               name: group.name ?? "Grupo sin nombre",
               color: group.color ?? null,
+              sportConfigId: group.sportConfigId,
+              programCode: group.programCode,
+              levelCode: group.levelCode,
+              categoryCode: group.categoryCode,
             }))}
+            sportConfigs={sportConfigs}
           />
         </div>
       </div>
     </div>
   );
 }
-

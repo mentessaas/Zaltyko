@@ -5,6 +5,7 @@ import {
   athletes,
   classCoachAssignments,
   classEnrollments,
+  classGroups,
   classes,
   coaches,
   groupAthletes,
@@ -12,6 +13,7 @@ import {
 } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
 import { apiSuccess, apiError } from "@/lib/api-response";
+import { getCoachSportConfigIds } from "@/lib/coaches/sport-scope";
 
 export const GET = withTenant(async (_request, context) => {
   const coachId = (context.params as { coachId?: string })?.coachId;
@@ -26,7 +28,7 @@ export const GET = withTenant(async (_request, context) => {
 
   // Verificar que el coach existe y pertenece al tenant
   const [coach] = await db
-    .select({ tenantId: coaches.tenantId })
+    .select({ tenantId: coaches.tenantId, academyId: coaches.academyId })
     .from(coaches)
     .where(eq(coaches.id, coachId))
     .limit(1);
@@ -36,28 +38,35 @@ export const GET = withTenant(async (_request, context) => {
   }
 
   // Obtener clases asignadas al coach
-  const assignedClasses = await db
-    .select({ classId: classCoachAssignments.classId })
-    .from(classCoachAssignments)
-    .where(eq(classCoachAssignments.coachId, coachId));
+  const scopeIds = await getCoachSportConfigIds(coachId, context.tenantId);
+  const scopeSet = new Set(scopeIds);
+  const isInScope = (sportConfigId: string | null) => scopeSet.size === 0 || !sportConfigId || scopeSet.has(sportConfigId);
 
-  const assignedClassIds = assignedClasses.map((c) => c.classId);
+  const assignedClasses = await db
+    .select({ classId: classCoachAssignments.classId, sportConfigId: classes.sportConfigId })
+    .from(classCoachAssignments)
+    .innerJoin(classes, eq(classCoachAssignments.classId, classes.id))
+    .where(and(eq(classCoachAssignments.coachId, coachId), eq(classes.academyId, coach.academyId)));
+
+  const assignedClassIds = assignedClasses.filter((c) => isInScope(c.sportConfigId)).map((c) => c.classId);
 
   // Obtener grupos de esas clases
   let groupIds: string[] = [];
   if (assignedClassIds.length > 0) {
-    const classGroups = await db
-      .select({ groupId: classes.groupId })
-      .from(classes)
-      .where(inArray(classes.id, assignedClassIds));
+    const linkedClassGroups = await db
+      .select({ groupId: classGroups.groupId, sportConfigId: groups.sportConfigId })
+      .from(classGroups)
+      .innerJoin(groups, eq(classGroups.groupId, groups.id))
+      .where(inArray(classGroups.classId, assignedClassIds));
 
-    groupIds = classGroups
+    groupIds = linkedClassGroups
+      .filter((g) => isInScope(g.sportConfigId))
       .map((g) => g.groupId)
       .filter((id): id is string => id !== null);
   }
 
   // Obtener atletas via groupAthletes (pertenencia a grupos del coach)
-  let athletesFromGroups: { id: string; name: string; level: string | null; ageCategory: string | null; competitiveLevel: string | null }[] = [];
+  let athletesFromGroups: { id: string; name: string; level: string | null; ageCategory: string | null; competitiveLevel: string | null; sportConfigId: string | null }[] = [];
   if (groupIds.length > 0) {
     const groupAthleteRows = await db
       .select({
@@ -66,6 +75,7 @@ export const GET = withTenant(async (_request, context) => {
         athleteLevel: athletes.level,
         athleteAgeCategory: athletes.ageCategory,
         athleteCompetitiveLevel: athletes.competitiveLevel,
+        athleteSportConfigId: athletes.primarySportConfigId,
       })
       .from(groupAthletes)
       .innerJoin(athletes, eq(groupAthletes.athleteId, athletes.id))
@@ -82,11 +92,12 @@ export const GET = withTenant(async (_request, context) => {
       level: a.athleteLevel,
       ageCategory: a.athleteAgeCategory,
       competitiveLevel: a.athleteCompetitiveLevel,
+      sportConfigId: a.athleteSportConfigId,
     }));
   }
 
   // Obtener atletas inscritos extra en clases del coach (classEnrollments)
-  let athletesFromEnrollments: { id: string; name: string; level: string | null; ageCategory: string | null; competitiveLevel: string | null }[] = [];
+  let athletesFromEnrollments: { id: string; name: string; level: string | null; ageCategory: string | null; competitiveLevel: string | null; sportConfigId: string | null }[] = [];
   if (assignedClassIds.length > 0) {
     const enrollmentRows = await db
       .select({
@@ -95,6 +106,7 @@ export const GET = withTenant(async (_request, context) => {
         athleteLevel: athletes.level,
         athleteAgeCategory: athletes.ageCategory,
         athleteCompetitiveLevel: athletes.competitiveLevel,
+        athleteSportConfigId: athletes.primarySportConfigId,
       })
       .from(classEnrollments)
       .innerJoin(athletes, eq(classEnrollments.athleteId, athletes.id))
@@ -111,14 +123,15 @@ export const GET = withTenant(async (_request, context) => {
       level: a.athleteLevel,
       ageCategory: a.athleteAgeCategory,
       competitiveLevel: a.athleteCompetitiveLevel,
+      sportConfigId: a.athleteSportConfigId,
     }));
   }
 
   // Combinar y deduplicar atletas
-  const allAthletesMap = new Map<string, { id: string; name: string; level: string | null; ageCategory: string | null; competitiveLevel: string | null }>();
+  const allAthletesMap = new Map<string, { id: string; name: string; level: string | null; ageCategory: string | null; competitiveLevel: string | null; sportConfigId: string | null }>();
 
   [...athletesFromGroups, ...athletesFromEnrollments].forEach((athlete) => {
-    if (!allAthletesMap.has(athlete.id)) {
+    if (isInScope(athlete.sportConfigId) && !allAthletesMap.has(athlete.id)) {
       allAthletesMap.set(athlete.id, athlete);
     }
   });

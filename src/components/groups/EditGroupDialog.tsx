@@ -4,10 +4,11 @@ import { FormEvent, useEffect, useMemo, useState, useTransition } from "react";
 
 import { Modal } from "@/components/ui/modal";
 import { useToast } from "@/components/ui/toast-provider";
-import { CoachOption, AthleteOption, GroupSummary } from "./types";
+import { CoachOption, AthleteOption, GroupSummary, SportConfigOption } from "./types";
 import { createClient } from "@/lib/supabase/client";
 import { useAcademyContext } from "@/hooks/use-academy-context";
 import { getGroupTechnicalGuidance } from "@/lib/specialization/technical-guidance";
+import { getTerminology } from "@/lib/sport-config/terminology";
 
 interface EditGroupDialogProps {
   academyId: string;
@@ -18,6 +19,7 @@ interface EditGroupDialogProps {
   coaches: CoachOption[];
   athletes: AthleteOption[];
   currentAthleteIds?: string[]; // IDs de atletas actualmente en el grupo
+  sportConfigs?: SportConfigOption[];
 }
 
 const DEFAULT_COLOR = "#2563eb";
@@ -31,11 +33,16 @@ export function EditGroupDialog({
   coaches,
   athletes,
   currentAthleteIds = [],
+  sportConfigs = [],
 }: EditGroupDialogProps) {
   const { pushToast } = useToast();
   const { specialization, academyType } = useAcademyContext();
   const [name, setName] = useState(group.name);
   const [discipline, setDiscipline] = useState<string>(group.discipline || academyType || "artistica");
+  const [sportConfigId, setSportConfigId] = useState(group.sportConfigId ?? "");
+  const [programCode, setProgramCode] = useState(group.programCode ?? "");
+  const [levelCode, setLevelCode] = useState(group.levelCode ?? "");
+  const [categoryCode, setCategoryCode] = useState(group.categoryCode ?? "");
   const [level, setLevel] = useState(group.level ?? "");
   const [technicalFocus, setTechnicalFocus] = useState(group.technicalFocus ?? "");
   const [selectedApparatus, setSelectedApparatus] = useState<string[]>(group.apparatus ?? []);
@@ -56,11 +63,36 @@ export function EditGroupDialog({
     () => getGroupTechnicalGuidance(specialization, level),
     [level, specialization]
   );
+  const selectedSportConfig = useMemo(
+    () => sportConfigs.find((config) => config.id === sportConfigId) ?? null,
+    [sportConfigId, sportConfigs]
+  );
+  const terms = getTerminology(selectedSportConfig);
+  const groupTerm = terms.group;
+  const groupTermLower = groupTerm.toLowerCase();
+  const athleteTermPlural = terms.athletes;
+  const athleteTermPluralLower = athleteTermPlural.toLowerCase();
+  const availablePrograms = selectedSportConfig?.programs ?? [];
+  const availableLevels =
+    selectedSportConfig?.levels.filter((item) => !programCode || !item.programCode || item.programCode === programCode) ?? [];
+  const availableCategories = selectedSportConfig?.categories ?? [];
+  const availableApparatus = selectedSportConfig?.apparatus ?? [];
+  const compatibleCoaches = useMemo(
+    () =>
+      selectedSportConfig
+        ? coaches.filter((coach) => !coach.sportConfigIds?.length || coach.sportConfigIds.includes(selectedSportConfig.id))
+        : coaches,
+    [coaches, selectedSportConfig]
+  );
 
   useEffect(() => {
     if (open) {
       setName(group.name);
       setDiscipline(group.discipline || academyType || "artistica");
+      setSportConfigId(group.sportConfigId ?? "");
+      setProgramCode(group.programCode ?? "");
+      setLevelCode(group.levelCode ?? "");
+      setCategoryCode(group.categoryCode ?? "");
       setLevel(group.level ?? "");
       setTechnicalFocus(group.technicalFocus ?? "");
       setSelectedApparatus(group.apparatus ?? []);
@@ -75,6 +107,26 @@ export function EditGroupDialog({
       setError(null);
     }
   }, [open, group, currentAthleteIds]);
+
+  useEffect(() => {
+    if (!selectedSportConfig) return;
+    setDiscipline(selectedSportConfig.defaultAcademyType);
+    setSelectedApparatus((current) => {
+      const allowed = new Set(selectedSportConfig.apparatus.map((item) => item.code));
+      return current.filter((item) => allowed.has(item));
+    });
+    setCoachId((current) => {
+      if (!current) return current;
+      const coach = coaches.find((item) => item.id === current);
+      return !coach?.sportConfigIds?.length || coach.sportConfigIds.includes(selectedSportConfig.id) ? current : "";
+    });
+    setAssistantIds((current) =>
+      current.filter((coachId) => {
+        const coach = coaches.find((item) => item.id === coachId);
+        return !coach?.sportConfigIds?.length || coach.sportConfigIds.includes(selectedSportConfig.id);
+      })
+    );
+  }, [selectedSportConfig]);
 
   const toggleAssistant = (id: string) => {
     setAssistantIds((prev) =>
@@ -110,7 +162,7 @@ export function EditGroupDialog({
     setError(null);
 
     if (!name.trim()) {
-      setError("El nombre del grupo es obligatorio.");
+      setError(`El nombre del ${groupTermLower} es obligatorio.`);
       return;
     }
 
@@ -130,6 +182,10 @@ export function EditGroupDialog({
           body: JSON.stringify({
             name: name.trim(),
             discipline,
+            sportConfigId: sportConfigId || null,
+            programCode: programCode || null,
+            levelCode: levelCode || null,
+            categoryCode: categoryCode || null,
             level: level.trim() || null,
             technicalFocus: technicalFocus.trim() || null,
             apparatus: selectedApparatus,
@@ -152,21 +208,21 @@ export function EditGroupDialog({
 
         if (!response.ok) {
           const data = await response.json().catch(() => ({}));
-          throw new Error(data.error ?? "No se pudo actualizar el grupo.");
+          throw new Error(data.error ?? `No se pudo actualizar el ${groupTermLower}.`);
         }
 
         await onUpdated();
         onClose();
         pushToast({
-          title: "Grupo actualizado",
+          title: `${groupTerm} actualizado`,
           description: "Los cambios se han guardado correctamente.",
           variant: "success",
         });
       } catch (err: any) {
-        setError(err.message ?? "Error desconocido al actualizar el grupo.");
+        setError(err.message ?? `Error desconocido al actualizar el ${groupTermLower}.`);
         if (err?.message) {
           pushToast({
-            title: "No se pudo actualizar el grupo",
+            title: `No se pudo actualizar el ${groupTermLower}`,
             description: err.message,
             variant: "error",
           });
@@ -179,8 +235,8 @@ export function EditGroupDialog({
     <Modal
       open={open}
       onClose={handleClose}
-      title="Editar grupo"
-      description="Modifica la información del grupo, responsables y atletas."
+      title={`Editar ${groupTermLower}`}
+      description={`Modifica la información del ${groupTermLower}, responsables y ${athleteTermPluralLower}.`}
       footer={
         <div className="flex justify-end gap-2">
           <button
@@ -220,38 +276,110 @@ export function EditGroupDialog({
             />
           </div>
           <div className="space-y-1">
-            <label className="font-medium">Disciplina</label>
+            <label className="font-medium">Modalidad / rama</label>
             <select
-              value={discipline}
-              onChange={(event) => setDiscipline(event.target.value)}
-              disabled
+              value={sportConfigId}
+              onChange={(event) => {
+                const nextSportConfigId = event.target.value;
+                const nextConfig = sportConfigs.find((config) => config.id === nextSportConfigId) ?? null;
+                setSportConfigId(nextSportConfigId);
+                setDiscipline(nextConfig?.defaultAcademyType ?? academyType ?? "artistica");
+                setProgramCode("");
+                setLevelCode("");
+                setCategoryCode("");
+                setLevel("");
+                setSelectedApparatus([]);
+              }}
+              disabled={sportConfigs.length === 0}
               className="w-full rounded-md border border-border bg-background px-3 py-2 shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
             >
-              <option value={discipline}>{specialization.labels.disciplineName}</option>
+              <option value="">{specialization.labels.disciplineName}</option>
+              {sportConfigs.map((config) => (
+                <option key={config.id} value={config.id}>
+                  {config.disciplineName} · {config.branchName}
+                </option>
+              ))}
             </select>
           </div>
+          {availablePrograms.length > 0 && (
+            <div className="space-y-1">
+              <label className="font-medium">Programa</label>
+              <select
+                value={programCode}
+                onChange={(event) => {
+                  setProgramCode(event.target.value);
+                  setLevelCode("");
+                  setLevel("");
+                }}
+                className="w-full rounded-md border border-border bg-background px-3 py-2 shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              >
+                <option value="">Sin programa</option>
+                {availablePrograms.map((program) => (
+                  <option key={program.code} value={program.code}>
+                    {program.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           <div className="space-y-1">
-            <label className="font-medium">{specialization.labels.levelLabel}</label>
-            <input
-              list="edit-group-level-options"
-              value={level}
-              onChange={(event) => setLevel(event.target.value)}
-              placeholder={specialization.categories.levelPlaceholder}
-              className="w-full rounded-md border border-border bg-background px-3 py-2 shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-            />
-            {specialization.categories.levelOptions.length > 0 && (
+            <label className="font-medium">{terms.level}</label>
+            {availableLevels.length > 0 ? (
+              <select
+                value={levelCode}
+                onChange={(event) => {
+                  const nextLevelCode = event.target.value;
+                  setLevelCode(nextLevelCode);
+                  setLevel(availableLevels.find((item) => item.code === nextLevelCode)?.name ?? "");
+                }}
+                className="w-full rounded-md border border-border bg-background px-3 py-2 shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              >
+                <option value="">Sin {terms.level.toLowerCase()}</option>
+                {availableLevels.map((option) => (
+                  <option key={option.code} value={option.code}>
+                    {option.name}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                list="edit-group-level-options"
+                value={level}
+                onChange={(event) => setLevel(event.target.value)}
+                placeholder={specialization.categories.levelPlaceholder}
+                className="w-full rounded-md border border-border bg-background px-3 py-2 shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            )}
+            {availableLevels.length === 0 && specialization.categories.levelOptions.length > 0 && (
               <datalist id="edit-group-level-options">
                 {specialization.categories.levelOptions.map((option) => (
                   <option key={option} value={option} />
                 ))}
               </datalist>
             )}
-            {specialization.categories.levelOptions.length > 0 && (
+            {availableLevels.length === 0 && specialization.categories.levelOptions.length > 0 && (
               <p className="text-xs text-muted-foreground">
                 Sugerencias: {specialization.categories.levelOptions.slice(0, 4).join(", ")}
               </p>
             )}
           </div>
+          {availableCategories.length > 0 && (
+            <div className="space-y-1">
+              <label className="font-medium">{terms.category}</label>
+              <select
+                value={categoryCode}
+                onChange={(event) => setCategoryCode(event.target.value)}
+                className="w-full rounded-md border border-border bg-background px-3 py-2 shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              >
+                <option value="">Sin {terms.category.toLowerCase()}</option>
+                {availableCategories.map((category) => (
+                  <option key={category.code} value={category.code}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           <div className="space-y-1">
             <label className="font-medium">Cuota mensual (€)</label>
             <input
@@ -264,7 +392,7 @@ export function EditGroupDialog({
               className="w-full rounded-md border border-border bg-background px-3 py-2 shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
             />
             <p className="text-xs text-muted-foreground">
-              Cuota mensual por defecto para los atletas de este grupo
+              Cuota mensual por defecto para los {athleteTermPluralLower} de este {groupTermLower}
             </p>
           </div>
           <div className="space-y-1 md:col-span-2">
@@ -282,7 +410,7 @@ export function EditGroupDialog({
           <div className="space-y-1">
             <h3 className="text-sm font-semibold text-foreground">{technicalGuidance.headline}</h3>
             <p className="text-xs text-muted-foreground">
-              Ajusta esta referencia técnica para que refleje cómo trabaja realmente el grupo.
+              Ajusta esta referencia técnica para que refleje cómo trabaja realmente el {groupTermLower}.
             </p>
           </div>
 
@@ -297,22 +425,25 @@ export function EditGroupDialog({
           </div>
 
           <div className="space-y-1">
-            <label className="font-medium">Aparatos / material</label>
+            <label className="font-medium">{terms.apparatus} / material</label>
             <div className="flex flex-wrap gap-2">
-              {technicalGuidance.apparatus.map((item) => {
-                const selected = selectedApparatus.includes(item);
+              {(availableApparatus.length > 0
+                ? availableApparatus.map((item) => ({ value: item.code, label: item.name }))
+                : technicalGuidance.apparatus.map((item) => ({ value: item, label: item }))
+              ).map((item) => {
+                const selected = selectedApparatus.includes(item.value);
                 return (
                   <button
-                    key={item}
+                    key={item.value}
                     type="button"
-                    onClick={() => toggleApparatus(item)}
+                    onClick={() => toggleApparatus(item.value)}
                     className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
                       selected
                         ? "border-primary bg-primary/10 text-primary"
                         : "border-border bg-background text-muted-foreground"
                     }`}
                   >
-                    {item}
+                    {item.label}
                   </button>
                 );
               })}
@@ -345,14 +476,14 @@ export function EditGroupDialog({
 
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-1">
-            <label className="font-medium">Entrenador principal</label>
+            <label className="font-medium">{terms.coach} principal</label>
             <select
               value={coachId}
               onChange={(event) => setCoachId(event.target.value)}
               className="w-full rounded-md border border-border bg-background px-3 py-2 shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
             >
               <option value="">Sin asignar</option>
-              {coaches.map((coach) => (
+              {compatibleCoaches.map((coach) => (
                 <option key={coach.id} value={coach.id}>
                   {coach.name}
                 </option>
@@ -362,10 +493,12 @@ export function EditGroupDialog({
           <div className="space-y-1">
             <label className="font-medium">Asistentes</label>
             <div className="grid max-h-40 gap-2 overflow-y-auto rounded-md border border-border p-3">
-              {coaches.length === 0 ? (
-                <p className="text-xs text-muted-foreground">No hay entrenadores registrados.</p>
+              {compatibleCoaches.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  No hay {terms.coach.toLowerCase()}s registrados.
+                </p>
               ) : (
-                coaches.map((coach) => (
+                compatibleCoaches.map((coach) => (
                   <label key={coach.id} className="flex items-center gap-2 text-sm">
                     <input
                       type="checkbox"
@@ -379,7 +512,7 @@ export function EditGroupDialog({
               )}
             </div>
             <p className="text-xs text-muted-foreground">
-              Puedes añadir asistentes en cualquier momento desde la vista del grupo.
+              Puedes añadir asistentes en cualquier momento desde la vista del {groupTermLower}.
             </p>
           </div>
         </div>
@@ -387,9 +520,9 @@ export function EditGroupDialog({
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-sm font-semibold text-foreground">Atletas</h3>
+              <h3 className="text-sm font-semibold text-foreground">{athleteTermPlural}</h3>
               <p className="text-xs text-muted-foreground">
-                Selecciona los atletas que formarán parte del grupo.
+                Selecciona los {athleteTermPluralLower} que formarán parte del {groupTermLower}.
               </p>
             </div>
             <button
@@ -403,7 +536,7 @@ export function EditGroupDialog({
           <div className="grid max-h-56 gap-2 overflow-y-auto rounded-md border border-border p-3">
             {athletes.length === 0 ? (
               <p className="text-xs text-muted-foreground">
-                No hay atletas registrados en la academia todavía.
+                No hay {athleteTermPluralLower} registrados en la academia todavía.
               </p>
             ) : (
               athletes.map((athlete) => (

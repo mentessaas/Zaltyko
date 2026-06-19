@@ -65,7 +65,7 @@ export function RegisterForm() {
     try {
       const emailRedirectTo =
         typeof window !== "undefined"
-          ? `${window.location.origin}/auth/confirm?next=/onboarding/owner`
+          ? `${window.location.origin}/auth/callback?next=/onboarding/owner`
           : undefined;
 
       const { data, error } = await supabase.auth.signUp({
@@ -91,8 +91,8 @@ export function RegisterForm() {
       toast.pushToast({
         title: "Cuenta creada",
         description: data.session
-          ? "Vamos a terminar la configuración inicial de tu academia."
-          : "Revisa tu correo para confirmar la cuenta y continuar con la configuración inicial.",
+          ? "Vamos a configurar tu primera academia."
+          : "Revisa tu correo para confirmar la cuenta y configurar tu primera academia.",
         variant: "success",
       });
 
@@ -109,7 +109,7 @@ export function RegisterForm() {
   return (
     <AuthPageShell
       title="Crea tu cuenta"
-      description="El registro público queda reservado para owners. Después terminamos la configuración inicial de tu academia."
+      description="Crea tu acceso como responsable de academia. Después configuraremos tu primera academia paso a paso."
       footer={
         <>
           ¿Ya tienes cuenta?{" "}
@@ -118,12 +118,12 @@ export function RegisterForm() {
           </Link>
         </>
       }
-      sideTitle="Un onboarding más honesto para el SaaS"
-      sideDescription="La cuenta se crea primero y la academia se configura después. Así evitamos tenants y perfiles inventados antes de tiempo."
+      sideTitle="Empieza con una cuenta clara"
+      sideDescription="Primero creas tu acceso. Después te guiamos para añadir la academia, los equipos y los primeros datos."
       highlights={[
-        "El registro público ya no fabrica academias silenciosas por detrás.",
-        "La configuración inicial del owner ocurre en un paso dedicado y más claro.",
-        "Los demás roles entran por invitación, no por un registro abierto confuso.",
+        "El registro está pensado para responsables de academia.",
+        "La configuración inicial se hace en un paso guiado y fácil de revisar.",
+        "Entrenadores, familias y atletas se suman después mediante invitación.",
       ]}
     >
       <form onSubmit={handleRegister} className="space-y-4">
@@ -160,7 +160,7 @@ export function RegisterForm() {
             onChange={(e) => setPassword(e.target.value)}
             required
             autoComplete="new-password"
-            placeholder="Minimo 8 caracteres"
+            placeholder="Mínimo 8 caracteres"
           />
         </div>
         <Button type="submit" className="w-full" disabled={loading}>
