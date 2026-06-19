@@ -20,7 +20,7 @@ const criticalFiles = [
   "package.json",
   "src/lib/env.ts",
   "src/app/layout.tsx",
-  "sentry.client.config.ts",
+  "instrumentation-client.ts",
   "sentry.server.config.ts",
   "sentry.edge.config.ts",
 ];
