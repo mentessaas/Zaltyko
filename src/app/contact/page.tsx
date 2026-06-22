@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Navbar from "@/app/(site)/Navbar";
 import Footer from "@/app/(site)/Footer";
-import { Mail, Phone, MapPin, Clock, MessageCircle, Send } from "lucide-react";
+import { Mail, Clock, MessageCircle } from "lucide-react";
+import { ContactForm } from "@/components/contact/ContactForm";
 
 const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
@@ -24,18 +25,11 @@ const contactInfo = [
     href: "mailto:hola@zaltyko.com",
   },
   {
-    icon: Phone,
-    title: "Teléfono",
-    description: "Lun-Vie de 9h a 18h",
-    value: "+34 900 123 456",
-    href: "tel:+34900123456",
-  },
-  {
     icon: MessageCircle,
-    title: "WhatsApp",
-    description: "Respuesta rápida",
-    value: "+34 600 000 000",
-    href: "https://wa.me/34600000000",
+    title: "Demo guiada",
+    description: "Revisamos tu caso y te mostramos el flujo adecuado",
+    value: "Solicitar demo",
+    href: "/contact?type=demo",
   },
   {
     icon: Clock,
@@ -45,16 +39,13 @@ const contactInfo = [
   },
 ];
 
-const reasons = [
-  { value: "demo", label: "Solicitar demo" },
-  { value: "sales", label: "Información de ventas" },
-  { value: "support", label: "Soporte técnico" },
-  { value: "billing", label: "Facturación" },
-  { value: "partnership", label: "Colaboración" },
-  { value: "other", label: "Otro" },
-];
+interface ContactPageProps {
+  searchParams: Promise<{ type?: string }>;
+}
 
-export default function ContactPage() {
+export default async function ContactPage({ searchParams }: ContactPageProps) {
+  const { type } = await searchParams;
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Navbar />
@@ -108,117 +99,19 @@ export default function ContactPage() {
                 })}
               </div>
 
-              {/* Office Location */}
-              <div className="mt-8 p-6 rounded-xl bg-gray-50">
-                <div className="flex items-start">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-zaltyko-primary/10">
-                    <MapPin className="h-5 w-5 text-zaltyko-primary" />
-                  </div>
-                  <div className="ml-4">
-                    <h3 className="font-semibold text-zaltyko-text-main">Oficina</h3>
-                    <p className="text-sm text-zaltyko-text-secondary">
-                      Calle Example, 123<br />
-                      28001 Madrid<br />
-                      España
-                    </p>
-                  </div>
-                </div>
+              <div className="mt-8 rounded-xl bg-gray-50 p-6">
+                <h3 className="font-semibold text-zaltyko-text-main">Cómo trabajamos</h3>
+                <p className="mt-2 text-sm text-zaltyko-text-secondary">
+                  Respondemos por email con una propuesta concreta para tu academia. Si necesitas ver el producto,
+                  agendaremos una demo guiada.
+                </p>
               </div>
             </div>
 
             {/* Contact Form */}
             <div>
               <h2 className="text-2xl font-bold text-zaltyko-text-main mb-6">Envíanos un mensaje</h2>
-              <form className="space-y-4">
-                <div>
-                  <label htmlFor="name" className="block text-sm font-medium text-zaltyko-text-main">
-                    Nombre completo
-                  </label>
-                  <input
-                    type="text"
-                    id="name"
-                    name="name"
-                    required
-                    className="mt-1 block w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-zaltyko-primary focus:ring-2 focus:ring-zaltyko-primary/20"
-                    placeholder="Tu nombre"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-zaltyko-text-main">
-                    Email
-                  </label>
-                  <input
-                    type="email"
-                    id="email"
-                    name="email"
-                    required
-                    className="mt-1 block w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-zaltyko-primary focus:ring-2 focus:ring-zaltyko-primary/20"
-                    placeholder="tu@email.com"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="reason" className="block text-sm font-medium text-zaltyko-text-main">
-                    Motivo de contacto
-                  </label>
-                  <select
-                    id="reason"
-                    name="reason"
-                    required
-                    className="mt-1 block w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-zaltyko-primary focus:ring-2 focus:ring-zaltyko-primary/20"
-                  >
-                    {reasons.map((reason) => (
-                      <option key={reason.value} value={reason.value}>
-                        {reason.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label htmlFor="academy" className="block text-sm font-medium text-zaltyko-text-main">
-                    Nombre de tu academia (opcional)
-                  </label>
-                  <input
-                    type="text"
-                    id="academy"
-                    name="academy"
-                    className="mt-1 block w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-zaltyko-primary focus:ring-2 focus:ring-zaltyko-primary/20"
-                    placeholder="Ej: Gimnasio Central"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="message" className="block text-sm font-medium text-zaltyko-text-main">
-                    Mensaje
-                  </label>
-                  <textarea
-                    id="message"
-                    name="message"
-                    rows={5}
-                    required
-                    className="mt-1 block w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-zaltyko-primary focus:ring-2 focus:ring-zaltyko-primary/20"
-                    placeholder="¿En qué podemos ayudarte?"
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  className="w-full inline-flex items-center justify-center rounded-full bg-zaltyko-primary px-8 py-3 font-semibold text-white hover:bg-primary-dark transition-colors"
-                >
-                  <Send className="mr-2 h-5 w-5" />
-                  Enviar mensaje
-                </button>
-
-                <p className="text-xs text-center text-zaltyko-text-secondary">
-                  Al enviar este formulario, aceptas nuestro{" "}
-                  <Link href="/privacy-policy" className="underline hover:text-zaltyko-primary">
-                    política de privacidad
-                  </Link>
-                  .
-                </p>
-              </form>
+              <ContactForm defaultReason={type} />
             </div>
           </div>
         </div>

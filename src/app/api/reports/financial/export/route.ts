@@ -19,6 +19,7 @@ const exportSchema = z.object({
   format: z.enum(["pdf", "excel"]).default("pdf"),
   startDate: z.string().optional(),
   endDate: z.string().optional(),
+  sportConfigId: z.string().uuid().optional(),
 });
 
 export const GET = withTenant(async (request, context) => {
@@ -32,6 +33,7 @@ export const GET = withTenant(async (request, context) => {
     format: url.searchParams.get("format") || "pdf",
     startDate: url.searchParams.get("startDate"),
     endDate: url.searchParams.get("endDate"),
+    sportConfigId: url.searchParams.get("sportConfigId"),
   };
 
   const validated = exportSchema.parse({
@@ -48,6 +50,7 @@ export const GET = withTenant(async (request, context) => {
     tenantId: context.tenantId,
     startDate: validated.startDate ? new Date(validated.startDate) : undefined,
     endDate: validated.endDate ? new Date(validated.endDate) : undefined,
+    sportConfigId: validated.sportConfigId,
   };
 
   try {
@@ -87,11 +90,38 @@ export const GET = withTenant(async (request, context) => {
         XLSX.utils.book_append_sheet(workbook, monthlySheet, "Ingresos Mensuales");
       }
 
+      if (stats.bySportConfig && stats.bySportConfig.length > 0) {
+        const sportSheet = XLSX.utils.json_to_sheet(
+          stats.bySportConfig.map((item) => ({
+            Rama: item.label,
+            "Ingresos Totales (€)": item.totalRevenue,
+            "Pagado (€)": item.paidAmount,
+            "Pendiente (€)": item.pendingAmount,
+            "Morosidad (€)": item.overdueAmount,
+            Cargos: item.totalCharges,
+            "Cargos Pagados": item.paidCharges,
+            "Cargos Pendientes": item.pendingCharges,
+            "Cargos Vencidos": item.overdueCharges,
+            "Becas Activas": item.activeScholarships,
+            "Descuentos (€)": item.discountAmount,
+            "Coste entrenadores (€)": item.coachCostAmount,
+            "Gastos directos (€)": item.directExpenseAmount,
+            "Gastos generales asignados (€)": item.allocatedAcademyExpenseAmount,
+            "Coste estimado (€)": item.estimatedCostAmount,
+            "Margen estimado (€)": item.estimatedMarginAmount,
+            "Margen (%)": item.estimatedMarginRate === null ? "" : Math.round(item.estimatedMarginRate * 10000) / 100,
+            Estado: item.profitabilityStatus,
+          }))
+        );
+        XLSX.utils.book_append_sheet(workbook, sportSheet, "Por Rama");
+      }
+
       // Hoja de morosidad
       if (delinquency.length > 0) {
         const delinquencySheet = XLSX.utils.json_to_sheet(
           delinquency.map((d) => ({
             Atleta: d.athleteName,
+            Rama: d.sportConfigLabel,
             "Total Vencido (€)": d.totalOverdue,
             "Cargos Vencidos": d.overdueCharges,
             "Más Antiguo": d.oldestOverdue
@@ -148,4 +178,3 @@ export const GET = withTenant(async (request, context) => {
     return apiError("EXPORT_FAILED", error.message, 500);
   }
 });
-

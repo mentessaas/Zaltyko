@@ -25,6 +25,8 @@
 /ZaltykoMobile
 /brand kit
 /test-results
+/playwright-report
+/.auth
 /waitlist.tar.gz
 /waitlist.zip
 /drizzle

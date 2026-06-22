@@ -1,6 +1,9 @@
 node_modules
 .vercel
 .next
+.auth
+.env
+.env.*
 .env*.local
 *.log
 coverage
@@ -23,6 +26,5 @@ test-results
 *.md
 tsconfig.tsbuildinfo
 drizzle.config.ts
-proxy.ts
 /supabase
 docker

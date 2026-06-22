@@ -16,7 +16,6 @@ import { resolveAcademySpecialization } from "@/lib/specialization/registry";
 import { getDevSessionFromCookieStore } from "@/lib/dev-session";
 
 import { AcademyTopNav } from "./top-nav";
-import { AutoBreadcrumb } from "@/components/navigation/AutoBreadcrumb";
 
 interface LayoutProps {
   params: Promise<{
@@ -233,7 +232,6 @@ export default async function AcademyLayout({ params, children }: LayoutProps) {
             <div className="flex flex-1 flex-col">
               <AcademyTopNav />
               <main id="main-content" className="flex-1 bg-zaltyko-white px-4 py-4 pb-20 sm:px-6 lg:px-8 lg:pb-6" tabIndex={-1}>
-                <AutoBreadcrumb />
                 {children}
               </main>
             </div>

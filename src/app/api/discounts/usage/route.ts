@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic';
 
 import { apiError, apiSuccess } from "@/lib/api-response";
 import { z } from "zod";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, inArray } from "drizzle-orm";
 import { withTenant } from "@/lib/authz";
 
 import { db } from "@/db";
@@ -17,6 +17,7 @@ export const GET = withTenant(async (request, context) => {
   const academyId = url.searchParams.get("academyId");
   const discountId = url.searchParams.get("discountId");
   const athleteId = url.searchParams.get("athleteId");
+  const sportConfigId = url.searchParams.get("sportConfigId");
   const limit = parseInt(url.searchParams.get("limit") || "50");
 
   if (!academyId) {
@@ -34,6 +35,32 @@ export const GET = withTenant(async (request, context) => {
 
   if (athleteId) {
     conditions.push(eq(discountUsageHistory.athleteId, athleteId));
+  }
+
+  if (sportConfigId) {
+    const athleteRows = await db
+      .select({ id: athletes.id })
+      .from(athletes)
+      .where(
+        and(
+          eq(athletes.academyId, academyId),
+          eq(athletes.tenantId, context.tenantId),
+          eq(athletes.primarySportConfigId, sportConfigId)
+        )
+      )
+      .limit(1000);
+
+    const athleteIds = athleteRows.map((row) => row.id);
+    if (athleteIds.length === 0) {
+      return apiSuccess({
+        items: [],
+        summary: {
+          totalUsage: 0,
+          totalDiscount: 0,
+        },
+      });
+    }
+    conditions.push(inArray(discountUsageHistory.athleteId, athleteIds));
   }
 
   const items = await db

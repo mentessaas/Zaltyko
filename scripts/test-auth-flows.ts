@@ -7,8 +7,12 @@
 
 import { createClient } from "@supabase/supabase-js";
 
-const SUPABASE_URL = "https://jegxfahsvugilbthbked.supabase.co";
-const SERVICE_ROLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImplZ3hmYWhzdnVnaWxidGhia2VkIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MjUyNTkyOCwiZXhwIjoyMDc4MTAxOTI4fQ.qQEEbfv4M0_T76fB7zeeREJuyEijlbTFhJgy06C_nmE";
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
+  throw new Error("NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set");
+}
 
 // Service client for admin operations
 const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);

@@ -12,6 +12,16 @@ export const MODALITIES = {
     en: 'rhythmic-gymnastics',
     label: { es: 'Gimnasia Rítmica', en: 'Rhythmic Gymnastics' },
   },
+  acrobatic: {
+    es: 'gimnasia-acrobatica',
+    en: 'acrobatic-gymnastics',
+    label: { es: 'Gimnasia Acrobática', en: 'Acrobatic Gymnastics' },
+  },
+  trampoline: {
+    es: 'trampolin',
+    en: 'trampoline',
+    label: { es: 'Trampolín', en: 'Trampoline' },
+  },
 } as const;
 
 export type ModalitySlug = keyof typeof MODALITIES;
@@ -163,6 +173,7 @@ export function getAllClusters(locale: Locale): Array<{
     for (const country of Object.keys(COUNTRIES) as CountrySlug[]) {
       const modalitySlug = MODALITIES[modality][locale];
       const countrySlug = COUNTRIES[country][locale];
+      if (!modalitySlug || !countrySlug) continue;
       clusters.push({
         modality,
         country,
@@ -201,8 +212,9 @@ export function getAllModalityPages(locale: Locale): Array<{
   url: string;
   label: string;
 }> {
-  return Object.keys(MODALITIES).map((modality) => {
+  return Object.keys(MODALITIES).flatMap((modality) => {
     const modalitySlug = MODALITIES[modality as ModalitySlug][locale];
+    if (!modalitySlug) return [];
     return {
       modality: modality as ModalitySlug,
       url: `/${locale}/${modalitySlug}`,
@@ -216,9 +228,10 @@ export function getCountriesForModality(
   locale: Locale,
   modality: ModalitySlug
 ): Array<{ slug: CountrySlug; label: string; url: string }> {
-  return Object.keys(COUNTRIES).map((country) => {
+  return Object.keys(COUNTRIES).flatMap((country) => {
     const countrySlug = COUNTRIES[country as CountrySlug][locale];
     const modalitySlug = MODALITIES[modality][locale];
+    if (!countrySlug || !modalitySlug) return [];
     return {
       slug: country as CountrySlug,
       label: COUNTRIES[country as CountrySlug].label[locale],
@@ -232,9 +245,10 @@ export function getModalitiesForCountry(
   locale: Locale,
   country: CountrySlug
 ): Array<{ slug: ModalitySlug; label: string; url: string }> {
-  return Object.keys(MODALITIES).map((modality) => {
+  return Object.keys(MODALITIES).flatMap((modality) => {
     const modalitySlug = MODALITIES[modality as ModalitySlug][locale];
     const countrySlug = COUNTRIES[country][locale];
+    if (!modalitySlug || !countrySlug) return [];
     return {
       slug: modality as ModalitySlug,
       label: MODALITIES[modality as ModalitySlug].label[locale],
@@ -256,6 +270,7 @@ export function getRelatedByModality(
     if (country !== excludeCountry) {
       const countrySlug = COUNTRIES[country][locale];
       const modalitySlug = MODALITIES[modality][locale];
+      if (!countrySlug || !modalitySlug) continue;
       related.push({
         slug: country,
         label: COUNTRIES[country].label[locale],
@@ -282,6 +297,7 @@ export function getRelatedByCountry(
     if (modality !== excludeModality) {
       const countrySlug = COUNTRIES[country][locale];
       const modalitySlug = MODALITIES[modality][locale];
+      if (!countrySlug || !modalitySlug) continue;
       related.push({
         slug: modality,
         label: MODALITIES[modality].label[locale],
@@ -438,10 +454,14 @@ export async function getClusterEvents(
 const MODALITY_DB_TYPES: Record<ModalitySlug, string> = {
   artistic: 'artistica',
   rhythmic: 'ritmica',
+  acrobatic: 'general',
+  trampoline: 'general',
 };
 
 // Mapping from modality to event discipline
 const MODALITY_DB_DISCIPLINES: Record<ModalitySlug, string> = {
   artistic: 'artistic_female',
   rhythmic: 'rhythmic',
+  acrobatic: '',
+  trampoline: '',
 };

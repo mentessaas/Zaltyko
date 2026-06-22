@@ -209,8 +209,14 @@ async function getSportConfigUsageById(params: {
   uniqueIds.forEach((id) => ensureUsage(id));
   if (uniqueIds.length === 0) return usageById;
 
-  const [athleteRows, groupRows, classRows, assessmentRows, resultRows] = await Promise.all([
-    db
+  let athleteRows: Array<{ sportConfigId: string | null; programCode: string | null }> = [];
+  let groupRows: Array<{ sportConfigId: string | null; programCode: string | null; apparatus: string[] | null }> = [];
+  let classRows: Array<{ sportConfigId: string | null; apparatus: string[] | null }> = [];
+  let assessmentRows: Array<{ sportConfigId: string | null; apparatus: string | null }> = [];
+  let resultRows: Array<{ sportConfigId: string | null; apparatus: string | null }> = [];
+
+  try {
+    athleteRows = await db
       .select({ sportConfigId: athletes.primarySportConfigId, programCode: athletes.programCode })
       .from(athletes)
       .where(and(
@@ -218,8 +224,13 @@ async function getSportConfigUsageById(params: {
         eq(athletes.tenantId, params.tenantId),
         isNull(athletes.deletedAt),
         inArray(athletes.primarySportConfigId, uniqueIds)
-      )),
-    db
+      ));
+  } catch {
+    athleteRows = [];
+  }
+
+  try {
+    groupRows = await db
       .select({ sportConfigId: groups.sportConfigId, programCode: groups.programCode, apparatus: groups.apparatus })
       .from(groups)
       .where(and(
@@ -227,8 +238,13 @@ async function getSportConfigUsageById(params: {
         eq(groups.tenantId, params.tenantId),
         isNull(groups.deletedAt),
         inArray(groups.sportConfigId, uniqueIds)
-      )),
-    db
+      ));
+  } catch {
+    groupRows = [];
+  }
+
+  try {
+    classRows = await db
       .select({ sportConfigId: classes.sportConfigId, apparatus: classes.apparatus })
       .from(classes)
       .where(and(
@@ -236,23 +252,35 @@ async function getSportConfigUsageById(params: {
         eq(classes.tenantId, params.tenantId),
         isNull(classes.deletedAt),
         inArray(classes.sportConfigId, uniqueIds)
-      )),
-    db
+      ));
+  } catch {
+    classRows = [];
+  }
+
+  try {
+    assessmentRows = await db
       .select({ sportConfigId: athleteAssessments.sportConfigId, apparatus: athleteAssessments.apparatus })
       .from(athleteAssessments)
       .where(and(
         eq(athleteAssessments.academyId, params.academyId),
         eq(athleteAssessments.tenantId, params.tenantId),
         inArray(athleteAssessments.sportConfigId, uniqueIds)
-      )),
-    db
+      ));
+  } catch {
+    assessmentRows = [];
+  }
+
+  try {
+    resultRows = await db
       .select({ sportConfigId: competitionResults.sportConfigId, apparatus: competitionResults.apparatus })
       .from(competitionResults)
       .where(and(
         eq(competitionResults.tenantId, params.tenantId),
         inArray(competitionResults.sportConfigId, uniqueIds)
-      )),
-  ]);
+      ));
+  } catch {
+    resultRows = [];
+  }
 
   athleteRows.forEach((row) => {
     if (row.programCode) ensureUsage(row.sportConfigId)?.programCodes.add(row.programCode);

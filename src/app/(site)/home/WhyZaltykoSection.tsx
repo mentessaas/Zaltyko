@@ -47,7 +47,7 @@ export default function WhyZaltykoSection() {
               </span>
             </div>
             <div className="text-center">
-              <span className="text-sm font-semibold text-gray-400">Software genérico</span>
+              <span className="text-sm font-semibold text-gray-600">Software genérico</span>
             </div>
           </div>
 
@@ -75,14 +75,14 @@ export default function WhyZaltykoSection() {
               <div className="flex justify-center">
                 {item.generic === true ? (
                   <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
-                    <Check className="w-5 h-5 text-gray-400" />
+                    <Check className="w-5 h-5 text-gray-600" />
                   </div>
                 ) : item.generic === false ? (
                   <div className="flex h-8 w-8 items-center justify-center rounded-full bg-zaltyko-coral/10">
                     <X className="h-5 w-5 text-zaltyko-coral" />
                   </div>
                 ) : (
-                  <span className="text-gray-400 text-sm">{item.generic}</span>
+                  <span className="text-gray-600 text-sm">{item.generic}</span>
                 )}
               </div>
             </div>

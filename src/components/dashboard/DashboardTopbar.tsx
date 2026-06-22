@@ -28,10 +28,10 @@ export function DashboardTopbar({
 
         {/* Right side - Actions */}
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" className="h-9 w-9">
+          <Button variant="ghost" size="icon" className="h-9 w-9" aria-label="Ver notificaciones">
             <Bell className="h-4 w-4" strokeWidth={1.8} />
           </Button>
-          <Button variant="ghost" size="icon" className="h-9 w-9">
+          <Button variant="ghost" size="icon" className="h-9 w-9" aria-label="Abrir ayuda">
             <HelpCircle className="h-4 w-4" strokeWidth={1.8} />
           </Button>
           {onPOS && (
@@ -46,14 +46,14 @@ export function DashboardTopbar({
               New customer
             </Button>
           )}
-          <Button variant="ghost" size="icon" className="h-9 w-9">
+          <Button variant="ghost" size="icon" className="h-9 w-9" aria-label="Abrir mas opciones">
             <MoreVertical className="h-4 w-4" strokeWidth={1.8} />
           </Button>
 
           {/* User Avatar */}
           <div className="ml-2 flex items-center gap-2 pl-2 border-l border-zaltyko-border">
             <Avatar className="h-8 w-8 border border-zaltyko-border">
-              <AvatarImage src={userAvatar} />
+              <AvatarImage src={userAvatar} alt={userName} />
               <AvatarFallback className="text-xs bg-zaltyko-primary-light text-zaltyko-primary-dark">
                 {userName
                   .split(" ")
@@ -72,4 +72,3 @@ export function DashboardTopbar({
     </header>
   );
 }
-

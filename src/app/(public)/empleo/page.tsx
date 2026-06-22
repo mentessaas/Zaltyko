@@ -27,16 +27,22 @@ async function getJobs(searchParams: { category?: string; jobType?: string; sear
   const res = await fetch(`${baseUrl}/api/empleo?${params}`, {
     cache: "no-store",
   });
-  return res.json();
+  const payload = await res.json();
+  return payload?.data ?? payload;
 }
 
 async function getAds(zone: string) {
   // Use relative URL for server-side fetches in Next.js
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-  const res = await fetch(`${baseUrl}/api/advertising/zones/${zone}`, {
-    cache: "no-store",
-  });
-  return res.json();
+  try {
+    const res = await fetch(`${baseUrl}/api/advertising/zones/${zone}`, {
+      cache: "no-store",
+    });
+    if (!res.ok) return { ads: [] };
+    return res.json();
+  } catch {
+    return { ads: [] };
+  }
 }
 
 export default async function EmpleoPage({

@@ -139,10 +139,6 @@ export default async function AcademyAthletesPage({ params, searchParams }: Page
       id: groups.id,
       name: groups.name,
       color: groups.color,
-      sportConfigId: groups.sportConfigId,
-      programCode: groups.programCode,
-      levelCode: groups.levelCode,
-      categoryCode: groups.categoryCode,
     })
     .from(groups)
     .where(eq(groups.academyId, academyId))
@@ -213,10 +209,10 @@ export default async function AcademyAthletesPage({ params, searchParams }: Page
               id: group.id,
               name: group.name ?? "Grupo sin nombre",
               color: group.color ?? null,
-              sportConfigId: group.sportConfigId,
-              programCode: group.programCode,
-              levelCode: group.levelCode,
-              categoryCode: group.categoryCode,
+              sportConfigId: null,
+              programCode: null,
+              levelCode: null,
+              categoryCode: null,
             }))}
             sportConfigs={sportConfigs}
           />

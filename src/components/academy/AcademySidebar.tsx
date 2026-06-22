@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { ArrowLeft, Plus, Search, Settings } from "lucide-react";
@@ -44,17 +43,6 @@ export function AcademySidebar() {
 
   return (
     <aside className="hidden w-72 flex-col border-r border-white/10 bg-zaltyko-navy px-5 py-6 text-white lg:flex">
-      <div className="mb-6 flex min-h-16 items-center gap-3 border-b border-white/10 pb-5">
-        <Image
-          src="/branding/zaltyko/logo-zaltyko-dark.svg"
-          alt="Zaltyko"
-          width={112}
-          height={32}
-          className="h-8 w-auto"
-          priority
-        />
-      </div>
-
       <div className="mb-5 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
         <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-zaltyko-teal">
           Academia
@@ -84,13 +72,15 @@ export function AcademySidebar() {
 
       <div className="mb-4 grid grid-cols-2 gap-2">
         <Button
+          asChild
           variant="outline"
           size="sm"
           className="border-white/20 text-xs text-white hover:bg-white/10"
-          onClick={() => router.push(`${basePath}/athletes/new`)}
         >
-          <Plus className="mr-1 h-3 w-3" />
-          Nueva gimnasta
+          <Link href={`${basePath}/athletes/new`}>
+            <Plus className="mr-1 h-3 w-3" />
+            Nuevo atleta
+          </Link>
         </Button>
         <Button
           variant="outline"

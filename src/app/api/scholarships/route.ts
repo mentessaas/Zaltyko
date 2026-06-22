@@ -27,6 +27,7 @@ export const GET = withTenant(async (request, context) => {
 
   const url = new URL(request.url);
   const academyId = url.searchParams.get("academyId");
+  const sportConfigId = url.searchParams.get("sportConfigId");
 
   if (!academyId) {
     return apiError("ACADEMY_ID_REQUIRED", "academyId requerido", 400);
@@ -50,7 +51,11 @@ export const GET = withTenant(async (request, context) => {
     .from(scholarships)
     .innerJoin(athletes, eq(scholarships.athleteId, athletes.id))
     .where(
-      and(eq(scholarships.academyId, academyId), eq(scholarships.tenantId, context.tenantId))
+      and(
+        eq(scholarships.academyId, academyId),
+        eq(scholarships.tenantId, context.tenantId),
+        sportConfigId ? eq(athletes.primarySportConfigId, sportConfigId) : undefined
+      )
     );
 
   return apiSuccess({
@@ -70,7 +75,7 @@ export const POST = withTenant(async (request, context) => {
 
   const body = createSchema.parse(await request.json());
 
-  // Validar que el atleta existe
+  // Validar que la persona deportista existe
   const [athlete] = await db
     .select({ id: athletes.id })
     .from(athletes)
@@ -80,7 +85,7 @@ export const POST = withTenant(async (request, context) => {
     .limit(1);
 
   if (!athlete) {
-    return apiError("ATHLETE_NOT_FOUND", "Atleta no encontrado", 404);
+    return apiError("ATHLETE_NOT_FOUND", "Persona deportista no encontrada", 404);
   }
 
   const [newScholarship] = await db

@@ -4,6 +4,7 @@ import { marketplaceListings } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { logger } from "@/lib/logger";
 import { apiError } from "@/lib/api-response";
+import { canUsePublicDemoData, demoMarketplaceListing } from "@/lib/public/demo-listings";
 
 export async function GET(
   request: Request,
@@ -11,6 +12,10 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+
+    if (canUsePublicDemoData(id)) {
+      return NextResponse.json({ item: demoMarketplaceListing });
+    }
 
     const [listing] = await db.select()
       .from(marketplaceListings)

@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { asc, count, desc, eq } from "drizzle-orm";
 import Link from "next/link";
 
@@ -23,6 +23,8 @@ import { coaches } from "@/db/schema";
 import { getAcademySportConfigOptions } from "@/lib/sport-config/service";
 import { getTerminologyForSportConfig } from "@/lib/sport-config/terminology";
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 interface PageProps {
   params: Promise<{
     academyId: string;
@@ -32,6 +34,14 @@ interface PageProps {
 
 export default async function AthleteDetailPage({ params }: PageProps) {
   const { academyId, athleteId } = await params;
+
+  if (athleteId === "new") {
+    redirect(`/app/${academyId}/athletes/new`);
+  }
+
+  if (!UUID_PATTERN.test(athleteId)) {
+    notFound();
+  }
 
   const [athleteRow] = await db
     .select({
@@ -45,7 +55,6 @@ export default async function AthleteDetailPage({ params }: PageProps) {
       groupName: groups.name,
       groupColor: groups.color,
       primarySportConfigId: athletes.primarySportConfigId,
-      groupSportConfigId: groups.sportConfigId,
       tenantId: athletes.tenantId,
       academyOwner: athletes.academyId,
     })
@@ -139,7 +148,7 @@ export default async function AthleteDetailPage({ params }: PageProps) {
   const sportConfigs = await getAcademySportConfigOptions(academyId);
   const athleteTerms = getTerminologyForSportConfig(
     sportConfigs,
-    athleteRow.primarySportConfigId ?? athleteRow.groupSportConfigId
+    athleteRow.primarySportConfigId
   );
 
   let formattedDob: string | null = null;
@@ -174,7 +183,7 @@ export default async function AthleteDetailPage({ params }: PageProps) {
           groupName: athleteRow.groupName,
           groupColor: athleteRow.groupColor,
           primarySportConfigId: athleteRow.primarySportConfigId,
-          groupSportConfigId: athleteRow.groupSportConfigId,
+          groupSportConfigId: null,
         }}
         age={age}
         formattedDob={formattedDob}

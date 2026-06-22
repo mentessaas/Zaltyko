@@ -207,7 +207,7 @@ export function LoginForm() {
         footer={
           <>
             ¿Aún no tienes cuenta?{" "}
-            <Link href="/auth/register" className="font-semibold text-zaltyko-teal hover:underline">
+            <Link href="/auth/register" className="font-semibold text-zaltyko-indigo hover:underline">
               Crea una cuenta
             </Link>
           </>
@@ -259,7 +259,7 @@ export function LoginForm() {
           <Button
             onClick={handleMagicLink}
             variant="outline"
-            className="w-full"
+            className="w-full border-zaltyko-primary-dark text-zaltyko-primary-dark hover:bg-zaltyko-primary-dark hover:text-white"
             disabled={magicLinkLoading || loading}
           >
             {magicLinkLoading ? (

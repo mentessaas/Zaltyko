@@ -4,8 +4,10 @@ import { useInstallPrompt } from "@/hooks/useInstallPrompt";
 import { Button } from "./button";
 import { X } from "lucide-react";
 import { useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
 
 export function InstallPrompt() {
+  const pathname = usePathname();
   const {
     installPrompt,
     isInstallable,
@@ -16,17 +18,28 @@ export function InstallPrompt() {
   } = useInstallPrompt();
 
   const [visible, setVisible] = useState(false);
+  const isAuthRoute = pathname === "/login" || pathname?.startsWith("/auth/");
+  const isAuthenticatedAppRoute =
+    pathname?.startsWith("/app/") ||
+    pathname?.startsWith("/dashboard") ||
+    pathname?.startsWith("/super-admin");
+  const isSuppressedRoute = isAuthRoute || isAuthenticatedAppRoute;
 
   useEffect(() => {
+    if (isSuppressedRoute) {
+      setVisible(false);
+      return;
+    }
+
     // Delay showing prompt to not annoy user on first visit
     const timer = setTimeout(() => {
       setVisible(isInstallable);
     }, 3000);
 
     return () => clearTimeout(timer);
-  }, [isInstallable]);
+  }, [isSuppressedRoute, isInstallable]);
 
-  if (!isInstallable || isInstalled || isDismissed || !visible) {
+  if (isSuppressedRoute || !isInstallable || isInstalled || isDismissed || !visible) {
     return null;
   }
 

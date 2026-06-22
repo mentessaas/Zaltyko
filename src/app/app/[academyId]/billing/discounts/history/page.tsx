@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { DiscountHistory } from "@/components/billing/DiscountHistory";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
+import { getAcademySportConfigOptions } from "@/lib/sport-config/service";
 
 interface PageProps {
   params: Promise<{
@@ -24,6 +25,7 @@ export default async function DiscountHistoryPage({ params }: PageProps) {
   }
 
   const { academyId } = await params;
+  const sportConfigs = await getAcademySportConfigOptions(academyId);
 
   return (
     <div className="space-y-6 p-4 sm:p-6 lg:p-8">
@@ -35,7 +37,16 @@ export default async function DiscountHistoryPage({ params }: PageProps) {
           { label: "Historial" },
         ]}
       />
-      <DiscountHistory academyId={academyId} />
+      <DiscountHistory
+        academyId={academyId}
+        sportConfigs={sportConfigs.map((config) => ({
+          id: config.id,
+          name: config.name,
+          disciplineName: config.disciplineName,
+          branchName: config.branchName,
+          terminology: config.terminology,
+        }))}
+      />
     </div>
   );
 }

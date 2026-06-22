@@ -49,7 +49,7 @@ export function summarizeStarterGroupSetup(
     }
 
     if (item.athleteCount === 0) {
-      issues.push("Sin gimnastas asignadas");
+      issues.push("Sin atletas asignados");
     }
 
     return {
@@ -73,7 +73,7 @@ export function summarizeStarterGroupSetup(
     readyCount,
     missingCoachCount: items.filter((item) => item.issues.includes("Sin responsable asignado")).length,
     missingLevelCount: items.filter((item) => item.issues.includes("Nivel pendiente")).length,
-    emptyGroupCount: items.filter((item) => item.issues.includes("Sin gimnastas asignadas")).length,
+    emptyGroupCount: items.filter((item) => item.issues.includes("Sin atletas asignados")).length,
     missingTemplateCount: missingTemplateNames.length,
     completionPercentage: Math.round((readyCount / completionBase) * 100),
     items,

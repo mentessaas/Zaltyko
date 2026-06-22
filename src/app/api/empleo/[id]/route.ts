@@ -5,6 +5,7 @@ import { apiSuccess, apiError } from "@/lib/api-response";
 import { logger } from "@/lib/logger";
 import { withTenant, type TenantContext } from "@/lib/authz";
 import { verifyAcademyAccess } from "@/lib/permissions";
+import { canUsePublicDemoData, demoEmploymentListing } from "@/lib/public/demo-listings";
 
 type RouteContext = TenantContext<{ params: { id: string } }>;
 
@@ -14,6 +15,10 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+
+    if (canUsePublicDemoData(id)) {
+      return apiSuccess({ item: demoEmploymentListing });
+    }
 
     const [listing] = await db.select()
       .from(empleoListings)

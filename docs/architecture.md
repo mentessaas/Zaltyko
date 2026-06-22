@@ -64,3 +64,31 @@ El núcleo de la seguridad de Zaltyko es el aislamiento de datos. No utilizamos 
 2.  Se genera sesión de Stripe Checkout.
 3.  Usuario paga en Stripe.
 4.  Webhook recibe confirmación -> Actualiza `subscriptions` en BD -> Desbloquea límites inmediatamente.
+
+## Estado Arquitectura Sprint 3
+
+### App Router y renderizado
+
+- El producto usa Next.js 15.5 con App Router en `src/app`.
+- Las rutas de academia viven bajo `/app/[academyId]` y cargan contexto de academia, membresía, plan y especialización deportiva en el layout.
+- Las rutas que dependen de sesión, tenant, pagos, reportes o datos en tiempo real permanecen dinámicas. La revisión Sprint 3 detectó muchos `force-dynamic`; por ahora se documenta el estado y se evita cambiar cacheo sin pruebas funcionales por ruta.
+
+### Multi-tenancy y APIs
+
+- Las APIs deben usar `withTenant` para validar sesión, academia y aislamiento por tenant.
+- Las respuestas nuevas deben usar `apiSuccess`, `apiCreated` o `apiError`.
+- La UI de academia consume `AcademyProvider`, navegación especializada y contexto de plan para evitar pasar datos globales por props.
+
+### Base de datos y migraciones
+
+- El schema fuente vive en `src/db/schema/index.ts`; Drizzle genera migraciones en `drizzle/`.
+- Supabase mantiene migraciones SQL operativas en `supabase/migrations/`.
+- Sprint 3 añade una disciplina explícita: revisar changelog Supabase antes de migraciones y comprobar SQL generado antes de aplicar cambios remotos.
+- Desde el cambio de Supabase de 2026-04-28, las tablas nuevas en `public` pueden no exponerse automáticamente a Data API; cualquier tabla pública nueva debe revisar grants/RLS explícitamente.
+
+### Auditoría y calidad
+
+- Playwright queda configurado en `playwright.config.ts`.
+- `tests/e2e-zaltyko-full.spec.ts` cubre flujos críticos, responsive y regresiones PWA.
+- `tests/a11y-zaltyko.spec.ts` usa `@axe-core/playwright` con tags WCAG A/AA.
+- El reporte reproducible del Sprint 3 vive en `docs/audits/sprint-3/README.md`.

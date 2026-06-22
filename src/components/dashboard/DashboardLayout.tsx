@@ -21,9 +21,9 @@ export function DashboardLayout({
   onPOS,
 }: DashboardLayoutProps) {
   return (
-    <div className="flex h-screen bg-zaltyko-bg">
+    <div className="flex min-h-screen bg-zaltyko-bg">
       <DashboardSidebar />
-      <div className="flex flex-1 flex-col ml-64">
+      <div className="flex min-w-0 flex-1 flex-col lg:ml-64">
         <DashboardTopbar
           userName={userName}
           userEmail={userEmail}
@@ -31,7 +31,7 @@ export function DashboardLayout({
           onNewCustomer={onNewCustomer}
           onPOS={onPOS}
         />
-        <main className="flex-1 overflow-y-auto p-8">
+        <main className="flex-1 overflow-y-auto px-4 py-6 sm:px-6 lg:p-8">
           <div className="mx-auto max-w-7xl">
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3">
               {children}
@@ -42,4 +42,3 @@ export function DashboardLayout({
     </div>
   );
 }
-

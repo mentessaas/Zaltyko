@@ -57,11 +57,10 @@ export const GET = withTenant(async (request, context) => {
       return handleApiError(params.error);
     }
 
-    const { academyId, sportConfigId, includeAssignments } = params.data;
+    const { academyId, includeAssignments } = params.data;
 
     const classConditions = [
       academyId ? eq(classes.academyId, academyId) : eq(classes.tenantId, context.tenantId),
-      sportConfigId ? eq(classes.sportConfigId, sportConfigId) : undefined,
     ].filter(Boolean) as any[];
     const classFilter = classConditions.reduce<any>(
       (accumulator, condition) => (accumulator ? and(accumulator, condition) : condition),
@@ -74,15 +73,6 @@ export const GET = withTenant(async (request, context) => {
         name: classes.name,
         academyId: classes.academyId,
         academyName: academies.name,
-        startTime: classes.startTime,
-        endTime: classes.endTime,
-        capacity: classes.capacity,
-        technicalFocus: classes.technicalFocus,
-        apparatus: classes.apparatus,
-        isExtra: classes.isExtra,
-        sportConfigId: classes.sportConfigId,
-        groupId: classes.groupId,
-        createdAt: classes.createdAt,
       })
       .from(classes)
       .innerJoin(academies, eq(classes.academyId, academies.id))
@@ -114,6 +104,15 @@ export const GET = withTenant(async (request, context) => {
 
     const baseItems = classRows.map((clazz) => ({
       ...clazz,
+      startTime: null,
+      endTime: null,
+      capacity: null,
+      technicalFocus: null,
+      apparatus: [],
+      isExtra: false,
+      sportConfigId: null,
+      groupId: null,
+      createdAt: null,
       weekdays: (weekdayMap.get(clazz.id) ?? []).sort((a, b) => a - b),
     }));
 

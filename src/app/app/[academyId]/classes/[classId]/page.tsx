@@ -39,9 +39,6 @@ export default async function ClassDetailPage({ params }: PageProps) {
       startTime: classes.startTime,
       endTime: classes.endTime,
       capacity: classes.capacity,
-      technicalFocus: classes.technicalFocus,
-      apparatus: classes.apparatus,
-      sportConfigId: classes.sportConfigId,
     })
     .from(classes)
     .where(eq(classes.id, classId))
@@ -138,7 +135,6 @@ export default async function ClassDetailPage({ params }: PageProps) {
       groupName: groups.name,
       groupColor: groups.color,
       primarySportConfigId: athletes.primarySportConfigId,
-      groupSportConfigId: groups.sportConfigId,
     })
     .from(athletes)
     .leftJoin(groups, eq(athletes.groupId, groups.id))
@@ -202,9 +198,9 @@ export default async function ClassDetailPage({ params }: PageProps) {
     startTime: classRow.startTime,
     endTime: classRow.endTime,
     capacity: classRow.capacity,
-    technicalFocus: classRow.technicalFocus ?? classTechnicalGuidance.focusAreas.join(". "),
-    apparatus: classRow.apparatus?.length ? classRow.apparatus : classTechnicalGuidance.apparatus,
-    sportConfigId: classRow.sportConfigId,
+    technicalFocus: classTechnicalGuidance.focusAreas.join(". "),
+    apparatus: classTechnicalGuidance.apparatus,
+    sportConfigId: null,
     coaches: coachAssignments.map((assignment) => ({
       id: assignment.coachId,
       name: assignment.coachName ?? "Sin nombre",
@@ -225,7 +221,7 @@ export default async function ClassDetailPage({ params }: PageProps) {
           groupName: athlete.groupName,
           groupColor: athlete.groupColor,
           primarySportConfigId: athlete.primarySportConfigId,
-          groupSportConfigId: athlete.groupSportConfigId,
+          groupSportConfigId: null,
         }))}
         coachOptions={coachOptions.map((coach) => ({
           id: coach.id,

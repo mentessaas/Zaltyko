@@ -87,7 +87,7 @@ export default function FaqSection() {
                 </span>
                 <ChevronDown
                   className={cn(
-                    "h-5 w-5 text-gray-400 shrink-0 transition-transform duration-200",
+                    "h-5 w-5 text-gray-600 shrink-0 transition-transform duration-200",
                     openIndex === i && "rotate-180 text-zaltyko-coral"
                   )}
                 />
@@ -124,7 +124,7 @@ export default function FaqSection() {
           >
             Escríbenos a hola@zaltyko.com
           </a>
-          <p className="text-sm text-gray-400 mt-2">
+          <p className="text-sm text-gray-600 mt-2">
             Respondemos en menos de 24h en días laborables
           </p>
         </div>

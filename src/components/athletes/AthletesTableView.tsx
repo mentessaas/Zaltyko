@@ -81,9 +81,10 @@ export function AthletesTableView({
         });
         if (response.ok) {
           const data = await response.json();
-          if (Array.isArray(data.alerts)) {
+          const alerts = data?.data?.items ?? data?.items ?? data?.alerts ?? [];
+          if (Array.isArray(alerts)) {
             const athleteIdsWithAlerts = new Set<string>(
-              data.alerts.map((alert: any) => alert.athleteId as string)
+              alerts.map((alert: any) => alert.athleteId as string)
             );
             setAthletesWithAlerts(athleteIdsWithAlerts);
           }

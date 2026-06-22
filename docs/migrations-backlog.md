@@ -1,5 +1,30 @@
 # Backlog de migraciones · GymnaSaaS
 
+## Estado Sprint 3 · 2026-06-21
+
+- Changelog Supabase revisado antes de ejecutar migraciones.
+- Cambio relevante: desde 2026-04-28, las tablas nuevas en `public` pueden no exponerse automáticamente a Data API. Para nuevas tablas públicas, revisar `GRANT`, RLS y políticas por rol.
+- Cambio relevante: deprecación de Postgres 14 el 2026-07-01. Confirmar versión del proyecto antes de producción si el proyecto es antiguo.
+- Migraciones locales detectadas:
+  - Drizzle: `drizzle/0000_silent_tomas.sql`, `drizzle/0001_cloudy_sleeper.sql`, `drizzle/0002_sturdy_toad.sql`.
+  - Supabase SQL: `supabase/migrations/0006_*` a `0011_*` y migraciones fechadas `20260618*`.
+- Comandos Sprint 3:
+
+```bash
+pnpm db:generate
+pnpm db:migrate
+pnpm exec tsx scripts/check-migrations.ts
+pnpm exec tsx scripts/verify-migrations-status.ts
+```
+
+Resultado Sprint 3:
+
+- `pnpm db:generate` no generó archivo nuevo porque Drizzle abrió una decisión interactiva sobre `academy_diagnostics.score` vs columnas antiguas del snapshot (`yes_count`, `recommendations`, `completed_by`, `completed_at`). No se eligió rename de forma automática.
+- `pnpm db:migrate` intentó conectar con la DB real, pero quedó bloqueado por `SELF_SIGNED_CERT_IN_CHAIN`.
+- `pnpm exec tsx scripts/check-migrations.ts` y `pnpm exec tsx scripts/verify-migrations-status.ts` fallaron por el mismo certificado.
+
+No eliminar fallbacks resilientes hasta que `DATABASE_URL` tenga una configuración TLS válida y `pnpm db:migrate` más los smoke tests confirmen que las columnas/tablas existen en el entorno objetivo.
+
 ## Convenciones
 - Todas las tablas **multi-tenant** deben incluir `tenant_id uuid not null` con índice `btree`.
 - Fechas con zona horaria (`timestamptz`) y `default now()`.
@@ -54,4 +79,3 @@
 | Gamificación | `academy_levels`, `academy_rewards`, `reward_redemptions`. |
 
 > **Recomendación**: generar una migración por objetivo atómico, usando `drizzle-kit`. Mantener seeds en `scripts/seed.ts` alineados con los nuevos datos de demo para testing local/preview.
-

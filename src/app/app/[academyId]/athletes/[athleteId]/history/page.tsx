@@ -61,8 +61,6 @@ export default async function AthleteHistoryPage({ params }: PageProps) {
         .select({
           id: groups.id,
           name: groups.name,
-          technicalFocus: groups.technicalFocus,
-          apparatus: groups.apparatus,
         })
         .from(groups)
         .where(eq(groups.id, athlete.groupId))
@@ -71,17 +69,13 @@ export default async function AthleteHistoryPage({ params }: PageProps) {
 
   const contextualApparatus = resolveSpecializedApparatusCodes(specialization, [
     ...(athlete.primaryApparatus ? [athlete.primaryApparatus] : []),
-    ...((groupRow?.apparatus ?? []) as string[]),
   ]);
   const technicalContext =
     groupRow || contextualApparatus.length > 0
       ? {
           groupName: groupRow?.name ?? null,
-          technicalFocus: groupRow?.technicalFocus ?? null,
-          apparatus:
-            contextualApparatus.length > 0
-              ? contextualApparatus
-              : ((groupRow?.apparatus ?? []) as string[]),
+          technicalFocus: null,
+          apparatus: contextualApparatus,
         }
       : null;
 

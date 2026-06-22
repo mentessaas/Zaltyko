@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 
 const VALID_LOCALES = ["es", "en"] as const;
-const VALID_MODALITIES = ["artistic", "rhythmic"] as const;
+const VALID_MODALITIES = Object.keys(MODALITIES) as ModalitySlug[];
 
 interface ModalityPageProps {
   params: Promise<{
@@ -30,6 +30,7 @@ export async function generateStaticParams() {
   for (const locale of VALID_LOCALES) {
     for (const modality of VALID_MODALITIES) {
       const modalitySlug = MODALITIES[modality][locale as Locale];
+      if (!modalitySlug) continue;
       params.push({
         locale,
         modality: modalitySlug,

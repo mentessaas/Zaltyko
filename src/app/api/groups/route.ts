@@ -46,7 +46,6 @@ export const GET = withTenant(async (request, context) => {
   try {
     const url = new URL(request.url);
     const academyIdParam = url.searchParams.get("academyId");
-    const sportConfigId = url.searchParams.get("sportConfigId");
     const activeAcademyId = context.profile.activeAcademyId;
 
     const targetAcademyId = academyIdParam ?? activeAcademyId ?? null;
@@ -80,14 +79,7 @@ export const GET = withTenant(async (request, context) => {
         id: groups.id,
         name: groups.name,
         discipline: groups.discipline,
-        sportConfigId: groups.sportConfigId,
-        programCode: groups.programCode,
-        levelCode: groups.levelCode,
-        categoryCode: groups.categoryCode,
         level: groups.level,
-        technicalFocus: groups.technicalFocus,
-        apparatus: groups.apparatus,
-        sessionBlocks: groups.sessionBlocks,
         color: groups.color,
         coachId: groups.coachId,
         assistantIds: groups.assistantIds,
@@ -102,8 +94,7 @@ export const GET = withTenant(async (request, context) => {
       .where(
         and(
           eq(groups.tenantId, academyRow.tenantId),
-          eq(groups.academyId, targetAcademyId),
-          sportConfigId ? eq(groups.sportConfigId, sportConfigId) : undefined
+          eq(groups.academyId, targetAcademyId)
         )
       )
       .orderBy(asc(groups.name));
@@ -125,6 +116,13 @@ export const GET = withTenant(async (request, context) => {
     const countMap = new Map(athleteCounts.map((c) => [c.groupId, Number(c.athleteCount)]));
     const rows = groupRows.map((group) => ({
       ...group,
+      sportConfigId: null,
+      programCode: null,
+      levelCode: null,
+      categoryCode: null,
+      technicalFocus: null,
+      apparatus: [],
+      sessionBlocks: [],
       athleteCount: countMap.get(group.id) ?? 0,
     }));
 

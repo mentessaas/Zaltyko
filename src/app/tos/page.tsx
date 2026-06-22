@@ -23,7 +23,7 @@ const sections = [
   {
     title: "3. Planes, pagos y facturación",
     paragraphs: [
-      "Ofrecemos planes Free, Pro y Premium descritos en https://zaltyko.com/pricing. Los pagos recurrentes se procesan a través de Stripe u otro proveedor autorizado.",
+      "Ofrecemos planes Starter, Growth y Network descritos en https://zaltyko.com/pricing. Los pagos recurrentes se procesan a través de Stripe u otro proveedor autorizado.",
       "Puedes cancelar o cambiar de plan en cualquier momento desde el portal de facturación. Si solicitas la baja, el plan continuará activo hasta el final del periodo en curso.",
       "Para compras realizadas a través de Stripe, aplicamos un periodo de reembolso de 7 días en caso de insatisfacción, siempre que no se haya utilizado de forma abusiva el servicio.",
     ],
@@ -32,13 +32,13 @@ const sections = [
     title: "4. Uso aceptable",
     paragraphs: [
       "Queda prohibido subir contenido ilegal, difamatorio o que infrinja derechos de terceros. También se prohíbe el uso del servicio para spam, scraping o cualquier actividad que comprometa la seguridad.",
-      "Mentes SaaS se reserva el derecho de auditar logs de auditoría para detectar uso indebido y tomar medidas correctivas.",
+      "Zaltyko S.L. se reserva el derecho de auditar logs de auditoría para detectar uso indebido y tomar medidas correctivas.",
     ],
   },
   {
     title: "5. Propiedad intelectual",
     paragraphs: [
-      "Zaltyko y sus componentes son propiedad de Mentes SaaS S.L. El uso del servicio no concede derechos de propiedad intelectual sobre el software, salvo las licencias limitadas contempladas en estos términos.",
+      "Zaltyko y sus componentes son propiedad de Zaltyko S.L. El uso del servicio no concede derechos de propiedad intelectual sobre el software, salvo las licencias limitadas contempladas en estos términos.",
       "La información cargada por tu academia seguirá siendo tuya. Tienes derecho a exportarla mientras la cuenta esté activa o durante los 30 días posteriores a la cancelación.",
     ],
   },
@@ -52,7 +52,7 @@ const sections = [
   {
     title: "7. Integraciones de terceros",
     paragraphs: [
-      "El acceso a integraciones opcionales (Stripe, Mailgun, GymnasticMeet, etc.) está sujeto a los términos de cada proveedor. No somos responsables de su disponibilidad ni de incidencias derivadas de su uso.",
+      "El acceso a integraciones opcionales (Stripe, Supabase, Brevo y otros proveedores autorizados) está sujeto a los términos de cada proveedor. No somos responsables de su disponibilidad ni de incidencias derivadas de su uso.",
     ],
   },
   {
