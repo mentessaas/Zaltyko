@@ -1,0 +1,58 @@
+---
+status: active
+owner: tech
+last_reviewed: 2026-06-22
+source:
+  - ../README.md
+  - ../package.json
+  - ../docs/development-guide.md
+---
+# Runbook desarrollo
+
+## Setup
+
+```bash
+pnpm install
+cp .env.example .env.local
+pnpm dev
+```
+
+## Base de datos local/remota
+
+```bash
+pnpm db:generate
+pnpm db:migrate
+pnpm db:seed
+```
+
+## Verificaciones
+
+```bash
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm test:e2e
+pnpm test:a11y
+```
+
+## E2E autenticado
+
+1. Verificar Supabase:
+
+```bash
+pnpm test:e2e:verify-supabase
+```
+
+2. Generar storage state:
+
+```bash
+BASE_URL=http://127.0.0.1:3000 E2E_AUTH_EMAIL=... E2E_AUTH_PASSWORD=... pnpm test:e2e:auth
+```
+
+3. Ejecutar auditorias con `E2E_STORAGE_STATE=.auth/user.json`.
+
+## Antes de cerrar un cambio
+
+- Ejecutar las pruebas proporcionales al riesgo.
+- Actualizar esta vault si cambian producto, negocio, marketing, ventas, arquitectura, deploy, seguridad o roadmap.
+- Registrar deuda nueva en [[Backlog priorizado]].

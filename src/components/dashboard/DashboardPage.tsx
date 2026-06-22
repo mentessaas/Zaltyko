@@ -412,13 +412,13 @@ export function DashboardPage({
 
       if (starterGroupSummary.emptyGroupCount > 0) {
         const focusGroupId = starterGroupSummary.items.find((item) =>
-          item.issues.includes("Sin gimnastas asignadas")
+          item.issues.includes("Sin atletas asignados")
         )?.id;
         return {
           title: `Empieza a poblar tus ${labels.groupLabel.toLowerCase()}s iniciales`,
-          description: `Aún hay ${starterGroupSummary.emptyGroupCount} ${starterGroupSummary.emptyGroupCount === 1 ? `${labels.groupLabel.toLowerCase()} sin gimnastas` : `${labels.groupLabel.toLowerCase()}s sin gimnastas`} asignadas.`,
+          description: `Aún hay ${starterGroupSummary.emptyGroupCount} ${starterGroupSummary.emptyGroupCount === 1 ? `${labels.groupLabel.toLowerCase()} sin atletas` : `${labels.groupLabel.toLowerCase()}s sin atletas`} asignados.`,
           href: focusGroupId ? `/app/${academyId}/groups?focusGroup=${focusGroupId}` : `/app/${academyId}/groups`,
-          cta: "Asignar gimnastas",
+          cta: "Asignar atletas",
         };
       }
 

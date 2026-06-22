@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { asc, eq, inArray, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -57,25 +57,13 @@ export default async function AcademyGroupsPage({ params, searchParams }: PagePr
     typeof resolvedSearchParams.focusGroup === "string" && resolvedSearchParams.focusGroup.trim().length > 0
       ? resolvedSearchParams.focusGroup.trim()
       : undefined;
-  const sportConfigFilter =
-    typeof resolvedSearchParams.sportConfigId === "string" && resolvedSearchParams.sportConfigId.trim().length > 0
-      ? resolvedSearchParams.sportConfigId.trim()
-      : undefined;
-
   // Primero obtener los grupos con el coach
   const groupRows = await db
     .select({
       id: groups.id,
       name: groups.name,
       discipline: groups.discipline,
-      sportConfigId: groups.sportConfigId,
-      programCode: groups.programCode,
-      levelCode: groups.levelCode,
-      categoryCode: groups.categoryCode,
       level: groups.level,
-      technicalFocus: groups.technicalFocus,
-      apparatus: groups.apparatus,
-      sessionBlocks: groups.sessionBlocks,
       color: groups.color,
       coachId: groups.coachId,
       assistantIds: groups.assistantIds,
@@ -86,7 +74,7 @@ export default async function AcademyGroupsPage({ params, searchParams }: PagePr
     })
     .from(groups)
     .leftJoin(coaches, eq(groups.coachId, coaches.id))
-    .where(and(eq(groups.academyId, academyId), sportConfigFilter ? eq(groups.sportConfigId, sportConfigFilter) : undefined))
+    .where(eq(groups.academyId, academyId))
     .orderBy(asc(groups.createdAt));
 
   // Obtener el conteo de atletas por grupo usando una subconsulta
@@ -155,14 +143,14 @@ export default async function AcademyGroupsPage({ params, searchParams }: PagePr
     academyId,
     name: group.name,
     discipline: group.discipline,
-    sportConfigId: group.sportConfigId,
-    programCode: group.programCode,
-    levelCode: group.levelCode,
-    categoryCode: group.categoryCode,
+    sportConfigId: null,
+    programCode: null,
+    levelCode: null,
+    categoryCode: null,
     level: group.level ?? null,
-    technicalFocus: group.technicalFocus ?? null,
-    apparatus: group.apparatus ?? [],
-    sessionBlocks: group.sessionBlocks ?? [],
+    technicalFocus: null,
+    apparatus: [],
+    sessionBlocks: [],
     color: group.color ?? null,
     coachId: group.coachId ?? null,
     coachName: group.coachName ?? null,

@@ -10,6 +10,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useToast } from "@/components/ui/toast-provider";
 
 interface FinancialStats {
@@ -22,18 +29,54 @@ interface FinancialStats {
   pendingCharges: number;
   overdueCharges: number;
   averagePaymentTime: number;
+  bySportConfig?: SportFinancialBreakdown[];
+}
+
+interface SportFinancialBreakdown {
+  sportConfigId: string | null;
+  label: string;
+  disciplineName: string | null;
+  branchName: string | null;
+  totalRevenue: number;
+  paidAmount: number;
+  pendingAmount: number;
+  overdueAmount: number;
+  totalCharges: number;
+  paidCharges: number;
+  pendingCharges: number;
+  overdueCharges: number;
+  activeScholarships: number;
+  discountAmount: number;
+  coachCostAmount: number;
+  directExpenseAmount: number;
+  allocatedAcademyExpenseAmount: number;
+  estimatedCostAmount: number;
+  estimatedMarginAmount: number;
+  estimatedMarginRate: number | null;
+  profitabilityStatus: "profitable" | "at_risk" | "loss" | "unknown";
 }
 
 interface FinancialReportProps {
   academyId: string;
   academyCountry?: string | null;
   initialData?: FinancialStats;
+  sportConfigs?: Array<{
+    id: string;
+    disciplineName: string;
+    branchName: string;
+  }>;
 }
 
-export function FinancialReport({ academyId, academyCountry, initialData }: FinancialReportProps) {
+export function FinancialReport({
+  academyId,
+  academyCountry,
+  initialData,
+  sportConfigs = [],
+}: FinancialReportProps) {
   const toast = useToast();
   const [startDate, setStartDate] = useState(format(subMonths(new Date(), 3), "yyyy-MM-dd"));
   const [endDate, setEndDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [sportConfigId, setSportConfigId] = useState("");
   const [reportData, setReportData] = useState<FinancialStats | null>(initialData || null);
   const [monthlyData, setMonthlyData] = useState<any[]>([]);
   const [delinquencyData, setDelinquencyData] = useState<any[]>([]);
@@ -50,6 +93,7 @@ export function FinancialReport({ academyId, academyCountry, initialData }: Fina
         academyId,
         ...(startDate && { startDate }),
         ...(endDate && { endDate }),
+        ...(sportConfigId && { sportConfigId }),
       });
 
       const [statsResponse, monthlyResponse, delinquencyResponse] = await Promise.all([
@@ -94,6 +138,7 @@ export function FinancialReport({ academyId, academyCountry, initialData }: Fina
         format: "pdf",
         ...(startDate && { startDate }),
         ...(endDate && { endDate }),
+        ...(sportConfigId && { sportConfigId }),
       });
 
       const response = await fetch(`/api/reports/financial/export?${params}`);
@@ -129,6 +174,7 @@ export function FinancialReport({ academyId, academyCountry, initialData }: Fina
         format: "excel",
         ...(startDate && { startDate }),
         ...(endDate && { endDate }),
+        ...(sportConfigId && { sportConfigId }),
       });
 
       const response = await fetch(`/api/reports/financial/export?${params}`);
@@ -183,7 +229,7 @@ export function FinancialReport({ academyId, academyCountry, initialData }: Fina
           <CardTitle>Filtros</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 md:grid-cols-3">
             <div className="space-y-2">
               <Label htmlFor="start-date">Fecha Inicio</Label>
               <Input
@@ -201,6 +247,25 @@ export function FinancialReport({ academyId, academyCountry, initialData }: Fina
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
               />
+            </div>
+            <div className="space-y-2">
+              <Label>Rama / modalidad</Label>
+              <Select
+                value={sportConfigId || "all"}
+                onValueChange={(value) => setSportConfigId(value === "all" ? "" : value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Todas las ramas" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas las ramas</SelectItem>
+                  {sportConfigs.map((config) => (
+                    <SelectItem key={config.id} value={config.id}>
+                      {config.branchName} · {config.disciplineName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <Button onClick={loadReport} disabled={isLoading}>
@@ -335,6 +400,61 @@ export function FinancialReport({ academyId, academyCountry, initialData }: Fina
             </Card>
           </div>
 
+          {reportData.bySportConfig && reportData.bySportConfig.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Negocio por rama</CardTitle>
+                <CardDescription>
+                  Desglose de ingresos, cobros, morosidad, becas y descuentos por configuración deportiva.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[760px] text-sm">
+                    <thead>
+                      <tr className="border-b text-left text-muted-foreground">
+                        <th className="py-2 pr-3 font-medium">Rama</th>
+                        <th className="py-2 pr-3 font-medium">Total</th>
+                        <th className="py-2 pr-3 font-medium">Cobrado</th>
+                        <th className="py-2 pr-3 font-medium">Pendiente</th>
+                        <th className="py-2 pr-3 font-medium">Morosidad</th>
+                        <th className="py-2 pr-3 font-medium">Cargos</th>
+                        <th className="py-2 pr-3 font-medium">Becas</th>
+                        <th className="py-2 pr-3 font-medium">Descuentos</th>
+                        <th className="py-2 pr-3 font-medium">Coste</th>
+                        <th className="py-2 pr-3 font-medium">Margen</th>
+                        <th className="py-2 pr-3 font-medium">Margen %</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {reportData.bySportConfig.map((item) => (
+                        <tr key={item.sportConfigId ?? "unassigned"} className="border-b last:border-0">
+                          <td className="py-3 pr-3 font-medium text-zaltyko-navy">{item.label}</td>
+                          <td className="py-3 pr-3">{item.totalRevenue.toFixed(2)} €</td>
+                          <td className="py-3 pr-3 text-green-700">{item.paidAmount.toFixed(2)} €</td>
+                          <td className="py-3 pr-3 text-yellow-700">{item.pendingAmount.toFixed(2)} €</td>
+                          <td className="py-3 pr-3 text-red-700">{item.overdueAmount.toFixed(2)} €</td>
+                          <td className="py-3 pr-3">{item.totalCharges}</td>
+                          <td className="py-3 pr-3">{item.activeScholarships}</td>
+                          <td className="py-3 pr-3">{item.discountAmount.toFixed(2)} €</td>
+                          <td className="py-3 pr-3">{item.estimatedCostAmount.toFixed(2)} €</td>
+                          <td className={item.estimatedMarginAmount < 0 ? "py-3 pr-3 text-red-700" : "py-3 pr-3 text-green-700"}>
+                            {item.estimatedMarginAmount.toFixed(2)} €
+                          </td>
+                          <td className="py-3 pr-3">
+                            {item.estimatedMarginRate === null
+                              ? "N/A"
+                              : `${(item.estimatedMarginRate * 100).toFixed(1)}%`}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {delinquencyData.length > 0 && (
             <Card>
               <CardHeader>
@@ -353,6 +473,7 @@ export function FinancialReport({ academyId, academyCountry, initialData }: Fina
                       <div>
                         <p className="font-medium">{item.athleteName}</p>
                         <p className="text-sm text-muted-foreground">
+                          {item.sportConfigLabel} ·{" "}
                           {item.overdueCharges} cargos vencidos
                           {item.oldestOverdue &&
                             ` · Más antiguo: ${formatLongDateForCountry(item.oldestOverdue, academyCountry)}`}

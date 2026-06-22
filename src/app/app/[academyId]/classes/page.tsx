@@ -6,7 +6,6 @@ import { Dumbbell } from "lucide-react";
 import { db } from "@/db";
 import {
   academies,
-  athletes,
   classCoachAssignments,
   classEnrollments,
   classGroups,
@@ -14,6 +13,7 @@ import {
   classes,
   coaches,
   coachSportConfigs,
+  groupAthletes,
   groups,
 } from "@/db/schema";
 
@@ -72,11 +72,6 @@ export default async function AcademyClassesPage({ params, searchParams }: PageP
       ? resolvedSearchParams.group.trim()
       : undefined;
 
-  const sportConfigFilter =
-    typeof resolvedSearchParams.sportConfigId === "string" && resolvedSearchParams.sportConfigId.trim().length > 0
-      ? resolvedSearchParams.sportConfigId.trim()
-      : undefined;
-
   const focusClassId =
     typeof resolvedSearchParams.focusClass === "string" && resolvedSearchParams.focusClass.trim().length > 0
       ? resolvedSearchParams.focusClass.trim()
@@ -84,7 +79,6 @@ export default async function AcademyClassesPage({ params, searchParams }: PageP
 
   const conditions = [
     eq(classes.academyId, academyId),
-    sportConfigFilter ? eq(classes.sportConfigId, sportConfigFilter) : undefined,
     query
       ? or(ilike(classes.name, `%${query}%`), ilike(classes.startTime, `%${query}%`))
       : undefined,
@@ -99,19 +93,7 @@ export default async function AcademyClassesPage({ params, searchParams }: PageP
     .select({
       id: classes.id,
       name: classes.name,
-      startTime: classes.startTime,
-      endTime: classes.endTime,
-      capacity: classes.capacity,
-      technicalFocus: classes.technicalFocus,
-      apparatus: classes.apparatus,
-      sportConfigId: classes.sportConfigId,
-      isExtra: classes.isExtra,
-      autoGenerateSessions: classes.autoGenerateSessions,
-      allowsFreeTrial: classes.allowsFreeTrial,
-      waitingListEnabled: classes.waitingListEnabled,
-      cancellationHoursBefore: classes.cancellationHoursBefore,
-      cancellationPolicy: classes.cancellationPolicy,
-      createdAt: classes.createdAt,
+      academyId: classes.academyId,
     })
     .from(classes)
     .where(whereClause)
@@ -184,7 +166,6 @@ export default async function AcademyClassesPage({ params, searchParams }: PageP
       id: groups.id,
       name: groups.name,
       color: groups.color,
-      sportConfigId: groups.sportConfigId,
       coachId: groups.coachId,
       assistantIds: groups.assistantIds,
     })
@@ -198,7 +179,7 @@ export default async function AcademyClassesPage({ params, searchParams }: PageP
       id: group.id,
       name: group.name ?? "Grupo sin nombre",
       color: group.color ?? null,
-      sportConfigId: group.sportConfigId,
+      sportConfigId: null,
     };
     if (group.coachId) {
       const existing = groupByCoach.get(group.coachId) ?? [];
@@ -228,7 +209,6 @@ export default async function AcademyClassesPage({ params, searchParams }: PageP
             groupId: groups.id,
             groupName: groups.name,
             groupColor: groups.color,
-            sportConfigId: groups.sportConfigId,
           })
           .from(classGroups)
           .innerJoin(groups, eq(classGroups.groupId, groups.id))
@@ -241,7 +221,7 @@ export default async function AcademyClassesPage({ params, searchParams }: PageP
       id: row.groupId,
       name: row.groupName ?? "Grupo sin nombre",
       color: row.groupColor ?? null,
-      sportConfigId: row.sportConfigId,
+      sportConfigId: null,
     });
     classGroupsMap.set(row.classId, existing);
   });
@@ -255,14 +235,14 @@ export default async function AcademyClassesPage({ params, searchParams }: PageP
     const athleteFromGroups = await db
       .select({
         classId: classGroups.classId,
-        count: sql<number>`count(*)::int`.as("count"),
+        count: sql<number>`count(distinct ${groupAthletes.athleteId})::int`.as("count"),
       })
       .from(classGroups)
-      .innerJoin(athletes, eq(classGroups.groupId, athletes.groupId))
+      .innerJoin(groupAthletes, eq(classGroups.groupId, groupAthletes.groupId))
       .where(
         and(
           inArray(classGroups.classId, classIds),
-          inArray(athletes.groupId, groupIds)
+          inArray(groupAthletes.groupId, groupIds)
         )
       )
       .groupBy(classGroups.classId);
@@ -313,20 +293,20 @@ export default async function AcademyClassesPage({ params, searchParams }: PageP
         id: item.id,
         name: item.name,
         weekdays: (weekdayMap.get(item.id) ?? []).sort((a, b) => a - b),
-        startTime: item.startTime,
-        endTime: item.endTime,
-        capacity: item.capacity,
-        technicalFocus: item.technicalFocus ?? null,
-        apparatus: item.apparatus ?? [],
-        sportConfigId: item.sportConfigId,
-        isExtra: item.isExtra,
-        autoGenerateSessions: item.autoGenerateSessions,
-        allowsFreeTrial: item.allowsFreeTrial ?? false,
-        waitingListEnabled: item.waitingListEnabled ?? false,
-        cancellationHoursBefore: item.cancellationHoursBefore ?? 24,
-        cancellationPolicy: item.cancellationPolicy ?? "standard",
+        startTime: null,
+        endTime: null,
+        capacity: null,
+        technicalFocus: null,
+        apparatus: [],
+        sportConfigId: null,
+        isExtra: false,
+        autoGenerateSessions: false,
+        allowsFreeTrial: false,
+        waitingListEnabled: false,
+        cancellationHoursBefore: 24,
+        cancellationPolicy: "standard",
         currentEnrollment: athleteCounts[item.id] ?? 0,
-        createdAt: item.createdAt ? item.createdAt.toISOString() : null,
+        createdAt: null,
         coaches: classCoaches.map((assignment) => ({
           id: assignment.coachId,
           name: assignment.coachName,
@@ -336,9 +316,6 @@ export default async function AcademyClassesPage({ params, searchParams }: PageP
       };
     })
     .filter((item) => {
-      if (sportConfigFilter && item.sportConfigId !== sportConfigFilter) {
-        return false;
-      }
       if (!groupFilter) return true;
       return item.groups.some((group) => group.id === groupFilter);
     });
@@ -354,7 +331,7 @@ export default async function AcademyClassesPage({ params, searchParams }: PageP
     id: group.id,
     name: group.name ?? "Grupo sin nombre",
     color: group.color ?? null,
-    sportConfigId: group.sportConfigId,
+    sportConfigId: null,
   }));
 
   const sportConfigs = await getAcademySportConfigOptions(academyId);

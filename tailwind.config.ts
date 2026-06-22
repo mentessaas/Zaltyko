@@ -16,23 +16,23 @@ export default {
         zaltyko: {
           navy: "#0F172A",
           indigo: "#2B2E83",
-          teal: "#1FC7B6",
+          teal: "#00796B",
           coral: "#FF6B57",
           white: "#F8FAFC",
           mist: "#CBD5E1",
           primary: {
-            DEFAULT: "#1FC7B6",
-            dark: "#18A89A",
-            light: "#5CE0D4",
+            DEFAULT: "#00796B",
+            dark: "#00695C",
+            light: "#14B8A6",
             ultralight: "#E6FFFC",
           },
           accent: {
             DEFAULT: "#2B2E83",
-            teal: "#1FC7B6",
+            teal: "#00796B",
             coral: "#FF6B57",
             amber: "#FF6B57",
           },
-          "primary-dark": "#18A89A", // Alias for brand primary dark
+          "primary-dark": "#00695C", // Alias for brand primary dark
           bg: {
             DEFAULT: "#F8FAFC",
             paper: "#FFFFFF",

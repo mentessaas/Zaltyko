@@ -9,18 +9,24 @@ interface Props {
 }
 
 async function getListing(id: string) {
-  const res = await fetch(`${process.env.NEXT_PUBLIC_URL || "http://localhost:3000"}/api/empleo/${id}`, {
+  const res = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/empleo/${id}`, {
     cache: "no-store",
   });
   if (!res.ok) return null;
-  return res.json();
+  const payload = await res.json();
+  return payload?.data ?? payload;
 }
 
 async function getAds(zone: string) {
-  const res = await fetch(`${process.env.NEXT_PUBLIC_URL || "http://localhost:3000"}/api/advertising/zones/${zone}`, {
-    cache: "no-store",
-  });
-  return res.json();
+  try {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/advertising/zones/${zone}`, {
+      cache: "no-store",
+    });
+    if (!res.ok) return { ads: [] };
+    return res.json();
+  } catch {
+    return { ads: [] };
+  }
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {

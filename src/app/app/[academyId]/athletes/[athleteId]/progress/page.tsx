@@ -124,9 +124,6 @@ export default async function AthleteProgressPage({ params }: AthleteProgressPag
         .select({
           id: groups.id,
           name: groups.name,
-          technicalFocus: groups.technicalFocus,
-          apparatus: groups.apparatus,
-          sessionBlocks: groups.sessionBlocks,
         })
         .from(groups)
         .where(eq(groups.id, athleteRow.groupId))
@@ -134,7 +131,6 @@ export default async function AthleteProgressPage({ params }: AthleteProgressPag
     : [];
   const contextualApparatus = resolveSpecializedApparatusCodes(specialization, [
     ...(athleteRow.primaryApparatus ? [athleteRow.primaryApparatus] : []),
-    ...((groupRow?.apparatus ?? []) as string[]),
   ]);
 
   // Get all assessments for this athlete
@@ -253,9 +249,6 @@ export default async function AthleteProgressPage({ params }: AthleteProgressPag
               <p className="text-sm text-muted-foreground">
                 {specialization.labels.groupLabel}: {groupRow.name}
               </p>
-            )}
-            {groupRow?.technicalFocus && (
-              <p className="text-sm text-muted-foreground">{groupRow.technicalFocus}</p>
             )}
             {(contextualApparatus.length > 0 || athleteRow.primaryApparatus) && (
               <div className="flex flex-wrap gap-2">

@@ -14,11 +14,12 @@ import {
   Plus,
   Clock,
   ArrowRight,
-  Command,
+  Command as CommandIcon,
 } from "lucide-react";
 
 import { useDebounce } from "@/hooks/use-debounce";
 import {
+  Command,
   CommandDialog,
   CommandInput,
   CommandList,
@@ -124,9 +125,12 @@ export function GlobalSearchDialog({ academyId, open, onOpenChange }: GlobalSear
 
         const response = await fetch(`/api/search?${params.toString()}`);
         const data = await response.json();
+        const payload = data?.data ?? data;
 
-        if (data.items) {
-          setResults(data.items);
+        if (Array.isArray(payload?.items)) {
+          setResults(payload.items);
+        } else {
+          setResults([]);
         }
       } catch (error) {
         console.error("Error performing search:", error);
@@ -154,16 +158,18 @@ export function GlobalSearchDialog({ academyId, open, onOpenChange }: GlobalSear
     (action: string) => {
       const actions: Record<string, string> = {
         "create-athlete": `/app/${academyId}/athletes/new`,
-        "create-class": `/app/${academyId}/classes/new`,
-        "create-coach": `/app/${academyId}/coaches/new`,
-        "create-group": `/app/${academyId}/groups/new`,
-        "create-event": `/app/${academyId}/events/new`,
+        "create-class": `/app/${academyId}/classes`,
+        "create-coach": `/app/${academyId}/coaches`,
+        "create-group": `/app/${academyId}/groups`,
+        "create-event": `/app/${academyId}/events`,
         "go-dashboard": `/app/${academyId}/dashboard`,
         "go-athletes": `/app/${academyId}/athletes`,
         "go-classes": `/app/${academyId}/classes`,
         "go-coaches": `/app/${academyId}/coaches`,
         "go-groups": `/app/${academyId}/groups`,
         "go-events": `/app/${academyId}/events`,
+        "go-assessments": `/app/${academyId}/assessments`,
+        "go-messages": `/app/${academyId}/messages`,
       };
 
       const url = actions[action];
@@ -246,7 +252,7 @@ export function GlobalSearchDialog({ academyId, open, onOpenChange }: GlobalSear
 
   return (
     <CommandDialog open={open} onOpenChange={onOpenChange}>
-      <Command>
+      <Command className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group]]:px-2 [&_[cmdk-item]]:px-2 [&_[cmdk-item]]:py-2 [&_[cmdk-item]]:text-sm [&_[cmdk-input-wrapper]]:flex [&_[cmdk-input-wrapper]]:items-center [&_[cmdk-input-wrapper]]:border-b [&_[cmdk-input-wrapper]]:pb-2 [&_[cmdk-input]]:flex-1">
         <CommandInput
           value={query}
           onValueChange={setQuery}
@@ -344,9 +350,21 @@ export function GlobalSearchDialog({ academyId, open, onOpenChange }: GlobalSear
                   <BookOpen className="mr-2 h-4 w-4" />
                   <span>Ver clases</span>
                 </CommandItem>
+                <CommandItem onSelect={() => handleActionSelect("go-groups")}>
+                  <Users className="mr-2 h-4 w-4" />
+                  <span>Ver grupos</span>
+                </CommandItem>
                 <CommandItem onSelect={() => handleActionSelect("go-events")}>
                   <Calendar className="mr-2 h-4 w-4" />
                   <span>Ver eventos</span>
+                </CommandItem>
+                <CommandItem onSelect={() => handleActionSelect("go-assessments")}>
+                  <GraduationCap className="mr-2 h-4 w-4" />
+                  <span>Ver evaluaciones</span>
+                </CommandItem>
+                <CommandItem onSelect={() => handleActionSelect("go-messages")}>
+                  <Users className="mr-2 h-4 w-4" />
+                  <span>Ver mensajes</span>
                 </CommandItem>
               </CommandGroup>
             </>
@@ -401,7 +419,7 @@ export function GlobalSearchDialog({ academyId, open, onOpenChange }: GlobalSear
             </span>
           </div>
           <div className="flex items-center gap-1">
-            <Command className="h-3 w-3" />
+            <CommandIcon className="h-3 w-3" />
             <span>K</span>
           </div>
         </div>

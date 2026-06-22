@@ -6,38 +6,74 @@ import { Plus, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScholarshipList, Scholarship } from "./ScholarshipList";
 import { ScholarshipForm } from "./ScholarshipForm";
+import { getTerminologyForSportConfig } from "@/lib/sport-config/terminology";
+
+interface SportConfigOption {
+  id: string;
+  name: string;
+  disciplineName: string;
+  branchName: string;
+  terminology?: Record<string, string>;
+}
 
 interface ScholarshipManagerProps {
   academyId: string;
   initialScholarships?: Scholarship[];
+  sportConfigs?: SportConfigOption[];
 }
 
 export function ScholarshipManager({
   academyId,
   initialScholarships = [],
+  sportConfigs = [],
 }: ScholarshipManagerProps) {
   const [scholarships, setScholarships] = useState<Scholarship[]>(initialScholarships);
+  const [athletes, setAthletes] = useState<Array<{ id: string; name: string }>>([]);
+  const [sportConfigId, setSportConfigId] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingScholarship, setEditingScholarship] = useState<Scholarship | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const terms = getTerminologyForSportConfig(sportConfigs, sportConfigId);
+  const athletesTermLower = terms.athletes.toLowerCase();
 
   const loadScholarships = async () => {
     try {
-      const response = await fetch(`/api/scholarships?academyId=${academyId}`);
+      const params = new URLSearchParams({
+        academyId,
+        ...(sportConfigId && { sportConfigId }),
+      });
+      const response = await fetch(`/api/scholarships?${params}`);
       const data = await response.json();
-      if (data.items) {
-        setScholarships(data.items);
+      const payload = data.data ?? data;
+      if (payload.items) {
+        setScholarships(payload.items);
       }
     } catch (error) {
       console.error("Error loading scholarships:", error);
     }
   };
 
-  useEffect(() => {
-    if (initialScholarships.length === 0) {
-      loadScholarships();
+  const loadAthletes = async () => {
+    try {
+      const params = new URLSearchParams({
+        academyId,
+        limit: "1000",
+        ...(sportConfigId && { sportConfigId }),
+      });
+      const response = await fetch(`/api/athletes?${params}`);
+      const data = await response.json();
+      const payload = data.data ?? data;
+      setAthletes(Array.isArray(payload.items) ? payload.items : []);
+    } catch (error) {
+      console.error("Error loading scholarship athletes:", error);
+      setAthletes([]);
     }
-  }, [academyId]);
+  };
+
+  useEffect(() => {
+    loadScholarships();
+    loadAthletes();
+  }, [academyId, sportConfigId]);
 
   const handleSubmit = async (formData: any) => {
     setIsSaving(true);
@@ -113,17 +149,32 @@ export function ScholarshipManager({
         <div>
           <h2 className="text-2xl font-bold">Gestión de Becas</h2>
           <p className="text-muted-foreground mt-1">
-            Administra las becas otorgadas a atletas
+            Administra las becas otorgadas a {athletesTermLower}
           </p>
         </div>
-        <Button onClick={() => setIsDialogOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Nueva Beca
-        </Button>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <select
+            value={sportConfigId}
+            onChange={(event) => setSportConfigId(event.target.value)}
+            className="min-h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
+          >
+            <option value="">Todas las ramas</option>
+            {sportConfigs.map((config) => (
+              <option key={config.id} value={config.id}>
+                {config.branchName} · {config.disciplineName}
+              </option>
+            ))}
+          </select>
+          <Button onClick={() => setIsDialogOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Nueva Beca
+          </Button>
+        </div>
       </div>
 
       <ScholarshipList
         scholarships={scholarships}
+        terminology={terms}
         onEdit={openEditDialog}
         onDelete={handleDelete}
         onToggleActive={handleToggleActive}
@@ -135,6 +186,8 @@ export function ScholarshipManager({
         onSubmit={handleSubmit}
         scholarship={editingScholarship}
         isLoading={isSaving}
+        athletes={athletes}
+        terminology={terms}
       />
     </div>
   );

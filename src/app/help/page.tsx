@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Navbar from "@/app/(site)/Navbar";
 import Footer from "@/app/(site)/Footer";
-import { BookOpen, Users, CreditCard, Calendar, MessageCircle, Mail, ChevronRight, Search } from "lucide-react";
+import { MessageCircle, Mail, ChevronRight, Search } from "lucide-react";
+import { helpCategories } from "@/lib/help/articles";
 
 const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
@@ -14,53 +15,6 @@ export const metadata: Metadata = {
     canonical: `${baseUrl}/help`,
   },
 };
-
-const categories = [
-  {
-    title: "Primeros pasos",
-    description: "Todo lo que necesitas para empezar",
-    icon: BookOpen,
-    articles: [
-      "Cómo crear tu cuenta",
-      "Configurar tu academia",
-      "Invitar a tu equipo",
-      "Importar atletas",
-    ],
-  },
-  {
-    title: "Gestión de atletas",
-    description: "Administra tu base de datos de atletas",
-    icon: Users,
-    articles: [
-      "Agregar nuevos atletas",
-      "Editar información de atletas",
-      "Asignar a clases",
-      "Gestionar familiares",
-    ],
-  },
-  {
-    title: "Clases y horarios",
-    description: "Organiza tu calendario de clases",
-    icon: Calendar,
-    articles: [
-      "Crear clases",
-      "Gestionar horarios",
-      "Asignar entrenadores",
-      "Control de asistencia",
-    ],
-  },
-  {
-    title: "Pagos y facturación",
-    description: "Gestiona cobros y suscripciones",
-    icon: CreditCard,
-    articles: [
-      "Configurar planes de precio",
-      "Procesar pagos",
-      "Facturación automática",
-      "Gestionar impagos",
-    ],
-  },
-];
 
 const faqs = [
   {
@@ -126,7 +80,7 @@ export default function HelpPage() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <h2 className="text-2xl font-bold text-zaltyko-text-main mb-8">Explorar por categoría</h2>
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-            {categories.map((category, index) => {
+            {helpCategories.map((category, index) => {
               const Icon = category.icon;
               return (
                 <div key={index} className="rounded-xl border border-gray-200 p-6 hover:shadow-lg transition-shadow">
@@ -136,11 +90,11 @@ export default function HelpPage() {
                   <h3 className="font-semibold text-zaltyko-text-main">{category.title}</h3>
                   <p className="mt-1 text-sm text-zaltyko-text-secondary">{category.description}</p>
                   <ul className="mt-4 space-y-2">
-                    {category.articles.slice(0, 3).map((article, i) => (
-                      <li key={i}>
-                        <Link href="#" className="text-sm text-zaltyko-primary hover:underline flex items-center">
+                    {category.articles.map((article) => (
+                      <li key={article.slug}>
+                        <Link href={`/help/${article.slug}`} className="text-sm text-zaltyko-primary hover:underline flex items-center">
                           <ChevronRight className="h-3 w-3 mr-1" />
-                          {article}
+                          {article.title}
                         </Link>
                       </li>
                     ))}

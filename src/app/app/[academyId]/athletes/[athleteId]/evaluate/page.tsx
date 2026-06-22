@@ -98,9 +98,6 @@ export default async function AthleteEvaluatePage({ params }: EvaluatePageProps)
         .select({
           id: groups.id,
           name: groups.name,
-          sportConfigId: groups.sportConfigId,
-          technicalFocus: groups.technicalFocus,
-          apparatus: groups.apparatus,
         })
         .from(groups)
         .where(eq(groups.id, athleteRow.groupId))
@@ -110,7 +107,6 @@ export default async function AthleteEvaluatePage({ params }: EvaluatePageProps)
   const sportConfigs = await getAcademySportConfigOptions(academyId);
   const selectedSportConfig =
     sportConfigs.find((config) => config.id === athleteRow.primarySportConfigId) ??
-    sportConfigs.find((config) => config.id === groupRow?.sportConfigId) ??
     null;
   const terms = getTerminology(selectedSportConfig);
 
@@ -118,7 +114,6 @@ export default async function AthleteEvaluatePage({ params }: EvaluatePageProps)
     specialization,
     [
       ...(athleteRow.primaryApparatus ? [athleteRow.primaryApparatus] : []),
-      ...((groupRow?.apparatus ?? []) as string[]),
     ]
   );
   const apparatusList =
@@ -130,7 +125,7 @@ export default async function AthleteEvaluatePage({ params }: EvaluatePageProps)
   const apparatusLabels = selectedSportConfig
     ? Object.fromEntries(selectedSportConfig.apparatus.map((item) => [item.code, item.name]))
     : undefined;
-  const recommendedFocus = groupRow?.technicalFocus ?? null;
+  const recommendedFocus = null;
 
   return (
     <div className="space-y-6 p-4 md:p-8">

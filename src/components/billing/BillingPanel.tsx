@@ -317,8 +317,12 @@ export function BillingPanel({ academyId, userId, sportConfigs = [] }: BillingPa
         <TabsContent value="plans" className="space-y-8">
           <section className="rounded-2xl border border-zaltyko-mist bg-white p-6 shadow-soft">
         <h2 className="font-display text-xl font-semibold text-zaltyko-navy">Plan actual</h2>
-        {loadingSummary || !summary ? (
+        {loadingSummary ? (
           <p className="text-sm text-muted-foreground">Cargando información…</p>
+        ) : !summary ? (
+          <p className="text-sm text-muted-foreground">
+            No disponible temporalmente. Comprueba la configuración de facturación o inténtalo de nuevo más tarde.
+          </p>
         ) : (
           <div className="space-y-3">
             <div className="flex items-center gap-3">
@@ -387,7 +391,7 @@ export function BillingPanel({ academyId, userId, sportConfigs = [] }: BillingPa
         <div className="grid gap-4 md:grid-cols-3">
           {plans.length === 0 && !loadingPlans && (
             <p className="text-sm text-muted-foreground">
-              No hay planes disponibles. Comprueba la sincronización con Stripe.
+              No disponible temporalmente. Comprueba la sincronización con Stripe.
             </p>
           )}
           {plans.map((plan) => {

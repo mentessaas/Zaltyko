@@ -108,9 +108,10 @@ export default function NotificationsPage() {
       }
 
       try {
+        const pageToLoad = reset ? 1 : page;
         const params = new URLSearchParams({
           limit: limit.toString(),
-          offset: ((reset ? 1 : page) - 1 * limit).toString(),
+          offset: ((pageToLoad - 1) * limit).toString(),
           ...(filter !== "all" && { type: filter }),
           ...(readFilter === "unread" && { unreadOnly: "true" }),
         });

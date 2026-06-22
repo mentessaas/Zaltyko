@@ -13,10 +13,9 @@ const PUBLIC_ROUTES = [
   "/auth/login",
 ] as const;
 
-// Cluster routes: 24 clusters (4 modalities x 6 countries)
 const CLUSTER_LOCALES: Locale[] = ["es", "en"];
 const MODALITY_KEYS = Object.keys(MODALITIES) as Array<keyof typeof MODALITIES>;
-const COUNTRY_KEYS = Object.keys(COUNTRIES) as Array<keyof typeof COUNTRIES>;
+const COUNTRY_KEYS = ["espana", "mexico", "argentina", "colombia", "chile", "peru"] as Array<keyof typeof COUNTRIES>;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
@@ -36,25 +35,33 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.9,
   }));
 
-  // Add modality listing pages (8 pages: 4 modalities x 2 locales)
   const modalityPages = CLUSTER_LOCALES.flatMap((locale) =>
-    MODALITY_KEYS.map((modality) => ({
-      url: `${baseUrl}/${locale}/${MODALITIES[modality][locale]}`,
-      lastModified: new Date(),
-      changeFrequency: "weekly" as const,
-      priority: 0.8,
-    }))
+    MODALITY_KEYS.flatMap((modality) => {
+      const modalitySlug = MODALITIES[modality][locale];
+      if (!modalitySlug) return [];
+      return {
+        url: `${baseUrl}/${locale}/${modalitySlug}`,
+        lastModified: new Date(),
+        changeFrequency: "weekly" as const,
+        priority: 0.8,
+      };
+    })
   );
 
-  // Add cluster pages (24 pages: 4 modalities x 6 countries x 1 locale - using ES as primary)
-  // Note: For ES locale only since that's the primary market
-  const clusterPages = MODALITY_KEYS.flatMap((modality) =>
-    COUNTRY_KEYS.map((country) => ({
-      url: `${baseUrl}/es/${MODALITIES[modality].es}/${COUNTRIES[country].es}`,
-      lastModified: new Date(),
-      changeFrequency: "weekly" as const,
-      priority: country === "espana" || country === "mexico" ? 0.8 : 0.7,
-    }))
+  const clusterPages = CLUSTER_LOCALES.flatMap((locale) =>
+    MODALITY_KEYS.flatMap((modality) =>
+      COUNTRY_KEYS.flatMap((country) => {
+        const modalitySlug = MODALITIES[modality][locale];
+        const countrySlug = COUNTRIES[country][locale];
+        if (!modalitySlug || !countrySlug) return [];
+        return {
+          url: `${baseUrl}/${locale}/${modalitySlug}/${countrySlug}`,
+          lastModified: new Date(),
+          changeFrequency: "weekly" as const,
+          priority: country === "espana" || country === "mexico" ? 0.8 : 0.7,
+        };
+      })
+    )
   );
 
   // Add static routes for marketplace categories

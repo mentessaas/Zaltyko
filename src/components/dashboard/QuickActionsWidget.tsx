@@ -33,6 +33,9 @@ export function QuickActionsWidget({ academyId }: QuickActionsWidgetProps) {
     const [loading, setLoading] = useState(true);
     const [showClassModal, setShowClassModal] = useState(false);
     const [showPaymentModal, setShowPaymentModal] = useState(false);
+    const pendingClasses = data?.pendingClasses ?? 0;
+    const overduePayments = data?.overduePayments ?? 0;
+    const unassignedAthletes = data?.unassignedAthletes ?? 0;
 
     useEffect(() => {
         fetchPendingData();
@@ -84,53 +87,44 @@ export function QuickActionsWidget({ academyId }: QuickActionsWidgetProps) {
                     </p>
                 </CardHeader>
                 <CardContent className="grid gap-3 p-4">
-                    <QuickAction
-                        icon={<Calendar className="h-5 w-5" />}
-                        label="Registrar Asistencia"
-                        description={
-                            data?.pendingClasses
-                                ? `${data.pendingClasses} ${data.pendingClasses === 1 ? specialization.labels.classLabel.toLowerCase() : `${specialization.labels.classLabel.toLowerCase()}s`} de hoy`
-                                : `No hay ${specialization.labels.classLabel.toLowerCase()}s hoy`
-                        }
-                        badge={data?.pendingClasses}
-                        onClick={() => {
-                            if (data?.todaysSessions && data.todaysSessions.length > 0) {
-                                router.push(`/app/${academyId}/attendance`);
-                            }
-                        }}
-                        variant="default"
-                        disabled={!data?.pendingClasses}
-                    />
+                    {pendingClasses > 0 && (
+                        <QuickAction
+                            icon={<Calendar className="h-5 w-5" />}
+                            label="Registrar Asistencia"
+                            description={`${pendingClasses} ${pendingClasses === 1 ? specialization.labels.classLabel.toLowerCase() : `${specialization.labels.classLabel.toLowerCase()}s`} de hoy`}
+                            badge={pendingClasses}
+                            onClick={() => {
+                                if (data?.todaysSessions && data.todaysSessions.length > 0) {
+                                    router.push(`/app/${academyId}/attendance`);
+                                }
+                            }}
+                            variant="default"
+                        />
+                    )}
 
-                    <QuickAction
-                        icon={<DollarSign className="h-5 w-5" />}
-                        label="Cobros Pendientes"
-                        description={
-                            data?.overduePayments
-                                ? `${data.overduePayments} ${data.overduePayments === 1 ? "pago vencido" : "pagos vencidos"} - €${((data.overduePaymentsTotal || 0) / 100).toFixed(2)}`
-                                : "Al día con pagos"
-                        }
-                        badge={data?.overduePayments}
-                        onClick={() => setShowPaymentModal(true)}
-                        variant={data?.overduePayments ? "destructive" : "default"}
-                        disabled={!data?.overduePayments}
-                    />
+                    {overduePayments > 0 && (
+                        <QuickAction
+                            icon={<DollarSign className="h-5 w-5" />}
+                            label="Cobros Pendientes"
+                            description={`${overduePayments} ${overduePayments === 1 ? "pago vencido" : "pagos vencidos"} - €${((data?.overduePaymentsTotal || 0) / 100).toFixed(2)}`}
+                            badge={overduePayments}
+                            onClick={() => setShowPaymentModal(true)}
+                            variant="destructive"
+                        />
+                    )}
 
-                    <QuickAction
-                        icon={<UserPlus className="h-5 w-5" />}
-                        label={`${specialization.labels.athletesPlural} sin ${specialization.labels.groupLabel}`}
-                        description={
-                            data?.unassignedAthletes
-                                ? `${data.unassignedAthletes} ${data.unassignedAthletes === 1 ? specialization.labels.athleteSingular.toLowerCase() : specialization.labels.athletesPlural.toLowerCase()} sin asignar`
-                                : `Todos los ${specialization.labels.athletesPlural.toLowerCase()} están asignados`
-                        }
-                        badge={data?.unassignedAthletes}
-                        onClick={() => {
-                            router.push(`/app/${academyId}/athletes`);
-                        }}
-                        variant="secondary"
-                        disabled={!data?.unassignedAthletes}
-                    />
+                    {unassignedAthletes > 0 && (
+                        <QuickAction
+                            icon={<UserPlus className="h-5 w-5" />}
+                            label={`Atletas sin ${specialization.labels.groupLabel}`}
+                            description={`${unassignedAthletes} ${unassignedAthletes === 1 ? "atleta" : "atletas"} sin asignar`}
+                            badge={unassignedAthletes}
+                            onClick={() => {
+                                router.push(`/app/${academyId}/athletes`);
+                            }}
+                            variant="secondary"
+                        />
+                    )}
 
                     <QuickAction
                         icon={<Users className="h-5 w-5" />}

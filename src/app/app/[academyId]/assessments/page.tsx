@@ -63,8 +63,6 @@ export default async function AssessmentsPage({ params, searchParams }: PageProp
       level: athletes.level,
       groupName: groups.name,
       groupColor: groups.color,
-      groupTechnicalFocus: groups.technicalFocus,
-      groupApparatus: groups.apparatus,
     })
     .from(athletes)
     .leftJoin(groups, eq(athletes.groupId, groups.id))
@@ -74,7 +72,6 @@ export default async function AssessmentsPage({ params, searchParams }: PageProp
   const athletesForHub = athleteRows.map((athlete) => {
     const contextualApparatus = resolveSpecializedApparatusCodes(specialization, [
       ...(athlete.primaryApparatus ? [athlete.primaryApparatus] : []),
-      ...((athlete.groupApparatus ?? []) as string[]),
     ]);
 
     return {
@@ -82,7 +79,7 @@ export default async function AssessmentsPage({ params, searchParams }: PageProp
       name: athlete.name,
       groupName: athlete.groupName ?? null,
       level: athlete.level ?? null,
-      recommendedFocus: athlete.groupTechnicalFocus ?? null,
+      recommendedFocus: null,
       apparatusList:
         contextualApparatus.length > 0
           ? contextualApparatus

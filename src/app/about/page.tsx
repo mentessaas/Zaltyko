@@ -10,7 +10,7 @@ const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 export const metadata: Metadata = {
   title: "Sobre Nosotros | Zaltyko - Software para academias de gimnasia",
   description:
-    "Conoce la historia de Zaltyko. Nuestra misión es digitalizar y simplificar la gestión de academias de gimnasia en España y Latinoamérica. +150 academias confían en nosotros.",
+    "Conoce la historia de Zaltyko. Nuestra misión es digitalizar y simplificar la gestión de academias de gimnasia en España y Latinoamérica.",
   alternates: {
     canonical: `${baseUrl}/about`,
   },
@@ -25,10 +25,10 @@ export const metadata: Metadata = {
 };
 
 const stats = [
-  { value: "+150", label: "Academias" },
-  { value: "25,000+", label: "Atletas" },
-  { value: "€4.2M", label: "Gestionados" },
-  { value: "98%", label: "Satisfacción (NPS)" },
+  { value: "Gestión", label: "Operación diaria" },
+  { value: "Pagos", label: "Cobros y facturación" },
+  { value: "Familias", label: "Comunicación clara" },
+  { value: "RGPD", label: "Protección de datos" },
 ];
 
 const values = [
@@ -54,7 +54,7 @@ const values = [
     icon: Shield,
     title: "Confianza",
     description:
-      "Tus datos están seguros con nosotros. Cumplimos con GDPR y usamos los más altos estándares de seguridad.",
+      "Tus datos están seguros con nosotros. Cumplimos con RGPD y usamos estándares sólidos de seguridad.",
   },
 ];
 
@@ -88,7 +88,7 @@ export default function AboutPage() {
             Sobre Nosotros
           </span>
           <h1 className="font-display text-4xl font-bold tracking-tight text-zaltyko-text-main sm:text-5xl">
-            Facilitando la gestión del gimnasia
+            Facilitando la gestión de la gimnasia
           </h1>
           <p className="mt-6 mx-auto max-w-2xl text-lg text-zaltyko-text-secondary">
             Nacimos para resolver los problemas administrativos que enfrentan las academias de gimnasia cada día.
@@ -126,8 +126,8 @@ export default function AboutPage() {
               academias de gimnasia.
             </p>
             <p>
-              Hoy, Zaltyko ayuda a más de 150 academias en España y Latinoamérica a
-              gestionar miles de atletas, procesando millones de euros en pagos cada año.
+              Hoy, Zaltyko ayuda a academias en España y Latinoamérica a gestionar atletas,
+              clases, familias y pagos desde una misma plataforma.
             </p>
             <p>
               Pero esto es solo el comienzo. Nuestra misión es seguir creciendo junto
@@ -216,7 +216,7 @@ export default function AboutPage() {
             name: "Zaltyko",
             url: baseUrl,
             logo: `${baseUrl}/branding/zaltyko/logo-zaltyko-dark.svg`,
-            description: "Software especializado para la gestión de academias de gimnasia. +150 academias confían en Zaltyko.",
+            description: "Software especializado para la gestión de academias de gimnasia.",
             foundingDate: "2023",
             contactPoint: {
               "@type": "ContactPoint",

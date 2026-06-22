@@ -9,6 +9,7 @@ import { withTenant, type TenantContext } from "@/lib/authz";
 import { escapeLikeSearch } from "@/lib/helpers";
 import { apiSuccess, apiError, apiCreated } from "@/lib/api-response";
 import { logger } from "@/lib/logger";
+import { demoMarketplaceListing } from "@/lib/public/demo-listings";
 
 // Validation schemas
 const CreateMarketplaceSchema = z.object({
@@ -82,12 +83,15 @@ export async function GET(request: Request) {
     .from(marketplaceListings)
     .where(whereClause);
 
+  const items = listings.length === 0 && process.env.NODE_ENV !== "production" ? [demoMarketplaceListing] : listings;
+  const itemTotal = listings.length === 0 && process.env.NODE_ENV !== "production" ? 1 : total.length;
+
   return apiSuccess({
-    items: listings,
-    total: total.length,
+    items,
+    total: itemTotal,
     page,
     pageSize: limit,
-    totalPages: Math.ceil(total.length / limit),
+    totalPages: Math.ceil(itemTotal / limit),
   });
 }
 

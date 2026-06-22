@@ -7,6 +7,7 @@ import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
 import { getStripeClient } from "@/lib/stripe/client";
+import { getPrimarySubscriptionItemId } from "@/lib/stripe/subscription-items";
 
 // Handler for POST - separated to apply rate limiting
 const downgradeHandler = withTenant(async (req, context) => {
@@ -63,11 +64,22 @@ const downgradeHandler = withTenant(async (req, context) => {
                 })
                 .where(eq(subscriptions.id, currentSubscription.id));
         } else {
+            if (!newPlanDetails.stripePriceId) {
+                return apiError("PLAN_PRICE_NOT_CONFIGURED", "Target plan price is not configured", 400);
+            }
+
             // Downgrade a otro plan de pago - programar cambio al final del periodo
+            const stripeSub = await stripe.subscriptions.retrieve(currentSubscription.stripeSubscriptionId);
+            const subscriptionItemId = getPrimarySubscriptionItemId(stripeSub);
+
+            if (!subscriptionItemId) {
+                return apiError("STRIPE_ERROR", "Could not find subscription item in Stripe", 500);
+            }
+
             await stripe.subscriptions.update(currentSubscription.stripeSubscriptionId, {
                 items: [{
-                    id: currentSubscription.stripeSubscriptionId,
-                    price: newPlanDetails.stripePriceId || "",
+                    id: subscriptionItemId,
+                    price: newPlanDetails.stripePriceId,
                 }],
                 cancel_at_period_end: false,
                 proration_behavior: "create_prorations",

@@ -139,6 +139,8 @@ Reports consume the same terminology layer. The reports hub resolves base termin
 
 Student billing follows branch separation through the charged athlete. `charges` does not need its own sport config column for the current model because each row belongs to an athlete; `/api/charges` accepts `sportConfigId` and filters by `athletes.primary_sport_config_id`. Monthly charge generation accepts the same `sportConfigId`, so a mixed academy can generate charges only for GAF, GAM or GR without creating charges for the other branches. The billing UI loads active sport configs server-side, exposes a branch selector in the student charges tab, filters groups and manual charge athlete selection by that branch, and resolves athlete/group/payment labels through the terminology dictionary. SaaS subscription plans remain global academy billing and should not be treated as branch-specific unless the product model changes.
 
+Scholarships and discount usage history also derive branch scope from the athlete. `/api/scholarships` accepts `sportConfigId` and filters scholarship rows through the joined athlete's `primary_sport_config_id`. The scholarships page loads active sport configs, filters eligible athletes for the form by branch, and renders athlete terminology from the selected config. `/api/discounts/usage` accepts `sportConfigId`, resolves matching athlete ids, and filters usage rows before calculating totals. Discount definitions and campaigns remain academy-global for now; making a discount itself branch-specific would need explicit product rules for applicability, stacking and campaign targeting.
+
 Assessment creation resolves the sport config in this order:
 
 1. explicit `sportConfigId` from the form

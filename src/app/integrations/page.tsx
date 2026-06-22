@@ -134,7 +134,7 @@ export default function IntegrationsPage() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-3xl font-bold text-white">¿Necesitas una integración específica?</h2>
           <p className="mt-4 text-lg text-white/80">
-            Cont&aacute;ctanos y we&apos;ll work to add it to our roadmap.
+            Contáctanos y revisaremos cómo incorporarla a nuestra hoja de ruta.
           </p>
           <div className="mt-8 flex justify-center gap-4">
             <Link

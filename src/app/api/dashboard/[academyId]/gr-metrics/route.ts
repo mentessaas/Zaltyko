@@ -9,6 +9,16 @@ import { verifyAcademyAccessForProfile } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
 
+const defaultGrMetrics = {
+  athletesByCategory: [],
+  expiringLicenses: [],
+  expiringLicensesThisWeek: 0,
+  expiringLicensesThisMonth: 0,
+  upcomingCompetitions: [],
+  assessmentsThisMonth: 0,
+  totalAthletesWithActiveLicense: 0,
+};
+
 export const GET = withTenant(async (_request, context) => {
   const params = context.params as { academyId?: string };
   const academyId = params?.academyId;
@@ -53,6 +63,6 @@ export const GET = withTenant(async (_request, context) => {
     return apiSuccess(grMetrics);
   } catch (error: any) {
     logger.error("Error calculating GR metrics:", error);
-    return apiError("INTERNAL_ERROR", "Failed to calculate GR metrics", 500);
+    return apiSuccess(defaultGrMetrics);
   }
 });

@@ -20,7 +20,7 @@ const createSchema = z.object({
   amountCents: z.number().int().min(0),
   currency: z.string().length(3).default("EUR"),
   recurrence: z.enum(["monthly", "one_time"]).default("monthly"),
-  appliesToType: z.enum(["academy", "class", "coach"]).default("academy"),
+  appliesToType: z.enum(["academy", "class", "coach", "sport_config"]).default("academy"),
   appliesToId: z.string().uuid().optional(),
   expenseDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   notes: z.string().max(1000).optional(),
@@ -70,4 +70,3 @@ export const POST = withTenant(async (request, context) => {
 
   return apiCreated(row);
 });
-

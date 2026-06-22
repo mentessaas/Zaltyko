@@ -2,6 +2,7 @@ import { FinancialReport } from "@/components/reports/FinancialReport";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { db } from "@/db";
 import { academies } from "@/db/schema";
+import { getAcademySportConfigOptions } from "@/lib/sport-config/service";
 import { eq } from "drizzle-orm";
 
 interface PageProps {
@@ -13,11 +14,14 @@ interface PageProps {
 export default async function FinancialReportsPage({ params }: PageProps) {
   const { academyId } = await params;
 
-  const [academy] = await db
-    .select({ country: academies.country })
-    .from(academies)
-    .where(eq(academies.id, academyId))
-    .limit(1);
+  const [[academy], sportConfigs] = await Promise.all([
+    db
+      .select({ country: academies.country })
+      .from(academies)
+      .where(eq(academies.id, academyId))
+      .limit(1),
+    getAcademySportConfigOptions(academyId),
+  ]);
 
   return (
     <div className="space-y-6 p-4 sm:p-6 lg:p-8">
@@ -28,8 +32,11 @@ export default async function FinancialReportsPage({ params }: PageProps) {
           { label: "Financiero" },
         ]}
       />
-      <FinancialReport academyId={academyId} academyCountry={academy?.country ?? null} />
+      <FinancialReport
+        academyId={academyId}
+        academyCountry={academy?.country ?? null}
+        sportConfigs={sportConfigs}
+      />
     </div>
   );
 }
-

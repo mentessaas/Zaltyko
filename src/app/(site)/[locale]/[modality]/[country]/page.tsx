@@ -16,7 +16,7 @@ import ClusterPainPointsSection from "@/components/landing/ClusterPainPointsSect
 import ClusterInterlinking from "@/components/landing/ClusterInterlinking";
 
 const VALID_LOCALES = ["es", "en"] as const;
-const VALID_MODALITIES = ["artistic", "rhythmic"] as const;
+const VALID_MODALITIES = Object.keys(MODALITIES) as ModalitySlug[];
 const VALID_COUNTRIES = ["espana", "mexico", "argentina", "colombia", "chile", "peru"] as const;
 
 interface ClusterPageProps {
@@ -36,6 +36,7 @@ export async function generateStaticParams() {
       for (const country of VALID_COUNTRIES) {
         const modalitySlug = MODALITIES[modality][locale as Locale];
         const countrySlug = COUNTRIES[country][locale as Locale];
+        if (!modalitySlug || !countrySlug) continue;
         params.push({
           locale,
           modality: modalitySlug,

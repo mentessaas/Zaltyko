@@ -17,6 +17,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import type { SportTerminology } from "@/lib/sport-config/catalog";
+import { DEFAULT_TERMINOLOGY } from "@/lib/sport-config/terminology";
 
 interface ScholarshipFormData {
   athleteId: string;
@@ -49,6 +51,7 @@ interface ScholarshipFormProps {
   scholarship?: Scholarship | null;
   isLoading?: boolean;
   athletes?: Array<{ id: string; name: string }>;
+  terminology?: SportTerminology;
 }
 
 const defaultFormData: ScholarshipFormData = {
@@ -69,9 +72,12 @@ export function ScholarshipForm({
   scholarship,
   isLoading = false,
   athletes = [],
+  terminology,
 }: ScholarshipFormProps) {
   const [formData, setFormData] = useState<ScholarshipFormData>(defaultFormData);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const terms = terminology ?? DEFAULT_TERMINOLOGY;
+  const athleteTermLower = terms.athlete.toLowerCase();
 
   useEffect(() => {
     if (scholarship) {
@@ -95,7 +101,7 @@ export function ScholarshipForm({
     const newErrors: Record<string, string> = {};
 
     if (!formData.athleteId) {
-      newErrors.athleteId = "Selecciona un atleta";
+      newErrors.athleteId = `Selecciona un ${athleteTermLower}`;
     }
 
     if (!formData.name.trim()) {
@@ -138,13 +144,13 @@ export function ScholarshipForm({
           <DialogDescription>
             {scholarship
               ? "Modifica la información de la beca"
-              : "Crea una nueva beca para un atleta"}
+              : `Crea una nueva beca para un ${athleteTermLower}`}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="athlete">Atleta *</Label>
+              <Label htmlFor="athlete">{terms.athlete} *</Label>
               {athletes.length > 0 ? (
                 <select
                   id="athlete"
@@ -154,7 +160,7 @@ export function ScholarshipForm({
                   }
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 >
-                  <option value="">Seleccionar atleta...</option>
+                  <option value="">Seleccionar {athleteTermLower}...</option>
                   {athletes.map((athlete) => (
                     <option key={athlete.id} value={athlete.id}>
                       {athlete.name}
@@ -168,7 +174,7 @@ export function ScholarshipForm({
                   onChange={(e) =>
                     setFormData({ ...formData, athleteId: e.target.value })
                   }
-                  placeholder="ID del atleta (UUID)"
+                  placeholder={`ID del ${athleteTermLower} (UUID)`}
                   error={errors.athleteId}
                 />
               )}

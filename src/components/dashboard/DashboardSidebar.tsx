@@ -57,7 +57,7 @@ export function DashboardSidebar() {
   };
 
   return (
-    <aside className="fixed left-0 top-0 z-40 h-screen w-64 border-r border-zaltyko-border bg-zaltyko-bg-light">
+    <aside className="fixed left-0 top-0 z-40 hidden h-screen w-64 border-r border-zaltyko-border bg-zaltyko-bg-light lg:block">
       <div className="flex h-full flex-col">
         {/* Logo */}
         <div className="flex h-16 items-center border-b border-border px-6">
@@ -123,4 +123,3 @@ export function DashboardSidebar() {
     </aside>
   );
 }
-

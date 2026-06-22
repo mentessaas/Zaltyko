@@ -22,6 +22,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import type { SportTerminology } from "@/lib/sport-config/catalog";
+import { DEFAULT_TERMINOLOGY } from "@/lib/sport-config/terminology";
 
 export interface Scholarship {
   id: string;
@@ -38,6 +40,7 @@ export interface Scholarship {
 
 interface ScholarshipListProps {
   scholarships: Scholarship[];
+  terminology?: SportTerminology;
   onEdit?: (scholarship: Scholarship) => void;
   onDelete?: (id: string) => void;
   onToggleActive?: (scholarship: Scholarship) => void;
@@ -45,11 +48,13 @@ interface ScholarshipListProps {
 
 export function ScholarshipList({
   scholarships,
+  terminology,
   onEdit,
   onDelete,
   onToggleActive,
 }: ScholarshipListProps) {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const terms = terminology ?? DEFAULT_TERMINOLOGY;
 
   const getStatusBadge = (scholarship: Scholarship) => {
     const today = new Date();
@@ -213,7 +218,7 @@ export function ScholarshipList({
             <TableHeader>
               <TableRow>
                 <TableHead>Beca</TableHead>
-                <TableHead>Atleta</TableHead>
+                <TableHead>{terms.athlete}</TableHead>
                 <TableHead>Tipo</TableHead>
                 <TableHead>Descuento</TableHead>
                 <TableHead>Inicio</TableHead>

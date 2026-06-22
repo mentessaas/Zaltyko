@@ -55,24 +55,24 @@ export default function TestimonialsSection() {
               {/* Quote icon */}
               <div className="absolute -top-4 left-8">
                 <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
-                  <Quote className="w-4 h-4 text-gray-400" />
+                  <Quote className="w-4 h-4 text-gray-600" />
                 </div>
               </div>
 
               {/* Placeholder text */}
-              <p className="text-gray-400 mb-6 leading-relaxed italic">
+              <p className="text-gray-600 mb-6 leading-relaxed italic">
                 "{testimonial.placeholder}"
               </p>
 
               {/* Author */}
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center text-gray-400 font-bold">
+                <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center text-gray-600 font-bold">
                   ?
                 </div>
                 <div>
-                  <p className="font-bold text-gray-400">{testimonial.author}</p>
+                  <p className="font-bold text-gray-600">{testimonial.author}</p>
                   {testimonial.academy && (
-                    <p className="text-sm text-gray-400">{testimonial.role} · {testimonial.academy}</p>
+                    <p className="text-sm text-gray-600">{testimonial.role} · {testimonial.academy}</p>
                   )}
                 </div>
               </div>

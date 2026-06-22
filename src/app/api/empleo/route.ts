@@ -7,6 +7,7 @@ import { withTenant, type TenantContext } from "@/lib/authz";
 import { escapeLikeSearch } from "@/lib/helpers";
 import { apiSuccess, apiError, apiCreated } from "@/lib/api-response";
 import { logger } from "@/lib/logger";
+import { demoEmploymentListing } from "@/lib/public/demo-listings";
 
 // Validation schemas
 const CreateEmpleoSchema = z.object({
@@ -74,12 +75,15 @@ export async function GET(request: Request) {
     .from(empleoListings)
     .where(and(...conditions));
 
+  const items = listings.length === 0 && process.env.NODE_ENV !== "production" ? [demoEmploymentListing] : listings;
+  const total = listings.length === 0 && process.env.NODE_ENV !== "production" ? 1 : countResult?.count ?? 0;
+
   return apiSuccess({
-    items: listings,
-    total: countResult?.count ?? 0,
+    items,
+    total,
     page,
     pageSize: limit,
-  }, { total: countResult?.count ?? 0, page, pageSize: limit });
+  }, { total, page, pageSize: limit });
 }
 
 export const POST = withTenant(async (request: Request, context: TenantContext) => {

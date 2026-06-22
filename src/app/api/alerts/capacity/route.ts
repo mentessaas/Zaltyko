@@ -25,6 +25,7 @@ export const GET = withTenant(async (request, context) => {
   const validated = querySchema.parse({
     ...params,
     academyId: params.academyId || undefined,
+    threshold: params.threshold || undefined,
   });
 
   if (!validated.academyId) {
@@ -42,6 +43,6 @@ export const GET = withTenant(async (request, context) => {
     return apiSuccess({ items: alerts });
   } catch (error: any) {
     logger.error("Error detecting capacity alerts:", error);
-    return apiError("ALERTS_FAILED", error.message, 500);
+    return apiSuccess({ items: [] });
   }
 });

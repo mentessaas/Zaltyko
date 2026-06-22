@@ -69,6 +69,38 @@ async function getEvents() {
 }
 
 function EventsContent({ events }: { events: any[] }) {
+  if (events.length === 0) {
+    return (
+      <div className="rounded-xl border border-border bg-card p-16 text-center shadow-sm">
+        <div className="mx-auto max-w-md">
+          <div className="mb-6 flex justify-center">
+            <div className="flex h-20 w-20 items-center justify-center rounded-full border border-border bg-muted">
+              <svg
+                className="h-10 w-10 text-muted-foreground"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.5}
+                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                />
+              </svg>
+            </div>
+          </div>
+          <h3 className="mb-2 text-xl font-semibold">
+            No hay eventos públicos todavía
+          </h3>
+          <p className="text-muted-foreground">
+            Las academias pueden publicar sus eventos y competiciones desde su panel de gestión.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="grid gap-8 lg:grid-cols-[250px_1fr]">
       <aside>
@@ -76,37 +108,7 @@ function EventsContent({ events }: { events: any[] }) {
       </aside>
 
       <main>
-        {events.length > 0 ? (
-          <EventsGrid events={events} />
-        ) : (
-          <div className="rounded-xl border border-border bg-card p-16 text-center shadow-sm">
-            <div className="mx-auto max-w-md">
-              <div className="mb-6 flex justify-center">
-                <div className="flex h-20 w-20 items-center justify-center rounded-full border border-border bg-muted">
-                  <svg
-                    className="h-10 w-10 text-muted-foreground"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={1.5}
-                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                    />
-                  </svg>
-                </div>
-              </div>
-              <h3 className="mb-2 text-xl font-semibold">
-                No hay eventos públicos todavía
-              </h3>
-              <p className="text-muted-foreground">
-                Las academias pueden publicar sus eventos y competiciones desde su panel de gestión.
-              </p>
-            </div>
-          </div>
-        )}
+        <EventsGrid events={events} />
       </main>
     </div>
   );

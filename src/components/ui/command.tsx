@@ -32,9 +32,7 @@ const CommandDialog = ({ open, onOpenChange, children }: CommandDialogProps) => 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="overflow-hidden p-0 shadow-lg max-w-[640px]">
-        <Command className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group]]:px-2 [&_[cmdk-item]]:py-2 [&_[cmdk-item]]:px-2 [&_[cmdk-item]]:text-sm [&_[cmdk-input-wrapper]]:flex [&_[cmdk-input-wrapper]]:items-center [&_[cmdk-input-wrapper]]:border-b [&_[cmdk-input-wrapper]]:pb-2 [&_[cmdk-input]]:flex-1 [&_[cmdk-input-wrapper]]:has-[[cmdk-input]]:border-0">
-          {children}
-        </Command>
+        {children}
       </DialogContent>
     </Dialog>
   );

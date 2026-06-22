@@ -14,6 +14,19 @@ interface FinancialMetrics {
   pendingPayments: number;
   pendingPaymentsCount: number;
   activeScholarships: number;
+  bySportConfig?: Array<{
+    sportConfigId: string | null;
+    label: string;
+    paidAmount: number;
+    pendingAmount: number;
+    overdueAmount: number;
+    activeScholarships: number;
+    discountAmount: number;
+    estimatedCostAmount: number;
+    estimatedMarginAmount: number;
+    estimatedMarginRate: number | null;
+    profitabilityStatus: "profitable" | "at_risk" | "loss" | "unknown";
+  }>;
 }
 
 export function FinancialMetricsWidget({ academyId }: FinancialMetricsWidgetProps) {
@@ -32,8 +45,8 @@ export function FinancialMetricsWidget({ academyId }: FinancialMetricsWidgetProp
     try {
       const response = await fetch(`/api/dashboard/${academyId}/financial-metrics`);
       if (response.ok) {
-        const data = await response.json();
-        setMetrics(data);
+        const payload = await response.json();
+        setMetrics(payload.data ?? payload);
       }
     } catch (error) {
       console.error("Error loading financial metrics:", error);
@@ -122,6 +135,41 @@ export function FinancialMetricsWidget({ academyId }: FinancialMetricsWidgetProp
           </div>
         </div>
       </div>
+
+      {metrics.bySportConfig && metrics.bySportConfig.length > 0 && (
+        <div className="rounded-xl border border-border/60 bg-background/70 p-4">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Negocio por rama
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Ingresos, pendientes, morosidad, becas y descuentos separados por GAF/GAM/GR.
+              </p>
+            </div>
+          </div>
+          <div className="space-y-2">
+            {metrics.bySportConfig.map((item) => (
+              <div
+                key={item.sportConfigId ?? "unassigned"}
+                className="grid gap-2 rounded-lg border border-border/50 bg-white px-3 py-2 text-sm sm:grid-cols-7"
+              >
+                <span className="font-semibold text-zaltyko-navy sm:col-span-2">{item.label}</span>
+                <span className="text-green-700">Cobrado €{item.paidAmount.toFixed(2)}</span>
+                <span className="text-slate-700">Coste €{item.estimatedCostAmount.toFixed(2)}</span>
+                <span className={cn(item.estimatedMarginAmount < 0 ? "text-red-700" : "text-emerald-700")}>
+                  Margen €{item.estimatedMarginAmount.toFixed(2)}
+                </span>
+                <span className="text-amber-700">Pendiente €{item.pendingAmount.toFixed(2)}</span>
+                <span className="text-red-700">Mora €{item.overdueAmount.toFixed(2)}</span>
+                <span className="text-muted-foreground">
+                  {item.activeScholarships} becas · €{item.discountAmount.toFixed(2)} desc.
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
