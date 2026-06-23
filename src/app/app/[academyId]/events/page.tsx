@@ -5,7 +5,7 @@ import { eq, and } from "drizzle-orm";
 import { db } from "@/db";
 import { events, academies } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
-import { EventsList } from "@/components/events/EventsList";
+import { EventsListLazy } from "@/components/events/EventsListLazy";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { resolveAcademySpecialization } from "@/lib/specialization/registry";
 import { getAcademySportConfigOptions } from "@/lib/sport-config/service";
@@ -102,7 +102,7 @@ export default async function EventsPage({ params }: PageProps) {
           { label: `Eventos de ${specialization.labels.disciplineName}` },
         ]}
       />
-      <EventsList
+      <EventsListLazy
         academyId={academyId}
         events={eventRows.map((event) => ({
           id: event.id,
