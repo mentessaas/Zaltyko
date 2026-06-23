@@ -30,7 +30,7 @@ const nextConfig = {
     ignoreBuildErrors: false,
   },
   eslint: {
-    ignoreDuringBuilds: true,
+    ignoreDuringBuilds: false,
   },
   pageExtensions: ["ts", "tsx", "mdx"],
   // Deshabilitar exportación estática (la app es completamente dinámica)
