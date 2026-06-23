@@ -1,5 +1,8 @@
 "use client";
 
+import { memo } from "react";
+
+
 import Link from "next/link";
 import { Building2, ArrowRight } from "lucide-react";
 import AcademyCard from "./AcademyCard";
@@ -12,7 +15,7 @@ interface ClusterAcademiesSectionProps {
   countryLabel: string;
 }
 
-export default function ClusterAcademiesSection({
+function ClusterAcademiesSectionImpl({
   academies,
   locale,
   modalityLabel,
@@ -85,3 +88,5 @@ export default function ClusterAcademiesSection({
     </section>
   );
 }
+
+export default memo(ClusterAcademiesSectionImpl);

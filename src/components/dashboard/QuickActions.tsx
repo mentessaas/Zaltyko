@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, memo } from "react";
 import Link from "next/link";
 import { Plus, X } from "lucide-react";
 
@@ -14,7 +14,7 @@ interface QuickActionsProps {
   className?: string;
 }
 
-export function QuickActions({ academyId, className }: QuickActionsProps) {
+function QuickActionsImpl({ academyId, className }: QuickActionsProps) {
   const [isOpen, setIsOpen] = useState(false);
   const { specialization } = useAcademyContext();
   const quickActions = getQuickActions(specialization.labels, {
@@ -73,3 +73,5 @@ export function QuickActions({ academyId, className }: QuickActionsProps) {
     </div>
   );
 }
+
+export const QuickActions = memo(QuickActionsImpl);

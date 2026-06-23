@@ -87,6 +87,10 @@ export async function generateMetadata({
     keywords: content.meta.keywords,
     alternates: {
       canonical: canonicalUrl,
+      languages: {
+        es: `${baseUrl}/es/${modality}/${country}`,
+        en: `${baseUrl}/en/${MODALITIES[modality as ModalitySlug].en}/${COUNTRIES[country as (typeof VALID_COUNTRIES)[number]].en}`,
+      },
     },
     openGraph: {
       title: content.meta.title,

@@ -940,3 +940,23 @@ export function DashboardPage({
     </div>
   );
 }
+
+export function DashboardPageSkeleton() {
+  return (
+    <div className="space-y-8 animate-pulse" aria-busy="true" aria-label="Cargando dashboard">
+      {/* Header skeleton */}
+      <div className="h-24 bg-muted rounded-xl" />
+      {/* KPI grid skeleton */}
+      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="h-32 bg-muted rounded-xl" />
+        ))}
+      </div>
+      {/* Content grid skeleton */}
+      <div className="grid lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 h-96 bg-muted rounded-xl" />
+        <div className="h-96 bg-muted rounded-xl" />
+      </div>
+    </div>
+  );
+}

@@ -1,5 +1,8 @@
 "use client";
 
+import { memo } from "react";
+
+
 import Link from "next/link";
 import { ArrowRight, Globe, Layers } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -18,7 +21,7 @@ interface ClusterInterlinkingProps {
   competitions: string[];
 }
 
-export default function ClusterInterlinking({
+function ClusterInterlinkingImpl({
   locale,
   modality,
   country,
@@ -153,3 +156,5 @@ export default function ClusterInterlinking({
     </section>
   );
 }
+
+export default memo(ClusterInterlinkingImpl);
