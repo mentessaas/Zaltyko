@@ -1,12 +1,25 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Calendar, Clock } from "lucide-react";
+import { Calendar } from "lucide-react";
+import { logger } from "@/lib/logger";
+
+// Esquema Zod para validacion declarativa. Reemplaza validacion ad-hoc
+// que estaba antes en handleSubmit.
+const quickClassSchema = z.object({
+    classId: z.string().uuid({ message: "Selecciona una clase valida" }),
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha invalida (YYYY-MM-DD)"),
+});
+
+type QuickClassFormValues = z.infer<typeof quickClassSchema>;
 
 interface QuickClassModalProps {
     isOpen: boolean;
@@ -21,9 +34,26 @@ interface ClassOption {
 
 export function QuickClassModal({ isOpen, onClose, onSuccess }: QuickClassModalProps) {
     const [classes, setClasses] = useState<ClassOption[]>([]);
-    const [selectedClass, setSelectedClass] = useState("");
-    const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
-    const [loading, setLoading] = useState(false);
+    const [submitting, setSubmitting] = useState(false);
+    const [submitError, setSubmitError] = useState<string | null>(null);
+
+    const {
+        register,
+        handleSubmit,
+        setValue,
+        watch,
+        formState: { errors, isValid },
+        reset,
+    } = useForm<QuickClassFormValues>({
+        resolver: zodResolver(quickClassSchema),
+        mode: "onChange",
+        defaultValues: {
+            classId: "",
+            date: new Date().toISOString().split("T")[0],
+        },
+    });
+
+    const selectedClass = watch("classId");
 
     useEffect(() => {
         if (isOpen) {
@@ -36,53 +66,67 @@ export function QuickClassModal({ isOpen, onClose, onSuccess }: QuickClassModalP
             const res = await fetch("/api/classes");
             const json = await res.json();
             if (json.success && json.data) {
-                setClasses(json.data.map((c: any) => ({ id: c.id, name: c.name })));
+                setClasses(json.data.map((c: { id: string; name: string }) => ({ id: c.id, name: c.name })));
             }
         } catch (error) {
-            console.error("Error fetching classes:", error);
+            logger.apiError("/quick-actions", "GET /api/classes", error as Error);
         }
     };
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setLoading(true);
+    const onValid = async (values: QuickClassFormValues) => {
+        setSubmitting(true);
+        setSubmitError(null);
 
         try {
             const res = await fetch("/api/quick-actions/create-class", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    classId: selectedClass,
-                    date,
-                }),
+                body: JSON.stringify(values),
             });
 
             const json = await res.json();
             if (json.success) {
                 onSuccess();
+                reset();
+            } else {
+                setSubmitError(json.error ?? "Error al crear la clase");
             }
         } catch (error) {
-            console.error("Error creating class:", error);
+            logger.apiError("/quick-actions", "POST create-class", error as Error);
+            setSubmitError("Error de conexion. Intenta de nuevo.");
         } finally {
-            setLoading(false);
+            setSubmitting(false);
         }
     };
 
+    const handleClose = () => {
+        reset();
+        setSubmitError(null);
+        onClose();
+    };
+
     return (
-        <Dialog open={isOpen} onOpenChange={onClose}>
+        <Dialog open={isOpen} onOpenChange={handleClose}>
             <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
-                    <DialogTitle>Nueva Clase Rápida</DialogTitle>
+                    <DialogTitle>Nueva Clase Rapida</DialogTitle>
                     <DialogDescription>
-                        Crea una sesión de clase para hoy con los horarios predefinidos
+                        Crea una sesion de clase para hoy con los horarios predefinidos
                     </DialogDescription>
                 </DialogHeader>
 
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={handleSubmit(onValid)} className="space-y-4" noValidate>
                     <div className="space-y-2">
-                        <Label htmlFor="class">Clase</Label>
-                        <Select value={selectedClass} onValueChange={setSelectedClass} required>
-                            <SelectTrigger id="class">
+                        <Label htmlFor="classId">Clase</Label>
+                        <Select
+                            value={selectedClass}
+                            onValueChange={(value) => setValue("classId", value, { shouldValidate: true })}
+                        >
+                            <SelectTrigger
+                                id="classId"
+                                aria-invalid={!!errors.classId}
+                                className="min-h-[44px]"
+                            >
                                 <SelectValue placeholder="Selecciona una clase" />
                             </SelectTrigger>
                             <SelectContent>
@@ -93,29 +137,55 @@ export function QuickClassModal({ isOpen, onClose, onSuccess }: QuickClassModalP
                                 ))}
                             </SelectContent>
                         </Select>
+                        <input type="hidden" {...register("classId")} />
+                        {errors.classId && (
+                            <p className="text-xs text-red-600" role="alert">
+                                {errors.classId.message}
+                            </p>
+                        )}
                     </div>
 
                     <div className="space-y-2">
                         <Label htmlFor="date">Fecha</Label>
                         <div className="relative">
-                            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
                             <Input
                                 id="date"
                                 type="date"
-                                value={date}
-                                onChange={(e) => setDate(e.target.value)}
-                                className="pl-10"
-                                required
+                                {...register("date")}
+                                aria-invalid={!!errors.date}
+                                className="pl-10 min-h-[44px]"
                             />
                         </div>
+                        {errors.date && (
+                            <p className="text-xs text-red-600" role="alert">
+                                {errors.date.message}
+                            </p>
+                        )}
                     </div>
 
+                    {submitError && (
+                        <p className="text-sm text-red-600 bg-red-50 p-2 rounded" role="alert">
+                            {submitError}
+                        </p>
+                    )}
+
                     <div className="flex justify-end gap-2 pt-4">
-                        <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={handleClose}
+                            disabled={submitting}
+                            className="min-h-[44px]"
+                        >
                             Cancelar
                         </Button>
-                        <Button type="submit" disabled={loading || !selectedClass}>
-                            {loading ? "Creando..." : "Crear Clase"}
+                        <Button
+                            type="submit"
+                            disabled={submitting || !isValid}
+                            className="min-h-[44px]"
+                        >
+                            {submitting ? "Creando..." : "Crear Clase"}
                         </Button>
                     </div>
                 </form>
