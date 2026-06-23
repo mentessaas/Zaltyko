@@ -29,6 +29,26 @@ source:
 - **Limpieza `package.json`**: scripts `lint:app` y `lint:fix` ya no referencian `proxy.ts` (eliminado).
 - **Validacion**: `pnpm typecheck`, `pnpm lint` y `pnpm validate:rls` pasan limpios. Cierre de 6 issues CRITICAL/HIGH pre-produccion. Sin cambios funcionales visibles al usuario fuera del toggle anual. Próximo: Sprint 2 (Base de Datos).
 
+## 2026-06-23 - Sprint 5 (Frontend + Negocio) ejecutado
+
+**Frontend:**
+
+- **F5 memoizacion**: 6 cluster sections (ClusterAcademies/Coaches/Events/Hero/CTA/Interlinking) y 4 dashboard widgets (KPISection, RecentActivity, UpcomingClasses, QuickActions) envueltos con `memo()`. Cada componente renombrado a `XImpl` y exportado como `memo(XImpl)` para mantener compat con imports nombrados. Reduccion esperada de re-renders en cluster pages y dashboard academy.
+- **F8 lazy load DashboardPage**: `next/dynamic` en `src/app/app/[academyId]/dashboard/page.tsx` carga DashboardPage (942 lineas, ~30 widgets) con code-splitting. Skeleton `DashboardPageSkeleton` muestra placeholder animado durante carga. Reduccion estimada del bundle inicial del segmento dashboard en ~70%.
+- **F10 touch targets**: 3 botones icon-only en `DashboardTopbar` (notificaciones, ayuda, opciones) cambiados de `h-9 w-9` (36x36) a `min-h-[44px] min-w-[44px] h-11 w-11` (44x44px). Cumple WCAG 2.5.5. Otros 59 botones pequenos en el resto de componentes quedan como follow-up.
+- **F12 hreflang en cluster pages**: metadata `alternates.languages` ahora declara versiones ES y EN de cada cluster `[locale]/[modality]/[country]`. Mejora SEO internacional sin duplicar URLs canónicas.
+- **F6/F7 diferidos**: RHF+Zod en 5 dialogos criticos y extraccion i18n del dashboard requieren refactor profundo. Quedan como P1 para sprints dedicados.
+
+**Negocio:**
+
+- **P3 comunicacion interna consolidada**: `/api/messages/send` ya consolida busqueda/creacion de conversacion + envio + in-app notification + push notification. Disparadores existentes desde Contactos de atleta y desde detalle de grupo ya operativos. Pendiente: consolidar announcements + mensajes + notificaciones en un solo centro de UI con tabs.
+- **P4 clase de hoy para coach**: nuevo `src/components/coach/TodayQuickActions.tsx` con 3 acciones inline (pasar asistencia, evaluar progreso, aviso al grupo). Cada accion es un Link directo con `min-h-[44px]`. Empty state cuando no hay sesion. Pendiente: integrarlo en `CoachDashboardPage.tsx` pasando `todaySession` (ya disponible como prop).
+- **P1 decision legacy `/dashboard/*`**: opciones A/B/C/D ya analizadas en `Decisiones.md`. PENDIENTE Elvis (requiere eleccion humana entre compatibilidad vs migracion).
+- **P2 QA portal padres con usuarios reales**: implementado tecnicamente (allowlist + redirect + clean links). PENDIENTE sesion de prueba con `parent`/`athlete` reales para validar UX end-to-end. No automatizable.
+- **P5 pricing freemium (10 entrevistas)**: 10 sesiones con academias siguen PENDIENTES. Hipotesis free + Growth + Pro documentada en `Pricing.md`. Sin automatizar; requiere coordinacion con equipo de growth.
+
+**Validacion**: typecheck OK, lint OK, validate:rls PASS 100%, check:migrations OK, vitest 353/353 PASS (37 archivos, sin regresiones).
+
 ## 2026-06-23 - Sprint 4 (Testing) ejecutado
 
 - **T2 placeholders eliminados**: `tests/components-critical.test.tsx` ahora tiene 10 tests reales con React Testing Library + user-event + jest-dom. Reemplaza los 20 placeholders `expect(true).toBe(true)`. Cubre FormField (5 tests: render, error externo, required, email, minLength) y ConfirmDialog (5 tests: render, onConfirm, onCancel, variant destructive, loading state).

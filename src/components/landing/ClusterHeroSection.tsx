@@ -1,5 +1,8 @@
 "use client";
 
+import { memo } from "react";
+
+
 import Link from "next/link";
 import { ArrowRight, Sparkles, Shield, Zap, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -15,7 +18,7 @@ interface ClusterHeroSectionProps {
   countrySlug: string;
 }
 
-export default function ClusterHeroSection({
+function ClusterHeroSectionImpl({
   content,
   locale,
   modalityLabel,
@@ -121,3 +124,5 @@ export default function ClusterHeroSection({
     </section>
   );
 }
+
+export default memo(ClusterHeroSectionImpl);

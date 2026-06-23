@@ -1,5 +1,8 @@
 "use client";
 
+import { memo } from "react";
+
+
 import Link from "next/link";
 import { Users, ArrowRight } from "lucide-react";
 import CoachCard from "./CoachCard";
@@ -12,7 +15,7 @@ interface ClusterCoachesSectionProps {
   countryLabel: string;
 }
 
-export default function ClusterCoachesSection({
+function ClusterCoachesSectionImpl({
   coaches,
   locale,
   modalityLabel,
@@ -85,3 +88,5 @@ export default function ClusterCoachesSection({
     </section>
   );
 }
+
+export default memo(ClusterCoachesSectionImpl);

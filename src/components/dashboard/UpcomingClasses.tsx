@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, memo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CalendarClock, Users, ClipboardCheck, ArrowRight } from "lucide-react";
@@ -16,7 +16,7 @@ interface UpcomingClassesProps {
   academyCountry: string | null;
 }
 
-export function UpcomingClasses({ classes, academyId, academyCountry }: UpcomingClassesProps) {
+function UpcomingClassesImpl({ classes, academyId, academyCountry }: UpcomingClassesProps) {
   const router = useRouter();
   const [capacityAlerts, setCapacityAlerts] = useState<Set<string>>(new Set());
   
@@ -169,3 +169,5 @@ export function UpcomingClasses({ classes, academyId, academyCountry }: Upcoming
     </div>
   );
 }
+
+export const UpcomingClasses = memo(UpcomingClassesImpl);

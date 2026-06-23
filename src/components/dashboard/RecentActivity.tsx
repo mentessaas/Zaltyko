@@ -1,5 +1,8 @@
 "use client";
 
+import { memo } from "react";
+
+
 import { Clock3, Sparkles } from "lucide-react";
 
 import type { DashboardActivity } from "@/lib/dashboard";
@@ -22,7 +25,7 @@ const ACTION_COLORS: Record<string, string> = {
   "event.created": "bg-red-500/15 text-red-600",
 };
 
-export function RecentActivity({ items, academyCountry }: RecentActivityProps) {
+function RecentActivityImpl({ items, academyCountry }: RecentActivityProps) {
   return (
     <div className="space-y-4 rounded-lg border bg-card p-6 shadow-sm">
       <header className="flex items-center justify-between gap-3">
@@ -73,3 +76,5 @@ export function RecentActivity({ items, academyCountry }: RecentActivityProps) {
     </div>
   );
 }
+
+export const RecentActivity = memo(RecentActivityImpl);

@@ -1,5 +1,8 @@
 "use client";
 
+import { memo } from "react";
+
+
 import Link from "next/link";
 import { ArrowRight, Sparkles, Shield, Zap, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -11,7 +14,7 @@ interface ClusterCTASectionProps {
   countryLabel: string;
 }
 
-export default function ClusterCTASection({
+function ClusterCTASectionImpl({
   locale,
   modalityLabel,
   countryLabel,
@@ -112,3 +115,5 @@ export default function ClusterCTASection({
     </section>
   );
 }
+
+export default memo(ClusterCTASectionImpl);

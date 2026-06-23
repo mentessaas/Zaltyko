@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { Users, UserCheck, LayoutDashboard } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -28,7 +29,7 @@ interface MetricCard {
   accent: "sky" | "emerald" | "red" | "amber" | "coral" | "slate" | "zaltyko-primary" | "zaltyko-accent";
 }
 
-export function KPISection({ metrics, academyId, labels }: KPISectionProps) {
+function KPISectionImpl({ metrics, academyId, labels }: KPISectionProps) {
   const metricCards: MetricCard[] = [
     {
       title: "Atletas",
@@ -80,3 +81,6 @@ export function KPISection({ metrics, academyId, labels }: KPISectionProps) {
     </section>
   );
 }
+
+export default memo(KPISectionImpl);
+export const KPISection = memo(KPISectionImpl);

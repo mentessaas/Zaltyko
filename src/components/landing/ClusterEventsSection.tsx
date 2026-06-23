@@ -1,5 +1,8 @@
 "use client";
 
+import { memo } from "react";
+
+
 import Link from "next/link";
 import { CalendarDays, ArrowRight } from "lucide-react";
 import EventCard from "./EventCard";
@@ -12,7 +15,7 @@ interface ClusterEventsSectionProps {
   countryLabel: string;
 }
 
-export default function ClusterEventsSection({
+function ClusterEventsSectionImpl({
   events,
   locale,
   modalityLabel,
@@ -85,3 +88,5 @@ export default function ClusterEventsSection({
     </section>
   );
 }
+
+export default memo(ClusterEventsSectionImpl);

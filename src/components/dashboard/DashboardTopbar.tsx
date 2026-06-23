@@ -28,10 +28,10 @@ export function DashboardTopbar({
 
         {/* Right side - Actions */}
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" className="h-9 w-9" aria-label="Ver notificaciones">
+          <Button variant="ghost" size="icon" className="min-h-[44px] min-w-[44px] h-11 w-11" aria-label="Ver notificaciones">
             <Bell className="h-4 w-4" strokeWidth={1.8} />
           </Button>
-          <Button variant="ghost" size="icon" className="h-9 w-9" aria-label="Abrir ayuda">
+          <Button variant="ghost" size="icon" className="min-h-[44px] min-w-[44px] h-11 w-11" aria-label="Abrir ayuda">
             <HelpCircle className="h-4 w-4" strokeWidth={1.8} />
           </Button>
           {onPOS && (
@@ -46,7 +46,7 @@ export function DashboardTopbar({
               New customer
             </Button>
           )}
-          <Button variant="ghost" size="icon" className="h-9 w-9" aria-label="Abrir mas opciones">
+          <Button variant="ghost" size="icon" className="min-h-[44px] min-w-[44px] h-11 w-11" aria-label="Abrir mas opciones">
             <MoreVertical className="h-4 w-4" strokeWidth={1.8} />
           </Button>
 
