@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import crypto from "crypto";
 import { isDevFeaturesEnabled } from "@/lib/dev";
 import { DEV_SESSION_COOKIE, parseDevSessionCookie } from "@/lib/dev-session";
 
@@ -10,8 +11,15 @@ const SUPER_ADMIN_ROLE = "super_admin";
 // Clock skew tolerance for JWT iat validation (5 minutes)
 const CLOCK_SKEW_TOLERANCE = 5 * 60;
 
-// Rate limit excludes
-const EXCLUDED_PATHS = ["/_next", "/static"];
+const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+const RATE_LIMIT_EXCLUDED_PREFIXES = [
+  "/api/stripe/webhook",
+  "/api/lemonsqueezy/webhook",
+  "/api/mailgun",
+  "/api/cron",
+  "/api/dev",
+];
+const EXCLUDED_PATH_PREFIXES = ["/_next", "/static", "/favicon.ico"];
 
 function redirectToLogin(req: NextRequest) {
   return NextResponse.redirect(new URL(LOGIN_PATH, req.url));
@@ -24,84 +32,117 @@ function extractAccessToken(req: NextRequest) {
   return tokenCookie?.value ?? null;
 }
 
-function base64Decode(input: string) {
+function base64UrlDecode(input: string) {
+  const padded = input.replace(/-/g, "+").replace(/_/g, "/").padEnd(
+    input.length + ((4 - (input.length % 4)) % 4),
+    "="
+  );
   if (typeof globalThis !== "undefined" && "atob" in globalThis) {
-    return (globalThis as typeof globalThis & { atob: (value: string) => string }).atob(input);
+    return (globalThis as typeof globalThis & { atob: (value: string) => string }).atob(padded);
   }
-  return Buffer.from(input, "base64").toString("utf8");
+  return Buffer.from(padded, "base64").toString("utf8");
 }
 
-function decodeJwtPayload(token: string) {
+function verifyJwtHs256(token: string, secret: string): { valid: boolean; payload: Record<string, unknown> | null } {
   try {
     const parts = token.split(".");
-    if (parts.length !== 3) return null;
+    if (parts.length !== 3) return { valid: false, payload: null };
 
-    const base64 = parts[1]?.replace(/-/g, "+").replace(/_/g, "/").padEnd(
-      parts[1].length + ((4 - (parts[1].length % 4)) % 4),
-      "="
+    const [headerB64, payloadB64, signatureB64] = parts;
+    if (!headerB64 || !payloadB64 || !signatureB64) return { valid: false, payload: null };
+
+    const headerJson = base64UrlDecode(headerB64);
+    const header = JSON.parse(headerJson) as { alg?: string; typ?: string };
+    if (header.alg !== "HS256") return { valid: false, payload: null };
+
+    const signingInput = `${headerB64}.${payloadB64}`;
+    const expectedSignature = crypto
+      .createHmac("sha256", secret)
+      .update(signingInput)
+      .digest();
+
+    const receivedSignature = Buffer.from(
+      signatureB64.replace(/-/g, "+").replace(/_/g, "/").padEnd(
+        signatureB64.length + ((4 - (signatureB64.length % 4)) % 4),
+        "="
+      ),
+      "base64"
     );
-    if (!base64) return null;
 
-    const payloadObj = JSON.parse(base64Decode(base64));
-    const now = Date.now();
-
-    if (payloadObj.exp && now >= payloadObj.exp * 1000) {
-      console.warn("JWT expired");
-      return null;
+    if (
+      expectedSignature.length !== receivedSignature.length ||
+      !crypto.timingSafeEqual(expectedSignature, receivedSignature)
+    ) {
+      return { valid: false, payload: null };
     }
 
-    // Reject tokens issued in the future (clock skew > tolerance)
-    if (payloadObj.iat && now < (payloadObj.iat - CLOCK_SKEW_TOLERANCE) * 1000) {
-      console.warn("JWT issued in the future");
-      return null;
-    }
-
-    return payloadObj;
+    const payloadJson = base64UrlDecode(payloadB64);
+    return { valid: true, payload: JSON.parse(payloadJson) as Record<string, unknown> };
   } catch {
-    return null;
+    return { valid: false, payload: null };
   }
+}
+
+function validateClaims(payload: Record<string, unknown>): boolean {
+  const now = Date.now();
+
+  if (typeof payload.exp === "number" && now >= payload.exp * 1000) {
+    console.warn("JWT expired");
+    return false;
+  }
+
+  if (typeof payload.iat === "number" && now < (payload.iat - CLOCK_SKEW_TOLERANCE) * 1000) {
+    console.warn("JWT issued in the future");
+    return false;
+  }
+
+  return true;
 }
 
 function isSuperAdminPath(pathname: string) {
   return pathname.startsWith(SUPER_ADMIN_PATH);
 }
 
-function isExcludedPath(pathname: string) {
-  return EXCLUDED_PATHS.some((path) => pathname.startsWith(path));
+function isApiPath(pathname: string) {
+  return pathname.startsWith("/api/");
 }
 
-async function applyRateLimit(req: NextRequest) {
-  if (isExcludedPath(req.nextUrl.pathname)) return null;
+function isMutation(method: string) {
+  return MUTATING_METHODS.has(method.toUpperCase());
+}
 
-  try {
-    const { rateLimit, getLimitForRoute, getClientIdentifier } = await import("@/lib/rate-limit");
+function isApiRateLimitExcluded(pathname: string) {
+  return RATE_LIMIT_EXCLUDED_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+}
 
-    const pathname = req.nextUrl.pathname;
-    const result = await rateLimit({
-      identifier: `${pathname}:${getClientIdentifier(req)}`,
-      ...getLimitForRoute(pathname),
-    });
+function isExcludedPath(pathname: string) {
+  return EXCLUDED_PATH_PREFIXES.some((path) => pathname.startsWith(path));
+}
 
-    if (!result.success) {
-      return new NextResponse(JSON.stringify({
-        error: "RATE_LIMIT_EXCEEDED",
-        message: "Demasiadas requests. Intenta de nuevo más tarde."
-      }), {
-        status: 429,
-        headers: {
-          "Content-Type": "application/json",
-          "X-RateLimit-Limit": String(result.limit),
-          "X-RateLimit-Remaining": "0",
-          "X-RateLimit-Reset": String(result.reset),
-          "Retry-After": String(result.reset - Math.floor(Date.now() / 1000)),
-        }
-      });
-    }
-    return null;
-  } catch (error) {
-    console.error("Rate limit error in middleware:", error);
-    return null;
-  }
+function isAcademyAppPath(pathname: string) {
+  return pathname.startsWith("/app/") || pathname.startsWith("/super-admin/");
+}
+
+async function rateLimitResponse(
+  req: NextRequest,
+  body: Record<string, unknown>
+): Promise<NextResponse> {
+  const pathname = req.nextUrl.pathname;
+  const { rateLimit, getLimitForRoute, getClientIdentifier } = await import("@/lib/rate-limit");
+  const identifier = `${pathname}:${getClientIdentifier(req)}`;
+  const result = await rateLimit({ identifier, ...getLimitForRoute(pathname) });
+  const resetSeconds = Math.max(0, result.reset - Math.floor(Date.now() / 1000));
+
+  return new NextResponse(JSON.stringify(body), {
+    status: 429,
+    headers: {
+      "Content-Type": "application/json",
+      "X-RateLimit-Limit": String(result.limit),
+      "X-RateLimit-Remaining": "0",
+      "X-RateLimit-Reset": String(result.reset),
+      "Retry-After": String(resetSeconds),
+    },
+  });
 }
 
 function extractRole(payload: Record<string, unknown> | null) {
@@ -114,37 +155,70 @@ function extractRole(payload: Record<string, unknown> | null) {
 }
 
 export async function middleware(req: NextRequest) {
-  // Skip non-super-admin paths
-  if (!isSuperAdminPath(req.nextUrl.pathname)) {
+  const pathname = req.nextUrl.pathname;
+
+  if (isExcludedPath(pathname)) {
     return NextResponse.next();
   }
 
-  const hasDevSession =
-    isDevFeaturesEnabled &&
-    Boolean(parseDevSessionCookie(req.cookies.get(DEV_SESSION_COOKIE)?.value));
+  const requestHeaders = new Headers(req.headers);
+  requestHeaders.set("x-pathname", pathname);
 
-  if (hasDevSession) {
-    return NextResponse.next();
+  // 1. Rate limit API mutations globally (skips webhooks and crons)
+  if (isApiPath(pathname) && isMutation(req.method) && !isApiRateLimitExcluded(pathname)) {
+    return await rateLimitResponse(req, {
+      ok: false,
+      error: "RATE_LIMIT_EXCEEDED",
+      code: "RATE_LIMIT_EXCEEDED",
+      message: "Demasiadas requests. Intenta de nuevo más tarde.",
+    });
   }
 
-  // Apply rate limiting
-  const rateLimitResponse = await applyRateLimit(req);
-  if (rateLimitResponse) return rateLimitResponse;
-
-  // Validate JWT token
-  const token = extractAccessToken(req);
-  if (!token) return redirectToLogin(req);
-
-  const payload = decodeJwtPayload(token);
-  if (!payload) return redirectToLogin(req);
-
-  if (extractRole(payload) !== SUPER_ADMIN_ROLE) {
-    return redirectToLogin(req);
+  // 2. Rate limit academy app + super-admin paths
+  if (isAcademyAppPath(pathname)) {
+    return await rateLimitResponse(req, {
+      error: "RATE_LIMIT_EXCEEDED",
+      message: "Demasiadas requests. Intenta de nuevo más tarde.",
+    });
   }
 
-  return NextResponse.next();
+  // 3. Super-admin gate: validate JWT signature AND claims
+  if (isSuperAdminPath(pathname)) {
+    const hasDevSession =
+      isDevFeaturesEnabled &&
+      Boolean(parseDevSessionCookie(req.cookies.get(DEV_SESSION_COOKIE)?.value));
+
+    if (!hasDevSession) {
+      const token = extractAccessToken(req);
+      if (!token) return redirectToLogin(req);
+
+      const secret = process.env.SUPABASE_JWT_SECRET;
+      if (!secret) {
+        console.error("SUPABASE_JWT_SECRET not configured; rejecting super-admin access");
+        return redirectToLogin(req);
+      }
+
+      const { valid, payload } = verifyJwtHs256(token, secret);
+      if (!valid || !payload || !validateClaims(payload)) {
+        return redirectToLogin(req);
+      }
+
+      if (extractRole(payload) !== SUPER_ADMIN_ROLE) {
+        return redirectToLogin(req);
+      }
+    }
+  }
+
+  return NextResponse.next({
+    request: {
+      headers: requestHeaders,
+    },
+  });
 }
 
 export const config = {
-  matcher: ["/super-admin/:path*"],
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+  ],
 };
+

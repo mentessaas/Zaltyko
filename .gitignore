@@ -33,6 +33,5 @@
 /supabase/.temp
 
 # editor / repo metadata that we don't need right now
-/.github
 /.vscode
 /.vercelignore

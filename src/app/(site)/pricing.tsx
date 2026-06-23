@@ -76,9 +76,18 @@ export default function PricingSection() {
         {/* Annual billing toggle */}
         <div className="mt-8 flex justify-center">
           <div className="inline-flex items-center gap-3 bg-muted/60 rounded-full px-1 py-1">
-            <span className="px-4 py-1.5 rounded-full text-sm font-medium text-muted-foreground">Mensual</span>
-            <span className="px-4 py-1.5 rounded-full bg-zaltyko-teal text-white text-sm font-bold shadow-sm">
-              Anual — hasta 20% dto. <span className="text-xs opacity-70">(próximamente)</span>
+            <span
+              aria-pressed="true"
+              className="px-4 py-1.5 rounded-full bg-zaltyko-teal text-white text-sm font-bold shadow-sm"
+            >
+              Mensual
+            </span>
+            <span
+              aria-disabled="true"
+              title="Pago anual próximamente disponible"
+              className="px-4 py-1.5 rounded-full text-sm font-medium text-muted-foreground cursor-not-allowed select-none"
+            >
+              Anual — 20% dto. <span className="text-xs opacity-70">(próximamente)</span>
             </span>
           </div>
         </div>

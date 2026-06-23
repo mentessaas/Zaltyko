@@ -6,7 +6,7 @@
   "display": "standalone",
   "orientation": "portrait-primary",
   "background_color": "#ffffff",
-  "theme_color": "#0D47A1",
+  "theme_color": "#0F172A",
   "scope": "/",
   "lang": "es",
   "categories": ["business", "productivity", "sports"],
