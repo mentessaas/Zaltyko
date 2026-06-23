@@ -32,7 +32,8 @@
     "migrate:console": "tsx scripts/migrate-console-to-logger.ts",
     "migrate:console:dry-run": "tsx scripts/migrate-console-to-logger.ts --dry-run",
     "verify:production": "tsx scripts/verify-production-ready.ts",
-    "validate:rls": "tsx scripts/validate-rls.ts"
+    "validate:rls": "tsx scripts/validate-rls.ts",
+    "check:migrations": "tsx scripts/check-migrations-integrity.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -102,6 +103,9 @@
     "@next/eslint-plugin-next": "15.5.15",
     "@playwright/test": "^1.58.2",
     "@tailwindcss/typography": "^0.5.16",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/eslint": "^9.6.1",
     "@types/node": "^20",
     "@types/pg": "^8.11.11",
@@ -114,10 +118,12 @@
     "@types/web-push": "^3.6.4",
     "@typescript-eslint/eslint-plugin": "^8.57.1",
     "@typescript-eslint/parser": "^8.57.1",
+    "@vitejs/plugin-react": "^4.3.4",
     "baseline-browser-mapping": "^2.10.21",
     "eslint": "^8.57.0",
     "eslint-config-next": "15.5.15",
     "eslint-plugin-react-hooks": "^7.0.1",
+    "jsdom": "^29.1.1",
     "pg-mem": "^3.0.5",
     "postcss": "^8",
     "prettier": "^3.4.2",

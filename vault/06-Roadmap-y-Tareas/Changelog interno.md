@@ -29,6 +29,19 @@ source:
 - **Limpieza `package.json`**: scripts `lint:app` y `lint:fix` ya no referencian `proxy.ts` (eliminado).
 - **Validacion**: `pnpm typecheck`, `pnpm lint` y `pnpm validate:rls` pasan limpios. Cierre de 6 issues CRITICAL/HIGH pre-produccion. Sin cambios funcionales visibles al usuario fuera del toggle anual. Próximo: Sprint 2 (Base de Datos).
 
+## 2026-06-23 - Sprint 4 (Testing) ejecutado
+
+- **T2 placeholders eliminados**: `tests/components-critical.test.tsx` ahora tiene 10 tests reales con React Testing Library + user-event + jest-dom. Reemplaza los 20 placeholders `expect(true).toBe(true)`. Cubre FormField (5 tests: render, error externo, required, email, minLength) y ConfirmDialog (5 tests: render, onConfirm, onCancel, variant destructive, loading state).
+- **T11 integridad de migraciones**: nuevo `scripts/check-migrations-integrity.ts` y `pnpm check:migrations`. Verifica journal consistency (SQL + snapshot por entrada). Job CI `check-migrations` añadido. Drift Drizzle via `db:generate` sigue requiriendo DB real - queda como follow-up.
+- **T7 Playwright parallel + cross-browser**: `playwright.config.ts` con `fullyParallel: true` en CI, `workers: 3`, `maxFailures: 5`. Proyectos: chromium, firefox, webkit. Reporter `github` para annotations en PRs.
+- **T8 coverage a Codecov**: job `test` ahora corre `pnpm vitest run --coverage` y sube `coverage/lcov.info` a Codecov via `codecov-action@v4`. Requiere `CODECOV_TOKEN` secret.
+- **T10 E2E en CI**: jobs `e2e-public` y `e2e-auth` con secrets `E2E_*`. Solo corren en push a main. Generan storage state antes de correr tests autenticados.
+- **T6 tests de validators**: `tests/validators.test.ts` con 19 tests cubriendo required, email, minLength, maxLength, pattern y combine. Reusable para todos los formularios que usen `FormField`/`validators`.
+- **Deps nuevas**: `@testing-library/react`, `@testing-library/user-event`, `@testing-library/jest-dom`, `jsdom`, `@vitejs/plugin-react@4.3.4`.
+- **Vitest config**: setup file importa `@testing-library/jest-dom/vitest` para matchers. Tests `*.tsx` soportados via `@vitejs/plugin-react`.
+- **Difierido**: T1 (pg-mem para 17 tests API excluidos) y T3 (testcontainers para tenancy) requieren setup de DB de prueba; se abordan en sprint dedicado cuando se decida estrategia de test DB.
+- **Validacion**: `pnpm typecheck`, `pnpm lint`, `pnpm validate:rls` (PASS 100%), `pnpm check:migrations` (3 migraciones), `pnpm vitest run tests/components-critical.test.tsx tests/validators.test.ts` (29 tests pasan).
+
 ## 2026-06-23 - Sprint 3 (Arquitectura y DX) ejecutado
 
 - **A3 i18n middleware consolidado**: `src/middleware-i18n.ts` (que Next.js nunca cargaba) eliminado. Logica de i18n redirect migrada a `middleware.ts` raiz con deteccion de locale por cookie/Accept-Language. Orden: exclude paths -> i18n redirect -> rate-limit API mutante -> rate-limit /app y /super-admin -> super-admin gate JWT con firma HS256.
