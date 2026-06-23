@@ -20,6 +20,7 @@ import {
 import { logger } from "@/lib/logger";
 import { db } from "@/db";
 import { profiles } from "@/db/schema";
+import { createBearerSupabaseClient, getBearerToken } from "@/lib/supabase/bearer-client";
 
 export type { ProfileRow };
 
@@ -87,7 +88,7 @@ export function withSuperAdmin<Ctx extends Record<string, unknown>>(
       if (error instanceof SuperAdminRequiredError) {
         return NextResponse.json(
           { error: error.code },
-          { status: error.status }
+          { status: error.statusCode }
         );
       }
 
@@ -209,22 +210,116 @@ export function withTenant<Ctx extends Record<string, unknown>>(
       });
     } catch (error) {
       if (error instanceof UnauthenticatedError) {
-        return NextResponse.json({ error: error.code }, { status: error.status });
+        return NextResponse.json({ error: error.code }, { status: error.statusCode });
       }
       if (error instanceof ProfileNotFoundError) {
-        return NextResponse.json({ error: error.code }, { status: error.status });
+        return NextResponse.json({ error: error.code }, { status: error.statusCode });
       }
       if (error instanceof TenantMissingError) {
-        return NextResponse.json({ error: error.code }, { status: error.status });
+        return NextResponse.json({ error: error.code }, { status: error.statusCode });
       }
       if (error instanceof LoginDisabledError) {
         return NextResponse.json(
           { error: error.code, message: "Tu cuenta no tiene acceso activado. Contacta al administrador." },
-          { status: error.status }
+          { status: error.statusCode }
         );
       }
 
       logger.error("Error in withTenant", error);
+      return NextResponse.json(
+        {
+          error: "INTERNAL_ERROR",
+          message: error instanceof Error ? error.message : "Ha ocurrido un error desconocido",
+        },
+        { status: 500 }
+      );
+    }
+  };
+}
+
+/**
+ * Resuelve userId desde Authorization: Bearer <token>.
+ * Complemento de withTenant para clientes mobile/PWA que usan bearer.
+ * Valida firma via Supabase auth.getUser(token).
+ */
+async function resolveUserIdFromBearer(request: Request): Promise<string | null> {
+  const token = getBearerToken(request);
+  if (!token) return null;
+
+  try {
+    const supabase = createBearerSupabaseClient(token);
+    const { data: { user }, error } = await supabase.auth.getUser(token);
+    if (error || !user) {
+      logger.warn("Bearer token rejected by Supabase", { error: error?.message });
+      return null;
+    }
+    return user.id;
+  } catch (err) {
+    logger.warn("Failed to validate bearer token", { err });
+    return null;
+  }
+}
+
+/**
+ * Wrapper equivalente a withTenant pero para clientes que envian
+ * Authorization: Bearer <token> en lugar de cookies Supabase.
+ * Mantiene la misma firma de contexto ({ tenantId, userId, profile }).
+ *
+ * Caso de uso: apps mobile, scripts CLI, integraciones server-to-server
+ * que no comparten cookies con el browser.
+ */
+export function withBearerTenant<Ctx extends Record<string, unknown>>(
+  handler: (request: Request, context: TenantContext<Ctx>) => Promise<Response>
+) {
+  return async (request: Request, context: any) => {
+    try {
+      const params = context.params ? await context.params : context.params;
+      const contextWithParams = { ...context, params };
+
+      const userId = await resolveUserIdFromBearer(request);
+      if (!userId) {
+        return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
+      }
+
+      const profile = await getCurrentProfile(userId);
+      if (!profile) {
+        return NextResponse.json({ error: "PROFILE_NOT_FOUND" }, { status: 404 });
+      }
+
+      if (!profile.canLogin && profile.role !== "super_admin") {
+        return NextResponse.json(
+          {
+            error: "LOGIN_DISABLED",
+            message: "Tu cuenta no tiene acceso activado. Contacta al administrador.",
+          },
+          { status: 403 }
+        );
+      }
+
+      const effectiveAcademyId = extractAcademyId(request, contextWithParams);
+      let tenantId = await getTenantId(userId, effectiveAcademyId);
+
+      if (!tenantId && effectiveAcademyId) {
+        const resolution = await resolveTenantWithUpdate(userId, effectiveAcademyId, profile);
+        if (resolution.shouldUpdateProfile && resolution.newTenantId) {
+          const updatedProfile = await updateProfileIfNeeded(
+            profile,
+            resolution.newTenantId,
+            resolution.newActiveAcademyId
+          );
+          Object.assign(profile, updatedProfile);
+        }
+        tenantId = resolution.tenantId;
+      }
+
+      return handler(request, {
+        ...contextWithParams,
+        tenantId: tenantId ?? "",
+        userId,
+        profile,
+      });
+    } catch (error) {
+      logger.error("Error in withBearerTenant", error);
       return NextResponse.json(
         {
           error: "INTERNAL_ERROR",

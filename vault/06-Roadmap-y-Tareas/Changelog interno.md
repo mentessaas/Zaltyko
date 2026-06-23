@@ -29,6 +29,16 @@ source:
 - **Limpieza `package.json`**: scripts `lint:app` y `lint:fix` ya no referencian `proxy.ts` (eliminado).
 - **Validacion**: `pnpm typecheck`, `pnpm lint` y `pnpm validate:rls` pasan limpios. Cierre de 6 issues CRITICAL/HIGH pre-produccion. Sin cambios funcionales visibles al usuario fuera del toggle anual. Próximo: Sprint 2 (Base de Datos).
 
+## 2026-06-23 - Sprint 3 (Arquitectura y DX) ejecutado
+
+- **A3 i18n middleware consolidado**: `src/middleware-i18n.ts` (que Next.js nunca cargaba) eliminado. Logica de i18n redirect migrada a `middleware.ts` raiz con deteccion de locale por cookie/Accept-Language. Orden: exclude paths -> i18n redirect -> rate-limit API mutante -> rate-limit /app y /super-admin -> super-admin gate JWT con firma HS256.
+- **A7 AuthorizationError consolidado**: `src/lib/authz/errors.ts` ahora extiende la jerarquia `AppError` de `src/lib/errors.ts`. Re-exporta `AppAuthorizationError` para compatibilidad. `src/lib/authz.ts` actualizado para usar `error.statusCode` (campo AppError) en vez de `error.status`. Una sola clase, un solo `instanceof` check.
+- **A8 tracesSampleRate reducido**: `instrumentation.ts`, `sentry.server.config.ts`, `sentry.edge.config.ts`, `instrumentation-client.ts` ahora usan `tracesSampler` con logica: 100% en errores 5xx, 10% en 2xx/3xx, 0% en `/api/stripe/webhook` y `/api/cron`. `replaysSessionSampleRate` reducido de 0.1 a 0.05 en cliente. Cierra riesgo de saturar quota Sentry en produccion.
+- **A4 withErrorHandler mejorado**: ahora soporta el patron `withErrorHandler(withTenant(handler))` para composicion. Reconoce `AppError` (statusCode explicito) primero, luego ZodError, luego genericos. Acepta `RouteContext` con params Promise (Next.js 15). Aplicado como ejemplo en `/api/audit-logs/route.ts` con `apiSuccess`.
+- **A1 withBearerTenant nuevo wrapper**: `src/lib/authz.ts` ahora exporta `withBearerTenant` que resuelve userId desde `Authorization: Bearer <token>` via `supabase.auth.getUser(token)` en lugar de cookies. Mantiene misma signature de contexto. Aplicado como ejemplo en `/api/push-tokens/route.ts` con `withErrorHandler(withBearerTenant(handler))`. Patron listo para migrar las 14 APIs bearer restantes en sprints siguientes.
+- **A6 capa de repositorios iniciada**: `src/db/repositories/athletes.ts` con `listForAcademy`, `countForAcademy`, `findById`. Filtra siempre por `tenantId` (defensa en profundidad ademas de RLS). Patron para replicar a classes, events, billing, etc. en siguientes sprints.
+- **Validacion**: `pnpm typecheck`, `pnpm lint` y `pnpm validate:rls` (PASS 100% sobre 63 tablas) limpios. Sin cambios visibles al usuario final.
+
 ## 2026-06-23 - Sprint 2 (Base de Datos) ejecutado parcialmente
 
 - **S6 SELF_SIGNED_CERT_IN_CHAIN resuelto**: certificado CA raiz de Supabase extraido a `certs/supabase-root-ca.crt` (publico, commiteado al repo). `drizzle.config.ts` ahora carga `.env.local` ademas de `.env`. Nuevo script `scripts/db-migrate.ts` resuelve `NODE_EXTRA_CA_CERTS` a ruta absoluta y ejecuta `drizzle-kit push` con env vars correctas. `scripts/dump-schema.ts` y `scripts/check-fks.ts` con SSL fix para diagnostico. `scripts/apply-migration.ts` ya funcionaba en `NODE_ENV=production` por su `ssl: { rejectUnauthorized: false }`. `.env.example` documenta `NODE_EXTRA_CA_CERTS`.

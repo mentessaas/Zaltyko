@@ -3,6 +3,7 @@ import type { NextRequest } from "next/server";
 import crypto from "crypto";
 import { isDevFeaturesEnabled } from "@/lib/dev";
 import { DEV_SESSION_COOKIE, parseDevSessionCookie } from "@/lib/dev-session";
+import { locales, defaultLocale, type Locale } from "@/i18n";
 
 // Constants
 const SUPER_ADMIN_PATH = "/super-admin";
@@ -10,6 +11,7 @@ const LOGIN_PATH = "/auth/login";
 const SUPER_ADMIN_ROLE = "super_admin";
 // Clock skew tolerance for JWT iat validation (5 minutes)
 const CLOCK_SKEW_TOLERANCE = 5 * 60;
+const LOCALE_COOKIE_NAME = "zaltyko-locale";
 
 const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 const RATE_LIMIT_EXCLUDED_PREFIXES = [
@@ -20,6 +22,7 @@ const RATE_LIMIT_EXCLUDED_PREFIXES = [
   "/api/dev",
 ];
 const EXCLUDED_PATH_PREFIXES = ["/_next", "/static", "/favicon.ico"];
+const I18N_SKIP_PREFIXES = ["/api", "/auth", "/login", "/invite"];
 
 function redirectToLogin(req: NextRequest) {
   return NextResponse.redirect(new URL(LOGIN_PATH, req.url));
@@ -119,6 +122,11 @@ function isExcludedPath(pathname: string) {
   return EXCLUDED_PATH_PREFIXES.some((path) => pathname.startsWith(path));
 }
 
+function isI18nSkipped(pathname: string) {
+  if (pathname.includes(".")) return true;
+  return I18N_SKIP_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+}
+
 function isAcademyAppPath(pathname: string) {
   return pathname.startsWith("/app/") || pathname.startsWith("/super-admin/");
 }
@@ -154,12 +162,58 @@ function extractRole(payload: Record<string, unknown> | null) {
   );
 }
 
+function getLocaleFromRequest(request: NextRequest): Locale {
+  const cookieLocale = request.cookies.get(LOCALE_COOKIE_NAME)?.value;
+  if (cookieLocale === "es" || cookieLocale === "en") {
+    return cookieLocale;
+  }
+
+  const acceptLanguage = request.headers.get("accept-language");
+  if (acceptLanguage) {
+    const normalized = acceptLanguage.toLowerCase().split("-")[0];
+    if (normalized === "en") return "en";
+    if (normalized === "es") return "es";
+  }
+
+  return defaultLocale;
+}
+
+function i18nRedirectResponse(request: NextRequest): NextResponse | null {
+  const { pathname } = request.nextUrl;
+
+  if (isI18nSkipped(pathname)) return null;
+
+  const pathnameHasLocale = locales.some(
+    (locale) => pathname.startsWith(`/${locale}/`) || pathname === `/${locale}`
+  );
+  if (pathnameHasLocale) return null;
+
+  const locale = getLocaleFromRequest(request);
+  const newUrl = new URL(`/${locale}${pathname}`, request.url);
+  request.nextUrl.searchParams.forEach((value, key) => {
+    newUrl.searchParams.set(key, value);
+  });
+
+  const response = NextResponse.redirect(newUrl);
+  response.cookies.set(LOCALE_COOKIE_NAME, locale, {
+    path: "/",
+    maxAge: 60 * 60 * 24 * 365,
+    httpOnly: false,
+    sameSite: "lax",
+  });
+  return response;
+}
+
 export async function middleware(req: NextRequest) {
   const pathname = req.nextUrl.pathname;
 
   if (isExcludedPath(pathname)) {
     return NextResponse.next();
   }
+
+  // 0. i18n redirect (must run before any other gate)
+  const i18nResponse = i18nRedirectResponse(req);
+  if (i18nResponse) return i18nResponse;
 
   const requestHeaders = new Headers(req.headers);
   requestHeaders.set("x-pathname", pathname);

@@ -10,6 +10,8 @@ import {
   type AuditLogFilters,
 } from "@/lib/authz/audit-service";
 import { withTenant } from "@/lib/authz";
+import { withErrorHandler } from "@/lib/api-error-handler";
+import { apiSuccess } from "@/lib/api-response";
 
 const querySchema = z.object({
   userId: z.string().optional(),
@@ -27,7 +29,7 @@ const querySchema = z.object({
 });
 
 // GET /api/audit-logs
-export const GET = withTenant(async (request, context) => {
+export const GET = withErrorHandler(withTenant(async (request, context) => {
   const { searchParams } = new URL(request.url);
 
   const params = {
@@ -46,7 +48,6 @@ export const GET = withTenant(async (request, context) => {
 
   const validated = querySchema.parse(params);
 
-  // Preparar filtros para el servicio (excluir strings de pagination)
   const filters: AuditLogFilters = {
     userId: validated.userId,
     module: validated.module as any,
@@ -62,7 +63,6 @@ export const GET = withTenant(async (request, context) => {
     academyId: context.tenantId,
   };
 
-  // Si es exportación, devolver CSV
   if (validated.export === "csv") {
     const csv = await exportAuditLogs(filters);
 
@@ -79,7 +79,7 @@ export const GET = withTenant(async (request, context) => {
     getAuditLogsCount(filters),
   ]);
 
-  return NextResponse.json({
+  return apiSuccess({
     logs,
     pagination: {
       total,
@@ -87,4 +87,4 @@ export const GET = withTenant(async (request, context) => {
       offset: validated.offset,
     },
   });
-});
+}));

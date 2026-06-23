@@ -6,32 +6,36 @@ import * as Sentry from "@sentry/nextjs";
 
 const SENTRY_DSN = process.env.SENTRY_DSN || process.env.NEXT_PUBLIC_SENTRY_DSN;
 
+function tracesSampler(samplingContext: {
+  parentSampled?: boolean;
+  transactionContext?: { status?: string };
+}) {
+  if (samplingContext.parentSampled === false) return 0;
+  const status = samplingContext.transactionContext?.status;
+  if (status && ["internal_error", "unavailable", "unknown_error", "server_error"].includes(status)) {
+    return 1.0;
+  }
+  return 0.1;
+}
+
 Sentry.init({
   dsn: SENTRY_DSN,
-  
-  // Adjust this value in production, or use tracesSampler for greater control
-  tracesSampleRate: 1.0,
-  
-  // Setting this option to true will print useful information to the console while you're setting up Sentry.
+  tracesSampler,
+
   debug: false,
-  
-  // Filter out sensitive data
+
   beforeSend(event, hint) {
-    // Don't send events in development
     if (process.env.NODE_ENV === "development") {
       return null;
     }
-    
-    // Remove sensitive data from event
+
     if (event.request) {
-      // Remove sensitive headers
       if (event.request.headers) {
         delete event.request.headers["authorization"];
         delete event.request.headers["cookie"];
         delete event.request.headers["x-api-key"];
       }
-      
-      // Remove sensitive query params
+
       if (event.request.query_string) {
         const params = new URLSearchParams(event.request.query_string);
         params.delete("token");
@@ -40,19 +44,17 @@ Sentry.init({
         event.request.query_string = params.toString();
       }
     }
-    
+
     return event;
   },
-  
-  // Ignore certain errors
+
   ignoreErrors: [
-    // Database connection errors that are handled
     "ECONNREFUSED",
     "ETIMEDOUT",
     "ENOTFOUND",
-    // Validation errors that are expected
     "VALIDATION_ERROR",
     "ZodError",
   ],
 });
+
 
