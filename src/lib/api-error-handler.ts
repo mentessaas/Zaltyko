@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 import { ZodError } from "zod";
 import { apiError as standardizedApiError } from "./api-response";
+import { isAppError, AppError } from "./errors";
 import { logger } from "./logger";
 
 export interface ApiError {
@@ -10,10 +12,28 @@ export interface ApiError {
 }
 
 /**
- * Wrapper para manejar errores de manera consistente en todos los endpoints
+ * Wrapper para manejar errores de manera consistente en todos los endpoints.
+ * AppError primero (status code explicito), luego Zod, luego genericos.
  */
-export function handleApiError(error: unknown, context?: { endpoint?: string; method?: string }): NextResponse<ApiError> {
-  // Error de validación Zod
+export function handleApiError(
+  error: unknown,
+  context?: { endpoint?: string; method?: string }
+): NextResponse<ApiError> {
+  if (isAppError(error)) {
+    const status = error.statusCode ?? 500;
+    if (status >= 500) {
+      logger.error(`AppError ${error.code}`, error, context);
+    } else {
+      logger.warn(`AppError ${error.code}`, { ...context, message: error.message });
+    }
+    return standardizedApiError(
+      error.code ?? "APP_ERROR",
+      error.message,
+      status,
+      error.details
+    );
+  }
+
   if (error instanceof ZodError) {
     const issues = error.issues.map((issue) => ({
       path: issue.path.join("."),
@@ -28,10 +48,9 @@ export function handleApiError(error: unknown, context?: { endpoint?: string; me
     return standardizedApiError("VALIDATION_ERROR", "Los datos proporcionados no son válidos", 400, issues);
   }
 
-  // Error con status code personalizado
-  if (error && typeof error === "object" && "status" in error) {
-    const status = typeof error.status === "number" ? error.status : 500;
-    const message = "message" in error ? String(error.message) : undefined;
+  if (error && typeof error === "object" && "status" in error && typeof (error as Record<string, unknown>).status === "number") {
+    const status = (error as Record<string, unknown>).status as number;
+    const message = "message" in error ? String((error as Record<string, unknown>).message) : undefined;
 
     if (status >= 500) {
       logger.error(`API error with status ${status}`, error, context);
@@ -42,46 +61,59 @@ export function handleApiError(error: unknown, context?: { endpoint?: string; me
     return standardizedApiError(message ?? "UNKNOWN_ERROR", message ?? "Error de API", status);
   }
 
-  // Error estándar de JavaScript
   if (error instanceof Error) {
     logger.apiError(context?.endpoint ?? "unknown", context?.method ?? "unknown", error, context);
-    
-    // En desarrollo, incluir más detalles del error
+
     const errorDetails: ApiError = {
       error: "INTERNAL_ERROR",
       message: error.message,
     };
-    
+
     if (process.env.NODE_ENV === "development") {
-      (errorDetails as any).stack = error.stack;
-      (errorDetails as any).name = error.name;
+      (errorDetails as unknown as Record<string, unknown>).stack = error.stack;
+      (errorDetails as unknown as Record<string, unknown>).name = error.name;
       if ("code" in error) {
-        (errorDetails as any).code = (error as any).code;
+        (errorDetails as unknown as Record<string, unknown>).code = (error as Record<string, unknown>).code;
       }
       if ("detail" in error) {
-        (errorDetails as any).detail = (error as any).detail;
+        (errorDetails as unknown as Record<string, unknown>).detail = (error as Record<string, unknown>).detail;
       }
     }
-    
+
     return standardizedApiError("INTERNAL_ERROR", error.message, 500, errorDetails);
   }
 
-  // Error desconocido
   logger.error("Unknown API error", error, context);
   return standardizedApiError("UNKNOWN_ERROR", "Ha ocurrido un error desconocido", 500);
 }
 
+type RouteContext<P = Record<string, string | string[]>> = { params: Promise<P> };
+
+type Handler<P> = (
+  request: NextRequest,
+  context: RouteContext<P>
+) => Promise<Response>;
+
 /**
- * Wrapper para endpoints que maneja errores automáticamente
+ * Wrapper para endpoints Next.js que envuelve GET/POST/PUT/PATCH/DELETE
+ * y captura cualquier excepcion devolviendo una respuesta estandarizada.
+ *
+ * @example
+ *   export const GET = withErrorHandler(async (req, ctx) => {
+ *     return apiSuccess({ items: [] });
+ *   });
  */
-export function withErrorHandler<T extends unknown[]>(
-  handler: (...args: T) => Promise<Response>
-) {
-  return async (...args: T): Promise<Response> => {
+export function withErrorHandler<P = Record<string, string | string[]>>(
+  handler: Handler<P>
+): Handler<P> {
+  return async (request, context) => {
     try {
-      return await handler(...args);
+      return await handler(request, context);
     } catch (error) {
-      return handleApiError(error as Error);
+      return handleApiError(error, {
+        endpoint: request.nextUrl.pathname,
+        method: request.method,
+      });
     }
   };
 }
@@ -94,13 +126,7 @@ export function createErrorResponse(
   message?: string,
   status: number = 400
 ): NextResponse<ApiError> {
-  return NextResponse.json(
-    {
-      error,
-      message,
-    },
-    { status }
-  );
+  return NextResponse.json({ error, message }, { status });
 }
 
 /**
@@ -112,3 +138,7 @@ export function createSuccessResponse<T = unknown>(
 ): NextResponse<{ ok: true; data: T }> {
   return NextResponse.json({ ok: true, data }, { status });
 }
+
+// Re-exports para evitar tree-shaking agresivo de AppError.
+export { AppError };
+
