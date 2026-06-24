@@ -1,13 +1,21 @@
 ---
 status: active
 owner: tech
-last_reviewed: 2026-06-22
+last_reviewed: 2026-06-24
 source:
   - ../AGENTS.md
   - ../src/lib/authz.ts
   - ../src/lib/api-response.ts
+  - ../.eslintrc.json
 ---
 # Patrones obligatorios
+
+## ESLint config
+
+Usar `.eslintrc.json` legacy (NO `eslint.config.mjs` flat config) mientras
+el proyecto use ESLint v8. Next.js 15.5 pasa opciones legacy (`--useEslintrc`,
+`--extensions`) que ESLint v8 rechaza cuando detecta flat config, rompiendo
+el build con `Invalid Options`. Ver [[Runbook deploy#Pitfalls]] para detalle.
 
 ## APIs de tenant
 
@@ -49,3 +57,11 @@ No devolver `NextResponse.json({ ok: true })` a mano cuando existe helper estand
 ## Documentacion
 
 Cada cambio relevante debe actualizar la nota correspondiente en esta vault. Si no aplica, indicarlo al cerrar el trabajo.
+
+## Prerender / build
+
+En paginas con `generateStaticParams` + `generateMetadata` que indexan datos
+por clave/slug, validar con `pnpm build` local (NO solo `pnpm dev`) porque
+el dev server silencia errores de prerender con error boundary client-side.
+Usar siempre las claves internas (`modalityKey`, `countryKey`) en lugar de
+los slugs traducidos (`modality`, `country`) al indexar catalogos.

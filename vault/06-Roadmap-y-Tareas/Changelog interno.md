@@ -29,6 +29,32 @@ source:
 - **Limpieza `package.json`**: scripts `lint:app` y `lint:fix` ya no referencian `proxy.ts` (eliminado).
 - **Validacion**: `pnpm typecheck`, `pnpm lint` y `pnpm validate:rls` pasan limpios. Cierre de 6 issues CRITICAL/HIGH pre-produccion. Sin cambios funcionales visibles al usuario fuera del toggle anual. Próximo: Sprint 2 (Base de Datos).
 
+## 2026-06-24 - Fix Vercel deploy: ESLint flat config + hreflang undefined
+
+**Bug 1: ESLint v8 + flat config incompatible con Next.js 15.5**
+
+- `eslint.config.mjs` (flat config con `FlatCompat`) hacia que Next.js pasara
+  opciones legacy `--useEslintrc` y `--extensions` durante el build.
+- ESLint v8.57.1 las rechaza cuando detecta flat config.
+- Error: `ESLint: Invalid Options: - Unknown options: useEslintrc, extensions -
+  'extensions' has been removed.`
+- Solucion: reemplazar `eslint.config.mjs` por `.eslintrc.json` legacy.
+  Reglas react-hooks v5+ removidas (no existen en v4 instalada).
+- Build ahora procede correctamente el step de ESLint.
+
+**Bug 2: hreflang undefined en cluster pages (regresion Sprint 5 F12)**
+
+- `MODALITIES[modality as ModalitySlug].en` con `modality = "artistic-gymnastics"`
+  devolvia `undefined` (la clave es `"artistic"`, no el slug).
+- Fallaba en build pero dev server silenciaba con error boundary client-side.
+- Error real: `TypeError: Cannot read properties of undefined (reading 'en')`.
+- Solucion: usar `modalityKey` y `countryKey` ya calculados (que SI son las
+  claves) en vez del slug directo.
+
+**Validacion**: `pnpm build` EXITOSO en 200s, 207 paginas pre-renderizadas.
+
+**Deploy**: commit `5c77418` pusheado a main. Vercel auto-deploy deberia funcionar.
+
 ## 2026-06-24 - Sprint 6 (Code Splitting + Producto + Deuda tecnica + Validacion) ejecutado
 
 **Sprint 6A - Code Splitting agresivo + form refactor:**
