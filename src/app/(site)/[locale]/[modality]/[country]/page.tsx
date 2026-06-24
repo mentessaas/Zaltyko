@@ -88,8 +88,8 @@ export async function generateMetadata({
     alternates: {
       canonical: canonicalUrl,
       languages: {
-        es: `${baseUrl}/es/${modality}/${country}`,
-        en: `${baseUrl}/en/${MODALITIES[modality as ModalitySlug].en}/${COUNTRIES[country as (typeof VALID_COUNTRIES)[number]].en}`,
+        es: `${baseUrl}/es/${MODALITIES[modalityKey].es}/${COUNTRIES[countryKey].es}`,
+        en: `${baseUrl}/en/${MODALITIES[modalityKey].en}/${COUNTRIES[countryKey].en}`,
       },
     },
     openGraph: {
