@@ -124,7 +124,7 @@ export async function POST(request: Request) {
       } else {
         const tenantId = crypto.randomUUID();
         const profileRole = (bodyObj.role as string) || "owner";
-        const validRoles = ["owner", "admin", "coach", "athlete", "parent"];
+        const validRoles = ["owner", "admin", "coach", "athlete", "parent", "provider"];
         finalRole = validRoles.includes(profileRole) ? profileRole : "owner";
 
         const [newProfile] = await db

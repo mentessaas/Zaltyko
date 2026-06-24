@@ -5,15 +5,15 @@ import type { BillingSummary, PlanSummary } from "@/types/billing";
 const PLAN_COPY: Record<string, { title: string; description: string }> = {
   free: {
     title: "Free",
-    description: "Hasta 50 atletas · ideal para academias en lanzamiento",
+    description: "Hasta 30 gimnastas · ideal para academias en lanzamiento",
   },
   pro: {
-    title: "Pro",
-    description: "Hasta 200 atletas · estadísticas y soporte prioritario",
+    title: "Starter",
+    description: "Hasta 75 gimnastas · portal familias y pagos recurrentes",
   },
   premium: {
-    title: "Premium",
-    description: "Ilimitado · analítica avanzada e integraciones completas",
+    title: "Growth",
+    description: "Hasta 200 gimnastas · soporte prioritario",
   },
 };
 
@@ -98,4 +98,3 @@ export function BillingSummary({
     </section>
   );
 }
-

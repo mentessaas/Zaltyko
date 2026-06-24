@@ -155,7 +155,7 @@ describe("critical invitation flows", () => {
     );
   });
 
-  it("maps invited parents to viewer membership and profile redirect", async () => {
+  it("maps invited parents to viewer membership and modern parent dashboard redirect", async () => {
     createClientMock.mockResolvedValue({
       auth: {
         getUser: vi.fn().mockResolvedValue({
@@ -170,9 +170,9 @@ describe("critical invitation flows", () => {
     });
 
     resolveUserHomeMock.mockResolvedValue({
-      destination: "global_dashboard",
-      redirectUrl: "/dashboard/profile",
-      activeAcademyId: null,
+      destination: "academy_workspace",
+      redirectUrl: "/app/academy-family/my-dashboard",
+      activeAcademyId: "academy-family",
     });
 
     const invitation = {
@@ -220,8 +220,8 @@ describe("critical invitation flows", () => {
       ok: true,
       data: {
         role: "parent",
-        academyId: null,
-        redirectUrl: "/dashboard/profile",
+        academyId: "academy-family",
+        redirectUrl: "/app/academy-family/my-dashboard",
       },
     });
     expect(membershipInsert.values).toHaveBeenCalledWith(

@@ -5,7 +5,6 @@ import { academies, athletes, classes, groups, plans, subscriptions, profiles } 
 import { LimitError, type PlanCode, type LimitResource } from "./limits/errors";
 import { NotFoundError } from "@/lib/errors";
 import { getResourceCount } from "./limits/resource-counters";
-import { count } from "drizzle-orm";
 
 export type { PlanCode, LimitResource };
 
@@ -18,21 +17,27 @@ export interface ActiveSubscription {
 }
 
 const CLASS_LIMITS: Record<PlanCode, number | null> = {
-  free: 10,
+  free: 5,
   pro: 40,
-  premium: null,
+  premium: 80,
 };
 
 const GROUP_LIMITS: Record<PlanCode, number | null> = {
-  free: 3,
+  free: 2,
   pro: 10,
-  premium: null,
+  premium: 20,
 };
 
 const ACADEMY_LIMITS: Record<PlanCode, number | null> = {
   free: 1,
-  pro: null,
-  premium: null,
+  pro: 1,
+  premium: 1,
+};
+
+const ATHLETE_LIMITS: Record<PlanCode, number | null> = {
+  free: 30,
+  pro: 75,
+  premium: 200,
 };
 
 export async function getUserSubscription(userId: string): Promise<ActiveSubscription> {
@@ -48,12 +53,12 @@ export async function getUserSubscription(userId: string): Promise<ActiveSubscri
     .limit(1);
 
   const planCode = (row?.planCode as PlanCode | undefined) ?? "free";
-  const athleteLimit = row?.athleteLimit ?? 50;
+  const athleteLimit = row?.athleteLimit ?? ATHLETE_LIMITS[planCode];
   const academyLimit = row?.academyLimit ?? ACADEMY_LIMITS[planCode];
 
   return {
     planCode,
-    athleteLimit: planCode === "premium" ? null : athleteLimit,
+    athleteLimit,
     classLimit: CLASS_LIMITS[planCode],
     groupLimit: GROUP_LIMITS[planCode],
     academyLimit: academyLimit,
@@ -72,7 +77,7 @@ export async function getActiveSubscription(academyId: string): Promise<ActiveSu
   if (!academy || !academy.ownerId) {
     return {
       planCode: "free",
-      athleteLimit: 50,
+      athleteLimit: ATHLETE_LIMITS.free,
       classLimit: CLASS_LIMITS.free,
       groupLimit: GROUP_LIMITS.free,
       academyLimit: ACADEMY_LIMITS.free,
@@ -90,7 +95,7 @@ export async function getActiveSubscription(academyId: string): Promise<ActiveSu
   if (!owner) {
     return {
       planCode: "free",
-      athleteLimit: 50,
+      athleteLimit: ATHLETE_LIMITS.free,
       classLimit: CLASS_LIMITS.free,
       groupLimit: GROUP_LIMITS.free,
       academyLimit: ACADEMY_LIMITS.free,
@@ -274,7 +279,7 @@ export async function checkPlanLimitViolations(userId: string, newPlanCode: Plan
     .from(academies)
     .where(eq(academies.ownerId, profile.id));
 
-  const athleteLimit = newPlanCode === "premium" ? null : (newPlanCode === "pro" ? 200 : 50);
+  const athleteLimit = ATHLETE_LIMITS[newPlanCode];
   const classLimit = CLASS_LIMITS[newPlanCode];
   const groupLimit = GROUP_LIMITS[newPlanCode];
 
@@ -440,13 +445,13 @@ export function getUpgradeInfo(planCode: PlanCode): {
     return {
       nextPlan: "pro",
       price: "19€/mes",
-      benefits: ["Academias ilimitadas", "Hasta 200 atletas", "10 grupos", "40 clases"],
+      benefits: ["Hasta 75 gimnastas", "Pagos recurrentes", "Portal familias", "Reportes básicos"],
     };
   } else if (planCode === "pro") {
     return {
       nextPlan: "premium",
       price: "49€/mes",
-      benefits: ["Todo ilimitado", "API extendida", "Soporte prioritario"],
+      benefits: ["Hasta 200 gimnastas", "20 grupos", "80 clases", "Soporte prioritario"],
     };
   }
   return {

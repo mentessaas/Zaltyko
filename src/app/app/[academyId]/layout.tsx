@@ -1,4 +1,4 @@
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { and, count, eq } from "drizzle-orm";
 
@@ -11,7 +11,7 @@ import { academies, memberships, plans, profiles, subscriptions } from "@/db/sch
 import { createClient } from "@/lib/supabase/server";
 import { AcademyProvider } from "@/hooks/use-academy-context";
 import { DashboardSkipLink } from "@/components/dashboard/DashboardSkipLink";
-import { canAccessAcademyWorkspace } from "@/lib/product/roles";
+import { canAccessAcademyWorkspace, isLimitedAcademyWorkspacePath } from "@/lib/product/roles";
 import { resolveAcademySpecialization } from "@/lib/specialization/registry";
 import { getDevSessionFromCookieStore } from "@/lib/dev-session";
 
@@ -28,6 +28,7 @@ interface LayoutProps {
 export default async function AcademyLayout({ params, children }: LayoutProps) {
   const { academyId } = await params;
   const cookieStore = await cookies();
+  const headerStore = await headers();
   const supabase = await createClient(cookieStore);
   const devSession = await getDevSessionFromCookieStore(cookieStore);
 
@@ -157,9 +158,16 @@ export default async function AcademyLayout({ params, children }: LayoutProps) {
   const isMember = Boolean(membership);
 
   const tenantMatches = profile.tenantId && profile.tenantId === academy.tenantId;
+  const pathname = headerStore.get("x-pathname");
+  const hasLimitedAcademyAccess =
+    tenantMatches &&
+    isMember &&
+    (profile.role === "athlete" || profile.role === "parent") &&
+    isLimitedAcademyWorkspacePath(pathname, academy.id);
 
   const canAccess =
     isSuperAdmin ||
+    hasLimitedAcademyAccess ||
     (tenantMatches &&
       canAccessAcademyWorkspace(
         profile.role,

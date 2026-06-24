@@ -1,5 +1,9 @@
 # Onboarding Flow - Zaltyko
 
+> **Documento historico.** Antes de usar cualquier plan, precio o promesa comercial de este documento, revisar `vault/00-Inicio/Guia de trabajo para agentes.md`, `vault/03-Negocio/Pricing.md` y `vault/04-Marketing/Mensajes aprobados.md`.
+>
+> Pricing vigente: Free 30, Starter 19 €/mes hasta 75, Growth 49 €/mes hasta 200, Network 99 €/mes multi-sede acompanado. Las referencias a Professional, Business, Enterprise o Starter 29 USD no son fuente vigente.
+
 ## Resumen Ejecutivo
 
 Este documento define el flujo de onboarding para Zaltyko, diseñado para convertir nuevos usuarios en clientes activos y retentivos. El onboarding está optimizado para dos buyer personas principales: el Emprendedor Deportivo (más práctico, orientado a resultados rápidos) y el Director de Operaciones (más analítico, requiere datos y procesos estructurados).

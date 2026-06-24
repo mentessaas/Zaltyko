@@ -7,6 +7,7 @@ export const profileRoleEnum = pgEnum("profile_role", [
   "coach",
   "athlete",
   "parent",
+  "provider",
 ]);
 
 export const membershipRoleEnum = pgEnum("membership_role", ["owner", "coach", "viewer"]);

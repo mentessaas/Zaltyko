@@ -1,8 +1,30 @@
 # Estrategia de Pricing para Zaltyko
 
+> **⚠️ ESTE DOCUMENTO ESTÁ SUPERSEDED POR LA DECISIÓN 2026-06-24 (pricing v3.0 activo).**
+>
+> La decisión v3.0 redefine completamente el pricing:
+> - **Trial 7 días sin tarjeta** (antes: trial 14 días sin tarjeta — ya no aplica)
+> - **Free util hasta 30 gimnastas** (este documento no contempla free forever)
+> - **Starter 19 €/mes** con 75 gimnastas (antes: Starter 29 €/mes con 50 atletas)
+> - **Growth 49 €/mes** con 200 gimnastas (antes: Professional 49 €/mes con atletas ilimitados + 1 €/atleta)
+> - **Network 99 €/mes** multi-sede (antes: Business 149 €/mes + 0.75 €/atleta)
+> - **Un solo precio equilibrado para España + LATAM** (sin diferenciación por país)
+> - **Fee 0 € markup sobre Stripe directo** (transparencia total)
+>
+> **Fuentes canónicas actualizadas:**
+> - [[vault/03-Negocio/Pricing]] — pricing recomendado completo con 5 líneas de monetización diferida
+> - [[vault/03-Negocio/Modelo de negocio]] — tesis "comunidad masiva + monetización por red"
+> - [[vault/06-Roadmap-y-Tareas/Decisiones#2026-06-24 - Activar pricing v3.0 como modelo oficial]] — decisión activa
+> - [[vault/06-Roadmap-y-Tareas/Decisiones#2026-06-23 - Modelo freemium agresivo + monetizacion diferida por comunidad]] — decisión estrategica base
+> - [[vault/01-Producto/Tarea - Sprint 0 decision v3.0]] — implementación concreta
+>
+> Este documento se conserva como referencia histórica de la discusión de buyer personas y buyer journey que llevó a la decisión v3.0. NO usar para tomar decisiones de pricing actuales.
+
+---
+
 **Fecha:** 2026-03-17
 **Versión:** 1.0
-**Status:** Borrador para revisión
+**Status:** Superseded (mantener como referencia histórica)
 
 ---
 
@@ -26,7 +48,7 @@ Este perfil gestiona cadenas de academias o instituciones deportivas con múltip
 
 **Presupuesto:** Mayor capacidad de inversión, pero exige justificación financiera y métricas claras de ROI.
 
-**Criterios de decisión:** Funcionalidades avanzadas, capacidad de gestión multi-sede, integraciones, soporte dedicado.
+**Criterios de decisión:** Funcionalidades avanzadas, piloto multi-sede acompañado, integraciones, soporte dedicado.
 
 ---
 
@@ -125,12 +147,12 @@ El modelo híbrido seleccionado balancea simplicidad con escalabilidad realista.
 
 **Precio:** €149/mes por academia + €0.75/atleta/mes (facturación anual obligatoria)
 
-**Perfil:** Cadena pequeña de 2 a 5 academias, requiere visión centralizada y gestión multi-sede.
+**Perfil:** Cadena pequeña de 2 a 5 academias, requiere visión centralizada y gestión multi-sede bajo onboarding acompañado.
 
 **Incluye:**
 
 - Todo lo de Professional
-- Gestión multi-sede (hasta 5 academias)
+- Gestión multi-sede bajo onboarding acompañado
 - Dashboard consolidado de todas las sedes
 - Reportes comparativos entre sedes
 - API de integración

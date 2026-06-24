@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { redirect, notFound } from "next/navigation";
+import Link from "next/link";
 import { eq, and, count } from "drizzle-orm";
 
 import { createClient } from "@/lib/supabase/server";
@@ -26,6 +27,7 @@ import { OptimizedOwnerProfile } from "@/components/profiles/OptimizedOwnerProfi
 import { CoachProfile } from "@/components/profiles/CoachProfile";
 import { AthleteProfile } from "@/components/profiles/AthleteProfile";
 import { ParentProfile } from "@/components/profiles/ParentProfile";
+import { LinkRequestsPanel } from "@/components/profiles/LinkRequestsPanel";
 import { resolveAcademySpecialization } from "@/lib/specialization/registry";
 import { logger } from "@/lib/logger";
 
@@ -201,6 +203,9 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
 
     return (
       <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+        <div className="mb-6">
+          <LinkRequestsPanel />
+        </div>
         <OptimizedOwnerProfile
           user={user}
           profile={targetProfile}
@@ -227,6 +232,7 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
     if (coachMemberships.length === 0) {
       return (
         <div className="space-y-6 p-4 sm:p-6 lg:p-8">
+          <LinkRequestsPanel />
           <div className="rounded-lg border border-amber-400/60 bg-amber-400/10 p-6">
             <p className="text-sm text-amber-900">
               No se encontró un perfil de entrenador asociado a tu cuenta. Contacta con el administrador.
@@ -293,6 +299,7 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
 
     return (
       <div className="space-y-6 p-4 sm:p-6 lg:p-8">
+        <LinkRequestsPanel />
         <CoachProfile
           user={user}
           profile={targetProfile}
@@ -321,6 +328,7 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
     if (!athleteRecord) {
       return (
         <div className="space-y-6 p-4 sm:p-6 lg:p-8">
+          <LinkRequestsPanel />
           <div className="rounded-lg border border-amber-400/60 bg-amber-400/10 p-6">
             <p className="text-sm text-amber-900">
               No se encontró un perfil de atleta asociado a tu cuenta. Contacta con el administrador.
@@ -402,6 +410,7 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
 
     return (
       <div className="space-y-6 p-4 sm:p-6 lg:p-8">
+        <LinkRequestsPanel />
         <AthleteProfile
           user={user}
           profile={targetProfile}
@@ -481,6 +490,7 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
 
     return (
       <div className="space-y-6 p-4 sm:p-6 lg:p-8">
+        <LinkRequestsPanel />
         <ParentProfile
           user={user}
           profile={targetProfile}
@@ -501,6 +511,39 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
           // eslint-disable-next-line react/no-children-prop
           children={childrenWithAge}
         />
+      </div>
+    );
+  }
+
+  if (role === "provider") {
+    return (
+      <div className="space-y-6 p-4 sm:p-6 lg:p-8">
+        <LinkRequestsPanel />
+        <section className="rounded-xl border bg-card p-6 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Perfil proveedor
+          </p>
+          <h1 className="mt-2 text-2xl font-semibold text-foreground">
+            {targetProfile.name ?? user.email ?? "Proveedor"}
+          </h1>
+          <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+            Esta cuenta puede publicar productos o servicios en el marketplace sin depender de una academia.
+          </p>
+          <div className="mt-5 flex flex-wrap gap-3">
+            <Link
+              href="/dashboard/marketplace/mis-productos"
+              className="inline-flex min-h-11 items-center justify-center rounded-xl bg-zaltyko-teal px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-primary-dark"
+            >
+              Gestionar mis productos
+            </Link>
+            <Link
+              href="/marketplace/nuevo"
+              className="inline-flex min-h-11 items-center justify-center rounded-xl border border-zaltyko-indigo px-5 py-2.5 text-sm font-semibold text-zaltyko-indigo transition hover:bg-zaltyko-indigo/5"
+            >
+              Publicar producto o servicio
+            </Link>
+          </div>
+        </section>
       </div>
     );
   }

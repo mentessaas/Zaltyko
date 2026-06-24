@@ -50,12 +50,12 @@ const PLAN_COPY: Record<string, { title: string; description: string }> = {
     description: "Plan inicial para academias en lanzamiento",
   },
   pro: {
-    title: "Pro",
-    description: "Estadísticas y soporte prioritario",
+    title: "Starter",
+    description: "Pagos recurrentes, portal familias y reportes básicos",
   },
   premium: {
-    title: "Premium",
-    description: "Ilimitado · analítica avanzada e integraciones completas",
+    title: "Growth",
+    description: "Hasta 200 gimnastas · soporte prioritario",
   },
 };
 
@@ -74,8 +74,8 @@ function resolvePlanTitle(plan: PlanSummary) {
 }
 
 function resolvePlanDescription(plan: PlanSummary, athletesTermLower: string) {
-  if (plan.code === "free") return `Hasta 50 ${athletesTermLower} · ideal para academias en lanzamiento`;
-  if (plan.code === "pro") return `Hasta 200 ${athletesTermLower} · estadísticas y soporte prioritario`;
+  if (plan.code === "free") return `Hasta 30 ${athletesTermLower} · ideal para academias en lanzamiento`;
+  if (plan.code === "pro") return `Hasta 75 ${athletesTermLower} · portal familias y pagos recurrentes`;
   return PLAN_COPY[plan.code]?.description ?? "Plan sincronizado automáticamente desde Stripe.";
 }
 

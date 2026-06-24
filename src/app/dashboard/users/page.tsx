@@ -5,6 +5,7 @@ import { and, asc, eq, ilike, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   academies,
+  academyLinkRequests,
   authUsers,
   invitations,
   memberships,
@@ -13,6 +14,8 @@ import {
 } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
 import InviteUserForm from "@/components/admin/InviteUserForm";
+import { RequestUserLinkForm } from "@/components/admin/RequestUserLinkForm";
+import { UnlinkMembershipButton } from "@/components/admin/UnlinkMembershipButton";
 import { getRoleLabel } from "@/lib/roles";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatsCard } from "@/components/ui/stats-card";
@@ -62,7 +65,7 @@ export default async function UsersAdminPage({ searchParams }: UsersPageProps) {
   const hasTenant = Boolean(effectiveTenantId);
 
   const filters = [];
-  const validRoles = ["super_admin", "admin", "owner", "coach", "athlete", "parent"] as const;
+  const validRoles = ["super_admin", "admin", "owner", "coach", "athlete", "parent", "provider"] as const;
 
   if (hasTenant && effectiveTenantId) {
     filters.push(eq(profiles.tenantId, effectiveTenantId) as any);
@@ -112,6 +115,29 @@ export default async function UsersAdminPage({ searchParams }: UsersPageProps) {
         .limit(200)
     : [];
 
+  const listedMemberships = hasTenant
+    ? await db
+        .select({
+          id: memberships.id,
+          profileId: profiles.id,
+          academyName: academies.name,
+          role: memberships.role,
+        })
+        .from(memberships)
+        .innerJoin(profiles, eq(profiles.userId, memberships.userId))
+        .innerJoin(academies, eq(academies.id, memberships.academyId))
+        .where(eq(profiles.tenantId, effectiveTenantId!))
+        .orderBy(asc(academies.name))
+    : [];
+
+  const membershipsByProfileId = listedMemberships.reduce((acc, membership) => {
+    if (!acc[membership.profileId]) {
+      acc[membership.profileId] = [];
+    }
+    acc[membership.profileId].push(membership);
+    return acc;
+  }, {} as Record<string, typeof listedMemberships>);
+
   const pendingInvitations = hasTenant
     ? await db
         .select({
@@ -127,6 +153,26 @@ export default async function UsersAdminPage({ searchParams }: UsersPageProps) {
           and(eq(invitations.tenantId, effectiveTenantId!), eq(invitations.status, "pending"))
         )
         .orderBy(sql`${invitations.createdAt} desc`)
+        .limit(50)
+    : [];
+
+  const pendingLinkRequests = hasTenant
+    ? await db
+        .select({
+          id: academyLinkRequests.id,
+          requestedProfileRole: academyLinkRequests.requestedProfileRole,
+          academyName: academies.name,
+          targetName: profiles.name,
+          targetEmail: authUsers.email,
+        })
+        .from(academyLinkRequests)
+        .innerJoin(academies, eq(academies.id, academyLinkRequests.academyId))
+        .innerJoin(profiles, eq(profiles.id, academyLinkRequests.targetProfileId))
+        .leftJoin(authUsers, eq(authUsers.id, profiles.userId))
+        .where(
+          and(eq(academyLinkRequests.tenantId, effectiveTenantId!), eq(academyLinkRequests.status, "pending"))
+        )
+        .orderBy(sql`${academyLinkRequests.createdAt} desc`)
         .limit(50)
     : [];
 
@@ -246,13 +292,14 @@ export default async function UsersAdminPage({ searchParams }: UsersPageProps) {
                 <th className="px-4 py-3 font-medium">Nombre</th>
                 <th className="px-4 py-3 font-medium">Rol</th>
                 <th className="px-4 py-3 font-medium text-right">Academias</th>
+                <th className="px-4 py-3 font-medium">Vinculos</th>
                 <th className="px-4 py-3 font-medium">Creado</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border bg-background text-foreground">
               {usersList.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-4 py-6 text-center text-muted-foreground">
+                  <td colSpan={6} className="px-4 py-6 text-center text-muted-foreground">
                     {hasTenant
                       ? "No hay usuarios que coincidan con los filtros."
                       : "Selecciona un tenant para empezar."}
@@ -267,6 +314,27 @@ export default async function UsersAdminPage({ searchParams }: UsersPageProps) {
                   <td className="px-4 py-3 text-right tabular-nums">
                     {Number(row.academyCount ?? 0)}
                   </td>
+                  <td className="px-4 py-3">
+                    <div className="flex flex-col gap-2">
+                      {(membershipsByProfileId[row.id] ?? []).length === 0 ? (
+                        <span className="text-xs text-muted-foreground">Sin vinculos</span>
+                      ) : (
+                        (membershipsByProfileId[row.id] ?? []).map((membership) => (
+                          <div
+                            key={membership.id}
+                            className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-muted/30 px-2 py-1"
+                          >
+                            <span className="text-xs text-muted-foreground">
+                              {membership.academyName ?? "Academia"} · {membership.role}
+                            </span>
+                            {row.id !== profile.id && (
+                              <UnlinkMembershipButton membershipId={membership.id} label="Quitar" />
+                            )}
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </td>
                   <td className="px-4 py-3 text-muted-foreground">
                     {row.createdAt ? row.createdAt.toLocaleDateString("es-ES") : "—"}
                   </td>
@@ -277,6 +345,14 @@ export default async function UsersAdminPage({ searchParams }: UsersPageProps) {
         </div>
 
         <div className="space-y-4">
+          <div className="rounded-lg border bg-card p-4 shadow">
+            <h2 className="text-lg font-semibold">Vincular cuenta existente</h2>
+            <p className="text-sm text-muted-foreground">
+              Busca por email exacto y solicita permiso antes de dar acceso a la academia.
+            </p>
+            <RequestUserLinkForm academies={academyOptions} disabled={!hasTenant} />
+          </div>
+
           <div className="rounded-lg border bg-card p-4 shadow">
             <h2 className="text-lg font-semibold">Invitar nuevo usuario</h2>
             <p className="text-sm text-muted-foreground">
@@ -322,9 +398,31 @@ export default async function UsersAdminPage({ searchParams }: UsersPageProps) {
               )}
             </ul>
           </div>
+
+          <div className="rounded-lg border bg-card p-4 shadow">
+            <h2 className="text-lg font-semibold">Solicitudes de vinculo</h2>
+            <ul className="mt-3 space-y-3 text-sm">
+              {pendingLinkRequests.length === 0 ? (
+                <li className="text-muted-foreground">No hay solicitudes pendientes.</li>
+              ) : (
+                pendingLinkRequests.map((request) => (
+                  <li
+                    key={request.id}
+                    className="rounded-md border border-dashed border-border bg-muted/30 p-3"
+                  >
+                    <div className="space-y-1">
+                      <p className="font-medium">{request.targetEmail ?? request.targetName ?? "Usuario"}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {request.academyName ?? "Academia"} · {getRoleLabel(request.requestedProfileRole)}
+                      </p>
+                    </div>
+                  </li>
+                ))
+              )}
+            </ul>
+          </div>
         </div>
       </section>
     </div>
   );
 }
-
