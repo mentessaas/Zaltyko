@@ -47,9 +47,12 @@ const GLOBAL_NAV: NavigationDefinition[] = [
   { key: "billing", label: "Cobros", icon: CreditCard, href: "/dashboard/plan-limits", roles: ["owner"] },
   { key: "classes", label: "Mis clases", icon: BookOpen, href: "/dashboard/classes", roles: ["coach"] },
   { key: "messages", label: "Mensajes", icon: Megaphone, href: "/dashboard/messages", roles: ["coach", "athlete", "parent"] },
+  { key: "marketplace", label: "Mis productos", icon: Globe, href: "/dashboard/marketplace/mis-productos", roles: ["provider"] },
+  { key: "provider-profile", label: "Mi perfil", icon: User, href: "/dashboard/profile", roles: ["provider"] },
 ];
 
 const ACADEMY_NAV: NavigationDefinition[] = [
+  { key: "my-dashboard", label: "Mi panel", icon: LayoutDashboard, href: (academyId) => `/app/${academyId}/my-dashboard`, roles: ["athlete", "parent"], mobile: true },
   { key: "dashboard", label: "Dashboard", icon: LayoutDashboard, href: (academyId) => `/app/${academyId}/dashboard`, roles: ["super_admin", "owner", "admin", "coach"], mobile: true },
   { key: "athletes", label: "Atletas", icon: Users, href: (academyId) => `/app/${academyId}/athletes`, roles: ["super_admin", "owner", "admin", "coach"], mobile: true },
   { key: "coaches", label: "Entrenadores", icon: User, href: (academyId) => `/app/${academyId}/coaches`, roles: ["super_admin", "owner", "admin"] },
@@ -57,7 +60,8 @@ const ACADEMY_NAV: NavigationDefinition[] = [
   { key: "classes", label: "Clases", icon: Calendar, href: (academyId) => `/app/${academyId}/classes`, roles: ["super_admin", "owner", "admin", "coach"], mobile: true },
   { key: "events", label: "Eventos", icon: Calendar, href: (academyId) => `/app/${academyId}/events`, roles: ["super_admin", "owner", "admin", "coach"] },
   { key: "assessments", label: "Evaluaciones", icon: FileText, href: (academyId) => `/app/${academyId}/assessments`, roles: ["super_admin", "owner", "admin", "coach"] },
-  { key: "messages", label: "Mensajes", icon: MessageSquare, href: (academyId) => `/app/${academyId}/messages`, roles: ["super_admin", "owner", "admin", "coach"] },
+  { key: "messages", label: "Mensajes", icon: MessageSquare, href: (academyId) => `/app/${academyId}/messages`, roles: ["super_admin", "owner", "admin", "coach", "athlete", "parent"], mobile: true },
+  { key: "notifications", label: "Avisos", icon: Megaphone, href: (academyId) => `/app/${academyId}/notifications`, roles: ["athlete", "parent"], mobile: true },
   { key: "announcements", label: "Anuncios", icon: Megaphone, href: (academyId) => `/app/${academyId}/announcements`, roles: ["super_admin", "owner", "admin"] },
   { key: "reports", label: "Informes", icon: BarChart3, href: (academyId) => `/app/${academyId}/reports/attendance`, roles: ["super_admin", "owner", "admin", "coach"], mobile: true },
   { key: "billing", label: "Facturación", icon: CreditCard, href: (academyId) => `/app/${academyId}/billing`, roles: ["super_admin", "owner", "admin"] },

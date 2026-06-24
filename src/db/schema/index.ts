@@ -19,6 +19,7 @@ export * from "./message-history";
 export * from "./academy-geo-groups";
 export * from "./profiles";
 export * from "./memberships";
+export * from "./academy-link-requests";
 export * from "./subscriptions";
 export * from "./athletes";
 export * from "./coaches";

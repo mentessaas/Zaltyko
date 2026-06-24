@@ -44,7 +44,7 @@ El núcleo de la seguridad de Zaltyko es el aislamiento de datos. No utilizamos 
 
 ### 2. Motor de Facturación (`src/lib/billing`, `src/lib/limits.ts`)
 - **Suscripciones**: Sincronización bidireccional con Stripe.
-- **Límites**: Lógica de negocio ("Hard Limits") que impide crear recursos (ej. más de 50 atletas) si el plan actual no lo permite.
+- **Límites**: Lógica de negocio ("Hard Limits") que impide crear recursos (ej. más de 30 gimnastas en Free) si el plan actual no lo permite.
 - **Webhooks**: Procesamiento asíncrono de eventos de pago (`invoice.paid`, `customer.subscription.updated`).
 
 ### 3. Gestión de Datos (`src/db`)
@@ -60,7 +60,7 @@ El núcleo de la seguridad de Zaltyko es el aislamiento de datos. No utilizamos 
 4.  Se inicializan registros base y se redirige al Dashboard.
 
 ### Upgrade de Plan
-1.  Usuario selecciona Plan Pro en UI.
+1.  Usuario selecciona Starter o Growth en UI.
 2.  Se genera sesión de Stripe Checkout.
 3.  Usuario paga en Stripe.
 4.  Webhook recibe confirmación -> Actualiza `subscriptions` en BD -> Desbloquea límites inmediatamente.

@@ -1,7 +1,7 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-06-22
+last_reviewed: 2026-06-24
 source:
   - ../README.md
   - ../AGENTS.md
@@ -15,6 +15,7 @@ Zaltyko es un SaaS multi-tenant para gestionar academias deportivas, con foco in
 
 ## Primero lee esto
 
+- [[Guia de trabajo para agentes]] antes de que cualquier agente, IA o programador toque codigo, docs, pricing, migraciones o roadmap.
 - [[Estado actual de Zaltyko]] para saber qué existe, qué falta y qué es urgente.
 - [[Mapa de navegación]] para entrar por rol: desarrollo, producto, marketing, ventas o founder.
 - [[Workflow diario de la vault]] para saber que actualizar antes de cerrar cambios.

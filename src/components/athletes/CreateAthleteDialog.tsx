@@ -1,24 +1,17 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { Controller, useFieldArray, useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 
 import { athleteStatusOptions } from "@/lib/athletes/constants";
-import { createClient } from "@/lib/supabase/client";
 
 import { Modal } from "@/components/ui/modal";
 import { Calendar as CalendarIcon, ChevronDown, ChevronUp } from "lucide-react";
 import type { SportConfigOption } from "@/components/groups/types";
 import type { GroupOption } from "@/types";
 import { getTerminology } from "@/lib/sport-config/terminology";
-
-interface ContactInput {
-  name: string;
-  email: string;
-  relationship: string;
-  phone: string;
-  notifyEmail: boolean;
-  notifySms: boolean;
-}
 
 const CATEGORY_OPTIONS = ["A", "B", "C", "D", "E", "F"] as const;
 const LEVEL_OPTIONS = [
@@ -46,12 +39,71 @@ const RELATIONSHIP_OPTIONS = [
   "Hermana",
   "Tío",
   "Tía",
+  "Otro",
 ] as const;
+
+// ============================================================================
+// Zod schemas
+// ============================================================================
+
+const contactSchema = z.object({
+  name: z.string().trim().min(1, "Nombre obligatorio"),
+  email: z
+    .string()
+    .trim()
+    .min(1, "Correo obligatorio")
+    .email("Correo invalido"),
+  relationship: z.string().trim().min(1, "Relacion obligatoria"),
+  phone: z.string().trim().min(1, "Telefono obligatorio"),
+  notifyEmail: z.boolean(),
+  notifySms: z.boolean(),
+});
+
+const athleteSchema = z.object({
+  name: z.string().trim().min(1, "Nombre del atleta obligatorio"),
+  dob: z.string().optional(),
+  sportConfigId: z.string().optional(),
+  programCode: z.string().optional(),
+  category: z.string().optional(),
+  level: z.string().optional(),
+  status: z.enum(["active", "inactive", "archived"]),
+  groupId: z.string().optional(),
+  contacts: z.array(contactSchema).min(1, "Al menos un contacto familiar"),
+});
+
+type AthleteFormValues = z.infer<typeof athleteSchema>;
+type ContactFormValues = z.infer<typeof contactSchema>;
+
+const emptyContact = (): ContactFormValues => ({
+  name: "",
+  email: "",
+  relationship: "Madre",
+  phone: "",
+  notifyEmail: true,
+  notifySms: false,
+});
+
+const defaultValues: AthleteFormValues = {
+  name: "",
+  dob: "",
+  sportConfigId: "",
+  programCode: "",
+  category: "",
+  level: "",
+  status: "active",
+  groupId: "",
+  contacts: [emptyContact()],
+};
+
+// ============================================================================
+// Component
+// ============================================================================
 
 const fieldClassName =
   "w-full rounded-[10px] border border-zaltyko-mist bg-white px-3 py-2 text-sm shadow-none focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15";
 const compactFieldClassName =
   "rounded-[10px] border border-zaltyko-mist bg-white px-3 py-2 text-sm shadow-none focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15";
+const errorTextClassName = "text-xs text-zaltyko-coral mt-1";
 
 interface CreateAthleteDialogProps {
   academyId: string;
@@ -63,15 +115,6 @@ interface CreateAthleteDialogProps {
   initialSportConfigId?: string;
 }
 
-const createEmptyContact = (): ContactInput => ({
-  name: "",
-  email: "",
-  relationship: "Madre",
-  phone: "",
-  notifyEmail: true,
-  notifySms: false,
-});
-
 export function CreateAthleteDialog({
   academyId,
   open,
@@ -81,18 +124,38 @@ export function CreateAthleteDialog({
   sportConfigs = [],
   initialSportConfigId,
 }: CreateAthleteDialogProps) {
-  const [name, setName] = useState("");
-  const [dob, setDob] = useState("");
-  const [sportConfigId, setSportConfigId] = useState("");
-  const [programCode, setProgramCode] = useState("");
-  const [category, setCategory] = useState("");
-  const [level, setLevel] = useState("");
-  const [status, setStatus] = useState<(typeof athleteStatusOptions)[number]>("active");
-  const [groupId, setGroupId] = useState("");
-  const [contacts, setContacts] = useState<ContactInput[]>([createEmptyContact()]);
-  const [showAdvanced, setShowAdvanced] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
+  const {
+    control,
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting, isValid },
+    reset,
+    watch,
+    setValue,
+  } = useForm<AthleteFormValues>({
+    resolver: zodResolver(athleteSchema),
+    defaultValues,
+    mode: "onChange",
+  });
+
+  const { fields, append, remove } = useFieldArray({
+    control,
+    name: "contacts",
+  });
+
+  const [showAdvanced, setShowAdvanced] = useState(false); // local UI state
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [, startTransition] = useTransition();
+
+  const sportConfigIdValue = watch("sportConfigId");
+  const groupIdValue = watch("groupId");
+  const programCodeValue = watch("programCode");
+  const levelValue = watch("level");
+  const categoryValue = watch("category");
+  const dobValue = watch("dob");
+  const statusValue = watch("status");
+  const nameValue = watch("name");
+
   const resolvedInitialSportConfigId = useMemo(
     () =>
       initialSportConfigId && sportConfigs.some((config) => config.id === initialSportConfigId)
@@ -102,11 +165,11 @@ export function CreateAthleteDialog({
   );
 
   const selectedGroup = useMemo(
-    () => groups.find((group) => group.id === groupId) ?? null,
-    [groupId, groups]
+    () => groups.find((group) => group.id === groupIdValue) ?? null,
+    [groupIdValue, groups]
   );
 
-  const effectiveSportConfigId = selectedGroup?.sportConfigId ?? sportConfigId;
+  const effectiveSportConfigId = selectedGroup?.sportConfigId ?? sportConfigIdValue;
   const selectedSportConfig = useMemo(
     () => sportConfigs.find((config) => config.id === effectiveSportConfigId) ?? null,
     [effectiveSportConfigId, sportConfigs]
@@ -119,7 +182,7 @@ export function CreateAthleteDialog({
   const programOptions = selectedSportConfig?.programs ?? [];
   const levelOptions = selectedSportConfig
     ? selectedSportConfig.levels.filter(
-        (option) => !programCode || !option.programCode || option.programCode === programCode
+        (option) => !programCodeValue || !option.programCode || option.programCode === programCodeValue
       )
     : LEVEL_OPTIONS.map((option) => ({
         code: option,
@@ -129,9 +192,9 @@ export function CreateAthleteDialog({
     ? selectedSportConfig.categories
     : CATEGORY_OPTIONS.map((option) => ({ code: option, name: option }));
 
-  const selectedProgramName = programOptions.find((option) => option.code === programCode)?.name ?? null;
-  const selectedCategoryName = categoryOptions.find((option) => option.code === category)?.name ?? null;
-  const selectedLevelName = levelOptions.find((option) => option.code === level)?.name ?? null;
+  const selectedProgramName = programOptions.find((option) => option.code === programCodeValue)?.name ?? null;
+  const selectedCategoryName = categoryOptions.find((option) => option.code === categoryValue)?.name ?? null;
+  const selectedLevelName = levelOptions.find((option) => option.code === levelValue)?.name ?? null;
 
   const levelDisplay = [
     selectedProgramName,
@@ -142,8 +205,8 @@ export function CreateAthleteDialog({
     .join(" · ");
 
   const computedAgeYears = useMemo(() => {
-    if (!dob) return null;
-    const birthDate = new Date(dob);
+    if (!dobValue) return null;
+    const birthDate = new Date(dobValue);
     if (Number.isNaN(birthDate.getTime())) return null;
     const now = new Date();
     let ageYears = now.getFullYear() - birthDate.getFullYear();
@@ -154,67 +217,64 @@ export function CreateAthleteDialog({
       ageYears -= 1;
     }
     return ageYears >= 0 ? ageYears : null;
-  }, [dob]);
+  }, [dobValue]);
 
   const computedAgeLabel = useMemo(() => {
     return computedAgeYears != null ? `${computedAgeYears} años` : "";
   }, [computedAgeYears]);
 
-  const birthdateInputRef = useRef<HTMLInputElement>(null);
+  const birthdateInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
-    if (!open || groupId || !resolvedInitialSportConfigId) {
+    if (!open || groupIdValue || !resolvedInitialSportConfigId) {
       return;
     }
-    setSportConfigId(resolvedInitialSportConfigId);
-  }, [groupId, open, resolvedInitialSportConfigId]);
+    setValue("sportConfigId", resolvedInitialSportConfigId);
+  }, [groupIdValue, open, resolvedInitialSportConfigId, setValue]);
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setError(null);
+  const handleGroupChange = (nextGroupId: string) => {
+    setValue("groupId", nextGroupId);
+    const nextGroup = groups.find((group) => group.id === nextGroupId);
+    if (nextGroup?.sportConfigId) setValue("sportConfigId", nextGroup.sportConfigId);
+    if (nextGroup?.programCode) setValue("programCode", nextGroup.programCode);
+    if (nextGroup?.levelCode) setValue("level", nextGroup.levelCode);
+    if (nextGroup?.categoryCode) setValue("category", nextGroup.categoryCode);
+  };
 
-    if (!name.trim()) {
-      setError(`El nombre del ${athleteTermLower} es obligatorio.`);
-      return;
-    }
+  const handleSportConfigChange = (configId: string) => {
+    setValue("sportConfigId", configId);
+    setValue("programCode", "");
+    setValue("level", "");
+    setValue("category", "");
+  };
 
-    const hasIncompleteContact = contacts.some(
-      (contact) =>
-        !contact.name.trim() ||
-        !contact.email.trim() ||
-        !contact.phone.trim() ||
-        !contact.relationship.trim()
-    );
+  const handleProgramChange = (code: string) => {
+    setValue("programCode", code);
+    setValue("level", "");
+  };
 
-    if (hasIncompleteContact) {
-      setError("Todos los datos del contacto familiar son obligatorios.");
-      return;
-    }
+  const onValid = (values: AthleteFormValues) => {
+    setSubmitError(null);
 
     startTransition(async () => {
       try {
-        const supabase = createClient();
-        const {
-          data: { user: currentUser },
-        } = await supabase.auth.getUser();
-
         const payload = {
           academyId,
-          name: name.trim(),
-          dob: dob ? dob : undefined,
+          name: values.name,
+          dob: values.dob ? values.dob : undefined,
           level: levelDisplay || undefined,
-          status,
-          groupId: groupId || undefined,
+          status: values.status,
+          groupId: values.groupId || undefined,
           primarySportConfigId: effectiveSportConfigId || undefined,
-          programCode: programCode || selectedGroup?.programCode || undefined,
-          levelCode: level || selectedGroup?.levelCode || undefined,
-          categoryCode: category || selectedGroup?.categoryCode || undefined,
-          contacts: contacts
+          programCode: values.programCode || selectedGroup?.programCode || undefined,
+          levelCode: values.level || selectedGroup?.levelCode || undefined,
+          categoryCode: values.category || selectedGroup?.categoryCode || undefined,
+          contacts: values.contacts
             .map((contact) => ({
-              name: contact.name.trim(),
-              relationship: contact.relationship.trim() || undefined,
-              email: contact.email.trim() || undefined,
-              phone: contact.phone.trim() || undefined,
+              name: contact.name,
+              relationship: contact.relationship || undefined,
+              email: contact.email || undefined,
+              phone: contact.phone || undefined,
               notifyEmail: contact.notifyEmail,
               notifySms: contact.notifySms,
             }))
@@ -222,17 +282,12 @@ export function CreateAthleteDialog({
           ...(computedAgeYears != null ? { age: computedAgeYears } : {}),
         };
 
-        const headers: Record<string, string> = {
-          "Content-Type": "application/json",
-          "x-academy-id": academyId,
-        };
-
-        if (currentUser?.id) {
-        }
-
         const response = await fetch("/api/athletes", {
           method: "POST",
-          headers,
+          headers: {
+            "Content-Type": "application/json",
+            "x-academy-id": academyId,
+          },
           body: JSON.stringify(payload),
         });
 
@@ -241,27 +296,20 @@ export function CreateAthleteDialog({
           throw new Error(data.error ?? `No se pudo crear el ${athleteTermLower}.`);
         }
 
-        setName("");
-        setDob("");
-        setCategory("");
-        setLevel("");
-        setSportConfigId(resolvedInitialSportConfigId);
-        setProgramCode("");
-        setStatus("active");
-        setGroupId("");
-        setContacts([createEmptyContact()]);
+        reset(defaultValues);
         setShowAdvanced(false);
         onCreated();
         onClose();
-      } catch (err: any) {
-        setError(err.message ?? `Error desconocido al crear el ${athleteTermLower}.`);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : `Error desconocido al crear el ${athleteTermLower}.`;
+        setSubmitError(message);
       }
     });
   };
 
   const handleClose = () => {
-    if (isPending) return;
-    setError(null);
+    if (isSubmitting) return;
+    setSubmitError(null);
     onClose();
   };
 
@@ -270,14 +318,14 @@ export function CreateAthleteDialog({
       open={open}
       onClose={handleClose}
       title={`Registrar nuevo ${athleteTermLower}`}
-      description={`Añade un ${athleteTermLower} a tu academia.`}
+      description={`Anade un ${athleteTermLower} a tu academia.`}
       footer={
         <div className="flex justify-end gap-2">
           <button
             type="button"
             onClick={handleClose}
             className="min-h-11 rounded-xl border border-zaltyko-indigo px-4 py-2 text-sm font-medium text-zaltyko-indigo transition hover:bg-zaltyko-indigo/5 disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={isPending}
+            disabled={isSubmitting}
           >
             Cancelar
           </button>
@@ -285,44 +333,66 @@ export function CreateAthleteDialog({
             type="submit"
             form="create-athlete-form"
             className="min-h-11 rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white shadow-soft transition hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={isPending}
+            disabled={isSubmitting || !isValid}
           >
-            {isPending ? "Guardando..." : `Guardar ${athleteTermLower}`}
+            {isSubmitting ? "Guardando..." : `Guardar ${athleteTermLower}`}
           </button>
         </div>
       }
     >
-      <form id="create-athlete-form" onSubmit={handleSubmit} className="space-y-5">
-        {error && (
-          <div className="rounded-xl border border-zaltyko-coral/35 bg-zaltyko-coral/10 px-3 py-2 text-sm text-zaltyko-coral">
-            {error}
+      <form id="create-athlete-form" onSubmit={handleSubmit(onValid)} className="space-y-5" noValidate>
+        {submitError && (
+          <div
+            className="rounded-xl border border-zaltyko-coral/35 bg-zaltyko-coral/10 px-3 py-2 text-sm text-zaltyko-coral"
+            role="alert"
+          >
+            {submitError}
           </div>
         )}
 
         {/* Campos esenciales */}
         <div className="space-y-4">
           <div className="space-y-2">
-            <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">Nombre completo *</label>
+            <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">
+              Nombre completo *
+            </label>
             <input
-              value={name}
-              onChange={(event) => setName(event.target.value)}
+              {...register("name")}
               className={fieldClassName}
-              placeholder="Ej: María García López"
-              required
+              placeholder="Ej: Maria Garcia Lopez"
+              aria-invalid={!!errors.name}
+              autoComplete="off"
             />
+            {errors.name && (
+              <p className={errorTextClassName} role="alert">
+                {errors.name.message}
+              </p>
+            )}
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">Fecha de nacimiento</label>
+              <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">
+                Fecha de nacimiento
+              </label>
               <div className="flex items-center gap-2">
-                <input
-                  ref={birthdateInputRef}
-                  type="date"
-                  value={dob}
-                  onChange={(event) => setDob(event.target.value)}
-                  max={new Date().toISOString().slice(0, 10)}
-                  className={fieldClassName}
+                <Controller
+                  control={control}
+                  name="dob"
+                  render={({ field }) => (
+                    <input
+                      type="date"
+                      value={field.value ?? ""}
+                      onChange={(event) => field.onChange(event.target.value)}
+                      onBlur={field.onBlur}
+                      ref={(el) => {
+                        field.ref(el);
+                        if (el) birthdateInputRef.current = el;
+                      }}
+                      max={new Date().toISOString().slice(0, 10)}
+                      className={fieldClassName}
+                    />
+                  )}
                 />
                 <button
                   type="button"
@@ -340,18 +410,12 @@ export function CreateAthleteDialog({
 
             {groups.length > 0 && (
               <div className="space-y-2">
-                <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">{groupTerm}</label>
+                <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">
+                  {groupTerm}
+                </label>
                 <select
-                  value={groupId}
-                  onChange={(event) => {
-                    const nextGroupId = event.target.value;
-                    const nextGroup = groups.find((group) => group.id === nextGroupId);
-                    setGroupId(nextGroupId);
-                    if (nextGroup?.sportConfigId) setSportConfigId(nextGroup.sportConfigId);
-                    if (nextGroup?.programCode) setProgramCode(nextGroup.programCode);
-                    if (nextGroup?.levelCode) setLevel(nextGroup.levelCode);
-                    if (nextGroup?.categoryCode) setCategory(nextGroup.categoryCode);
-                  }}
+                  value={groupIdValue}
+                  onChange={(event) => handleGroupChange(event.target.value)}
                   className={fieldClassName}
                 >
                   <option value="">Sin {groupTerm.toLowerCase()}</option>
@@ -366,15 +430,12 @@ export function CreateAthleteDialog({
 
             {sportConfigs.length > 0 && (
               <div className="space-y-2">
-                <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">Modalidad / rama</label>
+                <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">
+                  Modalidad / rama
+                </label>
                 <select
                   value={effectiveSportConfigId}
-                  onChange={(event) => {
-                    setSportConfigId(event.target.value);
-                    setProgramCode("");
-                    setLevel("");
-                    setCategory("");
-                  }}
+                  onChange={(event) => handleSportConfigChange(event.target.value)}
                   className={fieldClassName}
                   disabled={Boolean(selectedGroup?.sportConfigId)}
                 >
@@ -390,33 +451,28 @@ export function CreateAthleteDialog({
           </div>
         </div>
 
-        {/* Opción avanzada */}
+        {/* Opcion avanzada */}
         <button
           type="button"
           onClick={() => setShowAdvanced(!showAdvanced)}
           className="flex w-full items-center justify-between rounded-xl border border-zaltyko-mist bg-zaltyko-warm-white px-3 py-2 text-sm font-medium text-zaltyko-text-secondary transition hover:border-zaltyko-teal hover:text-zaltyko-teal"
         >
-          <span>Configuración avanzada</span>
-          {showAdvanced ? (
-            <ChevronUp className="h-4 w-4" />
-          ) : (
-            <ChevronDown className="h-4 w-4" />
-          )}
+          <span>Configuracion avanzada</span>
+          {showAdvanced ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
         </button>
 
         {showAdvanced && (
           <div className="space-y-4">
-            {/* Nivel y categoría */}
+            {/* Nivel y categoria */}
             <div className="grid gap-4 sm:grid-cols-4">
               {programOptions.length > 0 && (
                 <div className="space-y-2">
-                  <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">Programa</label>
+                  <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">
+                    Programa
+                  </label>
                   <select
-                    value={programCode}
-                    onChange={(event) => {
-                      setProgramCode(event.target.value);
-                      setLevel("");
-                    }}
+                    value={programCodeValue}
+                    onChange={(event) => handleProgramChange(event.target.value)}
                     className={fieldClassName}
                   >
                     <option value="">Sin programa</option>
@@ -429,10 +485,12 @@ export function CreateAthleteDialog({
                 </div>
               )}
               <div className="space-y-2">
-                <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">{terms.category}</label>
+                <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">
+                  {terms.category}
+                </label>
                 <select
-                  value={category}
-                  onChange={(event) => setCategory(event.target.value)}
+                  value={categoryValue}
+                  onChange={(event) => setValue("category", event.target.value)}
                   className={fieldClassName}
                 >
                   <option value="">Sin {terms.category.toLowerCase()}</option>
@@ -444,10 +502,12 @@ export function CreateAthleteDialog({
                 </select>
               </div>
               <div className="space-y-2">
-                <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">{terms.level}</label>
+                <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">
+                  {terms.level}
+                </label>
                 <select
-                  value={level}
-                  onChange={(event) => setLevel(event.target.value)}
+                  value={levelValue}
+                  onChange={(event) => setValue("level", event.target.value)}
                   className={fieldClassName}
                 >
                   <option value="">Selecciona {terms.level.toLowerCase()}</option>
@@ -459,11 +519,13 @@ export function CreateAthleteDialog({
                 </select>
               </div>
               <div className="space-y-2">
-                <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">Estado</label>
+                <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">
+                  Estado
+                </label>
                 <select
-                  value={status}
+                  value={statusValue}
                   onChange={(event) =>
-                    setStatus(event.target.value as (typeof athleteStatusOptions)[number])
+                    setValue("status", event.target.value as AthleteFormValues["status"])
                   }
                   className={fieldClassName}
                 >
@@ -480,29 +542,30 @@ export function CreateAthleteDialog({
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-semibold text-zaltyko-navy">
-                  Contactos familiares {contacts.length > 1 ? `(${contacts.length})` : ""}
+                  Contactos familiares {fields.length > 1 ? `(${fields.length})` : ""}
                 </h3>
                 <button
                   type="button"
-                  onClick={() => setContacts((prev) => [...prev, createEmptyContact()])}
+                  onClick={() => append(emptyContact())}
                   className="rounded-full border border-zaltyko-indigo px-3 py-1.5 text-xs font-medium text-zaltyko-indigo transition hover:bg-zaltyko-indigo/5"
                 >
-                  + Añadir
+                  + Anadir
                 </button>
               </div>
 
-              {contacts.map((contact, index) => (
-                <div key={index} className="space-y-3 rounded-xl border border-zaltyko-mist/70 bg-white p-3">
+              {fields.map((contactField, index) => (
+                <div
+                  key={contactField.id}
+                  className="space-y-3 rounded-xl border border-zaltyko-mist/70 bg-white p-3"
+                >
                   <div className="flex items-center justify-between">
                     <p className="text-xs font-semibold uppercase tracking-[0.05em] text-zaltyko-text-secondary">
                       Contacto #{index + 1}
                     </p>
-                    {contacts.length > 1 && (
+                    {fields.length > 1 && (
                       <button
                         type="button"
-                        onClick={() =>
-                          setContacts((prev) => prev.filter((_, contactIndex) => contactIndex !== index))
-                        }
+                        onClick={() => remove(index)}
                         className="text-xs font-medium text-zaltyko-coral hover:underline"
                       >
                         Quitar
@@ -511,104 +574,136 @@ export function CreateAthleteDialog({
                   </div>
 
                   <div className="grid gap-3 sm:grid-cols-2">
-                    <input
-                      value={contact.name}
-                      onChange={(event) =>
-                        setContacts((prev) => {
-                          const copy = [...prev];
-                          copy[index] = { ...copy[index], name: event.target.value };
-                          return copy;
-                        })
-                      }
-                      placeholder="Nombre *"
-                      className={compactFieldClassName}
-                      required
+                    <Controller
+                      control={control}
+                      name={`contacts.${index}.name` as const}
+                      render={({ field, fieldState }) => (
+                        <div className="space-y-1">
+                          <input
+                            {...field}
+                            placeholder="Nombre *"
+                            className={compactFieldClassName}
+                            aria-invalid={!!fieldState.error}
+                            autoComplete="off"
+                          />
+                          {fieldState.error && (
+                            <p className={errorTextClassName} role="alert">
+                              {fieldState.error.message}
+                            </p>
+                          )}
+                        </div>
+                      )}
                     />
-                    <input
-                      type="email"
-                      value={contact.email}
-                      onChange={(event) =>
-                        setContacts((prev) => {
-                          const copy = [...prev];
-                          copy[index] = { ...copy[index], email: event.target.value };
-                          return copy;
-                        })
-                      }
-                      placeholder="Correo *"
-                      className={compactFieldClassName}
-                      required
+                    <Controller
+                      control={control}
+                      name={`contacts.${index}.email` as const}
+                      render={({ field, fieldState }) => (
+                        <div className="space-y-1">
+                          <input
+                            {...field}
+                            type="email"
+                            placeholder="Correo *"
+                            className={compactFieldClassName}
+                            aria-invalid={!!fieldState.error}
+                            autoComplete="off"
+                          />
+                          {fieldState.error && (
+                            <p className={errorTextClassName} role="alert">
+                              {fieldState.error.message}
+                            </p>
+                          )}
+                        </div>
+                      )}
                     />
-                    <input
-                      value={contact.phone}
-                      onChange={(event) =>
-                        setContacts((prev) => {
-                          const copy = [...prev];
-                          copy[index] = { ...copy[index], phone: event.target.value };
-                          return copy;
-                        })
-                      }
-                      placeholder="Teléfono *"
-                      className={compactFieldClassName}
-                      required
+                    <Controller
+                      control={control}
+                      name={`contacts.${index}.phone` as const}
+                      render={({ field, fieldState }) => (
+                        <div className="space-y-1">
+                          <input
+                            {...field}
+                            placeholder="Telefono *"
+                            className={compactFieldClassName}
+                            aria-invalid={!!fieldState.error}
+                            autoComplete="off"
+                          />
+                          {fieldState.error && (
+                            <p className={errorTextClassName} role="alert">
+                              {fieldState.error.message}
+                            </p>
+                          )}
+                        </div>
+                      )}
                     />
-                    <select
-                      value={RELATIONSHIP_OPTIONS.includes(contact.relationship as any) ? contact.relationship : "Otro"}
-                      onChange={(event) => {
-                        const value = event.target.value;
-                        setContacts((prev) => {
-                          const copy = [...prev];
-                          copy[index] = {
-                            ...copy[index],
-                            relationship: value === "Otro" ? "" : value,
-                          };
-                          return copy;
-                        });
-                      }}
-                      className={compactFieldClassName}
-                    >
-                      {RELATIONSHIP_OPTIONS.map((option) => (
-                        <option key={option} value={option}>
-                          {option}
-                        </option>
-                      ))}
-                      <option value="Otro">Otro</option>
-                    </select>
+                    <Controller
+                      control={control}
+                      name={`contacts.${index}.relationship` as const}
+                      render={({ field, fieldState }) => (
+                        <div className="space-y-1">
+                          <select
+                            value={RELATIONSHIP_OPTIONS.includes(field.value as any) ? field.value : "Otro"}
+                            onChange={(event) => {
+                              const value = event.target.value;
+                              field.onChange(value === "Otro" ? "" : value);
+                            }}
+                            className={compactFieldClassName}
+                            aria-invalid={!!fieldState.error}
+                          >
+                            {RELATIONSHIP_OPTIONS.map((option) => (
+                              <option key={option} value={option}>
+                                {option}
+                              </option>
+                            ))}
+                          </select>
+                          {fieldState.error && (
+                            <p className={errorTextClassName} role="alert">
+                              {fieldState.error.message}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    />
                   </div>
 
                   <div className="flex gap-4 text-xs text-zaltyko-text-secondary">
-                    <label className="inline-flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={contact.notifyEmail}
-                        onChange={(event) =>
-                          setContacts((prev) => {
-                            const copy = [...prev];
-                            copy[index] = { ...copy[index], notifyEmail: event.target.checked };
-                            return copy;
-                          })
-                        }
-                        className="rounded border-zaltyko-mist text-zaltyko-teal focus:ring-zaltyko-teal"
-                      />
-                      Recibir correos
-                    </label>
-                    <label className="inline-flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={contact.notifySms}
-                        onChange={(event) =>
-                          setContacts((prev) => {
-                            const copy = [...prev];
-                            copy[index] = { ...copy[index], notifySms: event.target.checked };
-                            return copy;
-                          })
-                        }
-                        className="rounded border-zaltyko-mist text-zaltyko-teal focus:ring-zaltyko-teal"
-                      />
-                      Recibir SMS
-                    </label>
+                    <Controller
+                      control={control}
+                      name={`contacts.${index}.notifyEmail` as const}
+                      render={({ field }) => (
+                        <label className="inline-flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={field.value}
+                            onChange={(event) => field.onChange(event.target.checked)}
+                            className="rounded border-zaltyko-mist text-zaltyko-teal focus:ring-zaltyko-teal"
+                          />
+                          Recibir correos
+                        </label>
+                      )}
+                    />
+                    <Controller
+                      control={control}
+                      name={`contacts.${index}.notifySms` as const}
+                      render={({ field }) => (
+                        <label className="inline-flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={field.value}
+                            onChange={(event) => field.onChange(event.target.checked)}
+                            className="rounded border-zaltyko-mist text-zaltyko-teal focus:ring-zaltyko-teal"
+                          />
+                          Recibir SMS
+                        </label>
+                      )}
+                    />
                   </div>
                 </div>
               ))}
+              {errors.contacts && (
+                <p className={errorTextClassName} role="alert">
+                  {errors.contacts.message ?? "Al menos un contacto familiar es obligatorio"}
+                </p>
+              )}
             </div>
           </div>
         )}

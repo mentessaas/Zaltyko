@@ -39,6 +39,11 @@ src/
 
 ## Critical Patterns
 
+### Canonical Work Guide (MANDATORY)
+
+Before any relevant code, product, pricing, migration, security, roadmap, or documentation change, read `vault/00-Inicio/Guia de trabajo para agentes.md`.
+That note is the operational source for Zaltyko's active direction: gymnastics-first go-to-market, limited family/athlete portal, internal communication first, pricing v3.0, migration discipline, and vault closeout.
+
 ### API Auth (MANDATORY)
 ```typescript
 // ✅ CORRECT - all APIs use withTenant

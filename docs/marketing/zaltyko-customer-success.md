@@ -1,5 +1,9 @@
 # Estrategia de Customer Success para Zaltyko
 
+> **Documento historico.** La estrategia de soporte debe revisarse contra `vault/00-Inicio/Guia de trabajo para agentes.md`, `vault/03-Negocio/Pricing.md` y `vault/04-Marketing/Mensajes aprobados.md` antes de publicarse o implementarse.
+>
+> Pricing vigente: Free, Starter, Growth y Network. Las referencias a Professional, Business o Enterprise no son fuente vigente.
+
 Este documento define la estrategia de Customer Success (CS) para Zaltyko, diseñada para maximizar el valor delivered a cada cliente mientras se optimiza la retención y expansión de revenue. La estrategia está alineada con los planes de pricing existentes (Starter, Professional, Business, Enterprise) y los dos buyer personas identificados: el Emprendedor Deportivo y el Director de Operaciones.
 
 ---

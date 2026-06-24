@@ -4,7 +4,8 @@ export type ProfileRole =
   | "owner"
   | "coach"
   | "athlete"
-  | "parent";
+  | "parent"
+  | "provider";
 
 export type MembershipRole = "owner" | "coach" | "viewer";
 
@@ -25,6 +26,7 @@ export const ROLE_LABELS: Record<ProfileRole, string> = {
   coach: "Entrenador",
   athlete: "Atleta",
   parent: "Tutor",
+  provider: "Proveedor",
 };
 
 export const ROLE_CAPABILITIES: Record<ProfileRole, RoleCapabilities> = {
@@ -65,6 +67,13 @@ export const ROLE_CAPABILITIES: Record<ProfileRole, RoleCapabilities> = {
   },
   parent: {
     shell: "limited",
+    canAccessAcademyWorkspace: false,
+    canManageAcademies: false,
+    canManageTeam: false,
+    canSeeBilling: false,
+  },
+  provider: {
+    shell: "global",
     canAccessAcademyWorkspace: false,
     canManageAcademies: false,
     canManageTeam: false,
@@ -119,12 +128,31 @@ export function canAccessAcademyWorkspace(
   return false;
 }
 
+export function isLimitedAcademyWorkspacePath(pathname: string | null | undefined, academyId: string): boolean {
+  if (!pathname) {
+    return false;
+  }
+
+  const basePath = `/app/${academyId}`;
+  const allowedPaths = [
+    `${basePath}/my-dashboard`,
+    `${basePath}/messages`,
+    `${basePath}/notifications`,
+  ];
+
+  return allowedPaths.some((path) => pathname === path || pathname.startsWith(`${path}/`));
+}
+
 export function getDefaultDashboardPath(role?: string | null): string {
   if (role === "super_admin") {
     return "/super-admin";
   }
 
-  if (role === "athlete" || role === "parent") {
+  if (role === "provider") {
+    return "/dashboard/marketplace/mis-productos";
+  }
+
+  if (role === "athlete" || role === "parent" || role === "coach") {
     return "/dashboard/profile";
   }
 
@@ -152,6 +180,10 @@ export function getPreferredHomePath(args: {
 
   if (academyId && canAccessAcademyWorkspace(profileRole, inferredMembershipRole)) {
     return `/app/${academyId}/dashboard`;
+  }
+
+  if (academyId && (profileRole === "athlete" || profileRole === "parent")) {
+    return `/app/${academyId}/my-dashboard`;
   }
 
   return getDefaultDashboardPath(profileRole);
