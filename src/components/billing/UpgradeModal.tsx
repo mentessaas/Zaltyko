@@ -21,29 +21,28 @@ interface UpgradeModalProps {
 
 const PLAN_DETAILS = {
     pro: {
-        name: "Pro",
+        name: "Starter",
         price: 19,
         color: "from-zaltyko-primary to-zaltyko-accent-teal",
         features: [
-            "200 atletas",
+            "75 gimnastas",
             "10 entrenadores",
-            "50 clases activas",
+            "40 clases activas",
             "1 GB almacenamiento",
-            "Reportes avanzados",
-            "Análisis de rendimiento",
+            "Portal familias",
+            "Pagos recurrentes",
         ],
     },
     premium: {
-        name: "Premium",
+        name: "Growth",
         price: 49,
         color: "from-zaltyko-accent-coral to-zaltyko-accent-amber",
         features: [
-            "Atletas ilimitados",
-            "Entrenadores ilimitados",
-            "Clases ilimitadas",
-            "Almacenamiento ilimitado",
-            "Soporte 24/7",
-            "API completa",
+            "200 gimnastas",
+            "20 grupos",
+            "80 clases activas",
+            "Reportes de dirección",
+            "Soporte prioritario",
         ],
     },
 };

@@ -4,7 +4,7 @@
 
 Zaltyko es una plataforma SaaS de gestión integral para academias deportivas, diseñada específicamente para resolver los desafíos operativos, financieros y de comunicación que enfrentan las academias de gymnástica y otros deportes. La herramienta unifica la administración de atletas, coaches, clases, facturación y comunicación en una sola plataforma, eliminando la fragmentación de procesos que caracteriza a las academias que operan con métodos tradicionales como hojas de cálculo, papel o sistemas inconexos.
 
-El producto está construido sobre una arquitectura multi-tenant que permite a los propietarios de academias gestionar una o múltiples instalaciones desde un único panel de control, mientras que ofrece portales diferenciados para atletas, padres y entrenadores. Esta flexibilidad posiciona a Zaltyko como una solución escalable tanto para academias individuales como para cadenas o redes de instalaciones deportivas.
+El producto está construido sobre una arquitectura multi-tenant que aísla los datos de cada academia y permite portales diferenciados para atletas, padres y entrenadores. En el primer acceso comercial, Zaltyko se posiciona para academias individuales; la gestión multi-sede queda reservada para Network con onboarding acompañado.
 
 ---
 
@@ -88,7 +88,7 @@ Zaltyko resuelve la fragmentación operativa que caracteriza a las academias dep
 
 **Propuesta única de valor**
 
-Zaltyko es la única plataforma de gestión para academias deportivas diseñada específicamente para las necesidades del sector, que unifica en una sola solución todo lo necesario para operar una academia de manera eficiente: desde la inscripción de atletas y gestión de grupos hasta la evaluación técnica, facturación automática y comunicación con familias, con un enfoque en la experiencia multi-sede que permite escalar sin perder control.
+Zaltyko es una plataforma de gestión para academias deportivas diseñada específicamente para las necesidades del sector, que unifica en una sola solución lo necesario para operar una academia de manera eficiente: desde la inscripción de atletas y gestión de grupos hasta la evaluación técnica, facturación operativa y comunicación con familias. La experiencia multi-sede se ofrece solo en Network con acompañamiento.
 
 **Beneficio principal en una oración**
 
@@ -142,9 +142,9 @@ Zaltyko integra funcionalidades de comunicación que centralizan los canales de 
 
 El portal de padres y atletas proporciona una vista personalizada con información relevante para cada rol: calendario de clases programadas, historial de asistencia, evaluaciones técnicas, estado de cuenta y pagos pendientes, y la posibilidad de comunicarse con la academia. Esta autoatención reduce la carga operativa al permitir que las familias resuelvan consultas comunes sin intervención del personal administrativo, mientras incrementa la percepción de profesionalismo y modernidad.
 
-**Multi-Academia y Super Admin**
+**Multi-tenant, Network y Super Admin**
 
-La arquitectura multi-tenant permite gestionar múltiples academias desde un solo panel de control, con consolidación de datos para reportes ejecutivos y gestión individualizada de cada ubicación. El rol de super administrador proporciona visibilidad global sobre todas las academias del sistema, facilitando la supervisión de redes de academias o la operación de franchises. Las métricas por academia, por país y globales alimentan dashboards que permiten comparar rendimiento, identificar mejores prácticas y detectar problemas en etapas tempranas.
+La arquitectura multi-tenant permite aislar cada academia con seguridad y operar Network como oferta multi-sede acompañada cuando el cliente ya necesita varias ubicaciones. El rol de super administrador proporciona visibilidad global para soporte interno y operación controlada de redes, sin convertir la multi-sede en autoservicio para Starter o Growth.
 
 ### 3.2 Propuesta de Valor Diferenciada
 
@@ -156,7 +156,7 @@ En primer lugar, el diseño específico para el sector deportivo significa que l
 
 En segundo lugar, la experiencia unificada donde todos los stakeholders interactúan con la misma plataforma: el propietario gestiona la operación, los entrenadores registran asistencia y evaluaciones, los atletas consultan su calendario y los padres pagan sus mensualidades y acompañan el progreso. Esta centralización elimina la fragmentación de información y asegura que todos trabajen con datos actualizados.
 
-En tercer lugar, la escalabilidad multi-sede incorporada desde el diseño, no como una funcionalidad añadida, permite gestionar cadenas de academias o redes de franchises con la misma facilidad que una academia individual, con consolidación de datos para visión corporativa pero autonomía operativa para cada ubicación.
+En tercer lugar, la arquitectura queda preparada para multi-sede sin cargar el primer lanzamiento comercial con esa complejidad. Starter y Growth se enfocan en una academia; Network incorpora varias sedes solo con diagnóstico y onboarding acompañado.
 
 En cuarto lugar, la automatización de tareas administrativas como la generación de cargos recurrentes, el envío de recordatorios de pago, la notificación de cambios de horario o el registro de asistencia reduce el tiempo que el personal dedica a actividades de bajo valor, permitiéndoles enfocarse en el servicio al cliente y en el desarrollo deportivo.
 

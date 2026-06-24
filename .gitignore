@@ -26,12 +26,17 @@
 /brand kit
 /test-results
 /playwright-report
+/coverage
+/.playwright-cli
 /.auth
 /waitlist.tar.gz
 /waitlist.zip
 /drizzle
 /supabase/.temp
+/.claude-progress.md
+/README 2.md
 
 # editor / repo metadata that we don't need right now
 /.vscode
 /.vercelignore
+/vault/.obsidian

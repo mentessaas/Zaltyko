@@ -26,14 +26,15 @@ source:
 | Consecuencia | 5 commits nuevos pusheados a main. OnboardingChecklist queda correctamente excluido de RHF por no ser formulario. Build sigue verde. |
 | Estado | Cerrado parcialmente: 7A completo, 7B completo, 7C y 7D diferidos. |
 
-## 2026-06-24 - Decidir Opcion A para legacy `/dashboard/*` (recomendada, NO ejecutada)
+## 2026-06-24 - Opcion A para legacy `/dashboard/*`
 
 | Campo | Valor |
 | --- | --- |
 | Contexto | Misma decision que [[#2026-06-22 - Rutas legacy `/dashboard/*` (PENDIENTE de decision de Elvis)]]. Sprint 6 quedo bloqueado esperando esta decision. Analisis: la mayoria de las 38 rutas redirigen a `/auth/login` y solo unas pocas tienen UI viva. |
-| Decision recomendada | **Opcion A**: mantener compat 6 meses y arreglar lo roto. Implementar redirects `next.config.mjs` para mapear `/dashboard/X` -> `/app/[academyId]/X` cuando exista equivalente moderno, sin duplicar logica. Codigo publico (3 hrefs) se actualiza a `/app/[academyId]/...`. `/dashboard/plan-limits` se mueve a `/app/[academyId]/settings/plan-limits`. |
-| Pendiente | Elvis debe aprobar antes de ejecutar. Si aprueba, Sprint 7D.2 implementa los redirects en `next.config.mjs` y Sprint 7D.3 actualiza el codigo publico. |
-| Estado | Recomendada, esperando aprobacion humana (P1 decision Elvis - NO automatizable). |
+| Decision | **Opcion A**: mantener compat 6 meses y arreglar lo roto sin redisenar. Evitar nuevos enlaces publicos legacy cuando haya `academyId`, corregir cadenas rotas y conservar rutas globales que aun no tienen equivalente tenant claro. |
+| Ejecutado | `/api/auth/check` devuelve `academyId`; `PublicPageHeader` resuelve `dashboardHrefTemplate` y `publishHrefTemplate`; eventos publicos apuntan a `/app/{academyId}/events` cuando hay academia; `/dashboard/classes/calendar` ya no encadena a `/dashboard/calendar`; notificaciones de mensajes usan `/app/{academyId}/messages` si la conversacion tiene academia. |
+| Pendiente | Definir si `/dashboard/plan-limits` se mueve a `/app/[academyId]/settings/plan-limits` o queda como ajuste global de cuenta; no bloquear el cierre actual. |
+| Estado | Activa, ejecutada parcialmente en lo automatizable. |
 
 | Campo | Valor |
 | --- | --- |
@@ -112,7 +113,25 @@ Elvis elige opcion y se actualiza esta entrada con el campo `Decision` y `Estado
 | --- | --- |
 | Contexto | El precio definitivo no esta claro. La intencion es llegar a academias chicas y medianas sin cerrar el mercado por precio, pero evitando un free plan que bloquee conversion. |
 | Decision | Investigar un modelo freemium accesible antes de cambiar precios, limites, Stripe o copy publico. |
-| Consecuencia | Pricing queda como hipotesis: free util, plan bajo accesible y plan superior para crecimiento/automatizacion/reportes/soporte. La decision final depende de competencia y entrevistas. |
+| Consecuencia | Pricing quedo como hipotesis hasta la decision del 2026-06-24. |
+| Estado | Supersedida por [[#2026-06-24 - Activar pricing v3.0 como modelo oficial]] |
+
+## 2026-06-24 - Activar pricing v3.0 como modelo oficial
+
+| Campo | Valor |
+| --- | --- |
+| Contexto | La propuesta v3.0 ya estaba documentada como Free 30, Starter 19 €, Growth 49 € y Network 99 €, pero seguia marcada como hipotesis pendiente de entrevistas. Elvis decide publicarla ahora como fuente oficial. |
+| Decision | Activar pricing v3.0 sin esperar entrevistas: `free` = Free, `pro` = Starter, `premium` = Growth. Network se publica como CTA comercial multi-sede con onboarding acompanado, sin checkout autoservicio mientras no exista codigo/Stripe dedicado. |
+| Consecuencia | Codigo, landing, limites, tests, mensajes aprobados y Pricing.md deben usar v3.0. Las entrevistas pasan a validacion post-lanzamiento de conversion y no bloquean el pricing publicado. |
+| Estado | Activa |
+
+## 2026-06-24 - Guia canonica de trabajo para agentes
+
+| Campo | Valor |
+| --- | --- |
+| Contexto | El repo y la vault acumulan trabajo de humanos, opencode, agentes e IAs. Sin una entrada canonica, futuros cambios pueden reabrir pricing, prometer features no listas, tocar migraciones de forma peligrosa o romper el portal familiar. |
+| Decision | Crear [[Guia de trabajo para agentes]] como lectura obligatoria antes de cambios relevantes y enlazarla desde [[Home]] y `AGENTS.md`. La guia fija direccion activa, orden de lectura, reglas no negociables, migraciones y checklist de cierre. |
+| Consecuencia | Cualquier agente, IA o programador debe alinear cambios con la guia antes de tocar codigo, docs, pricing, seguridad, migraciones, roadmap o vault. |
 | Estado | Activa |
 
 ## 2026-06-23 - Identidad global y vinculos aceptados por academia

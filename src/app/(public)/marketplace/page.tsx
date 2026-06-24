@@ -61,6 +61,7 @@ export default async function MarketplacePage({
         publishHref="/marketplace/nuevo"
         publishLabel="Publicar"
         dashboardHref="/dashboard/marketplace/mis-productos"
+        dashboardHrefTemplate="/dashboard/marketplace/mis-productos"
         dashboardLabel="Mis productos"
       />
 

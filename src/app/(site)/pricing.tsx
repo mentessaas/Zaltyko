@@ -1,7 +1,7 @@
 import { Check, Shield, Clock, Globe2 } from "lucide-react";
 import Link from "next/link";
 
-import { PRODUCT_PLANS, formatPlanAmount } from "@/lib/plans/catalog";
+import { NETWORK_PLAN, PRODUCT_PLANS, formatPlanAmount } from "@/lib/plans/catalog";
 
 type Plan = {
   title: string;
@@ -26,7 +26,16 @@ const plans: Plan[] = PRODUCT_PLANS.map((plan) => ({
       ? "Incluido"
       : `${formatPlanAmount(plan.priceEurCents * 10)}/año`,
   annualSavings: plan.priceEurCents > 0 ? "2 meses incluidos" : undefined,
-}));
+})).concat({
+  title: NETWORK_PLAN.publicName,
+  price: `${formatPlanAmount(NETWORK_PLAN.priceEurCents)}/mes`,
+  description: NETWORK_PLAN.description,
+  cta: NETWORK_PLAN.cta,
+  highlight: false,
+  features: NETWORK_PLAN.features,
+  annualPrice: "Bajo propuesta comercial",
+  annualSavings: undefined,
+});
 
 const commonBenefits = [
   {
@@ -92,7 +101,7 @@ export default function PricingSection() {
           </div>
         </div>
 
-        <div className="mt-8 grid gap-6 md:grid-cols-3">
+        <div className="mt-8 grid gap-6 md:grid-cols-2 xl:grid-cols-4">
           {plans.map((plan) => (
             <article
               key={plan.title}

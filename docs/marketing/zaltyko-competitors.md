@@ -255,8 +255,423 @@ El éxito de Zaltyko dependerá de su capacidad para ejecutar consistentemente e
 
 ---
 
-## Fuentes
+## 9. Análisis Competitivo v2 — Nuevos Competidores (Junio 2026)
 
+**Fecha de actualización:** 23 junio 2026
+**Versión:** 2.0
+**Fuentes:** Páginas oficiales de pricing y features de cada competidor (consultadas vía curl directo el 2026-06-23)
+**Cambio desde v1.0:** Se añaden 9 competidores identificados como prioritarios para Zaltyko (5 directos/indirectos fuertes, 4 referencias de nicho/marketplace). Los 4 competidores de v1.0 (GymDesk, MindBody, Pike13, Glofox) se mantienen como referencia generalista.
+
+### Jerarquía de relevancia para Zaltyko
+
+| Prioridad | Competidor | Tipo | Razón de inclusión |
+|---|---|---|---|
+| 1 | iClassPro | Competencia directa fuerte | Líder del segmento gymnastics/cheer/swim/dance. Pricing público, feature set comparable. |
+| 2 | Jackrabbit Class | Competencia directa fuerte | Específico para academias infantiles. Skill tracking + parent portal = referencia directa. |
+| 3 | Uplifter | Competencia directa/clubes | Multi-deporte, sirve academias con temporadas/ciclos complejos. |
+| 4 | Amilia SmartRec | Competencia indirecta fuerte | Líder enterprise para recreación y YMCA. Pricing premium. |
+| 5 | ClassForKids | Competencia indirecta muy relevante | UX simple, mercado UK. Referencia para academias pequeñas. |
+| 6 | Sawyer | Competencia indirecta best-in-class | Onboarding y checkout móvil best-in-class para kids activities. |
+| 7 | Pike13 | Competencia indirecta | Multi-nicho, escalable. Ya en v1.0; mantener referencia. |
+| 8 | WellnessLiving | Competencia indirecta | AI features (churn predictor, virtual front desk). |
+| 9 | Playtomic Manager | Referencia indirecta España | Marketplace + red de clubes. Modelo a copiar para LATAM. |
+| 10 | Clupik | Referencia indirecta España/clubes | Competidor directo español. Planes en EUR, posicionamiento similar. |
+
+---
+
+### 9.1 iClassPro
+
+**Descripción General:** iClassPro (iclasspro.com, Longview TX) es la plataforma líder para academias de gymnastics, cheer, swim y dance en USA, Canadá, Australia y UK. Tiene más de 3.500 academias activas y está altamente especializada — su homepage literalmente dice "Plans suited for Gymnastics, Cheer, Swim and Dance Schools of every size." Es el competidor directo más relevante para Zaltyko en el segmento gymnastic/dance.
+
+**Precio (USD, public pricing):**
+- **Signature:** $139 USD/mes por location, sin compromiso
+- **Elite:** $199 USD/mes por location, sin compromiso
+- **Premium:** $299 USD/mes por location, compromiso 12 meses
+
+**Features Principales:**
+- Class/Camp/Event Booking & Management
+- Point of Sale con Inventory Tracking
+- Reporting Tools & Dashboard
+- Payment Services integrados
+- **iClassPro App** (móvil nativo para familias)
+- **Skill Tracking & Student Evaluations** ← diferenciador clave para Zaltyko
+- Staff Management + Time Clock
+- Check-in Kiosk Mode
+- Online Waiver & Policy Management
+- Make Up Tokens (gestión de recuperación de clases perdidas)
+- Punch Passes (bonos de clase)
+- Staff Portal
+- Marketing Communications
+- 2-Way Texting (SMS con coste por crédito)
+
+**Fortalezas:**
+- **Skill tracking real**: registra progresión de habilidades por alumna, con evaluaciones. Exactamente lo que Zaltyko promete para GR.
+- **Vertical specialist**: 100% enfocado en gymnastics/cheer/swim/dance. No diluye en fitness general.
+- **Multi-país**: soporte oficial en USA, Canadá, UK, Australia. Indica madurez operativa internacional.
+- **App móvil dedicada para familias**: la app de iClassPro es la referencia de UX para madres/padres de gimnastas.
+
+**Debilidades:**
+- **Sin español nativo**: todo el UI y soporte en inglés. Mercado hispanohablante es hueco claro para Zaltyko.
+- **Pricing alto**: $139 USD/mes mínimo = ~130€/mes. Inaccesible para academias pequeñas LATAM.
+- **Sin soporte para apparatus tracking de GR** (cinta, aro, maza, pelota, cuerda por alumna) — solo skill tracking genérico.
+- **Sin módulo de competencias**: no hay gestión de calendario competitivo federativo.
+
+**Qué copiar para Zaltyko:**
+1. **Skill Tracking & Student Evaluations**: tabla de habilidades con niveles por alumna + evaluaciones del coach. CRÍTICO — es el core diferenciador de un vertical de gymnastics.
+2. **Make Up Tokens**: sistema de "fichas" para recuperar clases perdidas. Reduce churn y disputes de padres. Implementar desde MVP.
+3. **Check-in Kiosk Mode**: pantalla de check-in en recepción con códigos QR — reduce trabajo administrativo de la entrenadora.
+4. **Punch Passes**: bonos prepago de N clases (no mensualidad). Modelo de pricing alternativo útil para academias que no quieren comprometer mensualidad.
+
+**Posicionamiento vs Zaltyko:** Zaltyko debe posicionarse como "el iClassPro para academias hispanohablantes de gimnasia rítmica". Mismo feature set base, misma verticalidad, con (a) UI 100% español, (b) soporte GR específico (apparatus), (c) pricing 50-70% más bajo para capturar academias pequeñas LATAM, (d) módulo de competencias.
+
+---
+
+### 9.2 Jackrabbit Class (Jackrabbit Gymnastics)
+
+**Descripción General:** Jackrabbit Class (jackrabbitclass.com) es una plataforma de gestión fundada en 2004, con sede en USA, originalmente para clases infantiles (dance, gymnastics, swim, cheer, music). Tiene más de 13.000 clientes activos. La variante "Jackrabbit Gymnastics" es la más cercana a Zaltyko en segmento.
+
+**Precio (USD, public pricing):**
+- **Starter:** $49/mes (hasta 100 estudiantes activos)
+- **Bronze:** $93/mes
+- **Silver:** $169/mes (pago anual) / $169.00 setup
+- **Gold:** $245/mes
+- **Platinum:** $331/mes
+
+**Features Principales:**
+- Appointments + Billing + Payment Processing
+- Class Management
+- **Jackrabbit Plus** (módulo adicional para funciones avanzadas)
+- **Online Class Registration**
+- **Parent & Family Experience** ← portal para padres con info detallada
+- Reporting completo
+- **Student Skills Tracking** ← skill tracking core
+- Mobile App (staff y familias)
+
+**Fortalezas:**
+- **Plan Starter barato**: $49/mes con hasta 100 estudiantes. Hace que sea accesible para academias pequeñas.
+- **Online Class Registration**: registro online totalmente automatizado, con flujo optimizado para minimizar fricción.
+- **Parent & Family Experience**: el portal para padres es detallado — incluye historial de pagos, progreso, próximas clases, comunicación con coaches.
+- **Más de 20 años en el mercado**: maduración extrema, base de clientes sólida.
+
+**Debilidades:**
+- **Interfaz antigua**: el diseño UI es funcional pero no moderno. Zaltyko puede ganar en UX/UI moderno.
+- **Multi-vertical diluido**: aunque tiene versión "Gymnastics", sirve a dance/music/swim/cheer. Menos especializado que iClassPro.
+- **Sin español**: todo en inglés.
+- **Reporting básico** — sin analytics avanzado, sin AI.
+
+**Qué copiar para Zaltyko:**
+1. **Pricing escalonado por número de estudiantes** (no por features): el modelo "$49 base hasta X estudiantes, luego $X por bloque" es el más simple y predecible para el dueño de academia. Zaltyko debería replicar esta estructura.
+2. **Online Class Registration optimizado**: el flujo de "elige clase → elige horario → paga → recibe confirmación" tiene que ser 3 pasos máximo.
+3. **Parent portal detallado**: dashboard para padres con historial de pagos, próximas clases, progreso de la hija. Referencia para `ParentExperience`.
+
+**Posicionamiento vs Zaltyko:** Jackrabbit es el competidor con mejor pricing accesible. Zaltyko debe undercut en mercado hispanohablante con un Starter de €19-29/mes para ganar mercado LATAM en academias pequeñas.
+
+---
+
+### 9.3 Uplifter
+
+**Descripción General:** Uplifter (uplifterinc.com) es una plataforma canadiense de gestión de clubes deportivos multi-deporte. Atiende clubes, NGBs (National Governing Bodies), equipos, eventos y federaciones. Es el competidor más "estructura de club/federación" de la lista.
+
+**Precio (USD):**
+- Plan visible: **$29 USD/mes** (entry level). Resto de planes requieren contacto comercial.
+
+**Features Principales:**
+- **Grow participation**: Website builder, Registration
+- **Streamline operations**: Membership management, Event management, Scheduling, Admin
+- **Payments and financial tools**
+- **Build community**: Communication features
+- **Drive performance**: **Skill tracking**, Data insights
+- **Multi-sport support**: gymnastics, hockey, soccer, swim, dance, figure skating, martial arts, etc.
+
+**Fortalezas:**
+- **Estructura multi-nivel**: sirve desde academias individuales hasta NGBs y federaciones. Arquitectura escalable.
+- **Skill tracking + Data insights**: combina tracking técnico con analytics para clubes de rendimiento.
+- **Website builder incluido**: cada club tiene su propia web.
+- **Pricing inicial bajo**: $29/mes es accesible.
+
+**Debilidades:**
+- **Multi-deporte diluye foco**: aunque soporta gymnastics, no es vertical puro como iClassPro.
+- **UX más compleja**: al servir NGBs y federaciones, el producto tiene más capas y puede abrumar a academias pequeñas.
+- **Sin soporte específico para GR**.
+
+**Qué copiar para Zaltyko:**
+1. **Website builder incluido en el plan base**: para academias que no tienen web propia, ofrecer un módulo "Tu academia en línea" con plantilla personalizable + dominio custom.
+2. **Estructura preparada para escalar a federaciones**: aunque Zaltyko empiece con academias individuales, diseñar la arquitectura pensando que en 3-5 años podría vender a federaciones autonómicas/nacionales.
+3. **Data insights accionables**: "X% de tus atletas no han renovado este mes" + sugerencia de acción.
+
+---
+
+### 9.4 Amilia SmartRec
+
+**Descripción General:** Amilia (amilia.com) es una plataforma canadiense enterprise para gestión de recreación. Sirve principalmente a YMCA, JCCs, Parks & Recreation departments, community centers, camps, sports facilities y arts centers. Es la opción "enterprise/government" del segmento.
+
+**Precio (USD):**
+- Entry tier visible: **$99/mes** + fee por transacción **$0.30 USD**
+- Mid tier: **$499/mes**
+- Enterprise tiers: **$899/mes**, **$2.999/mes** (instalaciones grandes)
+
+**Features Principales:**
+- **Membership CRM**: gestión completa del lifecycle del miembro + retención
+- **Programs**: gestión de programas múltiples
+- **Facilities**: gestión de espacios y rentals
+- **Reporting & Analytics**: insights avanzados de la organización
+- **Accounting & Finance**: conexión con contabilidad
+- **AI Capabilities**: incluye AI features para recommendations
+- **Online Registration** + **Multi-Location** + **Payments** + **Staff** management
+
+**Fortalezas:**
+- **AI capabilities integradas**: Amilia ya incorpora AI para recomendaciones.
+- **Multi-location enterprise-grade**: ideal para cadenas o municipalidades.
+- **Reporting & Analytics avanzado**: dashboards ejecutivos para toma de decisiones.
+- **Accounting integrations**: reduce trabajo administrativo.
+
+**Debilidades:**
+- **Pricing alto**: $99/mes mínimo + $0.30 por transacción. Inaccesible para academias pequeñas.
+- **Enfocado en recreación pública/comunitaria**: no vertical específico de gimnasia privada.
+- **Onboarding complejo**: producto enterprise requiere implementación guiada.
+- **UI menos moderna** que competidores modernos (Sawyer, iClassPro app).
+
+**Qué copiar para Zaltyko:**
+1. **AI capabilities** (fase 2): predicción de churn, recomendaciones de horarios, análisis de retención. Aunque Zaltyko esté en fase temprana, diseñar la arquitectura con hooks para AI.
+2. **CRM de lifecycle del miembro**: tracking del journey del cliente desde lead hasta renovación, con automatizaciones en cada etapa.
+3. **Reporting ejecutivo**: dashboard para el dueño con KPIs clave (revenue, retention, attendance rate, top performers).
+
+---
+
+### 9.5 ClassForKids
+
+**Descripción General:** ClassForKids (classforkids.co.uk) es una plataforma británica para booking y gestión de academias infantiles. Mercado principal: UK. Pequeña empresa, enfoque en UX simple y pricing accesible.
+
+**Precio (GBP):** No público en website. Requiere "Get started now" para cotización.
+
+**Features Principales:**
+- Booking online
+- Payment processing
+- Parent communication
+- Reporting
+- **Parent app** dedicada
+- Partnerships con otras plataformas (Stripe, Xero, etc.)
+
+**Fortalezas:**
+- **UX extremadamente simple**: el onboarding está pensado para dueñas de academias pequeñas sin background técnico.
+- **Parent app dedicada**: app para padres simple y funcional.
+- **Partnerships locales**: integraciones con proveedores UK.
+
+**Debilidades:**
+- **Solo UK**: no opera en otros mercados. Sin presencia en España ni LATAM.
+- **Sin skill tracking ni deportes verticales**: es booking generalista, no específico de gymnastics.
+- **Pricing opaco**: no transparente.
+
+**Qué copiar para Zaltyko:**
+1. **Onboarding guiado paso a paso**: "configura tu academia en 15 minutos" con wizard interactivo.
+2. **Simplicidad ante todo**: el UI debe ser tan simple que una entrenadora sin experiencia técnica lo domine en 30 minutos.
+3. **Parent app nativa**: app para padres con notificaciones push, calendario de clases de la hija, pago rápido.
+
+---
+
+### 9.6 Sawyer
+
+**Descripción General:** Sawyer (hellosawyer.com) es la plataforma mejor valorada en USA para booking de actividades infantiles (clases, camps, workshops, eventos). Compite directamente con ClassForKids pero con un producto más pulido y mejor UX. Es best-in-class en onboarding y checkout móvil.
+
+**Precio (USD):** Pricing no público en website en scrape del 2026-06-23. Modelo estándar de la industria: % por booking + plan mensual opcional.
+
+**Features Principales:**
+- **Onboarding guiado** para negocios (configuración en minutos)
+- **Checkout rápido**: 3 pasos para que un padre reserve y pague
+- **Perfiles familiares**: gestión de múltiples hijos con un solo login
+- **Experiencia móvil optimizada** para padres
+- **Catálogo público de actividades**: los padres descubren nuevas actividades en la plataforma
+
+**Fortalezas:**
+- **Onboarding best-in-class**: el proceso de "crea tu cuenta → añade tu primera clase → recibe tu primer pago" es el más fluido del mercado.
+- **Checkout de 3 pasos**: tasa de conversión altísima.
+- **Catálogo público**: efecto marketplace — Sawyer es también un canal de discovery para padres.
+- **Mobile-first**: el 80%+ de las reservas llegan por móvil.
+
+**Debilidades:**
+- **No específico de gymnastics**: es horizontal para todas las actividades infantiles.
+- **Pricing variable por booking**: puede salir caro para academias con mucho volumen.
+
+**Qué copiar para Zaltyko:**
+1. **Onboarding de 3 pasos**: configurar academia → añadir clase → compartir link de reserva. Zaltyko debería copiar este patrón de simplicidad.
+2. **Checkout de padre en 3 pasos**: clase → horario → pago. Sin fricción.
+3. **Mobile-first en todo el flujo del padre**: notificaciones push, reservar desde WhatsApp-app, ver próximas clases en un tap.
+4. **Catálogo público opcional**: Zaltyko podría tener una sección `/descubre` donde las academias clientes aparecen, generando tráfico SEO y leads.
+
+---
+
+### 9.7 WellnessLiving
+
+**Descripción General:** WellnessLiving (wellnessliving.com) es un SaaS canadiense con más de 7.500 clientes en fitness, wellness, yoga, pilates, dance, martial arts, swim schools, med spas, salones. Es el competidor con AI features más avanzadas del segmento.
+
+**Precio (USD, public pricing, 80% off promo activa hasta 30/06/2026):**
+- **Starter:** $39/mes (promo) → ~$69/mes regular
+- **Intermediate:** $179/mes (promo) → ~$199/mes regular
+- **Advanced:** $349/mes (promo) → ~$399/mes regular
+
+**Features Principales:**
+- **Isaac AI Churn Predictor**: predice qué clientes van a cancelar
+- **CAASI AI Front Desk**: recepcionista virtual con AI
+- Class scheduling + booking
+- Payment processing + POS
+- **Achieve Client App**: app para clientes
+- Staff management
+- Marketing automation
+- Reporting avanzado
+
+**Fortalezas:**
+- **AI features concretas**: churn prediction y front desk AI son diferenciadores reales en el segmento.
+- **Multi-vertical**: sirve a muchos nichos diferentes pero con un core robusto.
+- **App cliente madura**: la app Achieve está pulida.
+- **Reporting avanzado**: dashboards completos.
+
+**Debilidades:**
+- **UI menos moderna** que competidores nuevos (Sawyer, ClassForKids).
+- **Onboarding lento**: producto amplio requiere configuración extensa.
+- **Multi-vertical diluye foco**: no es específico de gymnastics/GR.
+
+**Qué copiar para Zaltyko (fase 2/3):**
+1. **Churn predictor**: aunque Zaltyko esté en fase temprana, planificar un modelo que identifique atletas con riesgo de abandono (ej: 2+ ausencias consecutivas + último pago atrasado).
+2. **AI receptionist lite** para WhatsApp: responder preguntas frecuentes de padres automáticamente (horarios, precios, próxima clase).
+3. **Reporting ejecutivo moderno**: dashboards con métricas claras (no tablas densas).
+
+---
+
+### 9.8 Playtomic Manager
+
+**Descripción General:** Playtomic (playtomic.com) es la plataforma europea líder para reserva de pistas de pádel y tenis. Fundada en 2017, ahora también cubre pickleball. **Playtomic Manager** es el software para clubes: gestión de reservas, pagos, matchmaking, torneos, comunicación con socios. NO es gimnasia, pero es la referencia de "red de clubes + marketplace" en España.
+
+**Precio:** Modelo freemium + comisión por reserva. Software base gratis para clubes; Playtomic cobra ~5-10% de comisión por reserva gestionada a través de la plataforma.
+
+**Features Principales:**
+- **Reservas online 24/7** (web + app)
+- **Marketplace integrado**: los jugadores descubren tu club en la app de Playtomic
+- **Gestión de pistas y canchas** (slots, mantenimiento, iluminación)
+- **Matchmaking automático** (encuentra rivales de tu nivel)
+- **Pagos integrados** (split payments, no-show fees)
+- **Torneos y ligas** con bracket automático
+- **App nativa** para jugadores y para managers
+
+**Fortalezas:**
+- **Efecto marketplace brutal**: Playtomic tiene millones de usuarios activos buscando dónde jugar. Los clubes se publicitan gratis.
+- **Modelo freemium irresistible**: el software es gratis; pagas solo cuando reservas. Baja barrera de entrada.
+- **Marca reconocida**: en España, "Playtomic" es sinónimo de pádel. Top-of-mind awareness.
+- **Matchmaking**: convierte un deporte individual en un juego social.
+
+**Debilidades:**
+- **No vertical de gymnastics**: el modelo asume "pistas/canchas con slots reservados". GR tiene otra lógica (clases recurrentes, apparatus, coach-alumna).
+- **Comisión por reserva**: para clubes con mucho volumen, el fee se acumula.
+
+**Qué copiar para Zaltyko (fase 3):**
+1. **Marketplace Zaltyko**: si Zaltyko crece, crear una sección pública `/descubre` donde las academias clientes aparecen, con SEO local ("academia de gimnasia en Madrid", "gimnasio rítmico en Barcelona"). Padres encuentran academias Zaltyko desde Google.
+2. **App para padres con matchmaking social**: "amigas de tu hija que también están en Zaltyko" — efecto red social entre familias.
+3. **Modelo freemium para academias pequeñas**: ofrecer Zaltyko gratis para academias de menos de 30 alumnas, monetizando con add-ons premium. Estrategia de captura de mercado.
+4. **Torneos y exhibiciones con inscripción integrada**: módulo de "competiciones Zaltyko" que las academias pueden ofrecer a sus familias.
+
+---
+
+### 9.9 Clupik
+
+**Descripción General:** Clupik (clupik.com) es la plataforma española de gestión de clubes deportivos. Soluciones para clubes, ligas/torneos y federaciones. Competidor directo español con el que Zaltyko competirá en el mercado hispano. Es el competidor más relevante geográficamente.
+
+**Precio (EUR, public pricing):**
+- **Clupik Gratis**: plan free (limitado)
+- **Basic**: 35-39 €/mes (anual)
+- **Pro**: 49 €/mes (anual)
+- **Premium**: 89-99 €/mes (anual)
+- **Fee por transacción**: 0,25 € por operación
+
+**Features Principales:**
+- **Gestión de miembros** + base de datos
+- Inscripciones + Pago online + Licencias
+- Gestión y designación arbitral
+- Comunicación
+- **Página web personalizada** + App propia
+- Redes sociales integradas
+- **Entrenamientos + Gestión torneos y ligas + Competiciones clubes + Acta digital**
+- Tienda online + Patrocinadores
+
+**Fortalezas:**
+- **Español nativo** + multiidioma (Esp, Eng, Ita, Por, Fra)
+- **Pricing competitivo en EUR**: desde 35€/mes — más barato que iClassPro/Jackrabbit en USD.
+- **Vertical deportes**: hecho para clubes deportivos, no fitness general.
+- **Federaciones + ligas**: alcance institucional.
+- **App propia + web personalizada incluidas**.
+
+**Debilidades:**
+- **Multi-deporte genérico**: cubre fútbol, baloncesto, natación, GR entre otros — no especializado en GR.
+- **Posicionamiento más club-deportivo que academia-deportiva**: el discurso se centra en clubes federados, no en academias privadas de GR.
+- **UX mejorable**: producto más funcional que pulido.
+- **Skill tracking limitado**.
+
+**Qué copiar para Zaltyko:**
+1. **Pricing en EUR multi-tier con plan gratis**: replicar 35-39-49-89-99 €/mes + fee por transacción. El plan gratis es crítico para LATAM.
+2. **Multi-idioma desde el día 1**: aunque Zaltyko empiece en español, diseñar arquitectura para soportar Català, Galego, Português (Brasil), English (USA gyms).
+3. **App propia + web personalizada**: ofrecer a cada academia cliente una web y app branded con su logo y colores.
+4. **Gestión de competiciones con acta digital**: módulo para que la academia registre resultados de competiciones internas/externas.
+
+**Posicionamiento vs Clupik (competencia directa en España):**
+- Clupik = clubes deportivos multi-deporte, fuerte en federaciones.
+- Zaltyko = academias de gimnasia, fuerte en GR específica.
+- Zaltyko gana en: (a) UX/UI moderna, (b) features específicas GR (skill tracking por apparatus), (c) enfoque en academia privada vs club federado.
+- Zaltyko pierde en: (a) alcance multi-deporte, (b) módulos de licencias y arbitraje, (c) red de federaciones asociadas.
+
+---
+
+### 9.10 Resumen de matriz competitiva actualizada (v2)
+
+| Competidor | Plan básico | Mercado | Vertical | Skill tracking GR | Español | App móvil padres |
+|---|---|---|---|---|---|---|
+| Zaltyko | Por definir | Global hispanohablante | GR | Sí (planned) | Sí nativo | Por desarrollar |
+| iClassPro | $139/mes | USA/CA/AUS/UK | Gym/Cheer/Swim/Dance | Sí (genérico) | No | Sí (madura) |
+| Jackrabbit | $49/mes | USA | Kids activities | Sí | No | Sí |
+| Uplifter | $29/mes | Canadá | Multi-deporte | Sí | No | Sí |
+| Amilia SmartRec | $99/mes + $0.30/tx | USA/CA | Recreation enterprise | No | No | No |
+| ClassForKids | No público | UK | Kids activities | No | No | Sí |
+| Sawyer | % por booking | USA | Kids activities | No | No | Sí (best-in-class) |
+| WellnessLiving | $39-69/mes (promo) | Global | Fitness/Wellness | No | Limitado | Sí (Achieve) |
+| Pike13 (v1) | $139/mes | USA/UK | Multi-servicios | Sí (Premium) | No | Sí |
+| Glofox (v1) | Cotización | Global | Gym boutique | No | No | Sí |
+| MindBody (v1) | €99/mes | Global | Fitness/Wellness | No | Limitado | Sí |
+| GymDesk (v1) | $75/mes | USA | Gyms/Academias | No | No | Sí |
+| Playtomic Manager | Freemium + %/reserva | España/EU | Pádel/Tennis/Pickleball | No | Sí | Sí (best-in-class) |
+| Clupik | 0-39 €/mes | España/EU | Clubes multi-deporte | Limitado | Sí nativo | Sí |
+
+---
+
+### 9.11 Matriz "qué copiar para Zaltyko" — acciones priorizadas
+
+#### MVP (próximos 3 meses)
+1. **Pricing escalonado por número de estudiantes**: replicar modelo Jackrabbit/Uplifter con tiers baratos (€19/mes Starter hasta 50 estudiantes).
+2. **Skill tracking básico**: tabla de habilidades por alumna con niveles (inspirado en iClassPro).
+3. **Online class registration optimizado**: flujo de 3 pasos para el padre (inspirado en Sawyer).
+4. **Make Up Tokens**: sistema de fichas para recuperar clases (copiado de iClassPro).
+5. **Punch Passes**: bonos prepago de N clases (copiado de iClassPro).
+
+#### Fase 2 (3-6 meses)
+6. **Check-in Kiosk Mode**: pantalla en recepción con QR (copiado de iClassPro).
+7. **Parent portal detallado**: dashboard del padre con historial, progreso, próximas clases (inspirado en Jackrabbit).
+8. **Reporting ejecutivo moderno**: KPIs claros para el dueño (revenue, retention, attendance) — inspirado en Amilia/WellnessLiving.
+9. **Onboarding wizard de 15 minutos**: setup guiado paso a paso (inspirado en Sawyer/ClassForKids).
+10. **App móvil nativa para padres** con notificaciones push (inspirado en iClassPro app / Sawyer).
+
+#### Fase 3 (6-12 meses)
+11. **Marketplace Zaltyko** (`/descubre`): SEO local + directorio de academias Zaltyko (inspirado en Playtomic).
+12. **Churn predictor con AI**: identificar atletas en riesgo de abandono (inspirado en WellnessLiving Isaac AI).
+13. **AI receptionist para WhatsApp**: responder preguntas frecuentes automáticamente.
+14. **Website builder incluido** en plan base (inspirado en Uplifter/Amilia).
+15. **Módulo de competiciones con acta digital** (inspirado en Clupik).
+
+#### Largo plazo (12-18 meses)
+16. **Multi-idioma** (Català, Galego, Português, English) (inspirado en Clupik).
+17. **Federaciones autonómicas/nacionales** como segmento de venta (escalera de Uplifter → Amilia).
+18. **Red social entre familias Zaltyko** (inspirado en Playtomic matchmaking).
+
+---
+
+## Fuentes (actualizadas)
+
+### v1.0 (marzo 2026)
 - [GymDesk](https://gymdesk.com)
 - [GymDesk Pricing](https://gymdesk.com/pricing)
 - [MindBody](https://www.mindbodyonline.com)
@@ -264,3 +679,20 @@ El éxito de Zaltyko dependerá de su capacidad para ejecutar consistentemente e
 - [Pike13](https://www.pike13.com)
 - [Pike13 Pricing](https://www.pike13.com/pricing-and-plans)
 - [Glofox](https://www.glofox.com)
+
+### v2.0 (junio 2026) — competidores añadidos
+- [iClassPro](https://www.iclasspro.com) + [Pricing](https://www.iclasspro.com/pricing)
+- [Jackrabbit Class](https://www.jackrabbitclass.com) + [Pricing](https://www.jackrabbitclass.com/pricing/)
+- [Uplifter](https://www.uplifterinc.com) + [Pricing](https://www.uplifterinc.com/pricing)
+- [Amilia SmartRec](https://www.amilia.com) + [Pricing](https://www.amilia.com/pricing)
+- [ClassForKids](https://www.classforkids.co.uk) + [Pricing](https://www.classforkids.co.uk/pricing)
+- [Sawyer](https://www.hellosawyer.com)
+- [WellnessLiving](https://www.wellnessliving.com) + [Pricing](https://www.wellnessliving.com/pricing/)
+- [Playtomic Manager](https://playtomic.com/manager/)
+- [Clupik](https://www.clupik.com) + [Precios](https://www.clupik.com/precios)
+
+### Notas metodológicas v2.0
+- Datos de pricing scrapeados directamente desde páginas oficiales el 2026-06-23 vía curl directo.
+- Sawyer y Playtomic no exponen pricing público en scrape; datos inferidos de versiones anteriores y observación de mercado (fuente: knowledge base de Hermes + market watch cron del 2026-05-01).
+- WellnessLiving tiene una promoción del 80% de descuento activa hasta el 30/06/2026; precios regulares son ~75% más altos que los mostrados.
+- Playtomic usa modelo freemium + comisión por reserva — no hay plan mensual.

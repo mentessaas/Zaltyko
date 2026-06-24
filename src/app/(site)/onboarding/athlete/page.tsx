@@ -19,7 +19,6 @@ type Step = "welcome" | "academies" | "profile" | "done";
 
 export default function AthleteOnboardingPage() {
   const router = useRouter();
-  const supabase = createClient();
   const toast = useToast();
   const [step, setStep] = useState<Step>("welcome");
   const [loading, setLoading] = useState(false);
@@ -53,6 +52,7 @@ export default function AthleteOnboardingPage() {
   async function handleFinish() {
     setLoading(true);
     try {
+      const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("No user");
 

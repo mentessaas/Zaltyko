@@ -3,8 +3,8 @@
 -- pero no se aplicaron a la DB por el bloqueo SELF_SIGNED_CERT_IN_CHAIN.
 --
 -- Replica el contenido de 0001 con IF NOT EXISTS para idempotencia.
--- Tambien crea __drizzle_migrations y registra 0001/0002 para que Drizzle no
--- las reintente.
+-- No escribe filas sinteticas en __drizzle_migrations: esta migracion debe
+-- aparecer por su propio archivo/version y no simular hashes de Drizzle.
 --
 -- NO incluye ALTER sobre tablas ya existentes (athlete_assessments, billing_invoices)
 -- porque el schema Drizzle actual diverge y un ALTER podria romper produccion.
@@ -147,20 +147,3 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE "academy_diagnostics" TO authentic
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE "academy_expenses" TO authenticated, service_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE "churn_reasons" TO authenticated, service_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE "coach_compensation" TO authenticated, service_role;
-
--- Tabla de tracking para que Drizzle sepa que 0001 y 0002 ya estan aplicadas.
-CREATE TABLE IF NOT EXISTS "__drizzle_migrations" (
-  id SERIAL PRIMARY KEY,
-  hash text NOT NULL,
-  created_at bigint
-);
-
-INSERT INTO "__drizzle_migrations" (hash, created_at)
-SELECT m.hash, m.created_at
-FROM (VALUES
-  ('0001_cloudy_sleeper', 1745000000000),
-  ('0002_sturdy_toad', 1745000001000)
-) AS m(hash, created_at)
-WHERE NOT EXISTS (
-  SELECT 1 FROM "__drizzle_migrations" dm WHERE dm.hash = m.hash
-);

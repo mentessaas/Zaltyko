@@ -159,6 +159,17 @@ export async function resolveUserHome(args: {
     };
   }
 
+  if (academyId && activeMembership && (profile.role === "athlete" || profile.role === "parent")) {
+    return {
+      destination: "academy_workspace",
+      redirectUrl: `/app/${academyId}/my-dashboard`,
+      reason: "limited-academy-access",
+      profileRole: profile.role,
+      membershipRole,
+      activeAcademyId: academyId,
+    };
+  }
+
   return {
     destination: "global_dashboard",
     redirectUrl: getDefaultDashboardPath(profile.role),

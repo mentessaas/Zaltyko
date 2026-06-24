@@ -8,6 +8,16 @@ source:
 ---
 # Changelog interno
 
+## 2026-06-24 - Guia canonica de trabajo y coherencia critica
+
+- Creada [[Guia de trabajo para agentes]] como entrada obligatoria para agentes, IAs y programadores antes de tocar codigo, docs, pricing, seguridad, migraciones, roadmap o vault.
+- Enlazada la guia desde [[Home]] y `AGENTS.md`; queda documentada como decision activa en [[Decisiones]].
+- Reafirmada direccion vigente: gimnasia artistica/ritmica en espanol, portal familias/atletas limitado, comunicacion interna primero, pricing v3.0 oficial y Network como multi-sede acompanado sin checkout autoservicio.
+- Ajustados documentos vivos para que pricing v3.0 no aparezca como pendiente de entrevistas; las entrevistas quedan como validacion post-lanzamiento.
+- Confirmado que no quedan artefactos `.js/.jsx` en `src/app`, `src/components` ni `src/lib`, y que las migraciones de provider/link requests/RLS/manual siguen orden temporal correcto.
+- Ejecutada opcion A legacy en lo automatizable: `PublicPageHeader` resuelve `academyId` para enlaces de dashboard/publicacion, eventos publicos usan destino moderno cuando hay academia, `/dashboard/classes/calendar` evita cadena legacy y mensajes internos apuntan a `/app/{academyId}/messages` cuando existe academia.
+- Creada [[Cierre operativo pendientes agente - 2026-06-24]] con inventario de bloques, exclusiones locales, QA manual y checklist Stripe v3.0.
+
 ## 2026-06-24 - Sprint 7 Form refactor + i18n + Deuda tecnica
 
 - **Sprint 7A.2 RHF+Zod en CreateClassDialog** (`src/components/classes/CreateClassDialog.tsx`): zod schema con `weekdays[]`/`apparatus[]`, useForm + zodResolver, Controller para Switch, defaultValues separados, errores per-field con role=alert, min-h-11 en botones. **Leccion**: usar `z.input<>` y `?? []` en watch; `.default([])` rompe el Resolver types de RHF (lesson aprendida en 7A.1 tambien).
@@ -109,7 +119,7 @@ source:
 - **P4 clase de hoy para coach**: nuevo `src/components/coach/TodayQuickActions.tsx` con 3 acciones inline (pasar asistencia, evaluar progreso, aviso al grupo). Cada accion es un Link directo con `min-h-[44px]`. Empty state cuando no hay sesion. Pendiente: integrarlo en `CoachDashboardPage.tsx` pasando `todaySession` (ya disponible como prop).
 - **P1 decision legacy `/dashboard/*`**: opciones A/B/C/D ya analizadas en `Decisiones.md`. PENDIENTE Elvis (requiere eleccion humana entre compatibilidad vs migracion).
 - **P2 QA portal padres con usuarios reales**: implementado tecnicamente (allowlist + redirect + clean links). PENDIENTE sesion de prueba con `parent`/`athlete` reales para validar UX end-to-end. No automatizable.
-- **P5 pricing freemium (10 entrevistas)**: 10 sesiones con academias siguen PENDIENTES. Hipotesis free + Growth + Pro documentada en `Pricing.md`. Sin automatizar; requiere coordinacion con equipo de growth.
+- **P5 pricing v3.0**: publicado como decision activa. Las 10 sesiones con academias quedan como validacion post-lanzamiento de conversion Free→Starter/Growth.
 
 **Validacion**: typecheck OK, lint OK, validate:rls PASS 100%, check:migrations OK, vitest 353/353 PASS (37 archivos, sin regresiones).
 
@@ -139,7 +149,7 @@ source:
 ## 2026-06-23 - Sprint 2 (Base de Datos) ejecutado parcialmente
 
 - **S6 SELF_SIGNED_CERT_IN_CHAIN resuelto**: certificado CA raiz de Supabase extraido a `certs/supabase-root-ca.crt` (publico, commiteado al repo). `drizzle.config.ts` ahora carga `.env.local` ademas de `.env`. Nuevo script `scripts/db-migrate.ts` resuelve `NODE_EXTRA_CA_CERTS` a ruta absoluta y ejecuta `drizzle-kit push` con env vars correctas. `scripts/dump-schema.ts` y `scripts/check-fks.ts` con SSL fix para diagnostico. `scripts/apply-migration.ts` ya funcionaba en `NODE_ENV=production` por su `ssl: { rejectUnauthorized: false }`. `.env.example` documenta `NODE_EXTRA_CA_CERTS`.
-- **S3 drift Drizzle↔SQL parcialmente cerrado**: `pnpm db:migrate` ahora conecta. Dump del schema real revela que **25 tablas del schema TS NO EXISTEN en DB** (academy_link_requests creado en Sprint 1, academy_roles, assessment_rubrics, athlete_documents, class_exceptions, class_waiting_list, competition_results, event_categories, event_payments, event_registrations, event_waitlist, federative_licenses, leads, leak_action_history, message_groups, message_history, message_templates, notification_preferences, push_tokens, role_members, rubric_criteria, scheduled_notifications, scheduled_reports). Migracion `20260625000000_apply_pending_migrations.sql` crea el modulo leak-profitability (academy_diagnostics, academy_expenses, churn_reasons, coach_compensation) que estaba pendiente desde 0001 y registra 0001/0002 en `__drizzle_migrations`. Drift menor en `academy_diagnostics` (score/yes_count) queda documentado.
+- **S3 drift Drizzle↔SQL parcialmente cerrado**: `pnpm db:migrate` ahora conecta. Dump del schema real revela que **25 tablas del schema TS NO EXISTEN en DB** (academy_link_requests creado en Sprint 1, academy_roles, assessment_rubrics, athlete_documents, class_exceptions, class_waiting_list, competition_results, event_categories, event_payments, event_registrations, event_waitlist, federative_licenses, leads, leak_action_history, message_groups, message_history, message_templates, notification_preferences, push_tokens, role_members, rubric_criteria, scheduled_notifications, scheduled_reports). Migracion `20260625000000_apply_pending_migrations.sql` crea el modulo leak-profitability (academy_diagnostics, academy_expenses, churn_reasons, coach_compensation) que estaba pendiente desde 0001 sin escribir hashes sinteticos en `__drizzle_migrations`. Drift menor en `academy_diagnostics` (score/yes_count) queda documentado.
 - **S4 añadir tablas faltantes DIFERIDO**: `drizzle-kit push --force` propone cambios destructivos (borrar `__drizzle_migrations`, truncar tablas, cambiar PK). Requiere plan de migracion manual tabla por tabla. Backlog P0 para sprint dedicado.
 - **S2 RLS modulos laterales cerrado**: migracion `20260625000001_rls_lateral_modules.sql` habilita RLS en `announcements`, `announcement_read_status`, `conversation_messages`, `conversation_participants`, `message_read_receipts` con policies por tenant/user. Tablas con policy permisiva `allow_authenticated` documentadas en backlog para endurecer (marketplace_*, empleo_*, tickets_*, advertisements, featured_listings, push_subscriptions).
 - **S5 mover claves Stripe a Vault DIFERIDO**: `supabase_vault` extension instalada y disponible. `academies.stripe_secret_key` y `academies.stripe_webhook_secret` existen como columnas pero 0 academias tienen datos. Las claves Stripe de Zaltyko (cuenta SaaS) estan en env vars, no en la tabla. Backlog P1 para cuando se implemente Stripe Connect por academia.
@@ -149,8 +159,8 @@ source:
 
 - Creada estrategia competitiva para gimnasia artistica/ritmica con comunicacion interna primero y WhatsApp secundario/futuro.
 - Creada matriz competitiva inicial de 10 competidores y documento draft de MVP exacto Zaltyko gimnasia.
-- Actualizados pricing, mensajes aprobados, competidores, backlog y decisiones para reflejar hipotesis freemium accesible sin cambiar precios ni limites reales.
-- Iniciada investigacion competitiva operativa: matriz ampliada con Pike13, WellnessLiving, Clupik pricing, senales de reviews publicas y dolores por area. Pricing actualizado con hipotesis de empaquetado Free/Growth/Pro a validar.
+- Actualizados pricing, mensajes aprobados, competidores, backlog y decisiones para reflejar hipotesis freemium accesible; supersedida el 2026-06-24 por pricing v3.0 oficial.
+- Iniciada investigacion competitiva operativa: matriz ampliada con Pike13, WellnessLiving, Clupik pricing, senales de reviews publicas y dolores por area. Pricing actualizado entonces como hipotesis; v3.0 queda activo desde 2026-06-24.
 - Auditado MVP real contra codigo: detectado bloqueo probable del portal moderno de padres/atletas por `canAccessAcademyWorkspace`; creado backlog P0 para resolver acceso limitado seguro y backlog P1 para comunicacion interna/flujo entrenador.
 - Creado [[Plan operativo gimnasia]] con fases de ejecucion y [[Guia entrevistas academias gimnasia]] para validar dolores, MVP y pricing con 10 academias.
 - Implementado primer desbloqueo tecnico del portal padres/atletas: allowlist de rutas limitadas en `/app/[academyId]`, home moderno para parent/athlete, navegacion limitada, redirect de invitacion/home a `my-dashboard` y tests de roles/flujo critico actualizados.
@@ -168,6 +178,30 @@ source:
 - Corregido onboarding de perfil para aceptar `provider` desde `/auth/register`; smoke Playwright publico valida los 5 roles iniciales.
 - Registrada decision de mantener `membership_role` simple en v1 (`owner`, `coach`, `viewer`) y mapear `admin` global a acceso de owner hasta necesitar permisos granulares.
 - Estado real: faltan QA manual con dos usuarios reales, validacion de cuentas reales por rol y barrido completo de copy "borrar" vs "desvincular" en pantallas especificas de atletas/tutores/entrenadores.
+
+## 2026-06-24 - Migraciones produccion aplicadas y verificadas
+
+- Aplicadas en Supabase produccion `jegxfahsvugilbthbked`: `20260622153000_add_sport_config_rls.sql` y `20260624000000_rls_academy_link_requests.sql`.
+- Verificado que las piezas criticas ya estan presentes en produccion: columnas de assessments, campos comerciales de clases, `billing_invoices`, role `provider`, `academy_link_requests`, tablas leak-profitability, RLS lateral, policies endurecidas de marketplace/empleo/push y tablas criticas de eventos/documentos.
+- Corregida la migracion RLS de `academy_link_requests`: `get_current_profile()` devuelve `profiles`, asi que las policies deben comparar `target_profile_id` con `(get_current_profile()).id`.
+- `pnpm check:migrations` sigue en verde. No se hizo push ni cambios en Stripe productivo.
+
+## 2026-06-24 - Limpieza warnings Vercel build
+
+- Eliminado `vercel` como devDependency porque Vercel lo ignora en builds remotos y el workflow ya instala el CLI globalmente.
+- Convertido `tailwind.config.ts` a `tailwind.config.mjs` para evitar el warning ESM/CJS al cargar Tailwind en Vercel.
+- Corregido CI: `pnpm/action-setup` ya no fija `version: 9` porque `package.json` define `packageManager` con `pnpm@9.15.3`.
+- `pnpm lint` y `pnpm build` pasan; quedan solo warnings historicos de lint no bloqueantes.
+
+## 2026-06-24 - Cierre CI PR coherencia critica
+
+- Ancladas como devDependencies directas `playwright` y `@vitest/coverage-v8` para que `pnpm typecheck`, scripts E2E y `pnpm vitest run --coverage` no dependan de transitive deps en CI.
+- `scripts/check-migrations-integrity.ts` ahora soporta runners sin carpeta local `drizzle/`: valida `supabase/migrations` y mantiene la validacion Drizzle completa cuando `drizzle/meta/_journal.json` existe.
+- Corregido `tests/api-academy-settings-sport-config.test.ts`: mock de `logger`, cadenas Drizzle mockeadas con `groupBy`, forma correcta de `apparatus` y timeouts locales para coverage de ruta Next pesada.
+- `coverage/` queda ignorado como artefacto local de pruebas.
+- Validacion local final: `pnpm typecheck`, `pnpm lint`, `pnpm check:migrations`, `pnpm vitest run --coverage` (39 archivos, 376 tests) y `pnpm build` pasan.
+- Fix adicional de CI Build: onboarding `parent`/`athlete`/`coach` crea el cliente Supabase solo en `handleFinish`, evitando que el prerender falle cuando el runner no tiene `NEXT_PUBLIC_SUPABASE_URL`/anon key.
+- Validado con `NEXT_PUBLIC_SUPABASE_URL= NEXT_PUBLIC_SUPABASE_ANON_KEY= pnpm build`.
 
 ## 2026-06-22
 ## 2026-06-22 - Cierre Go-Live SaaS v1 con sandbox real

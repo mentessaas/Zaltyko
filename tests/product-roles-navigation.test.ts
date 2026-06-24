@@ -12,6 +12,7 @@ import {
   getDefaultDashboardPath,
   getPreferredHomePath,
   getRoleLabel,
+  isLimitedAcademyWorkspacePath,
 } from "@/lib/product/roles";
 
 describe("product roles and navigation", () => {
@@ -28,14 +29,29 @@ describe("product roles and navigation", () => {
     expect(canAccessAcademyWorkspace("parent", "viewer")).toBe(false);
   });
 
+  it("allows only limited academy paths for athlete and parent portal roles", () => {
+    expect(isLimitedAcademyWorkspacePath("/app/academy-1/my-dashboard", "academy-1")).toBe(true);
+    expect(isLimitedAcademyWorkspacePath("/app/academy-1/messages", "academy-1")).toBe(true);
+    expect(isLimitedAcademyWorkspacePath("/app/academy-1/notifications", "academy-1")).toBe(true);
+    expect(isLimitedAcademyWorkspacePath("/app/academy-1/athletes", "academy-1")).toBe(false);
+    expect(isLimitedAcademyWorkspacePath("/app/academy-1/billing", "academy-1")).toBe(false);
+    expect(isLimitedAcademyWorkspacePath("/app/academy-1/settings", "academy-1")).toBe(false);
+    expect(isLimitedAcademyWorkspacePath("/app/academy-1/reports", "academy-1")).toBe(false);
+    expect(isLimitedAcademyWorkspacePath("/app/academy-2/my-dashboard", "academy-1")).toBe(false);
+  });
+
   it("builds role-aware global navigation", () => {
     const ownerNav = getGlobalNavigation("owner").map((item) => item.key);
     const coachNav = getGlobalNavigation("coach").map((item) => item.key);
+    const providerNav = getGlobalNavigation("provider").map((item) => item.key);
 
     expect(ownerNav).toContain("academies");
     expect(ownerNav).toContain("team");
     expect(coachNav).toContain("classes");
     expect(coachNav).not.toContain("billing");
+    expect(providerNav).toContain("marketplace");
+    expect(providerNav).toContain("provider-profile");
+    expect(providerNav).not.toContain("academies");
   });
 
   it("builds academy navigation from the shared registry", () => {
@@ -57,9 +73,21 @@ describe("product roles and navigation", () => {
     expect(coachMobileNav).not.toContain("billing");
   });
 
+  it("builds limited academy navigation for parent roles", () => {
+    const parentNav = getAcademyNavigation({
+      academyId: "academy-1",
+      profileRole: "parent",
+      membershipRole: "viewer",
+    }).map((item) => item.key);
+
+    expect(parentNav).toEqual(["my-dashboard", "messages", "notifications"]);
+  });
+
   it("keeps the global labels and default homes consistent", () => {
     expect(getRoleLabel("super_admin")).toBe("Super administrador");
     expect(getDefaultDashboardPath("parent")).toBe("/dashboard/profile");
+    expect(getRoleLabel("provider")).toBe("Proveedor");
+    expect(getDefaultDashboardPath("provider")).toBe("/dashboard/marketplace/mis-productos");
     expect(getSuperAdminNavigation().map((item) => item.key)).toContain("academies");
   });
 
@@ -83,6 +111,6 @@ describe("product roles and navigation", () => {
         profileRole: "parent",
         academyId: "academy-1",
       })
-    ).toBe("/dashboard/profile");
+    ).toBe("/app/academy-1/my-dashboard");
   });
 });

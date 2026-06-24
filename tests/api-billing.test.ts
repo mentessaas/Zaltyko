@@ -48,8 +48,8 @@ const { mockDb } = vi.hoisted(() => {
 
 // Fixture para planes
 const plansFixture = [
-    { code: "free", nickname: "Free", priceEur: 0, currency: "eur", billingInterval: "month", athleteLimit: 10, stripePriceId: null, isArchived: false },
-    { code: "pro", nickname: "Pro", priceEur: 2900, currency: "eur", billingInterval: "month", athleteLimit: 50, stripePriceId: "price_pro", isArchived: false },
+    { code: "free", nickname: "Free", priceEur: 0, currency: "eur", billingInterval: "month", athleteLimit: 30, stripePriceId: null, isArchived: false },
+    { code: "pro", nickname: "Starter", priceEur: 1900, currency: "eur", billingInterval: "month", athleteLimit: 75, stripePriceId: "price_pro", isArchived: false },
 ];
 
 describe("API /api/billing/plans", () => {
