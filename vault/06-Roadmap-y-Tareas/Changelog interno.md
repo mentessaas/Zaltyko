@@ -186,6 +186,12 @@ source:
 - Corregida la migracion RLS de `academy_link_requests`: `get_current_profile()` devuelve `profiles`, asi que las policies deben comparar `target_profile_id` con `(get_current_profile()).id`.
 - `pnpm check:migrations` sigue en verde. No se hizo push ni cambios en Stripe productivo.
 
+## 2026-06-24 - Limpieza warnings Vercel build
+
+- Eliminado `vercel` como devDependency porque Vercel lo ignora en builds remotos y el workflow ya instala el CLI globalmente.
+- Convertido `tailwind.config.ts` a `tailwind.config.mjs` para evitar el warning ESM/CJS al cargar Tailwind en Vercel.
+- `pnpm lint` y `pnpm build` pasan; quedan solo warnings historicos de lint no bloqueantes.
+
 ## 2026-06-22
 ## 2026-06-22 - Cierre Go-Live SaaS v1 con sandbox real
 

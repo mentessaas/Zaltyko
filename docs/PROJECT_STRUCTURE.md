@@ -296,7 +296,7 @@ zaltyko/
 ├── vercel.json
 ├── next.config.js
 ├── drizzle.config.ts
-├── tailwind.config.ts
+├── tailwind.config.mjs
 └── package.json
 ```
 
