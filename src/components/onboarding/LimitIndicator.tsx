@@ -26,15 +26,15 @@ interface LimitData {
 const PLAN_INFO: Record<string, { price: string; benefits: string[] }> = {
   free: {
     price: "€0/mes",
-    benefits: ["Hasta 50 atletas", "1 academia", "3 grupos", "10 clases"],
+    benefits: ["Hasta 30 gimnastas", "1 academia", "2 grupos", "5 clases"],
   },
   pro: {
     price: "€19/mes",
-    benefits: ["Academias ilimitadas", "Hasta 200 atletas", "10 grupos", "40 clases"],
+    benefits: ["Hasta 75 gimnastas", "Portal familias", "Pagos recurrentes", "Reportes básicos"],
   },
   premium: {
     price: "€49/mes",
-    benefits: ["Todo ilimitado", "API extendida", "Soporte prioritario"],
+    benefits: ["Hasta 200 gimnastas", "20 grupos", "80 clases", "Soporte prioritario"],
   },
 };
 
@@ -401,4 +401,3 @@ export function LimitIndicator({ academyId, resource, className, showNotificatio
     </div>
   );
 }
-

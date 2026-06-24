@@ -64,7 +64,7 @@ export function DashboardSidebar() {
           <Link href="/dashboard" className="flex items-center gap-2">
             <span className="text-lg font-semibold text-zaltyko-text-main">Zaltyko</span>
             <span className="rounded-full bg-zaltyko-primary/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zaltyko-primary-dark">
-              Pro
+              Starter
             </span>
           </Link>
         </div>

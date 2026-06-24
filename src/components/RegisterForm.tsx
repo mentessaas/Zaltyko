@@ -12,10 +12,41 @@ import { useToast } from "@/components/ui/toast-provider";
 import { AuthPageShell } from "@/components/auth/AuthPageShell";
 import { isValidEmail, normalizeEmail } from "@/lib/validation/email-utils";
 
+const ROLE_OPTIONS = [
+  {
+    value: "owner",
+    label: "Dueño de academia",
+    description: "Crear y gestionar una academia.",
+  },
+  {
+    value: "coach",
+    label: "Entrenador",
+    description: "Tener perfil profesional y aceptar academias.",
+  },
+  {
+    value: "parent",
+    label: "Padre / tutor",
+    description: "Seguir hijos y academias vinculadas.",
+  },
+  {
+    value: "athlete",
+    label: "Atleta",
+    description: "Acceder a progreso, avisos e invitaciones.",
+  },
+  {
+    value: "provider",
+    label: "Proveedor",
+    description: "Publicar productos o servicios en marketplace.",
+  },
+] as const;
+
+type RegisterRole = (typeof ROLE_OPTIONS)[number]["value"];
+
 export function RegisterForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
+  const [role, setRole] = useState<RegisterRole>("owner");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const supabase = createClient();
@@ -65,7 +96,7 @@ export function RegisterForm() {
     try {
       const emailRedirectTo =
         typeof window !== "undefined"
-          ? `${window.location.origin}/auth/callback?next=/onboarding/owner`
+          ? `${window.location.origin}/auth/callback?next=/auth/redirect`
           : undefined;
 
       const { data, error } = await supabase.auth.signUp({
@@ -74,6 +105,7 @@ export function RegisterForm() {
         options: {
           data: {
             full_name: fullName.trim(),
+            initial_role: role,
           },
           emailRedirectTo,
         },
@@ -91,13 +123,18 @@ export function RegisterForm() {
       toast.pushToast({
         title: "Cuenta creada",
         description: data.session
-          ? "Vamos a configurar tu primera academia."
-          : "Revisa tu correo para confirmar la cuenta y configurar tu primera academia.",
+          ? "Vamos a llevarte a tu espacio en Zaltyko."
+          : "Revisa tu correo para confirmar la cuenta y entrar a tu espacio en Zaltyko.",
         variant: "success",
       });
 
       if (data.session) {
-        router.push("/onboarding/owner");
+        await fetch("/api/onboarding/profile", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: fullName.trim(), role }),
+        });
+        router.push("/auth/redirect");
       } else {
         router.push("/auth/login?registered=1");
       }
@@ -109,7 +146,7 @@ export function RegisterForm() {
   return (
     <AuthPageShell
       title="Crea tu cuenta"
-      description="Crea tu acceso como responsable de academia. Después configuraremos tu primera academia paso a paso."
+      description="Crea tu acceso personal y elige cómo quieres usar Zaltyko."
       footer={
         <>
           ¿Ya tienes cuenta?{" "}
@@ -118,15 +155,35 @@ export function RegisterForm() {
           </Link>
         </>
       }
-      sideTitle="Empieza con una cuenta clara"
-      sideDescription="Primero creas tu acceso. Después te guiamos para añadir la academia, los equipos y los primeros datos."
+      sideTitle="Una cuenta, varios vínculos"
+      sideDescription="Tu cuenta es tuya. Luego puedes crear una academia, aceptar invitaciones o publicar como proveedor."
       highlights={[
-        "El registro está pensado para responsables de academia.",
-        "La configuración inicial se hace en un paso guiado y fácil de revisar.",
-        "Entrenadores, familias y atletas se suman después mediante invitación.",
+        "Padres, atletas, entrenadores y proveedores pueden tener cuenta propia.",
+        "Las academias se vinculan por invitación o solicitud aceptada.",
+        "Si sales de una academia, conservas tu cuenta global.",
       ]}
     >
       <form onSubmit={handleRegister} className="space-y-4">
+        <div className="space-y-2">
+          <Label>Tipo de cuenta</Label>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {ROLE_OPTIONS.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => setRole(option.value)}
+                className={`rounded-xl border px-4 py-3 text-left transition ${
+                  role === option.value
+                    ? "border-zaltyko-teal bg-zaltyko-teal/10 text-zaltyko-navy"
+                    : "border-border bg-background text-muted-foreground hover:border-zaltyko-teal/50"
+                }`}
+              >
+                <span className="block text-sm font-semibold">{option.label}</span>
+                <span className="mt-1 block text-xs">{option.description}</span>
+              </button>
+            ))}
+          </div>
+        </div>
         <div className="space-y-2">
           <Label htmlFor="fullName">Nombre completo</Label>
           <Input

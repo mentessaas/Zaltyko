@@ -26,16 +26,16 @@ interface DowngradeModalProps {
 const PLAN_LIMITS = {
     free: {
         name: "Free",
-        athletes: 50,
+        athletes: 30,
         coaches: 2,
         classes: 5,
         storage_mb: 100,
     },
     pro: {
-        name: "Pro",
-        athletes: 200,
+        name: "Starter",
+        athletes: 75,
         coaches: 10,
-        classes: 50,
+        classes: 40,
         storage_mb: 1000,
     },
 };
@@ -150,11 +150,11 @@ export function DowngradeModal({
                     <div className="grid grid-cols-2 gap-4">
                         <div className="p-4 rounded-lg border-2 border-zaltyko-primary bg-zaltyko-primary/5">
                             <p className="text-xs text-zaltyko-text-light mb-2">Plan Actual</p>
-                            <p className="text-lg font-bold mb-3">{currentPlan === "pro" ? "Pro" : "Premium"}</p>
+                            <p className="text-lg font-bold mb-3">{currentPlan === "pro" ? "Starter" : "Growth"}</p>
                             <div className="space-y-1 text-sm">
-                                <p>Atletas: {currentPlan === "premium" ? "∞" : "200"}</p>
-                                <p>Coaches: {currentPlan === "premium" ? "∞" : "10"}</p>
-                                <p>Clases: {currentPlan === "premium" ? "∞" : "50"}</p>
+                                <p>Gimnastas: {currentPlan === "premium" ? "200" : "75"}</p>
+                                <p>Grupos: {currentPlan === "premium" ? "20" : "10"}</p>
+                                <p>Clases: {currentPlan === "premium" ? "80" : "40"}</p>
                             </div>
                         </div>
 
@@ -162,7 +162,7 @@ export function DowngradeModal({
                             <p className="text-xs text-zaltyko-text-light mb-2">Nuevo Plan</p>
                             <p className="text-lg font-bold mb-3">{targetLimits.name}</p>
                             <div className="space-y-1 text-sm">
-                                <p>Atletas: {targetLimits.athletes}</p>
+                                <p>Gimnastas: {targetLimits.athletes}</p>
                                 <p>Coaches: {targetLimits.coaches}</p>
                                 <p>Clases: {targetLimits.classes}</p>
                             </div>

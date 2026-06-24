@@ -4,8 +4,6 @@
 
 **Zaltyko** es una plataforma SaaS multi-tenant para gestionar academias de gimnasia. Construida con Next.js 15, Supabase (PostgreSQL + RLS), y Stripe.
 
-> **Nuevo en el proyecto:** empieza por la vault Obsidian versionada en [`vault/00-Inicio/Home.md`](vault/00-Inicio/Home.md). Ahi esta el estado operativo de producto, tecnologia, negocio, marketing, ventas, riesgos y proximos pasos.
-
 ---
 
 ## Quick Start
@@ -101,9 +99,6 @@ pnpm db:seed          # Poblar datos iniciales
 pnpm lint             # Linting ESLint
 pnpm typecheck        # Verificación TypeScript
 pnpm test             # Ejecutar tests
-pnpm test:e2e         # Playwright: flujos críticos de academia
-pnpm test:a11y        # Playwright + axe: auditoría WCAG A/AA
-pnpm audit:sprint3    # E2E + accesibilidad Sprint 3
 ```
 
 ---
@@ -122,13 +117,11 @@ pnpm audit:sprint3    # E2E + accesibilidad Sprint 3
 
 | Documento | Descripción |
 |-----------|-------------|
-| [Vault Obsidian](vault/00-Inicio/Home.md) | Fuente operativa viva: estado actual, roadmap, negocio, marketing, ventas y tecnologia |
-| [architecture.md](docs/architecture.md) | Arquitectura técnica profunda |
+| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | Arquitectura técnica profunda |
 | [API.md](docs/API.md) | Referencia de APIs |
 | [DEPLOYMENT.md](docs/DEPLOYMENT.md) | Guía de deploy a producción |
 | [DEVELOPMENT.md](docs/development-guide.md) | Guía para desarrolladores |
 | [PRODUCTION_CHECKLIST.md](docs/PRODUCTION_CHECKLIST.md) | Checklist pre-lanzamiento |
-| [Sprint 3 Audit](docs/audits/sprint-3/README.md) | Auditoría responsive, E2E, a11y y migraciones |
 
 ---
 

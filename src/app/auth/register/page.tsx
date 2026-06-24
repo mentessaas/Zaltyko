@@ -3,10 +3,10 @@ import { RegisterForm } from "@/components/RegisterForm";
 
 export const metadata: Metadata = {
   title: "Crear cuenta",
-  description: "Regístrate para comenzar a gestionar tu academia",
+  description: "Regístrate en Zaltyko como academia, entrenador, familia, atleta o proveedor",
   openGraph: {
     title: "Crear cuenta",
-    description: "Regístrate en Zaltyko para habilitar tu academia",
+    description: "Crea una cuenta personal en Zaltyko y elige tu rol inicial",
   },
 };
 

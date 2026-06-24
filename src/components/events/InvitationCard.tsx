@@ -164,7 +164,7 @@ export const InvitationCard = memo(function InvitationCard({
               {(onUpdateStatus || onDelete || onResend) && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <Button variant="ghost" size="icon" className="min-h-[44px] min-w-[44px] h-11 w-11">
                       <MoreVertical className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>

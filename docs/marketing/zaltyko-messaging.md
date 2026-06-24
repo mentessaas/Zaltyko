@@ -327,7 +327,7 @@ Los taglines están diseñados para diferentes canales y contextos de uso, mante
 - "Software B2B para academias"
 - "Reporting academias deportivas"
 - "Escalar operaciones academia"
-- "Gestión multi-sede"
+- "Network multi-sede con onboarding acompañado"
 - "KPIs academies deportivas"
 
 ### 5.4 Palabras de Tracción (Power Words)
