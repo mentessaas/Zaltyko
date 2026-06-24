@@ -336,6 +336,7 @@ Cierre de 4 fallos de CI y del 404 en la raiz del sitio, sobre `security/audit-r
 
 - Eliminado `vercel` como devDependency porque Vercel lo ignora en builds remotos y el workflow ya instala el CLI globalmente.
 - Convertido `tailwind.config.ts` a `tailwind.config.mjs` para evitar el warning ESM/CJS al cargar Tailwind en Vercel.
+- Corregido CI: `pnpm/action-setup` ya no fija `version: 9` porque `package.json` define `packageManager` con `pnpm@9.15.3`.
 - `pnpm lint` y `pnpm build` pasan; quedan solo warnings historicos de lint no bloqueantes.
 
 ## 2026-06-22
