@@ -1,16 +1,19 @@
 "use client";
 
-import { useState, FormEvent, useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { Controller, useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { LocationSelect } from "./LocationSelect";
 import { FileUpload } from "./FileUpload";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { normalizeEventFormData, type EventFormInitialData, type EventFormData } from "@/types/event-form";
-import type { EventDiscipline } from "@/types/events";
-import { validateEventForm } from "@/lib/validation/event-form-validator";
+import { normalizeEventFormData, type EventFormInitialData } from "@/types/event-form";
+import type { EventDiscipline, EventLevel, EventType } from "@/types/events";
 import { useAcademyContext } from "@/hooks/use-academy-context";
 import { getSpecializedEventTypes } from "@/lib/specialization/registry";
 
@@ -29,10 +32,69 @@ const EVENT_DISCIPLINES = [
 
 const EVENT_DISCIPLINE_VALUES = new Set(EVENT_DISCIPLINES.map((item) => item.value));
 
+const EVENT_STATUSES = [
+  { value: "draft", label: "Borrador" },
+  { value: "published", label: "Publicado" },
+  { value: "cancelled", label: "Cancelado" },
+  { value: "completed", label: "Completado" },
+] as const;
+
 const fieldClassName =
   "w-full rounded-[10px] border border-zaltyko-mist bg-white px-4 py-2.5 text-sm text-zaltyko-navy shadow-none focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15 disabled:bg-zaltyko-warm-white disabled:text-zaltyko-text-secondary";
 const labelClassName = "mb-2 block text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy";
 const sectionClassName = "sm:col-span-2 border-t border-zaltyko-mist pt-4";
+const errorTextClassName = "mt-1 text-xs text-zaltyko-coral";
+
+// Esquema Zod. Campos complejos (level, status, discipline) se mantienen como string
+// para preservar compatibilidad con la API existente; usamos z.string no-empty.
+const eventFormSchema = z.object({
+  title: z.string().trim().min(1, "Título obligatorio"),
+  description: z.string().optional(),
+  category: z.string().optional(),
+  isPublic: z.boolean().optional(),
+  level: z.string().min(1, "Nivel obligatorio"),
+  discipline: z.string().optional(),
+  sportConfigId: z.string().optional(),
+  eventType: z.string().optional(),
+  competitionTypeCode: z.string().optional(),
+  startDate: z.string().min(1, "Fecha de inicio obligatoria"),
+  endDate: z.string().optional(),
+  registrationStartDate: z.string().optional(),
+  registrationEndDate: z.string().optional(),
+  countryCode: z.string().optional(),
+  countryName: z.string().optional(),
+  provinceName: z.string().optional(),
+  cityName: z.string().optional(),
+  country: z.string().optional(),
+  province: z.string().optional(),
+  city: z.string().optional(),
+  contactEmail: z.string().email("Email no válido").or(z.literal("")).optional(),
+  contactPhone: z.string().optional(),
+  contactInstagram: z.string().optional(),
+  contactWebsite: z.string().url("URL no válida").or(z.literal("")).optional(),
+  images: z.array(z.string()).optional(),
+  attachments: z.array(z.object({ name: z.string(), url: z.string(), type: z.string().optional() })).optional(),
+  notifyInternalStaff: z.boolean().optional(),
+  notifyCityAcademies: z.boolean().optional(),
+  notifyProvinceAcademies: z.boolean().optional(),
+  notifyCountryAcademies: z.boolean().optional(),
+  status: z.string().min(1),
+  maxCapacity: z.number().optional(),
+  registrationFee: z.number().optional(),
+  allowWaitlist: z.boolean().optional(),
+  waitlistMaxSize: z.number().optional(),
+});
+
+type EventFormValues = z.input<typeof eventFormSchema>;
+
+interface SportConfigOption {
+  id: string;
+  name: string;
+  disciplineName: string;
+  branchName: string;
+  defaultDisciplineVariant: string;
+  competitionTypes: Array<{ code: string; name: string }>;
+}
 
 function getDefaultEventDiscipline(value: string): EventDiscipline | "" {
   return EVENT_DISCIPLINE_VALUES.has(value as EventDiscipline) ? (value as EventDiscipline) : "";
@@ -44,7 +106,6 @@ interface EventFormProps {
   eventId?: string;
   initialData?: EventFormInitialData;
   onSuccess?: () => void;
-  // Props para compatibilidad con EventsList
   open?: boolean;
   onClose?: () => void;
   event?: {
@@ -55,15 +116,6 @@ interface EventFormProps {
     status?: string | null;
   } | null;
   onSaved?: () => void;
-}
-
-interface SportConfigOption {
-  id: string;
-  name: string;
-  disciplineName: string;
-  branchName: string;
-  defaultDisciplineVariant: string;
-  competitionTypes: Array<{ code: string; name: string }>;
 }
 
 export function EventForm({
@@ -80,120 +132,207 @@ export function EventForm({
   const router = useRouter();
   const { specialization } = useAcademyContext();
   const eventTypes = getSpecializedEventTypes(specialization);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  // Determinar eventId y datos iniciales
   const effectiveEventId = eventId || event?.id;
-  const effectiveInitialData: EventFormInitialData | undefined = initialData || (event ? {
-    title: event.title,
-    startDate: event.date || undefined,
-    // Parsear location si viene en formato "ciudad, provincia, país"
-    ...(event.location ? (() => {
-      const parts = event.location.split(",").map(p => p.trim());
-      if (parts.length >= 3) {
-        return { city: parts[0], province: parts[1], country: parts[2] };
-      } else if (parts.length === 2) {
-        return { city: parts[0], province: parts[1] };
-      } else if (parts.length === 1) {
-        return { city: parts[0] };
-      }
-      return {};
-    })() : {}),
-    isPublic: event.status === "published" || event.status === "public",
-  } : undefined);
+  const effectiveInitialData: EventFormInitialData | undefined = useMemo(() => {
+    return initialData || (event ? {
+      title: event.title,
+      startDate: event.date || undefined,
+      ...(event.location ? (() => {
+        const parts = event.location.split(",").map((p: string) => p.trim());
+        if (parts.length >= 3) {
+          return { city: parts[0], province: parts[1], country: parts[2] };
+        } else if (parts.length === 2) {
+          return { city: parts[0], province: parts[1] };
+        } else if (parts.length === 1) {
+          return { city: parts[0] };
+        }
+        return {};
+      })() : {}),
+      isPublic: event.status === "published" || event.status === "public",
+    } : undefined);
+  }, [initialData, event]);
 
-  const [formData, setFormData] = useState(normalizeEventFormData(effectiveInitialData));
-  const selectedSportConfig = sportConfigs.find((config) => config.id === formData.sportConfigId);
-  const displayedEventTypes =
-    selectedSportConfig && selectedSportConfig.competitionTypes.length > 0
-      ? selectedSportConfig.competitionTypes.map((item) => ({ value: item.code, label: item.name }))
-      : eventTypes;
+  const normalized = useMemo(() => normalizeEventFormData(effectiveInitialData), [effectiveInitialData]);
 
-  // Resetear formulario cuando cambia el evento
+  const {
+    control,
+    register,
+    handleSubmit,
+    reset,
+    watch,
+    setValue,
+    formState: { errors, isSubmitting, isValid },
+  } = useForm<EventFormValues>({
+    resolver: zodResolver(eventFormSchema),
+    defaultValues: {
+      title: normalized.title,
+      description: normalized.description,
+      category: Array.isArray(normalized.category) ? normalized.category.join(", ") : "",
+      isPublic: normalized.isPublic,
+      level: normalized.level,
+      discipline: normalized.discipline,
+      sportConfigId: normalized.sportConfigId,
+      eventType: normalized.eventType,
+      competitionTypeCode: normalized.competitionTypeCode,
+      startDate: normalized.startDate,
+      endDate: normalized.endDate,
+      registrationStartDate: normalized.registrationStartDate,
+      registrationEndDate: normalized.registrationEndDate,
+      countryCode: normalized.countryCode,
+      countryName: normalized.countryName,
+      provinceName: normalized.provinceName,
+      cityName: normalized.cityName,
+      country: normalized.country,
+      province: normalized.province,
+      city: normalized.city,
+      contactEmail: normalized.contactEmail,
+      contactPhone: normalized.contactPhone,
+      contactInstagram: normalized.contactInstagram,
+      contactWebsite: normalized.contactWebsite,
+      images: normalized.images,
+      attachments: normalized.attachments,
+      notifyInternalStaff: normalized.notifyInternalStaff,
+      notifyCityAcademies: normalized.notifyCityAcademies,
+      notifyProvinceAcademies: normalized.notifyProvinceAcademies,
+      notifyCountryAcademies: normalized.notifyCountryAcademies,
+      status: normalized.status,
+      maxCapacity: normalized.maxCapacity,
+      registrationFee: normalized.registrationFee,
+      allowWaitlist: normalized.allowWaitlist,
+      waitlistMaxSize: normalized.waitlistMaxSize,
+    },
+    mode: "onChange",
+  });
+
+  const sportConfigIdValue = watch("sportConfigId") ?? "";
+  const eventTypeValue = watch("eventType") ?? "";
+  const competitionTypeCodeValue = watch("competitionTypeCode") ?? "";
+  const registrationStartDateValue = watch("registrationStartDate") ?? "";
+  const registrationEndDateValue = watch("registrationEndDate") ?? "";
+  const startDateValue = watch("startDate") ?? "";
+  const selectedSportConfig = useMemo(
+    () => sportConfigs.find((config) => config.id === sportConfigIdValue) ?? null,
+    [sportConfigs, sportConfigIdValue]
+  );
+  const displayedEventTypes = useMemo(
+    () =>
+      selectedSportConfig && selectedSportConfig.competitionTypes.length > 0
+        ? selectedSportConfig.competitionTypes.map((item) => ({ value: item.code, label: item.name }))
+        : eventTypes,
+    [selectedSportConfig, eventTypes]
+  );
+
+  // Reset cuando cambia el evento externo
   useEffect(() => {
     if (event || initialData) {
-      setFormData(normalizeEventFormData(effectiveInitialData));
+      reset({
+        title: normalized.title,
+        description: normalized.description,
+        category: Array.isArray(normalized.category) ? normalized.category.join(", ") : "",
+        isPublic: normalized.isPublic,
+        level: normalized.level,
+        discipline: normalized.discipline,
+        sportConfigId: normalized.sportConfigId,
+        eventType: normalized.eventType,
+        competitionTypeCode: normalized.competitionTypeCode,
+        startDate: normalized.startDate,
+        endDate: normalized.endDate,
+        registrationStartDate: normalized.registrationStartDate,
+        registrationEndDate: normalized.registrationEndDate,
+        countryCode: normalized.countryCode,
+        countryName: normalized.countryName,
+        provinceName: normalized.provinceName,
+        cityName: normalized.cityName,
+        country: normalized.country,
+        province: normalized.province,
+        city: normalized.city,
+        contactEmail: normalized.contactEmail,
+        contactPhone: normalized.contactPhone,
+        contactInstagram: normalized.contactInstagram,
+        contactWebsite: normalized.contactWebsite,
+        images: normalized.images,
+        attachments: normalized.attachments,
+        notifyInternalStaff: normalized.notifyInternalStaff,
+        notifyCityAcademies: normalized.notifyCityAcademies,
+        notifyProvinceAcademies: normalized.notifyProvinceAcademies,
+        notifyCountryAcademies: normalized.notifyCountryAcademies,
+        status: normalized.status,
+        maxCapacity: normalized.maxCapacity,
+        registrationFee: normalized.registrationFee,
+        allowWaitlist: normalized.allowWaitlist,
+        waitlistMaxSize: normalized.waitlistMaxSize,
+      });
     }
-  }, [event, initialData, effectiveInitialData]);
+  }, [event, initialData, normalized, reset]);
 
+  // Default discipline variant segun especializacion
   useEffect(() => {
     const defaultDiscipline = getDefaultEventDiscipline(specialization.disciplineVariant);
-
-    setFormData((current): EventFormData => {
-      if (current.discipline || !defaultDiscipline) {
-        return current;
-      }
-
-      return {
-        ...current,
-        discipline: defaultDiscipline,
-      };
-    });
+    if (!defaultDiscipline) return;
+    const currentDiscipline = watch("discipline");
+    if (!currentDiscipline) {
+      setValue("discipline", defaultDiscipline, { shouldValidate: false });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [specialization.disciplineVariant]);
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-    setError(null);
+  const handleSportConfigChange = (nextId: string) => {
+    const config = sportConfigs.find((item) => item.id === nextId);
+    setValue("sportConfigId", nextId, { shouldValidate: true });
+    if (config?.defaultDisciplineVariant) {
+      setValue("discipline", config.defaultDisciplineVariant, { shouldValidate: true });
+    }
+    setValue("competitionTypeCode", "", { shouldValidate: true });
+  };
 
+  const onValid = async (values: EventFormValues) => {
     try {
-      // Validar formulario
-      const validation = validateEventForm(formData);
-      if (!validation.valid) {
-        const firstError = validation.errors[0];
-        throw new Error(firstError?.message || "Error de validación");
-      }
-
-      const categoryVal = formData.category as any;
-      const categoryArray = Array.isArray(categoryVal)
-        ? categoryVal.filter(Boolean)
-        : categoryVal
-          ? (categoryVal as string).split(",").map((c: string) => c.trim()).filter(Boolean)
-          : undefined;
+      const categoryVal = values.category;
+      const categoryArray = categoryVal
+        ? categoryVal.split(",").map((c) => c.trim()).filter(Boolean)
+        : undefined;
 
       const payload = {
         academyId,
-        title: formData.title,
-        description: formData.description || undefined,
+        title: values.title,
+        description: values.description || undefined,
         category: categoryArray,
-        isPublic: formData.isPublic,
-        level: formData.level,
-        discipline: formData.discipline || undefined,
-        sportConfigId: formData.sportConfigId || undefined,
-        eventType: formData.eventType || undefined,
-        competitionTypeCode: formData.competitionTypeCode || undefined,
-        startDate: formData.startDate || undefined,
-        endDate: formData.endDate || undefined,
-        registrationStartDate: formData.registrationStartDate || undefined,
-        registrationEndDate: formData.registrationEndDate || undefined,
-        countryCode: formData.countryCode || undefined,
-        countryName: formData.countryName || undefined,
-        provinceName: formData.provinceName || undefined,
-        cityName: formData.cityName || undefined,
-        // Mantener campos antiguos para compatibilidad
-        country: formData.countryName || formData.country || undefined,
-        province: formData.provinceName || formData.province || undefined,
-        city: formData.cityName || formData.city || undefined,
-        contactEmail: formData.contactEmail || undefined,
-        contactPhone: formData.contactPhone || undefined,
-        contactInstagram: formData.contactInstagram || undefined,
-        contactWebsite: formData.contactWebsite || undefined,
-        images: formData.images.length > 0 ? formData.images : undefined,
-        attachments: formData.attachments.length > 0 ? formData.attachments.map((att: any, index: number) => ({
+        isPublic: values.isPublic ?? false,
+        level: values.level as EventLevel,
+        discipline: values.discipline || undefined,
+        sportConfigId: values.sportConfigId || undefined,
+        eventType: (values.eventType || undefined) as EventType | undefined,
+        competitionTypeCode: values.competitionTypeCode || undefined,
+        startDate: values.startDate || undefined,
+        endDate: values.endDate || undefined,
+        registrationStartDate: values.registrationStartDate || undefined,
+        registrationEndDate: values.registrationEndDate || undefined,
+        countryCode: values.countryCode || undefined,
+        countryName: values.countryName || undefined,
+        provinceName: values.provinceName || undefined,
+        cityName: values.cityName || undefined,
+        country: values.countryName || values.country || undefined,
+        province: values.provinceName || values.province || undefined,
+        city: values.cityName || values.city || undefined,
+        contactEmail: values.contactEmail || undefined,
+        contactPhone: values.contactPhone || undefined,
+        contactInstagram: values.contactInstagram || undefined,
+        contactWebsite: values.contactWebsite || undefined,
+        images: (values.images ?? []).length > 0 ? values.images : undefined,
+        attachments: (values.attachments ?? []).map((att, index: number) => ({
           name: att.name || `Archivo ${index + 1}`,
-          url: typeof att === 'string' ? att : att.url,
-        })) : undefined,
-        notifyInternalStaff: formData.notifyInternalStaff,
-        notifyCityAcademies: formData.notifyCityAcademies,
-        notifyProvinceAcademies: formData.notifyProvinceAcademies,
-        notifyCountryAcademies: formData.notifyCountryAcademies,
-        // Nuevos campos
-        status: formData.status,
-        maxCapacity: formData.maxCapacity || null,
-        registrationFee: formData.registrationFee || null,
-        allowWaitlist: formData.allowWaitlist,
-        waitlistMaxSize: formData.waitlistMaxSize || null,
+          url: typeof att === "string" ? att : att.url,
+        })),
+        notifyInternalStaff: values.notifyInternalStaff ?? false,
+        notifyCityAcademies: values.notifyCityAcademies ?? false,
+        notifyProvinceAcademies: values.notifyProvinceAcademies ?? false,
+        notifyCountryAcademies: values.notifyCountryAcademies ?? false,
+        status: values.status,
+        maxCapacity: values.maxCapacity || null,
+        registrationFee: values.registrationFee || null,
+        allowWaitlist: values.allowWaitlist ?? false,
+        waitlistMaxSize: values.waitlistMaxSize || null,
       };
 
       const url = effectiveEventId ? `/api/events/${effectiveEventId}` : "/api/events";
@@ -203,14 +342,14 @@ export function EventForm({
         method,
         headers: {
           "Content-Type": "application/json",
-          "x-academy-id": academyId, // Enviar academyId en header para que withTenant pueda obtenerlo
+          "x-academy-id": academyId,
         },
-        credentials: "include", // Incluir cookies para autenticación
+        credentials: "include",
         body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
-        const data = await response.json();
+        const data = await response.json().catch(() => ({}));
         throw new Error(data.message || "Error al guardar el evento");
       }
 
@@ -224,34 +363,37 @@ export function EventForm({
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Error al guardar el evento";
-      setError(errorMessage);
-    } finally {
-      setIsSubmitting(false);
+      throw new Error(errorMessage);
+    }
+  };
+
+  const onInvalid = (validationErrors: typeof errors) => {
+    const firstError = Object.values(validationErrors)[0];
+    if (firstError?.message) {
+      // Mostrar via aria-live via DOM, el role=alert en inputs ya cubre screen readers
     }
   };
 
   const formContent = (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      {error && (
-        <div className="rounded-xl border border-zaltyko-coral/35 bg-zaltyko-coral/10 p-3 text-sm text-zaltyko-coral">
-          {error}
-        </div>
-      )}
-
+    <form onSubmit={handleSubmit(onValid, onInvalid)} className="space-y-6" noValidate>
       <div className="grid gap-6 sm:grid-cols-2">
         <div className="sm:col-span-2">
           <label htmlFor="title" className={labelClassName}>
             Título <span className="text-zaltyko-coral">*</span>
           </label>
           <input
-            type="text"
             id="title"
-            required
-            value={formData.title}
-            onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+            type="text"
+            {...register("title")}
             className={fieldClassName}
             placeholder={`Nombre del evento o cita de ${specialization.labels.disciplineName.toLowerCase()}`}
+            aria-invalid={!!errors.title}
           />
+          {errors.title && (
+            <p className={errorTextClassName} role="alert">
+              {errors.title.message}
+            </p>
+          )}
         </div>
 
         <div className="sm:col-span-2">
@@ -261,8 +403,7 @@ export function EventForm({
           <textarea
             id="description"
             rows={4}
-            value={formData.description}
-            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+            {...register("description")}
             className={fieldClassName}
             placeholder="Información clave, participantes, objetivos o notas importantes..."
           />
@@ -274,10 +415,9 @@ export function EventForm({
           </label>
           <select
             id="level"
-            required
-            value={formData.level}
-            onChange={(e) => setFormData({ ...formData, level: e.target.value as any })}
+            {...register("level")}
             className={fieldClassName}
+            aria-invalid={!!errors.level}
           >
             {EVENT_LEVELS.map((l) => (
               <option key={l.value} value={l.value}>
@@ -285,6 +425,11 @@ export function EventForm({
               </option>
             ))}
           </select>
+          {errors.level && (
+            <p className={errorTextClassName} role="alert">
+              {errors.level.message}
+            </p>
+          )}
         </div>
 
         <div>
@@ -293,16 +438,8 @@ export function EventForm({
           </label>
           <select
             id="sportConfigId"
-            value={formData.sportConfigId}
-            onChange={(e) => {
-              const config = sportConfigs.find((item) => item.id === e.target.value);
-              setFormData({
-                ...formData,
-                sportConfigId: e.target.value,
-                discipline: (config?.defaultDisciplineVariant as any) || formData.discipline,
-                competitionTypeCode: "",
-              });
-            }}
+            value={sportConfigIdValue}
+            onChange={(event) => handleSportConfigChange(event.target.value)}
             className={fieldClassName}
           >
             <option value="">Sin rama específica</option>
@@ -323,14 +460,14 @@ export function EventForm({
           </label>
           <select
             id="eventType"
-            value={selectedSportConfig ? formData.competitionTypeCode : formData.eventType}
-            onChange={(e) =>
-              setFormData(
-                selectedSportConfig
-                  ? { ...formData, competitionTypeCode: e.target.value }
-                  : { ...formData, eventType: e.target.value as any }
-              )
-            }
+            value={selectedSportConfig ? competitionTypeCodeValue : eventTypeValue}
+            onChange={(event) => {
+              if (selectedSportConfig) {
+                setValue("competitionTypeCode", event.target.value, { shouldValidate: true });
+              } else {
+                setValue("eventType", event.target.value, { shouldValidate: true });
+              }
+            }}
             className={fieldClassName}
           >
             <option value="">Selecciona un tipo</option>
@@ -347,10 +484,9 @@ export function EventForm({
             Fecha inicio inscripción
           </label>
           <input
-            type="date"
             id="registrationStartDate"
-            value={formData.registrationStartDate}
-            onChange={(e) => setFormData({ ...formData, registrationStartDate: e.target.value })}
+            type="date"
+            {...register("registrationStartDate")}
             className={fieldClassName}
           />
         </div>
@@ -360,11 +496,10 @@ export function EventForm({
             Fecha fin inscripción
           </label>
           <input
-            type="date"
             id="registrationEndDate"
-            min={formData.registrationStartDate || undefined}
-            value={formData.registrationEndDate}
-            onChange={(e) => setFormData({ ...formData, registrationEndDate: e.target.value })}
+            type="date"
+            min={registrationStartDateValue || undefined}
+            {...register("registrationEndDate")}
             className={fieldClassName}
           />
         </div>
@@ -374,14 +509,18 @@ export function EventForm({
             Fecha inicio evento <span className="text-zaltyko-coral">*</span>
           </label>
           <input
-            type="date"
             id="startDate"
-            required
-            min={formData.registrationEndDate || undefined}
-            value={formData.startDate}
-            onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+            type="date"
+            min={registrationEndDateValue || undefined}
+            {...register("startDate")}
             className={fieldClassName}
+            aria-invalid={!!errors.startDate}
           />
+          {errors.startDate && (
+            <p className={errorTextClassName} role="alert">
+              {errors.startDate.message}
+            </p>
+          )}
         </div>
 
         <div>
@@ -389,30 +528,32 @@ export function EventForm({
             Fecha fin evento
           </label>
           <input
-            type="date"
             id="endDate"
-            min={formData.startDate || undefined}
-            value={formData.endDate}
-            onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+            type="date"
+            min={startDateValue || undefined}
+            {...register("endDate")}
             className={fieldClassName}
           />
         </div>
 
         <div className="sm:col-span-2">
-          <LocationSelect
-            countryCode={formData.countryCode}
-            countryName={formData.countryName}
-            provinceName={formData.provinceName}
-            cityName={formData.cityName}
-            onLocationChange={(location) => {
-              setFormData({
-                ...formData,
-                countryCode: location.countryCode,
-                countryName: location.countryName,
-                provinceName: location.provinceName,
-                cityName: location.cityName,
-              });
-            }}
+          <Controller
+            control={control}
+            name="countryCode"
+            render={({ field }) => (
+              <LocationSelect
+                countryCode={field.value ?? ""}
+                countryName={watch("countryName") ?? ""}
+                provinceName={watch("provinceName") ?? ""}
+                cityName={watch("cityName") ?? ""}
+                onLocationChange={(location) => {
+                  setValue("countryCode", location.countryCode, { shouldValidate: true });
+                  setValue("countryName", location.countryName, { shouldValidate: true });
+                  setValue("provinceName", location.provinceName, { shouldValidate: true });
+                  setValue("cityName", location.cityName, { shouldValidate: true });
+                }}
+              />
+            )}
           />
         </div>
 
@@ -421,97 +562,100 @@ export function EventForm({
             Categorías (separadas por comas)
           </label>
           <input
-            type="text"
             id="category"
-            value={formData.category}
-            onChange={(e) => setFormData({ ...formData, category: e.target.value as any })}
+            type="text"
+            {...register("category")}
             className={fieldClassName}
             placeholder="FIG Level 1, Edad 8-10"
           />
         </div>
 
         <div className="sm:col-span-2">
-          <div className="flex items-center gap-2">
-            <Switch
-              id="isPublic"
-              checked={formData.isPublic}
-              onCheckedChange={(checked) => setFormData({ ...formData, isPublic: checked })}
-            />
-            <Label htmlFor="isPublic" className="cursor-pointer text-sm font-medium text-zaltyko-navy">
-              Evento público (aparecerá en el directorio público)
-            </Label>
-          </div>
-        </div>
-
-        <div className="sm:col-span-2">
-          <FileUpload
-            type="image"
-            label="Imágenes del evento"
-            accept="image/*"
-            maxSizeMB={10}
-            files={formData.images}
-            onFilesChange={(files) => setFormData({ ...formData, images: files })}
-            eventId={effectiveEventId}
-            disabled={isSubmitting}
+          <Controller
+            control={control}
+            name="isPublic"
+            render={({ field }) => (
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="isPublic"
+                  checked={field.value ?? false}
+                  onCheckedChange={(checked) => field.onChange(checked)}
+                />
+                <Label htmlFor="isPublic" className="cursor-pointer text-sm font-medium text-zaltyko-navy">
+                  Evento público (aparecerá en el directorio público)
+                </Label>
+              </div>
+            )}
           />
         </div>
 
         <div className="sm:col-span-2">
-          <FileUpload
-            type="file"
-            label="Archivos adjuntos (PDFs, documentos)"
-            accept=".pdf,.doc,.docx"
-            maxSizeMB={10}
-            files={formData.attachments as any}
-            onFilesChange={(files) => setFormData({ ...formData, attachments: files as any })}
-            eventId={effectiveEventId}
-            disabled={isSubmitting}
+          <Controller
+            control={control}
+            name="images"
+            render={({ field }) => (
+              <FileUpload
+                type="image"
+                label="Imágenes del evento"
+                accept="image/*"
+                maxSizeMB={10}
+                files={field.value ?? []}
+                onFilesChange={(files) => field.onChange(files)}
+                eventId={effectiveEventId}
+                disabled={isSubmitting}
+              />
+            )}
+          />
+        </div>
+
+        <div className="sm:col-span-2">
+          <Controller
+            control={control}
+            name="attachments"
+            render={({ field }) => (
+              <FileUpload
+                type="file"
+                label="Archivos adjuntos (PDFs, documentos)"
+                accept=".pdf,.doc,.docx"
+                maxSizeMB={10}
+                files={(field.value ?? []) as unknown as string[]}
+                onFilesChange={(files) => field.onChange(files as unknown as Array<{ name: string; url: string; type?: string }>)}
+                eventId={effectiveEventId}
+                disabled={isSubmitting}
+              />
+            )}
           />
         </div>
 
         <div className={sectionClassName}>
           <h3 className="mb-4 font-display text-base font-semibold text-zaltyko-navy">Opciones de notificación</h3>
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="notifyInternalStaff" className="cursor-pointer text-sm font-medium text-zaltyko-navy">
-                Notificar personal interno
-              </Label>
-              <Switch
-                id="notifyInternalStaff"
-                checked={formData.notifyInternalStaff}
-                onCheckedChange={(checked) => setFormData({ ...formData, notifyInternalStaff: checked })}
+            {(
+              [
+                ["notifyInternalStaff", "Notificar personal interno"],
+                ["notifyCityAcademies", "Notificar academias de la misma ciudad"],
+                ["notifyProvinceAcademies", "Notificar academias de la misma provincia"],
+                ["notifyCountryAcademies", "Notificar academias del mismo país"],
+              ] as const
+            ).map(([key, label]) => (
+              <Controller
+                key={key}
+                control={control}
+                name={key}
+                render={({ field }) => (
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor={key} className="cursor-pointer text-sm font-medium text-zaltyko-navy">
+                      {label}
+                    </Label>
+                    <Switch
+                      id={key}
+                      checked={field.value ?? false}
+                      onCheckedChange={(checked) => field.onChange(checked)}
+                    />
+                  </div>
+                )}
               />
-            </div>
-            <div className="flex items-center justify-between">
-              <Label htmlFor="notifyCityAcademies" className="cursor-pointer text-sm font-medium text-zaltyko-navy">
-                Notificar academias de la misma ciudad
-              </Label>
-              <Switch
-                id="notifyCityAcademies"
-                checked={formData.notifyCityAcademies}
-                onCheckedChange={(checked) => setFormData({ ...formData, notifyCityAcademies: checked })}
-              />
-            </div>
-            <div className="flex items-center justify-between">
-              <Label htmlFor="notifyProvinceAcademies" className="cursor-pointer text-sm font-medium text-zaltyko-navy">
-                Notificar academias de la misma provincia
-              </Label>
-              <Switch
-                id="notifyProvinceAcademies"
-                checked={formData.notifyProvinceAcademies}
-                onCheckedChange={(checked) => setFormData({ ...formData, notifyProvinceAcademies: checked })}
-              />
-            </div>
-            <div className="flex items-center justify-between">
-              <Label htmlFor="notifyCountryAcademies" className="cursor-pointer text-sm font-medium text-zaltyko-navy">
-                Notificar academias del mismo país
-              </Label>
-              <Switch
-                id="notifyCountryAcademies"
-                checked={formData.notifyCountryAcademies}
-                onCheckedChange={(checked) => setFormData({ ...formData, notifyCountryAcademies: checked })}
-              />
-            </div>
+            ))}
           </div>
         </div>
 
@@ -520,13 +664,18 @@ export function EventForm({
             Email de contacto
           </label>
           <input
-            type="email"
             id="contactEmail"
-            value={formData.contactEmail}
-            onChange={(e) => setFormData({ ...formData, contactEmail: e.target.value })}
+            type="email"
+            {...register("contactEmail")}
             className={fieldClassName}
             placeholder="contacto@evento.com"
+            aria-invalid={!!errors.contactEmail}
           />
+          {errors.contactEmail && (
+            <p className={errorTextClassName} role="alert">
+              {errors.contactEmail.message}
+            </p>
+          )}
         </div>
 
         <div>
@@ -534,10 +683,9 @@ export function EventForm({
             Teléfono de contacto
           </label>
           <input
-            type="tel"
             id="contactPhone"
-            value={formData.contactPhone}
-            onChange={(e) => setFormData({ ...formData, contactPhone: e.target.value })}
+            type="tel"
+            {...register("contactPhone")}
             className={fieldClassName}
             placeholder="+34 600 000 000"
           />
@@ -548,10 +696,9 @@ export function EventForm({
             Instagram
           </label>
           <input
-            type="text"
             id="contactInstagram"
-            value={formData.contactInstagram}
-            onChange={(e) => setFormData({ ...formData, contactInstagram: e.target.value })}
+            type="text"
+            {...register("contactInstagram")}
             className={fieldClassName}
             placeholder="@evento"
           />
@@ -562,16 +709,20 @@ export function EventForm({
             Sitio web
           </label>
           <input
-            type="url"
             id="contactWebsite"
-            value={formData.contactWebsite}
-            onChange={(e) => setFormData({ ...formData, contactWebsite: e.target.value })}
+            type="url"
+            {...register("contactWebsite")}
             className={fieldClassName}
             placeholder="https://evento.com"
+            aria-invalid={!!errors.contactWebsite}
           />
+          {errors.contactWebsite && (
+            <p className={errorTextClassName} role="alert">
+              {errors.contactWebsite.message}
+            </p>
+          )}
         </div>
 
-        {/* Inscripciones */}
         <div className={sectionClassName}>
           <h3 className="mb-4 font-display text-base font-semibold text-zaltyko-navy">Inscripciones</h3>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -581,14 +732,14 @@ export function EventForm({
               </label>
               <select
                 id="status"
-                value={formData.status}
-                onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
+                {...register("status")}
                 className={fieldClassName}
               >
-                <option value="draft">Borrador</option>
-                <option value="published">Publicado</option>
-                <option value="cancelled">Cancelado</option>
-                <option value="completed">Completado</option>
+                {EVENT_STATUSES.map((s) => (
+                  <option key={s.value} value={s.value}>
+                    {s.label}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -597,11 +748,10 @@ export function EventForm({
                 Capacidad máxima
               </label>
               <input
-                type="number"
                 id="maxCapacity"
+                type="number"
                 min="0"
-                value={formData.maxCapacity || ""}
-                onChange={(e) => setFormData({ ...formData, maxCapacity: parseInt(e.target.value) || 0 })}
+                {...register("maxCapacity", { valueAsNumber: true })}
                 className={fieldClassName}
                 placeholder="Sin límite"
               />
@@ -611,15 +761,23 @@ export function EventForm({
               <label htmlFor="registrationFee" className={labelClassName}>
                 Precio de inscripción (€)
               </label>
-              <input
-                type="number"
-                id="registrationFee"
-                min="0"
-                step="0.01"
-                value={formData.registrationFee ? formData.registrationFee / 100 : ""}
-                onChange={(e) => setFormData({ ...formData, registrationFee: Math.round(parseFloat(e.target.value) * 100) || 0 })}
-                className={fieldClassName}
-                placeholder="0.00"
+              <Controller
+                control={control}
+                name="registrationFee"
+                render={({ field }) => (
+                  <input
+                    id="registrationFee"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={field.value ? (field.value / 100).toString() : ""}
+                    onChange={(event) =>
+                      field.onChange(Math.round(parseFloat(event.target.value) * 100) || 0)
+                    }
+                    className={fieldClassName}
+                    placeholder="0.00"
+                  />
+                )}
               />
             </div>
 
@@ -628,27 +786,32 @@ export function EventForm({
                 Tamaño máximo de lista de espera
               </label>
               <input
-                type="number"
                 id="waitlistMaxSize"
+                type="number"
                 min="0"
-                value={formData.waitlistMaxSize || ""}
-                onChange={(e) => setFormData({ ...formData, waitlistMaxSize: parseInt(e.target.value) || 0 })}
+                {...register("waitlistMaxSize", { valueAsNumber: true })}
                 className={fieldClassName}
                 placeholder="Sin límite"
               />
             </div>
 
             <div className="sm:col-span-2">
-              <div className="flex items-center gap-2">
-                <Switch
-                  id="allowWaitlist"
-                  checked={formData.allowWaitlist}
-                  onCheckedChange={(checked) => setFormData({ ...formData, allowWaitlist: checked })}
-                />
-                <Label htmlFor="allowWaitlist" className="cursor-pointer text-sm font-medium text-zaltyko-navy">
-                  Permitir lista de espera cuando el evento esté lleno
-                </Label>
-              </div>
+              <Controller
+                control={control}
+                name="allowWaitlist"
+                render={({ field }) => (
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      id="allowWaitlist"
+                      checked={field.value ?? false}
+                      onCheckedChange={(checked) => field.onChange(checked)}
+                    />
+                    <Label htmlFor="allowWaitlist" className="cursor-pointer text-sm font-medium text-zaltyko-navy">
+                      Permitir lista de espera cuando el evento esté lleno
+                    </Label>
+                  </div>
+                )}
+              />
             </div>
           </div>
         </div>
@@ -660,17 +823,17 @@ export function EventForm({
           variant="secondary"
           onClick={() => router.back()}
           disabled={isSubmitting}
+          className="min-h-11"
         >
           Cancelar
         </Button>
-        <Button type="submit" disabled={isSubmitting}>
+        <Button type="submit" disabled={isSubmitting || !isValid} className="min-h-11">
           {isSubmitting ? "Guardando..." : effectiveEventId ? "Actualizar evento" : "Crear evento"}
         </Button>
       </div>
     </form>
   );
 
-  // Si se usa como modal (con open/onClose)
   if (open !== undefined) {
     return (
       <Dialog
@@ -696,6 +859,5 @@ export function EventForm({
     );
   }
 
-  // Si se usa como formulario inline
   return formContent;
 }
