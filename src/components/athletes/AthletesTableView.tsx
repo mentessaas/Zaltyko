@@ -18,6 +18,7 @@ import { AlertBadge } from "@/components/shared/AlertBadge";
 import type { SportConfigOption } from "@/components/groups/types";
 import { getTerminologyForSportConfig } from "@/lib/sport-config/terminology";
 import type { AthleteListItem, GroupOption } from "@/types";
+import { useTranslation } from "@/hooks/use-translation";
 
 interface AthletesTableViewProps {
   academyId: string;
@@ -46,6 +47,15 @@ export function AthletesTableView({
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const toast = useToast();
+  const { locale } = useTranslation();
+  const tCommon = useMemo(
+    () => ({
+      search: locale === "en" ? "Search" : "Buscar",
+      cancel: locale === "en" ? "Cancel" : "Cancelar",
+      delete: locale === "en" ? "Delete" : "Eliminar",
+    }),
+    [locale]
+  );
   const [athletes, setAthletes] = useState<AthleteListItem[]>(initialAthletes);
   const [query, setQuery] = useState(filters.q ?? "");
   const [statusFilter, setStatusFilter] = useState(filters.status ?? "");
@@ -321,7 +331,7 @@ export function AthletesTableView({
         <form className="flex flex-1 flex-wrap items-center gap-3" onSubmit={applyFilters}>
           <input
             type="search"
-            placeholder="Buscar por nombre"
+            placeholder={`${tCommon.search} por nombre`}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             className="min-h-11 min-w-[200px] flex-1 rounded-[10px] border border-zaltyko-mist bg-white px-3 py-2 text-sm focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15"
@@ -481,7 +491,7 @@ export function AthletesTableView({
                 }}
               >
                 <option value="">Acciones...</option>
-                <option value="delete">Eliminar</option>
+                <option value="delete">{tCommon.delete}</option>
                 <option value="export">Exportar seleccionados</option>
                 <option value="message">Enviar mensaje</option>
               </select>
@@ -490,7 +500,7 @@ export function AthletesTableView({
                 onClick={() => setSelectedAthletes(new Set())}
                 className="text-xs text-muted-foreground hover:text-foreground"
               >
-                Cancelar
+{tCommon.cancel}
               </button>
             </div>
           )}
