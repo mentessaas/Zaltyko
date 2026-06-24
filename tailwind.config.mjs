@@ -1,8 +1,8 @@
-import type { Config } from "tailwindcss";
-import tailwindAnimate from "tailwindcss-animate";
 import tailwindTypography from "@tailwindcss/typography";
+import tailwindAnimate from "tailwindcss-animate";
 
-export default {
+/** @type {import("tailwindcss").Config} */
+const config = {
   darkMode: ["class"],
   content: [
     "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
@@ -34,7 +34,7 @@ export default {
             coral: "#FF6B57",
             amber: "#FF6B57",
           },
-          "primary-dark": "#00695C", // Alias for brand primary dark
+          "primary-dark": "#00695C",
           bg: {
             DEFAULT: "#F8FAFC",
             paper: "#FFFFFF",
@@ -114,9 +114,12 @@ export default {
       },
       backgroundImage: {
         "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",
-        "hero-glow": "linear-gradient(135deg, rgba(43, 46, 131, 0.16), rgba(31, 199, 182, 0.12))",
+        "hero-glow":
+          "linear-gradient(135deg, rgba(43, 46, 131, 0.16), rgba(31, 199, 182, 0.12))",
       },
     },
   },
   plugins: [tailwindAnimate, tailwindTypography],
-} satisfies Config;
+};
+
+export default config;

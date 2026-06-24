@@ -133,7 +133,6 @@
     "tsx": "^4.19.3",
     "typescript": "^5",
     "typescript-eslint": "^8.57.1",
-    "vercel": "^48.10.11",
     "vite-tsconfig-paths": "^5.1.0",
     "vitest": "^1.6.0"
   },
