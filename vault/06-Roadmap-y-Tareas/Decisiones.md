@@ -1,7 +1,7 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-06-23
+last_reviewed: 2026-06-24
 source:
   - ../AGENTS.md
 ---
@@ -17,7 +17,23 @@ source:
 | Consecuencia | Todo cambio relevante debe actualizar la vault o justificar por que no aplica. |
 | Estado | Activa |
 
-## 2026-06-22 - Rutas legacy `/dashboard/*` (PENDIENTE de decision de Elvis)
+## 2026-06-24 - Sprint 7 Plan operativo
+
+| Campo | Valor |
+| --- | --- |
+| Contexto | Sprint 6 cerro Code Splitting, Producto, Deuda tecnica y Validacion. Quedan 3 frentes multi-area para Sprint 7: (A) migrar los 4 dialogos/formularios grandes a RHF+Zod (ya completado CreateAthleteDialog en 7A.1), (B) consumir los 80 i18n keys bilingues creados en Sprint 6 en Dashboard/Athletes/Billing, (C) setup Supabase local para CI mas realista, (D) cerrar decision legacy `/dashboard/*` documentada en [[Decisiones#2026-06-22 - Rutas legacy `/dashboard/*` (PENDIENTE de decision de Elvis)]]. |
+| Decision | Ejecutar 7A y 7B con prioridad alta (reducen deuda UX/validacion, son localmente testeables). Diferir 7C (requiere Docker y decision arquitectonica mayor) y 7D (depende de Elvis). Documentar cada commit en `vault/06-Roadmap-y-Tareas/Changelog interno.md`. |
+| Consecuencia | 5 commits nuevos pusheados a main. OnboardingChecklist queda correctamente excluido de RHF por no ser formulario. Build sigue verde. |
+| Estado | Cerrado parcialmente: 7A completo, 7B completo, 7C y 7D diferidos. |
+
+## 2026-06-24 - Decidir Opcion A para legacy `/dashboard/*` (recomendada, NO ejecutada)
+
+| Campo | Valor |
+| --- | --- |
+| Contexto | Misma decision que [[#2026-06-22 - Rutas legacy `/dashboard/*` (PENDIENTE de decision de Elvis)]]. Sprint 6 quedo bloqueado esperando esta decision. Analisis: la mayoria de las 38 rutas redirigen a `/auth/login` y solo unas pocas tienen UI viva. |
+| Decision recomendada | **Opcion A**: mantener compat 6 meses y arreglar lo roto. Implementar redirects `next.config.mjs` para mapear `/dashboard/X` -> `/app/[academyId]/X` cuando exista equivalente moderno, sin duplicar logica. Codigo publico (3 hrefs) se actualiza a `/app/[academyId]/...`. `/dashboard/plan-limits` se mueve a `/app/[academyId]/settings/plan-limits`. |
+| Pendiente | Elvis debe aprobar antes de ejecutar. Si aprueba, Sprint 7D.2 implementa los redirects en `next.config.mjs` y Sprint 7D.3 actualiza el codigo publico. |
+| Estado | Recomendada, esperando aprobacion humana (P1 decision Elvis - NO automatizable). |
 
 | Campo | Valor |
 | --- | --- |
