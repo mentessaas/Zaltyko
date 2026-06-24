@@ -1,14 +1,17 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
+import { Controller, useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { ChevronDown, ChevronUp } from "lucide-react";
 
 import { Modal } from "@/components/ui/modal";
-import { createClient } from "@/lib/supabase/client";
 import { useAcademyContext } from "@/hooks/use-academy-context";
 import { getSpecializedClassNameSuggestions } from "@/lib/specialization/technical-guidance";
 import type { SportConfigOption } from "@/components/groups/types";
 import { getTerminology } from "@/lib/sport-config/terminology";
+import { logger } from "@/lib/logger";
 
 const WEEKDAY_OPTIONS = [
   { value: "1", label: "Lunes" },
@@ -20,8 +23,44 @@ const WEEKDAY_OPTIONS = [
   { value: "0", label: "Domingo" },
 ];
 
+// Esquema Zod: campos basicos requeridos + arrays para selections multiples.
+const classFormSchema = z.object({
+  name: z.string().trim().min(1, "Nombre obligatorio"),
+  weekdays: z.array(z.string()).optional(),
+  startTime: z.string().optional(),
+  endTime: z.string().optional(),
+  capacity: z.string().optional(),
+  technicalFocus: z.string().optional(),
+  sportConfigId: z.string().optional(),
+  groupId: z.string().optional(),
+  apparatus: z.array(z.string()).optional(),
+  allowsFreeTrial: z.boolean().optional(),
+  waitingListEnabled: z.boolean().optional(),
+  cancellationHoursBefore: z.number().optional(),
+  cancellationPolicy: z.enum(["flexible", "standard", "strict"]).optional(),
+});
+
+type ClassFormValues = z.input<typeof classFormSchema>;
+
+const defaultValues: ClassFormValues = {
+  name: "",
+  weekdays: [],
+  startTime: "",
+  endTime: "",
+  capacity: "",
+  technicalFocus: "",
+  sportConfigId: "",
+  groupId: "",
+  apparatus: [],
+  allowsFreeTrial: false,
+  waitingListEnabled: false,
+  cancellationHoursBefore: 24,
+  cancellationPolicy: "standard",
+};
+
 const fieldClassName =
   "w-full rounded-[10px] border border-zaltyko-mist bg-white px-3 py-2 text-sm shadow-none focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15";
+const errorTextClassName = "text-xs text-zaltyko-coral mt-1";
 const selectedChipClassName =
   "border-zaltyko-teal bg-zaltyko-teal/10 text-zaltyko-teal";
 const unselectedChipClassName =
@@ -49,22 +88,29 @@ export function CreateClassDialog({
   initialSportConfigId,
 }: CreateClassDialogProps) {
   const { specialization } = useAcademyContext();
-  const [name, setName] = useState("");
-  const [weekdays, setWeekdays] = useState<string[]>([]);
-  const [startTime, setStartTime] = useState("");
-  const [endTime, setEndTime] = useState("");
-  const [capacity, setCapacity] = useState("");
-  const [technicalFocus, setTechnicalFocus] = useState("");
-  const [groupId, setGroupId] = useState("");
-  const [sportConfigId, setSportConfigId] = useState("");
-  const [selectedApparatus, setSelectedApparatus] = useState<string[]>([]);
-  const [allowsFreeTrial, setAllowsFreeTrial] = useState(false);
-  const [waitingListEnabled, setWaitingListEnabled] = useState(false);
-  const [cancellationHoursBefore, setCancellationHoursBefore] = useState(24);
-  const [cancellationPolicy, setCancellationPolicy] = useState("standard");
+  const {
+    control,
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting, isValid },
+    reset,
+    watch,
+    setValue,
+  } = useForm<ClassFormValues>({
+    resolver: zodResolver(classFormSchema),
+    defaultValues,
+    mode: "onChange",
+  });
+
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [, startTransition] = useTransition();
+
+  const sportConfigIdValue = watch("sportConfigId");
+  const groupIdValue = watch("groupId");
+  const weekdaysValue = watch("weekdays") ?? [];
+  const apparatusValue = watch("apparatus") ?? [];
+
   const resolvedInitialSportConfigId = useMemo(
     () =>
       initialSportConfigId && sportConfigs.some((config) => config.id === initialSportConfigId)
@@ -74,10 +120,10 @@ export function CreateClassDialog({
   );
   const classNameSuggestions = getSpecializedClassNameSuggestions(specialization);
   const selectedGroup = useMemo(
-    () => groupOptions.find((group) => group.id === groupId) ?? null,
-    [groupId, groupOptions]
+    () => groupOptions.find((group) => group.id === groupIdValue) ?? null,
+    [groupIdValue, groupOptions]
   );
-  const effectiveSportConfigId = selectedGroup?.sportConfigId ?? sportConfigId;
+  const effectiveSportConfigId = selectedGroup?.sportConfigId ?? sportConfigIdValue;
   const selectedSportConfig = useMemo(
     () => sportConfigs.find((config) => config.id === effectiveSportConfigId) ?? null,
     [effectiveSportConfigId, sportConfigs]
@@ -92,10 +138,10 @@ export function CreateClassDialog({
     specialization.evaluation.apparatus.map((item) => ({ code: item.code, label: item.label }));
   const compatibleGroupOptions = useMemo(
     () =>
-      sportConfigId
-        ? groupOptions.filter((group) => !group.sportConfigId || group.sportConfigId === sportConfigId)
+      sportConfigIdValue
+        ? groupOptions.filter((group) => !group.sportConfigId || group.sportConfigId === sportConfigIdValue)
         : groupOptions,
-    [groupOptions, sportConfigId]
+    [groupOptions, sportConfigIdValue]
   );
   const compatibleCoachOptions = useMemo(
     () =>
@@ -105,82 +151,69 @@ export function CreateClassDialog({
     [coachOptions, effectiveSportConfigId]
   );
 
-  const resetForm = () => {
-    setName("");
-    setWeekdays([]);
-    setStartTime("");
-    setEndTime("");
-    setCapacity("");
-    setTechnicalFocus("");
-    setGroupId("");
-    setSportConfigId(resolvedInitialSportConfigId);
-    setSelectedApparatus([]);
-    setAllowsFreeTrial(false);
-    setWaitingListEnabled(false);
-    setCancellationHoursBefore(24);
-    setCancellationPolicy("standard");
-    setShowAdvanced(false);
-    setError(null);
-  };
-
   useEffect(() => {
-    if (!open || groupId || !resolvedInitialSportConfigId) {
+    if (!open || groupIdValue || !resolvedInitialSportConfigId) {
       return;
     }
-    setSportConfigId(resolvedInitialSportConfigId);
-  }, [groupId, open, resolvedInitialSportConfigId]);
+    setValue("sportConfigId", resolvedInitialSportConfigId);
+  }, [groupIdValue, open, resolvedInitialSportConfigId, setValue]);
 
   const toggleWeekday = (value: string) => {
-    setWeekdays((prev) => {
-      if (prev.includes(value)) {
-        return prev.filter((item) => item !== value);
-      }
-      return [...prev, value];
-    });
+    const next = weekdaysValue.includes(value)
+      ? weekdaysValue.filter((item) => item !== value)
+      : [...weekdaysValue, value];
+    setValue("weekdays", next, { shouldValidate: true });
   };
 
   const toggleApparatus = (value: string) => {
-    setSelectedApparatus((prev) =>
-      prev.includes(value) ? prev.filter((item) => item !== value) : [...prev, value]
-    );
+    const next = apparatusValue.includes(value)
+      ? apparatusValue.filter((item) => item !== value)
+      : [...apparatusValue, value];
+    setValue("apparatus", next, { shouldValidate: true });
+  };
+
+  const handleGroupChange = (nextGroupId: string) => {
+    setValue("groupId", nextGroupId);
+    const nextGroup = groupOptions.find((group) => group.id === nextGroupId);
+    if (nextGroup?.sportConfigId) {
+      setValue("sportConfigId", nextGroup.sportConfigId);
+      setValue("apparatus", []);
+    }
+  };
+
+  const handleSportConfigChange = (configId: string) => {
+    setValue("sportConfigId", configId);
+    setValue("apparatus", []);
   };
 
   const handleClose = () => {
-    if (isPending) return;
+    if (isSubmitting) return;
+    setSubmitError(null);
     onClose();
   };
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setError(null);
-
-    if (!name.trim()) {
-      setError(`El nombre de la ${classTermLower} es obligatorio.`);
-      return;
-    }
+  const onValid = (values: ClassFormValues) => {
+    setSubmitError(null);
 
     startTransition(async () => {
       try {
-        const supabase = createClient();
-        const {
-          data: { user: currentUser },
-        } = await supabase.auth.getUser();
-
         const payload = {
           academyId,
-          name: name.trim(),
-          weekdays: weekdays.map((day) => Number(day)),
-          startTime: startTime || undefined,
-          endTime: endTime || undefined,
-          capacity: capacity ? Number(capacity) : undefined,
-          technicalFocus: technicalFocus.trim() || undefined,
-          apparatus: selectedApparatus,
-          groupId: groupId || undefined,
+          name: values.name,
+          weekdays: (values.weekdays ?? []).map((day) => Number(day)),
+          startTime: values.startTime || undefined,
+          endTime: values.endTime || undefined,
+          capacity: values.capacity ? Number(values.capacity) : undefined,
+          technicalFocus: values.technicalFocus?.trim() || undefined,
+          apparatus: values.apparatus,
+          groupId: values.groupId || undefined,
           sportConfigId: effectiveSportConfigId || undefined,
-          allowsFreeTrial,
-          waitingListEnabled,
-          cancellationHoursBefore: cancellationHoursBefore ? Number(cancellationHoursBefore) : 24,
-          cancellationPolicy,
+          allowsFreeTrial: values.allowsFreeTrial,
+          waitingListEnabled: values.waitingListEnabled,
+          cancellationHoursBefore: values.cancellationHoursBefore
+            ? Number(values.cancellationHoursBefore)
+            : 24,
+          cancellationPolicy: values.cancellationPolicy,
         };
 
         const response = await fetch("/api/classes", {
@@ -197,11 +230,15 @@ export function CreateClassDialog({
           throw new Error(data.error ?? `No se pudo crear la ${classTermLower}.`);
         }
 
-        resetForm();
+        reset({ ...defaultValues, sportConfigId: resolvedInitialSportConfigId });
+        setShowAdvanced(false);
         onCreated();
         onClose();
-      } catch (err: any) {
-        setError(err.message ?? `Error desconocido al crear la ${classTermLower}.`);
+      } catch (err: unknown) {
+        logger.apiError("/classes", "POST", err as Error);
+        const message =
+          err instanceof Error ? err.message : `Error desconocido al crear la ${classTermLower}.`;
+        setSubmitError(message);
       }
     });
   };
@@ -211,14 +248,14 @@ export function CreateClassDialog({
       open={open}
       onClose={handleClose}
       title={`Crear nueva ${classTermLower}`}
-      description={`Define los datos básicos de la ${classTermLower}, ${terms.apparatus.toLowerCase()}s y ${coachTermLower}s compatibles con la rama.`}
+      description={`Define los datos basicos de la ${classTermLower}, ${terms.apparatus.toLowerCase()}s y ${coachTermLower}s compatibles con la rama.`}
       footer={
         <div className="flex justify-end gap-2">
           <button
             type="button"
             onClick={handleClose}
             className="min-h-11 rounded-xl border border-zaltyko-indigo px-4 py-2 text-sm font-medium text-zaltyko-indigo transition hover:bg-zaltyko-indigo/5 disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={isPending}
+            disabled={isSubmitting}
           >
             Cancelar
           </button>
@@ -226,37 +263,47 @@ export function CreateClassDialog({
             type="submit"
             form="create-class-form"
             className="min-h-11 rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white shadow-soft transition hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={isPending}
+            disabled={isSubmitting || !isValid}
           >
-            {isPending ? "Guardando…" : `Guardar ${classTermLower}`}
+            {isSubmitting ? "Guardando..." : `Guardar ${classTermLower}`}
           </button>
         </div>
       }
     >
-      <form id="create-class-form" onSubmit={handleSubmit} className="space-y-5">
-        {error && (
-          <div className="rounded-xl border border-zaltyko-coral/35 bg-zaltyko-coral/10 px-3 py-2 text-sm text-zaltyko-coral">
-            {error}
+      <form id="create-class-form" onSubmit={handleSubmit(onValid)} className="space-y-5" noValidate>
+        {submitError && (
+          <div
+            className="rounded-xl border border-zaltyko-coral/35 bg-zaltyko-coral/10 px-3 py-2 text-sm text-zaltyko-coral"
+            role="alert"
+          >
+            {submitError}
           </div>
         )}
 
         {/* Campos esenciales */}
         <div className="space-y-4">
           <div className="space-y-1">
-            <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">Nombre de la {classTermLower} *</label>
+            <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">
+              Nombre de la {classTermLower} *
+            </label>
             <input
-              value={name}
-              onChange={(event) => setName(event.target.value)}
+              {...register("name")}
               className={fieldClassName}
               placeholder={`Ej: ${classNameSuggestions[0]?.name ?? `${specialization.labels.classLabel} base`}`}
-              required
+              aria-invalid={!!errors.name}
+              autoComplete="off"
             />
+            {errors.name && (
+              <p className={errorTextClassName} role="alert">
+                {errors.name.message}
+              </p>
+            )}
             <div className="flex flex-wrap gap-2 pt-2">
               {classNameSuggestions.map((suggestion) => (
                 <button
                   key={suggestion.name}
                   type="button"
-                  onClick={() => setName(suggestion.name)}
+                  onClick={() => setValue("name", suggestion.name, { shouldValidate: true })}
                   className="rounded-full border border-zaltyko-mist bg-white px-3 py-1.5 text-xs font-semibold text-zaltyko-navy transition hover:border-zaltyko-teal hover:bg-zaltyko-teal/10 hover:text-zaltyko-teal"
                   title={suggestion.description}
                 >
@@ -265,36 +312,34 @@ export function CreateClassDialog({
               ))}
             </div>
             <p className="text-xs text-zaltyko-text-secondary">
-              Sugerencias técnicas para {specialization.labels.disciplineName.toLowerCase()}.
+              Sugerencias tecnicas para {specialization.labels.disciplineName.toLowerCase()}.
             </p>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1">
-              <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">Días de la semana</label>
+              <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">
+                Dias de la semana
+              </label>
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
-                  onClick={() => setWeekdays([])}
+                  onClick={() => setValue("weekdays", [], { shouldValidate: true })}
                   className={`rounded-xl border px-3 py-2 text-xs font-semibold transition ${
-                    weekdays.length === 0
-                      ? selectedChipClassName
-                      : unselectedChipClassName
+                    weekdaysValue.length === 0 ? selectedChipClassName : unselectedChipClassName
                   }`}
                 >
-                  Sin día fijo
+                  Sin dia fijo
                 </button>
                 {WEEKDAY_OPTIONS.map((option) => {
-                  const selected = weekdays.includes(option.value);
+                  const selected = weekdaysValue.includes(option.value);
                   return (
                     <button
                       key={option.value}
                       type="button"
                       onClick={() => toggleWeekday(option.value)}
                       className={`rounded-xl border px-3 py-2 text-xs font-semibold transition ${
-                        selected
-                          ? selectedChipClassName
-                          : unselectedChipClassName
+                        selected ? selectedChipClassName : unselectedChipClassName
                       }`}
                     >
                       {option.label}
@@ -305,12 +350,13 @@ export function CreateClassDialog({
             </div>
 
             <div className="space-y-1">
-              <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">Capacidad</label>
+              <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">
+                Capacidad
+              </label>
               <input
+                {...register("capacity")}
                 type="number"
                 min={1}
-                value={capacity}
-                onChange={(event) => setCapacity(event.target.value)}
                 className={fieldClassName}
                 placeholder="20"
               />
@@ -319,32 +365,35 @@ export function CreateClassDialog({
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1">
-              <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">Hora de inicio</label>
+              <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">
+                Hora de inicio
+              </label>
               <input
+                {...register("startTime")}
                 type="time"
-                value={startTime}
-                onChange={(event) => setStartTime(event.target.value)}
                 className={fieldClassName}
               />
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">Hora de fin</label>
+              <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">
+                Hora de fin
+              </label>
               <input
+                {...register("endTime")}
                 type="time"
-                value={endTime}
-                onChange={(event) => setEndTime(event.target.value)}
                 className={fieldClassName}
               />
             </div>
           </div>
 
           <div className="space-y-1">
-            <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">Foco técnico del bloque</label>
+            <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">
+              Foco tecnico del bloque
+            </label>
             <textarea
-              value={technicalFocus}
-              onChange={(event) => setTechnicalFocus(event.target.value)}
+              {...register("technicalFocus")}
               className={`${fieldClassName} min-h-24`}
-              placeholder={classNameSuggestions[0]?.description ?? "Describe el objetivo técnico principal de este entrenamiento."}
+              placeholder={classNameSuggestions[0]?.description ?? "Describe el objetivo tecnico principal de este entrenamiento."}
             />
           </div>
 
@@ -358,25 +407,19 @@ export function CreateClassDialog({
             <div className="grid gap-4 sm:grid-cols-2">
               {groupOptions.length > 0 && (
                 <div className="space-y-1">
-                  <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">{terms.group} vinculado</label>
+                  <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">
+                    {terms.group} vinculado
+                  </label>
                   <select
-                    value={groupId}
-                    onChange={(event) => {
-                      const nextGroupId = event.target.value;
-                      const nextGroup = groupOptions.find((group) => group.id === nextGroupId);
-                      setGroupId(nextGroupId);
-                      if (nextGroup?.sportConfigId) {
-                        setSportConfigId(nextGroup.sportConfigId);
-                        setSelectedApparatus([]);
-                      }
-                    }}
+                    value={groupIdValue}
+                    onChange={(event) => handleGroupChange(event.target.value)}
                     className={fieldClassName}
                   >
                     <option value="">Sin {groupTermLower}</option>
-                  {compatibleGroupOptions.map((group) => (
-                    <option key={group.id} value={group.id}>
-                      {group.name}
-                    </option>
+                    {compatibleGroupOptions.map((group) => (
+                      <option key={group.id} value={group.id}>
+                        {group.name}
+                      </option>
                     ))}
                   </select>
                 </div>
@@ -384,13 +427,12 @@ export function CreateClassDialog({
 
               {sportConfigs.length > 0 && (
                 <div className="space-y-1">
-                  <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">Modalidad / rama</label>
+                  <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">
+                    Modalidad / rama
+                  </label>
                   <select
                     value={effectiveSportConfigId}
-                    onChange={(event) => {
-                      setSportConfigId(event.target.value);
-                      setSelectedApparatus([]);
-                    }}
+                    onChange={(event) => handleSportConfigChange(event.target.value)}
                     className={fieldClassName}
                     disabled={Boolean(selectedGroup?.sportConfigId)}
                   >
@@ -407,19 +449,19 @@ export function CreateClassDialog({
           )}
 
           <div className="space-y-1">
-            <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">{terms.apparatus}s / material principal</label>
+            <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">
+              {terms.apparatus}s / material principal
+            </label>
             <div className="flex flex-wrap gap-2">
               {apparatusOptions.map((item) => {
-                const selected = selectedApparatus.includes(item.code);
+                const selected = apparatusValue.includes(item.code);
                 return (
                   <button
                     key={item.code}
                     type="button"
                     onClick={() => toggleApparatus(item.code)}
                     className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
-                      selected
-                        ? selectedChipClassName
-                        : unselectedChipClassName
+                      selected ? selectedChipClassName : unselectedChipClassName
                     }`}
                   >
                     {item.label}
@@ -437,61 +479,77 @@ export function CreateClassDialog({
           className="flex w-full items-center justify-between rounded-xl border border-zaltyko-mist bg-zaltyko-warm-white px-3 py-2 text-sm font-medium text-zaltyko-text-secondary transition hover:border-zaltyko-teal hover:text-zaltyko-teal"
         >
           <span>Opciones avanzadas</span>
-          {showAdvanced ? (
-            <ChevronUp className="h-4 w-4" />
-          ) : (
-            <ChevronDown className="h-4 w-4" />
-          )}
+          {showAdvanced ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
         </button>
 
         {showAdvanced && (
           <div className="space-y-4 rounded-2xl border border-zaltyko-mist bg-zaltyko-warm-white p-4">
-            <div className="flex items-center gap-4">
-              <label className="flex items-center gap-2 text-sm text-zaltyko-navy">
-                <input
-                  type="checkbox"
-                  checked={allowsFreeTrial}
-                  onChange={(event) => setAllowsFreeTrial(event.target.checked)}
-                  className="rounded border-zaltyko-mist text-zaltyko-teal focus:ring-zaltyko-teal"
-                />
-                Permite {classTermLower} de prueba gratuita
-              </label>
-            </div>
+            <Controller
+              control={control}
+              name="allowsFreeTrial"
+              render={({ field }) => (
+                <label className="flex items-center gap-2 text-sm text-zaltyko-navy">
+                  <input
+                    type="checkbox"
+                    checked={field.value}
+                    onChange={(event) => field.onChange(event.target.checked)}
+                    className="rounded border-zaltyko-mist text-zaltyko-teal focus:ring-zaltyko-teal"
+                  />
+                  Permite {classTermLower} de prueba gratuita
+                </label>
+              )}
+            />
 
-            <div className="flex items-center gap-4">
-              <label className="flex items-center gap-2 text-sm text-zaltyko-navy">
-                <input
-                  type="checkbox"
-                  checked={waitingListEnabled}
-                  onChange={(event) => setWaitingListEnabled(event.target.checked)}
-                  className="rounded border-zaltyko-mist text-zaltyko-teal focus:ring-zaltyko-teal"
-                />
-                Habilitar lista de espera
-              </label>
-            </div>
+            <Controller
+              control={control}
+              name="waitingListEnabled"
+              render={({ field }) => (
+                <label className="flex items-center gap-2 text-sm text-zaltyko-navy">
+                  <input
+                    type="checkbox"
+                    checked={field.value}
+                    onChange={(event) => field.onChange(event.target.checked)}
+                    className="rounded border-zaltyko-mist text-zaltyko-teal focus:ring-zaltyko-teal"
+                  />
+                  Habilitar lista de espera
+                </label>
+              )}
+            />
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1">
-                <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">Política de cancelación</label>
-                <select
-                  value={cancellationPolicy}
-                  onChange={(event) => setCancellationPolicy(event.target.value)}
-                  className={fieldClassName}
-                >
-                  <option value="flexible">Flexible (cancelar hasta 2h antes)</option>
-                  <option value="standard">Estándar (cancelar hasta 24h antes)</option>
-                  <option value="strict">Estricta (cancelar hasta 48h antes)</option>
-                </select>
+                <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">
+                  Politica de cancelacion
+                </label>
+                <Controller
+                  control={control}
+                  name="cancellationPolicy"
+                  render={({ field }) => (
+                    <select {...field} className={fieldClassName}>
+                      <option value="flexible">Flexible (cancelar hasta 2h antes)</option>
+                      <option value="standard">Estandar (cancelar hasta 24h antes)</option>
+                      <option value="strict">Estricta (cancelar hasta 48h antes)</option>
+                    </select>
+                  )}
+                />
               </div>
               <div className="space-y-1">
-                <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">Horas mínimas para cancelar</label>
-                <input
-                  type="number"
-                  min={0}
-                  max={168}
-                  value={cancellationHoursBefore}
-                  onChange={(event) => setCancellationHoursBefore(Number(event.target.value))}
-                  className={fieldClassName}
+                <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">
+                  Horas minimas para cancelar
+                </label>
+                <Controller
+                  control={control}
+                  name="cancellationHoursBefore"
+                  render={({ field }) => (
+                    <input
+                      type="number"
+                      min={0}
+                      max={168}
+                      value={field.value}
+                      onChange={(event) => field.onChange(Number(event.target.value))}
+                      className={fieldClassName}
+                    />
+                  )}
                 />
               </div>
             </div>
