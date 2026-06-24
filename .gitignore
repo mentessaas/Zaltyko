@@ -26,12 +26,15 @@
 /brand kit
 /test-results
 /playwright-report
+/.playwright-cli
 /.auth
 /waitlist.tar.gz
 /waitlist.zip
 /supabase/.temp
 # NOTE: /drizzle intentionally NOT ignored — the folder is committed so CI can
 # validate migrations integrity via `pnpm check:migrations`.
+/.claude-progress.md
+/README 2.md
 
 # editor / repo metadata that we don't need right now
 /.vscode
@@ -40,4 +43,4 @@
 # local artifacts
 /coverage
 /.claire
-vault/.obsidian/workspace.json
+/vault/.obsidian
