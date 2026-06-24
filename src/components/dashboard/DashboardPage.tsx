@@ -76,6 +76,7 @@ import {
   type TechnicalSummarySourceItem,
 } from "@/lib/dashboard/technical-summary";
 import { TechnicalOverviewWidget } from "@/components/dashboard/TechnicalOverviewWidget";
+import { useTranslation } from "@/hooks/use-translation";
 
 interface DashboardPageProps {
   academyId: string;
@@ -101,6 +102,26 @@ export function DashboardPage({
   const router = useRouter();
   const { tenantAcademies, isAdmin, isOwner, specialization } = useAcademyContext();
   const { data, loading } = useDashboardData({ academyId, tenantId, initialData });
+  const { locale } = useTranslation();
+  const tDashboard = useMemo(
+    () => ({
+      title: locale === "en" ? "Dashboard" : "Panel de control",
+      welcomeBack: locale === "en" ? "Welcome back" : "Bienvenido de vuelta",
+      todayClasses: locale === "en" ? "Today's classes" : "Clases de hoy",
+      todaySessions: locale === "en" ? "Sessions today" : "Sesiones hoy",
+      upcomingEvents: locale === "en" ? "Upcoming events" : "Próximos eventos",
+      recentActivity: locale === "en" ? "Recent activity" : "Actividad reciente",
+      quickActions: locale === "en" ? "Quick actions" : "Acciones rápidas",
+      alertsTitle: locale === "en" ? "Alerts" : "Alertas",
+      recommendations: locale === "en" ? "Recommendations" : "Recomendaciones",
+      kpiAthletes: locale === "en" ? "Athletes" : "Gimnastas",
+      kpiCoaches: locale === "en" ? "Coaches" : "Entrenadores",
+      kpiGroups: locale === "en" ? "Groups" : "Grupos",
+      kpiAttendance: locale === "en" ? "Attendance" : "Asistencia",
+      seeAll: locale === "en" ? "See all" : "Ver todas",
+    }),
+    [locale]
+  );
   const labels = getSpecializedLabels(specialization);
   const [checklistProgress, setChecklistProgress] = useState<{ completed: number; total: number } | null>(null);
   const [checklistItems, setChecklistItems] = useState<Array<{
@@ -223,7 +244,7 @@ export function DashboardPage({
         accent: "zaltyko-primary" as const,
       },
       {
-        title: "Entrenadores",
+        title: tDashboard.kpiCoaches,
         value: data.metrics.coaches,
         subtitle: "Profesionales en tu equipo",
         href: `/app/${academyId}/coaches`,
@@ -231,7 +252,7 @@ export function DashboardPage({
         accent: "slate" as const,
       },
       {
-        title: `${labels.groupLabel}s`,
+        title: tDashboard.kpiGroups,
         value: data.metrics.groups,
         subtitle: `${labels.groupLabel}s activos`,
         href: `/app/${academyId}/groups`,
@@ -239,7 +260,7 @@ export function DashboardPage({
         accent: "sky" as const,
       },
       {
-        title: "Asistencia",
+        title: tDashboard.kpiAttendance,
         value: `${data.metrics.attendancePercent}%`,
         subtitle: "Últimos 7 días",
         href: `/app/${academyId}/attendance`,
