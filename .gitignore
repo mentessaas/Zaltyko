@@ -26,6 +26,7 @@
 /brand kit
 /test-results
 /playwright-report
+/coverage
 /.playwright-cli
 /.auth
 /waitlist.tar.gz

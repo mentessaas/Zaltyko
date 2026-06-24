@@ -14,6 +14,7 @@ import { join, resolve } from "path";
 const DRIZZLE_DIR = resolve(process.cwd(), "drizzle");
 const META_DIR = join(DRIZZLE_DIR, "meta");
 const JOURNAL = join(META_DIR, "_journal.json");
+const SUPABASE_MIGRATIONS_DIR = resolve(process.cwd(), "supabase", "migrations");
 
 interface JournalEntry {
   idx: number;
@@ -29,10 +30,47 @@ interface Journal {
   entries: JournalEntry[];
 }
 
+function validateSupabaseMigrationsOnly() {
+  if (!existsSync(SUPABASE_MIGRATIONS_DIR)) {
+    console.error(`[check-migrations-integrity] FAIL: ${SUPABASE_MIGRATIONS_DIR} no existe`);
+    process.exit(1);
+  }
+
+  const sqlFiles = readdirSync(SUPABASE_MIGRATIONS_DIR)
+    .filter((f) => f.endsWith(".sql"))
+    .sort();
+
+  if (sqlFiles.length === 0) {
+    console.error("[check-migrations-integrity] FAIL: supabase/migrations no tiene archivos SQL");
+    process.exit(1);
+  }
+
+  const errors: string[] = [];
+
+  for (const file of sqlFiles) {
+    if (!/^[0-9]{4,14}_.+\.sql$/.test(file)) {
+      errors.push(`Nombre de migracion inesperado: ${file}`);
+    }
+  }
+
+  if (errors.length > 0) {
+    console.error("[check-migrations-integrity] FAIL:");
+    for (const error of errors) {
+      console.error(`  - ${error}`);
+    }
+    process.exit(1);
+  }
+
+  console.warn(
+    `[check-migrations-integrity] WARN: ${DRIZZLE_DIR} no existe; se valida solo supabase/migrations`
+  );
+  console.log(`[check-migrations-integrity] OK: ${sqlFiles.length} migraciones Supabase validadas`);
+}
+
 function main() {
   if (!existsSync(DRIZZLE_DIR)) {
-    console.error(`[check-migrations-integrity] FAIL: ${DRIZZLE_DIR} no existe`);
-    process.exit(1);
+    validateSupabaseMigrationsOnly();
+    return;
   }
   if (!existsSync(JOURNAL)) {
     console.error(`[check-migrations-integrity] FAIL: ${JOURNAL} no existe`);
