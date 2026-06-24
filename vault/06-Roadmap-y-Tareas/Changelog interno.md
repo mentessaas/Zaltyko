@@ -200,6 +200,8 @@ source:
 - Corregido `tests/api-academy-settings-sport-config.test.ts`: mock de `logger`, cadenas Drizzle mockeadas con `groupBy`, forma correcta de `apparatus` y timeouts locales para coverage de ruta Next pesada.
 - `coverage/` queda ignorado como artefacto local de pruebas.
 - Validacion local final: `pnpm typecheck`, `pnpm lint`, `pnpm check:migrations`, `pnpm vitest run --coverage` (39 archivos, 376 tests) y `pnpm build` pasan.
+- Fix adicional de CI Build: onboarding `parent`/`athlete`/`coach` crea el cliente Supabase solo en `handleFinish`, evitando que el prerender falle cuando el runner no tiene `NEXT_PUBLIC_SUPABASE_URL`/anon key.
+- Validado con `NEXT_PUBLIC_SUPABASE_URL= NEXT_PUBLIC_SUPABASE_ANON_KEY= pnpm build`.
 
 ## 2026-06-22
 ## 2026-06-22 - Cierre Go-Live SaaS v1 con sandbox real
