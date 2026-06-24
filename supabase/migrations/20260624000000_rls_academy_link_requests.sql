@@ -12,7 +12,7 @@ CREATE POLICY "academy_link_requests_tenant_or_target_access" ON "academy_link_r
   FOR ALL USING (
     is_admin()
     OR "tenant_id" = get_current_tenant()
-    OR "target_profile_id" = get_current_profile()
+    OR "target_profile_id" = (get_current_profile()).id
   )
   WITH CHECK (
     is_admin()
@@ -22,8 +22,8 @@ CREATE POLICY "academy_link_requests_tenant_or_target_access" ON "academy_link_r
 DROP POLICY IF EXISTS "academy_link_requests_target_response" ON "academy_link_requests";
 CREATE POLICY "academy_link_requests_target_response" ON "academy_link_requests"
   FOR UPDATE USING (
-    "target_profile_id" = get_current_profile()
+    "target_profile_id" = (get_current_profile()).id
   )
   WITH CHECK (
-    "target_profile_id" = get_current_profile()
+    "target_profile_id" = (get_current_profile()).id
   );
