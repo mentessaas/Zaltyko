@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { StudentChargesTab } from "./StudentChargesTab";
 import { BillingRiskWidget } from "@/components/dashboard/BillingRiskWidget";
 import { getTerminologyForSportConfig } from "@/lib/sport-config/terminology";
+import { useTranslation } from "@/hooks/use-translation";
 
 type PlanCode = "free" | "pro" | "premium" | (string & Record<never, never>);
 
@@ -88,28 +89,38 @@ function formatInvoiceAmount(invoice: InvoiceRow) {
   }).format((cents ?? 0) / 100);
 }
 
-function getInvoiceStatusInfo(status: string | null) {
+function getInvoiceStatusInfo(status: string | null, locale: "es" | "en" = "es") {
+  const isEn = locale === "en";
+  const labels = {
+    paid: isEn ? "Paid" : "Pagada",
+    pending: isEn ? "Pending" : "Pendiente",
+    overdue: isEn ? "Overdue" : "Vencida",
+    cancelled: isEn ? "Cancelled" : "Cancelada",
+    draft: isEn ? "Draft" : "Borrador",
+    trialing: isEn ? "In trial" : "En prueba",
+    unknown: isEn ? "Unknown" : "Desconocido",
+  };
   const statusLower = (status ?? "").toLowerCase();
   switch (statusLower) {
     case "paid":
     case "complete":
-      return { label: "Pagada", variant: "success" as const };
+      return { label: labels.paid, variant: "success" as const };
     case "open":
     case "due":
     case "unpaid":
-      return { label: "Pendiente", variant: "pending" as const };
+      return { label: labels.pending, variant: "pending" as const };
     case "past_due":
     case "overdue":
-      return { label: "Vencida", variant: "error" as const };
+      return { label: labels.overdue, variant: "error" as const };
     case "void":
     case "cancelled":
-      return { label: "Cancelada", variant: "outline" as const };
+      return { label: labels.cancelled, variant: "outline" as const };
     case "draft":
-      return { label: "Borrador", variant: "outline" as const };
+      return { label: labels.draft, variant: "outline" as const };
     case "trialing":
-      return { label: "En prueba", variant: "active" as const };
+      return { label: labels.trialing, variant: "active" as const };
     default:
-      return { label: status ?? "Desconocido", variant: "default" as const };
+      return { label: status ?? labels.unknown, variant: "default" as const };
   }
 }
 
@@ -139,6 +150,7 @@ export function BillingPanel({ academyId, userId, sportConfigs = [] }: BillingPa
   const defaultTab = searchParams?.get("tab") === "student-charges" ? "charges" : "plans";
   const terms = getTerminologyForSportConfig(sportConfigs);
   const athletesTermLower = terms.athletes.toLowerCase();
+  const { locale } = useTranslation();
   const [summary, setSummary] = useState<BillingSummary | null>(null);
   const [loadingSummary, setLoadingSummary] = useState(true);
   const [loadingAction, setLoadingAction] = useState<PlanCode | "portal" | null>(null);
@@ -469,7 +481,7 @@ export function BillingPanel({ academyId, userId, sportConfigs = [] }: BillingPa
                 </tr>
               ) : (
                 history.map((invoice) => {
-                  const statusInfo = getInvoiceStatusInfo(invoice.status);
+                  const statusInfo = getInvoiceStatusInfo(invoice.status, locale);
                   return (
                     <tr key={invoice.id} className="hover:bg-zaltyko-white/80">
                       <td className="px-4 py-3 whitespace-nowrap">
