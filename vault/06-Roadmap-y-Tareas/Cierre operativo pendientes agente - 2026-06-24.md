@@ -106,3 +106,28 @@ No marcar como cerrado sin credenciales/productos reales.
 - `pnpm build`
 
 Si un test sigue excluido por configuracion, debe existir cobertura equivalente en un test incluido.
+
+## Produccion migrada - 2026-06-24
+
+Entorno aplicado: Supabase `jegxfahsvugilbthbked`.
+
+Aplicado en produccion:
+
+- `20260622153000_add_sport_config_rls.sql`
+- `20260624000000_rls_academy_link_requests.sql`
+
+Verificado en produccion:
+
+- `academy_sport_configs`, `athlete_sport_configs` y `coach_sport_configs` tienen RLS activo.
+- `academy_link_requests` existe y tiene policies `academy_link_requests_tenant_or_target_access` y `academy_link_requests_target_response`.
+- Provider role, billing invoices, tablas leak-profitability, RLS lateral, policies publicas endurecidas y tablas criticas de eventos/documentos existen o estan aplicadas.
+
+Correccion aplicada antes de migrar:
+
+- `get_current_profile()` devuelve un row de `profiles`, no un uuid. Las policies de `academy_link_requests` deben comparar contra `(get_current_profile()).id`.
+
+No aplicado:
+
+- No se hizo `git push`.
+- No se tocaron productos/price IDs reales de Stripe.
+- No se marco QA manual con usuarios reales como cerrado.
