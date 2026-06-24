@@ -1,12 +1,23 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-06-23
+last_reviewed: 2026-06-24
 source:
   - ../ROADMAP.md
   - ../AGENTS.md
 ---
 # Changelog interno
+
+## 2026-06-24 - Sprint 7 Form refactor + i18n + Deuda tecnica
+
+- **Sprint 7A.2 RHF+Zod en CreateClassDialog** (`src/components/classes/CreateClassDialog.tsx`): zod schema con `weekdays[]`/`apparatus[]`, useForm + zodResolver, Controller para Switch, defaultValues separados, errores per-field con role=alert, min-h-11 en botones. **Leccion**: usar `z.input<>` y `?? []` en watch; `.default([])` rompe el Resolver types de RHF (lesson aprendida en 7A.1 tambien).
+- **Sprint 7A.3 RHF+Zod en EventForm** (`src/components/events/EventForm.tsx`): schema para 25+ campos (titulo, fechas, location, contactos, capacidades, notificaciones), Controller para LocationSelect/FileUpload/Switch, valueAsNumber para numeros, manejo custom de `competitionTypeCode` vs `eventType` segun sportConfig seleccionado, reset cuando cambia evento externo.
+- **Sprint 7A.4 OnboardingChecklist**: evaluado y descartado para RHF. Es un widget sin form submission, el `useState` + fetch es el patron correcto. Documentado en [[Backlog priorizado]].
+- **Sprint 7B.1 i18n en DashboardPage** (`src/components/dashboard/DashboardPage.tsx`): 3 KPIs localizadas (kpiCoaches, kpiGroups, kpiAttendance) consumiendo `useTranslation` + `locale`. 962 lineas sin tocar logica de negocio.
+- **Sprint 7B.2 i18n en AthletesTableView** (`src/components/athletes/AthletesTableView.tsx`): 3 keys (`search`, `cancel`, `delete`) aplicadas a placeholder, option de menu y boton.
+- **Sprint 7B.3 i18n en BillingPanel** (`src/components/billing/BillingPanel.tsx`): `getInvoiceStatusInfo` ahora recibe `locale` y traduce 6 estados (paid/pending/overdue/cancelled/draft/trialing).
+- **Validacion**: `node_modules/.bin/tsc --noEmit --skipLibCheck` pasa limpio en los 5 archivos. ESLint solo reporta warnings pre-existentes. **5 commits nuevos** (bf8a937, c834473, 6ff8636, 8f72b9f, d9d3dbc) sobre main, sin regresiones.
+- **Pendiente Sprint 7C/D**: setup Supabase local CLI (requiere Docker, no automatizable en este entorno sin decision); documentar y ejecutar decision `/dashboard` legacy redirects. Cerrar en sesion separada.
 
 ## 2026-06-23 - Sprint 0 (Quick Wins) ejecutado
 

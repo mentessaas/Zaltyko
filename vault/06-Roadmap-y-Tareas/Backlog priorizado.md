@@ -1,7 +1,7 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-06-23
+last_reviewed: 2026-06-24
 source:
   - ../PRODUCT-ANALYSIS.md
   - ../BUSINESS-ANALYSIS.md
@@ -12,6 +12,7 @@ source:
   - ../04-Marketing/Competidores.md
   - ../docs/marketing/zaltyko-competitors.md
   - ../07-Auditorias-y-Riesgos/Auditoria MVP gimnasia - 2026-06-23.md
+  - ../07-Auditorias-y-Riesgos/Registro de riesgos.md (bloqueantes con Elvis)
 ---
 # Backlog priorizado
 
@@ -74,7 +75,7 @@ source:
 | Activo | Decidir compatibilidad vs migracion de rutas legacy `/dashboard/*`. | Elvis | Opciones A/B/C/D en `Decisiones.md` con analisis de riesgo. Bloquea venta con confianza (URLs pueden llegar en emails). | P0 (P1 backlog) |
 | Activo | QA portal padres con usuarios parent/athlete reales. | producto | Implementado tecnicamente. Pendiente sesion de prueba humana para validar UX end-to-end. | P0 (P1 backlog) |
 | Activo | Validar hipotesis pricing freemium con 10 entrevistas a academias. | growth | Hipotesis free + Growth + Pro documentada en `Pricing.md`. 10 entrevistas pendientes de coordinar. | P0 (P1 backlog) |
-| Activo | 30+ dialogos con useState manual (sin RHF + Zod). | tech/DX | 1 de 30 migrado (DocumentUploadModal). Cubre CreateAthleteDialog, CreateClassDialog, EventForm, CreateChargeDialog, OnboardingChecklist. Backlog P1. | Sprint 5 Frontend 2026-06-23. |
+| Activo | 30+ dialogos con useState manual (sin RHF + Zod). | tech/DX | 4 de 30 migrados (DocumentUploadModal Sprint 5, CreateAthleteDialog Sprint 7A.1, CreateClassDialog Sprint 7A.2, EventForm Sprint 7A.3). OnboardingChecklist evaluado y descartado para RHF (no es formulario). Quedan ~26 dialogos menores. | Sprint 7A 2026-06-24. |
 | Activo | Cobertura i18n ~10% en dashboard/atletas/billing. | tech/DX | Clusters SEO + landing cards 100% bilingues. Producto autenticado 100% espanol hardcodeado. Migracion a `next-intl` o completar ICU. | Sprint 5 Frontend 2026-06-23. |
 | Resuelto | ESLint v8 + flat config incompatible con build de Next.js 15.5. | tech/DevOps | Reemplazado `eslint.config.mjs` (flat con FlatCompat) por `.eslintrc.json` legacy. ESLint v8 funciona correctamente. | Sprint 6 Fix Vercel 2026-06-24. |
 | Resuelto | hreflang undefined en cluster pages (regresion Sprint 5 F12). | tech/SEO | `MODALITIES[slug].en` devolvia undefined porque `slug` no es la clave. Corregido usando `modalityKey`/`countryKey` ya calculados en `generateMetadata`. | Sprint 6 Fix Vercel 2026-06-24. |
