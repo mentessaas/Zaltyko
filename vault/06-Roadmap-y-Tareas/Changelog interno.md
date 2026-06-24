@@ -29,6 +29,33 @@ source:
 - **Limpieza `package.json`**: scripts `lint:app` y `lint:fix` ya no referencian `proxy.ts` (eliminado).
 - **Validacion**: `pnpm typecheck`, `pnpm lint` y `pnpm validate:rls` pasan limpios. Cierre de 6 issues CRITICAL/HIGH pre-produccion. Sin cambios funcionales visibles al usuario fuera del toggle anual. Próximo: Sprint 2 (Base de Datos).
 
+## 2026-06-24 - Sprint 6 (Code Splitting + Producto + Deuda tecnica + Validacion) ejecutado
+
+**Sprint 6A - Code Splitting agresivo + form refactor:**
+
+- **6A.1 Touch targets**: aplicado script Python selectivo que solo convierte h-9 w-9 / h-8 w-8 en contexto de <Button> (no SVGs como Loader2). 1 archivo adicional migrado.
+- **6A.2 F6 RHF + Zod**: `QuickClassModal.tsx` migrado de useState+FormEvent a react-hook-form + zodResolver. Nuevo `quickClassSchema` (uuid + regex date) con validacion declarativa. Errors per-field con role=alert. submitError separado. min-h-[44px] en inputs/botones. Deps: +@hookform/resolvers 5.4.0.
+- **6A.3 F7 i18n keys**: nuevo `src/i18n/extras.ts` con secciones common, dashboard, athletes, billing, classes, events, navigation (~80 keys bilingues). Helper `getExtraTranslations(locale)`. Pendiente migrar componentes individuales.
+- **6A.4 Code splitting**: nuevo `EventsListLazy.tsx` con next/dynamic (ssr: false). `src/app/app/[academyId]/events/page.tsx` usa EventsListLazy. Loading state animate-pulse.
+
+**Sprint 6B - Producto:**
+
+- **6B.1 P3 comunicacion consolidada UI**: nuevo `/app/[academyId]/comms/page.tsx` + `CommunicationHub.tsx` con 3 tabs (Mensajes / Anuncios / Notificaciones). Cada panel carga via next/dynamic. States: loading/empty/error. ARIA: role=tablist/tab/tabpanel, aria-selected, aria-controls. min-h-[44px]. Paginas originales (/messages, /announcements, /notifications) siguen como deep links.
+- **6B.2 P1/P2**: documentados en vault como pendientes no automatizables (decision humana + QA con usuarios).
+
+**Sprint 6C - Deuda tecnica:**
+
+- **6C.3 Policies permisivas endurecer**: migracion `20260625000002_harden_permissive_policies.sql` reemplaza `allow_authenticated` por policies especificas en: marketplace_listings, marketplace_ratings, empleo_listings, empleo_applications, tickets, ticket_responses, ticket_attachments, advertisements, featured_listings, push_subscriptions. Filtros por user_id, academy_id, o admin.
+- **6C.1 + 6C.4 Tablas criticas faltantes**: migracion `20260625000003_create_critical_missing_tables.sql` crea con FKs, indices y RLS: event_registrations, event_waitlist, event_categories, event_payments, class_waiting_list, athlete_documents. Resuelve 6 de las 25 tablas TS que faltaban en DB.
+- **6C.2 Migraciones pendientes**: tras analisis, todas las migraciones del filesystem estan aplicadas a Supabase. Sin accion requerida.
+
+**Sprint 6D - Validacion pre-produccion:**
+
+- **6D.1 pg-mem vs testcontainers**: Sprint 6 intento quitar `api-billing.test.ts` del exclude de vitest, pero los mocks vi.hoisted estan incompletos (1/3 pasa). El exclude original era justificado. Documentado en vitest.config.ts.
+- **6D.2 testcontainers**: no implementado (requiere decision arquitectonica mayor: pg-mem con shim RLS, testcontainers, o Supabase local en CI). Pendiente para sprint dedicado.
+
+**Validacion final**: validate:rls PASS 100% (63 tablas + 6 nuevas con RLS), check:migrations OK, tsc OK, vitest 353/353 PASS en tests incluidos. 2 tests pre-existentes fallan en `product-go-live-readiness.test.ts` (academiaLimit null en catalog y feature "acompanado" no aparece), no relacionados con Sprint 6.
+
 ## 2026-06-23 - Sprint 5 (Frontend + Negocio) ejecutado
 
 **Frontend:**
@@ -97,6 +124,13 @@ source:
 - Implementado registro abierto por rol inicial (`owner`, `coach`, `parent`, `athlete`, `provider`), perfil global al confirmar/callback de auth, rutas globales por rol y soporte inicial para proveedores en marketplace.
 - Registrada decision de identidad global + vinculos aceptados por academia; backlog actualizado con la entidad pendiente de solicitudes de vinculo a usuarios existentes.
 - Implementada base tecnica de solicitudes de vinculo a usuarios existentes: tabla `academy_link_requests`, busqueda por email exacto via `auth.users`, creacion pendiente por academia, notificacion interna y aceptacion/rechazo por el usuario con creacion de `membership`.
+- Agregada UI basica de solicitudes de vinculo: staff puede crear solicitudes desde `/dashboard/users`, ver solicitudes pendientes y usuarios globales pueden aceptar/rechazar desde su perfil.
+- Implementada desvinculacion segura de usuarios por academia: `DELETE /api/academy-memberships/[membershipId]` elimina solo `membership`, conserva `profiles`, limpia `activeAcademyId` si aplica, notifica al usuario y bloquea auto-desvinculacion/ultimo owner. UI conectada en `/dashboard/users`.
+- Ejecutado smoke Playwright autenticado de solicitudes de vinculo: migraciones `20260623100000_add_provider_profile_role.sql` y `20260623103000_create_academy_link_requests.sql` aplicadas en sandbox; `tests/e2e-link-requests-ui.spec.ts` PASS en Chromium validando `/dashboard/users` y `/dashboard/profile`.
+- Conectado email opcional para solicitudes de vinculo ademas de notificacion interna; si Brevo/email falla, la solicitud no se rompe y queda logueada la incidencia.
+- Corregido onboarding de perfil para aceptar `provider` desde `/auth/register`; smoke Playwright publico valida los 5 roles iniciales.
+- Registrada decision de mantener `membership_role` simple en v1 (`owner`, `coach`, `viewer`) y mapear `admin` global a acceso de owner hasta necesitar permisos granulares.
+- Estado real: faltan QA manual con dos usuarios reales, validacion de cuentas reales por rol y barrido completo de copy "borrar" vs "desvincular" en pantallas especificas de atletas/tutores/entrenadores.
 
 ## 2026-06-22
 ## 2026-06-22 - Cierre Go-Live SaaS v1 con sandbox real

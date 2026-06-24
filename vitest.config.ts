@@ -14,8 +14,11 @@ export default defineConfig({
     globals: true,
     setupFiles: ["./tests/setup.ts"],
     include: ["tests/**/*.test.ts", "tests/**/*.test.tsx"],
-    // Exclude API integration tests that require real database
-    // These need: running PostgreSQL, migrations, Vercel KV for rate limiting
+    // Exclude API integration tests that require real database / services.
+    // Sprint 6D intento quitar api-billing.test.ts del exclude pero los
+    // mocks vi.hoisted estan incompletos: solo 1/3 tests pasa. Restaurar
+    // exclude hasta que se decida estrategia de test DB (pg-mem vs testcontainers
+    // vs Supabase local) o se completen los mocks manualmente.
     exclude: [
       "node_modules",
       ".next",
