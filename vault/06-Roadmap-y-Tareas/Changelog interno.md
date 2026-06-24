@@ -193,6 +193,14 @@ source:
 - Corregido CI: `pnpm/action-setup` ya no fija `version: 9` porque `package.json` define `packageManager` con `pnpm@9.15.3`.
 - `pnpm lint` y `pnpm build` pasan; quedan solo warnings historicos de lint no bloqueantes.
 
+## 2026-06-24 - Cierre CI PR coherencia critica
+
+- Ancladas como devDependencies directas `playwright` y `@vitest/coverage-v8` para que `pnpm typecheck`, scripts E2E y `pnpm vitest run --coverage` no dependan de transitive deps en CI.
+- `scripts/check-migrations-integrity.ts` ahora soporta runners sin carpeta local `drizzle/`: valida `supabase/migrations` y mantiene la validacion Drizzle completa cuando `drizzle/meta/_journal.json` existe.
+- Corregido `tests/api-academy-settings-sport-config.test.ts`: mock de `logger`, cadenas Drizzle mockeadas con `groupBy`, forma correcta de `apparatus` y timeouts locales para coverage de ruta Next pesada.
+- `coverage/` queda ignorado como artefacto local de pruebas.
+- Validacion local final: `pnpm typecheck`, `pnpm lint`, `pnpm check:migrations`, `pnpm vitest run --coverage` (39 archivos, 376 tests) y `pnpm build` pasan.
+
 ## 2026-06-22
 ## 2026-06-22 - Cierre Go-Live SaaS v1 con sandbox real
 
