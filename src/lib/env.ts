@@ -102,6 +102,19 @@ function validateServerEnv() {
     }
     return cleanedEnv as z.infer<typeof serverEnvSchema>;
   }
+  // Advertir sobre variables críticas no configuradas
+  const criticalMissing = [
+    ["STRIPE_SECRET_KEY", result.data.STRIPE_SECRET_KEY],
+    ["DATABASE_URL", result.data.DATABASE_URL],
+    ["SUPABASE_SERVICE_ROLE_KEY", result.data.SUPABASE_SERVICE_ROLE_KEY],
+  ]
+    .filter(([, val]) => !val)
+    .map(([key]) => key);
+
+  if (criticalMissing.length > 0 && process.env.NODE_ENV === "production") {
+    console.warn(`[env] Variables críticas no configuradas en producción: ${criticalMissing.join(", ")}`);
+  }
+
   // Retornar valores parseados
   return result.data;
 }

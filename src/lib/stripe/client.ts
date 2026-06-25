@@ -24,6 +24,7 @@ export function getStripeClient(): Stripe {
   if (!stripeClient) {
     stripeClient = new Stripe(secretKey, {
       apiVersion: "2026-03-25.dahlia",
+      timeout: 10000, // 10 segundos — evita requests colgados indefinidamente
     });
   }
 
