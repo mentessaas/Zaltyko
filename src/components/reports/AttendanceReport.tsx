@@ -127,7 +127,7 @@ export function AttendanceReport({
       }
 
       setReportData(data.data);
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError(err.message || "Error al generar reporte");
     } finally {
       setIsLoading(false);
@@ -172,7 +172,7 @@ export function AttendanceReport({
         description: `El reporte de ${terms.attendance.toLowerCase()} se descargó correctamente.`,
         variant: "success",
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast.pushToast({
         title: "No se pudo exportar el PDF",
         description: err.message || "Inténtalo de nuevo en unos segundos.",
@@ -212,7 +212,7 @@ export function AttendanceReport({
         description: `El reporte de ${terms.attendance.toLowerCase()} se descargó correctamente.`,
         variant: "success",
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast.pushToast({
         title: "No se pudo exportar el Excel",
         description: err.message || "Inténtalo de nuevo en unos segundos.",

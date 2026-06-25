@@ -263,7 +263,7 @@ export function CreateGroupDialog({
           description: `El ${groupTermLower} quedó disponible para asistencia y evaluaciones.`,
           variant: "success",
         });
-      } catch (err: any) {
+      } catch (err: unknown) {
         setError(err.message ?? `Error desconocido al crear el ${groupTermLower}.`);
         if (err?.message) {
           pushToast({

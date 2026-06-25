@@ -253,7 +253,7 @@ export function CreateAthleteDialog({
         setShowAdvanced(false);
         onCreated();
         onClose();
-      } catch (err: any) {
+      } catch (err: unknown) {
         setError(err.message ?? `Error desconocido al crear el ${athleteTermLower}.`);
       }
     });

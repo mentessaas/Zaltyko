@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState, useTransition } from "react";
+import { FormEvent, memo, useEffect, useMemo, useState, useTransition } from "react";
 
 import { Modal } from "@/components/ui/modal";
 import { createClient } from "@/lib/supabase/client";
@@ -69,7 +69,7 @@ interface EditClassDialogProps {
   academyId: string;
 }
 
-export function EditClassDialog({
+export const EditClassDialog = memo(function EditClassDialog({
   classItem,
   availableCoaches,
   availableGroups = [],
@@ -332,7 +332,7 @@ export function EditClassDialog({
         // Llamar a onUpdated antes de cerrar para refrescar los datos
         onUpdated();
         onClose();
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("EditClassDialog: Error al guardar", err);
         const errorMessage = err.message ?? "Error al guardar cambios. Por favor, intenta de nuevo.";
         setError(errorMessage);
@@ -383,7 +383,7 @@ export function EditClassDialog({
         onUpdated();
       }
       onClose();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("EditClassDialog: Error al eliminar la clase", error);
       setError(error?.message ?? `No se pudo eliminar la ${classTermLower}. Intenta nuevamente.`);
     } finally {
@@ -773,4 +773,4 @@ export function EditClassDialog({
       </form>
     </Modal>
   );
-}
+});

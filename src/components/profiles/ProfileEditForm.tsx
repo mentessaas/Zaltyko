@@ -80,7 +80,7 @@ export function ProfileEditForm({ user, profile, onUpdated, onCancel }: ProfileE
 
       const { url } = await response.json();
       setPhotoUrl(url);
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError(err.message || "Error al subir la imagen");
     } finally {
       setIsUploadingPhoto(false);
@@ -185,7 +185,7 @@ export function ProfileEditForm({ user, profile, onUpdated, onCancel }: ProfileE
           onCancel();
         }
       }, 2000);
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError(err.message || "Error al actualizar el perfil");
     } finally {
       setIsSubmitting(false);

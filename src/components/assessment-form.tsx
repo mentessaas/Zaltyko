@@ -152,7 +152,7 @@ export function AssessmentForm({ academyId, athletes, skills, groups = [] }: Ass
 
       setStatus("success");
       resetForm();
-    } catch (error: any) {
+    } catch (error: unknown) {
       setStatus("error");
       setErrorMessage(error.message ?? "Error desconocido");
     }

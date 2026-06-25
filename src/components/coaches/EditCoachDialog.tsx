@@ -146,7 +146,7 @@ export function EditCoachDialog({
 
         onUpdated();
         onClose();
-      } catch (err: any) {
+      } catch (err: unknown) {
         setError(err.message ?? "Error al guardar cambios.");
         setIsAssigning(false);
       }
@@ -194,7 +194,7 @@ export function EditCoachDialog({
 
       onDeleted();
       onClose();
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError(err.message ?? `Error al eliminar el ${coachTermLower}.`);
     } finally {
       setIsAssigning(false);

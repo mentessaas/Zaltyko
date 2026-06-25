@@ -56,7 +56,7 @@ export function AdvancedMetrics({ academyId }: AdvancedMetricsProps) {
       }
 
       setMetrics(data.data);
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError(err.message || "Error al cargar métricas");
     } finally {
       setIsLoading(false);

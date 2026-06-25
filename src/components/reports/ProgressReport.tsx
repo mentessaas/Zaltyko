@@ -110,7 +110,7 @@ export function ProgressReport({ academyId, academyCountry, athleteId, initialDa
       }
 
       setReportData(data.data);
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError(err.message || "Error al generar reporte");
     } finally {
       setIsLoading(false);
@@ -150,7 +150,7 @@ export function ProgressReport({ academyId, academyCountry, athleteId, initialDa
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast.pushToast({
         title: "No se pudo exportar el PDF",
         description: err.message || "Inténtalo de nuevo en unos segundos.",
@@ -183,7 +183,7 @@ export function ProgressReport({ academyId, academyCountry, athleteId, initialDa
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast.pushToast({
         title: "No se pudo exportar el Excel",
         description: err.message || "Inténtalo de nuevo en unos segundos.",
@@ -212,7 +212,7 @@ export function ProgressReport({ academyId, academyCountry, athleteId, initialDa
         description: `Enviamos el reporte de progreso a ${email}.`,
         variant: "success",
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast.pushToast({
         title: "No se pudo enviar el reporte",
         description: err.message || "Revisa el correo e inténtalo otra vez.",

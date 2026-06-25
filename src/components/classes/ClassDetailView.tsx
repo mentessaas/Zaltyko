@@ -181,7 +181,7 @@ export function ClassDetailView({
       });
 
       refresh();
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast.pushToast({
         title: "Error",
         description: err.message ?? `Error al quitar el ${athleteTermLower} de la ${classTermLower}.`,

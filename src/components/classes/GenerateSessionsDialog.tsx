@@ -171,7 +171,7 @@ export function GenerateSessionsDialog({
 
       onGenerated();
       onClose();
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError(err.message || "Error al generar sesiones");
     } finally {
       setIsGenerating(false);

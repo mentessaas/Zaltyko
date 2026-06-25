@@ -131,7 +131,7 @@ export function GenerateChargesDialog({
         });
         onGenerated();
         onClose();
-      } catch (err: any) {
+      } catch (err: unknown) {
         setError(err.message || "Error desconocido al generar cargos.");
       }
     });

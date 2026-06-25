@@ -85,7 +85,7 @@ export function UserPreferencesForm({ userId, initialPreferences, onUpdated }: U
       }
 
       setTimeout(() => setSuccess(false), 2000);
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError(err.message || "Error al actualizar las preferencias");
     } finally {
       setIsSubmitting(false);

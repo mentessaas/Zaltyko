@@ -135,7 +135,7 @@ export function NoteForm({
       }
 
       onSaved();
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError(err.message || "Error al guardar nota");
     } finally {
       setIsSaving(false);

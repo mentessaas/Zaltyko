@@ -121,7 +121,7 @@ export function RegisterPaymentDialog({
         });
         onRegistered();
         onClose();
-      } catch (err: any) {
+      } catch (err: unknown) {
         setError(err.message || "Error desconocido al registrar el pago.");
       }
     });

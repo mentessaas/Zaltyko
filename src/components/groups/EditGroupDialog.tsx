@@ -218,7 +218,7 @@ export function EditGroupDialog({
           description: "Los cambios se han guardado correctamente.",
           variant: "success",
         });
-      } catch (err: any) {
+      } catch (err: unknown) {
         setError(err.message ?? `Error desconocido al actualizar el ${groupTermLower}.`);
         if (err?.message) {
           pushToast({

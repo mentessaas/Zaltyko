@@ -50,7 +50,7 @@ export function AcademyEditSection({ academyId }: AcademyEditSectionProps) {
         
         const data = await response.json();
         setAcademy(data);
-      } catch (err: any) {
+      } catch (err: unknown) {
         setError(err.message || "Error al cargar la academia");
       } finally {
         setLoading(false);

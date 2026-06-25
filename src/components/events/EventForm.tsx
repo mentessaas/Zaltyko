@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { memo, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -118,7 +118,7 @@ interface EventFormProps {
   onSaved?: () => void;
 }
 
-export function EventForm({
+export const EventForm = memo(function EventForm({
   academyId,
   sportConfigs = [],
   eventId,

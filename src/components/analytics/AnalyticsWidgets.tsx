@@ -132,7 +132,7 @@ export function AnalyticsWidgets({ academyId }: { academyId: string }) {
       }
 
       setData(result.data);
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError(err.message || "Error al cargar datos de analítica");
       setData(null);
     } finally {

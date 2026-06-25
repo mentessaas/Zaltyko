@@ -65,7 +65,7 @@ export function WaitingListDialog({
       // Por ahora, la lista de espera se maneja localmente
       // Este es un placeholder hasta implementar el endpoint completo
       setItems([]);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Error fetching waiting list:", err);
       setError(err.message ?? "Error al cargar la lista de espera");
     } finally {
@@ -97,7 +97,7 @@ export function WaitingListDialog({
 
         setItems((prev) => prev.filter((i) => i.id !== item.id));
         onRefresh?.();
-      } catch (err: any) {
+      } catch (err: unknown) {
         setError(err.message ?? "Error al quitar de la lista");
       }
     });
@@ -129,7 +129,7 @@ export function WaitingListDialog({
 
         setItems((prev) => prev.filter((i) => i.id !== item.id));
         onRefresh?.();
-      } catch (err: any) {
+      } catch (err: unknown) {
         setError(err.message ?? "Error al promover");
       }
     });

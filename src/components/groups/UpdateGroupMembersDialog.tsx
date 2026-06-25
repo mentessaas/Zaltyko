@@ -86,7 +86,7 @@ export function UpdateGroupMembersDialog({
           description: "La lista de atletas se guardó correctamente.",
           variant: "success",
         });
-      } catch (err: any) {
+      } catch (err: unknown) {
         setError(err.message ?? "Error desconocido al actualizar los atletas.");
         pushToast({
           title: "No se pudo actualizar el grupo",

@@ -130,7 +130,7 @@ export function AthleteHistoryView({
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast.pushToast({
         title: "No se pudo exportar el PDF",
         description: err.message || "Inténtalo de nuevo en unos segundos.",

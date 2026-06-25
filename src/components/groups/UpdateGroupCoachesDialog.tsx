@@ -126,7 +126,7 @@ export function UpdateGroupCoachesDialog({
           description: "Los entrenadores del grupo fueron actualizados.",
           variant: "success",
         });
-      } catch (err: any) {
+      } catch (err: unknown) {
         setError(err.message ?? "Error desconocido al actualizar entrenadores.");
         pushToast({
           title: "No se pudo actualizar el equipo",
