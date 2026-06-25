@@ -130,66 +130,73 @@ const handler = withTenant(async (request, context) => {
     let customerId = existingSubscription?.stripeCustomerId ?? undefined;
 
     if (!customerId) {
-      const customer = await stripe.customers.create({
-        name: owner.name ?? academy.name,
-        metadata: {
-          userId: owner.userId,
-          tenantId: academy.tenantId,
+      const customer = await stripe.customers.create(
+        {
+          name: owner.name ?? academy.name,
+          metadata: {
+            userId: owner.userId,
+            tenantId: academy.tenantId,
+          },
         },
-      });
+        { idempotencyKey: `customer_${owner.userId}` }
+      );
 
       customerId = customer.id;
 
-      const [existingSub] = await db
-        .select({ id: subscriptions.id })
-        .from(subscriptions)
-        .where(eq(subscriptions.userId, owner.userId))
-        .limit(1);
-
-      if (existingSub) {
-        await db
-          .update(subscriptions)
-          .set({ stripeCustomerId: customerId })
-          .where(eq(subscriptions.userId, owner.userId));
-      } else {
-        await db.insert(subscriptions).values({
+      await db
+        .insert(subscriptions)
+        .values({
           userId: owner.userId,
           planId: plan.id,
           stripeCustomerId: customerId,
           status: "incomplete",
+        })
+        .onConflictDoUpdate({
+          target: subscriptions.userId,
+          set: { stripeCustomerId: customerId },
         });
-      }
+
+      // Re-leer el customerId en caso de que otra request ganó la race
+      const [latest] = await db
+        .select({ stripeCustomerId: subscriptions.stripeCustomerId })
+        .from(subscriptions)
+        .where(eq(subscriptions.userId, owner.userId))
+        .limit(1);
+      customerId = latest?.stripeCustomerId ?? customerId;
     }
 
     const successUrl = `${getAppUrl()}/billing/success?academy=${body.academyId}`;
     const cancelUrl = `${getAppUrl()}/billing`;
 
-    const session = await stripe.checkout.sessions.create({
-      mode: "subscription",
-      customer: customerId,
-      allow_promotion_codes: false,
-      payment_method_types: ["card"],
-      line_items: [
-        {
-          price: plan.stripePriceId,
-          quantity: 1,
+    const session = await stripe.checkout.sessions.create(
+      {
+        mode: "subscription",
+        customer: customerId,
+        allow_promotion_codes: false,
+        payment_method_types: ["card"],
+        line_items: [
+          {
+            price: plan.stripePriceId,
+            quantity: 1,
+          },
+        ],
+        subscription_data: {
+          metadata: {
+            userId: owner.userId,
+            tenantId: academy.tenantId,
+            planCode: plan.code,
+          },
         },
-      ],
-      subscription_data: {
         metadata: {
           userId: owner.userId,
           tenantId: academy.tenantId,
           planCode: plan.code,
         },
+        success_url: successUrl,
+        cancel_url: cancelUrl,
       },
-      metadata: {
-        userId: owner.userId,
-        tenantId: academy.tenantId,
-        planCode: plan.code,
-      },
-      success_url: successUrl,
-      cancel_url: cancelUrl,
-    });
+      { idempotencyKey: `checkout_${owner.userId}_${plan.code}_${Date.now()}` }
+    );
 
     return apiSuccess({ checkoutUrl: session.url });
   } catch (error) {

@@ -3,7 +3,7 @@ import { createPaymentNotifications } from "@/lib/alerts/payment-alerts";
 import { createAttendanceNotifications } from "@/lib/alerts/attendance/createAttendanceNotifications";
 import { db } from "@/db";
 import { academies, profiles } from "@/db/schema";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, inArray } from "drizzle-orm";
 import { logger } from "@/lib/logger";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { requireCronAuth } from "@/lib/cron-auth";
@@ -27,29 +27,42 @@ export async function GET(request: Request) {
       attendanceAlerts: 0,
     };
 
+    if (allAcademies.length === 0) {
+      return apiSuccess({ ok: true, message: "No hay academias activas", academiesProcessed: 0, results });
+    }
+
+    // Traer todos los perfiles relevantes en una sola query (evita N+1)
+    const tenantIds = [...new Set(allAcademies.map((a) => a.tenantId))];
+    const allRelevantProfiles = await db
+      .select({ userId: profiles.userId, tenantId: profiles.tenantId, role: profiles.role })
+      .from(profiles)
+      .where(
+        and(
+          inArray(profiles.tenantId, tenantIds),
+          inArray(profiles.role, ["owner", "admin", "super_admin", "coach"])
+        )
+      );
+
+    // Agrupar por tenantId para acceso O(1) dentro del loop
+    const profilesByTenant = new Map<
+      string,
+      { adminUserIds: string[]; coachUserIds: string[] }
+    >();
+    for (const p of allRelevantProfiles) {
+      if (!p.tenantId) continue;
+      const entry = profilesByTenant.get(p.tenantId) ?? { adminUserIds: [], coachUserIds: [] };
+      if (p.role === "coach") {
+        entry.coachUserIds.push(p.userId);
+      } else {
+        entry.adminUserIds.push(p.userId);
+      }
+      profilesByTenant.set(p.tenantId, entry);
+    }
+
     // Procesar alertas para cada academia
     for (const academy of allAcademies) {
       try {
-        // Obtener IDs de usuarios administradores y coaches
-        const adminProfiles = await db
-          .select({ userId: profiles.userId })
-          .from(profiles)
-          .where(and(
-            eq(profiles.tenantId, academy.tenantId),
-            inArray(profiles.role, ["owner", "admin", "super_admin"])
-          ));
-
-        const adminUserIds = adminProfiles.map(p => p.userId);
-
-        const coachProfiles = await db
-          .select({ userId: profiles.userId })
-          .from(profiles)
-          .where(and(
-            eq(profiles.tenantId, academy.tenantId),
-            eq(profiles.role, "coach")
-          ));
-
-        const coachUserIds = coachProfiles.map(p => p.userId);
+        const { adminUserIds = [], coachUserIds = [] } = profilesByTenant.get(academy.tenantId) ?? {};
 
         // Alertas de capacidad
         try {
@@ -91,7 +104,7 @@ export async function GET(request: Request) {
       academiesProcessed: allAcademies.length,
       results,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error("Error in daily alerts cron", error);
     return apiError("CRON_FAILED", "Cron job failed", 500);
   }

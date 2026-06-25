@@ -459,8 +459,8 @@ export const GET = withTenant(async (request, context) => {
       },
       timezone: academy.timezone || "America/Mexico_City",
       stripePublicKey: academy.stripePublicKey || "",
-      stripeSecretKey: academy.stripeSecretKey || "",
-      stripeWebhookSecret: academy.stripeWebhookSecret || "",
+      stripeSecretKeyConfigured: !!academy.stripeSecretKey,
+      stripeWebhookSecretConfigured: !!academy.stripeWebhookSecret,
       taxId: academy.taxId || "",
       invoicePrefix: academy.invoicePrefix || "INV",
     });
@@ -715,11 +715,11 @@ export const PATCH = withTenant(async (request, context) => {
     if (data.stripePublicKey !== undefined) {
       updates.stripePublicKey = data.stripePublicKey || null;
     }
-    if (data.stripeSecretKey !== undefined) {
-      updates.stripeSecretKey = data.stripeSecretKey || null;
+    if (data.stripeSecretKey !== undefined && data.stripeSecretKey !== "") {
+      updates.stripeSecretKey = data.stripeSecretKey;
     }
-    if (data.stripeWebhookSecret !== undefined) {
-      updates.stripeWebhookSecret = data.stripeWebhookSecret || null;
+    if (data.stripeWebhookSecret !== undefined && data.stripeWebhookSecret !== "") {
+      updates.stripeWebhookSecret = data.stripeWebhookSecret;
     }
     if (data.taxId !== undefined) {
       updates.taxId = data.taxId || null;
