@@ -63,7 +63,7 @@ export const PUT = async (request: Request) => {
     }
 
     return apiSuccess({ ok: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error("Error updating email preferences:", error);
     return apiError("UPDATE_FAILED", "Error al actualizar las preferencias", 500);
   }
@@ -95,7 +95,7 @@ export const GET = async (request: Request) => {
     return apiSuccess({
       emailNotifications: prefs?.emailNotifications || {},
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error("Error fetching email preferences:", error);
     return apiError("FETCH_FAILED", "Error al obtener las preferencias", 500);
   }

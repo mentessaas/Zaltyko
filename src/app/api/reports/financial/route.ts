@@ -78,8 +78,8 @@ export const GET = withTenant(async (request, context) => {
     // Reporte general
     const stats = await calculateFinancialStats(filters);
     return apiSuccess(stats);
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error("Error generating financial report:", error);
-    return apiError("REPORT_FAILED", error.message, 500);
+    return apiError("REPORT_FAILED", "Error al generar el reporte", 500);
   }
 });

@@ -79,7 +79,7 @@ export function CoachPublicProfileEditor({
       onSaved?.();
       setTimeout(() => setSuccess(null), 3000);
     } catch (err: unknown) {
-      setError(err.message || "Error al guardar perfil");
+      setError((err instanceof Error ? err.message : "Error desconocido") || "Error al guardar perfil");
     } finally {
       setIsSaving(false);
     }

@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useMemo, useRef, useState, useTransition } from "
 
 import { athleteStatusOptions } from "@/lib/athletes/constants";
 import { createClient } from "@/lib/supabase/client";
+import { CATEGORY_OPTIONS, LEVEL_OPTIONS, RELATIONSHIP_OPTIONS } from "@/types/athlete-edit";
 
 import { Modal } from "@/components/ui/modal";
 import { Calendar as CalendarIcon, ChevronDown, ChevronUp } from "lucide-react";
@@ -20,33 +21,6 @@ interface ContactInput {
   notifySms: boolean;
 }
 
-const CATEGORY_OPTIONS = ["A", "B", "C", "D", "E", "F"] as const;
-const LEVEL_OPTIONS = [
-  "Pre-nivel",
-  "1",
-  "2",
-  "3",
-  "4",
-  "5",
-  "6",
-  "7",
-  "8",
-  "9",
-  "10",
-  "FIG",
-] as const;
-
-const RELATIONSHIP_OPTIONS = [
-  "Madre",
-  "Padre",
-  "Tutor",
-  "Abuelo",
-  "Abuela",
-  "Hermano",
-  "Hermana",
-  "Tío",
-  "Tía",
-] as const;
 
 const fieldClassName =
   "w-full rounded-[10px] border border-zaltyko-mist bg-white px-3 py-2 text-sm shadow-none focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15";
@@ -254,7 +228,7 @@ export function CreateAthleteDialog({
         onCreated();
         onClose();
       } catch (err: unknown) {
-        setError(err.message ?? `Error desconocido al crear el ${athleteTermLower}.`);
+        setError((err instanceof Error ? err.message : "Error desconocido") ?? `Error desconocido al crear el ${athleteTermLower}.`);
       }
     });
   };

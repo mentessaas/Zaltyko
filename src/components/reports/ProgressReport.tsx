@@ -111,7 +111,7 @@ export function ProgressReport({ academyId, academyCountry, athleteId, initialDa
 
       setReportData(data.data);
     } catch (err: unknown) {
-      setError(err.message || "Error al generar reporte");
+      setError((err instanceof Error ? err.message : "Error desconocido") || "Error al generar reporte");
     } finally {
       setIsLoading(false);
     }
@@ -153,7 +153,7 @@ export function ProgressReport({ academyId, academyCountry, athleteId, initialDa
     } catch (err: unknown) {
       toast.pushToast({
         title: "No se pudo exportar el PDF",
-        description: err.message || "Inténtalo de nuevo en unos segundos.",
+        description: (err instanceof Error ? err.message : "Error desconocido") || "Inténtalo de nuevo en unos segundos.",
         variant: "error",
       });
     }
@@ -186,7 +186,7 @@ export function ProgressReport({ academyId, academyCountry, athleteId, initialDa
     } catch (err: unknown) {
       toast.pushToast({
         title: "No se pudo exportar el Excel",
-        description: err.message || "Inténtalo de nuevo en unos segundos.",
+        description: (err instanceof Error ? err.message : "Error desconocido") || "Inténtalo de nuevo en unos segundos.",
         variant: "error",
       });
     }
@@ -215,7 +215,7 @@ export function ProgressReport({ academyId, academyCountry, athleteId, initialDa
     } catch (err: unknown) {
       toast.pushToast({
         title: "No se pudo enviar el reporte",
-        description: err.message || "Revisa el correo e inténtalo otra vez.",
+        description: (err instanceof Error ? err.message : "Error desconocido") || "Revisa el correo e inténtalo otra vez.",
         variant: "error",
       });
     }

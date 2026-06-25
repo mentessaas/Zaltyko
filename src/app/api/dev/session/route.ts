@@ -401,15 +401,16 @@ export async function POST() {
       maxAge: 60 * 60 * 8,
     });
     return response;
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errObj = error as Record<string, unknown>;
     logger.error("DEV_SESSION_ERROR", error, {
-      message: error?.message,
-      stack: error?.stack,
-      cause: error?.cause,
-      code: error?.code,
-      detail: error?.detail,
-      constraint: error?.constraint,
-      table: error?.table,
+      message: error instanceof Error ? error.message : undefined,
+      stack: error instanceof Error ? error.stack : undefined,
+      cause: error instanceof Error ? error.cause : undefined,
+      code: errObj?.code,
+      detail: errObj?.detail,
+      constraint: errObj?.constraint,
+      table: errObj?.table,
     });
 
     const fallbackPayload = {
@@ -427,7 +428,7 @@ export async function POST() {
       {
         ...fallbackPayload,
         warning: "DEV_SESSION_DEGRADED",
-        message: error?.message ?? "Unknown error",
+        message: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 200 }
     );

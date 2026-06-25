@@ -16,7 +16,7 @@ export const POST = withSuperAdmin(async () => {
       message: `Sincronización completada: ${result.synced} atletas sincronizados, ${result.errors} errores`,
       ...result,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error("Error en sincronización de atletas:", error);
     return apiError("SYNC_FAILED", "Error al sincronizar atletas con usuarios", 500);
   }

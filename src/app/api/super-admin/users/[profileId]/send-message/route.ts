@@ -62,7 +62,7 @@ export const POST = withSuperAdmin(async (request, context) => {
       });
 
       return apiSuccess({ ok: true, message: "Correo enviado correctamente" });
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Error sending email", error);
       return apiError("EMAIL_SEND_FAILED", "Error al enviar el correo", 500);
     }

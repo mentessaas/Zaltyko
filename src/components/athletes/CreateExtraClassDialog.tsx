@@ -114,10 +114,10 @@ export function CreateExtraClassDialog({
         onCreated();
         onClose();
       } catch (err: unknown) {
-        setError(err.message || "Error desconocido al crear la clase extra");
+        setError((err instanceof Error ? err.message : "Error desconocido") || "Error desconocido al crear la clase extra");
         toast.pushToast({
           title: "Error",
-          description: err.message || "Error al crear la clase extra",
+          description: (err instanceof Error ? err.message : "Error desconocido") || "Error al crear la clase extra",
           variant: "error",
         });
       }

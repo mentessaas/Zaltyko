@@ -74,11 +74,11 @@ ${subscription ? `- Plan: ${subscription.plan.nickname || subscription.plan.code
         return {
           content: [{ type: 'text', text: info }],
         };
-      } catch (error: any) {
+      } catch (error: unknown) {
         return {
           content: [{
             type: 'text',
-            text: `Error: ${error.message}`
+            text: `Error: ${error instanceof Error ? error.message : "Error desconocido"}`
           }],
         };
       }

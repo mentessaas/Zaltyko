@@ -180,7 +180,7 @@ export const BillingPanel = memo(function BillingPanel({ academyId, userId, spor
         const data = (await res.json()) as BillingSummary;
         setSummary(data);
       } catch (err: unknown) {
-        setError(err.message ?? "Error desconocido");
+        setError((err instanceof Error ? err.message : "Error desconocido") ?? "Error desconocido");
       } finally {
         setLoadingSummary(false);
       }
@@ -206,7 +206,7 @@ export const BillingPanel = memo(function BillingPanel({ academyId, userId, spor
         const data = (await res.json()) as PlanSummary[];
         setPlans(data);
       } catch (err: unknown) {
-        setError(err.message ?? "Error desconocido");
+        setError((err instanceof Error ? err.message : "Error desconocido") ?? "Error desconocido");
         setPlans([]);
       } finally {
         setLoadingPlans(false);
@@ -235,7 +235,7 @@ export const BillingPanel = memo(function BillingPanel({ academyId, userId, spor
         const data = (await res.json()) as InvoiceRow[];
         setHistory(data);
       } catch (err: unknown) {
-        setError(err.message ?? "Error desconocido");
+        setError((err instanceof Error ? err.message : "Error desconocido") ?? "Error desconocido");
       } finally {
         setLoadingHistory(false);
       }
@@ -273,7 +273,7 @@ export const BillingPanel = memo(function BillingPanel({ academyId, userId, spor
         throw new Error("No se recibió una URL de checkout válida");
       }
     } catch (err: unknown) {
-      setError(err.message ?? "Error desconocido al iniciar el checkout");
+      setError((err instanceof Error ? err.message : "Error desconocido") ?? "Error desconocido al iniciar el checkout");
     } finally {
       setLoadingAction(null);
     }
@@ -301,7 +301,7 @@ export const BillingPanel = memo(function BillingPanel({ academyId, userId, spor
         window.location.href = data.portalUrl;
       }
     } catch (err: unknown) {
-      setError(err.message ?? "Error desconocido");
+      setError((err instanceof Error ? err.message : "Error desconocido") ?? "Error desconocido");
     } finally {
       setLoadingAction(null);
     }

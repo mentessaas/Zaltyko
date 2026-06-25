@@ -860,4 +860,4 @@ export const EventForm = memo(function EventForm({
   }
 
   return formContent;
-}
+});

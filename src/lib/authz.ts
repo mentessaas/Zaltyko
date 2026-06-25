@@ -96,7 +96,7 @@ export function withSuperAdmin<Ctx extends Record<string, unknown>>(
       return NextResponse.json(
         {
           error: "INTERNAL_ERROR",
-          message: error instanceof Error ? error.message : "Ha ocurrido un error desconocido",
+          message: "Error interno del servidor",
         },
         { status: 500 }
       );
@@ -230,7 +230,7 @@ export function withTenant<Ctx extends Record<string, unknown>>(
       return NextResponse.json(
         {
           error: "INTERNAL_ERROR",
-          message: error instanceof Error ? error.message : "Ha ocurrido un error desconocido",
+          message: "Error interno del servidor",
         },
         { status: 500 }
       );
@@ -324,7 +324,7 @@ export function withBearerTenant<Ctx extends Record<string, unknown>>(
       return NextResponse.json(
         {
           error: "INTERNAL_ERROR",
-          message: error instanceof Error ? error.message : "Ha ocurrido un error desconocido",
+          message: "Error interno del servidor",
         },
         { status: 500 }
       );

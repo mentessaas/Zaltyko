@@ -96,7 +96,7 @@ export const POST = withTenant(async (request, context) => {
     });
 
     return apiSuccess({ ok: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error("Error sending email:", error);
     return apiError("SEND_FAILED", "Error al enviar la notificación", 500);
   }

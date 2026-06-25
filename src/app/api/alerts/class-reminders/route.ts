@@ -29,7 +29,7 @@ export const POST = withTenant(async (request, context) => {
     await sendClassReminders(validated.academyId, context.tenantId, hoursBefore);
 
     return apiSuccess({ ok: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error("Error sending class reminders:", error);
     return apiError("REMINDERS_FAILED", "Error al enviar recordatorios", 500);
   }

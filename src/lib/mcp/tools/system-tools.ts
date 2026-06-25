@@ -63,11 +63,11 @@ export function registerSystemTools(server: any) {
             `.trim()
           }],
         };
-      } catch (error: any) {
+      } catch (error: unknown) {
         return {
           content: [{
             type: 'text',
-            text: `Error: ${error.message}`
+            text: `Error: ${error instanceof Error ? error.message : "Error desconocido"}`
           }],
         };
       }
@@ -98,11 +98,11 @@ Prueba de consulta: ${isConnected ? '✅ Exitosa' : '❌ Fallida'}
             `.trim()
           }],
         };
-      } catch (error: any) {
+      } catch (error: unknown) {
         return {
           content: [{
             type: 'text',
-            text: `❌ Error de conexión: ${error.message}`
+            text: `❌ Error de conexión: ${error instanceof Error ? error.message : "Error desconocido"}`
           }],
         };
       }

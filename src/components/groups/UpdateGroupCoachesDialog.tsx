@@ -127,10 +127,10 @@ export function UpdateGroupCoachesDialog({
           variant: "success",
         });
       } catch (err: unknown) {
-        setError(err.message ?? "Error desconocido al actualizar entrenadores.");
+        setError((err instanceof Error ? err.message : "Error desconocido") ?? "Error desconocido al actualizar entrenadores.");
         pushToast({
           title: "No se pudo actualizar el equipo",
-          description: err.message ?? "Error desconocido",
+          description: (err instanceof Error ? err.message : "Error desconocido") ?? "Error desconocido",
           variant: "error",
         });
       }

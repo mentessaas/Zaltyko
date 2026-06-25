@@ -40,7 +40,7 @@ export async function GET(_request: Request) {
         ? "Supabase está correctamente configurado"
         : "Algunas configuraciones faltan. Revisa la documentación.",
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error("Error verifying Supabase setup:", error);
     return apiError("VERIFICATION_FAILED", "Error en la verificación", 500);
   }

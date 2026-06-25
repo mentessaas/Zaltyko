@@ -7,16 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useAcademyContext } from "@/hooks/use-academy-context";
 import type { SportConfigOption } from "@/components/groups/types";
 import { getTerminology } from "@/lib/sport-config/terminology";
-
-const WEEKDAY_OPTIONS = [
-  { value: "1", label: "Lunes" },
-  { value: "2", label: "Martes" },
-  { value: "3", label: "Miércoles" },
-  { value: "4", label: "Jueves" },
-  { value: "5", label: "Viernes" },
-  { value: "6", label: "Sábado" },
-  { value: "0", label: "Domingo" },
-];
+import { WEEKDAY_OPTIONS } from "@/lib/classes/constants";
 
 const fieldClassName =
   "w-full rounded-[10px] border border-zaltyko-mist bg-white px-3 py-2 text-sm shadow-none focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15";
@@ -334,7 +325,7 @@ export const EditClassDialog = memo(function EditClassDialog({
         onClose();
       } catch (err: unknown) {
         console.error("EditClassDialog: Error al guardar", err);
-        const errorMessage = err.message ?? "Error al guardar cambios. Por favor, intenta de nuevo.";
+        const errorMessage = err instanceof Error ? err.message : "Error al guardar cambios. Por favor, intenta de nuevo.";
         setError(errorMessage);
       }
     });
@@ -385,7 +376,7 @@ export const EditClassDialog = memo(function EditClassDialog({
       onClose();
     } catch (error: unknown) {
       console.error("EditClassDialog: Error al eliminar la clase", error);
-      setError(error?.message ?? `No se pudo eliminar la ${classTermLower}. Intenta nuevamente.`);
+      setError(error instanceof Error ? error.message : `No se pudo eliminar la ${classTermLower}. Intenta nuevamente.`);
     } finally {
       setIsDeleting(false);
     }

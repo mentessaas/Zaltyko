@@ -78,7 +78,7 @@ export const GET = withTenant(async (request, context) => {
         "Content-Disposition": `attachment; filename="historial-${athleteId}.pdf"`,
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error("Error exporting history:", error);
     return apiError("EXPORT_FAILED", "Error al exportar el historial", 500);
   }

@@ -42,7 +42,7 @@ export function useReportData<T>(
       setData(result.data);
       onSuccess?.(result.data);
     } catch (err: unknown) {
-      const errorMessage = err.message || "Error al cargar datos";
+      const errorMessage = (err instanceof Error ? err.message : "Error desconocido") || "Error al cargar datos";
       setError(errorMessage);
       onError?.(errorMessage);
     } finally {

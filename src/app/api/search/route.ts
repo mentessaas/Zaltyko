@@ -49,7 +49,7 @@ export const GET = withTenant(async (request, context) => {
       total: results.length,
       types: getSearchableTypes(),
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error("Error performing search:", error);
     return apiError("SEARCH_FAILED", "Error al realizar la búsqueda", 500);
   }

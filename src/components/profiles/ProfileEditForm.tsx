@@ -81,7 +81,7 @@ export function ProfileEditForm({ user, profile, onUpdated, onCancel }: ProfileE
       const { url } = await response.json();
       setPhotoUrl(url);
     } catch (err: unknown) {
-      setError(err.message || "Error al subir la imagen");
+      setError((err instanceof Error ? err.message : "Error desconocido") || "Error al subir la imagen");
     } finally {
       setIsUploadingPhoto(false);
       // Reset input
@@ -186,7 +186,7 @@ export function ProfileEditForm({ user, profile, onUpdated, onCancel }: ProfileE
         }
       }, 2000);
     } catch (err: unknown) {
-      setError(err.message || "Error al actualizar el perfil");
+      setError((err instanceof Error ? err.message : "Error desconocido") || "Error al actualizar el perfil");
     } finally {
       setIsSubmitting(false);
     }

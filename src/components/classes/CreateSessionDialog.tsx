@@ -120,7 +120,7 @@ export function CreateSessionDialog({
         onCreated();
         onClose();
       } catch (err: unknown) {
-        setError(err.message ?? "Error desconocido al crear la sesión.");
+        setError((err instanceof Error ? err.message : "Error desconocido") ?? "Error desconocido al crear la sesión.");
       }
     });
   };

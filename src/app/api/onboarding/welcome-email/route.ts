@@ -153,8 +153,8 @@ El equipo de Zaltyko
     });
 
     return apiSuccess({ ok: true, message: "Email de bienvenida enviado" });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error("Error sending welcome email", error);
-    return apiError("EMAIL_SEND_FAILED", error?.message ?? "Error al enviar el email", 500);
+    return apiError("EMAIL_SEND_FAILED", "Error al enviar el email de bienvenida", 500);
   }
 }

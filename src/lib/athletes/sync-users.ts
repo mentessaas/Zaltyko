@@ -154,13 +154,13 @@ export async function syncAthletesWithUsers(): Promise<{
         athleteName: athlete.athleteName,
         userId,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       errors++;
       details.push({
         athleteId: athlete.athleteId,
         athleteName: athlete.athleteName,
         userId: null,
-        error: error?.message ?? "Error desconocido",
+        error: error instanceof Error ? error.message : "Error desconocido",
       });
       logger.error(`Error sincronizando atleta ${athlete.athleteId}`, error as Error, { athleteId: athlete.athleteId, athleteName: athlete.athleteName });
     }

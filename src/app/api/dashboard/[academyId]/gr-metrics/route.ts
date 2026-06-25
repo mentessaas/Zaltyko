@@ -61,7 +61,7 @@ export const GET = withTenant(async (_request, context) => {
     }
 
     return apiSuccess(grMetrics);
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error("Error calculating GR metrics:", error);
     return apiSuccess(defaultGrMetrics);
   }

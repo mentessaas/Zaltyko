@@ -51,7 +51,7 @@ export function AcademyEditSection({ academyId }: AcademyEditSectionProps) {
         const data = await response.json();
         setAcademy(data);
       } catch (err: unknown) {
-        setError(err.message || "Error al cargar la academia");
+        setError((err instanceof Error ? err.message : "Error desconocido") || "Error al cargar la academia");
       } finally {
         setLoading(false);
       }

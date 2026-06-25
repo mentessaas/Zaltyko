@@ -47,7 +47,7 @@ export async function PATCH(request: Request) {
     }
 
     return apiSuccess({ ok: true, message: "Contraseña actualizada correctamente" });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (error instanceof z.ZodError) {
       return apiError("INVALID_INPUT", "Entrada inválida", 400);
     }

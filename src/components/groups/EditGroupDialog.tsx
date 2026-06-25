@@ -219,11 +219,12 @@ export function EditGroupDialog({
           variant: "success",
         });
       } catch (err: unknown) {
-        setError(err.message ?? `Error desconocido al actualizar el ${groupTermLower}.`);
-        if (err?.message) {
+        const errMsg = err instanceof Error ? err.message : `Error desconocido al actualizar el ${groupTermLower}.`;
+        setError(errMsg);
+        if (errMsg) {
           pushToast({
             title: `No se pudo actualizar el ${groupTermLower}`,
-            description: err.message,
+            description: errMsg,
             variant: "error",
           });
         }

@@ -55,7 +55,7 @@ export function AthleteBaseClassesSection({
         const base = result.items.filter((item) => item.type === "base");
         setBaseClasses(base);
       } catch (err: unknown) {
-        setError(err.message || "Error al cargar las clases base");
+        setError((err instanceof Error ? err.message : "Error desconocido") || "Error al cargar las clases base");
       } finally {
         setLoading(false);
       }

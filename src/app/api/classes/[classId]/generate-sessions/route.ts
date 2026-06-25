@@ -60,22 +60,24 @@ export const POST = withTenant(async (request, context) => {
       ...result,
       className: classRow.name,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error("Error generating sessions", error);
 
-    if (error.message === "CLASS_NOT_FOUND") {
-      return apiError("CLASS_NOT_FOUND", "Class not found", 404);
+    const msg = error instanceof Error ? error.message : "";
+
+    if (msg === "CLASS_NOT_FOUND") {
+      return apiError("CLASS_NOT_FOUND", "Clase no encontrada", 404);
     }
 
-    if (error.message === "CLASS_HAS_NO_WEEKDAY") {
-      return apiError("CLASS_HAS_NO_WEEKDAY", error.message, 400);
+    if (msg === "CLASS_HAS_NO_WEEKDAY") {
+      return apiError("CLASS_HAS_NO_WEEKDAY", "La clase no tiene día de la semana configurado", 400);
     }
 
-    if (error.message?.includes("RANGE_TOO_LARGE")) {
-      return apiError("RANGE_TOO_LARGE", error.message, 400);
+    if (msg.includes("RANGE_TOO_LARGE")) {
+      return apiError("RANGE_TOO_LARGE", "El rango de fechas es demasiado amplio", 400);
     }
 
-    return apiError("GENERATION_FAILED", error.message ?? "Error al generar sesiones", 500);
+    return apiError("GENERATION_FAILED", "Error al generar sesiones", 500);
   }
 });
 

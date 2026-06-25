@@ -46,7 +46,7 @@ export async function GET(request: Request) {
       message: "Class reminders sent successfully",
       academiesProcessed: allAcademies.length,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error("Error in class reminders cron", error);
     return apiError("CRON_FAILED", "Cron job failed", 500);
   }

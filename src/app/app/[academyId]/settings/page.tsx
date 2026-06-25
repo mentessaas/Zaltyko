@@ -281,8 +281,8 @@ export default function SettingsPage() {
 
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
-    } catch (err: any) {
-      setError(err.message || "Error al guardar los cambios");
+    } catch (err: unknown) {
+      setError((err instanceof Error ? err.message : "Error desconocido") || "Error al guardar los cambios");
     } finally {
       setSaving(false);
     }

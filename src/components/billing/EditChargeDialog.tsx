@@ -94,7 +94,7 @@ export function EditChargeDialog({
       onUpdated();
       onClose();
     } catch (err: unknown) {
-      setError(err.message || "Error desconocido");
+      setError((err instanceof Error ? err.message : "Error desconocido") || "Error desconocido");
     } finally {
       setLoading(false);
     }

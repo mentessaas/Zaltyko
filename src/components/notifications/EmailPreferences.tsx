@@ -68,7 +68,7 @@ export function EmailPreferences({ userId, initialPreferences }: EmailPreference
       setSuccess("Preferencias guardadas correctamente");
       setTimeout(() => setSuccess(null), 3000);
     } catch (err: unknown) {
-      setError(err.message || "Error al guardar preferencias");
+      setError((err instanceof Error ? err.message : "Error desconocido") || "Error al guardar preferencias");
     } finally {
       setIsSaving(false);
     }

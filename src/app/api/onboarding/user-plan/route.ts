@@ -66,7 +66,7 @@ export async function GET() {
       canCreateMore,
       upgradeTo,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error("Error fetching user plan", error);
     return apiError("SERVER_ERROR", "Error al obtener información del plan", 500);
   }

@@ -1,15 +1,14 @@
-import { TableSkeleton, StatsGridSkeleton } from "@/components/ui/skeletons";
 import { Skeleton } from "@/components/ui/skeleton";
 
-export default function LoadingPage() {
+export default function Loading() {
   return (
-    <div className="space-y-6 p-4 sm:p-6 lg:p-8">
-      <header className="space-y-2 py-6">
-        <Skeleton className="h-8 w-[160px]" />
-        <Skeleton className="h-4 w-[300px]" />
-      </header>
-      <StatsGridSkeleton count={3} />
-      <TableSkeleton rows={6} columns={5} />
+    <div className="container mx-auto px-4 py-6 space-y-4">
+      <Skeleton className="h-8 w-48" />
+      <div className="space-y-2">
+        {Array.from({ length: 8 }).map((_, i) => (
+          <Skeleton key={i} className="h-12 w-full rounded-md" />
+        ))}
+      </div>
     </div>
   );
 }

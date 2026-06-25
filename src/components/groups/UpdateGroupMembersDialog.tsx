@@ -87,10 +87,10 @@ export function UpdateGroupMembersDialog({
           variant: "success",
         });
       } catch (err: unknown) {
-        setError(err.message ?? "Error desconocido al actualizar los atletas.");
+        setError((err instanceof Error ? err.message : "Error desconocido") ?? "Error desconocido al actualizar los atletas.");
         pushToast({
           title: "No se pudo actualizar el grupo",
-          description: err.message ?? "Error desconocido",
+          description: (err instanceof Error ? err.message : "Error desconocido") ?? "Error desconocido",
           variant: "error",
         });
       }

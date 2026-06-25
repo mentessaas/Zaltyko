@@ -95,7 +95,7 @@ export function EnrollmentManager({
       );
     } catch (err: unknown) {
       console.error("Error fetching enrollments:", err);
-      setError(err.message ?? "Error al cargar las inscripciones");
+      setError((err instanceof Error ? err.message : "Error desconocido") ?? "Error al cargar las inscripciones");
     } finally {
       setIsLoading(false);
     }
@@ -186,7 +186,7 @@ export function EnrollmentManager({
       onRefresh?.();
     } catch (err: unknown) {
       console.error("Error enrolling athlete:", err);
-      setError(err.message ?? "Error al inscribir");
+      setError((err instanceof Error ? err.message : "Error desconocido") ?? "Error al inscribir");
     } finally {
       setIsEnrolling(false);
     }
@@ -225,7 +225,7 @@ export function EnrollmentManager({
         await fetchAvailableAthletes();
         onRefresh?.();
       } catch (err: unknown) {
-        setError(err.message ?? "Error al desinscribir");
+        setError((err instanceof Error ? err.message : "Error desconocido") ?? "Error al desinscribir");
       }
     });
   };

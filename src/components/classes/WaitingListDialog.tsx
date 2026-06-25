@@ -67,7 +67,7 @@ export function WaitingListDialog({
       setItems([]);
     } catch (err: unknown) {
       console.error("Error fetching waiting list:", err);
-      setError(err.message ?? "Error al cargar la lista de espera");
+      setError((err instanceof Error ? err.message : "Error desconocido") ?? "Error al cargar la lista de espera");
     } finally {
       setIsLoading(false);
     }
@@ -98,7 +98,7 @@ export function WaitingListDialog({
         setItems((prev) => prev.filter((i) => i.id !== item.id));
         onRefresh?.();
       } catch (err: unknown) {
-        setError(err.message ?? "Error al quitar de la lista");
+        setError((err instanceof Error ? err.message : "Error desconocido") ?? "Error al quitar de la lista");
       }
     });
   };
@@ -130,7 +130,7 @@ export function WaitingListDialog({
         setItems((prev) => prev.filter((i) => i.id !== item.id));
         onRefresh?.();
       } catch (err: unknown) {
-        setError(err.message ?? "Error al promover");
+        setError((err instanceof Error ? err.message : "Error desconocido") ?? "Error al promover");
       }
     });
   };
