@@ -48,7 +48,7 @@ const handler = withTenant(async (request, context) => {
     try {
       stripe = getStripeClient();
     } catch (error) {
-      return apiError("STRIPE_INIT_ERROR", error instanceof Error ? error.message : "Error al inicializar Stripe. Contacta con soporte.", 500);
+      return apiError("STRIPE_INIT_ERROR", "Error al inicializar Stripe. Contacta con soporte.", 500);
     }
 
     // Obtener tenantId desde la academia si no está disponible en el contexto

@@ -46,6 +46,6 @@ export async function GET() {
     });
   } catch (error: any) {
     logger.error("Error fetching user academies", error);
-    return apiError("SERVER_ERROR", error?.message ?? "Error al obtener academias", 500);
+    return apiError("SERVER_ERROR", "Error al obtener academias", 500);
   }
 }

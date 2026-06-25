@@ -51,6 +51,6 @@ export const GET = withTenant(async (request, context) => {
     });
   } catch (error: any) {
     logger.error("Error performing search:", error);
-    return apiError("SEARCH_FAILED", error.message, 500);
+    return apiError("SEARCH_FAILED", "Error al realizar la búsqueda", 500);
   }
 });

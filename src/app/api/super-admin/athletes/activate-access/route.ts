@@ -147,7 +147,7 @@ export const POST = withSuperAdmin(async (request) => {
     });
   } catch (error: any) {
     logger.error("Error activando acceso de atleta:", error);
-    return apiError("ACTIVATION_FAILED", error?.message ?? "Error al activar acceso del atleta", 500);
+    return apiError("ACTIVATION_FAILED", "Error al activar acceso del atleta", 500);
   }
 });
 

@@ -42,6 +42,6 @@ export async function GET(_request: Request) {
     });
   } catch (error: any) {
     logger.error("Error verifying Supabase setup:", error);
-    return apiError("VERIFICATION_FAILED", error.message, 500);
+    return apiError("VERIFICATION_FAILED", "Error en la verificación", 500);
   }
 }

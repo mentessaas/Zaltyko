@@ -178,7 +178,8 @@ export function withTenant<Ctx extends Record<string, unknown>>(
       const isPublic = isPublicEndpoint(pathname, method);
       const isAcademyCreation = isAcademyCreationEndpoint(pathname, method);
       const isFlexible = isFlexibleTenantEndpoint(pathname);
-      const isAdmin = profile.role === "admin" || profile.role === "super_admin";
+      // Solo super_admin puede operar sin tenantId; admin sigue requiriéndolo
+      const isSuperAdmin = profile.role === "super_admin";
       const isEventsEndpoint = pathname.startsWith("/api/events");
 
       const hasValidTenantId = tenantId && tenantId !== "";
@@ -189,7 +190,7 @@ export function withTenant<Ctx extends Record<string, unknown>>(
         !isPublic &&
         !isAcademyCreation &&
         !isFlexible &&
-        !isAdmin
+        !isSuperAdmin
       ) {
         return NextResponse.json(
           { error: "TENANT_MISSING" },

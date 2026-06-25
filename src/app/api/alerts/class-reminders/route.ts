@@ -31,6 +31,6 @@ export const POST = withTenant(async (request, context) => {
     return apiSuccess({ ok: true });
   } catch (error: any) {
     logger.error("Error sending class reminders:", error);
-    return apiError("REMINDERS_FAILED", error.message, 500);
+    return apiError("REMINDERS_FAILED", "Error al enviar recordatorios", 500);
   }
 });

@@ -80,7 +80,7 @@ export const GET = withTenant(async (request, context) => {
     });
   } catch (error: any) {
     logger.error("Error exporting history:", error);
-    return apiError("EXPORT_FAILED", error.message || "Export failed", 500);
+    return apiError("EXPORT_FAILED", "Error al exportar el historial", 500);
   }
 });
 
