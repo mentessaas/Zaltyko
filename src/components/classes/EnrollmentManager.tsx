@@ -93,9 +93,9 @@ export function EnrollmentManager({
           enrolledAt: item.createdAt,
         }))
       );
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Error fetching enrollments:", err);
-      setError(err.message ?? "Error al cargar las inscripciones");
+      setError((err instanceof Error ? err.message : "Error desconocido") ?? "Error al cargar las inscripciones");
     } finally {
       setIsLoading(false);
     }
@@ -137,7 +137,7 @@ export function EnrollmentManager({
             level: athlete.level,
           }))
       );
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Error fetching athletes:", err);
     }
   }, [enrollments]);
@@ -184,9 +184,9 @@ export function EnrollmentManager({
       await fetchEnrollments();
       await fetchAvailableAthletes();
       onRefresh?.();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Error enrolling athlete:", err);
-      setError(err.message ?? "Error al inscribir");
+      setError((err instanceof Error ? err.message : "Error desconocido") ?? "Error al inscribir");
     } finally {
       setIsEnrolling(false);
     }
@@ -224,8 +224,8 @@ export function EnrollmentManager({
         await fetchEnrollments();
         await fetchAvailableAthletes();
         onRefresh?.();
-      } catch (err: any) {
-        setError(err.message ?? "Error al desinscribir");
+      } catch (err: unknown) {
+        setError((err instanceof Error ? err.message : "Error desconocido") ?? "Error al desinscribir");
       }
     });
   };

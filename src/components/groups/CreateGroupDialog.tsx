@@ -263,12 +263,13 @@ export function CreateGroupDialog({
           description: `El ${groupTermLower} quedó disponible para asistencia y evaluaciones.`,
           variant: "success",
         });
-      } catch (err: any) {
-        setError(err.message ?? `Error desconocido al crear el ${groupTermLower}.`);
-        if (err?.message) {
+      } catch (err: unknown) {
+        const errMsg = err instanceof Error ? err.message : `Error desconocido al crear el ${groupTermLower}.`;
+        setError(errMsg);
+        if (errMsg) {
           pushToast({
             title: `No se pudo crear el ${groupTermLower}`,
-            description: err.message,
+            description: errMsg,
             variant: "error",
           });
         }

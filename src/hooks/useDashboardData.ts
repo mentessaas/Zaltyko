@@ -71,13 +71,14 @@ export function useDashboardData({ academyId, tenantId, initialData }: UseDashbo
       if (!abortController.signal.aborted) {
         setData(payload.data);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : "";
       // Ignorar errores de cancelación
-      if (error.name === "AbortError" || error.message?.includes("aborted")) {
+      if ((error instanceof Error && error.name === "AbortError") || msg.includes("aborted")) {
         return;
       }
       // Ignorar errores de red suspendida (puede pasar durante hot reload)
-      if (error.message?.includes("Failed to fetch") || error.message?.includes("ERR_NETWORK_IO_SUSPENDED")) {
+      if (msg.includes("Failed to fetch") || msg.includes("ERR_NETWORK_IO_SUSPENDED")) {
         console.warn("Network request was suspended, likely due to hot reload");
         return;
       }

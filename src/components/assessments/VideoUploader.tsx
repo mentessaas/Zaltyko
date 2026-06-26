@@ -175,11 +175,11 @@ export function VideoUploader({
       setTimeout(() => {
         setUploading((prev) => prev.filter((u) => u.id !== id));
       }, 1000);
-    } catch (error: any) {
+    } catch (error: unknown) {
       setUploading((prev) =>
         prev.map((u) =>
           u.id === id
-            ? { ...u, status: "error", error: error.message || "Error al subir el video" }
+            ? { ...u, status: "error", error: error instanceof Error ? error.message : "Error al subir el video" }
             : u
         )
       );

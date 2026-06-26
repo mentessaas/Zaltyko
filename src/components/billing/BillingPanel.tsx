@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { TooltipOnboarding } from "@/components/tooltips/TooltipOnboarding";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -145,7 +145,7 @@ interface BillingPanelProps {
   }>;
 }
 
-export function BillingPanel({ academyId, userId, sportConfigs = [] }: BillingPanelProps) {
+export const BillingPanel = memo(function BillingPanel({ academyId, userId, sportConfigs = [] }: BillingPanelProps) {
   const searchParams = useSearchParams();
   const defaultTab = searchParams?.get("tab") === "student-charges" ? "charges" : "plans";
   const terms = getTerminologyForSportConfig(sportConfigs);
@@ -179,8 +179,8 @@ export function BillingPanel({ academyId, userId, sportConfigs = [] }: BillingPa
 
         const data = (await res.json()) as BillingSummary;
         setSummary(data);
-      } catch (err: any) {
-        setError(err.message ?? "Error desconocido");
+      } catch (err: unknown) {
+        setError((err instanceof Error ? err.message : "Error desconocido") ?? "Error desconocido");
       } finally {
         setLoadingSummary(false);
       }
@@ -205,8 +205,8 @@ export function BillingPanel({ academyId, userId, sportConfigs = [] }: BillingPa
 
         const data = (await res.json()) as PlanSummary[];
         setPlans(data);
-      } catch (err: any) {
-        setError(err.message ?? "Error desconocido");
+      } catch (err: unknown) {
+        setError((err instanceof Error ? err.message : "Error desconocido") ?? "Error desconocido");
         setPlans([]);
       } finally {
         setLoadingPlans(false);
@@ -234,8 +234,8 @@ export function BillingPanel({ academyId, userId, sportConfigs = [] }: BillingPa
 
         const data = (await res.json()) as InvoiceRow[];
         setHistory(data);
-      } catch (err: any) {
-        setError(err.message ?? "Error desconocido");
+      } catch (err: unknown) {
+        setError((err instanceof Error ? err.message : "Error desconocido") ?? "Error desconocido");
       } finally {
         setLoadingHistory(false);
       }
@@ -272,8 +272,8 @@ export function BillingPanel({ academyId, userId, sportConfigs = [] }: BillingPa
       } else {
         throw new Error("No se recibió una URL de checkout válida");
       }
-    } catch (err: any) {
-      setError(err.message ?? "Error desconocido al iniciar el checkout");
+    } catch (err: unknown) {
+      setError((err instanceof Error ? err.message : "Error desconocido") ?? "Error desconocido al iniciar el checkout");
     } finally {
       setLoadingAction(null);
     }
@@ -300,8 +300,8 @@ export function BillingPanel({ academyId, userId, sportConfigs = [] }: BillingPa
       if (data.portalUrl) {
         window.location.href = data.portalUrl;
       }
-    } catch (err: any) {
-      setError(err.message ?? "Error desconocido");
+    } catch (err: unknown) {
+      setError((err instanceof Error ? err.message : "Error desconocido") ?? "Error desconocido");
     } finally {
       setLoadingAction(null);
     }
@@ -574,4 +574,4 @@ export function BillingPanel({ academyId, userId, sportConfigs = [] }: BillingPa
       </Tabs>
     </div>
   );
-}
+});

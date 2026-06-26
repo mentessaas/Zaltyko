@@ -107,10 +107,10 @@ export async function POST(request: Request) {
 
     await handleWebhook(payload);
     return NextResponse.json({ success: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error("LemonSqueezy webhook processing error", error);
     return NextResponse.json(
-      { error: "PROCESSING_FAILED", message: error?.message ?? "Unknown error" },
+      { error: "PROCESSING_FAILED", message: "Error al procesar el webhook" },
       { status: 500 }
     );
   }

@@ -52,8 +52,8 @@ export function AthleteExtraClassesSection({
       // Filtrar solo clases extra
       const extra = result.items.filter((item) => item.type === "extra");
       setExtraClasses(extra);
-    } catch (err: any) {
-      setError(err.message || "Error al cargar las clases extra");
+    } catch (err: unknown) {
+      setError((err instanceof Error ? err.message : "Error desconocido") || "Error al cargar las clases extra");
     } finally {
       setLoading(false);
     }

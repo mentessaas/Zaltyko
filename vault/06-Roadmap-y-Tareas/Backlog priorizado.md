@@ -111,3 +111,26 @@ source:
 | AI churn predictor y recepcionista virtual WhatsApp (Fase 3, inspirado en WellnessLiving/Amilia). | producto | Pendiente plan tecnico; referencia: seccion 9.4 y 9.7 de [[../../docs/marketing/zaltyko-competitors]]. |
 | Website builder y federation-ready architecture (Fase 3+, inspirado en Uplifter/Amilia). | producto/tech | Pendiente RFC; referencia: seccion 9.3-9.4 de [[../../docs/marketing/zaltyko-competitors]]. |
 | Modulo de competiciones con acta digital (Fase 3, inspirado en Clupik). | producto | Pendiente plan tecnico; referencia: seccion 9.9 de [[../../docs/marketing/zaltyko-competitors]]. |
+
+## Auditoria tecnica 2026-06-25/26 — Puntos abiertos
+
+Trabajo de auditoria ejecutado en 5 commits sobre `codex/critical-coherence-closeout`. Detalle por bloque en [[Changelog interno#2026-06-26 - Auditoria tecnica completa + consolidacion vault documentada]].
+
+| # | Estado | Tarea | Bloque | Criterio de aceptacion |
+| --- | --- | --- | --- | --- |
+| 1.2 | Pendiente | Encriptar claves Stripe en BD con libsodium (secretbox) + columna `*_encrypted`. | Critico | `pnpm db:generate` + `pnpm db:migrate` aplicados; `checkout-service.ts` desencripta solo en servidor al usar. |
+| 2.2 | Pendiente | Aplicar `verifyAcademyBelongsToTenant(academyId, tenantId)` en `withTenant` para todos los roles (admin, coach). | Alto | Funcion ya existe en `src/lib/permissions.ts`; falta invocarla en `src/lib/authz.ts:184` antes de resolver `tenantId`. |
+| 2.3 | Pendiente | Cross-check `invoice.customer === subscription.stripeCustomerId` del tenant en `billing/sync`. | Alto | Query en `src/app/api/billing/sync/route.ts:94` valida customer pero no cross-checkea contra `academyId` de la URL. |
+| 2.5 | Pendiente | Rate limit por tenantId en middleware (actualmente solo IP). | Medio | `middleware.ts:141` key = `${pathname}:${ip}`. Cambiar a `${pathname}:${tenantId}:${ip}` cuando `tenantId` resuelto. |
+| 2.6 | Pendiente | Indice `(userId, academyId)` en memberships para queries frecuentes. | Medio | Agregar `userAcademyIdx: index("memberships_user_academy_idx").on(memberships.userId, memberships.academyId)` en `src/db/schema/memberships.ts:21`. |
+| 3.1 | Pendiente | Refactor `DashboardPage.tsx` (983 lineas) en 5 sub-componentes. | Bajo | Dividir en `DashboardHeader`, `DashboardKPIs`, `DashboardOnboarding`, `DashboardFinancials`, `DashboardAlerts`. Cada uno con data-fetch propio. |
+| 3.2 | Pendiente | Refactor `EventForm.tsx` (862), `AthletesTableView.tsx` (772), `EditClassDialog.tsx` (767). | Bajo | Misma estrategia: sub-componentes con responsabilidad unica. Regla < 400 lineas. |
+| 3.7 | Pendiente | Mover `WEEKDAY_OPTIONS`/`LEVEL_OPTIONS`/`RELATIONSHIP_OPTIONS` a `i18n/es.json` y `en.json`. | Bajo | Constantes actualmente en `src/types/athlete-edit.ts` y `src/lib/classes/constants.ts`. Consumir via `t('key')` en componentes. |
+| 3.8 | Pendiente | Accesibilidad: aumentar de 76 a >200 referencias `aria-label`/`aria-hidden`. | Bajo | Auditoria iconica de componentes > 100 lineas; empezar por `DashboardPage`, `EventForm`, `AthletesTableView`, `BillingPanel`. |
+| 4.1 | Planificado | Migracion para eliminar columna `athletes.groupId` (deprecated, 15+ usos activos). | Bajo | Requiere plan tabla por tabla. Marcado como `@deprecated` desde 2026-06-24; columna existe pero con `onDelete: "set null"`. |
+| 4.3 | Pendiente | Tests edge en webhooks (duplicados, metadata malformada, timeout, race). | Bajo | `tests/api-stripe-webhook.test.ts` cubre happy path. Anadir casos: mismo `event.id` 2x, `event.data.object.metadata` malformado, mock de `stripe.invoices.list()` timeout. |
+| 4.5 | Pendiente | Cron auth con verificacion de IP Vercel ademas de Bearer token. | Bajo | `src/lib/cron-auth.ts` solo valida Bearer. Anadir whitelist de `x-forwarded-for` en rango de Vercel o validar header `x-vercel-cron`. |
+
+| Estado | Tarea | Criterio de aceptacion |
+| --- | --- | --- |
+| Activo | Cruzar `Guia entrevistas academias gimnasia` con [[Buyer personas]] y [[Objeciones y respuestas]] para consolidar discovery. | Las 18 preguntas de la guia deben mapear a pain points de buyer persona y/o objeciones conocidas. Si hay preguntas redundantes, fusionar. Si hay gaps, anadir. Anotado en [[Decisiones#2026-06-26 - Restaurar Guia entrevistas]]. |

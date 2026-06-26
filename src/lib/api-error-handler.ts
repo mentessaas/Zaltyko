@@ -64,23 +64,7 @@ export function handleApiError(
   if (error instanceof Error) {
     logger.apiError(context?.endpoint ?? "unknown", context?.method ?? "unknown", error, context);
 
-    const errorDetails: ApiError = {
-      error: "INTERNAL_ERROR",
-      message: error.message,
-    };
-
-    if (process.env.NODE_ENV === "development") {
-      (errorDetails as unknown as Record<string, unknown>).stack = error.stack;
-      (errorDetails as unknown as Record<string, unknown>).name = error.name;
-      if ("code" in error) {
-        (errorDetails as unknown as Record<string, unknown>).code = (error as Record<string, unknown>).code;
-      }
-      if ("detail" in error) {
-        (errorDetails as unknown as Record<string, unknown>).detail = (error as Record<string, unknown>).detail;
-      }
-    }
-
-    return standardizedApiError("INTERNAL_ERROR", error.message, 500, errorDetails);
+    return standardizedApiError("INTERNAL_ERROR", "Error interno del servidor", 500);
   }
 
   logger.error("Unknown API error", error, context);

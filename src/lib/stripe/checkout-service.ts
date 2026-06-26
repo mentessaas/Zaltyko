@@ -49,44 +49,45 @@ export async function getOrCreateStripeCustomer(userId: string): Promise<string>
     .where(eq(profiles.userId, userId))
     .limit(1);
 
-  // Crear cliente en Stripe
-  const customer = await stripe.customers.create({
-    email: profile?.email ?? undefined,
-    name: profile?.name ?? undefined,
-    metadata: {
-      userId,
+  // Crear cliente en Stripe (idempotente: misma key = mismo cliente)
+  const customer = await stripe.customers.create(
+    {
+      email: profile?.email ?? undefined,
+      name: profile?.name ?? undefined,
+      metadata: { userId },
     },
-  });
+    { idempotencyKey: `customer_${userId}` }
+  );
 
-  // Guardar customerId en la base de datos
-  const [existingSub] = await db
-    .select({ id: subscriptions.id })
+  // Obtener plan free para el caso de nueva suscripción
+  const [freePlan] = await db
+    .select({ id: plans.id })
+    .from(plans)
+    .where(eq(plans.code, "free"))
+    .limit(1);
+
+  // Upsert atómico: evita race conditions con el unique index en userId
+  await db
+    .insert(subscriptions)
+    .values({
+      userId,
+      planId: freePlan?.id,
+      stripeCustomerId: customer.id,
+      status: "incomplete",
+    })
+    .onConflictDoUpdate({
+      target: subscriptions.userId,
+      set: { stripeCustomerId: customer.id },
+    });
+
+  // Re-leer por si otra request ganó la race y ya tenía un customerId
+  const [latest] = await db
+    .select({ stripeCustomerId: subscriptions.stripeCustomerId })
     .from(subscriptions)
     .where(eq(subscriptions.userId, userId))
     .limit(1);
 
-  if (existingSub) {
-    await db
-      .update(subscriptions)
-      .set({ stripeCustomerId: customer.id })
-      .where(eq(subscriptions.userId, userId));
-  } else {
-    // Obtener plan por código
-    const [plan] = await db
-      .select({ id: plans.id })
-      .from(plans)
-      .where(eq(plans.code, "free"))
-      .limit(1);
-
-    await db.insert(subscriptions).values({
-      userId,
-      planId: plan?.id,
-      stripeCustomerId: customer.id,
-      status: "incomplete",
-    });
-  }
-
-  return customer.id;
+  return latest?.stripeCustomerId ?? customer.id;
 }
 
 /**
@@ -162,32 +163,35 @@ export async function createCheckoutSession(
   const successUrl = `${getAppUrl()}/billing/success?academy=${params.academyId}`;
   const cancelUrl = `${getAppUrl()}/billing`;
 
-  const session = await stripe.checkout.sessions.create({
-    mode: "subscription",
-    customer: customerId,
-    allow_promotion_codes: false,
-    payment_method_types: ["card"],
-    line_items: [
-      {
-        price: plan.stripePriceId,
-        quantity: 1,
+  const session = await stripe.checkout.sessions.create(
+    {
+      mode: "subscription",
+      customer: customerId,
+      allow_promotion_codes: false,
+      payment_method_types: ["card"],
+      line_items: [
+        {
+          price: plan.stripePriceId,
+          quantity: 1,
+        },
+      ],
+      subscription_data: {
+        metadata: {
+          userId: owner.userId,
+          tenantId: params.tenantId,
+          planCode: plan.code,
+        },
       },
-    ],
-    subscription_data: {
       metadata: {
         userId: owner.userId,
         tenantId: params.tenantId,
         planCode: plan.code,
       },
+      success_url: successUrl,
+      cancel_url: cancelUrl,
     },
-    metadata: {
-      userId: owner.userId,
-      tenantId: params.tenantId,
-      planCode: plan.code,
-    },
-    success_url: successUrl,
-    cancel_url: cancelUrl,
-  });
+    { idempotencyKey: `checkout_${owner.userId}_${plan.code}_${Date.now()}` }
+  );
 
   return {
     checkoutUrl: session.url,

@@ -312,7 +312,7 @@ const patchEventHandler = withTenant(async (request, context) => {
     }
 
     return apiSuccess({ event: updatedEvent });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (error instanceof z.ZodError) {
       return apiError("VALIDATION_ERROR", "Validation failed", 400);
     }

@@ -7,6 +7,7 @@ import { z } from "zod";
 import { db } from "@/db";
 import { academies, athleteSportConfigs, athletes, familyContacts, guardianAthletes, groupAthletes, groups } from "@/db/schema";
 import { assertWithinPlanLimits, getUpgradeInfo } from "@/lib/limits";
+import { LimitError } from "@/lib/limits/errors";
 import { withTenant } from "@/lib/authz";
 import { rateLimit, getUserIdentifier, withRateLimit } from "@/lib/rate-limit";
 import { athleteStatusOptions } from "@/lib/athletes/constants";
@@ -87,8 +88,8 @@ const createAthleteHandler = withTenant(async (request, context) => {
     // Verificar límites del plan antes de crear el atleta
     try {
       await assertWithinPlanLimits(context.tenantId, body.academyId, "athletes");
-    } catch (error: any) {
-      if (error?.status === 402 && error?.payload?.code === "LIMIT_REACHED") {
+    } catch (error: unknown) {
+      if (error instanceof LimitError) {
         const upgradeTo = error.payload?.upgradeTo ?? "pro";
         const upgradeInfo = getUpgradeInfo(upgradeTo === "pro" ? "free" : "pro");
 

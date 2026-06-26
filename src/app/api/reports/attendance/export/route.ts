@@ -167,8 +167,8 @@ export const GET = withTenant(async (request, context) => {
         },
       });
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error("Error exporting report:", error);
-    return apiError("EXPORT_FAILED", error.message, 500);
+    return apiError("EXPORT_FAILED", "Error al exportar los datos", 500);
   }
 });

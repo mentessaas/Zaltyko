@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useMemo, useState, useTransition } from "react";
+import { FormEvent, memo, useEffect, useMemo, useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Download, LayoutGrid, List, CheckSquare, Square, MoreHorizontal, Trash2, Mail, Users } from "lucide-react";
 
@@ -35,7 +35,7 @@ interface AthletesTableViewProps {
   };
 }
 
-export function AthletesTableView({
+export const AthletesTableView = memo(function AthletesTableView({
   academyId,
   athletes: initialAthletes,
   levels,
@@ -769,4 +769,4 @@ export function AthletesTableView({
       )}
     </div>
   );
-}
+});

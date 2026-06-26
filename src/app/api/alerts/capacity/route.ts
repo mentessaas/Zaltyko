@@ -41,7 +41,7 @@ export const GET = withTenant(async (request, context) => {
     );
 
     return apiSuccess({ items: alerts });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error("Error detecting capacity alerts:", error);
     return apiSuccess({ items: [] });
   }

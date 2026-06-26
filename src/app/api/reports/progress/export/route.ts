@@ -90,9 +90,9 @@ export const GET = withTenant(async (request, context) => {
         "Content-Disposition": `attachment; filename="reporte-progreso-${report.athleteName}.pdf"`,
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error("Error exporting progress report:", error);
-    return apiError("EXPORT_FAILED", error.message, 500);
+    return apiError("EXPORT_FAILED", "Error al exportar los datos", 500);
   }
 });
 

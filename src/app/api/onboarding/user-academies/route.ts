@@ -44,8 +44,8 @@ export async function GET() {
       hasAcademies: userAcademies.length > 0,
       count: userAcademies.length,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error("Error fetching user academies", error);
-    return apiError("SERVER_ERROR", error?.message ?? "Error al obtener academias", 500);
+    return apiError("SERVER_ERROR", "Error al obtener academias", 500);
   }
 }

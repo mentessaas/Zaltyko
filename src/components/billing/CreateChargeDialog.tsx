@@ -172,8 +172,8 @@ export function CreateChargeDialog({
 
       onCreated();
       onClose();
-    } catch (err: any) {
-      setError(err.message || "Error desconocido");
+    } catch (err: unknown) {
+      setError((err instanceof Error ? err.message : "Error desconocido") || "Error desconocido");
     } finally {
       setLoading(false);
     }

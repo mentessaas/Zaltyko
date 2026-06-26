@@ -12,16 +12,7 @@ import { getSpecializedClassNameSuggestions } from "@/lib/specialization/technic
 import type { SportConfigOption } from "@/components/groups/types";
 import { getTerminology } from "@/lib/sport-config/terminology";
 import { logger } from "@/lib/logger";
-
-const WEEKDAY_OPTIONS = [
-  { value: "1", label: "Lunes" },
-  { value: "2", label: "Martes" },
-  { value: "3", label: "Miércoles" },
-  { value: "4", label: "Jueves" },
-  { value: "5", label: "Viernes" },
-  { value: "6", label: "Sábado" },
-  { value: "0", label: "Domingo" },
-];
+import { WEEKDAY_OPTIONS } from "@/lib/classes/constants";
 
 // Esquema Zod: campos basicos requeridos + arrays para selections multiples.
 const classFormSchema = z.object({

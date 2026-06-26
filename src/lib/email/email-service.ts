@@ -50,13 +50,13 @@ export async function sendEmailWithLogging(options: SendEmailOptions): Promise<v
         sentAt: new Date(),
       })
       .where(eq(emailLogs.id, logEntry.id));
-  } catch (error: any) {
+  } catch (error: unknown) {
     // Actualizar log con error
     await db
       .update(emailLogs)
       .set({
         status: "failed",
-        errorMessage: error.message || "Error desconocido",
+        errorMessage: error instanceof Error ? error.message : "Error desconocido",
       })
       .where(eq(emailLogs.id, logEntry.id));
 

@@ -63,8 +63,8 @@ export const POST = withTenant(async (request, context) => {
       url,
       path,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error("Error in upload endpoint:", error);
-    return apiError("UPLOAD_FAILED", error.message, 500);
+    return apiError("UPLOAD_FAILED", "Error al subir el archivo", 500);
   }
 });

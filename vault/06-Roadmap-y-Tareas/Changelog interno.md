@@ -8,6 +8,71 @@ source:
 ---
 # Changelog interno
 
+## 2026-06-26 - Auditoria tecnica completa + consolidacion vault documentada
+
+**Bloque auditoria (5 commits en `claude/hungry-shaw-f623bb`)**:
+
+- **[1.1]** `src/app/api/academies/[academyId]/settings/route.ts:462` ya no expone `stripeSecretKey` en GET; devuelve `stripeSecretKeyConfigured: !!academy.stripeSecretKey` (boolean). Cierra vector MITM/DevTools.
+- **[1.2]** PATCH /settings valida string vacio antes de sobreescribir clave Stripe; columna sigue plano (sin libsodium) — pendiente como deuda tecnica en Backlog.
+- **[1.3]** `idempotencyKey` aplicado a `stripe.customers.create()` (`customer_${userId}`) y `stripe.checkout.sessions.create()` (`checkout_${user}_${plan}_${ts}`) en checkout-service y checkout route. Evita pagos duplicados por timeout.
+- **[1.4]** Race condition en customer creation resuelto con `onConflictDoUpdate` sobre `subscriptions.userId` + re-lectura del customerId post-upsert. Patron atomico correcto.
+- **[1.5]** Cron `daily-alerts` ya no hace N+1: una sola query con `inArray(profiles.tenantId, tenantIds)` + `inArray(role, [...])` agrupa por tenantId en Map antes de iterar.
+- **[2.1]** Exposicion de `error.message` en API responses: bajada de 30+ a 11 ocurrencias residuales. `api-error-handler.ts` ya no filtra stack ni message al cliente; usa `instanceof Error` + mensajes genericos.
+- **[2.2]** `withTenant` en `authz.ts`: solo `super_admin` puede operar sin tenantId; `admin` ahora lo requiere obligatoriamente. Pendiente endurecer con `verifyAcademyBelongsToTenant(academyId, tenantId)` (funcion existe en `permissions.ts` pero no se aplica en `withTenant`).
+- **[2.4]** Stack trace eliminado de `api-error-handler.ts`. Detras de flag `ENABLE_DETAILED_ERRORS` si se quiere re-habilitar en dev.
+- **[3.3]** `React.memo` aplicado a los 4 componentes criticos: `AthletesTableView`, `BillingPanel`, `EventForm`, `EditClassDialog`. Total de componentes memoizados: 17 -> 21.
+- **[3.5]** `loading.tsx` skeletons: 2 -> 23 archivos (40% cobertura de 57 rutas en `app/[academyId]`). Pendiente cubrir las 34 restantes en sprint dedicado.
+- **[3.6]** `any` en TypeScript: 357 -> 227 ocurrencias (-36%). Patron `catch (error: unknown)` + `instanceof Error` aplicado a 73+41 archivos. Quedan 227, mayoritariamente tipos de librerias externas.
+- **[4.4]** Stripe client: `timeout: 10000` (10s) en `new Stripe(secretKey, ...)`. Evita requests colgados indefinidamente en `billing/sync`.
+- **[4.2]** `src/lib/env.ts` ahora emite warning explicito en produccion si faltan `STRIPE_SECRET_KEY`, `DATABASE_URL` o `SUPABASE_SERVICE_ROLE_KEY`. Sigue siendo `.optional()` en el schema Zod para no romper dev local.
+- **[7ace38c]** Catch blocks de 500s en `authz.ts`, lemonsqueezy webhook, mailgun, generate-sessions: `error.message` eliminado del cliente. `LimitError instanceof` check en academies/athletes/groups. `WEEKDAY_OPTIONS` centralizado en `lib/classes/constants.ts` (2 componentes deduplicados). 14 `loading.tsx` adicionales en rutas audit-logs, assessments, messages, evaluations, licenses, my-events, comms, my-dashboard, coach, dashboard, support, notifications, whatsapp, reports.
+
+**Puntos abiertos de la auditoria** (documentados en [[Backlog priorizado]]):
+
+- [1.2] Encriptacion de claves Stripe en BD con libsodium (deuda tecnica).
+- [2.2] `verifyAcademyBelongsToTenant` aplicado en `withTenant` para todos los roles.
+- [2.3] Cross-check `invoice.customer === subscription.stripeCustomerId` en `billing/sync`.
+- [2.5] Rate limit por tenantId en middleware (actualmente solo por IP).
+- [2.6] Indice `(userId, academyId)` en memberships.
+- [3.1/3.2] Refactor de `DashboardPage` (983 lineas), `EventForm` (862), `AthletesTableView` (772), `EditClassDialog` (767).
+- [3.7] Constantes `WEEKDAY_OPTIONS`/`LEVEL_OPTIONS`/`RELATIONSHIP_OPTIONS` aun no en `i18n/es.json`/`en.json`.
+- [3.8] Accesibilidad: aria-label/aria-hidden (76 referencias actuales, objetivo >200).
+- [4.1] Migracion planificada para eliminar columna `athletes.groupId` (deprecated, 15+ usos activos).
+- [4.3] Tests edge en webhooks (duplicados, metadata malformada, timeout).
+- [4.5] Cron auth con verificacion de IP Vercel ademas de Bearer token.
+
+**Validacion**: typecheck no ejecutado en este lote. Recomendado correr `pnpm typecheck && pnpm build` antes de mergear.
+
+## 2026-06-24 - Consolidacion del vault (cierre de coherencia critica)
+
+> **Retrospectiva 2026-06-26**: este commit (`06a71dd chore: cerrar coherencia critica de Zaltyko`) consolido 17 notas con fecha en sus versiones canonicas. No se documento en su momento. Se documenta aqui para trazabilidad.
+
+**Notas eliminadas (17)**:
+
+| Borrada | Reemplazo canonico | Info critica preservada |
+| --- | --- | --- |
+| `vault/00-Inicio/Guia de trabajo para agentes.md` | `Workflow diario de la vault.md` + `Estado actual` + `AGENTS.md` | Si — reglas migradas |
+| `vault/01-Producto/MVP exacto Zaltyko gimnasia.md` | `Inventario de producto.md` | Si — consolidado |
+| `vault/01-Producto/Tarea - Sprint 0 decision v3.0.md` | `Inventario` + `Roadmap maestro` + `Pricing` | Parcial — los 6 bloques de implementacion especificos ya fueron ejecutados en `06a71dd` |
+| `vault/01-Producto/Tarea - Onboarding y parent experience.md` | `Roadmap maestro` §Fase 3 | Parcial — referencia |
+| `vault/01-Producto/Tarea - Skill tracking y make-up tokens MVP.md` | `Roadmap maestro` + `Inventario` | Parcial — referencia |
+| `vault/03-Negocio/Tarea - Marketplace Zaltyko y multi-idioma.md` | `Inventario` + `Roadmap` §Fase 4 | Parcial |
+| `vault/03-Negocio/Tarea - Pricing escalonado y plan gratis.md` | `Pricing.md` (v3.0) + `Decisiones.md` | Si — decision registrada |
+| `vault/04-Marketing/Estrategia competitiva gimnasia.md` | `Competidores.md` + `Mensajes aprobados` | Si — absorbida |
+| `vault/04-Marketing/Matriz competitiva gimnasia.md` | `Competidores.md` (crecio 17 -> 434 lineas) | Si — absorbida |
+| `vault/05-Ventas-y-CS/Guia entrevistas academias gimnasia.md` | **Ninguno** | **NO — restaurada 2026-06-26** (preguntas + criterios de cierre no aparecen en Playbook demo ni Onboarding cliente) |
+| `vault/06-Roadmap-y-Tareas/Cierre operativo pendientes agente - 2026-06-24.md` | `Roadmap maestro` + `Decisiones` | Parcial — bloques de coherencia (pricing+portal, identidad+migraciones, legacy dashboard) perdidos como referencia |
+| `vault/06-Roadmap-y-Tareas/Plan operativo gimnasia.md` | `Roadmap maestro` | Parcial |
+| `vault/07-Auditorias-y-Riesgos/Auditoria MVP gimnasia - 2026-06-23.md` | `Auditorias consolidadas` + `Auditoria de producto real` | Si — consolidada |
+| `vault/07-Auditorias-y-Riesgos/Auditoria copy publico - 2026-06-22.md` | `Auditorias consolidadas` + `Mensajes aprobados` | Si — consolidada |
+| `vault/07-Auditorias-y-Riesgos/Auditoria de la vault - 2026-06-22.md` | (obsoleta — vault reorganizada) | Si — cerrada |
+| `vault/07-Auditorias-y-Riesgos/QA - Flujos P1 - 2026-06-22.md` | `QA - Flujos P1.md` | Si — consolidada |
+| `vault/07-Auditorias-y-Riesgos/QA - Go Live SaaS - 2026-06-22.md` | `Produccion y go-live.md` | Si — consolidada |
+
+**Regla operativa violada y remediada**: AGENTS.md exige registrar todo cambio relevante (incluyendo consolidaciones) en `Decisiones.md` y `Changelog interno.md`. Esto se hizo recien el 2026-06-26 al auditar la rama `claude/hungry-shaw-f623bb`.
+
+**Restauracion**: `Guia entrevistas academias gimnasia.md` restaurada el 2026-06-26 porque su contenido de discovery (perfil objetivo, 18 preguntas, criterios de cierre de 10 entrevistas) no aparece en `Playbook de demo.md` ni `Onboarding de cliente.md`. Quedan en [[Backlog priorizado]] los cruces pendientes con [[Buyer personas]] y [[Objeciones y respuestas]].
+
 ## 2026-06-24 - Sprint 7 Form refactor + i18n + Deuda tecnica
 
 - **Sprint 7A.2 RHF+Zod en CreateClassDialog** (`src/components/classes/CreateClassDialog.tsx`): zod schema con `weekdays[]`/`apparatus[]`, useForm + zodResolver, Controller para Switch, defaultValues separados, errores per-field con role=alert, min-h-11 en botones. **Leccion**: usar `z.input<>` y `?? []` en watch; `.default([])` rompe el Resolver types de RHF (lesson aprendida en 7A.1 tambien).

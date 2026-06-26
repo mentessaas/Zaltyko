@@ -102,8 +102,8 @@ export async function POST(request: Request) {
       url: publicUrl,
       path: filePath,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error("Error uploading photo:", error);
-    return apiError("INTERNAL_ERROR", error.message, 500);
+    return apiError("INTERNAL_ERROR", "Error interno del servidor", 500);
   }
 }
