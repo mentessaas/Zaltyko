@@ -1,7 +1,7 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-06-22
+last_reviewed: 2026-06-26
 source:
   - ../README.md
   - ../AGENTS.md
@@ -26,3 +26,6 @@ source:
 | ICP | Perfil de cliente ideal. |
 | Churn | Cancelación o abandono de cliente. |
 | Health score | Señal compuesta de uso, adopción y riesgo del cliente. |
+| Cluster | Página pública generada por combinación locale/modalidad/país para SEO local (`/${locale}/${modality}/${country}`). |
+| Modalidad | Disciplina deportiva (ej. gimnasia artística/rítmica). La raíz `/` redirige a la primera modalidad del catálogo. |
+| RHF + Zod | React Hook Form con resolver Zod; patrón obligatorio para formularios nuevos (ver [[Patrones obligatorios]]). |

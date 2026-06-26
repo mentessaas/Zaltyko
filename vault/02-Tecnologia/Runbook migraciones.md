@@ -1,7 +1,7 @@
 ---
 status: active
 owner: tech
-last_reviewed: 2026-06-22
+last_reviewed: 2026-06-26
 source:
   - ../docs/MIGRATIONS_RLS_RUNBOOK.md
   - ../docs/migrations-backlog.md
@@ -13,8 +13,14 @@ source:
 
 - Revisar Supabase changelog reciente antes de trabajo de migraciones.
 - No aplicar SQL destructivo sin inspeccion manual.
-- Confirmar RLS para toda tabla tenant-aware.
+- Confirmar RLS para toda tabla tenant-aware (`pnpm validate:rls` debe seguir en 100% / 62 tablas).
 - Mantener Drizzle schema y migraciones alineados.
+
+## Estado a 2026-06-26
+
+- El directorio `drizzle/` **esta versionado** (antes en `.gitignore`); `pnpm check:migrations` valida integridad del journal en CI.
+- SSL: exportar `NODE_EXTRA_CA_CERTS` con `certs/supabase-root-ca.crt`; `scripts/db-migrate.ts` lo resuelve a ruta absoluta.
+- **Pendiente P0**: 25 tablas del schema TS no existen aun en DB. `drizzle-kit push --force` es destructivo; requiere plan tabla por tabla. Ver [[Registro de riesgos]] y [[Backlog priorizado]].
 
 ## Flujo recomendado
 
