@@ -189,7 +189,18 @@ function i18nRedirectResponse(request: NextRequest): NextResponse | null {
   if (pathnameHasLocale) return null;
 
   const locale = getLocaleFromRequest(request);
-  const newUrl = new URL(`/${locale}${pathname}`, request.url);
+
+  // Special case: root path needs a default modality because there's no
+  // page handler at /(site)/[locale]/page.tsx — only /(site)/[locale]/[modality].
+  // Redirect `/` to `/${locale}/gimnasia-artistica` (first modality in catalog).
+  let targetPath = pathname;
+  if (pathname === "/") {
+    targetPath = `/${locale}/gimnasia-artistica`;
+  } else {
+    targetPath = `/${locale}${pathname}`;
+  }
+
+  const newUrl = new URL(targetPath, request.url);
   request.nextUrl.searchParams.forEach((value, key) => {
     newUrl.searchParams.set(key, value);
   });
