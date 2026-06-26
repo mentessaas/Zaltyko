@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/toast-provider";
+import { logger } from "@/lib/logger";
 
 const CATEGORIES = [
   { value: "coach", label: "Entrenador" },
@@ -102,7 +103,7 @@ export function JobForm({ academyId, userId, onSuccess }: JobFormProps) {
         });
       }
     } catch (error) {
-      console.error(error);
+      logger.error("Error", error);
       toast.pushToast({
         title: "No se pudo crear el puesto",
         description: "Inténtalo de nuevo en unos segundos.",

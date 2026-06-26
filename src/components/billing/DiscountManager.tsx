@@ -6,6 +6,7 @@ import { Plus, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DiscountList, Discount } from "./DiscountList";
 import { DiscountForm } from "./DiscountForm";
+import { logger } from "@/lib/logger";
 
 interface DiscountManagerProps {
   academyId: string;
@@ -29,7 +30,7 @@ export function DiscountManager({
         setDiscounts(data.items);
       }
     } catch (error) {
-      console.error("Error loading discounts:", error);
+      logger.error("Error loading discounts:", error);
     }
   };
 
@@ -68,7 +69,7 @@ export function DiscountManager({
       setEditingDiscount(null);
       loadDiscounts();
     } catch (error) {
-      console.error("Error saving discount:", error);
+      logger.error("Error saving discount:", error);
     } finally {
       setIsSaving(false);
     }
@@ -81,7 +82,7 @@ export function DiscountManager({
       await fetch(`/api/discounts/${id}`, { method: "DELETE" });
       loadDiscounts();
     } catch (error) {
-      console.error("Error deleting discount:", error);
+      logger.error("Error deleting discount:", error);
     }
   };
 
@@ -96,7 +97,7 @@ export function DiscountManager({
       });
       loadDiscounts();
     } catch (error) {
-      console.error("Error toggling discount:", error);
+      logger.error("Error toggling discount:", error);
     }
   };
 

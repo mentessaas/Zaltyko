@@ -1,5 +1,6 @@
 // lib/lemon-squeezy.ts
 import axios from "axios";
+import { logger } from "@/lib/logger";
 
 const LEMON_SQUEEZY_API_KEY = process.env.LEMON_SQUEEZY_API_KEY;
 const LEMON_SQUEEZY_STORE_ID = process.env.LEMON_SQUEEZY_STORE_ID;
@@ -50,5 +51,5 @@ export const createCheckout = async (
 
 export const handleWebhook = async (payload: any) => {
   // Handle webhook payload here
-  console.log("Webhook received:", payload);
+  logger.info("Webhook received:", payload);
 };

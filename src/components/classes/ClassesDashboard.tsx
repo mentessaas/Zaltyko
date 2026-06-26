@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { useAcademyContext } from "@/hooks/use-academy-context";
 import { summarizeStarterClassSetup } from "@/lib/classes/starter-setup";
 import type { SportConfigOption } from "@/components/groups/types";
+import { logger } from "@/lib/logger";
 
 interface ClassItem {
   id: string;
@@ -162,7 +163,7 @@ export function ClassesDashboard({
         setClasses(data.data?.items ?? data.items ?? []);
       }
     } catch (error) {
-      console.error("Error fetching classes:", error);
+      logger.error("Error fetching classes:", error);
     } finally {
       setIsLoading(false);
     }

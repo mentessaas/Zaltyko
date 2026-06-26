@@ -1,6 +1,7 @@
 import { db } from "@/db";
 import { auditLogs } from "@/db/schema/audit-logs";
 import { eq } from "drizzle-orm";
+import { logger } from "@/lib/logger";
 
 export type AuditAction =
   | "user.create"
@@ -41,7 +42,7 @@ export async function createAuditLog(params: CreateAuditLogParams) {
     });
   } catch (error) {
     // Log error but don't throw - audit logging should not break main operations
-    console.error("Failed to create audit log:", error);
+    logger.error("Failed to create audit log:", error);
   }
 }
 

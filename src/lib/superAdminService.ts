@@ -1,6 +1,7 @@
 import type { SupabaseClient, User } from "@supabase/supabase-js";
 
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
+import { logger } from "@/lib/logger";
 
 export interface SuperAdminMetrics {
   totals: {
@@ -478,7 +479,7 @@ async function fetchAllAuthUsers(client: SupabaseClient): Promise<User[]> {
   while (true) {
     const { data, error } = await client.auth.admin.listUsers({ page, perPage });
     if (error) {
-      console.error("Error fetching auth users", error);
+      logger.error("Error fetching auth users", error);
       break;
     }
 

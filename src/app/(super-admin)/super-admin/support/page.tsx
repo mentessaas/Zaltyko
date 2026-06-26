@@ -6,6 +6,7 @@ import { TicketList } from "@/components/support/TicketList";
 import { TicketFilters } from "@/components/support/TicketFilters";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/ui/page-header";
+import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -70,7 +71,7 @@ async function getAllTickets(filters: {
   const { data: tickets, error } = await query;
 
   if (error) {
-    console.error("Error fetching tickets:", error);
+    logger.error("Error fetching tickets:", error);
     return [];
   }
 

@@ -1,6 +1,7 @@
 import { getSupabaseAdminClient } from "./admin";
 import { Pool } from "pg";
 import { getDatabaseUrl } from "@/lib/env";
+import { logger } from "@/lib/logger";
 
 export interface SetupVerification {
   storage: {
@@ -90,14 +91,14 @@ export async function verifySupabaseSetup(): Promise<SetupVerification> {
       );
       results.rls.discountsPolicies = Number(discountsResult.rows[0]?.count || 0);
     } catch (error) {
-      console.error("Error executing verification queries:", error);
+      logger.error("Error executing verification queries:", error);
     } finally {
       if (pool) {
         await pool.end();
       }
     }
   } catch (error) {
-    console.error("Error verifying Supabase setup:", error);
+    logger.error("Error verifying Supabase setup:", error);
     if (pool) {
       await pool.end();
     }

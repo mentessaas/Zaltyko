@@ -25,6 +25,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/authz";
 import { formatDateToISOString, getWeekBoundariesInCountryTimezone, getMonthBoundariesInCountryTimezone, getFirstDateForWeekdayInTimezone } from "@/lib/date-utils";
 import { PageHeader } from "@/components/ui/page-header";
+import { logger } from "@/lib/logger";
 
 interface CalendarPageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -76,7 +77,7 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
   try {
     currentProfile = await getCurrentProfile(user.id);
   } catch (error) {
-    console.error("Error getting profile:", error);
+    logger.error("Error getting profile:", error);
     redirect("/onboarding/owner");
   }
   if (!currentProfile) {
@@ -118,7 +119,7 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
         tenantId = userAcademies[0].tenantId;
       }
     } catch (error) {
-      console.error("Error getting tenant from academies:", error);
+      logger.error("Error getting tenant from academies:", error);
     }
   }
 

@@ -5,6 +5,7 @@ import { Search, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getRegionLabel, getRegionPlaceholder, getCityPlaceholder, COUNTRY_REGION_OPTIONS, findRegionsByCountry } from "@/lib/countryRegions";
 import { findCitiesByRegion } from "@/lib/citiesByRegion";
+import { logger } from "@/lib/logger";
 
 const ACADEMY_TYPES = [
   { value: "artistica", label: "Gimnasia Artística" },
@@ -94,7 +95,7 @@ export function AcademiesFilters({ onFiltersChange }: AcademiesFiltersProps) {
           }
         }
       } catch (error) {
-        console.error("Error loading filter options:", error);
+        logger.error("Error loading filter options:", error);
         // En caso de error, dejar arrays vacíos
         setCountries([]);
         setRegions([]);

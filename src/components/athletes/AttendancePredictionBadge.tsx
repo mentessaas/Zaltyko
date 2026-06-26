@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Calendar, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { logger } from "@/lib/logger";
 
 interface AttendancePredictionBadgeProps {
   athleteId: string;
@@ -42,7 +43,7 @@ export function AttendancePredictionBadge({
           setPrediction(data);
         }
       } catch (error) {
-        console.error("Error fetching prediction:", error);
+        logger.error("Error fetching prediction:", error);
       } finally {
         setLoading(false);
       }

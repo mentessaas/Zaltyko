@@ -1,3 +1,5 @@
+import { logger } from "@/lib/logger";
+
 export async function getGitHubStars(repo: string): Promise<number> {
   try {
     const response = await fetch(`https://api.github.com/repos/${repo}`, {
@@ -13,7 +15,7 @@ export async function getGitHubStars(repo: string): Promise<number> {
     const data = await response.json();
     return data.stargazers_count;
   } catch (error) {
-    console.error("Error fetching GitHub stars:", error);
+    logger.error("Error fetching GitHub stars:", error);
     return 0;
   }
 }

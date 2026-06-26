@@ -9,6 +9,7 @@ import { UserPreferencesForm } from "./UserPreferencesForm";
 import { type User } from "@supabase/supabase-js";
 import { type ProfileRow } from "@/lib/authz";
 import { User as UserIcon, Lock, Settings } from "lucide-react";
+import { logger } from "@/lib/logger";
 
 interface ProfileTabsProps {
   user: User | null;
@@ -29,7 +30,7 @@ export function ProfileTabs({ user, profile, onProfileUpdated }: ProfileTabsProp
           setPreferences(data);
         }
       } catch (error) {
-        console.error("Error fetching preferences:", error);
+        logger.error("Error fetching preferences:", error);
       } finally {
         setLoadingPreferences(false);
       }

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Mail, Send } from "lucide-react";
+import { logger } from "@/lib/logger";
 
 interface EventContactProps {
   eventId: string;
@@ -38,7 +39,7 @@ export function EventContact({ eventId, eventTitle, contactEmail }: EventContact
         setSubmitStatus("error");
       }
     } catch (error) {
-      console.error("Error sending contact form:", error);
+      logger.error("Error sending contact form:", error);
       setSubmitStatus("error");
     } finally {
       setIsSubmitting(false);

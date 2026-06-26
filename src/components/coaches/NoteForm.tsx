@@ -17,6 +17,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import { logger } from "@/lib/logger";
 
 interface Note {
   id: string;
@@ -79,7 +80,7 @@ export function NoteForm({
         setAthletes(data.items);
       }
     } catch (error) {
-      console.error("Error loading athletes:", error);
+      logger.error("Error loading athletes:", error);
     }
   };
 

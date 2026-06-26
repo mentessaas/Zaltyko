@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import Link from "next/link";
 import { Skeleton } from "@/components/ui/skeleton";
+import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -51,7 +52,7 @@ async function getTickets(academyId: string, filters: { status?: string; priorit
   const { data: tickets, error } = await query;
 
   if (error) {
-    console.error("Error fetching tickets:", error);
+    logger.error("Error fetching tickets:", error);
     return [];
   }
 

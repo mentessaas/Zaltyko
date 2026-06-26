@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast-provider";
+import { logger } from "@/lib/logger";
 
 interface Assessment {
   id: string;
@@ -74,7 +75,7 @@ export function AthleteHistoryView({
         setFilteredAssessments(data.items);
       }
     } catch (error) {
-      console.error("Error loading assessments:", error);
+      logger.error("Error loading assessments:", error);
     } finally {
       setIsLoading(false);
     }

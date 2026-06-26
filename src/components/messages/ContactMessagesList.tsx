@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/components/ui/toast-provider";
+import { logger } from "@/lib/logger";
 
 interface ContactMessage {
   id: string;
@@ -57,7 +58,7 @@ export function ContactMessagesList({ academyId, initialMessages }: ContactMessa
         setMessages(data.items);
       }
     } catch (error) {
-      console.error("Error loading messages:", error);
+      logger.error("Error loading messages:", error);
       pushToast({
         title: "Error",
         description: "No se pudieron cargar los mensajes.",
@@ -84,7 +85,7 @@ export function ContactMessagesList({ academyId, initialMessages }: ContactMessa
         variant: "success",
       });
     } catch (error) {
-      console.error("Error marking message as read:", error);
+      logger.error("Error marking message as read:", error);
       pushToast({
         title: "Error",
         description: "No se pudo marcar el mensaje como leído.",
@@ -115,7 +116,7 @@ export function ContactMessagesList({ academyId, initialMessages }: ContactMessa
         variant: "success",
       });
     } catch (error) {
-      console.error("Error marking message as responded:", error);
+      logger.error("Error marking message as responded:", error);
       pushToast({
         title: "Error",
         description: "No se pudo marcar el mensaje como respondido.",
@@ -146,7 +147,7 @@ export function ContactMessagesList({ academyId, initialMessages }: ContactMessa
         variant: "success",
       });
     } catch (error) {
-      console.error("Error archiving message:", error);
+      logger.error("Error archiving message:", error);
       pushToast({
         title: "Error",
         description: "No se pudo archivar el mensaje.",
@@ -177,7 +178,7 @@ export function ContactMessagesList({ academyId, initialMessages }: ContactMessa
         variant: "success",
       });
     } catch (error) {
-      console.error("Error deleting message:", error);
+      logger.error("Error deleting message:", error);
       pushToast({
         title: "Error",
         description: "No se pudo eliminar el mensaje.",

@@ -7,6 +7,7 @@ import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FormField, validators } from "@/components/ui/form-field";
 import { useToast } from "@/components/ui/toast-provider";
+import { logger } from "@/lib/logger";
 
 type AcademyOption = {
   id: string;
@@ -117,7 +118,7 @@ export default function InviteUserForm({
       resetForm();
       router.refresh();
     } catch (error) {
-      console.error(error);
+      logger.error("Error", error);
       toast.pushToast({
         title: "Error al enviar invitación",
         description: error instanceof Error ? error.message : "Error inesperado al enviar la invitación.",

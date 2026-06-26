@@ -7,6 +7,7 @@ import { PaymentReminderTemplate } from "./templates/payment-reminder";
 import { EventInvitationTemplate } from "./templates/event-invitation";
 import { ClassCancellationTemplate } from "./templates/class-cancellation";
 import { formatLongDateForCountry } from "@/lib/date-utils";
+import { logger } from "@/lib/logger";
 
 /**
  * Envía recordatorios de asistencia 24 horas antes de la clase
@@ -84,7 +85,7 @@ export async function triggerAttendanceReminders(): Promise<number> {
 
         sentCount++;
       } catch (error) {
-        console.error(`Error sending attendance reminder to ${email}:`, error);
+        logger.error(`Error sending attendance reminder to ${email}:`, error);
       }
     }
   }
@@ -171,7 +172,7 @@ export async function triggerPaymentReminders(): Promise<number> {
 
       sentCount++;
     } catch (error) {
-      console.error(`Error sending payment reminder to ${email}:`, error);
+      logger.error(`Error sending payment reminder to ${email}:`, error);
     }
   }
 
@@ -256,7 +257,7 @@ export async function triggerEventInvitations(eventId: string): Promise<number> 
 
       sentCount++;
     } catch (error) {
-      console.error(`Error sending event invitation to ${email}:`, error);
+      logger.error(`Error sending event invitation to ${email}:`, error);
     }
   }
 
@@ -337,7 +338,7 @@ export async function triggerClassCancellation(
 
       sentCount++;
     } catch (error) {
-      console.error(`Error sending cancellation notice to ${email}:`, error);
+      logger.error(`Error sending cancellation notice to ${email}:`, error);
     }
   }
 

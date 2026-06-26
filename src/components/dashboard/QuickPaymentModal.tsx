@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { DollarSign, CreditCard, Wallet } from "lucide-react";
+import { logger } from "@/lib/logger";
 
 interface QuickPaymentModalProps {
     isOpen: boolean;
@@ -45,7 +46,7 @@ export function QuickPaymentModal({ isOpen, onClose, onSuccess }: QuickPaymentMo
                 }
             }
         } catch (error) {
-            console.error("Error fetching overdue charges:", error);
+            logger.error("Error fetching overdue charges:", error);
         }
     };
 
@@ -68,7 +69,7 @@ export function QuickPaymentModal({ isOpen, onClose, onSuccess }: QuickPaymentMo
                 onSuccess();
             }
         } catch (error) {
-            console.error("Error recording payment:", error);
+            logger.error("Error recording payment:", error);
         } finally {
             setLoading(false);
         }

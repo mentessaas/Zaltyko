@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback } from "react";
+import { logger } from "@/lib/logger";
 
 export interface LogContext {
   [key: string]: unknown;
@@ -35,17 +36,17 @@ export function useLogger(): UseLogger {
 
     switch (level) {
       case "debug":
-        if (isDevelopment) console.debug(formatted);
+        if (isDevelopment) logger.debug(formatted);
         break;
       case "info":
         console.info(formatted);
         break;
       case "warn":
-        console.warn(formatted);
+        logger.warn(formatted);
         // In production, could send to Sentry here
         break;
       case "error":
-        console.error(formatted);
+        logger.error(formatted);
         // In production, could send to Sentry here
         break;
     }

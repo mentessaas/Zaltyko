@@ -7,6 +7,7 @@ import { db } from "@/db";
 import { academies, profiles, contactMessages } from "@/db/schema";
 import { createNotification } from "@/lib/notifications/notification-service";
 import { rateLimit } from "@/lib/rate-limit";
+import { logger } from "@/lib/logger";
 
 const ContactAcademySchema = z.object({
   academyId: z.string().uuid(),
@@ -154,7 +155,7 @@ export async function contactAcademy(
       message: "Tu mensaje ha sido enviado. La academia te contactará pronto.",
     };
   } catch (error) {
-    console.error("Error creating contact message:", error);
+    logger.error("Error creating contact message:", error);
     return {
       success: false,
       error: "MESSAGE_CREATION_FAILED",

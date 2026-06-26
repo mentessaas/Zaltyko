@@ -19,6 +19,7 @@ import {
 import { db } from "@/db";
 import { sendPushToUser } from "@/lib/notifications/push-service";
 import { createNotification } from "@/lib/notifications/notification-service";
+import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -238,7 +239,7 @@ export const POST = withTenant(async (request, context) => {
       createdAt: message.createdAt,
     });
   } catch (error) {
-    console.error("Error sending message:", error);
+    logger.error("Error sending message:", error);
     return apiError("INTERNAL_ERROR", "Error al enviar mensaje", 500);
   }
 });

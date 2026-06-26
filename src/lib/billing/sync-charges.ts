@@ -6,6 +6,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { athletes, charges, groups } from "@/db/schema";
 import { getMonthlyFeeForAthlete, formatPeriodToMonthName } from "./athlete-fees";
+import { logger } from "@/lib/logger";
 
 export interface SyncChargesParams {
   academyId: string;
@@ -91,7 +92,7 @@ export async function syncChargesForAthleteCurrentPeriod(
     }
   } catch (error) {
     // Log error pero no romper el flujo principal
-    console.error("Error al sincronizar cargos al cambiar de grupo:", error);
+    logger.error("Error al sincronizar cargos al cambiar de grupo:", error);
     // No lanzamos el error para que no rompa la actualización del grupo
   }
 }
