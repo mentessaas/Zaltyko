@@ -29,8 +29,9 @@
 /.auth
 /waitlist.tar.gz
 /waitlist.zip
-/drizzle
 /supabase/.temp
+# NOTE: /drizzle intentionally NOT ignored — the folder is committed so CI can
+# validate migrations integrity via `pnpm check:migrations`.
 
 # editor / repo metadata that we don't need right now
 /.vscode
