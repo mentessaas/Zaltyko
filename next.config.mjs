@@ -29,8 +29,9 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: false,
   },
+  // ESLint runs via the dedicated CI job (Lint & Type Check); skip it during next build.
   eslint: {
-    ignoreDuringBuilds: false,
+    ignoreDuringBuilds: true,
   },
   pageExtensions: ["ts", "tsx", "mdx"],
   // Deshabilitar exportación estática (la app es completamente dinámica)
