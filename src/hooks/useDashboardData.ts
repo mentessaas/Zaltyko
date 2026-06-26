@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { DashboardData } from "@/lib/dashboard";
 import { createClient } from "@/lib/supabase/client";
+import { logger } from "@/lib/logger";
 
 interface UseDashboardDataOptions {
   academyId: string;
@@ -61,7 +62,7 @@ export function useDashboardData({ academyId, tenantId, initialData }: UseDashbo
       }
 
       if (!response.ok) {
-        console.error("Failed to fetch dashboard data:", response.status, response.statusText);
+        logger.error("Failed to fetch dashboard data", undefined, { status: response.status, statusText: response.statusText });
         return;
       }
 
@@ -79,10 +80,10 @@ export function useDashboardData({ academyId, tenantId, initialData }: UseDashbo
       }
       // Ignorar errores de red suspendida (puede pasar durante hot reload)
       if (msg.includes("Failed to fetch") || msg.includes("ERR_NETWORK_IO_SUSPENDED")) {
-        console.warn("Network request was suspended, likely due to hot reload");
+        logger.warn("Network request was suspended, likely due to hot reload");
         return;
       }
-      console.error("Error fetching dashboard data:", error);
+      logger.error("Error fetching dashboard data:", error);
     } finally {
       // Solo actualizar loading si la petición no fue cancelada
       if (!abortController.signal.aborted) {

@@ -27,6 +27,7 @@ import { CoachProfile } from "@/components/profiles/CoachProfile";
 import { AthleteProfile } from "@/components/profiles/AthleteProfile";
 import { ParentProfile } from "@/components/profiles/ParentProfile";
 import { resolveAcademySpecialization } from "@/lib/specialization/registry";
+import { logger } from "@/lib/logger";
 
 interface ProfilePageProps {
   params: Promise<{ profileId?: string }>;
@@ -49,7 +50,7 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
   try {
     currentProfile = await getCurrentProfile(user.id);
   } catch (error) {
-    console.error("Error getting profile:", error);
+    logger.error("Error getting profile:", error);
     redirect("/onboarding/owner");
   }
 
@@ -109,7 +110,7 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
         .where(eq(memberships.userId, targetProfile.userId))
         .orderBy(academies.name);
     } catch (error: any) {
-      console.error("dashboard/profile memberships query error", error);
+      logger.error("dashboard/profile memberships query error", error);
       if (
         error?.message?.includes("DATABASE_URL") ||
         error?.code === "ECONNREFUSED"

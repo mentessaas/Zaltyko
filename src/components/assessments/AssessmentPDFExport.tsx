@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import type { AssessmentWithScores, AssessmentType } from "@/types";
+import { logger } from "@/lib/logger";
 
 interface AssessmentPDFExportProps {
   assessments: AssessmentWithScores[];
@@ -180,7 +181,7 @@ export function AssessmentPDFExport({ assessments, athleteName, className }: Ass
       const filename = `evaluaciones_${athleteName.replace(/\s+/g, "_")}_${format(new Date(), "yyyy-MM-dd")}.pdf`;
       doc.save(filename);
     } catch (error) {
-      console.error("Error generating PDF:", error);
+      logger.error("Error generating PDF:", error);
     } finally {
       setIsExporting(false);
     }

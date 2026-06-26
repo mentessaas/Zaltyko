@@ -7,6 +7,7 @@
 
 import { db } from "../../index";
 import { skillCatalog } from "../../schema/skill-catalog";
+import { logger } from "@/lib/logger";
 
 interface GAElement {
   skillCode: string;
@@ -90,7 +91,7 @@ const gaElements: GAElement[] = [
 ];
 
 export async function seedEspanaGAElements(tenantId?: string) {
-  console.log("🌱 Seeding España GA elements...");
+  logger.info("🌱 Seeding España GA elements...");
 
   const effectiveTenantId = tenantId ?? "00000000-0000-0000-0000-000000000001";
 
@@ -112,6 +113,6 @@ export async function seedEspanaGAElements(tenantId?: string) {
     insertedElements.push(inserted);
   }
 
-  console.log(`✅ ${insertedElements.length} GA elements seeded`);
+  logger.info(`✅ ${insertedElements.length} GA elements seeded`);
   return insertedElements;
 }

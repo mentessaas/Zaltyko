@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { NoteForm } from "./NoteForm";
+import { logger } from "@/lib/logger";
 
 interface Note {
   id: string;
@@ -75,7 +76,7 @@ export function CoachNotesManager({
         setNotes(data.items);
       }
     } catch (error) {
-      console.error("Error loading notes:", error);
+      logger.error("Error loading notes:", error);
     } finally {
       setIsLoading(false);
     }

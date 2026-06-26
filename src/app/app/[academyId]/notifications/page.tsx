@@ -43,6 +43,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { NotificationPreferences } from "@/components/notifications/NotificationPreferences";
 import { PushNotificationPermission } from "@/components/notifications/PushNotificationPermission";
 import { useAcademyContext } from "@/hooks/use-academy-context";
+import { logger } from "@/lib/logger";
 
 interface Notification {
   id: string;
@@ -128,7 +129,7 @@ export default function NotificationsPage() {
         setHasMore((data.items || []).length === limit);
         if (!reset) setPage((prev) => prev + 1);
       } catch (error) {
-        console.error("Error loading notifications:", error);
+        logger.error("Error loading notifications:", error);
       } finally {
         setIsLoading(false);
         setIsLoadingMore(false);
@@ -150,7 +151,7 @@ export default function NotificationsPage() {
         prev.map((n) => (n.id === notificationId ? { ...n, read: true } : n))
       );
     } catch (error) {
-      console.error("Error marking notification as read:", error);
+      logger.error("Error marking notification as read:", error);
     }
   };
 
@@ -161,7 +162,7 @@ export default function NotificationsPage() {
       });
       setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
     } catch (error) {
-      console.error("Error marking all as read:", error);
+      logger.error("Error marking all as read:", error);
     }
   };
 
@@ -172,7 +173,7 @@ export default function NotificationsPage() {
       });
       setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
     } catch (error) {
-      console.error("Error deleting notification:", error);
+      logger.error("Error deleting notification:", error);
     }
   };
 

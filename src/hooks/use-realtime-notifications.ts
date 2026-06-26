@@ -3,6 +3,7 @@
 import { useEffect, useCallback, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/toast-provider";
+import { logger } from "@/lib/logger";
 
 interface RealtimeNotification {
   id: string;
@@ -43,7 +44,7 @@ const playNotificationSound = () => {
     oscillator.start(audioContext.currentTime);
     oscillator.stop(audioContext.currentTime + 0.3);
   } catch (error) {
-    console.log("Notification sound not available");
+    logger.info("Notification sound not available");
   }
 };
 

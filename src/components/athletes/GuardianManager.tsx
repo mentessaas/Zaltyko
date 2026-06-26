@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createClient } from "@/lib/supabase/client";
+import { logger } from "@/lib/logger";
 
 type Guardian = {
   linkId: string;
@@ -104,7 +105,7 @@ export default function GuardianManager({
       setForm(defaultFormState);
       setMessage("Tutor añadido correctamente.");
     } catch (error) {
-      console.error(error);
+      logger.error("Error", error);
       setMessage(error instanceof Error ? error.message : "Error inesperado.");
     } finally {
       setIsSubmitting(false);
@@ -164,7 +165,7 @@ export default function GuardianManager({
       setMessage("Tutor actualizado.");
       setEditingId(null);
     } catch (error) {
-      console.error(error);
+      logger.error("Error", error);
       setMessage(error instanceof Error ? error.message : "Error inesperado.");
     } finally {
       setIsSubmitting(false);
@@ -201,7 +202,7 @@ export default function GuardianManager({
       setGuardians((prev) => prev.filter((item) => item.linkId !== guardian.linkId));
       setMessage("Tutor eliminado.");
     } catch (error) {
-      console.error(error);
+      logger.error("Error", error);
       setMessage(error instanceof Error ? error.message : "Error inesperado.");
     } finally {
       setIsSubmitting(false);

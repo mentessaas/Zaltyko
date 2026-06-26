@@ -13,6 +13,7 @@ import { useToast } from "@/components/ui/toast-provider";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { formatAcademyType } from "@/lib/formatters";
 import { SuperAdminCreateAcademyDialog } from "./SuperAdminCreateAcademyDialog";
+import { logger } from "@/lib/logger";
 
 type SuperAdminAcademyFilters = {
   plan?: string;
@@ -91,7 +92,7 @@ export function SuperAdminAcademiesTable({
       });
 
       if (!response.ok) {
-        console.error("Error fetching academias", await response.text());
+        logger.error("Error fetching academias", await response.text());
         return;
       }
 
@@ -173,7 +174,7 @@ export function SuperAdminAcademiesTable({
       if (optimisticUpdate) {
         await fetchAcademies(filters);
       }
-      console.error("Mutation failed", error);
+      logger.error("Mutation failed", error);
       toast.pushToast({
         title: "Error",
         description: error.message || "Ocurrió un error inesperado",

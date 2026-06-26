@@ -8,6 +8,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui/toast-provider";
+import { logger } from "@/lib/logger";
 
 interface Violation {
   resource: string;
@@ -48,7 +49,7 @@ export default function PlanLimitsPage() {
           }
         }
       } catch (error) {
-        console.error("Error fetching limits", error);
+        logger.error("Error fetching limits", error);
       } finally {
         setLoading(false);
       }
@@ -100,7 +101,7 @@ export default function PlanLimitsPage() {
       });
       router.push("/dashboard");
     } catch (error) {
-      console.error("Error saving adjustments", error);
+      logger.error("Error saving adjustments", error);
       toast.pushToast({
         title: "No se pudieron guardar los ajustes",
         description: "Inténtalo de nuevo en unos segundos.",

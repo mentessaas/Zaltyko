@@ -9,6 +9,7 @@
 
 import { db } from "../../index";
 import { skillCatalog } from "../../schema/skill-catalog";
+import { logger } from "@/lib/logger";
 
 // Skill codes follow pattern: {APPARATUS}-{GROUP}-{CODE}
 // e.g., R-G1-SJ = Rope, Group 1, Saltito Jump
@@ -122,7 +123,7 @@ const grElements: GRElement[] = [
 ];
 
 export async function seedEspanaGRElements(tenantId?: string) {
-  console.log("🌱 Seeding España GR elements...");
+  logger.info("🌱 Seeding España GR elements...");
 
   // Default tenant placeholder - can be overridden
   const effectiveTenantId = tenantId ?? "00000000-0000-0000-0000-000000000001";
@@ -145,6 +146,6 @@ export async function seedEspanaGRElements(tenantId?: string) {
     insertedElements.push(inserted);
   }
 
-  console.log(`✅ ${insertedElements.length} GR elements seeded`);
+  logger.info(`✅ ${insertedElements.length} GR elements seeded`);
   return insertedElements;
 }

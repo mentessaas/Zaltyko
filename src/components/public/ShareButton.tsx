@@ -2,6 +2,7 @@
 
 import { Share2 } from "lucide-react";
 import { useState } from "react";
+import { logger } from "@/lib/logger";
 
 interface ShareButtonProps {
   eventId: string;
@@ -23,7 +24,7 @@ export function ShareButton({ eventId, eventTitle }: ShareButtonProps) {
         });
       } catch (error) {
         // Usuario canceló o hubo error
-        console.error("Error sharing:", error);
+        logger.error("Error sharing:", error);
       }
     } else {
       // Fallback: copiar al portapapeles
@@ -32,7 +33,7 @@ export function ShareButton({ eventId, eventTitle }: ShareButtonProps) {
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
       } catch (error) {
-        console.error("Error copying to clipboard:", error);
+        logger.error("Error copying to clipboard:", error);
       }
     }
   };

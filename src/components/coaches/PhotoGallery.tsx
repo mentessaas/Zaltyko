@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Image as ImageIcon, Trash2, Upload } from "lucide-react";
 import Image from "next/image";
 import { useToast } from "@/components/ui/toast-provider";
+import { logger } from "@/lib/logger";
 
 interface PhotoGalleryProps {
   photos: string[];
@@ -43,7 +44,7 @@ export function PhotoGallery({ photos, onChange, academyId }: PhotoGalleryProps)
       const data = await response.json();
       onChange([...photos, data.url]);
     } catch (error) {
-      console.error("Error uploading photo:", error);
+      logger.error("Error uploading photo:", error);
       toast.pushToast({
         title: "No se pudo subir la imagen",
         description: "Revisa el archivo e inténtalo de nuevo.",

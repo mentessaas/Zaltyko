@@ -21,6 +21,7 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { getRegionLabel } from "@/lib/countryRegions";
 import { useToast } from "@/components/ui/toast-provider";
+import { logger } from "@/lib/logger";
 
 const ACADEMY_TYPES = [
   { value: "artistica", label: "Gimnasia artística" },
@@ -93,10 +94,10 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
           const data = await response.json();
           setPlans(data.plans || []);
         } else {
-          console.error("Failed to fetch plans:", response.status);
+          logger.error("Failed to fetch plans:", response.status);
         }
       } catch (error) {
-        console.error("Error fetching plans", error);
+        logger.error("Error fetching plans", error);
       } finally {
         setLoading(false);
       }
@@ -158,7 +159,7 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
       });
       router.refresh();
     } catch (error) {
-      console.error("Error saving academy", error);
+      logger.error("Error saving academy", error);
       toast.pushToast({
         title: "No se pudieron guardar los cambios",
         description: "Inténtalo de nuevo en unos segundos.",
@@ -201,7 +202,7 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
       setFormData({ ...formData, isSuspended: updated.isSuspended });
       router.refresh();
     } catch (error) {
-      console.error("Error toggling suspension", error);
+      logger.error("Error toggling suspension", error);
       toast.pushToast({
         title: "No se pudo cambiar el estado de la academia",
         description: "Inténtalo de nuevo en unos segundos.",

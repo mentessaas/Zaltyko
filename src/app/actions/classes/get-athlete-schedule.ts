@@ -17,6 +17,7 @@ import {
 import { getCurrentProfile, getTenantId } from "@/lib/authz";
 import { verifyAcademyAccess } from "@/lib/permissions";
 import { createClient } from "@/lib/supabase/server";
+import { logger } from "@/lib/logger";
 
 export interface AthleteScheduleItem {
   id: string;
@@ -255,7 +256,7 @@ export async function getAthleteSchedule(params: {
 
     return { items: scheduleItems };
   } catch (error: any) {
-    console.error("Error en getAthleteSchedule:", error);
+    logger.error("Error en getAthleteSchedule:", error);
     // Si el error es porque las columnas no existen (migraciones no aplicadas),
     // retornar un mensaje más claro
     if (error.message?.includes("is_extra") || error.message?.includes("column") || error.message?.includes("does not exist")) {

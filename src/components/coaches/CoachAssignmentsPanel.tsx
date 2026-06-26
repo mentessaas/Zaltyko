@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { logger } from "@/lib/logger";
 
 type CoachSummary = {
   id: string;
@@ -97,7 +98,7 @@ export default function CoachAssignmentsPanel({
 
       setStatusMessage("Asignaciones guardadas correctamente.");
     } catch (error) {
-      console.error(error);
+      logger.error("Error", error);
       setStatusMessage(
         error instanceof Error ? error.message : "Error inesperado al guardar."
       );

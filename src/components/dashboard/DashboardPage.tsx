@@ -52,6 +52,7 @@ import {
   type TechnicalSummarySourceItem,
 } from "@/lib/dashboard/technical-summary";
 import { TechnicalOverviewWidget } from "@/components/dashboard/TechnicalOverviewWidget";
+import { logger } from "@/lib/logger";
 import { useDashboardChecklist } from "@/components/dashboard/useDashboardChecklist";
 import {
   DashboardHeroSection,
@@ -236,7 +237,7 @@ export function DashboardPage({
           }
         }
       } catch (error) {
-        console.error("Error fetching starter setup summary:", error);
+        logger.error("Error fetching starter setup summary:", error);
       }
     };
 
@@ -277,7 +278,7 @@ export function DashboardPage({
           }
         }
       } catch (error) {
-        console.error("Error fetching technical dashboard summary:", error);
+        logger.error("Error fetching technical dashboard summary:", error);
       }
     };
 

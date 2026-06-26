@@ -9,6 +9,7 @@ import { CHECKLIST_DEFINITIONS, type ChecklistKey } from "@/lib/onboarding-utils
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast-provider";
+import { logger } from "@/lib/logger";
 
 interface ChecklistItem {
   id: string;
@@ -90,7 +91,7 @@ export function OnboardingChecklist({ academyId }: OnboardingChecklistProps) {
       const json = (await response.json()) as ApiResponse;
       setData(json);
     } catch (error) {
-      console.error(error);
+      logger.error("Error", error);
       toast.pushToast({
         title: "Error cargando checklist",
         description: "No se pudo obtener el estado del onboarding.",
@@ -123,7 +124,7 @@ export function OnboardingChecklist({ academyId }: OnboardingChecklistProps) {
         description: "Actualizamos el estado del checklist.",
       });
     } catch (error) {
-      console.error(error);
+      logger.error("Error", error);
       toast.pushToast({
         title: "Error",
         description: "No se pudo marcar el paso como completado.",

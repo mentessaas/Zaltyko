@@ -8,6 +8,7 @@ import { Check, CreditCard, Zap, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
+import { logger } from "@/lib/logger";
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
@@ -116,7 +117,7 @@ export function UpgradeModal({ open, onClose, currentPlan, targetPlan, onConfirm
             setClientSecret(data?.clientSecret ?? null);
             setStep("payment");
         } catch (error) {
-            console.error("Error:", error);
+            logger.error("Error:", error);
         } finally {
             setLoading(false);
         }
@@ -128,7 +129,7 @@ export function UpgradeModal({ open, onClose, currentPlan, targetPlan, onConfirm
             await onConfirm(paymentMethodId);
             onClose();
         } catch (error) {
-            console.error("Error:", error);
+            logger.error("Error:", error);
         } finally {
             setLoading(false);
         }

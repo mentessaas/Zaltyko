@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Calendar, MapPin, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatShortDateForCountry } from "@/lib/date-utils";
+import { logger } from "@/lib/logger";
 
 interface Event {
   id: string;
@@ -49,7 +50,7 @@ export function UpcomingEventsWidget({ academyId, academyCountry }: UpcomingEven
         setEvents(upcoming);
       }
     } catch (error) {
-      console.error("Error loading events:", error);
+      logger.error("Error loading events:", error);
     } finally {
       setLoading(false);
     }

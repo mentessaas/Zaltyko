@@ -14,6 +14,7 @@ import { useToast } from "@/components/ui/toast-provider";
 import { useAcademyContext } from "@/hooks/use-academy-context";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { getTerminologyForSportConfig } from "@/lib/sport-config/terminology";
+import { logger } from "@/lib/logger";
 
 interface AttendanceStats {
   totalSessions: number;
@@ -91,7 +92,7 @@ export function AttendanceReport({
         setGroups(Array.isArray(payload.data?.groups) ? payload.data.groups : []);
         setSportConfigs(Array.isArray(payload.data?.sportConfigs) ? payload.data.sportConfigs : []);
       } catch (fetchError) {
-        console.error("Error loading attendance report options:", fetchError);
+        logger.error("Error loading attendance report options:", fetchError);
       }
     };
 

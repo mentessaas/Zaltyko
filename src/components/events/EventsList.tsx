@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { EventForm } from "./EventForm";
 import { useAcademyContext } from "@/hooks/use-academy-context";
 import { useToast } from "@/components/ui/toast-provider";
+import { logger } from "@/lib/logger";
 
 interface Event {
   id: string;
@@ -65,7 +66,7 @@ export function EventsList({ academyId, events, sportConfigs = [], academyCountr
 
       router.refresh();
     } catch (error) {
-      console.error("Error deleting event:", error);
+      logger.error("Error deleting event:", error);
       toast.pushToast({
         title: "No se pudo eliminar el evento",
         description: "Inténtalo de nuevo en unos segundos.",

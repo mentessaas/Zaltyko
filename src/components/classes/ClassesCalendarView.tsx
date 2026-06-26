@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { format, startOfWeek, addDays, isSameDay, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
+import { logger } from "@/lib/logger";
 
 const WEEKDAY_LABELS = [
   { day: 0, label: "Domingo", short: "Dom" },
@@ -108,7 +109,7 @@ export function ClassesCalendarView({
 
   const handleDrop = (date: Date) => {
     if (draggedClass) {
-      console.log("Mover clase:", draggedClass.name, "a", format(date, "yyyy-MM-dd"));
+      logger.info(`Mover clase: ${draggedClass.name} a ${format(date, "yyyy-MM-dd")}`);
       // Aquí se implementaría la lógica de mover la clase
       setDraggedClass(null);
     }

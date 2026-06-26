@@ -20,6 +20,7 @@ import { getCurrentProfile, getTenantId } from "@/lib/authz";
 import { verifyAcademyAccess } from "@/lib/permissions";
 import { withTransaction } from "@/lib/db-transactions";
 import { createClient } from "@/lib/supabase/server";
+import { logger } from "@/lib/logger";
 
 const createExtraClassSchema = z.object({
   athleteId: z.string().uuid(),
@@ -224,7 +225,7 @@ export async function createExtraClassAction(input: z.infer<typeof createExtraCl
 
     return { ok: true, classId };
   } catch (error: any) {
-    console.error("Error en createExtraClassAction:", error);
+    logger.error("Error en createExtraClassAction:", error);
     if (error instanceof z.ZodError) {
       return {
         error: "VALIDATION_ERROR",

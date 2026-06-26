@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast-provider";
+import { logger } from "@/lib/logger";
 
 interface NotificationPreferencesData {
   channels: {
@@ -118,7 +119,7 @@ export function NotificationPreferencesAdvanced() {
           }
         }
       } catch (error) {
-        console.error("Error loading preferences:", error);
+        logger.error("Error loading preferences:", error);
       } finally {
         setIsLoading(false);
       }

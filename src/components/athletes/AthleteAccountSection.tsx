@@ -7,6 +7,7 @@ import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CreateChargeDialog } from "@/components/billing/CreateChargeDialog";
+import { logger } from "@/lib/logger";
 
 interface ChargeItem {
   id: string;
@@ -97,7 +98,7 @@ export function AthleteAccountSection({ academyId, athleteId }: AthleteAccountSe
 
       setSummary({ pendingTotal, paidThisYear });
     } catch (error) {
-      console.error("Error loading charges:", error);
+      logger.error("Error loading charges:", error);
     } finally {
       setLoading(false);
     }

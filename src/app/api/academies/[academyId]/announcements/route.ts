@@ -13,6 +13,7 @@ import { announcements as announcementsTable, announcementReadStatus } from "@/d
 import { memberships } from "@/db/schema/memberships";
 import { createNotification } from "@/lib/notifications/notification-service";
 import { sendPushToUser } from "@/lib/notifications/push-service";
+import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -113,7 +114,7 @@ export const GET = withTenant(async (request, context) => {
       offset,
     });
   } catch (error) {
-    console.error("Error listing announcements:", error);
+    logger.error("Error listing announcements:", error);
     return apiError("INTERNAL_ERROR", "Error al listar anuncios", 500);
   }
 });
@@ -264,7 +265,7 @@ export const POST = withTenant(async (request, context) => {
         400
       );
     }
-    console.error("Error creating announcement:", error);
+    logger.error("Error creating announcement:", error);
     return apiError("INTERNAL_ERROR", "Error al crear anuncio", 500);
   }
 });

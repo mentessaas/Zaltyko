@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { GymMetricsWidget } from "@/components/dashboard/GymMetricsWidget";
+import { logger } from "@/lib/logger";
 
 interface GymMetricsWidgetLoaderProps {
   academyId: string;
@@ -32,7 +33,7 @@ export function GymMetricsWidgetLoader({ academyId }: GymMetricsWidgetLoaderProp
         const data = await response.json();
         setMetrics(data);
       } catch (err) {
-        console.error("Error fetching GR metrics:", err);
+        logger.error("Error fetching GR metrics:", err);
         setError("error");
       } finally {
         setLoading(false);

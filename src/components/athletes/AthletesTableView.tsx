@@ -20,6 +20,7 @@ import type { SportConfigOption } from "@/components/groups/types";
 import { getTerminologyForSportConfig } from "@/lib/sport-config/terminology";
 import type { AthleteListItem, GroupOption } from "@/types";
 import { useTranslation } from "@/hooks/use-translation";
+import { logger } from "@/lib/logger";
 
 interface AthletesTableViewProps {
   academyId: string;
@@ -106,7 +107,7 @@ export const AthletesTableView = memo(function AthletesTableView({
         }
       } catch (error) {
         if (error instanceof Error && error.name !== "AbortError") {
-          console.error("Error loading attendance alerts:", error);
+          logger.error("Error loading attendance alerts:", error);
         }
       }
     };
