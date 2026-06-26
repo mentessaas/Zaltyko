@@ -41,6 +41,9 @@
     "zaltyko-branding",
     ".playwright-mcp",
     "scripts/fix-fk.ts",
+    "scripts/e2e-auth-test.ts",
+    "scripts/e2e-check-errors.ts",
+    "scripts/e2e-full-flows.ts",
     "smoke-test.ts",
     "tests"
   ]

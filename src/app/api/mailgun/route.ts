@@ -53,8 +53,9 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({});
-  } catch (e: any) {
-    logger.error(e?.message);
-    return NextResponse.json({ error: e?.message }, { status: 500 });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : "Error desconocido";
+    logger.error(msg);
+    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   }
 }

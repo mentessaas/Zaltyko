@@ -73,8 +73,8 @@ export function FileUpload({
       }
 
       onFilesChange([...files, ...newFiles]);
-    } catch (err: any) {
-      setError(err.message || "Error al subir archivo");
+    } catch (err: unknown) {
+      setError((err instanceof Error ? err.message : "Error desconocido") || "Error al subir archivo");
     } finally {
       setUploading(false);
       if (fileInputRef.current) {

@@ -33,7 +33,7 @@ export const POST = withRateLimit(
 
         if (result.error) return result.error;
         return apiCreated({ event: result.event });
-      } catch (error: any) {
+      } catch (error: unknown) {
         if (error instanceof z.ZodError) {
           return apiError("VALIDATION_ERROR", "Validation failed", 400);
         }

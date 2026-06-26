@@ -39,7 +39,7 @@ export const GET = withTenant(async (request, context) => {
     );
 
     return apiSuccess({ items: alerts });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error("Error detecting payment alerts:", error);
     return apiSuccess({ items: [] });
   }

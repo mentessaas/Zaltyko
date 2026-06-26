@@ -83,10 +83,10 @@ export const POST = withTenant(async (request, context) => {
       url,
       path,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error("Error uploading assessment video:", error);
     return NextResponse.json(
-      { error: "UPLOAD_FAILED", message: error.message },
+      { error: "UPLOAD_FAILED", message: "Error al subir el video" },
       { status: 500 }
     );
   }
@@ -131,10 +131,10 @@ export const DELETE = withTenant(async (request, context) => {
     await db.delete(assessmentVideos).where(eq(assessmentVideos.id, videoId));
 
     return NextResponse.json({ ok: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error("Error deleting assessment video:", error);
     return NextResponse.json(
-      { error: "DELETE_FAILED", message: error.message },
+      { error: "DELETE_FAILED", message: "Error al eliminar el video" },
       { status: 500 }
     );
   }

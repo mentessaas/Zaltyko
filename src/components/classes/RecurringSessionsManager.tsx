@@ -83,8 +83,8 @@ export function RecurringSessionsManager({
       setSuccess("Configuración guardada correctamente");
       onSettingsUpdated?.();
       setTimeout(() => setSuccess(null), 3000);
-    } catch (err: any) {
-      setError(err.message || "Error al guardar configuración");
+    } catch (err: unknown) {
+      setError((err instanceof Error ? err.message : "Error desconocido") || "Error al guardar configuración");
     } finally {
       setIsSaving(false);
     }

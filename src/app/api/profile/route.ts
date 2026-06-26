@@ -128,11 +128,11 @@ export async function PATCH(request: Request) {
       ...updatedProfile,
       email: responseEmail,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (error instanceof z.ZodError) {
       return apiError("INVALID_INPUT", "Entrada inválida", 400);
     }
     logger.error("Error updating profile", error);
-    return apiError("INTERNAL_ERROR", error.message, 500);
+    return apiError("INTERNAL_ERROR", "Error al actualizar el perfil", 500);
   }
 }

@@ -24,7 +24,8 @@ export default function CheckoutButton({ priceId }: CheckoutButtonProps) {
 
       const { sessionId } = await response.json();
       const stripe = await getStripe();
-      (stripe as any)?.redirectToCheckout({ sessionId });
+      // redirectToCheckout es un método legacy de Stripe.js v2; no está tipado en v3+
+      await (stripe as unknown as { redirectToCheckout: (opts: { sessionId: string }) => Promise<void> })?.redirectToCheckout({ sessionId });
     } catch (error) {
       console.error("Error:", error);
     } finally {

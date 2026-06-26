@@ -84,8 +84,8 @@ export function CoachReport({ academyId, academyCountry, sportConfigs = [] }: Co
       }
 
       setReportData(data.data);
-    } catch (err: any) {
-      setError(err.message || "Error al generar reporte");
+    } catch (err: unknown) {
+      setError((err instanceof Error ? err.message : "Error desconocido") || "Error al generar reporte");
     } finally {
       setIsLoading(false);
     }
@@ -118,10 +118,10 @@ export function CoachReport({ academyId, academyCountry, sportConfigs = [] }: Co
         description: `El reporte de ${coachTermLower}s se descargó correctamente.`,
         variant: "success",
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast.pushToast({
         title: "No se pudo exportar el PDF",
-        description: err.message || "Inténtalo de nuevo en unos segundos.",
+        description: (err instanceof Error ? err.message : "Error desconocido") || "Inténtalo de nuevo en unos segundos.",
         variant: "error",
       });
     }
@@ -154,10 +154,10 @@ export function CoachReport({ academyId, academyCountry, sportConfigs = [] }: Co
         description: `El reporte de ${coachTermLower}s se descargó correctamente.`,
         variant: "success",
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast.pushToast({
         title: "No se pudo exportar el Excel",
-        description: err.message || "Inténtalo de nuevo en unos segundos.",
+        description: (err instanceof Error ? err.message : "Error desconocido") || "Inténtalo de nuevo en unos segundos.",
         variant: "error",
       });
     }
@@ -180,10 +180,10 @@ export function CoachReport({ academyId, academyCountry, sportConfigs = [] }: Co
         description: `Enviamos el reporte de ${coachTermLower}s a ${email}.`,
         variant: "success",
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast.pushToast({
         title: "No se pudo enviar el reporte",
-        description: err.message || "Revisa el correo e inténtalo otra vez.",
+        description: (err instanceof Error ? err.message : "Error desconocido") || "Revisa el correo e inténtalo otra vez.",
         variant: "error",
       });
     }

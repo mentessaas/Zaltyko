@@ -118,8 +118,8 @@ export function FinancialReport({
         const delinquencyData = await delinquencyResponse.json();
         setDelinquencyData(delinquencyData.data || []);
       }
-    } catch (err: any) {
-      setError(err.message || "Error al generar reporte");
+    } catch (err: unknown) {
+      setError((err instanceof Error ? err.message : "Error desconocido") || "Error al generar reporte");
     } finally {
       setIsLoading(false);
     }
@@ -158,10 +158,10 @@ export function FinancialReport({
         description: "El reporte financiero se descargó correctamente.",
         variant: "success",
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast.pushToast({
         title: "No se pudo exportar el PDF",
-        description: err.message || "Inténtalo de nuevo en unos segundos.",
+        description: (err instanceof Error ? err.message : "Error desconocido") || "Inténtalo de nuevo en unos segundos.",
         variant: "error",
       });
     }
@@ -194,10 +194,10 @@ export function FinancialReport({
         description: "El reporte financiero se descargó correctamente.",
         variant: "success",
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast.pushToast({
         title: "No se pudo exportar el Excel",
-        description: err.message || "Inténtalo de nuevo en unos segundos.",
+        description: (err instanceof Error ? err.message : "Error desconocido") || "Inténtalo de nuevo en unos segundos.",
         variant: "error",
       });
     }

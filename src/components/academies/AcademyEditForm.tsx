@@ -136,8 +136,8 @@ export function AcademyEditForm({ academy, onSaved, onCancel }: AcademyEditFormP
           onSaved();
         }, 1000);
       }
-    } catch (err: any) {
-      setError(err.message || "Error al guardar los cambios");
+    } catch (err: unknown) {
+      setError((err instanceof Error ? err.message : "Error desconocido") || "Error al guardar los cambios");
     } finally {
       setLoading(false);
     }

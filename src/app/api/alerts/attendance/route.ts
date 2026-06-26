@@ -44,7 +44,7 @@ export const GET = withTenant(async (request, context) => {
     );
 
     return apiSuccess({ items: alerts });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error("Error detecting attendance alerts:", error);
     return apiSuccess({ items: [] });
   }

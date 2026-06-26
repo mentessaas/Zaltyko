@@ -63,8 +63,8 @@ export function ChangePasswordForm() {
       setTimeout(() => {
         setSuccess(false);
       }, 3000);
-    } catch (err: any) {
-      setError(err.message || "Error al actualizar la contraseña");
+    } catch (err: unknown) {
+      setError((err instanceof Error ? err.message : "Error desconocido") || "Error al actualizar la contraseña");
     } finally {
       setIsSubmitting(false);
     }

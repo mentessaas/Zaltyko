@@ -9,6 +9,7 @@ import { db } from "@/db";
 import { academies, memberships, plans, profiles, subscriptions } from "@/db/schema";
 import { apiSuccess, apiError, apiCreated } from "@/lib/api-response";
 import { assertUserAcademyLimit, getUpgradeInfo } from "@/lib/limits";
+import { LimitError } from "@/lib/limits/errors";
 import { seedOnboardingForAcademy, markWizardStep } from "@/lib/onboarding";
 import { trackEvent } from "@/lib/analytics";
 import { logEvent } from "@/lib/event-logging";
@@ -82,8 +83,8 @@ export async function createAcademy(body: z.infer<typeof CreateAcademyBodySchema
   // Validate academy limit
   try {
     await assertUserAcademyLimit(ownerProfile.userId);
-  } catch (error: any) {
-    if ((error?.status === 402 || error?.statusCode === 402) && error?.code === "ACADEMY_LIMIT_REACHED") {
+  } catch (error: unknown) {
+    if (error instanceof LimitError && error.code === "LIMIT_REACHED") {
       const upgradeTo = error.payload?.upgradeTo ?? "pro";
       const upgradeInfo = getUpgradeInfo(upgradeTo === "pro" ? "free" : "pro");
 

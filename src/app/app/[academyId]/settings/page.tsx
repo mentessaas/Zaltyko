@@ -95,6 +95,8 @@ interface AcademySettings {
   stripePublicKey: string;
   stripeSecretKey: string;
   stripeWebhookSecret: string;
+  stripeSecretKeyConfigured: boolean;
+  stripeWebhookSecretConfigured: boolean;
   taxId: string;
   invoicePrefix: string;
 }
@@ -142,6 +144,8 @@ const DEFAULT_SETTINGS: AcademySettings = {
   stripePublicKey: "",
   stripeSecretKey: "",
   stripeWebhookSecret: "",
+  stripeSecretKeyConfigured: false,
+  stripeWebhookSecretConfigured: false,
   taxId: "",
   invoicePrefix: "INV",
 };
@@ -277,8 +281,8 @@ export default function SettingsPage() {
 
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
-    } catch (err: any) {
-      setError(err.message || "Error al guardar los cambios");
+    } catch (err: unknown) {
+      setError((err instanceof Error ? err.message : "Error desconocido") || "Error al guardar los cambios");
     } finally {
       setSaving(false);
     }
@@ -763,23 +767,37 @@ export default function SettingsPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="stripeSecretKey">Stripe Secret Key</Label>
+                  <Label htmlFor="stripeSecretKey" className="flex items-center gap-2">
+                    Stripe Secret Key
+                    {settings.stripeSecretKeyConfigured && !settings.stripeSecretKey && (
+                      <span className="flex items-center gap-1 text-xs text-green-600 font-normal">
+                        <CheckCircle className="h-3 w-3" /> Configurada
+                      </span>
+                    )}
+                  </Label>
                   <Input
                     id="stripeSecretKey"
                     type="password"
                     value={settings.stripeSecretKey}
                     onChange={(e) => updateSettings("stripeSecretKey", e.target.value)}
-                    placeholder="sk_live_..."
+                    placeholder={settings.stripeSecretKeyConfigured ? "Dejar vacío para mantener la actual" : "sk_live_..."}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="stripeWebhookSecret">Stripe Webhook Secret</Label>
+                  <Label htmlFor="stripeWebhookSecret" className="flex items-center gap-2">
+                    Stripe Webhook Secret
+                    {settings.stripeWebhookSecretConfigured && !settings.stripeWebhookSecret && (
+                      <span className="flex items-center gap-1 text-xs text-green-600 font-normal">
+                        <CheckCircle className="h-3 w-3" /> Configurado
+                      </span>
+                    )}
+                  </Label>
                   <Input
                     id="stripeWebhookSecret"
                     type="password"
                     value={settings.stripeWebhookSecret}
                     onChange={(e) => updateSettings("stripeWebhookSecret", e.target.value)}
-                    placeholder="whsec_..."
+                    placeholder={settings.stripeWebhookSecretConfigured ? "Dejar vacío para mantener el actual" : "whsec_..."}
                   />
                 </div>
               </CardContent>

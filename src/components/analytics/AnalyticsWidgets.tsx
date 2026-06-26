@@ -132,8 +132,8 @@ export function AnalyticsWidgets({ academyId }: { academyId: string }) {
       }
 
       setData(result.data);
-    } catch (err: any) {
-      setError(err.message || "Error al cargar datos de analítica");
+    } catch (err: unknown) {
+      setError((err instanceof Error ? err.message : "Error desconocido") || "Error al cargar datos de analítica");
       setData(null);
     } finally {
       setIsLoading(false);

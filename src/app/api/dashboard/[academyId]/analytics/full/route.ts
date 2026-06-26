@@ -57,7 +57,7 @@ export const GET = withTenant(async (request, context) => {
 
     const analytics = await calculateFullAnalytics(academyId, context.tenantId);
     return apiSuccess({ data: analytics });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error("Error calculating full analytics:", error);
     return apiError("ANALYTICS_FAILED", "Failed to calculate analytics", 500);
   }

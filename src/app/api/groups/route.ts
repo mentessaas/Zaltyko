@@ -9,6 +9,7 @@ import { academies, athletes, coaches, groupAthletes, groups } from "@/db/schema
 import { withTenant } from "@/lib/authz";
 import { rateLimit, getUserIdentifier, withRateLimit } from "@/lib/rate-limit";
 import { assertWithinPlanLimits } from "@/lib/limits";
+import { LimitError } from "@/lib/limits/errors";
 import { markChecklistItem, markWizardStep } from "@/lib/onboarding";
 import { logEvent } from "@/lib/event-logging";
 import { NextResponse } from "next/server";
@@ -239,9 +240,9 @@ const createGroupHandler = withTenant(async (request, context) => {
 
   try {
     await assertWithinPlanLimits(tenantId, body.academyId, "groups");
-  } catch (error: any) {
-    if (error?.payload?.code === "LIMIT_REACHED") {
-      return apiError("LIMIT_REACHED", error.payload?.message || "Limit reached", error.status ?? 402);
+  } catch (error: unknown) {
+    if (error instanceof LimitError) {
+      return apiError("LIMIT_REACHED", "Has alcanzado el límite de grupos de tu plan", error.statusCode ?? 402);
     }
     throw error;
   }

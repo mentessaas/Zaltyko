@@ -8,6 +8,24 @@ source:
 
 # Decisiones
 
+## 2026-06-26 - Restaurar `Guia entrevistas academias gimnasia.md` y documentar consolidacion 2026-06-24
+
+| Campo | Valor |
+| --- | --- |
+| Contexto | Auditoria de la rama `claude/hungry-shaw-f623bb` detecto que el commit `06a71dd` (2026-06-24) elimino 17 notas del vault al consolidar versiones con fecha en canonicas, pero no se documento en `Decisiones.md` ni en `Changelog interno.md`. Una de las notas eliminadas (`Guia entrevistas academias gimnasia.md`, 84 lineas con 18 preguntas de discovery y criterios de cierre de 10 entrevistas) no tiene reemplazo equivalente en `Playbook de demo.md` (cubre demo, no discovery) ni `Onboarding de cliente.md` (cubre post-venta, no pre-venta). |
+| Decision | (1) Restaurar `vault/05-Ventas-y-CS/Guia entrevistas academias gimnasia.md` con su contenido original + nota de restauracion. (2) Documentar la consolidacion retroactivamente en `Changelog interno.md` con tabla de mapeo borrado → reemplazo. (3) Cerrar el pendiente de cruces con [[Buyer personas]] y [[Objeciones y respuestas]] como tarea P1 en backlog. |
+| Consecuencia | Discovery de academias recupera su metodologia. Trazabilidad de la consolidacion queda registrada para futuros audits. Regla de AGENTS.md ("todo cambio relevante debe actualizar vault") se cumple hacia adelante, no hacia atras. |
+| Estado | Ejecutado 2026-06-26. Cruce con [[Buyer personas]] y [[Objeciones y respuestas]] queda en [[Backlog priorizado]]. |
+
+## 2026-06-24 - Consolidar vault eliminando notas con fecha en favor de canonicas
+
+| Campo | Valor |
+| --- | --- |
+| Contexto | Despues de la primera semana operativa, existian duplicados entre notas con fecha (`Auditoria MVP gimnasia - 2026-06-23.md`, `QA - Flujos P1 - 2026-06-22.md`, etc.) y sus versiones canonicas sin fecha (`Auditorias consolidadas.md`, `QA - Flujos P1.md`, etc.). Las versiones con fecha tenian valor historico pero duplicaban contenido. |
+| Decision | Eliminar 17 notas con fecha en favor de las canonicas. Documentar el mapeo solo en el cuerpo del commit `06a71dd`. |
+| Consecuencia | 17 archivos menos en vault, navegacion mas limpia, decision no registrada en `Decisiones.md`/`Changelog interno.md`. Violacion de la regla AGENTS.md ("todo cambio relevante debe actualizar vault"). |
+| Estado | Ejecutado 2026-06-24, documentado retroactivamente 2026-06-26 en `Changelog interno.md`. |
+
 ## 2026-06-22 - Crear vault Obsidian versionada
 
 | Campo | Valor |

@@ -206,8 +206,8 @@ export function AttendanceDialog({
 
         onSaved();
         onClose();
-      } catch (err: any) {
-        setError(err.message ?? `Error al guardar la ${attendanceTermLower}.`);
+      } catch (err: unknown) {
+        setError((err instanceof Error ? err.message : "Error desconocido") ?? `Error al guardar la ${attendanceTermLower}.`);
       }
     });
   };

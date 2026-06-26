@@ -80,8 +80,8 @@ export const GET = withTenant(async (request, context) => {
         const generalStats = await calculateGeneralAttendance(filters);
         return apiSuccess({ type: "general", data: generalStats });
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error("Error generating attendance report:", error);
-    return apiError("REPORT_FAILED", error.message, 500);
+    return apiError("REPORT_FAILED", "Error al generar el reporte", 500);
   }
 });

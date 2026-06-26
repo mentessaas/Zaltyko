@@ -170,8 +170,8 @@ export function AddAthleteToClassDialog({
         setGroupFilter("");
         onAdded();
         onClose();
-      } catch (err: any) {
-        setError(err.message ?? `Error desconocido al añadir ${athletesTermLower}.`);
+      } catch (err: unknown) {
+        setError((err instanceof Error ? err.message : "Error desconocido") ?? `Error desconocido al añadir ${athletesTermLower}.`);
       }
     });
   };

@@ -52,8 +52,8 @@ export const GET = withTenant(async (request, context) => {
   try {
     const stats = await calculateClassReport(filters);
     return apiSuccess({ data: stats });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error("Error generating class report:", error);
-    return apiError("REPORT_FAILED", error.message, 500);
+    return apiError("REPORT_FAILED", "Error al generar el reporte", 500);
   }
 });

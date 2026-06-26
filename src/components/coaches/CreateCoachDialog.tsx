@@ -86,8 +86,8 @@ export function CreateCoachDialog({ academyId, sportConfigs, open, onClose, onCr
         resetForm();
         onCreated();
         onClose();
-      } catch (err: any) {
-        setError(err.message ?? `Error desconocido al crear el ${coachTermLower}.`);
+      } catch (err: unknown) {
+        setError((err instanceof Error ? err.message : "Error desconocido") ?? `Error desconocido al crear el ${coachTermLower}.`);
       }
     });
   };

@@ -146,8 +146,8 @@ export function EditCoachDialog({
 
         onUpdated();
         onClose();
-      } catch (err: any) {
-        setError(err.message ?? "Error al guardar cambios.");
+      } catch (err: unknown) {
+        setError((err instanceof Error ? err.message : "Error desconocido") ?? "Error al guardar cambios.");
         setIsAssigning(false);
       }
     });
@@ -194,8 +194,8 @@ export function EditCoachDialog({
 
       onDeleted();
       onClose();
-    } catch (err: any) {
-      setError(err.message ?? `Error al eliminar el ${coachTermLower}.`);
+    } catch (err: unknown) {
+      setError((err instanceof Error ? err.message : "Error desconocido") ?? `Error al eliminar el ${coachTermLower}.`);
     } finally {
       setIsAssigning(false);
     }

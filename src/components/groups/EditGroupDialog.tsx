@@ -218,12 +218,13 @@ export function EditGroupDialog({
           description: "Los cambios se han guardado correctamente.",
           variant: "success",
         });
-      } catch (err: any) {
-        setError(err.message ?? `Error desconocido al actualizar el ${groupTermLower}.`);
-        if (err?.message) {
+      } catch (err: unknown) {
+        const errMsg = err instanceof Error ? err.message : `Error desconocido al actualizar el ${groupTermLower}.`;
+        setError(errMsg);
+        if (errMsg) {
           pushToast({
             title: `No se pudo actualizar el ${groupTermLower}`,
-            description: err.message,
+            description: errMsg,
             variant: "error",
           });
         }

@@ -52,7 +52,7 @@ export const GET = withTenant(async (_request, context) => {
       activeScholarships: globalStats.bySportConfig?.reduce((sum, item) => sum + item.activeScholarships, 0) ?? 0,
       bySportConfig: globalStats.bySportConfig ?? [],
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error("Error calculating financial metrics", error, { academyId });
     return apiError("CALCULATION_FAILED", "Failed to calculate financial metrics", 500);
   }

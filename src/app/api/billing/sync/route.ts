@@ -155,8 +155,8 @@ export const POST = withTenant(async (request, context) => {
     }
 
     return apiSuccess({ synced, updated, errors, total: invoices.data.length });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error("Error syncing invoices", error);
-    return apiError("SYNC_FAILED", error?.message ?? "Error al sincronizar facturas", 500);
+    return apiError("SYNC_FAILED", "Error al sincronizar facturas", 500);
   }
 });

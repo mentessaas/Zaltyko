@@ -71,8 +71,8 @@ export function ChurnReport({ academyId, academyCountry }: ChurnReportProps) {
       }
 
       setReportData(data.data);
-    } catch (err: any) {
-      setError(err.message || "Error al generar reporte");
+    } catch (err: unknown) {
+      setError((err instanceof Error ? err.message : "Error desconocido") || "Error al generar reporte");
     } finally {
       setIsLoading(false);
     }
@@ -99,10 +99,10 @@ export function ChurnReport({ academyId, academyCountry }: ChurnReportProps) {
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast.pushToast({
         title: "No se pudo exportar el PDF",
-        description: err.message || "Inténtalo de nuevo en unos segundos.",
+        description: (err instanceof Error ? err.message : "Error desconocido") || "Inténtalo de nuevo en unos segundos.",
         variant: "error",
       });
     }
@@ -129,10 +129,10 @@ export function ChurnReport({ academyId, academyCountry }: ChurnReportProps) {
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast.pushToast({
         title: "No se pudo exportar el Excel",
-        description: err.message || "Inténtalo de nuevo en unos segundos.",
+        description: (err instanceof Error ? err.message : "Error desconocido") || "Inténtalo de nuevo en unos segundos.",
         variant: "error",
       });
     }
@@ -155,10 +155,10 @@ export function ChurnReport({ academyId, academyCountry }: ChurnReportProps) {
         description: `Enviamos el reporte de bajas a ${email}.`,
         variant: "success",
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast.pushToast({
         title: "No se pudo enviar el reporte",
-        description: err.message || "Revisa el correo e inténtalo otra vez.",
+        description: (err instanceof Error ? err.message : "Error desconocido") || "Revisa el correo e inténtalo otra vez.",
         variant: "error",
       });
     }
