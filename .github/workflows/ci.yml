@@ -118,7 +118,7 @@ jobs:
         run: pnpm exec playwright install --with-deps chromium
 
       - name: Run smoke tests against production
-        run: SMOKE_BASE_URL=https://zaltyko.vercel.app tsx smoke-test.ts
+        run: pnpm exec tsx smoke-test.ts
         env:
           SMOKE_BASE_URL: https://zaltyko.vercel.app
 
