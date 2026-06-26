@@ -87,6 +87,11 @@ jobs:
         run: pnpm build
         env:
           NODE_ENV: production
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key-for-ci-build
+          DATABASE_URL: postgresql://placeholder:placeholder@placeholder:5432/placeholder
+          NEXTAUTH_SECRET: placeholder-secret-for-ci-build
+          NEXTAUTH_URL: http://localhost:3000
 
   # Smoke tests require a running database and services
   smoke-test:
