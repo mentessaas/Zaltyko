@@ -36,3 +36,8 @@
 # editor / repo metadata that we don't need right now
 /.vscode
 /.vercelignore
+
+# local artifacts
+/coverage
+/.claire
+vault/.obsidian/workspace.json
