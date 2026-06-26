@@ -8,6 +8,7 @@ import {
 } from "@/db/schema";
 import { eq, and, gte, count, sql } from "drizzle-orm";
 import { subDays } from "date-fns";
+import { logger } from "@/lib/logger";
 
 export interface AttendanceAlert {
   athleteId: string;
@@ -95,7 +96,7 @@ export async function detectAttendanceAlerts(
 
     return alerts;
   } catch (error) {
-    console.error("Error detecting attendance alerts:", error);
+    logger.error("Error detecting attendance alerts:", error);
     return [];
   }
 }

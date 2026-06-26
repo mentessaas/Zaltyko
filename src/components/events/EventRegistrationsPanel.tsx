@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RegistrationStatusBadge, EventCapacityBadge } from "./EventStatusBadge";
 import { RegistrationCountdown } from "./EventCountdown";
 import { Registration } from "@/types";
+import { logger } from "@/lib/logger";
 
 interface Event {
   id: string;
@@ -47,7 +48,7 @@ export function EventRegistrationsPanel({ event }: EventRegistrationsPanelProps)
         setRegistrations(data.items || []);
       }
     } catch (error) {
-      console.error("Error fetching registrations:", error);
+      logger.error("Error fetching registrations:", error);
     }
   };
 
@@ -59,7 +60,7 @@ export function EventRegistrationsPanel({ event }: EventRegistrationsPanelProps)
         setWaitlist(data.items || []);
       }
     } catch (error) {
-      console.error("Error fetching waitlist:", error);
+      logger.error("Error fetching waitlist:", error);
     }
   };
 

@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import { useAcademyContext } from "@/hooks/use-academy-context";
 import { getTerminologyForSportConfig } from "@/lib/sport-config/terminology";
+import { logger } from "@/lib/logger";
 
 interface FilterOption {
   value: string;
@@ -130,7 +131,7 @@ export function ReportFilters({
         setAthletes(Array.isArray(data.athletes) ? data.athletes : []);
         setSportConfigs(Array.isArray(data.sportConfigs) ? data.sportConfigs : []);
       } catch (error) {
-        console.error("Error fetching filter options:", error);
+        logger.error("Error fetching filter options:", error);
         setClasses([]);
         setGroups([]);
         setCoaches([]);

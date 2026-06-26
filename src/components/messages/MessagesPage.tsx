@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { ConversationList } from "./ConversationList";
 import { MessageBubble } from "./MessageBubble";
 import { MessageInput } from "./MessageInput";
+import { logger } from "@/lib/logger";
 
 interface Participant {
   userId: string;
@@ -67,7 +68,7 @@ export function MessagesPage({
         setError("No se pudieron cargar las conversaciones.");
       }
     } catch (err) {
-      console.error("Error fetching conversations:", err);
+      logger.error("Error fetching conversations:", err);
       setError("No se pudieron cargar las conversaciones.");
     } finally {
       setIsLoading(false);
@@ -90,7 +91,7 @@ export function MessagesPage({
         setError(null);
       }
     } catch (err) {
-      console.error("Error fetching messages:", err);
+      logger.error("Error fetching messages:", err);
       setError("Error al cargar mensajes");
     } finally {
       setIsLoadingMessages(false);

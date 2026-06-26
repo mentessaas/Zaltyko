@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { getStripe } from "@/utils/stripe";
+import { logger } from "@/lib/logger";
 
 interface CheckoutButtonProps {
   priceId: string;
@@ -27,7 +28,7 @@ export default function CheckoutButton({ priceId }: CheckoutButtonProps) {
       // redirectToCheckout es un método legacy de Stripe.js v2; no está tipado en v3+
       await (stripe as unknown as { redirectToCheckout: (opts: { sessionId: string }) => Promise<void> })?.redirectToCheckout({ sessionId });
     } catch (error) {
-      console.error("Error:", error);
+      logger.error("Error:", error);
     } finally {
       setIsLoading(false);
     }

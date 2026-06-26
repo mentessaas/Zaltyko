@@ -5,6 +5,7 @@ import { createClient } from "@supabase/supabase-js";
 
 import { db } from "@/db";
 import { academies, classes, classWeekdays } from "@/db/schema";
+import { logger } from "@/lib/logger";
 
 export type PublicAcademyDetail = {
   id: string;
@@ -111,8 +112,8 @@ export async function getPublicAcademy(
     };
   } catch (error) {
     // Si hay un error de conexión, usar Supabase REST API como fallback
-    console.error("Error al obtener academia pública con Drizzle:", error);
-    console.log("🔄 Intentando usar Supabase REST API como fallback...");
+    logger.error("Error al obtener academia pública con Drizzle:", error);
+    logger.info("🔄 Intentando usar Supabase REST API como fallback...");
     
     try {
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -134,7 +135,7 @@ export async function getPublicAcademy(
         .single();
       
       if (academyError || !academy) {
-        console.error("Error en Supabase REST API:", academyError);
+        logger.error("Error en Supabase REST API:", academyError);
         return null;
       }
       
@@ -168,7 +169,7 @@ export async function getPublicAcademy(
         }
       }
       
-      console.log(`✅ Fallback exitoso: Academia ${academy.name} encontrada`);
+      logger.info(`✅ Fallback exitoso: Academia ${academy.name} encontrada`);
       
       return {
         id: academy.id,
@@ -190,7 +191,7 @@ export async function getPublicAcademy(
         schedule: scheduleByDay,
       };
     } catch (fallbackError) {
-      console.error("Error en fallback de Supabase:", fallbackError);
+      logger.error("Error en fallback de Supabase:", fallbackError);
       return null;
     }
   }

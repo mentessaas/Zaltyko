@@ -1,5 +1,6 @@
 import { kv } from "@vercel/kv";
 import { NextRequest, NextResponse } from "next/server";
+import { logger } from "@/lib/logger";
 
 /**
  * Rate Limiting using Vercel KV (Redis)
@@ -105,7 +106,7 @@ export async function rateLimit(config: RateLimitConfig): Promise<RateLimitResul
       reset,
     };
   } catch (error) {
-    console.error("Rate limit error:", error);
+    logger.error("Rate limit error:", error);
 
     // En producción, denegar requests si el sistema de rate limiting falla
     // para prevenir ataques DDoS cuando Redis no está disponible

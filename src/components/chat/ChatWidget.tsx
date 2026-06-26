@@ -4,6 +4,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { logger } from "@/lib/logger";
 
 interface Message {
   id: string;
@@ -88,7 +89,7 @@ export function ChatWidget({ athleteInfo }: ChatWidgetProps) {
         ]);
       }
     } catch (error) {
-      console.error('Chat error:', error);
+      logger.error('Chat error:', error);
       setMessages((prev) => [
         ...prev,
         {

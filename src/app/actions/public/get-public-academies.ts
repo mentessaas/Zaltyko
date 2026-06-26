@@ -6,6 +6,7 @@ import { z } from "zod";
 import { db } from "@/db";
 import { academies } from "@/db/schema";
 import { createClient } from "@supabase/supabase-js";
+import { logger } from "@/lib/logger";
 
 const ACADEMY_TYPES = ["artistica", "ritmica", "general"] as const;
 
@@ -112,7 +113,7 @@ export async function getPublicAcademies(
     // Si el total es 0 pero sabemos que hay academias, puede ser un problema de conexión
     // Intentar el fallback si total es 0 y no hay filtros de búsqueda
     if (total === 0 && !search && !type && !country && !region && !city) {
-      console.log("⚠️  Total es 0 sin filtros, puede ser problema de conexión. Usando fallback...");
+      logger.info("⚠️  Total es 0 sin filtros, puede ser problema de conexión. Usando fallback...");
       useFallback = true;
       throw new Error("Connection issue - using fallback");
     }
@@ -160,8 +161,8 @@ export async function getPublicAcademies(
     };
   } catch (error) {
     // Si hay un error de conexión a la base de datos, intentar usar Supabase REST API como fallback
-    console.error("Error al obtener academias públicas con Drizzle:", error);
-    console.log("🔄 Intentando usar Supabase REST API como fallback...");
+    logger.error("Error al obtener academias públicas con Drizzle:", error);
+    logger.info("🔄 Intentando usar Supabase REST API como fallback...");
     
     try {
       // Usar anon key para consultas públicas (no requiere service role)
@@ -205,14 +206,14 @@ export async function getPublicAcademies(
       const { data, error: supabaseError, count } = await query;
       
       if (supabaseError) {
-        console.error("Error en Supabase REST API:", supabaseError);
+        logger.error("Error en Supabase REST API:", supabaseError);
         throw supabaseError;
       }
       
       const total = count ?? 0;
       const totalPages = Math.ceil(total / limit);
       
-      console.log(`✅ Fallback exitoso: ${data?.length ?? 0} academias encontradas`);
+      logger.info(`✅ Fallback exitoso: ${data?.length ?? 0} academias encontradas`);
       
       return {
         total,
@@ -242,7 +243,7 @@ export async function getPublicAcademies(
       };
     } catch (fallbackError) {
       // Si el fallback también falla, retornar resultados vacíos
-      console.error("Error en fallback de Supabase:", fallbackError);
+      logger.error("Error en fallback de Supabase:", fallbackError);
       
       return {
         total: 0,

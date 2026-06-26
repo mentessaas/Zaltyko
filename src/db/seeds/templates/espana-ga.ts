@@ -16,9 +16,10 @@ import { templateCompetitionLevels } from "../../schema/templates/template-compe
 import { templateScoringConfig } from "../../schema/templates/template-scoring-config";
 import { templateCompetitionFlow } from "../../schema/templates/template-competition-flow";
 import { templateLicenseConfig } from "../../schema/templates/template-license-config";
+import { logger } from "@/lib/logger";
 
 export async function seedEspanaGA() {
-  console.log("🌱 Seeding España - Gimnasia Artística...");
+  logger.info("🌱 Seeding España - Gimnasia Artística...");
 
   // 1. Create main template for GA
   const [template] = await db
@@ -35,7 +36,7 @@ export async function seedEspanaGA() {
     })
     .returning();
 
-  console.log(`✅ Template created: ${template.id}`);
+  logger.info(`✅ Template created: ${template.id}`);
 
   // 2. Age Categories (same as GR)
   const ageCategories = [
@@ -55,7 +56,7 @@ export async function seedEspanaGA() {
     }))
   );
 
-  console.log(`✅ ${ageCategories.length} age categories created`);
+  logger.info(`✅ ${ageCategories.length} age categories created`);
 
   // 3. Apparatus (4 for feminine GA)
   const apparatusList = [
@@ -72,7 +73,7 @@ export async function seedEspanaGA() {
     }))
   );
 
-  console.log(`✅ ${apparatusList.length} apparatus created`);
+  logger.info(`✅ ${apparatusList.length} apparatus created`);
 
   // 4. Competition Levels
   const competitionLevels = [
@@ -97,7 +98,7 @@ export async function seedEspanaGA() {
     }))
   );
 
-  console.log(`✅ ${competitionLevels.length} competition levels created`);
+  logger.info(`✅ ${competitionLevels.length} competition levels created`);
 
   // 5. Scoring Configuration (FIG Open-Ended D-Score/E-Score)
   await db.insert(templateScoringConfig).values({
@@ -126,7 +127,7 @@ export async function seedEspanaGA() {
     },
   });
 
-  console.log("✅ Scoring configuration created");
+  logger.info("✅ Scoring configuration created");
 
   // 6. Competition Flow (same as GR but with GA-specific events)
   const competitionFlow = [
@@ -154,7 +155,7 @@ export async function seedEspanaGA() {
     }))
   );
 
-  console.log(`✅ ${competitionFlow.length} competition flow stages created`);
+  logger.info(`✅ ${competitionFlow.length} competition flow stages created`);
 
   // 7. License Configuration
   await db.insert(templateLicenseConfig).values({
@@ -167,7 +168,7 @@ export async function seedEspanaGA() {
     medicalCertificateValidityMonths: 12,
   });
 
-  console.log("✅ License configuration created");
+  logger.info("✅ License configuration created");
 
   // Also create masculine GA template
   const [templateMasculino] = await db
@@ -200,9 +201,9 @@ export async function seedEspanaGA() {
     }))
   );
 
-  console.log(`✅ ${apparatusMasculino.length} apparatus created for masculine GA`);
+  logger.info(`✅ ${apparatusMasculino.length} apparatus created for masculine GA`);
 
-  console.log("🎉 España - Gimnasia Artística seed completed!");
+  logger.info("🎉 España - Gimnasia Artística seed completed!");
   return template;
 }
 

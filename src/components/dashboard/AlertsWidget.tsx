@@ -6,6 +6,7 @@ import { AlertTriangle, Users, CreditCard, TrendingDown, X } from "lucide-react"
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { logger } from "@/lib/logger";
 
 interface Alert {
   id: string;
@@ -93,7 +94,7 @@ export function AlertsWidget({ academyId }: AlertsWidgetProps) {
 
       setAlerts(allAlerts.filter((a) => !dismissedAlerts.has(a.id)));
     } catch (error) {
-      console.error("Error loading alerts:", error);
+      logger.error("Error loading alerts:", error);
     } finally {
       setLoading(false);
     }

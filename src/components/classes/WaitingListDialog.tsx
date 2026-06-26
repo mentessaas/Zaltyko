@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import { Modal } from "@/components/ui/modal";
 import { createClient } from "@/lib/supabase/client";
 import { Loader2, Clock, UserPlus, AlertCircle } from "lucide-react";
+import { logger } from "@/lib/logger";
 
 interface WaitingListItem {
   id: string;
@@ -66,7 +67,7 @@ export function WaitingListDialog({
       // Este es un placeholder hasta implementar el endpoint completo
       setItems([]);
     } catch (err: unknown) {
-      console.error("Error fetching waiting list:", err);
+      logger.error("Error fetching waiting list:", err);
       setError((err instanceof Error ? err.message : "Error desconocido") ?? "Error al cargar la lista de espera");
     } finally {
       setIsLoading(false);

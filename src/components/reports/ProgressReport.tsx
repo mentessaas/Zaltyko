@@ -14,6 +14,7 @@ import { ExportButtons } from "@/components/reports/ExportButtons";
 import { useToast } from "@/components/ui/toast-provider";
 import { useAcademyContext } from "@/hooks/use-academy-context";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { logger } from "@/lib/logger";
 
 interface SkillProgress {
   skillId: string;
@@ -78,7 +79,7 @@ export function ProgressReport({ academyId, academyCountry, athleteId, initialDa
         if (!response.ok || !payload.ok) return;
         setAthletes(Array.isArray(payload.data?.athletes) ? payload.data.athletes : []);
       } catch (fetchError) {
-        console.error("Error loading progress report athletes:", fetchError);
+        logger.error("Error loading progress report athletes:", fetchError);
       }
     };
 

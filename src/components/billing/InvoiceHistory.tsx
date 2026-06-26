@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { logger } from "@/lib/logger";
 
 interface Invoice {
     id: string;
@@ -56,7 +57,7 @@ export function InvoiceHistory({ invoices, loading = false }: InvoiceHistoryProp
             window.URL.revokeObjectURL(url);
             document.body.removeChild(a);
         } catch (error) {
-            console.error("Error descargando factura:", error);
+            logger.error("Error descargando factura:", error);
         }
     };
 

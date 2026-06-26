@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { AlertBadge } from "@/components/shared/AlertBadge";
 import type { DashboardUpcomingClass } from "@/lib/dashboard";
 import { formatShortDateForCountry, formatTimeForCountry } from "@/lib/date-utils";
+import { logger } from "@/lib/logger";
 
 interface UpcomingClassesProps {
   classes: DashboardUpcomingClass[];
@@ -41,7 +42,7 @@ function UpcomingClassesImpl({ classes, academyId, academyCountry }: UpcomingCla
           }
         }
       } catch (error) {
-        console.error("Error fetching capacity alerts:", error);
+        logger.error("Error fetching capacity alerts:", error);
       }
     };
 

@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { logger } from "@/lib/logger";
 
 export default function SuperAdminError({
   error,
@@ -11,7 +12,7 @@ export default function SuperAdminError({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error("Super Admin error:", error);
+    logger.error("Super Admin error:", error);
   }, [error]);
 
   return (

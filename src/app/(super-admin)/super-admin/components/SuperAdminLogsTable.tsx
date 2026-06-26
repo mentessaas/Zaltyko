@@ -6,6 +6,7 @@ import { History } from "lucide-react";
 import type { SuperAdminLogEntry } from "@/lib/super-admin";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
+import { logger } from "@/lib/logger";
 
 interface SuperAdminLogsTableProps {
   initialLogs: SuperAdminLogEntry[];
@@ -32,7 +33,7 @@ export function SuperAdminLogsTable({ initialLogs }: SuperAdminLogsTableProps) {
         cache: "no-store",
       });
       if (!response.ok) {
-        console.error("Failed to fetch logs", await response.text());
+        logger.error("Failed to fetch logs", await response.text());
         return;
       }
       const payload = await response.json();

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { DollarSign, CreditCard, Award, ArrowRight, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { logger } from "@/lib/logger";
 
 interface FinancialMetricsWidgetProps {
   academyId: string;
@@ -49,7 +50,7 @@ export function FinancialMetricsWidget({ academyId }: FinancialMetricsWidgetProp
         setMetrics(payload.data ?? payload);
       }
     } catch (error) {
-      console.error("Error loading financial metrics:", error);
+      logger.error("Error loading financial metrics:", error);
     } finally {
       setLoading(false);
     }
