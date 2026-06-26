@@ -35,12 +35,11 @@ const features = [
 export default function HeroSection() {
   return (
     <section className="relative min-h-screen flex items-center overflow-hidden bg-white">
-      {/* Premium Background */}
+      {/* Background: textura de marca + un único orbe de profundidad */}
       <div className="absolute inset-0">
-        <div className="absolute inset-0 zaltyko-motion-lines opacity-70" />
-        <div className="absolute top-0 right-0 h-[800px] w-[800px] rounded-full bg-gradient-to-br from-zaltyko-indigo/10 via-zaltyko-teal/5 to-transparent blur-3xl opacity-70" />
-        <div className="absolute bottom-0 left-0 h-[600px] w-[600px] rounded-full bg-gradient-to-tr from-zaltyko-teal/10 via-zaltyko-white to-transparent blur-3xl opacity-70" />
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(203,213,225,0.18)_1px,transparent_1px),linear-gradient(to_bottom,rgba(203,213,225,0.18)_1px,transparent_1px)] bg-[size:60px_60px]" />
+        <div className="absolute inset-0 zaltyko-motion-lines opacity-80" />
+        <div className="absolute -top-32 right-0 h-[720px] w-[720px] rounded-full bg-gradient-to-br from-zaltyko-electric/10 via-zaltyko-teal/5 to-transparent blur-3xl" />
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(203,213,225,0.12)_1px,transparent_1px),linear-gradient(to_bottom,rgba(203,213,225,0.12)_1px,transparent_1px)] bg-[size:72px_72px] [mask-image:radial-gradient(ellipse_at_center,black,transparent_75%)]" />
       </div>
 
       <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-20 lg:py-32">
@@ -57,9 +56,9 @@ export default function HeroSection() {
             </div>
 
             {/* H1 */}
-            <h1 className="mb-6 font-display text-5xl font-bold leading-[1.05] tracking-tight text-zaltyko-navy sm:text-6xl lg:text-7xl">
+            <h1 className="mb-6 font-display text-5xl font-bold leading-[1.02] tracking-tight text-zaltyko-navy sm:text-6xl lg:text-[5rem]">
               Dirige tu academia de gimnasia{" "}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-zaltyko-indigo via-zaltyko-indigo to-zaltyko-teal">
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-zaltyko-indigo via-zaltyko-teal to-zaltyko-electric">
                 con orden, cobros claros y menos improvisación
               </span>
             </h1>
@@ -76,7 +75,7 @@ export default function HeroSection() {
                   href="/contact?type=demo"
                   className={cn(
                     buttonVariants({ variant: "default", size: "lg" }),
-                    "group bg-zaltyko-teal px-8 py-6 text-base text-white shadow-soft transition-all duration-150 hover:bg-primary-dark"
+                    "group bg-zaltyko-teal px-8 py-6 text-base text-white shadow-brand transition-all duration-200 hover:bg-primary-dark hover:shadow-lift"
                   )}
                 >
                   <Sparkles className="mr-2 h-5 w-5" />
@@ -114,9 +113,14 @@ export default function HeroSection() {
               {features.map((feature, i) => (
                 <div
                   key={feature.title}
-                  className="group rounded-2xl border border-zaltyko-mist/70 bg-white/90 p-4 shadow-soft transition-all duration-150 hover:border-zaltyko-teal/30 hover:shadow-medium"
+                  className={cn(
+                    "group card-hover animate-fadeInUp rounded-2xl border border-zaltyko-mist/70 bg-white/90 p-4 shadow-soft hover:border-zaltyko-teal/30",
+                    i === 1 && "delay-75",
+                    i === 2 && "delay-150",
+                    i === 3 && "delay-225"
+                  )}
                 >
-                  <div className={cn("w-10 h-10 rounded-xl bg-gradient-to-br flex items-center justify-center mb-3", feature.color)}>
+                  <div className={cn("w-10 h-10 rounded-xl bg-gradient-to-br flex items-center justify-center mb-3 transition-transform duration-300 group-hover:scale-110", feature.color)}>
                     <feature.icon className="h-5 w-5 text-white" />
                   </div>
                   <h3 className="mb-1 text-sm font-semibold text-zaltyko-navy transition-colors group-hover:text-zaltyko-indigo">

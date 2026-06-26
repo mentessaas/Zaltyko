@@ -18,6 +18,7 @@ const integrations = [
     icon: Mail,
     features: ["Notificaciones automáticas", "Plantillas personalizables", "Envío por eventos"],
     color: "from-zaltyko-indigo to-zaltyko-teal",
+    featured: true,
   },
   {
     name: "Familias y entrenadores",
@@ -37,11 +38,11 @@ const integrations = [
 
 export default function IntegrationsSection() {
   return (
-    <section className="py-24 bg-gray-50 relative overflow-hidden">
-      {/* Background */}
+    <section className="surface-subtle py-24 relative overflow-hidden">
+      {/* Background — orbes de marca */}
       <div className="absolute inset-0">
-        <div className="absolute top-20 left-20 w-72 h-72 bg-blue-100 rounded-full blur-3xl opacity-40" />
-        <div className="absolute bottom-20 right-20 w-72 h-72 bg-purple-100 rounded-full blur-3xl opacity-40" />
+        <div className="absolute top-20 left-20 w-72 h-72 bg-zaltyko-teal/10 rounded-full blur-3xl opacity-50" />
+        <div className="absolute bottom-20 right-20 w-72 h-72 bg-zaltyko-indigo/10 rounded-full blur-3xl opacity-50" />
       </div>
 
       <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -60,15 +61,20 @@ export default function IntegrationsSection() {
 
         {/* Integrations grid */}
         <div className="grid md:grid-cols-2 gap-8">
-          {integrations.map((integration, i) => (
-            <div 
+          {integrations.map((integration) => (
+            <div
               key={integration.name}
-              className="group bg-white rounded-2xl p-8 border border-gray-100 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
+              className={cn(
+                "group card-hover rounded-2xl p-8 border bg-white",
+                integration.featured
+                  ? "border-zaltyko-teal/30 shadow-brand ring-1 ring-zaltyko-teal/10"
+                  : "border-gray-100 shadow-sm"
+              )}
             >
               <div className="flex items-start gap-6">
                 {/* Icon */}
                 <div className={cn(
-                  "w-16 h-16 rounded-2xl flex items-center justify-center flex-shrink-0 bg-gradient-to-br",
+                  "w-16 h-16 rounded-2xl flex items-center justify-center flex-shrink-0 bg-gradient-to-br transition-transform duration-300 group-hover:scale-105",
                   integration.color
                 )}>
                   <integration.icon className="w-8 h-8 text-white" />

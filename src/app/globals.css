@@ -8,11 +8,9 @@ html {
   -moz-osx-font-smoothing: grayscale;
 }
 
-body {
-  ::selection {
-    background-color: #1FC7B6;
-    color: #ffffff;
-  }
+::selection {
+  background-color: #1FC7B6;
+  color: #ffffff;
 }
 
 html,
@@ -47,7 +45,9 @@ body {
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
  
-    --primary: 175 74% 45%; /* Electric Teal #1FC7B6 */
+    /* Deep Teal #00796B = color de acción/marca (botones, links).
+       Electric Teal #1FC7B6 queda como acento vibrante (--ring, charts, glows). */
+    --primary: 172 100% 24%; /* Deep Teal #00796B */
     --primary-foreground: 0 0% 100%;
 
     --secondary: 238 51% 34%; /* Deep Indigo #2B2E83 */
@@ -85,9 +85,9 @@ body {
     --popover: 222 47% 11%;
     --popover-foreground: 210 40% 98%;
  
-    --primary: 175 74% 45%;
+    --primary: 175 74% 45%; /* Electric Teal en dark: mejor contraste sobre navy */
     --primary-foreground: 0 0% 100%;
- 
+
     --secondary: 217.2 32.6% 17.5%;
     --secondary-foreground: 210 40% 98%;
  
@@ -122,8 +122,25 @@ body {
   }
 
   .text-gradient {
-    @apply text-zaltyko-teal;
-    background-image: none;
+    background-image: linear-gradient(120deg, #00796B 0%, #1FC7B6 45%, #2B2E83 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+  }
+
+  /* Superficies por jerarquía — alternativa a bg-white/bg-gray-50 sueltos */
+  .surface-elevated {
+    @apply bg-white dark:bg-zaltyko-navy/60 shadow-soft;
+  }
+
+  .surface-subtle {
+    @apply bg-zaltyko-white dark:bg-zaltyko-navy/30;
+  }
+
+  /* Hover unificado de cards (reemplaza shadow-sm hover:shadow-lg hover:-translate-y-1) */
+  .card-hover {
+    @apply transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-brand;
   }
 
   .zaltyko-motion-lines {

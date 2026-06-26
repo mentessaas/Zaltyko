@@ -28,12 +28,12 @@ const CoachCard = memo(function CoachCard({ coach, locale }: CoachCardProps) {
   const t = labels[locale];
 
   return (
-    <Card className="group h-full overflow-hidden border border-gray-100 bg-white transition-all duration-300 hover:shadow-lg hover:border-purple-100 hover:-translate-y-1">
+    <Card className="group card-hover h-full overflow-hidden border border-gray-100 bg-white hover:border-zaltyko-indigo/30">
       <CardContent className="p-5">
         {/* Photo and Name */}
         <div className="flex items-start gap-4 mb-4">
           {coach.photoUrl ? (
-            <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-50 flex-shrink-0 ring-2 ring-purple-50">
+            <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-50 flex-shrink-0 ring-2 ring-zaltyko-indigo/15">
               <img
                 src={coach.photoUrl}
                 alt={coach.name}
@@ -41,8 +41,8 @@ const CoachCard = memo(function CoachCard({ coach, locale }: CoachCardProps) {
               />
             </div>
           ) : (
-            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-purple-100 to-indigo-100 flex items-center justify-center flex-shrink-0">
-              <span className="text-2xl font-bold text-purple-600">
+            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-zaltyko-indigo/15 to-zaltyko-teal/10 flex items-center justify-center flex-shrink-0">
+              <span className="text-2xl font-bold text-zaltyko-indigo">
                 {coach.name.charAt(0)}
               </span>
             </div>
@@ -51,7 +51,7 @@ const CoachCard = memo(function CoachCard({ coach, locale }: CoachCardProps) {
             <h3 className="font-semibold text-gray-900 text-lg leading-tight">
               {coach.name}
             </h3>
-            <p className="text-sm text-purple-600 font-medium mt-1">
+            <p className="text-sm text-zaltyko-indigo font-medium mt-1">
               {coach.academyName}
             </p>
           </div>
@@ -70,7 +70,7 @@ const CoachCard = memo(function CoachCard({ coach, locale }: CoachCardProps) {
             {coach.specialties.slice(0, 4).map((specialty, index) => (
               <span
                 key={index}
-                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-purple-50 text-purple-700 text-xs font-medium"
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-zaltyko-indigo/10 text-zaltyko-indigo text-xs font-medium"
               >
                 <Award className="h-3 w-3" />
                 {specialty}
@@ -93,7 +93,7 @@ const CoachCard = memo(function CoachCard({ coach, locale }: CoachCardProps) {
         {coach.academySlug && (
           <Link
             href={`/coaches/${coach.academySlug}`}
-            className="inline-flex items-center text-sm font-medium text-purple-600 hover:text-purple-700 transition-colors pt-3 border-t border-gray-100"
+            className="inline-flex items-center text-sm font-medium text-zaltyko-indigo hover:text-zaltyko-navy transition-colors pt-3 border-t border-gray-100"
           >
             {t.viewProfile}
             <svg

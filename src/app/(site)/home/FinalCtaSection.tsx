@@ -56,7 +56,7 @@ export default function FinalCtaSection() {
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <Link
             href="/contact?type=demo"
-            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-zaltyko-teal px-10 py-5 text-lg font-bold text-white shadow-soft transition-all duration-150 hover:bg-primary-dark"
+            className="group inline-flex items-center justify-center gap-2 rounded-2xl bg-zaltyko-teal px-10 py-5 text-lg font-bold text-white shadow-brand transition-all duration-200 hover:bg-primary-dark hover:shadow-lift hover:-translate-y-0.5"
           >
             <Sparkles className="w-5 h-5" />
             Solicitar demo

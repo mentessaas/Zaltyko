@@ -1,10 +1,11 @@
 "use client";
 
-import { memo } from "react";
+import { memo, useEffect, useState } from "react";
 import { Users, UserCheck, LayoutDashboard } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 import { DashboardCard } from "./DashboardCard";
+import type { KpiTrends } from "@/lib/dashboard/kpi-trends";
 
 interface KPISectionProps {
   metrics: {
@@ -20,6 +21,8 @@ interface KPISectionProps {
   };
 }
 
+type TrendKey = keyof KpiTrends;
+
 interface MetricCard {
   title: string;
   value: string | number;
@@ -27,9 +30,37 @@ interface MetricCard {
   href: string;
   icon: LucideIcon;
   accent: "sky" | "emerald" | "red" | "amber" | "coral" | "slate" | "zaltyko-primary" | "zaltyko-accent";
+  trendKey: TrendKey;
 }
 
 function KPISectionImpl({ metrics, academyId, labels }: KPISectionProps) {
+  const [trends, setTrends] = useState<KpiTrends | null>(null);
+
+  // Carga las series temporales reales para los sparklines bajo demanda.
+  // Si falla, las tarjetas simplemente se muestran sin gráfico (degradación elegante).
+  useEffect(() => {
+    let cancelled = false;
+    const controller = new AbortController();
+
+    fetch(`/api/dashboard/kpi-trends?academyId=${academyId}&days=14`, {
+      signal: controller.signal,
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((json) => {
+        if (!cancelled && json?.ok && json.data) {
+          setTrends(json.data as KpiTrends);
+        }
+      })
+      .catch(() => {
+        /* abort o error de red: sin sparklines */
+      });
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [academyId]);
+
   const metricCards: MetricCard[] = [
     {
       title: "Atletas",
@@ -38,6 +69,7 @@ function KPISectionImpl({ metrics, academyId, labels }: KPISectionProps) {
       href: `/app/${academyId}/athletes`,
       icon: Users,
       accent: "zaltyko-primary",
+      trendKey: "athletes",
     },
     {
       title: "Entrenadores",
@@ -45,7 +77,8 @@ function KPISectionImpl({ metrics, academyId, labels }: KPISectionProps) {
       subtitle: "Profesionales en tu equipo",
       href: `/app/${academyId}/coaches`,
       icon: UserCheck,
-      accent: "slate",
+      accent: "sky",
+      trendKey: "coaches",
     },
     {
       title: `${labels.groupLabel}s`,
@@ -53,7 +86,8 @@ function KPISectionImpl({ metrics, academyId, labels }: KPISectionProps) {
       subtitle: `${labels.groupLabel}s activos`,
       href: `/app/${academyId}/groups`,
       icon: LayoutDashboard,
-      accent: "sky",
+      accent: "zaltyko-accent",
+      trendKey: "groups",
     },
     {
       title: "Asistencia",
@@ -62,6 +96,7 @@ function KPISectionImpl({ metrics, academyId, labels }: KPISectionProps) {
       href: `/app/${academyId}/attendance`,
       icon: UserCheck,
       accent: "zaltyko-primary",
+      trendKey: "attendance",
     },
   ];
 
@@ -76,6 +111,7 @@ function KPISectionImpl({ metrics, academyId, labels }: KPISectionProps) {
           href={card.href}
           icon={card.icon}
           accent={card.accent}
+          trendData={trends?.[card.trendKey]}
         />
       ))}
     </section>
