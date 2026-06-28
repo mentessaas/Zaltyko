@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { ScholarshipList, Scholarship } from "./ScholarshipList";
 import { ScholarshipForm } from "./ScholarshipForm";
 import { getTerminologyForSportConfig } from "@/lib/sport-config/terminology";
+import { logger } from "@/lib/logger";
 
 interface SportConfigOption {
   id: string;
@@ -49,7 +50,7 @@ export function ScholarshipManager({
         setScholarships(payload.items);
       }
     } catch (error) {
-      console.error("Error loading scholarships:", error);
+      logger.error("Error loading scholarships:", error);
     }
   };
 
@@ -65,7 +66,7 @@ export function ScholarshipManager({
       const payload = data.data ?? data;
       setAthletes(Array.isArray(payload.items) ? payload.items : []);
     } catch (error) {
-      console.error("Error loading scholarship athletes:", error);
+      logger.error("Error loading scholarship athletes:", error);
       setAthletes([]);
     }
   };
@@ -101,7 +102,7 @@ export function ScholarshipManager({
       setEditingScholarship(null);
       loadScholarships();
     } catch (error) {
-      console.error("Error saving scholarship:", error);
+      logger.error("Error saving scholarship:", error);
     } finally {
       setIsSaving(false);
     }
@@ -114,7 +115,7 @@ export function ScholarshipManager({
       await fetch(`/api/scholarships/${id}`, { method: "DELETE" });
       loadScholarships();
     } catch (error) {
-      console.error("Error deleting scholarship:", error);
+      logger.error("Error deleting scholarship:", error);
     }
   };
 
@@ -129,7 +130,7 @@ export function ScholarshipManager({
       });
       loadScholarships();
     } catch (error) {
-      console.error("Error toggling scholarship:", error);
+      logger.error("Error toggling scholarship:", error);
     }
   };
 

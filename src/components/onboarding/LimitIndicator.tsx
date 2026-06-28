@@ -7,6 +7,7 @@ import { useToast } from "@/components/ui/toast-provider";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { UpgradeConfirmationModal } from "./UpgradeConfirmationModal";
 import { trackEvent } from "@/lib/analytics";
+import { logger } from "@/lib/logger";
 
 interface LimitIndicatorProps {
   academyId: string | null;
@@ -59,7 +60,7 @@ export function LimitIndicator({ academyId, resource, className, showNotificatio
           setLimitData(data.limits);
         }
       } catch (error) {
-        console.error("Error fetching limits:", error);
+        logger.error("Error fetching limits:", error);
       } finally {
         setLoading(false);
       }

@@ -19,6 +19,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { getTerminologyForSportConfig } from "@/lib/sport-config/terminology";
+import { logger } from "@/lib/logger";
 
 interface UsageRecord {
   id: string;
@@ -72,7 +73,7 @@ export function DiscountHistory({ academyId, sportConfigs = [] }: DiscountHistor
         setTotalDiscount(payload.summary.totalDiscount);
       }
     } catch (error) {
-      console.error("Error loading discount history:", error);
+      logger.error("Error loading discount history:", error);
     } finally {
       setIsLoading(false);
     }

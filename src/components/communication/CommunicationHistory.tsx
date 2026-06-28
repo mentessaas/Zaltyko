@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { logger } from "@/lib/logger";
 
 interface MessageHistoryItem {
   id: string;
@@ -73,7 +74,7 @@ export function CommunicationHistory({ academyId, sportConfigs = [] }: Communica
           setHistory(data.data?.items || []);
         }
       } catch (error) {
-        console.error("Error loading history:", error);
+        logger.error("Error loading history:", error);
       } finally {
         setIsLoading(false);
       }

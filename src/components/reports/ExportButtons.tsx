@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { logger } from "@/lib/logger";
 
 interface ExportButtonsProps {
   onExportPDF: () => Promise<void>;
@@ -38,7 +39,7 @@ export function ExportButtons({
     try {
       await onExportPDF();
     } catch (error) {
-      console.error("Error exporting PDF:", error);
+      logger.error("Error exporting PDF:", error);
     }
   };
 
@@ -46,7 +47,7 @@ export function ExportButtons({
     try {
       await onExportExcel();
     } catch (error) {
-      console.error("Error exporting Excel:", error);
+      logger.error("Error exporting Excel:", error);
     }
   };
 
@@ -59,7 +60,7 @@ export function ExportButtons({
       setShowEmailDialog(false);
       setEmail("");
     } catch (error) {
-      console.error("Error sending email:", error);
+      logger.error("Error sending email:", error);
     } finally {
       setIsSending(false);
     }

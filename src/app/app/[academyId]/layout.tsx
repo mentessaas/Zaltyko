@@ -16,6 +16,7 @@ import { resolveAcademySpecialization } from "@/lib/specialization/registry";
 import { getDevSessionFromCookieStore } from "@/lib/dev-session";
 
 import { AcademyTopNav } from "./top-nav";
+import { logger } from "@/lib/logger";
 
 interface LayoutProps {
   params: Promise<{
@@ -78,7 +79,7 @@ export default async function AcademyLayout({ params, children }: LayoutProps) {
       .limit(1);
     academy = result;
   } catch (error) {
-    console.error("Failed to fetch academy:", error);
+    logger.error("Failed to fetch academy:", error);
   }
 
   if (!academy && devSession?.academyId === academyId) {
@@ -146,7 +147,7 @@ export default async function AcademyLayout({ params, children }: LayoutProps) {
       .from(academies)
       .where(eq(academies.tenantId, academy.tenantId));
   } catch (error) {
-    console.error("Failed to fetch tenant academies:", error);
+    logger.error("Failed to fetch tenant academies:", error);
     tenantAcademies = [{ id: academy.id, name: academy.name }];
   }
 

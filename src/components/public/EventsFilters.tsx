@@ -5,6 +5,7 @@ import { Search, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getRegionLabel, getRegionPlaceholder, getCityPlaceholder, COUNTRY_REGION_OPTIONS, findRegionsByCountry } from "@/lib/countryRegions";
 import { findCitiesByRegion } from "@/lib/citiesByRegion";
+import { logger } from "@/lib/logger";
 
 const EVENT_LEVELS = [
   { value: "internal", label: "Interno" },
@@ -90,7 +91,7 @@ export function EventsFilters({ onFiltersChange }: EventsFiltersProps) {
           setRegions(Array.from(allRegions).sort());
         }
       } catch (error) {
-        console.error("Error loading filter options:", error);
+        logger.error("Error loading filter options:", error);
       } finally {
         setLoading(false);
       }

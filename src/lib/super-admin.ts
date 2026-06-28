@@ -2,6 +2,7 @@ import { desc, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { auditLogs, profiles } from "@/db/schema";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
+import { logger } from "@/lib/logger";
 
 export interface SuperAdminLogEntry {
   id: string;
@@ -73,7 +74,7 @@ export async function getSuperAdminLogs(limit: number = 100): Promise<SuperAdmin
         authUsersMap.set(userId, data.user.email);
       }
     } catch (error) {
-      console.error(`Error fetching user ${userId}`, error);
+      logger.error(`Error fetching user ${userId}`, error);
     }
   }
 

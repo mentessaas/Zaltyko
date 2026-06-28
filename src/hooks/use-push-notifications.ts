@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { logger } from "@/lib/logger";
 
 type PermissionStatus = "default" | "granted" | "denied";
 
@@ -53,7 +54,7 @@ export function usePushNotifications(options: UsePushNotificationsOptions = {}) 
         setSubscription(sub?.toJSON() || null);
         onSubscriptionChange?.(sub?.toJSON() || null);
       } catch (err) {
-        console.error("Error getting push subscription:", err);
+        logger.error("Error getting push subscription:", err);
       }
     };
 
@@ -80,7 +81,7 @@ export function usePushNotifications(options: UsePushNotificationsOptions = {}) 
           });
         }
       } catch (err) {
-        console.error("Error handling push notification:", err);
+        logger.error("Error handling push notification:", err);
       }
     };
 
@@ -103,7 +104,7 @@ export function usePushNotifications(options: UsePushNotificationsOptions = {}) 
       const data = await response.json();
       return data.publicKey || null;
     } catch (err) {
-      console.error("Error fetching VAPID key:", err);
+      logger.error("Error fetching VAPID key:", err);
       return null;
     }
   }, []);
@@ -121,7 +122,7 @@ export function usePushNotifications(options: UsePushNotificationsOptions = {}) 
       setPermission(status);
       return status;
     } catch (err) {
-      console.error("Error requesting permission:", err);
+      logger.error("Error requesting permission:", err);
       setError("Failed to request permission");
       return "default";
     }
@@ -184,7 +185,7 @@ export function usePushNotifications(options: UsePushNotificationsOptions = {}) 
 
       return subscriptionJson;
     } catch (err) {
-      console.error("Error subscribing:", err);
+      logger.error("Error subscribing:", err);
       setError("Failed to subscribe to push notifications");
       return null;
     } finally {
@@ -223,7 +224,7 @@ export function usePushNotifications(options: UsePushNotificationsOptions = {}) 
       onSubscriptionChange?.(null);
       return true;
     } catch (err) {
-      console.error("Error unsubscribing:", err);
+      logger.error("Error unsubscribing:", err);
       setError("Failed to unsubscribe");
       return false;
     } finally {
@@ -247,7 +248,7 @@ export function usePushNotifications(options: UsePushNotificationsOptions = {}) 
 
       return response.ok;
     } catch (err) {
-      console.error("Error sending test notification:", err);
+      logger.error("Error sending test notification:", err);
       return false;
     }
   }, []);

@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/server";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { handleApiError } from "@/lib/api-error-handler";
 import { resolveUserHome } from "@/lib/auth/resolve-user-home";
+import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -174,7 +175,7 @@ export async function POST(request: Request) {
       redirectUrl: home.redirectUrl,
     });
   } catch (error) {
-    console.error("Error accepting invitation:", error);
+    logger.error("Error accepting invitation:", error);
     return handleApiError(error, { endpoint: "/api/invitations/complete", method: "POST" });
   }
 }

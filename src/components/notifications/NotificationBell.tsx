@@ -9,6 +9,7 @@ import { NotificationCenter } from "./NotificationCenter";
 import { useRealtimeNotifications } from "@/hooks/use-realtime-notifications";
 import { useAcademyContext } from "@/hooks/use-academy-context";
 import { createClient } from "@/lib/supabase/client";
+import { logger } from "@/lib/logger";
 
 export function NotificationBell() {
   const [unreadCount, setUnreadCount] = useState(0);
@@ -52,7 +53,7 @@ export function NotificationBell() {
         setUnreadCount(data.count || 0);
       }
     } catch (error) {
-      console.error("Error loading unread count:", error);
+      logger.error("Error loading unread count:", error);
     }
   }, []);
 

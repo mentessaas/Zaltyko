@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { isDevSessionEnabled } from "@/lib/dev";
+import { logger } from "@/lib/logger";
 
 type DevSession = {
   userId: string;
@@ -36,7 +37,7 @@ async function fetchDevSession(): Promise<DevSession | null> {
     const data = (await response.json()) as DevSession;
     return data;
   } catch (error) {
-    console.warn("No se pudo obtener la sesión demo", error);
+    logger.warn("No se pudo obtener la sesión demo", { error });
     return null;
   }
 }
@@ -90,7 +91,7 @@ export function DevSessionProvider({ children }: { children: React.ReactNode }) 
         setLoading(false);
         setInitialized(true);
       } catch (error) {
-        console.warn("Sesión demo inválida en caché", error);
+        logger.warn("Sesión demo inválida en caché", { error });
         window.localStorage.removeItem(STORAGE_KEY);
       }
     }

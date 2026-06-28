@@ -16,6 +16,7 @@ import { db } from "@/db";
 import { sendPushToUser } from "@/lib/notifications/push-service";
 import { createNotification } from "@/lib/notifications/notification-service";
 import { trackEvent } from "@/lib/analytics";
+import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -104,7 +105,7 @@ export const GET = withTenant(async (request: Request, context: RouteContext) =>
       },
     });
   } catch (error) {
-    console.error("Error getting messages:", error);
+    logger.error("Error getting messages:", error);
     return apiError("INTERNAL_ERROR", "Error al obtener mensajes", 500);
   }
 });
@@ -277,7 +278,7 @@ export const POST = withTenant(async (request: Request, context: RouteContext) =
       createdAt: message.createdAt,
     });
   } catch (error) {
-    console.error("Error sending message:", error);
+    logger.error("Error sending message:", error);
     return apiError("INTERNAL_ERROR", "Error al enviar mensaje", 500);
   }
 });

@@ -1,3 +1,5 @@
+import { logger } from "@/lib/logger";
+
 /**
  * Service Worker Registration Helper
  *
@@ -45,7 +47,7 @@ export async function registerServiceWorker(): Promise<SWRegistrationResult> {
       newWorker.addEventListener("statechange", () => {
         if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
           // New version available
-          console.log("New service worker version available");
+          logger.info("New service worker version available");
           dispatchMessage({ type: "SKIP_WAITING" });
         }
       });
@@ -59,7 +61,7 @@ export async function registerServiceWorker(): Promise<SWRegistrationResult> {
       registration,
     };
   } catch (error) {
-    console.error("Service worker registration failed:", error);
+    logger.error("Service worker registration failed:", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Unknown error",
@@ -125,7 +127,7 @@ export async function requestBackgroundSync(tag: string = "sync-pending-operatio
     }
     return false;
   } catch (error) {
-    console.error("Background sync registration failed:", error);
+    logger.error("Background sync registration failed:", error);
     return false;
   }
 }
@@ -153,7 +155,7 @@ export async function getCurrentPushSubscription(): Promise<PushSubscriptionJSON
     const subscription = await registration.pushManager.getSubscription();
     return subscription?.toJSON() || null;
   } catch (error) {
-    console.error("Error getting push subscription:", error);
+    logger.error("Error getting push subscription:", error);
     return null;
   }
 }

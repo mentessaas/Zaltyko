@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Bell, BellOff, Check, X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { logger } from "@/lib/logger";
 import {
   Card,
   CardContent,
@@ -108,7 +109,7 @@ export function PushNotificationPermission({
         );
       }
     } catch (error) {
-      console.error("Error requesting notification permission:", error);
+      logger.error("Error requesting notification permission:", error);
       showToast(
         "Error",
         "No se pudieron activar las notificaciones",
@@ -143,7 +144,7 @@ export function PushNotificationPermission({
         "Ya no recibirás notificaciones push"
       );
     } catch (error) {
-      console.error("Error unsubscribing:", error);
+      logger.error("Error unsubscribing:", error);
       showToast(
         "Error",
         "No se pudieron desactivar las notificaciones",

@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import type { AssessmentVideo } from "@/types";
+import { logger } from "@/lib/logger";
 
 interface VideoUploaderProps {
   videos: AssessmentVideo[];
@@ -196,7 +197,7 @@ export function VideoUploader({
           method: "DELETE",
         });
       } catch (error) {
-        console.error("Error deleting video from server:", error);
+        logger.error("Error deleting video from server:", error);
       }
     }
 

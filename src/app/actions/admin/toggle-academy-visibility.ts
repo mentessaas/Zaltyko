@@ -9,6 +9,7 @@ import { db } from "@/db";
 import { academies } from "@/db/schema";
 import { getCurrentProfile } from "@/lib/authz";
 import { createClient } from "@/lib/supabase/server";
+import { logger } from "@/lib/logger";
 
 const ToggleVisibilitySchema = z.object({
   academyId: z.string().uuid(),
@@ -100,7 +101,7 @@ export async function toggleAcademyVisibility(
       success: true,
     };
   } catch (error: any) {
-    console.error("Error toggling academy visibility:", error);
+    logger.error("Error toggling academy visibility:", error);
     return {
       success: false,
       error: error.message ?? "Error al cambiar visibilidad",

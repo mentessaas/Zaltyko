@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
+import { logger } from "@/lib/logger";
 
 // Simple notification sound using Web Audio API
 export function useNotificationSound() {
@@ -37,7 +38,7 @@ export function useNotificationSound() {
       oscillator.start(audioContext.currentTime);
       oscillator.stop(audioContext.currentTime + 0.3);
     } catch (error) {
-      console.log("Notification sound not available:", error);
+      logger.info("Notification sound not available", { error });
     }
   }, [isEnabled]);
 

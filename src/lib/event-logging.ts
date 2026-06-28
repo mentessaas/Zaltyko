@@ -1,5 +1,6 @@
 import { db } from "@/db";
 import { eventLogs } from "@/db/schema";
+import { logger } from "@/lib/logger";
 
 export type EventType =
   | "academy_created"
@@ -27,7 +28,7 @@ export async function logEvent({ academyId, eventType, metadata }: LogEventParam
     });
   } catch (error) {
     // Don't throw errors for logging failures - log to console instead
-    console.error("Failed to log event:", { academyId, eventType, error });
+    logger.error("Failed to log event:", { academyId, eventType, error });
   }
 }
 

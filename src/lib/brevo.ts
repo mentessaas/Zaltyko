@@ -1,5 +1,6 @@
 import { isValidEmail, normalizeEmail } from "@/lib/validation/email-utils";
 import { isDevelopment } from "@/lib/env";
+import { logger } from "@/lib/logger";
 
 const BREVO_API_KEY = process.env.BREVO_API_KEY || "";
 const SENDER_EMAIL = process.env.BREVO_SENDER_EMAIL || "admin@zaltyko.com";
@@ -8,7 +9,7 @@ const hasBrevoCredentials = Boolean(BREVO_API_KEY);
 
 if (!hasBrevoCredentials && isDevelopment()) {
   console.group("⚠️ BREVO no configurado");
-  console.warn("BREVO_API_KEY falta. Se omitirá el envío real de correos en desarrollo.");
+  logger.warn("BREVO_API_KEY falta. Se omitirá el envío real de correos en desarrollo.");
   console.groupEnd();
 }
 

@@ -8,6 +8,7 @@ import { useAcademyContext } from "@/hooks/use-academy-context";
 import type { SportConfigOption } from "@/components/groups/types";
 import { getTerminology } from "@/lib/sport-config/terminology";
 import { WEEKDAY_OPTIONS } from "@/lib/classes/constants";
+import { logger } from "@/lib/logger";
 
 const fieldClassName =
   "w-full rounded-[10px] border border-zaltyko-mist bg-white px-3 py-2 text-sm shadow-none focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15";
@@ -285,7 +286,7 @@ export const EditClassDialog = memo(function EditClassDialog({
 
         if (!response.ok) {
           const data = await response.json().catch(() => ({}));
-          console.error("EditClassDialog: Error en la respuesta", data);
+          logger.error("EditClassDialog: Error en la respuesta", data);
           
           // Manejar conflictos de horario de forma especial
           if (data.error === "SCHEDULE_CONFLICT" && data.message) {
@@ -308,7 +309,7 @@ export const EditClassDialog = memo(function EditClassDialog({
               details.push(`Código: ${data.code}`);
             }
             if (data.stack) {
-              console.error("EditClassDialog: Stack trace del error", data.stack);
+              logger.error("EditClassDialog: Stack trace del error", data.stack);
             }
             if (details.length > 0) {
               errorMessage = `${errorMessage}\n\n${details.join("\n")}`;
@@ -324,7 +325,7 @@ export const EditClassDialog = memo(function EditClassDialog({
         onUpdated();
         onClose();
       } catch (err: unknown) {
-        console.error("EditClassDialog: Error al guardar", err);
+        logger.error("EditClassDialog: Error al guardar", err);
         const errorMessage = err instanceof Error ? err.message : "Error al guardar cambios. Por favor, intenta de nuevo.";
         setError(errorMessage);
       }
@@ -375,7 +376,7 @@ export const EditClassDialog = memo(function EditClassDialog({
       }
       onClose();
     } catch (error: unknown) {
-      console.error("EditClassDialog: Error al eliminar la clase", error);
+      logger.error("EditClassDialog: Error al eliminar la clase", error);
       setError(error instanceof Error ? error.message : `No se pudo eliminar la ${classTermLower}. Intenta nuevamente.`);
     } finally {
       setIsDeleting(false);

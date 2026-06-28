@@ -1,3 +1,5 @@
+import { logger } from "@/lib/logger";
+
 export type CityOption = {
   value: string;
   label: string;
@@ -39,7 +41,7 @@ async function loadCityData(countryCode: string): Promise<RegionCities | null> {
     cityDataCache[code] = data;
     return data;
   } catch (error) {
-    console.error(`Failed to load city data for ${code}:`, error);
+    logger.error(`Failed to load city data for ${code}:`, error);
     cityDataCache[code] = null;
     return null;
   }

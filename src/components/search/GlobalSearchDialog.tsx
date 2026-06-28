@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 
 import { useDebounce } from "@/hooks/use-debounce";
+import { logger } from "@/lib/logger";
 import {
   Command,
   CommandDialog,
@@ -133,7 +134,7 @@ export function GlobalSearchDialog({ academyId, open, onOpenChange }: GlobalSear
           setResults([]);
         }
       } catch (error) {
-        console.error("Error performing search:", error);
+        logger.error("Error performing search:", error);
       } finally {
         setIsLoading(false);
       }

@@ -15,6 +15,7 @@ import {
 import { getCurrentProfile, getTenantId } from "@/lib/authz";
 import { verifyAcademyAccess } from "@/lib/permissions";
 import { createClient } from "@/lib/supabase/server";
+import { logger } from "@/lib/logger";
 
 export interface CoachScheduleItem {
   id: string;
@@ -152,7 +153,7 @@ export async function getCoachSchedule(params: {
 
     return { items: scheduleItems };
   } catch (error: any) {
-    console.error("Error en getCoachSchedule:", error);
+    logger.error("Error en getCoachSchedule:", error);
     return { items: [], error: error.message ?? "Error al obtener el horario del entrenador" };
   }
 }

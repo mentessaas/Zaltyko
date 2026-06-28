@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Loader2, UserPlus, UserMinus, AlertCircle, Search } from "lucide-react";
+import { logger } from "@/lib/logger";
 
 interface EnrollmentItem {
   id: string;
@@ -94,7 +95,7 @@ export function EnrollmentManager({
         }))
       );
     } catch (err: unknown) {
-      console.error("Error fetching enrollments:", err);
+      logger.error("Error fetching enrollments:", err);
       setError((err instanceof Error ? err.message : "Error desconocido") ?? "Error al cargar las inscripciones");
     } finally {
       setIsLoading(false);
@@ -138,7 +139,7 @@ export function EnrollmentManager({
           }))
       );
     } catch (err: unknown) {
-      console.error("Error fetching athletes:", err);
+      logger.error("Error fetching athletes:", err);
     }
   }, [enrollments]);
 
@@ -185,7 +186,7 @@ export function EnrollmentManager({
       await fetchAvailableAthletes();
       onRefresh?.();
     } catch (err: unknown) {
-      console.error("Error enrolling athlete:", err);
+      logger.error("Error enrolling athlete:", err);
       setError((err instanceof Error ? err.message : "Error desconocido") ?? "Error al inscribir");
     } finally {
       setIsEnrolling(false);

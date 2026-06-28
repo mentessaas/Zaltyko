@@ -41,6 +41,7 @@ import {
 } from "@/lib/countryRegions";
 import { findCitiesByRegion } from "@/lib/citiesByRegion";
 import { TERMINOLOGY_KEYS, getSportConfigSeedByVariant } from "@/lib/sport-config/catalog";
+import { logger } from "@/lib/logger";
 import {
   getTerminology,
   getTerminologyWarnings,
@@ -248,7 +249,7 @@ export default function SettingsPage() {
           });
         }
       } catch (err) {
-        console.error("Error loading settings:", err);
+        logger.error("Error loading settings:", err);
       } finally {
         setLoading(false);
       }

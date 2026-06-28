@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast-provider";
+import { logger } from "@/lib/logger";
 
 interface MessageTemplate {
   id: string;
@@ -74,7 +75,7 @@ export function WhatsAppSender({ academyId, defaultRecipient, onMessageSent }: W
           setGroups(groupsData.items || []);
         }
       } catch (error) {
-        console.error("Error loading data:", error);
+        logger.error("Error loading data:", error);
       } finally {
         setIsLoading(false);
       }
@@ -181,7 +182,7 @@ export function WhatsAppSender({ academyId, defaultRecipient, onMessageSent }: W
         throw new Error(data.error || "Error al enviar");
       }
     } catch (error) {
-      console.error("Error sending message:", error);
+      logger.error("Error sending message:", error);
       pushToast({
         title: "Error",
         description: "No se pudo enviar el mensaje",

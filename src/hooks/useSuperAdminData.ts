@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { SuperAdminMetrics } from "@/lib/superAdminService";
 import { isSuperAdminMetrics, normalizeSuperAdminMetrics } from "@/lib/super-admin-metrics";
 import { createClient } from "@/lib/supabase/client";
+import { logger } from "@/lib/logger";
 
 export function useSuperAdminData(initial: SuperAdminMetrics) {
   const supabase = useMemo(() => createClient(), []);
@@ -39,10 +40,10 @@ export function useSuperAdminData(initial: SuperAdminMetrics) {
       if (isSuperAdminMetrics(unwrapped)) {
         setMetrics(normalizeSuperAdminMetrics(unwrapped));
       } else {
-        console.warn("[useSuperAdminData] Invalid metrics payload from API:", unwrapped);
+        logger.warn("[useSuperAdminData] Invalid metrics payload from API:", unwrapped);
       }
     } catch (err) {
-      console.error("[useSuperAdminData] Failed to refresh metrics:", err);
+      logger.error("[useSuperAdminData] Failed to refresh metrics:", err);
     } finally {
       setLoading(false);
     }

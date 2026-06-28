@@ -9,6 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/toast-provider";
+import { logger } from "@/lib/logger";
 
 interface NotificationPreferencesData {
   emailNotifications: Record<string, boolean>;
@@ -125,7 +126,7 @@ export function NotificationPreferences() {
           }
         }
       } catch (error) {
-        console.error("Error loading preferences:", error);
+        logger.error("Error loading preferences:", error);
       } finally {
         setIsLoading(false);
       }

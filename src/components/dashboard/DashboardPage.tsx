@@ -77,6 +77,7 @@ import {
 } from "@/lib/dashboard/technical-summary";
 import { TechnicalOverviewWidget } from "@/components/dashboard/TechnicalOverviewWidget";
 import { useTranslation } from "@/hooks/use-translation";
+import { logger } from "@/lib/logger";
 
 interface DashboardPageProps {
   academyId: string;
@@ -162,7 +163,7 @@ export function DashboardPage({
           }
         }
       } catch (error) {
-        console.error("Error fetching checklist:", error);
+        logger.error("Error fetching checklist:", error);
       }
     };
     fetchChecklist();
@@ -341,7 +342,7 @@ export function DashboardPage({
           }
         }
       } catch (error) {
-        console.error("Error fetching starter setup summary:", error);
+        logger.error("Error fetching starter setup summary:", error);
       }
     };
 
@@ -382,7 +383,7 @@ export function DashboardPage({
           }
         }
       } catch (error) {
-        console.error("Error fetching technical dashboard summary:", error);
+        logger.error("Error fetching technical dashboard summary:", error);
       }
     };
 

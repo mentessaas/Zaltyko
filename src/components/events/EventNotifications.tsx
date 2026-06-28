@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Users, MapPin, Building2, Globe } from "lucide-react";
 import { useToast } from "@/components/ui/toast-provider";
+import { logger } from "@/lib/logger";
 
 interface EventNotificationsProps {
   eventId: string;
@@ -39,7 +40,7 @@ export function EventNotifications({ eventId, academyId }: EventNotificationsPro
         });
       }
     } catch (error) {
-      console.error("Error sending notifications:", error);
+      logger.error("Error sending notifications:", error);
       toast.pushToast({
         title: "No se pudieron enviar las notificaciones",
         description: "Inténtalo de nuevo en unos segundos.",

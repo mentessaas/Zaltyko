@@ -16,6 +16,7 @@ import {
 } from "@/db/schema/announcements";
 import { memberships } from "@/db/schema/memberships";
 import { profiles } from "@/db/schema/profiles";
+import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -112,7 +113,7 @@ export const GET = withTenant(async (request, context) => {
       author,
     });
   } catch (error) {
-    console.error("Error getting announcement:", error);
+    logger.error("Error getting announcement:", error);
     return apiError("INTERNAL_ERROR", "Error al obtener anuncio", 500);
   }
 });
@@ -216,7 +217,7 @@ export const PATCH = withTenant(async (request, context) => {
     if (error instanceof z.ZodError) {
       return apiError("VALIDATION_ERROR", "Datos inválidos", 400);
     }
-    console.error("Error updating announcement:", error);
+    logger.error("Error updating announcement:", error);
     return apiError("INTERNAL_ERROR", "Error al actualizar anuncio", 500);
   }
 });
@@ -270,7 +271,7 @@ export const DELETE = withTenant(async (request, context) => {
 
     return apiSuccess({ success: true });
   } catch (error) {
-    console.error("Error deleting announcement:", error);
+    logger.error("Error deleting announcement:", error);
     return apiError("INTERNAL_ERROR", "Error al eliminar anuncio", 500);
   }
 });
