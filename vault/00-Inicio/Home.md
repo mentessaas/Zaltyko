@@ -1,7 +1,7 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-06-22
+last_reviewed: 2026-06-26
 source:
   - ../README.md
   - ../AGENTS.md
@@ -39,7 +39,7 @@ Abrir `http://localhost:3000`.
 
 | Capa | Decisión |
 | --- | --- |
-| Framework | Next.js 15.5.x App Router |
+| Framework | Next.js 15.5.19 App Router |
 | UI | React 18, Tailwind CSS, shadcn/ui |
 | Backend | Next.js API Routes |
 | Base de datos | Supabase PostgreSQL + RLS |
@@ -57,8 +57,10 @@ Abrir `http://localhost:3000`.
 - Si un cambio afecta producto, negocio, marketing, ventas, arquitectura, deploy, seguridad o roadmap, también se actualiza esta vault.
 - El cierre de cada trabajo debe indicar la nota actualizada o `Vault: no aplica`.
 
-## Estado ejecutivo
+## Estado ejecutivo (2026-06-26)
 
-Zaltyko tiene una base técnica y de dominio amplia, pero la información está distribuida entre `README.md`, `docs/`, análisis de negocio, auditorías y planes. Esta vault existe para mantener una versión operativa, navegable y viva de la verdad del proyecto.
+Zaltyko está en hardening avanzado: sprints 0-7 + auditoría de seguridad (PR #8) + fix de CI ejecutados, deploy Vercel verde, RLS 100% (62 tablas) y QA P1 5/5 en sandbox. Lo que queda son decisiones humanas (legacy `/dashboard/*`), QA con usuarios reales, 25 tablas TS pendientes en DB y deuda de auditoría acotada. Empieza por [[Estado actual de Zaltyko]].
+
+Esta vault es la versión operativa y viva de la verdad del proyecto; la info técnica de detalle vive en `README.md`, `docs/` y `AGENTS.md`.
 
 Ver también: [[Inventario de producto]], [[Arquitectura]], [[Modelo de negocio]], [[Mensajes aprobados]].

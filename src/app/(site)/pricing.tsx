@@ -92,17 +92,19 @@ export default function PricingSection() {
           </div>
         </div>
 
-        <div className="mt-8 grid gap-6 md:grid-cols-3">
+        <div className="mt-8 grid items-center gap-6 md:grid-cols-3">
           {plans.map((plan) => (
             <article
               key={plan.title}
-              className={`relative flex h-full flex-col rounded-3xl border border-border bg-card p-8 shadow-xl transition hover:border-zaltyko-accent/40 ${
-                plan.highlight ? "ring-2 ring-zaltyko-accent/50" : ""
+              className={`relative flex h-full flex-col rounded-3xl border bg-card p-8 transition-all duration-300 ${
+                plan.highlight
+                  ? "border-zaltyko-teal/40 shadow-brand ring-2 ring-zaltyko-teal/40 md:-translate-y-3 md:scale-[1.03] z-10"
+                  : "border-border shadow-lg hover:-translate-y-1 hover:border-zaltyko-accent/40 hover:shadow-brand"
               }`}
             >
               {plan.highlight && (
-                <span className="absolute -top-3 right-6 rounded-full bg-zaltyko-teal px-3 py-1 text-xs font-semibold text-white">
-                  Popular
+                <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-gradient-to-r from-zaltyko-teal to-zaltyko-electric px-4 py-1 text-xs font-bold uppercase tracking-wide text-white shadow-brand">
+                  Más popular
                 </span>
               )}
               <h3 className="font-display text-xl font-semibold text-foreground">{plan.title}</h3>

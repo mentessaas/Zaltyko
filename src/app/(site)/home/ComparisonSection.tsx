@@ -66,11 +66,17 @@ const comparisonFeatures = [
   },
 ];
 
-function CellValue({ value }: { value: boolean | string }) {
+function CellValue({ value, highlight }: { value: boolean | string; highlight?: boolean }) {
   if (value === true) {
     return (
       <div className="flex items-center justify-center">
-        <Check className="h-5 w-5 text-green-600" />
+        {highlight ? (
+          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-zaltyko-teal/15">
+            <Check className="h-4 w-4 text-zaltyko-teal" />
+          </span>
+        ) : (
+          <Check className="h-5 w-5 text-green-600" />
+        )}
       </div>
     );
   }
@@ -88,7 +94,7 @@ function CellValue({ value }: { value: boolean | string }) {
 
 export default function ComparisonSection() {
   return (
-    <section className="py-24 bg-gray-50 relative overflow-hidden">
+    <section className="surface-subtle py-24 relative overflow-hidden">
       <div className="absolute inset-0">
         <div className="absolute top-0 right-1/4 w-96 h-96 bg-zaltyko-teal/5 rounded-full blur-3xl opacity-50" />
         <div className="absolute bottom-0 left-1/4 w-96 h-96 bg-zaltyko-white rounded-full blur-3xl opacity-50" />
@@ -117,10 +123,10 @@ export default function ComparisonSection() {
                 <th className="px-6 py-4 text-left text-sm font-bold text-gray-900 bg-gray-50 border-b border-gray-200 w-1/3">
                   Funcionalidad
                 </th>
-                <th className="px-4 py-4 text-center text-sm font-bold bg-zaltyko-teal text-white border-b border-zaltyko-teal/30">
+                <th className="px-4 py-4 text-center text-sm font-bold bg-zaltyko-teal text-white border-x-2 border-zaltyko-teal">
                   <div className="flex flex-col items-center gap-1">
-                    <span>Zaltyko</span>
-                    <span className="text-xs font-normal opacity-80">Recomendado</span>
+                    <span className="text-base">Zaltyko</span>
+                    <span className="rounded-full bg-white/20 px-2 py-0.5 text-[11px] font-medium">Recomendado</span>
                   </div>
                 </th>
                 <th className="px-4 py-4 text-center text-sm font-semibold text-gray-500 bg-gray-50 border-b border-gray-200">
@@ -145,8 +151,8 @@ export default function ComparisonSection() {
                   <td className="px-6 py-3.5 text-sm font-medium text-gray-700">
                     {row.feature}
                   </td>
-                  <td className="px-4 py-3.5 bg-zaltyko-teal/5">
-                    <CellValue value={row.zaltyko} />
+                  <td className="px-4 py-3.5 bg-zaltyko-teal/[0.06] border-x-2 border-zaltyko-teal/20">
+                    <CellValue value={row.zaltyko} highlight />
                   </td>
                   <td className="px-4 py-3.5">
                     <CellValue value={row.spreadsheets} />

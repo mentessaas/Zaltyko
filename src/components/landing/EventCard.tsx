@@ -31,15 +31,18 @@ const EventCard = memo(function EventCard({ event, locale }: EventCardProps) {
 
   const t = labels[locale];
 
-  const formatDate = (dateStr: string | null | undefined) => {
-    if (!dateStr) return "";
+  const dateParts = (dateStr: string | null | undefined) => {
+    if (!dateStr) return null;
     const date = new Date(dateStr);
-    return date.toLocaleDateString(locale === "es" ? "es-ES" : "en-US", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    });
+    const loc = locale === "es" ? "es-ES" : "en-US";
+    return {
+      day: date.toLocaleDateString(loc, { day: "numeric" }),
+      month: date.toLocaleDateString(loc, { month: "short" }).replace(".", ""),
+      year: date.toLocaleDateString(loc, { year: "numeric" }),
+    };
   };
+
+  const eventDate = dateParts(event.startDate);
 
   const levelLabels: Record<string, string> = {
     internal: locale === "es" ? "Interno" : "Internal",
@@ -53,24 +56,32 @@ const EventCard = memo(function EventCard({ event, locale }: EventCardProps) {
     .join(", ");
 
   return (
-    <Card className="group h-full overflow-hidden border border-gray-100 bg-white transition-all duration-300 hover:shadow-lg hover:border-amber-100 hover:-translate-y-1">
+    <Card className="group card-hover h-full overflow-hidden border border-gray-100 bg-white hover:border-zaltyko-coral/30">
       <CardContent className="p-5">
-        {/* Date Badge */}
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2 text-sm text-gray-600">
-            <Calendar className="h-4 w-4" />
-            <span>{formatDate(event.startDate)}</span>
-          </div>
-          <span className="px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 text-xs font-medium">
-            {event.level ? (levelLabels[event.level] || event.level) : event.level}
-          </span>
+        {/* Date tile + level */}
+        <div className="flex items-start justify-between mb-4">
+          {eventDate ? (
+            <div className="flex flex-col items-center justify-center w-14 rounded-xl bg-gradient-to-br from-zaltyko-coral/15 to-orange-100/60 px-2 py-2 leading-none">
+              <span className="text-xl font-bold text-zaltyko-coral">{eventDate.day}</span>
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-zaltyko-coral/80">{eventDate.month}</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 text-sm text-gray-500">
+              <Calendar className="h-4 w-4" />
+            </div>
+          )}
+          {event.level && (
+            <span className="px-2.5 py-1 rounded-full bg-zaltyko-coral/10 text-zaltyko-coral text-xs font-medium">
+              {levelLabels[event.level] || event.level}
+            </span>
+          )}
         </div>
 
         {/* Title and Academy */}
-        <h3 className="font-semibold text-gray-900 text-lg leading-tight mb-2 group-hover:text-amber-700 transition-colors">
+        <h3 className="font-semibold text-gray-900 text-lg leading-tight mb-2 group-hover:text-zaltyko-coral transition-colors">
           {event.title}
         </h3>
-        <p className="text-sm text-amber-600 font-medium mb-3">
+        <p className="text-sm text-zaltyko-coral font-medium mb-3">
           {event.academyName}
         </p>
 
@@ -113,7 +124,7 @@ const EventCard = memo(function EventCard({ event, locale }: EventCardProps) {
         {/* CTA */}
         <Link
           href={`/events/${event.id}`}
-          className="inline-flex items-center text-sm font-medium text-amber-600 hover:text-amber-700 transition-colors"
+          className="inline-flex items-center text-sm font-medium text-zaltyko-coral hover:text-orange-600 transition-colors"
         >
           {t.register}
           <svg

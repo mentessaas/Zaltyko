@@ -1,7 +1,7 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-06-22
+last_reviewed: 2026-06-26
 source:
   - ../docs/SUMMARY.md
   - ../docs/organization/index.md

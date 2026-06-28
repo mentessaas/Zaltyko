@@ -26,7 +26,7 @@ const AcademyCard = memo(function AcademyCard({ academy, locale }: AcademyCardPr
   const t = labels[locale];
 
   return (
-    <Card className="group h-full overflow-hidden border border-gray-100 bg-white transition-all duration-300 hover:shadow-lg hover:border-red-100 hover:-translate-y-1">
+    <Card className="group card-hover h-full overflow-hidden border border-gray-100 bg-white hover:border-zaltyko-teal/30">
       <CardContent className="p-5">
         {/* Logo and Name */}
         <div className="flex items-start gap-4 mb-4">
@@ -39,8 +39,8 @@ const AcademyCard = memo(function AcademyCard({ academy, locale }: AcademyCardPr
               />
             </div>
           ) : (
-            <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-red-50 to-rose-50 flex items-center justify-center flex-shrink-0">
-              <span className="text-2xl font-bold text-red-600">
+            <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-zaltyko-teal/15 to-zaltyko-electric/10 flex items-center justify-center flex-shrink-0">
+              <span className="text-2xl font-bold text-zaltyko-teal">
                 {academy.name.charAt(0)}
               </span>
             </div>
@@ -72,7 +72,7 @@ const AcademyCard = memo(function AcademyCard({ academy, locale }: AcademyCardPr
               href={academy.website}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1.5 text-sm font-medium text-red-600 hover:text-red-700 transition-colors"
+              className="flex items-center gap-1.5 text-sm font-medium text-zaltyko-teal hover:text-primary-dark transition-colors"
             >
               <Globe className="h-4 w-4" />
               {t.visitWebsite}

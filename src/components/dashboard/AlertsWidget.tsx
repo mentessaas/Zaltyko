@@ -120,22 +120,22 @@ export function AlertsWidget({ academyId }: AlertsWidgetProps) {
   const getSeverityColor = (severity: Alert["severity"]) => {
     switch (severity) {
       case "high":
-        return "border-red-200 bg-red-50/80";
+        return "border-l-4 border-l-zaltyko-coral border-y border-r border-zaltyko-coral/20 bg-zaltyko-coral/5";
       case "medium":
-        return "border-amber-200 bg-amber-50/80";
+        return "border-l-4 border-l-amber-500 border-y border-r border-amber-200 bg-amber-50/80";
       case "low":
-        return "border-sky-200 bg-sky-50/80";
+        return "border-l-4 border-l-zaltyko-teal border-y border-r border-zaltyko-teal/20 bg-zaltyko-teal/5";
     }
   };
 
   const getSeverityIconColor = (severity: Alert["severity"]) => {
     switch (severity) {
       case "high":
-        return "bg-red-100 text-red-700";
+        return "bg-zaltyko-coral/15 text-zaltyko-coral";
       case "medium":
         return "bg-amber-100 text-amber-700";
       case "low":
-        return "bg-sky-100 text-sky-700";
+        return "bg-zaltyko-teal/15 text-zaltyko-teal";
     }
   };
 
@@ -151,7 +151,7 @@ export function AlertsWidget({ academyId }: AlertsWidgetProps) {
     <div className="space-y-4 rounded-lg border border-border bg-card p-6 shadow-sm">
       <header className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-100 text-red-700">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-zaltyko-coral/15 text-zaltyko-coral">
             <AlertTriangle className="h-5 w-5" strokeWidth={2} />
           </div>
           <div>

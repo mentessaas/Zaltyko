@@ -596,7 +596,7 @@ export const AthletesTableView = memo(function AthletesTableView({
             </thead>
             <tbody className="divide-y divide-slate-100 bg-white text-zaltyko-navy">
             {paginatedAthletes.map((athlete) => (
-              <tr key={athlete.id} className="hover:bg-zaltyko-white/80">
+              <tr key={athlete.id} className="odd:bg-white even:bg-zaltyko-white/40 transition-colors hover:bg-zaltyko-teal/[0.05]">
                 <td className="px-2 py-3">
                   <button
                     type="button"

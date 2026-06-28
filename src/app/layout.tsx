@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Space_Grotesk } from "next/font/google";
+import { Manrope, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import type React from "react";
 import { cn } from "@/lib/utils";
@@ -20,10 +20,12 @@ const spaceGrotesk = Space_Grotesk({
   variable: "--font-space-grotesk",
 });
 
-const inter = Inter({
+// Body: Manrope (geométrica, distintiva). Se conserva el nombre de variable
+// CSS --font-inter para no tocar el resto del sistema de estilos.
+const bodyFont = Manrope({
   subsets: ["latin"],
   display: "swap",
-  weight: ["400", "500", "600"],
+  weight: ["400", "500", "600", "700"],
   variable: "--font-inter",
 });
 
@@ -123,7 +125,7 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
       </head>
       <body
-        className={cn(inter.variable, spaceGrotesk.variable, "font-sans antialiased")}
+        className={cn(bodyFont.variable, spaceGrotesk.variable, "font-sans antialiased")}
         suppressHydrationWarning
       >
         <OfflineBanner />

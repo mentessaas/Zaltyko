@@ -1,12 +1,21 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-06-24
+last_reviewed: 2026-06-26
 source:
   - ../AGENTS.md
 ---
 
 # Decisiones
+
+## 2026-06-26 - Routing raiz redirige a primera modalidad
+
+| Campo | Valor |
+| --- | --- |
+| Contexto | La raiz del sitio (`/`) devolvia 404 porque no habia pagina indice: el contenido publico vive bajo `/${locale}/${modality}/...` (clusters SEO por locale/modalidad/pais). Un visitante que entraba a la URL desnuda no llegaba a ningun sitio. |
+| Decision | `middleware.ts` redirige `/` a `/${locale}/gimnasia-artistica` (primera modalidad del catalogo, coherente con el go-to-market enfocado en gimnasia). El `locale` se resuelve por cookie/Accept-Language como en el resto del flujo i18n. |
+| Consecuencia | La raiz queda funcional y aterriza al visitante en la modalidad principal. **Dependencia**: si cambia el catalogo de modalidades o el go-to-market deja de priorizar gimnasia, hay que revisar este redirect. Alternativa futura: landing raiz propia con selector de modalidad. |
+| Estado | Activa (commit `406c498`, 2026-06-26). |
 
 ## 2026-06-26 - Restaurar `Guia entrevistas academias gimnasia.md` y documentar consolidacion 2026-06-24
 
@@ -182,7 +191,7 @@ Copiar desde [[Template - Decision]] para nuevas decisiones.
 | Consecuencia | Build de Vercel vuelve a funcionar. 207 paginas se pre-renderizan correctamente. Pitfall documentado para evitar regresion en futuros proyectos. |
 | Estado | Activa |
 
-## 2026-06-24 - Resumen de sprints 0-6 ejecutados
+## 2026-06-24 - Resumen de sprints 0-7 + auditoria + CI fix
 
 | Sprint | Tema | Commits | Resultado |
 | --- | --- | --- | --- |
@@ -194,3 +203,7 @@ Copiar desde [[Template - Decision]] para nuevas decisiones.
 | 5 | Frontend + Negocio | `324a5f2` | memo (6 cluster + 4 widgets), lazy DashboardPage + Eventos, touch targets DashboardTopbar, hreflang, CommunicationHub, coach quick actions |
 | 6 | Code Split + Producto + Deuda + Validacion | `c2cfb88`, `fadbe93`, `9e80249` | RHF+Zod QuickClassModal, i18n extras (80 keys), CommunicationHub, policies permisivas endurecidas (10 tablas), 6 tablas criticas creadas con FKs+RLS |
 | 6-fix | Vercel deploy fix | `5c77418` | ESLint legacy config + hreflang undefined arreglado |
+| 7A/7B | Form refactor RHF+Zod + i18n | `bf8a937`, `c834473`, `6ff8636`, `8f72b9f`, `d9d3dbc` | RHF+Zod en CreateClassDialog y EventForm; i18n en DashboardPage KPIs, AthletesTableView y BillingPanel. 7C (Supabase local CI) y 7D (legacy routing) diferidos |
+| 7D.1 | Vault updates | `2169cd0` | Changelog Sprint 7 + Decision Op A recomendada + Backlog |
+| Auditoria | Seguridad y calidad Bloques 1-4 | `cf092ef` (**PR #8**) | Secret exposure Stripe, idempotency, race conditions, error messages genericos, React.memo, loading skeletons, `any` 357→227, Stripe timeout, env warnings |
+| CI fix | CI + root routing | `406c498` | drizzle/ versionado, RLS sport_configs (100%/62 tablas), smoke tests path, redirect raiz `/` → `/${locale}/gimnasia-artistica` |

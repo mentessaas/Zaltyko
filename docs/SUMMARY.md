@@ -31,6 +31,7 @@
 |-----------|-------------|
 | [events-directory-module.md](./events-directory-module.md) | Módulo de eventos |
 | [public-academies-directory.md](./public-academies-directory.md) | Directorio público |
+| [DASHBOARD_KPI_SPARKLINES.md](./DASHBOARD_KPI_SPARKLINES.md) | Sparklines de KPIs (histórico real + endpoint) |
 
 ## 📊 Análisis
 
