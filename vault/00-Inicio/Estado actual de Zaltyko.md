@@ -46,16 +46,16 @@ Zaltyko está en **hardening avanzado**. Se ejecutaron los sprints 0-7, una audi
 Pendientes vigentes a 2026-06-26 (orden sugerido en [[Roadmap maestro#Proximos pasos sugeridos (continuidad para agentes)]]):
 
 1. **Decisión humana — legacy `/dashboard/*`** (Elvis). Opción A recomendada y analizada; bloquea Sprint 7D. Ver [[Decisiones]].
-2. **25 tablas TS no existen en DB** (P0). `drizzle-kit push --force` es destructivo; requiere migración manual tabla por tabla. Ver [[Registro de riesgos]].
-3. **Policies permisivas** `allow_authenticated` en marketplace/empleo/tickets/anuncios/push (P0 seguridad).
+2. **22 tablas TS no existen en DB** (P0, verificado 2026-07-03 contra prod). `drizzle-kit push --force` es destructivo; requiere migración manual tabla por tabla. Ver [[Registro de riesgos]]. **Impacto confirmado:** 2 de 3 crons diarios fallan (`generate-sessions` consulta `class_exceptions`; `scheduled-notifications` consulta `scheduled_notifications`), y ~11 archivos de código referencian tablas faltantes (mensajería/plantillas, rúbricas de evaluación, licencias federativas, leads) → esas rutas API devuelven 500 en runtime. `class-reminders` sí funciona.
+3. ~~**Policies permisivas** `allow_authenticated` en marketplace/empleo/tickets/anuncios/push~~ **RESUELTO**. Lote 1 (`20260625000002`) cubrió marketplace/empleo/tickets/anuncios/push. Lote 2 (`20260703000000`, aplicado a prod 2026-07-03) cerró las 5 tablas restantes con escritura permisiva (descuentos + templates globales) y habilitó RLS en `conversations`. Verificado read-only: 0 policies de escritura `allow_authenticated`. Script reutilizable: `scripts/verify-permissive-policies.ts`.
 4. **Deuda de auditoría**: items 1.2 (encriptar Stripe), 2.2 (`verifyAcademyBelongsToTenant`), 2.3 (cross-check invoice), 2.5 (rate-limit por tenantId), 2.6 (índice memberships), refactors de componentes >700 líneas, i18n del producto autenticado (~10%), a11y. Ver [[Backlog priorizado]].
 5. **Upgrades de dependencias sin commitear** (jspdf 2→4, xlsx por tarball, next 15.5.19, overrides de seguridad). Validar export PDF/Excel antes de commitear.
 6. **Validaciones humanas**: 10 entrevistas de pricing freemium y QA del portal padres/atletas + solicitudes de vínculo con usuarios reales.
 
 ## Prioridades actuales
 
-1. P0: cerrar decisión legacy `/dashboard/*` y plan de migración de las 25 tablas faltantes.
-2. P0: endurecer policies permisivas y aplicar deuda de auditoría de seguridad (2.2/2.3/2.5).
+1. P0: cerrar decisión legacy `/dashboard/*` y plan de migración de las 22 tablas faltantes (desbloquea 2 crons rotos y ~11 rutas API en 500).
+2. P0: aplicar deuda de auditoría de seguridad restante (2.2/2.3/2.5). Policies permisivas ya resueltas (lote 1 + lote 2).
 3. P1: validar + commitear upgrades de dependencias (riesgo en export PDF/Excel).
 4. P1: QA con usuarios reales (portal padres, solicitudes de vínculo) y 10 entrevistas de pricing.
 5. P2: completar i18n del producto autenticado, refactors de componentes grandes y a11y.
