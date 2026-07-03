@@ -37,7 +37,7 @@ Zaltyko está en **hardening avanzado**. Se ejecutaron los sprints 0-7, una audi
 ## Lo que ya está cerrado (no reabrir sin motivo)
 
 - Monetización/checkout: downgrade Stripe corregido, toggle anual bloqueado hasta price real, planes alineados a v1 (1 academia).
-- Seguridad: RLS 100% (62 tablas), JWT firma HS256, rate-limit consolidado, secretos Stripe no expuestos, idempotency keys, mensajes de error genéricos.
+- Seguridad: RLS habilitada en todas las tablas tenant (90 en prod), JWT firma HS256, rate-limit consolidado, secretos Stripe no expuestos, idempotency keys, mensajes de error genéricos. **Matiz clave (auditado 2026-07-03):** la conexión de la app es rol `postgres` con `BYPASSRLS`, así que la RLS es **defensa en profundidad para acceso directo del cliente Supabase** (anon key: tickets, realtime, storage, acciones públicas), NO red de seguridad server-side. El aislamiento en las 265 rutas API depende de los wrappers de auth (`withTenant`/`withSuperAdmin`/`withBearerTenant`/sesión+`verifyAcademyAccessForProfile`/firma/cron). Auditoría de las 71 rutas sin `withTenant`: **0 fugas/IDOR**. Ver `CLAUDE.md#Security` corregido.
 - Flujos core (evaluaciones, asistencia, reportes, comunicación, billing) validados en QA P1 sandbox 5/5.
 - CI verde: `lint`, `typecheck`, `build`, `validate:rls`, `check:migrations` pasan.
 
