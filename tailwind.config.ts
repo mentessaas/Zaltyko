@@ -21,11 +21,13 @@ export default {
           white: "#F8FAFC",
           mist: "#CBD5E1",
           primary: {
-            DEFAULT: "#00796B",
+            DEFAULT: "#00796B", // Deep Teal — color de acción/marca (botones, links)
             dark: "#00695C",
             light: "#14B8A6",
             ultralight: "#E6FFFC",
           },
+          // Electric Teal — acento vibrante (glows, highlights, charts, hovers)
+          electric: "#1FC7B6",
           accent: {
             DEFAULT: "#2B2E83",
             teal: "#00796B",
@@ -97,6 +99,10 @@ export default {
         medium: "0 8px 24px rgba(15, 23, 42, 0.08)",
         glass: "0 2px 8px rgba(15, 23, 42, 0.06)",
         glow: "0 0 0 3px rgba(31, 199, 182, 0.15)",
+        // Sombras con tinte de marca (reemplazan las grises planas)
+        brand: "0 8px 30px rgba(0, 121, 107, 0.12)",
+        indigo: "0 8px 30px rgba(43, 46, 131, 0.12)",
+        lift: "0 16px 40px -12px rgba(0, 121, 107, 0.25)",
       },
       borderRadius: {
         lg: "var(--radius)",

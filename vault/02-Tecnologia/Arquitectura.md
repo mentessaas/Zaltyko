@@ -1,7 +1,7 @@
 ---
 status: active
 owner: tech
-last_reviewed: 2026-06-22
+last_reviewed: 2026-06-26
 source:
   - ../README.md
   - ../AGENTS.md
@@ -12,14 +12,16 @@ source:
 
 ## Stack
 
-- Next.js 15.5.x App Router.
+- Next.js 15.5.19 App Router.
 - React 18.3.x.
-- Supabase PostgreSQL con RLS.
-- Drizzle ORM.
+- Supabase PostgreSQL con RLS (cobertura 100% / 62 tablas tenant-scoped).
+- Drizzle ORM 0.45.x (migraciones versionadas en `drizzle/`).
 - NextAuth.js v5.
 - Stripe.
 - Tailwind CSS + shadcn/ui.
 - Vercel.
+
+> Algunos bumps de dependencias (next 15.5.19, MCP SDK 1.29, jspdf 4, xlsx por tarball, overrides de seguridad) estan en el working tree sin commitear a 2026-06-26. Ver [[Changelog interno#2026-06-26 - Upgrades de dependencias (PENDIENTE DE COMMIT)]].
 
 ## Estructura principal
 

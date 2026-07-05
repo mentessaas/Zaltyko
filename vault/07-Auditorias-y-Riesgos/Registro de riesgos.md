@@ -1,7 +1,7 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-06-22
+last_reviewed: 2026-06-26
 source:
   - ../PRODUCT-ANALYSIS.md
   - ../BUSINESS-ANALYSIS.md
@@ -12,10 +12,12 @@ source:
 
 | Riesgo | Severidad | Estado | Mitigacion |
 | --- | --- | --- | --- |
-| Pricing y limites inconsistentes | Alta | Abierto | Resolver [[Pricing]] y tests de checkout/limits. |
+| Pricing y limites inconsistentes | Alta | Mitigado 2026-06-23 | Pricing alineado a v1 (1 academia), toggle anual bloqueado hasta price real, downgrade Stripe corregido. Pendiente: validar hipotesis freemium con 10 entrevistas ([[Pricing]]). |
 | Promesas publicas no implementadas | Alta | Abierto | Revisar [[Mensajes aprobados]] antes de publicar copy. |
 | Features parciales vendidas como completas | Alta | Abierto | Marcar estados en [[Inventario de producto]]. |
-| Migraciones/RLS incompletas | Alta | Mitigado 2026-06-23 | 100% cobertura RLS sobre 63 tablas tenant-scoped (`pnpm validate:rls` PASS). Job CI `validate-rls` activo bloquea regresiones. |
+| Migraciones/RLS incompletas | Alta | Cerrado 2026-06-26 | 100% cobertura RLS sobre 62 tablas tenant-scoped (`pnpm validate:rls` PASS). Ultima brecha (`academy/athlete/coach_sport_configs`) cerrada en commit `406c498` con `20260626000000_rls_sport_configs.sql`. Jobs CI `validate-rls` y `check:migrations` bloquean regresiones. |
+| Raiz del sitio `/` devolvia 404 | Media | Cerrado 2026-06-26 | `middleware.ts` redirige `/` a `/${locale}/gimnasia-artistica` (commit `406c498`). Ver [[Decisiones#2026-06-26 - Routing raiz redirige a primera modalidad]]. |
+| Upgrades de dependencias (jspdf 2→4, xlsx por tarball, next 15.5.19, overrides de seguridad) | Media | Cerrado 2026-06-26 | Validado (typecheck limpio, vitest 346/346, build OK) y commiteado en `security/audit-remediation`. Export PDF/Excel compatible (API funcional de jspdf-autotable). Ver [[Changelog interno#2026-06-26 - Upgrades de dependencias (VALIDADO Y COMMITEADO)]]. |
 | 25 tablas TS no existen en DB | Alta | Abierto | Sprint 2 diagnostico con `dump-schema.ts`; `drizzle-kit push --force` es destructivo. Requiere migracion manual tabla por tabla. Bloquea features de eventos (4 tablas), clases (2), atletas (1), federacion (2), marketing (1), mensajes (3), notificaciones (3), roles (2), auxiliares (4). |
 | Policies permisivas en modulos laterales | Alta | Abierto | `allow_authenticated` permite a cualquier usuario ver/modificar datos de marketplace, empleo, tickets, anuncios, push subscriptions. Requiere migracion con policies por tenant/user. |
 | UX inconsistente en dashboard | Media | Abierto | Auditar flujos P0/P1. |

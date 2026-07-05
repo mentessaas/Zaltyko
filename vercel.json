@@ -1,7 +1,7 @@
 {
   "framework": "nextjs",
   "regions": [
-    "iad1"
+    "arn1"
   ],
   "crons": [
     {

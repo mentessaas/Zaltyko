@@ -16,7 +16,7 @@
 src/
 ├── app/
 │   ├── app/[academyId]/     # Academy dashboard routes
-│   ├── api/                 # API routes (all use withTenant)
+│   ├── api/                 # API routes (tenant routes use withTenant; others per-context)
 │   ├── (site)/             # Public landing pages
 │   └── (super-admin)/      # Super admin panel
 ├── components/
@@ -41,7 +41,7 @@ src/
 
 ### API Auth (MANDATORY)
 ```typescript
-// ✅ CORRECT - all APIs use withTenant
+// ✅ CORRECT - tenant-scoped APIs use withTenant (see Security for other wrappers)
 import { withTenant } from '@/lib/authz';
 export const POST = withTenant(async (request: Request) => { ... });
 
@@ -102,10 +102,10 @@ See `.env.example`. Required:
 
 ## Security
 
-- All APIs use `withTenant` for multi-tenant isolation
-- RLS policies enforce tenant isolation at DB level
+- Tenant-scoped APIs use `withTenant`; the rest are guarded by the appropriate wrapper for their context: `withSuperAdmin` (super-admin), `withBearerTenant` (mobile/bearer), session-scoping via `auth.getUser` + `verifyAcademyAccessForProfile` (self/me/profile/onboarding/support), signature verification (Stripe/LemonSqueezy/Mailgun webhooks), `requireCronAuth` (cron), or intentionally public + rate-limited (landing/directory/leads/contact). Audited 2026-07-03: 265 routes, 0 authz/IDOR gaps. NOT every route uses `withTenant` — do not assume it.
+- RLS is **defense-in-depth for direct Supabase-client access** (anon/authenticated key: support/tickets, realtime, storage, public actions). It is NOT a safety net for server-side queries: the app connects as `postgres` with `BYPASSRLS`, so server tenant isolation depends entirely on the auth wrappers above, not on RLS.
 - Zod validation on all API inputs
-- Stripe webhook signature verification
+- Stripe webhook signature verification (`constructEvent` + `STRIPE_WEBHOOK_SECRET`)
 - Rate limiting on all endpoints
 
 ## Recent Changes (2026-04-02)

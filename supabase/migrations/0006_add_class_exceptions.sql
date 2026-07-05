@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS class_exceptions (
   exception_date DATE NOT NULL,
   exception_type VARCHAR(50) NOT NULL DEFAULT 'holiday',
   reason TEXT,
-  tenant_id UUID NOT NULL REFERENCES academies(tenant_id) ON DELETE CASCADE,
+  tenant_id UUID NOT NULL REFERENCES academies(id) ON DELETE CASCADE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   
@@ -17,10 +17,10 @@ CREATE TABLE IF NOT EXISTS class_exceptions (
 );
 
 -- Indexes for performance
-CREATE INDEX idx_class_exceptions_class_id ON class_exceptions(class_id);
-CREATE INDEX idx_class_exceptions_date ON class_exceptions(exception_date);
-CREATE INDEX idx_class_exceptions_tenant_id ON class_exceptions(tenant_id);
-CREATE INDEX idx_class_exceptions_type ON class_exceptions(exception_type);
+CREATE INDEX IF NOT EXISTS idx_class_exceptions_class_id ON class_exceptions(class_id);
+CREATE INDEX IF NOT EXISTS idx_class_exceptions_date ON class_exceptions(exception_date);
+CREATE INDEX IF NOT EXISTS idx_class_exceptions_tenant_id ON class_exceptions(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_class_exceptions_type ON class_exceptions(exception_type);
 
 -- Comments
 COMMENT ON TABLE class_exceptions IS 'Excepciones para generación de sesiones de clase (festivos, cancelaciones, etc.)';
@@ -33,15 +33,15 @@ ALTER TABLE class_exceptions ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "class_exceptions_select" ON class_exceptions;
 CREATE POLICY "class_exceptions_select" ON class_exceptions
   FOR SELECT USING (
-    is_admin() OR tenant_id = get_current_tenant()
+    is_admin() OR academy_in_current_tenant(tenant_id)
   );
 
 DROP POLICY IF EXISTS "class_exceptions_modify" ON class_exceptions;
 CREATE POLICY "class_exceptions_modify" ON class_exceptions
   FOR ALL USING (
-    is_admin() OR tenant_id = get_current_tenant()
+    is_admin() OR academy_in_current_tenant(tenant_id)
   ) WITH CHECK (
-    is_admin() OR tenant_id = get_current_tenant()
+    is_admin() OR academy_in_current_tenant(tenant_id)
   );
 
 COMMENT ON POLICY "class_exceptions_select" ON class_exceptions IS 

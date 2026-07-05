@@ -126,6 +126,11 @@ export const POST = withTenant(async (request: Request) => {
 | POST | `/api/discounts` | Create discount |
 | POST | `/api/scholarships` | Create scholarship |
 
+### Dashboard
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/dashboard/kpi-trends` | Series temporales reales para los sparklines de KPIs (`?academyId=&days=`). Ver [DASHBOARD_KPI_SPARKLINES.md](./DASHBOARD_KPI_SPARKLINES.md) |
+
 ## AI Endpoints (Auth Protected)
 
 | Method | Endpoint | Description |

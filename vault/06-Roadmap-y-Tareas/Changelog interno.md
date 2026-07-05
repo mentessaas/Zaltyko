@@ -1,16 +1,43 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-06-24
+last_reviewed: 2026-06-26
 source:
   - ../ROADMAP.md
   - ../AGENTS.md
 ---
 # Changelog interno
 
-## 2026-06-26 - Auditoria tecnica completa + consolidacion vault documentada
+## 2026-06-26 - Upgrades de dependencias (VALIDADO Y COMMITEADO)
 
-**Bloque auditoria (5 commits en `claude/hungry-shaw-f623bb`)**:
+> **Estado: validado y commiteado** en `security/audit-remediation`. Validacion: `pnpm typecheck` limpio, `pnpm exec vitest run` 346/346 PASS, `pnpm build` exitoso. El riesgo de `jspdf` 2→4 quedo acotado: el codigo ya usaba la API funcional `autoTable(doc, {...})` (compatible con v4) en `AssessmentPDFExport`, `receipt-generator` y `reports/pdf-generator`. `xlsx` por tarball oficial sin romper export.
+
+**Bumps de seguridad (pnpm overrides añadidos)**: `ws ^8.21.0`, `path-to-regexp ^8.4.0`, `protobufjs ^7.5.6`, `lodash ^4.18.1`, `immutable ^3.8.3`, `form-data ^4.0.6`. Cierran advisories transitivos.
+
+**Bumps de versiones directas**:
+- `next` 15.5.15 → 15.5.19 (+ `eslint-config-next`/`@next/eslint-plugin-next` alineados a 15.5.19).
+- `@modelcontextprotocol/sdk` 1.22 → 1.29 y `mcp-handler` 1.0.4 → 1.1.0 (capacidades MCP de agentes).
+- `drizzle-orm` 0.44.7 → 0.45.2.
+- `jspdf` 2.5.2 → 4.2.1 (+ `jspdf-autotable` 5.0.7 → 5.0.8) — **cambio mayor**, revisar reportes/export PDF (attendance, financial).
+- `xlsx` 0.18.5 → tarball oficial `cdn.sheetjs.com/xlsx-0.20.3` (la distribucion npm dejo de actualizarse; el oficial trae fixes de seguridad).
+- `axios` 1.15 → 1.18.1, `form-data` 1.0.1 → 1.0.6.
+
+**Riesgo**: `jspdf` 2→4 y `xlsx` por URL pueden romper export de reportes; correr `pnpm test` + smoke de export antes de mergear. Registrado en [[Backlog priorizado]] (P1) y [[Registro de riesgos]].
+
+## 2026-06-26 - Fix CI + root routing 404 (commit `406c498`)
+
+Cierre de 4 fallos de CI y del 404 en la raiz del sitio, sobre `security/audit-remediation`:
+
+- **`pnpm check:migrations` FAIL → drizzle versionado**: el directorio `drizzle/` estaba en `.gitignore`. Se commitea (3 migraciones + meta journal) para que la verificacion de integridad pase en CI.
+- **`pnpm validate:rls` FAIL → RLS sport_configs**: nueva migracion `drizzle/20260626000000_rls_sport_configs.sql` habilita RLS en `academy_sport_configs`, `athlete_sport_configs` y `coach_sport_configs` (3 tablas que faltaban). Cobertura **100% sobre 62 tablas tenant-scoped**.
+- **Smoke tests FAIL → PATH**: el job pasa a invocar `pnpm exec tsx` (en vez de `tsx` directo) para resolver el binario en el runner de CI.
+- **Root routing 404 → redirect**: `middleware.ts` redirige `/` a `/${locale}/gimnasia-artistica` (primera modalidad del catalogo). Cierra el 404 de la raiz. **Decision arquitectonica** registrada en [[Decisiones#2026-06-26 - Routing raiz redirige a primera modalidad]].
+
+## 2026-06-26 - Auditoria tecnica completa de seguridad y calidad (PR #8, commit `cf092ef`)
+
+> El trabajo de auditoria (Bloques 1-4) se mergeo a `security/audit-remediation` via **PR #8 (`cf092ef`)**. El detalle por items 1.x–4.x sigue siendo correcto.
+
+**Bloque auditoria (PR #8 `cf092ef`)**:
 
 - **[1.1]** `src/app/api/academies/[academyId]/settings/route.ts:462` ya no expone `stripeSecretKey` en GET; devuelve `stripeSecretKeyConfigured: !!academy.stripeSecretKey` (boolean). Cierra vector MITM/DevTools.
 - **[1.2]** PATCH /settings valida string vacio antes de sobreescribir clave Stripe; columna sigue plano (sin libsodium) — pendiente como deuda tecnica en Backlog.
