@@ -285,14 +285,16 @@ export async function getGlobalStats(): Promise<SuperAdminMetrics> {
       previousAcademies,
       previousUsers,
       previousRevenue,
-      previousSubscriptions: Math.max(0, subscriptionsData.length - Math.ceil(subscriptionsData.length * 0.05)),
-      // Engagement metrics (calculated from available data)
-      dailyActiveUsers: Math.round(users.length * 0.15),
-      weeklyActiveUsers: Math.round(users.length * 0.35),
-      monthlyActiveUsers: Math.round(users.length * 0.65),
-      avgSessionsPerUser: 4.2,
-      avgSessionDurationMinutes: 12,
-      churnRate: 2.3,
+      previousSubscriptions: subscriptionsData.length,
+      // Engagement metrics: requieren analytics de sesiones que aún no está integrado.
+      // Se devuelven en 0 para NO fabricar datos; la UI oculta esta tarjeta hasta tener
+      // una fuente real (ver hasEngagementAnalytics en SuperAdminDashboard).
+      dailyActiveUsers: 0,
+      weeklyActiveUsers: 0,
+      monthlyActiveUsers: 0,
+      avgSessionsPerUser: 0,
+      avgSessionDurationMinutes: 0,
+      churnRate: 0,
     },
     usersByRole: Array.from(usersByRoleMap.entries()).map(([role, total]) => ({ role, total })),
     planStatuses: Array.from(planStatusMap.entries()).map(([status, total]) => ({ status, total })),

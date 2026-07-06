@@ -136,14 +136,14 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
     return dataset;
   }, [safeMetrics.monthlyAcademies]);
 
-  // Revenue chart data
+  // Revenue chart data (proyección determinista derivada del total real).
+  // NO usar Math.random() aquí: rompe la hidratación (server/cliente difieren) y fabrica datos.
   const revenueChartData = useMemo(() => {
-    // Generate sample revenue data based on current metrics
-    const baseRevenue = safeMetrics.totals.revenue || 100000;
+    const baseRevenue = safeMetrics.totals.revenue || 0;
     const months = chartDataset.map((d) => d.label);
     return months.map((month, idx) => ({
       label: month,
-      revenue: Math.round(baseRevenue * (0.5 + idx * 0.1) + Math.random() * 10000),
+      revenue: Math.round(baseRevenue * (0.5 + idx * 0.1)),
       target: Math.round(baseRevenue * (0.6 + idx * 0.08)),
     }));
   }, [safeMetrics.totals.revenue, chartDataset]);
@@ -417,72 +417,9 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
         </section>
       )}
 
-      {/* Engagement Metrics Section */}
-      <section className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-6">
-        <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-violet-500/10 blur-3xl" />
-
-        <header className="relative mb-4 flex items-center justify-between">
-          <div>
-            <h3 className="font-display text-sm font-semibold uppercase tracking-wide text-zaltyko-accent-light">
-              Métricas de Engagement
-            </h3>
-            <p className="text-xs text-white/50 mt-1">Uso y actividad de la plataforma</p>
-          </div>
-        </header>
-
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {/* DAU */}
-          <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-white/60">Usuarios diarios</span>
-              <span className="text-xs text-emerald-400 font-medium">+12%</span>
-            </div>
-            <p className="mt-2 text-2xl font-bold text-white">{safeMetrics.totals.dailyActiveUsers}</p>
-          </div>
-
-          {/* WAU */}
-          <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-white/60">Usuarios semanales</span>
-              <span className="text-xs text-emerald-400 font-medium">+8%</span>
-            </div>
-            <p className="mt-2 text-2xl font-bold text-white">{safeMetrics.totals.weeklyActiveUsers}</p>
-          </div>
-
-          {/* MAU */}
-          <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-white/60">Usuarios mensuales</span>
-              <span className="text-xs text-emerald-400 font-medium">+5%</span>
-            </div>
-            <p className="mt-2 text-2xl font-bold text-white">{safeMetrics.totals.monthlyActiveUsers}</p>
-          </div>
-
-          {/* Churn */}
-          <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-white/60">Tasa de churn</span>
-              <span className="text-xs text-red-400 font-medium">{safeMetrics.totals.churnRate}%</span>
-            </div>
-            <p className="mt-2 text-2xl font-bold text-white">{safeMetrics.totals.churnRate}%</p>
-          </div>
-        </div>
-
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          <div className="rounded-lg border border-white/10 bg-white/5 p-3">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-white/60">Sesiones por usuario</span>
-              <span className="text-white font-medium">{safeMetrics.totals.avgSessionsPerUser}</span>
-            </div>
-          </div>
-          <div className="rounded-lg border border-white/10 bg-white/5 p-3">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-white/60">Duración promedio</span>
-              <span className="text-white font-medium">{safeMetrics.totals.avgSessionDurationMinutes} min</span>
-            </div>
-          </div>
-        </div>
-      </section>
+      {/* Métricas de Engagement: ocultas hasta integrar analytics de sesiones reales.
+          Antes mostraban datos fabricados (activos = usuarios×0.15, churn 2.3 fijo,
+          sesiones/duración hardcodeados). No re-introducir sin una fuente real. */}
 
       {/* Charts Section */}
       <section className="grid w-full grid-cols-1 gap-6 lg:grid-cols-2">

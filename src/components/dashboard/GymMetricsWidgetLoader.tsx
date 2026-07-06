@@ -61,13 +61,13 @@ export function GymMetricsWidgetLoader({ academyId }: GymMetricsWidgetLoaderProp
   return (
     <GymMetricsWidget
       academyId={academyId}
-      athletesByCategory={metrics.athletesByCategory}
-      expiringLicenses={metrics.expiringLicenses}
-      expiringLicensesThisWeek={metrics.expiringLicensesThisWeek}
-      expiringLicensesThisMonth={metrics.expiringLicensesThisMonth}
-      upcomingCompetitions={metrics.upcomingCompetitions}
-      assessmentsThisMonth={metrics.assessmentsThisMonth}
-      totalAthletesWithActiveLicense={metrics.totalAthletesWithActiveLicense}
+      athletesByCategory={metrics.athletesByCategory ?? []}
+      expiringLicenses={metrics.expiringLicenses ?? []}
+      expiringLicensesThisWeek={metrics.expiringLicensesThisWeek ?? 0}
+      expiringLicensesThisMonth={metrics.expiringLicensesThisMonth ?? 0}
+      upcomingCompetitions={metrics.upcomingCompetitions ?? []}
+      assessmentsThisMonth={metrics.assessmentsThisMonth ?? 0}
+      totalAthletesWithActiveLicense={metrics.totalAthletesWithActiveLicense ?? 0}
     />
   );
 }

@@ -354,9 +354,19 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
                     value={user.role ?? ""}
                     onChange={(event) => {
                       const newRole = event.target.value as typeof ROLE_OPTIONS[number];
-                      if (newRole !== user.role && ROLE_OPTIONS.includes(newRole)) {
-                        mutateUser(user.id, { role: newRole });
+                      if (newRole === user.role || !ROLE_OPTIONS.includes(newRole)) {
+                        return;
                       }
+                      if (newRole === "super_admin") {
+                        const confirmed = window.confirm(
+                          "¿Dar el rol SUPER ADMIN a este usuario? Tendrá acceso total a la plataforma y a todas las academias. Esta acción es sensible."
+                        );
+                        if (!confirmed) {
+                          event.target.value = user.role ?? "";
+                          return;
+                        }
+                      }
+                      mutateUser(user.id, { role: newRole });
                     }}
                     disabled={loading || mutatingUserId === user.id || user.role === "super_admin"}
                   >
