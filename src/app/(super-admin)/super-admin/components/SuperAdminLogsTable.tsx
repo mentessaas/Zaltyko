@@ -11,6 +11,19 @@ interface SuperAdminLogsTableProps {
   initialLogs: SuperAdminLogEntry[];
 }
 
+const DATE_TIME_FORMATTER = new Intl.DateTimeFormat("es-ES", {
+  dateStyle: "short",
+  timeStyle: "short",
+  timeZone: "UTC",
+});
+
+function unwrapApiData<T>(payload: unknown): T | null {
+  if (payload && typeof payload === "object" && "ok" in payload && "data" in payload) {
+    return (payload as { data: T }).data;
+  }
+  return payload as T;
+}
+
 export function SuperAdminLogsTable({ initialLogs }: SuperAdminLogsTableProps) {
   const supabase = createClient();
   const [logs, setLogs] = useState(initialLogs);
@@ -35,8 +48,8 @@ export function SuperAdminLogsTable({ initialLogs }: SuperAdminLogsTableProps) {
         console.error("Failed to fetch logs", await response.text());
         return;
       }
-      const payload = await response.json();
-      setLogs(payload.items ?? []);
+      const payload = unwrapApiData<{ items?: SuperAdminLogEntry[] }>(await response.json());
+      setLogs(payload?.items ?? []);
     } finally {
       setLoading(false);
     }
@@ -97,7 +110,7 @@ export function SuperAdminLogsTable({ initialLogs }: SuperAdminLogsTableProps) {
                 </td>
                 <td className="px-4 py-4 text-right text-xs text-white/70">
                   {log.createdAt
-                    ? new Date(log.createdAt).toLocaleString("es-ES")
+                    ? DATE_TIME_FORMATTER.format(new Date(log.createdAt))
                     : "—"}
                 </td>
               </tr>
@@ -108,4 +121,3 @@ export function SuperAdminLogsTable({ initialLogs }: SuperAdminLogsTableProps) {
     </div>
   );
 }
-

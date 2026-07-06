@@ -32,7 +32,7 @@ export const GET = withTenant(async (request, context) => {
   const validated = querySchema.parse(params);
 
   // Verificar acceso a la academia
-  const academyAccess = await verifyAcademyAccess(validated.academyId, context.tenantId);
+  const academyAccess = await verifyAcademyAccess(validated.academyId, context.tenantId, context.profile);
   if (!academyAccess.allowed) {
     return apiError("ACADEMY_NOT_FOUND", academyAccess.reason ?? "Academia no encontrada", 403);
   }

@@ -29,7 +29,7 @@ export const POST = withTenant(async (request, context) => {
     }
 
     // Verify academy access
-    const academyAccess = await verifyAcademyAccess(body.academyId, context.tenantId);
+    const academyAccess = await verifyAcademyAccess(body.academyId, context.tenantId, context.profile);
     if (!academyAccess.allowed) {
       return apiError(academyAccess.reason ?? "ACADEMY_ACCESS_DENIED", "Access denied", 403);
     }

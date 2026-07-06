@@ -94,7 +94,7 @@ export const GET = withTenant(async (request, context) => {
     }
 
     // Verify academy access
-    const academyAccess = await verifyAcademyAccess(query.academyId, context.tenantId);
+    const academyAccess = await verifyAcademyAccess(query.academyId, context.tenantId, context.profile);
     if (!academyAccess.allowed) {
       return apiError(academyAccess.reason ?? "ACADEMY_ACCESS_DENIED", "Access denied", 403);
     }
@@ -215,7 +215,7 @@ export const POST = withTenant(async (request, context) => {
     }
 
     // Verify academy access
-    const academyAccess = await verifyAcademyAccess(body.academyId, context.tenantId);
+    const academyAccess = await verifyAcademyAccess(body.academyId, context.tenantId, context.profile);
     if (!academyAccess.allowed) {
       return apiError(academyAccess.reason ?? "ACADEMY_ACCESS_DENIED", "Access denied", 403);
     }

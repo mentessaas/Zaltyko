@@ -59,6 +59,10 @@ export async function GET(request: Request) {
     const filters: ReturnType<typeof eq | typeof ilike>[] = [
       eq(academies.isPublic, true),
       eq(academies.isSuspended, false),
+      sql`LOWER(COALESCE(${academies.name}, '')) NOT LIKE '%demo%'`,
+      sql`LOWER(COALESCE(${academies.name}, '')) NOT LIKE '%test%'`,
+      sql`LOWER(COALESCE(${academies.contactEmail}, '')) NOT LIKE '%@zaltyko.local'`,
+      sql`LOWER(COALESCE(${academies.contactEmail}, '')) NOT LIKE '%@zaltyko.demo'`,
     ];
 
     if (search) {
@@ -161,7 +165,10 @@ export async function GET(request: Request) {
       totalPages,
       hasNextPage: page < totalPages,
       hasPreviousPage: page > 1,
-      items,
+      items: items.map((item) => ({
+        ...item,
+        name: item.name === "Demo Acadsemy" ? "Demo Academy" : item.name,
+      })),
     });
   } catch (error) {
     return handleApiError(error, { endpoint: "/api/public/academies", method: "GET" });

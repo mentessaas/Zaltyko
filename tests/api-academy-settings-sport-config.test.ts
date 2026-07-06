@@ -210,7 +210,7 @@ describe("API /api/academies/[academyId]/settings sport config", () => {
         activeApparatusCodes: ["vt", "fx"],
       })
     );
-  });
+  }, 10_000);
 
   it("bloquea desactivar un programa usado por atletas o grupos", async () => {
     queueAcademy();

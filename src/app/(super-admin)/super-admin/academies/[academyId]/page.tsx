@@ -5,6 +5,7 @@ import Link from "next/link";
 
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/authz";
+import { getSuperAdminAcademyDetail } from "@/lib/superAdminService";
 import { SuperAdminAcademyDetail } from "../../components/SuperAdminAcademyDetail";
 
 export const dynamic = "force-dynamic";
@@ -28,28 +29,27 @@ export default async function SuperAdminAcademyDetailPage({
   const profile = await getCurrentProfile(user.id);
 
   if (!profile || profile.role !== "super_admin") {
-    redirect("/app");
+    return <AcademyDetailState title="Sin permisos" description="Tu usuario no tiene permisos de super-admin." />;
   }
 
   const { academyId } = await params;
 
-  const response = await fetch(
-    `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/super-admin/academies/${academyId}`,
-    {
-      headers: {
-      },
-      cache: "no-store",
-    },
-  );
-
-  if (!response.ok) {
-    if (response.status === 404) {
-      notFound();
-    }
-    throw new Error("Failed to fetch academy details");
+  let academy;
+  try {
+    academy = await getSuperAdminAcademyDetail(academyId);
+  } catch (error) {
+    console.error("Failed to load super-admin academy detail", error);
+    return (
+      <AcademyDetailState
+        title="Error interno"
+        description="No se pudo cargar el detalle de la academia. Revisa los logs del servidor antes de operar esta cuenta."
+      />
+    );
   }
 
-  const academy = await response.json();
+  if (!academy) {
+    notFound();
+  }
 
   return (
     <div className="space-y-6">
@@ -67,3 +67,20 @@ export default async function SuperAdminAcademyDetailPage({
   );
 }
 
+function AcademyDetailState({ title, description }: { title: string; description: string }) {
+  return (
+    <div className="space-y-6">
+      <Link
+        href="/super-admin/academies"
+        className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-300 transition hover:border-white/20 hover:bg-white/10 hover:text-white"
+      >
+        <ArrowLeft className="h-4 w-4" strokeWidth={1.8} />
+        Volver a academias
+      </Link>
+      <section className="rounded-2xl border border-white/10 bg-white/5 p-6">
+        <h1 className="font-display text-2xl font-semibold text-white">{title}</h1>
+        <p className="mt-2 max-w-2xl text-sm text-white/70">{description}</p>
+      </section>
+    </div>
+  );
+}

@@ -1,12 +1,24 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-06-26
+last_reviewed: 2026-07-06
 source:
   - ../ROADMAP.md
   - ../AGENTS.md
 ---
 # Changelog interno
+
+## 2026-07-06 - Estabilizacion panel super-admin y confianza de datos
+
+- Detalle de academia super-admin deja de hacer self-fetch a API protegida; usa servicio server-side compartido (`getSuperAdminAcademyDetail`) y estados claros para no autorizado, no encontrada y error interno.
+- Dashboard super-admin deja de mostrar metricas fabricadas: se eliminan DAU/WAU/MAU/churn/sesiones/duracion inventadas, grafica de ingresos con `Math.random`, comparativa por promedios y copy "en tiempo real". Se mantienen conteos reales de academias, usuarios, roles, planes, suscripciones, cobros y actividad registrada.
+- Permisos cross-tenant: `verifyAcademyAccess` y `verifyGroupAccess` aceptan bypass explicito para `super_admin` validando existencia real del recurso; endpoints `withTenant` relevantes pasan `context.profile`.
+- Lista de usuarios exige confirmacion antes de promover a `super_admin`; reutiliza audit log existente via PATCH de usuario.
+- Directorio publico excluye academias demo/test por `isPublic` + filtros defensivos de nombre/email (`@zaltyko.local`, `@zaltyko.demo`) y normaliza el typo `Demo Acadsemy` si aparece en datos existentes.
+- Nav super-admin oculta Facturacion, Soporte y Configuracion hasta que sean superficies funcionales.
+- `/app/[academyId]` redirige a `/app/[academyId]/dashboard`.
+- Cierre P0/P1 posterior: toolchain local restaurada (`typecheck`, `lint`, `build`, `test` PASS); detalle de usuario super-admin usa servicio server-side y desempaqueta `{ ok, data }`; DELETE de academias queda bloqueado con 405/audit log; promocion a `super_admin` requiere confirmacion backend y registra `user.role_changed`; rutas directas incompletas de billing/settings/support quedan cerradas por feature flag.
+- Verificacion final: `pnpm typecheck`, `pnpm lint`, `pnpm build`, `pnpm test -- --run` PASS. Dev smoke sin sesion: `/super-admin/dashboard`, `/super-admin/users` y `/super-admin/users/test-zaltyko` compilan y redirigen `307 /auth/login`. Warnings no bloqueantes: Tailwind config ESM y `swagger-jsdoc` dynamic require. Registrado en [[Registro de riesgos]], [[Backlog priorizado]] y [[Auditoria de producto real]].
 
 ## 2026-06-26 - Upgrades de dependencias (VALIDADO Y COMMITEADO)
 

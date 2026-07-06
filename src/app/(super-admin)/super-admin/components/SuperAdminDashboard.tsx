@@ -13,9 +13,6 @@ import {
   TrendingUp,
   DollarSign,
   UserCheck,
-  TrendingDown,
-  ArrowUpRight,
-  ArrowDownRight,
   Zap,
   AlertTriangle,
   XCircle,
@@ -66,6 +63,18 @@ const CURRENCY_FORMATTER = new Intl.NumberFormat("es-ES", {
   maximumFractionDigits: 0,
 });
 
+const DATE_FORMATTER = new Intl.DateTimeFormat("es-ES", {
+  timeZone: "UTC",
+});
+
+const EVENT_DATE_FORMATTER = new Intl.DateTimeFormat("es-ES", {
+  day: "2-digit",
+  month: "short",
+  hour: "2-digit",
+  minute: "2-digit",
+  timeZone: "UTC",
+});
+
 const EVENT_TYPE_LABELS: Record<string, string> = {
   academy_created: "Academia creada",
   group_created: "Grupo creado",
@@ -78,9 +87,6 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
   const { metrics, loading, refresh } = useSuperAdminData(initialMetrics);
   const safeMetrics = useMemo(() => normalizeSuperAdminMetrics(metrics), [metrics]);
 
-  // Time range filter
-  const [timeRange, setTimeRange] = useState<"7d" | "30d" | "90d" | "all">("30d");
-
   // Drill-down state for charts
   const [selectedChart, setSelectedChart] = useState<string | null>(null);
   const [drillDownData, setDrillDownData] = useState<{ title: string; items: { name: string; value: number; color: string }[] } | null>(null);
@@ -88,11 +94,6 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
   // Pagination for activity table
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = PAGE_SIZES.TABLE_SMALL;
-
-  // Academy comparison state
-  const [showComparison, setShowComparison] = useState(false);
-  const [selectedAcademies, setSelectedAcademies] = useState<string[]>([]);
-  const [comparisonData, setComparisonData] = useState<any[]>([]);
 
   // Calculate pagination
   const totalPages = Math.ceil(initialEvents.length / ITEMS_PER_PAGE);
@@ -109,7 +110,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
     if (Number.isNaN(parsedDate.getTime())) {
       return "Sin registros";
     }
-    return parsedDate.toLocaleDateString("es-ES");
+    return DATE_FORMATTER.format(parsedDate);
   }, [safeMetrics.totals.latestAcademyAt]);
 
   const ownerCount = useMemo(
@@ -122,41 +123,12 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
   );
 
   const chartDataset = useMemo(() => {
-    const dataset =
-      safeMetrics.monthlyAcademies.length > 0
-        ? safeMetrics.monthlyAcademies
-        : [
-            { label: "2025-03", total: 6 },
-            { label: "2025-04", total: 8 },
-            { label: "2025-05", total: 9 },
-            { label: "2025-06", total: 11 },
-            { label: "2025-07", total: 13 },
-            { label: "2025-08", total: 15 },
-          ];
-    return dataset;
+    return safeMetrics.monthlyAcademies;
   }, [safeMetrics.monthlyAcademies]);
 
-  // Revenue chart data
-  const revenueChartData = useMemo(() => {
-    // Generate sample revenue data based on current metrics
-    const baseRevenue = safeMetrics.totals.revenue || 100000;
-    const months = chartDataset.map((d) => d.label);
-    return months.map((month, idx) => ({
-      label: month,
-      revenue: Math.round(baseRevenue * (0.5 + idx * 0.1) + Math.random() * 10000),
-      target: Math.round(baseRevenue * (0.6 + idx * 0.08)),
-    }));
-  }, [safeMetrics.totals.revenue, chartDataset]);
-
-  const chartMaxValue = useMemo(
-    () => Math.max(...chartDataset.map((d) => d.total), 1),
-    [chartDataset]
-  );
-
-  // Calculate real trends based on previous period data
-  const mockTrends = useMemo(() => {
+  const trends = useMemo(() => {
     const calculateTrend = (current: number, previous: number | undefined) => {
-      if (!previous || previous === 0) return { value: 0, direction: "up" as const };
+      if (previous === undefined || previous === 0) return undefined;
       const change = Math.round(((current - previous) / previous) * 100);
       return {
         value: Math.abs(change),
@@ -167,9 +139,6 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
     return {
       academies: calculateTrend(safeMetrics.totals.academies, safeMetrics.totals.previousAcademies),
       users: calculateTrend(safeMetrics.totals.users, safeMetrics.totals.previousUsers),
-      owners: { value: 5, direction: "up" as const }, // Will be calculated if needed
-      coaches: { value: 15, direction: "down" as const }, // Will be calculated if needed
-      charges: { value: 23, direction: "up" as const }, // This month vs last month
       revenue: calculateTrend(safeMetrics.totals.chargesPaidThisMonth, safeMetrics.totals.previousRevenue),
     };
   }, [safeMetrics.totals]);
@@ -208,18 +177,13 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
     }));
   }, [safeMetrics.planStatuses]);
 
-  const currentMonth = useMemo(() => {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-  }, []);
-
   const cards = useMemo(
     () => [
       {
         title: "Academias",
         value: safeMetrics.totals.academies,
         subtitle: "Total de academias registradas",
-        trend: mockTrends.academies,
+        trend: trends.academies,
         href: "/super-admin/academies",
         icon: Building2,
         accent: "zaltyko-primary" as const,
@@ -228,7 +192,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
         title: "Usuarios",
         value: safeMetrics.totals.users,
         subtitle: `Última alta: ${latestAcademyDate}`,
-        trend: mockTrends.users,
+        trend: trends.users,
         href: "/super-admin/users",
         icon: Users,
         accent: "sky" as const,
@@ -237,7 +201,6 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
         title: "Dueños",
         value: ownerCount,
         subtitle: "Perfiles con rol owner",
-        trend: mockTrends.owners,
         href: "/super-admin/users?role=owner",
         icon: ShieldCheck,
         accent: "zaltyko-accent" as const,
@@ -246,7 +209,6 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
         title: "Entrenadores",
         value: coachCount,
         subtitle: "Perfiles con rol coach",
-        trend: mockTrends.coaches,
         href: "/super-admin/users?role=coach",
         icon: Activity,
         accent: "coral" as const,
@@ -255,7 +217,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
         title: "Planes activos",
         value: safeMetrics.totals.plans,
         subtitle: "Planes configurados en el SaaS",
-        href: "/super-admin/billing",
+        href: "/super-admin/dashboard",
         icon: LayoutGrid,
         accent: "red" as const,
       },
@@ -263,7 +225,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
         title: "Suscripciones",
         value: safeMetrics.totals.subscriptions,
         subtitle: `${safeMetrics.totals.paidInvoices} facturas cobradas`,
-        href: "/super-admin/billing",
+        href: "/super-admin/dashboard",
         icon: CreditCard,
         accent: "amber" as const,
       },
@@ -287,7 +249,6 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
         title: "Cobros este mes",
         value: safeMetrics.totals.chargesCreatedThisMonth,
         subtitle: "Cargos creados",
-        trend: mockTrends.charges,
         href: "/super-admin/academies",
         icon: TrendingUp,
         accent: "red" as const,
@@ -296,13 +257,13 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
         title: "Ingresos este mes",
         value: CURRENCY_FORMATTER.format(safeMetrics.totals.chargesPaidThisMonth / 100),
         subtitle: "Total cobrado",
-        trend: mockTrends.revenue,
+        trend: trends.revenue,
         href: "/super-admin/academies",
         icon: DollarSign,
         accent: "emerald" as const,
       },
     ],
-    [safeMetrics, latestAcademyDate, ownerCount, coachCount, mockTrends]
+    [safeMetrics, latestAcademyDate, ownerCount, coachCount, trends]
   );
 
   return (
@@ -323,27 +284,10 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
               Dashboard <span className="text-transparent bg-clip-text bg-gradient-to-r from-zaltyko-white via-zaltyko-teal to-zaltyko-teal">Super Admin</span>
             </h1>
             <p className="max-w-xl font-sans text-base text-white/70 sm:text-lg">
-              Métricas globales en tiempo real. Supervisa el rendimiento de todas las academias y usuarios del SaaS.
+              Métricas globales derivadas de los datos registrados en Zaltyko.
             </p>
           </div>
           <div className="flex items-center gap-3">
-            {/* Time Range Selector */}
-            <div className="flex items-center rounded-xl border border-white/20 bg-white/5 p-1">
-              {(["7d", "30d", "90d", "all"] as const).map((range) => (
-                <button
-                  key={range}
-                  onClick={() => setTimeRange(range)}
-                  className={cn(
-                    "rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
-                    timeRange === range
-                      ? "bg-white/20 text-white"
-                      : "text-white/60 hover:text-white"
-                  )}
-                >
-                  {range === "all" ? "Todo" : range}
-                </button>
-              ))}
-            </div>
             <Button
               onClick={refresh}
               disabled={loading}
@@ -375,12 +319,6 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
                 Alertas de Suscripciones
               </h3>
             </div>
-            <Button variant="ghost" size="sm" asChild>
-              <Link href="/super-admin/billing?status=risky">
-                Ver todas
-                <ArrowUpRight className="ml-1 h-3 w-3" />
-              </Link>
-            </Button>
           </header>
 
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -416,73 +354,6 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
           </div>
         </section>
       )}
-
-      {/* Engagement Metrics Section */}
-      <section className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-6">
-        <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-violet-500/10 blur-3xl" />
-
-        <header className="relative mb-4 flex items-center justify-between">
-          <div>
-            <h3 className="font-display text-sm font-semibold uppercase tracking-wide text-zaltyko-accent-light">
-              Métricas de Engagement
-            </h3>
-            <p className="text-xs text-white/50 mt-1">Uso y actividad de la plataforma</p>
-          </div>
-        </header>
-
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {/* DAU */}
-          <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-white/60">Usuarios diarios</span>
-              <span className="text-xs text-emerald-400 font-medium">+12%</span>
-            </div>
-            <p className="mt-2 text-2xl font-bold text-white">{safeMetrics.totals.dailyActiveUsers}</p>
-          </div>
-
-          {/* WAU */}
-          <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-white/60">Usuarios semanales</span>
-              <span className="text-xs text-emerald-400 font-medium">+8%</span>
-            </div>
-            <p className="mt-2 text-2xl font-bold text-white">{safeMetrics.totals.weeklyActiveUsers}</p>
-          </div>
-
-          {/* MAU */}
-          <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-white/60">Usuarios mensuales</span>
-              <span className="text-xs text-emerald-400 font-medium">+5%</span>
-            </div>
-            <p className="mt-2 text-2xl font-bold text-white">{safeMetrics.totals.monthlyActiveUsers}</p>
-          </div>
-
-          {/* Churn */}
-          <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-white/60">Tasa de churn</span>
-              <span className="text-xs text-red-400 font-medium">{safeMetrics.totals.churnRate}%</span>
-            </div>
-            <p className="mt-2 text-2xl font-bold text-white">{safeMetrics.totals.churnRate}%</p>
-          </div>
-        </div>
-
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          <div className="rounded-lg border border-white/10 bg-white/5 p-3">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-white/60">Sesiones por usuario</span>
-              <span className="text-white font-medium">{safeMetrics.totals.avgSessionsPerUser}</span>
-            </div>
-          </div>
-          <div className="rounded-lg border border-white/10 bg-white/5 p-3">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-white/60">Duración promedio</span>
-              <span className="text-white font-medium">{safeMetrics.totals.avgSessionDurationMinutes} min</span>
-            </div>
-          </div>
-        </div>
-      </section>
 
       {/* Charts Section */}
       <section className="grid w-full grid-cols-1 gap-6 lg:grid-cols-2">
@@ -745,7 +616,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
                   stroke="#1FC7B6"
                   strokeWidth={3}
                   fillOpacity={1}
-                  fill="url(#colorAcademias)"
+                  fill="url(#colorAcademies)"
                   dot={{ fill: "#1FC7B6", strokeWidth: 0, r: 4 }}
                   activeDot={{ fill: "#1FC7B6", strokeWidth: 2, stroke: "#fff", r: 6 }}
                 />
@@ -753,95 +624,6 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
             </ResponsiveContainer>
           </div>
         )}
-      </section>
-
-      {/* Revenue Trend Chart */}
-      <section className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-6">
-        <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-emerald-500/10 blur-3xl transition-all group-hover:bg-emerald-500/20" />
-
-        <header className="relative mb-6 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h3 className="font-display text-sm font-semibold uppercase tracking-wide text-zaltyko-accent-light">
-              Ingresos Mensuales
-            </h3>
-            <p className="text-xs text-white/50 mt-1">Evolución de ingresos (últimos 6 meses)</p>
-          </div>
-          <div className="flex items-center gap-2 mt-2 sm:mt-0">
-            <div className="flex items-center gap-1.5 rounded-full bg-emerald-500/20 px-3 py-1.5">
-              <DollarSign className="h-3.5 w-3.5 text-emerald-400" />
-              <span className="text-xs font-semibold text-emerald-300">
-                {CURRENCY_FORMATTER.format(safeMetrics.totals.chargesPaidThisMonth)}
-              </span>
-            </div>
-          </div>
-        </header>
-
-        <div className="h-48 min-w-0">
-          <ResponsiveContainer width="100%" height={192}>
-            <AreaChart data={revenueChartData}>
-              <defs>
-                <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#10B981" stopOpacity={0.4} />
-                  <stop offset="100%" stopColor="#10B981" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <XAxis
-                dataKey="label"
-                stroke="#ffffff50"
-                fontSize={11}
-                tickLine={false}
-                axisLine={false}
-                tickFormatter={(value) => value.slice(2).replace("-", "/")}
-              />
-              <YAxis
-                stroke="#ffffff50"
-                fontSize={11}
-                tickLine={false}
-                axisLine={false}
-                tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
-              />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "rgba(0,0,0,0.8)",
-                  border: "1px solid rgba(255,255,255,0.1)",
-                  borderRadius: "12px",
-                  color: "#fff",
-                }}
-                formatter={(value) => [CURRENCY_FORMATTER.format(Number(value) || 0), "Ingresos"]}
-                labelFormatter={(label) => `Mes: ${label.replace("-", "/")}`}
-              />
-              <Area
-                type="monotone"
-                dataKey="revenue"
-                stroke="#10B981"
-                strokeWidth={3}
-                fillOpacity={1}
-                fill="url(#colorRevenue)"
-                dot={{ fill: "#10B981", strokeWidth: 0, r: 4 }}
-              />
-              <Area
-                type="monotone"
-                dataKey="target"
-                stroke="#6366F1"
-                strokeWidth={2}
-                strokeDasharray="5 5"
-                fill="none"
-                dot={false}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-
-        <div className="mt-4 flex items-center justify-center gap-6 text-xs">
-          <div className="flex items-center gap-2">
-            <div className="h-3 w-3 rounded-full bg-emerald-500" />
-            <span className="text-white/60">Ingresos reales</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="h-0.5 w-6 bg-indigo-500" style={{ borderStyle: "dashed" }} />
-            <span className="text-white/60">Meta</span>
-          </div>
-        </div>
       </section>
 
       {initialEvents.length > 0 && (
@@ -874,12 +656,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
                   {paginatedEvents.map((event, idx) => (
                     <tr key={event.id} className="transition-colors hover:bg-white/5">
                       <td className="whitespace-nowrap px-4 py-3 text-white/70">
-                        {new Date(event.createdAt).toLocaleDateString("es-ES", {
-                          day: "2-digit",
-                          month: "short",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
+                        {EVENT_DATE_FORMATTER.format(new Date(event.createdAt))}
                       </td>
                       <td className="px-4 py-3">
                         <span className="inline-flex items-center gap-1.5 rounded-full bg-red-500/20 px-2.5 py-1 text-xs font-medium text-red-300">
@@ -926,126 +703,6 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
           )}
         </section>
       )}
-
-      {/* Comparación entre academias */}
-      <section className="rounded-2xl border border-white/10 bg-white/5 p-6">
-        <div className="mb-4 flex items-center justify-between">
-          <div>
-            <h3 className="text-lg font-semibold text-white">Comparación de Academias</h3>
-            <p className="text-sm text-white/60">Compara métricas clave entre academias seleccionadas</p>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowComparison(!showComparison)}
-            className="border-white/20 text-white hover:bg-white/10"
-          >
-            {showComparison ? "Ocultar" : "Mostrar"}
-          </Button>
-        </div>
-
-        {showComparison && (
-          <div className="space-y-4">
-            {/* Selector de academias */}
-            <div className="flex flex-wrap gap-2">
-              {safeMetrics.planDistribution.slice(0, 5).map((plan) => (
-                <button
-                  key={plan.code}
-                  onClick={() => {
-                    setSelectedAcademies((prev) =>
-                      prev.includes(plan.code)
-                        ? prev.filter((a) => a !== plan.code)
-                        : [...prev, plan.code].slice(0, 4)
-                    );
-                  }}
-                  className={cn(
-                    "rounded-lg border px-3 py-1.5 text-sm transition-colors",
-                    selectedAcademies.includes(plan.code)
-                      ? "border-primary bg-primary/20 text-primary"
-                      : "border-white/20 text-white/70 hover:border-white/40"
-                  )}
-                >
-                  {plan.nickname || plan.code} ({plan.total})
-                </button>
-              ))}
-            </div>
-
-            {/* Tabla comparativa */}
-            {selectedAcademies.length > 0 && (
-              <div className="overflow-x-auto rounded-lg border border-white/10 bg-black/20">
-                <table className="w-full text-sm">
-                  <thead className="border-b border-white/10 bg-white/5">
-                    <tr>
-                      <th className="px-4 py-3 text-left font-medium text-white/70">Métrica</th>
-                      {selectedAcademies.map((code) => {
-                        const plan = safeMetrics.planDistribution.find((p) => p.code === code);
-                        return (
-                          <th key={code} className="px-4 py-3 text-right font-medium text-white">
-                            {plan?.nickname || code}
-                          </th>
-                        );
-                      })}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-white/10">
-                    <tr>
-                      <td className="px-4 py-3 text-white/70">Total Academias</td>
-                      {selectedAcademies.map((code) => {
-                        const plan = safeMetrics.planDistribution.find((p) => p.code === code);
-                        return (
-                          <td key={code} className="px-4 py-3 text-right font-medium text-white">
-                            {plan?.total || 0}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                    <tr>
-                      <td className="px-4 py-3 text-white/70">Usuarios</td>
-                      {selectedAcademies.map((code) => {
-                        const avg = Math.round(safeMetrics.totals.users / Math.max(safeMetrics.planDistribution.length, 1));
-                        return (
-                          <td key={code} className="px-4 py-3 text-right text-white">
-                            ~{avg}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                    <tr>
-                      <td className="px-4 py-3 text-white/70">Ingresos Estimados</td>
-                      {selectedAcademies.map((code) => {
-                        const plan = safeMetrics.planDistribution.find((p) => p.code === code);
-                        const revenue = plan ? Math.round(safeMetrics.totals.revenue * (plan.total / Math.max(safeMetrics.totals.subscriptions, 1))) : 0;
-                        return (
-                          <td key={code} className="px-4 py-3 text-right font-medium text-emerald-400">
-                            {CURRENCY_FORMATTER.format(revenue)}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                    <tr>
-                      <td className="px-4 py-3 text-white/70">Athletes</td>
-                      {selectedAcademies.map((code) => {
-                        const avg = Math.round(safeMetrics.totals.totalAthletes / Math.max(safeMetrics.planDistribution.length, 1));
-                        return (
-                          <td key={code} className="px-4 py-3 text-right text-white">
-                            ~{avg}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            )}
-
-            {selectedAcademies.length === 0 && (
-              <p className="py-4 text-center text-sm text-white/50">
-                Selecciona al menos una academia para comparar
-              </p>
-            )}
-          </div>
-        )}
-      </section>
 
       {/* Drill-down Modal */}
       <Dialog open={!!selectedChart} onOpenChange={() => { setSelectedChart(null); setDrillDownData(null); }}>

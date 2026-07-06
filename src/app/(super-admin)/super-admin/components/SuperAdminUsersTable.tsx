@@ -23,6 +23,15 @@ interface SuperAdminUsersTableProps {
   initialItems: SuperAdminUserRow[];
 }
 
+const DATE_FORMATTER = new Intl.DateTimeFormat("es-ES", { timeZone: "UTC" });
+
+function unwrapApiData<T>(payload: unknown): T | null {
+  if (payload && typeof payload === "object" && "ok" in payload && "data" in payload) {
+    return (payload as { data: T }).data;
+  }
+  return payload as T;
+}
+
 function formatRole(role: string | null) {
   if (!role) return "Sin rol";
   switch (role) {
@@ -59,6 +68,7 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
     profileId: string;
     body: Record<string, unknown>;
     userData: SuperAdminUserRow;
+    kind: "role-super-admin" | "status";
   } | null>(null);
 
   useEffect(() => {
@@ -93,8 +103,8 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
         console.error("Fetch users failed", await response.text());
         return;
       }
-      const payload = await response.json();
-      setItems(payload.items ?? []);
+      const payload = unwrapApiData<{ items?: SuperAdminUserRow[] }>(await response.json());
+      setItems(payload?.items ?? []);
     } finally {
       setLoading(false);
     }
@@ -210,9 +220,15 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
   const mutateUser = useCallback(async (profileId: string, body: Record<string, unknown>, userData?: SuperAdminUserRow) => {
     if (!userId) return;
     
+    if (body.role === "super_admin" && userData) {
+      setPendingAction({ profileId, body, userData, kind: "role-super-admin" });
+      setConfirmDialogOpen(true);
+      return;
+    }
+
     // Si es una acción destructiva (suspender/reactivar), pedir confirmación
     if (body.isSuspended !== undefined && userData) {
-      setPendingAction({ profileId, body, userData });
+      setPendingAction({ profileId, body, userData, kind: "status" });
       setConfirmDialogOpen(true);
       return;
     }
@@ -343,7 +359,7 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
                     <p className="text-xs text-white/50">
                       Registrado:{" "}
                       {user.createdAt
-                        ? new Date(user.createdAt).toLocaleDateString("es-ES")
+                        ? DATE_FORMATTER.format(new Date(user.createdAt))
                         : "—"}
                     </p>
                   </div>
@@ -355,7 +371,7 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
                     onChange={(event) => {
                       const newRole = event.target.value as typeof ROLE_OPTIONS[number];
                       if (newRole !== user.role && ROLE_OPTIONS.includes(newRole)) {
-                        mutateUser(user.id, { role: newRole });
+                        mutateUser(user.id, { role: newRole }, user);
                       }
                     }}
                     disabled={loading || mutatingUserId === user.id || user.role === "super_admin"}
@@ -427,15 +443,34 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
       {pendingAction && (
         <ConfirmDialog
           open={confirmDialogOpen}
-          onOpenChange={setConfirmDialogOpen}
-          title={pendingAction.body.isSuspended !== undefined && !pendingAction.userData.isSuspended ? "Suspender usuario" : "Reactivar usuario"}
+          onOpenChange={(open) => {
+            setConfirmDialogOpen(open);
+            if (!open) {
+              setPendingAction(null);
+            }
+          }}
+          title={
+            pendingAction.kind === "role-super-admin"
+              ? "Promover a Super Admin"
+              : pendingAction.body.isSuspended !== undefined && !pendingAction.userData.isSuspended
+              ? "Suspender usuario"
+              : "Reactivar usuario"
+          }
           description={
-            pendingAction.body.isSuspended !== undefined && !pendingAction.userData.isSuspended
+            pendingAction.kind === "role-super-admin"
+              ? `Vas a conceder permisos de SUPER ADMIN a ${pendingAction.userData.fullName || pendingAction.userData.email}. Esta persona podrá operar cualquier academia y modificar usuarios globales. Confirma solo si es una cuenta interna autorizada.`
+              : pendingAction.body.isSuspended !== undefined && !pendingAction.userData.isSuspended
               ? `¿Estás seguro de suspender a ${pendingAction.userData.fullName || pendingAction.userData.email}? No podrá acceder al sistema hasta que sea reactivado.`
               : `¿Estás seguro de reactivar a ${pendingAction.userData.fullName || pendingAction.userData.email}? Podrá acceder al sistema nuevamente.`
           }
           variant="destructive"
-          confirmText={pendingAction.body.isSuspended !== undefined && !pendingAction.userData.isSuspended ? "Suspender" : "Reactivar"}
+          confirmText={
+            pendingAction.kind === "role-super-admin"
+              ? "Confirmar Super Admin"
+              : pendingAction.body.isSuspended !== undefined && !pendingAction.userData.isSuspended
+              ? "Suspender"
+              : "Reactivar"
+          }
           onConfirm={handleConfirmAction}
           onCancel={() => {
             setPendingAction(null);

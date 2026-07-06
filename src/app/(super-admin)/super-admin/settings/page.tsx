@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/authz";
@@ -7,6 +7,10 @@ import { getCurrentProfile } from "@/lib/authz";
 export const dynamic = "force-dynamic";
 
 export default async function SuperAdminSettingsPage() {
+  if (process.env.SUPER_ADMIN_EXPERIMENTAL_MODULES !== "true") {
+    notFound();
+  }
+
   const cookieStore = await cookies();
   const supabase = await createClient(cookieStore);
 
@@ -34,4 +38,3 @@ export default async function SuperAdminSettingsPage() {
     </div>
   );
 }
-

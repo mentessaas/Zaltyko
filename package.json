@@ -20,9 +20,9 @@
     "audit:sprint3": "playwright test tests/e2e-zaltyko-full.spec.ts tests/e2e-zaltyko-public.spec.ts tests/a11y-zaltyko.spec.ts",
     "test:coverage": "vitest --coverage",
     "lint": "pnpm lint:app",
-    "lint:app": "eslint src middleware.ts instrumentation.ts instrumentation-client.ts sentry.server.config.ts sentry.edge.config.ts --quiet",
-    "lint:all": "eslint .",
-    "lint:fix": "eslint src middleware.ts instrumentation.ts instrumentation-client.ts sentry.server.config.ts sentry.edge.config.ts --fix",
+    "lint:app": "ESLINT_USE_FLAT_CONFIG=false eslint src middleware.ts instrumentation.ts instrumentation-client.ts sentry.server.config.ts sentry.edge.config.ts --quiet",
+    "lint:all": "ESLINT_USE_FLAT_CONFIG=false eslint .",
+    "lint:fix": "ESLINT_USE_FLAT_CONFIG=false eslint src middleware.ts instrumentation.ts instrumentation-client.ts sentry.server.config.ts sentry.edge.config.ts --fix",
     "format": "prettier . --write",
     "format:check": "prettier . --check",
     "typecheck": "tsc --noEmit",
@@ -52,7 +52,7 @@
     "@radix-ui/react-separator": "^1.1.8",
     "@radix-ui/react-slot": "^1.1.1",
     "@radix-ui/react-tabs": "^1.1.2",
-    "@sentry/nextjs": "^10.26.0",
+    "@sentry/nextjs": "^10.63.0",
     "@stripe/react-stripe-js": "^5.4.1",
     "@stripe/stripe-js": "^8.5.3",
     "@supabase/ssr": "^0.7.0",
@@ -73,6 +73,7 @@
     "drizzle-orm": "^0.45.2",
     "form-data": "^4.0.6",
     "framer-motion": "^12.0.6",
+    "is-typed-array": "1.1.14",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.8",
     "lucide-react": "^0.474.0",
@@ -126,6 +127,7 @@
     "eslint-config-next": "15.5.19",
     "eslint-plugin-react-hooks": "^7.0.1",
     "jsdom": "^29.1.1",
+    "jsx-ast-utils": "^2.4.1",
     "pg-mem": "^3.0.5",
     "postcss": "^8",
     "prettier": "^3.4.2",
@@ -147,7 +149,15 @@
       "protobufjs": "^7.5.6",
       "lodash": "^4.18.1",
       "immutable": "^3.8.3",
-      "form-data": "^4.0.6"
+      "form-data": "^4.0.6",
+      "is-typed-array": "1.1.14"
+    },
+    "packageExtensions": {
+      "typed-array-buffer@*": {
+        "dependencies": {
+          "is-typed-array": "1.1.14"
+        }
+      }
     }
   },
   "main": "fix-athlete-query.js",

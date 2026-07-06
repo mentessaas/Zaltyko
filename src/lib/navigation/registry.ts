@@ -6,13 +6,11 @@ import {
   CreditCard,
   FileText,
   Globe,
-  HeadphonesIcon,
   LayoutDashboard,
   Megaphone,
   MessageSquare,
   ScrollText,
   Settings,
-  Settings2,
   User,
   Users,
   type LucideIcon,
@@ -69,10 +67,7 @@ const SUPER_ADMIN_NAV: NavigationDefinition[] = [
   { key: "users", label: "Usuarios", icon: Users, href: "/super-admin/users", roles: ["super_admin"] },
   { key: "academies", label: "Academias", icon: Building2, href: "/super-admin/academies", roles: ["super_admin"] },
   { key: "public-academies", label: "Academias Públicas", icon: Globe, href: "/super-admin/academies/public", roles: ["super_admin"] },
-  { key: "billing", label: "Facturación", icon: CreditCard, href: "/super-admin/billing", roles: ["super_admin"] },
-  { key: "support", label: "Soporte", icon: HeadphonesIcon, href: "/super-admin/support", roles: ["super_admin"] },
   { key: "logs", label: "Logs", icon: ScrollText, href: "/super-admin/logs", roles: ["super_admin"] },
-  { key: "settings", label: "Configuración", icon: Settings2, href: "/super-admin/settings", roles: ["super_admin"] },
 ];
 
 function mapNavigation(

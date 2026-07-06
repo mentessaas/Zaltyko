@@ -23,7 +23,7 @@ export const POST = withTenant(async (request, context) => {
     return apiError("INVALID_PAYLOAD", "Payload inválido", 400, parsed.error.issues);
   }
 
-  const access = await verifyAcademyAccess(parsed.data.academyId, context.tenantId);
+  const access = await verifyAcademyAccess(parsed.data.academyId, context.tenantId, context.profile);
   if (!access.allowed) {
     return apiError(access.reason ?? "FORBIDDEN", "Access denied", 403);
   }

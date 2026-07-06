@@ -6,6 +6,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/authz";
 import { SuperAdminUserDetail } from "../../components/SuperAdminUserDetail";
+import { getSuperAdminUserDetail } from "@/lib/superAdminUsers";
 
 export const dynamic = "force-dynamic";
 
@@ -33,23 +34,10 @@ export default async function SuperAdminUserDetailPage({
 
   const { profileId } = await params;
 
-  const response = await fetch(
-    `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/super-admin/users/${profileId}`,
-    {
-      headers: {
-      },
-      cache: "no-store",
-    },
-  );
-
-  if (!response.ok) {
-    if (response.status === 404) {
-      notFound();
-    }
-    throw new Error("Failed to fetch user details");
+  const userData = await getSuperAdminUserDetail(profileId);
+  if (!userData) {
+    notFound();
   }
-
-  const userData = await response.json();
 
   return (
     <div className="space-y-6">
@@ -66,4 +54,3 @@ export default async function SuperAdminUserDetailPage({
     </div>
   );
 }
-

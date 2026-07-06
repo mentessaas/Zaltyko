@@ -186,6 +186,7 @@ vi.mock("@/lib/logger", () => ({
   logger: {
     info: vi.fn(),
     error: vi.fn(),
+    apiError: vi.fn(),
     warn: vi.fn(),
     debug: vi.fn(),
   },

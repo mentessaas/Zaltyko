@@ -116,7 +116,7 @@ async function canManageListing(
   }
 
   if (listing.academyId && context.tenantId) {
-    const academyAccess = await verifyAcademyAccess(listing.academyId, context.tenantId);
+    const academyAccess = await verifyAcademyAccess(listing.academyId, context.tenantId, context.profile);
     if (academyAccess.allowed) {
       return { allowed: true, status: 200 };
     }

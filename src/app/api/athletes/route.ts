@@ -80,7 +80,7 @@ const createAthleteHandler = withTenant(async (request, context) => {
     }
 
     // Verificar acceso a la academia
-    const academyAccess = await verifyAcademyAccess(body.academyId, context.tenantId);
+    const academyAccess = await verifyAcademyAccess(body.academyId, context.tenantId, context.profile);
     if (!academyAccess.allowed) {
       return apiError(academyAccess.reason ?? "ACADEMY_ACCESS_DENIED", "Access denied", 403);
     }

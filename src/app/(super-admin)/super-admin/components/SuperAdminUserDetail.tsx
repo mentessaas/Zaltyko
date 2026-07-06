@@ -103,6 +103,20 @@ function formatRole(role: string | null) {
 
 const ROLE_OPTIONS = ["owner", "admin", "coach", "athlete", "parent", "super_admin"] as const;
 
+const DATE_FORMATTER = new Intl.DateTimeFormat("es-ES", {
+  year: "numeric",
+  month: "long",
+  day: "numeric",
+  timeZone: "UTC",
+});
+
+function unwrapApiData<T>(payload: unknown): T | null {
+  if (payload && typeof payload === "object" && "ok" in payload && "data" in payload) {
+    return (payload as { data: T }).data;
+  }
+  return payload as T;
+}
+
 export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDetailProps) {
   const router = useRouter();
   const toast = useToast();
@@ -208,8 +222,10 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
       });
 
       if (refreshResponse.ok) {
-        const refreshed = await refreshResponse.json();
-        setUser(refreshed);
+        const refreshed = unwrapApiData<UserDetail>(await refreshResponse.json());
+        if (refreshed) {
+          setUser(refreshed);
+        }
       }
 
       router.refresh();
@@ -280,6 +296,14 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
   };
 
   const handleSave = async () => {
+    const promotesToSuperAdmin = formData.role === "super_admin" && user.role !== "super_admin";
+    if (
+      promotesToSuperAdmin &&
+      !confirm("Vas a promocionar este usuario a Super Admin. Esta acción da acceso global a Zaltyko. ¿Confirmas el cambio?")
+    ) {
+      return;
+    }
+
     setSaving(true);
     try {
       const response = await fetch(`/api/super-admin/users/${user.id}`, {
@@ -293,6 +317,7 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
           role: formData.role || null,
           isSuspended: formData.isSuspended,
           planId: formData.planId || null,
+          confirmSuperAdminPromotion: promotesToSuperAdmin,
         }),
       });
 
@@ -334,15 +359,17 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
       });
 
       if (refreshResponse.ok) {
-        const refreshed = await refreshResponse.json();
-        setUser(refreshed);
-        setFormData({
-          name: refreshed.name ?? "",
-          email: refreshed.email ?? "",
-          role: refreshed.role ?? "",
-          isSuspended: refreshed.isSuspended,
-          planId: refreshed.subscription?.planId ?? "",
-        });
+        const refreshed = unwrapApiData<UserDetail>(await refreshResponse.json());
+        if (refreshed) {
+          setUser(refreshed);
+          setFormData({
+            name: refreshed.name ?? "",
+            email: refreshed.email ?? "",
+            role: refreshed.role ?? "",
+            isSuspended: refreshed.isSuspended,
+            planId: refreshed.subscription?.planId ?? "",
+          });
+        }
       }
 
       toast.pushToast({
@@ -398,13 +425,15 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
       });
 
       if (refreshResponse.ok) {
-        const refreshed = await refreshResponse.json();
-        setUser(refreshed);
-        setFormData({
-          ...formData,
-          planId: refreshed.subscription?.planId ?? "",
-        });
-        setPlanViolations(null);
+        const refreshed = unwrapApiData<UserDetail>(await refreshResponse.json());
+        if (refreshed) {
+          setUser(refreshed);
+          setFormData({
+            ...formData,
+            planId: refreshed.subscription?.planId ?? "",
+          });
+          setPlanViolations(null);
+        }
       }
 
       toast.pushToast({
@@ -459,9 +488,11 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
       });
 
       if (refreshResponse.ok) {
-        const refreshed = await refreshResponse.json();
-        setUser(refreshed);
-        setFormData({ ...formData, isSuspended: refreshed.isSuspended });
+        const refreshed = unwrapApiData<UserDetail>(await refreshResponse.json());
+        if (refreshed) {
+          setUser(refreshed);
+          setFormData({ ...formData, isSuspended: refreshed.isSuspended });
+        }
         router.refresh();
       }
     } catch (error) {
@@ -788,11 +819,7 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
                   <p className="text-xs text-white/50">Registrado</p>
                   <p className="mt-1 text-white">
                     {user.createdAt
-                      ? new Date(user.createdAt).toLocaleDateString("es-ES", {
-                          year: "numeric",
-                          month: "long",
-                          day: "numeric",
-                        })
+                      ? DATE_FORMATTER.format(new Date(user.createdAt))
                       : "—"}
                   </p>
                 </div>

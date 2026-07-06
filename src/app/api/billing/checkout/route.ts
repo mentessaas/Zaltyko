@@ -70,7 +70,7 @@ const handler = withTenant(async (request, context) => {
     }
 
     // Verificar acceso a la academia
-    const academyAccess = await verifyAcademyAccess(body.academyId, effectiveTenantId);
+    const academyAccess = await verifyAcademyAccess(body.academyId, effectiveTenantId, context.profile);
     if (!academyAccess.allowed) {
       return apiError(academyAccess.reason ?? "ACADEMY_NOT_FOUND", "No tienes acceso a esta academia", 404);
     }

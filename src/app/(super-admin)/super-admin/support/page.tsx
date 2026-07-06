@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { TicketList } from "@/components/support/TicketList";
 import { TicketFilters } from "@/components/support/TicketFilters";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -110,6 +110,10 @@ async function TicketsContent({ filters }: { filters: { status?: string; priorit
 }
 
 export default async function SuperAdminSupportPage({ searchParams }: PageProps) {
+  if (process.env.SUPER_ADMIN_EXPERIMENTAL_MODULES !== "true") {
+    notFound();
+  }
+
   const filters = await searchParams;
   const cookieStore = await cookies();
   const supabase = await createClient(cookieStore);

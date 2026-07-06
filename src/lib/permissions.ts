@@ -77,8 +77,31 @@ export async function verifyClassAccess(
 export async function verifyGroupAccess(
   groupId: string,
   tenantId: string,
-  academyId?: string
+  academyId?: string,
+  profile?: Pick<ProfileRow, "role">
 ): Promise<PermissionCheck> {
+  if (profile?.role === "super_admin") {
+    const conditions = [eq(groups.id, groupId)];
+    if (academyId) {
+      conditions.push(eq(groups.academyId, academyId));
+    }
+
+    const [group] = await db
+      .select({ id: groups.id })
+      .from(groups)
+      .where(and(...conditions))
+      .limit(1);
+
+    if (!group) {
+      return {
+        allowed: false,
+        reason: "GROUP_NOT_FOUND_OR_ACCESS_DENIED",
+      };
+    }
+
+    return { allowed: true };
+  }
+
   const conditions = [eq(groups.id, groupId), eq(groups.tenantId, tenantId)];
 
   if (academyId) {
@@ -106,8 +129,26 @@ export async function verifyGroupAccess(
  */
 export async function verifyAcademyAccess(
   academyId: string,
-  tenantId: string
+  tenantId: string,
+  profile?: Pick<ProfileRow, "role">
 ): Promise<PermissionCheck> {
+  if (profile?.role === "super_admin") {
+    const [academy] = await db
+      .select({ id: academies.id })
+      .from(academies)
+      .where(eq(academies.id, academyId))
+      .limit(1);
+
+    if (!academy) {
+      return {
+        allowed: false,
+        reason: "ACADEMY_NOT_FOUND_OR_ACCESS_DENIED",
+      };
+    }
+
+    return { allowed: true };
+  }
+
   const [academy] = await db
     .select({ id: academies.id })
     .from(academies)
@@ -248,13 +289,13 @@ export async function verifyResourceAccess(
   // Verificar acceso al recurso específico
   switch (resourceType) {
     case "academy":
-      return await verifyAcademyAccess(resourceId, tenantId);
+      return await verifyAcademyAccess(resourceId, tenantId, profile);
     case "athlete":
       return await verifyAthleteAccess(resourceId, tenantId, academyId);
     case "class":
       return await verifyClassAccess(resourceId, tenantId, academyId);
     case "group":
-      return await verifyGroupAccess(resourceId, tenantId, academyId);
+      return await verifyGroupAccess(resourceId, tenantId, academyId, profile);
     default:
       return {
         allowed: false,

@@ -1,7 +1,7 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-06-26
+last_reviewed: 2026-07-06
 source:
   - ../PRODUCT-ANALYSIS.md
   - ../BUSINESS-ANALYSIS.md
@@ -20,6 +20,7 @@ source:
 
 | Estado | Tarea | Dueño | Criterio de aceptacion | Pruebas/Evidencia |
 | --- | --- | --- | --- | --- |
+| Resuelto | Restaurar toolchain de validacion local (`lint`, `build`, `dev`). | tech/DX | `pnpm lint`, `pnpm build` y `pnpm dev` compilan sin errores bloqueantes de dependencias; smoke puede abrir `/super-admin/dashboard`. | Cerrado 2026-07-06: `pnpm typecheck`, `pnpm lint`, `pnpm build` y `pnpm test -- --run` PASS. Dev smoke sin sesion: `/super-admin/dashboard`, `/super-admin/users` y `/super-admin/users/test-zaltyko` compilan y redirigen `307 /auth/login`. Quedan warnings no bloqueantes Tailwind config ESM y `swagger-jsdoc` dynamic require. |
 | Resuelto | Mailgun webhook con comparacion no timing-safe. | tech | `src/app/api/mailgun/route.ts` usa `crypto.timingSafeEqual` sobre `Buffer.from(hash, "hex")` con pre-check de longitud; cierra vector de timing attack en verificacion de firma. | Sprint 0 Quick Wins 2026-06-23; `pnpm typecheck` y `pnpm lint` limpios. |
 | Resuelto | `next-sitemap.config.js` sin fallback de `NEXT_PUBLIC_APP_URL`. | tech | Config usa `NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"`; sitemap nunca emite URLs `undefined`. | Sprint 0 Quick Wins 2026-06-23. |
 | Resuelto | PWA `theme_color` inconsistente entre manifest y layout. | tech/design | `public/manifest.json` `theme_color` = `#0F172A` (mismo que `layout.tsx:120` y `viewport.themeColor`). | Sprint 0 Quick Wins 2026-06-23. |

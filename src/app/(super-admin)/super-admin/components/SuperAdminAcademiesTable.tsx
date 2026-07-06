@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { PauseCircle, PlayCircle, Trash2, Loader2 } from "lucide-react";
+import { PauseCircle, PlayCircle, Loader2 } from "lucide-react";
 
 import type { SuperAdminAcademyRow } from "@/lib/superAdminService";
 import { createClient } from "@/lib/supabase/client";
@@ -25,6 +25,15 @@ interface SuperAdminAcademiesTableProps {
   initialTotal: number;
 }
 
+const DATE_FORMATTER = new Intl.DateTimeFormat("es-ES", { timeZone: "UTC" });
+
+function unwrapApiData<T>(payload: unknown): T | null {
+  if (payload && typeof payload === "object" && "ok" in payload && "data" in payload) {
+    return (payload as { data: T }).data;
+  }
+  return payload as T;
+}
+
 export function SuperAdminAcademiesTable({
   initialItems,
   initialTotal,
@@ -41,7 +50,7 @@ export function SuperAdminAcademiesTable({
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<{
     academyId: string;
-    action: "suspend" | "delete";
+    action: "suspend";
     academyName: string;
   } | null>(null);
 
@@ -94,9 +103,13 @@ export function SuperAdminAcademiesTable({
         return;
       }
 
-      const payload = await response.json();
-      setItems(payload.items ?? []);
-      setTotal(payload.total ?? payload.items?.length ?? 0);
+      const payload = unwrapApiData<{
+        items?: SuperAdminAcademyRow[];
+        total?: number;
+      }>(await response.json());
+      const nextItems = payload?.items ?? [];
+      setItems(nextItems);
+      setTotal(payload?.total ?? nextItems.length);
     } finally {
       setLoading(false);
     }
@@ -105,7 +118,7 @@ export function SuperAdminAcademiesTable({
   const mutateAcademy = async (
     academyId: string,
     payload: Record<string, unknown>,
-    method: "PATCH" | "DELETE",
+    method: "PATCH",
     optimisticUpdate = true,
   ) => {
     if (!userId) return;
@@ -115,22 +128,17 @@ export function SuperAdminAcademiesTable({
 
     // Optimistic update: actualizar UI inmediatamente
     if (optimisticUpdate) {
-      if (method === "DELETE") {
-        setItems((prevItems) => prevItems.filter((item) => item.id !== academyId));
-        setTotal((prev) => Math.max(0, prev - 1));
-      } else {
-        setItems((prevItems) =>
-          prevItems.map((item) => {
-            if (item.id === academyId) {
-              return {
-                ...item,
-                ...payload,
-              };
-            }
-            return item;
-          })
-        );
-      }
+      setItems((prevItems) =>
+        prevItems.map((item) => {
+          if (item.id === academyId) {
+            return {
+              ...item,
+              ...payload,
+            };
+          }
+          return item;
+        })
+      );
     }
 
     setMutatingAcademyId(academyId);
@@ -140,7 +148,7 @@ export function SuperAdminAcademiesTable({
         headers: {
           "Content-Type": "application/json",
         },
-        body: method === "PATCH" ? JSON.stringify(payload) : undefined,
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
@@ -158,10 +166,8 @@ export function SuperAdminAcademiesTable({
       }
 
       toast.pushToast({
-        title: method === "DELETE" ? "Academia eliminada" : "Academia actualizada",
-        description: method === "DELETE" 
-          ? "La academia ha sido eliminada correctamente"
-          : "Los cambios se han aplicado correctamente",
+        title: "Academia actualizada",
+        description: "Los cambios se han aplicado correctamente",
         variant: "success",
       });
 
@@ -192,25 +198,12 @@ export function SuperAdminAcademiesTable({
     setConfirmDialogOpen(true);
   };
 
-  const handleDelete = (academy: SuperAdminAcademyRow) => {
-    setPendingAction({
-      academyId: academy.id,
-      action: "delete",
-      academyName: academy.name || "Sin nombre",
-    });
-    setConfirmDialogOpen(true);
-  };
-
   const handleConfirmAction = async () => {
     if (!pendingAction) return;
 
-    if (pendingAction.action === "delete") {
-      await mutateAcademy(pendingAction.academyId, {}, "DELETE");
-    } else {
-      const academy = items.find((a) => a.id === pendingAction.academyId);
-      if (academy) {
-        await mutateAcademy(pendingAction.academyId, { isSuspended: !academy.isSuspended }, "PATCH");
-      }
+    const academy = items.find((a) => a.id === pendingAction.academyId);
+    if (academy) {
+      await mutateAcademy(pendingAction.academyId, { isSuspended: !academy.isSuspended }, "PATCH");
     }
 
     setPendingAction(null);
@@ -339,7 +332,7 @@ export function SuperAdminAcademiesTable({
                 </td>
                 <td className="px-4 py-4 font-sans text-xs text-white/70">
                   {academy.createdAt
-                    ? new Date(academy.createdAt).toLocaleDateString("es-ES")
+                    ? DATE_FORMATTER.format(new Date(academy.createdAt))
                     : "—"}
                 </td>
                 <td className="px-4 py-4 text-right">
@@ -371,28 +364,6 @@ export function SuperAdminAcademiesTable({
                         </>
                       )}
                     </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="border-zaltyko-coral/40 bg-zaltyko-coral/10 text-zaltyko-coral hover:border-zaltyko-coral hover:bg-zaltyko-coral/20"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDelete(academy);
-                      }}
-                      disabled={loading || mutatingAcademyId === academy.id}
-                    >
-                      {mutatingAcademyId === academy.id ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" strokeWidth={1.8} />
-                          Procesando...
-                        </>
-                      ) : (
-                        <>
-                          <Trash2 className="mr-2 h-4 w-4" strokeWidth={1.8} />
-                          Eliminar
-                        </>
-                      )}
-                    </Button>
                   </div>
                 </td>
               </tr>
@@ -413,18 +384,10 @@ export function SuperAdminAcademiesTable({
         <ConfirmDialog
           open={confirmDialogOpen}
           onOpenChange={setConfirmDialogOpen}
-          title={
-            pendingAction.action === "delete"
-              ? "Eliminar academia"
-              : `Suspender academia`
-          }
-          description={
-            pendingAction.action === "delete"
-              ? `¿Estás seguro de eliminar "${pendingAction.academyName}"? Esta acción eliminará la academia y todos sus datos asociados. Esta acción no se puede deshacer.`
-              : `¿Estás seguro de suspender "${pendingAction.academyName}"? Los usuarios no podrán acceder hasta que sea reactivada.`
-          }
+          title="Cambiar estado de academia"
+          description={`¿Estás seguro de cambiar el estado de "${pendingAction.academyName}"? Los usuarios no podrán acceder si queda suspendida.`}
           variant="destructive"
-          confirmText={pendingAction.action === "delete" ? "Eliminar" : "Suspender"}
+          confirmText="Confirmar"
           onConfirm={handleConfirmAction}
           onCancel={() => {
             setPendingAction(null);

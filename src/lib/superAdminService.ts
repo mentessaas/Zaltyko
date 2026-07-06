@@ -18,18 +18,11 @@ export interface SuperAdminMetrics {
     chargesCreatedThisMonth: number;
     chargesPaidThisMonth: number; // Amount in cents
     recentActivityAcademies: number; // Academies with events in last 7 days
-    // Previous month totals for trend calculation
+    // Previous month totals for trend calculation when backed by persisted timestamps
     previousAcademies?: number;
     previousUsers?: number;
     previousRevenue?: number;
     previousSubscriptions?: number;
-    // Engagement metrics
-    dailyActiveUsers: number;
-    weeklyActiveUsers: number;
-    monthlyActiveUsers: number;
-    avgSessionsPerUser: number;
-    avgSessionDurationMinutes: number;
-    churnRate: number;
   };
   usersByRole: Array<{ role: string; total: number }>;
   planStatuses: Array<{ status: string; total: number }>;
@@ -62,6 +55,32 @@ export interface SuperAdminUserRow {
   isSuspended: boolean;
   planCode: string | null;
   planNickname: string | null;
+}
+
+export interface SuperAdminAcademyDetail {
+  id: string;
+  name: string | null;
+  academyType: string | null;
+  country: string | null;
+  region: string | null;
+  ownerId: string | null;
+  isSuspended: boolean;
+  suspendedAt: string | null;
+  createdAt: string | null;
+  tenantId: string | null;
+  subscription: {
+    id: string;
+    status: string | null;
+    planId: string | null;
+    planCode: string | null;
+    planNickname: string | null;
+    planPrice: number | null;
+  } | null;
+  owner: {
+    id: string;
+    name: string | null;
+    userId: string;
+  } | null;
 }
 
 function getClient(): SupabaseClient {
@@ -110,6 +129,7 @@ export async function getGlobalStats(): Promise<SuperAdminMetrics> {
       db.select({
         id: profiles.id,
         role: profiles.role,
+        createdAt: profiles.createdAt,
       }).from(profiles),
       db.select({
         id: plans.id,
@@ -120,11 +140,13 @@ export async function getGlobalStats(): Promise<SuperAdminMetrics> {
         id: subscriptions.id,
         planId: subscriptions.planId,
         status: subscriptions.status,
+        updatedAt: subscriptions.updatedAt,
       }).from(subscriptions),
       db.select({
         id: billingInvoices.id,
         amountPaid: billingInvoices.amountPaid,
         status: billingInvoices.status,
+        createdAt: billingInvoices.createdAt,
       }).from(billingInvoices),
       db.select({
         id: athleteAssessments.id,
@@ -224,20 +246,44 @@ export async function getGlobalStats(): Promise<SuperAdminMetrics> {
     eventLogsList.map((e) => e.academyId).filter((id): id is string => id !== null)
   );
 
-  // Calculate previous month for trends
-  const previousMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const previousMonthLabel = `${previousMonth.getFullYear()}-${String(previousMonth.getMonth() + 1).padStart(2, "0")}`;
+  const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const previousMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const currentMonthStartTime = currentMonthStart.getTime();
+  const previousMonthStartTime = previousMonthStart.getTime();
 
-  // Get previous month data
-  const previousInvoices = invoices.filter((inv) => {
-    // For simplicity, we'll use the previous month's revenue estimate
-    return inv.status === "paid";
-  });
-  const previousRevenue = previousInvoices.reduce((sum, inv) => sum + (inv.amountPaid ?? 0), 0) * 0.85; // Estimate ~15% growth
+  const getTime = (value: string | Date | null | undefined) => {
+    if (!value) return null;
+    const date = value instanceof Date ? value : new Date(value);
+    const time = date.getTime();
+    return Number.isNaN(time) ? null : time;
+  };
 
-  // Count academies created before current month (simple approximation)
-  const previousAcademies = Math.max(0, academiesData.length - Math.ceil(academiesData.length * 0.1));
-  const previousUsers = Math.max(0, users.length - Math.ceil(users.length * 0.08));
+  const previousAcademies = academiesData.filter((academy) => {
+    const createdAt = getTime(academy.createdAt);
+    return createdAt !== null && createdAt < currentMonthStartTime;
+  }).length;
+
+  const previousUsers = users.filter((user) => {
+    const createdAt = getTime(user.createdAt);
+    return createdAt !== null && createdAt < currentMonthStartTime;
+  }).length;
+
+  const previousRevenue = invoices
+    .filter((invoice) => {
+      const createdAt = getTime(invoice.createdAt);
+      return (
+        invoice.status === "paid" &&
+        createdAt !== null &&
+        createdAt >= previousMonthStartTime &&
+        createdAt < currentMonthStartTime
+      );
+    })
+    .reduce((sum, inv) => sum + (inv.amountPaid ?? 0), 0);
+
+  const previousSubscriptions = subscriptionsData.filter((subscription) => {
+    const updatedAt = getTime(subscription.updatedAt);
+    return updatedAt !== null && updatedAt < currentMonthStartTime;
+  }).length;
 
   // Generate subscription alerts for risky subscriptions
   const subscriptionAlerts: Array<{ status: string; count: number; academies: string[] }> = [];
@@ -285,14 +331,7 @@ export async function getGlobalStats(): Promise<SuperAdminMetrics> {
       previousAcademies,
       previousUsers,
       previousRevenue,
-      previousSubscriptions: Math.max(0, subscriptionsData.length - Math.ceil(subscriptionsData.length * 0.05)),
-      // Engagement metrics (calculated from available data)
-      dailyActiveUsers: Math.round(users.length * 0.15),
-      weeklyActiveUsers: Math.round(users.length * 0.35),
-      monthlyActiveUsers: Math.round(users.length * 0.65),
-      avgSessionsPerUser: 4.2,
-      avgSessionDurationMinutes: 12,
-      churnRate: 2.3,
+      previousSubscriptions,
     },
     usersByRole: Array.from(usersByRoleMap.entries()).map(([role, total]) => ({ role, total })),
     planStatuses: Array.from(planStatusMap.entries()).map(([status, total]) => ({ status, total })),
@@ -381,6 +420,72 @@ export async function getAllAcademies(): Promise<SuperAdminAcademyRow[]> {
       isSuspended: Boolean(academy.isSuspended),
     };
   });
+}
+
+export async function getSuperAdminAcademyDetail(
+  academyId: string
+): Promise<SuperAdminAcademyDetail | null> {
+  const { db } = await import("@/db");
+  const { academies, profiles, subscriptions, plans } = await import("@/db/schema");
+  const { eq } = await import("drizzle-orm");
+
+  const [academy] = await db
+    .select({
+      id: academies.id,
+      name: academies.name,
+      academyType: academies.academyType,
+      country: academies.country,
+      region: academies.region,
+      ownerId: academies.ownerId,
+      isSuspended: academies.isSuspended,
+      suspendedAt: academies.suspendedAt,
+      createdAt: academies.createdAt,
+      tenantId: academies.tenantId,
+    })
+    .from(academies)
+    .where(eq(academies.id, academyId))
+    .limit(1);
+
+  if (!academy) {
+    return null;
+  }
+
+  const [owner] = academy.ownerId
+    ? await db
+        .select({
+          id: profiles.id,
+          name: profiles.name,
+          userId: profiles.userId,
+        })
+        .from(profiles)
+        .where(eq(profiles.id, academy.ownerId))
+        .limit(1)
+    : [null];
+
+  const [subscription] = owner
+    ? await db
+        .select({
+          id: subscriptions.id,
+          status: subscriptions.status,
+          planId: subscriptions.planId,
+          planCode: plans.code,
+          planNickname: plans.nickname,
+          planPrice: plans.priceEur,
+        })
+        .from(subscriptions)
+        .leftJoin(plans, eq(subscriptions.planId, plans.id))
+        .where(eq(subscriptions.userId, owner.userId))
+        .limit(1)
+    : [null];
+
+  return {
+    ...academy,
+    isSuspended: Boolean(academy.isSuspended),
+    suspendedAt: toIso(academy.suspendedAt),
+    createdAt: toIso(academy.createdAt),
+    subscription: subscription || null,
+    owner: owner || null,
+  };
 }
 
 export async function getAllUsers(): Promise<SuperAdminUserRow[]> {
@@ -532,4 +637,3 @@ export async function getRecentEvents(limit: number = 10): Promise<EventLogEntry
     createdAt: event.createdAt ? (event.createdAt instanceof Date ? event.createdAt.toISOString() : String(event.createdAt)) : new Date().toISOString(),
   }));
 }
-

@@ -1,7 +1,7 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-06-26
+last_reviewed: 2026-07-06
 source:
   - ../PRODUCT-ANALYSIS.md
   - ../BUSINESS-ANALYSIS.md
@@ -12,6 +12,9 @@ source:
 
 | Riesgo | Severidad | Estado | Mitigacion |
 | --- | --- | --- | --- |
+| Toolchain local roto tras upgrades (`lint`, `build`, `dev`) | Alta | Cerrado 2026-07-06 | Fijados ESLint legacy/dependencias, alias/transpile para `date-fns-tz`, shim controlado de `next/router` para Sentry y sustitucion de Axios en LemonSqueezy. Evidencia: `pnpm typecheck`, `pnpm lint`, `pnpm build`, `pnpm test -- --run` PASS; dev smoke de rutas super-admin devuelve `307 /auth/login` sin 500. |
+| Hard-delete de academias desde super-admin | Alta | Cerrado 2026-07-06 | `DELETE /api/super-admin/academies/[academyId]` devuelve 405 `ACADEMY_DELETE_DISABLED` y registra `academy.delete_blocked`; UI retira la accion de eliminar y mantiene suspension/reactivacion. No hay flujo estandar para borrar academias reales. |
+| Promocion a `super_admin` sin confirmacion backend dedicada | Alta | Cerrado 2026-07-06 | PATCH de usuario valida rol con enum Zod, exige `confirmSuperAdminPromotion: true` al promover y registra `user.role_changed` con rol anterior/nuevo. Cubierto por tests API. |
 | Pricing y limites inconsistentes | Alta | Mitigado 2026-06-23 | Pricing alineado a v1 (1 academia), toggle anual bloqueado hasta price real, downgrade Stripe corregido. Pendiente: validar hipotesis freemium con 10 entrevistas ([[Pricing]]). |
 | Promesas publicas no implementadas | Alta | Abierto | Revisar [[Mensajes aprobados]] antes de publicar copy. |
 | Features parciales vendidas como completas | Alta | Abierto | Marcar estados en [[Inventario de producto]]. |

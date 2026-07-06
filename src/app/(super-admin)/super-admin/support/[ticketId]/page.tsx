@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { TicketDetail } from "@/components/support/TicketDetail";
 import { TicketStatus } from "@/components/support/TicketFilters";
 
@@ -67,6 +67,10 @@ async function getAdmins() {
 }
 
 export default async function SuperAdminTicketDetailPage({ params }: PageProps) {
+  if (process.env.SUPER_ADMIN_EXPERIMENTAL_MODULES !== "true") {
+    notFound();
+  }
+
   const { ticketId } = await params;
   const cookieStore = await cookies();
   const supabase = await createClient(cookieStore);

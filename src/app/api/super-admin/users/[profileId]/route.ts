@@ -1,13 +1,15 @@
 import { apiSuccess, apiError } from "@/lib/api-response";
-import { eq, count, inArray, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
+import { z } from "zod";
 
 import { db } from "@/db";
-import { profiles, memberships, academies, subscriptions, plans, athletes, coaches, classes } from "@/db/schema";
+import { profiles, subscriptions, plans } from "@/db/schema";
 import { withSuperAdmin } from "@/lib/authz";
 import { logAdminAction } from "@/lib/admin-logs";
 import { getAuthUserEmail, updateAuthUserEmail } from "@/lib/supabase/admin-operations";
 import { getAppUrl } from "@/lib/env";
 import { logger } from "@/lib/logger";
+import { getSuperAdminUserDetail, SUPER_ADMIN_PROFILE_ROLES } from "@/lib/superAdminUsers";
 
 export const dynamic = "force-dynamic";
 // @service-role auth-admin:read-update-email. Super-admin user management requires Supabase Auth admin APIs.
@@ -15,6 +17,16 @@ export const dynamic = "force-dynamic";
 interface RouteParams {
   profileId?: string;
 }
+
+const patchUserSchema = z.object({
+  name: z.string().trim().min(1).nullable().optional(),
+  email: z.string().trim().email().nullable().optional(),
+  role: z.enum(SUPER_ADMIN_PROFILE_ROLES).nullable().optional(),
+  isSuspended: z.boolean().optional(),
+  planId: z.string().trim().min(1).nullable().optional(),
+  force: z.boolean().optional(),
+  confirmSuperAdminPromotion: z.boolean().optional(),
+});
 
 async function resolveParams(params: unknown): Promise<RouteParams> {
   if (!params) {
@@ -40,115 +52,12 @@ export const GET = withSuperAdmin(async (_request, context) => {
     return apiError("PROFILE_ID_REQUIRED", "Profile ID is required", 400);
   }
 
-  const [profile] = await db
-    .select({
-      id: profiles.id,
-      userId: profiles.userId,
-      name: profiles.name,
-      role: profiles.role,
-      tenantId: profiles.tenantId,
-      activeAcademyId: profiles.activeAcademyId,
-      isSuspended: profiles.isSuspended,
-      canLogin: profiles.canLogin,
-      createdAt: profiles.createdAt,
-    })
-    .from(profiles)
-    .where(eq(profiles.id, profileId))
-    .limit(1);
+  const profile = await getSuperAdminUserDetail(profileId);
 
   if (!profile) {
     return apiError("PROFILE_NOT_FOUND", "Profile not found", 404);
   }
-
-  const userMemberships = await db
-    .select({
-      id: memberships.id,
-      academyId: memberships.academyId,
-      role: memberships.role,
-      academyName: academies.name,
-      academyType: academies.academyType,
-    })
-    .from(memberships)
-    .leftJoin(academies, eq(memberships.academyId, academies.id))
-    .where(eq(memberships.userId, profile.userId));
-
-  // Get user subscription separately
-  const [userSubscription] = await db
-    .select({
-      id: subscriptions.id,
-      planId: subscriptions.planId,
-      planCode: plans.code,
-      planNickname: plans.nickname,
-      status: subscriptions.status,
-      stripeCustomerId: subscriptions.stripeCustomerId,
-      stripeSubscriptionId: subscriptions.stripeSubscriptionId,
-    })
-    .from(subscriptions)
-    .leftJoin(plans, eq(subscriptions.planId, plans.id))
-    .where(eq(subscriptions.userId, profile.userId))
-    .limit(1);
-
-  // Get statistics: academies owned, total athletes, coaches, classes
-  const ownedAcademies = await db
-    .select({ id: academies.id })
-    .from(academies)
-    .where(eq(academies.ownerId, profile.id));
-
-  const academyIds = ownedAcademies.map((a) => a.id);
-
-  const stats = {
-    academiesOwned: ownedAcademies.length,
-    totalAthletes: 0,
-    totalCoaches: 0,
-    totalClasses: 0,
-  };
-
-  if (academyIds.length > 0) {
-    const [athletesResult] = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(athletes)
-      .where(inArray(athletes.academyId, academyIds));
-
-    const [coachesResult] = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(coaches)
-      .where(inArray(coaches.academyId, academyIds));
-
-    const [classesResult] = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(classes)
-      .where(inArray(classes.academyId, academyIds));
-
-    stats.totalAthletes = Number(athletesResult?.count ?? 0);
-    stats.totalCoaches = Number(coachesResult?.count ?? 0);
-    stats.totalClasses = Number(classesResult?.count ?? 0);
-  }
-
-  const authEmail = await getAuthUserEmail(profile.userId);
-
-  return apiSuccess({
-    ...profile,
-    email: authEmail,
-    subscription: userSubscription
-      ? {
-          id: userSubscription.id,
-          planId: userSubscription.planId,
-          planCode: userSubscription.planCode,
-          planNickname: userSubscription.planNickname,
-          status: userSubscription.status,
-          stripeCustomerId: userSubscription.stripeCustomerId,
-          stripeSubscriptionId: userSubscription.stripeSubscriptionId,
-        }
-      : null,
-    memberships: userMemberships.map((m) => ({
-      id: m.id,
-      academyId: m.academyId,
-      role: m.role,
-      academyName: m.academyName,
-      academyType: m.academyType,
-    })),
-    stats,
-  });
+  return apiSuccess(profile);
 });
 
 export const PATCH = withSuperAdmin(async (request, context) => {
@@ -176,10 +85,25 @@ export const PATCH = withSuperAdmin(async (request, context) => {
     return apiError("IMMUTABLE_SUPER_ADMIN", "Cannot modify super admin profile", 400);
   }
 
-  const body = await request.json().catch(() => ({}));
+  const parsed = patchUserSchema.safeParse(await request.json().catch(() => ({})));
+  if (!parsed.success) {
+    return apiError("VALIDATION_ERROR", "Invalid user update payload", 400, parsed.error.flatten());
+  }
+
+  const body = parsed.data;
   const updates: Record<string, unknown> = {};
 
-  if (typeof body?.role === "string" && body.role !== existing.role) {
+  const existingRole = existing.role as string;
+
+  if (body.role === "super_admin" && body.role !== existingRole && !body.confirmSuperAdminPromotion) {
+    return apiError(
+      "SUPER_ADMIN_PROMOTION_CONFIRMATION_REQUIRED",
+      "Promoting a user to super_admin requires explicit backend confirmation",
+      400,
+    );
+  }
+
+  if (body.role && body.role !== existingRole) {
     updates.role = body.role;
   }
 
@@ -187,8 +111,8 @@ export const PATCH = withSuperAdmin(async (request, context) => {
     updates.isSuspended = body.isSuspended;
   }
 
-  if (typeof body?.name === "string" && body.name.trim().length > 0 && body.name.trim() !== existing.name) {
-    updates.name = body.name.trim();
+  if (typeof body?.name === "string" && body.name !== existing.name) {
+    updates.name = body.name;
   }
 
   if (typeof body?.email === "string" && body.email.trim().length > 0) {
@@ -311,7 +235,7 @@ export const PATCH = withSuperAdmin(async (request, context) => {
     }
   }
 
-  if (Object.keys(updates).length === 0 && !body?.email && !body?.planId) {
+  if (Object.keys(updates).length === 0 && !body.email && !body.planId) {
     return apiError("NO_CHANGES", "No changes provided", 400);
   }
 
@@ -330,8 +254,12 @@ export const PATCH = withSuperAdmin(async (request, context) => {
   await logAdminAction({
     userId: context.userId,
     tenantId: null,
-    action: "user.updated",
-    meta: { profileId, updates },
+    action: updates.role ? "user.role_changed" : "user.updated",
+    meta: {
+      profileId,
+      updates,
+      ...(updates.role ? { oldRole: existing.role, newRole: updates.role } : {}),
+    },
   });
 
   return apiSuccess(updated);

@@ -5,19 +5,49 @@ import { fileURLToPath } from "node:url";
 const dbMock = vi.hoisted(() => ({
   queryResults: [] as unknown[][],
   select: vi.fn(),
+  update: vi.fn(),
+  delete: vi.fn(),
 }));
 
 vi.mock("@/db", () => ({
   db: {
     select: dbMock.select,
+    update: dbMock.update,
+    delete: dbMock.delete,
   },
+}));
+
+const adminLogsMock = vi.hoisted(() => ({
+  logAdminAction: vi.fn(),
+}));
+
+vi.mock("@/lib/admin-logs", () => ({
+  logAdminAction: adminLogsMock.logAdminAction,
+}));
+
+vi.mock("@/lib/authz", () => ({
+  withSuperAdmin: (handler: unknown) => handler,
+}));
+
+vi.mock("@/lib/supabase/admin-operations", () => ({
+  getAuthUserEmail: vi.fn(() => Promise.resolve("test-zaltyko@example.com")),
+  updateAuthUserEmail: vi.fn(() => Promise.resolve()),
 }));
 
 function makeSelectChain(result: unknown[]) {
   const chain: Record<string, unknown> = {};
   chain.from = vi.fn(() => chain);
+  chain.leftJoin = vi.fn(() => chain);
   chain.where = vi.fn(() => chain);
   chain.limit = vi.fn(() => Promise.resolve(result));
+  return chain;
+}
+
+function makeMutationChain(result: unknown[]) {
+  const chain: Record<string, unknown> = {};
+  chain.set = vi.fn(() => chain);
+  chain.where = vi.fn(() => chain);
+  chain.returning = vi.fn(() => Promise.resolve(result));
   return chain;
 }
 
@@ -54,6 +84,9 @@ describe("audit hardening", () => {
   beforeEach(() => {
     dbMock.queryResults = [];
     dbMock.select.mockImplementation(() => makeSelectChain(dbMock.queryResults.shift() ?? []));
+    dbMock.update.mockImplementation(() => makeMutationChain([]));
+    dbMock.delete.mockImplementation(() => makeMutationChain([]));
+    adminLogsMock.logAdminAction.mockResolvedValue(undefined);
   });
 
   describe("requireCronAuth", () => {
@@ -225,6 +258,98 @@ describe("audit hardening", () => {
       expect(source).not.toContain("sendEmail");
       expect(source).not.toContain("@/lib/email");
       expect(source).toContain("checkPlanLimitViolations");
+    });
+  });
+
+  describe("super-admin API hardening", () => {
+    it("blocks hard delete for academies", async () => {
+      vi.resetModules();
+      dbMock.delete.mockImplementation(() => {
+        throw new Error("db.delete should not be called for academy hard delete");
+      });
+      const { DELETE } = await import("@/app/api/super-admin/academies/[academyId]/route");
+
+      const response = await DELETE(new Request("http://localhost/api/super-admin/academies/academy-1"), {
+        params: { academyId: "academy-1" },
+        userId: "super-admin-user",
+      });
+
+      await expect(response.json()).resolves.toMatchObject({
+        ok: false,
+        error: "ACADEMY_DELETE_DISABLED",
+      });
+      expect(response.status).toBe(405);
+      expect(dbMock.delete).not.toHaveBeenCalled();
+      expect(adminLogsMock.logAdminAction).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: "super-admin-user",
+          action: "academy.delete_blocked",
+          meta: { academyId: "academy-1" },
+        })
+      );
+    });
+
+    it("requires explicit backend confirmation before promoting a user to super_admin", async () => {
+      vi.resetModules();
+      dbMock.queryResults = [[{ id: "profile-1", userId: "user-1", role: "owner", isSuspended: false, name: "TEST ZALTYKO" }]];
+      const { PATCH } = await import("@/app/api/super-admin/users/[profileId]/route");
+
+      const response = await PATCH(
+        new Request("http://localhost/api/super-admin/users/profile-1", {
+          method: "PATCH",
+          body: JSON.stringify({ role: "super_admin" }),
+        }),
+        {
+          params: Promise.resolve({ profileId: "profile-1" }),
+          profile: { id: "super-profile", role: "super_admin" },
+          userId: "super-admin-user",
+        }
+      );
+
+      await expect(response.json()).resolves.toMatchObject({
+        ok: false,
+        error: "SUPER_ADMIN_PROMOTION_CONFIRMATION_REQUIRED",
+      });
+      expect(response.status).toBe(400);
+      expect(dbMock.update).not.toHaveBeenCalled();
+    });
+
+    it("logs role changes with old and new role when promotion is confirmed", async () => {
+      vi.resetModules();
+      dbMock.queryResults = [[{ id: "profile-1", userId: "user-1", role: "owner", isSuspended: false, name: "TEST ZALTYKO" }]];
+      dbMock.update.mockImplementation(() =>
+        makeMutationChain([{ id: "profile-1", userId: "user-1", role: "super_admin", isSuspended: false, name: "TEST ZALTYKO" }])
+      );
+      const { PATCH } = await import("@/app/api/super-admin/users/[profileId]/route");
+
+      const response = await PATCH(
+        new Request("http://localhost/api/super-admin/users/profile-1", {
+          method: "PATCH",
+          body: JSON.stringify({ role: "super_admin", confirmSuperAdminPromotion: true }),
+        }),
+        {
+          params: Promise.resolve({ profileId: "profile-1" }),
+          profile: { id: "super-profile", role: "super_admin" },
+          userId: "super-admin-user",
+        }
+      );
+
+      await expect(response.json()).resolves.toMatchObject({
+        ok: true,
+        data: { role: "super_admin" },
+      });
+      expect(response.status).toBe(200);
+      expect(adminLogsMock.logAdminAction).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: "super-admin-user",
+          action: "user.role_changed",
+          meta: expect.objectContaining({
+            profileId: "profile-1",
+            oldRole: "owner",
+            newRole: "super_admin",
+          }),
+        })
+      );
     });
   });
 });

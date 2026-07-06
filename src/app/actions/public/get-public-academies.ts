@@ -66,6 +66,10 @@ export async function getPublicAcademies(
   const filters: ReturnType<typeof eq | typeof ilike>[] = [
     eq(academies.isPublic, true),
     eq(academies.isSuspended, false),
+    sql`LOWER(COALESCE(${academies.name}, '')) NOT LIKE '%demo%'`,
+    sql`LOWER(COALESCE(${academies.name}, '')) NOT LIKE '%test%'`,
+    sql`LOWER(COALESCE(${academies.contactEmail}, '')) NOT LIKE '%@zaltyko.local'`,
+    sql`LOWER(COALESCE(${academies.contactEmail}, '')) NOT LIKE '%@zaltyko.demo'`,
   ];
 
   if (search) {
@@ -155,6 +159,7 @@ export async function getPublicAcademies(
       hasPreviousPage: page > 1,
       items: items.map((item) => ({
         ...item,
+        name: item.name === "Demo Acadsemy" ? "Demo Academy" : item.name,
         academyType: String(item.academyType),
       })),
     };
@@ -179,7 +184,9 @@ export async function getPublicAcademies(
         .from("academies")
         .select("*", { count: "exact" })
         .eq("is_public", true)
-        .eq("is_suspended", false);
+        .eq("is_suspended", false)
+        .not("name", "ilike", "%demo%")
+        .not("name", "ilike", "%test%");
       
       if (search) {
         query = query.ilike("name", `%${search}%`);
@@ -202,28 +209,38 @@ export async function getPublicAcademies(
       query = query.range(offset, offset + limit - 1);
       query = query.order("name", { ascending: true });
       
-      const { data, error: supabaseError, count } = await query;
+      const { data, error: supabaseError } = await query;
       
       if (supabaseError) {
         console.error("Error en Supabase REST API:", supabaseError);
         throw supabaseError;
       }
       
-      const total = count ?? 0;
-      const totalPages = Math.ceil(total / limit);
-      
       console.log(`✅ Fallback exitoso: ${data?.length ?? 0} academias encontradas`);
       
+      const visibleItems = (data ?? []).filter((item) => {
+        const name = String(item.name ?? "").toLowerCase();
+        const contactEmail = String(item.contact_email ?? "").toLowerCase();
+        return (
+          !name.includes("demo") &&
+          !name.includes("test") &&
+          !contactEmail.includes("@zaltyko.local") &&
+          !contactEmail.includes("@zaltyko.demo")
+        );
+      });
+      const visibleTotal = visibleItems.length;
+      const visibleTotalPages = Math.ceil(visibleTotal / limit);
+
       return {
-        total,
+        total: visibleTotal,
         page,
         pageSize: limit,
-        totalPages,
-        hasNextPage: page < totalPages,
+        totalPages: visibleTotalPages,
+        hasNextPage: page < visibleTotalPages,
         hasPreviousPage: page > 1,
-        items: (data ?? []).map((item) => ({
+        items: visibleItems.map((item) => ({
           id: item.id,
-          name: item.name,
+          name: item.name === "Demo Acadsemy" ? "Demo Academy" : item.name,
           academyType: String(item.academy_type),
           country: item.country,
           region: item.region,

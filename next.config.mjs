@@ -1,8 +1,12 @@
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { createRequire } from "node:module";
 import { withSentryConfig } from "@sentry/nextjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+const require = createRequire(import.meta.url);
+const dateFnsTzCjsEntry = require.resolve("date-fns-tz");
+const nextRouterShim = resolve(__dirname, "src/lib/sentry/next-router-shim.ts");
 
 const securityHeaders = [
   {
@@ -34,6 +38,7 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
   pageExtensions: ["ts", "tsx", "mdx"],
+  transpilePackages: ["date-fns-tz"],
   // Deshabilitar exportación estática (la app es completamente dinámica)
   output: undefined, // No usar 'export', usar modo estándar de Next.js
   outputFileTracingRoot: resolve(__dirname),
@@ -53,6 +58,12 @@ const nextConfig = {
   },
   
   webpack: (config, { isServer }) => {
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      "date-fns-tz$": dateFnsTzCjsEntry,
+      "next/router$": nextRouterShim,
+    };
+
     if (!isServer) {
       // Excluir módulos de Node.js del bundle del cliente
       config.resolve.fallback = {
@@ -107,9 +118,10 @@ export default withSentryConfig(nextConfig, {
   // Route browser requests to Sentry through a Next.js rewrite to circumvent ad-blockers.
   tunnelRoute: "/monitoring",
   
-  // Automatically tree-shake Sentry logger statements to reduce bundle size
-  disableLogger: true,
-  
-  // Enables automatic instrumentation of Vercel Cron Monitors.
-  automaticVercelMonitors: true,
+  webpack: {
+    treeshake: {
+      removeDebugLogging: true,
+    },
+    automaticVercelMonitors: true,
+  },
 });

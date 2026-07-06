@@ -63,7 +63,7 @@ const handler = withTenant(async (request, context) => {
     if (academyIds.length > 0) {
       // Verificar acceso a todas las academias
       for (const academyId of academyIds) {
-        const academyAccess = await verifyAcademyAccess(academyId, effectiveTenantId);
+        const academyAccess = await verifyAcademyAccess(academyId, effectiveTenantId, context.profile);
         if (!academyAccess.allowed) {
           return apiError("ACADEMY_NOT_FOUND", academyAccess.reason ?? "Academia no encontrada", 400);
         }

@@ -22,32 +22,7 @@ import { cn } from "@/lib/utils";
 import { getRegionLabel } from "@/lib/countryRegions";
 import { formatAcademyType } from "@/lib/formatters";
 import { useToast } from "@/components/ui/toast-provider";
-
-interface AcademyDetail {
-  id: string;
-  name: string | null;
-  academyType: string | null;
-  country: string | null;
-  region: string | null;
-  ownerId: string | null;
-  isSuspended: boolean;
-  suspendedAt: string | null;
-  createdAt: string | null;
-  tenantId: string | null;
-  subscription: {
-    id: string;
-    status: string | null;
-    planId: string | null;
-    planCode: string | null;
-    planNickname: string | null;
-    planPrice: number | null;
-  } | null;
-  owner: {
-    id: string;
-    name: string | null;
-    userId: string;
-  } | null;
-}
+import type { SuperAdminAcademyDetail as AcademyDetail } from "@/lib/superAdminService";
 
 interface SuperAdminAcademyDetailProps {
   initialAcademy: AcademyDetail;
@@ -59,6 +34,27 @@ interface Plan {
   code: string;
   nickname: string | null;
   priceEur: number | null;
+}
+
+const DATE_FORMATTER = new Intl.DateTimeFormat("es-ES", {
+  year: "numeric",
+  month: "long",
+  day: "numeric",
+  timeZone: "UTC",
+});
+
+function unwrapApiData<T>(payload: unknown): T | null {
+  if (payload && typeof payload === "object" && "ok" in payload && "data" in payload) {
+    return (payload as { data: T }).data;
+  }
+  return payload as T;
+}
+
+function formatDate(value: string | null) {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  return DATE_FORMATTER.format(date);
 }
 
 export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAcademyDetailProps) {
@@ -119,7 +115,8 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
         return;
       }
 
-      const updated = await response.json();
+      const updatedPayload = await response.json();
+      const updated = unwrapApiData<Partial<AcademyDetail>>(updatedPayload) ?? {};
       
       const refreshResponse = await fetch(`/api/super-admin/academies/${academy.id}`, {
         headers: {
@@ -128,7 +125,11 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
       });
       
       if (refreshResponse.ok) {
-        const refreshed = await refreshResponse.json();
+        const refreshedPayload = await refreshResponse.json();
+        const refreshed = unwrapApiData<AcademyDetail>(refreshedPayload);
+        if (!refreshed) {
+          throw new Error("Respuesta de academia inválida");
+        }
         setAcademy(refreshed);
         setFormData({
           name: refreshed.name ?? "",
@@ -184,9 +185,10 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
         return;
       }
 
-      const updated = await response.json();
+      const updatedPayload = await response.json();
+      const updated = unwrapApiData<Partial<AcademyDetail>>(updatedPayload) ?? {};
       setAcademy({ ...academy, ...updated });
-      setFormData({ ...formData, isSuspended: updated.isSuspended });
+      setFormData({ ...formData, isSuspended: Boolean(updated.isSuspended) });
       router.refresh();
     } catch (error) {
       console.error("Error toggling suspension", error);
@@ -359,24 +361,14 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
                 <div>
                   <p className="text-xs text-white/50">Creada</p>
                   <p className="mt-1 text-white">
-                    {academy.createdAt
-                      ? new Date(academy.createdAt).toLocaleDateString("es-ES", {
-                          year: "numeric",
-                          month: "long",
-                          day: "numeric",
-                        })
-                      : "—"}
+                    {formatDate(academy.createdAt)}
                   </p>
                 </div>
                 {academy.suspendedAt && (
                   <div>
                     <p className="text-xs text-white/50">Suspendida desde</p>
                     <p className="mt-1 text-white">
-                      {new Date(academy.suspendedAt).toLocaleDateString("es-ES", {
-                        year: "numeric",
-                        month: "long",
-                        day: "numeric",
-                      })}
+                      {formatDate(academy.suspendedAt)}
                     </p>
                   </div>
                 )}

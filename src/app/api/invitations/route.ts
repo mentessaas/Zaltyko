@@ -39,7 +39,7 @@ export const POST = withTenant(async (request, context) => {
     return apiError("INVALID_PAYLOAD", "Payload inválido", 400);
   }
 
-  const access = await verifyAcademyAccess(parsed.data.academyId, context.tenantId);
+  const access = await verifyAcademyAccess(parsed.data.academyId, context.tenantId, context.profile);
   if (!access.allowed) {
     return apiError("FORBIDDEN", access.reason ?? "Prohibido", 403);
   }
@@ -169,7 +169,7 @@ export const GET = withTenant(async (request, context) => {
     return apiError("ACADEMY_REQUIRED", "Academy requerido", 400);
   }
 
-  const access = await verifyAcademyAccess(academyId, context.tenantId);
+  const access = await verifyAcademyAccess(academyId, context.tenantId, context.profile);
   if (!access.allowed) {
     return apiError("FORBIDDEN", "Prohibido", 403);
   }
