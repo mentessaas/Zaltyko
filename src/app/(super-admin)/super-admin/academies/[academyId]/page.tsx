@@ -5,6 +5,7 @@ import Link from "next/link";
 
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/authz";
+import { getSuperAdminAcademyDetail } from "@/lib/super-admin";
 import { SuperAdminAcademyDetail } from "../../components/SuperAdminAcademyDetail";
 
 export const dynamic = "force-dynamic";
@@ -33,23 +34,11 @@ export default async function SuperAdminAcademyDetailPage({
 
   const { academyId } = await params;
 
-  const response = await fetch(
-    `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/super-admin/academies/${academyId}`,
-    {
-      headers: {
-      },
-      cache: "no-store",
-    },
-  );
+  const academy = await getSuperAdminAcademyDetail(academyId);
 
-  if (!response.ok) {
-    if (response.status === 404) {
-      notFound();
-    }
-    throw new Error("Failed to fetch academy details");
+  if (!academy) {
+    notFound();
   }
-
-  const academy = await response.json();
 
   return (
     <div className="space-y-6">

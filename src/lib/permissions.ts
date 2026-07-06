@@ -106,8 +106,20 @@ export async function verifyGroupAccess(
  */
 export async function verifyAcademyAccess(
   academyId: string,
-  tenantId: string
+  tenantId: string,
+  callerRole?: string | null
 ): Promise<PermissionCheck> {
+  // El super_admin puede operar cualquier academia (cross-tenant): solo verificamos
+  // que la academia exista, sin restringir por tenant.
+  if (callerRole === "super_admin") {
+    const [academy] = await db
+      .select({ id: academies.id })
+      .from(academies)
+      .where(eq(academies.id, academyId))
+      .limit(1);
+    return academy ? { allowed: true } : { allowed: false, reason: "ACADEMY_NOT_FOUND" };
+  }
+
   const [academy] = await db
     .select({ id: academies.id })
     .from(academies)

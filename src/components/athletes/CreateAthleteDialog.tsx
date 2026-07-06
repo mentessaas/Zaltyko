@@ -127,7 +127,8 @@ export function CreateAthleteDialog({
     if (!hasHadBirthdayThisYear) {
       ageYears -= 1;
     }
-    return ageYears >= 0 ? ageYears : null;
+    // Acotar a un rango plausible: descarta fechas imposibles (p.ej. año 0002 -> 2024 años).
+    return ageYears >= 2 && ageYears <= 99 ? ageYears : null;
   }, [dob]);
 
   const computedAgeLabel = useMemo(() => {
@@ -150,6 +151,19 @@ export function CreateAthleteDialog({
     if (!name.trim()) {
       setError(`El nombre del ${athleteTermLower} es obligatorio.`);
       return;
+    }
+
+    if (dob) {
+      const birth = new Date(dob);
+      const currentYear = new Date().getFullYear();
+      if (
+        Number.isNaN(birth.getTime()) ||
+        birth.getFullYear() < currentYear - 99 ||
+        birth.getTime() > Date.now()
+      ) {
+        setError("La fecha de nacimiento no es válida.");
+        return;
+      }
     }
 
     const hasIncompleteContact = contacts.some(

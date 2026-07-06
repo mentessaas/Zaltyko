@@ -69,8 +69,8 @@ const handler = withTenant(async (request, context) => {
       return apiError("TENANT_REQUIRED", "No se pudo determinar el tenant. Asegúrate de tener acceso a la academia.", 400);
     }
 
-    // Verificar acceso a la academia
-    const academyAccess = await verifyAcademyAccess(body.academyId, effectiveTenantId);
+    // Verificar acceso a la academia (super_admin puede cross-tenant)
+    const academyAccess = await verifyAcademyAccess(body.academyId, effectiveTenantId, context.profile?.role);
     if (!academyAccess.allowed) {
       return apiError(academyAccess.reason ?? "ACADEMY_NOT_FOUND", "No tienes acceso a esta academia", 404);
     }

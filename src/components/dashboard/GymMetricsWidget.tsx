@@ -10,13 +10,13 @@ import { Badge } from "@/components/ui/badge";
 import type { AthleteCategoryCount, ExpiringLicense, UpcomingCompetition } from "@/lib/dashboard";
 
 interface GymMetricsWidgetProps {
-  athletesByCategory: AthleteCategoryCount[];
-  expiringLicenses: ExpiringLicense[];
-  expiringLicensesThisWeek: number;
-  expiringLicensesThisMonth: number;
-  upcomingCompetitions: UpcomingCompetition[];
-  assessmentsThisMonth: number;
-  totalAthletesWithActiveLicense: number;
+  athletesByCategory?: AthleteCategoryCount[];
+  expiringLicenses?: ExpiringLicense[];
+  expiringLicensesThisWeek?: number;
+  expiringLicensesThisMonth?: number;
+  upcomingCompetitions?: UpcomingCompetition[];
+  assessmentsThisMonth?: number;
+  totalAthletesWithActiveLicense?: number;
   academyId: string;
 }
 
@@ -45,13 +45,13 @@ function getDaysLabel(days: number): string {
 }
 
 export function GymMetricsWidget({
-  athletesByCategory,
-  expiringLicenses,
-  expiringLicensesThisWeek,
-  expiringLicensesThisMonth,
-  upcomingCompetitions,
-  assessmentsThisMonth,
-  totalAthletesWithActiveLicense,
+  athletesByCategory = [],
+  expiringLicenses = [],
+  expiringLicensesThisWeek = 0,
+  expiringLicensesThisMonth = 0,
+  upcomingCompetitions = [],
+  assessmentsThisMonth = 0,
+  totalAthletesWithActiveLicense = 0,
   academyId,
 }: GymMetricsWidgetProps) {
   const totalAthletes = athletesByCategory.reduce((sum, cat) => sum + cat.count, 0);
