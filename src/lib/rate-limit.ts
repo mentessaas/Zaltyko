@@ -52,6 +52,16 @@ export interface RateLimitResult {
  * @param config - Rate limit configuration
  * @returns Rate limit result with success status and metadata
  */
+/**
+ * Detecta si Vercel KV (Redis) está configurado. `@vercel/kv` requiere
+ * KV_REST_API_URL + KV_REST_API_TOKEN (o KV_URL); sin ellas cada operación lanza.
+ */
+function isKvConfigured(): boolean {
+  return Boolean(
+    process.env.KV_REST_API_URL || process.env.KV_URL || process.env.KV_REST_API_TOKEN
+  );
+}
+
 export async function rateLimit(config: RateLimitConfig): Promise<RateLimitResult> {
   const { identifier, limit, window } = config;
 
@@ -61,6 +71,18 @@ export async function rateLimit(config: RateLimitConfig): Promise<RateLimitResul
   // Get current timestamp in seconds
   const now = Math.floor(Date.now() / 1000);
   const windowStart = now - window;
+
+  // Si KV no está configurado no hay backend de rate limiting. Fallar ABIERTO
+  // (permitir) en vez de bloquear toda la app: sin KV el fail-closed de abajo
+  // rechazaría TODAS las requests (checkout, escrituras, imports...). El estado
+  // "sin rate limiting" no es peor que el estado real sin KV; el bloqueo total sí.
+  // Provisiona Vercel KV/Upstash para reactivar la protección estricta.
+  if (!isKvConfigured()) {
+    if (process.env.NODE_ENV === "production") {
+      console.warn("Rate limiting deshabilitado: Vercel KV no configurado (fail-open).");
+    }
+    return { success: true, limit, remaining: limit, reset: now + window };
+  }
 
   try {
     // Use Redis sorted set to track requests with timestamps
