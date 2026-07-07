@@ -133,16 +133,12 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
         return;
       }
 
-      const updated = await response.json();
-      
       const refreshResponse = await fetch(`/api/super-admin/academies/${academy.id}`, {
-        headers: {
-        },
         cache: "no-store",
       });
-      
+
       if (refreshResponse.ok) {
-        const refreshed = await refreshResponse.json();
+        const { data: refreshed } = await refreshResponse.json();
         setAcademy(refreshed);
         setFormData({
           name: refreshed.name ?? "",
@@ -153,8 +149,6 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
           region: refreshed.region ?? "",
           city: refreshed.city ?? "",
         });
-      } else {
-        setAcademy({ ...academy, ...updated });
       }
       
       toast.pushToast({
@@ -202,7 +196,7 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
         return;
       }
 
-      const updated = await response.json();
+      const { data: updated } = await response.json();
       setAcademy({ ...academy, ...updated });
       setFormData({ ...formData, isSuspended: updated.isSuspended });
       router.refresh();
