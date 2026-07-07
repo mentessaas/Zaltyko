@@ -30,6 +30,35 @@ export async function uploadEventStorageObject({
   return { publicUrl };
 }
 
+export async function createAuthUser({
+  email,
+  password,
+  emailConfirm = true,
+}: {
+  email: string;
+  password: string;
+  emailConfirm?: boolean;
+}): Promise<{ userId: string }> {
+  const adminClient = getSupabaseAdminClient();
+  const { data, error } = await adminClient.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: emailConfirm,
+  });
+  if (error || !data.user) {
+    throw new Error(error?.message ?? "No se pudo crear la cuenta");
+  }
+  return { userId: data.user.id };
+}
+
+export async function deleteAuthUser(userId: string): Promise<void> {
+  const adminClient = getSupabaseAdminClient();
+  const { error } = await adminClient.auth.admin.deleteUser(userId);
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
 export async function getAuthUserEmail(userId: string): Promise<string | null> {
   const adminClient = getSupabaseAdminClient();
   const { data } = await adminClient.auth.admin.getUserById(userId);
