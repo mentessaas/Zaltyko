@@ -162,8 +162,8 @@ export function StudentChargesTab({ academyId, sportConfigs = [] }: StudentCharg
       const res = await fetch(`/api/charges?${params}`);
       if (!res.ok) throw new Error("Error al cargar cargos");
 
-      const data = await res.json();
-      setCharges(data.items || []);
+      const { data } = await res.json();
+      setCharges(data?.items || []);
 
       // MEJORA UX: Cargar TODOS los cargos del periodo (sin filtro de estado) para las métricas
       // Esto permite calcular correctamente las cards de resumen independientemente del filtro de estado
@@ -177,8 +177,8 @@ export function StudentChargesTab({ academyId, sportConfigs = [] }: StudentCharg
 
       const metricsRes = await fetch(`/api/charges?${metricsParams}`);
       if (metricsRes.ok) {
-        const metricsData = await metricsRes.json();
-        setAllChargesForPeriod(metricsData.items || []);
+        const { data: metricsData } = await metricsRes.json();
+        setAllChargesForPeriod(metricsData?.items || []);
       }
     } catch (error) {
       console.error("Error loading charges:", error);
@@ -201,8 +201,8 @@ export function StudentChargesTab({ academyId, sportConfigs = [] }: StudentCharg
         setGroups([]);
         return;
       }
-      const data = await res.json();
-      if (data.items && Array.isArray(data.items)) {
+      const { data } = await res.json();
+      if (data?.items && Array.isArray(data.items)) {
         setGroups(data.items);
       } else {
         console.warn("Groups API returned unexpected format:", data);

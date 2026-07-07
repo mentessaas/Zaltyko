@@ -112,8 +112,8 @@ export function UpgradeModal({ open, onClose, currentPlan, targetPlan, onConfirm
                 body: JSON.stringify({ plan: targetPlan }),
             });
 
-            const data = await response.json();
-            setClientSecret(data.clientSecret);
+            const { data } = await response.json();
+            setClientSecret(data?.clientSecret ?? null);
             setStep("payment");
         } catch (error) {
             console.error("Error:", error);
@@ -196,7 +196,7 @@ export function UpgradeModal({ open, onClose, currentPlan, targetPlan, onConfirm
                                 </>
                             )}
                             <p className="text-xs text-zaltyko-text-light">
-                                A partir del próximo ciclo de facturación, se cobrará €{planDetails.price}/mes
+                                A partir del próximo ciclo de suscripción, se cobrará €{planDetails.price}/mes
                             </p>
                         </div>
 

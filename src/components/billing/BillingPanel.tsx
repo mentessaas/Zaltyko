@@ -174,10 +174,10 @@ export const BillingPanel = memo(function BillingPanel({ academyId, userId, spor
         });
 
         if (!res.ok) {
-          throw new Error("No se pudo obtener la información de facturación");
+          throw new Error("No se pudo obtener la información de planes y cobros");
         }
 
-        const data = (await res.json()) as BillingSummary;
+        const { data } = (await res.json()) as { data: BillingSummary };
         setSummary(data);
       } catch (err: unknown) {
         setError((err instanceof Error ? err.message : "Error desconocido") ?? "Error desconocido");
@@ -203,8 +203,8 @@ export const BillingPanel = memo(function BillingPanel({ academyId, userId, spor
           throw new Error("No se pudieron obtener los planes");
         }
 
-        const data = (await res.json()) as PlanSummary[];
-        setPlans(data);
+        const { data } = (await res.json()) as { data: PlanSummary[] };
+        setPlans(data ?? []);
       } catch (err: unknown) {
         setError((err instanceof Error ? err.message : "Error desconocido") ?? "Error desconocido");
         setPlans([]);
@@ -229,11 +229,11 @@ export const BillingPanel = memo(function BillingPanel({ academyId, userId, spor
         });
 
         if (!res.ok) {
-          throw new Error("No se pudo obtener el historial de facturación");
+          throw new Error("No se pudo obtener el historial de recibos de suscripción");
         }
 
-        const data = (await res.json()) as InvoiceRow[];
-        setHistory(data);
+        const { data } = (await res.json()) as { data: InvoiceRow[] };
+        setHistory(data ?? []);
       } catch (err: unknown) {
         setError((err instanceof Error ? err.message : "Error desconocido") ?? "Error desconocido");
       } finally {
@@ -256,19 +256,19 @@ export const BillingPanel = memo(function BillingPanel({ academyId, userId, spor
         body: JSON.stringify({ academyId, planCode }),
       });
 
-      const data = await res.json();
+      const body = await res.json();
 
       if (!res.ok) {
         // Mostrar mensaje más descriptivo según el error
-        const errorMessage = data?.message || data?.error || "No se pudo iniciar el checkout";
-        if (data?.error === "STRIPE_NOT_CONFIGURED") {
+        const errorMessage = body?.message || body?.error || "No se pudo iniciar el checkout";
+        if (body?.error === "STRIPE_NOT_CONFIGURED") {
           throw new Error("Stripe no está configurado. Los pagos no están disponibles en este momento. Contacta con soporte.");
         }
         throw new Error(errorMessage);
       }
 
-      if (data.checkoutUrl) {
-        window.location.href = data.checkoutUrl;
+      if (body.data?.checkoutUrl) {
+        window.location.href = body.data.checkoutUrl;
       } else {
         throw new Error("No se recibió una URL de checkout válida");
       }
@@ -291,14 +291,14 @@ export const BillingPanel = memo(function BillingPanel({ academyId, userId, spor
         body: JSON.stringify({ academyId }),
       });
 
-      const data = await res.json();
+      const body = await res.json();
 
       if (!res.ok) {
-        throw new Error(data?.error ?? "No se pudo abrir el portal de Stripe");
+        throw new Error(body?.error ?? "No se pudo abrir el portal de Stripe");
       }
 
-      if (data.portalUrl) {
-        window.location.href = data.portalUrl;
+      if (body.data?.portalUrl) {
+        window.location.href = body.data.portalUrl;
       }
     } catch (err: unknown) {
       setError((err instanceof Error ? err.message : "Error desconocido") ?? "Error desconocido");
@@ -322,7 +322,7 @@ export const BillingPanel = memo(function BillingPanel({ academyId, userId, spor
 
       <Tabs defaultValue={defaultTab} className="w-full">
         <TabsList>
-          <TabsTrigger value="plans">Planes y facturación</TabsTrigger>
+          <TabsTrigger value="plans">Planes y suscripción</TabsTrigger>
           <TabsTrigger value="charges">Cobros a {athletesTermLower}</TabsTrigger>
         </TabsList>
 
@@ -333,7 +333,7 @@ export const BillingPanel = memo(function BillingPanel({ academyId, userId, spor
           <p className="text-sm text-muted-foreground">Cargando información…</p>
         ) : !summary ? (
           <p className="text-sm text-muted-foreground">
-            No disponible temporalmente. Comprueba la configuración de facturación o inténtalo de nuevo más tarde.
+            No disponible temporalmente. Comprueba la configuración de planes o inténtalo de nuevo más tarde.
           </p>
         ) : (
           <div className="space-y-3">
@@ -457,7 +457,7 @@ export const BillingPanel = memo(function BillingPanel({ academyId, userId, spor
 
       <section className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="font-display text-xl font-semibold text-zaltyko-navy">Historial de facturas</h2>
+          <h2 className="font-display text-xl font-semibold text-zaltyko-navy">Recibos de suscripción</h2>
           {loadingHistory && <p className="text-sm text-muted-foreground">Cargando…</p>}
         </div>
         <div className="overflow-x-auto rounded-2xl border border-zaltyko-mist bg-white shadow-soft">
@@ -476,7 +476,7 @@ export const BillingPanel = memo(function BillingPanel({ academyId, userId, spor
               {history.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
-                    No hay facturas registradas todavía.
+                    No hay recibos de suscripción registrados todavía.
                   </td>
                 </tr>
               ) : (
