@@ -20,8 +20,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { getRegionLabel } from "@/lib/countryRegions";
-import { formatAcademyType } from "@/lib/formatters";
 import { useToast } from "@/components/ui/toast-provider";
+
+const ACADEMY_TYPES = [
+  { value: "artistica", label: "Gimnasia artística" },
+  { value: "ritmica", label: "Gimnasia rítmica" },
+  { value: "general", label: "General" },
+] as const;
 
 interface AcademyDetail {
   id: string;
@@ -29,6 +34,7 @@ interface AcademyDetail {
   academyType: string | null;
   country: string | null;
   region: string | null;
+  city: string | null;
   ownerId: string | null;
   isSuspended: boolean;
   suspendedAt: string | null;
@@ -72,6 +78,10 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
     name: academy.name ?? "",
     isSuspended: academy.isSuspended,
     planId: academy.subscription?.planId ?? "",
+    academyType: academy.academyType ?? "artistica",
+    country: academy.country ?? "",
+    region: academy.region ?? "",
+    city: academy.city ?? "",
   });
 
   useEffect(() => {
@@ -106,6 +116,10 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
           name: formData.name.trim() || null,
           isSuspended: formData.isSuspended,
           planId: formData.planId || null,
+          academyType: formData.academyType || null,
+          country: formData.country.trim() || null,
+          region: formData.region.trim() || null,
+          city: formData.city.trim() || null,
         }),
       });
 
@@ -134,6 +148,10 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
           name: refreshed.name ?? "",
           isSuspended: refreshed.isSuspended,
           planId: refreshed.subscription?.planId ?? "",
+          academyType: refreshed.academyType ?? "artistica",
+          country: refreshed.country ?? "",
+          region: refreshed.region ?? "",
+          city: refreshed.city ?? "",
         });
       } else {
         setAcademy({ ...academy, ...updated });
@@ -272,18 +290,49 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
                 </div>
                 <div>
                   <p className="text-xs text-white/50">Tipo</p>
-                  <p className="mt-1 text-sm font-medium text-white">
-                    {formatAcademyType(academy.academyType)}
-                  </p>
+                  <select
+                    value={formData.academyType}
+                    onChange={(e) => setFormData({ ...formData, academyType: e.target.value })}
+                    className="mt-1 w-full rounded-md border border-white/20 bg-white/10 px-3 py-2 text-sm font-medium text-white hover:border-white/40 focus:border-white/60 focus:outline-none"
+                  >
+                    {ACADEMY_TYPES.map((t) => (
+                      <option key={t.value} value={t.value}>
+                        {t.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-xs text-white/50">País</p>
+                    <Input
+                      value={formData.country}
+                      onChange={(e) => setFormData({ ...formData, country: e.target.value })}
+                      className="mt-1 border-white/20 bg-white/10 text-white placeholder:text-slate-500"
+                      placeholder="España"
+                    />
+                  </div>
+                  <div>
+                    <p className="text-xs text-white/50">{getRegionLabel(formData.country) || "Provincia/Región"}</p>
+                    <Input
+                      value={formData.region}
+                      onChange={(e) => setFormData({ ...formData, region: e.target.value })}
+                      className="mt-1 border-white/20 bg-white/10 text-white placeholder:text-slate-500"
+                    />
+                  </div>
                 </div>
                 <div>
-                  <p className="text-xs text-white/50">País y {getRegionLabel(academy.country)}</p>
-                  <p className="mt-1 flex items-center gap-2 text-sm text-white">
-                    <MapPin className="h-4 w-4" strokeWidth={1.8} />
-                    {academy.country ?? "Sin país"}
-                    {academy.region && ` · ${academy.region}`}
-                  </p>
+                  <p className="text-xs text-white/50">Ciudad</p>
+                  <Input
+                    value={formData.city}
+                    onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                    className="mt-1 border-white/20 bg-white/10 text-white placeholder:text-slate-500"
+                  />
                 </div>
+                <p className="flex items-center gap-2 text-xs text-white/40">
+                  <MapPin className="h-3.5 w-3.5" strokeWidth={1.8} />
+                  Ubicación usada en el listado de academias
+                </p>
               </div>
             </div>
 
@@ -400,7 +449,11 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
               saving ||
               (formData.name === academy.name &&
                 formData.isSuspended === academy.isSuspended &&
-                formData.planId === (academy.subscription?.planId ?? ""))
+                formData.planId === (academy.subscription?.planId ?? "") &&
+                formData.academyType === (academy.academyType ?? "artistica") &&
+                formData.country === (academy.country ?? "") &&
+                formData.region === (academy.region ?? "") &&
+                formData.city === (academy.city ?? ""))
             }
           >
             {saving ? (
