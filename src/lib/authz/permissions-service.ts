@@ -1,7 +1,7 @@
 import { eq, and, isNull, desc } from "drizzle-orm";
 
 import { db } from "@/db";
-import { academyRoles, roleMembers, profiles, permissionEnum } from "@/db/schema";
+import { academies, academyRoles, memberships, roleMembers, profiles, permissionEnum } from "@/db/schema";
 import type { Permission } from "@/db/schema/permissions";
 
 /**
@@ -46,20 +46,47 @@ export async function getUserPermissions(
     .limit(1);
 
   if (!membership.length) {
-    // Si no tiene membresía, verificar si es owner de la academia
-    const profile = await db
-      .select()
+    // Sin membresía en roleMembers. Conceder permisos de owner SOLO si el usuario
+    // es dueño real de ESTA academia concreta — NO por tener el rol global "owner"
+    // (el trigger de signup pone "owner" a cualquiera). Antes esto daba TODOS los
+    // permisos a cualquier perfil owner sobre cualquier academia.
+    const [profile] = await db
+      .select({ id: profiles.id, role: profiles.role })
       .from(profiles)
       .where(eq(profiles.userId, userId))
       .limit(1);
 
-    const isOwner = profile[0]?.role === "owner";
+    let ownsThisAcademy = false;
+    if (profile?.id && profile.role === "owner") {
+      const [ownedAcademy] = await db
+        .select({ id: academies.id })
+        .from(academies)
+        .where(and(eq(academies.id, academyId), eq(academies.ownerId, profile.id)))
+        .limit(1);
+      ownsThisAcademy = Boolean(ownedAcademy);
+
+      if (!ownsThisAcademy) {
+        // Fallback: membership "owner" en la tabla memberships para esta academia.
+        const [ownerMembership] = await db
+          .select({ id: memberships.id })
+          .from(memberships)
+          .where(
+            and(
+              eq(memberships.userId, userId),
+              eq(memberships.academyId, academyId),
+              eq(memberships.role, "owner")
+            )
+          )
+          .limit(1);
+        ownsThisAcademy = Boolean(ownerMembership);
+      }
+    }
 
     return {
-      permissions: isOwner ? getAllPermissions() : [],
+      permissions: ownsThisAcademy ? getAllPermissions() : [],
       roleId: null,
       roleName: null,
-      isOwner,
+      isOwner: ownsThisAcademy,
     };
   }
 
