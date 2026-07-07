@@ -141,8 +141,16 @@ function validatePublicEnv() {
 
 /**
  * Variables de entorno validadas del servidor
+ *
+ * Este módulo puede terminar en el bundle del cliente si algo lo importa
+ * transitivamente (p.ej. logger.ts, usado desde error.tsx). En el navegador
+ * las variables server-only nunca están presentes (Next.js no las inyecta),
+ * así que validarlas ahí solo produce falsos positivos ruidosos en consola.
  */
-export const serverEnv = validateServerEnv();
+export const serverEnv =
+  typeof window === "undefined"
+    ? validateServerEnv()
+    : ({ NODE_ENV: process.env.NODE_ENV } as z.infer<typeof serverEnvSchema>);
 
 /**
  * Variables de entorno públicas validadas

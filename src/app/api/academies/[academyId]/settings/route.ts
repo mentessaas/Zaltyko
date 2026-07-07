@@ -52,21 +52,21 @@ const ScheduleSchema = z.object({
 });
 
 const ContactSchema = z.object({
-  website: z.string().url().optional().or(z.literal("")),
-  contactEmail: z.string().email().optional().or(z.literal("")),
-  contactPhone: z.string().optional(),
-  address: z.string().optional(),
-  socialInstagram: z.string().url().optional().or(z.literal("")),
-  socialFacebook: z.string().url().optional().or(z.literal("")),
-  socialTwitter: z.string().url().optional().or(z.literal("")),
-  socialYoutube: z.string().url().optional().or(z.literal("")),
-  logoUrl: z.string().url().optional().or(z.literal("")),
+  website: z.string().url().optional().or(z.literal("")).nullable(),
+  contactEmail: z.string().email().optional().or(z.literal("")).nullable(),
+  contactPhone: z.string().optional().nullable(),
+  address: z.string().optional().nullable(),
+  socialInstagram: z.string().url().optional().or(z.literal("")).nullable(),
+  socialFacebook: z.string().url().optional().or(z.literal("")).nullable(),
+  socialTwitter: z.string().url().optional().or(z.literal("")).nullable(),
+  socialYoutube: z.string().url().optional().or(z.literal("")).nullable(),
+  logoUrl: z.string().url().optional().or(z.literal("")).nullable(),
 });
 
 const SettingsSchema = z.object({
   // Basic info
   name: z.string().min(3).optional(),
-  publicDescription: z.string().optional(),
+  publicDescription: z.string().optional().nullable(),
   isPublic: z.boolean().optional(),
   academyType: z.enum(ACADEMY_TYPES).optional(),
   countryCode: z.string().optional(),
