@@ -341,7 +341,7 @@ export const BillingPanel = memo(function BillingPanel({ academyId, userId, spor
               <p className="text-lg font-semibold">
                 {currentPlanInfo
                   ? resolvePlanTitle(currentPlanInfo)
-                  : PLAN_COPY[summary.planCode]?.title ?? summary.planCode.toUpperCase()}
+                  : PLAN_COPY[summary.planCode]?.title ?? summary.planCode?.toUpperCase() ?? "Sin plan"}
               </p>
               <Badge variant={summary.status === "active" ? "success" : summary.status === "past_due" ? "error" : "pending"}>
                 {summary.status === "active" ? "Activo" : summary.status === "past_due" ? "Pendiente de pago" : summary.status === "trialing" ? "En período de prueba" : summary.status === "canceled" ? "Cancelado" : summary.status}
