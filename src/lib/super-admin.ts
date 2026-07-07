@@ -16,6 +16,7 @@ export async function getSuperAdminAcademyDetail(academyId: string) {
       academyType: academies.academyType,
       country: academies.country,
       region: academies.region,
+      city: academies.city,
       ownerId: academies.ownerId,
       isSuspended: academies.isSuspended,
       suspendedAt: academies.suspendedAt,
