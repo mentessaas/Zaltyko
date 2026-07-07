@@ -5,7 +5,7 @@ import { db } from "@/db";
 import { profiles, memberships, academies, subscriptions, plans, athletes, coaches, classes } from "@/db/schema";
 import { withSuperAdmin } from "@/lib/authz";
 import { logAdminAction } from "@/lib/admin-logs";
-import { getAuthUserEmail, updateAuthUserEmail } from "@/lib/supabase/admin-operations";
+import { getAuthUserEmail, updateAuthUserEmail, deleteAuthUser } from "@/lib/supabase/admin-operations";
 import { getAppUrl } from "@/lib/env";
 import { logger } from "@/lib/logger";
 
@@ -335,4 +335,61 @@ export const PATCH = withSuperAdmin(async (request, context) => {
   });
 
   return apiSuccess(updated);
+});
+
+// DELETE /api/super-admin/users/[profileId] — borra el perfil y la cuenta de Auth.
+// Ojo: por CASCADE, si el usuario es dueño de una academia, esa academia se elimina también.
+export const DELETE = withSuperAdmin(async (_request, context) => {
+  if (!context?.profile) {
+    return apiError("UNAUTHORIZED", "Unauthorized", 401);
+  }
+  const { profileId } = await resolveParams(context.params);
+  if (!profileId) {
+    return apiError("PROFILE_ID_REQUIRED", "Profile ID is required", 400);
+  }
+
+  const [target] = await db
+    .select({ id: profiles.id, userId: profiles.userId, role: profiles.role })
+    .from(profiles)
+    .where(eq(profiles.id, profileId))
+    .limit(1);
+
+  if (!target) {
+    return apiError("PROFILE_NOT_FOUND", "Perfil no encontrado", 404);
+  }
+
+  // No permitir que el super-admin se borre a sí mismo.
+  if (target.userId && target.userId === context.userId) {
+    return apiError("CANNOT_DELETE_SELF", "No puedes eliminar tu propia cuenta", 400);
+  }
+
+  // No permitir borrar el último super_admin.
+  if (target.role === "super_admin") {
+    const [{ value: superAdmins }] = await db
+      .select({ value: count() })
+      .from(profiles)
+      .where(eq(profiles.role, "super_admin"));
+    if (Number(superAdmins) <= 1) {
+      return apiError("LAST_SUPER_ADMIN", "No puedes eliminar el último super administrador", 400);
+    }
+  }
+
+  await db.delete(profiles).where(eq(profiles.id, profileId));
+
+  if (target.userId) {
+    try {
+      await deleteAuthUser(target.userId);
+    } catch (error) {
+      logger.error("No se pudo borrar la cuenta de Auth", error, { profileId });
+    }
+  }
+
+  await logAdminAction({
+    userId: context.userId,
+    tenantId: null,
+    action: "user.deleted",
+    meta: { profileId, role: target.role },
+  });
+
+  return apiSuccess({ ok: true });
 });

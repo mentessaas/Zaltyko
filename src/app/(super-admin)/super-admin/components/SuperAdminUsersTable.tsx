@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui/toast-provider";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { SuperAdminCreateUserDialog } from "./SuperAdminCreateUserDialog";
 
 const ROLE_OPTIONS = ["owner", "admin", "coach", "athlete", "parent", "super_admin"] as const;
 
@@ -242,6 +243,7 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
           </p>
         </div>
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
+          <SuperAdminCreateUserDialog />
           <Button
             variant="outline"
             size="sm"
@@ -401,32 +403,61 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
                   )}
                 </td>
                 <td className="px-4 py-4 text-right">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className={cn(
-                      "border-white/20 bg-white/10 text-white hover:border-white/40 hover:bg-white/20",
-                      user.isSuspended && "border-zaltyko-primary/40 text-zaltyko-primary-light",
-                    )}
-                    onClick={() =>
-                      mutateUser(user.id, {
-                        isSuspended: !user.isSuspended,
-                      }, user)
-                    }
-                    disabled={loading || mutatingUserId === user.id || user.role === "super_admin"}
-                  >
-                    {mutatingUserId === user.id ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" strokeWidth={1.8} />
-                        Procesando...
-                      </>
-                    ) : (
-                      <>
-                        <UserCog className="mr-2 h-4 w-4" strokeWidth={1.8} />
-                        {user.isSuspended ? "Reactivar" : "Suspender"}
-                      </>
-                    )}
-                  </Button>
+                  <div className="flex items-center justify-end gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className={cn(
+                        "border-white/20 bg-white/10 text-white hover:border-white/40 hover:bg-white/20",
+                        user.isSuspended && "border-zaltyko-primary/40 text-zaltyko-primary-light",
+                      )}
+                      onClick={() =>
+                        mutateUser(user.id, {
+                          isSuspended: !user.isSuspended,
+                        }, user)
+                      }
+                      disabled={loading || mutatingUserId === user.id || user.role === "super_admin"}
+                    >
+                      {mutatingUserId === user.id ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" strokeWidth={1.8} />
+                          Procesando...
+                        </>
+                      ) : (
+                        <>
+                          <UserCog className="mr-2 h-4 w-4" strokeWidth={1.8} />
+                          {user.isSuspended ? "Reactivar" : "Suspender"}
+                        </>
+                      )}
+                    </Button>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (
+                          !window.confirm(
+                            `¿Eliminar a ${user.fullName ?? user.email ?? "este usuario"}? Es irreversible. Si es dueño de una academia, esa academia se elimina también.`
+                          )
+                        ) {
+                          return;
+                        }
+                        const res = await fetch(`/api/super-admin/users/${user.id}`, {
+                          method: "DELETE",
+                          credentials: "include",
+                        });
+                        const j = await res.json().catch(() => ({}));
+                        if (!res.ok) {
+                          toast.pushToast({ title: "No se pudo eliminar", description: j?.message ?? "Error", variant: "error" });
+                          return;
+                        }
+                        toast.pushToast({ title: "Usuario eliminado", variant: "success" });
+                        router.refresh();
+                      }}
+                      disabled={loading}
+                      className="inline-flex items-center rounded-lg border border-red-500/40 px-3 py-1.5 text-xs font-semibold text-red-300 transition hover:bg-red-500/10 disabled:opacity-40"
+                    >
+                      Eliminar
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}

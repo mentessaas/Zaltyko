@@ -52,6 +52,20 @@ export const PATCH = withSuperAdmin(async (request, context) => {
     }
   }
 
+  // Edición completa: tipo, país, región y ciudad.
+  if (typeof body?.academyType === "string" && body.academyType.trim().length > 0) {
+    updates.academyType = body.academyType.trim();
+  }
+  if (typeof body?.country === "string") {
+    updates.country = body.country.trim() || null;
+  }
+  if (typeof body?.region === "string") {
+    updates.region = body.region.trim() || null;
+  }
+  if (typeof body?.city === "string") {
+    updates.city = body.city.trim() || null;
+  }
+
   if (Object.keys(updates).length === 0 && !planUpdate) {
     return apiError("NO_CHANGES", "No changes provided", 400);
   }

@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui/toast-provider";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { formatAcademyType } from "@/lib/formatters";
+import { SuperAdminCreateAcademyDialog } from "./SuperAdminCreateAcademyDialog";
 
 type SuperAdminAcademyFilters = {
   plan?: string;
@@ -226,6 +227,7 @@ export function SuperAdminAcademiesTable({
           <p className="font-sans text-xs text-white/70">Total: {total} academias registradas.</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
+          <SuperAdminCreateAcademyDialog />
           <select
             className="rounded-xl border border-white/20 bg-white/10 px-3 py-2 font-display text-xs font-semibold text-white hover:border-white/40 focus:border-white/60 focus:outline-none"
             value={filters.plan ?? ""}
