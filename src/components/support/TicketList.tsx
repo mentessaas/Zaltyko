@@ -58,7 +58,7 @@ const priorityConfig: Record<TicketPriority, { label: string; variant: "default"
 
 const categoryConfig: Record<TicketCategory, { label: string }> = {
   technical: { label: "Técnico" },
-  billing: { label: "Facturación" },
+  billing: { label: "Cobros" },
   account: { label: "Cuenta" },
   feature_request: { label: "Solicitud" },
   other: { label: "Otro" },

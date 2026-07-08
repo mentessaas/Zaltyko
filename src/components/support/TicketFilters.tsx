@@ -35,7 +35,7 @@ const priorityOptions: { value: TicketPriority; label: string }[] = [
 
 const categoryOptions: { value: TicketCategory; label: string }[] = [
   { value: "technical", label: "Técnico" },
-  { value: "billing", label: "Facturación" },
+  { value: "billing", label: "Cobros" },
   { value: "account", label: "Cuenta" },
   { value: "feature_request", label: "Solicitud de Función" },
   { value: "other", label: "Otro" },

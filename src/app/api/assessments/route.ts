@@ -10,6 +10,7 @@ import { handleApiError } from "@/lib/api-error-handler";
 import { withTransaction } from "@/lib/db-transactions";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { getAcademySportConfigOptions, verifyAcademySportConfig } from "@/lib/sport-config/service";
+import { verifyProgressAccess } from "@/lib/progress/service";
 
 const scoreSchema = z.object({
   skillId: z.string().uuid(),
@@ -51,6 +52,22 @@ export const POST = withTenant(async (request, context) => {
 
     if (!athleteRow) {
       return apiError("ATHLETE_NOT_FOUND", "Athlete not found", 404);
+    }
+
+    const athleteScope = await verifyProgressAccess({
+      tenantId: context.tenantId,
+      academyId: athleteRow.academyId,
+      athleteId: athleteRow.id,
+      athleteGroupId: athleteRow.groupId,
+      profile: context.profile,
+    });
+
+    if (!athleteScope.allowed) {
+      return apiError(
+        athleteScope.reason ?? "ATHLETE_ACCESS_DENIED",
+        "No tienes permiso para registrar progreso técnico de esta gimnasta",
+        403
+      );
     }
 
     const [groupRow] = athleteRow.groupId
@@ -142,6 +159,46 @@ export const GET = withTenant(async (request, context) => {
 
     if (!context.tenantId) {
       return apiError("TENANT_REQUIRED", "Tenant context is required", 400);
+    }
+
+    if (context.profile.role === "coach" && !params.data.athleteId) {
+      return apiError(
+        "ATHLETE_REQUIRED_FOR_COACH",
+        "Los entrenadores deben consultar el progreso de una gimnasta asignada",
+        403
+      );
+    }
+
+    if (params.data.athleteId) {
+      const [athleteRow] = await db
+        .select({
+          id: athletes.id,
+          academyId: athletes.academyId,
+          groupId: athletes.groupId,
+        })
+        .from(athletes)
+        .where(and(eq(athletes.id, params.data.athleteId), eq(athletes.tenantId, context.tenantId)))
+        .limit(1);
+
+      if (!athleteRow) {
+        return apiError("ATHLETE_NOT_FOUND", "Athlete not found", 404);
+      }
+
+      const athleteScope = await verifyProgressAccess({
+        tenantId: context.tenantId,
+        academyId: athleteRow.academyId,
+        athleteId: athleteRow.id,
+        athleteGroupId: athleteRow.groupId,
+        profile: context.profile,
+      });
+
+      if (!athleteScope.allowed) {
+        return apiError(
+          athleteScope.reason ?? "ATHLETE_ACCESS_DENIED",
+          "No tienes permiso para consultar progreso técnico de esta gimnasta",
+          403
+        );
+      }
     }
 
     const conditions = [eq(athleteAssessments.tenantId, context.tenantId)];

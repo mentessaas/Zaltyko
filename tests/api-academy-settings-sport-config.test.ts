@@ -120,6 +120,16 @@ describe("API /api/academies/[academyId]/settings sport config", () => {
       activateAcademySportConfig: activateAcademySportConfigMock,
     }));
 
+    vi.doMock("@/lib/logger", () => ({
+      logger: {
+        debug: vi.fn(),
+        info: vi.fn(),
+        warn: vi.fn(),
+        error: vi.fn(),
+        apiError: vi.fn(),
+      },
+    }));
+
     vi.doMock("@/lib/sport-config/service", () => ({
       getAcademySportConfigOptions: vi.fn().mockResolvedValue([
         {

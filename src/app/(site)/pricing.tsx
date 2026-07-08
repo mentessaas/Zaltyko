@@ -14,19 +14,22 @@ type Plan = {
   annualSavings?: string;
 };
 
-const plans: Plan[] = PRODUCT_PLANS.map((plan) => ({
-  title: plan.publicName,
-  price: plan.priceEurCents === 0 ? "Incluido" : `${formatPlanAmount(plan.priceEurCents)}/mes`,
-  description: plan.description,
-  cta: plan.cta,
-  highlight: Boolean(plan.highlight),
-  features: plan.features,
-  annualPrice:
-    plan.priceEurCents === 0
-      ? "Incluido"
-      : `${formatPlanAmount(plan.priceEurCents * 10)}/año`,
-  annualSavings: plan.priceEurCents > 0 ? "2 meses incluidos" : undefined,
-}));
+const plans: Plan[] = PRODUCT_PLANS.map((plan) => {
+  const annualCents = Math.round(plan.priceEurCents * 12 * 0.8);
+  return {
+    title: plan.publicName,
+    price: plan.priceEurCents === 0 ? "Incluido" : `${formatPlanAmount(plan.priceEurCents)}/mes`,
+    description: plan.description,
+    cta: plan.cta,
+    highlight: Boolean(plan.highlight),
+    features: plan.features,
+    annualPrice:
+      plan.priceEurCents === 0
+        ? "Incluido"
+        : `${formatPlanAmount(annualCents)}/año`,
+    annualSavings: plan.priceEurCents > 0 ? "20% dto. anual" : undefined,
+  };
+});
 
 const commonBenefits = [
   {

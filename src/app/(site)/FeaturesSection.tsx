@@ -52,7 +52,7 @@ export default function FeaturesSection() {
     {
       id: "billing",
       icon: CreditCard,
-      label: "Facturación",
+      label: "Cobros",
       content: {
         title: "Cobros claros para academias",
         features: [
@@ -61,7 +61,7 @@ export default function FeaturesSection() {
           "Portal para familias con historial de pagos",
           "Gestión de morosos con avisos automáticos",
           "Panel de métricas de ingresos y morosidad",
-          "Facturación sin errores ni hojas de cálculo",
+          "Recibos internos sin errores ni hojas de cálculo",
         ],
         impact: "Conciliar pagos recurrentes sin hojas de cálculo",
       },

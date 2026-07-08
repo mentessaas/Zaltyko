@@ -147,8 +147,8 @@ export function OptimizedOwnerProfile({
   const planCode = activeAcademy?.planCode?.toLowerCase() ?? "free";
   const planCopy = PLAN_COPY[planCode] ?? {
     label: activeAcademy?.planNickname ?? "Plan personalizado",
-    description: "Gestiona tu suscripción desde facturación.",
-    cta: "Ver facturación",
+    description: "Gestiona tu suscripción desde planes y cobros.",
+    cta: "Ver planes",
     color: "bg-gray-100 text-gray-800",
   };
 

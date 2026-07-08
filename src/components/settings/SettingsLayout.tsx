@@ -24,7 +24,7 @@ const SETTINGS_NAV: SettingsNavItem[] = [
   { href: "branding", label: "Branding", icon: Palette },
   { href: "schedule", label: "Horarios", icon: Clock },
   { href: "contact", label: "Contacto", icon: Globe },
-  { href: "billing", label: "Facturación", icon: CreditCard },
+  { href: "billing", label: "Cobros", icon: CreditCard },
 ];
 
 interface SettingsLayoutProps {

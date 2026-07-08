@@ -26,7 +26,7 @@ export const metadata: Metadata = {
 
 const stats = [
   { value: "Gestión", label: "Operación diaria" },
-  { value: "Pagos", label: "Cobros y facturación" },
+  { value: "Pagos", label: "Cobros y cuotas" },
   { value: "Familias", label: "Comunicación clara" },
   { value: "RGPD", label: "Protección de datos" },
 ];

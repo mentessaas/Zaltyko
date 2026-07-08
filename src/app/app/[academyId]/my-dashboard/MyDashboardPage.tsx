@@ -579,7 +579,7 @@ export function MyDashboardPage({
               <CreditCard className="h-5 w-5 text-primary" />
               <span className="font-medium">Historial de Pagos</span>
               <span className="text-xs text-muted-foreground">
-                Ver facturas y estados de cuenta
+                Ver cuotas y estados de pago
               </span>
             </div>
           </Link>

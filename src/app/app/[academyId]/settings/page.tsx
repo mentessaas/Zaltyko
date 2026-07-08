@@ -25,12 +25,20 @@ import { Select } from "@/components/ui/select";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 
 import { SettingsLayout } from "@/components/settings/SettingsLayout";
-import { BrandingEditor, type BrandingData } from "@/components/settings/BrandingEditor";
-import { ScheduleEditor, type ScheduleData } from "@/components/settings/ScheduleEditor";
-import { SocialLinksEditor, type SocialLinksData } from "@/components/settings/SocialLinksEditor";
+import { BrandingEditor } from "@/components/settings/BrandingEditor";
+import { ScheduleEditor } from "@/components/settings/ScheduleEditor";
+import { SocialLinksEditor } from "@/components/settings/SocialLinksEditor";
 import { SportConfigurationDashboard } from "@/components/settings/SportConfigurationDashboard";
 import { SportLegacyMigrationAssistant } from "@/components/settings/SportLegacyMigrationAssistant";
 import { TimezoneSelector } from "@/components/settings/TimezoneSelector";
+import {
+  DEFAULT_SETTINGS,
+  DISCIPLINE_VARIANTS,
+  MULTI_BRANCH_VARIANTS,
+  buildActiveSportConfigEditors,
+  normalizeAcademySettingsPayload,
+  type AcademySettings,
+} from "@/components/settings/academy-settings-model";
 import { useAcademyContext } from "@/hooks/use-academy-context";
 import {
   COUNTRY_REGION_OPTIONS,
@@ -40,124 +48,12 @@ import {
   getRegionPlaceholder,
 } from "@/lib/countryRegions";
 import { findCitiesByRegion } from "@/lib/citiesByRegion";
-import { TERMINOLOGY_KEYS, getSportConfigSeedByVariant } from "@/lib/sport-config/catalog";
+import { TERMINOLOGY_KEYS } from "@/lib/sport-config/catalog";
 import {
   getTerminology,
   getTerminologyWarnings,
   TERMINOLOGY_KEY_LABELS,
 } from "@/lib/sport-config/terminology";
-
-interface AcademySettings {
-  // Basic info
-  name: string;
-  publicDescription: string;
-  isPublic: boolean;
-  academyType: string;
-  country: string;
-  countryCode: string;
-  region: string;
-  city: string;
-  disciplineVariant: string;
-  activeDisciplineVariants: string[];
-  activeProgramCodesByVariant: Record<string, string[]>;
-  activeApparatusCodesByVariant: Record<string, string[]>;
-  terminologyOverridesByVariant: Record<string, Record<string, string>>;
-  sportConfigs: Array<{
-    id: string;
-    name: string;
-    defaultDisciplineVariant: string;
-    disciplineName: string;
-    branchName: string;
-    activeProgramCodes?: string[] | null;
-    activeApparatusCodes?: string[] | null;
-    usedProgramCodes?: string[];
-    usedApparatusCodes?: string[];
-    apparatus: Array<{ code: string; name: string }>;
-    programs: Array<{ code: string; name: string }>;
-    terminology: Record<string, string>;
-  }>;
-  federationConfigVersion: string;
-  specializationStatus: string;
-
-  // Branding
-  branding: BrandingData;
-
-  // Schedule
-  schedule: ScheduleData;
-
-  // Contact & Social
-  contact: SocialLinksData;
-
-  // Timezone
-  timezone: string;
-
-  // Billing (Stripe)
-  stripePublicKey: string;
-  stripeSecretKey: string;
-  stripeWebhookSecret: string;
-  stripeSecretKeyConfigured: boolean;
-  stripeWebhookSecretConfigured: boolean;
-  taxId: string;
-  invoicePrefix: string;
-}
-
-const DEFAULT_SETTINGS: AcademySettings = {
-  name: "",
-  publicDescription: "",
-  isPublic: true,
-  academyType: "artistica",
-  country: "España",
-  countryCode: "ES",
-  region: "",
-  city: "",
-  disciplineVariant: "artistic_female",
-  activeDisciplineVariants: ["artistic_female"],
-  activeProgramCodesByVariant: {},
-  activeApparatusCodesByVariant: {},
-  terminologyOverridesByVariant: {},
-  sportConfigs: [],
-  federationConfigVersion: "legacy-default-v1",
-  specializationStatus: "legacy",
-  branding: {
-    primaryColor: "#1FC7B6",
-    secondaryColor: "#2B2E83",
-    accentColor: "#FF6B57",
-    fontHeading: "Space Grotesk",
-    fontBody: "Inter",
-    logoUrl: "",
-    faviconUrl: "",
-  },
-  schedule: {
-    slots: [],
-  },
-  contact: {
-    website: "",
-    contactEmail: "",
-    contactPhone: "",
-    address: "",
-    socialInstagram: "",
-    socialFacebook: "",
-    socialTwitter: "",
-    socialYoutube: "",
-  },
-  timezone: "America/Mexico_City",
-  stripePublicKey: "",
-  stripeSecretKey: "",
-  stripeWebhookSecret: "",
-  stripeSecretKeyConfigured: false,
-  stripeWebhookSecretConfigured: false,
-  taxId: "",
-  invoicePrefix: "INV",
-};
-
-const DISCIPLINE_VARIANTS = [
-  { value: "artistic_female", label: "Gimnasia artística femenina" },
-  { value: "artistic_male", label: "Gimnasia artística masculina" },
-  { value: "rhythmic", label: "Gimnasia rítmica" },
-  { value: "general", label: "Mixta artística/rítmica" },
-];
-
-const MULTI_BRANCH_VARIANTS = DISCIPLINE_VARIANTS.filter((type) => type.value !== "general");
 
 export default function SettingsPage() {
   const context = useAcademyContext();
@@ -177,34 +73,8 @@ export default function SettingsPage() {
     [settings.countryCode, settings.region]
   );
   const activeSportConfigEditors = useMemo(
-    () =>
-      settings.activeDisciplineVariants.map((variant) => {
-        const seed = getSportConfigSeedByVariant(settings.countryCode, variant);
-        const config = settings.sportConfigs.find((item) => item.defaultDisciplineVariant === variant);
-        return {
-          variant,
-          seed,
-          config,
-          label: config?.branchName
-            ? `${config.branchName} · ${config.disciplineName}`
-            : seed?.name ?? variant,
-          programs: seed?.programs ?? config?.programs ?? [],
-          apparatus: seed?.evaluation.apparatus.map((item) => ({ code: item.code, name: item.label })) ?? config?.apparatus ?? [],
-          terminology:
-            settings.terminologyOverridesByVariant[variant] ??
-            config?.terminology ??
-            seed?.terminology ??
-            {},
-          usedProgramCodes: config?.usedProgramCodes ?? [],
-          usedApparatusCodes: config?.usedApparatusCodes ?? [],
-        };
-      }),
-    [
-      settings.activeDisciplineVariants,
-      settings.countryCode,
-      settings.sportConfigs,
-      settings.terminologyOverridesByVariant,
-    ]
+    () => buildActiveSportConfigEditors(settings),
+    [settings]
   );
 
   // Cargar settings existentes
@@ -217,35 +87,7 @@ export default function SettingsPage() {
 
         if (response.ok) {
           const payload = await response.json();
-          const data = payload.data ?? payload;
-          const activeProgramCodesByVariant = Object.fromEntries(
-            (data.sportConfigs ?? []).map((config: AcademySettings["sportConfigs"][number]) => [
-              config.defaultDisciplineVariant,
-              config.activeProgramCodes ?? config.programs.map((program) => program.code),
-            ])
-          );
-          const activeApparatusCodesByVariant = Object.fromEntries(
-            (data.sportConfigs ?? []).map((config: AcademySettings["sportConfigs"][number]) => [
-              config.defaultDisciplineVariant,
-              config.activeApparatusCodes ?? config.apparatus.map((apparatus) => apparatus.code),
-            ])
-          );
-          const terminologyOverridesByVariant = Object.fromEntries(
-            (data.sportConfigs ?? []).map((config: AcademySettings["sportConfigs"][number]) => [
-              config.defaultDisciplineVariant,
-              config.terminology,
-            ])
-          );
-          setSettings({
-            ...DEFAULT_SETTINGS,
-            ...data,
-            activeProgramCodesByVariant,
-            activeApparatusCodesByVariant,
-            terminologyOverridesByVariant,
-            branding: { ...DEFAULT_SETTINGS.branding, ...data.branding },
-            schedule: { ...DEFAULT_SETTINGS.schedule, ...data.schedule },
-            contact: { ...DEFAULT_SETTINGS.contact, ...data.contact },
-          });
+          setSettings(normalizeAcademySettingsPayload(payload));
         }
       } catch (err) {
         console.error("Error loading settings:", err);
@@ -413,7 +255,7 @@ export default function SettingsPage() {
             </TabsTrigger>
             <TabsTrigger value="billing" className="gap-2">
               <CreditCard className="h-4 w-4" />
-              <span className="hidden sm:inline">Facturación</span>
+              <span className="hidden sm:inline">Cobros</span>
             </TabsTrigger>
           </TabsList>
 
@@ -805,28 +647,28 @@ export default function SettingsPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Información fiscal</CardTitle>
+                <CardTitle>Datos para recibos internos</CardTitle>
                 <CardDescription>
-                  Configura los datos para facturacion
+                  Configura referencias administrativas para cuotas y pagos internos de la academia.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="taxId">RFC / NIF / Tax ID</Label>
+                  <Label htmlFor="taxId">Identificador administrativo</Label>
                   <Input
                     id="taxId"
                     value={settings.taxId}
                     onChange={(e) => updateSettings("taxId", e.target.value)}
-                    placeholder="X1234567XX"
+                    placeholder="ID interno opcional"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="invoicePrefix">Prefijo de facturas</Label>
+                  <Label htmlFor="invoicePrefix">Prefijo de recibos internos</Label>
                   <Input
                     id="invoicePrefix"
                     value={settings.invoicePrefix}
                     onChange={(e) => updateSettings("invoicePrefix", e.target.value)}
-                    placeholder="INV"
+                    placeholder="REC"
                   />
                 </div>
               </CardContent>

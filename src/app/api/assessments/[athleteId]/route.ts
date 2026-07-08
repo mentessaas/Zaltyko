@@ -10,6 +10,7 @@ import { handleApiError } from "@/lib/api-error-handler";
 import { withTransaction } from "@/lib/db-transactions";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { getAcademySportConfigOptions, verifyAcademySportConfig } from "@/lib/sport-config/service";
+import { verifyProgressAccess } from "@/lib/progress/service";
 
 const scoreSchema = z.object({
   skillId: z.string().uuid(),
@@ -51,6 +52,22 @@ export const POST = withTenant(async (request, context) => {
 
     if (!athleteRow) {
       return apiError("ATHLETE_NOT_FOUND", "Athlete not found", 404);
+    }
+
+    const athleteScope = await verifyProgressAccess({
+      tenantId: context.tenantId,
+      academyId: athleteRow.academyId,
+      athleteId,
+      athleteGroupId: athleteRow.groupId,
+      profile: context.profile,
+    });
+
+    if (!athleteScope.allowed) {
+      return apiError(
+        athleteScope.reason ?? "ATHLETE_ACCESS_DENIED",
+        "No tienes permiso para registrar progreso técnico de esta gimnasta",
+        403
+      );
     }
 
     const [groupRow] = athleteRow.groupId
@@ -134,6 +151,8 @@ export const GET = withTenant(async (request, context) => {
       .select({
         id: athletes.id,
         name: athletes.name,
+        academyId: athletes.academyId,
+        groupId: athletes.groupId,
         tenantId: athletes.tenantId,
       })
       .from(athletes)
@@ -142,6 +161,22 @@ export const GET = withTenant(async (request, context) => {
 
     if (!athleteRow) {
       return apiError("ATHLETE_NOT_FOUND", "Athlete not found", 404);
+    }
+
+    const athleteScope = await verifyProgressAccess({
+      tenantId: context.tenantId,
+      academyId: athleteRow.academyId,
+      athleteId,
+      athleteGroupId: athleteRow.groupId,
+      profile: context.profile,
+    });
+
+    if (!athleteScope.allowed) {
+      return apiError(
+        athleteScope.reason ?? "ATHLETE_ACCESS_DENIED",
+        "No tienes permiso para consultar progreso técnico de esta gimnasta",
+        403
+      );
     }
 
     // Get assessments for this athlete with scores

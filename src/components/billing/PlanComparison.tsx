@@ -6,11 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { PRODUCT_PLANS } from "@/lib/plans/catalog";
+import type { PlanCode } from "@/types/billing";
 
 interface Plan {
     id: string;
     name: string;
-    code: "free" | "pro" | "premium";
+    code: PlanCode;
     price: number;
     interval: "month" | "year";
     description: string;
@@ -26,10 +27,11 @@ interface Plan {
     color: string;
 }
 
-const PLAN_DECOR = {
+const PLAN_DECOR: Record<PlanCode, { icon: typeof Sparkles; color: string; coaches: number | "unlimited"; storage_gb: number | "unlimited" }> = {
     free: { icon: Sparkles, color: "from-gray-500 to-gray-600", coaches: 2, storage_gb: 0.1 },
+    starter: { icon: Sparkles, color: "from-zaltyko-primary to-zaltyko-indigo", coaches: 5, storage_gb: 0.5 },
     pro: { icon: Zap, color: "from-zaltyko-primary to-zaltyko-accent-teal", coaches: 10, storage_gb: 1 },
-    premium: { icon: Crown, color: "from-zaltyko-accent-coral to-zaltyko-accent-amber", coaches: "unlimited" as const, storage_gb: "unlimited" as const },
+    premium: { icon: Crown, color: "from-zaltyko-accent-coral to-zaltyko-accent-amber", coaches: "unlimited", storage_gb: "unlimited" },
 };
 
 const PLANS: Plan[] = PRODUCT_PLANS.map((plan) => {
@@ -55,20 +57,21 @@ const PLANS: Plan[] = PRODUCT_PLANS.map((plan) => {
 });
 
 interface PlanComparisonProps {
-    currentPlan?: "free" | "pro" | "premium";
-    onSelectPlan: (planCode: "free" | "pro" | "premium") => void;
+    currentPlan?: PlanCode;
+    onSelectPlan: (planCode: PlanCode) => void;
     loading?: boolean;
 }
 
 export function PlanComparison({ currentPlan = "free", onSelectPlan, loading = false }: PlanComparisonProps) {
     const isCurrentPlan = (planCode: string) => planCode === currentPlan;
+    const planOrder: Record<PlanCode, number> = { free: 0, starter: 1, pro: 2, premium: 3 };
     const canUpgrade = (planCode: string) => {
-        const planOrder = { free: 0, pro: 1, premium: 2 };
-        return planOrder[planCode as keyof typeof planOrder] > planOrder[currentPlan];
+        const order = planOrder[planCode as PlanCode];
+        return typeof order === "number" && order > planOrder[currentPlan];
     };
     const canDowngrade = (planCode: string) => {
-        const planOrder = { free: 0, pro: 1, premium: 2 };
-        return planOrder[planCode as keyof typeof planOrder] < planOrder[currentPlan];
+        const order = planOrder[planCode as PlanCode];
+        return typeof order === "number" && order < planOrder[currentPlan];
     };
 
     return (

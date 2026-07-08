@@ -37,9 +37,18 @@ El producto real tiene una superficie amplia y mas avanzada que varios documento
 - WhatsApp esta protegido por feature flag; marketing no debe venderlo como disponible para primeros clientes si el flag esta apagado.
 - Evaluaciones tiene hub y rutas por atleta, pero el historial en una ruta transforma assessments con `skills: []`; validar si el detalle completo aparece en componente/API.
 - Billing es el area con mayor superficie y mayor riesgo operativo.
+- Auditoria 2026-07-07: super admin tenia metricas y comparativas inventadas presentadas como reales; se corrigio a datos reales o estados vacios.
+- Auditoria 2026-07-07: el copy de cobros/billing/settings podia sugerir fiscalidad oficial; se ajusto a cobros, cuotas, recibos internos y suscripcion SaaS.
+- Auditoria 2026-07-07: e2e autenticado queda bloqueado hasta regenerar `.auth/user.json`; sin esto no hay evidencia automatizada de demo autenticada.
+- Auditoria 2026-07-07 segunda tanda: el bloqueo de e2e no es Playwright sino credenciales demo invalidas en Supabase Auth.
+- Auditoria 2026-07-07 segunda tanda: asistencia/progreso de coach tienen guard API por clase/atleta asignado; falta e2e real con usuario coach.
+- Auditoria 2026-07-07 segunda tanda: `/api/family/children` ya filtra por tenant y relaciones familiares; quedan endpoints relacionados por revisar.
+- Auditoria 2026-07-07 segunda tanda: dev-session ya genera dataset demo coherente para Espana y rutas owner clave renderizan 200 sin marcadores de error.
 
 ## Acciones
 
 - Mantener [[Inventario de producto]] como resumen ejecutivo y esta nota como auditoria de evidencia.
 - Crear tareas por modulo solo cuando haya flujo QA o bug concreto.
 - Antes de eliminar rutas legacy, registrar decision en [[Decisiones]].
+- Antes de demo comercial, ejecutar `docs/QA_CHECKLIST.md` y `docs/DEMO_READY_CHECKLIST.md`.
+- Antes de demo comercial autenticada, actualizar credenciales demo y generar storage states separados para super_admin, owner y coach.

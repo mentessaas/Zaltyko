@@ -1,10 +1,8 @@
 import { NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
 import { cookies } from "next/headers";
 
-import { db } from "@/db";
-import { familyContacts, athletes, academies } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
+import { getFamilyChildrenForUser } from "@/lib/family/scope-service";
 import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
@@ -26,21 +24,10 @@ export async function GET() {
       return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
     }
 
-    const parentEmail = user.email.toLowerCase();
-
-    const children = await db
-      .select({
-        id: athletes.id,
-        name: athletes.name,
-        level: athletes.level,
-        status: athletes.status,
-        academyId: athletes.academyId,
-        academyName: academies.name,
-      })
-      .from(familyContacts)
-      .innerJoin(athletes, eq(familyContacts.athleteId, athletes.id))
-      .innerJoin(academies, eq(athletes.academyId, academies.id))
-      .where(eq(familyContacts.email, parentEmail));
+    const children = await getFamilyChildrenForUser({
+      userId: user.id,
+      email: user.email,
+    });
 
     return NextResponse.json({ children });
   } catch (error) {

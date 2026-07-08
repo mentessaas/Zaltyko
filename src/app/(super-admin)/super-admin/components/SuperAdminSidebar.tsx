@@ -54,7 +54,7 @@ export function SuperAdminSidebar() {
             Panel global
           </p>
           <p className="mt-2 font-sans leading-relaxed text-white/60">
-            Controla academias, usuarios y facturación desde un único lugar. Todos los cambios quedan
+            Controla academias, usuarios y cobros desde un único lugar. Todos los cambios quedan
             registrados.
           </p>
         </div>

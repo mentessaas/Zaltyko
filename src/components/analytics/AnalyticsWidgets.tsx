@@ -287,7 +287,7 @@ export function AnalyticsWidgets({ academyId }: { academyId: string }) {
         <StatsCard
           title="Ingresos del Mes"
           value={formatCurrency(data.monthlyRevenue)}
-          subtitle="Facturación"
+          subtitle="Cobros"
           icon={<DollarSign className="h-6 w-6" strokeWidth={1.5} />}
           trend={{ value: data.revenueTrend, label: "vs mes anterior" }}
           variant="success"
@@ -348,7 +348,7 @@ export function AnalyticsWidgets({ academyId }: { academyId: string }) {
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Ingresos por Mes</CardTitle>
-            <CardDescription>Facturación mensual</CardDescription>
+            <CardDescription>Cobros mensuales</CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={280}>

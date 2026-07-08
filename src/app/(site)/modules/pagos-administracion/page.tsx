@@ -10,19 +10,19 @@ import {
 } from "../components/ModuleSections";
 
 export const metadata: Metadata = {
-  title: "Cobros y Facturación para Gimnasia",
-  description: "Ordena cobros, cuotas y facturación de tu academia de gimnasia. Recordatorios, pagos pendientes y control de morosidad.",
+  title: "Cobros y Cuotas para Gimnasia",
+  description: "Ordena cobros, cuotas y recibos internos de tu academia de gimnasia. Recordatorios, pagos pendientes y control de morosidad.",
   keywords: [
     "cobros automáticos gimnasia",
     "cuotas gimnasia",
-    "facturación automática",
+    "recibos internos academia",
     "pagos academia gimnasia",
     "software cobros gimnasia",
     "gestión financiera clubes",
   ],
   openGraph: {
-    title: "Cobros y Facturación para Gimnasia",
-    description: "Ordena cobros, cuotas y facturación de tu academia de gimnasia con recordatorios y control de pagos pendientes.",
+    title: "Cobros y Cuotas para Gimnasia",
+    description: "Ordena cobros, cuotas y recibos internos de tu academia de gimnasia con recordatorios y control de pagos pendientes.",
     type: "website",
   },
 };
@@ -46,7 +46,7 @@ const solutionFeatures = [
   "Descuentos por familia numerosa y becas configurables",
   "Recordatorios de pago escalonados y automáticos",
   "Panel financiero con ingresos, proyecciones y morosidad",
-  "Facturación electrónica compatible con requisitos fiscales",
+  "Recibos internos y justificantes de pago para familias",
   "Reportes exportables para contabilidad externa",
 ];
 
@@ -107,7 +107,7 @@ export default function PagosAdministracionPage() {
             name: "Zaltyko - Pagos y Administración",
             applicationCategory: "BusinessApplication",
             operatingSystem: "Web",
-            description: "Módulo de cobros y facturación para academias de gimnasia. Automatiza cuotas, pagos online y control financiero.",
+            description: "Módulo de cobros y cuotas para academias de gimnasia. Automatiza cuotas, pagos online y control financiero.",
             featureList: solutionFeatures,
             offers: {
               "@type": "Offer",
@@ -122,7 +122,7 @@ export default function PagosAdministracionPage() {
       <ModuleHero
         icon={CreditCard}
         title="Pagos y Administración"
-        subtitle="Automatiza la facturación y cobros de tu academia con pagos online seguros. Control total de cuotas, descuentos, morosidad y proyecciones financieras."
+        subtitle="Automatiza cobros y cuotas de tu academia con pagos online seguros. Control total de cuotas, descuentos, morosidad y proyecciones financieras."
         color={MODULE_COLOR}
       />
 

@@ -110,6 +110,7 @@ export async function getGlobalStats(): Promise<SuperAdminMetrics> {
       db.select({
         id: profiles.id,
         role: profiles.role,
+        createdAt: profiles.createdAt,
       }).from(profiles),
       db.select({
         id: plans.id,
@@ -125,6 +126,7 @@ export async function getGlobalStats(): Promise<SuperAdminMetrics> {
         id: billingInvoices.id,
         amountPaid: billingInvoices.amountPaid,
         status: billingInvoices.status,
+        createdAt: billingInvoices.createdAt,
       }).from(billingInvoices),
       db.select({
         id: athleteAssessments.id,
@@ -224,20 +226,30 @@ export async function getGlobalStats(): Promise<SuperAdminMetrics> {
     eventLogsList.map((e) => e.academyId).filter((id): id is string => id !== null)
   );
 
-  // Calculate previous month for trends
-  const previousMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const previousMonthLabel = `${previousMonth.getFullYear()}-${String(previousMonth.getMonth() + 1).padStart(2, "0")}`;
+  const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const previousMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const toValidDate = (value: Date | string | null | undefined) => {
+    if (!value) return null;
+    const date = value instanceof Date ? value : new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date;
+  };
 
-  // Get previous month data
-  const previousInvoices = invoices.filter((inv) => {
-    // For simplicity, we'll use the previous month's revenue estimate
-    return inv.status === "paid";
-  });
-  const previousRevenue = previousInvoices.reduce((sum, inv) => sum + (inv.amountPaid ?? 0), 0) * 0.85; // Estimate ~15% growth
+  const previousRevenue = invoices
+    .filter((inv) => {
+      const createdAt = toValidDate(inv.createdAt);
+      return inv.status === "paid" && createdAt !== null && createdAt >= previousMonthStart && createdAt < currentMonthStart;
+    })
+    .reduce((sum, inv) => sum + (inv.amountPaid ?? 0), 0);
 
-  // Count academies created before current month (simple approximation)
-  const previousAcademies = Math.max(0, academiesData.length - Math.ceil(academiesData.length * 0.1));
-  const previousUsers = Math.max(0, users.length - Math.ceil(users.length * 0.08));
+  const previousAcademies = academiesData.filter((academy) => {
+    const createdAt = toValidDate(academy.createdAt);
+    return createdAt !== null && createdAt < currentMonthStart;
+  }).length;
+
+  const previousUsers = users.filter((user) => {
+    const createdAt = toValidDate(user.createdAt);
+    return createdAt !== null && createdAt < currentMonthStart;
+  }).length;
 
   // Generate subscription alerts for risky subscriptions
   const subscriptionAlerts: Array<{ status: string; count: number; academies: string[] }> = [];
@@ -249,21 +261,21 @@ export async function getGlobalStats(): Promise<SuperAdminMetrics> {
     subscriptionAlerts.push({
       status: "past_due",
       count: pastDueSubscriptions.length,
-      academies: pastDueSubscriptions.slice(0, 5).map((_) => "Academia"),
+      academies: [],
     });
   }
   if (canceledSubscriptions.length > 0) {
     subscriptionAlerts.push({
       status: "canceled",
       count: canceledSubscriptions.length,
-      academies: canceledSubscriptions.slice(0, 5).map((_) => "Academia"),
+      academies: [],
     });
   }
   if (trialingSubscriptions.length > 0) {
     subscriptionAlerts.push({
       status: "trialing",
       count: trialingSubscriptions.length,
-      academies: trialingSubscriptions.slice(0, 5).map((_) => "En prueba"),
+      academies: [],
     });
   }
 
@@ -534,4 +546,3 @@ export async function getRecentEvents(limit: number = 10): Promise<EventLogEntry
     createdAt: event.createdAt ? (event.createdAt instanceof Date ? event.createdAt.toISOString() : String(event.createdAt)) : new Date().toISOString(),
   }));
 }
-

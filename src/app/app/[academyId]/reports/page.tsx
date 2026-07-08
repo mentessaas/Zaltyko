@@ -53,7 +53,7 @@ export default async function ReportsPage({ params }: PageProps) {
     {
       id: "financial",
       title: "Financiero",
-      description: `Ingresos, facturas, cobros y ${terms.payment.toLowerCase()}s pendientes`,
+      description: `Ingresos, recibos internos, cobros y ${terms.payment.toLowerCase()}s pendientes`,
       icon: <DollarSign className="h-6 w-6 text-white" />,
       href: "/financial",
       color: "bg-zaltyko-indigo",

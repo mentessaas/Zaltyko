@@ -50,13 +50,13 @@ export function InvoiceHistory({ invoices, loading = false }: InvoiceHistoryProp
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement("a");
             a.href = url;
-            a.download = `factura-${invoice.invoice_number}.pdf`;
+            a.download = `recibo-${invoice.invoice_number}.pdf`;
             document.body.appendChild(a);
             a.click();
             window.URL.revokeObjectURL(url);
             document.body.removeChild(a);
         } catch (error) {
-            console.error("Error descargando factura:", error);
+            console.error("Error descargando recibo:", error);
         }
     };
 
@@ -74,9 +74,9 @@ export function InvoiceHistory({ invoices, loading = false }: InvoiceHistoryProp
         return (
             <div className="text-center py-12">
                 <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-600 font-medium">No hay facturas disponibles</p>
+                <p className="text-gray-600 font-medium">No hay recibos disponibles</p>
                 <p className="text-sm text-gray-500 mt-1">
-                    Tus facturas aparecerán aquí cuando realices un pago
+                    Tus recibos aparecerán aquí cuando realices un pago
                 </p>
             </div>
         );
@@ -100,7 +100,7 @@ export function InvoiceHistory({ invoices, loading = false }: InvoiceHistoryProp
 
                             <div className="flex-1">
                                 <div className="flex items-center gap-2 mb-1">
-                                    <p className="font-semibold">Factura #{invoice.invoice_number}</p>
+                                    <p className="font-semibold">Recibo #{invoice.invoice_number}</p>
                                     <Badge className={cn("text-xs", statusConfig.color)}>
                                         <StatusIcon className="w-3 h-3 mr-1" />
                                         {statusConfig.label}

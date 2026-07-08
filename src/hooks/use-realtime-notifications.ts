@@ -232,7 +232,7 @@ export function useRealtimeNotifications({
       )
       .subscribe();
 
-    // Suscribirse a cambios en billing_invoices para notificaciones de facturación
+    // Suscribirse a cambios en billing_invoices para notificaciones de recibos.
     const billingChannel = supabase
       .channel("billing-invoices-changes")
       .on(
@@ -266,8 +266,8 @@ export function useRealtimeNotifications({
           handleNotification({
             id: `billing-invoice-${record.id}-${Date.now()}`,
             type: "billing_invoice_created",
-            title: "Nueva factura generada",
-            description: `Se ha generado una nueva factura por ${amountFormatted}.`,
+            title: "Nuevo recibo generado",
+            description: `Se ha generado un nuevo recibo por ${amountFormatted}.`,
             userId: userId ?? undefined,
             academyId: record.academy_id,
             timestamp: new Date().toISOString(),

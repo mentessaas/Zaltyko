@@ -1,12 +1,66 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-06-26
+last_reviewed: 2026-07-07
 source:
   - ../ROADMAP.md
   - ../AGENTS.md
 ---
 # Changelog interno
+
+## 2026-07-07 - Refactor tecnico inicial + tooling pnpm/auditor API
+
+- **Hardening demo/refactor senior**: creados `docs/REFACTOR_AUDIT.md`, `docs/FUNCTIONAL_AUDIT.md`, `docs/REFACTOR_PLAN.md`, `docs/QA_CHECKLIST.md`, `docs/DEMO_READY_CHECKLIST.md` y `docs/REFACTOR_REPORT.md` con auditoria por stack, roles, riesgos, plan y validacion.
+- **Super admin sin metricas inventadas**: retirados fallback de meses 2025, tendencias fijas, revenue estimado con multiplicador y comparativa basada en planes/promedios. Cuando falta fuente real, la UI queda en estado vacio.
+- **Posicionamiento no fiscal**: copy visible de cobros/billing/settings ajustado a cobros, cuotas, recibos internos y suscripcion. No se agrego VeriFactu, AEAT, firma fiscal ni logica de facturacion oficial.
+- **QA autenticado pendiente**: Playwright ya no falla por worktrees, pero `.auth/user.json` actual redirige a `/auth/login`; regenerar storage state antes de demo comercial.
+- **Validacion del bloque demo/refactor**: `pnpm typecheck` PASS, `pnpm lint` PASS, `pnpm exec vitest run` PASS (37 archivos, 354 tests), `pnpm build` PASS.
+
+- **Tooling pnpm modernizado**: `pnpm.overrides` sale de `package.json` y pasa a `pnpm-workspace.yaml`, compatible con pnpm 11. Se declara `allowBuilds`/`onlyBuiltDependencies` para builds nativos aprobados y se agrega `confirmModulesPurge=false` en `.npmrc` para instalaciones no interactivas.
+- **Lockfile reproducible**: la entrada del tarball oficial `xlsx@https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz` ahora incluye `integrity` sha512. `CI=true pnpm install --frozen-lockfile` vuelve a pasar.
+- **Auditor API actualizado**: `scripts/audit-api-routes.ts` deja de buscar `proxy.ts` y detecta rate limit global desde `middleware.ts`. Tambien reconoce auth bearer por helpers actuales. Resultado: 265 rutas, 174 mutantes, 0 riesgos sin clasificar.
+- **Refactor EventForm**: extraida logica pura a `src/components/events/event-form-model.ts` (schema Zod, defaults, initialData legacy y payload API) y UI a `src/components/events/EventFormSections.tsx`. `EventForm.tsx` queda como coordinador de react-hook-form/envio (227 lineas).
+- **Refactor clases**: extraidas reglas puras de actualizacion a `src/lib/classes/update-class-helpers.ts` (grupos candidatos, sportConfig efectivo, aparatos, weekdays y horario final). La ruta `src/app/api/classes/[classId]/route.ts` conserva comportamiento y delega esas decisiones.
+- **Refactor DashboardPage**: extraido fetch de checklist a `src/components/dashboard/useDashboardChecklist.ts` y secciones visuales a `src/components/dashboard/DashboardSections.tsx` (hero, distribucion deportiva, starter setup, navegacion rapida, onboarding y actividad reciente). `DashboardPage.tsx` baja a 631 lineas.
+- **Refactor settings**: extraido modelo de configuracion de academia a `src/components/settings/academy-settings-model.ts` (tipos, defaults, normalizacion del payload API y editores deportivos activos). `settings/page.tsx` baja a 742 lineas.
+- **Refactor AthletesTableView**: extraidas secciones visuales a `src/components/athletes/AthletesTableSections.tsx` (toolbar, empty state, tabla y paginacion). `AthletesTableView.tsx` queda como coordinador de estado, filtros, export CSV y dialogos (444 lineas).
+- **Refactor EditClassDialog**: extraidos tipos/helpers a `src/components/classes/edit-class-dialog-model.ts` y secciones visuales a `src/components/classes/EditClassDialogSections.tsx`. `EditClassDialog.tsx` queda centrado en estado, compatibilidad por rama, submit y delete (426 lineas).
+- **Tests nuevos**: `tests/event-form-model.test.ts` y `tests/lib/update-class-helpers.test.ts` cubren la logica extraida.
+- **Validacion**: `tsc --noEmit` OK, `eslint ... --quiet` OK, `vitest run --passWithNoTests` 354/354 PASS, `audit-api-routes --strict` PASS, `next build` OK (201 paginas estaticas generadas).
+
+## 2026-07-07 - Sesion super-admin CRUD + fixes de settings/env (5 PRs mergeados a main)
+
+> Trabajo en paralelo al "Refactor tecnico inicial" de mas arriba (misma fecha, working tree compartido). Esta sesion trabajo sobre `main` con PRs propios: #15 (QA batch), #16 (CRUD), #17/#18 (campos de edicion academia + fix de refresh), #19 (fix 400 settings + env client-side). No toca los ~100 archivos del refactor senior (siguen sin commitear en el working tree al cierre de esta sesion).
+
+**Auditoria de roles externa (Codex) verificada y remediada (PR #15, commit `8b60420`)**:
+
+- Verificadas contra prod las cifras de una auditoria externa sobre permisos/roles: 41 `auth.users`, 45 `profiles`, 36 con rol global `owner`, 11 con `@zaltyko.local`, 3 con tenant mismatch — todas exactas.
+- Causa raiz real: `src/lib/authz/permissions-service.ts` otorgaba `getAllPermissions()` a **cualquier** perfil con rol global `owner` (default de signup de todos) sobre **cualquier** academia, sin verificar `ownerId`. Escalada de permisos cross-tenant real, no teorica.
+- El script de remediacion propuesto por la auditoria externa tenia un bug critico: incluia `DROP TRIGGER on_auth_user_created`, lo que habria roto el signup real (el registro depende 100% de ese trigger para crear el perfil; `register-form.tsx` no lo hace en codigo). Se descarto ese paso.
+- Fix aplicado: `permissions-service.ts` ahora verifica `academies.ownerId === profile.id` o una membership `owner` explicita antes de otorgar permisos completos. Ver [[Registro de riesgos]].
+- Purga de datos de test en produccion (transaccional, confirmada con el usuario via pregunta explicita por ser irreversible): 7 academias + 43 perfiles + 39 cuentas Auth de test eliminadas. Quedan solo 2 cuentas reales (super_admin + owner) y la academia real, sin huerfanos. Script `scripts/purge-test-data.ts` usado una vez y eliminado del repo (peligroso si se re-ejecuta).
+- Fixes QA adicionales en el mismo lote: crash de `GymMetricsWidget` (props sin default en `reduce`), crash de detalle de academia super-admin (self-fetch sin cookies -> 401 -> throw, reemplazado por consulta directa a DB via `getSuperAdminAcademyDetail`), metricas de engagement fabricadas puestas a 0 con nota explicativa, hydration error #418 (quitar `Math.random()` de `revenueChartData`), validacion de fecha de nacimiento en `CreateAthleteDialog`, redirect de `/app/[academyId]` (antes 404), `/app` resolviendo la academia real via fetch en vez de depender de `useDevSession` (deshabilitada en prod), `verifyAcademyAccess` con bypass para `super_admin`, ocultados enlaces rotos/placeholder (Facturacion/Soporte/Configuracion) del sidebar y top-nav de super-admin, confirmacion antes de promover a `super_admin`.
+
+**CRUD completo de super-admin (PR #16, commit `fda96e1`)**:
+
+- A peticion explicita del usuario ("el super admin deberia poder crear/editar/modificar academias y usuarios... todo desde el panel"), alcance elegido: **todo**.
+- Nuevo: crear academia + cuenta de dueño en un paso (`SuperAdminCreateAcademyDialog.tsx` -> `POST /api/super-admin/academies`), crear usuario con cualquier rol (`SuperAdminCreateUserDialog.tsx` -> `POST /api/super-admin/users`), eliminar usuario (`DELETE /api/super-admin/users/[profileId]`).
+- Nuevas funciones en `src/lib/supabase/admin-operations.ts`: `createAuthUser`/`deleteAuthUser` (via `supabase.auth.admin`).
+- Guardas: no auto-eliminacion, no eliminar el ultimo `super_admin`, confirmacion antes de borrar.
+
+**Fix: campos de edicion de academia incompletos + bug de refresh tras guardar (PR #17/#18, commits `5163782`/`3906285`)**:
+
+- El PATCH de edicion de academia ya aceptaba `academyType`/`country`/`region`/`city` pero el formulario del detalle solo exponia nombre y plan. Se agregaron los campos faltantes al formulario.
+- Al verificar el fix en produccion contra la academia real (MentesSaas Academy), el guardado mostro "Sin nombre"/"Sin plan" tras guardar. **Investigado antes de asumir corrupcion**: se verifico directo contra la DB de prod (solo lectura) y los datos estaban intactos — era un bug de UI preexistente: `apiSuccess()` envuelve las respuestas en `{ok, data}` pero el componente usaba la respuesta cruda sin desempaquetar `.data`. Afectaba tambien al boton Suspender/Reactivar. Corregido en ambos flujos. El dato de prueba usado durante la verificacion se revirtio en DB tras confirmar el fix.
+
+**Fix: 400 en Ajustes de la academia + validacion de env corriendo en el navegador (PR #19, commit `8c59c3d`)**:
+
+- Reportado por el usuario: `PATCH /api/academies/[academyId]/settings` devolvia 400 en cada guardado desde `/app/[academyId]/settings`.
+- Reproducido en vivo interceptando `window.fetch` en la consola del navegador: el formulario cliente envia `null` (no `undefined`) en `publicDescription` y en todos los campos de `contact` (website, email, telefono, direccion, redes) cuando estan vacios. El schema Zod del servidor solo declaraba `.optional()`, que NO acepta `null`. Se agrego `.nullable()` a esos campos; el codigo que mapea a la actualizacion ya trataba `null` correctamente (`data.x || null`), solo faltaba pasar la validacion.
+- Bonus detectado en el mismo debug: el usuario reporto en consola `[env] Variables criticas no configuradas en produccion: STRIPE_SECRET_KEY, DATABASE_URL, SUPABASE_SERVICE_ROLE_KEY` — pero corriendo en el **navegador**, no en el servidor. Causa: `src/lib/logger.ts` importa `isProduction()` de `src/lib/env.ts`, y `logger.ts` se usa desde `src/app/error.tsx` (`"use client"`), asi que `env.ts` completo (incluida la validacion Zod server-only) se bundlea y ejecuta tambien en el cliente. No hay fuga real de secretos (Next.js no inyecta esas variables al bundle del cliente), pero es codigo de servidor corriendo donde no deberia y logueaba un falso positivo. Fix: `serverEnv` ahora solo corre `validateServerEnv()` cuando `typeof window === "undefined"`; en cliente usa un stub con solo `NODE_ENV` (que si es seguro, Next.js lo inlinea).
+- **Patron a vigilar**: cualquier modulo server-only importado transitivamente por un componente cliente (via `error.tsx`, `global-error.tsx`, o cualquier archivo `"use client"`) puede terminar en el bundle del navegador. Guardar logica que dependa de variables server-only con `typeof window === "undefined"`.
+
+**Validacion**: `pnpm typecheck` limpio en cada PR. Deploy Vercel verificado Ready para cada uno; fix de settings verificado localmente contra el payload real capturado del navegador (`SettingsSchema.safeParse` pasa).
 
 ## 2026-06-26 - Upgrades de dependencias (VALIDADO Y COMMITEADO)
 
@@ -236,6 +290,16 @@ Cierre de 4 fallos de CI y del 404 en la raiz del sitio, sobre `security/audit-r
 - **S2 RLS modulos laterales cerrado**: migracion `20260625000001_rls_lateral_modules.sql` habilita RLS en `announcements`, `announcement_read_status`, `conversation_messages`, `conversation_participants`, `message_read_receipts` con policies por tenant/user. Tablas con policy permisiva `allow_authenticated` documentadas en backlog para endurecer (marketplace_*, empleo_*, tickets_*, advertisements, featured_listings, push_subscriptions).
 - **S5 mover claves Stripe a Vault DIFERIDO**: `supabase_vault` extension instalada y disponible. `academies.stripe_secret_key` y `academies.stripe_webhook_secret` existen como columnas pero 0 academias tienen datos. Las claves Stripe de Zaltyko (cuenta SaaS) estan en env vars, no en la tabla. Backlog P1 para cuando se implemente Stripe Connect por academia.
 - **Validacion**: `pnpm typecheck`, `pnpm lint` y `pnpm validate:rls` (PASS 100% cobertura sobre 63 tablas) limpios. 2 migraciones SQL nuevas aplicadas a Supabase. Sin cambios de UI.
+
+## 2026-07-07 - Segunda tanda hardening demo/roles
+
+- Confirmado bloqueo real de E2E autenticado: las credenciales `E2E_AUTH_*` actuales no autentican en Supabase Auth (`Invalid login credentials`), por lo que no se pudo regenerar `.auth/user.json`.
+- Agregado smoke E2E minimo por rol (`tests/e2e-role-smoke.spec.ts`) para super admin, owner y coach; queda preparado y salta explicitamente hasta tener storage states validos.
+- Endurecido permiso de coach en asistencia/progreso: `/api/attendance` y `/api/assessments` validan clase/atleta asignado mediante helpers centralizados en `src/lib/permissions.ts`, `src/lib/attendance/service.ts` y `src/lib/progress/service.ts`.
+- Endurecido scoping familiar inicial: `/api/family/children` usa `getFamilyChildrenForUser()` con rol familiar, tenant y relaciones permitidas; quedan endpoints familiares/bearer restantes para una pasada posterior.
+- Eliminado `src/app/app/[academyId]/my-dashboard/page.js` duplicado tras validar que `page.tsx` mantiene la ruta y `pnpm build` pasa.
+- Preparado dataset demo dev-session para Espana: academia, gimnastas, grupo, clase, entrenadores, asistencia, cobros internos y progreso. Smoke HTTP owner paso en dashboard, gimnastas, grupos, clases, cobros, settings y my-dashboard.
+- Validacion actual: `pnpm exec tsc --noEmit --pretty false` PASS, `pnpm lint` PASS, `pnpm exec vitest run` PASS (40 archivos, 358 tests), `pnpm build` PASS (201 paginas).
 
 ## 2026-06-23
 

@@ -826,7 +826,7 @@ export async function getDashboardData(academyId: string): Promise<{
       logger.warn("Dashboard GR metrics unavailable", {
         academyId,
         academyType: academy.academyType,
-        error: error instanceof Error ? error.message : String(error),
+        errorName: error instanceof Error ? error.name : "UnknownError",
       });
       grMetrics = undefined;
     }

@@ -38,7 +38,7 @@ export function WelcomeEmailTemplate({
                 <ul style="margin: 10px 0; padding-left: 20px; color: #111827; font-size: 16px; line-height: 1.8;">
                   <li>Revisar el calendario de clases</li>
                   <li>Ver el progreso de tus atletas</li>
-                  <li>Gestionar pagos y facturación</li>
+                  <li>Gestionar pagos y cobros</li>
                   <li>Comunicarte con entrenadores</li>
                 </ul>
               </div>
@@ -67,4 +67,3 @@ export function WelcomeEmailTemplate({
 </html>
   `.trim();
 }
-

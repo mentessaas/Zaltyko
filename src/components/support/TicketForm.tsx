@@ -24,7 +24,7 @@ interface TicketFormData {
 
 const categoryOptions: { value: TicketCategory; label: string; description: string }[] = [
   { value: "technical", label: "Técnico", description: "Problemas técnicos, errores, bugs" },
-  { value: "billing", label: "Facturación", description: "Pagos, facturas, cobros" },
+  { value: "billing", label: "Cobros", description: "Pagos, recibos, cobros" },
   { value: "account", label: "Cuenta", description: "Problemas de acceso, configuración" },
   { value: "feature_request", label: "Solicitud de Función", description: "Nuevas funcionalidades" },
   { value: "other", label: "Otro", description: "Otras consultas" },
