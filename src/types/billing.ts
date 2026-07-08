@@ -1,4 +1,4 @@
-export type PlanCode = "free" | "pro" | "premium";
+export type PlanCode = "free" | "starter" | "pro" | "premium";
 
 export interface PlanSummary {
   code: string;

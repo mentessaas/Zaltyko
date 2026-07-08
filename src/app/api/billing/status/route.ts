@@ -44,7 +44,7 @@ export const POST = withTenant(async (request, context) => {
   // Verificar acceso
   const isAdmin = context.profile.role === "admin" || context.profile.role === "super_admin";
   if (!isAdmin && academy.tenantId !== context.tenantId) {
-    return apiError("FORBIDDEN", "No tienes acceso a los datos de facturación de esta academia", 403);
+    return apiError("FORBIDDEN", "No tienes acceso a los datos de cobros de esta academia", 403);
   }
 
   let subscription: { stripeCustomerId: string | null; planCode: string | null; status: string | null } | null = null;
@@ -85,7 +85,6 @@ export const POST = withTenant(async (request, context) => {
     });
   } catch (error) {
     logger.error("[billing/status] Error fetching subscription status:", error);
-    return apiError("INTERNAL_ERROR", "Error al obtener el estado de facturación. Intenta de nuevo más tarde.", 500);
+    return apiError("INTERNAL_ERROR", "Error al obtener el estado de cobros. Intenta de nuevo más tarde.", 500);
   }
 });
-

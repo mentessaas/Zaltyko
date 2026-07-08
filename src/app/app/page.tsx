@@ -24,6 +24,10 @@ export default function AppLanding() {
     (async () => {
       try {
         const res = await fetch("/api/billing/user-academies", { credentials: "include" });
+        if (res.status === 401 || res.status === 403) {
+          if (!cancelled) router.replace("/auth/login");
+          return;
+        }
         if (res.ok) {
           const json = await res.json();
           const academyId = json?.data?.academyId;

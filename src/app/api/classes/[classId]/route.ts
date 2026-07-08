@@ -25,6 +25,14 @@ import { getAcademySportConfigOptions, verifyAcademySportConfig } from "@/lib/sp
 import { normalizeApparatusCodes } from "@/lib/sport-config/validation";
 import { assertCoachesCanHandleSportConfig } from "@/lib/coaches/sport-scope";
 import { NextResponse } from "next/server";
+import {
+  hasMixedSportConfigGroups,
+  normalizeClassApparatus,
+  normalizeWeekdays,
+  resolveCandidateGroupIds,
+  resolveEffectiveSportConfigId,
+  resolveFinalSchedule,
+} from "@/lib/classes/update-class-helpers";
 
 type PgLikeError = {
   code?: string;
@@ -220,16 +228,11 @@ export const PUT = withTenant(async (request, context) => {
       .from(classGroups)
       .where(eq(classGroups.classId, classId));
 
-    const candidateGroupIds =
-      body.groupIds !== undefined
-        ? body.groupIds
-        : body.groupId !== undefined
-        ? body.groupId
-          ? [body.groupId]
-          : []
-        : currentGroupIds.map((row) => row.groupId);
-
-    const uniqueCandidateGroupIds = Array.from(new Set(candidateGroupIds));
+    const uniqueCandidateGroupIds = resolveCandidateGroupIds({
+      groupIds: body.groupIds,
+      groupId: body.groupId,
+      currentGroupIds: currentGroupIds.map((row) => row.groupId),
+    });
     const selectedGroups =
       uniqueCandidateGroupIds.length > 0
         ? await db
@@ -254,14 +257,13 @@ export const PUT = withTenant(async (request, context) => {
     const groupSportConfigIds = Array.from(
       new Set(selectedGroups.map((group) => group.sportConfigId).filter((value): value is string => Boolean(value)))
     );
-    const effectiveSportConfigId =
-      body.sportConfigId !== undefined
-        ? body.sportConfigId
-        : groupSportConfigIds.length === 1
-        ? groupSportConfigIds[0]
-        : currentClass.sportConfigId ?? null;
+    const effectiveSportConfigId = resolveEffectiveSportConfigId({
+      requestedSportConfigId: body.sportConfigId,
+      groupSportConfigIds,
+      currentSportConfigId: currentClass.sportConfigId,
+    });
 
-    if (groupSportConfigIds.length > 1 && !body.sportConfigId) {
+    if (hasMixedSportConfigGroups(groupSportConfigIds, body.sportConfigId)) {
       return apiError(
         "MIXED_SPORT_CONFIG_GROUPS",
         "No se puede vincular una clase a grupos de distintas ramas sin seleccionar una configuración deportiva explícita",
@@ -269,12 +271,7 @@ export const PUT = withTenant(async (request, context) => {
       );
     }
 
-    let normalizedApparatus =
-      body.apparatus !== undefined
-        ? body.apparatus.length
-          ? Array.from(new Set(body.apparatus.map((item) => item.trim()).filter(Boolean)))
-          : null
-        : undefined;
+    let normalizedApparatus = normalizeClassApparatus(body.apparatus);
 
     if (effectiveSportConfigId) {
       const verifiedConfig = await verifyAcademySportConfig({
@@ -338,27 +335,26 @@ export const PUT = withTenant(async (request, context) => {
     // Si se están modificando horarios o grupos, validar conflictos
     if (isChangingSchedule || isChangingGroups) {
       // Obtener weekdays y horarios que se usarán para validar
-      const finalWeekdays =
+      const currentWeekdays =
         body.weekdays !== undefined
-          ? Array.from(new Set(body.weekdays)).sort((a, b) => a - b)
+          ? []
           : await db
               .select({ weekday: classWeekdays.weekday })
               .from(classWeekdays)
               .where(eq(classWeekdays.classId, classId))
               .then((rows) => rows.map((r) => r.weekday).sort((a, b) => a - b));
-
-      const finalStartTime =
-        body.startTime !== undefined
-          ? body.startTime
-          : currentClass.startTime
-          ? String(currentClass.startTime)
-          : null;
-      const finalEndTime =
-        body.endTime !== undefined
-          ? body.endTime
-          : currentClass.endTime
-          ? String(currentClass.endTime)
-          : null;
+      const {
+        weekdays: finalWeekdays,
+        startTime: finalStartTime,
+        endTime: finalEndTime,
+      } = resolveFinalSchedule({
+        bodyWeekdays: body.weekdays,
+        currentWeekdays,
+        bodyStartTime: body.startTime,
+        bodyEndTime: body.endTime,
+        currentStartTime: currentClass.startTime,
+        currentEndTime: currentClass.endTime,
+      });
 
       // Obtener todos los atletas que estarán en la clase después del cambio
       const athleteIds = new Set<string>();
@@ -487,8 +483,7 @@ export const PUT = withTenant(async (request, context) => {
         if (body.cancellationHoursBefore !== undefined) updates.cancellationHoursBefore = body.cancellationHoursBefore;
         if (body.cancellationPolicy !== undefined) updates.cancellationPolicy = body.cancellationPolicy;
         
-        const normalizedWeekdays =
-          body.weekdays !== undefined ? Array.from(new Set(body.weekdays)).sort((a, b) => a - b) : null;
+        const normalizedWeekdays = normalizeWeekdays(body.weekdays);
 
         if (Object.keys(updates).length > 0) {
           logger.debug("PUT /api/classes/[classId]: Actualizando clase", updates);

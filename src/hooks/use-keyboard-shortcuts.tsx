@@ -71,7 +71,7 @@ export function useDashboardShortcuts(academyId: string, router: ReturnType<type
       key: "b",
       ctrl: true,
       action: () => router.push(`/app/${academyId}/billing`),
-      description: "Ir a facturación",
+      description: "Ir a cobros",
     },
     {
       key: "d",
@@ -87,7 +87,7 @@ export function useDashboardShortcuts(academyId: string, router: ReturnType<type
     },
     {
       key: "?",
-      action: () => alert("Atajos: N=nuevo atleta, Ctrl+K=calendario, Ctrl+B=facturación, Ctrl+D=dashboard"),
+      action: () => alert("Atajos: N=nuevo atleta, Ctrl+K=calendario, Ctrl+B=cobros, Ctrl+D=dashboard"),
       description: "Mostrar ayuda",
     },
   ];
@@ -103,7 +103,7 @@ export function KeyboardShortcutsHelp() {
       <div className="grid grid-cols-2 gap-2">
         <span><kbd className="px-1 py-0.5 rounded bg-muted font-mono">N</kbd> Nuevo atleta</span>
         <span><kbd className="px-1 py-0.5 rounded bg-muted font-mono">Ctrl+K</kbd> Calendario</span>
-        <span><kbd className="px-1 py-0.5 rounded bg-muted font-mono">Ctrl+B</kbd> Facturación</span>
+        <span><kbd className="px-1 py-0.5 rounded bg-muted font-mono">Ctrl+B</kbd> Cobros</span>
         <span><kbd className="px-1 py-0.5 rounded bg-muted font-mono">Ctrl+D</kbd> Dashboard</span>
         <span><kbd className="px-1 py-0.5 rounded bg-muted font-mono">Ctrl+A</kbd> Atletas</span>
         <span><kbd className="px-1 py-0.5 rounded bg-muted font-mono">?</kbd> Ver ayuda</span>

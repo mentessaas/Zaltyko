@@ -1,18 +1,23 @@
 import { NextResponse } from "next/server";
 import { isDevSessionEnabled } from "@/lib/dev";
 import { DEV_SESSION_COOKIE, serializeDevSession } from "@/lib/dev-session";
-import { and, count, eq } from "drizzle-orm";
+import { and, count, eq, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { logger } from "@/lib/logger";
 import {
   academies,
   athletes,
+  athleteAssessments,
   attendanceRecords,
+  charges,
+  classCoachAssignments,
+  classEnrollments,
   classSessions,
   classes,
   coaches,
   familyContacts,
+  groups,
   memberships,
   plans,
   profiles,
@@ -57,6 +62,7 @@ const DEMO_ATHLETES = [
 
 const DEMO_CLASS_ID = "aaaa1111-bbbb-cccc-dddd-eeeeeeeeeeee";
 const DEMO_SESSION_ID = "bbbb1111-bbbb-cccc-dddd-ffffffffffff";
+const DEMO_GROUP_ID = "dddd1111-bbbb-cccc-dddd-eeeeeeeeeeee";
 
 const DEMO_CONTACTS = [
   {
@@ -91,7 +97,50 @@ const DEMO_ATTENDANCE = [
   {
     sessionId: DEMO_SESSION_ID,
     athleteId: DEMO_ATHLETES[2].id,
-    status: "injured",
+    status: "excused",
+  },
+];
+
+const DEMO_CHARGES = [
+  {
+    id: "eeee1111-bbbb-cccc-dddd-aaaaaaaaaaaa",
+    athleteId: DEMO_ATHLETES[0].id,
+    label: "Cuota mensual gimnasia artística",
+    amountCents: 6500,
+    status: "paid",
+  },
+  {
+    id: "eeee2222-bbbb-cccc-dddd-aaaaaaaaaaaa",
+    athleteId: DEMO_ATHLETES[1].id,
+    label: "Cuota mensual gimnasia artística",
+    amountCents: 6500,
+    status: "pending",
+  },
+  {
+    id: "eeee3333-bbbb-cccc-dddd-aaaaaaaaaaaa",
+    athleteId: DEMO_ATHLETES[2].id,
+    label: "Cuota mensual gimnasia artística",
+    amountCents: 6500,
+    status: "overdue",
+  },
+];
+
+const DEMO_ASSESSMENTS = [
+  {
+    id: "ffff1111-bbbb-cccc-dddd-aaaaaaaaaaaa",
+    athleteId: DEMO_ATHLETES[0].id,
+    assessmentType: "technical",
+    apparatus: "floor",
+    totalScore: "8.1",
+    overallComment: "Mejora estable en rondada y control de recepcion.",
+  },
+  {
+    id: "ffff2222-bbbb-cccc-dddd-aaaaaaaaaaaa",
+    athleteId: DEMO_ATHLETES[1].id,
+    assessmentType: "execution",
+    apparatus: "beam",
+    totalScore: "7.4",
+    overallComment: "Necesita reforzar estabilidad en entrada y salida.",
   },
 ];
 
@@ -206,16 +255,11 @@ async function ensureSubscription() {
 async function ensureCoaches() {
   for (const coach of DEMO_COACHES) {
     try {
-      await db
-        .insert(coaches)
-        .values({
-          id: coach.id,
-          tenantId: DEV_TENANT_ID,
-          academyId: DEV_ACADEMY_ID,
-          name: coach.name,
-          email: coach.email,
-        })
-        .onConflictDoNothing();
+      await db.execute(sql`
+        insert into coaches (id, tenant_id, academy_id, name, email)
+        values (${coach.id}, ${DEV_TENANT_ID}, ${DEV_ACADEMY_ID}, ${coach.name}, ${coach.email})
+        on conflict do nothing
+      `);
     } catch (e) {
       // Coach may already exist with different data, skip silently
       logger.debug("Coach already exists or insert failed", { coach: coach.email, error: e });
@@ -242,6 +286,7 @@ async function ensureAthletes() {
           academyId: DEV_ACADEMY_ID,
           name: athlete.name,
           level: athlete.level,
+          groupId: DEMO_GROUP_ID,
         });
       } catch (e) {
         logger.debug("Athlete insert failed", { athlete: athlete.name, error: e });
@@ -250,6 +295,23 @@ async function ensureAthletes() {
   } catch (e) {
     logger.debug("Error checking athletes", { error: e });
   }
+}
+
+async function ensureGroup() {
+  await db
+    .insert(groups)
+    .values({
+      id: DEMO_GROUP_ID,
+      tenantId: DEV_TENANT_ID,
+      academyId: DEV_ACADEMY_ID,
+      name: "Artística Base 8-11",
+      discipline: "artistica",
+      level: "Base",
+      coachId: DEMO_COACHES[0].id,
+      monthlyFeeCents: 6500,
+      color: "#0f766e",
+    })
+    .onConflictDoNothing();
 }
 
 async function ensureClass() {
@@ -264,8 +326,39 @@ async function ensureClass() {
       startTime: "18:00:00",
       endTime: "19:30:00",
       capacity: 12,
+      groupId: DEMO_GROUP_ID,
+      technicalFocus: "Suelo y barra",
+      apparatus: ["floor", "beam"],
     })
     .onConflictDoNothing();
+}
+
+async function ensureClassCoachAssignment() {
+  await db
+    .insert(classCoachAssignments)
+    .values({
+      id: "dddd2222-bbbb-cccc-dddd-eeeeeeeeeeee",
+      tenantId: DEV_TENANT_ID,
+      classId: DEMO_CLASS_ID,
+      coachId: DEMO_COACHES[0].id,
+      role: "lead",
+    })
+    .onConflictDoNothing();
+}
+
+async function ensureClassEnrollments() {
+  for (const athlete of DEMO_ATHLETES) {
+    await db
+      .insert(classEnrollments)
+      .values({
+        id: `dddd3333-bbbb-cccc-dddd-${athlete.id.slice(24)}`,
+        tenantId: DEV_TENANT_ID,
+        academyId: DEV_ACADEMY_ID,
+        classId: DEMO_CLASS_ID,
+        athleteId: athlete.id,
+      })
+      .onConflictDoNothing();
+  }
 }
 
 async function ensureClassSession() {
@@ -312,6 +405,56 @@ async function ensureFamilyContacts() {
         relationship: contact.relationship,
         email: contact.email,
         phone: contact.phone,
+      })
+      .onConflictDoNothing();
+  }
+}
+
+async function ensureCharges() {
+  const now = new Date();
+  const period = now.toISOString().slice(0, 7);
+  const dueDate = `${period}-10`;
+
+  for (const charge of DEMO_CHARGES) {
+    await db
+      .insert(charges)
+      .values({
+        id: charge.id,
+        tenantId: DEV_TENANT_ID,
+        academyId: DEV_ACADEMY_ID,
+        athleteId: charge.athleteId,
+        classId: DEMO_CLASS_ID,
+        label: charge.label,
+        amountCents: charge.amountCents,
+        currency: "EUR",
+        period,
+        dueDate,
+        status: charge.status as "paid" | "pending" | "overdue",
+        paymentMethod: charge.status === "paid" ? "bizum" : null,
+        paidAt: charge.status === "paid" ? now : null,
+        notes: "Dato demo interno para control de cuotas.",
+      })
+      .onConflictDoNothing();
+  }
+}
+
+async function ensureAssessments() {
+  const today = new Date().toISOString().slice(0, 10);
+
+  for (const assessment of DEMO_ASSESSMENTS) {
+    await db
+      .insert(athleteAssessments)
+      .values({
+        id: assessment.id,
+        tenantId: DEV_TENANT_ID,
+        academyId: DEV_ACADEMY_ID,
+        athleteId: assessment.athleteId,
+        assessedBy: DEMO_COACHES[0].id,
+        assessmentDate: today,
+        assessmentType: assessment.assessmentType as "technical" | "execution",
+        apparatus: assessment.apparatus,
+        totalScore: assessment.totalScore,
+        overallComment: assessment.overallComment,
       })
       .onConflictDoNothing();
   }
@@ -368,11 +511,16 @@ async function ensureDevSessionData() {
   try { await ensureMembership(); } catch (e) { logger.debug("membership failed", { error: e }); }
   try { await ensureSubscription(); } catch (e) { logger.debug("subscription failed", { error: e }); }
   try { await ensureCoaches(); } catch (e) { logger.debug("coaches failed", { error: e }); }
+  try { await ensureGroup(); } catch (e) { logger.debug("group failed", { error: e }); }
   try { await ensureAthletes(); } catch (e) { logger.debug("athletes failed", { error: e }); }
   try { await ensureClass(); } catch (e) { logger.debug("class failed", { error: e }); }
+  try { await ensureClassCoachAssignment(); } catch (e) { logger.debug("class coach assignment failed", { error: e }); }
+  try { await ensureClassEnrollments(); } catch (e) { logger.debug("class enrollments failed", { error: e }); }
   try { await ensureClassSession(); } catch (e) { logger.debug("session failed", { error: e }); }
   try { await ensureAttendance(); } catch (e) { logger.debug("attendance failed", { error: e }); }
   try { await ensureFamilyContacts(); } catch (e) { logger.debug("contacts failed", { error: e }); }
+  try { await ensureCharges(); } catch (e) { logger.debug("charges failed", { error: e }); }
+  try { await ensureAssessments(); } catch (e) { logger.debug("assessments failed", { error: e }); }
 
   return {
     userId: DEV_USER_ID,

@@ -6,8 +6,8 @@ import {
   Users,
 } from "lucide-react";
 
-// Nota: "Facturación", "Soporte" y "Configuración" están ocultos del nav mientras
-// sean placeholders (Facturación/Configuración) o no funcionen (Soporte redirige al
+// Nota: "Cobros", "Soporte" y "Configuración" están ocultos del nav mientras
+// sean placeholders (Cobros/Configuración) o no funcionen (Soporte redirige al
 // Dashboard). Re-añadir cuando existan de verdad.
 export const SUPER_ADMIN_NAV_ITEMS = [
   { href: "/super-admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -16,5 +16,4 @@ export const SUPER_ADMIN_NAV_ITEMS = [
   { href: "/super-admin/academies/public", label: "Academias Públicas", icon: Globe },
   { href: "/super-admin/logs", label: "Logs", icon: ScrollText },
 ] as const;
-
 

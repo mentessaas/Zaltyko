@@ -69,8 +69,8 @@ export function getQuickActions(
     },
     {
       id: "billing",
-      label: "Facturación",
-      description: "Gestiona métodos de pago y facturación",
+      label: "Cobros",
+      description: "Gestiona métodos de pago y cobros",
       icon: CreditCard,
       href: (id) => `/app/${id}/billing`,
       color: "bg-green-500",

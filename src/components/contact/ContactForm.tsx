@@ -8,7 +8,7 @@ const reasons = [
   { value: "demo", label: "Solicitar demo" },
   { value: "sales", label: "Información de ventas" },
   { value: "support", label: "Soporte técnico" },
-  { value: "billing", label: "Facturación" },
+  { value: "billing", label: "Cobros" },
   { value: "partnership", label: "Colaboración" },
   { value: "other", label: "Otro" },
 ];
@@ -71,7 +71,12 @@ export function ContactForm({ defaultReason = "demo" }: ContactFormProps) {
   }
 
   return (
-    <form className="space-y-4" onSubmit={handleSubmit}>
+    <form
+      className="space-y-4"
+      onSubmit={handleSubmit}
+      noValidate
+      aria-label="Formulario de contacto"
+    >
       <input type="text" name="company" tabIndex={-1} autoComplete="off" className="hidden" aria-hidden="true" />
       <div>
         <label htmlFor="name" className="block text-sm font-medium text-zaltyko-text-main">

@@ -89,7 +89,7 @@ export const POST = withTenant(async (request, context) => {
   }
 
   try {
-    // Obtener todas las facturas del customer desde Stripe
+    // Obtener todos los recibos del customer desde Stripe.
     const invoices = await stripe.invoices.list({
       customer: subscription.stripeCustomerId,
       limit: 100, // Stripe permite hasta 100 por página
@@ -99,7 +99,7 @@ export const POST = withTenant(async (request, context) => {
     let updated = 0;
     let errors = 0;
 
-    // Sincronizar cada factura
+    // Sincronizar cada recibo.
     for (const invoice of invoices.data) {
       try {
         await db
@@ -157,6 +157,6 @@ export const POST = withTenant(async (request, context) => {
     return apiSuccess({ synced, updated, errors, total: invoices.data.length });
   } catch (error: unknown) {
     logger.error("Error syncing invoices", error);
-    return apiError("SYNC_FAILED", "Error al sincronizar facturas", 500);
+    return apiError("SYNC_FAILED", "Error al sincronizar recibos", 500);
   }
 });

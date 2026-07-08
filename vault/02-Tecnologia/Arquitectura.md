@@ -21,7 +21,7 @@ source:
 - Tailwind CSS + shadcn/ui.
 - Vercel.
 
-> Algunos bumps de dependencias (next 15.5.19, MCP SDK 1.29, jspdf 4, xlsx por tarball, overrides de seguridad) estan en el working tree sin commitear a 2026-06-26. Ver [[Changelog interno#2026-06-26 - Upgrades de dependencias (PENDIENTE DE COMMIT)]].
+> pnpm moderno se configura desde `pnpm-workspace.yaml`: overrides, allowBuilds y onlyBuiltDependencies. Ver [[Runbook desarrollo#pnpm]].
 
 ## Estructura principal
 
@@ -35,6 +35,12 @@ source:
 | `src/db/schema/` | Tablas Drizzle. |
 | `src/lib/` | Auth, servicios, dashboard, SEO, reportes e integraciones. |
 | `src/types/` | Tipos compartidos. |
+
+## Modularizacion frontend reciente
+
+- `DashboardPage` mantiene la coordinacion de datos del dashboard, pero delega secciones visuales compactas en `src/components/dashboard/DashboardSections.tsx` y el checklist en `src/components/dashboard/useDashboardChecklist.ts`.
+- `EventForm` mantiene `react-hook-form`, validacion y envio; la logica pura vive en `src/components/events/event-form-model.ts` y las secciones visuales en `src/components/events/EventFormSections.tsx`.
+- La pantalla de ajustes consume `src/components/settings/academy-settings-model.ts` para defaults, normalizacion de payload y editores deportivos activos.
 
 ## Principios
 

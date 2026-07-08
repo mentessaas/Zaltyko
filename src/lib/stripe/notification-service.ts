@@ -77,7 +77,7 @@ async function logAuditEvent(
 }
 
 /**
- * Envía notificaciones relacionadas con facturas
+ * Envía notificaciones relacionadas con recibos de suscripción.
  */
 export async function sendInvoiceNotification(
   eventType: "invoice.paid" | "invoice.payment_failed" | "invoice.payment_action_required",
@@ -93,8 +93,8 @@ export async function sendInvoiceNotification(
 
   if (eventType === "invoice.paid") {
     const subject = "Zaltyko · Pago recibido";
-    const text = `Se registró el pago de la factura ${invoice.number ?? invoice.id} por ${amountFormatted}.`;
-    const html = `<div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;"><h2 style="color: #0D47A1; font-family: Poppins, sans-serif; font-weight: 700;">Zaltyko · Pago recibido</h2><p>Hola,</p><p>Se registró el pago de la factura <strong>${invoice.number ?? invoice.id}</strong>.</p><p>Importe cobrado: <strong>${amountFormatted}</strong>.</p><p>Puedes revisarla en Stripe: <a href="${invoice.hosted_invoice_url ?? invoice.invoice_pdf ?? "#"}" style="color: #0D47A1;">ver factura</a>.</p></div>`;
+    const text = `Se registró el pago del recibo ${invoice.number ?? invoice.id} por ${amountFormatted}.`;
+    const html = `<div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;"><h2 style="color: #0D47A1; font-family: Poppins, sans-serif; font-weight: 700;">Zaltyko · Pago recibido</h2><p>Hola,</p><p>Se registró el pago del recibo <strong>${invoice.number ?? invoice.id}</strong>.</p><p>Importe cobrado: <strong>${amountFormatted}</strong>.</p><p>Puedes revisarlo en Stripe: <a href="${invoice.hosted_invoice_url ?? invoice.invoice_pdf ?? "#"}" style="color: #0D47A1;">ver recibo</a>.</p></div>`;
     
     await notifyOwners(context.academyId, subject, html, text);
     await logAuditEvent(context.tenantId, "billing.invoice_paid", {
@@ -103,9 +103,9 @@ export async function sendInvoiceNotification(
       currency: invoice.currency,
     });
   } else if (eventType === "invoice.payment_failed" || eventType === "invoice.payment_action_required") {
-    const subject = "Zaltyko · Acción requerida en factura";
-    const text = `La factura ${invoice.number ?? invoice.id} requiere tu revisión.`;
-    const html = `<div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;"><h2 style="color: #0D47A1; font-family: Poppins, sans-serif; font-weight: 700;">Zaltyko · Acción requerida</h2><p>Hola,</p><p>No se pudo completar el cobro de la factura <strong>${invoice.number ?? invoice.id}</strong>.</p><p>Revisa el método de pago desde el portal de Stripe.</p></div>`;
+    const subject = "Zaltyko · Acción requerida en recibo";
+    const text = `El recibo ${invoice.number ?? invoice.id} requiere tu revisión.`;
+    const html = `<div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;"><h2 style="color: #0D47A1; font-family: Poppins, sans-serif; font-weight: 700;">Zaltyko · Acción requerida</h2><p>Hola,</p><p>No se pudo completar el cobro del recibo <strong>${invoice.number ?? invoice.id}</strong>.</p><p>Revisa el método de pago desde el portal de Stripe.</p></div>`;
     
     await notifyOwners(context.academyId, subject, html, text);
     await logAuditEvent(context.tenantId, "billing.invoice_issue", {
@@ -115,4 +115,3 @@ export async function sendInvoiceNotification(
     });
   }
 }
-

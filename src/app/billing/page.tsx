@@ -113,7 +113,7 @@ export default function BillingPage() {
       });
 
       if (!res.ok) {
-        throw new Error("No se pudo obtener la información de facturación");
+        throw new Error("No se pudo obtener la información de planes y cobros");
       }
 
       const data = (await res.json()) as BillingSummaryType;
@@ -171,7 +171,7 @@ export default function BillingPage() {
       });
 
       if (!res.ok) {
-        throw new Error("No se pudo obtener el historial de facturación");
+        throw new Error("No se pudo obtener el historial de recibos");
       }
 
       const data = (await res.json()) as InvoiceRow[];
@@ -208,7 +208,7 @@ export default function BillingPage() {
   return (
     <div className="mx-auto max-w-4xl space-y-8 p-8">
       <header className="space-y-2">
-        <h1 className="text-3xl font-semibold">Facturación y planes</h1>
+        <h1 className="text-3xl font-semibold">Planes y cobros</h1>
         <p className="text-muted-foreground">
           Escala tu academia de gimnasia y gestiona pagos desde un único lugar.
         </p>

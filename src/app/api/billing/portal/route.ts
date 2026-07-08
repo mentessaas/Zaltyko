@@ -62,7 +62,7 @@ const portalHandler = withTenant(async (request, context) => {
   // Verificar acceso
   const isAdmin = context.profile.role === "admin" || context.profile.role === "super_admin";
   if (!isAdmin && academy.tenantId !== context.tenantId) {
-    return apiError("FORBIDDEN", "No tienes acceso a los datos de facturación de esta academia", 403);
+    return apiError("FORBIDDEN", "No tienes acceso a los datos de cobros de esta academia", 403);
   }
 
   // Verificar que la academia tiene owner
@@ -118,4 +118,3 @@ export const POST = withRateLimit(
   },
   { identifier: getUserIdentifier, limit: 10, window: 60 }
 );
-

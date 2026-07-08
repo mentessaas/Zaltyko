@@ -22,8 +22,8 @@ const categories = [
         a: "Sí. La entrada principal es una demo guiada para revisar tu caso y validar si Zaltyko encaja con tu academia.",
       },
       {
-        q: "¿Cómo funciona la facturación?",
-        a: "Se renueva automáticamente cada mes. Puedes cancelar cuando quieras desde tu panel de facturación.",
+        q: "¿Cómo funcionan los planes?",
+        a: "Se renuevan automáticamente cada mes. Puedes cancelar cuando quieras desde tu panel de suscripción.",
       },
       {
         q: "¿Puedo cambiar de plan?",
@@ -69,7 +69,7 @@ const categories = [
   },
   {
     icon: BarChart3,
-    title: "Facturación y cobros",
+    title: "Planes y cobros",
     questions: [
       {
         q: "¿Cómo cobro a los padres?",

@@ -108,7 +108,7 @@ export function useBillingActions(
 
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data?.message || data?.error || "No se pudo sincronizar las facturas");
+        throw new Error(data?.message || data?.error || "No se pudo sincronizar los recibos");
       }
 
       if (onSuccess) {

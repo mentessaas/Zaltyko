@@ -9,7 +9,7 @@ const sections = [
   {
     title: "1. Objeto",
     paragraphs: [
-      "Las presentes Condiciones regulan el acceso y uso de Zaltyko, plataforma SaaS que permite a academias de gimnasia gestionar atletas, staff, clases, eventos y facturación.",
+      "Las presentes Condiciones regulan el acceso y uso de Zaltyko, plataforma SaaS que permite a academias de gimnasia gestionar atletas, staff, clases, eventos y cobros internos.",
       "Al registrarte, acceder o utilizar el servicio confirmas que tienes autoridad para hacerlo en nombre de una organización y aceptas estos términos.",
     ],
   },
@@ -21,10 +21,10 @@ const sections = [
     ],
   },
   {
-    title: "3. Planes, pagos y facturación",
+    title: "3. Planes, pagos y suscripción",
     paragraphs: [
       "Ofrecemos planes Starter, Growth y Network descritos en https://zaltyko.com/pricing. Los pagos recurrentes se procesan a través de Stripe u otro proveedor autorizado.",
-      "Puedes cancelar o cambiar de plan en cualquier momento desde el portal de facturación. Si solicitas la baja, el plan continuará activo hasta el final del periodo en curso.",
+      "Puedes cancelar o cambiar de plan en cualquier momento desde el portal de suscripción. Si solicitas la baja, el plan continuará activo hasta el final del periodo en curso.",
       "Para compras realizadas a través de Stripe, aplicamos un periodo de reembolso de 7 días en caso de insatisfacción, siempre que no se haya utilizado de forma abusiva el servicio.",
     ],
   },

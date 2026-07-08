@@ -6,10 +6,10 @@ import { BillingPanel } from "@/components/billing/BillingPanel";
 import { getAcademySportConfigOptions } from "@/lib/sport-config/service";
 
 /**
- * AcademyBillingPage - Vista principal de facturación y planes
+ * AcademyBillingPage - Vista principal de planes y cobros
  * 
  * Permite gestionar la suscripción actual, ver límites de atletas/clases, y acceder
- * al portal de Stripe para actualizar planes o ver facturas.
+ * al portal de Stripe para actualizar planes o ver recibos de suscripción.
  */
 interface PageProps {
   params: Promise<{
@@ -36,11 +36,11 @@ export default async function AcademyBillingPage({ params }: PageProps) {
     <div className="space-y-6 py-6 lg:py-8">
       <header className="zaltyko-motion-lines rounded-2xl border border-zaltyko-mist/70 bg-white px-5 py-5 shadow-soft lg:px-6">
         <p className="text-xs font-medium uppercase tracking-[0.16em] text-zaltyko-teal">
-          Ingresos y planes
+          Planes y cobros
         </p>
-        <h1 className="mt-2 font-display text-3xl font-semibold text-zaltyko-navy">Facturación</h1>
+        <h1 className="mt-2 font-display text-3xl font-semibold text-zaltyko-navy">Planes y cobros</h1>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-zaltyko-text-secondary">
-          Gestiona tus suscripciones, facturas y acceso al portal de Stripe.
+          Gestiona tu plan SaaS, los recibos de suscripción y el control interno de cuotas de la academia.
         </p>
       </header>
 

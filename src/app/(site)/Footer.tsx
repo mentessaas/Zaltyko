@@ -5,24 +5,24 @@ const footerLinks = {
   producto: [
     { label: "Producto", href: "/features" },
     { label: "Precios", href: "/pricing" },
-    { label: "Integraciones", href: "/integrations" },
+    { label: "Integraciones", href: "/integraciones" },
     { label: "Documentación", href: "/docs" },
   ],
   recursos: [
     { label: "Directorio de Academias", href: "/academias" },
     { label: "Eventos", href: "/events" },
-    { label: "Centro de Ayuda", href: "/help" },
+    { label: "Centro de Ayuda", href: "/ayuda" },
     { label: "Solicitar demo", href: "/contact?type=demo" },
   ],
   empresa: [
-    { label: "Sobre nosotros", href: "/about" },
+    { label: "Sobre nosotros", href: "/sobre-nosotros" },
     { label: "Contacto", href: "/contact" },
-    { label: "Trabaja con nosotros", href: "mailto:hola@zaltyko.com" },
+    { label: "Trabaja con nosotros", href: "/empleo" },
   ],
   legal: [
-    { label: "Términos del servicio", href: "/tos" },
-    { label: "Política de privacidad", href: "/privacy-policy" },
-    { label: "Cookies", href: "/privacy-policy#cookies" },
+    { label: "Términos del servicio", href: "/terminos" },
+    { label: "Política de privacidad", href: "/politica-privacidad" },
+    { label: "Cookies", href: "/politica-privacidad#cookies" },
   ],
 };
 
@@ -74,20 +74,18 @@ export default function Footer() {
 
             <div className="mt-6 flex gap-3">
               {[
-                { label: "Twitter", href: "https://twitter.com/zaltyko", initial: "T" },
-                { label: "LinkedIn", href: "https://linkedin.com/company/zaltyko", initial: "L" },
-                { label: "Instagram", href: "https://instagram.com/zaltyko", initial: "I" },
+                { label: "Twitter", initial: "T" },
+                { label: "LinkedIn", initial: "L" },
+                { label: "Instagram", initial: "I" },
               ].map((social) => (
-                <a
+                <span
                   key={social.label}
-                  href={social.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 transition-all duration-300 hover:scale-110 hover:bg-gradient-to-br hover:from-zaltyko-primary hover:to-zaltyko-primary-dark hover:shadow-lg hover:shadow-zaltyko-primary/30"
                   aria-label={social.label}
+                  title="Próximamente"
+                  className="flex h-10 w-10 cursor-not-allowed items-center justify-center rounded-xl bg-white/5 text-white/40"
                 >
                   <span className="text-xs font-bold uppercase">{social.initial}</span>
-                </a>
+                </span>
               ))}
             </div>
           </div>

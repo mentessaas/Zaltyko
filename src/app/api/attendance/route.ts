@@ -8,6 +8,7 @@ import { handleApiError } from "@/lib/api-error-handler";
 import { withTransaction } from "@/lib/db-transactions";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { getClassAthletes } from "@/lib/classes/get-class-athletes";
+import { verifyAttendanceWriteAccess } from "@/lib/attendance/service";
 
 const entrySchema = z.object({
   athleteId: z.string().uuid(),
@@ -43,6 +44,21 @@ export const POST = withTenant(async (request, context) => {
 
     if (!sessionRow) {
       return apiError("SESSION_NOT_FOUND", "Sesión no encontrada", 404);
+    }
+
+    const classScope = await verifyAttendanceWriteAccess({
+      tenantId: context.tenantId,
+      academyId: sessionRow.academyId,
+      classId: sessionRow.classId,
+      profile: context.profile,
+    });
+
+    if (!classScope.allowed) {
+      return apiError(
+        classScope.reason ?? "CLASS_ACCESS_DENIED",
+        "No tienes permiso para registrar asistencia en esta clase",
+        403
+      );
     }
 
     const classAthletes = await getClassAthletes(sessionRow.classId, sessionRow.academyId);

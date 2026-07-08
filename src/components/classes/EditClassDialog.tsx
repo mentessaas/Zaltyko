@@ -1,52 +1,29 @@
 "use client";
 
-import { FormEvent, memo, useEffect, useMemo, useState, useTransition } from "react";
+import { type FormEvent, memo, useEffect, useMemo, useState, useTransition } from "react";
 
 import { Modal } from "@/components/ui/modal";
-import { createClient } from "@/lib/supabase/client";
 import { useAcademyContext } from "@/hooks/use-academy-context";
 import type { SportConfigOption } from "@/components/groups/types";
 import { getTerminology } from "@/lib/sport-config/terminology";
-import { WEEKDAY_OPTIONS } from "@/lib/classes/constants";
-
-const fieldClassName =
-  "w-full rounded-[10px] border border-zaltyko-mist bg-white px-3 py-2 text-sm shadow-none focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15";
-const labelClassName = "text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy";
-const selectedChipClassName = "border-zaltyko-teal bg-zaltyko-teal/10 text-zaltyko-teal";
-const unselectedChipClassName =
-  "border-zaltyko-mist bg-white text-zaltyko-text-secondary hover:border-zaltyko-teal hover:text-zaltyko-teal";
-
-interface CoachOption {
-  id: string;
-  name: string;
-  email: string | null;
-  sportConfigIds?: string[];
-}
-
-interface GroupOption {
-  id: string;
-  name: string;
-  color: string | null;
-  sportConfigId?: string | null;
-}
-
-interface ClassItem {
-  id: string;
-  name: string;
-  weekdays: number[];
-  startTime: string | null;
-  endTime: string | null;
-  capacity: number | null;
-  technicalFocus?: string | null;
-  apparatus?: string[];
-  sportConfigId?: string | null;
-  allowsFreeTrial: boolean;
-  waitingListEnabled: boolean;
-  cancellationHoursBefore: number | null;
-  cancellationPolicy: string;
-  coaches: CoachOption[];
-  groups?: GroupOption[];
-}
+import {
+  ClassAdvancedOptionsSection,
+  ClassAssignmentsSection,
+  ClassNameSection,
+  ClassScheduleSection,
+  ClassSportSection,
+  ClassTechnicalFocusSection,
+  EditClassError,
+  EditClassFooter,
+} from "@/components/classes/EditClassDialogSections";
+import {
+  buildEditClassPayload,
+  hasEditClassChanges,
+  type ClassItem,
+  type CoachOption,
+  type EditClassFormState,
+  type GroupOption,
+} from "@/components/classes/edit-class-dialog-model";
 
 interface EditClassDialogProps {
   classItem: ClassItem;
@@ -119,20 +96,28 @@ export const EditClassDialog = memo(function EditClassDialog({
     setError(null);
   }, [classItem, open]);
 
-  const toggleApparatus = (value: string) => {
-    setSelectedApparatus((prev) =>
-      prev.includes(value) ? prev.filter((item) => item !== value) : [...prev, value]
-    );
-  };
-
-  const selectedGroupObjects = availableGroups.filter((group) => selectedGroups.includes(group.id));
-  const groupSportConfigIds = Array.from(
-    new Set(selectedGroupObjects.map((group) => group.sportConfigId).filter((value): value is string => Boolean(value)))
+  const selectedGroupObjects = useMemo(
+    () => availableGroups.filter((group) => selectedGroups.includes(group.id)),
+    [availableGroups, selectedGroups]
+  );
+  const groupSportConfigIds = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          selectedGroupObjects
+            .map((group) => group.sportConfigId)
+            .filter((value): value is string => Boolean(value))
+        )
+      ),
+    [selectedGroupObjects]
   );
   const effectiveSportConfigId =
     groupSportConfigIds.length === 1 ? groupSportConfigIds[0] : sportConfigId;
-  const selectedSportConfig = sportConfigs.find((config) => config.id === effectiveSportConfigId) ?? null;
-  const terms = getTerminology(selectedSportConfig);
+  const selectedSportConfig = useMemo(
+    () => sportConfigs.find((config) => config.id === effectiveSportConfigId) ?? null,
+    [effectiveSportConfigId, sportConfigs]
+  );
+  const terms = useMemo(() => getTerminology(selectedSportConfig), [selectedSportConfig]);
   const classTerm = specialization.labels.classLabel;
   const classTermLower = classTerm.toLowerCase();
   const groupTermLower = terms.group.toLowerCase();
@@ -154,6 +139,41 @@ export const EditClassDialog = memo(function EditClassDialog({
         : availableCoaches,
     [availableCoaches, effectiveSportConfigId]
   );
+  const formState: EditClassFormState = {
+    name,
+    selectedWeekdays,
+    startTime,
+    endTime,
+    capacity,
+    technicalFocus,
+    selectedApparatus,
+    selectedCoaches,
+    selectedGroups,
+    allowsFreeTrial,
+    waitingListEnabled,
+    cancellationHoursBefore,
+    cancellationPolicy,
+  };
+  const hasChanges = useMemo(
+    () => hasEditClassChanges(classItem, formState, effectiveSportConfigId || null),
+    [
+      classItem,
+      name,
+      selectedWeekdays,
+      startTime,
+      endTime,
+      capacity,
+      technicalFocus,
+      selectedApparatus,
+      selectedCoaches,
+      selectedGroups,
+      allowsFreeTrial,
+      waitingListEnabled,
+      cancellationHoursBefore,
+      cancellationPolicy,
+      effectiveSportConfigId,
+    ]
+  );
 
   useEffect(() => {
     if (!selectedSportConfig) return;
@@ -167,72 +187,7 @@ export const EditClassDialog = memo(function EditClassDialog({
         return !coach?.sportConfigIds?.length || coach.sportConfigIds.includes(selectedSportConfig.id);
       })
     );
-  }, [selectedSportConfig]);
-
-  const hasChanges = useMemo(() => {
-    const originalCoachIds = classItem.coaches.map((coach) => coach.id).sort();
-    const newCoachIds = [...selectedCoaches].sort();
-
-    const sameCoaches =
-      originalCoachIds.length === newCoachIds.length &&
-      originalCoachIds.every((value, index) => value === newCoachIds[index]);
-
-    // Comparar weekdays: convertir ambos a números y ordenar para comparación
-    const originalWeekdays = [...classItem.weekdays].sort((a, b) => a - b);
-    const newWeekdays = selectedWeekdays
-      .map(Number)
-      .filter((day) => !isNaN(day) && day >= 0 && day <= 6)
-      .sort((a, b) => a - b);
-    
-    const sameWeekdays =
-      originalWeekdays.length === newWeekdays.length &&
-      originalWeekdays.every((value, index) => value === newWeekdays[index]);
-
-    // Comparar nombre
-    const nameChanged = name.trim() !== classItem.name.trim();
-    
-    // Comparar weekdays
-    const weekdaysChanged = !sameWeekdays;
-    
-    // Comparar tiempos: normalizar valores vacíos a null
-    const originalStartTime = classItem.startTime ?? "";
-    const originalEndTime = classItem.endTime ?? "";
-    const startTimeChanged = startTime !== originalStartTime;
-    const endTimeChanged = endTime !== originalEndTime;
-    
-    // Comparar capacidad: manejar null y valores vacíos
-    const originalCapacity = classItem.capacity !== null && classItem.capacity !== undefined 
-      ? String(classItem.capacity) 
-      : "";
-    const capacityChanged = capacity !== originalCapacity;
-    
-    const coachesChanged = !sameCoaches;
-    
-    // Comparar grupos
-    const originalGroupIds = (classItem.groups?.map((group) => group.id) ?? []).sort();
-    const newGroupIds = [...selectedGroups].sort();
-    const sameGroups =
-      originalGroupIds.length === newGroupIds.length &&
-      originalGroupIds.every((value, index) => value === newGroupIds[index]);
-    const groupsChanged = !sameGroups;
-
-    const sportConfigChanged = (effectiveSportConfigId || null) !== (classItem.sportConfigId ?? null);
-    const apparatusChanged = selectedApparatus.join(",") !== (classItem.apparatus ?? []).join(",");
-    const technicalFocusChanged = technicalFocus !== (classItem.technicalFocus ?? "");
-    const hasAnyChanges =
-      nameChanged ||
-      weekdaysChanged ||
-      startTimeChanged ||
-      endTimeChanged ||
-      capacityChanged ||
-      coachesChanged ||
-      groupsChanged ||
-      sportConfigChanged ||
-      apparatusChanged ||
-      technicalFocusChanged;
-
-    return hasAnyChanges;
-  }, [name, selectedWeekdays, startTime, endTime, capacity, selectedCoaches, selectedGroups, effectiveSportConfigId, selectedApparatus, technicalFocus, classItem]);
+  }, [availableCoaches, selectedSportConfig]);
 
   const handleClose = () => {
     if (isPending) return;
@@ -243,59 +198,27 @@ export const EditClassDialog = memo(function EditClassDialog({
     event.preventDefault();
     setError(null);
 
-    // Verificar cambios antes de enviar
     startTransition(async () => {
       try {
-        const supabase = createClient();
-        const {
-          data: { user: currentUser },
-        } = await supabase.auth.getUser();
-
-        // Normalizar weekdays: convertir a números y ordenar
-        const normalizedWeekdays = selectedWeekdays
-          .map((day) => Number(day))
-          .filter((day) => !isNaN(day) && day >= 0 && day <= 6)
-          .sort((a, b) => a - b);
-
-        const payload: Record<string, unknown> = {
-          name: name.trim(),
-          weekdays: normalizedWeekdays,
-          startTime: startTime || null,
-          endTime: endTime || null,
-          capacity: capacity ? Number(capacity) : null,
-          technicalFocus: technicalFocus.trim() || null,
-          apparatus: selectedApparatus,
-          sportConfigId: effectiveSportConfigId || null,
-          coachIds: selectedCoaches,
-          groupIds: selectedGroups,
-          allowsFreeTrial,
-          waitingListEnabled,
-          cancellationHoursBefore: cancellationHoursBefore ? Number(cancellationHoursBefore) : 24,
-          cancellationPolicy,
-        };
-
         const response = await fetch(`/api/classes/${classItem.id}`, {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
             "x-academy-id": academyId,
           },
-          body: JSON.stringify(payload),
+          body: JSON.stringify(buildEditClassPayload(formState, effectiveSportConfigId || null)),
         });
 
         if (!response.ok) {
           const data = await response.json().catch(() => ({}));
           console.error("EditClassDialog: Error en la respuesta", data);
-          
-          // Manejar conflictos de horario de forma especial
+
           if (data.error === "SCHEDULE_CONFLICT" && data.message) {
             throw new Error(data.message);
           }
-          
-          // Construir mensaje de error más detallado
+
           let errorMessage = data.error || data.message || `Error ${response.status}: ${response.statusText}`;
-          
-          // En desarrollo, incluir más detalles
+
           if (process.env.NODE_ENV === "development") {
             const details: string[] = [];
             if (data.message && data.message !== errorMessage) {
@@ -314,19 +237,16 @@ export const EditClassDialog = memo(function EditClassDialog({
               errorMessage = `${errorMessage}\n\n${details.join("\n")}`;
             }
           }
-          
+
           throw new Error(errorMessage);
         }
 
-        const result = await response.json().catch(() => ({ ok: true }));
-
-        // Llamar a onUpdated antes de cerrar para refrescar los datos
+        await response.json().catch(() => ({ ok: true }));
         onUpdated();
         onClose();
       } catch (err: unknown) {
         console.error("EditClassDialog: Error al guardar", err);
-        const errorMessage = err instanceof Error ? err.message : "Error al guardar cambios. Por favor, intenta de nuevo.";
-        setError(errorMessage);
+        setError(err instanceof Error ? err.message : "Error al guardar cambios. Por favor, intenta de nuevo.");
       }
     });
   };
@@ -337,19 +257,12 @@ export const EditClassDialog = memo(function EditClassDialog({
       ? window.confirm(`¿Seguro que quieres eliminar esta ${classTermLower}? Esta acción no se puede deshacer.`)
       : true;
 
-    if (!confirmed) {
-      return;
-    }
+    if (!confirmed) return;
 
     setError(null);
     setIsDeleting(true);
 
     try {
-      const supabase = createClient();
-      const {
-        data: { user: currentUser },
-      } = await supabase.auth.getUser();
-
       const response = await fetch(`/api/classes/${classItem.id}`, {
         method: "DELETE",
         headers: {
@@ -374,12 +287,18 @@ export const EditClassDialog = memo(function EditClassDialog({
         onUpdated();
       }
       onClose();
-    } catch (error: unknown) {
-      console.error("EditClassDialog: Error al eliminar la clase", error);
-      setError(error instanceof Error ? error.message : `No se pudo eliminar la ${classTermLower}. Intenta nuevamente.`);
+    } catch (deleteError: unknown) {
+      console.error("EditClassDialog: Error al eliminar la clase", deleteError);
+      setError(deleteError instanceof Error ? deleteError.message : `No se pudo eliminar la ${classTermLower}. Intenta nuevamente.`);
     } finally {
       setIsDeleting(false);
     }
+  };
+
+  const toggleApparatus = (value: string) => {
+    setSelectedApparatus((prev) =>
+      prev.includes(value) ? prev.filter((item) => item !== value) : [...prev, value]
+    );
   };
 
   const toggleCoach = (coachId: string) => {
@@ -413,6 +332,18 @@ export const EditClassDialog = memo(function EditClassDialog({
     }
   };
 
+  const handleSportConfigChange = (nextSportConfigId: string, groups: GroupOption[]) => {
+    setSportConfigId(nextSportConfigId);
+    setSelectedApparatus([]);
+    setSelectedGroups((current) => {
+      if (!nextSportConfigId) return current;
+      return current.filter((groupId) => {
+        const group = groups.find((item) => item.id === groupId);
+        return !group?.sportConfigId || group.sportConfigId === nextSportConfigId;
+      });
+    });
+  };
+
   return (
     <Modal
       open={open}
@@ -420,347 +351,75 @@ export const EditClassDialog = memo(function EditClassDialog({
       title={`Editar ${classTermLower}`}
       description={`Actualiza horario, capacidad, ${coachTermPluralLower}, ${terms.group.toLowerCase()}s y ${terms.apparatus.toLowerCase()}s.`}
       footer={
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <button
-            type="button"
-            onClick={handleDelete}
-            className="inline-flex min-h-11 items-center justify-center rounded-xl border border-zaltyko-coral/35 px-4 py-2 text-sm font-semibold text-zaltyko-coral transition hover:bg-zaltyko-coral/10 disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={isPending || isDeleting}
-          >
-            {isDeleting ? "Eliminando…" : `Eliminar ${classTermLower}`}
-          </button>
-          <div className="flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={handleClose}
-              className="min-h-11 rounded-xl border border-zaltyko-indigo px-4 py-2 text-sm font-medium text-zaltyko-indigo transition hover:bg-zaltyko-indigo/5 disabled:cursor-not-allowed disabled:opacity-60"
-              disabled={isPending}
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              form="edit-class-form"
-              className="min-h-11 rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white shadow-soft transition hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-60"
-              disabled={isPending}
-              title={!hasChanges ? "No hay cambios detectados. Haz clic para guardar de todas formas." : undefined}
-            >
-              {isPending ? "Guardando…" : "Guardar cambios"}
-            </button>
-          </div>
-        </div>
+        <EditClassFooter
+          classTermLower={classTermLower}
+          hasChanges={hasChanges}
+          isDeleting={isDeleting}
+          isPending={isPending}
+          onClose={handleClose}
+          onDelete={handleDelete}
+        />
       }
     >
       <form id="edit-class-form" onSubmit={handleSubmit} className="space-y-5">
-        {error && (
-          <div className="rounded-xl border border-zaltyko-coral/35 bg-zaltyko-coral/10 px-4 py-3 text-sm font-medium text-zaltyko-coral">
-            <p className="font-semibold">Error al guardar cambios</p>
-            <p className="mt-1">{error}</p>
-          </div>
-        )}
-
-        <div className="space-y-2">
-          <label className={labelClassName}>
-            Nombre de la {classTermLower}
-          </label>
-          <input
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            className={fieldClassName}
-            required
-          />
-        </div>
-
-        <div className="grid gap-4 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
-          <div className="space-y-2">
-            <label className={labelClassName}>
-              Días de la semana
-            </label>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              <button
-                type="button"
-                onClick={() => setSelectedWeekdays([])}
-                className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
-                  selectedWeekdays.length === 0
-                    ? selectedChipClassName
-                    : unselectedChipClassName
-                }`}
-              >
-                Sin día fijo
-              </button>
-              {WEEKDAY_OPTIONS.map((option) => {
-                const selected = selectedWeekdays.includes(option.value);
-                return (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => toggleWeekday(option.value)}
-                    className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
-                      selected
-                        ? selectedChipClassName
-                        : unselectedChipClassName
-                    }`}
-                  >
-                    {option.label}
-                  </button>
-                );
-              })}
-            </div>
-            <p className="text-xs text-zaltyko-text-secondary">
-              Selecciona uno o varios días. Déjalo vacío para {classTermLower}s flexibles.
-            </p>
-          </div>
-          <div className="space-y-2">
-            <label className={labelClassName}>
-              Capacidad (número de plazas)
-            </label>
-            <input
-              type="number"
-              min={1}
-              value={capacity}
-              onChange={(event) => setCapacity(event.target.value)}
-              className={fieldClassName}
-            />
-          </div>
-        </div>
-
-        <div className="grid gap-4 md:grid-cols-2">
-          <div className="space-y-2">
-            <label className={labelClassName}>
-              Hora de inicio
-            </label>
-            <input
-              type="time"
-              value={startTime}
-              onChange={(event) => setStartTime(event.target.value)}
-              className={fieldClassName}
-            />
-          </div>
-          <div className="space-y-2">
-            <label className={labelClassName}>
-              Hora de fin
-            </label>
-            <input
-              type="time"
-              value={endTime}
-              onChange={(event) => setEndTime(event.target.value)}
-              className={fieldClassName}
-            />
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <label className={labelClassName}>
-            Foco técnico del bloque
-          </label>
-          <textarea
-            value={technicalFocus}
-            onChange={(event) => setTechnicalFocus(event.target.value)}
-            className={`${fieldClassName} min-h-24`}
-            placeholder="Describe el objetivo técnico principal de este entrenamiento."
-          />
-        </div>
-
-        <div className="space-y-2">
-          <label className={labelClassName}>
-            {terms.apparatus}s / material principal
-          </label>
-          {sportConfigs.length > 0 && (
-            <div className="mb-3 max-w-md">
-              <select
-                value={effectiveSportConfigId}
-                onChange={(event) => {
-                  const nextSportConfigId = event.target.value;
-                  setSportConfigId(nextSportConfigId);
-                  setSelectedApparatus([]);
-                  setSelectedGroups((current) => {
-                    if (!nextSportConfigId) return current;
-                    return current.filter((groupId) => {
-                      const group = availableGroups.find((item) => item.id === groupId);
-                      return !group?.sportConfigId || group.sportConfigId === nextSportConfigId;
-                    });
-                  });
-                }}
-                className={fieldClassName}
-                disabled={groupSportConfigIds.length === 1}
-              >
-                <option value="">Sin modalidad/rama</option>
-                {sportConfigs.map((config) => (
-                  <option key={config.id} value={config.id}>
-                    {config.disciplineName} · {config.branchName}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-          {groupSportConfigIds.length > 1 && (
-            <p className="text-xs text-zaltyko-coral">
-              Hay {groupTermLower}s de distintas ramas. Selecciona una modalidad/rama explícita antes de guardar.
-            </p>
-          )}
-          <div className="flex flex-wrap gap-2">
-            {apparatusOptions.map((item) => {
-              const selected = selectedApparatus.includes(item.code);
-              return (
-                <button
-                  key={item.code}
-                  type="button"
-                  onClick={() => toggleApparatus(item.code)}
-                  className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
-                    selected
-                      ? selectedChipClassName
-                      : unselectedChipClassName
-                  }`}
-                >
-                  {item.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="grid gap-4 md:grid-cols-2">
-          <section className="space-y-3 rounded-2xl border border-dashed border-zaltyko-mist p-4">
-            <header>
-              <h3 className="text-sm font-semibold text-zaltyko-navy">{terms.coach}s asignados</h3>
-              <p className="text-xs text-zaltyko-text-secondary">
-                Selecciona quiénes tienen acceso directo a esta {classTermLower}.
-              </p>
-            </header>
-
-            <div className="grid gap-2">
-              {compatibleCoaches.length === 0 ? (
-                <p className="text-sm text-zaltyko-text-secondary">
-                  No hay {coachTermPluralLower} disponibles para esta rama.
-                </p>
-              ) : (
-                compatibleCoaches.map((coach) => {
-                  const checked = selectedCoaches.includes(coach.id);
-                  return (
-                    <label
-                      key={coach.id}
-                      className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-sm transition ${
-                        checked ? "border-zaltyko-teal/60 bg-zaltyko-teal/10" : "border-zaltyko-mist bg-white"
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() => toggleCoach(coach.id)}
-                        className="rounded border-zaltyko-mist text-zaltyko-teal focus:ring-zaltyko-teal"
-                      />
-                      <div>
-                        <p className="font-medium text-zaltyko-navy">{coach.name}</p>
-                        <p className="text-xs text-zaltyko-text-secondary">
-                          {coach.email ?? "Sin correo"}
-                        </p>
-                      </div>
-                    </label>
-                  );
-                })
-              )}
-            </div>
-          </section>
-
-          <section className="space-y-3 rounded-2xl border border-dashed border-zaltyko-mist p-4">
-            <header>
-              <h3 className="text-sm font-semibold text-zaltyko-navy">{terms.groups} asignados</h3>
-              <p className="text-xs text-zaltyko-text-secondary">
-                Selecciona los {groupTermLower}s que participan en esta {classTermLower}.
-              </p>
-            </header>
-
-            <div className="grid gap-2">
-              {availableGroups.length === 0 ? (
-                <p className="text-sm text-zaltyko-text-secondary">
-                  No hay {groupTermLower}s registrados en la academia.
-                </p>
-              ) : (
-                compatibleGroups.map((group) => {
-                  const checked = selectedGroups.includes(group.id);
-                  return (
-                    <label
-                      key={group.id}
-                      className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-sm transition ${
-                        checked ? "border-zaltyko-teal/60 bg-zaltyko-teal/10" : "border-zaltyko-mist bg-white"
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() => toggleGroup(group.id)}
-                        className="rounded border-zaltyko-mist text-zaltyko-teal focus:ring-zaltyko-teal"
-                      />
-                      <div className="flex items-center gap-2">
-                        {group.color && (
-                          <span
-                            className="h-3 w-3 rounded-full"
-                            style={{ backgroundColor: group.color }}
-                          />
-                        )}
-                        <p className="font-medium text-zaltyko-navy">{group.name}</p>
-                      </div>
-                    </label>
-                  );
-                })
-              )}
-            </div>
-          </section>
-        </div>
-
-        {/* Opciones avanzadas */}
-        <div className="space-y-4 rounded-2xl border border-zaltyko-mist bg-zaltyko-warm-white p-4">
-          <h3 className="text-sm font-semibold text-zaltyko-navy">Opciones avanzadas</h3>
-
-          <div className="flex flex-wrap gap-4">
-            <label className="flex items-center gap-2 text-sm text-zaltyko-navy">
-              <input
-                type="checkbox"
-                checked={allowsFreeTrial}
-                onChange={(event) => setAllowsFreeTrial(event.target.checked)}
-                className="rounded border-zaltyko-mist text-zaltyko-teal focus:ring-zaltyko-teal"
-              />
-              Permite {classTermLower} de prueba gratuita
-            </label>
-
-            <label className="flex items-center gap-2 text-sm text-zaltyko-navy">
-              <input
-                type="checkbox"
-                checked={waitingListEnabled}
-                onChange={(event) => setWaitingListEnabled(event.target.checked)}
-                className="rounded border-zaltyko-mist text-zaltyko-teal focus:ring-zaltyko-teal"
-              />
-              Habilitar lista de espera cuando esté llena
-            </label>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-1">
-              <label className={labelClassName}>Política de cancelación</label>
-              <select
-                value={cancellationPolicy}
-                onChange={(event) => setCancellationPolicy(event.target.value)}
-                className={fieldClassName}
-              >
-                <option value="flexible">Flexible (cancelar hasta 2h antes)</option>
-                <option value="standard">Estándar (cancelar hasta 24h antes)</option>
-                <option value="strict">Estricta (cancelar hasta 48h antes)</option>
-              </select>
-            </div>
-            <div className="space-y-1">
-              <label className={labelClassName}>Horas mínimas para cancelar</label>
-              <input
-                type="number"
-                min={0}
-                max={168}
-                value={cancellationHoursBefore}
-                onChange={(event) => setCancellationHoursBefore(Number(event.target.value))}
-                className={fieldClassName}
-              />
-              <p className="text-xs text-zaltyko-text-secondary">Horas antes de la {classTermLower}</p>
-            </div>
-          </div>
-        </div>
+        <EditClassError error={error} />
+        <ClassNameSection
+          classTermLower={classTermLower}
+          name={name}
+          onNameChange={setName}
+        />
+        <ClassScheduleSection
+          capacity={capacity}
+          classTermLower={classTermLower}
+          endTime={endTime}
+          selectedWeekdays={selectedWeekdays}
+          startTime={startTime}
+          onCapacityChange={setCapacity}
+          onClearWeekdays={() => setSelectedWeekdays([])}
+          onEndTimeChange={setEndTime}
+          onStartTimeChange={setStartTime}
+          onToggleWeekday={toggleWeekday}
+        />
+        <ClassTechnicalFocusSection
+          technicalFocus={technicalFocus}
+          onTechnicalFocusChange={setTechnicalFocus}
+        />
+        <ClassSportSection
+          apparatusLabel={terms.apparatus}
+          apparatusOptions={apparatusOptions}
+          availableGroups={availableGroups}
+          effectiveSportConfigId={effectiveSportConfigId}
+          groupSportConfigIds={groupSportConfigIds}
+          groupTermLower={groupTermLower}
+          selectedApparatus={selectedApparatus}
+          sportConfigs={sportConfigs}
+          onApparatusToggle={toggleApparatus}
+          onSportConfigChange={handleSportConfigChange}
+        />
+        <ClassAssignmentsSection
+          classTermLower={classTermLower}
+          coachTermPluralLower={coachTermPluralLower}
+          compatibleCoaches={compatibleCoaches}
+          compatibleGroups={compatibleGroups}
+          groupTermLower={groupTermLower}
+          hasGroups={availableGroups.length > 0}
+          selectedCoaches={selectedCoaches}
+          selectedGroups={selectedGroups}
+          terms={terms}
+          onToggleCoach={toggleCoach}
+          onToggleGroup={toggleGroup}
+        />
+        <ClassAdvancedOptionsSection
+          allowsFreeTrial={allowsFreeTrial}
+          cancellationHoursBefore={cancellationHoursBefore}
+          cancellationPolicy={cancellationPolicy}
+          classTermLower={classTermLower}
+          waitingListEnabled={waitingListEnabled}
+          onAllowsFreeTrialChange={setAllowsFreeTrial}
+          onCancellationHoursBeforeChange={setCancellationHoursBefore}
+          onCancellationPolicyChange={setCancellationPolicy}
+          onWaitingListEnabledChange={setWaitingListEnabled}
+        />
       </form>
     </Modal>
   );

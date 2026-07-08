@@ -43,7 +43,7 @@ export const POST = withTenant(async (request, context) => {
 
   const isAdmin = context.profile.role === "admin" || context.profile.role === "super_admin";
   if (!isAdmin && academy.tenantId !== context.tenantId) {
-    return apiError("FORBIDDEN", "No tienes acceso a los datos de facturación de esta academia", 403);
+    return apiError("FORBIDDEN", "No tienes acceso a los datos de cobros de esta academia", 403);
   }
 
   const limit = body.limit ?? 20;
@@ -73,8 +73,7 @@ export const POST = withTenant(async (request, context) => {
     return apiSuccess(rows);
   } catch (error) {
     logger.error("[billing/history] Error fetching invoices:", error);
-    return apiError("INTERNAL_ERROR", "Error al obtener el historial de facturación. Intenta de nuevo más tarde.", 500);
+    return apiError("INTERNAL_ERROR", "Error al obtener el historial de recibos. Intenta de nuevo más tarde.", 500);
   }
 });
-
 

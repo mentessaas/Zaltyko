@@ -42,9 +42,9 @@ export function InvoiceList({
     <section className="space-y-3 rounded-lg border bg-card p-6 shadow-sm">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-xl font-medium">Historial de facturación</h2>
+          <h2 className="text-xl font-medium">Recibos de suscripción</h2>
           <p className="text-sm text-muted-foreground">
-            Facturas emitidas durante los últimos ciclos de facturación.
+            Recibos generados por Stripe durante los últimos ciclos de suscripción.
           </p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -65,7 +65,7 @@ export function InvoiceList({
             disabled={isSyncing || loading || disabled}
             className="inline-flex items-center justify-center rounded-md border border-primary/20 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary hover:bg-primary/20 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {isSyncing ? "Sincronizando…" : "Sincronizar facturas"}
+            {isSyncing ? "Sincronizando…" : "Sincronizar recibos"}
           </button>
           {loading && <p className="text-sm text-muted-foreground">Cargando…</p>}
         </div>
@@ -74,8 +74,8 @@ export function InvoiceList({
       {filteredInvoices.length === 0 && !loading ? (
         <p className="text-sm text-muted-foreground">
           {invoices.length === 0
-            ? "Aún no hay facturas registradas para esta academia."
-            : "No hay facturas que coincidan con el filtro seleccionado."}
+            ? "Aún no hay recibos registrados para esta academia."
+            : "No hay recibos que coincidan con el filtro seleccionado."}
         </p>
       ) : (
         <div className="overflow-hidden rounded-lg border">
@@ -128,7 +128,7 @@ export function InvoiceList({
                           rel="noreferrer"
                           className="text-sm font-medium text-primary hover:underline"
                         >
-                          Ver factura
+                          Ver recibo
                         </a>
                       ) : (
                         <span className="text-muted-foreground">—</span>
@@ -144,4 +144,3 @@ export function InvoiceList({
     </section>
   );
 }
-

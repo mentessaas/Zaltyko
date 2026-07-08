@@ -16,7 +16,7 @@ const routeLabels: Record<string, string> = {
   groups: "Grupos",
   classes: "Clases",
   events: "Eventos",
-  billing: "Facturación",
+  billing: "Cobros",
   calendar: "Calendario",
   sessions: "Sesiones",
   users: "Usuarios",

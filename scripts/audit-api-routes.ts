@@ -1,8 +1,11 @@
-import { readdirSync, readFileSync, statSync } from "fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "fs";
 import { join, relative } from "path";
 
 const API_DIR = join(process.cwd(), "src/app/api");
-const PROXY_SOURCE = readFileSync(join(process.cwd(), "proxy.ts"), "utf8");
+const MIDDLEWARE_PATH = join(process.cwd(), "middleware.ts");
+const MIDDLEWARE_SOURCE = existsSync(MIDDLEWARE_PATH)
+  ? readFileSync(MIDDLEWARE_PATH, "utf8")
+  : "";
 const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 const METHOD_RE = /export\s+(?:async\s+function\s+|const\s+)(GET|POST|PUT|PATCH|DELETE)\b/g;
 
@@ -43,7 +46,13 @@ function classify(route: string, source: string): RouteAudit["auth"] {
   if (route.includes("/api/dev/")) return "dev";
   if (source.includes("withSuperAdmin(")) return "super-admin";
   if (source.includes("withTenant(")) return "tenant";
-  if (source.includes("auth.getUser(") || source.includes("getUser(token)") || source.includes("Authorization")) {
+  if (
+    source.includes("auth.getUser(") ||
+    source.includes("getUser(token)") ||
+    source.includes("Authorization") ||
+    source.includes("getBearerToken(") ||
+    source.includes("createBearerSupabaseClient(")
+  ) {
     return "bearer";
   }
   if (route.includes("/public/") || route.endsWith("/contact/route.ts") || route.endsWith("/plans/route.ts")) {
@@ -59,7 +68,9 @@ function auditRoute(filePath: string): RouteAudit {
   const mutates = methods.some((method) => MUTATING_METHODS.has(method));
   const globallyRateLimited =
     mutates &&
-    PROXY_SOURCE.includes("applyApiMutationRateLimit") &&
+    MIDDLEWARE_SOURCE.includes("isApiPath(pathname)") &&
+    MIDDLEWARE_SOURCE.includes("isMutation(req.method)") &&
+    MIDDLEWARE_SOURCE.includes("rateLimitResponse(req") &&
     !route.includes("/webhook/") &&
     !route.includes("/cron/") &&
     !route.includes("/api/dev/");

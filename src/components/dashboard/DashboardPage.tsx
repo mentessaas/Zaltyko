@@ -15,58 +15,34 @@
  * 9. Banner discreto de roadmap
  */
 
-import Link from "next/link";
 import { useMemo, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   UserCheck,
   Users,
-  Settings,
   Calendar,
-  ArrowRight,
-  ChevronDown,
-  ChevronUp,
-  Circle,
   CreditCard,
   Mail,
-  Store,
-  MessageCircle,
-  LifeBuoy,
-  Wallet,
-  ClipboardList,
-  Bell,
-  FileText,
 } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { DashboardCard } from "@/components/dashboard/DashboardCard";
 import { KPISection } from "@/components/dashboard/KPISection";
 import { FinancialSection } from "@/components/dashboard/FinancialSection";
-import { PlanUsage } from "@/components/dashboard/PlanUsage";
-import { RecentActivity } from "@/components/dashboard/RecentActivity";
 import { UpcomingClasses } from "@/components/dashboard/UpcomingClasses";
 import { TodayClassesWidget } from "@/components/dashboard/TodayClassesWidget";
 import { QuickActionsWidget } from "@/components/dashboard/QuickActionsWidget";
-import { GroupsOverview } from "@/components/dashboard/GroupsOverview";
 import { AlertsWidget } from "@/components/dashboard/AlertsWidget";
 import { UpcomingEventsWidget } from "@/components/dashboard/UpcomingEventsWidget";
-import { QuickReportsWidget } from "@/components/dashboard/QuickReportsWidget";
-import { FinancialMetricsWidget } from "@/components/dashboard/FinancialMetricsWidget";
 import { WelcomeBanner } from "@/components/onboarding/WelcomeBanner";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import { RecommendationsWidget } from "@/components/dashboard/RecommendationsWidget";
-import { AthleteRetentionWidget } from "@/components/dashboard/AthleteRetentionWidget";
-import { PopularClassesWidget } from "@/components/dashboard/PopularClassesWidget";
-import { RevenueTrendChart } from "@/components/dashboard/RevenueTrendChart";
 import { GymMetricsWidgetLoader } from "@/components/dashboard/GymMetricsWidgetLoader";
 import type { DashboardData } from "@/lib/dashboard";
 import { useAcademyContext } from "@/hooks/use-academy-context";
 import { useDashboardData } from "@/hooks/useDashboardData";
 import { ITEM_ROUTES } from "@/components/dashboard/OnboardingChecklist";
 import type { ChecklistKey } from "@/lib/onboarding-utils";
-import { isSameDayInTimezone, getTodayInCountryTimezone, formatShortDateForCountry } from "@/lib/date-utils";
+import { isSameDayInTimezone, getTodayInCountryTimezone } from "@/lib/date-utils";
 import { getSpecializedLabels } from "@/lib/specialization/registry";
 import { getStarterClassPresets, getStarterGroupPresets } from "@/lib/specialization/operational-presets";
 import { summarizeStarterClassSetup, type StarterSetupSummary } from "@/lib/classes/starter-setup";
@@ -76,7 +52,15 @@ import {
   type TechnicalSummarySourceItem,
 } from "@/lib/dashboard/technical-summary";
 import { TechnicalOverviewWidget } from "@/components/dashboard/TechnicalOverviewWidget";
-import { useTranslation } from "@/hooks/use-translation";
+import { useDashboardChecklist } from "@/components/dashboard/useDashboardChecklist";
+import {
+  DashboardHeroSection,
+  DashboardOnboardingPanel,
+  QuickNavigationSection,
+  RecentActivityPanel,
+  SportBreakdownSection,
+  StarterSetupSection,
+} from "@/components/dashboard/DashboardSections";
 
 interface DashboardPageProps {
   academyId: string;
@@ -102,34 +86,8 @@ export function DashboardPage({
   const router = useRouter();
   const { tenantAcademies, isAdmin, isOwner, specialization } = useAcademyContext();
   const { data, loading } = useDashboardData({ academyId, tenantId, initialData });
-  const { locale } = useTranslation();
-  const tDashboard = useMemo(
-    () => ({
-      title: locale === "en" ? "Dashboard" : "Panel de control",
-      welcomeBack: locale === "en" ? "Welcome back" : "Bienvenido de vuelta",
-      todayClasses: locale === "en" ? "Today's classes" : "Clases de hoy",
-      todaySessions: locale === "en" ? "Sessions today" : "Sesiones hoy",
-      upcomingEvents: locale === "en" ? "Upcoming events" : "Próximos eventos",
-      recentActivity: locale === "en" ? "Recent activity" : "Actividad reciente",
-      quickActions: locale === "en" ? "Quick actions" : "Acciones rápidas",
-      alertsTitle: locale === "en" ? "Alerts" : "Alertas",
-      recommendations: locale === "en" ? "Recommendations" : "Recomendaciones",
-      kpiAthletes: locale === "en" ? "Athletes" : "Gimnastas",
-      kpiCoaches: locale === "en" ? "Coaches" : "Entrenadores",
-      kpiGroups: locale === "en" ? "Groups" : "Grupos",
-      kpiAttendance: locale === "en" ? "Attendance" : "Asistencia",
-      seeAll: locale === "en" ? "See all" : "Ver todas",
-    }),
-    [locale]
-  );
   const labels = getSpecializedLabels(specialization);
-  const [checklistProgress, setChecklistProgress] = useState<{ completed: number; total: number } | null>(null);
-  const [checklistItems, setChecklistItems] = useState<Array<{
-    key: string;
-    label: string;
-    description: string | null;
-    status: "pending" | "completed" | "skipped";
-  }>>([]);
+  const { progress: checklistProgress, items: checklistItems } = useDashboardChecklist(academyId);
   const [isNewUser, setIsNewUser] = useState(false);
   const [showAllSteps, setShowAllSteps] = useState(false);
   const [showFinancials, setShowFinancials] = useState(false);
@@ -144,29 +102,6 @@ export function DashboardPage({
     const isNew = data.metrics.athletes < 3 && data.metrics.groups === 0 && data.metrics.coaches === 0;
     setIsNewUser(isNew);
   }, [data.metrics]);
-
-  // Obtener progreso del checklist y todos los items
-  useEffect(() => {
-    const fetchChecklist = async () => {
-      try {
-        const response = await fetch(`/api/onboarding/checklist?academyId=${academyId}`, {
-          cache: "no-store",
-        });
-        if (response.ok) {
-          const json = await response.json();
-          if (json.summary) {
-            setChecklistProgress(json.summary);
-          }
-          if (json.items) {
-            setChecklistItems(json.items);
-          }
-        }
-      } catch (error) {
-        console.error("Error fetching checklist:", error);
-      }
-    };
-    fetchChecklist();
-  }, [academyId]);
 
   // Determinar si debe mostrar CTA de configuración o de clases de hoy
   const shouldShowSetupCTA = useMemo(() => {
@@ -232,46 +167,6 @@ export function DashboardPage({
     return "Comienza configurando tu academia para ver tus métricas aquí.";
   }, [data.metrics.classesThisWeek, data.metrics.assessments, data.upcomingClasses]);
 
-  // KPIs principales (solo 4: Atletas, Entrenadores, Grupos, % Asistencia)
-  const metricCards = useMemo(
-    () => [
-      {
-        title: labels.athletesPlural,
-        value: data.metrics.athletes,
-        subtitle: `${labels.athletesPlural} activas`,
-        href: `/app/${academyId}/athletes`,
-        icon: Users,
-        accent: "zaltyko-primary" as const,
-      },
-      {
-        title: tDashboard.kpiCoaches,
-        value: data.metrics.coaches,
-        subtitle: "Profesionales en tu equipo",
-        href: `/app/${academyId}/coaches`,
-        icon: UserCheck,
-        accent: "slate" as const,
-      },
-      {
-        title: tDashboard.kpiGroups,
-        value: data.metrics.groups,
-        subtitle: `${labels.groupLabel}s activos`,
-        href: `/app/${academyId}/groups`,
-        icon: LayoutDashboard,
-        accent: "sky" as const,
-      },
-      {
-        title: tDashboard.kpiAttendance,
-        value: `${data.metrics.attendancePercent}%`,
-        subtitle: "Últimos 7 días",
-        href: `/app/${academyId}/attendance`,
-        icon: UserCheck,
-        accent: "zaltyko-primary" as const,
-      },
-    ],
-    [data.metrics, academyId]
-  );
-
-  const CTAIcon = primaryCTA.icon;
   const starterGroupPresets = useMemo(
     () => getStarterGroupPresets(specialization),
     [specialization]
@@ -561,71 +456,17 @@ export function DashboardPage({
 
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-7 py-6 lg:py-8">
-      <section className="zaltyko-motion-lines overflow-hidden rounded-2xl border border-zaltyko-mist/70 bg-white px-5 py-5 shadow-soft lg:px-6">
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-        <div className="flex-1 space-y-3">
-          <div className="space-y-1">
-            <p className="text-xs font-medium uppercase tracking-[0.16em] text-zaltyko-teal">
-              Panel operativo
-            </p>
-            <h1 className="font-display text-2xl font-semibold tracking-normal text-zaltyko-navy lg:text-3xl">
-              {academyName ?? "Academia"} · {labels.disciplineName}
-            </h1>
-            <p className="max-w-2xl text-sm leading-6 text-zaltyko-text-secondary">
-              Hola {profileName ?? "equipo"}. {welcomeMessage}
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              onClick={() => router.push(primaryCTA.href)}
-              className="gap-2"
-              size="sm"
-            >
-              <CTAIcon className="h-4 w-4" />
-              {primaryCTA.label}
-            </Button>
-            {tenantAcademies.length > 1 && (
-              <div className="relative group">
-                <button
-                  type="button"
-                  className="flex items-center gap-2 rounded-full border border-zaltyko-mist bg-white px-3 py-1.5 text-xs font-semibold text-zaltyko-text-secondary transition hover:border-zaltyko-teal hover:text-zaltyko-teal"
-                >
-                  <span className="max-w-[120px] truncate">{academyName ?? "Academia"}</span>
-                  <ChevronDown className="h-3 w-3" />
-                </button>
-                {/* Dropdown de academias */}
-                <div className="invisible absolute right-0 top-full z-50 mt-1 w-56 rounded-xl border border-zaltyko-mist bg-white p-1 opacity-0 shadow-medium transition-all group-hover:visible group-hover:opacity-100">
-                  <div className="mb-1 border-b border-zaltyko-mist px-3 py-2 text-xs font-semibold text-slate-400">
-                    Cambiar de academia
-                  </div>
-                  {tenantAcademies.map((academy) => (
-                    <button
-                      key={academy.id}
-                      type="button"
-                      onClick={() => router.push(`/app/${academy.id}/dashboard`)}
-                      className={`flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm transition-colors ${
-                        academy.id === academyId
-                          ? "bg-primary/10 text-primary font-medium"
-                          : "hover:bg-zaltyko-white"
-                      }`}
-                    >
-                      <span className="truncate">{academy.name ?? "Sin nombre"}</span>
-                      {academy.id === academyId && (
-                        <span className="h-2 w-2 rounded-full bg-zaltyko-teal" />
-                      )}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-        {/*Estado del plan - card compacta a la derecha */}
-        <div className="lg:w-72">
-          <PlanUsage plan={data.plan} academyId={academyId} />
-        </div>
-        </div>
-      </section>
+      <DashboardHeroSection
+        academyId={academyId}
+        academyName={academyName}
+        labels={labels}
+        plan={data.plan}
+        primaryCTA={primaryCTA}
+        profileName={profileName}
+        tenantAcademies={tenantAcademies}
+        welcomeMessage={welcomeMessage}
+        onNavigate={(href) => router.push(href)}
+      />
 
       <KPISection
         metrics={data.metrics}
@@ -633,87 +474,20 @@ export function DashboardPage({
         labels={labels}
       />
 
-      {visibleSportBreakdown.length > 0 && (
-        <section className="rounded-2xl border border-zaltyko-mist bg-white p-5 shadow-soft">
-          <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <p className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-teal">
-                Distribución deportiva
-              </p>
-              <h2 className="font-display text-xl font-semibold text-zaltyko-navy">
-                Actividad por rama
-              </h2>
-            </div>
-            <Button size="sm" variant="outline" onClick={() => router.push(`/app/${academyId}/settings`)}>
-              Gestionar ramas
-            </Button>
-          </div>
-          <div className="grid gap-3 md:grid-cols-3">
-            {visibleSportBreakdown.map((item) => (
-              <div key={item.sportConfigId} className="rounded-xl border border-zaltyko-mist bg-zaltyko-warm-white p-4">
-                <p className="text-sm font-semibold text-zaltyko-navy">{item.branchName}</p>
-                <p className="text-xs text-zaltyko-text-secondary">{item.disciplineName}</p>
-                <div className="mt-4 grid grid-cols-3 gap-2 text-center">
-                  <div>
-                    <p className="font-display text-xl font-semibold text-zaltyko-navy">{item.athletes}</p>
-                    <p className="text-[11px] text-zaltyko-text-secondary">{labels.athletesPlural}</p>
-                  </div>
-                  <div>
-                    <p className="font-display text-xl font-semibold text-zaltyko-navy">{item.groups}</p>
-                    <p className="text-[11px] text-zaltyko-text-secondary">{labels.groupLabel}s</p>
-                  </div>
-                  <div>
-                    <p className="font-display text-xl font-semibold text-zaltyko-navy">{item.classes}</p>
-                    <p className="text-[11px] text-zaltyko-text-secondary">{labels.classLabel}s</p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
+      <SportBreakdownSection
+        academyId={academyId}
+        items={visibleSportBreakdown}
+        labels={labels}
+        onNavigate={(href) => router.push(href)}
+      />
 
       {shouldShowStarterSetupBanner && (
-        <section className="rounded-2xl border border-zaltyko-teal/20 bg-zaltyko-teal/5 p-5 shadow-soft">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div className="space-y-1">
-              <p className="text-sm font-semibold text-foreground">
-                Tu academia ya arrancó con una base recomendada para {labels.disciplineName.toLowerCase()}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Ahora toca revisar responsables, ajustar horarios y adaptar la plantilla inicial a tu realidad diaria.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Button size="sm" variant="outline" onClick={() => router.push(`/app/${academyId}/groups`)}>
-                Revisar {labels.groupLabel.toLowerCase()}s
-              </Button>
-              <Button size="sm" onClick={() => router.push(`/app/${academyId}/classes`)}>
-                Ajustar {labels.classLabel.toLowerCase()}s
-              </Button>
-            </div>
-          </div>
-          {nextStarterRecommendation && (
-            <div className="mt-4 rounded-xl border border-zaltyko-mist bg-white/90 p-4">
-              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                <div className="space-y-1">
-                  <p className="text-xs font-medium uppercase tracking-[0.12em] text-zaltyko-teal">
-                    Siguiente ajuste recomendado
-                  </p>
-                  <p className="text-sm font-semibold text-foreground">
-                    {nextStarterRecommendation.title}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    {nextStarterRecommendation.description}
-                  </p>
-                </div>
-                <Button size="sm" variant="outline" onClick={() => router.push(nextStarterRecommendation.href)}>
-                  {nextStarterRecommendation.cta}
-                </Button>
-              </div>
-            </div>
-          )}
-        </section>
+        <StarterSetupSection
+          academyId={academyId}
+          labels={labels}
+          recommendation={nextStarterRecommendation}
+          onNavigate={(href) => router.push(href)}
+        />
       )}
 
       {(specialization.disciplineVariant === "artistic_female" ||
@@ -771,49 +545,7 @@ export function DashboardPage({
         </div>
       </section>
 
-      {/*2.6. Navegación rápida -Solo los 4 más importantes */}
-      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <a
-          href={`/app/${academyId}/events`}
-          className="flex items-center gap-3 rounded-2xl border border-zaltyko-mist bg-white p-4 shadow-soft transition hover:border-zaltyko-teal/40"
-        >
-          <Calendar className="h-5 w-5 text-zaltyko-indigo" />
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium">Eventos</p>
-            <p className="text-xs text-muted-foreground">Competencias</p>
-          </div>
-        </a>
-        <a
-          href={`/app/${academyId}/billing`}
-          className="flex items-center gap-3 rounded-2xl border border-zaltyko-mist bg-white p-4 shadow-soft transition hover:border-zaltyko-teal/40"
-        >
-          <Wallet className="h-5 w-5 text-zaltyko-teal" />
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium">Facturación</p>
-            <p className="text-xs text-muted-foreground">Pagos</p>
-          </div>
-        </a>
-        <a
-          href={`/app/${academyId}/assessments`}
-          className="flex items-center gap-3 rounded-2xl border border-zaltyko-mist bg-white p-4 shadow-soft transition hover:border-zaltyko-teal/40"
-        >
-          <ClipboardList className="h-5 w-5 text-zaltyko-indigo" />
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium">Evaluaciones</p>
-            <p className="text-xs text-muted-foreground">Técnicas</p>
-          </div>
-        </a>
-        <a
-          href={`/app/${academyId}/messages`}
-          className="flex items-center gap-3 rounded-2xl border border-zaltyko-mist bg-white p-4 shadow-soft transition hover:border-zaltyko-teal/40"
-        >
-          <MessageCircle className="h-5 w-5 text-zaltyko-teal" />
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium">Mensajes</p>
-            <p className="text-xs text-muted-foreground">Comunicación</p>
-          </div>
-        </a>
-      </section>
+      <QuickNavigationSection academyId={academyId} />
 
       {/*2.7. Métricas financieras (colapsable) - SOLO ADMIN/OWNER */}
       <FinancialSection
@@ -821,89 +553,18 @@ export function DashboardPage({
         isAdmin={isAdmin}
         isOwner={isOwner}
         showFinancials={showFinancials}
-        onToggleFinancials={() => setShowFinancials(!showFinancials)}
+        onToggleFinancials={() => setShowFinancials((value) => !value)}
       />
 
-      {/*2.7. Widget de onboarding consolidado (solo si es necesario) - COMPACTO */}
       {showOnboardingGuides && (
-        <section className="rounded-2xl border border-zaltyko-mist bg-white p-5 shadow-soft">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex-1 space-y-2">
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setShowAllSteps(!showAllSteps)}
-                  className="flex items-center justify-center rounded-md p-1 text-primary transition-colors hover:bg-primary/10"
-                  aria-label={showAllSteps ? "Ocultar pasos" : "Ver pasos pendientes"}
-                  aria-expanded={showAllSteps}
-                >
-                  {showAllSteps ? (
-                    <ChevronUp className="h-4 w-4" />
-                  ) : (
-                    <ChevronDown className="h-4 w-4" />
-                  )}
-                </button>
-                <h3 className="text-sm font-semibold text-foreground">Próximo paso</h3>
-                {checklistProgress && (
-                  <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-foreground">
-                    {checklistProgress.completed}/{checklistProgress.total}
-                  </span>
-                )}
-              </div>
-              {checklistProgress && checklistProgress.total > 0 && (
-                <div className="space-y-1">
-                  <Progress value={Math.round((checklistProgress.completed / checklistProgress.total) * 100)} className="h-1.5" />
-                  <p className="text-xs text-muted-foreground">
-                    {Math.round((checklistProgress.completed / checklistProgress.total) * 100)}% completado
-                  </p>
-                </div>
-              )}
-            </div>
-            {getNextSetupStep && (
-              <Button
-                onClick={() => router.push(getNextSetupStep.href)}
-                size="sm"
-                className="gap-2 shrink-0"
-              >
-                <getNextSetupStep.icon className="h-3.5 w-3.5" />
-                {getNextSetupStep.label}
-              </Button>
-            )}
-          </div>
-
-          {/*Lista de pasos pendientes cuando está expandido */}
-          {showAllSteps && allPendingSteps.length > 0 && (
-                <div className="mt-4 space-y-2 border-t border-zaltyko-mist pt-4">
-              <p className="text-xs font-semibold text-muted-foreground mb-2">
-                Pasos pendientes ({allPendingSteps.length}):
-              </p>
-              <ul className="space-y-1.5">
-                {allPendingSteps.map((step, index) => {
-                  const StepIcon = step.icon;
-                  return (
-                    <li key={index}>
-                      <button
-                        type="button"
-                        onClick={() => router.push(step.href)}
-                        className="flex w-full items-start gap-2 rounded-xl px-3 py-2 text-left text-sm transition hover:bg-zaltyko-white"
-                      >
-                        <Circle className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />
-                        <StepIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />
-                        <div className="flex-1 min-w-0">
-                          <span className="block text-muted-foreground font-medium">{step.label}</span>
-                          {step.description && (
-                            <span className="block text-xs text-muted-foreground/70 mt-0.5">{step.description}</span>
-                          )}
-                        </div>
-                        <ArrowRight className="h-3 w-3 text-muted-foreground shrink-0 mt-0.5" />
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          )}
-        </section>
+        <DashboardOnboardingPanel
+          nextSetupStep={getNextSetupStep}
+          pendingSteps={allPendingSteps}
+          progress={checklistProgress}
+          showAllSteps={showAllSteps}
+          onNavigate={(href) => router.push(href)}
+          onToggleSteps={() => setShowAllSteps((value) => !value)}
+        />
       )}
 
       {/*Banner de bienvenida solo para usuarios completamente nuevos */}
@@ -939,25 +600,12 @@ export function DashboardPage({
       {/*6. Acciones rápidas (FAB) */}
       <QuickActions academyId={academyId} />
 
-      {/*7. Actividad reciente (colapsable) */}
-      <section className="overflow-hidden rounded-2xl border border-zaltyko-mist bg-white shadow-soft">
-        <button
-          type="button"
-          onClick={() => setShowRecentActivity(!showRecentActivity)}
-          className="flex w-full items-center justify-between p-5 text-left transition hover:bg-zaltyko-white/80"
-        >
-          <div className="flex items-center gap-2">
-            <ClipboardList className="h-5 w-5 text-muted-foreground" />
-            <span className="font-medium">Actividad Reciente</span>
-          </div>
-          {showRecentActivity ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-        </button>
-        {showRecentActivity && (
-          <div className="p-4 pt-0">
-            <RecentActivity items={data.recentActivity} academyCountry={academyCountry} />
-          </div>
-        )}
-      </section>
+      <RecentActivityPanel
+        academyCountry={academyCountry}
+        expanded={showRecentActivity}
+        items={data.recentActivity}
+        onToggle={() => setShowRecentActivity((value) => !value)}
+      />
     </div>
   );
 }

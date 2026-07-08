@@ -10,13 +10,13 @@ const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
 export const metadata: Metadata = {
   title: "Planes y Precios para Academias de Gimnasia",
-  description: "Planes Starter, Growth y Network para academias de gimnasia artística y rítmica.",
+  description: "Planes Free, Starter, Growth y Network para academias de gimnasia artística y rítmica.",
   alternates: {
     canonical: `${baseUrl}/pricing`,
   },
   openGraph: {
     title: "Precios",
-    description: "Compara planes Starter, Growth y Network para academias de artística y rítmica.",
+    description: "Compara planes Free, Starter, Growth y Network para academias de artística y rítmica.",
     url: `${baseUrl}/pricing`,
     siteName: "Zaltyko",
     type: "website",
@@ -39,8 +39,14 @@ const pricingSchema = {
     itemListElement: [
       {
         "@type": "Offer",
-        name: "Starter",
+        name: "Free",
         price: String(PRODUCT_PLAN_BY_CODE.free.priceEurCents / 100),
+        priceCurrency: "EUR",
+      },
+      {
+        "@type": "Offer",
+        name: "Starter",
+        price: String(PRODUCT_PLAN_BY_CODE.starter.priceEurCents / 100),
         priceCurrency: "EUR",
       },
       {

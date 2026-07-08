@@ -27,13 +27,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: path === "/" ? 1 : 0.8,
   }));
 
-  // Add localized homepage routes
-  const localizedHomepages = CLUSTER_LOCALES.map((locale) => ({
-    url: `${baseUrl}/${locale}`,
-    lastModified: new Date(),
-    changeFrequency: "weekly" as const,
-    priority: 0.9,
-  }));
+  // Add localized homepage routes only if they resolve to a real page (not a 404/redirect).
+  // Currently /es and /en redirect to /, so we omit them to avoid "soft 404" in Search Console.
+  const localizedHomepages: Array<{ url: string; lastModified: Date; changeFrequency: "weekly"; priority: number }> = [];
 
   const modalityPages = CLUSTER_LOCALES.flatMap((locale) =>
     MODALITY_KEYS.flatMap((modality) => {

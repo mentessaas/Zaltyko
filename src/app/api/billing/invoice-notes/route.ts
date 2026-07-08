@@ -12,7 +12,7 @@ const BodySchema = z.object({
     message: "El ID de la academia debe ser un UUID válido",
   }),
   invoiceId: z.string().uuid({
-    message: "El ID de la factura debe ser un UUID válido",
+    message: "El ID del recibo debe ser un UUID válido",
   }),
   notes: z
     .string()
@@ -45,10 +45,10 @@ export const POST = withTenant(async (request, context) => {
 
   const isAdmin = context.profile.role === "admin" || context.profile.role === "super_admin";
   if (!isAdmin && academy.tenantId !== context.tenantId) {
-    return apiError("FORBIDDEN", "No tienes acceso a los datos de facturación de esta academia", 403);
+    return apiError("FORBIDDEN", "No tienes acceso a los datos de cobros de esta academia", 403);
   }
 
-  // Verificar que la factura existe y pertenece a la academia
+  // Verificar que el recibo existe y pertenece a la academia
   const [invoice] = await db
     .select({
       id: billingInvoices.id,
@@ -59,11 +59,11 @@ export const POST = withTenant(async (request, context) => {
     .limit(1);
 
   if (!invoice) {
-    return apiError("INVOICE_NOT_FOUND", "La factura especificada no existe", 404);
+    return apiError("INVOICE_NOT_FOUND", "El recibo especificado no existe", 404);
   }
 
   if (invoice.academyId !== body.academyId) {
-    return apiError("INVOICE_MISMATCH", "La factura no pertenece a la academia especificada", 400);
+    return apiError("INVOICE_MISMATCH", "El recibo no pertenece a la academia especificada", 400);
   }
 
   try {
@@ -83,6 +83,6 @@ export const POST = withTenant(async (request, context) => {
     return apiSuccess({ invoice: updated });
   } catch (error) {
     logger.error("[billing/invoice/notes] Error updating invoice notes:", error);
-    return apiError("INTERNAL_ERROR", "Error al actualizar las notas de la factura. Intenta de nuevo más tarde.", 500);
+    return apiError("INTERNAL_ERROR", "Error al actualizar las notas del recibo. Intenta de nuevo más tarde.", 500);
   }
 });

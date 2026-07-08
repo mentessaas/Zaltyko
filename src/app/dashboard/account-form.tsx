@@ -134,8 +134,8 @@ export default function AccountForm({ user, profile, academies, defaultAcademyId
   const planCode = activeAcademy?.planCode?.toLowerCase() ?? "free";
   const planCopy = PLAN_COPY[planCode] ?? {
     label: activeAcademy?.planNickname ?? "Plan personalizado",
-    description: "Gestiona tu suscripción desde facturación.",
-    cta: "Ver facturación",
+    description: "Gestiona tu suscripción desde planes y cobros.",
+    cta: "Ver planes",
   };
 
   const canCreateAcademies = planCode !== "free" || profile?.role === "super_admin";

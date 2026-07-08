@@ -210,7 +210,7 @@ export default function ParentOnboardingPage() {
                   { key: "evaluations", label: "Evaluaciones técnicas", desc: "Nuevas evaluaciones de tus hijos" },
                   { key: "attendance", label: "Asistencia", desc: "Ausencias y retrasos" },
                   { key: "events", label: "Eventos", desc: "Competiciones y eventos próximos" },
-                  { key: "billing", label: "Facturación", desc: "Cuotas y pagos" },
+                  { key: "billing", label: "Cobros", desc: "Cuotas y pagos" },
                 ].map((item) => (
                   <label key={item.key} className="flex items-center justify-between p-3 rounded-lg border cursor-pointer hover:bg-gray-50">
                     <div>

@@ -1,11 +1,169 @@
-import { eq, and } from "drizzle-orm";
+import { eq, and, or } from "drizzle-orm";
 import { db } from "@/db";
-import { academies, athletes, classes, groups, memberships, profiles } from "@/db/schema";
+import {
+  academies,
+  athletes,
+  classes,
+  classCoachAssignments,
+  classEnrollments,
+  coaches,
+  groups,
+  memberships,
+  profiles,
+} from "@/db/schema";
 import { ProfileRow } from "./authz";
 
 export interface PermissionCheck {
   allowed: boolean;
   reason?: string;
+}
+
+type ScopedProfile = Pick<ProfileRow, "id" | "userId" | "role" | "tenantId">;
+
+const privilegedAcademyRoles = new Set(["super_admin", "owner", "admin"]);
+
+function canManageAcademyScope(profile: ScopedProfile): boolean {
+  return privilegedAcademyRoles.has(profile.role);
+}
+
+function coachIdentityConditions(profile: ScopedProfile) {
+  return or(
+    eq(coaches.profileId, profile.id),
+    eq(coaches.userId, profile.userId)
+  );
+}
+
+export async function verifyCoachClassScope({
+  tenantId,
+  academyId,
+  classId,
+  profile,
+}: {
+  tenantId: string;
+  academyId: string;
+  classId: string;
+  profile: ScopedProfile;
+}): Promise<PermissionCheck> {
+  if (canManageAcademyScope(profile)) {
+    return { allowed: true };
+  }
+
+  if (profile.role !== "coach") {
+    return {
+      allowed: false,
+      reason: "INSUFFICIENT_PERMISSIONS",
+    };
+  }
+
+  const [assignment] = await db
+    .select({ id: classCoachAssignments.id })
+    .from(classCoachAssignments)
+    .innerJoin(coaches, eq(classCoachAssignments.coachId, coaches.id))
+    .where(
+      and(
+        eq(classCoachAssignments.tenantId, tenantId),
+        eq(classCoachAssignments.classId, classId),
+        eq(coaches.tenantId, tenantId),
+        eq(coaches.academyId, academyId),
+        coachIdentityConditions(profile)
+      )
+    )
+    .limit(1);
+
+  return assignment
+    ? { allowed: true }
+    : { allowed: false, reason: "COACH_NOT_ASSIGNED_TO_CLASS" };
+}
+
+export async function verifyCoachAthleteScope({
+  tenantId,
+  academyId,
+  athleteId,
+  athleteGroupId,
+  profile,
+}: {
+  tenantId: string;
+  academyId: string;
+  athleteId: string;
+  athleteGroupId?: string | null;
+  profile: ScopedProfile;
+}): Promise<PermissionCheck> {
+  if (canManageAcademyScope(profile)) {
+    return { allowed: true };
+  }
+
+  if (profile.role !== "coach") {
+    return {
+      allowed: false,
+      reason: "INSUFFICIENT_PERMISSIONS",
+    };
+  }
+
+  if (athleteGroupId) {
+    const [groupAssignment] = await db
+      .select({ id: coaches.id })
+      .from(coaches)
+      .innerJoin(groups, eq(groups.coachId, coaches.id))
+      .where(
+        and(
+          eq(coaches.tenantId, tenantId),
+          eq(coaches.academyId, academyId),
+          eq(groups.tenantId, tenantId),
+          eq(groups.academyId, academyId),
+          eq(groups.id, athleteGroupId),
+          coachIdentityConditions(profile)
+        )
+      )
+      .limit(1);
+
+    if (groupAssignment) {
+      return { allowed: true };
+    }
+
+    const [groupClassAssignment] = await db
+      .select({ id: classCoachAssignments.id })
+      .from(classCoachAssignments)
+      .innerJoin(coaches, eq(classCoachAssignments.coachId, coaches.id))
+      .innerJoin(classes, eq(classCoachAssignments.classId, classes.id))
+      .where(
+        and(
+          eq(classCoachAssignments.tenantId, tenantId),
+          eq(coaches.tenantId, tenantId),
+          eq(coaches.academyId, academyId),
+          eq(classes.tenantId, tenantId),
+          eq(classes.academyId, academyId),
+          eq(classes.groupId, athleteGroupId),
+          coachIdentityConditions(profile)
+        )
+      )
+      .limit(1);
+
+    if (groupClassAssignment) {
+      return { allowed: true };
+    }
+  }
+
+  const [enrollmentAssignment] = await db
+    .select({ id: classCoachAssignments.id })
+    .from(classCoachAssignments)
+    .innerJoin(coaches, eq(classCoachAssignments.coachId, coaches.id))
+    .innerJoin(classEnrollments, eq(classCoachAssignments.classId, classEnrollments.classId))
+    .where(
+      and(
+        eq(classCoachAssignments.tenantId, tenantId),
+        eq(coaches.tenantId, tenantId),
+        eq(coaches.academyId, academyId),
+        eq(classEnrollments.tenantId, tenantId),
+        eq(classEnrollments.academyId, academyId),
+        eq(classEnrollments.athleteId, athleteId),
+        coachIdentityConditions(profile)
+      )
+    )
+    .limit(1);
+
+  return enrollmentAssignment
+    ? { allowed: true }
+    : { allowed: false, reason: "COACH_NOT_ASSIGNED_TO_ATHLETE" };
 }
 
 /**

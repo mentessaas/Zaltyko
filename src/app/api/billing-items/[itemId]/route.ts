@@ -38,7 +38,7 @@ export const PATCH = withTenant(async (request, context) => {
       .limit(1);
 
     if (!existing) {
-      return apiError("BILLING_ITEM_NOT_FOUND", "Item de facturación no encontrado", 404);
+      return apiError("BILLING_ITEM_NOT_FOUND", "Concepto de cobro no encontrado", 404);
     }
 
     const updateData: Partial<typeof billingItems.$inferInsert> = {};
@@ -82,7 +82,7 @@ export const DELETE = withTenant(async (request, context) => {
       .limit(1);
 
     if (!existing) {
-      return apiError("BILLING_ITEM_NOT_FOUND", "Item de facturación no encontrado", 404);
+      return apiError("BILLING_ITEM_NOT_FOUND", "Concepto de cobro no encontrado", 404);
     }
 
     await db.delete(billingItems).where(eq(billingItems.id, itemId));

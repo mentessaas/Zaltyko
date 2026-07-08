@@ -102,7 +102,7 @@ export function UpgradeConfirmationModal({
 
           <div className="rounded-md bg-muted/50 p-3 text-xs text-muted-foreground">
             <p>
-              Serás redirigido a la página de facturación para completar la actualización. Podrás cancelar en cualquier momento.
+              Serás redirigido a la página de suscripción para completar la actualización. Podrás cancelar en cualquier momento.
             </p>
           </div>
         </div>
@@ -120,7 +120,7 @@ export function UpgradeConfirmationModal({
             onClick={handleConfirm}
             className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isNavigating ? "Redirigiendo..." : "Continuar a facturación"}
+            {isNavigating ? "Redirigiendo..." : "Continuar a suscripción"}
             <ArrowUpRight className="h-4 w-4" />
           </Link>
         </div>
@@ -128,4 +128,3 @@ export function UpgradeConfirmationModal({
     </div>
   );
 }
-

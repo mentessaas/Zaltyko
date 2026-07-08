@@ -36,7 +36,7 @@ const modules = [
     features: ["Calendario interactivo", "Control de aforo", "Asistencia automática", "Waiting lists"],
   },
   {
-    title: "Facturación",
+    title: "Cobros",
     description: "Control de cuotas, cobros pendientes, recordatorios y administración económica de familias.",
     icon: CreditCard,
     color: "bg-zaltyko-coral",

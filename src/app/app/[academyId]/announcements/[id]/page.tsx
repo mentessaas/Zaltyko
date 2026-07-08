@@ -22,7 +22,7 @@ const PRIORITY_LABELS: Record<string, { label: string; class: string }> = {
 const CATEGORY_LABELS: Record<string, string> = {
   general: "General",
   event: "Evento",
-  billing: "Facturación",
+  billing: "Cobros",
   class: "Clase",
   news: "Noticias",
 };

@@ -36,7 +36,7 @@ El sitio incluye páginas de cluster específicas por país y modalidad para art
 - /modules/gestion-atletas - Gestión de gimnastas federadas y federados
 - /modules/clases-horarios - Programación de clases
 - /modules/eventos-competiciones - Inscripciones a competiciones
-- /modules/pagos-administracion - Facturación y cobros
+- /modules/pagos-administracion - Cobros y cuotas
 - /modules/comunicacion - Mensajería y notificaciones
 
 ### Onboarding

@@ -93,7 +93,7 @@ export function BottomNav() {
       ? [
           { label: "Academias", href: "/dashboard/academies", icon: Building2 },
           { label: "Equipo", href: "/dashboard/users", icon: Users },
-          { label: "Facturación", href: "/dashboard/plan-limits", icon: CreditCard },
+          { label: "Cobros", href: "/dashboard/plan-limits", icon: CreditCard },
         ]
       : [
           { label: "Calendario", href: "/dashboard/calendar", icon: Calendar },

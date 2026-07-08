@@ -58,7 +58,7 @@ const ACADEMY_NAV: NavigationDefinition[] = [
   { key: "messages", label: "Mensajes", icon: MessageSquare, href: (academyId) => `/app/${academyId}/messages`, roles: ["super_admin", "owner", "admin", "coach"] },
   { key: "announcements", label: "Anuncios", icon: Megaphone, href: (academyId) => `/app/${academyId}/announcements`, roles: ["super_admin", "owner", "admin"] },
   { key: "reports", label: "Informes", icon: BarChart3, href: (academyId) => `/app/${academyId}/reports/attendance`, roles: ["super_admin", "owner", "admin", "coach"], mobile: true },
-  { key: "billing", label: "Facturación", icon: CreditCard, href: (academyId) => `/app/${academyId}/billing`, roles: ["super_admin", "owner", "admin"] },
+  { key: "billing", label: "Cobros", icon: CreditCard, href: (academyId) => `/app/${academyId}/billing`, roles: ["super_admin", "owner", "admin"] },
   { key: "settings", label: "Ajustes", icon: Settings, href: (academyId) => `/app/${academyId}/settings`, roles: ["super_admin", "owner", "admin"], mobile: true },
 ];
 
@@ -68,7 +68,7 @@ const SUPER_ADMIN_NAV: NavigationDefinition[] = [
   { key: "academies", label: "Academias", icon: Building2, href: "/super-admin/academies", roles: ["super_admin"] },
   { key: "public-academies", label: "Academias Públicas", icon: Globe, href: "/super-admin/academies/public", roles: ["super_admin"] },
   { key: "logs", label: "Logs", icon: ScrollText, href: "/super-admin/logs", roles: ["super_admin"] },
-  // Facturación, Soporte y Configuración ocultos hasta que existan (placeholders/rotos).
+  // Cobros, Soporte y Configuración ocultos hasta que existan (placeholders/rotos).
 ];
 
 function mapNavigation(

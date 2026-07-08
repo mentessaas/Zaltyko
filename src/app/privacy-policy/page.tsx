@@ -9,7 +9,7 @@ const sections = [
   {
     title: "1. Quiénes somos",
     content: [
-      "Zaltyko es una plataforma software-as-a-service operada por Mentes SaaS S.L. que ayuda a academias de gimnasia a gestionar atletas, coaches, clases y facturación en múltiples sedes.",
+      "Zaltyko es una plataforma software-as-a-service operada por Mentes SaaS S.L. que ayuda a academias de gimnasia a gestionar atletas, coaches, clases y cobros internos en múltiples sedes.",
       "Esta política describe cómo tratamos los datos personales cuando utilizas nuestro sitio web, la aplicación web y las APIs asociadas.",
     ],
   },
@@ -18,7 +18,7 @@ const sections = [
     content: [
       "Datos de cuenta: nombre, apellidos, correo electrónico, contraseña (hash) y rol asignado dentro de la academia.",
       "Datos operativos: información de academias, atletas, coaches, asistencia, evaluaciones y eventos que tu organización introduce voluntariamente en la plataforma.",
-      "Datos de facturación: identificadores de cliente en Stripe, historial de suscripción y metadatos de pago. No almacenamos números completos de tarjeta ni CVV.",
+      "Datos de suscripción y pago: identificadores de cliente en Stripe, historial de suscripción y metadatos de pago. No almacenamos números completos de tarjeta ni CVV.",
       "Datos técnicos: registros de acceso, direcciones IP, tipo de dispositivo, idioma, cookies esenciales y tokens de sesión para garantizar la seguridad y la experiencia de uso.",
     ],
   },

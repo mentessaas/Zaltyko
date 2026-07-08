@@ -320,7 +320,7 @@ ${academy.trialEndsAt ? `- Trial termina: ${academy.trialEndsAt.toISOString()}` 
 ⏳ **Pagos pendientes:** €${pending.toFixed(2)}
    - Cargos pendientes: ${pendingCharges.count}
 
-📊 **Total facturado:** €${(revenue + pending).toFixed(2)}
+📊 **Total de cobros:** €${(revenue + pending).toFixed(2)}
             `.trim()
         }],
       };

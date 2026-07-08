@@ -20,7 +20,7 @@ const integrations = [
     name: "Stripe",
     description: "Procesa pagos de membresías y servicios de forma segura. Acepta tarjetas, domiciliaciones y pagos recurrentes.",
     icon: CreditCard,
-    features: ["Pagos recurrentes", "Facturación automática", "Gestión de suscripciones", "Webhook de eventos"],
+    features: ["Pagos recurrentes", "Recibos automáticos", "Gestión de suscripciones", "Webhook de eventos"],
     status: "connected",
   },
   {

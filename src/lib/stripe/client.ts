@@ -18,7 +18,7 @@ export function getStripeClient(): Stripe {
         apiVersion: "2026-03-25.dahlia",
       });
     }
-    throw new Error("STRIPE_SECRET_KEY debe estar definido para operaciones de facturación");
+    throw new Error("STRIPE_SECRET_KEY debe estar definido para operaciones de suscripción");
   }
 
   if (!stripeClient) {

@@ -5,6 +5,11 @@ const isCI = Boolean(process.env.CI);
 
 export default defineConfig({
   testDir: ".",
+  testIgnore: [
+    ".claude/**",
+    ".worktrees/**",
+    "node_modules/**",
+  ],
   // En CI habilitamos paralelismo para reducir tiempo de ejecucion.
   // En local mantenemos 2 workers para no saturar la laptop del dev.
   fullyParallel: isCI,

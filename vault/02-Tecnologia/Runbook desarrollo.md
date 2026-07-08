@@ -17,6 +17,17 @@ cp .env.example .env.local
 pnpm dev
 ```
 
+### pnpm
+
+- La configuracion canonica de pnpm vive en `pnpm-workspace.yaml` (`overrides`, `allowBuilds`, `onlyBuiltDependencies`).
+- `.npmrc` mantiene flags de instalacion local/CI (`auto-install-peers`, `strict-peer-dependencies`, `confirmModulesPurge=false`).
+- Si aparece un prompt de build scripts, usar `pnpm approve-builds --all` solo despues de revisar que los paquetes coinciden con `allowBuilds`.
+- La instalacion reproducible esperada es:
+
+```bash
+CI=true pnpm install --frozen-lockfile
+```
+
 ## Base de datos local/remota
 
 ```bash
@@ -31,6 +42,7 @@ pnpm db:seed
 pnpm lint
 pnpm typecheck
 pnpm test
+pnpm audit:api-routes:strict
 pnpm test:e2e
 pnpm test:a11y
 ```

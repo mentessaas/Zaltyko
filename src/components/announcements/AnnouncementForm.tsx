@@ -27,7 +27,7 @@ const PRIORITIES = [
 const CATEGORIES = [
   { value: "general", label: "General" },
   { value: "event", label: "Evento" },
-  { value: "billing", label: "Facturación" },
+  { value: "billing", label: "Cobros" },
   { value: "class", label: "Clase" },
   { value: "news", label: "Noticias" },
 ];

@@ -55,7 +55,7 @@ const NOTIFICATION_TYPES: NotificationTypeConfig[] = [
   {
     key: "invoice_pending",
     label: "Facturas pendientes",
-    description: "Avisos de facturas pendientes de pago",
+    description: "Avisos de recibos pendientes de pago",
   },
   {
     key: "invoice_paid",
