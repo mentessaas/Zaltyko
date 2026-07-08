@@ -71,18 +71,21 @@ export function extractAcademyId(
     return paramAcademyId;
   }
 
-  // Desde pathname (rutas como /api/dashboard/[academyId])
-  const pathname = new URL(request.url).pathname;
-  const dashboardMatch = pathname.match(/^\/api\/dashboard\/([^/]+)/);
-  if (dashboardMatch) {
-    return dashboardMatch[1];
-  }
-
   // Desde query params
   const url = new URL(request.url);
   const queryAcademyId = url.searchParams.get("academyId");
   if (queryAcademyId) {
     return queryAcademyId;
+  }
+
+  // Desde pathname (rutas dinamicas como /api/dashboard/[academyId]/...).
+  // Debe ir despues del query param: rutas estaticas bajo /api/dashboard/
+  // (p.ej. /api/dashboard/kpi-trends) no tienen un academyId en el path y
+  // este regex capturaria el propio nombre de la ruta como si lo fuera.
+  const pathname = new URL(request.url).pathname;
+  const dashboardMatch = pathname.match(/^\/api\/dashboard\/([^/]+)/);
+  if (dashboardMatch) {
+    return dashboardMatch[1];
   }
 
   return undefined;

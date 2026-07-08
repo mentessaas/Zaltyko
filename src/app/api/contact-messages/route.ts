@@ -11,9 +11,9 @@ import { apiSuccess, apiError } from "@/lib/api-response";
 
 const querySchema = z.object({
   academyId: z.string().uuid(),
-  read: z.string().optional(),
-  archived: z.string().optional(),
-  limit: z.string().optional(),
+  read: z.string().nullable().optional(),
+  archived: z.string().nullable().optional(),
+  limit: z.string().nullable().optional(),
 });
 
 export const GET = withTenant(async (request, context) => {

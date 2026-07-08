@@ -1,12 +1,32 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-07-07
+last_reviewed: 2026-07-08
 source:
   - ../ROADMAP.md
   - ../AGENTS.md
 ---
 # Changelog interno
+
+## 2026-07-08 - QA en vivo (login real, super-admin, panel academia) + 2 bugs P1 corregidos
+
+**Sesion de QA en vivo con credenciales reales** (`mentessaas@gmail.com`, cuenta super_admin dueña de "MentesSaas Academy" en produccion). Se recorrio login, super-admin (dashboard/usuarios/academias/academias publicas/logs) y el panel completo de academia (dashboard, gimnastas, entrenadores, grupos, eventos, evaluaciones, mensajes, anuncios, cobros, ajustes) en desktop y mobile.
+
+**Bugs P1 encontrados y corregidos (con navegador real, verificados post-fix)**:
+
+- **`/api/dashboard/kpi-trends` devolvia 500 siempre**: `extractAcademyId()` en `src/lib/authz/endpoint-config.ts` tiene un regex `^\/api\/dashboard\/([^/]+)` pensado para rutas dinamicas `/api/dashboard/[academyId]/...`, pero tambien matcheaba la ruta estatica `/api/dashboard/kpi-trends` (que pasa `academyId` por query string) y devolvia el string literal `"kpi-trends"` como si fuera el academyId, rompiendo la query SQL (`academies.id = 'kpi-trends'`). Fix: revisar el query param `academyId` **antes** que el regex de pathname. Rompe siempre (no intermitente) el sparkline de tendencias del dashboard de academia.
+- **`/api/contact-messages` devolvia 500 siempre**: mismo patron ya documentado en este changelog (ver settings, 2026-07-07) — `URLSearchParams.get()` devuelve `null` (no `undefined`) cuando falta un query param, y el schema Zod usaba `.optional()` (solo cubre `undefined`) en vez de `.nullable().optional()`. Rompia la carga de "Mensajes" en el panel de academia para cualquier request sin los tres filtros opcionales explicitos.
+
+**Hallazgos menores documentados, no corregidos** (bajo impacto o requieren decision de producto):
+
+- Filas de la tabla `/super-admin/academies` tienen `cursor-pointer` + hover pero no navegan a ningun sitio al hacer click (el propio texto de la pagina ya avisa que hay que entrar via "panel de academias" mientras se desarrolla la delegacion directa).
+- `src/components/login-form/LoginForm.tsx` es codigo muerto: nunca se importa (no hay `index.ts` en esa carpeta), el login real usa `src/components/login-form.tsx`.
+- Textos sin traducir: "Active" (deberia ser "Activo") en widget de plan del dashboard mobile, "/ month" (deberia ser "/ mes") en billing.
+- Nombre de perfil del usuario super_admin muestra "MenetesSaas" en vez de "MentesSaas" (typo en el dato guardado, no en codigo).
+
+**Validacion**: `pnpm typecheck` PASS, `pnpm lint` PASS, `pnpm build` PASS, `pnpm exec vitest run` 388/388 PASS.
+
+**Nota de entorno**: en `next dev` (no en build de produccion) navegar rapido entre rutas puede mostrar el CSS sin cargar (`document.styleSheets.length === 0`) por como Next 15 versiona el CSS por timestamp en cada request en modo dev. Verificado que **no reproduce en produccion** (`next build && next start`, CSS con hash de contenido, 200 OK). Es ruido de tooling, no bug de producto.
 
 ## 2026-07-07 - Refactor tecnico inicial + tooling pnpm/auditor API
 
