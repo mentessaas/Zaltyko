@@ -31,4 +31,4 @@ Gestiona tu academia deportiva sin perder el foco en lo que importa: formar atle
 
 ## Cuidado comercial
 
-No prometer como completado lo que sigue parcial o pendiente: facturacion electronica, exportacion contable, centro unificado de notificaciones, evaluaciones completas en UI, seleccion automatica federativa, reportes avanzados enterprise y automatizaciones IA plenamente visibles.
+No prometer como completado lo que sigue parcial o pendiente: pagocion electronica, exportacion contable, centro unificado de notificaciones, evaluaciones completas en UI, seleccion automatica federativa, reportes avanzados enterprise y automatizaciones IA plenamente visibles.

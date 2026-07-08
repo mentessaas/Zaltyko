@@ -20,7 +20,7 @@ Avanzado en infraestructura y operaciones internas. Alto riesgo comercial por in
 ## Tenemos
 
 - Cargos automaticos y manuales.
-- Items de facturacion.
+- Items de pagocion.
 - Descuentos y becas.
 - Recibos.
 - Stripe y webhooks.
@@ -34,7 +34,7 @@ Avanzado en infraestructura y operaciones internas. Alto riesgo comercial por in
 - Downgrade Stripe pago -> pago usa un item ID incorrecto; ver [[Tarea - Corregir downgrade Stripe]].
 - Checkout anual no esta implementado como price anual real; la UI publica debe mantenerlo como "proximamente" o implementarlo.
 - DB puede quedar con placeholders si se ejecuta seed sin `SEED_STRIPE_PRICE_PRO`/`SEED_STRIPE_PRICE_PREMIUM`.
-- Proyecciones, contabilidad y facturacion electronica no deben prometerse como completas sin evidencia.
+- Proyecciones, contabilidad y pagocion electronica no deben prometerse como completas sin evidencia.
 
 ## Proximos pasos
 

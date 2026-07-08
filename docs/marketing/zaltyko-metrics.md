@@ -189,7 +189,7 @@ La retención es la métrica más crítica para un SaaS. Mide si los usuarios en
 
 - **Definición:** Porcentaje de usuarios que были activos previamente y ahora no tienen actividad en los últimos 30 días.
 - **Cómo se mide:** Se define "activo" como al menos una sesión en 30 días. Churn = (Usuarios que antes were activos y ahora inactivos / Usuarios activos hace 30 días) × 100.
-- **Target/típico:** <10 por ciento mensual. Un spike en churn de usuarios activos sin corresponding customer churn indica que usuarios no-facturables (de prueba) están dejando de usar el producto.
+- **Target/típico:** <10 por ciento mensual. Un spike en churn de usuarios activos sin corresponding customer churn indica que usuarios no-pagobles (de prueba) están dejando de usar el producto.
 - **Herramienta:** Mixpanel o query a Supabase.
 
 #### 1.3.3 Métricas de Engagement Continuo

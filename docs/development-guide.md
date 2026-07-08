@@ -6,7 +6,7 @@ Esta guía te ayudará a entender cómo contribuir al proyecto GymnaSaaS.
 
 - Node.js 18+ y pnpm
 - PostgreSQL 14+ o acceso a Supabase
-- Cuenta de Stripe (para desarrollo de facturación)
+- Cuenta de Stripe (para desarrollo de pagos y cuotas)
 - Cuenta de Mailgun (para envío de emails)
 
 ## Configuración del Entorno

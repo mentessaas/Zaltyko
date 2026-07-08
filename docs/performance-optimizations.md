@@ -86,7 +86,7 @@ Los siguientes índices han sido aplicados para optimizar las queries más frecu
 **Otros**:
 - `coach_notes_academy_idx` - Notas por academia
 - `memberships_academy_role_idx` - Miembros por academia y rol
-- `billing_invoices_academy_status_idx` - Facturas por academia y estado
+- `billing_invoices_academy_status_idx` - Pagos por academia y estado
 
 **Índices críticos para el MVP** (ya aplicados):
 - Listado de atletas: `athletes(tenant_id, academy_id)` ✓

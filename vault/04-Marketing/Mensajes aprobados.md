@@ -31,7 +31,7 @@ Gestiona tu academia deportiva sin perder el foco en lo que importa: formar atle
 
 ## No prometer como listo sin validacion
 
-- Facturacion electronica completa.
+- Pagocion electronica completa.
 - Exportacion contable.
 - Centro unificado de notificaciones.
 - IA que toma decisiones automaticas.

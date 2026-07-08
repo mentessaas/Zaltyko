@@ -56,7 +56,7 @@ Visita `http://localhost:3000`
 | **Classes** | Grupos, calendario, asistencia, sesiones | ✅ |
 | **Events** | Competiciones, inscripciones, waitlist | ✅ |
 | **Coaches** | Gestión de entrenadores, asignaciones | ✅ |
-| **Billing** | Planes, facturas, descuentos, scholarships | ✅ |
+| **Billing** | Planes, pagos, descuentos, scholarships | ✅ |
 | **Super Admin** | Gestión centralizada de academias | ✅ |
 | **Landing Pages** | SEO clusterizado por modalidad/país | ✅ |
 
@@ -76,7 +76,7 @@ src/
 │   ├── athletes/         # Componentes módulo atletas
 │   ├── classes/          # Componentes módulo clases
 │   ├── events/           # Componentes módulo eventos
-│   ├── billing/          # Componentes módulo facturación
+│   ├── billing/          # Componentes módulo pagos y cuotas
 │   └── landing/          # Componentes landing pages
 ├── db/
 │   └── schema/           # 68+ tablas Drizzle ORM

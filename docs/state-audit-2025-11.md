@@ -4,13 +4,13 @@
 
 - **Stack**: Next.js 14 (App Router), TypeScript, Tailwind, Drizzle ORM con PostgreSQL/Supabase, Vitest.
 - **Estructura principal**:
-  - `src/app`: páginas públicas (landing, pricing, legales), flujos de autenticación/onboarding y dashboards básicos; API routes REST para academias, atletas, clases, clases, evaluaciones, facturación, etc.
+  - `src/app`: páginas públicas (landing, pricing, legales), flujos de autenticación/onboarding y dashboards básicos; API routes REST para academias, atletas, clases, clases, evaluaciones, pagos y cuotas, etc.
   - `src/db`: esquemas Drizzle para entidades multi-tenant (`tenant_id` en casi todas las tablas), enums de roles y estatus de suscripción.
   - `supabase/rls.sql`: definición de funciones helper, activación de RLS y políticas por tabla (mezcla de dos versiones, requiere depuración).
   - `docs/database.md`: documentación parcial del modelo actual.
   - `public`: assets del template original (ShipFree) aún presentes.
 - **Autenticación**: formularios Next.js que consumen `supabase.auth`. Roles vigentes (`super_admin | admin | owner | coach | athlete`). Falta rol/experiencia específica para padres.
-- **Facturación**: código base para Stripe (checkout, webhook, portal) y LemonSqueezy, con enforcement de límites vía `assertWithinPlanLimits`. Aún sin UI de gestión de planes ni Stripe Connect.
+- **Pagos y cuotas**: código base para Stripe (checkout, webhook, portal) y LemonSqueezy, con enforcement de límites vía `assertWithinPlanLimits`. Aún sin UI de gestión de planes ni Stripe Connect.
 - **Testing**: Vitest solo cubre límites/tenancy legacy; los nuevos endpoints carecen de pruebas automatizadas.
 
 ## 2. `src/app` (UI + API)
@@ -51,7 +51,7 @@ Leyenda: ✅ listo · ◑ parcial o prototipo · ❌ ausente
 | 2 | Gestión de atletas (CRUD, historial, filtros, import/export) | ◑ | Listado filtrable, ficha con tutores e import/export CSV. Falta historial/progreso detallado y reporting. |
 | 3 | Gestión de entrenadores (asignación, perfiles públicos) | ◑ | Panel de coaches con asignaciones y control de asistencia. Falta biografía/perfil público. |
 | 4 | Gestión de clases/horarios (calendario, alertas) | ◑ | CRUD + API GET/PUT y calendario semanal/mensual. Pendiente recurrencia automática y alertas (cupos, cancelaciones). |
-| 5 | Facturación y pagos (Stripe, recibos, becas) | ◑ | Stripe checkout/portal presentes; falta Stripe Connect, recibos personalizados, descuentos/becas en DB y UI. |
+| 5 | Pagos y cuotas y pagos (Stripe, recibos, becas) | ◑ | Stripe checkout/portal presentes; falta Stripe Connect, recibos personalizados, descuentos/becas en DB y UI. |
 | 6 | Logros gamificados (Código FIG, badges, PDF) | ❌ | No existe modelado ni UI. |
 | 7 | Ranking de academias y atletas | ❌ | No hay tablas ni cálculos de ranking/leaderboards. |
 | 8 | Sistema de tareas y metas + IA | ❌ | No hay estructura para tareas asignadas o sugerencias automáticas. |
@@ -66,7 +66,7 @@ Leyenda: ✅ listo · ◑ parcial o prototipo · ❌ ausente
 | 17 | Feed social interno | ❌ | No hay modelo ni UI social. |
 | 18 | Comunidad global GymnaSaaS | ❌ | Inexistente. |
 | 19 | Panel de Súper Admin (impersonar, métricas globales) | ❌ | No hay vista ni herramientas de soporte central. |
-| 20 | Gestión de planes/suscripciones UI | ◑ | Lógica de límites presente; falta panel de administración de planes y opciones de ciclo de facturación. |
+| 20 | Gestión de planes/suscripciones UI | ◑ | Lógica de límites presente; falta panel de administración de planes y opciones de ciclo de pagos y cuotas. |
 | 21 | Diseño UX/UI estilo Notion+Apple+Duolingo | ◑ | Landing renovada, pero el resto mantiene estilo boilerplate. |
 | 22 | Onboarding mágico | ◑ | Onboarding actual guía demo, pero sin wizard completo ni gamificación final. |
 | 23 | Gamificación del uso (niveles, créditos) | ❌ | No hay mecanismos. |
@@ -82,5 +82,5 @@ Leyenda: ✅ listo · ◑ parcial o prototipo · ❌ ausente
 4. **UX pendiente**: navegación del calendario, avisos sin clases en panel de coaches y plantilla CSV para importador.
 5. **Documentación viva**: mantener `docs/phase-1-*` actualizados y registrar cambios en `docs/changelog.md`.
 
-El producto cubre el núcleo operativo (Sprints 1-3). Sprint 4 puede enfocarse en facturación, analítica y endurecer QA/Docs.
+El producto cubre el núcleo operativo (Sprints 1-3). Sprint 4 puede enfocarse en pagos y cuotas, analítica y endurecer QA/Docs.
 

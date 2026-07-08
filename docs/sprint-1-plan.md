@@ -1,7 +1,7 @@
-# Sprint 1: Facturación y Sesiones (Semana 1-2)
+# Sprint 1: Pagos y cuotas y Sesiones (Semana 1-2)
 
 ## Objetivo
-Mejorar la gestión de sesiones recurrentes, optimizar la facturación con Stripe y crear perfiles públicos para entrenadores.
+Mejorar la gestión de sesiones recurrentes, optimizar la pagos y cuotas con Stripe y crear perfiles públicos para entrenadores.
 
 ---
 
@@ -47,29 +47,29 @@ Mejorar la gestión de sesiones recurrentes, optimizar la facturación con Strip
 
 ---
 
-## 2. Mejoras en Facturación Stripe
+## 2. Mejoras en Pagos y cuotas Stripe
 
 ### Estado Actual
 - Existe integración básica con Stripe (checkout, webhook, portal)
-- Las facturas se guardan en `billing_invoices` pero la sincronización puede mejorar
-- La UI muestra facturas pero puede ser más informativa
+- Las pagos se guardan en `billing_invoices` pero la sincronización puede mejorar
+- La UI muestra pagos pero puede ser más informativa
 
 ### Tareas
 
-#### 2.1 Sincronización Automática de Facturas
+#### 2.1 Sincronización Automática de Pagos
 **Archivo**: `src/app/api/stripe/webhook/route.ts`
 - Mejorar el manejo de eventos `invoice.paid`, `invoice.payment_failed`, `invoice.finalized`
-- Sincronizar automáticamente todas las facturas relacionadas con el customer
-- Actualizar estado de facturas existentes
+- Sincronizar automáticamente todas las pagos relacionadas con el customer
+- Actualizar estado de pagos existentes
 
 #### 2.2 Endpoint de Sincronización Manual
 **Archivo**: `src/app/api/billing/sync/route.ts`
-- POST endpoint para sincronizar facturas manualmente
-- Obtiene todas las facturas del customer desde Stripe
+- POST endpoint para sincronizar pagos manualmente
+- Obtiene todas las pagos del customer desde Stripe
 - Actualiza o crea registros en `billing_invoices`
-- Útil para recuperar facturas históricas
+- Útil para recuperar pagos históricas
 
-#### 2.3 Mejoras en UI de Facturación
+#### 2.3 Mejoras en UI de Pagos y cuotas
 **Archivo**: `src/app/billing/page.tsx`
 - Agregar filtros:
   - Por estado (paid, pending, failed)
@@ -78,14 +78,14 @@ Mejorar la gestión de sesiones recurrentes, optimizar la facturación con Strip
 - Mejorar visualización:
   - Cards más informativos
   - Badges de estado con colores
-  - Gráfico de facturación mensual
-- Agregar botón "Sincronizar facturas" que llama al endpoint de sync
+  - Gráfico de pagos y cuotas mensual
+- Agregar botón "Sincronizar pagos" que llama al endpoint de sync
 
 ### Criterios de Aceptación
-- ✅ Las facturas se sincronizan automáticamente desde Stripe
-- ✅ Puedo sincronizar facturas manualmente si es necesario
+- ✅ Las pagos se sincronizan automáticamente desde Stripe
+- ✅ Puedo sincronizar pagos manualmente si es necesario
 - ✅ La UI muestra filtros y mejor visualización
-- ✅ Puedo ver un resumen de facturación mensual
+- ✅ Puedo ver un resumen de pagos y cuotas mensual
 
 ---
 
@@ -144,15 +144,15 @@ Mejorar la gestión de sesiones recurrentes, optimizar la facturación con Strip
 
 ### Alta Prioridad (Semana 1)
 1. Generación automática de sesiones recurrentes
-2. Sincronización automática de facturas Stripe
+2. Sincronización automática de pagos Stripe
 
 ### Media Prioridad (Semana 2)
-3. Mejoras en UI de facturación
+3. Mejoras en UI de pagos y cuotas
 4. Perfiles públicos de entrenadores (básico)
 
 ### Baja Prioridad (Si hay tiempo)
 5. Listado público completo de entrenadores
-6. Gráficos avanzados de facturación
+6. Gráficos avanzados de pagos y cuotas
 
 ---
 
@@ -163,9 +163,9 @@ Mejorar la gestión de sesiones recurrentes, optimizar la facturación con Strip
 - Considerar zonas horarias si es necesario
 - Validar que el rango de fechas no sea excesivo (ej: máximo 1 año)
 
-### Facturación Stripe
-- Usar `stripe.invoices.list()` para obtener facturas
-- Manejar paginación si hay muchas facturas
+### Pagos y cuotas Stripe
+- Usar `stripe.invoices.list()` para obtener pagos
+- Manejar paginación si hay muchas pagos
 - Considerar rate limiting de Stripe API
 
 ### Perfiles Públicos

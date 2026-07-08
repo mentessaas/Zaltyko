@@ -159,7 +159,7 @@ Este documento contiene una lista completa de verificación para asegurar que la
 - [ ] **Pagos**
   - [ ] Checkout funciona (Stripe/Lemon Squeezy)
   - [ ] Webhooks procesan eventos correctamente
-  - [ ] Facturas se generan correctamente
+  - [ ] Pagos se generan correctamente
   - [ ] Cargos se crean correctamente
 
 - [ ] **Emails**

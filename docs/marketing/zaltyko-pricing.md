@@ -61,7 +61,7 @@ El modelo híbrido seleccionado balancea simplicidad con escalabilidad realista.
 
 ### 3.1 Visión General de Planes
 
-| Plan | Target Principal | Modelo de Precio | Período Facturación |
+| Plan | Target Principal | Modelo de Precio | Período Pagos y cuotas |
 |------|------------------|-------------------|----------------------|
 | **Starter** | Emprendedor Deportivo nuevo | €29/mes por academia | Mensual o anual |
 | **Professional** | Emprendedor Deportivo establecido | €49/mes + €1/atleta/mes | Mensual o anual |
@@ -70,7 +70,7 @@ El modelo híbrido seleccionado balancea simplicidad con escalabilidad realista.
 
 ### 3.2 Detalle del Plan Starter
 
-**Precio:** €29/mes (facturación mensual) o €290/año (ahorro de 17%)
+**Precio:** €29/mes (pagos y cuotas mensual) o €290/año (ahorro de 17%)
 
 **Perfil:** Academia pequeña, menos de 50 atletas, inicio en digitalización.
 
@@ -96,7 +96,7 @@ El modelo híbrido seleccionado balancea simplicidad con escalabilidad realista.
 
 ### 3.3 Detalle del Plan Professional
 
-**Precio:** €49/mes + €1/atleta/mes (facturación mensual) o €490/año + €0.75/atleta/mes (facturación anual)
+**Precio:** €49/mes + €1/atleta/mes (pagos y cuotas mensual) o €490/año + €0.75/atleta/mes (pagos y cuotas anual)
 
 **Perfil:** Academia establecida, 50-200 atletas, necesita automatización de cobros y comunicación.
 
@@ -123,7 +123,7 @@ El modelo híbrido seleccionado balancea simplicidad con escalabilidad realista.
 
 ### 3.4 Detalle del Plan Business
 
-**Precio:** €149/mes por academia + €0.75/atleta/mes (facturación anual obligatoria)
+**Precio:** €149/mes por academia + €0.75/atleta/mes (pagos y cuotas anual obligatoria)
 
 **Perfil:** Cadena pequeña de 2 a 5 academias, requiere visión centralizada y gestión multi-sede.
 
@@ -297,13 +297,13 @@ Iniciar con precios en euros (EUR) para el mercado español. Considerar:
 
 ### 8.3 Billing
 
-- Facturación automática mensual o anual
+- Pagos y cuotas automática mensual o anual
 - Métodos de pago: Tarjeta (Stripe), Transferencia (solo Enterprise)
 - Grace period de 7 días ante fallos de pago
 
 ### 8.4 Downgrade Policy
 
-- Downgrades efectivos al final del período de facturación
+- Downgrades efectivos al final del período de pagos y cuotas
 - Datos protegidos durante 30 días post-downgrade
 - No hay reembolso por meses no utilizados en downgrade
 

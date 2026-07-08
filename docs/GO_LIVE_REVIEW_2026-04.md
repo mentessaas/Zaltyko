@@ -19,7 +19,7 @@ Dejar una fuente de verdad corta y operativa para decidir qué entra en el prime
   - Clases
   - Eventos
   - Anuncios
-  - Facturación
+  - Pagos y cuotas
   - Configuración
 - Calendario global
 - Perfil

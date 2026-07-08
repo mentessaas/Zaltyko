@@ -4,7 +4,7 @@
 Completar el **núcleo operativo** de GymnaSaaS:
 - CRUD completos y consistentes para usuarios, atletas, entrenadores y clases.
 - Interfaces de gestión (web) alineadas con roles.
-- Facturación Stripe lista para producción (planes Free / Pro / Premium).
+- Pagos y cuotas Stripe lista para producción (planes Free / Pro / Premium).
 
 ## Checklist de entregables
 
@@ -32,11 +32,11 @@ Completar el **núcleo operativo** de GymnaSaaS:
 - [ ] Generación automática de sesiones recurrentes.
 - [ ] Registro de asistencia, observaciones y alertas (ej. cupo lleno).
 
-### 5. Facturación Stripe
+### 5. Pagos y cuotas Stripe
 - [ ] Configurar productos/precios en Stripe y sincronizarlos con `plans`.
 - [ ] Revisar endpoints `api/billing/*` (manejo de errores, logging).
 - [ ] Portal de pagos in-app (mostrar plan actual, upgrade/downgrade, historial).
-- [ ] Notificaciones de facturación (webhook → email + auditoría).
+- [ ] Notificaciones de pagos y cuotas (webhook → email + auditoría).
 
 ### 6. Calidad y soporte
 - [ ] Seeds actualizados (`scripts/seed.ts`) para demos y pruebas automáticas.

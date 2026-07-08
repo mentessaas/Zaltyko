@@ -5,7 +5,7 @@
 El proyecto ya tiene una base sólida con:
 - Autenticación completa
 - Gestión de academias, atletas, entrenadores, clases
-- Sistema de facturación con Stripe
+- Sistema de pagos y cuotas con Stripe
 - Panel de Super Admin
 - Sitio público de marketing
 
@@ -43,7 +43,7 @@ El proyecto ya tiene una base sólida con:
 ### 1.5 Portal de Pago para Padres
 - [ ] Página `/app/[academyId]/billing/parent-view` simplificada
 - [ ] Ver hijos asociados
-- [ ] Pagar facturas fácilmente
+- [ ] Pagar pagos fácilmente
 - [ ] Historial de pagos
 
 ---
@@ -76,7 +76,7 @@ El proyecto ya tiene una base sólida con:
 
 ### 2.4 Reports Hub Mejorado
 - [ ] Componente `ReportsHub` con más opciones
-- [ ] Reporte de facturación por período
+- [ ] Reporte de pagos y cuotas por período
 - [ ] Reporte de clases más populares
 - [ ] Reporte de rendimiento de entrenadores
 - [ ] Exportación a PDF/Excel

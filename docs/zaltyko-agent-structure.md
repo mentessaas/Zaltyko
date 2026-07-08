@@ -378,7 +378,7 @@ Asegurar rentabilidad y control de costos.
 
 ## Estado Actual
 - Stripe + Lemonsqueezy integrados
-- Facturación automatizada
+- Pagos y cuotas automatizada
 
 ## Tareas Inmediatas
 

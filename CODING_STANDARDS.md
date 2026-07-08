@@ -5,7 +5,7 @@
 ### Archivos de Tipos Existentes
 
 - `src/types/index.ts` - Tipos principales (UserRole, AcademyStatus, AthleteStatus, etc.)
-- `src/types/billing.ts` - Tipos de facturación
+- `src/types/billing.ts` - Tipos de pagos y cuotas
 - `src/types/events.ts` - Tipos de eventos
 - `src/types/event-form.ts` - Tipos de formulario de eventos
 - `src/types/athlete-edit.ts` - Tipos de edición de atletas

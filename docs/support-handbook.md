@@ -8,7 +8,7 @@
 - **Roles clave**: `super_admin`, `admin`, `coach`, `owner`, `athlete`, `parent`.  
   - `super_admin` salta todas las políticas RLS.
   - `admin` ve todo dentro del tenant.
-- **Dominios críticos**: invitaciones de usuarios, atletas/guardianes, coaches/clases, facturación Stripe.
+- **Dominios críticos**: invitaciones de usuarios, atletas/guardianes, coaches/clases, pagos y cuotas Stripe.
 
 ## 2. Preparación del entorno
 1. **Variables sensibles** (en `.env.local` o Secrets Manager):  
@@ -18,7 +18,7 @@
 2. **Migraciones**  
    ```bash
    pnpm db:migrate
-   pnpm db:seed         # genera datos demo completos (usuarios, atletas, coaches, clases, facturas)
+   pnpm db:seed         # genera datos demo completos (usuarios, atletas, coaches, clases, pagos)
    ```
 3. **Sincronizar planes Stripe** (tras crear/editar precios con `metadata.plan_code`):  
    ```bash
@@ -32,7 +32,7 @@
 ### 3.0 Navegación multi-academia
 - El panel autenticado se encuentra en `/app/[academyId]/…` y hereda un layout con sidebar + topbar.
 - El selector de academia activa se gestiona desde `/dashboard` → “Mi perfil”. Si el usuario omite onboarding, se le bloquea la vista hasta crear su primera academia.
-- El sidebar expone accesos directos: **Dashboard**, **Atletas**, **Entrenadores**, **Clases**, **Asistencia**, **Facturación**, **Evaluaciones**.
+- El sidebar expone accesos directos: **Dashboard**, **Atletas**, **Entrenadores**, **Clases**, **Asistencia**, **Pagos y cuotas**, **Evaluaciones**.
 
 ### 3.1 Creación de academias
 - El usuario debe tener perfil `owner` o `admin` antes de crear academias (el onboarding lo valida).
@@ -68,14 +68,14 @@
   - Resumen rápido de últimas sesiones; enlaza al detalle para registro.
 - API auxiliar: `/api/class-sessions`, `/api/class-sessions/[sessionId]`, `/api/attendance`.
 
-### 3.5 Facturación Stripe
+### 3.5 Pagos y cuotas Stripe
 - **Nueva vista contextual**: `/app/[academyId]/billing`
   - Estado del plan (`/api/billing/status`).
-  - Historial de facturas (`/api/billing/history`).
+  - Historial de pagos (`/api/billing/history`).
   - Acciones de upgrade/downgrade via `/api/billing/checkout` y portal `/api/billing/portal`.
 - Sincronización de planes: `/api/billing/sync` (solo `super_admin`).
 - Webhook `/api/stripe/webhook`:
-  - Actualiza suscripciones y facturas.
+  - Actualiza suscripciones y pagos.
   - Envía avisos con Mailgun (`billing.invoice_paid`, `billing.invoice_issue`).
   - Registra auditoría en `billing_events`.
 
@@ -95,12 +95,12 @@
    - Ver logs en consola de la UI (muestra fila y causa).
    - Validar `academyId` obligatorio si el usuario no tiene tenant.
    - Recomendación: usar la nueva plantilla CSV (botón disponible en importador).
-4. **Facturación**
+4. **Pagos y cuotas**
    - Verificar `billing_invoices` y `billing_events`.  
    - Confirmar webhook activo en Stripe (últimos logs).  
    - Comprobar Mailgun si no llegan correos.
 5. **Plan límite excedido**
-   - API devuelve `402 LIMIT_REACHED`. Sugerir upgrade desde facturación.
+   - API devuelve `402 LIMIT_REACHED`. Sugerir upgrade desde pagos y cuotas.
    - Confirmar `assertWithinPlanLimits` en logs/test.
 6. **Asistencia no se registra**
    - Confirmar que la sesión existe (`class_sessions`).
@@ -113,7 +113,7 @@
   - `pnpm db:migrate` en staging.  
   - `pnpm stripe:sync` si cambian precios/productos.
 - **Post-deploy**  
-  - Revisar panel `/app/[academyId]/dashboard` en staging (navegar por Atletas → Coaches → Clases → Facturación).  
+  - Revisar panel `/app/[academyId]/dashboard` en staging (navegar por Atletas → Coaches → Clases → Pagos y cuotas).  
   - Validar webhook Stripe con evento de prueba (`stripe events resend`).
 - **Backups**  
   - Supabase: programar backups automáticos o export manual (`pg_dump`).  
@@ -128,11 +128,11 @@
 
 ### Guion sugerido para video (≤5 min)
 1. Presentación rápida (objetivo, roles principales).  
-2. Paso a paso: iniciar sesión demo → Usuarios (crear invitación) → Atletas (modales + contactos) → Coaches (asignar clases) → Clases (crear sesión + registrar asistencia) → Facturación (plan, historial).  
+2. Paso a paso: iniciar sesión demo → Usuarios (crear invitación) → Atletas (modales + contactos) → Coaches (asignar clases) → Clases (crear sesión + registrar asistencia) → Pagos y cuotas (plan, historial).  
 3. Cierre con checklist de soporte y puntos de escalado.
 
 ## 7. Escalado y contactos
-- **Incidentes críticos (datos, facturación, web caída)** → Escalar a `super_admin` + ingeniería plataforma.  
+- **Incidentes críticos (datos, pagos y cuotas, web caída)** → Escalar a `super_admin` + ingeniería plataforma.  
 - **Soporte de clientes** → usar cola de tickets (Zendesk/Intercom) y documentar en este runbook.  
 - **Canales internos**:  
   - Slack `#gymna-support` (dudas rápidas)  

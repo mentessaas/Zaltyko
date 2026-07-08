@@ -335,7 +335,7 @@ Para clientes Enterprise:
 **Datos a migrar:**
 - Membresías activas
 - Historial de pagos
-- Planes de facturación
+- Planes de pagos y cuotas
 - Deudas pendientes
 
 **Proceso:**

@@ -79,7 +79,7 @@ Este documento define la estrategia de integraciones con servicios externos para
 }
 ```
 
-### 2. Pagos y Facturación
+### 2. Pagos y Pagos y cuotas
 
 #### Stripe (Ya implementado) ✅
 
@@ -90,7 +90,7 @@ Este documento define la estrategia de integraciones con servicios externos para
 
 **Mejoras pendientes**:
 - [ ] Stripe Terminal (pagos presenciales)
-- [ ] Stripe Invoicing (facturas personalizadas)
+- [ ] Stripe Invoicing (pagos personalizadas)
 - [ ] Stripe Tax (cálculo automático de impuestos)
 
 #### Bizum/Redsys (España) ⭐⭐
@@ -280,12 +280,12 @@ Este documento define la estrategia de integraciones con servicios externos para
 - Onboarding guiado
 - Knowledge base
 
-### 8. Contabilidad y Facturación
+### 8. Contabilidad y Pagos y cuotas
 
 #### Holded/Factorial (España) ⭐⭐
 
 **Caso de uso**:
-- Sincronización de facturas
+- Sincronización de pagos
 - Contabilidad automática
 - Nóminas de coaches
 - Gestión fiscal

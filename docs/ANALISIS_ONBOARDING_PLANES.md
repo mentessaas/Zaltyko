@@ -156,7 +156,7 @@ for (const athlete of payload) {
 if (limitError && createdCount > 0) {
   setError(
     `${limitError.message} Se crearon ${createdCount} de ${payload.length} atletas. 
-     Puedes actualizar tu plan más adelante desde facturación.`
+     Puedes actualizar tu plan más adelante desde pagos y cuotas.`
   );
   // Continuar al siguiente paso
   setStep(5);
@@ -386,7 +386,7 @@ ${upgradeTo ? `Actualiza a ${upgradeTo.toUpperCase()} para [ACCION].` :
    └─> Mensaje mostrado:
        "Has alcanzado el límite de atletas de tu plan. 
         Se crearon 2 de 5 atletas. 
-        Puedes actualizar tu plan más adelante desde facturación."
+        Puedes actualizar tu plan más adelante desde pagos y cuotas."
    
    └─> Usuario puede continuar al siguiente paso
 ```

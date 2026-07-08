@@ -2,7 +2,7 @@
 
 ## Resumen Ejecutivo
 
-Zaltyko es una plataforma SaaS de gestión integral para academias deportivas, diseñada específicamente para resolver los desafíos operativos, financieros y de comunicación que enfrentan las academias de gymnástica y otros deportes. La herramienta unifica la administración de atletas, coaches, clases, facturación y comunicación en una sola plataforma, eliminando la fragmentación de procesos que caracteriza a las academias que operan con métodos tradicionales como hojas de cálculo, papel o sistemas inconexos.
+Zaltyko es una plataforma SaaS de gestión integral para academias deportivas, diseñada específicamente para resolver los desafíos operativos, financieros y de comunicación que enfrentan las academias de gymnástica y otros deportes. La herramienta unifica la administración de atletas, coaches, clases, pagos y cuotas y comunicación en una sola plataforma, eliminando la fragmentación de procesos que caracteriza a las academias que operan con métodos tradicionales como hojas de cálculo, papel o sistemas inconexos.
 
 El producto está construido sobre una arquitectura multi-tenant que permite a los propietarios de academias gestionar una o múltiples instalaciones desde un único panel de control, mientras que ofrece portales diferenciados para atletas, padres y entrenadores. Esta flexibilidad posiciona a Zaltyko como una solución escalable tanto para academias individuales como para cadenas o redes de instalaciones deportivas.
 
@@ -10,7 +10,7 @@ El producto está construido sobre una arquitectura multi-tenant que permite a l
 
 ## 1. Buyer Personas
 
-La definición de personasbuyer se ha elaborado a partir del análisis del código fuente, donde se identificaron claramente cinco roles de usuario distintos: super administrador, propietario de academia, administrador, entrenador y atleta, además del rol de padre o tutor que aparece de forma recurrente en funcionalidades como el dashboard personal, comunicaciones y facturación. Cada persona representa un perfil diferente en términos de responsabilidades, objetivos y puntos de dolor.
+La definición de personasbuyer se ha elaborado a partir del análisis del código fuente, donde se identificaron claramente cinco roles de usuario distintos: super administrador, propietario de academia, administrador, entrenador y atleta, además del rol de padre o tutor que aparece de forma recurrente en funcionalidades como el dashboard personal, comunicaciones y pagos y cuotas. Cada persona representa un perfil diferente en términos de responsabilidades, objetivos y puntos de dolor.
 
 ### Persona 1: El Emprendedor Deportivo
 
@@ -26,7 +26,7 @@ Su objetivo primordial es mantener una academia financieramente sostenible sin t
 
 **Puntos de dolor más relevantes**
 
-La frustración principal de este perfil es la cantidad de tiempo que dedica a tareas que considera improductivas. Mantener una hoja de cálculo con la asistencia de cada atleta, actualizar manualmente el estado de pagos, enviar mensajes individuales a los padres cuando hay cambios en el horario o recordar a las familias que tienen facturas pendientes son actividades que le consumen horas cada semana. También experimenta ansiedad por no tener visibilidad clara de la salud financiera de su academia: saber cuántos atletas tiene en período de prueba, cuál es la tasa de retención, cuántos pagos están vencidos o cuál es el ingreso proyectado del mes le requiere sentarme أمام de un Excel cada fin de mes.
+La frustración principal de este perfil es la cantidad de tiempo que dedica a tareas que considera improductivas. Mantener una hoja de cálculo con la asistencia de cada atleta, actualizar manualmente el estado de pagos, enviar mensajes individuales a los padres cuando hay cambios en el horario o recordar a las familias que tienen pagos pendientes son actividades que le consumen horas cada semana. También experimenta ansiedad por no tener visibilidad clara de la salud financiera de su academia: saber cuántos atletas tiene en período de prueba, cuál es la tasa de retención, cuántos pagos están vencidos o cuál es el ingreso proyectado del mes le requiere sentarme أمام de un Excel cada fin de mes.
 
 La dificultad para contratar y retener entrenadores es otro dolor recurrente, ya que carece de herramientas para gestionar el calendario de sus coaches, asignarles grupos o hacer seguimiento de su desempeño. Cuando un padre le pregunta por el progreso técnico de su hijo, debe solicitar la información al entrenador correspondiente y esperar, lo cual genera demoras en la comunicación y una percepción de desorganización.
 
@@ -46,7 +46,7 @@ Su responsabilidad abarca asegurar que todas las academias bajo su responsabilid
 
 Su objetivo principal es imponer visibilidad operativa y financiera sobre todas las academias que gestiona, eliminando la dependencia de reportes manuales que llegan con días o semanas de retraso. Busca tener acceso en tiempo real a métricas clave como número de atletas por academia, tasas de asistencia, ingresos mensuales, churn rate y satisfacción de familias, permitiéndole identificar tendencias, asignar recursos de manera óptima y tomar decisiones informadas sobre dónde invertir o dónde intervenir. También necesita estandarizar procesos para que cualquier academia de la cadena opere bajo las mismas prácticas, facilitando el onboarding de nuevo personal y manteniendo la consistencia de la experiencia del cliente.
 
-Adicionalmente, valora la capacidad de delegar la gestión operativa en los directores de cada academia mientras mantiene supervisión centralizada, sin tener que intervenir en tareas cotidianas como resolver problemas de facturación o responder preguntas de padres sobre horarios.
+Adicionalmente, valora la capacidad de delegar la gestión operativa en los directores de cada academia mientras mantiene supervisión centralizada, sin tener que intervenir en tareas cotidianas como resolver problemas de pagos y cuotas o responder preguntas de padres sobre horarios.
 
 **Puntos de dolor más relevantes**
 
@@ -84,11 +84,11 @@ Aunque no decide la compra del software, el padre influye indirectamente porque 
 
 **Problema central que resuelve**
 
-Zaltyko resuelve la fragmentación operativa que caracteriza a las academias deportivas, donde la gestión de atletas, coaches, clases, facturación y comunicación ocurre en silos aislados, generalmente mediante combinaciones de hojas de cálculo, papel, aplicaciones de mensajería personal y sistemas no integrados. Esta fragmentación genera pérdida de tiempo, errores humanos, falta de visibilidad y una experiencia deficiente para las familias, todo lo cual afecta directamente la retención y la rentabilidad de la academia.
+Zaltyko resuelve la fragmentación operativa que caracteriza a las academias deportivas, donde la gestión de atletas, coaches, clases, pagos y cuotas y comunicación ocurre en silos aislados, generalmente mediante combinaciones de hojas de cálculo, papel, aplicaciones de mensajería personal y sistemas no integrados. Esta fragmentación genera pérdida de tiempo, errores humanos, falta de visibilidad y una experiencia deficiente para las familias, todo lo cual afecta directamente la retención y la rentabilidad de la academia.
 
 **Propuesta única de valor**
 
-Zaltyko es la única plataforma de gestión para academias deportivas diseñada específicamente para las necesidades del sector, que unifica en una sola solución todo lo necesario para operar una academia de manera eficiente: desde la inscripción de atletas y gestión de grupos hasta la evaluación técnica, facturación automática y comunicación con familias, con un enfoque en la experiencia multi-sede que permite escalar sin perder control.
+Zaltyko es la única plataforma de gestión para academias deportivas diseñada específicamente para las necesidades del sector, que unifica en una sola solución todo lo necesario para operar una academia de manera eficiente: desde la inscripción de atletas y gestión de grupos hasta la evaluación técnica, pagos y cuotas automática y comunicación con familias, con un enfoque en la experiencia multi-sede que permite escalar sin perder control.
 
 **Beneficio principal en una oración**
 
@@ -128,9 +128,9 @@ La evaluación técnica es una funcionalidad diferenciadora particularmente vali
 
 Las evaluaciones también facilitan la planificación de grupos: cuando un atleta mejora técnicamente, el sistema puede identificar candidates para promoción a un nivel superior, mientras que atletas que necesitan trabajo adicional pueden ser dirigidos a grupos de refuerzo específicos.
 
-**Facturación y Pagos**
+**Pagos y cuotas y Pagos**
 
-El módulo financiero permite definir planes de suscripción con periodicidad mensual, trimestral o anual, incluyendo la posibilidad de configurar tarifas diferenciadas por nivel, grupo o tipo de servicio. El sistema genera cargos automáticos o manuales, registra pagos realizados con múltiples métodos, gestiona facturas y recibos, y mantiene el historial completo de transacciones de cada atleta.
+El módulo financiero permite definir planes de suscripción con periodicidad mensual, trimestral o anual, incluyendo la posibilidad de configurar tarifas diferenciadas por nivel, grupo o tipo de servicio. El sistema genera cargos automáticos o manuales, registra pagos realizados con múltiples métodos, gestiona pagos y recibos, y mantiene el historial completo de transacciones de cada atleta.
 
 Las funcionalidades de Scholarships y descuentos permiten gestionar políticas de ayuda financiera, descuentos por hermanos o por pago anticipado, aplicando las reglas de forma automática al generar los cargos. Los reportes financieros proporcionan visibilidad sobre ingresos por período, distribución por concepto, antigüedad de cartera vencida y proyección de ingresos, información esencial para la planificación y la toma de decisiones.
 
@@ -148,7 +148,7 @@ La arquitectura multi-tenant permite gestionar múltiples academias desde un sol
 
 ### 3.2 Propuesta de Valor Diferenciada
 
-Zaltyko se diferencia de las alternativas genéricas de gestión empresarial o de software diseñado para otros sectores por su enfoque específico en las necesidades de las academias deportivas. Mientras que un ERP generalista puede gestionar clientes, facturas y calendarios, carece de conceptos como niveles técnicos, grupos por edad, evaluaciones por aparato, competencias o la integración nativa con la comunicación con familias que caracteriza a este sector.
+Zaltyko se diferencia de las alternativas genéricas de gestión empresarial o de software diseñado para otros sectores por su enfoque específico en las necesidades de las academias deportivas. Mientras que un ERP generalista puede gestionar clientes, pagos y calendarios, carece de conceptos como niveles técnicos, grupos por edad, evaluaciones por aparato, competencias o la integración nativa con la comunicación con familias que caracteriza a este sector.
 
 La propuesta diferenciada se construye sobre cuatro pilares fundamentales:
 
@@ -190,7 +190,7 @@ La comunicación con las familias ocurre típicamente a través de múltiples ca
 
 **Cobranza manual y morosidad elevada**
 
-El seguimiento de pagos en hojas de cálculo o sistemas básicos requiere revisión manual constante para identificar qué atletas tienen pagos vencidos, calcular intereses por mora cuando aplica, y contactar a cada familia individualmente para gestionar la cobranza. Este proceso consume tiempo administrativo significativo y frecuentemente resulta enfamilias que se atrasan simplemente porque no recibieron recordatorios oportunos. El módulo de facturación de Zaltyko automatiza la generación de cargos, envía recordatorios automáticos antes y después de las fechas de vencimiento, y proporciona visibilidad clara del estado de cartera de cada atleta y de la academia en general.
+El seguimiento de pagos en hojas de cálculo o sistemas básicos requiere revisión manual constante para identificar qué atletas tienen pagos vencidos, calcular intereses por mora cuando aplica, y contactar a cada familia individualmente para gestionar la cobranza. Este proceso consume tiempo administrativo significativo y frecuentemente resulta enfamilias que se atrasan simplemente porque no recibieron recordatorios oportunos. El módulo de pagos y cuotas de Zaltyko automatiza la generación de cargos, envía recordatorios automáticos antes y después de las fechas de vencimiento, y proporciona visibilidad clara del estado de cartera de cada atleta y de la academia en general.
 
 **Falta de visibilidad sobre la salud financiera**
 
@@ -202,7 +202,7 @@ Aplicar descuentos por hermanos, por pago anual, por categoría de nivel o polí
 
 **Pérdida de documentación financiera**
 
-La emisión manual de facturas y recibos, guardados en carpetas físicas o en archivos digitales desorganizados, dificulta la localización de documentos cuando un cliente los solicita, la preparación de reportes para períodos fiscales o la resolución de disputas sobre cargos. Zaltyko mantiene un historial completo y automatizado de todas las transacciones financieras, generando facturas y recibos automáticamente según la configuración de la academia, con almacenamiento seguro y búsqueda rápida.
+La emisión manual de pagos y recibos, guardados en carpetas físicas o en archivos digitales desorganizados, dificulta la localización de documentos cuando un cliente los solicita, la preparación de reportes para períodos fiscales o la resolución de disputas sobre cargos. Zaltyko mantiene un historial completo y automatizado de todas las transacciones financieras, generando pagos y recibos automáticamente según la configuración de la academia, con almacenamiento seguro y búsqueda rápida.
 
 ### 4.3 Dolores de Tiempo
 
