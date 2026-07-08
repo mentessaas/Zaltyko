@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { isFeatureEnabled, type ProductFeatureKey } from "@/lib/product/features";
 import { evaluateLimit, getUpgradeInfo } from "@/lib/limits";
-import { NETWORK_PLAN, PRODUCT_PLAN_BY_CODE } from "@/lib/plans/catalog";
+import { PRODUCT_PLAN_BY_CODE } from "@/lib/plans/catalog";
 
 const gatedFeatures: ProductFeatureKey[] = [
   "advancedAnalytics",
@@ -43,32 +43,33 @@ describe("Go-live product guardrails", () => {
     }
   });
 
-  it("keeps Starter and Growth as single-academy plans for v1", () => {
-    expect(PRODUCT_PLAN_BY_CODE.pro.publicName).toBe("Starter");
-    expect(PRODUCT_PLAN_BY_CODE.pro.academyLimit).toBe(1);
-    expect(PRODUCT_PLAN_BY_CODE.pro.features.join(" ")).not.toMatch(/academias ilimitadas/i);
-    expect(PRODUCT_PLAN_BY_CODE.premium.publicName).toBe("Growth");
-    expect(PRODUCT_PLAN_BY_CODE.premium.academyLimit).toBe(1);
-    expect(PRODUCT_PLAN_BY_CODE.premium.features.join(" ")).not.toMatch(/academias ilimitadas/i);
+  it("keeps Starter single-academy and Growth multi-academy for v1", () => {
+    expect(PRODUCT_PLAN_BY_CODE.starter.publicName).toBe("Starter");
+    expect(PRODUCT_PLAN_BY_CODE.starter.academyLimit).toBe(1);
+    expect(PRODUCT_PLAN_BY_CODE.starter.features.join(" ")).not.toMatch(/academias ilimitadas/i);
+    expect(PRODUCT_PLAN_BY_CODE.pro.publicName).toBe("Growth");
+    expect(PRODUCT_PLAN_BY_CODE.pro.academyLimit).toBeNull();
+    expect(PRODUCT_PLAN_BY_CODE.pro.features.join(" ")).toMatch(/academias ilimitadas/i);
   });
 
   it("positions Network as accompanied multi-site, not self-serve unlimited", () => {
-    expect(NETWORK_PLAN.publicName).toBe("Network");
-    expect(NETWORK_PLAN.checkoutEnabled).toBe(false);
-    expect(NETWORK_PLAN.features.join(" ")).toMatch(/acompañado/i);
+    expect(PRODUCT_PLAN_BY_CODE.premium.publicName).toBe("Network");
+    expect(PRODUCT_PLAN_BY_CODE.premium.cta).toMatch(/hablar con zaltyko/i);
+    expect(PRODUCT_PLAN_BY_CODE.premium.academyLimit).toBeNull();
   });
 
   it("enforces pricing v3 capacity limits in executable go-live coverage", () => {
     expect(PRODUCT_PLAN_BY_CODE.free.athleteLimit).toBe(30);
-    expect(PRODUCT_PLAN_BY_CODE.pro.athleteLimit).toBe(75);
-    expect(PRODUCT_PLAN_BY_CODE.premium.athleteLimit).toBe(200);
+    expect(PRODUCT_PLAN_BY_CODE.starter.athleteLimit).toBe(75);
+    expect(PRODUCT_PLAN_BY_CODE.pro.athleteLimit).toBe(200);
+    expect(PRODUCT_PLAN_BY_CODE.premium.athleteLimit).toBeNull();
 
     expect(evaluateLimit("free", 30, 30, "athletes")).toMatchObject({
       exceeded: true,
       upgradeTo: "pro",
     });
-    expect(evaluateLimit("pro", 75, 74, "athletes").exceeded).toBe(false);
-    expect(evaluateLimit("premium", 200, 199, "athletes").exceeded).toBe(false);
+    expect(evaluateLimit("pro", 200, 199, "athletes").exceeded).toBe(false);
+    expect(evaluateLimit("premium", null, 5000, "athletes").exceeded).toBe(false);
 
     const freeUpgrade = getUpgradeInfo("free");
     expect(freeUpgrade.nextPlan).toBe("pro");
