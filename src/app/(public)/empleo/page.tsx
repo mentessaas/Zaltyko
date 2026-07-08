@@ -61,6 +61,7 @@ export default async function EmpleoPage({
         publishHref="/empleo/nuevo"
         publishLabel="Publicar oferta"
         dashboardHref="/dashboard/empleo/mis-postulaciones"
+        dashboardHrefTemplate="/dashboard/empleo/mis-postulaciones"
         dashboardLabel="Mis postulaciones"
       />
 

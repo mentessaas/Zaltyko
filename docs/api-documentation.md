@@ -625,9 +625,10 @@ Endpoint para webhooks de Stripe.
 ### Límites de Plan
 
 Los endpoints respetan los límites del plan del usuario:
-- **Free**: Máximo 50 atletas, 1 academia
-- **Pro**: Máximo 200 atletas, múltiples academias
-- **Premium**: Sin límites
+- **Free**: Máximo 30 gimnastas, 1 academia
+- **Starter** (`pro`): Máximo 75 gimnastas, 1 academia
+- **Growth** (`premium`): Máximo 200 gimnastas, 1 academia
+- **Network**: Multi-sede con onboarding acompañado, sin checkout autoservicio
 
 ### Validaciones Comunes
 
@@ -650,4 +651,3 @@ La API actual es la versión 1.0. No hay versionado de endpoints aún.
 ## Soporte
 
 Para problemas o preguntas sobre la API, contacta al equipo de desarrollo.
-

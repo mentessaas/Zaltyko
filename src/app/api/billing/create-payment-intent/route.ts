@@ -15,8 +15,8 @@ const PRICE_MAP: Record<string, string | undefined> = {
 };
 
 const PLAN_DETAILS = {
-    pro: { price: 19, name: "Zaltyko Pro" },
-    premium: { price: 49, name: "Zaltyko Premium" },
+    pro: { price: 19, name: "Zaltyko Starter" },
+    premium: { price: 49, name: "Zaltyko Growth" },
 };
 
 const handler = withTenant(async (req, context) => {

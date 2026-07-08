@@ -95,7 +95,7 @@ export default function PricingSection() {
           </div>
         </div>
 
-        <div className="mt-8 grid items-center gap-6 md:grid-cols-3">
+        <div className="mt-8 grid items-center gap-6 md:grid-cols-2 xl:grid-cols-4">
           {plans.map((plan) => (
             <article
               key={plan.title}

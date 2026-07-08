@@ -236,6 +236,10 @@ export const POST = withTenant(async (request: Request, context: RouteContext) =
     for (const p of notificationsToSend) {
       if (!p.enabled || p.muted) continue;
 
+      const messageUrl = conversation?.academyId
+        ? `/app/${conversation.academyId}/messages`
+        : `/dashboard/messages/${conversationId}`;
+
       // In-app notification
       await createNotification({
         userId: p.userId,
@@ -247,6 +251,7 @@ export const POST = withTenant(async (request: Request, context: RouteContext) =
           conversationId,
           messageId: message.id,
           senderId: profile.id,
+          url: messageUrl,
         },
       });
 
@@ -259,7 +264,7 @@ export const POST = withTenant(async (request: Request, context: RouteContext) =
         data: {
           conversationId,
           messageId: message.id,
-          url: `/dashboard/messages/${conversationId}`,
+          url: messageUrl,
         },
       }).catch(() => {});
     }

@@ -11,7 +11,7 @@ let activateAcademySportConfigMock: ReturnType<typeof vi.fn>;
 
 function createSelectChain(result: unknown[]) {
   const chain: Record<string, unknown> = {};
-  const methods = ["from", "innerJoin", "leftJoin", "where", "orderBy", "limit"] as const;
+  const methods = ["from", "innerJoin", "leftJoin", "where", "orderBy", "limit", "groupBy"] as const;
 
   methods.forEach((method) => {
     chain[method] = vi.fn(() => chain);
@@ -143,6 +143,18 @@ describe("API /api/academies/[academyId]/settings sport config", () => {
       ]),
     }));
 
+    vi.doMock("@/lib/logger", () => ({
+      logger: {
+        debug: vi.fn(),
+        info: vi.fn(),
+        warn: vi.fn(),
+        error: vi.fn(),
+        apiError: vi.fn(),
+        dbOperation: vi.fn(),
+        externalService: vi.fn(),
+      },
+    }));
+
     vi.doMock("@/db", () => ({
       db: {
         select: vi.fn(() => {
@@ -220,7 +232,7 @@ describe("API /api/academies/[academyId]/settings sport config", () => {
         activeApparatusCodes: ["vt", "fx"],
       })
     );
-  });
+  }, 20000);
 
   it("bloquea desactivar un programa usado por atletas o grupos", async () => {
     queueAcademy();
@@ -244,14 +256,14 @@ describe("API /api/academies/[academyId]/settings sport config", () => {
     expect(body).toMatchObject({ code: "SPORT_CONFIG_IN_USE" });
     expect(body.message).toContain("programa");
     expect(activateAcademySportConfigMock).not.toHaveBeenCalled();
-  });
+  }, 20000);
 
   it("bloquea desactivar un aparato usado en operación o histórico", async () => {
     queueAcademy();
     queueCurrentConfig();
     selectQueue.push([]);
     selectQueue.push([]);
-    selectQueue.push([{ apparatus: "ub" }]);
+    selectQueue.push([{ apparatus: ["ub"] }]);
     selectQueue.push([]);
 
     const { PATCH } = await importRoute();
@@ -270,7 +282,7 @@ describe("API /api/academies/[academyId]/settings sport config", () => {
     expect(body).toMatchObject({ code: "SPORT_CONFIG_IN_USE" });
     expect(body.message).toContain("aparato");
     expect(activateAcademySportConfigMock).not.toHaveBeenCalled();
-  });
+  }, 20000);
 
   it("guarda overrides de terminología solo para la variante deportiva indicada", async () => {
     queueAcademy();
@@ -314,5 +326,5 @@ describe("API /api/academies/[academyId]/settings sport config", () => {
         },
       })
     );
-  });
+  }, 20000);
 });

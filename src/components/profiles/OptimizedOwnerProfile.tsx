@@ -67,19 +67,19 @@ interface OwnerProfileProps {
 const PLAN_COPY: Record<string, { label: string; description: string; cta: string; color: string }> = {
   free: {
     label: "Plan Free",
-    description: "Incluye 1 academia y hasta 50 atletas activos.",
+    description: "Incluye 1 academia y hasta 30 gimnastas activos.",
     cta: "Mejorar plan",
     color: "bg-gray-100 text-gray-800",
   },
   pro: {
-    label: "Plan Pro",
-    description: "Automatizaciones avanzadas y academias ilimitadas.",
+    label: "Plan Starter",
+    description: "Hasta 75 gimnastas, portal familias y pagos recurrentes.",
     cta: "Gestionar suscripción",
     color: "bg-blue-100 text-blue-800",
   },
   premium: {
-    label: "Plan Premium",
-    description: "Soporte prioritario y módulos avanzados.",
+    label: "Plan Growth",
+    description: "Hasta 200 gimnastas, reportes de dirección y soporte prioritario.",
     cta: "Gestionar suscripción",
     color: "bg-red-100 text-red-800",
   },
@@ -459,7 +459,7 @@ export function OptimizedOwnerProfile({
                   </div>
                 ) : (
                   <p>
-                    Tu periodo de prueba terminó. Activa un plan Pro para mantener automatizaciones y cobranzas sin
+                    Tu periodo de prueba terminó. Activa Starter para mantener automatizaciones y cobranzas sin
                     fricciones.
                   </p>
                 )}

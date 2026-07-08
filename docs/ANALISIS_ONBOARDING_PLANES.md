@@ -2,7 +2,7 @@
 
 ## 📋 Resumen Ejecutivo
 
-El sistema de onboarding de Zaltyko SaaS es un wizard de 7 pasos que guía a los usuarios desde la creación de cuenta hasta la configuración completa de su academia. El sistema está completamente integrado con un modelo de planes (Free, Pro, Premium) que aplica límites en tiempo real durante el proceso de onboarding.
+El sistema de onboarding de Zaltyko SaaS es un wizard de 7 pasos que guía a los usuarios desde la creación de cuenta hasta la configuración completa de su academia. El sistema está integrado con pricing v3.0: Free, Starter, Growth y Network comercial.
 
 ---
 
@@ -44,9 +44,10 @@ const [maxStep, setMaxStep] = useState<StepKey>(1);
 
 | Plan | Precio | Límites |
 |------|--------|---------|
-| **Free** | €0/mes | • 1 academia<br>• 50 atletas<br>• 3 grupos<br>• 10 clases |
-| **Pro** | €19/mes | • Academias ilimitadas<br>• 200 atletas<br>• 10 grupos<br>• 40 clases |
-| **Premium** | €49/mes | • Todo ilimitado<br>• Sin restricciones |
+| **Free** | €0/mes | • 1 academia<br>• 30 gimnastas<br>• 2 grupos<br>• 5 clases |
+| **Starter** (`pro`) | €19/mes | • 1 academia<br>• 75 gimnastas<br>• 10 grupos<br>• 40 clases |
+| **Growth** (`premium`) | €49/mes | • 1 academia<br>• 200 gimnastas<br>• 20 grupos<br>• 80 clases |
+| **Network** | €99/mes | • Multi-sede acompanado<br>• Limites operativos amplios<br>• CTA comercial sin checkout autoservicio |
 
 ### Límites por Recurso
 
@@ -55,24 +56,24 @@ const [maxStep, setMaxStep] = useState<StepKey>(1);
 
 const ACADEMY_LIMITS: Record<PlanCode, number | null> = {
   free: 1,      // Solo 1 academia
-  pro: null,    // Ilimitado
-  premium: null // Ilimitado
+  pro: 1,       // Starter: 1 academia en v1 comercial
+  premium: 1    // Growth: 1 academia en v1 comercial
 };
 
 const CLASS_LIMITS: Record<PlanCode, number | null> = {
-  free: 10,
+  free: 5,
   pro: 40,
-  premium: null // Ilimitado
+  premium: 80
 };
 
 const GROUP_LIMITS: Record<PlanCode, number | null> = {
-  free: 3,
+  free: 2,
   pro: 10,
-  premium: null // Ilimitado
+  premium: 20
 };
 
 // Los límites de atletas vienen de la tabla `plans` en la BD
-// Free: 50, Pro: 200, Premium: null (ilimitado)
+// Free: 30, Starter/pro: 75, Growth/premium: 200
 ```
 
 ---
@@ -103,7 +104,7 @@ try {
 - ✅ Usuarios nuevos reciben automáticamente el plan **Free**
 - ✅ Se crea una suscripción automática al plan Free si no existe
 - ✅ Si el usuario ya tiene 1 academia (límite Free), se bloquea la creación
-- ✅ El error incluye sugerencia de upgrade a Pro
+- ✅ El error incluye sugerencia de hablar con Zaltyko para Network si necesita varias sedes
 
 **Código relevante:**
 ```typescript
@@ -272,8 +273,8 @@ ${upgradeTo ? `Actualiza a ${upgradeTo.toUpperCase()} para [ACCION].` :
 ```
 
 **Ejemplos:**
-- "Has alcanzado el límite de academias de tu plan actual (1 academia). Actualiza a PRO para crear más academias."
-- "Has alcanzado el límite de atletas de tu plan actual. Actualiza a PRO para agregar más atletas."
+- "Has alcanzado el límite de academias de tu plan actual (1 academia). Para varias sedes, habla con Zaltyko sobre Network."
+- "Has alcanzado el límite de gimnastas de tu plan actual. Actualiza a Starter para agregar más gimnastas."
 
 ---
 
@@ -367,25 +368,25 @@ ${upgradeTo ? `Actualiza a ${upgradeTo.toUpperCase()} para [ACCION].` :
    └─> assertUserAcademyLimit() detecta límite
    └─> Retorna error 402 con mensaje:
        "Has alcanzado el límite de academias de tu plan actual (1 academia). 
-        Actualiza a PRO para crear más academias."
-   └─> Usuario debe actualizar a Pro para continuar
+        Para varias sedes, habla con Zaltyko sobre Network."
+   └─> Usuario debe contactar a Zaltyko para evaluar Network
 ```
 
 ### Escenario 3: Usuario Free Agrega Atletas Más Allá del Límite
 
 ```
-1. Usuario tiene 48 atletas (2 disponibles en Free)
+1. Usuario tiene 28 gimnastas (2 disponibles en Free)
 
-2. Intenta agregar 5 atletas en onboarding → ⚠️ PARCIAL
-   └─> Atleta 1: ✅ Creado (49 total)
-   └─> Atleta 2: ✅ Creado (50 total - LÍMITE ALCANZADO)
-   └─> Atleta 3: ❌ Error LIMIT_REACHED
-   └─> Atleta 4: ❌ No se intenta (loop detenido)
-   └─> Atleta 5: ❌ No se intenta (loop detenido)
+2. Intenta agregar 5 gimnastas en onboarding → ⚠️ PARCIAL
+   └─> Gimnasta 1: ✅ Creada (29 total)
+   └─> Gimnasta 2: ✅ Creada (30 total - LÍMITE ALCANZADO)
+   └─> Gimnasta 3: ❌ Error LIMIT_REACHED
+   └─> Gimnasta 4: ❌ No se intenta (loop detenido)
+   └─> Gimnasta 5: ❌ No se intenta (loop detenido)
    
    └─> Mensaje mostrado:
-       "Has alcanzado el límite de atletas de tu plan. 
-        Se crearon 2 de 5 atletas. 
+       "Has alcanzado el límite de gimnastas de tu plan. 
+        Se crearon 2 de 5 gimnastas. 
         Puedes actualizar tu plan más adelante desde facturación."
    
    └─> Usuario puede continuar al siguiente paso
@@ -508,20 +509,20 @@ await markWizardStep({
 
 **Actual:**
 ```
-"Actualiza a PRO para crear más academias."
+"Actualiza a Starter para agregar más gimnastas."
 ```
 
 **Mejorado:**
 ```
-"Actualiza a PRO (€19/mes) para crear academias ilimitadas. 
-[Botón: Ver planes]"
+"Growth aumenta capacidad operativa dentro de una academia. Para varias sedes, habla con Zaltyko sobre Network.
+[Botón: Hablar con Zaltyko]"
 ```
 
 ### 2. Mostrar Límites Restantes
 
 **Agregar en UI:**
 ```
-"Tienes 2 de 50 atletas disponibles en tu plan Free"
+"Tienes 2 de 30 gimnastas disponibles en tu plan Free"
 ```
 
 ### 3. Validación Preventiva
@@ -537,7 +538,7 @@ if (canCreateMore.remaining === 0) {
 
 ### 4. Onboarding Condicional por Plan
 
-**Para usuarios Pro/Premium:**
+**Para usuarios Starter/Growth:**
 - Saltar pasos opcionales automáticamente
 - Mostrar opciones avanzadas desde el inicio
 
@@ -571,4 +572,3 @@ El sistema de onboarding está **completamente integrado** con el modelo de plan
 - ⚠️ Mostrar límites restantes en UI
 - ⚠️ Validación preventiva antes de crear
 - ⚠️ Onboarding diferenciado por plan
-

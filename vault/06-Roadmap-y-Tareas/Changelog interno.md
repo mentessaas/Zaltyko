@@ -325,6 +325,30 @@ Cierre de 4 fallos de CI y del 404 en la raiz del sitio, sobre `security/audit-r
 - Registrada decision de mantener `membership_role` simple en v1 (`owner`, `coach`, `viewer`) y mapear `admin` global a acceso de owner hasta necesitar permisos granulares.
 - Estado real: faltan QA manual con dos usuarios reales, validacion de cuentas reales por rol y barrido completo de copy "borrar" vs "desvincular" en pantallas especificas de atletas/tutores/entrenadores.
 
+## 2026-06-24 - Migraciones produccion aplicadas y verificadas
+
+- Aplicadas en Supabase produccion `jegxfahsvugilbthbked`: `20260622153000_add_sport_config_rls.sql` y `20260624000000_rls_academy_link_requests.sql`.
+- Verificado que las piezas criticas ya estan presentes en produccion: columnas de assessments, campos comerciales de clases, `billing_invoices`, role `provider`, `academy_link_requests`, tablas leak-profitability, RLS lateral, policies endurecidas de marketplace/empleo/push y tablas criticas de eventos/documentos.
+- Corregida la migracion RLS de `academy_link_requests`: `get_current_profile()` devuelve `profiles`, asi que las policies deben comparar `target_profile_id` con `(get_current_profile()).id`.
+- `pnpm check:migrations` sigue en verde. No se hizo push ni cambios en Stripe productivo.
+
+## 2026-06-24 - Limpieza warnings Vercel build
+
+- Eliminado `vercel` como devDependency porque Vercel lo ignora en builds remotos y el workflow ya instala el CLI globalmente.
+- Convertido `tailwind.config.ts` a `tailwind.config.mjs` para evitar el warning ESM/CJS al cargar Tailwind en Vercel.
+- Corregido CI: `pnpm/action-setup` ya no fija `version: 9` porque `package.json` define `packageManager` con `pnpm@9.15.3`.
+- `pnpm lint` y `pnpm build` pasan; quedan solo warnings historicos de lint no bloqueantes.
+
+## 2026-06-24 - Cierre CI PR coherencia critica
+
+- Ancladas como devDependencies directas `playwright` y `@vitest/coverage-v8` para que `pnpm typecheck`, scripts E2E y `pnpm vitest run --coverage` no dependan de transitive deps en CI.
+- `scripts/check-migrations-integrity.ts` ahora soporta runners sin carpeta local `drizzle/`: valida `supabase/migrations` y mantiene la validacion Drizzle completa cuando `drizzle/meta/_journal.json` existe.
+- Corregido `tests/api-academy-settings-sport-config.test.ts`: mock de `logger`, cadenas Drizzle mockeadas con `groupBy`, forma correcta de `apparatus` y timeouts locales para coverage de ruta Next pesada.
+- `coverage/` queda ignorado como artefacto local de pruebas.
+- Validacion local final: `pnpm typecheck`, `pnpm lint`, `pnpm check:migrations`, `pnpm vitest run --coverage` (39 archivos, 376 tests) y `pnpm build` pasan.
+- Fix adicional de CI Build: onboarding `parent`/`athlete`/`coach` crea el cliente Supabase solo en `handleFinish`, evitando que el prerender falle cuando el runner no tiene `NEXT_PUBLIC_SUPABASE_URL`/anon key.
+- Validado con `NEXT_PUBLIC_SUPABASE_URL= NEXT_PUBLIC_SUPABASE_ANON_KEY= pnpm build`.
+
 ## 2026-06-22
 ## 2026-06-22 - Cierre Go-Live SaaS v1 con sandbox real
 

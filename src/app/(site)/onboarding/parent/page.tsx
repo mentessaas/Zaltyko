@@ -19,7 +19,6 @@ type Step = "welcome" | "children" | "notifications" | "done";
 
 export default function ParentOnboardingPage() {
   const router = useRouter();
-  const supabase = createClient();
   const toast = useToast();
   const [step, setStep] = useState<Step>("welcome");
   const [loading, setLoading] = useState(false);
@@ -56,6 +55,7 @@ export default function ParentOnboardingPage() {
   async function handleFinish() {
     setLoading(true);
     try {
+      const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("No user");
 
