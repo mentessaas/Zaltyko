@@ -71,7 +71,7 @@ Este documento resume las mejoras implementadas en el módulo de cobros, navegac
 
 ### 3.1. Sidebar Actualizado
 **Archivo**: `src/components/academy/AcademySidebar.tsx`
-- Secciones completas: Dashboard, Atletas, Entrenadores, **Grupos**, Clases, Asistencia, Facturación, Evaluaciones
+- Secciones completas: Dashboard, Atletas, Entrenadores, **Grupos**, Clases, Asistencia, Pagos y cuotas, Evaluaciones
 - Navegación consistente en desktop (solo sidebar)
 - Mobile: sidebar oculto, acceso vía menú hamburguesa
 
@@ -91,7 +91,7 @@ Este documento resume las mejoras implementadas en el módulo de cobros, navegac
 
 ### 3.3. Wording Unificado
 **Cambios realizados**:
-- "alumno" → "atleta" en componentes de facturación
+- "alumno" → "atleta" en componentes de pagos y cuotas
 - "Cobros a alumnos" se mantiene como título de sección
 - Uso consistente de "Cuota mensual" para cargos recurrentes
 - Términos unificados: Atletas, Entrenadores, Grupos, Clases, Asistencia, Cobros

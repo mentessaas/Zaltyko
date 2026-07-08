@@ -8,7 +8,7 @@
 
 ## Resumen Ejecutivo
 
-Zaltyko es un SaaS B2B para gestión de academias de gimnasia con un nucleo funcional solido en su base (atletas, entrenadores, clases, eventos, facturación), pero con una deuda técnica significativa en la capa de UI/UX, modulos de marketing prometer funcionalidades no implementadas, y features criticas incompletas. El modelo de datos es maduro (73+ schemas) pero la experiencia de usuario no esta a la altura del potencial del back-end.
+Zaltyko es un SaaS B2B para gestión de academias de gimnasia con un nucleo funcional solido en su base (atletas, entrenadores, clases, eventos, pagos y cuotas), pero con una deuda técnica significativa en la capa de UI/UX, modulos de marketing prometer funcionalidades no implementadas, y features criticas incompletas. El modelo de datos es maduro (73+ schemas) pero la experiencia de usuario no esta a la altura del potencial del back-end.
 
 ---
 
@@ -99,22 +99,22 @@ Zaltyko es un SaaS B2B para gestión de academias de gimnasia con un nucleo func
 | Actualizar miembros del grupo | ✅ Implemented | `UpdateGroupMembersDialog` |
 | Asignar atletas a grupos | ✅ Implemented | `GroupView` tiene UI |
 
-### 5. Modulo de Facturacion
+### 5. Modulo de Pagocion
 
 | Feature | Estado | Notas |
 |---------|--------|-------|
-| Items de facturacion (cuotas) | ✅ Implemented | Schema completo + API |
+| Items de pagocion (cuotas) | ✅ Implemented | Schema completo + API |
 | Cargos automaticos y manuales | ✅ Implemented | `GenerateChargesDialog`, `CreateChargeDialog` |
-| Historial de facturas | ✅ Implemented | `InvoiceHistory`, `InvoiceList` |
+| Historial de pagos | ✅ Implemented | `InvoiceHistory`, `InvoiceList` |
 | Gestion de descuentos | ✅ Implemented | `discounts`, `discountCampaigns` |
 | Becas (scholarships) | ✅ Implemented | Schema existe |
 | Recibos (receipts) | ✅ Implemented | `ReceiptViewer`, `receipt-generator` |
-| Panel de facturacion | ✅ Implemented | `BillingSummary`, `StudentChargesTab` |
+| Panel de pagocion | ✅ Implemented | `BillingSummary`, `StudentChargesTab` |
 | Metodo de pago (Stripe) | ✅ Implemented | `PaymentMethodCard`, webhook handler |
 | Recordatorios de pago (AI) | 🔨 Partial | Tipo definido en `ai/types.ts`, no hay UI |
 | Prediccion de morosidad (AI) | 🔨 Partial | Tipo definido, no hay UI de uso |
 | Generar cargos mensuales (cron) | ✅ Implemented | API route + cron job |
-| Facturas electrónicas | ❌ Missing | Prometido en marketing, no existe |
+| Pagos electrónicas | ❌ Missing | Prometido en marketing, no existe |
 | Panel financiero con proyecciones | ❌ Missing | Solo stats basicos |
 | Exportacion a contabilidad | ❌ Missing | Prometido en marketing |
 
@@ -335,7 +335,7 @@ Zaltyko es un SaaS B2B para gestión de academias de gimnasia con un nucleo func
 
 2. **Calendario de clases** - Coordinar horarios de multiples grupos es un problema real. La vista de calendario con placeholders es util aunque incompleta.
 
-3. **Facturacion con Stripe** - Cobrar manualmente es un dolor de cabeza real. La automatizacion con Stripe resolve un problema concreto.
+3. **Pagocion con Stripe** - Cobrar manualmente es un dolor de cabeza real. La automatizacion con Stripe resolve un problema concreto.
 
 4. **Multi-tenant** - La arquitectura RLS/multi-tenant esta bien disenada para el caso de academias independientes.
 

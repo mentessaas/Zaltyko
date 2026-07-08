@@ -42,7 +42,7 @@ El núcleo de la seguridad de Zaltyko es el aislamiento de datos. No utilizamos 
 - **Autorización**: Sistema de permisos basado en roles (`owner`, `admin`, `coach`, `athlete`).
 - **Middleware**: Intercepta rutas protegidas y valida la sesión antes de renderizar.
 
-### 2. Motor de Facturación (`src/lib/billing`, `src/lib/limits.ts`)
+### 2. Motor de Pagos y cuotas (`src/lib/billing`, `src/lib/limits.ts`)
 - **Suscripciones**: Sincronización bidireccional con Stripe.
 - **Límites**: Lógica de negocio ("Hard Limits") que impide crear recursos (ej. más de 50 atletas) si el plan actual no lo permite.
 - **Webhooks**: Procesamiento asíncrono de eventos de pago (`invoice.paid`, `customer.subscription.updated`).

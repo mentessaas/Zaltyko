@@ -145,7 +145,7 @@ Este documento analiza todas las funcionalidades nuevas implementadas y propone 
 
 - **Operación**: Agregar "Eventos" si no está
 - **Negocio**: Expandir con submenús:
-  - Facturación (existente)
+  - Pagos y cuotas (existente)
     - Becas (`/billing/scholarships`)
     - Descuentos (`/billing/discounts`)
     - Recibos (`/billing/receipts`)
@@ -223,7 +223,7 @@ Este documento analiza todas las funcionalidades nuevas implementadas y propone 
 #### **Estructura Propuesta:**
 
 ```
-Facturación
+Pagos y cuotas
 ├── Resumen (página principal)
 │   ├── Métricas financieras
 │   ├── Próximos pagos
@@ -395,7 +395,7 @@ Después de esta integración, los usuarios deberían poder:
 3. **Recibir notificaciones** en tiempo real sin salir del contexto
 4. **Generar reportes** con un solo clic desde el dashboard
 5. **Gestionar eventos** desde una sección dedicada
-6. **Administrar becas/descuentos/recibos** desde facturación
+6. **Administrar becas/descuentos/recibos** desde pagos y cuotas
 7. **Ver analítica avanzada** cuando la necesiten
 
 ---

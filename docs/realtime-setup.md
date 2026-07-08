@@ -14,7 +14,7 @@ Para habilitar las notificaciones en tiempo real, necesitas configurar Realtime 
    - `academies`
    - `classes`
    - `class_sessions` (opcional, para notificaciones de sesiones)
-   - `billing_invoices` (para notificaciones de facturación)
+   - `billing_invoices` (para notificaciones de pagos y cuotas)
 
 ### 2. Configurar políticas RLS para Realtime
 
@@ -51,11 +51,11 @@ ALTER PUBLICATION supabase_realtime ADD TABLE classes;
 #### Para la tabla `billing_invoices`:
 
 ```sql
--- Permitir ver facturas en tiempo real (filtrado por RLS)
+-- Permitir ver pagos en tiempo real (filtrado por RLS)
 ALTER PUBLICATION supabase_realtime ADD TABLE billing_invoices;
 ```
 
-**Nota importante**: Las políticas RLS deben permitir que los usuarios vean solo sus propias facturas. Asegúrate de tener políticas como:
+**Nota importante**: Las políticas RLS deben permitir que los usuarios vean solo sus propias pagos. Asegúrate de tener políticas como:
 
 ```sql
 -- Ejemplo de política RLS para billing_invoices
@@ -135,20 +135,20 @@ El sistema de notificaciones en tiempo real soporta los siguientes eventos:
 - **Academies**: Creación y actualización de academias
 - **Classes**: Creación de clases
 - **Sessions**: (Próximamente) Creación de sesiones de clase
-- **Billing Invoices**: Creación de nuevas facturas (requiere Realtime habilitado en `billing_invoices`)
+- **Billing Invoices**: Creación de nuevas pagos (requiere Realtime habilitado en `billing_invoices`)
 
-### Configuración específica para facturación
+### Configuración específica para pagos y cuotas
 
-Para que las notificaciones de facturación funcionen correctamente:
+Para que las notificaciones de pagos y cuotas funcionen correctamente:
 
 1. **Habilita Realtime** para la tabla `billing_invoices` en Supabase Dashboard
-2. **Configura políticas RLS** que permitan a los usuarios ver sus propias facturas basándose en `tenant_id`
-3. **Pasa `tenantId` al provider** - El `RealtimeNotificationsProvider` ahora requiere tanto `userId` como `tenantId` para filtrar correctamente las facturas
+2. **Configura políticas RLS** que permitan a los usuarios ver sus propias pagos basándose en `tenant_id`
+3. **Pasa `tenantId` al provider** - El `RealtimeNotificationsProvider` ahora requiere tanto `userId` como `tenantId` para filtrar correctamente las pagos
 
 El hook automáticamente:
 - Escucha eventos `INSERT` en `billing_invoices`
-- Filtra por `tenant_id` para mostrar solo facturas del tenant del usuario actual
-- Muestra una notificación toast con el monto de la factura (en euros, convertido de centavos)
+- Filtra por `tenant_id` para mostrar solo pagos del tenant del usuario actual
+- Muestra una notificación toast con el monto de la pago (en euros, convertido de centavos)
 - Incluye el `academyId` en la notificación para referencia
 
-**Nota**: La tabla `billing_invoices` no tiene un campo `user_id` directo, por lo que el filtro se realiza por `tenant_id`. Asegúrate de que las políticas RLS permitan que los usuarios vean facturas de su tenant.
+**Nota**: La tabla `billing_invoices` no tiene un campo `user_id` directo, por lo que el filtro se realiza por `tenant_id`. Asegúrate de que las políticas RLS permitan que los usuarios vean pagos de su tenant.

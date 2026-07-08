@@ -39,7 +39,7 @@
 - Resumen: Dashboard
 - Operación: Atletas, Entrenadores, Grupos, Clases, Asistencia, Eventos
 - Reportes: Asistencia, Financiero, Progreso
-- Negocio: Facturación, Becas, Descuentos, Recibos, Evaluaciones
+- Negocio: Pagos y cuotas, Becas, Descuentos, Recibos, Evaluaciones
 - Administración: Analítica Avanzada, Logs de Auditoría
 
 **Problemas:**

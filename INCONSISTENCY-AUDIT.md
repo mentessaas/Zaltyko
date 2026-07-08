@@ -219,11 +219,11 @@ const reasons: ChurnReason[] = [
 
 ---
 
-### [CRITICAL-11] "Portal de facturación para familias" — Incompleto
+### [CRITICAL-11] "Portal de pagos y cuotas para familias" — Incompleto
 
 **Promesa de marketing:**
 - `FeaturesSection.tsx` línea 61: "Portal para familias con historial de pagos"
-- `ModulesSection.tsx` línea 39: "Portal de facturación"
+- `ModulesSection.tsx` línea 39: "Portal de pagos y cuotas"
 
 **Realidad:**
 | Componente | Estado |
@@ -340,12 +340,12 @@ const reasons: ChurnReason[] = [
 
 ---
 
-### [HIGH-20] "Facturación electrónica" — No Implementada
+### [HIGH-20] "Emision electronica" — No Implementada
 
 **Promesa de marketing:**
-- `ModulesSection.tsx` línea 39: "Portal de facturación"
+- `ModulesSection.tsx` línea 39: "Portal de pagos y cuotas"
 
-**Realidad:** No hay generación de facturas electrónicas con formato oficial español. Solo receipt generation simple.
+**Realidad:** No hay generación de pagos electrónicas con formato oficial español. Solo receipt generation simple.
 
 ---
 
@@ -688,7 +688,7 @@ El directorio promete una lista pública de academias pero no hay página con es
 | Control de aforo | Modules | 🔨 Partial | Schema existe, waiting list no tiene UI |
 | Asistencia registro | Modules, Features | ✅ Implemented | Dialog existe, page no |
 | Pagos con Stripe | Hero, Modules | ✅ Implemented | Cobros básicos, morosos sin UI |
-| Portal facturación familias | Features, Modules | ❌ Missing | Admin tiene billing, familias no |
+| Portal pagos y cuotas familias | Features, Modules | ❌ Missing | Admin tiene billing, familias no |
 | Eventos gestión | Hero, Modules | ✅ Implemented | Lista existe, UI de gestión incompleta |
 | Inscripciones online a eventos | eventos-competiciones | 🔨 Partial | Schema existe, UI incompleta |
 | Generación listados federativos | eventos-competiciones | ❌ Missing | **FALSO** |
@@ -829,7 +829,7 @@ Y en `getUserSubscription`, el `athleteLimit` debe venir del plan Pro en DB, no 
 | 8 | Marketing↔Producto | CRITICAL | KPIs en tiempo real = fake data | `churn-report.ts`, `metrics.ts` |
 | 9 | Marketing↔Producto | CRITICAL | Reportes asistencia sin página | No existe `attendance/page.tsx` |
 | 10 | Marketing↔Producto | CRITICAL | Gestión clases no existe | No existe `classes/page.tsx` |
-| 11 | Marketing↔Producto | CRITICAL | Portal facturación familias incompleto | Solo existe para admins |
+| 11 | Marketing↔Producto | CRITICAL | Portal pagos y cuotas familias incompleto | Solo existe para admins |
 | 12 | Marketing↔Producto | CRITICAL | Portal padres parcial | Sin progreso/evaluaciones |
 | 13 | Marketing↔Código | HIGH | Confirmación de lectura no existe | Schema notifications |
 | 14 | Marketing↔Código | HIGH | Centro notificaciones sin página | Schema + API existen |
@@ -838,7 +838,7 @@ Y en `getUserSubscription`, el `athleteLimit` debe venir del plan Pro en DB, no 
 | 17 | Marketing↔Código | HIGH | Exportables federación no existe | Sin endpoint |
 | 18 | Marketing↔Código | HIGH | QR acceso no existe | Sin implementación |
 | 19 | Marketing↔Código | HIGH | GymnasticMeet futura | Sin implementación |
-| 20 | Marketing↔Código | HIGH | Facturación electrónica no existe | Solo receipts |
+| 20 | Marketing↔Código | HIGH | Emision electronica no existe | Solo receipts |
 | 21 | Marketing↔Código | HIGH | Calendarios externos no existe | Sin implementación |
 | 22 | Marketing↔Código | HIGH | App móvil no existe | Solo web |
 | 23 | Marketing↔Código | HIGH | WhatsApp Business parcial | API existe, verificación no |

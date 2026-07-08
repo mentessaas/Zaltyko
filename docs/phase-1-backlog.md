@@ -26,9 +26,9 @@ Referencia directa al [_Playbook Fase 1_](./phase-1-playbook.md). Cada tarea deb
 - [ ] Generación de sesiones recurrentes + edición individual.
 - [ ] Alertas (cupo lleno, cancelaciones, comentarios destacados).
 
-## 5. Facturación Stripe
+## 5. Pagos y cuotas Stripe
 - [ ] Sincronización de productos/precios con tabla `plans` (script + admin view).
-- [ ] UX de facturación in-app (plan actual, upgrade/downgrade, historial).
+- [ ] UX de pagos y cuotas in-app (plan actual, upgrade/downgrade, historial).
 - [ ] Mejorar manejo de errores Stripe (webhooks y reintentos).
 - [ ] Notificaciones email al cambiar plan (Mailgun).
 

@@ -307,7 +307,7 @@ Los taglines están diseñados para diferentes canales y contextos de uso, mante
 | Producto | Software clubs deportivos | Ampliar alcance |
 | Producto | Platforma academies football/sports | Nicho específico |
 | Problema | Organizar academia deportiva | Problema organizacional |
-| Problema | Facturación academias | Problema financiero |
+| Problema | Pagos y cuotas academias | Problema financiero |
 | Problema | Reportes academia | Problema de visibilidad |
 | Comparación | Excel vs software academias | Educación de mercado |
 | Local | Software gestión academias España/Latam | Mercado hispanohablante |

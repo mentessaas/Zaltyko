@@ -430,7 +430,7 @@ Crea una nota de entrenador sobre un atleta.
 }
 ```
 
-### Facturación
+### Pagos y cuotas
 
 #### `GET /api/billing/plans`
 Lista planes disponibles.
@@ -470,7 +470,7 @@ Crea una sesión de checkout de Stripe.
 ```
 
 #### `GET /api/billing/portal`
-Obtiene URL del portal de facturación de Stripe.
+Obtiene URL del portal de pagos y cuotas de Stripe.
 
 **Query params:**
 - `academyId`: uuid (requerido)
@@ -483,7 +483,7 @@ Obtiene URL del portal de facturación de Stripe.
 ```
 
 #### `GET /api/billing/status`
-Obtiene el estado de facturación de una academia.
+Obtiene el estado de pagos y cuotas de una academia.
 
 **Body:**
 ```json
@@ -504,7 +504,7 @@ Obtiene el estado de facturación de una academia.
 ```
 
 #### `GET /api/billing/history`
-Obtiene historial de facturas.
+Obtiene historial de pagos.
 
 **Query params:**
 - `academyId`: uuid (requerido)

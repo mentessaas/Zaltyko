@@ -63,7 +63,7 @@
 - El trial otorga acceso completo a features Pro, pero no hay trackeo de usage para identificar churn risk durante el trial
 
 ### Hallazgo clave
-**La mayor debilidad del modelo de ingresos es que la monetización es 100% por academia/plan y 0% por uso o valor.** No hay revenue adicional por: volumen de atletas facturados, coaches adicionales, integraciones, exportación de datos, o servicios de valor añadido.
+**La mayor debilidad del modelo de ingresos es que la monetización es 100% por academia/plan y 0% por uso o valor.** No hay revenue adicional por: volumen de atletas pagodos, coaches adicionales, integraciones, exportación de datos, o servicios de valor añadido.
 
 ---
 
@@ -115,7 +115,7 @@ Comparativa con SaaS de nicho español:
 
 ### Oportunidades de Upsell No Explotadas
 
-1. **Cuota por atleta facturado:** La infraestructura existe (`athlete-fees.ts`) pero no se monetiza. Si Zaltyko cobrara 1-2€/atleta/mes a academias que ya gestionan cobros, el MRR se multiplicaría.
+1. **Cuota por atleta pagodo:** La infraestructura existe (`athlete-fees.ts`) pero no se monetiza. Si Zaltyko cobrara 1-2€/atleta/mes a academias que ya gestionan cobros, el MRR se multiplicaría.
 2. **Marketplace de integraciones:** GimnasticMeet (mencionado como "integración futura"), apps de streaming, apps de nutrición → revenue compartido.
 3. **Módulo de competiciones:** Federaciones pagan por acceso a dati di atletas en formato estándar.
 4. **API access monetizado:** Pro tiene "KPIs avanzados" pero Premium tiene "API extendida" — la diferencia no está clara en valor.

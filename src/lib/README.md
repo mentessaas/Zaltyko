@@ -16,7 +16,7 @@ lib/
 ├── audit-log.ts      # Logging de auditoría
 ├── date-utils.ts     # Utilidades de fechas
 ├── supabase/        # Clientes de Supabase
-├── billing/         # Servicios de facturación
+├── billing/         # Servicios de pagos y cuotas
 ├── notifications/    # Servicios de notificaciones
 ├── reports/         # Generación de reportes
 └── search/         # Búsqueda global

@@ -66,7 +66,7 @@
 2. **`tests/e2e-critical-flows.test.ts`**
    - Tests E2E para flujos críticos
    - Onboarding, invitaciones, gestión de atletas
-   - Facturación, multi-tenancy
+   - Pagos y cuotas, multi-tenancy
 
 3. **`tests/api-integration-additional.test.ts`**
    - Tests de integración adicionales

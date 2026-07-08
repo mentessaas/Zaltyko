@@ -31,7 +31,7 @@ Zaltyko se plantea como SaaS B2B para academias deportivas, con monetizacion por
 
 ## Oportunidades
 
-- Monetizar por atleta gestionado o facturado.
+- Monetizar por atleta gestionado o pagodo.
 - Add-ons de competiciones, reportes, integraciones y automatizaciones.
 - Partnerships con federaciones, eventos y proveedores deportivos.
 - Customer success como diferenciador para academias no tecnicas.

@@ -25,4 +25,4 @@ Dueño o director de academia deportiva que gestiona clases, atletas, familias, 
 
 - Gimnasios generalistas sin necesidad de evaluaciones o gestion deportiva vertical.
 - Organizaciones que requieren integraciones enterprise complejas desde el primer dia.
-- Clientes que necesitan facturacion/localizacion no soportada aun.
+- Clientes que necesitan pagocion/localizacion no soportada aun.
