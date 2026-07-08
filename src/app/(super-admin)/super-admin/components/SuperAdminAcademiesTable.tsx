@@ -96,7 +96,7 @@ export function SuperAdminAcademiesTable({
         return;
       }
 
-      const payload = await response.json();
+      const { data: payload } = await response.json();
       setItems(payload.items ?? []);
       setTotal(payload.total ?? payload.items?.length ?? 0);
     } finally {

@@ -209,7 +209,7 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
       });
 
       if (refreshResponse.ok) {
-        const refreshed = await refreshResponse.json();
+        const { data: refreshed } = await refreshResponse.json();
         setUser(refreshed);
       }
 
@@ -335,7 +335,7 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
       });
 
       if (refreshResponse.ok) {
-        const refreshed = await refreshResponse.json();
+        const { data: refreshed } = await refreshResponse.json();
         setUser(refreshed);
         setFormData({
           name: refreshed.name ?? "",
@@ -399,7 +399,7 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
       });
 
       if (refreshResponse.ok) {
-        const refreshed = await refreshResponse.json();
+        const { data: refreshed } = await refreshResponse.json();
         setUser(refreshed);
         setFormData({
           ...formData,
@@ -460,7 +460,7 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
       });
 
       if (refreshResponse.ok) {
-        const refreshed = await refreshResponse.json();
+        const { data: refreshed } = await refreshResponse.json();
         setUser(refreshed);
         setFormData({ ...formData, isSuspended: refreshed.isSuspended });
         router.refresh();

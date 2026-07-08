@@ -18,6 +18,21 @@ function getProgressColor(percent: number) {
   return "bg-zaltyko-teal";
 }
 
+const PLAN_STATUS_LABELS: Record<string, string> = {
+  active: "Activo",
+  trialing: "En periodo de prueba",
+  past_due: "Pago pendiente",
+  canceled: "Cancelado",
+  incomplete: "Incompleto",
+  incomplete_expired: "Expirado",
+  unpaid: "Sin pagar",
+  paused: "Pausado",
+};
+
+function getPlanStatusLabel(status: string) {
+  return PLAN_STATUS_LABELS[status] ?? status;
+}
+
 export function PlanUsage({ plan, academyId }: PlanUsageProps) {
   const effectivePlanName = plan.planNickname ?? plan.planCode?.toUpperCase() ?? "Plan";
   const usageSummary = plan.athleteLimit != null
@@ -35,7 +50,7 @@ export function PlanUsage({ plan, academyId }: PlanUsageProps) {
             Estado del plan
           </p>
           <h3 className="mt-0.5 font-display text-base font-semibold text-zaltyko-navy">{effectivePlanName}</h3>
-          <p className="text-[10px] capitalize text-zaltyko-text-secondary">Estado: {plan.status}</p>
+          <p className="text-[10px] text-zaltyko-text-secondary">Estado: {getPlanStatusLabel(plan.status)}</p>
         </div>
         <Link
           href={`/app/${academyId}/billing`}

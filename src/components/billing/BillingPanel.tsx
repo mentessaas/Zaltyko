@@ -124,6 +124,18 @@ function getInvoiceStatusInfo(status: string | null, locale: "es" | "en" = "es")
   }
 }
 
+const BILLING_INTERVAL_LABELS: Record<string, string> = {
+  day: "día",
+  week: "semana",
+  month: "mes",
+  year: "año",
+};
+
+function translateBillingInterval(interval: string | null): string | null {
+  if (!interval) return interval;
+  return BILLING_INTERVAL_LABELS[interval] ?? interval;
+}
+
 function formatPeriod(periodStart: string | null, periodEnd: string | null): string {
   if (!periodStart || !periodEnd) return "—";
   const start = new Date(periodStart);
@@ -358,7 +370,7 @@ export const BillingPanel = memo(function BillingPanel({ academyId, userId, spor
             {currentPlanInfo && (
               <p className="text-sm text-muted-foreground">
                 <span className="font-medium text-zaltyko-navy">Cuota:</span> {formatPlanPrice(currentPlanInfo)} /{" "}
-                {currentPlanInfo.billingInterval ?? "mes"}
+                {translateBillingInterval(currentPlanInfo.billingInterval) ?? "mes"}
               </p>
             )}
             {summary.hasStripeCustomer && (
@@ -424,7 +436,7 @@ export const BillingPanel = memo(function BillingPanel({ academyId, userId, spor
                     {formatPlanPrice(plan)}{" "}
                     {plan.billingInterval ? (
                       <span className="text-sm font-normal text-muted-foreground">
-                        / {plan.billingInterval}
+                        / {translateBillingInterval(plan.billingInterval)}
                       </span>
                     ) : null}
                   </p>

@@ -37,6 +37,7 @@ export default async function SuperAdminUserDetailPage({
     `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/super-admin/users/${profileId}`,
     {
       headers: {
+        cookie: cookieStore.getAll().map((c) => `${c.name}=${c.value}`).join("; "),
       },
       cache: "no-store",
     },
@@ -49,7 +50,7 @@ export default async function SuperAdminUserDetailPage({
     throw new Error("Failed to fetch user details");
   }
 
-  const userData = await response.json();
+  const { data: userData } = await response.json();
 
   return (
     <div className="space-y-6">

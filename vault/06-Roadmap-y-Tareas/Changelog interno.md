@@ -8,23 +8,34 @@ source:
 ---
 # Changelog interno
 
-## 2026-07-08 - QA en vivo (login real, super-admin, panel academia) + 2 bugs P1 corregidos
+## 2026-07-08 - QA en vivo (login real, super-admin, panel academia) + 7 bugs corregidos
 
 **Sesion de QA en vivo con credenciales reales** (`mentessaas@gmail.com`, cuenta super_admin dueña de "MentesSaas Academy" en produccion). Se recorrio login, super-admin (dashboard/usuarios/academias/academias publicas/logs) y el panel completo de academia (dashboard, gimnastas, entrenadores, grupos, eventos, evaluaciones, mensajes, anuncios, cobros, ajustes) en desktop y mobile.
 
-**Bugs P1 encontrados y corregidos (con navegador real, verificados post-fix)**:
+**Bugs P1 (rompian siempre, no intermitentes) encontrados y corregidos**:
 
-- **`/api/dashboard/kpi-trends` devolvia 500 siempre**: `extractAcademyId()` en `src/lib/authz/endpoint-config.ts` tiene un regex `^\/api\/dashboard\/([^/]+)` pensado para rutas dinamicas `/api/dashboard/[academyId]/...`, pero tambien matcheaba la ruta estatica `/api/dashboard/kpi-trends` (que pasa `academyId` por query string) y devolvia el string literal `"kpi-trends"` como si fuera el academyId, rompiendo la query SQL (`academies.id = 'kpi-trends'`). Fix: revisar el query param `academyId` **antes** que el regex de pathname. Rompe siempre (no intermitente) el sparkline de tendencias del dashboard de academia.
-- **`/api/contact-messages` devolvia 500 siempre**: mismo patron ya documentado en este changelog (ver settings, 2026-07-07) — `URLSearchParams.get()` devuelve `null` (no `undefined`) cuando falta un query param, y el schema Zod usaba `.optional()` (solo cubre `undefined`) en vez de `.nullable().optional()`. Rompia la carga de "Mensajes" en el panel de academia para cualquier request sin los tres filtros opcionales explicitos.
+- **`/api/dashboard/kpi-trends` devolvia 500 siempre**: `extractAcademyId()` en `src/lib/authz/endpoint-config.ts` tiene un regex `^\/api\/dashboard\/([^/]+)` pensado para rutas dinamicas `/api/dashboard/[academyId]/...`, pero tambien matcheaba la ruta estatica `/api/dashboard/kpi-trends` (que pasa `academyId` por query string) y devolvia el string literal `"kpi-trends"` como si fuera el academyId, rompiendo la query SQL (`academies.id = 'kpi-trends'`). Fix: revisar el query param `academyId` **antes** que el regex de pathname. Rompia el sparkline de tendencias del dashboard de academia.
+- **`/api/contact-messages` devolvia 500 siempre**: mismo patron ya documentado en este changelog (ver settings, 2026-07-07) — `URLSearchParams.get()` devuelve `null` (no `undefined`) cuando falta un query param, y el schema Zod usaba `.optional()` (solo cubre `undefined`) en vez de `.nullable().optional()`. Rompia la carga de "Mensajes" en el panel de academia.
+- **`/super-admin/users/[profileId]` (detalle de usuario) rompia siempre con "Error del Sistema"**: la Server Component hace un `fetch()` interno a su propia API (`/api/super-admin/users/[profileId]`, protegida con `withSuperAdmin`) pero no reenviaba las cookies de sesion (`headers: {}` vacio) — un `fetch()` server-side en Next.js **no hereda cookies automaticamente** aunque sea al mismo origen. La API respondia 401/403, `response.ok` era falso, y la pagina lanzaba `throw new Error("Failed to fetch user details")`. Fix: `headers: { cookie: cookieStore.getAll().map(c => \`${c.name}=${c.value}\`).join("; ") } }`. Comparar con el patron correcto ya usado en `academies/[academyId]/page.tsx`, que evita el self-fetch por completo llamando directo a una funcion de datos (`getSuperAdminAcademyDetail`) — mas robusto a largo plazo si se vuelve a tocar esta pagina.
+- **Mismo detalle de usuario, segundo bug en cascada tras arreglar el primero**: `TypeError: Cannot read properties of undefined (reading 'length')` en `user.memberships.length`. Causa: la API envuelve la respuesta en `{ok, data}` (convencion `apiSuccess()`, ver nota en Security de este mismo repo) pero `page.tsx` hacia `const userData = await response.json()` sin desestructurar `{ data }`, pasando el objeto `{ok, data}` completo como si fuera el usuario. Mismo patron **repetido 4 veces mas** dentro de `SuperAdminUserDetail.tsx` (refresh tras activar acceso, guardar cambios, y dos acciones mas) — las 5 instancias corregidas con `const { data: refreshed } = await refreshResponse.json()`.
+- **Busqueda/filtro roto en 3 tablas de super-admin** (usuarios, academias, logs): mismo patron de `{data}` sin desestructurar en `SuperAdminUsersTable.tsx`, `SuperAdminAcademiesTable.tsx` y `SuperAdminLogsTable.tsx` — el listado inicial (server-rendered) se veia bien, pero cualquier refetch client-side (filtro, busqueda, boton "Actualizar") devolvia lista vacia silenciosamente (`payload.items` era `undefined`, `?? []` lo enmascaraba sin error visible). Corregidas las 3.
 
-**Hallazgos menores documentados, no corregidos** (bajo impacto o requieren decision de producto):
+Este patron (`{ok, data}` sin desestructurar) ya se habia documentado y corregido antes para el detalle de academia (2026-07-07) y para `useDashboardData` — son **7 recurrencias mas** del mismo error en el panel de usuarios. Vale la pena, en otra sesion, revisar si conviene un helper compartido tipo `apiFetch<T>()` que desestructure `{data}` automaticamente para evitar que siga repitiendose.
 
-- Filas de la tabla `/super-admin/academies` tienen `cursor-pointer` + hover pero no navegan a ningun sitio al hacer click (el propio texto de la pagina ya avisa que hay que entrar via "panel de academias" mientras se desarrolla la delegacion directa).
-- `src/components/login-form/LoginForm.tsx` es codigo muerto: nunca se importa (no hay `index.ts` en esa carpeta), el login real usa `src/components/login-form.tsx`.
-- Textos sin traducir: "Active" (deberia ser "Activo") en widget de plan del dashboard mobile, "/ month" (deberia ser "/ mes") en billing.
-- Nombre de perfil del usuario super_admin muestra "MenetesSaas" en vez de "MentesSaas" (typo en el dato guardado, no en codigo).
+**P3 (cosmeticos, corregidos)**:
 
-**Validacion**: `pnpm typecheck` PASS, `pnpm lint` PASS, `pnpm build` PASS, `pnpm exec vitest run` 388/388 PASS.
+- `src/components/login-form/LoginForm.tsx` era codigo muerto (nunca se importaba, no habia `index.ts` en esa carpeta; el login real usa `src/components/login-form.tsx`) — eliminado.
+- Textos sin traducir: "Active" → "Activo" en `PlanUsage.tsx` (dashboard, viene de `plan.status` de Stripe sin mapear); "/ month" → "/ mes" en `BillingPanel.tsx` (viene de `price.recurring.interval` de Stripe sin mapear, dos usos). Ambos con un mapa de traduccion local, no una libreria i18n nueva.
+
+**Pendiente sin tocar (autorizacion insuficiente / guardado por diseño)**:
+
+- Nombre de perfil "MenetesSaas" → "MentesSaaS": es un typo real en el dato, pero el propio formulario de edicion de usuario **bloquea intencionalmente** editar perfiles con `role === "super_admin"` (`disabled={... || user.role === "super_admin"}` en `SuperAdminUserDetail.tsx`). No se forzo saltandose esa guarda vía API directa.
+
+**Hallazgo descartado (falso positivo)**:
+
+- ~~Filas de la tabla `/super-admin/academies` sin accion al click~~ — si navegan bien a `/super-admin/academies/[id]` via `router.push`; el test inicial verifico la URL antes de que la navegacion async terminara (mismo timing gotcha que el submit de login mas abajo).
+
+**Validacion**: `pnpm typecheck` PASS, `pnpm lint` PASS, `pnpm build` PASS, `pnpm exec vitest run` 388/388 PASS. Los 3 bugs de fetch (`kpi-trends`, `contact-messages`, `users/[profileId]`) y el de `.data` en cascada se verificaron en el navegador real, no solo por tipos — antes/despues en cada uno.
 
 **Nota de entorno**: en `next dev` (no en build de produccion) navegar rapido entre rutas puede mostrar el CSS sin cargar (`document.styleSheets.length === 0`) por como Next 15 versiona el CSS por timestamp en cada request en modo dev. Verificado que **no reproduce en produccion** (`next build && next start`, CSS con hash de contenido, 200 OK). Es ruido de tooling, no bug de producto.
 

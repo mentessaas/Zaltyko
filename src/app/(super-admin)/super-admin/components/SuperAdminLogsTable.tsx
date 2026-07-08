@@ -36,7 +36,7 @@ export function SuperAdminLogsTable({ initialLogs }: SuperAdminLogsTableProps) {
         logger.error("Failed to fetch logs", await response.text());
         return;
       }
-      const payload = await response.json();
+      const { data: payload } = await response.json();
       setLogs(payload.items ?? []);
     } finally {
       setLoading(false);

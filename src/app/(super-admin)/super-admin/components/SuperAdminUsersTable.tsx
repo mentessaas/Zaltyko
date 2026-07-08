@@ -95,7 +95,7 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
         logger.error("Fetch users failed", await response.text());
         return;
       }
-      const payload = await response.json();
+      const { data: payload } = await response.json();
       setItems(payload.items ?? []);
     } finally {
       setLoading(false);
