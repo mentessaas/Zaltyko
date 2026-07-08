@@ -2,6 +2,7 @@ import "dotenv/config";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import { getDatabaseUrl, isProduction } from "@/lib/env";
+import { logger } from "@/lib/logger";
 
 // Lazy initialization para evitar errores durante el build o desarrollo sin variables
 let poolInstance: Pool | null = null;
@@ -17,7 +18,7 @@ function initializeDb() {
 
     // Verificar que no sea una URL dummy
     if (connectionString.includes("dummy:dummy@localhost")) {
-      console.warn("⚠️  Usando conexión dummy - la base de datos no está configurada correctamente");
+      logger.warn("⚠️  Usando conexión dummy - la base de datos no está configurada correctamente");
     }
 
     // For Supabase pooler, we need to handle SSL specially
@@ -45,18 +46,18 @@ function initializeDb() {
     });
 
     poolInstance.on('connect', () => {
-      console.log('Database connected successfully');
+      logger.info('Database connected successfully');
     });
 
     // Probar la conexión inmediatamente
     poolInstance.on('error', (err) => {
-      console.error('❌ Error en el pool de conexiones:', err.message);
+      logger.error('❌ Error en el pool de conexiones:', err.message);
     });
 
     dbInstance = drizzle(poolInstance);
     return dbInstance;
   } catch (error) {
-    console.error("❌ Error inicializando base de datos:", error);
+    logger.error("❌ Error inicializando base de datos:", error);
 
     // En producción, lanzar error para no iniciar con configuración inválida
     if (isProduction()) {
@@ -64,7 +65,7 @@ function initializeDb() {
     }
 
     // Solo en desarrollo crear pool dummy para evitar crash inmediato
-    console.warn("Using dummy database connection for development");
+    logger.warn("Using dummy database connection for development");
     poolInstance = new Pool({
       connectionString: "postgresql://dummy:dummy@localhost:5432/dummy",
       max: isProduction() ? 50 : undefined,

@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { logger } from "@/lib/logger";
 import {
   Select,
   SelectContent,
@@ -74,7 +75,7 @@ export function ScheduledReports({ academyId }: ScheduledReportsProps) {
         setReports(data);
       }
     } catch (error) {
-      console.error("Error fetching scheduled reports:", error);
+      logger.error("Error fetching scheduled reports:", error);
     } finally {
       setLoading(false);
     }
@@ -118,7 +119,7 @@ export function ScheduledReports({ academyId }: ScheduledReportsProps) {
         fetchReports();
       }
     } catch (error) {
-      console.error("Error creating scheduled report:", error);
+      logger.error("Error creating scheduled report:", error);
     } finally {
       setSaving(false);
     }
@@ -134,7 +135,7 @@ export function ScheduledReports({ academyId }: ScheduledReportsProps) {
         fetchReports();
       }
     } catch (error) {
-      console.error("Error deleting scheduled report:", error);
+      logger.error("Error deleting scheduled report:", error);
     } finally {
       setDeleting(null);
     }
@@ -151,7 +152,7 @@ export function ScheduledReports({ academyId }: ScheduledReportsProps) {
         fetchReports();
       }
     } catch (error) {
-      console.error("Error toggling scheduled report:", error);
+      logger.error("Error toggling scheduled report:", error);
     }
   };
 

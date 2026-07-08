@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { logger } from "@/lib/logger";
 
 export interface ServiceWorkerState {
   registration: ServiceWorkerRegistration | null;
@@ -59,7 +60,7 @@ export function useServiceWorker(): ServiceWorkerState {
           window.location.reload();
         });
       } catch (error) {
-        console.error("Service worker registration failed:", error);
+        logger.error("Service worker registration failed:", error);
       }
     };
 
@@ -72,7 +73,7 @@ export function useServiceWorker(): ServiceWorkerState {
     try {
       await registration.update();
     } catch (error) {
-      console.error("SW update failed:", error);
+      logger.error("SW update failed:", error);
     }
   }, [registration]);
 
@@ -95,7 +96,7 @@ export function useServiceWorker(): ServiceWorkerState {
       // Reload to get new version
       window.location.reload();
     } catch (error) {
-      console.error("SW activation failed:", error);
+      logger.error("SW activation failed:", error);
     }
   }, [waitingWorker]);
 

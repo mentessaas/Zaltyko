@@ -1,4 +1,5 @@
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
+import { logger } from "@/lib/logger";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const ALLOWED_FILE_TYPES = [
@@ -57,7 +58,7 @@ export async function uploadTicketFile(
     });
 
   if (error) {
-    console.error("Error uploading file:", error);
+    logger.error("Error uploading file:", error);
     throw new Error("Error al subir el archivo");
   }
 
@@ -88,6 +89,6 @@ export async function deleteTicketFile(fileUrl: string): Promise<void> {
     .remove([filePath]);
 
   if (error) {
-    console.error("Error deleting file:", error);
+    logger.error("Error deleting file:", error);
   }
 }

@@ -17,9 +17,10 @@ import { templateCompetitionLevels } from "../../schema/templates/template-compe
 import { templateScoringConfig } from "../../schema/templates/template-scoring-config";
 import { templateCompetitionFlow } from "../../schema/templates/template-competition-flow";
 import { templateLicenseConfig } from "../../schema/templates/template-license-config";
+import { logger } from "@/lib/logger";
 
 export async function seedEspanaGR() {
-  console.log("🌱 Seeding España - Gimnasia Rítmica...");
+  logger.info("🌱 Seeding España - Gimnasia Rítmica...");
 
   // 1. Create main template
   const [template] = await db
@@ -36,7 +37,7 @@ export async function seedEspanaGR() {
     })
     .returning();
 
-  console.log(`✅ Template created: ${template.id}`);
+  logger.info(`✅ Template created: ${template.id}`);
 
   // 2. Age Categories
   const ageCategories = [
@@ -112,7 +113,7 @@ export async function seedEspanaGR() {
     }))
   );
 
-  console.log(`✅ ${ageCategories.length} age categories created`);
+  logger.info(`✅ ${ageCategories.length} age categories created`);
 
   // 3. Apparatus (5 official FIG apparatus for GR)
   const apparatusList = [
@@ -165,7 +166,7 @@ export async function seedEspanaGR() {
     }))
   );
 
-  console.log(`✅ ${apparatusList.length} apparatus created`);
+  logger.info(`✅ ${apparatusList.length} apparatus created`);
 
   // 4. Competition Levels
   const competitionLevels = [
@@ -262,7 +263,7 @@ export async function seedEspanaGR() {
     }))
   );
 
-  console.log(`✅ ${competitionLevels.length} competition levels created`);
+  logger.info(`✅ ${competitionLevels.length} competition levels created`);
 
   // 5. Scoring Configuration (FIG D-Score/E-Score 2022-2024)
   await db.insert(templateScoringConfig).values({
@@ -285,7 +286,7 @@ export async function seedEspanaGR() {
     },
   });
 
-  console.log("✅ Scoring configuration created");
+  logger.info("✅ Scoring configuration created");
 
   // 6. Competition Flow (RFEG official stages)
   const competitionFlow = [
@@ -421,7 +422,7 @@ export async function seedEspanaGR() {
     }))
   );
 
-  console.log(`✅ ${competitionFlow.length} competition flow stages created`);
+  logger.info(`✅ ${competitionFlow.length} competition flow stages created`);
 
   // 7. License Configuration
   await db.insert(templateLicenseConfig).values({
@@ -439,8 +440,8 @@ export async function seedEspanaGR() {
     medicalCertificateValidityMonths: 12,
   });
 
-  console.log("✅ License configuration created");
+  logger.info("✅ License configuration created");
 
-  console.log("🎉 España - Gimnasia Rítmica seed completed!");
+  logger.info("🎉 España - Gimnasia Rítmica seed completed!");
   return template;
 }

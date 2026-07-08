@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { logger } from "@/lib/logger";
 
 interface Notification {
   id: string;
@@ -143,7 +144,7 @@ export function NotificationCenter({
         setHasMore(data.items.length === PAGE_SIZE);
       }
     } catch (error) {
-      console.error("Error loading notifications:", error);
+      logger.error("Error loading notifications:", error);
     } finally {
       setIsLoading(false);
       setIsLoadingMore(false);
@@ -187,7 +188,7 @@ export function NotificationCenter({
       );
       onNotificationRead?.();
     } catch (error) {
-      console.error("Error marking notification as read:", error);
+      logger.error("Error marking notification as read:", error);
     }
   };
 
@@ -200,7 +201,7 @@ export function NotificationCenter({
       setSelectedIds(new Set());
       onNotificationRead?.();
     } catch (error) {
-      console.error("Error marking all as read:", error);
+      logger.error("Error marking all as read:", error);
     }
   };
 
@@ -217,7 +218,7 @@ export function NotificationCenter({
       });
       onNotificationRead?.();
     } catch (error) {
-      console.error("Error deleting notification:", error);
+      logger.error("Error deleting notification:", error);
     }
   };
 
@@ -237,7 +238,7 @@ export function NotificationCenter({
       setSelectedIds(new Set());
       onNotificationRead?.();
     } catch (error) {
-      console.error("Error batch deleting:", error);
+      logger.error("Error batch deleting:", error);
     } finally {
       setIsBatchAction(false);
     }
@@ -259,7 +260,7 @@ export function NotificationCenter({
       setSelectedIds(new Set());
       onNotificationRead?.();
     } catch (error) {
-      console.error("Error batch marking as read:", error);
+      logger.error("Error batch marking as read:", error);
     } finally {
       setIsBatchAction(false);
     }

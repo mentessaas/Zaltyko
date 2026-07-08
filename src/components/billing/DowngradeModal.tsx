@@ -7,6 +7,7 @@ import { AlertTriangle, Calendar, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format, addDays } from "date-fns";
 import { es } from "date-fns/locale";
+import { logger } from "@/lib/logger";
 
 interface DowngradeModalProps {
     open: boolean;
@@ -78,7 +79,7 @@ export function DowngradeModal({
             await onConfirm();
             onClose();
         } catch (error) {
-            console.error("Error:", error);
+            logger.error("Error:", error);
         } finally {
             setLoading(false);
         }

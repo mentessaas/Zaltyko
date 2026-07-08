@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui/toast-provider";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { SuperAdminCreateUserDialog } from "./SuperAdminCreateUserDialog";
+import { logger } from "@/lib/logger";
 
 const ROLE_OPTIONS = ["owner", "admin", "coach", "athlete", "parent", "super_admin"] as const;
 
@@ -91,7 +92,7 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
         cache: "no-store",
       });
       if (!response.ok) {
-        console.error("Fetch users failed", await response.text());
+        logger.error("Fetch users failed", await response.text());
         return;
       }
       const payload = await response.json();
@@ -129,7 +130,7 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
         });
       }
     } catch (error: any) {
-      console.error("Error sincronizando atletas:", error);
+      logger.error("Error sincronizando atletas:", error);
       toast.pushToast({
         title: "Error al sincronizar atletas",
         variant: "error",
@@ -197,7 +198,7 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
       if (optimisticUpdate) {
         await fetchUsers(filters);
       }
-      console.error("Update user failed", error);
+      logger.error("Update user failed", error);
       toast.pushToast({
         title: "Error al actualizar usuario",
         description: error.message || "Ocurrió un error inesperado",

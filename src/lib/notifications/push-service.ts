@@ -2,6 +2,7 @@ import { db } from "@/db";
 import { pushSubscriptions } from "@/db/schema/push-subscriptions";
 import { eq, and } from "drizzle-orm";
 import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
+import { logger } from "@/lib/logger";
 
 export type PushSubscriptionRow = InferSelectModel<typeof pushSubscriptions>;
 export type NewPushSubscription = InferInsertModel<typeof pushSubscriptions>;
@@ -140,7 +141,7 @@ export async function sendPushToUser(
       );
       sent++;
     } catch (error) {
-      console.error("Failed to send push notification:", error);
+      logger.error("Failed to send push notification:", error);
       // If subscription is invalid (410 Gone), delete it
       if (error instanceof Error && error.message.includes("410")) {
         await unsubscribeUser(userId, subscription.endpoint);
@@ -182,7 +183,7 @@ async function sendPushNotification(
   const webPush = await import("web-push").catch(() => null);
 
   if (!webPush) {
-    console.warn("web-push not configured, skipping push notification");
+    logger.warn("web-push not configured, skipping push notification");
     throw new Error("web-push not configured");
   }
 

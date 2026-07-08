@@ -9,6 +9,7 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { Loader2, Trash2, Plus } from "lucide-react";
 import { useToast } from "@/components/ui/toast-provider";
+import { logger } from "@/lib/logger";
 
 interface ClassException {
     id: string;
@@ -45,7 +46,7 @@ export function ClassExceptionsDialog({ classId, open, onClose }: ClassException
             const data = await res.json();
             setExceptions(data.exceptions);
         } catch (error) {
-            console.error(error);
+            logger.error("Error", error);
             pushToast({
                 title: "Error",
                 description: "No se pudieron cargar las excepciones",
@@ -82,7 +83,7 @@ export function ClassExceptionsDialog({ classId, open, onClose }: ClassException
                 variant: "success",
             });
         } catch (error) {
-            console.error(error);
+            logger.error("Error", error);
             pushToast({
                 title: "Error",
                 description: "No se pudo agregar la excepción",
@@ -108,7 +109,7 @@ export function ClassExceptionsDialog({ classId, open, onClose }: ClassException
                 variant: "success",
             });
         } catch (error) {
-            console.error(error);
+            logger.error("Error", error);
             pushToast({
                 title: "Error",
                 description: "No se pudo eliminar la excepción",

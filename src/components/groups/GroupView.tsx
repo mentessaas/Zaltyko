@@ -10,6 +10,7 @@ import { UpdateGroupMembersDialog } from "./UpdateGroupMembersDialog";
 import { UpdateGroupCoachesDialog } from "./UpdateGroupCoachesDialog";
 import { useAcademyContext } from "@/hooks/use-academy-context";
 import { getGroupTechnicalGuidance } from "@/lib/specialization/technical-guidance";
+import { logger } from "@/lib/logger";
 
 interface GroupViewProps {
   academyId: string;
@@ -67,7 +68,7 @@ export function GroupView({ academyId, group, availableAthletes, availableCoache
           setSummary(data);
         }
       } catch (error) {
-        console.error("Error loading group summary:", error);
+        logger.error("Error loading group summary:", error);
       } finally {
         setLoadingSummary(false);
       }

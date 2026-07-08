@@ -15,6 +15,7 @@ import { StatsCard } from "@/components/ui/stats-card";
 import { PageHeader } from "@/components/ui/page-header";
 import { BarChart } from "@/components/ui/chart";
 import { formatAcademyType } from "@/lib/formatters";
+import { logger } from "@/lib/logger";
 
 function formatDate(value: Date | string | null) {
   if (!value) return "—";
@@ -66,7 +67,7 @@ export default async function AcademiesPage() {
   try {
     currentProfile = await getCurrentProfile(user.id);
   } catch (error) {
-    console.error("Error getting profile:", error);
+    logger.error("Error getting profile:", error);
     // If database error, try to redirect to onboarding to create profile
     redirect("/onboarding/owner");
   }
@@ -92,7 +93,7 @@ export default async function AcademiesPage() {
       .where(eq(memberships.userId, currentProfile.userId))
       .orderBy(academies.name);
   } catch (error: any) {
-    console.error("dashboard/academies memberships query error", error);
+    logger.error("dashboard/academies memberships query error", error);
     throw error;
   }
 

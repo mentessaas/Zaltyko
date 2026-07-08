@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { logger } from "@/lib/logger";
 
 // Create Supabase client for client-side
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -89,7 +90,7 @@ export default function ApplyPage() {
         setListing(data.item);
       }
     } catch (err) {
-      console.error("Error checking user:", err);
+      logger.error("Error checking user:", err);
     } finally {
       setLoading(false);
       setListingLoading(false);

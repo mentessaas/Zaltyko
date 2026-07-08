@@ -9,6 +9,7 @@ import { EventsListLazy } from "@/components/events/EventsListLazy";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { resolveAcademySpecialization } from "@/lib/specialization/registry";
 import { getAcademySportConfigOptions } from "@/lib/sport-config/service";
+import { logger } from "@/lib/logger";
 
 interface PageProps {
   params: Promise<{
@@ -86,7 +87,7 @@ export default async function EventsPage({ params }: PageProps) {
       .from(events)
       .where(and(eq(events.academyId, academyId), eq(events.tenantId, academy.tenantId)));
   } catch (error: unknown) {
-    console.error("Error fetching events:", error);
+    logger.error("Error fetching events:", error);
     // Si hay un error, probablemente la tabla no existe o no tiene la estructura correcta
     // Retornar array vacío por ahora
     eventRows = [];

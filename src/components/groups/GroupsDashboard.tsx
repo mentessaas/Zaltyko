@@ -16,6 +16,7 @@ import { TooltipOnboarding } from "@/components/tooltips/TooltipOnboarding";
 import { useAcademyContext } from "@/hooks/use-academy-context";
 import { getStarterGroupPresets, type StarterGroupPreset } from "@/lib/specialization/operational-presets";
 import { summarizeStarterGroupSetup } from "@/lib/groups/starter-setup";
+import { logger } from "@/lib/logger";
 
 interface GroupsDashboardProps {
   academyId: string;
@@ -124,7 +125,7 @@ export function GroupsDashboard({
       });
 
       if (!response.ok) {
-        console.error("Error loading group athletes:", response.status);
+        logger.error("Error loading group athletes:", response.status);
         setCurrentAthleteIds([]);
         return;
       }
@@ -136,7 +137,7 @@ export function GroupsDashboard({
         setCurrentAthleteIds([]);
       }
     } catch (error) {
-      console.error("Error loading group athletes:", error);
+      logger.error("Error loading group athletes:", error);
       setCurrentAthleteIds([]);
     } finally {
       setLoadingAthleteIds(false);

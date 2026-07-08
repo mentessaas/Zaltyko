@@ -8,6 +8,7 @@ import { QuickAction } from "./QuickAction";
 import { QuickClassModal } from "./QuickClassModal";
 import { QuickPaymentModal } from "./QuickPaymentModal";
 import { useAcademyContext } from "@/hooks/use-academy-context";
+import { logger } from "@/lib/logger";
 
 interface QuickActionsData {
     pendingClasses: number;
@@ -49,7 +50,7 @@ export function QuickActionsWidget({ academyId }: QuickActionsWidgetProps) {
                 setData(json.data ?? null);
             }
         } catch (error) {
-            console.error("Error fetching quick actions:", error);
+            logger.error("Error fetching quick actions:", error);
         } finally {
             setLoading(false);
         }

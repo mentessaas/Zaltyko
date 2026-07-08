@@ -14,6 +14,7 @@ import {
   conversationMessages,
 } from "@/db/schema/direct-messages";
 import { db } from "@/db";
+import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -131,7 +132,7 @@ export const GET = withTenant(async (request, context) => {
       offset,
     });
   } catch (error) {
-    console.error("Error listing conversations:", error);
+    logger.error("Error listing conversations:", error);
     return apiError("INTERNAL_ERROR", "Error al listar conversaciones", 500);
   }
 });
@@ -270,7 +271,7 @@ export const POST = withTenant(async (request, context) => {
 
     return apiSuccess({ id: newConversation.id });
   } catch (error) {
-    console.error("Error creating conversation:", error);
+    logger.error("Error creating conversation:", error);
     return apiError("INTERNAL_ERROR", "Error al crear conversación", 500);
   }
 });

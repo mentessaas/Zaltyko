@@ -29,6 +29,7 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { formatAcademyType } from "@/lib/formatters";
 import { useToast } from "@/components/ui/toast-provider";
+import { logger } from "@/lib/logger";
 
 interface UserMembership {
   id: string;
@@ -144,7 +145,7 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
           setPlans(data.plans || []);
         }
       } catch (error) {
-        console.error("Error fetching plans", error);
+        logger.error("Error fetching plans", error);
       } finally {
         setLoadingPlans(false);
       }
@@ -214,7 +215,7 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
 
       router.refresh();
     } catch (error) {
-      console.error("Error activating athlete access", error);
+      logger.error("Error activating athlete access", error);
       toast.pushToast({
         title: "No se pudo activar el acceso",
         description: "Inténtalo de nuevo en unos segundos.",
@@ -268,7 +269,7 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
       });
       setMessageForm({ subject: "", message: "", type: "email" });
     } catch (error) {
-      console.error("Error sending message", error);
+      logger.error("Error sending message", error);
       toast.pushToast({
         title: "No se pudo enviar el mensaje",
         description: "Inténtalo de nuevo en unos segundos.",
@@ -352,7 +353,7 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
       });
       router.refresh();
     } catch (error) {
-      console.error("Error saving user", error);
+      logger.error("Error saving user", error);
       toast.pushToast({
         title: "No se pudieron guardar los cambios",
         description: "Inténtalo de nuevo en unos segundos.",
@@ -414,7 +415,7 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
       });
       router.refresh();
     } catch (error) {
-      console.error("Error forcing plan change", error);
+      logger.error("Error forcing plan change", error);
       toast.pushToast({
         title: "No se pudo cambiar el plan",
         description: "Inténtalo de nuevo en unos segundos.",
@@ -465,7 +466,7 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
         router.refresh();
       }
     } catch (error) {
-      console.error("Error toggling suspension", error);
+      logger.error("Error toggling suspension", error);
       toast.pushToast({
         title: "No se pudo cambiar el estado del usuario",
         description: "Inténtalo de nuevo en unos segundos.",

@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dialog";
 import { CampaignList, Campaign } from "./CampaignList";
 import { Discount } from "./DiscountList";
+import { logger } from "@/lib/logger";
 
 interface CampaignManagerProps {
   academyId: string;
@@ -52,7 +53,7 @@ export function CampaignManager({
         setCampaigns(data.items);
       }
     } catch (error) {
-      console.error("Error loading campaigns:", error);
+      logger.error("Error loading campaigns:", error);
     }
   };
 
@@ -64,7 +65,7 @@ export function CampaignManager({
         setDiscounts(data.items);
       }
     } catch (error) {
-      console.error("Error loading discounts:", error);
+      logger.error("Error loading discounts:", error);
     }
   };
 
@@ -103,7 +104,7 @@ export function CampaignManager({
       resetForm();
       loadCampaigns();
     } catch (error) {
-      console.error("Error saving campaign:", error);
+      logger.error("Error saving campaign:", error);
     } finally {
       setIsSaving(false);
     }
@@ -116,7 +117,7 @@ export function CampaignManager({
       await fetch(`/api/discounts/campaigns/${id}`, { method: "DELETE" });
       loadCampaigns();
     } catch (error) {
-      console.error("Error deleting campaign:", error);
+      logger.error("Error deleting campaign:", error);
     }
   };
 

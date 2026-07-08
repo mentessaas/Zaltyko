@@ -2,6 +2,7 @@ import { db } from "@/db";
 import { classes, classSessions, groupAthletes, groups } from "@/db/schema";
 import { eq, and, count, sql } from "drizzle-orm";
 import { createNotification } from "@/lib/notifications/notification-service";
+import { logger } from "@/lib/logger";
 
 export interface CapacityAlert {
   classId: string;
@@ -70,7 +71,7 @@ export async function detectCapacityAlerts(
 
     return alerts;
   } catch (error) {
-    console.error("Error detecting capacity alerts:", error);
+    logger.error("Error detecting capacity alerts:", error);
     return [];
   }
 }

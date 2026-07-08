@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { logger } from "@/lib/logger";
 
 interface ChecklistProgress {
   completed: number;
@@ -34,7 +35,7 @@ export function useDashboardChecklist(academyId: string) {
           }
         }
       } catch (error) {
-        console.error("Error fetching checklist:", error);
+        logger.error("Error fetching checklist:", error);
       }
     };
 

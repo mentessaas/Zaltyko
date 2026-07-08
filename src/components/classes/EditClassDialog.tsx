@@ -24,6 +24,7 @@ import {
   type EditClassFormState,
   type GroupOption,
 } from "@/components/classes/edit-class-dialog-model";
+import { logger } from "@/lib/logger";
 
 interface EditClassDialogProps {
   classItem: ClassItem;
@@ -211,7 +212,8 @@ export const EditClassDialog = memo(function EditClassDialog({
 
         if (!response.ok) {
           const data = await response.json().catch(() => ({}));
-          console.error("EditClassDialog: Error en la respuesta", data);
+          logger.error("EditClassDialog: Error en la respuesta", data);
+
 
           if (data.error === "SCHEDULE_CONFLICT" && data.message) {
             throw new Error(data.message);
@@ -231,7 +233,7 @@ export const EditClassDialog = memo(function EditClassDialog({
               details.push(`Código: ${data.code}`);
             }
             if (data.stack) {
-              console.error("EditClassDialog: Stack trace del error", data.stack);
+              logger.error("EditClassDialog: Stack trace del error", data.stack);
             }
             if (details.length > 0) {
               errorMessage = `${errorMessage}\n\n${details.join("\n")}`;
@@ -245,7 +247,7 @@ export const EditClassDialog = memo(function EditClassDialog({
         onUpdated();
         onClose();
       } catch (err: unknown) {
-        console.error("EditClassDialog: Error al guardar", err);
+        logger.error("EditClassDialog: Error al guardar", err);
         setError(err instanceof Error ? err.message : "Error al guardar cambios. Por favor, intenta de nuevo.");
       }
     });
@@ -288,7 +290,7 @@ export const EditClassDialog = memo(function EditClassDialog({
       }
       onClose();
     } catch (deleteError: unknown) {
-      console.error("EditClassDialog: Error al eliminar la clase", deleteError);
+      logger.error("EditClassDialog: Error al eliminar la clase", deleteError);
       setError(deleteError instanceof Error ? deleteError.message : `No se pudo eliminar la ${classTermLower}. Intenta nuevamente.`);
     } finally {
       setIsDeleting(false);

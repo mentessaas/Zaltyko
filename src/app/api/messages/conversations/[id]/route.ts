@@ -14,6 +14,7 @@ import {
   conversationMessages,
 } from "@/db/schema/direct-messages";
 import { db } from "@/db";
+import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -151,7 +152,7 @@ export const GET = withTenant(async (request: Request, context: RouteContext) =>
       },
     });
   } catch (error) {
-    console.error("Error getting conversation:", error);
+    logger.error("Error getting conversation:", error);
     return apiError("INTERNAL_ERROR", "Error al obtener conversación", 500);
   }
 });
@@ -237,7 +238,7 @@ export const PATCH = withTenant(async (request: Request, context: RouteContext) 
 
     return apiSuccess({ success: true });
   } catch (error) {
-    console.error("Error updating conversation:", error);
+    logger.error("Error updating conversation:", error);
     return apiError("INTERNAL_ERROR", "Error al actualizar conversación", 500);
   }
 });
@@ -271,7 +272,7 @@ export const DELETE = withTenant(async (request: Request, context: RouteContext)
 
     return apiSuccess({ success: true });
   } catch (error) {
-    console.error("Error hiding conversation:", error);
+    logger.error("Error hiding conversation:", error);
     return apiError("INTERNAL_ERROR", "Error al ocultar conversación", 500);
   }
 });

@@ -40,6 +40,7 @@ import { AcademyEditSection } from "@/components/academies/AcademyEditSection";
 import { ProfileTabs } from "@/components/profiles/ProfileTabs";
 import { formatPhoneNumber } from "@/lib/validation/phone";
 import { formatAcademyType } from "@/lib/formatters";
+import { logger } from "@/lib/logger";
 
 interface AcademySummary {
   id: string;
@@ -130,7 +131,7 @@ export function OptimizedOwnerProfile({
           }
         }
       } catch (error) {
-        console.error("Error checking limits", error);
+        logger.error("Error checking limits", error);
       }
     };
 
@@ -185,7 +186,7 @@ export function OptimizedOwnerProfile({
       setStatus("saved");
       setTimeout(() => setStatus("idle"), 2000);
     } catch (error) {
-      console.error(error);
+      logger.error("Error", error);
       setStatus("error");
     }
   };

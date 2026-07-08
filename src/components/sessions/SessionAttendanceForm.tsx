@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { formatLongDateForCountry } from "@/lib/date-utils";
+import { logger } from "@/lib/logger";
 
 type AthleteRow = {
   id: string;
@@ -112,7 +113,7 @@ export default function SessionAttendanceForm({
 
       setStatusMessage("Asistencia guardada correctamente.");
     } catch (error) {
-      console.error(error);
+      logger.error("Error", error);
       setStatusMessage(error instanceof Error ? error.message : "Error inesperado.");
     } finally {
       setSaving(false);

@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FormField, validators } from "@/components/ui/form-field";
 import { useToast } from "@/components/ui/toast-provider";
+import { logger } from "@/lib/logger";
 
 interface AcceptInvitationFormProps {
   token: string;
@@ -158,7 +159,7 @@ export default function AcceptInvitationForm({
         router.push(redirectUrl);
       }, 2000);
     } catch (error) {
-      console.error(error);
+      logger.error("Error", error);
       toast.pushToast({
         title: "Error",
         description: error instanceof Error ? error.message : "Error inesperado.",
@@ -227,7 +228,7 @@ export default function AcceptInvitationForm({
         router.push(redirectUrl);
       }, 2500);
     } catch (error) {
-      console.error(error);
+      logger.error("Error", error);
       toast.pushToast({
         title: "Error",
         description: error instanceof Error ? error.message : "Error inesperado.",

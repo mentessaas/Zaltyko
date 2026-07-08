@@ -3,6 +3,7 @@ import { charges, athletes, familyContacts } from "@/db/schema";
 import { eq, and, lte, sql } from "drizzle-orm";
 import { createNotification } from "@/lib/notifications/notification-service";
 import { subDays } from "date-fns";
+import { logger } from "@/lib/logger";
 
 export interface PaymentAlert {
   chargeId: string;
@@ -72,7 +73,7 @@ export async function detectPaymentAlerts(
 
     return alerts;
   } catch (error) {
-    console.error("Error detecting payment alerts:", error);
+    logger.error("Error detecting payment alerts:", error);
     return [];
   }
 }

@@ -12,6 +12,7 @@ import { EditChargeDialog } from "./EditChargeDialog";
 import { GenerateChargesDialog } from "./GenerateChargesDialog";
 import { RegisterPaymentDialog } from "./RegisterPaymentDialog";
 import { getTerminologyForSportConfig } from "@/lib/sport-config/terminology";
+import { logger } from "@/lib/logger";
 
 interface ChargeItem {
   id: string;
@@ -181,7 +182,7 @@ export function StudentChargesTab({ academyId, sportConfigs = [] }: StudentCharg
         setAllChargesForPeriod(metricsData?.items || []);
       }
     } catch (error) {
-      console.error("Error loading charges:", error);
+      logger.error("Error loading charges:", error);
     } finally {
       setLoading(false);
     }
@@ -197,7 +198,7 @@ export function StudentChargesTab({ academyId, sportConfigs = [] }: StudentCharg
       const res = await fetch(`/api/groups?${params}`);
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
-        console.error("Error loading groups:", res.status, errorData);
+        logger.error("Error loading groups:", res.status, errorData);
         setGroups([]);
         return;
       }
@@ -205,11 +206,11 @@ export function StudentChargesTab({ academyId, sportConfigs = [] }: StudentCharg
       if (data?.items && Array.isArray(data.items)) {
         setGroups(data.items);
       } else {
-        console.warn("Groups API returned unexpected format:", data);
+        logger.warn("Groups API returned unexpected format:", data);
         setGroups([]);
       }
     } catch (error) {
-      console.error("Error loading groups:", error);
+      logger.error("Error loading groups:", error);
       setGroups([]);
     } finally {
       setLoadingGroups(false);
@@ -235,7 +236,7 @@ export function StudentChargesTab({ academyId, sportConfigs = [] }: StudentCharg
       if (!res.ok) throw new Error("Error al actualizar");
       loadCharges();
     } catch (error) {
-      console.error("Error marking paid:", error);
+      logger.error("Error marking paid:", error);
     }
   };
 
@@ -249,7 +250,7 @@ export function StudentChargesTab({ academyId, sportConfigs = [] }: StudentCharg
       if (!res.ok) throw new Error("Error al actualizar");
       loadCharges();
     } catch (error) {
-      console.error("Error updating status:", error);
+      logger.error("Error updating status:", error);
     }
   };
 

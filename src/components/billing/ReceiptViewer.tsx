@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast-provider";
+import { logger } from "@/lib/logger";
 
 interface Receipt {
   id: string;
@@ -48,7 +49,7 @@ export function ReceiptViewer({ academyId, initialReceipts = [] }: ReceiptViewer
         setReceipts(data.items);
       }
     } catch (error) {
-      console.error("Error loading receipts:", error);
+      logger.error("Error loading receipts:", error);
     } finally {
       setIsLoading(false);
     }
@@ -69,7 +70,7 @@ export function ReceiptViewer({ academyId, initialReceipts = [] }: ReceiptViewer
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
     } catch (error) {
-      console.error("Error downloading receipt:", error);
+      logger.error("Error downloading receipt:", error);
       toast.pushToast({
         title: "No se pudo descargar el recibo",
         description: "Inténtalo de nuevo en unos segundos.",
