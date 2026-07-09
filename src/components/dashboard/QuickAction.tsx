@@ -63,7 +63,7 @@ export function QuickAction({
                 </p>
             </div>
 
-            <div className="shrink-0 text-slate-400 transition-colors group-hover:text-zaltyko-teal">
+            <div className="shrink-0 text-slate-600 transition-colors group-hover:text-zaltyko-teal">
                 <svg
                     xmlns="http://www.w3.org/2000/svg"
                     width="20"

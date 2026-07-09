@@ -1,6 +1,9 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { and, eq } from "drizzle-orm";
 
+import { db } from "@/db";
+import { memberships, profiles } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
 import { BillingPanel } from "@/components/billing/BillingPanel";
 import { getAcademySportConfigOptions } from "@/lib/sport-config/service";
@@ -28,6 +31,35 @@ export default async function AcademyBillingPage({ params }: PageProps) {
 
   if (!user) {
     redirect("/auth/login");
+  }
+
+  const [profile] = await db
+    .select({
+      id: profiles.id,
+      role: profiles.role,
+    })
+    .from(profiles)
+    .where(eq(profiles.userId, user.id))
+    .limit(1);
+
+  if (!profile) {
+    redirect("/dashboard");
+  }
+
+  const [membership] = await db
+    .select({ role: memberships.role })
+    .from(memberships)
+    .where(and(eq(memberships.academyId, academyId), eq(memberships.userId, user.id)))
+    .limit(1);
+
+  const canSeeBilling =
+    profile.role === "super_admin" ||
+    profile.role === "admin" ||
+    profile.role === "owner" ||
+    membership?.role === "owner";
+
+  if (!canSeeBilling) {
+    redirect(`/app/${academyId}/dashboard`);
   }
 
   const sportConfigs = await getAcademySportConfigOptions(academyId);

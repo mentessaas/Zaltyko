@@ -72,7 +72,7 @@ export function UpcomingEventsWidget({ academyId, academyCountry }: UpcomingEven
             <Calendar className="h-5 w-5" />
           </div>
           <div>
-            <p className="text-xs font-medium uppercase tracking-[0.12em] text-slate-400">
+            <p className="text-xs font-medium uppercase tracking-[0.12em] text-slate-600">
               Próximos eventos
             </p>
             <h3 className="font-display text-lg font-semibold text-zaltyko-navy">

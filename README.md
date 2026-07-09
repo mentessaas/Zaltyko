@@ -99,6 +99,7 @@ pnpm db:seed          # Poblar datos iniciales
 pnpm lint             # Linting ESLint
 pnpm typecheck        # Verificación TypeScript
 pnpm test             # Ejecutar tests
+pnpm test:e2e:auth    # Preparar usuarios E2E y generar storage states por rol
 ```
 
 ---
@@ -140,9 +141,27 @@ STRIPE_WEBHOOK_SECRET=whsec_...
 
 # NextAuth
 NEXTAUTH_SECRET=...
+
+# Playwright E2E
+E2E_ACADEMY_ID=...
+E2E_AUTH_EMAIL=e2e-owner@zaltyko.test
+E2E_AUTH_PASSWORD=...
+E2E_STORAGE_STATE=.auth/user.json
+E2E_OWNER_STORAGE_STATE=.auth/user.json
+E2E_COACH_STORAGE_STATE=.auth/coach.json
+E2E_SUPER_ADMIN_STORAGE_STATE=.auth/super-admin.json
 ```
 
 Ver `.env.example` para plantilla completa.
+
+### E2E autenticado por roles
+
+1. Arranca la app local: `pnpm dev`.
+2. Verifica Supabase/Auth: `pnpm test:e2e:verify-supabase`.
+3. Genera sesiones: `BASE_URL=http://127.0.0.1:3000 pnpm test:e2e:auth`.
+4. Ejecuta smoke por rol: `BASE_URL=http://127.0.0.1:3000 pnpm exec playwright test tests/e2e-role-smoke.spec.ts --project=chromium`.
+
+`pnpm test:e2e:auth` ejecuta `pnpm e2e:prepare-auth` antes de guardar storage states en `.auth/user.json`, `.auth/coach.json` y `.auth/super-admin.json`.
 
 ---
 

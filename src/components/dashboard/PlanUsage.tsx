@@ -46,7 +46,7 @@ export function PlanUsage({ plan, academyId }: PlanUsageProps) {
     <div className="flex flex-col gap-3 rounded-2xl border border-zaltyko-mist/70 bg-white p-4 shadow-soft">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-slate-400">
+          <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-slate-600">
             Estado del plan
           </p>
           <h3 className="mt-0.5 font-display text-base font-semibold text-zaltyko-navy">{effectivePlanName}</h3>
@@ -70,6 +70,7 @@ export function PlanUsage({ plan, academyId }: PlanUsageProps) {
         </div>
         <Progress
           value={plan.athletePercent}
+          aria-label="Uso del plan"
           className="h-1.5 rounded-full bg-zaltyko-mist/35"
           indicatorClassName={cn("transition-all", getProgressColor(plan.athletePercent))}
         />

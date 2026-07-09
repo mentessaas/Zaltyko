@@ -92,14 +92,22 @@ export function AthletesToolbar({
   return (
     <section className="flex flex-col gap-4 rounded-2xl border border-zaltyko-mist bg-white p-5 shadow-soft lg:flex-row lg:items-center lg:justify-between">
       <form className="flex flex-1 flex-wrap items-center gap-3" onSubmit={onSubmit}>
+        <label htmlFor="athletes-search" className="sr-only">
+          Buscar {terms.athletes.toLowerCase()} por nombre
+        </label>
         <input
+          id="athletes-search"
           type="search"
           placeholder={`${text.search} por nombre`}
           value={query}
           onChange={(event) => onQueryChange(event.target.value)}
           className="min-h-11 min-w-[200px] flex-1 rounded-[10px] border border-zaltyko-mist bg-white px-3 py-2 text-sm focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15"
         />
+        <label htmlFor="athletes-status-filter" className="sr-only">
+          Filtrar por estado
+        </label>
         <select
+          id="athletes-status-filter"
           value={statusFilter}
           onChange={(event) => onStatusChange(event.target.value)}
           className="min-h-11 min-w-[160px] rounded-[10px] border border-zaltyko-mist bg-white px-3 py-2 text-sm focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15"
@@ -111,7 +119,11 @@ export function AthletesToolbar({
             </option>
           ))}
         </select>
+        <label htmlFor="athletes-level-filter" className="sr-only">
+          Filtrar por nivel
+        </label>
         <select
+          id="athletes-level-filter"
           value={levelFilter}
           onChange={(event) => onLevelChange(event.target.value)}
           className="min-h-11 min-w-[160px] rounded-[10px] border border-zaltyko-mist bg-white px-3 py-2 text-sm focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15"
@@ -123,7 +135,11 @@ export function AthletesToolbar({
             </option>
           ))}
         </select>
+        <label htmlFor="athletes-group-filter" className="sr-only">
+          Filtrar por {terms.group.toLowerCase()}
+        </label>
         <select
+          id="athletes-group-filter"
           value={groupFilter}
           onChange={(event) => onGroupChange(event.target.value)}
           className="min-h-11 min-w-[180px] rounded-[10px] border border-zaltyko-mist bg-white px-3 py-2 text-sm focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15"
@@ -135,7 +151,11 @@ export function AthletesToolbar({
             </option>
           ))}
         </select>
+        <label htmlFor="athletes-sport-config-filter" className="sr-only">
+          Filtrar por rama deportiva
+        </label>
         <select
+          id="athletes-sport-config-filter"
           value={sportConfigFilter}
           onChange={(event) => onSportConfigChange(event.target.value)}
           className="min-h-11 min-w-[210px] rounded-[10px] border border-zaltyko-mist bg-white px-3 py-2 text-sm focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15"
@@ -148,7 +168,11 @@ export function AthletesToolbar({
           ))}
         </select>
         <div className="flex items-center gap-1">
+          <label htmlFor="athletes-age-min" className="sr-only">
+            Edad minima
+          </label>
           <input
+            id="athletes-age-min"
             type="number"
             placeholder="Edad min"
             min="1"
@@ -160,7 +184,11 @@ export function AthletesToolbar({
             className="min-h-11 w-20 rounded-[10px] border border-zaltyko-mist bg-white px-2 py-2 text-sm focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15"
           />
           <span className="text-muted-foreground">-</span>
+          <label htmlFor="athletes-age-max" className="sr-only">
+            Edad maxima
+          </label>
           <input
+            id="athletes-age-max"
             type="number"
             placeholder="Edad max"
             min="1"
@@ -237,6 +265,7 @@ export function AthletesToolbar({
           <div className="flex items-center gap-2 rounded-xl border border-zaltyko-teal/40 bg-zaltyko-teal/10 px-3 py-2">
             <span className="text-sm font-medium">{selectedCount} seleccionados</span>
             <select
+              aria-label="Accion por lote"
               className="rounded-lg border border-zaltyko-mist bg-white px-2 py-1 text-xs"
               defaultValue=""
               onChange={(event) => {
@@ -356,9 +385,14 @@ export function AthletesDataTable({
     <div className="overflow-x-auto rounded-2xl border border-zaltyko-mist bg-white shadow-soft">
       <table className="min-w-full divide-y divide-slate-100 text-sm">
         <thead className="bg-zaltyko-white">
-          <tr className="text-left text-xs uppercase tracking-[0.05em] text-slate-400">
+          <tr className="text-left text-xs uppercase tracking-[0.05em] text-slate-600">
             <th className="w-8 px-2 py-3 font-medium">
-              <button type="button" onClick={onToggleSelectAll} className="p-1 hover:text-zaltyko-teal">
+              <button
+                type="button"
+                onClick={onToggleSelectAll}
+                className="p-1 hover:text-zaltyko-teal"
+                aria-label="Seleccionar todos los atletas"
+              >
                 {selectedAthletes.size === allAthletesCount && allAthletesCount > 0 ? (
                   <CheckSquare className="h-4 w-4" />
                 ) : (
@@ -479,7 +513,12 @@ function AthletesTableRow({
   return (
     <tr className="odd:bg-white even:bg-zaltyko-white/40 transition-colors hover:bg-zaltyko-teal/[0.05]">
       <td className="px-2 py-3">
-        <button type="button" onClick={onToggleSelect} className="p-1 hover:text-zaltyko-teal">
+        <button
+          type="button"
+          onClick={onToggleSelect}
+          className="p-1 hover:text-zaltyko-teal"
+          aria-label={`${selected ? "Deseleccionar" : "Seleccionar"} ${athlete.name}`}
+        >
           {selected ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}
         </button>
       </td>

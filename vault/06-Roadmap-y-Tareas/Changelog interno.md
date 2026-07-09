@@ -1,12 +1,40 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-07-08
+last_reviewed: 2026-07-09
 source:
   - ../ROADMAP.md
   - ../AGENTS.md
 ---
 # Changelog interno
+
+## 2026-07-09 - E2E autenticado estabilizado + roles Coach/Super Admin verificados
+
+- **Full academy E2E estabilizado**: `tests/e2e-zaltyko-full.spec.ts` separa el smoke de rutas criticas por pagina, usa modo serial y evita el loop unico que agotaba el timeout de Next dev. Tambien endurece navegacion ante `ERR_CONNECTION_RESET`/`ERR_NETWORK_IO_SUSPENDED`, valida `#main-content` por ruta, navega al detalle de atleta por `href` y sube timeout en billing/settings/PWA.
+- **A11y E2E estabilizado**: `tests/a11y-zaltyko.spec.ts` usa `domcontentloaded`, esperas acotadas y retry de axe solo cuando se destruye el contexto por navegacion durante compilacion. No oculta violaciones WCAG: la asercion sigue siendo `results.violations === []`.
+- **Role smoke sin flakes**: `tests/e2e-role-smoke.spec.ts` separa superficies Super Admin y Owner por ruta y mantiene Coach con validacion de no acceso a cobros/ajustes admin. Resultado final: PASS 10/10 con `E2E_OWNER_STORAGE_STATE=.auth/user.json`, `E2E_COACH_STORAGE_STATE=.auth/coach.json` y `E2E_SUPER_ADMIN_STORAGE_STATE=.auth/super-admin.json`.
+- **Validacion final**: `pnpm exec eslint tests/e2e-role-smoke.spec.ts tests/a11y-zaltyko.spec.ts tests/e2e-zaltyko-full.spec.ts --quiet` PASS; `pnpm exec tsc --noEmit` PASS; `playwright test tests/e2e-zaltyko-full.spec.ts tests/e2e-zaltyko-public.spec.ts tests/a11y-zaltyko.spec.ts --project=chromium --workers=1` PASS 30/30; `playwright test tests/e2e-role-smoke.spec.ts --project=chromium --workers=1` PASS 10/10.
+- **Nota de entorno**: `pnpm audit:sprint3 -- --project=chromium --workers=1` no es fiable porque pnpm pasa un `--` literal y Playwright corre con workers/proyectos no esperados. Para auditoria local usar `pnpm exec playwright test ... --project=chromium --workers=1` directo. En corridas muy largas Next dev puede reiniciarse por memoria; reiniciar el servidor antes de role smoke deja la validacion limpia.
+
+## 2026-07-08 - Storage states E2E por rol + auditoria autenticada
+
+- **Storage states por rol regenerados**: `pnpm test:e2e:auth` ahora prepara usuarios E2E con Supabase service role y genera sesiones para owner, coach y super-admin en `.auth/user.json`, `.auth/coach.json` y `.auth/super-admin.json`.
+- **Variables E2E documentadas**: `.env.example`, README y docs QA incluyen `E2E_OWNER_STORAGE_STATE`, `E2E_COACH_STORAGE_STATE` y `E2E_SUPER_ADMIN_STORAGE_STATE`, ademas de emails/passwords por rol.
+- **Smoke por roles**: `tests/e2e-role-smoke.spec.ts --project=chromium` PASS 3/3. Super-admin accede a superficies core, owner abre modulos criticos y coach abre dashboard/classes/assessments sin contenido admin de cobros/ajustes.
+- **Guardas reforzadas**: `billing/page.tsx` bloquea contenido de cobros para perfiles/memberships no admin/owner; `settings/page.tsx` redirige/null-render para no admin. La evidencia HTTP con coach devuelve shell/dashboard, no contenido de cobros.
+- **E2E principal**: `tests/e2e-zaltyko-full.spec.ts --project=chromium --workers=1` PASS con 9 passed y 1 flaky que pasa en retry (`critical academy pages render without route-level errors`, navegacion interrumpida por redirect dashboard durante `/athletes`).
+- **Public smoke**: `tests/e2e-zaltyko-public.spec.ts --project=chromium --workers=1` PASS 6/6 tras actualizar copy esperado de "Facturacion" a "Cobros" y navegar con `domcontentloaded`.
+- **A11y pendiente**: `tests/a11y-zaltyko.spec.ts --project=chromium --workers=1` FAIL autenticado. Public landing PASS; login fue flaky y paso en retry; dashboard y athletes fallan por axe con `aria-progressbar-name`, contrastes insuficientes y selects sin nombre accesible. Queda como deuda de accesibilidad, no como bloqueo de storage states.
+- **Limitacion de entorno**: Firefox/WebKit no estan instalados localmente; las corridas validas se ejecutaron en Chromium. Un intento via `pnpm test:e2e -- --project=chromium` se corto porque pnpm paso `--` como argumento y Playwright intento tambien Firefox/WebKit.
+
+## 2026-07-08 - Fix scroll publico + Growth pricing v3.0
+
+- **Scroll global corregido**: `src/app/globals.css` cambia `html, body { height: 100%; }` por `min-height: 100%`. El bug fijaba el `documentElement` a la altura del viewport y dejaba el contenido largo en `body`, impidiendo scroll real en las paginas publicas.
+- **Growth alineado con pricing v3.0**: `src/lib/plans/catalog.ts` deja Growth (`code: pro`) en `academyLimit: 1`, cambia el resumen a "Hasta 200 gimnastas · 1 academia" y elimina "Academias ilimitadas" de sus features.
+- **Network reformulado como multi-sede acompanado**: el catalogo y el error de limite de academias reemplazan la promesa de academias ilimitadas autoservicio por "Multi-sede con onboarding acompanado", coherente con [[Pricing]] y [[Mensajes aprobados]].
+- **Guardrails actualizados**: `tests/product-go-live-readiness.test.ts` ahora falla si Starter o Growth vuelven a prometer academias ilimitadas. `tests/limits.test.ts` tambien se actualizo, aunque sigue excluido por `vitest.config.ts`.
+- **Validacion**: `pnpm exec vitest run tests/product-go-live-readiness.test.ts` PASS, `pnpm typecheck` PASS. QA manual con Playwright en `http://127.0.0.1:3000`: `/`, `/pricing`, `/features` y `/marketplace` hacen scroll en desktop y mobile; `/pricing` muestra Growth con "1 academia" y ningun plan contiene "Academias ilimitadas".
+- **E2E autenticado recuperado**: el usuario Auth E2E no existia. Se creo con service role, email confirmado y password local de `E2E_AUTH_PASSWORD`; se creo perfil owner/membership para `Aurora Elite Demo`, se corrigio `E2E_ACADEMY_ID` local al ID real de esa academia y se regenero `.auth/user.json`. Validacion: `pnpm test:e2e:verify-supabase` PASS, `pnpm test:e2e:auth` PASS (chromium/firefox/webkit) y `tests/e2e-role-smoke.spec.ts --project=chromium` PASS para owner. Coach y super-admin quedan saltados hasta configurar `E2E_COACH_STORAGE_STATE` y `E2E_SUPER_ADMIN_STORAGE_STATE`.
 
 ## 2026-07-08 - QA en vivo (login real, super-admin, panel academia) + 7 bugs corregidos
 
@@ -428,3 +456,12 @@ Cierre de 4 fallos de CI y del 404 en la raiz del sitio, sobre `security/audit-r
 ## Como actualizar
 
 Registrar cambios humanos y relevantes: releases, decisiones, cambios de pricing, nuevas features, cambios de arquitectura, migraciones importantes, hallazgos de auditoria y riesgos cerrados.
+
+## 2026-07-09 - Auditoria E2E roles y a11y autenticada
+
+- Regeneradas y verificadas sesiones Playwright E2E para owner, coach y super-admin; `tests/e2e-role-smoke.spec.ts --project=chromium --workers=1` pasa 3/3.
+- Corregidos fallos axe autenticados en dashboard/athletes: nombres accesibles de progressbar/selects, contraste de sidebar/topnav/widgets/badges y estados de tabla.
+- `tests/a11y-zaltyko.spec.ts --project=chromium --workers=1` pasa 4/4 incluyendo dashboard y athletes autenticados.
+- Corregida configuracion Playwright: `testDir` ahora apunta a `./tests`, evitando que el runner escanee todo el repo y arboles pesados.
+- Corregida interaccion de tabs en `/features`: `FeaturesSection` queda controlado en cliente y el smoke publico espera hidratacion antes de interactuar. Test aislado de tabs pasa.
+- Estado E2E completo tras segunda pasada Chromium: roles PASS 3/3, a11y PASS 4/4, public smoke PASS 6/6 dentro del rerun amplio; suite principal `tests/e2e-zaltyko-full.spec.ts` queda con 1 fallo persistente en "critical academy pages render without route-level errors" por timeout del dev server al recorrer muchas rutas, y 2 flakies que pasaron en retry.

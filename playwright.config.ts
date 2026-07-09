@@ -4,7 +4,7 @@ const baseURL = process.env.BASE_URL ?? "http://127.0.0.1:3000";
 const isCI = Boolean(process.env.CI);
 
 export default defineConfig({
-  testDir: ".",
+  testDir: "./tests",
   testIgnore: [
     ".claude/**",
     ".worktrees/**",

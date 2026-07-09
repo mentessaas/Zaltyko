@@ -26,7 +26,12 @@ pnpm build
 Para rutas autenticadas:
 
 ```bash
-E2E_ACADEMY_ID=<academy-id> E2E_STORAGE_STATE=.auth/user.json pnpm audit:sprint3
+BASE_URL=http://127.0.0.1:3000 pnpm test:e2e:auth
+E2E_ACADEMY_ID=<academy-id> \
+E2E_STORAGE_STATE=.auth/user.json \
+E2E_COACH_STORAGE_STATE=.auth/coach.json \
+E2E_SUPER_ADMIN_STORAGE_STATE=.auth/super-admin.json \
+pnpm audit:sprint3
 ```
 
 Si `BASE_URL` no está definido, Playwright inicia `pnpm dev` en `http://127.0.0.1:3000`.

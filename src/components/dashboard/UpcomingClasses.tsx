@@ -53,7 +53,7 @@ function UpcomingClassesImpl({ classes, academyId, academyCountry }: UpcomingCla
     <div className="space-y-5 rounded-2xl border border-zaltyko-mist bg-white p-6 shadow-soft">
       <header className="flex items-center justify-between gap-3">
         <div>
-          <p className="text-xs font-medium uppercase tracking-[0.12em] text-slate-400">
+          <p className="text-xs font-medium uppercase tracking-[0.12em] text-slate-600">
             Próximas clases
           </p>
           <h3 className="mt-1 font-display text-xl font-semibold text-zaltyko-navy">
@@ -123,7 +123,7 @@ function UpcomingClassesImpl({ classes, academyId, academyCountry }: UpcomingCla
                     )}
                   </p>
                 </div>
-                <CalendarClock className="h-4 w-4 shrink-0 text-slate-400" strokeWidth={1.6} />
+                <CalendarClock className="h-4 w-4 shrink-0 text-slate-600" strokeWidth={1.6} />
               </div>
               <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                 <div className="inline-flex items-center gap-1 rounded-full bg-zaltyko-white px-2 py-1 text-xs">
@@ -145,7 +145,7 @@ function UpcomingClassesImpl({ classes, academyId, academyCountry }: UpcomingCla
                   </span>
                 )}
                 {item.isSessionPlaceholder && (
-                  <span className="rounded-full border border-dashed border-zaltyko-coral/40 px-2 py-1 text-[0.7rem] font-semibold text-zaltyko-coral">
+                  <span className="rounded-full border border-dashed border-zaltyko-navy/35 px-2 py-1 text-[0.7rem] font-semibold text-zaltyko-navy">
                     Sesiones no generadas
                   </span>
                 )}

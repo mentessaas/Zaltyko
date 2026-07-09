@@ -179,6 +179,20 @@ export default async function AcademyLayout({ params, children }: LayoutProps) {
     redirect(profile.role === "athlete" || profile.role === "parent" ? "/dashboard/profile" : "/dashboard");
   }
 
+  const adminOnlyPaths = [
+    `/app/${academy.id}/billing`,
+    `/app/${academy.id}/settings`,
+    `/app/${academy.id}/coaches`,
+    `/app/${academy.id}/announcements`,
+  ];
+  const isAdminOnlyPath = adminOnlyPaths.some(
+    (path) => pathname === path || pathname?.startsWith(`${path}/`)
+  );
+
+  if (isAdminOnlyPath && !isSuperAdmin && !isAdmin && !isOwner) {
+    redirect(`/app/${academy.id}/dashboard`);
+  }
+
   const planCode = subscription?.planCode ?? "free";
   const planNickname = subscription?.planNickname ?? null;
   const academyCount = Number(academyCountRow?.total ?? 0);

@@ -44,14 +44,14 @@ export function AcademySidebar() {
   return (
     <aside className="hidden w-72 flex-col border-r border-white/10 bg-zaltyko-navy px-5 py-6 text-white lg:flex">
       <div className="mb-5 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-        <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-zaltyko-teal">
+        <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-white/75">
           Academia
         </p>
         <p className="mt-2 truncate font-display text-lg font-semibold text-white">
           {context.academyName}
         </p>
         {context.planNickname || context.planCode ? (
-          <p className="mt-1 text-xs text-white/55">
+          <p className="mt-1 text-xs text-white/75">
             {context.planNickname ?? context.planCode?.toUpperCase()}
           </p>
         ) : null}
@@ -59,13 +59,13 @@ export function AcademySidebar() {
 
       <form onSubmit={handleSearch} className="mb-4">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/45" />
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/70" />
           <input
             type="search"
             placeholder="Buscar en la academia..."
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
-            className="w-full rounded-[10px] border border-white/10 bg-white/[0.06] py-2.5 pl-9 pr-3 text-sm text-white placeholder:text-white/40 focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15"
+            className="w-full rounded-[10px] border border-white/10 bg-white/[0.06] py-2.5 pl-9 pr-3 text-sm text-white placeholder:text-white/70 focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15"
           />
         </div>
       </form>
@@ -98,7 +98,7 @@ export function AcademySidebar() {
           <Button
             variant="outline"
             size="sm"
-            className="w-full border-zaltyko-teal/50 bg-zaltyko-teal/12 font-semibold text-zaltyko-teal hover:bg-zaltyko-teal/20 hover:text-white"
+            className="w-full border-white/30 bg-white/[0.08] font-semibold text-white hover:bg-white/15"
             onClick={() => router.push("/super-admin/academies")}
           >
             <ArrowLeft className="mr-2 h-4 w-4" strokeWidth={2} />
@@ -108,7 +108,7 @@ export function AcademySidebar() {
       )}
 
       <nav className="space-y-3 text-sm">
-        <p className="px-3 text-[10px] font-medium uppercase tracking-[0.16em] text-white/40">
+        <p className="px-3 text-[10px] font-medium uppercase tracking-[0.16em] text-white/75">
           Academia
         </p>
         <ul className="space-y-1.5">
@@ -124,8 +124,8 @@ export function AcademySidebar() {
                   className={cn(
                     "flex min-h-11 items-center gap-3 rounded-xl border border-transparent px-3 py-2.5 text-sm font-medium transition-colors",
                     active
-                      ? "border-zaltyko-teal/30 bg-zaltyko-teal/12 text-zaltyko-teal shadow-soft"
-                      : "text-white/64 hover:border-white/10 hover:bg-white/[0.06] hover:text-white"
+                      ? "border-white/20 bg-white/[0.12] text-white shadow-soft"
+                      : "text-white/75 hover:border-white/10 hover:bg-white/[0.06] hover:text-white"
                   )}
                 >
                   <Icon className="h-5 w-5 shrink-0" strokeWidth={1.8} />

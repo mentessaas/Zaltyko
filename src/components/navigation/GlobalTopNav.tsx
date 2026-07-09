@@ -158,7 +158,7 @@ export function GlobalTopNav({
             <div className="hidden min-w-0 border-l border-zaltyko-mist pl-3 lg:block">
               <p className="truncate text-sm font-semibold text-zaltyko-navy">{academyName}</p>
               {academyType ? (
-                <p className="truncate text-[10px] capitalize text-slate-400">{formatAcademyType(academyType)}</p>
+                <p className="truncate text-[10px] capitalize text-slate-600">{formatAcademyType(academyType)}</p>
               ) : null}
             </div>
           ) : null}

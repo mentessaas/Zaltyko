@@ -102,7 +102,7 @@ export function DashboardCard({
       <div className="relative flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <p className="text-xs font-medium uppercase tracking-[0.05em] text-slate-400">
+            <p className="text-xs font-medium uppercase tracking-[0.05em] text-slate-600">
               {title}
             </p>
             {trend && (

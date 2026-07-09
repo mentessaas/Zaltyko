@@ -7,7 +7,8 @@ Alcance: demo y flujos criticos por rol. No sustituye pruebas automatizadas; sir
 
 - [ ] Usar entorno con build caliente o deployment estable.
 - [ ] Confirmar variables Supabase, NextAuth y Stripe test sin imprimir secretos.
-- [ ] Generar sesion Playwright valida: `BASE_URL=... E2E_AUTH_EMAIL=... E2E_AUTH_PASSWORD=... pnpm test:e2e:auth`.
+- [ ] Preparar usuarios E2E y generar sesiones Playwright: `BASE_URL=... pnpm test:e2e:auth`.
+- [ ] Confirmar storage states por rol: `E2E_STORAGE_STATE`, `E2E_COACH_STORAGE_STATE`, `E2E_SUPER_ADMIN_STORAGE_STATE`.
 - [ ] Confirmar que las credenciales demo autentican en Supabase Auth antes de culpar a Playwright.
 - [ ] Confirmar `E2E_ACADEMY_ID` apunta a una academia demo con datos coherentes.
 - [ ] Confirmar que no hay promesas fiscales: no VeriFactu, AEAT, firma fiscal ni facturacion oficial.
@@ -68,8 +69,8 @@ Alcance: demo y flujos criticos por rol. No sustituye pruebas automatizadas; sir
 | `pnpm lint` | PASS | ESLint sin errores. |
 | `pnpm exec vitest run` | PASS | 40 archivos, 358 tests. Persisten warnings de tests UI preexistentes sobre `act()` y controlled/uncontrolled input. |
 | `pnpm build` | PASS | Next build completo; 201 paginas generadas durante static generation. |
-| `pnpm test:e2e:auth` equivalente con `.env.local` | FAIL | Supabase Auth devuelve `Invalid login credentials`; no se pudo regenerar `.auth/user.json` con las credenciales actuales. |
-| `pnpm exec playwright test tests/e2e-role-smoke.spec.ts --project=chromium` | PASS/SKIP | Spec nuevo ejecuta y salta 3 tests porque faltan storage states por rol. |
+| `pnpm test:e2e:auth` equivalente con `.env.local` | PENDIENTE | Debe preparar usuarios E2E y regenerar `.auth/user.json`, `.auth/coach.json`, `.auth/super-admin.json`. |
+| `pnpm exec playwright test tests/e2e-role-smoke.spec.ts --project=chromium` | PENDIENTE | Debe ejecutar owner, coach y super-admin sin skips por storage state. |
 | Dev-session manual con `NEXT_PUBLIC_ENABLE_DEV_SESSION=true pnpm dev` + cookie de `/api/dev/session` | PASS | `/dashboard`, `/athletes`, `/groups`, `/classes`, `/billing`, `/settings`, `/my-dashboard` respondieron 200 sin marcadores de error visibles. |
 
 ## Notas de hardening ejecutado

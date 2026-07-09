@@ -55,13 +55,19 @@ pnpm test:a11y
 pnpm test:e2e:verify-supabase
 ```
 
-2. Generar storage state:
+2. Preparar usuarios y generar storage states:
 
 ```bash
-BASE_URL=http://127.0.0.1:3000 E2E_AUTH_EMAIL=... E2E_AUTH_PASSWORD=... pnpm test:e2e:auth
+BASE_URL=http://127.0.0.1:3000 pnpm test:e2e:auth
 ```
 
-3. Ejecutar auditorias con `E2E_STORAGE_STATE=.auth/user.json`.
+El comando ejecuta `pnpm e2e:prepare-auth` y genera:
+
+- `E2E_STORAGE_STATE` / `E2E_OWNER_STORAGE_STATE`: `.auth/user.json`
+- `E2E_COACH_STORAGE_STATE`: `.auth/coach.json`
+- `E2E_SUPER_ADMIN_STORAGE_STATE`: `.auth/super-admin.json`
+
+3. Ejecutar auditorias con `E2E_ACADEMY_ID` y los storage states por rol configurados.
 
 ## Antes de cerrar un cambio
 

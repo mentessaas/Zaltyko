@@ -8,7 +8,7 @@ import { z } from "zod";
 import { db } from "@/db";
 import { academies, memberships, plans, profiles, subscriptions } from "@/db/schema";
 import { apiSuccess, apiError, apiCreated } from "@/lib/api-response";
-import { assertUserAcademyLimit, getUpgradeInfo } from "@/lib/limits";
+import { assertUserAcademyLimit } from "@/lib/limits";
 import { LimitError } from "@/lib/limits/errors";
 import { seedOnboardingForAcademy, markWizardStep } from "@/lib/onboarding";
 import { trackEvent } from "@/lib/analytics";
@@ -85,20 +85,17 @@ export async function createAcademy(body: z.infer<typeof CreateAcademyBodySchema
     await assertUserAcademyLimit(ownerProfile.userId);
   } catch (error: unknown) {
     if (error instanceof LimitError && error.code === "LIMIT_REACHED") {
-      const upgradeTo = error.payload?.upgradeTo ?? "pro";
-      const upgradeInfo = getUpgradeInfo(upgradeTo === "pro" ? "free" : "pro");
-
       return {
         error: apiError(
           "ACADEMY_LIMIT_REACHED",
-          `Has alcanzado el límite de academias de tu plan actual (${error.payload?.limit ?? 1} academia). Actualiza a ${upgradeTo.toUpperCase()} (${upgradeInfo.price}) para crear academias ilimitadas.`,
+          `Has alcanzado el límite de academias de tu plan actual (${error.payload?.limit ?? 1} academia). Para operar varias sedes, habla con Zaltyko y activaremos Network con onboarding acompañado.`,
           402,
           {
             ...error.payload,
             upgradeInfo: {
-              plan: upgradeTo,
-              price: upgradeInfo.price,
-              benefits: upgradeInfo.benefits,
+              plan: "premium",
+              price: "99€/mes",
+              benefits: ["Multi-sede con onboarding acompañado", "Reportes de dirección", "Soporte prioritario"],
             },
           }
         ),

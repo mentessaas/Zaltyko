@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useState } from "react";
 import {
   Users,
   UserCog,
@@ -152,6 +155,7 @@ export default function FeaturesSection() {
       },
     },
   ];
+  const [activeFeature, setActiveFeature] = useState(features[0].id);
 
   return (
     <section className="bg-primary-dark py-20 px-4 text-white">
@@ -169,7 +173,7 @@ export default function FeaturesSection() {
           </p>
         </div>
 
-        <Tabs defaultValue="gimnastas" className="w-full">
+        <Tabs value={activeFeature} onValueChange={setActiveFeature} className="w-full">
           <TabsList className="mb-10 flex h-auto flex-wrap justify-center gap-4 bg-transparent">
             {features.map((feature) => {
               const Icon = feature.icon;
@@ -177,6 +181,7 @@ export default function FeaturesSection() {
                 <TabsTrigger
                   key={feature.id}
                   value={feature.id}
+                  onClick={() => setActiveFeature(feature.id)}
                   className="flex min-w-[140px] flex-col items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-5 py-4 font-sans text-sm font-medium text-white/70 transition data-[state=active]:border-zaltyko-accent/50 data-[state=active]:bg-zaltyko-accent/10 data-[state=active]:text-white"
                 >
                   <Icon className="h-6 w-6" />

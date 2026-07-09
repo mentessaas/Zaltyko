@@ -381,7 +381,7 @@ export const AthletesTableView = memo(function AthletesTableView({
       )}
 
       {process.env.NODE_ENV !== "production" && (
-        <div className="rounded-2xl border border-zaltyko-coral/25 bg-zaltyko-coral/10 p-4 text-sm text-zaltyko-coral">
+        <div className="rounded-2xl border border-zaltyko-coral/30 bg-zaltyko-coral/10 p-4 text-sm text-zaltyko-navy">
           <p>
             ¿Necesitas importar datos? Usa el{" "}
             <Link href={`/app/${academyId}/athletes`} className="font-semibold underline">

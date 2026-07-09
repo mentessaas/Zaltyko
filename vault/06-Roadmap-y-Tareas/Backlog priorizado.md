@@ -1,7 +1,7 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-06-26
+last_reviewed: 2026-07-09
 source:
   - ../PRODUCT-ANALYSIS.md
   - ../BUSINESS-ANALYSIS.md
@@ -75,7 +75,7 @@ source:
 | Resuelto | Coach sin vista compacta "clase de hoy" con acciones rapidas. | producto/tech | Nuevo `src/components/coach/TodayQuickActions.tsx` con 3 acciones inline (asistencia, progreso, aviso al grupo). Pendiente: integrar en `CoachDashboardPage.tsx`. | Sprint 5 Negocio 2026-06-23. |
 | Activo | Decidir compatibilidad vs migracion de rutas legacy `/dashboard/*`. | Elvis | Opciones A/B/C/D en `Decisiones.md` con analisis de riesgo. Bloquea venta con confianza (URLs pueden llegar en emails). | P0 (P1 backlog) |
 | Activo | QA portal padres con usuarios parent/athlete reales. | producto | Implementado tecnicamente. Pendiente sesion de prueba humana para validar UX end-to-end. | P0 (P1 backlog) |
-| Activo | Regenerar storage state E2E y smoke autenticado de demo. | producto/QA | `tests/e2e-zaltyko-audit-smoke.spec.ts` y `tests/e2e-role-smoke.spec.ts` corren autenticados contra academia demo y no redirigen a `/auth/login`. | 2026-07-07: Supabase Auth devuelve `Invalid login credentials` con `E2E_AUTH_*`; no se pudo regenerar `.auth/user.json`. |
+| Resuelto | Regenerar storage state E2E y smoke autenticado de demo. | producto/QA | `tests/e2e-zaltyko-audit-smoke.spec.ts` y `tests/e2e-role-smoke.spec.ts` corren autenticados contra academia demo y no redirigen a `/auth/login`. | 2026-07-09: `.auth/user.json`, `.auth/coach.json` y `.auth/super-admin.json` existen y validan owner, coach y super-admin. `tests/e2e-role-smoke.spec.ts --project=chromium --workers=1` PASS 10/10 tras separar superficies por ruta. |
 | Resuelto parcial | Endurecer permisos de asistencia para coach asignado. | tech/seguridad | Coach solo registra asistencia en clases/sesiones asignadas; owner/admin/super_admin mantienen acceso operativo. | 2026-07-07: `verifyCoachClassScope` aplicado en `/api/attendance` y tests focales pasan. Falta e2e real con storage state coach. |
 | En progreso | Endurecer scoping parent/family por academia/tenant. | tech/seguridad | Panel familiar y APIs relacionadas filtran todos los datos por `academyId`, tenant y atleta permitido. | 2026-07-07: `/api/family/children` usa `getFamilyChildrenForUser` con tenant y relaciones permitidas. Faltan endpoints familia/bearer restantes + QA parent real. |
 | Resuelto | Revisar artefacto `my-dashboard/page.js` junto a `page.tsx`. | tech/DX | Confirmar origen y eliminar/ignorar si es build artifact; `pnpm build` debe seguir pasando. | 2026-07-07: `page.js` eliminado; `page.tsx` mantiene la ruta y `pnpm build` pasa. |
@@ -86,6 +86,8 @@ source:
 | Resuelto | ESLint v8 + flat config incompatible con build de Next.js 15.5. | tech/DevOps | Reemplazado `eslint.config.mjs` (flat con FlatCompat) por `.eslintrc.json` legacy. ESLint v8 funciona correctamente. | Sprint 6 Fix Vercel 2026-06-24. |
 | Resuelto | hreflang undefined en cluster pages (regresion Sprint 5 F12). | tech/SEO | `MODALITIES[slug].en` devolvia undefined porque `slug` no es la clave. Corregido usando `modalityKey`/`countryKey` ya calculados en `generateMetadata`. | Sprint 6 Fix Vercel 2026-06-24. |
 | Activo | 25 tablas del schema TS no existen en DB (event_*, class_waiting_list, athlete_documents, role_members, message_history, etc.). | tech/DB | `drizzle-kit push --force` propone cambios destructivos (borrar `__drizzle_migrations`, truncar tablas, cambiar PK). Requiere plan manual tabla por tabla con scripts de migracion de datos. | Scripts `dump-schema.ts` y `check-fks.ts` diagnostican drift exacto; Sprint 2 los creo. |
+| Resuelto | Corregir fallos a11y autenticados detectados por axe. | tech/accesibilidad | `tests/a11y-zaltyko.spec.ts --project=chromium --workers=1` pasa para dashboard y athletes autenticados. | 2026-07-09: PASS 4/4 en Chromium; corregidos progressbar/selects sin nombre accesible y contrastes en dashboard, topnav, sidebar, athletes y badges. |
+| Resuelto | Estabilizar `tests/e2e-zaltyko-full.spec.ts` en dev server. | tech/QA | La suite principal debe pasar sin depender de retries ni timeouts largos; rutas criticas deben dividirse o precalentarse para evitar reinicios/compilaciones acumuladas de Next dev. | 2026-07-09: rutas criticas separadas por pagina, suite serializada, navegacion de atleta por `href`, billing/settings y PWA con timeout adecuado. `tests/e2e-zaltyko-full.spec.ts --project=chromium --workers=1` PASS 20/20; agregado directo full+public+a11y PASS 30/30. |
 | Activo | Policies permisivas `allow_authenticated` en tablas con datos de usuario/academia (marketplace_*, empleo_*, tickets_*, advertisements, featured_listings, push_subscriptions). | tech/seguridad | Reemplazar por policies que filtren por `tenant_id`, `academy_id`, o `user_id`. Backlog P0. | Detectado en Sprint 2 con `pg_policies`. |
 | Documentado | Mover claves Stripe a Supabase Vault (futuro Stripe Connect). | tech/seguridad | Extension `supabase_vault` instalada. Plan: cuando se implemente Connect por academia, crear secretos en Vault y actualizar `src/lib/stripe/checkout-service.ts` para leer de Vault en vez de env. | Sprint 2 Base de Datos 2026-06-23. |
 | --- | --- | --- | --- | --- |

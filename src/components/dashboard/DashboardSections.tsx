@@ -101,7 +101,7 @@ export function DashboardHeroSection({
                   <ChevronDown className="h-3 w-3" />
                 </button>
                 <div className="invisible absolute right-0 top-full z-50 mt-1 w-56 rounded-xl border border-zaltyko-mist bg-white p-1 opacity-0 shadow-medium transition-all group-hover:visible group-hover:opacity-100">
-                  <div className="mb-1 border-b border-zaltyko-mist px-3 py-2 text-xs font-semibold text-slate-400">
+                  <div className="mb-1 border-b border-zaltyko-mist px-3 py-2 text-xs font-semibold text-slate-600">
                     Cambiar de academia
                   </div>
                   {tenantAcademies.map((academy) => (
@@ -191,7 +191,7 @@ export function StarterSetupSection({
           <p className="text-sm font-semibold text-foreground">
             Tu academia ya arrancó con una base recomendada para {labels.disciplineName.toLowerCase()}
           </p>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-slate-700">
             Ahora toca revisar responsables, ajustar horarios y adaptar la plantilla inicial a tu realidad diaria.
           </p>
         </div>

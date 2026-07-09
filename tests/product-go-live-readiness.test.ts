@@ -43,13 +43,13 @@ describe("Go-live product guardrails", () => {
     }
   });
 
-  it("keeps Starter single-academy and Growth multi-academy for v1", () => {
+  it("keeps Starter and Growth single-academy for v1", () => {
     expect(PRODUCT_PLAN_BY_CODE.starter.publicName).toBe("Starter");
     expect(PRODUCT_PLAN_BY_CODE.starter.academyLimit).toBe(1);
     expect(PRODUCT_PLAN_BY_CODE.starter.features.join(" ")).not.toMatch(/academias ilimitadas/i);
     expect(PRODUCT_PLAN_BY_CODE.pro.publicName).toBe("Growth");
-    expect(PRODUCT_PLAN_BY_CODE.pro.academyLimit).toBeNull();
-    expect(PRODUCT_PLAN_BY_CODE.pro.features.join(" ")).toMatch(/academias ilimitadas/i);
+    expect(PRODUCT_PLAN_BY_CODE.pro.academyLimit).toBe(1);
+    expect(PRODUCT_PLAN_BY_CODE.pro.features.join(" ")).not.toMatch(/academias ilimitadas/i);
   });
 
   it("positions Network as accompanied multi-site, not self-serve unlimited", () => {

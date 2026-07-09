@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import {
   Save,
   Building2,
@@ -58,6 +59,7 @@ import {
 
 export default function SettingsPage() {
   const context = useAcademyContext();
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -77,6 +79,12 @@ export default function SettingsPage() {
     () => buildActiveSportConfigEditors(settings),
     [settings]
   );
+
+  useEffect(() => {
+    if (context && !context.isAdmin) {
+      router.replace(`/app/${context.academyId}/dashboard`);
+    }
+  }, [context, router]);
 
   // Cargar settings existentes
   useEffect(() => {
@@ -185,6 +193,10 @@ export default function SettingsPage() {
       },
     }));
   };
+
+  if (context && !context.isAdmin) {
+    return null;
+  }
 
   if (loading) {
     return (

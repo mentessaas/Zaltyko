@@ -1,8 +1,27 @@
+import { resolve } from "node:path";
+
+import { config } from "dotenv";
 import { expect, test, type Page } from "@playwright/test";
+
+config({ path: resolve(process.cwd(), ".env.local") });
+config({ path: resolve(process.cwd(), ".env") });
 
 const academyId = process.env.E2E_ACADEMY_ID;
 const storageState = process.env.E2E_STORAGE_STATE;
 const academyPath = (path: string) => `/app/${academyId}/${path.replace(/^\//, "")}`;
+const criticalAcademyPaths = [
+  "dashboard",
+  "athletes",
+  "athletes/new",
+  "groups",
+  "classes",
+  "billing",
+  "settings",
+  "assessments",
+  "evaluations",
+  "messages",
+  "events",
+];
 
 test.skip(!academyId, "Set E2E_ACADEMY_ID to run Zaltyko full academy E2E tests.");
 
@@ -16,7 +35,7 @@ async function gotoAcademy(page: Page, path: string) {
     await page.goto(targetPath, { waitUntil: "domcontentloaded", timeout: 120_000 });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    if (!/ERR_EMPTY_RESPONSE|ERR_ABORTED|Timeout/.test(message)) {
+    if (!/ERR_EMPTY_RESPONSE|ERR_ABORTED|ERR_CONNECTION_RESET|ERR_NETWORK_IO_SUSPENDED|Timeout/.test(message)) {
       throw error;
     }
 
@@ -28,7 +47,7 @@ async function gotoAcademy(page: Page, path: string) {
 
 test.describe("Zaltyko full academy flows", () => {
   test.use(storageState ? { storageState } : {});
-  test.describe.configure({ timeout: 90_000 });
+  test.describe.configure({ mode: "serial", timeout: 90_000 });
 
   test("desktop navigation exposes core academy modules", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
@@ -41,7 +60,7 @@ test.describe("Zaltyko full academy flows", () => {
       "Grupos",
       "Entrenamientos",
       "Eventos",
-      "Facturación",
+      "Cobros",
       "Evaluaciones",
       "Mensajes",
       "Ajustes",
@@ -51,25 +70,13 @@ test.describe("Zaltyko full academy flows", () => {
     await expect(academyNavigation).toContainText(/Atletas|Gimnastas/);
   });
 
-  test("critical academy pages render without route-level errors", async ({ page }) => {
-    test.setTimeout(180_000);
-
-    for (const path of [
-      "dashboard",
-      "athletes",
-      "athletes/new",
-      "groups",
-      "classes",
-      "billing",
-      "settings",
-      "assessments",
-      "evaluations",
-      "messages",
-      "events",
-    ]) {
+  for (const path of criticalAcademyPaths) {
+    test(`critical academy page renders without route-level errors: ${path}`, async ({ page }) => {
+      test.setTimeout(180_000);
       await gotoAcademy(page, path);
-    }
-  });
+      await expect(page.locator("#main-content")).toBeVisible();
+    });
+  }
 
   test("responsive shell works at Sprint 3 audit breakpoints", async ({ page }) => {
     test.setTimeout(180_000);
@@ -114,7 +121,10 @@ test.describe("Zaltyko full academy flows", () => {
     const athleteCount = await firstAthleteLink.count();
     test.skip(athleteCount === 0, "No athletes found in the configured academy.");
 
-    await firstAthleteLink.click();
+    const href = await firstAthleteLink.getAttribute("href");
+    test.skip(!href, "First athlete link does not expose a navigable href.");
+
+    await page.goto(href, { waitUntil: "domcontentloaded", timeout: 120_000 });
     await expect(page).toHaveURL(new RegExp(`/app/${academyId}/athletes/[^/]+$`));
     await expectNoRouteError(page);
   });
@@ -128,6 +138,8 @@ test.describe("Zaltyko full academy flows", () => {
   });
 
   test("billing and settings pages render admin surfaces", async ({ page }) => {
+    test.setTimeout(180_000);
+
     await gotoAcademy(page, "billing");
     await expect(page.locator("#main-content")).toBeVisible();
 
@@ -151,6 +163,8 @@ test.describe("Zaltyko full academy flows", () => {
   });
 
   test("authenticated academy routes do not show the PWA install banner", async ({ page }) => {
+    test.setTimeout(180_000);
+
     for (const path of ["dashboard", "athletes", "classes", "settings"]) {
       await gotoAcademy(page, path);
       await page.waitForTimeout(1000);

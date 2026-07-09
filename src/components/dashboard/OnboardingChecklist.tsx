@@ -149,19 +149,19 @@ export function OnboardingChecklist({ academyId }: OnboardingChecklistProps) {
     <div className="space-y-4 rounded-2xl border border-dashed border-muted bg-card/60 p-6 shadow-sm">
       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div className="flex-1">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Checklist</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">Checklist</p>
           <h2 className="text-xl font-semibold">Completa tu academia</h2>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-slate-700">
             Avanza paso a paso para tener tu academia lista en menos de 24 horas.
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <div className="text-right text-sm font-medium text-muted-foreground">
+          <div className="text-right text-sm font-medium text-slate-700">
             {data?.summary ? `${data.summary.completed}/${data.summary.total} completados` : "—"}
           </div>
           <button
             onClick={() => setIsExpanded(!isExpanded)}
-            className="flex items-center justify-center rounded-md p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            className="flex items-center justify-center rounded-md p-2 text-slate-700 transition-colors hover:bg-muted hover:text-foreground"
             aria-label={isExpanded ? "Ocultar pasos" : "Mostrar pasos"}
             aria-expanded={isExpanded}
           >
@@ -225,5 +225,4 @@ export function OnboardingChecklist({ academyId }: OnboardingChecklistProps) {
     </div>
   );
 }
-
 

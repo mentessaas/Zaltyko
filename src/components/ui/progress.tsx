@@ -6,12 +6,13 @@ import { cn } from "@/lib/utils";
 
 interface ProgressProps extends React.ComponentPropsWithoutRef<typeof ProgressPrimitive.Root> {
   indicatorClassName?: string;
+  "aria-label"?: string;
 }
 
 const Progress = React.forwardRef<
   React.ElementRef<typeof ProgressPrimitive.Root>,
   ProgressProps
->(({ className, indicatorClassName, value, ...props }, ref) => {
+>(({ className, indicatorClassName, value, "aria-label": ariaLabel, ...props }, ref) => {
   const [animatedValue, setAnimatedValue] = React.useState(value ?? 0);
   const animationFrameRef = React.useRef<number>();
 
@@ -64,6 +65,7 @@ const Progress = React.forwardRef<
         "relative h-2 w-full overflow-hidden rounded-full bg-muted",
         className
       )}
+      aria-label={ariaLabel ?? "Progreso"}
       {...props}
     >
       <ProgressPrimitive.Indicator
@@ -79,5 +81,4 @@ const Progress = React.forwardRef<
 Progress.displayName = ProgressPrimitive.Root.displayName;
 
 export { Progress };
-
 
