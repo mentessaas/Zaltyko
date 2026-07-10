@@ -1,28 +1,20 @@
-import { getPendingScheduledNotifications, markScheduledNotificationSent } from "@/lib/communication-service";
+import {
+  getPendingScheduledNotifications,
+  markScheduledNotificationFailed,
+  markScheduledNotificationSent,
+} from "@/lib/communication-service";
 import { getMessageTemplateById } from "@/lib/communication-service";
 import { sendPushToUser } from "@/lib/notifications/push-service";
 import { createNotification } from "@/lib/notifications/notification-service";
 import { sendEmail } from "@/lib/brevo";
 import { db } from "@/db";
 import { profiles } from "@/db/schema/profiles";
-import { academies } from "@/db/schema/academies";
-import { eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { logger } from "@/lib/logger";
 import { apiError, apiSuccess } from "@/lib/api-response";
 import { requireCronAuth } from "@/lib/cron-auth";
 
 export const dynamic = 'force-dynamic';
-
-interface ScheduledNotificationData {
-  tenantId: string;
-  templateId: string | null;
-  channel: string;
-  groupId: string | null;
-  userId?: string;
-  userEmail?: string;
-  userName?: string;
-  variables?: Record<string, string>;
-}
 
 function interpolateTemplate(template: string, variables: Record<string, string>): string {
   let result = template;
@@ -122,7 +114,7 @@ export async function POST(request: Request) {
         if (notification.groupId) {
           // Query group members - placeholder
           // In reality, you'd have a junction table for group members
-        } else if (notification.templateId) {
+        } else if (notification.templateId && notification.tenantId) {
           // Get admin users of the tenant
           const adminProfiles = await db
             .select({
@@ -130,7 +122,10 @@ export async function POST(request: Request) {
               name: profiles.name,
             })
             .from(profiles)
-            .where(notification.tenantId ? eq(profiles.tenantId, notification.tenantId) : undefined)
+            .where(and(
+              eq(profiles.tenantId, notification.tenantId),
+              inArray(profiles.role, ["owner", "admin"])
+            ))
             .limit(10);
 
           recipients.push(
@@ -147,8 +142,9 @@ export async function POST(request: Request) {
           await markScheduledNotificationSent(notification.id);
           processed++;
         } else {
-          // No recipients, mark as sent anyway
-          await markScheduledNotificationSent(notification.id);
+          // A schedule with no resolved recipients must not look delivered.
+          await markScheduledNotificationFailed(notification.id);
+          failed++;
         }
       } catch (error) {
         logger.error(`Failed to process scheduled notification ${notification.id}:`, error);
