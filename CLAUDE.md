@@ -1,5 +1,9 @@
 # Zaltyko - Sports Academy Management
 
+## Canonical Work Guide (MANDATORY, read first)
+
+Before any relevant code, product, pricing, migration, security, roadmap, or documentation change, read `vault/00-Inicio/Guia de trabajo para agentes.md`. That note is the operational source for Zaltyko's active direction (pricing v3.0, limited family/athlete portal, migration discipline) **and** for multi-agent coordination — this repo is worked concurrently by Claude Code, Codex, and possibly other agents, and that guide's "Coordinacion entre agentes en paralelo" section has the concrete rules for not stepping on each other (check recent git log/changelog before touching a file, don't widen RLS to patch a symptom without confirming the request even goes through RLS, flag unapplied migrations explicitly, don't silently resolve contradictory decisions). `AGENTS.md` (which Codex reads) points to the same note — keep them in sync.
+
 ## Stack
 
 - **Framework:** Next.js 14.2 (App Router)

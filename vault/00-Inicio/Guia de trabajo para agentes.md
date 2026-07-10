@@ -1,7 +1,7 @@
 ---
 status: active
 owner: producto/tech
-last_reviewed: 2026-06-24
+last_reviewed: 2026-07-09
 source:
   - ../../AGENTS.md
   - ./Home.md
@@ -38,6 +38,30 @@ La direccion vigente es:
 6. [[Runbook migraciones]] antes de tocar Supabase, Drizzle o SQL manual.
 
 Si el cambio es pequeno y puramente tecnico, aun asi revisa esta guia y los patrones obligatorios.
+
+## Coordinacion entre agentes en paralelo
+
+Zaltyko lo trabajan varios agentes (Claude Code, Codex, otros) sobre el mismo working directory, a veces al mismo tiempo. Sin coordinacion esto produce trabajo pisado, decisiones contradictorias sin resolver y estado de git inconsistente. Reglas concretas, no teoricas:
+
+1. **Antes de empezar, mira quien mas anduvo ahi.**
+   - `git log -10 --oneline` y `git status --short` primero siempre. Si hay cambios sin commitear que tu no hiciste, no asumas que estan rotos ni los borres: lee el `Changelog interno.md` mas reciente, puede que otro agente este a mitad de una tarea coherente.
+   - Si el archivo que vas a tocar cambio en las ultimas horas (`git log -3 -- <archivo>`), lee ese diff antes de escribir encima.
+   - Antes de tocar pricing, RLS, migraciones o permisos especificamente: relee las ultimas 2-3 entradas de [[Changelog interno]] y [[Decisiones]] enteras, no solo el titulo. Ahi es donde mas se pisan los agentes porque cada uno "arregla" el sintoma que ve sin ver que otro ya decidio algo distinto.
+
+2. **Diagnostica antes de arreglar, sobre todo en seguridad.**
+   - No cambies una policy de RLS, un wrapper de auth o un permiso solo porque un error aparecio cerca de ahi. Antes de tocar RLS: confirma primero **por que camino llega el request que falla** — codigo servidor (`src/lib/authz.ts`, conecta como `postgres` con `BYPASSRLS`, RLS no aplica ahi nunca) vs cliente directo a Supabase (`createClient` de `@/lib/supabase/client`, ahi si aplica). Ensanchar una policy para "arreglar" algo que en realidad fallaba en el camino servidor no arregla nada y abre una brecha real. Ver [[Decisiones]] 2026-07-09 para el caso concreto que paso.
+   - Si no podes confirmar la causa raiz con logs/stack trace real, dilo explicitamente en el Changelog en vez de aplicar el primer fix plausible. "No se pudo reproducir, queda en backlog" es mejor que un fix que no ataca la causa.
+
+3. **Marca claramente lo que no esta aplicado todavia.**
+   - Si generas una migracion SQL pero no corriste `drizzle-kit push` / no la aplicaste a la DB real, decilo explicito en el Changelog ("no se ejecuto") y no la des por hecha. Otro agente que lea el changelog rapido puede asumir que ya esta viva.
+   - Lo mismo para flags de "pendiente sin confirmar", tests que quedan en rojo a proposito, o decisiones de producto que un agente tomo solo (como single-vs-multi-academia en Growth) — si otro agente ya habia tomado la decision contraria y la habia commiteado, se vuelve un conflicto real de negocio, no solo de codigo. Preguntale al usuario si detectas dos decisiones contradictorias en vez de elegir una en silencio.
+
+4. **Cuidado con archivos duplicados o resucitados.**
+   - Si aparecen archivos tipo `nombre 2.ext` sin que tu los hayas creado, o un archivo que vos u otro agente borro y commiteo reaparece sin explicacion: probablemente es sincronizacion de filesystem (iCloud Drive u otro) colisionando con escritura concurrente de dos agentes. Compara contra el original (`diff`) antes de decidir: si son identicos, son basura de sync, se borran. Si difieren, investiga cual es el real antes de asumir.
+
+5. **Cierra tu trabajo de forma que el siguiente agente lo entienda sin preguntarte.**
+   - El Changelog no es opcional ni un resumen vago: debe decir que se probo, que fallo, que quedo sin resolver y por que. Un agente que llegue despues (vos mismo en otra sesion, Codex, u otro) tiene que poder decidir si confiar en tu fix leyendo una sola entrada.
+   - Si tocaste algo que otro agente toco muy recientemente y no estas seguro de si van en la misma direccion, es mejor preguntarle al usuario ("Codex hizo X, yo iba a hacer Y, se contradicen, ¿cual va?") que resolverlo solo y que el usuario se entere despues.
 
 ## Reglas no negociables
 
