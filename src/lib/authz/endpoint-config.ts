@@ -47,6 +47,9 @@ export function isFlexibleTenantEndpoint(pathname: string): boolean {
     "/api/groups",
     "/api/athletes",
     "/api/events",
+    // Usuarios sin academia todavía deben poder consultar y responder sus
+    // propias solicitudes de vínculo. Los handlers validan profile/target.
+    "/api/link-requests",
   ];
 
   return flexiblePatterns.some((pattern) => pathname.startsWith(pattern));
@@ -90,4 +93,3 @@ export function extractAcademyId(
 
   return undefined;
 }
-

@@ -1,5 +1,6 @@
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { eq, count, inArray, sql } from "drizzle-orm";
+import { z } from "zod";
 
 import { db } from "@/db";
 import { profiles, memberships, academies, subscriptions, plans, athletes, coaches, classes } from "@/db/schema";
@@ -11,6 +12,16 @@ import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 // @service-role auth-admin:read-update-email. Super-admin user management requires Supabase Auth admin APIs.
+
+const updateUserSchema = z.object({
+  role: z.enum(["owner", "admin", "coach", "athlete", "parent", "super_admin"]).nullable().optional(),
+  isSuspended: z.boolean().optional(),
+  name: z.string().trim().min(1).nullable().optional(),
+  email: z.string().trim().email().nullable().optional(),
+  planId: z.string().trim().min(1).nullable().optional(),
+  force: z.boolean().optional(),
+  reason: z.string().trim().min(5).max(500).optional(),
+});
 
 interface RouteParams {
   profileId?: string;
@@ -176,30 +187,47 @@ export const PATCH = withSuperAdmin(async (request, context) => {
     return apiError("IMMUTABLE_SUPER_ADMIN", "Cannot modify super admin profile", 400);
   }
 
-  const body = await request.json().catch(() => ({}));
+  const json = await request.json().catch(() => ({}));
+  const parsed = updateUserSchema.safeParse(json);
+  if (!parsed.success) {
+    return apiError("VALIDATION_ERROR", parsed.error.issues[0]?.message ?? "Datos inválidos", 400);
+  }
+  const body = parsed.data;
   const updates: Record<string, unknown> = {};
+  const auditChanges: Record<string, unknown> = {};
+  const changesAccess =
+    (body.role !== undefined && body.role !== existing.role) ||
+    (typeof body.isSuspended === "boolean" && body.isSuspended !== existing.isSuspended);
 
-  if (typeof body?.role === "string" && body.role !== existing.role) {
+  if (changesAccess && !body.reason) {
+    return apiError("REASON_REQUIRED", "Indica el motivo del cambio de acceso", 400);
+  }
+
+  if (body.role && body.role !== existing.role) {
     updates.role = body.role;
+    auditChanges.role = { from: existing.role, to: body.role };
   }
 
-  if (typeof body?.isSuspended === "boolean" && body.isSuspended !== existing.isSuspended) {
+  if (typeof body.isSuspended === "boolean" && body.isSuspended !== existing.isSuspended) {
     updates.isSuspended = body.isSuspended;
+    auditChanges.isSuspended = { from: existing.isSuspended, to: body.isSuspended };
   }
 
-  if (typeof body?.name === "string" && body.name.trim().length > 0 && body.name.trim() !== existing.name) {
-    updates.name = body.name.trim();
+  if (body.name && body.name !== existing.name) {
+    updates.name = body.name;
+    auditChanges.name = { from: existing.name, to: body.name };
   }
 
-  if (typeof body?.email === "string" && body.email.trim().length > 0) {
+  if (body.email) {
     await updateAuthUserEmail({
       userId: existing.userId,
-      email: body.email.trim(),
+      email: body.email,
     });
+    auditChanges.email = "updated";
   }
 
   // Handle plan update
-  if (typeof body?.planId === "string" && body.planId.trim().length > 0) {
+  if (body.planId) {
     const [plan] = await db.select({ id: plans.id, code: plans.code }).from(plans).where(eq(plans.id, body.planId)).limit(1);
     if (plan) {
       // Check for limit violations before changing plan
@@ -229,6 +257,7 @@ export const PATCH = withSuperAdmin(async (request, context) => {
           status: "active",
         });
       }
+      auditChanges.planId = plan.id;
 
       // If violations exist and force is true, send notification email
       if (violations.requiresAction && body.force) {
@@ -311,7 +340,7 @@ export const PATCH = withSuperAdmin(async (request, context) => {
     }
   }
 
-  if (Object.keys(updates).length === 0 && !body?.email && !body?.planId) {
+  if (Object.keys(updates).length === 0 && !body.email && !body.planId) {
     return apiError("NO_CHANGES", "No changes provided", 400);
   }
 
@@ -331,7 +360,11 @@ export const PATCH = withSuperAdmin(async (request, context) => {
     userId: context.userId,
     tenantId: null,
     action: "user.updated",
-    meta: { profileId, updates },
+    resourceType: "profile",
+    resourceId: profileId,
+    resourceName: existing.name,
+    description: `Super Admin actualizó el usuario ${existing.name ?? profileId}`,
+    meta: { profileId, changes: auditChanges, reason: body.reason ?? null },
   });
 
   return apiSuccess(updated);
@@ -339,13 +372,19 @@ export const PATCH = withSuperAdmin(async (request, context) => {
 
 // DELETE /api/super-admin/users/[profileId] — borra el perfil y la cuenta de Auth.
 // Ojo: por CASCADE, si el usuario es dueño de una academia, esa academia se elimina también.
-export const DELETE = withSuperAdmin(async (_request, context) => {
+export const DELETE = withSuperAdmin(async (request, context) => {
   if (!context?.profile) {
     return apiError("UNAUTHORIZED", "Unauthorized", 401);
   }
   const { profileId } = await resolveParams(context.params);
   if (!profileId) {
     return apiError("PROFILE_ID_REQUIRED", "Profile ID is required", 400);
+  }
+
+  const body = await request.json().catch(() => ({}));
+  const reason = z.string().trim().min(5).max(500).safeParse(body?.reason);
+  if (!reason.success) {
+    return apiError("REASON_REQUIRED", "Indica el motivo de la eliminación", 400);
   }
 
   const [target] = await db
@@ -388,7 +427,10 @@ export const DELETE = withSuperAdmin(async (_request, context) => {
     userId: context.userId,
     tenantId: null,
     action: "user.deleted",
-    meta: { profileId, role: target.role },
+    resourceType: "profile",
+    resourceId: profileId,
+    description: `Super Admin eliminó el usuario ${profileId}`,
+    meta: { profileId, role: target.role, reason: reason.data },
   });
 
   return apiSuccess({ ok: true });

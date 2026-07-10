@@ -6,6 +6,11 @@ import { logger } from "@/lib/logger";
 
 export const dynamic = 'force-dynamic';
 
+const canViewCommunication = (role?: string) =>
+  ["owner", "admin", "coach", "super_admin"].includes(role ?? "");
+const canManageCommunication = (role?: string) =>
+  ["owner", "admin", "super_admin"].includes(role ?? "");
+
 const updateGroupSchema = z.object({
   name: z.string().min(1).max(200).optional(),
   description: z.string().optional(),
@@ -13,6 +18,9 @@ const updateGroupSchema = z.object({
 });
 
 export const GET = withTenant(async (request, context) => {
+  if (!canViewCommunication(context.profile?.role)) {
+    return apiError("FORBIDDEN", "No tienes permiso para consultar grupos de comunicación", 403);
+  }
   const { groupId } = context.params as { groupId: string };
 
   const group = await getMessageGroupById(groupId);
@@ -35,6 +43,9 @@ export const GET = withTenant(async (request, context) => {
 });
 
 export const PATCH = withTenant(async (request, context) => {
+  if (!canManageCommunication(context.profile?.role)) {
+    return apiError("FORBIDDEN", "No tienes permiso para modificar grupos de comunicación", 403);
+  }
   const { groupId } = context.params as { groupId: string };
 
   const existing = await getMessageGroupById(groupId);
@@ -74,6 +85,9 @@ export const PATCH = withTenant(async (request, context) => {
 });
 
 export const DELETE = withTenant(async (request, context) => {
+  if (!canManageCommunication(context.profile?.role)) {
+    return apiError("FORBIDDEN", "No tienes permiso para eliminar grupos de comunicación", 403);
+  }
   const { groupId } = context.params as { groupId: string };
 
   const existing = await getMessageGroupById(groupId);

@@ -209,7 +209,7 @@ export async function seedDefaultTemplates(tenantId: string) {
   return results;
 }
 
-export async function incrementTemplateUsage(id: string, _tenantId?: string) {
+export async function incrementTemplateUsage(id: string) {
   const [template] = await db
     .update(messageTemplates)
     .set({
@@ -312,6 +312,15 @@ export async function markScheduledNotificationSent(id: string) {
       status: "sent",
       sentAt: new Date(),
     })
+    .where(eq(scheduledNotifications.id, id))
+    .returning();
+  return notification || null;
+}
+
+export async function markScheduledNotificationFailed(id: string) {
+  const [notification] = await db
+    .update(scheduledNotifications)
+    .set({ status: "failed" })
     .where(eq(scheduledNotifications.id, id))
     .returning();
   return notification || null;

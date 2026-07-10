@@ -77,14 +77,18 @@ export async function getUserNotifications(
 /**
  * Marca una notificación como leída
  */
-export async function markNotificationAsRead(notificationId: string, tenantId: string) {
+export async function markNotificationAsRead(notificationId: string, tenantId: string, userId: string) {
   await db
     .update(notifications)
     .set({
       read: true,
       readAt: new Date(),
     })
-    .where(and(eq(notifications.id, notificationId), eq(notifications.tenantId, tenantId)));
+    .where(and(
+      eq(notifications.id, notificationId),
+      eq(notifications.tenantId, tenantId),
+      eq(notifications.userId, userId)
+    ));
 }
 
 /**
@@ -109,10 +113,14 @@ export async function markAllNotificationsAsRead(tenantId: string, userId: strin
 /**
  * Elimina una notificación
  */
-export async function deleteNotification(notificationId: string, tenantId: string) {
+export async function deleteNotification(notificationId: string, tenantId: string, userId: string) {
   await db
     .delete(notifications)
-    .where(and(eq(notifications.id, notificationId), eq(notifications.tenantId, tenantId)));
+    .where(and(
+      eq(notifications.id, notificationId),
+      eq(notifications.tenantId, tenantId),
+      eq(notifications.userId, userId)
+    ));
 }
 
 /**
@@ -132,4 +140,3 @@ export async function getUnreadCount(tenantId: string, userId: string): Promise<
 
   return Number(result?.count || 0);
 }
-

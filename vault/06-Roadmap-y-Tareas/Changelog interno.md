@@ -8,6 +8,84 @@ source:
 ---
 # Changelog interno
 
+## 2026-07-10 - Suite unitaria completa y limpieza de formularios
+
+- **Validación global**: `pnpm test` PASS con 45 archivos y 391 pruebas. La ejecución dejó el watcher activo tras el resultado, pero todos los casos terminaron correctamente.
+- **FormField**: ya no combina `defaultValue` con un `value` controlado; el valor mostrado se deriva correctamente del prop controlado o del estado no controlado, eliminando un warning de React y un comportamiento ambiguo.
+- **Prueba de confirmación**: la resolución de la promesa pendiente se envuelve en `act`, eliminando el warning de actualización asíncrona de React/Radix durante el test.
+- **Validación focalizada**: ESLint y `tests/components-critical.test.tsx` PASS 10/10; `git diff --check` limpio. Sin migraciones.
+
+## 2026-07-10 - Historial de correo y cron de avisos corregidos
+
+- **Historial de correo**: destinatarios, asuntos, errores y metadata pasan a estar disponibles solo para owner/admin/super-admin. La API valida `academyId`, paginación y límites en vez de usar `parseInt` sin cotas.
+- **Cron programado**: una programación sin destinatarios resueltos se marca `failed`, no `sent`; evita que el producto afirme una entrega que no ocurrió. El fallback que indica “admin users” ahora filtra realmente perfiles owner/admin del tenant.
+- **Validación**: ESLint focalizado sin avisos, `git diff --check` limpio y batería focalizada PASS 13/13. No se crearon ni aplicaron migraciones.
+
+## 2026-07-10 - Privacidad de historial y plantillas de comunicación
+
+- **Historial**: se restringe a staff la lectura de registros que incluyen teléfono, cuerpo y metadata; crear registros requiere owner/admin/super-admin. Antes, un `parent` o `athlete` del tenant podía leerlos y crear entradas arbitrarias.
+- **Plantillas**: listado, detalle y uso quedan disponibles para staff; crear, editar o borrar requiere owner/admin/super-admin. Se preserva la prohibición existente de borrar plantillas de sistema.
+- **Validación**: ESLint focalizado sin avisos, `git diff --check` limpio y `communication-panels`, `link-requests-api`, `product-roles-navigation` PASS 13/13. Sin migraciones nuevas ni aplicadas.
+
+## 2026-07-10 - Endurecimiento de envíos y comunicaciones programadas
+
+- **Contador de avisos**: `/api/notifications/unread-count` consulta ahora por `profile.id`, que es la clave foránea real de `notifications.user_id`; antes usaba el UUID de Auth y podía devolver cero pese a existir avisos sin leer.
+- **Push y correo**: `/api/push/send` exige owner/admin/super-admin y comprueba que el perfil destinatario esté en el tenant activo. `/api/notifications/send` exige rol operativo, academia válida del tenant y membership owner/admin (salvo super-admin); además distingue JSON inválido de un payload inválido. No se detectaron consumidores internos del endpoint de correo, por lo que el contrato nuevo con `academyId` obligatorio no rompe llamadas existentes.
+- **Programadas y grupos**: padres/atletas ya no pueden consultar o mutar grupos ni programación interna. Crear/cancelar requiere owner/admin/super-admin; lectura queda limitada a staff. La programación valida que grupo y plantilla pertenezcan al tenant antes de guardar sus IDs.
+- **Validación**: ESLint focalizado sin avisos, `git diff --check` limpio y las pruebas focalizadas existentes PASS 13/13. No se crearon ni aplicaron migraciones.
+
+## 2026-07-10 - Segunda pasada de seguridad y experiencia de comunicación
+
+- **Conversaciones familiares**: solo `super_admin` puede saltarse la comprobación de tenant. Antes, cualquier `admin` podía crear una conversación de atleta o grupo de otro tenant si conocía el ID.
+- **P2P**: la reutilización de conversaciones exige ahora que emisor y destinatario sean exactamente los dos participantes y respeta la academia solicitada. Evita devolver por error una conversación P2P ajena que contenga solo al destinatario.
+- **Anuncios**: los miembros normales ya no pueden consultar borradores o archivados mediante `status`; la API valida estado, categoría y paginación. Las notificaciones de anuncio usan el `tenantId` resuelto por `withTenant` y el enlace moderno `/app/[academyId]/announcements/[id]`.
+- **Centro de notificaciones**: corregido el consumo del envelope `{ ok, data: { items } }`, que mantenía el modal emergente vacío aunque hubiera datos. Los deep links abren ahora consulta de directorio, conversación interna y anuncio en su destino correcto; solo se aceptan URLs internas `/app/` desde metadata.
+- **Validación**: ESLint focalizado sin avisos, `git diff --check` limpio y `communication-panels`, `link-requests-api`, `product-roles-navigation` PASS 13/13. Playwright con owner renovado: `/messages`, `/comms` (incluida pestaña de notificaciones) y `/notifications` cargan 200 y muestran sus estados reales.
+- **Límite E2E**: el guardado automatizado de sesión actualizó owner, pero el runner se bloqueó antes de completar coach/super-admin; no se consideran renovadas esas sesiones ni verificado un recorrido nuevo multirol. El servidor `next dev` se reinició tras el manifiesto HMR corrupto conocido; no hay migraciones creadas ni aplicadas.
+
+## 2026-07-10 - Endurecimiento adicional de conversaciones internas
+
+- **Aislamiento de tenant**: las operaciones de leer, actualizar, ocultar y enviar mensajes confirman ahora que la conversación pertenece al `tenantId` activo, además de exigir participación. La actualización del último mensaje mantiene el mismo filtro.
+- **Integridad y validación**: límites de paginación acotados a 1–100, cursor inválido rechazado con 400 y una respuesta solo puede referenciar un mensaje de la misma conversación. `PATCH` devuelve 400 ante JSON inválido y conserva título compartido y preferencias privadas en sus tablas respectivas.
+- **Validación ejecutada**: ESLint focalizado sin avisos; `link-requests-api`, `product-roles-navigation` y `communication-panels` PASS 13/13. `pnpm typecheck` sigue bloqueado exclusivamente en `vitest.config.ts` por dos versiones incompatibles de Vite (5.4.21 y 6.4.3), cambio ajeno a este módulo; no se modificaron dependencias.
+- **Migraciones**: ninguna creada ni aplicada.
+
+## 2026-07-10 - Correccion de solicitudes de vinculo para portal familiar
+
+- **Causa raiz**: un `parent` o `athlete` sin academy/tenant activo recibia `TENANT_MISSING` al consultar `/api/link-requests?scope=incoming`; por ello no podia ver ni aceptar la solicitud que le daba acceso. Ademas, `scope=outgoing` no estaba implementado y devolvia erroneamente solicitudes entrantes.
+- **Correccion**: `/api/link-requests` ahora permite el estado pre-vinculo de forma acotada y valida los scopes `incoming`, `outgoing` y `academy`; `outgoing` filtra por `requestedByProfileId`. Al aceptar, el perfil sincroniza `activeAcademyId` y `tenantId` desde la solicitud, requisito de las guardas del portal limitado.
+- **Seguridad**: no se amplio el acceso a datos de academia: la lectura entrante queda filtrada por `targetProfileId`, la respuesta sigue validando ese mismo perfil, y las operaciones de academia siguen comprobando membership/tenant.
+- **Validacion**: `tests/link-requests-api.test.ts` PASS 2/2; ESLint focalizado PASS. E2E manual: parent creado, solicitud saliente localizada y la API incoming ya devuelve la solicitud pendiente; queda reejecutar la aceptacion con una solicitud nueva para observar el redirect posterior a esta correccion.
+- **Deep link legacy reparado**: `/dashboard/messages/[conversationId]` verificaba participación pero renderizaba la bandeja sin seleccionar la conversación. Ahora redirige a `/dashboard/messages?c=...`, el contrato que el componente de mensajes usa para abrirla.
+- **Chequeo adicional**: `link-requests-api` + `product-roles-navigation` PASS 10/10; ESLint focalizado PASS.
+- **Mutación de conversaciones corregida**: `PATCH /api/messages/conversations/[id]` mezclaba preferencias privadas de participante con campos de la conversación. Ahora valida payload estricto, actualiza solo el título compartido cuando el participante es owner/admin y persiste silenciamiento/notificaciones únicamente en `conversation_participants` del usuario actual; el título queda acotado al tenant activo.
+- **Regresión cubierta**: el test de aceptación de vínculo ahora exige que el perfil destino reciba tanto `activeAcademyId` como `tenantId` de la solicitud. `link-requests-api` PASS 2/2 tras añadir la aserción.
+- **Cierre técnico de ronda**: `git diff --check` limpio; batería focalizada `link-requests-api`, `product-roles-navigation` y `communication-panels` PASS 13/13.
+
+## 2026-07-10 - Verificacion E2E parcial de comunicacion por roles
+
+- **Owner y coach**: sesiones E2E regeneradas con cuentas de prueba; Playwright CLI confirma que ambos cargan `/app/[academyId]/messages` autenticados y con la bandeja interna. El owner ve el acceso separado a `contact-messages`; el coach no lo recibe en la interfaz.
+- **Centro unificado**: owner validado visualmente en `/comms`; sus tabs Mensajes, Anuncios y Notificaciones cargan sus estados vacios reales sin usar el formato legacy de API ni mostrar errores de aplicacion.
+- **Limitacion de cobertura**: no hay cuentas/sesiones E2E `parent` ni `athlete`, ni una segunda academia de prueba para ejercer aislamiento cross-academy. Por ello no se pudo verificar en navegador el flujo bidireccional staff↔familia, lectura de notificacion ni rechazo cross-tenant. La guarda de rutas limitada y las pruebas unitarias permanecen cubiertas, pero el QA humano/fixture de esos roles sigue pendiente.
+- **Entorno**: el primer intento en `next dev` encontro un manifiesto HMR corrupto de Next (`__webpack_modules__[moduleId] is not a function`), no un fallo funcional reproducible; tras reiniciar servidor y regenerar sesiones las rutas de owner/coach cargaron correctamente.
+
+## 2026-07-10 - Mensajeria interna y notificaciones conectadas y endurecidas
+
+- **Ruta canonica corregida**: `/app/[academyId]/messages` deja de mostrar consultas del directorio y conecta la bandeja de conversaciones internas para cualquier miembro de la academia, incluidos `parent` y `athlete`. Las consultas publicas se conservan en `/app/[academyId]/contact-messages`, limitada a owner/admin/super-admin.
+- **Centro unificado reparado**: Mensajes, Anuncios y Notificaciones consumian el envelope legacy `success/data`; ahora usan el contrato real `{ ok, data: { items } }`, muestran errores reales y respetan los nombres camelCase de la API.
+- **Notificaciones reparadas**: la API deja de convertir query params ausentes (`null`) en errores Zod/500; paginacion sin duplicar la primera pagina; deep links distinguen consulta publica de conversacion interna. Marcar como leida y eliminar exige `tenantId + userId`, cerrando mutacion horizontal por ID dentro del mismo tenant.
+- **Mensajeria endurecida**: creacion/listado filtra por academia; emisor y destinatarios deben pertenecer al mismo tenant y academia; envio usa Zod y valida que la conversacion pertenezca al tenant activo. El shortcut P2P evita duplicados por metadata JSON parcial y genera deep link a la conversacion.
+- **Pruebas**: `communication-panels` + `product-roles-navigation` PASS 11/11; `pnpm typecheck` PASS; ESLint focalizado PASS; `pnpm check:migrations` PASS. Suite completa: 387/391 PASS; cuatro fallos preexistentes y ajenos al modulo en `audit-hardening` (timeout/membership mock) y `api-sport-migration` (timeout/mock `logger.apiError`). `pnpm validate:rls` confirma 100% de cobertura, pero EXIT 1 por policies duplicadas de `audit_logs` en las migraciones sin commit `20260709000000/20260709010000` de otra sesion; no relacionado con comunicacion y no se modifico.
+- **Migraciones**: ninguna nueva ni modificada; las tablas de comunicacion ya estaban materializadas por `20260703000001_create_missing_messaging_tables.sql` y migraciones previas. Pendiente humano: QA real con parent/coach; pendiente de producto: disparador de aviso desde clase/sesion.
+
+## 2026-07-09 - Correcciones P1 Super Admin tras auditoria
+
+- **Perfil operativo corregido**: el boton "Ver como usuario" pasa a "Abrir perfil operativo" y usa `/dashboard/view/[profileId]`; la vista de perfil obtiene el email Auth del usuario objetivo para no mezclarlo con el email del Super Admin conectado. En coach/athlete se corrigio tambien el filtro para cargar el registro ligado al usuario objetivo, no el primer registro de la academia.
+- **Acciones sensibles endurecidas**: la tabla de usuarios ya no cambia roles al instante; cualquier cambio de rol abre confirmacion con rol origen/destino. Los labels de rol visibles pasan a espanol (`Dueño`, `Entrenador`, `Super admin`). Los campos de contrasena temporal en crear usuario/academia quedan ocultos por defecto con mostrar/ocultar.
+- **Lifecycle de academia decidido**: borrar una academia desde Super Admin conserva la cuenta personal del dueño. El dialogo de borrado lo comunica y el audit metadata marca `ownerAccountRetained: true`.
+- **Audit logs preparados**: `logAdminAction` ahora acepta `resourceType`, `resourceId`, `resourceName`, `description`, `status` y metadata mas legible. Se agrego la migracion `20260709000000_allow_global_audit_logs.sql` para permitir logs globales con `tenant_id IS NULL`; no se ejecuto `drizzle-kit push`.
+- **Validacion**: `pnpm typecheck` PASS; ESLint focalizado PASS con warnings existentes; `tests/audit-hardening.test.ts` PASS 12/12; `tests/e2e-role-smoke.spec.ts --project=chromium --workers=1` PASS 10/10; Playwright autenticado verifico contrasenas ocultas, confirmacion de rol y perfil operativo con email objetivo. Riesgo nuevo: `/api/profile/preferences` devuelve 500 en QA y queda en backlog.
+
 ## 2026-07-09 - E2E autenticado estabilizado + roles Coach/Super Admin verificados
 
 - **Full academy E2E estabilizado**: `tests/e2e-zaltyko-full.spec.ts` separa el smoke de rutas criticas por pagina, usa modo serial y evita el loop unico que agotaba el timeout de Next dev. Tambien endurece navegacion ante `ERR_CONNECTION_RESET`/`ERR_NETWORK_IO_SUSPENDED`, valida `#main-content` por ruta, navega al detalle de atleta por `href` y sube timeout en billing/settings/PWA.
@@ -15,6 +93,14 @@ source:
 - **Role smoke sin flakes**: `tests/e2e-role-smoke.spec.ts` separa superficies Super Admin y Owner por ruta y mantiene Coach con validacion de no acceso a cobros/ajustes admin. Resultado final: PASS 10/10 con `E2E_OWNER_STORAGE_STATE=.auth/user.json`, `E2E_COACH_STORAGE_STATE=.auth/coach.json` y `E2E_SUPER_ADMIN_STORAGE_STATE=.auth/super-admin.json`.
 - **Validacion final**: `pnpm exec eslint tests/e2e-role-smoke.spec.ts tests/a11y-zaltyko.spec.ts tests/e2e-zaltyko-full.spec.ts --quiet` PASS; `pnpm exec tsc --noEmit` PASS; `playwright test tests/e2e-zaltyko-full.spec.ts tests/e2e-zaltyko-public.spec.ts tests/a11y-zaltyko.spec.ts --project=chromium --workers=1` PASS 30/30; `playwright test tests/e2e-role-smoke.spec.ts --project=chromium --workers=1` PASS 10/10.
 - **Nota de entorno**: `pnpm audit:sprint3 -- --project=chromium --workers=1` no es fiable porque pnpm pasa un `--` literal y Playwright corre con workers/proyectos no esperados. Para auditoria local usar `pnpm exec playwright test ... --project=chromium --workers=1` directo. En corridas muy largas Next dev puede reiniciarse por memoria; reiniciar el servidor antes de role smoke deja la validacion limpia.
+
+## 2026-07-09 - Auditoria Super Admin profunda con sesion real de prueba
+
+- **Super Admin operativo base**: dashboard, usuarios, academias, academias publicas y logs cargan sin errores. APIs `/api/super-admin/metrics`, `/users`, `/academies` y `/logs` responden 200. Owner y Coach no ven `/super-admin/*`; son redirigidos a `/app`.
+- **CRUD temporal validado y limpiado**: crear usuario temporal, validar password corto, borrar usuario, crear academia temporal con dueño, abrir detalle API y borrar academia pasan. Hallazgo: borrar la academia no borra/desvincula automaticamente el owner creado en el flujo "Crear academia + dueño"; se limpio manualmente el usuario temporal residual.
+- **Hallazgos UX/copy/seguridad**: "Ver como usuario" muestra perfil objetivo pero conserva correo del Super Admin; roles y estados mezclan ingles/tecnico (`Owner`, `Coach`, `Active`); contraseñas temporales se muestran en campos de texto; tablas mobile funcionan pero son densas; logs muestran JSON crudo. Ademas, `logAdminAction` fallo al insertar acciones sensibles (`user.created`, `user.deleted` y similares) aunque la operacion principal si completo.
+- **Rutas ocultas**: `/super-admin/billing` y `/super-admin/settings` siguen como placeholders y deben permanecer fuera del menu. `/super-admin/support` redirige a `/dashboard`, comportamiento confuso si alguien accede directo.
+- **Evidencia**: `output/super-admin-audit/RESUMEN.md`, `report.json` y capturas en `output/super-admin-audit/`.
 
 ## 2026-07-08 - Storage states E2E por rol + auditoria autenticada
 
@@ -465,3 +551,40 @@ Registrar cambios humanos y relevantes: releases, decisiones, cambios de pricing
 - Corregida configuracion Playwright: `testDir` ahora apunta a `./tests`, evitando que el runner escanee todo el repo y arboles pesados.
 - Corregida interaccion de tabs en `/features`: `FeaturesSection` queda controlado en cliente y el smoke publico espera hidratacion antes de interactuar. Test aislado de tabs pasa.
 - Estado E2E completo tras segunda pasada Chromium: roles PASS 3/3, a11y PASS 4/4, public smoke PASS 6/6 dentro del rerun amplio; suite principal `tests/e2e-zaltyko-full.spec.ts` queda con 1 fallo persistente en "critical academy pages render without route-level errors" por timeout del dev server al recorrer muchas rutas, y 2 flakies que pasaron en retry.
+
+## 2026-07-09 - Correccion de preferencias y smoke por roles
+
+- Alineado `src/db/schema/user-preferences.ts` con Supabase: `user_preferences` usa `user_id` como clave primaria y no expone columna `id`.
+- Actualizado onboarding para consultar y actualizar preferencias por `user_id`.
+- Ajustado el smoke de Coach para tolerar cancelaciones de navegacion propias del dev server y verificar la pantalla final.
+- Validacion: smoke de Coach PASS 1/1; smoke combinado de Super Admin, Owner y Coach PASS 10/10 en el rerun completo.
+
+## 2026-07-09 - Trazabilidad Super Admin aplicada
+
+- Aplicada en Supabase la migracion `20260709000000_allow_global_audit_logs.sql`.
+- La migracion alinea `audit_logs` con el schema: agrega de forma no destructiva los campos descriptivos faltantes y conserva los datos existentes.
+- Ajustadas las policies para que las entradas globales sin academia no queden disponibles para usuarios normales de una academia.
+- Verificada una insercion completa de auditoria en una transaccion revertida: no se conservaron datos de prueba.
+
+## 2026-07-09 - Aislamiento de audit logs endurecido
+
+- Aplicada la migracion `20260709010000_scope_audit_logs_to_super_admin.sql`.
+- Las policies de `audit_logs` ahora reservan el bypass global para `is_super_admin()`; una cuenta normal solo puede acceder a filas de su tenant.
+- Pruebas RLS transaccionales: un owner no pudo leer un log global, un Super Admin sí pudo, y el owner pudo crear y leer un log de su propio tenant. No quedo ningun dato de prueba.
+
+## 2026-07-09 - Acciones sensibles y E2E ampliado
+
+- Los diálogos de Super Admin para cambiar rol, suspender/reactivar o borrar usuarios/academias exigen un motivo de al menos 5 caracteres.
+- Las APIs de Super Admin rechazan esas acciones sin motivo y lo almacenan en `audit_logs`; las fichas de detalle también solicitan el motivo si cambia el acceso.
+- E2E por roles: PASS 10/10. Smoke público aislado: PASS 6/6. Accesibilidad aislada: PASS 4/4.
+- La pasada combinada de 30 pruebas mostró inestabilidad específica de `next dev` durante recompilación intensa; los fallos públicos no se reprodujeron al ejecutar la suite aislada. Pendiente estabilizar el servidor de pruebas antes de usar la combinación como gate único.
+
+## 2026-07-10 - Gate E2E completo en servidor de produccion
+
+- Generado un build limpio y regeneradas sesiones de producción para owner, coach y super-admin; autenticacion PASS 3/3.
+- Ejecutada en Chromium con un worker la pasada conjunta de flujos completos, páginas públicas, accesibilidad y roles: PASS 40/40, sin contextos de error en `test-results`.
+- Estabilizado el guardado de sesiones esperando la hidratacion y comprobando que email y contraseña sigan presentes antes de enviar el formulario.
+- Corregidos los detalles demo públicos de marketplace y empleo para resolver sus datos de forma directa y construir enlaces con el origen real de la petición.
+- Relajada la validación de identificadores de atletas al formato UUID que admite PostgreSQL y estabilizada la navegación E2E esperando la hidratación antes del clic.
+- Validaciones adicionales: build, typecheck, chequeo de migraciones y `audit-hardening` PASS 12/12.
+- Quedan documentados como deuda no bloqueante los avisos repetidos de métricas GR no disponibles y el intento de formatear `Sin días asignados` como fecha.

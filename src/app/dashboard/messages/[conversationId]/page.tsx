@@ -1,11 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
 import { db } from "@/db";
-import { eq, sql, and } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { profiles } from "@/db/schema";
-import { conversationParticipants, conversations } from "@/db/schema/direct-messages";
-import { redirect, notFound } from "next/navigation";
-import { MessagesPage } from "@/components/messages/MessagesPage";
+import { conversationParticipants } from "@/db/schema/direct-messages";
+import { redirect } from "next/navigation";
 
 interface PageProps {
   params: Promise<{ conversationId: string }>;
@@ -56,15 +55,5 @@ export default async function ConversationPage({ params }: PageProps) {
     redirect("/dashboard/messages");
   }
 
-  return (
-    <div className="h-[calc(100vh-4rem)]">
-      <MessagesPage
-        currentUserId={profile.id}
-        currentUserProfile={{
-          fullName: profile.name || undefined,
-          avatarUrl: profile.photoUrl || undefined,
-        }}
-      />
-    </div>
-  );
+  redirect(`/dashboard/messages?c=${conversationId}`);
 }

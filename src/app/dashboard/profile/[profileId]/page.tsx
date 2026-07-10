@@ -20,6 +20,7 @@ import {
 } from "@/db/schema";
 import { getCurrentProfile } from "@/lib/authz";
 import { getAthleteMetrics } from "@/lib/profile/athlete-metrics";
+import { getAuthUserEmail } from "@/lib/supabase/admin-operations";
 import { OptimizedOwnerProfile as OwnerProfile } from "@/components/profiles/OptimizedOwnerProfile";
 import { CoachProfile } from "@/components/profiles/CoachProfile";
 import { AthleteProfile } from "@/components/profiles/AthleteProfile";
@@ -65,6 +66,8 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
   }
 
   const role = targetProfile.role;
+  const targetAuthEmail = isViewingAsSuperAdmin ? await getAuthUserEmail(targetProfile.userId) : user.email;
+  const displayUser = targetAuthEmail ? { ...user, email: targetAuthEmail } : user;
 
   // Owner o Admin: mostrar perfil de propietario
   if (role === "owner" || role === "admin" || role === "super_admin") {
@@ -137,7 +140,7 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
     return (
       <div className="space-y-6 p-4 sm:p-6 lg:p-8">
         <OwnerProfile
-          user={user}
+          user={displayUser}
           profile={targetProfile}
           academies={academiesWithSubscription}
           defaultAcademyId={defaultActiveAcademyId}
@@ -187,7 +190,7 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
       })
       .from(coaches)
       .innerJoin(academies, eq(coaches.academyId, academies.id))
-      .where(eq(coaches.academyId, academyId))
+      .where(and(eq(coaches.academyId, academyId), eq(coaches.userId, targetProfile.userId)))
       .limit(1);
 
     if (!coach) {
@@ -226,7 +229,7 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
     return (
       <div className="space-y-6 p-4 sm:p-6 lg:p-8">
         <CoachProfile
-          user={user}
+          user={displayUser}
           profile={targetProfile}
           coachData={{
             ...coach,
@@ -288,7 +291,7 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
       .from(athletes)
       .innerJoin(academies, eq(athletes.academyId, academies.id))
       .leftJoin(groups, eq(athletes.groupId, groups.id))
-      .where(eq(athletes.academyId, academyId))
+      .where(and(eq(athletes.academyId, academyId), eq(athletes.userId, targetProfile.userId)))
       .limit(1);
 
     if (!athlete) {
@@ -335,7 +338,7 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
     return (
       <div className="space-y-6 p-4 sm:p-6 lg:p-8">
         <AthleteProfile
-          user={user}
+          user={displayUser}
           profile={targetProfile}
           athleteData={{
             ...athlete,
@@ -409,7 +412,7 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
     return (
       <div className="space-y-6 p-4 sm:p-6 lg:p-8">
         <ParentProfile
-          user={user}
+          user={displayUser}
           profile={targetProfile}
           labels={
             childrenWithAge[0]

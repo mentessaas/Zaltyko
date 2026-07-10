@@ -185,6 +185,10 @@ export const GET = withTenant(async (request, context) => {
   const scope = searchParams.get("scope") ?? "incoming";
   const academyId = searchParams.get("academyId");
 
+  if (!['incoming', 'outgoing', 'academy'].includes(scope)) {
+    return apiError("INVALID_SCOPE", "Scope invalido", 400);
+  }
+
   if (scope === "academy") {
     if (!context.tenantId) {
       return apiError("TENANT_REQUIRED", "Tenant requerido", 400);
@@ -214,6 +218,31 @@ export const GET = withTenant(async (request, context) => {
       .innerJoin(profiles, eq(profiles.id, academyLinkRequests.targetProfileId))
       .innerJoin(authUsers, eq(authUsers.id, profiles.userId))
       .where(eq(academyLinkRequests.academyId, academyId))
+      .orderBy(desc(academyLinkRequests.createdAt));
+
+    return apiSuccess({ requests });
+  }
+
+  if (scope === "outgoing") {
+    const requests = await db
+      .select({
+        id: academyLinkRequests.id,
+        status: academyLinkRequests.status,
+        requestedProfileRole: academyLinkRequests.requestedProfileRole,
+        requestedMembershipRole: academyLinkRequests.requestedMembershipRole,
+        message: academyLinkRequests.message,
+        createdAt: academyLinkRequests.createdAt,
+        respondedAt: academyLinkRequests.respondedAt,
+        academyId: academyLinkRequests.academyId,
+        academyName: academies.name,
+        targetName: profiles.name,
+        targetEmail: authUsers.email,
+      })
+      .from(academyLinkRequests)
+      .innerJoin(academies, eq(academies.id, academyLinkRequests.academyId))
+      .innerJoin(profiles, eq(profiles.id, academyLinkRequests.targetProfileId))
+      .innerJoin(authUsers, eq(authUsers.id, profiles.userId))
+      .where(eq(academyLinkRequests.requestedByProfileId, context.profile.id))
       .orderBy(desc(academyLinkRequests.createdAt));
 
     return apiSuccess({ requests });

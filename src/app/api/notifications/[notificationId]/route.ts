@@ -16,8 +16,7 @@ export const DELETE = withTenant(async (_request, context) => {
     return apiError("NOTIFICATION_ID_REQUIRED", "Notification ID is required", 400);
   }
 
-  await deleteNotification(notificationId, context.tenantId);
+  await deleteNotification(notificationId, context.tenantId, profile.id);
 
   return apiSuccess({ ok: true });
 });
-

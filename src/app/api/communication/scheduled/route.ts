@@ -1,10 +1,20 @@
 import { apiSuccess, apiError, apiCreated } from "@/lib/api-response";
 import { z } from "zod";
 import { withTenant } from "@/lib/authz";
-import { getScheduledNotifications, createScheduledNotification } from "@/lib/communication-service";
+import {
+  getScheduledNotifications,
+  createScheduledNotification,
+  getMessageGroupById,
+  getMessageTemplateById,
+} from "@/lib/communication-service";
 import { logger } from "@/lib/logger";
 
 export const dynamic = 'force-dynamic';
+
+const canViewCommunication = (role?: string) =>
+  ["owner", "admin", "coach", "super_admin"].includes(role ?? "");
+const canManageCommunication = (role?: string) =>
+  ["owner", "admin", "super_admin"].includes(role ?? "");
 
 const createScheduledSchema = z.object({
   groupId: z.string().uuid().optional(),
@@ -16,6 +26,9 @@ const createScheduledSchema = z.object({
 export const GET = withTenant(async (request, context) => {
   if (!context.tenantId) {
     return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
+  }
+  if (!canViewCommunication(context.profile?.role)) {
+    return apiError("FORBIDDEN", "No tienes permiso para consultar comunicaciones programadas", 403);
   }
 
   const scheduled = await getScheduledNotifications(context.tenantId);
@@ -40,10 +53,26 @@ export const POST = withTenant(async (request, context) => {
   if (!context.tenantId) {
     return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
   }
+  if (!canManageCommunication(context.profile?.role)) {
+    return apiError("FORBIDDEN", "No tienes permiso para programar comunicaciones", 403);
+  }
 
   try {
     const body = await request.json();
     const validated = createScheduledSchema.parse(body);
+
+    if (validated.groupId) {
+      const group = await getMessageGroupById(validated.groupId);
+      if (!group || group.tenantId !== context.tenantId) {
+        return apiError("FORBIDDEN", "El grupo no pertenece al tenant activo", 403);
+      }
+    }
+    if (validated.templateId) {
+      const template = await getMessageTemplateById(validated.templateId);
+      if (!template || template.tenantId !== context.tenantId) {
+        return apiError("FORBIDDEN", "La plantilla no pertenece al tenant activo", 403);
+      }
+    }
 
     const scheduled = await createScheduledNotification({
       tenantId: context.tenantId,

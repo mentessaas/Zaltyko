@@ -16,8 +16,7 @@ export const PUT = withTenant(async (_request, context) => {
     return apiError("NOTIFICATION_ID_REQUIRED", "Notification ID is required", 400);
   }
 
-  await markNotificationAsRead(notificationId, context.tenantId);
+  await markNotificationAsRead(notificationId, context.tenantId, profile.id);
 
   return apiSuccess({ ok: true });
 });
-

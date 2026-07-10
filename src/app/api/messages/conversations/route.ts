@@ -2,8 +2,7 @@
  * GET /api/messages/conversations - Listar conversaciones del usuario
  * POST /api/messages/conversations - Crear nueva conversación
  */
-import { NextResponse } from "next/server";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { withTenant } from "@/lib/authz";
@@ -14,9 +13,16 @@ import {
   conversationMessages,
 } from "@/db/schema/direct-messages";
 import { db } from "@/db";
+import { academies, memberships, profiles } from "@/db/schema";
 import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
+
+const ListConversationsSchema = z.object({
+  academyId: z.string().uuid().optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  offset: z.coerce.number().int().min(0).default(0),
+});
 
 /**
  * GET - Listar conversaciones del usuario actual
@@ -34,8 +40,15 @@ export const GET = withTenant(async (request, context) => {
     }
 
     const url = new URL(request.url);
-    const limit = parseInt(url.searchParams.get("limit") || "50");
-    const offset = parseInt(url.searchParams.get("offset") || "0");
+    const parsedQuery = ListConversationsSchema.safeParse({
+      academyId: url.searchParams.get("academyId") || undefined,
+      limit: url.searchParams.get("limit") || undefined,
+      offset: url.searchParams.get("offset") || undefined,
+    });
+    if (!parsedQuery.success) {
+      return apiError("VALIDATION_ERROR", "Parámetros de consulta inválidos", 400);
+    }
+    const { academyId, limit, offset } = parsedQuery.data;
 
     // Obtener conversaciones donde el usuario es participante
     const userConversations = await db
@@ -62,12 +75,11 @@ export const GET = withTenant(async (request, context) => {
           eq(conversationParticipants.userId, profile.id)
         )
       )
-      .where(
-        and(
-          eq(conversations.tenantId, tenantId),
-          sql`${conversationParticipants.hiddenAt} IS NULL`
-        )
-      )
+      .where(and(
+        eq(conversations.tenantId, tenantId),
+        academyId ? eq(conversations.academyId, academyId) : undefined,
+        sql`${conversationParticipants.hiddenAt} IS NULL`
+      ))
       .orderBy(desc(conversations.lastMessageAt))
       .limit(limit)
       .offset(offset);
@@ -141,7 +153,7 @@ export const GET = withTenant(async (request, context) => {
  * POST - Crear nueva conversación
  */
 const CreateConversationSchema = z.object({
-  participantIds: z.array(z.string().uuid()),
+  participantIds: z.array(z.string().uuid()).min(1).max(100),
   academyId: z.string().uuid().optional(),
   title: z.string().min(1).max(255).optional(),
   initialMessage: z.string().min(1).max(2000).optional(),
@@ -184,42 +196,82 @@ export const POST = withTenant(async (request, context) => {
 
     const { participantIds, academyId, title, initialMessage, metadata } = body;
 
-    // Validate participants exist
-    if (participantIds.length === 0) {
-      return apiError("VALIDATION_ERROR", "Se requiere al menos un participante", 400);
+    const uniqueParticipantIds = [...new Set(participantIds)].filter((id) => id !== profile.id);
+    if (uniqueParticipantIds.length === 0) {
+      return apiError("VALIDATION_ERROR", "Se requiere al menos un destinatario distinto", 400);
+    }
+    const participantProfiles = await db
+      .select({ id: profiles.id, userId: profiles.userId, tenantId: profiles.tenantId })
+      .from(profiles)
+      .where(inArray(profiles.id, uniqueParticipantIds));
+
+    if (participantProfiles.length !== uniqueParticipantIds.length || participantProfiles.some((item) => item.tenantId !== tenantId)) {
+      return apiError("FORBIDDEN", "Uno o más destinatarios no pertenecen al tenant", 403);
     }
 
-    // For P2P, check if conversation already exists
-    if (participantIds.length === 1) {
-      const existingConversation = await db
+    if (academyId) {
+      const [academy] = await db
+        .select({ id: academies.id })
+        .from(academies)
+        .where(and(eq(academies.id, academyId), eq(academies.tenantId, tenantId)))
+        .limit(1);
+      if (!academy) return apiError("FORBIDDEN", "Academia no válida para este tenant", 403);
+
+      const academyMembers = await db
+        .select({ userId: memberships.userId })
+        .from(memberships)
+        .where(and(
+          eq(memberships.academyId, academyId),
+          inArray(memberships.userId, [profile.userId, ...participantProfiles.map((item) => item.userId)])
+        ));
+      if (new Set(academyMembers.map((item) => item.userId)).size !== participantProfiles.length + 1) {
+        return apiError("FORBIDDEN", "Emisor y destinatarios deben pertenecer a la academia", 403);
+      }
+    }
+
+    const conversationType = uniqueParticipantIds.length === 1 ? "p2p" : "group";
+    const conversationMetadata = {
+      type: conversationType,
+      context: metadata?.context ?? "general",
+    } as typeof conversations.$inferInsert.metadata;
+
+    // For P2P, reuse only a conversation in which the current profile and
+    // recipient are the two exact participants. Checking one arbitrary P2P
+    // conversation could otherwise expose a conversation between other users.
+    if (uniqueParticipantIds.length === 1) {
+      const existingConversations = await db
         .select({ id: conversations.id })
         .from(conversations)
         .innerJoin(
           conversationParticipants,
-          eq(conversationParticipants.conversationId, conversations.id)
+          and(
+            eq(conversationParticipants.conversationId, conversations.id),
+            eq(conversationParticipants.userId, profile.id)
+          )
         )
         .where(
           and(
             eq(conversations.tenantId, tenantId),
-            eq(conversations.metadata, { type: "p2p" } as any)
+            academyId ? eq(conversations.academyId, academyId) : undefined,
+            sql`${conversations.metadata}->>'type' = 'p2p'`
           )
-        )
-        .limit(1);
+        );
 
-      // Check if other participant is in this conversation
-      if (existingConversation.length > 0) {
-        const otherParticipant = await db
-          .select({ id: conversationParticipants.id })
+      for (const existingConversation of existingConversations) {
+        const existingParticipants = await db
+          .select({ userId: conversationParticipants.userId })
           .from(conversationParticipants)
           .where(
-            and(
-              eq(conversationParticipants.conversationId, existingConversation[0].id),
-              eq(conversationParticipants.userId, participantIds[0])
-            )
+            eq(conversationParticipants.conversationId, existingConversation.id)
           );
 
-        if (otherParticipant.length > 0) {
-          return apiSuccess({ id: existingConversation[0].id, alreadyExists: true });
+        const participantIdsInConversation = new Set(existingParticipants.map((participant) => participant.userId));
+        if (
+          participantIdsInConversation.size === 2 &&
+          participantIdsInConversation.has(profile.id) &&
+          participantIdsInConversation.has(uniqueParticipantIds[0])
+        ) {
+          return apiSuccess({ id: existingConversation.id, alreadyExists: true });
         }
       }
     }
@@ -231,12 +283,12 @@ export const POST = withTenant(async (request, context) => {
         tenantId,
         academyId: academyId || null,
         title: title || null,
-        metadata: metadata || { type: participantIds.length === 1 ? "p2p" : "group" },
+        metadata: conversationMetadata,
       })
       .returning();
 
     // Add all participants including the current user
-    const allParticipantIds = [...new Set([profile.id, ...participantIds])];
+    const allParticipantIds = [profile.id, ...uniqueParticipantIds];
     await db.insert(conversationParticipants).values(
       allParticipantIds.map((userId) => ({
         conversationId: newConversation.id,

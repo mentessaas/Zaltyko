@@ -19,15 +19,22 @@ interface Conversation {
 export function MessagesPanel({ academyId }: { academyId: string }) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     fetch(`/api/messages/conversations?academyId=${academyId}`)
       .then((r) => r.json())
       .then((json) => {
-        if (!cancelled && json.success) {
-          setConversations(json.data ?? []);
+        if (!cancelled && json.ok) {
+          setConversations(json.data?.items ?? []);
+          setError(null);
+        } else if (!cancelled) {
+          setError(json.message ?? "No se pudieron cargar los mensajes.");
         }
+      })
+      .catch(() => {
+        if (!cancelled) setError("No se pudieron cargar los mensajes.");
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -45,6 +52,10 @@ export function MessagesPanel({ academyId }: { academyId: string }) {
         ))}
       </div>
     );
+  }
+
+  if (error) {
+    return <p role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">{error}</p>;
   }
 
   if (conversations.length === 0) {

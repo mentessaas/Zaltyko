@@ -79,14 +79,16 @@ export const PATCH = withTenant(async (request, context) => {
     });
   }
 
-  if (!context.profile.activeAcademyId) {
-    await db
-      .update(profiles)
-      .set({
-        activeAcademyId: linkRequest.academyId,
-      })
-      .where(eq(profiles.id, context.profile.id));
-  }
+  // El portal limitado y withTenant usan el tenant del perfil como contexto.
+  // Al aceptar el primer vínculo, alinear ambos valores habilita las rutas
+  // permitidas (my-dashboard, messages y notifications) sin abrir rutas admin.
+  await db
+    .update(profiles)
+    .set({
+      activeAcademyId: linkRequest.academyId,
+      tenantId: linkRequest.tenantId,
+    })
+    .where(eq(profiles.id, context.profile.id));
 
   await db
     .update(academyLinkRequests)

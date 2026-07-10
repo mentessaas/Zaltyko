@@ -43,11 +43,25 @@ export const POST = withSuperAdmin(async (request, context) => {
     .where(eq(profiles.userId, userId))
     .returning({ id: profiles.id });
 
+  let profileId = updated[0]?.id ?? null;
   if (!updated.length) {
-    await db.insert(profiles).values({ userId, role, name: name ?? null, tenantId: crypto.randomUUID() });
+    const [createdProfile] = await db
+      .insert(profiles)
+      .values({ userId, role, name: name ?? null, tenantId: crypto.randomUUID() })
+      .returning({ id: profiles.id });
+    profileId = createdProfile?.id ?? null;
   }
 
-  await logAdminAction({ userId: context.userId, tenantId: null, action: "user.created", meta: { email, role } });
+  await logAdminAction({
+    userId: context.userId,
+    tenantId: null,
+    action: "user.created",
+    resourceType: "profile",
+    resourceId: profileId,
+    resourceName: name ?? email,
+    description: `Super Admin creó el usuario ${email}`,
+    meta: { email, role },
+  });
 
   return apiCreated({ userId, email, role });
 });
@@ -106,4 +120,3 @@ export const GET = withRateLimit(
   },
   { identifier: getUserIdentifier }
 );
-

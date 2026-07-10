@@ -67,9 +67,7 @@ export const POST = withTenant(async (request, context) => {
 
   if (
     !canStartFamilyConversation ||
-    (context.profile.role !== "super_admin" &&
-      context.profile.role !== "admin" &&
-      athlete.tenantId !== context.tenantId)
+    (context.profile.role !== "super_admin" && athlete.tenantId !== context.tenantId)
   ) {
     return apiError("FORBIDDEN", "No tienes permiso para iniciar esta conversacion", 403);
   }

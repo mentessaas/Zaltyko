@@ -72,7 +72,7 @@ test.describe("role smoke: coach", () => {
     test.setTimeout(180_000);
 
     for (const path of ["dashboard", "classes", "assessments"]) {
-      await gotoAppPath(page, `${baseURL}/app/${academyId}/${path}`);
+      await gotoAppPath(page, `${baseURL}/app/${academyId}/${path}`, { allowRedirectAbort: true });
       await expectNoRouteError(page);
       await expect(page).not.toHaveURL(/\/auth\/login/);
     }

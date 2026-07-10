@@ -6,10 +6,10 @@ import { getUserNotifications } from "@/lib/notifications/notification-service";
 export const dynamic = 'force-dynamic';
 
 const querySchema = z.object({
-  unreadOnly: z.string().optional(),
-  limit: z.string().optional(),
-  offset: z.string().optional(),
-  type: z.string().optional(),
+  unreadOnly: z.enum(["true", "false"]).optional(),
+  limit: z.coerce.number().int().min(1).max(100).optional(),
+  offset: z.coerce.number().int().min(0).optional(),
+  type: z.string().min(1).max(100).optional(),
 });
 
 export const GET = withTenant(async (request, context) => {
@@ -21,18 +21,22 @@ export const GET = withTenant(async (request, context) => {
 
   const url = new URL(request.url);
   const params = {
-    unreadOnly: url.searchParams.get("unreadOnly"),
-    limit: url.searchParams.get("limit"),
-    offset: url.searchParams.get("offset"),
-    type: url.searchParams.get("type"),
+    unreadOnly: url.searchParams.get("unreadOnly") || undefined,
+    limit: url.searchParams.get("limit") || undefined,
+    offset: url.searchParams.get("offset") || undefined,
+    type: url.searchParams.get("type") || undefined,
   };
 
-  const validated = querySchema.parse(params);
+  const parsed = querySchema.safeParse(params);
+  if (!parsed.success) {
+    return apiError("VALIDATION_ERROR", "Parámetros de consulta inválidos", 400);
+  }
+  const validated = parsed.data;
 
   const notifications = await getUserNotifications(context.tenantId, profile.id, {
     unreadOnly: validated.unreadOnly === "true",
-    limit: validated.limit ? parseInt(validated.limit) : undefined,
-    offset: validated.offset ? parseInt(validated.offset) : undefined,
+    limit: validated.limit,
+    offset: validated.offset,
     type: validated.type || undefined,
   });
 

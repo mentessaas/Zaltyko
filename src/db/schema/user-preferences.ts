@@ -5,7 +5,6 @@ import { profiles } from "./profiles";
 export type TooltipFlagMap = Record<string, boolean>;
 
 export const userPreferences = pgTable("user_preferences", {
-  id: uuid("id").primaryKey().defaultRandom(),
   userId: uuid("user_id")
     .notNull()
     .references(() => profiles.id, { onDelete: "cascade" }),
@@ -27,5 +26,4 @@ export const userPreferences = pgTable("user_preferences", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
-
 

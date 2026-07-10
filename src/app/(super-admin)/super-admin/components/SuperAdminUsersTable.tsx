@@ -29,17 +29,17 @@ function formatRole(role: string | null) {
   if (!role) return "Sin rol";
   switch (role) {
     case "owner":
-      return "Owner";
+      return "Dueño";
     case "admin":
-      return "Admin";
+      return "Administrador";
     case "coach":
-      return "Coach";
+      return "Entrenador";
     case "athlete":
       return "Atleta";
     case "parent":
       return "Tutor";
     case "super_admin":
-      return "Super Admin";
+      return "Super admin";
     default:
       return role;
   }
@@ -212,8 +212,8 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
   const mutateUser = useCallback(async (profileId: string, body: Record<string, unknown>, userData?: SuperAdminUserRow) => {
     if (!userId) return;
     
-    // Si es una acción destructiva (suspender/reactivar), pedir confirmación
-    if (body.isSuspended !== undefined && userData) {
+    // Cambios de rol y estado bloquean acceso/permisos, siempre requieren confirmación.
+    if ((body.isSuspended !== undefined || body.role !== undefined) && userData) {
       setPendingAction({ profileId, body, userData });
       setConfirmDialogOpen(true);
       return;
@@ -222,13 +222,33 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
     await executeMutation(profileId, body);
   }, [userId, executeMutation]);
 
-  const handleConfirmAction = useCallback(async () => {
+  const deleteUser = useCallback(async (profileId: string, reason: string) => {
+    const res = await fetch(`/api/super-admin/users/${profileId}`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ reason }),
+    });
+    const payload = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      toast.pushToast({ title: "No se pudo eliminar", description: payload?.message ?? "Error", variant: "error" });
+      return;
+    }
+    toast.pushToast({ title: "Usuario eliminado", variant: "success" });
+    router.refresh();
+  }, [router, toast]);
+
+  const handleConfirmAction = useCallback(async (reason?: string) => {
     if (pendingAction) {
-      await executeMutation(pendingAction.profileId, pendingAction.body);
+      if (pendingAction.body.delete === true) {
+        await deleteUser(pendingAction.profileId, reason ?? "");
+      } else {
+        await executeMutation(pendingAction.profileId, { ...pendingAction.body, reason });
+      }
       setPendingAction(null);
       setConfirmDialogOpen(false);
     }
-  }, [pendingAction, executeMutation]);
+  }, [pendingAction, executeMutation, deleteUser]);
 
   return (
     <div className="w-full space-y-6">
@@ -360,16 +380,7 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
                       if (newRole === user.role || !ROLE_OPTIONS.includes(newRole)) {
                         return;
                       }
-                      if (newRole === "super_admin") {
-                        const confirmed = window.confirm(
-                          "¿Dar el rol SUPER ADMIN a este usuario? Tendrá acceso total a la plataforma y a todas las academias. Esta acción es sensible."
-                        );
-                        if (!confirmed) {
-                          event.target.value = user.role ?? "";
-                          return;
-                        }
-                      }
-                      mutateUser(user.id, { role: newRole });
+                      mutateUser(user.id, { role: newRole }, user);
                     }}
                     disabled={loading || mutatingUserId === user.id || user.role === "super_admin"}
                   >
@@ -433,25 +444,9 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
                     </Button>
                     <button
                       type="button"
-                      onClick={async () => {
-                        if (
-                          !window.confirm(
-                            `¿Eliminar a ${user.fullName ?? user.email ?? "este usuario"}? Es irreversible. Si es dueño de una academia, esa academia se elimina también.`
-                          )
-                        ) {
-                          return;
-                        }
-                        const res = await fetch(`/api/super-admin/users/${user.id}`, {
-                          method: "DELETE",
-                          credentials: "include",
-                        });
-                        const j = await res.json().catch(() => ({}));
-                        if (!res.ok) {
-                          toast.pushToast({ title: "No se pudo eliminar", description: j?.message ?? "Error", variant: "error" });
-                          return;
-                        }
-                        toast.pushToast({ title: "Usuario eliminado", variant: "success" });
-                        router.refresh();
+                      onClick={() => {
+                        setPendingAction({ profileId: user.id, body: { delete: true }, userData: user });
+                        setConfirmDialogOpen(true);
                       }}
                       disabled={loading}
                       className="inline-flex items-center rounded-lg border border-red-500/40 px-3 py-1.5 text-xs font-semibold text-red-300 transition hover:bg-red-500/10 disabled:opacity-40"
@@ -470,15 +465,36 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
         <ConfirmDialog
           open={confirmDialogOpen}
           onOpenChange={setConfirmDialogOpen}
-          title={pendingAction.body.isSuspended !== undefined && !pendingAction.userData.isSuspended ? "Suspender usuario" : "Reactivar usuario"}
+          title={
+            pendingAction.body.delete === true
+              ? "Eliminar usuario"
+              : pendingAction.body.role !== undefined
+              ? "Cambiar rol de usuario"
+              : pendingAction.body.isSuspended !== undefined && !pendingAction.userData.isSuspended
+                ? "Suspender usuario"
+                : "Reactivar usuario"
+          }
           description={
-            pendingAction.body.isSuspended !== undefined && !pendingAction.userData.isSuspended
-              ? `¿Estás seguro de suspender a ${pendingAction.userData.fullName || pendingAction.userData.email}? No podrá acceder al sistema hasta que sea reactivado.`
-              : `¿Estás seguro de reactivar a ${pendingAction.userData.fullName || pendingAction.userData.email}? Podrá acceder al sistema nuevamente.`
+            pendingAction.body.delete === true
+              ? `Vas a eliminar a ${pendingAction.userData.fullName || pendingAction.userData.email}. Es irreversible. Si es dueño de una academia, esa academia también se eliminará.`
+              : pendingAction.body.role !== undefined
+              ? `Vas a cambiar a ${pendingAction.userData.fullName || pendingAction.userData.email} de ${formatRole(pendingAction.userData.role)} a ${formatRole(String(pendingAction.body.role))}. Esto cambia sus permisos de acceso.`
+              : pendingAction.body.isSuspended !== undefined && !pendingAction.userData.isSuspended
+                ? `¿Estás seguro de suspender a ${pendingAction.userData.fullName || pendingAction.userData.email}? No podrá acceder al sistema hasta que sea reactivado.`
+                : `¿Estás seguro de reactivar a ${pendingAction.userData.fullName || pendingAction.userData.email}? Podrá acceder al sistema nuevamente.`
           }
           variant="destructive"
-          confirmText={pendingAction.body.isSuspended !== undefined && !pendingAction.userData.isSuspended ? "Suspender" : "Reactivar"}
+          confirmText={
+            pendingAction.body.delete === true
+              ? "Eliminar"
+              : pendingAction.body.role !== undefined
+              ? "Cambiar rol"
+              : pendingAction.body.isSuspended !== undefined && !pendingAction.userData.isSuspended
+                ? "Suspender"
+                : "Reactivar"
+          }
           onConfirm={handleConfirmAction}
+          requireReason
           onCancel={() => {
             setPendingAction(null);
             setConfirmDialogOpen(false);

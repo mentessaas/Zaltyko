@@ -44,8 +44,13 @@ for (const authState of authStates) {
 
     mkdirSync(".auth", { recursive: true });
     await page.goto(`${baseURL}/auth/login`);
-    await page.locator('input[type="email"]').fill(authState.email!);
-    await page.locator('input[type="password"]').fill(authState.password!);
+    await page.waitForLoadState("networkidle", { timeout: 30_000 }).catch(() => undefined);
+    const emailInput = page.locator('input[type="email"]');
+    const passwordInput = page.locator('input[type="password"]');
+    await emailInput.fill(authState.email!);
+    await passwordInput.fill(authState.password!);
+    await expect(emailInput).toHaveValue(authState.email!);
+    await expect(passwordInput).toHaveValue(authState.password!);
     await page.locator('button[type="submit"]').click();
     await expect(page).not.toHaveURL(/\/auth\/(login|redirect)/, { timeout: 60_000 });
     await expect

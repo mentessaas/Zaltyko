@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { X, Check, CheckCheck, Trash2, Loader2, Bell, Calendar, CreditCard, MessageSquare, AlertCircle, Volume2, VolumeX, Sparkles, ChevronDown, Filter } from "lucide-react";
-import { formatDistanceToNow, format, isToday, isYesterday, parseISO } from "date-fns";
+import { X, Check, CheckCheck, Trash2, Loader2, Bell, Calendar, CreditCard, MessageSquare, AlertCircle, Volume2, VolumeX, ChevronDown, Filter } from "lucide-react";
+import { format, isToday, isYesterday, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 import { useRouter } from "next/navigation";
 
@@ -62,6 +62,28 @@ const NOTIFICATION_TYPE_LABELS: Record<string, string> = {
 
 const PAGE_SIZE = 20;
 
+function getNotificationDestination(notification: Notification): string | null {
+  const data = notification.data ?? {};
+  const academyId = typeof data.academyId === "string" ? data.academyId : undefined;
+
+  if (notification.type === "contact_message" && academyId) {
+    return `/app/${academyId}/contact-messages`;
+  }
+  if (notification.type === "new_message" && academyId) {
+    const conversationId = typeof data.conversationId === "string" ? data.conversationId : undefined;
+    return `/app/${academyId}/messages${conversationId ? `?c=${conversationId}` : ""}`;
+  }
+  if (notification.type === "announcement" && academyId) {
+    const announcementId = typeof data.announcementId === "string" ? data.announcementId : undefined;
+    return announcementId
+      ? `/app/${academyId}/announcements/${announcementId}`
+      : `/app/${academyId}/announcements`;
+  }
+
+  const url = typeof data.url === "string" ? data.url : null;
+  return url?.startsWith("/app/") ? url : null;
+}
+
 const getNotificationIcon = (type: string) => {
   if (type.includes("invoice") || type.includes("payment")) return CreditCard;
   if (type.includes("class") || type.includes("schedule") || type.includes("reminder")) return Calendar;
@@ -105,7 +127,6 @@ export function NotificationCenter({
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [dateFilter, setDateFilter] = useState<"all" | "today" | "week">("all");
   const [soundEnabled, setSoundEnabled] = useState(true);
-  const [showAISummary, setShowAISummary] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isBatchAction, setIsBatchAction] = useState(false);
   const loadMoreRef = useRef<HTMLDivElement>(null);
@@ -132,16 +153,20 @@ export function NotificationCenter({
 
       const response = await fetch(`/api/notifications?${params}`);
       const data = await response.json();
+      if (!response.ok || !data.ok) {
+        throw new Error(data.message || "No se pudieron cargar las notificaciones");
+      }
 
-      if (data.items) {
+      const items = data.data?.items ?? [];
+      if (items.length > 0 || reset) {
         if (reset) {
-          setNotifications(data.items);
-          cursorRef.current = data.items.length;
+          setNotifications(items);
+          cursorRef.current = items.length;
         } else {
-          setNotifications((prev) => [...prev, ...data.items]);
-          cursorRef.current += data.items.length;
+          setNotifications((prev) => [...prev, ...items]);
+          cursorRef.current += items.length;
         }
-        setHasMore(data.items.length === PAGE_SIZE);
+        setHasMore(items.length === PAGE_SIZE);
       }
     } catch (error) {
       logger.error("Error loading notifications:", error);
@@ -278,7 +303,7 @@ export function NotificationCenter({
     });
   };
 
-  const toggleSelectAll = (_e: React.ChangeEvent<HTMLInputElement>) => {
+  const toggleSelectAll = () => {
     if (selectedIds.size === filteredNotifications.length) {
       setSelectedIds(new Set());
     } else {
@@ -455,12 +480,11 @@ export function NotificationCenter({
               {filteredNotifications.map((notification) => {
                 const IconComponent = getNotificationIcon(notification.type);
                 const colorClass = getNotificationColor(notification.type);
-                const isContactMessage = notification.type === "contact_message";
-                const academyId = notification.data?.academyId as string | undefined;
+                const destination = getNotificationDestination(notification);
 
                 const handleClick = () => {
-                  if (isContactMessage && academyId) {
-                    router.push(`/app/${academyId}/messages`);
+                  if (destination) {
+                    router.push(destination);
                     onClose();
                   }
                 };
@@ -470,9 +494,9 @@ export function NotificationCenter({
                     key={notification.id}
                     className={cn(
                       notification.read ? "opacity-60" : "",
-                      isContactMessage ? "cursor-pointer hover:bg-muted/50 transition-colors" : ""
+                      destination ? "cursor-pointer hover:bg-muted/50 transition-colors" : ""
                     )}
-                    onClick={isContactMessage ? handleClick : undefined}
+                    onClick={destination ? handleClick : undefined}
                   >
                     <CardContent className="p-3">
                       <div className="flex items-start gap-3">

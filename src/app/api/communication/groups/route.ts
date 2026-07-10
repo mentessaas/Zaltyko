@@ -6,6 +6,11 @@ import { logger } from "@/lib/logger";
 
 export const dynamic = 'force-dynamic';
 
+const canViewCommunication = (role?: string) =>
+  ["owner", "admin", "coach", "super_admin"].includes(role ?? "");
+const canManageCommunication = (role?: string) =>
+  ["owner", "admin", "super_admin"].includes(role ?? "");
+
 const createGroupSchema = z.object({
   name: z.string().min(1).max(200),
   description: z.string().optional(),
@@ -15,6 +20,9 @@ const createGroupSchema = z.object({
 export const GET = withTenant(async (request, context) => {
   if (!context.tenantId) {
     return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
+  }
+  if (!canViewCommunication(context.profile?.role)) {
+    return apiError("FORBIDDEN", "No tienes permiso para consultar grupos de comunicación", 403);
   }
 
   const groups = await getMessageGroups(context.tenantId);
@@ -34,6 +42,9 @@ export const GET = withTenant(async (request, context) => {
 export const POST = withTenant(async (request, context) => {
   if (!context.tenantId) {
     return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
+  }
+  if (!canManageCommunication(context.profile?.role)) {
+    return apiError("FORBIDDEN", "No tienes permiso para crear grupos de comunicación", 403);
   }
 
   try {

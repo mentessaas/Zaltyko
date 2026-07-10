@@ -26,6 +26,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { formatAcademyType } from "@/lib/formatters";
 import { useToast } from "@/components/ui/toast-provider";
@@ -134,6 +135,7 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
     isSuspended: user.isSuspended,
     planId: user.subscription?.planId ?? "",
   });
+  const [actionReason, setActionReason] = useState("");
 
   useEffect(() => {
     const fetchPlans = async () => {
@@ -281,6 +283,11 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
   };
 
   const handleSave = async () => {
+    const changesAccess = formData.role !== (user.role ?? "") || formData.isSuspended !== user.isSuspended;
+    if (changesAccess && actionReason.trim().length < 5) {
+      toast.pushToast({ title: "Indica el motivo", description: "Los cambios de acceso requieren un motivo de al menos 5 caracteres.", variant: "warning" });
+      return;
+    }
     setSaving(true);
     try {
       const response = await fetch(`/api/super-admin/users/${user.id}`, {
@@ -294,6 +301,7 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
           role: formData.role || null,
           isSuspended: formData.isSuspended,
           planId: formData.planId || null,
+          reason: actionReason.trim() || undefined,
         }),
       });
 
@@ -427,6 +435,10 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
   };
 
   const handleToggleSuspension = async () => {
+    if (actionReason.trim().length < 5) {
+      toast.pushToast({ title: "Indica el motivo", description: "Suspender o reactivar requiere un motivo de al menos 5 caracteres.", variant: "warning" });
+      return;
+    }
     if (!confirm(formData.isSuspended ? "¿Reactivar al usuario?" : "¿Suspender al usuario?")) {
       return;
     }
@@ -440,6 +452,7 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
         },
         body: JSON.stringify({
           isSuspended: !formData.isSuspended,
+          reason: actionReason.trim(),
         }),
       });
 
@@ -589,10 +602,10 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
               variant="outline"
               size="sm"
               className="border-red-500/60 bg-red-500/20 text-red-100 font-semibold shadow-sm hover:border-red-400 hover:bg-red-500/30 hover:text-white"
-              onClick={() => router.push(`/dashboard/profile/${user.id}`)}
+              onClick={() => router.push(`/dashboard/view/${user.id}`)}
             >
               <LogIn className="mr-2 h-4 w-4" strokeWidth={1.8} />
-              Ver como usuario
+              Abrir perfil operativo
             </Button>
             {user.role === "athlete" && !user.canLogin && (
               <Button
@@ -956,6 +969,12 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
         </div>
 
         <div className="mt-6 flex justify-end gap-3 border-t border-white/10 pt-6">
+          {(formData.role !== (user.role ?? "") || formData.isSuspended !== user.isSuspended) && (
+            <div className="mr-auto w-full max-w-md space-y-2">
+              <Label htmlFor="user-action-reason" className="text-xs uppercase tracking-wide text-white/60">Motivo del cambio de acceso</Label>
+              <Textarea id="user-action-reason" value={actionReason} onChange={(event) => setActionReason(event.target.value)} placeholder="Explica por qué cambias el rol o el acceso" className="min-h-20 border-white/20 bg-white/10 text-white" />
+            </div>
+          )}
           <Button
             variant="outline"
             className="border-white/20 bg-white/5 text-slate-100 hover:border-white/40 hover:bg-white/10"

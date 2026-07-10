@@ -2,8 +2,7 @@
  * GET /api/academies/[academyId]/announcements - Listar anuncios
  * POST /api/academies/[academyId]/announcements - Crear anuncio
  */
-import { NextResponse } from "next/server";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { withTenant } from "@/lib/authz";
@@ -16,6 +15,13 @@ import { sendPushToUser } from "@/lib/notifications/push-service";
 import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
+
+const ListAnnouncementsSchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  offset: z.coerce.number().int().min(0).default(0),
+  category: z.enum(["general", "event", "billing", "class", "news"]).optional(),
+  status: z.enum(["draft", "published", "archived"]).default("published"),
+});
 
 /**
  * GET - Listar anuncios de una academia
@@ -51,13 +57,23 @@ export const GET = withTenant(async (request, context) => {
     }
 
     const url = new URL(request.url);
-    const limit = parseInt(url.searchParams.get("limit") || "20");
-    const offset = parseInt(url.searchParams.get("offset") || "0");
-    const category = url.searchParams.get("category");
-    const status = url.searchParams.get("status") || "published";
+    const parsedQuery = ListAnnouncementsSchema.safeParse({
+      limit: url.searchParams.get("limit") || undefined,
+      offset: url.searchParams.get("offset") || undefined,
+      category: url.searchParams.get("category") || undefined,
+      status: url.searchParams.get("status") || undefined,
+    });
+    if (!parsedQuery.success) {
+      return apiError("VALIDATION_ERROR", "Parámetros de consulta inválidos", 400);
+    }
+    const { limit, offset, category, status } = parsedQuery.data;
+
+    if (status !== "published" && !["owner", "admin"].includes(membership.role)) {
+      return apiError("FORBIDDEN", "Solo owners y admins pueden consultar borradores o archivados", 403);
+    }
 
     // Build query
-    let query = db
+    const query = db
       .select({
         id: announcementsTable.id,
         academyId: announcementsTable.academyId,
@@ -78,7 +94,8 @@ export const GET = withTenant(async (request, context) => {
       .where(
         and(
           eq(announcementsTable.academyId, academyId),
-          eq(announcementsTable.status, status)
+          eq(announcementsTable.status, status),
+          category ? eq(announcementsTable.category, category) : undefined
         )
       );
 
@@ -217,7 +234,7 @@ export const POST = withTenant(async (request, context) => {
       // In-app notification
       await createNotification({
         userId: member.userId,
-        tenantId: profile.tenantId || "",
+        tenantId: context.tenantId,
         type: "announcement",
         title: `Nuevo anuncio: ${title}`,
         message: content.substring(0, 100),
@@ -239,7 +256,7 @@ export const POST = withTenant(async (request, context) => {
           data: {
             announcementId: announcement.id,
             academyId,
-            url: `/dashboard/announcements/${announcement.id}`,
+            url: `/app/${academyId}/announcements/${announcement.id}`,
           },
         }).catch(() => {});
       }

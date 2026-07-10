@@ -10,7 +10,7 @@ interface Announcement {
   title: string;
   content: string;
   priority: string;
-  published_at: string | null;
+  publishedAt: string | null;
 }
 
 /**
@@ -20,15 +20,22 @@ interface Announcement {
 export function AnnouncementsPanel({ academyId }: { academyId: string }) {
   const [items, setItems] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     fetch(`/api/academies/${academyId}/announcements`)
       .then((r) => r.json())
       .then((json) => {
-        if (!cancelled && json.success) {
-          setItems(json.data ?? []);
+        if (!cancelled && json.ok) {
+          setItems(json.data?.items ?? []);
+          setError(null);
+        } else if (!cancelled) {
+          setError(json.message ?? "No se pudieron cargar los anuncios.");
         }
+      })
+      .catch(() => {
+        if (!cancelled) setError("No se pudieron cargar los anuncios.");
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -46,6 +53,10 @@ export function AnnouncementsPanel({ academyId }: { academyId: string }) {
         ))}
       </div>
     );
+  }
+
+  if (error) {
+    return <p role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">{error}</p>;
   }
 
   if (items.length === 0) {
@@ -76,9 +87,9 @@ export function AnnouncementsPanel({ academyId }: { academyId: string }) {
               <div className="flex-1">
                 <p className="font-medium text-sm">{a.title}</p>
                 <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{a.content}</p>
-                {a.published_at && (
+                {a.publishedAt && (
                   <p className="text-xs text-muted-foreground mt-2">
-                    {new Date(a.published_at).toLocaleString()}
+                    {new Date(a.publishedAt).toLocaleString()}
                   </p>
                 )}
               </div>

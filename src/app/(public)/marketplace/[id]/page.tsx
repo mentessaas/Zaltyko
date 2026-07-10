@@ -1,15 +1,30 @@
 import { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { headers } from "next/headers";
 import { ArrowLeft, MapPin, Phone, Mail } from "lucide-react";
 import { AdBanner } from "@/components/advertising/AdBanner";
+import { canUsePublicDemoData, demoMarketplaceListing } from "@/lib/public/demo-listings";
 
 interface Props {
   params: Promise<{ id: string }>;
 }
 
+async function getBaseUrl() {
+  const requestHeaders = await headers();
+  const host = requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host");
+  if (host) {
+    return `${requestHeaders.get("x-forwarded-proto") ?? "http"}://${host}`;
+  }
+  return process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+}
+
 async function getListing(id: string) {
-  const res = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/marketplace/${id}`, {
+  if (canUsePublicDemoData(id)) {
+    return { item: demoMarketplaceListing };
+  }
+  const baseUrl = await getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/marketplace/${id}`, {
     cache: "no-store",
   });
   if (!res.ok) return null;
@@ -18,7 +33,8 @@ async function getListing(id: string) {
 
 async function getAds(zone: string) {
   try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/advertising/zones/${zone}`, {
+    const baseUrl = await getBaseUrl();
+    const res = await fetch(`${baseUrl}/api/advertising/zones/${zone}`, {
       cache: "no-store",
     });
     if (!res.ok) return { ads: [] };

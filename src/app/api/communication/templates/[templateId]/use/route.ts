@@ -5,7 +5,13 @@ import { isFeatureEnabled } from "@/lib/product/features";
 
 export const dynamic = 'force-dynamic';
 
+const canViewCommunication = (role?: string) =>
+  ["owner", "admin", "coach", "super_admin"].includes(role ?? "");
+
 export const POST = withTenant(async (_request, context) => {
+  if (!canViewCommunication(context.profile?.role)) {
+    return apiError("FORBIDDEN", "No tienes permiso para usar plantillas", 403);
+  }
   if (!isFeatureEnabled("communicationTemplateUse")) {
     return apiError("FEATURE_DISABLED", "Uso de plantillas no disponible en esta versión", 404);
   }

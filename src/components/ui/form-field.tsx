@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
@@ -27,18 +27,16 @@ export function FormField({
   className,
   onBlur,
   onChange,
-  ...props
+  value: controlledValue,
+  defaultValue,
+  ...inputProps
 }: FormFieldProps) {
   const [localError, setLocalError] = useState<string | null>(null);
   const [touched, setTouched] = useState(false);
-  const [value, setValue] = useState(props.value?.toString() || props.defaultValue?.toString() || "");
-
-  // Sync internal value with prop value when it changes
-  useEffect(() => {
-    if (props.value !== undefined) {
-      setValue(props.value.toString());
-    }
-  }, [props.value]);
+  const [value, setValue] = useState(
+    () => defaultValue?.toString() ?? ""
+  );
+  const currentValue = controlledValue?.toString() ?? value;
 
   const validate = useCallback(
     (val: string) => {
@@ -76,20 +74,20 @@ export function FormField({
   // Memoize the display values to prevent unnecessary re-renders
   const displayError = useMemo(() => error || (touched ? localError : null), [error, touched, localError]);
   const isValid = useMemo(
-    () => !displayError && touched && value.length > 0 && success !== false,
-    [displayError, touched, value.length, success]
+    () => !displayError && touched && currentValue.length > 0 && success !== false,
+    [displayError, touched, currentValue.length, success]
   );
 
   return (
     <div className="space-y-2">
-      <Label htmlFor={props.id} className="text-sm font-semibold">
+      <Label htmlFor={inputProps.id} className="text-sm font-semibold">
         {label}
       </Label>
       {description && <p className="text-xs text-muted-foreground">{description}</p>}
       <div className="relative">
         <Input
-          {...props}
-          value={value}
+          {...inputProps}
+          value={currentValue}
           onChange={handleChange}
           onBlur={handleBlur}
           className={cn(
@@ -98,7 +96,7 @@ export function FormField({
             className
           )}
           aria-invalid={!!displayError}
-          aria-describedby={displayError ? `${props.id}-error` : undefined}
+          aria-describedby={displayError ? `${inputProps.id}-error` : undefined}
         />
         {isValid && (
           <CheckCircle2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zaltyko-primary" />
@@ -108,7 +106,7 @@ export function FormField({
         )}
       </div>
       {displayError && (
-        <p id={`${props.id}-error`} className="text-xs text-red-600 dark:text-red-400" role="alert">
+        <p id={`${inputProps.id}-error`} className="text-xs text-red-600 dark:text-red-400" role="alert">
           {displayError}
         </p>
       )}

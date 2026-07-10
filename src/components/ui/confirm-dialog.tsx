@@ -5,6 +5,7 @@ import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { AlertTriangle, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 
 interface ConfirmDialogProps {
   open?: boolean;
@@ -14,9 +15,11 @@ interface ConfirmDialogProps {
   confirmText?: string;
   cancelText?: string;
   variant?: "default" | "destructive";
-  onConfirm: () => void | Promise<void>;
+  onConfirm: (reason?: string) => void | Promise<void>;
   onCancel?: () => void;
   loading?: boolean;
+  requireReason?: boolean;
+  reasonLabel?: string;
 }
 
 export function ConfirmDialog({
@@ -30,13 +33,17 @@ export function ConfirmDialog({
   onConfirm,
   onCancel,
   loading = false,
+  requireReason = false,
+  reasonLabel = "Motivo de la acción",
 }: ConfirmDialogProps) {
   const [isLoading, setIsLoading] = React.useState(false);
+  const [reason, setReason] = React.useState("");
 
   const handleConfirm = async () => {
     setIsLoading(true);
     try {
-      await onConfirm();
+      await onConfirm(reason.trim() || undefined);
+      setReason("");
       onOpenChange?.(false);
     } catch (error) {
       // Error manejado por el componente padre
@@ -47,6 +54,7 @@ export function ConfirmDialog({
 
   const handleCancel = () => {
     onCancel?.();
+    setReason("");
     onOpenChange?.(false);
   };
 
@@ -82,12 +90,27 @@ export function ConfirmDialog({
               <span className="sr-only">Cerrar</span>
             </DialogPrimitive.Close>
           </div>
+          {requireReason && (
+            <div className="space-y-2">
+              <label htmlFor="confirm-dialog-reason" className="text-sm font-medium text-foreground">
+                {reasonLabel}
+              </label>
+              <Textarea
+                id="confirm-dialog-reason"
+                value={reason}
+                onChange={(event) => setReason(event.target.value)}
+                placeholder="Explica brevemente por qué es necesaria esta acción"
+                className="min-h-20"
+              />
+              <p className="text-xs text-muted-foreground">Mínimo 5 caracteres. Se guardará en el historial de actividad.</p>
+            </div>
+          )}
           <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             <Button
               type="button"
               variant="outline"
               onClick={handleCancel}
-              disabled={isLoading || loading}
+              disabled={isLoading || loading || (requireReason && reason.trim().length < 5)}
             >
               {cancelText}
             </Button>
@@ -105,4 +128,3 @@ export function ConfirmDialog({
     </DialogPrimitive.Root>
   );
 }
-

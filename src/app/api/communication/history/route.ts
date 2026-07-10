@@ -8,6 +8,11 @@ import { verifyAcademySportConfig } from "@/lib/sport-config/service";
 
 export const dynamic = 'force-dynamic';
 
+const canViewCommunication = (role?: string) =>
+  ["owner", "admin", "coach", "super_admin"].includes(role ?? "");
+const canManageCommunication = (role?: string) =>
+  ["owner", "admin", "super_admin"].includes(role ?? "");
+
 const querySchema = z.object({
   academyId: z.string().uuid().optional(),
   channel: z.string().optional(),
@@ -33,6 +38,9 @@ export const GET = withTenant(async (request, context) => {
   try {
     if (!context.tenantId) {
       return apiError("TENANT_REQUIRED", "Tenant requerido", 400);
+    }
+    if (!canViewCommunication(context.profile?.role)) {
+      return apiError("FORBIDDEN", "No tienes permiso para consultar el historial de comunicación", 403);
     }
 
     const params = querySchema.safeParse(Object.fromEntries(new URL(request.url).searchParams));
@@ -89,6 +97,9 @@ export const POST = withTenant(async (request, context) => {
   try {
     if (!context.tenantId) {
       return apiError("TENANT_REQUIRED", "Tenant requerido", 400);
+    }
+    if (!canManageCommunication(context.profile?.role)) {
+      return apiError("FORBIDDEN", "No tienes permiso para crear historial de comunicación", 403);
     }
 
     const body = createHistorySchema.parse(await request.json());

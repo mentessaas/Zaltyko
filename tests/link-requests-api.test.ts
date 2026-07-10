@@ -197,6 +197,7 @@ describe("academy link requests API", () => {
 
     const linkRequest = {
       id: "66666666-6666-4666-8666-666666666666",
+      tenantId: "tenant-1",
       academyId: "11111111-1111-4111-8111-111111111111",
       targetProfileId: "55555555-5555-4555-8555-555555555555",
       requestedMembershipRole: "viewer",
@@ -242,6 +243,7 @@ describe("academy link requests API", () => {
     expect(profileUpdate.set).toHaveBeenCalledWith(
       expect.objectContaining({
         activeAcademyId: "11111111-1111-4111-8111-111111111111",
+        tenantId: "tenant-1",
       })
     );
     expect(requestUpdate.set).toHaveBeenCalledWith(

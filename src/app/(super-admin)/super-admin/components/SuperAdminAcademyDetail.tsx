@@ -18,6 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { getRegionLabel } from "@/lib/countryRegions";
 import { useToast } from "@/components/ui/toast-provider";
@@ -84,6 +85,7 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
     region: academy.region ?? "",
     city: academy.city ?? "",
   });
+  const [actionReason, setActionReason] = useState("");
 
   useEffect(() => {
     const fetchPlans = async () => {
@@ -106,6 +108,10 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
   }, []);
 
   const handleSave = async () => {
+    if (formData.isSuspended !== academy.isSuspended && actionReason.trim().length < 5) {
+      toast.pushToast({ title: "Indica el motivo", description: "Suspender o reactivar requiere un motivo de al menos 5 caracteres.", variant: "warning" });
+      return;
+    }
     setSaving(true);
     try {
       const response = await fetch(`/api/super-admin/academies/${academy.id}`, {
@@ -121,6 +127,7 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
           country: formData.country.trim() || null,
           region: formData.region.trim() || null,
           city: formData.city.trim() || null,
+          reason: actionReason.trim() || undefined,
         }),
       });
 
@@ -171,6 +178,10 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
   };
 
   const handleToggleSuspension = async () => {
+    if (actionReason.trim().length < 5) {
+      toast.pushToast({ title: "Indica el motivo", description: "Suspender o reactivar requiere un motivo de al menos 5 caracteres.", variant: "warning" });
+      return;
+    }
     if (!confirm(formData.isSuspended ? "¿Reactivar la academia?" : "¿Suspender la academia?")) {
       return;
     }
@@ -184,6 +195,7 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
         },
         body: JSON.stringify({
           isSuspended: !formData.isSuspended,
+          reason: actionReason.trim(),
         }),
       });
 
@@ -430,6 +442,12 @@ export function SuperAdminAcademyDetail({ initialAcademy, userId }: SuperAdminAc
         </div>
 
         <div className="mt-6 flex justify-end gap-3 border-t border-white/10 pt-6">
+          {formData.isSuspended !== academy.isSuspended && (
+            <div className="mr-auto w-full max-w-md space-y-2">
+              <Label htmlFor="academy-action-reason" className="text-xs uppercase tracking-wide text-white/60">Motivo del cambio de acceso</Label>
+              <Textarea id="academy-action-reason" value={actionReason} onChange={(event) => setActionReason(event.target.value)} placeholder="Explica por qué suspendes o reactivas esta academia" className="min-h-20 border-white/20 bg-white/10 text-white" />
+            </div>
+          )}
           <Button
             variant="outline"
             className="border-white/20 bg-white/5 text-slate-100 hover:border-white/40 hover:bg-white/10"

@@ -1,5 +1,6 @@
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { eq } from "drizzle-orm";
+import { z } from "zod";
 
 import { db } from "@/db";
 import { academies, subscriptions, plans, profiles } from "@/db/schema";
@@ -8,6 +9,8 @@ import { logAdminAction } from "@/lib/admin-logs";
 import { getSuperAdminAcademyDetail } from "@/lib/super-admin";
 
 export const dynamic = "force-dynamic";
+
+const reasonSchema = z.string().trim().min(5).max(500);
 
 export const GET = withSuperAdmin(async (_request, context) => {
   const params = context.params as { academyId?: string };
@@ -33,6 +36,9 @@ export const PATCH = withSuperAdmin(async (request, context) => {
   }
 
   const body = await request.json().catch(() => ({}));
+  if (typeof body?.isSuspended === "boolean" && !reasonSchema.safeParse(body?.reason).success) {
+    return apiError("REASON_REQUIRED", "Indica el motivo del cambio de acceso", 400);
+  }
   const updates: Record<string, unknown> = {};
   let planUpdate: { planId: string } | null = null;
 
@@ -126,20 +132,33 @@ export const PATCH = withSuperAdmin(async (request, context) => {
     userId: context.userId,
     tenantId: null,
     action: body?.isSuspended ? "academy.suspended" : "academy.updated",
+    resourceType: "academy",
+    resourceId: academyId,
+    resourceName: updated.name,
+    description: body?.isSuspended
+      ? `Super Admin suspendió la academia ${updated.name ?? academyId}`
+      : `Super Admin actualizó la academia ${updated.name ?? academyId}`,
     meta: {
       academyId,
       updates,
+      reason: typeof body?.reason === "string" ? body.reason.trim() : null,
     },
   });
 
   return apiSuccess(updated);
 });
 
-export const DELETE = withSuperAdmin(async (_request, context) => {
+export const DELETE = withSuperAdmin(async (request, context) => {
   const params = context.params as { academyId?: string };
   const academyId = params?.academyId;
   if (!academyId) {
     return apiError("ACADEMY_ID_REQUIRED", "Academy ID is required", 400);
+  }
+
+  const body = await request.json().catch(() => ({}));
+  const reason = reasonSchema.safeParse(body?.reason);
+  if (!reason.success) {
+    return apiError("REASON_REQUIRED", "Indica el motivo de la eliminación", 400);
   }
 
   const [removed] = await db
@@ -155,9 +174,12 @@ export const DELETE = withSuperAdmin(async (_request, context) => {
     userId: context.userId,
     tenantId: null,
     action: "academy.deleted",
-    meta: { academyId },
+    resourceType: "academy",
+    resourceId: academyId,
+    resourceName: removed.name,
+    description: `Super Admin eliminó la academia ${removed.name ?? academyId}; la cuenta del dueño se conserva`,
+    meta: { academyId, ownerAccountRetained: true, reason: reason.data },
   });
 
   return apiSuccess({ ok: true });
 });
-

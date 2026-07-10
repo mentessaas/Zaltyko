@@ -11,7 +11,7 @@
  * de integracion separados.
  */
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import React from "react";
 
@@ -192,6 +192,8 @@ describe("ConfirmDialog", () => {
       expect(screen.getByRole("button", { name: "Procesando..." })).toBeDisabled();
     });
     expect(screen.getByRole("button", { name: "Cancelar" })).toBeDisabled();
-    resolveConfirm();
+    await act(async () => {
+      resolveConfirm();
+    });
   });
 });

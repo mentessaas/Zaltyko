@@ -36,5 +36,5 @@ export const demoEmploymentListing = {
 };
 
 export function canUsePublicDemoData(id?: string) {
-  return process.env.NODE_ENV !== "production" && Boolean(id?.startsWith("demo-"));
+  return id === demoMarketplaceListing.id || id === demoEmploymentListing.id;
 }

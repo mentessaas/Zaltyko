@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { UserPlus, Loader2 } from "lucide-react";
+import { Eye, EyeOff, UserPlus, Loader2 } from "lucide-react";
 
 import { useToast } from "@/components/ui/toast-provider";
 
@@ -15,12 +15,14 @@ export function SuperAdminCreateUserDialog() {
   const [submitting, setSubmitting] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [name, setName] = useState("");
   const [role, setRole] = useState<(typeof ROLES)[number]>("owner");
 
   function reset() {
     setEmail("");
     setPassword("");
+    setShowPassword(false);
     setName("");
     setRole("owner");
   }
@@ -83,15 +85,25 @@ export function SuperAdminCreateUserDialog() {
 
             <label className="block text-sm text-white/70">
               Contraseña (mín. 8)
-              <input
-                type="text"
-                required
-                minLength={8}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-white focus:border-white/40 focus:outline-none"
-                placeholder="contraseña temporal"
-              />
+              <div className="relative mt-1">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  required
+                  minLength={8}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 pr-10 text-white focus:border-white/40 focus:outline-none"
+                  placeholder="contraseña temporal"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((value) => !value)}
+                  className="absolute inset-y-0 right-2 inline-flex items-center rounded-md px-2 text-white/60 hover:text-white"
+                  aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
             </label>
 
             <label className="block text-sm text-white/70">

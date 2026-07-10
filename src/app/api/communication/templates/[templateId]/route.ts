@@ -7,6 +7,11 @@ import { verifyAcademySportConfig } from "@/lib/sport-config/service";
 
 export const dynamic = 'force-dynamic';
 
+const canViewCommunication = (role?: string) =>
+  ["owner", "admin", "coach", "super_admin"].includes(role ?? "");
+const canManageCommunication = (role?: string) =>
+  ["owner", "admin", "super_admin"].includes(role ?? "");
+
 const updateTemplateSchema = z.object({
   academyId: z.string().uuid().optional(),
   sportConfigId: z.string().uuid().optional().nullable(),
@@ -22,6 +27,9 @@ const updateTemplateSchema = z.object({
 });
 
 export const GET = withTenant(async (request, context) => {
+  if (!canViewCommunication(context.profile?.role)) {
+    return apiError("FORBIDDEN", "No tienes permiso para consultar plantillas", 403);
+  }
   const { templateId } = context.params as { templateId: string };
 
   const template = await getMessageTemplateById(templateId);
@@ -53,6 +61,9 @@ export const GET = withTenant(async (request, context) => {
 });
 
 export const PATCH = withTenant(async (request, context) => {
+  if (!canManageCommunication(context.profile?.role)) {
+    return apiError("FORBIDDEN", "No tienes permiso para modificar plantillas", 403);
+  }
   const { templateId } = context.params as { templateId: string };
 
   const existing = await getMessageTemplateById(templateId);
@@ -121,6 +132,9 @@ export const PATCH = withTenant(async (request, context) => {
 });
 
 export const DELETE = withTenant(async (request, context) => {
+  if (!canManageCommunication(context.profile?.role)) {
+    return apiError("FORBIDDEN", "No tienes permiso para eliminar plantillas", 403);
+  }
   const { templateId } = context.params as { templateId: string };
 
   const existing = await getMessageTemplateById(templateId);

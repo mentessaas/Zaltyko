@@ -6,8 +6,8 @@
  * 2. Si no existe, crearla
  * 3. Enviar el mensaje
  */
-import { NextResponse } from "next/server";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
+import { z } from "zod";
 
 import { withTenant } from "@/lib/authz";
 import { apiSuccess, apiError } from "@/lib/api-response";
@@ -17,11 +17,19 @@ import {
   conversationMessages,
 } from "@/db/schema/direct-messages";
 import { db } from "@/db";
+import { academies, memberships, profiles } from "@/db/schema";
 import { sendPushToUser } from "@/lib/notifications/push-service";
 import { createNotification } from "@/lib/notifications/notification-service";
 import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
+
+const SendDirectMessageSchema = z.object({
+  recipientId: z.string().uuid(),
+  content: z.string().trim().min(1).max(5000),
+  academyId: z.string().uuid().optional(),
+  initialMessage: z.boolean().optional(),
+});
 
 /**
  * POST - Enviar mensaje directo a un usuario
@@ -46,30 +54,17 @@ export const POST = withTenant(async (request, context) => {
       return apiError("TENANT_REQUIRED", "Tenant ID es requerido", 400);
     }
 
-    let body;
+    let body: z.infer<typeof SendDirectMessageSchema>;
     try {
-      body = await request.json();
-    } catch {
+      body = SendDirectMessageSchema.parse(await request.json());
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return apiError("VALIDATION_ERROR", "Datos del mensaje inválidos", 400, error.issues);
+      }
       return apiError("INVALID_JSON", "JSON inválido", 400);
     }
 
-    const { recipientId, content, academyId, initialMessage } = body;
-
-    if (!recipientId) {
-      return apiError("VALIDATION_ERROR", "recipientId es requerido", 400);
-    }
-
-    if (!content || typeof content !== "string" || content.trim().length === 0) {
-      return apiError("VALIDATION_ERROR", "Contenido del mensaje requerido", 400);
-    }
-
-    if (content.length > 5000) {
-      return apiError(
-        "VALIDATION_ERROR",
-        "Mensaje muy largo (máx 5000 caracteres)",
-        400
-      );
-    }
+    const { recipientId, content, academyId } = body;
 
     if (recipientId === profile.id) {
       return apiError(
@@ -80,14 +75,27 @@ export const POST = withTenant(async (request, context) => {
     }
 
     // Verify recipient exists (check profiles table)
-    const [recipientExists] = await db
-      .select({ id: sql<string>`id` })
-      .from(sql`profiles`)
-      .where(sql`id = ${recipientId}`)
+    const [recipient] = await db
+      .select({ id: profiles.id, userId: profiles.userId, tenantId: profiles.tenantId })
+      .from(profiles)
+      .where(and(eq(profiles.id, recipientId), eq(profiles.tenantId, tenantId)))
       .limit(1);
 
-    if (!recipientExists) {
-      return apiError("NOT_FOUND", "Destinatario no encontrado", 404);
+    if (!recipient) {
+      return apiError("FORBIDDEN", "Destinatario no válido para este tenant", 403);
+    }
+
+    if (academyId) {
+      const [[academy], academyMemberships] = await Promise.all([
+        db.select({ id: academies.id }).from(academies).where(and(eq(academies.id, academyId), eq(academies.tenantId, tenantId))).limit(1),
+        db.select({ userId: memberships.userId }).from(memberships).where(and(
+          eq(memberships.academyId, academyId),
+          inArray(memberships.userId, [profile.userId, recipient.userId])
+        )),
+      ]);
+      if (!academy || new Set(academyMemberships.map((item) => item.userId)).size !== 2) {
+        return apiError("FORBIDDEN", "Emisor y destinatario deben pertenecer a la academia", 403);
+      }
     }
 
     // Check for existing P2P conversation
@@ -102,7 +110,8 @@ export const POST = withTenant(async (request, context) => {
       .where(
         and(
           eq(conversations.tenantId, tenantId),
-          eq(conversations.metadata, { type: "p2p" } as any)
+          academyId ? eq(conversations.academyId, academyId) : undefined,
+          sql`${conversations.metadata}->>'type' = 'p2p'`
         )
       );
 
@@ -120,7 +129,7 @@ export const POST = withTenant(async (request, context) => {
       if (
         participantIds.includes(profile.id) &&
         participantIds.includes(recipientId) &&
-        participants.filter((p) => !participantIds.includes(profile.id as any) || p.userId === profile.id).length === 2
+        participants.length === 2
       ) {
         // Found existing conversation with just these 2 participants
         const otherParticipants = participants.filter(
@@ -206,7 +215,7 @@ export const POST = withTenant(async (request, context) => {
 
     if (shouldNotify) {
       const messageUrl = academyId
-        ? `/app/${academyId}/messages`
+        ? `/app/${academyId}/messages?c=${conversationId}`
         : `/dashboard/messages/${conversationId}`;
 
       // In-app notification

@@ -7,6 +7,11 @@ import { verifyAcademySportConfig } from "@/lib/sport-config/service";
 
 export const dynamic = 'force-dynamic';
 
+const canViewCommunication = (role?: string) =>
+  ["owner", "admin", "coach", "super_admin"].includes(role ?? "");
+const canManageCommunication = (role?: string) =>
+  ["owner", "admin", "super_admin"].includes(role ?? "");
+
 const createTemplateSchema = z.object({
   academyId: z.string().uuid().optional(),
   sportConfigId: z.string().uuid().optional().nullable(),
@@ -31,6 +36,9 @@ const querySchema = z.object({
 export const GET = withTenant(async (request, context) => {
   if (!context.tenantId) {
     return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
+  }
+  if (!canViewCommunication(context.profile?.role)) {
+    return apiError("FORBIDDEN", "No tienes permiso para consultar plantillas", 403);
   }
 
   const params = querySchema.safeParse(Object.fromEntries(new URL(request.url).searchParams));
@@ -80,6 +88,9 @@ export const GET = withTenant(async (request, context) => {
 export const POST = withTenant(async (request, context) => {
   if (!context.tenantId) {
     return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
+  }
+  if (!canManageCommunication(context.profile?.role)) {
+    return apiError("FORBIDDEN", "No tienes permiso para crear plantillas", 403);
   }
 
   try {

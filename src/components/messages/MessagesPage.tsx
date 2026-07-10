@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import { ConversationList } from "./ConversationList";
 import { MessageBubble } from "./MessageBubble";
 import { MessageInput } from "./MessageInput";
@@ -32,6 +33,7 @@ interface Conversation {
 }
 
 interface MessagesPageProps {
+  academyId?: string;
   currentUserId: string;
   currentUserRole?: string;
   currentUserProfile?: {
@@ -41,10 +43,12 @@ interface MessagesPageProps {
 }
 
 export function MessagesPage({
+  academyId,
   currentUserId,
   currentUserRole,
   currentUserProfile,
 }: MessagesPageProps) {
+  const searchParams = useSearchParams();
   const [conversations, setConversations] = useState<any[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -60,12 +64,15 @@ export function MessagesPage({
   // Fetch conversations
   const fetchConversations = useCallback(async () => {
     try {
-      const res = await fetch("/api/messages/conversations");
+      const params = new URLSearchParams();
+      if (academyId) params.set("academyId", academyId);
+      const res = await fetch(`/api/messages/conversations?${params}`);
       const data = await res.json();
-      if (data.ok) {
-        setConversations(data.data.items);
+      if (res.ok && data.ok) {
+        setConversations(data.data?.items ?? []);
+        setError(null);
       } else {
-        setError("No se pudieron cargar las conversaciones.");
+        setError(data.message ?? "No se pudieron cargar las conversaciones.");
       }
     } catch (err) {
       logger.error("Error fetching conversations:", err);
@@ -73,7 +80,7 @@ export function MessagesPage({
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [academyId]);
 
   useEffect(() => {
     fetchConversations();
@@ -97,6 +104,11 @@ export function MessagesPage({
       setIsLoadingMessages(false);
     }
   }, []);
+
+  useEffect(() => {
+    const conversationId = searchParams.get("c");
+    if (conversationId) void selectConversation(conversationId);
+  }, [searchParams, selectConversation]);
 
   // Send message
   const handleSendMessage = useCallback(

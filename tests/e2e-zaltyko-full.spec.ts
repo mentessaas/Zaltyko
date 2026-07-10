@@ -124,7 +124,10 @@ test.describe("Zaltyko full academy flows", () => {
     const href = await firstAthleteLink.getAttribute("href");
     test.skip(!href, "First athlete link does not expose a navigable href.");
 
-    await page.goto(href, { waitUntil: "domcontentloaded", timeout: 120_000 });
+    await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => undefined);
+    await expect(firstAthleteLink).toBeVisible();
+    await firstAthleteLink.click();
+    await page.waitForURL(new RegExp(`/app/${academyId}/athletes/[^/]+$`), { timeout: 30_000 });
     await expect(page).toHaveURL(new RegExp(`/app/${academyId}/athletes/[^/]+$`));
     await expectNoRouteError(page);
   });

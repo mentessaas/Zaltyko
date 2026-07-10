@@ -4,6 +4,9 @@ import { withTenant } from "@/lib/authz";
 import { sendPushToUser, isPushConfigured } from "@/lib/notifications/push-service";
 import { createNotification } from "@/lib/notifications/notification-service";
 import { logger } from "@/lib/logger";
+import { db } from "@/db";
+import { profiles } from "@/db/schema";
+import { and, eq } from "drizzle-orm";
 
 export const dynamic = 'force-dynamic';
 
@@ -27,9 +30,27 @@ export const POST = withTenant(async (request, context) => {
     return apiError("PUSH_NOT_CONFIGURED", "Push notifications are not configured on this server", 503);
   }
 
+  if (!context.profile || !["owner", "admin", "super_admin"].includes(context.profile.role)) {
+    return apiError("FORBIDDEN", "No tienes permiso para enviar notificaciones push", 403);
+  }
+
   try {
-    const body = await request.json();
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return apiError("INVALID_JSON", "JSON inválido", 400);
+    }
     const validated = sendPushSchema.parse(body);
+
+    const [recipient] = await db
+      .select({ id: profiles.id })
+      .from(profiles)
+      .where(and(eq(profiles.id, validated.userId), eq(profiles.tenantId, context.tenantId)))
+      .limit(1);
+    if (!recipient) {
+      return apiError("FORBIDDEN", "El destinatario no pertenece al tenant activo", 403);
+    }
 
     // Send push notification
     const pushResult = await sendPushToUser(validated.userId, {

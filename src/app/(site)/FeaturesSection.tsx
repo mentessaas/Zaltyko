@@ -130,7 +130,7 @@ export default function FeaturesSection() {
           "Envío de comunicaciones automáticas a familias",
           "Almacenamiento de rutinas y vídeos de entrenamiento",
           "Compartición de archivos con coaches y padres",
-          "Notificaciones push para提醒 de clases y eventos",
+          "Notificaciones push para recordatorios de clases y eventos",
           "Sincronización con calendarios externos",
           "Copias de seguridad en la nube automáticas",
         ],

@@ -82,7 +82,11 @@ export const POST = withSuperAdmin(async (request, context) => {
     userId: context.userId,
     tenantId: null,
     action: "academy.created",
-    meta: { academyId: result.id, ownerEmail: d.ownerEmail },
+    resourceType: "academy",
+    resourceId: result.id,
+    resourceName: d.academyName,
+    description: `Super Admin creó la academia ${d.academyName}`,
+    meta: { academyId: result.id, ownerEmail: d.ownerEmail, ownerProfileId: owner.id },
   });
 
   return apiCreated({ academyId: result.id, tenantId: result.tenantId });
@@ -130,4 +134,3 @@ export const GET = withSuperAdmin(async (request) => {
     items: paginatedItems,
   });
 });
-

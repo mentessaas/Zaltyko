@@ -3,8 +3,9 @@
  * PATCH /api/messages/conversations/[id] - Actualizar conversación
  * DELETE /api/messages/conversations/[id] - Eliminar/ocultar conversación
  */
-import { NextResponse } from "next/server";
 import { and, desc, eq, sql } from "drizzle-orm";
+import type { InferInsertModel } from "drizzle-orm";
+import { z } from "zod";
 
 import { withTenant } from "@/lib/authz";
 import { apiSuccess, apiError } from "@/lib/api-response";
@@ -19,6 +20,16 @@ import { logger } from "@/lib/logger";
 export const dynamic = "force-dynamic";
 
 type RouteContext = { tenantId: string; params: { id: string }; profile?: { id: string } };
+type ParticipantSettings = Pick<
+  InferInsertModel<typeof conversationParticipants>,
+  "notificationsEnabled" | "mutedUntil"
+>;
+
+const UpdateConversationSchema = z.object({
+  title: z.string().trim().min(1).max(255).optional(),
+  notificationsEnabled: z.boolean().optional(),
+  mutedUntil: z.string().datetime().nullable().optional(),
+}).strict();
 
 /**
  * GET - Obtener una conversación con sus participantes y mensajes
@@ -56,7 +67,7 @@ export const GET = withTenant(async (request: Request, context: RouteContext) =>
     const [conversation] = await db
       .select()
       .from(conversations)
-      .where(eq(conversations.id, conversationId))
+      .where(and(eq(conversations.id, conversationId), eq(conversations.tenantId, context.tenantId)))
       .limit(1);
 
     if (!conversation) {
@@ -98,8 +109,10 @@ export const GET = withTenant(async (request: Request, context: RouteContext) =>
 
     // Get pagination params
     const url = new URL(request.url);
-    const limit = parseInt(url.searchParams.get("limit") || "50");
-    const offset = parseInt(url.searchParams.get("offset") || "0");
+    const requestedLimit = Number(url.searchParams.get("limit") || "50");
+    const requestedOffset = Number(url.searchParams.get("offset") || "0");
+    const limit = Number.isInteger(requestedLimit) ? Math.min(Math.max(requestedLimit, 1), 100) : 50;
+    const offset = Number.isInteger(requestedOffset) ? Math.max(requestedOffset, 0) : 0;
     const before = url.searchParams.get("before"); // ISO date for cursor pagination
 
     const baseCondition = eq(conversationMessages.conversationId, conversationId);
@@ -189,17 +202,27 @@ export const PATCH = withTenant(async (request: Request, context: RouteContext) 
       return apiError("FORBIDDEN", "No tienes acceso a esta conversación", 403);
     }
 
-    const body = await request.json();
-    const updates: Record<string, any> = { updatedAt: new Date() };
+    const [conversation] = await db
+      .select({ id: conversations.id })
+      .from(conversations)
+      .where(and(eq(conversations.id, conversationId), eq(conversations.tenantId, context.tenantId)))
+      .limit(1);
+    if (!conversation) {
+      return apiError("FORBIDDEN", "La conversación no pertenece al tenant activo", 403);
+    }
 
-    // Fields user can update
-    if (body.title !== undefined) updates.title = body.title;
-    if (body.notificationsEnabled !== undefined) {
-      updates.notificationsEnabled = body.notificationsEnabled ? "true" : "false";
+    let payload: unknown;
+    try {
+      payload = await request.json();
+    } catch {
+      return apiError("INVALID_JSON", "JSON inválido", 400);
     }
-    if (body.mutedUntil !== undefined) {
-      updates.mutedUntil = body.mutedUntil ? new Date(body.mutedUntil) : null;
+
+    const parsed = UpdateConversationSchema.safeParse(payload);
+    if (!parsed.success) {
+      return apiError("VALIDATION_ERROR", "Datos de conversación inválidos", 400, parsed.error.flatten());
     }
+    const body = parsed.data;
 
     // Only admins/owners can update title
     if (body.title !== undefined && !["owner", "admin"].includes(participant.role)) {
@@ -210,13 +233,15 @@ export const PATCH = withTenant(async (request: Request, context: RouteContext) 
       );
     }
 
-    await db
-      .update(conversations)
-      .set(updates)
-      .where(eq(conversations.id, conversationId));
+    if (body.title !== undefined) {
+      await db
+        .update(conversations)
+        .set({ title: body.title, updatedAt: new Date() })
+        .where(and(eq(conversations.id, conversationId), eq(conversations.tenantId, context.tenantId)));
+    }
 
     // Update participant settings
-    const participantUpdates: Record<string, any> = {};
+    const participantUpdates: ParticipantSettings = {};
     if (body.notificationsEnabled !== undefined) {
       participantUpdates.notificationsEnabled = body.notificationsEnabled ? "true" : "false";
     }
@@ -257,6 +282,29 @@ export const DELETE = withTenant(async (request: Request, context: RouteContext)
 
     if (!conversationId) {
       return apiError("VALIDATION_ERROR", "ID de conversación requerido", 400);
+    }
+
+    const [conversation] = await db
+      .select({ id: conversations.id })
+      .from(conversations)
+      .where(and(eq(conversations.id, conversationId), eq(conversations.tenantId, context.tenantId)))
+      .limit(1);
+    if (!conversation) {
+      return apiError("FORBIDDEN", "La conversación no pertenece al tenant activo", 403);
+    }
+
+    const [participant] = await db
+      .select({ id: conversationParticipants.id })
+      .from(conversationParticipants)
+      .where(
+        and(
+          eq(conversationParticipants.conversationId, conversationId),
+          eq(conversationParticipants.userId, profile.id)
+        )
+      )
+      .limit(1);
+    if (!participant) {
+      return apiError("FORBIDDEN", "No tienes acceso a esta conversación", 403);
     }
 
     // Soft delete - just set hiddenAt for this user

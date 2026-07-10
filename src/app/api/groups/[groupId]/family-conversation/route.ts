@@ -44,9 +44,7 @@ export const POST = withTenant(async (_request, context) => {
 
   if (
     !canStartGroupConversation ||
-    (context.profile.role !== "super_admin" &&
-      context.profile.role !== "admin" &&
-      group.tenantId !== context.tenantId)
+    (context.profile.role !== "super_admin" && group.tenantId !== context.tenantId)
   ) {
     return apiError("FORBIDDEN", "No tienes permiso para iniciar esta conversacion", 403);
   }

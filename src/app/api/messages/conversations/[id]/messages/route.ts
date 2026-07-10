@@ -2,8 +2,8 @@
  * GET /api/messages/conversations/[id]/messages - Obtener mensajes (alternativa con cursor)
  * POST /api/messages/conversations/[id]/messages - Enviar mensaje
  */
-import { NextResponse } from "next/server";
-import { and, desc, eq, gt, sql } from "drizzle-orm";
+import { and, eq, gt, sql } from "drizzle-orm";
+import { z } from "zod";
 
 import { withTenant } from "@/lib/authz";
 import { apiSuccess, apiError } from "@/lib/api-response";
@@ -21,6 +21,14 @@ import { logger } from "@/lib/logger";
 export const dynamic = "force-dynamic";
 
 type RouteContext = { tenantId: string; params: { id: string }; profile?: { id: string } };
+
+const SendMessageSchema = z.object({
+  content: z.string().trim().min(1).max(5000),
+  attachmentUrl: z.string().url().optional(),
+  attachmentType: z.enum(["image", "file", "video"]).optional(),
+  attachmentName: z.string().max(255).optional(),
+  replyToId: z.string().uuid().optional(),
+});
 
 /**
  * GET - Obtener mensajes con cursor-based pagination
@@ -54,12 +62,26 @@ export const GET = withTenant(async (request: Request, context: RouteContext) =>
       return apiError("FORBIDDEN", "No tienes acceso a esta conversación", 403);
     }
 
+    const [conversation] = await db
+      .select({ id: conversations.id, tenantId: conversations.tenantId, academyId: conversations.academyId })
+      .from(conversations)
+      .where(and(eq(conversations.id, conversationId), eq(conversations.tenantId, context.tenantId)))
+      .limit(1);
+    if (!conversation) {
+      return apiError("FORBIDDEN", "La conversación no pertenece al tenant activo", 403);
+    }
+
     const url = new URL(request.url);
-    const limit = parseInt(url.searchParams.get("limit") || "50");
+    const requestedLimit = Number(url.searchParams.get("limit") || "50");
+    const limit = Number.isInteger(requestedLimit) ? Math.min(Math.max(requestedLimit, 1), 100) : 50;
     const cursor = url.searchParams.get("cursor"); // ISO date cursor
+    const cursorDate = cursor ? new Date(cursor) : undefined;
+    if (cursor && Number.isNaN(cursorDate?.getTime())) {
+      return apiError("VALIDATION_ERROR", "Cursor inválido", 400);
+    }
 
     const baseCondition = eq(conversationMessages.conversationId, conversationId);
-    const cursorCondition = cursor ? gt(conversationMessages.createdAt, new Date(cursor)) : undefined;
+    const cursorCondition = cursorDate ? gt(conversationMessages.createdAt, cursorDate) : undefined;
 
     const messages = await db
       .select({
@@ -142,6 +164,15 @@ export const POST = withTenant(async (request: Request, context: RouteContext) =
       return apiError("FORBIDDEN", "No tienes acceso a esta conversación", 403);
     }
 
+    const [conversation] = await db
+      .select({ id: conversations.id, tenantId: conversations.tenantId, academyId: conversations.academyId })
+      .from(conversations)
+      .where(and(eq(conversations.id, conversationId), eq(conversations.tenantId, context.tenantId)))
+      .limit(1);
+    if (!conversation) {
+      return apiError("FORBIDDEN", "La conversación no pertenece al tenant activo", 403);
+    }
+
     // Check if muted
     if (participant.mutedUntil && new Date(participant.mutedUntil) > new Date()) {
       return apiError(
@@ -152,25 +183,32 @@ export const POST = withTenant(async (request: Request, context: RouteContext) =
     }
 
     // Parse body
-    let body;
+    let body: z.infer<typeof SendMessageSchema>;
     try {
-      body = await request.json();
-    } catch {
+      body = SendMessageSchema.parse(await request.json());
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return apiError("VALIDATION_ERROR", "Mensaje inválido", 400, error.issues);
+      }
       return apiError("INVALID_JSON", "JSON inválido", 400);
     }
 
     const { content, attachmentUrl, attachmentType, attachmentName, replyToId } = body;
 
-    if (!content || typeof content !== "string" || content.trim().length === 0) {
-      return apiError("VALIDATION_ERROR", "Contenido del mensaje requerido", 400);
-    }
-
-    if (content.length > 5000) {
-      return apiError(
-        "VALIDATION_ERROR",
-        "Mensaje muy largo (máx 5000 caracteres)",
-        400
-      );
+    if (replyToId) {
+      const [replyTarget] = await db
+        .select({ id: conversationMessages.id })
+        .from(conversationMessages)
+        .where(
+          and(
+            eq(conversationMessages.id, replyToId),
+            eq(conversationMessages.conversationId, conversationId)
+          )
+        )
+        .limit(1);
+      if (!replyTarget) {
+        return apiError("VALIDATION_ERROR", "El mensaje al que respondes no pertenece a esta conversación", 400);
+      }
     }
 
     // Create message
@@ -195,15 +233,9 @@ export const POST = withTenant(async (request: Request, context: RouteContext) =
         lastMessageAt: new Date(),
         updatedAt: new Date(),
       })
-      .where(eq(conversations.id, conversationId));
+      .where(and(eq(conversations.id, conversationId), eq(conversations.tenantId, context.tenantId)));
 
     // Get conversation info for notifications
-    const [conversation] = await db
-      .select()
-      .from(conversations)
-      .where(eq(conversations.id, conversationId))
-      .limit(1);
-
     // Get all other participants
     const otherParticipants = await db
       .select({

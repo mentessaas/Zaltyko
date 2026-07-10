@@ -1,20 +1,39 @@
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { eq, and, desc } from "drizzle-orm";
+import { z } from "zod";
 import { withTenant } from "@/lib/authz";
 import { db } from "@/db";
 import { emailLogs } from "@/db/schema";
 
 export const dynamic = 'force-dynamic';
 
+const querySchema = z.object({
+  academyId: z.string().uuid().optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  offset: z.coerce.number().int().min(0).default(0),
+});
+
+const canViewEmailHistory = (role?: string) =>
+  ["owner", "admin", "super_admin"].includes(role ?? "");
+
 export const GET = withTenant(async (request, context) => {
   if (!context.tenantId) {
     return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
   }
+  if (!canViewEmailHistory(context.profile?.role)) {
+    return apiError("FORBIDDEN", "No tienes permiso para consultar el historial de correo", 403);
+  }
 
   const url = new URL(request.url);
-  const academyId = url.searchParams.get("academyId");
-  const limit = parseInt(url.searchParams.get("limit") || "50");
-  const offset = parseInt(url.searchParams.get("offset") || "0");
+  const parsedQuery = querySchema.safeParse({
+    academyId: url.searchParams.get("academyId") || undefined,
+    limit: url.searchParams.get("limit") || undefined,
+    offset: url.searchParams.get("offset") || undefined,
+  });
+  if (!parsedQuery.success) {
+    return apiError("VALIDATION_ERROR", "Parámetros de consulta inválidos", 400);
+  }
+  const { academyId, limit, offset } = parsedQuery.data;
 
   const whereConditions = [eq(emailLogs.tenantId, context.tenantId)];
   if (academyId) {
@@ -51,4 +70,3 @@ export const GET = withTenant(async (request, context) => {
     offset,
   });
 });
-

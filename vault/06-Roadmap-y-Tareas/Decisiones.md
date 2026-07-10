@@ -8,6 +8,15 @@ source:
 
 # Decisiones
 
+## 2026-07-09 - Borrar academia conserva la cuenta personal del dueño
+
+| Campo | Valor |
+| --- | --- |
+| Contexto | La auditoria Super Admin detecto que el flujo "Crear academia + dueño" crea una cuenta Auth/perfil owner, pero `DELETE /api/super-admin/academies/[academyId]` elimina la academia sin borrar automaticamente esa cuenta. Borrar usuarios globales al quitar una academia es riesgoso: una persona puede pertenecer a otras academias o necesitar historial/soporte. |
+| Decision | Mantener la cuenta personal del dueño al borrar una academia desde Super Admin. La accion destruye la academia y sus datos asociados, pero no borra automaticamente el perfil/cuenta Auth del owner. Si esa cuenta ya no debe existir, el Super Admin debe revisarla y eliminarla aparte desde usuarios. |
+| Consecuencia | El dialogo de borrado debe comunicarlo claramente y los logs deben registrar `ownerAccountRetained: true`. Esta decision sigue la guia operativa: no destruir cuentas globales al quitar acceso a una academia. |
+| Estado | Activa. |
+
 ## 2026-06-26 - Routing raiz redirige a primera modalidad
 
 | Campo | Valor |

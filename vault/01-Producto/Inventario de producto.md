@@ -21,7 +21,7 @@ source:
 | Eventos | Avanzado | Publico y dashboard | Inscripcion publica completa, resultados, listados federativos. |
 | Evaluaciones | Parcial/avanzado | `/app/[academyId]/assessments`, `/app/[academyId]/evaluations`, atleta evaluate/progress/history/assessments | Validar flujo crear -> puntuar -> historial -> export. |
 | Asistencia | Parcial/avanzado | `/app/[academyId]/attendance`, `/api/attendance`, reportes attendance | Validar registro, reportes, export y permisos. |
-| Comunicacion | Parcial/avanzado | `/app/[academyId]/messages`, `/app/[academyId]/notifications`, `/app/[academyId]/whatsapp` | Unificar experiencia y validar segmentacion/lectura. |
+| Comunicacion | Avanzado, QA real pendiente | `/app/[academyId]/messages`, `/app/[academyId]/comms`, `/app/[academyId]/notifications`, `/app/[academyId]/announcements` | Mensajeria interna conectada para todos los miembros, centro unificado operativo y consultas publicas separadas; falta QA con parent/coach reales y completar avisos desde clase/sesion. |
 | IA | Parcial | API/widgets | Falta valor end-to-end en producto. |
 | Marketplace/empleo | Parcial | `/marketplace`, `/empleo` | Revisar monetizacion y consistencia. |
 | SEO/i18n | Parcial | `/(site)/[locale]/...` | Traducciones completas y contenido localizado. |

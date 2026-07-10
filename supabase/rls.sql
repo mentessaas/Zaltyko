@@ -421,15 +421,15 @@ create policy "coach_notes_modify" on coach_notes
 drop policy if exists "audit_logs_select" on audit_logs;
 create policy "audit_logs_select" on audit_logs
   for select using (
-    is_admin() or tenant_id = get_current_tenant()
+    is_super_admin() or (tenant_id is not null and tenant_id = get_current_tenant())
   );
 
 drop policy if exists "audit_logs_modify" on audit_logs;
 create policy "audit_logs_modify" on audit_logs
   for all using (
-    is_admin() or tenant_id = get_current_tenant()
+    is_super_admin() or (tenant_id is not null and tenant_id = get_current_tenant())
   ) with check (
-    is_admin() or tenant_id = get_current_tenant()
+    is_super_admin() or (tenant_id is not null and tenant_id = get_current_tenant())
   );
 
 -- Guardians -----------------------------------------------------------------

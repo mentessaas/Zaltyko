@@ -20,15 +20,22 @@ interface Notification {
 export function NotificationsPanel({ academyId }: { academyId: string }) {
   const [items, setItems] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/notifications")
+    fetch("/api/notifications?limit=20&offset=0")
       .then((r) => r.json())
       .then((json) => {
-        if (!cancelled && json.success) {
-          setItems(json.data ?? []);
+        if (!cancelled && json.ok) {
+          setItems(json.data?.items ?? []);
+          setError(null);
+        } else if (!cancelled) {
+          setError(json.message ?? "No se pudieron cargar las notificaciones.");
         }
+      })
+      .catch(() => {
+        if (!cancelled) setError("No se pudieron cargar las notificaciones.");
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -46,6 +53,10 @@ export function NotificationsPanel({ academyId }: { academyId: string }) {
         ))}
       </div>
     );
+  }
+
+  if (error) {
+    return <p role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">{error}</p>;
   }
 
   if (items.length === 0) {

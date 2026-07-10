@@ -1,18 +1,17 @@
+import type { Metadata } from "next";
+import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { Metadata } from "next";
 import { and, eq } from "drizzle-orm";
 
+import { MessagesPage as InternalMessagesPage } from "@/components/messages/MessagesPage";
+import { Button } from "@/components/ui/button";
 import { db } from "@/db";
-import { academies, memberships, profiles, contactMessages } from "@/db/schema";
+import { academies, memberships, profiles } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
-import { ContactMessagesList } from "@/components/messages/ContactMessagesList";
-import { desc } from "drizzle-orm";
 
 interface PageProps {
-  params: Promise<{
-    academyId: string;
-  }>;
+  params: Promise<{ academyId: string }>;
 }
 
 export const dynamic = "force-dynamic";
@@ -25,103 +24,71 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     .where(eq(academies.id, academyId))
     .limit(1);
 
-  const name = academy?.name ?? "Academia";
-
   return {
-    title: `${name} · Mensajes de contacto`,
-    description: `Mensajes de contacto recibidos para la academia ${name}.`,
+    title: `Mensajes · ${academy?.name ?? "Academia"}`,
+    description: "Conversaciones internas con la academia y las familias.",
   };
 }
 
-export default async function MessagesPage({ params }: PageProps) {
+export default async function MessagesRoute({ params }: PageProps) {
   const { academyId } = await params;
-  const cookieStore = await cookies();
-  const supabase = await createClient(cookieStore);
-
+  const supabase = await createClient(await cookies());
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) {
-    redirect("/auth/login");
-  }
+  if (!user) redirect("/auth/login");
 
-  const [profile] = await db
-    .select({
-      id: profiles.id,
-      name: profiles.name,
-      role: profiles.role,
-      tenantId: profiles.tenantId,
-    })
-    .from(profiles)
-    .where(eq(profiles.userId, user.id))
-    .limit(1);
+  const [[profile], [membership], [academy]] = await Promise.all([
+    db
+      .select({ id: profiles.id, name: profiles.name, role: profiles.role, photoUrl: profiles.photoUrl })
+      .from(profiles)
+      .where(eq(profiles.userId, user.id))
+      .limit(1),
+    db
+      .select({ role: memberships.role })
+      .from(memberships)
+      .where(and(eq(memberships.userId, user.id), eq(memberships.academyId, academyId)))
+      .limit(1),
+    db
+      .select({ id: academies.id, ownerId: academies.ownerId })
+      .from(academies)
+      .where(eq(academies.id, academyId))
+      .limit(1),
+  ]);
 
-  const [membership] = await db
-    .select({ role: memberships.role })
-    .from(memberships)
-    .where(
-      and(eq(memberships.userId, user.id), eq(memberships.academyId, academyId))
-    )
-    .limit(1);
+  if (!profile || !membership || !academy) redirect("/app");
 
-  // Obtener información de la academia
-  const [academy] = await db
-    .select({
-      id: academies.id,
-      name: academies.name,
-      ownerId: academies.ownerId,
-      tenantId: academies.tenantId,
-    })
-    .from(academies)
-    .where(eq(academies.id, academyId))
-    .limit(1);
-
-  if (!academy) {
-    redirect("/dashboard");
-  }
-
-  const isAdmin = profile?.role === "admin" || profile?.role === "super_admin";
-  const isOwner = academy.ownerId === profile?.id || membership?.role === "owner";
-
-  if (!isAdmin && !isOwner) {
-    redirect(`/app/${academyId}/dashboard`);
-  }
-
-  // Obtener mensajes de contacto
-  const messages = await db
-    .select()
-    .from(contactMessages)
-    .where(eq(contactMessages.academyId, academyId))
-    .orderBy(desc(contactMessages.createdAt));
+  const canManageContactMessages =
+    profile.role === "admin" ||
+    profile.role === "super_admin" ||
+    membership.role === "owner" ||
+    academy.ownerId === profile.id;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-foreground">Mensajes de contacto</h1>
-        <p className="text-sm text-muted-foreground">
-          Gestiona los mensajes recibidos desde el directorio público de academias.
-        </p>
+    <div className="space-y-6 py-6 lg:py-8">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold text-foreground">Mensajes</h1>
+          <p className="text-sm text-muted-foreground">
+            Historial interno entre la academia, entrenadores y familias.
+          </p>
+        </div>
+        {canManageContactMessages ? (
+          <Button asChild variant="outline">
+            <Link href={`/app/${academyId}/contact-messages`}>Consultas del directorio</Link>
+          </Button>
+        ) : null}
       </div>
 
-      <ContactMessagesList
-        academyId={academyId}
-        initialMessages={messages.map((m) => ({
-          id: m.id,
-          academyId: m.academyId,
-          contactName: m.contactName,
-          contactEmail: m.contactEmail,
-          contactPhone: m.contactPhone,
-          message: m.message,
-          read: m.read,
-          readAt: m.readAt?.toISOString() || null,
-          responded: m.responded,
-          respondedAt: m.respondedAt?.toISOString() || null,
-          archived: m.archived,
-          createdAt: m.createdAt?.toISOString() || null,
-        }))}
-      />
+      <div className="min-h-[560px] overflow-hidden rounded-xl border bg-background">
+        <InternalMessagesPage
+          academyId={academyId}
+          currentUserId={profile.id}
+          currentUserRole={membership.role ?? profile.role}
+          currentUserProfile={{ fullName: profile.name ?? undefined, avatarUrl: profile.photoUrl ?? undefined }}
+        />
+      </div>
     </div>
   );
 }
-

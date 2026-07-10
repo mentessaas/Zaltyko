@@ -4,7 +4,13 @@ import { getScheduledNotificationById, cancelScheduledNotification } from "@/lib
 
 export const dynamic = 'force-dynamic';
 
+const canManageCommunication = (role?: string) =>
+  ["owner", "admin", "super_admin"].includes(role ?? "");
+
 export const DELETE = withTenant(async (request, context) => {
+  if (!canManageCommunication(context.profile?.role)) {
+    return apiError("FORBIDDEN", "No tienes permiso para cancelar comunicaciones", 403);
+  }
   const { notificationId } = context.params as { notificationId: string };
 
   const existing = await getScheduledNotificationById(notificationId);

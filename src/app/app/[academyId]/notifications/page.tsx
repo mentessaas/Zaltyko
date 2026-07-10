@@ -64,6 +64,7 @@ const NOTIFICATION_TYPES = [
   { value: "invoice_paid", label: "Recibo pagado", icon: CreditCard },
   { value: "event", label: "Evento", icon: Calendar },
   { value: "message", label: "Mensaje", icon: MessageSquare },
+  { value: "new_message", label: "Mensaje nuevo", icon: MessageSquare },
   { value: "renewal", label: "Renovación", icon: RefreshCw },
   { value: "contact_message", label: "Mensaje de contacto", icon: Mail },
 ];
@@ -96,6 +97,7 @@ export default function NotificationsPage() {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [activeTab, setActiveTab] = useState("list");
+  const [error, setError] = useState<string | null>(null);
 
   const limit = 20;
 
@@ -119,17 +121,24 @@ export default function NotificationsPage() {
 
         const response = await fetch(`/api/notifications?${params}`);
         const data = await response.json();
+        if (!response.ok || !data.ok) {
+          throw new Error(data.message ?? "No se pudieron cargar las notificaciones");
+        }
+        const items = data.data?.items ?? [];
 
         if (reset) {
-          setNotifications(data.items || []);
+          setNotifications(items);
+          setPage(2);
         } else {
-          setNotifications((prev) => [...prev, ...(data.items || [])]);
+          setNotifications((prev) => [...prev, ...items]);
+          setPage((prev) => prev + 1);
         }
 
-        setHasMore((data.items || []).length === limit);
-        if (!reset) setPage((prev) => prev + 1);
+        setHasMore(items.length === limit);
+        setError(null);
       } catch (error) {
         logger.error("Error loading notifications:", error);
+        setError(error instanceof Error ? error.message : "No se pudieron cargar las notificaciones");
       } finally {
         setIsLoading(false);
         setIsLoadingMore(false);
@@ -187,7 +196,10 @@ export default function NotificationsPage() {
 
     const handleClick = () => {
       if (isContactMessage && notificationAcademyId) {
-        router.push(`/app/${notificationAcademyId}/messages`);
+        router.push(`/app/${notificationAcademyId}/contact-messages`);
+      } else if (notification.type === "new_message") {
+        const conversationId = notification.data?.conversationId as string | undefined;
+        router.push(`/app/${academyId}/messages${conversationId ? `?c=${conversationId}` : ""}`);
       }
     };
 
@@ -195,9 +207,9 @@ export default function NotificationsPage() {
       <Card
         key={notification.id}
         className={`${notification.read ? "opacity-60" : ""} ${
-          isContactMessage ? "cursor-pointer hover:bg-muted/50 transition-colors" : ""
+          isContactMessage || notification.type === "new_message" ? "cursor-pointer hover:bg-muted/50 transition-colors" : ""
         }`}
-        onClick={isContactMessage ? handleClick : undefined}
+        onClick={isContactMessage || notification.type === "new_message" ? handleClick : undefined}
       >
         <CardContent className="p-4">
           <div className="flex items-start gap-4">
@@ -346,6 +358,9 @@ export default function NotificationsPage() {
 
           {/* Notifications List */}
           <div className="space-y-2">
+            {error ? (
+              <p role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">{error}</p>
+            ) : null}
             {isLoading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <Card key={i}>

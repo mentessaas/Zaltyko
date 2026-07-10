@@ -6,12 +6,14 @@ import { AttendanceReminderTemplate } from "@/lib/email/templates/attendance-rem
 import { PaymentReminderTemplate } from "@/lib/email/templates/payment-reminder";
 import { EventInvitationTemplate } from "@/lib/email/templates/event-invitation";
 import { ClassCancellationTemplate } from "@/lib/email/templates/class-cancellation";
-import { format } from "date-fns";
-import { es } from "date-fns/locale";
 import { logger } from "@/lib/logger";
+import { db } from "@/db";
+import { academies, memberships } from "@/db/schema";
+import { and, eq } from "drizzle-orm";
 
 const sendSchema = z.object({
   to: z.string().email(),
+  academyId: z.string().uuid(),
   template: z.enum(["attendance-reminder", "payment-reminder", "event-invitation", "class-cancellation"]),
   data: z.record(z.unknown()),
 });
@@ -21,8 +23,40 @@ export const POST = withTenant(async (request, context) => {
     return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
   }
 
-  const body = sendSchema.parse(await request.json());
-  const { to, template, data } = body;
+  if (!context.profile || !["owner", "admin", "super_admin"].includes(context.profile.role)) {
+    return apiError("FORBIDDEN", "No tienes permiso para enviar correos de notificación", 403);
+  }
+
+  let body: z.infer<typeof sendSchema>;
+  try {
+    body = sendSchema.parse(await request.json());
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return apiError("VALIDATION_ERROR", "Datos de notificación inválidos", 400, error.issues);
+    }
+    return apiError("INVALID_JSON", "JSON inválido", 400);
+  }
+  const { to, academyId, template, data } = body;
+
+  const [academy] = await db
+    .select({ id: academies.id })
+    .from(academies)
+    .where(and(eq(academies.id, academyId), eq(academies.tenantId, context.tenantId)))
+    .limit(1);
+  if (!academy) {
+    return apiError("FORBIDDEN", "La academia no pertenece al tenant activo", 403);
+  }
+
+  if (context.profile.role !== "super_admin") {
+    const [membership] = await db
+      .select({ role: memberships.role })
+      .from(memberships)
+      .where(and(eq(memberships.academyId, academyId), eq(memberships.userId, context.profile.userId)))
+      .limit(1);
+    if (!membership || !["owner", "admin"].includes(membership.role)) {
+      return apiError("FORBIDDEN", "No tienes permiso para enviar correos de esta academia", 403);
+    }
+  }
 
   let html: string;
   let subject: string;
@@ -90,7 +124,7 @@ export const POST = withTenant(async (request, context) => {
       html,
       template,
       tenantId: context.tenantId,
-      academyId: data.academyId as string | undefined,
+      academyId,
       userId: data.userId as string | undefined,
       metadata: data,
     });
@@ -101,4 +135,3 @@ export const POST = withTenant(async (request, context) => {
     return apiError("SEND_FAILED", "Error al enviar la notificación", 500);
   }
 });
-

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Building2, Loader2 } from "lucide-react";
+import { Building2, Eye, EyeOff, Loader2 } from "lucide-react";
 
 import { useToast } from "@/components/ui/toast-provider";
 
@@ -17,6 +17,7 @@ export function SuperAdminCreateAcademyDialog() {
   const toast = useToast();
   const [open, setOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [showOwnerPassword, setShowOwnerPassword] = useState(false);
   const [form, setForm] = useState({
     academyName: "",
     academyType: "artistica",
@@ -66,6 +67,8 @@ export function SuperAdminCreateAcademyDialog() {
 
   const inputCls =
     "mt-1 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-white focus:border-white/40 focus:outline-none";
+  const passwordInputCls =
+    "w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 pr-10 text-white focus:border-white/40 focus:outline-none";
 
   return (
     <>
@@ -131,7 +134,24 @@ export function SuperAdminCreateAcademyDialog() {
             <div className="grid grid-cols-2 gap-3">
               <label className="block text-sm text-white/70">
                 Contraseña (mín. 8)
-                <input type="text" required minLength={8} value={form.ownerPassword} onChange={(e) => set("ownerPassword", e.target.value)} className={inputCls} />
+                <div className="relative mt-1">
+                  <input
+                    type={showOwnerPassword ? "text" : "password"}
+                    required
+                    minLength={8}
+                    value={form.ownerPassword}
+                    onChange={(e) => set("ownerPassword", e.target.value)}
+                    className={passwordInputCls}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowOwnerPassword((value) => !value)}
+                    className="absolute inset-y-0 right-2 inline-flex items-center rounded-md px-2 text-white/60 hover:text-white"
+                    aria-label={showOwnerPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                  >
+                    {showOwnerPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
               </label>
               <label className="block text-sm text-white/70">
                 Nombre del dueño

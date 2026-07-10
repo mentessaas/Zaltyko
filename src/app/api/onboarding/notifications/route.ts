@@ -76,7 +76,7 @@ export async function POST(request: Request) {
 
     // Check if preferences exist
     const [existing] = await db
-      .select({ id: userPreferences.id })
+      .select({ userId: userPreferences.userId })
       .from(userPreferences)
       .where(eq(userPreferences.userId, profile.id))
       .limit(1);
@@ -90,7 +90,7 @@ export async function POST(request: Request) {
           },
           updatedAt: new Date(),
         })
-        .where(eq(userPreferences.id, existing.id));
+        .where(eq(userPreferences.userId, existing.userId));
     } else {
       await db.insert(userPreferences).values({
         userId: profile.id,

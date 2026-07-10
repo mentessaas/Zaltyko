@@ -142,7 +142,7 @@ export function SuperAdminAcademiesTable({
         headers: {
           "Content-Type": "application/json",
         },
-        body: method === "PATCH" ? JSON.stringify(payload) : undefined,
+        body: Object.keys(payload).length > 0 ? JSON.stringify(payload) : undefined,
       });
 
       if (!response.ok) {
@@ -203,15 +203,15 @@ export function SuperAdminAcademiesTable({
     setConfirmDialogOpen(true);
   };
 
-  const handleConfirmAction = async () => {
+  const handleConfirmAction = async (reason?: string) => {
     if (!pendingAction) return;
 
     if (pendingAction.action === "delete") {
-      await mutateAcademy(pendingAction.academyId, {}, "DELETE");
+      await mutateAcademy(pendingAction.academyId, { reason }, "DELETE");
     } else {
       const academy = items.find((a) => a.id === pendingAction.academyId);
       if (academy) {
-        await mutateAcademy(pendingAction.academyId, { isSuspended: !academy.isSuspended }, "PATCH");
+        await mutateAcademy(pendingAction.academyId, { isSuspended: !academy.isSuspended, reason }, "PATCH");
       }
     }
 
@@ -405,7 +405,7 @@ export function SuperAdminAcademiesTable({
       </div>
 
       <p className="font-sans text-xs text-white/50">
-        ¿Necesitas editar detalles avanzados de una academia? Ingresa como owner desde{" "}
+        ¿Necesitas editar detalles avanzados de una academia? Abre su panel operativo desde{" "}
         <Link href="/dashboard/academies" className="font-semibold text-zaltyko-primary-light hover:underline">
           panel de academias
         </Link>{" "}
@@ -423,12 +423,13 @@ export function SuperAdminAcademiesTable({
           }
           description={
             pendingAction.action === "delete"
-              ? `¿Estás seguro de eliminar "${pendingAction.academyName}"? Esta acción eliminará la academia y todos sus datos asociados. Esta acción no se puede deshacer.`
+              ? `¿Estás seguro de eliminar "${pendingAction.academyName}"? Se borrarán la academia y sus datos asociados. La cuenta personal del dueño se conserva y debe revisarse aparte si ya no debe existir. Esta acción no se puede deshacer.`
               : `¿Estás seguro de suspender "${pendingAction.academyName}"? Los usuarios no podrán acceder hasta que sea reactivada.`
           }
           variant="destructive"
           confirmText={pendingAction.action === "delete" ? "Eliminar" : "Suspender"}
           onConfirm={handleConfirmAction}
+          requireReason
           onCancel={() => {
             setPendingAction(null);
             setConfirmDialogOpen(false);

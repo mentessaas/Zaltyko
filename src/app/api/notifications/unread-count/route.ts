@@ -14,18 +14,17 @@ export const GET = withTenant(async (_request, context) => {
     return apiError("UNAUTHORIZED", "Unauthorized", 401);
   }
 
-  // Obtener userId del profile
-  const userId = context.profile.userId;
-  if (!userId) {
-    return apiError("USER_ID_REQUIRED", "User ID is required", 400);
+  // notifications.user_id references profiles.id, not auth.users.id.
+  const profileId = context.profile.id;
+  if (!profileId) {
+    return apiError("PROFILE_ID_REQUIRED", "Profile ID is required", 400);
   }
 
   try {
-    const count = await getUnreadCount(context.tenantId, userId);
+    const count = await getUnreadCount(context.tenantId, profileId);
     return apiSuccess({ count });
   } catch (error) {
-    logger.error("Error getting unread count", error, { userId, tenantId: context.tenantId });
+    logger.error("Error getting unread count", error, { profileId, tenantId: context.tenantId });
     return apiError("INTERNAL_ERROR", "Internal server error", 500);
   }
 });
-
