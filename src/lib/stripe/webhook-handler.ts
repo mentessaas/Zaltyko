@@ -27,11 +27,11 @@ export function verifyWebhookSignature(
   signature: string | null,
   webhookSecret: string
 ): Stripe.Event {
-  const stripe = getStripeClient();
-  
   if (!signature) {
-    throw new Error("Missing Stripe signature header");
+    throw new Error("SIGNATURE_VERIFICATION_FAILED: Missing Stripe signature header");
   }
+
+  const stripe = getStripeClient();
 
   try {
     return stripe.webhooks.constructEvent(body, signature, webhookSecret);

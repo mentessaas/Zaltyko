@@ -9,6 +9,7 @@ import {
   hasSubscriptionAccess,
   isSubscriptionManaged,
 } from "@/lib/billing/subscription-status";
+import { verifyWebhookSignature } from "@/lib/stripe/webhook-handler";
 
 function stripePrice(params: {
   priceMetadata?: Record<string, string>;
@@ -99,5 +100,11 @@ describe("Phase 1 production contracts", () => {
     expect(
       isSubscriptionManaged({ stripeSubscriptionId: "sub_123", status: "canceled" })
     ).toBe(false);
+  });
+
+  it("rejects an unsigned Stripe webhook as a signature failure", () => {
+    expect(() => verifyWebhookSignature("{}", null, "whsec_test")).toThrow(
+      "SIGNATURE_VERIFICATION_FAILED"
+    );
   });
 });
