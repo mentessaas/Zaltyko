@@ -105,7 +105,7 @@ function validateServerEnv() {
   // Advertir sobre variables críticas no configuradas
   const criticalMissing = [
     ["STRIPE_SECRET_KEY", result.data.STRIPE_SECRET_KEY],
-    ["DATABASE_URL", result.data.DATABASE_URL],
+    ["DATABASE_URL_POOL o DATABASE_URL", result.data.DATABASE_URL_POOL ?? result.data.DATABASE_URL],
     ["SUPABASE_SERVICE_ROLE_KEY", result.data.SUPABASE_SERVICE_ROLE_KEY],
   ]
     .filter(([, val]) => !val)
@@ -249,4 +249,3 @@ export function getDatabaseUrl(): string {
 export function getAppUrl(): string {
   return serverEnv.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 }
-
