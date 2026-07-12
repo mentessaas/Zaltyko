@@ -235,3 +235,12 @@ Copiar desde [[Template - Decision]] para nuevas decisiones.
 | 7D.1 | Vault updates | `2169cd0` | Changelog Sprint 7 + Decision Op A recomendada + Backlog |
 | Auditoria | Seguridad y calidad Bloques 1-4 | `cf092ef` (**PR #8**) | Secret exposure Stripe, idempotency, race conditions, error messages genericos, React.memo, loading skeletons, `any` 357→227, Stripe timeout, env warnings |
 | CI fix | CI + root routing | `406c498` | drizzle/ versionado, RLS sport_configs (100%/62 tablas), smoke tests path, redirect raiz `/` → `/${locale}/gimnasia-artistica` |
+
+## 2026-07-12 - Sprint 0 de producto real: contratos antes de expansion
+
+| Campo | Valor |
+| --- | --- |
+| Contexto | La auditoria CTO detecto que la amplitud funcional ocultaba contradicciones en middleware, tenant, pricing, navegacion, PWA y readiness. |
+| Decision | Mantener monolito modular y roles de membership simples; hacer que ownership/membership sea la autoridad de academia; mantener codigos DB `free`/`pro`/`premium` para Free/Starter/Growth; modelar Network como oferta comercial sin checkout; desactivar cache/sync offline de datos privados hasta tener idempotencia y conflictos resueltos; usar `verify:production` como puerta compuesta. |
+| Consecuencia | Se congela cualquier atajo que derive permisos del rol global, Network no puede comprarse por API y ningun deploy debe declararse listo solo por presencia de archivos. |
+| Estado | Activa |

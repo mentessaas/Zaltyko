@@ -14,7 +14,8 @@ import { apiSuccess, apiError } from "@/lib/api-response";
 
 const BodySchema = z.object({
   academyId: z.string().uuid(),
-  planCode: z.enum(["free", "pro", "premium"]),
+  // `pro` = Starter y `premium` = Growth. Network es venta acompañada.
+  planCode: z.enum(["pro", "premium"]),
 });
 
 const handler = withTenant(async (request, context) => {

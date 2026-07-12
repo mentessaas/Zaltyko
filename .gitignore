@@ -8,7 +8,7 @@
 # generated / local
 /.vercel
 /.worktrees
-/.DS_Store
+.DS_Store
 /*.tsbuildinfo
 /next-env.d.ts
 /.env
@@ -45,3 +45,7 @@
 /coverage
 /.claire
 /vault/.obsidian
+/.claude
+/output
+/promts /
+/tmp

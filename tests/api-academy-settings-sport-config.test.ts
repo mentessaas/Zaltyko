@@ -245,7 +245,7 @@ describe("API /api/academies/[academyId]/settings sport config", () => {
       requestFor({
         activeDisciplineVariants: ["artistic_female"],
         activeProgramCodesByVariant: {
-          artistic_female: ["recreativo"],
+          artistic_female: ["via_olimpica"],
         },
       }),
       { params: { academyId: ACADEMY_ID } } as never

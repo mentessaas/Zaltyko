@@ -1,7 +1,7 @@
 ---
 status: active
 owner: tech
-last_reviewed: 2026-06-26
+last_reviewed: 2026-07-12
 source:
   - ../docs/MIGRATIONS_RLS_RUNBOOK.md
   - ../docs/migrations-backlog.md
@@ -13,14 +13,24 @@ source:
 
 - Revisar Supabase changelog reciente antes de trabajo de migraciones.
 - No aplicar SQL destructivo sin inspeccion manual.
-- Confirmar RLS para toda tabla tenant-aware (`pnpm validate:rls` debe seguir en 100% / 62 tablas).
+- Confirmar RLS para toda tabla tenant-aware (`pnpm validate:rls` debe seguir en 100% / 63 tablas).
 - Mantener Drizzle schema y migraciones alineados.
 
-## Estado a 2026-06-26
+## Estado a 2026-07-12
 
-- El directorio `drizzle/` **esta versionado** (antes en `.gitignore`); `pnpm check:migrations` valida integridad del journal en CI.
+- El directorio `drizzle/` **esta versionado**. `pnpm check:migrations` valida siempre ambos historiales: 3 migraciones Drizzle y 26 migraciones Supabase en el estado actual.
 - SSL: exportar `NODE_EXTRA_CA_CERTS` con `certs/supabase-root-ca.crt`; `scripts/db-migrate.ts` lo resuelve a ruta absoluta.
-- **Pendiente P0**: 25 tablas del schema TS no existen aun en DB. `drizzle-kit push --force` es destructivo; requiere plan tabla por tabla. Ver [[Registro de riesgos]] y [[Backlog priorizado]].
+- El drift historico de tablas faltantes se cerro el 2026-07-03; DB y ORM quedaron alineados salvo `push_tokens`, superseded por `push_subscriptions`.
+- `validate:rls` trata `rls-consolidated.sql` como snapshot y las migraciones como historial: una policy repetida entre ambos no es duplicado; si falla si una misma fuente declara dos veces la misma policy.
+- No se aplico ninguna migracion ni seed a Supabase durante el Sprint 0 del 2026-07-12.
+- El 2026-07-12 se reviso el changelog oficial reciente de Supabase y se verifico que el
+  proyecto ejecuta PostgreSQL 17.6. No hizo falta migracion de schema para el catalogo RFEG.
+- La referencia federativa se sincroniza de forma acotada con
+  `pnpm db:sync-sport-configs` (dry-run) y
+  `pnpm db:sync-sport-configs -- --apply` (aplicacion). No usar `pnpm db:seed` para este
+  objetivo: el seed global tambien crea/actualiza datos demo, usuarios y billing.
+- La sincronizacion RFEG `rfeg-2026-v2` fue aplicada a Supabase el 2026-07-12 y verificada
+  con un segundo dry-run sin diferencias. Los codigos retirados se desactivan, no se borran.
 
 ## Flujo recomendado
 

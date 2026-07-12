@@ -23,6 +23,7 @@ export function AcademySidebar() {
   }
 
   const basePath = `/app/${context.academyId}`;
+  const canOperateAcademy = context.membershipRole === "owner" || context.membershipRole === "coach" || context.isSuperAdmin;
   const navItems = getAcademyNavigation({
     academyId: context.academyId,
     profileRole: isProfileRole(context.profileRole) ? context.profileRole : "owner",
@@ -70,7 +71,8 @@ export function AcademySidebar() {
         </div>
       </form>
 
-      <div className="mb-4 grid grid-cols-2 gap-2">
+      {canOperateAcademy && (
+      <div className={`mb-4 grid gap-2 ${context.isAdmin ? "grid-cols-2" : "grid-cols-1"}`}>
         <Button
           asChild
           variant="outline"
@@ -82,16 +84,19 @@ export function AcademySidebar() {
             Nuevo atleta
           </Link>
         </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          className="border-white/20 text-xs text-white hover:bg-white/10"
-          onClick={() => router.push(`${basePath}/settings`)}
-        >
-          <Settings className="mr-1 h-3 w-3" />
-          Ajustes
-        </Button>
+        {context.isAdmin && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="border-white/20 text-xs text-white hover:bg-white/10"
+            onClick={() => router.push(`${basePath}/settings`)}
+          >
+            <Settings className="mr-1 h-3 w-3" />
+            Ajustes
+          </Button>
+        )}
       </div>
+      )}
 
       {context.isSuperAdmin && (
         <div className="mb-4">

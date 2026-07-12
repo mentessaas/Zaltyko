@@ -120,7 +120,11 @@ function findDuplicatePolicies(policies: SqlPolicy[]): SqlPolicy[][] {
   const grouped = new Map<string, SqlPolicy[]>();
 
   for (const policy of policies) {
-    const key = `${policy.table}:${policy.name}`;
+    // rls-consolidated.sql is a current-state snapshot while migrations are
+    // historical deltas. The same policy is expected to appear in both, or to
+    // be replaced by a later migration after DROP POLICY. A duplicate is only
+    // actionable when one SQL source declares the same policy more than once.
+    const key = `${policy.file}:${policy.table}:${policy.name}`;
     grouped.set(key, [...(grouped.get(key) ?? []), policy]);
   }
 
@@ -202,7 +206,7 @@ function generateReport(result: ValidationResult): string {
     }
     lines.push("");
   } else {
-    lines.push("No duplicate policies found", "");
+    lines.push("No duplicate policy declarations found inside an individual SQL source", "");
   }
 
   if (result.missingRls.length > 0) {

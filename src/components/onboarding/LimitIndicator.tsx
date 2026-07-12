@@ -35,7 +35,11 @@ const PLAN_INFO: Record<string, { price: string; benefits: string[] }> = {
   },
   premium: {
     price: "€49/mes",
-    benefits: ["Hasta 200 gimnastas", "20 grupos", "80 clases", "Soporte prioritario"],
+    benefits: ["Hasta 200 gimnastas", "10 grupos", "40 clases", "Soporte prioritario"],
+  },
+  network: {
+    price: "€99/mes",
+    benefits: ["Multi-sede con onboarding acompañado", "Límites amplios", "Soporte prioritario"],
   },
 };
 

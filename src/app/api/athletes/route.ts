@@ -14,7 +14,6 @@ import { athleteStatusOptions } from "@/lib/athletes/constants";
 import { handleApiError } from "@/lib/api-error-handler";
 import { withTransaction } from "@/lib/db-transactions";
 import { verifyAcademyAccess, verifyGroupAccess } from "@/lib/permissions";
-import { calculateAgeCategoryForAthlete } from "@/lib/athletes/age-category";
 import { markChecklistItem, markWizardStep } from "@/lib/onboarding";
 import { trackEvent } from "@/lib/analytics";
 import { logEvent } from "@/lib/event-logging";
@@ -91,7 +90,9 @@ const createAthleteHandler = withTenant(async (request, context) => {
     } catch (error: unknown) {
       if (error instanceof LimitError) {
         const upgradeTo = error.payload?.upgradeTo ?? "pro";
-        const upgradeInfo = getUpgradeInfo(upgradeTo === "pro" ? "free" : "pro");
+        const currentPlan =
+          upgradeTo === "pro" ? "free" : upgradeTo === "premium" ? "pro" : "premium";
+        const upgradeInfo = getUpgradeInfo(currentPlan);
 
         return NextResponse.json(
           {
@@ -198,38 +199,6 @@ const createAthleteHandler = withTenant(async (request, context) => {
       }
     }
 
-    // Calcular ageCategory automático si se proporcionó DOB
-    let templateId: string | null = null;
-    let ageCategory: string | null = null;
-
-    if (dobDate) {
-      // Obtener info de la academia para calcular ageCategory
-      const [academyRow] = await db
-        .select({
-          country: academies.country,
-          countryCode: academies.countryCode,
-          academyType: academies.academyType,
-          disciplineVariant: academies.disciplineVariant,
-        })
-        .from(academies)
-        .where(eq(academies.id, body.academyId))
-        .limit(1);
-
-      if (academyRow?.country) {
-        const result = await calculateAgeCategoryForAthlete({
-          dob: dobDate,
-          academyCountry: academyRow.countryCode ?? academyRow.country,
-          academyType: academyRow.academyType ?? "ritmica",
-          disciplineVariant: academyRow.disciplineVariant,
-        });
-
-        if (result) {
-          templateId = result.templateId;
-          ageCategory = result.ageCategory;
-        }
-      }
-    }
-
     // Usar transacción para garantizar atomicidad
     await withTransaction(async (tx) => {
       // Crear atleta
@@ -246,8 +215,6 @@ const createAthleteHandler = withTenant(async (request, context) => {
         levelCode: effectiveLevelCode,
         categoryCode: effectiveCategoryCode,
         groupId: body.groupId ?? null,
-        templateId,
-        ageCategory,
       });
 
       if (effectiveSportConfigId) {

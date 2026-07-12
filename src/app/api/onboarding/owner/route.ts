@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { z } from "zod";
 
 import { db } from "@/db";
-import { classes, classWeekdays, groups, memberships, profiles } from "@/db/schema";
+import { academies, classes, classWeekdays, groups, memberships, profiles } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
 import { apiCreated, apiError } from "@/lib/api-response";
 import { createAcademy } from "@/app/api/academies/academies.lib";
@@ -172,6 +172,19 @@ export async function POST(request: Request) {
     activeConfigByVariant.set(variant, activeConfig);
   }
 
+  const usesGenericFallback = Array.from(activeConfigByVariant.values()).some(
+    (config) => config?.isGenericFallback
+  );
+  if (usesGenericFallback) {
+    // El país de esta academia todavía no tiene catálogo federativo propio
+    // (ver getSportConfigSeedByVariant) - dejarlo honestamente registrado en
+    // vez de que quede marcado "configured" como si tuviera nomenclatura real.
+    await db
+      .update(academies)
+      .set({ specializationStatus: "generic_fallback" })
+      .where(eq(academies.id, result.id));
+  }
+
   let createdStarterGroupCount = 0;
 
   for (const variant of activeVariants) {
@@ -282,5 +295,6 @@ export async function POST(request: Request) {
     academyId: result.id,
     redirectUrl: `/app/${result.id}/dashboard`,
     tenantId: result.tenantId,
+    sportConfigFallback: usesGenericFallback,
   });
 }

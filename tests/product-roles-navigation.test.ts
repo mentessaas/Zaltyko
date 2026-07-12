@@ -25,6 +25,8 @@ describe("product roles and navigation", () => {
   it("restricts academy workspace for athlete and parent roles", () => {
     expect(canAccessAcademyWorkspace("owner", "owner")).toBe(true);
     expect(canAccessAcademyWorkspace("coach", "coach")).toBe(true);
+    expect(canAccessAcademyWorkspace("owner", "viewer")).toBe(false);
+    expect(canAccessAcademyWorkspace("admin", null)).toBe(false);
     expect(canAccessAcademyWorkspace("athlete", "viewer")).toBe(false);
     expect(canAccessAcademyWorkspace("parent", "viewer")).toBe(false);
   });
@@ -83,6 +85,16 @@ describe("product roles and navigation", () => {
     expect(parentNav).toEqual(["my-dashboard", "messages", "notifications"]);
   });
 
+  it("does not derive academy privileges from the global profile role", () => {
+    const nav = getAcademyNavigation({
+      academyId: "academy-1",
+      profileRole: "owner",
+      membershipRole: "viewer",
+    });
+
+    expect(nav).toEqual([]);
+  });
+
   it("keeps the global labels and default homes consistent", () => {
     expect(getRoleLabel("super_admin")).toBe("Super administrador");
     expect(getDefaultDashboardPath("parent")).toBe("/dashboard/profile");
@@ -95,6 +107,7 @@ describe("product roles and navigation", () => {
     expect(
       getPreferredHomePath({
         profileRole: "owner",
+        membershipRole: "owner",
         academyId: "academy-1",
       })
     ).toBe("/app/academy-1/dashboard");
@@ -102,6 +115,7 @@ describe("product roles and navigation", () => {
     expect(
       getPreferredHomePath({
         profileRole: "coach",
+        membershipRole: "coach",
         academyId: "academy-1",
       })
     ).toBe("/app/academy-1/dashboard");
@@ -109,6 +123,7 @@ describe("product roles and navigation", () => {
     expect(
       getPreferredHomePath({
         profileRole: "parent",
+        membershipRole: "viewer",
         academyId: "academy-1",
       })
     ).toBe("/app/academy-1/my-dashboard");

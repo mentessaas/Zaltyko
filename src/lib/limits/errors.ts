@@ -1,11 +1,13 @@
 import { AppError } from "@/lib/errors";
+import type { CommercialPlanCode, PlanCode } from "@/types/billing";
 
-export type PlanCode = "free" | "pro" | "premium";
+export type { PlanCode };
+export type UpgradePlanCode = Exclude<CommercialPlanCode, "free">;
 export type LimitResource = "athletes" | "classes" | "groups" | "academies";
 
 export interface LimitErrorPayload {
   code: "LIMIT_REACHED";
-  upgradeTo?: Exclude<PlanCode, "premium"> | "premium";
+  upgradeTo?: UpgradePlanCode;
   resource: LimitResource;
   currentCount: number;
   limit: number;
@@ -23,4 +25,3 @@ export class LimitError extends AppError {
     this.name = "LimitError";
   }
 }
-

@@ -10,6 +10,7 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx scripts/db-migrate.ts",
     "db:seed": "tsx scripts/seed.ts",
+    "db:sync-sport-configs": "tsx scripts/sync-sport-configs.ts",
     "sitemap": "next-sitemap",
     "test": "vitest",
     "e2e:prepare-auth": "tsx scripts/prepare-e2e-auth.ts",

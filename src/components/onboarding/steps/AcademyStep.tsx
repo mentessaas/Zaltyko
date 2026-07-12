@@ -26,7 +26,7 @@ interface AcademyStepProps {
     academyLimit: number | null;
     currentAcademyCount: number;
     canCreateMore: boolean;
-    upgradeTo?: "pro" | "premium";
+    upgradeTo?: "pro" | "premium" | "network";
   } | null;
   effectiveUserId: string | null;
   onAcademyNameChange: (value: string) => void;
@@ -115,7 +115,7 @@ export function AcademyStep({
               </button>
               {userPlanInfo.upgradeTo && (
                 <Link
-                  href="/billing"
+                  href={userPlanInfo.upgradeTo === "network" ? "/contact?type=network" : "/billing"}
                   className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-primary/90"
                 >
                   <TrendingUp className="h-4 w-4" />
@@ -299,4 +299,3 @@ export function AcademyStep({
     </form>
   );
 }
-

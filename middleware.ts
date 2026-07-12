@@ -23,6 +23,17 @@ const RATE_LIMIT_EXCLUDED_PREFIXES = [
 ];
 const EXCLUDED_PATH_PREFIXES = ["/_next", "/static", "/favicon.ico"];
 const I18N_SKIP_PREFIXES = ["/api", "/auth", "/login", "/invite"];
+const I18N_REDIRECT_EXACT_PATHS = new Set(["/", "/ayuda", "/sobre-nosotros"]);
+const I18N_MODALITY_PREFIXES = [
+  "/gimnasia-artistica",
+  "/gimnasia-ritmica",
+  "/gimnasia-acrobatica",
+  "/trampolin",
+  "/artistic-gymnastics",
+  "/rhythmic-gymnastics",
+  "/acrobatic-gymnastics",
+  "/trampoline",
+];
 
 function redirectToLogin(req: NextRequest) {
   return NextResponse.redirect(new URL(LOGIN_PATH, req.url));
@@ -127,30 +138,49 @@ function isI18nSkipped(pathname: string) {
   return I18N_SKIP_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 }
 
+function shouldRedirectToLocalizedRoute(pathname: string) {
+  return (
+    I18N_REDIRECT_EXACT_PATHS.has(pathname) ||
+    I18N_MODALITY_PREFIXES.some(
+      (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
+    )
+  );
+}
+
 function isAcademyAppPath(pathname: string) {
   return pathname.startsWith("/app/") || pathname.startsWith("/super-admin/");
 }
 
-async function rateLimitResponse(
+async function checkRateLimit(
   req: NextRequest,
   body: Record<string, unknown>
-): Promise<NextResponse> {
+): Promise<{ blockedResponse: NextResponse | null; headers: Record<string, string> }> {
   const pathname = req.nextUrl.pathname;
   const { rateLimit, getLimitForRoute, getClientIdentifier } = await import("@/lib/rate-limit");
   const identifier = `${pathname}:${getClientIdentifier(req)}`;
   const result = await rateLimit({ identifier, ...getLimitForRoute(pathname) });
   const resetSeconds = Math.max(0, result.reset - Math.floor(Date.now() / 1000));
+  const headers = {
+    "X-RateLimit-Limit": String(result.limit),
+    "X-RateLimit-Remaining": String(result.remaining),
+    "X-RateLimit-Reset": String(result.reset),
+  };
 
-  return new NextResponse(JSON.stringify(body), {
-    status: 429,
-    headers: {
-      "Content-Type": "application/json",
-      "X-RateLimit-Limit": String(result.limit),
-      "X-RateLimit-Remaining": "0",
-      "X-RateLimit-Reset": String(result.reset),
-      "Retry-After": String(resetSeconds),
-    },
-  });
+  if (result.success) {
+    return { blockedResponse: null, headers };
+  }
+
+  return {
+    blockedResponse: new NextResponse(JSON.stringify(body), {
+      status: 429,
+      headers: {
+        "Content-Type": "application/json",
+        ...headers,
+        "Retry-After": String(resetSeconds),
+      },
+    }),
+    headers,
+  };
 }
 
 function extractRole(payload: Record<string, unknown> | null) {
@@ -187,6 +217,7 @@ function i18nRedirectResponse(request: NextRequest): NextResponse | null {
     (locale) => pathname.startsWith(`/${locale}/`) || pathname === `/${locale}`
   );
   if (pathnameHasLocale) return null;
+  if (!shouldRedirectToLocalizedRoute(pathname)) return null;
 
   const locale = getLocaleFromRequest(request);
 
@@ -228,23 +259,28 @@ export async function middleware(req: NextRequest) {
 
   const requestHeaders = new Headers(req.headers);
   requestHeaders.set("x-pathname", pathname);
+  let rateLimitHeaders: Record<string, string> | null = null;
 
   // 1. Rate limit API mutations globally (skips webhooks and crons)
   if (isApiPath(pathname) && isMutation(req.method) && !isApiRateLimitExcluded(pathname)) {
-    return await rateLimitResponse(req, {
+    const rateLimitResult = await checkRateLimit(req, {
       ok: false,
       error: "RATE_LIMIT_EXCEEDED",
       code: "RATE_LIMIT_EXCEEDED",
       message: "Demasiadas requests. Intenta de nuevo más tarde.",
     });
+    if (rateLimitResult.blockedResponse) return rateLimitResult.blockedResponse;
+    rateLimitHeaders = rateLimitResult.headers;
   }
 
   // 2. Rate limit academy app + super-admin paths
   if (isAcademyAppPath(pathname)) {
-    return await rateLimitResponse(req, {
+    const rateLimitResult = await checkRateLimit(req, {
       error: "RATE_LIMIT_EXCEEDED",
       message: "Demasiadas requests. Intenta de nuevo más tarde.",
     });
+    if (rateLimitResult.blockedResponse) return rateLimitResult.blockedResponse;
+    rateLimitHeaders = rateLimitResult.headers;
   }
 
   // 3. Super-admin gate: validate JWT signature AND claims
@@ -274,11 +310,19 @@ export async function middleware(req: NextRequest) {
     }
   }
 
-  return NextResponse.next({
+  const response = NextResponse.next({
     request: {
       headers: requestHeaders,
     },
   });
+
+  if (rateLimitHeaders) {
+    for (const [header, value] of Object.entries(rateLimitHeaders)) {
+      response.headers.set(header, value);
+    }
+  }
+
+  return response;
 }
 
 export const config = {
@@ -286,4 +330,3 @@ export const config = {
     "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };
-

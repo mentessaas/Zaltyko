@@ -46,19 +46,19 @@ const pricingSchema = {
       {
         "@type": "Offer",
         name: "Starter",
-        price: String(PRODUCT_PLAN_BY_CODE.starter.priceEurCents / 100),
-        priceCurrency: "EUR",
-      },
-      {
-        "@type": "Offer",
-        name: "Growth",
         price: String(PRODUCT_PLAN_BY_CODE.pro.priceEurCents / 100),
         priceCurrency: "EUR",
       },
       {
         "@type": "Offer",
-        name: "Network",
+        name: "Growth",
         price: String(PRODUCT_PLAN_BY_CODE.premium.priceEurCents / 100),
+        priceCurrency: "EUR",
+      },
+      {
+        "@type": "Offer",
+        name: "Network",
+        price: String(PRODUCT_PLAN_BY_CODE.network.priceEurCents / 100),
         priceCurrency: "EUR",
       },
     ],

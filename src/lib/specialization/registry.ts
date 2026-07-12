@@ -11,7 +11,12 @@ export type DisciplineVariant =
   | "parkour"
   | "dance"
   | "general";
-export type AcademySpecializationStatus = "configured" | "inferred" | "legacy" | "unknown";
+export type AcademySpecializationStatus =
+  | "configured"
+  | "inferred"
+  | "legacy"
+  | "unknown"
+  | "generic_fallback";
 
 export interface SpecializationKey {
   countryCode: SupportedCountryCode;
@@ -288,6 +293,22 @@ export function getSpecializedEventTypes(context: AcademySpecializationContext):
   }
 }
 
+/**
+ * Pluraliza solo la primera palabra de una etiqueta en espanol ("Grupo de
+ * entrenamiento" -> "Grupos de entrenamiento", no "Grupo de entrenamientos").
+ * Regla regular: +s si termina en vocal, +es si termina en consonante -
+ * cubre todos los valores reales de SpecializedLabels hoy (Grupo,
+ * Entrenamiento, Entrenador, Entrenadora, Gimnasta, Deportista).
+ */
+function pluralizeFirstWord(label: string): string {
+  const [firstWord, ...rest] = label.split(" ");
+  if (!firstWord) return label;
+  const lastChar = firstWord.at(-1)?.toLowerCase() ?? "";
+  const isVowel = "aeiouáéíóú".includes(lastChar);
+  const pluralFirstWord = `${firstWord}${isVowel ? "s" : "es"}`;
+  return [pluralFirstWord, ...rest].join(" ");
+}
+
 export function getSpecializedNavigationLabel(
   context: AcademySpecializationContext,
   key: string,
@@ -297,7 +318,18 @@ export function getSpecializedNavigationLabel(
     case "athletes":
       return context.labels.athletesPlural;
     case "classes":
-      return `${context.labels.classLabel}s`;
+      return pluralizeFirstWord(context.labels.classLabel);
+    case "coaches":
+      return pluralizeFirstWord(context.labels.coachLabel);
+    case "groups":
+      return pluralizeFirstWord(context.labels.groupLabel);
+    // El resto de claves de navegacion (events, assessments, messages,
+    // notifications, announcements, reports, billing, settings, dashboard,
+    // my-dashboard) son conceptos de producto genericos sin equivalente en
+    // SpecializedLabels - "Eventos" ademas mezcla competiciones y actividad
+    // no competitiva a proposito (ver EventCard/CompetitionResultsPanel), no
+    // renombrar a un termino especifico de competicion. No es una laguna:
+    // no tienen traduccion especifica por disciplina que aplicar.
     default:
       return fallbackLabel;
   }

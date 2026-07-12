@@ -2,6 +2,8 @@ import { apiError } from "@/lib/api-response";
 
 export const dynamic = "force-dynamic";
 
+/** @route-auth deprecated */
+
 function unauthorized() {
   return apiError("UNAUTHORIZED", "Authentication required", 401);
 }

@@ -30,10 +30,14 @@ interface Journal {
   entries: JournalEntry[];
 }
 
-function validateSupabaseMigrationsOnly() {
+function validateSupabaseMigrations(): { count: number; errors: string[] } {
+  const errors: string[] = [];
+
   if (!existsSync(SUPABASE_MIGRATIONS_DIR)) {
-    console.error(`[check-migrations-integrity] FAIL: ${SUPABASE_MIGRATIONS_DIR} no existe`);
-    process.exit(1);
+    return {
+      count: 0,
+      errors: [`${SUPABASE_MIGRATIONS_DIR} no existe`],
+    };
   }
 
   const sqlFiles = readdirSync(SUPABASE_MIGRATIONS_DIR)
@@ -41,35 +45,39 @@ function validateSupabaseMigrationsOnly() {
     .sort();
 
   if (sqlFiles.length === 0) {
-    console.error("[check-migrations-integrity] FAIL: supabase/migrations no tiene archivos SQL");
-    process.exit(1);
+    return {
+      count: 0,
+      errors: ["supabase/migrations no tiene archivos SQL"],
+    };
   }
-
-  const errors: string[] = [];
 
   for (const file of sqlFiles) {
     if (!/^[0-9]{4,14}_.+\.sql$/.test(file)) {
       errors.push(`Nombre de migracion inesperado: ${file}`);
     }
-  }
-
-  if (errors.length > 0) {
-    console.error("[check-migrations-integrity] FAIL:");
-    for (const error of errors) {
-      console.error(`  - ${error}`);
+    const content = readFileSync(join(SUPABASE_MIGRATIONS_DIR, file), "utf8");
+    if (content.trim().length === 0) {
+      errors.push(`Migracion vacia: ${file}`);
     }
-    process.exit(1);
   }
 
-  console.warn(
-    `[check-migrations-integrity] WARN: ${DRIZZLE_DIR} no existe; se valida solo supabase/migrations`
-  );
-  console.log(`[check-migrations-integrity] OK: ${sqlFiles.length} migraciones Supabase validadas`);
+  return { count: sqlFiles.length, errors };
 }
 
 function main() {
+  const supabaseResult = validateSupabaseMigrations();
+  const errors = [...supabaseResult.errors];
+
   if (!existsSync(DRIZZLE_DIR)) {
-    validateSupabaseMigrationsOnly();
+    if (errors.length > 0) {
+      console.error("[check-migrations-integrity] FAIL:");
+      errors.forEach((error) => console.error(`  - ${error}`));
+      process.exit(1);
+    }
+    console.warn(`[check-migrations-integrity] WARN: ${DRIZZLE_DIR} no existe`);
+    console.log(
+      `[check-migrations-integrity] OK: 0 Drizzle + ${supabaseResult.count} Supabase migraciones validadas`
+    );
     return;
   }
   if (!existsSync(JOURNAL)) {
@@ -90,8 +98,6 @@ function main() {
     console.error(`[check-migrations-integrity] FAIL: journal sin entradas`);
     process.exit(1);
   }
-
-  const errors: string[] = [];
 
   for (const entry of journal.entries) {
     const sqlFile = join(DRIZZLE_DIR, `${entry.tag}.sql`);
@@ -126,7 +132,7 @@ function main() {
   }
 
   console.log(
-    `[check-migrations-integrity] OK: ${journal.entries.length} migraciones validadas (${sqlFiles.length} archivos SQL)`
+    `[check-migrations-integrity] OK: ${journal.entries.length} Drizzle (${sqlFiles.length} SQL) + ${supabaseResult.count} Supabase migraciones validadas`
   );
 }
 

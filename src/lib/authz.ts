@@ -184,6 +184,19 @@ export function withTenant<Ctx extends Record<string, unknown>>(
 
       const hasValidTenantId = tenantId && tenantId !== "";
 
+      if (
+        effectiveAcademyId &&
+        !hasValidTenantId &&
+        !isPublic &&
+        !isAcademyCreation &&
+        !isSuperAdmin
+      ) {
+        return NextResponse.json(
+          { error: "ACADEMY_ACCESS_DENIED" },
+          { status: 403 }
+        );
+      }
+
       // Validar tenantId según el tipo de endpoint
       if (
         !hasValidTenantId &&
@@ -311,6 +324,13 @@ export function withBearerTenant<Ctx extends Record<string, unknown>>(
           Object.assign(profile, updatedProfile);
         }
         tenantId = resolution.tenantId;
+      }
+
+      if (effectiveAcademyId && !tenantId && profile.role !== "super_admin") {
+        return NextResponse.json(
+          { error: "ACADEMY_ACCESS_DENIED" },
+          { status: 403 }
+        );
       }
 
       return handler(request, {

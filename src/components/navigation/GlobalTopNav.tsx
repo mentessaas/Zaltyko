@@ -32,6 +32,7 @@ import {
 import {
   getPreferredHomePath,
   isProfileRole,
+  type MembershipRole,
 } from "@/lib/product/roles";
 import { resolveAcademySpecialization } from "@/lib/specialization/registry";
 
@@ -41,6 +42,7 @@ interface GlobalTopNavProps {
   userEmail?: string | null;
   profileId?: string | null;
   currentAcademyId?: string | null;
+  membershipRole?: MembershipRole | null;
   academyName?: string | null;
   academyType?: string | null;
   tenantAcademies?: { id: string; name: string | null }[];
@@ -68,6 +70,7 @@ export function GlobalTopNav({
   userEmail,
   profileId,
   currentAcademyId,
+  membershipRole,
   academyName,
   academyType,
   tenantAcademies = [],
@@ -86,12 +89,14 @@ export function GlobalTopNav({
   const normalizedRole = isProfileRole(userRole) ? userRole : "owner";
   const homePath = getPreferredHomePath({
     profileRole: isSuperAdmin ? "super_admin" : normalizedRole,
+    membershipRole,
     academyId: currentAcademyId,
   });
   const academyNavItems = currentAcademyId
     ? getAcademyNavigation({
         academyId: currentAcademyId,
         profileRole: normalizedRole,
+        membershipRole,
         specialization: resolveAcademySpecialization({
           academyType,
         }),

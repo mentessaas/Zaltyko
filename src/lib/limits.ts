@@ -3,6 +3,8 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { academies, athletes, classes, groups, plans, subscriptions, profiles } from "@/db/schema";
 import { LimitError, type PlanCode, type LimitResource } from "./limits/errors";
+import type { UpgradePlanCode } from "./limits/errors";
+import { PRODUCT_PLAN_BY_CODE } from "@/lib/plans/catalog";
 import { NotFoundError } from "@/lib/errors";
 import { getResourceCount } from "./limits/resource-counters";
 
@@ -17,27 +19,27 @@ export interface ActiveSubscription {
 }
 
 const CLASS_LIMITS: Record<PlanCode, number | null> = {
-  free: 5,
-  pro: 40,
-  premium: 80,
+  free: PRODUCT_PLAN_BY_CODE.free.classLimit,
+  pro: PRODUCT_PLAN_BY_CODE.pro.classLimit,
+  premium: PRODUCT_PLAN_BY_CODE.premium.classLimit,
 };
 
 const GROUP_LIMITS: Record<PlanCode, number | null> = {
-  free: 2,
-  pro: 10,
-  premium: 20,
+  free: PRODUCT_PLAN_BY_CODE.free.groupLimit,
+  pro: PRODUCT_PLAN_BY_CODE.pro.groupLimit,
+  premium: PRODUCT_PLAN_BY_CODE.premium.groupLimit,
 };
 
 const ACADEMY_LIMITS: Record<PlanCode, number | null> = {
-  free: 1,
-  pro: 1,
-  premium: 1,
+  free: PRODUCT_PLAN_BY_CODE.free.academyLimit,
+  pro: PRODUCT_PLAN_BY_CODE.pro.academyLimit,
+  premium: PRODUCT_PLAN_BY_CODE.premium.academyLimit,
 };
 
 const ATHLETE_LIMITS: Record<PlanCode, number | null> = {
-  free: 30,
-  pro: 75,
-  premium: 200,
+  free: PRODUCT_PLAN_BY_CODE.free.athleteLimit,
+  pro: PRODUCT_PLAN_BY_CODE.pro.athleteLimit,
+  premium: PRODUCT_PLAN_BY_CODE.premium.athleteLimit,
 };
 
 export async function getUserSubscription(userId: string): Promise<ActiveSubscription> {
@@ -107,7 +109,7 @@ export async function getActiveSubscription(academyId: string): Promise<ActiveSu
 
 export interface LimitEvaluation {
   exceeded: boolean;
-  upgradeTo?: Exclude<PlanCode, "premium"> | "premium";
+  upgradeTo?: UpgradePlanCode;
 }
 
 export function evaluateLimit(
@@ -124,7 +126,8 @@ export function evaluateLimit(
     return { exceeded: false };
   }
 
-  const upgradeTo = planCode === "free" ? "pro" : "premium";
+  const upgradeTo: UpgradePlanCode =
+    planCode === "free" ? "pro" : planCode === "pro" ? "premium" : "network";
 
   return {
     exceeded: true,
@@ -359,7 +362,7 @@ export interface RemainingLimits {
   limit: number | null;
   remaining: number | null; // null significa ilimitado
   planCode: PlanCode;
-  upgradeTo?: Exclude<PlanCode, "premium"> | "premium";
+  upgradeTo?: UpgradePlanCode;
 }
 
 /**
@@ -437,7 +440,7 @@ export async function getRemainingLimits(
  * Obtiene información de upgrade para un plan
  */
 export function getUpgradeInfo(planCode: PlanCode): {
-  nextPlan: PlanCode;
+  nextPlan: UpgradePlanCode;
   price: string;
   benefits: string[];
 } {
@@ -451,12 +454,12 @@ export function getUpgradeInfo(planCode: PlanCode): {
     return {
       nextPlan: "premium",
       price: "49€/mes",
-      benefits: ["Hasta 200 gimnastas", "20 grupos", "80 clases", "Soporte prioritario"],
+      benefits: ["Hasta 200 gimnastas", "10 grupos", "40 clases", "Soporte prioritario"],
     };
   }
   return {
-    nextPlan: "premium",
-    price: "49€/mes",
-    benefits: [],
+    nextPlan: "network",
+    price: "99€/mes",
+    benefits: ["Multi-sede con onboarding acompañado", "Límites amplios", "Soporte prioritario"],
   };
 }

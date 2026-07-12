@@ -128,24 +128,37 @@ export async function createAcademy(body: z.infer<typeof CreateAcademyBodySchema
     academyType,
     discipline,
     disciplineVariant,
-    federationConfigVersion:
-      normalizedCountryCode === "ES" && ["artistic_female", "artistic_male", "rhythmic"].includes(disciplineVariant)
-        ? "rfeg-2026-v1"
-        : "legacy-default-v1",
-    specializationStatus: "configured",
+    // federationConfigVersion/specializationStatus se corrigen abajo con el
+    // resultado real de activateAcademySportConfig - no adivinar aquí si el
+    // país+variante tiene catálogo propio, eso es responsabilidad exclusiva
+    // de getSportConfigSeedByVariant (ver src/lib/sport-config/catalog.ts).
+    federationConfigVersion: "legacy-default-v1",
+    specializationStatus: "legacy",
     ownerId: ownerProfile.id,
     trialStartsAt: null,
     trialEndsAt: null,
     isTrialActive: false,
   });
 
-  await activateAcademySportConfig({
+  const activatedSportConfig = await activateAcademySportConfig({
     tenantId,
     academyId,
     countryCode: normalizedCountryCode,
     disciplineVariant,
     academyKind: "mixed",
   });
+
+  await db
+    .update(academies)
+    .set({
+      federationConfigVersion: activatedSportConfig?.configVersion ?? "legacy-default-v1",
+      specializationStatus: activatedSportConfig?.isGenericFallback
+        ? "generic_fallback"
+        : activatedSportConfig
+          ? "configured"
+          : "legacy",
+    })
+    .where(eq(academies.id, academyId));
 
   await db
     .insert(memberships)

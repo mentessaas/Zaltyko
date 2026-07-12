@@ -1,7 +1,7 @@
 ---
 status: active
 owner: tech
-last_reviewed: 2026-06-26
+last_reviewed: 2026-07-12
 source:
   - ../README.md
   - ../AGENTS.md
@@ -14,7 +14,7 @@ source:
 
 - Next.js 15.5.19 App Router.
 - React 18.3.x.
-- Supabase PostgreSQL con RLS (cobertura 100% / 62 tablas tenant-scoped).
+- Supabase PostgreSQL con RLS (cobertura de fuentes 100% / 63 tablas tenant-scoped).
 - Drizzle ORM 0.45.x (migraciones versionadas en `drizzle/`).
 - NextAuth.js v5.
 - Stripe.
@@ -35,6 +35,14 @@ source:
 | `src/db/schema/` | Tablas Drizzle. |
 | `src/lib/` | Auth, servicios, dashboard, SEO, reportes e integraciones. |
 | `src/types/` | Tipos compartidos. |
+
+## Contratos de seguridad y release
+
+- Un rol global no concede acceso a una academia: salvo `super_admin`, resolver tenant exige ownership o `membership` explicita.
+- `profiles.role` describe identidad global; `memberships.role` controla el acceso efectivo dentro de cada academia.
+- El service worker solo cachea assets estaticos. APIs, HTML privado y mutaciones offline no se cachean ni se reproducen.
+- `pnpm verify:production` es la puerta compuesta: inventario de 272 APIs, RLS, migraciones Drizzle+Supabase, typecheck, lint, Vitest y build.
+- `Network` no forma parte de los codigos persistidos/checkout (`free`, `pro`, `premium`); es oferta comercial acompanada.
 
 ## Modularizacion frontend reciente
 

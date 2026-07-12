@@ -11,7 +11,11 @@ import { academies, memberships, plans, profiles, subscriptions } from "@/db/sch
 import { createClient } from "@/lib/supabase/server";
 import { AcademyProvider } from "@/hooks/use-academy-context";
 import { DashboardSkipLink } from "@/components/dashboard/DashboardSkipLink";
-import { canAccessAcademyWorkspace, isLimitedAcademyWorkspacePath } from "@/lib/product/roles";
+import {
+  canAccessAcademyWorkspace,
+  getAcademyAccessLevel,
+  isLimitedAcademyWorkspacePath,
+} from "@/lib/product/roles";
 import { resolveAcademySpecialization } from "@/lib/specialization/registry";
 import { getDevSessionFromCookieStore } from "@/lib/dev-session";
 
@@ -153,27 +157,27 @@ export default async function AcademyLayout({ params, children }: LayoutProps) {
   }
 
   const isSuperAdmin = profile.role === "super_admin";
-  const isAdmin = isSuperAdmin || profile.role === "admin";
-  const isOwner = profile.role === "owner" || membership?.role === "owner";
+  const isOwner = academy.ownerId === profile.id;
   const isMember = Boolean(membership);
+  const academyAccessLevel = getAcademyAccessLevel(
+    profile.role,
+    membership?.role ?? null,
+    isOwner
+  );
+  const isAdmin =
+    academyAccessLevel === "platform-admin" || academyAccessLevel === "academy-admin";
 
-  const tenantMatches = profile.tenantId && profile.tenantId === academy.tenantId;
   const pathname = headerStore.get("x-pathname");
   const hasLimitedAcademyAccess =
-    tenantMatches &&
     isMember &&
-    (profile.role === "athlete" || profile.role === "parent") &&
+    academyAccessLevel === "limited" &&
     isLimitedAcademyWorkspacePath(pathname, academy.id);
 
   const canAccess =
     isSuperAdmin ||
     hasLimitedAcademyAccess ||
-    (tenantMatches &&
-      canAccessAcademyWorkspace(
-        profile.role,
-        membership?.role ?? null
-      ) &&
-      (isOwner || isAdmin || isMember));
+    (canAccessAcademyWorkspace(profile.role, membership?.role ?? null, isOwner) &&
+      (isOwner || isMember));
 
   if (!canAccess) {
     redirect(profile.role === "athlete" || profile.role === "parent" ? "/dashboard/profile" : "/dashboard");
@@ -189,7 +193,7 @@ export default async function AcademyLayout({ params, children }: LayoutProps) {
     (path) => pathname === path || pathname?.startsWith(`${path}/`)
   );
 
-  if (isAdminOnlyPath && !isSuperAdmin && !isAdmin && !isOwner) {
+  if (isAdminOnlyPath && !isAdmin) {
     redirect(`/app/${academy.id}/dashboard`);
   }
 
@@ -244,6 +248,7 @@ export default async function AcademyLayout({ params, children }: LayoutProps) {
             userEmail={effectiveUserEmail}
             profileId={profile.id}
             currentAcademyId={academy.id}
+            membershipRole={membership?.role ?? null}
             academyName={academy.name}
             academyType={academy.academyType}
             tenantAcademies={tenantAcademies}

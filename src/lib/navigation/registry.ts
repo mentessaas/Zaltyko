@@ -16,7 +16,11 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-import type { MembershipRole, ProfileRole } from "@/lib/product/roles";
+import {
+  getEffectiveAcademyNavigationRole,
+  type MembershipRole,
+  type ProfileRole,
+} from "@/lib/product/roles";
 import { isFeatureEnabled } from "@/lib/product/features";
 import type { AcademySpecializationContext } from "@/lib/specialization/registry";
 import { getSpecializedNavigationLabel } from "@/lib/specialization/registry";
@@ -102,12 +106,17 @@ export function getAcademyNavigation(args: {
   membershipRole?: MembershipRole | null;
   specialization?: AcademySpecializationContext | null;
 }): NavigationItem[] {
-  void args.membershipRole;
+  const effectiveRole = getEffectiveAcademyNavigationRole(
+    args.profileRole,
+    args.membershipRole
+  );
+  if (!effectiveRole) return [];
+
   const academyItems = isFeatureEnabled("reportsHub")
     ? ACADEMY_NAV
     : ACADEMY_NAV.filter((item) => item.key !== "reports");
 
-  return mapNavigation(academyItems, args.profileRole, args.academyId).map((item) => ({
+  return mapNavigation(academyItems, effectiveRole, args.academyId).map((item) => ({
     ...item,
     label: args.specialization
       ? getSpecializedNavigationLabel(args.specialization, item.key, item.label)
@@ -121,12 +130,17 @@ export function getMobileAcademyNavigation(args: {
   membershipRole?: MembershipRole | null;
   specialization?: AcademySpecializationContext | null;
 }): NavigationItem[] {
-  void args.membershipRole;
+  const effectiveRole = getEffectiveAcademyNavigationRole(
+    args.profileRole,
+    args.membershipRole
+  );
+  if (!effectiveRole) return [];
+
   const academyItems = isFeatureEnabled("reportsHub")
     ? ACADEMY_NAV
     : ACADEMY_NAV.filter((item) => item.key !== "reports");
 
-  return mapNavigation(academyItems, args.profileRole, args.academyId, { mobileOnly: true }).map((item) => ({
+  return mapNavigation(academyItems, effectiveRole, args.academyId, { mobileOnly: true }).map((item) => ({
     ...item,
     label: args.specialization
       ? getSpecializedNavigationLabel(args.specialization, item.key, item.label)

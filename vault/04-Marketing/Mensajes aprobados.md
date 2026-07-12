@@ -1,7 +1,7 @@
 ---
 status: active
 owner: marketing
-last_reviewed: 2026-06-24
+last_reviewed: 2026-07-12
 source:
   - ../docs/marketing/zaltyko-messaging.md
   - ../PRODUCT-ANALYSIS.md
@@ -35,6 +35,15 @@ Para discovery, beta y mensajes de venta tempranos, enfocar Zaltyko en academias
 | Email onboarding | Empieza configurando academia, clases, atletas y primer cobro. |
 | Network | Multi-sede solo bajo diagnostico y onboarding acompanado. |
 | Pricing v3.0 | Free hasta 30 gimnastas, Starter 19 €/mes hasta 75, Growth 49 €/mes hasta 200 y Network 99 €/mes multi-sede con onboarding acompanado. |
+
+## CTAs y claims seguros a 2026-07-12
+
+- Free puede dirigir al registro de owner.
+- Starter y Growth pueden dirigir a demo mientras no exista handoff registro → checkout validado end-to-end.
+- Network siempre dirige a contacto/onboarding acompanado, nunca a checkout.
+- Usar "aislamiento por academia" y "controles de acceso"; no usar "100% seguro" ni "cumplimiento RGPD garantizado".
+- Usar "puesta en marcha guiada"; no prometer una duracion cerrada sin evidencia operativa.
+- No anunciar precio o descuento anual hasta que exista el Price anual real en Stripe.
 
 ## Mensajes de gimnasia en validacion
 

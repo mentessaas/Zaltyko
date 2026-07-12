@@ -1,4 +1,8 @@
-export type PlanCode = "free" | "starter" | "pro" | "premium";
+/** Códigos persistidos en DB y sincronizados con Stripe. */
+export type PlanCode = "free" | "pro" | "premium";
+
+/** Network es comercial y acompañado; no existe como checkout autoservicio. */
+export type CommercialPlanCode = PlanCode | "network";
 
 export interface PlanSummary {
   code: string;
@@ -31,4 +35,3 @@ export interface InvoiceRow {
   createdAt: string;
   stripeInvoiceId: string;
 }
-

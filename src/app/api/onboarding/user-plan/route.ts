@@ -50,13 +50,11 @@ export async function GET() {
     const canCreateMore = academyLimit === null || academyCount < academyLimit;
 
     // Determinar plan de upgrade sugerido
-    let upgradeTo: "pro" | "premium" | undefined = undefined;
+    let upgradeTo: "network" | undefined = undefined;
     if (!canCreateMore) {
-      if (subscription.planCode === "free") {
-        upgradeTo = "pro";
-      } else if (subscription.planCode === "pro") {
-        upgradeTo = "premium";
-      }
+      // Los tres planes autoservicio tienen una academia. La ampliación de
+      // sedes pertenece a Network y requiere onboarding acompañado.
+      upgradeTo = "network";
     }
 
     return apiSuccess({

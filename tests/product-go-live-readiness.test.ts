@@ -44,25 +44,26 @@ describe("Go-live product guardrails", () => {
   });
 
   it("keeps Starter and Growth single-academy for v1", () => {
-    expect(PRODUCT_PLAN_BY_CODE.starter.publicName).toBe("Starter");
-    expect(PRODUCT_PLAN_BY_CODE.starter.academyLimit).toBe(1);
-    expect(PRODUCT_PLAN_BY_CODE.starter.features.join(" ")).not.toMatch(/academias ilimitadas/i);
-    expect(PRODUCT_PLAN_BY_CODE.pro.publicName).toBe("Growth");
+    expect(PRODUCT_PLAN_BY_CODE.pro.publicName).toBe("Starter");
     expect(PRODUCT_PLAN_BY_CODE.pro.academyLimit).toBe(1);
     expect(PRODUCT_PLAN_BY_CODE.pro.features.join(" ")).not.toMatch(/academias ilimitadas/i);
+    expect(PRODUCT_PLAN_BY_CODE.premium.publicName).toBe("Growth");
+    expect(PRODUCT_PLAN_BY_CODE.premium.academyLimit).toBe(1);
+    expect(PRODUCT_PLAN_BY_CODE.premium.features.join(" ")).not.toMatch(/academias ilimitadas/i);
   });
 
   it("positions Network as accompanied multi-site, not self-serve unlimited", () => {
-    expect(PRODUCT_PLAN_BY_CODE.premium.publicName).toBe("Network");
-    expect(PRODUCT_PLAN_BY_CODE.premium.cta).toMatch(/hablar con zaltyko/i);
-    expect(PRODUCT_PLAN_BY_CODE.premium.academyLimit).toBeNull();
+    expect(PRODUCT_PLAN_BY_CODE.network.publicName).toBe("Network");
+    expect(PRODUCT_PLAN_BY_CODE.network.cta).toMatch(/hablar con zaltyko/i);
+    expect(PRODUCT_PLAN_BY_CODE.network.academyLimit).toBeNull();
+    expect(PRODUCT_PLAN_BY_CODE.network.checkoutMode).toBe("sales-assisted");
   });
 
   it("enforces pricing v3 capacity limits in executable go-live coverage", () => {
     expect(PRODUCT_PLAN_BY_CODE.free.athleteLimit).toBe(30);
-    expect(PRODUCT_PLAN_BY_CODE.starter.athleteLimit).toBe(75);
-    expect(PRODUCT_PLAN_BY_CODE.pro.athleteLimit).toBe(200);
-    expect(PRODUCT_PLAN_BY_CODE.premium.athleteLimit).toBeNull();
+    expect(PRODUCT_PLAN_BY_CODE.pro.athleteLimit).toBe(75);
+    expect(PRODUCT_PLAN_BY_CODE.premium.athleteLimit).toBe(200);
+    expect(PRODUCT_PLAN_BY_CODE.network.athleteLimit).toBeNull();
 
     expect(evaluateLimit("free", 30, 30, "athletes")).toMatchObject({
       exceeded: true,

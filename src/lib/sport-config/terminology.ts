@@ -1,28 +1,18 @@
 import type { SportTerminology, TerminologyKey } from "@/lib/sport-config/catalog";
-import { TERMINOLOGY_KEYS } from "@/lib/sport-config/catalog";
+import { BASE_TERMINOLOGY, TERMINOLOGY_KEYS } from "@/lib/sport-config/catalog";
 
 export type TerminologySource = {
   terminology?: Partial<Record<TerminologyKey, string>> | Record<string, string> | null;
 };
 
-export const DEFAULT_TERMINOLOGY: SportTerminology = {
-  athlete: "Atleta",
-  athletes: "Atletas",
-  group: "Grupo",
-  groups: "Grupos",
-  coach: "Entrenador/a",
-  parent: "Familiar",
-  apparatus: "Aparato",
-  level: "Nivel",
-  category: "Categoría",
-  routine: "Ejercicio",
-  competition: "Competición",
-  payment: "Pago",
-  attendance: "Asistencia",
-  license: "Licencia",
-  team: "Equipo",
-  branch: "Rama",
-};
+/**
+ * Mismo objeto que BASE_TERMINOLOGY (catalog.ts) - antes eran dos constantes
+ * separadas con valores distintos para el mismo concepto (ej. "Atleta" vs
+ * "Gimnasta"), lo que hacia que el fallback "sin config de deporte" mostrara
+ * un vocabulario distinto al de cualquier academia real ya configurada.
+ * Unificado 2026-07-12 (Fase 2.1). No re-declarar valores propios aqui.
+ */
+export const DEFAULT_TERMINOLOGY: SportTerminology = BASE_TERMINOLOGY;
 
 export const TERMINOLOGY_KEY_LABELS: Record<TerminologyKey, string> = {
   athlete: "Persona deportista singular",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { CheckCircle2, Loader2, Send } from "lucide-react";
 
@@ -25,6 +25,11 @@ interface ContactFormProps {
 export function ContactForm({ defaultReason = "demo" }: ContactFormProps) {
   const [state, setState] = useState<SubmitState>({ status: "idle" });
   const [submitting, setSubmitting] = useState(false);
+  const [isHydrated, setIsHydrated] = useState(false);
+
+  useEffect(() => {
+    setIsHydrated(true);
+  }, []);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -169,11 +174,11 @@ export function ContactForm({ defaultReason = "demo" }: ContactFormProps) {
 
       <button
         type="submit"
-        disabled={submitting}
+        disabled={submitting || !isHydrated}
         className="inline-flex w-full items-center justify-center rounded-full bg-zaltyko-primary px-8 py-3 font-semibold text-white transition-colors hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-70"
       >
         {submitting ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Send className="mr-2 h-5 w-5" />}
-        {submitting ? "Enviando..." : "Enviar mensaje"}
+        {!isHydrated ? "Preparando formulario..." : submitting ? "Enviando..." : "Enviar mensaje"}
       </button>
 
       <p className="text-center text-xs text-zaltyko-text-secondary">

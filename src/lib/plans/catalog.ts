@@ -1,7 +1,7 @@
-import type { PlanCode } from "@/types/billing";
+import type { CommercialPlanCode, PlanCode } from "@/types/billing";
 
 export interface ProductPlan {
-  code: PlanCode;
+  code: CommercialPlanCode;
   publicName: string;
   internalName: string;
   priceEurCents: number;
@@ -13,6 +13,8 @@ export interface ProductPlan {
   academyLimit: number | null;
   highlight?: boolean;
   cta: string;
+  ctaHref: string;
+  checkoutMode: "included" | "self-serve" | "sales-assisted";
   features: string[];
 }
 
@@ -29,6 +31,8 @@ export const PRODUCT_PLANS: ProductPlan[] = [
     classLimit: 10,
     academyLimit: 1,
     cta: "Empezar gratis",
+    ctaHref: "/auth/register?role=owner",
+    checkoutMode: "included",
     features: [
       "Hasta 30 gimnastas",
       "1 academia",
@@ -38,7 +42,8 @@ export const PRODUCT_PLANS: ProductPlan[] = [
     ],
   },
   {
-    code: "starter",
+    // Decisión activa 2026-06-24: `pro` es el código interno de Starter.
+    code: "pro",
     publicName: "Starter",
     internalName: "Starter",
     priceEurCents: 1900,
@@ -49,6 +54,8 @@ export const PRODUCT_PLANS: ProductPlan[] = [
     classLimit: 20,
     academyLimit: 1,
     cta: "Contratar Starter",
+    ctaHref: "/contact?type=demo&plan=starter",
+    checkoutMode: "self-serve",
     features: [
       "Hasta 75 gimnastas",
       "1 academia",
@@ -58,7 +65,8 @@ export const PRODUCT_PLANS: ProductPlan[] = [
     ],
   },
   {
-    code: "pro",
+    // Decisión activa 2026-06-24: `premium` es el código interno de Growth.
+    code: "premium",
     publicName: "Growth",
     internalName: "Growth",
     priceEurCents: 4900,
@@ -70,6 +78,8 @@ export const PRODUCT_PLANS: ProductPlan[] = [
     academyLimit: 1,
     highlight: true,
     cta: "Solicitar demo",
+    ctaHref: "/contact?type=demo&plan=growth",
+    checkoutMode: "self-serve",
     features: [
       "Hasta 200 gimnastas",
       "1 academia",
@@ -79,7 +89,7 @@ export const PRODUCT_PLANS: ProductPlan[] = [
     ],
   },
   {
-    code: "premium",
+    code: "network",
     publicName: "Network",
     internalName: "Network",
     priceEurCents: 9900,
@@ -90,6 +100,8 @@ export const PRODUCT_PLANS: ProductPlan[] = [
     classLimit: null,
     academyLimit: null,
     cta: "Hablar con Zaltyko",
+    ctaHref: "/contact?type=network",
+    checkoutMode: "sales-assisted",
     features: [
       "Gimnastas ilimitadas",
       "Multi-sede con onboarding acompañado",
@@ -102,7 +114,11 @@ export const PRODUCT_PLANS: ProductPlan[] = [
 
 export const PRODUCT_PLAN_BY_CODE = Object.fromEntries(
   PRODUCT_PLANS.map((plan) => [plan.code, plan])
-) as Record<PlanCode, ProductPlan>;
+) as Record<CommercialPlanCode, ProductPlan>;
+
+export const BILLABLE_PRODUCT_PLANS = PRODUCT_PLANS.filter(
+  (plan): plan is ProductPlan & { code: PlanCode } => plan.code !== "network"
+);
 
 export function formatPlanAmount(priceEurCents: number) {
   return new Intl.NumberFormat("es-ES", {

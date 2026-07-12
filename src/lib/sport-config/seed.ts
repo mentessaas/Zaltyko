@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, notInArray } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -202,6 +202,50 @@ export async function seedSportConfigurations() {
         });
     }
 
+    // The catalog is versioned reference data. Upserts alone leave removed
+    // federation codes active forever, so retire anything that is no longer
+    // present in the current seed while preserving the rows for historical
+    // references and auditability.
+    await db
+      .update(programs)
+      .set({ isActive: false })
+      .where(
+        and(
+          eq(programs.sportLocaleConfigId, config.id),
+          notInArray(programs.code, seed.programs.map((item) => item.code))
+        )
+      );
+
+    await db
+      .update(levels)
+      .set({ isActive: false })
+      .where(
+        and(
+          eq(levels.sportLocaleConfigId, config.id),
+          notInArray(levels.code, seed.levels.map((item) => item.code))
+        )
+      );
+
+    await db
+      .update(categories)
+      .set({ isActive: false })
+      .where(
+        and(
+          eq(categories.sportLocaleConfigId, config.id),
+          notInArray(categories.code, seed.ageCategories.map((item) => item.code))
+        )
+      );
+
+    await db
+      .update(competitionTypes)
+      .set({ isActive: false })
+      .where(
+        and(
+          eq(competitionTypes.sportLocaleConfigId, config.id),
+          notInArray(competitionTypes.code, seed.competitionTypes.map((item) => item.code))
+        )
+      );
+
     rows.push(config);
   }
 
@@ -263,5 +307,5 @@ export async function activateAcademySportConfig(params: {
     })
     .returning();
 
-  return active;
+  return { ...active, isGenericFallback: seed.isGenericFallback ?? false, configVersion: seed.configVersion };
 }

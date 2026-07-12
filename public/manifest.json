@@ -1,7 +1,7 @@
 {
   "name": "Zaltyko - Gestión de Academias",
   "short_name": "Zaltyko",
-  "description": "El sistema definitivo para gestionar academias de gimnasia",
+  "description": "Gestión de gimnastas, clases, asistencia, cobros y comunicación para academias",
   "start_url": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
@@ -47,70 +47,10 @@
     }
   ],
   "splash_screens": [],
-  "shortcuts": [
-    {
-      "name": "Atletas",
-      "short_name": "Atletas",
-      "description": "Ver lista de atletas",
-      "url": "/dashboard/athletes",
-      "icons": [
-        {
-          "src": "/icons/icon-96.png",
-          "sizes": "96x96"
-        }
-      ]
-    },
-    {
-      "name": "Clases",
-      "short_name": "Clases",
-      "description": "Ver clases programadas",
-      "url": "/dashboard/classes",
-      "icons": [
-        {
-          "src": "/icons/icon-96.png",
-          "sizes": "96x96"
-        }
-      ]
-    },
-    {
-      "name": "Calendario",
-      "short_name": "Calendario",
-      "description": "Ver calendario",
-      "url": "/dashboard/calendar",
-      "icons": [
-        {
-          "src": "/icons/icon-96.png",
-          "sizes": "96x96"
-        }
-      ]
-    },
-    {
-      "name": "Nueva Inscripción",
-      "short_name": "Inscribir",
-      "description": "Inscribir nuevo atleta",
-      "url": "/dashboard/athletes/new",
-      "icons": [
-        {
-          "src": "/icons/icon-96.png",
-          "sizes": "96x96"
-        }
-      ]
-    }
-  ],
+  "shortcuts": [],
   "related_applications": [],
   "prefer_related_applications": false,
   "yaru": {
     "required_version": null
-  },
-  "share_target": {
-    "action": "/api/share",
-    "method": "POST",
-    "enctype": "multipart/form-data",
-    "params": {
-      "title": "title",
-      "text": "text",
-      "url": "url"
-    }
   }
 }
-

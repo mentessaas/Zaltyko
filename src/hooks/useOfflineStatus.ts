@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { getPendingOperationsCount } from "@/lib/offline/operations-queue";
 
 export interface OfflineStatusState {
   isOnline: boolean;
@@ -16,13 +15,9 @@ export function useOfflineStatus(): OfflineStatusState {
   const [pendingCount, setPendingCount] = useState(0);
 
   const refreshPendingCount = useCallback(async () => {
-    try {
-      const count = await getPendingOperationsCount();
-      setPendingCount(count);
-    } catch {
-      // IndexedDB might not be available
-      setPendingCount(0);
-    }
+    // Offline mutations are intentionally disabled until they have
+    // tenant-scoped idempotency and conflict resolution.
+    setPendingCount(0);
   }, []);
 
   useEffect(() => {

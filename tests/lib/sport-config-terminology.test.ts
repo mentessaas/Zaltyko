@@ -10,9 +10,9 @@ import {
 } from "@/lib/sport-config/terminology";
 
 describe("sport config terminology", () => {
-  it("falls back to generic product terminology", () => {
+  it("falls back to the same base terminology used by real sport configs (never a divergent generic default)", () => {
     expect(getTerminology(null)).toMatchObject({
-      athlete: "Atleta",
+      athlete: "Gimnasta",
       group: "Grupo",
       apparatus: "Aparato",
     });

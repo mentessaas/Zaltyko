@@ -1,7 +1,7 @@
 ---
 status: active
 owner: negocio
-last_reviewed: 2026-06-24
+last_reviewed: 2026-07-12
 source:
   - ../BUSINESS-ANALYSIS.md
   - ../docs/marketing/zaltyko-pricing.md
@@ -18,7 +18,7 @@ Esta nota debe revisarse antes de cambiar landing, checkout, limites de plan o d
 
 | Fuente | Planes | Nota |
 | --- | --- | --- |
-| Catalogo actual | Free, Starter, Growth, Network | `src/lib/plans/catalog.ts` mapea `free`, `pro`, `premium` a Free/Starter/Growth y publica Network como CTA comercial. |
+| Catalogo actual | Free, Starter, Growth, Network | `src/lib/plans/catalog.ts` mapea `free` = Free, `pro` = Starter, `premium` = Growth y `network` = oferta comercial acompanada. |
 | DB/checkout | `free`, `pro`, `premium` | `plans.code` y `/api/billing/checkout` usan estos codigos internos. Network no tiene checkout autoservicio en v3.0. |
 | Estrategia antigua | Starter, Professional, Business, Enterprise | Documento de marketing; no es la implementacion actual. |
 | Analisis antiguo | Free, Pro, Premium | Detectaba bug historico; parte ya esta corregida por `PRODUCT_PLANS`. |
@@ -29,7 +29,7 @@ Esta nota debe revisarse antes de cambiar landing, checkout, limites de plan o d
 | --- | --- | --- |
 | Copy publico | `src/app/(site)/pricing.tsx` + `src/lib/plans/catalog.ts` | Usa Free/Starter/Growth/Network v3.0. |
 | Limites de producto | `src/lib/plans/catalog.ts` y tabla `plans` | Free 30 gimnastas, Starter 75, Growth 200; todos con 1 academia. Network multi-sede acompanado. |
-| Enforcements | `src/lib/limits.ts` | Lee `plans.athleteLimit`; clases/grupos son constantes por codigo. |
+| Enforcements | `src/lib/limits.ts` | Lee limites desde el catalogo canonico y permite override de atletas/academias desde `plans`. |
 | Checkout activo | `src/app/api/billing/checkout/route.ts` | Usa `plans.stripePriceId`, `mode: subscription`, tenant auth. |
 | Checkout viejo | `src/app/api/stripe/checkout/route.ts` | Deprecated 410. |
 | Sync Stripe | `src/lib/stripe/sync-plans.ts` | Sincroniza precios activos por metadata `plan_code` y `athlete_limit`. |
@@ -38,12 +38,14 @@ Esta nota debe revisarse antes de cambiar landing, checkout, limites de plan o d
 
 | Tema | Riesgo | Accion |
 | --- | --- | --- |
-| Annual billing | UI muestra anual como "proximamente"; checkout solo usa un `stripePriceId` por plan. | Mantener CTA a demo o implementar price anual real antes de permitir compra anual. |
+| Annual billing | UI muestra anual solo como "proximamente", sin calcular precio ni descuento; checkout usa un `stripePriceId` mensual por plan. | Implementar price anual real antes de permitir compra o anunciar descuento. |
 | DB seed placeholders | `scripts/seed.ts` usa `price_pro_PLACEHOLDER` y `price_premium_PLACEHOLDER` si faltan env vars. | En entornos reales ejecutar `pnpm stripe:sync` o setear `SEED_STRIPE_PRICE_*`. |
-| Downgrade Stripe | `/api/billing/downgrade` usa `stripeSubscriptionId` como item id al cambiar a otro plan pago. | Corregir consultando `stripe.subscriptions.retrieve(...).items.data[0].id`, igual que upgrade. |
+| Downgrade Stripe | Resuelto: downgrade recupera el subscription item real antes de cambiar price. | Mantener tests de upgrade/downgrade y webhooks. |
 | Nombres historicos | Docs antiguas hablan de Professional/Business o Free/Pro/Premium publico. | Usar Starter/Growth/Network en marketing; free/pro/premium solo interno. |
 | Growth multi-academia | Growth ya no promete academias ilimitadas en v1 comercial. | Mantener `academyLimit: 1` y vender Network para multi-sede acompanado. |
-| Network/Premium | Valor diferencial debe estar ligado a multi-sede acompanado, limites amplios, reportes y soporte. | Evitar prometer integraciones custom sin alcance. |
+| Network | Valor diferencial ligado a multi-sede acompanada, limites amplios, reportes y soporte. | Sin checkout ni promesa de integraciones custom/SLA hasta tener alcance firmado. |
+
+Nota de ejecucion 2026-07-12: el trial de 7 dias sigue siendo la decision comercial, pero no debe publicarse como disponible hasta completar inicio, anti-abuso, expiracion y downgrade automaticos en Fase 1.
 
 ## Pricing v3.0 activo
 
@@ -67,7 +69,7 @@ Estado: oficial para producto, marketing, landing y limites.
 | **Free** | 0 €/mes perpetuo | hasta 30 | 1 | Crear academia, gimnastas, grupos/clases, asistencia basica, comunicacion interna limitada. | >30 gimnastas O activar portal padres completo O activar pagos recurrentes. |
 | **Starter** | **19 €/mes** (≈ 20 USD) | hasta 75 | 1 | Pagos/cuotas recurrentes, portal padres completo, reportes basicos, progresion tecnica, comunicacion interna. | >75 gimnastas O necesidad de automatizaciones O reportes ejecutivos. |
 | **Growth** | 49 €/mes (≈ 52 USD) | hasta 200 | 1 | Todo Starter + automatizaciones, reportes ejecutivos, add-ons premium, soporte prioritario. | >200 gimnastas O multi-sede. |
-| **Network** | 99 €/mes (≈ 105 USD) | ilimitado | multi-sede | Todo Growth + multi-sede acompanado, SLA dedicado, integraciones custom. | Bajo onboarding acompanado (ver [[Decisiones#2026-06-22 - V1 comercial con una academia por cliente]]). |
+| **Network** | 99 €/mes (≈ 105 USD) | ilimitado | multi-sede | Todo Growth + multi-sede acompanada, reportes de direccion y soporte prioritario. | Bajo onboarding acompanado (ver [[Decisiones#2026-06-22 - V1 comercial con una academia por cliente]]). |
 
 Fee de procesamiento: **0 € markup sobre Stripe directo**. La promesa es "pagas lo que Stripe cobra, sin sorpresas".
 

@@ -10,12 +10,10 @@ type Plan = {
   cta: string;
   highlight: boolean;
   features: string[];
-  annualPrice: string;
-  annualSavings?: string;
+  ctaHref: string;
 };
 
 const plans: Plan[] = PRODUCT_PLANS.map((plan) => {
-  const annualCents = Math.round(plan.priceEurCents * 12 * 0.8);
   return {
     title: plan.publicName,
     price: plan.priceEurCents === 0 ? "Incluido" : `${formatPlanAmount(plan.priceEurCents)}/mes`,
@@ -23,29 +21,25 @@ const plans: Plan[] = PRODUCT_PLANS.map((plan) => {
     cta: plan.cta,
     highlight: Boolean(plan.highlight),
     features: plan.features,
-    annualPrice:
-      plan.priceEurCents === 0
-        ? "Incluido"
-        : `${formatPlanAmount(annualCents)}/año`,
-    annualSavings: plan.priceEurCents > 0 ? "20% dto. anual" : undefined,
+    ctaHref: plan.ctaHref,
   };
 });
 
 const commonBenefits = [
   {
     icon: Shield,
-    title: "Datos 100% seguros",
-    description: "Aislamiento total por academia con encriptación y cumplimiento RGPD.",
+    title: "Aislamiento por academia",
+    description: "Controles de acceso y separación de datos por academia.",
   },
   {
     icon: Clock,
-    title: "Configuración en 2h",
-    description: "Desde cero hasta operativo en una mañana. Sin conocimientos técnicos.",
+    title: "Puesta en marcha guiada",
+    description: "Un recorrido paso a paso para configurar la operación principal.",
   },
   {
     icon: Globe2,
-    title: "Diseñado para gimnasia",
-    description: "Creado junto a directores técnicos de gimnasia artística y rítmica.",
+    title: "Especializado en gimnasia",
+    description: "Terminología y flujos para gimnasia artística y rítmica.",
   },
 ];
 
@@ -90,7 +84,7 @@ export default function PricingSection() {
               title="Pago anual próximamente disponible"
               className="px-4 py-1.5 rounded-full text-sm font-medium text-muted-foreground cursor-not-allowed select-none"
             >
-              Anual — 20% dto. <span className="text-xs opacity-70">(próximamente)</span>
+              Anual <span className="text-xs opacity-70">(próximamente)</span>
             </span>
           </div>
         </div>
@@ -112,15 +106,7 @@ export default function PricingSection() {
               )}
               <h3 className="font-display text-xl font-semibold text-foreground">{plan.title}</h3>
               <p className="mt-2 font-display text-3xl font-bold text-foreground">{plan.price}</p>
-              {plan.annualSavings && (
-                <span className="mt-1 inline-block text-xs font-semibold text-green-600 bg-green-50 px-2 py-0.5 rounded-full w-fit">
-                  {plan.annualSavings}
-                </span>
-              )}
               <p className="mt-2 font-sans text-sm text-muted-foreground">{plan.description}</p>
-              <p className="mt-2 font-sans text-xs text-muted-foreground">
-                Anual: {plan.annualPrice}
-              </p>
 
               <ul className="mt-6 space-y-3 font-sans text-sm text-foreground">
                 {plan.features.map((feature) => (
@@ -132,7 +118,7 @@ export default function PricingSection() {
               </ul>
 
               <Link
-                href="/contact?type=demo"
+                href={plan.ctaHref}
                 className={`mt-8 inline-flex items-center justify-center rounded-full px-6 py-2 text-sm font-semibold transition ${
                   plan.highlight
                     ? "bg-zaltyko-teal text-white hover:bg-primary-dark"

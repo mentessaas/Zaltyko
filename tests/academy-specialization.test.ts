@@ -66,6 +66,30 @@ describe("academy specialization", () => {
 
     expect(nav.find((item) => item.key === "athletes")?.label).toBe("Gimnastas");
     expect(nav.find((item) => item.key === "classes")?.label).toBe("Entrenamientos");
+    expect(nav.find((item) => item.key === "coaches")?.label).toBe("Entrenadoras");
+    expect(nav.find((item) => item.key === "groups")?.label).toBe("Grupos de entrenamiento");
+    // Claves genericas de producto (sin equivalente por disciplina) mantienen su label por defecto
+    expect(nav.find((item) => item.key === "billing")?.label).toBe("Cobros");
+    expect(nav.find((item) => item.key === "settings")?.label).toBe("Ajustes");
+  });
+
+  it("pluralizes labels ending in a consonant with -es for artistic male academies", () => {
+    const specialization = resolveAcademySpecialization({
+      countryCode: "ES",
+      academyType: "artistica",
+      disciplineVariant: "artistic_male",
+      specializationStatus: "configured",
+    });
+
+    const nav = getAcademyNavigation({
+      academyId: "academy-1",
+      profileRole: "owner",
+      membershipRole: "owner",
+      specialization,
+    });
+
+    expect(nav.find((item) => item.key === "coaches")?.label).toBe("Entrenadores");
+    expect(nav.find((item) => item.key === "groups")?.label).toBe("Grupos");
   });
 
   it("specializes quick actions copy and hides reports when the feature is disabled", () => {

@@ -4,6 +4,7 @@
 import { openDB, getAll, put, deleteRecord, type PendingOperation } from "./db";
 
 const MAX_RETRIES = 3;
+const OFFLINE_MUTATIONS_ENABLED = false;
 
 export type OperationType =
   | "athlete:create"
@@ -32,6 +33,10 @@ export async function queueOperation(
   type: OperationType,
   payload: Record<string, unknown>
 ): Promise<string> {
+  if (!OFFLINE_MUTATIONS_ENABLED) {
+    throw new Error("Offline mutations are disabled until idempotent tenant-scoped sync is available");
+  }
+
   const operation: QueuedOperation = {
     id: generateId(),
     type,
@@ -133,6 +138,17 @@ export async function syncOperations(): Promise<{
   errors: Array<{ id: string; error: string }>;
 }> {
   const operations = await getPendingOperations();
+  if (!OFFLINE_MUTATIONS_ENABLED) {
+    return {
+      synced: 0,
+      failed: operations.length,
+      errors: operations.map((operation) => ({
+        id: operation.id,
+        error: "Offline mutation sync is disabled for data safety",
+      })),
+    };
+  }
+
   const results = {
     synced: 0,
     failed: 0,
@@ -168,6 +184,8 @@ export async function syncOperations(): Promise<{
 
 // Register background sync (called from service worker)
 export async function registerBackgroundSync(): Promise<void> {
+  if (!OFFLINE_MUTATIONS_ENABLED) return;
+
   if ("serviceWorker" in navigator && "sync" in (window as Window & { sync?: unknown })) {
     const registration = await navigator.serviceWorker.ready;
     // @ts-expect-error - sync is not in TypeScript types yet

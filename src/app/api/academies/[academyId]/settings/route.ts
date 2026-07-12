@@ -561,12 +561,13 @@ export const PATCH = withTenant(async (request, context) => {
       updates.disciplineVariant = data.disciplineVariant;
       updates.discipline = inferDisciplineFromVariant(data.disciplineVariant);
       updates.academyType = mapDisciplineVariantToAcademyType(data.disciplineVariant);
-      updates.federationConfigVersion =
-        (normalizedCountryCode === "ES" &&
-          ["artistic_female", "artistic_male", "rhythmic"].includes(data.disciplineVariant))
-          ? "rfeg-2026-v1"
-          : "legacy-default-v1";
-      updates.specializationStatus = "configured";
+
+      // No adivinar aquí si el país+variante tiene catálogo propio: preguntarle
+      // a la misma fuente de verdad que decide qué config real se activa
+      // (getSportConfigSeedByVariant, ver src/lib/sport-config/catalog.ts).
+      const matchingSeed = getSportConfigSeedByVariant(normalizedCountryCode, data.disciplineVariant);
+      updates.federationConfigVersion = matchingSeed?.configVersion ?? "legacy-default-v1";
+      updates.specializationStatus = matchingSeed?.isGenericFallback ? "generic_fallback" : "configured";
     }
 
     if (
@@ -601,8 +602,10 @@ export const PATCH = withTenant(async (request, context) => {
         );
       }
 
+      let usesGenericFallback = false;
       for (const variant of uniqueVariants) {
         const seed = getSportConfigSeedByVariant(normalizedCountryCode, variant);
+        if (seed?.isGenericFallback) usesGenericFallback = true;
         const activeProgramCodes =
           seed && data.activeProgramCodesByVariant?.[variant] !== undefined
             ? filterSeedCodes(seed.programs, data.activeProgramCodesByVariant[variant])
@@ -643,6 +646,10 @@ export const PATCH = withTenant(async (request, context) => {
           activeApparatusCodes,
           terminologyOverrides,
         });
+      }
+
+      if (usesGenericFallback) {
+        updates.specializationStatus = "generic_fallback";
       }
 
       if (data.activeDisciplineVariants !== undefined) {

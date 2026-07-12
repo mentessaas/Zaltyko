@@ -70,7 +70,8 @@ function auditRoute(filePath: string): RouteAudit {
     mutates &&
     MIDDLEWARE_SOURCE.includes("isApiPath(pathname)") &&
     MIDDLEWARE_SOURCE.includes("isMutation(req.method)") &&
-    MIDDLEWARE_SOURCE.includes("rateLimitResponse(req") &&
+    (MIDDLEWARE_SOURCE.includes("rateLimitResponse(req") ||
+      MIDDLEWARE_SOURCE.includes("checkRateLimit(req")) &&
     !route.includes("/webhook/") &&
     !route.includes("/cron/") &&
     !route.includes("/api/dev/");
@@ -113,7 +114,11 @@ const summary = audits.reduce(
   }
 );
 
-console.log(JSON.stringify({ summary, risky, routes: audits }, null, 2));
+if (process.argv.includes("--json")) {
+  console.log(JSON.stringify({ summary, risky, routes: audits }, null, 2));
+} else {
+  console.log(JSON.stringify({ summary, risky }, null, 2));
+}
 
 if (process.argv.includes("--strict") && risky.length > 0) {
   process.exitCode = 1;

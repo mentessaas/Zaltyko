@@ -1,7 +1,7 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { db } from "@/db";
-import { academies, profiles } from "@/db/schema";
+import { academies, memberships } from "@/db/schema";
 import { getCurrentProfile } from "./profile-service";
 
 export interface TenantResolutionResult {
@@ -9,6 +9,38 @@ export interface TenantResolutionResult {
   shouldUpdateProfile: boolean;
   newTenantId?: string;
   newActiveAcademyId?: string;
+}
+
+async function getAcademyTenantForUser({
+  academyId,
+  profile,
+}: {
+  academyId: string;
+  profile: { id: string; userId: string; role: string };
+}): Promise<string | null> {
+  const [academy] = await db
+    .select({ tenantId: academies.tenantId, ownerId: academies.ownerId })
+    .from(academies)
+    .where(eq(academies.id, academyId))
+    .limit(1);
+
+  if (!academy) return null;
+  if (profile.role === "super_admin" || academy.ownerId === profile.id) {
+    return academy.tenantId ?? null;
+  }
+
+  const [membership] = await db
+    .select({ id: memberships.id })
+    .from(memberships)
+    .where(
+      and(
+        eq(memberships.academyId, academyId),
+        eq(memberships.userId, profile.userId)
+      )
+    )
+    .limit(1);
+
+  return membership ? (academy.tenantId ?? null) : null;
 }
 
 /**
@@ -23,23 +55,10 @@ export async function getTenantId(
     return null;
   }
 
-  const isAdmin = profile.role === "admin" || profile.role === "super_admin";
-
-  // Si hay academyId, intentar obtener tenantId desde la academia
-  // Esto funciona para admins y también para owners que acaban de crear su academia
+  // El academyId siempre se resuelve contra ownership o membership. Un rol
+  // global `admin` no concede acceso transversal entre tenants.
   if (academyId) {
-    const [academy] = await db
-      .select({ tenantId: academies.tenantId, ownerId: academies.ownerId })
-      .from(academies)
-      .where(eq(academies.id, academyId))
-      .limit(1);
-
-    if (academy) {
-      // Si es admin o es el owner de la academia, usar el tenantId de la academia
-      if (isAdmin || academy.ownerId === profile.id) {
-        return academy.tenantId ?? null;
-      }
-    }
+    return getAcademyTenantForUser({ academyId, profile });
   }
 
   // Fallback al tenantId del perfil
@@ -54,8 +73,6 @@ export async function resolveTenantWithUpdate(
   academyId: string | undefined,
   profile: { id: string; tenantId: string | null; role: string }
 ): Promise<TenantResolutionResult> {
-  const isAdmin = profile.role === "super_admin" || profile.role === "admin";
-  
   // Si no hay academyId, usar tenantId del perfil
   if (!academyId) {
     return {
@@ -64,37 +81,28 @@ export async function resolveTenantWithUpdate(
     };
   }
 
-  // Obtener información de la academia
-  const [academy] = await db
-    .select({ tenantId: academies.tenantId, ownerId: academies.ownerId })
-    .from(academies)
-    .where(eq(academies.id, academyId))
-    .limit(1);
+  const academyTenantId = await getAcademyTenantForUser({
+    academyId,
+    profile: {
+      ...profile,
+      userId,
+    },
+  });
 
-  if (!academy) {
+  if (!academyTenantId) {
     return {
-      tenantId: profile.tenantId ?? null,
-      shouldUpdateProfile: false,
-    };
-  }
-
-  // Verificar acceso a la academia
-  const hasAccess = isAdmin || academy.ownerId === profile.id;
-  if (!hasAccess) {
-    return {
-      tenantId: profile.tenantId ?? null,
+      tenantId: null,
       shouldUpdateProfile: false,
     };
   }
 
   // Si el perfil no tiene tenantId pero la academia sí, necesitamos actualizar
-  const shouldUpdate = !profile.tenantId && academy.tenantId !== null;
+  const shouldUpdate = !profile.tenantId;
 
   return {
-    tenantId: academy.tenantId ?? profile.tenantId ?? null,
+    tenantId: academyTenantId,
     shouldUpdateProfile: shouldUpdate,
-    newTenantId: academy.tenantId ?? undefined,
+    newTenantId: academyTenantId,
     newActiveAcademyId: academyId,
   };
 }
-
