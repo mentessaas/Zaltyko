@@ -13,12 +13,12 @@ source:
 
 ## Lectura rápida
 
-Zaltyko está en **hardening avanzado y preparación de promoción de Fase 1**. Se ejecutaron los sprints 0-7, una auditoría completa de seguridad y calidad (PR #8), un fix de CI, y una segunda ronda de auditoría/QA (PRs #12-#19). El 2026-07-12 se añadió un trial Starter real de 7 días, permisos personalizados operativos, checkout/portal owner-only y procesamiento Stripe idempotente y ordenado. La migración de Fase 1 está aplicada en Supabase, la cobertura RLS es 100% sobre 64 tablas tenant-scoped y falta completar la puerta final, desplegar la Fase 1 a producción y verificar cron/webhook antes de retirar el endpoint Stripe anterior.
+Zaltyko está en **hardening avanzado con Fase 1 desplegada en producción**. Se ejecutaron los sprints 0-7, una auditoría completa de seguridad y calidad (PR #8), un fix de CI, y una segunda ronda de auditoría/QA (PRs #12-#19). El 2026-07-13 quedó publicado el trial Starter real de 7 días, permisos personalizados operativos, checkout/portal owner-only y procesamiento Stripe idempotente y ordenado. La migración de Fase 1 está aplicada en Supabase, la cobertura RLS es 100% sobre 64 tablas tenant-scoped y el deployment productivo `b9701b14` está `Ready` en `zaltyko.com`.
 
 - Rama de cierre: `codex/sprint0-phase1-product-hardening`, creada desde `main` en el commit `e786788b`. Integra Sprint 0 de producto real y el trabajo paralelo de nomenclatura federativa RFEG sin revertirlo.
 - Supabase usa PostgreSQL 17.6. El catálogo `rfeg-2026-v2` quedó sincronizado el 2026-07-12 mediante un comando acotado e idempotente; un segundo dry-run confirmó cero diferencias. No se ejecutó el seed global ni una migración de schema.
 - La migración `20260712230000_phase1_trial_and_billing_events.sql` está aplicada y verificada: `academy_trials`, lease/reintentos de `billing_events` y orden de eventos por suscripción. El inventario actual es 3 migraciones Drizzle + 27 Supabase; RLS 64/64.
-- El preview de cierre de Sprint 0 quedó `Ready`. La promoción de Fase 1 a producción permanece deliberadamente pendiente hasta pasar el gate completo del nuevo código.
+- Fase 1 pasó el gate completo (275 APIs, 0 riesgosas, 413 tests, build) y fue desplegada a producción. Smoke final: pricing 200, trial/cron sin auth 401 y webhook sin firma 400 con `SIGNATURE_VERIFICATION_FAILED`.
 - Historial de ejecución: [[Changelog interno]] y [[Decisiones#2026-06-24 - Resumen de sprints 0-7 + auditoria + CI fix]].
 
 ## Lo que tenemos

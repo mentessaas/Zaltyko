@@ -21,9 +21,9 @@ source:
 | 25 tablas TS no existen en DB | Alta | Cerrado 2026-07-03 | Migraciones manuales aplicadas y verificadas; DB=ORM salvo `push_tokens`, superseded por `push_subscriptions`. |
 | Policies permisivas en modulos laterales | Alta | Cerrado 2026-07-03 | Lotes 1 y 2 sustituyeron escritura `allow_authenticated` y habilitaron RLS en `conversations`. |
 | UX inconsistente en dashboard | Media | Abierto | Auditar flujos P0/P1. |
-| Onboarding/trial debil | Media | Mitigado, promoción pendiente | Trial 7 días con anti-abuso, lifecycle, avisos y vuelta a Free implementado; falta smoke real tras deploy y continuar mejorando onboarding/aha moments. |
+| Onboarding/trial debil | Media | Mitigado y desplegado | Trial 7 días con anti-abuso, lifecycle, avisos y vuelta a Free publicado; smoke de rutas y cron auth correcto. Continúa la mejora de onboarding/aha moments. |
 | Drift histórico de Drizzle al generar migraciones | Alta | Abierto | La migración manual de Fase 1 está aplicada, pero `db:generate` detecta diferencias antiguas en tablas de diagnóstico/gastos. Reconciliar sin aceptar cambios destructivos. |
-| Doble endpoint webhook Stripe durante rotación | Media | Temporal | Mantener ambos solo hasta validar la entrega firmada de Fase 1; después retirar el endpoint anterior para evitar entregas duplicadas permanentes. La idempotencia reduce impacto, no sustituye la limpieza. |
+| Doble endpoint webhook Stripe durante rotación | Media | Temporal / backlog 4.10 | Producción usa el secreto del endpoint v2; el endpoint antiguo firma distinto y recibe 400. Retirarlo tras observar el primer 2xx firmado del v2 para detener reintentos ruidosos. |
 | SEO/i18n incompleto | Media | Abierto | Seguir [[SEO y geo]]. |
 | Rutas legacy `/dashboard` conviviendo con `/app/[academyId]` | Media | Abierto | Decidir compatibilidad vs migracion en [[Decisiones]]. |
 | WhatsApp vendido mientras feature flag puede estar apagado | Media | Abierto | Alinear [[Mensajes aprobados]] y [[Tarea - Consolidar comunicacion]]. |

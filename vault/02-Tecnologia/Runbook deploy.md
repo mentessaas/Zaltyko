@@ -67,3 +67,10 @@ error boundary client-side.
 El preview de Sprint 0 del 2026-07-12 quedo `Ready` y `/pricing` respondio 200 mediante acceso autenticado de Vercel. No equivale a la verificacion de produccion de Fase 1.
 
 El gate local de Fase 1 quedó verde el 2026-07-12 con 413 tests y build de 214 páginas. Vitest se ejecuta con máximo 4 workers desde `verify-production-ready.ts`; el límite evita contención de imports/mocks observada con paralelismo irrestricto y no omite ninguna suite incluida.
+
+## Cierre ejecutado 2026-07-13
+
+- Preview `b9701b14` `Ready`; redeploy con target `production` para consumir las variables productivas.
+- Producción `https://zaltyko-cledxek2y-mentessaas-projects.vercel.app` `Ready`, con aliases `zaltyko.com`, `www.zaltyko.com` y `zaltyko.vercel.app`.
+- Smokes: `/pricing` 200 y claim 7/365 visible; `/api/billing/trial/start` 401 sin sesión; `/api/cron/trial-lifecycle` 401 sin Bearer; `/api/stripe/webhook` 400 sin firma.
+- No retirar todavía el endpoint Stripe anterior: hacerlo tras observar una entrega firmada correcta en `Zaltyko production billing v2`. El endpoint antiguo firma con otro secreto y sus entregas son rechazadas; mantenerlo temporalmente solo sirve como rollback y genera reintentos ruidosos.
