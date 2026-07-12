@@ -17,7 +17,7 @@ source:
 | Coaches | Avanzado | Dashboard academia | Horarios disponibles y sincronizacion completa. |
 | Clases | Avanzado | `/app/[academyId]/classes` | Politicas/trials/waitlist visibles y consistencia CRUD. |
 | Grupos | Avanzado | `/app/[academyId]/groups` | Mantener UX y permisos. |
-| Billing | Avanzado | `/app/[academyId]/billing` | Pricing, limites, checkout anual, contabilidad, proyecciones. |
+| Billing | Avanzado / RC Fase 1 | `/app/[academyId]/billing` | Trial Starter 7 días, Checkout/Portal owner-only, historial y webhook endurecido. Pendientes: promoción/QA producción, checkout anual, contabilidad y proyecciones. |
 | Eventos | Avanzado | Publico y dashboard | Inscripcion publica completa, resultados, listados federativos. |
 | Evaluaciones | Parcial/avanzado | `/app/[academyId]/assessments`, `/app/[academyId]/evaluations`, atleta evaluate/progress/history/assessments | Validar flujo crear -> puntuar -> historial -> export. |
 | Asistencia | Parcial/avanzado | `/app/[academyId]/attendance`, `/api/attendance`, reportes attendance | Validar registro, reportes, export y permisos. |

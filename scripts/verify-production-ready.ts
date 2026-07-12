@@ -32,6 +32,7 @@ const requiredDocumentedEnvVars = [
   "KV_REST_API_URL",
   "KV_REST_API_TOKEN",
   "STRIPE_SECRET_KEY",
+  "STRIPE_WEBHOOK_SECRET",
 ];
 
 const gates: Gate[] = [
@@ -40,7 +41,10 @@ const gates: Gate[] = [
   { name: "Migration ledgers", args: ["check:migrations"] },
   { name: "TypeScript", args: ["typecheck"] },
   { name: "ESLint", args: ["lint"] },
-  { name: "Unit and integration tests", args: ["exec", "vitest", "run"] },
+  {
+    name: "Unit and integration tests",
+    args: ["exec", "vitest", "run", "--maxWorkers=4", "--minWorkers=1"],
+  },
   { name: "Production build", args: ["build"] },
 ];
 

@@ -1,10 +1,11 @@
-import { and, eq, inArray, isNotNull, notInArray } from "drizzle-orm";
 import Stripe from "stripe";
 
 import { db } from "@/db";
 import { plans } from "@/db/schema";
 
 import { getStripeClient } from "./client";
+import { PRODUCT_PLAN_BY_CODE } from "@/lib/plans/catalog";
+import type { PlanCode } from "@/types/billing";
 
 export interface PlanSyncResult {
   updatedPlanCodes: string[];
@@ -14,40 +15,23 @@ export interface PlanSyncResult {
 
 interface StripePlanMetadata {
   plan_code?: string;
-  athlete_limit?: string;
 }
 
-function resolvePlanCode(price: Stripe.Price): string | null {
+export function resolvePlanCode(price: Stripe.Price): PlanCode | null {
   const product = price.product;
   const productMetadata = typeof product === "string" || product.deleted ? undefined : (product.metadata as StripePlanMetadata);
   const priceMetadata = price.metadata as StripePlanMetadata;
 
-  const candidate =
-    priceMetadata?.plan_code ??
-    productMetadata?.plan_code ??
-    (price.nickname ? price.nickname.toLowerCase().replace(/\s+/g, "_") : null);
+  const candidate = priceMetadata?.plan_code ?? productMetadata?.plan_code ?? null;
 
   if (!candidate) {
     return null;
   }
 
-  return candidate.trim();
-}
-
-function parseAthleteLimit(price: Stripe.Price, fallback: number | null): number | null {
-  const metadata = price.metadata as StripePlanMetadata;
-  const value = metadata?.athlete_limit;
-
-  if (!value) {
-    return fallback ?? null;
-  }
-
-  const parsed = Number.parseInt(value, 10);
-  if (Number.isNaN(parsed)) {
-    return fallback ?? null;
-  }
-
-  return parsed;
+  const normalized = candidate.trim().toLowerCase();
+  if (normalized === "starter") return "pro";
+  if (normalized === "growth") return "premium";
+  return normalized === "pro" || normalized === "premium" ? normalized : null;
 }
 
 export async function syncStripePlans(): Promise<PlanSyncResult> {
@@ -73,24 +57,21 @@ export async function syncStripePlans(): Promise<PlanSyncResult> {
       continue;
     }
 
-    const [existing] = await db
-      .select({
-        id: plans.id,
-        athleteLimit: plans.athleteLimit,
-        priceEur: plans.priceEur,
-      })
-      .from(plans)
-      .where(eq(plans.code, planCode))
-      .limit(1);
+    const canonical = PRODUCT_PLAN_BY_CODE[planCode];
+    if (
+      price.unit_amount !== canonical.priceEurCents ||
+      price.currency.toLowerCase() !== "eur" ||
+      price.recurring?.interval !== "month"
+    ) {
+      missingStripePrices.push(price.id);
+      continue;
+    }
 
-    const athleteLimit = parseAthleteLimit(price, existing?.athleteLimit ?? null);
-    const priceAmount = price.unit_amount ?? existing?.priceEur ?? 0;
+    const athleteLimit = canonical.athleteLimit;
+    const priceAmount = canonical.priceEurCents;
     const currency = (price.currency ?? "eur").toLowerCase();
     const billingInterval = price.recurring?.interval ?? null;
-    const nickname =
-      price.nickname ??
-      (typeof price.product !== "string" && !price.product.deleted ? price.product.name : null) ??
-      planCode.toUpperCase();
+    const nickname = canonical.publicName;
     const productId = typeof price.product === "string" ? price.product : price.product.id;
 
     await db
@@ -98,6 +79,7 @@ export async function syncStripePlans(): Promise<PlanSyncResult> {
       .values({
         code: planCode,
         athleteLimit,
+        academyLimit: canonical.academyLimit,
         priceEur: priceAmount,
         stripePriceId: price.id,
         stripeProductId: productId,
@@ -110,6 +92,7 @@ export async function syncStripePlans(): Promise<PlanSyncResult> {
         target: plans.code,
         set: {
           athleteLimit,
+          academyLimit: canonical.academyLimit,
           priceEur: priceAmount,
           stripePriceId: price.id,
           stripeProductId: productId,
@@ -123,34 +106,9 @@ export async function syncStripePlans(): Promise<PlanSyncResult> {
     updatedPlanCodes.add(planCode);
   }
 
-  let archivedPlanCodes: string[] = [];
-
-  if (updatedPlanCodes.size > 0) {
-    const plansToArchive = await db
-      .select({ code: plans.code })
-      .from(plans)
-      .where(
-        and(
-          isNotNull(plans.stripePriceId),
-          notInArray(plans.code, Array.from(updatedPlanCodes))
-        )
-      );
-
-    if (plansToArchive.length > 0) {
-      archivedPlanCodes = plansToArchive.map((row) => row.code);
-
-      await db
-        .update(plans)
-        .set({ isArchived: true })
-        .where(inArray(plans.code, archivedPlanCodes));
-    }
-  }
-
   return {
     updatedPlanCodes: Array.from(updatedPlanCodes),
-    archivedPlanCodes,
+    archivedPlanCodes: [],
     missingStripePrices,
   };
 }
-
-

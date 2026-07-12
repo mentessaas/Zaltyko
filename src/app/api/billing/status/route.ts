@@ -2,11 +2,14 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
-import { academies, plans, subscriptions, profiles } from "@/db/schema";
+import { plans, subscriptions } from "@/db/schema";
 import { getActiveSubscription } from "@/lib/limits";
 import { withTenant } from "@/lib/authz";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { logger } from "@/lib/logger";
+import { getBillingAcademyAccess } from "@/lib/billing/access";
+import { getAcademyTrialStatus } from "@/lib/billing/trial-service";
+import { isSubscriptionManaged } from "@/lib/billing/subscription-status";
 
 const BodySchema = z.object({
   academyId: z.string().uuid({
@@ -26,62 +29,52 @@ export const POST = withTenant(async (request, context) => {
     return apiError("INVALID_JSON", "El cuerpo de la petición no es un JSON válido", 400);
   }
 
-  // Obtener academia
-  const [academy] = await db
-    .select({
-      id: academies.id,
-      tenantId: academies.tenantId,
-      ownerId: academies.ownerId,
-    })
-    .from(academies)
-    .where(eq(academies.id, body.academyId))
-    .limit(1);
-
+  const academy = await getBillingAcademyAccess({
+    academyId: body.academyId,
+    userId: context.userId,
+    profileId: context.profile.id,
+    profileRole: context.profile.role,
+  });
   if (!academy) {
-    return apiError("ACADEMY_NOT_FOUND", "La academia especificada no existe", 404);
+    return apiError("BILLING_FORBIDDEN", "Solo la persona propietaria puede consultar la suscripción", 403);
   }
 
-  // Verificar acceso
-  const isAdmin = context.profile.role === "admin" || context.profile.role === "super_admin";
-  if (!isAdmin && academy.tenantId !== context.tenantId) {
-    return apiError("FORBIDDEN", "No tienes acceso a los datos de cobros de esta academia", 403);
-  }
-
-  let subscription: { stripeCustomerId: string | null; planCode: string | null; status: string | null } | null = null;
+  let subscription: {
+    stripeCustomerId: string | null;
+    stripeSubscriptionId: string | null;
+    planCode: string | null;
+    status: string | null;
+  } | null = null;
 
   try {
-    if (academy.ownerId) {
-      const [owner] = await db
-        .select({
-          userId: profiles.userId,
-        })
-        .from(profiles)
-        .where(eq(profiles.id, academy.ownerId))
-        .limit(1);
+    const [sub] = await db
+      .select({
+        stripeCustomerId: subscriptions.stripeCustomerId,
+        stripeSubscriptionId: subscriptions.stripeSubscriptionId,
+        planCode: plans.code,
+        status: subscriptions.status,
+      })
+      .from(subscriptions)
+      .leftJoin(plans, eq(subscriptions.planId, plans.id))
+      .where(eq(subscriptions.userId, academy.ownerUserId))
+      .limit(1);
+    subscription = sub ?? null;
 
-      if (owner) {
-        const [sub] = await db
-          .select({
-            stripeCustomerId: subscriptions.stripeCustomerId,
-            planCode: plans.code,
-            status: subscriptions.status,
-          })
-          .from(subscriptions)
-          .leftJoin(plans, eq(subscriptions.planId, plans.id))
-          .where(eq(subscriptions.userId, owner.userId))
-          .limit(1);
-        subscription = sub ?? null;
-      }
-    }
-
-    const effective = await getActiveSubscription(body.academyId);
+    const [effective, trial] = await Promise.all([
+      getActiveSubscription(body.academyId),
+      getAcademyTrialStatus(body.academyId),
+    ]);
 
     return apiSuccess({
-      planCode: subscription?.planCode ?? effective.planCode,
-      status: subscription?.status ?? "active",
+      planCode: effective.planCode,
+      status: trial.active ? "trialing" : subscription?.status ?? "active",
       athleteLimit: effective.athleteLimit,
       classLimit: effective.classLimit,
       hasStripeCustomer: Boolean(subscription?.stripeCustomerId),
+      hasManagedSubscription: isSubscriptionManaged(
+        subscription ?? { stripeSubscriptionId: null, status: null }
+      ),
+      trial,
     });
   } catch (error) {
     logger.error("[billing/status] Error fetching subscription status:", error);

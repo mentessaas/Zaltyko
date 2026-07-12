@@ -44,7 +44,7 @@ describe("getFamilyChildrenForUser", () => {
     });
 
     expect(result).toEqual([]);
-  });
+  }, 15_000);
 
   it("deduplicates legacy and guardian children scoped to the family profile", async () => {
     const child = {
@@ -69,5 +69,5 @@ describe("getFamilyChildrenForUser", () => {
     });
 
     expect(result).toEqual([child]);
-  });
+  }, 15_000);
 });

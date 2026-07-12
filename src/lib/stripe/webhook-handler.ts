@@ -13,6 +13,12 @@ export interface WebhookContext {
   userId: string | null;
 }
 
+export interface WebhookProcessingResult {
+  context: WebhookContext;
+  duplicate: boolean;
+  invoice?: Stripe.Invoice;
+}
+
 /**
  * Verifica la firma del webhook de Stripe
  */
@@ -41,8 +47,17 @@ export function verifyWebhookSignature(
 /**
  * Procesa un evento de webhook de Stripe
  */
-export async function processWebhookEvent(event: Stripe.Event): Promise<WebhookContext> {
-  const eventId = await recordBillingEvent(event);
+export async function processWebhookEvent(event: Stripe.Event): Promise<WebhookProcessingResult> {
+  const claim = await recordBillingEvent(event);
+
+  if (!claim.shouldProcess) {
+    return {
+      context: { academyId: null, tenantId: null, userId: null },
+      duplicate: true,
+    };
+  }
+
+  const eventId = claim.id;
 
   try {
     let context: WebhookContext = {
@@ -58,7 +73,7 @@ export async function processWebhookEvent(event: Stripe.Event): Promise<WebhookC
       event.type === "customer.subscription.deleted"
     ) {
       const subscription = event.data.object as Stripe.Subscription;
-      context = await handleSubscriptionEvent(event.type, subscription, eventId);
+      context = await handleSubscriptionEvent(event.type, subscription, eventId, event);
     } else if (
       event.type === "invoice.paid" ||
       event.type === "invoice.payment_failed" ||
@@ -67,7 +82,9 @@ export async function processWebhookEvent(event: Stripe.Event): Promise<WebhookC
       event.type === "invoice.updated"
     ) {
       const invoice = event.data.object as Stripe.Invoice;
-      context = await handleInvoiceEvent(event.type, invoice, eventId);
+      const invoiceResult = await handleInvoiceEvent(event.type, invoice, eventId);
+      context = invoiceResult.context;
+      return { context, duplicate: false, invoice: invoiceResult.invoice };
     } else {
       // Para otros tipos de eventos, solo marcar como procesado
       await updateBillingEventStatus(eventId, {
@@ -76,7 +93,7 @@ export async function processWebhookEvent(event: Stripe.Event): Promise<WebhookC
       });
     }
 
-    return context;
+    return { context, duplicate: false };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     logger.error("Stripe webhook processing error", error, {
@@ -115,21 +132,28 @@ export async function handleStripeWebhook(request: Request): Promise<NextRespons
     const event = verifyWebhookSignature(body, signature, webhookSecret);
 
     // Procesar evento
-    const context = await processWebhookEvent(event);
+    const result = await processWebhookEvent(event);
+    const context = result.context;
 
     // Enviar notificaciones si es necesario (fuera de transacción)
     if (
+      !result.duplicate &&
       (event.type === "invoice.paid" ||
         event.type === "invoice.payment_failed" ||
         event.type === "invoice.payment_action_required") &&
       context.academyId &&
       context.tenantId
     ) {
-      const invoice = event.data.object as Stripe.Invoice;
-      await sendInvoiceNotifications(event.type, invoice, context);
+      const invoice = result.invoice ?? (event.data.object as Stripe.Invoice);
+      // Un fallo/acción antigua entregada después de un pago no debe producir
+      // una alerta falsa. `result.invoice` es el snapshot canónico recuperado
+      // durante el procesamiento.
+      if (event.type === "invoice.paid" || invoice.status !== "paid") {
+        await sendInvoiceNotifications(event.type, invoice, context);
+      }
     }
 
-    return NextResponse.json({ received: true });
+    return NextResponse.json({ received: true, duplicate: result.duplicate });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     
@@ -168,4 +192,3 @@ async function sendInvoiceNotifications(
     });
   }
 }
-

@@ -18,6 +18,12 @@ interface BillingSummary {
   athleteLimit: number | null;
   classLimit: number | null;
   hasStripeCustomer: boolean;
+  hasManagedSubscription: boolean;
+  trial: {
+    eligible: boolean;
+    active: boolean;
+    endsAt: string | null;
+  };
 }
 
 interface PlanSummary {
@@ -165,7 +171,7 @@ export const BillingPanel = memo(function BillingPanel({ academyId, userId, spor
   const { locale } = useTranslation();
   const [summary, setSummary] = useState<BillingSummary | null>(null);
   const [loadingSummary, setLoadingSummary] = useState(true);
-  const [loadingAction, setLoadingAction] = useState<PlanCode | "portal" | null>(null);
+  const [loadingAction, setLoadingAction] = useState<PlanCode | "portal" | "trial" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [plans, setPlans] = useState<PlanSummary[]>([]);
   const [loadingPlans, setLoadingPlans] = useState(true);
@@ -319,6 +325,26 @@ export const BillingPanel = memo(function BillingPanel({ academyId, userId, spor
     }
   };
 
+  const startTrial = async () => {
+    setLoadingAction("trial");
+    setError(null);
+    try {
+      const res = await fetch("/api/billing/trial/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ academyId }),
+      });
+      const body = await res.json();
+      if (!res.ok) {
+        throw new Error(body?.message ?? "No se pudo iniciar la prueba");
+      }
+      window.location.reload();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "No se pudo iniciar la prueba");
+      setLoadingAction(null);
+    }
+  };
+
   const currentPlanInfo = useMemo(
     () => (summary ? plans.find((plan) => plan.code === summary.planCode) ?? null : null),
     [summary, plans]
@@ -373,7 +399,22 @@ export const BillingPanel = memo(function BillingPanel({ academyId, userId, spor
                 {translateBillingInterval(currentPlanInfo.billingInterval) ?? "mes"}
               </p>
             )}
-            {summary.hasStripeCustomer && (
+            {summary.trial.active && summary.trial.endsAt && (
+              <p className="rounded-xl border border-zaltyko-teal/30 bg-zaltyko-teal/5 p-3 text-sm text-zaltyko-navy">
+                Starter está desbloqueado sin tarjeta hasta el {new Date(summary.trial.endsAt).toLocaleDateString("es-ES")}.
+              </p>
+            )}
+            {summary.planCode === "free" && summary.trial.eligible && (
+              <button
+                type="button"
+                onClick={startTrial}
+                disabled={loadingAction === "trial"}
+                className="min-h-11 rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-dark disabled:opacity-60"
+              >
+                {loadingAction === "trial" ? "Activando prueba…" : "Probar Starter 7 días sin tarjeta"}
+              </button>
+            )}
+            {summary.hasManagedSubscription && (
               <TooltipOnboarding
                 tooltipId="tooltip_payments"
                 message="Configura pagos una sola vez y deja de perseguir a padres cada mes."
@@ -449,15 +490,17 @@ export const BillingPanel = memo(function BillingPanel({ academyId, userId, spor
                   )}
                   <button
                     className="mt-4 min-h-11 w-full rounded-xl bg-zaltyko-teal px-4 py-2 font-medium text-white transition hover:bg-primary-dark disabled:bg-zaltyko-mist disabled:text-slate-500"
-                    disabled={isFree || isCurrent || loadingAction === code}
-                    onClick={() => triggerCheckout(code)}
+                    disabled={isFree || isCurrent || loadingAction === code || loadingAction === "portal"}
+                    onClick={() => (summary?.hasManagedSubscription ? openPortal() : triggerCheckout(code))}
                   >
                     {isCurrent
                       ? "Plan actual"
                       : isFree
                       ? "Incluido"
-                      : loadingAction === code
+                      : loadingAction === code || loadingAction === "portal"
                       ? "Redirigiendo…"
+                      : summary?.hasManagedSubscription
+                      ? "Gestionar cambio"
                       : "Seleccionar"}
                   </button>
                 </div>

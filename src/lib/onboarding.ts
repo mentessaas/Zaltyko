@@ -268,37 +268,7 @@ export async function getChecklist(academyId: string) {
 export { calculateDaysLeft } from "./onboarding-utils";
 
 export async function syncTrialStatus(academyId: string) {
-  const [academy] = await db
-    .select({
-      id: academies.id,
-      trialEndsAt: academies.trialEndsAt,
-      isTrialActive: academies.isTrialActive,
-    })
-    .from(academies)
-    .where(eq(academies.id, academyId))
-    .limit(1);
-
-  if (!academy) {
-    return;
-  }
-
-  if (!academy.trialEndsAt) {
-    return;
-  }
-
-  const isActive = academy.trialEndsAt > new Date();
-  if (isActive !== academy.isTrialActive) {
-    await db
-      .update(academies)
-      .set({
-        isTrialActive: isActive,
-      })
-      .where(eq(academies.id, academyId));
-
-    if (!isActive) {
-      await trackEvent("trial_ended", { academyId });
-    }
-  }
+  const { getAcademyTrialStatus } = await import("@/lib/billing/trial-service");
+  await getAcademyTrialStatus(academyId);
 }
-
 

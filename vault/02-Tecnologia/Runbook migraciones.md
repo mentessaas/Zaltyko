@@ -13,12 +13,12 @@ source:
 
 - Revisar Supabase changelog reciente antes de trabajo de migraciones.
 - No aplicar SQL destructivo sin inspeccion manual.
-- Confirmar RLS para toda tabla tenant-aware (`pnpm validate:rls` debe seguir en 100% / 63 tablas).
+- Confirmar RLS para toda tabla tenant-aware (`pnpm validate:rls` debe seguir en 100% / 64 tablas).
 - Mantener Drizzle schema y migraciones alineados.
 
 ## Estado a 2026-07-12
 
-- El directorio `drizzle/` **esta versionado**. `pnpm check:migrations` valida siempre ambos historiales: 3 migraciones Drizzle y 26 migraciones Supabase en el estado actual.
+- El directorio `drizzle/` **esta versionado**. `pnpm check:migrations` valida siempre ambos historiales: 3 migraciones Drizzle y 27 migraciones Supabase en el estado actual.
 - SSL: exportar `NODE_EXTRA_CA_CERTS` con `certs/supabase-root-ca.crt`; `scripts/db-migrate.ts` lo resuelve a ruta absoluta.
 - El drift historico de tablas faltantes se cerro el 2026-07-03; DB y ORM quedaron alineados salvo `push_tokens`, superseded por `push_subscriptions`.
 - `validate:rls` trata `rls-consolidated.sql` como snapshot y las migraciones como historial: una policy repetida entre ambos no es duplicado; si falla si una misma fuente declara dos veces la misma policy.
@@ -31,6 +31,13 @@ source:
   objetivo: el seed global tambien crea/actualiza datos demo, usuarios y billing.
 - La sincronizacion RFEG `rfeg-2026-v2` fue aplicada a Supabase el 2026-07-12 y verificada
   con un segundo dry-run sin diferencias. Los codigos retirados se desactivan, no se borran.
+- La migracion no destructiva `20260712230000_phase1_trial_and_billing_events.sql` fue inspeccionada,
+  aplicada en una transaccion y verificada el 2026-07-12. Crea `academy_trials` con RLS/policy e
+  indices; agrega lease/trazabilidad a `billing_events` y cursor de orden a `subscriptions`.
+- `pnpm db:generate` se cancelo antes de escribir archivos porque Drizzle detecto drift historico
+  no relacionado en `academy_diagnostics` y `academy_expenses`. No aceptar automaticamente ese
+  diff: reconciliar primero snapshots, journal, schema materializado y migraciones manuales. El
+  seguimiento vive en [[Backlog priorizado]].
 
 ## Flujo recomendado
 

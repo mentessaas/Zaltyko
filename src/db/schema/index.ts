@@ -12,6 +12,7 @@
 export * from "./enums";
 export * from "./plans";
 export * from "./academies";
+export * from "./academy-trials";
 export * from "./academy-messages";
 export * from "./announcements";
 export * from "./direct-messages";

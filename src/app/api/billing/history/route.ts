@@ -3,9 +3,10 @@ import { apiSuccess, apiError } from "@/lib/api-response";
 import { z } from "zod";
 
 import { db } from "@/db";
-import { academies, billingInvoices } from "@/db/schema";
+import { billingInvoices } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
 import { logger } from "@/lib/logger";
+import { getBillingAcademyAccess } from "@/lib/billing/access";
 
 const BodySchema = z.object({
   academyId: z.string().uuid({
@@ -30,20 +31,14 @@ export const POST = withTenant(async (request, context) => {
     return apiError("INVALID_JSON", "El cuerpo de la petición no es un JSON válido", 400);
   }
 
-  // Obtener academia y verificar acceso
-  const [academy] = await db
-    .select({ tenantId: academies.tenantId })
-    .from(academies)
-    .where(eq(academies.id, body.academyId))
-    .limit(1);
-
+  const academy = await getBillingAcademyAccess({
+    academyId: body.academyId,
+    userId: context.userId,
+    profileId: context.profile.id,
+    profileRole: context.profile.role,
+  });
   if (!academy) {
-    return apiError("ACADEMY_NOT_FOUND", "La academia especificada no existe", 404);
-  }
-
-  const isAdmin = context.profile.role === "admin" || context.profile.role === "super_admin";
-  if (!isAdmin && academy.tenantId !== context.tenantId) {
-    return apiError("FORBIDDEN", "No tienes acceso a los datos de cobros de esta academia", 403);
+    return apiError("BILLING_FORBIDDEN", "Solo la persona propietaria puede consultar la suscripción", 403);
   }
 
   const limit = body.limit ?? 20;
@@ -76,4 +71,3 @@ export const POST = withTenant(async (request, context) => {
     return apiError("INTERNAL_ERROR", "Error al obtener el historial de recibos. Intenta de nuevo más tarde.", 500);
   }
 });
-

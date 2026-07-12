@@ -44,8 +44,8 @@ export function useBillingActions(
         throw new Error(data?.error ?? "No se pudo iniciar el checkout");
       }
 
-      if (data.checkoutUrl) {
-        window.location.href = data.checkoutUrl;
+      if (data.data?.checkoutUrl) {
+        window.location.href = data.data.checkoutUrl;
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Error desconocido";
@@ -78,8 +78,8 @@ export function useBillingActions(
         throw new Error(data?.error ?? "No se pudo abrir el portal de Stripe");
       }
 
-      if (data.portalUrl) {
-        window.location.href = data.portalUrl;
+      if (data.data?.portalUrl) {
+        window.location.href = data.data.portalUrl;
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Error desconocido";

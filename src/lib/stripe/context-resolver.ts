@@ -56,7 +56,16 @@ export async function getAcademyContextFromSubscription(
     extractMetadataValue(metadata, "tenant_id") ??
     null;
 
-  // Si tenemos userId, intentar obtener academia del owner
+  // El academyId explícito de metadata es canónico. Resolverlo primero evita
+  // atribuir el evento a la primera academia de un owner multi-academia.
+  if (academyId) {
+    const context = await resolveAcademyContext(academyId);
+    if (context.tenantId) {
+      return { ...context, userId };
+    }
+  }
+
+  // Compatibilidad con suscripciones antiguas sin academyId en metadata.
   if (userId) {
     const [profile] = await db
       .select({ id: profiles.id })
@@ -75,15 +84,6 @@ export async function getAcademyContextFromSubscription(
         return { academyId: academy.id, tenantId: academy.tenantId, userId };
       }
     }
-  }
-
-  // Si tenemos academyId, resolver tenantId si falta
-  if (academyId) {
-    if (tenantId) {
-      return { academyId, tenantId, userId };
-    }
-    const context = await resolveAcademyContext(academyId);
-    return { ...context, userId };
   }
 
   return { academyId: null, tenantId: null, userId };
@@ -112,9 +112,16 @@ export async function getAcademyContextFromInvoice(
     extractMetadataValue(metadata, "tenant_id") ??
     null;
 
-  // Si ya tenemos toda la información, retornar
-  if (academyId && tenantId) {
-    return { academyId, tenantId, userId };
+  // La academia de metadata debe existir y su tenant en DB es canónico. No
+  // confiamos en un tenantId aislado porque una metadata antigua o malformada
+  // podría atribuir una factura al tenant equivocado.
+  if (academyId) {
+    const resolved = await resolveAcademyContext(academyId);
+    if (resolved.tenantId) {
+      return { ...resolved, userId };
+    }
+    academyId = null;
+    tenantId = null;
   }
 
   // Intentar obtener desde la suscripción asociada
@@ -202,8 +209,9 @@ export async function getAcademyContextFromInvoice(
   }
 
   // Si tenemos academyId pero no tenantId, resolverlo
-  if (academyId && !tenantId) {
+  if (academyId) {
     const context = await resolveAcademyContext(academyId);
+    academyId = context.tenantId ? context.academyId : null;
     tenantId = context.tenantId;
   }
 

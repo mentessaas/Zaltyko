@@ -1,13 +1,14 @@
-import { eq, and } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { z } from "zod";
 import Stripe from "stripe";
 
 import { db } from "@/db";
-import { academies, subscriptions, profiles, billingInvoices } from "@/db/schema";
+import { subscriptions, billingInvoices } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
 import { getStripeClient } from "@/lib/stripe/client";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { logger } from "@/lib/logger";
+import { getBillingAcademyAccess } from "@/lib/billing/access";
 
 const bodySchema = z.object({
   academyId: z.string().uuid(),
@@ -44,36 +45,14 @@ export const POST = withTenant(async (request, context) => {
   const stripe = getStripeClient();
   const body = bodySchema.parse(await request.json());
 
-  // Validar que la academia existe y pertenece al tenant
-  const [academy] = await db
-    .select({
-      id: academies.id,
-      tenantId: academies.tenantId,
-      ownerId: academies.ownerId,
-    })
-    .from(academies)
-    .where(and(eq(academies.id, body.academyId), eq(academies.tenantId, context.tenantId!)))
-    .limit(1);
-
+  const academy = await getBillingAcademyAccess({
+    academyId: body.academyId,
+    userId: context.userId,
+    profileId: context.profile.id,
+    profileRole: context.profile.role,
+  });
   if (!academy) {
-    return apiError("ACADEMY_NOT_FOUND", "Academy not found", 404);
-  }
-
-  // Obtener el customer ID de Stripe desde la suscripción del owner
-  if (!academy.ownerId) {
-    return apiError("ACADEMY_HAS_NO_OWNER", "Academy has no owner", 400);
-  }
-
-  const [owner] = await db
-    .select({
-      userId: profiles.userId,
-    })
-    .from(profiles)
-    .where(eq(profiles.id, academy.ownerId))
-    .limit(1);
-
-  if (!owner) {
-    return apiError("OWNER_NOT_FOUND", "Owner not found", 404);
+    return apiError("BILLING_FORBIDDEN", "Solo la persona propietaria puede sincronizar la suscripción", 403);
   }
 
   const [subscription] = await db
@@ -81,7 +60,7 @@ export const POST = withTenant(async (request, context) => {
       stripeCustomerId: subscriptions.stripeCustomerId,
     })
     .from(subscriptions)
-    .where(eq(subscriptions.userId, owner.userId))
+    .where(eq(subscriptions.userId, academy.ownerUserId))
     .limit(1);
 
   if (!subscription?.stripeCustomerId) {
@@ -102,6 +81,23 @@ export const POST = withTenant(async (request, context) => {
     // Sincronizar cada recibo.
     for (const invoice of invoices.data) {
       try {
+        const invoiceCustomerId =
+          typeof invoice.customer === "string" ? invoice.customer : invoice.customer?.id;
+        if (invoiceCustomerId !== subscription.stripeCustomerId) {
+          logger.error("Skipping Stripe invoice with mismatched customer", undefined, {
+            invoiceId: invoice.id,
+            academyId: academy.id,
+          });
+          errors++;
+          continue;
+        }
+
+        const [existing] = await db
+          .select({ id: billingInvoices.id })
+          .from(billingInvoices)
+          .where(eq(billingInvoices.stripeInvoiceId, invoice.id))
+          .limit(1);
+
         await db
           .insert(billingInvoices)
           .values({
@@ -122,6 +118,7 @@ export const POST = withTenant(async (request, context) => {
           .onConflictDoUpdate({
             target: billingInvoices.stripeInvoiceId,
             set: {
+              academyId: academy.id,
               tenantId: academy.tenantId ?? undefined,
               status: invoice.status ?? "open",
               amountDue: invoice.amount_due ?? undefined,
@@ -135,13 +132,6 @@ export const POST = withTenant(async (request, context) => {
               metadata: metadataToRecord(invoice.metadata),
             },
           });
-
-        // Verificar si es nueva o actualizada
-        const [existing] = await db
-          .select({ id: billingInvoices.id })
-          .from(billingInvoices)
-          .where(eq(billingInvoices.stripeInvoiceId, invoice.id))
-          .limit(1);
 
         if (existing) {
           updated++;

@@ -17,6 +17,8 @@ export const subscriptions = pgTable(
     stripeSubscriptionId: text("stripe_subscription_id"),
     stripePriceId: text("stripe_price_id"),
     cancelAtPeriodEnd: boolean("cancel_at_period_end").notNull().default(false),
+    lastStripeEventId: text("last_stripe_event_id"),
+    lastStripeEventCreatedAt: timestamp("last_stripe_event_created_at", { withTimezone: true }),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
   },
   (table) => ({
@@ -25,4 +27,3 @@ export const subscriptions = pgTable(
     userUnique: uniqueIndex("subscriptions_user_id_unique").on(table.userId),
   })
 );
-

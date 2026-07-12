@@ -15,6 +15,10 @@
     {
       "path": "/api/cron/scheduled-notifications",
       "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/cron/trial-lifecycle",
+      "schedule": "15 9 * * *"
     }
   ],
   "env": {

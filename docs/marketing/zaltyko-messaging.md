@@ -139,7 +139,7 @@ Los taglines están diseñados para diferentes canales y contextos de uso, mante
 |--------------|------|
 | Awareness | "Gestionar una academia deportiva no debería ser un trabajo de oficina. Zaltyko te devuelve el tiempo para hacer lo que amas: entrenar." |
 | Consideración | "Acabas de ver a 3 academias crecer con Zaltyko. Descubre cómo。他们" + link a caso de éxito |
-| Conversión | "Tu prueba gratuita está esperando. 14 días sin compromiso para transformar tu administración." |
+| Conversión | "Activa 7 días de Starter sin tarjeta desde Facturación. Después vuelves a Free; no hay cargo automático." |
 
 ---
 

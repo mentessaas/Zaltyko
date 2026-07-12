@@ -35,6 +35,7 @@ Para discovery, beta y mensajes de venta tempranos, enfocar Zaltyko en academias
 | Email onboarding | Empieza configurando academia, clases, atletas y primer cobro. |
 | Network | Multi-sede solo bajo diagnostico y onboarding acompanado. |
 | Pricing v3.0 | Free hasta 30 gimnastas, Starter 19 €/mes hasta 75, Growth 49 €/mes hasta 200 y Network 99 €/mes multi-sede con onboarding acompanado. |
+| Trial | 7 días de Starter sin tarjeta, una activación por academia cada 12 meses; al terminar vuelve a Free y no hay cargo automático. |
 
 ## CTAs y claims seguros a 2026-07-12
 
@@ -44,6 +45,7 @@ Para discovery, beta y mensajes de venta tempranos, enfocar Zaltyko en academias
 - Usar "aislamiento por academia" y "controles de acceso"; no usar "100% seguro" ni "cumplimiento RGPD garantizado".
 - Usar "puesta en marcha guiada"; no prometer una duracion cerrada sin evidencia operativa.
 - No anunciar precio o descuento anual hasta que exista el Price anual real en Stripe.
+- Publicar el claim del trial únicamente cuando la promoción de Fase 1 esté verificada en producción. El CTA correcto es crear la academia y activarlo desde Facturación; no decir que se activa automáticamente al registrarse.
 
 ## Mensajes de gimnasia en validacion
 

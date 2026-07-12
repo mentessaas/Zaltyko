@@ -7,6 +7,8 @@ import type { UpgradePlanCode } from "./limits/errors";
 import { PRODUCT_PLAN_BY_CODE } from "@/lib/plans/catalog";
 import { NotFoundError } from "@/lib/errors";
 import { getResourceCount } from "./limits/resource-counters";
+import { getAcademyTrialStatus } from "@/lib/billing/trial-service";
+import { hasSubscriptionAccess } from "@/lib/billing/subscription-status";
 
 export type { PlanCode, LimitResource };
 
@@ -48,15 +50,23 @@ export async function getUserSubscription(userId: string): Promise<ActiveSubscri
       planCode: plans.code,
       athleteLimit: plans.athleteLimit,
       academyLimit: plans.academyLimit,
+      status: subscriptions.status,
     })
     .from(subscriptions)
     .leftJoin(plans, eq(subscriptions.planId, plans.id))
     .where(eq(subscriptions.userId, userId))
     .limit(1);
 
-  const planCode = (row?.planCode as PlanCode | undefined) ?? "free";
-  const athleteLimit = row?.athleteLimit ?? ATHLETE_LIMITS[planCode];
-  const academyLimit = row?.academyLimit ?? ACADEMY_LIMITS[planCode];
+  const hasAccess = hasSubscriptionAccess(row?.status);
+  const planCode = hasAccess
+    ? ((row?.planCode as PlanCode | undefined) ?? "free")
+    : "free";
+  const athleteLimit = hasAccess
+    ? (row?.athleteLimit ?? ATHLETE_LIMITS[planCode])
+    : ATHLETE_LIMITS.free;
+  const academyLimit = hasAccess
+    ? (row?.academyLimit ?? ACADEMY_LIMITS[planCode])
+    : ACADEMY_LIMITS.free;
 
   return {
     planCode,
@@ -68,6 +78,17 @@ export async function getUserSubscription(userId: string): Promise<ActiveSubscri
 }
 
 export async function getActiveSubscription(academyId: string): Promise<ActiveSubscription> {
+  const trial = await getAcademyTrialStatus(academyId);
+  if (trial.active) {
+    return {
+      planCode: "pro",
+      athleteLimit: ATHLETE_LIMITS.pro,
+      classLimit: CLASS_LIMITS.pro,
+      groupLimit: GROUP_LIMITS.pro,
+      academyLimit: ACADEMY_LIMITS.pro,
+    };
+  }
+
   const [academy] = await db
     .select({
       ownerId: academies.ownerId,

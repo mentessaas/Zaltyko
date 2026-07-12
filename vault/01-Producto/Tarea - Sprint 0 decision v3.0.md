@@ -1,7 +1,7 @@
 ---
-status: draft
+status: implemented-release-candidate
 owner: producto/tech/negocio
-last_reviewed: 2026-06-23
+last_reviewed: 2026-07-12
 source:
   - ../03-Negocio/Pricing.md
   - ../03-Negocio/Modelo de negocio.md
@@ -17,7 +17,7 @@ source:
 Implementar la decision v3.0 de pricing freemium agresivo en codigo y docs. Tras el Sprint 0, Zaltyko debe:
 1. Cobrar 19 €/mes por Starter, 49 €/mes por Growth, 99 €/mes por Network (un solo precio para Espana + LATAM).
 2. Ofrecer Free util hasta 30 gimnastas (vs 50 actual).
-3. Permitir trial 7 dias sin tarjeta para cualquier plan.
+3. Permitir trial 7 dias sin tarjeta con funciones y limites de Starter.
 4. Tener anti-abuso de trial (1 cada 12 meses por academia).
 5. Mostrar la nueva estructura en la landing `/pricing`.
 6. Tener Stripe price IDs reales (no placeholders) para Starter y Growth.
@@ -25,6 +25,12 @@ Implementar la decision v3.0 de pricing freemium agresivo en codigo y docs. Tras
 ## Origen
 
 Decision registrada en [[../06-Roadmap-y-Tareas/Decisiones]] el 2026-06-23. Plan detallado en `04-30-day-action-plan.md` del Obsidian. Pricing completo en [[../03-Negocio/Pricing]].
+
+> Nota de ejecución 2026-07-12: la implementación final usa click explícito desde Facturación,
+> concede Starter (75 gimnastas), ejecuta lifecycle diario y conserva Network como oferta
+> acompañada sin Price/checkout autoservicio. Las secciones inferiores mantienen parte del plan
+> histórico; ante cualquier diferencia prevalecen [[../03-Negocio/Pricing]],
+> [[../06-Roadmap-y-Tareas/Decisiones]] y el código validado de Fase 1.
 
 ## Estado detectado (2026-06-23)
 
@@ -189,7 +195,7 @@ Discutir con Elvis antes de empezar a codear:
 1. **Crear Stripe price IDs reales** para Starter 19 € y Growth 49 € (bloqueante, sin esto checkout falla).
 2. **Confirmar limite Free en 30 atletas** (vs 25 / 50 que tenia la vault).
 3. **Migracion de academias existentes en free con 31-50 gimnastas**: dejar como free y avisar, o forzar upgrade?
-4. **Trial sin tarjeta + onboarding automatico**: si el usuario nuevo registra academia, automaticamente entra en trial 7 dias, o requiere click explicito en "Probar gratis"?
+4. **Trial sin tarjeta**: decisión cerrada — requiere click explícito del owner en "Probar Starter 7 días sin tarjeta" desde Facturación; no se activa al registrarse.
 
 Tras estos 4 puntos, ejecutar bloques 0.1 → 0.6 en orden, con cada bloque commiteado y desplegado independientemente.
 

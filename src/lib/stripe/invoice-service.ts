@@ -9,6 +9,8 @@ import { updateBillingEventStatus } from "@/lib/stripe/billing-events-service";
 import { getStripeClient } from "@/lib/stripe/client";
 import type { WebhookContext } from "@/lib/stripe/webhook-handler";
 
+type TransactionClient = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
 /**
  * Convierte un timestamp de Unix a Date
  */
@@ -44,17 +46,18 @@ function metadataToRecord(metadata: Stripe.Metadata | undefined | null): Record<
 export async function upsertInvoiceRecord(
   invoice: Stripe.Invoice,
   academyId: string | null,
-  tenantId: string | null
+  tenantId: string | null,
+  client: TransactionClient | typeof db = db
 ): Promise<void> {
-  if (!academyId) {
+  if (!academyId || !tenantId) {
     return;
   }
 
-  await db
+  await client
     .insert(billingInvoices)
     .values({
       academyId,
-      tenantId: tenantId!, // tenantId is guaranteed here since we checked academyId above
+      tenantId,
       stripeInvoiceId: invoice.id,
       status: invoice.status ?? "open",
       amountDue: invoice.amount_due ?? undefined,
@@ -70,7 +73,7 @@ export async function upsertInvoiceRecord(
     .onConflictDoUpdate({
       target: billingInvoices.stripeInvoiceId,
       set: {
-        tenantId: tenantId!, // tenantId is guaranteed here since we checked academyId above
+        tenantId,
         status: invoice.status ?? "open",
         amountDue: invoice.amount_due ?? undefined,
         amountPaid: invoice.amount_paid ?? undefined,
@@ -92,13 +95,17 @@ export async function handleInvoiceEvent(
   eventType: "invoice.paid" | "invoice.payment_failed" | "invoice.payment_action_required" | "invoice.finalized" | "invoice.updated",
   invoice: Stripe.Invoice,
   eventId: string
-): Promise<WebhookContext> {
+): Promise<{ context: WebhookContext; invoice: Stripe.Invoice }> {
   const stripe = getStripeClient();
+  // Igual que las suscripciones, las facturas pueden llegar fuera de orden.
+  // Persistir el objeto actual de Stripe evita que un invoice.updated antiguo
+  // restaure un estado previo después de invoice.paid.
+  const canonicalInvoice = await stripe.invoices.retrieve(invoice.id);
 
   return await withTransaction(async (tx) => {
-    const context = await getAcademyContextFromInvoice(invoice, stripe);
+    const context = await getAcademyContextFromInvoice(canonicalInvoice, stripe);
 
-    await upsertInvoiceRecord(invoice, context.academyId, context.tenantId);
+    await upsertInvoiceRecord(canonicalInvoice, context.academyId, context.tenantId, tx);
 
     // Actualizar estado del evento dentro de la transacción
     await tx
@@ -111,7 +118,6 @@ export async function handleInvoiceEvent(
       })
       .where(eq(billingEvents.id, eventId));
 
-    return context;
+    return { context, invoice: canonicalInvoice };
   });
 }
-

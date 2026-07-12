@@ -37,7 +37,7 @@ Definido en [[Pricing]] y activado como decision oficial el 2026-06-24. Las entr
 
 | Plan | Precio unico | Gimnastas | Sedes | Disparador de upgrade |
 | --- | --- | --- | --- | --- |
-| **Trial 7 dias** | 0 € (sin tarjeta) | ilimitado | 1 | Downgrade automatico a Free al dia 7. Un trial por academia cada 12 meses. |
+| **Trial 7 dias** | 0 € (sin tarjeta) | hasta 75 | 1 | Todas las funciones y limites de Starter; downgrade automatico a Free al dia 7. Un trial por academia cada 12 meses. |
 | **Free** | 0 €/mes perpetuo | hasta 30 | 1 | >30 gimnastas O activar portal padres completo O activar pagos recurrentes. |
 | **Starter** | **19 €/mes** (≈ 20 USD) | hasta 75 | 1 | >75 gimnastas O automatizaciones O reportes ejecutivos. |
 | **Growth** | 49 €/mes (≈ 52 USD) | hasta 200 | 1 | >200 gimnastas O multi-sede. |

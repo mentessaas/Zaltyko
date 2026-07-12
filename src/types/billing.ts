@@ -19,6 +19,16 @@ export interface BillingSummary {
   athleteLimit: number | null;
   classLimit: number | null;
   hasStripeCustomer: boolean;
+  trial: {
+    eligible: boolean;
+    reason: "eligible" | "active_trial" | "cooldown" | "paid_plan_active" | "academy_not_found";
+    active: boolean;
+    trialId: string | null;
+    startsAt: string | null;
+    endsAt: string | null;
+    nextEligibleAt: string | null;
+    grantedPlanCode: "pro" | null;
+  };
 }
 
 export interface InvoiceRow {

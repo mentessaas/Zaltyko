@@ -20,7 +20,7 @@ El ICP (academias pequenas/medianas de gimnasia artistica/ritmica en espanol, ho
 
 | Plan | Precio | Gimnastas | Caracteristica |
 | --- | --- | --- | --- |
-| Trial 7 dias | 0 € (sin tarjeta) | ilimitado | Todas las funciones del Starter. Downgrade automatico a Free. |
+| Trial 7 dias | 0 € (sin tarjeta) | hasta 75 | Todas las funciones y limites del Starter. Downgrade automatico a Free. |
 | Free | 0 €/mes | hasta 30 | Operar academia basica sin pagar. Loss-leader. |
 | Starter | **19 €/mes** | hasta 75 | SaaS completo: pagos recurrentes, portal padres, progresion. |
 | Growth | 49 €/mes | hasta 200 | Automatizaciones + reportes ejecutivos. |

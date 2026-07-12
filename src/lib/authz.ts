@@ -21,6 +21,8 @@ import { logger } from "@/lib/logger";
 import { db } from "@/db";
 import { profiles } from "@/db/schema";
 import { createBearerSupabaseClient, getBearerToken } from "@/lib/supabase/bearer-client";
+import { getRequiredRoutePermission } from "./authz/route-permissions";
+import { getUserPermissions } from "./authz/permissions-service";
 
 export type { ProfileRow };
 
@@ -216,6 +218,24 @@ export function withTenant<Ctx extends Record<string, unknown>>(
         ? ""
         : (tenantId ?? "");
 
+      const requiredPermission = getRequiredRoutePermission(pathname, method);
+      if (effectiveAcademyId && requiredPermission && !isSuperAdmin) {
+        const effectivePermissions = await getUserPermissions(userId, effectiveAcademyId);
+        // Membership roles remain the v1 baseline. A configured academy role is
+        // an optional restrictive capability layer and is enforced consistently
+        // for registered module routes.
+        if (
+          effectivePermissions.roleId &&
+          !effectivePermissions.isOwner &&
+          !effectivePermissions.permissions.includes(requiredPermission)
+        ) {
+          return NextResponse.json(
+            { error: "PERMISSION_DENIED", permission: requiredPermission },
+            { status: 403 }
+          );
+        }
+      }
+
       return handler(request, {
         ...contextWithParams,
         tenantId: handlerTenantId,
@@ -331,6 +351,25 @@ export function withBearerTenant<Ctx extends Record<string, unknown>>(
           { error: "ACADEMY_ACCESS_DENIED" },
           { status: 403 }
         );
+      }
+
+      const pathname = new URL(request.url).pathname;
+      const requiredPermission = getRequiredRoutePermission(
+        pathname,
+        request.method?.toUpperCase() ?? "GET"
+      );
+      if (effectiveAcademyId && requiredPermission && profile.role !== "super_admin") {
+        const effectivePermissions = await getUserPermissions(userId, effectiveAcademyId);
+        if (
+          effectivePermissions.roleId &&
+          !effectivePermissions.isOwner &&
+          !effectivePermissions.permissions.includes(requiredPermission)
+        ) {
+          return NextResponse.json(
+            { error: "PERMISSION_DENIED", permission: requiredPermission },
+            { status: 403 }
+          );
+        }
       }
 
       return handler(request, {

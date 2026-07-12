@@ -13,10 +13,12 @@ source:
 
 ## Lectura rápida
 
-Zaltyko está en **hardening avanzado**. Se ejecutaron los sprints 0-7, una auditoría completa de seguridad y calidad (PR #8), un fix de CI, y una segunda ronda de auditoría/QA (PRs #12-#19) que cerró una escalada de permisos cross-tenant real, purgó datos de test de producción, construyó CRUD completo de super-admin y corrigió bugs de guardado en Configuración y edición de academia. El deploy de Vercel está verde, la cobertura RLS es 100% sobre las tablas tenant-scoped y el QA P1 pasa 5/5 en sandbox. El core operativo existe y está endurecido; lo que queda son **decisiones humanas, QA con usuarios reales y deuda técnica acotada** (ver "Bloqueadores reales / lo que sigue").
+Zaltyko está en **hardening avanzado y preparación de promoción de Fase 1**. Se ejecutaron los sprints 0-7, una auditoría completa de seguridad y calidad (PR #8), un fix de CI, y una segunda ronda de auditoría/QA (PRs #12-#19). El 2026-07-12 se añadió un trial Starter real de 7 días, permisos personalizados operativos, checkout/portal owner-only y procesamiento Stripe idempotente y ordenado. La migración de Fase 1 está aplicada en Supabase, la cobertura RLS es 100% sobre 64 tablas tenant-scoped y falta completar la puerta final, desplegar la Fase 1 a producción y verificar cron/webhook antes de retirar el endpoint Stripe anterior.
 
 - Rama de cierre: `codex/sprint0-phase1-product-hardening`, creada desde `main` en el commit `e786788b`. Integra Sprint 0 de producto real y el trabajo paralelo de nomenclatura federativa RFEG sin revertirlo.
 - Supabase usa PostgreSQL 17.6. El catálogo `rfeg-2026-v2` quedó sincronizado el 2026-07-12 mediante un comando acotado e idempotente; un segundo dry-run confirmó cero diferencias. No se ejecutó el seed global ni una migración de schema.
+- La migración `20260712230000_phase1_trial_and_billing_events.sql` está aplicada y verificada: `academy_trials`, lease/reintentos de `billing_events` y orden de eventos por suscripción. El inventario actual es 3 migraciones Drizzle + 27 Supabase; RLS 64/64.
+- El preview de cierre de Sprint 0 quedó `Ready`. La promoción de Fase 1 a producción permanece deliberadamente pendiente hasta pasar el gate completo del nuevo código.
 - Historial de ejecución: [[Changelog interno]] y [[Decisiones#2026-06-24 - Resumen de sprints 0-7 + auditoria + CI fix]].
 
 ## Lo que tenemos
@@ -26,7 +28,7 @@ Zaltyko está en **hardening avanzado**. Se ejecutaron los sprints 0-7, una audi
 | Multi-tenant auth | Activo | `withTenant` es obligatorio en APIs. |
 | Atletas | Avanzado | Perfiles, tutores, historial, import/export y vistas principales. |
 | Clases y grupos | Avanzado | Calendario, sesiones, grupos, asistencia y capacidad. |
-| Billing | Avanzado | Cargos, descuentos, becas, recibos, Stripe y reportes parciales. |
+| Billing | Avanzado / RC Fase 1 | Trial 7 días sin tarjeta, Checkout/Portal owner-only, cargos, descuentos, becas, recibos, webhooks idempotentes y reportes parciales. |
 | Eventos | Avanzado | CRUD, inscripciones, waitlist, archivos y páginas públicas. |
 | Evaluaciones | Parcial/avanzado | Hay rutas de evaluaciones, evaluate, historial y progreso por atleta; falta validar flujo end-to-end. |
 | Asistencia | Parcial/avanzado | Existe pagina dedicada `/app/[academyId]/attendance`, API y reportes; falta QA end-to-end. |

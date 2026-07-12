@@ -1,4 +1,4 @@
-import { eq, and, isNull, desc } from "drizzle-orm";
+import { eq, and, isNull, desc, gt, or } from "drizzle-orm";
 
 import { db } from "@/db";
 import { academies, academyRoles, memberships, roleMembers, profiles, permissionEnum } from "@/db/schema";
@@ -20,7 +20,7 @@ export type RoleWithPermissions = {
   description: string | null;
   permissions: Permission[];
   inheritsFrom: string | null;
-  isDefault: string | null;
+  isDefault: boolean;
   isActive: boolean;
 };
 
@@ -40,7 +40,7 @@ export async function getUserPermissions(
       and(
         eq(roleMembers.userId, userId),
         eq(roleMembers.academyId, academyId),
-        isNull(roleMembers.expiresAt)
+        or(isNull(roleMembers.expiresAt), gt(roleMembers.expiresAt, new Date()))
       )
     )
     .limit(1);
@@ -51,13 +51,13 @@ export async function getUserPermissions(
     // (el trigger de signup pone "owner" a cualquiera). Antes esto daba TODOS los
     // permisos a cualquier perfil owner sobre cualquier academia.
     const [profile] = await db
-      .select({ id: profiles.id, role: profiles.role })
+      .select({ id: profiles.id })
       .from(profiles)
       .where(eq(profiles.userId, userId))
       .limit(1);
 
     let ownsThisAcademy = false;
-    if (profile?.id && profile.role === "owner") {
+    if (profile?.id) {
       const [ownedAcademy] = await db
         .select({ id: academies.id })
         .from(academies)
@@ -96,7 +96,12 @@ export async function getUserPermissions(
   const role = await db
     .select()
     .from(academyRoles)
-    .where(eq(academyRoles.id, member.roleId))
+    .where(
+      and(
+        eq(academyRoles.id, member.roleId),
+        eq(academyRoles.academyId, academyId)
+      )
+    )
     .limit(1);
 
   if (!role.length) {
@@ -110,9 +115,19 @@ export async function getUserPermissions(
 
   const roleData = role[0];
 
+  if (!roleData.isActive) {
+    return {
+      permissions: [],
+      roleId: roleData.id,
+      roleName: roleData.name,
+      isOwner: member.memberRole === "owner",
+    };
+  }
+
   // Calcular permisos heredados
   const inheritedPermissions = await calculateInheritedPermissions(
-    roleData.inheritsFrom
+    roleData.inheritsFrom,
+    academyId
   );
 
   // Combinar: permisos del rol + heredados + personalizados
@@ -135,14 +150,24 @@ export async function getUserPermissions(
  * Calcula permisos heredados de un rol
  */
 async function calculateInheritedPermissions(
-  inheritsFromId: string | null
+  inheritsFromId: string | null,
+  academyId: string,
+  visited = new Set<string>()
 ): Promise<Permission[]> {
   if (!inheritsFromId) return [];
+  if (visited.has(inheritsFromId)) return [];
+  visited.add(inheritsFromId);
 
   const parentRole = await db
     .select()
     .from(academyRoles)
-    .where(eq(academyRoles.id, inheritsFromId))
+    .where(
+      and(
+        eq(academyRoles.id, inheritsFromId),
+        eq(academyRoles.academyId, academyId),
+        eq(academyRoles.isActive, true)
+      )
+    )
     .limit(1);
 
   if (!parentRole.length) return [];
@@ -152,7 +177,9 @@ async function calculateInheritedPermissions(
 
   // Recursivamente obtener permisos del abuelo
   const grandPermissions = await calculateInheritedPermissions(
-    parent.inheritsFrom
+    parent.inheritsFrom,
+    academyId,
+    visited
   );
 
   return [...new Set([...parentPermissions, ...grandPermissions])];
@@ -229,7 +256,7 @@ export async function getAcademyRoles(academyId: string): Promise<RoleWithPermis
     description: r.description,
     permissions: (r.permissions || []) as Permission[],
     inheritsFrom: r.inheritsFrom,
-    isDefault: r.isDefault ? String(r.isDefault) : null,
+    isDefault: r.isDefault,
     isActive: r.isActive,
   }));
 }
@@ -243,10 +270,9 @@ export async function createAcademyRole(
   description: string | null,
   permissions: Permission[],
   inheritsFrom: string | null = null,
-  isDefault: string | null = null,
+  isDefault = false,
   createdBy: string
 ) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [role] = await db
     .insert(academyRoles)
     .values({
@@ -257,9 +283,9 @@ export async function createAcademyRole(
       permissions,
       inheritsFrom: inheritsFrom ?? undefined,
       isDefault,
-      isActive: "true",
+      isActive: true,
       createdBy,
-    } as any)
+    })
     .returning();
 
   return role;
@@ -275,16 +301,13 @@ export async function updateAcademyRole(
     description?: string | null;
     permissions?: Permission[];
     inheritsFrom?: string | null;
-    isDefault?: string | null;
-    isActive?: string;
+    isDefault?: boolean;
+    isActive?: boolean;
   }
 ) {
   const [role] = await db
     .update(academyRoles)
-    .set({
-      ...updates,
-      updatedAt: new Date(),
-    } as Record<string, unknown>)
+    .set({ ...updates, updatedAt: new Date() })
     .where(eq(academyRoles.id, roleId))
     .returning();
 
@@ -298,7 +321,7 @@ export async function assignRoleToUser(
   userId: string,
   roleId: string,
   academyId: string,
-  memberRole: "owner" | "admin" | "coach" | "assistant" | "viewer" | "parent",
+  memberRole: "owner" | "coach" | "viewer",
   assignedBy: string,
   customPermissions?: Permission[]
 ) {
@@ -346,6 +369,18 @@ export async function getRoleMembers(roleId: string) {
     .where(eq(roleMembers.roleId, roleId));
 }
 
+export async function removeRoleFromUser(userId: string, roleId: string, academyId: string) {
+  return db
+    .delete(roleMembers)
+    .where(
+      and(
+        eq(roleMembers.userId, userId),
+        eq(roleMembers.roleId, roleId),
+        eq(roleMembers.academyId, academyId)
+      )
+    );
+}
+
 /**
  * Elimina un rol (soft delete)
  */
@@ -377,7 +412,7 @@ export async function createDefaultRoles(
         "events:read", "events:create", "events:update", "events:delete",
         "communications:read", "communications:send", "communications:templates",
       ] as Permission[],
-      isDefault: "admin",
+      isDefault: true,
     },
     {
       name: "Entrenador",
@@ -386,9 +421,9 @@ export async function createDefaultRoles(
         "athletes:read", "athletes:update",
         "classes:read", "classes:schedule",
         "reports:read",
-        "events:read", "events:register",
+        "events:read",
       ] as Permission[],
-      isDefault: "coach",
+      isDefault: true,
     },
     {
       name: "Asistente",
@@ -399,7 +434,7 @@ export async function createDefaultRoles(
         "reports:read",
         "events:read",
       ] as Permission[],
-      isDefault: "assistant",
+      isDefault: true,
     },
     {
       name: "Invitado",
@@ -409,7 +444,7 @@ export async function createDefaultRoles(
         "classes:read",
         "events:read",
       ] as Permission[],
-      isDefault: "invited",
+      isDefault: true,
     },
   ];
 

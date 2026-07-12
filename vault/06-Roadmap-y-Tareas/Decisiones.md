@@ -244,3 +244,12 @@ Copiar desde [[Template - Decision]] para nuevas decisiones.
 | Decision | Mantener monolito modular y roles de membership simples; hacer que ownership/membership sea la autoridad de academia; mantener codigos DB `free`/`pro`/`premium` para Free/Starter/Growth; modelar Network como oferta comercial sin checkout; desactivar cache/sync offline de datos privados hasta tener idempotencia y conflictos resueltos; usar `verify:production` como puerta compuesta. |
 | Consecuencia | Se congela cualquier atajo que derive permisos del rol global, Network no puede comprarse por API y ningun deploy debe declararse listo solo por presencia de archivos. |
 | Estado | Activa |
+
+## 2026-07-12 - Fase 1: una sola autoridad para trial, suscripciones y permisos
+
+| Campo | Valor |
+| --- | --- |
+| Contexto | El trial estaba documentado pero no existía; Checkout podía ser iniciado por cualquier miembro; webhooks duplicados o fuera de orden podían reescribir la suscripción; roles personalizados tenían APIs vacías y no protegían módulos. |
+| Decisión | Persistir el trial por academia con política 7/365; limitar la administración de suscripción al owner; usar Checkout para alta y Billing Portal para cambios/cancelación; procesar eventos Stripe con idempotencia, lease y orden; hacer operativos los roles personalizados sobre una matriz explícita de capacidades sin permitirles administrar la suscripción. |
+| Consecuencia | Los flujos billing legacy responden 410. La metadata explícita de academia es la autoridad Stripe. Los permisos simples de membership siguen siendo baseline si no existe rol personalizado; al asignarlo, la API aplica sus capacidades. |
+| Estado | Activa; migración aplicada y promoción a producción pendiente de gate/smoke. |

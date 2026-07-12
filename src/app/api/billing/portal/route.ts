@@ -3,13 +3,14 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
-import { academies, subscriptions, profiles } from "@/db/schema";
+import { subscriptions } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
-import { rateLimit, getUserIdentifier, withRateLimit } from "@/lib/rate-limit";
+import { getUserIdentifier, withRateLimit } from "@/lib/rate-limit";
 import { getStripeClient } from "@/lib/stripe/client";
 import { getAppUrl, getOptionalEnvVar } from "@/lib/env";
 import { NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
+import { getBillingAcademyAccess } from "@/lib/billing/access";
 
 const BodySchema = z.object({
   academyId: z.string().uuid({
@@ -44,43 +45,14 @@ const portalHandler = withTenant(async (request, context) => {
     return apiError("INVALID_JSON", "El cuerpo de la petición no es un JSON válido", 400);
   }
 
-  // Obtener academia
-  const [academy] = await db
-    .select({
-      id: academies.id,
-      tenantId: academies.tenantId,
-      ownerId: academies.ownerId,
-    })
-    .from(academies)
-    .where(eq(academies.id, body.academyId))
-    .limit(1);
-
+  const academy = await getBillingAcademyAccess({
+    academyId: body.academyId,
+    userId: context.userId,
+    profileId: context.profile.id,
+    profileRole: context.profile.role,
+  });
   if (!academy) {
-    return apiError("ACADEMY_NOT_FOUND", "La academia especificada no existe", 404);
-  }
-
-  // Verificar acceso
-  const isAdmin = context.profile.role === "admin" || context.profile.role === "super_admin";
-  if (!isAdmin && academy.tenantId !== context.tenantId) {
-    return apiError("FORBIDDEN", "No tienes acceso a los datos de cobros de esta academia", 403);
-  }
-
-  // Verificar que la academia tiene owner
-  if (!academy.ownerId) {
-    return apiError("ACADEMY_HAS_NO_OWNER", "La academia no tiene un propietario asignado", 400);
-  }
-
-  // Obtener owner
-  const [owner] = await db
-    .select({
-      userId: profiles.userId,
-    })
-    .from(profiles)
-    .where(eq(profiles.id, academy.ownerId))
-    .limit(1);
-
-  if (!owner) {
-    return apiError("OWNER_NOT_FOUND", "No se encontró el propietario de la academia", 404);
+    return apiError("BILLING_FORBIDDEN", "Solo la persona propietaria puede gestionar la suscripción", 403);
   }
 
   // Obtener suscripción
@@ -89,14 +61,14 @@ const portalHandler = withTenant(async (request, context) => {
       stripeCustomerId: subscriptions.stripeCustomerId,
     })
     .from(subscriptions)
-    .where(eq(subscriptions.userId, owner.userId))
+    .where(eq(subscriptions.userId, academy.ownerUserId))
     .limit(1);
 
   if (!subscription?.stripeCustomerId) {
     return apiError("NO_STRIPE_CUSTOMER", "No existe un cliente de Stripe asociado a esta cuenta. Parece que no has completado el proceso de suscripción.", 400);
   }
 
-  const returnUrl = `${getAppUrl()}/billing?academy=${body.academyId}`;
+  const returnUrl = `${getAppUrl()}/app/${body.academyId}/billing`;
 
   try {
     const session = await stripe.billingPortal.sessions.create({

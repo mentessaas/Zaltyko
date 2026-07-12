@@ -47,14 +47,14 @@ export default function PricingSection() {
   return (
     <section id="planes" className="py-20">
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-        {/* Urgency banner */}
+        {/* Trial banner */}
         <div className="mb-8 text-center">
           <div className="inline-flex items-center gap-2 rounded-full border border-zaltyko-teal/25 bg-zaltyko-teal/10 px-5 py-2 text-sm font-medium text-zaltyko-indigo">
             <span className="relative flex h-2 w-2">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-zaltyko-teal opacity-60" />
               <span className="relative inline-flex h-2 w-2 rounded-full bg-zaltyko-teal" />
             </span>
-            Demo guiada · planes por tamaño de academia artística o rítmica
+            7 días de Starter sin tarjeta · una activación por academia cada 12 meses
           </div>
         </div>
 
@@ -67,6 +67,9 @@ export default function PricingSection() {
           </h2>
           <p className="mt-3 font-sans text-base text-muted-foreground">
             No vendemos módulos sueltos: vendemos dirección diaria, cobros claros y seguimiento técnico para gimnasia artística y rítmica.
+          </p>
+          <p className="mt-2 font-sans text-sm text-muted-foreground">
+            Crea tu academia y activa la prueba desde Facturación. Después eliges si continúas; no se realiza ningún cargo automático.
           </p>
         </div>
 

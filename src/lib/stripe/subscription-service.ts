@@ -1,5 +1,5 @@
 import Stripe from "stripe";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { subscriptions, billingEvents } from "@/db/schema";
@@ -9,14 +9,36 @@ import { getAcademyContextFromSubscription } from "@/lib/stripe/context-resolver
 import { getPlanIdByStripePrice } from "@/lib/stripe/plan-service";
 import { unixToDate } from "@/lib/stripe/date-utils";
 import type { WebhookContext } from "@/lib/stripe/webhook-handler";
+import { convertAcademyTrial } from "@/lib/billing/trial-service";
+import { shouldApplyStripeEvent } from "@/lib/stripe/event-policy";
+import { getStripeClient } from "@/lib/stripe/client";
+
+type TransactionClient = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 /**
  * Actualiza el registro de suscripción en la base de datos
  */
 export async function updateSubscriptionRecord(
   subscription: Stripe.Subscription,
-  userId: string
-): Promise<void> {
+  userId: string,
+  event: Stripe.Event,
+  client: TransactionClient | typeof db = db
+): Promise<"updated" | "stale_ignored"> {
+
+  if ("execute" in client && typeof client.execute === "function") {
+    await client.execute(sql`select pg_advisory_xact_lock(hashtext(${userId}))`);
+  }
+
+  const eventCreatedAt = typeof event.created === "number" ? new Date(event.created * 1000) : new Date();
+  const [existing] = await client
+    .select({ lastStripeEventCreatedAt: subscriptions.lastStripeEventCreatedAt })
+    .from(subscriptions)
+    .where(eq(subscriptions.userId, userId))
+    .limit(1);
+
+  if (!shouldApplyStripeEvent(existing?.lastStripeEventCreatedAt ?? null, eventCreatedAt)) {
+    return "stale_ignored";
+  }
 
   const price = subscription.items?.data?.[0]?.price;
   const priceId = price?.id ?? null;
@@ -36,7 +58,7 @@ export async function updateSubscriptionRecord(
   const status = subscription.status ?? "incomplete";
   const currentPeriodEnd = unixToDate(subscription.items?.data?.[0]?.current_period_end);
 
-  await db
+  await client
     .insert(subscriptions)
     .values({
       userId,
@@ -47,6 +69,8 @@ export async function updateSubscriptionRecord(
       stripePriceId: priceId ?? undefined,
       cancelAtPeriodEnd,
       currentPeriodEnd,
+      lastStripeEventId: event.id,
+      lastStripeEventCreatedAt: eventCreatedAt,
     })
     .onConflictDoUpdate({
       target: subscriptions.userId,
@@ -58,8 +82,13 @@ export async function updateSubscriptionRecord(
         stripePriceId: priceId ?? undefined,
         cancelAtPeriodEnd,
         currentPeriodEnd,
+        lastStripeEventId: event.id,
+        lastStripeEventCreatedAt: eventCreatedAt,
+        updatedAt: new Date(),
       },
     });
+
+  return "updated";
 }
 
 /**
@@ -68,13 +97,23 @@ export async function updateSubscriptionRecord(
 export async function handleSubscriptionEvent(
   eventType: "customer.subscription.created" | "customer.subscription.updated" | "customer.subscription.deleted",
   subscription: Stripe.Subscription,
-  eventId: string
+  eventId: string,
+  event: Stripe.Event
 ): Promise<WebhookContext> {
+  // Stripe no garantiza el orden de entrega. Para created/updated aplicamos el
+  // snapshot actual del objeto remoto; así dos eventos creados en el mismo
+  // segundo tampoco pueden restaurar un estado antiguo. Deleted ya contiene el
+  // estado terminal y se procesa sin una lectura remota adicional.
+  const canonicalSubscription =
+    eventType === "customer.subscription.deleted"
+      ? subscription
+      : await getStripeClient().subscriptions.retrieve(subscription.id);
+
   return await withTransaction(async (tx) => {
-    const context = await getAcademyContextFromSubscription(subscription);
+    const context = await getAcademyContextFromSubscription(canonicalSubscription);
 
     if (context.userId) {
-      await updateSubscriptionRecord(subscription, context.userId);
+      await updateSubscriptionRecord(canonicalSubscription, context.userId, event, tx);
     }
 
     // Actualizar estado del evento dentro de la transacción
@@ -87,6 +126,10 @@ export async function handleSubscriptionEvent(
         processedAt: new Date(),
       })
       .where(eq(billingEvents.id, eventId));
+
+    if (context.academyId && ["active", "trialing"].includes(canonicalSubscription.status)) {
+      await convertAcademyTrial(context.academyId, new Date(), tx);
+    }
 
     return context;
   });

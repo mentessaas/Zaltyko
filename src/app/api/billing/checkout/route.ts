@@ -3,14 +3,15 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
-import { academies, plans, subscriptions, profiles } from "@/db/schema";
+import { plans, subscriptions } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
 import { withRateLimit, getUserIdentifier } from "@/lib/rate-limit";
 import { getStripeClient } from "@/lib/stripe/client";
 import { handleApiError } from "@/lib/api-error-handler";
-import { verifyAcademyAccess } from "@/lib/permissions";
 import { getAppUrl, getOptionalEnvVar } from "@/lib/env";
 import { apiSuccess, apiError } from "@/lib/api-response";
+import { getBillingAcademyAccess } from "@/lib/billing/access";
+import { isSubscriptionManaged } from "@/lib/billing/subscription-status";
 
 const BodySchema = z.object({
   academyId: z.string().uuid(),
@@ -52,75 +53,33 @@ const handler = withTenant(async (request, context) => {
       return apiError("STRIPE_INIT_ERROR", "Error al inicializar Stripe. Contacta con soporte.", 500);
     }
 
-    // Obtener tenantId desde la academia si no está disponible en el contexto
-    let effectiveTenantId = context.tenantId;
-    if (!effectiveTenantId && body.academyId) {
-      const [academyForTenant] = await db
-        .select({ tenantId: academies.tenantId })
-        .from(academies)
-        .where(eq(academies.id, body.academyId))
-        .limit(1);
-
-      if (academyForTenant?.tenantId) {
-        effectiveTenantId = academyForTenant.tenantId;
-      }
-    }
-
-    if (!effectiveTenantId) {
-      return apiError("TENANT_REQUIRED", "No se pudo determinar el tenant. Asegúrate de tener acceso a la academia.", 400);
-    }
-
-    // Verificar acceso a la academia (super_admin puede cross-tenant)
-    const academyAccess = await verifyAcademyAccess(body.academyId, effectiveTenantId, context.profile?.role);
-    if (!academyAccess.allowed) {
-      return apiError(academyAccess.reason ?? "ACADEMY_NOT_FOUND", "No tienes acceso a esta academia", 404);
-    }
-
-    const [academy] = await db
-      .select({
-        id: academies.id,
-        tenantId: academies.tenantId,
-        name: academies.name,
-        ownerId: academies.ownerId,
-      })
-      .from(academies)
-      .where(eq(academies.id, body.academyId))
-      .limit(1);
-
+    const academy = await getBillingAcademyAccess({
+      academyId: body.academyId,
+      userId: context.userId,
+      profileId: context.profile.id,
+      profileRole: context.profile.role,
+    });
     if (!academy) {
-      return apiError("ACADEMY_NOT_FOUND", "Academia no encontrada", 404);
-    }
-
-    const isAdmin = context.profile?.role === "admin" || context.profile?.role === "super_admin";
-
-    if (!context.profile || (!isAdmin && academy.tenantId !== effectiveTenantId)) {
-      return apiError("FORBIDDEN", "No tienes permisos para realizar esta acción", 403);
-    }
-
-    if (!academy.ownerId) {
-      return apiError("ACADEMY_HAS_NO_OWNER", "Academia sin propietario asignado", 400);
-    }
-
-    const [owner] = await db
-      .select({
-        userId: profiles.userId,
-        name: profiles.name,
-      })
-      .from(profiles)
-      .where(eq(profiles.id, academy.ownerId))
-      .limit(1);
-
-    if (!owner) {
-      return apiError("OWNER_NOT_FOUND", "Propietario no encontrado", 404);
+      return apiError("BILLING_FORBIDDEN", "Solo la persona propietaria puede gestionar la suscripción", 403);
     }
 
     const [existingSubscription] = await db
       .select({
         stripeCustomerId: subscriptions.stripeCustomerId,
+        stripeSubscriptionId: subscriptions.stripeSubscriptionId,
+        status: subscriptions.status,
       })
       .from(subscriptions)
-      .where(eq(subscriptions.userId, owner.userId))
+      .where(eq(subscriptions.userId, academy.ownerUserId))
       .limit(1);
+
+    if (isSubscriptionManaged(existingSubscription ?? { stripeSubscriptionId: null, status: null })) {
+      return apiError(
+        "SUBSCRIPTION_ALREADY_EXISTS",
+        "Ya existe una suscripción. Usa el portal de Stripe para cambiarla o cancelarla.",
+        409
+      );
+    }
 
     const [plan] = await db.select().from(plans).where(eq(plans.code, body.planCode)).limit(1);
 
@@ -133,13 +92,14 @@ const handler = withTenant(async (request, context) => {
     if (!customerId) {
       const customer = await stripe.customers.create(
         {
-          name: owner.name ?? academy.name,
+          name: academy.ownerName ?? academy.name,
           metadata: {
-            userId: owner.userId,
+            userId: academy.ownerUserId,
+            academyId: academy.id,
             tenantId: academy.tenantId,
           },
         },
-        { idempotencyKey: `customer_${owner.userId}` }
+        { idempotencyKey: `customer_${academy.ownerUserId}` }
       );
 
       customerId = customer.id;
@@ -147,7 +107,7 @@ const handler = withTenant(async (request, context) => {
       await db
         .insert(subscriptions)
         .values({
-          userId: owner.userId,
+          userId: academy.ownerUserId,
           planId: plan.id,
           stripeCustomerId: customerId,
           status: "incomplete",
@@ -161,18 +121,24 @@ const handler = withTenant(async (request, context) => {
       const [latest] = await db
         .select({ stripeCustomerId: subscriptions.stripeCustomerId })
         .from(subscriptions)
-        .where(eq(subscriptions.userId, owner.userId))
+        .where(eq(subscriptions.userId, academy.ownerUserId))
         .limit(1);
       customerId = latest?.stripeCustomerId ?? customerId;
     }
 
-    const successUrl = `${getAppUrl()}/billing/success?academy=${body.academyId}`;
-    const cancelUrl = `${getAppUrl()}/billing`;
+    const successUrl = `${getAppUrl()}/app/${body.academyId}/billing?checkout=success`;
+    const cancelUrl = `${getAppUrl()}/app/${body.academyId}/billing?checkout=cancelled`;
+    const requestedIdempotencyKey = request.headers.get("idempotency-key")?.trim();
+    const requestBucket = Math.floor(Date.now() / (5 * 60 * 1000));
+    const checkoutIdempotencyKey = requestedIdempotencyKey
+      ? `checkout_${academy.ownerUserId}_${requestedIdempotencyKey}`.slice(0, 255)
+      : `checkout_${academy.ownerUserId}_${plan.code}_${requestBucket}`;
 
     const session = await stripe.checkout.sessions.create(
       {
         mode: "subscription",
         customer: customerId,
+        client_reference_id: academy.id,
         allow_promotion_codes: false,
         payment_method_types: ["card"],
         line_items: [
@@ -183,20 +149,22 @@ const handler = withTenant(async (request, context) => {
         ],
         subscription_data: {
           metadata: {
-            userId: owner.userId,
+            userId: academy.ownerUserId,
+            academyId: academy.id,
             tenantId: academy.tenantId,
             planCode: plan.code,
           },
         },
         metadata: {
-          userId: owner.userId,
+          userId: academy.ownerUserId,
+          academyId: academy.id,
           tenantId: academy.tenantId,
           planCode: plan.code,
         },
         success_url: successUrl,
         cancel_url: cancelUrl,
       },
-      { idempotencyKey: `checkout_${owner.userId}_${plan.code}_${Date.now()}` }
+      { idempotencyKey: checkoutIdempotencyKey }
     );
 
     return apiSuccess({ checkoutUrl: session.url });
