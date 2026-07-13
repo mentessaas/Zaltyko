@@ -8,6 +8,13 @@ source:
 ---
 # Changelog interno
 
+## 2026-07-13 - Fase 4 desplegada técnicamente en producción
+
+- **Entrega**: PR #28 integrado en `main` como `b97d7a81`; Vercel publicó `dpl_BU9hYAp6KjwSxVkjREL85X5n2ZPJ` en estado `READY` con alias `https://zaltyko-mentessaas-projects.vercel.app`.
+- **Smoke seguro**: la comprobación HTTP no envió formularios ni eventos. El alias devuelve `302` al SSO de Vercel, por lo que confirma protección de despliegue pero no sirve aún como acceso público anónimo.
+- **Datos**: tras el despliegue se verificaron 0 `growth_events`, 0 `leads`, 0 `commercial_interviews` y 0 `academy_trials`; las 2 filas históricas de `subscriptions` no tienen `stripe_subscription_id`. No se introdujeron fixtures.
+- **Siguiente gate**: decidir exposición pública, dominio/DNS y smoke externo. Mantener SSO es el comportamiento seguro hasta contar con esa aprobación; la validación comercial sigue en 0/10 entrevistas y Fase 5 continúa bloqueada.
+
 ## 2026-07-13 - Fase 4 instrumentada: pricing, funnel y evidencia comercial
 
 - **Baseline honesto**: producción tiene 2 academias y 0 leads, 0 eventos growth, 0 trials, 0 suscripciones con `stripe_subscription_id` y 0/10 entrevistas. No se insertaron entrevistas o conversiones ficticias durante QA.
