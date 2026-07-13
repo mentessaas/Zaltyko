@@ -18,11 +18,11 @@ source:
 
 ## Estado a 2026-07-13
 
-- El directorio `drizzle/` **esta versionado**. `pnpm check:migrations` valida siempre ambos historiales: 4 migraciones Drizzle y 28 migraciones Supabase en el estado actual.
+- El directorio `drizzle/` **esta versionado**. `pnpm check:migrations` valida siempre ambos historiales: 5 migraciones Drizzle y 29 migraciones Supabase en el estado actual.
 - SSL: exportar `NODE_EXTRA_CA_CERTS` con `certs/supabase-root-ca.crt`; `scripts/db-migrate.ts` lo resuelve a ruta absoluta.
 - El drift historico de tablas faltantes y diferencias semanticas se cerro el 2026-07-13 con `20260713090000_reconcile_phase1_schema_drift.sql`. DB y ORM quedaron alineados, incluido `push_tokens`; se verificaron 113 tablas, columnas, indices unicos y claves foraneas semanticas.
 - `validate:rls` trata `rls-consolidated.sql` como snapshot y las migraciones como historial: una policy repetida entre ambos no es duplicado; si falla si una misma fuente declara dos veces la misma policy.
-- No se ejecuto el seed global durante Sprint 0, Fase 1 ni Fase 2. Los catalogos federativos usan su sincronizador acotado y Fase 2 reutiliza tablas existentes, por lo que no necesita migracion ni seed adicional.
+- No se ejecutó el seed global durante Sprint 0 ni Fases 1-3. Los catálogos federativos usan su sincronizador acotado; Fase 3 solo necesita la relación opcional sesión-evaluación, no datos iniciales.
 - El 2026-07-12 se reviso el changelog oficial reciente de Supabase y se verifico que el
   proyecto ejecuta PostgreSQL 17.6. No hizo falta migracion de schema para el catalogo RFEG.
 - La referencia federativa se sincroniza de forma acotada con
@@ -37,6 +37,11 @@ source:
 - La reconciliacion `20260713090000_reconcile_phase1_schema_drift.sql` se aplico con el runner del
   repositorio, se probo su rollback en transaccion y dejo sincronizados `drizzle/0003`, snapshot y
   journal. El gate posterior confirma 4+28 migraciones, RLS 64/64 y build de produccion.
+- La migración aditiva `20260713150000_link_assessments_to_class_sessions.sql` añade
+  `athlete_assessments.session_id` nullable, FK `ON DELETE SET NULL` e índice de consulta. Fue
+  inspeccionada, aplicada a PostgreSQL 17.6, probada con rollback transaccional y verificada por
+  columna/FK/índice. Drizzle `0004` y su snapshot quedaron sincronizados; el gate final confirma
+  5+29 migraciones, RLS 64/64, 425 pruebas y build de 214 páginas.
 
 ## Flujo recomendado
 

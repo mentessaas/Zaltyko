@@ -145,6 +145,50 @@ export const GET = withTenant(async (request, context) => {
       return apiError("SESSION_OR_ACADEMY_REQUIRED", "sessionId o academyId requerido", 400);
     }
 
+    if (context.profile.role === "coach" && !params.data.sessionId) {
+      return apiError(
+        "SESSION_REQUIRED_FOR_COACH",
+        "Los entrenadores deben consultar la asistencia de una sesión asignada",
+        403
+      );
+    }
+
+    if (params.data.sessionId) {
+      const [sessionRow] = await db
+        .select({
+          classId: classSessions.classId,
+          academyId: classes.academyId,
+        })
+        .from(classSessions)
+        .innerJoin(classes, eq(classSessions.classId, classes.id))
+        .where(
+          and(
+            eq(classSessions.id, params.data.sessionId),
+            eq(classSessions.tenantId, context.tenantId),
+            eq(classes.tenantId, context.tenantId)
+          )
+        )
+        .limit(1);
+
+      if (!sessionRow) {
+        return apiError("SESSION_NOT_FOUND", "Sesión no encontrada", 404);
+      }
+
+      const classScope = await verifyAttendanceWriteAccess({
+        tenantId: context.tenantId,
+        academyId: sessionRow.academyId,
+        classId: sessionRow.classId,
+        profile: context.profile,
+      });
+      if (!classScope.allowed) {
+        return apiError(
+          classScope.reason ?? "CLASS_ACCESS_DENIED",
+          "No tienes permiso para consultar la asistencia de esta clase",
+          403
+        );
+      }
+    }
+
     const whereConditions = [eq(attendanceRecords.tenantId, context.tenantId)];
 
     if (params.data.sessionId) {

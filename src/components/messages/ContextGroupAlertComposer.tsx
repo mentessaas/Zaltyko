@@ -74,7 +74,7 @@ export const ContextGroupAlertComposer = memo(function ContextGroupAlertComposer
             <h2 id="group-alert-title" className="font-medium text-foreground">
               Aviso a las familias · {session.className}
             </h2>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-slate-700">
               {session.groupName ? `${session.groupName} · ` : ""}
               {session.sessionDate}. Quedará en el historial interno y generará una notificación.
             </p>
@@ -86,12 +86,13 @@ export const ContextGroupAlertComposer = memo(function ContextGroupAlertComposer
             maxLength={2000}
             rows={2}
             aria-label="Contenido del aviso al grupo"
+            aria-invalid={Boolean(error)}
           />
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div aria-live="polite" className="text-xs">
-              {error ? <span className="text-destructive">{error}</span> : null}
+            <div className="text-xs">
+              {error ? <span role="alert" className="text-destructive">{error}</span> : null}
               {success ? (
-                <span className="inline-flex items-center gap-1 text-emerald-700">
+                <span role="status" className="inline-flex items-center gap-1 text-emerald-700">
                   <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
                   {success}
                 </span>

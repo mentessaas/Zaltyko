@@ -11,6 +11,10 @@ import { withTransaction } from "@/lib/db-transactions";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { getAcademySportConfigOptions, verifyAcademySportConfig } from "@/lib/sport-config/service";
 import { verifyProgressAccess } from "@/lib/progress/service";
+import {
+  resolveAssessingCoachId,
+  verifyAssessmentSessionContext,
+} from "@/lib/progress/session-context";
 
 const scoreSchema = z.object({
   skillId: z.string().uuid(),
@@ -19,6 +23,7 @@ const scoreSchema = z.object({
 });
 
 const createAssessmentSchema = z.object({
+  sessionId: z.string().uuid().nullable().optional(),
   assessmentDate: z.string(), // YYYY-MM-DD
   assessmentType: z.enum(["technical", "artistic", "execution", "coach_feedback", "competition", "practice"]),
   apparatus: z.string().nullable().optional(),
@@ -80,7 +85,52 @@ export const POST = withTenant(async (request, context) => {
           .limit(1)
       : [];
 
-    const effectiveSportConfigId = body.sportConfigId ?? athleteRow.primarySportConfigId ?? groupRow?.sportConfigId ?? null;
+    const athleteSportConfigId = athleteRow.primarySportConfigId ?? groupRow?.sportConfigId ?? null;
+    const sessionContext = body.sessionId
+      ? await verifyAssessmentSessionContext({
+          tenantId: context.tenantId,
+          academyId: athleteRow.academyId,
+          sessionId: body.sessionId,
+          athleteId,
+          profile: context.profile,
+        })
+      : null;
+
+    if (sessionContext && !sessionContext.allowed) {
+      const status =
+        sessionContext.reason === "SESSION_NOT_FOUND"
+          ? 404
+          : sessionContext.reason === "ATHLETE_NOT_IN_CLASS"
+            ? 400
+            : 403;
+      return apiError(
+        sessionContext.reason,
+        sessionContext.reason === "ATHLETE_NOT_IN_CLASS"
+          ? "La gimnasta no pertenece a esta clase o sesión"
+          : sessionContext.reason === "SESSION_NOT_FOUND"
+            ? "Sesión no encontrada en esta academia"
+            : "No tienes permiso para registrar progreso en esta sesión",
+        status
+      );
+    }
+
+    const sessionSportConfigId = sessionContext?.allowed ? sessionContext.sportConfigId : null;
+    if (sessionSportConfigId && body.sportConfigId && sessionSportConfigId !== body.sportConfigId) {
+      return apiError(
+        "SESSION_SPORT_CONFIG_MISMATCH",
+        "La modalidad/rama seleccionada no corresponde a esta sesión",
+        400
+      );
+    }
+    if (sessionSportConfigId && athleteSportConfigId && sessionSportConfigId !== athleteSportConfigId) {
+      return apiError(
+        "ATHLETE_SPORT_CONFIG_MISMATCH",
+        "La gimnasta pertenece a otra modalidad/rama",
+        400
+      );
+    }
+
+    const effectiveSportConfigId = sessionSportConfigId ?? body.sportConfigId ?? athleteSportConfigId;
 
     if (effectiveSportConfigId) {
       const verifiedConfig = await verifyAcademySportConfig({
@@ -103,6 +153,11 @@ export const POST = withTenant(async (request, context) => {
     }
 
     const assessmentId = crypto.randomUUID();
+    const assessedBy = await resolveAssessingCoachId({
+      tenantId: context.tenantId,
+      academyId: athleteRow.academyId,
+      profile: context.profile,
+    });
 
     await withTransaction(async (tx) => {
       await tx.insert(athleteAssessments).values({
@@ -110,6 +165,8 @@ export const POST = withTenant(async (request, context) => {
         tenantId: context.tenantId,
         academyId: athleteRow.academyId,
         athleteId,
+        sessionId: body.sessionId ?? null,
+        assessedBy,
         sportConfigId: effectiveSportConfigId,
         assessmentDate: body.assessmentDate,
         assessmentType: body.assessmentType,
@@ -183,6 +240,7 @@ export const GET = withTenant(async (request, context) => {
     const assessmentRows = await db
       .select({
         id: athleteAssessments.id,
+        sessionId: athleteAssessments.sessionId,
         assessmentDate: athleteAssessments.assessmentDate,
         assessmentType: athleteAssessments.assessmentType,
         apparatus: athleteAssessments.apparatus,

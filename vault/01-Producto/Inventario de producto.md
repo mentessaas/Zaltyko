@@ -1,7 +1,7 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-06-22
+last_reviewed: 2026-07-13
 source:
   - ../PRODUCT-ANALYSIS.md
   - ../ROADMAP.md
@@ -14,14 +14,14 @@ source:
 | Modulo | Estado | Rutas principales | Gaps |
 | --- | --- | --- | --- |
 | Atletas | Avanzado | `/app/[academyId]/athletes` | Historial medico/documentos prometidos; revisar evaluaciones por atleta. |
-| Coaches | Avanzado | Dashboard academia | Horarios disponibles y sincronizacion completa. |
-| Clases | Avanzado | `/app/[academyId]/classes` | Politicas/trials/waitlist visibles y consistencia CRUD. |
+| Coaches | Avanzado / Fase 3 desplegada | `/app/[academyId]/coach`, `/app/[academyId]/coach/today/[sessionId]` | Mantener métricas de uso y QA con entrenadores reales. |
+| Clases | Avanzado | `/app/[academyId]/classes`, cockpit de sesión | Políticas/waitlist visibles y consistencia CRUD. |
 | Grupos | Avanzado | `/app/[academyId]/groups` | Mantener UX y permisos. |
 | Billing | Avanzado / RC Fase 1 | `/app/[academyId]/billing` | Trial Starter 7 días, Checkout/Portal owner-only, historial y webhook endurecido. Pendientes: promoción/QA producción, checkout anual, contabilidad y proyecciones. |
 | Eventos | Avanzado | Publico y dashboard | Inscripcion publica completa, resultados, listados federativos. |
-| Evaluaciones | Parcial/avanzado | `/app/[academyId]/assessments`, `/app/[academyId]/evaluations`, atleta evaluate/progress/history/assessments | Validar flujo crear -> puntuar -> historial -> export. |
-| Asistencia | Parcial/avanzado | `/app/[academyId]/attendance`, `/api/attendance`, reportes attendance | Validar registro, reportes, export y permisos. |
-| Comunicacion | Avanzado, QA real pendiente | `/app/[academyId]/messages`, `/app/[academyId]/comms`, `/app/[academyId]/notifications`, `/app/[academyId]/announcements` | Mensajeria interna conectada para todos los miembros, centro unificado operativo y consultas publicas separadas; falta QA con parent/coach reales y completar avisos desde clase/sesion. |
+| Evaluaciones | Avanzado / Fase 3 desplegada | `/app/[academyId]/assessments`, atleta evaluate/progress/history, cockpit de sesión | Seguimiento independiente o ligado a sesión, modalidad, aparato y evaluador; ampliar rúbricas verticales. |
+| Asistencia | Avanzado / Fase 3 desplegada | `/app/[academyId]/attendance`, `/api/attendance`, reportes y cockpit de sesión | Pase de lista y excepciones verificados con coach; mantener QA de export/reportes. |
+| Comunicacion | Avanzado / Fase 2-3 desplegada | Mensajes, comms, notificaciones, anuncios y aviso contextual desde sesión | Falta QA humana parent/athlete con cuentas reales vinculadas. |
 | IA | Parcial | API/widgets | Falta valor end-to-end en producto. |
 | Marketplace/empleo | Parcial | `/marketplace`, `/empleo` | Revisar monetizacion y consistencia. |
 | SEO/i18n | Parcial | `/(site)/[locale]/...` | Traducciones completas y contenido localizado. |

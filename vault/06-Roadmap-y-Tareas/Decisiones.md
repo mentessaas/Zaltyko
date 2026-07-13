@@ -1,7 +1,7 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-06-26
+last_reviewed: 2026-07-13
 source:
   - ../AGENTS.md
 ---
@@ -262,3 +262,12 @@ Copiar desde [[Template - Decision]] para nuevas decisiones.
 | Decisión | Mantener el portal `parent`/`athlete` deliberadamente limitado y acotar todas sus lecturas por tenant, academia y relaciones autorizadas. Usar mensajes internos como canal principal; el aviso de grupo nace desde una sesión/clase, solo alcanza cuentas vinculadas a gimnastas inscritos y crea historial/notificación interna. WhatsApp permanece oculto. Fase 2 reutiliza el modelo existente y no introduce migración ni seed. |
 | Consecuencia | Ningún CTA familiar dirige a billing, asistencia, evaluaciones o calendario administrativos. El entrenador puede enviar un aviso contextual con autorización de clase y límite 10/min; si no existen destinatarios vinculados, la operación falla de forma controlada sin conversación vacía. Email/push sirven para volver a Zaltyko, no como sistema de registro principal. |
 | Estado | Activa y desplegada en producción el 2026-07-13 (`47228ee5`, `dpl_AYKBXmfi88CK2MeqWvZMqKjo3Bee`). QA humano parent/athlete queda como validación operativa cuando haya credenciales vinculadas. |
+
+## 2026-07-13 - Fase 3: la sesión es el contexto operativo del entrenador
+
+| Campo | Valor |
+| --- | --- |
+| Contexto | Las acciones rápidas del coach abrían asistencia, evaluaciones y comunicación como módulos separados. La evaluación no conservaba la sesión de origen ni derivaba de forma fiable el entrenador evaluador. |
+| Decisión | La ruta `/app/[academyId]/coach/today/[sessionId]` es el cockpit canónico de la clase: asistencia, progreso y aviso interno en un único flujo. La sesión se valida contra tenant, academia y clase asignada; la persona evaluada debe pertenecer a la clase. `assessedBy` se deriva de la identidad autenticada y nunca se acepta desde el cliente. Las evaluaciones independientes siguen permitidas con `sessionId=null`. |
+| Consecuencia | Se añade una FK opcional `athlete_assessments.session_id` con `ON DELETE SET NULL`; no se reescribe historia ni se requiere seed. Las etiquetas y aparatos proceden de `sport-config`, incluido el trabajo federativo paralelo. El dashboard y la vista diaria enlazan al mismo cockpit y los tres pasos reflejan su estado real. |
+| Estado | Activa y desplegada en producción el 2026-07-13 (`0a023880`, `dpl_68XGuYVFtQnrLbjWjhv17NtMpxH8`). |
