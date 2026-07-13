@@ -19,7 +19,7 @@ Zaltyko está en **hardening avanzado como producto real**, con Fases 1 y 2 desp
 - Supabase usa PostgreSQL 17.6. El catálogo `rfeg-2026-v2` quedó sincronizado el 2026-07-12 mediante un comando acotado e idempotente; un segundo dry-run confirmó cero diferencias. No se ejecutó el seed global ni una migración de schema.
 - Las migraciones `20260712230000_phase1_trial_and_billing_events.sql` y `20260713090000_reconcile_phase1_schema_drift.sql` están aplicadas y verificadas. El inventario actual es 4 migraciones Drizzle + 28 Supabase, 113 tablas verificadas y RLS 64/64.
 - Fase 1 pasó el gate completo y fue desplegada a producción. El endpoint Stripe activo fue rotado a una única versión; pricing responde 200, trial/cron sin auth 401 y webhook sin firma 400 con `SIGNATURE_VERIFICATION_FAILED`.
-- Fase 2 fue desplegada desde `62deed2d` en `dpl_2eWQbzQMtmRSNUVYrAw1MYS9bfrE` (`READY`, alias `zaltyko.com`). Smokes: pricing 200, panel privado 307, APIs privadas 401 y webhook sin firma 400. La sesión parent real sigue siendo validación humana, no deuda de implementación.
+- Fase 2 fue desplegada desde `47228ee5` en `dpl_AYKBXmfi88CK2MeqWvZMqKjo3Bee` (`READY`, alias `zaltyko.com`). Smokes: pricing 200, panel privado 307, APIs privadas 401 y webhook sin firma 400. `pnpm audit` completo y productivo: 0 vulnerabilidades. La sesión parent real sigue siendo validación humana, no deuda de implementación.
 - Historial de ejecución: [[Changelog interno]] y [[Decisiones#2026-06-24 - Resumen de sprints 0-7 + auditoria + CI fix]].
 
 ## Lo que tenemos

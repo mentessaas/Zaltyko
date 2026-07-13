@@ -694,3 +694,9 @@ Registrar cambios humanos y relevantes: releases, decisiones, cambios de pricing
 - **Auditoría owner**: dashboard, mensajes y preferencias cargan con el flujo dev opt-in. Se corrigieron pluralización, terminología por deporte y sesiones sin fecha. El portal familiar redirige correctamente al owner; falta una sesión humana con credencial parent/athlete real vinculada.
 - **Gate completo**: 276 APIs auditadas sin rutas riesgosas, TypeScript y lint limpios, 422/422 tests (51 archivos), build Next.js de 214 páginas. Persisten advertencias no bloqueantes ya registradas de Sentry y `swagger-jsdoc`.
 - Vault: `Estado actual de Zaltyko`, `Plan operativo gimnasia`, `Runbook migraciones`, `Registro de riesgos`, `Backlog priorizado`, `Decisiones` y este changelog.
+## 2026-07-13 - Cierre de dependencias y deployment definitivo de Fase 2
+
+- El aviso de Dependabot de la rama por defecto se contrastó contra el lockfile actual. La auditoría inicial de esta rama mostró un moderado de esbuild y dos bajos de webpack en producción, además de Vitest/Vite críticos/altos en desarrollo.
+- `drizzle-kit` pasó de dependencia runtime a desarrollo; se materializó webpack corregido y se actualizaron Vite a 6.4.3 y Vitest/coverage a 3.2.6. Drizzle CLI sigue operativo.
+- Resultado final: `pnpm audit --prod` y `pnpm audit` completo con 0 vulnerabilidades; gate con 276 APIs, RLS 64/64, migraciones 4+28, 422/422 tests y build de 214 páginas.
+- Deployment limpio `dpl_AYKBXmfi88CK2MeqWvZMqKjo3Bee` desde `47228ee5`, `READY` y aliasado a `zaltyko.com`. Smokes finales: pricing 200, privado 307, APIs privadas/cron 401 y webhook sin firma 400.

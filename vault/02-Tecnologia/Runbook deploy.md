@@ -77,8 +77,9 @@ El gate local de Fase 1 quedó verde el 2026-07-12 con 413 tests y build de 214 
 
 ## Promocion Fase 2 — 2026-07-13
 
-- Commit desplegado desde worktree limpio: `62deed2d`; los cambios locales paralelos de nomenclatura federativa no formaron parte del artefacto.
-- Deployment `dpl_2eWQbzQMtmRSNUVYrAw1MYS9bfrE` `READY`, target `production`, aliases `zaltyko.com`, `www.zaltyko.com` y `zaltyko.vercel.app`.
+- Commit final desplegado desde worktree limpio: `47228ee5`; los cambios locales paralelos de nomenclatura federativa no formaron parte del artefacto.
+- Deployment final `dpl_AYKBXmfi88CK2MeqWvZMqKjo3Bee` `READY`, target `production`, aliases `zaltyko.com`, `www.zaltyko.com` y `zaltyko.vercel.app`.
 - Gate previo: 276 APIs sin riesgo desconocido, RLS 64/64, migraciones 4 Drizzle + 28 Supabase, 422/422 tests y build de 214 paginas.
 - Smokes sobre `https://zaltyko.com`: `/pricing` 200; panel privado 307 a login; preferencias y aviso de grupo 401 sin sesion; cron GET 401 sin Bearer; webhook 400 sin firma con `SIGNATURE_VERIFICATION_FAILED`.
 - Fase 2 no necesito migracion ni seed adicional. La reconciliacion de Fase 1 ya estaba aplicada y verificada en Supabase antes del deployment.
+- Cierre de dependencias: `drizzle-kit` movido a desarrollo, Vite 6.4.3, Vitest/coverage 3.2.6 y webpack 5.108.4 resuelto. `pnpm audit` completo y de produccion: 0 vulnerabilidades.
