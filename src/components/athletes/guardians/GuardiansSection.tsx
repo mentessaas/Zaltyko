@@ -5,6 +5,7 @@ import { ChevronDown, ChevronUp } from "lucide-react";
 import type { GuardianSummary, GuardianFormData } from "@/types/athlete-edit";
 import { GuardianItem } from "./GuardianItem";
 import { GuardianForm } from "./GuardianForm";
+import { useAcademyContext } from "@/hooks/use-academy-context";
 
 interface GuardiansSectionProps {
   guardians: GuardianSummary[];
@@ -39,6 +40,8 @@ export function GuardiansSection({
   onCancelEdit,
   onRemoveGuardian,
 }: GuardiansSectionProps) {
+  const { specialization } = useAcademyContext();
+  const athleteSingular = specialization.labels.athleteSingular.toLowerCase();
   const [isExpanded, setIsExpanded] = useState(false);
   const guardianCount = guardians.length;
 
@@ -88,7 +91,7 @@ export function GuardiansSection({
             )}
             {!guardiansLoading && guardians.length === 0 && !guardianError && (
               <div className="rounded-md border border-border/60 bg-muted/20 px-3 py-2 text-sm text-muted-foreground">
-                Aún no hay contactos agregados para este atleta.
+                Aún no hay contactos agregados para este {athleteSingular}.
               </div>
             )}
             {!guardiansLoading && guardians.length > 0 && (

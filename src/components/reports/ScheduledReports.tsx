@@ -16,6 +16,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { logger } from "@/lib/logger";
+import { useAcademyContext } from "@/hooks/use-academy-context";
+import { pluralizeFirstWord } from "@/lib/specialization/registry";
 import {
   Select,
   SelectContent,
@@ -44,6 +46,7 @@ interface ScheduledReportsProps {
 }
 
 export function ScheduledReports({ academyId }: ScheduledReportsProps) {
+  const { specialization } = useAcademyContext();
   const [reports, setReports] = useState<ScheduledReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [showDialog, setShowDialog] = useState(false);
@@ -162,7 +165,7 @@ export function ScheduledReports({ academyId }: ScheduledReportsProps) {
       financial: "Financiero",
       progress: "Progreso",
       class: "Clases",
-      coach: "Entrenadores",
+      coach: pluralizeFirstWord(specialization.labels.coachLabel),
       churn: "Bajas",
       events: "Eventos",
     };

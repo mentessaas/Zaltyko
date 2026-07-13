@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  getCountryNameFromCode,
   getSpecializedEventTypes,
   getSpecializedEvaluationTemplate,
   getSpecializedLabels,
+  normalizeCountryCode,
   resolveAcademySpecialization,
 } from "@/lib/specialization/registry";
 import { getAcademyNavigation } from "@/lib/navigation/registry";
@@ -47,6 +49,21 @@ describe("academy specialization", () => {
     expect(specialization.discipline).toBe("rhythmic");
     expect(specialization.disciplineVariant).toBe("rhythmic");
     expect(specialization.status).toBe("inferred");
+  });
+
+  it("resolves country names for the full countryRegions.ts list, not just ES/MX/AR (unified 2026-07-13)", () => {
+    // Antes de unificar con countryRegions.ts, cualquier pais fuera de ES/MX/AR
+    // devolvia literalmente el codigo sin resolver (ej. "DO" en vez de "Republica Dominicana").
+    expect(getCountryNameFromCode("DO")).toBe("República Dominicana");
+    expect(getCountryNameFromCode("CO")).toBe("Colombia");
+    expect(getCountryNameFromCode("AR")).toBe("Argentina");
+    expect(getCountryNameFromCode("ES")).toBe("España");
+
+    // Tolerancia a texto libre con y sin acentos
+    expect(normalizeCountryCode("México")).toBe("MX");
+    expect(normalizeCountryCode("mexico")).toBe("MX");
+    expect(normalizeCountryCode("República Dominicana")).toBe("DO");
+    expect(normalizeCountryCode("Republica Dominicana")).toBe("DO");
   });
 
   it("specializes academy navigation labels for rhythmic academies", () => {

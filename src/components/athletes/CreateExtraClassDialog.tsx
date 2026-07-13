@@ -4,6 +4,7 @@ import { FormEvent, useState, useTransition } from "react";
 import { Modal } from "@/components/ui/modal";
 import { createExtraClassAction } from "@/app/actions/classes/create-extra-class";
 import { useToast } from "@/components/ui/toast-provider";
+import { useAcademyContext } from "@/hooks/use-academy-context";
 
 interface CreateExtraClassDialogProps {
   academyId: string;
@@ -26,6 +27,9 @@ export function CreateExtraClassDialog({
   onClose,
   onCreated,
 }: CreateExtraClassDialogProps) {
+  const { specialization } = useAcademyContext();
+  const athleteSingular = specialization.labels.athleteSingular.toLowerCase();
+  const coachLabel = specialization.labels.coachLabel;
   const toast = useToast();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -48,7 +52,7 @@ export function CreateExtraClassDialog({
     setConflictError(null);
 
     if (!coachId) {
-      setError("Selecciona un entrenador");
+      setError(`Selecciona un ${coachLabel.toLowerCase()}`);
       return;
     }
 
@@ -82,7 +86,7 @@ export function CreateExtraClassDialog({
             setConflictError(result.message || "Conflicto de horario detectado");
             toast.pushToast({
               title: "Conflicto de horario",
-              description: result.message || "El atleta o entrenador ya tiene una clase en ese horario.",
+              description: result.message || `El ${athleteSingular} o ${coachLabel.toLowerCase()} ya tiene una clase en ese horario.`,
               variant: "error",
             });
           } else {
@@ -150,7 +154,7 @@ export function CreateExtraClassDialog({
       open={open}
       onClose={handleClose}
       title="Añadir clase extra"
-      description="Crea una clase individual adicional para este atleta. Se validará que no haya conflictos de horario."
+      description={`Crea una clase individual adicional para este ${athleteSingular}. Se validará que no haya conflictos de horario.`}
       footer={
         <div className="flex justify-end gap-2">
           <button
@@ -187,7 +191,7 @@ export function CreateExtraClassDialog({
 
         <div>
           <label htmlFor="coach" className="block text-sm font-medium text-foreground mb-1">
-            Entrenador <span className="text-red-500">*</span>
+            {coachLabel} <span className="text-red-500">*</span>
           </label>
           <select
             id="coach"
@@ -196,7 +200,7 @@ export function CreateExtraClassDialog({
             required
             className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
           >
-            <option value="">Selecciona un entrenador</option>
+            <option value="">Selecciona un {coachLabel.toLowerCase()}</option>
             {availableCoaches.map((coach) => (
               <option key={coach.id} value={coach.id}>
                 {coach.name}

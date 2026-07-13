@@ -1,5 +1,7 @@
 import { getTimezoneForCountry } from "@/lib/date-utils";
-import { SPORT_CONFIG_SEEDS, getSportConfigSeedByVariant } from "@/lib/sport-config/catalog";
+import { BASE_TERMINOLOGY, SPORT_CONFIG_SEEDS, getSportConfigSeedByVariant } from "@/lib/sport-config/catalog";
+import type { SportTerminology } from "@/lib/sport-config/catalog";
+import { COUNTRY_REGION_OPTIONS } from "@/lib/countryRegions";
 
 export type SupportedCountryCode = "ES" | string;
 export type AcademyDiscipline = "artistic" | "rhythmic" | "trampoline" | "parkour" | "dance" | "general";
@@ -59,6 +61,14 @@ export interface SpecializationRegistryEntry {
   labels: SpecializedLabels;
   evaluation: SpecializedEvaluationTemplate;
   categories: SpecializedCategoryRules;
+  /**
+   * Diccionario de vocabulario simple (athlete, coach, payment, etc.) del
+   * seed correspondiente. NO incluye `terminologyOverrides` de una academia
+   * concreta (academySportConfigs) - eso sigue resolviendose por separado
+   * via getTerminology(sportConfig) donde ya se tiene ese dato (ej.
+   * EditAthleteDialog.tsx). Este campo es el default por disciplina/pais.
+   */
+  terminology: SportTerminology;
 }
 
 export interface AcademySpecializationContext {
@@ -75,6 +85,7 @@ export interface AcademySpecializationContext {
   labels: SpecializedLabels;
   evaluation: SpecializedEvaluationTemplate;
   categories: SpecializedCategoryRules;
+  terminology: SportTerminology;
 }
 
 const REGISTRY: Record<string, SpecializationRegistryEntry> = Object.fromEntries(
@@ -91,6 +102,7 @@ const REGISTRY: Record<string, SpecializationRegistryEntry> = Object.fromEntries
       labels: config.labels,
       evaluation: config.evaluation,
       categories: config.categories,
+      terminology: config.terminology,
     },
   ])
 );
@@ -99,6 +111,7 @@ const DEFAULT_ENTRY: SpecializationRegistryEntry = {
   key: { countryCode: "ES", discipline: "general", disciplineVariant: "general" },
   locale: "es-ES",
   federationConfigVersion: "artistic-rhythmic-mixed-v1",
+  terminology: BASE_TERMINOLOGY,
   labels: {
     disciplineName: "Gimnasia artística y rítmica",
     athleteSingular: "Gimnasta",
@@ -127,19 +140,34 @@ const DEFAULT_ENTRY: SpecializationRegistryEntry = {
   },
 };
 
-const COUNTRY_NAME_BY_CODE: Record<string, string> = {
-  ES: "España",
-  MX: "México",
-  AR: "Argentina",
-};
+// Derivado de countryRegions.ts (fuente unica de los ~20 paises hispanohablantes
+// que el resto del producto ya soporta en selects de pais/region) en vez de
+// mantener una tercera lista paralela solo-ES/MX/AR. Antes de esta unificacion,
+// getCountryNameFromCode("DO") devolvia literalmente "DO" para cualquier pais
+// fuera de esos 3, aunque countryRegions.ts ya listaba Republica Dominicana.
+const COUNTRY_NAME_BY_CODE: Record<string, string> = Object.fromEntries(
+  COUNTRY_REGION_OPTIONS.map((country) => [country.value.toUpperCase(), country.label])
+);
 
-const COUNTRY_CODE_BY_NAME: Record<string, string> = {
-  españa: "ES",
-  espana: "ES",
-  mexico: "MX",
-  méxico: "MX",
-  argentina: "AR",
-};
+function stripDiacritics(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase();
+}
+
+const COUNTRY_CODE_BY_NAME: Record<string, string> = Object.fromEntries(
+  COUNTRY_REGION_OPTIONS.flatMap((country) => {
+    const code = country.value.toUpperCase();
+    const nameLower = country.label.toLowerCase();
+    const nameNoAccents = stripDiacritics(country.label);
+    // Ambas variantes (con y sin acentos) para tolerar texto libre de formularios
+    // legacy o datos importados que no siempre traen tildes (ej. "espana"/"mexico").
+    return nameNoAccents === nameLower
+      ? [[nameLower, code]]
+      : [[nameLower, code], [nameNoAccents, code]];
+  })
+);
 
 export function normalizeCountryCode(value?: string | null): string | null {
   if (!value) return null;
@@ -244,6 +272,7 @@ export function resolveAcademySpecialization(academy: {
     labels: registryEntry.labels,
     evaluation: registryEntry.evaluation,
     categories: registryEntry.categories,
+    terminology: registryEntry.terminology,
   };
 }
 
@@ -300,7 +329,7 @@ export function getSpecializedEventTypes(context: AcademySpecializationContext):
  * cubre todos los valores reales de SpecializedLabels hoy (Grupo,
  * Entrenamiento, Entrenador, Entrenadora, Gimnasta, Deportista).
  */
-function pluralizeFirstWord(label: string): string {
+export function pluralizeFirstWord(label: string): string {
   const [firstWord, ...rest] = label.split(" ");
   if (!firstWord) return label;
   const lastChar = firstWord.at(-1)?.toLowerCase() ?? "";

@@ -6,6 +6,7 @@ import type { LucideIcon } from "lucide-react";
 
 import { DashboardCard } from "./DashboardCard";
 import type { KpiTrends } from "@/lib/dashboard/kpi-trends";
+import { pluralizeFirstWord } from "@/lib/specialization/registry";
 
 interface KPISectionProps {
   metrics: {
@@ -18,6 +19,8 @@ interface KPISectionProps {
   labels: {
     groupLabel: string;
     disciplineName: string;
+    athletesPlural: string;
+    coachLabel: string;
   };
 }
 
@@ -63,7 +66,7 @@ function KPISectionImpl({ metrics, academyId, labels }: KPISectionProps) {
 
   const metricCards: MetricCard[] = [
     {
-      title: "Atletas",
+      title: labels.athletesPlural,
       value: metrics.athletes,
       subtitle: "En tu academia",
       href: `/app/${academyId}/athletes`,
@@ -72,7 +75,7 @@ function KPISectionImpl({ metrics, academyId, labels }: KPISectionProps) {
       trendKey: "athletes",
     },
     {
-      title: "Entrenadores",
+      title: pluralizeFirstWord(labels.coachLabel),
       value: metrics.coaches,
       subtitle: "Profesionales en tu equipo",
       href: `/app/${academyId}/coaches`,
@@ -81,9 +84,9 @@ function KPISectionImpl({ metrics, academyId, labels }: KPISectionProps) {
       trendKey: "coaches",
     },
     {
-      title: `${labels.groupLabel}s`,
+      title: pluralizeFirstWord(labels.groupLabel),
       value: metrics.groups,
-      subtitle: `${labels.groupLabel}s activos`,
+      subtitle: `${pluralizeFirstWord(labels.groupLabel)} activos`,
       href: `/app/${academyId}/groups`,
       icon: LayoutDashboard,
       accent: "zaltyko-accent",

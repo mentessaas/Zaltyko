@@ -6,6 +6,7 @@ import { Modal } from "@/components/ui/modal";
 import { useToast } from "@/components/ui/toast-provider";
 import { AthleteOption } from "./types";
 import { createClient } from "@/lib/supabase/client";
+import { useAcademyContext } from "@/hooks/use-academy-context";
 
 interface UpdateGroupMembersDialogProps {
   academyId: string;
@@ -27,6 +28,9 @@ export function UpdateGroupMembersDialog({
   onUpdated,
 }: UpdateGroupMembersDialogProps) {
   const { pushToast } = useToast();
+  const { specialization } = useAcademyContext();
+  const athleteSingular = specialization.labels.athleteSingular.toLowerCase();
+  const athletesPlural = specialization.labels.athletesPlural.toLowerCase();
   const [selection, setSelection] = useState<string[]>(selected);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -51,7 +55,7 @@ export function UpdateGroupMembersDialog({
 
     if (selection.length === 0 && selected.length > 0) {
       const confirmed = window.confirm(
-        "Eliminarás todos los atletas de este grupo. ¿Quieres continuar?"
+        `Eliminarás todos los ${athletesPlural} de este grupo. ¿Quieres continuar?`
       );
       if (!confirmed) {
         return;
@@ -83,11 +87,11 @@ export function UpdateGroupMembersDialog({
         onClose();
         pushToast({
           title: "Grupo actualizado",
-          description: "La lista de atletas se guardó correctamente.",
+          description: `La lista de ${athletesPlural} se guardó correctamente.`,
           variant: "success",
         });
       } catch (err: unknown) {
-        setError((err instanceof Error ? err.message : "Error desconocido") ?? "Error desconocido al actualizar los atletas.");
+        setError((err instanceof Error ? err.message : "Error desconocido") ?? `Error desconocido al actualizar los ${athletesPlural}.`);
         pushToast({
           title: "No se pudo actualizar el grupo",
           description: (err instanceof Error ? err.message : "Error desconocido") ?? "Error desconocido",
@@ -106,8 +110,8 @@ export function UpdateGroupMembersDialog({
     <Modal
       open={open}
       onClose={handleClose}
-      title="Actualizar atletas del grupo"
-      description="Selecciona los atletas que pertenecen a este grupo."
+      title={`Actualizar ${athletesPlural} del grupo`}
+      description={`Selecciona los ${athletesPlural} que pertenecen a este grupo.`}
       footer={
         <div className="flex justify-end gap-2">
           <button
@@ -138,7 +142,7 @@ export function UpdateGroupMembersDialog({
 
         <div className="flex items-center justify-between">
           <span className="text-xs text-muted-foreground">
-            {selection.length} atleta{selection.length === 1 ? "" : "s"} seleccionados
+            {selection.length} {selection.length === 1 ? athleteSingular : athletesPlural} seleccionados
           </span>
           <button
             type="button"
@@ -152,7 +156,7 @@ export function UpdateGroupMembersDialog({
         <div className="grid max-h-64 gap-2 overflow-y-auto rounded-md border border-border p-3">
           {athletes.length === 0 ? (
             <p className="text-xs text-muted-foreground">
-              No hay atletas disponibles en la academia.
+              No hay {athletesPlural} disponibles en la academia.
             </p>
           ) : (
             athletes.map((athlete) => (

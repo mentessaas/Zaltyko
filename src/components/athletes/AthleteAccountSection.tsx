@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CreateChargeDialog } from "@/components/billing/CreateChargeDialog";
 import { logger } from "@/lib/logger";
+import { useAcademyContext } from "@/hooks/use-academy-context";
 
 interface ChargeItem {
   id: string;
@@ -56,6 +57,8 @@ function formatPeriod(period: string): string {
 }
 
 export function AthleteAccountSection({ academyId, athleteId }: AthleteAccountSectionProps) {
+  const { specialization } = useAcademyContext();
+  const athleteSingular = specialization.labels.athleteSingular.toLowerCase();
   const [charges, setCharges] = useState<ChargeItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
@@ -111,9 +114,9 @@ export function AthleteAccountSection({ academyId, athleteId }: AthleteAccountSe
   return (
     <div className="space-y-4 rounded-xl border bg-card p-6 shadow-sm">
       <header>
-        <h2 className="text-lg font-semibold text-foreground">Cuenta del atleta</h2>
+        <h2 className="text-lg font-semibold text-foreground">Cuenta del {athleteSingular}</h2>
         <p className="text-sm text-muted-foreground">
-          Cargos y pagos asociados a este atleta.
+          Cargos y pagos asociados a este {athleteSingular}.
         </p>
       </header>
 
@@ -154,7 +157,7 @@ export function AthleteAccountSection({ academyId, athleteId }: AthleteAccountSe
 
             {charges.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                No hay cargos registrados para este atleta.
+                No hay cargos registrados para este {athleteSingular}.
               </p>
             ) : (
               <div className="space-y-2">
@@ -190,7 +193,7 @@ export function AthleteAccountSection({ academyId, athleteId }: AthleteAccountSe
               className="gap-2"
             >
               <Plus className="h-4 w-4" />
-              Nuevo cargo para este atleta
+              Nuevo cargo para este {athleteSingular}
             </Button>
             {charges.length > 0 && (
               <Button size="sm" variant="ghost" asChild>

@@ -4,6 +4,7 @@ import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 import Link from "next/link";
 import { AlertTriangle } from "lucide-react";
+import { useAcademyContext } from "@/hooks/use-academy-context";
 
 interface CoachTodayViewProps {
   coach: {
@@ -55,6 +56,7 @@ export default function CoachTodayView({
   allClasses,
   today,
 }: CoachTodayViewProps) {
+  const { specialization } = useAcademyContext();
   const todayDate = parseISO(today);
   const todayWeekday = todayDate.getDay();
 
@@ -91,12 +93,12 @@ export default function CoachTodayView({
   return (
     <div className="space-y-6">
       <header className="space-y-2">
-        <h1 className="text-3xl font-semibold">Vista diaria del entrenador</h1>
+        <h1 className="text-3xl font-semibold">Vista diaria del {specialization.labels.coachLabel.toLowerCase()}</h1>
         <p className="text-muted-foreground">
           {format(todayDate, "EEEE, d 'de' MMMM 'de' yyyy", { locale: es })}
         </p>
         <p className="text-sm text-muted-foreground">
-          {academy.name} · {coach.name ?? "Entrenador"}
+          {academy.name} · {coach.name ?? specialization.labels.coachLabel}
         </p>
       </header>
 

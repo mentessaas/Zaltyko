@@ -14,6 +14,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useAcademyContext } from "@/hooks/use-academy-context";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -83,6 +84,7 @@ export const InvitationCard = memo(function InvitationCard({
   onDelete,
   onResend,
 }: InvitationCardProps) {
+  const { specialization } = useAcademyContext();
   const [loading, setLoading] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -148,7 +150,7 @@ export const InvitationCard = memo(function InvitationCard({
               </CardTitle>
               {(invitation.athleteName || invitation.guardianName) && (
                 <CardDescription>
-                  {invitation.athleteName && `Atleta: ${invitation.athleteName}`}
+                  {invitation.athleteName && `${specialization.labels.athleteSingular}: ${invitation.athleteName}`}
                   {invitation.athleteName && invitation.guardianName && " / "}
                   {invitation.guardianName && `Guardián: ${invitation.guardianName}`}
                 </CardDescription>

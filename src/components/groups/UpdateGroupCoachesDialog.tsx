@@ -6,6 +6,8 @@ import { Modal } from "@/components/ui/modal";
 import { useToast } from "@/components/ui/toast-provider";
 import { CoachOption } from "./types";
 import { createClient } from "@/lib/supabase/client";
+import { useAcademyContext } from "@/hooks/use-academy-context";
+import { pluralizeFirstWord } from "@/lib/specialization/registry";
 
 interface UpdateGroupCoachesDialogProps {
   academyId: string;
@@ -31,6 +33,9 @@ export function UpdateGroupCoachesDialog({
   onUpdated,
 }: UpdateGroupCoachesDialogProps) {
   const { pushToast } = useToast();
+  const { specialization } = useAcademyContext();
+  const coachLabel = specialization.labels.coachLabel;
+  const coachesPlural = pluralizeFirstWord(coachLabel);
   const [selectedCoach, setSelectedCoach] = useState<string>(coachId ?? "");
   const [selectedAssistants, setSelectedAssistants] = useState<string[]>(assistantIds);
   const [error, setError] = useState<string | null>(null);
@@ -83,7 +88,7 @@ export function UpdateGroupCoachesDialog({
       (coachId || assistantIds.length > 0)
     ) {
       const confirmed = window.confirm(
-        "Quitarás todos los entrenadores asignados a este grupo. ¿Quieres continuar?"
+        `Quitarás todos los ${coachesPlural.toLowerCase()} asignados a este grupo. ¿Quieres continuar?`
       );
       if (!confirmed) {
         return;
@@ -98,7 +103,7 @@ export function UpdateGroupCoachesDialog({
         } = await supabase.auth.getUser();
 
         if (selectedCoach && assistantLookup.has(selectedCoach)) {
-          setError("El entrenador principal no puede estar listado como asistente.");
+          setError(`El ${coachLabel.toLowerCase()} principal no puede estar listado como asistente.`);
           return;
         }
 
@@ -123,11 +128,11 @@ export function UpdateGroupCoachesDialog({
         onClose();
         pushToast({
           title: "Equipo actualizado",
-          description: "Los entrenadores del grupo fueron actualizados.",
+          description: `Los ${coachesPlural.toLowerCase()} del grupo fueron actualizados.`,
           variant: "success",
         });
       } catch (err: unknown) {
-        setError((err instanceof Error ? err.message : "Error desconocido") ?? "Error desconocido al actualizar entrenadores.");
+        setError((err instanceof Error ? err.message : "Error desconocido") ?? `Error desconocido al actualizar ${coachesPlural.toLowerCase()}.`);
         pushToast({
           title: "No se pudo actualizar el equipo",
           description: (err instanceof Error ? err.message : "Error desconocido") ?? "Error desconocido",
@@ -146,8 +151,8 @@ export function UpdateGroupCoachesDialog({
     <Modal
       open={open}
       onClose={handleClose}
-      title="Asignar entrenadores"
-      description="Define el entrenador principal y los asistentes para este grupo."
+      title={`Asignar ${coachesPlural.toLowerCase()}`}
+      description={`Define el ${coachLabel.toLowerCase()} principal y los asistentes para este grupo.`}
       footer={
         <div className="flex justify-end gap-2">
           <button
@@ -177,7 +182,7 @@ export function UpdateGroupCoachesDialog({
         )}
 
         <div className="space-y-1">
-          <label className="font-medium">Entrenador principal</label>
+          <label className="font-medium">{coachLabel} principal</label>
           <select
             value={selectedCoach}
             onChange={(event) => setSelectedCoach(event.target.value)}
@@ -206,7 +211,7 @@ export function UpdateGroupCoachesDialog({
           <div className="grid max-h-56 gap-2 overflow-y-auto rounded-md border border-border p-3">
             {compatibleCoaches.length === 0 ? (
               <p className="text-xs text-muted-foreground">
-                No hay entrenadores disponibles para esta rama.
+                No hay {coachesPlural.toLowerCase()} disponibles para esta rama.
               </p>
             ) : (
               compatibleCoaches.map((coach) => (

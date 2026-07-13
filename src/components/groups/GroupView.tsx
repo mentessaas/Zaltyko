@@ -10,6 +10,7 @@ import { UpdateGroupMembersDialog } from "./UpdateGroupMembersDialog";
 import { UpdateGroupCoachesDialog } from "./UpdateGroupCoachesDialog";
 import { useAcademyContext } from "@/hooks/use-academy-context";
 import { getGroupTechnicalGuidance } from "@/lib/specialization/technical-guidance";
+import { pluralizeFirstWord } from "@/lib/specialization/registry";
 import { logger } from "@/lib/logger";
 
 interface GroupViewProps {
@@ -97,17 +98,17 @@ export function GroupView({ academyId, group, availableAthletes, availableCoache
             </p>
             <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
               <span>Creado el {new Date(detail.createdAt).toLocaleDateString("es-ES")}</span>
-              <span>· {detail.athleteCount} atleta{detail.athleteCount === 1 ? "" : "s"}</span>
+              <span>· {detail.athleteCount} {detail.athleteCount === 1 ? specialization.labels.athleteSingular.toLowerCase() : specialization.labels.athletesPlural.toLowerCase()}</span>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <span className="rounded-full border border-border bg-muted px-3 py-1 text-xs font-semibold text-muted-foreground">
-              Coach principal: {detail.coachName ?? "Sin asignar"}
+              {specialization.labels.coachLabel} principal: {detail.coachName ?? "Sin asignar"}
             </span>
             <Button variant="outline" onClick={() => setCoachesDialogOpen(true)}>
-              Editar entrenadores
+              Editar {pluralizeFirstWord(specialization.labels.coachLabel).toLowerCase()}
             </Button>
-            <Button onClick={() => setMembersDialogOpen(true)}>Editar atletas</Button>
+            <Button onClick={() => setMembersDialogOpen(true)}>Editar {specialization.labels.athletesPlural.toLowerCase()}</Button>
           </div>
         </div>
       </section>
@@ -115,8 +116,8 @@ export function GroupView({ academyId, group, availableAthletes, availableCoache
       <Tabs defaultValue="summary" className="w-full">
         <TabsList>
           <TabsTrigger value="summary">Resumen</TabsTrigger>
-          <TabsTrigger value="athletes">Atletas</TabsTrigger>
-          <TabsTrigger value="coaches">Entrenadores</TabsTrigger>
+          <TabsTrigger value="athletes">{specialization.labels.athletesPlural}</TabsTrigger>
+          <TabsTrigger value="coaches">{pluralizeFirstWord(specialization.labels.coachLabel)}</TabsTrigger>
           <TabsTrigger value="classes">Clases</TabsTrigger>
           <TabsTrigger value="evaluations">Evaluaciones</TabsTrigger>
         </TabsList>
@@ -125,8 +126,8 @@ export function GroupView({ academyId, group, availableAthletes, availableCoache
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <SummaryCard title="Disciplina" value={disciplineLabel} />
             <SummaryCard title="Nivel" value={detail.level ?? "Sin nivel"} />
-            <SummaryCard title="Entrenadores" value={`${(detail.coachId ? 1 : 0) + detail.assistantIds.length}`} />
-            <SummaryCard title="Atletas" value={`${detail.athleteCount}`} />
+            <SummaryCard title={pluralizeFirstWord(specialization.labels.coachLabel)} value={`${(detail.coachId ? 1 : 0) + detail.assistantIds.length}`} />
+            <SummaryCard title={specialization.labels.athletesPlural} value={`${detail.athleteCount}`} />
           </div>
           <section className="rounded-lg border border-primary/20 bg-primary/5 p-5">
             <div className="space-y-1">
@@ -172,8 +173,9 @@ export function GroupView({ academyId, group, availableAthletes, availableCoache
             )}
           </section>
           <p className="text-sm text-muted-foreground">
-            Los grupos te permiten automatizar asistencia, evaluaciones y notificaciones. Asigna atletas y
-            entrenadores para empezar a usarlos en tus flujos diarios.
+            Los grupos te permiten automatizar asistencia, evaluaciones y notificaciones. Asigna{" "}
+            {specialization.labels.athletesPlural.toLowerCase()} y{" "}
+            {pluralizeFirstWord(specialization.labels.coachLabel).toLowerCase()} para empezar a usarlos en tus flujos diarios.
           </p>
 
           {/* Resumen económico del grupo */}
@@ -183,7 +185,7 @@ export function GroupView({ academyId, group, availableAthletes, availableCoache
                 <div>
                   <h3 className="text-base font-semibold text-foreground">Resumen económico del grupo</h3>
                   <p className="text-xs text-muted-foreground">
-                    {summary.activeAthletesCount} atleta{summary.activeAthletesCount === 1 ? "" : "s"} activo{summary.activeAthletesCount === 1 ? "" : "s"}
+                    {summary.activeAthletesCount} {summary.activeAthletesCount === 1 ? specialization.labels.athleteSingular.toLowerCase() : specialization.labels.athletesPlural.toLowerCase()} activo{summary.activeAthletesCount === 1 ? "" : "s"}
                     {summary.monthlyFeeCents > 0 && ` · Cuota mensual: ${(summary.monthlyFeeCents / 100).toFixed(2)} €`}
                   </p>
                 </div>
@@ -229,18 +231,18 @@ export function GroupView({ academyId, group, availableAthletes, availableCoache
           <section className="rounded-xl border bg-card p-6 shadow-sm">
             <header className="mb-4 flex items-center justify-between">
               <div>
-                <h2 className="text-lg font-semibold text-foreground">Atletas asignados</h2>
+                <h2 className="text-lg font-semibold text-foreground">{specialization.labels.athletesPlural} asignados</h2>
                 <p className="text-sm text-muted-foreground">
-                  {detail.members.length} atleta{detail.members.length === 1 ? "" : "s"} forman parte de este grupo.
+                  {detail.members.length} {detail.members.length === 1 ? specialization.labels.athleteSingular.toLowerCase() : specialization.labels.athletesPlural.toLowerCase()} forman parte de este grupo.
                 </p>
               </div>
               <Button variant="outline" onClick={() => setMembersDialogOpen(true)}>
-                Actualizar atletas
+                Actualizar {specialization.labels.athletesPlural.toLowerCase()}
               </Button>
             </header>
             {detail.members.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                Aún no hay atletas en este grupo. Añádelos para llevar su progreso y asistencia.
+                Aún no hay {specialization.labels.athletesPlural.toLowerCase()} en este grupo. Añádelos para llevar su progreso y asistencia.
               </p>
             ) : (
               <div className="overflow-hidden rounded-lg border">
@@ -282,7 +284,7 @@ export function GroupView({ academyId, group, availableAthletes, availableCoache
             </header>
             <div className="space-y-4">
               <div>
-                <h3 className="text-sm font-semibold text-foreground">Entrenador principal</h3>
+                <h3 className="text-sm font-semibold text-foreground">{specialization.labels.coachLabel} principal</h3>
                 <p className="text-sm text-muted-foreground">
                   {detail.coachName ?? "Sin asignar"}
                   {detail.coachEmail ? ` · ${detail.coachEmail}` : ""}
@@ -312,7 +314,7 @@ export function GroupView({ academyId, group, availableAthletes, availableCoache
             <div>
               <h2 className="text-lg font-semibold text-foreground">Clases relacionadas</h2>
               <p className="text-sm text-muted-foreground">
-                Basado en los entrenadores asignados a este grupo.
+                Basado en los {pluralizeFirstWord(specialization.labels.coachLabel).toLowerCase()} asignados a este grupo.
               </p>
             </div>
             <Button variant="outline" asChild>
@@ -322,7 +324,7 @@ export function GroupView({ academyId, group, availableAthletes, availableCoache
 
           {detail.classes.length === 0 ? (
             <div className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
-              No encontramos clases relacionadas con los entrenadores de este grupo. Puedes asignarlas desde el
+              No encontramos clases relacionadas con los {pluralizeFirstWord(specialization.labels.coachLabel).toLowerCase()} de este grupo. Puedes asignarlas desde el
               módulo de clases.
             </div>
           ) : (
@@ -345,7 +347,7 @@ export function GroupView({ academyId, group, availableAthletes, availableCoache
                   </div>
                   <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
                     {clazz.coachNames.length === 0 ? (
-                      <span className="rounded-full bg-white/60 px-3 py-1">Sin entrenadores asignados</span>
+                      <span className="rounded-full bg-white/60 px-3 py-1">Sin {pluralizeFirstWord(specialization.labels.coachLabel).toLowerCase()} asignados</span>
                     ) : (
                       clazz.coachNames.map((name) => (
                         <span key={name} className="rounded-full bg-white/60 px-3 py-1 font-medium">

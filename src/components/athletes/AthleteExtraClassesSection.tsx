@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getAthleteSchedule } from "@/app/actions/classes/get-athlete-schedule";
 import { CreateExtraClassDialog } from "./CreateExtraClassDialog";
+import { useAcademyContext } from "@/hooks/use-academy-context";
 
 interface AthleteExtraClassesSectionProps {
   academyId: string;
@@ -20,6 +21,8 @@ export function AthleteExtraClassesSection({
   athleteId,
   availableCoaches,
 }: AthleteExtraClassesSectionProps) {
+  const { specialization } = useAcademyContext();
+  const athleteSingular = specialization.labels.athleteSingular.toLowerCase();
   const [extraClasses, setExtraClasses] = useState<
     Array<{
       id: string;
@@ -80,7 +83,7 @@ export function AthleteExtraClassesSection({
           <div>
             <h2 className="text-lg font-semibold text-foreground">Clases extra</h2>
             <p className="text-sm text-muted-foreground">
-              Clases individuales adicionales que no forman parte del grupo principal del atleta.
+              Clases individuales adicionales que no forman parte del grupo principal del {athleteSingular}.
             </p>
           </div>
           <button
@@ -103,7 +106,7 @@ export function AthleteExtraClassesSection({
           </div>
         ) : extraClasses.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            Este atleta no tiene clases extra asignadas. Añade una clase extra para entrenamientos adicionales.
+            Este {athleteSingular} no tiene clases extra asignadas. Añade una clase extra para entrenamientos adicionales.
           </p>
         ) : (
           <div className="space-y-3">
@@ -128,7 +131,7 @@ export function AthleteExtraClassesSection({
                       : "Horario flexible"}
                   </p>
                   {cls.coachName && (
-                    <p className="text-xs text-muted-foreground">Entrenador: {cls.coachName}</p>
+                    <p className="text-xs text-muted-foreground">{specialization.labels.coachLabel}: {cls.coachName}</p>
                   )}
                 </div>
                 <div className="flex items-center gap-2">

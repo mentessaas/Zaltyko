@@ -94,7 +94,7 @@ export function PlanSelector({
               <div className="mt-4 flex flex-1 flex-col justify-end space-y-2">
                 {plan.athleteLimit != null && (
                   <p className="text-xs text-muted-foreground">
-                    Hasta {plan.athleteLimit} atletas incluidos
+                    Hasta {plan.athleteLimit} gimnastas incluidos
                   </p>
                 )}
                 <button

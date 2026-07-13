@@ -75,7 +75,7 @@ export function BillingSummary({
         </p>
         <p className="text-sm text-muted-foreground">Estado: {summary.status ?? "N/A"}</p>
         <p className="text-sm text-muted-foreground">
-          Límite atletas: {summary.athleteLimit ?? "Ilimitado"}
+          Límite gimnastas: {summary.athleteLimit ?? "Ilimitado"}
         </p>
         <p className="text-sm text-muted-foreground">
           Límite clases: {summary.classLimit ?? "Ilimitado"}

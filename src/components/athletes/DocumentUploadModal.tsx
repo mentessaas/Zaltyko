@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useAcademyContext } from "@/hooks/use-academy-context";
 import {
   Select,
   SelectContent,
@@ -51,6 +52,8 @@ export function DocumentUploadModal({
   academyId,
   onSuccess,
 }: DocumentUploadModalProps) {
+  const { specialization } = useAcademyContext();
+  const athleteSingular = specialization.labels.athleteSingular.toLowerCase();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -137,7 +140,7 @@ export function DocumentUploadModal({
         <DialogHeader>
           <DialogTitle>Subir Documento</DialogTitle>
           <DialogDescription>
-            Sube un documento para este atleta. El archivo puede ser PDF, imagen u otro formato común.
+            Sube un documento para este {athleteSingular}. El archivo puede ser PDF, imagen u otro formato común.
           </DialogDescription>
         </DialogHeader>
 

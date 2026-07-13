@@ -3,6 +3,7 @@
 import { useId } from "react";
 import { cn } from "@/lib/utils";
 import type { AssessmentType } from "@/types";
+import { useAcademyContext } from "@/hooks/use-academy-context";
 
 interface AssessmentTypeSelectorProps {
   value: AssessmentType;
@@ -10,16 +11,22 @@ interface AssessmentTypeSelectorProps {
   disabled?: boolean;
 }
 
-const assessmentTypes: { type: AssessmentType; label: string; description: string; icon: string }[] = [
-  { type: "technical", label: "Técnica", description: "Habilidades técnicas específicas del deporte", icon: "⚙️" },
-  { type: "artistic", label: "Artística", description: "Expresión artística y coreografía", icon: "🎨" },
-  { type: "physical", label: "Condición Física", description: "Fuerza, flexibilidad y resistencia", icon: "💪" },
-  { type: "behavioral", label: "Comportamental", description: "Actitud, disciplina y comportamiento", icon: "🧠" },
-  { type: "overall", label: "General", description: "Evaluación integral del atleta", icon: "📊" },
-];
+function getAssessmentTypes(
+  athleteSingular: string
+): { type: AssessmentType; label: string; description: string; icon: string }[] {
+  return [
+    { type: "technical", label: "Técnica", description: "Habilidades técnicas específicas del deporte", icon: "⚙️" },
+    { type: "artistic", label: "Artística", description: "Expresión artística y coreografía", icon: "🎨" },
+    { type: "physical", label: "Condición Física", description: "Fuerza, flexibilidad y resistencia", icon: "💪" },
+    { type: "behavioral", label: "Comportamental", description: "Actitud, disciplina y comportamiento", icon: "🧠" },
+    { type: "overall", label: "General", description: `Evaluación integral del ${athleteSingular}`, icon: "📊" },
+  ];
+}
 
 export function AssessmentTypeSelector({ value, onChange, disabled }: AssessmentTypeSelectorProps) {
   const id = useId();
+  const { specialization } = useAcademyContext();
+  const assessmentTypes = getAssessmentTypes(specialization.labels.athleteSingular.toLowerCase());
 
   return (
     <div className="space-y-3">

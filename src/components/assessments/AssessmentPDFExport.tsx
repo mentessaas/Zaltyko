@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { cn } from "@/lib/utils";
 import type { AssessmentWithScores, AssessmentType } from "@/types";
 import { logger } from "@/lib/logger";
+import { useAcademyContext } from "@/hooks/use-academy-context";
 
 interface AssessmentPDFExportProps {
   assessments: AssessmentWithScores[];
@@ -22,6 +23,8 @@ interface AssessmentPDFExportProps {
 type ExportRange = "last" | "3m" | "6m" | "all";
 
 export function AssessmentPDFExport({ assessments, athleteName, className }: AssessmentPDFExportProps) {
+  const { specialization } = useAcademyContext();
+  const athleteSingular = specialization.labels.athleteSingular;
   const [isExporting, setIsExporting] = useState(false);
   const [exportRange, setExportRange] = useState<ExportRange>("all");
 
@@ -63,7 +66,7 @@ export function AssessmentPDFExport({ assessments, athleteName, className }: Ass
       // Athlete info
       doc.setFontSize(12);
       doc.setTextColor(0, 0, 0);
-      doc.text(`Atleta: ${athleteName}`, 14, 35);
+      doc.text(`${athleteSingular}: ${athleteName}`, 14, 35);
       doc.text(`Fecha de generación: ${format(new Date(), "PPP", { locale: es })}`, 14, 42);
 
       // Summary stats

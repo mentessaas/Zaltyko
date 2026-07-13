@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Award, Trash2 } from "lucide-react";
+import { useAcademyContext } from "@/hooks/use-academy-context";
 
 interface Certification {
   name: string;
@@ -22,6 +23,7 @@ export function CertificationsSection({
   certifications,
   onChange,
 }: CertificationsSectionProps) {
+  const { specialization } = useAcademyContext();
   const updateCertification = (index: number, field: keyof Certification, value: string) => {
     const updated = [...certifications];
     updated[index] = { ...updated[index], [field]: value };
@@ -54,7 +56,7 @@ export function CertificationsSection({
                       id={`cert-name-${index}`}
                       value={cert.name}
                       onChange={(e) => updateCertification(index, "name", e.target.value)}
-                      placeholder="Ej: Entrenador Nivel 1"
+                      placeholder={`Ej: ${specialization.labels.coachLabel} Nivel 1`}
                     />
                   </div>
                   <div className="space-y-2">
