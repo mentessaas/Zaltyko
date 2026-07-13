@@ -40,6 +40,7 @@
     "migrate:console": "tsx scripts/migrate-console-to-logger.ts",
     "migrate:console:dry-run": "tsx scripts/migrate-console-to-logger.ts --dry-run",
     "verify:production": "tsx scripts/verify-production-ready.ts",
+    "verify:permissive-policies": "tsx scripts/verify-permissive-policies.ts",
     "validate:rls": "tsx scripts/validate-rls.ts",
     "check:migrations": "tsx scripts/check-migrations-integrity.ts"
   },
