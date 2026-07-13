@@ -88,7 +88,7 @@ export function ProgressReport({ academyId, academyCountry, athleteId, initialDa
 
   const loadReport = async () => {
     if (!selectedAthleteId) {
-      setError("Selecciona un atleta");
+      setError(`Selecciona un ${specialization.labels.athleteSingular.toLowerCase()}`);
       return;
     }
 

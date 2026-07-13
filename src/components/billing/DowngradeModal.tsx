@@ -59,7 +59,7 @@ export function DowngradeModal({
     // Calcular advertencias
     const warnings: string[] = [];
     if (currentUsage.athletes > targetLimits.athletes) {
-        warnings.push(`Tienes ${currentUsage.athletes} atletas, pero el plan ${targetLimits.name} solo permite ${targetLimits.athletes}`);
+        warnings.push(`Tienes ${currentUsage.athletes} gimnastas, pero el plan ${targetLimits.name} solo permite ${targetLimits.athletes}`);
     }
     if (currentUsage.coaches > targetLimits.coaches) {
         warnings.push(`Tienes ${currentUsage.coaches} entrenadores, pero el plan ${targetLimits.name} solo permite ${targetLimits.coaches}`);

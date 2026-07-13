@@ -11,6 +11,8 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { NoteForm } from "./NoteForm";
 import { logger } from "@/lib/logger";
+import { useAcademyContext } from "@/hooks/use-academy-context";
+import { pluralizeFirstWord } from "@/lib/specialization/registry";
 
 interface Note {
   id: string;
@@ -35,6 +37,8 @@ export function CoachNotesManager({
   athleteId,
   initialNotes = [],
 }: CoachNotesManagerProps) {
+  const { specialization } = useAcademyContext();
+  const athleteSingular = specialization.labels.athleteSingular.toLowerCase();
   const [notes, setNotes] = useState<Note[]>(initialNotes);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingNote, setEditingNote] = useState<Note | null>(null);
@@ -90,9 +94,9 @@ export function CoachNotesManager({
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold">Notas de Entrenadores</h2>
+          <h2 className="text-2xl font-bold">Notas de {pluralizeFirstWord(specialization.labels.coachLabel)}</h2>
           <p className="text-muted-foreground mt-1">
-            {athleteId ? "Notas sobre este atleta" : "Gestiona las notas de entrenadores"}
+            {athleteId ? `Notas sobre este ${athleteSingular}` : `Gestiona las notas de ${pluralizeFirstWord(specialization.labels.coachLabel).toLowerCase()}`}
           </p>
         </div>
         <Button onClick={() => setIsFormOpen(true)}>
@@ -111,7 +115,7 @@ export function CoachNotesManager({
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Input
-              placeholder="Buscar por contenido o nombre de atleta..."
+              placeholder={`Buscar por contenido o nombre de ${athleteSingular}...`}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />

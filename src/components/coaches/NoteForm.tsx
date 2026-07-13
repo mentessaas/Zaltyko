@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { logger } from "@/lib/logger";
+import { useAcademyContext } from "@/hooks/use-academy-context";
 
 interface Note {
   id: string;
@@ -44,6 +45,8 @@ export function NoteForm({
   note,
   onSaved,
 }: NoteFormProps) {
+  const { specialization } = useAcademyContext();
+  const athleteSingular = specialization.labels.athleteSingular.toLowerCase();
   const [selectedAthleteId, setSelectedAthleteId] = useState(athleteId || "");
   const [noteText, setNoteText] = useState("");
   const [sharedWithParents, setSharedWithParents] = useState(false);
@@ -101,7 +104,7 @@ export function NoteForm({
     setError(null);
 
     if (!selectedAthleteId) {
-      setError("Selecciona un atleta");
+      setError(`Selecciona un ${athleteSingular}`);
       setIsSaving(false);
       return;
     }
@@ -151,7 +154,7 @@ export function NoteForm({
           <DialogDescription>
             {note
               ? "Modifica la información de la nota"
-              : "Crea una nueva nota sobre un atleta"}
+              : `Crea una nueva nota sobre un ${athleteSingular}`}
           </DialogDescription>
         </DialogHeader>
 
@@ -159,7 +162,7 @@ export function NoteForm({
           <div className="space-y-4 py-4">
             {!athleteId && (
               <div className="space-y-2">
-                <Label htmlFor="athlete">Atleta *</Label>
+                <Label htmlFor="athlete">{specialization.labels.athleteSingular} *</Label>
                 <select
                   id="athlete"
                   value={selectedAthleteId}
@@ -168,7 +171,7 @@ export function NoteForm({
                   disabled={isSaving}
                   className="flex h-10 w-full rounded-md border border-border bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  <option value="">Selecciona un atleta</option>
+                  <option value="">Selecciona un {athleteSingular}</option>
                   {athletes.map((athlete) => (
                     <option key={athlete.id} value={athlete.id}>
                       {athlete.name}
@@ -187,7 +190,7 @@ export function NoteForm({
                 required
                 rows={6}
                 disabled={isSaving}
-                placeholder="Escribe tu nota sobre el atleta..."
+                placeholder={`Escribe tu nota sobre el ${athleteSingular}...`}
                 className="resize-none"
               />
             </div>
@@ -237,7 +240,7 @@ export function NoteForm({
               <div className="space-y-0.5">
                 <Label htmlFor="shared">Compartir con padres</Label>
                 <p className="text-sm text-muted-foreground">
-                  Si está activado, los padres del atleta podrán ver esta nota
+                  Si está activado, los padres del {athleteSingular} podrán ver esta nota
                 </p>
               </div>
               <Switch

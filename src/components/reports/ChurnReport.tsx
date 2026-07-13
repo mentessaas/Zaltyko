@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { ReportFilters, ReportFilters as ReportFiltersType } from "@/components/reports/ReportFilters";
 import { ExportButtons } from "@/components/reports/ExportButtons";
 import { useToast } from "@/components/ui/toast-provider";
+import { useAcademyContext } from "@/hooks/use-academy-context";
 
 interface ChurnStats {
   totalChurned: number;
@@ -42,6 +43,8 @@ interface ChurnReportProps {
 }
 
 export function ChurnReport({ academyId, academyCountry }: ChurnReportProps) {
+  const { specialization } = useAcademyContext();
+  const athletesPlural = specialization.labels.athletesPlural.toLowerCase();
   const toast = useToast();
   const [filters, setFilters] = useState<ReportFiltersType>({
     startDate: format(subMonths(new Date(), 3), "yyyy-MM-dd"),
@@ -212,7 +215,7 @@ export function ChurnReport({ academyId, academyCountry }: ChurnReportProps) {
             Razones de Baja
           </CardTitle>
           <CardDescription>
-            Distribución de razones por las que los atletas se dan de baja
+            Distribución de razones por las que los {athletesPlural} se dan de baja
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -252,7 +255,7 @@ export function ChurnReport({ academyId, academyCountry }: ChurnReportProps) {
             Bajas Recientes
           </CardTitle>
           <CardDescription>
-            Atletas dados de baja recientemente
+            {specialization.labels.athletesPlural} dados de baja recientemente
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -291,7 +294,7 @@ export function ChurnReport({ academyId, academyCountry }: ChurnReportProps) {
         <div>
           <h2 className="text-2xl font-bold">Reporte de Bajas</h2>
           <p className="text-muted-foreground mt-1">
-            Análisis de atletas dados de baja y sus razones
+            Análisis de {athletesPlural} dados de baja y sus razones
           </p>
         </div>
         <ExportButtons

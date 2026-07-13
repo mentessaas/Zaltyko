@@ -14,6 +14,7 @@ import { AthleteOption, CoachOption, GroupSummary, SportConfigOption } from "./t
 import { createClient } from "@/lib/supabase/client";
 import { TooltipOnboarding } from "@/components/tooltips/TooltipOnboarding";
 import { useAcademyContext } from "@/hooks/use-academy-context";
+import { pluralizeFirstWord } from "@/lib/specialization/registry";
 import { getStarterGroupPresets, type StarterGroupPreset } from "@/lib/specialization/operational-presets";
 import { summarizeStarterGroupSetup } from "@/lib/groups/starter-setup";
 import { logger } from "@/lib/logger";
@@ -256,10 +257,10 @@ export function GroupsDashboard({
         <section className="space-y-4 rounded-lg border border-primary/20 bg-primary/5 p-4">
           <div className="space-y-1">
             <p className="text-sm font-semibold text-foreground">
-              Ya tienes {starterSetup.starterGroupCount} {starterSetup.starterGroupCount === 1 ? specialization.labels.groupLabel.toLowerCase() : `${specialization.labels.groupLabel.toLowerCase()}s`} creadas desde la plantilla inicial
+              Ya tienes {starterSetup.starterGroupCount} {starterSetup.starterGroupCount === 1 ? specialization.labels.groupLabel.toLowerCase() : pluralizeFirstWord(specialization.labels.groupLabel).toLowerCase()} creadas desde la plantilla inicial
             </p>
             <p className="text-sm text-muted-foreground">
-              Termina de asignar responsables, niveles y gimnastas para que la estructura base quede lista para operar.
+              Termina de asignar responsables, niveles y {specialization.labels.athletesPlural.toLowerCase()} para que la estructura base quede lista para operar.
             </p>
           </div>
 
@@ -279,7 +280,7 @@ export function GroupsDashboard({
               </p>
               <p className="mt-1 text-2xl font-bold text-foreground">{starterSetup.missingCoachCount}</p>
               <p className="mt-1 text-xs text-muted-foreground">
-                {specialization.labels.groupLabel}s sin responsable principal
+                {pluralizeFirstWord(specialization.labels.groupLabel)} sin responsable principal
               </p>
             </div>
             <div className="rounded-md border bg-background/80 p-3">
@@ -315,7 +316,7 @@ export function GroupsDashboard({
                 </div>
                 <Button variant="outline" asChild>
                   <Link href={`/app/${academyId}/classes`}>
-                    Revisar {specialization.labels.classLabel.toLowerCase()}s
+                    Revisar {pluralizeFirstWord(specialization.labels.classLabel).toLowerCase()}
                     <ChevronRight className="ml-2 h-4 w-4" />
                   </Link>
                 </Button>
@@ -422,7 +423,7 @@ export function GroupsDashboard({
           </select>
           <TooltipOnboarding
             tooltipId="tooltip_create_group"
-            message="Empieza aquí: crea un grupo para organizar a tus atletas por nivel y horario."
+            message={`Empieza aquí: crea un grupo para organizar a tus ${specialization.labels.athletesPlural.toLowerCase()} por nivel y horario.`}
           >
             <button
               type="button"
@@ -453,7 +454,7 @@ export function GroupsDashboard({
           <p className="mb-4 text-sm text-muted-foreground">
             {selectedSportConfig
               ? `No hay grupos para ${selectedSportConfig.branchName} · ${selectedSportConfig.disciplineName}.`
-              : "Aún no has creado ningún grupo. Crea tu primer grupo para organizar tus atletas por nivel y horario."}
+              : `Aún no has creado ningún grupo. Crea tu primer grupo para organizar tus ${specialization.labels.athletesPlural.toLowerCase()} por nivel y horario.`}
           </p>
           <button
             type="button"

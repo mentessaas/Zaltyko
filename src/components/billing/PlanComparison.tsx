@@ -188,7 +188,7 @@ export function PlanComparison({ currentPlan = "free", onSelectPlan, loading = f
                                 </p>
                                 <div className="grid grid-cols-2 gap-2 text-xs">
                                     <div>
-                                        <span className="text-zaltyko-text-light">Atletas:</span>
+                                        <span className="text-zaltyko-text-light">Gimnastas:</span>
                                         <span className="ml-1 font-semibold">
                                             {plan.limits.athletes === "unlimited" ? "∞" : plan.limits.athletes}
                                         </span>

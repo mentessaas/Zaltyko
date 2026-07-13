@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { useAcademyContext } from "@/hooks/use-academy-context";
 import {
   Select,
   SelectContent,
@@ -73,6 +74,7 @@ export function FinancialReport({
   initialData,
   sportConfigs = [],
 }: FinancialReportProps) {
+  const { specialization } = useAcademyContext();
   const toast = useToast();
   const [startDate, setStartDate] = useState(format(subMonths(new Date(), 3), "yyyy-MM-dd"));
   const [endDate, setEndDate] = useState(format(new Date(), "yyyy-MM-dd"));
@@ -460,7 +462,7 @@ export function FinancialReport({
               <CardHeader>
                 <CardTitle>Análisis de Morosidad</CardTitle>
                 <CardDescription>
-                  Atletas con pagos vencidos
+                  {specialization.labels.athletesPlural} con pagos vencidos
                 </CardDescription>
               </CardHeader>
               <CardContent>

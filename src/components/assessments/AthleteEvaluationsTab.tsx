@@ -6,6 +6,7 @@ import Link from "next/link";
 import { AssessmentHistory } from "./AssessmentHistory";
 import type { AssessmentWithScores } from "@/types";
 import { Button } from "@/components/ui/button";
+import { useAcademyContext } from "@/hooks/use-academy-context";
 
 interface AthleteEvaluationsTabProps {
   academyId: string;
@@ -14,6 +15,8 @@ interface AthleteEvaluationsTabProps {
 }
 
 export default function AthleteEvaluationsTab({ academyId, athleteId, athleteName }: AthleteEvaluationsTabProps) {
+  const { specialization } = useAcademyContext();
+  const athleteSingular = specialization.labels.athleteSingular.toLowerCase();
   const [assessments, setAssessments] = useState<AssessmentWithScores[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -38,7 +41,7 @@ export default function AthleteEvaluationsTab({ academyId, athleteId, athleteNam
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
           {assessments.length === 0
-            ? "No hay evaluaciones registradas para este atleta."
+            ? `No hay evaluaciones registradas para este ${athleteSingular}.`
             : `${assessments.length} evaluación${assessments.length !== 1 ? "es" : ""} registrada${assessments.length === 1 ? "" : "s"}.`}
         </p>
         <Button variant="outline" size="sm" asChild>

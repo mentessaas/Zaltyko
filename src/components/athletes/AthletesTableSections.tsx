@@ -290,7 +290,7 @@ export function AthletesToolbar({
 
         <TooltipOnboarding
           tooltipId="tooltip_add_athlete"
-          message="Añade al menos 5 atletas clave para ver todo el valor del sistema."
+          message={`Añade al menos 5 ${terms.athletes.toLowerCase()} clave para ver todo el valor del sistema.`}
         >
           <button
             type="button"
@@ -391,7 +391,7 @@ export function AthletesDataTable({
                 type="button"
                 onClick={onToggleSelectAll}
                 className="p-1 hover:text-zaltyko-teal"
-                aria-label="Seleccionar todos los atletas"
+                aria-label={`Seleccionar todos los ${terms.athletes.toLowerCase()}`}
               >
                 {selectedAthletes.size === allAthletesCount && allAthletesCount > 0 ? (
                   <CheckSquare className="h-4 w-4" />

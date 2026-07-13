@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getAthleteSchedule } from "@/app/actions/classes/get-athlete-schedule";
+import { useAcademyContext } from "@/hooks/use-academy-context";
 
 interface AthleteBaseClassesSectionProps {
   academyId: string;
@@ -17,6 +18,8 @@ export function AthleteBaseClassesSection({
   groupId,
   groupName,
 }: AthleteBaseClassesSectionProps) {
+  const { specialization } = useAcademyContext();
+  const athleteSingular = specialization.labels.athleteSingular.toLowerCase();
   const [baseClasses, setBaseClasses] = useState<
     Array<{
       id: string;
@@ -79,7 +82,7 @@ export function AthleteBaseClassesSection({
       <header className="mb-4">
         <h2 className="text-lg font-semibold text-foreground">Clases base</h2>
         <p className="text-sm text-muted-foreground">
-          Clases heredadas del grupo principal. Estas clases se asignan automáticamente según el grupo del atleta.
+          Clases heredadas del grupo principal. Estas clases se asignan automáticamente según el grupo del {athleteSingular}.
         </p>
         {groupName && (
           <p className="mt-2 text-xs text-muted-foreground">
@@ -99,7 +102,7 @@ export function AthleteBaseClassesSection({
         </div>
       ) : !groupId ? (
         <p className="text-sm text-muted-foreground">
-          Este atleta no tiene un grupo principal asignado. Asigna un grupo para que herede sus clases base.
+          Este {athleteSingular} no tiene un grupo principal asignado. Asigna un grupo para que herede sus clases base.
         </p>
       ) : baseClasses.length === 0 ? (
         <p className="text-sm text-muted-foreground">
@@ -126,7 +129,7 @@ export function AthleteBaseClassesSection({
                     : "Horario flexible"}
                 </p>
                 {cls.coachName && (
-                  <p className="text-xs text-muted-foreground">Entrenador: {cls.coachName}</p>
+                  <p className="text-xs text-muted-foreground">{specialization.labels.coachLabel}: {cls.coachName}</p>
                 )}
               </div>
               <Link

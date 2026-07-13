@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useAcademyContext } from "@/hooks/use-academy-context";
+import { pluralizeFirstWord } from "@/lib/specialization/registry";
 
 interface ClassInfo {
   id: string;
@@ -29,6 +31,10 @@ const WEEKDAY_LABELS: Record<number, string> = {
 };
 
 export function AthleteClassesSection({ athleteId, academyId }: AthleteClassesSectionProps) {
+  const { specialization } = useAcademyContext();
+  const athleteSingular = specialization.labels.athleteSingular.toLowerCase();
+  const coachLabel = specialization.labels.coachLabel;
+  const coachesPlural = pluralizeFirstWord(coachLabel);
   const [classes, setClasses] = useState<ClassInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -41,7 +47,7 @@ export function AthleteClassesSection({ athleteId, academyId }: AthleteClassesSe
 
         const response = await fetch(`/api/athletes/${athleteId}/classes?academyId=${academyId}`);
         if (!response.ok) {
-          throw new Error("No se pudieron cargar las clases del atleta.");
+          throw new Error(`No se pudieron cargar las clases del ${athleteSingular}.`);
         }
 
         const data = await response.json();
@@ -90,13 +96,13 @@ export function AthleteClassesSection({ athleteId, academyId }: AthleteClassesSe
       <header className="mb-4">
         <h2 className="text-lg font-semibold text-foreground">Clases habituales</h2>
         <p className="text-sm text-muted-foreground">
-          Clases donde entrena este atleta. Incluye clases de su grupo principal y clases extra.
+          Clases donde entrena este {athleteSingular}. Incluye clases de su grupo principal y clases extra.
         </p>
       </header>
 
       {classes.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          Este atleta no está asignado a ninguna clase actualmente.
+          Este {athleteSingular} no está asignado a ninguna clase actualmente.
         </p>
       ) : (
         <div className="space-y-3">
@@ -126,7 +132,7 @@ export function AthleteClassesSection({ athleteId, academyId }: AthleteClassesSe
                 <p className="mt-1 text-xs text-muted-foreground">{formatSchedule(classInfo)}</p>
                 {classInfo.coachNames.length > 0 && (
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Entrenador{classInfo.coachNames.length > 1 ? "es" : ""}: {classInfo.coachNames.join(", ")}
+                    {classInfo.coachNames.length > 1 ? coachesPlural : coachLabel}: {classInfo.coachNames.join(", ")}
                   </p>
                 )}
               </div>
