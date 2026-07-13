@@ -21,7 +21,7 @@ Convertir Zaltyko en un producto real operable por academias de gimnasia artisti
 | Fase 1 | Software cerrado y desplegado | Portal limitado, enlaces seguros, scoping tenant/academia y contratos de navegación. QA parent real pendiente como validación humana. |
 | Fase 2 | Software cerrado y desplegado | Aviso interno desde sesión, mensajes/notificaciones/preferencias conectados, WhatsApp fuera del flujo principal. |
 | Fase 3 | Software cerrado y desplegado | Cockpit de sesión con asistencia, progreso por modalidad/aparato y aviso interno; permiso de coach, persistencia, WCAG y móvil verificados. |
-| Fase 4 | Parcial/operativa | Pricing v3.0 y Stripe real activos; siguen pendientes 10 entrevistas de validación. |
+| Fase 4 | Software de medición cerrado / validación 0/10 | Pricing v3.0 coherente, Stripe live verificado, funnel first-party, leads y cockpit de entrevistas operativos. La fase comercial no está cerrada hasta completar 10 entrevistas reales. |
 | Fase 5 | Pendiente | No iniciar hasta consolidar Fase 3 y validación comercial de Fase 4. |
 
 ## Fase 1 - Desbloquear experiencia padre/atleta
@@ -75,6 +75,22 @@ Prioridad: P1.
 | Mantener pricing v3.0 coherente. | Free/Starter/Growth/Network son la fuente oficial. | Catalogo, limites, copy publico, tests, [[Pricing]] y [[Mensajes aprobados]] dicen lo mismo. |
 | Validar conversion con 10 academias. | Datos reales de disposicion de pago post-lanzamiento. | 10 entrevistas registradas con tamano, herramientas actuales, dolor, precio aceptable y objeciones; no bloquean v3.0. |
 | Confirmar Stripe real. | Starter/Growth se pueden comprar sin placeholders. | Price IDs reales por entorno y checkout/webhook probados; Network sigue como CTA comercial hasta tener checkout dedicado. |
+
+### Evidencia técnica y baseline Fase 4
+
+- Pricing v3.0 conserva Free 0 EUR/30, Starter 19 EUR/75, Growth 49 EUR/200 y Network 99 EUR sales-assisted. Los límites de grupos/clases proceden del catálogo canónico también en modales de billing.
+- El entorno Vercel de producción usa Stripe live. Los Prices de Starter y Growth están activos, en EUR, intervalo mensual, importes 1.900/4.900 céntimos y productos activos; Network no entra en checkout.
+- `growth_events` captura señales first-party sin PII desde pricing/contacto y eventos autenticados de trial, checkout y suscripción. Las métricas no calculan porcentajes cuando falta denominador.
+- `leads` persiste contacto antes de intentar email. Sus antiguas policies globales se sustituyeron por acceso exclusivo de super-admin; la app server-side mantiene el flujo público controlado.
+- `commercial_interviews` exige academia única y evidencia mínima para contar una entrevista como completada: tamaño, herramientas, dolor, objeción, precio fácil/límite y fecha.
+- `/super-admin/growth` muestra funnel acumulado, tasas honestas, progreso 0/10 y formulario accesible. No se registraron entrevistas ficticias para QA.
+- Baseline Supabase a 2026-07-13: 2 academias, 0 leads, 0 eventos de growth, 0 trials, 0 suscripciones Stripe-backed y 0 entrevistas.
+- Migración aditiva `20260713170000_phase4_commercial_validation.sql` aplicada con rollback smoke; el cierre no destructivo `20260713173000_reconcile_coaches_slug_unique.sql` reconcilia el único drift detectado por Drizzle. Inventario: 6 Drizzle + 31 Supabase, RLS 65/65. No se ejecutó seed global.
+- Gate: 279 APIs sin rutas riesgosas, 431/431 tests, build 216 páginas y axe WCAG 2.2 AA limpio en pricing, contacto Network y Growth.
+
+### Cierre comercial pendiente
+
+Fase 4 sigue activa. Deben realizarse y registrarse 10 entrevistas con academias distintas, sintetizar patrones por tamaño/modalidad y revisar la decisión de pricing solo con esa evidencia. Interés beta y disposición a pagar se observan; no se convierten en umbrales inventados antes de tener baseline. Fase 5 permanece bloqueada.
 
 ## Fase 5 - Landing/preventa gimnasia
 

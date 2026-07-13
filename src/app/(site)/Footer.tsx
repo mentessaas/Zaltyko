@@ -37,10 +37,10 @@ export default function Footer() {
         <div className="border-b border-white/10 py-8">
           <div className="flex flex-wrap items-center justify-center gap-6 md:gap-10">
             {[
-              { label: "RGPD Compliant", desc: "Datos protegidos" },
+              { label: "Privacidad por diseño", desc: "Controles de acceso" },
               { label: "SSL Encriptado", desc: "Conexión segura" },
               { label: "Cancelación libre", desc: "Sin permanencia" },
-              { label: "Soporte en español", desc: "Respuesta 24h" },
+              { label: "Soporte en español", desc: "Atención por email" },
             ].map((badge) => (
               <div key={badge.label} className="flex items-center gap-2">
                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/10">

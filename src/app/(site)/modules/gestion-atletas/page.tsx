@@ -53,12 +53,12 @@ const solutionFeatures = [
 const benefits = [
   {
     icon: Clock,
-    title: "Ahorra 5+ horas semanales",
-    description: "Elimina la búsqueda manual de información dispersa en diferentes sistemas y documentos.",
+    title: "Menos búsquedas manuales",
+    description: "Centraliza información que hoy suele estar dispersa en distintos sistemas y documentos.",
   },
   {
     icon: Shield,
-    title: "Cumplimiento garantizado",
+    title: "Documentación bajo control",
     description: "Alertas automáticas para documentos vencidos y requisitos federativos pendientes.",
   },
   {

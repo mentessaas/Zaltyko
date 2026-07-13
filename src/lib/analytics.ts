@@ -97,6 +97,6 @@ export const analytics = {
   subscriptionCanceled: (userId: string, plan: string) =>
     trackEvent("subscription_canceled", { userId, metadata: { plan } }),
 
-  leadCaptured: (email: string, source?: string) =>
-    trackEvent("lead_captured", { metadata: { email, source } }),
+  leadCaptured: (source?: string, plan?: string) =>
+    trackEvent("lead_captured", { metadata: { source, plan } }),
 };

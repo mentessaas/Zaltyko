@@ -13,8 +13,12 @@ Este documento contiene una lista completa de verificación para asegurar que la
 
 - [ ] **Migraciones aplicadas**
   ```bash
-  pnpm db:migrate
+  pnpm db:migrate:reviewed supabase/migrations/<timestamp>_<nombre>.sql
+  pnpm check:migrations
+  pnpm validate:rls
   ```
+  - [ ] SQL inspeccionado manualmente y sin operaciones destructivas no aprobadas
+  - [ ] No usar `pnpm db:migrate` contra remoto: el comando solo admite PostgreSQL local
 
 - [ ] **Políticas RLS aplicadas**
   - [ ] Ejecutado `supabase/rls.sql` en la base de datos

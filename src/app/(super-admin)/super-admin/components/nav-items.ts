@@ -2,6 +2,7 @@ import {
   Building2,
   Globe,
   LayoutDashboard,
+  LineChart,
   ScrollText,
   Users,
 } from "lucide-react";
@@ -14,6 +15,6 @@ export const SUPER_ADMIN_NAV_ITEMS = [
   { href: "/super-admin/users", label: "Usuarios", icon: Users },
   { href: "/super-admin/academies", label: "Academias", icon: Building2 },
   { href: "/super-admin/academies/public", label: "Academias Públicas", icon: Globe },
+  { href: "/super-admin/growth", label: "Growth", icon: LineChart },
   { href: "/super-admin/logs", label: "Logs", icon: ScrollText },
 ] as const;
-

@@ -49,13 +49,19 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 
 ### 4. Configurar base de datos
 
-Ejecuta las migraciones:
+Contra PostgreSQL local, sincroniza el schema Drizzle:
 
 ```bash
 pnpm db:migrate
 ```
 
-O si usas Supabase CLI:
+Contra staging o producción, aplica únicamente un SQL versionado y revisado:
+
+```bash
+pnpm db:migrate:reviewed supabase/migrations/<timestamp>_<nombre>.sql
+```
+
+Si usas Supabase local:
 
 ```bash
 supabase db reset
@@ -333,4 +339,3 @@ Si tienes preguntas:
 - Acepta feedback constructivo
 - Ayuda a otros cuando puedas
 - Mantén el código limpio y bien documentado
-

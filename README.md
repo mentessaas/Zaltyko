@@ -20,7 +20,7 @@ pnpm install
 cp .env.example .env.local
 # Editar .env.local con tus credenciales
 
-# 4. Base de datos
+# 4. Base de datos local
 pnpm db:generate
 pnpm db:migrate
 pnpm db:seed
@@ -94,7 +94,8 @@ pnpm dev              # Desarrollo local
 pnpm build            # Build producción
 pnpm start            # Iniciar producción
 pnpm db:generate      # Generar migraciones Drizzle
-pnpm db:migrate       # Aplicar migraciones
+pnpm db:migrate       # Push Drizzle solo a PostgreSQL local
+pnpm db:migrate:reviewed supabase/migrations/<archivo>.sql # SQL revisado en remoto
 pnpm db:seed          # Poblar datos iniciales
 pnpm lint             # Linting ESLint
 pnpm typecheck        # Verificación TypeScript

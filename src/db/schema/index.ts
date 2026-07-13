@@ -82,4 +82,6 @@ export * from "./templates";
 export * from "./sport-config";
 export * from "./athlete-sport-configs";
 export * from "./leads";
+export * from "./growth-events";
+export * from "./commercial-interviews";
 export * from "./leak-profitability";
