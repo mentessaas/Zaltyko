@@ -1,6 +1,16 @@
-import { boolean, date, index, pgEnum, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import {
+  boolean,
+  date,
+  index,
+  pgEnum,
+  pgTable,
+  text,
+  timestamp,
+  uuid,
+} from "drizzle-orm/pg-core";
 
 import { athletes } from "./athletes";
+import { profiles } from "./profiles";
 
 export const documentTypeEnum = pgEnum("document_type", [
   "identity_document",
@@ -10,7 +20,7 @@ export const documentTypeEnum = pgEnum("document_type", [
   "federative_license",
   "insurance",
   "photo",
-  "other"
+  "other",
 ]);
 
 export const athleteDocuments = pgTable(
@@ -26,6 +36,16 @@ export const athleteDocuments = pgTable(
     fileUrl: text("file_url").notNull(),
     fileSize: text("file_size"),
     mimeType: text("mime_type"),
+    /** @deprecated Conservado para compatibilidad con documentos históricos. */
+    title: text("title"),
+    /** @deprecated Usar createdAt para nuevas cargas. */
+    uploadedAt: timestamp("uploaded_at", { withTimezone: true }),
+    /** @deprecated Usar expiryDate para nuevas cargas. */
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    /** Usuario que realizó una carga histórica. */
+    uploadedBy: uuid("uploaded_by").references(() => profiles.id, {
+      onDelete: "set null",
+    }),
     issuedDate: date("issued_date"),
     expiryDate: date("expiry_date"),
     isVerified: boolean("is_verified").notNull().default(false),

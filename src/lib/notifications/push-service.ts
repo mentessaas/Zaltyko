@@ -33,29 +33,6 @@ export async function subscribeUser(
     auth: string;
   }
 ) {
-  // Check if subscription already exists
-  const existing = await db
-    .select()
-    .from(pushSubscriptions)
-    .where(
-      and(
-        eq(pushSubscriptions.userId, userId),
-        eq(pushSubscriptions.endpoint, subscription.endpoint)
-      )
-    )
-    .limit(1);
-
-  if (existing.length > 0) {
-    // Update existing subscription
-    const [updated] = await db
-      .update(pushSubscriptions)
-      .set({ updatedAt: new Date() })
-      .where(eq(pushSubscriptions.id, existing[0].id))
-      .returning();
-    return updated;
-  }
-
-  // Create new subscription
   const [created] = await db
     .insert(pushSubscriptions)
     .values({
@@ -63,6 +40,14 @@ export async function subscribeUser(
       endpoint: subscription.endpoint,
       p256dh: subscription.p256dh,
       auth: subscription.auth,
+    })
+    .onConflictDoUpdate({
+      target: [pushSubscriptions.userId, pushSubscriptions.endpoint],
+      set: {
+        p256dh: subscription.p256dh,
+        auth: subscription.auth,
+        updatedAt: new Date(),
+      },
     })
     .returning();
 

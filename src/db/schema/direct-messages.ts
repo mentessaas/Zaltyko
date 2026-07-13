@@ -1,4 +1,12 @@
-import { index, jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import {
+  index,
+  jsonb,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+} from "drizzle-orm/pg-core";
 
 import { academies } from "./academies";
 import { profiles } from "./profiles";
@@ -26,13 +34,19 @@ export const conversations = pgTable(
       type?: "p2p" | "group" | "academy_broadcast";
       context?: "general" | "class" | "event" | "attendance" | "billing";
     }>(),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (table) => ({
     tenantIdx: index("conversations_tenant_idx").on(table.tenantId),
     academyIdx: index("conversations_academy_idx").on(table.academyId),
-    lastMessageAtIdx: index("conversations_last_message_at_idx").on(table.lastMessageAt),
+    lastMessageAtIdx: index("conversations_last_message_at_idx").on(
+      table.lastMessageAt
+    ),
   })
 );
 
@@ -55,16 +69,21 @@ export const conversationParticipants = pgTable(
     // Last read tracking for unread counts
     lastReadAt: timestamp("last_read_at", { withTimezone: true }),
     // Notification preferences for this conversation
-    notificationsEnabled: text("notifications_enabled").notNull().default("true"),
+    notificationsEnabled: text("notifications_enabled")
+      .notNull()
+      .default("true"),
     // Hidden/archived conversations
     hiddenAt: timestamp("hidden_at", { withTimezone: true }),
     // Muted until (temporary mute)
     mutedUntil: timestamp("muted_until", { withTimezone: true }),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (table) => ({
-    conversationUserUnique: index("conversation_participants_conversation_user_unique")
-      .on(table.conversationId, table.userId),
+    conversationUserUnique: uniqueIndex(
+      "conversation_participants_conversation_user_unique"
+    ).on(table.conversationId, table.userId),
     userIdx: index("conversation_participants_user_idx").on(table.userId),
     hiddenIdx: index("conversation_participants_hidden_idx").on(table.hiddenAt),
   })
@@ -95,18 +114,25 @@ export const conversationMessages = pgTable(
     editedAt: timestamp("edited_at", { withTimezone: true }),
     // Soft delete (for "unsend" feature)
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (table) => ({
-    conversationIdx: index("conversation_messages_conversation_idx").on(table.conversationId),
+    conversationIdx: index("conversation_messages_conversation_idx").on(
+      table.conversationId
+    ),
     senderIdx: index("conversation_messages_sender_idx").on(table.senderId),
-    createdAtIdx: index("conversation_messages_created_at_idx").on(table.createdAt),
-    // Index for pagination - get messages in order
-    conversationCreatedIdx: index("conversation_messages_conversation_created_idx").on(
-      table.conversationId,
+    createdAtIdx: index("conversation_messages_created_at_idx").on(
       table.createdAt
     ),
+    // Index for pagination - get messages in order
+    conversationCreatedIdx: index(
+      "conversation_messages_conversation_created_idx"
+    ).on(table.conversationId, table.createdAt),
   })
 );
 
@@ -127,8 +153,9 @@ export const messageReadReceipts = pgTable(
     readAt: timestamp("read_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => ({
-    messageUserUnique: index("message_read_receipts_message_user_unique")
-      .on(table.messageId, table.userId),
+    messageUserUnique: uniqueIndex(
+      "message_read_receipts_message_user_unique"
+    ).on(table.messageId, table.userId),
     userIdx: index("message_read_receipts_user_idx").on(table.userId),
   })
 );

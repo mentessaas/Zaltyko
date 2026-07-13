@@ -1,4 +1,12 @@
-import { index, jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import {
+  index,
+  jsonb,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+} from "drizzle-orm/pg-core";
 
 import { academies } from "./academies";
 import { profiles } from "./profiles";
@@ -40,21 +48,25 @@ export const announcements = pgTable(
     status: text("status").notNull().default("published"), // "draft" | "published" | "archived"
     // Timestamps
     publishedAt: timestamp("published_at", { withTimezone: true }),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (table) => ({
     academyIdx: index("announcements_academy_idx").on(table.academyId),
     authorIdx: index("announcements_author_idx").on(table.authorId),
     statusIdx: index("announcements_status_idx").on(table.status),
     priorityIdx: index("announcements_priority_idx").on(table.priority),
-    publishedAtIdx: index("announcements_published_at_idx").on(table.publishedAt),
-    // Index for listing announcements by academy
-    academyStatusPublishedIdx: index("announcements_academy_status_published_idx").on(
-      table.academyId,
-      table.status,
+    publishedAtIdx: index("announcements_published_at_idx").on(
       table.publishedAt
     ),
+    // Index for listing announcements by academy
+    academyStatusPublishedIdx: index(
+      "announcements_academy_status_published_idx"
+    ).on(table.academyId, table.status, table.publishedAt),
   })
 );
 
@@ -75,11 +87,13 @@ export const announcementReadStatus = pgTable(
   },
   (table) => ({
     // One read status per user per announcement
-    announcementUserUnique: index("announcement_read_status_unique").on(
+    announcementUserUnique: uniqueIndex("announcement_read_status_unique").on(
       table.announcementId,
       table.userId
     ),
     userIdx: index("announcement_read_status_user_idx").on(table.userId),
-    announcementIdx: index("announcement_read_status_announcement_idx").on(table.announcementId),
+    announcementIdx: index("announcement_read_status_announcement_idx").on(
+      table.announcementId
+    ),
   })
 );

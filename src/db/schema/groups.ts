@@ -1,4 +1,12 @@
-import { integer, pgTable, uuid, text, timestamp, index } from "drizzle-orm/pg-core";
+import {
+  integer,
+  pgTable,
+  uuid,
+  text,
+  timestamp,
+  index,
+  uniqueIndex,
+} from "drizzle-orm/pg-core";
 
 import { academies } from "./academies";
 import { academySportConfigs } from "./sport-config";
@@ -16,7 +24,10 @@ export const groups = pgTable(
       .references(() => academies.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
     discipline: text("discipline").notNull(),
-    sportConfigId: uuid("sport_config_id").references(() => academySportConfigs.id, { onDelete: "set null" }),
+    sportConfigId: uuid("sport_config_id").references(
+      () => academySportConfigs.id,
+      { onDelete: "set null" }
+    ),
     programCode: text("program_code"),
     levelCode: text("level_code"),
     categoryCode: text("category_code"),
@@ -24,11 +35,15 @@ export const groups = pgTable(
     technicalFocus: text("technical_focus"),
     apparatus: text("apparatus").array(),
     sessionBlocks: text("session_blocks").array(),
-    coachId: uuid("coach_id").references(() => coaches.id, { onDelete: "set null" }),
+    coachId: uuid("coach_id").references(() => coaches.id, {
+      onDelete: "set null",
+    }),
     assistantIds: uuid("assistant_ids").array(),
     color: text("color"),
     monthlyFeeCents: integer("monthly_fee_cents"), // Cuota mensual por defecto del grupo (en céntimos)
-    billingItemId: uuid("billing_item_id").references(() => billingItems.id, { onDelete: "set null" }), // Concepto de cobro asociado (opcional)
+    billingItemId: uuid("billing_item_id").references(() => billingItems.id, {
+      onDelete: "set null",
+    }), // Concepto de cobro asociado (opcional)
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
   },
@@ -60,6 +75,9 @@ export const groupAthletes = pgTable(
     groupIdx: index("group_athletes_group_idx").on(table.groupId),
     athleteIdx: index("group_athletes_athlete_idx").on(table.athleteId),
     // Unique constraint to prevent duplicate athlete-group assignments
-    uniqueGroupAthlete: index("group_athletes_unique").on(table.groupId, table.athleteId),
+    uniqueGroupAthlete: uniqueIndex("group_athletes_unique").on(
+      table.groupId,
+      table.athleteId
+    ),
   })
 );
