@@ -53,7 +53,9 @@ async function loadDevModule(env: Record<string, string | undefined>) {
 describe("audit hardening", () => {
   beforeEach(() => {
     dbMock.queryResults = [];
-    dbMock.select.mockImplementation(() => makeSelectChain(dbMock.queryResults.shift() ?? []));
+    dbMock.select.mockImplementation(() =>
+      makeSelectChain(dbMock.queryResults.shift() ?? [])
+    );
   });
 
   describe("requireCronAuth", () => {
@@ -71,7 +73,9 @@ describe("audit hardening", () => {
       delete process.env.CRON_SECRET;
       const { requireCronAuth } = await import("@/lib/cron-auth");
 
-      const response = requireCronAuth(new Request("http://localhost/api/cron/test"));
+      const response = requireCronAuth(
+        new Request("http://localhost/api/cron/test")
+      );
 
       expect(response?.status).toBe(503);
       await expect(response?.json()).resolves.toMatchObject({
@@ -95,6 +99,19 @@ describe("audit hardening", () => {
         ok: false,
         error: "UNAUTHORIZED",
       });
+    });
+
+    it("rejects a malformed authorization header", async () => {
+      process.env.CRON_SECRET = "expected-secret";
+      const { requireCronAuth } = await import("@/lib/cron-auth");
+
+      const response = requireCronAuth(
+        new Request("http://localhost/api/cron/test", {
+          headers: { authorization: "expected-secret" },
+        })
+      );
+
+      expect(response?.status).toBe(401);
     });
 
     it("allows a matching cron bearer token", async () => {
@@ -142,12 +159,19 @@ describe("audit hardening", () => {
   describe("verifyAcademyAccessForProfile", () => {
     it("rejects an academy outside the current tenant", async () => {
       dbMock.queryResults = [[]];
-      const { verifyAcademyAccessForProfile } = await import("@/lib/permissions");
+      const { verifyAcademyAccessForProfile } = await import(
+        "@/lib/permissions"
+      );
 
       const result = await verifyAcademyAccessForProfile({
         academyId: "academy-other",
         tenantId: "tenant-a",
-        profile: { id: "profile-1", userId: "user-1", role: "coach", tenantId: "tenant-a" },
+        profile: {
+          id: "profile-1",
+          userId: "user-1",
+          role: "coach",
+          tenantId: "tenant-a",
+        },
       });
 
       expect(result).toEqual({
@@ -161,25 +185,41 @@ describe("audit hardening", () => {
         [{ id: "academy-1", tenantId: "tenant-a", ownerId: "owner-profile" }],
         [{ role: "coach" }],
       ];
-      const { verifyAcademyAccessForProfile } = await import("@/lib/permissions");
+      const { verifyAcademyAccessForProfile } = await import(
+        "@/lib/permissions"
+      );
 
       const result = await verifyAcademyAccessForProfile({
         academyId: "academy-1",
         tenantId: "tenant-a",
-        profile: { id: "profile-1", userId: "user-1", role: "coach", tenantId: "tenant-a" },
+        profile: {
+          id: "profile-1",
+          userId: "user-1",
+          role: "coach",
+          tenantId: "tenant-a",
+        },
       });
 
       expect(result).toEqual({ allowed: true });
     });
 
     it("allows super admins without membership", async () => {
-      dbMock.queryResults = [[{ id: "academy-1", tenantId: "tenant-a", ownerId: "owner-profile" }]];
-      const { verifyAcademyAccessForProfile } = await import("@/lib/permissions");
+      dbMock.queryResults = [
+        [{ id: "academy-1", tenantId: "tenant-a", ownerId: "owner-profile" }],
+      ];
+      const { verifyAcademyAccessForProfile } = await import(
+        "@/lib/permissions"
+      );
 
       const result = await verifyAcademyAccessForProfile({
         academyId: "academy-1",
         tenantId: "tenant-a",
-        profile: { id: "profile-1", userId: "user-1", role: "super_admin", tenantId: "tenant-b" },
+        profile: {
+          id: "profile-1",
+          userId: "user-1",
+          role: "super_admin",
+          tenantId: "tenant-b",
+        },
       });
 
       expect(result).toEqual({ allowed: true });
@@ -188,7 +228,9 @@ describe("audit hardening", () => {
 
   describe("super-admin middleware hardening", () => {
     it("does not trust user_metadata role claims", () => {
-      const middlewarePath = fileURLToPath(new URL("../middleware.ts", import.meta.url));
+      const middlewarePath = fileURLToPath(
+        new URL("../middleware.ts", import.meta.url)
+      );
       const source = readFileSync(middlewarePath, "utf8");
 
       expect(source).not.toContain("user_metadata");
@@ -198,7 +240,9 @@ describe("audit hardening", () => {
 
   describe("class waiting list tenancy", () => {
     it("keeps the schema tenant-scoped", () => {
-      const schemaPath = fileURLToPath(new URL("../src/db/schema/class-waiting-list.ts", import.meta.url));
+      const schemaPath = fileURLToPath(
+        new URL("../src/db/schema/class-waiting-list.ts", import.meta.url)
+      );
       const source = readFileSync(schemaPath, "utf8");
 
       expect(source).toContain("tenantId");
@@ -207,19 +251,32 @@ describe("audit hardening", () => {
     });
 
     it("filters list and delete operations by tenant", () => {
-      const routePath = fileURLToPath(new URL("../src/app/api/class-waiting-list/route.ts", import.meta.url));
-      const deletePath = fileURLToPath(new URL("../src/app/api/class-waiting-list/[entryId]/route.ts", import.meta.url));
+      const routePath = fileURLToPath(
+        new URL("../src/app/api/class-waiting-list/route.ts", import.meta.url)
+      );
+      const deletePath = fileURLToPath(
+        new URL(
+          "../src/app/api/class-waiting-list/[entryId]/route.ts",
+          import.meta.url
+        )
+      );
       const routeSource = readFileSync(routePath, "utf8");
       const deleteSource = readFileSync(deletePath, "utf8");
 
-      expect(routeSource).toContain("eq(classWaitingList.tenantId, context.tenantId)");
-      expect(deleteSource).toContain("eq(classWaitingList.tenantId, context.tenantId)");
+      expect(routeSource).toContain(
+        "eq(classWaitingList.tenantId, context.tenantId)"
+      );
+      expect(deleteSource).toContain(
+        "eq(classWaitingList.tenantId, context.tenantId)"
+      );
     });
   });
 
   describe("profile check-limits", () => {
     it("keeps GET side-effect free and does not send email directly", () => {
-      const routePath = fileURLToPath(new URL("../src/app/api/profile/check-limits/route.ts", import.meta.url));
+      const routePath = fileURLToPath(
+        new URL("../src/app/api/profile/check-limits/route.ts", import.meta.url)
+      );
       const source = readFileSync(routePath, "utf8");
 
       expect(source).not.toContain("sendEmail");

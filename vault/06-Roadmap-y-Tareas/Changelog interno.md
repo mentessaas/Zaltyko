@@ -9,6 +9,14 @@ source:
 
 # Changelog interno
 
+## 2026-07-13 - Cierre de deuda de seguridad: cron y policies globales auditables
+
+- `requireCronAuth()` conserva el contrato oficial de Vercel Cron (`Authorization: Bearer $CRON_SECRET`), pero ahora compara hashes SHA-256 con `timingSafeEqual`; secreto ausente, bearer inválido o header malformado siguen fallando cerrados. No se añadió una whitelist IP ni un header de procedencia como identidad: no son una prueba criptográfica y Vercel ya autentica el cron con el secreto.
+- `pnpm verify:permissive-policies` carga `.env.local`/`.env`, exige la CA configurada para Supabase remoto y consulta `pg_policies` en modo solo lectura. Producción tiene diez lecturas globales revisadas de catálogo/listados públicos y **cero** policies globales no aprobadas; cualquier `allow_authenticated`, escritura global o `USING true` no aprobado falla el comando.
+- Se cerraron los pendientes 4.5 y de policies permisivas en el backlog. No se aplicó migración ni seed: la corrección de policies ya estaba viva y se añadió un control de regresión.
+- Validación: `tests/audit-hardening.test.ts` 13/13, `verify:permissive-policies` con 0 policies no aprobadas, lint y typecheck pasan.
+- Vault: `Decisiones`, `Backlog priorizado`, `Registro de riesgos` y este changelog.
+
 ## 2026-07-13 - Cierre operativo: despliegue Git de Vercel sin falso rojo en GitHub Actions
 
 - El workflow `Deploy` de GitHub ya no intenta usar la CLI de Vercel cuando faltan sus tres secretos de operación (`VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`). Un job de readiness no imprime valores y deja el deploy opcional como `skipped`; así el pipeline no informa un fallo que no representa al despliegue real por integración Git de Vercel.

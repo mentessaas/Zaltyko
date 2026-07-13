@@ -8,6 +8,15 @@ source:
 
 # Decisiones
 
+## 2026-07-13 - Los cron de Vercel se autentican por secreto, no por IP/header de procedencia
+
+| Campo        | Valor |
+| ------------ | ----- |
+| Contexto     | El backlog sugería añadir una whitelist de IP o un header de Vercel a cron. Vercel Cron documenta que invoca la ruta productiva con `Authorization: Bearer $CRON_SECRET`; `x-forwarded-for` describe el salto de red y no aporta identidad criptográfica del scheduler. |
+| Decision     | Mantener el bearer de `CRON_SECRET` como única prueba de identidad y compararlo mediante hashes SHA-256 con `timingSafeEqual`. Rechazar secreto ausente, header malformado o token distinto sin revelar cuál fue el fallo. |
+| Consecuencia | Los cron siguen siendo invocables localmente con el mismo contrato y no dependen de rangos de IP mutables ni headers que un cliente puede enviar. El secreto sigue siendo obligatorio y debe rotarse solo por el procedimiento de deploy. |
+| Estado       | Activa; cobertura unitaria de secreto ausente, token inválido, header malformado y token válido. |
+
 ## 2026-07-13 - El límite por academia se calcula después de resolver el tenant
 
 | Campo        | Valor                                                                                                                                                                                                                                                          |
