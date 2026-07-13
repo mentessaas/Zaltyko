@@ -9,9 +9,8 @@ import { Card, CardContent } from "@/components/ui/card";
 /**
  * TodayQuickActions - Vista compacta "clase de hoy" para el coach.
  *
- * Muestra 3 acciones inline (pasar asistencia, registrar progreso, enviar
- * aviso al grupo) para que el entrenador pueda completar el flujo
- * diario en menos de 3 minutos sin navegar entre paginas.
+ * Muestra 3 entradas al mismo workspace operativo (asistencia, progreso y
+ * aviso) para completar el flujo diario sin saltar entre módulos.
  *
  * Si no hay sesion hoy, muestra empty state con CTA a la lista de clases.
  */
@@ -62,25 +61,26 @@ function TodayQuickActionsImpl({ academyId, todaySession }: TodayQuickActionsPro
     );
   }
 
+  const workspaceHref = `/app/${academyId}/coach/today/${todaySession.id}`;
   const actions: QuickAction[] = [
     {
       label: "Pasar asistencia",
       description: `${todaySession.athleteCount} gimnastas`,
-      href: `/app/${academyId}/attendance?session=${todaySession.id}`,
+      href: `${workspaceHref}#attendance`,
       icon: CheckCircle2,
       accent: "text-emerald-600 bg-emerald-50",
     },
     {
       label: "Evaluar progreso",
       description: "Crea evaluacion tecnica",
-      href: `/app/${academyId}/evaluations?session=${todaySession.id}`,
+      href: `${workspaceHref}#progress`,
       icon: FileText,
       accent: "text-sky-600 bg-sky-50",
     },
     {
       label: "Aviso al grupo",
       description: todaySession.groupName ?? "Mensaje interno",
-      href: `/app/${academyId}/messages?session=${todaySession.id}&compose=group`,
+      href: `${workspaceHref}#alert`,
       icon: MessageCircle,
       accent: "text-amber-600 bg-amber-50",
     },
@@ -104,10 +104,10 @@ function TodayQuickActionsImpl({ academyId, todaySession }: TodayQuickActionsPro
           </div>
           <Button asChild variant="ghost" size="sm">
             <Link
-              href={`/app/${academyId}/classes?session=${todaySession.id}`}
+              href={workspaceHref}
               className="min-h-[44px]"
             >
-              Detalle
+              Abrir clase
               <ArrowRight className="ml-1 h-4 w-4" />
             </Link>
           </Button>

@@ -52,15 +52,15 @@ describe("Phase 2 role and internal communication contracts", () => {
 
     expect(screen.getByRole("link", { name: /pasar asistencia/i })).toHaveAttribute(
       "href",
-      expect.stringContaining("/attendance?session=")
+      expect.stringContaining("/coach/today/22222222-2222-4222-8222-222222222222#attendance")
     );
     expect(screen.getByRole("link", { name: /evaluar progreso/i })).toHaveAttribute(
       "href",
-      expect.stringContaining("/evaluations?session=")
+      expect.stringContaining("/coach/today/22222222-2222-4222-8222-222222222222#progress")
     );
     expect(screen.getByRole("link", { name: /aviso al grupo/i })).toHaveAttribute(
       "href",
-      expect.stringContaining("/messages?session=")
+      expect.stringContaining("/coach/today/22222222-2222-4222-8222-222222222222#alert")
     );
   });
 
