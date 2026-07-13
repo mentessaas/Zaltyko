@@ -144,8 +144,10 @@ export function GlobalTopNav({
   return (
     <header
       className={cn(
-        "sticky top-0 z-50 w-full border-b backdrop-blur supports-[backdrop-filter]:bg-background/80",
-        isDarkTheme ? "border-white/10 bg-zaltyko-navy/95 text-white" : "border-zaltyko-mist/70 bg-white/95",
+        "sticky top-0 z-50 w-full border-b backdrop-blur",
+        isDarkTheme
+          ? "border-white/10 bg-zaltyko-navy/95 text-white supports-[backdrop-filter]:bg-zaltyko-navy/95"
+          : "border-zaltyko-mist/70 bg-white/95 supports-[backdrop-filter]:bg-white/80",
       )}
     >
       {/* Layout base: logo | navegación | acciones */}
@@ -168,7 +170,7 @@ export function GlobalTopNav({
             </div>
           ) : null}
           {isSuperAdmin && (
-            <span className="hidden shrink-0 rounded-full bg-zaltyko-teal/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-zaltyko-teal lg:inline-flex">
+            <span className="hidden shrink-0 rounded-full bg-zaltyko-electric/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-zaltyko-electric lg:inline-flex">
               Super Admin
             </span>
           )}
@@ -212,7 +214,7 @@ export function GlobalTopNav({
                       "flex min-h-10 shrink-0 items-center gap-1.5 rounded-xl border border-transparent px-3 py-2 font-sans text-xs font-medium transition-colors",
                       isDarkTheme
                         ? active
-                          ? "border-zaltyko-teal/20 bg-zaltyko-teal/12 text-zaltyko-teal shadow-soft"
+                          ? "border-zaltyko-electric/30 bg-zaltyko-electric/10 text-zaltyko-electric shadow-soft"
                           : "text-white/70 hover:border-white/10 hover:bg-white/5 hover:text-white"
                         : active
                           ? "border-zaltyko-teal/20 bg-zaltyko-teal/10 text-zaltyko-teal shadow-soft font-semibold"
@@ -266,7 +268,7 @@ export function GlobalTopNav({
             >
               <span className={cn(
                 "flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold",
-                isDarkTheme ? "bg-zaltyko-teal/20 text-zaltyko-teal" : "bg-zaltyko-teal/10 text-zaltyko-teal"
+                isDarkTheme ? "bg-zaltyko-electric/15 text-zaltyko-electric" : "bg-zaltyko-teal/10 text-zaltyko-teal"
               )}>
                 {userName?.slice(0, 1)?.toUpperCase() ?? (userEmail?.slice(0, 1)?.toUpperCase() ?? "U")}
               </span>
@@ -293,7 +295,7 @@ export function GlobalTopNav({
                   <div className="flex items-center gap-3">
                     <span className={cn(
                       "flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold",
-                      isDarkTheme ? "bg-zaltyko-teal/20 text-zaltyko-teal" : "bg-zaltyko-teal/10 text-zaltyko-teal"
+                      isDarkTheme ? "bg-zaltyko-electric/15 text-zaltyko-electric" : "bg-zaltyko-teal/10 text-zaltyko-teal"
                     )}>
                       {userName?.slice(0, 1)?.toUpperCase() ?? (userEmail?.slice(0, 1)?.toUpperCase() ?? "U")}
                     </span>
@@ -408,7 +410,7 @@ export function GlobalTopNav({
                                   "flex w-full items-center gap-2 rounded-md px-2 py-1.5 font-sans text-xs font-medium transition",
                                   isActive
                                     ? isDarkTheme
-                                      ? "bg-zaltyko-teal/15 text-zaltyko-teal font-semibold"
+                                      ? "bg-zaltyko-electric/10 text-zaltyko-electric font-semibold"
                                       : "bg-zaltyko-teal/10 text-zaltyko-teal font-semibold"
                                     : isDarkTheme
                                       ? "text-white/70 hover:bg-white/10 hover:text-white"
@@ -482,7 +484,7 @@ export function GlobalTopNav({
                     "flex items-center gap-3 rounded-xl px-4 py-4 font-sans text-base font-medium transition-all duration-200 active:scale-[0.98] min-h-[52px]",
                     isDarkTheme
                       ? academyActive
-                        ? "bg-zaltyko-teal/15 text-zaltyko-teal shadow-sm"
+                        ? "bg-zaltyko-electric/10 text-zaltyko-electric shadow-sm"
                         : "bg-white/10 text-white hover:bg-white/15"
                       : academyActive
                         ? "bg-zaltyko-teal/10 text-zaltyko-teal shadow-sm"
@@ -514,7 +516,7 @@ export function GlobalTopNav({
               <div className="flex items-center gap-3">
                 <span className={cn(
                   "flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold",
-                  isDarkTheme ? "bg-zaltyko-teal/20 text-zaltyko-teal" : "bg-zaltyko-teal/10 text-zaltyko-teal"
+                  isDarkTheme ? "bg-zaltyko-electric/15 text-zaltyko-electric" : "bg-zaltyko-teal/10 text-zaltyko-teal"
                 )}>
                   {userName?.slice(0, 1)?.toUpperCase() ?? (userEmail?.slice(0, 1)?.toUpperCase() ?? "U")}
                 </span>

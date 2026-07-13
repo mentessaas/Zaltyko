@@ -9,7 +9,7 @@ const benefits = [
   "Puesta en marcha guiada",
   "Para artística femenina, masculina y rítmica",
   "Cobros, horarios y familias en orden",
-  "Datos 100% seguros y encriptados",
+  "Controles de acceso por academia y rol",
 ];
 
 export default function FinalCtaSection() {

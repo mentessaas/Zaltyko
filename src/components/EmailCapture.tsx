@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Mail, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
 import { analytics } from "@/lib/analytics";
+import { getGrowthVisitorId } from "@/lib/growth/client";
 
 interface EmailCaptureProps {
   source?: string;
@@ -37,7 +38,13 @@ export function EmailCapture({
       const response = await fetch("/api/leads", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, source, plan }),
+        body: JSON.stringify({
+          email,
+          source,
+          plan,
+          eventId: crypto.randomUUID(),
+          visitorId: getGrowthVisitorId(),
+        }),
       });
 
       if (!response.ok) {
@@ -46,7 +53,7 @@ export function EmailCapture({
       }
 
       // Track successful lead capture
-      analytics.leadCaptured(email, source);
+      analytics.leadCaptured(source, plan);
 
       setStatus("success");
       setEmail("");

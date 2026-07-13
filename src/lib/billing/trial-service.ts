@@ -2,8 +2,8 @@ import { and, desc, eq, gt, isNull, lte, or } from "drizzle-orm";
 
 import { db } from "@/db";
 import { academies, academyTrials, plans, profiles, subscriptions } from "@/db/schema";
-import { trackEvent } from "@/lib/analytics";
 import { sendEmail } from "@/lib/brevo";
+import { recordGrowthEvent } from "@/lib/growth/events";
 import { logger } from "@/lib/logger";
 import { createNotification } from "@/lib/notifications/notification-service";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -187,10 +187,15 @@ export async function startAcademyTrial(params: {
     .set({ trialStartsAt: now, trialEndsAt: endsAt, isTrialActive: true })
     .where(eq(academies.id, params.academyId));
 
-  await trackEvent("trial_started", {
+  await recordGrowthEvent({
+    eventName: "trial_started",
+    userId: params.userId,
     academyId: params.academyId,
     tenantId: params.tenantId,
-    metadata: { trialId: trial.id, grantedPlanCode: "pro" },
+    planCode: "starter",
+    source: params.source ?? "self_serve",
+    properties: { trial_id: trial.id, granted_plan: "starter" },
+    idempotencyKey: `trial_started:${trial.id}`,
   });
 
   return {
@@ -221,7 +226,14 @@ export async function expireAcademyTrial(trialId: string, academyId: string, now
     .update(academies)
     .set({ isTrialActive: false })
     .where(eq(academies.id, academyId));
-  await trackEvent("trial_ended", { academyId, metadata: { trialId } });
+  await recordGrowthEvent({
+    eventName: "trial_ended",
+    academyId,
+    planCode: "free",
+    source: "trial_lifecycle",
+    properties: { trial_id: trialId },
+    idempotencyKey: `trial_ended:${trialId}`,
+  });
   return true;
 }
 
@@ -241,7 +253,6 @@ export async function convertAcademyTrial(
     .update(academies)
     .set({ isTrialActive: false })
     .where(eq(academies.id, academyId));
-  await trackEvent("trial_converted", { academyId, metadata: { trialId: converted.id } });
   return true;
 }
 

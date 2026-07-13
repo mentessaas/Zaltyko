@@ -1,7 +1,7 @@
 ---
 status: active
 owner: marketing
-last_reviewed: 2026-06-22
+last_reviewed: 2026-07-13
 source:
   - ../docs/marketing/zaltyko-buyer-personas.md
 ---
@@ -22,3 +22,9 @@ No compra el SaaS, pero influye en retencion. Quiere claridad de pagos, horarios
 ## Entrenador
 
 Usuario interno. Necesita agenda clara, atletas asignados, asistencia y evaluaciones simples. Si la herramienta le complica el dia a dia, la adopcion cae.
+
+## Uso en validación Fase 4
+
+- Pricing se valida con quien compra o influye directamente en la compra: emprendedor deportivo y, para Network, director de operaciones/decisor económico.
+- Padre/tutor y entrenador validan adopción y flujo, pero sus respuestas no sustituyen disposición de pago del comprador.
+- Registrar el tipo de persona en notas y usar el cruce de preguntas de [[Guia entrevistas academias gimnasia]] para no mezclar evidencia de usuario con evidencia comercial.

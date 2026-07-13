@@ -16,17 +16,17 @@ const faqs: FAQItem[] = [
   {
     question: "¿Cuánto tiempo tarda en configurarse?",
     answer:
-      "La mayoría de academias pueden quedar operativas en una primera sesión guiada. Migramos tus gimnastas, configuramos grupos, horarios y cobros, y dejamos un proceso claro para tu equipo.",
+      "La puesta en marcha es guiada y se adapta al volumen de datos y al equipo. Empezamos por academia, gimnastas, grupos, horarios y cobros, sin prometer una duración cerrada antes de revisar el caso.",
   },
   {
     question: "¿Mis datos están aislados de otras academias?",
     answer:
-      "Sí. Cada academia tiene sus datos completamente aislados. Usamos Row Level Security (RLS) a nivel de base de datos, lo que garantiza que solo tú puedas ver la información de tu academia. Cumplimos con el RGPD.",
+      "Zaltyko aplica aislamiento por academia, controles de acceso y permisos por rol. RLS protege el acceso directo a la base de datos y las APIs validan el contexto de academia y tenant.",
   },
   {
     question: "¿Puedo migrar mis datos desde Excel o Google Sheets?",
     answer:
-      "Sí. Zaltyko permite importar gimnastas, grupos y datos históricos desde archivos Excel o CSV.",
+      "Puedes importar gimnastas desde Excel o CSV. Para otros datos o migraciones amplias, revisamos el formato y definimos una puesta en marcha guiada.",
   },
   {
     question: "¿Qué plan necesito para mi academia?",
@@ -41,12 +41,12 @@ const faqs: FAQItem[] = [
   {
     question: "¿Qué pasa con mis datos si cancelo?",
     answer:
-      "Tus datos se mantienen disponibles durante 30 días después de cancelar. Puedes exportar toda tu información en cualquier momento. Pasados los 30 días, se eliminan de nuestros servidores según nuestra política de retención.",
+      "El acceso y la conservación se gestionan según el estado de la cuenta, el módulo y la política de privacidad vigente. Antes de cancelar, revisa las exportaciones disponibles o solicita ayuda al equipo.",
   },
   {
     question: "¿Funciona en móvil para los coaches?",
     answer:
-      "Sí. Zaltyko es una aplicación web responsive que funciona perfectamente en móvil, tablet y escritorio. Los coaches pueden marcar asistencia desde su teléfono al llegar a clase sin instalar nada.",
+      "Sí. Zaltyko es una aplicación web responsive y el flujo de clase del coach está verificado en móvil. Puede pasar asistencia y registrar progreso desde el navegador, sin instalar una app nativa.",
   },
 ];
 

@@ -53,7 +53,7 @@ export const PRODUCT_PLANS: ProductPlan[] = [
     groupLimit: 5,
     classLimit: 20,
     academyLimit: 1,
-    cta: "Contratar Starter",
+    cta: "Solicitar demo",
     ctaHref: "/contact?type=demo&plan=starter",
     checkoutMode: "self-serve",
     features: [

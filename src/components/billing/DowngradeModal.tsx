@@ -4,10 +4,10 @@ import { useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, Calendar, Info } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { format, addDays } from "date-fns";
 import { es } from "date-fns/locale";
 import { logger } from "@/lib/logger";
+import { PRODUCT_PLAN_BY_CODE } from "@/lib/plans/catalog";
 
 interface DowngradeModalProps {
     open: boolean;
@@ -17,9 +17,7 @@ interface DowngradeModalProps {
     onConfirm: () => Promise<void>;
     currentUsage?: {
         athletes: number;
-        coaches: number;
         classes: number;
-        storage_mb: number;
     };
     subscriptionEndDate?: Date;
 }
@@ -27,17 +25,15 @@ interface DowngradeModalProps {
 const PLAN_LIMITS = {
     free: {
         name: "Free",
-        athletes: 30,
-        coaches: 2,
-        classes: 5,
-        storage_mb: 100,
+        athletes: PRODUCT_PLAN_BY_CODE.free.athleteLimit ?? 0,
+        groups: PRODUCT_PLAN_BY_CODE.free.groupLimit ?? 0,
+        classes: PRODUCT_PLAN_BY_CODE.free.classLimit ?? 0,
     },
     pro: {
         name: "Starter",
-        athletes: 75,
-        coaches: 10,
-        classes: 40,
-        storage_mb: 1000,
+        athletes: PRODUCT_PLAN_BY_CODE.pro.athleteLimit ?? 0,
+        groups: PRODUCT_PLAN_BY_CODE.pro.groupLimit ?? 0,
+        classes: PRODUCT_PLAN_BY_CODE.pro.classLimit ?? 0,
     },
 };
 
@@ -47,13 +43,14 @@ export function DowngradeModal({
     currentPlan,
     targetPlan,
     onConfirm,
-    currentUsage = { athletes: 0, coaches: 0, classes: 0, storage_mb: 0 },
+    currentUsage = { athletes: 0, classes: 0 },
     subscriptionEndDate = addDays(new Date(), 30),
 }: DowngradeModalProps) {
     const [loading, setLoading] = useState(false);
     const [confirmed, setConfirmed] = useState(false);
 
     const targetLimits = PLAN_LIMITS[targetPlan];
+    const currentLimits = PRODUCT_PLAN_BY_CODE[currentPlan];
     const effectiveDate = format(subscriptionEndDate, "d 'de' MMMM 'de' yyyy", { locale: es });
 
     // Calcular advertencias
@@ -61,14 +58,8 @@ export function DowngradeModal({
     if (currentUsage.athletes > targetLimits.athletes) {
         warnings.push(`Tienes ${currentUsage.athletes} gimnastas, pero el plan ${targetLimits.name} solo permite ${targetLimits.athletes}`);
     }
-    if (currentUsage.coaches > targetLimits.coaches) {
-        warnings.push(`Tienes ${currentUsage.coaches} entrenadores, pero el plan ${targetLimits.name} solo permite ${targetLimits.coaches}`);
-    }
     if (currentUsage.classes > targetLimits.classes) {
         warnings.push(`Tienes ${currentUsage.classes} clases activas, pero el plan ${targetLimits.name} solo permite ${targetLimits.classes}`);
-    }
-    if (currentUsage.storage_mb > targetLimits.storage_mb) {
-        warnings.push(`Usas ${Math.round(currentUsage.storage_mb)} MB, pero el plan ${targetLimits.name} solo permite ${targetLimits.storage_mb} MB`);
     }
 
     const hasWarnings = warnings.length > 0;
@@ -153,9 +144,9 @@ export function DowngradeModal({
                             <p className="text-xs text-zaltyko-text-light mb-2">Plan Actual</p>
                             <p className="text-lg font-bold mb-3">{currentPlan === "pro" ? "Starter" : "Growth"}</p>
                             <div className="space-y-1 text-sm">
-                                <p>Gimnastas: {currentPlan === "premium" ? "200" : "75"}</p>
-                                <p>Grupos: {currentPlan === "premium" ? "20" : "10"}</p>
-                                <p>Clases: {currentPlan === "premium" ? "80" : "40"}</p>
+                                <p>Gimnastas: {currentLimits.athleteLimit}</p>
+                                <p>Grupos: {currentLimits.groupLimit}</p>
+                                <p>Clases: {currentLimits.classLimit}</p>
                             </div>
                         </div>
 
@@ -164,7 +155,7 @@ export function DowngradeModal({
                             <p className="text-lg font-bold mb-3">{targetLimits.name}</p>
                             <div className="space-y-1 text-sm">
                                 <p>Gimnastas: {targetLimits.athletes}</p>
-                                <p>Coaches: {targetLimits.coaches}</p>
+                                <p>Grupos: {targetLimits.groups}</p>
                                 <p>Clases: {targetLimits.classes}</p>
                             </div>
                         </div>

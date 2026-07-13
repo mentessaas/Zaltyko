@@ -8,6 +8,24 @@ source:
 
 # Decisiones
 
+## 2026-07-13 - Producción usa migraciones SQL versionadas, no `drizzle-kit push`
+
+| Campo | Valor |
+| --- | --- |
+| Contexto | La auditoría final de Fase 4 mostró que `drizzle-kit push` interpreta RLS, policies, enums y el ledger remoto como drift. Aunque el schema funcional está aplicado, el push proponía desactivar RLS en masa, borrar `__drizzle_migrations` y cambiar una PK. La operación fue abortada sin ejecutar cambios. |
+| Decision | Limitar `pnpm db:migrate` a PostgreSQL local. En staging y producción se aplica solo un archivo SQL versionado, inspeccionado y acotado mediante `pnpm db:migrate:reviewed <archivo>`, seguido de verificación de constraints, RLS y ledgers. |
+| Consecuencia | Se elimina el riesgo de aceptar accidentalmente un plan destructivo global. La deuda restante es adoptar un ledger remoto/runner transaccional que automatice qué SQL falta sin reintroducir `push`; queda en backlog técnico. |
+| Estado | Activa; guard implementada y migraciones de Fase 4 aplicadas con el flujo revisado. |
+
+## 2026-07-13 - Fase 4 se mide con evidencia first-party y entrevistas verificables
+
+| Campo | Valor |
+| --- | --- |
+| Contexto | Pricing v3.0 ya estaba publicado y Stripe live configurado, pero Supabase no tenía leads, trials ni suscripciones Stripe-backed y los eventos llamados desde servidor se descartaban porque `analytics.ts` dependía de `window`. Tampoco existía un registro estructurado que impidiera declarar entrevistas sin evidencia. |
+| Decision | Mantener v3.0 sin alterar precios. Añadir `growth_events` first-party PII-free, persistir leads antes del email, registrar eventos autenticados de trial/checkout/suscripción y gestionar entrevistas en `/super-admin/growth`. Una entrevista solo cuenta como completada con academia única, tamaño, herramientas, dolor, objeción, precios y fecha. Mostrar tasas como `sin base` cuando el denominador es cero. |
+| Consecuencia | El baseline real queda 0 leads, 0 trials, 0 pagos Stripe-backed y 0/10 entrevistas. No se fijan objetivos de conversión ni se fabrican fixtures para mejorar el tablero. Las 10 entrevistas y su síntesis siguen siendo trabajo humano; Fase 5 permanece bloqueada. Las CTA públicas Starter/Growth dicen “Solicitar demo”; Network nunca entra en checkout autoservicio. |
+| Estado | Activa. Infraestructura y migración verificadas; validación comercial 0/10. |
+
 ## 2026-07-09 - Borrar academia conserva la cuenta personal del dueño
 
 | Campo | Valor |

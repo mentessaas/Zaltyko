@@ -12,10 +12,13 @@ source:
 
 | Riesgo | Severidad | Estado | Mitigacion |
 | --- | --- | --- | --- |
-| Pricing y limites inconsistentes | Alta | Cerrado en codigo 2026-07-12 | Contrato unico: `free`=Free, `pro`=Starter, `premium`=Growth; `network` solo comercial. Limites, seed, checkout, UI y tests consumen el mismo catalogo. Pendiente comercial: 10 entrevistas. |
-| Promesas publicas no implementadas | Alta | Abierto | Revisar [[Mensajes aprobados]] antes de publicar copy. |
+| Pricing y limites inconsistentes | Alta | Cerrado en codigo 2026-07-13 | Contrato unico: `free`=Free, `pro`=Starter, `premium`=Growth; `network` solo comercial. Límites de billing, checkout, UI y tests consumen el catálogo. Stripe live 19/49 verificado. Pendiente comercial: 0/10 entrevistas. |
+| Promesas publicas no implementadas | Alta | Mitigado, auditoría continua | Se retiraron “RGPD Compliant”, “respuesta 24h” e integración prioritaria con WhatsApp; revisar [[Mensajes aprobados]] antes de cada cambio público. |
 | Features parciales vendidas como completas | Alta | Abierto | Marcar estados en [[Inventario de producto]]. |
-| Migraciones/RLS incompletas | Alta | Cerrado 2026-07-13 | 100% cobertura de fuentes RLS sobre 64 tablas. `check:migrations` valida 5 migraciones Drizzle + 29 Supabase; la puerta compuesta bloquea regresiones. |
+| Migraciones/RLS incompletas | Alta | Cerrado 2026-07-13 | 100% cobertura de fuentes RLS sobre 65 tablas. `check:migrations` valida 6 migraciones Drizzle + 31 Supabase; el constraint histórico `coaches_slug_unique` se reconcilió sin pérdida de datos y la puerta compuesta bloquea regresiones. |
+| `drizzle-kit push` propone cambios destructivos sobre Supabase remoto | Crítica | Mitigado 2026-07-13 | Dos planes fueron abortados sin ejecutar SQL. `pnpm db:migrate` bloquea hosts remotos; solo se aplica SQL versionado/revisado con `db:migrate:reviewed`. Pendiente runner con ledger y hashes. |
+| Muestra comercial insuficiente o sesgada | Alta | Abierto: 0/10 | No inferir conversión ni cambiar pricing sin 10 academias distintas y síntesis por tamaño/modalidad/mercado. El cockpit deduplica y muestra `sin base`; Fase 5 sigue bloqueada. |
+| `leads` con INSERT global y lectura por `is_admin()` | Alta | Cerrado 2026-07-13 | La migración de Fase 4 elimina policies permisivas y limita acceso directo a super-admin; contacto persiste server-side antes del email. Rollback y RLS productivo verificados. |
 | Raiz del sitio `/` devolvia 404 | Media | Cerrado 2026-06-26 | `middleware.ts` redirige `/` a `/${locale}/gimnasia-artistica` (commit `406c498`). Ver [[Decisiones#2026-06-26 - Routing raiz redirige a primera modalidad]]. |
 | Upgrades de dependencias (jspdf 2→4, xlsx por tarball, Next 15.5.19, Vite/Vitest y overrides de seguridad) | Media | Cerrado y revalidado 2026-07-13 | Vite 6.4.3, Vitest/coverage 3.2.6, webpack resuelto 5.108.4 y esbuild >=0.25; Drizzle CLI operativo. `pnpm audit` completo/productivo 0 vulnerabilidades, 422/422 tests y build OK. |
 | 25 tablas TS no existen en DB | Alta | Cerrado 2026-07-13 | Migraciones manuales y reconciliación aplicadas; DB=ORM incluido `push_tokens`. Verificación: 113 tablas, sin columnas/índices/FKs semánticas pendientes. |

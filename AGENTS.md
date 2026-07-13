@@ -80,7 +80,8 @@ export default EventCard;
 | `pnpm dev` | Start dev server |
 | `pnpm build` | Production build |
 | `pnpm db:generate` | Generate Drizzle migrations |
-| `pnpm db:migrate` | Push schema to Supabase |
+| `pnpm db:migrate` | Push Drizzle solo contra PostgreSQL local; bloqueado en remoto |
+| `pnpm db:migrate:reviewed <sql>` | Apply one reviewed, versioned SQL migration to staging/production |
 | `pnpm db:seed` | Seed initial data |
 | `pnpm test` | Vitest unit/integration tests |
 | `pnpm test:e2e:auth` | Generate `.auth/user.json` from `E2E_AUTH_EMAIL` + `E2E_AUTH_PASSWORD` |

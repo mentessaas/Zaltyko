@@ -1242,5 +1242,29 @@ COMMENT ON POLICY "notification_preferences_manage" ON notification_preferences 
   'Usuarios pueden gestionar sus propias preferencias de notificaciones';
 
 -- ============================================================================
+-- PHASE 4 COMMERCIAL VALIDATION (Platform-scoped)
+-- ============================================================================
+
+ALTER TABLE growth_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE commercial_interviews ENABLE ROW LEVEL SECURITY;
+ALTER TABLE leads ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "growth_events_super_admin_select" ON growth_events;
+CREATE POLICY "growth_events_super_admin_select" ON growth_events
+  FOR SELECT USING (is_super_admin());
+
+DROP POLICY IF EXISTS "commercial_interviews_super_admin_all" ON commercial_interviews;
+CREATE POLICY "commercial_interviews_super_admin_all" ON commercial_interviews
+  FOR ALL USING (is_super_admin()) WITH CHECK (is_super_admin());
+
+DROP POLICY IF EXISTS "leads_insert" ON leads;
+DROP POLICY IF EXISTS "leads_select" ON leads;
+DROP POLICY IF EXISTS "leads_update" ON leads;
+DROP POLICY IF EXISTS "leads_delete" ON leads;
+DROP POLICY IF EXISTS "leads_super_admin_all" ON leads;
+CREATE POLICY "leads_super_admin_all" ON leads
+  FOR ALL USING (is_super_admin()) WITH CHECK (is_super_admin());
+
+-- ============================================================================
 -- END OF CONSOLIDATED RLS POLICIES
 -- ============================================================================

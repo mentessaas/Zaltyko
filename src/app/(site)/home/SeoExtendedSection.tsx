@@ -6,27 +6,27 @@ import { buttonVariants } from "@/components/ui/button";
 const stats = [
   {
     icon: Clock,
-    value: "15h",
-    label: "ahorradas por semana",
-    description: "en tareas administrativas",
+    value: "Un solo",
+    label: "panel operativo",
+    description: "para el trabajo diario",
   },
   {
     icon: FileSpreadsheet,
-    value: "0",
-    label: "hojas de Excel",
-    description: "todo centralizado",
+    value: "Por rol",
+    label: "accesos separados",
+    description: "staff y familias",
   },
   {
     icon: MessageCircle,
-    value: "100%",
-    label: "comunicación controlada",
-    description: "sin grupos de WhatsApp",
+    value: "Interna",
+    label: "comunicación trazable",
+    description: "mensajes y avisos",
   },
   {
     icon: TrendingUp,
-    value: "3x",
-    label: "más eficiencia",
-    description: "en cobros y pagos",
+    value: "En clase",
+    label: "asistencia y progreso",
+    description: "desde el navegador",
   },
 ];
 

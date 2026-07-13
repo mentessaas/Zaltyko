@@ -61,7 +61,7 @@ const modules = [
   },
   {
     title: "Comunicación",
-    description: "Mensajería grupal, templates, notificaciones programadas e integración con WhatsApp.",
+    description: "Mensajería grupal, plantillas y notificaciones internas programadas con historial auditable.",
     icon: MessageSquare,
     color: "bg-green-500",
     accent: "from-green-500 to-emerald-500",

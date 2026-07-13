@@ -28,7 +28,7 @@ export default function MakerIntro() {
             Zaltyko está diseñado junto a directores técnicos de gimnasia artística y rítmica. No es otra plantilla genérica: cada módulo está pensado para la operativa real de academias de gimnasia.
           </p>
           <p className="mt-4 font-sans text-base text-muted-foreground">
-            Datos protegidos, roles claros y cumplimiento RGPD para trabajar con menores, familias y equipo técnico con confianza.
+            Controles de acceso, roles claros y separación por academia para trabajar con menores, familias y equipo técnico con confianza.
           </p>
         </div>
 

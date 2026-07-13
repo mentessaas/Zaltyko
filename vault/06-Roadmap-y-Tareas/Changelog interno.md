@@ -8,6 +8,20 @@ source:
 ---
 # Changelog interno
 
+## 2026-07-13 - Fase 4 instrumentada: pricing, funnel y evidencia comercial
+
+- **Baseline honesto**: producción tiene 2 academias y 0 leads, 0 eventos growth, 0 trials, 0 suscripciones con `stripe_subscription_id` y 0/10 entrevistas. No se insertaron entrevistas o conversiones ficticias durante QA.
+- **Stripe live comprobado**: desde el entorno Vercel de producción se verificaron Prices activos de Starter 19 EUR/mes y Growth 49 EUR/mes, productos activos y metadata correcta. Network conserva contacto/onboarding acompañado y no tiene checkout autoservicio.
+- **Fuente first-party**: nueva tabla `growth_events` y endpoint público con allowlist PII-free para pricing/contacto. Trial, checkout, activación/cancelación y conversión se registran desde el servidor con idempotencia y sin romper la acción de negocio si falla la telemetría.
+- **Leads recuperables**: contacto y captura de email hacen upsert antes de enviar correo. Las antiguas policies globales de `leads` se reemplazan por acceso directo exclusivo de super-admin.
+- **Entrevistas verificables**: `commercial_interviews` deduplica academia/país/ciudad y exige tamaño, herramientas, dolor, objeción, precios y fecha para contar `completed`. APIs CRUD protegidas con `withSuperAdmin`, validación Zod y audit log.
+- **Cockpit de Growth**: `/super-admin/growth` muestra funnel, denominadores, progreso 0/10, precio medio solo con evidencia y formulario accesible de programación/edición. Sin histórico, las tasas dicen `sin base`.
+- **Pricing/copy**: Starter y Growth muestran “Solicitar demo”; límites de modales de billing consumen el catálogo canónico; Network conserva atribución en contacto. Se retiraron promesas no sustentadas de “RGPD Compliant”, “respuesta 24h”, ahorro o resultados garantizados, conservación ilimitada, puesta en marcha inmediata e integración prioritaria con WhatsApp.
+- **Migración**: `20260713170000_phase4_commercial_validation.sql` y Drizzle `0005`, aditivas. Rollback smoke, constraints, FKs, índices y RLS verificados; aplicada a Supabase sin seed global. El push final detectó el constraint histórico `coaches_slug_unique` ausente: se canceló antes de cualquier acción, se comprobaron 3 slugs nulos/0 duplicados y se reconcilió con la migración idempotente `20260713173000_reconcile_coaches_slug_unique.sql`, sin truncar ni modificar filas. Inventario: 6 Drizzle + 31 Supabase, 115 tablas y RLS 65/65.
+- **Guard de migraciones remotas**: una segunda inspección de `drizzle-kit push` propuso desactivar RLS, borrar el ledger y cambiar una PK; se eligió `No, abort` y no se ejecutó SQL. `pnpm db:migrate` ahora solo admite PostgreSQL local; staging/producción usan `pnpm db:migrate:reviewed <sql>` hasta implementar un runner con ledger.
+- **QA**: 279 APIs sin rutas riesgosas, 431/431 tests, lint/typecheck, `pnpm audit` completo/productivo sin vulnerabilidades y build de 216 páginas. Axe WCAG 2.2 AA pasa sin violaciones en pricing/contacto móvil y Growth autenticado; 375 px sin overflow.
+- **Pendiente real**: completar 10 entrevistas distintas y sintetizarlas. Fase 4 no se declara cerrada comercialmente y Fase 5 no comienza.
+
 ## 2026-07-10 - Suite unitaria completa y limpieza de formularios
 
 - **Validación global**: `pnpm test` PASS con 45 archivos y 391 pruebas. La ejecución dejó el watcher activo tras el resultado, pero todos los casos terminaron correctamente.

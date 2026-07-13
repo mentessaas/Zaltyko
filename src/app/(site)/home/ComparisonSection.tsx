@@ -5,10 +5,10 @@ import { cn } from "@/lib/utils";
 
 const comparisonFeatures = [
   {
-    feature: "Tiempo de configuración",
-    zaltyko: "2 horas",
-    spreadsheets: "Días/semanas",
-    generic: "1-2 semanas",
+    feature: "Puesta en marcha",
+    zaltyko: "Guiada",
+    spreadsheets: "Manual",
+    generic: "Según proveedor",
   },
   {
     feature: "Cobros automáticos",

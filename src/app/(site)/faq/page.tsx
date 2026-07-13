@@ -91,11 +91,11 @@ const categories = [
     questions: [
       {
         q: "¿Mis datos están seguros?",
-        a: "Sí, usamos encriptación de grado bancario, backups diarios y cumplimiento RGPD. Los datos son tuyos y puedes exportarlos siempre.",
+        a: "Zaltyko aplica controles por rol, aislamiento por academia y conexiones cifradas. Las opciones de exportación y borrado dependen del módulo y de la política de privacidad vigente.",
       },
       {
         q: "¿Puedo borrar mis datos?",
-        a: "Sí, puedes eliminar tu cuenta y todos los datos asociados en cualquier momento (derecho al olvido RGPD).",
+        a: "Puedes solicitar la eliminación de tu cuenta y datos asociados. Revisamos la solicitud conforme a la política de privacidad y las obligaciones de conservación aplicables.",
       },
       {
         q: "¿Hay soporte técnico?",
