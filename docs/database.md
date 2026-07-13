@@ -19,13 +19,14 @@ DATABASE_URL_DIRECT=postgresql://...direct
 ## Uso en código
 
 En `src/db/index.ts` seleccionamos la URL según el entorno:
+
 - Producción (`NODE_ENV=production`) → usa el pool.
 - Desarrollo/test → usa la conexión directa para minimizar latencia en migraciones y seeds.
 
 ```ts
 const connectionString = isProduction
-  ? process.env.DATABASE_URL_POOL ?? process.env.DATABASE_URL
-  : process.env.DATABASE_URL_DIRECT ?? process.env.DATABASE_URL;
+  ? (process.env.DATABASE_URL_POOL ?? process.env.DATABASE_URL)
+  : (process.env.DATABASE_URL_DIRECT ?? process.env.DATABASE_URL);
 ```
 
 Además, el `Pool` de `pg` se instancia una sola vez, evitando abrir conexiones por request (compatible con Vercel serverless/edge).
@@ -34,13 +35,20 @@ Además, el `Pool` de `pg` se instancia una sola vez, evitando abrir conexiones 
 
 `pnpm db:migrate` usa `drizzle-kit push` y está limitado por código a PostgreSQL local. No debe usarse contra Supabase remoto: Drizzle no representa todo el historial de RLS/policies y puede proponer desactivarlas o reconstruir el ledger.
 
-Para staging o producción, crear y revisar un SQL versionado en `supabase/migrations/` y aplicar solo ese archivo:
+Para staging o producción, crear y revisar un SQL versionado en `supabase/migrations/`. Antes de escribir, comprobar que el historial remoto coincide exactamente con los archivos:
 
 ```bash
-pnpm db:migrate:reviewed supabase/migrations/<timestamp>_<nombre>.sql
+pnpm db:migrate:ledger
 ```
 
-Verificar después constraints, RLS y `pnpm check:migrations`. `pnpm db:seed` tampoco se ejecuta en producción salvo revisión explícita de sus efectos.
+Si el dry-run lista solo la migración revisada, aplicarla de forma transaccional y volver a verificar:
+
+```bash
+pnpm db:migrate:ledger --apply
+pnpm db:migrate:ledger
+```
+
+El ledger `public.zaltyko_schema_migrations` usa el nombre completo del archivo como identidad (el legado tiene dos `0009_*`) y guarda el hash SHA-256. Un hash modificado o una fila sin archivo bloquean la operación; no se repara el historial de forma implícita. `pnpm db:migrate:reviewed <sql>` queda reservado para el bootstrap del ledger o una operación break-glass revisada. Verificar después constraints, RLS y `pnpm check:migrations`. `pnpm db:seed` tampoco se ejecuta en producción salvo revisión explícita de sus efectos.
 
 ### Reaplicar políticas RLS
 

@@ -55,11 +55,15 @@ Contra PostgreSQL local, sincroniza el schema Drizzle:
 pnpm db:migrate
 ```
 
-Contra staging o producción, aplica únicamente un SQL versionado y revisado:
+Contra staging o producción, revisa el SQL versionado y usa el ledger para comprobar y aplicar los pendientes:
 
 ```bash
-pnpm db:migrate:reviewed supabase/migrations/<timestamp>_<nombre>.sql
+pnpm db:migrate:ledger
+pnpm db:migrate:ledger --apply
+pnpm db:migrate:ledger
 ```
+
+No uses `pnpm db:migrate` contra hosts remotos. El runner rechaza historial SQL divergente; `pnpm db:migrate:reviewed <sql>` queda como bootstrap/break-glass con inspección manual.
 
 Si usas Supabase local:
 
@@ -207,12 +211,14 @@ pnpm test:coverage
 ### Imports
 
 Orden de imports:
+
 1. Librerías externas
 2. Imports de Next.js
 3. Imports internos (`@/...`)
 4. Imports relativos (`./...`)
 
 Ejemplo:
+
 ```typescript
 import { useState } from "react";
 import { NextResponse } from "next/server";
@@ -305,7 +311,7 @@ Luego usa React DevTools Profiler para identificar componentes lentos.
 ```typescript
 /**
  * Calcula la edad de un atleta basándose en su fecha de nacimiento.
- * 
+ *
  * @param dob - Fecha de nacimiento en formato Date
  * @returns Edad en años o null si la fecha es inválida
  */
@@ -329,6 +335,7 @@ Actualiza el README principal cuando agregues nuevas features importantes.
 ## Preguntas
 
 Si tienes preguntas:
+
 1. Revisa la documentación existente
 2. Busca en issues anteriores
 3. Crea un nuevo issue con la etiqueta `question`

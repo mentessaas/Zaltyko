@@ -4,7 +4,7 @@ import { logger } from "@/lib/logger";
 
 /**
  * Rate Limiting using Vercel KV (Redis)
- * 
+ *
  * Implements sliding window rate limiting for production use.
  */
 
@@ -49,7 +49,7 @@ export interface RateLimitResult {
 
 /**
  * Implements sliding window rate limiting using Redis (Vercel KV)
- * 
+ *
  * @param config - Rate limit configuration
  * @returns Rate limit result with success status and metadata
  */
@@ -59,11 +59,15 @@ export interface RateLimitResult {
  */
 function isKvConfigured(): boolean {
   return Boolean(
-    process.env.KV_REST_API_URL || process.env.KV_URL || process.env.KV_REST_API_TOKEN
+    process.env.KV_REST_API_URL ||
+      process.env.KV_URL ||
+      process.env.KV_REST_API_TOKEN
   );
 }
 
-export async function rateLimit(config: RateLimitConfig): Promise<RateLimitResult> {
+export async function rateLimit(
+  config: RateLimitConfig
+): Promise<RateLimitResult> {
   const { identifier, limit, window } = config;
 
   // Create a unique key for this identifier
@@ -80,7 +84,9 @@ export async function rateLimit(config: RateLimitConfig): Promise<RateLimitResul
   // Provisiona Vercel KV/Upstash para reactivar la protección estricta.
   if (!isKvConfigured()) {
     if (process.env.NODE_ENV === "production") {
-      console.warn("Rate limiting deshabilitado: Vercel KV no configurado (fail-open).");
+      console.warn(
+        "Rate limiting deshabilitado: Vercel KV no configurado (fail-open)."
+      );
     }
     return { success: true, limit, remaining: limit, reset: now + window };
   }
@@ -97,9 +103,8 @@ export async function rateLimit(config: RateLimitConfig): Promise<RateLimitResul
     if (requestCount >= limit) {
       // Get the oldest request timestamp to calculate reset time
       const oldestRequests = await kv.zrange(key, 0, 0, { withScores: true });
-      const oldestTimestamp = oldestRequests.length > 0
-        ? (oldestRequests[1] as number)
-        : now;
+      const oldestTimestamp =
+        oldestRequests.length > 0 ? (oldestRequests[1] as number) : now;
 
       const reset = Math.ceil(oldestTimestamp + window);
 
@@ -235,7 +240,10 @@ const ROUTE_LIMITS: Record<string, { limit: number; window: number }> = {
 /**
  * Gets the rate limit for a specific route
  */
-export function getLimitForRoute(pathname: string): { limit: number; window: number } {
+export function getLimitForRoute(pathname: string): {
+  limit: number;
+  window: number;
+} {
   for (const [route, limits] of Object.entries(ROUTE_LIMITS)) {
     if (pathname.startsWith(route)) {
       return limits;
@@ -248,7 +256,7 @@ export function getLimitForRoute(pathname: string): { limit: number; window: num
  * Helper function to get client identifier from request
  * Uses user ID if authenticated, otherwise falls back to IP address
  */
-export function getClientIdentifier(request: NextRequest, userId?: string): string {
+export function getClientIdentifier(request: Request, userId?: string): string {
   if (userId) {
     return `user:${userId}`;
   }
@@ -262,13 +270,27 @@ export function getClientIdentifier(request: NextRequest, userId?: string): stri
 }
 
 /**
+ * La academia solo se incorpora una vez que el servidor la resolvió contra
+ * ownership/membership. No aceptar `tenantId` desde headers o body: permitiría
+ * rotar la clave y eludir el límite.
+ */
+export function getVerifiedTenantRateLimitIdentifier(
+  request: Request,
+  tenantId: string,
+  pathname = new URL(request.url).pathname
+): string {
+  return `${pathname}:tenant:${tenantId}:${getClientIdentifier(request)}`;
+}
+
+/**
  * Helper to get user identifier from request headers
  */
 export function getUserIdentifier(request: NextRequest): string {
   const userId = request.headers.get("x-user-id");
   const internalSecret = process.env.INTERNAL_AUTH_SECRET;
   const trustedInternalRequest =
-    internalSecret && request.headers.get("x-internal-auth-secret") === internalSecret;
+    internalSecret &&
+    request.headers.get("x-internal-auth-secret") === internalSecret;
 
   if (userId && trustedInternalRequest) {
     return `user:${userId}`;
@@ -281,14 +303,20 @@ export function getUserIdentifier(request: NextRequest): string {
  * Middleware wrapper for rate limiting
  */
 export function withRateLimit(
-  handler: (request: NextRequest, context?: any) => Promise<Response | NextResponse>,
+  handler: (
+    request: NextRequest,
+    context?: any
+  ) => Promise<Response | NextResponse>,
   options?: {
     identifier?: (request: NextRequest) => string;
     limit?: number;
     window?: number;
   }
 ) {
-  return async (request: NextRequest, context?: any): Promise<Response | NextResponse> => {
+  return async (
+    request: NextRequest,
+    context?: any
+  ): Promise<Response | NextResponse> => {
     const pathname = new URL(request.url).pathname;
 
     // Get identifier (IP or user ID)
@@ -297,9 +325,10 @@ export function withRateLimit(
       : getClientIdentifier(request);
 
     // Get limits for this route
-    const routeLimits = options?.limit && options?.window
-      ? { limit: options.limit, window: options.window }
-      : getLimitForRoute(pathname);
+    const routeLimits =
+      options?.limit && options?.window
+        ? { limit: options.limit, window: options.window }
+        : getLimitForRoute(pathname);
 
     // Check rate limit
     const result = await rateLimit({
@@ -338,25 +367,29 @@ export function withRateLimit(
 
       return response;
     } catch (error) {
-      const errorResponse = error instanceof Error
-        ? NextResponse.json(
-          {
-            error: "INTERNAL_ERROR",
-            message: error.message,
-          },
-          { status: 500 }
-        )
-        : NextResponse.json(
-          {
-            error: "INTERNAL_ERROR",
-            message: "Ha ocurrido un error desconocido",
-          },
-          { status: 500 }
-        );
+      const errorResponse =
+        error instanceof Error
+          ? NextResponse.json(
+              {
+                error: "INTERNAL_ERROR",
+                message: error.message,
+              },
+              { status: 500 }
+            )
+          : NextResponse.json(
+              {
+                error: "INTERNAL_ERROR",
+                message: "Ha ocurrido un error desconocido",
+              },
+              { status: 500 }
+            );
 
       // Add rate limit headers even on errors
       errorResponse.headers.set("X-RateLimit-Limit", String(result.limit));
-      errorResponse.headers.set("X-RateLimit-Remaining", String(result.remaining));
+      errorResponse.headers.set(
+        "X-RateLimit-Remaining",
+        String(result.remaining)
+      );
       errorResponse.headers.set("X-RateLimit-Reset", String(result.reset));
 
       return errorResponse;

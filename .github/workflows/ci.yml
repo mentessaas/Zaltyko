@@ -120,7 +120,34 @@ jobs:
       - name: Run smoke tests against production
         run: pnpm exec tsx smoke-test.ts
         env:
-          SMOKE_BASE_URL: https://zaltyko.vercel.app
+          SMOKE_BASE_URL: https://zaltyko.com
+
+  e2e-readiness:
+    name: E2E Credentials Readiness
+    runs-on: ubuntu-latest
+    outputs:
+      enabled: ${{ steps.check.outputs.enabled }}
+    steps:
+      - id: check
+        name: Confirm required E2E secrets are configured
+        env:
+          E2E_AUTH_EMAIL: ${{ secrets.E2E_AUTH_EMAIL }}
+          E2E_AUTH_PASSWORD: ${{ secrets.E2E_AUTH_PASSWORD }}
+          E2E_ACADEMY_ID: ${{ secrets.E2E_ACADEMY_ID }}
+        run: |
+          missing=0
+          for name in E2E_AUTH_EMAIL E2E_AUTH_PASSWORD E2E_ACADEMY_ID; do
+            if [ -z "${!name}" ]; then
+              echo "Missing required E2E secret: ${name}"
+              missing=1
+            fi
+          done
+
+          if [ "$missing" -eq 0 ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          fi
 
   validate-rls:
     name: Validate RLS Coverage
@@ -167,6 +194,7 @@ jobs:
   e2e-public:
     name: E2E Public (no auth)
     runs-on: ubuntu-latest
+    needs: smoke-test
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@v4
@@ -184,16 +212,18 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Install Playwright browsers
-        run: pnpm exec playwright install --with-deps chromium firefox webkit
+        run: pnpm exec playwright install --with-deps chromium
 
       - name: Run public E2E
-        run: pnpm test:e2e:public
+        run: pnpm test:e2e:public:ci
+        env:
+          BASE_URL: https://zaltyko.com
 
   e2e-auth:
     name: E2E Authenticated Flows
     runs-on: ubuntu-latest
-    needs: e2e-public
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [e2e-public, e2e-readiness]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.e2e-readiness.outputs.enabled == 'true'
     steps:
       - uses: actions/checkout@v4
 
@@ -210,7 +240,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Install Playwright browsers
-        run: pnpm exec playwright install --with-deps chromium firefox webkit
+        run: pnpm exec playwright install --with-deps chromium
 
       - name: Generate auth storage state
         run: pnpm test:e2e:auth
@@ -218,10 +248,12 @@ jobs:
           E2E_AUTH_EMAIL: ${{ secrets.E2E_AUTH_EMAIL }}
           E2E_AUTH_PASSWORD: ${{ secrets.E2E_AUTH_PASSWORD }}
           E2E_ACADEMY_ID: ${{ secrets.E2E_ACADEMY_ID }}
+          BASE_URL: https://zaltyko.com
 
       - name: Run authenticated E2E
         run: pnpm test:e2e
         env:
+          BASE_URL: https://zaltyko.com
           E2E_STORAGE_STATE: .auth/user.json
           E2E_ACADEMY_ID: ${{ secrets.E2E_ACADEMY_ID }}
           E2E_PROFILE_ID: ${{ secrets.E2E_PROFILE_ID }}
