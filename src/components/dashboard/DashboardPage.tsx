@@ -163,7 +163,7 @@ export function DashboardPage({
       return `Esta semana tienes ${classesCount} ${classesCount === 1 ? "clase programada" : "clases programadas"}.`;
     }
     if (assessmentsCount > 0) {
-      return `Tienes ${assessmentsCount} evaluación${assessmentsCount === 1 ? "" : "es"} registrada${assessmentsCount === 1 ? "" : "s"}.`;
+      return `Tienes ${assessmentsCount} ${assessmentsCount === 1 ? "evaluación registrada" : "evaluaciones registradas"}.`;
     }
     return "Comienza configurando tu academia para ver tus métricas aquí.";
   }, [data.metrics.classesThisWeek, data.metrics.assessments, data.upcomingClasses]);

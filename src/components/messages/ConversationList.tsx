@@ -52,6 +52,7 @@ export const ConversationList = memo(function ConversationList({
             onClick={onNewConversation}
             className="p-2 rounded-full hover:bg-muted transition-colors"
             title="Nueva conversación"
+            aria-label="Nueva conversación"
           >
             <svg
               className="w-5 h-5"

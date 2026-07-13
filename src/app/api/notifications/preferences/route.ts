@@ -19,6 +19,29 @@ const updatePreferencesSchema = z.object({
     "24h_before": z.boolean().optional(),
     "1h_before": z.boolean().optional(),
   }).optional(),
+}).strict();
+
+const DEFAULT_IN_APP = { enabled: true, types: {} };
+const DEFAULT_CLASS_REMINDERS = { enabled: true, "24h_before": true, "1h_before": false };
+
+export const GET = withTenant(async (_request, context) => {
+  const [preferences] = await db
+    .select({
+      emailNotifications: userPreferences.emailNotifications,
+      inAppNotifications: userPreferences.inAppNotifications,
+      classReminders: userPreferences.classReminders,
+    })
+    .from(userPreferences)
+    .where(eq(userPreferences.userId, context.profile.id))
+    .limit(1);
+
+  return apiSuccess({
+    preferences: {
+      emailNotifications: preferences?.emailNotifications ?? {},
+      inAppNotifications: preferences?.inAppNotifications ?? DEFAULT_IN_APP,
+      classReminders: preferences?.classReminders ?? DEFAULT_CLASS_REMINDERS,
+    },
+  });
 });
 
 export const PATCH = withTenant(async (request, context) => {
@@ -33,50 +56,56 @@ export const PATCH = withTenant(async (request, context) => {
     const validated = updatePreferencesSchema.parse(body);
 
     // Check if preferences exist
-    const existing = await db
+    const [existing] = await db
       .select()
       .from(userPreferences)
       .where(eq(userPreferences.userId, profile.id))
       .limit(1);
 
-    if (existing.length === 0) {
+    const emailNotifications = {
+      ...(existing?.emailNotifications ?? {}),
+      ...(validated.emailNotifications ?? {}),
+    };
+    const inAppNotifications = {
+      ...(existing?.inAppNotifications ?? DEFAULT_IN_APP),
+      ...(validated.inAppNotifications ?? {}),
+      types: {
+        ...(existing?.inAppNotifications?.types ?? {}),
+        ...(validated.inAppNotifications?.types ?? {}),
+      },
+    };
+    const classReminders = {
+      ...(existing?.classReminders ?? DEFAULT_CLASS_REMINDERS),
+      ...(validated.classReminders ?? {}),
+    };
+
+    if (!existing) {
       // Create new preferences
       await db.insert(userPreferences).values({
-        userId: profile.id as any,
-        tenantId: context.tenantId as any,
-        emailNotifications: validated.emailNotifications || {},
-        inAppNotifications: validated.inAppNotifications || { enabled: true, types: {} },
-        classReminders: validated.classReminders || { enabled: true, "24h_before": true, "1h_before": false },
-      } as any);
+        userId: profile.id,
+        tenantId: context.tenantId,
+        emailNotifications,
+        inAppNotifications,
+        classReminders,
+      });
     } else {
-      // Update existing preferences
-      const updateData: Record<string, any> = {};
-
-      if (validated.emailNotifications !== undefined) {
-        updateData.emailNotifications = validated.emailNotifications;
-      }
-      if (validated.inAppNotifications !== undefined) {
-        updateData.inAppNotifications = validated.inAppNotifications;
-      }
-      if (validated.classReminders !== undefined) {
-        updateData.classReminders = validated.classReminders;
-      }
-
       await db
         .update(userPreferences)
         .set({
-          ...updateData,
+          emailNotifications,
+          inAppNotifications,
+          classReminders,
           updatedAt: new Date(),
         })
-        .where(eq(userPreferences.userId, profile.id as any));
+        .where(eq(userPreferences.userId, profile.id));
     }
 
-    return apiSuccess({ ok: true });
+    return apiSuccess({ preferences: { emailNotifications, inAppNotifications, classReminders } });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return apiError("VALIDATION_ERROR", "Validation failed", 400);
+      return apiError("VALIDATION_ERROR", "Preferencias inválidas", 400, error.flatten());
     }
     logger.error("Error updating preferences:", error);
-    return apiError("INTERNAL_ERROR", "Internal server error", 500);
+    return apiError("INTERNAL_ERROR", "No se pudieron guardar las preferencias", 500);
   }
 });

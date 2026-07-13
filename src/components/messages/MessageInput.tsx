@@ -58,8 +58,9 @@ export function MessageInput({
         <button
           type="button"
           className="p-2 rounded-full hover:bg-muted transition-colors text-muted-foreground"
-          disabled={disabled || isSending}
-          title="Adjuntar archivo"
+          disabled
+          title="Adjuntar archivo (próximamente)"
+          aria-label="Adjuntar archivo (próximamente)"
         >
           <svg
             className="w-5 h-5"
@@ -96,6 +97,7 @@ export function MessageInput({
           type="button"
           onClick={handleSubmit}
           disabled={!message.trim() || isSending || disabled}
+          aria-label="Enviar mensaje"
           className="p-2.5 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isSending ? (

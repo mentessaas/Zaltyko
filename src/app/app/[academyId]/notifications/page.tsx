@@ -65,6 +65,7 @@ const NOTIFICATION_TYPES = [
   { value: "event", label: "Evento", icon: Calendar },
   { value: "message", label: "Mensaje", icon: MessageSquare },
   { value: "new_message", label: "Mensaje nuevo", icon: MessageSquare },
+  { value: "class_group_alert", label: "Aviso de clase", icon: MessageSquare },
   { value: "renewal", label: "Renovación", icon: RefreshCw },
   { value: "contact_message", label: "Mensaje de contacto", icon: Mail },
 ];
@@ -197,7 +198,7 @@ export default function NotificationsPage() {
     const handleClick = () => {
       if (isContactMessage && notificationAcademyId) {
         router.push(`/app/${notificationAcademyId}/contact-messages`);
-      } else if (notification.type === "new_message") {
+      } else if (notification.type === "new_message" || notification.type === "class_group_alert") {
         const conversationId = notification.data?.conversationId as string | undefined;
         router.push(`/app/${academyId}/messages${conversationId ? `?c=${conversationId}` : ""}`);
       }
@@ -207,9 +208,9 @@ export default function NotificationsPage() {
       <Card
         key={notification.id}
         className={`${notification.read ? "opacity-60" : ""} ${
-          isContactMessage || notification.type === "new_message" ? "cursor-pointer hover:bg-muted/50 transition-colors" : ""
+          isContactMessage || notification.type === "new_message" || notification.type === "class_group_alert" ? "cursor-pointer hover:bg-muted/50 transition-colors" : ""
         }`}
-        onClick={isContactMessage || notification.type === "new_message" ? handleClick : undefined}
+        onClick={isContactMessage || notification.type === "new_message" || notification.type === "class_group_alert" ? handleClick : undefined}
       >
         <CardContent className="p-4">
           <div className="flex items-start gap-4">

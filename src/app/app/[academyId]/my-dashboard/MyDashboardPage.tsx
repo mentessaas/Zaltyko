@@ -13,7 +13,6 @@ import {
   User,
   MapPin,
   Mail,
-  Phone,
   GraduationCap,
   ChevronDown,
   ClipboardList,
@@ -103,7 +102,6 @@ interface MyDashboardPageProps {
   academyId: string;
   academyName: string;
   academyCountry: string | null;
-  academyPhone: string | null;
   profileName: string | null;
   profileRole: string;
   profilePhotoUrl: string | null;
@@ -143,7 +141,6 @@ export function MyDashboardPage({
   academyId,
   academyName,
   academyCountry,
-  academyPhone,
   profileName,
   profileRole,
   profilePhotoUrl,
@@ -232,17 +229,42 @@ export function MyDashboardPage({
               <CreditCard className="h-5 w-5 text-amber-600" />
             </div>
             <div>
-              <p className="font-semibold text-amber-900">Tienes {pendingPayments.length} pago(s) pendiente(s)</p>
+              <p className="font-semibold text-amber-900">
+                Tienes {pendingPayments.length} {pendingPayments.length === 1 ? "pago pendiente" : "pagos pendientes"}
+              </p>
               <p className="text-sm text-amber-700">Total: {formatCurrency(totalPendingAmount)}</p>
             </div>
           </div>
           <Button asChild size="sm" className="bg-amber-600 hover:bg-amber-700">
-            <Link href={`/app/${academyId}/billing`}>
+            <Link href="#payments">
               Ver detalles
             </Link>
           </Button>
         </div>
       )}
+
+      {isParent && guardianAthletes.length === 0 ? (
+        <Card className="border-dashed">
+          <CardContent className="flex flex-col items-start gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                <Users className="h-5 w-5" aria-hidden="true" />
+              </span>
+              <div>
+                <h2 className="font-semibold">
+                  Aún no hay un perfil de {specialization.labels.athleteSingular.toLowerCase()} vinculado
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  Pide a la academia que vincule tu cuenta familiar. Hasta entonces puedes usar el canal interno de mensajes.
+                </p>
+              </div>
+            </div>
+            <Button asChild variant="outline">
+              <Link href={`/app/${academyId}/messages`}>Contactar con la academia</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      ) : null}
 
       {/* Stats rápidos */}
       <div className="grid gap-4 sm:grid-cols-3">
@@ -308,13 +330,13 @@ export function MyDashboardPage({
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" asChild>
-            <Link href={`/app/${academyId}/calendar`}>
+            <Link href="#calendar">
               <Calendar className="mr-2 h-4 w-4" />
               Calendario
             </Link>
           </Button>
           <Button variant="outline" size="sm" asChild>
-            <Link href={`/app/${academyId}/billing`}>
+            <Link href="#payments">
               <CreditCard className="mr-2 h-4 w-4" />
               Pagos
             </Link>
@@ -396,7 +418,7 @@ export function MyDashboardPage({
                 </label>
                 <Select value={selectedAthleteId ?? ""} onValueChange={handleAthleteChange}>
                   <SelectTrigger className="w-full sm:w-[240px]">
-                    <SelectValue placeholder="Seleccionar hijo" />
+                    <SelectValue placeholder={`Seleccionar ${specialization.labels.athleteSingular.toLowerCase()}`} />
                   </SelectTrigger>
                   <SelectContent>
                     {guardianAthletes.map((ga) => (
@@ -423,7 +445,7 @@ export function MyDashboardPage({
       {/* Widgets principales - Grid responsivo */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {/* Widget de Calendario Mensual */}
-        <Card className="md:col-span-2 lg:col-span-2">
+        <Card id="calendar" className="scroll-mt-24 md:col-span-2 lg:col-span-2">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <div>
@@ -434,8 +456,8 @@ export function MyDashboardPage({
                 <CardDescription>Vista mensual de clases</CardDescription>
               </div>
               <Button variant="ghost" size="sm" asChild>
-                <Link href={`/app/${academyId}/calendar`}>
-                  Ver calendario completo
+                <Link href="#calendar">
+                  Calendario familiar
                   <ArrowRight className="ml-1 h-3 w-3" />
                 </Link>
               </Button>
@@ -447,7 +469,7 @@ export function MyDashboardPage({
         </Card>
 
         {/* Widget de Asistencia */}
-        <Card>
+        <Card id="attendance" className="scroll-mt-24">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <div>
@@ -458,8 +480,8 @@ export function MyDashboardPage({
                 <CardDescription>Últimos 30 días</CardDescription>
               </div>
               <Button variant="ghost" size="sm" asChild>
-                <Link href={`/app/${academyId}/attendance`}>
-                  Ver historial
+                <Link href="#attendance">
+                  Resumen familiar
                   <ArrowRight className="ml-1 h-3 w-3" />
                 </Link>
               </Button>
@@ -471,7 +493,7 @@ export function MyDashboardPage({
         </Card>
 
         {/* Widget de Pagos */}
-        <Card>
+        <Card id="payments" className="scroll-mt-24">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <div>
@@ -481,13 +503,13 @@ export function MyDashboardPage({
                 </CardTitle>
                 <CardDescription>
                   {hasPendingPayments
-                    ? `${pendingPayments.length} pendiente(s)`
+                    ? `${pendingPayments.length} ${pendingPayments.length === 1 ? "pendiente" : "pendientes"}`
                     : "Todo al día"}
                 </CardDescription>
               </div>
               <Button variant="ghost" size="sm" asChild>
-                <Link href={`/app/${academyId}/billing`}>
-                  Ver todos
+                <Link href="#payments">
+                  Resumen familiar
                   <ArrowRight className="ml-1 h-3 w-3" />
                 </Link>
               </Button>
@@ -500,7 +522,7 @@ export function MyDashboardPage({
       </div>
 
       {/* Widget de Progreso */}
-      <Card>
+      <Card id="progress" className="scroll-mt-24">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <div>
@@ -513,7 +535,7 @@ export function MyDashboardPage({
               </CardDescription>
             </div>
             <Button variant="ghost" size="sm" asChild>
-              <Link href={`/app/${academyId}/assessments`}>
+              <Link href="#assessments">
                 Ver evaluaciones
                 <ArrowRight className="ml-1 h-3 w-3" />
               </Link>
@@ -530,7 +552,7 @@ export function MyDashboardPage({
       </Card>
 
       {/* Widget de Evaluaciones */}
-      <Card>
+      <Card id="assessments" className="scroll-mt-24">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <div>
@@ -543,7 +565,7 @@ export function MyDashboardPage({
               </CardDescription>
             </div>
             <Button variant="ghost" size="sm" asChild>
-              <Link href={`/app/${academyId}/assessments`}>
+              <Link href="#assessments">
                 Ver todas
                 <ArrowRight className="ml-1 h-3 w-3" />
               </Link>
@@ -563,7 +585,7 @@ export function MyDashboardPage({
       {/* Acciones rápidas */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Button variant="outline" className="h-auto py-4" asChild>
-          <Link href={`/app/${academyId}/calendar`}>
+          <Link href="#calendar">
             <div className="flex flex-col items-start gap-1 text-left">
               <Calendar className="h-5 w-5 text-primary" />
               <span className="font-medium">Ver Calendario</span>
@@ -574,7 +596,7 @@ export function MyDashboardPage({
           </Link>
         </Button>
         <Button variant="outline" className="h-auto py-4" asChild>
-          <Link href={`/app/${academyId}/billing`}>
+          <Link href="#payments">
             <div className="flex flex-col items-start gap-1 text-left">
               <CreditCard className="h-5 w-5 text-primary" />
               <span className="font-medium">Historial de Pagos</span>
@@ -595,24 +617,6 @@ export function MyDashboardPage({
             </div>
           </Link>
         </Button>
-        {/* Botón de WhatsApp si hay teléfono */}
-        {academyPhone && (
-          <Button variant="outline" className="h-auto py-4" asChild>
-            <Link
-              href={`https://wa.me/${academyPhone.replace(/\D/g, '')}?text=Hola, me gustaría información sobre la academia`}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <div className="flex flex-col items-start gap-1 text-left">
-                <Phone className="h-5 w-5 text-primary" />
-                <span className="font-medium">WhatsApp</span>
-                <span className="text-xs text-muted-foreground">
-                  Chatea directamente
-                </span>
-              </div>
-            </Link>
-          </Button>
-        )}
       </div>
     </div>
   );

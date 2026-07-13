@@ -103,12 +103,12 @@ export const GET = withTenant(async (request, context) => {
             .map(async (p) => {
               const [userProfile] = await db
                 .select({
-                  id: sql<string>`id`,
-                  fullName: sql<string>`full_name`,
-                  avatarUrl: sql<string>`avatar_url`,
+                  id: profiles.id,
+                  fullName: profiles.name,
+                  avatarUrl: profiles.photoUrl,
                 })
-                .from(sql`profiles`)
-                .where(sql`id = ${p.userId}`)
+                .from(profiles)
+                .where(eq(profiles.id, p.userId))
                 .limit(1);
               return {
                 userId: p.userId,

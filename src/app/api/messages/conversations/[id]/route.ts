@@ -15,6 +15,7 @@ import {
   conversationMessages,
 } from "@/db/schema/direct-messages";
 import { db } from "@/db";
+import { profiles } from "@/db/schema";
 import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
@@ -92,13 +93,13 @@ export const GET = withTenant(async (request: Request, context: RouteContext) =>
         // Get profile from profiles table
         const [userProfile] = await db
           .select({
-            id: sql<string>`id`,
-            fullName: sql<string>`full_name`,
-            avatarUrl: sql<string>`avatar_url`,
-            role: sql<string>`role`,
+            id: profiles.id,
+            fullName: profiles.name,
+            avatarUrl: profiles.photoUrl,
+            role: profiles.role,
           })
-          .from(sql`profiles`)
-          .where(sql`id = ${p.userId}`)
+          .from(profiles)
+          .where(eq(profiles.id, p.userId))
           .limit(1);
         return {
           ...p,

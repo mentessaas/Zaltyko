@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { DashboardCard } from "@/components/dashboard/DashboardCard";
 import { useAcademyContext } from "@/hooks/use-academy-context";
+import TodayQuickActions from "@/components/coach/TodayQuickActions";
 
 interface CoachAthlete {
   id: string;
@@ -112,6 +113,10 @@ export function CoachDashboardPage({
   const apparatusLabels = Object.fromEntries(
     specialization.evaluation.apparatus.map((item) => [item.code, item.label])
   );
+  const primaryTodaySession = todaySessions[0];
+  const primaryClass = primaryTodaySession
+    ? classes.find((item) => item.id === primaryTodaySession.classId)
+    : undefined;
 
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-8 px-4 py-6 lg:px-8 lg:py-8">
@@ -145,6 +150,18 @@ export function CoachDashboardPage({
           </Button>
         </div>
       </section>
+
+      <TodayQuickActions
+        academyId={academyId}
+        todaySession={primaryTodaySession ? {
+          id: primaryTodaySession.id,
+          classId: primaryTodaySession.classId,
+          className: primaryTodaySession.className,
+          startTime: formatTime(primaryTodaySession.startTime),
+          groupName: primaryTodaySession.groupName ?? undefined,
+          athleteCount: primaryClass?.athleteCount ?? 0,
+        } : undefined}
+      />
 
       {/* KPIs */}
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

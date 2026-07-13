@@ -1,10 +1,12 @@
 import { cookies } from "next/headers";
 
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
+import { getDevSessionFromCookieStore } from "@/lib/dev-session";
 import { logger } from "@/lib/logger";
 
 // UUID v4 regex for validation
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const UUID_SHAPE_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const INTERNAL_AUTH_HEADER = "x-internal-auth-secret";
 
 /**
@@ -39,6 +41,13 @@ export async function resolveUserId(
 
     if (user?.id) {
       return user.id;
+    }
+
+    // Local QA uses the same guarded dev-session cookie as academy layouts.
+    // The helper is a no-op outside development and requires explicit opt-in.
+    const devSession = await getDevSessionFromCookieStore(cookieStore);
+    if (devSession?.userId && UUID_SHAPE_REGEX.test(devSession.userId)) {
+      return devSession.userId;
     }
   } catch (error) {
     if (process.env.NODE_ENV !== "test") {

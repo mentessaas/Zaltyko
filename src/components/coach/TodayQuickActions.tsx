@@ -80,7 +80,7 @@ function TodayQuickActionsImpl({ academyId, todaySession }: TodayQuickActionsPro
     {
       label: "Aviso al grupo",
       description: todaySession.groupName ?? "Mensaje interno",
-      href: `/app/${academyId}/messages?session=${todaySession.id}`,
+      href: `/app/${academyId}/messages?session=${todaySession.id}&compose=group`,
       icon: MessageCircle,
       accent: "text-amber-600 bg-amber-50",
     },

@@ -1,11 +1,12 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { Metadata } from "next";
-import { and, eq, gte, inArray, lte } from "drizzle-orm";
+import { and, eq, gte, inArray, isNull, lte } from "drizzle-orm";
 
 import { db } from "@/db";
 import { academies, memberships, profiles, athletes, guardians, guardianAthletes, groups, classes, classSessions, classEnrollments, attendanceRecords, charges, groupAthletes, coaches, billingItems, athleteAssessments } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
+import { getDevSessionFromCookieStore } from "@/lib/dev-session";
 import { MyDashboardPage } from "./MyDashboardPage";
 
 interface PageProps {
@@ -105,8 +106,10 @@ export default async function MyDashboard({ params, searchParams }: PageProps) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  const devSession = await getDevSessionFromCookieStore(cookieStore);
+  const userId = user?.id ?? devSession?.userId;
 
-  if (!user) {
+  if (!userId) {
     redirect("/auth/login");
   }
 
@@ -120,7 +123,7 @@ export default async function MyDashboard({ params, searchParams }: PageProps) {
       userId: profiles.userId,
     })
     .from(profiles)
-    .where(eq(profiles.userId, user.id))
+    .where(eq(profiles.userId, userId))
     .limit(1);
 
   if (!profile) {
@@ -134,12 +137,11 @@ export default async function MyDashboard({ params, searchParams }: PageProps) {
     })
     .from(memberships)
     .where(
-      and(eq(memberships.userId, user.id), eq(memberships.academyId, academyId))
+      and(eq(memberships.userId, userId), eq(memberships.academyId, academyId))
     )
     .limit(1);
 
   // Verificar que el usuario tiene rol athlete o parent
-  const allowedRoles = new Set(["athlete", "parent"]);
   const hasAccess = profile.role === "athlete" || profile.role === "parent";
 
   if (!hasAccess || !membership) {
@@ -154,9 +156,9 @@ export default async function MyDashboard({ params, searchParams }: PageProps) {
   const [academy] = await db
     .select({
       id: academies.id,
+      tenantId: academies.tenantId,
       name: academies.name,
       country: academies.country,
-      phone: academies.contactPhone,
     })
     .from(academies)
     .where(eq(academies.id, academyId))
@@ -180,7 +182,14 @@ export default async function MyDashboard({ params, searchParams }: PageProps) {
         groupId: athletes.groupId,
       })
       .from(athletes)
-      .where(eq(athletes.userId, user.id))
+      .where(
+        and(
+          eq(athletes.userId, userId),
+          eq(athletes.tenantId, academy.tenantId),
+          eq(athletes.academyId, academyId),
+          isNull(athletes.deletedAt)
+        )
+      )
       .limit(1);
 
     if (athlete) {
@@ -197,7 +206,14 @@ export default async function MyDashboard({ params, searchParams }: PageProps) {
             coachId: groups.coachId,
           })
           .from(groups)
-          .where(eq(groups.id, athlete.groupId))
+          .where(
+            and(
+              eq(groups.id, athlete.groupId),
+              eq(groups.tenantId, academy.tenantId),
+              eq(groups.academyId, academyId),
+              isNull(groups.deletedAt)
+            )
+          )
           .limit(1);
 
         if (group) {
@@ -206,9 +222,15 @@ export default async function MyDashboard({ params, searchParams }: PageProps) {
 
           if (group.coachId) {
             const [coach] = await db
-              .select({ name: profiles.name })
-              .from(profiles)
-              .where(eq(profiles.id, group.coachId))
+              .select({ name: coaches.name })
+              .from(coaches)
+              .where(
+                and(
+                  eq(coaches.id, group.coachId),
+                  eq(coaches.tenantId, academy.tenantId),
+                  eq(coaches.academyId, academyId)
+                )
+              )
               .limit(1);
             coachName = coach?.name ?? null;
           }
@@ -229,7 +251,12 @@ export default async function MyDashboard({ params, searchParams }: PageProps) {
         id: guardians.id,
       })
       .from(guardians)
-      .where(eq(guardians.profileId, profile.id))
+      .where(
+        and(
+          eq(guardians.profileId, profile.id),
+          eq(guardians.tenantId, academy.tenantId)
+        )
+      )
       .limit(1);
 
     if (guardian) {
@@ -245,9 +272,31 @@ export default async function MyDashboard({ params, searchParams }: PageProps) {
         })
         .from(guardianAthletes)
         .leftJoin(athletes, eq(guardianAthletes.athleteId, athletes.id))
-        .leftJoin(groups, eq(athletes.groupId, groups.id))
-        .leftJoin(coaches, eq(groups.coachId, coaches.id))
-        .where(eq(guardianAthletes.guardianId, guardian.id));
+        .leftJoin(
+          groups,
+          and(
+            eq(athletes.groupId, groups.id),
+            eq(groups.tenantId, academy.tenantId),
+            eq(groups.academyId, academyId)
+          )
+        )
+        .leftJoin(
+          coaches,
+          and(
+            eq(groups.coachId, coaches.id),
+            eq(coaches.tenantId, academy.tenantId),
+            eq(coaches.academyId, academyId)
+          )
+        )
+        .where(
+          and(
+            eq(guardianAthletes.guardianId, guardian.id),
+            eq(guardianAthletes.tenantId, academy.tenantId),
+            eq(athletes.tenantId, academy.tenantId),
+            eq(athletes.academyId, academyId),
+            isNull(athletes.deletedAt)
+          )
+        );
 
       guardianAthletesList = athletesData.map((a) => ({
         guardianId: guardian.id,
@@ -284,7 +333,13 @@ export default async function MyDashboard({ params, searchParams }: PageProps) {
     const enrollments = await db
       .select({ classId: classEnrollments.classId })
       .from(classEnrollments)
-      .where(eq(classEnrollments.athleteId, targetAthleteId));
+      .where(
+        and(
+          eq(classEnrollments.athleteId, targetAthleteId),
+          eq(classEnrollments.tenantId, academy.tenantId),
+          eq(classEnrollments.academyId, academyId)
+        )
+      );
 
     const enrolledClassIds = enrollments.map((e) => e.classId);
 
@@ -292,7 +347,12 @@ export default async function MyDashboard({ params, searchParams }: PageProps) {
     const athleteGroupMemberships = await db
       .select({ groupId: groupAthletes.groupId })
       .from(groupAthletes)
-      .where(eq(groupAthletes.athleteId, targetAthleteId));
+      .where(
+        and(
+          eq(groupAthletes.athleteId, targetAthleteId),
+          eq(groupAthletes.tenantId, academy.tenantId)
+        )
+      );
 
     const groupIds = athleteGroupMemberships.map((g) => g.groupId);
 
@@ -303,7 +363,14 @@ export default async function MyDashboard({ params, searchParams }: PageProps) {
       const groupClasses = await db
         .select({ id: classes.id })
         .from(classes)
-        .where(inArray(classes.groupId, groupIds));
+        .where(
+          and(
+            inArray(classes.groupId, groupIds),
+            eq(classes.tenantId, academy.tenantId),
+            eq(classes.academyId, academyId),
+            isNull(classes.deletedAt)
+          )
+        );
 
       classIds = [...new Set([...classIds, ...groupClasses.map((c) => c.id)])];
     }
@@ -334,11 +401,28 @@ export default async function MyDashboard({ params, searchParams }: PageProps) {
         })
         .from(classSessions)
         .leftJoin(classes, eq(classSessions.classId, classes.id))
-        .leftJoin(groups, eq(classes.groupId, groups.id))
-        .leftJoin(coaches, eq(classSessions.coachId, coaches.id))
+        .leftJoin(
+          groups,
+          and(
+            eq(classes.groupId, groups.id),
+            eq(groups.tenantId, academy.tenantId),
+            eq(groups.academyId, academyId)
+          )
+        )
+        .leftJoin(
+          coaches,
+          and(
+            eq(classSessions.coachId, coaches.id),
+            eq(coaches.tenantId, academy.tenantId),
+            eq(coaches.academyId, academyId)
+          )
+        )
         .where(
           and(
             inArray(classSessions.classId, classIds),
+            eq(classSessions.tenantId, academy.tenantId),
+            eq(classes.tenantId, academy.tenantId),
+            eq(classes.academyId, academyId),
             inArray(classSessions.status, ["scheduled", "in_progress"]),
             gte(classSessions.sessionDate, todayStr),
             lte(classSessions.sessionDate, nextWeekStr)
@@ -387,6 +471,10 @@ export default async function MyDashboard({ params, searchParams }: PageProps) {
       .where(
         and(
           eq(attendanceRecords.athleteId, targetAthleteId),
+          eq(attendanceRecords.tenantId, academy.tenantId),
+          eq(classSessions.tenantId, academy.tenantId),
+          eq(classes.tenantId, academy.tenantId),
+          eq(classes.academyId, academyId),
           inArray(attendanceRecords.status, ["present", "absent", "excused"]),
           gte(classSessions.sessionDate, thirtyDaysAgoStr),
           lte(classSessions.sessionDate, new Date().toISOString().split("T")[0])
@@ -429,10 +517,19 @@ export default async function MyDashboard({ params, searchParams }: PageProps) {
         billingItemDescription: billingItems.description,
       })
       .from(charges)
-      .leftJoin(billingItems, eq(charges.billingItemId, billingItems.id))
+      .leftJoin(
+        billingItems,
+        and(
+          eq(charges.billingItemId, billingItems.id),
+          eq(billingItems.tenantId, academy.tenantId),
+          eq(billingItems.academyId, academyId)
+        )
+      )
       .where(
         and(
           eq(charges.athleteId, targetAthleteId),
+          eq(charges.tenantId, academy.tenantId),
+          eq(charges.academyId, academyId),
           inArray(charges.status, ["pending", "overdue", "paid"])
         )
       )
@@ -464,7 +561,14 @@ export default async function MyDashboard({ params, searchParams }: PageProps) {
         endTime: classes.endTime,
       })
       .from(classes)
-      .where(eq(classes.groupId, targetGroupId));
+      .where(
+        and(
+          eq(classes.groupId, targetGroupId),
+          eq(classes.tenantId, academy.tenantId),
+          eq(classes.academyId, academyId),
+          isNull(classes.deletedAt)
+        )
+      );
 
     weeklySchedule = weeklyClasses.map((c) => ({
       day: c.weekday ?? 0,
@@ -490,7 +594,13 @@ export default async function MyDashboard({ params, searchParams }: PageProps) {
         overallComment: athleteAssessments.overallComment,
       })
       .from(athleteAssessments)
-      .where(eq(athleteAssessments.athleteId, targetAthleteId))
+      .where(
+        and(
+          eq(athleteAssessments.athleteId, targetAthleteId),
+          eq(athleteAssessments.tenantId, academy.tenantId),
+          eq(athleteAssessments.academyId, academyId)
+        )
+      )
       .orderBy(athleteAssessments.assessmentDate)
       .limit(5);
 
@@ -523,13 +633,24 @@ export default async function MyDashboard({ params, searchParams }: PageProps) {
     const enrollments = await db
       .select({ classId: classEnrollments.classId })
       .from(classEnrollments)
-      .where(eq(classEnrollments.athleteId, targetAthleteId));
+      .where(
+        and(
+          eq(classEnrollments.athleteId, targetAthleteId),
+          eq(classEnrollments.tenantId, academy.tenantId),
+          eq(classEnrollments.academyId, academyId)
+        )
+      );
 
     const enrolledClassIds = enrollments.map((e) => e.classId);
     const athleteGroupMemberships = await db
       .select({ groupId: groupAthletes.groupId })
       .from(groupAthletes)
-      .where(eq(groupAthletes.athleteId, targetAthleteId));
+      .where(
+        and(
+          eq(groupAthletes.athleteId, targetAthleteId),
+          eq(groupAthletes.tenantId, academy.tenantId)
+        )
+      );
 
     const athleteGroupIds = athleteGroupMemberships.map((g) => g.groupId);
     let relatedClassIds: string[] = [...enrolledClassIds];
@@ -538,7 +659,14 @@ export default async function MyDashboard({ params, searchParams }: PageProps) {
       const groupClasses = await db
         .select({ id: classes.id })
         .from(classes)
-        .where(inArray(classes.groupId, athleteGroupIds));
+        .where(
+          and(
+            inArray(classes.groupId, athleteGroupIds),
+            eq(classes.tenantId, academy.tenantId),
+            eq(classes.academyId, academyId),
+            isNull(classes.deletedAt)
+          )
+        );
 
       relatedClassIds = [...new Set([...relatedClassIds, ...groupClasses.map((c) => c.id)])];
     }
@@ -565,10 +693,20 @@ export default async function MyDashboard({ params, searchParams }: PageProps) {
         })
         .from(classSessions)
         .leftJoin(classes, eq(classSessions.classId, classes.id))
-        .leftJoin(groups, eq(classes.groupId, groups.id))
+        .leftJoin(
+          groups,
+          and(
+            eq(classes.groupId, groups.id),
+            eq(groups.tenantId, academy.tenantId),
+            eq(groups.academyId, academyId)
+          )
+        )
         .where(
           and(
             inArray(classSessions.classId, relatedClassIds),
+            eq(classSessions.tenantId, academy.tenantId),
+            eq(classes.tenantId, academy.tenantId),
+            eq(classes.academyId, academyId),
             inArray(classSessions.status, ["scheduled", "in_progress"]),
             gte(classSessions.sessionDate, todayStr),
             lte(classSessions.sessionDate, nextStr)
@@ -618,7 +756,6 @@ export default async function MyDashboard({ params, searchParams }: PageProps) {
       academyId={academyId}
       academyName={academy.name}
       academyCountry={academy.country}
-      academyPhone={academy.phone}
       profileName={profile.name}
       profileRole={profile.role}
       profilePhotoUrl={profile.photoUrl}

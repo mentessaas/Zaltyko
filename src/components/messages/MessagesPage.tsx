@@ -5,6 +5,10 @@ import { useSearchParams } from "next/navigation";
 import { ConversationList } from "./ConversationList";
 import { MessageBubble } from "./MessageBubble";
 import { MessageInput } from "./MessageInput";
+import {
+  ContextGroupAlertComposer,
+  type MessageSessionContext,
+} from "./ContextGroupAlertComposer";
 import { logger } from "@/lib/logger";
 
 interface Participant {
@@ -40,6 +44,7 @@ interface MessagesPageProps {
     fullName?: string;
     avatarUrl?: string;
   };
+  sessionContext?: MessageSessionContext | null;
 }
 
 export function MessagesPage({
@@ -47,6 +52,7 @@ export function MessagesPage({
   currentUserId,
   currentUserRole,
   currentUserProfile,
+  sessionContext,
 }: MessagesPageProps) {
   const searchParams = useSearchParams();
   const [conversations, setConversations] = useState<any[]>([]);
@@ -158,8 +164,9 @@ export function MessagesPage({
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-full">
+      <div className="flex items-center justify-center h-full" role="status">
         <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
+        <span className="sr-only">Cargando conversaciones</span>
       </div>
     );
   }
@@ -183,8 +190,15 @@ export function MessagesPage({
 
       {/* Messages Area */}
       <div className="flex-1 flex flex-col">
+        {academyId && sessionContext ? (
+          <ContextGroupAlertComposer
+            academyId={academyId}
+            session={sessionContext}
+            onSent={selectConversation}
+          />
+        ) : null}
         {error && (
-          <div className="border-b border-border bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <div role="alert" className="border-b border-border bg-amber-50 px-4 py-3 text-sm text-amber-900">
             {error}
           </div>
         )}
@@ -196,6 +210,7 @@ export function MessagesPage({
               <button
                 onClick={() => setSelectedConversation(null)}
                 className="md:hidden p-2 -ml-2 rounded-full hover:bg-muted"
+                aria-label="Volver a conversaciones"
               >
                 <svg
                   className="w-5 h-5"
@@ -234,29 +249,14 @@ export function MessagesPage({
                 </h3>
               </div>
 
-              {/* Actions */}
-              <button className="p-2 rounded-full hover:bg-muted">
-                <svg
-                  className="w-5 h-5 text-muted-foreground"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
-                  />
-                </svg>
-              </button>
             </div>
 
             {/* Messages */}
             <div className="flex-1 overflow-y-auto p-4">
               {isLoadingMessages ? (
-                <div className="flex items-center justify-center h-full">
+                <div className="flex items-center justify-center h-full" role="status">
                   <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
+                  <span className="sr-only">Cargando mensajes</span>
                 </div>
               ) : messages.length === 0 ? (
                 <div className="flex items-center justify-center h-full text-muted-foreground">

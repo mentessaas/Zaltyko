@@ -109,7 +109,7 @@ function UpcomingClassesImpl({ classes, academyId, academyCountry }: UpcomingCla
                   <p className="mt-1 text-xs text-muted-foreground">
                     {item.isSessionPlaceholder ? (
                       <span>
-                        {formatShortDateForCountry(item.sessionDate, academyCountry)} · genera sesiones para ver fechas exactas
+                        {item.sessionDate} · genera sesiones para ver fechas exactas
                       </span>
                     ) : (
                       <>

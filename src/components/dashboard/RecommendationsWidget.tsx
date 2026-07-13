@@ -3,6 +3,7 @@
 import { Lightbulb, TrendingUp, Users, Calendar } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useAcademyContext } from "@/hooks/use-academy-context";
 
 interface RecommendationsWidgetProps {
   academyId: string;
@@ -15,25 +16,23 @@ interface RecommendationsWidgetProps {
   };
 }
 
-const RECOMMENDATIONS = [
-  {
-    icon: Users,
-    text: "Añade athletes a grupos para organizar mejor las clases",
-    priority: "high",
-  },
-  {
-    icon: Calendar,
-    text: "Revisa los horarios de clase para optimizar espacios",
-    priority: "medium",
-  },
-  {
-    icon: TrendingUp,
-    text: "Configura evaluaciones mensuales para seguir el progreso",
-    priority: "low",
-  },
-];
-
 export function RecommendationsWidget({ academyId, userRole, metrics }: RecommendationsWidgetProps) {
+  const { specialization } = useAcademyContext();
+  const recommendations = [
+    {
+      icon: Users,
+      text: `Añade ${specialization.labels.athletesPlural.toLowerCase()} a grupos para organizar mejor las clases`,
+    },
+    {
+      icon: Calendar,
+      text: "Revisa los horarios de clase para optimizar espacios",
+    },
+    {
+      icon: TrendingUp,
+      text: "Configura evaluaciones mensuales para seguir el progreso",
+    },
+  ];
+
   return (
     <Card className="border-zaltyko-mist/80 shadow-soft">
       <CardHeader className="pb-3">
@@ -43,7 +42,7 @@ export function RecommendationsWidget({ academyId, userRole, metrics }: Recommen
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        {RECOMMENDATIONS.map((rec, index) => {
+        {recommendations.map((rec, index) => {
           const Icon = rec.icon;
           return (
             <div

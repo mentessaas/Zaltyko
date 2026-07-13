@@ -118,10 +118,26 @@ export function NotificationPreferences() {
         const response = await fetch("/api/notifications/preferences");
         if (response.ok) {
           const data = await response.json();
-          if (data.preferences) {
+          if (data.data?.preferences) {
             setPreferences({
               ...DEFAULT_PREFERENCES,
-              ...data.preferences,
+              ...data.data.preferences,
+              inAppNotifications: {
+                ...DEFAULT_PREFERENCES.inAppNotifications,
+                ...data.data.preferences.inAppNotifications,
+                types: {
+                  ...DEFAULT_PREFERENCES.inAppNotifications.types,
+                  ...data.data.preferences.inAppNotifications?.types,
+                },
+              },
+              emailNotifications: {
+                ...DEFAULT_PREFERENCES.emailNotifications,
+                ...data.data.preferences.emailNotifications,
+              },
+              classReminders: {
+                ...DEFAULT_PREFERENCES.classReminders,
+                ...data.data.preferences.classReminders,
+              },
             });
           }
         }
@@ -138,20 +154,37 @@ export function NotificationPreferences() {
   const updatePreference = useCallback(
     (path: string, value: boolean) => {
       setPreferences((prev) => {
-        const newPrefs = { ...prev };
         const keys = path.split(".");
-
-        if (keys.length === 2) {
-          // Handle nested objects like inAppNotifications.enabled
-          (newPrefs as any)[keys[0]] = {
-            ...(newPrefs as any)[keys[0]],
-            [keys[1]]: value,
+        if (keys[0] === "emailNotifications" && keys[1]) {
+          return {
+            ...prev,
+            emailNotifications: { ...prev.emailNotifications, [keys[1]]: value },
           };
-        } else {
-          (newPrefs as any)[path] = value;
         }
-
-        return newPrefs;
+        if (keys[0] === "inAppNotifications") {
+          if (keys[1] === "enabled") {
+            return {
+              ...prev,
+              inAppNotifications: { ...prev.inAppNotifications, enabled: value },
+            };
+          }
+          if (keys[1] === "types" && keys[2]) {
+            return {
+              ...prev,
+              inAppNotifications: {
+                ...prev.inAppNotifications,
+                types: { ...prev.inAppNotifications.types, [keys[2]]: value },
+              },
+            };
+          }
+        }
+        if (keys[0] === "classReminders" && keys[1]) {
+          return {
+            ...prev,
+            classReminders: { ...prev.classReminders, [keys[1]]: value },
+          };
+        }
+        return prev;
       });
       setHasChanges(true);
     },
@@ -169,7 +202,8 @@ export function NotificationPreferences() {
         body: JSON.stringify(preferences),
       });
 
-      if (response.ok) {
+      const data = await response.json();
+      if (response.ok && data.ok) {
         setHasChanges(false);
         pushToast({
           title: "Preferencias guardadas",
@@ -177,7 +211,7 @@ export function NotificationPreferences() {
           variant: "success",
         });
       } else {
-        throw new Error("Error al guardar");
+        throw new Error(data.message ?? "Error al guardar");
       }
     } catch (error) {
       pushToast({
@@ -247,12 +281,13 @@ export function NotificationPreferences() {
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
-              <Label>Notificaciones habilitadas</Label>
+              <Label htmlFor="preference-in-app-enabled">Notificaciones habilitadas</Label>
               <p className="text-sm text-muted-foreground">
                 Recibe notificaciones dentro de la aplicación
               </p>
             </div>
             <Switch
+              id="preference-in-app-enabled"
               checked={preferences.inAppNotifications.enabled}
               onCheckedChange={(checked) => updatePreference("inAppNotifications.enabled", checked)}
             />
@@ -263,10 +298,11 @@ export function NotificationPreferences() {
               {NOTIFICATION_TYPES.map((type) => (
                 <div key={type.key} className="flex items-center justify-between">
                   <div className="space-y-0.5">
-                    <Label>{type.label}</Label>
+                    <Label htmlFor={`preference-in-app-${type.key}`}>{type.label}</Label>
                     <p className="text-sm text-muted-foreground">{type.description}</p>
                   </div>
                   <Switch
+                    id={`preference-in-app-${type.key}`}
                     checked={preferences.inAppNotifications.types[type.key] ?? true}
                     onCheckedChange={(checked) =>
                       updatePreference(`inAppNotifications.types.${type.key}`, checked)
@@ -291,10 +327,11 @@ export function NotificationPreferences() {
           {NOTIFICATION_TYPES.map((type) => (
             <div key={type.key} className="flex items-center justify-between">
               <div className="space-y-0.5">
-                <Label>{type.label}</Label>
+                <Label htmlFor={`preference-email-${type.key}`}>{type.label}</Label>
                 <p className="text-sm text-muted-foreground">{type.description}</p>
               </div>
               <Switch
+                id={`preference-email-${type.key}`}
                 checked={preferences.emailNotifications[type.key] ?? true}
                 onCheckedChange={(checked) =>
                   updatePreference(`emailNotifications.${type.key}`, checked)
@@ -316,12 +353,13 @@ export function NotificationPreferences() {
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
-              <Label>Habilitar recordatorios</Label>
+              <Label htmlFor="preference-class-reminders">Habilitar recordatorios</Label>
               <p className="text-sm text-muted-foreground">
                 Recibe recordatorios antes de tus clases
               </p>
             </div>
             <Switch
+              id="preference-class-reminders"
               checked={preferences.classReminders.enabled}
               onCheckedChange={(checked) => updatePreference("classReminders.enabled", checked)}
             />
@@ -331,12 +369,13 @@ export function NotificationPreferences() {
             <div className="border-t pt-4 space-y-4">
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
-                  <Label>24 horas antes</Label>
+                  <Label htmlFor="preference-class-24h">24 horas antes</Label>
                   <p className="text-sm text-muted-foreground">
                     Recibe un recordatorio 24 horas antes de tu clase
                   </p>
                 </div>
                 <Switch
+                  id="preference-class-24h"
                   checked={preferences.classReminders["24h_before"]}
                   onCheckedChange={(checked) =>
                     updatePreference("classReminders.24h_before", checked)
@@ -346,12 +385,13 @@ export function NotificationPreferences() {
 
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
-                  <Label>1 hora antes</Label>
+                  <Label htmlFor="preference-class-1h">1 hora antes</Label>
                   <p className="text-sm text-muted-foreground">
                     Recibe un recordatorio 1 hora antes de tu clase
                   </p>
                 </div>
                 <Switch
+                  id="preference-class-1h"
                   checked={preferences.classReminders["1h_before"]}
                   onCheckedChange={(checked) =>
                     updatePreference("classReminders.1h_before", checked)

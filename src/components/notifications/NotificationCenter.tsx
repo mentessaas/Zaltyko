@@ -52,6 +52,8 @@ const NOTIFICATION_TYPE_LABELS: Record<string, string> = {
   invoice_paid: "Pago",
   event: "Evento",
   message: "Mensaje",
+  new_message: "Mensaje nuevo",
+  class_group_alert: "Aviso de clase",
   renewal: "Renovación",
   contact_message: "Contacto",
   attendance_low: "Asistencia baja",
