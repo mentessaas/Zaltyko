@@ -29,9 +29,10 @@ const databaseUrl = process.env.DATABASE_URL;
 const academyId = process.env.E2E_ACADEMY_ID;
 const fallbackPassword = process.env.E2E_AUTH_PASSWORD;
 const caCertPath = process.env.NODE_EXTRA_CA_CERTS;
-const ca = caCertPath && existsSync(resolve(caCertPath))
-  ? readFileSync(resolve(caCertPath), "utf8")
-  : undefined;
+const ca =
+  caCertPath && existsSync(resolve(caCertPath))
+    ? readFileSync(resolve(caCertPath), "utf8")
+    : undefined;
 
 const roles: RoleConfig[] = [
   {
@@ -70,10 +71,15 @@ async function findAuthUserByEmail(
   email: string
 ) {
   for (let page = 1; page <= 20; page += 1) {
-    const { data, error } = await supabase.auth.admin.listUsers({ page, perPage: 100 });
+    const { data, error } = await supabase.auth.admin.listUsers({
+      page,
+      perPage: 100,
+    });
     if (error) throw error;
 
-    const found = data.users.find((user) => user.email?.toLowerCase() === email.toLowerCase());
+    const found = data.users.find(
+      (user) => user.email?.toLowerCase() === email.toLowerCase()
+    );
     if (found) return found;
     if (data.users.length < 100) return null;
   }
@@ -81,10 +87,7 @@ async function findAuthUserByEmail(
   return null;
 }
 
-async function ensureAuthUser(
-  supabase: SupabaseAdminClient,
-  role: RoleConfig
-) {
+async function ensureAuthUser(supabase: SupabaseAdminClient, role: RoleConfig) {
   if (!role.email || !role.password) {
     throw new Error(`Missing email/password for ${role.label}`);
   }
@@ -92,11 +95,14 @@ async function ensureAuthUser(
   const existing = await findAuthUserByEmail(supabase, role.email);
 
   if (existing) {
-    const { data, error } = await supabase.auth.admin.updateUserById(existing.id, {
-      password: role.password,
-      email_confirm: true,
-      ban_duration: "none",
-    });
+    const { data, error } = await supabase.auth.admin.updateUserById(
+      existing.id,
+      {
+        password: role.password,
+        email_confirm: true,
+        ban_duration: "none",
+      }
+    );
     if (error) throw error;
     console.log(`auth ${role.label}: updated ${maskEmail(data.user.email)}`);
     return data.user;
@@ -150,10 +156,10 @@ async function ensureProfileAndMembership(
   }
 
   if (role.profileRole === "owner") {
-    await pool.query("update academies set owner_id = $1::uuid where id = $2::uuid", [
-      profileId,
-      academyId,
-    ]);
+    await pool.query(
+      "update academies set owner_id = $1::uuid where id = $2::uuid",
+      [profileId, academyId]
+    );
   }
 
   if (role.profileRole === "coach") {
@@ -164,7 +170,9 @@ async function ensureProfileAndMembership(
         where table_schema = 'public' and table_name = 'coaches'
       `
     );
-    const coachColumns = new Set(coachColumnsResult.rows.map((row) => row.column_name));
+    const coachColumns = new Set(
+      coachColumnsResult.rows.map((row) => row.column_name)
+    );
     const hasProfileLink = coachColumns.has("profile_id");
     const hasUserLink = coachColumns.has("user_id");
 
@@ -186,7 +194,14 @@ async function ensureProfileAndMembership(
             set tenant_id = $1::uuid, profile_id = $2::uuid, user_id = $3::uuid, name = $4, email = $5
             where id = $6::uuid
           `,
-          [tenantId, profileId, userId, role.defaultName, role.email, coachResult.rows[0].id]
+          [
+            tenantId,
+            profileId,
+            userId,
+            role.defaultName,
+            role.email,
+            coachResult.rows[0].id,
+          ]
         );
       } else {
         await pool.query(
@@ -223,8 +238,16 @@ async function ensureProfileAndMembership(
 }
 
 async function main() {
+  if (process.env.E2E_ALLOW_PROVISIONING !== "true") {
+    throw new Error(
+      "Refusing to provision E2E users. Set E2E_ALLOW_PROVISIONING=true only for an approved isolated test academy."
+    );
+  }
+
   if (!supabaseUrl || !serviceKey || !databaseUrl || !academyId) {
-    throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, DATABASE_URL, or E2E_ACADEMY_ID");
+    throw new Error(
+      "Missing NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, DATABASE_URL, or E2E_ACADEMY_ID"
+    );
   }
 
   const supabase = createClient(supabaseUrl, serviceKey, {

@@ -13,7 +13,9 @@ Este documento contiene una lista completa de verificación para asegurar que la
 
 - [ ] **Migraciones aplicadas**
   ```bash
-  pnpm db:migrate:reviewed supabase/migrations/<timestamp>_<nombre>.sql
+  pnpm db:migrate:ledger
+  pnpm db:migrate:ledger --apply
+  pnpm db:migrate:ledger
   pnpm check:migrations
   pnpm validate:rls
   ```

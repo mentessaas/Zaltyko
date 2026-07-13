@@ -7,6 +7,7 @@ source:
   - ../docs/migrations-backlog.md
   - ../supabase/README.md
 ---
+
 # Runbook migraciones
 
 ## Principios
@@ -21,7 +22,7 @@ source:
 
 ## Estado a 2026-07-13
 
-- El directorio `drizzle/` **esta versionado**. `pnpm check:migrations` valida siempre ambos historiales: 6 migraciones Drizzle y 31 migraciones Supabase en el estado actual.
+- El directorio `drizzle/` **esta versionado**. `pnpm check:migrations` valida siempre ambos historiales: 6 migraciones Drizzle y 32 migraciones Supabase en el estado actual.
 - SSL: exportar `NODE_EXTRA_CA_CERTS` con `certs/supabase-root-ca.crt`; `scripts/db-migrate.ts` lo resuelve a ruta absoluta.
 - El drift historico de tablas faltantes y diferencias semanticas se cerro el 2026-07-13 con `20260713090000_reconcile_phase1_schema_drift.sql`. DB y ORM quedaron alineados, incluido `push_tokens`; se verificaron 113 tablas, columnas, indices unicos y claves foraneas semanticas.
 - `validate:rls` trata `rls-consolidated.sql` como snapshot y las migraciones como historial: una policy repetida entre ambos no es duplicado; si falla si una misma fuente declara dos veces la misma policy.
@@ -61,6 +62,11 @@ source:
   desactivar RLS, borrar `__drizzle_migrations`, recrear enums y cambiar una PK. Se eligió
   explícitamente `No, abort`; no se ejecutó ninguna de esas sentencias. El wrapper ahora bloquea
   bases remotas para que este diagnóstico no pueda convertirse en pérdida de datos accidental.
+- El 2026-07-13 se aplicó la migración aditiva `20260713200000_create_sql_migration_ledger.sql` y se
+  hizo bootstrap explícito del historial real: 32 archivos bajo `supabase/migrations/`, incluidos los
+  dos `0009_*`, quedaron registrados por nombre de archivo y hash SHA-256 en
+  `public.zaltyko_schema_migrations`. RLS está habilitado y `anon`/`authenticated` no tienen permisos.
+  `pnpm db:migrate:ledger` verificó después cero pendientes; no se ejecutó seed global.
 
 ## Flujo recomendado
 
@@ -68,9 +74,13 @@ source:
 2. Generar migracion con `pnpm db:generate`.
 3. Leer SQL generado.
 4. Confirmar RLS y politicas necesarias.
-5. En local, usar `pnpm db:migrate`. En staging/producción, aplicar el SQL revisado con
-   `pnpm db:migrate:reviewed supabase/migrations/<archivo>.sql`.
-6. Actualizar docs/vault si cambia modelo de datos o comportamiento.
+5. En local, usar `pnpm db:migrate`. En staging/producción, ejecutar `pnpm db:migrate:ledger` tras
+   inspeccionar los SQL; si enumera solo los cambios aprobados, ejecutar
+   `pnpm db:migrate:ledger --apply` y repetir el dry-run. El runner usa una transacción y advisory lock;
+   rechaza hashes cambiados, archivos ausentes y SQL no transaccional (`VACUUM`/`CREATE INDEX CONCURRENTLY`).
+6. Reservar `pnpm db:migrate:reviewed <archivo>` para bootstrap/break-glass documentado, nunca como
+   flujo rutinario ni como sustituto de la verificación del ledger.
+7. Actualizar docs/vault si cambia modelo de datos o comportamiento.
 
 ## Evidencia
 

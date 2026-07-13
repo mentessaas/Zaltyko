@@ -39,7 +39,6 @@ const securityHeaders = [
 ];
 
 const nextConfig = {
-
   // TypeScript still runs during build; ESLint runs explicitly via `pnpm lint`.
   typescript: {
     ignoreBuildErrors: false,
@@ -52,21 +51,24 @@ const nextConfig = {
   // Deshabilitar exportación estática (la app es completamente dinámica)
   output: undefined, // No usar 'export', usar modo estándar de Next.js
   outputFileTracingRoot: resolve(__dirname),
-  
+  // swagger-jsdoc analiza archivos de rutas dinámicamente. Externalizarlo evita
+  // que Webpack intente resolver esos requires durante el build de Next.
+  serverExternalPackages: ["next-swagger-doc", "swagger-jsdoc"],
+
   // Configuración de imágenes para optimización
   images: {
-    formats: ['image/avif', 'image/webp'],
+    formats: ["image/avif", "image/webp"],
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
     minimumCacheTTL: 60,
     remotePatterns: [
       {
-        protocol: 'https',
-        hostname: '**.supabase.co',
+        protocol: "https",
+        hostname: "**.supabase.co",
       },
     ],
   },
-  
+
   webpack: (config, { isServer }) => {
     if (!isServer) {
       // Excluir módulos de Node.js del bundle del cliente
@@ -81,12 +83,12 @@ const nextConfig = {
     }
     return config;
   },
-  
+
   // Optimizaciones de compilación
   compress: true,
   poweredByHeader: false,
   reactStrictMode: true,
-  
+
   // Headers de seguridad
   async headers() {
     return [
@@ -96,11 +98,11 @@ const nextConfig = {
       },
     ];
   },
-  
+
   // Configuración de experimental features
   experimental: {
     // Optimizar re-renders
-    optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'],
+    optimizePackageImports: ["lucide-react", "@radix-ui/react-icons"],
   },
 };
 
@@ -115,16 +117,19 @@ export default withSentryConfig(nextConfig, {
   // Only upload source maps in production
   silent: !process.env.SENTRY_AUTH_TOKEN,
   hideSourceMaps: true,
-  
+
   // Automatically instrument Next.js
   widenClientFileUpload: true,
-  
+
   // Route browser requests to Sentry through a Next.js rewrite to circumvent ad-blockers.
   tunnelRoute: "/monitoring",
-  
-  // Automatically tree-shake Sentry logger statements to reduce bundle size
-  disableLogger: true,
-  
-  // Enables automatic instrumentation of Vercel Cron Monitors.
-  automaticVercelMonitors: true,
+
+  webpack: {
+    // API actual de Sentry; reemplaza el alias deprecado disableLogger.
+    treeshake: {
+      removeDebugLogging: true,
+    },
+    // API actual de Sentry; crea monitores de los cron definidos en vercel.json.
+    automaticVercelMonitors: true,
+  },
 });

@@ -6,7 +6,16 @@ source:
   - ../ROADMAP.md
   - ../AGENTS.md
 ---
+
 # Changelog interno
+
+## 2026-07-13 - Cierre técnico autónomo: ledger SQL, límites verificados y CI honesta
+
+- **Migraciones de producción**: se inspeccionó el changelog reciente de Supabase, se aplicó la migración aditiva `20260713200000_create_sql_migration_ledger.sql` y se hizo bootstrap explícito de 32 SQL reales. `zaltyko_schema_migrations` tiene RLS, deniega acceso a `anon`/`authenticated` y conserva nombre, SHA-256, fecha, actor y modo de ejecución. El runner transaccional con advisory lock termina en `OK: 32 migraciones verificadas; no hay pendientes`.
+- **Legado preservado**: el runner usa el nombre completo del archivo como identidad porque el repositorio conserva dos migraciones legítimas `0009_*`; no se renombraron ni alteraron migraciones históricas.
+- **Aislamiento y rendimiento**: cada mutación tenant recibe una segunda cuota por academia solo tras resolver ownership/membership en servidor. La primera barrera IP Edge se conserva; no se usa un tenant enviado por el cliente. La auditoría de producción mostró que el índice UNIQUE existente `memberships_user_academy_uq (user_id, academy_id)` ya cubría la consulta objetivo, por lo que no se creó un duplicado.
+- **Build/CI**: Sentry usa su API de configuración actual y Swagger se aísla de imports dinámicos en el build. El build local terminó correctamente con 216 rutas. CI smoke/E2E público apunta al dominio canónico `https://zaltyko.com`; E2E autenticado queda condicionado a secretos de repositorio reales, sin imprimirlos ni generar cuentas ficticias.
+- **Validación completa previa a integración**: `pnpm verify:production` pasó 279 APIs sin rutas riesgosas, RLS 65/65, 6+32 migraciones, lint, typecheck, 54 archivos/435 pruebas y build de 216 rutas. Playwright público contra producción pasó 6/6. El despliegue se registra al integrar esta rama.
 
 ## 2026-07-13 - Fase 4 desplegada y accesible en producción
 
@@ -235,6 +244,7 @@ Este patron (`{ok, data}` sin desestructurar) ya se habia documentado y corregid
 **Bumps de seguridad (pnpm overrides añadidos)**: `ws ^8.21.0`, `path-to-regexp ^8.4.0`, `protobufjs ^7.5.6`, `lodash ^4.18.1`, `immutable ^3.8.3`, `form-data ^4.0.6`. Cierran advisories transitivos.
 
 **Bumps de versiones directas**:
+
 - `next` 15.5.15 → 15.5.19 (+ `eslint-config-next`/`@next/eslint-plugin-next` alineados a 15.5.19).
 - `@modelcontextprotocol/sdk` 1.22 → 1.29 y `mcp-handler` 1.0.4 → 1.1.0 (capacidades MCP de agentes).
 - `drizzle-orm` 0.44.7 → 0.45.2.
@@ -296,25 +306,25 @@ Cierre de 4 fallos de CI y del 404 en la raiz del sitio, sobre `security/audit-r
 
 **Notas eliminadas (17)**:
 
-| Borrada | Reemplazo canonico | Info critica preservada |
-| --- | --- | --- |
-| `vault/00-Inicio/Guia de trabajo para agentes.md` | `Workflow diario de la vault.md` + `Estado actual` + `AGENTS.md` | Si — reglas migradas |
-| `vault/01-Producto/MVP exacto Zaltyko gimnasia.md` | `Inventario de producto.md` | Si — consolidado |
-| `vault/01-Producto/Tarea - Sprint 0 decision v3.0.md` | `Inventario` + `Roadmap maestro` + `Pricing` | Parcial — los 6 bloques de implementacion especificos ya fueron ejecutados en `06a71dd` |
-| `vault/01-Producto/Tarea - Onboarding y parent experience.md` | `Roadmap maestro` §Fase 3 | Parcial — referencia |
-| `vault/01-Producto/Tarea - Skill tracking y make-up tokens MVP.md` | `Roadmap maestro` + `Inventario` | Parcial — referencia |
-| `vault/03-Negocio/Tarea - Marketplace Zaltyko y multi-idioma.md` | `Inventario` + `Roadmap` §Fase 4 | Parcial |
-| `vault/03-Negocio/Tarea - Pricing escalonado y plan gratis.md` | `Pricing.md` (v3.0) + `Decisiones.md` | Si — decision registrada |
-| `vault/04-Marketing/Estrategia competitiva gimnasia.md` | `Competidores.md` + `Mensajes aprobados` | Si — absorbida |
-| `vault/04-Marketing/Matriz competitiva gimnasia.md` | `Competidores.md` (crecio 17 -> 434 lineas) | Si — absorbida |
-| `vault/05-Ventas-y-CS/Guia entrevistas academias gimnasia.md` | **Ninguno** | **NO — restaurada 2026-06-26** (preguntas + criterios de cierre no aparecen en Playbook demo ni Onboarding cliente) |
-| `vault/06-Roadmap-y-Tareas/Cierre operativo pendientes agente - 2026-06-24.md` | `Roadmap maestro` + `Decisiones` | Parcial — bloques de coherencia (pricing+portal, identidad+migraciones, legacy dashboard) perdidos como referencia |
-| `vault/06-Roadmap-y-Tareas/Plan operativo gimnasia.md` | `Roadmap maestro` | Parcial |
-| `vault/07-Auditorias-y-Riesgos/Auditoria MVP gimnasia - 2026-06-23.md` | `Auditorias consolidadas` + `Auditoria de producto real` | Si — consolidada |
-| `vault/07-Auditorias-y-Riesgos/Auditoria copy publico - 2026-06-22.md` | `Auditorias consolidadas` + `Mensajes aprobados` | Si — consolidada |
-| `vault/07-Auditorias-y-Riesgos/Auditoria de la vault - 2026-06-22.md` | (obsoleta — vault reorganizada) | Si — cerrada |
-| `vault/07-Auditorias-y-Riesgos/QA - Flujos P1 - 2026-06-22.md` | `QA - Flujos P1.md` | Si — consolidada |
-| `vault/07-Auditorias-y-Riesgos/QA - Go Live SaaS - 2026-06-22.md` | `Produccion y go-live.md` | Si — consolidada |
+| Borrada                                                                        | Reemplazo canonico                                               | Info critica preservada                                                                                             |
+| ------------------------------------------------------------------------------ | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `vault/00-Inicio/Guia de trabajo para agentes.md`                              | `Workflow diario de la vault.md` + `Estado actual` + `AGENTS.md` | Si — reglas migradas                                                                                                |
+| `vault/01-Producto/MVP exacto Zaltyko gimnasia.md`                             | `Inventario de producto.md`                                      | Si — consolidado                                                                                                    |
+| `vault/01-Producto/Tarea - Sprint 0 decision v3.0.md`                          | `Inventario` + `Roadmap maestro` + `Pricing`                     | Parcial — los 6 bloques de implementacion especificos ya fueron ejecutados en `06a71dd`                             |
+| `vault/01-Producto/Tarea - Onboarding y parent experience.md`                  | `Roadmap maestro` §Fase 3                                        | Parcial — referencia                                                                                                |
+| `vault/01-Producto/Tarea - Skill tracking y make-up tokens MVP.md`             | `Roadmap maestro` + `Inventario`                                 | Parcial — referencia                                                                                                |
+| `vault/03-Negocio/Tarea - Marketplace Zaltyko y multi-idioma.md`               | `Inventario` + `Roadmap` §Fase 4                                 | Parcial                                                                                                             |
+| `vault/03-Negocio/Tarea - Pricing escalonado y plan gratis.md`                 | `Pricing.md` (v3.0) + `Decisiones.md`                            | Si — decision registrada                                                                                            |
+| `vault/04-Marketing/Estrategia competitiva gimnasia.md`                        | `Competidores.md` + `Mensajes aprobados`                         | Si — absorbida                                                                                                      |
+| `vault/04-Marketing/Matriz competitiva gimnasia.md`                            | `Competidores.md` (crecio 17 -> 434 lineas)                      | Si — absorbida                                                                                                      |
+| `vault/05-Ventas-y-CS/Guia entrevistas academias gimnasia.md`                  | **Ninguno**                                                      | **NO — restaurada 2026-06-26** (preguntas + criterios de cierre no aparecen en Playbook demo ni Onboarding cliente) |
+| `vault/06-Roadmap-y-Tareas/Cierre operativo pendientes agente - 2026-06-24.md` | `Roadmap maestro` + `Decisiones`                                 | Parcial — bloques de coherencia (pricing+portal, identidad+migraciones, legacy dashboard) perdidos como referencia  |
+| `vault/06-Roadmap-y-Tareas/Plan operativo gimnasia.md`                         | `Roadmap maestro`                                                | Parcial                                                                                                             |
+| `vault/07-Auditorias-y-Riesgos/Auditoria MVP gimnasia - 2026-06-23.md`         | `Auditorias consolidadas` + `Auditoria de producto real`         | Si — consolidada                                                                                                    |
+| `vault/07-Auditorias-y-Riesgos/Auditoria copy publico - 2026-06-22.md`         | `Auditorias consolidadas` + `Mensajes aprobados`                 | Si — consolidada                                                                                                    |
+| `vault/07-Auditorias-y-Riesgos/Auditoria de la vault - 2026-06-22.md`          | (obsoleta — vault reorganizada)                                  | Si — cerrada                                                                                                        |
+| `vault/07-Auditorias-y-Riesgos/QA - Flujos P1 - 2026-06-22.md`                 | `QA - Flujos P1.md`                                              | Si — consolidada                                                                                                    |
+| `vault/07-Auditorias-y-Riesgos/QA - Go Live SaaS - 2026-06-22.md`              | `Produccion y go-live.md`                                        | Si — consolidada                                                                                                    |
 
 **Regla operativa violada y remediada**: AGENTS.md exige registrar todo cambio relevante (incluyendo consolidaciones) en `Decisiones.md` y `Changelog interno.md`. Esto se hizo recien el 2026-06-26 al auditar la rama `claude/hungry-shaw-f623bb`.
 
@@ -360,7 +370,7 @@ Cierre de 4 fallos de CI y del 404 en la raiz del sitio, sobre `security/audit-r
   opciones legacy `--useEslintrc` y `--extensions` durante el build.
 - ESLint v8.57.1 las rechaza cuando detecta flat config.
 - Error: `ESLint: Invalid Options: - Unknown options: useEslintrc, extensions -
-  'extensions' has been removed.`
+'extensions' has been removed.`
 - Solucion: reemplazar `eslint.config.mjs` por `.eslintrc.json` legacy.
   Reglas react-hooks v5+ removidas (no existen en v4 instalada).
 - Build ahora procede correctamente el step de ESLint.
@@ -453,7 +463,7 @@ Cierre de 4 fallos de CI y del 404 en la raiz del sitio, sobre `security/audit-r
 - **S6 SELF_SIGNED_CERT_IN_CHAIN resuelto**: certificado CA raiz de Supabase extraido a `certs/supabase-root-ca.crt` (publico, commiteado al repo). `drizzle.config.ts` ahora carga `.env.local` ademas de `.env`. Nuevo script `scripts/db-migrate.ts` resuelve `NODE_EXTRA_CA_CERTS` a ruta absoluta y ejecuta `drizzle-kit push` con env vars correctas. `scripts/dump-schema.ts` y `scripts/check-fks.ts` con SSL fix para diagnostico. `scripts/apply-migration.ts` ya funcionaba en `NODE_ENV=production` por su `ssl: { rejectUnauthorized: false }`. `.env.example` documenta `NODE_EXTRA_CA_CERTS`.
 - **S3 drift Drizzle↔SQL parcialmente cerrado**: `pnpm db:migrate` ahora conecta. Dump del schema real revela que **25 tablas del schema TS NO EXISTEN en DB** (academy_link_requests creado en Sprint 1, academy_roles, assessment_rubrics, athlete_documents, class_exceptions, class_waiting_list, competition_results, event_categories, event_payments, event_registrations, event_waitlist, federative_licenses, leads, leak_action_history, message_groups, message_history, message_templates, notification_preferences, push_tokens, role_members, rubric_criteria, scheduled_notifications, scheduled_reports). Migracion `20260625000000_apply_pending_migrations.sql` crea el modulo leak-profitability (academy_diagnostics, academy_expenses, churn_reasons, coach_compensation) que estaba pendiente desde 0001 y registra 0001/0002 en `__drizzle_migrations`. Drift menor en `academy_diagnostics` (score/yes_count) queda documentado.
 - **S4 añadir tablas faltantes DIFERIDO**: `drizzle-kit push --force` propone cambios destructivos (borrar `__drizzle_migrations`, truncar tablas, cambiar PK). Requiere plan de migracion manual tabla por tabla. Backlog P0 para sprint dedicado.
-- **S2 RLS modulos laterales cerrado**: migracion `20260625000001_rls_lateral_modules.sql` habilita RLS en `announcements`, `announcement_read_status`, `conversation_messages`, `conversation_participants`, `message_read_receipts` con policies por tenant/user. Tablas con policy permisiva `allow_authenticated` documentadas en backlog para endurecer (marketplace_*, empleo_*, tickets_*, advertisements, featured_listings, push_subscriptions).
+- **S2 RLS modulos laterales cerrado**: migracion `20260625000001_rls_lateral_modules.sql` habilita RLS en `announcements`, `announcement_read_status`, `conversation_messages`, `conversation_participants`, `message_read_receipts` con policies por tenant/user. Tablas con policy permisiva `allow_authenticated` documentadas en backlog para endurecer (marketplace*\*, empleo*_, tickets\__, advertisements, featured_listings, push_subscriptions).
 - **S5 mover claves Stripe a Vault DIFERIDO**: `supabase_vault` extension instalada y disponible. `academies.stripe_secret_key` y `academies.stripe_webhook_secret` existen como columnas pero 0 academias tienen datos. Las claves Stripe de Zaltyko (cuenta SaaS) estan en env vars, no en la tabla. Backlog P1 para cuando se implemente Stripe Connect por academia.
 - **Validacion**: `pnpm typecheck`, `pnpm lint` y `pnpm validate:rls` (PASS 100% cobertura sobre 63 tablas) limpios. 2 migraciones SQL nuevas aplicadas a Supabase. Sin cambios de UI.
 
@@ -516,6 +526,7 @@ Cierre de 4 fallos de CI y del 404 en la raiz del sitio, sobre `security/audit-r
 - Validado con `NEXT_PUBLIC_SUPABASE_URL= NEXT_PUBLIC_SUPABASE_ANON_KEY= pnpm build`.
 
 ## 2026-06-22
+
 ## 2026-06-22 - Cierre Go-Live SaaS v1 con sandbox real
 
 - Ejecutado QA P1 real contra Supabase sandbox: `tests/e2e-zaltyko-p1-flows.spec.ts` **5/5 PASS** en 9.7 min con academia `9ec3ea79-73e9-4604-8e4a-ddf1d6469cbb` y storage state `.auth/user.json`.
@@ -527,6 +538,7 @@ Cierre de 4 fallos de CI y del 404 en la raiz del sitio, sobre `security/audit-r
 - Riesgo residual documentado: cobro self-serve masivo requiere price real Stripe y corrida webhook/portal/upgrade/downgrade/cancel/past_due; mientras haya placeholders, checkout degrada a `STRIPE_NOT_CONFIGURED`.
 
 ## 2026-06-22
+
 ## 2026-06-22 - Cierre de bugs P1 y actualizacion de QA
 
 - Auditoria completa de la vault (51 notas, 0 links rotos, 8 huerfanos legitimos). Notas nuevas: `Auditoria de la vault - 2026-06-22`, `Auditoria copy publico - 2026-06-22`, `QA - Flujos P1 - 2026-06-22`.
@@ -541,6 +553,7 @@ Cierre de 4 fallos de CI y del 404 en la raiz del sitio, sobre `security/audit-r
 - Decisiones pendientes adicionales: cifras del Hero, pricing anual, testimonios, FAQ retencion 30 dias.
 
 ## 2026-06-22
+
 - Creada vault Obsidian versionada en `vault/`.
 - Añadida estructura operativa para producto, tecnologia, negocio, marketing, ventas, roadmap, auditorias y referencias.
 - Definida regla: cambios relevantes deben actualizar vault.
