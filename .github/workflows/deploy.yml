@@ -10,8 +10,29 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  vercel-readiness:
+    name: Validate optional Vercel deployment credentials
+    runs-on: ubuntu-latest
+    outputs:
+      configured: ${{ steps.check.outputs.configured }}
+    steps:
+      - id: check
+        name: Check Vercel credentials
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          if [[ -n "$VERCEL_TOKEN" && -n "$VERCEL_ORG_ID" && -n "$VERCEL_PROJECT_ID" ]]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          fi
+
   deploy:
     name: Deploy to Vercel
+    needs: vercel-readiness
+    if: needs.vercel-readiness.outputs.configured == 'true'
     runs-on: ubuntu-latest
     environment:
       name: production

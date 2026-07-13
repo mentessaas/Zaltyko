@@ -9,6 +9,14 @@ source:
 
 # Changelog interno
 
+## 2026-07-13 - Cierre operativo: despliegue Git de Vercel sin falso rojo en GitHub Actions
+
+- El workflow `Deploy` de GitHub ya no intenta usar la CLI de Vercel cuando faltan sus tres secretos de operación (`VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`). Un job de readiness no imprime valores y deja el deploy opcional como `skipped`; así el pipeline no informa un fallo que no representa al despliegue real por integración Git de Vercel.
+- Cuando los tres secretos se configuren en GitHub, la ruta existente de `vercel pull/build/deploy` seguirá ejecutándose sin cambios. No se crearon ni rotaron secretos y no se alteró el despliegue automático de Vercel.
+- Se actualizó `Estado actual de Zaltyko` con el cierre técnico: ledger SQL de 32 migraciones, limitación de mutaciones solo tras verificar tenant y corrección del empaquetado de `/api/docs` en Vercel.
+- Validación local: formato YAML/Prettier, lint y typecheck pasan; el siguiente push a `main` debe mostrar el workflow alternativo como `skipped` mientras los secretos no estén configurados.
+- Vault: `Estado actual de Zaltyko` y este changelog.
+
 ## 2026-07-13 - Corrección de entrega de OpenAPI en Vercel
 
 - El smoke posterior al despliegue detectó que `GET /api/docs` devolvía 404 aunque la ruta compilaba localmente. La causa era la regla amplia `docs` en `.vercelignore`: también excluía `src/app/api/docs` de la subida a Vercel.
