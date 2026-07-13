@@ -1,7 +1,7 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-07-12
+last_reviewed: 2026-07-13
 source:
   - ../PRODUCT-ANALYSIS.md
   - ../BUSINESS-ANALYSIS.md
@@ -15,19 +15,20 @@ source:
 | Pricing y limites inconsistentes | Alta | Cerrado en codigo 2026-07-12 | Contrato unico: `free`=Free, `pro`=Starter, `premium`=Growth; `network` solo comercial. Limites, seed, checkout, UI y tests consumen el mismo catalogo. Pendiente comercial: 10 entrevistas. |
 | Promesas publicas no implementadas | Alta | Abierto | Revisar [[Mensajes aprobados]] antes de publicar copy. |
 | Features parciales vendidas como completas | Alta | Abierto | Marcar estados en [[Inventario de producto]]. |
-| Migraciones/RLS incompletas | Alta | Cerrado 2026-07-12 | 100% cobertura de fuentes RLS sobre 63 tablas. `check:migrations` valida 3 migraciones Drizzle + 26 Supabase; la puerta compuesta bloquea regresiones. |
+| Migraciones/RLS incompletas | Alta | Cerrado 2026-07-13 | 100% cobertura de fuentes RLS sobre 64 tablas. `check:migrations` valida 4 migraciones Drizzle + 28 Supabase; la puerta compuesta bloquea regresiones. |
 | Raiz del sitio `/` devolvia 404 | Media | Cerrado 2026-06-26 | `middleware.ts` redirige `/` a `/${locale}/gimnasia-artistica` (commit `406c498`). Ver [[Decisiones#2026-06-26 - Routing raiz redirige a primera modalidad]]. |
 | Upgrades de dependencias (jspdf 2→4, xlsx por tarball, next 15.5.19, overrides de seguridad) | Media | Cerrado 2026-06-26 | Validado (typecheck limpio, vitest 346/346, build OK) y commiteado en `security/audit-remediation`. Export PDF/Excel compatible (API funcional de jspdf-autotable). Ver [[Changelog interno#2026-06-26 - Upgrades de dependencias (VALIDADO Y COMMITEADO)]]. |
-| 25 tablas TS no existen en DB | Alta | Cerrado 2026-07-03 | Migraciones manuales aplicadas y verificadas; DB=ORM salvo `push_tokens`, superseded por `push_subscriptions`. |
+| 25 tablas TS no existen en DB | Alta | Cerrado 2026-07-13 | Migraciones manuales y reconciliación aplicadas; DB=ORM incluido `push_tokens`. Verificación: 113 tablas, sin columnas/índices/FKs semánticas pendientes. |
 | Policies permisivas en modulos laterales | Alta | Cerrado 2026-07-03 | Lotes 1 y 2 sustituyeron escritura `allow_authenticated` y habilitaron RLS en `conversations`. |
-| UX inconsistente en dashboard | Media | Abierto | Auditar flujos P0/P1. |
+| UX inconsistente en dashboard | Media | Mitigado 2026-07-13 | Auditoría owner del dashboard, mensajes y preferencias; corregidos pluralización, recomendaciones por deporte y sesiones sin fecha. Continuar auditorías por rol. |
 | Onboarding/trial debil | Media | Mitigado y desplegado | Trial 7 días con anti-abuso, lifecycle, avisos y vuelta a Free publicado; smoke de rutas y cron auth correcto. Continúa la mejora de onboarding/aha moments. |
-| Drift histórico de Drizzle al generar migraciones | Alta | Abierto | La migración manual de Fase 1 está aplicada, pero `db:generate` detecta diferencias antiguas en tablas de diagnóstico/gastos. Reconciliar sin aceptar cambios destructivos. |
-| Doble endpoint webhook Stripe durante rotación | Media | Temporal / backlog 4.10 | Producción usa el secreto del endpoint v2; el endpoint antiguo firma distinto y recibe 400. Retirarlo tras observar el primer 2xx firmado del v2 para detener reintentos ruidosos. |
+| Drift histórico de Drizzle al generar migraciones | Alta | Cerrado 2026-07-13 | Reconciliados schema, SQL materializado, snapshot y journal con migración no destructiva e inspección manual. Rollback smoke y gate 4+28 pasan. |
+| Doble endpoint webhook Stripe durante rotación | Media | Cerrado 2026-07-13 | Stripe quedó con un único endpoint productivo activo y secreto rotado; webhook sin firma falla cerrado. |
 | SEO/i18n incompleto | Media | Abierto | Seguir [[SEO y geo]]. |
 | Rutas legacy `/dashboard` conviviendo con `/app/[academyId]` | Media | Abierto | Decidir compatibilidad vs migracion en [[Decisiones]]. |
-| WhatsApp vendido mientras feature flag puede estar apagado | Media | Abierto | Alinear [[Mensajes aprobados]] y [[Tarea - Consolidar comunicacion]]. |
-| Paginacion de notificaciones posiblemente incorrecta | Media | Abierto | Revisar `notifications/page.tsx` dentro de [[Tarea - Consolidar comunicacion]]. |
+| WhatsApp vendido mientras feature flag puede estar apagado | Media | Mitigado 2026-07-13 | Feature flag apagada, CTA retirado del portal familiar y canal interno priorizado. Revisar mensajes comerciales si vuelve a activarse. |
+| Paginacion de notificaciones posiblemente incorrecta | Media | Cerrado 2026-07-10 | Corregido consumo del envelope y paginación; pruebas de paneles de comunicación pasan. |
+| QA parent/athlete sin credenciales reales durante Fase 2 | Media | Validación humana pendiente | Contratos de rol, scoping y enlaces pasan; owner redirige correctamente fuera del portal familiar. Ejecutar sesión real parent/athlete cuando exista cuenta de prueba vinculada. |
 | JWT sin firma valida en middleware super-admin | Alta | Cerrado 2026-06-23 | Verificacion HS256 con `crypto.timingSafeEqual` contra `SUPABASE_JWT_SECRET`. |
 | Rate-limit API bloqueaba todas las mutaciones/rutas app | Critica | Cerrado 2026-07-12 | Middleware ahora devuelve 429 solo cuando `success=false`, continua con headers cuando permite y tiene 4 tests de regresion. |
 | Service worker cacheaba APIs/HTML privado y reproducia mutaciones | Critica | Cerrado 2026-07-12 | SW v2 cachea solo assets estaticos; APIs/HTML van a red, cola mutante y background sync deshabilitados. |

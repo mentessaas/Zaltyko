@@ -1,7 +1,7 @@
 ---
 status: active
 owner: tech
-last_reviewed: 2026-07-12
+last_reviewed: 2026-07-13
 source:
   - ../docs/MIGRATIONS_RLS_RUNBOOK.md
   - ../docs/migrations-backlog.md
@@ -16,13 +16,13 @@ source:
 - Confirmar RLS para toda tabla tenant-aware (`pnpm validate:rls` debe seguir en 100% / 64 tablas).
 - Mantener Drizzle schema y migraciones alineados.
 
-## Estado a 2026-07-12
+## Estado a 2026-07-13
 
-- El directorio `drizzle/` **esta versionado**. `pnpm check:migrations` valida siempre ambos historiales: 3 migraciones Drizzle y 27 migraciones Supabase en el estado actual.
+- El directorio `drizzle/` **esta versionado**. `pnpm check:migrations` valida siempre ambos historiales: 4 migraciones Drizzle y 28 migraciones Supabase en el estado actual.
 - SSL: exportar `NODE_EXTRA_CA_CERTS` con `certs/supabase-root-ca.crt`; `scripts/db-migrate.ts` lo resuelve a ruta absoluta.
-- El drift historico de tablas faltantes se cerro el 2026-07-03; DB y ORM quedaron alineados salvo `push_tokens`, superseded por `push_subscriptions`.
+- El drift historico de tablas faltantes y diferencias semanticas se cerro el 2026-07-13 con `20260713090000_reconcile_phase1_schema_drift.sql`. DB y ORM quedaron alineados, incluido `push_tokens`; se verificaron 113 tablas, columnas, indices unicos y claves foraneas semanticas.
 - `validate:rls` trata `rls-consolidated.sql` como snapshot y las migraciones como historial: una policy repetida entre ambos no es duplicado; si falla si una misma fuente declara dos veces la misma policy.
-- No se aplico ninguna migracion ni seed a Supabase durante el Sprint 0 del 2026-07-12.
+- No se ejecuto el seed global durante Sprint 0, Fase 1 ni Fase 2. Los catalogos federativos usan su sincronizador acotado y Fase 2 reutiliza tablas existentes, por lo que no necesita migracion ni seed adicional.
 - El 2026-07-12 se reviso el changelog oficial reciente de Supabase y se verifico que el
   proyecto ejecuta PostgreSQL 17.6. No hizo falta migracion de schema para el catalogo RFEG.
 - La referencia federativa se sincroniza de forma acotada con
@@ -34,10 +34,9 @@ source:
 - La migracion no destructiva `20260712230000_phase1_trial_and_billing_events.sql` fue inspeccionada,
   aplicada en una transaccion y verificada el 2026-07-12. Crea `academy_trials` con RLS/policy e
   indices; agrega lease/trazabilidad a `billing_events` y cursor de orden a `subscriptions`.
-- `pnpm db:generate` se cancelo antes de escribir archivos porque Drizzle detecto drift historico
-  no relacionado en `academy_diagnostics` y `academy_expenses`. No aceptar automaticamente ese
-  diff: reconciliar primero snapshots, journal, schema materializado y migraciones manuales. El
-  seguimiento vive en [[Backlog priorizado]].
+- La reconciliacion `20260713090000_reconcile_phase1_schema_drift.sql` se aplico con el runner del
+  repositorio, se probo su rollback en transaccion y dejo sincronizados `drizzle/0003`, snapshot y
+  journal. El gate posterior confirma 4+28 migraciones, RLS 64/64 y build de produccion.
 
 ## Flujo recomendado
 

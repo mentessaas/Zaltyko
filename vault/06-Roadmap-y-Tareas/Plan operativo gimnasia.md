@@ -1,7 +1,7 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-06-24
+last_reviewed: 2026-07-13
 source:
   - ../04-Marketing/Estrategia competitiva gimnasia.md
   - ../04-Marketing/Matriz competitiva gimnasia.md
@@ -12,7 +12,17 @@ source:
 
 ## Objetivo
 
-Convertir Zaltyko en un MVP vendible para academias de gimnasia artistica y ritmica en espanol, con comunicacion interna primero, portal de padres util y pricing v3.0 publicado.
+Convertir Zaltyko en un producto real operable por academias de gimnasia artistica y ritmica en espanol, con roles aislados, comunicacion interna primero, portal familiar util y pricing v3.0 publicado.
+
+## Estado de ejecucion
+
+| Fase | Estado a 2026-07-13 | Evidencia |
+| --- | --- | --- |
+| Fase 1 | Software cerrado y desplegado | Portal limitado, enlaces seguros, scoping tenant/academia y contratos de navegación. QA parent real pendiente como validación humana. |
+| Fase 2 | Software cerrado, listo para promoción | Aviso interno desde sesión, mensajes/notificaciones/preferencias conectados, WhatsApp fuera del flujo principal. |
+| Fase 3 | Parcial | Acciones rápidas ya integradas en dashboard de entrenador; queda completar la vista operativa compacta y progreso por modalidad. |
+| Fase 4 | Parcial/operativa | Pricing v3.0 y Stripe real activos; siguen pendientes 10 entrevistas de validación. |
+| Fase 5 | Pendiente | No iniciar hasta consolidar Fase 3 y validación comercial de Fase 4. |
 
 ## Fase 1 - Desbloquear experiencia padre/atleta
 

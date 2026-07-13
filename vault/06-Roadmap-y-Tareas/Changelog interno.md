@@ -684,3 +684,13 @@ Registrar cambios humanos y relevantes: releases, decisiones, cambios de pricing
   artefactos locales de herramientas, capturas y prompts permanecen fuera de Git.
 - Vault: actualizados `Runbook migraciones`, `Backlog priorizado`, `Changelog interno` y la
   nota normativa.
+## 2026-07-13 - Cierre productivo de Fase 1 y Fase 2 de roles/comunicación
+
+- **Drift DB/ORM cerrado**: creada, inspeccionada, aplicada y verificada `20260713090000_reconcile_phase1_schema_drift.sql`; `push_tokens` queda materializada, las FKs de perfiles y los índices únicos coinciden con Drizzle. Inventario final: 113 tablas, 4 migraciones Drizzle + 28 Supabase y RLS 64/64. Se ejecutó rollback smoke y no se usó el seed global.
+- **Stripe productivo**: rotación completada a un único endpoint activo; webhook sin firma sigue fallando cerrado. La migración de Fase 1 y los contratos de trial/billing/permisos quedan operativos.
+- **Portal familiar limitado**: `my-dashboard` acota todas las lecturas por tenant, academia y relaciones autorizadas; corrige el join de coach y elimina enlaces a superficies administrativas o WhatsApp. Si no hay personas vinculadas, presenta un estado útil con acceso a mensajería interna.
+- **Comunicación desde la clase**: nueva API `POST /api/messages/group-alert`, protegida con `withTenant`, Zod, scope de coach por clase y rate-limit 10/min. Solo notifica cuentas de familia/gimnasta vinculadas a inscritos; reutiliza una conversación contextual por sesión y no crea historial vacío cuando faltan destinatarios.
+- **UI y preferencias**: `TodayQuickActions` quedó integrado en el dashboard de entrenador; mensajes aceptan contexto de sesión y muestran compositor accesible. Preferencias de notificación alineadas al envelope estándar, merge anidado correcto y etiquetas accesibles; avisos de grupo enlazan al historial interno. WhatsApp permanece oculto por feature flag.
+- **Auditoría owner**: dashboard, mensajes y preferencias cargan con el flujo dev opt-in. Se corrigieron pluralización, terminología por deporte y sesiones sin fecha. El portal familiar redirige correctamente al owner; falta una sesión humana con credencial parent/athlete real vinculada.
+- **Gate completo**: 276 APIs auditadas sin rutas riesgosas, TypeScript y lint limpios, 422/422 tests (51 archivos), build Next.js de 214 páginas. Persisten advertencias no bloqueantes ya registradas de Sentry y `swagger-jsdoc`.
+- Vault: `Estado actual de Zaltyko`, `Plan operativo gimnasia`, `Runbook migraciones`, `Registro de riesgos`, `Backlog priorizado`, `Decisiones` y este changelog.
