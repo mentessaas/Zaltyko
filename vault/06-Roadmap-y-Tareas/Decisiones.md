@@ -252,7 +252,7 @@ Copiar desde [[Template - Decision]] para nuevas decisiones.
 | Contexto | El trial estaba documentado pero no existía; Checkout podía ser iniciado por cualquier miembro; webhooks duplicados o fuera de orden podían reescribir la suscripción; roles personalizados tenían APIs vacías y no protegían módulos. |
 | Decisión | Persistir el trial por academia con política 7/365; limitar la administración de suscripción al owner; usar Checkout para alta y Billing Portal para cambios/cancelación; procesar eventos Stripe con idempotencia, lease y orden; hacer operativos los roles personalizados sobre una matriz explícita de capacidades sin permitirles administrar la suscripción. |
 | Consecuencia | Los flujos billing legacy responden 410. La metadata explícita de academia es la autoridad Stripe. Los permisos simples de membership siguen siendo baseline si no existe rol personalizado; al asignarlo, la API aplica sus capacidades. |
-| Estado | Activa y desplegada en producción el 2026-07-13 (`b9701b14`); queda seguimiento operativo para retirar el endpoint webhook anterior tras validar una entrega firmada del nuevo. |
+| Estado | Activa y desplegada en producción el 2026-07-13; la rotación terminó con un único endpoint Stripe productivo activo. El deployment acumulado de cierre es `dpl_2eWQbzQMtmRSNUVYrAw1MYS9bfrE`. |
 
 ## 2026-07-13 - Fase 2: portal familiar limitado y avisos internos con contexto de sesión
 
@@ -261,4 +261,4 @@ Copiar desde [[Template - Decision]] para nuevas decisiones.
 | Contexto | El portal familiar exponía enlaces hacia superficies administrativas y el aviso rápido del entrenador no tenía una acción operativa conectada. Mensajes y preferencias existían, pero sus contratos de API y UI no estaban alineados. |
 | Decisión | Mantener el portal `parent`/`athlete` deliberadamente limitado y acotar todas sus lecturas por tenant, academia y relaciones autorizadas. Usar mensajes internos como canal principal; el aviso de grupo nace desde una sesión/clase, solo alcanza cuentas vinculadas a gimnastas inscritos y crea historial/notificación interna. WhatsApp permanece oculto. Fase 2 reutiliza el modelo existente y no introduce migración ni seed. |
 | Consecuencia | Ningún CTA familiar dirige a billing, asistencia, evaluaciones o calendario administrativos. El entrenador puede enviar un aviso contextual con autorización de clase y límite 10/min; si no existen destinatarios vinculados, la operación falla de forma controlada sin conversación vacía. Email/push sirven para volver a Zaltyko, no como sistema de registro principal. |
-| Estado | Activa; software verificado con gate completo. QA humano parent/athlete queda como validación operativa cuando haya credenciales vinculadas. |
+| Estado | Activa y desplegada en producción el 2026-07-13 (`62deed2d`, `dpl_2eWQbzQMtmRSNUVYrAw1MYS9bfrE`). QA humano parent/athlete queda como validación operativa cuando haya credenciales vinculadas. |

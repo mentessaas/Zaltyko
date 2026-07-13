@@ -1,7 +1,7 @@
 ---
 status: active
 owner: tech
-last_reviewed: 2026-07-12
+last_reviewed: 2026-07-13
 source:
   - ../docs/DEPLOYMENT.md
   - ../docs/VERCEL-DEPLOYMENT.md
@@ -61,7 +61,7 @@ error boundary client-side.
 2. Confirmar migracion Supabase `20260712230000_phase1_trial_and_billing_events.sql`, RLS 64/64 y sync de planes sin diferencias.
 3. Desplegar primero preview y validar `/pricing`, autenticacion, Facturacion, inicio de trial, Checkout y Portal.
 4. Promover a produccion. `CRON_SECRET` y `STRIPE_WEBHOOK_SECRET` ya fueron rotados como variables sensibles en Vercel; nunca copiar sus valores a docs o logs.
-5. En Stripe conviven temporalmente el endpoint anterior y `Zaltyko production billing v2`. Verificar una entrega firmada y una reentrega idempotente en produccion; solo entonces eliminar el endpoint anterior para evitar doble entrega permanente.
+5. Confirmar que Stripe mantiene un unico endpoint productivo activo y que el secreto de Vercel corresponde a esa rotacion. La convivencia temporal termino el 2026-07-13.
 6. Verificar el cron diario de lifecycle y una expiracion controlada antes de anunciar cierre de release.
 
 El preview de Sprint 0 del 2026-07-12 quedo `Ready` y `/pricing` respondio 200 mediante acceso autenticado de Vercel. No equivale a la verificacion de produccion de Fase 1.
@@ -73,4 +73,12 @@ El gate local de Fase 1 quedó verde el 2026-07-12 con 413 tests y build de 214 
 - Preview `b9701b14` `Ready`; redeploy con target `production` para consumir las variables productivas.
 - Producción `https://zaltyko-cledxek2y-mentessaas-projects.vercel.app` `Ready`, con aliases `zaltyko.com`, `www.zaltyko.com` y `zaltyko.vercel.app`.
 - Smokes: `/pricing` 200 y claim 7/365 visible; `/api/billing/trial/start` 401 sin sesión; `/api/cron/trial-lifecycle` 401 sin Bearer; `/api/stripe/webhook` 400 sin firma.
-- No retirar todavía el endpoint Stripe anterior: hacerlo tras observar una entrega firmada correcta en `Zaltyko production billing v2`. El endpoint antiguo firma con otro secreto y sus entregas son rechazadas; mantenerlo temporalmente solo sirve como rollback y genera reintentos ruidosos.
+- La rotacion posterior dejo un unico endpoint Stripe productivo activo; no restaurar endpoints anteriores sin una nueva decision operativa.
+
+## Promocion Fase 2 — 2026-07-13
+
+- Commit desplegado desde worktree limpio: `62deed2d`; los cambios locales paralelos de nomenclatura federativa no formaron parte del artefacto.
+- Deployment `dpl_2eWQbzQMtmRSNUVYrAw1MYS9bfrE` `READY`, target `production`, aliases `zaltyko.com`, `www.zaltyko.com` y `zaltyko.vercel.app`.
+- Gate previo: 276 APIs sin riesgo desconocido, RLS 64/64, migraciones 4 Drizzle + 28 Supabase, 422/422 tests y build de 214 paginas.
+- Smokes sobre `https://zaltyko.com`: `/pricing` 200; panel privado 307 a login; preferencias y aviso de grupo 401 sin sesion; cron GET 401 sin Bearer; webhook 400 sin firma con `SIGNATURE_VERIFICATION_FAILED`.
+- Fase 2 no necesito migracion ni seed adicional. La reconciliacion de Fase 1 ya estaba aplicada y verificada en Supabase antes del deployment.

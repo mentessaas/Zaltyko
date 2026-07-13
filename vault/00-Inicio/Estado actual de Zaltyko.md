@@ -13,13 +13,13 @@ source:
 
 ## Lectura rápida
 
-Zaltyko está en **hardening avanzado como producto real**, con Fase 1 desplegada y Fase 2 lista para promoción. El 2026-07-13 quedó publicado el trial Starter real de 7 días, permisos personalizados operativos, checkout/portal owner-only y procesamiento Stripe idempotente y ordenado. También se cerró el software del portal familiar limitado y la comunicación interna contextual desde sesión/clase, con preferencias in-app/email/push. La cobertura RLS es 100% sobre 64 tablas tenant-scoped y la puerta completa pasa 276 APIs, 422 pruebas y build de 214 páginas.
+Zaltyko está en **hardening avanzado como producto real**, con Fases 1 y 2 desplegadas en producción. El 2026-07-13 quedó publicado el trial Starter real de 7 días, permisos personalizados operativos, checkout/portal owner-only y procesamiento Stripe idempotente y ordenado. También se desplegó el portal familiar limitado y la comunicación interna contextual desde sesión/clase, con preferencias in-app/email/push. La cobertura RLS es 100% sobre 64 tablas tenant-scoped y la puerta completa pasa 276 APIs, 422 pruebas y build de 214 páginas.
 
 - Rama de cierre: `codex/sprint0-phase1-product-hardening`, creada desde `main` en el commit `e786788b`. Integra Sprint 0 de producto real y el trabajo paralelo de nomenclatura federativa RFEG sin revertirlo.
 - Supabase usa PostgreSQL 17.6. El catálogo `rfeg-2026-v2` quedó sincronizado el 2026-07-12 mediante un comando acotado e idempotente; un segundo dry-run confirmó cero diferencias. No se ejecutó el seed global ni una migración de schema.
 - Las migraciones `20260712230000_phase1_trial_and_billing_events.sql` y `20260713090000_reconcile_phase1_schema_drift.sql` están aplicadas y verificadas. El inventario actual es 4 migraciones Drizzle + 28 Supabase, 113 tablas verificadas y RLS 64/64.
 - Fase 1 pasó el gate completo y fue desplegada a producción. El endpoint Stripe activo fue rotado a una única versión; pricing responde 200, trial/cron sin auth 401 y webhook sin firma 400 con `SIGNATURE_VERIFICATION_FAILED`.
-- Fase 2 pasa el gate local completo: 276 APIs sin riesgo desconocido, 422/422 tests y build de 214 páginas. El QA visual owner confirma dashboard, mensajes y preferencias; la sesión parent real sigue siendo validación humana, no deuda de implementación.
+- Fase 2 fue desplegada desde `62deed2d` en `dpl_2eWQbzQMtmRSNUVYrAw1MYS9bfrE` (`READY`, alias `zaltyko.com`). Smokes: pricing 200, panel privado 307, APIs privadas 401 y webhook sin firma 400. La sesión parent real sigue siendo validación humana, no deuda de implementación.
 - Historial de ejecución: [[Changelog interno]] y [[Decisiones#2026-06-24 - Resumen de sprints 0-7 + auditoria + CI fix]].
 
 ## Lo que tenemos
@@ -33,7 +33,7 @@ Zaltyko está en **hardening avanzado como producto real**, con Fase 1 desplegad
 | Eventos | Avanzado | CRUD, inscripciones, waitlist, archivos y páginas públicas. |
 | Evaluaciones | Parcial/avanzado | Hay rutas de evaluaciones, evaluate, historial y progreso por atleta; falta validar flujo end-to-end. |
 | Asistencia | Parcial/avanzado | Existe pagina dedicada `/app/[academyId]/attendance`, API y reportes; falta QA end-to-end. |
-| Comunicación | Avanzado / RC Fase 2 | Mensajes internos, notificaciones, preferencias y aviso contextual por sesión; WhatsApp oculto como canal secundario. |
+| Comunicación | Avanzado / Fase 2 desplegada | Mensajes internos, notificaciones, preferencias y aviso contextual por sesión; WhatsApp oculto como canal secundario. |
 | IA | Parcial | Endpoints e ideas de widgets; falta integración de valor visible. |
 | SEO/geografía | Parcial | Clusters y rutas avanzadas; faltan traducciones/contenido completo. |
 | Marketplace/empleo | Parcial/avanzado | Rutas públicas y APIs existen; revisar consistencia comercial. |
