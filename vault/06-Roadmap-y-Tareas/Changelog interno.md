@@ -1,7 +1,7 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-07-09
+last_reviewed: 2026-07-13
 source:
   - ../ROADMAP.md
   - ../AGENTS.md
@@ -766,3 +766,16 @@ Registrar cambios humanos y relevantes: releases, decisiones, cambios de pricing
 - `drizzle-kit` pasó de dependencia runtime a desarrollo; se materializó webpack corregido y se actualizaron Vite a 6.4.3 y Vitest/coverage a 3.2.6. Drizzle CLI sigue operativo.
 - Resultado final: `pnpm audit --prod` y `pnpm audit` completo con 0 vulnerabilidades; gate con 276 APIs, RLS 64/64, migraciones 4+28, 422/422 tests y build de 214 páginas.
 - Deployment limpio `dpl_AYKBXmfi88CK2MeqWvZMqKjo3Bee` desde `47228ee5`, `READY` y aliasado a `zaltyko.com`. Smokes finales: pricing 200, privado 307, APIs privadas/cron 401 y webhook sin firma 400.
+
+## 2026-07-13 - Fase 3 cerrada y desplegada: cockpit de clase de hoy
+
+- **Una sola superficie de trabajo**: nueva ruta `/app/[academyId]/coach/today/[sessionId]` con cabecera contextual, estado 0/3–3/3 y tabs de asistencia, progreso y aviso. Dashboard, acciones rápidas y vista diaria de coach apuntan al mismo workspace.
+- **Asistencia operativa**: acción masiva “todas presentes”, excepciones, notas y búsqueda. GET/POST validan tenant, academia, sesión y clase asignada; un coach ya no puede listar toda la asistencia de la academia sin `sessionId`.
+- **Progreso con trazabilidad**: `athlete_assessments.session_id` conserva la sesión de origen; la API comprueba que la gimnasta pertenece a la clase, que modalidad/aparato son compatibles y deriva `assessedBy` del perfil autenticado. El cliente no envía `coachId`.
+- **Modelo de miembros corregido**: `getClassAthletes` combina `classes.groupId`, `class_groups`, `group_athletes`, el vínculo legacy `athletes.groupId` y matrículas extra, siempre acotado por tenant/academia y sin borrados lógicos.
+- **Migración**: Drizzle `0004_link_assessments_to_sessions.sql` y Supabase `20260713150000_link_assessments_to_class_sessions.sql`, aditivas y nullable con FK `ON DELETE SET NULL` e índice. Aplicada a PostgreSQL 17.6, rollback smoke y verificación de columna/FK/índice correctos. No se ejecutó seed global.
+- **QA real**: storage state de coach y fixture temporal en la academia demo. Se persistieron 5 asistencias con una excepción tarde, una evaluación ligada a sesión+coach y un aviso con historial; después se purgaron sesión, atletas, vínculos, conversación, notificaciones y registros, verificando cero restos.
+- **Accesibilidad y responsive**: Playwright autenticado 2/2; axe WCAG A/AA/2.2 AA sin violaciones tras corregir un contraste 4,43:1; viewport 375×667 sin overflow. La prueba queda parametrizada por `E2E_ACADEMY_ID`, `E2E_COACH_SESSION_ID` y storage state.
+- **Integración paralela preservada**: se mergeó `bd2bb95a`, incluyendo terminología federativa en atletas, grupos, cobros, reportes y coaches. `CoachTodayView` conserva tanto sus labels sport-aware como el enlace al nuevo cockpit.
+- **Gate integrado**: 276 APIs sin rutas riesgosas, RLS 64/64, 5 Drizzle + 29 Supabase, TypeScript/lint limpios, 425/425 pruebas, build de 214 páginas y `pnpm audit` con 0 vulnerabilidades.
+- **Publicación**: commit funcional `9da6f020`, merge integrado `0a023880`, rama `codex/phase3-coach-today` y PR borrador #27. Deployment `dpl_68XGuYVFtQnrLbjWjhv17NtMpxH8` `READY`, alias `zaltyko.com`; smokes pricing 200, workspace privado 307 y APIs privadas 401. Escaneo de errores del deployment sin hallazgos.

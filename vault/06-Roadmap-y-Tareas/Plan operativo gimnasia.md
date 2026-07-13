@@ -20,7 +20,7 @@ Convertir Zaltyko en un producto real operable por academias de gimnasia artisti
 | --- | --- | --- |
 | Fase 1 | Software cerrado y desplegado | Portal limitado, enlaces seguros, scoping tenant/academia y contratos de navegación. QA parent real pendiente como validación humana. |
 | Fase 2 | Software cerrado y desplegado | Aviso interno desde sesión, mensajes/notificaciones/preferencias conectados, WhatsApp fuera del flujo principal. |
-| Fase 3 | Parcial | Acciones rápidas ya integradas en dashboard de entrenador; queda completar la vista operativa compacta y progreso por modalidad. |
+| Fase 3 | Software cerrado y desplegado | Cockpit de sesión con asistencia, progreso por modalidad/aparato y aviso interno; permiso de coach, persistencia, WCAG y móvil verificados. |
 | Fase 4 | Parcial/operativa | Pricing v3.0 y Stripe real activos; siguen pendientes 10 entrevistas de validación. |
 | Fase 5 | Pendiente | No iniciar hasta consolidar Fase 3 y validación comercial de Fase 4. |
 
@@ -55,6 +55,16 @@ Prioridad: P1.
 | Vista compacta de clase. | Entrenador opera sin saltar entre modulos. | Desde clase/sesion puede pasar asistencia, registrar nota/progreso y enviar aviso interno. |
 | Progreso por modalidad/aparato. | Diferenciador de gimnasia visible. | Artistica/ritmica muestran etiquetas y aparatos correctos desde sport config. |
 | Mensaje a familias desde clase. | Comunicacion contextual. | El aviso queda en historial interno y notifica a padres. |
+
+### Evidencia de cierre Fase 3
+
+- Ruta operativa: `/app/[academyId]/coach/today/[sessionId]`, accesible desde dashboard, acciones rápidas y vista diaria del entrenador.
+- Asistencia masiva y excepciones persisten en la sesión; el coach solo puede leer/escribir clases asignadas.
+- La evaluación rápida conserva `sessionId`, modalidad, aparato, comentario y `assessedBy` derivado de la identidad autenticada; el cliente no decide el coach.
+- `sport-config` entrega terminología y aparatos correctos; el bloque paralelo de nomenclatura federativa `bd2bb95a` quedó integrado.
+- Recorrido E2E real verificado y fixtures purgadas; Playwright autenticado 2/2 con WCAG 2.2 AA y viewport 375 px sin desbordamiento.
+- Migración aditiva `20260713150000_link_assessments_to_class_sessions.sql` aplicada; no se ejecutó seed global.
+- Deployment productivo `dpl_68XGuYVFtQnrLbjWjhv17NtMpxH8`, estado `READY` y alias `zaltyko.com`.
 
 ## Fase 4 - Pricing v3.0 publicado y validacion post-lanzamiento
 
