@@ -1,6 +1,6 @@
 import { db } from "@/db";
 import { athletes, guardians, guardianAthletes, familyContacts, classSessions, classes, charges, events, academies } from "@/db/schema";
-import { eq, and, gte, lte } from "drizzle-orm";
+import { eq, and, lte, inArray } from "drizzle-orm";
 import { sendEmailWithLogging } from "./email-service";
 import { AttendanceReminderTemplate } from "./templates/attendance-reminder";
 import { PaymentReminderTemplate } from "./templates/payment-reminder";
@@ -173,6 +173,98 @@ export async function triggerPaymentReminders(): Promise<number> {
       sentCount++;
     } catch (error) {
       logger.error(`Error sending payment reminder to ${email}:`, error);
+    }
+  }
+
+  return sentCount;
+}
+
+/**
+ * Recordatorios de pago programados en 4 ventanas relativas al vencimiento:
+ *  -3 dias (proximo), dia de vencimiento, +3 y +7 dias (vencido).
+ * Pensado para ejecutarse UNA vez al dia desde el cron: cada cargo cae como
+ * mucho en una ventana por ejecucion, evitando duplicados sin tabla extra.
+ */
+const REMINDER_OFFSETS_DAYS = [-3, 0, 3, 7] as const;
+
+function toDateOnly(date: Date): string {
+  return date.toISOString().split("T")[0];
+}
+
+export async function triggerScheduledPaymentReminders(now: Date = new Date()): Promise<number> {
+  let sentCount = 0;
+
+  for (const offset of REMINDER_OFFSETS_DAYS) {
+    // dueDate = hoy - offset  =>  hoy = dueDate + offset (offset dias despues del vencimiento).
+    const target = new Date(now);
+    target.setDate(target.getDate() - offset);
+    const targetStr = toDateOnly(target);
+
+    const dueCharges = await db
+      .select({
+        chargeId: charges.id,
+        amountCents: charges.amountCents,
+        dueDate: charges.dueDate,
+        athleteId: charges.athleteId,
+        academyId: charges.academyId,
+        academyName: academies.name,
+        academyCountry: academies.country,
+        tenantId: charges.tenantId,
+      })
+      .from(charges)
+      .innerJoin(academies, eq(charges.academyId, academies.id))
+      .where(and(inArray(charges.status, ["pending", "overdue", "failed"]), eq(charges.dueDate, targetStr)));
+
+    for (const charge of dueCharges) {
+      if (!charge.athleteId) continue;
+
+      const [athlete] = await db
+        .select({
+          athleteName: athletes.name,
+          guardianEmail: guardians.email,
+          familyContactEmail: familyContacts.email,
+        })
+        .from(athletes)
+        .leftJoin(guardianAthletes, eq(athletes.id, guardianAthletes.athleteId))
+        .leftJoin(guardians, eq(guardianAthletes.guardianId, guardians.id))
+        .leftJoin(familyContacts, eq(athletes.id, familyContacts.athleteId))
+        .where(eq(athletes.id, charge.athleteId))
+        .limit(1);
+
+      const email = athlete?.guardianEmail || athlete?.familyContactEmail;
+      if (!email) continue;
+
+      const amount = charge.amountCents / 100;
+      const subject =
+        offset < 0
+          ? `Tu cuota vence pronto - ${amount.toFixed(2)} €`
+          : offset === 0
+            ? `Tu cuota vence hoy - ${amount.toFixed(2)} €`
+            : `Cuota pendiente - ${amount.toFixed(2)} €`;
+
+      try {
+        const html = PaymentReminderTemplate({
+          athleteName: athlete?.athleteName || "el atleta",
+          amount,
+          dueDate: charge.dueDate
+            ? formatLongDateForCountry(charge.dueDate, charge.academyCountry)
+            : "Fecha no especificada",
+          academyName: charge.academyName || "Tu academia",
+        });
+
+        await sendEmailWithLogging({
+          to: email,
+          subject,
+          html,
+          template: "payment-reminder",
+          tenantId: charge.tenantId,
+          academyId: charge.academyId,
+          metadata: { chargeId: charge.chargeId, athleteId: charge.athleteId, reminderOffset: offset },
+        });
+        sentCount++;
+      } catch (error) {
+        logger.error(`Error sending scheduled payment reminder to ${email}:`, error);
+      }
     }
   }
 
