@@ -14,7 +14,7 @@
     ]
   },
   "hero": {
-    "badge": "Líder en España · +70 academias",
+    "badge": "Gestión pensada para academias de gimnasia rítmica",
     "headline": "Gestiona tu escuela de gimnasia rítmica federada sin complicaciones",
     "subheadline": "Control total sobre atletas RFEG, categorías oficiales, niveles 1-10, Copa de España y licencias. Gestiona los 5 aparatos: cuerda, pelota, mazas, aro y cinta."
   },
@@ -41,21 +41,18 @@
     "generic": "Gestionar federaciones, licencias y material de los 5 aparatos en hojas de cálculo consume horas que podrías dedicar a entrenar. La información se pierde entre oficinas.",
     "specific": "Renovar licencias RFEG, gestionar el material gimnástico (cintas, aros, bolas, mazas), seguir los niveles técnicos 1-10 y los ejercicios obligatorios de cada categoría."
   },
-  "socialProof": {
-    "academies": [
-      "Gimnasia Rítmica Élite Barcelona",
-      "Club Deportivo Orense",
-      "Gimnasia Rítmica Galicia",
-      "Escuela Profesional Madrid",
-      "Club Ritmica Valencia"
-    ],
-    "stats": {
-      "athletes": "12,000+",
-      "academies": "70+"
-    }
-  },
   "interlinking": {
-    "relatedCountries": ["mexico", "argentina", "colombia", "chile", "peru"],
-    "relatedModalities": ["artistic", "acrobatic", "trampoline"]
+    "relatedCountries": [
+      "mexico",
+      "argentina",
+      "colombia",
+      "chile",
+      "peru"
+    ],
+    "relatedModalities": [
+      "artistic",
+      "acrobatic",
+      "trampoline"
+    ]
   }
 }

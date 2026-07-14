@@ -7,7 +7,7 @@ import { useToast } from "@/components/ui/toast-provider";
 import { createClient } from "@/lib/supabase/client";
 
 const fieldClassName =
-  "rounded-[10px] border border-zaltyko-mist bg-white px-3 py-2 text-sm shadow-none focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15";
+  "rounded-card border border-zaltyko-mist bg-white px-3 py-2 text-sm shadow-none focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15";
 
 interface AthleteOption {
   id: string;

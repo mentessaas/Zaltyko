@@ -14,7 +14,7 @@
     ]
   },
   "hero": {
-    "badge": "Líder en Argentina · +40 academias",
+    "badge": "Gestión pensada para academias de gimnasia artística",
     "headline": "Gestiona tu escuela de gimnasia artística federada sin complicaciones",
     "subheadline": "Control total sobre atletas CGG, categorías oficiales (Pre-Infantil hasta Absoluta), niveles de competencia, selectivos y licencias. Campeonato Argentino y Juegos Deportivos Nacionales."
   },
@@ -40,21 +40,18 @@
     "generic": "Gestionar federaciones, licencias y competiciones en papel o Excel consume horas que podrías dedicar a entrenar. La información se pierde entre entrenadores.",
     "specific": "Renovar licencias CGG, gestionar selectivos provinciales para Campeonato Argentino, tracking del progreso técnico por categoría desde Pre-Infantil hasta Absoluta."
   },
-  "socialProof": {
-    "academies": [
-      "Club Gimnasia Buenos Aires",
-      "Gimnasia Artística Córdoba",
-      "Academia Rosario Gymnastics",
-      "Club Mendoza GA",
-      "Escuela Gimnasia Tucumán"
-    ],
-    "stats": {
-      "athletes": "10,000+",
-      "academies": "40+"
-    }
-  },
   "interlinking": {
-    "relatedCountries": ["espana", "mexico", "colombia", "chile", "peru"],
-    "relatedModalities": ["rhythmic", "acrobatic", "trampoline"]
+    "relatedCountries": [
+      "espana",
+      "mexico",
+      "colombia",
+      "chile",
+      "peru"
+    ],
+    "relatedModalities": [
+      "rhythmic",
+      "acrobatic",
+      "trampoline"
+    ]
   }
 }

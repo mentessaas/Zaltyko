@@ -15,19 +15,14 @@ const benefits = [
 export default function FinalCtaSection() {
   return (
     <section className="relative overflow-hidden bg-zaltyko-navy py-24">
-      {/* Background pattern */}
-      <div className="absolute inset-0">
-        <div className="absolute top-0 left-0 w-full h-full bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxwYXRoIGQ9Ik0zNiAxOGMtOS45NDEgMC0xOCA4LjA1OS0xOCAxOHM4LjA1OSAxOCAxOCAxOCAxOC04LjA1OSAxOC0xOC04LjA1OS0xOC0xOC0xOHptMCAzMmMtNy43MzIgMC0xNC02LjI2OC0xNC0xNHM2LjI2OC0xNCAxNC0xNCAxNCA2LjI2OCAxNCAxNC02LjI2OCAxNC0xNCAxNHoiIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iLjAyIi8+PC9nPjwvc3ZnPg==')] opacity-30" />
-        <div className="absolute inset-0 zaltyko-motion-lines opacity-60" />
-        <div className="absolute top-0 right-0 h-[500px] w-[500px] rounded-full bg-zaltyko-indigo/20 blur-3xl" />
-        <div className="absolute bottom-0 left-0 h-[400px] w-[400px] rounded-full bg-zaltyko-teal/15 blur-3xl" />
-      </div>
+      {/* Textura de marca */}
+      <div className="absolute inset-0 zaltyko-motion-lines opacity-60" />
 
       <div className="relative mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 text-center">
         {/* Badge */}
         <div className="inline-flex items-center gap-2 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 px-5 py-2 text-sm font-medium text-white/90 mb-8">
           <Sparkles className="w-4 h-4" />
-          Demo guiada para academias de gimnasia
+          Gratis hasta 30 gimnastas · Sin tarjeta
         </div>
 
         {/* H2 */}
@@ -55,11 +50,11 @@ export default function FinalCtaSection() {
         {/* CTAs */}
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <Link
-            href="/contact?type=demo"
+            href="/auth/register?role=owner"
             className="group inline-flex items-center justify-center gap-2 rounded-2xl bg-zaltyko-teal px-10 py-5 text-lg font-bold text-white shadow-brand transition-all duration-200 hover:bg-primary-dark hover:shadow-lift hover:-translate-y-0.5"
           >
             <Sparkles className="w-5 h-5" />
-            Solicitar demo
+            Crea tu academia gratis
             <ArrowRight className="w-5 h-5" />
           </Link>
           <Link
@@ -85,7 +80,7 @@ export default function FinalCtaSection() {
 
         {/* Trust */}
         <p className="mt-8 text-white/60 text-sm">
-          🔒 Tus datos están protegidos con encriptación de nivel bancario
+          Trabajáis con datos de menores: cada academia está aislada y cada rol ve solo lo suyo.
         </p>
       </div>
     </section>

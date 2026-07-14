@@ -13,7 +13,7 @@
     ]
   },
   "hero": {
-    "badge": "Leader in Mexico · +60 clubs",
+    "badge": "Built for artistic gymnastics clubs",
     "headline": "Manage your federated artistic gymnastics club with ease",
     "subheadline": "Full control over FMGM-CONADE athletes, official categories, levels 1-10 and licenses. Olimpiada Nacional, Circuito Nacional and more."
   },
@@ -40,21 +40,18 @@
     "generic": "Managing the dual FMGM + CONADE system is a headache. Duplicate licenses, excessive paperwork and little time for training.",
     "specific": "Renewing FMGM licenses and CONADE registration, managing qualifiers for Olimpiada Nacional, tracking numerical levels 1-10 by category."
   },
-  "socialProof": {
-    "academies": [
-      "Gimnasia Integral CDMX",
-      "Club de Gimnasia Jalisco",
-      "Academia Monterrey",
-      "Gimnasia Puebla",
-      "Elite Gymnastics Estado de México"
-    ],
-    "stats": {
-      "athletes": "18,000+",
-      "academies": "60+"
-    }
-  },
   "interlinking": {
-    "relatedCountries": ["spain", "argentina", "colombia", "chile", "peru"],
-    "relatedModalities": ["rhythmic", "acrobatic", "trampoline"]
+    "relatedCountries": [
+      "spain",
+      "argentina",
+      "colombia",
+      "chile",
+      "peru"
+    ],
+    "relatedModalities": [
+      "rhythmic",
+      "acrobatic",
+      "trampoline"
+    ]
   }
 }

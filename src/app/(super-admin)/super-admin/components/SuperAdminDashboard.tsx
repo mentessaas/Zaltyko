@@ -272,10 +272,8 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
   return (
     <div className="w-full space-y-6 sm:space-y-8">
       {/* Hero Header */}
-      <section className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-zaltyko-indigo/25 via-white/5 to-zaltyko-teal/10 p-6 sm:p-8">
-        {/* Animated background effects */}
-        <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-zaltyko-indigo/20 blur-3xl" />
-        <div className="absolute -bottom-10 -left-10 h-40 w-40 rounded-full bg-zaltyko-teal/15 blur-2xl" />
+      <section className="relative overflow-hidden rounded-card border border-white/10 bg-zaltyko-navy p-6 sm:p-8">
+        <div className="absolute inset-0 zaltyko-motion-lines opacity-60" />
 
         <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
           <div className="space-y-3">
@@ -284,7 +282,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
               <span className="text-xs font-semibold uppercase tracking-wider text-zaltyko-teal">Panel de Control</span>
             </div>
             <h1 className="font-display text-3xl font-bold text-white sm:text-4xl lg:text-5xl">
-              Dashboard <span className="text-transparent bg-clip-text bg-gradient-to-r from-zaltyko-white via-zaltyko-teal to-zaltyko-teal">Super Admin</span>
+              Dashboard <span className="text-zaltyko-teal">Super Admin</span>
             </h1>
             <p className="max-w-xl font-sans text-base text-white/70 sm:text-lg">
               Métricas operativas del SaaS basadas en datos registrados. Las series sin fuente real se muestran como estados vacíos.
@@ -330,7 +328,6 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
       {/* Subscription Alerts Section */}
       {safeMetrics.subscriptionAlerts && safeMetrics.subscriptionAlerts.length > 0 && (
         <section className="group relative overflow-hidden rounded-2xl border border-zaltyko-coral/25 bg-zaltyko-coral/8 p-6">
-          <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-zaltyko-coral/10 blur-3xl" />
 
           <header className="relative mb-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -396,7 +393,6 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
           }}
           className="group relative w-full overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-6 text-left hover:border-white/30 transition-colors"
         >
-          <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-zaltyko-indigo/10 blur-3xl transition-all group-hover:bg-zaltyko-indigo/20" />
 
           <header className="relative flex items-center justify-between mb-6">
             <div>
@@ -463,7 +459,6 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
           }}
           className="group relative w-full overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-6 text-left hover:border-white/30 transition-colors"
         >
-          <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-emerald-500/10 blur-3xl transition-all group-hover:bg-emerald-500/20" />
 
           <header className="relative flex items-center justify-between mb-6">
             <div>
@@ -530,7 +525,6 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
         }}
         className="group relative w-full overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-6 text-left hover:border-white/30 transition-colors"
       >
-        <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-amber-500/10 blur-3xl transition-all group-hover:bg-amber-500/20" />
 
         <header className="relative mb-6 flex items-center justify-between">
           <div>
@@ -585,7 +579,6 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
 
       {/* Monthly Academies - Area Chart */}
       <section className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-6">
-        <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-blue-500/10 blur-3xl transition-all group-hover:bg-blue-500/20" />
 
         <header className="relative mb-6 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -660,7 +653,6 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
 
       {/* Revenue Trend Chart */}
       <section className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-6">
-        <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-emerald-500/10 blur-3xl transition-all group-hover:bg-emerald-500/20" />
 
         <header className="relative mb-6 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -690,7 +682,6 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
 
       {initialEvents.length > 0 && (
         <section className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-6">
-          <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-cyan-500/10 blur-3xl transition-all group-hover:bg-cyan-500/20" />
 
           <header className="relative mb-6 flex items-center justify-between">
             <div>

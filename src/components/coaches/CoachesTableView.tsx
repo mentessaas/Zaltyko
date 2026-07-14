@@ -201,7 +201,83 @@ export function CoachesTableView({ academyId, coaches, classes, sportConfigs, gr
           )}
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-lg border bg-card shadow">
+        <>
+        {/* Cards — móvil */}
+        <ul className="space-y-3 md:hidden">
+          {coaches.map((coach) => (
+            <li key={coach.id} className="rounded-lg border bg-card p-4 shadow-sm">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Link
+                      href={`/app/${academyId}/coaches/${coach.id}`}
+                      className="font-semibold text-primary hover:underline"
+                    >
+                      {coach.name}
+                    </Link>
+                    {coach.isPublic && (
+                      <PublicProfileBadge coachId={coach.id} academyId={academyId} isPublic={coach.isPublic} />
+                    )}
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {coach.email ?? "Sin correo"} · {coach.phone ?? "Sin teléfono"}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEditing(coach)}
+                  className="shrink-0 text-xs font-semibold text-primary hover:underline"
+                >
+                  Editar
+                </button>
+              </div>
+
+              <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                {coach.sportConfigIds.length === 0 ? (
+                  <span className="rounded-full bg-muted px-3 py-1 text-muted-foreground">Todas</span>
+                ) : (
+                  coach.sportConfigIds.map((sportConfigId) => (
+                    <span key={sportConfigId} className="rounded-full bg-sky-500/10 px-3 py-1 text-sky-700">
+                      {sportConfigNameById.get(sportConfigId) ?? "Rama"}
+                    </span>
+                  ))
+                )}
+              </div>
+
+              <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                {coach.classes.length === 0 ? (
+                  <span className="rounded-full bg-muted px-3 py-1 text-muted-foreground">Sin asignaciones</span>
+                ) : (
+                  coach.classes.map((cls) => (
+                    <span key={cls.id} className="rounded-full bg-emerald-500/10 px-3 py-1 text-emerald-600">
+                      {cls.name}
+                    </span>
+                  ))
+                )}
+              </div>
+
+              <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                {coach.groups.length === 0 ? (
+                  <span className="rounded-full bg-muted px-3 py-1 text-muted-foreground">Sin {groupTermLower}</span>
+                ) : (
+                  coach.groups.map((group) => (
+                    <span
+                      key={`${group.id}-${group.role}`}
+                      className="inline-flex items-center gap-2 rounded-full border px-3 py-1 font-medium"
+                      style={group.color ? { borderColor: group.color, color: group.color } : undefined}
+                    >
+                      <span className="h-2 w-2 rounded-full" style={{ backgroundColor: group.color ?? "currentColor" }} />
+                      {group.name}
+                    </span>
+                  ))
+                )}
+              </div>
+            </li>
+          ))}
+        </ul>
+
+        {/* Tabla — escritorio */}
+        <div className="hidden overflow-x-auto rounded-lg border bg-card shadow md:block">
           <table className="min-w-full divide-y divide-border text-sm">
             <thead className="bg-muted/60">
               <tr className="text-left text-xs uppercase tracking-wide text-muted-foreground">
@@ -326,18 +402,7 @@ export function CoachesTableView({ academyId, coaches, classes, sportConfigs, gr
             </tbody>
           </table>
         </div>
-      )}
-
-      {process.env.NODE_ENV !== "production" && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-          <p>
-            ¿Necesitas reportes avanzados o invitaciones masivas? Usa temporalmente el{" "}
-            <Link href={`/app/${academyId}/coaches`} className="font-semibold underline">
-              panel clásico
-            </Link>{" "}
-            mientras completamos la migración.
-          </p>
-        </div>
+        </>
       )}
 
       <CreateCoachDialog

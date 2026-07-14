@@ -40,7 +40,8 @@ Para discovery, beta y mensajes de venta tempranos, enfocar Zaltyko en academias
 ## CTAs y claims seguros a 2026-07-12
 
 - Free puede dirigir al registro de owner.
-- Starter y Growth usan la CTA pública **“Solicitar demo”** mientras no exista handoff registro → checkout validado end-to-end. No usar “Contratar” si el enlace abre contacto.
+- Actualización 2026-07-13: el CTA principal de la landing (hero, navbar, CTA final, sticky bar) dirige a `/auth/register?role=owner` ("Crea tu academia gratis" / "Crear cuenta gratis") en vez de a `/contact?type=demo`. Sigue siendo registro Free, ya autorizado por la regla anterior; el cambio es de prioridad visual, no de alcance. Los CTA de los planes Starter/Growth en `/pricing` siguen apuntando a demo/contacto hasta que exista el handoff registro → checkout validado (ver regla siguiente). Ver [[Auditoria producto-CRO-SEO 2026-07-13]].
+- Starter y Growth usan la CTA pública **"Solicitar demo"** mientras no exista handoff registro → checkout validado end-to-end. No usar "Contratar" si el enlace abre contacto.
 - Network siempre dirige a contacto/onboarding acompanado, nunca a checkout.
 - Usar "aislamiento por academia" y "controles de acceso"; no usar "100% seguro" ni "cumplimiento RGPD garantizado".
 - Usar “privacidad por diseño” y “atención por email”; no publicar “RGPD Compliant” ni tiempos de respuesta cerrados sin evidencia operativa.

@@ -57,11 +57,10 @@ export const PRODUCT_PLANS: ProductPlan[] = [
     ctaHref: "/contact?type=demo&plan=starter",
     checkoutMode: "self-serve",
     features: [
-      "Hasta 75 gimnastas",
-      "1 academia",
-      "5 grupos de entrenamiento",
-      "20 clases activas",
+      "Hasta 75 gimnastas · 1 academia",
       "Cobros recurrentes y reportes básicos",
+      "Portal de familias completo",
+      "Comunicación interna con familias",
     ],
   },
   {
@@ -81,11 +80,10 @@ export const PRODUCT_PLANS: ProductPlan[] = [
     ctaHref: "/contact?type=demo&plan=growth",
     checkoutMode: "self-serve",
     features: [
-      "Hasta 200 gimnastas",
-      "1 academia",
-      "10 grupos por academia",
-      "40 clases por academia",
-      "Cobros recurrentes y reportes operativos",
+      "Hasta 200 gimnastas · 1 academia",
+      "Todo lo de Starter",
+      "Reportes ejecutivos y automatizaciones",
+      "Soporte prioritario",
     ],
   },
   {

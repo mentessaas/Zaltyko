@@ -99,6 +99,19 @@ const nextConfig = {
     ];
   },
 
+  // Consolidar señales SEO en el dominio canónico: el dominio de despliegue
+  // de Vercel no debe competir con zaltyko.com por indexación/backlinks.
+  async redirects() {
+    return [
+      {
+        source: "/:path*",
+        has: [{ type: "host", value: "zaltyko.vercel.app" }],
+        destination: "https://zaltyko.com/:path*",
+        permanent: true,
+      },
+    ];
+  },
+
   // Configuración de experimental features
   experimental: {
     // Optimizar re-renders

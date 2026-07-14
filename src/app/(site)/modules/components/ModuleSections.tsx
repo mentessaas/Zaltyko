@@ -23,16 +23,13 @@ interface ProblemSectionProps {
   color: string;
 }
 
-export function ProblemSection({ title, content, color }: ProblemSectionProps) {
+export function ProblemSection({ title, content }: ProblemSectionProps) {
   return (
     <section className="py-16 lg:py-20 bg-white">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-10">
-            <span className={cn(
-              "inline-block text-sm font-semibold uppercase tracking-wider mb-4 bg-gradient-to-r bg-clip-text text-transparent",
-              color
-            )}>
+            <span className="mb-4 inline-block text-sm font-semibold uppercase tracking-wider text-zaltyko-teal">
               El problema
             </span>
             <h2 className="font-display text-2xl font-bold tracking-tight text-zaltyko-text-main sm:text-3xl">
@@ -59,18 +56,15 @@ interface SolutionSectionProps {
   color: string;
 }
 
-export function SolutionSection({ title, content, features, color }: SolutionSectionProps) {
+export function SolutionSection({ title, content, features }: SolutionSectionProps) {
   return (
     <section className="py-16 lg:py-20 bg-zaltyko-bg">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
           {/* Content */}
           <div>
-            <span className={cn(
-              "inline-block text-sm font-bold uppercase tracking-wider mb-4 bg-gradient-to-r bg-clip-text text-transparent",
-              color
-            )}>
-              La solucion
+            <span className="mb-4 inline-block text-sm font-bold uppercase tracking-wider text-zaltyko-teal">
+              La solución
             </span>
             <h2 className="font-display text-2xl font-bold tracking-tight text-zaltyko-text-main sm:text-3xl mb-6">
               {title}
@@ -89,11 +83,8 @@ export function SolutionSection({ title, content, features, color }: SolutionSec
             <ul className="space-y-4 relative">
               {features.map((feature) => (
                 <li key={feature} className="flex items-start gap-3 group/item">
-                  <div className={cn(
-                    "flex-shrink-0 w-7 h-7 rounded-xl bg-gradient-to-br flex items-center justify-center mt-0.5 shadow-lg",
-                    color
-                  )}>
-                    <CheckCircle2 className="w-4 h-4 text-white" />
+                  <div className="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-control bg-zaltyko-primary-ultralight">
+                    <CheckCircle2 className="w-4 h-4 text-zaltyko-teal" />
                   </div>
                   <span className="text-zaltyko-text-secondary font-medium group-hover/item:text-zaltyko-text-main transition-colors">{feature}</span>
                 </li>
@@ -121,15 +112,12 @@ interface BenefitsSectionProps {
   color: string;
 }
 
-export function BenefitsSection({ benefits, color }: BenefitsSectionProps) {
+export function BenefitsSection({ benefits }: BenefitsSectionProps) {
   return (
     <section className="py-16 lg:py-20 bg-white">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-12">
-          <span className={cn(
-            "inline-block text-sm font-bold uppercase tracking-wider mb-4 bg-gradient-to-r bg-clip-text text-transparent",
-            color
-          )}>
+          <span className="mb-4 inline-block text-sm font-bold uppercase tracking-wider text-zaltyko-teal">
             Beneficios
           </span>
           <h2 className="font-display text-2xl font-bold tracking-tight text-zaltyko-text-main sm:text-3xl">
@@ -144,11 +132,8 @@ export function BenefitsSection({ benefits, color }: BenefitsSectionProps) {
               className="relative rounded-2xl bg-zaltyko-bg p-6 border border-zaltyko-border/50 hover:border-zaltyko-primary/40 transition-all duration-300 hover:shadow-xl hover:shadow-zaltyko-primary/10 hover:-translate-y-1 group overflow-hidden"
             >
               <div className="pointer-events-none absolute inset-0 bg-zaltyko-teal/5 opacity-0 transition-opacity duration-150 group-hover:opacity-100" />
-              <div className={cn(
-                "inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br text-white mb-4 shadow-lg group-hover:scale-110 transition-transform duration-300",
-                color
-              )}>
-                <benefit.icon className="w-7 h-7" />
+              <div className="mb-4 inline-flex h-14 w-14 items-center justify-center rounded-card bg-zaltyko-primary-ultralight transition-transform duration-300 group-hover:scale-110">
+                <benefit.icon className="w-7 h-7 text-zaltyko-teal" />
               </div>
               <h3 className="font-display text-lg font-bold text-zaltyko-text-main mb-2 group-hover:text-zaltyko-primary transition-colors">
                 {benefit.title}
@@ -180,19 +165,16 @@ interface UseCasesSectionProps {
   color: string;
 }
 
-export function UseCasesSection({ useCases, color }: UseCasesSectionProps) {
+export function UseCasesSection({ useCases }: UseCasesSectionProps) {
   return (
     <section className="py-16 lg:py-20 bg-zaltyko-bg">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-12">
-          <span className={cn(
-            "inline-block text-sm font-bold uppercase tracking-wider mb-4 bg-gradient-to-r bg-clip-text text-transparent",
-            color
-          )}>
+          <span className="mb-4 inline-block text-sm font-bold uppercase tracking-wider text-zaltyko-teal">
             Casos de uso
           </span>
           <h2 className="font-display text-2xl font-bold tracking-tight text-zaltyko-text-main sm:text-3xl">
-            Quien se beneficia de este modulo?
+            ¿Quién se beneficia de este módulo?
           </h2>
         </div>
 
@@ -202,11 +184,8 @@ export function UseCasesSection({ useCases, color }: UseCasesSectionProps) {
               key={useCase.role}
               className="bg-white rounded-2xl border border-zaltyko-border/50 p-8 shadow-lg hover:shadow-2xl hover:shadow-zaltyko-primary/10 transition-all duration-300 hover:-translate-y-2 group"
             >
-              <div className={cn(
-                "inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br text-white mb-6 shadow-lg group-hover:scale-110 group-hover:rotate-3 transition-all duration-300",
-                color
-              )}>
-                <useCase.icon className="w-8 h-8" />
+              <div className="mb-6 inline-flex h-16 w-16 items-center justify-center rounded-card bg-zaltyko-primary-ultralight transition-transform duration-300 group-hover:scale-110">
+                <useCase.icon className="w-8 h-8 text-zaltyko-teal" />
               </div>
               <p className="text-sm font-bold text-zaltyko-primary uppercase tracking-wider mb-2 group-hover:translate-x-1 transition-transform">
                 {useCase.role}
@@ -239,8 +218,9 @@ export function ModuleCta({
   subtitle = "Únete a las academias que ya están simplificando su gestión con Zaltyko"
 }: ModuleCtaProps) {
   return (
-    <section className="py-16 lg:py-20 bg-gradient-to-br from-zaltyko-primary to-zaltyko-primary-dark">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+    <section className="relative overflow-hidden bg-zaltyko-navy py-16 lg:py-20">
+      <div className="absolute inset-0 zaltyko-motion-lines opacity-60" />
+      <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="max-w-3xl mx-auto text-center">
           <h2 className="font-display text-3xl font-bold tracking-tight text-white sm:text-4xl">
             {title}
@@ -250,10 +230,10 @@ export function ModuleCta({
           </p>
           <div className="mt-10 flex flex-col gap-4 sm:flex-row sm:justify-center">
             <Link
-              href="/contact?type=demo"
+              href="/auth/register?role=owner"
               className={cn(
                 buttonVariants({ size: "lg" }),
-                "bg-white text-zaltyko-primary hover:bg-white/90 shadow-lg"
+                "bg-zaltyko-teal text-white hover:bg-primary-dark shadow-brand"
               )}
             >
               <Sparkles className="mr-2 h-5 w-5" />
@@ -263,14 +243,14 @@ export function ModuleCta({
               href="/pricing"
               className={cn(
                 buttonVariants({ variant: "outline", size: "lg" }),
-                "border-white/30 text-white hover:bg-white/10"
+                "border-white/20 bg-white/10 text-white hover:bg-white/20"
               )}
             >
               Ver planes y precios
             </Link>
           </div>
           <p className="mt-4 text-sm text-white/60">
-            Sin tarjeta de crédito · Configuración en 5 minutos
+            Sin tarjeta de crédito · Puesta en marcha guiada
           </p>
         </div>
       </div>

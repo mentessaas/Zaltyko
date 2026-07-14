@@ -61,7 +61,7 @@ const EventCard = memo(function EventCard({ event, locale }: EventCardProps) {
         {/* Date tile + level */}
         <div className="flex items-start justify-between mb-4">
           {eventDate ? (
-            <div className="flex flex-col items-center justify-center w-14 rounded-xl bg-gradient-to-br from-zaltyko-coral/15 to-orange-100/60 px-2 py-2 leading-none">
+            <div className="flex w-14 flex-col items-center justify-center rounded-control bg-zaltyko-coral/10 px-2 py-2 leading-none">
               <span className="text-xl font-bold text-zaltyko-coral">{eventDate.day}</span>
               <span className="text-[11px] font-semibold uppercase tracking-wide text-zaltyko-coral/80">{eventDate.month}</span>
             </div>
@@ -111,12 +111,12 @@ const EventCard = memo(function EventCard({ event, locale }: EventCardProps) {
               </span>
             </div>
           )}
-          <div className="flex items-center gap-1.5 text-sm font-medium text-green-600">
+          <div className="flex items-center gap-1.5 text-sm font-medium text-zaltyko-teal">
             <Ticket className="h-4 w-4" />
             <span>
               {event.registrationFee === 0 || event.registrationFee === null || event.registrationFee === undefined
                 ? t.free
-                : `$${((event.registrationFee ?? 0) / 100).toFixed(2)}`}
+                : `${((event.registrationFee ?? 0) / 100).toFixed(2)}€`}
             </span>
           </div>
         </div>

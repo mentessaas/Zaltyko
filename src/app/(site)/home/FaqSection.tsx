@@ -36,7 +36,7 @@ const faqs = [
   },
   {
     question: "¿Funciona en móvil?",
-    answer: "Sí. Zaltyko es una aplicación web responsive y el flujo de clase del coach está verificado en móvil. Puede marcar asistencia desde el navegador.",
+    answer: "Sí. Zaltyko es una aplicación web responsive y el flujo de clase del coach está verificado en móvil. El pase de lista está optimizado para pista: se registra la asistencia en un toque desde \"Pasar lista hoy\".",
   },
 ];
 
@@ -46,7 +46,7 @@ export default function FaqSection() {
   return (
     <section className="py-24 bg-white relative overflow-hidden">
       {/* Background accent */}
-      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-zaltyko-white0 via-zaltyko-indigo to-zaltyko-teal" />
+      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-zaltyko-white via-zaltyko-indigo to-zaltyko-teal" />
 
       <div className="relative mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
         {/* Header */}

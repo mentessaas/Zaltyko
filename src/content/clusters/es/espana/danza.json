@@ -55,21 +55,19 @@
     "generic": "Gestionar examenes de danza, espectaculos y clases de diferentes disciplinas con hojas de calculo es frustrante. La informacion se pierde y los padres no estan bien informados.",
     "specific": "Coordinar examenes de ballet RAD/Vaganova, gestionar inspecciones para espectaculos, tracking del progreso tecnico por disciplina y comunicacion con padres."
   },
-  "socialProof": {
-    "academies": [
-      "Ballet Antonio Madrid",
-      "Danza Contemporanea Barcelona",
-      "Estudio Urban Dance Valencia",
-      "Academia Ballet Sevilla",
-      "Move & Dance Bilbao"
-    ],
-    "stats": {
-      "athletes": "8,000+",
-      "academies": "45+"
-    }
-  },
   "interlinking": {
-    "relatedCountries": ["mexico", "argentina", "colombia", "chile", "peru"],
-    "relatedModalities": ["artistic", "rhythmic", "acrobatic", "parkour"]
+    "relatedCountries": [
+      "mexico",
+      "argentina",
+      "colombia",
+      "chile",
+      "peru"
+    ],
+    "relatedModalities": [
+      "artistic",
+      "rhythmic",
+      "acrobatic",
+      "parkour"
+    ]
   }
 }

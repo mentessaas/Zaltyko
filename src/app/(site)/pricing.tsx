@@ -1,4 +1,5 @@
 import { Check, Shield, Clock, Globe2 } from "lucide-react";
+import Link from "next/link";
 
 import { PricingPageTracker } from "@/components/growth/PricingPageTracker";
 import { TrackedPlanLink } from "@/components/growth/TrackedPlanLink";
@@ -54,17 +55,13 @@ export default function PricingSection() {
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         {/* Trial banner */}
         <div className="mb-8 text-center">
-          <div className="inline-flex items-center gap-2 rounded-full border border-zaltyko-teal/25 bg-zaltyko-teal/10 px-5 py-2 text-sm font-medium text-zaltyko-indigo">
-            <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-zaltyko-teal opacity-60" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-zaltyko-teal" />
-            </span>
+          <div className="inline-flex items-center gap-2 rounded-full border border-zaltyko-teal/25 bg-zaltyko-teal/10 px-5 py-2 text-sm font-medium text-zaltyko-navy">
             7 días de Starter sin tarjeta · una activación por academia cada 12 meses
           </div>
         </div>
 
         <div className="text-center">
-          <span className="font-display text-xs uppercase tracking-[0.35em] text-zaltyko-accent">
+          <span className="text-xs font-semibold uppercase tracking-[0.08em] text-zaltyko-teal">
             Planes
           </span>
           <h2 className="mt-4 font-display text-3xl font-semibold text-foreground sm:text-4xl">
@@ -100,19 +97,21 @@ export default function PricingSection() {
           {plans.map((plan) => (
             <article
               key={plan.title}
-              className={`relative flex h-full flex-col rounded-3xl border bg-card p-8 transition-all duration-300 ${
+              className={`flex h-full flex-col rounded-card border bg-card p-8 ${
                 plan.highlight
-                  ? "border-zaltyko-teal/40 shadow-brand ring-2 ring-zaltyko-teal/40 md:-translate-y-3 md:scale-[1.03] z-10"
-                  : "border-border shadow-lg hover:-translate-y-1 hover:border-zaltyko-accent/40 hover:shadow-brand"
+                  ? "border-zaltyko-mist border-b-[3px] border-b-zaltyko-teal"
+                  : "border-zaltyko-mist"
               }`}
             >
-              {plan.highlight && (
-                <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-gradient-to-r from-zaltyko-teal to-zaltyko-electric px-4 py-1 text-xs font-bold uppercase tracking-wide text-white shadow-brand">
-                  Más popular
-                </span>
-              )}
-              <h3 className="font-display text-xl font-semibold text-foreground">{plan.title}</h3>
-              <p className="mt-2 font-display text-3xl font-bold text-foreground">{plan.price}</p>
+              <div className="mb-2 flex items-baseline justify-between">
+                <h3 className="font-display text-xl font-semibold text-foreground">{plan.title}</h3>
+                {plan.highlight && (
+                  <span className="text-xs font-semibold uppercase tracking-[0.06em] text-zaltyko-teal">
+                    Más elegido
+                  </span>
+                )}
+              </div>
+              <p className="font-display text-3xl font-bold tabular-nums text-foreground">{plan.price}</p>
               <p className="mt-2 font-sans text-sm text-muted-foreground">{plan.description}</p>
 
               <ul className="mt-6 space-y-3 font-sans text-sm text-foreground">
@@ -127,10 +126,10 @@ export default function PricingSection() {
               <TrackedPlanLink
                 href={plan.ctaHref}
                 planCode={plan.planCode}
-                className={`mt-8 inline-flex items-center justify-center rounded-full px-6 py-2 text-sm font-semibold transition ${
+                className={`mt-8 inline-flex min-h-11 items-center justify-center rounded-full px-6 py-2 text-sm font-semibold transition ${
                   plan.highlight
                     ? "bg-zaltyko-teal text-white hover:bg-primary-dark"
-                    : "border border-border text-foreground hover:bg-muted"
+                    : "border border-zaltyko-mist text-foreground hover:bg-muted"
                 }`}
               >
                 {plan.cta}
@@ -164,12 +163,12 @@ export default function PricingSection() {
           <p className="mt-3 font-sans text-sm text-slate-600">
             Hacemos una sesión de diagnóstico y definimos una puesta en marcha para que tu equipo pueda operar sin fricción.
           </p>
-          <a
-            href="mailto:ventas@zaltyko.com"
+          <Link
+            href="/contact?type=migracion"
             className="mt-6 inline-flex items-center justify-center rounded-full border border-border px-6 py-3 text-sm font-semibold text-foreground hover:bg-muted"
           >
-            Solicitar demo
-          </a>
+            Hablar de migración
+          </Link>
         </div>
       </div>
     </section>

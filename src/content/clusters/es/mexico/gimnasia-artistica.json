@@ -14,7 +14,7 @@
     ]
   },
   "hero": {
-    "badge": "Líder en México · +60 academias",
+    "badge": "Gestión pensada para academias de gimnasia artística",
     "headline": "Gestiona tu escuela de gimnasia artística federada sin complicaciones",
     "subheadline": "Control total sobre atletas FMGM-CONADE, categorías oficiales, niveles 1-10 y licencias. Olimpiada Nacional, Circuito Nacional y más."
   },
@@ -41,21 +41,18 @@
     "generic": "Gestionar el doble sistema FMGM + CONADE es un dolor de cabeza. Licencias duplicadas, paperwork excesivo y poco tiempo para entrenar.",
     "specific": "Renovar licencias FMGM y registro CONADE, gestionar selectivos para Olimpiada Nacional, tracking de niveles numéricos 1-10 por categoría."
   },
-  "socialProof": {
-    "academies": [
-      "Gimnasia Integral CDMX",
-      "Club de Gimnasia Jalisco",
-      "Academia Monterrey",
-      "Gimnasia Puebla",
-      "Elite Gymnastics Estado de México"
-    ],
-    "stats": {
-      "athletes": "18,000+",
-      "academies": "60+"
-    }
-  },
   "interlinking": {
-    "relatedCountries": ["espana", "argentina", "colombia", "chile", "peru"],
-    "relatedModalities": ["rhythmic", "acrobatic", "trampoline"]
+    "relatedCountries": [
+      "espana",
+      "argentina",
+      "colombia",
+      "chile",
+      "peru"
+    ],
+    "relatedModalities": [
+      "rhythmic",
+      "acrobatic",
+      "trampoline"
+    ]
   }
 }

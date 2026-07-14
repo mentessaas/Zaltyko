@@ -94,6 +94,10 @@ const config = {
         sans: ["var(--font-inter)", "ui-sans-serif", "system-ui"],
         display: ["var(--font-space-grotesk)", "ui-sans-serif", "system-ui"],
       },
+      // Sistema de elevación de marca (Fase 2, 2026-07-14): nivel 0 = solo borde
+      // zaltyko-mist (sin sombra); nivel 1 = shadow-soft (hover/activo); nivel 2 =
+      // shadow-medium (overlays/modales). shadow-brand/indigo/lift/glow quedan como
+      // acentos puntuales, no como base de reposo de ningún componente nuevo.
       boxShadow: {
         soft: "0 2px 8px rgba(15, 23, 42, 0.06)",
         medium: "0 8px 24px rgba(15, 23, 42, 0.08)",
@@ -111,6 +115,11 @@ const config = {
         xl: "1rem",
         "2xl": "1.5rem",
         "3xl": "2rem",
+        // Sistema de radio de marca (Fase 2 del sistema de diseño, 2026-07-14):
+        // 3 niveles con nombre en vez de valores arbitrarios sueltos por componente.
+        control: "6px", // botones, inputs, chips
+        card: "10px", // tarjetas, filas, paneles
+        modal: "16px", // modales, sheets, overlays
       },
       backgroundImage: {
         "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",

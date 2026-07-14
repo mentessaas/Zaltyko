@@ -138,13 +138,6 @@ export interface ClusterContent {
   categories: {
     [key: string]: string[];
   };
-  socialProof: {
-    academies: string[];
-    stats: {
-      athletes: string;
-      academies: string;
-    };
-  };
   painPoints: {
     generic: string;
     specific: string;

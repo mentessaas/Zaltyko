@@ -17,7 +17,7 @@ import { FileUpload } from "./FileUpload";
 import { LocationSelect } from "./LocationSelect";
 
 const fieldClassName =
-  "w-full rounded-[10px] border border-zaltyko-mist bg-white px-4 py-2.5 text-sm text-zaltyko-navy shadow-none focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15 disabled:bg-zaltyko-warm-white disabled:text-zaltyko-text-secondary";
+  "w-full rounded-card border border-zaltyko-mist bg-white px-4 py-2.5 text-sm text-zaltyko-navy shadow-none focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15 disabled:bg-zaltyko-warm-white disabled:text-zaltyko-text-secondary";
 const labelClassName = "mb-2 block text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy";
 const sectionClassName = "sm:col-span-2 border-t border-zaltyko-mist pt-4";
 const errorTextClassName = "mt-1 text-xs text-zaltyko-coral";

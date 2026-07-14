@@ -44,7 +44,7 @@ export default function StickyCtaBar() {
               <Sparkles className="h-4 w-4 text-zaltyko-teal" />
             </div>
             <p className="truncate text-sm text-zaltyko-text-secondary">
-              <span className="font-semibold text-zaltyko-navy">Artística y rítmica</span> · Demo guiada ·{" "}
+              <span className="font-semibold text-zaltyko-navy">Artística y rítmica</span> · Gratis hasta 30 gimnastas ·{" "}
               <span className="font-bold text-zaltyko-indigo">Planes por tamaño de academia</span>
             </p>
           </div>
@@ -52,13 +52,13 @@ export default function StickyCtaBar() {
           {/* Right: CTA */}
           <div className="flex items-center gap-3 shrink-0">
             <Link
-              href="/contact?type=demo"
+              href="/auth/register?role=owner"
               className={cn(
                 buttonVariants({ variant: "default", size: "sm" }),
                 "rounded-full bg-zaltyko-teal px-5 py-2 text-sm shadow-soft hover:bg-primary-dark"
               )}
             >
-              Solicitar demo
+              Crear cuenta gratis
             </Link>
             <button
               onClick={() => setDismissed(true)}

@@ -11,7 +11,7 @@
     ]
   },
   "hero": {
-    "badge": "Leader in Peru · +18 clubs",
+    "badge": "Built for rhythmic gymnastics clubs",
     "headline": "Manage your federated rhythmic gymnastics club with ease",
     "subheadline": "Full control over FPG athletes, official categories, levels 1-10, 5 apparatus and licenses. National selectivos and tournaments."
   },
@@ -37,21 +37,18 @@
     "generic": "Managing federations and equipment for 5 apparatus on paper is chaos. Little time for training.",
     "specific": "Renewing FPG licenses, managing equipment (ropes, hoops, balls, clubs, ribbons), tracking technical levels 1-10."
   },
-  "socialProof": {
-    "academies": [
-      "Rítmica Lima",
-      "Club Arequipa RG",
-      "Academia Trujillo Rítmica",
-      "Club Cusco Rítmica",
-      "Escuela Piura Rítmica"
-    ],
-    "stats": {
-      "athletes": "3,500+",
-      "academies": "18+"
-    }
-  },
   "interlinking": {
-    "relatedCountries": ["spain", "mexico", "argentina", "colombia", "chile"],
-    "relatedModalities": ["artistic", "acrobatic", "trampoline"]
+    "relatedCountries": [
+      "spain",
+      "mexico",
+      "argentina",
+      "colombia",
+      "chile"
+    ],
+    "relatedModalities": [
+      "artistic",
+      "acrobatic",
+      "trampoline"
+    ]
   }
 }

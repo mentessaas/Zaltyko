@@ -13,7 +13,7 @@
     ]
   },
   "hero": {
-    "badge": "Líder en México · +30 academias",
+    "badge": "Gestión pensada para academias de gimnasia acrobática",
     "headline": "Gestiona tu escuela de gimnasia acrobática federada sin complicaciones",
     "subheadline": "Control total sobre atletas, categorías, parejas y grupos acrobáticos, niveles de dificultad y licencias. Olimpiada Nacional y Circuito Nacional."
   },
@@ -39,21 +39,18 @@
     "generic": "Coordinar parejas y grupos acrobáticos es caótico. Tracking de gimnastas por categoría, niveles de dificultad y composiciones en papel es un desastre.",
     "specific": "Gestionar combinaciones de parejas y grupos, coordinar cuando un gimnasta cambia de categoría, seguir puntuaciones D (dificultad) y E (ejecución)."
   },
-  "socialProof": {
-    "academies": [
-      "Acrobática Club México",
-      "Gimnasia Acrobática Jalisco",
-      "Academia Monterrey Acrobática",
-      "Club Puebla Acrobática",
-      "Elite Acrobática CDMX"
-    ],
-    "stats": {
-      "athletes": "5,000+",
-      "academies": "30+"
-    }
-  },
   "interlinking": {
-    "relatedCountries": ["espana", "argentina", "colombia", "chile", "peru"],
-    "relatedModalities": ["artistic", "rhythmic", "trampoline"]
+    "relatedCountries": [
+      "espana",
+      "argentina",
+      "colombia",
+      "chile",
+      "peru"
+    ],
+    "relatedModalities": [
+      "artistic",
+      "rhythmic",
+      "trampoline"
+    ]
   }
 }

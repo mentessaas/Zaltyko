@@ -14,7 +14,7 @@
     ]
   },
   "hero": {
-    "badge": "Leader in Spain · +85 clubs",
+    "badge": "Built for artistic gymnastics clubs",
     "headline": "Manage your federated artistic gymnastics club with ease",
     "subheadline": "Full control over RFEG athletes, official categories (Pre-initiation to Elite), competition levels and licenses. Liga Iberdrola, Copa España and more."
   },
@@ -41,21 +41,18 @@
     "generic": "Managing federations, licenses and competitions in spreadsheets takes hours you could spend training. Information gets lost, data gets duplicated and errors are constant.",
     "specific": "Renewing RFEG licenses before each competition, managing autonomic qualifiers for Liga Iberdrola, tracking technical progress by category from Initiation to FIG."
   },
-  "socialProof": {
-    "academies": [
-      "Gravity Gym Barcelona",
-      "Club Gimnasia Artística Madrid",
-      "Gimnasia Elite Valencia",
-      "Club Olympus Sevilla",
-      "Esportiu Gymnastics Girona"
-    ],
-    "stats": {
-      "athletes": "15,000+",
-      "academies": "85+"
-    }
-  },
   "interlinking": {
-    "relatedCountries": ["mexico", "argentina", "colombia", "chile", "peru"],
-    "relatedModalities": ["rhythmic", "acrobatic", "trampoline"]
+    "relatedCountries": [
+      "mexico",
+      "argentina",
+      "colombia",
+      "chile",
+      "peru"
+    ],
+    "relatedModalities": [
+      "rhythmic",
+      "acrobatic",
+      "trampoline"
+    ]
   }
 }

@@ -4,10 +4,10 @@
  */
 
 export const CHECKLIST_KEYS = [
-  "create_first_group",
   "add_5_athletes",
-  "invite_first_coach",
+  "create_first_group",
   "setup_weekly_schedule",
+  "invite_first_coach",
   "enable_payments",
   "send_first_communication",
   "login_again",
@@ -26,27 +26,27 @@ export interface ChecklistDefinition {
 
 export const CHECKLIST_DEFINITIONS: ChecklistDefinition[] = [
   {
+    key: "add_5_athletes",
+    label: "Añade al menos 5 atletas",
+    description: "Impórtalas desde un CSV o crea la primera ficha a mano.",
+    auto: true,
+  },
+  {
     key: "create_first_group",
     label: "Crea tu primer grupo de entrenamiento",
     description: "Sin grupos no hay orden. Organiza a tus gimnastas por nivel y horarios.",
     auto: true,
   },
   {
-    key: "add_5_athletes",
-    label: "Añade al menos 5 atletas",
-    description: "Carga a tus atletas principales para empezar a ver el valor real del sistema.",
+    key: "setup_weekly_schedule",
+    label: "Configura tu calendario semanal",
+    description: "Crea tus primeras clases recurrentes para que todos tengan visibilidad.",
     auto: true,
   },
   {
     key: "invite_first_coach",
     label: "Invita a tu primer entrenador",
     description: "No lo gestiones solo: trae a tu mano derecha para que administre sus grupos.",
-    auto: true,
-  },
-  {
-    key: "setup_weekly_schedule",
-    label: "Configura tu calendario semanal",
-    description: "Crea tus primeras clases recurrentes para que todos tengan visibilidad.",
     auto: true,
   },
   {

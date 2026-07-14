@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { CreditCard, AlertCircle, CheckCircle, Clock, ArrowRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,8 @@ interface MyPaymentsWidgetProps {
 }
 
 export function MyPaymentsWidget({ charges }: MyPaymentsWidgetProps) {
+  const [showAll, setShowAll] = useState(false);
+
   if (charges.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-6 text-center">
@@ -134,7 +137,6 @@ export function MyPaymentsWidget({ charges }: MyPaymentsWidgetProps) {
   const pendingCharges = charges.filter(
     (c) => c.status === "pending" || c.status === "overdue"
   );
-  const paidCharges = charges.filter((c) => c.status === "paid");
 
   // Calcular total pendiente
   const totalPending = pendingCharges.reduce(
@@ -166,7 +168,7 @@ export function MyPaymentsWidget({ charges }: MyPaymentsWidgetProps) {
 
       {/* Lista de pagos recientes */}
       <div className="space-y-2">
-        {charges.slice(0, 4).map((charge, index) => {
+        {charges.slice(0, showAll ? charges.length : 4).map((charge, index) => {
           const statusInfo = getStatusInfo(charge.status);
           const StatusIcon = statusInfo.icon;
 
@@ -213,18 +215,16 @@ export function MyPaymentsWidget({ charges }: MyPaymentsWidgetProps) {
         })}
       </div>
 
-      {/* Si hay más de 4 pagos, mostrar indicador */}
+      {/* Ver todos / ver menos */}
       {charges.length > 4 && (
-        <p className="text-center text-xs text-muted-foreground">
-          + {charges.length - 4} pago(s) más
-        </p>
-      )}
-
-      {/* Enlace para ver todos los pagos */}
-      {(pendingCharges.length > 0 || paidCharges.length > 0) && (
-        <Button variant="ghost" size="sm" className="w-full">
-          Ver todos los pagos
-          <ArrowRight className="ml-1 h-3 w-3" />
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-full"
+          onClick={() => setShowAll((current) => !current)}
+        >
+          {showAll ? "Ver menos" : `Ver todos los pagos (${charges.length})`}
+          <ArrowRight className={`ml-1 h-3 w-3 transition-transform ${showAll ? "-rotate-90" : "rotate-90"}`} />
         </Button>
       )}
     </div>

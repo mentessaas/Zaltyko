@@ -12,7 +12,7 @@
     ]
   },
   "hero": {
-    "badge": "Líder en Chile · +10 academias",
+    "badge": "Gestión pensada para academias de trampolín",
     "headline": "Gestiona tu escuela de trampolín federada sin complicaciones",
     "subheadline": "Control total sobre atletas, categorías, niveles de Tumbling, DMT, Sincronizado y licencias. Campeonato Nacional y selectivos."
   },
@@ -38,21 +38,18 @@
     "generic": "Gestionar gimnastas de Tumbling, DMT y Sincronizado en papel es un caos. El tracking de niveles es inexistente.",
     "specific": "Coordinar pruebas de sincronización, gestionar puntuaciones de dificultad, renovar licencias FGCh."
   },
-  "socialProof": {
-    "academies": [
-      "Trampolín Santiago",
-      "Club Valparaíso Trampolín",
-      "Academia Concepción Trampoline",
-      "Club La Serena Trampolín",
-      "Escuela Antofagasta Trampolín"
-    ],
-    "stats": {
-      "athletes": "1,500+",
-      "academies": "10+"
-    }
-  },
   "interlinking": {
-    "relatedCountries": ["espana", "mexico", "argentina", "colombia", "peru"],
-    "relatedModalities": ["artistic", "rhythmic", "acrobatic"]
+    "relatedCountries": [
+      "espana",
+      "mexico",
+      "argentina",
+      "colombia",
+      "peru"
+    ],
+    "relatedModalities": [
+      "artistic",
+      "rhythmic",
+      "acrobatic"
+    ]
   }
 }

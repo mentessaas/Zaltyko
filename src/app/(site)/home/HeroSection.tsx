@@ -1,96 +1,79 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, Play, Check, Sparkles, Users, Calendar, CreditCard, TrendingUp, Star, Shield, Zap } from "lucide-react";
+import { ArrowRight, Play, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 
-const features = [
-  {
-    title: "Gimnastas y niveles",
-    description: "Fichas claras con nivel, categoría, aparatos, rutinas y seguimiento técnico",
-    icon: Users,
-    color: "from-zaltyko-indigo to-zaltyko-teal",
-  },
-  {
-    title: "Grupos y horarios",
-    description: "Organiza entrenamientos por grupo, aforo, entrenadora y asistencia",
-    icon: Calendar,
-    color: "from-teal-500 to-emerald-600",
-  },
-  {
-    title: "Cobros claros",
-    description: "Controla cuotas, pagos pendientes y familias sin perseguir mensajes",
-    icon: CreditCard,
-    color: "from-zaltyko-indigo to-zaltyko-coral",
-  },
-  {
-    title: "Dirección diaria",
-    description: "Una vista simple para decidir qué pasa hoy en tu academia",
-    icon: TrendingUp,
-    color: "from-violet-500 to-purple-600",
-  },
+const clipChip = {
+  clipPath: "polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%)",
+} as const;
+
+const rosterPreview = [
+  { name: "Lucía M.", group: "Base 3 · GAF", status: "present" as const },
+  { name: "Martín O.", group: "Iniciación · GAM", status: "present" as const },
+  { name: "Vera S.", group: "Base 2 · Rítmica", status: "late" as const },
+  { name: "Noa P.", group: "Base 3 · GAF", status: "absent" as const },
 ];
+
+const STATUS_LABEL: Record<string, string> = {
+  present: "Presente",
+  late: "Tarde",
+  absent: "Ausente",
+};
+
+const STATUS_CLASS: Record<string, string> = {
+  present: "bg-zaltyko-primary-ultralight text-zaltyko-teal",
+  late: "bg-zaltyko-navy/10 text-zaltyko-navy",
+  absent: "bg-zaltyko-coral/12 text-zaltyko-coral",
+};
 
 export default function HeroSection() {
   return (
-    <section className="relative min-h-screen flex items-center overflow-hidden bg-white">
-      {/* Background: textura de marca + un único orbe de profundidad */}
-      <div className="absolute inset-0">
-        <div className="absolute inset-0 zaltyko-motion-lines opacity-80" />
-        <div className="absolute -top-32 right-0 h-[720px] w-[720px] rounded-full bg-gradient-to-br from-zaltyko-electric/10 via-zaltyko-teal/5 to-transparent blur-3xl" />
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(203,213,225,0.12)_1px,transparent_1px),linear-gradient(to_bottom,rgba(203,213,225,0.12)_1px,transparent_1px)] bg-[size:72px_72px] [mask-image:radial-gradient(ellipse_at_center,black,transparent_75%)]" />
-      </div>
-
-      <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-20 lg:py-32">
+    <section className="relative bg-white">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-20 lg:py-32">
         <div className="grid lg:grid-cols-2 gap-16 lg:gap-20 items-center">
           {/* Left Content */}
           <div className="max-w-2xl">
-            {/* Badge */}
-            <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-zaltyko-teal/20 bg-zaltyko-teal/10 px-4 py-1.5 text-sm font-medium text-zaltyko-indigo">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-zaltyko-teal opacity-60"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-zaltyko-teal"></span>
-              </span>
-              Para gimnasia artística femenina, masculina y rítmica
-            </div>
+            <p className="mb-6 text-xs font-semibold uppercase tracking-[0.08em] text-zaltyko-teal">
+              Gimnasia artística · GAM · Rítmica
+            </p>
 
             {/* H1 */}
-            <h1 className="mb-6 font-display text-5xl font-bold leading-[1.02] tracking-tight text-zaltyko-navy sm:text-6xl lg:text-[5rem]">
-              Dirige tu academia de gimnasia{" "}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-zaltyko-indigo via-zaltyko-teal to-zaltyko-electric">
-                con orden, cobros claros y menos improvisación
-              </span>
+            <h1 className="mb-6 font-display text-5xl font-bold leading-[1.05] tracking-tight text-zaltyko-navy sm:text-6xl lg:text-7xl">
+              Las cuotas cobradas, los grupos montados y la lista pasada.
             </h1>
+            <p className="mb-3 font-display text-xl font-medium text-zaltyko-text-secondary sm:text-2xl">
+              Sin Excel y sin 14 chats de WhatsApp.
+            </p>
 
             {/* Subtitle */}
-            <p className="mb-8 max-w-xl text-xl leading-relaxed text-zaltyko-text-secondary">
-              Zaltyko ayuda a academias de artística femenina, artística masculina y rítmica a ordenar grupos, horarios, familias, pagos y progreso técnico desde un solo lugar.
+            <p className="mb-8 max-w-xl text-lg leading-relaxed text-zaltyko-text-secondary">
+              Zaltyko es el software de gestión hecho solo para clubes de gimnasia artística y rítmica: gimnastas por nivel y aparato, cuotas recurrentes, asistencia por sesión y familias informadas.
             </p>
 
             {/* CTAs */}
             <div className="mb-6">
               <div className="flex flex-col sm:flex-row gap-4 mb-4">
                 <Link
-                  href="/contact?type=demo"
+                  href="/auth/register?role=owner"
                   className={cn(
                     buttonVariants({ variant: "default", size: "lg" }),
                     "group bg-zaltyko-teal px-8 py-6 text-base text-white shadow-brand transition-all duration-200 hover:bg-primary-dark hover:shadow-lift"
                   )}
                 >
-                  <Sparkles className="mr-2 h-5 w-5" />
-                  Solicitar demo
+                  Crea tu academia gratis
                   <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
                 </Link>
                 <Link
-                  href="#demo"
+                  href="/pricing"
                   className={cn(
                     buttonVariants({ variant: "outline", size: "lg" }),
                     "border-zaltyko-mist bg-white px-8 py-6 text-base text-zaltyko-indigo hover:border-zaltyko-indigo/35 hover:bg-zaltyko-white"
                   )}
                 >
                   <Play className="mr-2 h-5 w-5 text-zaltyko-teal" />
-                  Ver demo en 2 min
+                  Ver planes
                 </Link>
               </div>
               {/* Microcopy bajo CTA */}
@@ -106,40 +89,41 @@ export default function HeroSection() {
             </div>
           </div>
 
-          {/* Right Content - Features */}
-          <div className="relative">
-            {/* Features grid */}
-            <div className="grid grid-cols-2 gap-3">
-              {features.map((feature, i) => (
-                <div
-                  key={feature.title}
-                  className={cn(
-                    "group card-hover animate-fadeInUp rounded-2xl border border-zaltyko-mist/70 bg-white/90 p-4 shadow-soft hover:border-zaltyko-teal/30",
-                    i === 1 && "delay-75",
-                    i === 2 && "delay-150",
-                    i === 3 && "delay-225"
-                  )}
-                >
-                  <div className={cn("w-10 h-10 rounded-xl bg-gradient-to-br flex items-center justify-center mb-3 transition-transform duration-300 group-hover:scale-110", feature.color)}>
-                    <feature.icon className="h-5 w-5 text-white" />
-                  </div>
-                  <h3 className="mb-1 text-sm font-semibold text-zaltyko-navy transition-colors group-hover:text-zaltyko-indigo">
-                    {feature.title}
-                  </h3>
-                  <p className="text-xs leading-snug text-zaltyko-text-secondary">
-                    {feature.description}
-                  </p>
+          {/* Right Content - vista ilustrativa del pase de lista, no una captura del producto */}
+          <div className="border-b-2 border-zaltyko-teal">
+            <div className="rounded-card border border-zaltyko-mist bg-white shadow-soft">
+              <div className="flex items-center justify-between border-b border-zaltyko-mist px-5 py-4">
+                <div>
+                  <p className="font-display text-sm font-bold text-zaltyko-navy">Entrenamiento · Base 3</p>
+                  <p className="text-xs text-zaltyko-text-light">Hoy · 17:30</p>
                 </div>
-              ))}
-            </div>
-
-            {/* Floating elements */}
-            <div className="absolute -top-4 -right-4 bg-white rounded-2xl p-3 shadow-xl border border-gray-100 animate-bounce" style={{ animationDuration: '3s' }}>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-green-500 rounded-full" />
-                <span className="text-sm font-medium text-gray-700">Demo guiada</span>
+                <p className="font-display text-lg font-bold tabular-nums text-zaltyko-navy">
+                  2<span className="text-zaltyko-text-light">/4</span>
+                </p>
               </div>
+              <ul className="divide-y divide-zaltyko-mist/60">
+                {rosterPreview.map((athlete) => (
+                  <li key={athlete.name} className="flex items-center justify-between gap-3 px-5 py-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-zaltyko-navy">{athlete.name}</p>
+                      <p className="truncate text-xs text-zaltyko-text-light">{athlete.group}</p>
+                    </div>
+                    <span
+                      style={clipChip}
+                      className={cn(
+                        "shrink-0 px-2.5 py-1 text-xs font-semibold",
+                        STATUS_CLASS[athlete.status]
+                      )}
+                    >
+                      {STATUS_LABEL[athlete.status]}
+                    </span>
+                  </li>
+                ))}
+              </ul>
             </div>
+            <p className="mt-3 text-xs text-zaltyko-text-light">
+              Así se pasa lista desde el móvil, sesión por sesión.
+            </p>
           </div>
         </div>
       </div>

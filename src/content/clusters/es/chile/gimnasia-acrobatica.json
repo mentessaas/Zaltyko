@@ -12,7 +12,7 @@
     ]
   },
   "hero": {
-    "badge": "Líder en Chile · +12 academias",
+    "badge": "Gestión pensada para academias de gimnasia acrobática",
     "headline": "Gestiona tu escuela de gimnasia acrobática federada sin complicaciones",
     "subheadline": "Control total sobre atletas, categorías, parejas y grupos acrobáticos, niveles de dificultad y licencias. Campeonato Nacional."
   },
@@ -38,21 +38,18 @@
     "generic": "Coordinar parejas y grupos acrobáticos es caótico. Tracking de niveles y composiciones en papel es un desastre.",
     "specific": "Gestionar combinaciones de parejas y grupos, coordinar cambios de categoría, seguir puntuaciones D y E."
   },
-  "socialProof": {
-    "academies": [
-      "Acrobática Santiago",
-      "Club Valparaíso Acrobática",
-      "Academia Concepción Acrobática",
-      "Club La Serena Acrobática",
-      "Escuela Antofagasta Acrobática"
-    ],
-    "stats": {
-      "athletes": "2,000+",
-      "academies": "12+"
-    }
-  },
   "interlinking": {
-    "relatedCountries": ["espana", "mexico", "argentina", "colombia", "peru"],
-    "relatedModalities": ["artistic", "rhythmic", "trampoline"]
+    "relatedCountries": [
+      "espana",
+      "mexico",
+      "argentina",
+      "colombia",
+      "peru"
+    ],
+    "relatedModalities": [
+      "artistic",
+      "rhythmic",
+      "trampoline"
+    ]
   }
 }

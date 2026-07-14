@@ -96,7 +96,7 @@ export function QuickActionsWidget({ academyId }: QuickActionsWidgetProps) {
                             badge={pendingClasses}
                             onClick={() => {
                                 if (data?.todaysSessions && data.todaysSessions.length > 0) {
-                                    router.push(`/app/${academyId}/attendance`);
+                                    router.push(`/app/${academyId}/attendance/today`);
                                 }
                             }}
                             variant="default"

@@ -13,7 +13,7 @@
     ]
   },
   "hero": {
-    "badge": "Leader in Colombia · +30 clubs",
+    "badge": "Built for artistic gymnastics clubs",
     "headline": "Manage your federated artistic gymnastics club with ease",
     "subheadline": "Full control over FCG-Mindeporte athletes, official categories, competition levels, Copa Colombia, selectivos and licenses."
   },
@@ -40,21 +40,18 @@
     "generic": "Managing federations and licenses on paper or Excel takes hours you could spend training. Information gets lost between offices.",
     "specific": "Renewing FCG licenses, managing selectivos for Nacional Absoluto, tracking numerical levels by category, coordination with Mindeporte."
   },
-  "socialProof": {
-    "academies": [
-      "Gimnasia Bogotá",
-      "Club Medellín GA",
-      "Academia Cali Gymnastics",
-      "Club Barranquilla",
-      "Escuela Gymnastics Pereira"
-    ],
-    "stats": {
-      "athletes": "7,000+",
-      "academies": "30+"
-    }
-  },
   "interlinking": {
-    "relatedCountries": ["spain", "mexico", "argentina", "chile", "peru"],
-    "relatedModalities": ["rhythmic", "acrobatic", "trampoline"]
+    "relatedCountries": [
+      "spain",
+      "mexico",
+      "argentina",
+      "chile",
+      "peru"
+    ],
+    "relatedModalities": [
+      "rhythmic",
+      "acrobatic",
+      "trampoline"
+    ]
   }
 }

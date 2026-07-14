@@ -168,8 +168,8 @@ export function WhatsAppPage({
       />
 
       <div className="flex items-center gap-3">
-        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-green-500 to-green-600 text-white shadow-lg shadow-green-500/25">
-          <MessageCircle className="h-6 w-6" />
+        <div className="flex h-12 w-12 items-center justify-center rounded-control bg-green-50">
+          <MessageCircle className="h-6 w-6 text-green-600" />
         </div>
         <div>
           <h1 className="text-2xl font-bold">WhatsApp Business</h1>
@@ -180,9 +180,9 @@ export function WhatsAppPage({
       </div>
 
       {!config.isConfigured && (
-        <div className="rounded-lg border border-amber-400/60 bg-amber-400/10 p-4">
-          <p className="text-sm text-amber-900 font-medium">
-            ⚠️ WhatsApp no est&aacute; configurado. Configura tu cuenta en la pesta&ntilde;a &quot;Configuraci&oacute;n&quot; para poder enviar mensajes.
+        <div className="rounded-card border border-zaltyko-coral/30 bg-zaltyko-coral/10 p-4">
+          <p className="text-sm font-medium text-zaltyko-navy">
+            WhatsApp no está configurado. Configura tu cuenta en la pestaña &quot;Configuración&quot; para poder enviar mensajes.
           </p>
         </div>
       )}

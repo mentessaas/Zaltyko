@@ -11,7 +11,7 @@
     ]
   },
   "hero": {
-    "badge": "Leader in Chile · +12 clubs",
+    "badge": "Built for acrobatic gymnastics clubs",
     "headline": "Manage your federated acrobatic gymnastics club with ease",
     "subheadline": "Full control over athletes, categories, acrobatic pairs and groups, difficulty levels and licenses. National Championship."
   },
@@ -37,21 +37,18 @@
     "generic": "Coordinating acrobatic pairs and groups is chaotic. Tracking levels and compositions on paper is a disaster.",
     "specific": "Managing pair and group combinations, coordinating category changes, tracking D and E scores."
   },
-  "socialProof": {
-    "academies": [
-      "Acrobática Santiago",
-      "Club Valparaíso Acrobática",
-      "Academia Concepción Acrobática",
-      "Club La Serena Acrobática",
-      "Escuela Antofagasta Acrobática"
-    ],
-    "stats": {
-      "athletes": "2,000+",
-      "academies": "12+"
-    }
-  },
   "interlinking": {
-    "relatedCountries": ["spain", "mexico", "argentina", "colombia", "peru"],
-    "relatedModalities": ["artistic", "rhythmic", "trampoline"]
+    "relatedCountries": [
+      "spain",
+      "mexico",
+      "argentina",
+      "colombia",
+      "peru"
+    ],
+    "relatedModalities": [
+      "artistic",
+      "rhythmic",
+      "trampoline"
+    ]
   }
 }

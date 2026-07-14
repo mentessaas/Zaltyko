@@ -16,7 +16,7 @@
     ]
   },
   "hero": {
-    "badge": "Líder en España · +85 academias",
+    "badge": "Gestión pensada para academias de gimnasia artística",
     "headline": "Gestiona tu escuela de gimnasia artística federada sin complicaciones",
     "subheadline": "Control total sobre atletas RFEG, categorías oficiales (Pre-iniciación hasta Absoluta), niveles de competencia y licencias. Liga Iberdrola, Copa de España y más."
   },
@@ -54,21 +54,18 @@
     "generic": "Gestionar federaciones, licencias y competiciones en hojas de cálculo consume horas que podrías dedicar a entrenar. La información se pierde, los datos se duplican y los errores son constantes.",
     "specific": "Renovar licencias RFEG antes de cada competición, gestionar los selectivos autonómicos para Liga Iberdrola, tracking del progreso técnico por categoría desde Iniciación hasta FIG."
   },
-  "socialProof": {
-    "academies": [
-      "Gravity Gym Barcelona",
-      "Club Gimnasia Artística Madrid",
-      "Gimnasia Elite Valencia",
-      "Club Olympus Sevilla",
-      "Esportiu Gymnastics Girona"
-    ],
-    "stats": {
-      "athletes": "15,000+",
-      "academies": "85+"
-    }
-  },
   "interlinking": {
-    "relatedCountries": ["mexico", "argentina", "colombia", "chile", "peru"],
-    "relatedModalities": ["rhythmic", "acrobatic", "trampoline"]
+    "relatedCountries": [
+      "mexico",
+      "argentina",
+      "colombia",
+      "chile",
+      "peru"
+    ],
+    "relatedModalities": [
+      "rhythmic",
+      "acrobatic",
+      "trampoline"
+    ]
   }
 }

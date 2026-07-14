@@ -169,7 +169,7 @@ export function ScheduleEditor({ data, onChange, disabled = false }: ScheduleEdi
                   <div className="space-y-2">
                     <Label>Día de la semana</Label>
                     <select
-                      className="w-full rounded-[10px] border border-zaltyko-mist bg-white px-3 py-2 text-sm"
+                      className="w-full rounded-card border border-zaltyko-mist bg-white px-3 py-2 text-sm"
                       value={editingSlot.dayOfWeek}
                       onChange={(e) =>
                         setEditingSlot({ ...editingSlot, dayOfWeek: Number(e.target.value) })

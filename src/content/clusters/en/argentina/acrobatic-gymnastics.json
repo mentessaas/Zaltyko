@@ -12,7 +12,7 @@
     ]
   },
   "hero": {
-    "badge": "Leader in Argentina · +20 clubs",
+    "badge": "Built for acrobatic gymnastics clubs",
     "headline": "Manage your federated acrobatic gymnastics club with ease",
     "subheadline": "Full control over athletes, categories, acrobatic pairs and groups, difficulty levels and licenses. Argentine Championship and selectivos."
   },
@@ -38,21 +38,18 @@
     "generic": "Coordinating acrobatic pairs and groups is chaos without the right tool. Tracking levels, compositions and scores on paper is a disaster.",
     "specific": "Managing pair and group combinations, coordinating category changes, tracking D (difficulty) and E (execution) scores."
   },
-  "socialProof": {
-    "academies": [
-      "Acrobática Buenos Aires",
-      "Club Gimnasia Acrobática Córdoba",
-      "Academia Rosario Acrobática",
-      "Club Mendoza Acrobática",
-      "Escuela Tucumán Acrobática"
-    ],
-    "stats": {
-      "athletes": "3,500+",
-      "academies": "20+"
-    }
-  },
   "interlinking": {
-    "relatedCountries": ["spain", "mexico", "colombia", "chile", "peru"],
-    "relatedModalities": ["artistic", "rhythmic", "trampoline"]
+    "relatedCountries": [
+      "spain",
+      "mexico",
+      "colombia",
+      "chile",
+      "peru"
+    ],
+    "relatedModalities": [
+      "artistic",
+      "rhythmic",
+      "trampoline"
+    ]
   }
 }

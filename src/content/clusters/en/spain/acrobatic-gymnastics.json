@@ -13,7 +13,7 @@
     ]
   },
   "hero": {
-    "badge": "Leader in Spain · +45 clubs",
+    "badge": "Built for acrobatic gymnastics clubs",
     "headline": "Manage your federated acrobatic gymnastics club with ease",
     "subheadline": "Full control over athletes, official categories, difficulty levels, D/E scores and licenses. Manage pairs and groups from Base to Elite."
   },
@@ -40,21 +40,18 @@
     "generic": "Coordinating acrobatic pairs and groups is chaos without the right tool. Tracking difficulty levels, compositions and scores in Excel is a disaster.",
     "specific": "Managing pair and group combinations, coordinating when a gymnast changes category, tracking D (difficulty) and E (execution) scores."
   },
-  "socialProof": {
-    "academies": [
-      "Club Gimnasia Acrobática Barcelona",
-      "Acrobática Girona",
-      "Madrid Gymnastics Academy",
-      "Club Acrobática Coruña",
-      "Gimnasia Acrobática Sevilla"
-    ],
-    "stats": {
-      "athletes": "8,000+",
-      "academies": "45+"
-    }
-  },
   "interlinking": {
-    "relatedCountries": ["mexico", "argentina", "colombia", "chile", "peru"],
-    "relatedModalities": ["artistic", "rhythmic", "trampoline"]
+    "relatedCountries": [
+      "mexico",
+      "argentina",
+      "colombia",
+      "chile",
+      "peru"
+    ],
+    "relatedModalities": [
+      "artistic",
+      "rhythmic",
+      "trampoline"
+    ]
   }
 }

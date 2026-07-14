@@ -12,7 +12,7 @@
     ]
   },
   "hero": {
-    "badge": "Líder en Colombia · +15 academias",
+    "badge": "Gestión pensada para academias de gimnasia acrobática",
     "headline": "Gestiona tu escuela de gimnasia acrobática federada sin complicaciones",
     "subheadline": "Control total sobre atletas, categorías, parejas y grupos acrobáticos, niveles de dificultad y licencias. Copa Colombia y selectivos."
   },
@@ -38,21 +38,18 @@
     "generic": "Coordinar parejas y grupos acrobáticos es caótico. Tracking de niveles y composiciones en papel es un desastre.",
     "specific": "Gestionar combinaciones de parejas y grupos, coordinar cambios de categoría, seguir puntuaciones D y E."
   },
-  "socialProof": {
-    "academies": [
-      "Acrobática Bogotá",
-      "Club Medellín Acrobática",
-      "Academia Cali Acrobática",
-      "Club Barranquilla Acrobática",
-      "Escuela Pereira Acrobática"
-    ],
-    "stats": {
-      "athletes": "2,500+",
-      "academies": "15+"
-    }
-  },
   "interlinking": {
-    "relatedCountries": ["espana", "mexico", "argentina", "chile", "peru"],
-    "relatedModalities": ["artistic", "rhythmic", "trampoline"]
+    "relatedCountries": [
+      "espana",
+      "mexico",
+      "argentina",
+      "chile",
+      "peru"
+    ],
+    "relatedModalities": [
+      "artistic",
+      "rhythmic",
+      "trampoline"
+    ]
   }
 }

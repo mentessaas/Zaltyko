@@ -2,10 +2,11 @@
 
 import type { FormEvent } from "react";
 import Link from "next/link";
-import { CheckSquare, Download, LayoutGrid, List, Square, Users } from "lucide-react";
+import { CheckSquare, Download, LayoutGrid, List, Square, Upload, Users } from "lucide-react";
 
 import { athleteStatusOptions } from "@/lib/athletes/constants";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { AlertBadge } from "@/components/shared/AlertBadge";
 import { TooltipOnboarding } from "@/components/tooltips/TooltipOnboarding";
 import type { SportConfigOption } from "@/components/groups/types";
@@ -60,6 +61,7 @@ export function AthletesToolbar({
   onClearSelection,
   onBatchAction,
   onCreate,
+  onImportClick,
 }: {
   query: string;
   statusFilter: string;
@@ -88,6 +90,7 @@ export function AthletesToolbar({
   onClearSelection: () => void;
   onBatchAction: (action: string) => void;
   onCreate: () => void;
+  onImportClick: () => void;
 }) {
   return (
     <section className="flex flex-col gap-4 rounded-2xl border border-zaltyko-mist bg-white p-5 shadow-soft lg:flex-row lg:items-center lg:justify-between">
@@ -101,7 +104,7 @@ export function AthletesToolbar({
           placeholder={`${text.search} por nombre`}
           value={query}
           onChange={(event) => onQueryChange(event.target.value)}
-          className="min-h-11 min-w-[200px] flex-1 rounded-[10px] border border-zaltyko-mist bg-white px-3 py-2 text-sm focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15"
+          className="min-h-11 min-w-[200px] flex-1 rounded-card border border-zaltyko-mist bg-white px-3 py-2 text-sm focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15"
         />
         <label htmlFor="athletes-status-filter" className="sr-only">
           Filtrar por estado
@@ -110,7 +113,7 @@ export function AthletesToolbar({
           id="athletes-status-filter"
           value={statusFilter}
           onChange={(event) => onStatusChange(event.target.value)}
-          className="min-h-11 min-w-[160px] rounded-[10px] border border-zaltyko-mist bg-white px-3 py-2 text-sm focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15"
+          className="min-h-11 min-w-[160px] rounded-card border border-zaltyko-mist bg-white px-3 py-2 text-sm focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15"
         >
           <option value="">Estado</option>
           {athleteStatusOptions.map((option) => (
@@ -126,7 +129,7 @@ export function AthletesToolbar({
           id="athletes-level-filter"
           value={levelFilter}
           onChange={(event) => onLevelChange(event.target.value)}
-          className="min-h-11 min-w-[160px] rounded-[10px] border border-zaltyko-mist bg-white px-3 py-2 text-sm focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15"
+          className="min-h-11 min-w-[160px] rounded-card border border-zaltyko-mist bg-white px-3 py-2 text-sm focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15"
         >
           <option value="">Nivel</option>
           {levels.map((level) => (
@@ -142,7 +145,7 @@ export function AthletesToolbar({
           id="athletes-group-filter"
           value={groupFilter}
           onChange={(event) => onGroupChange(event.target.value)}
-          className="min-h-11 min-w-[180px] rounded-[10px] border border-zaltyko-mist bg-white px-3 py-2 text-sm focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15"
+          className="min-h-11 min-w-[180px] rounded-card border border-zaltyko-mist bg-white px-3 py-2 text-sm focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15"
         >
           <option value="">{terms.group} principal</option>
           {groups.map((group) => (
@@ -158,7 +161,7 @@ export function AthletesToolbar({
           id="athletes-sport-config-filter"
           value={sportConfigFilter}
           onChange={(event) => onSportConfigChange(event.target.value)}
-          className="min-h-11 min-w-[210px] rounded-[10px] border border-zaltyko-mist bg-white px-3 py-2 text-sm focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15"
+          className="min-h-11 min-w-[210px] rounded-card border border-zaltyko-mist bg-white px-3 py-2 text-sm focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15"
         >
           <option value="">Todas las ramas</option>
           {sportConfigs.map((config) => (
@@ -181,7 +184,7 @@ export function AthletesToolbar({
             onChange={(event) =>
               onAgeRangeChange({ ...ageRange, min: event.target.value ? parseInt(event.target.value) : undefined })
             }
-            className="min-h-11 w-20 rounded-[10px] border border-zaltyko-mist bg-white px-2 py-2 text-sm focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15"
+            className="min-h-11 w-20 rounded-card border border-zaltyko-mist bg-white px-2 py-2 text-sm focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15"
           />
           <span className="text-muted-foreground">-</span>
           <label htmlFor="athletes-age-max" className="sr-only">
@@ -197,7 +200,7 @@ export function AthletesToolbar({
             onChange={(event) =>
               onAgeRangeChange({ ...ageRange, max: event.target.value ? parseInt(event.target.value) : undefined })
             }
-            className="min-h-11 w-20 rounded-[10px] border border-zaltyko-mist bg-white px-2 py-2 text-sm focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15"
+            className="min-h-11 w-20 rounded-card border border-zaltyko-mist bg-white px-2 py-2 text-sm focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15"
           />
         </div>
         <button
@@ -251,6 +254,15 @@ export function AthletesToolbar({
             <LayoutGrid className="h-4 w-4" />
           </button>
         </div>
+
+        <button
+          type="button"
+          onClick={onImportClick}
+          className="inline-flex min-h-11 items-center justify-center rounded-xl border border-zaltyko-indigo bg-white px-3 py-2 text-sm font-medium text-zaltyko-indigo hover:bg-zaltyko-indigo/5"
+        >
+          <Upload className="mr-2 h-4 w-4" />
+          Importar CSV
+        </button>
 
         <button
           type="button"
@@ -309,36 +321,49 @@ export function AthletesEmptyState({
   hasActiveFilters,
   terms,
   onCreate,
+  onImportClick,
 }: {
   hasActiveFilters: boolean;
   terms: AthleteTerms;
   onCreate: () => void;
+  onImportClick: () => void;
 }) {
   return (
-    <div className="flex flex-col items-center justify-center rounded-2xl border border-zaltyko-mist bg-white p-12 text-center shadow-soft">
-      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-zaltyko-teal/10">
-        <Users className="h-8 w-8 text-zaltyko-teal" />
-      </div>
-      <p className="mb-2 text-sm font-medium text-foreground">
-        {hasActiveFilters
+    <EmptyState
+      icon={Users}
+      title={
+        hasActiveFilters
           ? `No hay ${terms.athletes.toLowerCase()} que coincidan con los filtros`
-          : `Aún no has creado ningún ${terms.athlete.toLowerCase()}`}
-      </p>
-      <p className="mb-6 text-sm text-muted-foreground">
-        {hasActiveFilters
+          : `Trae a tus ${terms.athletes.toLowerCase()}`
+      }
+      description={
+        hasActiveFilters
           ? "Intenta ajustar los filtros de búsqueda"
-          : `Crea tu primer ${terms.athlete.toLowerCase()} para empezar a gestionar tu academia`}
-      </p>
-      {!hasActiveFilters && (
-        <button
-          type="button"
-          onClick={onCreate}
-          className="inline-flex min-h-11 items-center justify-center rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white shadow-soft transition-all hover:bg-primary-dark"
-        >
-          Crear primer {terms.athlete.toLowerCase()}
-        </button>
-      )}
-    </div>
+          : `Importa tu Excel en un minuto o crea la primera ficha a mano.`
+      }
+      action={
+        !hasActiveFilters ? (
+          <button
+            type="button"
+            onClick={onImportClick}
+            className="inline-flex min-h-11 items-center justify-center rounded-xl border border-zaltyko-indigo bg-white px-4 py-2 text-sm font-semibold text-zaltyko-indigo shadow-soft transition-all hover:bg-zaltyko-indigo/5"
+          >
+            Importar CSV
+          </button>
+        ) : undefined
+      }
+      secondaryAction={
+        !hasActiveFilters ? (
+          <button
+            type="button"
+            onClick={onCreate}
+            className="inline-flex min-h-11 items-center justify-center rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white shadow-soft transition-all hover:bg-primary-dark"
+          >
+            Crear primer {terms.athlete.toLowerCase()}
+          </button>
+        ) : undefined
+      }
+    />
   );
 }
 

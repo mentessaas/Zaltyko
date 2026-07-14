@@ -13,7 +13,7 @@
     ]
   },
   "hero": {
-    "badge": "Líder en México · +50 academias",
+    "badge": "Gestión pensada para academias de gimnasia rítmica",
     "headline": "Gestiona tu escuela de gimnasia rítmica federada sin complicaciones",
     "subheadline": "Control total sobre atletas FMGM-CONADE, categorías, niveles 1-10, 5 aparatos y licencias. Olimpiada Nacional y Circuito Nacional."
   },
@@ -39,21 +39,18 @@
     "generic": "Gestionar el doble sistema FMGM + CONADE consume tiempo que podrías dedicar a entrenar. Material de los 5 aparatos es costoso y difícil de trackear.",
     "specific": "Renovar licencias FMGM y registro CONADE, gestionar material gimnástico (cintas, aros, bolas, mazas), seguir niveles 1-10 y ejercicios obligatorios."
   },
-  "socialProof": {
-    "academies": [
-      "Rítmica Club México",
-      "Gimnasia Rítmica Jalisco",
-      "Academia Rítmica Monterrey",
-      "Club Puebla Rítmica",
-      "Elite RG Estado de México"
-    ],
-    "stats": {
-      "athletes": "14,000+",
-      "academies": "50+"
-    }
-  },
   "interlinking": {
-    "relatedCountries": ["espana", "argentina", "colombia", "chile", "peru"],
-    "relatedModalities": ["artistic", "acrobatic", "trampoline"]
+    "relatedCountries": [
+      "espana",
+      "argentina",
+      "colombia",
+      "chile",
+      "peru"
+    ],
+    "relatedModalities": [
+      "artistic",
+      "acrobatic",
+      "trampoline"
+    ]
   }
 }

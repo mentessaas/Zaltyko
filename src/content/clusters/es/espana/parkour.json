@@ -41,21 +41,19 @@
     "generic": "Gestionar grupos por niveles, asistir a clases y organizar eventos de parkour con hojas de calculo es caotico. La informacion se pierde y el seguimiento del progreso es casi imposible.",
     "specific": "Coordinar clases de freerunning con diferentes niveles, gestionar la progresion de atletas desde Iniciacion hasta Elite, y organizar exhibitions para competiciones locales."
   },
-  "socialProof": {
-    "academies": [
-      "Parkour Madrid",
-      "Urban Flow Barcelona",
-      "Traceurs Valencia",
-      "Move Academy Bilbao",
-      "FreeMove Sevilla"
-    ],
-    "stats": {
-      "athletes": "3,500+",
-      "academies": "25+"
-    }
-  },
   "interlinking": {
-    "relatedCountries": ["mexico", "argentina", "colombia", "chile", "peru"],
-    "relatedModalities": ["artistic", "rhythmic", "trampoline", "danza"]
+    "relatedCountries": [
+      "mexico",
+      "argentina",
+      "colombia",
+      "chile",
+      "peru"
+    ],
+    "relatedModalities": [
+      "artistic",
+      "rhythmic",
+      "trampoline",
+      "danza"
+    ]
   }
 }

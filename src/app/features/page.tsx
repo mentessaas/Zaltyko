@@ -5,7 +5,7 @@ import Footer from "@/app/(site)/Footer";
 import FeaturesSection from "@/app/(site)/FeaturesSection";
 import { Schema } from "@/components/Schema";
 
-const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://zaltyko.com";
 
 export const metadata: Metadata = {
   title: "Funcionalidades | Software para academias de gimnasia",

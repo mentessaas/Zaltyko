@@ -13,7 +13,7 @@
     ]
   },
   "hero": {
-    "badge": "Leader in Spain · +70 clubs",
+    "badge": "Built for rhythmic gymnastics clubs",
     "headline": "Manage your federated rhythmic gymnastics club with ease",
     "subheadline": "Full control over RFEG athletes, official categories, levels 1-10, Copa de España and licenses. Manage all 5 apparatus: rope, ball, clubs, hoop and ribbon."
   },
@@ -40,21 +40,18 @@
     "generic": "Managing federations, licenses and apparatus equipment in spreadsheets takes hours you could spend training. Information gets lost between offices.",
     "specific": "Renewing RFEG licenses, managing gymnastic equipment (ropes, hoops, balls, clubs, ribbons), tracking technical levels 1-10 and required exercises per category."
   },
-  "socialProof": {
-    "academies": [
-      "Gimnasia Rítmica Élite Barcelona",
-      "Club Deportivo Orense",
-      "Gimnasia Rítmica Galicia",
-      "Escuela Profesional Madrid",
-      "Club Ritmica Valencia"
-    ],
-    "stats": {
-      "athletes": "12,000+",
-      "academies": "70+"
-    }
-  },
   "interlinking": {
-    "relatedCountries": ["mexico", "argentina", "colombia", "chile", "peru"],
-    "relatedModalities": ["artistic", "acrobatic", "trampoline"]
+    "relatedCountries": [
+      "mexico",
+      "argentina",
+      "colombia",
+      "chile",
+      "peru"
+    ],
+    "relatedModalities": [
+      "artistic",
+      "acrobatic",
+      "trampoline"
+    ]
   }
 }

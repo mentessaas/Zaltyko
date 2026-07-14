@@ -146,7 +146,7 @@ export function BrandingEditor({ data, onChange, disabled = false, preview = tru
             <div className="space-y-2">
               <Label>Fuente para encabezados</Label>
               <select
-                className="w-full rounded-[10px] border border-zaltyko-mist bg-white px-3 py-2 text-sm"
+                className="w-full rounded-card border border-zaltyko-mist bg-white px-3 py-2 text-sm"
                 value={localData.fontHeading}
                 onChange={(e) => handleChange("fontHeading", e.target.value)}
                 disabled={disabled}
@@ -161,7 +161,7 @@ export function BrandingEditor({ data, onChange, disabled = false, preview = tru
             <div className="space-y-2">
               <Label>Fuente para texto</Label>
               <select
-                className="w-full rounded-[10px] border border-zaltyko-mist bg-white px-3 py-2 text-sm"
+                className="w-full rounded-card border border-zaltyko-mist bg-white px-3 py-2 text-sm"
                 value={localData.fontBody}
                 onChange={(e) => handleChange("fontBody", e.target.value)}
                 disabled={disabled}

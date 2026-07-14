@@ -14,6 +14,7 @@ const reasons = [
   { value: "demo", label: "Solicitar demo" },
   { value: "network", label: "Plan Network / multi-sede" },
   { value: "sales", label: "Información de ventas" },
+  { value: "migracion", label: "Migrar datos o coordinar varias sedes" },
   { value: "support", label: "Soporte técnico" },
   { value: "billing", label: "Cobros" },
   { value: "partnership", label: "Colaboración" },
@@ -216,7 +217,7 @@ export function ContactForm({ defaultReason = "demo", defaultPlan }: ContactForm
 
       <p className="text-center text-xs text-zaltyko-text-secondary">
         Al enviar este formulario, aceptas nuestra{" "}
-        <Link href="/privacy-policy" className="underline hover:text-zaltyko-primary">
+        <Link href="/politica-privacidad" className="underline hover:text-zaltyko-primary">
           política de privacidad
         </Link>
         .

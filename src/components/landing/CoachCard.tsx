@@ -41,7 +41,7 @@ const CoachCard = memo(function CoachCard({ coach, locale }: CoachCardProps) {
               />
             </div>
           ) : (
-            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-zaltyko-indigo/15 to-zaltyko-teal/10 flex items-center justify-center flex-shrink-0">
+            <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-full bg-zaltyko-indigo/10">
               <span className="text-2xl font-bold text-zaltyko-indigo">
                 {coach.name.charAt(0)}
               </span>

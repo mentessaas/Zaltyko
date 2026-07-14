@@ -11,7 +11,7 @@
     ]
   },
   "hero": {
-    "badge": "Leader in Colombia · +15 clubs",
+    "badge": "Built for acrobatic gymnastics clubs",
     "headline": "Manage your federated acrobatic gymnastics club with ease",
     "subheadline": "Full control over athletes, categories, acrobatic pairs and groups, difficulty levels and licenses. Copa Colombia and selectivos."
   },
@@ -37,21 +37,18 @@
     "generic": "Coordinating acrobatic pairs and groups is chaotic. Tracking levels and compositions on paper is a disaster.",
     "specific": "Managing pair and group combinations, coordinating category changes, tracking D and E scores."
   },
-  "socialProof": {
-    "academies": [
-      "Acrobática Bogotá",
-      "Club Medellín Acrobática",
-      "Academia Cali Acrobática",
-      "Club Barranquilla Acrobática",
-      "Escuela Pereira Acrobática"
-    ],
-    "stats": {
-      "athletes": "2,500+",
-      "academies": "15+"
-    }
-  },
   "interlinking": {
-    "relatedCountries": ["spain", "mexico", "argentina", "chile", "peru"],
-    "relatedModalities": ["artistic", "rhythmic", "trampoline"]
+    "relatedCountries": [
+      "spain",
+      "mexico",
+      "argentina",
+      "chile",
+      "peru"
+    ],
+    "relatedModalities": [
+      "artistic",
+      "rhythmic",
+      "trampoline"
+    ]
   }
 }

@@ -11,7 +11,7 @@
     ]
   },
   "hero": {
-    "badge": "Leader in Chile · +20 clubs",
+    "badge": "Built for rhythmic gymnastics clubs",
     "headline": "Manage your federated rhythmic gymnastics club with ease",
     "subheadline": "Full control over FGCh athletes, official categories, levels 1-10, 5 apparatus and licenses. National Championship and selectivos."
   },
@@ -37,21 +37,18 @@
     "generic": "Managing federations and equipment for 5 apparatus on paper is chaos. Little time for training.",
     "specific": "Renewing FGCh licenses, managing equipment (ropes, hoops, balls, clubs, ribbons), tracking technical levels."
   },
-  "socialProof": {
-    "academies": [
-      "Rítmica Santiago",
-      "Club Valparaíso RG",
-      "Academia Concepción Rítmica",
-      "Club La Serena Rítmica",
-      "Escuela Antofagasta Rítmica"
-    ],
-    "stats": {
-      "athletes": "4,000+",
-      "academies": "20+"
-    }
-  },
   "interlinking": {
-    "relatedCountries": ["spain", "mexico", "argentina", "colombia", "peru"],
-    "relatedModalities": ["artistic", "acrobatic", "trampoline"]
+    "relatedCountries": [
+      "spain",
+      "mexico",
+      "argentina",
+      "colombia",
+      "peru"
+    ],
+    "relatedModalities": [
+      "artistic",
+      "acrobatic",
+      "trampoline"
+    ]
   }
 }

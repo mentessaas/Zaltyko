@@ -223,10 +223,10 @@ export default function FeaturesSection() {
                 {/* CTA dentro del tab */}
                 <div className="mt-8 pt-6 border-t border-white/10">
                   <Link
-                    href="/contact?type=demo"
+                    href="/auth/register?role=owner"
                     className="inline-flex items-center gap-2 bg-white text-zaltyko-indigo font-semibold px-6 py-3 rounded-xl hover:bg-zaltyko-teal/10 transition-colors text-sm"
                   >
-                    Solicitar demo
+                    Crear cuenta gratis
                     <ArrowRight className="w-4 h-4" />
                   </Link>
                 </div>

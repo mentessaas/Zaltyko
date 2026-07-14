@@ -12,7 +12,7 @@
     ]
   },
   "hero": {
-    "badge": "Leader in Peru · +20 clubs",
+    "badge": "Built for artistic gymnastics clubs",
     "headline": "Manage your federated artistic gymnastics club with ease",
     "subheadline": "Full control over FPG-IPD athletes, official categories, competition levels, national selectivos and licenses."
   },
@@ -39,21 +39,18 @@
     "generic": "Managing federations and licenses on paper takes hours you could spend training. Information gets lost.",
     "specific": "Renewing FPG licenses, managing selectivos for Nacional, tracking levels by category, coordination with IPD."
   },
-  "socialProof": {
-    "academies": [
-      "Gimnasia Lima",
-      "Club Arequipa GA",
-      "Academia Trujillo Gymnastics",
-      "Club Cusco",
-      "Escuela Gymnastics Piura"
-    ],
-    "stats": {
-      "athletes": "4,000+",
-      "academies": "20+"
-    }
-  },
   "interlinking": {
-    "relatedCountries": ["spain", "mexico", "argentina", "colombia", "chile"],
-    "relatedModalities": ["rhythmic", "acrobatic", "trampoline"]
+    "relatedCountries": [
+      "spain",
+      "mexico",
+      "argentina",
+      "colombia",
+      "chile"
+    ],
+    "relatedModalities": [
+      "rhythmic",
+      "acrobatic",
+      "trampoline"
+    ]
   }
 }

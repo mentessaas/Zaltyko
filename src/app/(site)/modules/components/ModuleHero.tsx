@@ -10,29 +10,14 @@ interface ModuleHeroProps {
   color: string;
 }
 
-export default function ModuleHero({ icon: Icon, title, subtitle, color }: ModuleHeroProps) {
+export default function ModuleHero({ icon: Icon, title, subtitle }: ModuleHeroProps) {
   return (
-    <section className="relative overflow-hidden bg-gradient-to-b from-zaltyko-bg via-white to-white py-20 lg:py-28">
-      {/* Background decoration */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className={cn(
-          "absolute -top-40 -right-40 h-80 w-80 rounded-full opacity-20 blur-3xl",
-          `bg-gradient-to-br ${color}`
-        )} />
-        <div className={cn(
-          "absolute -bottom-40 -left-40 h-80 w-80 rounded-full opacity-10 blur-3xl",
-          `bg-gradient-to-br ${color}`
-        )} />
-      </div>
-
-      <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+    <section className="bg-white py-20 lg:py-28">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="max-w-3xl mx-auto text-center">
           {/* Icon */}
-          <div className={cn(
-            "inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-gradient-to-br text-white mb-8 shadow-lg",
-            color
-          )}>
-            <Icon className="w-10 h-10" />
+          <div className="mb-8 inline-flex h-20 w-20 items-center justify-center rounded-card bg-zaltyko-primary-ultralight">
+            <Icon className="w-10 h-10 text-zaltyko-teal" />
           </div>
 
           {/* H1 */}
@@ -48,20 +33,20 @@ export default function ModuleHero({ icon: Icon, title, subtitle, color }: Modul
           {/* CTA */}
           <div className="mt-10 flex flex-col gap-4 sm:flex-row sm:justify-center">
             <Link
-              href="/contact?type=demo"
+              href="/auth/register?role=owner"
               className={cn(
                 buttonVariants({ variant: "default", size: "lg" }),
                 "shadow-soft transition-all duration-150 hover:shadow-medium"
               )}
             >
               <Sparkles className="mr-2 h-5 w-5" />
-              Empieza gratis
+              Crea tu academia gratis
             </Link>
             <Link
-              href="/#modulos"
+              href="/features"
               className={cn(
                 buttonVariants({ variant: "outline", size: "lg" }),
-                "bg-white/60 backdrop-blur-sm hover:bg-white/80"
+                "border-zaltyko-mist hover:bg-zaltyko-white"
               )}
             >
               Ver todos los módulos

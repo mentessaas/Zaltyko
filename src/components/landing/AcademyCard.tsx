@@ -39,7 +39,7 @@ const AcademyCard = memo(function AcademyCard({ academy, locale }: AcademyCardPr
               />
             </div>
           ) : (
-            <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-zaltyko-teal/15 to-zaltyko-electric/10 flex items-center justify-center flex-shrink-0">
+            <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-control bg-zaltyko-primary-ultralight">
               <span className="text-2xl font-bold text-zaltyko-teal">
                 {academy.name.charAt(0)}
               </span>

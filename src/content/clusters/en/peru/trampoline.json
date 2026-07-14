@@ -11,7 +11,7 @@
     ]
   },
   "hero": {
-    "badge": "Leader in Peru · +8 clubs",
+    "badge": "Built for trampoline clubs",
     "headline": "Manage your federated trampoline club with ease",
     "subheadline": "Full control over athletes, categories, Tumbling, DMT, Synchronized levels and licenses. National selectivos and tournaments."
   },
@@ -37,21 +37,18 @@
     "generic": "Managing Tumbling, DMT and Synchronized gymnasts on paper is chaos. Level tracking doesn't exist.",
     "specific": "Coordinating synchronized routines, managing difficulty scores, renewing FPG licenses."
   },
-  "socialProof": {
-    "academies": [
-      "Trampolín Lima",
-      "Club Arequipa Trampolín",
-      "Academia Trujillo Trampoline",
-      "Club Cusco Trampolín",
-      "Escuela Piura Trampolín"
-    ],
-    "stats": {
-      "athletes": "1,200+",
-      "academies": "8+"
-    }
-  },
   "interlinking": {
-    "relatedCountries": ["spain", "mexico", "argentina", "colombia", "chile"],
-    "relatedModalities": ["artistic", "rhythmic", "acrobatic"]
+    "relatedCountries": [
+      "spain",
+      "mexico",
+      "argentina",
+      "colombia",
+      "chile"
+    ],
+    "relatedModalities": [
+      "artistic",
+      "rhythmic",
+      "acrobatic"
+    ]
   }
 }

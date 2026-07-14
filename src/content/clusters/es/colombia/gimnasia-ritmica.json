@@ -12,7 +12,7 @@
     ]
   },
   "hero": {
-    "badge": "Líder en Colombia · +25 academias",
+    "badge": "Gestión pensada para academias de gimnasia rítmica",
     "headline": "Gestiona tu escuela de gimnasia rítmica federada sin complicaciones",
     "subheadline": "Control total sobre atletas FCG, categorías oficiales, niveles 1-10, 5 aparatos y licencias. Copa Colombia y selectivos nacionales."
   },
@@ -38,21 +38,18 @@
     "generic": "Gestionar federaciones y material de los 5 aparatos en papel es un caos. Poco tiempo para entrenar por exceso de paperwork.",
     "specific": "Renovar licencias FCG, gestionar material gimnástico (cintas, aros, bolas, mazas), seguir niveles técnicos 1-10."
   },
-  "socialProof": {
-    "academies": [
-      "Rítmica Bogotá",
-      "Club Medellín RG",
-      "Academia Cali Rítmica",
-      "Club Barranquilla Rítmica",
-      "Escuela Pereira Rítmica"
-    ],
-    "stats": {
-      "athletes": "5,500+",
-      "academies": "25+"
-    }
-  },
   "interlinking": {
-    "relatedCountries": ["espana", "mexico", "argentina", "chile", "peru"],
-    "relatedModalities": ["artistic", "acrobatic", "trampoline"]
+    "relatedCountries": [
+      "espana",
+      "mexico",
+      "argentina",
+      "chile",
+      "peru"
+    ],
+    "relatedModalities": [
+      "artistic",
+      "acrobatic",
+      "trampoline"
+    ]
   }
 }

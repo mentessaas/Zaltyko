@@ -8,7 +8,7 @@ import type { SportConfigOption } from "@/components/groups/types";
 import { getTerminology } from "@/lib/sport-config/terminology";
 
 const fieldClassName =
-  "w-full rounded-[10px] border border-zaltyko-mist bg-white px-3 py-2 text-sm shadow-none focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15";
+  "w-full rounded-card border border-zaltyko-mist bg-white px-3 py-2 text-sm shadow-none focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15";
 const labelClassName = "text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy";
 
 interface CoachOption {

@@ -5,7 +5,7 @@ import { WEEKDAY_OPTIONS } from "@/lib/classes/constants";
 import type { CoachOption, GroupOption } from "./edit-class-dialog-model";
 
 const fieldClassName =
-  "w-full rounded-[10px] border border-zaltyko-mist bg-white px-3 py-2 text-sm shadow-none focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15";
+  "w-full rounded-card border border-zaltyko-mist bg-white px-3 py-2 text-sm shadow-none focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15";
 const labelClassName = "text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy";
 const selectedChipClassName = "border-zaltyko-teal bg-zaltyko-teal/10 text-zaltyko-teal";
 const unselectedChipClassName =

@@ -15,12 +15,8 @@ const comparison = [
 
 export default function WhyZaltykoSection() {
   return (
-    <section className="py-24 bg-white relative overflow-hidden">
-      {/* Background decoration */}
-      <div className="absolute inset-0 bg-gradient-to-b from-zaltyko-white to-white" />
-      <div className="absolute left-1/2 top-1/2 h-[800px] w-[800px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-zaltyko-teal/6 blur-3xl opacity-70" />
-
-      <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+    <section className="py-24 bg-white">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* Section header */}
         <div className="text-center max-w-3xl mx-auto mb-16">
           <span className="mb-4 inline-block rounded-full bg-zaltyko-teal/10 px-4 py-1.5 text-sm font-semibold text-zaltyko-indigo">

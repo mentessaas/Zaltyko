@@ -14,7 +14,7 @@
     ]
   },
   "hero": {
-    "badge": "Líder en España · +45 academias",
+    "badge": "Gestión pensada para academias de gimnasia acrobática",
     "headline": "Gestiona tu escuela de gimnasia acrobática federada sin complicaciones",
     "subheadline": "Control total sobre atletas, categorías oficiales, niveles de dificultad, puntuaciones D/E y licencias. Gestiona parejas y grupos desde Base hasta Élite."
   },
@@ -41,21 +41,18 @@
     "generic": "Coordinar parejas y grupos acrobáticos es un caos sin la herramienta adecuada. Tracking de niveles de dificultad, composiciones y puntuaciones en Excel es un desastre.",
     "specific": "Gestionar las combinaciones de parejas y grupos, coordinar cuando un gimnasta cambia de categoría, seguir las puntuaciones D (dificultad) y E (ejecución)."
   },
-  "socialProof": {
-    "academies": [
-      "Club Gimnasia Acrobática Barcelona",
-      "Acrobática Girona",
-      "Madrid Gymnastics Academy",
-      "Club Acrobática Coruña",
-      "Gimnasia Acrobática Sevilla"
-    ],
-    "stats": {
-      "athletes": "8,000+",
-      "academies": "45+"
-    }
-  },
   "interlinking": {
-    "relatedCountries": ["mexico", "argentina", "colombia", "chile", "peru"],
-    "relatedModalities": ["artistic", "rhythmic", "trampoline"]
+    "relatedCountries": [
+      "mexico",
+      "argentina",
+      "colombia",
+      "chile",
+      "peru"
+    ],
+    "relatedModalities": [
+      "artistic",
+      "rhythmic",
+      "trampoline"
+    ]
   }
 }

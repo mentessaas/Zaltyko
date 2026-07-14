@@ -12,7 +12,7 @@
     ]
   },
   "hero": {
-    "badge": "Leader in Mexico · +25 clubs",
+    "badge": "Built for trampoline clubs",
     "headline": "Manage your federated trampoline club with ease",
     "subheadline": "Full control over athletes, categories, Tumbling, DMT, Synchronized levels and licenses. Olimpiada Nacional and Circuito Nacional."
   },
@@ -38,21 +38,18 @@
     "generic": "Managing Tumbling, DMT and Synchronized gymnasts is challenging. Difficulty level and training session tracking is chaotic.",
     "specific": "Coordinating synchronized routines between gymnasts, managing difficulty score tracking, renewing FMGM licenses and CONADE registration."
   },
-  "socialProof": {
-    "academies": [
-      "Trampolín Club México",
-      "Gimnasia Trampolín Jalisco",
-      "Academia Monterrey Trampoline",
-      "Club Puebla Trampolín",
-      "Elite Tramp México CDMX"
-    ],
-    "stats": {
-      "athletes": "4,000+",
-      "academies": "25+"
-    }
-  },
   "interlinking": {
-    "relatedCountries": ["spain", "argentina", "colombia", "chile", "peru"],
-    "relatedModalities": ["artistic", "rhythmic", "acrobatic"]
+    "relatedCountries": [
+      "spain",
+      "argentina",
+      "colombia",
+      "chile",
+      "peru"
+    ],
+    "relatedModalities": [
+      "artistic",
+      "rhythmic",
+      "acrobatic"
+    ]
   }
 }

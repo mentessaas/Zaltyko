@@ -27,17 +27,17 @@ const STATUS_CONFIG = {
     paid: {
         label: "Pagada",
         icon: CheckCircle,
-        color: "text-green-600 bg-green-50 border-green-200",
+        color: "text-zaltyko-teal bg-zaltyko-primary-ultralight border-transparent",
     },
     pending: {
         label: "Pendiente",
         icon: Clock,
-        color: "text-amber-600 bg-amber-50 border-amber-200",
+        color: "text-zaltyko-navy bg-zaltyko-mist/40 border-transparent",
     },
     failed: {
         label: "Fallida",
         icon: XCircle,
-        color: "text-red-600 bg-red-50 border-red-200",
+        color: "text-zaltyko-coral bg-zaltyko-coral/10 border-transparent",
     },
 };
 
@@ -65,7 +65,7 @@ export function InvoiceHistory({ invoices, loading = false }: InvoiceHistoryProp
         return (
             <div className="space-y-4">
                 {[1, 2, 3].map((i) => (
-                    <div key={i} className="h-20 rounded-lg bg-gray-100 animate-pulse" />
+                    <div key={i} className="h-20 rounded-card bg-zaltyko-mist/30 animate-pulse" />
                 ))}
             </div>
         );
@@ -95,8 +95,8 @@ export function InvoiceHistory({ invoices, loading = false }: InvoiceHistoryProp
                         className="flex items-center justify-between p-4 rounded-lg border border-zaltyko-border hover:border-zaltyko-primary/50 transition-colors glass-panel"
                     >
                         <div className="flex items-center gap-4 flex-1">
-                            <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-zaltyko-primary to-zaltyko-accent-teal flex items-center justify-center">
-                                <FileText className="w-6 h-6 text-white" />
+                            <div className="flex h-12 w-12 items-center justify-center rounded-control bg-zaltyko-primary-ultralight">
+                                <FileText className="w-6 h-6 text-zaltyko-teal" />
                             </div>
 
                             <div className="flex-1">
@@ -116,8 +116,8 @@ export function InvoiceHistory({ invoices, loading = false }: InvoiceHistoryProp
                             </div>
 
                             <div className="text-right">
-                                <p className="text-2xl font-bold">
-                                    ${invoice.amount.toFixed(2)}
+                                <p className="text-2xl font-bold tabular-nums">
+                                    {invoice.amount.toFixed(2)}€
                                 </p>
                             </div>
                         </div>

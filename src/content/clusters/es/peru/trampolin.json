@@ -12,7 +12,7 @@
     ]
   },
   "hero": {
-    "badge": "Líder en Perú · +8 academias",
+    "badge": "Gestión pensada para academias de trampolín",
     "headline": "Gestiona tu escuela de trampolín federada sin complicaciones",
     "subheadline": "Control total sobre atletas, categorías, niveles de Tumbling, DMT, Sincronizado y licencias. Selectivos nacionales y torneos."
   },
@@ -38,21 +38,18 @@
     "generic": "Gestionar gimnastas de Tumbling, DMT y Sincronizado en papel es un caos. El tracking de niveles es inexistente.",
     "specific": "Coordinar pruebas de sincronización, gestionar puntuaciones de dificultad, renovar licencias FPG."
   },
-  "socialProof": {
-    "academies": [
-      "Trampolín Lima",
-      "Club Arequipa Trampolín",
-      "Academia Trujillo Trampoline",
-      "Club Cusco Trampolín",
-      "Escuela Piura Trampolín"
-    ],
-    "stats": {
-      "athletes": "1,200+",
-      "academies": "8+"
-    }
-  },
   "interlinking": {
-    "relatedCountries": ["espana", "mexico", "argentina", "colombia", "chile"],
-    "relatedModalities": ["artistic", "rhythmic", "acrobatic"]
+    "relatedCountries": [
+      "espana",
+      "mexico",
+      "argentina",
+      "colombia",
+      "chile"
+    ],
+    "relatedModalities": [
+      "artistic",
+      "rhythmic",
+      "acrobatic"
+    ]
   }
 }
