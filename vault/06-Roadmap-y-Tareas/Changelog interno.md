@@ -26,7 +26,12 @@ Rama `feat/cobros-cuotas-stripe-connect` (no mergeada aún). Construye la capa d
 
 **Estado de verificación**: `pnpm typecheck` en verde, ESLint sin errores nuevos, `vitest run` 462/462 (incluye 7 nuevos de `mapOnboardingStatus/isConnectReady`). **NO verificado end-to-end contra Stripe real** (requiere claves live/test y una cuenta Connect): onboarding, cobro off-session, SCA/3DS, webhooks y reembolsos necesitan QA en sandbox antes de producción. **Migraciones NO aplicadas a la DB real** (5 nuevas: stripe_accounts, family_stripe_customers, extend charges, payment_attempts, refunds) — ejecutar el runner de migraciones antes de usar. Env nuevas: `STRIPE_CONNECT_WEBHOOK_SECRET`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`.
 
-**Deuda pendiente**: escribir el webhook de Connect en el dashboard de Stripe con su secret; wiring de recibo PDF a la familia (hoy devuelve `pdfUrl` si existe); descuento por hermanos como categoría propia (hoy `discountCategoryEnum` no lo tiene); LemonSqueezy sigue como código muerto (no removido para no arriesgar; candidato a borrado). Cobro con `application_fee` = 0 (monetización futura opcional).
+**Deuda resuelta (mismo día, tras las 10 fases)**:
+- `/api/me/charges` (bearer/móvil) **reescrito**: usaba columnas inexistentes (`first_name/last_name`, `guardians.user_id`, `charges.amount/description/paid_date`, `profiles.academy_id`). Ahora identifica al usuario por bearer y lee con Drizzle server-side (`getFamilyChildrenForUser` + atleta propio por `athletes.userId`), con columnas reales (`name`, `amountCents`, `paidAt`, `guardian_athletes`).
+- **LemonSqueezy eliminado** (código muerto): borrados `src/utils/lemon.ts`, `src/components/lemon-button.tsx`, `src/app/api/lemonsqueezy/webhook/`; retiradas las env `LEMONSQUEEZY_*` y la entrada de rate-limit (sustituida por `/api/stripe/connect/webhook`).
+- **Descuento por hermanos**: `discountCategoryEnum += 'sibling'` (migración `20260715120000_*`) + tipo en `discount-calculator`.
+
+**Deuda que NO se puede cerrar en código** (requiere entorno externo): QA E2E en Stripe sandbox, aplicar las 6 migraciones a la DB, registrar el webhook de Connect con su secret. `application_fee` = 0 es decisión de producto (monetización futura opcional), no deuda.
 
 ## 2026-07-14 - Aplicación de fixes CRO sobre la landing `/`
 

@@ -117,6 +117,8 @@ export const discountCategoryEnum = pgEnum("discount_category", [
   "early_payment",
   "loyalty",
   "promotional",
+  // Descuento por hermanos (varios hijos de la misma familia en la academia).
+  "sibling",
 ]);
 
 // Event Registration

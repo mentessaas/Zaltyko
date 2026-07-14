@@ -34,10 +34,6 @@ const serverEnvSchema = z.object({
   STRIPE_CONNECT_WEBHOOK_SECRET: z.string().optional(),
   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z.string().optional(),
 
-  // Lemon Squeezy
-  LEMONSQUEEZY_API_KEY: z.string().min(1).optional(),
-  LEMONSQUEEZY_WEBHOOK_SECRET: z.string().min(1).optional(),
-
   // App
   NEXT_PUBLIC_APP_URL: z.string().url().optional(),
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),

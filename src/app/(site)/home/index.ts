@@ -1,6 +1,5 @@
 export { default as HeroSection } from "./HeroSection";
 export { default as SocialProofSection } from "./SocialProofSection";
-export { default as WhyZaltykoSection } from "./WhyZaltykoSection";
 export { default as ModulesSection } from "./ModulesSection";
 export { default as SeoExtendedSection } from "./SeoExtendedSection";
 export { default as TestimonialsSection } from "./TestimonialsSection";

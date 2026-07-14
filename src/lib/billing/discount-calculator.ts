@@ -9,7 +9,7 @@ export interface DiscountApplication {
   originalAmount: number;
   discountAmount: number;
   finalAmount: number;
-  discountCategory?: "regular" | "early_payment" | "loyalty" | "promotional";
+  discountCategory?: "regular" | "early_payment" | "loyalty" | "promotional" | "sibling";
 }
 
 export interface EarlyPaymentDiscount {

@@ -6,7 +6,6 @@ import { PRODUCT_PLAN_BY_CODE } from "@/lib/plans/catalog";
 import Navbar from "@/app/(site)/Navbar";
 import HeroSection from "@/app/(site)/home/HeroSection";
 import SocialProofSection from "@/app/(site)/home/SocialProofSection";
-import WhyZaltykoSection from "@/app/(site)/home/WhyZaltykoSection";
 import ModulesSection from "@/app/(site)/home/ModulesSection";
 import ClusterDiscoverySection from "@/app/(site)/home/ClusterDiscoverySection";
 import ComparisonSection from "@/app/(site)/home/ComparisonSection";
@@ -92,9 +91,6 @@ export default function HomePage() {
         {/* Comparativa vs Excel y alternativas */}
         <ComparisonSection />
 
-        {/* Por qué Zaltyko - texto SEO extenso */}
-        <WhyZaltykoSection />
-
         {/* Módulos principales - cada uno con descripción SEO */}
         <ModulesSection />
 
@@ -175,7 +171,7 @@ export default function HomePage() {
               name: "¿Para qué modalidades sirve Zaltyko?",
               acceptedAnswer: {
                 "@type": "Answer",
-                text: "Zaltyko está enfocado en gimnasia artística femenina, gimnasia artística masculina y gimnasia rítmica. Las academias mixtas pueden trabajar artística y rítmica desde una misma cuenta.",
+                text: "Zaltyko está enfocado en gimnasia artística femenina, gimnasia artística masculina y gimnasia rítmica. Si tu academia trabaja artística y rítmica, puedes configurarla como mixta.",
               },
             },
             {
@@ -183,15 +179,15 @@ export default function HomePage() {
               name: "¿Cuánto tiempo tarda en configurarse?",
               acceptedAnswer: {
                 "@type": "Answer",
-                text: "La puesta en marcha guiada permite importar gimnastas, configurar grupos, horarios y cobros, y dejar el flujo de trabajo listo para dirección y entrenadores.",
+                text: "La puesta en marcha es guiada y se adapta al volumen de datos y al equipo. Empezamos por academia, gimnastas, grupos, horarios y cobros sin prometer una duración cerrada antes de revisar el caso.",
               },
             },
             {
               "@type": "Question",
-              name: "¿Mis datos están aislados de otras academias?",
+              name: "¿Sirve si ahora trabajo con Excel o WhatsApp?",
               acceptedAnswer: {
                 "@type": "Answer",
-                text: "Sí. Cada academia tiene sus datos aislados, con control de acceso por rol y Row Level Security a nivel de base de datos.",
+                text: "Sí. Zaltyko está pensado para pasar de hojas dispersas y mensajes sueltos a un sistema ordenado para dirección, entrenadores y familias.",
               },
             },
             {
@@ -199,7 +195,15 @@ export default function HomePage() {
               name: "¿Puedo migrar mis datos desde Excel o Google Sheets?",
               acceptedAnswer: {
                 "@type": "Answer",
-                text: "Sí. Te acompañamos en la migración de tus gimnastas y grupos desde Excel o CSV como parte de la puesta en marcha guiada.",
+                text: "Zaltyko permite importar gimnastas desde Excel o CSV. Para otros datos o migraciones amplias, revisamos el formato y planteamos una puesta en marcha guiada.",
+              },
+            },
+            {
+              "@type": "Question",
+              name: "¿Cumple con la normativa de protección de datos de menores?",
+              acceptedAnswer: {
+                "@type": "Answer",
+                text: "Sí. Zaltyko aísla los datos por academia, registra consentimientos firmados por las familias y aplica controles de acceso por rol según la normativa española de protección de datos de menores. Si quieres, te enviamos el resumen técnico antes de empezar.",
               },
             },
             {
@@ -207,7 +211,7 @@ export default function HomePage() {
               name: "¿Qué plan necesito para mi academia?",
               acceptedAnswer: {
                 "@type": "Answer",
-                text: "Depende del tamaño, número de grupos, sedes y necesidades de cobro. Por eso recomendamos una demo antes de elegir Starter, Growth o Network.",
+                text: "Depende del tamaño, número de grupos, sedes y necesidades de cobro. Por eso priorizamos una demo corta antes de recomendar Starter, Growth o Network.",
               },
             },
             {
@@ -215,15 +219,7 @@ export default function HomePage() {
               name: "¿Puedo cancelar en cualquier momento?",
               acceptedAnswer: {
                 "@type": "Answer",
-                text: "Sí. No hay permanencia ni penalizaciones. Cancela cuando quieras desde tu panel de cuenta. Si cancelas el plan de pago, vuelves automáticamente al plan gratuito.",
-              },
-            },
-            {
-              "@type": "Question",
-              name: "¿Qué pasa con mis datos si cancelo?",
-              acceptedAnswer: {
-                "@type": "Answer",
-                text: "Tus datos se mantienen disponibles durante 30 días después de cancelar. Puedes exportar toda tu información en cualquier momento. Pasados los 30 días se eliminan según nuestra política de retención.",
+                text: "Sí. No hay permanencia ni penalizaciones. Cancela cuando quieras desde tu panel de cuenta. Si cancelas el plan de pago, volverás automáticamente al plan gratuito.",
               },
             },
             {
@@ -231,7 +227,7 @@ export default function HomePage() {
               name: "¿Funciona en móvil?",
               acceptedAnswer: {
                 "@type": "Answer",
-                text: "Sí. Zaltyko funciona en el navegador del móvil, la tablet y el escritorio sin instalar nada. Estamos puliendo un pase de lista más rápido para pista; hoy se registra la asistencia desde el detalle de cada clase.",
+                text: "Sí. Zaltyko es una aplicación web responsive y el flujo de clase del coach está verificado en móvil. El pase de lista está optimizado para pista: se registra la asistencia en un toque desde \"Pasar lista hoy\".",
               },
             },
           ],

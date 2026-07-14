@@ -23,6 +23,10 @@ const faqs = [
     answer: "Zaltyko permite importar gimnastas desde Excel o CSV. Para otros datos o migraciones amplias, revisamos el formato y planteamos una puesta en marcha guiada.",
   },
   {
+    question: "¿Cumple con la normativa de protección de datos de menores?",
+    answer: "Sí. Zaltyko aísla los datos por academia, registra consentimientos firmados por las familias y aplica controles de acceso por rol según la normativa española de protección de datos de menores. Si quieres, te enviamos el resumen técnico antes de empezar.",
+  },
+  {
     question: "¿Qué plan necesito para mi academia?",
     answer: "Depende del tamaño, número de grupos, sedes y necesidades de cobro. Por eso priorizamos una demo corta antes de recomendar Starter, Growth o Network.",
   },
@@ -31,17 +35,13 @@ const faqs = [
     answer: "Sí. No hay permanencia ni penalizaciones. Cancela cuando quieras desde tu panel de cuenta. Si cancelas el plan de pago, volverás automáticamente al plan gratuito.",
   },
   {
-    question: "¿Qué pasa con mis datos si cancelo?",
-    answer: "El acceso y la conservación se gestionan según el estado de la cuenta, el módulo y la política de privacidad vigente. Antes de cancelar, revisa las exportaciones disponibles o solicita ayuda al equipo.",
-  },
-  {
     question: "¿Funciona en móvil?",
     answer: "Sí. Zaltyko es una aplicación web responsive y el flujo de clase del coach está verificado en móvil. El pase de lista está optimizado para pista: se registra la asistencia en un toque desde \"Pasar lista hoy\".",
   },
 ];
 
 export default function FaqSection() {
-  const [openIndex, setOpenIndex] = useState<number | null>(0);
+  const [openIndex, setOpenIndex] = useState<number | null>(1);
 
   return (
     <section className="py-24 bg-white relative overflow-hidden">
