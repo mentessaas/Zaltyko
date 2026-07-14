@@ -5,6 +5,12 @@ import { getStripeClient } from "@/lib/stripe/client";
 import { logger } from "@/lib/logger";
 import { recordBillingEvent, updateBillingEventStatus } from "@/lib/stripe/billing-events-service";
 import { syncConnectAccountFromStripe } from "@/lib/stripe/connect-service";
+import {
+  reconcileChargeRefunded,
+  reconcilePaymentIntentCanceled,
+  reconcilePaymentIntentFailed,
+  reconcilePaymentIntentSucceeded,
+} from "@/lib/stripe/charge-reconcile-service";
 
 /**
  * Webhook de cuentas conectadas (Stripe Connect).
@@ -27,15 +33,27 @@ export async function processConnectEvent(event: Stripe.Event): Promise<{ duplic
 
   const eventId = claim.id;
   try {
-    if (event.type === "account.updated") {
-      const account = event.data.object as Stripe.Account;
-      await syncConnectAccountFromStripe(account);
-      await updateBillingEventStatus(eventId, { status: "processed", processedAt: new Date() });
-    } else {
-      // Otros tipos aún no manejados (FASE 5): marcar como procesado para no
-      // reintentar en bucle.
-      await updateBillingEventStatus(eventId, { status: "processed", processedAt: new Date() });
+    switch (event.type) {
+      case "account.updated":
+        await syncConnectAccountFromStripe(event.data.object as Stripe.Account);
+        break;
+      case "payment_intent.succeeded":
+        await reconcilePaymentIntentSucceeded(event.data.object as Stripe.PaymentIntent);
+        break;
+      case "payment_intent.payment_failed":
+        await reconcilePaymentIntentFailed(event.data.object as Stripe.PaymentIntent);
+        break;
+      case "payment_intent.canceled":
+        await reconcilePaymentIntentCanceled(event.data.object as Stripe.PaymentIntent);
+        break;
+      case "charge.refunded":
+        await reconcileChargeRefunded(event.data.object as Stripe.Charge);
+        break;
+      default:
+        // Tipo no manejado: marcar procesado para no reintentar en bucle.
+        break;
     }
+    await updateBillingEventStatus(eventId, { status: "processed", processedAt: new Date() });
     return { duplicate: false };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
