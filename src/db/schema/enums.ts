@@ -47,6 +47,8 @@ export const chargeStatusEnum = pgEnum("charge_status", [
   "overdue",
   "cancelled",
   "partial",
+  "failed",
+  "refunded",
 ]);
 
 export const paymentMethodEnum = pgEnum("payment_method", [
@@ -55,6 +57,8 @@ export const paymentMethodEnum = pgEnum("payment_method", [
   "bizum",
   "card_manual",
   "other",
+  // Tarjeta cobrada automaticamente via Stripe (distinto de card_manual).
+  "card",
 ]);
 
 export const eventLevelEnum = pgEnum("event_level", [

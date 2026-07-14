@@ -28,7 +28,7 @@ interface ChargeItem {
   currency: string;
   period: string;
   dueDate: string | null;
-  status: "pending" | "paid" | "overdue" | "cancelled" | "partial";
+  status: "pending" | "paid" | "overdue" | "cancelled" | "partial" | "failed" | "refunded";
   paymentMethod: string | null;
   paidAt: string | null;
   notes: string | null;
@@ -55,6 +55,8 @@ const STATUS_COLORS: Record<string, string> = {
   overdue: "bg-zaltyko-coral/12 text-zaltyko-coral",
   cancelled: "bg-zaltyko-white text-zaltyko-text-secondary",
   partial: "bg-zaltyko-indigo/10 text-zaltyko-indigo",
+  failed: "bg-red-100 text-red-700",
+  refunded: "bg-amber-100 text-amber-700",
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -63,6 +65,8 @@ const STATUS_LABELS: Record<string, string> = {
   overdue: "Atrasado",
   cancelled: "Cancelado",
   partial: "Parcial",
+  failed: "Fallido",
+  refunded: "Reembolsado",
 };
 
 const PAYMENT_METHOD_LABELS: Record<string, string> = {
@@ -357,6 +361,8 @@ export function StudentChargesTab({ academyId, sportConfigs = [] }: StudentCharg
             <option value="paid">Pagado</option>
             <option value="cancelled">Cancelado</option>
             <option value="partial">Parcial</option>
+            <option value="failed">Fallido</option>
+            <option value="refunded">Reembolsado</option>
           </select>
           <label className="flex min-h-11 items-center gap-2 rounded-card border border-zaltyko-mist bg-white px-3 py-2 text-sm">
             <input

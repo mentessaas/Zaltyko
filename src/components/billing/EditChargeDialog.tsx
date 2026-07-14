@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 
 interface Charge {
   id: string;
-  status: "pending" | "paid" | "overdue" | "cancelled" | "partial";
+  status: "pending" | "paid" | "overdue" | "cancelled" | "partial" | "failed" | "refunded";
   paymentMethod: string | null;
   notes: string | null;
   label: string;
