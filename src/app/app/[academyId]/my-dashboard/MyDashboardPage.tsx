@@ -516,7 +516,7 @@ export function MyDashboardPage({
             </div>
           </CardHeader>
           <CardContent>
-            <MyPaymentsWidget charges={chargesData} />
+            <MyPaymentsWidget charges={chargesData} academyId={academyId} />
           </CardContent>
         </Card>
       </div>
