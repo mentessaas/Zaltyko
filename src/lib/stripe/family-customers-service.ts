@@ -1,8 +1,8 @@
 import Stripe from "stripe";
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNotNull } from "drizzle-orm";
 
 import { db } from "@/db";
-import { familyStripeCustomers } from "@/db/schema";
+import { familyStripeCustomers, guardianAthletes, guardians } from "@/db/schema";
 import { getStripeClient } from "@/lib/stripe/client";
 
 /**
@@ -41,6 +41,43 @@ export async function getFamilyCustomer(
     )
     .limit(1);
   return (row as FamilyCustomerRow) ?? null;
+}
+
+/**
+ * Encuentra el customer de familia CON tarjeta guardada que puede pagar las
+ * cuotas de un atleta en una academia. Une el atleta con sus guardianes (via
+ * profile) y sus customers; prioriza el que tenga metodo de pago por defecto.
+ */
+export async function resolvePayerCustomerForAthlete(
+  academyId: string,
+  athleteId: string
+): Promise<FamilyCustomerRow | null> {
+  const rows = await db
+    .select({
+      id: familyStripeCustomers.id,
+      tenantId: familyStripeCustomers.tenantId,
+      academyId: familyStripeCustomers.academyId,
+      profileId: familyStripeCustomers.profileId,
+      stripeCustomerId: familyStripeCustomers.stripeCustomerId,
+      defaultPaymentMethodId: familyStripeCustomers.defaultPaymentMethodId,
+      cardBrand: familyStripeCustomers.cardBrand,
+      cardLast4: familyStripeCustomers.cardLast4,
+      cardExpMonth: familyStripeCustomers.cardExpMonth,
+      cardExpYear: familyStripeCustomers.cardExpYear,
+    })
+    .from(familyStripeCustomers)
+    .innerJoin(guardians, eq(guardians.profileId, familyStripeCustomers.profileId))
+    .innerJoin(guardianAthletes, eq(guardianAthletes.guardianId, guardians.id))
+    .where(
+      and(
+        eq(familyStripeCustomers.academyId, academyId),
+        eq(guardianAthletes.athleteId, athleteId),
+        isNotNull(familyStripeCustomers.defaultPaymentMethodId)
+      )
+    )
+    .limit(1);
+
+  return (rows[0] as FamilyCustomerRow) ?? null;
 }
 
 interface EnsureCustomerParams {
