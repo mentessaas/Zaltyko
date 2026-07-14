@@ -6,6 +6,7 @@ import { TooltipOnboarding } from "@/components/tooltips/TooltipOnboarding";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { StudentChargesTab } from "./StudentChargesTab";
+import { CollectionStatsCard } from "./CollectionStatsCard";
 import { BillingRiskWidget } from "@/components/dashboard/BillingRiskWidget";
 import { getTerminologyForSportConfig } from "@/lib/sport-config/terminology";
 import { useTranslation } from "@/hooks/use-translation";
@@ -623,6 +624,7 @@ export const BillingPanel = memo(function BillingPanel({ academyId, userId, spor
         </TabsContent>
 
         <TabsContent value="charges" className="space-y-6">
+          <CollectionStatsCard academyId={academyId} />
           <BillingRiskWidget academyId={academyId} />
           <StudentChargesTab academyId={academyId} sportConfigs={sportConfigs} />
         </TabsContent>
