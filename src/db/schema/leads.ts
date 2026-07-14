@@ -5,7 +5,7 @@ export const leads = pgTable("leads", {
   email: text("email").notNull().unique(),
   name: text("name"),
   source: text("source").default("landing_page"),
-  plan: text("plan"), // "pro" | "premium" | null - if they clicked on a specific plan CTA
+  plan: text("plan"), // "starter" | "growth" | "network" | null desde el CTA publico
   metadata: text("metadata"), // JSON string for additional data
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });

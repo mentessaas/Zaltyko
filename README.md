@@ -20,7 +20,7 @@ pnpm install
 cp .env.example .env.local
 # Editar .env.local con tus credenciales
 
-# 4. Base de datos
+# 4. Base de datos local
 pnpm db:generate
 pnpm db:migrate
 pnpm db:seed
@@ -94,12 +94,14 @@ pnpm dev              # Desarrollo local
 pnpm build            # Build producción
 pnpm start            # Iniciar producción
 pnpm db:generate      # Generar migraciones Drizzle
-pnpm db:migrate       # Aplicar migraciones
+pnpm db:migrate       # Push Drizzle solo a PostgreSQL local
+pnpm db:migrate:ledger # Verificar SQL remoto contra ledger (dry-run)
+pnpm db:migrate:ledger --apply # Aplicar SQL remoto ya revisado
 pnpm db:seed          # Poblar datos iniciales
 pnpm lint             # Linting ESLint
 pnpm typecheck        # Verificación TypeScript
 pnpm test             # Ejecutar tests
-pnpm test:e2e:auth    # Preparar usuarios E2E y generar storage states por rol
+pnpm test:e2e:auth    # Iniciar sesión E2E existente y generar storage state
 ```
 
 ---
@@ -161,7 +163,7 @@ Ver `.env.example` para plantilla completa.
 3. Genera sesiones: `BASE_URL=http://127.0.0.1:3000 pnpm test:e2e:auth`.
 4. Ejecuta smoke por rol: `BASE_URL=http://127.0.0.1:3000 pnpm exec playwright test tests/e2e-role-smoke.spec.ts --project=chromium`.
 
-`pnpm test:e2e:auth` ejecuta `pnpm e2e:prepare-auth` antes de guardar storage states en `.auth/user.json`, `.auth/coach.json` y `.auth/super-admin.json`.
+`pnpm test:e2e:auth` solo inicia sesión en cuentas existentes. Para aprovisionar una academia de pruebas aislada se requiere confirmación explícita: `E2E_ALLOW_PROVISIONING=true pnpm test:e2e:auth:provision`; nunca usarlo en CI ni en una academia operativa.
 
 ---
 

@@ -1,6 +1,7 @@
 import { date, index, integer, jsonb, pgTable, text, timestamp, uuid, pgEnum, varchar } from "drizzle-orm/pg-core";
 
 import { athletes } from "./athletes";
+import { classSessions } from "./class-sessions";
 import { coaches } from "./coaches";
 import { assessmentTypeEnum } from "./assessment-extended";
 import { academySportConfigs } from "./sport-config";
@@ -80,6 +81,7 @@ export const athleteAssessments = pgTable(
     athleteId: uuid("athlete_id")
       .notNull()
       .references(() => athletes.id, { onDelete: "cascade" }),
+    sessionId: uuid("session_id").references(() => classSessions.id, { onDelete: "set null" }),
     assessedBy: uuid("assessed_by").references(() => coaches.id, { onDelete: "set null" }),
     sportConfigId: uuid("sport_config_id").references(() => academySportConfigs.id, { onDelete: "set null" }),
     assessmentDate: date("assessment_date").notNull(),
@@ -93,6 +95,7 @@ export const athleteAssessments = pgTable(
   (table) => ({
     tenantIdx: index("athlete_assessments_tenant_idx").on(table.tenantId),
     athleteIdx: index("athlete_assessments_athlete_idx").on(table.athleteId),
+    sessionIdx: index("athlete_assessments_session_idx").on(table.sessionId),
     sportConfigIdx: index("athlete_assessments_sport_config_idx").on(table.sportConfigId),
     typeIdx: index("athlete_assessments_type_idx").on(table.assessmentType),
   })

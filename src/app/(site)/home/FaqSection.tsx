@@ -12,7 +12,7 @@ const faqs = [
   },
   {
     question: "¿Cuánto tiempo tarda en configurarse?",
-    answer: "La mayoría de academias pueden quedar operativas en una primera sesión guiada. Migramos tus gimnastas, configuramos grupos, horarios y cobros, y dejamos un proceso claro para tu equipo.",
+    answer: "La puesta en marcha es guiada y se adapta al volumen de datos y al equipo. Empezamos por academia, gimnastas, grupos, horarios y cobros sin prometer una duración cerrada antes de revisar el caso.",
   },
   {
     question: "¿Sirve si ahora trabajo con Excel o WhatsApp?",
@@ -20,7 +20,7 @@ const faqs = [
   },
   {
     question: "¿Puedo migrar mis datos desde Excel o Google Sheets?",
-    answer: "Sí. Te acompañamos en la migración de tus gimnastas y grupos desde Excel o CSV como parte de la puesta en marcha guiada.",
+    answer: "Zaltyko permite importar gimnastas desde Excel o CSV. Para otros datos o migraciones amplias, revisamos el formato y planteamos una puesta en marcha guiada.",
   },
   {
     question: "¿Qué plan necesito para mi academia?",
@@ -32,11 +32,11 @@ const faqs = [
   },
   {
     question: "¿Qué pasa con mis datos si cancelo?",
-    answer: "Tus datos se mantienen disponibles durante 30 días después de cancelar. Puedes exportar toda tu información en cualquier momento. Pasados los 30 días, se eliminan de nuestros servidores según nuestra política de retención.",
+    answer: "El acceso y la conservación se gestionan según el estado de la cuenta, el módulo y la política de privacidad vigente. Antes de cancelar, revisa las exportaciones disponibles o solicita ayuda al equipo.",
   },
   {
     question: "¿Funciona en móvil?",
-    answer: "Sí. Zaltyko funciona en el navegador del móvil, la tablet y el escritorio sin instalar nada. Estamos puliendo un pase de lista más rápido para pista; hoy se registra la asistencia desde el detalle de cada clase.",
+    answer: "Sí. Zaltyko es una aplicación web responsive y el flujo de clase del coach está verificado en móvil. El pase de lista está optimizado para pista: se registra la asistencia en un toque desde \"Pasar lista hoy\".",
   },
 ];
 
@@ -125,7 +125,7 @@ export default function FaqSection() {
             Escríbenos a hola@zaltyko.com
           </a>
           <p className="text-sm text-gray-600 mt-2">
-            Respondemos en menos de 24h en días laborables
+            Atención por email en días laborables
           </p>
         </div>
       </div>

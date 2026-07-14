@@ -53,17 +53,17 @@ const solutionFeatures = [
 const benefits = [
   {
     icon: Clock,
-    title: "Ahorra 10+ horas al mes",
-    description: "Elimina la generación manual de recibos y el seguimiento de pagos pendientes.",
+    title: "Menos trabajo manual",
+    description: "Centraliza recibos y seguimiento de pagos pendientes para reducir tareas repetidas.",
   },
   {
     icon: TrendingUp,
-    title: "Reduce morosidad un 40%",
-    description: "Los recordatorios automáticos y pagos online mejoran la tasa de cobro.",
+    title: "Seguimiento de impagos",
+    description: "Los recordatorios y estados de pago ayudan a seguir cada caso con la familia.",
   },
   {
     icon: Shield,
-    title: "Pagos 100% seguros",
+    title: "Control de cobros",
     description: "Controla importes, estados y avisos sin depender de hojas dispersas.",
   },
   {

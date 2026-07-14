@@ -29,6 +29,20 @@
       "when": 1783926973456,
       "tag": "0003_reconcile_phase1_schema",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1783946296624,
+      "tag": "0004_link_assessments_to_sessions",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1783952053580,
+      "tag": "0005_abandoned_scarlet_witch",
+      "breakpoints": true
     }
   ]
 }

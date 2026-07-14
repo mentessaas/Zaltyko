@@ -1,7 +1,7 @@
 ---
 status: active
 owner: negocio
-last_reviewed: 2026-07-12
+last_reviewed: 2026-07-13
 source:
   - ../BUSINESS-ANALYSIS.md
   - ../docs/marketing/zaltyko-pricing.md
@@ -27,7 +27,7 @@ Esta nota debe revisarse antes de cambiar landing, checkout, limites de plan o d
 
 | Capa | Fuente | Estado |
 | --- | --- | --- |
-| Copy publico | `src/app/(site)/pricing.tsx` + `src/lib/plans/catalog.ts` | Usa Free/Starter/Growth/Network v3.0. |
+| Copy publico | `src/app/(site)/pricing.tsx` + `src/lib/plans/catalog.ts` | Usa Free/Starter/Growth/Network v3.0. Free registra; Starter/Growth solicitan demo; Network abre contacto acompañado. |
 | Limites de producto | `src/lib/plans/catalog.ts` y tabla `plans` | Free 30 gimnastas, Starter 75, Growth 200; todos con 1 academia. Network multi-sede acompanado. |
 | Enforcements | `src/lib/limits.ts` | Lee limites desde el catalogo canonico y permite override de atletas/academias desde `plans`. |
 | Checkout activo | `src/app/api/billing/checkout/route.ts` | Owner-only, usa `plans.stripePriceId`, `mode: subscription`, metadata de academia e idempotencia. |
@@ -47,7 +47,7 @@ Esta nota debe revisarse antes de cambiar landing, checkout, limites de plan o d
 
 Nota de ejecucion 2026-07-12: inicio, anti-abuso, expiracion a Free, conversion y avisos del trial ya estan implementados y su migracion esta aplicada. El claim puede publicarse junto con la promocion verificada de Fase 1; antes de esa promocion, el código sigue siendo release candidate.
 
-Los registros `plans` de Supabase quedaron sincronizados e idempotentes: Free 30, Starter (`pro`) 75 y Growth (`premium`) 200, una academia cada uno. Los Prices Stripe live conservan 19/49 EUR mensuales y sus productos/metadata ya usan Starter/Growth.
+Los registros `plans` de Supabase quedaron sincronizados e idempotentes: Free 30, Starter (`pro`) 75 y Growth (`premium`) 200, una academia cada uno. El 2026-07-13 se verificaron contra el entorno Vercel de producción, sin imprimir credenciales: clave Stripe live, Prices activos de 19/49 EUR mensuales, productos activos y metadata `pro`/`premium`. Network sigue fuera del checkout autoservicio.
 
 ## Pricing v3.0 activo
 
@@ -155,12 +155,15 @@ Directorio publico de academias Zaltyko con SEO local ("academia gimnasia ritmic
 
 ## Validaciones post-lanzamiento
 
+Baseline 2026-07-13: 2 academias, 0 leads, 0 trials, 0 checkouts observados, 0 suscripciones Stripe-backed y 0/10 entrevistas. Por tanto, ninguna tasa de conversión tiene denominador suficiente y no se fija un objetivo porcentual todavía. El cockpit de Growth muestra `sin base` en vez de convertir ceros en una falsa tasa.
+
 - Medir conversion Free -> Starter al llegar a 30 gimnastas.
 - Medir conversion Starter -> Growth al acercarse a 75 gimnastas.
 - Confirmar que trial sin tarjeta no genera abuso academias pequenas que renuevan cada 11 meses.
 - Confirmar que el disparador de upgrade "portal padres completo" funciona (que active suficiente valor para pagar).
 - Confirmar pricing LATAM unico a 19 € (no PPP diferenciado) es bien recibido.
 - Confirmar interes en add-ons Make-up Tokens, App branded, Reportes ejecutivos.
+- Completar 10 entrevistas de academias distintas con tamaño, herramientas, dolor, objeción y rango de precio. No cambiar v3.0 por comentarios aislados ni datos de QA.
 
 ## Regla
 

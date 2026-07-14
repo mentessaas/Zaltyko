@@ -38,7 +38,7 @@ export function SuperAdminSidebar() {
                 className={cn(
                   "group flex min-h-[44px] items-center gap-3 rounded-xl border border-transparent px-3 py-3 transition-all duration-200",
                   active
-                    ? "border-zaltyko-teal/20 bg-zaltyko-teal/12 text-zaltyko-teal shadow-soft"
+                    ? "border-zaltyko-electric/30 bg-zaltyko-electric/10 text-zaltyko-electric shadow-soft"
                     : "text-white/70 hover:border-white/10 hover:bg-white/5 hover:text-white"
                 )}
               >

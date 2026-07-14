@@ -40,11 +40,12 @@ const contactInfo = [
 ];
 
 interface ContactPageProps {
-  searchParams: Promise<{ type?: string }>;
+  searchParams: Promise<{ type?: string; plan?: string }>;
 }
 
 export default async function ContactPage({ searchParams }: ContactPageProps) {
-  const { type } = await searchParams;
+  const { type, plan } = await searchParams;
+  const selectedPlan = plan ?? (type === "network" ? "network" : undefined);
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -111,7 +112,7 @@ export default async function ContactPage({ searchParams }: ContactPageProps) {
             {/* Contact Form */}
             <div>
               <h2 className="text-2xl font-bold text-zaltyko-text-main mb-6">Envíanos un mensaje</h2>
-              <ContactForm defaultReason={type} />
+              <ContactForm defaultReason={type} defaultPlan={selectedPlan} />
             </div>
           </div>
         </div>

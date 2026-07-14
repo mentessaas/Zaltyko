@@ -3,9 +3,16 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { CheckCircle2, Loader2, Send } from "lucide-react";
+import type { CommercialPlanSlug } from "@/lib/growth/contracts";
+import {
+  capturePublicGrowthEvent,
+  getGrowthVisitorId,
+  getPublicAttribution,
+} from "@/lib/growth/client";
 
 const reasons = [
   { value: "demo", label: "Solicitar demo" },
+  { value: "network", label: "Plan Network / multi-sede" },
   { value: "sales", label: "Información de ventas" },
   { value: "migracion", label: "Migrar datos o coordinar varias sedes" },
   { value: "support", label: "Soporte técnico" },
@@ -21,16 +28,27 @@ type SubmitState =
 
 interface ContactFormProps {
   defaultReason?: string;
+  defaultPlan?: string;
 }
 
-export function ContactForm({ defaultReason = "demo" }: ContactFormProps) {
+const publicPlans = new Set<CommercialPlanSlug>(["free", "starter", "growth", "network"]);
+
+export function ContactForm({ defaultReason = "demo", defaultPlan }: ContactFormProps) {
   const [state, setState] = useState<SubmitState>({ status: "idle" });
   const [submitting, setSubmitting] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
 
   useEffect(() => {
     setIsHydrated(true);
-  }, []);
+    capturePublicGrowthEvent({
+      eventName: "contact_started",
+      planCode: publicPlans.has(defaultPlan as CommercialPlanSlug)
+        ? (defaultPlan as CommercialPlanSlug)
+        : null,
+      source: "public_contact",
+      properties: getPublicAttribution(),
+    });
+  }, [defaultPlan]);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -41,7 +59,9 @@ export function ContactForm({ defaultReason = "demo" }: ContactFormProps) {
     const formData = new FormData(form);
     const reason = String(formData.get("reason") ?? "demo");
     const academy = String(formData.get("academy") ?? "").trim();
-    const reasonLabel = reasons.find((item) => item.value === reason)?.label ?? "Contacto";
+    const plan = publicPlans.has(defaultPlan as CommercialPlanSlug)
+      ? (defaultPlan as CommercialPlanSlug)
+      : null;
 
     try {
       const response = await fetch("/api/contact", {
@@ -50,9 +70,14 @@ export function ContactForm({ defaultReason = "demo" }: ContactFormProps) {
         body: JSON.stringify({
           name: formData.get("name"),
           email: formData.get("email"),
-          subject: academy ? `${reasonLabel} - ${academy}` : reasonLabel,
+          academy: academy || null,
+          reason,
+          plan,
+          source: "public_contact",
           message: formData.get("message"),
           honeypot: formData.get("company"),
+          visitorId: getGrowthVisitorId(),
+          submissionId: crypto.randomUUID(),
         }),
       });
 
@@ -84,6 +109,11 @@ export function ContactForm({ defaultReason = "demo" }: ContactFormProps) {
       aria-label="Formulario de contacto"
     >
       <input type="text" name="company" tabIndex={-1} autoComplete="off" className="hidden" aria-hidden="true" />
+      {publicPlans.has(defaultPlan as CommercialPlanSlug) && (
+        <p className="rounded-lg border border-zaltyko-teal/25 bg-zaltyko-teal/10 px-4 py-3 text-sm text-zaltyko-navy">
+          Interés seleccionado: <strong className="capitalize">{defaultPlan}</strong>
+        </p>
+      )}
       <div>
         <label htmlFor="name" className="block text-sm font-medium text-zaltyko-text-main">
           Nombre completo
@@ -93,6 +123,7 @@ export function ContactForm({ defaultReason = "demo" }: ContactFormProps) {
           id="name"
           name="name"
           required
+          autoComplete="name"
           className="mt-1 block w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-zaltyko-primary focus:ring-2 focus:ring-zaltyko-primary/20"
           placeholder="Tu nombre"
         />
@@ -107,6 +138,7 @@ export function ContactForm({ defaultReason = "demo" }: ContactFormProps) {
           id="email"
           name="email"
           required
+          autoComplete="email"
           className="mt-1 block w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-zaltyko-primary focus:ring-2 focus:ring-zaltyko-primary/20"
           placeholder="tu@email.com"
         />
@@ -139,6 +171,7 @@ export function ContactForm({ defaultReason = "demo" }: ContactFormProps) {
           type="text"
           id="academy"
           name="academy"
+          autoComplete="organization"
           className="mt-1 block w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-zaltyko-primary focus:ring-2 focus:ring-zaltyko-primary/20"
           placeholder="Ej: Club Gimnasia Centro"
         />
@@ -161,7 +194,7 @@ export function ContactForm({ defaultReason = "demo" }: ContactFormProps) {
 
       {state.status !== "idle" && (
         <div
-          role="status"
+          role={state.status === "error" ? "alert" : "status"}
           className={
             state.status === "success"
               ? "rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800"

@@ -1,6 +1,8 @@
 import { Check, Shield, Clock, Globe2 } from "lucide-react";
-import Link from "next/link";
 
+import { PricingPageTracker } from "@/components/growth/PricingPageTracker";
+import { TrackedPlanLink } from "@/components/growth/TrackedPlanLink";
+import type { CommercialPlanSlug } from "@/lib/growth/contracts";
 import { PRODUCT_PLANS, formatPlanAmount } from "@/lib/plans/catalog";
 
 type Plan = {
@@ -11,6 +13,7 @@ type Plan = {
   highlight: boolean;
   features: string[];
   ctaHref: string;
+  planCode: CommercialPlanSlug;
 };
 
 const plans: Plan[] = PRODUCT_PLANS.map((plan) => {
@@ -22,6 +25,7 @@ const plans: Plan[] = PRODUCT_PLANS.map((plan) => {
     highlight: Boolean(plan.highlight),
     features: plan.features,
     ctaHref: plan.ctaHref,
+    planCode: plan.code === "pro" ? "starter" : plan.code === "premium" ? "growth" : plan.code,
   };
 });
 
@@ -46,6 +50,7 @@ const commonBenefits = [
 export default function PricingSection() {
   return (
     <section id="planes" className="py-20">
+      <PricingPageTracker />
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         {/* Trial banner */}
         <div className="mb-8 text-center">
@@ -69,7 +74,25 @@ export default function PricingSection() {
           </p>
         </div>
 
-        <div className="mt-8 grid items-stretch gap-6 md:grid-cols-2 xl:grid-cols-4">
+        {/* Annual billing toggle */}
+        <div className="mt-8 flex justify-center">
+          <div className="inline-flex items-center gap-3 bg-muted/60 rounded-full px-1 py-1">
+            <span
+              className="px-4 py-1.5 rounded-full bg-zaltyko-teal text-white text-sm font-bold shadow-sm"
+            >
+              Mensual
+            </span>
+            <span
+              aria-disabled="true"
+              title="Pago anual próximamente disponible"
+              className="px-4 py-1.5 rounded-full text-sm font-medium text-muted-foreground cursor-not-allowed select-none"
+            >
+              Anual <span className="text-xs opacity-70">(próximamente)</span>
+            </span>
+          </div>
+        </div>
+
+        <div className="mt-8 grid items-center gap-6 md:grid-cols-2 xl:grid-cols-4">
           {plans.map((plan) => (
             <article
               key={plan.title}
@@ -99,16 +122,17 @@ export default function PricingSection() {
                 ))}
               </ul>
 
-              <Link
+              <TrackedPlanLink
                 href={plan.ctaHref}
-                className={`mt-8 inline-flex min-h-11 items-center justify-center rounded-xl px-6 py-2 text-sm font-semibold transition ${
+                planCode={plan.planCode}
+                className={`mt-8 inline-flex min-h-11 items-center justify-center rounded-full px-6 py-2 text-sm font-semibold transition ${
                   plan.highlight
                     ? "bg-zaltyko-teal text-white hover:bg-primary-dark"
                     : "border border-zaltyko-mist text-foreground hover:bg-muted"
                 }`}
               >
                 {plan.cta}
-              </Link>
+              </TrackedPlanLink>
             </article>
           ))}
         </div>
@@ -135,7 +159,7 @@ export default function PricingSection() {
           <h3 className="font-display text-2xl font-semibold text-foreground">
             ¿Necesitas migrar datos o coordinar varias sedes?
           </h3>
-          <p className="mt-3 font-sans text-sm text-muted-foreground">
+          <p className="mt-3 font-sans text-sm text-slate-600">
             Hacemos una sesión de diagnóstico y definimos una puesta en marcha para que tu equipo pueda operar sin fricción.
           </p>
           <Link

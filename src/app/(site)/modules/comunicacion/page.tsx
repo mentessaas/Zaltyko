@@ -64,7 +64,7 @@ const benefits = [
   {
     icon: Bell,
     title: "Nadie se queda sin enterarse",
-    description: "Múltiples canales y confirmación de lectura garantizan que la información llegue.",
+    description: "Los avisos internos y la confirmación de lectura ayudan a comprobar quién recibió la información.",
   },
   {
     icon: MessageSquare,

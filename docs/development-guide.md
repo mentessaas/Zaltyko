@@ -49,13 +49,23 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 
 ### 4. Configurar base de datos
 
-Ejecuta las migraciones:
+Contra PostgreSQL local, sincroniza el schema Drizzle:
 
 ```bash
 pnpm db:migrate
 ```
 
-O si usas Supabase CLI:
+Contra staging o producción, revisa el SQL versionado y usa el ledger para comprobar y aplicar los pendientes:
+
+```bash
+pnpm db:migrate:ledger
+pnpm db:migrate:ledger --apply
+pnpm db:migrate:ledger
+```
+
+No uses `pnpm db:migrate` contra hosts remotos. El runner rechaza historial SQL divergente; `pnpm db:migrate:reviewed <sql>` queda como bootstrap/break-glass con inspección manual.
+
+Si usas Supabase local:
 
 ```bash
 supabase db reset
@@ -201,12 +211,14 @@ pnpm test:coverage
 ### Imports
 
 Orden de imports:
+
 1. Librerías externas
 2. Imports de Next.js
 3. Imports internos (`@/...`)
 4. Imports relativos (`./...`)
 
 Ejemplo:
+
 ```typescript
 import { useState } from "react";
 import { NextResponse } from "next/server";
@@ -299,7 +311,7 @@ Luego usa React DevTools Profiler para identificar componentes lentos.
 ```typescript
 /**
  * Calcula la edad de un atleta basándose en su fecha de nacimiento.
- * 
+ *
  * @param dob - Fecha de nacimiento en formato Date
  * @returns Edad en años o null si la fecha es inválida
  */
@@ -323,6 +335,7 @@ Actualiza el README principal cuando agregues nuevas features importantes.
 ## Preguntas
 
 Si tienes preguntas:
+
 1. Revisa la documentación existente
 2. Busca en issues anteriores
 3. Crea un nuevo issue con la etiqueta `question`
@@ -333,4 +346,3 @@ Si tienes preguntas:
 - Acepta feedback constructivo
 - Ayuda a otros cuando puedas
 - Mantén el código limpio y bien documentado
-

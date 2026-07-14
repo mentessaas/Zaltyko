@@ -267,11 +267,8 @@ export function CoachDashboardPage({
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() =>
-                      router.push(
-                        `/app/${academyId}/classes/${session.classId}?session=${session.id}`
-                      )
-                    }
+                    aria-label={`Abrir clase de hoy: ${session.className}`}
+                    onClick={() => router.push(`/app/${academyId}/coach/today/${session.id}`)}
                   >
                     <ChevronRight className="h-4 w-4" />
                   </Button>

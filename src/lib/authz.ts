@@ -20,13 +20,23 @@ import {
 import { logger } from "@/lib/logger";
 import { db } from "@/db";
 import { profiles } from "@/db/schema";
-import { createBearerSupabaseClient, getBearerToken } from "@/lib/supabase/bearer-client";
+import {
+  createBearerSupabaseClient,
+  getBearerToken,
+} from "@/lib/supabase/bearer-client";
 import { getRequiredRoutePermission } from "./authz/route-permissions";
 import { getUserPermissions } from "./authz/permissions-service";
+import {
+  getLimitForRoute,
+  getVerifiedTenantRateLimitIdentifier,
+  rateLimit,
+} from "@/lib/rate-limit";
 
 export type { ProfileRow };
 
-export type TenantContext<C extends Record<string, unknown> = Record<string, unknown>> = C & {
+export type TenantContext<
+  C extends Record<string, unknown> = Record<string, unknown>,
+> = C & {
   tenantId: string;
   userId: string;
   profile: ProfileRow;
@@ -45,16 +55,65 @@ export function assertSuperAdmin(profile: ProfileRow | null | undefined): void {
   }
 }
 
+const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+
+/**
+ * La capa edge limita por IP antes de alcanzar la aplicación. Aquí añadimos
+ * una segunda clave por tenant solo después de resolver ownership/membership
+ * en DB, evitando confiar en academyId o tenantId aportados por el cliente.
+ */
+async function enforceVerifiedTenantMutationRateLimit(
+  request: Request,
+  tenantId: string | null | undefined
+): Promise<NextResponse | null> {
+  if (!tenantId || !MUTATING_METHODS.has(request.method.toUpperCase())) {
+    return null;
+  }
+
+  const pathname = new URL(request.url).pathname;
+  const result = await rateLimit({
+    identifier: getVerifiedTenantRateLimitIdentifier(
+      request,
+      tenantId,
+      pathname
+    ),
+    ...getLimitForRoute(pathname),
+  });
+
+  if (result.success) {
+    return null;
+  }
+
+  const retryAfter = Math.max(0, result.reset - Math.floor(Date.now() / 1000));
+  return NextResponse.json(
+    {
+      error: "RATE_LIMIT_EXCEEDED",
+      code: "RATE_LIMIT_EXCEEDED",
+      message: "Demasiadas requests. Intenta de nuevo más tarde.",
+    },
+    {
+      status: 429,
+      headers: {
+        "Retry-After": String(retryAfter),
+        "X-RateLimit-Limit": String(result.limit),
+        "X-RateLimit-Remaining": "0",
+        "X-RateLimit-Reset": String(result.reset),
+      },
+    }
+  );
+}
+
 export function withSuperAdmin<Ctx extends Record<string, unknown>>(
-  handler: (request: Request, context: Ctx & { userId: string; profile: ProfileRow }) => Promise<Response>
+  handler: (
+    request: Request,
+    context: Ctx & { userId: string; profile: ProfileRow }
+  ) => Promise<Response>
 ) {
   // Next.js 15 passes context where params is a Promise for dynamic routes
   return async (request: Request, context: any) => {
     try {
       // Resolve params if they're a Promise (Next.js 15 pattern)
-      const params = context.params
-        ? await context.params
-        : context.params;
+      const params = context.params ? await context.params : context.params;
 
       const contextWithParams = {
         ...context,
@@ -64,10 +123,7 @@ export function withSuperAdmin<Ctx extends Record<string, unknown>>(
       const userId = await resolveUserId(request, contextWithParams);
 
       if (!userId) {
-        return NextResponse.json(
-          { error: "UNAUTHENTICATED" },
-          { status: 401 }
-        );
+        return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
       }
 
       const profile = await getCurrentProfile(userId);
@@ -113,9 +169,7 @@ export function withTenant<Ctx extends Record<string, unknown>>(
   return async (request: Request, context: any) => {
     try {
       // Resolve params if they're a Promise (Next.js 15 pattern)
-      const params = context.params
-        ? await context.params
-        : context.params;
+      const params = context.params ? await context.params : context.params;
 
       // Create resolved context for functions that need params synchronously
       const contextWithParams = {
@@ -126,10 +180,7 @@ export function withTenant<Ctx extends Record<string, unknown>>(
       // Resolver userId
       const userId = await resolveUserId(request, contextWithParams);
       if (!userId) {
-        return NextResponse.json(
-          { error: "UNAUTHENTICATED" },
-          { status: 401 }
-        );
+        return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
       }
 
       // Obtener perfil
@@ -146,7 +197,8 @@ export function withTenant<Ctx extends Record<string, unknown>>(
         return NextResponse.json(
           {
             error: "LOGIN_DISABLED",
-            message: "Tu cuenta no tiene acceso activado. Contacta al administrador.",
+            message:
+              "Tu cuenta no tiene acceso activado. Contacta al administrador.",
           },
           { status: 403 }
         );
@@ -160,7 +212,11 @@ export function withTenant<Ctx extends Record<string, unknown>>(
 
       // Si no hay tenantId pero hay academyId, intentar resolver y actualizar perfil
       if (!tenantId && effectiveAcademyId) {
-        const resolution = await resolveTenantWithUpdate(userId, effectiveAcademyId, profile);
+        const resolution = await resolveTenantWithUpdate(
+          userId,
+          effectiveAcademyId,
+          profile
+        );
 
         if (resolution.shouldUpdateProfile && resolution.newTenantId) {
           const updatedProfile = await updateProfileIfNeeded(
@@ -207,20 +263,21 @@ export function withTenant<Ctx extends Record<string, unknown>>(
         !isFlexible &&
         !isSuperAdmin
       ) {
-        return NextResponse.json(
-          { error: "TENANT_MISSING" },
-          { status: 403 }
-        );
+        return NextResponse.json({ error: "TENANT_MISSING" }, { status: 403 });
       }
 
       // Para endpoints de eventos, permitir que el handler obtenga el tenantId del academyId en el body
-      const handlerTenantId = isEventsEndpoint && !hasValidTenantId && effectiveAcademyId
-        ? ""
-        : (tenantId ?? "");
+      const handlerTenantId =
+        isEventsEndpoint && !hasValidTenantId && effectiveAcademyId
+          ? ""
+          : (tenantId ?? "");
 
       const requiredPermission = getRequiredRoutePermission(pathname, method);
       if (effectiveAcademyId && requiredPermission && !isSuperAdmin) {
-        const effectivePermissions = await getUserPermissions(userId, effectiveAcademyId);
+        const effectivePermissions = await getUserPermissions(
+          userId,
+          effectiveAcademyId
+        );
         // Membership roles remain the v1 baseline. A configured academy role is
         // an optional restrictive capability layer and is enforced consistently
         // for registered module routes.
@@ -236,6 +293,12 @@ export function withTenant<Ctx extends Record<string, unknown>>(
         }
       }
 
+      const tenantRateLimitResponse =
+        await enforceVerifiedTenantMutationRateLimit(request, tenantId);
+      if (tenantRateLimitResponse) {
+        return tenantRateLimitResponse;
+      }
+
       return handler(request, {
         ...contextWithParams,
         tenantId: handlerTenantId,
@@ -244,17 +307,30 @@ export function withTenant<Ctx extends Record<string, unknown>>(
       });
     } catch (error) {
       if (error instanceof UnauthenticatedError) {
-        return NextResponse.json({ error: error.code }, { status: error.statusCode });
+        return NextResponse.json(
+          { error: error.code },
+          { status: error.statusCode }
+        );
       }
       if (error instanceof ProfileNotFoundError) {
-        return NextResponse.json({ error: error.code }, { status: error.statusCode });
+        return NextResponse.json(
+          { error: error.code },
+          { status: error.statusCode }
+        );
       }
       if (error instanceof TenantMissingError) {
-        return NextResponse.json({ error: error.code }, { status: error.statusCode });
+        return NextResponse.json(
+          { error: error.code },
+          { status: error.statusCode }
+        );
       }
       if (error instanceof LoginDisabledError) {
         return NextResponse.json(
-          { error: error.code, message: "Tu cuenta no tiene acceso activado. Contacta al administrador." },
+          {
+            error: error.code,
+            message:
+              "Tu cuenta no tiene acceso activado. Contacta al administrador.",
+          },
           { status: error.statusCode }
         );
       }
@@ -276,15 +352,22 @@ export function withTenant<Ctx extends Record<string, unknown>>(
  * Complemento de withTenant para clientes mobile/PWA que usan bearer.
  * Valida firma via Supabase auth.getUser(token).
  */
-async function resolveUserIdFromBearer(request: Request): Promise<string | null> {
+async function resolveUserIdFromBearer(
+  request: Request
+): Promise<string | null> {
   const token = getBearerToken(request);
   if (!token) return null;
 
   try {
     const supabase = createBearerSupabaseClient(token);
-    const { data: { user }, error } = await supabase.auth.getUser(token);
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser(token);
     if (error || !user) {
-      logger.warn("Bearer token rejected by Supabase", { error: error?.message });
+      logger.warn("Bearer token rejected by Supabase", {
+        error: error?.message,
+      });
       return null;
     }
     return user.id;
@@ -317,14 +400,18 @@ export function withBearerTenant<Ctx extends Record<string, unknown>>(
 
       const profile = await getCurrentProfile(userId);
       if (!profile) {
-        return NextResponse.json({ error: "PROFILE_NOT_FOUND" }, { status: 404 });
+        return NextResponse.json(
+          { error: "PROFILE_NOT_FOUND" },
+          { status: 404 }
+        );
       }
 
       if (!profile.canLogin && profile.role !== "super_admin") {
         return NextResponse.json(
           {
             error: "LOGIN_DISABLED",
-            message: "Tu cuenta no tiene acceso activado. Contacta al administrador.",
+            message:
+              "Tu cuenta no tiene acceso activado. Contacta al administrador.",
           },
           { status: 403 }
         );
@@ -334,7 +421,11 @@ export function withBearerTenant<Ctx extends Record<string, unknown>>(
       let tenantId = await getTenantId(userId, effectiveAcademyId);
 
       if (!tenantId && effectiveAcademyId) {
-        const resolution = await resolveTenantWithUpdate(userId, effectiveAcademyId, profile);
+        const resolution = await resolveTenantWithUpdate(
+          userId,
+          effectiveAcademyId,
+          profile
+        );
         if (resolution.shouldUpdateProfile && resolution.newTenantId) {
           const updatedProfile = await updateProfileIfNeeded(
             profile,
@@ -358,8 +449,15 @@ export function withBearerTenant<Ctx extends Record<string, unknown>>(
         pathname,
         request.method?.toUpperCase() ?? "GET"
       );
-      if (effectiveAcademyId && requiredPermission && profile.role !== "super_admin") {
-        const effectivePermissions = await getUserPermissions(userId, effectiveAcademyId);
+      if (
+        effectiveAcademyId &&
+        requiredPermission &&
+        profile.role !== "super_admin"
+      ) {
+        const effectivePermissions = await getUserPermissions(
+          userId,
+          effectiveAcademyId
+        );
         if (
           effectivePermissions.roleId &&
           !effectivePermissions.isOwner &&
@@ -370,6 +468,12 @@ export function withBearerTenant<Ctx extends Record<string, unknown>>(
             { status: 403 }
           );
         }
+      }
+
+      const tenantRateLimitResponse =
+        await enforceVerifiedTenantMutationRateLimit(request, tenantId);
+      if (tenantRateLimitResponse) {
+        return tenantRateLimitResponse;
       }
 
       return handler(request, {

@@ -12,6 +12,8 @@ import type { WebhookContext } from "@/lib/stripe/webhook-handler";
 import { convertAcademyTrial } from "@/lib/billing/trial-service";
 import { shouldApplyStripeEvent } from "@/lib/stripe/event-policy";
 import { getStripeClient } from "@/lib/stripe/client";
+import { toCommercialPlanSlug } from "@/lib/growth/contracts";
+import { recordGrowthEvent } from "@/lib/growth/events";
 
 type TransactionClient = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -109,7 +111,7 @@ export async function handleSubscriptionEvent(
       ? subscription
       : await getStripeClient().subscriptions.retrieve(subscription.id);
 
-  return await withTransaction(async (tx) => {
+  const result = await withTransaction(async (tx) => {
     const context = await getAcademyContextFromSubscription(canonicalSubscription);
 
     if (context.userId) {
@@ -127,10 +129,49 @@ export async function handleSubscriptionEvent(
       })
       .where(eq(billingEvents.id, eventId));
 
-    if (context.academyId && ["active", "trialing"].includes(canonicalSubscription.status)) {
-      await convertAcademyTrial(context.academyId, new Date(), tx);
-    }
+    const trialConverted =
+      context.academyId && ["active", "trialing"].includes(canonicalSubscription.status)
+        ? await convertAcademyTrial(context.academyId, new Date(), tx)
+        : false;
 
-    return context;
+    return { context, trialConverted };
   });
+  const { context, trialConverted } = result;
+
+  const planCode =
+    extractMetadataValue(canonicalSubscription.metadata, "planCode") ??
+    extractMetadataValue(canonicalSubscription.metadata, "plan_code");
+  const eventName =
+    eventType === "customer.subscription.deleted"
+      ? "subscription_cancelled"
+      : ["active", "trialing"].includes(canonicalSubscription.status)
+        ? "subscription_activated"
+        : null;
+
+  if (eventName) {
+    await recordGrowthEvent({
+      eventName,
+      userId: context.userId,
+      academyId: context.academyId,
+      tenantId: context.tenantId,
+      planCode: toCommercialPlanSlug(planCode),
+      source: "stripe_webhook",
+      properties: { subscription_status: canonicalSubscription.status },
+      idempotencyKey: `stripe_event:${event.id}`,
+    });
+  }
+
+  if (trialConverted) {
+    await recordGrowthEvent({
+      eventName: "trial_converted",
+      userId: context.userId,
+      academyId: context.academyId,
+      tenantId: context.tenantId,
+      planCode: toCommercialPlanSlug(planCode),
+      source: "stripe_webhook",
+      idempotencyKey: `trial_converted:${event.id}`,
+    });
+  }
+
+  return context;
 }

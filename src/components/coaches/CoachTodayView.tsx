@@ -173,10 +173,10 @@ export default function CoachTodayView({
                     Ver clase
                   </Link>
                   <Link
-                    href={`/dashboard/sessions/${session.id}`}
-                    className="text-xs font-semibold text-primary hover:underline"
+                    href={`/app/${academy.id}/coach/today/${session.id}`}
+                    className="inline-flex min-h-11 items-center rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground transition hover:bg-primary/90"
                   >
-                    Ver sesión
+                    Abrir clase de hoy
                   </Link>
                 </div>
               </div>
@@ -252,4 +252,3 @@ export default function CoachTodayView({
     </div>
   );
 }
-

@@ -8,6 +8,7 @@ import { Check, CreditCard, Zap, AlertCircle } from "lucide-react";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import { logger } from "@/lib/logger";
+import { PRODUCT_PLAN_BY_CODE } from "@/lib/plans/catalog";
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
@@ -22,26 +23,13 @@ interface UpgradeModalProps {
 const PLAN_DETAILS = {
     pro: {
         name: "Starter",
-        price: 19,
-        features: [
-            "75 gimnastas",
-            "10 entrenadores",
-            "40 clases activas",
-            "1 GB almacenamiento",
-            "Portal familias",
-            "Pagos recurrentes",
-        ],
+        price: PRODUCT_PLAN_BY_CODE.pro.priceEurCents / 100,
+        features: PRODUCT_PLAN_BY_CODE.pro.features,
     },
     premium: {
         name: "Growth",
-        price: 49,
-        features: [
-            "200 gimnastas",
-            "20 grupos",
-            "80 clases activas",
-            "Reportes de dirección",
-            "Soporte prioritario",
-        ],
+        price: PRODUCT_PLAN_BY_CODE.premium.priceEurCents / 100,
+        features: PRODUCT_PLAN_BY_CODE.premium.features,
     },
 };
 
@@ -93,7 +81,11 @@ export function UpgradeModal({ open, onClose, currentPlan, targetPlan, onConfirm
     const [clientSecret, setClientSecret] = useState<string | null>(null);
 
     const planDetails = PLAN_DETAILS[targetPlan];
-    const PLAN_PRICES: Record<string, number> = { free: 0, pro: 19, premium: 49 };
+    const PLAN_PRICES: Record<string, number> = {
+        free: PRODUCT_PLAN_BY_CODE.free.priceEurCents / 100,
+        pro: PRODUCT_PLAN_BY_CODE.pro.priceEurCents / 100,
+        premium: PRODUCT_PLAN_BY_CODE.premium.priceEurCents / 100,
+    };
     const currentPlanPrice = PLAN_PRICES[currentPlan] || 0;
     const priceDifference = planDetails.price - currentPlanPrice;
     // Real proration will be calculated server-side; show indicative amount

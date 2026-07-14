@@ -83,3 +83,13 @@ El gate local de Fase 1 quedó verde el 2026-07-12 con 413 tests y build de 214 
 - Smokes sobre `https://zaltyko.com`: `/pricing` 200; panel privado 307 a login; preferencias y aviso de grupo 401 sin sesion; cron GET 401 sin Bearer; webhook 400 sin firma con `SIGNATURE_VERIFICATION_FAILED`.
 - Fase 2 no necesito migracion ni seed adicional. La reconciliacion de Fase 1 ya estaba aplicada y verificada en Supabase antes del deployment.
 - Cierre de dependencias: `drizzle-kit` movido a desarrollo, Vite 6.4.3, Vitest/coverage 3.2.6 y webpack 5.108.4 resuelto. `pnpm audit` completo y de produccion: 0 vulnerabilidades.
+
+## Promoción Fase 3 — 2026-07-13
+
+- La migración `20260713150000_link_assessments_to_class_sessions.sql` se aplicó, verificó y probó con rollback antes del deploy; no se ejecutó seed global.
+- Artefacto construido desde el árbol integrado `0a023880`, que contiene Fase 3 y el trabajo paralelo de nomenclatura federativa `bd2bb95a`.
+- Gate previo: 276 APIs sin riesgo desconocido, RLS 64/64, 5 Drizzle + 29 Supabase, 425/425 pruebas y build de 214 páginas. `pnpm audit`: 0 vulnerabilidades.
+- Deployment `dpl_68XGuYVFtQnrLbjWjhv17NtMpxH8`, target `production`, estado `READY`; aliases `zaltyko.com`, `www.zaltyko.com` y `zaltyko.vercel.app`.
+- Smokes sobre `https://zaltyko.com`: `/pricing` 200; workspace de coach privado 307 a login; GET de asistencia y POST de aviso 401 sin sesión.
+- La verificación funcional autenticada se ejecutó antes de desplegar con una fixture temporal: asistencia, progreso y aviso persistieron; todos los registros de prueba fueron eliminados y la limpieza quedó verificada.
+- Consulta histórica de errores del deployment después de los smokes: sin registros. Persisten solo las advertencias de build ya conocidas de Sentry y `swagger-jsdoc`.

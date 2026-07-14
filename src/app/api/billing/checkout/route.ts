@@ -12,6 +12,8 @@ import { getAppUrl, getOptionalEnvVar } from "@/lib/env";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { getBillingAcademyAccess } from "@/lib/billing/access";
 import { isSubscriptionManaged } from "@/lib/billing/subscription-status";
+import { toCommercialPlanSlug } from "@/lib/growth/contracts";
+import { recordGrowthEvent } from "@/lib/growth/events";
 
 const BodySchema = z.object({
   academyId: z.string().uuid(),
@@ -166,6 +168,16 @@ const handler = withTenant(async (request, context) => {
       },
       { idempotencyKey: checkoutIdempotencyKey }
     );
+
+    await recordGrowthEvent({
+      eventName: "checkout_started",
+      userId: context.userId,
+      academyId: academy.id,
+      tenantId: academy.tenantId,
+      planCode: toCommercialPlanSlug(plan.code),
+      source: "billing",
+      idempotencyKey: `stripe_checkout:${session.id}`,
+    });
 
     return apiSuccess({ checkoutUrl: session.url });
   } catch (error) {
