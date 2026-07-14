@@ -1,5 +1,5 @@
 import Stripe from "stripe";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, lte, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { charges, paymentAttempts } from "@/db/schema";
@@ -215,6 +215,8 @@ async function recordAttempt(
 export async function collectDueChargesForAcademy(params: {
   academyId: string;
   period?: string;
+  // Solo cargos ya vencidos (dueDate <= hoy). Para el cobro automático programado.
+  onlyDue?: boolean;
 }): Promise<{ attempted: number; paid: number; failed: number; skipped: number }> {
   const conditions = [
     eq(charges.academyId, params.academyId),
@@ -222,6 +224,10 @@ export async function collectDueChargesForAcademy(params: {
   ];
   if (params.period) {
     conditions.push(eq(charges.period, params.period));
+  }
+  if (params.onlyDue) {
+    const today = new Date().toISOString().split("T")[0];
+    conditions.push(lte(charges.dueDate, today));
   }
 
   const due = await db

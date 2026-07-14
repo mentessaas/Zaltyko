@@ -74,6 +74,7 @@ const PAYMENT_METHOD_LABELS: Record<string, string> = {
   transfer: "Transferencia",
   bizum: "Bizum",
   card_manual: "Tarjeta",
+  card: "Tarjeta (automática)",
   other: "Otro",
 };
 
@@ -102,6 +103,8 @@ export function StudentChargesTab({ academyId, sportConfigs = [] }: StudentCharg
   const [editing, setEditing] = useState<ChargeItem | null>(null);
   const [registeringPayment, setRegisteringPayment] = useState<ChargeItem | null>(null);
   const [remindingId, setRemindingId] = useState<string | null>(null);
+  const [collectingId, setCollectingId] = useState<string | null>(null);
+  const [refundingId, setRefundingId] = useState<string | null>(null);
   const [period, setPeriod] = useState(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
@@ -259,6 +262,60 @@ export function StudentChargesTab({ academyId, sportConfigs = [] }: StudentCharg
       loadCharges();
     } catch (error) {
       logger.error("Error updating status:", error);
+    }
+  };
+
+  const handleCollectCard = async (charge: ChargeItem) => {
+    const confirmed = window.confirm(
+      `¿Cobrar ${formatAmount(charge.amountCents, charge.currency)} con la tarjeta guardada de la familia de ${charge.athleteName}?`
+    );
+    if (!confirmed) return;
+    setCollectingId(charge.id);
+    try {
+      const res = await fetch(`/api/charges/${charge.id}/collect`, { method: "POST" });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(body?.message ?? body?.error ?? "No se pudo cobrar.");
+      }
+      toast.pushToast({ title: "Cobro realizado", description: "La cuota se ha cobrado con tarjeta.", variant: "success" });
+      loadCharges();
+    } catch (error) {
+      toast.pushToast({
+        title: "No se pudo cobrar",
+        description: error instanceof Error ? error.message : "Revisa que la familia tenga tarjeta guardada.",
+        variant: "warning",
+      });
+    } finally {
+      setCollectingId(null);
+    }
+  };
+
+  const handleRefund = async (charge: ChargeItem) => {
+    const confirmed = window.confirm(
+      `¿Reembolsar ${formatAmount(charge.amountCents, charge.currency)} a la familia de ${charge.athleteName}? Esta acción no se puede deshacer.`
+    );
+    if (!confirmed) return;
+    setRefundingId(charge.id);
+    try {
+      const res = await fetch(`/api/charges/${charge.id}/refund`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(body?.message ?? body?.error ?? "No se pudo reembolsar.");
+      }
+      toast.pushToast({ title: "Reembolso emitido", description: "El importe se ha devuelto a la familia.", variant: "success" });
+      loadCharges();
+    } catch (error) {
+      toast.pushToast({
+        title: "No se pudo reembolsar",
+        description: error instanceof Error ? error.message : "Inténtalo de nuevo.",
+        variant: "warning",
+      });
+    } finally {
+      setRefundingId(null);
     }
   };
 
@@ -472,9 +529,17 @@ export function StudentChargesTab({ academyId, sportConfigs = [] }: StudentCharg
                 </Badge>
               </div>
 
-              <div className="mt-3 flex items-center justify-end gap-2 border-t border-zaltyko-mist/60 pt-3">
-                {(charge.status === "pending" || charge.status === "overdue") && (
+              <div className="mt-3 flex flex-wrap items-center justify-end gap-2 border-t border-zaltyko-mist/60 pt-3">
+                {(charge.status === "pending" || charge.status === "overdue" || charge.status === "failed") && (
                   <>
+                    <Button
+                      size="sm"
+                      disabled={collectingId === charge.id}
+                      onClick={() => handleCollectCard(charge)}
+                      title="Cobrar con la tarjeta guardada de la familia"
+                    >
+                      Cobrar tarjeta
+                    </Button>
                     <Button size="sm" variant="outline" onClick={() => setRegisteringPayment(charge)}>
                       Registrar pago
                     </Button>
@@ -488,6 +553,16 @@ export function StudentChargesTab({ academyId, sportConfigs = [] }: StudentCharg
                       <Mail className="h-4 w-4" />
                     </Button>
                   </>
+                )}
+                {charge.status === "paid" && charge.paymentMethod === "card" && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={refundingId === charge.id}
+                    onClick={() => handleRefund(charge)}
+                  >
+                    Reembolsar
+                  </Button>
                 )}
                 <Button size="sm" variant="ghost" onClick={() => setEditing(charge)}>
                   <MoreVertical className="h-4 w-4" />
@@ -558,8 +633,16 @@ export function StudentChargesTab({ academyId, sportConfigs = [] }: StudentCharg
                   </td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-2">
-                      {(charge.status === "pending" || charge.status === "overdue") && (
+                      {(charge.status === "pending" || charge.status === "overdue" || charge.status === "failed") && (
                         <>
+                          <Button
+                            size="sm"
+                            disabled={collectingId === charge.id}
+                            onClick={() => handleCollectCard(charge)}
+                            title="Cobrar con la tarjeta guardada de la familia"
+                          >
+                            Cobrar tarjeta
+                          </Button>
                           <Button
                             size="sm"
                             variant="outline"
@@ -577,6 +660,16 @@ export function StudentChargesTab({ academyId, sportConfigs = [] }: StudentCharg
                             <Mail className="h-4 w-4" />
                           </Button>
                         </>
+                      )}
+                      {charge.status === "paid" && charge.paymentMethod === "card" && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={refundingId === charge.id}
+                          onClick={() => handleRefund(charge)}
+                        >
+                          Reembolsar
+                        </Button>
                       )}
                       <Button
                         size="sm"
