@@ -1,4 +1,5 @@
 import { Check, Shield, Clock, Globe2 } from "lucide-react";
+import Link from "next/link";
 
 import { PricingPageTracker } from "@/components/growth/PricingPageTracker";
 import { TrackedPlanLink } from "@/components/growth/TrackedPlanLink";
