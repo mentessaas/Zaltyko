@@ -13,7 +13,7 @@
     ]
   },
   "hero": {
-    "badge": "Trusted by 50+ US Rhythmic clubs",
+    "badge": "Built for rhythmic gymnastics clubs",
     "headline": "Manage your USAG Rhythmic club with ease",
     "subheadline": "Full control over athletes, competition levels, routines with 4/5 apparatus, D-score/E-score tracking and USAG membership. From Development to Elite."
   },
@@ -39,21 +39,19 @@
     "generic": "Managing rhythmic routines with 4/5 apparatus pieces, competition levels and USAG membership is a nightmare in spreadsheets. Equipment tracking alone is chaos.",
     "specific": "Tracking apparatus (rope, hoop, ball, clubs, ribbon), managing routine difficulty for D-scores, handling competition qualifiers and USAG rhythmic membership renewals."
   },
-  "socialProof": {
-    "academies": [
-      "Rhythmic Academy of Champions",
-      "Metro Rhythmic NYC",
-      "Pacific Rhythmics CA",
-      "Bullseye Rhythmic TX",
-      "Gymnastics Spectrum Rhythmic FL"
-    ],
-    "stats": {
-      "athletes": "3,500+",
-      "academies": "50+"
-    }
-  },
   "interlinking": {
-    "relatedCountries": ["spain", "mexico", "argentina", "colombia", "chile", "peru"],
-    "relatedModalities": ["artistic", "acrobatic", "trampoline"]
+    "relatedCountries": [
+      "spain",
+      "mexico",
+      "argentina",
+      "colombia",
+      "chile",
+      "peru"
+    ],
+    "relatedModalities": [
+      "artistic",
+      "acrobatic",
+      "trampoline"
+    ]
   }
 }

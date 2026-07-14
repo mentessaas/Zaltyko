@@ -76,7 +76,7 @@ export function OnboardingChecklist({ academyId }: OnboardingChecklistProps) {
   const [data, setData] = useState<ApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [submittingKey, setSubmittingKey] = useState<ChecklistKey | null>(null);
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(true);
 
   const fetchChecklist = useCallback(async () => {
     if (!academyId) {

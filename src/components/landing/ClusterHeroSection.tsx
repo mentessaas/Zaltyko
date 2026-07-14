@@ -29,15 +29,8 @@ function ClusterHeroSectionImpl({
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://zaltyko.com";
 
   return (
-    <section className="relative min-h-[70vh] flex items-center overflow-hidden bg-gradient-to-br from-zaltyko-white via-white to-zaltyko-teal/5">
-      {/* Background decorations */}
-      <div className="absolute inset-0">
-        <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-gradient-to-br from-zaltyko-teal/10 via-zaltyko-indigo/5 to-transparent rounded-full blur-3xl" />
-        <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-gradient-to-tr from-zaltyko-indigo/8 via-zaltyko-teal/5 to-transparent rounded-full blur-3xl" />
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(203,213,225,0.22)_1px,transparent_1px),linear-gradient(to_bottom,rgba(203,213,225,0.22)_1px,transparent_1px)] bg-[size:60px_60px]" />
-      </div>
-
-      <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-20 lg:py-28">
+    <section className="relative flex min-h-[70vh] items-center bg-white">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-20 lg:py-28">
         <div className="max-w-3xl">
           {/* Breadcrumb */}
           <nav className="mb-6 text-sm">
@@ -62,13 +55,9 @@ function ClusterHeroSectionImpl({
           </nav>
 
           {/* Badge */}
-          <div className="inline-flex items-center gap-2 rounded-full bg-zaltyko-teal/10 border border-zaltyko-teal/20 px-4 py-1.5 text-sm font-medium text-zaltyko-indigo mb-6">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-zaltyko-teal opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-zaltyko-teal" />
-            </span>
+          <p className="mb-6 text-xs font-semibold uppercase tracking-[0.08em] text-zaltyko-teal">
             {content.hero.badge}
-          </div>
+          </p>
 
           {/* H1 */}
           <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-bold leading-[1.05] tracking-tight text-gray-900 mb-6">
@@ -83,7 +72,7 @@ function ClusterHeroSectionImpl({
           {/* CTAs */}
           <div className="flex flex-col sm:flex-row gap-4 mb-6">
             <Link
-              href="/auth/register"
+              href="/auth/register?role=owner"
               className={cn(
                 buttonVariants({ variant: "default", size: "lg" }),
                 "bg-zaltyko-teal hover:bg-primary-dark text-white shadow-soft transition-all duration-300 text-base px-8 py-6 group"
@@ -94,29 +83,29 @@ function ClusterHeroSectionImpl({
               <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
             </Link>
             <Link
-              href="#demo"
+              href="/pricing"
               className={cn(
                 buttonVariants({ variant: "outline", size: "lg" }),
-                "border-zaltyko-indigo/30 text-zaltyko-indigo hover:border-zaltyko-indigo hover:bg-zaltyko-indigo/5 text-base px-8 py-6"
+                "border-zaltyko-mist text-zaltyko-navy hover:border-zaltyko-teal hover:bg-zaltyko-white text-base px-8 py-6"
               )}
             >
-              {locale === "es" ? "Ver demo en 2 min" : "Watch demo in 2 min"}
+              {locale === "es" ? "Ver planes" : "View plans"}
             </Link>
           </div>
 
           {/* Trust indicators */}
-          <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-gray-500">
+          <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-zaltyko-text-secondary">
             <span className="flex items-center gap-1">
               <Shield className="h-4 w-4 text-zaltyko-teal" />
               {locale === "es" ? "Sin tarjeta de crédito" : "No credit card required"}
             </span>
             <span className="flex items-center gap-1">
               <Zap className="h-4 w-4 text-zaltyko-teal" />
-              {locale === "es" ? "Configuración en 5 min" : "Setup in 5 min"}
+              {locale === "es" ? "Puesta en marcha guiada" : "Guided setup"}
             </span>
             <span className="flex items-center gap-1">
-              <Check className="h-4 w-4 text-zaltyko-indigo" />
-              {locale === "es" ? "Soporte incluido" : "Support included"}
+              <Check className="h-4 w-4 text-zaltyko-teal" />
+              {locale === "es" ? "Soporte en español" : "Support included"}
             </span>
           </div>
         </div>

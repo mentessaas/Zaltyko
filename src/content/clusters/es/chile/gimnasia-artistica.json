@@ -13,7 +13,7 @@
     ]
   },
   "hero": {
-    "badge": "Líder en Chile · +25 academias",
+    "badge": "Gestión pensada para academias de gimnasia artística",
     "headline": "Gestiona tu escuela de gimnasia artística federada sin complicaciones",
     "subheadline": "Control total sobre atletas FGCh, categorías oficiales, niveles de competencia, Campeonato Nacional, selectivos y licencias."
   },
@@ -39,21 +39,18 @@
     "generic": "Gestionar federaciones y licencias en papel consume horas que podrías dedicar a entrenar. La información se pierde entre regionales.",
     "specific": "Renovar licencias FGCh, gestionar selectivos nacionales, tracking de niveles por categoría."
   },
-  "socialProof": {
-    "academies": [
-      "Gimnasia Santiago",
-      "Club Valparaíso GA",
-      "Academia Concepción Gymnastics",
-      "Club La Serena",
-      "Escuela Gymnastics Antofagasta"
-    ],
-    "stats": {
-      "athletes": "5,000+",
-      "academies": "25+"
-    }
-  },
   "interlinking": {
-    "relatedCountries": ["espana", "mexico", "argentina", "colombia", "peru"],
-    "relatedModalities": ["rhythmic", "acrobatic", "trampoline"]
+    "relatedCountries": [
+      "espana",
+      "mexico",
+      "argentina",
+      "colombia",
+      "peru"
+    ],
+    "relatedModalities": [
+      "rhythmic",
+      "acrobatic",
+      "trampoline"
+    ]
   }
 }

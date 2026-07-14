@@ -56,17 +56,17 @@ export const metadata: Metadata = {
   ],
   authors: [{ name: "Zaltyko" }],
   creator: "Zaltyko",
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "https://zaltyko.com"),
   openGraph: {
     type: "website",
     locale: "es_ES",
-    url: process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000",
+    url: process.env.NEXT_PUBLIC_APP_URL ?? "https://zaltyko.com",
     siteName: "Zaltyko",
     title: "Zaltyko - Sistema de Gestión para Academias de Gimnasia",
     description: "El sistema de dirección para academias de gimnasia artística y rítmica. Administra gimnastas, grupos, cobros, horarios y familias.",
     images: [
       {
-        url: "/api/og",
+        url: "/og-image.png",
         width: 1200,
         height: 630,
         alt: "Zaltyko - Gestión de Academias de Gimnasia",

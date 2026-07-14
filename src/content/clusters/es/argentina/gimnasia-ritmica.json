@@ -13,7 +13,7 @@
     ]
   },
   "hero": {
-    "badge": "Líder en Argentina · +35 academias",
+    "badge": "Gestión pensada para academias de gimnasia rítmica",
     "headline": "Gestiona tu escuela de gimnasia rítmica federada sin complicaciones",
     "subheadline": "Control total sobre atletas CGG, categorías oficiales, niveles 1-10, 5 aparatos y licencias. Campeonato Argentino y selectivos provinciales."
   },
@@ -39,21 +39,18 @@
     "generic": "Gestionar federaciones, licencias y material de los 5 aparatos en papel es un caos. Poco tiempo para entrenar por exceso de paperwork.",
     "specific": "Renovar licencias CGG, gestionar material gimnástico (cintas, aros, bolas, mazas), seguir niveles técnicos 1-10 y ejercicios obligatorios."
   },
-  "socialProof": {
-    "academies": [
-      "Rítmica Club Buenos Aires",
-      "Gimnasia Rítmica Córdoba",
-      "Academia Rosario RG",
-      "Club Mendoza Rítmica",
-      "Escuela Rítmica Tucumán"
-    ],
-    "stats": {
-      "athletes": "8,000+",
-      "academies": "35+"
-    }
-  },
   "interlinking": {
-    "relatedCountries": ["espana", "mexico", "colombia", "chile", "peru"],
-    "relatedModalities": ["artistic", "acrobatic", "trampoline"]
+    "relatedCountries": [
+      "espana",
+      "mexico",
+      "colombia",
+      "chile",
+      "peru"
+    ],
+    "relatedModalities": [
+      "artistic",
+      "acrobatic",
+      "trampoline"
+    ]
   }
 }

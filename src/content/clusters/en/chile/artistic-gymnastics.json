@@ -12,7 +12,7 @@
     ]
   },
   "hero": {
-    "badge": "Leader in Chile · +25 clubs",
+    "badge": "Built for artistic gymnastics clubs",
     "headline": "Manage your federated artistic gymnastics club with ease",
     "subheadline": "Full control over FGCh athletes, official categories, competition levels, National Championship, selectivos and licenses."
   },
@@ -38,21 +38,18 @@
     "generic": "Managing federations and licenses on paper takes hours you could spend training. Information gets lost between regional offices.",
     "specific": "Renewing FGCh licenses, managing national selectivos, tracking levels by category."
   },
-  "socialProof": {
-    "academies": [
-      "Gimnasia Santiago",
-      "Club Valparaíso GA",
-      "Academia Concepción Gymnastics",
-      "Club La Serena",
-      "Escuela Gymnastics Antofagasta"
-    ],
-    "stats": {
-      "athletes": "5,000+",
-      "academies": "25+"
-    }
-  },
   "interlinking": {
-    "relatedCountries": ["spain", "mexico", "argentina", "colombia", "peru"],
-    "relatedModalities": ["rhythmic", "acrobatic", "trampoline"]
+    "relatedCountries": [
+      "spain",
+      "mexico",
+      "argentina",
+      "colombia",
+      "peru"
+    ],
+    "relatedModalities": [
+      "rhythmic",
+      "acrobatic",
+      "trampoline"
+    ]
   }
 }

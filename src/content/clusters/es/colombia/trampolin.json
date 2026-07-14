@@ -12,7 +12,7 @@
     ]
   },
   "hero": {
-    "badge": "Líder en Colombia · +12 academias",
+    "badge": "Gestión pensada para academias de trampolín",
     "headline": "Gestiona tu escuela de trampolín federada sin complicaciones",
     "subheadline": "Control total sobre atletas, categorías, niveles de Tumbling, DMT, Sincronizado y licencias. Copa Colombia y selectivos."
   },
@@ -38,21 +38,18 @@
     "generic": "Gestionar gimnastas de Tumbling, DMT y Sincronizado en papel es un caos. El tracking de niveles es inexistente.",
     "specific": "Coordinar pruebas de sincronización, gestionar puntuaciones de dificultad, renovar licencias FCG."
   },
-  "socialProof": {
-    "academies": [
-      "Trampolín Bogotá",
-      "Club Medellín Trampolín",
-      "Academia Cali Trampoline",
-      "Club Barranquilla Trampolín",
-      "Escuela Pereira Trampolín"
-    ],
-    "stats": {
-      "athletes": "2,000+",
-      "academies": "12+"
-    }
-  },
   "interlinking": {
-    "relatedCountries": ["espana", "mexico", "argentina", "chile", "peru"],
-    "relatedModalities": ["artistic", "rhythmic", "acrobatic"]
+    "relatedCountries": [
+      "espana",
+      "mexico",
+      "argentina",
+      "chile",
+      "peru"
+    ],
+    "relatedModalities": [
+      "artistic",
+      "rhythmic",
+      "acrobatic"
+    ]
   }
 }

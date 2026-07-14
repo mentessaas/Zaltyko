@@ -11,7 +11,7 @@
     ]
   },
   "hero": {
-    "badge": "Leader in Peru · +10 clubs",
+    "badge": "Built for acrobatic gymnastics clubs",
     "headline": "Manage your federated acrobatic gymnastics club with ease",
     "subheadline": "Full control over athletes, categories, acrobatic pairs and groups, difficulty levels and licenses. National selectivos."
   },
@@ -37,21 +37,18 @@
     "generic": "Coordinating acrobatic pairs and groups is chaotic. Tracking levels and compositions on paper is a disaster.",
     "specific": "Managing pair and group combinations, coordinating category changes, tracking D and E scores."
   },
-  "socialProof": {
-    "academies": [
-      "Acrobática Lima",
-      "Club Arequipa Acrobática",
-      "Academia Trujillo Acrobática",
-      "Club Cusco Acrobática",
-      "Escuela Piura Acrobática"
-    ],
-    "stats": {
-      "athletes": "1,500+",
-      "academies": "10+"
-    }
-  },
   "interlinking": {
-    "relatedCountries": ["spain", "mexico", "argentina", "colombia", "chile"],
-    "relatedModalities": ["artistic", "rhythmic", "trampoline"]
+    "relatedCountries": [
+      "spain",
+      "mexico",
+      "argentina",
+      "colombia",
+      "chile"
+    ],
+    "relatedModalities": [
+      "artistic",
+      "rhythmic",
+      "trampoline"
+    ]
   }
 }

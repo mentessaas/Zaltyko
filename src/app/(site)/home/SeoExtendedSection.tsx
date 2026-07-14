@@ -1,34 +1,7 @@
-import { Clock, FileSpreadsheet, MessageCircle, TrendingUp, ArrowRight } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
-
-const stats = [
-  {
-    icon: Clock,
-    value: "15h",
-    label: "ahorradas por semana",
-    description: "en tareas administrativas",
-  },
-  {
-    icon: FileSpreadsheet,
-    value: "0",
-    label: "hojas de Excel",
-    description: "todo centralizado",
-  },
-  {
-    icon: MessageCircle,
-    value: "100%",
-    label: "comunicación controlada",
-    description: "sin grupos de WhatsApp",
-  },
-  {
-    icon: TrendingUp,
-    value: "3x",
-    label: "más eficiencia",
-    description: "en cobros y pagos",
-  },
-];
 
 const painPoints = [
   {
@@ -67,20 +40,6 @@ export default function SeoExtendedSection() {
           </p>
         </div>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-16">
-          {stats.map((stat) => (
-            <div key={stat.label} className="text-center p-6 rounded-2xl bg-white border border-zaltyko-border shadow-soft">
-              <div className="w-12 h-12 mx-auto rounded-full bg-zaltyko-primary/10 flex items-center justify-center text-zaltyko-primary mb-4">
-                <stat.icon className="w-6 h-6" />
-              </div>
-              <p className="text-3xl font-bold text-zaltyko-primary">{stat.value}</p>
-              <p className="text-sm font-medium text-zaltyko-text-main">{stat.label}</p>
-              <p className="text-xs text-zaltyko-text-secondary mt-1">{stat.description}</p>
-            </div>
-          ))}
-        </div>
-
         {/* Before/After */}
         <div className="max-w-4xl mx-auto">
           <h3 className="text-center font-semibold text-zaltyko-text-main mb-8">
@@ -109,13 +68,13 @@ export default function SeoExtendedSection() {
         {/* CTA */}
         <div className="text-center mt-12">
           <Link
-            href="/contact?type=demo"
+            href="/auth/register?role=owner"
             className={cn(
               buttonVariants({ variant: "default", size: "lg" }),
               "shadow-soft hover:shadow-medium"
             )}
           >
-            Solicitar demo
+            Crea tu academia gratis
             <ArrowRight className="ml-2 h-5 w-5" />
           </Link>
           <p className="mt-3 text-sm text-zaltyko-text-secondary">

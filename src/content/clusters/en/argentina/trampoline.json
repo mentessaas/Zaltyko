@@ -12,7 +12,7 @@
     ]
   },
   "hero": {
-    "badge": "Leader in Argentina · +15 clubs",
+    "badge": "Built for trampoline clubs",
     "headline": "Manage your federated trampoline club with ease",
     "subheadline": "Full control over athletes, categories, Tumbling, DMT, Synchronized levels and licenses. Argentine Championship and selectivos."
   },
@@ -38,21 +38,18 @@
     "generic": "Managing Tumbling, DMT and Synchronized gymnasts on paper is chaos. Difficulty level and training session tracking doesn't exist.",
     "specific": "Coordinating synchronized routines, managing difficulty score tracking, renewing CGG licenses."
   },
-  "socialProof": {
-    "academies": [
-      "Trampolín Buenos Aires",
-      "Club Gimnasia Trampolín Córdoba",
-      "Academia Rosario Trampoline",
-      "Club Mendoza Trampolín",
-      "Escuela Tucumán Trampolín"
-    ],
-    "stats": {
-      "athletes": "2,500+",
-      "academies": "15+"
-    }
-  },
   "interlinking": {
-    "relatedCountries": ["spain", "mexico", "colombia", "chile", "peru"],
-    "relatedModalities": ["artistic", "rhythmic", "acrobatic"]
+    "relatedCountries": [
+      "spain",
+      "mexico",
+      "colombia",
+      "chile",
+      "peru"
+    ],
+    "relatedModalities": [
+      "artistic",
+      "rhythmic",
+      "acrobatic"
+    ]
   }
 }

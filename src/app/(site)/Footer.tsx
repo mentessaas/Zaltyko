@@ -12,7 +12,7 @@ const footerLinks = {
     { label: "Directorio de Academias", href: "/academias" },
     { label: "Eventos", href: "/events" },
     { label: "Centro de Ayuda", href: "/ayuda" },
-    { label: "Solicitar demo", href: "/contact?type=demo" },
+    { label: "Crear cuenta gratis", href: "/auth/register?role=owner" },
   ],
   empresa: [
     { label: "Sobre nosotros", href: "/sobre-nosotros" },
@@ -30,14 +30,12 @@ export default function Footer() {
   return (
     <footer className="relative overflow-hidden bg-zaltyko-navy text-white">
       <div className="absolute inset-0 zaltyko-motion-lines opacity-50" />
-      <div className="absolute left-1/4 top-0 h-96 w-96 rounded-full bg-zaltyko-indigo/20 blur-3xl" />
-      <div className="absolute bottom-0 right-1/4 h-96 w-96 rounded-full bg-zaltyko-teal/10 blur-3xl" />
 
       <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="border-b border-white/10 py-8">
           <div className="flex flex-wrap items-center justify-center gap-6 md:gap-10">
             {[
-              { label: "RGPD Compliant", desc: "Datos protegidos" },
+              { label: "Datos de menores protegidos", desc: "Aislamiento por academia" },
               { label: "SSL Encriptado", desc: "Conexión segura" },
               { label: "Cancelación libre", desc: "Sin permanencia" },
               { label: "Soporte en español", desc: "Respuesta 24h" },

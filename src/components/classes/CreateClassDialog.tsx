@@ -50,7 +50,7 @@ const defaultValues: ClassFormValues = {
 };
 
 const fieldClassName =
-  "w-full rounded-[10px] border border-zaltyko-mist bg-white px-3 py-2 text-sm shadow-none focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15";
+  "w-full rounded-card border border-zaltyko-mist bg-white px-3 py-2 text-sm shadow-none focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15";
 const errorTextClassName = "text-xs text-zaltyko-coral mt-1";
 const selectedChipClassName =
   "border-zaltyko-teal bg-zaltyko-teal/10 text-zaltyko-teal";

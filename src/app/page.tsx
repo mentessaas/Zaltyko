@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Schema } from "@/components/Schema";
+import { PRODUCT_PLAN_BY_CODE } from "@/lib/plans/catalog";
 
 // Componentes de la Home
 import Navbar from "@/app/(site)/Navbar";
@@ -10,10 +11,7 @@ import ModulesSection from "@/app/(site)/home/ModulesSection";
 import ClusterDiscoverySection from "@/app/(site)/home/ClusterDiscoverySection";
 import ComparisonSection from "@/app/(site)/home/ComparisonSection";
 import SeoExtendedSection from "@/app/(site)/home/SeoExtendedSection";
-import TestimonialsSection from "@/app/(site)/home/TestimonialsSection";
-import DemoSection from "@/app/(site)/home/DemoSection";
 import FaqSection from "@/app/(site)/home/FaqSection";
-import IntegrationsSection from "@/app/(site)/home/IntegrationsSection";
 import FinalCtaSection from "@/app/(site)/home/FinalCtaSection";
 import Footer from "@/app/(site)/Footer";
 import StickyCtaBar from "@/app/(site)/home/StickyCtaBar";
@@ -49,7 +47,7 @@ export const metadata: Metadata = {
     locale: "es_ES",
     images: [
       {
-        url: `${baseUrl}/og-image.svg`,
+        url: `${baseUrl}/og-image.png`,
         width: 1200,
         height: 630,
         alt: "Zaltyko - Software para academias de gimnasia",
@@ -103,20 +101,11 @@ export default function HomePage() {
         {/* Clusters SEO - países y modalidades */}
         <ClusterDiscoverySection />
 
-        {/* Demo con video */}
-        <DemoSection />
-
         {/* Sección SEO extendida - 300-400 palabras */}
         <SeoExtendedSection />
 
-        {/* Testimonios */}
-        <TestimonialsSection />
-
         {/* FAQ con preguntas de negocio */}
         <FaqSection />
-
-        {/* Integraciones */}
-        <IntegrationsSection />
 
         {/* CTA Final */}
         <FinalCtaSection />
@@ -140,7 +129,7 @@ export default function HomePage() {
           url: baseUrl,
           offers: {
             "@type": "Offer",
-            price: "49",
+            price: String(PRODUCT_PLAN_BY_CODE.pro.priceEurCents / 100),
             priceCurrency: "EUR",
             description: "Plan Starter para academias pequeñas de gimnasia artística o rítmica",
           },
@@ -172,16 +161,6 @@ export default function HomePage() {
             "@type": "PostalAddress",
             addressCountry: "ES",
           },
-          geo: {
-            "@type": "GeoCoordinates",
-            addressCountry: "ES",
-          },
-          priceRange: "€€",
-          sameAs: [
-            "https://twitter.com/zaltyko",
-            "https://linkedin.com/company/zaltyko",
-            "https://instagram.com/zaltyko",
-          ],
         }}
       />
       
@@ -212,7 +191,7 @@ export default function HomePage() {
               name: "¿Mis datos están aislados de otras academias?",
               acceptedAnswer: {
                 "@type": "Answer",
-                text: "Sí. Cada academia tiene sus datos completamente aislados. Usamos Row Level Security a nivel de base de datos. Cumplimos con el RGPD.",
+                text: "Sí. Cada academia tiene sus datos aislados, con control de acceso por rol y Row Level Security a nivel de base de datos.",
               },
             },
             {
@@ -220,7 +199,7 @@ export default function HomePage() {
               name: "¿Puedo migrar mis datos desde Excel o Google Sheets?",
               acceptedAnswer: {
                 "@type": "Answer",
-                text: "Sí. Zaltyko permite importar gimnastas, grupos y datos históricos desde archivos Excel o CSV.",
+                text: "Sí. Te acompañamos en la migración de tus gimnastas y grupos desde Excel o CSV como parte de la puesta en marcha guiada.",
               },
             },
             {
@@ -249,54 +228,11 @@ export default function HomePage() {
             },
             {
               "@type": "Question",
-              name: "¿Funciona en móvil para los coaches?",
+              name: "¿Funciona en móvil?",
               acceptedAnswer: {
                 "@type": "Answer",
-                text: "Sí. Zaltyko es una aplicación web responsive que funciona en móvil, tablet y escritorio. Los coaches pueden marcar asistencia desde su teléfono sin instalar nada.",
+                text: "Sí. Zaltyko funciona en el navegador del móvil, la tablet y el escritorio sin instalar nada. Estamos puliendo un pase de lista más rápido para pista; hoy se registra la asistencia desde el detalle de cada clase.",
               },
-            },
-          ],
-        }}
-      />
-
-      {/* HowTo Schema for SEO */}
-      <Schema
-        json={{
-          "@context": "https://schema.org",
-          "@type": "HowTo",
-          name: "Cómo gestionar una academia de gimnasia",
-          description:
-            "Guía paso a paso para gestionar eficientemente una academia de gimnasia artística o rítmica: desde la inscripción de gimnastas hasta el seguimiento técnico.",
-          step: [
-            {
-              "@type": "HowToStep",
-              name: "Configurar tu academia",
-              text: "Configura los datos de tu academia y selecciona artística femenina, artística masculina, rítmica o mixta artística/rítmica.",
-            },
-            {
-              "@type": "HowToStep",
-              name: "Importar gimnastas",
-              text: "Importa tus gimnastas desde Excel o añádelas manualmente. Incluye datos personales, categoría, nivel y fecha de nacimiento.",
-            },
-            {
-              "@type": "HowToStep",
-              name: "Programar clases y horarios",
-              text: "Configura tus clases con días, horarios y profesores asignados. Controla el aforo máximo y gestiona waiting lists automáticamente cuando una clase está completa.",
-            },
-            {
-              "@type": "HowToStep",
-              name: "Gestionar cobros",
-              text: "Configura cuotas mensuales, trimestrales o anuales, controla pagos pendientes y gestiona descuentos, becas y morosidad desde un solo panel.",
-            },
-            {
-              "@type": "HowToStep",
-              name: "Inscribir a competiciones",
-              text: "Gestiona las inscripciones de tus gimnastas a competiciones. Zaltyko filtra por categoría y edad, genera listas de inscripción y comunica a las familias.",
-            },
-            {
-              "@type": "HowToStep",
-              name: "Renovar licencias",
-              text: "Recibe alertas cuando una licencia federativa está próxima a caducar. Genera los documentos necesarios para la renovación y lleva un registro histórico de todas las licencias.",
             },
           ],
         }}

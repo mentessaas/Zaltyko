@@ -12,7 +12,7 @@
     ]
   },
   "hero": {
-    "badge": "Líder en Perú · +18 academias",
+    "badge": "Gestión pensada para academias de gimnasia rítmica",
     "headline": "Gestiona tu escuela de gimnasia rítmica federada sin complicaciones",
     "subheadline": "Control total sobre atletas FPG, categorías oficiales, niveles 1-10, 5 aparatos y licencias. Selectivos nacionales y torneos."
   },
@@ -38,21 +38,18 @@
     "generic": "Gestionar federaciones y material de los 5 aparatos en papel es un caos. Poco tiempo para entrenar.",
     "specific": "Renovar licencias FPG, gestionar material gimnástico (cintas, aros, bolas, mazas), seguir niveles técnicos 1-10."
   },
-  "socialProof": {
-    "academies": [
-      "Rítmica Lima",
-      "Club Arequipa RG",
-      "Academia Trujillo Rítmica",
-      "Club Cusco Rítmica",
-      "Escuela Piura Rítmica"
-    ],
-    "stats": {
-      "athletes": "3,500+",
-      "academies": "18+"
-    }
-  },
   "interlinking": {
-    "relatedCountries": ["espana", "mexico", "argentina", "colombia", "chile"],
-    "relatedModalities": ["artistic", "acrobatic", "trampoline"]
+    "relatedCountries": [
+      "espana",
+      "mexico",
+      "argentina",
+      "colombia",
+      "chile"
+    ],
+    "relatedModalities": [
+      "artistic",
+      "acrobatic",
+      "trampoline"
+    ]
   }
 }

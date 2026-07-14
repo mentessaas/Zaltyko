@@ -30,9 +30,9 @@ export default function FeaturesSection() {
           "Importación masiva desde Excel o CSV",
           "Portal para que familias vean progreso de sus hijas",
           "Datos siempre sincronizados, sin errores de importación",
-          "Cumplimiento RGPD y políticas de protección de menores",
+          "Aislamiento de datos por academia y control de acceso por rol",
         ],
-        impact: "Reduce 4 h semanales de tareas administrativas",
+        impact: "Menos horas persiguiendo fichas sueltas y hojas de cálculo",
       },
     },
     {
@@ -142,12 +142,12 @@ export default function FeaturesSection() {
       icon: ShieldCheck,
       label: "Seguridad",
       content: {
-        title: "Datos protegidos y cumplimiento RGPD",
+        title: "Datos protegidos y aislados por academia",
         features: [
           "Login sin contraseña (Magic Link) o con Google",
           "Registro de actividad por seguridad",
           "Copias de seguridad automáticas diarias",
-          "Cumplimiento RGPD y normativa de menores",
+          "Aislamiento de datos por academia y control de acceso por rol",
           "Encriptación de datos en tránsito y en reposo",
           "Planes de respuesta ante incidentes",
         ],
@@ -223,10 +223,10 @@ export default function FeaturesSection() {
                 {/* CTA dentro del tab */}
                 <div className="mt-8 pt-6 border-t border-white/10">
                   <Link
-                    href="/contact?type=demo"
+                    href="/auth/register?role=owner"
                     className="inline-flex items-center gap-2 bg-white text-zaltyko-indigo font-semibold px-6 py-3 rounded-xl hover:bg-zaltyko-teal/10 transition-colors text-sm"
                   >
-                    Solicitar demo
+                    Crear cuenta gratis
                     <ArrowRight className="w-4 h-4" />
                   </Link>
                 </div>

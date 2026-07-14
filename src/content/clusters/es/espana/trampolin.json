@@ -14,7 +14,7 @@
     ]
   },
   "hero": {
-    "badge": "Líder en España · +35 academias",
+    "badge": "Gestión pensada para academias de trampolín",
     "headline": "Gestiona tu escuela de trampolín federada sin complicaciones",
     "subheadline": "Control total sobre atletas, categorías oficiales, niveles de Tumbling, DMT, Sincronizado y licencias. Desde Nacional Base hasta Campeonato de España."
   },
@@ -41,21 +41,18 @@
     "generic": "Gestionar gimnastas de Tumbling, DMT y Sincronizado en hojas de cálculo es un caos. El tracking de niveles de dificultad y sesiones de entrenamiento es inexistente.",
     "specific": "Coordinar pruebas de sincronización entre gimnastas, gestionar el seguimiento de puntuaciones de dificultad, y renovar licencias para cada competición nacional."
   },
-  "socialProof": {
-    "academies": [
-      "Trampolín Club Madrid",
-      "Barcelona Trampoline Academy",
-      "Gimnasia Trampolín Valencia",
-      "Club Trampolín Coruña",
-      "Elite Trampoline Sevilla"
-    ],
-    "stats": {
-      "athletes": "6,000+",
-      "academies": "35+"
-    }
-  },
   "interlinking": {
-    "relatedCountries": ["mexico", "argentina", "colombia", "chile", "peru"],
-    "relatedModalities": ["artistic", "rhythmic", "acrobatic"]
+    "relatedCountries": [
+      "mexico",
+      "argentina",
+      "colombia",
+      "chile",
+      "peru"
+    ],
+    "relatedModalities": [
+      "artistic",
+      "rhythmic",
+      "acrobatic"
+    ]
   }
 }

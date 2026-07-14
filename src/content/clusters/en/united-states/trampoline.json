@@ -13,7 +13,7 @@
     ]
   },
   "hero": {
-    "badge": "Trusted by 25+ US T&T clubs",
+    "badge": "Built for trampoline clubs",
     "headline": "Manage your USAG Trampoline & Tumbling club with ease",
     "subheadline": "Full control over Trampoline, Tumbling, Double Mini-Tramp and Synchronized athletes. D-scores, routine tracking and USAG membership management."
   },
@@ -40,21 +40,19 @@
     "generic": "Managing Trampoline, Tumbling, DMT and Synchronized athletes is complex. Each discipline has different scoring and level requirements.",
     "specific": "Tracking routine difficulty scores (D-scores), coordinating synchronized pairs, managing athletes competing in multiple T&T disciplines, and handling USAG membership renewals."
   },
-  "socialProof": {
-    "academies": [
-      "Air Trampoline TX",
-      "Flight Gym CO",
-      "Skyhigh Acrobatics CA",
-      "Altitude T&T UT",
-      "Bounce Gymnastics WA"
-    ],
-    "stats": {
-      "athletes": "1,500+",
-      "academies": "25+"
-    }
-  },
   "interlinking": {
-    "relatedCountries": ["spain", "mexico", "argentina", "colombia", "chile", "peru"],
-    "relatedModalities": ["artistic", "rhythmic", "acrobatic"]
+    "relatedCountries": [
+      "spain",
+      "mexico",
+      "argentina",
+      "colombia",
+      "chile",
+      "peru"
+    ],
+    "relatedModalities": [
+      "artistic",
+      "rhythmic",
+      "acrobatic"
+    ]
   }
 }

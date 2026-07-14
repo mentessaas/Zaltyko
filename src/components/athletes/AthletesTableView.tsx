@@ -1,15 +1,16 @@
 "use client";
 
-import Link from "next/link";
 import { type FormEvent, memo, useEffect, useMemo, useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { athleteStatusOptions } from "@/lib/athletes/constants";
 import { PAGE_SIZES } from "@/lib/constants";
 import { useToast } from "@/components/ui/toast-provider";
+import { Modal } from "@/components/ui/modal";
 import { CreateAthleteDialog } from "@/components/athletes/CreateAthleteDialog";
 import { EditAthleteDialog } from "@/components/athletes/EditAthleteDialog";
 import { AthletesKanbanView } from "@/components/athletes/AthletesKanbanView";
+import ImportExportPanel from "@/components/athletes/ImportExportPanel";
 import {
   AthletesDataTable,
   AthletesEmptyState,
@@ -24,6 +25,7 @@ import { logger } from "@/lib/logger";
 
 interface AthletesTableViewProps {
   academyId: string;
+  tenantId: string;
   athletes: AthleteListItem[];
   levels: string[];
   groups: GroupOption[];
@@ -42,6 +44,7 @@ type SortOrder = "asc" | "desc";
 
 export const AthletesTableView = memo(function AthletesTableView({
   academyId,
+  tenantId,
   athletes: initialAthletes,
   levels,
   groups,
@@ -70,6 +73,7 @@ export const AthletesTableView = memo(function AthletesTableView({
   const [sportConfigFilter, setSportConfigFilter] = useState(filters.sportConfigId ?? "");
   const [ageRange, setAgeRange] = useState<AgeRange>({});
   const [createOpen, setCreateOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [editing, setEditing] = useState<AthleteListItem | null>(null);
   const [isPending, startTransition] = useTransition();
   const [athletesWithAlerts, setAthletesWithAlerts] = useState<Set<string>>(new Set());
@@ -290,6 +294,15 @@ export const AthletesTableView = memo(function AthletesTableView({
     handleRefresh();
   };
 
+  const handleImported = (summary: { created: number; skipped: number; total: number }) => {
+    toast.pushToast({
+      title: "Importación completada",
+      description: `${summary.created} ${terms.athletes.toLowerCase()} creados, ${summary.skipped} omitidos de ${summary.total} filas.`,
+      variant: summary.created > 0 ? "success" : "warning",
+    });
+    handleRefresh();
+  };
+
   const handleClearFilters = () => {
     setStatusFilter("");
     setLevelFilter("");
@@ -341,6 +354,7 @@ export const AthletesTableView = memo(function AthletesTableView({
         onCreate={() => setCreateOpen(true)}
         onExportCSV={handleExportCSV}
         onGroupChange={setGroupFilter}
+        onImportClick={() => setImportOpen(true)}
         onLevelChange={setLevelFilter}
         onQueryChange={setQuery}
         onSportConfigChange={setSportConfigFilter}
@@ -354,6 +368,7 @@ export const AthletesTableView = memo(function AthletesTableView({
           hasActiveFilters={Boolean(hasActiveFilters)}
           terms={terms}
           onCreate={() => setCreateOpen(true)}
+          onImportClick={() => setImportOpen(true)}
         />
       ) : viewMode === "kanban" ? (
         <AthletesKanbanView academyId={academyId} />
@@ -380,17 +395,14 @@ export const AthletesTableView = memo(function AthletesTableView({
         />
       )}
 
-      {process.env.NODE_ENV !== "production" && (
-        <div className="rounded-2xl border border-zaltyko-coral/30 bg-zaltyko-coral/10 p-4 text-sm text-zaltyko-navy">
-          <p>
-            ¿Necesitas importar datos? Usa el{" "}
-            <Link href={`/app/${academyId}/athletes`} className="font-semibold underline">
-              módulo clásico
-            </Link>{" "}
-            mientras migramos las herramientas aquí.
-          </p>
-        </div>
-      )}
+      <Modal
+        title="Importar gimnastas desde CSV"
+        description="Trae tu lista completa en un solo paso."
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+      >
+        <ImportExportPanel tenantId={tenantId} academyId={academyId} onImported={handleImported} />
+      </Modal>
 
       <CreateAthleteDialog
         academyId={academyId}

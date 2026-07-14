@@ -179,6 +179,96 @@ export async function triggerPaymentReminders(): Promise<number> {
   return sentCount;
 }
 
+export type ManualPaymentReminderResult =
+  | { ok: true; sentTo: string }
+  | { ok: false, reason: "CHARGE_NOT_FOUND" | "CHARGE_ALREADY_SETTLED" | "NO_CONTACT_EMAIL" };
+
+/**
+ * Envía el recordatorio de un único cargo, a petición manual de la academia
+ * (botón "Enviar recordatorio" en Cobros). A diferencia de triggerPaymentReminders,
+ * no barre todos los cargos vencidos: apunta a un chargeId concreto y valida
+ * que pertenezca al tenant que lo solicita.
+ */
+export async function sendManualPaymentReminder({
+  chargeId,
+  tenantId,
+}: {
+  chargeId: string;
+  tenantId: string;
+}): Promise<ManualPaymentReminderResult> {
+  const [charge] = await db
+    .select({
+      chargeId: charges.id,
+      amountCents: charges.amountCents,
+      dueDate: charges.dueDate,
+      status: charges.status,
+      athleteId: charges.athleteId,
+      academyId: charges.academyId,
+      academyName: academies.name,
+      academyCountry: academies.country,
+      tenantId: charges.tenantId,
+    })
+    .from(charges)
+    .innerJoin(academies, eq(charges.academyId, academies.id))
+    .where(and(eq(charges.id, chargeId), eq(charges.tenantId, tenantId)))
+    .limit(1);
+
+  if (!charge) {
+    return { ok: false, reason: "CHARGE_NOT_FOUND" };
+  }
+
+  if (charge.status !== "pending" && charge.status !== "overdue") {
+    return { ok: false, reason: "CHARGE_ALREADY_SETTLED" };
+  }
+
+  if (!charge.athleteId) {
+    return { ok: false, reason: "CHARGE_NOT_FOUND" };
+  }
+
+  const [athlete] = await db
+    .select({
+      athleteName: athletes.name,
+      guardianEmail: guardians.email,
+      familyContactEmail: familyContacts.email,
+    })
+    .from(athletes)
+    .leftJoin(guardianAthletes, eq(athletes.id, guardianAthletes.athleteId))
+    .leftJoin(guardians, eq(guardianAthletes.guardianId, guardians.id))
+    .leftJoin(familyContacts, eq(athletes.id, familyContacts.athleteId))
+    .where(eq(athletes.id, charge.athleteId))
+    .limit(1);
+
+  const email = athlete?.guardianEmail || athlete?.familyContactEmail;
+  if (!email) {
+    return { ok: false, reason: "NO_CONTACT_EMAIL" };
+  }
+
+  const amount = charge.amountCents / 100;
+
+  const html = PaymentReminderTemplate({
+    athleteName: athlete?.athleteName || "el atleta",
+    amount,
+    dueDate: charge.dueDate ? formatLongDateForCountry(charge.dueDate, charge.academyCountry) : "Fecha no especificada",
+    academyName: charge.academyName || "Tu academia",
+  });
+
+  await sendEmailWithLogging({
+    to: email,
+    subject: `Recordatorio de pago pendiente - ${amount.toFixed(2)} €`,
+    html,
+    template: "payment-reminder",
+    tenantId,
+    academyId: charge.academyId,
+    metadata: {
+      chargeId: charge.chargeId,
+      athleteId: charge.athleteId,
+      manual: true,
+    },
+  });
+
+  return { ok: true, sentTo: email };
+}
+
 /**
  * Envía invitaciones a eventos
  */

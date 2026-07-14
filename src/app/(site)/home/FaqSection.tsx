@@ -20,7 +20,7 @@ const faqs = [
   },
   {
     question: "¿Puedo migrar mis datos desde Excel o Google Sheets?",
-    answer: "Sí. Zaltyko permite importar gimnastas, grupos y datos históricos desde archivos Excel o CSV. Para migraciones grandes, planteamos una puesta en marcha guiada.",
+    answer: "Sí. Te acompañamos en la migración de tus gimnastas y grupos desde Excel o CSV como parte de la puesta en marcha guiada.",
   },
   {
     question: "¿Qué plan necesito para mi academia?",
@@ -36,7 +36,7 @@ const faqs = [
   },
   {
     question: "¿Funciona en móvil?",
-    answer: "Sí. Zaltyko es una aplicación web responsive que funciona perfectamente en móvil, tablet y escritorio. Los coaches pueden marcar asistencia desde su teléfono al llegar a clase.",
+    answer: "Sí. Zaltyko funciona en el navegador del móvil, la tablet y el escritorio sin instalar nada. Estamos puliendo un pase de lista más rápido para pista; hoy se registra la asistencia desde el detalle de cada clase.",
   },
 ];
 
@@ -46,7 +46,7 @@ export default function FaqSection() {
   return (
     <section className="py-24 bg-white relative overflow-hidden">
       {/* Background accent */}
-      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-zaltyko-white0 via-zaltyko-indigo to-zaltyko-teal" />
+      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-zaltyko-white via-zaltyko-indigo to-zaltyko-teal" />
 
       <div className="relative mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
         {/* Header */}

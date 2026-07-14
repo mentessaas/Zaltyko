@@ -172,12 +172,12 @@ export function ClassesTableView({
             placeholder="Buscar por nombre"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            className="min-h-11 min-w-[220px] flex-1 rounded-[10px] border border-zaltyko-mist bg-white px-3 py-2 text-sm focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15"
+            className="min-h-11 min-w-[220px] flex-1 rounded-card border border-zaltyko-mist bg-white px-3 py-2 text-sm focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15"
           />
           <select
             value={groupFilter}
             onChange={(event) => setGroupFilter(event.target.value)}
-            className="min-h-11 min-w-[200px] rounded-[10px] border border-zaltyko-mist bg-white px-3 py-2 text-sm focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15"
+            className="min-h-11 min-w-[200px] rounded-card border border-zaltyko-mist bg-white px-3 py-2 text-sm focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15"
           >
             <option value="">Todos los {groupTermLower}s</option>
             {groupOptions.map((group) => (
@@ -189,7 +189,7 @@ export function ClassesTableView({
           <select
             value={sportConfigFilter}
             onChange={(event) => setSportConfigFilter(event.target.value)}
-            className="min-h-11 min-w-[210px] rounded-[10px] border border-zaltyko-mist bg-white px-3 py-2 text-sm focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15"
+            className="min-h-11 min-w-[210px] rounded-card border border-zaltyko-mist bg-white px-3 py-2 text-sm focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15"
           >
             <option value="">Todas las ramas</option>
             {sportConfigs.map((config) => (
@@ -236,7 +236,80 @@ export function ClassesTableView({
           )}
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-2xl border border-zaltyko-mist bg-white shadow-soft">
+        <>
+        {/* Cards — móvil */}
+        <ul className="space-y-3 md:hidden">
+          {classes.map((item) => (
+            <li key={item.id} className="rounded-2xl border border-zaltyko-mist bg-white p-4 shadow-soft">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Link
+                      href={`/app/${academyId}/classes/${item.id}`}
+                      className="font-semibold text-zaltyko-teal hover:underline"
+                    >
+                      {item.name}
+                    </Link>
+                    {starterClassNames.has(item.name) && (
+                      <span className="rounded-full border border-zaltyko-teal/30 bg-zaltyko-teal/10 px-2 py-0.5 text-[11px] font-semibold text-zaltyko-teal">
+                        Plantilla inicial
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">{formatSchedule(item)}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEditing(item)}
+                  className="shrink-0 text-xs font-semibold text-zaltyko-teal hover:underline"
+                >
+                  Editar
+                </button>
+              </div>
+
+              <div className="mt-3 flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">Capacidad</span>
+                <span className="tabular-nums font-medium text-zaltyko-navy">{item.capacity ?? "—"}</span>
+              </div>
+
+              <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                {item.coaches.length === 0 ? (
+                  <span className="rounded-full bg-muted px-3 py-1 text-muted-foreground">
+                    Sin {coachTermPluralLower} asignados
+                  </span>
+                ) : (
+                  item.coaches.map((coach) => (
+                    <span key={coach.id} className="rounded-full bg-zaltyko-indigo/10 px-3 py-1 text-zaltyko-indigo">
+                      {coach.name}
+                    </span>
+                  ))
+                )}
+              </div>
+
+              <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                {item.groups.length === 0 ? (
+                  <span className="rounded-full bg-muted px-3 py-1 text-muted-foreground">
+                    Sin {groupTermLower} vinculado
+                  </span>
+                ) : (
+                  item.groups.map((group) => (
+                    <span
+                      key={group.id}
+                      className="inline-flex items-center gap-2 rounded-full border px-3 py-1 font-medium"
+                      style={group.color ? { borderColor: group.color, color: group.color } : undefined}
+                    >
+                      <span className="h-2 w-2 rounded-full" style={{ backgroundColor: group.color ?? "currentColor" }} />
+                      {group.name}
+                    </span>
+                  ))
+                )}
+              </div>
+            </li>
+          ))}
+        </ul>
+
+        {/* Tabla — escritorio */}
+        <div className="hidden overflow-x-auto rounded-2xl border border-zaltyko-mist bg-white shadow-soft md:block">
           <table className="min-w-full divide-y divide-slate-100 text-sm">
             <thead className="bg-zaltyko-white">
               <tr className="text-left text-xs uppercase tracking-[0.05em] text-slate-400">
@@ -373,6 +446,7 @@ export function ClassesTableView({
             </tbody>
           </table>
         </div>
+        </>
       )}
 
       <CreateClassDialog

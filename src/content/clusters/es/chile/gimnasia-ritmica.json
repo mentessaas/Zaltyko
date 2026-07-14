@@ -12,7 +12,7 @@
     ]
   },
   "hero": {
-    "badge": "Líder en Chile · +20 academias",
+    "badge": "Gestión pensada para academias de gimnasia rítmica",
     "headline": "Gestiona tu escuela de gimnasia rítmica federada sin complicaciones",
     "subheadline": "Control total sobre atletas FGCh, categorías oficiales, niveles 1-10, 5 aparatos y licencias. Campeonato Nacional y selectivos."
   },
@@ -38,21 +38,18 @@
     "generic": "Gestionar federaciones y material de los 5 aparatos en papel es un caos. Poco tiempo para entrenar.",
     "specific": "Renovar licencias FGCh, gestionar material gimnástico (cintas, aros, bolas, mazas), seguir niveles técnicos."
   },
-  "socialProof": {
-    "academies": [
-      "Rítmica Santiago",
-      "Club Valparaíso RG",
-      "Academia Concepción Rítmica",
-      "Club La Serena Rítmica",
-      "Escuela Antofagasta Rítmica"
-    ],
-    "stats": {
-      "athletes": "4,000+",
-      "academies": "20+"
-    }
-  },
   "interlinking": {
-    "relatedCountries": ["espana", "mexico", "argentina", "colombia", "peru"],
-    "relatedModalities": ["artistic", "acrobatic", "trampoline"]
+    "relatedCountries": [
+      "espana",
+      "mexico",
+      "argentina",
+      "colombia",
+      "peru"
+    ],
+    "relatedModalities": [
+      "artistic",
+      "acrobatic",
+      "trampoline"
+    ]
   }
 }

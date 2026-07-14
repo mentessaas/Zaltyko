@@ -14,7 +14,7 @@
     ]
   },
   "hero": {
-    "badge": "Trusted by 200+ US gyms",
+    "badge": "Built for artistic gymnastics clubs",
     "headline": "Manage your USAG gymnastics club with ease",
     "subheadline": "Full control over athletes, Levels 1-10, Xcel program, meet registration, D-score/E-score tracking and USAG membership. From Level 1 to Senior Elite."
   },
@@ -45,21 +45,19 @@
     "generic": "Managing meet registrations, USAG memberships, and competition scoring in spreadsheets takes hours you could spend coaching. Duplicated data, missed deadlines, and calculation errors are constant.",
     "specific": "Tracking D-scores and E-scores per routine, managing Xcel vs JO level assignments, handling meet sanctions and registration deadlines, USAG membership renewals."
   },
-  "socialProof": {
-    "academies": [
-      "Elite Gymnastics Academy CA",
-      "Champions Gym Texas",
-      "Metro Gymnastics NYC",
-      "Pacific Coast Gymnastics",
-      "Ascension Gymnastics FL"
-    ],
-    "stats": {
-      "athletes": "25,000+",
-      "academies": "200+"
-    }
-  },
   "interlinking": {
-    "relatedCountries": ["spain", "mexico", "argentina", "colombia", "chile", "peru"],
-    "relatedModalities": ["rhythmic", "acrobatic", "trampoline"]
+    "relatedCountries": [
+      "spain",
+      "mexico",
+      "argentina",
+      "colombia",
+      "chile",
+      "peru"
+    ],
+    "relatedModalities": [
+      "rhythmic",
+      "acrobatic",
+      "trampoline"
+    ]
   }
 }

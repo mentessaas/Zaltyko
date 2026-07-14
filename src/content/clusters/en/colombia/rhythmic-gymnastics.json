@@ -11,7 +11,7 @@
     ]
   },
   "hero": {
-    "badge": "Leader in Colombia · +25 clubs",
+    "badge": "Built for rhythmic gymnastics clubs",
     "headline": "Manage your federated rhythmic gymnastics club with ease",
     "subheadline": "Full control over FCG athletes, official categories, levels 1-10, 5 apparatus and licenses. Copa Colombia and national selectivos."
   },
@@ -37,21 +37,18 @@
     "generic": "Managing federations and equipment for 5 apparatus on paper is chaos. Little time for training due to excess paperwork.",
     "specific": "Renewing FCG licenses, managing equipment (ropes, hoops, balls, clubs, ribbons), tracking technical levels 1-10."
   },
-  "socialProof": {
-    "academies": [
-      "Rítmica Bogotá",
-      "Club Medellín RG",
-      "Academia Cali Rítmica",
-      "Club Barranquilla Rítmica",
-      "Escuela Pereira Rítmica"
-    ],
-    "stats": {
-      "athletes": "5,500+",
-      "academies": "25+"
-    }
-  },
   "interlinking": {
-    "relatedCountries": ["spain", "mexico", "argentina", "chile", "peru"],
-    "relatedModalities": ["artistic", "acrobatic", "trampoline"]
+    "relatedCountries": [
+      "spain",
+      "mexico",
+      "argentina",
+      "chile",
+      "peru"
+    ],
+    "relatedModalities": [
+      "artistic",
+      "acrobatic",
+      "trampoline"
+    ]
   }
 }

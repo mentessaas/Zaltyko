@@ -13,7 +13,7 @@
     ]
   },
   "hero": {
-    "badge": "Líder en Perú · +20 academias",
+    "badge": "Gestión pensada para academias de gimnasia artística",
     "headline": "Gestiona tu escuela de gimnasia artística federada sin complicaciones",
     "subheadline": "Control total sobre atletas FPG-IPD, categorías oficiales, niveles de competencia, selectivos nacionales y licencias."
   },
@@ -40,21 +40,18 @@
     "generic": "Gestionar federaciones y licencias en papel consume horas que podrías dedicar a entrenar. La información se pierde.",
     "specific": "Renovar licencias FPG, gestionar selectivos para Nacional, tracking de niveles por categoría, coordinación con IPD."
   },
-  "socialProof": {
-    "academies": [
-      "Gimnasia Lima",
-      "Club Arequipa GA",
-      "Academia Trujillo Gymnastics",
-      "Club Cusco",
-      "Escuela Gymnastics Piura"
-    ],
-    "stats": {
-      "athletes": "4,000+",
-      "academies": "20+"
-    }
-  },
   "interlinking": {
-    "relatedCountries": ["espana", "mexico", "argentina", "colombia", "chile"],
-    "relatedModalities": ["rhythmic", "acrobatic", "trampoline"]
+    "relatedCountries": [
+      "espana",
+      "mexico",
+      "argentina",
+      "colombia",
+      "chile"
+    ],
+    "relatedModalities": [
+      "rhythmic",
+      "acrobatic",
+      "trampoline"
+    ]
   }
 }

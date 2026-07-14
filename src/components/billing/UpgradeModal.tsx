@@ -5,7 +5,6 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Check, CreditCard, Zap, AlertCircle } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import { logger } from "@/lib/logger";
@@ -24,7 +23,6 @@ const PLAN_DETAILS = {
     pro: {
         name: "Starter",
         price: 19,
-        color: "from-zaltyko-primary to-zaltyko-accent-teal",
         features: [
             "75 gimnastas",
             "10 entrenadores",
@@ -37,7 +35,6 @@ const PLAN_DETAILS = {
     premium: {
         name: "Growth",
         price: 49,
-        color: "from-zaltyko-accent-coral to-zaltyko-accent-amber",
         features: [
             "200 gimnastas",
             "20 grupos",
@@ -78,9 +75,9 @@ function PaymentForm({ onSubmit, loading }: { onSubmit: (paymentMethodId: string
         <form onSubmit={handleSubmit} className="space-y-4">
             <PaymentElement />
             {error && (
-                <div className="flex items-center gap-2 p-3 rounded-lg bg-red-50 border border-red-200">
-                    <AlertCircle className="w-4 h-4 text-red-600" />
-                    <p className="text-sm text-red-600">{error}</p>
+                <div className="flex items-center gap-2 rounded-card border border-zaltyko-coral/30 bg-zaltyko-coral/10 p-3">
+                    <AlertCircle className="w-4 h-4 text-zaltyko-coral" />
+                    <p className="text-sm text-zaltyko-coral">{error}</p>
                 </div>
             )}
             <Button type="submit" disabled={!stripe || loading} className="w-full">
@@ -152,33 +149,29 @@ export function UpgradeModal({ open, onClose, currentPlan, targetPlan, onConfirm
                 {step === "preview" ? (
                     <div className="space-y-6">
                         {/* Plan Preview */}
-                        <div className={cn(
-                            "p-6 rounded-xl bg-gradient-to-br",
-                            planDetails.color,
-                            "text-white"
-                        )}>
+                        <div className="rounded-card border border-zaltyko-mist border-b-2 border-b-zaltyko-teal bg-white p-6">
                             <div className="flex items-center justify-between mb-4">
-                                <h3 className="text-2xl font-bold">{planDetails.name}</h3>
-                                <Badge className="bg-white/20 text-white border-white/30">
+                                <h3 className="text-2xl font-bold text-zaltyko-navy">{planDetails.name}</h3>
+                                <Badge className="bg-zaltyko-primary-ultralight text-zaltyko-teal border-transparent">
                                     Upgrade
                                 </Badge>
                             </div>
                             <div className="flex items-baseline gap-2 mb-4">
-                                <span className="text-4xl font-bold">€{planDetails.price}</span>
-                                <span className="text-white/80">/mes</span>
+                                <span className="text-4xl font-bold tabular-nums text-zaltyko-navy">€{planDetails.price}</span>
+                                <span className="text-zaltyko-text-secondary">/mes</span>
                             </div>
                             <div className="space-y-2">
                                 {planDetails.features.map((feature, idx) => (
                                     <div key={idx} className="flex items-center gap-2">
-                                        <Check className="w-4 h-4" />
-                                        <span className="text-sm">{feature}</span>
+                                        <Check className="w-4 h-4 text-zaltyko-teal" />
+                                        <span className="text-sm text-zaltyko-text-secondary">{feature}</span>
                                     </div>
                                 ))}
                             </div>
                         </div>
 
                         {/* Pricing Breakdown */}
-                        <div className="space-y-3 p-4 rounded-lg bg-zaltyko-bg-secondary">
+                        <div className="space-y-3 rounded-card border border-zaltyko-mist bg-zaltyko-white p-4">
                             <div className="flex justify-between text-sm">
                                 <span className="text-zaltyko-text-light">Plan {planDetails.name}</span>
                                 <span className="font-semibold">€{planDetails.price}/mes</span>
@@ -187,11 +180,11 @@ export function UpgradeModal({ open, onClose, currentPlan, targetPlan, onConfirm
                                 <>
                                     <div className="flex justify-between text-sm">
                                         <span className="text-zaltyko-text-light">Crédito por tiempo restante</span>
-                                        <span className="font-semibold text-zaltyko-primary">-€{prorationAmount}</span>
+                                        <span className="font-semibold text-zaltyko-teal">-€{prorationAmount}</span>
                                     </div>
-                                    <div className="border-t border-zaltyko-border pt-2 flex justify-between">
+                                    <div className="border-t border-zaltyko-mist pt-2 flex justify-between">
                                         <span className="font-semibold">Total hoy</span>
-                                        <span className="font-bold text-lg">€{planDetails.price - prorationAmount}</span>
+                                        <span className="font-bold text-lg tabular-nums">€{planDetails.price - prorationAmount}</span>
                                     </div>
                                 </>
                             )}
@@ -201,13 +194,13 @@ export function UpgradeModal({ open, onClose, currentPlan, targetPlan, onConfirm
                         </div>
 
                         {/* Info Box */}
-                        <div className="flex items-start gap-3 p-4 rounded-lg bg-blue-50 border border-blue-200">
-                            <Zap className="w-5 h-5 text-blue-600 mt-0.5" />
+                        <div className="flex items-start gap-3 rounded-card border border-zaltyko-mist bg-zaltyko-primary-ultralight p-4">
+                            <Zap className="w-5 h-5 mt-0.5 text-zaltyko-teal" />
                             <div className="flex-1">
-                                <p className="text-sm font-semibold text-blue-900 mb-1">
+                                <p className="text-sm font-semibold text-zaltyko-navy mb-1">
                                     Upgrade instantáneo
                                 </p>
-                                <p className="text-xs text-blue-700">
+                                <p className="text-xs text-zaltyko-text-secondary">
                                     Tu plan se actualizará inmediatamente después de confirmar el pago.
                                     Tendrás acceso a todas las nuevas funciones de inmediato.
                                 </p>

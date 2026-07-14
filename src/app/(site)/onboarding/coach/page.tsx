@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/toast-provider";
 import { Button } from "@/components/ui/button";
@@ -87,27 +88,31 @@ export default function CoachOnboardingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-red-50 to-white flex items-center justify-center p-4">
+    <div className="flex min-h-screen items-center justify-center bg-zaltyko-white p-4">
       <div className="w-full max-w-lg">
         {/* Logo */}
-        <div className="text-center mb-8">
+        <div className="mb-8 text-center">
           <Link href="/" className="inline-flex items-center gap-2">
-            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-red-500 to-red-600 flex items-center justify-center text-white font-bold text-lg">
-              Z
-            </div>
-            <span className="font-display font-bold text-2xl text-gray-900">Zaltyko</span>
+            <Image
+              src="/branding/zaltyko/logo-zaltyko.svg"
+              alt="Zaltyko"
+              width={132}
+              height={38}
+              className="h-9 w-auto"
+              priority
+            />
           </Link>
         </div>
 
         {/* Welcome Step */}
         {step === "welcome" && (
-          <Card>
+          <Card className="rounded-card border-zaltyko-mist shadow-soft">
             <CardContent className="p-8 space-y-6">
               <div className="text-center space-y-2">
-                <div className="mx-auto w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mb-4">
-                  <Users className="h-8 w-8 text-red-600" />
+                <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-zaltyko-primary-ultralight">
+                  <Users className="h-8 w-8 text-zaltyko-teal" />
                 </div>
-                <h1 className="text-2xl font-bold">Bienvenido/a, entrenador/a</h1>
+                <h1 className="text-2xl font-bold text-zaltyko-navy">Bienvenido/a, entrenador/a</h1>
                 <p className="text-muted-foreground">
                   Te damos la bienvenida a Zaltyko. Con tu cuenta podrás gestionar clases,
                   registrar atletas y compartir evaluaciones técnicas.
@@ -115,25 +120,25 @@ export default function CoachOnboardingPage() {
               </div>
 
               <div className="space-y-3">
-                <div className="flex items-start gap-3 p-3 rounded-lg bg-gray-50">
-                  <Calendar className="h-5 w-5 text-red-500 mt-0.5" />
+                <div className="flex items-start gap-3 rounded-card bg-zaltyko-white p-3">
+                  <Calendar className="h-5 w-5 mt-0.5 text-zaltyko-teal" />
                   <div>
                     <p className="font-medium text-sm">Gestión de clases</p>
                     <p className="text-xs text-muted-foreground">Organiza horarios y registra asistencia</p>
                   </div>
                 </div>
-                <div className="flex items-start gap-3 p-3 rounded-lg bg-gray-50">
-                  <Users className="h-5 w-5 text-red-500 mt-0.5" />
+                <div className="flex items-start gap-3 rounded-card bg-zaltyko-white p-3">
+                  <Users className="h-5 w-5 mt-0.5 text-zaltyko-teal" />
                   <div>
                     <p className="font-medium text-sm">Registro de atletas</p>
                     <p className="text-xs text-muted-foreground">Controla quién asiste a cada entreno</p>
                   </div>
                 </div>
-                <div className="flex items-start gap-3 p-3 rounded-lg bg-gray-50">
-                  <BarChart3 className="h-5 w-5 text-red-500 mt-0.5" />
+                <div className="flex items-start gap-3 rounded-card bg-zaltyko-white p-3">
+                  <BarChart3 className="h-5 w-5 mt-0.5 text-zaltyko-teal" />
                   <div>
                     <p className="font-medium text-sm">Evaluaciones técnicas</p>
-                    <p className="text-xs text-muted-foreground">Registra progressions y comparte con familias</p>
+                    <p className="text-xs text-muted-foreground">Registra progresiones y comparte con familias</p>
                   </div>
                 </div>
               </div>
@@ -148,10 +153,10 @@ export default function CoachOnboardingPage() {
 
         {/* Academies Step */}
         {step === "academies" && (
-          <Card>
+          <Card className="rounded-card border-zaltyko-mist shadow-soft">
             <CardContent className="p-8 space-y-4">
               <div className="text-center">
-                <h2 className="text-xl font-bold">Tus academias</h2>
+                <h2 className="text-xl font-bold text-zaltyko-navy">Tus academias</h2>
                 <p className="text-sm text-muted-foreground mt-1">
                   Has sido invitado/a a las siguientes academias.
                 </p>
@@ -159,7 +164,7 @@ export default function CoachOnboardingPage() {
 
               {loadingAcademies ? (
                 <div className="flex justify-center py-6">
-                  <div className="h-6 w-6 rounded-full border-2 border-red-500 border-t-transparent animate-spin" />
+                  <div className="h-6 w-6 rounded-full border-2 border-zaltyko-teal border-t-transparent animate-spin" />
                 </div>
               ) : academies.length === 0 ? (
                 <div className="text-center py-6 text-muted-foreground">
@@ -170,13 +175,13 @@ export default function CoachOnboardingPage() {
                   {academies.map((academy) => (
                     <div
                       key={academy.id}
-                      className="flex items-center justify-between p-3 rounded-lg border bg-gray-50"
+                      className="flex items-center justify-between rounded-card border border-zaltyko-mist bg-zaltyko-white p-3"
                     >
                       <div>
                         <p className="font-medium">{academy.name}</p>
                         <p className="text-xs text-muted-foreground capitalize">{academy.role}</p>
                       </div>
-                      <CheckCircle2 className="h-5 w-5 text-green-500" />
+                      <CheckCircle2 className="h-5 w-5 text-zaltyko-teal" />
                     </div>
                   ))}
                 </div>
@@ -196,10 +201,10 @@ export default function CoachOnboardingPage() {
 
         {/* Profile Step */}
         {step === "profile" && (
-          <Card>
+          <Card className="rounded-card border-zaltyko-mist shadow-soft">
             <CardContent className="p-8 space-y-4">
               <div className="text-center">
-                <h2 className="text-xl font-bold">Tu perfil</h2>
+                <h2 className="text-xl font-bold text-zaltyko-navy">Tu perfil</h2>
                 <p className="text-sm text-muted-foreground mt-1">
                   Completa tu perfil de entrenador/a (opcional).
                 </p>
@@ -258,12 +263,12 @@ export default function CoachOnboardingPage() {
 
         {/* Done Step */}
         {step === "done" && (
-          <Card>
+          <Card className="rounded-card border-zaltyko-mist shadow-soft">
             <CardContent className="p-8 space-y-4 text-center">
-              <div className="mx-auto w-16 h-16 rounded-full bg-green-100 flex items-center justify-center">
-                <CheckCircle2 className="h-8 w-8 text-green-600" />
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-zaltyko-primary-ultralight">
+                <CheckCircle2 className="h-8 w-8 text-zaltyko-teal" />
               </div>
-              <h2 className="text-xl font-bold text-green-700">¡Listo!</h2>
+              <h2 className="text-xl font-bold text-zaltyko-navy">¡Listo!</h2>
               <p className="text-sm text-muted-foreground">
                 Perfil guardado. Redirigiendo a tu dashboard...
               </p>

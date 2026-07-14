@@ -46,6 +46,7 @@ export default async function AcademyAthletesPage({ params, searchParams }: Page
     .select({
       id: academies.id,
       name: academies.name,
+      tenantId: academies.tenantId,
     })
     .from(academies)
     .where(eq(academies.id, academyId))
@@ -196,6 +197,7 @@ export default async function AcademyAthletesPage({ params, searchParams }: Page
         <div className="xl:col-span-3">
           <AthletesTableView
             academyId={academy.id}
+            tenantId={academy.tenantId}
             athletes={list}
             levels={levels}
             filters={{

@@ -13,7 +13,7 @@
     ]
   },
   "hero": {
-    "badge": "Leader in Spain · +35 clubs",
+    "badge": "Built for trampoline clubs",
     "headline": "Manage your federated trampoline club with ease",
     "subheadline": "Full control over athletes, official categories, Tumbling, DMT, Synchronized levels and licenses. From Nacional Base to Campeonato de España."
   },
@@ -40,21 +40,18 @@
     "generic": "Managing Tumbling, DMT and Synchronized gymnasts in spreadsheets is chaos. Tracking difficulty levels and training sessions doesn't exist.",
     "specific": "Coordinating synchronized routines between gymnasts, managing difficulty score tracking, and renewing licenses for each national competition."
   },
-  "socialProof": {
-    "academies": [
-      "Trampolín Club Madrid",
-      "Barcelona Trampoline Academy",
-      "Gimnasia Trampolín Valencia",
-      "Club Trampolín Coruña",
-      "Elite Trampoline Sevilla"
-    ],
-    "stats": {
-      "athletes": "6,000+",
-      "academies": "35+"
-    }
-  },
   "interlinking": {
-    "relatedCountries": ["mexico", "argentina", "colombia", "chile", "peru"],
-    "relatedModalities": ["artistic", "rhythmic", "acrobatic"]
+    "relatedCountries": [
+      "mexico",
+      "argentina",
+      "colombia",
+      "chile",
+      "peru"
+    ],
+    "relatedModalities": [
+      "artistic",
+      "rhythmic",
+      "acrobatic"
+    ]
   }
 }

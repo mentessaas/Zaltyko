@@ -1,6 +1,6 @@
 "use client";
 
-import { X, Sparkles, Rocket } from "lucide-react";
+import { X, Users, Rocket } from "lucide-react";
 import { useState } from "react";
 import Link from "next/link";
 
@@ -23,54 +23,44 @@ export function WelcomeBanner({ academyName, userName, academyId, isNewUser = fa
   const displayName = userName || "equipo";
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-zaltyko-primary/20 bg-gradient-to-br from-zaltyko-primary/10 via-white to-zaltyko-primary/5 p-6 shadow-lg shadow-zaltyko-primary/10">
-      {/* Background Effects */}
-      <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-zaltyko-primary/10 blur-3xl" />
-      <div className="absolute -bottom-10 -left-10 h-32 w-32 rounded-full bg-zaltyko-accent-teal/10 blur-2xl" />
-
+    <div className="relative rounded-card border border-zaltyko-mist border-b-2 border-b-zaltyko-teal bg-white p-6 shadow-soft">
       <button
         onClick={() => setDismissed(true)}
-        className="absolute right-4 top-4 rounded-xl p-2 text-muted-foreground transition hover:bg-white/50 hover:text-foreground"
+        className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-control text-zaltyko-text-light transition hover:bg-zaltyko-white hover:text-zaltyko-navy"
         aria-label="Cerrar"
       >
         <X className="h-4 w-4" />
       </button>
 
-      <div className="relative pr-8">
-        <div className="flex items-center gap-3 mb-3">
-          <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-zaltyko-primary to-zaltyko-primary-dark flex items-center justify-center shadow-lg shadow-zaltyko-primary/30">
-            {isNewUser ? <Sparkles className="h-5 w-5 text-white" /> : <Rocket className="h-5 w-5 text-white" />}
+      <div className="pr-8">
+        <div className="mb-3 flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-control bg-zaltyko-primary-ultralight">
+            {isNewUser ? <Users className="h-5 w-5 text-zaltyko-teal" /> : <Rocket className="h-5 w-5 text-zaltyko-teal" />}
           </div>
-          <h2 className="text-2xl font-display font-bold text-zaltyko-text-main">
+          <h2 className="font-display text-2xl font-bold text-zaltyko-navy">
             {isNewUser ? `¡Bienvenido a Zaltyko, ${displayName}!` : `¡Hola de nuevo, ${displayName}!`}
           </h2>
         </div>
-        <p className="text-base text-zaltyko-text-secondary leading-relaxed">
+        <p className="text-base leading-relaxed text-zaltyko-text-secondary">
           {isNewUser ? (
             <>
-              Estás a punto de transformar la gestión de <strong className="text-zaltyko-primary">{academyName || "tu academia"}</strong>.
-              En los próximos minutos configurarás lo esencial y empezarás a ver resultados.
+              <strong className="text-zaltyko-teal">{academyName || "Tu academia"}</strong> ya está creada.
+              Importa tus gimnastas y monta el primer grupo para empezar a ver el panel con datos reales.
             </>
           ) : (
             <>
-              {academyName || "Tu academia"} está lista para crecer. Completa tu configuración
-              para desbloquear todas las funciones.
+              {academyName || "Tu academia"} tiene pasos de configuración pendientes en el checklist de abajo.
             </>
           )}
         </p>
         {isNewUser && (
           <div className="mt-6 flex flex-wrap gap-3">
-            <Button
-              asChild
-              size="sm"
-              className="bg-gradient-to-r from-zaltyko-primary to-zaltyko-primary-dark hover:from-zaltyko-primary-dark hover:to-zaltyko-primary shadow-lg shadow-zaltyko-primary/25"
-            >
-              <Link href={`/app/${academyId}/groups`}>
-                <Sparkles className="mr-2 h-4 w-4" />
-                Empezar configuración
+            <Button asChild size="sm">
+              <Link href={`/app/${academyId}/athletes`}>
+                Importar gimnastas
               </Link>
             </Button>
-            <Button variant="outline" size="sm" asChild className="border-zaltyko-primary/30 hover:bg-zaltyko-primary/5">
+            <Button variant="outline" size="sm" asChild>
               <Link href={`/app/${academyId}/dashboard`}>
                 Explorar dashboard
               </Link>

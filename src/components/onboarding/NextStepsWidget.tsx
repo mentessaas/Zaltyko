@@ -35,7 +35,20 @@ export function NextStepsWidget({ academyId, metrics, checklistProgress }: NextS
   const nextSteps = useMemo<NextStep[]>(() => {
     const steps: NextStep[] = [];
 
-    // Paso 1: Crear primer grupo (si no hay grupos)
+    // Paso 1: Añadir/importar atletas (si hay menos de 5) — primer paso del checklist
+    if (metrics.athletes < 5) {
+      steps.push({
+        id: "add_athletes",
+        label: `Añade ${5 - metrics.athletes} atleta${5 - metrics.athletes > 1 ? "s" : ""} más`,
+        description: "Impórtalas desde un CSV o carga tus atletas principales para ver el valor real del sistema.",
+        href: `/app/${academyId}/athletes`,
+        cta: "Añadir atletas",
+        completed: false,
+        priority: metrics.athletes === 0 ? "high" : "medium",
+      });
+    }
+
+    // Paso 2: Crear primer grupo (si no hay grupos)
     if (metrics.groups === 0) {
       steps.push({
         id: "create_group",
@@ -45,19 +58,6 @@ export function NextStepsWidget({ academyId, metrics, checklistProgress }: NextS
         cta: "Crear grupo",
         completed: false,
         priority: "high",
-      });
-    }
-
-    // Paso 2: Añadir atletas (si hay menos de 5)
-    if (metrics.athletes < 5) {
-      steps.push({
-        id: "add_athletes",
-        label: `Añade ${5 - metrics.athletes} atleta${5 - metrics.athletes > 1 ? "s" : ""} más`,
-        description: "Carga a tus atletas principales para empezar a ver el valor real del sistema.",
-        href: `/app/${academyId}/athletes`,
-        cta: "Añadir atletas",
-        completed: false,
-        priority: metrics.athletes === 0 ? "high" : "medium",
       });
     }
 
@@ -106,13 +106,13 @@ export function NextStepsWidget({ academyId, metrics, checklistProgress }: NextS
   const firstStep = nextSteps[0];
 
   return (
-    <div className="space-y-4 rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10 p-6 shadow-sm">
+    <div className="space-y-4 rounded-card border border-zaltyko-mist border-b-2 border-b-zaltyko-teal bg-white p-6 shadow-soft">
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 space-y-1">
           <div className="flex items-center gap-2">
-            <h3 className="text-lg font-semibold text-foreground">Próximo paso recomendado</h3>
+            <h3 className="text-lg font-semibold text-zaltyko-navy">Próximo paso recomendado</h3>
             {checklistProgress && (
-              <span className="rounded-full bg-primary/20 px-2 py-0.5 text-xs font-semibold text-primary">
+              <span className="rounded-full bg-zaltyko-primary-ultralight px-2 py-0.5 text-xs font-semibold tabular-nums text-zaltyko-teal">
                 {checklistProgress.completed}/{checklistProgress.total}
               </span>
             )}

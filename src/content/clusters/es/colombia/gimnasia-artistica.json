@@ -14,7 +14,7 @@
     ]
   },
   "hero": {
-    "badge": "Líder en Colombia · +30 academias",
+    "badge": "Gestión pensada para academias de gimnasia artística",
     "headline": "Gestiona tu escuela de gimnasia artística federada sin complicaciones",
     "subheadline": "Control total sobre atletas FCG-Mindeporte, categorías oficiales, niveles de competencia, Copa Colombia, selectivos y licencias."
   },
@@ -41,21 +41,18 @@
     "generic": "Gestionar federaciones y licencias en papel o Excel consume horas que podrías dedicar a entrenar. La información se pierde entre oficinas.",
     "specific": "Renovar licencias FCG, gestionar selectivos para Nacional Absoluto, tracking de niveles numéricos por categoría, coordinación con Mindeporte."
   },
-  "socialProof": {
-    "academies": [
-      "Gimnasia Bogotá",
-      "Club Medellín GA",
-      "Academia Cali Gymnastics",
-      "Club Barranquilla",
-      "Escuela Gymnastics Pereira"
-    ],
-    "stats": {
-      "athletes": "7,000+",
-      "academies": "30+"
-    }
-  },
   "interlinking": {
-    "relatedCountries": ["espana", "mexico", "argentina", "chile", "peru"],
-    "relatedModalities": ["rhythmic", "acrobatic", "trampoline"]
+    "relatedCountries": [
+      "espana",
+      "mexico",
+      "argentina",
+      "chile",
+      "peru"
+    ],
+    "relatedModalities": [
+      "rhythmic",
+      "acrobatic",
+      "trampoline"
+    ]
   }
 }

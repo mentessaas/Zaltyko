@@ -50,7 +50,7 @@ export function PublicCoachProfile({ coach }: PublicCoachProfileProps) {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-zaltyko-white via-white to-zaltyko-teal/5">
+        <div className="min-h-screen bg-zaltyko-white">
             {/* Hero Section */}
             <div className="relative overflow-hidden bg-zaltyko-navy py-20">
                 <div className="absolute inset-0 bg-grid-white/10"></div>
@@ -68,7 +68,7 @@ export function PublicCoachProfile({ coach }: PublicCoachProfileProps) {
                                         className="h-full w-full object-cover"
                                     />
                                 ) : (
-                                    <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-zaltyko-indigo to-zaltyko-teal text-6xl font-bold text-white">
+                                    <div className="flex h-full w-full items-center justify-center bg-zaltyko-indigo text-6xl font-bold text-white">
                                         {coach.name.charAt(0)}
                                     </div>
                                 )}
@@ -98,7 +98,7 @@ export function PublicCoachProfile({ coach }: PublicCoachProfileProps) {
                                     {coach.specialties.map((specialty, index) => (
                                         <span
                                             key={index}
-                                            className="rounded-full bg-white/20 px-4 py-1 text-sm font-medium text-white backdrop-blur-sm"
+                                            className="rounded-full bg-white/15 px-4 py-1 text-sm font-medium text-white"
                                         >
                                             {specialty}
                                         </span>
@@ -118,7 +118,7 @@ export function PublicCoachProfile({ coach }: PublicCoachProfileProps) {
                                                 href={url}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
-                                                className="flex h-10 w-10 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-sm transition-all hover:bg-white/30 hover:scale-110"
+                                                className="flex h-10 w-10 items-center justify-center rounded-full bg-white/15 text-white transition-all hover:bg-white/25 hover:scale-110"
                                             >
                                                 <Icon className="h-5 w-5" />
                                             </a>
@@ -243,7 +243,7 @@ export function PublicCoachProfile({ coach }: PublicCoachProfileProps) {
                         )}
 
                         {/* Academy Info */}
-                        <section className="rounded-2xl border border-zaltyko-mist bg-gradient-to-br from-zaltyko-white to-zaltyko-teal/5 p-6 shadow-soft">
+                        <section className="rounded-card border border-zaltyko-mist bg-white p-6 shadow-soft">
                             <h3 className="mb-3 text-lg font-bold text-slate-900">
                                 Academia
                             </h3>

@@ -13,7 +13,7 @@
     ]
   },
   "hero": {
-    "badge": "Líder en Argentina · +20 academias",
+    "badge": "Gestión pensada para academias de gimnasia acrobática",
     "headline": "Gestiona tu escuela de gimnasia acrobática federada sin complicaciones",
     "subheadline": "Control total sobre atletas, categorías, parejas y grupos acrobáticos, niveles de dificultad y licencias. Campeonato Argentino y selectivos."
   },
@@ -39,21 +39,18 @@
     "generic": "Coordinar parejas y grupos acrobáticos es un caos sin la herramienta adecuada. Tracking de niveles, composiciones y puntuaciones en papel es un desastre.",
     "specific": "Gestionar combinaciones de parejas y grupos, coordinar cambios de categoría, seguir puntuaciones D (dificultad) y E (ejecución)."
   },
-  "socialProof": {
-    "academies": [
-      "Acrobática Buenos Aires",
-      "Club Gimnasia Acrobática Córdoba",
-      "Academia Rosario Acrobática",
-      "Club Mendoza Acrobática",
-      "Escuela Tucumán Acrobática"
-    ],
-    "stats": {
-      "athletes": "3,500+",
-      "academies": "20+"
-    }
-  },
   "interlinking": {
-    "relatedCountries": ["espana", "mexico", "colombia", "chile", "peru"],
-    "relatedModalities": ["artistic", "rhythmic", "trampoline"]
+    "relatedCountries": [
+      "espana",
+      "mexico",
+      "colombia",
+      "chile",
+      "peru"
+    ],
+    "relatedModalities": [
+      "artistic",
+      "rhythmic",
+      "trampoline"
+    ]
   }
 }

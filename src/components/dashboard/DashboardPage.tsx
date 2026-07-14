@@ -18,6 +18,8 @@
 import { useMemo, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
+  ChevronDown,
+  ChevronUp,
   LayoutDashboard,
   UserCheck,
   Users,
@@ -93,10 +95,27 @@ export function DashboardPage({
   const [showAllSteps, setShowAllSteps] = useState(false);
   const [showFinancials, setShowFinancials] = useState(false);
   const [showRecentActivity, setShowRecentActivity] = useState(false);
+  const [showMoreWidgets, setShowMoreWidgets] = useState(false);
   const [starterSetupSummary, setStarterSetupSummary] = useState<StarterSetupSummary | null>(null);
   const [starterGroupSummary, setStarterGroupSummary] = useState<StarterGroupSetupSummary | null>(null);
   const [technicalGroups, setTechnicalGroups] = useState<TechnicalSummarySourceItem[]>([]);
   const [technicalClasses, setTechnicalClasses] = useState<TechnicalSummarySourceItem[]>([]);
+  const [pendingPaymentsCount, setPendingPaymentsCount] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/quick-actions/pending-today")
+      .then((res) => res.json())
+      .then((json) => {
+        if (!cancelled && json.ok) {
+          setPendingPaymentsCount(json.data?.overduePayments ?? 0);
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [academyId]);
 
   // Detectar si es un usuario nuevo (menos de 3 días desde creación o configuración mínima)
   useEffect(() => {
@@ -475,13 +494,6 @@ export function DashboardPage({
         labels={labels}
       />
 
-      <SportBreakdownSection
-        academyId={academyId}
-        items={visibleSportBreakdown}
-        labels={labels}
-        onNavigate={(href) => router.push(href)}
-      />
-
       {shouldShowStarterSetupBanner && (
         <StarterSetupSection
           academyId={academyId}
@@ -489,25 +501,6 @@ export function DashboardPage({
           recommendation={nextStarterRecommendation}
           onNavigate={(href) => router.push(href)}
         />
-      )}
-
-      {(specialization.disciplineVariant === "artistic_female" ||
-        specialization.disciplineVariant === "artistic_male" ||
-        specialization.disciplineVariant === "rhythmic") && (
-        <section>
-          <TechnicalOverviewWidget
-            academyId={academyId}
-            specialization={specialization}
-            summary={technicalDashboardSummary}
-          />
-        </section>
-      )}
-
-      {/*2.1. GymMetricsWidget - SOLO PARA GIMNASIA RÍTMICA */}
-      {(academyType === "ritmica" || academyType === "artistica") && (
-        <section>
-          <GymMetricsWidgetLoader academyId={academyId} />
-        </section>
       )}
 
       {/*2.2. Personalized Recommendations */}
@@ -518,7 +511,7 @@ export function DashboardPage({
           metrics={{
             athletesCount: data.metrics.athletes,
             classesThisWeek: data.metrics.classesThisWeek,
-            pendingPayments: 0,
+            pendingPayments: pendingPaymentsCount,
             attendanceRate: data.metrics.attendancePercent,
           }}
         />
@@ -547,6 +540,57 @@ export function DashboardPage({
       </section>
 
       <QuickNavigationSection academyId={academyId} />
+
+      {/* Widgets secundarios (desglose por rama, resumen técnico, próximos eventos) — colapsados por defecto */}
+      {(visibleSportBreakdown.length > 0 ||
+        specialization.disciplineVariant === "artistic_female" ||
+        specialization.disciplineVariant === "artistic_male" ||
+        specialization.disciplineVariant === "rhythmic" ||
+        academyType === "ritmica" ||
+        academyType === "artistica") && (
+        <button
+          type="button"
+          onClick={() => setShowMoreWidgets((value) => !value)}
+          className="flex min-h-11 w-full items-center justify-between rounded-2xl border border-zaltyko-mist bg-white px-4 py-3 text-sm font-medium text-zaltyko-navy shadow-soft"
+          aria-expanded={showMoreWidgets}
+        >
+          {showMoreWidgets ? "Ver menos" : "Ver más: desglose técnico y próximos eventos"}
+          {showMoreWidgets ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+        </button>
+      )}
+
+      {showMoreWidgets && (
+        <>
+          <SportBreakdownSection
+            academyId={academyId}
+            items={visibleSportBreakdown}
+            labels={labels}
+            onNavigate={(href) => router.push(href)}
+          />
+
+          {(specialization.disciplineVariant === "artistic_female" ||
+            specialization.disciplineVariant === "artistic_male" ||
+            specialization.disciplineVariant === "rhythmic") && (
+            <section>
+              <TechnicalOverviewWidget
+                academyId={academyId}
+                specialization={specialization}
+                summary={technicalDashboardSummary}
+              />
+            </section>
+          )}
+
+          {(academyType === "ritmica" || academyType === "artistica") && (
+            <section>
+              <GymMetricsWidgetLoader academyId={academyId} />
+            </section>
+          )}
+
+          <section>
+            <UpcomingEventsWidget academyId={academyId} academyCountry={academyCountry} />
+          </section>
+        </>
+      )}
 
       {/*2.7. Métricas financieras (colapsable) - SOLO ADMIN/OWNER */}
       <FinancialSection
@@ -591,11 +635,6 @@ export function DashboardPage({
       {/*3.5. Alertas activas (si hay) - IMPORTANTE VISIBLE */}
       <section>
         <AlertsWidget academyId={academyId} />
-      </section>
-
-      {/*4. Próximos eventos - Compacto */}
-      <section>
-        <UpcomingEventsWidget academyId={academyId} academyCountry={academyCountry} />
       </section>
 
       {/*6. Acciones rápidas (FAB) */}

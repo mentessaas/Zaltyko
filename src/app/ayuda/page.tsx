@@ -1,5 +1,155 @@
-import { redirect } from "next/navigation";
+import type { Metadata } from "next";
+import Link from "next/link";
+import Navbar from "@/app/(site)/Navbar";
+import Footer from "@/app/(site)/Footer";
+import { MessageCircle, Mail, ChevronRight, Search } from "lucide-react";
+import { helpCategories } from "@/lib/help/articles";
 
-export default function AyudaPage() {
-  redirect("/help");
+const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://zaltyko.com";
+
+export const metadata: Metadata = {
+  title: "Centro de Ayuda para Academias de Gimnasia",
+  description:
+    "Encuentra respuestas a tus preguntas sobre Zaltyko. Guías, tutoriales y documentación para administrar tu academia de gimnasia.",
+  alternates: {
+    canonical: `${baseUrl}/ayuda`,
+  },
+};
+
+const faqs = [
+  {
+    question: "¿Cómo puedo dar de alta a un nuevo atleta?",
+    answer: "Desde el panel de atletas, haz clic en 'Nuevo Atleta' y completa los datos. Puedes añadir foto, información de contacto y familiares.",
+  },
+  {
+    question: "¿Puedo importar atletas desde Excel?",
+    answer: "Sí, desde el listado de Atletas puedes importar un archivo CSV con tus gimnastas. Podrás revisar los datos antes de guardarlos.",
+  },
+  {
+    question: "¿Cómo funciona el control de asistencia?",
+    answer: "En el detalle de cada clase puedes marcar la asistencia de cada gimnasta manualmente, sesión por sesión.",
+  },
+  {
+    question: "¿Puedo enviar mensajes a los padres?",
+    answer: "Sí, desde el perfil de cada atleta puedes enviar emails o configurar notificaciones automáticas para padres.",
+  },
+  {
+    question: "¿Qué métodos de pago acepta Zaltyko?",
+    answer: "Aceptamos tarjetas de crédito/débito y domiciliaciones bancarias a través de Stripe. También puedes registrar pagos manuales.",
+  },
+  {
+    question: "¿Cómo puedo cambiar de plan?",
+    answer: "Desde el panel de Cobros de tu academia puedes cambiar de plan; Stripe gestiona el ajuste de la facturación.",
+  },
+];
+
+export default function HelpPage() {
+  return (
+    <div className="min-h-screen flex flex-col bg-background">
+      <Navbar />
+
+      {/* Hero */}
+      <section className="pt-32 pb-16 bg-gradient-to-b from-zaltyko-primary/5 to-transparent">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 text-center">
+          <span className="inline-block text-sm font-semibold text-zaltyko-primary uppercase tracking-wider mb-4">
+            Centro de Ayuda
+          </span>
+          <h1 className="font-display text-4xl font-bold tracking-tight text-zaltyko-text-main sm:text-5xl">
+            ¿En qué podemos ayudarte?
+          </h1>
+          <p className="mt-6 mx-auto max-w-2xl text-lg text-zaltyko-text-secondary">
+            Encuentra respuestas a tus preguntas o contacta con nuestro equipo de soporte.
+          </p>
+
+          {/* Search */}
+          <div className="mt-8 max-w-xl mx-auto">
+            <div className="relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Buscar en la ayuda..."
+                className="w-full pl-12 pr-4 py-3 rounded-full border border-gray-300 focus:ring-2 focus:ring-zaltyko-primary focus:border-transparent"
+              />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Categories */}
+      <section className="py-16 bg-white">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <h2 className="text-2xl font-bold text-zaltyko-text-main mb-8">Explorar por categoría</h2>
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+            {helpCategories.map((category, index) => {
+              const Icon = category.icon;
+              return (
+                <div key={index} className="rounded-xl border border-gray-200 p-6 hover:shadow-lg transition-shadow">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-zaltyko-primary/10 mb-4">
+                    <Icon className="h-5 w-5 text-zaltyko-primary" />
+                  </div>
+                  <h3 className="font-semibold text-zaltyko-text-main">{category.title}</h3>
+                  <p className="mt-1 text-sm text-zaltyko-text-secondary">{category.description}</p>
+                  <ul className="mt-4 space-y-2">
+                    {category.articles.map((article) => (
+                      <li key={article.slug}>
+                        <Link href={`/help/${article.slug}`} className="text-sm text-zaltyko-primary hover:underline flex items-center">
+                          <ChevronRight className="h-3 w-3 mr-1" />
+                          {article.title}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* FAQs */}
+      <section className="py-16 bg-gray-50">
+        <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
+          <h2 className="text-2xl font-bold text-zaltyko-text-main text-center mb-8">
+            Preguntas frecuentes
+          </h2>
+          <div className="space-y-4">
+            {faqs.map((faq, index) => (
+              <div key={index} className="rounded-lg bg-white p-6 shadow-sm">
+                <h3 className="font-semibold text-zaltyko-text-main">{faq.question}</h3>
+                <p className="mt-2 text-zaltyko-text-secondary">{faq.answer}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Contact CTA */}
+      <section className="py-16 bg-white">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 text-center">
+          <h2 className="text-2xl font-bold text-zaltyko-text-main">¿No encontraste lo que buscabas?</h2>
+          <p className="mt-4 text-zaltyko-text-secondary">
+            Nuestro equipo de soporte está disponible para ayudarte.
+          </p>
+          <div className="mt-8 flex justify-center gap-4">
+            <Link
+              href="/contact"
+              className="inline-flex items-center rounded-full bg-zaltyko-primary px-8 py-3 font-semibold text-white hover:bg-primary-dark"
+            >
+              <MessageCircle className="mr-2 h-5 w-5" />
+              Contactar soporte
+            </Link>
+            <a
+              href="mailto:soporte@zaltyko.com"
+              className="inline-flex items-center rounded-full border-2 border-zaltyko-primary px-8 py-3 font-semibold text-zaltyko-primary hover:bg-zaltyko-primary/10"
+            >
+              <Mail className="mr-2 h-5 w-5" />
+              soporte@zaltyko.com
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <Footer />
+    </div>
+  );
 }

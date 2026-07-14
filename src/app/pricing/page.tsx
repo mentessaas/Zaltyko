@@ -6,7 +6,7 @@ import PricingSection from "@/app/(site)/pricing";
 import { Schema } from "@/components/Schema";
 import { PRODUCT_PLAN_BY_CODE } from "@/lib/plans/catalog";
 
-const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://zaltyko.com";
 
 export const metadata: Metadata = {
   title: "Planes y Precios para Academias de Gimnasia",

@@ -9,6 +9,8 @@ import { Label } from "@/components/ui/label";
 
 interface ImportExportPanelProps {
   tenantId?: string;
+  academyId?: string;
+  onImported?: (summary: ImportSummary) => void;
 }
 
 type ImportSummary = {
@@ -18,17 +20,18 @@ type ImportSummary = {
   errors: Array<{ row: number; reason: string }>;
 };
 
-export default function ImportExportPanel({ tenantId }: ImportExportPanelProps) {
+export default function ImportExportPanel({ tenantId, academyId, onImported }: ImportExportPanelProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [summary, setSummary] = useState<ImportSummary | null>(null);
   const [customTenantId, setCustomTenantId] = useState(tenantId ?? "");
 
+  const templateAcademyId = academyId ?? "ACADEMY_UUID";
   const templateCsv = [
     "name,academyId,dob,level,status,groupId,groupName,sportConfigCode,programCode,levelCode,categoryCode",
-    "Lucía Márquez,ACADEMY_UUID,2010-05-14,Base 3,active,,Artística Femenina Base 3,ES:artistic_female,base,base_3,infantil",
-    "Martín Ortega,ACADEMY_UUID,2011-09-02,Iniciación,active,,Artística Masculina Iniciación,ES:artistic_male,recreativo,,alevin",
+    `Lucía Márquez,${templateAcademyId},2010-05-14,Base 3,active,,Artística Femenina Base 3,ES:artistic_female,base,base_3,infantil`,
+    `Martín Ortega,${templateAcademyId},2011-09-02,Iniciación,active,,Artística Masculina Iniciación,ES:artistic_male,recreativo,,alevin`,
   ]
     .map((line) => line.trim())
     .join("\n");
@@ -77,6 +80,7 @@ export default function ImportExportPanel({ tenantId }: ImportExportPanelProps) 
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
+      onImported?.(data);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Error durante la importación.");
       setSummary(null);
@@ -91,15 +95,11 @@ export default function ImportExportPanel({ tenantId }: ImportExportPanelProps) 
     : "/api/athletes/export";
 
   return (
-    <div className="w-full max-w-xs space-y-4 rounded-lg border bg-card p-4 shadow">
-      <div className="space-y-1">
-        <h2 className="text-lg font-semibold">Importar / Exportar</h2>
-        <p className="text-sm text-muted-foreground">
-          Carga atletas desde CSV. Puedes usar groupId/groupName o sportConfigCode con programCode,
-          levelCode y categoryCode para respetar modalidad/rama. Descarga el
-          listado en XLSX.
-        </p>
-      </div>
+    <div className="w-full space-y-4">
+      <p className="text-sm text-muted-foreground">
+        Descarga la plantilla, complétala con tus gimnastas y súbela aquí. Si conoces el grupo o la
+        configuración deportiva de cada una, añade esas columnas para que queden ya asignadas.
+      </p>
 
       {!tenantId && (
         <div className="space-y-1 text-sm">
@@ -112,6 +112,12 @@ export default function ImportExportPanel({ tenantId }: ImportExportPanelProps) 
           />
         </div>
       )}
+
+      <Button asChild variant="outline" className="w-full">
+        <a href={templateHref} download="athletes-template.csv">
+          Descargar plantilla CSV
+        </a>
+      </Button>
 
       <form onSubmit={handleSubmit} className="space-y-3">
         <input
@@ -132,15 +138,9 @@ export default function ImportExportPanel({ tenantId }: ImportExportPanelProps) 
         </Button>
       </form>
 
-      <Button asChild variant="outline" className="w-full">
-        <a href={exportUrl} download>
-          Exportar XLSX
-        </a>
-      </Button>
-
       <Button asChild variant="ghost" className="w-full justify-start text-left text-sm text-muted-foreground">
-        <a href={templateHref} download="athletes-template.csv">
-          Descargar plantilla CSV
+        <a href={exportUrl} download>
+          Exportar listado actual (XLSX)
         </a>
       </Button>
 

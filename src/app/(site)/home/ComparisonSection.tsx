@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 const comparisonFeatures = [
   {
     feature: "Tiempo de configuración",
-    zaltyko: "2 horas",
+    zaltyko: "Puesta en marcha guiada",
     spreadsheets: "Días/semanas",
     generic: "1-2 semanas",
   },
@@ -94,13 +94,8 @@ function CellValue({ value, highlight }: { value: boolean | string; highlight?: 
 
 export default function ComparisonSection() {
   return (
-    <section className="surface-subtle py-24 relative overflow-hidden">
-      <div className="absolute inset-0">
-        <div className="absolute top-0 right-1/4 w-96 h-96 bg-zaltyko-teal/5 rounded-full blur-3xl opacity-50" />
-        <div className="absolute bottom-0 left-1/4 w-96 h-96 bg-zaltyko-white rounded-full blur-3xl opacity-50" />
-      </div>
-
-      <div className="relative mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
+    <section className="surface-subtle py-24">
+      <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="text-center mb-12">
           <span className="inline-block px-4 py-1.5 bg-zaltyko-teal/10 text-zaltyko-indigo text-sm font-semibold rounded-full mb-4">

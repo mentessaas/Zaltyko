@@ -10,7 +10,22 @@ const PUBLIC_ROUTES = [
   "/marketplace",
   "/empleo",
   "/events",
-  "/auth/login",
+  "/contact",
+  "/ayuda",
+  "/sobre-nosotros",
+  "/terminos",
+  "/politica-privacidad",
+  "/integraciones",
+] as const;
+
+const MODULE_ROUTES = [
+  "/modules/gestion-atletas",
+  "/modules/clases-horarios",
+  "/modules/pagos-administracion",
+  "/modules/comunicacion",
+  "/modules/eventos-competiciones",
+  "/modules/dashboard-reportes",
+  "/modules/directorio-academias",
 ] as const;
 
 const CLUSTER_LOCALES: Locale[] = ["es", "en"];
@@ -18,13 +33,20 @@ const MODALITY_KEYS = Object.keys(MODALITIES) as Array<keyof typeof MODALITIES>;
 const COUNTRY_KEYS = ["espana", "mexico", "argentina", "colombia", "chile", "peru"] as Array<keyof typeof COUNTRIES>;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://zaltyko.com";
 
   const routes = PUBLIC_ROUTES.map((path) => ({
     url: `${baseUrl}${path}`,
     lastModified: new Date(),
     changeFrequency: "weekly" as const,
     priority: path === "/" ? 1 : 0.8,
+  }));
+
+  const moduleRoutes = MODULE_ROUTES.map((path) => ({
+    url: `${baseUrl}${path}`,
+    lastModified: new Date(),
+    changeFrequency: "monthly" as const,
+    priority: 0.6,
   }));
 
   // Add localized homepage routes only if they resolve to a real page (not a 404/redirect).
@@ -60,30 +82,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     )
   );
 
-  // Add static routes for marketplace categories
-  const marketplaceCategories = ["ropa", "equipamiento", "suplementos", "servicios"];
-  const marketplaceRoutes = marketplaceCategories.map((category) => ({
-    url: `${baseUrl}/marketplace?category=${category}`,
-    lastModified: new Date(),
-    changeFrequency: "daily" as const,
-    priority: 0.7,
-  }));
-
-  // Add static routes for employment categories
-  const employmentTypes = ["entrenador", "auxiliar", "administrativo"];
-  const employmentRoutes = employmentTypes.map((type) => ({
-    url: `${baseUrl}/empleo?category=${type}`,
-    lastModified: new Date(),
-    changeFrequency: "daily" as const,
-    priority: 0.7,
-  }));
+  // Nota: se retiraron las variantes con query param (?category=) de marketplace/empleo:
+  // un sitemap no debe listar URLs de filtro, generan contenido duplicado sin valor de indexación propio.
 
   return [
     ...routes,
+    ...moduleRoutes,
     ...localizedHomepages,
     ...modalityPages,
     ...clusterPages,
-    ...marketplaceRoutes,
-    ...employmentRoutes,
   ];
 }

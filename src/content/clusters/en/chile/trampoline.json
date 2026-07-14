@@ -11,7 +11,7 @@
     ]
   },
   "hero": {
-    "badge": "Leader in Chile · +10 clubs",
+    "badge": "Built for trampoline clubs",
     "headline": "Manage your federated trampoline club with ease",
     "subheadline": "Full control over athletes, categories, Tumbling, DMT, Synchronized levels and licenses. National Championship and selectivos."
   },
@@ -37,21 +37,18 @@
     "generic": "Managing Tumbling, DMT and Synchronized gymnasts on paper is chaos. Level tracking doesn't exist.",
     "specific": "Coordinating synchronized routines, managing difficulty scores, renewing FGCh licenses."
   },
-  "socialProof": {
-    "academies": [
-      "Trampolín Santiago",
-      "Club Valparaíso Trampolín",
-      "Academia Concepción Trampoline",
-      "Club La Serena Trampolín",
-      "Escuela Antofagasta Trampolín"
-    ],
-    "stats": {
-      "athletes": "1,500+",
-      "academies": "10+"
-    }
-  },
   "interlinking": {
-    "relatedCountries": ["spain", "mexico", "argentina", "colombia", "peru"],
-    "relatedModalities": ["artistic", "rhythmic", "acrobatic"]
+    "relatedCountries": [
+      "spain",
+      "mexico",
+      "argentina",
+      "colombia",
+      "peru"
+    ],
+    "relatedModalities": [
+      "artistic",
+      "rhythmic",
+      "acrobatic"
+    ]
   }
 }

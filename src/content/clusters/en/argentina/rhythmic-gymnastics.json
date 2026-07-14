@@ -12,7 +12,7 @@
     ]
   },
   "hero": {
-    "badge": "Leader in Argentina · +35 clubs",
+    "badge": "Built for rhythmic gymnastics clubs",
     "headline": "Manage your federated rhythmic gymnastics club with ease",
     "subheadline": "Full control over CGG athletes, official categories, levels 1-10, 5 apparatus and licenses. Argentine Championship and provincial selectivos."
   },
@@ -38,21 +38,18 @@
     "generic": "Managing federations, licenses and apparatus equipment on paper is chaos. Little time for training due to excess paperwork.",
     "specific": "Renewing CGG licenses, managing gymnastic equipment (ropes, hoops, balls, clubs, ribbons), tracking technical levels 1-10 and required exercises."
   },
-  "socialProof": {
-    "academies": [
-      "Rítmica Club Buenos Aires",
-      "Gimnasia Rítmica Córdoba",
-      "Academia Rosario RG",
-      "Club Mendoza Rítmica",
-      "Escuela Rítmica Tucumán"
-    ],
-    "stats": {
-      "athletes": "8,000+",
-      "academies": "35+"
-    }
-  },
   "interlinking": {
-    "relatedCountries": ["spain", "mexico", "colombia", "chile", "peru"],
-    "relatedModalities": ["artistic", "acrobatic", "trampoline"]
+    "relatedCountries": [
+      "spain",
+      "mexico",
+      "colombia",
+      "chile",
+      "peru"
+    ],
+    "relatedModalities": [
+      "artistic",
+      "acrobatic",
+      "trampoline"
+    ]
   }
 }

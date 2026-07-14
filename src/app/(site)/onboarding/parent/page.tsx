@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/toast-provider";
 import { Button } from "@/components/ui/button";
@@ -88,26 +89,30 @@ export default function ParentOnboardingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white flex items-center justify-center p-4">
+    <div className="flex min-h-screen items-center justify-center bg-zaltyko-white p-4">
       <div className="w-full max-w-lg">
         {/* Logo */}
-        <div className="text-center mb-8">
+        <div className="mb-8 text-center">
           <Link href="/" className="inline-flex items-center gap-2">
-            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-red-500 to-red-600 flex items-center justify-center text-white font-bold text-lg">
-              Z
-            </div>
-            <span className="font-display font-bold text-2xl text-gray-900">Zaltyko</span>
+            <Image
+              src="/branding/zaltyko/logo-zaltyko.svg"
+              alt="Zaltyko"
+              width={132}
+              height={38}
+              className="h-9 w-auto"
+              priority
+            />
           </Link>
         </div>
 
         {step === "welcome" && (
-          <Card>
+          <Card className="rounded-card border-zaltyko-mist shadow-soft">
             <CardContent className="p-8 space-y-6">
               <div className="text-center space-y-2">
-                <div className="mx-auto w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center mb-4">
-                  <Users className="h-8 w-8 text-blue-600" />
+                <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-zaltyko-primary-ultralight">
+                  <Users className="h-8 w-8 text-zaltyko-teal" />
                 </div>
-                <h1 className="text-2xl font-bold">Bienvenido/a</h1>
+                <h1 className="text-2xl font-bold text-zaltyko-navy">Bienvenido/a</h1>
                 <p className="text-muted-foreground">
                   Con tu cuenta de padre/madre podrás seguir el progreso de tus hijos en tiempo real:
                   evaluaciones, asistencia, eventos y mucho más.
@@ -115,22 +120,22 @@ export default function ParentOnboardingPage() {
               </div>
 
               <div className="space-y-3">
-                <div className="flex items-start gap-3 p-3 rounded-lg bg-gray-50">
-                  <Calendar className="h-5 w-5 text-blue-500 mt-0.5" />
+                <div className="flex items-start gap-3 rounded-card bg-zaltyko-white p-3">
+                  <Calendar className="h-5 w-5 mt-0.5 text-zaltyko-teal" />
                   <div>
                     <p className="font-medium text-sm">Horarios de entreno</p>
                     <p className="text-xs text-muted-foreground">Consulta el calendario de clases</p>
                   </div>
                 </div>
-                <div className="flex items-start gap-3 p-3 rounded-lg bg-gray-50">
-                  <Users className="h-5 w-5 text-blue-500 mt-0.5" />
+                <div className="flex items-start gap-3 rounded-card bg-zaltyko-white p-3">
+                  <Users className="h-5 w-5 mt-0.5 text-zaltyko-teal" />
                   <div>
                     <p className="font-medium text-sm">Evaluaciones técnicas</p>
                     <p className="text-xs text-muted-foreground">Recibe actualizaciones del progreso</p>
                   </div>
                 </div>
-                <div className="flex items-start gap-3 p-3 rounded-lg bg-gray-50">
-                  <Bell className="h-5 w-5 text-blue-500 mt-0.5" />
+                <div className="flex items-start gap-3 rounded-card bg-zaltyko-white p-3">
+                  <Bell className="h-5 w-5 mt-0.5 text-zaltyko-teal" />
                   <div>
                     <p className="font-medium text-sm">Notificaciones</p>
                     <p className="text-xs text-muted-foreground">Recibe alertas de ausencia o eventos</p>
@@ -147,10 +152,10 @@ export default function ParentOnboardingPage() {
         )}
 
         {step === "children" && (
-          <Card>
+          <Card className="rounded-card border-zaltyko-mist shadow-soft">
             <CardContent className="p-8 space-y-4">
               <div className="text-center">
-                <h2 className="text-xl font-bold">Tus hijos/as</h2>
+                <h2 className="text-xl font-bold text-zaltyko-navy">Tus hijos/as</h2>
                 <p className="text-sm text-muted-foreground mt-1">
                   Hijos vinculados a tu cuenta a través de invitaciones.
                 </p>
@@ -158,7 +163,7 @@ export default function ParentOnboardingPage() {
 
               {loadingChildren ? (
                 <div className="flex justify-center py-6">
-                  <div className="h-6 w-6 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />
+                  <div className="h-6 w-6 rounded-full border-2 border-zaltyko-teal border-t-transparent animate-spin" />
                 </div>
               ) : children.length === 0 ? (
                 <div className="text-center py-6 space-y-2">
@@ -172,12 +177,12 @@ export default function ParentOnboardingPage() {
               ) : (
                 <div className="space-y-2">
                   {children.map((child) => (
-                    <div key={child.id} className="flex items-center justify-between p-3 rounded-lg border bg-gray-50">
+                    <div key={child.id} className="flex items-center justify-between rounded-card border border-zaltyko-mist bg-zaltyko-white p-3">
                       <div>
                         <p className="font-medium">{child.name}</p>
                         <p className="text-xs text-muted-foreground">{child.academyName}</p>
                       </div>
-                      <CheckCircle2 className="h-5 w-5 text-green-500" />
+                      <CheckCircle2 className="h-5 w-5 text-zaltyko-teal" />
                     </div>
                   ))}
                 </div>
@@ -196,10 +201,10 @@ export default function ParentOnboardingPage() {
         )}
 
         {step === "notifications" && (
-          <Card>
+          <Card className="rounded-card border-zaltyko-mist shadow-soft">
             <CardContent className="p-8 space-y-4">
               <div className="text-center">
-                <h2 className="text-xl font-bold">Notificaciones</h2>
+                <h2 className="text-xl font-bold text-zaltyko-navy">Notificaciones</h2>
                 <p className="text-sm text-muted-foreground mt-1">
                   ¿Qué quieres recibir en tu email?
                 </p>
@@ -212,14 +217,14 @@ export default function ParentOnboardingPage() {
                   { key: "events", label: "Eventos", desc: "Competiciones y eventos próximos" },
                   { key: "billing", label: "Cobros", desc: "Cuotas y pagos" },
                 ].map((item) => (
-                  <label key={item.key} className="flex items-center justify-between p-3 rounded-lg border cursor-pointer hover:bg-gray-50">
+                  <label key={item.key} className="flex items-center justify-between rounded-card border border-zaltyko-mist p-3 cursor-pointer hover:bg-zaltyko-white">
                     <div>
                       <p className="font-medium text-sm">{item.label}</p>
                       <p className="text-xs text-muted-foreground">{item.desc}</p>
                     </div>
                     <input
                       type="checkbox"
-                      className="h-4 w-4 rounded border-gray-300"
+                      className="h-4 w-4 rounded border-zaltyko-mist text-zaltyko-teal focus:ring-zaltyko-teal"
                       checked={notifications[item.key as keyof typeof notifications]}
                       onChange={(e) =>
                         setNotifications((n) => ({ ...n, [item.key]: e.target.checked }))
@@ -242,12 +247,12 @@ export default function ParentOnboardingPage() {
         )}
 
         {step === "done" && (
-          <Card>
+          <Card className="rounded-card border-zaltyko-mist shadow-soft">
             <CardContent className="p-8 space-y-4 text-center">
-              <div className="mx-auto w-16 h-16 rounded-full bg-green-100 flex items-center justify-center">
-                <CheckCircle2 className="h-8 w-8 text-green-600" />
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-zaltyko-primary-ultralight">
+                <CheckCircle2 className="h-8 w-8 text-zaltyko-teal" />
               </div>
-              <h2 className="text-xl font-bold text-green-700">¡Listo!</h2>
+              <h2 className="text-xl font-bold text-zaltyko-navy">¡Listo!</h2>
               <p className="text-sm text-muted-foreground">
                 Perfil configurado. Redirigiendo a tu dashboard...
               </p>

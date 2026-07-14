@@ -12,7 +12,7 @@
     ]
   },
   "hero": {
-    "badge": "Leader in Mexico · +50 clubs",
+    "badge": "Built for rhythmic gymnastics clubs",
     "headline": "Manage your federated rhythmic gymnastics club with ease",
     "subheadline": "Full control over FMGM-CONADE athletes, categories, levels 1-10, 5 apparatus and licenses. Olimpiada Nacional and Circuito Nacional."
   },
@@ -38,21 +38,18 @@
     "generic": "Managing the dual FMGM + CONADE system takes time you could spend training. Gymnastic equipment for 5 apparatus is expensive and hard to track.",
     "specific": "Renewing FMGM licenses and CONADE registration, managing equipment (ropes, hoops, balls, clubs, ribbons), tracking levels 1-10 and required exercises."
   },
-  "socialProof": {
-    "academies": [
-      "Rítmica Club México",
-      "Gimnasia Rítmica Jalisco",
-      "Academia Rítmica Monterrey",
-      "Club Puebla Rítmica",
-      "Elite RG Estado de México"
-    ],
-    "stats": {
-      "athletes": "14,000+",
-      "academies": "50+"
-    }
-  },
   "interlinking": {
-    "relatedCountries": ["spain", "argentina", "colombia", "chile", "peru"],
-    "relatedModalities": ["artistic", "acrobatic", "trampoline"]
+    "relatedCountries": [
+      "spain",
+      "argentina",
+      "colombia",
+      "chile",
+      "peru"
+    ],
+    "relatedModalities": [
+      "artistic",
+      "acrobatic",
+      "trampoline"
+    ]
   }
 }

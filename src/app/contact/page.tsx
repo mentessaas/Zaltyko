@@ -5,12 +5,12 @@ import Footer from "@/app/(site)/Footer";
 import { Mail, Clock, MessageCircle } from "lucide-react";
 import { ContactForm } from "@/components/contact/ContactForm";
 
-const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://zaltyko.com";
 
 export const metadata: Metadata = {
   title: "Contacto",
   description:
-    "Contacta con el equipo de Zaltyko. Estamos disponibles para ayudarte con tu academia de gimnasi.",
+    "Contacta con el equipo de Zaltyko. Estamos disponibles para ayudarte con tu academia de gimnasia.",
   alternates: {
     canonical: `${baseUrl}/contact`,
   },
@@ -127,7 +127,7 @@ export default async function ContactPage({ searchParams }: ContactPageProps) {
             Consulta nuestro centro de ayuda con guías y tutoriales.
           </p>
           <Link
-            href="/help"
+            href="/ayuda"
             className="mt-6 inline-block rounded-full border-2 border-zaltyko-primary px-8 py-3 font-semibold text-zaltyko-primary hover:bg-zaltyko-primary/10"
           >
             Ver preguntas frecuentes

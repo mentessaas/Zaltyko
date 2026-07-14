@@ -3,10 +3,12 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { MoreVertical, Plus } from "lucide-react";
+import { CreditCard, Mail, MoreVertical, Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
+import { useToast } from "@/components/ui/toast-provider";
 import { CreateChargeDialog } from "./CreateChargeDialog";
 import { EditChargeDialog } from "./EditChargeDialog";
 import { GenerateChargesDialog } from "./GenerateChargesDialog";
@@ -87,6 +89,7 @@ function formatPeriod(period: string): string {
 
 export function StudentChargesTab({ academyId, sportConfigs = [] }: StudentChargesTabProps) {
   const searchParams = useSearchParams();
+  const toast = useToast();
   const [charges, setCharges] = useState<ChargeItem[]>([]);
   const [allChargesForPeriod, setAllChargesForPeriod] = useState<ChargeItem[]>([]); // Para métricas sin filtro de estado
   const [loading, setLoading] = useState(true);
@@ -94,6 +97,7 @@ export function StudentChargesTab({ academyId, sportConfigs = [] }: StudentCharg
   const [generateOpen, setGenerateOpen] = useState(false);
   const [editing, setEditing] = useState<ChargeItem | null>(null);
   const [registeringPayment, setRegisteringPayment] = useState<ChargeItem | null>(null);
+  const [remindingId, setRemindingId] = useState<string | null>(null);
   const [period, setPeriod] = useState(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
@@ -254,6 +258,38 @@ export function StudentChargesTab({ academyId, sportConfigs = [] }: StudentCharg
     }
   };
 
+  const handleSendReminder = async (charge: ChargeItem) => {
+    const confirmed = window.confirm(
+      `¿Enviar recordatorio de pago pendiente (${formatAmount(charge.amountCents, charge.currency)}) a la familia de ${charge.athleteName}?`
+    );
+    if (!confirmed) return;
+
+    setRemindingId(charge.id);
+    try {
+      const res = await fetch(`/api/charges/${charge.id}/remind`, { method: "POST" });
+      const body = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(body?.message ?? "No se pudo enviar el recordatorio.");
+      }
+
+      toast.pushToast({
+        title: "Recordatorio enviado",
+        description: `Se ha avisado a la familia de ${charge.athleteName}.`,
+        variant: "success",
+      });
+    } catch (error) {
+      logger.error("Error sending payment reminder:", error);
+      toast.pushToast({
+        title: "No se pudo enviar",
+        description: error instanceof Error ? error.message : "Inténtalo de nuevo en unos minutos.",
+        variant: "warning",
+      });
+    } finally {
+      setRemindingId(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -270,12 +306,12 @@ export function StudentChargesTab({ academyId, sportConfigs = [] }: StudentCharg
             type="month"
             value={period}
             onChange={(e) => setPeriod(e.target.value)}
-            className="min-h-11 rounded-[10px] border border-zaltyko-mist bg-white px-3 py-2 text-sm focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15"
+            className="min-h-11 rounded-card border border-zaltyko-mist bg-white px-3 py-2 text-sm focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15"
           />
           <select
             value={sportConfigId}
             onChange={(e) => setSportConfigId(e.target.value)}
-            className="min-h-11 rounded-[10px] border border-zaltyko-mist bg-white px-3 py-2 text-sm focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15"
+            className="min-h-11 rounded-card border border-zaltyko-mist bg-white px-3 py-2 text-sm focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15"
           >
             <option value="">Todas las ramas</option>
             {sportConfigs.map((config) => (
@@ -287,7 +323,7 @@ export function StudentChargesTab({ academyId, sportConfigs = [] }: StudentCharg
           <select
             value={groupId}
             onChange={(e) => setGroupId(e.target.value)}
-            className="min-h-11 rounded-[10px] border border-zaltyko-mist bg-white px-3 py-2 text-sm focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15"
+            className="min-h-11 rounded-card border border-zaltyko-mist bg-white px-3 py-2 text-sm focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15"
             disabled={loadingGroups}
           >
             <option value="">Todos los {groupsTermLower}</option>
@@ -313,7 +349,7 @@ export function StudentChargesTab({ academyId, sportConfigs = [] }: StudentCharg
               setStatusFilter(e.target.value);
               setOnlyPendingOverdue(false); // Reset checkbox when manually selecting status
             }}
-            className="min-h-11 rounded-[10px] border border-zaltyko-mist bg-white px-3 py-2 text-sm focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15"
+            className="min-h-11 rounded-card border border-zaltyko-mist bg-white px-3 py-2 text-sm focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15"
           >
             <option value="">Todos los estados</option>
             <option value="pending">Pendiente</option>
@@ -322,7 +358,7 @@ export function StudentChargesTab({ academyId, sportConfigs = [] }: StudentCharg
             <option value="cancelled">Cancelado</option>
             <option value="partial">Parcial</option>
           </select>
-          <label className="flex min-h-11 items-center gap-2 rounded-[10px] border border-zaltyko-mist bg-white px-3 py-2 text-sm">
+          <label className="flex min-h-11 items-center gap-2 rounded-card border border-zaltyko-mist bg-white px-3 py-2 text-sm">
             <input
               type="checkbox"
               checked={onlyPendingOverdue}
@@ -382,16 +418,81 @@ export function StudentChargesTab({ academyId, sportConfigs = [] }: StudentCharg
       {loading ? (
         <p className="text-sm text-muted-foreground">Cargando cargos...</p>
       ) : charges.length === 0 ? (
-        <div className="rounded-2xl border border-zaltyko-mist bg-white p-12 text-center shadow-soft">
-          <p className="mb-4 text-sm text-muted-foreground">
-            Aún no has creado ningún cargo para este periodo. Crea tu primer cargo para empezar a gestionar los cobros a tus {athletesTermLower}.
-          </p>
-          <Button onClick={() => setCreateOpen(true)} className="mt-4" variant="default">
-            Crear primer cargo
-          </Button>
-        </div>
+        <EmptyState
+          icon={CreditCard}
+          title="Aún no hay cargos para este periodo"
+          description={`Crea el primer cargo o genera las cuotas del mes para empezar a controlar los cobros a tus ${athletesTermLower}.`}
+          action={
+            <Button onClick={() => setCreateOpen(true)} variant="default">
+              Crear primer cargo
+            </Button>
+          }
+          secondaryAction={
+            <Button onClick={() => setGenerateOpen(true)} variant="outline">
+              Generar cargos de este mes
+            </Button>
+          }
+        />
       ) : (
-        <div className="overflow-x-auto rounded-2xl border border-zaltyko-mist bg-white shadow-soft">
+        <>
+        {/* Cards — móvil */}
+        <ul className="space-y-3 md:hidden">
+          {charges.map((charge) => (
+            <li key={charge.id} className="rounded-2xl border border-zaltyko-mist bg-white p-4 shadow-soft">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <Link
+                    href={`/app/${academyId}/athletes/${charge.athleteId}`}
+                    className="font-medium text-zaltyko-teal hover:underline"
+                  >
+                    {charge.athleteName}
+                  </Link>
+                  <p className="text-xs text-muted-foreground">
+                    {charge.groupName || "—"} · {formatPeriod(charge.period)}
+                  </p>
+                </div>
+                <p className="shrink-0 font-display font-semibold text-zaltyko-navy">
+                  {formatAmount(charge.amountCents, charge.currency)}
+                </p>
+              </div>
+
+              <div className="mt-3 flex items-center justify-between">
+                <div>
+                  <p className="text-sm">{charge.label}</p>
+                  {charge.classId && <p className="text-xs text-zaltyko-indigo">Clase extra</p>}
+                </div>
+                <Badge className={STATUS_COLORS[charge.status] || ""}>
+                  {STATUS_LABELS[charge.status] || charge.status}
+                </Badge>
+              </div>
+
+              <div className="mt-3 flex items-center justify-end gap-2 border-t border-zaltyko-mist/60 pt-3">
+                {(charge.status === "pending" || charge.status === "overdue") && (
+                  <>
+                    <Button size="sm" variant="outline" onClick={() => setRegisteringPayment(charge)}>
+                      Registrar pago
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={remindingId === charge.id}
+                      onClick={() => handleSendReminder(charge)}
+                      title="Enviar recordatorio de pago a la familia"
+                    >
+                      <Mail className="h-4 w-4" />
+                    </Button>
+                  </>
+                )}
+                <Button size="sm" variant="ghost" onClick={() => setEditing(charge)}>
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </div>
+            </li>
+          ))}
+        </ul>
+
+        {/* Tabla — escritorio */}
+        <div className="hidden overflow-x-auto rounded-2xl border border-zaltyko-mist bg-white shadow-soft md:block">
           <table className="min-w-full divide-y divide-slate-100 text-sm">
             <thead className="bg-zaltyko-white">
               <tr className="text-left text-xs uppercase tracking-[0.05em] text-slate-400">
@@ -452,13 +553,24 @@ export function StudentChargesTab({ academyId, sportConfigs = [] }: StudentCharg
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-2">
                       {(charge.status === "pending" || charge.status === "overdue") && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setRegisteringPayment(charge)}
-                        >
-                          Registrar pago
-                        </Button>
+                        <>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setRegisteringPayment(charge)}
+                          >
+                            Registrar pago
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            disabled={remindingId === charge.id}
+                            onClick={() => handleSendReminder(charge)}
+                            title="Enviar recordatorio de pago a la familia"
+                          >
+                            <Mail className="h-4 w-4" />
+                          </Button>
+                        </>
                       )}
                       <Button
                         size="sm"
@@ -474,6 +586,7 @@ export function StudentChargesTab({ academyId, sportConfigs = [] }: StudentCharg
             </tbody>
           </table>
         </div>
+        </>
       )}
 
       <CreateChargeDialog

@@ -12,7 +12,7 @@
     ]
   },
   "hero": {
-    "badge": "Leader in Mexico · +30 clubs",
+    "badge": "Built for acrobatic gymnastics clubs",
     "headline": "Manage your federated acrobatic gymnastics club with ease",
     "subheadline": "Full control over athletes, categories, acrobatic pairs and groups, difficulty levels and licenses. Olimpiada Nacional and Circuito Nacional."
   },
@@ -38,21 +38,18 @@
     "generic": "Coordinating acrobatic pairs and groups is chaotic. Tracking gymnasts by category, difficulty levels and compositions on paper is a disaster.",
     "specific": "Managing pair and group combinations, coordinating when a gymnast changes category, tracking D (difficulty) and E (execution) scores."
   },
-  "socialProof": {
-    "academies": [
-      "Acrobática Club México",
-      "Gimnasia Acrobática Jalisco",
-      "Academia Monterrey Acrobática",
-      "Club Puebla Acrobática",
-      "Elite Acrobática CDMX"
-    ],
-    "stats": {
-      "athletes": "5,000+",
-      "academies": "30+"
-    }
-  },
   "interlinking": {
-    "relatedCountries": ["spain", "argentina", "colombia", "chile", "peru"],
-    "relatedModalities": ["artistic", "rhythmic", "trampoline"]
+    "relatedCountries": [
+      "spain",
+      "argentina",
+      "colombia",
+      "chile",
+      "peru"
+    ],
+    "relatedModalities": [
+      "artistic",
+      "rhythmic",
+      "trampoline"
+    ]
   }
 }

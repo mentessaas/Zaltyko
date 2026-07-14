@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import { useRouter } from "next/navigation";
-import { Building2, Loader2 } from "lucide-react";
+import { Building2, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,6 +33,7 @@ export function OwnerOnboardingForm() {
   const router = useRouter();
   const toast = useToast();
   const [pending, setPending] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [fullName, setFullName] = useState("");
   const [academyName, setAcademyName] = useState("");
   const [disciplineVariant, setDisciplineVariant] = useState<string>(
@@ -270,33 +271,6 @@ export function OwnerOnboardingForm() {
             disabled={pending}
           />
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="region">{getRegionLabel(countryCode)}</Label>
-          <SearchableSelect
-            options={regionOptions}
-            value={region}
-            onChange={(value) => {
-              setRegion(value);
-              setCity("");
-            }}
-            disabled={pending || !countryCode || regionOptions.length === 0}
-            placeholder={getRegionPlaceholder(countryCode, !!countryCode)}
-            name="region"
-            searchPlaceholder={`Buscar ${getRegionLabel(countryCode).toLowerCase()}...`}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="city">Ciudad</Label>
-          <SearchableSelect
-            options={cityOptions}
-            value={city}
-            onChange={setCity}
-            disabled={pending || !region || cityOptions.length === 0}
-            placeholder={getCityPlaceholder(getRegionLabel(countryCode), !!region)}
-            name="city"
-            searchPlaceholder="Buscar ciudad..."
-          />
-        </div>
         <div className="space-y-2 sm:col-span-2">
           <Label>Disciplina principal</Label>
           <Select
@@ -380,6 +354,50 @@ export function OwnerOnboardingForm() {
               ))}
             </SelectContent>
           </Select>
+        </div>
+      </div>
+
+      <button
+        type="button"
+        onClick={() => setShowAdvanced((current) => !current)}
+        className="flex min-h-11 w-full items-center justify-between rounded-lg border border-border bg-muted/20 px-4 py-3 text-sm font-medium text-foreground"
+        aria-expanded={showAdvanced}
+      >
+        Configuración avanzada (opcional)
+        {showAdvanced ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+      </button>
+      <p className="text-xs text-muted-foreground">
+        Ya dejamos programas, aparatos y grupos base preseleccionados según tu disciplina. Abre esto solo si quieres ajustarlos antes de crear la academia.
+      </p>
+
+      {showAdvanced && (
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor="region">{getRegionLabel(countryCode)}</Label>
+          <SearchableSelect
+            options={regionOptions}
+            value={region}
+            onChange={(value) => {
+              setRegion(value);
+              setCity("");
+            }}
+            disabled={pending || !countryCode || regionOptions.length === 0}
+            placeholder={getRegionPlaceholder(countryCode, !!countryCode)}
+            name="region"
+            searchPlaceholder={`Buscar ${getRegionLabel(countryCode).toLowerCase()}...`}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="city">Ciudad</Label>
+          <SearchableSelect
+            options={cityOptions}
+            value={city}
+            onChange={setCity}
+            disabled={pending || !region || cityOptions.length === 0}
+            placeholder={getCityPlaceholder(getRegionLabel(countryCode), !!region)}
+            name="city"
+            searchPlaceholder="Buscar ciudad..."
+          />
         </div>
         <div className="space-y-3 sm:col-span-2">
           <div className="space-y-1">
@@ -530,6 +548,7 @@ export function OwnerOnboardingForm() {
           </div>
         </div>
       </div>
+      )}
 
       <Button type="submit" className="w-full" disabled={pending}>
         {pending ? (

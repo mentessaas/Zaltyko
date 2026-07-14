@@ -14,7 +14,7 @@ const links = [
   { href: "/events", label: "Eventos" },
   { href: "/features", label: "Producto" },
   { href: "/pricing", label: "Precios" },
-  { href: "/help", label: "Ayuda" },
+  { href: "/ayuda", label: "Ayuda" },
 ];
 
 export default function Navbar() {
@@ -87,13 +87,13 @@ export default function Navbar() {
                 Iniciar sesión
               </Link>
               <Link
-                href="/contact?type=demo"
+                href="/auth/register?role=owner"
                 className={cn(
                   buttonVariants({ variant: "default", size: "sm" }),
                   "rounded-full px-5 shadow-soft"
                 )}
               >
-                Solicitar demo
+                Crear cuenta gratis
                 <ArrowRight className="ml-1.5 h-4 w-4" />
               </Link>
             </div>
@@ -132,14 +132,14 @@ export default function Navbar() {
                   Iniciar sesión
                 </Link>
                 <Link
-                  href="/contact?type=demo"
+                  href="/auth/register?role=owner"
                   className={cn(
                     buttonVariants({ variant: "default", size: "lg" }),
                     "w-full justify-center"
                   )}
                   onClick={() => setIsMenuOpen(false)}
                 >
-                  Solicitar demo
+                  Crear cuenta gratis
                 </Link>
               </div>
             </div>

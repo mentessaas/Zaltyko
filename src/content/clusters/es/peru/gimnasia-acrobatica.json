@@ -12,7 +12,7 @@
     ]
   },
   "hero": {
-    "badge": "Líder en Perú · +10 academias",
+    "badge": "Gestión pensada para academias de gimnasia acrobática",
     "headline": "Gestiona tu escuela de gimnasia acrobática federada sin complicaciones",
     "subheadline": "Control total sobre atletas, categorías, parejas y grupos acrobáticos, niveles de dificultad y licencias. Selectivos nacionales."
   },
@@ -38,21 +38,18 @@
     "generic": "Coordinar parejas y grupos acrobáticos es caótico. Tracking de niveles y composiciones en papel es un desastre.",
     "specific": "Gestionar combinaciones de parejas y grupos, coordinar cambios de categoría, seguir puntuaciones D y E."
   },
-  "socialProof": {
-    "academies": [
-      "Acrobática Lima",
-      "Club Arequipa Acrobática",
-      "Academia Trujillo Acrobática",
-      "Club Cusco Acrobática",
-      "Escuela Piura Acrobática"
-    ],
-    "stats": {
-      "athletes": "1,500+",
-      "academies": "10+"
-    }
-  },
   "interlinking": {
-    "relatedCountries": ["espana", "mexico", "argentina", "colombia", "chile"],
-    "relatedModalities": ["artistic", "rhythmic", "trampoline"]
+    "relatedCountries": [
+      "espana",
+      "mexico",
+      "argentina",
+      "colombia",
+      "chile"
+    ],
+    "relatedModalities": [
+      "artistic",
+      "rhythmic",
+      "trampoline"
+    ]
   }
 }

@@ -13,7 +13,7 @@
     ]
   },
   "hero": {
-    "badge": "Trusted by 30+ US Acrobatic clubs",
+    "badge": "Built for acrobatic gymnastics clubs",
     "headline": "Manage your USAG Acrobatic club with ease",
     "subheadline": "Full control over athlete pairs, groups, difficulty scores, routine composition and USAG membership. From Development to Elite."
   },
@@ -39,21 +39,19 @@
     "generic": "Managing acrobatic pairs and groups is a nightmare. Tracking who competes with whom, difficulty levels and sync scores in spreadsheets is a disaster.",
     "specific": "Managing partner/group combinations, tracking synchronized execution scores, difficulty calculations, and routine composition changes throughout the season."
   },
-  "socialProof": {
-    "academies": [
-      "Acro Stars Gym TX",
-      "Elite Acrobatic CA",
-      "Summit Acrobatics CO",
-      "Velocity Acro Gymnastics WA",
-      "Acrobatic Excellence FL"
-    ],
-    "stats": {
-      "athletes": "2,000+",
-      "academies": "30+"
-    }
-  },
   "interlinking": {
-    "relatedCountries": ["spain", "mexico", "argentina", "colombia", "chile", "peru"],
-    "relatedModalities": ["artistic", "rhythmic", "trampoline"]
+    "relatedCountries": [
+      "spain",
+      "mexico",
+      "argentina",
+      "colombia",
+      "chile",
+      "peru"
+    ],
+    "relatedModalities": [
+      "artistic",
+      "rhythmic",
+      "trampoline"
+    ]
   }
 }

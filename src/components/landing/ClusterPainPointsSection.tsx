@@ -1,7 +1,6 @@
 "use client";
 
 import { AlertCircle, CheckCircle2, Users, Calendar, CreditCard, FileText } from "lucide-react";
-import { cn } from "@/lib/utils";
 import type { ClusterContent } from "@/lib/seo/clusters";
 
 interface ClusterPainPointsSectionProps {
@@ -94,7 +93,7 @@ export default function ClusterPainPointsSection({
         </div>
 
         {/* Solution */}
-        <div className="bg-gradient-to-br from-zaltyko-white via-white to-zaltyko-teal/5 rounded-2xl p-8 md:p-12 border border-zaltyko-mist shadow-soft">
+        <div className="rounded-card border border-zaltyko-mist bg-zaltyko-white p-8 md:p-12 shadow-soft">
           <h3 className="font-display text-2xl sm:text-3xl font-bold text-gray-900 mb-8 text-center">
             {solution.title}
           </h3>
