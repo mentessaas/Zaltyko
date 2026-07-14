@@ -22,6 +22,7 @@ export * from "./profiles";
 export * from "./memberships";
 export * from "./academy-link-requests";
 export * from "./subscriptions";
+export * from "./stripe-accounts";
 export * from "./athletes";
 export * from "./coaches";
 export * from "./empleo";

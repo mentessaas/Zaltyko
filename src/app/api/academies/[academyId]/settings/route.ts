@@ -90,10 +90,9 @@ const SettingsSchema = z.object({
   // Timezone
   timezone: z.string().optional(),
 
-  // Billing
-  stripePublicKey: z.string().optional(),
-  stripeSecretKey: z.string().optional(),
-  stripeWebhookSecret: z.string().optional(),
+  // Billing. NOTA: las claves Stripe por academia (BYO-keys) quedaron obsoletas
+  // con Stripe Connect Standard. Los cobros se habilitan conectando la cuenta
+  // en /api/payments/connect/onboard, no pegando claves aqui.
   taxId: z.string().optional(),
   invoicePrefix: z.string().optional(),
 });
@@ -372,9 +371,6 @@ export const GET = withTenant(async (request, context) => {
         timezone: academies.timezone,
         brandingColors: academies.brandingColors,
         scheduleConfig: academies.scheduleConfig,
-        stripePublicKey: academies.stripePublicKey,
-        stripeSecretKey: academies.stripeSecretKey,
-        stripeWebhookSecret: academies.stripeWebhookSecret,
         taxId: academies.taxId,
         invoicePrefix: academies.invoicePrefix,
       })
@@ -458,9 +454,6 @@ export const GET = withTenant(async (request, context) => {
         logoUrl: academy.logoUrl,
       },
       timezone: academy.timezone || "America/Mexico_City",
-      stripePublicKey: academy.stripePublicKey || "",
-      stripeSecretKeyConfigured: !!academy.stripeSecretKey,
-      stripeWebhookSecretConfigured: !!academy.stripeWebhookSecret,
       taxId: academy.taxId || "",
       invoicePrefix: academy.invoicePrefix || "INV",
     });
@@ -718,16 +711,7 @@ export const PATCH = withTenant(async (request, context) => {
       updates.timezone = data.timezone;
     }
 
-    // Billing
-    if (data.stripePublicKey !== undefined) {
-      updates.stripePublicKey = data.stripePublicKey || null;
-    }
-    if (data.stripeSecretKey !== undefined && data.stripeSecretKey !== "") {
-      updates.stripeSecretKey = data.stripeSecretKey;
-    }
-    if (data.stripeWebhookSecret !== undefined && data.stripeWebhookSecret !== "") {
-      updates.stripeWebhookSecret = data.stripeWebhookSecret;
-    }
+    // Billing (claves Stripe por academia obsoletas: ahora via Stripe Connect).
     if (data.taxId !== undefined) {
       updates.taxId = data.taxId || null;
     }

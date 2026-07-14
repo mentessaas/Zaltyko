@@ -32,6 +32,7 @@ import { SocialLinksEditor } from "@/components/settings/SocialLinksEditor";
 import { SportConfigurationDashboard } from "@/components/settings/SportConfigurationDashboard";
 import { SportLegacyMigrationAssistant } from "@/components/settings/SportLegacyMigrationAssistant";
 import { TimezoneSelector } from "@/components/settings/TimezoneSelector";
+import { StripeConnectCard } from "@/components/billing/StripeConnectCard";
 import {
   DEFAULT_SETTINGS,
   DISCIPLINE_VARIANTS,
@@ -603,60 +604,7 @@ export default function SettingsPage() {
 
           {/* Billing Tab */}
           <TabsContent value="billing" className="mt-6 space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Configuración de Stripe</CardTitle>
-                <CardDescription>
-                  Configura las credenciales de Stripe para procesar pagos
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="stripePublicKey">Stripe Public Key</Label>
-                  <Input
-                    id="stripePublicKey"
-                    type="text"
-                    value={settings.stripePublicKey}
-                    onChange={(e) => updateSettings("stripePublicKey", e.target.value)}
-                    placeholder="pk_live_..."
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="stripeSecretKey" className="flex items-center gap-2">
-                    Stripe Secret Key
-                    {settings.stripeSecretKeyConfigured && !settings.stripeSecretKey && (
-                      <span className="flex items-center gap-1 text-xs text-green-600 font-normal">
-                        <CheckCircle className="h-3 w-3" /> Configurada
-                      </span>
-                    )}
-                  </Label>
-                  <Input
-                    id="stripeSecretKey"
-                    type="password"
-                    value={settings.stripeSecretKey}
-                    onChange={(e) => updateSettings("stripeSecretKey", e.target.value)}
-                    placeholder={settings.stripeSecretKeyConfigured ? "Dejar vacío para mantener la actual" : "sk_live_..."}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="stripeWebhookSecret" className="flex items-center gap-2">
-                    Stripe Webhook Secret
-                    {settings.stripeWebhookSecretConfigured && !settings.stripeWebhookSecret && (
-                      <span className="flex items-center gap-1 text-xs text-green-600 font-normal">
-                        <CheckCircle className="h-3 w-3" /> Configurado
-                      </span>
-                    )}
-                  </Label>
-                  <Input
-                    id="stripeWebhookSecret"
-                    type="password"
-                    value={settings.stripeWebhookSecret}
-                    onChange={(e) => updateSettings("stripeWebhookSecret", e.target.value)}
-                    placeholder={settings.stripeWebhookSecretConfigured ? "Dejar vacío para mantener el actual" : "whsec_..."}
-                  />
-                </div>
-              </CardContent>
-            </Card>
+            {context?.academyId && <StripeConnectCard academyId={context.academyId} />}
 
             <Card>
               <CardHeader>
