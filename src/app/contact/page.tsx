@@ -58,10 +58,10 @@ export default async function ContactPage({ searchParams }: ContactPageProps) {
             Contacto
           </span>
           <h1 className="font-display text-4xl font-bold tracking-tight text-zaltyko-text-main sm:text-5xl">
-            Hablemos de tu academia
+            Cuéntanos sobre tu academia
           </h1>
           <p className="mt-6 mx-auto max-w-2xl text-lg text-zaltyko-text-secondary">
-            ¿Tienes preguntas sobre Zaltyko? Nuestro equipo está aquí para ayudarte.
+            Te respondemos por email en horario laboral con una propuesta concreta para tu caso.
           </p>
         </div>
       </section>
@@ -72,7 +72,7 @@ export default async function ContactPage({ searchParams }: ContactPageProps) {
           <div className="grid gap-12 lg:grid-cols-2">
             {/* Contact Info */}
             <div>
-              <h2 className="text-2xl font-bold text-zaltyko-text-main mb-6">Información de contacto</h2>
+              <h2 className="text-2xl font-bold text-zaltyko-text-main mb-6">Cómo contactarnos</h2>
               <div className="space-y-6">
                 {contactInfo.map((info, index) => {
                   const Icon = info.icon;
@@ -103,15 +103,14 @@ export default async function ContactPage({ searchParams }: ContactPageProps) {
               <div className="mt-8 rounded-xl bg-gray-50 p-6">
                 <h3 className="font-semibold text-zaltyko-text-main">Cómo trabajamos</h3>
                 <p className="mt-2 text-sm text-zaltyko-text-secondary">
-                  Respondemos por email con una propuesta concreta para tu academia. Si necesitas ver el producto,
-                  agendaremos una demo guiada.
+                  Leemos cada mensaje y respondemos por email en horario laboral. Si tu caso encaja con una demo, te la agendamos para ver Zaltyko aplicado a tu academia, sin guion genérico.
                 </p>
               </div>
             </div>
 
             {/* Contact Form */}
             <div>
-              <h2 className="text-2xl font-bold text-zaltyko-text-main mb-6">Envíanos un mensaje</h2>
+              <h2 className="text-2xl font-bold text-zaltyko-text-main mb-6">Cuéntanos qué necesitas</h2>
               <ContactForm defaultReason={type} defaultPlan={selectedPlan} />
             </div>
           </div>
