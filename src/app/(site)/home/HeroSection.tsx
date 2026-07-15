@@ -40,11 +40,11 @@ export default function HeroSection() {
             </p>
 
             {/* H1 */}
-            <h1 className="mb-6 font-display text-5xl font-bold leading-[1.05] tracking-tight text-zaltyko-navy sm:text-6xl lg:text-7xl">
+            <h1 className="mb-6 font-display font-bold leading-[1.05] tracking-tight text-zaltyko-navy text-[clamp(1.875rem,6vw,4.5rem)]">
               Las cuotas cobradas, los grupos montados y la lista pasada.
             </h1>
             <p className="mb-3 font-display text-xl font-medium text-zaltyko-text-secondary sm:text-2xl">
-              Sin Excel y sin 14 chats de WhatsApp.
+              Sin Excel y sin los chats de WhatsApp del club.
             </p>
 
             {/* Subtitle */}

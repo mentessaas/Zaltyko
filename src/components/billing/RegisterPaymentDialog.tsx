@@ -16,7 +16,7 @@ interface ChargeItem {
   label: string;
   amountCents: number;
   currency: string;
-  status: "pending" | "paid" | "overdue" | "cancelled" | "partial";
+  status: "pending" | "paid" | "overdue" | "cancelled" | "partial" | "failed" | "refunded";
 }
 
 interface RegisterPaymentDialogProps {
@@ -34,7 +34,9 @@ const formSchema = z.object({
   paymentMethod: z.enum(paymentMethodEnum.enumValues).nullable(),
 });
 
-const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
+// 'card' (tarjeta automatica via Stripe) no es un metodo de registro manual: lo
+// establece el motor de cobro, no el formulario. Por eso se excluye aqui.
+const PAYMENT_METHOD_LABELS: Record<Exclude<PaymentMethod, "card">, string> = {
   cash: "Efectivo",
   transfer: "Transferencia",
   bizum: "Bizum",
@@ -187,11 +189,13 @@ export function RegisterPaymentDialog({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="">Sin especificar</SelectItem>
-              {paymentMethodEnum.enumValues.map((method) => (
-                <SelectItem key={method} value={method}>
-                  {PAYMENT_METHOD_LABELS[method]}
-                </SelectItem>
-              ))}
+              {paymentMethodEnum.enumValues
+                .filter((method): method is Exclude<PaymentMethod, "card"> => method !== "card")
+                .map((method) => (
+                  <SelectItem key={method} value={method}>
+                    {PAYMENT_METHOD_LABELS[method]}
+                  </SelectItem>
+                ))}
             </SelectContent>
           </Select>
         </div>

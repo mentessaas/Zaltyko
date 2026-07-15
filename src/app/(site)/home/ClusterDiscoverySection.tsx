@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Globe, MapPin, ArrowRight } from "lucide-react";
+import { Globe, ChevronDown } from "lucide-react";
 
 // Clusters principales por país - España y México prioritarios
 const PRIORITY_CLUSTERS = [
@@ -49,8 +49,8 @@ export default function ClusterDiscoverySection() {
           </p>
         </div>
 
-        {/* Quick access - Priority clusters */}
-        <div className="mb-16">
+        {/* Quick access - Priority clusters (visible por defecto) */}
+        <div className="mb-12">
           <h3 className="text-lg font-semibold text-gray-900 mb-6 text-center">
             Acceso rápido a clusters prioritarios
           </h3>
@@ -59,9 +59,10 @@ export default function ClusterDiscoverySection() {
               <Link
                 key={`${cluster.locale}-${cluster.modality}-${cluster.country}`}
                 href={`/${cluster.locale}/${cluster.modality}/${cluster.country}`}
+                aria-label={`${cluster.label} en ${cluster.countryLabel}`}
                 className="group flex flex-col items-center p-6 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-lg hover:border-zaltyko-teal/25 transition-all duration-300 hover:-translate-y-1"
               >
-                <span className="text-4xl mb-3">{cluster.flag}</span>
+                <span aria-hidden="true" className="text-4xl mb-3">{cluster.flag}</span>
                 <span className="text-sm font-medium text-gray-500 mb-1">{cluster.countryLabel}</span>
                 <span className="text-base font-semibold text-gray-900 group-hover:text-zaltyko-teal transition-colors text-center">
                   {cluster.label}
@@ -71,23 +72,28 @@ export default function ClusterDiscoverySection() {
           </div>
         </div>
 
-        {/* Full matrix - Modalities x Countries */}
-        <div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-6 text-center">
-            Explora todas las combinaciones
-          </h3>
-
-          {/* Modality tabs would go here - for now, show full grid */}
-          <div className="bg-gray-50 rounded-2xl p-6">
+        {/* Full matrix - colapsado por defecto para no saturar el scroll */}
+        <details className="group mx-auto max-w-4xl rounded-2xl border border-gray-200 bg-gray-50 open:bg-white open:shadow-sm transition-colors">
+          <summary className="flex cursor-pointer items-center justify-between gap-3 px-6 py-5 text-left list-none [&::-webkit-details-marker]:hidden">
+            <span className="text-lg font-semibold text-gray-900">
+              Explorar todas las combinaciones de país y modalidad
+            </span>
+            <ChevronDown
+              aria-hidden="true"
+              className="h-5 w-5 shrink-0 text-zaltyko-teal transition-transform duration-200 group-open:rotate-180"
+            />
+          </summary>
+          <div className="border-t border-gray-200 p-6">
             {/* Countries row */}
             <div className="flex flex-wrap gap-3 mb-6 justify-center">
               {ALL_COUNTRIES.map((country) => (
                 <Link
                   key={country.slug}
                   href={`/es/gimnasia-artistica/${country.slug}`}
+                  aria-label={`Gimnasia artística en ${country.label}`}
                   className="inline-flex items-center gap-2 px-4 py-2 bg-white rounded-full border border-gray-200 text-sm font-medium text-gray-700 hover:border-zaltyko-teal/30 hover:text-zaltyko-teal hover:bg-zaltyko-teal/5 transition-all"
                 >
-                  <span>{country.flag}</span>
+                  <span aria-hidden="true">{country.flag}</span>
                   <span>{country.label}</span>
                 </Link>
               ))}
@@ -101,7 +107,7 @@ export default function ClusterDiscoverySection() {
                   className="bg-white rounded-xl p-5 border border-gray-100"
                 >
                   <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                    <span>{modality.icon}</span>
+                    <span aria-hidden="true">{modality.icon}</span>
                     {modality.label}
                   </h4>
                   <div className="space-y-2">
@@ -109,22 +115,24 @@ export default function ClusterDiscoverySection() {
                       <Link
                         key={`${modality.slug}-${country.slug}`}
                         href={`/es/${modality.slug}/${country.slug}`}
+                        aria-label={`${modality.label} en ${country.label}`}
                         className="flex items-center justify-between px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-zaltyko-teal/5 hover:text-zaltyko-teal transition-colors"
                       >
                         <span className="flex items-center gap-2">
-                          <span>{country.flag}</span>
+                          <span aria-hidden="true">{country.flag}</span>
                           {country.label}
                         </span>
-                        <ArrowRight className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <span aria-hidden="true" className="text-zaltyko-teal">→</span>
                       </Link>
                     ))}
                     {ALL_COUNTRIES.length > 4 && (
                       <Link
                         href={`/es/${modality.slug}`}
+                        aria-label={`Ver más países para ${modality.label}`}
                         className="flex items-center justify-center gap-1 px-3 py-2 rounded-lg text-sm text-zaltyko-teal hover:bg-zaltyko-teal/5 transition-colors font-medium"
                       >
                         Ver más países
-                        <ArrowRight className="h-4 w-4" />
+                        <span aria-hidden="true">→</span>
                       </Link>
                     )}
                   </div>
@@ -132,7 +140,7 @@ export default function ClusterDiscoverySection() {
               ))}
             </div>
           </div>
-        </div>
+        </details>
 
         {/* CTA */}
         <div className="text-center mt-12">
@@ -144,7 +152,7 @@ export default function ClusterDiscoverySection() {
             Explorar clusters SEO
           </Link>
           <p className="text-sm text-gray-500 mt-3">
-            52 páginas específicas por país y modalidad
+            Contenido adaptado a tu federación, categorías y competiciones locales
           </p>
         </div>
       </div>

@@ -30,10 +30,9 @@ const serverEnvSchema = z.object({
   // Stripe
   STRIPE_SECRET_KEY: z.string().min(1).optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
-
-  // Lemon Squeezy
-  LEMONSQUEEZY_API_KEY: z.string().min(1).optional(),
-  LEMONSQUEEZY_WEBHOOK_SECRET: z.string().min(1).optional(),
+  // Webhook de cuentas conectadas (Stripe Connect) — secret de firma propio.
+  STRIPE_CONNECT_WEBHOOK_SECRET: z.string().optional(),
+  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z.string().optional(),
 
   // App
   NEXT_PUBLIC_APP_URL: z.string().url().optional(),
@@ -69,6 +68,7 @@ const publicEnvSchema = z.object({
   NEXT_PUBLIC_APP_URL: z.string().url().optional(),
   NEXT_PUBLIC_DISABLE_ANALYTICS: z.string().optional(),
   NEXT_PUBLIC_SENTRY_DSN: z.string().url().optional(),
+  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z.string().optional(),
 });
 
 /**

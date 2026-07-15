@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Mail, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
@@ -13,6 +13,8 @@ interface EmailCaptureProps {
   variant?: "inline" | "standalone";
   placeholder?: string;
   buttonText?: string;
+  /** Cuando se pasa, el form envía como submit tradicional a esta URL con ?email= */
+  submitHref?: string;
 }
 
 export function EmailCapture({
@@ -21,10 +23,12 @@ export function EmailCapture({
   variant = "inline",
   placeholder = "tu@email.com",
   buttonText = "Comenzar gratis",
+  submitHref,
 }: EmailCaptureProps) {
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState("");
+  const emailId = useId();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -77,10 +81,25 @@ export function EmailCapture({
   if (variant === "standalone") {
     return (
       <div className="w-full max-w-md mx-auto">
-        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+        <form
+          onSubmit={handleSubmit}
+          action={submitHref || undefined}
+          method={submitHref ? "get" : undefined}
+          className="flex flex-col gap-3"
+        >
+          <label htmlFor={emailId} className="sr-only">
+            Tu correo electrónico
+          </label>
           <div className="flex gap-2">
             <Input
+              id={emailId}
               type="email"
+              name="email"
+              autoComplete="email"
+              inputMode="email"
+              aria-label="Tu correo electrónico"
+              aria-required="true"
+              aria-invalid={status === "error"}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder={placeholder}
@@ -109,11 +128,26 @@ export function EmailCapture({
 
   // Inline variant (used within existing sections)
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3 w-full max-w-lg mx-auto">
+    <form
+      onSubmit={handleSubmit}
+      action={submitHref || undefined}
+      method={submitHref ? "get" : undefined}
+      className="flex flex-col sm:flex-row gap-3 w-full max-w-lg mx-auto"
+    >
+      <label htmlFor={emailId} className="sr-only">
+        Tu correo electrónico
+      </label>
       <div className="relative flex-1">
         <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <Input
+          id={emailId}
           type="email"
+          name="email"
+          autoComplete="email"
+          inputMode="email"
+          aria-label="Tu correo electrónico"
+          aria-required="true"
+          aria-invalid={status === "error"}
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder={placeholder}

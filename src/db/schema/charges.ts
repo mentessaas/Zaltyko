@@ -28,6 +28,13 @@ export const charges = pgTable(
     paymentMethod: paymentMethodEnum("payment_method"),
     paidAt: timestamp("paid_at", { withTimezone: true }),
     notes: text("notes"),
+    // Cobro automatico con tarjeta (Stripe Connect). El ledger sigue siendo la
+    // fuente de verdad; estos campos referencian el pago en la cuenta conectada.
+    stripePaymentIntentId: text("stripe_payment_intent_id"),
+    stripeChargeId: text("stripe_charge_id"),
+    stripeAccountId: text("stripe_account_id"),
+    attemptCount: integer("attempt_count").notNull().default(0),
+    lastAttemptAt: timestamp("last_attempt_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
   },
@@ -41,6 +48,7 @@ export const charges = pgTable(
     ),
     academyStatusIdx: index("charges_academy_status_idx").on(table.academyId, table.status),
     classIdIdx: index("charges_class_id_idx").on(table.classId),
+    paymentIntentIdx: index("charges_payment_intent_idx").on(table.stripePaymentIntentId),
   })
 );
 

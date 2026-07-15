@@ -24,11 +24,6 @@ export interface AcademySettings {
   schedule: ScheduleData;
   contact: SocialLinksData;
   timezone: string;
-  stripePublicKey: string;
-  stripeSecretKey: string;
-  stripeWebhookSecret: string;
-  stripeSecretKeyConfigured: boolean;
-  stripeWebhookSecretConfigured: boolean;
   taxId: string;
   invoicePrefix: string;
 }
@@ -88,11 +83,6 @@ export const DEFAULT_SETTINGS: AcademySettings = {
     socialYoutube: "",
   },
   timezone: "America/Mexico_City",
-  stripePublicKey: "",
-  stripeSecretKey: "",
-  stripeWebhookSecret: "",
-  stripeSecretKeyConfigured: false,
-  stripeWebhookSecretConfigured: false,
   taxId: "",
   invoicePrefix: "INV",
 };

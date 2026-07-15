@@ -1,71 +1,66 @@
 "use client";
 
 import Link from "next/link";
-import { 
-  Users, 
-  Calendar, 
-  CreditCard, 
-  TrendingUp, 
-  MessageSquare, 
-  FileText, 
+import {
+  Users,
+  Calendar,
+  CreditCard,
+  MessageSquare,
   Award,
   ClipboardList,
   BarChart3,
-  Bell,
   Shield,
-  Globe
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const modules = [
   {
-    title: "Gimnastas",
-    description: "Fichas completas con nivel, categoría, aparatos, rutinas, documentación y evolución técnica.",
-    icon: Users,
+    title: "Cobros",
+    description: "Lo que más usan las directoras: cuotas recurrentes, avisos automáticos a familias y seguimiento de impagos sin perseguir a nadie.",
+    icon: CreditCard,
     span: "lg:col-span-2",
-    features: ["Perfiles completos", "Niveles y categorías", "Aparatos y rutinas", "Documentación"],
+    features: ["Pagos recurrentes", "Avisos automáticos", "Seguimiento de impagos", "Cuotas por grupo"],
   },
   {
     title: "Clases & Horarios",
-    description: "Programación flexible con control de aforo, registro de asistencia por sesión y gestión de waiting lists.",
+    description: "Programación flexible con control de aforo, pase de lista por sesión y gestión de listas de espera.",
     icon: Calendar,
-    features: ["Calendario interactivo", "Control de aforo", "Asistencia por sesión", "Waiting lists"],
+    features: ["Calendario interactivo", "Control de aforo", "Pase de lista por sesión", "Waiting lists"],
   },
   {
-    title: "Cobros",
-    description: "Control de cuotas, cobros pendientes, recordatorios y administración económica de familias.",
-    icon: CreditCard,
-    features: ["Pagos recurrentes", "Pagos pendientes", "Gestión de morosidad", "Cuotas flexibles"],
+    title: "Comunicación",
+    description: "Mensajes y notificaciones internas por grupo con historial auditable, sin saturar los chats del club.",
+    icon: MessageSquare,
+    features: ["Mensajes grupales", "Plantillas", "Notificaciones internas", "Familias informadas"],
+  },
+  {
+    title: "Gimnastas",
+    description: "Fichas con nivel, categoría, aparatos, rutinas, documentación y evolución técnica de cada gimnasta.",
+    icon: Users,
+    features: ["Perfiles completos", "Niveles y categorías", "Aparatos y rutinas", "Documentación"],
   },
   {
     title: "Eventos",
-    description: "Gestión de inscripciones a competiciones, categorías por edad y nivel y sistema de lista de espera.",
+    description: "Inscripciones a competiciones con categorías por edad y nivel, y lista de espera gestionada.",
     icon: Award,
-    features: ["Inscripciones online", "Categorías automáticas", "Lista de espera", "Comunicación"],
+    features: ["Inscripciones online", "Categorías por edad y nivel", "Lista de espera", "Comunicación"],
   },
   {
     title: "Evaluaciones",
-    description: "Sistema de evaluaciones técnicas y artísticas con rúbricas configurables, vídeos y exportación a PDF.",
+    description: "Sistema de evaluaciones técnicas y artísticas con rúbricas configurables, vídeos adjuntos y exportación a PDF.",
     icon: ClipboardList,
     features: ["Rúbricas personalizadas", "Videos adjuntos", "Gráficos de progreso", "Export PDF"],
   },
   {
-    title: "Comunicación",
-    description: "Mensajería grupal, plantillas y notificaciones internas programadas con historial auditable.",
-    icon: MessageSquare,
-    features: ["Mensajes grupales", "Plantillas", "Notificaciones", "Familias informadas"],
-  },
-  {
     title: "Reportes",
-    description: "Informes de asistencia, cobros, ocupación y evolución para tomar decisiones de dirección.",
+    description: "Informes de asistencia, cobros, ocupación y evolución para decidir dirección con datos reales.",
     icon: BarChart3,
     features: ["Export multi-formato", "Informes programados", "Panel de dirección", "Métricas claras"],
   },
   {
-    title: "Multi-Academia",
-    description: "Gestión de varias sedes o academias desde un solo panel, con control de acceso por rol.",
+    title: "Multi-Sede",
+    description: "Gestión de varias sedes o academias desde un solo panel, con aislamiento por academia y control de acceso por rol.",
     icon: Shield,
-    span: "lg:col-span-2",
     features: ["Varias sedes", "Roles por usuario", "Panel de director", "Datos aislados"],
   },
 ];

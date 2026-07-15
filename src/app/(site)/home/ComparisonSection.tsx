@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 const comparisonFeatures = [
   {
     feature: "Puesta en marcha",
-    zaltyko: "Guiada",
+    zaltyko: "Migración desde Excel incluida",
     spreadsheets: "Manual",
     generic: "Según proveedor",
   },
@@ -17,7 +17,7 @@ const comparisonFeatures = [
     generic: "Limitado",
   },
   {
-    feature: "Asistencia en tiempo real",
+    feature: "Pase de lista por sesión",
     zaltyko: true,
     spreadsheets: false,
     generic: "Básico",
@@ -35,13 +35,13 @@ const comparisonFeatures = [
     generic: "No",
   },
   {
-    feature: "Reportes para padres",
+    feature: "Reportes para dirección",
     zaltyko: true,
     spreadsheets: false,
     generic: "Limitado",
   },
   {
-    feature: "Evaluaciones técnicas",
+    feature: "Evaluaciones con rúbrica",
     zaltyko: true,
     spreadsheets: false,
     generic: "No",
@@ -59,7 +59,7 @@ const comparisonFeatures = [
     generic: "Limitado",
   },
   {
-    feature: "Trial gratis sin tarjeta",
+    feature: "7 días de Starter sin tarjeta",
     zaltyko: true,
     spreadsheets: false,
     generic: false,

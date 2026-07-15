@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { CreditCard, AlertCircle, CheckCircle, Clock, ArrowRight } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { CreditCard, AlertCircle, CheckCircle, Clock, ArrowRight, Loader2, Receipt } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { FamilyPaymentMethodCard } from "@/components/billing/FamilyPaymentMethodCard";
 
 interface ChargeData {
   id: string;
@@ -19,21 +21,66 @@ interface ChargeData {
 
 interface MyPaymentsWidgetProps {
   charges: ChargeData[];
+  academyId?: string;
 }
 
-export function MyPaymentsWidget({ charges }: MyPaymentsWidgetProps) {
+const PAYABLE_STATUSES = new Set(["pending", "overdue", "failed"]);
+
+export function MyPaymentsWidget({ charges, academyId }: MyPaymentsWidgetProps) {
   const [showAll, setShowAll] = useState(false);
+  const [payingId, setPayingId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const router = useRouter();
+
+  const payCharge = async (chargeId: string) => {
+    setPayingId(chargeId);
+    setActionError(null);
+    try {
+      const res = await fetch(`/api/family/charges/${chargeId}/pay`, { method: "POST" });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        if (json.error === "NO_SAVED_CARD") {
+          setActionError("Añade una tarjeta para poder pagar.");
+        } else if (json.error === "REQUIRES_ACTION") {
+          setActionError("Tu banco pide autenticación. Inténtalo desde tu app bancaria.");
+        } else if (json.error === "CONNECT_NOT_READY") {
+          setActionError("La academia aún no tiene activados los pagos con tarjeta.");
+        } else {
+          setActionError("No se pudo completar el pago. Revisa tu tarjeta.");
+        }
+        return;
+      }
+      router.refresh();
+    } catch {
+      setActionError("Error de conexión al procesar el pago.");
+    } finally {
+      setPayingId(null);
+    }
+  };
+
+  const openReceipt = async (chargeId: string) => {
+    try {
+      const res = await fetch(`/api/family/charges/${chargeId}/receipt`);
+      const json = await res.json().catch(() => ({}));
+      if (res.ok && json.url) {
+        window.open(json.url as string, "_blank", "noopener");
+      } else {
+        setActionError("El recibo aún no está disponible.");
+      }
+    } catch {
+      setActionError("No se pudo abrir el recibo.");
+    }
+  };
 
   if (charges.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-6 text-center">
-        <CheckCircle className="h-10 w-10 text-emerald-500" />
-        <p className="mt-2 text-sm font-medium text-foreground">
-          ¡Todo al día!
-        </p>
-        <p className="text-xs text-muted-foreground">
-          No tienes pagos pendientes
-        </p>
+      <div className="space-y-4">
+        <div className="flex flex-col items-center justify-center py-6 text-center">
+          <CheckCircle className="h-10 w-10 text-emerald-500" />
+          <p className="mt-2 text-sm font-medium text-foreground">¡Todo al día!</p>
+          <p className="text-xs text-muted-foreground">No tienes pagos pendientes</p>
+        </div>
+        {academyId && <FamilyPaymentMethodCard academyId={academyId} />}
       </div>
     );
   }
@@ -121,6 +168,32 @@ export function MyPaymentsWidget({ charges }: MyPaymentsWidgetProps) {
             </Badge>
           ),
         };
+      case "failed":
+        return {
+          icon: AlertCircle,
+          label: "Pago fallido",
+          color: "text-red-600",
+          bgColor: "bg-red-50",
+          borderColor: "border-red-500/50",
+          badge: (
+            <Badge variant="outline" className="border-red-500/50 text-red-600 bg-red-50">
+              Pago fallido
+            </Badge>
+          ),
+        };
+      case "refunded":
+        return {
+          icon: CreditCard,
+          label: "Reembolsado",
+          color: "text-amber-600",
+          bgColor: "bg-amber-50",
+          borderColor: "border-amber-500/50",
+          badge: (
+            <Badge variant="outline" className="border-amber-500/50 text-amber-600 bg-amber-50">
+              Reembolsado
+            </Badge>
+          ),
+        };
       default:
         return {
           icon: CreditCard,
@@ -133,10 +206,8 @@ export function MyPaymentsWidget({ charges }: MyPaymentsWidgetProps) {
     }
   };
 
-  // Separar pagos pendientes de pagados
-  const pendingCharges = charges.filter(
-    (c) => c.status === "pending" || c.status === "overdue"
-  );
+  // Separar pagos pendientes de pagados (incluye fallidos: siguen debiendose)
+  const pendingCharges = charges.filter((c) => PAYABLE_STATUSES.has(c.status));
 
   // Calcular total pendiente
   const totalPending = pendingCharges.reduce(
@@ -210,10 +281,38 @@ export function MyPaymentsWidget({ charges }: MyPaymentsWidgetProps) {
                   )}
                 </div>
               )}
+              {/* Acciones: pagar (pendiente/vencido/fallido) o recibo (pagado) */}
+              {academyId && PAYABLE_STATUSES.has(charge.status) && (
+                <div className="pl-8">
+                  <Button
+                    size="sm"
+                    onClick={() => payCharge(charge.id)}
+                    disabled={payingId === charge.id}
+                  >
+                    {payingId === charge.id ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <CreditCard className="mr-2 h-4 w-4" />
+                    )}
+                    Pagar ahora
+                  </Button>
+                </div>
+              )}
+              {academyId && charge.status === "paid" && (
+                <div className="pl-8">
+                  <Button variant="ghost" size="sm" onClick={() => openReceipt(charge.id)}>
+                    <Receipt className="mr-2 h-4 w-4" /> Recibo
+                  </Button>
+                </div>
+              )}
             </div>
           );
         })}
       </div>
+
+      {actionError && <p className="text-sm text-red-600">{actionError}</p>}
+
+      {academyId && <FamilyPaymentMethodCard academyId={academyId} />}
 
       {/* Ver todos / ver menos */}
       {charges.length > 4 && (

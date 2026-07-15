@@ -79,33 +79,34 @@ export default function Navbar() {
               ))}
             </div>
 
-            <div className="hidden items-center gap-4 md:flex">
+            <div className="flex items-center gap-2 sm:gap-4">
               <Link
                 href="/auth/login"
-                className="text-sm font-semibold text-zaltyko-navy transition-colors hover:text-zaltyko-teal"
+                className="hidden text-sm font-semibold text-zaltyko-navy transition-colors hover:text-zaltyko-teal sm:inline"
               >
                 Iniciar sesión
               </Link>
               <Link
                 href="/auth/register?role=owner"
                 className={cn(
-                  buttonVariants({ variant: "default", size: "sm" }),
-                  "rounded-full px-5 shadow-soft"
+                  buttonVariants({ variant: "default" }),
+                  "whitespace-nowrap rounded-full px-3 py-2 text-xs shadow-soft sm:px-5 sm:text-sm"
                 )}
               >
-                Crear cuenta gratis
+                <span className="sm:hidden">Crear cuenta</span>
+                <span className="hidden sm:inline">Crear cuenta gratis</span>
                 <ArrowRight className="ml-1.5 h-4 w-4" />
               </Link>
-            </div>
 
-            <button
-              type="button"
-              onClick={() => setIsMenuOpen((prev) => !prev)}
-              className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg p-2 text-zaltyko-text-secondary hover:bg-zaltyko-warm-white md:hidden"
-              aria-label={isMenuOpen ? "Cerrar menú" : "Abrir menú"}
-            >
-              {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-            </button>
+              <button
+                type="button"
+                onClick={() => setIsMenuOpen((prev) => !prev)}
+                className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg p-2 text-zaltyko-text-secondary hover:bg-zaltyko-warm-white md:hidden"
+                aria-label={isMenuOpen ? "Cerrar menú" : "Abrir menú"}
+              >
+                {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+              </button>
+            </div>
           </div>
         </div>
 
