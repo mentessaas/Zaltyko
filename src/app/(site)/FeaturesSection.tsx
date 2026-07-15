@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 import {
   Users,
@@ -12,7 +11,6 @@ import {
   Plug,
   ShieldCheck,
   Check,
-  ArrowRight,
 } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
@@ -160,19 +158,6 @@ export default function FeaturesSection() {
   return (
     <section className="bg-primary-dark py-20 px-4 text-white">
       <div className="mx-auto max-w-6xl">
-        <div className="mb-16 space-y-4 text-center">
-          <span className="font-display text-xs uppercase tracking-[0.45em] text-zaltyko-accent">
-            Módulos conectados
-          </span>
-          <h2 className="mx-auto max-w-4xl font-display text-3xl font-semibold leading-tight sm:text-4xl md:text-5xl">
-            Todo lo que una red de academias necesita para operar sin caos.
-          </h2>
-          <p className="mx-auto max-w-3xl font-sans text-base text-white/70 md:text-lg">
-            Selecciona un módulo y descubre cómo Zaltyko reduce tareas repetitivas, mantiene tus datos seguros y ofrece
-            experiencias claras a gimnastas, entrenadores y familias.
-          </p>
-        </div>
-
         <Tabs value={activeFeature} onValueChange={setActiveFeature} className="w-full">
           <TabsList className="mb-10 flex h-auto flex-wrap justify-center gap-4 bg-transparent">
             {features.map((feature) => {
@@ -219,16 +204,6 @@ export default function FeaturesSection() {
                       </span>
                     </div>
                   ))}
-                </div>
-                {/* CTA dentro del tab */}
-                <div className="mt-8 pt-6 border-t border-white/10">
-                  <Link
-                    href="/auth/register?role=owner"
-                    className="inline-flex items-center gap-2 bg-white text-zaltyko-indigo font-semibold px-6 py-3 rounded-xl hover:bg-zaltyko-teal/10 transition-colors text-sm"
-                  >
-                    Crear cuenta gratis
-                    <ArrowRight className="w-4 h-4" />
-                  </Link>
                 </div>
               </div>
             </TabsContent>
