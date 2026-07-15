@@ -31,7 +31,9 @@ Rama `feat/cobros-cuotas-stripe-connect` (no mergeada aún). Construye la capa d
 - **LemonSqueezy eliminado** (código muerto): borrados `src/utils/lemon.ts`, `src/components/lemon-button.tsx`, `src/app/api/lemonsqueezy/webhook/`; retiradas las env `LEMONSQUEEZY_*` y la entrada de rate-limit (sustituida por `/api/stripe/connect/webhook`).
 - **Descuento por hermanos**: `discountCategoryEnum += 'sibling'` (migración `20260715120000_*`) + tipo en `discount-calculator`.
 
-**Deuda que NO se puede cerrar en código** (requiere entorno externo): QA E2E en Stripe sandbox, aplicar las 6 migraciones a la DB, registrar el webhook de Connect con su secret. `application_fee` = 0 es decisión de producto (monetización futura opcional), no deuda.
+**Migraciones APLICADAS a producción (2026-07-15)**: las 6 migraciones de este módulo se aplicaron contra la DB real de Zaltyko (Supabase `jegxfahsvugilbthbked`, proyecto Vercel `zaltyko`/`zaltyko.com`), confirmado explícitamente por Elvis tras verificar que no había DB de staging separada. Ejecutado con el runner sancionado `pnpm db:migrate:ledger --apply` (transacción única, rollback automático si falla). Verificado post-aplicación directamente contra la DB (no solo el mensaje del script): 4 tablas nuevas (`stripe_accounts`, `family_stripe_customers`, `payment_attempts`, `refunds`) con RLS habilitado, 5 columnas nuevas en `charges`, `charge_status` += `failed`/`refunded`, `payment_method` += `card`, `discount_category` += `sibling`. `pnpm db:migrate:ledger` final: **38 migraciones verificadas, 0 pendientes**.
+
+**Deuda que sigue sin poder cerrarse en código** (requiere entorno externo): QA E2E en Stripe sandbox (onboarding, cobro, SCA/3DS, reembolso), registrar el webhook de Connect en el dashboard de Stripe con su secret. `application_fee` = 0 es decisión de producto (monetización futura opcional), no deuda.
 
 ## 2026-07-14 - Aplicación de fixes CRO sobre la landing `/`
 
