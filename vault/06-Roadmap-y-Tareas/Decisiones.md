@@ -14,8 +14,8 @@ source:
 | --- | --- |
 | Contexto | La producción estaba generando canonicals, sitemap y robots con `zaltyko.vercel.app` porque `NEXT_PUBLIC_APP_URL` de Vercel no coincidía con el dominio público. |
 | Decisión | Centralizar las URLs públicas en `getPublicSiteUrl()`, consolidar dominios `vercel.app` y túneles temporales en `https://zaltyko.com`, y mantener los dominios de despliegue únicamente como redirects. |
-| Consecuencia | Los metadatos y señales SEO ya no dependen de una variable de entorno mal configurada; aun así, Vercel debe corregir `NEXT_PUBLIC_APP_URL` y redeployar para eliminar las señales antiguas cacheadas. |
-| Estado | Aplicada en código; corrección de variable y redeploy pendientes de acceso externo. |
+| Consecuencia | Los metadatos y señales SEO tienen una defensa en código y Vercel Production usa la URL canónica; los dominios de despliegue quedan solo como aliases/redirecciones. |
+| Estado | Aplicada y verificada en producción el 2026-07-15. |
 
 ## 2026-07-15 - Brevo es el proveedor de email transaccional publicado
 
@@ -24,7 +24,7 @@ source:
 | Contexto | La página pública de integraciones afirmaba Mailgun, pero el envío real del código usa `src/lib/brevo.ts` y `BREVO_API_KEY`. |
 | Decisión | Publicar Brevo como integración activa y no prometer WhatsApp Business como integración externa lista hasta validar proveedor y flujo end-to-end. |
 | Consecuencia | Se evita una promesa comercial incorrecta; la comunicación interna de Zaltyko sigue siendo el canal prioritario v1. |
-| Estado | Aplicada en copy y documentación. |
+| Estado | Aplicada en copy, código y documentación; los formularios públicos también envían mediante Brevo. |
 
 ## 2026-07-13 - Los cron de Vercel se autentican por secreto, no por IP/header de procedencia
 

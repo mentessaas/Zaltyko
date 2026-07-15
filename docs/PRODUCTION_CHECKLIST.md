@@ -57,9 +57,10 @@ Este documento contiene una lista completa de verificación para asegurar que la
   - [ ] `LEMONSQUEEZY_API_KEY` configurada
   - [ ] `LEMONSQUEEZY_WEBHOOK_SECRET` configurada
 
-- [ ] **Mailgun** (si se usa)
-  - [ ] `MAILGUN_API_KEY` configurada
-  - [ ] `MAILGUN_DOMAIN` configurada
+- [ ] **Brevo** (email transaccional)
+  - [ ] `BREVO_API_KEY` configurada
+  - [ ] `BREVO_SENDER_EMAIL` verificado
+  - [ ] `BREVO_REPLY_TO` configurada
 
 - [ ] **Sentry** (recomendado)
   - [ ] `NEXT_PUBLIC_SENTRY_DSN` configurada

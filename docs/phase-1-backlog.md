@@ -30,7 +30,7 @@ Referencia directa al [_Playbook Fase 1_](./phase-1-playbook.md). Cada tarea deb
 - [ ] Sincronización de productos/precios con tabla `plans` (script + admin view).
 - [ ] UX de facturación in-app (plan actual, upgrade/downgrade, historial).
 - [ ] Mejorar manejo de errores Stripe (webhooks y reintentos).
-- [ ] Notificaciones email al cambiar plan (Mailgun).
+- [ ] Notificaciones email al cambiar plan (Brevo).
 
 ## 6. Calidad y soporte
 - [x] Actualizar `scripts/seed.ts` con datos demo (academia, atletas, coaches, guardianes).
@@ -38,4 +38,3 @@ Referencia directa al [_Playbook Fase 1_](./phase-1-playbook.md). Cada tarea deb
 - [ ] Crear guía de soporte interno (markdown + video corto).
 
 > **Seguimiento**: mover cada item a la board Kanban (columns: Backlog → En progreso → QA → Done). Documentar bloqueos relevantes en `docs/changelog.md`.
-

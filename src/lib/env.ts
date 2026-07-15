@@ -23,9 +23,14 @@ const serverEnvSchema = z.object({
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1).optional(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
 
-  // Mailgun
-  MAILGUN_API_KEY: z.string().min(1).optional(),
-  MAILGUN_DOMAIN: z.string().min(1).optional(),
+  // Brevo email transaccional
+  BREVO_API_KEY: z.string().min(1).optional(),
+  BREVO_SENDER_EMAIL: z.string().email().optional(),
+  BREVO_SENDER_NAME: z.string().min(1).optional(),
+  BREVO_REPLY_TO: z.string().email().optional(),
+
+  // Mailgun solo se conserva para el webhook inbound legado (/api/mailgun)
+  MAILGUN_SIGNING_KEY: z.string().min(1).optional(),
 
   // Stripe
   STRIPE_SECRET_KEY: z.string().min(1).optional(),

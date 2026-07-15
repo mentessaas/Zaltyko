@@ -130,9 +130,10 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=tu_key
 SUPABASE_SERVICE_ROLE_KEY=tu_service_key
 STRIPE_SECRET_KEY=sk_live_...
 STRIPE_WEBHOOK_SECRET=whsec_...
-MAILGUN_API_KEY=tu_api_key
-MAILGUN_DOMAIN=tu_dominio
-MAILGUN_FROM_EMAIL=noreply@tu_dominio.com
+BREVO_API_KEY=tu_api_key
+BREVO_SENDER_EMAIL=noreply@zaltyko.com
+BREVO_SENDER_NAME=Zaltyko
+BREVO_REPLY_TO=soporte@zaltyko.com
 NEXT_PUBLIC_APP_URL=https://tu-dominio.com
 ```
 
@@ -242,4 +243,3 @@ Asegúrate de tener estos scripts:
 - [GitHub Actions Docs](https://docs.github.com/en/actions)
 - [Vercel Docs](https://vercel.com/docs)
 - [Supabase CLI](https://supabase.com/docs/guides/cli)
-

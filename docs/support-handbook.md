@@ -14,7 +14,7 @@
 1. **Variables sensibles** (en `.env.local` o Secrets Manager):  
    - `DATABASE_URL`, `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_SUPABASE_URL`  
    - `SUPABASE_SERVICE_ROLE_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`  
-   - `MAILGUN_API_KEY` (opcional, pero necesario en producción para avisos)
+   - `BREVO_API_KEY` (necesaria en producción para avisos por email)
 2. **Migraciones**  
    ```bash
    pnpm db:migrate
@@ -76,7 +76,7 @@
 - Sincronización de planes: `/api/billing/sync` (solo `super_admin`).
 - Webhook `/api/stripe/webhook`:
   - Actualiza suscripciones y facturas.
-  - Envía avisos con Mailgun (`billing.invoice_paid`, `billing.invoice_issue`).
+  - Envía avisos con Brevo (`billing.invoice_paid`, `billing.invoice_issue`).
   - Registra auditoría en `billing_events`.
 
 ### 3.6 Evaluaciones (placeholder)
@@ -98,7 +98,7 @@
 4. **Facturación**
    - Verificar `billing_invoices` y `billing_events`.  
    - Confirmar webhook activo en Stripe (últimos logs).  
-   - Comprobar Mailgun si no llegan correos.
+   - Comprobar Brevo (`BREVO_API_KEY`, remitente verificado y logs de envío) si no llegan correos.
 5. **Plan límite excedido**
    - API devuelve `402 LIMIT_REACHED`. Sugerir upgrade desde facturación.
    - Confirmar `assertWithinPlanLimits` en logs/test.
@@ -141,4 +141,3 @@
 
 ---
 Mantener este documento versionado y actualizado tras cada sprint. Cualquier ajuste en RLS, flujos críticos o dependencias externas debe reflejarse aquí y en el video de soporte.
-

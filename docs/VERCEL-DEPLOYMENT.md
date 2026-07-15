@@ -50,19 +50,20 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
 SUPABASE_SERVICE_ROLE_KEY=eyJ...
 
 # NextAuth
-NEXTAUTH_URL=https://tu-app.vercel.app
+NEXTAUTH_URL=https://zaltyko.com
 NEXTAUTH_SECRET=genera-con-openssl-rand-base64-32
 
-# Mailgun
-MAILGUN_API_KEY=key-xxx
-MAILGUN_DOMAIN=tu-dominio.com
-MAILGUN_FROM_EMAIL=noreply@tu-dominio.com
+# Brevo (email transaccional)
+BREVO_API_KEY=xkeysib-xxx
+BREVO_SENDER_EMAIL=noreply@zaltyko.com
+BREVO_SENDER_NAME=Zaltyko
+BREVO_REPLY_TO=soporte@zaltyko.com
 
 # Vercel Cron
 CRON_SECRET=genera-con-openssl-rand-base64-32
 
 # URLs
-NEXT_PUBLIC_APP_URL=https://tu-app.vercel.app
+NEXT_PUBLIC_APP_URL=https://zaltyko.com
 ```
 
 **Generar Secretos:**
@@ -133,9 +134,10 @@ vercel env add NEXT_PUBLIC_SUPABASE_ANON_KEY
 vercel env add SUPABASE_SERVICE_ROLE_KEY
 vercel env add NEXTAUTH_URL
 vercel env add NEXTAUTH_SECRET
-vercel env add MAILGUN_API_KEY
-vercel env add MAILGUN_DOMAIN
-vercel env add MAILGUN_FROM_EMAIL
+vercel env add BREVO_API_KEY
+vercel env add BREVO_SENDER_EMAIL
+vercel env add BREVO_SENDER_NAME
+vercel env add BREVO_REPLY_TO
 vercel env add CRON_SECRET
 vercel env add NEXT_PUBLIC_APP_URL
 
@@ -315,4 +317,3 @@ Si algo sale mal:
 Tu aplicación debería estar funcionando en producción. Si encuentras algún problema, revisa los logs en Vercel Dashboard o usa `vercel logs`.
 
 **URL de tu app:** `https://tu-proyecto.vercel.app`
-

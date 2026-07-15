@@ -1,5 +1,4 @@
-export type MailgunConfig = {
-  subdomain: string;
+export type BrevoConfig = {
   fromNoReply: string;
   fromAdmin: string;
   supportEmail?: string;

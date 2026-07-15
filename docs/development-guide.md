@@ -7,7 +7,7 @@ Esta guía te ayudará a entender cómo contribuir al proyecto GymnaSaaS.
 - Node.js 18+ y pnpm
 - PostgreSQL 14+ o acceso a Supabase
 - Cuenta de Stripe (para desarrollo de facturación)
-- Cuenta de Mailgun (para envío de emails)
+- Cuenta de Brevo (para envío de emails transaccionales)
 
 ## Configuración del Entorno
 
@@ -38,10 +38,11 @@ SUPABASE_SERVICE_ROLE_KEY=tu_service_role_key
 STRIPE_SECRET_KEY=sk_test_...
 STRIPE_WEBHOOK_SECRET=whsec_...
 
-# Mailgun
-MAILGUN_API_KEY=tu_api_key
-MAILGUN_DOMAIN=tu_dominio
-MAILGUN_FROM_EMAIL=noreply@tu_dominio.com
+# Brevo
+BREVO_API_KEY=tu_api_key
+BREVO_SENDER_EMAIL=noreply@zaltyko.com
+BREVO_SENDER_NAME=Zaltyko
+BREVO_REPLY_TO=soporte@zaltyko.com
 
 # App
 NEXT_PUBLIC_APP_URL=http://localhost:3000

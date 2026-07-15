@@ -44,11 +44,11 @@ SENTRY_ORG=tu-org
 SENTRY_PROJECT=tu-proyecto
 NEXT_PUBLIC_SENTRY_DSN=https://tu-dsn@sentry.io/proyecto
 
-# Mailgun (Emails)
-MAILGUN_API_KEY=tu-api-key
-MAILGUN_DOMAIN=tu-dominio.com
-MAILGUN_FROM_EMAIL=noreply@tu-dominio.com
-MAILGUN_SUPPORT_EMAIL=support@tu-dominio.com
+# Brevo (Emails transaccionales)
+BREVO_API_KEY=tu-api-key
+BREVO_SENDER_EMAIL=noreply@zaltyko.com
+BREVO_SENDER_NAME=Zaltyko
+BREVO_REPLY_TO=soporte@zaltyko.com
 
 # Stripe (si usas Stripe)
 STRIPE_SECRET_KEY=sk_live_...
@@ -125,4 +125,3 @@ Luego visita: `https://tu-dominio.com/api/debug/env`
 
 - [Vercel Environment Variables](https://vercel.com/docs/concepts/projects/environment-variables)
 - [Next.js Environment Variables](https://nextjs.org/docs/app/building-your-application/configuring/environment-variables)
-

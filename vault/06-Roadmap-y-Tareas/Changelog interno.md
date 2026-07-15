@@ -9,13 +9,21 @@ source:
 
 # Changelog interno
 
+## 2026-07-15 - Cierre de producción, email transaccional y documentación
+
+El despliegue de `be946c21` quedó publicado en producción mediante el deployment de GitHub `5461247293` (`success`). `NEXT_PUBLIC_APP_URL=https://zaltyko.com` quedó configurada en Vercel Production; `zaltyko.com` responde con canonicals, `og:url`, sitemap y robots exclusivamente canónicos, sin referencias al dominio `vercel.app`.
+
+Se corrigieron los formularios públicos de contacto de eventos y academias: ahora entregan el mensaje a su destinatario mediante Brevo, usan `Reply-To` del remitente y escapan el contenido HTML. Se actualizó la documentación de despliegue, soporte, arquitectura, checklist e integraciones para reflejar Brevo como proveedor activo; Mailgun queda únicamente como webhook inbound legado compatible.
+
+Verificación final: `pnpm typecheck`, `pnpm lint`, `pnpm test -- --run` (59 archivos, 477 tests), `pnpm build` (219 páginas) y smoke HTTP en producción, todos correctos. Se eliminó un deployment manual duplicado que había quedado atascado sin alias.
+
 ## 2026-07-15 - Cierre CRO/SEO y coherencia de integraciones
 
 Los nueve commits de CRO/marketing (`45d7048e`, `7980aff1`, `715d7aae`, `b5541a2a`, `b7fbf4b7`, `a34dfd40`, `e8f26139`, `b9e04d4c` y `d862e4b9`) quedaron integrados mediante PR #37 (`793d7eb4`). Se corrigieron páginas públicas, copy de academias/coaches, trust line del trial y canonical de auth.
 
 Después de verificar producción se cerraron en código los huecos que sí eran responsabilidad del repositorio: helper `getPublicSiteUrl()` para impedir que Vercel o túneles aparezcan como canonicals, canonicals App Router para directorios, ayuda, FAQ, eventos, marketplace, empleo y auth, `FAQPage` JSON-LD en `/faq` y `/ayuda`, y sitemap ampliado con `/coaches` y `/faq`. La página de integraciones ahora identifica correctamente Brevo (no Mailgun) y deja explícito que WhatsApp externo sigue sujeto a validación del proveedor; la comunicación interna continúa siendo la prioridad v1.
 
-**Pendiente externo, no simulado**: Vercel Production debe tener `NEXT_PUBLIC_APP_URL=https://zaltyko.com` y requiere redeploy; la verificación live detectó todavía 76 URLs del sitemap apuntando a `zaltyko.vercel.app`. Stripe Connect live continúa bloqueado hasta registrar el webhook, configurar `STRIPE_CONNECT_WEBHOOK_SECRET`/`NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` y ejecutar QA de cobros, SCA/3DS y reembolsos con credenciales autorizadas.
+**Pendiente externo, no simulado**: Stripe Connect live continúa bloqueado hasta registrar el webhook y ejecutar QA de cobros, SCA/3DS y reembolsos con credenciales autorizadas. La corrección SEO de Vercel quedó aplicada y verificada.
 
 ## 2026-07-15 - Módulo "Cobros y cuotas" con Stripe Connect Standard (10 fases)
 

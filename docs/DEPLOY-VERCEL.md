@@ -35,17 +35,18 @@ DATABASE_URL=postgresql://...
 NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
 SUPABASE_SERVICE_ROLE_KEY=eyJ...
-NEXTAUTH_URL=https://tu-proyecto.vercel.app
+NEXTAUTH_URL=https://zaltyko.com
 NEXTAUTH_SECRET=genera-con-openssl-rand-base64-32
 CRON_SECRET=genera-con-openssl-rand-base64-32
-NEXT_PUBLIC_APP_URL=https://tu-proyecto.vercel.app
+NEXT_PUBLIC_APP_URL=https://zaltyko.com
 ```
 
 **OPCIONALES (pero recomendadas):**
 ```
-MAILGUN_API_KEY=key-xxx
-MAILGUN_DOMAIN=tu-dominio.com
-MAILGUN_FROM_EMAIL=noreply@tu-dominio.com
+BREVO_API_KEY=xkeysib-xxx
+BREVO_SENDER_EMAIL=noreply@zaltyko.com
+BREVO_SENDER_NAME=Zaltyko
+BREVO_REPLY_TO=soporte@zaltyko.com
 STRIPE_SECRET_KEY=sk_...
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_...
 ```
@@ -107,9 +108,10 @@ vercel env add CRON_SECRET production
 vercel env add NEXT_PUBLIC_APP_URL production
 
 # Opcionales
-vercel env add MAILGUN_API_KEY production
-vercel env add MAILGUN_DOMAIN production
-vercel env add MAILGUN_FROM_EMAIL production
+vercel env add BREVO_API_KEY production
+vercel env add BREVO_SENDER_EMAIL production
+vercel env add BREVO_SENDER_NAME production
+vercel env add BREVO_REPLY_TO production
 ```
 
 ### Paso 4: Deploy a Producción
@@ -177,4 +179,3 @@ Una vez desplegado, tu app estará en:
 **https://tu-proyecto.vercel.app**
 
 Para más detalles, consulta `docs/VERCEL-DEPLOYMENT.md`
-

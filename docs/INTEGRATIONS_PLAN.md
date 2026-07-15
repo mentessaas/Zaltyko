@@ -45,7 +45,7 @@ Este documento define la estrategia de integraciones con servicios externos para
 
 **Costos estimados**: $0.005-0.01 por mensaje
 
-#### Email Marketing (Mailgun/SendGrid) ⭐⭐⭐
+#### Email transaccional y marketing (Brevo) ⭐⭐⭐
 
 **Caso de uso**:
 - Newsletters de academia
@@ -53,7 +53,7 @@ Este documento define la estrategia de integraciones con servicios externos para
 - Campañas de re-engagement
 - Invitaciones a eventos
 
-**Ya implementado**: ✅ Mailgun configurado
+**Ya implementado**: ✅ Cliente Brevo para emails transaccionales (`src/lib/brevo.ts`)
 
 **Mejoras pendientes**:
 - [ ] Templates profesionales
@@ -459,7 +459,7 @@ CREATE TABLE integration_logs (
 | Integración | Costo Mensual | Por Usuario | Notas |
 |-------------|---------------|-------------|-------|
 | WhatsApp (Twilio) | Variable | ~$0.01/msg | Depende de volumen |
-| Mailgun | $35-80 | - | 50k-100k emails/mes |
+| Brevo | Variable | - | Según plan y volumen contratado |
 | OneSignal | $0-99 | - | Free hasta 10k usuarios |
 | Cloudinary | $99-249 | - | Plan Pro recomendado |
 | Zoom | $15-20 | Por host | Plan Pro |

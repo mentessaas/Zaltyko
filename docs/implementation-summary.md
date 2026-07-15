@@ -27,7 +27,7 @@
 **Características:**
 - Mocks realistas para Supabase Client
 - Mocks para Stripe API
-- Mocks para Mailgun
+- Mocks para el servicio de email transaccional (Brevo)
 - Mocks para Drizzle DB
 - Estructura lista para tests completos
 
@@ -120,4 +120,3 @@ psql $DATABASE_URL -f src/db/migrations/add_performance_indexes.sql
 - Para producción, considera usar Redis para persistencia
 - Los tests están estructurados pero requieren configuración adicional
 - La documentación de CI/CD y Monitoring está completa y lista para usar
-

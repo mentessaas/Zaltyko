@@ -5,6 +5,9 @@ import { z } from "zod";
 import { db } from "@/db";
 import { events } from "@/db/schema";
 import { handleApiError } from "@/lib/api-error-handler";
+import { sendEmail } from "@/lib/brevo";
+import { config } from "@/config";
+import { escapeHtml } from "@/lib/email/escape-html";
 import { withRateLimit, getClientIdentifier } from "@/lib/rate-limit";
 import { logger } from "@/lib/logger";
 
@@ -77,9 +80,19 @@ async function contactHandler(request: Request, context: RouteContext) {
 
     const { name, email, phone, message } = parsed.data;
 
-    // TODO: Integrar con servicio de email (Mailgun, SendGrid, etc.)
-    // Por ahora, solo retornamos éxito
-    // En producción, aquí se enviaría el email al organizador del evento
+    const recipient = event.contactEmail || config.brevo.supportEmail;
+    const safeName = escapeHtml(name);
+    const safeEmail = escapeHtml(email);
+    const safePhone = escapeHtml(phone || "No indicado");
+    const safeMessage = escapeHtml(message).replace(/\n/g, "<br />");
+
+    await sendEmail({
+      to: recipient,
+      replyTo: email,
+      subject: `Nuevo contacto sobre el evento: ${event.title}`,
+      text: `Nombre: ${name}\nEmail: ${email}\nTeléfono: ${phone || "No indicado"}\n\n${message}`,
+      html: `<h2>Nuevo contacto sobre el evento</h2><p><strong>Evento:</strong> ${escapeHtml(event.title)}</p><p><strong>Nombre:</strong> ${safeName}</p><p><strong>Email:</strong> ${safeEmail}</p><p><strong>Teléfono:</strong> ${safePhone}</p><p><strong>Mensaje:</strong><br />${safeMessage}</p>`,
+    });
 
     // Log del contacto (opcional, para debugging)
     logger.info("Event contact form submitted", {
@@ -112,4 +125,3 @@ export const POST = async (request: Request, context: RouteContext) => {
     }
   )(request as any);
 };
-

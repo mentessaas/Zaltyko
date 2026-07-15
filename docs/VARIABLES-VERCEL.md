@@ -14,23 +14,24 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 # NextAuth
-NEXTAUTH_URL=https://tu-proyecto.vercel.app
+NEXTAUTH_URL=https://zaltyko.com
 NEXTAUTH_SECRET=GENERA_CON_OPENSSL_RAND_BASE64_32
 
 # Vercel Cron
 CRON_SECRET=GENERA_CON_OPENSSL_RAND_BASE64_32
 
 # App URL
-NEXT_PUBLIC_APP_URL=https://tu-proyecto.vercel.app
+NEXT_PUBLIC_APP_URL=https://zaltyko.com
 ```
 
 ## 📧 Variables OPCIONALES (pero recomendadas)
 
 ```bash
-# Mailgun (para emails)
-MAILGUN_API_KEY=key-xxx
-MAILGUN_DOMAIN=tu-dominio.com
-MAILGUN_FROM_EMAIL=noreply@tu-dominio.com
+# Brevo (email transaccional)
+BREVO_API_KEY=xkeysib-xxx
+BREVO_SENDER_EMAIL=noreply@zaltyko.com
+BREVO_SENDER_NAME=Zaltyko
+BREVO_REPLY_TO=soporte@zaltyko.com
 
 # Stripe (si usas Stripe)
 STRIPE_SECRET_KEY=sk_live_...
@@ -54,8 +55,8 @@ openssl rand -base64 32
 
 ## 📝 Notas
 
-- **NEXTAUTH_URL**: Debe ser la URL completa de tu app en Vercel (ej: `https://zaltyko.vercel.app`)
-- **NEXT_PUBLIC_APP_URL**: Misma URL que NEXTAUTH_URL
+- **NEXTAUTH_URL**: Debe ser la URL pública canónica (`https://zaltyko.com`)
+- **NEXT_PUBLIC_APP_URL**: Misma URL que NEXTAUTH_URL (`https://zaltyko.com`)
 - **CRON_SECRET**: Se usa para proteger los endpoints de cron jobs
 - Todas las variables `NEXT_PUBLIC_*` son públicas y se exponen al cliente
 - Las demás son privadas y solo accesibles en el servidor
@@ -66,4 +67,3 @@ openssl rand -base64 32
 - [ ] Secretos generados con `openssl rand -base64 32`
 - [ ] Variables disponibles para **Production**, **Preview** y **Development**
 - [ ] URLs actualizadas con el dominio real de Vercel
-

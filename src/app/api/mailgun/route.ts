@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
     const formData = await req.formData();
     const fd = formData as unknown as { get(name: string): unknown };
 
-    // Get your HTTP webhook signing key from https://app.mailgun.com/mg/sending/mg.<yourdomain>/webhooks and add it to .env.local
+    // Legacy inbound webhook: Mailgun forwards replies to Brevo/support while the route is retained for compatibility.
     const signingKey = process.env.MAILGUN_SIGNING_KEY as string;
     if (!signingKey) {
       logger.error("MAILGUN_SIGNING_KEY is not configured");

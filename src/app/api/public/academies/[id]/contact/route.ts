@@ -7,6 +7,10 @@ import { z } from "zod";
 import { db } from "@/db";
 import { academies, profiles } from "@/db/schema";
 import { handleApiError } from "@/lib/api-error-handler";
+import { authUsers } from "@/db/schema";
+import { sendEmail } from "@/lib/brevo";
+import { config } from "@/config";
+import { escapeHtml } from "@/lib/email/escape-html";
 import { withRateLimit, getClientIdentifier } from "@/lib/rate-limit";
 import { logger } from "@/lib/logger";
 
@@ -86,16 +90,27 @@ async function contactHandler(request: Request, context?: { params?: Promise<{ i
     // Obtener email del propietario de la academia desde Supabase Auth
     const [ownerProfile] = await db
       .select({
-        userId: profiles.userId,
         name: profiles.name,
+        email: authUsers.email,
       })
       .from(profiles)
+      .innerJoin(authUsers, eq(authUsers.id, profiles.userId))
       .where(eq(profiles.id, academy.ownerId))
       .limit(1);
 
-    // TODO: Integrar con servicio de email (Mailgun, SendGrid, etc.)
-    // Por ahora, solo retornamos éxito
-    // En producción, aquí se enviaría el email al propietario de la academia
+    const recipient = ownerProfile?.email || config.brevo.supportEmail;
+    const safeName = escapeHtml(name);
+    const safeEmail = escapeHtml(email);
+    const safePhone = escapeHtml(phone || "No indicado");
+    const safeMessage = escapeHtml(message).replace(/\n/g, "<br />");
+
+    await sendEmail({
+      to: recipient,
+      replyTo: email,
+      subject: `Nuevo contacto para ${academy.name}`,
+      text: `Academia: ${academy.name}\nNombre: ${name}\nEmail: ${email}\nTeléfono: ${phone || "No indicado"}\n\n${message}`,
+      html: `<h2>Nuevo contacto para ${escapeHtml(academy.name)}</h2><p><strong>Nombre:</strong> ${safeName}</p><p><strong>Email:</strong> ${safeEmail}</p><p><strong>Teléfono:</strong> ${safePhone}</p><p><strong>Mensaje:</strong><br />${safeMessage}</p>`,
+    });
 
     // Log del contacto (opcional, para debugging)
     logger.info("Contact form submitted", {

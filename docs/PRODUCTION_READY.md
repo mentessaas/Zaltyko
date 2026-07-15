@@ -89,9 +89,11 @@ Ve a Vercel Dashboard → Tu Proyecto → Settings → Environment Variables y a
 - `LEMONSQUEEZY_API_KEY` - API key de Lemon Squeezy
 - `LEMONSQUEEZY_WEBHOOK_SECRET` - Webhook secret
 
-#### Si usas Mailgun:
-- `MAILGUN_API_KEY` - API key de Mailgun
-- `MAILGUN_DOMAIN` - Dominio de Mailgun
+#### Email transaccional (Brevo):
+- `BREVO_API_KEY` - API key de Brevo
+- `BREVO_SENDER_EMAIL` - remitente verificado
+- `BREVO_SENDER_NAME` - nombre del remitente
+- `BREVO_REPLY_TO` - dirección para respuestas
 
 ### 3. Configurar Webhooks
 
@@ -201,4 +203,3 @@ La aplicación está completamente preparada para producción. Solo necesitas:
 3. Seguir el checklist post-deployment
 
 ¡Buena suerte con tu deployment! 🚀
-

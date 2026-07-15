@@ -7,7 +7,7 @@ Esta guía te ayudará a desplegar Zaltyko en producción usando Vercel.
 1. **Cuenta de Vercel**: [vercel.com](https://vercel.com)
 2. **Proyecto Supabase**: Configurado con base de datos PostgreSQL
 3. **Cuenta de Stripe**: Para procesamiento de pagos (opcional)
-4. **Cuenta de Mailgun**: Para envío de emails (opcional)
+4. **Cuenta de Brevo**: Para envío de emails transaccionales (opcional)
 5. **Dominio**: Para producción (opcional pero recomendado)
 
 ## Paso 1: Preparar Supabase
@@ -85,10 +85,12 @@ STRIPE_SECRET_KEY=sk_live_...
 STRIPE_WEBHOOK_SECRET=whsec_...
 ```
 
-#### Mailgun (Opcional)
+#### Brevo (Opcional)
 ```
-MAILGUN_API_KEY=your-api-key
-MAILGUN_DOMAIN=mg.yourdomain.com
+BREVO_API_KEY=xkeysib-...
+BREVO_SENDER_EMAIL=noreply@zaltyko.com
+BREVO_SENDER_NAME=Zaltyko
+BREVO_REPLY_TO=soporte@zaltyko.com
 ```
 
 #### Lemon Squeezy (Opcional)
@@ -276,4 +278,3 @@ Antes de hacer deploy a producción:
 - [Documentación de Next.js](https://nextjs.org/docs)
 - [Documentación de Supabase](https://supabase.com/docs)
 - [Documentación de Stripe](https://stripe.com/docs)
-

@@ -65,9 +65,11 @@ production
 - `LEMONSQUEEZY_API_KEY`: API key de producción
 - `LEMONSQUEEZY_WEBHOOK_SECRET`: Secret del webhook
 
-#### Mailgun
-- `MAILGUN_API_KEY`: API key de Mailgun
-- `MAILGUN_DOMAIN`: Dominio verificado en Mailgun
+#### Brevo
+- `BREVO_API_KEY`: API key de Brevo
+- `BREVO_SENDER_EMAIL`: remitente verificado
+- `BREVO_SENDER_NAME`: nombre del remitente
+- `BREVO_REPLY_TO`: dirección para respuestas
 
 #### Sentry (Recomendado)
 - `NEXT_PUBLIC_SENTRY_DSN`: DSN público de Sentry
@@ -148,4 +150,3 @@ Antes de hacer deploy, verifica:
 - [Documentación de Vercel](https://vercel.com/docs)
 - [Documentación de Supabase](https://supabase.com/docs)
 - [Documentación de Next.js](https://nextjs.org/docs)
-

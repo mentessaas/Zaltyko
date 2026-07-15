@@ -23,7 +23,7 @@ graph TD
     
     subgraph "Servicios Externos"
         StripeSDK <-->|Webhooks| StripeAPI[Stripe API]
-        Server -->|Emails| Mailgun[Mailgun API]
+        Server -->|Emails transaccionales| Brevo[Brevo API]
     end
 ```
 

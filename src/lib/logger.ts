@@ -132,7 +132,7 @@ class Logger {
   }
 
   /**
-   * Log de operaciones de integraciones externas (Stripe, Mailgun, etc.)
+   * Log de operaciones de integraciones externas (Stripe, Brevo, etc.)
    */
   externalService(
     service: string,
@@ -159,4 +159,3 @@ class Logger {
 }
 
 export const logger = new Logger();
-

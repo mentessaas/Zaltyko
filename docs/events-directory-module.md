@@ -201,7 +201,7 @@ Las notificaciones son **opcionales** y se controlan mediante toggles en el form
 - Si todos los toggles están en `false`, no se envía ninguna notificación
 - Las notificaciones se envían automáticamente al crear o editar un evento si los toggles están activados
 - Las notificaciones buscan academias según la ubicación del evento usando los campos `country_code`, `province_name`, `city_name`
-- Se usa el servicio de email (Mailgun) para enviar las notificaciones
+- Se usa el servicio de email transaccional Brevo para enviar las notificaciones
 
 ## UI Pública
 
@@ -395,4 +395,3 @@ Los tipos están definidos en `src/types/events.ts`:
 - `registration_start_date` y `registration_end_date`
 - Visualización en páginas públicas
 - Validación de fechas respecto al evento
-

@@ -49,9 +49,11 @@ STRIPE_WEBHOOK_SECRET=whsec_...
 LEMONSQUEEZY_API_KEY=...
 LEMONSQUEEZY_WEBHOOK_SECRET=...
 
-# Mailgun (si usas)
-MAILGUN_API_KEY=...
-MAILGUN_DOMAIN=mg.tudominio.com
+# Brevo (email transaccional)
+BREVO_API_KEY=...
+BREVO_SENDER_EMAIL=noreply@zaltyko.com
+BREVO_SENDER_NAME=Zaltyko
+BREVO_REPLY_TO=soporte@zaltyko.com
 ```
 
 ## 📋 Paso 2: Preparar Supabase
@@ -166,4 +168,3 @@ Después del deploy, verifica:
 Una vez completados estos pasos, tu aplicación estará en producción.
 
 **Tiempo estimado**: 15-30 minutos
-
