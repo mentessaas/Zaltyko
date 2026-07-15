@@ -62,9 +62,12 @@ Todas con RLS tenant (defensa en profundidad; el aislamiento real lo dan los wra
 - Doble cobro evitado con `pg_advisory_xact_lock(hashtext(chargeId))` + idempotency key por (cargo, intento).
 - Aislamiento por academia: operaciones con `Stripe-Account` de esa academia + `verifyAcademyAccess`.
 
-## Pendiente antes de producción
+## Checklist de go-live
 
-- QA end-to-end en Stripe sandbox (onboarding, cobro, SCA/3DS, fallo/reintento, reembolso, webhooks).
-- Aplicar las 5 migraciones a la DB real.
-- Registrar el webhook de Connect con su secret.
-- Integración fiscal externa (Holded/Quipu) = fuera de alcance; se deja preparada vía export.
+1. ~~Aplicar las migraciones a la DB~~ **HECHO 2026-07-15** (6 migraciones, verificadas: 38/0 pendientes).
+2. **Mergear** `feat/cobros-cuotas-stripe-connect` → `main` (dispara deploy en Vercel).
+3. **Env en Vercel (Production)**: definir `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` y `STRIPE_CONNECT_WEBHOOK_SECRET` (este último lo obtienes en el paso 4).
+4. **Registrar el webhook de Connect** en Stripe apuntando a `https://zaltyko.com/api/stripe/connect/webhook` con eventos `account.updated`, `payment_intent.succeeded`, `payment_intent.payment_failed`, `payment_intent.canceled`, `charge.refunded`. Atajo: `STRIPE_SECRET_KEY=sk_live_... tsx scripts/register-connect-webhook.ts https://zaltyko.com` (imprime el signing secret para el paso 3).
+5. **QA end-to-end en Stripe test mode** con una cuenta Connect de prueba: onboarding, guardar tarjeta (4242…), cobro off-session, SCA (`4000 0027 6000 3184`), rechazo (`4000…0002`), reembolso, y verificar que los webhooks reconcilian el ledger. Solo tras esto, invitar a una academia real a conectar Stripe.
+
+Integración fiscal externa (Holded/Quipu) = fuera de alcance; se deja preparada vía export.
