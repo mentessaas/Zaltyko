@@ -24,8 +24,8 @@ const integrations = [
     status: "connected",
   },
   {
-    name: "Email Transaccional",
-    description: "Envía emails automáticos a atletas, padres y entrenadores. Notificaciones, recordatorios y comunicaciones personalizadas.",
+    name: "Mailgun",
+    description: "Email transaccional con Mailgun. Envía emails automáticos a atletas, padres y entrenadores.",
     icon: Mail,
     features: ["Emails de bienvenida", "Recordatorios de pago", "Notificaciones de clases", "Plantillas personalizables"],
     status: "connected",
@@ -72,10 +72,13 @@ export default function IntegrationsPage() {
             Integraciones
           </span>
           <h1 className="font-display text-4xl font-bold tracking-tight text-zaltyko-text-main sm:text-5xl">
-            Conecta con tus herramientas favoritas
+            Integraciones de Zaltyko: pagos, emails y más
           </h1>
           <p className="mt-6 mx-auto max-w-2xl text-lg text-zaltyko-text-secondary">
-            Zaltyko se integra con los servicios que ya usas. Automatiza procesos y ahorra tiempo.
+            Pagos con Stripe, emails transaccionales con Mailgun y otras integraciones en roadmap. Automatiza cobros y comunicaciones desde un único panel.
+          </p>
+          <p className="mt-3 text-sm font-medium text-zaltyko-text-secondary">
+            2 integraciones activas · 4 próximamente
           </p>
         </div>
       </section>
