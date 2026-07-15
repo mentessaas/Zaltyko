@@ -14,8 +14,9 @@ import FaqSection from "@/app/(site)/home/FaqSection";
 import FinalCtaSection from "@/app/(site)/home/FinalCtaSection";
 import Footer from "@/app/(site)/Footer";
 import StickyCtaBar from "@/app/(site)/home/StickyCtaBar";
+import { getPublicSiteUrl } from "@/lib/seo/site-url";
 
-const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://zaltyko.com";
+const baseUrl = getPublicSiteUrl();
 
 export const metadata: Metadata = {
   title: "Zaltyko – Software de Gestión para Academias de Gimnasia",

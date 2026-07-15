@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Navbar from "@/app/(site)/Navbar";
 import Footer from "@/app/(site)/Footer";
+import { getPublicSiteUrl } from "@/lib/seo/site-url";
 
-const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://zaltyko.com";
+const baseUrl = getPublicSiteUrl();
 
 export const metadata: Metadata = {
   title: "Blog",

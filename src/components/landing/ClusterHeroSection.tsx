@@ -8,6 +8,7 @@ import { ArrowRight, Sparkles, Shield, Zap, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import type { ClusterContent } from "@/lib/seo/clusters";
+import { getPublicSiteUrl } from "@/lib/seo/site-url";
 
 interface ClusterHeroSectionProps {
   content: ClusterContent;
@@ -26,7 +27,7 @@ function ClusterHeroSectionImpl({
   modalitySlug,
   countrySlug,
 }: ClusterHeroSectionProps) {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://zaltyko.com";
+  const baseUrl = getPublicSiteUrl();
 
   return (
     <section className="relative flex min-h-[70vh] items-center bg-white">

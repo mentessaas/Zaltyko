@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 import { ArrowLeft, MapPin, Phone, Mail } from "lucide-react";
 import { AdBanner } from "@/components/advertising/AdBanner";
 import { canUsePublicDemoData, demoMarketplaceListing } from "@/lib/public/demo-listings";
+import { getPublicSiteUrl } from "@/lib/seo/site-url";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -51,6 +52,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title: `${data.item.title} | Marketplace Zaltyko`,
     description: data.item.description,
+    alternates: {
+      canonical: `${getPublicSiteUrl()}/marketplace/${id}`,
+    },
   };
 }
 

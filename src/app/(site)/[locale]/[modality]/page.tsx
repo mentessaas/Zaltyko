@@ -12,6 +12,7 @@ import {
 } from "@/lib/seo/clusters";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
+import { getPublicSiteUrl } from "@/lib/seo/site-url";
 
 const VALID_LOCALES = ["es", "en"] as const;
 const VALID_MODALITIES = Object.keys(MODALITIES) as ModalitySlug[];
@@ -56,7 +57,7 @@ export async function generateMetadata({
   }
 
   const modalityLabel = MODALITIES[modalityKey].label[locale as Locale];
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://zaltyko.com";
+  const baseUrl = getPublicSiteUrl();
   const canonicalUrl = `${baseUrl}/${locale}/${modality}`;
 
   const titles = {

@@ -3,14 +3,18 @@ import { MarketplaceCard } from "@/components/marketplace/MarketplaceCard";
 import { MarketplaceFilters } from "@/components/marketplace/MarketplaceFilters";
 import { AdBanner } from "@/components/advertising/AdBanner";
 import { PublicPageHeader } from "@/components/public/PublicPageHeader";
+import { getPublicSiteUrl } from "@/lib/seo/site-url";
 
 export const metadata: Metadata = {
   title: "Marketplace de Gimnasia",
   description: "Compra y vende productos y servicios para gimnastas. Encuentra ropa, equipamiento, suplementos y más.",
+  alternates: {
+    canonical: `${getPublicSiteUrl()}/marketplace`,
+  },
   openGraph: {
     title: "Marketplace de Gimnasia",
     description: "Compra y vende productos y servicios para gimnastas",
-    url: "/marketplace",
+    url: `${getPublicSiteUrl()}/marketplace`,
     type: "website",
   },
 };

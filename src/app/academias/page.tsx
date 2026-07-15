@@ -3,14 +3,18 @@ import Link from "next/link";
 import { AcademiesFilters } from "@/components/public/AcademiesFilters";
 import { AcademiesGrid } from "@/components/public/AcademiesGrid";
 import { getPublicAcademies } from "@/app/actions/public/get-public-academies";
+import { getPublicSiteUrl } from "@/lib/seo/site-url";
 
 export const metadata: Metadata = {
   title: "Directorio de Academias de Gimnasia | Zaltyko",
   description: "Encuentra academias de gimnasia artística y rítmica cerca de ti.",
+  alternates: {
+    canonical: `${getPublicSiteUrl()}/academias`,
+  },
   openGraph: {
     title: "Directorio de Academias de Gimnasia | Zaltyko",
     description: "Encuentra academias de gimnasia artística y rítmica cerca de ti",
-    url: "/academias",
+    url: `${getPublicSiteUrl()}/academias`,
     type: "website",
   },
 };

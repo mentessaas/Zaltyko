@@ -1,7 +1,8 @@
 import type { MetadataRoute } from "next";
+import { getPublicSiteUrl } from "@/lib/seo/site-url";
 
 export default function robots(): MetadataRoute.Robots {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://zaltyko.com";
+  const baseUrl = getPublicSiteUrl();
 
   return {
     rules: [
@@ -20,4 +21,3 @@ export default function robots(): MetadataRoute.Robots {
     sitemap: `${baseUrl}/sitemap.xml`,
   };
 }
-

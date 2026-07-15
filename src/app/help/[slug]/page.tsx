@@ -6,6 +6,7 @@ import { ArrowLeft, CheckCircle2 } from "lucide-react";
 import Navbar from "@/app/(site)/Navbar";
 import Footer from "@/app/(site)/Footer";
 import { getHelpArticle, helpArticles } from "@/lib/help/articles";
+import { getPublicSiteUrl } from "@/lib/seo/site-url";
 
 interface HelpArticlePageProps {
   params: Promise<{ slug: string }>;
@@ -23,6 +24,9 @@ export async function generateMetadata({ params }: HelpArticlePageProps): Promis
   return {
     title: `${article.title} | Ayuda Zaltyko`,
     description: article.summary,
+    alternates: {
+      canonical: `${getPublicSiteUrl()}/help/${slug}`,
+    },
   };
 }
 

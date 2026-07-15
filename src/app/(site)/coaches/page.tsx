@@ -7,12 +7,16 @@ import { coaches, academies } from "@/db/schema";
 
 import Image from "next/image";
 import { cn } from "@/lib/utils";
+import { getPublicSiteUrl } from "@/lib/seo/site-url";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Directorio de Coaches de Gimnasia",
   description:
     "Encuentra entrenadores de gimnasia artística y rítmica en academias que dirigen sus clases con Zaltyko.",
+  alternates: {
+    canonical: `${getPublicSiteUrl()}/coaches`,
+  },
   keywords: [
     "entrenadores gimnasia",
     "coaches gimnasia artística",
@@ -166,4 +170,3 @@ export default async function CoachesPublicPage({ searchParams }: PageProps) {
     </div>
   );
 }
-

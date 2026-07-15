@@ -1,6 +1,4 @@
 "use client";
-import SEO from "@/utils/seo";
-
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -194,13 +192,6 @@ export function LoginForm() {
 
   return (
     <>
-      <SEO
-        title="Zaltyko · Iniciar sesión"
-        description="Accede con tu correo y contraseña para gestionar tu academia."
-        canonicalUrl={`${process.env.NEXT_PUBLIC_APP_URL ?? "https://zaltyko.com"}/auth/login`}
-        ogImageUrl="https://zaltyko.com/og-image.png"
-        twitterHandle="zaltyko"
-      />
       <AuthPageShell
         title="Bienvenido de nuevo"
         description="Accede para gestionar atletas, clases, pagos y comunicación desde tu academia."

@@ -3,8 +3,9 @@ import Link from "next/link";
 import Navbar from "@/app/(site)/Navbar";
 import Footer from "@/app/(site)/Footer";
 import { Check, CreditCard, Calendar, Mail, Zap } from "lucide-react";
+import { getPublicSiteUrl } from "@/lib/seo/site-url";
 
-const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://zaltyko.com";
+const baseUrl = getPublicSiteUrl();
 
 export const metadata: Metadata = {
   title: "Integraciones | Software para academias de gimnasia",
@@ -24,8 +25,8 @@ const integrations = [
     status: "connected",
   },
   {
-    name: "Mailgun",
-    description: "Email transaccional con Mailgun. Envía emails automáticos a atletas, padres y entrenadores.",
+    name: "Brevo",
+    description: "Email transaccional con Brevo. Envía emails automáticos a atletas, padres y entrenadores.",
     icon: Mail,
     features: ["Emails de bienvenida", "Recordatorios de pago", "Notificaciones de clases", "Plantillas personalizables"],
     status: "connected",
@@ -75,10 +76,13 @@ export default function IntegrationsPage() {
             Integraciones de Zaltyko: pagos, emails y más
           </h1>
           <p className="mt-6 mx-auto max-w-2xl text-lg text-zaltyko-text-secondary">
-            Pagos con Stripe, emails transaccionales con Mailgun y otras integraciones en roadmap. Automatiza cobros y comunicaciones desde un único panel.
+            Pagos con Stripe, emails transaccionales con Brevo y otras integraciones en roadmap. Automatiza cobros y comunicaciones desde un único panel.
           </p>
           <p className="mt-3 text-sm font-medium text-zaltyko-text-secondary">
             2 integraciones activas · 4 próximamente
+          </p>
+          <p className="mt-2 text-xs text-zaltyko-text-secondary">
+            La comunicación interna vive en Zaltyko; las conexiones externas, como WhatsApp Business, siguen sujetas a configuración y validación del proveedor.
           </p>
         </div>
       </section>

@@ -5,8 +5,9 @@ import Footer from "@/app/(site)/Footer";
 import PricingSection from "@/app/(site)/pricing";
 import { Schema } from "@/components/Schema";
 import { PRODUCT_PLAN_BY_CODE } from "@/lib/plans/catalog";
+import { getPublicSiteUrl } from "@/lib/seo/site-url";
 
-const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://zaltyko.com";
+const baseUrl = getPublicSiteUrl();
 
 export const metadata: Metadata = {
   title: "Planes y Precios para Academias de Gimnasia",

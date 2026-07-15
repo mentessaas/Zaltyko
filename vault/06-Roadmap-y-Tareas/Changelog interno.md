@@ -9,6 +9,14 @@ source:
 
 # Changelog interno
 
+## 2026-07-15 - Cierre CRO/SEO y coherencia de integraciones
+
+Los nueve commits de CRO/marketing (`45d7048e`, `7980aff1`, `715d7aae`, `b5541a2a`, `b7fbf4b7`, `a34dfd40`, `e8f26139`, `b9e04d4c` y `d862e4b9`) quedaron integrados mediante PR #37 (`793d7eb4`). Se corrigieron páginas públicas, copy de academias/coaches, trust line del trial y canonical de auth.
+
+Después de verificar producción se cerraron en código los huecos que sí eran responsabilidad del repositorio: helper `getPublicSiteUrl()` para impedir que Vercel o túneles aparezcan como canonicals, canonicals App Router para directorios, ayuda, FAQ, eventos, marketplace, empleo y auth, `FAQPage` JSON-LD en `/faq` y `/ayuda`, y sitemap ampliado con `/coaches` y `/faq`. La página de integraciones ahora identifica correctamente Brevo (no Mailgun) y deja explícito que WhatsApp externo sigue sujeto a validación del proveedor; la comunicación interna continúa siendo la prioridad v1.
+
+**Pendiente externo, no simulado**: Vercel Production debe tener `NEXT_PUBLIC_APP_URL=https://zaltyko.com` y requiere redeploy; la verificación live detectó todavía 76 URLs del sitemap apuntando a `zaltyko.vercel.app`. Stripe Connect live continúa bloqueado hasta registrar el webhook, configurar `STRIPE_CONNECT_WEBHOOK_SECRET`/`NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` y ejecutar QA de cobros, SCA/3DS y reembolsos con credenciales autorizadas.
+
 ## 2026-07-15 - Módulo "Cobros y cuotas" con Stripe Connect Standard (10 fases)
 
 Construye la capa de cobro real sobre el ledger `charges` existente, manteniendo a la academia como merchant of record y a Zaltyko fuera de la custodia de fondos y de lo fiscal. Arquitectura: **Stripe Connect Standard + direct charges + tarjeta Stripe-hosted + ledger `charges` como fuente de verdad**. Bizum/efectivo/transferencia siguen como pago manual.

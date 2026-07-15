@@ -4,8 +4,9 @@ import Navbar from "@/app/(site)/Navbar";
 import Footer from "@/app/(site)/Footer";
 import { MessageCircle, Mail, ChevronRight, Search } from "lucide-react";
 import { helpCategories } from "@/lib/help/articles";
+import { getPublicSiteUrl } from "@/lib/seo/site-url";
 
-const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://zaltyko.com";
+const baseUrl = getPublicSiteUrl();
 
 export const metadata: Metadata = {
   title: "Centro de Ayuda para Academias de Gimnasia",
@@ -13,6 +14,13 @@ export const metadata: Metadata = {
     "Encuentra respuestas a tus preguntas sobre Zaltyko. Guías, tutoriales y documentación para administrar tu academia de gimnasia.",
   alternates: {
     canonical: `${baseUrl}/ayuda`,
+  },
+  openGraph: {
+    title: "Centro de Ayuda para Academias de Gimnasia",
+    description:
+      "Encuentra respuestas sobre gimnastas, cobros, clases y gestión de tu academia.",
+    url: `${baseUrl}/ayuda`,
+    type: "website",
   },
 };
 
@@ -42,6 +50,19 @@ const faqs = [
     answer: "Desde el panel de Cobros de tu academia puedes cambiar de plan; Stripe gestiona el ajuste de la facturación.",
   },
 ];
+
+const faqSchema = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: faqs.map((faq) => ({
+    "@type": "Question",
+    name: faq.question,
+    acceptedAnswer: {
+      "@type": "Answer",
+      text: faq.answer,
+    },
+  })),
+};
 
 export default function HelpPage() {
   return (
@@ -150,6 +171,10 @@ export default function HelpPage() {
       </section>
 
       <Footer />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
+      />
     </div>
   );
 }

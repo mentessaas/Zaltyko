@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Navbar from "@/app/(site)/Navbar";
 import Footer from "@/app/(site)/Footer";
+import { getPublicSiteUrl } from "@/lib/seo/site-url";
 
-const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://zaltyko.com";
+const baseUrl = getPublicSiteUrl();
 
 const updatedAt = "8 de noviembre de 2025";
 
@@ -51,7 +52,7 @@ const sections = [
   {
     title: "6. Compartición de datos",
     content: [
-      "Proveedores esenciales: Supabase, Stripe, Mailgun y herramientas de observabilidad necesarias para operar el servicio.",
+      "Proveedores esenciales: Supabase, Stripe, Brevo y herramientas de observabilidad necesarias para operar el servicio.",
       "Cumplimiento legal: podemos divulgar información si una autoridad competente lo solicita conforme a la legislación aplicable.",
       "No vendemos datos personales ni los compartimos con fines publicitarios de terceros.",
     ],

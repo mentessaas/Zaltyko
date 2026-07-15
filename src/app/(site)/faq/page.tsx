@@ -3,11 +3,24 @@ import Link from "next/link";
 import { HelpCircle, CreditCard, Users, Calendar, BarChart3, Shield, ArrowRight } from "lucide-react";
 import Navbar from "@/app/(site)/Navbar";
 import Footer from "@/app/(site)/Footer";
+import { getPublicSiteUrl } from "@/lib/seo/site-url";
+
+const baseUrl = getPublicSiteUrl();
 
 export const metadata: Metadata = {
   title: "Preguntas Frecuentes",
   description:
     "Resolvemos las dudas más comunes sobre Zaltyko: precios, funciones, cancelación y más.",
+  alternates: {
+    canonical: `${baseUrl}/faq`,
+  },
+  openGraph: {
+    title: "Preguntas Frecuentes | Zaltyko",
+    description:
+      "Resolvemos las dudas más comunes sobre Zaltyko: precios, funciones, cancelación y más.",
+    url: `${baseUrl}/faq`,
+    type: "website",
+  },
 };
 
 const categories = [
@@ -107,6 +120,21 @@ const categories = [
   },
 ];
 
+const faqSchema = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: categories.flatMap((category) =>
+    category.questions.map((item) => ({
+      "@type": "Question",
+      name: item.q,
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: item.a,
+      },
+    }))
+  ),
+};
+
 export default function FaqPage() {
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -191,6 +219,10 @@ export default function FaqPage() {
       </main>
 
       <Footer />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
+      />
     </div>
   );
 }

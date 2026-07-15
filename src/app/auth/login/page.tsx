@@ -4,13 +4,19 @@ import { Metadata } from "next";
 import LoginForm from "@/components/login-form";
 import { createClient } from "@/lib/supabase/server";
 import { resolveUserHome } from "@/lib/auth/resolve-user-home";
+import { getPublicSiteUrl } from "@/lib/seo/site-url";
 
 export const metadata: Metadata = {
   title: "Iniciar sesión",
   description: "Accede a tu cuenta para gestionar tu academia",
+  alternates: {
+    canonical: `${getPublicSiteUrl()}/auth/login`,
+  },
   openGraph: {
     title: "Iniciar sesión",
     description: "Accede a tu cuenta de Zaltyko",
+    url: `${getPublicSiteUrl()}/auth/login`,
+    type: "website",
   },
 };
 

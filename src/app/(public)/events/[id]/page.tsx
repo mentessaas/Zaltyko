@@ -5,6 +5,7 @@ import { EventInfo } from "@/components/public/EventInfo";
 import { EventContact } from "@/components/public/EventContact";
 import { ShareButton } from "@/components/public/ShareButton";
 import { getPublicEvent } from "@/app/actions/public/get-public-event";
+import { getPublicSiteUrl } from "@/lib/seo/site-url";
 
 interface EventDetailPageProps {
   params: Promise<{ id: string }>;
@@ -23,6 +24,9 @@ export async function generateMetadata({ params }: EventDetailPageProps): Promis
   return {
     title: `${event.title} | Directorio de Eventos`,
     description: event.description || `Información sobre ${event.title}`,
+    alternates: {
+      canonical: `${getPublicSiteUrl()}/events/${id}`,
+    },
   };
 }
 
@@ -63,4 +67,3 @@ export default async function EventDetailPage({ params }: EventDetailPageProps) 
     </div>
   );
 }
-

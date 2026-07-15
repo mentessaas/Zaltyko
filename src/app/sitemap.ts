@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { getPublicSiteUrl } from "@/lib/seo/site-url";
 import { MODALITIES, COUNTRIES } from "@/lib/seo/clusters";
 import type { Locale } from "@/i18n";
 
@@ -7,9 +8,11 @@ const PUBLIC_ROUTES = [
   "/features",
   "/pricing",
   "/academias",
+  "/coaches",
   "/marketplace",
   "/empleo",
   "/events",
+  "/faq",
   "/contact",
   "/ayuda",
   "/sobre-nosotros",
@@ -33,7 +36,7 @@ const MODALITY_KEYS = Object.keys(MODALITIES) as Array<keyof typeof MODALITIES>;
 const COUNTRY_KEYS = ["espana", "mexico", "argentina", "colombia", "chile", "peru"] as Array<keyof typeof COUNTRIES>;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://zaltyko.com";
+  const baseUrl = getPublicSiteUrl();
 
   const routes = PUBLIC_ROUTES.map((path) => ({
     url: `${baseUrl}${path}`,

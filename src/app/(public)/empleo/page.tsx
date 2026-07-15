@@ -3,14 +3,18 @@ import { JobCard } from "@/components/empleo/JobCard";
 import { JobFilters } from "@/components/empleo/JobFilters";
 import { AdBanner } from "@/components/advertising/AdBanner";
 import { PublicPageHeader } from "@/components/public/PublicPageHeader";
+import { getPublicSiteUrl } from "@/lib/seo/site-url";
 
 export const metadata: Metadata = {
   title: "Bolsa de Empleo en Gimnasia | Zaltyko",
-  description: "Encuentra trabajo en academias de gimnasia. Ofertas de empleo para entradores, auxiliares y más.",
+  description: "Encuentra trabajo en academias de gimnasia. Ofertas de empleo para entrenadores, auxiliares y más.",
+  alternates: {
+    canonical: `${getPublicSiteUrl()}/empleo`,
+  },
   openGraph: {
     title: "Bolsa de Empleo en Gimnasia | Zaltyko",
     description: "Encuentra trabajo en academias de gimnasia",
-    url: "/empleo",
+    url: `${getPublicSiteUrl()}/empleo`,
     type: "website",
   },
 };

@@ -12,6 +12,7 @@ import { OfflineBanner } from "@/components/ui/offline-banner";
 import { UpdateBanner } from "@/components/ui/update-banner";
 import { InstallPrompt } from "@/components/ui/install-prompt";
 import { PostHogProvider } from "@/components/PostHogProvider";
+import { getPublicSiteUrl } from "@/lib/seo/site-url";
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
@@ -56,11 +57,11 @@ export const metadata: Metadata = {
   ],
   authors: [{ name: "Zaltyko" }],
   creator: "Zaltyko",
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "https://zaltyko.com"),
+  metadataBase: new URL(getPublicSiteUrl()),
   openGraph: {
     type: "website",
     locale: "es_ES",
-    url: process.env.NEXT_PUBLIC_APP_URL ?? "https://zaltyko.com",
+    url: getPublicSiteUrl(),
     siteName: "Zaltyko",
     title: "Zaltyko - Sistema de Gestión para Academias de Gimnasia",
     description: "El sistema de dirección para academias de gimnasia artística y rítmica. Administra gimnastas, grupos, cobros, horarios y familias.",

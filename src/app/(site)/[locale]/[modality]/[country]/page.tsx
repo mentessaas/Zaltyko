@@ -14,6 +14,7 @@ import { Schema } from "@/components/Schema";
 import ClusterHeroSection from "@/components/landing/ClusterHeroSection";
 import ClusterPainPointsSection from "@/components/landing/ClusterPainPointsSection";
 import ClusterInterlinking from "@/components/landing/ClusterInterlinking";
+import { getPublicSiteUrl } from "@/lib/seo/site-url";
 
 const VALID_LOCALES = ["es", "en"] as const;
 const VALID_MODALITIES = Object.keys(MODALITIES) as ModalitySlug[];
@@ -78,7 +79,7 @@ export async function generateMetadata({
     };
   }
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://zaltyko.com";
+  const baseUrl = getPublicSiteUrl();
   const canonicalUrl = `${baseUrl}/${locale}/${modality}/${country}`;
 
   return {
@@ -143,7 +144,7 @@ export default async function ClusterPage({ params }: ClusterPageProps) {
   const countryLabel = COUNTRIES[countryKey].label[locale as Locale];
 
   // URL info for schema
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://zaltyko.com";
+  const baseUrl = getPublicSiteUrl();
   const canonicalUrl = `${baseUrl}/${locale}/${modality}/${country}`;
 
   // BreadcrumbList schema

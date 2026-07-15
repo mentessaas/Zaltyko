@@ -7,14 +7,18 @@ import { EventsGrid } from "@/components/public/EventsGrid";
 import { PublicPageHeader } from "@/components/public/PublicPageHeader";
 import { db } from "@/db";
 import { events, academies } from "@/db/schema";
+import { getPublicSiteUrl } from "@/lib/seo/site-url";
 
 export const metadata: Metadata = {
   title: "Eventos y Competiciones de Gimnasia | Zaltyko",
   description: "Encuentra eventos y competencias de gimnasia cerca de ti. Directorio público de eventos y competiciones.",
+  alternates: {
+    canonical: `${getPublicSiteUrl()}/events`,
+  },
   openGraph: {
     title: "Eventos y Competiciones de Gimnasia | Zaltyko",
     description: "Encuentra eventos y competencias de gimnasia cerca de ti",
-    url: "/events",
+    url: `${getPublicSiteUrl()}/events`,
     type: "website",
   },
 };

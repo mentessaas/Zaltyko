@@ -4,8 +4,9 @@ import Navbar from "@/app/(site)/Navbar";
 import Footer from "@/app/(site)/Footer";
 import { Target, Heart, TrendingUp, Shield } from "lucide-react";
 import { Schema } from "@/components/Schema";
+import { getPublicSiteUrl } from "@/lib/seo/site-url";
 
-const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://zaltyko.com";
+const baseUrl = getPublicSiteUrl();
 
 export const metadata: Metadata = {
   title: "Sobre Nosotros | Zaltyko - Software para academias de gimnasia",
