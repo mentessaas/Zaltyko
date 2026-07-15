@@ -19,7 +19,7 @@ import {
 
 interface ProblemSectionProps {
   title: string;
-  content: string;
+  content?: string;
   bullets?: string[];
   color: string;
 }
