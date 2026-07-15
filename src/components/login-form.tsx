@@ -197,7 +197,7 @@ export function LoginForm() {
       <SEO
         title="Zaltyko · Iniciar sesión"
         description="Accede con tu correo y contraseña para gestionar tu academia."
-        canonicalUrl="https://zaltyko.com"
+        canonicalUrl={`${process.env.NEXT_PUBLIC_APP_URL ?? "https://zaltyko.com"}/auth/login`}
         ogImageUrl="https://zaltyko.com/og-image.png"
         twitterHandle="zaltyko"
       />

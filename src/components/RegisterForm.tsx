@@ -231,6 +231,12 @@ export function RegisterForm() {
           )}
         </Button>
       </form>
+
+      {role === "owner" && (
+        <p className="mt-4 text-center text-xs text-muted-foreground">
+          7 días de Starter sin tarjeta · Sin permanencia
+        </p>
+      )}
     </AuthPageShell>
   );
 }
