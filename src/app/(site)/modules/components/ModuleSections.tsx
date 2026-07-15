@@ -20,10 +20,11 @@ import {
 interface ProblemSectionProps {
   title: string;
   content: string;
+  bullets?: string[];
   color: string;
 }
 
-export function ProblemSection({ title, content }: ProblemSectionProps) {
+export function ProblemSection({ title, content, bullets }: ProblemSectionProps) {
   return (
     <section className="py-16 lg:py-20 bg-white">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -36,9 +37,26 @@ export function ProblemSection({ title, content }: ProblemSectionProps) {
               {title}
             </h2>
           </div>
-          <div className="prose prose-lg max-w-none text-zaltyko-text-secondary leading-relaxed">
-            <p>{content}</p>
-          </div>
+          {bullets ? (
+            <ul className="space-y-4 max-w-3xl mx-auto">
+              {bullets.map((b) => (
+                <li
+                  key={b}
+                  className="flex items-start gap-3 text-zaltyko-text-secondary text-lg leading-relaxed"
+                >
+                  <span
+                    className="mt-2 h-2 w-2 flex-shrink-0 rounded-full bg-zaltyko-teal"
+                    aria-hidden
+                  />
+                  <span>{b}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="prose prose-lg max-w-none text-zaltyko-text-secondary leading-relaxed">
+              <p>{content}</p>
+            </div>
+          )}
         </div>
       </div>
     </section>

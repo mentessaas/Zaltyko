@@ -1,5 +1,5 @@
 import { Metadata } from "next";
-import { CreditCard, Clock, TrendingUp, Shield, Users, Briefcase, GraduationCap } from "lucide-react";
+import { CreditCard, Clock, TrendingUp, Shield, Users, Briefcase, GraduationCap, Heart } from "lucide-react";
 import ModuleHero from "../components/ModuleHero";
 import {
   ProblemSection,
@@ -29,11 +29,11 @@ export const metadata: Metadata = {
 
 const MODULE_COLOR = "from-zaltyko-indigo to-zaltyko-teal";
 
-const problemContent = `La gestión financiera es el talón de Aquiles de muchas academias de gimnasia. Cobrar cuotas mensuales a decenas de familias consume horas de trabajo administrativo: generar recibos, hacer seguimiento de pagos pendientes, aplicar descuentos por hermanos, gestionar becas parciales y perseguir morosos. Todo esto mientras intentas mantener una relación cordial con las familias.
-
-Los pagos en efectivo generan problemas de control y seguridad. Las transferencias bancarias requieren verificación manual. Cada familia tiene su situación particular: unos pagan puntualmente, otros necesitan recordatorios, algunos solicitan fraccionamientos. Sin un sistema centralizado, es fácil perder el rastro de quién debe qué.
-
-La falta de visibilidad financiera impide tomar decisiones informadas. No sabes con certeza cuánto ingresará este mes, cuánto tienes en morosidad acumulada o qué familias están en riesgo de abandonar por problemas de pago. Esta incertidumbre financiera limita tu capacidad de invertir en el crecimiento de la academia.`;
+const problemBullets = [
+  "Horas administrativas que no escalan: cada nueva familia suma más recibos, más seguimiento y más recordatorios manuales.",
+  "Cero visibilidad del flujo de caja: no sabes cuánto entrará este mes ni cuánto tienes acumulado en mora.",
+  "Perseguir morosos daña la relación con las familias y resta tiempo a lo que de verdad importa: enseñar.",
+];
 
 const solutionContent = `El módulo de pagos y administración de Zaltyko ordena el ciclo de cobro de tu academia. Configura las cuotas por modalidad, nivel o tipo de servicio, y el sistema genera los cargos mensuales para cada familia según su inscripción.
 
@@ -54,31 +54,31 @@ const benefits = [
   {
     icon: Clock,
     title: "Menos trabajo manual",
-    description: "Centraliza recibos y seguimiento de pagos pendientes para reducir tareas repetidas.",
+    description: "Genera cargos mensuales para cada familia sin tocar una hoja de cálculo.",
   },
   {
     icon: TrendingUp,
     title: "Seguimiento de impagos",
-    description: "Los recordatorios y estados de pago ayudan a seguir cada caso con la familia.",
+    description: "Recordatorios automáticos escalonados cuando una familia no paga a tiempo.",
   },
   {
     icon: Shield,
     title: "Control de cobros",
-    description: "Controla importes, estados y avisos sin depender de hojas dispersas.",
+    description: "Sabe al instante cuánto entra, cuánto se debe y cuánto está en mora.",
   },
   {
     icon: CreditCard,
     title: "Flexibilidad para familias",
-    description: "Ofrece múltiples métodos de pago y facilidades sin complicarte.",
+    description: "Becas, descuentos por hermano y pagos fraccionados, configurables por academia.",
   },
 ];
 
 const useCases = [
   {
-    role: "Entrenadores",
-    icon: GraduationCap,
-    title: "Enfócate en entrenar",
-    description: "Olvídate de cobrar en efectivo o verificar si una familia está al día. El sistema te indica automáticamente el estado de cada atleta para que puedas concentrarte en lo que mejor sabes hacer: formar gimnastas.",
+    role: "Familias",
+    icon: Heart,
+    title: "Pagos sin sorpresas",
+    description: "Reciben su cargo a tiempo, ven sus recibos y entienden cada importe. Si necesitan fraccionar o solicitar una beca, está previsto y se gestiona desde la academia.",
   },
   {
     role: "Administrativos",
@@ -112,8 +112,8 @@ export default function PagosAdministracionPage() {
             offers: {
               "@type": "Offer",
               price: "0",
-              priceCurrency: "USD",
-              description: "Prueba gratuita disponible",
+              priceCurrency: "EUR",
+              description: "Plan Free: prueba 7 días de Starter sin tarjeta",
             },
           }),
         }}
@@ -121,14 +121,14 @@ export default function PagosAdministracionPage() {
 
       <ModuleHero
         icon={CreditCard}
-        title="Pagos y Administración"
-        subtitle="Automatiza cobros y cuotas de tu academia con pagos online seguros. Control total de cuotas, descuentos, morosidad y proyecciones financieras."
+        title="Cobra las cuotas del mes sin perseguir a nadie"
+        subtitle="Cada familia recibe su cargo el día 1, los recordatorios salen solos y el panel te dice al instante quién está al día. Sin Excel, sin WhatsApp y sin cazar morosos."
         color={MODULE_COLOR}
       />
 
       <ProblemSection
         title="El dolor de cabeza de cobrar cuotas manualmente"
-        content={problemContent}
+        bullets={problemBullets}
         color={MODULE_COLOR}
       />
 
@@ -143,7 +143,10 @@ export default function PagosAdministracionPage() {
 
       <UseCasesSection useCases={useCases} color={MODULE_COLOR} />
 
-      <ModuleCta />
+      <ModuleCta
+        title="Configura tus cuotas este mes"
+        subtitle="Crea tu academia gratis, importa a las familias y empieza a cobrar desde un único panel."
+      />
     </>
   );
 }
