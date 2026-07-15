@@ -15,7 +15,9 @@ El despliegue de `be946c21` quedó publicado en producción mediante el deployme
 
 Se corrigieron los formularios públicos de contacto de eventos y academias: ahora entregan el mensaje a su destinatario mediante Brevo, usan `Reply-To` del remitente y escapan el contenido HTML. Se actualizó la documentación de despliegue, soporte, arquitectura, checklist e integraciones para reflejar Brevo como proveedor activo; Mailgun queda únicamente como webhook inbound legado compatible.
 
-Verificación final: `pnpm typecheck`, `pnpm lint`, `pnpm test -- --run` (59 archivos, 477 tests), `pnpm build` (219 páginas) y smoke HTTP en producción, todos correctos. Se eliminó un deployment manual duplicado que había quedado atascado sin alias.
+Verificación final: `pnpm typecheck`, `pnpm lint`, `pnpm test -- --run` (59 archivos, 477 tests, más 2 tests unitarios nuevos de escape HTML), `pnpm build` (219 páginas) y smoke HTTP en producción, todos correctos. Se eliminó un deployment manual duplicado que había quedado atascado sin alias.
+
+**Pendiente externo de email**: `BREVO_API_KEY` está presente en el entorno local, pero no en Vercel Production. No se copió ni se expuso automáticamente una credencial local; hay que rotarla/aprobarla y configurar también el remitente verificado antes de usar los formularios públicos en producción.
 
 ## 2026-07-15 - Cierre CRO/SEO y coherencia de integraciones
 
