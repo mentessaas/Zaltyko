@@ -17,7 +17,9 @@ Se corrigieron los formularios públicos de contacto de eventos y academias: aho
 
 Verificación final: `pnpm typecheck`, `pnpm lint`, `pnpm test -- --run` (59 archivos, 477 tests, más 2 tests unitarios nuevos de escape HTML), `pnpm build` (219 páginas) y smoke HTTP en producción, todos correctos. Se eliminó un deployment manual duplicado que había quedado atascado sin alias.
 
-**Pendiente externo de email**: `BREVO_API_KEY` está presente en el entorno local, pero no en Vercel Production. No se copió ni se expuso automáticamente una credencial local; hay que rotarla/aprobarla y configurar también el remitente verificado antes de usar los formularios públicos en producción.
+**Cierre operativo de email (2026-07-15)**: `BREVO_API_KEY` quedó configurada como variable cifrada únicamente en Vercel Production y se lanzó un redeploy para que los formularios públicos y notificaciones transaccionales usen Brevo. No se registra el valor secreto en la bóveda. Falta probar entrega real con un destinatario controlado y confirmar el remitente verificado en Brevo.
+
+**Stripe Connect (2026-07-15)**: el webhook live ya estaba registrado y activo en Stripe Workbench (`https://zaltyko.com/api/stripe/connect/webhook`) con `account.updated`, `charge.refunded`, `payment_intent.canceled`, `payment_intent.payment_failed` y `payment_intent.succeeded`. No se creó un endpoint duplicado. Permanece pendiente el QA E2E de pagos (SCA/3DS, rechazo, reembolso y conciliación).
 
 ## 2026-07-15 - Cierre CRO/SEO y coherencia de integraciones
 
