@@ -45,6 +45,7 @@
     "scripts/e2e-check-errors.ts",
     "scripts/e2e-full-flows.ts",
     "smoke-test.ts",
-    "tests"
+    "tests",
+    "vitest.config.ts"
   ]
 }
