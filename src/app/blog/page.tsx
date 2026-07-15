@@ -23,10 +23,10 @@ export default function BlogPage() {
               Blog
             </span>
             <h1 className="mt-4 font-display text-3xl font-semibold text-foreground sm:text-4xl">
-              Próximamente
+              Blog de Zaltyko: próximamente
             </h1>
             <p className="mt-4 text-base text-muted-foreground">
-              Estamos preparando artículos sobre gestión, cobros y dirección técnica para academias de gimnasia.
+              Estamos preparando artículos sobre gestión, cobros y dirección técnica para academias de gimnasia: migración desde Excel, control de morosos sin perseguir a nadie, rúbricas por nivel.
               Si quieres recibir novedades, escríbenos.
             </p>
             <div className="mt-8">
