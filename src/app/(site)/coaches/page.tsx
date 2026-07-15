@@ -1,13 +1,46 @@
-import { eq } from "drizzle-orm";
+import type { Metadata } from "next";
+import { eq, and } from "drizzle-orm";
 import Link from "next/link";
 
 import { db } from "@/db";
 import { coaches, academies } from "@/db/schema";
 
 import Image from "next/image";
+import { cn } from "@/lib/utils";
 export const dynamic = "force-dynamic";
 
-export default async function CoachesPublicPage() {
+export const metadata: Metadata = {
+  title: "Directorio de Coaches de Gimnasia",
+  description:
+    "Encuentra entrenadores de gimnasia artística y rítmica en academias que dirigen sus clases con Zaltyko.",
+  keywords: [
+    "entrenadores gimnasia",
+    "coaches gimnasia artística",
+    "coaches gimnasia rítmica",
+    "directorio coaches",
+  ],
+  openGraph: {
+    title: "Directorio de Coaches de Gimnasia",
+    description:
+      "Encuentra entrenadores de gimnasia artística y rítmica en academias que dirigen sus clases con Zaltyko.",
+    type: "website",
+  },
+};
+
+interface PageProps {
+  searchParams: Promise<{ modalidad?: string }>;
+}
+
+const MODALIDADES = [
+  { value: "artistica", label: "Artística" },
+  { value: "ritmica", label: "Rítmica" },
+  { value: "trampolin", label: "Trampolín" },
+] as const;
+
+export default async function CoachesPublicPage({ searchParams }: PageProps) {
+  const { modalidad } = await searchParams;
+  const activeModalidad = MODALIDADES.find((m) => m.value === modalidad)?.value;
+
   const publicCoaches = await db
     .select({
       id: coaches.id,
@@ -21,22 +54,61 @@ export default async function CoachesPublicPage() {
     })
     .from(coaches)
     .innerJoin(academies, eq(coaches.academyId, academies.id))
-    .where(eq(coaches.isPublic, true))
+    .where(
+      activeModalidad
+        ? and(eq(coaches.isPublic, true), eq(academies.academyType, activeModalidad))
+        : eq(coaches.isPublic, true)
+    )
     .limit(50);
 
   return (
     <div className="mx-auto max-w-6xl space-y-8 p-8">
-      <header className="space-y-2">
-        <h1 className="text-3xl font-bold">Nuestros Entrenadores</h1>
+      <header className="space-y-3">
+        <h1 className="text-3xl font-bold">Encuentra tu entrenador de gimnasia</h1>
         <p className="text-muted-foreground">
-          Conoce a los profesionales que forman parte de nuestras academias.
+          Coaches verificados de academias que dirigen sus clases con Zaltyko. Explora perfiles por modalidad, especialidad y años de experiencia.
+        </p>
+        <p className="text-sm text-muted-foreground">
+          {publicCoaches.length === 0
+            ? "Sin perfiles publicados"
+            : `${publicCoaches.length} entrenadores en el directorio`}
         </p>
       </header>
+
+      <nav className="flex flex-wrap gap-2" aria-label="Filtrar por modalidad">
+        <Link
+          href="/coaches"
+          className={cn(
+            "rounded-full border px-3 py-1 text-sm transition-colors",
+            !activeModalidad
+              ? "border-primary bg-primary text-primary-foreground"
+              : "border-border bg-background hover:bg-accent"
+          )}
+        >
+          Todas
+        </Link>
+        {MODALIDADES.map((m) => (
+          <Link
+            key={m.value}
+            href={`/coaches?modalidad=${m.value}`}
+            className={cn(
+              "rounded-full border px-3 py-1 text-sm transition-colors",
+              activeModalidad === m.value
+                ? "border-primary bg-primary text-primary-foreground"
+                : "border-border bg-background hover:bg-accent"
+            )}
+          >
+            {m.label}
+          </Link>
+        ))}
+      </nav>
 
       {publicCoaches.length === 0 ? (
         <div className="rounded-lg border bg-card p-8 text-center">
           <p className="text-muted-foreground">
-            Aún no hay entrenadores con perfiles públicos disponibles.
+            {activeModalidad
+              ? `No hay entrenadores públicos en esta modalidad todavía. Prueba con otra o vuelve a "Todas".`
+              : "Aún no hay perfiles publicados en el directorio. Si diriges una academia Zaltyko, puedes publicar el perfil de tus entrenadores desde el panel."}
           </p>
         </div>
       ) : (
