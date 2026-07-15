@@ -146,8 +146,9 @@ export async function createOnboardingLink(
   const baseUrl = getAppUrl();
   const link = await stripe.accountLinks.create({
     account: stripeAccountId,
-    refresh_url: `${baseUrl}/app/${academyId}/billing?connect=refresh`,
-    return_url: `${baseUrl}/app/${academyId}/billing?connect=return`,
+    // StripeConnectCard vive en la pestaña "Cobros" de Ajustes, no en /billing.
+    refresh_url: `${baseUrl}/app/${academyId}/settings?connect=refresh`,
+    return_url: `${baseUrl}/app/${academyId}/settings?connect=return`,
     type: "account_onboarding",
   });
   return link.url;

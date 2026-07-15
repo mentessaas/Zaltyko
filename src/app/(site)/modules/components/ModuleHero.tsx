@@ -43,13 +43,13 @@ export default function ModuleHero({ icon: Icon, title, subtitle }: ModuleHeroPr
               Crea tu academia gratis
             </Link>
             <Link
-              href="/features"
+              href="/pricing"
               className={cn(
                 buttonVariants({ variant: "outline", size: "lg" }),
                 "border-zaltyko-mist hover:bg-zaltyko-white"
               )}
             >
-              Ver todos los módulos
+              Ver planes y precios
             </Link>
           </div>
         </div>

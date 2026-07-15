@@ -55,10 +55,10 @@ export default function HelpPage() {
             Centro de Ayuda
           </span>
           <h1 className="font-display text-4xl font-bold tracking-tight text-zaltyko-text-main sm:text-5xl">
-            ¿En qué podemos ayudarte?
+            Centro de ayuda de Zaltyko para tu academia
           </h1>
           <p className="mt-6 mx-auto max-w-2xl text-lg text-zaltyko-text-secondary">
-            Encuentra respuestas a tus preguntas o contacta con nuestro equipo de soporte.
+            Guías rápidas sobre gimnastas, cobros, clases y migración desde Excel. Si no encuentras tu respuesta, te respondemos por email en horario laboral.
           </p>
 
           {/* Search */}
@@ -139,11 +139,11 @@ export default function HelpPage() {
               Contactar soporte
             </Link>
             <a
-              href="mailto:soporte@zaltyko.com"
+              href="mailto:hola@zaltyko.com"
               className="inline-flex items-center rounded-full border-2 border-zaltyko-primary px-8 py-3 font-semibold text-zaltyko-primary hover:bg-zaltyko-primary/10"
             >
               <Mail className="mr-2 h-5 w-5" />
-              soporte@zaltyko.com
+              hola@zaltyko.com
             </a>
           </div>
         </div>

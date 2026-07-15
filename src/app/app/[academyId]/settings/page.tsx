@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Save,
   Building2,
@@ -61,13 +61,23 @@ import {
 export default function SettingsPage() {
   const context = useAcademyContext();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
   const [settings, setSettings] = useState<AcademySettings>(DEFAULT_SETTINGS);
-  const [activeTab, setActiveTab] = useState("basic");
+  // Al volver del onboarding de Stripe Connect (?connect=return|refresh) o con
+  // ?tab=billing, abrir directamente la pestaña de Cobros para que
+  // StripeConnectCard monte y dispare su refresco automático.
+  const initialTab =
+    searchParams.get("connect") === "return" ||
+    searchParams.get("connect") === "refresh" ||
+    searchParams.get("tab") === "billing"
+      ? "billing"
+      : "basic";
+  const [activeTab, setActiveTab] = useState(initialTab);
   const regionOptions = useMemo(
     () => findRegionsByCountry(settings.countryCode.toLowerCase()),
     [settings.countryCode]

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { AcademiesFilters } from "@/components/public/AcademiesFilters";
 import { AcademiesGrid } from "@/components/public/AcademiesGrid";
 import { getPublicAcademies } from "@/app/actions/public/get-public-academies";
@@ -52,10 +53,10 @@ export default async function AcademiesPage({ searchParams }: AcademiesPageProps
               <span>Directorio público</span>
             </div>
             <h1 className="font-display text-4xl font-bold text-foreground sm:text-5xl lg:text-6xl">
-              Encuentra tu academia
+              Academias de gimnasia artística y rítmica en España y Latinoamérica
             </h1>
             <p className="mt-4 text-lg text-muted-foreground sm:text-xl">
-              Descubre academias de gimnasia artística y rítmica cerca de ti
+              Directorio público de academias que gestionan sus clases, cobros y evaluaciones con Zaltyko. Filtra por modalidad, ciudad o país.
             </p>
             <div className="mt-8 flex flex-wrap items-center justify-center gap-6 text-sm">
               <div className="flex items-center gap-2 text-muted-foreground">
@@ -97,7 +98,7 @@ export default async function AcademiesPage({ searchParams }: AcademiesPageProps
           <div className="mt-12 flex flex-col items-center justify-center gap-4 sm:flex-row">
             <div className="flex items-center gap-2">
               {result.hasPreviousPage && (
-                <a
+                <Link
                   href={`/academias?${new URLSearchParams({
                     ...params,
                     page: String(page - 1),
@@ -108,7 +109,7 @@ export default async function AcademiesPage({ searchParams }: AcademiesPageProps
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                   </svg>
                   Anterior
-                </a>
+                </Link>
               )}
             </div>
 
@@ -128,7 +129,7 @@ export default async function AcademiesPage({ searchParams }: AcademiesPageProps
                 if (pageNum < 1 || pageNum > result.totalPages) return null;
 
                 return (
-                  <a
+                  <Link
                     key={pageNum}
                     href={`/academias?${new URLSearchParams({
                       ...params,
@@ -141,14 +142,14 @@ export default async function AcademiesPage({ searchParams }: AcademiesPageProps
                     }`}
                   >
                     {pageNum}
-                  </a>
+                  </Link>
                 );
               })}
             </div>
 
             <div className="flex items-center gap-2">
               {result.hasNextPage && (
-                <a
+                <Link
                   href={`/academias?${new URLSearchParams({
                     ...params,
                     page: String(page + 1),
@@ -159,7 +160,7 @@ export default async function AcademiesPage({ searchParams }: AcademiesPageProps
                   <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
-                </a>
+                </Link>
               )}
             </div>
           </div>

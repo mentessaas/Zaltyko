@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Navbar from "@/app/(site)/Navbar";
 import Footer from "@/app/(site)/Footer";
-import { Users, Target, Heart, Award, TrendingUp, Shield } from "lucide-react";
+import { Target, Heart, TrendingUp, Shield } from "lucide-react";
 import { Schema } from "@/components/Schema";
 
 const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://zaltyko.com";
@@ -23,13 +23,6 @@ export const metadata: Metadata = {
     locale: "es_ES",
   },
 };
-
-const stats = [
-  { value: "Gestión", label: "Operación diaria" },
-  { value: "Pagos", label: "Cobros y cuotas" },
-  { value: "Familias", label: "Comunicación clara" },
-  { value: "RGPD", label: "Protección de datos" },
-];
 
 const values = [
   {
@@ -93,20 +86,6 @@ export default function AboutPage() {
           <p className="mt-6 mx-auto max-w-2xl text-lg text-zaltyko-text-secondary">
             Nacimos para resolver los problemas administrativos que enfrentan las academias de gimnasia cada día.
           </p>
-        </div>
-      </section>
-
-      {/* Stats */}
-      <section className="py-12 bg-zaltyko-primary">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 gap-8 md:grid-cols-4">
-            {stats.map((stat, index) => (
-              <div key={index} className="text-center">
-                <div className="text-4xl font-bold text-white">{stat.value}</div>
-                <div className="mt-1 text-sm text-white/80">{stat.label}</div>
-              </div>
-            ))}
-          </div>
         </div>
       </section>
 
