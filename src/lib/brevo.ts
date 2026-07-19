@@ -54,8 +54,10 @@ export const sendEmail = async ({
   if (!hasBrevoCredentials) {
     if (isDevelopment()) {
       console.info("[brevo] Envío simulado (sin credenciales).", { to, subject });
+      return;
     }
-    return;
+
+    throw new Error("BREVO_API_KEY no está configurada; el email no fue enviado");
   }
 
   const normalizedTo = normalizeEmail(to);
