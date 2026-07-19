@@ -1,0 +1,270 @@
+import { eq } from "drizzle-orm";
+import { z } from "zod";
+
+import { db } from "@/db";
+import { academies } from "@/db/schema";
+import { withTenant } from "@/lib/authz";
+import { apiSuccess, apiError } from "@/lib/api-response";
+import { handleApiError } from "@/lib/api-error-handler";
+import {
+  getCountryNameFromCode,
+  inferDisciplineFromVariant,
+  mapDisciplineVariantToAcademyType,
+  normalizeCountryCode,
+} from "@/lib/specialization/registry";
+
+const ACADEMY_TYPES = ["artistica", "ritmica", "general"] as const;
+const DISCIPLINE_VARIANTS = ["artistic_female", "artistic_male", "rhythmic", "general"] as const;
+
+const UpdateSchema = z.object({
+  name: z.string().min(3).optional(),
+  country: z.string().optional().nullable(),
+  countryCode: z.string().optional().nullable(),
+  region: z.string().optional().nullable(),
+  city: z.string().optional().nullable(),
+  academyType: z.enum(ACADEMY_TYPES).optional(),
+  disciplineVariant: z.enum(DISCIPLINE_VARIANTS).optional(),
+  publicDescription: z.string().optional().nullable(),
+  isPublic: z.boolean().optional(),
+  logoUrl: z.string().url().optional().nullable().or(z.literal("")),
+  website: z.string().url().optional().nullable().or(z.literal("")),
+  contactEmail: z.string().email().optional().nullable().or(z.literal("")),
+  contactPhone: z.string().optional().nullable(),
+  address: z.string().optional().nullable(),
+  socialInstagram: z.string().url().optional().nullable().or(z.literal("")),
+  socialFacebook: z.string().url().optional().nullable().or(z.literal("")),
+  socialTwitter: z.string().url().optional().nullable().or(z.literal("")),
+  socialYoutube: z.string().url().optional().nullable().or(z.literal("")),
+});
+
+/**
+ * PATCH /api/academies/[academyId]
+ * 
+ * Actualiza los datos de una academia.
+ * Solo el propietario o super_admin puede actualizar.
+ */
+export const PATCH = withTenant(async (request, context) => {
+  try {
+    const academyId = (context.params as { academyId?: string })?.academyId;
+
+    if (!academyId) {
+      return apiError("ACADEMY_ID_REQUIRED", "academyId es requerido", 400);
+    }
+
+    // Verificar que la academia existe y pertenece al tenant
+    const [academy] = await db
+      .select({
+        id: academies.id,
+        tenantId: academies.tenantId,
+        ownerId: academies.ownerId,
+        country: academies.country,
+        countryCode: academies.countryCode,
+        disciplineVariant: academies.disciplineVariant,
+        specializationStatus: academies.specializationStatus,
+      })
+      .from(academies)
+      .where(eq(academies.id, academyId))
+      .limit(1);
+
+    if (!academy) {
+      return apiError("ACADEMY_NOT_FOUND", "Academia no encontrada", 404);
+    }
+
+    // Verificar permisos: solo el propietario o super_admin puede actualizar
+    const isSuperAdmin = context.profile.role === "super_admin";
+    const isOwner = academy.ownerId === context.profile.id;
+    const isSameTenant = academy.tenantId === context.tenantId;
+
+    if (!isSuperAdmin && !isOwner && !isSameTenant) {
+      return apiError("FORBIDDEN", "No tienes permisos para actualizar esta academia", 403);
+    }
+
+    const body = await request.json();
+    const parsed = UpdateSchema.safeParse(body);
+
+    if (!parsed.success) {
+      return apiError(
+        "VALIDATION_ERROR",
+        "Los datos proporcionados no son válidos",
+        400
+      );
+    }
+
+    const updates: Record<string, unknown> = {};
+
+    if (parsed.data.name !== undefined) {
+      updates.name = parsed.data.name;
+    }
+    if (parsed.data.country !== undefined) {
+      updates.country = parsed.data.country || null;
+    }
+    if (parsed.data.countryCode !== undefined) {
+      updates.countryCode = normalizeCountryCode(parsed.data.countryCode) ?? null;
+      if (parsed.data.countryCode) {
+        updates.country = getCountryNameFromCode(parsed.data.countryCode);
+      }
+    }
+    if (parsed.data.region !== undefined) {
+      updates.region = parsed.data.region || null;
+    }
+    if (parsed.data.city !== undefined) {
+      updates.city = parsed.data.city || null;
+    }
+    if (parsed.data.academyType !== undefined) {
+      updates.academyType = parsed.data.academyType;
+    }
+    if (parsed.data.disciplineVariant !== undefined) {
+      const specializationChanged =
+        academy.specializationStatus === "configured" &&
+        academy.disciplineVariant &&
+        academy.disciplineVariant !== parsed.data.disciplineVariant;
+
+      if (specializationChanged) {
+        return apiError(
+          "SPECIALIZATION_MIGRATION_REQUIRED",
+          "Cambiar la disciplina principal requiere una migración guiada. Por ahora crea una academia nueva o solicita la migración.",
+          409
+        );
+      }
+
+      updates.disciplineVariant = parsed.data.disciplineVariant;
+      updates.discipline = inferDisciplineFromVariant(parsed.data.disciplineVariant);
+      updates.academyType = mapDisciplineVariantToAcademyType(parsed.data.disciplineVariant);
+      updates.specializationStatus = "configured";
+    }
+    if (parsed.data.publicDescription !== undefined) {
+      updates.publicDescription = parsed.data.publicDescription || null;
+    }
+    if (parsed.data.isPublic !== undefined) {
+      updates.isPublic = parsed.data.isPublic;
+    }
+    if (parsed.data.logoUrl !== undefined) {
+      updates.logoUrl = parsed.data.logoUrl || null;
+    }
+    if (parsed.data.website !== undefined) {
+      updates.website = parsed.data.website || null;
+    }
+    if (parsed.data.contactEmail !== undefined) {
+      updates.contactEmail = parsed.data.contactEmail || null;
+    }
+    if (parsed.data.contactPhone !== undefined) {
+      updates.contactPhone = parsed.data.contactPhone || null;
+    }
+    if (parsed.data.address !== undefined) {
+      updates.address = parsed.data.address || null;
+    }
+    if (parsed.data.socialInstagram !== undefined) {
+      updates.socialInstagram = parsed.data.socialInstagram || null;
+    }
+    if (parsed.data.socialFacebook !== undefined) {
+      updates.socialFacebook = parsed.data.socialFacebook || null;
+    }
+    if (parsed.data.socialTwitter !== undefined) {
+      updates.socialTwitter = parsed.data.socialTwitter || null;
+    }
+    if (parsed.data.socialYoutube !== undefined) {
+      updates.socialYoutube = parsed.data.socialYoutube || null;
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return apiError("NO_CHANGES", "No se proporcionaron cambios para actualizar", 400);
+    }
+
+    const [updated] = await db
+      .update(academies)
+      .set(updates)
+      .where(eq(academies.id, academyId))
+      .returning({
+        id: academies.id,
+        name: academies.name,
+        country: academies.country,
+        countryCode: academies.countryCode,
+        region: academies.region,
+        city: academies.city,
+        academyType: academies.academyType,
+        disciplineVariant: academies.disciplineVariant,
+        specializationStatus: academies.specializationStatus,
+        publicDescription: academies.publicDescription,
+        isPublic: academies.isPublic,
+        logoUrl: academies.logoUrl,
+        website: academies.website,
+        contactEmail: academies.contactEmail,
+        contactPhone: academies.contactPhone,
+        address: academies.address,
+        socialInstagram: academies.socialInstagram,
+        socialFacebook: academies.socialFacebook,
+        socialTwitter: academies.socialTwitter,
+        socialYoutube: academies.socialYoutube,
+      });
+
+    if (!updated) {
+      return apiError("ACADEMY_NOT_FOUND", "Academia no encontrada", 404);
+    }
+
+    return apiSuccess(updated);
+  } catch (error) {
+    return handleApiError(error, { endpoint: "/api/academies/[academyId]", method: "PATCH" });
+  }
+});
+
+/**
+ * GET /api/academies/[academyId]
+ * 
+ * Obtiene los datos de una academia.
+ */
+export const GET = withTenant(async (request, context) => {
+  try {
+    const academyId = (context.params as { academyId?: string })?.academyId;
+
+    if (!academyId) {
+      return apiError("ACADEMY_ID_REQUIRED", "academyId es requerido", 400);
+    }
+
+    const [academy] = await db
+      .select({
+        id: academies.id,
+        name: academies.name,
+        country: academies.country,
+        countryCode: academies.countryCode,
+        region: academies.region,
+        city: academies.city,
+        academyType: academies.academyType,
+        disciplineVariant: academies.disciplineVariant,
+        specializationStatus: academies.specializationStatus,
+        publicDescription: academies.publicDescription,
+        isPublic: academies.isPublic,
+        logoUrl: academies.logoUrl,
+        website: academies.website,
+        contactEmail: academies.contactEmail,
+        contactPhone: academies.contactPhone,
+        address: academies.address,
+        socialInstagram: academies.socialInstagram,
+        socialFacebook: academies.socialFacebook,
+        socialTwitter: academies.socialTwitter,
+        socialYoutube: academies.socialYoutube,
+        tenantId: academies.tenantId,
+        ownerId: academies.ownerId,
+        createdAt: academies.createdAt,
+      })
+      .from(academies)
+      .where(eq(academies.id, academyId))
+      .limit(1);
+
+    if (!academy) {
+      return apiError("ACADEMY_NOT_FOUND", "Academia no encontrada", 404);
+    }
+
+    // Verificar permisos
+    const isSuperAdmin = context.profile.role === "super_admin";
+    const isOwner = academy.ownerId === context.profile.id;
+    const isSameTenant = academy.tenantId === context.tenantId;
+
+    if (!isSuperAdmin && !isOwner && !isSameTenant) {
+      return apiError("FORBIDDEN", "No tienes permisos para ver esta academia", 403);
+    }
+
+    return apiSuccess(academy);
+  } catch (error) {
+    return handleApiError(error, { endpoint: "/api/academies/[academyId]", method: "GET" });
+  }
+});
