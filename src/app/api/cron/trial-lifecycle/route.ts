@@ -9,10 +9,20 @@ export async function GET(request: Request) {
   const authError = requireCronAuth(request);
   if (authError) return authError;
 
+  const startedAt = Date.now();
+
   try {
-    return apiSuccess(await processTrialLifecycle());
+    logger.info("Trial lifecycle cron started");
+    const summary = await processTrialLifecycle();
+    logger.info("Trial lifecycle cron completed", {
+      ...summary,
+      durationMs: Date.now() - startedAt,
+    });
+    return apiSuccess(summary);
   } catch (error) {
-    logger.error("Trial lifecycle cron failed", error);
+    logger.error("Trial lifecycle cron failed", error, {
+      durationMs: Date.now() - startedAt,
+    });
     return apiError("TRIAL_LIFECYCLE_FAILED", "No se pudo procesar el ciclo de pruebas", 500);
   }
 }
