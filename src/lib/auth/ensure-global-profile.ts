@@ -13,8 +13,12 @@ const OPEN_REGISTRATION_ROLES: ProfileRole[] = [
   "provider",
 ];
 
+export function isOpenRegistrationRole(value: unknown): value is ProfileRole {
+  return typeof value === "string" && isProfileRole(value) && OPEN_REGISTRATION_ROLES.includes(value);
+}
+
 function resolveInitialRole(value: unknown): ProfileRole {
-  if (typeof value === "string" && isProfileRole(value) && OPEN_REGISTRATION_ROLES.includes(value)) {
+  if (isOpenRegistrationRole(value)) {
     return value;
   }
 

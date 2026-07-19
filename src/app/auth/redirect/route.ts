@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
-import { resolveUserHome } from "@/lib/auth/resolve-user-home";
+import { resolveUserEntry } from "@/lib/auth/resolve-user-entry";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -17,10 +17,7 @@ export async function GET() {
     redirect("/auth/login");
   }
 
-  const home = await resolveUserHome({
-    userId: user.id,
-    email: user.email,
-  });
+  const home = await resolveUserEntry(user);
 
   redirect(home.redirectUrl);
 }
