@@ -1,0 +1,52 @@
+# dependencies
+/node_modules
+
+# next.js
+/.next/
+/out/
+
+# generated / local
+/.vercel
+/.worktrees
+.DS_Store
+/*.tsbuildinfo
+/next-env.d.ts
+/.env
+/.env.*
+/.npmrc
+/.prettierrc
+/.dockerignore
+/.build-trigger
+/.deploy-trigger
+/.redeploy-trigger
+
+# large or duplicate dirs
+/Zaltyko
+/ZaltykoMobile
+/brand kit
+/test-results
+/playwright-report
+/output/playwright/
+/coverage
+/.playwright-cli
+/.auth
+/waitlist.tar.gz
+/waitlist.zip
+/supabase/.temp
+# NOTE: /drizzle intentionally NOT ignored — the folder is committed so CI can
+# validate migrations integrity via `pnpm check:migrations`.
+/.claude-progress.md
+/README 2.md
+
+# editor / repo metadata that we don't need right now
+/.vscode
+/.vercelignore
+
+# local artifacts
+/coverage
+/.claire
+/vault/.obsidian
+/.claude
+/output
+/promts /
+/tmp

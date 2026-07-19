@@ -1,0 +1,92 @@
+"use client";
+
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+
+import { useAcademyContext } from "@/hooks/use-academy-context";
+import { isAcademyNavigationActive } from "@/lib/navigation/active";
+import { getMobileAcademyNavigation } from "@/lib/navigation/registry";
+import { isProfileRole, type MembershipRole } from "@/lib/product/roles";
+import { cn } from "@/lib/utils";
+
+export function MobileAcademyNav() {
+  const pathname = usePathname();
+  const router = useRouter();
+  const context = useAcademyContext();
+  const [isVisible, setIsVisible] = useState(true);
+  const lastScrollY = useRef(0);
+
+  const academyId = context?.academyId;
+
+  useEffect(() => {
+    if (!academyId) return;
+
+    if (window.innerWidth >= 1024) {
+      return;
+    }
+
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      if (currentScrollY > lastScrollY.current && currentScrollY > 100) {
+        setIsVisible(false);
+      } else {
+        setIsVisible(true);
+      }
+      lastScrollY.current = currentScrollY;
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [academyId]);
+
+  if (!academyId) {
+    return null;
+  }
+
+  const mobileNavItems = getMobileAcademyNavigation({
+    academyId,
+    profileRole: isProfileRole(context?.profileRole) ? context.profileRole : "owner",
+    membershipRole: (context?.membershipRole ?? null) as MembershipRole | null,
+    specialization: context?.specialization,
+  });
+
+  const isActive = (href: string) => {
+    return isAcademyNavigationActive(pathname, href, academyId);
+  };
+
+  return (
+    <nav
+      className={cn(
+        "fixed bottom-0 left-0 right-0 z-50 transition-transform duration-300 ease-in-out lg:hidden",
+        isVisible ? "translate-y-0" : "translate-y-full"
+      )}
+    >
+      <div className="border-t border-zaltyko-mist/70 bg-white/95 shadow-soft backdrop-blur">
+        <div className="safe-area-bottom flex h-16 items-center justify-around px-2">
+          {mobileNavItems.map((item) => {
+            const Icon = item.icon;
+            const active = isActive(item.href);
+
+            return (
+              <button
+                key={item.key}
+                onClick={() => router.push(item.href)}
+                className={cn(
+                  "flex h-full min-h-[44px] min-w-[64px] flex-1 flex-col items-center justify-center rounded-xl border border-transparent transition-colors",
+                  active
+                    ? "border-zaltyko-teal/20 bg-zaltyko-teal/12 text-zaltyko-teal"
+                    : "text-slate-500 hover:bg-zaltyko-white hover:text-zaltyko-navy"
+                )}
+                aria-label={item.label}
+                aria-current={active ? "page" : undefined}
+              >
+                <Icon className={cn("mb-1 h-5 w-5", active && "scale-110")} />
+                <span className="text-xs font-medium">{item.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </nav>
+  );
+}
