@@ -206,6 +206,8 @@ export async function generateSessionsForAllTenants(
     total_classes: number;
     total_generated: number;
     total_skipped: number;
+    tenants_succeeded: number;
+    tenants_failed: number;
     errors: Record<string, Record<string, string[]>>;
 }> {
     try {
@@ -218,18 +220,30 @@ export async function generateSessionsForAllTenants(
         let totalClasses = 0;
         let totalGenerated = 0;
         let totalSkipped = 0;
+        let tenantsSucceeded = 0;
+        let tenantsFailed = 0;
         const allErrors: Record<string, Record<string, string[]>> = {};
 
         for (const { tenantId } of tenantsWithClasses) {
             if (!tenantId) continue;
 
-            const result = await generateSessionsForTenant(tenantId, weeksAhead);
-            totalClasses += result.total_classes;
-            totalGenerated += result.total_generated;
-            totalSkipped += result.total_skipped;
+            try {
+                const result = await generateSessionsForTenant(tenantId, weeksAhead);
+                totalClasses += result.total_classes;
+                totalGenerated += result.total_generated;
+                totalSkipped += result.total_skipped;
 
-            if (Object.keys(result.errors).length > 0) {
-                allErrors[tenantId] = result.errors;
+                if (Object.keys(result.errors).length > 0) {
+                    allErrors[tenantId] = result.errors;
+                }
+                tenantsSucceeded++;
+            } catch (error) {
+                tenantsFailed++;
+                const message = error instanceof Error ? error.message : "Error desconocido";
+                allErrors[tenantId] = { _tenant: [message] };
+                logger.error(`Error aislado generando sesiones para tenant ${tenantId}:`, error, {
+                    tenantId,
+                });
             }
         }
 
@@ -242,6 +256,8 @@ export async function generateSessionsForAllTenants(
             total_classes: totalClasses,
             total_generated: totalGenerated,
             total_skipped: totalSkipped,
+            tenants_succeeded: tenantsSucceeded,
+            tenants_failed: tenantsFailed,
             errors: allErrors,
         };
     } catch (error) {
