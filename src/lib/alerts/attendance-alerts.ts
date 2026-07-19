@@ -97,7 +97,7 @@ export async function detectAttendanceAlerts(
     return alerts;
   } catch (error) {
     logger.error("Error detecting attendance alerts:", error);
-    return [];
+    throw error;
   }
 }
 

@@ -72,7 +72,7 @@ export async function detectCapacityAlerts(
     return alerts;
   } catch (error) {
     logger.error("Error detecting capacity alerts:", error);
-    return [];
+    throw error;
   }
 }
 
