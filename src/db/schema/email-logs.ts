@@ -1,4 +1,4 @@
-import { index, jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { index, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 
 import { academies } from "./academies";
 import { profiles } from "./profiles";
@@ -18,6 +18,7 @@ export const emailLogs = pgTable(
     sentAt: timestamp("sent_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     metadata: jsonb("metadata").$type<Record<string, unknown>>(),
+    idempotencyKey: text("idempotency_key"),
   },
   (table) => ({
     tenantIdx: index("email_logs_tenant_idx").on(table.tenantId),
@@ -26,6 +27,7 @@ export const emailLogs = pgTable(
     statusIdx: index("email_logs_status_idx").on(table.status),
     createdAtIndex: index("email_logs_created_at_idx").on(table.createdAt),
     templateIdx: index("email_logs_template_idx").on(table.template),
+    idempotencyUnique: uniqueIndex("email_logs_idempotency_unique").on(table.idempotencyKey),
   })
 );
 
