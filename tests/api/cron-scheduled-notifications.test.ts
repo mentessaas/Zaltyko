@@ -114,6 +114,27 @@ describe("scheduled notifications cron route", () => {
     expect(body).toEqual({ processed: 1, failed: 0, total: 1 });
   });
 
+  it("escapa contenido dinámico antes de construir el HTML del email", async () => {
+    mocks.getPending.mockResolvedValue([{ ...scheduled, channel: "email" }]);
+    mocks.adminProfiles.mockResolvedValue([
+      {
+        userId: "00000000-0000-0000-0000-000000000002",
+        name: '<img src=x onerror="alert(1)">',
+        email: "elvis@example.com",
+        phone: null,
+      },
+    ]);
+
+    await GET(new Request("https://zaltyko.com/api/cron/scheduled-notifications"));
+
+    expect(mocks.sendEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        html: "<p>Hola &lt;img src=x onerror=&quot;alert(1)&quot;&gt;</p>",
+      })
+    );
+    expect(mocks.markSent).toHaveBeenCalledWith("notification-1");
+  });
+
   it("marca failed cuando el canal no puede entregar", async () => {
     mocks.getPending.mockResolvedValue([{ ...scheduled, channel: "email" }]);
     mocks.adminProfiles.mockResolvedValue([
