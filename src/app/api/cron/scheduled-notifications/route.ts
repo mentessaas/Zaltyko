@@ -8,6 +8,7 @@ import { sendPushToUser } from "@/lib/notifications/push-service";
 import { createNotification } from "@/lib/notifications/notification-service";
 import { sendEmail } from "@/lib/brevo";
 import { db } from "@/db";
+import { authUsers } from "@/db/schema/auth-users";
 import { profiles } from "@/db/schema/profiles";
 import { and, eq, inArray } from "drizzle-orm";
 import { logger } from "@/lib/logger";
@@ -24,6 +25,19 @@ function interpolateTemplate(template: string, variables: Record<string, string>
   return result;
 }
 
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (character) => {
+    const entities: Record<string, string> = {
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;",
+    };
+    return entities[character];
+  });
+}
+
 async function processNotification(
   notification: {
     id: string;
@@ -33,11 +47,17 @@ async function processNotification(
     groupId: string | null;
   },
   recipients: Array<{ userId: string; email?: string; name?: string; phone?: string }>
-) {
-  let template = null;
-  if (notification.templateId) {
-    template = await getMessageTemplateById(notification.templateId);
+): Promise<{ sent: number; failed: number }> {
+  const template = notification.templateId
+    ? await getMessageTemplateById(notification.templateId)
+    : null;
+
+  if (!template) {
+    throw new Error("Scheduled notification template not found");
   }
+
+  let sent = 0;
+  let failed = 0;
 
   for (const recipient of recipients) {
     try {
@@ -45,47 +65,53 @@ async function processNotification(
 
       switch (notification.channel) {
         case "in_app":
-          if (template) {
-            await createNotification({
-              tenantId: notification.tenantId,
-              userId: recipient.userId,
-              type: template.templateType,
-              title: interpolateTemplate(template.subject || template.name, variables),
-              message: interpolateTemplate(template.body, variables),
-            });
-          }
+          await createNotification({
+            tenantId: notification.tenantId,
+            userId: recipient.userId,
+            type: template.templateType,
+            title: interpolateTemplate(template.subject || template.name, variables),
+            message: interpolateTemplate(template.body, variables),
+          });
           break;
 
-        case "push":
-          if (template) {
-            await sendPushToUser(recipient.userId, {
-              title: interpolateTemplate(template.subject || template.name, variables),
-              body: interpolateTemplate(template.body, variables),
-            });
+        case "push": {
+          const result = await sendPushToUser(recipient.userId, {
+            title: interpolateTemplate(template.subject || template.name, variables),
+            body: interpolateTemplate(template.body, variables),
+          });
+          if (result.sent === 0 || result.failed > 0) {
+            throw new Error("Push notification was not delivered");
           }
           break;
+        }
 
         case "email":
-          if (template && recipient.email) {
-            await sendEmail({
-              to: recipient.email,
-              subject: interpolateTemplate(template.subject || template.name, variables),
-              html: `<p>${interpolateTemplate(template.body, variables)}</p>`,
-              replyTo: process.env.EMAIL_FROM || "noreply@zaltyko.com",
-            });
+          if (!recipient.email) {
+            throw new Error("Recipient has no email address");
           }
+          await sendEmail({
+            to: recipient.email,
+            subject: interpolateTemplate(template.subject || template.name, variables),
+            html: `<p>${escapeHtml(interpolateTemplate(template.body, variables))}</p>`,
+            replyTo: process.env.BREVO_REPLY_TO || "noreply@zaltyko.com",
+          });
           break;
 
         case "whatsapp":
-          // WhatsApp would be processed here
-          // For now, just log it
-          logger.info(`WhatsApp notification for ${recipient.phone}: ${template?.body}`);
-          break;
+          throw new Error("WhatsApp scheduled delivery is not configured");
+
+        default:
+          throw new Error(`Unsupported notification channel: ${notification.channel}`);
       }
+
+      sent++;
     } catch (error) {
+      failed++;
       logger.error(`Failed to send ${notification.channel} notification to ${recipient.userId}:`, error);
     }
   }
+
+  return { sent, failed };
 }
 
 async function processScheduledNotifications(request: Request) {
@@ -126,10 +152,13 @@ async function processScheduledNotifications(request: Request) {
           // Get admin users of the tenant
           const adminProfiles = await db
             .select({
-              id: profiles.id,
+              userId: profiles.userId,
               name: profiles.name,
+              email: authUsers.email,
+              phone: authUsers.phone,
             })
             .from(profiles)
+            .leftJoin(authUsers, eq(authUsers.id, profiles.userId))
             .where(and(
               eq(profiles.tenantId, notification.tenantId),
               inArray(profiles.role, ["owner", "admin"])
@@ -138,17 +167,24 @@ async function processScheduledNotifications(request: Request) {
 
           recipients.push(
             ...adminProfiles.map((p) => ({
-              userId: p.id,
+              userId: p.userId,
               name: p.name || undefined,
+              email: p.email || undefined,
+              phone: p.phone || undefined,
             }))
           );
         }
 
         if (recipients.length > 0 && notification.tenantId) {
           const validNotification = notification as typeof notification & { tenantId: string };
-          await processNotification(validNotification, recipients);
-          await markScheduledNotificationSent(notification.id);
-          processed++;
+          const delivery = await processNotification(validNotification, recipients);
+          if (delivery.failed === 0 && delivery.sent === recipients.length) {
+            await markScheduledNotificationSent(notification.id);
+            processed++;
+          } else {
+            await markScheduledNotificationFailed(notification.id);
+            failed++;
+          }
         } else {
           // A schedule with no resolved recipients must not look delivered.
           await markScheduledNotificationFailed(notification.id);
@@ -156,6 +192,7 @@ async function processScheduledNotifications(request: Request) {
         }
       } catch (error) {
         logger.error(`Failed to process scheduled notification ${notification.id}:`, error);
+        await markScheduledNotificationFailed(notification.id);
         failed++;
       }
     }
