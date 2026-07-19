@@ -26,7 +26,11 @@ const RETRY_DELAY_MS = 5000;
  * considerar BullMQ + Vercel KV o un sistema de cola externo.
  */
 export async function GET(request: NextRequest) {
-    const retryCount = parseInt(request.headers.get("x-retry-count") || "0", 10);
+    const parsedRetryCount = Number.parseInt(request.headers.get("x-retry-count") || "0", 10);
+    const retryCount = Number.isFinite(parsedRetryCount) && parsedRetryCount >= 0
+        ? parsedRetryCount
+        : 0;
+    const startedAt = Date.now();
 
     try {
         const authError = requireCronAuth(request);
@@ -44,6 +48,9 @@ export async function GET(request: NextRequest) {
             generated: result.total_generated,
             skipped: result.total_skipped,
             errors: Object.keys(result.errors).length,
+            tenantsSucceeded: result.tenants_succeeded,
+            tenantsFailed: result.tenants_failed,
+            durationMs: Date.now() - startedAt,
         });
 
         // Si hay errores, logearlos pero no fallar el cron
@@ -53,7 +60,7 @@ export async function GET(request: NextRequest) {
         }
 
         return apiSuccess({
-            success: true,
+            success: Object.keys(result.errors).length === 0,
             timestamp: new Date().toISOString(),
             result: {
                 tenants_processed: result.total_tenants,
@@ -61,10 +68,15 @@ export async function GET(request: NextRequest) {
                 sessions_generated: result.total_generated,
                 sessions_skipped: result.total_skipped,
                 errors_count: Object.keys(result.errors).length,
+                tenants_succeeded: result.tenants_succeeded,
+                tenants_failed: result.tenants_failed,
             },
         });
     } catch (error) {
-        logger.error("Error en cron job de generación de sesiones:", error, { retryCount });
+        logger.error("Error en cron job de generación de sesiones:", error, {
+            retryCount,
+            durationMs: Date.now() - startedAt,
+        });
 
         // Retry logic for transient errors
         if (retryCount < MAX_RETRIES) {
