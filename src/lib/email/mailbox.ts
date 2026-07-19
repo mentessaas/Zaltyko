@@ -23,7 +23,10 @@ export function parseMailbox(value: string): Mailbox | null {
     return null;
   }
 
-  if (isValidEmail(trimmed)) {
+  // The generic email validator intentionally handles common addresses, but it
+  // is not a mailbox parser and may accept angle brackets as local-part text.
+  // Only use the plain-address branch when no mailbox delimiters are present.
+  if (!trimmed.includes("<") && !trimmed.includes(">") && isValidEmail(trimmed)) {
     const email = normalizeEmail(trimmed);
     return email ? { email } : null;
   }
