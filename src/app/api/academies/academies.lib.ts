@@ -6,7 +6,13 @@ import { and, asc, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
-import { academies, memberships, plans, profiles, subscriptions } from "@/db/schema";
+import {
+  academies,
+  memberships,
+  plans,
+  profiles,
+  subscriptions,
+} from "@/db/schema";
 import { apiSuccess, apiError, apiCreated } from "@/lib/api-response";
 import { assertUserAcademyLimit } from "@/lib/limits";
 import { LimitError } from "@/lib/limits/errors";
@@ -14,6 +20,7 @@ import { seedOnboardingForAcademy, markWizardStep } from "@/lib/onboarding";
 import { trackEvent } from "@/lib/analytics";
 import { logEvent } from "@/lib/event-logging";
 import { activateAcademySportConfig } from "@/lib/sport-config/seed";
+import type { DatabaseClient } from "@/lib/db-transactions";
 import {
   inferDisciplineFromVariant,
   mapDisciplineVariantToAcademyType,
@@ -24,7 +31,12 @@ import {
 export const dynamic = "force-dynamic";
 
 const ACADEMY_TYPES = ["artistica", "ritmica", "general"] as const;
-const DISCIPLINE_VARIANTS = ["artistic_female", "artistic_male", "rhythmic", "general"] as const;
+const DISCIPLINE_VARIANTS = [
+  "artistic_female",
+  "artistic_male",
+  "rhythmic",
+  "general",
+] as const;
 export const ACADEMY_TYPES_CONST = ACADEMY_TYPES;
 
 export const CreateAcademyBodySchema = z.object({
@@ -51,33 +63,56 @@ export interface CreateAcademyContext {
     role: string;
     tenantId: string | null;
   };
+  tx?: DatabaseClient;
 }
 
-export async function createAcademy(body: z.infer<typeof CreateAcademyBodySchema>, context: CreateAcademyContext) {
+export async function createAcademy(
+  body: z.infer<typeof CreateAcademyBodySchema>,
+  context: CreateAcademyContext
+) {
   const { profile } = context;
+  const client = context.tx ?? db;
   const isAdmin = profile.role === "admin" || profile.role === "super_admin";
   const requesterRole = profile.role;
 
   if (!["owner", "admin", "super_admin"].includes(requesterRole)) {
-    return { error: apiError("PROFILE_REQUIRED", "No tienes permisos para crear academias", 403) };
+    return {
+      error: apiError(
+        "PROFILE_REQUIRED",
+        "No tienes permisos para crear academias",
+        403
+      ),
+    };
   }
 
   const ownerProfile = body.ownerProfileId
     ? (
-      await db
-        .select()
-        .from(profiles)
-        .where(eq(profiles.id, body.ownerProfileId))
-        .limit(1)
-    )[0]
+        await client
+          .select()
+          .from(profiles)
+          .where(eq(profiles.id, body.ownerProfileId))
+          .limit(1)
+      )[0]
     : profile;
 
   if (!ownerProfile) {
-    return { error: apiError("OWNER_PROFILE_NOT_FOUND", "No se encontró el perfil del propietario", 404) };
+    return {
+      error: apiError(
+        "OWNER_PROFILE_NOT_FOUND",
+        "No se encontró el perfil del propietario",
+        404
+      ),
+    };
   }
 
   if (!["owner", "admin"].includes(ownerProfile.role)) {
-    return { error: apiError("PROFILE_REQUIRED", "No tienes permisos para crear academias", 403) };
+    return {
+      error: apiError(
+        "PROFILE_REQUIRED",
+        "No tienes permisos para crear academias",
+        403
+      ),
+    };
   }
 
   // Validate academy limit
@@ -95,7 +130,11 @@ export async function createAcademy(body: z.infer<typeof CreateAcademyBodySchema
             upgradeInfo: {
               plan: "premium",
               price: "99€/mes",
-              benefits: ["Multi-sede con onboarding acompañado", "Reportes de dirección", "Soporte prioritario"],
+              benefits: [
+                "Multi-sede con onboarding acompañado",
+                "Reportes de dirección",
+                "Soporte prioritario",
+              ],
             },
           }
         ),
@@ -109,15 +148,19 @@ export async function createAcademy(body: z.infer<typeof CreateAcademyBodySchema
 
   const academyId = crypto.randomUUID();
   const disciplineVariant = body.disciplineVariant ?? "rhythmic";
-  const normalizedCountryCode = normalizeCountryCode(body.countryCode ?? body.country);
-  const academyType = (body.academyType ?? mapDisciplineVariantToAcademyType(disciplineVariant)) as
+  const normalizedCountryCode = normalizeCountryCode(
+    body.countryCode ?? body.country
+  );
+  const academyType = (body.academyType ??
+    mapDisciplineVariantToAcademyType(disciplineVariant)) as
     | "artistica"
     | "ritmica"
     | "general";
   const discipline = inferDisciplineFromVariant(disciplineVariant);
-  const countryName = body.country ?? getCountryNameFromCode(normalizedCountryCode);
+  const countryName =
+    body.country ?? getCountryNameFromCode(normalizedCountryCode);
 
-  await db.insert(academies).values({
+  await client.insert(academies).values({
     id: academyId,
     tenantId,
     name: body.name,
@@ -140,18 +183,22 @@ export async function createAcademy(body: z.infer<typeof CreateAcademyBodySchema
     isTrialActive: false,
   });
 
-  const activatedSportConfig = await activateAcademySportConfig({
-    tenantId,
-    academyId,
-    countryCode: normalizedCountryCode,
-    disciplineVariant,
-    academyKind: "mixed",
-  });
+  const activatedSportConfig = await activateAcademySportConfig(
+    {
+      tenantId,
+      academyId,
+      countryCode: normalizedCountryCode,
+      disciplineVariant,
+      academyKind: "mixed",
+    },
+    client
+  );
 
-  await db
+  await client
     .update(academies)
     .set({
-      federationConfigVersion: activatedSportConfig?.configVersion ?? "legacy-default-v1",
+      federationConfigVersion:
+        activatedSportConfig?.configVersion ?? "legacy-default-v1",
       specializationStatus: activatedSportConfig?.isGenericFallback
         ? "generic_fallback"
         : activatedSportConfig
@@ -160,7 +207,7 @@ export async function createAcademy(body: z.infer<typeof CreateAcademyBodySchema
     })
     .where(eq(academies.id, academyId));
 
-  await db
+  await client
     .insert(memberships)
     .values({
       userId: ownerProfile.userId,
@@ -173,39 +220,43 @@ export async function createAcademy(body: z.infer<typeof CreateAcademyBodySchema
     academyId,
     tenantId,
     ownerProfileId: ownerProfile.id,
+    tx: client,
   });
 
   await markWizardStep({
     academyId,
     tenantId,
     step: "academy",
+    tx: client,
   });
 
   const shouldUpdateTenant = ownerProfile.tenantId !== tenantId;
 
-  await db
+  await client
     .update(profiles)
     .set({
-      tenantId: shouldUpdateTenant ? tenantId : ownerProfile.tenantId ?? undefined,
+      tenantId: shouldUpdateTenant
+        ? tenantId
+        : (ownerProfile.tenantId ?? undefined),
       activeAcademyId: academyId,
     })
     .where(eq(profiles.id, ownerProfile.id));
 
   // Create or ensure subscription exists
-  const [existingSubscription] = await db
+  const [existingSubscription] = await client
     .select({ id: subscriptions.id })
     .from(subscriptions)
     .where(eq(subscriptions.userId, ownerProfile.userId))
     .limit(1);
 
   if (!existingSubscription) {
-    const [freePlan] = await db
+    const [freePlan] = await client
       .select({ id: plans.id })
       .from(plans)
       .where(eq(plans.code, "free"))
       .limit(1);
 
-    await db
+    await client
       .insert(subscriptions)
       .values({
         userId: ownerProfile.userId,
@@ -227,16 +278,20 @@ export async function createAcademy(body: z.infer<typeof CreateAcademyBodySchema
     },
   });
 
-  await logEvent({
-    academyId,
-    eventType: "academy_created",
-    metadata: {
-      country: countryName,
-      countryCode: normalizedCountryCode,
-      academyType,
-      disciplineVariant,
-    },
-  });
+  // A transactional caller records the audit event after commit. Writing it
+  // through a separate pool connection before commit can race the academy FK.
+  if (!context.tx) {
+    await logEvent({
+      academyId,
+      eventType: "academy_created",
+      metadata: {
+        country: countryName,
+        countryCode: normalizedCountryCode,
+        academyType,
+        disciplineVariant,
+      },
+    });
+  }
 
   return {
     id: academyId,
@@ -250,13 +305,16 @@ export interface ListAcademiesParams {
   academyType?: string;
 }
 
-export async function listAcademies(params: ListAcademiesParams, context: { profile: { role: string; tenantId: string | null } }) {
+export async function listAcademies(
+  params: ListAcademiesParams,
+  context: { profile: { role: string; tenantId: string | null } }
+) {
   const { profile } = context;
   const isSuperAdmin = profile.role === "super_admin";
 
   const effectiveTenantId = isSuperAdmin
-    ? params.tenantId ?? profile.tenantId ?? null
-    : profile.tenantId ?? null;
+    ? (params.tenantId ?? profile.tenantId ?? null)
+    : (profile.tenantId ?? null);
 
   if (!effectiveTenantId && !isSuperAdmin) {
     return { items: [] };
@@ -268,7 +326,12 @@ export async function listAcademies(params: ListAcademiesParams, context: { prof
     filters.push(eq(academies.tenantId, effectiveTenantId));
   }
   if (params.academyType) {
-    filters.push(eq(academies.academyType, params.academyType as typeof ACADEMY_TYPES[number]));
+    filters.push(
+      eq(
+        academies.academyType,
+        params.academyType as (typeof ACADEMY_TYPES)[number]
+      )
+    );
   }
 
   const baseQuery = db
@@ -280,9 +343,12 @@ export async function listAcademies(params: ListAcademiesParams, context: { prof
     })
     .from(academies);
 
-  const rows = filters.length > 0
-    ? await baseQuery.where(filters.length === 1 ? filters[0]! : and(...filters)).orderBy(asc(academies.name))
-    : await baseQuery.orderBy(asc(academies.name));
+  const rows =
+    filters.length > 0
+      ? await baseQuery
+          .where(filters.length === 1 ? filters[0]! : and(...filters))
+          .orderBy(asc(academies.name))
+      : await baseQuery.orderBy(asc(academies.name));
 
   return { items: rows };
 }

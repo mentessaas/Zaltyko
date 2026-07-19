@@ -1,7 +1,12 @@
 import { and, eq } from "drizzle-orm";
 
 import { db } from "@/db";
-import { academies, onboardingChecklistItems, onboardingStates, type OnboardingStepFlags } from "@/db/schema";
+import {
+  academies,
+  onboardingChecklistItems,
+  onboardingStates,
+  type OnboardingStepFlags,
+} from "@/db/schema";
 import { trackEvent } from "./analytics";
 import {
   CHECKLIST_KEYS,
@@ -14,16 +19,19 @@ import {
   type WizardStepKey,
 } from "./onboarding-utils";
 import { getOptionalEnvVar, isTest } from "./env";
+import type { DatabaseClient } from "./db-transactions";
 
 function shouldSkipOnboardingAutomation() {
-  return getOptionalEnvVar("DISABLE_ONBOARDING_AUTOMATIONS") === "true" || isTest();
+  return (
+    getOptionalEnvVar("DISABLE_ONBOARDING_AUTOMATIONS") === "true" || isTest()
+  );
 }
 
 interface SeedOnboardingOptions {
   academyId: string;
   tenantId: string;
   ownerProfileId?: string | null;
-  tx?: typeof db;
+  tx?: DatabaseClient;
 }
 
 export async function seedOnboardingForAcademy({
@@ -57,7 +65,10 @@ export async function seedOnboardingForAcademy({
   }));
 
   if (checklistPayload.length > 0) {
-    await client.insert(onboardingChecklistItems).values(checklistPayload).onConflictDoNothing();
+    await client
+      .insert(onboardingChecklistItems)
+      .values(checklistPayload)
+      .onConflictDoNothing();
   }
 }
 
@@ -66,7 +77,7 @@ interface MarkChecklistInput {
   key: ChecklistKey;
   tenantId?: string;
   status?: ChecklistStatus;
-  tx?: typeof db;
+  tx?: DatabaseClient;
 }
 
 const CHECKLIST_TRACKING_EVENT: Partial<Record<ChecklistKey, string>> = {
@@ -99,11 +110,11 @@ export async function markChecklistItem({
       .from(academies)
       .where(eq(academies.id, academyId))
       .limit(1);
-    
+
     if (!academy?.tenantId) {
       throw new Error(`Academy ${academyId} not found or has no tenantId`);
     }
-    
+
     finalTenantId = academy.tenantId;
   }
 
@@ -115,14 +126,20 @@ export async function markChecklistItem({
       academyId,
       tenantId: finalTenantId,
       key,
-      label: CHECKLIST_DEFINITIONS.find((definition) => definition.key === key)?.label ?? key,
+      label:
+        CHECKLIST_DEFINITIONS.find((definition) => definition.key === key)
+          ?.label ?? key,
       description:
-        CHECKLIST_DEFINITIONS.find((definition) => definition.key === key)?.description ?? key,
+        CHECKLIST_DEFINITIONS.find((definition) => definition.key === key)
+          ?.description ?? key,
       status,
       completedAt: status === "completed" ? now : null,
     })
     .onConflictDoUpdate({
-      target: [onboardingChecklistItems.academyId, onboardingChecklistItems.key],
+      target: [
+        onboardingChecklistItems.academyId,
+        onboardingChecklistItems.key,
+      ],
       set: {
         status,
         completedAt: status === "completed" ? now : null,
@@ -138,12 +155,19 @@ export async function markChecklistItem({
   await maybeMarkAcademyActivated(academyId, client);
 }
 
-async function maybeMarkAcademyActivated(academyId: string, client = db) {
+async function maybeMarkAcademyActivated(
+  academyId: string,
+  client: DatabaseClient = db
+) {
   if (shouldSkipOnboardingAutomation()) {
     return;
   }
 
-  const requiredKeys: ChecklistKey[] = ["create_first_group", "add_5_athletes", "invite_first_coach"];
+  const requiredKeys: ChecklistKey[] = [
+    "create_first_group",
+    "add_5_athletes",
+    "invite_first_coach",
+  ];
   const statuses = await client
     .select({
       key: onboardingChecklistItems.key,
@@ -157,7 +181,9 @@ async function maybeMarkAcademyActivated(academyId: string, client = db) {
   }
 
   const allCompleted = requiredKeys.every((required) =>
-    statuses.some((item) => item.key === required && item.status === "completed")
+    statuses.some(
+      (item) => item.key === required && item.status === "completed"
+    )
   );
 
   if (allCompleted) {
@@ -169,7 +195,7 @@ interface UpdateWizardStepOptions {
   academyId: string;
   tenantId?: string;
   step: WizardStepKey;
-  tx?: typeof db;
+  tx?: DatabaseClient;
 }
 
 export async function markWizardStep({
@@ -183,7 +209,7 @@ export async function markWizardStep({
   }
 
   const client = tx ?? db;
-  
+
   // Get tenantId from academy if not provided
   let finalTenantId: string;
   if (tenantId) {
@@ -194,14 +220,14 @@ export async function markWizardStep({
       .from(academies)
       .where(eq(academies.id, academyId))
       .limit(1);
-    
+
     if (!academy?.tenantId) {
       throw new Error(`Academy ${academyId} not found or has no tenantId`);
     }
-    
+
     finalTenantId = academy.tenantId;
   }
-  
+
   const [state] = await client
     .select({
       id: onboardingStates.id,
@@ -217,13 +243,17 @@ export async function markWizardStep({
   }
 
   const updatedSteps: OnboardingStepFlags = { ...currentSteps, [step]: true };
-  const completedWizard = WIZARD_STEPS.every((definition) => updatedSteps[definition.key]);
-  const nextIncompleteIndex = WIZARD_STEPS.findIndex((item) => !updatedSteps[item.key]);
+  const completedWizard = WIZARD_STEPS.every(
+    (definition) => updatedSteps[definition.key]
+  );
+  const nextIncompleteIndex = WIZARD_STEPS.findIndex(
+    (item) => !updatedSteps[item.key]
+  );
   const currentStepValue = completedWizard
     ? WIZARD_STEPS.length
     : nextIncompleteIndex === -1
-    ? WIZARD_STEPS.length
-    : nextIncompleteIndex + 1;
+      ? WIZARD_STEPS.length
+      : nextIncompleteIndex + 1;
 
   await client
     .insert(onboardingStates)
@@ -271,4 +301,3 @@ export async function syncTrialStatus(academyId: string) {
   const { getAcademyTrialStatus } = await import("@/lib/billing/trial-service");
   await getAcademyTrialStatus(academyId);
 }
-
