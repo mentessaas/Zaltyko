@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { resolveUserHome } from "@/lib/auth/resolve-user-home";
+import { resolveUserEntry } from "@/lib/auth/resolve-user-entry";
 
 export default async function Dashboard() {
   const cookieStore = await cookies();
@@ -15,10 +15,7 @@ export default async function Dashboard() {
     redirect("/auth/login");
   }
 
-  const home = await resolveUserHome({
-    userId: user.id,
-    email: user.email,
-  });
+  const home = await resolveUserEntry(user);
 
   redirect(home.redirectUrl);
 }
