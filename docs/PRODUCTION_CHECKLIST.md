@@ -1,293 +1,196 @@
-# Checklist de Producción - Zaltyko
-
-Este documento contiene una lista completa de verificación para asegurar que la aplicación esté lista para producción.
-
-## 📋 Pre-Deployment
-
-### Base de Datos
-
-- [ ] **Connection Pool creado en Supabase**
-  - [ ] Modo: Transaction
-  - [ ] Pool Size: 20 (recomendado)
-  - [ ] URL del pool copiada (`DATABASE_URL_POOL`)
-
-- [ ] **Migraciones aplicadas**
-  ```bash
-  pnpm db:migrate:ledger
-  pnpm db:migrate:ledger --apply
-  pnpm db:migrate:ledger
-  pnpm check:migrations
-  pnpm validate:rls
-  ```
-  - [ ] SQL inspeccionado manualmente y sin operaciones destructivas no aprobadas
-  - [ ] No usar `pnpm db:migrate` contra remoto: el comando solo admite PostgreSQL local
-
-- [ ] **Políticas RLS aplicadas**
-  - [ ] Ejecutado `supabase/rls.sql` en la base de datos
-  - [ ] Verificado que todas las tablas tienen RLS habilitado
-  - [ ] Probado acceso con diferentes roles de usuario
-
-- [ ] **Realtime habilitado**
-  - [ ] Tablas en replicación: `profiles`, `subscriptions`, `academies`, `classes`, `class_sessions`, `billing_invoices`, `contact_messages`, `notifications`
-  - [ ] Verificado que las suscripciones funcionan
-
-### Variables de Entorno
-
-- [ ] **Base de datos**
-  - [ ] `DATABASE_URL_POOL` configurada (producción)
-  - [ ] `DATABASE_URL_DIRECT` configurada (backup)
-
-- [ ] **Supabase**
-  - [ ] `NEXT_PUBLIC_SUPABASE_URL` configurada
-  - [ ] `NEXT_PUBLIC_SUPABASE_ANON_KEY` configurada
-  - [ ] `SUPABASE_SERVICE_ROLE_KEY` configurada
-
-- [ ] **Aplicación**
-  - [ ] `NEXT_PUBLIC_APP_URL` configurada con dominio de producción
-  - [ ] `NODE_ENV=production`
-
-- [ ] **Cron Jobs**
-  - [ ] `CRON_SECRET` generado y configurado (usar `openssl rand -base64 32`)
-
-- [ ] **Stripe** (si se usa)
-  - [ ] `STRIPE_SECRET_KEY` configurada (sk_live_...)
-  - [ ] `STRIPE_WEBHOOK_SECRET` configurada
-
-- [ ] **Lemon Squeezy** (si se usa)
-  - [ ] `LEMONSQUEEZY_API_KEY` configurada
-  - [ ] `LEMONSQUEEZY_WEBHOOK_SECRET` configurada
-
-- [ ] **Brevo** (email transaccional)
-  - [ ] `BREVO_API_KEY` configurada
-  - [ ] `BREVO_SENDER_EMAIL` verificado
-  - [ ] `BREVO_REPLY_TO` configurada
-
-- [ ] **Sentry** (recomendado)
-  - [ ] `NEXT_PUBLIC_SENTRY_DSN` configurada
-  - [ ] `SENTRY_DSN` configurada
-  - [ ] `SENTRY_ORG` configurada
-  - [ ] `SENTRY_PROJECT` configurada
-  - [ ] `SENTRY_AUTH_TOKEN` configurada
-
-### Webhooks
-
-- [ ] **Stripe Webhook**
-  - [ ] URL configurada: `https://tu-dominio.com/api/stripe/webhook`
-  - [ ] Eventos seleccionados
-  - [ ] Signing secret copiado a `STRIPE_WEBHOOK_SECRET`
-  - [ ] Probado con Stripe CLI o desde dashboard
-
-- [ ] **Lemon Squeezy Webhook** (si se usa)
-  - [ ] URL configurada: `https://tu-dominio.com/api/lemonsqueezy/webhook`
-  - [ ] Eventos seleccionados
-  - [ ] Signing secret copiado
-
-### Vercel
-
-- [ ] **Proyecto creado**
-  - [ ] Repositorio conectado
-  - [ ] Framework detectado: Next.js
-  - [ ] Build Command: `pnpm build`
-  - [ ] Install Command: `pnpm install`
-
-- [ ] **Dominio configurado**
-  - [ ] Dominio personalizado agregado
-  - [ ] DNS configurado correctamente
-  - [ ] SSL activo (automático en Vercel)
-
-- [ ] **Variables de entorno configuradas**
-  - [ ] Todas las variables configuradas en Vercel Dashboard
-  - [ ] Variables separadas por entorno (Production/Preview/Development)
-  - [ ] `CRON_SECRET` configurado
-
-- [ ] **Cron Jobs configurados**
-  - [ ] Verificado en Vercel Dashboard → Settings → Cron Jobs
-  - [ ] Schedules correctos:
-    - Class Reminders: `0 8 * * *` (8:00 AM UTC)
-    - Daily Alerts: `0 9 * * *` (9:00 AM UTC)
-
-## 🚀 Deployment
-
-- [ ] **Build exitoso**
-  - [ ] Sin errores de TypeScript
-  - [ ] Sin errores de linting
-  - [ ] Sin errores de compilación
-  - [ ] Bundle size razonable
-
-- [ ] **Deploy completado**
-  - [ ] Deploy exitoso en Vercel
-  - [ ] URL de producción accesible
-  - [ ] Sin errores en logs
-
-## ✅ Post-Deployment
-
-### Funcionalidad Básica
-
-- [ ] **Autenticación**
-  - [ ] Registro de usuarios funciona
-  - [ ] Login funciona
-  - [ ] Logout funciona
-  - [ ] Recuperación de contraseña funciona (si está implementado)
-
-- [ ] **Dashboard**
-  - [ ] Dashboard carga correctamente
-  - [ ] Datos se muestran correctamente
-  - [ ] Navegación funciona
-
-- [ ] **Base de Datos**
-  - [ ] Conexión a base de datos funciona
-  - [ ] Queries se ejecutan correctamente
-  - [ ] RLS funciona (usuarios solo ven sus datos)
-
-- [ ] **Realtime**
-  - [ ] Notificaciones en tiempo real funcionan
-  - [ ] Actualizaciones de datos se reflejan automáticamente
-
-### Funcionalidad Avanzada
-
-- [ ] **Academias**
-  - [ ] Crear academia funciona
-  - [ ] Editar academia funciona
-  - [ ] Listar academias funciona
-  - [ ] Búsqueda de academias públicas funciona
-
-- [ ] **Atletas**
-  - [ ] Crear atleta funciona
-  - [ ] Editar atleta funciona
-  - [ ] Listar atletas funciona
-  - [ ] Importar CSV funciona (si está implementado)
-
-- [ ] **Clases**
-  - [ ] Crear clase funciona
-  - [ ] Editar clase funciona
-  - [ ] Calendario muestra clases correctamente
-  - [ ] Sesiones se generan automáticamente
-
-- [ ] **Pagos**
-  - [ ] Checkout funciona (Stripe/Lemon Squeezy)
-  - [ ] Webhooks procesan eventos correctamente
-  - [ ] Facturas se generan correctamente
-  - [ ] Cargos se crean correctamente
-
-- [ ] **Emails**
-  - [ ] Emails de bienvenida se envían
-  - [ ] Emails de notificación se envían
-  - [ ] Emails de recordatorio se envían
-
-### Cron Jobs
-
-- [ ] **Class Reminders**
-  - [ ] Se ejecuta a las 8:00 AM UTC
-  - [ ] Envía recordatorios correctamente
-  - [ ] Logs muestran ejecución exitosa
-
-- [ ] **Daily Alerts**
-  - [ ] Se ejecuta a las 9:00 AM UTC
-  - [ ] Crea alertas correctamente
-  - [ ] Logs muestran ejecución exitosa
-
-### Monitoreo
-
-- [ ] **Sentry**
-  - [ ] Errores se capturan correctamente
-  - [ ] Source maps se suben correctamente
-  - [ ] Alertas configuradas
-
-- [ ] **Vercel Analytics**
-  - [ ] Analytics habilitado
-  - [ ] Speed Insights habilitado
-  - [ ] Métricas se muestran en dashboard
-
-- [ ] **Logs**
-  - [ ] Logs accesibles en Vercel Dashboard
-  - [ ] Logs estructurados correctamente
-  - [ ] No hay información sensible en logs
-
-### Seguridad
-
-- [ ] **Variables de entorno**
-  - [ ] No hay secrets en el código
-  - [ ] Variables sensibles solo en Vercel
-  - [ ] `.env.local` en `.gitignore`
-
-- [ ] **RLS**
-  - [ ] Todas las tablas tienen RLS habilitado
-  - [ ] Usuarios solo acceden a sus datos
-  - [ ] Super admin puede acceder a todo
-
-- [ ] **Headers de seguridad**
-  - [ ] HSTS configurado
-  - [ ] X-Frame-Options configurado
-  - [ ] X-Content-Type-Options configurado
-  - [ ] Referrer-Policy configurado
-
-- [ ] **HTTPS**
-  - [ ] SSL activo (automático en Vercel)
-  - [ ] Redirección HTTP → HTTPS funciona
-
-### Performance
-
-- [ ] **Optimizaciones**
-  - [ ] Imágenes optimizadas con `next/image`
-  - [ ] Code splitting funciona
-  - [ ] Bundle size razonable
-  - [ ] Lazy loading implementado donde sea apropiado
-
-- [ ] **Base de datos**
-  - [ ] Connection pool configurado
-  - [ ] Índices en columnas frecuentemente consultadas
-  - [ ] Queries optimizadas
-
-- [ ] **Caching**
-  - [ ] Caching configurado donde sea apropiado
-  - [ ] Revalidación configurada correctamente
-
-## 🔍 Testing
-
-- [ ] **Funcionalidad**
-  - [ ] Flujo completo de usuario probado
-  - [ ] Edge cases probados
-  - [ ] Errores manejados correctamente
-
-- [ ] **Rendimiento**
-  - [ ] Tiempo de carga aceptable
-  - [ ] Sin memory leaks
-  - [ ] Sin queries N+1
-
-- [ ] **Compatibilidad**
-  - [ ] Funciona en Chrome
-  - [ ] Funciona en Firefox
-  - [ ] Funciona en Safari
-  - [ ] Funciona en móviles
-
-## 📚 Documentación
-
-- [ ] **Documentación actualizada**
-  - [ ] README actualizado
-  - [ ] Guía de deployment actualizada
-  - [ ] Variables de entorno documentadas
-  - [ ] API documentada (si aplica)
-
-## 🎯 Checklist Final
-
-- [ ] **Todo lo anterior completado**
-- [ ] **Backup de base de datos creado**
-- [ ] **Plan de rollback preparado**
-- [ ] **Equipo notificado del deploy**
-- [ ] **Monitoreo activo**
-
-## 🆘 En caso de problemas
-
-1. **Revisar logs en Vercel Dashboard**
-2. **Revisar errores en Sentry**
-3. **Verificar variables de entorno**
-4. **Verificar conexión a base de datos**
-5. **Verificar webhooks**
-6. **Consultar documentación de troubleshooting**
-
-## 📞 Contacto
-
-Si encuentras problemas durante el deployment, consulta:
-- [Documentación de Vercel](https://vercel.com/docs)
-- [Documentación de Next.js](https://nextjs.org/docs)
-- [Documentación de Supabase](https://supabase.com/docs)
+# Checklist de producción — Zaltyko
+
+Fuente operativa para habilitar una academia real. No marcar una tarea como completada sin evidencia verificable.
+
+## Estado conocido al 19 de julio de 2026
+
+| Área | Estado | Evidencia / pendiente |
+|---|---|---|
+| Dominio | Operativo | `https://zaltyko.com` con SSL y canonicals consolidados |
+| Migraciones | Operativas | Ledger con 38 migraciones y cero pendientes tras el módulo de cobros |
+| Stripe Connect | Parcial | Webhook registrado y onboarding probado en test mode |
+| Cobros E2E | Pendiente | Guardar tarjeta, off-session, SCA, rechazo, reembolso y reconciliación |
+| Brevo | Bloqueado externo | Falta API key real y remitente verificado; el placeholder fue retirado |
+| Cron | Configurado en código | Verificar ejecuciones y resultados en Vercel |
+| E2E por roles | Parcial | Ejecutar owner, coach, familia y super-admin con cuentas aisladas |
+| Comercial | No validado a escala | No declarar prueba social o resultados sin academias reales |
+
+## 1. Base de datos y aislamiento
+
+- [ ] `DATABASE_URL_POOL` usa pool transaccional.
+- [ ] `DATABASE_URL_DIRECT` está disponible solo para tareas que lo requieren.
+- [ ] `pnpm db:migrate:ledger` devuelve cero pendientes.
+- [ ] `pnpm check:migrations` pasa.
+- [ ] `pnpm validate:rls` pasa.
+- [ ] `pnpm verify:permissive-policies` no detecta políticas inseguras.
+- [ ] Owner, coach, familia y super-admin fueron probados con academias distintas.
+- [ ] Ningún rol puede leer o mutar datos de otro tenant.
+
+No ejecutar `drizzle-kit push` ni `pnpm db:migrate` contra producción.
+
+## 2. Variables de producción
+
+### Aplicación y seguridad
+
+- [ ] `NEXT_PUBLIC_APP_URL=https://zaltyko.com`
+- [ ] `NEXTAUTH_SECRET`
+- [ ] `INTERNAL_AUTH_SECRET`
+- [ ] `CRON_SECRET`
+- [ ] `KV_REST_API_URL`
+- [ ] `KV_REST_API_TOKEN`
+
+### Supabase
+
+- [ ] `DATABASE_URL`
+- [ ] `DATABASE_URL_POOL`
+- [ ] `DATABASE_URL_DIRECT`
+- [ ] `NEXT_PUBLIC_SUPABASE_URL`
+- [ ] `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- [ ] `SUPABASE_SERVICE_ROLE_KEY`
+- [ ] `SUPABASE_JWT_SECRET`
+
+### Stripe
+
+- [ ] `STRIPE_SECRET_KEY`
+- [ ] `STRIPE_WEBHOOK_SECRET`
+- [ ] `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`
+- [ ] `STRIPE_CONNECT_WEBHOOK_SECRET`
+
+### Brevo
+
+- [ ] `BREVO_API_KEY` es real; una llamada controlada no devuelve 401.
+- [ ] `BREVO_SENDER_EMAIL` está verificado.
+- [ ] `BREVO_SENDER_NAME=Zaltyko`
+- [ ] `BREVO_REPLY_TO` recibe respuestas.
+
+No existe dependencia operativa de LemonSqueezy ni Mailgun para email saliente.
+
+## 3. Stripe de plataforma y Connect
+
+- [ ] Webhook de plataforma apunta a `/api/stripe/webhook`.
+- [ ] Webhook Connect apunta a `/api/stripe/connect/webhook`.
+- [ ] Se validan firmas con secretos diferentes.
+- [ ] Eventos Connect activos:
+  - `account.updated`
+  - `payment_intent.succeeded`
+  - `payment_intent.payment_failed`
+  - `payment_intent.canceled`
+  - `charge.refunded`
+- [ ] Onboarding refleja `charges_enabled`, `payouts_enabled` y `details_submitted`.
+- [ ] SetupIntent guarda una tarjeta sin exponer PAN/CVC.
+- [ ] Cobro inmediato funciona.
+- [ ] Cobro off-session funciona.
+- [ ] SCA/3DS produce `requires_action` y una recuperación entendible.
+- [ ] Tarjeta rechazada produce `failed`, registra intento y notifica.
+- [ ] Reembolso total y parcial reconcilian Stripe y el ledger.
+- [ ] Un evento repetido no duplica efectos.
+- [ ] Dos intentos concurrentes no generan doble cobro.
+- [ ] Bizum, efectivo y transferencia continúan como pagos manuales.
+
+## 4. Email transaccional
+
+- [ ] Contacto público entrega un correo real.
+- [ ] Contacto de academia entrega al propietario correcto.
+- [ ] Recordatorio de cuota entrega al tutor correcto.
+- [ ] Emails escapan contenido introducido por usuarios.
+- [ ] Fallos del proveedor quedan registrados sin secretos ni PII innecesaria.
+- [ ] La interfaz no confirma entrega cuando Brevo rechazó el mensaje.
+
+## 5. Cron jobs
+
+Verificar en Vercel cada ruta de `vercel.json`:
+
+- [ ] `/api/cron/generate-sessions`
+- [ ] `/api/cron/collect-charges`
+- [ ] `/api/cron/class-reminders`
+- [ ] `/api/cron/scheduled-notifications`
+- [ ] `/api/cron/trial-lifecycle`
+- [ ] `/api/cron/payment-reminders`
+
+Para cada cron:
+
+- [ ] Rechaza peticiones sin autorización.
+- [ ] Registra inicio, resultado, duración y errores.
+- [ ] Es idempotente o tolera reintentos.
+- [ ] Tiene una ejecución real reciente sin error.
+- [ ] No supera el límite de duración configurado.
+
+## 6. Flujos por rol
+
+### Owner / dirección
+
+- [ ] Crear y configurar academia.
+- [ ] Importar gimnastas desde CSV.
+- [ ] Crear grupos, horarios y sesiones.
+- [ ] Conectar Stripe.
+- [ ] Generar, cobrar, marcar manualmente y reembolsar cuotas.
+- [ ] Consultar morosidad y estadísticas.
+- [ ] Invitar entrenadores y familias.
+
+### Entrenador
+
+- [ ] Solo ve clases y atletas permitidos.
+- [ ] Pasa lista desde móvil, incluida recuperación offline.
+- [ ] Registra evaluación y progreso técnico.
+- [ ] Envía avisos internos permitidos.
+- [ ] No accede a cobros ni configuración sensible.
+
+### Familia
+
+- [ ] Solo ve sus gimnastas.
+- [ ] Consulta horarios, asistencia, progreso y cuotas.
+- [ ] Guarda o elimina tarjeta.
+- [ ] Paga una cuota pendiente y descarga recibo interno.
+- [ ] No confunde recibo interno con factura fiscal.
+
+### Super Admin
+
+- [ ] Acceso restringido y auditado.
+- [ ] Gestiona academias y planes sin saltarse aislamiento accidentalmente.
+- [ ] Las acciones críticas requieren confirmación y quedan en auditoría.
+
+## 7. Calidad y despliegue
+
+- [ ] `pnpm typecheck`
+- [ ] `pnpm lint`
+- [ ] `pnpm test -- --run`
+- [ ] `pnpm build`
+- [ ] `pnpm verify:production`
+- [ ] `pnpm audit:api-routes:strict`
+- [ ] `pnpm audit --prod`
+- [ ] E2E público.
+- [ ] E2E autenticado por roles.
+- [ ] WCAG 2.2 AA en flujos principales.
+- [ ] Viewports móviles sin overflow.
+- [ ] Preview de Vercel revisado antes de merge.
+- [ ] Smoke de producción tras deploy.
+- [ ] Rollback documentado.
+
+## 8. Observabilidad
+
+- [ ] Sentry recibe un evento de prueba en producción.
+- [ ] Source maps están disponibles.
+- [ ] Vercel Analytics y Speed Insights están activos.
+- [ ] Alertas para 5xx, fallos de webhook, cron y email.
+- [ ] Logs no contienen secretos, PAN/CVC ni datos completos de menores.
+
+## Gate para una academia piloto
+
+No invitar una academia real hasta completar:
+
+- [ ] Stripe Connect E2E.
+- [ ] Brevo con entrega real.
+- [ ] E2E owner, coach y familia.
+- [ ] Aislamiento multi-tenant verificado.
+- [ ] Backup y rollback.
+- [ ] Soporte y canal de incidencia definidos.
+
+## Gate para lanzamiento amplio
+
+Además del gate piloto:
+
+- [ ] Tres academias piloto activas.
+- [ ] Métricas verificadas de activación, cobro y uso semanal.
+- [ ] Cero P0/P1 abiertos en flujos principales.
+- [ ] Onboarding y migración desde Excel probados con usuarios reales.
+- [ ] Claims públicos respaldados por evidencia.
