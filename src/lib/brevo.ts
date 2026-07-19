@@ -1,3 +1,4 @@
+import { parseMailbox } from "@/lib/email/mailbox";
 import { isValidEmail, normalizeEmail } from "@/lib/validation/email-utils";
 import { isDevelopment } from "@/lib/env";
 import { logger } from "@/lib/logger";
@@ -14,16 +15,7 @@ if (!hasBrevoCredentials && isDevelopment()) {
 }
 
 /**
- * Sends an email using Brevo SMTP API.
- *
- * @async
- * @param {string} to - The recipient's email address.
- * @param {string} subject - The subject of the email.
- * @param {string} text - The plain text content of the email.
- * @param {string} html - The HTML content of the email.
- * @param {string} replyTo - The email address to set as the "Reply-To" address.
- * @returns {Promise} A Promise that resolves when the email is sent.
- * @throws {Error} Si los parámetros de entrada no son válidos
+ * Sends an email using Brevo's transactional email API.
  */
 export const sendEmail = async ({
   html,
@@ -38,7 +30,6 @@ export const sendEmail = async ({
   html: string;
   replyTo: string;
 }) => {
-  // Validar parámetros de entrada
   if (!to || typeof to !== "string" || !to.trim()) {
     throw new Error("El campo 'to' (destinatario) es requerido");
   }
@@ -55,7 +46,8 @@ export const sendEmail = async ({
     throw new Error("El campo 'html' (contenido HTML) es requerido y no puede estar vacío");
   }
 
-  if (replyTo && !isValidEmail(replyTo)) {
+  const parsedReplyTo = replyTo ? parseMailbox(replyTo) : null;
+  if (replyTo && !parsedReplyTo) {
     throw new Error(`El email 'replyTo' no es válido: ${replyTo}`);
   }
 
@@ -66,7 +58,6 @@ export const sendEmail = async ({
     return;
   }
 
-  // Normalizar email del destinatario
   const normalizedTo = normalizeEmail(to);
   if (!normalizedTo) {
     throw new Error("No se pudo normalizar el email del destinatario");
@@ -84,7 +75,7 @@ export const sendEmail = async ({
       subject: subject.trim(),
       htmlContent: html.trim(),
       textContent: text?.trim(),
-      replyTo: replyTo ? { email: normalizeEmail(replyTo) || replyTo } : undefined,
+      replyTo: parsedReplyTo || undefined,
     }),
   });
 
