@@ -16,6 +16,7 @@ import { type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
+import { getSafeAuthNextPath } from "@/lib/auth/safe-next-path";
 
 // Forzar ruta dinámica
 export const dynamic = 'force-dynamic';
@@ -24,7 +25,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const token_hash = searchParams.get("token_hash");
   const type = searchParams.get("type") as EmailOtpType | null;
-  const next = searchParams.get("next") ?? "/dashboard";
+  const next = getSafeAuthNextPath(searchParams.get("next"));
 
   if (token_hash && type) {
     const cookieStore = await cookies();

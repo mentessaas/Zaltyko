@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { resolveUserHome } from "@/lib/auth/resolve-user-home";
+import { resolveUserEntry } from "@/lib/auth/resolve-user-entry";
 
 /**
  * Canonical onboarding entrypoint.
@@ -19,10 +19,7 @@ export default async function OnboardingPage() {
     redirect("/auth/register");
   }
 
-  const home = await resolveUserHome({
-    userId: user.id,
-    email: user.email,
-  });
+  const home = await resolveUserEntry(user);
 
   redirect(home.destination === "owner_setup" ? "/onboarding/owner" : home.redirectUrl);
 }
