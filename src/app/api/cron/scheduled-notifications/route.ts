@@ -88,14 +88,22 @@ async function processNotification(
   }
 }
 
-export async function POST(request: Request) {
+async function processScheduledNotifications(request: Request) {
+  const startedAt = Date.now();
   const authError = requireCronAuth(request);
   if (authError) return authError;
 
   try {
+    logger.info("Scheduled notifications cron started");
     const pending = await getPendingScheduledNotifications();
 
     if (pending.length === 0) {
+      logger.info("Scheduled notifications cron completed", {
+        durationMs: Date.now() - startedAt,
+        total: 0,
+        processed: 0,
+        failed: 0,
+      });
       return apiSuccess({
         processed: 0,
         message: "No pending notifications",
@@ -152,13 +160,32 @@ export async function POST(request: Request) {
       }
     }
 
+    logger.info("Scheduled notifications cron completed", {
+      durationMs: Date.now() - startedAt,
+      total: pending.length,
+      processed,
+      failed,
+    });
     return apiSuccess({
       processed,
       failed,
       total: pending.length,
     });
   } catch (error) {
-    logger.error("Error processing scheduled notifications:", error);
+    logger.error("Error processing scheduled notifications:", error, {
+      durationMs: Date.now() - startedAt,
+    });
     return apiError("INTERNAL_ERROR", "Error interno del servidor", 500);
   }
+}
+
+
+/** Vercel Cron invokes configured routes with GET. */
+export async function GET(request: Request) {
+  return processScheduledNotifications(request);
+}
+
+/** Kept for backwards compatibility with existing internal callers. */
+export async function POST(request: Request) {
+  return processScheduledNotifications(request);
 }
