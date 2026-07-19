@@ -25,6 +25,19 @@ function interpolateTemplate(template: string, variables: Record<string, string>
   return result;
 }
 
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (character) => {
+    const entities: Record<string, string> = {
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;",
+    };
+    return entities[character];
+  });
+}
+
 async function processNotification(
   notification: {
     id: string;
@@ -79,7 +92,7 @@ async function processNotification(
           await sendEmail({
             to: recipient.email,
             subject: interpolateTemplate(template.subject || template.name, variables),
-            html: `<p>${interpolateTemplate(template.body, variables)}</p>`,
+            html: `<p>${escapeHtml(interpolateTemplate(template.body, variables))}</p>`,
             replyTo: process.env.BREVO_REPLY_TO || "noreply@zaltyko.com",
           });
           break;
