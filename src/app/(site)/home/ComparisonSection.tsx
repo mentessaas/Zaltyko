@@ -1,0 +1,171 @@
+"use client";
+
+import { Check, X, Minus } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+const comparisonFeatures = [
+  {
+    feature: "Puesta en marcha",
+    zaltyko: "Migración desde Excel incluida",
+    spreadsheets: "Manual",
+    generic: "Según proveedor",
+  },
+  {
+    feature: "Cobros automáticos",
+    zaltyko: true,
+    spreadsheets: false,
+    generic: "Limitado",
+  },
+  {
+    feature: "Pase de lista por sesión",
+    zaltyko: true,
+    spreadsheets: false,
+    generic: "Básico",
+  },
+  {
+    feature: "Comunicación con familias",
+    zaltyko: true,
+    spreadsheets: false,
+    generic: "No",
+  },
+  {
+    feature: "Inscripciones a competiciones",
+    zaltyko: true,
+    spreadsheets: false,
+    generic: "No",
+  },
+  {
+    feature: "Reportes para dirección",
+    zaltyko: true,
+    spreadsheets: false,
+    generic: "Limitado",
+  },
+  {
+    feature: "Evaluaciones con rúbrica",
+    zaltyko: true,
+    spreadsheets: false,
+    generic: "No",
+  },
+  {
+    feature: "Específico para gimnasia",
+    zaltyko: true,
+    spreadsheets: false,
+    generic: "No",
+  },
+  {
+    feature: "Soporte en español",
+    zaltyko: true,
+    spreadsheets: false,
+    generic: "Limitado",
+  },
+  {
+    feature: "7 días de Starter sin tarjeta",
+    zaltyko: true,
+    spreadsheets: false,
+    generic: false,
+  },
+];
+
+function CellValue({ value, highlight }: { value: boolean | string; highlight?: boolean }) {
+  if (value === true) {
+    return (
+      <div className="flex items-center justify-center">
+        {highlight ? (
+          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-zaltyko-teal/15">
+            <Check className="h-4 w-4 text-zaltyko-teal" />
+          </span>
+        ) : (
+          <Check className="h-5 w-5 text-green-600" />
+        )}
+      </div>
+    );
+  }
+  if (value === false) {
+    return (
+      <div className="flex items-center justify-center">
+        <X className="h-5 w-5 text-gray-300" />
+      </div>
+    );
+  }
+  return (
+    <span className="text-sm text-center">{value}</span>
+  );
+}
+
+export default function ComparisonSection() {
+  return (
+    <section className="surface-subtle py-24">
+      <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
+        {/* Header */}
+        <div className="text-center mb-12">
+          <span className="inline-block px-4 py-1.5 bg-zaltyko-teal/10 text-zaltyko-indigo text-sm font-semibold rounded-full mb-4">
+            Comparativa
+          </span>
+          <h2 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-4">
+            ¿Por qué no seguir con Excel?
+          </h2>
+          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+            Comparamos Zaltyko con las alternativas más comunes para que veas la diferencia.
+          </p>
+        </div>
+
+        {/* Table */}
+        <div className="overflow-x-auto rounded-2xl border border-gray-200 shadow-lg">
+          <table className="w-full bg-white">
+            {/* Header */}
+            <thead>
+              <tr>
+                <th className="px-6 py-4 text-left text-sm font-bold text-gray-900 bg-gray-50 border-b border-gray-200 w-1/3">
+                  Funcionalidad
+                </th>
+                <th className="px-4 py-4 text-center text-sm font-bold bg-zaltyko-teal text-white border-x-2 border-zaltyko-teal">
+                  <div className="flex flex-col items-center gap-1">
+                    <span className="text-base">Zaltyko</span>
+                    <span className="rounded-full bg-white/20 px-2 py-0.5 text-[11px] font-medium">Recomendado</span>
+                  </div>
+                </th>
+                <th className="px-4 py-4 text-center text-sm font-semibold text-gray-500 bg-gray-50 border-b border-gray-200">
+                  Excel / Sheets
+                </th>
+                <th className="px-4 py-4 text-center text-sm font-semibold text-gray-500 bg-gray-50 border-b border-gray-200">
+                  Software genérico
+                </th>
+              </tr>
+            </thead>
+
+            {/* Rows */}
+            <tbody>
+              {comparisonFeatures.map((row, i) => (
+                <tr
+                  key={row.feature}
+                  className={cn(
+                    "border-b border-gray-100 last:border-0",
+                    i % 2 === 0 ? "bg-white" : "bg-gray-50/50"
+                  )}
+                >
+                  <td className="px-6 py-3.5 text-sm font-medium text-gray-700">
+                    {row.feature}
+                  </td>
+                  <td className="px-4 py-3.5 bg-zaltyko-teal/[0.06] border-x-2 border-zaltyko-teal/20">
+                    <CellValue value={row.zaltyko} highlight />
+                  </td>
+                  <td className="px-4 py-3.5">
+                    <CellValue value={row.spreadsheets} />
+                  </td>
+                  <td className="px-4 py-3.5">
+                    <CellValue value={row.generic} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Bottom note */}
+        <p className="text-center text-sm text-gray-500 mt-6">
+          * Software genérico se refiere a herramientas de gestión sin especialización en gimnasia artística o rítmica.
+        </p>
+      </div>
+    </section>
+  );
+}
