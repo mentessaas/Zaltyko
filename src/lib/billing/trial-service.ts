@@ -256,10 +256,11 @@ export async function convertAcademyTrial(
   return true;
 }
 
-async function notifyTrialOwner(params: {
+export async function notifyTrialOwner(params: {
   academyId: string;
   tenantId: string;
-  ownerUserId: string;
+  ownerProfileId: string;
+  ownerAuthUserId: string;
   academyName: string;
   kind: "day_five" | "expired";
 }) {
@@ -271,7 +272,7 @@ async function notifyTrialOwner(params: {
 
   await createNotification({
     tenantId: params.tenantId,
-    userId: params.ownerUserId,
+    userId: params.ownerProfileId,
     type: isReminder ? "trial_ending" : "trial_expired",
     title,
     message,
@@ -280,7 +281,7 @@ async function notifyTrialOwner(params: {
 
   try {
     const supabase = getSupabaseAdminClient();
-    const { data } = await supabase.auth.admin.getUserById(params.ownerUserId);
+    const { data } = await supabase.auth.admin.getUserById(params.ownerAuthUserId);
     const email = data.user?.email;
     if (!email) return;
     const safeMessage = message
@@ -304,6 +305,24 @@ async function notifyTrialOwner(params: {
   }
 }
 
+export async function releaseTrialNotificationClaim(
+  trialId: string,
+  kind: "day_five" | "expired",
+  claimedAt: Date
+) {
+  const releasedField =
+    kind === "day_five"
+      ? { dayFiveNotifiedAt: null, updatedAt: claimedAt }
+      : { expiryNotifiedAt: null, updatedAt: claimedAt };
+  const claimedField =
+    kind === "day_five" ? academyTrials.dayFiveNotifiedAt : academyTrials.expiryNotifiedAt;
+
+  await db
+    .update(academyTrials)
+    .set(releasedField)
+    .where(and(eq(academyTrials.id, trialId), eq(claimedField, claimedAt)));
+}
+
 export async function processTrialLifecycle(now = new Date()) {
   const reminderThreshold = addTrialDays(now, 2);
   const rows = await db
@@ -316,7 +335,8 @@ export async function processTrialLifecycle(now = new Date()) {
       expiryNotifiedAt: academyTrials.expiryNotifiedAt,
       status: academyTrials.status,
       academyName: academies.name,
-      ownerUserId: profiles.userId,
+      ownerProfileId: profiles.id,
+      ownerAuthUserId: profiles.userId,
     })
     .from(academyTrials)
     .innerJoin(academies, eq(academyTrials.academyId, academies.id))
@@ -330,45 +350,73 @@ export async function processTrialLifecycle(now = new Date()) {
 
   let reminded = 0;
   let expired = 0;
+  let notificationFailures = 0;
+  let processingFailures = 0;
 
   for (const trial of rows) {
-    if (trial.endsAt <= now) {
-      const didExpire =
-        trial.status === "active"
-          ? await expireAcademyTrial(trial.id, trial.academyId, now)
-          : false;
-      const [claimed] = await db
-        .update(academyTrials)
-        .set({ expiryNotifiedAt: now, updatedAt: now })
-        .where(and(eq(academyTrials.id, trial.id), isNull(academyTrials.expiryNotifiedAt)))
-        .returning({ id: academyTrials.id });
-      if (claimed) {
-        await notifyTrialOwner({ ...trial, kind: "expired" });
+    try {
+      if (trial.endsAt <= now) {
+        const didExpire =
+          trial.status === "active"
+            ? await expireAcademyTrial(trial.id, trial.academyId, now)
+            : false;
+        const [claimed] = await db
+          .update(academyTrials)
+          .set({ expiryNotifiedAt: now, updatedAt: now })
+          .where(and(eq(academyTrials.id, trial.id), isNull(academyTrials.expiryNotifiedAt)))
+          .returning({ id: academyTrials.id });
+        if (claimed) {
+          try {
+            await notifyTrialOwner({ ...trial, kind: "expired" });
+          } catch (error) {
+            notificationFailures++;
+            await releaseTrialNotificationClaim(trial.id, "expired", now);
+            logger.error("Trial expiry notification failed; claim released", error, {
+              academyId: trial.academyId,
+              trialId: trial.id,
+            });
+          }
+        }
+        if (didExpire) expired++;
+        continue;
       }
-      if (didExpire) expired++;
-      continue;
-    }
 
-    if (!trial.dayFiveNotifiedAt && trial.endsAt <= reminderThreshold) {
-      const [claimed] = await db
-        .update(academyTrials)
-        .set({ dayFiveNotifiedAt: now, updatedAt: now })
-        .where(
-          and(
-            eq(academyTrials.id, trial.id),
-            eq(academyTrials.status, "active"),
-            isNull(academyTrials.dayFiveNotifiedAt),
-            gt(academyTrials.endsAt, now),
-            lte(academyTrials.endsAt, reminderThreshold)
+      if (!trial.dayFiveNotifiedAt && trial.endsAt <= reminderThreshold) {
+        const [claimed] = await db
+          .update(academyTrials)
+          .set({ dayFiveNotifiedAt: now, updatedAt: now })
+          .where(
+            and(
+              eq(academyTrials.id, trial.id),
+              eq(academyTrials.status, "active"),
+              isNull(academyTrials.dayFiveNotifiedAt),
+              gt(academyTrials.endsAt, now),
+              lte(academyTrials.endsAt, reminderThreshold)
+            )
           )
-        )
-        .returning({ id: academyTrials.id });
-      if (claimed) {
-        await notifyTrialOwner({ ...trial, kind: "day_five" });
-        reminded++;
+          .returning({ id: academyTrials.id });
+        if (claimed) {
+          try {
+            await notifyTrialOwner({ ...trial, kind: "day_five" });
+            reminded++;
+          } catch (error) {
+            notificationFailures++;
+            await releaseTrialNotificationClaim(trial.id, "day_five", now);
+            logger.error("Trial reminder notification failed; claim released", error, {
+              academyId: trial.academyId,
+              trialId: trial.id,
+            });
+          }
+        }
       }
+    } catch (error) {
+      processingFailures++;
+      logger.error("Trial lifecycle item failed", error, {
+        academyId: trial.academyId,
+        trialId: trial.id,
+      });
     }
   }
 
-  return { checked: rows.length, reminded, expired };
+  return { checked: rows.length, reminded, expired, notificationFailures, processingFailures };
 }
