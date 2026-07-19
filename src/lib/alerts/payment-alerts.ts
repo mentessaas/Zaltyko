@@ -74,7 +74,7 @@ export async function detectPaymentAlerts(
     return alerts;
   } catch (error) {
     logger.error("Error detecting payment alerts:", error);
-    return [];
+    throw error;
   }
 }
 

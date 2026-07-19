@@ -12,7 +12,11 @@ export async function GET(request: Request) {
   const authError = requireCronAuth(request);
   if (authError) return authError;
 
+  const startedAt = Date.now();
+
   try {
+    logger.info("Daily alerts cron started");
+
     // Obtener todas las academias activas
     const allAcademies = await db
       .select({
@@ -22,10 +26,11 @@ export async function GET(request: Request) {
       .from(academies);
 
     const results = {
-      capacityAlerts: 0,
-      paymentAlerts: 0,
-      attendanceAlerts: 0,
+      capacity: { succeeded: 0, failed: 0 },
+      payments: { succeeded: 0, failed: 0 },
+      attendance: { succeeded: 0, failed: 0 },
     };
+    const failedAcademyIds = new Set<string>();
 
     if (allAcademies.length === 0) {
       return apiSuccess({ ok: true, message: "No hay academias activas", academiesProcessed: 0, results });
@@ -67,16 +72,20 @@ export async function GET(request: Request) {
         // Alertas de capacidad
         try {
           await createCapacityNotifications(academy.id, academy.tenantId, adminUserIds);
-          results.capacityAlerts++;
+          results.capacity.succeeded++;
         } catch (error) {
+          results.capacity.failed++;
+          failedAcademyIds.add(academy.id);
           logger.error(`Error creating capacity alerts for academy ${academy.id}`, error, { academyId: academy.id });
         }
 
         // Alertas de pagos
         try {
           await createPaymentNotifications(academy.id, academy.tenantId, adminUserIds);
-          results.paymentAlerts++;
+          results.payments.succeeded++;
         } catch (error) {
+          results.payments.failed++;
+          failedAcademyIds.add(academy.id);
           logger.error(`Error creating payment alerts for academy ${academy.id}`, error, { academyId: academy.id });
         }
 
@@ -88,24 +97,40 @@ export async function GET(request: Request) {
             adminUserIds,
             coachUserIds
           );
-          results.attendanceAlerts++;
+          results.attendance.succeeded++;
         } catch (error) {
+          results.attendance.failed++;
+          failedAcademyIds.add(academy.id);
           logger.error(`Error creating attendance alerts for academy ${academy.id}`, error, { academyId: academy.id });
         }
       } catch (error) {
+        failedAcademyIds.add(academy.id);
         logger.error(`Error processing alerts for academy ${academy.id}`, error, { academyId: academy.id });
         // Continuar con la siguiente academia
       }
     }
 
-    return apiSuccess({
+    const summary = {
       ok: true,
       message: "Daily alerts processed successfully",
       academiesProcessed: allAcademies.length,
+      academiesSucceeded: allAcademies.length - failedAcademyIds.size,
+      academiesFailed: failedAcademyIds.size,
+      operationsFailed:
+        results.capacity.failed + results.payments.failed + results.attendance.failed,
       results,
+    };
+
+    logger.info("Daily alerts cron completed", {
+      ...summary,
+      durationMs: Date.now() - startedAt,
     });
+
+    return apiSuccess(summary);
   } catch (error: unknown) {
-    logger.error("Error in daily alerts cron", error);
+    logger.error("Error in daily alerts cron", error, {
+      durationMs: Date.now() - startedAt,
+    });
     return apiError("CRON_FAILED", "Cron job failed", 500);
   }
 }
