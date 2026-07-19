@@ -1,0 +1,13 @@
+<svg width="200" height="60" viewBox="0 0 200 60" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Zaltyko">
+  <defs>
+    <linearGradient id="zaltyko-z-gradient-light" x1="10" y1="12" x2="56" y2="48" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#2B2E83"/>
+      <stop offset="0.54" stop-color="#153A86"/>
+      <stop offset="1" stop-color="#1FC7B6"/>
+    </linearGradient>
+  </defs>
+  <path d="M18.5 13.5H49.6C54.1 13.5 56.6 18.7 53.8 22.2L29.2 52H15.2L39.5 22.6H12.5L18.5 13.5Z" fill="url(#zaltyko-z-gradient-light)"/>
+  <path d="M16.2 44.7C22.3 35.7 31.3 28 43.4 21.9H55.2C48 30.5 39.4 37.7 28.5 44.7H16.2Z" fill="#1FC7B6" opacity="0.95"/>
+  <path d="M15.2 52H44.8C48.5 52 51.9 49.9 53.5 46.6L56.2 41H28.2L15.2 52Z" fill="#1FC7B6"/>
+  <text x="70" y="39" font-family="Space Grotesk, Inter, Arial, sans-serif" font-size="29" font-weight="700" fill="#0F172A">Zaltyko</text>
+</svg>

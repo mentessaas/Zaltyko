@@ -1,0 +1,40 @@
+{
+  "framework": "nextjs",
+  "regions": [
+    "arn1"
+  ],
+  "crons": [
+    {
+      "path": "/api/cron/class-reminders",
+      "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/cron/generate-sessions",
+      "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/scheduled-notifications",
+      "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/cron/trial-lifecycle",
+      "schedule": "15 9 * * *"
+    },
+    {
+      "path": "/api/cron/payment-reminders",
+      "schedule": "30 9 * * *"
+    },
+    {
+      "path": "/api/cron/collect-charges",
+      "schedule": "0 7 * * *"
+    }
+  ],
+  "env": {
+    "NODE_ENV": "production"
+  },
+  "functions": {
+    "src/app/api/cron/**/*.ts": {
+      "maxDuration": 300
+    }
+  }
+}
