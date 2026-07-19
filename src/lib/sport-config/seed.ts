@@ -14,12 +14,25 @@ import {
   sportLocaleConfigs,
   terminologyDictionary,
 } from "@/db/schema";
-import { SPORT_CONFIG_SEEDS, filterSeedCodes, getSportConfigSeedByVariant } from "./catalog";
+import {
+  SPORT_CONFIG_SEEDS,
+  filterSeedCodes,
+  getSportConfigSeedByVariant,
+} from "./catalog";
+import type { DatabaseClient } from "@/lib/db-transactions";
 
-async function ensureCountry(seed: (typeof SPORT_CONFIG_SEEDS)[number]["country"]) {
-  const [row] = await db
+async function ensureCountry(
+  seed: (typeof SPORT_CONFIG_SEEDS)[number]["country"],
+  client: DatabaseClient
+) {
+  const [row] = await client
     .insert(countries)
-    .values({ code: seed.code, name: seed.name, locale: seed.locale, isActive: true })
+    .values({
+      code: seed.code,
+      name: seed.name,
+      locale: seed.locale,
+      isActive: true,
+    })
     .onConflictDoUpdate({
       target: countries.code,
       set: { name: seed.name, locale: seed.locale, isActive: true },
@@ -28,8 +41,11 @@ async function ensureCountry(seed: (typeof SPORT_CONFIG_SEEDS)[number]["country"
   return row;
 }
 
-async function ensureDiscipline(seed: (typeof SPORT_CONFIG_SEEDS)[number]["discipline"]) {
-  const [row] = await db
+async function ensureDiscipline(
+  seed: (typeof SPORT_CONFIG_SEEDS)[number]["discipline"],
+  client: DatabaseClient
+) {
+  const [row] = await client
     .insert(sportDisciplines)
     .values({ code: seed.code, name: seed.name, isActive: true })
     .onConflictDoUpdate({
@@ -42,16 +58,22 @@ async function ensureDiscipline(seed: (typeof SPORT_CONFIG_SEEDS)[number]["disci
 
 async function ensureBranch(
   disciplineId: string,
-  seed: (typeof SPORT_CONFIG_SEEDS)[number]["branch"]
+  seed: (typeof SPORT_CONFIG_SEEDS)[number]["branch"],
+  client: DatabaseClient
 ) {
-  const [existing] = await db
+  const [existing] = await client
     .select()
     .from(sportBranches)
-    .where(and(eq(sportBranches.disciplineId, disciplineId), eq(sportBranches.code, seed.code)))
+    .where(
+      and(
+        eq(sportBranches.disciplineId, disciplineId),
+        eq(sportBranches.code, seed.code)
+      )
+    )
     .limit(1);
 
   if (existing) {
-    const [updated] = await db
+    const [updated] = await client
       .update(sportBranches)
       .set({ name: seed.name, isActive: true })
       .where(eq(sportBranches.id, existing.id))
@@ -59,22 +81,22 @@ async function ensureBranch(
     return updated;
   }
 
-  const [created] = await db
+  const [created] = await client
     .insert(sportBranches)
     .values({ disciplineId, code: seed.code, name: seed.name, isActive: true })
     .returning();
   return created;
 }
 
-export async function seedSportConfigurations() {
+export async function seedSportConfigurations(client: DatabaseClient = db) {
   const rows = [];
 
   for (const seed of SPORT_CONFIG_SEEDS) {
-    const country = await ensureCountry(seed.country);
-    const discipline = await ensureDiscipline(seed.discipline);
-    const branch = await ensureBranch(discipline.id, seed.branch);
+    const country = await ensureCountry(seed.country, client);
+    const discipline = await ensureDiscipline(seed.discipline, client);
+    const branch = await ensureBranch(discipline.id, seed.branch, client);
 
-    const [config] = await db
+    const [config] = await client
       .insert(sportLocaleConfigs)
       .values({
         countryId: country.id,
@@ -104,7 +126,7 @@ export async function seedSportConfigurations() {
       })
       .returning();
 
-    await db
+    await client
       .insert(terminologyDictionary)
       .values({ sportLocaleConfigId: config.id, terms: seed.terminology })
       .onConflictDoUpdate({
@@ -113,7 +135,7 @@ export async function seedSportConfigurations() {
       });
 
     for (const [index, item] of seed.evaluation.apparatus.entries()) {
-      await db
+      await client
         .insert(apparatus)
         .values({
           sportLocaleConfigId: config.id,
@@ -124,12 +146,16 @@ export async function seedSportConfigurations() {
         })
         .onConflictDoUpdate({
           target: [apparatus.sportLocaleConfigId, apparatus.code],
-          set: { name: item.label, shortName: item.code.toUpperCase(), sortOrder: index + 1 },
+          set: {
+            name: item.label,
+            shortName: item.code.toUpperCase(),
+            sortOrder: index + 1,
+          },
         });
     }
 
     for (const [index, item] of seed.programs.entries()) {
-      await db
+      await client
         .insert(programs)
         .values({
           sportLocaleConfigId: config.id,
@@ -141,12 +167,17 @@ export async function seedSportConfigurations() {
         })
         .onConflictDoUpdate({
           target: [programs.sportLocaleConfigId, programs.code],
-          set: { name: item.name, description: item.description, sortOrder: index + 1, isActive: true },
+          set: {
+            name: item.name,
+            description: item.description,
+            sortOrder: index + 1,
+            isActive: true,
+          },
         });
     }
 
     for (const [index, item] of seed.levels.entries()) {
-      await db
+      await client
         .insert(levels)
         .values({
           sportLocaleConfigId: config.id,
@@ -158,12 +189,17 @@ export async function seedSportConfigurations() {
         })
         .onConflictDoUpdate({
           target: [levels.sportLocaleConfigId, levels.code],
-          set: { name: item.name, programCode: item.programCode, sortOrder: index + 1, isActive: true },
+          set: {
+            name: item.name,
+            programCode: item.programCode,
+            sortOrder: index + 1,
+            isActive: true,
+          },
         });
     }
 
     for (const [index, item] of seed.ageCategories.entries()) {
-      await db
+      await client
         .insert(categories)
         .values({
           sportLocaleConfigId: config.id,
@@ -187,7 +223,7 @@ export async function seedSportConfigurations() {
     }
 
     for (const [index, item] of seed.competitionTypes.entries()) {
-      await db
+      await client
         .insert(competitionTypes)
         .values({
           sportLocaleConfigId: config.id,
@@ -206,43 +242,55 @@ export async function seedSportConfigurations() {
     // federation codes active forever, so retire anything that is no longer
     // present in the current seed while preserving the rows for historical
     // references and auditability.
-    await db
+    await client
       .update(programs)
       .set({ isActive: false })
       .where(
         and(
           eq(programs.sportLocaleConfigId, config.id),
-          notInArray(programs.code, seed.programs.map((item) => item.code))
+          notInArray(
+            programs.code,
+            seed.programs.map((item) => item.code)
+          )
         )
       );
 
-    await db
+    await client
       .update(levels)
       .set({ isActive: false })
       .where(
         and(
           eq(levels.sportLocaleConfigId, config.id),
-          notInArray(levels.code, seed.levels.map((item) => item.code))
+          notInArray(
+            levels.code,
+            seed.levels.map((item) => item.code)
+          )
         )
       );
 
-    await db
+    await client
       .update(categories)
       .set({ isActive: false })
       .where(
         and(
           eq(categories.sportLocaleConfigId, config.id),
-          notInArray(categories.code, seed.ageCategories.map((item) => item.code))
+          notInArray(
+            categories.code,
+            seed.ageCategories.map((item) => item.code)
+          )
         )
       );
 
-    await db
+    await client
       .update(competitionTypes)
       .set({ isActive: false })
       .where(
         and(
           eq(competitionTypes.sportLocaleConfigId, config.id),
-          notInArray(competitionTypes.code, seed.competitionTypes.map((item) => item.code))
+          notInArray(
+            competitionTypes.code,
+            seed.competitionTypes.map((item) => item.code)
+          )
         )
       );
 
@@ -252,22 +300,28 @@ export async function seedSportConfigurations() {
   return rows;
 }
 
-export async function activateAcademySportConfig(params: {
-  tenantId: string;
-  academyId: string;
-  countryCode?: string | null;
-  disciplineVariant: string;
-  academyKind?: "recreational" | "competitive" | "mixed";
-  activeProgramCodes?: string[] | null;
-  activeApparatusCodes?: string[] | null;
-  terminologyOverrides?: Record<string, string> | null;
-}) {
-  await seedSportConfigurations();
+export async function activateAcademySportConfig(
+  params: {
+    tenantId: string;
+    academyId: string;
+    countryCode?: string | null;
+    disciplineVariant: string;
+    academyKind?: "recreational" | "competitive" | "mixed";
+    activeProgramCodes?: string[] | null;
+    activeApparatusCodes?: string[] | null;
+    terminologyOverrides?: Record<string, string> | null;
+  },
+  client: DatabaseClient = db
+) {
+  await seedSportConfigurations(client);
 
-  const seed = getSportConfigSeedByVariant(params.countryCode ?? "ES", params.disciplineVariant);
+  const seed = getSportConfigSeedByVariant(
+    params.countryCode ?? "ES",
+    params.disciplineVariant
+  );
   if (!seed) return null;
 
-  const [localeConfig] = await db
+  const [localeConfig] = await client
     .select()
     .from(sportLocaleConfigs)
     .where(eq(sportLocaleConfigs.code, seed.code))
@@ -275,14 +329,20 @@ export async function activateAcademySportConfig(params: {
 
   if (!localeConfig) return null;
 
-  const activeProgramCodes = filterSeedCodes(seed.programs, params.activeProgramCodes);
-  const activeApparatusCodes = filterSeedCodes(seed.evaluation.apparatus, params.activeApparatusCodes);
+  const activeProgramCodes = filterSeedCodes(
+    seed.programs,
+    params.activeProgramCodes
+  );
+  const activeApparatusCodes = filterSeedCodes(
+    seed.evaluation.apparatus,
+    params.activeApparatusCodes
+  );
   const terminologyOverrideValues =
     params.terminologyOverrides !== undefined
       ? { terminologyOverrides: params.terminologyOverrides }
       : {};
 
-  const [active] = await db
+  const [active] = await client
     .insert(academySportConfigs)
     .values({
       tenantId: params.tenantId,
@@ -295,7 +355,10 @@ export async function activateAcademySportConfig(params: {
       isActive: true,
     })
     .onConflictDoUpdate({
-      target: [academySportConfigs.academyId, academySportConfigs.sportLocaleConfigId],
+      target: [
+        academySportConfigs.academyId,
+        academySportConfigs.sportLocaleConfigId,
+      ],
       set: {
         academyKind: params.academyKind ?? "mixed",
         activeProgramCodes,
@@ -307,5 +370,9 @@ export async function activateAcademySportConfig(params: {
     })
     .returning();
 
-  return { ...active, isGenericFallback: seed.isGenericFallback ?? false, configVersion: seed.configVersion };
+  return {
+    ...active,
+    isGenericFallback: seed.isGenericFallback ?? false,
+    configVersion: seed.configVersion,
+  };
 }
