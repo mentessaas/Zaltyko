@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { Metadata } from "next";
 import LoginForm from "@/components/login-form";
 import { createClient } from "@/lib/supabase/server";
-import { resolveUserHome } from "@/lib/auth/resolve-user-home";
+import { resolveUserEntry } from "@/lib/auth/resolve-user-entry";
 import { getPublicSiteUrl } from "@/lib/seo/site-url";
 
 export const metadata: Metadata = {
@@ -29,10 +29,7 @@ export default async function Login() {
   } = await supabase.auth.getUser();
 
   if (user) {
-    const home = await resolveUserHome({
-      userId: user.id,
-      email: user.email,
-    });
+    const home = await resolveUserEntry(user);
     redirect(home.redirectUrl);
   }
 
