@@ -15,11 +15,20 @@ export async function GET(request: Request) {
   const authError = requireCronAuth(request);
   if (authError) return authError;
 
+  const startedAt = Date.now();
+
   try {
-    const sent = await triggerScheduledPaymentReminders();
-    return apiSuccess({ sent });
+    logger.info("Payment reminders cron started");
+    const summary = await triggerScheduledPaymentReminders();
+    logger.info("Payment reminders cron completed", {
+      ...summary,
+      durationMs: Date.now() - startedAt,
+    });
+    return apiSuccess(summary);
   } catch (error) {
-    logger.error("Payment reminders cron failed", error);
+    logger.error("Payment reminders cron failed", error, {
+      durationMs: Date.now() - startedAt,
+    });
     return apiError("PAYMENT_REMINDERS_FAILED", "No se pudieron enviar los recordatorios", 500);
   }
 }

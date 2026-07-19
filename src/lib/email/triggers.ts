@@ -191,13 +191,29 @@ function toDateOnly(date: Date): string {
   return date.toISOString().split("T")[0];
 }
 
-export async function triggerScheduledPaymentReminders(now: Date = new Date()): Promise<number> {
-  let sentCount = 0;
+export interface ScheduledPaymentReminderSummary {
+  due: number;
+  sent: number;
+  failed: number;
+  skippedNoRecipient: number;
+  skippedDuplicate: number;
+}
+
+export async function triggerScheduledPaymentReminders(
+  now: Date = new Date()
+): Promise<ScheduledPaymentReminderSummary> {
+  const summary: ScheduledPaymentReminderSummary = {
+    due: 0,
+    sent: 0,
+    failed: 0,
+    skippedNoRecipient: 0,
+    skippedDuplicate: 0,
+  };
 
   for (const offset of REMINDER_OFFSETS_DAYS) {
     // dueDate = hoy - offset  =>  hoy = dueDate + offset (offset dias despues del vencimiento).
     const target = new Date(now);
-    target.setDate(target.getDate() - offset);
+    target.setUTCDate(target.getUTCDate() - offset);
     const targetStr = toDateOnly(target);
 
     const dueCharges = await db
@@ -216,7 +232,11 @@ export async function triggerScheduledPaymentReminders(now: Date = new Date()): 
       .where(and(inArray(charges.status, ["pending", "overdue", "failed"]), eq(charges.dueDate, targetStr)));
 
     for (const charge of dueCharges) {
-      if (!charge.athleteId) continue;
+      summary.due++;
+      if (!charge.athleteId) {
+        summary.skippedNoRecipient++;
+        continue;
+      }
 
       const [athlete] = await db
         .select({
@@ -232,7 +252,10 @@ export async function triggerScheduledPaymentReminders(now: Date = new Date()): 
         .limit(1);
 
       const email = athlete?.guardianEmail || athlete?.familyContactEmail;
-      if (!email) continue;
+      if (!email) {
+        summary.skippedNoRecipient++;
+        continue;
+      }
 
       const amount = charge.amountCents / 100;
       const subject =
@@ -252,7 +275,7 @@ export async function triggerScheduledPaymentReminders(now: Date = new Date()): 
           academyName: charge.academyName || "Tu academia",
         });
 
-        await sendEmailWithLogging({
+        const delivery = await sendEmailWithLogging({
           to: email,
           subject,
           html,
@@ -260,15 +283,21 @@ export async function triggerScheduledPaymentReminders(now: Date = new Date()): 
           tenantId: charge.tenantId,
           academyId: charge.academyId,
           metadata: { chargeId: charge.chargeId, athleteId: charge.athleteId, reminderOffset: offset },
+          idempotencyKey: `payment-reminder:${charge.chargeId}:${offset}:${toDateOnly(now)}`,
         });
-        sentCount++;
+        if (delivery === "duplicate") {
+          summary.skippedDuplicate++;
+        } else {
+          summary.sent++;
+        }
       } catch (error) {
+        summary.failed++;
         logger.error(`Error sending scheduled payment reminder to ${email}:`, error);
       }
     }
   }
 
-  return sentCount;
+  return summary;
 }
 
 export type ManualPaymentReminderResult =
