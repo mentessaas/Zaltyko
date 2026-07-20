@@ -312,7 +312,7 @@ export function OwnerOnboardingForm() {
               return (
                 <label
                   key={option.value}
-                  className="rounded-lg border border-border bg-card px-4 py-3 text-sm"
+                  className="min-h-11 rounded-lg border border-border bg-card px-4 py-3 text-sm"
                 >
                   <div className="flex items-start gap-3">
                     <input
@@ -422,7 +422,7 @@ export function OwnerOnboardingForm() {
                   return (
                     <label
                       key={preset.key}
-                      className="flex items-start gap-3 rounded-lg border border-border bg-card px-4 py-3 text-sm"
+                      className="flex min-h-11 items-start gap-3 rounded-lg border border-border bg-card px-4 py-3 text-sm"
                     >
                       <input
                         type="checkbox"
@@ -462,7 +462,7 @@ export function OwnerOnboardingForm() {
                       return (
                         <label
                           key={program.code}
-                          className="flex items-center gap-2 rounded-full border border-border px-3 py-1 text-xs text-muted-foreground"
+                          className="flex min-h-11 items-center gap-2 rounded-full border border-border px-3 py-2 text-xs text-muted-foreground"
                         >
                           <input
                             type="checkbox"
@@ -486,7 +486,7 @@ export function OwnerOnboardingForm() {
                       return (
                         <label
                           key={item.code}
-                          className="flex items-center gap-2 rounded-full border border-border px-3 py-1 text-xs text-muted-foreground"
+                          className="flex min-h-11 items-center gap-2 rounded-full border border-border px-3 py-2 text-xs text-muted-foreground"
                         >
                           <input
                             type="checkbox"
