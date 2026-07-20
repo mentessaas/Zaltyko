@@ -31,7 +31,7 @@ export default async function OwnerOnboardingPage() {
     <div className="mx-auto flex min-h-screen max-w-3xl flex-col justify-center gap-8 px-4 py-12">
       <div className="space-y-3">
         <p className="text-sm font-medium uppercase tracking-wide text-primary">Configuración inicial</p>
-        <h1 className="text-4xl font-semibold tracking-tight text-foreground">
+        <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
           Crea tu primera academia
         </h1>
         <p className="max-w-2xl text-base text-muted-foreground">
