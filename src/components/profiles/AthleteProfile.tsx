@@ -175,12 +175,12 @@ export function AthleteProfile({ user, profile, athleteData, labels, targetProfi
                 </div>
               )}
               {user?.email && (
-                <div className="flex items-center gap-2">
-                  <Mail className="h-4 w-4 text-muted-foreground" />
-                  <div className="flex flex-col">
-                    <dt className="text-xs uppercase tracking-wide text-muted-foreground">Email</dt>
-                    <dd className="font-medium text-foreground">{user.email}</dd>
-                  </div>
+                <div className="flex flex-col">
+                  <dt className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
+                    <Mail className="h-4 w-4" aria-hidden="true" />
+                    Email
+                  </dt>
+                  <dd className="font-medium text-foreground">{user.email}</dd>
                 </div>
               )}
             </dl>
