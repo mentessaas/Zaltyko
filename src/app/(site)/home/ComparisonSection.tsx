@@ -121,7 +121,7 @@ export default function ComparisonSection() {
                 <th className="px-4 py-4 text-center text-sm font-bold bg-[#00695C] text-white border-x-2 border-[#00695C]">
                   <div className="flex flex-col items-center gap-1">
                     <span className="text-base">Zaltyko</span>
-                    <span className="rounded-full bg-white/20 px-2 py-0.5 text-[11px] font-medium">Recomendado</span>
+                    <span className="rounded-full bg-white px-2 py-0.5 text-[11px] font-medium text-[#00695C]">Recomendado</span>
                   </div>
                 </th>
                 <th className="px-4 py-4 text-center text-sm font-semibold text-gray-500 bg-gray-50 border-b border-gray-200">
