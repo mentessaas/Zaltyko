@@ -1,13 +1,76 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-07-13
+last_reviewed: 2026-07-18
 source:
   - ../ROADMAP.md
   - ../AGENTS.md
 ---
 
 # Changelog interno
+
+## 2026-07-18 - Cierre técnico Día 4 y pase seguro a Día 5
+
+- Gate de producción completo verde: inventario estricto de 293 APIs sin `risky` ni `semanticRisks`, RLS declarada 69/69, integridad de 6 migraciones Drizzle + 40 Supabase, TypeScript, ESLint, 90 archivos y 640/640 tests, y build Next.js 15.5.19 con 219 páginas estáticas generadas.
+- Se corrigió el bucle `/help` → `/ayuda` → `/{locale}/ayuda` retirando del middleware la localización de las rutas públicas canónicas; la regresión cubre `/ayuda` y `/sobre-nosotros` con navegador en inglés.
+- El alias legacy `/app/[academyId]/evaluations` salió del smoke genérico y tiene un contrato E2E explícito: redirige a `/app/[academyId]/assessments`, muestra `#main-content` y no expone errores de ruta. Resultado final sin retries: Chromium, Firefox y WebKit, 3/3.
+- Se estabilizó el harness local sin aumentar timeouts funcionales indiscriminadamente: Vitest y el gate usan dos workers; Playwright autenticado usa un worker local, espera hidratación real y diferencia enlaces visibles de duplicados responsive. La sesión E2E owner se renovó sin provisionar usuarios ni mutar datos.
+- El intento deliberado contra `next start` confirmó el fail-closed de producción: sin Vercel KV la ruta privada devuelve 429 antes del redirect. No se desactivó la protección. KV/WAF/paridad Vercel, entrega Brevo y la matriz Stripe externa continúan como bloqueos operativos para producción.
+- `src/components/landing/ClusterStatsSection.tsx`, archivo nuevo presente en el árbol compartido, recibió el contrato de tipo mínimo de `socialProof` necesario para restaurar TypeScript/build; no se añadieron claims ni datos comerciales.
+- Decisión de cierre: es seguro iniciar el trabajo de Día 5 sobre el código local. Esto no autoriza deploy ni cambia el no-go de producción mientras falten KV y las validaciones externas pendientes.
+- Vault: actualizados `Changelog interno`, `Registro de riesgos` y `Backlog priorizado`; evidencia técnica sincronizada en `docs/audit/SPRINT_01_PLAN.md` y `docs/audit/CRITICAL_FLOWS.md`. No hubo nueva migración ni decisión de producto.
+
+## 2026-07-16 - Día 4: hardening transaccional local
+
+- Stripe Connect valida cuenta conectada, tenant, academia, importe, moneda y metadata antes de reconciliar; firma con body raw y tolerancia explícita. Refunds usan transacción, advisory lock, límite acumulado e idempotencia estable. El método de pago familiar debe pertenecer al Customer canónico.
+- Invitaciones y solicitudes de vínculo usan claim atómico para impedir doble aceptación; roles custom se aplican realmente, las URLs salen del origen configurado y el correo se registra con deduplicación. Tokens siguen almacenados en claro y quedan en backlog para migración compatible.
+- Los siete cron auditados usan lease; `scheduled-notifications` admite `GET`, no marca éxitos falsos y deja de registrar teléfono/contenido WhatsApp. Brevo y KV fallan cerrados en producción cuando falta configuración.
+- Mailgun inbound exige HMAC reciente y escapa todo el contenido; queda pendiente nonce ledger. Se añadieron pruebas focalizadas de webhooks, refunds, expiración/replay, lease y readiness.
+- Gate local final: typecheck y lint verdes; Vitest 90 archivos/638 tests; auditor estricto 292 rutas sin riesgos; RLS 69/69; integridad 6 Drizzle + 40 Supabase; `git diff --check` limpio.
+- Sin cargos reales, cambios de webhook/Vercel, SQL, usuarios, datos, Playwright/axe, deploy ni archivos eliminados. Se revisó el changelog reciente de Supabase y Día 4 no necesitó migración.
+- Vault: actualizados `Changelog interno`, `Backlog priorizado` y `Registro de riesgos`; no hubo una nueva decisión de producto/arquitectura que registrar.
+
+## 2026-07-16 - Cierre seguro Día 2 + Día 3 y pase a Día 4
+
+- Las suites API sensibles antes excluidas se actualizaron e incorporaron a `vitest.config.ts`: atletas, clases/sesiones/asistencia, billing legacy 410, Stripe/webhooks, auth completa, límites y tenancy. El gate normal y `pnpm test:security` pasan 86 archivos y 618/618 tests, sin exclusiones ni skips Vitest.
+- Se corrigió una pérdida real de `context.params` en 17 llamadas rate-limited de 10 Route Handlers; una regresión estática impide volver a invocar el handler interno con contexto vacío. La resolución de rate limit ordena prefijos por especificidad, por lo que `/api/athletes/import` conserva 5/min frente al límite general 60/min.
+- `pnpm test:rls:local` aplica conjuntamente `20260716181006_day2_rls_semantic_hardening.sql` y `20260716214500_day3_communication_academy_scope.sql` en PostgreSQL efímero. Owner, coach, parent, athlete, viewer, super-admin y anon pasan; 102 tablas públicas, 0 sin RLS; rollback y cluster borrado al finalizar.
+- El ensayo real detectó que un `CASE` no basta para impedir planificación de helpers privados con `anon`; las tres policies SELECT de comunicación ahora declaran `TO authenticated` y la regresión anónima cubre templates, groups y scheduled notifications.
+- Gate de release local completo verde: 292 rutas (`risky=[]`, `semanticRisks=[]`, `resourceScopeManualReview=0`), RLS 69/69, migraciones 6 Drizzle + 40 Supabase, typecheck, lint, 618/618 tests y build Next.js 15.5.19 de 219 rutas. `git diff --check` limpio.
+- No se ejecutó Playwright/axe, no se usaron cuentas reales, no se aplicó SQL remoto y no hubo deploy. Es seguro comenzar Día 4; producción sigue no-go hasta promoción revisada, PostgREST/Realtime, sandbox externo y readiness de KV/env.
+- Vault: actualizados `Changelog interno`, `Backlog priorizado`, `Registro de riesgos`, `Runbook migraciones` y `Decisiones`; documentación técnica sincronizada en `docs/audit/`.
+
+## 2026-07-16 - Día 3 de hardening: matriz de capabilities y resource scope
+
+- `scripts/audit-api-routes.ts` evolucionó de clasificador de imports a inventario ejecutable por método: auth, capability, Zod/equivalente, rate limit, academia, resource scope, service role, `tenantId` de cliente, datos sensibles y denegación. Snapshot final: 292 rutas, 171 capability-protected, 176 validadas, 254 respuestas y 256 errores estándar; cero `risky`, cero riesgos semánticos y cero scopes manuales.
+- Se ampliaron capabilities para dominios sensibles y se corrigieron cuatro brechas concretas: owner/admin global ya no equivale a ownership de academia en helpers coach/recurso; `/api/athletes` deja de aceptar override de tenant; tres llamadas de cobros/grupo dejaron de invertir tenant y academia; vídeos de evaluación validan academia, atleta/asignación y envelope.
+- Se cerraron los 32 recursos dinámicos con helpers de academia/clase/atleta y scopes explícitos self/guardian/super-admin. Evidencia focalizada final: 49/49 PASS, incluida negativa BOLA academia A/B, tenant, clase y atleta no asignado.
+- Gate obligatorio final: typecheck, lint, 68 archivos/527 tests, auditor estricto, RLS 69/69, integridad 6+40 y `git diff --check` PASS.
+- Comunicación queda aislada por academia en schema, servicios, UI y Route Handlers. Se versionó `20260716214500_day3_communication_academy_scope.sql` con backfill solo inequívoco y RLS; no se aplicó. Se revisó antes el changelog oficial reciente de Supabase.
+- En este snapshot se detectó deuda histórica de envelopes/mocks, endpoints billing deprecated, Stripe y TSX; el cierre posterior del mismo día, registrado arriba, la reparó e integró y cerró ROLE-003. ROUTE-004 y MT-004 ya estaban cerrados aquí.
+- No se tocó producción, no se aplicó SQL, no se provisionaron usuarios, no se ejecutó Playwright/axe y no se eliminaron archivos.
+- Vault: actualizados `Changelog interno`, `Registro de riesgos`, `Backlog priorizado`, `Runbook migraciones` y `Decisiones`.
+
+## 2026-07-16 - Día 2 de hardening: RLS semántico, TLS, pool y build offline
+
+- Se inventariaron las 69 tablas tenant-scoped por identidad, menores/deporte, billing, comunicación, eventos y diagnóstico, además de tablas cuyo scope llega por FK. El mapa CRUD/rol/recurso/browser queda en `docs/audit/RLS_SEMANTIC_MATRIX.md`.
+- La migración pendiente `20260716181006_day2_rls_semantic_hardening.sql` crea diez helpers escalares en `zaltyko_private`, fija `search_path=pg_catalog`, cualifica objetos, revoca `EXECUTE` de `PUBLIC/anon` y elimina el helper que devolvía un perfil completo. `plans_read` deja el helper de rol obsoleto y usa `TO authenticated`.
+- Policies core separan owner/academia, coach asignado, parent por `guardian_athletes`, athlete por `athletes.user_id`, viewer y superadmin. Cobros solo son visibles para manager o tutor vinculado; athlete/coach/viewer quedan fuera.
+- El cierre integral detectó diez catálogos deportivos globales en `public` sin RLS. La misma migración pendiente habilita RLS, deja lectura solo para `authenticated`, revoca acceso `anon` y escrituras browser, y mantiene el backend privilegiado como único escritor. `verify:permissive-policies` ahora falla ante cualquier tabla pública sin RLS salvo `__drizzle_migrations`.
+- La primera prueba PostgreSQL detectó recursión real entre tutores y vínculos; se corrigió con helper privado. La repetición desde cero pasó para owner A/B, coach asignado/no asignado, parent propio/otro menor, athlete, viewer, anónimo, superadmin y `tenant_id` falso. El clúster semántico es efímero y termina en rollback. La única conexión productiva del cierre fue el auditor de metadatos read-only; no consultó filas de producto ni ejecutó SQL mutante.
+- Runtime PostgreSQL remoto ahora exige `NODE_EXTRA_CA_CERTS` y valida el certificado. El ledger y el script manual de precios Stripe reutilizan la misma configuración fail-closed; no queda `rejectUnauthorized:false` en `src/`, `scripts/` ni Drizzle. Pool por instancia baja de 50 a 5 (configurable); no se afirma capacidad global sin métricas.
+- El perfil público de coach pasa a `force-dynamic` y elimina `generateStaticParams` con DB. Durante `NEXT_PHASE` cualquier acceso DB falla antes de abrir socket; CI build deja de definir una URL PostgreSQL placeholder.
+- Verificación final: PostgreSQL RLS aislado PASS con rollback; contrato estático PASS (10 helpers, 26 tablas, 9 escenarios); RLS declarada 69/69; migraciones 6 Drizzle + 39 Supabase; auditor API 292 rutas/0 riesgosas; policies permisivas sin globales no aprobadas; typecheck, lint y `git diff --check` limpios; `pnpm exec vitest run` exacto PASS (66 archivos/513 tests) después de fijar el presupuesto estable de 4 workers en la configuración; build offline sin URL DB PASS con 219 rutas. Ledger dry-run: una única migración pendiente, SHA-256 `1c7a83bad89a7b436798097f896486769cf833e40b76768f8624a801fbd9de84`.
+- La migración no se aplicó; quedan dominios tenant-wide secundarios y PostgREST local antes de cerrar MT-002/003/DB-005 por completo. No hubo SQL mutante, seed, deploy, commit ni push.
+- Vault: actualizados `Changelog interno`, `Registro de riesgos` y `Backlog priorizado`; no se añadió una decisión nueva porque la autoridad global exclusiva de `super_admin` ya era contrato vigente del Día 1.
+
+## 2026-07-16 - Radiografía técnica integral (solo documentación)
+
+Se auditó el árbol de trabajo completo en `main` sobre `1e3cb8ff8ae1274e72ef47d81be3096c3b18d1a3`, preservando los cambios sin commit. Se crearon los 13 documentos de `docs/audit/` y seis capturas locales/productivas read-only. No se modificó lógica, esquema ni datos.
+
+Hallazgo bloqueante: el registro de permisos de `withTenant` solo deniega a un miembro no-owner cuando existe `roleId`; los roles baseline `coach`/`viewer` sin rol personalizado pueden atravesar rutas con `requiredPermission`. Además, el RLS tenant-wide requiere pruebas semánticas por guardian/self/coach: la cobertura declarada 69/69 no demuestra mínimo privilegio dentro de una academia. Se registran también TLS DB sin validación CA, rate limit fail-open sin KV, drift de entorno, redirección local de `/` con overflow y siete fallos Vitest.
+
+Baseline final: `lint`, `typecheck` secuencial, `build` (219 páginas), auditor API estricto (292 handlers), RLS declarado y migraciones (6 Drizzle + 38 Supabase) pasan; Vitest 472/479. `pnpm audit --prod --json` no fue concluyente porque el endpoint legacy respondió HTTP 410. El plan de siete días y el gate no-go hasta cerrar P0 están en `docs/audit/SPRINT_01_PLAN.md` y `TECHNICAL_ROADMAP.md`.
 
 ## 2026-07-15 - Cierre de producción, email transaccional y documentación
 
@@ -912,3 +975,200 @@ Registrar cambios humanos y relevantes: releases, decisiones, cambios de pricing
 - **Integración paralela preservada**: se mergeó `bd2bb95a`, incluyendo terminología federativa en atletas, grupos, cobros, reportes y coaches. `CoachTodayView` conserva tanto sus labels sport-aware como el enlace al nuevo cockpit.
 - **Gate integrado**: 276 APIs sin rutas riesgosas, RLS 64/64, 5 Drizzle + 29 Supabase, TypeScript/lint limpios, 425/425 pruebas, build de 214 páginas y `pnpm audit` con 0 vulnerabilidades.
 - **Publicación**: commit funcional `9da6f020`, merge integrado `0a023880`, rama `codex/phase3-coach-today` y PR borrador #27. Deployment `dpl_68XGuYVFtQnrLbjWjhv17NtMpxH8` `READY`, alias `zaltyko.com`; smokes pricing 200, workspace privado 307 y APIs privadas 401. Escaneo de errores del deployment sin hallazgos.
+
+## 2026-07-15 - Auditoria UX/UI integral y plan de rediseño por roles
+
+- Se ejecuto la aplicacion local y se auditaron arquitectura de rutas, shells, roles, navegacion, tokens, componentes, estados y superficies publicas en desktop/movil.
+- La navegacion publica disparo el tracking normal del producto: dos `POST /api/growth/events` respondieron 201. No se fabricaron formularios, cuentas ni fixtures y no se borro telemetria; estas visitas locales no deben interpretarse como evidencia comercial humana.
+- Inventario: 167 paginas, 12 layouts, 30 loading, 3 error boundaries, 2 not-found, 61 primitivas UI y 43 componentes de dashboard. Conviven `/app/[academyId]/*`, `/dashboard/*` y `/super-admin/*`.
+- Evidencia visual actual guardada en `test-results/product-redesign-audit-2026-07-15/`. El full-page de home fue rechazado como evidencia por repeticion visual del capturador; se conservaron capturas de viewport validas.
+- Hallazgos P0: autoridad de rutas/shell, navegacion plana por modulos, inicio incorrecto para coach, barra movil con demasiados destinos, comunicacion fragmentada, dashboard basado en widgets y documentacion visual desalineada con tokens activos.
+- Se documento una propuesta de principios, navegacion por rol, Design System 2.0, layouts, migracion por fases, riesgos y criterios de aceptacion. No se modifico ningun componente ni contrato backend.
+- Limite: las superficies privadas se revisaron por codigo, contratos y evidencia E2E existente; la captura visual autenticada por cada rol queda como gate 0 antes de implementar.
+- Vault: nueva `Auditoria UX UI integral - 2026-07-15.md`; actualizado `Inventario de producto.md`. Plan tecnico espejo en `docs/plans/2026-07-15-product-design-system-ux-roles.md`.
+- Ampliacion autenticada autorizada por el usuario: owner y coach revisados en desktop/movil con sesiones QA locales; owner tambien en Gimnastas, Grupos y Planes/Cobros. Se confirmo que el dashboard se comprime en movil en vez de transformarse: barra con etiquetas solapadas, seis destinos owner, cards KPI enormes y FAB invadiendo navegacion.
+- La sesion superadmin local y de produccion estaba caducada y redirigio a login; su auditoria se completo por componente/navegacion, dejando captura autenticada como gate pendiente. No existen storage states dedicados para admin, parent o athlete.
+- El servidor previo en puerto 3000 entregaba chunks Next.js 404 y sus capturas parciales se rechazaron. La repeticion en instancia limpia 3002 no mostro esos 404; si detecto un hydration mismatch del input de busqueda del sidebar.
+- Se amplio el plan para exigir reemplazo radical de homes, shell y menus por rol; no se modifico frontend.
+
+## 2026-07-15 - Rediseño UX/UI: primera capa de shell y paneles
+
+- Se inició la implementación posterior a la auditoría, manteniendo rutas, datos, permisos y contratos de backend.
+- `src/app/globals.css`: canvas más silencioso, radios/bordes actualizados, selección y reduced-motion; se corrigió el tamaño móvil global que deformaba etiquetas de navegación.
+- `AcademySidebar`: navegación agrupada por Operación, Relación y Control; se eliminó el botón duplicado de Ajustes y se priorizó Nuevo atleta como acción principal.
+- `MobileAcademyNav`: máximo de cuatro destinos persistentes y menú “Más” para el resto, con targets táctiles y labels truncados para evitar solapamientos.
+- `DashboardPage`: nuevo `OperationsPulse` con gráfico SVG interactivo por métrica (gimnastas, equipo, grupos, asistencia), alimentado exclusivamente por `/api/dashboard/kpi-trends` y con estado de datos reales.
+- `CoachDashboardPage`: cabecera contextual orientada a la jornada, tarjetas y paneles con nueva jerarquía visual y mejor lectura móvil.
+- `app/[academyId]/layout`: canvas y espaciado de contenido alineados con el nuevo sistema.
+- Validado: `pnpm typecheck`, `pnpm lint` y `pnpm build` completados correctamente (Next 15.5.19; 219 rutas generadas). No se modificaron migraciones ni APIs.
+- Pendiente: aplicar los mismos patrones a alumnos/familias, asistencia, pagos, comunicación, seguimiento técnico y superadmin; ejecutar captura E2E comparativa por rol.
+- Vault: esta entrada y la auditoría/plan del 2026-07-15.
+
+## 2026-07-15 - Rediseño UX/UI: superficies operativas de alumnos, grupos, asistencia y comunicación
+
+- Encabezados de workspace (`PageHeader`) actualizados con la nueva jerarquía tipográfica, superficies y espaciado.
+- Alumnos: la tabla de escritorio se transforma en fichas accionables en móvil, sin forzar scroll horizontal; conserva selección, alertas, grupo, familia y edición.
+- Grupos: cards con acento de marca, superficies y estados vacíos alineados; el contenedor de la página ahora sigue el mismo ancho y breadcrumb que el resto del workspace.
+- Asistencia: encabezado contextual, CTA principal consistente, tarjetas móviles y tabla de escritorio con estados visuales más limpios.
+- Cobros: separación visual más clara entre plan SaaS y cobros a gimnastas mediante el encabezado canónico; se preservan los tabs y el flujo Stripe existente.
+- Mensajes: shell de conversación elevado y encabezado de contexto; se mantiene la mensajería interna como canal principal.
+- Validado: `pnpm typecheck` y `pnpm lint` limpios. Pendiente ejecutar build final y QA visual autenticada de este bloque.
+
+## 2026-07-15 - Rediseño UX/UI: portal familia/gimnasta y superadmin
+
+- `my-dashboard`: canvas acotado, alerta de pagos y métricas rápidas con superficies coherentes; la cabecera ahora comunica explícitamente “espacio familiar” o “progreso en pista” según el rol, con acciones de calendario/pagos legibles en móvil.
+- Se mantuvo el selector de hijos, los widgets de progreso, asistencia, pagos, calendario y mensajería; no se ampliaron permisos del portal limitado.
+- `SuperAdminDashboard`: las cinco métricas operativas principales conservan protagonismo y las cinco secundarias pasan a una banda compacta enlazada, reduciendo la sensación de diez tarjetas equivalentes sin ocultar información.
+- Validado: `pnpm typecheck`, `pnpm lint` y `pnpm build` correctos; build Next 15.5.19 con 219 rutas generadas. No se modificaron APIs ni migraciones.
+- Pendiente: QA visual E2E con sesiones parent/athlete y superadmin válidas; las sesiones disponibles en auditoría estaban caducadas.
+
+## 2026-07-15 - Rediseño UX/UI: calendario, clases, eventos, reportes y ajustes
+
+- `ClassesCalendarView`: grilla semanal reservada para escritorio; móvil muestra la agenda del día seleccionado para evitar tablas ilegibles y overflow.
+- Clases y eventos: superficies, navegación semanal, leyendas, cards y estados vacíos alineados con el sistema; contenedores con ancho operativo común.
+- Clases: métricas sin fuente real ya no muestran ceros engañosos; se presentan como “— / Sin serie disponible” hasta disponer de datos de sesiones.
+- Reportes: encabezado canónico y jerarquía visual única para el hub de informes.
+- Ajustes: cabecera de configuración renovada sin alterar tabs, guardado, branding, deporte ni Stripe Connect.
+- Validado: `pnpm typecheck`, `pnpm lint` y `pnpm build` correctos; Next 15.5.19 generó 219 rutas.
+
+## 2026-07-15 - QA visual autenticada y corrección de microcopy
+
+- QA Playwright local en instancia limpia `http://127.0.0.1:3005` con storage state de propietario: dashboard desktop/móvil, Gimnastas y Entrenamientos; se verificaron rutas, navegación móvil, cards/listas responsive, chart interactivo y ausencia de errores de consola.
+- La captura móvil confirmó que la navegación se reduce a cuatro destinos más “Más”, sin solapamiento de etiquetas; el dashboard mantiene CTA y jerarquía táctil legibles.
+- Se detectó y corrigió pluralización defectuosa en Entrenamientos (`Entrenadoraes`, `Sesiónes`) usando `pluralizeFirstWord`; ahora las palabras terminadas en `-ión` generan plurales ortográficos (`Sesiones`, `Evaluaciones`).
+- También se neutralizaron CTAs y descripciones con género incorrecto (`Nueva entrenamiento`, `Entrenamientos configuradas`) para que el copy siga siendo correcto cuando cambia la terminología deportiva.
+- Se corrigieron breadcrumbs de Gimnastas y Entrenamientos para apuntar al dashboard canónico de la academia, no a `/dashboard` legacy.
+- Validado tras la corrección: `pnpm typecheck`, `pnpm lint` y `git diff --check`; consola Playwright sin errores (solo warnings de desarrollo de Next/imagen).
+- `pnpm build` completó la compilación de producción de Next 15.5.19 y generó 219 rutas; el servidor dev paralelo se detuvo después del build para no mezclar artefactos `.next`.
+- Pendiente: QA autenticada equivalente para coach, parent/athlete y superadmin cuando existan storage states vigentes; no se inventaron cuentas ni datos.
+
+## 2026-07-15 - Inicio y navegación dedicados para entrenadoras
+
+- Se corrigió un defecto de arquitectura UX detectado en QA: el enlace `Dashboard` y `/app` enviaban a las entrenadoras al dashboard administrativo o a Gimnastas, en vez de abrir su cockpit de jornada.
+- `getAcademyNavigation`, navegación móvil, `getPreferredHomePath`, `resolveUserHome` y el landing `/app` ahora resuelven `/app/[academyId]/coach` para el rol coach.
+- El sidebar ya no muestra `Nuevo atleta` a entrenadoras; se mantiene visible para owner/admin/superadmin. Cobros, ajustes y gestión de equipo siguen fuera de su navegación.
+- Los accesos directos a rutas administrativas redirigen al cockpit de entrenadora, no a un dashboard con permisos incorrectos.
+- La ruta de Cobros también conserva ese destino seguro para accesos directos de coach, evitando una redirección genérica a `/dashboard`.
+- Microcopy del empty state del coach corregido (`sesión`, `aparecerá`, `evaluación técnica`).
+- Validado: `tests/product-roles-navigation.test.ts` (9/9), `pnpm typecheck`, `pnpm lint` y `git diff --check`; Playwright coach en `3006` sin errores de consola en `/coach` y `/app` resuelve al cockpit.
+
+## 2026-07-15 - Afinado del panel Super Admin y bloqueo de sesión QA
+
+- Se eliminó el selector de rango `7d/30d/90d/Todo` del dashboard superadmin porque no filtraba ninguna serie real; se sustituyó por el estado explícito `Datos actuales`.
+- Las tendencias KPI ya no muestran una flecha `0%` cuando no existe periodo anterior comparable; el componente queda sin tendencia hasta disponer de una base real.
+- El gráfico de usuarios por rol usa etiquetas localizadas (`Super administrador`, `Entrenador`, etc.) en lugar de claves internas.
+- Se intentó QA browser del panel en `http://127.0.0.1:3007` con `.auth/super-admin.json`; Supabase respondió `Invalid Refresh Token: Already Used` y el Mac estaba bloqueado para renovar la sesión gráficamente. No se alteraron cuentas, contraseñas ni datos.
+- Validado tras estos cambios: `pnpm typecheck`, `pnpm lint` y `git diff --check`.
+
+## 2026-07-15 - Portal de familias y gimnastas: prioridad de jornada y progreso
+
+- El portal ahora abre primero la agenda accionable de las próximas clases y mantiene el calendario como contexto, en lugar de dejar la agenda enterrada entre widgets.
+- La selección de hijo respeta `?athleteId=` al abrir o compartir la vista familiar y se mantiene sincronizada con la navegación; la relación autorizada sigue validándose en servidor.
+- La información financiera se limita explícitamente al rol tutor; la gimnasta conserva calendario, asistencia, progreso, evaluaciones y mensajería sin CTA de pagos.
+- Las métricas sin registros ya no muestran `0%` como si fuera una medición real: usan `—` y copy de estado vacío. La leyenda de asistencia se adapta a pantallas estrechas.
+- Validado: `tests/phase2-role-communication.test.tsx` (4/4), `tests/product-roles-navigation.test.ts` (9/9), `pnpm typecheck`, `pnpm lint`, `pnpm build` (219 rutas) y `git diff --check`.
+- Pendiente: QA browser con una cuenta parent y athlete reales; no se inventaron credenciales ni fixtures.
+
+## 2026-07-15 - Super Admin: estados honestos en visualizaciones
+
+- Los gráficos de usuarios, planes y suscripciones ya no generan segmentos artificiales para representar “Sin datos”; muestran un estado vacío no interactivo y conservan el acceso al desglose solo cuando existe una fuente real.
+- La serie de crecimiento de academias ya no presenta `+0` por ausencia de comparación; comunica “Sin variación” cuando corresponde y “Sin serie disponible” cuando aún no hay base temporal.
+- Se eliminó la comparación demo entre academias porque no existía un endpoint de métricas reales detrás del control.
+- QA browser reintentada con `.auth/super-admin-prod.json` en `http://127.0.0.1:3008`: Supabase respondió `refresh_token_not_found`; Firefox y WebKit tampoco están instalados localmente. No se alteraron cuentas ni datos.
+- Validado: `pnpm typecheck`, `pnpm lint`, tests de roles (13/13), `pnpm build` (219 rutas) y `git diff --check`.
+
+## 2026-07-15 - Pulso operativo: estados de carga y serie insuficiente
+
+- `OperationsPulse` ya no presenta `0` ni una variación `Sin cambios` mientras la serie KPI está cargando o cuando no hay dos puntos comparables.
+- El valor principal usa `—`, el badge comunica `Cargando datos`/`Serie actual` y el gráfico distingue entre carga y falta de datos suficientes.
+- Validado: `pnpm typecheck`, `pnpm lint`, `pnpm build` (219 rutas) y `git diff --check`; no se modificó la fuente API ni se introdujeron métricas inventadas.
+
+## 2026-07-15 - Sesiones QA parent, athlete y superadmin recuperadas
+
+- Se provisionaron estados Playwright locales para parent, athlete y superadmin mediante el flujo E2E aprobado; no se registran contraseñas, tokens ni secretos en el repositorio.
+- Los perfiles QA de parent/athlete quedaron vinculados a atletas existentes de la academia E2E y alineados con su tenant para que las rutas de mensajes/notificaciones respeten el aislamiento real.
+- Se detectó y corrigió que `src/app` no tenía middleware reconocido en producción porque la implementación vivía en la raíz; `src/middleware.ts` reexporta la única implementación y conserva el gate de rutas, rate limit y pathname por rol.
+- El gate superadmin verifica el JWT con `SUPABASE_JWT_SECRET` cuando existe y usa la API oficial `/auth/v1/user` como fallback validado cuando el secreto no está disponible; no confía en claims no verificados.
+- QA de producción local: parent y athlete en `dashboard`, `messages`, `notifications`; superadmin en `dashboard`, `academies`, `users`; desktop y móvil sin overflow. Se guardaron capturas locales en `test-results/role-qa/`.
+- Se corrigió el chart de línea/mini-chart para series de un solo punto, evitando coordenadas SVG `NaN`.
+- Validado: typecheck, lint, tests de roles (13/13), `git diff --check` y build Next 15.5.19 con 219 rutas.
+
+## 2026-07-16 - Comparativa final y retirada controlada de rutas legacy
+
+- Se generó una comparativa visual real owner/parent en desktop y móvil en `test-results/comparativa-ux/`: shell global legacy frente a workspace moderno por rol, con navegación, hero, KPIs, agenda y acciones contextualizadas.
+- Se corrigió la compatibilidad de redirects legacy en producción: el shell `dashboard` centraliza las entradas antiguas y usa `LegacyWorkspaceRedirect` para llevarlas de forma fiable a `/app/[academyId]/*`, evitando que el wrapper de observabilidad deje una respuesta 200 vacía.
+- Owner validado en `dashboard`, `billing`, `settings`, `messages` y `classes/calendar`; parent validado en `dashboard` y `messages`. Las URLs finales resolvieron al workspace moderno de la academia E2E.
+- Se mantiene una ventana de compatibilidad de seis meses; no se borran rutas ni se cambian contratos backend. La clasificación y criterios de retirada están en `docs/plans/2026-07-16-legacy-routes-compatibility.md`.
+- Validado tras el fix: `pnpm typecheck`, `pnpm lint`, `pnpm build` (219 rutas) y smoke Playwright autenticado. No se modificaron migraciones ni datos de producto.
+
+## 2026-07-16 - Día 1 de hardening: permisos baseline deny-by-default
+
+- Cerrado el bypass AUTH-001/ROLE-001/MT-001: `withTenant` y `withBearerTenant` ya no condicionan la denegación a que exista `roleId`; toda capability registrada se comprueba y la ausencia de contexto de academia falla cerrada.
+- Precedencia efectiva: `super_admin` conserva excepción global verificada; ownership solo nace de `academies.ownerId` o membership `owner` de esa academia; un rol custom activo y vigente sustituye el baseline; rol expirado, inexistente o inactivo deniega; sin rol custom se aplica baseline explícito de membership. El rol global solo distingue el portal limitado `parent`/`athlete` y nunca eleva privilegios administrativos.
+- El contexto de academia considera params/query/JSON clonado/header, rechaza valores contradictorios y verifica el candidato contra ownership/membership en DB. Un `tenantId` del cliente no participa en la concesión.
+- Se registraron capabilities para enrollments/waitlist, tutores, transacciones, invitaciones, desvinculación de memberships, envío de notificaciones y reembolsos. La desvinculación vuelve a comprobar `settings:users` sobre la academia real del vínculo.
+- El scope familiar separa sujetos: `parent` resuelve solo atletas vinculados; `athlete` conserva su información operativa propia por `athletes.userId`, pero no obtiene scope financiero familiar. Tanto `/api/me/charges` como la carga RSC de cobros deniegan o evitan la consulta para `athlete`, cerrando una exposición detectada durante el gate final.
+- Pruebas focalizadas: 41/41, más cobertura directa del bearer y del bloqueo financiero. Gate completo: typecheck y lint limpios; Vitest 508/508 (65 archivos); auditor estricto 292 rutas, 0 `risky`; RLS declarada 69/69; migraciones 6 Drizzle + 38 Supabase; build de producción 219 rutas; `git diff --check` limpio.
+- No se cambiaron schemas, migraciones, datos, credenciales ni producción. Riesgo residual para Día 2: MT-002/003, porque `validate:rls` demuestra presencia de policies pero no least privilege intratenant con JWT parent/athlete/coach reales.
+- Vault: actualizados `Changelog interno`, `Registro de riesgos` y `Backlog priorizado`; no se añadió decisión arquitectónica nueva.
+## 2026-07-21 - Cierre local del Día 5 de auditoría UI
+
+- Se verificó la compilación `next start` con el navegador integrado, en modo read-only, contra `/` y `/es/gimnasia-artistica` a 375×812 y 1440×900.
+- El contrato actual `/` → cluster localizado es estable; `scrollWidth === innerWidth` en ambos viewports y las tarjetas se apilan sin clipping. Se enlazaron capturas nuevas en `docs/audit/evidence/ui/` y `docs/audit/UI_UX_AUDIT.md`.
+- Se detectó autofill local en el formulario de login durante una captura; la evidencia fue sobrescrita y no se conservaron valores. No se aprovisionaron cuentas ni se ejecutaron acciones autenticadas.
+- Quedan pendientes explícitos: sesiones visuales por rol y axe/Playwright con autorización. Los cuatro breakpoints 320/375/768/1440 px ya pasan el spot-check público sin overflow. No se declara conformidad WCAG completa.
+## 2026-07-21 - Cierre local del Día 6: runtime y supply chain
+
+- `pnpm verify:production` volvió a pasar completo: 293 APIs sin riesgos estáticos/semánticos, RLS 69/69, migraciones 6+40, typecheck, lint, 90 archivos/640 tests y build de 219 páginas.
+- Se fijó runtime Node 20 (CI + `.nvmrc`, engines `>=20 <23`) y pnpm 9.15.3.
+- `pnpm audit` detectó y resolvió `protobufjs@7.6.4` (CVE-2026-59877) mediante override `^7.6.5` y lockfile regenerado; la auditoría posterior quedó en cero vulnerabilidades.
+- Pendiente P2: SBOM y política de bloqueo de advisories en CI. No cambia el no-go externo por KV/Brevo/Stripe/Vercel.
+## 2026-07-21 - Cierre del Día 7 y decisión de release
+
+- Regresión final local verde: `pnpm test:security` 90 archivos/640 tests, `pnpm verify:production`, auditor API sin `risky`/`semanticRisks`, RLS semántica estática PASS, migraciones 6+40 y build 219 páginas.
+- Smoke UI público read-only en 320/375/768/1440 px sin overflow. No se ejecutaron escrituras, cobros, deploys, SQL remoto ni Playwright/axe adicional.
+- **Decisión: NO-GO para producción.** Quedan bloqueos externos: promoción revisada de RLS Día 2/3, paridad Vercel KV/Brevo/WAF/alertas, Stripe sandbox/rotación/SCA, entrega de email y evidencia autenticada por rol.
+- La auditoría queda lista para handoff; la decisión debe reabrirse únicamente con credenciales/aprobaciones y pruebas enlazadas.
+## 2026-07-21 - Corrección de pendientes locales post-auditoría
+
+- Se retiró `next-auth` porque no existen imports activos; Supabase Auth SSR queda como contrato canónico. `AGENTS.md`, `.env.example` y auditorías activas fueron alineados.
+- Se añadió `pnpm audit:env` al CI para bloquear drift de `process.env.*` frente a `.env.example`.
+- Se añadió audit de dependencias y SBOM CycloneDX como artifact CI. `pnpm audit:dependencies --prod` pasa sin vulnerabilidades.
+- Uploads de imágenes y vídeos ahora centralizan allowlist, límites, magic bytes y rutas aleatorias; se añadieron 3 pruebas unitarias. Bucket privado/antimalware sigue pendiente de proveedor.
+- Verificado: typecheck, lint, 91 archivos/643 tests de seguridad y build de 219 páginas.
+- No se aplicaron migraciones ni cambios externos: Supabase CLI confirma que las migraciones locales no constan en el historial remoto; aplicar ese lote requiere revisión explícita porque incluye histórico completo.
+- Se ejecutó `supabase db push --linked --dry-run` (read-only): el CLI propone el lote histórico completo, incluidas las migraciones Día 2/3. No se ejecutó `push` para evitar aplicar 40 migraciones fuera del ledger revisado ni alterar producción sin autorización específica.
+
+## 2026-07-21 - Promoción controlada RLS Día 2/3
+
+- Con autorización explícita se aplicaron `20260716181006_day2_rls_semantic_hardening.sql` y `20260716214500_day3_communication_academy_scope.sql` mediante `pnpm db:migrate:ledger --apply`, en una única transacción.
+- El primer intento se revirtió porque una policy ya existía; se hizo idempotente el lote (`DROP POLICY IF EXISTS`) y la segunda ejecución aplicó ambos cambios correctamente. Verificación posterior: 40/40 migraciones, 234 policies públicas y 119 tablas públicas con RLS.
+- No se usó `supabase db push`, no se leyeron filas de producto y no se alteraron datos de negocio. PostgREST/Realtime y least-privilege de dominios secundarios siguen pendientes.
+- Playwright Chromium autenticado pasó 12/13 pruebas; axe público pasó landing/login. La prueba responsive y axe autenticado quedan abiertos por timeout/fallo de carga.
+
+## 2026-07-21 - Stripe sandbox y webhook Connect
+
+- La cuenta Stripe test, balance y precios respondieron 200; el único endpoint Connect estaba configurado con un túnel Cloudflare efímero y se actualizó a `https://zaltyko.com/api/stripe/connect/webhook`.
+- Se creó un PaymentIntent de prueba con tarjeta 3DS que devolvió `requires_action` y se canceló inmediatamente; no se ejecutó ningún cargo real. Falta verificar secreto de firma y entrega end-to-end desde el dashboard.
+
+## 2026-07-21 - Storage remoto privado verificado
+
+- El bucket Supabase `uploads` quedó/permanece privado y se configuró con MIME de imágenes/vídeos permitidos y límite de 50 MiB, máximo aceptado por el plan remoto.
+- Una carga temporal con service role devolvió 200, la lectura anónima devolvió 400 y el objeto fue eliminado. Antimalware y URLs firmadas/proxy compatibles siguen pendientes.
+- El límite de `VIDEO_UPLOADS` y el copy de la API se redujeron de 100 MiB a 50 MiB para no ofrecer un contrato que el plan remoto rechaza.
+
+## 2026-07-21 - Smoke autenticado real en producción
+
+- Se generó un storage state owner contra `https://zaltyko.com` sin aprovisionar usuarios ni mutar datos. Chromium pasó 11/11 rutas core y 4/4 pruebas responsive/teclado/PWA; axe autenticado pasó dashboard y athletes.
+- Axe público detectó dos contrastes WCAG AA en la landing desplegada. El fix se mergeó en `main` mediante PR #52; el workflow confirmó que faltan credenciales Vercel y no hizo deploy, por lo que axe sigue fallando en la URL pública.
+- **Cierre externo parcial 2026-07-21:** se generó y verificó una `BREVO_API_KEY` real (HTTP 200 en `/v3/account`) y se cargó como secreto Sensitive en Vercel Production/Preview; no se envió correo. PR #53 corrige el contraste restante del badge de comparación y quedó en cola de build Vercel; no se cierra A11Y hasta repetir axe público con deployment `Ready`.
+- **Cierre externo ampliado 2026-07-21:** se provisionó Upstash Redis Free en Vercel y se conectó a Production/Preview con prefijo `KV_REST_API`; el Firewall publicó una regla de 30 requests/60 s por IP para `/api/auth`. Storage `uploads` sigue privado (50 MiB, MIME allowlist). Vercel Alerts/Bot Protection/OWASP requieren plan superior; antimalware externo sigue pendiente.
+- **E2E por roles 2026-07-21:** se actualizaron usuarios aislados owner/coach/super-admin y se regeneraron sesiones Production; role smoke Chromium pasa 10/10. Parent/athlete QA también obtuvieron sesiones nuevas y llegan a `/dashboard/profile`; PR #54 corrige dos hallazgos axe de listas de descripción, pendiente de deployment y repetición.
+- **Cierre E2E/a11y 2026-07-21:** PR #54 (`f8c307d`) quedó desplegado. Axe parent/athlete en `/dashboard/profile` pasa 0 violaciones; axe público landing/login y owner dashboard/athletes también pasan. Se mantiene pendiente la revisión manual WCAG (foco, zoom y lector de pantalla).
+- **Gate local 2026-07-21:** `immutable@3.8.3` transitivo de Swagger elevaba dos advisories altos; override actualizado a `^4.3.9`. `verify:production` pasa con 91 archivos/643 tests, build de 219 páginas, typecheck/lint y audit high/critical verdes; queda una baja y una moderada transitivas.
+
+## 2026-07-21 - Rotación Stripe Connect y redeploy
+
+- El secreto de firma del endpoint Connect se rotó en Stripe Workbench con verificación 2FA y se copió únicamente como variable Sensitive de Vercel Production (`STRIPE_CONNECT_WEBHOOK_SECRET`); no se registró ningún valor secreto.
+- Se solicitó el redeploy de Production `CugHPvZEr` para consumir la variable nueva. Al congelar esta evidencia seguía en estado `Building`; no se declara entrega firmada end-to-end hasta observar `Ready` y un evento benigno 2xx.
+- El riesgo de rotación 2FA queda cerrado; permanecen como bloqueos externos el scanner antimalware y las alertas gestionadas de Vercel Hobby.
