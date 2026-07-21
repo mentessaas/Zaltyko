@@ -8,6 +8,15 @@ source:
 
 # Decisiones
 
+## 2026-07-16 - Los recursos de comunicación pertenecen a una academia
+
+| Campo | Valor |
+| --- | --- |
+| Contexto | `message_templates`, `message_groups` y `scheduled_notifications` solo tenían `tenant_id`, lo que permitía reutilizar un ID válido de otra academia dentro del mismo tenant. |
+| Decision | Añadir `academy_id` y autorizar siempre contra la academia del recurso. Las plantillas globales de sistema conservan `academy_id`/`tenant_id` nulos y son solo lectura. El backfill automático solo se permite cuando el tenant tiene exactamente una academia. |
+| Consecuencia | Las colecciones y IDs dinámicos dejan de ser tenant-wide; datos ambiguos de tenants multiacademia requieren clasificación manual antes de quedar accesibles. La migración queda pendiente de promoción y pruebas Data API. |
+| Estado | Activa en código; SQL versionado y no aplicado. |
+
 ## 2026-07-15 - El dominio canónico SEO es siempre zaltyko.com
 
 | Campo | Valor |
@@ -124,7 +133,11 @@ source:
 | Decision  | **Opcion A**: mantener compat 6 meses y arreglar lo roto sin redisenar. Evitar nuevos enlaces publicos legacy cuando haya `academyId`, corregir cadenas rotas y conservar rutas globales que aun no tienen equivalente tenant claro.                                                                                                                                |
 | Ejecutado | `/api/auth/check` devuelve `academyId`; `PublicPageHeader` resuelve `dashboardHrefTemplate` y `publishHrefTemplate`; eventos publicos apuntan a `/app/{academyId}/events` cuando hay academia; `/dashboard/classes/calendar` ya no encadena a `/dashboard/calendar`; notificaciones de mensajes usan `/app/{academyId}/messages` si la conversacion tiene academia. |
 | Pendiente | Definir si `/dashboard/plan-limits` se mueve a `/app/[academyId]/settings/plan-limits` o queda como ajuste global de cuenta; no bloquear el cierre actual.                                                                                                                                                                                                          |
-| Estado    | Activa, ejecutada parcialmente en lo automatizable.                                                                                                                                                                                                                                                                                                                 |
+| Estado    | Activa, ejecutada en la primera migración controlada (2026-07-16).                                                                                                                                                                                                                                                                                                  |
+
+### Cierre operativo 2026-07-16
+
+Se mantiene la **Opción A** durante seis meses: las URLs legacy no se eliminan, pero dejan de ser destinos nuevos cuando existe una ruta canónica por academia. `/dashboard/billing`, `/dashboard/settings` y `/dashboard/messages` ahora resuelven la academia activa y redirigen a `/app/[academyId]/...`; `/dashboard/classes/calendar` ya tenía el mismo tratamiento. Se conservan como compatibilidad global las rutas sin equivalente tenant claro (`academies`, `profile`, `calendar`, `users`, `plan-limits`, marketplace/empleo y detalle de sesiones). La retirada física queda condicionada a medir uso y revisar enlaces externos al finalizar la ventana.
 
 | Campo                 | Valor                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -325,3 +338,12 @@ Copiar desde [[Template - Decision]] para nuevas decisiones.
 | Decisión     | La ruta `/app/[academyId]/coach/today/[sessionId]` es el cockpit canónico de la clase: asistencia, progreso y aviso interno en un único flujo. La sesión se valida contra tenant, academia y clase asignada; la persona evaluada debe pertenecer a la clase. `assessedBy` se deriva de la identidad autenticada y nunca se acepta desde el cliente. Las evaluaciones independientes siguen permitidas con `sessionId=null`. |
 | Consecuencia | Se añade una FK opcional `athlete_assessments.session_id` con `ON DELETE SET NULL`; no se reescribe historia ni se requiere seed. Las etiquetas y aparatos proceden de `sport-config`, incluido el trabajo federativo paralelo. El dashboard y la vista diaria enlazan al mismo cockpit y los tres pasos reflejan su estado real.                                                                                           |
 | Estado       | Activa y desplegada en producción el 2026-07-13 (`0a023880`, `dpl_68XGuYVFtQnrLbjWjhv17NtMpxH8`).                                                                                                                                                                                                                                                                                                                           |
+
+## 2026-07-16 - Las policies de comunicación privadas se asignan al rol DB autenticado
+
+| Campo | Valor |
+|---|---|
+| Contexto | La prueba PostgreSQL real Día 2+Día 3 mostró que envolver helpers privados en `CASE WHEN auth.uid() IS NULL` no garantiza que el planner no los evalúe bajo `anon`, provocando `permission denied` incluso para una lectura que debía devolver cero filas. |
+| Decisión | Declarar las policies SELECT de `message_templates`, `message_groups` y `scheduled_notifications` `TO authenticated`, además del scope tenant/academia y del control explícito de identidad. Los templates globales de sistema son catálogo interno autenticado, nunca público anónimo. |
+| Consecuencia | `anon` no selecciona ninguna policy ni invoca helpers privados; owner/miembros/super-admin conservan el happy path probado. El contrato se valida estáticamente y en PostgreSQL efímero antes de promover la migración. |
+| Estado | Activa en la migración versionada `20260716214500_day3_communication_academy_scope.sql`; no aplicada a remoto. |
