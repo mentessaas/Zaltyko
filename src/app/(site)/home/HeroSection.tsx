@@ -25,7 +25,9 @@ const STATUS_LABEL: Record<string, string> = {
 const STATUS_CLASS: Record<string, string> = {
   present: "bg-zaltyko-primary-ultralight text-zaltyko-teal",
   late: "bg-zaltyko-navy/10 text-zaltyko-navy",
-  absent: "bg-zaltyko-coral/12 text-zaltyko-coral",
+  // The original coral on a white badge measured 2.8:1 in axe (WCAG AA
+  // requires 4.5:1 for this 12px text). Use the approved dark danger tone.
+  absent: "bg-red-50 text-red-700",
 };
 
 export default function HeroSection() {
