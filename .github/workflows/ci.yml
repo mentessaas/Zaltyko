@@ -11,6 +11,40 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  dependency-security:
+    name: Dependency Security & SBOM
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Audit production dependencies
+        run: pnpm audit:dependencies --prod
+
+      - name: Audit environment contract
+        run: pnpm audit:env
+
+      - name: Generate CycloneDX SBOM
+        run: pnpm sbom:generate
+
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: zaltyko-sbom-${{ github.sha }}
+          path: sbom.cdx.json
+          if-no-files-found: error
+
   lint-and-typecheck:
     name: Lint & Type Check
     runs-on: ubuntu-latest
@@ -90,8 +124,8 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key-for-ci-build
           DATABASE_URL: postgresql://placeholder:placeholder@placeholder:5432/placeholder
-          NEXTAUTH_SECRET: placeholder-secret-for-ci-build
-          NEXTAUTH_URL: http://localhost:3000
+          INTERNAL_AUTH_SECRET: placeholder-internal-auth-secret-for-ci-build
+          SUPABASE_JWT_SECRET: placeholder-supabase-jwt-secret-for-ci-build
 
   # Smoke tests require a running database and services
   smoke-test:
