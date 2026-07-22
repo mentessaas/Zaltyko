@@ -1,12 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 const rateLimitMock = vi.fn();
+const updateSessionMock = vi.fn();
 
 vi.mock("@/lib/rate-limit", () => ({
   rateLimit: rateLimitMock,
   getLimitForRoute: () => ({ limit: 100, window: 60 }),
   getClientIdentifier: () => "ip:test",
+}));
+
+vi.mock("@/lib/supabase/middleware", () => ({
+  updateSession: updateSessionMock,
 }));
 
 import { middleware } from "../middleware";
@@ -20,6 +25,7 @@ describe("middleware", () => {
       remaining: 99,
       reset: Math.floor(Date.now() / 1000) + 60,
     });
+    updateSessionMock.mockResolvedValue(NextResponse.next());
   });
 
   it("allows an API mutation when the rate limit succeeds", async () => {
@@ -60,6 +66,12 @@ describe("middleware", () => {
     expect(pricingResponse.headers.get("x-middleware-next")).toBe("1");
     expect(academyResponse.headers.get("location")).toBeNull();
     expect(academyResponse.headers.get("x-middleware-next")).toBe("1");
+  });
+
+  it("refreshes Supabase sessions before private app routes reach server components", async () => {
+    await middleware(new NextRequest("https://zaltyko.test/dashboard/events/new"));
+
+    expect(updateSessionMock).toHaveBeenCalledTimes(1);
   });
 
   it("keeps SEO cluster routes localized", async () => {
