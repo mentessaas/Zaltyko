@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 
 import { db } from "@/db";
-import { charges, receipts } from "@/db/schema";
+import { receipts } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
-import { getFamilyChildrenForUser } from "@/lib/family/scope-service";
+import { resolveFamilyChargeAccess } from "@/lib/family/payment-access";
 import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
@@ -34,24 +34,15 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
     }
 
-    const [charge] = await db
-      .select({ id: charges.id, athleteId: charges.athleteId })
-      .from(charges)
-      .where(eq(charges.id, chargeId))
-      .limit(1);
+    const charge = await resolveFamilyChargeAccess({ userId: user.id, email: user.email, chargeId });
     if (!charge) {
-      return NextResponse.json({ error: "CHARGE_NOT_FOUND" }, { status: 404 });
-    }
-
-    const children = await getFamilyChildrenForUser({ userId: user.id, email: user.email });
-    if (!children.some((child) => child.id === charge.athleteId)) {
       return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
     }
 
     const [receipt] = await db
       .select({ pdfUrl: receipts.pdfUrl, receiptNumber: receipts.receiptNumber })
       .from(receipts)
-      .where(eq(receipts.chargeId, chargeId))
+      .where(and(eq(receipts.chargeId, chargeId), eq(receipts.athleteId, charge.athleteId)))
       .orderBy(desc(receipts.createdAt))
       .limit(1);
 
