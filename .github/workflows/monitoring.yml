@@ -1,0 +1,124 @@
+name: Production monitoring
+
+on:
+  schedule:
+    # GitHub may delay scheduled workflows; this is a best-effort alert, not an
+    # SLA or a replacement for provider-level observability.
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: production-monitoring
+  cancel-in-progress: true
+
+env:
+  HEALTH_URL: https://zaltyko.com/api/health
+  MAX_LATENCY_MS: "2500"
+  INCIDENT_TITLE: "[monitoring] Production health degraded"
+
+jobs:
+  health-check:
+    name: Check production health
+    runs-on: ubuntu-latest
+    outputs:
+      ok: ${{ steps.check.outputs.ok }}
+      details: ${{ steps.check.outputs.details }}
+    steps:
+      - id: check
+        name: Probe health endpoint and latency
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          response_file="${RUNNER_TEMP}/health-response.json"
+          metrics_file="${RUNNER_TEMP}/health-metrics.txt"
+          http_code=$(curl --fail-with-body --silent --show-error --max-time 20 \
+            --output "$response_file" \
+            --write-out '%{http_code} %{time_total}' \
+            "$HEALTH_URL" || true)
+
+          read -r status_code total_seconds <<< "$http_code"
+          status_code="${status_code:-000}"
+          total_seconds="${total_seconds:-0}"
+          latency_ms=$(awk -v seconds="$total_seconds" 'BEGIN { printf "%.0f", seconds * 1000 }')
+          body=$(cat "$response_file" 2>/dev/null || echo '{}')
+          health_status=$(jq -r '.data.status // .details.status // "unknown"' <<< "$body" 2>/dev/null || echo unknown)
+
+          details="HTTP ${status_code}; latency ${latency_ms}ms; status ${health_status}"
+          echo "details=${details}" >> "$GITHUB_OUTPUT"
+          echo "$details"
+
+          if [[ "$status_code" != "200" || "$health_status" != "ok" || "$latency_ms" -gt "$MAX_LATENCY_MS" ]]; then
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+
+          echo "ok=true" >> "$GITHUB_OUTPUT"
+
+  notify:
+    name: Open or update monitoring incident
+    needs: health-check
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create or update incident issue
+        uses: actions/github-script@v7
+        env:
+          CHECK_OK: ${{ needs.health-check.outputs.ok }}
+          CHECK_DETAILS: ${{ needs.health-check.outputs.details }}
+          INCIDENT_TITLE: ${{ env.INCIDENT_TITLE }}
+        with:
+          script: |
+            const query = `repo:${context.repo.owner}/${context.repo.repo} is:issue is:open in:title "${process.env.INCIDENT_TITLE}"`;
+            const { data } = await github.rest.search.issuesAndPullRequests({ q: query });
+            const details = process.env.CHECK_DETAILS || "No se pudo obtener respuesta del endpoint";
+
+            if (process.env.CHECK_OK !== "true") {
+              const body = [
+                "La monitorización propia detectó degradación en producción.",
+                "",
+                `- Fecha: ${new Date().toISOString()}`,
+                `- Endpoint: ${process.env.HEALTH_URL || "https://zaltyko.com/api/health"}`,
+                `- Resultado: ${details}`,
+                `- Workflow: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+                "",
+                "Revisar logs de Vercel, base de datos y dependencias externas. No incluir secretos en este issue."
+              ].join("\n");
+
+              if (data.items.length === 0) {
+                await github.rest.issues.create({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  title: process.env.INCIDENT_TITLE,
+                  body,
+                  labels: ["monitoring"]
+                });
+              } else {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: data.items[0].number,
+                  body
+                });
+              }
+              return;
+            }
+
+            for (const issue of data.items) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: `La comprobación volvió a estar saludable (${details}). Cerrando el incidente.\n\n- Fecha: ${new Date().toISOString()}`
+              });
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                state: "closed"
+              });
+            }
