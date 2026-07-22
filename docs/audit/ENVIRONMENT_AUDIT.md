@@ -47,3 +47,10 @@ El scan estático encontró 108 nombres `process.env` y solo 38 entradas en `.en
 ## Corrección Día 7 — contrato automatizado
 
 `pnpm audit:env` escanea el runtime (`src/`, middleware y configuración de Next/Sentry) y falla si una nueva referencia `process.env.*` no aparece en `.env.example`. El gate se ejecuta en CI sin imprimir valores. En el snapshot actual pasa con 49 variables documentadas; las variables de scripts, seeds y E2E quedan fuera del contrato de runtime.
+
+## Reconciliación 2026-07-22
+
+- Supabase Auth es el contrato activo; `NEXTAUTH_SECRET`/NextAuth son referencias históricas y no deben añadirse al entorno.
+- El monitor propio usa el `GITHUB_TOKEN` efímero del workflow con `contents: read` e `issues: write`; no introduce secretos de aplicación.
+- `protobufjs` queda fijado a 7.6.5 en el árbol remoto. Dependabot #191 sigue abierto hasta que GitHub reprocese el lockfile corregido.
+- `/api/health` productivo respondió 200 y no devolvió valores de entorno, credenciales ni filas.

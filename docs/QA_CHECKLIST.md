@@ -6,7 +6,7 @@ Alcance: demo y flujos criticos por rol. No sustituye pruebas automatizadas; sir
 ## Preparacion
 
 - [ ] Usar entorno con build caliente o deployment estable.
-- [ ] Confirmar variables Supabase, NextAuth y Stripe test sin imprimir secretos.
+- [ ] Confirmar variables Supabase Auth y Stripe test sin imprimir secretos. `NEXTAUTH_SECRET`/NextAuth no forman parte del contrato operativo.
 - [ ] Con cuentas E2E ya existentes, generar sesiones Playwright: `BASE_URL=... pnpm test:e2e:auth`. Para aprovisionar solo una academia aislada aprobada: `E2E_ALLOW_PROVISIONING=true pnpm test:e2e:auth:provision`.
 - [ ] Confirmar storage states por rol: `E2E_STORAGE_STATE`, `E2E_COACH_STORAGE_STATE`, `E2E_SUPER_ADMIN_STORAGE_STATE`.
 - [ ] Confirmar que las credenciales demo autentican en Supabase Auth antes de culpar a Playwright.

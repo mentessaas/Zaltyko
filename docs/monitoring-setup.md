@@ -1,5 +1,7 @@
 # Integración de Monitoring
 
+> Guía histórica de integraciones. La monitorización operativa vigente está en `docs/MONITORING.md` y `.github/workflows/monitoring.yml`.
+
 Esta guía describe cómo integrar servicios de monitoring y error tracking en GymnaSaaS.
 
 ## Sentry (Error Tracking)
@@ -302,4 +304,3 @@ export const GET = withSuperAdmin(async () => {
 - [Sentry Next.js](https://docs.sentry.io/platforms/javascript/guides/nextjs/)
 - [LogRocket Docs](https://docs.logrocket.com/)
 - [Vercel Analytics](https://vercel.com/docs/analytics)
-

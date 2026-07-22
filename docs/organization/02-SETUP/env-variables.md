@@ -16,7 +16,7 @@ SUPABASE_SERVICE_ROLE_KEY=eyJ...
 
 ### Authentication
 ```env
-NEXTAUTH_SECRET=your-secret-here
+INTERNAL_AUTH_SECRET=your-long-random-secret-here
 NEXTAUTH_URL=http://localhost:3000  # Production: https://zaltyko.com
 ```
 

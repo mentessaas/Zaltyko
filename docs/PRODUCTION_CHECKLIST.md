@@ -2,17 +2,17 @@
 
 Fuente operativa para habilitar una academia real. No marcar una tarea como completada sin evidencia verificable.
 
-## Estado conocido al 19 de julio de 2026
+## Estado conocido al 22 de julio de 2026
 
 | Área | Estado | Evidencia / pendiente |
 |---|---|---|
 | Dominio | Operativo | `https://zaltyko.com` con SSL y canonicals consolidados |
-| Migraciones | Operativas | Ledger con 38 migraciones y cero pendientes tras el módulo de cobros |
+| Migraciones | Operativas | Ledger con 40 migraciones Supabase + 6 Drizzle y cero pendientes verificados |
 | Stripe Connect | Parcial | Webhook registrado y onboarding probado en test mode |
 | Cobros E2E | Pendiente | Guardar tarjeta, off-session, SCA, rechazo, reembolso y reconciliación |
-| Brevo | Bloqueado externo | Falta API key real y remitente verificado; el placeholder fue retirado |
+| Brevo | Configurado externamente | API key Sensitive en Vercel Production/Preview y cuenta responde 200; no se envió correo de producción |
 | Cron | Configurado en código | Verificar ejecuciones y resultados en Vercel |
-| E2E por roles | Parcial | Ejecutar owner, coach, familia y super-admin con cuentas aisladas |
+| E2E por roles | Parcial | Smoke 10/10 y axe en superficies verificadas; falta revisión manual WCAG y entrega Stripe firmada |
 | Comercial | No validado a escala | No declarar prueba social o resultados sin academias reales |
 
 ## 1. Base de datos y aislamiento
@@ -33,7 +33,7 @@ No ejecutar `drizzle-kit push` ni `pnpm db:migrate` contra producción.
 ### Aplicación y seguridad
 
 - [ ] `NEXT_PUBLIC_APP_URL=https://zaltyko.com`
-- [ ] `NEXTAUTH_SECRET`
+- [ ] `INTERNAL_AUTH_SECRET`
 - [ ] `INTERNAL_AUTH_SECRET`
 - [ ] `CRON_SECRET`
 - [ ] `KV_REST_API_URL`

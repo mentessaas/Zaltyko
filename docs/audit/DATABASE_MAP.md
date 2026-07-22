@@ -37,7 +37,7 @@ Hay dos caminos:
 | DB-001 | `supabase/rls-consolidated.sql:24-109` | Helpers `SECURITY DEFINER` viven en `public`, usan `search_path=public` y no se encontró revocación explícita de `EXECUTE`. | Alta | Superficie de escalada/invocación no intencional si cambian cuerpos u objetos resolubles. | Mover helpers a schema privado, calificar objetos y revocar/grantar execute explícitamente. | Sol |
 | DB-002 | `supabase/rls-consolidated.sql`; policy de `plans` | Policy usa `auth.role()` en vez de roles `TO authenticated`. | Media | Semántica obsoleta y migraciones futuras frágiles. | Reescribir policies con `TO authenticated` y condiciones de fila explícitas. | Sol |
 | DB-003 | `src/db/index.ts:43-45` | TLS acepta certificados no confiables. | Alta | MITM sobre credenciales y datos sensibles. | Validar CA Supabase mediante bundle confiable y fallar cerrado. | Sol |
-| DB-004 | `src/db/index.ts:28-39` | Pool máximo 50 por instancia. | Media | Agotamiento del pooler bajo scale-out. | Dimensionar contra límites reales, reducir por instancia y monitorizar saturación. | Sol |
+| DB-004 | `src/db/index.ts:28-39` | Pool máximo por defecto reducido a 5 por instancia y configurable. | Media | Agotamiento del pooler bajo scale-out si se eleva sin métricas reales. | Dimensionar contra límites reales de Supavisor/Vercel y conservar la monitorización de saturación. | Sol |
 | DB-005 | `scripts/validate-rls.ts`; SQL RLS | El validador acredita existencia/cobertura, no least privilege por rol. | Alta | Falsa confianza: una policy tenant-wide puede exponer datos de menores a familias/atletas. | Añadir tests SQL con JWT owner/coach/parent/athlete y casos negativos fila/operación. | Sol |
 
 ## Estado Día 2

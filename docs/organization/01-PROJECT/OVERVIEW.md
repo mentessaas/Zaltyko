@@ -13,7 +13,7 @@ SaaS platform for managing sports academies (gymnastics, dance, parkour). Multi-
 | **TypeScript 5** | Type safety |
 | **Drizzle ORM** | Database ORM |
 | **Supabase** | PostgreSQL + Auth + Storage |
-| **NextAuth v5** | Authentication |
+| **Supabase Auth SSR** | Authentication |
 | **Stripe** | Payments & subscriptions |
 | **Tailwind CSS** | Styling |
 | **shadcn/ui** | UI component library |

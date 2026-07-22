@@ -1,7 +1,7 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-07-13
+last_reviewed: 2026-07-22
 source:
   - ../PRODUCT-ANALYSIS.md
   - ../BUSINESS-ANALYSIS.md
@@ -11,6 +11,8 @@ source:
 ---
 
 # Estado actual de Zaltyko
+
+> **Reconciliación 2026-07-22:** consulta [[Estado de reconciliacion 2026-07-22]]. El monitor productivo `/api/health` responde 200, `protobufjs` está en 7.6.5 y el release continúa NO-GO por entrega Stripe firmada, antimalware, PostgREST/Realtime y revisión manual WCAG. El árbol local contiene cambios paralelos sin commit.
 
 ## Lectura rápida
 

@@ -1,7 +1,7 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-07-18
+last_reviewed: 2026-07-22
 source:
   - ../PRODUCT-ANALYSIS.md
   - ../BUSINESS-ANALYSIS.md
@@ -10,6 +10,16 @@ source:
 ---
 
 # Registro de riesgos
+
+## Reconciliación operativa 2026-07-22
+
+| Riesgo | Severidad | Estado | Mitigación requerida |
+|---|---|---|---|
+| Dependabot conserva abierto `GHSA-j3f2-48v5-ccww` aunque `protobufjs` ya está en 7.6.5 | Media | Corrección publicada; cierre administrativo pendiente | Esperar reescaneo de GitHub y verificar `state=fixed`; no descartar manualmente |
+| CI falló por test que usaba la firma antigua de `getBaselinePermissions` | Alta | Corregido en `00a4c3ce`; workflow en verificación | Confirmar CI verde y mantener el test junto a `permission-policy.ts` |
+| Health endpoint sin histórico de incidentes todavía | Media | Monitor propio implementado 2026-07-22 | Dejar acumular ejecuciones y probar recuperación en una rama de prueba |
+
+La evidencia técnica y el inventario detallado están en `docs/audit/`; esta sección supersede solo el estado operativo, no reescribe hallazgos históricos.
 
 ## Alta 2026-07-16 — radiografía técnica
 

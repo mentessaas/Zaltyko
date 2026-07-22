@@ -1,5 +1,7 @@
 # Auditoria tecnica de refactor - Zaltyko
 
+> Documento histórico del 2026-07-07. Sus referencias a NextAuth y al inventario anterior de rutas no describen el runtime actual. Para el contrato vigente, usar `docs/audit/AUTH_AUDIT.md`, `API_AUTHORIZATION_MATRIX.md` y `vault/00-Inicio/Estado de reconciliacion 2026-07-22.md`.
+
 Fecha: 2026-07-07  
 Alcance: inspeccion estatica, lectura de configuracion, rutas criticas y script interno `pnpm audit:api-routes`. No se modifico codigo de aplicacion antes de generar este documento.
 
@@ -142,4 +144,3 @@ Alcance: inspeccion estatica, lectura de configuracion, rutas criticas y script 
 1. Limpieza de documentacion historica.
 2. Renombrados internos sin impacto visible.
 3. Micro-optimizaciones de componentes ya estables.
-

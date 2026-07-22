@@ -13,9 +13,9 @@ NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
-# NextAuth
-NEXTAUTH_URL=https://zaltyko.com
-NEXTAUTH_SECRET=GENERA_CON_OPENSSL_RAND_BASE64_32
+# Auth (Supabase Auth canónico)
+INTERNAL_AUTH_SECRET=GENERA_UN_SECRETO_LARGO_Y_ALEATORIO
+SUPABASE_JWT_SECRET=CONFIGURADO_SOLO_SI_SE_USA_VERIFICACIÓN_HS256_PRIVILEGIADA
 
 # Vercel Cron
 CRON_SECRET=GENERA_CON_OPENSSL_RAND_BASE64_32
@@ -46,7 +46,7 @@ LEMONSQUEEZY_WEBHOOK_SECRET=xxx
 ## 🔑 Generar Secretos
 
 ```bash
-# NEXTAUTH_SECRET
+# INTERNAL_AUTH_SECRET
 openssl rand -base64 32
 
 # CRON_SECRET
@@ -55,8 +55,7 @@ openssl rand -base64 32
 
 ## 📝 Notas
 
-- **NEXTAUTH_URL**: Debe ser la URL pública canónica (`https://zaltyko.com`)
-- **NEXT_PUBLIC_APP_URL**: Misma URL que NEXTAUTH_URL (`https://zaltyko.com`)
+- **NEXT_PUBLIC_APP_URL**: URL pública canónica (`https://zaltyko.com`)
 - **CRON_SECRET**: Se usa para proteger los endpoints de cron jobs
 - Todas las variables `NEXT_PUBLIC_*` son públicas y se exponen al cliente
 - Las demás son privadas y solo accesibles en el servidor

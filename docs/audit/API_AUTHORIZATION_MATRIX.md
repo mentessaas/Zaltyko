@@ -2,9 +2,9 @@
 
 ## Fuente de verdad y reproducción
 
-`pnpm exec tsx scripts/audit-api-routes.ts --json` inspecciona los 292 Route Handlers y emite, por archivo y método: categoría de identidad, capability, Zod o validación equivalente, rate limit, academia, resource scope, service role, `tenantId` de cliente, clasificación de datos y contrato de denegación. `pnpm audit:api-routes:strict` falla ante mutaciones sin categoría, capabilities ausentes en dominios sensibles o un `tenantId` de cliente no limitado explícitamente a super-admin.
+`pnpm exec tsx scripts/audit-api-routes.ts --json` inspecciona los 294 Route Handlers y emite, por archivo y método: categoría de identidad, capability, Zod o validación equivalente, rate limit, academia, resource scope, service role, `tenantId` de cliente, clasificación de datos y contrato de denegación. `pnpm audit:api-routes:strict` falla ante mutaciones sin categoría, capabilities ausentes en dominios sensibles o un `tenantId` de cliente no limitado explícitamente a super-admin.
 
-Snapshot final actualizado: 293 handlers; 204 tenant, 39 bearer, 15 públicos, 12 super-admin, 10 deprecated, 7 cron, 4 webhooks y 2 dev. Hay 196 handlers mutantes, 193 cubiertos por rate limit, 171 archivos con al menos una capability, 177 con Zod/validación equivalente, 254 con respuesta estándar, 256 con error estándar, 150 con evidencia de scope de academia, 5 con service role y **0** recursos dinámicos pendientes de revisión manual. El único `tenantId` aceptado desde body está limitado al flujo legacy de super-admin en `/api/admin/users`; `/api/athletes` ya no acepta override de tenant.
+Snapshot final actualizado: 294 handlers; 204 tenant, 39 bearer, 16 públicos, 12 super-admin, 10 deprecated, 7 cron, 4 webhooks y 2 dev. Hay 196 handlers mutantes, 193 cubiertos por rate limit, 171 archivos con al menos una capability, 177 con Zod/validación equivalente, 255 con respuesta estándar, 257 con error estándar, 150 con evidencia de scope de academia, 5 con service role y **0** recursos dinámicos pendientes de revisión manual. El único `tenantId` aceptado desde body está limitado al flujo legacy de super-admin en `/api/admin/users`; `/api/athletes` ya no acepta override de tenant.
 
 ## Precedencia y matriz de roles
 

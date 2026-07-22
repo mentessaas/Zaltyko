@@ -1,7 +1,7 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-06-26
+last_reviewed: 2026-07-22
 source:
   - ../README.md
   - ../AGENTS.md
@@ -44,7 +44,7 @@ Abrir `http://localhost:3000`.
 | Backend | Next.js API Routes |
 | Base de datos | Supabase PostgreSQL + RLS |
 | ORM | Drizzle ORM |
-| Auth | NextAuth.js v5 con contexto tenant |
+| Auth | Supabase Auth SSR + bearer verification con contexto tenant |
 | Pagos | Stripe |
 | Deploy | Vercel |
 | Tests | Vitest, Playwright, axe |
@@ -57,9 +57,9 @@ Abrir `http://localhost:3000`.
 - Si un cambio afecta producto, negocio, marketing, ventas, arquitectura, deploy, seguridad o roadmap, también se actualiza esta vault.
 - El cierre de cada trabajo debe indicar la nota actualizada o `Vault: no aplica`.
 
-## Estado ejecutivo (2026-06-26)
+## Estado ejecutivo (2026-07-22)
 
-Zaltyko está en hardening avanzado: sprints 0-7 + auditoría de seguridad (PR #8) + fix de CI ejecutados, deploy Vercel verde, RLS 100% (62 tablas) y QA P1 5/5 en sandbox. Lo que queda son decisiones humanas (legacy `/dashboard/*`), QA con usuarios reales, 25 tablas TS pendientes en DB y deuda de auditoría acotada. Empieza por [[Estado actual de Zaltyko]].
+Zaltyko está en hardening avanzado con el release en **NO-GO** hasta cerrar la entrega firmada de Stripe Connect, antimalware externo, PostgREST/Realtime y revisión manual WCAG. El monitor propio de GitHub ya comprueba `/api/health` cada 15 minutos; el último spot-check productivo devolvió HTTP 200 y PostgreSQL en 29,43 ms. `protobufjs` está corregido a 7.6.5, aunque Dependabot aún no ha cerrado administrativamente el alert. El árbol local conserva cambios paralelos sin commit: no es una base de release reproducible hasta separar ese trabajo. Empieza por [[Estado actual de Zaltyko]] y [[Estado de reconciliacion 2026-07-22]].
 
 Esta vault es la versión operativa y viva de la verdad del proyecto; la info técnica de detalle vive en `README.md`, `docs/` y `AGENTS.md`.
 
