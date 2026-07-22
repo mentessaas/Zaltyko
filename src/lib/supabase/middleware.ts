@@ -2,10 +2,13 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { isDevFeaturesEnabled } from "@/lib/dev";
 import { DEV_SESSION_COOKIE, parseDevSessionCookie } from "@/lib/dev-session";
+import { clearSupabaseAuthCookies, isInvalidRefreshTokenError } from "@/lib/supabase/session-recovery";
 
-export async function updateSession(request: NextRequest) {
+export async function updateSession(request: NextRequest, headers?: Headers) {
   let supabaseResponse = NextResponse.next({
-    request,
+    request: {
+      headers: headers ?? request.headers,
+    },
   });
 
   const supabase = createServerClient(
@@ -21,7 +24,9 @@ export async function updateSession(request: NextRequest) {
             request.cookies.set(name, value)
           );
           supabaseResponse = NextResponse.next({
-            request,
+            request: {
+              headers: headers ?? request.headers,
+            },
           });
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options)
@@ -39,7 +44,13 @@ export async function updateSession(request: NextRequest) {
 
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await supabase.auth.getUser().catch((error) => {
+    if (!isInvalidRefreshTokenError(error)) {
+      throw error;
+    }
+
+    return { data: { user: null } };
+  });
 
   // Rutas públicas que no requieren autenticación
   const publicPaths = [
@@ -66,7 +77,7 @@ export async function updateSession(request: NextRequest) {
     // no user, potentially respond by redirecting the user to the login page
     const url = request.nextUrl.clone();
     url.pathname = "/auth/login";
-    return NextResponse.redirect(url);
+    return clearSupabaseAuthCookies(NextResponse.redirect(url), request.cookies);
   }
 
   // IMPORTANT: You *must* return the supabaseResponse object as it is.
