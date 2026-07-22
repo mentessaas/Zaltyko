@@ -4,6 +4,7 @@ import crypto from "crypto";
 import { isDevFeaturesEnabled } from "@/lib/dev";
 import { DEV_SESSION_COOKIE, parseDevSessionCookie } from "@/lib/dev-session";
 import { locales, defaultLocale, type Locale } from "@/i18n";
+import { updateSession } from "@/lib/supabase/middleware";
 
 // Constants
 const SUPER_ADMIN_PATH = "/super-admin";
@@ -149,6 +150,16 @@ function shouldRedirectToLocalizedRoute(pathname: string) {
 
 function isAcademyAppPath(pathname: string) {
   return pathname.startsWith("/app/") || pathname.startsWith("/super-admin/");
+}
+
+function shouldRefreshSupabaseSession(pathname: string) {
+  return (
+    pathname.startsWith("/app/") ||
+    pathname.startsWith("/dashboard/") ||
+    pathname === "/dashboard" ||
+    pathname.startsWith("/onboarding/") ||
+    pathname.startsWith("/billing")
+  );
 }
 
 async function checkRateLimit(
@@ -310,11 +321,13 @@ export async function middleware(req: NextRequest) {
     }
   }
 
-  const response = NextResponse.next({
-    request: {
-      headers: requestHeaders,
-    },
-  });
+  const response = shouldRefreshSupabaseSession(pathname)
+    ? await updateSession(req, requestHeaders)
+    : NextResponse.next({
+        request: {
+          headers: requestHeaders,
+        },
+      });
 
   if (rateLimitHeaders) {
     for (const [header, value] of Object.entries(rateLimitHeaders)) {

@@ -1,25 +1,34 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
-const rateLimitMock = vi.fn();
+const mocks = vi.hoisted(() => ({
+  rateLimit: vi.fn(),
+  updateSession: vi.fn(),
+}));
 
 vi.mock("@/lib/rate-limit", () => ({
-  rateLimit: rateLimitMock,
+  rateLimit: mocks.rateLimit,
   getLimitForRoute: () => ({ limit: 100, window: 60 }),
   getClientIdentifier: () => "ip:test",
+}));
+
+vi.mock("@/lib/supabase/middleware", () => ({
+  updateSession: mocks.updateSession,
 }));
 
 import { middleware } from "../middleware";
 
 describe("middleware", () => {
   beforeEach(() => {
-    rateLimitMock.mockReset();
-    rateLimitMock.mockResolvedValue({
+    mocks.rateLimit.mockReset();
+    mocks.rateLimit.mockResolvedValue({
       success: true,
       limit: 100,
       remaining: 99,
       reset: Math.floor(Date.now() / 1000) + 60,
     });
+    mocks.updateSession.mockReset();
+    mocks.updateSession.mockResolvedValue(NextResponse.next());
   });
 
   it("allows an API mutation when the rate limit succeeds", async () => {
@@ -33,7 +42,7 @@ describe("middleware", () => {
   });
 
   it("returns 429 only when the rate limit is exceeded", async () => {
-    rateLimitMock.mockResolvedValue({
+    mocks.rateLimit.mockResolvedValue({
       success: false,
       limit: 100,
       remaining: 0,
@@ -60,6 +69,12 @@ describe("middleware", () => {
     expect(pricingResponse.headers.get("x-middleware-next")).toBe("1");
     expect(academyResponse.headers.get("location")).toBeNull();
     expect(academyResponse.headers.get("x-middleware-next")).toBe("1");
+  });
+
+  it("refreshes Supabase sessions before private app routes reach server components", async () => {
+    await middleware(new NextRequest("https://zaltyko.test/dashboard/events/new"));
+
+    expect(mocks.updateSession).toHaveBeenCalledTimes(1);
   });
 
   it("keeps SEO cluster routes localized", async () => {
