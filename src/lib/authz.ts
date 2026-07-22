@@ -282,7 +282,6 @@ export function withTenant<Ctx extends Record<string, unknown>>(
         // an optional restrictive capability layer and is enforced consistently
         // for registered module routes.
         if (
-          effectivePermissions.roleId &&
           !effectivePermissions.isOwner &&
           !effectivePermissions.permissions.includes(requiredPermission)
         ) {
@@ -459,7 +458,6 @@ export function withBearerTenant<Ctx extends Record<string, unknown>>(
           effectiveAcademyId
         );
         if (
-          effectivePermissions.roleId &&
           !effectivePermissions.isOwner &&
           !effectivePermissions.permissions.includes(requiredPermission)
         ) {
