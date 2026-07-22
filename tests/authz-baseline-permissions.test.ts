@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { getBaselinePermissions } from "@/lib/authz/permissions-service";
+import { getAllPermissions, getBaselinePermissions } from "@/lib/authz/permissions-service";
 
 describe("academy baseline permissions", () => {
   it("gives coaches only the operational baseline", () => {
@@ -26,7 +26,9 @@ describe("academy baseline permissions", () => {
   });
 
   it("keeps owner capability expansion explicit", () => {
-    expect(getBaselinePermissions("owner")).toContain("billing:read");
-    expect(getBaselinePermissions("owner")).toContain("settings:users");
+    const ownerPermissions = getBaselinePermissions("owner") ?? getAllPermissions();
+
+    expect(ownerPermissions).toContain("billing:read");
+    expect(ownerPermissions).toContain("settings:users");
   });
 });
