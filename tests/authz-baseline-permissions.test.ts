@@ -1,10 +1,21 @@
 import { describe, expect, it } from "vitest";
 
-import { getBaselinePermissions } from "@/lib/authz/permissions-service";
+import { getBaselinePermissions } from "@/lib/authz/permission-policy";
+import type { Permission } from "@/db/schema/permissions";
+
+const allPermissions: Permission[] = ["billing:read", "settings:users"];
+
+function baseline(role: "owner" | "coach" | "viewer" | "unknown") {
+  return getBaselinePermissions({
+    membershipRole: role === "unknown" ? "viewer" : role,
+    profileRole: role,
+    allPermissions,
+  });
+}
 
 describe("academy baseline permissions", () => {
   it("gives coaches only the operational baseline", () => {
-    const permissions = getBaselinePermissions("coach");
+    const permissions = baseline("coach");
 
     expect(permissions).toEqual([
       "athletes:read",
@@ -21,12 +32,12 @@ describe("academy baseline permissions", () => {
   });
 
   it("fails closed for viewer and unknown roles", () => {
-    expect(getBaselinePermissions("viewer")).toEqual([]);
-    expect(getBaselinePermissions("unknown")).toEqual([]);
+    expect(baseline("viewer")).toEqual([]);
+    expect(baseline("unknown")).toEqual([]);
   });
 
   it("keeps owner capability expansion explicit", () => {
-    expect(getBaselinePermissions("owner")).toContain("billing:read");
-    expect(getBaselinePermissions("owner")).toContain("settings:users");
+    expect(baseline("owner")).toContain("billing:read");
+    expect(baseline("owner")).toContain("settings:users");
   });
 });
