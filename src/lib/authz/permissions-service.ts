@@ -24,6 +24,28 @@ export type RoleWithPermissions = {
   isActive: boolean;
 };
 
+const BASELINE_PERMISSIONS: Record<"owner" | "coach" | "viewer", Permission[]> = {
+  owner: getAllPermissions(),
+  coach: [
+    "athletes:read",
+    "athletes:update",
+    "classes:read",
+    "classes:schedule",
+    "reports:read",
+    "events:read",
+    "communications:read",
+    "communications:send",
+  ],
+  viewer: [],
+};
+
+export function getBaselinePermissions(role: string): Permission[] {
+  if (role === "owner" || role === "coach" || role === "viewer") {
+    return BASELINE_PERMISSIONS[role];
+  }
+  return BASELINE_PERMISSIONS.viewer;
+}
+
 /**
  * Obtiene los permisos efectivos de un usuario en una academia
  * Combina permisos del rol, herencia, y permisos personalizados
@@ -57,6 +79,7 @@ export async function getUserPermissions(
       .limit(1);
 
     let ownsThisAcademy = false;
+    let membershipRole: "owner" | "coach" | "viewer" = "viewer";
     if (profile?.id) {
       const [ownedAcademy] = await db
         .select({ id: academies.id })
@@ -82,10 +105,27 @@ export async function getUserPermissions(
       }
     }
 
+    const [academyMembership] = await db
+      .select({ role: memberships.role })
+      .from(memberships)
+      .where(
+        and(
+          eq(memberships.userId, userId),
+          eq(memberships.academyId, academyId)
+        )
+      )
+      .limit(1);
+
+    if (academyMembership?.role) {
+      membershipRole = academyMembership.role;
+    }
+
     return {
-      permissions: ownsThisAcademy ? getAllPermissions() : [],
+      permissions: ownsThisAcademy
+        ? getBaselinePermissions("owner")
+        : getBaselinePermissions(membershipRole),
       roleId: null,
-      roleName: null,
+      roleName: membershipRole,
       isOwner: ownsThisAcademy,
     };
   }
@@ -106,10 +146,15 @@ export async function getUserPermissions(
 
   if (!role.length) {
     return {
-      permissions: member.customPermissions as Permission[] || [],
+      permissions: [
+        ...new Set([
+          ...getBaselinePermissions(member.memberRole),
+          ...((member.customPermissions as Permission[] | null) || []),
+        ]),
+      ],
       roleId: null,
-      roleName: null,
-      isOwner: false,
+      roleName: member.memberRole,
+      isOwner: member.memberRole === "owner",
     };
   }
 
