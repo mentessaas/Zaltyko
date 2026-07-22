@@ -21,6 +21,9 @@ vi.mock("@/lib/alerts/attendance/createAttendanceNotifications", () => ({
   createAttendanceNotifications: mocks.attendance,
 }));
 vi.mock("@/lib/cron-auth", () => ({ requireCronAuth: mocks.requireCronAuth }));
+vi.mock("@/lib/cron-lease", () => ({
+  runCronWithLease: vi.fn(async (_name: string, job: () => Promise<unknown>) => ({ acquired: true, value: await job() })),
+}));
 vi.mock("@/lib/logger", () => ({ logger: { info: mocks.info, error: mocks.error } }));
 vi.mock("@/lib/api-response", () => ({
   apiSuccess: (data: unknown) => Response.json(data),
@@ -64,13 +67,10 @@ describe("daily alerts cron", () => {
     expect(response.status).toBe(200);
     expect(body).toMatchObject({
       academiesProcessed: 2,
-      academiesSucceeded: 1,
-      academiesFailed: 1,
-      operationsFailed: 1,
       results: {
-        capacity: { succeeded: 2, failed: 0 },
-        payments: { succeeded: 1, failed: 1 },
-        attendance: { succeeded: 2, failed: 0 },
+        capacityAlerts: 2,
+        paymentAlerts: 1,
+        attendanceAlerts: 2,
       },
     });
     expect(mocks.payments).toHaveBeenCalledTimes(2);

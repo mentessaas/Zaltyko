@@ -21,6 +21,9 @@ vi.mock("@/lib/communication-service", () => ({
   markScheduledNotificationSent: mocks.markSent,
 }));
 vi.mock("@/lib/cron-auth", () => ({ requireCronAuth: mocks.requireCronAuth }));
+vi.mock("@/lib/cron-lease", () => ({
+  runCronWithLease: vi.fn(async (_name: string, job: () => Promise<unknown>) => ({ acquired: true, value: await job() })),
+}));
 vi.mock("@/lib/logger", () => ({
   logger: { info: mocks.info, error: mocks.error },
 }));
@@ -38,11 +41,8 @@ vi.mock("@/db", () => ({
   db: {
     select: () => ({
       from: () => ({
-        leftJoin: () => ({
-          where: () => ({
-            limit: () => mocks.adminProfiles(),
-          }),
-        }),
+        where: () => ({ limit: () => mocks.adminProfiles() }),
+        leftJoin: () => ({ where: () => ({ limit: () => mocks.adminProfiles() }) }),
       }),
     }),
   },
@@ -83,17 +83,14 @@ describe("scheduled notifications cron route", () => {
 
     expect(response.status).toBe(200);
     expect(mocks.getPending).toHaveBeenCalledOnce();
-    expect(mocks.info).toHaveBeenCalledWith(
-      "Scheduled notifications cron completed",
-      expect.objectContaining({ total: 0, processed: 0, failed: 0 })
-    );
+    await expect(response.json()).resolves.toEqual({ processed: 0, failed: 0, total: 0 });
   });
 
   it("usa el userId de autenticación y solo marca sent tras entregar", async () => {
     mocks.getPending.mockResolvedValue([scheduled]);
     mocks.adminProfiles.mockResolvedValue([
       {
-        userId: "00000000-0000-0000-0000-000000000002",
+        id: "00000000-0000-0000-0000-000000000002",
         name: "Elvis",
         email: "elvis@example.com",
         phone: null,
@@ -118,7 +115,7 @@ describe("scheduled notifications cron route", () => {
     mocks.getPending.mockResolvedValue([{ ...scheduled, channel: "email" }]);
     mocks.adminProfiles.mockResolvedValue([
       {
-        userId: "00000000-0000-0000-0000-000000000002",
+        id: "00000000-0000-0000-0000-000000000002",
         name: '<img src=x onerror="alert(1)">',
         email: "elvis@example.com",
         phone: null,

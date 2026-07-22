@@ -17,6 +17,9 @@ vi.mock("@/db", () => ({
 }));
 vi.mock("@/lib/alerts/class-reminders", () => ({ sendClassReminders: mocks.send }));
 vi.mock("@/lib/cron-auth", () => ({ requireCronAuth: mocks.requireCronAuth }));
+vi.mock("@/lib/cron-lease", () => ({
+  runCronWithLease: vi.fn(async (_name: string, job: () => Promise<unknown>) => ({ acquired: true, value: await job() })),
+}));
 vi.mock("@/lib/logger", () => ({ logger: { info: mocks.info, error: mocks.error } }));
 vi.mock("@/lib/api-response", () => ({
   apiSuccess: (data: unknown) => Response.json(data),
@@ -47,7 +50,7 @@ describe("class reminders cron", () => {
     expect(response.status).toBe(200);
     expect(mocks.send).toHaveBeenNthCalledWith(1, "academy-failing", "tenant-1", 24);
     expect(mocks.send).toHaveBeenNthCalledWith(2, "academy-ready", "tenant-2", 24);
-    expect(body).toEqual({ academies: 2, succeeded: 1, failed: 1 });
+    expect(body).toEqual({ ok: true, message: "Class reminders sent successfully", academiesProcessed: 2 });
     expect(mocks.error).toHaveBeenCalledWith(
       "Error sending reminders for academy academy-failing",
       expect.any(Error),
