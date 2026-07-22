@@ -94,8 +94,7 @@ jobs:
                   owner: context.repo.owner,
                   repo: context.repo.repo,
                   title: process.env.INCIDENT_TITLE,
-                  body,
-                  labels: ["monitoring"]
+                  body
                 });
               } else {
                 await github.rest.issues.createComment({
