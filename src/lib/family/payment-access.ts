@@ -1,3 +1,7 @@
+import { and, eq, inArray } from "drizzle-orm";
+
+import { db } from "@/db";
+import { charges } from "@/db/schema";
 import { getFamilyChildrenForUser } from "@/lib/family/scope-service";
 import { getConnectAccount, isConnectReady } from "@/lib/stripe/connect-service";
 
@@ -6,6 +10,34 @@ export interface FamilyPaymentAccess {
   reason?: string;
   stripeAccountId?: string;
   connectReady?: boolean;
+}
+
+export interface FamilyChargeAccess {
+  id: string;
+  athleteId: string;
+}
+
+export async function resolveFamilyChargeAccess(params: {
+  userId: string;
+  email: string;
+  chargeId: string;
+}): Promise<FamilyChargeAccess | null> {
+  const children = await getFamilyChildrenForUser({
+    userId: params.userId,
+    email: params.email,
+  });
+  const athleteIds = children.map((child) => child.id);
+  if (athleteIds.length === 0) {
+    return null;
+  }
+
+  const [charge] = await db
+    .select({ id: charges.id, athleteId: charges.athleteId })
+    .from(charges)
+    .where(and(eq(charges.id, params.chargeId), inArray(charges.athleteId, athleteIds)))
+    .limit(1);
+
+  return charge ?? null;
 }
 
 /**

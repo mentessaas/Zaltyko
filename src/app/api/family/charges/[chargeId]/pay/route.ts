@@ -1,11 +1,8 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { eq } from "drizzle-orm";
 
-import { db } from "@/db";
-import { charges } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
-import { getFamilyChildrenForUser } from "@/lib/family/scope-service";
+import { resolveFamilyChargeAccess } from "@/lib/family/payment-access";
 import { collectCharge } from "@/lib/stripe/charge-collection-service";
 import { logger } from "@/lib/logger";
 
@@ -35,17 +32,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
     }
 
-    const [charge] = await db
-      .select({ id: charges.id, athleteId: charges.athleteId })
-      .from(charges)
-      .where(eq(charges.id, chargeId))
-      .limit(1);
+    const charge = await resolveFamilyChargeAccess({ userId: user.id, email: user.email, chargeId });
     if (!charge) {
-      return NextResponse.json({ error: "CHARGE_NOT_FOUND" }, { status: 404 });
-    }
-
-    const children = await getFamilyChildrenForUser({ userId: user.id, email: user.email });
-    if (!children.some((child) => child.id === charge.athleteId)) {
       return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
     }
 

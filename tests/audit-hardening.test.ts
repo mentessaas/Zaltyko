@@ -284,4 +284,23 @@ describe("audit hardening", () => {
       expect(source).toContain("checkPlanLimitViolations");
     });
   });
+
+  describe("family billing RLS", () => {
+    it("scopes charges and receipts to accessible athletes", () => {
+      const migrationPath = fileURLToPath(
+        new URL(
+          "../supabase/migrations/20260722120000_scope_family_billing_rls.sql",
+          import.meta.url
+        )
+      );
+      const migration = readFileSync(migrationPath, "utf8");
+
+      expect(migration).toContain("can_access_billing_athlete");
+      expect(migration).toContain('DROP POLICY IF EXISTS "charges_select"');
+      expect(migration).toContain('DROP POLICY IF EXISTS "receipts_select"');
+      expect(migration).toContain("guardian_athletes");
+      expect(migration).toContain("REVOKE ALL ON FUNCTION public.can_access_billing_athlete");
+      expect(migration).not.toContain("Usuarios pueden ver recibos de su tenant");
+    });
+  });
 });
