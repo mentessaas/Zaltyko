@@ -21,6 +21,8 @@ El workflow de CI utilizaba variables históricas de NextAuth (`NEXTAUTH_SECRET`
 
 - El typecheck y lint locales no finalizaron con salida concluyente en el entorno actual; fueron detenidos tras quedar sin progreso observable.
 - El CI remoto publicado anteriormente sí completó tests unitarios, migraciones y RLS; build y typecheck deben confirmarse en el siguiente workflow después de este ajuste.
+- La suite de seguridad local ejecutó 103 archivos: 662 tests pasaron y 12 fallaron. Los fallos se concentran en contratos de cron con leases/advisory locks y mocks desactualizados de Brevo; no se publican esos cambios hasta actualizar el contrato de prueba y volver a ejecutar la suite completa.
+- `pnpm audit:dependencies --prod` ya no falla por vulnerabilidades high tras actualizar `fast-uri` y `sharp`; quedan una vulnerabilidad low y una moderate para seguimiento de Dependabot.
 - No se aplicaron migraciones remotas ni se modificaron datos de producción.
 
 ## Regla de publicación
