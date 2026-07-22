@@ -2,7 +2,7 @@
 
 ## Overview
 
-Zaltyko uses **NextAuth v5** with **Supabase Auth** for authentication, and a custom multi-tenant authorization system.
+Zaltyko uses **Supabase Auth** (`@supabase/ssr`, cookies chunked y verificación bearer) with a custom multi-tenant authorization system. NextAuth is historical documentation and is not part of the active runtime.
 
 ## Auth Files
 
@@ -62,7 +62,7 @@ const athletes = await db.select().from(athletesTable);
 
 ## Session Flow
 
-1. User logs in via NextAuth (magic link or OAuth)
+1. User logs in via Supabase Auth (magic link/password and provider flows configured by the project)
 2. Session stored in Supabase Auth
 3. `lib/supabase/server.ts` creates server client
 4. `tenant-resolver.ts` extracts tenant from URL params

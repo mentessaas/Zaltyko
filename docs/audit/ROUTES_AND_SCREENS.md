@@ -13,7 +13,7 @@ Inventario congelado desde el filesystem del snapshot. Se enumeran los 167 archi
 | Academia moderna | `src/app/app/[academyId]` | layout + `withTenant` API | 62 archivos de página |
 | Legacy | `src/app/dashboard` | redirects/compatibilidad | 30 archivos; ventana de telemetría de seis meses |
 | Super-admin | grupos/ruta super-admin | JWT verificado + perfil | 13 archivos de página |
-| API | `src/app/api` | wrapper por categoría | 296 handlers: 204 tenant, 39 bearer, 15 públicos, 12 super-admin, 10 deprecated, 7 cron, 3 webhook y 2 dev |
+| API | `src/app/api` | wrapper por categoría | 294 handlers: 204 tenant, 39 bearer, 16 públicos, 12 super-admin, 10 deprecated, 7 cron, 4 webhook y 2 dev |
 
 ## Páginas (inventario exhaustivo)
 
@@ -1008,9 +1008,9 @@ Inventario congelado desde el filesystem del snapshot. Se enumeran los 167 archi
 |---|---|---|---|---|---|---|
 | ROUTE-001 | `middleware.ts:26,256-284`; `src/app/page.tsx` | El middleware afirma que no existe handler localizado raíz y redirige `/` a `/{locale}/gimnasia-artistica`, aunque sí existe una landing raíz completa. | Alta | La landing/canonical y el funnel observado en local divergen de producción. | Formalizar si `/` debe renderizar landing o redirigir; test de contrato en ES/EN y canonicals antes de deploy. | Terra |
 | ROUTE-002 | `src/app/dashboard/**`; `src/app/app/[academyId]/**` | 30 páginas legacy coexisten con la superficie moderna. | Media | Duplicación de navegación, guards y enlaces profundos; drift de permisos. | Mantener redirects y telemetría seis meses; retirar solo con destinos y tests equivalentes. | Terra |
-| ROUTE-003 | 42 `src/app/api/**/route.ts` | Persisten respuestas `NextResponse.json` fuera del helper estándar; 166/292 rutas importan Zod. | Media | Contratos y validación heterogéneos; clientes manejan errores distintos. | Inventariar excepciones justificadas y migrar por dominio con contract tests, sin refactor masivo. | Terra |
-| ROUTE-004 | rutas con permission registry | El auditor estricto no detecta el bypass semántico de roles baseline de AUTH-001. | Crítica | “292 rutas protegidas” no significa autorización correcta por rol. | Extender auditor con casos ejecutables de permiso baseline y negativas BOLA, no solo clasificación estática. | Sol |
+| ROUTE-003 | 42 `src/app/api/**/route.ts` | Persisten respuestas `NextResponse.json` fuera del helper estándar; 177/294 rutas tienen Zod/validación equivalente según el auditor actual. | Media | Contratos y validación heterogéneos; clientes manejan errores distintos. | Inventariar excepciones justificadas y migrar por dominio con contract tests, sin refactor masivo. | Terra |
+| ROUTE-004 | rutas con permission registry | El auditor estricto no detecta por sí solo todos los contratos de rol; el test baseline actualizado cubre la firma vigente de `permission-policy.ts`. | Crítica | “294 rutas protegidas” no significa autorización correcta por rol. | Mantener casos ejecutables de permiso baseline y negativas BOLA, no solo clasificación estática. | Sol |
 
 ## Avance Día 3
 
-El auditor mantiene la clasificación exacta de 292 handlers y emite capability por método, Zod/validación equivalente, rate limit, academia, resource scope, service role, entrada `tenantId`, datos sensibles y contrato de denegación. El gate estricto queda en cero rutas `risky`, cero riesgos semánticos y cero scopes `manual-review`; ROUTE-004 queda cerrado. Véase `API_AUTHORIZATION_MATRIX.md`.
+El auditor mantiene la clasificación exacta de 294 handlers y emite capability por método, Zod/validación equivalente, rate limit, academia, resource scope, service role, entrada `tenantId`, datos sensibles y contrato de denegación. El gate estricto queda en cero rutas `risky`, cero riesgos semánticos y cero scopes `manual-review`; ROUTE-004 queda cerrado. Véase `API_AUTHORIZATION_MATRIX.md`.

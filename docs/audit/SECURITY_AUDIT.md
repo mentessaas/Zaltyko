@@ -9,7 +9,7 @@ El aislamiento entre tenants está ampliamente instrumentado y el auditor estát
 - Sesión/cookies/bearer, route wrappers, permisos, RLS y accesos browser.
 - Headers/CSP, secretos/env, TLS DB, rate limiting, uploads, cron, webhooks y logs.
 - Migraciones/ledger, CI/build, dependencias y advisories oficiales.
-- 293 handlers: auditor estricto sin rutas `risky`, pero con limitación semántica documentada.
+- 294 handlers: auditor estricto sin rutas `risky` ni `semanticRisks`, pero con limitación semántica documentada.
 
 ## Correcciones posteriores — 2026-07-21
 
@@ -40,7 +40,7 @@ Las recomendaciones RLS se contrastaron con la [guía oficial de Row Level Secur
 | SEC-005 | `src/lib/rate-limit.ts`; `src/lib/env.ts` | **Cerrado en código Día 4:** KV exige URL y token; en producción la ausencia falla cerrada y readiness reporta solo nombres faltantes. No se verificó el inventario externo de Vercel/Firewall. | Alta | Una configuración incompleta bloquea solicitudes en vez de dejarlas sin límite; falta validar operación externa. | Añadir readiness al deploy y verificar alertas/compensación Vercel sin extraer valores. | Sol |
 | SEC-006 | `src/lib/uploads/file-security.ts`, `/api/upload`, `/api/assessments/videos` | **Mitigado en código:** allowlist centralizada, límites, firma binaria (magic bytes), MIME y extensión saneada; rutas únicas usan `crypto.randomBytes`. Aún no existe escaneo antimalware externo ni confirmación de bucket privado en Supabase. | Media | Archivos polimórficos o malware avanzado requieren un control fuera del proceso web; una política de bucket incorrecta podría exponer objetos. | Configurar bucket privado y escaneo asíncrono en Supabase/worker, luego probar descarga autorizada y rechazo anónimo. | Sol |
 | SEC-007 | `package.json:engines`, `pnpm-lock.yaml`; CI | El scanner detectó inicialmente `protobufjs@7.6.4` y `immutable@3.8.3`. Se elevaron los overrides a `^7.6.5` y `^4.3.9`, se regeneró lockfile y `pnpm audit --audit-level high --prod` queda en cero; el escaneo completo conserva una baja y una moderada transitivas. | Media | El bloqueo de severidad alta está resuelto, pero quedan advisories no bloqueantes y deuda de SBOM/policy. | Mantener el gate high/critical, evaluar reemplazo de `swagger-ui-react`/`immutable` y revisar advisories oficiales en cada release. | Sol |
-| SEC-008 | logging/error handlers | Persisten respuestas/logs heterogéneos; no se demostró redacción sistemática de PII en 292 rutas. | Media | Datos personales en logs y respuesta inconsistente a incidentes. | Política de redacción y test de no-secrets/PII en logger y errores. | Sol |
+| SEC-008 | logging/error handlers | Persisten respuestas/logs heterogéneos; no se demostró redacción sistemática de PII en 294 rutas. | Media | Datos personales en logs y respuesta inconsistente a incidentes. | Política de redacción y test de no-secrets/PII en logger y errores. | Sol |
 | SEC-009 | webhooks/cron | **Parcial Día 4/7:** tests automatizan firma/raw body/tolerancia, duplicado, rechazo cross-account, error reintentable, HMAC Mailgun fresco y leases concurrentes. La rotación Stripe Connect ya fue completada con 2FA y el secreto nuevo está en Vercel Production; no se observa todavía una entrega firmada del deployment redeployado. | Media | Una diferencia del proveedor o del entorno desplegado podría escapar a los dobles locales; un secreto mal propagado dejaría pagos sin reconciliar. | Esperar estado Ready de `CugHPvZEr`, enviar un evento benigno desde Stripe Workbench y conservar el resultado 2xx/idempotencia; completar SCA en sandbox sin dinero real. | Sol |
 
 ## Controles positivos
@@ -80,3 +80,11 @@ Las recomendaciones RLS se contrastaron con la [guía oficial de Row Level Secur
 - El webhook Mailgun heredado exige timestamp dentro de cinco minutos, HMAC válido, comparación constante y escapa el contenido reenviado. Sigue pendiente un ledger de nonces para bloquear dos entregas válidas dentro de esa ventana.
 - Email Brevo y rate limit dejan de degradarse silenciosamente en producción. Los errores persistidos omiten cuerpos del proveedor, y logs de WhatsApp ya no incluyen teléfono ni mensaje.
 - Playwright autenticado Chromium pasó 12/13 pruebas; falló el spot-check responsive por timeout de navegación/afirmación de `overflow-x`. La suite axe pública pasó landing/login; las superficies autenticadas fallaron antes de axe. Stripe test mode respondió 200; el webhook Connect fue corregido al dominio productivo y el PaymentIntent SCA se canceló sin cargo. El secreto de firma/entrega real sigue sin verificar.
+
+## Reconciliación de estado — 2026-07-22
+
+- `GET https://zaltyko.com/api/health` respondió HTTP 200, `data.status=ok` y PostgreSQL en 29,43 ms en un spot-check read-only.
+- El workflow `.github/workflows/monitoring.yml` está publicado en `main`: ejecuta cada 15 minutos, mide HTTP/estado/latencia y abre o cierra un issue de incidente sin depender de Vercel Pro.
+- El advisory Dependabot `GHSA-j3f2-48v5-ccww` quedó corregido en el árbol remoto: `protobufjs` está en 7.6.5 en `package.json` y `pnpm-lock.yaml`. GitHub aún muestra el alert abierto con fecha anterior; queda pendiente el reescaneo administrativo.
+- El CI de `8ca1c701` falló por un test obsoleto que importaba `getBaselinePermissions` desde el módulo antiguo. `00a4c3ce` actualiza el test al contrato de `permission-policy.ts`; su CI estaba en ejecución al congelar este documento.
+- El checkout local conserva 238 cambios sin commit de trabajo paralelo. No se interpreta como fallo de auditoría ni se mezclan con esta reconciliación.

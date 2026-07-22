@@ -10,7 +10,7 @@ graph TD
     CDN -->|Next.js App Router| Server[Servidor Next.js]
     
     subgraph "Capa de Aplicación"
-        Server -->|Auth| NextAuth[NextAuth v5]
+        Server -->|Auth| SupabaseAuth[Supabase Auth SSR + bearer]
         Server -->|ORM| Drizzle[Drizzle ORM]
         Server -->|Pagos| StripeSDK[Stripe SDK]
     end
@@ -38,7 +38,7 @@ El núcleo de la seguridad de Zaltyko es el aislamiento de datos. No utilizamos 
 ## 🧩 Componentes Principales
 
 ### 1. Autenticación y Autorización (`src/lib/authz.ts`)
-- **Autenticación**: Manejada por NextAuth.js sincronizado con usuarios de Supabase.
+- **Autenticación**: Supabase Auth (`@supabase/ssr`) con cookies chunked/bearer verification; las referencias a NextAuth son históricas y no forman parte del runtime.
 - **Autorización**: Sistema de permisos basado en roles (`owner`, `admin`, `coach`, `athlete`).
 - **Middleware**: Intercepta rutas protegidas y valida la sesión antes de renderizar.
 

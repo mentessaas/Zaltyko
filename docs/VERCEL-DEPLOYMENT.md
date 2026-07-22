@@ -49,9 +49,9 @@ NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
 SUPABASE_SERVICE_ROLE_KEY=eyJ...
 
-# NextAuth
-NEXTAUTH_URL=https://zaltyko.com
-NEXTAUTH_SECRET=genera-con-openssl-rand-base64-32
+# Auth (Supabase Auth canónico)
+INTERNAL_AUTH_SECRET=genera-con-openssl-rand-base64-32
+SUPABASE_JWT_SECRET=solo-si-se-usa-verificacion-HS256-privilegiada
 
 # Brevo (email transaccional)
 BREVO_API_KEY=xkeysib-xxx
@@ -69,7 +69,7 @@ NEXT_PUBLIC_APP_URL=https://zaltyko.com
 **Generar Secretos:**
 
 ```bash
-# NEXTAUTH_SECRET
+# INTERNAL_AUTH_SECRET
 openssl rand -base64 32
 
 # CRON_SECRET
@@ -132,8 +132,8 @@ vercel env add DATABASE_URL
 vercel env add NEXT_PUBLIC_SUPABASE_URL
 vercel env add NEXT_PUBLIC_SUPABASE_ANON_KEY
 vercel env add SUPABASE_SERVICE_ROLE_KEY
-vercel env add NEXTAUTH_URL
-vercel env add NEXTAUTH_SECRET
+vercel env add INTERNAL_AUTH_SECRET
+vercel env add SUPABASE_JWT_SECRET
 vercel env add BREVO_API_KEY
 vercel env add BREVO_SENDER_EMAIL
 vercel env add BREVO_SENDER_NAME

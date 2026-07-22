@@ -8,7 +8,7 @@
 | Rama / `HEAD` | `main` / `1e3cb8ff8ae1274e72ef47d81be3096c3b18d1a3` |
 | Alcance | Árbol de trabajo completo, incluidos 48 archivos modificados y 6 no rastreados preexistentes |
 | Runtime local | Node `v22.22.3`, pnpm `9.15.3` |
-| Tamaño | 1.932 archivos rastreados; 1.443 TS/TSX; 167 páginas; 292 Route Handlers |
+| Tamaño | 1.932 archivos rastreados; 1.443 TS/TSX; 167 páginas; 294 Route Handlers |
 
 Este snapshot no equivale a `HEAD`: los cambios preexistentes se preservaron y no se atribuyen a la auditoría. La auditoría solo añade `docs/audit/**` y tres notas de vault.
 
@@ -25,7 +25,7 @@ Este snapshot no equivale a `HEAD`: los cambios preexistentes se preservaron y n
 flowchart LR
   B["Navegador / PWA"] --> M["middleware.ts\ni18n, headers, límites, super-admin"]
   M --> P["App Router pages/layouts"]
-  M --> A["292 API Route Handlers"]
+  M --> A["294 API Route Handlers"]
   P --> A
   P --> S["Supabase browser client"]
   A --> Z["withTenant / withBearerTenant"]
@@ -46,7 +46,7 @@ flowchart LR
 | Academia moderna | `src/app/app/[academyId]` | 62 páginas de operación de academia |
 | Legacy | `src/app/dashboard` | 30 páginas compatibles/redirecciones en ventana de retirada |
 | Super-admin | `src/app/(super-admin)`, `src/app/super-admin` | 13 páginas globales |
-| API | `src/app/api` | 292 handlers: 204 tenant, 39 bearer, 12 super-admin, 15 públicos, 7 cron, 3 webhooks, 10 deprecados, 2 dev |
+| API | `src/app/api` | 294 handlers: 204 tenant, 39 bearer, 12 super-admin, 16 públicos, 7 cron, 4 webhooks, 10 deprecados, 2 dev |
 | Datos | `src/db/schema`, `drizzle`, `supabase/migrations` | 88 módulos de schema, 82 con tablas y 34 declaraciones de enum |
 | Autorización | `src/lib/authz.ts`, `src/lib/authz/**` | Sesión, perfil, tenant, permisos y rate limit verificado |
 | UI | `src/components`, `src/app/**` | Navegación, módulos y primitivas compartidas |

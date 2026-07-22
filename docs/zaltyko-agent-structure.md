@@ -93,9 +93,9 @@ Mantener el sistema funcionando 24/7 con alto rendimiento y disponibilidad.
 
 ### 2.2 Monitoreo
 - [ ] Dashboard de métricas en producción
-- [ ] Alertas automáticas (Sentry)
+- [x] Alertas automáticas: Sentry para errores + GitHub Actions para `/api/health`
 - [ ] Logs centralizados
-- [ ] Uptime monitoring
+- [x] Uptime/health monitoring básico cada 15 minutos
 
 ### 2.3 Base de Datos
 - [ ] Optimizar queries lentas

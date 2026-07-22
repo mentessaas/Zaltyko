@@ -5,7 +5,7 @@
 ```
 User → Vercel CDN → Next.js App Router
                           ↓
-                   NextAuth (Supabase Auth)
+                   Supabase Auth (SSR + bearer)
                           ↓
                    Drizzle ORM → PostgreSQL (Supabase)
                           ↓
@@ -37,7 +37,7 @@ export const POST = withTenant(async (request: Request) => {
 ```
 1. User → /app/[academyId]/dashboard
 2. Middleware extracts academyId from URL
-3. NextAuth validates session via Supabase
+3. Supabase Auth validates the session via SSR cookies or bearer verification
 4. withTenant() verifies user has access to academy
 5. Route renders with tenant context
 ```

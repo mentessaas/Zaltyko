@@ -39,7 +39,7 @@ P0 bloquea producción; P1 se resuelve en el mismo ciclo de hardening; P2 reduce
 ## Avance Día 3
 
 - AUTH-001/ROLE-001/MT-001: cerrados y revalidados con owner A/B, baseline/custom y cookie/bearer.
-- ROUTE-004/ROLE-002/ROLE-003/MT-004: cerrados en el alcance automatizado con 292 rutas clasificadas, cero scopes manuales y negativas BOLA por recurso. Las suites históricas ya están modernizadas e integradas: 86 archivos, 618/618 tests, sin exclusiones Vitest.
+- ROUTE-004/ROLE-002/ROLE-003/MT-004: cerrados en el alcance automatizado con 294 rutas clasificadas, cero scopes manuales y negativas BOLA por recurso. Las suites históricas ya están modernizadas e integradas: 86 archivos, 618/618 tests, sin exclusiones Vitest.
 - Día 2 + Día 3 pasan en PostgreSQL local aislado y reversible, incluidas las tres tablas de comunicación y el rol anónimo. La siguiente unidad de trabajo es Día 4: promoción revisada en entorno controlado y validación PostgREST/Realtime con identidades aisladas; producción permanece fuera de alcance hasta esos gates.
 
 ## Gates de producción
@@ -99,3 +99,15 @@ P0 bloquea producción; P1 se resuelve en el mismo ciclo de hardening; P2 reduce
 ### Decisión
 
 **NO-GO para producción en este snapshot.** Las migraciones RLS Día 2/Día 3 ya están aplicadas por ledger y verificadas (40/40). Stripe test/SCA y URL del webhook fueron verificados; el secreto Connect ya fue rotado con 2FA y guardado en Vercel Production, pero falta que `CugHPvZEr` quede Ready y observar una entrega firmada end-to-end. El smoke por roles pasa 10/10 y axe público landing/login, owner dashboard/athletes y parent/athlete profile pasan sin violaciones. Brevo responde 200 y está configurado en Vercel; KV está conectado y la regla WAF de auth está publicada con operador `Starts with`. Siguen abiertos las alertas gestionadas (plan Hobby) y el scanner antimalware.
+
+## Reconciliación técnica — 2026-07-22
+
+| Área | Estado actual | Evidencia | Próximo paso |
+|---|---|---|---|
+| Disponibilidad | Parcialmente instrumentada | `/api/health` en producción: HTTP 200, DB 29,43 ms | Acumular ejecuciones del monitor y probar incidentes solo fuera de `main` |
+| Alertas propias | Implementadas | `.github/workflows/monitoring.yml`, issues deduplicados por título | Revisar la primera recuperación automática |
+| Dependencias | Corrección publicada | `protobufjs 7.6.5` en `main` y lockfile; Dependabot #191 sigue abierto hasta reescaneo | Confirmar cierre automático del alert |
+| CI | En recuperación | `8ca1c701` falló por test obsoleto; `00a4c3ce` actualiza el contrato | Confirmar CI verde de `00a4c3ce` |
+| Árbol local | Dirty por trabajo paralelo | 238 cambios sin commit | Separar y revisar esos cambios antes de cualquier release |
+
+La decisión de producción sigue siendo **NO-GO** hasta cerrar la entrega Stripe firmada, antimalware externo, PostgREST/Realtime y revisión manual WCAG.

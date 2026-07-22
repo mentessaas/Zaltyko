@@ -40,4 +40,4 @@ La identidad activa es Supabase Auth, no NextAuth. El browser usa `@supabase/ssr
 
 - AUTH-001 permanece cerrado con tests ejecutables: permiso baseline sin `roleId`, owner A/B, rol custom activo/expirado y cookie/bearer comparten deny-by-default.
 - El auditor estricto ahora cruza método y capability y bloquea `tenantId` controlable por cliente fuera de la excepción super-admin documentada.
-- La evidencia detallada y el inventario reproducible están en `API_AUTHORIZATION_MATRIX.md`. ROUTE-004 queda cerrado con 292/292 handlers clasificados y `resourceScopeManualReview=0`.
+- La evidencia detallada y el inventario reproducible están en `API_AUTHORIZATION_MATRIX.md`. ROUTE-004 queda cerrado con 294/294 handlers clasificados y `resourceScopeManualReview=0`.

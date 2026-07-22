@@ -22,10 +22,10 @@ Llegar a una decisión go/no-go basada en cierre de los P0 y P1 que bloquean pro
 
 ## Día 3 — permisos y rutas sensibles
 
-- Sol/Terra: cruzar 292 handlers con permission registry, método y resource scope.
+- Sol/Terra: cruzar 294 handlers con permission registry, método y resource scope.
 - Priorizar atletas, familias, clases/asistencia, evaluaciones, mensajes, billing y super-admin.
 - Aceptación: matriz automatizada y auditor estático/ejecutable; ninguna mutación sensible depende solo de membership/UI.
-- Ejecución 2026-07-16: inventario enriquecido de 292 rutas, matriz de capabilities y cero scopes dinámicos manuales. ROLE-003 también queda cerrado: suites API/Stripe/tenancy/TSX reparadas e integradas, 86 archivos y 618/618 tests tanto en gate normal como de seguridad. La semántica Día 2 + Día 3 pasa en PostgreSQL efímero con rollback. Listo para iniciar Día 4, sin autorización implícita para producción.
+- Ejecución 2026-07-16: inventario enriquecido de 294 rutas, matriz de capabilities y cero scopes dinámicos manuales. ROLE-003 también queda cerrado: suites API/Stripe/tenancy/TSX reparadas e integradas, 86 archivos y 618/618 tests tanto en gate normal como de seguridad. La semántica Día 2 + Día 3 pasa en PostgreSQL efímero con rollback. Listo para iniciar Día 4, sin autorización implícita para producción.
 
 ## Día 4 — transacciones externas
 
@@ -56,6 +56,8 @@ Llegar a una decisión go/no-go basada en cierre de los P0 y P1 que bloquean pro
 
 ## Día 6 — estabilización y CI/CD
 
+> Actualización 2026-07-22: el conteo operativo actual del auditor es 294 handlers. El resultado histórico de 640 tests se conserva como evidencia de ese snapshot; el CI de `8ca1c701` falló por un test de permisos obsoleto y `00a4c3ce` lo actualiza.
+
 - Terra/Sol: mantener Vitest 643/643, fijar Node, build reproducible, scanner de dependencias mantenido y paridad de variables.
 - Ejecutar secuencialmente lint, typecheck, tests, build, API auditor, RLS semántica y migraciones.
 - Aceptación: pipeline reproducible dos veces desde checkout limpio.
@@ -71,6 +73,13 @@ Llegar a una decisión go/no-go basada en cierre de los P0 y P1 que bloquean pro
 - Regresión local completa verde: 91 archivos/643 tests, `verify:production` PASS (incluye env/dependency gates), auditor API sin riesgos, RLS semántica estática PASS, migraciones 6+40 y build 219 páginas.
 - Smoke UI read-only público verde en 320/375/768/1440 px; no se ejecutaron acciones de escritura ni Playwright/axe adicionales.
 - **Decisión: NO-GO producción.** RLS Día 2/3 ya está promovido por ledger (40/40). KV, Brevo, WAF y sesiones/axe por rol ya tienen evidencia; la rotación Stripe con 2FA quedó cerrada y persisten el redeploy/entrega firmada end-to-end del webhook, el scanner antimalware y las alertas gestionadas de Vercel (Hobby). `verify:production` pasa, con una vulnerabilidad baja y una moderada transitivas no bloqueantes.
+
+### Reconciliación posterior — 2026-07-22
+
+- Se añadió monitorización propia con GitHub Actions y `/api/health`; el primer spot-check productivo devolvió HTTP 200 y PostgreSQL en 29,43 ms.
+- El advisory de `protobufjs` se corrigió en `main` con 7.6.5. Dependabot todavía conserva el alert abierto hasta su siguiente reescaneo.
+- El primer CI posterior al arreglo de dependencias detectó un test de permisos desactualizado; `00a4c3ce` lo alinea con `permission-policy.ts` y queda pendiente únicamente la confirmación del workflow.
+- El árbol local sigue dirty por trabajo paralelo y no es una base de release reproducible hasta separar esos cambios.
 
 ### Correcciones locales posteriores
 

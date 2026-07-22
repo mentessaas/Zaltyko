@@ -1,5 +1,7 @@
 # Roadmap del Proyecto
 
+> Este documento contiene un roadmap histórico de 2024/2025. Para el estado operativo vigente, consultar `docs/audit/TECHNICAL_ROADMAP.md` y `vault/00-Inicio/Estado de reconciliacion 2026-07-22.md`.
+
 Este documento detalla la hoja de ruta para el desarrollo y evolución de **Zaltyko SaaS**.
 
 ## 📍 Estado Actual: Beta Ready
