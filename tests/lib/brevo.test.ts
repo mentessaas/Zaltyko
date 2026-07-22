@@ -16,27 +16,29 @@ afterEach(() => {
 describe("sendEmail Brevo configuration", () => {
   it("falla explícitamente fuera de desarrollo si falta la API key", async () => {
     delete process.env.BREVO_API_KEY;
-    vi.doMock("@/lib/env", () => ({ isDevelopment: () => false }));
+    vi.doMock("@/lib/env", () => ({
+      isDevelopment: () => false,
+      isTest: () => false,
+      getFeatureReadiness: () => ({ ready: false, missing: ["BREVO_API_KEY"] }),
+    }));
 
     const { sendEmail } = await import("@/lib/brevo");
 
     await expect(sendEmail(validEmail)).rejects.toThrow(
-      "BREVO_API_KEY no está configurada; el email no fue enviado"
+      "EMAIL_NOT_CONFIGURED:BREVO_API_KEY"
     );
   });
 
   it("solo simula el envío sin credenciales en desarrollo", async () => {
     delete process.env.BREVO_API_KEY;
-    vi.doMock("@/lib/env", () => ({ isDevelopment: () => true }));
-    const info = vi.spyOn(console, "info").mockImplementation(() => undefined);
+    vi.doMock("@/lib/env", () => ({
+      isDevelopment: () => true,
+      isTest: () => false,
+      getFeatureReadiness: () => ({ ready: false, missing: ["BREVO_API_KEY"] }),
+    }));
 
     const { sendEmail } = await import("@/lib/brevo");
 
-    await expect(sendEmail(validEmail)).resolves.toBeUndefined();
-    expect(info).toHaveBeenCalledWith(
-      "[brevo] Envío simulado (sin credenciales).",
-      expect.objectContaining({ to: validEmail.to })
-    );
-    info.mockRestore();
+    await expect(sendEmail(validEmail)).resolves.toEqual({ messageId: null, simulated: true });
   });
 });

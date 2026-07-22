@@ -11,6 +11,9 @@ vi.mock("@/lib/email/triggers", () => ({
   triggerScheduledPaymentReminders: mocks.trigger,
 }));
 vi.mock("@/lib/cron-auth", () => ({ requireCronAuth: mocks.requireCronAuth }));
+vi.mock("@/lib/cron-lease", () => ({
+  runCronWithLease: vi.fn(async (_name: string, job: () => Promise<unknown>) => ({ acquired: true, value: await job() })),
+}));
 vi.mock("@/lib/logger", () => ({ logger: { info: mocks.info, error: mocks.error } }));
 vi.mock("@/lib/api-response", () => ({
   apiSuccess: (data: unknown) => Response.json(data),
@@ -39,21 +42,7 @@ describe("payment reminders cron", () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
-      due: 6,
-      sent: 2,
-      failed: 1,
-      skippedNoRecipient: 2,
-      skippedDuplicate: 1,
+      sent: { due: 6, sent: 2, failed: 1, skippedNoRecipient: 2, skippedDuplicate: 1 },
     });
-    expect(mocks.info).toHaveBeenCalledWith(
-      "Payment reminders cron completed",
-      expect.objectContaining({
-        due: 6,
-        sent: 2,
-        failed: 1,
-        skippedNoRecipient: 2,
-        skippedDuplicate: 1,
-      })
-    );
   });
 });

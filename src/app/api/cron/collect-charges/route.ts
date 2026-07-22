@@ -6,6 +6,7 @@ import { apiError, apiSuccess } from "@/lib/api-response";
 import { requireCronAuth } from "@/lib/cron-auth";
 import { collectDueChargesForAcademy } from "@/lib/stripe/charge-collection-service";
 import { logger } from "@/lib/logger";
+import { runCronWithLease } from "@/lib/cron-lease";
 
 export const dynamic = "force-dynamic";
 
@@ -22,53 +23,40 @@ export async function GET(request: Request) {
   const authError = requireCronAuth(request);
   if (authError) return authError;
 
-  const startedAt = Date.now();
-
   try {
-    logger.info("Collect charges cron started");
-    const readyAccounts = await db
-      .select({ academyId: stripeAccounts.academyId })
-      .from(stripeAccounts)
-      .where(eq(stripeAccounts.chargesEnabled, true));
+    const execution = await runCronWithLease("cron:collect-charges", async () => {
+      const readyAccounts = await db
+        .select({ academyId: stripeAccounts.academyId })
+        .from(stripeAccounts)
+        .where(eq(stripeAccounts.chargesEnabled, true));
 
-    const totals = {
-      academies: 0,
-      academyErrors: 0,
-      attempted: 0,
-      paid: 0,
-      failed: 0,
-      skipped: 0,
-    };
-
-    for (const account of readyAccounts) {
-      totals.academies += 1;
-
-      try {
-        const summary = await collectDueChargesForAcademy({
-          academyId: account.academyId,
-          onlyDue: true,
-        });
-        totals.attempted += summary.attempted;
-        totals.paid += summary.paid;
-        totals.failed += summary.failed;
-        totals.skipped += summary.skipped;
-      } catch (error) {
-        totals.academyErrors += 1;
-        logger.error("Collect charges failed for academy", error, {
-          academyId: account.academyId,
-        });
+      const totals = { academies: 0, attempted: 0, paid: 0, failed: 0, skipped: 0 };
+      for (const account of readyAccounts) {
+        totals.academies += 1;
+        try {
+          const summary = await collectDueChargesForAcademy({
+            academyId: account.academyId,
+            onlyDue: true,
+            batchSize: 100,
+          });
+          totals.attempted += summary.attempted;
+          totals.paid += summary.paid;
+          totals.failed += summary.failed;
+          totals.skipped += summary.skipped;
+        } catch (error) {
+          totals.failed += 1;
+          logger.error("Collect charges failed for academy", error, { academyId: account.academyId });
+        }
       }
-    }
+      return totals;
+    });
 
-    logger.info("Collect charges cron completed", {
-      ...totals,
-      durationMs: Date.now() - startedAt,
-    });
-    return apiSuccess(totals);
+    if (!execution.acquired) {
+      return apiSuccess({ skipped: true, reason: "ALREADY_RUNNING" });
+    }
+    return apiSuccess(execution.value);
   } catch (error) {
-    logger.error("Collect charges cron failed", error, {
-      durationMs: Date.now() - startedAt,
-    });
+    logger.error("Collect charges cron failed", error);
     return apiError("COLLECT_CHARGES_FAILED", "No se pudo ejecutar el cobro automático", 500);
   }
 }

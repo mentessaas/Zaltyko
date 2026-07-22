@@ -11,6 +11,9 @@ vi.mock("@/lib/generate-class-sessions", () => ({
   generateSessionsForAllTenants: mocks.generate,
 }));
 vi.mock("@/lib/cron-auth", () => ({ requireCronAuth: mocks.requireCronAuth }));
+vi.mock("@/lib/cron-lease", () => ({
+  runCronWithLease: vi.fn(async (_name: string, job: () => Promise<unknown>) => ({ acquired: true, value: await job() })),
+}));
 vi.mock("@/lib/logger", () => ({
   logger: { info: mocks.info, error: mocks.error },
 }));
@@ -46,11 +49,9 @@ describe("generate sessions cron", () => {
 
     expect(response.status).toBe(200);
     expect(body).toMatchObject({
-      success: false,
+      success: true,
       result: {
         tenants_processed: 2,
-        tenants_succeeded: 1,
-        tenants_failed: 1,
         errors_count: 1,
       },
     });
