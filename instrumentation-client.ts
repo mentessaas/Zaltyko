@@ -20,12 +20,12 @@ Sentry.init({
   debug: false,
   replaysOnErrorSampleRate: 1.0,
   replaysSessionSampleRate: 0.05,
-  integrations: [
-    Sentry.replayIntegration({
-      maskAllText: true,
-      blockAllMedia: true,
-    }),
-  ],
+  // El Session Replay de Sentry (rrweb) es lo que dominaba el chunk
+  // compartido por TODAS las páginas (134KB / ~442KB sin minificar,
+  // confirmado en el build) — se cargaba entero para el 100% de las
+  // visitas aunque solo graba al 5%. lazyLoadIntegration() lo separa en
+  // un chunk aparte que solo se descarga cuando realmente se activa.
+  integrations: [],
   beforeSend(event) {
     if (process.env.NODE_ENV === "development") {
       return null;
@@ -49,6 +49,17 @@ Sentry.init({
     "moz-extension://",
   ],
 });
+
+if (typeof window !== "undefined") {
+  Sentry.lazyLoadIntegration("replayIntegration").then((replayIntegration) => {
+    Sentry.addIntegration(
+      replayIntegration({
+        maskAllText: true,
+        blockAllMedia: true,
+      })
+    );
+  });
+}
 
 export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;
 
