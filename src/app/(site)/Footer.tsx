@@ -69,23 +69,6 @@ export default function Footer() {
               El sistema de dirección para academias de gimnasia artística y rítmica.
               Gestiona gimnastas, grupos, cobros y familias desde un solo panel.
             </p>
-
-            <div className="mt-6 flex gap-3">
-              {[
-                { label: "Twitter", initial: "T" },
-                { label: "LinkedIn", initial: "L" },
-                { label: "Instagram", initial: "I" },
-              ].map((social) => (
-                <span
-                  key={social.label}
-                  aria-label={social.label}
-                  title="Próximamente"
-                  className="flex h-10 w-10 cursor-not-allowed items-center justify-center rounded-xl bg-white/5 text-white/40"
-                >
-                  <span className="text-xs font-bold uppercase">{social.initial}</span>
-                </span>
-              ))}
-            </div>
           </div>
 
           {Object.entries(footerLinks).map(([section, links]) => (
