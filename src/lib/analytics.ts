@@ -1,4 +1,3 @@
-import { posthog } from "posthog-js";
 import { getOptionalEnvVar, isProduction } from "./env";
 import { logger } from "./logger";
 
@@ -11,8 +10,23 @@ export interface AnalyticsPayload {
 
 const isAnalyticsDisabled = getOptionalEnvVar("NEXT_PUBLIC_DISABLE_ANALYTICS") === "true";
 
+// posthog-js se importaba de forma estatica y quedaba en el bundle
+// compartido de TODAS las paginas (incluida la home publica), sumando
+// tiempo de parseo/ejecucion antes del primer paint. Se carga de forma
+// perezosa (solo en cliente, solo cuando se usa) para que viva en un
+// chunk aparte, igual que el fix de Sentry Replay.
+let posthogModulePromise: Promise<typeof import("posthog-js")> | null = null;
+
+function loadPostHog() {
+  if (typeof window === "undefined") return null;
+  if (!posthogModulePromise) {
+    posthogModulePromise = import("posthog-js");
+  }
+  return posthogModulePromise;
+}
+
 // Initialize PostHog (call once in your app initialization)
-export function initAnalytics() {
+export async function initAnalytics() {
   if (typeof window === "undefined") return;
 
   const key = process.env.NEXT_PUBLIC_POSTHOG_KEY;
@@ -25,7 +39,10 @@ export function initAnalytics() {
     return;
   }
 
-  posthog.init(key, {
+  const mod = await loadPostHog();
+  if (!mod) return;
+
+  mod.posthog.init(key, {
     api_host: host,
     person_profiles: "identified_only",
     capture_pageview: false, // We'll track pageviews manually for better control
@@ -39,13 +56,14 @@ export function initAnalytics() {
 }
 
 // Track pageview
-export function trackPageView(path: string, properties?: Record<string, unknown>) {
+export async function trackPageView(path: string, properties?: Record<string, unknown>) {
   if (isAnalyticsDisabled || typeof window === "undefined") {
     return;
   }
 
   try {
-    posthog.capture("$pageview", {
+    const mod = await loadPostHog();
+    mod?.posthog.capture("$pageview", {
       path,
       ...properties,
     });
@@ -95,7 +113,8 @@ export async function trackEvent(eventName: string, payload: AnalyticsPayload = 
   try {
     const { userId, academyId, tenantId, metadata, ...rest } = payload;
 
-    posthog.capture(eventName, {
+    const mod = await loadPostHog();
+    mod?.posthog.capture(eventName, {
       user_id: userId,
       academy_id: academyId,
       tenant_id: tenantId,
