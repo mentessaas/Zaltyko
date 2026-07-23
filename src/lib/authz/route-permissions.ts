@@ -299,7 +299,10 @@ export function getRequiredRoutePermission(pathname: string, method: string): Pe
   if (/^\/api\/charges\/[^/]+\/remind$/.test(pathname)) {
     return "billing:update";
   }
-  if (/^\/api\/dashboard\/[^/]+\/financial-metrics$/.test(pathname)) {
+  if (
+    normalizedMethod === "GET" &&
+    /^\/api\/dashboard\/[^/]+\/financial-metrics$/.test(pathname)
+  ) {
     return "billing:reports";
   }
   if (pathname === "/api/notifications/send") {
