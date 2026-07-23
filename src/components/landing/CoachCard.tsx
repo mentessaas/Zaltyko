@@ -33,7 +33,7 @@ const CoachCard = memo(function CoachCard({ coach, locale }: CoachCardProps) {
         {/* Photo and Name */}
         <div className="flex items-start gap-4 mb-4">
           {coach.photoUrl ? (
-            <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-50 flex-shrink-0 ring-2 ring-zaltyko-indigo/15">
+            <div className="w-16 h-16 rounded-full overflow-hidden bg-muted flex-shrink-0 ring-2 ring-zaltyko-indigo/15">
               <img
                 src={coach.photoUrl}
                 alt={coach.name}

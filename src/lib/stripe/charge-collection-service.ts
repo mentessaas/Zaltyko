@@ -217,6 +217,7 @@ export async function collectDueChargesForAcademy(params: {
   period?: string;
   // Solo cargos ya vencidos (dueDate <= hoy). Para el cobro automático programado.
   onlyDue?: boolean;
+  batchSize?: number;
 }): Promise<{ attempted: number; paid: number; failed: number; skipped: number }> {
   const conditions = [
     eq(charges.academyId, params.academyId),
@@ -233,7 +234,8 @@ export async function collectDueChargesForAcademy(params: {
   const due = await db
     .select({ id: charges.id })
     .from(charges)
-    .where(and(...conditions));
+    .where(and(...conditions))
+    .limit(Math.min(Math.max(params.batchSize ?? 100, 1), 250));
 
   const summary = { attempted: 0, paid: 0, failed: 0, skipped: 0 };
   for (const row of due) {

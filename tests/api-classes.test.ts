@@ -105,8 +105,8 @@ describe("API /api/classes", () => {
 
     expect(response.status).toBe(200);
     const body = await response.json();
-    expect(body.items).toHaveLength(1);
-    expect(body.items[0]).toMatchObject({
+    expect(body.data.items).toHaveLength(1);
+    expect(body.data.items[0]).toMatchObject({
       id: "class-1",
       name: "Equipo FIG Avanzado",
       weekdays: [],
@@ -153,8 +153,8 @@ describe("API /api/classes", () => {
 
     expect(response.status).toBe(200);
     const body = await response.json();
-    expect(body.items[0].weekdays).toEqual([1]);
-    expect(body.items[0].coaches).toEqual([
+    expect(body.data.items[0].weekdays).toEqual([1]);
+    expect(body.data.items[0].coaches).toEqual([
       {
         id: "coach-1",
         name: "Luis Romero",
@@ -179,7 +179,7 @@ describe("API /api/classes", () => {
 
     const response = await POST(request, {} as any);
 
-    expect(response.status).toBe(200);
+    expect(response.status).toBe(201);
     expect(insertCalls).toHaveLength(2);
     const classPayload = insertCalls[0]?.payload as Record<string, unknown>;
     expect(classPayload).toMatchObject({

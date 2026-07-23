@@ -131,28 +131,28 @@ export function ClassesCalendarView({
   return (
     <div className="space-y-4">
       {/* Header del calendario */}
-      <div className="flex items-center justify-between rounded-lg border bg-card p-4 shadow-sm">
+      <div className="flex flex-col gap-3 rounded-[22px] border border-slate-200/80 bg-white p-4 shadow-[0_18px_50px_-32px_rgba(15,23,42,0.45)] sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">
-          <h2 className="text-lg font-semibold">
+          <h2 className="font-display text-lg font-bold tracking-[-0.02em]">
             {format(weekStart, "MMMM yyyy", { locale: es })}
           </h2>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={handlePrevWeek}
-            className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-muted"
+            className="min-h-10 rounded-xl border border-slate-200 px-3 py-1.5 text-sm font-semibold hover:bg-slate-50"
           >
             Anterior
           </button>
           <button
             onClick={() => setSelectedDate(new Date())}
-            className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-muted"
+            className="min-h-10 rounded-xl border border-zaltyko-teal/30 bg-teal-50 px-3 py-1.5 text-sm font-semibold text-zaltyko-teal hover:bg-teal-100"
           >
             Hoy
           </button>
           <button
             onClick={handleNextWeek}
-            className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-muted"
+            className="min-h-10 rounded-xl border border-slate-200 px-3 py-1.5 text-sm font-semibold hover:bg-slate-50"
           >
             Siguiente
           </button>
@@ -160,7 +160,7 @@ export function ClassesCalendarView({
       </div>
 
       {/* Leyenda */}
-      <div className="flex flex-wrap gap-4 rounded-lg border bg-card p-3 shadow-sm">
+      <div className="flex flex-wrap gap-3 rounded-[20px] border border-slate-200/80 bg-white p-3 shadow-[0_14px_32px_-28px_rgba(15,23,42,0.45)]">
         <div className="flex items-center gap-2 text-xs">
           <span className="h-3 w-3 rounded-full bg-green-500" />
           <span>Disponible (&lt;70%)</span>
@@ -180,7 +180,7 @@ export function ClassesCalendarView({
       </div>
 
       {/* Calendario */}
-      <div className="overflow-hidden rounded-lg border bg-card shadow">
+      <div className="hidden overflow-hidden rounded-[22px] border border-slate-200/80 bg-white shadow-[0_18px_50px_-32px_rgba(15,23,42,0.45)] md:block">
         {/* Días de la semana */}
         <div className="grid grid-cols-8 border-b bg-muted/60">
           <div className="p-2 text-center text-xs font-medium text-muted-foreground">Hora</div>
@@ -275,7 +275,7 @@ export function ClassesCalendarView({
       </div>
 
       {/* Lista de clases del día seleccionado */}
-      <div className="rounded-lg border bg-card p-4 shadow-sm">
+      <div className="rounded-[22px] border border-slate-200/80 bg-white p-4 shadow-[0_18px_50px_-32px_rgba(15,23,42,0.45)] md:mt-5">
         <h3 className="mb-3 text-sm font-semibold">
           Clases del {format(selectedDate, "EEEE d 'de' MMMM", { locale: es })}
         </h3>
@@ -288,7 +288,7 @@ export function ClassesCalendarView({
               return (
                 <div
                   key={classItem.id}
-                  className="flex items-center justify-between rounded-md border p-3"
+                  className="flex items-center justify-between rounded-xl border border-slate-200/80 p-3 transition hover:border-zaltyko-teal/30 hover:bg-slate-50"
                   style={{ borderLeftColor: classItem.groupColor || "#6366f1", borderLeftWidth: "3px" }}
                 >
                   <div>

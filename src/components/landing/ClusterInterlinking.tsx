@@ -54,7 +54,7 @@ function ClusterInterlinkingImpl({
   const t = labels[locale];
 
   return (
-    <section className="py-20 bg-gray-50">
+    <section className="py-20 surface-subtle">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="text-center mb-12">
@@ -82,7 +82,7 @@ function ClusterInterlinkingImpl({
                 <Link
                   key={item.slug}
                   href={item.url}
-                  className="flex items-center justify-between p-3 rounded-xl bg-gray-50 hover:bg-blue-50 transition-colors group"
+                  className="flex items-center justify-between p-3 rounded-xl bg-muted hover:bg-blue-50 transition-colors group"
                 >
                   <span className="text-gray-700 group-hover:text-blue-700 font-medium">
                     {item.label}
@@ -106,7 +106,7 @@ function ClusterInterlinkingImpl({
                 <Link
                   key={item.slug}
                   href={item.url}
-                  className="flex items-center justify-between p-3 rounded-xl bg-gray-50 hover:bg-purple-50 transition-colors group"
+                  className="flex items-center justify-between p-3 rounded-xl bg-muted hover:bg-purple-50 transition-colors group"
                 >
                   <span className="text-gray-700 group-hover:text-purple-700 font-medium">
                     {item.label}

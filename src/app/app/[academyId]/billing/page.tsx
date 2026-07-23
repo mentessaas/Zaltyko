@@ -1,12 +1,14 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { and, eq } from "drizzle-orm";
+import { CreditCard } from "lucide-react";
 
 import { db } from "@/db";
 import { memberships, profiles } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
 import { BillingPanel } from "@/components/billing/BillingPanel";
 import { getAcademySportConfigOptions } from "@/lib/sport-config/service";
+import { PageHeader } from "@/components/ui/page-header";
 
 /**
  * AcademyBillingPage - Vista principal de planes y cobros
@@ -59,22 +61,22 @@ export default async function AcademyBillingPage({ params }: PageProps) {
     membership?.role === "owner";
 
   if (!canSeeBilling) {
-    redirect(`/app/${academyId}/dashboard`);
+    redirect(profile.role === "coach" ? `/app/${academyId}/coach` : `/app/${academyId}/dashboard`);
   }
 
   const sportConfigs = await getAcademySportConfigOptions(academyId);
 
   return (
-    <div className="space-y-6 py-6 lg:py-8">
-      <header className="zaltyko-motion-lines rounded-2xl border border-zaltyko-mist/70 bg-white px-5 py-5 shadow-soft lg:px-6">
-        <p className="text-xs font-medium uppercase tracking-[0.16em] text-zaltyko-teal">
-          Planes y cobros
-        </p>
-        <h1 className="mt-2 font-display text-3xl font-semibold text-zaltyko-navy">Planes y cobros</h1>
-        <p className="mt-2 max-w-2xl text-sm leading-6 text-zaltyko-text-secondary">
-          Gestiona tu plan SaaS, los recibos de suscripción y el control interno de cuotas de la academia.
-        </p>
-      </header>
+    <div className="mx-auto max-w-[1500px] space-y-6">
+      <PageHeader
+        breadcrumbs={[
+          { label: "Dashboard", href: `/app/${academyId}/dashboard` },
+          { label: "Planes y cobros" },
+        ]}
+        title="Planes y cobros"
+        description="Gestiona tu plan SaaS, los recibos de suscripción y el control interno de cuotas de la academia."
+        icon={<CreditCard className="h-5 w-5" strokeWidth={1.8} />}
+      />
 
       <BillingPanel
         academyId={academyId}

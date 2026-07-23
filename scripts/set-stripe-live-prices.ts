@@ -14,6 +14,7 @@
  */
 import "dotenv/config";
 import { Pool } from "pg";
+import { createDatabasePoolConfig } from "@/db/pool-config";
 import { getDatabaseUrl } from "@/lib/env";
 
 async function main() {
@@ -28,15 +29,12 @@ async function main() {
     if (r.price.includes("PLACEHOLDER")) throw new Error(`${r.code}: sigue siendo placeholder`);
   }
 
-  const u = new URL(getDatabaseUrl());
-  const pool = new Pool({
-    host: u.hostname,
-    port: parseInt(u.port || "5432"),
-    database: u.pathname.replace("/", ""),
-    user: u.username,
-    password: decodeURIComponent(u.password),
-    ssl: { rejectUnauthorized: false },
-  });
+  const pool = new Pool(
+    createDatabasePoolConfig({
+      connectionString: getDatabaseUrl(),
+      production: true,
+    })
+  );
   const c = await pool.connect();
   try {
     await c.query("BEGIN");
@@ -49,9 +47,12 @@ async function main() {
     }
     await c.query("COMMIT");
     console.log("Planes actualizados a precios LIVE.");
-  } catch (e: any) {
+  } catch (error: unknown) {
     await c.query("ROLLBACK");
-    console.error("ROLLBACK —", e.message);
+    console.error(
+      "ROLLBACK —",
+      error instanceof Error ? error.message : String(error)
+    );
     process.exitCode = 1;
   } finally {
     c.release();

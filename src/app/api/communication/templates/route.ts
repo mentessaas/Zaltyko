@@ -7,13 +7,8 @@ import { verifyAcademySportConfig } from "@/lib/sport-config/service";
 
 export const dynamic = 'force-dynamic';
 
-const canViewCommunication = (role?: string) =>
-  ["owner", "admin", "coach", "super_admin"].includes(role ?? "");
-const canManageCommunication = (role?: string) =>
-  ["owner", "admin", "super_admin"].includes(role ?? "");
-
 const createTemplateSchema = z.object({
-  academyId: z.string().uuid().optional(),
+  academyId: z.string().uuid(),
   sportConfigId: z.string().uuid().optional().nullable(),
   name: z.string().min(1).max(200),
   description: z.string().optional(),
@@ -27,7 +22,7 @@ const createTemplateSchema = z.object({
 });
 
 const querySchema = z.object({
-  academyId: z.string().uuid().optional(),
+  academyId: z.string().uuid(),
   channel: z.enum(["whatsapp", "email", "push", "in_app"]).optional(),
   sportConfigId: z.string().uuid().optional(),
   includeGlobal: z.enum(["true", "false"]).optional().default("true"),
@@ -37,10 +32,6 @@ export const GET = withTenant(async (request, context) => {
   if (!context.tenantId) {
     return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
   }
-  if (!canViewCommunication(context.profile?.role)) {
-    return apiError("FORBIDDEN", "No tienes permiso para consultar plantillas", 403);
-  }
-
   const params = querySchema.safeParse(Object.fromEntries(new URL(request.url).searchParams));
   if (!params.success) {
     return apiError("VALIDATION_ERROR", "Validation failed", 400);
@@ -59,6 +50,7 @@ export const GET = withTenant(async (request, context) => {
   }
 
   const templates = await getMessageTemplates(context.tenantId, {
+    academyId: params.data.academyId,
     channel: params.data.channel,
     sportConfigId: params.data.sportConfigId,
     includeGlobal: params.data.includeGlobal !== "false",
@@ -89,10 +81,6 @@ export const POST = withTenant(async (request, context) => {
   if (!context.tenantId) {
     return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
   }
-  if (!canManageCommunication(context.profile?.role)) {
-    return apiError("FORBIDDEN", "No tienes permiso para crear plantillas", 403);
-  }
-
   try {
     const body = await request.json();
     const validated = createTemplateSchema.parse(body);
@@ -116,6 +104,7 @@ export const POST = withTenant(async (request, context) => {
 
     const template = await createMessageTemplate({
       tenantId: context.tenantId,
+      academyId,
       sportConfigId: sportConfigId ?? null,
       ...templateData,
     });

@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { BookOpen, Calendar, CreditCard, Users } from "lucide-react";
+import { BookOpen, Calendar, CreditCard, ShieldCheck, Upload, Users } from "lucide-react";
 
 export interface HelpArticle {
   slug: string;
@@ -126,6 +126,80 @@ export const helpCategories: HelpCategory[] = [
         category: "Pagos y cobros",
         summary: "Detecta saldos vencidos y prioriza seguimiento sin perder trazabilidad.",
         steps: ["Abre el panel de cobros.", "Filtra pagos vencidos.", "Revisa el historial.", "Contacta a la familia por el canal acordado."],
+      },
+    ],
+  },
+  {
+    title: "Importación y exportación",
+    description: "Mueve tus datos con claridad y control",
+    icon: Upload,
+    articles: [
+      {
+        slug: "importar-desde-csv",
+        title: "Importar gimnastas desde CSV o Excel",
+        category: "Importación y exportación",
+        summary: "Prepara la base principal de tu academia y revisa los errores antes de confirmar la importación.",
+        steps: [
+          "Abre Atletas e inicia la importación.",
+          "Descarga o revisa la plantilla de columnas.",
+          "Sube el archivo CSV o Excel y corrige las filas señaladas.",
+          "Confirma la importación y guarda el resumen de resultados.",
+        ],
+      },
+      {
+        slug: "migracion-acompanada",
+        title: "Solicitar una migración acompañada",
+        category: "Importación y exportación",
+        summary: "Para históricos, familias, grupos o cobros complejos, revisamos el formato y el alcance antes de empezar.",
+        steps: [
+          "Contacta con el equipo e indica el origen de los datos.",
+          "Comparte una muestra sin datos sensibles innecesarios.",
+          "Recibe el alcance, las transformaciones y las responsabilidades.",
+          "Valida una muestra antes de completar la carga.",
+        ],
+      },
+      {
+        slug: "exportar-datos",
+        title: "Exportar datos de tu academia",
+        category: "Importación y exportación",
+        summary: "Descarga los datos disponibles según tu rol y el módulo consultado.",
+        steps: [
+          "Abre el módulo que quieras revisar.",
+          "Usa la acción Exportar y elige el formato disponible.",
+          "Comprueba filtros, periodo y academia antes de descargar.",
+          "Guarda el archivo siguiendo la política interna de tu academia.",
+        ],
+      },
+    ],
+  },
+  {
+    title: "Seguridad y soporte",
+    description: "Trabaja con acceso controlado y ayuda clara",
+    icon: ShieldCheck,
+    articles: [
+      {
+        slug: "roles-y-accesos",
+        title: "Entender roles y accesos",
+        category: "Seguridad y soporte",
+        summary: "Cada miembro del equipo y cada familia accede según su relación autorizada con la academia.",
+        steps: [
+          "Revisa el rol antes de enviar una invitación.",
+          "Comprueba qué módulos necesita la persona.",
+          "Invita solo a cuentas vinculadas a la academia.",
+          "Revoca o ajusta el acceso cuando cambie la responsabilidad.",
+        ],
+      },
+      {
+        slug: "contactar-soporte",
+        title: "Contactar con soporte",
+        category: "Seguridad y soporte",
+        summary: "Abre un ticket con contexto suficiente para que el equipo pueda ayudarte más rápido.",
+        steps: [
+          "Abre Ayuda o Soporte desde tu espacio de trabajo.",
+          "Elige la categoría y describe el resultado esperado.",
+          "Incluye la academia, módulo y pasos para reproducirlo; nunca envíes contraseñas.",
+          "Sigue el historial del ticket hasta su resolución.",
+        ],
       },
     ],
   },

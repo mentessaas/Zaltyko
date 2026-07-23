@@ -51,6 +51,9 @@ const nextConfig = {
   // Deshabilitar exportación estática (la app es completamente dinámica)
   output: undefined, // No usar 'export', usar modo estándar de Next.js
   outputFileTracingRoot: resolve(__dirname),
+  outputFileTracingIncludes: {
+    "/*": ["./certs/supabase-root-ca.crt"],
+  },
   // swagger-jsdoc analiza archivos de rutas dinámicamente. Externalizarlo evita
   // que Webpack intente resolver esos requires durante el build de Next.
   serverExternalPackages: ["next-swagger-doc", "swagger-jsdoc"],

@@ -27,3 +27,9 @@ Landing -> plan/demo -> cuenta -> academia -> clases/atletas -> primer valor -> 
 - Crear demo dataset confiable.
 - Instrumentar eventos de activacion.
 - Crear checklist dentro de producto alineado con segmentos.
+
+## Cierre del mapa de objeciones
+
+La implementación se guía por [[../../docs/plans/2026-07-23-objection-closure-matrix]].
+El onboarding puede rediseñarse por rol y ampliar sus pasos cuando reduzca el
+time-to-value o haga más sencilla la adopción de owner, coach, staff y familias.

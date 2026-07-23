@@ -60,7 +60,7 @@ export default function ClusterDiscoverySection() {
                 key={`${cluster.locale}-${cluster.modality}-${cluster.country}`}
                 href={`/${cluster.locale}/${cluster.modality}/${cluster.country}`}
                 aria-label={`${cluster.label} en ${cluster.countryLabel}`}
-                className="group flex flex-col items-center p-6 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-lg hover:border-zaltyko-teal/25 transition-all duration-300 hover:-translate-y-1"
+                className="group card-hover flex flex-col items-center p-6 bg-white rounded-2xl border border-gray-100 hover:border-zaltyko-teal/25"
               >
                 <span aria-hidden="true" className="text-4xl mb-3">{cluster.flag}</span>
                 <span className="text-sm font-medium text-gray-500 mb-1">{cluster.countryLabel}</span>
@@ -73,7 +73,7 @@ export default function ClusterDiscoverySection() {
         </div>
 
         {/* Full matrix - colapsado por defecto para no saturar el scroll */}
-        <details className="group mx-auto max-w-4xl rounded-2xl border border-gray-200 bg-gray-50 open:bg-white open:shadow-sm transition-colors">
+        <details className="group mx-auto max-w-4xl rounded-2xl border border-gray-200 surface-subtle open:bg-white open:shadow-soft transition-colors">
           <summary className="flex cursor-pointer items-center justify-between gap-3 px-6 py-5 text-left list-none [&::-webkit-details-marker]:hidden">
             <span className="text-lg font-semibold text-gray-900">
               Explorar todas las combinaciones de país y modalidad

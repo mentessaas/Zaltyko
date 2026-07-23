@@ -444,7 +444,7 @@ export function ProgressReport({ academyId, academyCountry, athleteId, initialDa
                           </Badge>
                         )}
                         {skill.trend === "stable" && (
-                          <Badge variant="outline" className="bg-gray-50">
+                          <Badge variant="outline" className="bg-muted">
                             Estable
                           </Badge>
                         )}

@@ -4,16 +4,11 @@ import { withTenant } from "@/lib/authz";
 import { getMessageTemplateById, updateMessageTemplate, deleteMessageTemplate } from "@/lib/communication-service";
 import { logger } from "@/lib/logger";
 import { verifyAcademySportConfig } from "@/lib/sport-config/service";
+import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
 
 export const dynamic = 'force-dynamic';
 
-const canViewCommunication = (role?: string) =>
-  ["owner", "admin", "coach", "super_admin"].includes(role ?? "");
-const canManageCommunication = (role?: string) =>
-  ["owner", "admin", "super_admin"].includes(role ?? "");
-
 const updateTemplateSchema = z.object({
-  academyId: z.string().uuid().optional(),
   sportConfigId: z.string().uuid().optional().nullable(),
   name: z.string().min(1).max(200).optional(),
   description: z.string().optional(),
@@ -27,9 +22,6 @@ const updateTemplateSchema = z.object({
 });
 
 export const GET = withTenant(async (request, context) => {
-  if (!canViewCommunication(context.profile?.role)) {
-    return apiError("FORBIDDEN", "No tienes permiso para consultar plantillas", 403);
-  }
   const { templateId } = context.params as { templateId: string };
 
   const template = await getMessageTemplateById(templateId);
@@ -38,8 +30,16 @@ export const GET = withTenant(async (request, context) => {
     return apiError("NOT_FOUND", "Template not found", 404);
   }
 
-  if (template.tenantId !== context.tenantId) {
-    return apiError("FORBIDDEN", "Access denied", 403);
+  if (template.academyId) {
+    const scope = await authorizeAcademyCapability({
+      context,
+      resourceTenantId: template.tenantId ?? "",
+      academyId: template.academyId,
+      permission: "communications:read",
+    });
+    if (!scope.allowed) return apiError("NOT_FOUND", "Template not found", 404);
+  } else if (!template.isSystem || (template.tenantId && template.tenantId !== context.tenantId)) {
+    return apiError("NOT_FOUND", "Template not found", 404);
   }
 
   return apiSuccess({
@@ -61,9 +61,6 @@ export const GET = withTenant(async (request, context) => {
 });
 
 export const PATCH = withTenant(async (request, context) => {
-  if (!canManageCommunication(context.profile?.role)) {
-    return apiError("FORBIDDEN", "No tienes permiso para modificar plantillas", 403);
-  }
   const { templateId } = context.params as { templateId: string };
 
   const existing = await getMessageTemplateById(templateId);
@@ -72,22 +69,23 @@ export const PATCH = withTenant(async (request, context) => {
     return apiError("NOT_FOUND", "Template not found", 404);
   }
 
-  if (existing.tenantId !== context.tenantId) {
-    return apiError("FORBIDDEN", "Access denied", 403);
-  }
+  if (!existing.academyId) return apiError("SYSTEM_TEMPLATE_READ_ONLY", "System template is read-only", 403);
+  const scope = await authorizeAcademyCapability({
+    context,
+    resourceTenantId: existing.tenantId ?? "",
+    academyId: existing.academyId,
+    permission: "communications:send",
+  });
+  if (!scope.allowed) return apiError("NOT_FOUND", "Template not found", 404);
 
   try {
     const body = await request.json();
     const validated = updateTemplateSchema.parse(body);
-    const { academyId, sportConfigId, ...templateData } = validated;
+    const { sportConfigId, ...templateData } = validated;
 
     if (sportConfigId) {
-      if (!academyId) {
-        return apiError("ACADEMY_REQUIRED", "Academia requerida para validar la rama/modalidad", 400);
-      }
-
       const verifiedConfig = await verifyAcademySportConfig({
-        academyId,
+        academyId: existing.academyId,
         tenantId: context.tenantId,
         sportConfigId,
       });
@@ -132,9 +130,6 @@ export const PATCH = withTenant(async (request, context) => {
 });
 
 export const DELETE = withTenant(async (request, context) => {
-  if (!canManageCommunication(context.profile?.role)) {
-    return apiError("FORBIDDEN", "No tienes permiso para eliminar plantillas", 403);
-  }
   const { templateId } = context.params as { templateId: string };
 
   const existing = await getMessageTemplateById(templateId);
@@ -143,9 +138,14 @@ export const DELETE = withTenant(async (request, context) => {
     return apiError("NOT_FOUND", "Template not found", 404);
   }
 
-  if (existing.tenantId !== context.tenantId) {
-    return apiError("FORBIDDEN", "Access denied", 403);
-  }
+  if (!existing.academyId) return apiError("SYSTEM_TEMPLATE_READ_ONLY", "System template is read-only", 403);
+  const scope = await authorizeAcademyCapability({
+    context,
+    resourceTenantId: existing.tenantId ?? "",
+    academyId: existing.academyId,
+    permission: "communications:templates",
+  });
+  if (!scope.allowed) return apiError("NOT_FOUND", "Template not found", 404);
 
   // Prevent deleting system templates
   if (existing.isSystem) {

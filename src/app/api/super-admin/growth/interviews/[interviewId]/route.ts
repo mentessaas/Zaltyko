@@ -11,6 +11,8 @@ import { toCommercialInterviewValues } from "@/lib/growth/interviews";
 
 const ParamsSchema = z.object({ interviewId: z.string().uuid() });
 
+/** @resource-scope super-admin — withSuperAdmin verifies the global authority. */
+
 export const PUT = withSuperAdmin(async (request, context) => {
   const params = ParamsSchema.safeParse(context.params);
   if (!params.success) {

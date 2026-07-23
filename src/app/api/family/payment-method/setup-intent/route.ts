@@ -57,13 +57,13 @@ export async function POST(request: Request) {
     if (!access.allowed) {
       return NextResponse.json({ error: access.reason ?? "FORBIDDEN" }, { status: 403 });
     }
-    if (!access.stripeAccountId || !access.connectReady) {
+    if (!access.stripeAccountId || !access.tenantId || !access.connectReady) {
       return NextResponse.json({ error: "ACADEMY_PAYMENTS_NOT_READY" }, { status: 409 });
     }
 
     const customer = await getOrCreateFamilyCustomer({
       academyId: body.data.academyId,
-      tenantId: profile.tenantId,
+      tenantId: access.tenantId,
       profileId: profile.id,
       stripeAccountId: access.stripeAccountId,
       email: user.email,

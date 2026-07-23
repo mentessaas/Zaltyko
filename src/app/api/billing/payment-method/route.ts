@@ -55,8 +55,8 @@ const updatePaymentMethodHandler = withTenant(async (req, context) => {
 
 // Rate-limited POST handler: 10 requests per minute
 export const POST = withRateLimit(
-    async (request) => {
-        return (await updatePaymentMethodHandler(request, {} as any)) as NextResponse;
+    async (request, context) => {
+        return (await updatePaymentMethodHandler(request, context)) as NextResponse;
     },
     { identifier: getUserIdentifier, limit: 10, window: 60 }
 );
@@ -89,8 +89,8 @@ const getPaymentMethodHandler = withTenant(async (req, context) => {
 
 // Rate-limited GET handler: 100 requests per minute
 export const GET = withRateLimit(
-    async (request) => {
-        return (await getPaymentMethodHandler(request, {} as any)) as NextResponse;
+    async (request, context) => {
+        return (await getPaymentMethodHandler(request, context)) as NextResponse;
     },
     { identifier: getUserIdentifier, limit: 100, window: 60 }
 );

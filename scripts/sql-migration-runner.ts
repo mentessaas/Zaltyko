@@ -84,6 +84,11 @@ function getPool() {
   const isRemote = !["localhost", "127.0.0.1", "::1"].includes(
     new URL(databaseUrl).hostname
   );
+  if (isRemote && !ca) {
+    usage(
+      "NODE_EXTRA_CA_CERTS debe apuntar a la CA confiable para conexiones PostgreSQL remotas."
+    );
+  }
   const connectionString = databaseUrl
     .replace(/([?&])sslmode=[^&]*&?/g, "$1")
     .replace(/[?&]$/, "");
@@ -92,11 +97,7 @@ function getPool() {
     connectionString,
     max: 1,
     connectionTimeoutMillis: 15_000,
-    ssl: isRemote
-      ? ca
-        ? { ca, rejectUnauthorized: true }
-        : { rejectUnauthorized: false }
-      : false,
+    ssl: isRemote ? { ca, rejectUnauthorized: true } : false,
   });
 }
 

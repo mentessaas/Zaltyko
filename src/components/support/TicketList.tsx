@@ -37,6 +37,7 @@ interface Ticket {
 
 interface TicketListProps {
   tickets: Ticket[];
+  academyId?: string;
   isAdmin?: boolean;
   emptyMessage?: string;
 }
@@ -64,14 +65,14 @@ const categoryConfig: Record<TicketCategory, { label: string }> = {
   other: { label: "Otro" },
 };
 
-export function TicketList({ tickets, isAdmin = false, emptyMessage = "No hay tickets" }: TicketListProps) {
+export function TicketList({ tickets, academyId, isAdmin = false, emptyMessage = "No hay tickets" }: TicketListProps) {
   if (tickets.length === 0) {
     return (
       <Card>
         <CardContent className="flex flex-col items-center justify-center py-12">
           <p className="text-muted-foreground">{emptyMessage}</p>
           {!isAdmin && (
-            <Link href="support/new">
+            <Link href={academyId ? `/app/${academyId}/support/new` : "/support/new"}>
               <Button className="mt-4">Crear primer ticket</Button>
             </Link>
           )}
@@ -92,7 +93,7 @@ export function TicketList({ tickets, isAdmin = false, emptyMessage = "No hay ti
             <CardHeader className="pb-2">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1 min-w-0">
-                  <Link href={isAdmin ? `/super-admin/support/${ticket.id}` : `/support/${ticket.id}`}>
+                  <Link href={isAdmin ? `/super-admin/support/${ticket.id}` : academyId ? `/app/${academyId}/support/${ticket.id}` : `/support/${ticket.id}`}>
                     <CardTitle className="text-base hover:text-primary transition-colors truncate">
                       {ticket.title}
                     </CardTitle>

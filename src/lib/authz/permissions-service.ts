@@ -1,8 +1,9 @@
-import { eq, and, isNull, desc, gt, or } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 
 import { db } from "@/db";
 import { academies, academyRoles, memberships, roleMembers, profiles, permissionEnum } from "@/db/schema";
 import type { Permission } from "@/db/schema/permissions";
+import { getBaselinePermissions } from "./permission-policy";
 
 /**
  * Tipos para el sistema de permisos
@@ -12,6 +13,12 @@ export type UserPermissions = {
   roleId: string | null;
   roleName: string | null;
   isOwner: boolean;
+  source: "owner" | "custom" | "baseline" | "denied";
+  denialReason?:
+    | "no_membership"
+    | "expired_assignment"
+    | "missing_role"
+    | "inactive_role";
 };
 
 export type RoleWithPermissions = {
@@ -24,28 +31,6 @@ export type RoleWithPermissions = {
   isActive: boolean;
 };
 
-const BASELINE_PERMISSIONS: Record<"owner" | "coach" | "viewer", Permission[]> = {
-  owner: getAllPermissions(),
-  coach: [
-    "athletes:read",
-    "athletes:update",
-    "classes:read",
-    "classes:schedule",
-    "reports:read",
-    "events:read",
-    "communications:read",
-    "communications:send",
-  ],
-  viewer: [],
-};
-
-export function getBaselinePermissions(role: string): Permission[] {
-  if (role === "owner" || role === "coach" || role === "viewer") {
-    return BASELINE_PERMISSIONS[role];
-  }
-  return BASELINE_PERMISSIONS.viewer;
-}
-
 /**
  * Obtiene los permisos efectivos de un usuario en una academia
  * Combina permisos del rol, herencia, y permisos personalizados
@@ -54,83 +39,91 @@ export async function getUserPermissions(
   userId: string,
   academyId: string
 ): Promise<UserPermissions> {
-  // Obtener membresía del usuario en la academia
-  const membership = await db
+  const [profile] = await db
+    .select({ id: profiles.id, role: profiles.role })
+    .from(profiles)
+    .where(eq(profiles.userId, userId))
+    .limit(1);
+
+  const [academy] = await db
+    .select({ ownerId: academies.ownerId })
+    .from(academies)
+    .where(eq(academies.id, academyId))
+    .limit(1);
+
+  const [baselineMembership] = await db
+    .select({ role: memberships.role })
+    .from(memberships)
+    .where(
+      and(
+        eq(memberships.userId, userId),
+        eq(memberships.academyId, academyId)
+      )
+    )
+    .limit(1);
+
+  // Ownership is academy-scoped. A global profile role never grants it.
+  const ownsThisAcademy = Boolean(
+    profile && academy &&
+      (academy.ownerId === profile.id || baselineMembership?.role === "owner")
+  );
+  if (ownsThisAcademy) {
+    return {
+      permissions: getAllPermissions(),
+      roleId: null,
+      roleName: null,
+      isOwner: true,
+      source: "owner",
+    };
+  }
+
+  // Read assignments regardless of expiry. An expired assignment must deny;
+  // silently falling back to a broader baseline would make revocation unsafe.
+  const [member] = await db
     .select()
     .from(roleMembers)
     .where(
       and(
         eq(roleMembers.userId, userId),
-        eq(roleMembers.academyId, academyId),
-        or(isNull(roleMembers.expiresAt), gt(roleMembers.expiresAt, new Date()))
+        eq(roleMembers.academyId, academyId)
       )
     )
     .limit(1);
 
-  if (!membership.length) {
-    // Sin membresía en roleMembers. Conceder permisos de owner SOLO si el usuario
-    // es dueño real de ESTA academia concreta — NO por tener el rol global "owner"
-    // (el trigger de signup pone "owner" a cualquiera). Antes esto daba TODOS los
-    // permisos a cualquier perfil owner sobre cualquier academia.
-    const [profile] = await db
-      .select({ id: profiles.id })
-      .from(profiles)
-      .where(eq(profiles.userId, userId))
-      .limit(1);
-
-    let ownsThisAcademy = false;
-    let membershipRole: "owner" | "coach" | "viewer" = "viewer";
-    if (profile?.id) {
-      const [ownedAcademy] = await db
-        .select({ id: academies.id })
-        .from(academies)
-        .where(and(eq(academies.id, academyId), eq(academies.ownerId, profile.id)))
-        .limit(1);
-      ownsThisAcademy = Boolean(ownedAcademy);
-
-      if (!ownsThisAcademy) {
-        // Fallback: membership "owner" en la tabla memberships para esta academia.
-        const [ownerMembership] = await db
-          .select({ id: memberships.id })
-          .from(memberships)
-          .where(
-            and(
-              eq(memberships.userId, userId),
-              eq(memberships.academyId, academyId),
-              eq(memberships.role, "owner")
-            )
-          )
-          .limit(1);
-        ownsThisAcademy = Boolean(ownerMembership);
-      }
+  if (!member) {
+    if (!profile || !baselineMembership) {
+      return {
+        permissions: [],
+        roleId: null,
+        roleName: null,
+        isOwner: false,
+        source: "denied",
+        denialReason: "no_membership",
+      };
     }
-
-    const [academyMembership] = await db
-      .select({ role: memberships.role })
-      .from(memberships)
-      .where(
-        and(
-          eq(memberships.userId, userId),
-          eq(memberships.academyId, academyId)
-        )
-      )
-      .limit(1);
-
-    if (academyMembership?.role) {
-      membershipRole = academyMembership.role;
-    }
-
     return {
-      permissions: ownsThisAcademy
-        ? getBaselinePermissions("owner")
-        : getBaselinePermissions(membershipRole),
+      permissions: getBaselinePermissions({
+        membershipRole: baselineMembership.role,
+        profileRole: profile.role,
+        allPermissions: getAllPermissions(),
+      }),
       roleId: null,
-      roleName: membershipRole,
-      isOwner: ownsThisAcademy,
+      roleName: null,
+      isOwner: false,
+      source: "baseline",
     };
   }
 
-  const member = membership[0];
+  if (member.expiresAt && member.expiresAt <= new Date()) {
+    return {
+      permissions: [],
+      roleId: member.roleId,
+      roleName: null,
+      isOwner: false,
+      source: "denied",
+      denialReason: "expired_assignment",
+    };
+  }
 
   // Obtener el rol
   const role = await db
@@ -146,15 +139,12 @@ export async function getUserPermissions(
 
   if (!role.length) {
     return {
-      permissions: [
-        ...new Set([
-          ...getBaselinePermissions(member.memberRole),
-          ...((member.customPermissions as Permission[] | null) || []),
-        ]),
-      ],
+      permissions: member.customPermissions as Permission[] || [],
       roleId: null,
-      roleName: member.memberRole,
-      isOwner: member.memberRole === "owner",
+      roleName: null,
+      isOwner: false,
+      source: "denied",
+      denialReason: "missing_role",
     };
   }
 
@@ -165,7 +155,9 @@ export async function getUserPermissions(
       permissions: [],
       roleId: roleData.id,
       roleName: roleData.name,
-      isOwner: member.memberRole === "owner",
+      isOwner: false,
+      source: "denied",
+      denialReason: "inactive_role",
     };
   }
 
@@ -187,7 +179,8 @@ export async function getUserPermissions(
     permissions: allPermissions,
     roleId: roleData.id,
     roleName: roleData.name,
-    isOwner: member.memberRole === "owner",
+    isOwner: false,
+    source: "custom",
   };
 }
 

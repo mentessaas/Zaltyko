@@ -1,14 +1,15 @@
-import { eq, and } from "drizzle-orm";
+import { eq, and, gt } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { z } from "zod";
 
 import { db } from "@/db";
-import { invitations, profiles, memberships } from "@/db/schema";
+import { invitations, profiles, memberships, roleMembers } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { handleApiError } from "@/lib/api-error-handler";
 import { resolveUserHome } from "@/lib/auth/resolve-user-home";
 import { logger } from "@/lib/logger";
+import { withTransaction } from "@/lib/db-transactions";
 
 export const dynamic = "force-dynamic";
 
@@ -82,86 +83,88 @@ export async function POST(request: Request) {
       );
     }
 
-    // Find or create profile for the user
-    let [profile] = await db
-      .select()
-      .from(profiles)
-      .where(eq(profiles.userId, user.id))
-      .limit(1);
-
-    if (!profile) {
-      // Create new profile
-      const tenantId = invitation.tenantId;
-
-      [profile] = await db
-        .insert(profiles)
-        .values({
-          userId: user.id,
-          name: name || user.email?.split("@")[0] || "Usuario",
-          role: invitation.role,
-          tenantId: tenantId,
-          activeAcademyId: invitation.defaultAcademyId || invitation.academyIds?.[0] || null,
-          canLogin: true,
-        })
+    const accepted = await withTransaction(async (tx) => {
+      // La transición pending -> processing es el claim de uso único. Dos
+      // aceptaciones concurrentes no pueden crear memberships duplicados.
+      const [claimed] = await tx
+        .update(invitations)
+        .set({ status: "processing", supabaseUserId: user.id })
+        .where(
+          and(
+            eq(invitations.id, invitation.id),
+            eq(invitations.status, "pending"),
+            gt(invitations.expiresAt, new Date())
+          )
+        )
         .returning();
-    } else {
-      // Update existing profile with invitation role if needed
-      if (!profile.tenantId) {
-        await db
+      if (!claimed) return false;
+
+      let [profile] = await tx
+        .select()
+        .from(profiles)
+        .where(eq(profiles.userId, user.id))
+        .limit(1);
+
+      if (!profile) {
+        [profile] = await tx
+          .insert(profiles)
+          .values({
+            userId: user.id,
+            name: name || user.email?.split("@")[0] || "Usuario",
+            role: claimed.role,
+            tenantId: claimed.tenantId,
+            activeAcademyId: claimed.defaultAcademyId || claimed.academyIds?.[0] || null,
+            canLogin: true,
+          })
+          .returning();
+      } else if (!profile.tenantId) {
+        await tx
           .update(profiles)
           .set({
-            tenantId: invitation.tenantId,
-            activeAcademyId: invitation.defaultAcademyId || invitation.academyIds?.[0] || profile.activeAcademyId,
+            tenantId: claimed.tenantId,
+            activeAcademyId:
+              claimed.defaultAcademyId || claimed.academyIds?.[0] || profile.activeAcademyId,
           })
           .where(eq(profiles.id, profile.id));
       }
-    }
 
-    // Create memberships for each academy in the invitation
-    const academyIds = invitation.academyIds || [];
-    if (academyIds.length > 0) {
+      const academyIds = claimed.academyIds || [];
       for (const academyId of academyIds) {
-        // Check if membership already exists
-        const [existingMembership] = await db
-          .select()
-          .from(memberships)
-          .where(
-            and(
-              eq(memberships.userId, user.id),
-              eq(memberships.academyId, academyId)
-            )
-          )
-          .limit(1);
+        const membershipRole: "owner" | "coach" | "viewer" =
+          claimed.role === "owner" ? "owner" : claimed.role === "coach" ? "coach" : "viewer";
 
-        if (!existingMembership) {
-          // Map invitation role to membership role
-          // owner → owner, admin → owner (since memberships don't have admin), coach → coach, parent/athlete → viewer
-          let membershipRole: "owner" | "coach" | "viewer" = "viewer";
-          if (invitation.role === "owner") {
-            membershipRole = "owner";
-          } else if (invitation.role === "coach") {
-            membershipRole = "coach";
-          }
-          // admin, parent, athlete → viewer
+        await tx
+          .insert(memberships)
+          .values({ userId: user.id, academyId, role: membershipRole })
+          .onConflictDoNothing({ target: [memberships.userId, memberships.academyId] });
 
-          await db.insert(memberships).values({
+        if (claimed.roleId) {
+          await tx
+            .delete(roleMembers)
+            .where(
+              and(eq(roleMembers.userId, user.id), eq(roleMembers.academyId, academyId))
+            );
+          await tx.insert(roleMembers).values({
+            roleId: claimed.roleId,
             userId: user.id,
-            academyId: academyId,
-            role: membershipRole,
+            academyId,
+            memberRole: membershipRole,
+            customPermissions: claimed.permissions ?? null,
+            assignedBy: claimed.invitedBy,
           });
         }
       }
-    }
 
-    // Update invitation status
-    await db
-      .update(invitations)
-      .set({
-        status: "accepted",
-        acceptedAt: new Date(),
-        supabaseUserId: user.id,
-      })
-      .where(eq(invitations.id, invitation.id));
+      await tx
+        .update(invitations)
+        .set({ status: "accepted", acceptedAt: new Date(), supabaseUserId: user.id })
+        .where(and(eq(invitations.id, claimed.id), eq(invitations.status, "processing")));
+      return true;
+    });
+
+    if (!accepted) {
+      return apiError("INVITATION_ALREADY_USED", "Esta invitación ya fue utilizada", 400);
+    }
 
     const home = await resolveUserHome({
       userId: user.id,

@@ -332,6 +332,10 @@ export function getSpecializedEventTypes(context: AcademySpecializationContext):
 export function pluralizeFirstWord(label: string): string {
   const [firstWord, ...rest] = label.split(" ");
   if (!firstWord) return label;
+  if (firstWord.toLowerCase().endsWith("ión")) {
+    const pluralFirstWord = `${firstWord.slice(0, -3)}iones`;
+    return [pluralFirstWord, ...rest].join(" ");
+  }
   const lastChar = firstWord.at(-1)?.toLowerCase() ?? "";
   const isVowel = "aeiouáéíóú".includes(lastChar);
   const pluralFirstWord = `${firstWord}${isVowel ? "s" : "es"}`;

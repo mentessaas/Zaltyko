@@ -12,6 +12,7 @@ import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 // @service-role auth-admin:read-update-email. Super-admin user management requires Supabase Auth admin APIs.
+/** @resource-scope super-admin — withSuperAdmin verifies the global authority. */
 
 const updateUserSchema = z.object({
   role: z.enum(["owner", "admin", "coach", "athlete", "parent", "super_admin"]).nullable().optional(),

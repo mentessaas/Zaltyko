@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,8 +23,6 @@ export function TicketResponseForm({ ticketId, isAdmin = false, onSuccess }: Tic
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [isInternal, setIsInternal] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [attachments, setAttachments] = useState<File[]>([]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,10 +40,6 @@ export function TicketResponseForm({ ticketId, isAdmin = false, onSuccess }: Tic
         formData.append("isInternal", String(isInternal));
       }
 
-      attachments.forEach((file) => {
-        formData.append("files", file);
-      });
-
       const response = await fetch(`/api/support/tickets/${ticketId}/responses`, {
         method: "POST",
         body: formData,
@@ -58,7 +52,6 @@ export function TicketResponseForm({ ticketId, isAdmin = false, onSuccess }: Tic
 
       toast.success("Respuesta enviada correctamente");
       setMessage("");
-      setAttachments([]);
       if (onSuccess) {
         onSuccess();
       } else {
@@ -69,17 +62,6 @@ export function TicketResponseForm({ ticketId, isAdmin = false, onSuccess }: Tic
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      const newFiles = Array.from(e.target.files);
-      setAttachments((prev) => [...prev, ...newFiles]);
-    }
-  };
-
-  const removeAttachment = (index: number) => {
-    setAttachments((prev) => prev.filter((_, i) => i !== index));
   };
 
   return (
@@ -97,44 +79,8 @@ export function TicketResponseForm({ ticketId, isAdmin = false, onSuccess }: Tic
             required
           />
 
-          {attachments.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {attachments.map((file, index) => (
-                <div
-                  key={index}
-                  className="flex items-center gap-2 px-3 py-1 bg-secondary rounded-md text-sm"
-                >
-                  <span className="truncate max-w-[200px]">{file.name}</span>
-                  <button
-                    type="button"
-                    onClick={() => removeAttachment(index)}
-                    className="text-muted-foreground hover:text-destructive"
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileChange}
-            multiple
-            className="hidden"
-          />
-
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => fileInputRef.current?.click()}
-              >
-                Adjuntar archivos
-              </Button>
               {isAdmin && (
                 <div className="flex items-center gap-2">
                   <Switch

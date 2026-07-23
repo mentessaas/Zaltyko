@@ -31,7 +31,7 @@ const AcademyCard = memo(function AcademyCard({ academy, locale }: AcademyCardPr
         {/* Logo and Name */}
         <div className="flex items-start gap-4 mb-4">
           {academy.logoUrl ? (
-            <div className="w-14 h-14 rounded-xl overflow-hidden bg-gray-50 flex-shrink-0">
+            <div className="w-14 h-14 rounded-xl overflow-hidden bg-muted flex-shrink-0">
               <img
                 src={academy.logoUrl}
                 alt={academy.name}

@@ -11,9 +11,11 @@ export default defineConfig({
     "node_modules/**",
   ],
   // En CI habilitamos paralelismo para reducir tiempo de ejecucion.
-  // En local mantenemos 2 workers para no saturar la laptop del dev.
+  // The authenticated academy suite compiles data-heavy routes in `next dev`.
+  // A single local worker avoids cross-browser compilation starvation; CI
+  // keeps its isolated parallel capacity.
   fullyParallel: isCI,
-  workers: isCI ? 3 : 2,
+  workers: isCI ? 3 : 1,
   retries: isCI ? 2 : 1,
   // Limite de fail-fast para no quemar minutos en CI si el setup falla.
   maxFailures: isCI ? 5 : undefined,
@@ -35,7 +37,7 @@ export default defineConfig({
         command: "pnpm dev",
         url: baseURL,
         reuseExistingServer: true,
-        timeout: 120_000,
+        timeout: 240_000,
       },
   projects: [
     {

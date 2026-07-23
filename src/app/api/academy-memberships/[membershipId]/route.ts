@@ -5,6 +5,7 @@ import { academies, memberships, notifications, profiles } from "@/db/schema";
 import { apiError, apiSuccess } from "@/lib/api-response";
 import { withTenant } from "@/lib/authz";
 import { verifyAcademyAccess } from "@/lib/permissions";
+import { hasPermission } from "@/lib/authz/permissions-service";
 
 export const DELETE = withTenant(async (_request, context) => {
   const params = context.params as { membershipId?: string } | undefined;
@@ -12,10 +13,6 @@ export const DELETE = withTenant(async (_request, context) => {
 
   if (!membershipId) {
     return apiError("MEMBERSHIP_ID_REQUIRED", "membershipId es requerido", 400);
-  }
-
-  if (!["owner", "admin", "super_admin"].includes(context.profile.role)) {
-    return apiError("FORBIDDEN", "No tienes permisos para desvincular usuarios", 403);
   }
 
   const [membership] = await db
@@ -37,6 +34,17 @@ export const DELETE = withTenant(async (_request, context) => {
 
   if (!membership) {
     return apiError("MEMBERSHIP_NOT_FOUND", "Vinculo no encontrado", 404);
+  }
+
+  if (
+    context.profile.role !== "super_admin" &&
+    !(await hasPermission(
+      context.userId,
+      membership.academyId,
+      "settings:users"
+    ))
+  ) {
+    return apiError("FORBIDDEN", "No tienes permisos para desvincular usuarios", 403);
   }
 
   if (membership.userId === context.profile.userId) {

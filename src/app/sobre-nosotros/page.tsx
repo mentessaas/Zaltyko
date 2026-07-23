@@ -118,7 +118,7 @@ export default function AboutPage() {
       </section>
 
       {/* Values */}
-      <section className="py-16 bg-gray-50">
+      <section className="py-16 surface-subtle">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <h2 className="text-2xl font-bold text-zaltyko-text-main text-center mb-12">
             Nuestros valores
@@ -171,7 +171,7 @@ export default function AboutPage() {
           <div className="mt-8 flex justify-center gap-4">
             <Link
               href="/auth/register"
-              className="rounded-full bg-white px-8 py-3 font-semibold text-zaltyko-primary hover:bg-gray-100"
+              className="rounded-full bg-white px-8 py-3 font-semibold text-zaltyko-primary hover:bg-muted"
             >
               Crear academia gratis
             </Link>

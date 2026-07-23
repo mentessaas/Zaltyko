@@ -20,6 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAcademyContext } from "@/hooks/use-academy-context";
 import { summarizeStarterClassSetup } from "@/lib/classes/starter-setup";
+import { pluralizeFirstWord } from "@/lib/specialization/registry";
 import type { SportConfigOption } from "@/components/groups/types";
 import { logger } from "@/lib/logger";
 
@@ -231,26 +232,31 @@ export function ClassesDashboard({
     setGuidedEditingClass(target);
   };
 
+  const classLabelPlural = pluralizeFirstWord(specialization.labels.classLabel);
+  const sessionLabelPlural = pluralizeFirstWord(specialization.labels.sessionLabel);
+  const coachLabelPlural = pluralizeFirstWord(specialization.labels.coachLabel);
+
   return (
     <div className="space-y-6">
       {/* Header con stats */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatsCard
-          title={`Total ${specialization.labels.classLabel}s`}
+          title={`Total ${classLabelPlural}`}
           value={stats.totalClasses}
           icon={<Calendar className="h-5 w-5" />}
-          description={`${specialization.labels.classLabel}s configuradas`}
+          description={`${classLabelPlural} disponibles`}
         />
         <StatsCard
-          title={`${specialization.labels.sessionLabel}es este mes`}
-          value={stats.totalSessions}
+          title={`${sessionLabelPlural} este mes`}
+          value={stats.totalSessions > 0 ? stats.totalSessions : "—"}
           icon={<Clock className="h-5 w-5" />}
-          description={`${specialization.labels.classLabel}s programadas`}
+          description={stats.totalSessions > 0 ? `${classLabelPlural} programadas` : "Sin serie disponible"}
         />
         <StatsCard
-          title={`Próximas ${specialization.labels.sessionLabel.toLowerCase()}es`}
-          value={stats.upcomingSessions}
+          title={`Próximas ${sessionLabelPlural.toLowerCase()}`}
+          value={stats.upcomingSessions > 0 ? stats.upcomingSessions : "—"}
           icon={<AlertCircle className="h-5 w-5" />}
+          description={stats.upcomingSessions > 0 ? "En agenda" : "Sin serie disponible"}
           variant="warning"
         />
         <StatsCard
@@ -288,7 +294,7 @@ export function ClassesDashboard({
               </p>
               <p className="mt-1 font-display text-2xl font-bold text-zaltyko-navy">{starterSetup.missingCoachCount}</p>
               <p className="mt-1 text-xs text-muted-foreground">
-                {specialization.labels.coachLabel}s sin asignar en clases base
+                {coachLabelPlural} sin asignar en clases base
               </p>
             </div>
             <div className="rounded-xl border border-zaltyko-mist bg-white p-4">

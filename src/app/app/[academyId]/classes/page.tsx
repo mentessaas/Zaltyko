@@ -19,7 +19,7 @@ import {
 
 import { ClassesDashboard } from "@/components/classes/ClassesDashboard";
 import { PageHeader } from "@/components/ui/page-header";
-import { resolveAcademySpecialization } from "@/lib/specialization/registry";
+import { pluralizeFirstWord, resolveAcademySpecialization } from "@/lib/specialization/registry";
 import { getAcademySportConfigOptions } from "@/lib/sport-config/service";
 
 /**
@@ -335,17 +335,20 @@ export default async function AcademyClassesPage({ params, searchParams }: PageP
   }));
 
   const sportConfigs = await getAcademySportConfigOptions(academyId);
+  const classLabelPlural = pluralizeFirstWord(specialization.labels.classLabel);
+  const coachLabelPlural = pluralizeFirstWord(specialization.labels.coachLabel);
+  const sessionLabelPlural = pluralizeFirstWord(specialization.labels.sessionLabel);
 
   return (
-    <div className="space-y-6 py-6 lg:py-8">
+    <div className="mx-auto max-w-[1500px] space-y-6">
       <PageHeader
         breadcrumbs={[
-          { label: "Dashboard", href: "/dashboard" },
+          { label: "Dashboard", href: `/app/${academy.id}/dashboard` },
           { label: academy.name ?? "Academia", href: `/app/${academy.id}/dashboard` },
-          { label: `${specialization.labels.classLabel}s` },
+          { label: classLabelPlural },
         ]}
-        title={`${specialization.labels.classLabel}s`}
-        description={`Organiza tus ${specialization.labels.classLabel.toLowerCase()}s, coordina ${specialization.labels.coachLabel.toLowerCase()}es y prepara ${specialization.labels.sessionLabel.toLowerCase()}es con facilidad.`}
+        title={classLabelPlural}
+        description={`Organiza tus ${classLabelPlural.toLowerCase()}, coordina ${coachLabelPlural.toLowerCase()} y prepara ${sessionLabelPlural.toLowerCase()} con facilidad.`}
         icon={<Dumbbell className="h-5 w-5" strokeWidth={1.5} />}
       />
 

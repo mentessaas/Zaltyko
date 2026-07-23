@@ -148,6 +148,17 @@ export async function resolveUserHome(args: {
 
   const membershipRole = (activeMembership?.role ?? null) as MembershipRole | null;
 
+  if (academyId && profile.role === "coach" && canAccessAcademyWorkspace(profile.role, membershipRole)) {
+    return {
+      destination: "academy_workspace",
+      redirectUrl: `/app/${academyId}/coach`,
+      reason: "coach-academy-access",
+      profileRole: profile.role,
+      membershipRole,
+      activeAcademyId: academyId,
+    };
+  }
+
   if (academyId && canAccessAcademyWorkspace(profile.role, membershipRole)) {
     return {
       destination: "academy_workspace",

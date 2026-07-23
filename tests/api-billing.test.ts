@@ -108,8 +108,8 @@ describe("API /api/billing/plans", () => {
 
         expect(response.status).toBe(200);
         const data = await response.json();
-        expect(Array.isArray(data)).toBe(true);
-        expect(data.length).toBeGreaterThan(0);
+        expect(Array.isArray(data.data)).toBe(true);
+        expect(data.data.length).toBeGreaterThan(0);
     });
 
     it("debe filtrar planes archivados", async () => {
@@ -136,6 +136,7 @@ describe("API /api/billing/plans", () => {
 
         expect(response.status).toBe(200);
         const data = await response.json();
-        expect(Array.isArray(data)).toBe(true);
+        expect(Array.isArray(data.data)).toBe(true);
+        expect(data.data.every((plan: { isArchived: boolean }) => !plan.isArchived)).toBe(true);
     });
 });

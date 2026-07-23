@@ -187,7 +187,7 @@ export function ScheduledReports({ academyId }: ScheduledReportsProps) {
       weekly: "bg-blue-100 text-blue-800",
       monthly: "bg-green-100 text-green-800",
     };
-    return colors[frequency] || "bg-gray-100 text-gray-800";
+    return colors[frequency] || "bg-muted text-muted-foreground";
   };
 
   const formatNextRun = (dateStr: string) => {

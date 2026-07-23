@@ -5,6 +5,7 @@ import { withTenant } from "@/lib/authz";
 
 import { db } from "@/db";
 import { discountCampaigns, discounts } from "@/db/schema";
+import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
 
 const updateCampaignSchema = z.object({
   discountId: z.string().uuid().optional(),
@@ -21,7 +22,20 @@ export const GET = withTenant(async (request, context) => {
     return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
   }
 
-  const { discountId } = context.params as { discountId: string };
+  const { campaignId } = context.params as { campaignId: string };
+  const [resource] = await db
+    .select({ tenantId: discountCampaigns.tenantId, academyId: discountCampaigns.academyId })
+    .from(discountCampaigns)
+    .where(eq(discountCampaigns.id, campaignId))
+    .limit(1);
+  if (!resource) return apiError("CAMPAIGN_NOT_FOUND", "Campaign not found", 404);
+  const scope = await authorizeAcademyCapability({
+    context,
+    resourceTenantId: resource.tenantId,
+    academyId: resource.academyId,
+    permission: "billing:read",
+  });
+  if (!scope.allowed) return apiError("CAMPAIGN_NOT_FOUND", "Campaign not found", 404);
 
   const [campaign] = await db
     .select({
@@ -44,7 +58,7 @@ export const GET = withTenant(async (request, context) => {
     .innerJoin(discounts, eq(discountCampaigns.discountId, discounts.id))
     .where(
       and(
-        eq(discountCampaigns.id, discountId),
+        eq(discountCampaigns.id, campaignId),
         eq(discountCampaigns.tenantId, context.tenantId)
       )
     )
@@ -66,16 +80,20 @@ export const PUT = withTenant(async (request, context) => {
     return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
   }
 
-  const { discountId } = context.params as { discountId: string };
+  const { campaignId } = context.params as { campaignId: string };
   const body = updateCampaignSchema.parse(await request.json());
 
   // Verificar que la campaña existe
   const [existing] = await db
-    .select({ id: discountCampaigns.id })
+    .select({
+      id: discountCampaigns.id,
+      tenantId: discountCampaigns.tenantId,
+      academyId: discountCampaigns.academyId,
+    })
     .from(discountCampaigns)
     .where(
       and(
-        eq(discountCampaigns.id, discountId),
+        eq(discountCampaigns.id, campaignId),
         eq(discountCampaigns.tenantId, context.tenantId)
       )
     )
@@ -84,6 +102,13 @@ export const PUT = withTenant(async (request, context) => {
   if (!existing) {
     return apiError("CAMPAIGN_NOT_FOUND", "Campaign not found", 404);
   }
+  const scope = await authorizeAcademyCapability({
+    context,
+    resourceTenantId: existing.tenantId,
+    academyId: existing.academyId,
+    permission: "billing:update",
+  });
+  if (!scope.allowed) return apiError("CAMPAIGN_NOT_FOUND", "Campaign not found", 404);
 
   // Si se proporciona un nuevo discountId, verificar que existe
   if (body.discountId) {
@@ -93,7 +118,8 @@ export const PUT = withTenant(async (request, context) => {
       .where(
         and(
           eq(discounts.id, body.discountId),
-          eq(discounts.tenantId, context.tenantId)
+          eq(discounts.tenantId, context.tenantId),
+          eq(discounts.academyId, existing.academyId)
         )
       )
       .limit(1);
@@ -111,7 +137,7 @@ export const PUT = withTenant(async (request, context) => {
     })
     .where(
       and(
-        eq(discountCampaigns.id, discountId),
+        eq(discountCampaigns.id, campaignId),
         eq(discountCampaigns.tenantId, context.tenantId)
       )
     )
@@ -125,13 +151,26 @@ export const DELETE = withTenant(async (request, context) => {
     return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
   }
 
-  const { discountId } = context.params as { discountId: string };
+  const { campaignId } = context.params as { campaignId: string };
+  const [resource] = await db
+    .select({ tenantId: discountCampaigns.tenantId, academyId: discountCampaigns.academyId })
+    .from(discountCampaigns)
+    .where(eq(discountCampaigns.id, campaignId))
+    .limit(1);
+  if (!resource) return apiError("CAMPAIGN_NOT_FOUND", "Campaign not found", 404);
+  const scope = await authorizeAcademyCapability({
+    context,
+    resourceTenantId: resource.tenantId,
+    academyId: resource.academyId,
+    permission: "billing:update",
+  });
+  if (!scope.allowed) return apiError("CAMPAIGN_NOT_FOUND", "Campaign not found", 404);
 
   const [deleted] = await db
     .delete(discountCampaigns)
     .where(
       and(
-        eq(discountCampaigns.id, discountId),
+        eq(discountCampaigns.id, campaignId),
         eq(discountCampaigns.tenantId, context.tenantId)
       )
     )

@@ -7,9 +7,19 @@ config({ path: resolve(process.cwd(), ".env.local") });
 config({ path: resolve(process.cwd(), ".env") });
 
 const APPROVED_PUBLIC_READ_POLICIES = new Set([
+  "apparatus:apparatus_authenticated_read",
   "assessment_types:assessment_types_select",
+  "categories:categories_authenticated_read",
+  "competition_types:competition_types_authenticated_read",
+  "countries:countries_authenticated_read",
   "featured_listings:featured_listings_select",
+  "levels:levels_authenticated_read",
   "marketplace_ratings:marketplace_ratings_select",
+  "plans:plans_read",
+  "programs:programs_authenticated_read",
+  "sport_branches:sport_branches_authenticated_read",
+  "sport_disciplines:sport_disciplines_authenticated_read",
+  "sport_locale_configs:sport_locale_configs_authenticated_read",
   "template_age_categories:template_age_categories_select",
   "template_apparatus:template_apparatus_select",
   "template_competition_flow:template_competition_flow_select",
@@ -17,7 +27,12 @@ const APPROVED_PUBLIC_READ_POLICIES = new Set([
   "template_license_config:template_license_config_select",
   "template_scoring_config:template_scoring_config_select",
   "templates:templates_select",
+  "terminology_dictionary:terminology_dictionary_authenticated_read",
 ]);
+
+// Drizzle usa esta tabla únicamente mediante conexiones PostgreSQL
+// privilegiadas; no forma parte de la Data API de producto.
+const APPROVED_NO_RLS_TABLES = new Set(["__drizzle_migrations"]);
 
 interface PolicyRow {
   tablename: string;
@@ -28,12 +43,13 @@ interface PolicyRow {
 
 function getPool() {
   const databaseUrl =
+    process.env.RLS_AUDIT_DATABASE_URL ??
     process.env.DATABASE_URL_POOL ??
     process.env.DATABASE_URL_DIRECT ??
     process.env.DATABASE_URL;
   if (!databaseUrl) {
     throw new Error(
-      "DATABASE_URL, DATABASE_URL_POOL o DATABASE_URL_DIRECT es obligatoria."
+      "RLS_AUDIT_DATABASE_URL, DATABASE_URL, DATABASE_URL_POOL o DATABASE_URL_DIRECT es obligatoria."
     );
   }
   const caPath = process.env.NODE_EXTRA_CA_CERTS;
@@ -60,8 +76,8 @@ function getPool() {
   });
 }
 
-// Verificación read-only: bloquea nuevas policies globales, salvo los diez
-// catálogos/listados públicos que están revisados explícitamente.
+// Verificación read-only: bloquea nuevas policies globales, salvo las
+// lecturas de referencia/listados revisadas explícitamente.
 async function verifyPermissivePolicies() {
   const pool = getPool();
 
@@ -110,6 +126,16 @@ async function verifyPermissivePolicies() {
     `);
     console.log(`\nTablas SIN RLS habilitado: ${noRls.rows.length}`);
     for (const r of noRls.rows) console.log(`  - ${r.tablename}`);
+
+    const unexpectedNoRls = noRls.rows.filter(
+      (row) => !APPROVED_NO_RLS_TABLES.has(row.tablename)
+    );
+    if (unexpectedNoRls.length > 0) {
+      console.error(
+        `Tablas públicas sin RLS no aprobadas: ${unexpectedNoRls.length}`
+      );
+      process.exitCode = 1;
+    }
   } finally {
     await pool.end();
   }

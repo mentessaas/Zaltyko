@@ -138,7 +138,7 @@ export default async function EmpleoDetailPage({ params }: Props) {
               <span className={`px-3 py-1 text-xs font-medium rounded-full ${
                 listing.status === "active" ? "bg-green-100 text-green-800" :
                 listing.status === "closed" ? "bg-red-100 text-red-800" :
-                "bg-gray-100 text-gray-800"
+                "bg-muted text-muted-foreground"
               }`}>
                 {STATUS_LABELS[listing.status] || listing.status}
               </span>

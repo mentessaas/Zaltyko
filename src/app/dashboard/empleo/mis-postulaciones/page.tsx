@@ -111,7 +111,7 @@ export default function MisPostulacionesPage() {
           {applications.map((app) => {
             const statusInfo = STATUS_LABELS[app.status] ?? {
               label: app.status,
-              color: "bg-gray-100 text-gray-800",
+              color: "bg-muted text-muted-foreground",
             };
             return (
               <Card key={app.id}>

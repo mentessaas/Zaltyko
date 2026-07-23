@@ -154,10 +154,11 @@ describe("API /api/athletes", () => {
       });
 
       const response = await POST(request, {} as unknown as Record<string, unknown>);
-      expect(response.status).toBe(200);
+      expect(response.status).toBe(201);
 
       const data = await response.json();
       expect(data.ok).toBe(true);
+      expect(data.data.id).toEqual(expect.any(String));
       expect(assertWithinPlanLimitsMock).toHaveBeenCalledWith(
         "tenant-123",
         "11111111-1111-1111-1111-111111111111",
@@ -213,8 +214,8 @@ describe("API /api/athletes", () => {
       expect(response.status).toBe(200);
 
       const body = await response.json();
-      expect(body.items).toHaveLength(1);
-      expect(body.items[0]).toMatchObject({
+      expect(body.data).toHaveLength(1);
+      expect(body.data[0]).toMatchObject({
         id: "athlete-1",
         name: "Lucía Márquez",
         status: "active",
@@ -233,7 +234,8 @@ describe("API /api/athletes", () => {
         },
       ];
 
-      const request = new Request("http://localhost/api/athletes/athlete-1", {
+      const athleteId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+      const request = new Request(`http://localhost/api/athletes/${athleteId}`, {
         method: "PATCH",
         body: JSON.stringify({
           name: "Lucía Actualizada",
@@ -243,7 +245,7 @@ describe("API /api/athletes", () => {
       });
 
       const response = await PATCH(request, {
-        params: { athleteId: "athlete-1" },
+        params: { athleteId },
       } as unknown as Record<string, unknown>);
 
       expect(response.status).toBe(200);
@@ -261,12 +263,13 @@ describe("API /api/athletes", () => {
         },
       ];
 
-      const request = new Request("http://localhost/api/athletes/athlete-1", {
+      const athleteId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+      const request = new Request(`http://localhost/api/athletes/${athleteId}`, {
         method: "DELETE",
       });
 
       const response = await DELETE(request, {
-        params: { athleteId: "athlete-1" },
+        params: { athleteId },
       } as unknown as Record<string, unknown>);
 
       expect(response.status).toBe(200);

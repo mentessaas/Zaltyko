@@ -53,12 +53,34 @@ export async function getMessageTemplateById(id: string) {
 export async function getMessageTemplates(
   tenantId: string,
   filters: {
+    academyId?: string;
     channel?: string;
     sportConfigId?: string;
     includeGlobal?: boolean;
   } = {}
 ) {
-  const conditions: SQL[] = [eq(messageTemplates.tenantId, tenantId)];
+  const conditions: SQL[] = [
+    filters.includeGlobal === false
+      ? eq(messageTemplates.tenantId, tenantId)
+      : or(
+          eq(messageTemplates.tenantId, tenantId),
+          and(isNull(messageTemplates.tenantId), eq(messageTemplates.isSystem, true))
+        )!,
+  ];
+
+  if (filters.academyId) {
+    conditions.push(
+      filters.includeGlobal === false
+        ? eq(messageTemplates.academyId, filters.academyId)
+        : or(
+            and(
+              isNull(messageTemplates.academyId),
+              eq(messageTemplates.isSystem, true)
+            ),
+            eq(messageTemplates.academyId, filters.academyId)
+          )!
+    );
+  }
 
   if (filters.channel) {
     conditions.push(eq(messageTemplates.channel, filters.channel));
@@ -226,11 +248,11 @@ export async function createMessageGroup(data: NewMessageGroup) {
   return group;
 }
 
-export async function getMessageGroups(tenantId: string) {
+export async function getMessageGroups(tenantId: string, academyId: string) {
   return db
     .select()
     .from(messageGroups)
-    .where(eq(messageGroups.tenantId, tenantId))
+    .where(and(eq(messageGroups.tenantId, tenantId), eq(messageGroups.academyId, academyId)))
     .orderBy(desc(messageGroups.createdAt));
 }
 
@@ -265,11 +287,14 @@ export async function createScheduledNotification(data: NewScheduledNotification
   return notification;
 }
 
-export async function getScheduledNotifications(tenantId: string) {
+export async function getScheduledNotifications(tenantId: string, academyId: string) {
   return db
     .select()
     .from(scheduledNotifications)
-    .where(eq(scheduledNotifications.tenantId, tenantId))
+    .where(and(
+      eq(scheduledNotifications.tenantId, tenantId),
+      eq(scheduledNotifications.academyId, academyId)
+    ))
     .orderBy(desc(scheduledNotifications.createdAt));
 }
 

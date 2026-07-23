@@ -407,7 +407,23 @@ export function AthletesDataTable({
   onPageChange: (page: number) => void;
 }) {
   return (
-    <div className="overflow-x-auto rounded-2xl border border-zaltyko-mist bg-white shadow-soft">
+    <div className="overflow-hidden rounded-[22px] border border-slate-200/80 bg-white shadow-[0_18px_50px_-32px_rgba(15,23,42,0.45)]">
+      <div className="divide-y divide-slate-100 md:hidden">
+        {athletes.map((athlete) => (
+          <AthleteMobileCard
+            key={athlete.id}
+            academyId={academyId}
+            athlete={athlete}
+            selected={selectedAthletes.has(athlete.id)}
+            hasAlert={athletesWithAlerts.has(athlete.id)}
+            sportConfigName={athlete.primarySportConfigId ? sportConfigNameById.get(athlete.primarySportConfigId) : undefined}
+            terms={terms}
+            onToggleSelect={() => onToggleSelectAthlete(athlete.id)}
+            onEdit={() => onEdit(athlete)}
+          />
+        ))}
+      </div>
+      <div className="hidden overflow-x-auto md:block">
       <table className="min-w-full divide-y divide-slate-100 text-sm">
         <thead className="bg-zaltyko-white">
           <tr className="text-left text-xs uppercase tracking-[0.05em] text-slate-600">
@@ -458,6 +474,7 @@ export function AthletesDataTable({
           ))}
         </tbody>
       </table>
+      </div>
       {totalPages > 1 && (
         <div className="flex items-center justify-between border-t border-zaltyko-mist px-4 py-3">
           <p className="text-sm text-muted-foreground">
@@ -488,6 +505,70 @@ export function AthletesDataTable({
         </div>
       )}
     </div>
+  );
+}
+
+function AthleteMobileCard({
+  academyId,
+  athlete,
+  selected,
+  hasAlert,
+  sportConfigName,
+  terms,
+  onToggleSelect,
+  onEdit,
+}: {
+  academyId: string;
+  athlete: AthleteListItem;
+  selected: boolean;
+  hasAlert: boolean;
+  sportConfigName?: string;
+  terms: AthleteTerms;
+  onToggleSelect: () => void;
+  onEdit: () => void;
+}) {
+  return (
+    <article className="p-4">
+      <div className="flex items-start gap-3">
+        <button
+          type="button"
+          onClick={onToggleSelect}
+          className="mt-0.5 shrink-0 rounded-lg p-1 text-slate-400 hover:text-zaltyko-teal"
+          aria-label={`${selected ? "Deseleccionar" : "Seleccionar"} ${athlete.name}`}
+        >
+          {selected ? <CheckSquare className="h-5 w-5 text-zaltyko-teal" /> : <Square className="h-5 w-5" />}
+        </button>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <Link href={`/app/${academyId}/athletes/${athlete.id}`} className="truncate font-display text-base font-bold text-slate-950 hover:text-zaltyko-teal">
+                {athlete.name}
+              </Link>
+              <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                <span>{athlete.level ?? "Sin nivel"}</span>
+                <span aria-hidden="true">·</span>
+                <span className="capitalize">{athlete.status}</span>
+                {athlete.age !== null && <><span aria-hidden="true">·</span><span>{athlete.age} años</span></>}
+              </div>
+            </div>
+            {hasAlert && <AlertBadge type="attendance" severity="medium" className="shrink-0 text-[10px]" />}
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+            {athlete.groupName ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 font-semibold text-slate-600">
+                <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: athlete.groupColor ?? "#94a3b8" }} />
+                {athlete.groupName}
+              </span>
+            ) : <span className="rounded-full bg-amber-50 px-2.5 py-1 font-semibold text-amber-700">Sin {terms.group.toLowerCase()}</span>}
+            <span className="rounded-full bg-slate-50 px-2.5 py-1 text-slate-500">{athlete.guardianCount ?? 0} familia</span>
+            {sportConfigName && <span className="rounded-full bg-teal-50 px-2.5 py-1 font-semibold text-teal-700">{sportConfigName}</span>}
+          </div>
+          <div className="mt-3 flex justify-end">
+            <button type="button" onClick={onEdit} className="min-h-9 rounded-lg px-3 text-xs font-bold text-zaltyko-teal hover:bg-teal-50">Editar ficha</button>
+          </div>
+        </div>
+      </div>
+    </article>
   );
 }
 

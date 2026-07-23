@@ -6,7 +6,7 @@
 - **Database:** Supabase PostgreSQL + RLS
 - **ORM:** Drizzle ORM
 - **Styling:** Tailwind CSS + shadcn/ui
-- **Auth:** NextAuth.js v5 (Supabase)
+- **Auth:** Supabase Auth (`@supabase/ssr` + bearer verification)
 - **Payments:** Stripe
 - **Deployment:** Vercel
 
@@ -107,7 +107,7 @@ See `.env.example`. Required:
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY` - Supabase anon key
 - `SUPABASE_SERVICE_ROLE_KEY` - Supabase service role (for admin)
 - `STRIPE_SECRET_KEY` - Stripe secret key
-- `NEXTAUTH_SECRET` - NextAuth secret
+- `SUPABASE_JWT_SECRET` - optional JWT verification secret for privileged middleware paths
 
 ## Key Files
 

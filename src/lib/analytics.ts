@@ -56,7 +56,39 @@ export function trackPageView(path: string, properties?: Record<string, unknown>
 
 // Track event
 export async function trackEvent(eventName: string, payload: AnalyticsPayload = {}) {
-  if (isAnalyticsDisabled || typeof window === "undefined") {
+  if (isAnalyticsDisabled) {
+    return;
+  }
+
+  // Server-side product actions already call this helper (onboarding, invites,
+  // billing and messaging). Previously those calls returned immediately, so
+  // activation evidence described in the vault was never persisted. Keep the
+  // browser path on PostHog, but persist authenticated milestones first-party
+  // on the server without importing the DB layer into the client bundle.
+  if (typeof window === "undefined") {
+    try {
+      const { userId, academyId, tenantId, metadata } = payload;
+      const { recordGrowthEvent } = await import("@/lib/growth/events");
+      const properties = Object.fromEntries(
+        Object.entries(metadata ?? {}).filter(([, value]) =>
+          value === null ||
+          typeof value === "string" ||
+          typeof value === "number" ||
+          typeof value === "boolean"
+        )
+      ) as Record<string, string | number | boolean | null>;
+
+      await recordGrowthEvent({
+        eventName,
+        userId: userId ?? null,
+        academyId: academyId ?? null,
+        tenantId: tenantId ?? null,
+        source: "authenticated",
+        properties,
+      });
+    } catch (error) {
+      logger.warn("Failed to persist server analytics event", { eventName, error });
+    }
     return;
   }
 

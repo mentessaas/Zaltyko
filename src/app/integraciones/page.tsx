@@ -98,7 +98,7 @@ export default function IntegrationsPage() {
                   key={index}
                   className={`relative rounded-2xl border p-6 ${
                     integration.comingSoon
-                      ? "border-gray-200 bg-gray-50"
+                      ? "border-border surface-subtle"
                       : "border-zaltyko-primary/20 bg-white shadow-lg shadow-zaltyko-primary/5"
                   }`}
                 >
@@ -109,7 +109,7 @@ export default function IntegrationsPage() {
                     </span>
                   )}
                   {integration.comingSoon && (
-                    <span className="absolute -top-3 -right-3 inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-600">
+                    <span className="absolute -top-3 -right-3 inline-flex items-center rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
                       Próximamente
                     </span>
                   )}
@@ -146,7 +146,7 @@ export default function IntegrationsPage() {
           <div className="mt-8 flex justify-center gap-4">
             <Link
               href="/contact"
-              className="rounded-full bg-white px-8 py-3 font-semibold text-zaltyko-primary hover:bg-gray-100"
+              className="rounded-full bg-white px-8 py-3 font-semibold text-zaltyko-primary hover:bg-muted"
             >
               Contáctanos
             </Link>

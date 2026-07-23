@@ -46,3 +46,15 @@ source:
 - Legacy dashboard: existen rutas bajo `/dashboard/*`; revisar si siguen vivas o son compatibilidad.
 
 Ver detalle de conteo y riesgos en [[Auditoria de producto real]].
+
+## Auditoria de rediseño integral
+
+- La auditoria UX/UI, mapa de roles, arquitectura de navegacion, direccion de producto, Design System 2.0 propuesto, migracion y criterios de aceptacion estan en [[Auditoria UX UI integral - 2026-07-15]].
+- Estado: propuesta previa a implementacion. No autoriza todavia cambios visuales ni retirada de rutas.
+
+## Cierre del mapa de objeciones del director
+
+- La matriz ejecutable y sus criterios de evidencia están en [[../../docs/plans/2026-07-23-objection-closure-matrix]].
+- El cierre puede incluir rediseño, simplificación, ampliación o sustitución de módulos cuando mejore claridad, adopción, accesibilidad, rendimiento, conversión o eficiencia operativa.
+- Se mantienen como invariantes la seguridad multi-tenant, los permisos, la integridad de pagos, los límites comerciales y la disciplina de migraciones/versionado.
+- Exportación: atletas, transacciones, asistencia, finanzas, progreso y evaluaciones tienen salidas específicas; eventos/competiciones aún responde `501 NOT_IMPLEMENTED` y no debe venderse como listado federativo automático.

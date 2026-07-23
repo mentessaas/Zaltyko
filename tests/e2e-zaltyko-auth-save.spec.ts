@@ -66,6 +66,12 @@ for (const authState of authStates) {
       .catch(() => undefined);
     const emailInput = page.locator('input[type="email"]');
     const passwordInput = page.locator('input[type="password"]');
+    await expect(emailInput).toBeVisible();
+    await expect(passwordInput).toBeVisible();
+    // The auth guard can finish its client-side session check just after the
+    // initial network settles. Let that render complete before entering data
+    // so hydration cannot replace populated inputs.
+    await page.waitForTimeout(1_000);
     await emailInput.fill(authState.email!);
     await passwordInput.fill(authState.password!);
     await expect(emailInput).toHaveValue(authState.email!);

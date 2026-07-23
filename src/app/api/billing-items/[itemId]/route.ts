@@ -6,6 +6,7 @@ import { billingItems } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
 import { handleApiError } from "@/lib/api-error-handler";
 import { apiSuccess, apiError } from "@/lib/api-response";
+import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
 
 const UpdateBillingItemSchema = z.object({
   name: z.string().min(1).optional(),
@@ -40,6 +41,13 @@ export const PATCH = withTenant(async (request, context) => {
     if (!existing) {
       return apiError("BILLING_ITEM_NOT_FOUND", "Concepto de cobro no encontrado", 404);
     }
+    const scope = await authorizeAcademyCapability({
+      context,
+      resourceTenantId: existing.tenantId,
+      academyId: existing.academyId,
+      permission: "billing:update",
+    });
+    if (!scope.allowed) return apiError("BILLING_ITEM_NOT_FOUND", "Concepto de cobro no encontrado", 404);
 
     const updateData: Partial<typeof billingItems.$inferInsert> = {};
     if (body.name !== undefined) updateData.name = body.name;
@@ -84,6 +92,13 @@ export const DELETE = withTenant(async (request, context) => {
     if (!existing) {
       return apiError("BILLING_ITEM_NOT_FOUND", "Concepto de cobro no encontrado", 404);
     }
+    const scope = await authorizeAcademyCapability({
+      context,
+      resourceTenantId: existing.tenantId,
+      academyId: existing.academyId,
+      permission: "billing:update",
+    });
+    if (!scope.allowed) return apiError("BILLING_ITEM_NOT_FOUND", "Concepto de cobro no encontrado", 404);
 
     await db.delete(billingItems).where(eq(billingItems.id, itemId));
 

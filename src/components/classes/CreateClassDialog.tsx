@@ -238,8 +238,8 @@ export function CreateClassDialog({
     <Modal
       open={open}
       onClose={handleClose}
-      title={`Crear nueva ${classTermLower}`}
-      description={`Define los datos basicos de la ${classTermLower}, ${terms.apparatus.toLowerCase()}s y ${coachTermLower}s compatibles con la rama.`}
+      title={`Crear ${classTermLower}`}
+      description={`Define los datos básicos de ${classTermLower}, ${terms.apparatus.toLowerCase()}s y ${coachTermLower}s compatibles con la rama.`}
       footer={
         <div className="flex justify-end gap-2">
           <button

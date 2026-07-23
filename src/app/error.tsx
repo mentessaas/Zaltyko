@@ -49,7 +49,7 @@ export default function Error({
           </button>
           <button
             onClick={() => (window.location.href = "/")}
-            className="rounded-md border border-gray-300 px-4 py-2 text-sm font-semibold hover:bg-gray-50"
+            className="rounded-md border border-border px-4 py-2 text-sm font-semibold hover:bg-muted"
           >
             Ir al inicio
           </button>

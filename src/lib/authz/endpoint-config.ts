@@ -62,13 +62,7 @@ export function extractAcademyId(
   request: Request,
   context?: { params?: Record<string, string> }
 ): string | undefined {
-  // Desde header
-  const headerAcademyId = request.headers.get("x-academy-id");
-  if (headerAcademyId) {
-    return headerAcademyId;
-  }
-
-  // Desde params (rutas dinámicas)
+  // Los params de una ruta dinámica son el contexto más específico.
   const paramAcademyId = context?.params?.academyId;
   if (paramAcademyId) {
     return paramAcademyId;
@@ -91,5 +85,58 @@ export function extractAcademyId(
     return dashboardMatch[1];
   }
 
+  // Header legacy. Nunca se autoriza por sí solo: el wrapper lo verifica en DB
+  // y extractVerifiedAcademyCandidate rechaza conflictos con path/query/body.
+  const headerAcademyId = request.headers.get("x-academy-id");
+  if (headerAcademyId) {
+    return headerAcademyId;
+  }
+
   return undefined;
+}
+
+/**
+ * Resolves academyId from server-controlled route context first, then from the
+ * request. JSON bodies are read from a clone so handlers retain the original
+ * stream. The value is still verified against ownership/membership in DB.
+ */
+export async function extractVerifiedAcademyCandidate(
+  request: Request,
+  context?: { params?: Record<string, string> }
+): Promise<{ academyId?: string; conflict: boolean }> {
+  const url = new URL(request.url);
+  const pathAcademyId =
+    context?.params?.academyId ??
+    url.pathname.match(/^\/api\/dashboard\/([^/]+)/)?.[1];
+  const queryAcademyId = url.searchParams.get("academyId") ?? undefined;
+  const headerAcademyId = request.headers.get("x-academy-id") ?? undefined;
+  let bodyAcademyId: string | undefined;
+
+  if (
+    new Set(["POST", "PUT", "PATCH", "DELETE"]).has(request.method.toUpperCase()) &&
+    (request.headers.get("content-type")?.toLowerCase() ?? "").includes("application/json")
+  ) {
+    try {
+      const body = (await request.clone().json()) as { academyId?: unknown };
+      bodyAcademyId =
+        typeof body?.academyId === "string" && body.academyId.length > 0
+          ? body.academyId
+          : undefined;
+    } catch {
+      bodyAcademyId = undefined;
+    }
+  }
+
+  const candidates = [
+    pathAcademyId,
+    queryAcademyId,
+    bodyAcademyId,
+    headerAcademyId,
+  ].filter((value): value is string => Boolean(value));
+  const distinctCandidates = new Set(candidates);
+
+  return {
+    academyId: candidates[0],
+    conflict: distinctCandidates.size > 1,
+  };
 }

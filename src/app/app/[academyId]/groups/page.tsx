@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { asc, eq, inArray, sql } from "drizzle-orm";
+import { Users } from "lucide-react";
 
 import { db } from "@/db";
 import {
@@ -14,6 +15,7 @@ import { GroupsDashboard } from "@/components/groups/GroupsDashboard";
 import { AthleteOption, CoachOption, GroupSummary } from "@/components/groups/types";
 import { resolveAcademySpecialization } from "@/lib/specialization/registry";
 import { getAcademySportConfigOptions } from "@/lib/sport-config/service";
+import { PageHeader } from "@/components/ui/page-header";
 
 /**
  * AcademyGroupsPage - Vista principal de gestión de grupos
@@ -179,13 +181,16 @@ export default async function AcademyGroupsPage({ params, searchParams }: PagePr
   }));
 
   return (
-    <div className="space-y-6 p-4 sm:p-6 lg:p-8">
-      <header className="space-y-2 py-6">
-        <h1 className="text-3xl font-semibold">{specialization.labels.groupLabel}s</h1>
-        <p className="text-sm text-muted-foreground">
-          Organiza tus {specialization.labels.groupLabel.toLowerCase()}s por nivel y responsables para conectar {specialization.labels.classLabel.toLowerCase()}s, asistencia y evaluaciones.
-        </p>
-      </header>
+    <div className="mx-auto max-w-[1500px] space-y-6">
+      <PageHeader
+        breadcrumbs={[
+          { label: "Dashboard", href: `/app/${academy.id}/dashboard` },
+          { label: `${specialization.labels.groupLabel}s` },
+        ]}
+        title={`${specialization.labels.groupLabel}s`}
+        description={`Organiza tus ${specialization.labels.groupLabel.toLowerCase()}s por nivel y responsables para conectar ${specialization.labels.classLabel.toLowerCase()}s, asistencia y evaluaciones.`}
+        icon={<Users className="h-5 w-5" strokeWidth={1.8} />}
+      />
 
       <GroupsDashboard
         academyId={academy.id}

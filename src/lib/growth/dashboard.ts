@@ -68,6 +68,8 @@ export interface GrowthDashboardData {
     intentToContactRate: number | null;
     trialToPaidRate: number | null;
     checkoutToPaidRate: number | null;
+    activatedAcademies: number;
+    averageTimeToValueHours: number | null;
   };
   interviews: CommercialInterviewRow[];
   leads: CommercialLeadRow[];
@@ -79,7 +81,7 @@ export function getSafeRate(numerator: number, denominator: number): number | nu
 }
 
 export async function getGrowthDashboardData(): Promise<GrowthDashboardData> {
-  const [interviewRows, leadRows, leadCountRows, eventRows, trialRows, paidRows] = await Promise.all([
+  const [interviewRows, leadRows, leadCountRows, eventRows, activationRows, trialRows, paidRows] = await Promise.all([
     db.select().from(commercialInterviews).orderBy(desc(commercialInterviews.createdAt)),
     db
       .select({
@@ -103,6 +105,19 @@ export async function getGrowthDashboardData(): Promise<GrowthDashboardData> {
       })
       .from(growthEvents)
       .groupBy(growthEvents.eventName),
+    db
+      .select({
+        academyId: growthEvents.academyId,
+        eventName: growthEvents.eventName,
+        occurredAt: growthEvents.occurredAt,
+      })
+      .from(growthEvents)
+      .where(
+        and(
+          isNotNull(growthEvents.academyId),
+          inArray(growthEvents.eventName, ["academy_created", "academy_activated"]),
+        ),
+      ),
     db
       .select({ status: academyTrials.status, total: count(academyTrials.id) })
       .from(academyTrials)
@@ -134,6 +149,18 @@ export async function getGrowthDashboardData(): Promise<GrowthDashboardData> {
   const trialsStarted = [...trialMap.values()].reduce((sum, total) => sum + total, 0);
   const trialsConverted = trialMap.get("converted") ?? 0;
   const paidSubscriptions = Number(paidRows[0]?.total ?? 0);
+  const activatedAcademies = Number(eventMap.get("academy_activated")?.academies ?? 0);
+  const activationByAcademy = new Map<string, { createdAt?: Date; activatedAt?: Date }>();
+  for (const row of activationRows) {
+    if (!row.academyId) continue;
+    const entry = activationByAcademy.get(row.academyId) ?? {};
+    if (row.eventName === "academy_created") entry.createdAt = row.occurredAt;
+    if (row.eventName === "academy_activated") entry.activatedAt = row.occurredAt;
+    activationByAcademy.set(row.academyId, entry);
+  }
+  const timeToValueHours = [...activationByAcademy.values()]
+    .filter((entry): entry is { createdAt: Date; activatedAt: Date } => Boolean(entry.createdAt && entry.activatedAt && entry.activatedAt >= entry.createdAt))
+    .map((entry) => (entry.activatedAt.getTime() - entry.createdAt.getTime()) / 3_600_000);
 
   return {
     metrics: {
@@ -161,6 +188,11 @@ export async function getGrowthDashboardData(): Promise<GrowthDashboardData> {
       intentToContactRate: getSafeRate(contactSubmitters, planSelectors),
       trialToPaidRate: getSafeRate(trialsConverted, trialsStarted),
       checkoutToPaidRate: getSafeRate(paidSubscriptions, checkoutAcademies),
+      activatedAcademies,
+      averageTimeToValueHours:
+        timeToValueHours.length > 0
+          ? Math.round((timeToValueHours.reduce((sum, value) => sum + value, 0) / timeToValueHours.length) * 10) / 10
+          : null,
     },
     interviews: interviewRows.map((row) => ({
       id: row.id,

@@ -18,7 +18,6 @@ const criticalAcademyPaths = [
   "billing",
   "settings",
   "assessments",
-  "evaluations",
   "messages",
   "events",
 ];
@@ -35,13 +34,25 @@ async function gotoAcademy(page: Page, path: string) {
     await page.goto(targetPath, { waitUntil: "domcontentloaded", timeout: 120_000 });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    if (!/ERR_EMPTY_RESPONSE|ERR_ABORTED|ERR_CONNECTION_RESET|ERR_NETWORK_IO_SUSPENDED|Timeout/.test(message)) {
+    if (
+      !/ERR_EMPTY_RESPONSE|ERR_ABORTED|ERR_CONNECTION_RESET|ERR_NETWORK_IO_SUSPENDED|Timeout|interrupted by another navigation/.test(
+        message,
+      )
+    ) {
       throw error;
     }
 
     await page.waitForTimeout(1_000);
-    await page.goto(targetPath, { waitUntil: "domcontentloaded", timeout: 120_000 });
+    const currentPath = new URL(page.url()).pathname;
+    if (currentPath !== targetPath) {
+      await page.goto(targetPath, { waitUntil: "domcontentloaded", timeout: 120_000 });
+    }
   }
+  await expect(page, "The saved E2E session must still authenticate academy routes.").not.toHaveURL(
+    /\/auth\/login/,
+  );
+  await page.waitForLoadState("load", { timeout: 60_000 }).catch(() => undefined);
+  await expect(page.locator("#main-content")).toBeVisible({ timeout: 60_000 });
   await expectNoRouteError(page);
 }
 
@@ -53,30 +64,53 @@ test.describe("Zaltyko full academy flows", () => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await gotoAcademy(page, "dashboard");
 
-    const academyNavigation = page.getByRole("navigation").filter({ hasText: "Academia" }).first();
-    for (const label of [
-      "Dashboard",
-      "Entrenadores",
-      "Grupos",
-      "Entrenamientos",
-      "Eventos",
-      "Cobros",
-      "Evaluaciones",
-      "Mensajes",
-      "Ajustes",
+    const academyNavigation = page.getByRole("complementary").getByRole("navigation");
+    for (const path of [
+      "dashboard",
+      "coaches",
+      "groups",
+      "classes",
+      "events",
+      "billing",
+      "assessments",
+      "messages",
+      "settings",
     ]) {
-      await expect(academyNavigation).toContainText(label);
+      await expect(academyNavigation.locator(`a[href="${academyPath(path)}"]`)).toBeVisible();
     }
-    await expect(academyNavigation).toContainText(/Atletas|Gimnastas/);
+    await expect(academyNavigation.locator(`a[href="${academyPath("athletes")}"]`)).toContainText(
+      /Atletas|Gimnastas/,
+    );
   });
 
   for (const path of criticalAcademyPaths) {
     test(`critical academy page renders without route-level errors: ${path}`, async ({ page }) => {
       test.setTimeout(180_000);
       await gotoAcademy(page, path);
-      await expect(page.locator("#main-content")).toBeVisible();
     });
   }
+
+  test("legacy evaluations route redirects to assessments without route-level errors", async ({ page }) => {
+    test.setTimeout(180_000);
+
+    try {
+      await page.goto(academyPath("evaluations"), {
+        waitUntil: "domcontentloaded",
+        timeout: 120_000,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (!/interrupted by another navigation|ERR_ABORTED|NS_BINDING_ABORTED/.test(message)) {
+        throw error;
+      }
+    }
+
+    await expect(page).toHaveURL(new RegExp(`/app/${academyId}/assessments(?:\\?.*)?$`), {
+      timeout: 120_000,
+    });
+    await expect(page.locator("#main-content")).toBeVisible({ timeout: 60_000 });
+    await expectNoRouteError(page);
+  });
 
   test("responsive shell works at Sprint 3 audit breakpoints", async ({ page }) => {
     test.setTimeout(180_000);
@@ -115,19 +149,25 @@ test.describe("Zaltyko full academy flows", () => {
   });
 
   test("athletes list and first detail page are stable when data exists", async ({ page }) => {
+    test.setTimeout(180_000);
     await gotoAcademy(page, "athletes");
 
-    const firstAthleteLink = page.locator(`a[href^="/app/${academyId}/athletes/"]:not([href$="/new"])`).first();
-    const athleteCount = await firstAthleteLink.count();
+    const athleteLinks = page.locator(
+      `a[href^="/app/${academyId}/athletes/"]:not([href$="/new"])`,
+    );
+    await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => undefined);
+    await athleteLinks.first().waitFor({ state: "attached", timeout: 60_000 }).catch(() => undefined);
+    const athleteCount = await athleteLinks.count();
     test.skip(athleteCount === 0, "No athletes found in the configured academy.");
+
+    const firstAthleteLink = athleteLinks.filter({ visible: true }).first();
 
     const href = await firstAthleteLink.getAttribute("href");
     test.skip(!href, "First athlete link does not expose a navigable href.");
 
-    await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => undefined);
-    await expect(firstAthleteLink).toBeVisible();
+    await expect(firstAthleteLink).toBeVisible({ timeout: 30_000 });
     await firstAthleteLink.click();
-    await page.waitForURL(new RegExp(`/app/${academyId}/athletes/[^/]+$`), { timeout: 30_000 });
+    await page.waitForURL(new RegExp(`/app/${academyId}/athletes/[^/]+$`), { timeout: 90_000 });
     await expect(page).toHaveURL(new RegExp(`/app/${academyId}/athletes/[^/]+$`));
     await expectNoRouteError(page);
   });

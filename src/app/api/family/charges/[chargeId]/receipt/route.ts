@@ -10,6 +10,8 @@ import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
+/** @resource-scope guardian — receipt charge must belong to a linked child. */
+
 /**
  * GET /api/family/charges/[chargeId]/receipt
  *

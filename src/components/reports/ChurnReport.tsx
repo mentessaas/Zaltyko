@@ -195,13 +195,13 @@ export function ChurnReport({ academyId, academyCountry }: ChurnReportProps) {
       "dissatisfaction": "bg-orange-100 text-orange-800",
       "injury": "bg-yellow-100 text-yellow-800",
       "schedule": "bg-red-100 text-red-800",
-      "other": "bg-gray-100 text-gray-800",
+      "other": "bg-muted text-muted-foreground",
       "payment_failed": "bg-red-100 text-red-800",
       "archived": "bg-slate-100 text-slate-800",
       "deleted": "bg-slate-100 text-slate-800",
-      "unregistered": "bg-gray-100 text-gray-800",
+      "unregistered": "bg-muted text-muted-foreground",
     };
-    return colors[reason] || "bg-gray-100";
+    return colors[reason] || "bg-muted";
   };
 
   const renderChurnReasons = () => {

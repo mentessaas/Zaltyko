@@ -144,7 +144,7 @@ export function EmptyState({
     <div
       className={`flex flex-col items-center justify-center p-8 text-center ${className}`}
     >
-      <div className="bg-gray-100 dark:bg-gray-800 p-4 rounded-full mb-4">
+      <div className="bg-muted p-4 rounded-full mb-4">
         <AlertCircle className="w-8 h-8 text-gray-400" />
       </div>
       <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">

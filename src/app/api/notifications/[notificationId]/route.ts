@@ -2,6 +2,8 @@ import { apiSuccess, apiError } from "@/lib/api-response";
 import { withTenant } from "@/lib/authz";
 import { deleteNotification } from "@/lib/notifications/notification-service";
 
+/** @resource-scope self — service filters by tenant and current profile id. */
+
 export const DELETE = withTenant(async (_request, context) => {
   if (!context.tenantId) {
     return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);

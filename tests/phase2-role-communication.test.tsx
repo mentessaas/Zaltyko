@@ -28,11 +28,15 @@ describe("Phase 2 role and internal communication contracts", () => {
     expect(serverPage).toContain("eq(athletes.tenantId, academy.tenantId)");
     expect(serverPage).toContain("eq(athletes.academyId, academyId)");
     expect(serverPage).toContain("eq(charges.tenantId, academy.tenantId)");
+    expect(serverPage).toContain("canAccessFamilyFinancialData(profile.role) && targetAthleteId");
     expect(serverPage).toContain("eq(athleteAssessments.academyId, academyId)");
     expect(clientPage).not.toContain("`/app/${academyId}/billing`");
     expect(clientPage).not.toContain("`/app/${academyId}/attendance`");
     expect(clientPage).not.toContain("`/app/${academyId}/assessments`");
     expect(clientPage).not.toContain("wa.me");
+    expect(clientPage).toContain("const canViewPayments = isParent");
+    expect(clientPage).toContain("Próximas clases");
+    expect(clientPage).toContain("attendanceRate === null");
   });
 
   it("exposes the three coach actions from today's class", () => {

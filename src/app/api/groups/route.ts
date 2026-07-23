@@ -337,8 +337,8 @@ const createGroupHandler = withTenant(async (request, context) => {
 
 // Rate-limited POST handler: 10 requests per minute for group creation
 export const POST = withRateLimit(
-  async (request) => {
-    return (await createGroupHandler(request, {} as any)) as NextResponse;
+  async (request, context) => {
+    return (await createGroupHandler(request, context)) as NextResponse;
   },
   { identifier: getUserIdentifier, limit: 10, window: 60 }
 );

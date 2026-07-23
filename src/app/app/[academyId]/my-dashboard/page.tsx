@@ -7,6 +7,7 @@ import { db } from "@/db";
 import { academies, memberships, profiles, athletes, guardians, guardianAthletes, groups, classes, classSessions, classEnrollments, attendanceRecords, charges, groupAthletes, coaches, billingItems, athleteAssessments } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
 import { getDevSessionFromCookieStore } from "@/lib/dev-session";
+import { canAccessFamilyFinancialData } from "@/lib/family/access-policy";
 import { MyDashboardPage } from "./MyDashboardPage";
 
 interface PageProps {
@@ -503,7 +504,7 @@ export default async function MyDashboard({ params, searchParams }: PageProps) {
   // Obtener datos de pagos/charges
   let chargesData: ChargeData[] = [];
 
-  if (targetAthleteId) {
+  if (canAccessFamilyFinancialData(profile.role) && targetAthleteId) {
     const chargesList = await db
       .select({
         id: charges.id,

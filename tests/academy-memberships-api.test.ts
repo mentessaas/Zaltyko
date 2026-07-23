@@ -20,6 +20,7 @@ const dbMock = vi.hoisted(() => ({
 }));
 
 const verifyAcademyAccessMock = vi.hoisted(() => vi.fn());
+const hasPermissionMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/db", () => ({
   db: dbMock,
@@ -37,6 +38,10 @@ vi.mock("@/lib/authz", () => ({
 
 vi.mock("@/lib/permissions", () => ({
   verifyAcademyAccess: verifyAcademyAccessMock,
+}));
+
+vi.mock("@/lib/authz/permissions-service", () => ({
+  hasPermission: hasPermissionMock,
 }));
 
 import { DELETE } from "@/app/api/academy-memberships/[membershipId]/route";
@@ -85,6 +90,7 @@ describe("academy memberships API", () => {
       canLogin: true,
     };
     verifyAcademyAccessMock.mockResolvedValue({ allowed: true });
+    hasPermissionMock.mockResolvedValue(true);
   });
 
   it("deletes only the academy membership and keeps the global profile", async () => {
@@ -166,6 +172,36 @@ describe("academy memberships API", () => {
       ok: false,
       error: "LAST_OWNER_REQUIRED",
     });
+    expect(dbMock.delete).not.toHaveBeenCalled();
+  });
+
+  it("denies unlinking a membership from an academy the caller cannot manage", async () => {
+    const foreignMembership = {
+      id: "55555555-5555-4555-8555-555555555555",
+      userId: "66666666-6666-4666-8666-666666666666",
+      academyId: "99999999-9999-4999-8999-999999999999",
+      role: "viewer",
+      profileId: "77777777-7777-4777-8777-777777777777",
+      profileTenantId: "88888888-8888-4888-8888-888888888888",
+      activeAcademyId: null,
+      academyName: "Academia ajena",
+    };
+    dbMock.select.mockImplementationOnce(() => createSelectQuery([foreignMembership]));
+    hasPermissionMock.mockResolvedValue(false);
+
+    const response = await DELETE(
+      new Request("http://localhost/api/academy-memberships/55555555-5555-4555-8555-555555555555", {
+        method: "DELETE",
+      }),
+      { params: { membershipId: "55555555-5555-4555-8555-555555555555" } }
+    );
+
+    expect(response.status).toBe(403);
+    expect(hasPermissionMock).toHaveBeenCalledWith(
+      tenantContext.userId,
+      foreignMembership.academyId,
+      "settings:users"
+    );
     expect(dbMock.delete).not.toHaveBeenCalled();
   });
 });

@@ -171,7 +171,7 @@ describe("L2 — copy pública presente en componentes", () => {
     expect(comparison).toContain("Pase de lista por sesión");
     expect(comparison).toContain("Evaluaciones con rúbrica");
     expect(comparison).toContain("7 días de Starter sin tarjeta");
-    expect(comparison).toContain("Migración desde Excel incluida");
+    expect(comparison).toContain("Importación base desde Excel");
   });
 
   it("FaqSection contiene respuesta RGPD sobre menores", () => {

@@ -68,11 +68,17 @@ describe("product roles and navigation", () => {
       profileRole: "coach",
       membershipRole: "coach",
     }).map((item) => item.key);
+    const coachNav = getAcademyNavigation({
+      academyId: "academy-1",
+      profileRole: "coach",
+      membershipRole: "coach",
+    });
 
     expect(ownerNav).toContain("/app/academy-1/billing");
     expect(ownerNav).toContain("/app/academy-1/settings");
     expect(coachMobileNav).not.toContain("reports");
     expect(coachMobileNav).not.toContain("billing");
+    expect(coachNav.find((item) => item.key === "dashboard")?.href).toBe("/app/academy-1/coach");
   });
 
   it("builds limited academy navigation for parent roles", () => {
@@ -118,7 +124,7 @@ describe("product roles and navigation", () => {
         membershipRole: "coach",
         academyId: "academy-1",
       })
-    ).toBe("/app/academy-1/dashboard");
+    ).toBe("/app/academy-1/coach");
 
     expect(
       getPreferredHomePath({

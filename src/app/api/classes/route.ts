@@ -278,8 +278,8 @@ const createClassHandler = withTenant(async (request, context) => {
 });
 
 export const POST = withRateLimit(
-  async (request) => {
-    return (await createClassHandler(request, {} as any)) as NextResponse;
+  async (request, context) => {
+    return (await createClassHandler(request, context)) as NextResponse;
   },
   { identifier: getUserIdentifier, limit: 10, window: 60 }
 );

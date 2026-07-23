@@ -49,6 +49,21 @@ describe("tenant resolver", () => {
     await expect(getTenantId("user-admin", "academy-b")).resolves.toBeNull();
   });
 
+  it("does not grant an academy owner access to a different academy", async () => {
+    mocks.getCurrentProfile.mockResolvedValue({
+      id: "profile-owner-a",
+      userId: "user-owner-a",
+      role: "owner",
+      tenantId: "tenant-a",
+    });
+    mocks.results = [
+      [{ tenantId: "tenant-b", ownerId: "profile-owner-b" }],
+      [],
+    ];
+
+    await expect(getTenantId("user-owner-a", "academy-b")).resolves.toBeNull();
+  });
+
   it("resolves the academy tenant for a valid membership", async () => {
     mocks.getCurrentProfile.mockResolvedValue({
       id: "profile-coach",

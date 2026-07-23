@@ -61,8 +61,8 @@ export function WhatsAppSender({ academyId, defaultRecipient, onMessageSent }: W
     async function loadData() {
       try {
         const [templatesRes, groupsRes] = await Promise.all([
-          fetch(`/api/communication/templates?channel=whatsapp`),
-          fetch(`/api/communication/groups`),
+          fetch(`/api/communication/templates?academyId=${encodeURIComponent(academyId)}&channel=whatsapp`),
+          fetch(`/api/communication/groups?academyId=${encodeURIComponent(academyId)}`),
         ]);
 
         if (templatesRes.ok) {

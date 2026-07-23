@@ -254,8 +254,8 @@ const patchGroupHandler = withTenant(async (request, context: RouteContext) => {
 
 // Rate-limited PATCH handler: 30 requests per minute
 export const PATCH = withRateLimit(
-  async (request) => {
-    return (await patchGroupHandler(request, {} as any)) as NextResponse;
+  async (request, context) => {
+    return (await patchGroupHandler(request, context)) as NextResponse;
   },
   { identifier: getUserIdentifier, limit: 30, window: 60 }
 );
@@ -308,8 +308,8 @@ const deleteGroupHandler = withTenant(async (request, context: RouteContext) => 
 
 // Rate-limited DELETE handler: 5 requests per minute
 export const DELETE = withRateLimit(
-  async (request) => {
-    return (await deleteGroupHandler(request, {} as any)) as NextResponse;
+  async (request, context) => {
+    return (await deleteGroupHandler(request, context)) as NextResponse;
   },
   { identifier: getUserIdentifier, limit: 5, window: 60 }
 );

@@ -48,7 +48,7 @@ Luego configurar `E2E_ACADEMY_ID` y `E2E_STORAGE_STATE`. El aprovisionamiento re
 | `pnpm lint` | ESLint | Pasa |
 | `pnpm exec vitest run` | 91 archivos / 643 tests | 643 pasan |
 | `pnpm build` | Build de producción | Pasa, 219 páginas |
-| `pnpm audit:api-routes:strict` | Cobertura auth API | Pasa, 292 rutas |
+| `pnpm audit:api-routes:strict` | Cobertura auth API | Pasa, 294 rutas; `risky=[]`, `semanticRisks=[]` |
 | `pnpm validate:rls` | Declaración RLS | Pasa, 69/69; no valida semántica de rol |
 | `pnpm check:migrations` | Integridad del ledger | Pasa, 6 + 38 |
 | `pnpm audit --prod --json` | Advisories | No concluyente: endpoint legacy devuelve HTTP 410 |

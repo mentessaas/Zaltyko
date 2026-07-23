@@ -55,11 +55,55 @@ describe("Phase 1 production contracts", () => {
 
   it("maps protected academy modules to explicit capabilities", () => {
     expect(getRequiredRoutePermission("/api/athletes/abc", "PATCH")).toBe("athletes:update");
+    expect(getRequiredRoutePermission("/api/classes/abc", "DELETE")).toBe("classes:delete");
+    expect(getRequiredRoutePermission("/api/class-sessions/session-1", "POST")).toBe(
+      "classes:schedule"
+    );
+    expect(getRequiredRoutePermission("/api/attendance", "POST")).toBe("classes:schedule");
+    expect(getRequiredRoutePermission("/api/assessments/athlete-1", "POST")).toBe(
+      "athletes:update"
+    );
+    expect(getRequiredRoutePermission("/api/groups/group-1", "PATCH")).toBe(
+      "classes:update"
+    );
+    expect(getRequiredRoutePermission("/api/messages/conversations", "GET")).toBe(
+      "communications:read"
+    );
     expect(getRequiredRoutePermission("/api/classes/abc/generate-sessions", "POST")).toBe(
       "classes:schedule"
     );
     expect(getRequiredRoutePermission("/api/billing/checkout", "POST")).toBe("billing:update");
+    expect(getRequiredRoutePermission("/api/invitations", "POST")).toBe("settings:users");
+    expect(getRequiredRoutePermission("/api/academy-memberships/member-1", "DELETE")).toBe(
+      "settings:users"
+    );
+    expect(getRequiredRoutePermission("/api/charges/charge-1/refund", "POST")).toBe(
+      "billing:payments"
+    );
+    expect(getRequiredRoutePermission("/api/guardians", "POST")).toBe("athletes:create");
+    expect(
+      getRequiredRoutePermission(
+        "/api/academies/academy-1/settings",
+        "PATCH"
+      )
+    ).toBe("settings:write");
+    expect(
+      getRequiredRoutePermission(
+        "/api/academies/academy-1/roles/role-1/members",
+        "POST"
+      )
+    ).toBe("settings:users");
     expect(getRequiredRoutePermission("/api/public/events", "GET")).toBeNull();
+    expect(getRequiredRoutePermission("/api/assessments/videos", "DELETE")).toBe(
+      "athletes:update"
+    );
+    expect(getRequiredRoutePermission("/api/messages/conversations/id", "DELETE")).toBe(
+      "communications:send"
+    );
+    expect(getRequiredRoutePermission("/api/reports/scheduled/id", "PATCH")).toBe(
+      "reports:create"
+    );
+    expect(getRequiredRoutePermission("/api/academies", "POST")).toBeNull();
   });
 
   it("deduplicates active webhook leases and retries errors or stale leases", () => {

@@ -62,6 +62,20 @@ describe("middleware", () => {
     expect(academyResponse.headers.get("x-middleware-next")).toBe("1");
   });
 
+  it.each(["/ayuda", "/sobre-nosotros"])(
+    "keeps the canonical public route %s unlocalized",
+    async (pathname) => {
+      const response = await middleware(
+        new NextRequest(`https://zaltyko.test${pathname}`, {
+          headers: { "accept-language": "en-US" },
+        })
+      );
+
+      expect(response.headers.get("location")).toBeNull();
+      expect(response.headers.get("x-middleware-next")).toBe("1");
+    }
+  );
+
   it("keeps SEO cluster routes localized", async () => {
     const response = await middleware(
       new NextRequest("https://zaltyko.test/gimnasia-artistica/espana", {

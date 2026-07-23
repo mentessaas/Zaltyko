@@ -17,7 +17,7 @@ export const PATCH = withTenant(async () => {
     return apiError("FEATURE_DISABLED", "Reportes programados no disponibles en esta versión", 404);
   }
 
-  return apiError("NOT_IMPLEMENTED", "Not implemented", 501);
+  return apiError("FEATURE_DISABLED", "La edición de reportes programados requiere habilitación del producto", 404);
 });
 
 export const DELETE = withTenant(async () => {
@@ -25,5 +25,5 @@ export const DELETE = withTenant(async () => {
     return apiError("FEATURE_DISABLED", "Reportes programados no disponibles en esta versión", 404);
   }
 
-  return apiError("NOT_IMPLEMENTED", "Not implemented", 501);
+  return apiError("FEATURE_DISABLED", "La eliminación de reportes programados requiere habilitación del producto", 404);
 });

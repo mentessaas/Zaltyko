@@ -214,7 +214,7 @@ export default function MyEventsPage() {
                   : formatDate(registration.eventStartDate);
 
                 return (
-                  <Card key={registration.id} className="hover:shadow-lg transition-shadow">
+                  <Card key={registration.id} className="card-hover">
                     <CardHeader>
                       <div className="flex items-start justify-between gap-2">
                         <CardTitle className="text-lg leading-tight">

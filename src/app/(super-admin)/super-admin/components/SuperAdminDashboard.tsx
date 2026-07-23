@@ -51,6 +51,7 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { PAGE_SIZES } from "@/lib/constants";
+import { getRoleLabel } from "@/lib/product/roles";
 
 const CHART_COLORS = ["#1FC7B6", "#2B2E83", "#CBD5E1", "#FF6B57", "#0F172A", "#5CE0D4", "#818CF8"];
 
@@ -88,9 +89,6 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
   const { metrics, loading, refresh } = useSuperAdminData(initialMetrics);
   const safeMetrics = useMemo(() => normalizeSuperAdminMetrics(metrics), [metrics]);
 
-  // Time range filter
-  const [timeRange, setTimeRange] = useState<"7d" | "30d" | "90d" | "all">("30d");
-
   // Drill-down state for charts
   const [selectedChart, setSelectedChart] = useState<string | null>(null);
   const [drillDownData, setDrillDownData] = useState<{ title: string; items: { name: string; value: number; color: string }[] } | null>(null);
@@ -100,8 +98,6 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
   const ITEMS_PER_PAGE = PAGE_SIZES.TABLE_SMALL;
 
   // Academy comparison state
-  const [showComparison, setShowComparison] = useState(false);
-
   // Calculate pagination
   const totalPages = Math.ceil(initialEvents.length / ITEMS_PER_PAGE);
   const paginatedEvents = initialEvents.slice(
@@ -133,7 +129,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
 
   const metricTrends = useMemo(() => {
     const calculateTrend = (current: number, previous: number | undefined) => {
-      if (!previous || previous === 0) return { value: 0, direction: "up" as const };
+      if (previous === undefined || previous === 0) return undefined;
       const change = Math.round(((current - previous) / previous) * 100);
       return {
         value: Math.abs(change),
@@ -148,22 +144,14 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
   }, [safeMetrics.totals]);
 
   const pieChartData = useMemo(() => {
-    if (safeMetrics.usersByRole.length === 0) {
-      return [
-        { name: "Sin datos", value: 1, color: "#374151" }
-      ];
-    }
     return safeMetrics.usersByRole.map((role, idx) => ({
-      name: role.role ?? "Sin rol",
+      name: role.role ? getRoleLabel(role.role) : "Sin rol",
       value: role.total,
       color: CHART_COLORS[idx % CHART_COLORS.length],
     }));
   }, [safeMetrics.usersByRole]);
 
   const planPieData = useMemo(() => {
-    if (safeMetrics.planDistribution.length === 0) {
-      return [{ name: "Sin datos", value: 1, color: "#374151" }];
-    }
     return safeMetrics.planDistribution.map((plan, idx) => ({
       name: plan.code,
       value: plan.total,
@@ -180,6 +168,11 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
             status.status === "canceled" ? "#EF4444" : "#6B7280",
     }));
   }, [safeMetrics.planStatuses]);
+
+  const academyDelta = useMemo(() => {
+    if (chartDataset.length < 2) return null;
+    return chartDataset[chartDataset.length - 1].total - chartDataset[0].total;
+  }, [chartDataset]);
 
   const cards = useMemo(
     () => [
@@ -270,7 +263,7 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
   );
 
   return (
-    <div className="w-full space-y-6 sm:space-y-8">
+    <div className="mx-auto w-full max-w-[1600px] space-y-6 sm:space-y-8">
       {/* Hero Header */}
       <section className="relative overflow-hidden rounded-card border border-white/10 bg-zaltyko-navy p-6 sm:p-8">
         <div className="absolute inset-0 zaltyko-motion-lines opacity-60" />
@@ -289,22 +282,9 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
             </p>
           </div>
           <div className="flex items-center gap-3">
-            {/* Time Range Selector */}
-            <div className="flex items-center rounded-xl border border-white/20 bg-white/5 p-1">
-              {(["7d", "30d", "90d", "all"] as const).map((range) => (
-                <button
-                  key={range}
-                  onClick={() => setTimeRange(range)}
-                  className={cn(
-                    "rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
-                    timeRange === range
-                      ? "bg-white/20 text-white"
-                      : "text-white/60 hover:text-white"
-                  )}
-                >
-                  {range === "all" ? "Todo" : range}
-                </button>
-              ))}
+            <div className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-xs font-medium text-white/70">
+              <Clock className="h-3.5 w-3.5 text-zaltyko-teal" strokeWidth={1.8} />
+              Datos actuales
             </div>
             <Button
               onClick={refresh}
@@ -320,8 +300,22 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
 
       {/* Stats Cards with Trends */}
       <section className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 xl:grid-cols-5">
-        {cards.map((card) => (
+        {cards.slice(0, 5).map((card) => (
           <DashboardCard key={card.title} {...card} />
+        ))}
+      </section>
+
+      <section className="grid w-full grid-cols-2 gap-3 rounded-[22px] border border-slate-200/80 bg-white p-4 shadow-[0_18px_50px_-32px_rgba(15,23,42,0.45)] sm:grid-cols-3 lg:grid-cols-5">
+        {cards.slice(5).map((card) => (
+          <Link
+            key={card.title}
+            href={card.href}
+            className="group rounded-2xl border border-slate-100 bg-slate-50/70 px-3 py-3 transition hover:border-zaltyko-teal/30 hover:bg-white"
+          >
+            <p className="truncate text-[11px] font-bold uppercase tracking-[0.08em] text-slate-400">{card.title}</p>
+            <p className="mt-1 font-display text-xl font-bold tracking-[-0.03em] text-slate-950">{card.value}</p>
+            <p className="mt-1 truncate text-xs text-slate-500">{card.subtitle}</p>
+          </Link>
         ))}
       </section>
 
@@ -387,11 +381,17 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
         {/* Users by Role - Pie Chart */}
         <button
           type="button"
+          disabled={pieChartData.length === 0}
+          aria-label={pieChartData.length === 0 ? "Usuarios por rol: sin datos" : "Abrir desglose de usuarios por rol"}
           onClick={() => {
+            if (pieChartData.length === 0) return;
             setDrillDownData({ title: "Usuarios por Rol", items: pieChartData });
             setSelectedChart("usersByRole");
           }}
-          className="group relative w-full overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-6 text-left hover:border-white/30 transition-colors"
+          className={cn(
+            "group relative w-full overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-6 text-left transition-colors",
+            pieChartData.length > 0 ? "hover:border-white/30" : "cursor-default"
+          )}
         >
 
           <header className="relative flex items-center justify-between mb-6">
@@ -401,7 +401,9 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
               </h3>
               <p className="text-xs text-white/50 mt-1">Total: {safeMetrics.totals.users}</p>
             </div>
-            <span className="text-xs text-white/40">Click para ver detalles</span>
+            <span className="text-xs text-white/40">
+              {pieChartData.length > 0 ? "Abrir desglose" : "Sin desglose disponible"}
+            </span>
           </header>
 
           <div className="relative flex items-center justify-center">
@@ -439,25 +441,33 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
             )}
 
             {/* Legend */}
-            <div className="absolute bottom-0 left-0 right-0 flex flex-wrap justify-center gap-3 text-xs">
-              {pieChartData.slice(0, 5).map((entry, idx) => (
-                <div key={entry.name} className="flex items-center gap-1.5">
-                  <div className="h-2 w-2 rounded-full" style={{ backgroundColor: entry.color }} />
-                  <span className="text-white/70 capitalize">{entry.name}</span>
-                </div>
-              ))}
-            </div>
+            {pieChartData.length > 0 && (
+              <div className="absolute bottom-0 left-0 right-0 flex flex-wrap justify-center gap-3 text-xs">
+                {pieChartData.slice(0, 5).map((entry) => (
+                  <div key={entry.name} className="flex items-center gap-1.5">
+                    <div className="h-2 w-2 rounded-full" style={{ backgroundColor: entry.color }} />
+                    <span className="text-white/70 capitalize">{entry.name}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </button>
 
         {/* Plans Distribution - Pie Chart */}
         <button
           type="button"
+          disabled={planPieData.length === 0}
+          aria-label={planPieData.length === 0 ? "Planes activos: sin datos" : "Abrir desglose de planes activos"}
           onClick={() => {
+            if (planPieData.length === 0) return;
             setDrillDownData({ title: "Planes Activos", items: planPieData });
             setSelectedChart("planDistribution");
           }}
-          className="group relative w-full overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-6 text-left hover:border-white/30 transition-colors"
+          className={cn(
+            "group relative w-full overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-6 text-left transition-colors",
+            planPieData.length > 0 ? "hover:border-white/30" : "cursor-default"
+          )}
         >
 
           <header className="relative flex items-center justify-between mb-6">
@@ -467,7 +477,9 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
               </h3>
               <p className="text-xs text-white/50 mt-1">{safeMetrics.planDistribution.length} tipos de plan</p>
             </div>
-            <span className="text-xs text-white/40">Click para ver detalles</span>
+            <span className="text-xs text-white/40">
+              {planPieData.length > 0 ? "Abrir desglose" : "Sin desglose disponible"}
+            </span>
           </header>
 
           <div className="relative flex items-center justify-center">
@@ -504,14 +516,16 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
               </ResponsiveContainer>
             )}
 
-            <div className="absolute bottom-0 left-0 right-0 flex flex-wrap justify-center gap-3 text-xs">
-              {planPieData.slice(0, 5).map((entry) => (
-                <div key={entry.name} className="flex items-center gap-1.5">
-                  <div className="h-2 w-2 rounded-full" style={{ backgroundColor: entry.color }} />
-                  <span className="text-white/70">{entry.name}</span>
-                </div>
-              ))}
-            </div>
+            {planPieData.length > 0 && (
+              <div className="absolute bottom-0 left-0 right-0 flex flex-wrap justify-center gap-3 text-xs">
+                {planPieData.slice(0, 5).map((entry) => (
+                  <div key={entry.name} className="flex items-center gap-1.5">
+                    <div className="h-2 w-2 rounded-full" style={{ backgroundColor: entry.color }} />
+                    <span className="text-white/70">{entry.name}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </button>
       </section>
@@ -519,11 +533,17 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
       {/* Subscription Status - Bar Chart */}
       <button
         type="button"
+        disabled={subscriptionBarData.length === 0}
+        aria-label={subscriptionBarData.length === 0 ? "Estado de suscripciones: sin datos" : "Abrir desglose del estado de suscripciones"}
         onClick={() => {
+          if (subscriptionBarData.length === 0) return;
           setDrillDownData({ title: "Estado de Suscripciones", items: subscriptionBarData.map((s) => ({ name: s.name, value: s.total, color: s.fill })) });
           setSelectedChart("subscriptionStatus");
         }}
-        className="group relative w-full overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-6 text-left hover:border-white/30 transition-colors"
+        className={cn(
+          "group relative w-full overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-6 text-left transition-colors",
+          subscriptionBarData.length > 0 ? "hover:border-white/30" : "cursor-default"
+        )}
       >
 
         <header className="relative mb-6 flex items-center justify-between">
@@ -535,7 +555,9 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
               Ingresos: {CURRENCY_FORMATTER.format(safeMetrics.totals.revenue / 100)} · {safeMetrics.totals.paidInvoices} recibos de suscripción cobrados
             </p>
           </div>
-          <span className="text-xs text-white/40">Click para ver detalles</span>
+          <span className="text-xs text-white/40">
+            {subscriptionBarData.length > 0 ? "Abrir desglose" : "Sin desglose disponible"}
+          </span>
         </header>
 
         {subscriptionBarData.length === 0 ? (
@@ -592,7 +614,13 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
           <div className="flex items-center gap-2 mt-2 sm:mt-0">
             <div className="flex items-center gap-1.5 rounded-full bg-zaltyko-teal/15 px-3 py-1.5">
               <TrendingUp className="h-3.5 w-3.5 text-zaltyko-teal" />
-              <span className="text-xs font-semibold text-zaltyko-teal">+{chartDataset[chartDataset.length - 1]?.total - chartDataset[0]?.total || 0}</span>
+              <span className="text-xs font-semibold text-zaltyko-teal">
+                {academyDelta === null
+                  ? "Sin variación"
+                  : academyDelta === 0
+                    ? "Sin variación"
+                    : `${academyDelta > 0 ? "+" : ""}${academyDelta}`}
+              </span>
             </div>
           </div>
         </header>
@@ -761,34 +789,6 @@ export function SuperAdminDashboard({ initialMetrics, initialEvents = [] }: Supe
           )}
         </section>
       )}
-
-      {/* Comparación entre academias */}
-      <section className="rounded-2xl border border-white/10 bg-white/5 p-6">
-        <div className="mb-4 flex items-center justify-between">
-          <div>
-            <h3 className="text-lg font-semibold text-white">Comparación de Academias</h3>
-            <p className="text-sm text-white/60">Disponible cuando exista un endpoint de métricas reales por academia</p>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowComparison(!showComparison)}
-            className="border-white/20 text-white hover:bg-white/10"
-          >
-            {showComparison ? "Ocultar" : "Mostrar"}
-          </Button>
-        </div>
-
-        {showComparison && (
-          <div className="rounded-xl border border-dashed border-white/20 bg-white/5 px-6 py-8 text-center">
-            <Info className="mx-auto mb-3 h-5 w-5 text-white/50" />
-            <p className="text-sm font-medium text-white/70">Comparativa desactivada para demo</p>
-            <p className="mx-auto mt-1 max-w-xl text-xs text-white/45">
-              Antes se calculaba con planes y promedios globales. Se deja como estado vacío hasta conectar métricas reales por academia.
-            </p>
-          </div>
-        )}
-      </section>
 
       {/* Drill-down Modal */}
       <Dialog open={!!selectedChart} onOpenChange={() => { setSelectedChart(null); setDrillDownData(null); }}>

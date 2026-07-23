@@ -31,7 +31,7 @@ const typeColors: Record<AssessmentType, string> = {
   artistic: "bg-purple-100 text-purple-800 border-purple-200",
   physical: "bg-green-100 text-green-800 border-green-200",
   behavioral: "bg-amber-100 text-amber-800 border-amber-200",
-  overall: "bg-gray-100 text-gray-800 border-gray-200",
+  overall: "bg-muted text-muted-foreground border-border",
 };
 
 export function AssessmentHistory({ assessments, athleteName, onSelectAssessment, onVideoClick }: AssessmentHistoryProps) {

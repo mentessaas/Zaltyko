@@ -150,7 +150,7 @@ export function DowngradeModal({
                             </div>
                         </div>
 
-                        <div className="p-4 rounded-lg border-2 border-gray-300 bg-gray-50">
+                        <div className="p-4 rounded-lg border-2 border-border surface-subtle">
                             <p className="text-xs text-zaltyko-text-light mb-2">Nuevo Plan</p>
                             <p className="text-lg font-bold mb-3">{targetLimits.name}</p>
                             <div className="space-y-1 text-sm">
@@ -178,7 +178,7 @@ export function DowngradeModal({
                     )}
 
                     {/* Info Box */}
-                    <div className="flex items-start gap-3 p-4 rounded-lg bg-gray-50 border border-gray-200">
+                    <div className="flex items-start gap-3 p-4 rounded-lg surface-subtle border border-border">
                         <Info className="w-5 h-5 text-gray-600 mt-0.5" />
                         <div className="flex-1">
                             <p className="text-sm text-gray-700">

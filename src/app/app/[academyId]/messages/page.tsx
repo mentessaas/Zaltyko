@@ -3,6 +3,7 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { and, eq } from "drizzle-orm";
+import { MessageSquare } from "lucide-react";
 
 import { MessagesPage as InternalMessagesPage } from "@/components/messages/MessagesPage";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,7 @@ import { db } from "@/db";
 import { academies, classSessions, classes, groups, memberships, profiles } from "@/db/schema";
 import { getDevSessionFromCookieStore } from "@/lib/dev-session";
 import { createClient } from "@/lib/supabase/server";
+import { PageHeader } from "@/components/ui/page-header";
 
 interface PageProps {
   params: Promise<{ academyId: string }>;
@@ -105,22 +107,25 @@ export default async function MessagesRoute({ params, searchParams }: PageProps)
     : [];
 
   return (
-    <div className="space-y-6 py-6 lg:py-8">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">Mensajes</h1>
-          <p className="text-sm text-muted-foreground">
-            Historial interno entre la academia, entrenadores y familias.
-          </p>
-        </div>
-        {canManageContactMessages ? (
-          <Button asChild variant="outline">
-            <Link href={`/app/${academyId}/contact-messages`}>Consultas del directorio</Link>
-          </Button>
-        ) : null}
-      </div>
+    <div className="mx-auto max-w-[1500px] space-y-6">
+      <PageHeader
+        breadcrumbs={[
+          { label: "Dashboard", href: `/app/${academyId}/dashboard` },
+          { label: "Mensajes" },
+        ]}
+        title="Mensajes"
+        description="Historial interno entre la academia, entrenadores y familias."
+        icon={<MessageSquare className="h-5 w-5" strokeWidth={1.8} />}
+        actions={
+          canManageContactMessages ? (
+            <Button asChild variant="outline">
+              <Link href={`/app/${academyId}/contact-messages`}>Consultas del directorio</Link>
+            </Button>
+          ) : null
+        }
+      />
 
-      <div className="min-h-[560px] overflow-hidden rounded-xl border bg-background">
+      <div className="min-h-[560px] overflow-hidden rounded-[24px] border border-slate-200/80 bg-white shadow-[0_18px_50px_-32px_rgba(15,23,42,0.45)]">
         <InternalMessagesPage
           academyId={academyId}
           currentUserId={profile.id}

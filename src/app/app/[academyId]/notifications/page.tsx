@@ -81,7 +81,7 @@ const getNotificationColor = (type: string) => {
   if (type.includes("message") || type.includes("contact")) return "bg-red-100 text-red-600";
   if (type.includes("attendance")) return "bg-yellow-100 text-yellow-600";
   if (type.includes("event")) return "bg-pink-100 text-pink-600";
-  return "bg-gray-100 text-gray-600";
+  return "bg-muted text-muted-foreground";
 };
 
 export default function NotificationsPage() {

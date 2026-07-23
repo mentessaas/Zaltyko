@@ -7,6 +7,7 @@ import { classes } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
 import { generateRecurringSessions } from "@/lib/sessions-generator";
 import { logger } from "@/lib/logger";
+import { authorizeClassResource } from "@/lib/authz/resource-scope";
 
 const bodySchema = z.object({
   classId: z.string().uuid(),
@@ -20,6 +21,12 @@ export const POST = withTenant(async (request, context) => {
   }
 
   const body = bodySchema.parse(await request.json());
+  const pathClassId = (context.params as { classId?: string } | undefined)?.classId;
+  if (!pathClassId || pathClassId !== body.classId) {
+    return apiError("CLASS_CONTEXT_CONFLICT", "Class context conflict", 403);
+  }
+  const scope = await authorizeClassResource({ context, classId: pathClassId });
+  if (!scope.allowed) return apiError("CLASS_NOT_FOUND", "Class not found", 404);
 
   // Validar que la clase existe y pertenece al tenant
   const [classRow] = await db
@@ -28,7 +35,11 @@ export const POST = withTenant(async (request, context) => {
       name: classes.name,
     })
     .from(classes)
-    .where(and(eq(classes.id, body.classId), eq(classes.tenantId, context.tenantId)))
+    .where(and(
+      eq(classes.id, body.classId),
+      eq(classes.tenantId, scope.resource!.tenantId),
+      eq(classes.academyId, scope.resource!.academyId)
+    ))
     .limit(1);
 
   if (!classRow) {
@@ -50,7 +61,7 @@ export const POST = withTenant(async (request, context) => {
   try {
     const result = await generateRecurringSessions({
       classId: body.classId,
-      tenantId: context.tenantId,
+      tenantId: scope.resource!.tenantId,
       startDate,
       endDate,
     });
@@ -80,4 +91,3 @@ export const POST = withTenant(async (request, context) => {
     return apiError("GENERATION_FAILED", "Error al generar sesiones", 500);
   }
 });
-

@@ -27,3 +27,26 @@ Asegurar que academias adopten Zaltyko, alcancen valor temprano y mantengan uso 
 - Dia 7: revisar valor logrado.
 - Dia 14: decision de plan o expansion.
 - Mensual: reporte de salud y oportunidades.
+
+## Criterio de cierre comercial
+
+Customer Success debe registrar si la academia completó el flujo core de atletas,
+grupos, asistencia, cobros y comunicación, además del uso por rol. La matriz de
+objeciones define la evidencia mínima antes de convertir una promesa en claim
+definitivo: [[../../docs/plans/2026-07-23-objection-closure-matrix]].
+
+## Contrato operativo de soporte
+
+Hasta que existan tiempos históricos suficientes, se comunica el canal y el
+alcance, no un SLA público cerrado:
+
+| Nivel | Compromiso operativo |
+| --- | --- |
+| Free | Centro de ayuda y consultas básicas por email. |
+| Starter | Ayuda por email para configuración y uso de módulos incluidos. |
+| Growth | Puesta en marcha priorizada, revisión de importación y acompañamiento operativo. |
+| Network | Diagnóstico multi-sede, migración acordada y seguimiento de implementación. |
+
+Cada ticket debe conservar categoría, prioridad, academia, responsable, estado,
+respuesta y resolución. Las prioridades urgentes requieren revisión del equipo;
+no se presentan como atención 24/7 sin cobertura y registros que lo demuestren.

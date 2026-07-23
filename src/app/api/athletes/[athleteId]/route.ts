@@ -159,8 +159,8 @@ const getAthleteHandler = withTenant(async (_request, context) => {
 });
 
 export const GET = withRateLimit(
-  async (request) => {
-    return (await getAthleteHandler(request, {} as any)) as NextResponse;
+  async (request, context) => {
+    return (await getAthleteHandler(request, context)) as NextResponse;
   },
   { identifier: getUserIdentifier, limit: 100, window: 60 }
 );
@@ -307,8 +307,8 @@ const updateAthleteHandler = withTenant(async (request, context) => {
 });
 
 export const PUT = withRateLimit(
-  async (request) => {
-    return (await updateAthleteHandler(request, {} as any)) as NextResponse;
+  async (request, context) => {
+    return (await updateAthleteHandler(request, context)) as NextResponse;
   },
   { identifier: getUserIdentifier, limit: 30, window: 60 }
 );
@@ -477,8 +477,8 @@ const patchAthleteHandler = withTenant(async (request, context) => {
 });
 
 export const PATCH = withRateLimit(
-  async (request) => {
-    return (await patchAthleteHandler(request, {} as any)) as NextResponse;
+  async (request, context) => {
+    return (await patchAthleteHandler(request, context)) as NextResponse;
   },
   { identifier: getUserIdentifier, limit: 30, window: 60 }
 );
@@ -510,8 +510,8 @@ const deleteAthleteHandler = withTenant(async (_request, context) => {
 });
 
 export const DELETE = withRateLimit(
-  async (request) => {
-    return (await deleteAthleteHandler(request, {} as any)) as NextResponse;
+  async (request, context) => {
+    return (await deleteAthleteHandler(request, context)) as NextResponse;
   },
   { identifier: getUserIdentifier, limit: 5, window: 60 }
 );

@@ -5,6 +5,7 @@ import { uploadFile, generateFilePath } from "@/lib/supabase/storage-helpers";
 import { logger } from "@/lib/logger";
 import { apiError, apiSuccess } from "@/lib/api-response";
 import { verifyAcademyAccess } from "@/lib/permissions";
+import { IMAGE_UPLOADS, validateUpload } from "@/lib/uploads/file-security";
 
 const UploadFieldsSchema = z.object({
   academyId: z.string().uuid(),
@@ -38,15 +39,15 @@ export const POST = withTenant(async (request, context) => {
       return apiError(access.reason ?? "FORBIDDEN", "Access denied", 403);
     }
 
-    // Validar tipo de archivo
-    const allowedTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"];
-    if (!allowedTypes.includes(file.type)) {
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const validation = validateUpload(bytes, file.type, IMAGE_UPLOADS);
+    if (!validation.ok && validation.code === "INVALID_FILE_TYPE") {
       return apiError("INVALID_FILE_TYPE", "Solo se permiten imágenes (JPEG, PNG, GIF, WEBP)", 400);
     }
-
-    // Validar tamaño (máximo 5MB)
-    const maxSize = 5 * 1024 * 1024; // 5MB
-    if (file.size > maxSize) {
+    if (!validation.ok && validation.code === "FILE_SIGNATURE_INVALID") {
+      return apiError("FILE_SIGNATURE_INVALID", "El contenido no coincide con el tipo declarado", 400);
+    }
+    if (!validation.ok) {
       return apiError("FILE_TOO_LARGE", "El archivo no puede ser mayor a 5MB", 400);
     }
 

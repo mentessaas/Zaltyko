@@ -8,6 +8,8 @@ import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
+/** @resource-scope guardian — charge athlete must be one of the caller's linked children. */
+
 /**
  * POST /api/family/charges/[chargeId]/pay
  *

@@ -96,7 +96,7 @@ export default async function EventsPage({ params }: PageProps) {
   const sportConfigNameById = new Map(sportConfigs.map((config) => [config.id, config.branchName]));
 
   return (
-    <div className="space-y-6 py-6 lg:py-8">
+    <div className="mx-auto max-w-[1500px] space-y-6">
       <Breadcrumb
         items={[
           { label: "Dashboard", href: `/app/${academyId}/dashboard` },

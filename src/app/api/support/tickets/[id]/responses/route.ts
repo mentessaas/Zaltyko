@@ -1,221 +1,103 @@
-import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { createClient } from "@/lib/supabase/server";
-import { logger } from "@/lib/logger";
-import { getCurrentProfile } from "@/lib/authz";
+import { and, asc, eq } from "drizzle-orm";
+import { z } from "zod";
+
+import { db } from "@/db";
+import { profiles, ticketResponses, tickets } from "@/db/schema";
+import { getCurrentProfile, withTenant } from "@/lib/authz";
+import { apiCreated, apiError, apiSuccess } from "@/lib/api-response";
 import { verifyAcademyAccessForProfile } from "@/lib/permissions";
 
-async function canAccessTicket(profile: NonNullable<Awaited<ReturnType<typeof getCurrentProfile>>>, ticket: { created_by: string; academy_id: string | null }) {
-  if (profile.role === "super_admin" || ticket.created_by === profile.id) {
-    return true;
-  }
+const idSchema = z.string().uuid();
 
-  if (!ticket.academy_id) {
-    return false;
-  }
+type SupportContext = {
+  tenantId: string;
+  profile: NonNullable<Awaited<ReturnType<typeof getCurrentProfile>>>;
+  params?: unknown;
+};
 
-  const access = await verifyAcademyAccessForProfile({
-    academyId: ticket.academy_id,
-    tenantId: profile.tenantId,
-    profile,
+async function getTicket(id: string) {
+  const [ticket] = await db.select().from(tickets).where(eq(tickets.id, id)).limit(1);
+  return ticket ?? null;
+}
+
+async function canAccess(
+  ticket: NonNullable<Awaited<ReturnType<typeof getTicket>>>,
+  context: SupportContext
+) {
+  if (context.profile.role === "super_admin" || ticket.createdBy === context.profile.id) return true;
+  if (!ticket.academyId) return false;
+  const result = await verifyAcademyAccessForProfile({
+    academyId: ticket.academyId,
+    tenantId: context.tenantId,
+    profile: context.profile,
   });
-
-  return access.allowed;
+  return result.allowed;
 }
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const { id } = await params;
-    const cookieStore = await cookies();
-    const supabase = await createClient(cookieStore);
-    const { data: { user } } = await supabase.auth.getUser();
+export const GET = withTenant(async (_request, context) => {
+  const id = ((context.params ?? {}) as { id?: string }).id;
+  if (!id || !idSchema.safeParse(id).success) return apiError("INVALID_ID", "Ticket inválido", 400);
 
-    if (!user) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-    }
+  const ticket = await getTicket(id);
+  if (!ticket) return apiError("NOT_FOUND", "Ticket no encontrado", 404);
+  if (!(await canAccess(ticket, context))) return apiError("FORBIDDEN", "No tienes acceso a este ticket", 403);
 
-    // Verificar acceso al ticket
-    const { data: ticket, error: ticketError } = await supabase
-      .from("tickets")
-      .select("id, created_by, academy_id")
-      .eq("id", id)
-      .single();
+  const responses = await db
+    .select({
+      id: ticketResponses.id,
+      ticketId: ticketResponses.ticketId,
+      userId: ticketResponses.userId,
+      message: ticketResponses.message,
+      isInternal: ticketResponses.isInternal,
+      createdAt: ticketResponses.createdAt,
+      userName: profiles.name,
+    })
+    .from(ticketResponses)
+    .leftJoin(profiles, eq(ticketResponses.userId, profiles.id))
+    .where(
+      and(
+        eq(ticketResponses.ticketId, id),
+        context.profile.role === "super_admin" ? undefined : eq(ticketResponses.isInternal, false),
+      ),
+    )
+    .orderBy(asc(ticketResponses.createdAt));
 
-    if (ticketError || !ticket) {
-      return NextResponse.json({ error: "Ticket no encontrado" }, { status: 404 });
-    }
+  return apiSuccess(responses);
+});
 
-    const profile = await getCurrentProfile(user.id);
-    if (!profile) {
-      return NextResponse.json({ error: "Perfil no encontrado" }, { status: 404 });
-    }
+export const POST = withTenant(async (request, context) => {
+  const id = ((context.params ?? {}) as { id?: string }).id;
+  if (!id || !idSchema.safeParse(id).success) return apiError("INVALID_ID", "Ticket inválido", 400);
 
-    // Verificar acceso
-    if (!(await canAccessTicket(profile, ticket))) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 403 });
-    }
-
-    // Obtener respuestas
-    const { data: responses, error } = await supabase
-      .from("ticket_responses")
-      .select(`
-        *,
-        user:profiles(id, fullName),
-        attachments:ticket_attachments(id, fileName, fileUrl, fileType)
-      `)
-      .eq("ticket_id", id)
-      .order("created_at", { ascending: true });
-
-    if (error) {
-      logger.error("Error fetching responses:", error);
-      return NextResponse.json(
-        { error: "Error al obtener respuestas" },
-        { status: 500 }
-      );
-    }
-
-    return NextResponse.json(
-      responses?.map((r: any) => ({
-        ...r,
-        user: r.user?.[0],
-        attachments: r.attachments || [],
-      })) || []
-    );
-  } catch (error) {
-    logger.error("Error in GET /api/support/tickets/[id]/responses:", error);
-    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
+  const ticket = await getTicket(id);
+  if (!ticket) return apiError("NOT_FOUND", "Ticket no encontrado", 404);
+  if (!(await canAccess(ticket, context))) return apiError("FORBIDDEN", "No tienes acceso a este ticket", 403);
+  if (ticket.status === "closed" || ticket.status === "resolved") {
+    return apiError("TICKET_CLOSED", "No se puede responder a un ticket cerrado", 400);
   }
-}
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const { id } = await params;
-    const cookieStore = await cookies();
-    const supabase = await createClient(cookieStore);
-    const { data: { user } } = await supabase.auth.getUser();
+  const form = await request.formData();
+  const message = z.string().trim().min(1).max(10_000).safeParse(form.get("message"));
+  if (!message.success) return apiError("VALIDATION_ERROR", "El mensaje es requerido", 400);
 
-    if (!user) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-    }
+  const isInternal = form.get("isInternal") === "true" && context.profile.role === "super_admin";
+  const [response] = await db
+    .insert(ticketResponses)
+    .values({
+      ticketId: id,
+      userId: context.profile.id,
+      message: message.data,
+      isInternal,
+    })
+    .returning();
 
-    // Verificar que el ticket existe y está abierto
-    const { data: ticket, error: ticketError } = await supabase
-      .from("tickets")
-      .select("id, status, created_by, academy_id")
-      .eq("id", id)
-      .single();
+  await db
+    .update(tickets)
+    .set({
+      updatedAt: new Date(),
+      status: context.profile.role === "super_admin" ? "in_progress" : "waiting",
+    })
+    .where(and(eq(tickets.id, id), eq(tickets.status, ticket.status)));
 
-    if (ticketError || !ticket) {
-      return NextResponse.json({ error: "Ticket no encontrado" }, { status: 404 });
-    }
-
-    if (ticket.status === "closed" || ticket.status === "resolved") {
-      return NextResponse.json(
-        { error: "No se puede responder a un ticket cerrado" },
-        { status: 400 }
-      );
-    }
-
-    const profile = await getCurrentProfile(user.id);
-    if (!profile) {
-      return NextResponse.json({ error: "Perfil no encontrado" }, { status: 404 });
-    }
-
-    const isSuperAdmin = profile.role === "super_admin";
-    const isOwner = ticket.created_by === profile.id;
-
-    // Verificar acceso
-    if (!isSuperAdmin && !isOwner && !(await canAccessTicket(profile, ticket))) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 403 });
-    }
-
-    const formData = await request.formData();
-    const fd = formData as unknown as { get(name: string): unknown };
-    const message = fd.get("message") as string;
-    const isInternal = fd.get("isInternal") === "true";
-
-    if (!message?.trim()) {
-      return NextResponse.json(
-        { error: "El mensaje es requerido" },
-        { status: 400 }
-      );
-    }
-
-    // Crear respuesta
-    const { data: response, error } = await supabase
-      .from("ticket_responses")
-      .insert({
-        ticket_id: id,
-        user_id: profile.id,
-        message: message.trim(),
-        is_internal: isSuperAdmin ? isInternal : false,
-      })
-      .select()
-      .single();
-
-    if (error) {
-      logger.error("Error creating response:", error);
-      return NextResponse.json(
-        { error: "Error al crear la respuesta" },
-        { status: 500 }
-      );
-    }
-
-    // Procesar archivos adjuntos si hay
-    const files = formData.getAll("files") as unknown as File[];
-    if (files.length > 0) {
-      for (const file of files) {
-        if (file.size > 0) {
-          // Aquí se subiría el archivo a storage
-          // Por ahora guardamos la referencia
-          const arrayBuffer = await file.arrayBuffer();
-          const buffer = Buffer.from(arrayBuffer);
-
-          const fileName = `${id}/${Date.now()}-${file.name}`;
-          const { data: uploadData, error: uploadError } = await supabase.storage
-            .from("ticket-attachments")
-            .upload(fileName, buffer);
-
-          if (!uploadError && uploadData) {
-            const { data: { publicUrl } } = supabase.storage
-              .from("ticket-attachments")
-              .getPublicUrl(fileName);
-
-            await supabase.from("ticket_attachments").insert({
-              ticket_id: id,
-              response_id: response.id,
-              file_name: file.name,
-              file_url: publicUrl,
-              file_type: file.type,
-              file_size: String(file.size),
-              uploaded_by: profile.id,
-            });
-          }
-        }
-      }
-    }
-
-    // Actualizar ticket
-    await supabase
-      .from("tickets")
-      .update({
-        updated_at: new Date().toISOString(),
-        status: isSuperAdmin && !isOwner ? "in_progress" : "waiting",
-      })
-      .eq("id", id);
-
-    // Aquí se podrían enviar notificaciones por email
-    // await sendTicketResponseEmail(ticket.id, response.id);
-
-    return NextResponse.json(response, { status: 201 });
-  } catch (error) {
-    logger.error("Error in POST /api/support/tickets/[id]/responses:", error);
-    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
-  }
-}
+  return apiCreated(response);
+});

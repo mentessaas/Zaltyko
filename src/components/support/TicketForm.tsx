@@ -78,8 +78,11 @@ export function TicketForm({ academyId, onSubmit }: TicketFormProps) {
           throw new Error(data.error || "Error al crear el ticket");
         }
 
-        const ticket = await response.json();
-        router.push(`/support/${ticket.id}`);
+        const payload = await response.json();
+        if (!payload.ok || !payload.data?.id) {
+          throw new Error(payload.error || "Respuesta inválida del servidor");
+        }
+        router.push(`/app/${academyId}/support/${payload.data.id}`);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error desconocido");

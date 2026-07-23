@@ -71,7 +71,7 @@ export default async function EventDetailPage({ params }: PageProps) {
     if (isPublic) {
       return <Badge className="bg-green-100 text-green-800">Público</Badge>;
     }
-    return <Badge className="bg-gray-100 text-gray-800">Privado</Badge>;
+    return <Badge className="bg-muted text-muted-foreground">Privado</Badge>;
   };
 
   const location = [eventRow?.city, eventRow?.province, eventRow?.country]

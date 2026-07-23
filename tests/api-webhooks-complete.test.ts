@@ -126,10 +126,21 @@ vi.mock("@/lib/stripe/subscription-service", () => ({
 
 vi.mock("@/lib/stripe/invoice-service", () => ({
   handleInvoiceEvent: vi.fn(() => Promise.resolve({
-    academyId: "academy-123",
-    tenantId: "tenant-123",
-    userId: "user-123",
+    context: {
+      academyId: "academy-123",
+      tenantId: "tenant-123",
+      userId: "user-123",
+    },
+    invoice: { status: "open" },
   })),
+}));
+
+vi.mock("@/lib/stripe/billing-events-service", () => ({
+  recordBillingEvent: vi.fn().mockResolvedValue({
+    shouldProcess: true,
+    id: "billing-event-123",
+  }),
+  updateBillingEventStatus: vi.fn().mockResolvedValue(undefined),
 }));
 
 describe("API Stripe Webhooks Complete", () => {
@@ -143,7 +154,6 @@ describe("API Stripe Webhooks Complete", () => {
   });
 
   afterEach(() => {
-    vi.restoreAllMocks();
     delete process.env.STRIPE_WEBHOOK_SECRET;
     delete process.env.STRIPE_SECRET_KEY;
   });
@@ -481,11 +491,10 @@ describe("API Stripe Webhooks Complete", () => {
         },
       });
 
-      // Sobrescribir el mock de db para lanzar error
-      const { db } = await import("@/db");
-      (db as any).insert = vi.fn(() => {
-        throw new Error("Database connection failed");
-      });
+      const billingEvents = await import("@/lib/stripe/billing-events-service");
+      vi.mocked(billingEvents.recordBillingEvent).mockRejectedValueOnce(
+        new Error("Database connection failed")
+      );
 
       const { POST } = await import("@/app/api/stripe/webhook/route");
 

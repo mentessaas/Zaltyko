@@ -27,7 +27,7 @@ export function PageHeader({
   className,
 }: PageHeaderProps) {
   return (
-    <div className={cn("zaltyko-motion-lines rounded-2xl border border-zaltyko-mist/70 bg-white px-5 py-5 shadow-soft lg:px-6", className)}>
+    <div className={cn("zaltyko-motion-lines rounded-[24px] border border-slate-200/80 bg-white px-5 py-5 shadow-[0_18px_50px_-32px_rgba(15,23,42,0.45)] lg:px-7 lg:py-6", className)}>
       {/* Breadcrumbs */}
       {breadcrumbs && breadcrumbs.length > 0 && (
         <nav className="mb-4 flex items-center gap-2 text-sm">
@@ -56,11 +56,11 @@ export function PageHeader({
         <div className="space-y-2">
           <div className="flex items-center gap-3">
             {icon && (
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-zaltyko-teal/10 text-zaltyko-teal">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-zaltyko-teal/10 text-zaltyko-teal">
                 {icon}
               </div>
             )}
-            <h1 className="font-display text-2xl font-semibold tracking-normal text-zaltyko-navy sm:text-3xl">
+            <h1 className="font-display text-2xl font-bold tracking-[-0.03em] text-zaltyko-navy sm:text-3xl">
               {title}
             </h1>
           </div>

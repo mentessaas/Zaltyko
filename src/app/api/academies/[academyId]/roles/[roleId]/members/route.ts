@@ -14,6 +14,8 @@ import { getBillingAcademyAccess } from "@/lib/billing/access";
 
 export const dynamic = "force-dynamic";
 
+/** @resource-scope academy — role and membership are matched to the path academy. */
+
 const PermissionSchema = z.enum(permissionEnum.enumValues);
 const AssignSchema = z.object({
   userId: z.string().uuid(),

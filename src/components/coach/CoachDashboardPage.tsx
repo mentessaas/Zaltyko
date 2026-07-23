@@ -119,23 +119,26 @@ export function CoachDashboardPage({
     : undefined;
 
   return (
-    <div className="mx-auto flex max-w-7xl flex-col gap-8 px-4 py-6 lg:px-8 lg:py-8">
+    <div className="mx-auto flex max-w-7xl flex-col gap-6 px-1 py-1 sm:px-2 lg:gap-7">
       {/* Header */}
-      <section className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div className="space-y-1">
-          <h1 className="text-2xl font-semibold text-foreground lg:text-3xl">
-            {academyName ?? "Academia"} · Panel de {specialization.labels.coachLabel}
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Hola {profileName ?? specialization.labels.coachLabel.toLowerCase()}, bienvenido a tu panel personal.
+      <section className="relative overflow-hidden rounded-[26px] bg-slate-950 px-5 py-6 text-white shadow-[0_24px_60px_-36px_rgba(15,23,42,0.8)] sm:px-7 lg:px-8 lg:py-8">
+        <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-teal-400/20 blur-3xl" />
+        <div className="relative flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+          <div className="space-y-2">
+            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-teal-200">Tu jornada en la pista</p>
+            <h1 className="font-display text-2xl font-bold tracking-[-0.03em] text-white lg:text-4xl">
+              Hola, {profileName ?? specialization.labels.coachLabel.toLowerCase()}
+            </h1>
+          <p className="max-w-xl text-sm leading-6 text-slate-300">
+            {academyName ?? "Academia"} · {todaySessions.length > 0 ? `Tienes ${todaySessions.length} sesiones preparadas para hoy.` : "No tienes sesiones programadas hoy."}
           </p>
-        </div>
-        <div className="flex items-center gap-2">
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
           <Button
             variant="outline"
             size="sm"
             onClick={() => router.push(`/app/${academyId}/attendance`)}
-            className="gap-2"
+            className="gap-2 border-white/20 bg-white/10 text-white hover:bg-white/20"
           >
             <UserCheck className="h-4 w-4" />
             Pasar lista
@@ -148,6 +151,7 @@ export function CoachDashboardPage({
             <ClipboardList className="h-4 w-4" />
             Nueva evaluación
           </Button>
+        </div>
         </div>
       </section>
 
@@ -164,7 +168,7 @@ export function CoachDashboardPage({
       />
 
       {/* KPIs */}
-      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4" aria-label="Resumen de tu actividad">
         <DashboardCard
           title={specialization.labels.athletesPlural}
           value={athletes.length}
@@ -201,11 +205,11 @@ export function CoachDashboardPage({
 
       {/* Clases de hoy */}
       {todaySessions.length > 0 && (
-        <section className="rounded-lg border bg-card">
-          <div className="flex items-center justify-between border-b p-4">
+        <section className="overflow-hidden rounded-[22px] border border-slate-200/80 bg-white shadow-[0_18px_50px_-32px_rgba(15,23,42,0.45)]">
+          <div className="flex items-center justify-between border-b border-slate-100 p-5">
             <div className="flex items-center gap-2">
               <Calendar className="h-5 w-5 text-primary" />
-              <h2 className="font-semibold">Clases de hoy</h2>
+              <h2 className="font-display font-bold tracking-[-0.02em]">Clases de hoy</h2>
             </div>
             <Button
               variant="ghost"
@@ -216,11 +220,11 @@ export function CoachDashboardPage({
               Ver todas <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
-          <div className="divide-y">
+          <div className="divide-y divide-slate-100">
             {todaySessions.map((session) => (
               <div
                 key={session.id}
-                className="flex items-center justify-between p-4 hover:bg-muted/50"
+                className="flex items-center justify-between p-4 transition-colors hover:bg-slate-50"
               >
                 <div className="flex items-center gap-3">
                   {session.groupColor && (
@@ -282,11 +286,11 @@ export function CoachDashboardPage({
       {/* Dos columnas: Mis atletas y Evaluaciones recientes */}
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Mis Atletas */}
-        <section className="rounded-lg border bg-card">
-          <div className="flex items-center justify-between border-b p-4">
+        <section className="overflow-hidden rounded-[22px] border border-slate-200/80 bg-white shadow-[0_18px_50px_-32px_rgba(15,23,42,0.45)]">
+          <div className="flex items-center justify-between border-b border-slate-100 p-5">
             <div className="flex items-center gap-2">
               <Users className="h-5 w-5 text-primary" />
-              <h2 className="font-semibold">Mis {specialization.labels.athletesPlural}</h2>
+              <h2 className="font-display font-bold tracking-[-0.02em]">Mis {specialization.labels.athletesPlural}</h2>
             </div>
             <Button
               variant="ghost"
@@ -297,7 +301,7 @@ export function CoachDashboardPage({
               Ver todos <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
-          <div className="divide-y max-h-96 overflow-y-auto">
+          <div className="max-h-96 divide-y divide-slate-100 overflow-y-auto">
             {athletes.length === 0 ? (
               <div className="p-8 text-center text-muted-foreground">
                 <Users className="mx-auto h-8 w-8 mb-2 opacity-50" />
@@ -308,7 +312,7 @@ export function CoachDashboardPage({
                 <Link
                   key={athlete.id}
                   href={`/app/${academyId}/athletes/${athlete.id}`}
-                  className="flex items-center justify-between p-4 hover:bg-muted/50"
+                  className="flex items-center justify-between p-4 transition-colors hover:bg-slate-50"
                 >
                   <div className="flex items-center gap-3">
                     {athlete.groupColor && (
@@ -344,11 +348,11 @@ export function CoachDashboardPage({
         </section>
 
         {/* Evaluaciones Recientes */}
-        <section className="rounded-lg border bg-card">
-          <div className="flex items-center justify-between border-b p-4">
+        <section className="overflow-hidden rounded-[22px] border border-slate-200/80 bg-white shadow-[0_18px_50px_-32px_rgba(15,23,42,0.45)]">
+          <div className="flex items-center justify-between border-b border-slate-100 p-5">
             <div className="flex items-center gap-2">
               <ClipboardList className="h-5 w-5 text-primary" />
-              <h2 className="font-semibold">Evaluaciones Recientes</h2>
+              <h2 className="font-display font-bold tracking-[-0.02em]">Evaluaciones recientes</h2>
             </div>
             <Button
               variant="ghost"
@@ -359,7 +363,7 @@ export function CoachDashboardPage({
               Ver todas <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
-          <div className="divide-y max-h-96 overflow-y-auto">
+          <div className="max-h-96 divide-y divide-slate-100 overflow-y-auto">
             {recentAssessments.length === 0 ? (
               <div className="p-8 text-center text-muted-foreground">
                 <ClipboardList className="mx-auto h-8 w-8 mb-2 opacity-50" />
@@ -405,11 +409,11 @@ export function CoachDashboardPage({
       </div>
 
       {/* Horario semanal */}
-      <section className="rounded-lg border bg-card">
-        <div className="flex items-center justify-between border-b p-4">
+      <section className="overflow-hidden rounded-[22px] border border-slate-200/80 bg-white shadow-[0_18px_50px_-32px_rgba(15,23,42,0.45)]">
+        <div className="flex items-center justify-between border-b border-slate-100 p-5">
           <div className="flex items-center gap-2">
             <Calendar className="h-5 w-5 text-primary" />
-            <h2 className="font-semibold">Mi Horario Semanal</h2>
+          <h2 className="font-display font-bold tracking-[-0.02em]">Mi horario semanal</h2>
           </div>
           <Button
             variant="ghost"
@@ -420,7 +424,7 @@ export function CoachDashboardPage({
             Gestión de clases <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
-        <div className="divide-y">
+        <div className="divide-y divide-slate-100">
           {classes.length === 0 ? (
               <div className="p-8 text-center text-muted-foreground">
                 <Calendar className="mx-auto h-8 w-8 mb-2 opacity-50" />
@@ -432,7 +436,7 @@ export function CoachDashboardPage({
               .map((cls) => (
                 <div
                   key={cls.id}
-                  className="flex items-center justify-between p-4 hover:bg-muted/50"
+                  className="flex items-center justify-between p-4 transition-colors hover:bg-slate-50"
                 >
                   <div className="flex items-center gap-3">
                     {cls.groupColor && (

@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { coaches } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
 import { apiSuccess, apiError } from "@/lib/api-response";
+import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
 
 const certificationSchema = z.object({
   name: z.string().min(1),
@@ -44,6 +45,10 @@ export const PUT = withTenant(async (request, context) => {
   const [coachRow] = await db
     .select({
       id: coaches.id,
+      tenantId: coaches.tenantId,
+      academyId: coaches.academyId,
+      profileId: coaches.profileId,
+      userId: coaches.userId,
     })
     .from(coaches)
     .where(and(eq(coaches.id, coachId), eq(coaches.tenantId, context.tenantId)))
@@ -51,6 +56,16 @@ export const PUT = withTenant(async (request, context) => {
 
   if (!coachRow) {
     return apiError("COACH_NOT_FOUND", "Coach no encontrado", 404);
+  }
+  const isSelf = coachRow.profileId === context.profile.id || coachRow.userId === context.userId;
+  if (!isSelf) {
+    const scope = await authorizeAcademyCapability({
+      context,
+      resourceTenantId: coachRow.tenantId,
+      academyId: coachRow.academyId,
+      permission: "coaches:update",
+    });
+    if (!scope.allowed) return apiError("COACH_NOT_FOUND", "Coach no encontrado", 404);
   }
 
   // Actualizar perfil público
@@ -82,6 +97,11 @@ export const GET = withTenant(async (_request, context) => {
   const [coachRow] = await db
     .select({
       isPublic: coaches.isPublic,
+      id: coaches.id,
+      tenantId: coaches.tenantId,
+      academyId: coaches.academyId,
+      profileId: coaches.profileId,
+      userId: coaches.userId,
       publicBio: coaches.publicBio,
       certifications: coaches.certifications,
       photoGallery: coaches.photoGallery,
@@ -94,6 +114,16 @@ export const GET = withTenant(async (_request, context) => {
   if (!coachRow) {
     return apiError("COACH_NOT_FOUND", "Coach no encontrado", 404);
   }
+  const isSelf = coachRow.profileId === context.profile.id || coachRow.userId === context.userId;
+  if (!isSelf) {
+    const scope = await authorizeAcademyCapability({
+      context,
+      resourceTenantId: coachRow.tenantId,
+      academyId: coachRow.academyId,
+      permission: "coaches:read",
+    });
+    if (!scope.allowed) return apiError("COACH_NOT_FOUND", "Coach no encontrado", 404);
+  }
 
   return apiSuccess({
     isPublic: coachRow.isPublic ?? false,
@@ -103,4 +133,3 @@ export const GET = withTenant(async (_request, context) => {
     achievements: coachRow.achievements || [],
   });
 });
-

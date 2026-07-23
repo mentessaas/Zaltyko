@@ -90,7 +90,7 @@ export function AthleteDocumentsList({
     }
 
     return (
-      <Badge variant="outline" className="bg-gray-50 text-gray-600">
+      <Badge variant="outline" className="bg-muted text-muted-foreground">
         <Clock className="h-3 w-3 mr-1" />
         Pendiente
       </Badge>

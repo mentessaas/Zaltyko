@@ -35,18 +35,18 @@ Cuando necesitas comunicar un cambio de horario, una cancelación por festivo o 
 
 La comunicación interna con entrenadores y staff también se complica. Las instrucciones se transmiten verbalmente y se olvidan, los cambios de programación no llegan a tiempo, y coordinar un equipo grande sin herramientas adecuadas genera fricción innecesaria. Todo esto mientras intentas mantener una imagen profesional ante las familias.`;
 
-const solutionContent = `El módulo de comunicación de Zaltyko te devuelve el control sobre los mensajes de tu academia. Un centro de notificaciones unificado te permite enviar comunicados oficiales que llegan a las familias correctas según el grupo, nivel o situación de cada atleta. Sin ruido, sin conversaciones paralelas, sin mensajes perdidos.
+const solutionContent = `El módulo de comunicación de Zaltyko te devuelve el control sobre los mensajes de tu academia. Un centro de notificaciones unificado te permite preparar y enviar comunicados oficiales a las familias correctas según el grupo, nivel o situación de cada atleta. Sin ruido, sin conversaciones paralelas y con un historial consultable.
 
-Segmenta tus comunicaciones con precisión quirúrgica. Envía un aviso solo a las familias del grupo de competición, notifica un cambio de horario únicamente a los afectados, o comunica una novedad general a toda la academia. El sistema registra quién ha recibido y leído cada mensaje, eliminando el típico no me enteré.
+Segmenta tus comunicaciones por los grupos y destinatarios disponibles. Envía un aviso al grupo de competición, notifica un cambio de horario a las personas afectadas o comunica una novedad general a toda la academia. El sistema conserva el estado disponible del mensaje; la recepción efectiva depende del canal y de la configuración de cada cuenta.
 
-Las notificaciones llegan por múltiples canales: email, notificaciones push en la app y centro de mensajes en el portal. Los padres eligen su canal preferido y tú te aseguras de que la información llegue. Para comunicaciones sensibles, puedes requerir confirmación de lectura antes de proceder.`;
+Los avisos pueden apoyarse en el centro de mensajes y, cuando estén configurados, en email o notificaciones. El portal deja una referencia consultable para las familias. Para comunicaciones sensibles, puedes solicitar una confirmación cuando el flujo contratado lo contemple.`;
 
 const solutionFeatures = [
   "Centro de notificaciones unificado y profesional",
   "Segmentación por grupo, nivel, entrenador o situación",
   "Historial completo de comunicaciones por atleta",
-  "Múltiples canales: email, push y portal",
-  "Confirmación de lectura para mensajes importantes",
+  "Centro de mensajes e historial consultable",
+  "Confirmación de lectura cuando el flujo la contemple",
   "Plantillas personalizables para comunicados frecuentes",
 ];
 
@@ -54,7 +54,7 @@ const benefits = [
   {
     icon: Clock,
     title: "Comunica en segundos",
-    description: "Un solo mensaje llega a todas las familias correctas sin repetir en múltiples grupos.",
+    description: "Un solo mensaje se prepara para las familias seleccionadas sin repetirlo en múltiples grupos.",
   },
   {
     icon: Shield,
@@ -63,8 +63,8 @@ const benefits = [
   },
   {
     icon: Bell,
-    title: "Nadie se queda sin enterarse",
-    description: "Los avisos internos y la confirmación de lectura ayudan a comprobar quién recibió la información.",
+    title: "Seguimiento más claro",
+    description: "El historial y los estados disponibles ayudan a comprobar el seguimiento de la información.",
   },
   {
     icon: MessageSquare,

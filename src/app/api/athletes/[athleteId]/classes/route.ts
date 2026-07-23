@@ -194,9 +194,8 @@ const getAthleteClassesHandler = withTenant(async (request, context) => {
 
 // Rate-limited GET handler: 100 requests per minute
 export const GET = withRateLimit(
-  async (request) => {
-    return (await getAthleteClassesHandler(request, {} as any)) as NextResponse;
+  async (request, context) => {
+    return (await getAthleteClassesHandler(request, context)) as NextResponse;
   },
   { identifier: getUserIdentifier, limit: 100, window: 60 }
 );
-
