@@ -6,6 +6,7 @@ import { Locale } from "@/i18n";
 import {
   MODALITIES,
   COUNTRIES,
+  AVAILABLE_MODALITIES,
   getCountriesForModality,
   type ModalitySlug,
   type CountrySlug,
@@ -117,12 +118,14 @@ export default async function ModalityPage({ params }: ModalityPageProps) {
       subtitle: "Encuentra la academia perfecta para ti",
       cta: "Crear academia gratis",
       otherModalities: "Ver otras modalidades",
+      comingSoon: "Próximamente",
     },
     en: {
       title: `${modalityLabel} by country`,
       subtitle: "Find the perfect academy for you",
       cta: "Create free academy",
       otherModalities: "View other modalities",
+      comingSoon: "Coming soon",
     },
   };
 
@@ -135,6 +138,7 @@ export default async function ModalityPage({ params }: ModalityPageProps) {
       slug: key,
       label: MODALITIES[key as ModalitySlug].label[locale as Locale],
       url: `/${locale}/${MODALITIES[key as ModalitySlug][locale as Locale]}`,
+      available: AVAILABLE_MODALITIES[key as ModalitySlug],
     }));
 
   return (
@@ -220,15 +224,29 @@ export default async function ModalityPage({ params }: ModalityPageProps) {
           <div className="flex items-center justify-between">
             <p className="text-sm text-gray-500">{t.otherModalities}</p>
             <div className="flex gap-3">
-              {otherModalities.map((mod) => (
-                <Link
-                  key={mod.slug}
-                  href={mod.url}
-                  className="text-sm font-medium text-gray-700 hover:text-zaltyko-teal transition-colors"
-                >
-                  {mod.label}
-                </Link>
-              ))}
+              {otherModalities.map((mod) =>
+                mod.available ? (
+                  <Link
+                    key={mod.slug}
+                    href={mod.url}
+                    className="text-sm font-medium text-gray-700 hover:text-zaltyko-teal transition-colors"
+                  >
+                    {mod.label}
+                  </Link>
+                ) : (
+                  <span
+                    key={mod.slug}
+                    aria-disabled="true"
+                    title={t.comingSoon}
+                    className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground cursor-not-allowed select-none"
+                  >
+                    {mod.label}
+                    <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
+                      {t.comingSoon}
+                    </span>
+                  </span>
+                )
+              )}
             </div>
           </div>
         </div>

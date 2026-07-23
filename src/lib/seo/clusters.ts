@@ -26,6 +26,16 @@ export const MODALITIES = {
 
 export type ModalitySlug = keyof typeof MODALITIES;
 
+// Modalidades que Zaltyko soporta como producto hoy. Acrobática y trampolín
+// tienen catálogo/rutas SEO ya publicados pero el producto aún no las
+// atiende — se muestran como "Próximamente" en vez de como enlaces activos.
+export const AVAILABLE_MODALITIES: Record<ModalitySlug, boolean> = {
+  artistic: true,
+  rhythmic: true,
+  acrobatic: false,
+  trampoline: false,
+};
+
 // Country slugs
 export const COUNTRIES = {
   espana: {

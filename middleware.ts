@@ -26,7 +26,8 @@ const I18N_SKIP_PREFIXES = ["/api", "/auth", "/login", "/invite"];
 // `/ayuda` and `/sobre-nosotros` are the canonical routes. Their legacy
 // locale-prefixed handlers redirect back to these paths, so localizing the
 // canonical URLs here would create an infinite redirect loop.
-const I18N_REDIRECT_EXACT_PATHS = new Set(["/"]);
+// `/` has its own page handler (src/app/page.tsx, the real marketing home)
+// and must never be redirected into the modality cluster pages.
 const I18N_MODALITY_PREFIXES = [
   "/gimnasia-artistica",
   "/gimnasia-ritmica",
@@ -183,11 +184,8 @@ function isI18nSkipped(pathname: string) {
 }
 
 function shouldRedirectToLocalizedRoute(pathname: string) {
-  return (
-    I18N_REDIRECT_EXACT_PATHS.has(pathname) ||
-    I18N_MODALITY_PREFIXES.some(
-      (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
-    )
+  return I18N_MODALITY_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
   );
 }
 
@@ -268,16 +266,7 @@ function i18nRedirectResponse(request: NextRequest): NextResponse | null {
   if (!shouldRedirectToLocalizedRoute(pathname)) return null;
 
   const locale = getLocaleFromRequest(request);
-
-  // Special case: root path needs a default modality because there's no
-  // page handler at /(site)/[locale]/page.tsx — only /(site)/[locale]/[modality].
-  // Redirect `/` to `/${locale}/gimnasia-artistica` (first modality in catalog).
-  let targetPath = pathname;
-  if (pathname === "/") {
-    targetPath = `/${locale}/gimnasia-artistica`;
-  } else {
-    targetPath = `/${locale}${pathname}`;
-  }
+  const targetPath = `/${locale}${pathname}`;
 
   const newUrl = new URL(targetPath, request.url);
   request.nextUrl.searchParams.forEach((value, key) => {
