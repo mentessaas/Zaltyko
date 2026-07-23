@@ -8,6 +8,8 @@ import { withTenant } from "@/lib/authz";
 import { deleteAcademyRole, updateAcademyRole } from "@/lib/authz/permissions-service";
 import { getBillingAcademyAccess } from "@/lib/billing/access";
 
+/** @resource-scope academy — ownership and role academy are both verified. */
+
 const PermissionSchema = z.enum(permissionEnum.enumValues);
 const UpdateSchema = z
   .object({

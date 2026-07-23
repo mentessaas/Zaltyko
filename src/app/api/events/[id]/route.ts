@@ -322,8 +322,8 @@ const patchEventHandler = withTenant(async (request, context) => {
 
 // Rate-limited PATCH handler: 30 requests per minute
 export const PATCH = withRateLimit(
-  async (request) => {
-    return (await patchEventHandler(request, {} as any)) as NextResponse;
+  async (request, context) => {
+    return (await patchEventHandler(request, context)) as NextResponse;
   },
   { identifier: getUserIdentifier, limit: 30, window: 60 }
 );
@@ -378,8 +378,8 @@ const deleteEventHandler = withTenant(async (request, context) => {
 
 // Rate-limited DELETE handler: 5 requests per minute
 export const DELETE = withRateLimit(
-  async (request) => {
-    return (await deleteEventHandler(request, {} as any)) as NextResponse;
+  async (request, context) => {
+    return (await deleteEventHandler(request, context)) as NextResponse;
   },
   { identifier: getUserIdentifier, limit: 5, window: 60 }
 );

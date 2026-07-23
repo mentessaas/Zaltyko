@@ -2,16 +2,11 @@ import { apiError, apiSuccess } from "@/lib/api-response";
 import { withTenant } from "@/lib/authz";
 import { getMessageTemplateById, incrementTemplateUsage } from "@/lib/communication-service";
 import { isFeatureEnabled } from "@/lib/product/features";
+import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
 
 export const dynamic = 'force-dynamic';
 
-const canViewCommunication = (role?: string) =>
-  ["owner", "admin", "coach", "super_admin"].includes(role ?? "");
-
 export const POST = withTenant(async (_request, context) => {
-  if (!canViewCommunication(context.profile?.role)) {
-    return apiError("FORBIDDEN", "No tienes permiso para usar plantillas", 403);
-  }
   if (!isFeatureEnabled("communicationTemplateUse")) {
     return apiError("FEATURE_DISABLED", "Uso de plantillas no disponible en esta versión", 404);
   }
@@ -23,8 +18,16 @@ export const POST = withTenant(async (_request, context) => {
     return apiError("NOT_FOUND", "Template not found", 404);
   }
 
-  if (template.tenantId !== context.tenantId) {
-    return apiError("FORBIDDEN", "Access denied", 403);
+  if (template.academyId) {
+    const scope = await authorizeAcademyCapability({
+      context,
+      resourceTenantId: template.tenantId ?? "",
+      academyId: template.academyId,
+      permission: "communications:read",
+    });
+    if (!scope.allowed) return apiError("NOT_FOUND", "Template not found", 404);
+  } else if (!template.isSystem || (template.tenantId && template.tenantId !== context.tenantId)) {
+    return apiError("NOT_FOUND", "Template not found", 404);
   }
 
   const updated = await incrementTemplateUsage(templateId);

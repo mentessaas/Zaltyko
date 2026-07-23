@@ -171,8 +171,8 @@ describe("API Billing Upgrades & Downgrades", () => {
             const response = await POST(request, {});
             const data = await response.json();
 
-            expect(response.status).toBe(200);
-            expect(data.success).toBe(true);
+            expect(response.status).toBe(410);
+            expect(data.error).toBe("DEPRECATED_BILLING_FLOW");
         });
 
         it("debe rechazar upgrade sin target plan", async () => {
@@ -196,7 +196,7 @@ describe("API Billing Upgrades & Downgrades", () => {
 
             const response = await POST(request, {});
 
-            expect(response.status).toBe(400);
+            expect(response.status).toBe(410);
         });
     });
 
@@ -224,8 +224,8 @@ describe("API Billing Upgrades & Downgrades", () => {
             const response = await POST(request, {});
             const data = await response.json();
 
-            expect(response.status).toBe(200);
-            expect(data.success).toBe(true);
+            expect(response.status).toBe(410);
+            expect(data.error).toBe("DEPRECATED_BILLING_FLOW");
         });
 
         it("debe rechazar downgrade sin target plan", async () => {
@@ -249,7 +249,7 @@ describe("API Billing Upgrades & Downgrades", () => {
 
             const response = await POST(request, {});
 
-            expect(response.status).toBe(400);
+            expect(response.status).toBe(410);
         });
 
         it("debe rechazar downgrade si no hay suscripción activa", async () => {
@@ -273,7 +273,7 @@ describe("API Billing Upgrades & Downgrades", () => {
 
             const response = await POST(request, {});
 
-            expect(response.status).toBe(404);
+            expect(response.status).toBe(410);
         });
 
         it("debe permitir cancelar downgrade programado", async () => {
@@ -304,8 +304,8 @@ describe("API Billing Upgrades & Downgrades", () => {
             const response = await DELETE(request, {});
             const data = await response.json();
 
-            expect(response.status).toBe(200);
-            expect(data.cancelled).toBe(true);
+            expect(response.status).toBe(410);
+            expect(data.error).toBe("DEPRECATED_BILLING_FLOW");
         });
     });
 
@@ -333,8 +333,8 @@ describe("API Billing Upgrades & Downgrades", () => {
             const response = await POST(request, {});
             const data = await response.json();
 
-            expect(response.status).toBe(200);
-            expect(data.status).toBe("canceled");
+            expect(response.status).toBe(410);
+            expect(data.error).toBe("DEPRECATED_BILLING_FLOW");
         });
 
         it("debe rechazar cancelación si no hay suscripción", async () => {
@@ -358,7 +358,7 @@ describe("API Billing Upgrades & Downgrades", () => {
 
             const response = await POST(request, {});
 
-            expect(response.status).toBe(404);
+            expect(response.status).toBe(410);
         });
     });
 
@@ -386,8 +386,8 @@ describe("API Billing Upgrades & Downgrades", () => {
             const response = await POST(request, {});
             const data = await response.json();
 
-            expect(response.status).toBe(200);
-            expect(data.payment_method).toBe("pm_new");
+            expect(response.status).toBe(404);
+            expect(data.error).toBe("FEATURE_DISABLED");
         });
 
         it("debe rechazar sin método de pago", async () => {
@@ -411,7 +411,7 @@ describe("API Billing Upgrades & Downgrades", () => {
 
             const response = await POST(request, {});
 
-            expect(response.status).toBe(400);
+            expect(response.status).toBe(404);
         });
     });
 });

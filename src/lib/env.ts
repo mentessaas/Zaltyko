@@ -17,6 +17,8 @@ const serverEnvSchema = z.object({
   DATABASE_URL: z.string().min(1).optional(),
   DATABASE_URL_POOL: z.string().min(1).optional(),
   DATABASE_URL_DIRECT: z.string().min(1).optional(),
+  DATABASE_POOL_MAX: z.string().regex(/^\d+$/).optional(),
+  NODE_EXTRA_CA_CERTS: z.string().min(1).optional(),
 
   // Supabase
   NEXT_PUBLIC_SUPABASE_URL: z.string().url().optional(),
@@ -41,6 +43,7 @@ const serverEnvSchema = z.object({
 
   // App
   NEXT_PUBLIC_APP_URL: z.string().url().optional(),
+  NEXT_PUBLIC_SITE_URL: z.string().url().optional(),
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
 
   // Feature flags
@@ -71,6 +74,7 @@ const publicEnvSchema = z.object({
   NEXT_PUBLIC_SUPABASE_URL: z.string().url().optional(),
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1).optional(),
   NEXT_PUBLIC_APP_URL: z.string().url().optional(),
+  NEXT_PUBLIC_SITE_URL: z.string().url().optional(),
   NEXT_PUBLIC_DISABLE_ANALYTICS: z.string().optional(),
   NEXT_PUBLIC_SENTRY_DSN: z.string().url().optional(),
   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z.string().optional(),
@@ -215,6 +219,10 @@ export function getDatabaseUrl(): string {
     typeof window === "undefined" &&
     (process.env.NEXT_PHASE === "phase-production-build" ||
       process.env.NEXT_PHASE === "phase-development-build");
+
+  if (isBuildTime) {
+    return "postgresql://dummy:dummy@localhost:5432/dummy";
+  }
   
   // En desarrollo, permitir valor dummy si no hay variables configuradas
   const allowDummyInDev = isDevelopment() && !serverEnv.DATABASE_URL_DIRECT && !serverEnv.DATABASE_URL;
@@ -223,9 +231,6 @@ export function getDatabaseUrl(): string {
     // En producción, usar el pooler por defecto
     const url = serverEnv.DATABASE_URL_POOL ?? serverEnv.DATABASE_URL;
     if (!url) {
-      if (isBuildTime) {
-        return "postgresql://dummy:dummy@localhost:5432/dummy";
-      }
       throw new Error("DATABASE_URL_POOL or DATABASE_URL must be set in production");
     }
     return url;
@@ -238,7 +243,7 @@ export function getDatabaseUrl(): string {
     ? serverEnv.DATABASE_URL_POOL 
     : (serverEnv.DATABASE_URL_POOL ?? serverEnv.DATABASE_URL_DIRECT ?? serverEnv.DATABASE_URL);
   if (!url) {
-    if (isBuildTime || allowDummyInDev) {
+    if (allowDummyInDev) {
       // Retornar un valor dummy que no causará errores de conexión inmediatos
       // pero permitirá que el código se ejecute
       return "postgresql://dummy:dummy@localhost:5432/dummy";
@@ -252,5 +257,43 @@ export function getDatabaseUrl(): string {
  * Obtiene la URL base de la aplicación
  */
 export function getAppUrl(): string {
-  return serverEnv.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  return (
+    serverEnv.NEXT_PUBLIC_APP_URL ??
+    serverEnv.NEXT_PUBLIC_SITE_URL ??
+    "http://localhost:3000"
+  ).replace(/\/+$/, "");
+}
+
+export type TransactionalFeature =
+  | "stripe"
+  | "stripeConnect"
+  | "stripePlatformWebhook"
+  | "stripeConnectWebhook"
+  | "cron"
+  | "email"
+  | "push"
+  | "rateLimit";
+
+const FEATURE_REQUIREMENTS: Record<TransactionalFeature, readonly string[]> = {
+  stripe: ["STRIPE_SECRET_KEY", "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY"],
+  stripeConnect: ["STRIPE_SECRET_KEY", "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY"],
+  stripePlatformWebhook: ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"],
+  stripeConnectWebhook: ["STRIPE_SECRET_KEY", "STRIPE_CONNECT_WEBHOOK_SECRET"],
+  cron: ["CRON_SECRET"],
+  email: ["BREVO_API_KEY", "BREVO_SENDER_EMAIL", "BREVO_SENDER_NAME", "BREVO_REPLY_TO"],
+  push: [
+    "VAPID_PUBLIC_KEY",
+    "NEXT_PUBLIC_VAPID_PUBLIC_KEY",
+    "VAPID_PRIVATE_KEY",
+    "VAPID_SUBJECT",
+  ],
+  rateLimit: ["KV_REST_API_URL", "KV_REST_API_TOKEN"],
+};
+
+export function getFeatureReadiness(
+  feature: TransactionalFeature,
+  env: NodeJS.ProcessEnv = process.env
+): { ready: boolean; missing: string[] } {
+  const missing = FEATURE_REQUIREMENTS[feature].filter((name) => !env[name]?.trim());
+  return { ready: missing.length === 0, missing };
 }

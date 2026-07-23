@@ -24,19 +24,17 @@ body {
     -webkit-tap-highlight-color: transparent;
   }
   
-  button,
-  a,
   input,
   select,
   textarea {
-    font-size: 16px; /* Previene zoom en iOS */
+    font-size: 16px; /* Previene zoom en iOS sin deformar labels de navegación */
   }
 }
 
 @layer base {
   :root {
     /* Zaltyko Brand Book v1 */
-    --background: 210 40% 98%; /* Warm White #F8FAFC */
+    --background: 210 33% 97%; /* Quiet canvas #F5F8F8 */
     --foreground: 222 47% 11%; /* Midnight Navy #0F172A */
 
     --card: 0 0% 100%;
@@ -53,7 +51,7 @@ body {
     --secondary: 238 51% 34%; /* Deep Indigo #2B2E83 */
     --secondary-foreground: 210 40% 98%;
 
-    --muted: 210 40% 96.1%;
+    --muted: 210 24% 95%;
     --muted-foreground: 215.4 16.3% 46.9%;
 
     --accent: 238 51% 34%; /* Deep Indigo */
@@ -62,11 +60,11 @@ body {
     --destructive: 7 100% 67%; /* Coral Accent #FF6B57 */
     --destructive-foreground: 210 40% 98%;
 
-    --border: 213 27% 84%; /* Mist Gray #CBD5E1 */
-    --input: 213 27% 84%;
+    --border: 214 24% 88%; /* quieter borders */
+    --input: 214 24% 84%;
     --ring: 175 74% 45%;
  
-    --radius: 1rem;
+    --radius: 1.125rem;
 
     --chart-1: 175 74% 45%;
     --chart-2: 238 51% 34%;
@@ -160,6 +158,7 @@ body {
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
     overflow-x: hidden;
+    background-image: radial-gradient(circle at 10% 0%, rgba(31, 199, 182, 0.05), transparent 24rem);
   }
   
   html {
@@ -198,6 +197,11 @@ body {
   /* Mejoras de accesibilidad */
   :focus-visible {
     @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+
+  ::selection {
+    background: #0f766e;
+    color: white;
   }
 }
 
@@ -266,6 +270,20 @@ body {
 
 .pull-to-refresh-active {
   animation: pull-to-refresh 0.3s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 /* Animaciones adicionales */

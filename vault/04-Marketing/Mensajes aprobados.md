@@ -46,6 +46,10 @@ Para discovery, beta y mensajes de venta tempranos, enfocar Zaltyko en academias
 - Usar "aislamiento por academia" y "controles de acceso"; no usar "100% seguro" ni "cumplimiento RGPD garantizado".
 - Usar “privacidad por diseño” y “atención por email”; no publicar “RGPD Compliant” ni tiempos de respuesta cerrados sin evidencia operativa.
 - Usar "puesta en marcha guiada"; no prometer una duracion cerrada sin evidencia operativa.
+- Describir importación CSV/Excel como base principal; migraciones históricas, familias, cobros o formatos complejos requieren revisión de alcance y pueden ser acompañadas.
+- Usar resultados como beneficios esperados (menos trabajo manual, más trazabilidad); no publicar porcentajes de ahorro, recaudación o adopción sin trials y denominadores verificables.
+- No publicar testimonios con nombres, academias, volúmenes o resultados concretos sin autorización y evidencia trazable. Mientras no exista esa evidencia, usar proof points de capacidad.
+- Describir exportación y retención por módulo y política vigente; no prometer "toda la información en cualquier momento" si el alcance no está documentado.
 - No anunciar precio o descuento anual hasta que exista el Price anual real en Stripe.
 - Publicar el claim del trial únicamente cuando la promoción de Fase 1 esté verificada en producción. El CTA correcto es crear la academia y activarlo desde Facturación; no decir que se activa automáticamente al registrarse.
 

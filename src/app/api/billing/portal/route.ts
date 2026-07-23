@@ -85,8 +85,8 @@ const portalHandler = withTenant(async (request, context) => {
 
 // Rate-limited POST handler: 10 requests per minute
 export const POST = withRateLimit(
-  async (request) => {
-    return (await portalHandler(request, {} as any)) as NextResponse;
+  async (request, context) => {
+    return (await portalHandler(request, context)) as NextResponse;
   },
   { identifier: getUserIdentifier, limit: 10, window: 60 }
 );

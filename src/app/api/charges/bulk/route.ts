@@ -31,7 +31,7 @@ export const POST = withTenant(async (request, context) => {
     }
 
     // Verify group access
-    const groupAccess = await verifyGroupAccess(body.groupId, body.academyId, context.tenantId);
+    const groupAccess = await verifyGroupAccess(body.groupId, context.tenantId, body.academyId);
     if (!groupAccess.allowed) {
       return apiError(groupAccess.reason ?? "GROUP_ACCESS_DENIED", "Access denied", 403);
     }
@@ -113,4 +113,3 @@ export const POST = withTenant(async (request, context) => {
     return handleApiError(error, { endpoint: "/api/charges/bulk", method: "POST" });
   }
 });
-

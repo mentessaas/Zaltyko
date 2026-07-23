@@ -5,8 +5,8 @@ import { z } from "zod";
 
 import { db } from "@/db";
 import { athleteDocuments } from "@/db/schema/athlete-documents";
-import { athletes } from "@/db/schema/athletes";
 import { withTenant } from "@/lib/authz";
+import { authorizeAthleteResource } from "@/lib/authz/resource-scope";
 import { handleApiError } from "@/lib/api-error-handler";
 import { DOCUMENT_TYPES } from "@/types/athletes";
 import { apiSuccess, apiError, apiCreated } from "@/lib/api-response";
@@ -33,6 +33,10 @@ export const GET = withTenant(async (request, context) => {
 
     if (!context.tenantId) {
       return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
+    }
+    const scope = await authorizeAthleteResource({ context, athleteId });
+    if (!scope.allowed) {
+      return apiError(scope.reason ?? "ATHLETE_ACCESS_DENIED", "Athlete not found", 404);
     }
 
     const documents = await db
@@ -64,18 +68,9 @@ export const POST = withTenant(async (request, context) => {
       return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
     }
 
-    // Verify athlete belongs to tenant
-    const [athlete] = await db
-      .select({ id: athletes.id })
-      .from(athletes)
-      .where(and(
-        eq(athletes.id, athleteId),
-        eq(athletes.tenantId, context.tenantId)
-      ))
-      .limit(1);
-
-    if (!athlete) {
-      return apiError("ATHLETE_NOT_FOUND", "Athlete not found", 404);
+    const scope = await authorizeAthleteResource({ context, athleteId });
+    if (!scope.allowed) {
+      return apiError(scope.reason ?? "ATHLETE_ACCESS_DENIED", "Athlete not found", 404);
     }
 
     // Build insert values
@@ -119,6 +114,10 @@ export const DELETE = withTenant(async (request, context) => {
 
     if (!documentId) {
       return apiError("DOCUMENT_ID_REQUIRED", "Document ID is required", 400);
+    }
+    const scope = await authorizeAthleteResource({ context, athleteId });
+    if (!scope.allowed) {
+      return apiError(scope.reason ?? "ATHLETE_ACCESS_DENIED", "Athlete not found", 404);
     }
 
     await db

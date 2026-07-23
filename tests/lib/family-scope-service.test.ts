@@ -70,4 +70,18 @@ describe("getFamilyChildrenForUser", () => {
 
     expect(result).toEqual([child]);
   }, 15_000);
+
+  it("does not treat an athlete account as a parent financial scope", async () => {
+    selectQueue.push([
+      { id: "profile-athlete", tenantId: "tenant-1", role: "athlete" },
+    ]);
+
+    const { getFamilyChildrenForUser } = await import("@/lib/family/scope-service");
+    const result = await getFamilyChildrenForUser({
+      userId: "user-athlete",
+      email: "athlete@example.com",
+    });
+
+    expect(result).toEqual([]);
+  }, 15_000);
 });

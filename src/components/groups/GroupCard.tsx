@@ -30,7 +30,8 @@ export function GroupCard({ academyId, group, sportConfigLabel, onEdit }: GroupC
   const isStarterGroup = starterGroupNames.has(group.name);
 
   return (
-    <article className="flex flex-col gap-4 rounded-xl border border-border bg-card p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+    <article className="group relative flex flex-col gap-4 overflow-hidden rounded-[22px] border border-slate-200/80 bg-white p-5 shadow-[0_18px_42px_-32px_rgba(15,23,42,0.5)] transition duration-200 hover:-translate-y-0.5 hover:border-zaltyko-teal/30 hover:shadow-[0_24px_52px_-32px_rgba(0,121,107,0.38)]">
+      <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-zaltyko-teal/70 via-zaltyko-electric/70 to-zaltyko-indigo/60 opacity-60 transition-opacity group-hover:opacity-100" />
       <header>
         <div className="flex items-center gap-2">
           <h3 className="text-lg font-semibold text-foreground">{group.name}</h3>
@@ -89,7 +90,7 @@ export function GroupCard({ academyId, group, sportConfigLabel, onEdit }: GroupC
         </div>
       </div>
 
-      <footer className="mt-auto flex items-center justify-between gap-4 border-t border-border pt-4">
+      <footer className="mt-auto flex items-center justify-between gap-4 border-t border-slate-100 pt-4">
         <span className="inline-flex items-center gap-2 rounded-full bg-muted px-3 py-1 text-xs text-muted-foreground">
           {coachCount} {coachCount === 1 ? specialization.labels.coachLabel.toLowerCase() : `${specialization.labels.coachLabel.toLowerCase()}es`} · {group.athleteCount} {group.athleteCount === 1 ? specialization.labels.athleteSingular.toLowerCase() : specialization.labels.athletesPlural.toLowerCase()}
         </span>

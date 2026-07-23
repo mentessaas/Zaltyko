@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
-import { ArrowLeft, Plus, Search, Settings } from "lucide-react";
+import { ArrowLeft, Plus, Search } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { useAcademyContext } from "@/hooks/use-academy-context";
@@ -23,7 +23,7 @@ export function AcademySidebar() {
   }
 
   const basePath = `/app/${context.academyId}`;
-  const canOperateAcademy = context.membershipRole === "owner" || context.membershipRole === "coach" || context.isSuperAdmin;
+  const canCreateAthlete = context.profileRole === "owner" || context.profileRole === "admin" || context.membershipRole === "owner" || context.isSuperAdmin;
   const navItems = getAcademyNavigation({
     academyId: context.academyId,
     profileRole: isProfileRole(context.profileRole) ? context.profileRole : "owner",
@@ -44,11 +44,11 @@ export function AcademySidebar() {
 
   return (
     <aside className="hidden w-72 flex-col border-r border-white/10 bg-zaltyko-navy px-5 py-6 text-white lg:flex">
-      <div className="mb-5 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-        <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-white/75">
+      <div className="mb-5 rounded-[20px] border border-white/10 bg-gradient-to-br from-white/[0.12] to-white/[0.03] p-4 shadow-[0_20px_40px_-28px_rgba(0,0,0,0.8)]">
+        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-teal-200/80">
           Academia
         </p>
-        <p className="mt-2 truncate font-display text-lg font-semibold text-white">
+        <p className="mt-2 truncate font-display text-lg font-bold tracking-[-0.02em] text-white">
           {context.academyName}
         </p>
         {context.planNickname || context.planCode ? (
@@ -71,30 +71,19 @@ export function AcademySidebar() {
         </div>
       </form>
 
-      {canOperateAcademy && (
-      <div className={`mb-4 grid gap-2 ${context.isAdmin ? "grid-cols-2" : "grid-cols-1"}`}>
+      {canCreateAthlete && (
+      <div className="mb-5">
         <Button
           asChild
           variant="outline"
           size="sm"
-          className="border-white/20 text-xs text-white hover:bg-white/10"
+          className="min-h-10 w-full justify-center border-white/20 bg-white/[0.08] text-xs font-semibold text-white hover:bg-white/15"
         >
           <Link href={`${basePath}/athletes/new`}>
             <Plus className="mr-1 h-3 w-3" />
             Nuevo atleta
           </Link>
         </Button>
-        {context.isAdmin && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="border-white/20 text-xs text-white hover:bg-white/10"
-            onClick={() => router.push(`${basePath}/settings`)}
-          >
-            <Settings className="mr-1 h-3 w-3" />
-            Ajustes
-          </Button>
-        )}
       </div>
       )}
 
@@ -112,12 +101,19 @@ export function AcademySidebar() {
         </div>
       )}
 
-      <nav className="space-y-3 text-sm">
-        <p className="px-3 text-[10px] font-medium uppercase tracking-[0.16em] text-white/75">
-          Academia
-        </p>
-        <ul className="space-y-1.5">
-          {navItems.map((item) => {
+      <nav className="space-y-5 text-sm">
+        {[
+          { label: "Operación", keys: ["dashboard", "athletes", "groups", "classes", "attendance-today", "events", "assessments"] },
+          { label: "Relación", keys: ["messages", "announcements"] },
+          { label: "Control", keys: ["coaches", "reports", "billing", "settings"] },
+        ].map((section) => {
+          const sectionItems = navItems.filter((item) => section.keys.includes(item.key));
+          if (sectionItems.length === 0) return null;
+          return (
+            <div key={section.label}>
+              <p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-white/45">{section.label}</p>
+              <ul className="space-y-1">
+                {sectionItems.map((item) => {
             const Icon = item.icon;
             const active = isActive(item.href);
 
@@ -136,10 +132,13 @@ export function AcademySidebar() {
                   <Icon className="h-5 w-5 shrink-0" strokeWidth={1.8} />
                   <span className="flex-1">{item.label}</span>
                 </Link>
-              </li>
-            );
-          })}
-        </ul>
+                </li>
+                );
+                })}
+              </ul>
+            </div>
+          );
+        })}
       </nav>
     </aside>
   );

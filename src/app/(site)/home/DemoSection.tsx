@@ -14,7 +14,7 @@ const demoPoints = [
 
 export default function DemoSection() {
   return (
-    <section id="demo" className="py-24 bg-gray-50 relative overflow-hidden">
+    <section id="demo" className="py-24 surface-subtle relative overflow-hidden">
       {/* Background */}
       <div className="absolute inset-0">
         <div className="absolute top-0 left-1/2 w-[600px] h-[600px] bg-zaltyko-teal/10 rounded-full blur-3xl opacity-40 -translate-x-1/2" />

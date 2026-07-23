@@ -42,6 +42,14 @@ export default async function SuperAdminGrowthPage() {
       detail: `${metrics.betaInterested} entrevistas completadas con interés beta`,
       icon: Target,
     },
+    {
+      label: "Academias activadas",
+      value: `${metrics.activatedAcademies}`,
+      detail: metrics.averageTimeToValueHours === null
+        ? "Hito server-side · sin base de time-to-value"
+        : `Time-to-value medio: ${metrics.averageTimeToValueHours} h`,
+      icon: UsersRound,
+    },
   ];
 
   const funnel = [
@@ -81,7 +89,7 @@ export default async function SuperAdminGrowthPage() {
           </div>
           <p className="text-right text-xs text-white/65">Sin histórico suficiente: no se fija objetivo de conversión aún.</p>
         </div>
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
           {primaryMetrics.map((metric) => {
             const Icon = metric.icon;
             return (

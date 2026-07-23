@@ -1,8 +1,10 @@
 -- ============================================================================
 -- ZALTYKO SAAS - RLS POLICIES CONSOLIDATED
 -- ============================================================================
--- Este es el archivo maestro consolidado de todas las políticas RLS
--- Última actualización: 2025-11-26
+-- Snapshot histórico de referencia. El estado aplicable vive en
+-- supabase/migrations/*.sql y se controla con el ledger SHA-256.
+-- NO ejecutar este archivo directamente sobre una base existente.
+-- Última actualización documental: 2026-07-16
 -- 
 -- IMPORTANTE: Este archivo reemplaza a:
 --   - supabase/rls.sql (deprecado)
@@ -288,7 +290,7 @@ CREATE POLICY "subscriptions_modify" ON subscriptions
 
 DROP POLICY IF EXISTS "plans_read" ON plans;
 CREATE POLICY "plans_read" ON plans
-  FOR SELECT USING (auth.role() = 'authenticated');
+  FOR SELECT TO authenticated USING (true);
 
 COMMENT ON POLICY "plans_read" ON plans IS 
   'Todos los usuarios autenticados pueden ver los planes disponibles';

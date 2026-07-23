@@ -386,7 +386,7 @@ export function GroupsDashboard({
         </section>
       )}
 
-      <section className="flex flex-col gap-4 rounded-lg border bg-card p-5 shadow-sm lg:flex-row lg:items-center lg:justify-between">
+      <section className="flex flex-col gap-4 rounded-[22px] border border-slate-200/80 bg-white p-5 shadow-[0_18px_50px_-32px_rgba(15,23,42,0.45)] lg:flex-row lg:items-center lg:justify-between">
         <div className="flex-1 space-y-2">
           <p className="text-sm font-medium text-foreground">
             Estructura inicial sugerida para {specialization.labels.disciplineName.toLowerCase()}
@@ -431,7 +431,7 @@ export function GroupsDashboard({
                 setSelectedPreset(null);
                 setCreateOpen(true);
               }}
-              className="inline-flex items-center justify-center rounded-md bg-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-emerald-600"
+              className="inline-flex min-h-11 items-center justify-center rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white shadow-soft transition hover:bg-primary-dark"
             >
               Nuevo grupo
             </button>
@@ -450,7 +450,7 @@ export function GroupsDashboard({
       )}
 
       {groups.length === 0 ? (
-        <div className="rounded-lg border bg-card p-12 text-center shadow-sm">
+        <div className="rounded-[22px] border border-dashed border-slate-300 bg-white p-12 text-center shadow-[0_18px_50px_-32px_rgba(15,23,42,0.45)]">
           <p className="mb-4 text-sm text-muted-foreground">
             {selectedSportConfig
               ? `No hay grupos para ${selectedSportConfig.branchName} · ${selectedSportConfig.disciplineName}.`
@@ -462,7 +462,7 @@ export function GroupsDashboard({
               setSelectedPreset(null);
               setCreateOpen(true);
             }}
-            className="inline-flex items-center justify-center rounded-md bg-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-emerald-600"
+            className="inline-flex min-h-11 items-center justify-center rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white shadow-soft transition hover:bg-primary-dark"
           >
             Crear primer grupo
           </button>

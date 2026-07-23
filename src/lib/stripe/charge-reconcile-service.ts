@@ -13,13 +13,26 @@ import { logger } from "@/lib/logger";
 
 interface ChargeLookup {
   id: string;
+  tenantId: string;
+  academyId: string;
+  amountCents: number;
+  currency: string;
   status: string;
+  stripeAccountId: string | null;
 }
 
 async function findChargeForPaymentIntent(pi: Stripe.PaymentIntent): Promise<ChargeLookup | null> {
   const metaChargeId = pi.metadata?.chargeId;
   const [row] = await db
-    .select({ id: charges.id, status: charges.status })
+    .select({
+      id: charges.id,
+      tenantId: charges.tenantId,
+      academyId: charges.academyId,
+      amountCents: charges.amountCents,
+      currency: charges.currency,
+      status: charges.status,
+      stripeAccountId: charges.stripeAccountId,
+    })
     .from(charges)
     .where(
       metaChargeId
@@ -30,11 +43,45 @@ async function findChargeForPaymentIntent(pi: Stripe.PaymentIntent): Promise<Cha
   return row ?? null;
 }
 
-export async function reconcilePaymentIntentSucceeded(pi: Stripe.PaymentIntent): Promise<void> {
+export class ConnectEventRejectedError extends Error {
+  constructor(code: string) {
+    super(code);
+    this.name = "ConnectEventRejectedError";
+  }
+}
+
+function assertPaymentIntentContext(
+  charge: ChargeLookup,
+  pi: Stripe.PaymentIntent,
+  eventAccountId: string | null
+): void {
+  if (!eventAccountId || charge.stripeAccountId !== eventAccountId) {
+    throw new ConnectEventRejectedError("CONNECT_ACCOUNT_MISMATCH");
+  }
+  if (
+    pi.metadata?.chargeId !== charge.id ||
+    pi.metadata?.academyId !== charge.academyId ||
+    pi.metadata?.tenantId !== charge.tenantId
+  ) {
+    throw new ConnectEventRejectedError("CONNECT_METADATA_MISMATCH");
+  }
+}
+
+export async function reconcilePaymentIntentSucceeded(
+  pi: Stripe.PaymentIntent,
+  eventAccountId: string | null
+): Promise<void> {
   const charge = await findChargeForPaymentIntent(pi);
   if (!charge) {
     logger.warn("payment_intent.succeeded sin cargo asociado", { paymentIntentId: pi.id });
     return;
+  }
+  assertPaymentIntentContext(charge, pi, eventAccountId);
+  if (
+    pi.amount_received !== charge.amountCents ||
+    pi.currency.toLowerCase() !== (charge.currency || "eur").toLowerCase()
+  ) {
+    throw new ConnectEventRejectedError("CONNECT_AMOUNT_MISMATCH");
   }
   // No pisar un cargo ya reembolsado.
   if (charge.status === "refunded") return;
@@ -53,9 +100,13 @@ export async function reconcilePaymentIntentSucceeded(pi: Stripe.PaymentIntent):
     .where(eq(charges.id, charge.id));
 }
 
-export async function reconcilePaymentIntentFailed(pi: Stripe.PaymentIntent): Promise<void> {
+export async function reconcilePaymentIntentFailed(
+  pi: Stripe.PaymentIntent,
+  eventAccountId: string | null
+): Promise<void> {
   const charge = await findChargeForPaymentIntent(pi);
   if (!charge) return;
+  assertPaymentIntentContext(charge, pi, eventAccountId);
   // Un fallo tardio no debe revertir un cargo ya pagado o reembolsado.
   if (charge.status === "paid" || charge.status === "refunded") return;
 
@@ -70,9 +121,13 @@ export async function reconcilePaymentIntentFailed(pi: Stripe.PaymentIntent): Pr
     .where(eq(charges.id, charge.id));
 }
 
-export async function reconcilePaymentIntentCanceled(pi: Stripe.PaymentIntent): Promise<void> {
+export async function reconcilePaymentIntentCanceled(
+  pi: Stripe.PaymentIntent,
+  eventAccountId: string | null
+): Promise<void> {
   const charge = await findChargeForPaymentIntent(pi);
   if (!charge) return;
+  assertPaymentIntentContext(charge, pi, eventAccountId);
   if (charge.status === "paid" || charge.status === "refunded") return;
   // La cuota sigue debiendose: vuelve a pendiente para reintento/recordatorio.
   await db
@@ -81,15 +136,21 @@ export async function reconcilePaymentIntentCanceled(pi: Stripe.PaymentIntent): 
     .where(eq(charges.id, charge.id));
 }
 
-export async function reconcileChargeRefunded(stripeCharge: Stripe.Charge): Promise<void> {
+export async function reconcileChargeRefunded(
+  stripeCharge: Stripe.Charge,
+  eventAccountId: string | null
+): Promise<void> {
   const [row] = await db
-    .select({ id: charges.id, status: charges.status })
+    .select({ id: charges.id, status: charges.status, stripeAccountId: charges.stripeAccountId })
     .from(charges)
     .where(eq(charges.stripeChargeId, stripeCharge.id))
     .limit(1);
   if (!row) {
     logger.warn("charge.refunded sin cargo asociado", { stripeChargeId: stripeCharge.id });
     return;
+  }
+  if (!eventAccountId || row.stripeAccountId !== eventAccountId) {
+    throw new ConnectEventRejectedError("CONNECT_ACCOUNT_MISMATCH");
   }
   if (row.status === "refunded") return;
 

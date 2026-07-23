@@ -20,10 +20,32 @@ export interface PermissionCheck {
 
 type ScopedProfile = Pick<ProfileRow, "id" | "userId" | "role" | "tenantId">;
 
-const privilegedAcademyRoles = new Set(["super_admin", "owner", "admin"]);
+async function canManageAcademyScope(
+  profile: ScopedProfile,
+  academyId: string
+): Promise<boolean> {
+  if (profile.role === "super_admin") return true;
 
-function canManageAcademyScope(profile: ScopedProfile): boolean {
-  return privilegedAcademyRoles.has(profile.role);
+  const [academy] = await db
+    .select({ ownerId: academies.ownerId })
+    .from(academies)
+    .where(eq(academies.id, academyId))
+    .limit(1);
+  if (academy?.ownerId === profile.id) return true;
+
+  const [membership] = await db
+    .select({ role: memberships.role })
+    .from(memberships)
+    .where(
+      and(
+        eq(memberships.academyId, academyId),
+        eq(memberships.userId, profile.userId),
+        eq(memberships.role, "owner")
+      )
+    )
+    .limit(1);
+
+  return membership?.role === "owner";
 }
 
 function coachIdentityConditions(profile: ScopedProfile) {
@@ -44,7 +66,7 @@ export async function verifyCoachClassScope({
   classId: string;
   profile: ScopedProfile;
 }): Promise<PermissionCheck> {
-  if (canManageAcademyScope(profile)) {
+  if (await canManageAcademyScope(profile, academyId)) {
     return { allowed: true };
   }
 
@@ -88,7 +110,7 @@ export async function verifyCoachAthleteScope({
   athleteGroupId?: string | null;
   profile: ScopedProfile;
 }): Promise<PermissionCheck> {
-  if (canManageAcademyScope(profile)) {
+  if (await canManageAcademyScope(profile, academyId)) {
     return { allowed: true };
   }
 
@@ -337,10 +359,6 @@ export async function verifyAcademyAccessForProfile({
     };
   }
 
-  if (profile.role === "admin") {
-    return { allowed: true };
-  }
-
   if (profile.tenantId !== tenantId) {
     return {
       allowed: false,
@@ -348,15 +366,8 @@ export async function verifyAcademyAccessForProfile({
     };
   }
 
-  if (profile.role === "owner" || academy.ownerId === profile.id) {
+  if (academy.ownerId === profile.id) {
     return { allowed: true };
-  }
-
-  if (profile.role !== "coach") {
-    return {
-      allowed: false,
-      reason: "INSUFFICIENT_PERMISSIONS",
-    };
   }
 
   const [membership] = await db
@@ -402,8 +413,9 @@ export async function verifyResourceAccess(
   resourceId: string,
   academyId?: string
 ): Promise<PermissionCheck> {
-  // Super admin y admin tienen acceso completo
-  if (profile.role === "super_admin" || profile.role === "admin") {
+  // Solo el super-admin verificado tiene alcance global. `admin` es un valor de
+  // perfil, no una concesión cross-tenant ni cross-academy.
+  if (profile.role === "super_admin") {
     return { allowed: true };
   }
 

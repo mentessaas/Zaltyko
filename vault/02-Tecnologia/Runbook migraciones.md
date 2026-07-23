@@ -1,7 +1,7 @@
 ---
 status: active
 owner: tech
-last_reviewed: 2026-07-13
+last_reviewed: 2026-07-16
 source:
   - ../docs/MIGRATIONS_RLS_RUNBOOK.md
   - ../docs/migrations-backlog.md
@@ -14,21 +14,26 @@ source:
 
 - Revisar Supabase changelog reciente antes de trabajo de migraciones.
 - No aplicar SQL destructivo sin inspeccion manual.
-- Confirmar RLS para toda tabla tenant-aware (`pnpm validate:rls` debe seguir en 100% / 65 tablas).
+- Confirmar RLS para toda tabla tenant-aware (`pnpm validate:rls` debe seguir en 100% / 69 tablas).
 - Mantener Drizzle schema y migraciones alineados.
 - No usar `drizzle-kit push` contra staging o producción. `pnpm db:migrate` queda bloqueado por
   código cuando `DATABASE_URL` no apunta a loopback; aplicar SQL versionado y revisado con
   `pnpm db:migrate:reviewed supabase/migrations/<archivo>.sql`.
 
-## Estado a 2026-07-13
+## Estado a 2026-07-16
 
-- El directorio `drizzle/` **esta versionado**. `pnpm check:migrations` valida siempre ambos historiales: 6 migraciones Drizzle y 32 migraciones Supabase en el estado actual.
-- SSL: exportar `NODE_EXTRA_CA_CERTS` con `certs/supabase-root-ca.crt`; `scripts/db-migrate.ts` lo resuelve a ruta absoluta.
+- El directorio `drizzle/` **esta versionado**. `pnpm check:migrations` valida siempre ambos historiales: 6 migraciones Drizzle y 40 migraciones Supabase en el estado actual; las migraciones Día 2/Día 3 siguen pendientes y no aplicadas.
+- SSL: exportar `NODE_EXTRA_CA_CERTS` con `certs/supabase-root-ca.crt`; runtime y ledger remoto fallan cerrado si falta o no existe. Next incluye esa CA pública en el trace de deploy. No usar `rejectUnauthorized:false`.
+- Runtime serverless: `DATABASE_POOL_MAX` vale 5 por defecto en producción. Es un presupuesto por instancia, no la capacidad total; solo se eleva con métricas reales de Supavisor/Vercel.
+- Build: durante `NEXT_PHASE` el acceso Drizzle está deshabilitado antes de abrir sockets. Las páginas con datos DB deben ser dinámicas y no enumerar filas en `generateStaticParams`.
 - El drift historico de tablas faltantes y diferencias semanticas se cerro el 2026-07-13 con `20260713090000_reconcile_phase1_schema_drift.sql`. DB y ORM quedaron alineados, incluido `push_tokens`; se verificaron 113 tablas, columnas, indices unicos y claves foraneas semanticas.
 - `validate:rls` trata `rls-consolidated.sql` como snapshot y las migraciones como historial: una policy repetida entre ambos no es duplicado; si falla si una misma fuente declara dos veces la misma policy.
+- `pnpm test:rls:local` fuerza `RLS_AUDIT_DATABASE_URL` hacia su PostgreSQL efímero antes de ejecutar el auditor de policies; no debe confiar en la precedencia de `.env.local`. El cluster y sus fixtures terminan siempre en rollback/borrado.
 - No se ejecutó el seed global durante Sprint 0 ni Fases 1-4. Los catálogos federativos usan su sincronizador acotado; Fases 3 y 4 solo necesitaron schema aditivo, no datos iniciales.
 - El 2026-07-12 se reviso el changelog oficial reciente de Supabase y se verifico que el
   proyecto ejecuta PostgreSQL 17.6. No hizo falta migracion de schema para el catalogo RFEG.
+- El 2026-07-16 se revisó de nuevo el changelog oficial de Supabase antes del lote Día 3. No se identificó un cambio incompatible con el SQL aditivo. `20260716214500_day3_communication_academy_scope.sql` añade `academy_id` nullable a tres recursos de comunicación, solo rellena tenants con una academia inequívoca y reemplaza policies tenant-wide por member/manager. Está versionada y no aplicada; debe probarse junto con la dependencia Día 2 antes de promoción.
+- El ensayo conjunto ya está automatizado en `pnpm test:rls:local`: aplica Día 2 y Día 3 sobre un clúster PostgreSQL efímero, ejecuta la matriz owner/coach/parent/athlete/viewer/super-admin/anónimo, verifica 102 tablas públicas con 0 sin RLS y revierte/elimina el entorno. Las policies SELECT de comunicación se limitan explícitamente `TO authenticated`; no confiar en un `CASE` para impedir que el planner evalúe helpers privados con rol `anon`. Este resultado habilita el trabajo de Día 4, pero no sustituye promoción revisada ni pruebas PostgREST/Realtime.
 - La referencia federativa se sincroniza de forma acotada con
   `pnpm db:sync-sport-configs` (dry-run) y
   `pnpm db:sync-sport-configs -- --apply` (aplicacion). No usar `pnpm db:seed` para este

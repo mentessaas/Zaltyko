@@ -57,12 +57,8 @@ export interface RateLimitResult {
  * Detecta si Vercel KV (Redis) está configurado. `@vercel/kv` requiere
  * KV_REST_API_URL + KV_REST_API_TOKEN (o KV_URL); sin ellas cada operación lanza.
  */
-function isKvConfigured(): boolean {
-  return Boolean(
-    process.env.KV_REST_API_URL ||
-      process.env.KV_URL ||
-      process.env.KV_REST_API_TOKEN
-  );
+export function isKvConfigured(): boolean {
+  return Boolean(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
 }
 
 export async function rateLimit(
@@ -77,16 +73,13 @@ export async function rateLimit(
   const now = Math.floor(Date.now() / 1000);
   const windowStart = now - window;
 
-  // Si KV no está configurado no hay backend de rate limiting. Fallar ABIERTO
-  // (permitir) en vez de bloquear toda la app: sin KV el fail-closed de abajo
-  // rechazaría TODAS las requests (checkout, escrituras, imports...). El estado
-  // "sin rate limiting" no es peor que el estado real sin KV; el bloqueo total sí.
-  // Provisiona Vercel KV/Upstash para reactivar la protección estricta.
+  // En producción, una configuración parcial o ausente no puede degradar el
+  // control silenciosamente. Los callers traducen success=false a 429 y el
+  // readiness reporta los nombres que faltan sin exponer valores.
   if (!isKvConfigured()) {
     if (process.env.NODE_ENV === "production") {
-      console.warn(
-        "Rate limiting deshabilitado: Vercel KV no configurado (fail-open)."
-      );
+      logger.error("Rate limiting unavailable: Vercel KV is not configured");
+      return { success: false, limit: 0, remaining: 0, reset: now + window };
     }
     return { success: true, limit, remaining: limit, reset: now + window };
   }
@@ -244,7 +237,12 @@ export function getLimitForRoute(pathname: string): {
   limit: number;
   window: number;
 } {
-  for (const [route, limits] of Object.entries(ROUTE_LIMITS)) {
+  // Match the most specific prefix first. Otherwise `/api/athletes` shadows
+  // `/api/athletes/import` and silently weakens the intended import budget.
+  const routesBySpecificity = Object.entries(ROUTE_LIMITS).sort(
+    ([left], [right]) => right.length - left.length
+  );
+  for (const [route, limits] of routesBySpecificity) {
     if (pathname.startsWith(route)) {
       return limits;
     }

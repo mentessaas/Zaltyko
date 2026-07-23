@@ -31,12 +31,14 @@ export const GET = withTenant(async (request, context) => {
 
   const statusFilter = url.searchParams.get("status");
   const levelFilter = url.searchParams.get("level");
+  const academyId = url.searchParams.get("academyId");
 
   const ageExpr = sql<number | null>`CASE WHEN ${athletes.dob} IS NULL THEN NULL ELSE floor(date_part('year', age(now(), ${athletes.dob}))) END`;
   const guardianNames = sql<string[]>`array_remove(array_agg(distinct ${guardians.name}), NULL)`;
 
   const whereConditions = [
     eq(athletes.tenantId, effectiveTenantId),
+    academyId ? eq(athletes.academyId, academyId) : undefined,
     statusFilter && (athleteStatusOptions as readonly string[]).includes(statusFilter)
       ? eq(athletes.status, statusFilter)
       : undefined,

@@ -59,7 +59,7 @@ const modules = [
   },
   {
     title: "Multi-Sede",
-    description: "Gestión de varias sedes o academias desde un solo panel, con aislamiento por academia y control de acceso por rol.",
+    description: "Gestión multi-sede para Network con diagnóstico y puesta en marcha acompañada, además de aislamiento por academia y control de acceso por rol.",
     icon: Shield,
     features: ["Varias sedes", "Roles por usuario", "Panel de director", "Datos aislados"],
   },

@@ -1,6 +1,11 @@
+import { asc, eq } from "drizzle-orm";
 import { cookies } from "next/headers";
-import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+
+import { db } from "@/db";
+import { academies, profiles, ticketResponses, tickets } from "@/db/schema";
+import { getCurrentProfile } from "@/lib/authz";
+import { createClient } from "@/lib/supabase/server";
 import { TicketDetail } from "@/components/support/TicketDetail";
 import { TicketStatus } from "@/components/support/TicketFilters";
 
@@ -11,59 +16,67 @@ interface PageProps {
 }
 
 async function getTicket(ticketId: string) {
-  const cookieStore = await cookies();
-  const supabase = await createClient(cookieStore);
+  const [row] = await db
+    .select({
+      id: tickets.id,
+      title: tickets.title,
+      description: tickets.description,
+      status: tickets.status,
+      priority: tickets.priority,
+      category: tickets.category,
+      createdAt: tickets.createdAt,
+      updatedAt: tickets.updatedAt,
+      resolvedAt: tickets.resolvedAt,
+      closedAt: tickets.closedAt,
+      createdById: tickets.createdBy,
+      creatorName: profiles.name,
+      academyId: tickets.academyId,
+      academyName: academies.name,
+    })
+    .from(tickets)
+    .leftJoin(profiles, eq(tickets.createdBy, profiles.id))
+    .leftJoin(academies, eq(tickets.academyId, academies.id))
+    .where(eq(tickets.id, ticketId))
+    .limit(1);
 
-  const { data: ticket, error: ticketError } = await supabase
-    .from("tickets")
-    .select(`
-      *,
-      createdBy:profiles!tickets_created_by_fkey(id, fullName, email),
-      assignedTo:profiles(id, fullName, email),
-      academy:academies(id, name)
-    `)
-    .eq("id", ticketId)
-    .single();
+  if (!row) return null;
 
-  if (ticketError || !ticket) {
-    return null;
-  }
-
-  // Obtener respuestas
-  const { data: responses } = await supabase
-    .from("ticket_responses")
-    .select(`
-      *,
-      user:profiles(id, fullName),
-      attachments:ticket_attachments(id, fileName, fileUrl, fileType)
-    `)
-    .eq("ticket_id", ticketId)
-    .order("created_at", { ascending: true });
+  const responseRows = await db
+    .select({
+      id: ticketResponses.id,
+      message: ticketResponses.message,
+      isInternal: ticketResponses.isInternal,
+      createdAt: ticketResponses.createdAt,
+      userId: ticketResponses.userId,
+      userName: profiles.name,
+    })
+    .from(ticketResponses)
+    .leftJoin(profiles, eq(ticketResponses.userId, profiles.id))
+    .where(eq(ticketResponses.ticketId, ticketId))
+    .orderBy(asc(ticketResponses.createdAt));
 
   return {
-    ...ticket,
-    createdBy: ticket.createdBy?.[0],
-    assignedTo: ticket.assignedTo?.[0],
-    academy: ticket.academy?.[0],
-    responses: responses?.map((r: any) => ({
-      ...r,
-      user: r.user?.[0],
-      attachments: r.attachments || [],
-    })) || [],
+    id: row.id,
+    title: row.title,
+    description: row.description,
+    status: row.status,
+    priority: row.priority,
+    category: row.category,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+    resolvedAt: row.resolvedAt ?? undefined,
+    closedAt: row.closedAt ?? undefined,
+    createdBy: { id: row.createdById, fullName: row.creatorName ?? "Academia", email: "" },
+    academy: row.academyId ? { id: row.academyId, name: row.academyName ?? "Academia" } : undefined,
+    responses: responseRows.map((response) => ({
+      id: response.id,
+      message: response.message,
+      isInternal: response.isInternal ?? false,
+      createdAt: response.createdAt,
+      user: { id: response.userId, fullName: response.userName ?? "Soporte" },
+      attachments: [],
+    })),
   };
-}
-
-async function getAdmins() {
-  const cookieStore = await cookies();
-  const supabase = await createClient(cookieStore);
-
-  const { data: admins } = await supabase
-    .from("profiles")
-    .select("id, fullName, email")
-    .in("role", ["super_admin", "admin"])
-    .order("fullName");
-
-  return admins || [];
 }
 
 export default async function SuperAdminTicketDetailPage({ params }: PageProps) {
@@ -71,72 +84,37 @@ export default async function SuperAdminTicketDetailPage({ params }: PageProps) 
   const cookieStore = await cookies();
   const supabase = await createClient(cookieStore);
   const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/auth/login");
+  const userId = user.id;
 
-  if (!user) {
-    redirect("/auth/login");
-  }
-
-  // Verificar que es super admin
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .single();
-
-  if (profile?.role !== "super_admin") {
-    redirect("/dashboard");
-  }
+  const profile = await getCurrentProfile(userId);
+  if (!profile || profile.role !== "super_admin") redirect("/dashboard");
 
   const ticket = await getTicket(ticketId);
-
-  if (!ticket) {
-    redirect("/super-admin/support");
-  }
+  if (!ticket) redirect("/super-admin/support");
 
   async function handleStatusChange(newStatus: TicketStatus) {
     "use server";
-    const cookieStore = await cookies();
-  const supabase = await createClient(cookieStore);
-
-    const updateData: Record<string, any> = {
-      updated_at: new Date().toISOString(),
-      status: newStatus,
-    };
-
-    if (newStatus === "resolved") {
-      updateData.resolved_at = new Date().toISOString();
-    } else if (newStatus === "closed") {
-      updateData.closed_at = new Date().toISOString();
-    }
-
-    await supabase
-      .from("tickets")
-      .update(updateData)
-      .eq("id", ticketId);
-  }
-
-  async function handleAssign(userId: string) {
-    "use server";
-    const cookieStore = await cookies();
-  const supabase = await createClient(cookieStore);
-
-    await supabase
-      .from("tickets")
-      .update({
-        assigned_to: userId,
-        updated_at: new Date().toISOString(),
+    const current = await getCurrentProfile(userId);
+    if (!current || current.role !== "super_admin") return;
+    await db
+      .update(tickets)
+      .set({
+        status: newStatus,
+        updatedAt: new Date(),
+        resolvedAt: newStatus === "resolved" ? new Date() : null,
+        closedAt: newStatus === "closed" ? new Date() : null,
       })
-      .eq("id", ticketId);
+      .where(eq(tickets.id, ticketId));
   }
 
   return (
-    <div className="container mx-auto py-8 max-w-4xl">
+    <div className="container mx-auto max-w-4xl py-8">
       <TicketDetail
         ticket={ticket}
-        currentUserId={user.id}
-        isAdmin={true}
+        currentUserId={profile.id}
+        isAdmin
         onStatusChange={handleStatusChange}
-        onAssign={handleAssign}
       />
     </div>
   );

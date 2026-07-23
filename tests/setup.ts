@@ -110,6 +110,10 @@ vi.mock("drizzle-orm/pg-core", () => {
 vi.mock("drizzle-orm", () => ({
   eq: vi.fn((a: unknown, b: unknown) => ({ _op: "eq", a, b })),
   ne: vi.fn((a: unknown, b: unknown) => ({ _op: "ne", a, b })),
+  gt: vi.fn((a: unknown, b: unknown) => ({ _op: "gt", a, b })),
+  gte: vi.fn((a: unknown, b: unknown) => ({ _op: "gte", a, b })),
+  lt: vi.fn((a: unknown, b: unknown) => ({ _op: "lt", a, b })),
+  lte: vi.fn((a: unknown, b: unknown) => ({ _op: "lte", a, b })),
   and: vi.fn((...args: unknown[]) => ({ _op: "and", args })),
   or: vi.fn((...args: unknown[]) => ({ _op: "or", args })),
   sql: vi.fn((strings: TemplateStringsArray, ...values: unknown[]) => ({
@@ -188,6 +192,7 @@ vi.mock("@/lib/logger", () => ({
     error: vi.fn(),
     warn: vi.fn(),
     debug: vi.fn(),
+    apiError: vi.fn(),
   },
   log: vi.fn(),
   error: vi.fn(),

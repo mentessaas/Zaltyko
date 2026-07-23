@@ -17,6 +17,24 @@ source:
 
 # Backlog priorizado
 
+## Cierre integral de objeciones del director — 2026-07-23
+
+La ejecución canónica está en [[../../docs/plans/2026-07-23-objection-closure-matrix]].
+Este bloque autoriza rediseñar, simplificar, ampliar o sustituir módulos cuando
+sea necesario para mejorar adopción, claridad, accesibilidad, rendimiento,
+conversión o eficiencia operativa. No se limita a documentación o auditoría.
+
+Prioridades:
+
+1. Activación y demo core.
+2. Onboarding e importación por rol.
+3. Confianza: permisos, familias, pagos y exportación.
+4. Soporte, métricas y validación comercial.
+
+Cada tarea debe cerrar con comportamiento, copy, pruebas, owner y evidencia; los
+claims sin evidencia se mantienen como parciales, acompañados, no prometibles o
+bloqueados.
+
 ## P0
 
 | Estado | Tarea | Dueño | Criterio de aceptación | Evidencia |

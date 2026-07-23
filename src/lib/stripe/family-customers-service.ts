@@ -72,6 +72,7 @@ export async function resolvePayerCustomerForAthlete(
       and(
         eq(familyStripeCustomers.academyId, academyId),
         eq(guardianAthletes.athleteId, athleteId),
+        eq(guardianAthletes.tenantId, familyStripeCustomers.tenantId),
         isNotNull(familyStripeCustomers.defaultPaymentMethodId)
       )
     )
@@ -190,16 +191,21 @@ export async function saveDefaultPaymentMethod(params: {
   const stripe = getStripeClient();
   const opts: Stripe.RequestOptions = { stripeAccount: params.stripeAccountId };
 
-  // Adjuntar el PM al customer (idempotente: si ya esta adjunto, Stripe lo tolera).
   const pm = await stripe.paymentMethods.retrieve(params.paymentMethodId, {}, opts);
-  if (pm.customer !== row.stripeCustomerId) {
-    await stripe.paymentMethods.attach(params.paymentMethodId, { customer: row.stripeCustomerId }, opts);
+  if (pm.type !== "card" || pm.customer !== row.stripeCustomerId) {
+    // Un PaymentMethod confirmado por el SetupIntent de esta familia ya debe
+    // estar adjunto a su Customer. No adjuntamos IDs arbitrarios enviados por
+    // el cliente, aunque existan dentro de la misma cuenta conectada.
+    throw new Error("PAYMENT_METHOD_CUSTOMER_MISMATCH");
   }
 
   await stripe.customers.update(
     row.stripeCustomerId,
     { invoice_settings: { default_payment_method: params.paymentMethodId } },
-    opts
+    {
+      ...opts,
+      idempotencyKey: `family_default_pm_${row.id}_${params.paymentMethodId}`,
+    }
   );
 
   const display = extractCardDisplay(pm);

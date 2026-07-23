@@ -34,7 +34,7 @@ export function verifyWebhookSignature(
   const stripe = getStripeClient();
 
   try {
-    return stripe.webhooks.constructEvent(body, signature, webhookSecret);
+    return stripe.webhooks.constructEvent(body, signature, webhookSecret, 300);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     logger.error("Stripe signature verification failed", error, {

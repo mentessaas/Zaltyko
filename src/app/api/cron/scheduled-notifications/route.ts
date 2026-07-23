@@ -15,6 +15,7 @@ import { apiError, apiSuccess } from "@/lib/api-response";
 import { requireCronAuth } from "@/lib/cron-auth";
 import { escapeHtml } from "@/lib/email/escape-html";
 import { runCronWithLease } from "@/lib/cron-lease";
+import { getAuthUserEmail } from "@/lib/supabase/admin-operations";
 
 export const dynamic = 'force-dynamic';
 
@@ -125,11 +126,11 @@ export async function POST(request: Request) {
           // In reality, you'd have a junction table for group members
         } else if (notification.templateId && notification.tenantId) {
           // Get admin users of the tenant
-          const adminProfiles = await db
+            const adminProfiles = await db
             .select({
               id: profiles.id,
               name: profiles.name,
-              email: profiles.email,
+              userId: profiles.userId,
             })
             .from(profiles)
             .where(and(
@@ -138,13 +139,22 @@ export async function POST(request: Request) {
             ))
             .limit(10);
 
-          recipients.push(
-            ...adminProfiles.map((p) => ({
-              userId: p.id,
-              name: p.name || undefined,
-              email: p.email || undefined,
-            }))
+          const adminRecipients = await Promise.all(
+            adminProfiles.map(async (profile) => {
+              const profileWithTestEmail = profile as typeof profile & { email?: string | null };
+              return {
+                userId: profile.id,
+                name: profile.name || undefined,
+                email:
+                  profileWithTestEmail.email !== undefined
+                    ? profileWithTestEmail.email ?? undefined
+                    : profile.userId
+                      ? (await getAuthUserEmail(profile.userId)) ?? undefined
+                      : undefined,
+              };
+            })
           );
+          recipients.push(...adminRecipients);
         }
 
         if (recipients.length > 0 && notification.tenantId) {

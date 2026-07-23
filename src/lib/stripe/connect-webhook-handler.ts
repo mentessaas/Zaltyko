@@ -6,6 +6,7 @@ import { logger } from "@/lib/logger";
 import { recordBillingEvent, updateBillingEventStatus } from "@/lib/stripe/billing-events-service";
 import { syncConnectAccountFromStripe } from "@/lib/stripe/connect-service";
 import {
+  ConnectEventRejectedError,
   reconcileChargeRefunded,
   reconcilePaymentIntentCanceled,
   reconcilePaymentIntentFailed,
@@ -25,42 +26,64 @@ import {
  * Procesa un evento de Connect ya verificado. Extensible: FASE 5 añade
  * payment_intent.succeeded/payment_failed/canceled y charge.refunded.
  */
-export async function processConnectEvent(event: Stripe.Event): Promise<{ duplicate: boolean }> {
+export async function processConnectEvent(
+  event: Stripe.Event
+): Promise<{ duplicate: boolean; rejected: boolean }> {
   const claim = await recordBillingEvent(event);
   if (!claim.shouldProcess) {
-    return { duplicate: true };
+    return { duplicate: true, rejected: false };
   }
 
   const eventId = claim.id;
   try {
     switch (event.type) {
       case "account.updated":
+        if (!event.account || event.account !== (event.data.object as Stripe.Account).id) {
+          throw new ConnectEventRejectedError("CONNECT_ACCOUNT_MISMATCH");
+        }
         await syncConnectAccountFromStripe(event.data.object as Stripe.Account);
         break;
       case "payment_intent.succeeded":
-        await reconcilePaymentIntentSucceeded(event.data.object as Stripe.PaymentIntent);
+        await reconcilePaymentIntentSucceeded(
+          event.data.object as Stripe.PaymentIntent,
+          event.account ?? null
+        );
         break;
       case "payment_intent.payment_failed":
-        await reconcilePaymentIntentFailed(event.data.object as Stripe.PaymentIntent);
+        await reconcilePaymentIntentFailed(
+          event.data.object as Stripe.PaymentIntent,
+          event.account ?? null
+        );
         break;
       case "payment_intent.canceled":
-        await reconcilePaymentIntentCanceled(event.data.object as Stripe.PaymentIntent);
+        await reconcilePaymentIntentCanceled(
+          event.data.object as Stripe.PaymentIntent,
+          event.account ?? null
+        );
         break;
       case "charge.refunded":
-        await reconcileChargeRefunded(event.data.object as Stripe.Charge);
+        await reconcileChargeRefunded(event.data.object as Stripe.Charge, event.account ?? null);
         break;
       default:
         // Tipo no manejado: marcar procesado para no reintentar en bucle.
         break;
     }
     await updateBillingEventStatus(eventId, { status: "processed", processedAt: new Date() });
-    return { duplicate: false };
+    return { duplicate: false, rejected: false };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     logger.error("Stripe connect webhook processing error", error, {
       eventId,
       eventType: event.type,
     });
+    if (error instanceof ConnectEventRejectedError) {
+      await updateBillingEventStatus(eventId, {
+        status: "processed",
+        processedAt: new Date(),
+        errorMessage,
+      });
+      return { duplicate: false, rejected: true };
+    }
     await updateBillingEventStatus(eventId, { status: "error", errorMessage });
     throw error;
   }
@@ -83,7 +106,7 @@ export async function handleConnectWebhook(request: Request): Promise<NextRespon
   let event: Stripe.Event;
   try {
     const stripe = getStripeClient();
-    event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
+    event = stripe.webhooks.constructEvent(body, signature, webhookSecret, 300);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     logger.error("Stripe connect signature verification failed", error, { errorMessage });
@@ -92,7 +115,11 @@ export async function handleConnectWebhook(request: Request): Promise<NextRespon
 
   try {
     const result = await processConnectEvent(event);
-    return NextResponse.json({ received: true, duplicate: result.duplicate });
+    return NextResponse.json({
+      received: true,
+      duplicate: result.duplicate,
+      rejected: result.rejected,
+    });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     logger.error("Stripe connect webhook handler error", error);

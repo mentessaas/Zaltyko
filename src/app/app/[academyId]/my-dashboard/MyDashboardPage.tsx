@@ -2,19 +2,16 @@
 
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Calendar,
-  Clock,
   CreditCard,
   TrendingUp,
   ArrowRight,
   Users,
   User,
-  MapPin,
   Mail,
   GraduationCap,
-  ChevronDown,
   ClipboardList,
 } from "lucide-react";
 
@@ -157,14 +154,35 @@ export function MyDashboardPage({
   const isParent = profileRole === "parent";
   const isAthlete = profileRole === "athlete";
   const isCoach = profileRole === "coach";
-  const isAdmin = profileRole === "admin" || profileRole === "owner";
+  const canViewPayments = isParent;
+  const hasLinkedAthlete = isAthlete ? Boolean(athleteData) : guardianAthletes.length > 0;
   const router = useRouter();
   const searchParams = useSearchParams();
+  const requestedAthleteId = searchParams.get("athleteId");
 
   // Estado para el athlete seleccionado (para padres con múltiples hijos)
   const [selectedAthleteId, setSelectedAthleteId] = useState(
-    isAthlete ? athleteData?.id : guardianAthletes[0]?.athleteId
+    isAthlete
+      ? athleteData?.id
+      : guardianAthletes.some((athlete) => athlete.athleteId === requestedAthleteId)
+        ? requestedAthleteId ?? undefined
+        : guardianAthletes[0]?.athleteId
   );
+
+  // Mantener el selector sincronizado al abrir un enlace con ?athleteId=…
+  // o al volver a la vista familiar sin una selección explícita.
+  useEffect(() => {
+    if (!isParent) return;
+    const nextAthleteId = guardianAthletes.some(
+      (athlete) => athlete.athleteId === requestedAthleteId
+    )
+      ? requestedAthleteId ?? guardianAthletes[0]?.athleteId
+      : guardianAthletes[0]?.athleteId;
+
+    setSelectedAthleteId((current) =>
+      current === nextAthleteId ? current : nextAthleteId
+    );
+  }, [guardianAthletes, isParent, requestedAthleteId]);
 
   // Obtener el athlete seleccionado de la lista
   const selectedAthlete = isParent && guardianAthletes.length > 0
@@ -202,14 +220,14 @@ export function MyDashboardPage({
   const pendingPayments = chargesData.filter(
     (c) => c.status === "pending" || c.status === "overdue"
   );
-  const hasPendingPayments = pendingPayments.length > 0;
+  const hasPendingPayments = canViewPayments && hasLinkedAthlete && pendingPayments.length > 0;
   const totalPendingAmount = pendingPayments.reduce((sum, p) => sum + p.amountCents, 0);
 
   // Calcular tasa de asistencia
   const attendanceRate =
     attendanceData && attendanceData.total > 0
       ? Math.round((attendanceData.present / attendanceData.total) * 100)
-      : 0;
+      : null;
 
   // Format currency
   const formatCurrency = (cents: number) => {
@@ -220,10 +238,10 @@ export function MyDashboardPage({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto max-w-[1200px] space-y-6">
       {/* Alerta de pagos pendientes */}
       {hasPendingPayments && (
-        <div className="flex items-center justify-between rounded-lg border border-amber-200 bg-amber-50 p-4">
+        <div className="flex flex-col gap-4 rounded-[22px] border border-amber-200/80 bg-gradient-to-r from-amber-50 to-white p-4 shadow-[0_18px_42px_-32px_rgba(146,64,14,0.45)] sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100">
               <CreditCard className="h-5 w-5 text-amber-600" />
@@ -244,7 +262,7 @@ export function MyDashboardPage({
       )}
 
       {isParent && guardianAthletes.length === 0 ? (
-        <Card className="border-dashed">
+          <Card className="border-dashed border-slate-300 bg-white/80">
           <CardContent className="flex flex-col items-start gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-start gap-3">
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
@@ -267,55 +285,73 @@ export function MyDashboardPage({
       ) : null}
 
       {/* Stats rápidos */}
-      <div className="grid gap-4 sm:grid-cols-3">
-        <div className="rounded-lg border bg-card p-4">
+      <div className="grid gap-3 sm:grid-cols-3">
+        <div className="rounded-[20px] border border-slate-200/80 bg-white p-4 shadow-[0_16px_36px_-30px_rgba(15,23,42,0.5)]">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100">
               <TrendingUp className="h-5 w-5 text-emerald-600" />
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Asistencia</p>
-              <p className="text-xl font-bold">{attendanceRate}%</p>
+              <p className="text-xl font-bold">
+                {attendanceRate === null ? "—" : `${attendanceRate}%`}
+              </p>
+              {attendanceRate === null && (
+                <p className="text-xs text-muted-foreground">Sin registros aún</p>
+              )}
             </div>
           </div>
         </div>
-        <div className="rounded-lg border bg-card p-4">
+        <div className="rounded-[20px] border border-slate-200/80 bg-white p-4 shadow-[0_16px_36px_-30px_rgba(15,23,42,0.5)]">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100">
               <Calendar className="h-5 w-5 text-blue-600" />
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Clases esta semana</p>
-              <p className="text-xl font-bold">{weeklySchedule.length}</p>
+              <p className="text-xl font-bold">
+                {hasLinkedAthlete ? weeklySchedule.length : "—"}
+              </p>
+              {!hasLinkedAthlete && (
+                <p className="text-xs text-muted-foreground">Perfil pendiente</p>
+              )}
             </div>
           </div>
         </div>
-        <div className="rounded-lg border bg-card p-4">
+        <div className="rounded-[20px] border border-slate-200/80 bg-white p-4 shadow-[0_16px_36px_-30px_rgba(15,23,42,0.5)]">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-purple-100">
               <ClipboardList className="h-5 w-5 text-purple-600" />
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Evaluaciones</p>
-              <p className="text-xl font-bold">{assessmentsData.length}</p>
+              <p className="text-xl font-bold">
+                {hasLinkedAthlete ? assessmentsData.length : "—"}
+              </p>
+              {!hasLinkedAthlete && (
+                <p className="text-xs text-muted-foreground">Perfil pendiente</p>
+              )}
             </div>
           </div>
         </div>
       </div>
 
       {/* Header con información del perfil */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="relative overflow-hidden rounded-[26px] bg-slate-950 px-5 py-6 text-white shadow-[0_24px_60px_-36px_rgba(15,23,42,0.8)] sm:flex-row sm:items-center sm:justify-between sm:px-7">
+        <div className="pointer-events-none absolute -right-16 -top-24 h-56 w-56 rounded-full bg-teal-400/20 blur-3xl" />
+        <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">
-          <Avatar className="h-16 w-16 text-xl">
-            <AvatarFallback className="bg-primary/20 text-primary">
+          <Avatar className="h-14 w-14 border border-white/15 text-xl">
+            <AvatarFallback className="bg-white/10 text-teal-200">
               {getInitials(profileName ?? "")}
             </AvatarFallback>
           </Avatar>
           <div>
-            <h1 className="text-2xl font-bold text-foreground">
+            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-teal-200">{isParent ? "Tu espacio familiar" : "Tu progreso en pista"}</p>
+            <h1 className="mt-1 font-display text-2xl font-bold tracking-[-0.03em] text-white">
               ¡Hola, {profileName || "Usuario"}!
             </h1>
-            <p className="text-muted-foreground">
+            <p className="text-sm text-slate-300">
               {isParent
                 ? "Panel familiar"
                 : isAthlete
@@ -324,29 +360,32 @@ export function MyDashboardPage({
                     ? `Panel de ${specialization.labels.coachLabel.toLowerCase()}`
                     : "Tu panel personal"}
               {" · "}
-              <span className="font-medium text-primary">{academyName}</span>
+              <span className="font-semibold text-teal-200">{academyName}</span>
             </p>
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" asChild>
+          <Button variant="outline" size="sm" className="border-white/20 bg-white/10 text-white hover:bg-white/20" asChild>
             <Link href="#calendar">
               <Calendar className="mr-2 h-4 w-4" />
               Calendario
             </Link>
           </Button>
-          <Button variant="outline" size="sm" asChild>
-            <Link href="#payments">
-              <CreditCard className="mr-2 h-4 w-4" />
-              Pagos
-            </Link>
-          </Button>
+          {canViewPayments && hasLinkedAthlete && (
+            <Button variant="outline" size="sm" className="border-white/20 bg-white/10 text-white hover:bg-white/20" asChild>
+              <Link href="#payments">
+                <CreditCard className="mr-2 h-4 w-4" />
+                Pagos
+              </Link>
+            </Button>
+          )}
+        </div>
         </div>
       </div>
 
       {/* Información del atleta */}
       {(athleteData || guardianAthletes.length > 0) && (
-        <Card className="bg-gradient-to-r from-primary/5 to-primary/10 border-primary/20">
+        <Card className="overflow-hidden border-teal-200/70 bg-gradient-to-r from-teal-50 to-white">
           <CardContent className="p-4 sm:p-6">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div className="flex items-center gap-4">
@@ -444,6 +483,30 @@ export function MyDashboardPage({
 
       {/* Widgets principales - Grid responsivo */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {/* Próximas clases: la primera respuesta que necesitan familias y gimnastas */}
+        <Card id="next-classes" className="scroll-mt-24 md:col-span-2 lg:col-span-2">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <CardTitle className="text-base">
+                  <Calendar className="mr-2 inline h-4 w-4" />
+                  Próximas clases
+                </CardTitle>
+                <CardDescription>Lo que viene en los próximos 7 días</CardDescription>
+              </div>
+              <Button variant="ghost" size="sm" asChild>
+                <Link href="#calendar">
+                  Ver calendario
+                  <ArrowRight className="ml-1 h-3 w-3" />
+                </Link>
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <MyScheduleWidget sessions={upcomingClasses} academyCountry={academyCountry} />
+          </CardContent>
+        </Card>
+
         {/* Widget de Calendario Mensual */}
         <Card id="calendar" className="scroll-mt-24 md:col-span-2 lg:col-span-2">
           <CardHeader className="pb-3">
@@ -492,33 +555,35 @@ export function MyDashboardPage({
           </CardContent>
         </Card>
 
-        {/* Widget de Pagos */}
-        <Card id="payments" className="scroll-mt-24">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="text-base">
-                  <CreditCard className="mr-2 inline h-4 w-4" />
-                  Pagos
-                </CardTitle>
-                <CardDescription>
-                  {hasPendingPayments
-                    ? `${pendingPayments.length} ${pendingPayments.length === 1 ? "pendiente" : "pendientes"}`
-                    : "Todo al día"}
-                </CardDescription>
+        {/* Widget de Pagos: información financiera solo para tutores */}
+        {canViewPayments && hasLinkedAthlete && (
+          <Card id="payments" className="scroll-mt-24">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-base">
+                    <CreditCard className="mr-2 inline h-4 w-4" />
+                    Pagos
+                  </CardTitle>
+                  <CardDescription>
+                    {hasPendingPayments
+                      ? `${pendingPayments.length} ${pendingPayments.length === 1 ? "pendiente" : "pendientes"}`
+                      : "Todo al día"}
+                  </CardDescription>
+                </div>
+                <Button variant="ghost" size="sm" asChild>
+                  <Link href="#payments">
+                    Resumen familiar
+                    <ArrowRight className="ml-1 h-3 w-3" />
+                  </Link>
+                </Button>
               </div>
-              <Button variant="ghost" size="sm" asChild>
-                <Link href="#payments">
-                  Resumen familiar
-                  <ArrowRight className="ml-1 h-3 w-3" />
-                </Link>
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <MyPaymentsWidget charges={chargesData} academyId={academyId} />
-          </CardContent>
-        </Card>
+            </CardHeader>
+            <CardContent>
+              <MyPaymentsWidget charges={chargesData} academyId={academyId} />
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Widget de Progreso */}
@@ -595,17 +660,19 @@ export function MyDashboardPage({
             </div>
           </Link>
         </Button>
-        <Button variant="outline" className="h-auto py-4" asChild>
-          <Link href="#payments">
-            <div className="flex flex-col items-start gap-1 text-left">
-              <CreditCard className="h-5 w-5 text-primary" />
-              <span className="font-medium">Historial de Pagos</span>
-              <span className="text-xs text-muted-foreground">
-                Ver cuotas y estados de pago
-              </span>
-            </div>
-          </Link>
-        </Button>
+        {canViewPayments && hasLinkedAthlete && (
+          <Button variant="outline" className="h-auto py-4" asChild>
+            <Link href="#payments">
+              <div className="flex flex-col items-start gap-1 text-left">
+                <CreditCard className="h-5 w-5 text-primary" />
+                <span className="font-medium">Historial de pagos</span>
+                <span className="text-xs text-muted-foreground">
+                  Ver cuotas y estados de pago
+                </span>
+              </div>
+            </Link>
+          </Button>
+        )}
         <Button variant="outline" className="h-auto py-4" asChild>
           <Link href={`/app/${academyId}/messages`}>
             <div className="flex flex-col items-start gap-1 text-left">

@@ -80,6 +80,10 @@ describe("API /api/class-sessions", () => {
       },
     }));
 
+    vi.mock("@/lib/authz/resource-scope", () => ({
+      authorizeClassResource: vi.fn().mockResolvedValue({ allowed: true }),
+    }));
+
     const mainModule = await import("@/app/api/class-sessions/route");
     POST = mainModule.POST;
     GET = mainModule.GET;
@@ -117,7 +121,7 @@ describe("API /api/class-sessions", () => {
     const response = await POST(request, {} as any);
     expect(response.status).toBe(200);
     const body = await response.json();
-    expect(body).toHaveProperty("id");
+    expect(body.data).toHaveProperty("id");
     const sessionInsert = insertCalls[0];
     expect(sessionInsert?.payload).toMatchObject({
       classId: "22222222-2222-2222-2222-222222222222",
@@ -157,8 +161,8 @@ describe("API /api/class-sessions", () => {
     const response = await GET(request, {} as any);
     expect(response.status).toBe(200);
     const body = await response.json();
-    expect(body.items).toHaveLength(1);
-    expect(body.items[0]).toMatchObject({
+    expect(body.data.items).toHaveLength(1);
+    expect(body.data.items[0]).toMatchObject({
       id: "session-1",
       className: "Equipo FIG Avanzado",
       coachName: "Luis Romero",
@@ -172,7 +176,6 @@ describe("API /api/class-sessions", () => {
         result: [{ id: "session-1", classId: "class-123" }],
       })
     );
-
     const request = new Request("http://localhost/api/class-sessions/session-1", {
       method: "PUT",
       body: JSON.stringify({
@@ -186,4 +189,3 @@ describe("API /api/class-sessions", () => {
     expect(response.status).toBe(200);
   });
 });
-

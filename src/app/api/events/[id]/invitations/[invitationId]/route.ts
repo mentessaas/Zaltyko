@@ -5,16 +5,19 @@ import { z } from "zod";
 
 import { db } from "@/db";
 import { events, eventInvitations } from "@/db/schema";
-import { withTenant } from "@/lib/authz";
+import { withTenant, type TenantContext } from "@/lib/authz";
 import { handleApiError } from "@/lib/api-error-handler";
 import { apiSuccess, apiError } from "@/lib/api-response";
+import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
 
 const updateInvitationSchema = z.object({
   status: z.enum(["pending", "sent", "accepted", "declined", "expired"]).optional(),
   response: z.string().optional(),
 });
 
-export const GET = withTenant(async (request: Request, context: { tenantId: string; params: { id: string; invitationId: string } }) => {
+type RouteContext = TenantContext<{ params: { id: string; invitationId: string } }>;
+
+export const GET = withTenant(async (request: Request, context: RouteContext) => {
   try {
     const { id: eventId, invitationId } = context.params;
 
@@ -24,7 +27,7 @@ export const GET = withTenant(async (request: Request, context: { tenantId: stri
 
     // Verify event exists and belongs to tenant
     const [eventRow] = await db
-      .select({ id: events.id })
+      .select({ id: events.id, tenantId: events.tenantId, academyId: events.academyId })
       .from(events)
       .where(and(eq(events.id, eventId), eq(events.tenantId, context.tenantId)))
       .limit(1);
@@ -32,6 +35,13 @@ export const GET = withTenant(async (request: Request, context: { tenantId: stri
     if (!eventRow) {
       return apiError("EVENT_NOT_FOUND", "Event not found", 404);
     }
+    const scope = await authorizeAcademyCapability({
+      context,
+      resourceTenantId: eventRow.tenantId,
+      academyId: eventRow.academyId,
+      permission: "events:read",
+    });
+    if (!scope.allowed) return apiError("EVENT_NOT_FOUND", "Event not found", 404);
 
     // Get invitation
     const [invitation] = await db
@@ -53,7 +63,7 @@ export const GET = withTenant(async (request: Request, context: { tenantId: stri
   }
 });
 
-export const PATCH = withTenant(async (request: Request, context: { tenantId: string; params: { id: string; invitationId: string } }) => {
+export const PATCH = withTenant(async (request: Request, context: RouteContext) => {
   try {
     const { id: eventId, invitationId } = context.params;
     const body = updateInvitationSchema.parse(await request.json());
@@ -64,7 +74,7 @@ export const PATCH = withTenant(async (request: Request, context: { tenantId: st
 
     // Verify event exists and belongs to tenant
     const [eventRow] = await db
-      .select({ id: events.id })
+      .select({ id: events.id, tenantId: events.tenantId, academyId: events.academyId })
       .from(events)
       .where(and(eq(events.id, eventId), eq(events.tenantId, context.tenantId)))
       .limit(1);
@@ -72,6 +82,13 @@ export const PATCH = withTenant(async (request: Request, context: { tenantId: st
     if (!eventRow) {
       return apiError("EVENT_NOT_FOUND", "Event not found", 404);
     }
+    const scope = await authorizeAcademyCapability({
+      context,
+      resourceTenantId: eventRow.tenantId,
+      academyId: eventRow.academyId,
+      permission: "events:update",
+    });
+    if (!scope.allowed) return apiError("EVENT_NOT_FOUND", "Event not found", 404);
 
     // Verify invitation exists and belongs to event
     const [existing] = await db
@@ -121,7 +138,7 @@ export const PATCH = withTenant(async (request: Request, context: { tenantId: st
   }
 });
 
-export const DELETE = withTenant(async (request: Request, context: { tenantId: string; params: { id: string; invitationId: string } }) => {
+export const DELETE = withTenant(async (request: Request, context: RouteContext) => {
   try {
     const { id: eventId, invitationId } = context.params;
 
@@ -131,7 +148,7 @@ export const DELETE = withTenant(async (request: Request, context: { tenantId: s
 
     // Verify event exists and belongs to tenant
     const [eventRow] = await db
-      .select({ id: events.id })
+      .select({ id: events.id, tenantId: events.tenantId, academyId: events.academyId })
       .from(events)
       .where(and(eq(events.id, eventId), eq(events.tenantId, context.tenantId)))
       .limit(1);
@@ -139,6 +156,13 @@ export const DELETE = withTenant(async (request: Request, context: { tenantId: s
     if (!eventRow) {
       return apiError("EVENT_NOT_FOUND", "Event not found", 404);
     }
+    const scope = await authorizeAcademyCapability({
+      context,
+      resourceTenantId: eventRow.tenantId,
+      academyId: eventRow.academyId,
+      permission: "events:delete",
+    });
+    if (!scope.allowed) return apiError("EVENT_NOT_FOUND", "Event not found", 404);
 
     // Delete invitation
     await db

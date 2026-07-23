@@ -12,7 +12,7 @@ import { Card, CardContent } from "@/components/ui/card";
  * Muestra 3 entradas al mismo workspace operativo (asistencia, progreso y
  * aviso) para completar el flujo diario sin saltar entre módulos.
  *
- * Si no hay sesion hoy, muestra empty state con CTA a la lista de clases.
+ * Si no hay sesión hoy, muestra empty state con CTA a la lista de clases.
  */
 
 interface QuickAction {
@@ -45,7 +45,7 @@ function TodayQuickActionsImpl({ academyId, todaySession }: TodayQuickActionsPro
               Sin clases programadas hoy
             </h2>
             <p className="text-sm text-muted-foreground">
-              Cuando tengas una sesion programada aparecera aqui para que
+              Cuando tengas una sesión programada aparecerá aquí para que
               puedas pasar asistencia, evaluar progreso y avisar al grupo
               en menos de 3 minutos.
             </p>
@@ -72,7 +72,7 @@ function TodayQuickActionsImpl({ academyId, todaySession }: TodayQuickActionsPro
     },
     {
       label: "Evaluar progreso",
-      description: "Crea evaluacion tecnica",
+      description: "Crea evaluación técnica",
       href: `${workspaceHref}#progress`,
       icon: FileText,
       accent: "text-sky-600 bg-sky-50",

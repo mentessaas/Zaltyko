@@ -32,7 +32,7 @@ export function AdBanner({ ads, position }: AdBannerProps) {
             className="rounded-lg"
           />
         ) : (
-          <div className="w-[300px] h-[250px] bg-gray-100 rounded-lg flex items-center justify-center">
+          <div className="w-[300px] h-[250px] bg-muted rounded-lg flex items-center justify-center">
             <span className="text-gray-400">Publicidad</span>
           </div>
         )}
@@ -51,7 +51,7 @@ export function AdBanner({ ads, position }: AdBannerProps) {
           className="rounded-lg w-full"
         />
       ) : (
-        <div className="w-full h-[90px] bg-gray-100 rounded-lg flex items-center justify-center">
+        <div className="w-full h-[90px] bg-muted rounded-lg flex items-center justify-center">
           <span className="text-gray-400">Publicidad</span>
         </div>
       )}

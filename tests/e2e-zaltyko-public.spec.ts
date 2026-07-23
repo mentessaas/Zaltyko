@@ -1,9 +1,21 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Locator } from "@playwright/test";
 
 async function gotoPublic(page: import("@playwright/test").Page, path: string) {
   await page.goto(path, { waitUntil: "domcontentloaded", timeout: 120_000 });
   await page.waitForLoadState("networkidle", { timeout: 30_000 }).catch(() => undefined);
   await page.waitForTimeout(500);
+}
+
+async function expectReactHydrated(locator: Locator) {
+  await expect
+    .poll(
+      () =>
+        locator.evaluate((element) =>
+          Object.keys(element).some((key) => key.startsWith("__reactProps$")),
+        ),
+      { timeout: 30_000 },
+    )
+    .toBe(true);
 }
 
 test.describe("Zaltyko public site smoke", () => {
@@ -36,14 +48,19 @@ test.describe("Zaltyko public site smoke", () => {
     await page.getByLabel("Nombre completo").fill("Laura Demo");
     await page.getByLabel("Email").fill("laura@example.com");
     await page.getByLabel("Mensaje").fill("Quiero revisar Zaltyko para mi academia.");
-    await page.getByRole("button", { name: /enviar mensaje/i }).click();
+    const submitButton = page.getByRole("button", { name: /enviar mensaje/i });
+    await expectReactHydrated(submitButton);
+    await submitButton.click();
 
-    await expect(page.getByText(/Mensaje enviado/i)).toBeVisible();
+    await expect(page.getByText(/Mensaje enviado/i)).toBeVisible({ timeout: 15_000 });
   });
 
   test("features tabs switch visible content", async ({ page }) => {
     await gotoPublic(page, "/features");
-    await page.getByRole("tab", { name: "Cobros" }).click();
+    const billingTab = page.getByRole("tab", { name: "Cobros" });
+    await expectReactHydrated(billingTab);
+    await billingTab.click();
+    await expect(billingTab).toHaveAttribute("aria-selected", "true");
     await expect(page.getByRole("tabpanel")).toContainText("Cobros claros para academias");
   });
 

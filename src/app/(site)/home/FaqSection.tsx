@@ -24,7 +24,7 @@ const faqs = [
   },
   {
     question: "¿Cumple con la normativa de protección de datos de menores?",
-    answer: "Sí. Zaltyko aísla los datos por academia, registra consentimientos firmados por las familias y aplica controles de acceso por rol según la normativa española de protección de datos de menores. Si quieres, te enviamos el resumen técnico antes de empezar.",
+    answer: "Zaltyko aísla los datos por academia y aplica controles de acceso por rol y relación autorizada. La gestión de consentimientos y las obligaciones legales de tu academia deben revisarse conforme a la política de privacidad y al asesoramiento aplicable.",
   },
   {
     question: "¿Qué plan necesito para mi academia?",
@@ -70,7 +70,7 @@ export default function FaqSection() {
               className={cn(
                 "rounded-2xl border transition-all duration-200",
                 openIndex === i
-                  ? "border-zaltyko-teal/30 bg-zaltyko-teal/5 shadow-sm"
+                  ? "border-zaltyko-teal/30 bg-zaltyko-teal/5 shadow-soft"
                   : "border-gray-200 bg-white hover:border-gray-300"
               )}
             >
@@ -116,7 +116,7 @@ export default function FaqSection() {
         </div>
 
         {/* Still have questions */}
-        <div className="mt-12 text-center bg-gray-50 rounded-2xl p-8 border border-gray-100">
+        <div className="mt-12 text-center surface-subtle rounded-2xl p-8 border border-border">
           <p className="text-gray-600 mb-3">¿Aún tienes preguntas?</p>
           <a
             href="mailto:hola@zaltyko.com"

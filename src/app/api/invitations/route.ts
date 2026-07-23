@@ -3,7 +3,7 @@ import { z } from "zod";
 import { eq, and, isNull } from "drizzle-orm";
 
 import { db } from "@/db";
-import { invitations, profiles, roleMembers, academyRoles } from "@/db/schema";
+import { academies, invitations, academyRoles } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
 import { verifyAcademyAccess } from "@/lib/permissions";
 import { markChecklistItem, markWizardStep } from "@/lib/onboarding";
@@ -12,6 +12,8 @@ import { getAppUrl } from "@/lib/env";
 import { createAuditLog } from "@/lib/authz/audit-service";
 import type { AuditAction, AuditModule } from "@/db/schema/audit-logs";
 import { apiSuccess, apiError } from "@/lib/api-response";
+import { sendEmailWithLogging } from "@/lib/email/email-service";
+import { escapeHtml } from "@/lib/email/escape-html";
 
 const bodySchema = z.object({
   academyId: z.string().uuid(),
@@ -47,7 +49,7 @@ export const POST = withTenant(async (request, context) => {
   const token = randomUUID();
   const expiresAt = new Date(Date.now() + parsed.data.expiresInDays * 24 * 60 * 60 * 1000);
 
-  // Si hay roleId, verificar que existe y pertenece a la academia
+  // Si hay roleId, verificar que existe y pertenece a la academia.
   let roleName: string | null = null;
   if (parsed.data.roleId) {
     const role = await db
@@ -61,9 +63,10 @@ export const POST = withTenant(async (request, context) => {
       )
       .limit(1);
 
-    if (role.length) {
-      roleName = role[0].name;
+    if (!role.length) {
+      return apiError("ROLE_NOT_FOUND", "El rol no pertenece a esta academia", 400);
     }
+    roleName = role[0].name;
   }
 
   await db.insert(invitations).values({
@@ -107,7 +110,9 @@ export const POST = withTenant(async (request, context) => {
     description: `Invitó a ${parsed.data.email} como ${roleName || parsed.data.role}`,
   });
 
-  const origin = request.headers.get("origin") ?? getAppUrl();
+  // Nunca construir un enlace con Origin/Host controlado por el caller: el
+  // token debe salir únicamente bajo el dominio canónico configurado.
+  const origin = getAppUrl();
   const invitationUrl =
     parsed.data.role === "parent"
       ? `${origin}/invite/parent?token=${token}`
@@ -123,7 +128,6 @@ export const POST = withTenant(async (request, context) => {
       role: parsed.data.role,
       roleId: parsed.data.roleId,
       roleName,
-      email: parsed.data.email,
     },
   });
 
@@ -132,9 +136,7 @@ export const POST = withTenant(async (request, context) => {
       academyId: parsed.data.academyId,
       tenantId: context.tenantId,
       userId: context.userId,
-      metadata: {
-        email: parsed.data.email,
-      },
+      metadata: { role: "parent" },
     });
   }
 
@@ -143,16 +145,43 @@ export const POST = withTenant(async (request, context) => {
       academyId: parsed.data.academyId,
       tenantId: context.tenantId,
       userId: context.userId,
-      metadata: {
-        email: parsed.data.email,
-      },
+      metadata: { role: "athlete" },
     });
+  }
+
+  let emailSent = false;
+  if (parsed.data.sendEmail) {
+    const [academy] = await db
+      .select({ name: academies.name })
+      .from(academies)
+      .where(eq(academies.id, parsed.data.academyId))
+      .limit(1);
+    const academyName = academy?.name ?? "Una academia";
+    try {
+      await sendEmailWithLogging({
+        to: parsed.data.email,
+        subject: `Invitación a ${academyName} en Zaltyko`,
+        html: `<p>${escapeHtml(academyName)} te ha invitado a Zaltyko como ${escapeHtml(
+          roleName ?? parsed.data.role
+        )}.</p><p><a href="${escapeHtml(invitationUrl)}">Aceptar invitación</a></p>`,
+        template: "academy-invitation",
+        tenantId: context.tenantId,
+        academyId: parsed.data.academyId,
+        metadata: { role: parsed.data.role },
+      });
+      emailSent = true;
+    } catch {
+      // La invitación sigue siendo válida y el owner recibe el enlace para
+      // compartirlo/reintentar; el fallo de proveedor no revierte el negocio.
+      emailSent = false;
+    }
   }
 
   return apiSuccess({
     invitationUrl,
     expiresAt: expiresAt.toISOString(),
     roleName,
+    emailSent,
   });
 });
 
@@ -189,6 +218,7 @@ export const GET = withTenant(async (request, context) => {
     .where(
       and(
         eq(invitations.tenantId, context.tenantId),
+        eq(invitations.defaultAcademyId, academyId),
         eq(invitations.status, "pending")
       )
     );

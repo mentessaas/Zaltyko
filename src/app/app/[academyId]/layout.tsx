@@ -167,7 +167,7 @@ export default async function AcademyLayout({ params, children }: LayoutProps) {
   const isAdmin =
     academyAccessLevel === "platform-admin" || academyAccessLevel === "academy-admin";
 
-  const pathname = headerStore.get("x-pathname");
+  const pathname = headerStore.get("x-zaltyko-pathname") ?? headerStore.get("x-pathname");
   const hasLimitedAcademyAccess =
     isMember &&
     academyAccessLevel === "limited" &&
@@ -194,7 +194,7 @@ export default async function AcademyLayout({ params, children }: LayoutProps) {
   );
 
   if (isAdminOnlyPath && !isAdmin) {
-    redirect(`/app/${academy.id}/dashboard`);
+    redirect(profile.role === "coach" ? `/app/${academy.id}/coach` : `/app/${academy.id}/dashboard`);
   }
 
   const planCode = subscription?.planCode ?? "free";
@@ -240,7 +240,7 @@ export default async function AcademyLayout({ params, children }: LayoutProps) {
   return (
     <AcademyProvider value={contextValue}>
       <ToastProvider>
-        <div className="flex min-h-screen flex-col bg-zaltyko-white">
+        <div className="flex min-h-screen flex-col bg-[#F4F7F7]">
           <DashboardSkipLink />
           <GlobalTopNav
             userRole={profile.role}
@@ -259,7 +259,7 @@ export default async function AcademyLayout({ params, children }: LayoutProps) {
             <MobileAcademyNav />
             <div className="flex flex-1 flex-col">
               <AcademyTopNav />
-              <main id="main-content" className="flex-1 bg-zaltyko-white px-4 py-4 pb-20 sm:px-6 lg:px-8 lg:pb-6" tabIndex={-1}>
+              <main id="main-content" className="flex-1 bg-transparent px-4 py-5 pb-24 sm:px-6 lg:px-10 lg:py-7 lg:pb-8" tabIndex={-1}>
                 {children}
               </main>
             </div>

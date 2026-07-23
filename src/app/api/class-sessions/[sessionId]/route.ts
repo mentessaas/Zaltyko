@@ -5,6 +5,7 @@ import { z } from "zod";
 import { db } from "@/db";
 import { classSessions, classes } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
+import { authorizeClassResource } from "@/lib/authz/resource-scope";
 
 const updateSchema = z.object({
   sessionDate: z.string().optional(),
@@ -24,14 +25,26 @@ export const GET = withTenant(async (_request, context) => {
   }
 
   const [sessionRow] = await db
-    .select()
+    .select({
+      id: classSessions.id,
+      classId: classSessions.classId,
+      tenantId: classSessions.tenantId,
+      sessionDate: classSessions.sessionDate,
+      startTime: classSessions.startTime,
+      endTime: classSessions.endTime,
+      coachId: classSessions.coachId,
+      status: classSessions.status,
+      notes: classSessions.notes,
+    })
     .from(classSessions)
-    .where(eq(classSessions.id, sessionId))
+    .where(and(eq(classSessions.id, sessionId), eq(classSessions.tenantId, context.tenantId)))
     .limit(1);
 
   if (!sessionRow) {
     return apiError("SESSION_NOT_FOUND", "Session not found", 404);
   }
+  const scope = await authorizeClassResource({ context, classId: sessionRow.classId });
+  if (!scope.allowed) return apiError("SESSION_NOT_FOUND", "Session not found", 404);
 
   return apiSuccess({ item: sessionRow });
 });
@@ -63,6 +76,8 @@ export const PUT = withTenant(async (request, context) => {
   if (!sessionRow) {
     return apiError("SESSION_NOT_FOUND", "Session not found", 404);
   }
+  const scope = await authorizeClassResource({ context, classId: sessionRow.classId });
+  if (!scope.allowed) return apiError("SESSION_NOT_FOUND", "Session not found", 404);
 
   if (body.coachId) {
     const [classRow] = await db
@@ -94,4 +109,3 @@ export const PUT = withTenant(async (request, context) => {
 
   return apiSuccess({ ok: true });
 });
-

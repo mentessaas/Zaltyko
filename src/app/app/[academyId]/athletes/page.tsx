@@ -177,10 +177,10 @@ export default async function AcademyAthletesPage({ params, searchParams }: Page
   });
 
   return (
-    <div className="space-y-6 py-6 lg:py-8">
+    <div className="mx-auto max-w-[1500px] space-y-6">
       <PageHeader
         breadcrumbs={[
-          { label: "Dashboard", href: "/dashboard" },
+          { label: "Dashboard", href: `/app/${academy.id}/dashboard` },
           { label: academy.name ?? "Academia", href: `/app/${academy.id}/dashboard` },
           { label: "Atletas" },
         ]}
@@ -190,11 +190,11 @@ export default async function AcademyAthletesPage({ params, searchParams }: Page
       />
 
       {/* Widget de Riesgo de Abandono - AI */}
-      <div className="grid gap-4 xl:grid-cols-4">
-        <div className="md:col-span-1 lg:col-span-1">
+      <div className="grid gap-5 xl:grid-cols-[280px_minmax(0,1fr)]">
+        <div className="min-w-0">
           <AttendanceRiskWidget academyId={academy.id} />
         </div>
-        <div className="xl:col-span-3">
+        <div className="min-w-0">
           <AthletesTableView
             academyId={academy.id}
             tenantId={academy.tenantId}

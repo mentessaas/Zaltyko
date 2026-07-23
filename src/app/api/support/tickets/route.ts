@@ -1,179 +1,102 @@
-import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { createClient } from "@/lib/supabase/server";
-import { logger } from "@/lib/logger";
-import { getCurrentProfile } from "@/lib/authz";
+import { and, desc, eq } from "drizzle-orm";
+import { z } from "zod";
+
+import { db } from "@/db";
+import { profiles, tickets } from "@/db/schema";
+import { withTenant } from "@/lib/authz";
+import { apiCreated, apiError, apiSuccess } from "@/lib/api-response";
 import { verifyAcademyAccessForProfile } from "@/lib/permissions";
 
-export async function GET(request: NextRequest) {
-  try {
-    const cookieStore = await cookies();
-    const supabase = await createClient(cookieStore);
-    const { data: { user } } = await supabase.auth.getUser();
+const ticketSchema = z.object({
+  title: z.string().trim().min(3).max(255),
+  description: z.string().trim().min(10).max(10_000),
+  category: z.enum(["technical", "billing", "account", "feature_request", "other"]),
+  priority: z.enum(["low", "medium", "high", "urgent"]).default("medium"),
+  academyId: z.string().uuid().optional(),
+});
 
-    if (!user) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-    }
+const querySchema = z.object({
+  academyId: z.string().uuid().optional(),
+  status: z.enum(["open", "in_progress", "waiting", "resolved", "closed"]).optional(),
+  priority: z.enum(["low", "medium", "high", "urgent"]).optional(),
+  category: z.enum(["technical", "billing", "account", "feature_request", "other"]).optional(),
+});
 
-    const profile = await getCurrentProfile(user.id);
+export const GET = withTenant(async (request, context) => {
+  const parsed = querySchema.safeParse(Object.fromEntries(new URL(request.url).searchParams));
+  if (!parsed.success) return apiError("INVALID_QUERY", "Filtros de soporte inválidos", 400);
 
-    if (!profile) {
-      return NextResponse.json({ error: "Perfil no encontrado" }, { status: 404 });
-    }
-
-    const searchParams = request.nextUrl.searchParams;
-    const status = searchParams.get("status");
-    const priority = searchParams.get("priority");
-    const category = searchParams.get("category");
-    const academyId = searchParams.get("academyId");
-
-    // Determinar si es admin o super admin
-    const isSuperAdmin = profile.role === "super_admin";
-
-    let query = supabase
-      .from("tickets")
-      .select(`
-        *,
-        createdBy:profiles!tickets_created_by_fkey(id, fullName, email),
-        assignedTo:profiles(id, fullName),
-        academy:academies(id, name),
-        ticket_responses(count)
-      `)
-      .order("created_at", { ascending: false });
-
-    if (academyId) {
-      if (!isSuperAdmin) {
-        const access = await verifyAcademyAccessForProfile({
-          academyId,
-          tenantId: profile.tenantId,
-          profile,
-        });
-        if (!access.allowed) {
-          return NextResponse.json({ error: "No autorizado" }, { status: 403 });
-        }
-      }
-      query = query.eq("academy_id", academyId);
-    } else if (!isSuperAdmin) {
-      // Usuarios normales solo ven sus propios tickets si no filtran por academia autorizada
-      query = query.eq("created_by", profile.id);
-    }
-
-    if (status && status !== "all") {
-      query = query.eq("status", status);
-    }
-
-    if (priority && priority !== "all") {
-      query = query.eq("priority", priority);
-    }
-
-    if (category && category !== "all") {
-      query = query.eq("category", category);
-    }
-
-    const { data: tickets, error } = await query;
-
-    if (error) {
-      logger.error("Error fetching tickets:", error);
-      return NextResponse.json({ error: "Error al obtener tickets" }, { status: 500 });
-    }
-
-    // Transformar datos
-    const transformedTickets = tickets?.map((ticket: any) => ({
-      ...ticket,
-      createdBy: ticket.createdBy?.[0],
-      assignedTo: ticket.assignedTo?.[0],
-      academy: ticket.academy?.[0],
-      _count: {
-        responses: ticket.ticket_responses?.[0]?.count || 0,
-      },
-    })) || [];
-
-    return NextResponse.json(transformedTickets);
-  } catch (error) {
-    logger.error("Error in GET /api/support/tickets:", error);
-    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
+  const academyId = parsed.data.academyId ?? context.profile.activeAcademyId ?? undefined;
+  if (academyId && context.profile.role !== "super_admin") {
+    const access = await verifyAcademyAccessForProfile({
+      academyId,
+      tenantId: context.tenantId,
+      profile: context.profile,
+    });
+    if (!access.allowed) return apiError("ACADEMY_ACCESS_DENIED", "No tienes acceso a esta academia", 403);
   }
-}
 
-export async function POST(request: NextRequest) {
-  try {
-    const cookieStore = await cookies();
-    const supabase = await createClient(cookieStore);
-    const { data: { user } } = await supabase.auth.getUser();
+  const filters = [
+    academyId ? eq(tickets.academyId, academyId) : undefined,
+    parsed.data.status ? eq(tickets.status, parsed.data.status) : undefined,
+    parsed.data.priority ? eq(tickets.priority, parsed.data.priority) : undefined,
+    parsed.data.category ? eq(tickets.category, parsed.data.category) : undefined,
+  ].filter(Boolean) as Array<ReturnType<typeof eq>>;
 
-    if (!user) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-    }
-
-    const body = await request.json();
-    const { title, description, category, priority, academyId } = body;
-
-    if (!title || !description || !category) {
-      return NextResponse.json(
-        { error: "Faltan campos requeridos" },
-        { status: 400 }
-      );
-    }
-
-    const profile = await getCurrentProfile(user.id);
-
-    if (!profile) {
-      return NextResponse.json({ error: "Perfil no encontrado" }, { status: 404 });
-    }
-
-    // Si es super admin y proporciona academyId, usar ese; de lo contrario buscar membresía
-    let finalAcademyId = academyId;
-
-    if (finalAcademyId && profile.role !== "super_admin") {
-      const access = await verifyAcademyAccessForProfile({
-        academyId: finalAcademyId,
-        tenantId: profile.tenantId,
-        profile,
-      });
-      if (!access.allowed) {
-        return NextResponse.json({ error: "No autorizado" }, { status: 403 });
-      }
-    }
-
-    if (!finalAcademyId && profile.role !== "super_admin") {
-      const { data: membership } = await supabase
-        .from("memberships")
-        .select("academy_id")
-        .eq("user_id", user.id)
-        .eq("role", "owner")
-        .single();
-
-      finalAcademyId = membership?.academy_id;
-    }
-
-    const { data: ticket, error } = await supabase
-      .from("tickets")
-      .insert({
-        title,
-        description,
-        category,
-        priority: priority || "medium",
-        status: "open",
-        created_by: profile.id,
-        academy_id: finalAcademyId,
-      })
-      .select()
-      .single();
-
-    if (error) {
-      logger.error("Error creating ticket:", error);
-      return NextResponse.json(
-        { error: "Error al crear el ticket" },
-        { status: 500 }
-      );
-    }
-
-    // Aquí se podrían enviar notificaciones por email
-    // await sendTicketCreatedEmail(ticket);
-
-    return NextResponse.json(ticket, { status: 201 });
-  } catch (error) {
-    logger.error("Error in POST /api/support/tickets:", error);
-    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
+  if (context.profile.role !== "super_admin" && !academyId) {
+    filters.push(eq(tickets.createdBy, context.profile.id));
   }
-}
+
+  const rows = await db
+    .select({
+      id: tickets.id,
+      title: tickets.title,
+      description: tickets.description,
+      status: tickets.status,
+      priority: tickets.priority,
+      category: tickets.category,
+      academyId: tickets.academyId,
+      createdBy: tickets.createdBy,
+      assignedTo: tickets.assignedTo,
+      createdAt: tickets.createdAt,
+      updatedAt: tickets.updatedAt,
+      resolvedAt: tickets.resolvedAt,
+      closedAt: tickets.closedAt,
+      creatorName: profiles.name,
+    })
+    .from(tickets)
+    .leftJoin(profiles, eq(tickets.createdBy, profiles.id))
+    .where(filters.length > 0 ? and(...filters) : undefined)
+    .orderBy(desc(tickets.createdAt));
+
+  return apiSuccess(rows, { total: rows.length });
+});
+
+export const POST = withTenant(async (request, context) => {
+  const parsed = ticketSchema.safeParse(await request.json().catch(() => null));
+  if (!parsed.success) return apiError("VALIDATION_ERROR", "Datos de ticket inválidos", 400);
+
+  const academyId = parsed.data.academyId ?? context.profile.activeAcademyId ?? null;
+  if (academyId && context.profile.role !== "super_admin") {
+    const access = await verifyAcademyAccessForProfile({
+      academyId,
+      tenantId: context.tenantId,
+      profile: context.profile,
+    });
+    if (!access.allowed) return apiError("ACADEMY_ACCESS_DENIED", "No tienes acceso a esta academia", 403);
+  }
+
+  const [ticket] = await db
+    .insert(tickets)
+    .values({
+      title: parsed.data.title,
+      description: parsed.data.description,
+      category: parsed.data.category,
+      priority: parsed.data.priority,
+      academyId,
+      createdBy: context.profile.id,
+    })
+    .returning();
+
+  return apiCreated(ticket);
+});

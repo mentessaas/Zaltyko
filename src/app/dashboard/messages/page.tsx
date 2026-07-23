@@ -5,6 +5,7 @@ import { eq, sql } from "drizzle-orm";
 import { profiles } from "@/db/schema";
 import { redirect } from "next/navigation";
 import { MessagesPage as MessagesPageComponent } from "@/components/messages/MessagesPage";
+import { resolveAcademyWorkspaceUrl } from "@/lib/auth/academy-workspace";
 
 export const metadata = {
   title: "Mensajes | Zaltyko",
@@ -20,6 +21,17 @@ export default async function MessagesPage() {
 
   if (!user) {
     redirect("/auth/login");
+  }
+
+  const academyTarget = await resolveAcademyWorkspaceUrl({
+    userId: user.id,
+    email: user.email,
+    suffix: "messages",
+    fallbackPath: "/dashboard/messages",
+  });
+
+  if (academyTarget !== "/dashboard/messages") {
+    redirect(academyTarget);
   }
 
   // Get current user's profile

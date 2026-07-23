@@ -4,6 +4,7 @@ import { classExceptions } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { withTenant } from "@/lib/authz";
 import { logger } from "@/lib/logger";
+import { authorizeClassResource } from "@/lib/authz/resource-scope";
 
 /**
  * DELETE /api/classes/[classId]/exceptions/[exceptionId]
@@ -18,13 +19,18 @@ async function deleteException(
     const { params } = context;
     try {
         const { classId, exceptionId } = params;
+        const scope = await authorizeClassResource({ context, classId });
+        if (!scope.allowed) {
+            return apiError("EXCEPTION_NOT_FOUND", "Exception not found", 404);
+        }
 
         const deleted = await db
             .delete(classExceptions)
             .where(
                 and(
                     eq(classExceptions.id, exceptionId),
-                    eq(classExceptions.classId, classId)
+                    eq(classExceptions.classId, classId),
+                    eq(classExceptions.tenantId, scope.resource!.tenantId)
                 )
             )
             .returning();

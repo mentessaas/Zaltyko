@@ -155,7 +155,7 @@ export default function MisProductosPage() {
             <Card key={listing.id} className="relative overflow-hidden">
               {/* Image */}
               {listing.images && listing.images[0] ? (
-                <div className="h-40 bg-gray-100 overflow-hidden">
+                <div className="h-40 bg-muted overflow-hidden">
                   <img
                     src={listing.images[0]}
                     alt={listing.title}
@@ -163,7 +163,7 @@ export default function MisProductosPage() {
                   />
                 </div>
               ) : (
-                <div className="h-40 bg-gray-100 flex items-center justify-center text-muted-foreground text-sm">
+                <div className="h-40 bg-muted flex items-center justify-center text-muted-foreground text-sm">
                   Sin imagen
                 </div>
               )}

@@ -59,7 +59,7 @@ const benefits = [
   {
     icon: Users,
     title: "Grupos equilibrados",
-    description: "Mantén el balance perfecto en cada clase con control automático de capacidad.",
+    description: "Mantén una capacidad clara en cada clase con controles y lista de espera configurables.",
   },
   {
     icon: TrendingUp,

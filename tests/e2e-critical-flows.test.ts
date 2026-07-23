@@ -7,6 +7,7 @@ const dbMock = vi.hoisted(() => ({
   select: vi.fn(),
   insert: vi.fn(),
   update: vi.fn(),
+  delete: vi.fn(),
 }));
 
 vi.mock("next/headers", () => ({
@@ -47,8 +48,11 @@ function createInsertReturningQuery(result: unknown) {
 }
 
 function createInsertQuery(result?: unknown) {
+  const terminal = Promise.resolve(result);
   return {
-    values: vi.fn().mockResolvedValue(result),
+    values: vi.fn(() => ({
+      onConflictDoNothing: vi.fn(() => terminal),
+    })),
   };
 }
 
@@ -60,9 +64,22 @@ function createUpdateQuery(result?: unknown) {
   };
 }
 
+function createUpdateReturningQuery(result: unknown) {
+  return {
+    set: vi.fn(() => ({
+      where: vi.fn(() => ({
+        returning: vi.fn().mockResolvedValue(result),
+      })),
+    })),
+  };
+}
+
 describe("critical invitation flows", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    dbMock.select.mockReset();
+    dbMock.insert.mockReset();
+    dbMock.update.mockReset();
 
     cookiesMock.mockResolvedValue({
       get: vi.fn(),
@@ -116,12 +133,13 @@ describe("critical invitation flows", () => {
 
     dbMock.select
       .mockImplementationOnce(() => createSelectQuery([invitation]))
-      .mockImplementationOnce(() => createSelectQuery([]))
       .mockImplementationOnce(() => createSelectQuery([]));
     dbMock.insert
       .mockImplementationOnce(() => profileInsert)
       .mockImplementationOnce(() => membershipInsert);
-    dbMock.update.mockImplementation(() => invitationUpdate);
+    dbMock.update
+      .mockImplementationOnce(() => createUpdateReturningQuery([invitation]))
+      .mockImplementationOnce(() => invitationUpdate);
 
     const response = await POST(
       new Request("http://localhost/api/invitations/complete", {
@@ -200,12 +218,13 @@ describe("critical invitation flows", () => {
 
     dbMock.select
       .mockImplementationOnce(() => createSelectQuery([invitation]))
-      .mockImplementationOnce(() => createSelectQuery([]))
       .mockImplementationOnce(() => createSelectQuery([]));
     dbMock.insert
       .mockImplementationOnce(() => profileInsert)
       .mockImplementationOnce(() => membershipInsert);
-    dbMock.update.mockImplementation(() => invitationUpdate);
+    dbMock.update
+      .mockImplementationOnce(() => createUpdateReturningQuery([invitation]))
+      .mockImplementationOnce(() => invitationUpdate);
 
     const response = await POST(
       new Request("http://localhost/api/invitations/complete", {
@@ -263,6 +282,54 @@ describe("critical invitation flows", () => {
       code: "EMAIL_MISMATCH",
     });
     expect(resolveUserHomeMock).not.toHaveBeenCalled();
+    expect(dbMock.insert).not.toHaveBeenCalled();
+  });
+
+  it("rejects an expired invitation before creating any membership", async () => {
+    dbMock.select.mockImplementationOnce(() =>
+      createSelectQuery([{
+        id: "invite-expired",
+        token: "expired-token",
+        email: "coach@example.com",
+        status: "pending",
+        expiresAt: new Date(Date.now() - 1_000),
+        role: "coach",
+        tenantId: "tenant-1",
+        academyIds: ["academy-1"],
+      }])
+    );
+
+    const response = await POST(new Request("http://localhost/api/invitations/complete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token: "expired-token" }),
+    }));
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({ error: "INVITATION_EXPIRED" });
+    expect(dbMock.insert).not.toHaveBeenCalled();
+  });
+
+  it("denies replay when another acceptance already claimed the token", async () => {
+    const invitation = {
+      id: "invite-race",
+      token: "race-token",
+      email: "coach@example.com",
+      status: "pending",
+      expiresAt: new Date(Date.now() + 60_000),
+      role: "coach",
+      tenantId: "tenant-1",
+      academyIds: ["academy-1"],
+    };
+    dbMock.select.mockImplementationOnce(() => createSelectQuery([invitation]));
+    dbMock.update.mockImplementationOnce(() => createUpdateReturningQuery([]));
+
+    const response = await POST(new Request("http://localhost/api/invitations/complete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token: "race-token" }),
+    }));
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({ error: "INVITATION_ALREADY_USED" });
     expect(dbMock.insert).not.toHaveBeenCalled();
   });
 });

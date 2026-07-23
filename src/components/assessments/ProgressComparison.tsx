@@ -286,7 +286,7 @@ export function ProgressComparison({ assessments, athleteName }: ProgressCompari
                       className={cn(
                         improvement > 0 && "bg-green-50 text-green-700 border-green-200",
                         improvement < 0 && "bg-red-50 text-red-700 border-red-200",
-                        improvement === 0 && "bg-gray-50 text-gray-700 border-gray-200"
+                        improvement === 0 && "bg-muted text-muted-foreground border-border"
                       )}
                     >
                       {improvement > 0 ? "+" : ""}{improvement}

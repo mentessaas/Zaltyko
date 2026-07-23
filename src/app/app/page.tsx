@@ -13,16 +13,29 @@ export default function AppLanding() {
   useEffect(() => {
     if (loading) return;
 
-    // 1) Sesión demo (solo en desarrollo).
-    if (session?.academyId) {
-      router.replace(`/app/${session.academyId}/dashboard`);
-      return;
-    }
-
-    // 2) Academia real del usuario (activeAcademyId o membership).
+    // Primero resolvemos la sesión real para no mandar a un coach al dashboard
+    // administrativo, que lo redirige a una superficie incorrecta.
     let cancelled = false;
     (async () => {
       try {
+        const authResponse = await fetch("/api/auth/check", { credentials: "include" });
+        if (authResponse.ok) {
+          const authJson = await authResponse.json();
+          const authData = authJson?.data ?? authJson;
+          if (authData?.authenticated && authData.academyId && !cancelled) {
+            const destination = authData.role === "coach" ? "coach" : authData.role === "parent" || authData.role === "athlete" ? "my-dashboard" : "dashboard";
+            router.replace(`/app/${authData.academyId}/${destination}`);
+            return;
+          }
+        }
+
+        // Sesión demo (solo en desarrollo).
+        if (session?.academyId && !cancelled) {
+          router.replace(`/app/${session.academyId}/dashboard`);
+          return;
+        }
+
+        // Academia real del usuario (activeAcademyId o membership).
         const res = await fetch("/api/billing/user-academies", { credentials: "include" });
         if (res.status === 401 || res.status === 403) {
           if (!cancelled) router.replace("/auth/login");

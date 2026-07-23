@@ -1,5 +1,7 @@
 export const dynamic = "force-dynamic";
 
+/** @resource-scope academy — actual charge academy ownership is verified. */
+
 import type { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { z } from "zod";

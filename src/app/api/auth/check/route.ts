@@ -20,13 +20,14 @@ export async function GET() {
   const [profile] = await db
     .select({
       activeAcademyId: profiles.activeAcademyId,
+      role: profiles.role,
     })
     .from(profiles)
     .where(eq(profiles.userId, user.id))
     .limit(1);
 
   if (profile?.activeAcademyId) {
-    return apiSuccess({ authenticated: true, academyId: profile.activeAcademyId });
+    return apiSuccess({ authenticated: true, academyId: profile.activeAcademyId, role: profile.role });
   }
 
   const [membership] = await db
@@ -37,5 +38,5 @@ export async function GET() {
     .where(eq(memberships.userId, user.id))
     .limit(1);
 
-  return apiSuccess({ authenticated: true, academyId: membership?.academyId ?? null });
+  return apiSuccess({ authenticated: true, academyId: membership?.academyId ?? null, role: profile?.role ?? null });
 }

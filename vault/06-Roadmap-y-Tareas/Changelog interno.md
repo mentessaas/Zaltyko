@@ -9,6 +9,23 @@ source:
 
 # Changelog interno
 
+## 2026-07-23 - Inicio del cierre integral del mapa de objeciones
+
+- Se creó `docs/plans/2026-07-23-objection-closure-matrix.md` como matriz canónica de las doce objeciones del director, con respuesta aprobada, capacidad, evidencia y estado de cierre.
+- Se actualizó Inventario de producto, Onboarding y activación, Customer Success, Mensajes aprobados, Métricas y Backlog para permitir rediseño, simplificación, ampliación o sustitución de módulos cuando mejore adopción, claridad, accesibilidad, rendimiento, conversión o eficiencia operativa.
+- Se corrigió una laguna funcional en `src/lib/analytics.ts`: los eventos emitidos desde APIs y servicios server-side ya no se descartan por no existir `window`; ahora se persisten en `growth_events` como fuente first-party, sin romper el flujo si falla la telemetría.
+- Se reemplazaron testimonios públicos no respaldados por evidencia comercial actual por proof points de capacidades. FAQ pública ahora delimita migración histórica, seguridad, exportación y retención sin promesas absolutas.
+- Se amplió el centro de ayuda con artículos de importación/exportación, roles/accesos y soporte.
+- Se ajustaron claims públicos adicionales: sin cifras de academias, sin "configuración en 5 minutos", sin cumplimiento RGPD absoluto, sin migración histórica incluida y con Network claramente como multi-sede acompañada; el módulo de competiciones ya no promete listados federativos perfectos ni elegibilidad automática sin revisión.
+- Validación: ESLint focalizado PASS; TypeScript alternativo `tsc --types node` PASS después de corregir el cron. `pnpm typecheck` continúa bloqueado por el paquete vacío/symlink roto `@types/eslint-scope` en `node_modules`. Las suites focalizadas de comunicación, contratos de producción y leases pasan 16/16.
+- Validación posterior: `pnpm test -- --run` PASS con 103 archivos y 674 tests; `pnpm lint` PASS; auditor estricto de APIs PASS (`risky=[]`, `semanticRisks=[]`, `resourceScopeManualReview=0`).
+- Se actualizó Next.js de `15.5.19` a `15.5.21` por tres advisories high; el gate de dependencias queda PASS con solo 1 low y 1 moderate. `pnpm verify:production` completo PASS: autorización, RLS 69/69, env, dependencias, ledger 6+42, TypeScript, lint, 103/674 y build Next de 224 páginas.
+- Se consolidaron las rutas de soporte `/api/support/tickets`, `/api/support/tickets/[id]` y `/api/support/tickets/[id]/responses`: dejan de depender de joins Supabase legacy con `fullName/email`, usan el esquema Drizzle real, `withTenant`, Zod y respuestas estandarizadas. Se mantienen los estados, permisos por academia, respuestas internas de super-admin y cierre seguro de tickets.
+- Verificación posterior a soporte: auditoría API 294 rutas (`zodValidated=180`, `standardizedResponse=258`, `standardizedErrors=260`, `risky=[]`, `semanticRisks=[]`), TypeScript/lint/tests/build PASS y `pnpm verify:production` PASS completo.
+- No se aplicaron migraciones, no se tocaron sistemas externos, no hubo deploy ni se fabricaron datos comerciales. El cierre funcional y la validación humana del mapa continúan en progreso.
+
+Vault: actualizados `Changelog interno`, `Inventario de producto`, `Onboarding y activación`, `Customer Success`, `Mensajes aprobados`, `Métricas` y `Backlog priorizado`.
+
 ## 2026-07-18 - Cierre técnico Día 4 y pase seguro a Día 5
 
 - Gate de producción completo verde: inventario estricto de 293 APIs sin `risky` ni `semanticRisks`, RLS declarada 69/69, integridad de 6 migraciones Drizzle + 40 Supabase, TypeScript, ESLint, 90 archivos y 640/640 tests, y build Next.js 15.5.19 con 219 páginas estáticas generadas.
@@ -1172,3 +1189,26 @@ Registrar cambios humanos y relevantes: releases, decisiones, cambios de pricing
 - El secreto de firma del endpoint Connect se rotó en Stripe Workbench con verificación 2FA y se copió únicamente como variable Sensitive de Vercel Production (`STRIPE_CONNECT_WEBHOOK_SECRET`); no se registró ningún valor secreto.
 - Se solicitó el redeploy de Production `CugHPvZEr` para consumir la variable nueva. Al congelar esta evidencia seguía en estado `Building`; no se declara entrega firmada end-to-end hasta observar `Ready` y un evento benigno 2xx.
 - El riesgo de rotación 2FA queda cerrado; permanecen como bloqueos externos el scanner antimalware y las alertas gestionadas de Vercel Hobby.
+
+## 2026-07-23 - Cierre funcional del mapa de objeciones
+
+- Se consolidó la matriz de cierre en `docs/plans/2026-07-23-objection-closure-matrix.md`, con respuesta aprobada, capacidad, evidencia, estado y criterio de cierre para las 12 objeciones del comprador principal.
+- Se autoriza explícitamente rediseñar, simplificar, ampliar o sustituir módulos cuando mejore claridad, adopción, accesibilidad, rendimiento, conversión o eficiencia operativa. Se mantienen como límites no sustituibles la seguridad, el aislamiento multiacademia, los pagos, la trazabilidad y la compatibilidad/migración.
+- El flujo de soporte quedó alineado con el esquema Drizzle y las respuestas API estandarizadas; la pantalla de academia ya lista tickets por tenant y la creación redirige al detalle canónico.
+- Validación local del cierre: `pnpm test -- --run` 103 archivos/674 tests, `pnpm lint`, `pnpm typecheck`, auditoría API y `pnpm verify:production` en verde. Quedan fuera de cierre automático las entrevistas/trials reales, QA humano de familias, exportación federativa de eventos y SLA histórico de soporte.
+- Segunda pasada de claims: se retiraron o matizaron promesas no demostradas de lectura garantizada, canales externos, workflows clínicos/de lesión, sincronización de calendarios y comparativas entre academias. El gate final volvió a pasar: build de 224 páginas y todos los invariantes en verde.
+- Exportación de eventos implementada en `/api/reports/events/export`: XLSX filtrable por academia, evento y fechas, con ubicación, estado, inscripción y participantes dentro del tenant autorizado. Se mantiene fuera de promesa el formato federativo automático específico.
+- El panel Super Admin Growth incorpora academias activadas distintas a partir de `growth_events.academy_activated`, sin fabricar tasas cuando no existe denominador. Esto deja trazable la objeción de adopción/valor sin convertir actividad de navegador en evidencia de cliente.
+- Growth calcula además el time-to-value medio con pares server-side `academy_created` → `academy_activated`; si no hay pares válidos muestra ausencia de base. No se publican horas de ahorro ni ROI sin trials observados.
+- La exportación de eventos quedó visible en el Centro de reportes de la academia, con copy explícito de alcance y limitación federativa antes de descargar.
+- Soporte: los detalles de academia y Super Admin ya leen Drizzle y respetan el perfil real; las respuestas internas se filtran para usuarios de academia y solo quedan visibles para Super Admin.
+- Nueva auditoría de claims públicos: se matizaron promesas de listados federativos oficiales, exportables para federaciones, sincronización de viajes, entrega garantizada de mensajes e inscripciones sin errores. Claims catalogados y guardrails públicos siguen pasando.
+- Se creó `docs/plans/2026-07-23-objection-closure-runbook.md`, con owner, acción, evidencia y aceptación para cada una de las 12 objeciones. El runbook separa explícitamente evidencia local, sandbox, producción y validación humana.
+- El Centro de reportes incorpora un catálogo visible de salida de datos y la exportación de atletas respeta ahora `academyId`, evitando que una descarga iniciada desde una academia mezcle datos de otras sedes del mismo tenant.
+- Se simplificó el formulario de respuestas de soporte: se retiró temporalmente el selector de adjuntos porque la API aún no los persiste. Se mantiene la visualización de adjuntos históricos y se evita ofrecer una acción que no tiene contrato funcional.
+- El Centro de reportes deja de mostrar controles de reportes programados cuando la feature está deshabilitada; muestra el alcance pendiente en lugar de exponer una acción que respondería `501`.
+- El endpoint residual de ejecución de analítica avanzada dejó de responder `501`; ahora falla cerrado como `FEATURE_DISABLED` hasta que exista el contrato completo de ejecución.
+- Endpoints no expuestos de reportes programados y rúbricas/tipos de evaluación ahora fallan cerrado como `FEATURE_DISABLED` en vez de anunciar una operación `501`; la UI no los ofrece a clientes en el primer alcance.
+- Se añadió `tests/audit/objection-closure.contract.test.ts`, que protege los artefactos del mapa, el runbook, las exportaciones por tenant, la lista de espera, el filtrado de respuestas internas y los claims retirados.
+- La lista de espera de clases dejó de consultar el endpoint incorrecto de reportes y ahora consume `/api/class-waiting-list`, valida la respuesta estandarizada y muestra las entradas reales del tenant.
+- Se retiró el botón de adjuntos deshabilitado del compositor de mensajes; el flujo queda simplificado a texto hasta disponer de almacenamiento y permisos de archivos completos.

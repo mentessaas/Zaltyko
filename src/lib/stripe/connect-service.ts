@@ -88,6 +88,9 @@ export async function getOrCreateConnectAccount(
 ): Promise<ConnectAccountRow> {
   const existing = await getConnectAccount(params.academyId);
   if (existing) {
+    if (existing.tenantId !== params.tenantId) {
+      throw new Error("CONNECT_ACCOUNT_TENANT_MISMATCH");
+    }
     return existing;
   }
 
@@ -167,6 +170,15 @@ export async function createOnboardingLink(
 export async function syncConnectAccountFromStripe(
   account: Stripe.Account
 ): Promise<ConnectAccountRow | null> {
+  const mappedRows = await db
+    .select({ id: stripeAccounts.id })
+    .from(stripeAccounts)
+    .where(eq(stripeAccounts.stripeAccountId, account.id))
+    .limit(2);
+  if (mappedRows.length > 1) {
+    throw new Error("CONNECT_ACCOUNT_NOT_UNIQUE");
+  }
+
   const onboardingStatus = mapOnboardingStatus(account);
   const [row] = await db
     .update(stripeAccounts)

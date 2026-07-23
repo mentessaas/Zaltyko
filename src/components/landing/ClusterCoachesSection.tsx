@@ -43,7 +43,7 @@ function ClusterCoachesSectionImpl({
   }
 
   return (
-    <section className="py-20 bg-gray-50">
+    <section className="py-20 surface-subtle">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="flex items-end justify-between mb-12">

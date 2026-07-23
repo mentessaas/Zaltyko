@@ -74,7 +74,7 @@ export function MyProgressWidget({
   const attendanceRate =
     attendanceData && attendanceData.total > 0
       ? Math.round((attendanceData.present / attendanceData.total) * 100)
-      : 0;
+      : null;
   const trendData = generateTrendData(attendanceData);
   const currentLevel = athleteData.level || "Por definir";
   const latestAssessment = assessmentsData[0] ?? null;
@@ -137,9 +137,11 @@ export function MyProgressWidget({
         <div className="rounded-lg border bg-card p-4 text-center">
           <TrendingUp className="mx-auto h-6 w-6 text-primary" />
           <p className="mt-1 text-2xl font-bold text-foreground">
-            {attendanceData ? `${attendanceRate}%` : "Sin datos"}
+            {attendanceRate === null ? "—" : `${attendanceRate}%`}
           </p>
-          <p className="text-xs text-muted-foreground">Asistencia</p>
+          <p className="text-xs text-muted-foreground">
+            {attendanceRate === null ? "Sin registros" : "Asistencia"}
+          </p>
         </div>
         <div className="rounded-lg border bg-card p-4 text-center">
           <ClipboardList className="mx-auto h-6 w-6 text-amber-500" />

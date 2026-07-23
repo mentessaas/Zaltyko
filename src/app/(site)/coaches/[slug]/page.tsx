@@ -2,7 +2,7 @@ import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { db } from "@/db";
 import { coaches, academies } from "@/db/schema";
-import { eq, and, isNotNull } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { PublicCoachProfile } from "@/components/coaches/PublicCoachProfile";
 
 interface PageProps {
@@ -138,32 +138,5 @@ export default async function CoachPublicPage({ params }: PageProps) {
     );
 }
 
-// Allow dynamic params at runtime (pages generated on-demand)
-export const dynamicParams = true;
-
-// Generate static params for all public coaches
-// Returns empty array during build if DB is unavailable, pages will be generated at runtime
-export async function generateStaticParams() {
-    try {
-        const publicCoaches = await db
-            .select({ slug: coaches.slug })
-            .from(coaches)
-            .where(
-                and(
-                    eq(coaches.isPublic, true),
-                    isNotNull(coaches.slug)
-                )
-            )
-            .limit(100); // Limit for build performance
-
-        return publicCoaches
-            .filter((coach) => coach.slug)
-            .map((coach) => ({
-                slug: coach.slug!,
-            }));
-    } catch {
-        // Database not available during build (e.g., Vercel build time)
-        // Pages will be generated dynamically at runtime
-        return [];
-    }
-}
+// Los perfiles se resuelven bajo demanda. El build nunca enumera filas de la DB.
+export const dynamic = "force-dynamic";

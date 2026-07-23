@@ -7,6 +7,10 @@ import { withTenant } from "@/lib/authz";
 import { handleApiError } from "@/lib/api-error-handler";
 import { getUserIdentifier, withRateLimit } from "@/lib/rate-limit";
 import { sendManualPaymentReminder } from "@/lib/email/triggers";
+import { db } from "@/db";
+import { charges } from "@/db/schema";
+import { eq } from "drizzle-orm";
+import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
 
 const REMINDER_ERROR_MESSAGES: Record<string, { code: string; message: string; status: number }> = {
   CHARGE_NOT_FOUND: { code: "CHARGE_NOT_FOUND", message: "Cargo no encontrado", status: 404 },
@@ -35,6 +39,19 @@ const remindHandler = withTenant(async (request, context) => {
     if (!context.tenantId) {
       return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
     }
+    const [charge] = await db
+      .select({ tenantId: charges.tenantId, academyId: charges.academyId })
+      .from(charges)
+      .where(eq(charges.id, chargeId))
+      .limit(1);
+    if (!charge) return apiError("CHARGE_NOT_FOUND", "Cargo no encontrado", 404);
+    const scope = await authorizeAcademyCapability({
+      context,
+      resourceTenantId: charge.tenantId,
+      academyId: charge.academyId,
+      permission: "billing:update",
+    });
+    if (!scope.allowed) return apiError("CHARGE_NOT_FOUND", "Cargo no encontrado", 404);
 
     const result = await sendManualPaymentReminder({ chargeId, tenantId: context.tenantId });
 

@@ -256,7 +256,7 @@ export const EditClassDialog = memo(function EditClassDialog({
   const handleDelete = async () => {
     if (isPending || isDeleting) return;
     const confirmed = typeof window !== "undefined"
-      ? window.confirm(`¿Seguro que quieres eliminar esta ${classTermLower}? Esta acción no se puede deshacer.`)
+      ? window.confirm("¿Seguro que quieres eliminar este elemento? Esta acción no se puede deshacer.")
       : true;
 
     if (!confirmed) return;
@@ -279,7 +279,7 @@ export const EditClassDialog = memo(function EditClassDialog({
           data.error ||
           data.message ||
           data.detail ||
-          `No se pudo eliminar la ${classTermLower} (código ${response.status}).`;
+          `No se pudo eliminar este elemento (código ${response.status}).`;
         throw new Error(errorMessage);
       }
 
@@ -291,7 +291,7 @@ export const EditClassDialog = memo(function EditClassDialog({
       onClose();
     } catch (deleteError: unknown) {
       logger.error("EditClassDialog: Error al eliminar la clase", deleteError);
-      setError(deleteError instanceof Error ? deleteError.message : `No se pudo eliminar la ${classTermLower}. Intenta nuevamente.`);
+      setError(deleteError instanceof Error ? deleteError.message : "No se pudo eliminar este elemento. Intenta nuevamente.");
     } finally {
       setIsDeleting(false);
     }

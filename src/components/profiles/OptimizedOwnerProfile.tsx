@@ -69,7 +69,7 @@ const PLAN_COPY: Record<string, { label: string; description: string; cta: strin
     label: "Plan Free",
     description: "Incluye 1 academia y hasta 30 gimnastas activos.",
     cta: "Mejorar plan",
-    color: "bg-gray-100 text-gray-800",
+    color: "bg-muted text-muted-foreground",
   },
   pro: {
     label: "Plan Starter",
@@ -150,7 +150,7 @@ export function OptimizedOwnerProfile({
     label: activeAcademy?.planNickname ?? "Plan personalizado",
     description: "Gestiona tu suscripción desde planes y cobros.",
     cta: "Ver planes",
-    color: "bg-gray-100 text-gray-800",
+    color: "bg-muted text-muted-foreground",
   };
 
   const canCreateAcademies = planCode !== "free" || profile?.role === "super_admin";

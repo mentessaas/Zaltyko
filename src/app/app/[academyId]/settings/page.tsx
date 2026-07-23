@@ -13,6 +13,7 @@ import {
   AlertCircle,
   Loader2,
   Eye,
+  Settings2,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -219,15 +220,15 @@ export default function SettingsPage() {
 
   return (
     <SettingsLayout activeSection={activeTab}>
-      <div className="space-y-6">
+      <div className="mx-auto max-w-[1500px] space-y-6">
         {/* Header */}
-        <div className="relative overflow-hidden rounded-2xl border border-zaltyko-mist bg-white p-6 shadow-soft">
+        <div className="relative overflow-hidden rounded-[24px] border border-slate-200/80 bg-white p-6 shadow-[0_18px_50px_-32px_rgba(15,23,42,0.45)]">
           <div className="zaltyko-motion-lines pointer-events-none absolute inset-x-0 top-0 h-24 opacity-70" />
           <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-teal">Configuración</p>
-            <h1 className="font-display text-3xl font-semibold text-zaltyko-navy">Ajustes de la academia</h1>
-            <p className="text-zaltyko-text-secondary">
+            <div className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.14em] text-zaltyko-teal"><Settings2 className="h-4 w-4" /> Configuración</div>
+            <h1 className="font-display text-3xl font-bold tracking-[-0.03em] text-zaltyko-navy">Ajustes de la academia</h1>
+            <p className="text-sm text-zaltyko-text-secondary">
               Gestiona la información, branding y configuración de tu academia
             </p>
           </div>

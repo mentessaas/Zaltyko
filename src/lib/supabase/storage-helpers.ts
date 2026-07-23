@@ -1,4 +1,6 @@
 import { getSupabaseAdminClient } from "./admin";
+import { safeUploadExtension } from "@/lib/uploads/file-security";
+import { randomBytes } from "node:crypto";
 
 /**
  * Sube un archivo a Supabase Storage
@@ -67,9 +69,8 @@ export function generateFilePath(
   folder: string,
   originalFileName: string
 ): string {
-  const fileExt = originalFileName.split(".").pop();
+  const fileExt = safeUploadExtension(originalFileName, "bin");
   const timestamp = Date.now();
-  const random = Math.random().toString(36).substring(7);
+  const random = randomBytes(12).toString("hex");
   return `${tenantId}/${academyId}/${folder}/${timestamp}-${random}.${fileExt}`;
 }
-

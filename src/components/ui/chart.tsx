@@ -93,8 +93,10 @@ export function BarChart({ data, height = 200, showValues = true, className }: B
 
 export function LineChart({ data, height = 200, showArea = true, className }: LineChartProps) {
   const maxValue = Math.max(...data.map((d) => d.value), 1);
+  const xPosition = (index: number) =>
+    data.length <= 1 ? 50 : (index / (data.length - 1)) * 100;
   const points = data.map((d, i) => ({
-    x: (i / (data.length - 1)) * 100,
+    x: xPosition(i),
     y: height - (d.value / maxValue) * (height - 40),
     value: d.value,
     label: d.label,
@@ -176,7 +178,7 @@ export function LineChart({ data, height = 200, showArea = true, className }: Li
           <span
             key={i}
             className="text-xs text-zaltyko-text-secondary"
-            style={{ width: `${100 / data.length}%` }}
+            style={{ width: `${100 / Math.max(data.length, 1)}%` }}
           >
             {item.label}
           </span>
@@ -261,9 +263,11 @@ export function MiniChart({ data, className }: { data: number[]; className?: str
   const max = Math.max(...data);
   const min = Math.min(...data);
   const range = max - min || 1;
+  const xPosition = (index: number) =>
+    data.length <= 1 ? 50 : (index / (data.length - 1)) * 100;
 
   const points = data.map((v, i) => ({
-    x: (i / (data.length - 1)) * 100,
+    x: xPosition(i),
     y: 30 - ((v - min) / range) * 25,
   }));
 

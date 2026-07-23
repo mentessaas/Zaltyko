@@ -46,7 +46,7 @@ export function MarketplaceCard({ listing, sellerRating }: MarketplaceCardProps)
   return (
     <Link href={`/marketplace/${listing.id}`}>
       <Card className="overflow-hidden hover:shadow-lg transition-shadow">
-        <div className="aspect-square relative bg-gray-100">
+        <div className="aspect-square relative bg-muted">
           {listing.images?.[0] ? (
             <Image
               src={listing.images[0]}

@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { emailLogs } from "@/db/schema";
@@ -14,13 +14,26 @@ export interface SendEmailOptions {
   academyId?: string;
   userId?: string;
   metadata?: Record<string, unknown>;
-  idempotencyKey?: string;
+  dedupeKey?: string;
 }
 
-export async function sendEmailWithLogging(
-  options: SendEmailOptions
-): Promise<"sent" | "duplicate"> {
-  const { to, subject, html, template, tenantId, academyId, userId, metadata, idempotencyKey } = options;
+export async function sendEmailWithLogging(options: SendEmailOptions): Promise<boolean> {
+  const { to, subject, html, template, tenantId, academyId, userId, metadata, dedupeKey } = options;
+
+  if (dedupeKey) {
+    const [existing] = await db
+      .select({ id: emailLogs.id })
+      .from(emailLogs)
+      .where(
+        and(
+          eq(emailLogs.template, template ?? "transactional"),
+          inArray(emailLogs.status, ["pending", "sent"]),
+          sql`${emailLogs.metadata} ->> 'dedupeKey' = ${dedupeKey}`
+        )
+      )
+      .limit(1);
+    if (existing) return false;
+  }
 
   // Crear log antes de enviar
   const [logEntry] = await db
@@ -33,20 +46,16 @@ export async function sendEmailWithLogging(
       subject,
       template: template || null,
       status: "pending",
-      metadata: metadata || null,
-      idempotencyKey: idempotencyKey || null,
+      metadata: dedupeKey ? { ...(metadata ?? {}), dedupeKey } : metadata || null,
     })
-    .onConflictDoNothing({ target: emailLogs.idempotencyKey })
     .returning({ id: emailLogs.id });
-
-  if (!logEntry) return "duplicate";
 
   try {
     await sendEmail({
       to,
       subject,
       html,
-      replyTo: config.brevo.fromAdmin,
+      replyTo: process.env.BREVO_REPLY_TO ?? config.brevo.supportEmail,
     });
 
     // Actualizar log como enviado
@@ -57,20 +66,20 @@ export async function sendEmailWithLogging(
         sentAt: new Date(),
       })
       .where(eq(emailLogs.id, logEntry.id));
-
-    return "sent";
+    return true;
   } catch (error: unknown) {
     // Actualizar log con error
     await db
       .update(emailLogs)
       .set({
         status: "failed",
-        errorMessage: error instanceof Error ? error.message : "Error desconocido",
-        idempotencyKey: null,
+        errorMessage:
+          error instanceof Error && error.message.startsWith("BREVO_API_ERROR:")
+            ? error.message
+            : "EMAIL_DELIVERY_FAILED",
       })
       .where(eq(emailLogs.id, logEntry.id));
 
     throw error;
   }
 }
-

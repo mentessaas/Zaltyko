@@ -16,6 +16,7 @@ vi.mock("@/db", () => ({
 function makeSelectChain(result: unknown[]) {
   const chain: Record<string, unknown> = {};
   chain.from = vi.fn(() => chain);
+  chain.innerJoin = vi.fn(() => chain);
   chain.where = vi.fn(() => chain);
   chain.limit = vi.fn(() => Promise.resolve(result));
   return chain;
@@ -203,6 +204,35 @@ describe("audit hardening", () => {
       expect(result).toEqual({ allowed: true });
     });
 
+    it.each(["owner", "admin"])(
+      "does not grant global profile role %s access to an academy without membership",
+      async (role) => {
+        dbMock.queryResults = [
+          [{ id: "academy-b", tenantId: "tenant-a", ownerId: "profile-owner-b" }],
+          [],
+        ];
+        const { verifyAcademyAccessForProfile } = await import(
+          "@/lib/permissions"
+        );
+
+        const result = await verifyAcademyAccessForProfile({
+          academyId: "academy-b",
+          tenantId: "tenant-a",
+          profile: {
+            id: "profile-a",
+            userId: "user-a",
+            role: role as "owner" | "admin",
+            tenantId: "tenant-a",
+          },
+        });
+
+        expect(result).toEqual({
+          allowed: false,
+          reason: "ACADEMY_MEMBERSHIP_REQUIRED",
+        });
+      }
+    );
+
     it("allows super admins without membership", async () => {
       dbMock.queryResults = [
         [{ id: "academy-1", tenantId: "tenant-a", ownerId: "owner-profile" }],
@@ -223,6 +253,72 @@ describe("audit hardening", () => {
       });
 
       expect(result).toEqual({ allowed: true });
+    });
+  });
+
+  describe("academy-scoped coach resource guards", () => {
+    it("allows the actual academy owner without relying on the global role", async () => {
+      dbMock.queryResults = [[{ ownerId: "profile-owner-a" }]];
+      const { verifyCoachClassScope } = await import("@/lib/permissions");
+
+      await expect(
+        verifyCoachClassScope({
+          tenantId: "tenant-a",
+          academyId: "academy-a",
+          classId: "class-a",
+          profile: {
+            id: "profile-owner-a",
+            userId: "user-owner-a",
+            role: "coach",
+            tenantId: "tenant-a",
+          },
+        })
+      ).resolves.toEqual({ allowed: true });
+    });
+
+    it("denies a global owner profile on an academy it does not own", async () => {
+      dbMock.queryResults = [[{ ownerId: "profile-owner-b" }], []];
+      const { verifyCoachClassScope } = await import("@/lib/permissions");
+
+      await expect(
+        verifyCoachClassScope({
+          tenantId: "tenant-a",
+          academyId: "academy-b",
+          classId: "class-b",
+          profile: {
+            id: "profile-owner-a",
+            userId: "user-owner-a",
+            role: "owner",
+            tenantId: "tenant-a",
+          },
+        })
+      ).resolves.toEqual({
+        allowed: false,
+        reason: "INSUFFICIENT_PERMISSIONS",
+      });
+    });
+
+    it("allows a coach only when the class assignment exists", async () => {
+      dbMock.queryResults = [
+        [{ ownerId: "profile-owner" }],
+        [],
+        [{ id: "assignment-1" }],
+      ];
+      const { verifyCoachClassScope } = await import("@/lib/permissions");
+
+      await expect(
+        verifyCoachClassScope({
+          tenantId: "tenant-a",
+          academyId: "academy-a",
+          classId: "class-a",
+          profile: {
+            id: "profile-coach",
+            userId: "user-coach",
+            role: "coach",
+            tenantId: "tenant-a",
+          },
+        })
+      ).resolves.toEqual({ allowed: true });
     });
   });
 

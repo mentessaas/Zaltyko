@@ -215,7 +215,7 @@ export default async function ModalityPage({ params }: ModalityPageProps) {
       </section>
 
       {/* Other Modalities */}
-      <section className="py-12 bg-gray-50 border-t border-gray-100">
+      <section className="py-12 surface-subtle border-t border-border">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between">
             <p className="text-sm text-gray-500">{t.otherModalities}</p>

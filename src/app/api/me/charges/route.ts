@@ -6,6 +6,8 @@ import { and, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { athletes, charges } from "@/db/schema";
 import { createBearerSupabaseClient, getBearerToken } from "@/lib/supabase/bearer-client";
+import { getCurrentProfile } from "@/lib/authz/profile-service";
+import { canAccessFamilyFinancialData } from "@/lib/family/access-policy";
 import { getFamilyChildrenForUser } from "@/lib/family/scope-service";
 import { logger } from "@/lib/logger";
 
@@ -34,16 +36,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Invalid token" }, { status: 401 });
     }
 
+    const profile = await getCurrentProfile(user.id);
+    if (!profile || !canAccessFamilyFinancialData(profile.role)) {
+      return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+    }
+
     // Hijos del padre/madre/tutor (via guardians/family_contacts por email).
     const children = await getFamilyChildrenForUser({ userId: user.id, email: user.email });
     const athleteIds = new Set(children.map((c) => c.id));
-
-    // Además, el propio atleta (si el usuario es una cuenta de atleta).
-    const ownAthletes = await db
-      .select({ id: athletes.id })
-      .from(athletes)
-      .where(eq(athletes.userId, user.id));
-    for (const a of ownAthletes) athleteIds.add(a.id);
 
     if (athleteIds.size === 0) {
       return NextResponse.json({ data: [], total: 0 });

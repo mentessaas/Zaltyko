@@ -109,12 +109,12 @@ export function InvoiceList({
                             : invoice.status === "open"
                             ? "bg-blue-100 text-blue-800"
                             : invoice.status === "draft"
-                            ? "bg-gray-100 text-gray-800"
+                            ? "bg-muted text-muted-foreground"
                             : invoice.status === "uncollectible"
                             ? "bg-red-100 text-red-800"
                             : invoice.status === "void"
-                            ? "bg-gray-100 text-gray-600"
-                            : "bg-gray-100 text-gray-800"
+                            ? "bg-muted text-muted-foreground"
+                            : "bg-muted text-muted-foreground"
                         }`}
                       >
                         {invoice.status.replace(/_/g, " ")}

@@ -5,6 +5,7 @@ import { withTenant } from "@/lib/authz";
 
 import { db } from "@/db";
 import { discounts } from "@/db/schema";
+import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
 
 const updateSchema = z.object({
   code: z.string().nullable().optional(),
@@ -33,6 +34,19 @@ export const PUT = withTenant(async (request, context) => {
   }
 
   const body = updateSchema.parse(await request.json());
+  const [resource] = await db
+    .select({ tenantId: discounts.tenantId, academyId: discounts.academyId })
+    .from(discounts)
+    .where(eq(discounts.id, discountId))
+    .limit(1);
+  if (!resource) return apiError("DISCOUNT_NOT_FOUND", "Discount not found", 404);
+  const scope = await authorizeAcademyCapability({
+    context,
+    resourceTenantId: resource.tenantId,
+    academyId: resource.academyId,
+    permission: "billing:update",
+  });
+  if (!scope.allowed) return apiError("DISCOUNT_NOT_FOUND", "Discount not found", 404);
 
   // Verificar código duplicado si se está actualizando
   if (body.code) {
@@ -87,6 +101,19 @@ export const DELETE = withTenant(async (_request, context) => {
   if (!discountId) {
     return apiError("DISCOUNT_ID_REQUIRED", "Discount ID is required", 400);
   }
+  const [resource] = await db
+    .select({ tenantId: discounts.tenantId, academyId: discounts.academyId })
+    .from(discounts)
+    .where(eq(discounts.id, discountId))
+    .limit(1);
+  if (!resource) return apiError("DISCOUNT_NOT_FOUND", "Discount not found", 404);
+  const scope = await authorizeAcademyCapability({
+    context,
+    resourceTenantId: resource.tenantId,
+    academyId: resource.academyId,
+    permission: "billing:update",
+  });
+  if (!scope.allowed) return apiError("DISCOUNT_NOT_FOUND", "Discount not found", 404);
 
   await db
     .delete(discounts)
@@ -94,4 +121,3 @@ export const DELETE = withTenant(async (_request, context) => {
 
   return apiSuccess({ ok: true });
 });
-

@@ -112,6 +112,12 @@ describe("API /api/coaches", () => {
     selectQueue.push(
       createSelectChain({
         resolveAt: "limit",
+        result: [{ tenantId: "tenant-123" }],
+      })
+    );
+    selectQueue.push(
+      createSelectChain({
+        resolveAt: "limit",
         result: [{ id: "22222222-2222-2222-2222-222222222222", userId: "user-789" }],
       })
     );
@@ -128,9 +134,9 @@ describe("API /api/coaches", () => {
     });
 
     const response = await POST(request, {} as any);
-    expect(response.status).toBe(200);
+    expect(response.status).toBe(201);
     const payload = await response.json();
-    expect(payload).toHaveProperty("id");
+    expect(payload.data).toHaveProperty("id");
 
     const coachInsert = insertCalls[0];
     expect(coachInsert?.payload).toMatchObject({
@@ -169,6 +175,13 @@ describe("API /api/coaches", () => {
     selectQueue.push(
       createSelectChain({
         resolveAt: "where",
+        result: [],
+      })
+    );
+
+    selectQueue.push(
+      createSelectChain({
+        resolveAt: "where",
         result: [
           {
             coachId: "coach-1",
@@ -190,8 +203,8 @@ describe("API /api/coaches", () => {
     const response = await GET(request, {} as any);
     expect(response.status).toBe(200);
     const body = await response.json();
-    expect(body.items).toHaveLength(1);
-    expect(body.items[0]).toMatchObject({
+    expect(body.data.items).toHaveLength(1);
+    expect(body.data.items[0]).toMatchObject({
       id: "coach-1",
       classes: [
         {
@@ -239,5 +252,4 @@ describe("API /api/coaches", () => {
     expect(response.status).toBe(200);
   });
 });
-
 

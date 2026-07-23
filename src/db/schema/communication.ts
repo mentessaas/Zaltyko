@@ -2,12 +2,14 @@
 import { boolean, index, integer, jsonb, pgTable, text, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
 
 import { academySportConfigs } from "./sport-config";
+import { academies } from "./academies";
 
 export const messageTemplates = pgTable(
   "message_templates",
   {
     id: uuid("id").primaryKey().defaultRandom(),
     tenantId: uuid("tenant_id"),
+    academyId: uuid("academy_id").references(() => academies.id, { onDelete: "cascade" }),
     sportConfigId: uuid("sport_config_id").references(() => academySportConfigs.id, { onDelete: "set null" }),
     name: varchar("name", { length: 200 }).notNull(),
     description: text("description"),
@@ -24,6 +26,7 @@ export const messageTemplates = pgTable(
   },
   (table) => ({
     tenantIdx: index("message_templates_tenant_idx").on(table.tenantId),
+    academyIdx: index("message_templates_academy_idx").on(table.academyId),
     sportConfigIdx: index("message_templates_sport_config_idx").on(table.sportConfigId),
   })
 );
@@ -33,6 +36,7 @@ export const messageGroups = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     tenantId: uuid("tenant_id"),
+    academyId: uuid("academy_id").references(() => academies.id, { onDelete: "cascade" }),
     name: varchar("name", { length: 200 }).notNull(),
     description: text("description"),
     recipientCount: integer("recipient_count").default(0),
@@ -40,6 +44,7 @@ export const messageGroups = pgTable(
   },
   (table) => ({
     tenantIdx: index("message_groups_tenant_idx").on(table.tenantId),
+    academyIdx: index("message_groups_academy_idx").on(table.academyId),
   })
 );
 
@@ -48,6 +53,7 @@ export const scheduledNotifications = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     tenantId: uuid("tenant_id"),
+    academyId: uuid("academy_id").references(() => academies.id, { onDelete: "cascade" }),
     groupId: uuid("group_id"),
     templateId: uuid("template_id"),
     channel: varchar("channel", { length: 50 }).notNull().default("whatsapp"),
@@ -59,6 +65,7 @@ export const scheduledNotifications = pgTable(
   },
   (table) => ({
     tenantIdx: index("scheduled_notifications_tenant_idx").on(table.tenantId),
+    academyIdx: index("scheduled_notifications_academy_idx").on(table.academyId),
     statusIdx: index("scheduled_notifications_status_idx").on(table.status),
   })
 );

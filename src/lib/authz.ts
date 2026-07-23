@@ -8,7 +8,7 @@ import {
   isPublicEndpoint,
   isAcademyCreationEndpoint,
   isFlexibleTenantEndpoint,
-  extractAcademyId,
+  extractVerifiedAcademyCandidate,
 } from "./authz/endpoint-config";
 import {
   SuperAdminRequiredError,
@@ -26,6 +26,7 @@ import {
 } from "@/lib/supabase/bearer-client";
 import { getRequiredRoutePermission } from "./authz/route-permissions";
 import { getUserPermissions } from "./authz/permissions-service";
+import { grantsRequiredPermission } from "./authz/permission-policy";
 import {
   getLimitForRoute,
   getVerifiedTenantRateLimitIdentifier,
@@ -205,7 +206,17 @@ export function withTenant<Ctx extends Record<string, unknown>>(
       }
 
       // Extraer academyId desde diferentes fuentes
-      const effectiveAcademyId = extractAcademyId(request, contextWithParams);
+      const academyContext = await extractVerifiedAcademyCandidate(
+        request,
+        contextWithParams
+      );
+      if (academyContext.conflict) {
+        return NextResponse.json(
+          { error: "ACADEMY_CONTEXT_CONFLICT" },
+          { status: 403 }
+        );
+      }
+      const effectiveAcademyId = academyContext.academyId;
 
       // Resolver tenantId
       let tenantId = await getTenantId(userId, effectiveAcademyId);
@@ -273,18 +284,20 @@ export function withTenant<Ctx extends Record<string, unknown>>(
           : (tenantId ?? "");
 
       const requiredPermission = getRequiredRoutePermission(pathname, method);
-      if (effectiveAcademyId && requiredPermission && !isSuperAdmin) {
+      const authorizationAcademyId =
+        effectiveAcademyId ?? profile.activeAcademyId ?? undefined;
+      if (requiredPermission && !isSuperAdmin) {
+        if (!authorizationAcademyId) {
+          return NextResponse.json(
+            { error: "PERMISSION_CONTEXT_MISSING", permission: requiredPermission },
+            { status: 403 }
+          );
+        }
         const effectivePermissions = await getUserPermissions(
           userId,
-          effectiveAcademyId
+          authorizationAcademyId
         );
-        // Membership roles remain the v1 baseline. A configured academy role is
-        // an optional restrictive capability layer and is enforced consistently
-        // for registered module routes.
-        if (
-          !effectivePermissions.isOwner &&
-          !effectivePermissions.permissions.includes(requiredPermission)
-        ) {
+        if (!grantsRequiredPermission(effectivePermissions, requiredPermission)) {
           return NextResponse.json(
             { error: "PERMISSION_DENIED", permission: requiredPermission },
             { status: 403 }
@@ -416,7 +429,17 @@ export function withBearerTenant<Ctx extends Record<string, unknown>>(
         );
       }
 
-      const effectiveAcademyId = extractAcademyId(request, contextWithParams);
+      const academyContext = await extractVerifiedAcademyCandidate(
+        request,
+        contextWithParams
+      );
+      if (academyContext.conflict) {
+        return NextResponse.json(
+          { error: "ACADEMY_CONTEXT_CONFLICT" },
+          { status: 403 }
+        );
+      }
+      const effectiveAcademyId = academyContext.academyId;
       let tenantId = await getTenantId(userId, effectiveAcademyId);
 
       if (!tenantId && effectiveAcademyId) {
@@ -448,19 +471,20 @@ export function withBearerTenant<Ctx extends Record<string, unknown>>(
         pathname,
         request.method?.toUpperCase() ?? "GET"
       );
-      if (
-        effectiveAcademyId &&
-        requiredPermission &&
-        profile.role !== "super_admin"
-      ) {
+      const authorizationAcademyId =
+        effectiveAcademyId ?? profile.activeAcademyId ?? undefined;
+      if (requiredPermission && profile.role !== "super_admin") {
+        if (!authorizationAcademyId) {
+          return NextResponse.json(
+            { error: "PERMISSION_CONTEXT_MISSING", permission: requiredPermission },
+            { status: 403 }
+          );
+        }
         const effectivePermissions = await getUserPermissions(
           userId,
-          effectiveAcademyId
+          authorizationAcademyId
         );
-        if (
-          !effectivePermissions.isOwner &&
-          !effectivePermissions.permissions.includes(requiredPermission)
-        ) {
+        if (!grantsRequiredPermission(effectivePermissions, requiredPermission)) {
           return NextResponse.json(
             { error: "PERMISSION_DENIED", permission: requiredPermission },
             { status: 403 }

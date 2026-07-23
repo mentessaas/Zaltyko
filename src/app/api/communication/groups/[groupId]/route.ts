@@ -3,13 +3,9 @@ import { z } from "zod";
 import { withTenant } from "@/lib/authz";
 import { getMessageGroupById, updateMessageGroup, deleteMessageGroup } from "@/lib/communication-service";
 import { logger } from "@/lib/logger";
+import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
 
 export const dynamic = 'force-dynamic';
-
-const canViewCommunication = (role?: string) =>
-  ["owner", "admin", "coach", "super_admin"].includes(role ?? "");
-const canManageCommunication = (role?: string) =>
-  ["owner", "admin", "super_admin"].includes(role ?? "");
 
 const updateGroupSchema = z.object({
   name: z.string().min(1).max(200).optional(),
@@ -18,9 +14,6 @@ const updateGroupSchema = z.object({
 });
 
 export const GET = withTenant(async (request, context) => {
-  if (!canViewCommunication(context.profile?.role)) {
-    return apiError("FORBIDDEN", "No tienes permiso para consultar grupos de comunicación", 403);
-  }
   const { groupId } = context.params as { groupId: string };
 
   const group = await getMessageGroupById(groupId);
@@ -29,9 +22,13 @@ export const GET = withTenant(async (request, context) => {
     return apiError("NOT_FOUND", "Group not found", 404);
   }
 
-  if (group.tenantId !== context.tenantId) {
-    return apiError("FORBIDDEN", "Access denied", 403);
-  }
+  const scope = await authorizeAcademyCapability({
+    context,
+    resourceTenantId: group.tenantId ?? "",
+    academyId: group.academyId ?? "",
+    permission: "communications:read",
+  });
+  if (!scope.allowed) return apiError("NOT_FOUND", "Group not found", 404);
 
   return apiSuccess({
     id: group.id,
@@ -43,9 +40,6 @@ export const GET = withTenant(async (request, context) => {
 });
 
 export const PATCH = withTenant(async (request, context) => {
-  if (!canManageCommunication(context.profile?.role)) {
-    return apiError("FORBIDDEN", "No tienes permiso para modificar grupos de comunicación", 403);
-  }
   const { groupId } = context.params as { groupId: string };
 
   const existing = await getMessageGroupById(groupId);
@@ -54,9 +48,13 @@ export const PATCH = withTenant(async (request, context) => {
     return apiError("NOT_FOUND", "Group not found", 404);
   }
 
-  if (existing.tenantId !== context.tenantId) {
-    return apiError("FORBIDDEN", "Access denied", 403);
-  }
+  const scope = await authorizeAcademyCapability({
+    context,
+    resourceTenantId: existing.tenantId ?? "",
+    academyId: existing.academyId ?? "",
+    permission: "communications:send",
+  });
+  if (!scope.allowed) return apiError("NOT_FOUND", "Group not found", 404);
 
   try {
     const body = await request.json();
@@ -85,9 +83,6 @@ export const PATCH = withTenant(async (request, context) => {
 });
 
 export const DELETE = withTenant(async (request, context) => {
-  if (!canManageCommunication(context.profile?.role)) {
-    return apiError("FORBIDDEN", "No tienes permiso para eliminar grupos de comunicación", 403);
-  }
   const { groupId } = context.params as { groupId: string };
 
   const existing = await getMessageGroupById(groupId);
@@ -96,9 +91,13 @@ export const DELETE = withTenant(async (request, context) => {
     return apiError("NOT_FOUND", "Group not found", 404);
   }
 
-  if (existing.tenantId !== context.tenantId) {
-    return apiError("FORBIDDEN", "Access denied", 403);
-  }
+  const scope = await authorizeAcademyCapability({
+    context,
+    resourceTenantId: existing.tenantId ?? "",
+    academyId: existing.academyId ?? "",
+    permission: "communications:templates",
+  });
+  if (!scope.allowed) return apiError("NOT_FOUND", "Group not found", 404);
 
   const deleted = await deleteMessageGroup(groupId);
 

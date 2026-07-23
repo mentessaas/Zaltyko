@@ -28,7 +28,7 @@ const requiredDocumentedEnvVars = [
   "SUPABASE_JWT_SECRET",
   "NEXT_PUBLIC_APP_URL",
   "CRON_SECRET",
-  "NEXTAUTH_SECRET",
+  "INTERNAL_AUTH_SECRET",
   "KV_REST_API_URL",
   "KV_REST_API_TOKEN",
   "STRIPE_SECRET_KEY",
@@ -38,12 +38,14 @@ const requiredDocumentedEnvVars = [
 const gates: Gate[] = [
   { name: "API authorization inventory", args: ["audit:api-routes:strict"] },
   { name: "RLS source coverage", args: ["validate:rls"] },
+  { name: "Environment contract", args: ["audit:env"] },
+  { name: "Dependency audit", args: ["audit:dependencies", "--prod"] },
   { name: "Migration ledgers", args: ["check:migrations"] },
   { name: "TypeScript", args: ["typecheck"] },
   { name: "ESLint", args: ["lint"] },
   {
     name: "Unit and integration tests",
-    args: ["exec", "vitest", "run", "--maxWorkers=4", "--minWorkers=1"],
+    args: ["exec", "vitest", "run", "--maxWorkers=2", "--minWorkers=1"],
   },
   { name: "Production build", args: ["build"] },
 ];

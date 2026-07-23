@@ -17,6 +17,7 @@ const BodySchema = z.object({
   type: z.enum(["email", "notification"]).default("email"),
 });
 // @service-role auth-admin:read-email. Super-admin messaging needs the target Supabase Auth email.
+/** @resource-scope super-admin — withSuperAdmin verifies the global authority. */
 
 export const POST = withSuperAdmin(async (request, context) => {
   const body = BodySchema.parse(await request.json());

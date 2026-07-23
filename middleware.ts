@@ -23,7 +23,10 @@ const RATE_LIMIT_EXCLUDED_PREFIXES = [
 ];
 const EXCLUDED_PATH_PREFIXES = ["/_next", "/static", "/favicon.ico"];
 const I18N_SKIP_PREFIXES = ["/api", "/auth", "/login", "/invite"];
-const I18N_REDIRECT_EXACT_PATHS = new Set(["/", "/ayuda", "/sobre-nosotros"]);
+// `/ayuda` and `/sobre-nosotros` are the canonical routes. Their legacy
+// locale-prefixed handlers redirect back to these paths, so localizing the
+// canonical URLs here would create an infinite redirect loop.
+const I18N_REDIRECT_EXACT_PATHS = new Set(["/"]);
 const I18N_MODALITY_PREFIXES = [
   "/gimnasia-artistica",
   "/gimnasia-ritmica",
@@ -43,7 +46,27 @@ function extractAccessToken(req: NextRequest) {
   const tokenCookie = req.cookies.getAll().find(
     (cookie) => cookie.name.includes("sb-") && cookie.name.endsWith("-access-token")
   );
-  return tokenCookie?.value ?? null;
+  if (tokenCookie?.value) return tokenCookie.value;
+
+  // @supabase/ssr stores the browser session in a base64url encoded
+  // `*-auth-token` cookie (and may split it into numbered chunks). Decode the
+  // session envelope so the super-admin gate works with the canonical cookie
+  // format as well as legacy access-token cookies.
+  const sessionCookies = req.cookies
+    .getAll()
+    .filter((cookie) => /^sb-.+-auth-token(?:\.\d+)?$/.test(cookie.name))
+    .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+  if (!sessionCookies.length) return null;
+
+  try {
+    const encoded = sessionCookies.map((cookie) => cookie.value).join("");
+    const payload = encoded.startsWith("base64-")
+      ? JSON.parse(Buffer.from(encoded.slice(7), "base64url").toString("utf8"))
+      : JSON.parse(encoded);
+    return typeof payload?.access_token === "string" ? payload.access_token : null;
+  } catch {
+    return null;
+  }
 }
 
 function base64UrlDecode(input: string) {
@@ -111,6 +134,27 @@ function validateClaims(payload: Record<string, unknown>): boolean {
   }
 
   return true;
+}
+
+async function verifySuperAdminWithSupabase(accessToken: string): Promise<boolean> {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!supabaseUrl || !anonKey) return false;
+
+  try {
+    const response = await fetch(`${supabaseUrl}/auth/v1/user`, {
+      headers: {
+        apikey: anonKey,
+        Authorization: `Bearer ${accessToken}`,
+      },
+      cache: "no-store",
+    });
+    if (!response.ok) return false;
+    const user = (await response.json()) as Record<string, unknown>;
+    return extractRole(user) === SUPER_ADMIN_ROLE;
+  } catch {
+    return false;
+  }
 }
 
 function isSuperAdminPath(pathname: string) {
@@ -185,8 +229,12 @@ async function checkRateLimit(
 
 function extractRole(payload: Record<string, unknown> | null) {
   if (!payload) return null;
+  const appMetadata = payload.app_metadata as Record<string, unknown> | undefined;
   return (
-    (payload.app_metadata as Record<string, unknown>)?.role ??
+    appMetadata?.role ??
+    // E2E identities use a namespaced claim so production role metadata is
+    // never overwritten by test provisioning.
+    appMetadata?.e2eRole ??
     payload.role ??
     null
   );
@@ -259,6 +307,9 @@ export async function middleware(req: NextRequest) {
 
   const requestHeaders = new Headers(req.headers);
   requestHeaders.set("x-pathname", pathname);
+  // Keep a namespaced copy for App Router server layouts. Some Next runtimes
+  // strip the generic x-pathname header before it reaches headers().
+  requestHeaders.set("x-zaltyko-pathname", pathname);
   let rateLimitHeaders: Record<string, string> | null = null;
 
   // 1. Rate limit API mutations globally (skips webhooks and crons)
@@ -294,17 +345,18 @@ export async function middleware(req: NextRequest) {
       if (!token) return redirectToLogin(req);
 
       const secret = process.env.SUPABASE_JWT_SECRET;
-      if (!secret) {
-        console.error("SUPABASE_JWT_SECRET not configured; rejecting super-admin access");
-        return redirectToLogin(req);
-      }
+      if (secret) {
+        const { valid, payload } = verifyJwtHs256(token, secret);
+        if (!valid || !payload || !validateClaims(payload)) {
+          return redirectToLogin(req);
+        }
 
-      const { valid, payload } = verifyJwtHs256(token, secret);
-      if (!valid || !payload || !validateClaims(payload)) {
-        return redirectToLogin(req);
-      }
-
-      if (extractRole(payload) !== SUPER_ADMIN_ROLE) {
+        if (extractRole(payload) !== SUPER_ADMIN_ROLE) {
+          return redirectToLogin(req);
+        }
+      } else if (!(await verifySuperAdminWithSupabase(token))) {
+        // Verify remotely when the project JWT secret is not available in the
+        // deployment environment. Never trust an unverified client claim.
         return redirectToLogin(req);
       }
     }

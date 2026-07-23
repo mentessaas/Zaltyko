@@ -309,8 +309,8 @@ const createAthleteHandler = withTenant(async (request, context) => {
 
 // Rate-limited POST handler: 10 requests per minute for athlete creation
 export const POST = withRateLimit(
-  async (request) => {
-    return (await createAthleteHandler(request, {} as any)) as NextResponse;
+  async (request, context) => {
+    return (await createAthleteHandler(request, context)) as NextResponse;
   },
   { identifier: getUserIdentifier, limit: 10, window: 60 }
 );
@@ -339,7 +339,6 @@ const filterSchema = z.object({
   academyId: z.string().uuid().optional(),
   minAge: z.coerce.number().min(0).optional(),
   maxAge: z.coerce.number().min(0).optional(),
-  tenantId: z.string().uuid().optional(),
   groupId: z.string().uuid().optional(),
   sportConfigId: z.string().uuid().optional(),
   page: z.coerce.number().int().min(1).optional(),
@@ -355,9 +354,9 @@ export const GET = withTenant(async (request, context) => {
       return handleApiError(filters.error);
     }
 
-  const { level, status, academyId, minAge, maxAge, tenantId: tenantOverride, groupId, sportConfigId, page = 1, limit = 50 } = filters.data;
+  const { level, status, academyId, minAge, maxAge, groupId, sportConfigId, page = 1, limit = 50 } = filters.data;
 
-  const effectiveTenantId = context.tenantId ?? tenantOverride ?? null;
+  const effectiveTenantId = context.tenantId || null;
 
   if (!effectiveTenantId) {
     return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);

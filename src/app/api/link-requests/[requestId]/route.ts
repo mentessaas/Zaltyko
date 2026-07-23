@@ -6,10 +6,13 @@ import { academyLinkRequests, memberships, profiles } from "@/db/schema";
 import { apiError, apiSuccess } from "@/lib/api-response";
 import { withTenant } from "@/lib/authz";
 import { resolveUserHome } from "@/lib/auth/resolve-user-home";
+import { withTransaction } from "@/lib/db-transactions";
 
 const responseSchema = z.object({
   action: z.enum(["accept", "reject"]),
 });
+
+/** @resource-scope self — only the request target profile may respond. */
 
 export const PATCH = withTenant(async (request, context) => {
   const params = context.params as { requestId?: string } | undefined;
@@ -45,14 +48,25 @@ export const PATCH = withTenant(async (request, context) => {
   const now = new Date();
 
   if (parsed.data.action === "reject") {
-    await db
+    const [rejected] = await db
       .update(academyLinkRequests)
       .set({
         status: "rejected",
         respondedAt: now,
         updatedAt: now,
       })
-      .where(eq(academyLinkRequests.id, linkRequest.id));
+      .where(
+        and(
+          eq(academyLinkRequests.id, linkRequest.id),
+          eq(academyLinkRequests.status, "pending"),
+          eq(academyLinkRequests.targetProfileId, context.profile.id)
+        )
+      )
+      .returning({ id: academyLinkRequests.id });
+
+    if (!rejected) {
+      return apiError("LINK_REQUEST_CLOSED", "Esta solicitud ya fue respondida", 400);
+    }
 
     return apiSuccess({
       success: true,
@@ -60,44 +74,50 @@ export const PATCH = withTenant(async (request, context) => {
     });
   }
 
-  const [existingMembership] = await db
-    .select({ id: memberships.id })
-    .from(memberships)
-    .where(
-      and(
-        eq(memberships.userId, context.profile.userId),
-        eq(memberships.academyId, linkRequest.academyId)
+  const accepted = await withTransaction(async (tx) => {
+    const [claimed] = await tx
+      .update(academyLinkRequests)
+      .set({ status: "processing", updatedAt: now })
+      .where(
+        and(
+          eq(academyLinkRequests.id, linkRequest.id),
+          eq(academyLinkRequests.status, "pending"),
+          eq(academyLinkRequests.targetProfileId, context.profile.id)
+        )
       )
-    )
-    .limit(1);
+      .returning();
+    if (!claimed) return false;
 
-  if (!existingMembership) {
-    await db.insert(memberships).values({
-      userId: context.profile.userId,
-      academyId: linkRequest.academyId,
-      role: linkRequest.requestedMembershipRole,
-    });
+    await tx
+      .insert(memberships)
+      .values({
+        userId: context.profile.userId,
+        academyId: claimed.academyId,
+        role: claimed.requestedMembershipRole,
+      })
+      .onConflictDoNothing({ target: [memberships.userId, memberships.academyId] });
+
+    // El portal limitado y withTenant usan el tenant del perfil como contexto.
+    await tx
+      .update(profiles)
+      .set({ activeAcademyId: claimed.academyId, tenantId: claimed.tenantId })
+      .where(eq(profiles.id, context.profile.id));
+
+    await tx
+      .update(academyLinkRequests)
+      .set({ status: "accepted", respondedAt: now, updatedAt: now })
+      .where(
+        and(
+          eq(academyLinkRequests.id, claimed.id),
+          eq(academyLinkRequests.status, "processing")
+        )
+      );
+    return true;
+  });
+
+  if (!accepted) {
+    return apiError("LINK_REQUEST_CLOSED", "Esta solicitud ya fue respondida", 400);
   }
-
-  // El portal limitado y withTenant usan el tenant del perfil como contexto.
-  // Al aceptar el primer vínculo, alinear ambos valores habilita las rutas
-  // permitidas (my-dashboard, messages y notifications) sin abrir rutas admin.
-  await db
-    .update(profiles)
-    .set({
-      activeAcademyId: linkRequest.academyId,
-      tenantId: linkRequest.tenantId,
-    })
-    .where(eq(profiles.id, context.profile.id));
-
-  await db
-    .update(academyLinkRequests)
-    .set({
-      status: "accepted",
-      respondedAt: now,
-      updatedAt: now,
-    })
-    .where(eq(academyLinkRequests.id, linkRequest.id));
 
   const home = await resolveUserHome({
     userId: context.profile.userId,

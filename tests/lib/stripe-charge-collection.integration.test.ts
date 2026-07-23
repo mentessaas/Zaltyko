@@ -266,13 +266,15 @@ describe("collectCharge", () => {
 
 describe("charge-reconcile-service", () => {
   it("payment_intent.succeeded marca el cargo pendiente como pagado", async () => {
-    state.chargeRow = { id: "charge_2", status: "pending" };
+    state.chargeRow = { ...baseCharge, id: "charge_2", status: "pending", stripeAccountId: "acct_123" };
 
     await reconcilePaymentIntentSucceeded({
       id: "pi_7",
-      metadata: { chargeId: "charge_2" },
+      metadata: { chargeId: "charge_2", academyId: "academy_1", tenantId: "tenant_1" },
+      amount_received: 5000,
+      currency: "eur",
       latest_charge: "ch_7",
-    } as any);
+    } as any, "acct_123");
 
     expect(state.updateSets.at(-1)).toMatchObject({
       status: "paid",
@@ -283,51 +285,80 @@ describe("charge-reconcile-service", () => {
   });
 
   it("payment_intent.succeeded fuera de orden no pisa un cargo ya reembolsado", async () => {
-    state.chargeRow = { id: "charge_3", status: "refunded" };
+    state.chargeRow = { ...baseCharge, id: "charge_3", status: "refunded", stripeAccountId: "acct_123" };
 
     await reconcilePaymentIntentSucceeded({
       id: "pi_8",
-      metadata: { chargeId: "charge_3" },
-    } as any);
+      metadata: { chargeId: "charge_3", academyId: "academy_1", tenantId: "tenant_1" },
+      amount_received: 5000,
+      currency: "eur",
+    } as any, "acct_123");
 
     expect(state.updateSets).toHaveLength(0);
   });
 
   it("payment_intent.payment_failed no pisa un cargo ya pagado", async () => {
-    state.chargeRow = { id: "charge_4", status: "paid" };
+    state.chargeRow = { ...baseCharge, id: "charge_4", status: "paid", stripeAccountId: "acct_123" };
 
     await reconcilePaymentIntentFailed({
       id: "pi_9",
-      metadata: { chargeId: "charge_4" },
-    } as any);
+      metadata: { chargeId: "charge_4", academyId: "academy_1", tenantId: "tenant_1" },
+    } as any, "acct_123");
 
     expect(state.updateSets).toHaveLength(0);
   });
 
   it("payment_intent.canceled devuelve el cargo a pendiente si seguía debiéndose", async () => {
-    state.chargeRow = { id: "charge_6", status: "failed" };
+    state.chargeRow = { ...baseCharge, id: "charge_6", status: "failed", stripeAccountId: "acct_123" };
 
     await reconcilePaymentIntentCanceled({
       id: "pi_11",
-      metadata: { chargeId: "charge_6" },
-    } as any);
+      metadata: { chargeId: "charge_6", academyId: "academy_1", tenantId: "tenant_1" },
+    } as any, "acct_123");
 
     expect(state.updateSets.at(-1)).toMatchObject({ status: "pending" });
   });
 
   it("charge.refunded marca el cargo como reembolsado", async () => {
-    state.chargeRow = { id: "charge_5", status: "paid" };
+    state.chargeRow = { id: "charge_5", status: "paid", stripeAccountId: "acct_123" };
 
-    await reconcileChargeRefunded({ id: "ch_10" } as any);
+    await reconcileChargeRefunded({ id: "ch_10" } as any, "acct_123");
 
     expect(state.updateSets.at(-1)).toMatchObject({ status: "refunded" });
   });
 
   it("charge.refunded es idempotente si el cargo ya estaba reembolsado", async () => {
-    state.chargeRow = { id: "charge_5", status: "refunded" };
+    state.chargeRow = { id: "charge_5", status: "refunded", stripeAccountId: "acct_123" };
 
-    await reconcileChargeRefunded({ id: "ch_10" } as any);
+    await reconcileChargeRefunded({ id: "ch_10" } as any, "acct_123");
 
+    expect(state.updateSets).toHaveLength(0);
+  });
+
+  it("rechaza un evento firmado que pertenece a otra cuenta Connect", async () => {
+    state.chargeRow = { ...baseCharge, id: "charge_7", stripeAccountId: "acct_expected" };
+
+    await expect(
+      reconcilePaymentIntentFailed(
+        {
+          id: "pi_cross_account",
+          metadata: { chargeId: "charge_7", academyId: "academy_1", tenantId: "tenant_1" },
+        } as any,
+        "acct_attacker"
+      )
+    ).rejects.toThrow("CONNECT_ACCOUNT_MISMATCH");
+    expect(state.updateSets).toHaveLength(0);
+  });
+
+  it("rechaza metadata incompleta aunque el PaymentIntent exista", async () => {
+    state.chargeRow = { ...baseCharge, id: "charge_8", stripeAccountId: "acct_123" };
+
+    await expect(
+      reconcilePaymentIntentFailed(
+        { id: "pi_missing_metadata", metadata: { chargeId: "charge_8" } } as any,
+        "acct_123"
+      )
+    ).rejects.toThrow("CONNECT_METADATA_MISMATCH");
     expect(state.updateSets).toHaveLength(0);
   });
 });

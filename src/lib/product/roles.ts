@@ -188,6 +188,10 @@ export function getPreferredHomePath(args: {
     return "/super-admin";
   }
 
+  if (academyId && profileRole === "coach" && canAccessAcademyWorkspace(profileRole, membershipRole)) {
+    return `/app/${academyId}/coach`;
+  }
+
   if (academyId && canAccessAcademyWorkspace(profileRole, membershipRole)) {
     return `/app/${academyId}/dashboard`;
   }

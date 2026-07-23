@@ -121,7 +121,7 @@ export default async function CoachesPublicPage({ searchParams }: PageProps) {
             <Link
               key={coach.id}
               href={`/coaches/${coach.slug || coach.id}`}
-              className="group rounded-lg border bg-card p-6 shadow-sm transition-shadow hover:shadow-md"
+              className="group card-hover rounded-lg border bg-card p-6"
             >
               <div className="space-y-4">
                 {coach.photoUrl ? (

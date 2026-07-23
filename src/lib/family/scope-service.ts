@@ -31,7 +31,7 @@ export async function getFamilyChildrenForUser({
     .where(eq(profiles.userId, userId))
     .limit(1);
 
-  if (!profile || (profile.role !== "parent" && profile.role !== "athlete")) {
+  if (!profile || profile.role !== "parent") {
     return [];
   }
 

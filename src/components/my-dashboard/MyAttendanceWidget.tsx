@@ -128,7 +128,7 @@ export function MyAttendanceWidget({ data }: MyAttendanceWidgetProps) {
       )}
 
       {/* Leyenda */}
-      <div className="flex justify-center gap-4 text-xs">
+      <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 text-xs">
         <div className="flex items-center gap-1">
           <div className="h-2 w-2 rounded-full bg-emerald-500" />
           <span>{data.present} presentes</span>

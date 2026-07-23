@@ -213,7 +213,7 @@ export function ClassesTableView({
             onClick={() => setCreateOpen(true)}
             className="inline-flex min-h-11 items-center justify-center rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white shadow-soft hover:bg-primary-dark"
           >
-            Nueva {classTermLower}
+            Crear {classTermLower}
           </button>
         </div>
       </section>

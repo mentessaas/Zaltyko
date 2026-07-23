@@ -14,23 +14,15 @@ let classAthletes: Array<{
 let coachClassScope = { allowed: true as boolean, reason: undefined as string | undefined };
 
 const createSelectChain = (resolveAt: "limit" | "where", result: any[]) => {
-  if (resolveAt === "limit") {
-    return {
-      from: vi.fn(() => ({
-        where: vi.fn(() => ({
-          limit: vi.fn(() => Promise.resolve(result)),
-        })),
-      })),
-    };
-  }
-
-  return {
-    from: vi.fn(() => ({
-      innerJoin: vi.fn(() => ({
-        where: vi.fn(() => Promise.resolve(result)),
-      })),
-    })),
-  };
+  const chain: Record<string, unknown> = {};
+  chain.from = vi.fn(() => chain);
+  chain.innerJoin = vi.fn(() => chain);
+  chain.leftJoin = vi.fn(() => chain);
+  chain.where = vi.fn(() =>
+    resolveAt === "where" ? Promise.resolve(result) : chain
+  );
+  chain.limit = vi.fn(() => Promise.resolve(result));
+  return chain;
 };
 
 const originalEnv = { ...process.env };
@@ -92,8 +84,8 @@ describe("API /api/attendance", () => {
       getClassAthletes: vi.fn(async () => classAthletes),
     }));
 
-    vi.mock("@/lib/permissions", () => ({
-      verifyCoachClassScope: vi.fn(async () => coachClassScope),
+    vi.mock("@/lib/attendance/service", () => ({
+      verifyAttendanceWriteAccess: vi.fn(async () => coachClassScope),
     }));
 
     const attendanceModule = await import("@/app/api/attendance/route");
@@ -177,6 +169,14 @@ describe("API /api/attendance", () => {
 
   it("lista registros de asistencia por sesión", async () => {
     selectQueue.push(
+      createSelectChain("limit", [
+        {
+          classId: "44444444-4444-4444-4444-444444444444",
+          academyId: "55555555-5555-5555-5555-555555555555",
+        },
+      ])
+    );
+    selectQueue.push(
       createSelectChain("where", [
         {
           id: "attendance-1",
@@ -199,8 +199,8 @@ describe("API /api/attendance", () => {
     const response = await GET(request, {} as any);
     expect(response.status).toBe(200);
     const body = await response.json();
-    expect(body.items).toHaveLength(1);
-    expect(body.items[0]).toMatchObject({
+    expect(body.data.items).toHaveLength(1);
+    expect(body.data.items[0]).toMatchObject({
       sessionId: "11111111-1111-1111-1111-111111111111",
       status: "present",
     });

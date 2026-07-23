@@ -14,7 +14,7 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { AnnouncementForm } from "@/components/announcements/AnnouncementForm";
 
 const PRIORITY_LABELS: Record<string, { label: string; class: string }> = {
-  low: { label: "Baja", class: "bg-gray-100 text-gray-800" },
+  low: { label: "Baja", class: "bg-muted text-muted-foreground" },
   normal: { label: "Normal", class: "bg-blue-100 text-blue-800" },
   high: { label: "Alta", class: "bg-amber-100 text-amber-800" },
   urgent: { label: "Urgente", class: "bg-red-100 text-red-800" },
@@ -119,7 +119,7 @@ export default async function AnnouncementsPage({ params }: PageProps) {
             return (
               <Card
                 key={announcement.id}
-                className="hover:shadow-lg transition-shadow border border-zaltyko-neutral/20"
+                className="card-hover border border-zaltyko-neutral/20"
               >
                 <CardHeader>
                   <div className="flex items-start justify-between gap-2">

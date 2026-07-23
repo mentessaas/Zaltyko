@@ -1,12 +1,12 @@
 "use client";
 
-import { Check, X, Minus } from "lucide-react";
+import { Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const comparisonFeatures = [
   {
     feature: "Puesta en marcha",
-    zaltyko: "Migración desde Excel incluida",
+    zaltyko: "Importación base desde Excel",
     spreadsheets: "Manual",
     generic: "Según proveedor",
   },
@@ -115,7 +115,7 @@ export default function ComparisonSection() {
             {/* Header */}
             <thead>
               <tr>
-                <th className="px-6 py-4 text-left text-sm font-bold text-gray-900 bg-gray-50 border-b border-gray-200 w-1/3">
+                <th className="px-6 py-4 text-left text-sm font-bold text-gray-900 surface-subtle border-b border-gray-200 w-1/3">
                   Funcionalidad
                 </th>
                 <th className="px-4 py-4 text-center text-sm font-bold bg-[#00695C] text-white border-x-2 border-[#00695C]">
@@ -124,10 +124,10 @@ export default function ComparisonSection() {
                     <span className="rounded-full bg-white px-2 py-0.5 text-[11px] font-medium text-[#00695C]">Recomendado</span>
                   </div>
                 </th>
-                <th className="px-4 py-4 text-center text-sm font-semibold text-gray-500 bg-gray-50 border-b border-gray-200">
+                <th className="px-4 py-4 text-center text-sm font-semibold text-gray-500 surface-subtle border-b border-gray-200">
                   Excel / Sheets
                 </th>
-                <th className="px-4 py-4 text-center text-sm font-semibold text-gray-500 bg-gray-50 border-b border-gray-200">
+                <th className="px-4 py-4 text-center text-sm font-semibold text-gray-500 surface-subtle border-b border-gray-200">
                   Software genérico
                 </th>
               </tr>
@@ -140,7 +140,7 @@ export default function ComparisonSection() {
                   key={row.feature}
                   className={cn(
                     "border-b border-gray-100 last:border-0",
-                    i % 2 === 0 ? "bg-white" : "bg-gray-50/50"
+                    i % 2 === 0 ? "bg-white" : "bg-muted/40"
                   )}
                 >
                   <td className="px-6 py-3.5 text-sm font-medium text-gray-700">

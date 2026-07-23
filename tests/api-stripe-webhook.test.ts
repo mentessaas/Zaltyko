@@ -76,10 +76,21 @@ vi.mock("@/lib/stripe/subscription-service", () => ({
 
 vi.mock("@/lib/stripe/invoice-service", () => ({
   handleInvoiceEvent: vi.fn(() => Promise.resolve({
-    academyId: "academy-123",
-    tenantId: "tenant-123",
-    userId: "user-123",
+    context: {
+      academyId: "academy-123",
+      tenantId: "tenant-123",
+      userId: "user-123",
+    },
+    invoice: { status: "open" },
   })),
+}));
+
+vi.mock("@/lib/stripe/billing-events-service", () => ({
+  recordBillingEvent: vi.fn().mockResolvedValue({
+    shouldProcess: true,
+    id: "billing-event-123",
+  }),
+  updateBillingEventStatus: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("@/lib/logger", () => ({

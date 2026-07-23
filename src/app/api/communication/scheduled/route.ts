@@ -11,12 +11,8 @@ import { logger } from "@/lib/logger";
 
 export const dynamic = 'force-dynamic';
 
-const canViewCommunication = (role?: string) =>
-  ["owner", "admin", "coach", "super_admin"].includes(role ?? "");
-const canManageCommunication = (role?: string) =>
-  ["owner", "admin", "super_admin"].includes(role ?? "");
-
 const createScheduledSchema = z.object({
+  academyId: z.string().uuid(),
   groupId: z.string().uuid().optional(),
   templateId: z.string().uuid().optional(),
   channel: z.enum(["whatsapp", "email", "push", "in_app"]).default("whatsapp"),
@@ -27,11 +23,11 @@ export const GET = withTenant(async (request, context) => {
   if (!context.tenantId) {
     return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
   }
-  if (!canViewCommunication(context.profile?.role)) {
-    return apiError("FORBIDDEN", "No tienes permiso para consultar comunicaciones programadas", 403);
+  const academyId = new URL(request.url).searchParams.get("academyId");
+  if (!academyId || !z.string().uuid().safeParse(academyId).success) {
+    return apiError("ACADEMY_REQUIRED", "Academy ID is required", 400);
   }
-
-  const scheduled = await getScheduledNotifications(context.tenantId);
+  const scheduled = await getScheduledNotifications(context.tenantId, academyId);
 
   return apiSuccess({
     items: scheduled.map((s) => ({
@@ -53,29 +49,30 @@ export const POST = withTenant(async (request, context) => {
   if (!context.tenantId) {
     return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
   }
-  if (!canManageCommunication(context.profile?.role)) {
-    return apiError("FORBIDDEN", "No tienes permiso para programar comunicaciones", 403);
-  }
-
   try {
     const body = await request.json();
     const validated = createScheduledSchema.parse(body);
 
     if (validated.groupId) {
       const group = await getMessageGroupById(validated.groupId);
-      if (!group || group.tenantId !== context.tenantId) {
+      if (!group || group.tenantId !== context.tenantId || group.academyId !== validated.academyId) {
         return apiError("FORBIDDEN", "El grupo no pertenece al tenant activo", 403);
       }
     }
     if (validated.templateId) {
       const template = await getMessageTemplateById(validated.templateId);
-      if (!template || template.tenantId !== context.tenantId) {
+      if (
+        !template ||
+        (template.tenantId && template.tenantId !== context.tenantId) ||
+        (template.academyId && template.academyId !== validated.academyId)
+      ) {
         return apiError("FORBIDDEN", "La plantilla no pertenece al tenant activo", 403);
       }
     }
 
     const scheduled = await createScheduledNotification({
       tenantId: context.tenantId,
+      academyId: validated.academyId,
       groupId: validated.groupId,
       templateId: validated.templateId,
       channel: validated.channel,

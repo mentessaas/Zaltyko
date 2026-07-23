@@ -7,18 +7,16 @@ import { and, inArray } from "drizzle-orm";
 import { logger } from "@/lib/logger";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { requireCronAuth } from "@/lib/cron-auth";
+import { runCronWithLease } from "@/lib/cron-lease";
 
 export async function GET(request: Request) {
   const authError = requireCronAuth(request);
   if (authError) return authError;
 
-  const startedAt = Date.now();
-
   try {
-    logger.info("Daily alerts cron started");
-
-    // Obtener todas las academias activas
-    const allAcademies = await db
+    const execution = await runCronWithLease("cron:daily-alerts", async () => {
+      // Obtener todas las academias activas
+      const allAcademies = await db
       .select({
         id: academies.id,
         tenantId: academies.tenantId,
@@ -26,15 +24,14 @@ export async function GET(request: Request) {
       .from(academies);
 
     const results = {
-      capacity: { succeeded: 0, failed: 0 },
-      payments: { succeeded: 0, failed: 0 },
-      attendance: { succeeded: 0, failed: 0 },
+      capacityAlerts: 0,
+      paymentAlerts: 0,
+      attendanceAlerts: 0,
     };
-    const failedAcademyIds = new Set<string>();
 
-    if (allAcademies.length === 0) {
-      return apiSuccess({ ok: true, message: "No hay academias activas", academiesProcessed: 0, results });
-    }
+      if (allAcademies.length === 0) {
+        return { ok: true, message: "No hay academias activas", academiesProcessed: 0, results };
+      }
 
     // Traer todos los perfiles relevantes en una sola query (evita N+1)
     const tenantIds = [...new Set(allAcademies.map((a) => a.tenantId))];
@@ -72,20 +69,16 @@ export async function GET(request: Request) {
         // Alertas de capacidad
         try {
           await createCapacityNotifications(academy.id, academy.tenantId, adminUserIds);
-          results.capacity.succeeded++;
+          results.capacityAlerts++;
         } catch (error) {
-          results.capacity.failed++;
-          failedAcademyIds.add(academy.id);
           logger.error(`Error creating capacity alerts for academy ${academy.id}`, error, { academyId: academy.id });
         }
 
         // Alertas de pagos
         try {
           await createPaymentNotifications(academy.id, academy.tenantId, adminUserIds);
-          results.payments.succeeded++;
+          results.paymentAlerts++;
         } catch (error) {
-          results.payments.failed++;
-          failedAcademyIds.add(academy.id);
           logger.error(`Error creating payment alerts for academy ${academy.id}`, error, { academyId: academy.id });
         }
 
@@ -97,40 +90,29 @@ export async function GET(request: Request) {
             adminUserIds,
             coachUserIds
           );
-          results.attendance.succeeded++;
+          results.attendanceAlerts++;
         } catch (error) {
-          results.attendance.failed++;
-          failedAcademyIds.add(academy.id);
           logger.error(`Error creating attendance alerts for academy ${academy.id}`, error, { academyId: academy.id });
         }
       } catch (error) {
-        failedAcademyIds.add(academy.id);
         logger.error(`Error processing alerts for academy ${academy.id}`, error, { academyId: academy.id });
         // Continuar con la siguiente academia
       }
     }
 
-    const summary = {
-      ok: true,
-      message: "Daily alerts processed successfully",
-      academiesProcessed: allAcademies.length,
-      academiesSucceeded: allAcademies.length - failedAcademyIds.size,
-      academiesFailed: failedAcademyIds.size,
-      operationsFailed:
-        results.capacity.failed + results.payments.failed + results.attendance.failed,
-      results,
-    };
-
-    logger.info("Daily alerts cron completed", {
-      ...summary,
-      durationMs: Date.now() - startedAt,
+      return {
+        ok: true,
+        message: "Daily alerts processed successfully",
+        academiesProcessed: allAcademies.length,
+        results,
+      };
     });
-
-    return apiSuccess(summary);
+    if (!execution.acquired) {
+      return apiSuccess({ skipped: true, reason: "ALREADY_RUNNING" });
+    }
+    return apiSuccess(execution.value);
   } catch (error: unknown) {
-    logger.error("Error in daily alerts cron", error, {
-      durationMs: Date.now() - startedAt,
-    });
+    logger.error("Error in daily alerts cron", error);
     return apiError("CRON_FAILED", "Cron job failed", 500);
   }
 }

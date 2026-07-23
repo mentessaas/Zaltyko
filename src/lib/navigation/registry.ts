@@ -120,6 +120,10 @@ export function getAcademyNavigation(args: {
 
   return mapNavigation(academyItems, effectiveRole, args.academyId).map((item) => ({
     ...item,
+    href:
+      effectiveRole === "coach" && item.key === "dashboard"
+        ? `/app/${args.academyId}/coach`
+        : item.href,
     label: args.specialization
       ? getSpecializedNavigationLabel(args.specialization, item.key, item.label)
       : item.label,
@@ -144,6 +148,10 @@ export function getMobileAcademyNavigation(args: {
 
   return mapNavigation(academyItems, effectiveRole, args.academyId, { mobileOnly: true }).map((item) => ({
     ...item,
+    href:
+      effectiveRole === "coach" && item.key === "dashboard"
+        ? `/app/${args.academyId}/coach`
+        : item.href,
     label: args.specialization
       ? getSpecializedNavigationLabel(args.specialization, item.key, item.label)
       : item.label,

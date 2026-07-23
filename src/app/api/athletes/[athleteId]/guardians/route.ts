@@ -130,8 +130,8 @@ const getGuardiansHandler = withTenant(async (_request, context) => {
 
 // Rate-limited GET handler: 100 requests per minute
 export const GET = withRateLimit(
-  async (request) => {
-    return (await getGuardiansHandler(request, {} as any)) as NextResponse;
+  async (request, context) => {
+    return (await getGuardiansHandler(request, context)) as NextResponse;
   },
   { identifier: getUserIdentifier, limit: 100, window: 60 }
 );
@@ -239,10 +239,9 @@ const createGuardianHandler = withTenant(async (request, context) => {
 
 // Rate-limited POST handler: 10 requests per minute
 export const POST = withRateLimit(
-  async (request) => {
-    return (await createGuardianHandler(request, {} as any)) as NextResponse;
+  async (request, context) => {
+    return (await createGuardianHandler(request, context)) as NextResponse;
   },
   { identifier: getUserIdentifier, limit: 10, window: 60 }
 );
-
 

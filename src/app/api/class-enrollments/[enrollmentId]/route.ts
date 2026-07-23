@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { classEnrollments } from "@/db/schema";
 import { TenantContext, withTenant } from "@/lib/authz";
 import { handleApiError } from "@/lib/api-error-handler";
+import { authorizeClassResource } from "@/lib/authz/resource-scope";
 
 type RouteContext = TenantContext<{ params?: { enrollmentId?: string } }>;
 
@@ -31,6 +32,7 @@ export const DELETE = withTenant(async (request, context) => {
       .select({
         id: classEnrollments.id,
         tenantId: classEnrollments.tenantId,
+        classId: classEnrollments.classId,
       })
       .from(classEnrollments)
       .where(eq(classEnrollments.id, enrollmentId))
@@ -40,8 +42,9 @@ export const DELETE = withTenant(async (request, context) => {
       return apiError("ENROLLMENT_NOT_FOUND", "Enrollment not found", 404);
     }
 
-    if (enrollment.tenantId !== context.tenantId && context.profile.role !== "super_admin") {
-      return apiError("FORBIDDEN", "Access denied", 403);
+    const scope = await authorizeClassResource({ context, classId: enrollment.classId });
+    if (!scope.allowed) {
+      return apiError("ENROLLMENT_NOT_FOUND", "Enrollment not found", 404);
     }
 
     // Eliminar el enrollment
@@ -54,4 +57,3 @@ export const DELETE = withTenant(async (request, context) => {
     return handleApiError(error);
   }
 });
-

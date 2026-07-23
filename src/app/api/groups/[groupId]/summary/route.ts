@@ -43,7 +43,7 @@ export const GET = withTenant(async (request, context) => {
     }
 
     // Verify group access
-    const groupAccess = await verifyGroupAccess(groupId, group.academyId, context.tenantId);
+    const groupAccess = await verifyGroupAccess(groupId, context.tenantId, group.academyId);
     if (!groupAccess.allowed) {
       return apiError(groupAccess.reason ?? "GROUP_ACCESS_DENIED", "Access denied", 403);
     }
@@ -120,4 +120,3 @@ export const GET = withTenant(async (request, context) => {
     return handleApiError(error, { endpoint: "/api/groups/[groupId]/summary", method: "GET" });
   }
 });
-

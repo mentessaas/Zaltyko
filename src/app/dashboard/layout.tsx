@@ -1,4 +1,4 @@
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { eq, sql } from "drizzle-orm";
 import type { Metadata } from "next";
@@ -12,6 +12,25 @@ import { logger } from "@/lib/logger";
 import { DashboardSkipLink } from "@/components/dashboard/DashboardSkipLink";
 import { ChatWidgetWrapper } from "@/components/chat/ChatWidgetWrapper";
 import { GlobalTopNav } from "@/components/navigation/GlobalTopNav";
+import { LegacyWorkspaceRedirect } from "@/components/navigation/LegacyWorkspaceRedirect";
+import { resolveUserHome } from "@/lib/auth/resolve-user-home";
+
+const LEGACY_WORKSPACE_SUFFIXES: Record<string, string> = {
+  "/dashboard/athletes": "athletes",
+  "/dashboard/athletes/new": "athletes",
+  "/dashboard/assessments": "assessments",
+  "/dashboard/announcements": "messages",
+  "/dashboard/announcements/new": "messages",
+  "/dashboard/billing": "billing",
+  "/dashboard/classes": "classes",
+  "/dashboard/classes/groups": "classes",
+  "/dashboard/classes/calendar": "classes",
+  "/dashboard/coaches": "coaches",
+  "/dashboard/events": "events",
+  "/dashboard/events/new": "events",
+  "/dashboard/messages": "messages",
+  "/dashboard/settings": "settings",
+};
 
 export const metadata: Metadata = {
   title: "Dashboard",
@@ -94,6 +113,24 @@ export default async function DashboardLayout({
 
   if (!profile) {
     redirect("/auth/login");
+  }
+
+  // The legacy pages still exist as compatibility entry points. Keep the
+  // modern workspace as the canonical destination without relying on a
+  // server-component redirect, which can be swallowed by observability
+  // wrappers in some Next.js production runtimes.
+  const pathname = (await headers()).get("x-zaltyko-pathname") ?? "";
+  const legacySuffix = LEGACY_WORKSPACE_SUFFIXES[pathname];
+  if (pathname === "/dashboard" || legacySuffix) {
+    const home = await resolveUserHome({ userId: user.id, email: user.email });
+    const targetUrl =
+      legacySuffix && home.destination === "academy_workspace" && home.activeAcademyId
+        ? `/app/${home.activeAcademyId}/${legacySuffix}`
+        : home.redirectUrl;
+
+    if (targetUrl !== pathname) {
+      return <LegacyWorkspaceRedirect targetUrl={targetUrl} />;
+    }
   }
 
   const tenantAcademies = profile.tenantId

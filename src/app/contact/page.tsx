@@ -101,7 +101,7 @@ export default async function ContactPage({ searchParams }: ContactPageProps) {
                 })}
               </div>
 
-              <div className="mt-8 rounded-xl bg-gray-50 p-6">
+              <div className="mt-8 rounded-xl surface-subtle p-6">
                 <h3 className="font-semibold text-zaltyko-text-main">Cómo trabajamos</h3>
                 <p className="mt-2 text-sm text-zaltyko-text-secondary">
                   Leemos cada mensaje y respondemos por email en horario laboral. Si tu caso encaja con una demo, te la agendamos para ver Zaltyko aplicado a tu academia, sin guion genérico.
@@ -119,7 +119,7 @@ export default async function ContactPage({ searchParams }: ContactPageProps) {
       </section>
 
       {/* FAQ Link */}
-      <section className="py-16 bg-gray-50">
+      <section className="py-16 surface-subtle">
         <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-2xl font-bold text-zaltyko-text-main">
             ¿Prefieres resolverlo tú mismo?

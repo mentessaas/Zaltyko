@@ -51,7 +51,7 @@
 
 ## Gate final antes de Día 5 — 2026-07-18
 
-- `pnpm verify:production`: PASS con 293 Route Handlers auditados, RLS 69/69, migraciones 6 Drizzle + 40 Supabase, TypeScript/ESLint, 90 archivos y 640/640 tests, y build de 219 páginas.
+- `pnpm audit:api-routes:strict`: PASS con 294 Route Handlers, `risky=[]`, `semanticRisks=[]` y `resourceScopeManualReview=0`. El último CI de `8ca1c701` falló por un test obsoleto; `00a4c3ce` lo actualiza y queda pendiente el resultado del workflow.
 - El alias `/app/[academyId]/evaluations` tiene prueba separada del smoke de módulos. Exige URL final `/app/[academyId]/assessments`, `#main-content` visible y ausencia de errores; pasa Chromium, Firefox y WebKit, 3/3 con `--retries=0`.
 - La misma ruta bajo `next start` queda bloqueada con 429 antes del redirect cuando falta Vercel KV. Es el comportamiento fail-closed esperado y se mantiene como bloqueo externo de producción; en `next dev` la suite autenticada Chromium pudo recorrer 12/13 pruebas.
 - Stripe test mode respondió 200 para cuenta y precios; el único webhook Connect apunta a `https://zaltyko.com/api/stripe/connect/webhook`. Se creó un PaymentIntent de prueba SCA (`requires_action`) y se canceló sin cargo. El secreto Connect fue rotado con 2FA y guardado en Vercel Production; queda observar la entrega firmada end-to-end después de que el redeploy `CugHPvZEr` figure Ready.

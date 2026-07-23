@@ -39,13 +39,13 @@ const solutionContent = `El módulo de eventos y competiciones de Zaltyko centra
 
 El proceso de inscripción se simplifica tanto para ti como para las familias. Publica el evento y las familias de gimnastas elegibles reciben una notificación para confirmar participación. El cobro de la cuota de inscripción se gestiona junto con la confirmación. Tú solo supervisas el proceso y gestionas las excepciones.
 
-Genera listados oficiales para federaciones con un clic, incluyendo toda la información requerida: nombres completos, fechas de nacimiento, números de licencia y categorías de competición. Antes del evento, envía comunicaciones masivas con información logística a todas las familias participantes. Después, registra resultados para mantener el historial competitivo de cada atleta.`;
+Exporta los datos disponibles para preparar listados y revisa con tu equipo cualquier requisito federativo específico. Antes del evento, envía comunicaciones a las familias participantes. Después, registra los resultados que quieras conservar en el historial competitivo de cada atleta.`;
 
 const solutionFeatures = [
   "Calendario de competiciones con fechas límite de inscripción",
   "Identificación de gimnastas elegibles por categoría",
   "Inscripción online con cobro de cuotas integrado",
-  "Generación de listados oficiales para federaciones",
+  "Exportación operativa para revisión y entrega acompañada",
   "Comunicación masiva a familias participantes",
   "Registro de resultados e historial competitivo",
 ];
@@ -58,8 +58,8 @@ const benefits = [
   },
   {
     icon: CheckCircle,
-    title: "Cero errores de elegibilidad",
-    description: "El sistema valida automáticamente que cada atleta cumple los requisitos.",
+    title: "Revisión de elegibilidad",
+    description: "Revisa la información de cada atleta y valida la elegibilidad antes de confirmar la inscripción.",
   },
   {
     icon: TrendingUp,
@@ -68,8 +68,8 @@ const benefits = [
   },
   {
     icon: Trophy,
-    title: "Documentación perfecta",
-    description: "Genera listados federativos con formato correcto sin errores de transcripción.",
+    title: "Documentación revisable",
+    description: "Prepara exportaciones con los datos disponibles y revisa el formato antes de enviarlas.",
   },
 ];
 
@@ -84,13 +84,13 @@ const useCases = [
     role: "Administrativos",
     icon: Briefcase,
     title: "Gestión de inscripciones sin estrés",
-    description: "Supervisa el estado de confirmaciones en tiempo real, gestiona cobros de cuotas de participación y genera la documentación requerida por federaciones. Todo centralizado sin perseguir familias por teléfono.",
+    description: "Supervisa el estado de confirmaciones, gestiona cobros de cuotas de participación y prepara la documentación disponible para revisión. Todo centralizado sin perseguir familias por teléfono.",
   },
   {
     role: "Dueños de academia",
     icon: Users,
     title: "Imagen profesional del club",
-    description: "Presenta tu academia de forma profesional en cada competición. Comunicaciones claras con las familias, inscripciones sin errores y documentación impecable refuerzan la reputación de tu club.",
+    description: "Presenta tu academia de forma profesional en cada competición. Comunicaciones claras, inscripciones revisables y documentación disponible refuerzan la organización de tu club.",
   },
 ];
 

@@ -3,12 +3,15 @@ import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { TicketList } from "@/components/support/TicketList";
-import { TicketFilters } from "@/components/support/TicketFilters";
+import { TicketFilters, TicketCategory, TicketPriority, TicketStatus } from "@/components/support/TicketFilters";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import Link from "next/link";
 import { Skeleton } from "@/components/ui/skeleton";
 import { logger } from "@/lib/logger";
+import { db } from "@/db";
+import { count, and, desc, eq } from "drizzle-orm";
+import { profiles, ticketResponses, tickets } from "@/db/schema";
 
 export const dynamic = "force-dynamic";
 
@@ -18,53 +21,53 @@ interface PageProps {
 }
 
 async function getTickets(academyId: string, filters: { status?: string; priority?: string; category?: string }) {
-  const cookieStore = await cookies();
-  const supabase = await createClient(cookieStore);
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/auth/login");
-  }
-
-  let query = supabase
-    .from("tickets")
-    .select(`
-      *,
-      createdBy:profiles!tickets_created_by_fkey(id, fullName, email),
-      assignedTo:profiles(id, fullName),
-      academy:academies(id, name),
-      ticket_responses(count)
-    `)
-    .eq("academy_id", academyId)
-    .eq("created_by", user.id)
-    .order("created_at", { ascending: false });
-
+  const conditions = [eq(tickets.academyId, academyId)];
   if (filters.status && filters.status !== "all") {
-    query = query.eq("status", filters.status);
+    conditions.push(eq(tickets.status, filters.status as "open" | "in_progress" | "waiting" | "resolved" | "closed"));
   }
   if (filters.priority && filters.priority !== "all") {
-    query = query.eq("priority", filters.priority);
+    conditions.push(eq(tickets.priority, filters.priority as "low" | "medium" | "high" | "urgent"));
   }
   if (filters.category && filters.category !== "all") {
-    query = query.eq("category", filters.category);
+    conditions.push(eq(tickets.category, filters.category as "technical" | "billing" | "account" | "feature_request" | "other"));
   }
 
-  const { data: tickets, error } = await query;
+  try {
+    const rows = await db
+      .select({
+        id: tickets.id,
+        title: tickets.title,
+        description: tickets.description,
+        status: tickets.status,
+        priority: tickets.priority,
+        category: tickets.category,
+        academyId: tickets.academyId,
+        createdBy: tickets.createdBy,
+        assignedTo: tickets.assignedTo,
+        createdAt: tickets.createdAt,
+        updatedAt: tickets.updatedAt,
+        creatorName: profiles.name,
+        responseCount: count(ticketResponses.id),
+      })
+      .from(tickets)
+      .leftJoin(profiles, eq(tickets.createdBy, profiles.id))
+      .leftJoin(ticketResponses, eq(ticketResponses.ticketId, tickets.id))
+      .where(and(...conditions))
+      .groupBy(tickets.id, profiles.name)
+      .orderBy(desc(tickets.createdAt));
 
-  if (error) {
+    return rows.map((row) => ({
+      ...row,
+      createdBy: row.creatorName
+        ? { id: row.createdBy, fullName: row.creatorName, email: "" }
+        : undefined,
+      assignedTo: undefined,
+      _count: { responses: Number(row.responseCount) },
+    }));
+  } catch (error) {
     logger.error("Error fetching tickets:", error);
     return [];
   }
-
-  return tickets?.map((ticket: any) => ({
-    ...ticket,
-    createdBy: ticket.createdBy?.[0],
-    assignedTo: ticket.assignedTo?.[0],
-    academy: ticket.academy?.[0],
-    _count: {
-      responses: ticket.ticket_responses?.[0]?.count || 0,
-    },
-  })) || [];
 }
 
 async function TicketsContent({ academyId, filters }: { academyId: string; filters: { status?: string; priority?: string; category?: string } }) {
@@ -73,9 +76,9 @@ async function TicketsContent({ academyId, filters }: { academyId: string; filte
   return (
     <>
       <TicketFilters
-        currentStatus={filters.status as any}
-        currentPriority={filters.priority as any}
-        currentCategory={filters.category as any}
+        currentStatus={filters.status as TicketStatus | undefined}
+        currentPriority={filters.priority as TicketPriority | undefined}
+        currentCategory={filters.category as TicketCategory | undefined}
         showStatus
         showPriority
         showCategory
@@ -83,6 +86,7 @@ async function TicketsContent({ academyId, filters }: { academyId: string; filte
       <div className="mt-6">
         <TicketList
           tickets={tickets}
+          academyId={academyId}
           isAdmin={false}
           emptyMessage="No has creado ningún ticket todavía"
         />

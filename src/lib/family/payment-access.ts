@@ -9,6 +9,7 @@ export interface FamilyPaymentAccess {
   allowed: boolean;
   reason?: string;
   stripeAccountId?: string;
+  tenantId?: string;
   connectReady?: boolean;
 }
 
@@ -68,6 +69,7 @@ export async function resolveFamilyPaymentAccess(params: {
   return {
     allowed: true,
     stripeAccountId: account.stripeAccountId,
+    tenantId: account.tenantId,
     connectReady: isConnectReady(account),
   };
 }

@@ -77,7 +77,19 @@ function createInsertReturningQuery(result: unknown) {
 
 function createInsertQuery(result?: unknown) {
   return {
-    values: vi.fn().mockResolvedValue(result),
+    values: vi.fn(() => ({
+      onConflictDoNothing: vi.fn().mockResolvedValue(result),
+    })),
+  };
+}
+
+function createUpdateReturningQuery(result: unknown) {
+  return {
+    set: vi.fn(() => ({
+      where: vi.fn(() => ({
+        returning: vi.fn().mockResolvedValue(result),
+      })),
+    })),
   };
 }
 
@@ -92,6 +104,9 @@ function createUpdateQuery(result?: unknown) {
 describe("academy link requests API", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    dbMock.select.mockReset();
+    dbMock.insert.mockReset();
+    dbMock.update.mockReset();
     tenantContext.tenantId = "tenant-1";
     tenantContext.userId = "22222222-2222-4222-8222-222222222222";
     tenantContext.profile = {
@@ -209,10 +224,10 @@ describe("academy link requests API", () => {
     const requestUpdate = createUpdateQuery();
 
     dbMock.select
-      .mockImplementationOnce(() => createSelectQuery([linkRequest]))
-      .mockImplementationOnce(() => createSelectQuery([]));
+      .mockImplementationOnce(() => createSelectQuery([linkRequest]));
     dbMock.insert.mockImplementationOnce(() => membershipInsert);
     dbMock.update
+      .mockImplementationOnce(() => createUpdateReturningQuery([linkRequest]))
       .mockImplementationOnce(() => profileUpdate)
       .mockImplementationOnce(() => requestUpdate);
 

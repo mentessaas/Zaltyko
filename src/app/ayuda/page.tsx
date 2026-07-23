@@ -104,7 +104,7 @@ export default function HelpPage() {
             {helpCategories.map((category, index) => {
               const Icon = category.icon;
               return (
-                <div key={index} className="rounded-xl border border-gray-200 p-6 hover:shadow-lg transition-shadow">
+                <div key={index} className="card-hover rounded-xl border border-border p-6">
                   <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-zaltyko-primary/10 mb-4">
                     <Icon className="h-5 w-5 text-zaltyko-primary" />
                   </div>
@@ -128,7 +128,7 @@ export default function HelpPage() {
       </section>
 
       {/* FAQs */}
-      <section className="py-16 bg-gray-50">
+      <section className="py-16 surface-subtle">
         <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
           <h2 className="text-2xl font-bold text-zaltyko-text-main text-center mb-8">
             Preguntas frecuentes

@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { Modal } from "@/components/ui/modal";
-import { createClient } from "@/lib/supabase/client";
 import { Loader2, Clock, UserPlus, AlertCircle } from "lucide-react";
 import { logger } from "@/lib/logger";
 
@@ -40,32 +39,17 @@ export function WaitingListDialog({
     setError(null);
 
     try {
-      const supabase = createClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      const headers: Record<string, string> = {
-        "Content-Type": "application/json",
-      };
-      if (user?.id) {
-      }
-
-      // Obtener lista de espera desde la API de reportes
-      const response = await fetch(`/api/reports/class?classId=${classId}`, {
-        method: "GET",
-        headers,
-      });
+      const response = await fetch(`/api/class-waiting-list?classId=${classId}`);
 
       if (!response.ok) {
         throw new Error("Error al cargar la lista de espera");
       }
 
-      const data = await response.json();
-
-      // Por ahora, la lista de espera se maneja localmente
-      // Este es un placeholder hasta implementar el endpoint completo
-      setItems([]);
+      const payload = await response.json();
+      if (!payload.ok || !payload.data?.items) {
+        throw new Error(payload.error || "Respuesta inválida del servidor");
+      }
+      setItems(payload.data.items);
     } catch (err: unknown) {
       logger.error("Error fetching waiting list:", err);
       setError((err instanceof Error ? err.message : "Error desconocido") ?? "Error al cargar la lista de espera");

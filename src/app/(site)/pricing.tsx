@@ -79,7 +79,7 @@ export default function PricingSection() {
         <div className="mt-8 flex justify-center">
           <div className="inline-flex items-center gap-3 bg-muted/60 rounded-full px-1 py-1">
             <span
-              className="px-4 py-1.5 rounded-full bg-zaltyko-teal text-white text-sm font-bold shadow-sm"
+              className="px-4 py-1.5 rounded-full bg-zaltyko-teal text-white text-sm font-bold shadow-soft"
             >
               Mensual
             </span>

@@ -64,6 +64,7 @@ import {
   SportBreakdownSection,
   StarterSetupSection,
 } from "@/components/dashboard/DashboardSections";
+import { OperationsPulse } from "@/components/dashboard/OperationsPulse";
 
 interface DashboardPageProps {
   academyId: string;
@@ -493,6 +494,8 @@ export function DashboardPage({
         academyId={academyId}
         labels={labels}
       />
+
+      <OperationsPulse academyId={academyId} />
 
       {shouldShowStarterSetupBanner && (
         <StarterSetupSection
