@@ -177,6 +177,14 @@ export default function HomePage() {
             },
             {
               "@type": "Question",
+              name: "¿Cuánto cuesta Zaltyko?",
+              acceptedAnswer: {
+                "@type": "Answer",
+                text: "Free es gratis hasta 30 gimnastas y 1 academia. Starter cuesta 19€/mes (hasta 75 gimnastas), Growth 49€/mes (hasta 200 gimnastas) y Network, para academias multi-sede, tiene onboarding acompañado y precio a medida. Puedes ver el detalle completo en la página de planes.",
+              },
+            },
+            {
+              "@type": "Question",
               name: "¿Cuánto tiempo tarda en configurarse?",
               acceptedAnswer: {
                 "@type": "Answer",
@@ -204,7 +212,7 @@ export default function HomePage() {
               name: "¿Cumple con la normativa de protección de datos de menores?",
               acceptedAnswer: {
                 "@type": "Answer",
-                text: "Sí. Zaltyko aísla los datos por academia, registra consentimientos firmados por las familias y aplica controles de acceso por rol según la normativa española de protección de datos de menores. Si quieres, te enviamos el resumen técnico antes de empezar.",
+                text: "Zaltyko aísla los datos por academia y aplica controles de acceso por rol y relación autorizada. La gestión de consentimientos y las obligaciones legales de tu academia deben revisarse conforme a la política de privacidad y al asesoramiento aplicable.",
               },
             },
             {

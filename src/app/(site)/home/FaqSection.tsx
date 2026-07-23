@@ -11,6 +11,10 @@ const faqs = [
     answer: "Zaltyko está enfocado en gimnasia artística femenina, gimnasia artística masculina y gimnasia rítmica. Si tu academia trabaja artística y rítmica, puedes configurarla como mixta.",
   },
   {
+    question: "¿Cuánto cuesta Zaltyko?",
+    answer: "Free es gratis hasta 30 gimnastas y 1 academia. Starter cuesta 19€/mes (hasta 75 gimnastas), Growth 49€/mes (hasta 200 gimnastas) y Network, para academias multi-sede, tiene onboarding acompañado y precio a medida. Puedes ver el detalle completo en la página de planes.",
+  },
+  {
     question: "¿Cuánto tiempo tarda en configurarse?",
     answer: "La puesta en marcha es guiada y se adapta al volumen de datos y al equipo. Empezamos por academia, gimnastas, grupos, horarios y cobros sin prometer una duración cerrada antes de revisar el caso.",
   },

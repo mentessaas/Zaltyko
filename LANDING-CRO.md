@@ -1,366 +1,205 @@
 # Landing Page CRO Analysis
-## http://localhost:3000/ (home pública de Zaltyko)
-### Analysis Date: 2026-07-14
+## https://zaltyko.com/ (home pública de Zaltyko)
+### Analysis Date: 2026-07-23
 
 ---
 
-> Aviso: el archivo existente databa de 2026-03-26 y describía un estado anterior con claims ya retirados (stats "150+ academias / 25.000+ atletas", CTA "Empezar gratis" rojo, etc.). Este análisis reemplaza al anterior porque contradice el estado actual y las guardrails de [[Mensajes aprobados]].
+> **Aviso**: este análisis actualiza al de 2026-07-14 (Overall 78/100). Antes de reescribir nada, verifiqué contra el código actual qué de esa lista ya se aplicó y qué sigue abierto — no repito recomendaciones ya resueltas. Metodología distinta a la del 07-14 (que usó Playwright con métricas de píxel exactas en 1440×900/390×844): aquí verifiqué contra el código fuente de cada sección (`src/app/page.tsx` y los 9 componentes que importa), capturas reales en `https://zaltyko.com` (desktop y mobile 375px) y una inspección de DOM puntual para el bug nuevo del §1. Si quieres volver al nivel de precisión de píxel del informe anterior, dímelo y levanto Playwright.
+>
+> **Contexto operativo importante**: hasta hace unas horas, `middleware.ts` redirigía **toda** visita a `/` hacia `/es/gimnasia-artistica` (un bug de routing no relacionado con CRO, ya corregido en este mismo hilo de trabajo). Es decir: la home que audita este informe llevaba tiempo siendo, en la práctica, **inalcanzable en producción** — cualquier visitante que llegara a zaltyko.com caía en una página de cluster SEO, no en esta home. Esto no invalida el análisis de contenido de la home (el componente en sí no cambió), pero explica por qué el CTR real observado pueda ser aún más bajo que las estimaciones de aquí: la home nunca se sirvió tal cual hasta hoy.
 
 ---
 
-## Overall CRO Score: 78 / 100
+## Overall CRO Score: 74 / 100
 
-## Page Type: SaaS Signup (registro de academia -> Free / Trial 7 días)
-## Current Estimated Conversion Rate: 0,5 – 1,5 % (sin denominador fiable; baseline real 2026-07-13: 2 academias, 0 leads, 0 trials, 0 checkouts)
-## Target Conversion Rate: 2,0 – 3,0 % en 90 días tras aplicar las P0/P1 de abajo
-
-> Metodología: auditoría de las nueve secciones `src/app/(site)/home/*` referenciadas por `src/app/page.tsx`, triangulada con la captura real (`pnpm dev`) y métricas de Playwright (DOM, viewport, performance, accesibilidad básica) en viewports 1440×900 y 390×844. Donde digo “verificado” significa que lo constaté en el árbol renderizado o en la captura, no que sea una afirmación de negocio.
+## Page Type: SaaS Signup (registro de academia → Free / Starter 7 días)
+## Current Estimated Conversion Rate: sin denominador fiable todavía (repite el baseline de la auditoría anterior: tráfico real ~0 hasta que la home sea alcanzable). Con la home ya reparada y estas correcciones, estimación de rango: 1,5–3 %
+## Target Conversion Rate: 4–6 % en 90 días tras aplicar los Quick Wins de abajo
 
 ---
 
-## Resumen para decisor
+## Qué ya se corrigió desde el 2026-07-14 (no repetir)
 
-1. La promesa y el CTA principal sí llevan ya a registro, no a demo. Es el mayor cambio positivo; el embudo empieza bien.
-2. La landing es demasiado larga y muy densa en texto SEO **encima** de la decisión. En desktop la home mide **10.154 px de alto** (9 secciones, ~3,4 pantallas por encima del fold), y en mobile **14.748 px**. Mover el peso de SEO a clusters y dejar la home para conversión debería ser la próxima decisión de producto.
-3. La “prueba social” sigue siendo un párrafo de posicionamiento: **única sección sin heading y sin prueba**. Sustituirla por 1 testimonio real o eliminarla.
-4. Hay dos comparativas consecutivas (líneas 1.168–3.376) y un módulo de clusters SEO (4.906–6.410) que duplican argumentos con /pricing y con /features. En la versión actual la home argumenta 9 veces lo mismo que una página dedicada.
-5. El formulario del CTA final (suscripción a novedades) **no tiene label ni name**, lo que rompe accesibilidad, autofill y rastreo del `source`. Es un bug técnico además de una oportunidad perdida de lead nurturing.
-6. En desktop el H1 ocupa el 38 % del alto del hero (5 líneas en mobile). Bajar tipografía a `text-4xl` en `< sm` devolvería el CTA al primer viewport completo.
-7. El CTA de navbar **no se renderiza en mobile** (`hidden … md:flex`) — la usuaria móvil solo ve el menú hamburguesa. Hay un sticky bar al pasar 50 % del viewport, pero el primer vistazo no tiene CTA garantizado.
+| Hallazgo previo (HIGH) | Estado verificado hoy |
+|---|---|
+| CTA de navbar no se renderizaba en mobile | **Corregido.** El botón de registro vive fuera del contenedor `hidden … md:flex`; hoy es siempre visible (`Crear cuenta` en mobile, `Crear cuenta gratis` en desktop) — confirmado en código y en captura 375px. |
+| H1 mobile ocupaba ~5 líneas / 252px (`text-5xl` fijo) | **Corregido.** `HeroSection.tsx:45` ya usa `text-[clamp(1.875rem,6vw,4.5rem)]`, responsive real. |
+| Dos comparativas duplicadas (`ComparisonSection` + `WhyZaltykoSection`) | **Corregido.** `WhyZaltykoSection` ya no se importa ni se renderiza en `src/app/page.tsx` (el archivo sigue existiendo en el repo pero está huérfano — se puede borrar). |
+| Formulario del CTA final sin `name`/`autocomplete`/`aria-label`/`label` | **Corregido.** `EmailCapture.tsx` ya tiene `name="email"`, `autoComplete="email"`, `inputMode="email"`, `aria-label`, `aria-invalid`, y `<label htmlFor={emailId} className="sr-only">` en ambas variantes. |
+| Conflicto de intención en el form (¿newsletter o pre-registro?) | **Resuelto como newsletter.** El copy de `FinalCtaSection` ("¿Quieres recibir ideas de gestión...?") y el botón ("Suscribirme") ya son coherentes entre sí; el CTA de registro real queda arriba, separado. |
+| Clusters SEO siempre expandidos, compitiendo con el CTA | **Parcialmente corregido.** La matriz completa (`ALL_MODALITIES × ALL_COUNTRIES`) ya vive en un `<details>` colapsado por defecto (`ClusterDiscoverySection.tsx:76`). La grid de "Acceso rápido" (6 tarjetas) sigue siempre visible — ver §6 abajo. |
 
 ---
 
 ## Section-by-Section Analysis
 
-### 1. Hero Section — **Score: 7 / 10**
-**Estado real (verificado en captura)**
-- H1: *“Las cuotas cobradas, los grupos montados y la lista pasada.”*. Beneficio concreto, enumerado. OK post-fix.
-- Subhead inmediato: *“Sin Excel y sin 14 chats de WhatsApp.”* Posiciona contra la herramienta real del ICP.
-- Subtítulo descriptivo: *“Zaltyko es el software de gestión hecho solo para clubes de gimnasia artística y rítmica…”*. Especifica vertical y outcome.
-- Eyebrow `GIMNASIA ARTÍSTICA · GAM · RÍTMICA` (12px, mayúsculas, 0.08em, teal).
-- CTA principal `Crea tu academia gratis` (275×50 px en desktop, full-width en mobile) → `/auth/register?role=owner`. Contraste adecuado.
-- CTA secundario `Ver planes` (outline) → `/pricing`.
-- Microcopy bajo CTA: “Sin tarjeta · Puesta en marcha guiada · Sin compromiso”.
-- Visual derecho: panel ilustrativo (no captura real) con pase de lista Lucía M. / Martín O. / Vera S. / Noa P., línea teal de 2 px bajo el card y chips con esquina cortada — diferencia frente al SaaS genérico.
-- Navbar público: 5 ítems (Academias, Eventos, Producto, Precios, Ayuda). No compite con el CTA en desktop.
+### 1. Hero Section [Score: 6/10]
 
-**Fixes**
-- **HIGH**: En mobile (390 px) el H1 ocupa `120 → 372 px` (252 px de alto, casi 5 líneas). Bajar `text-5xl` → `text-4xl` en mobile en `HeroSection.tsx:42` (o `clamp()` con `min(7vh, 56px)`). Recupera el CTA en el primer viewport completo.
-- **MEDIUM**: El visual derecho aparece abajo del H1 en mobile y no tiene `alt` útil. Añadir `role="img"` + `aria-label="Pase de lista desde el móvil, sesión por sesión"`.
-- **MEDIUM**: Test A/B recomendado en `Crea tu academia gratis` → `Crear mi academia gratis` (1ª persona, uplift típico 5–15 % en SaaS self-serve).
-- **LOW**: Añadir `aria-describedby` al CTA que apunte al microcopy.
+**Findings:**
+- **Bug nuevo, no detectado en la auditoría anterior**: el eyebrow "GIMNASIA ARTÍSTICA · GAM · RÍTMICA" se renderiza parcialmente detrás del `Navbar` fijo con fondo translúcido (`bg-white/80 backdrop-blur-md`), produciendo un efecto de texto duplicado/fantasma justo encima del H1. Verificado por inspección de DOM en `zaltyko.com`: un único nodo `<p>` en `top: 80px`; el padding superior del Hero (`py-20` = 80px) es prácticamente igual a la altura del nav fijo (~88px) y no llega a despejarlo. Reproducido en desktop y en mobile (375px) — es lo primerísimo que ve el 100% de las visitas.
+- El resto del hero sigue fuerte: H1 outcome-focused, subheadline de posicionamiento contra WhatsApp/Excel, CTA con buen contraste y microcopy de riesgo, visual ilustrativo del producto real (no stock).
+- Sigue sin ningún elemento de confianza/prueba social dentro del propio fold del hero (coincide con el hallazgo de Value Prop / Social Proof de la auditoría anterior, todavía sin resolver).
+
+**Fixes (Priority: HIGH):**
+- Aumentar el padding superior del Hero (o usar `scroll-margin-top`/mayor `py-*`) para que el eyebrow no quede tras el nav — 10 minutos de CSS, corrige un bug visible en el 100% de las visitas.
 
 ---
 
-### 2. Value Proposition — **Score: 6 / 10**
-**Estado real**
-- *“Software de gestión hecho solo para clubes de gimnasia artística y rítmica: gimnastas por nivel y aparato, cuotas recurrentes, asistencia por sesión y familias informadas.”* — Mecanismo único, audiencia clara.
-- **No aterriza con número, plazo ni ROI**. *¿Cuánto ahorro? ¿Cuánto tarda? ¿Sirve para mi academia de 47 gimnastas?*
+### 2. Value Proposition [Score: 7.5/10]
 
-**Fixes**
-- **HIGH**: Añadir **una cifra concreta ya verificada**. La auditoría 2026-07-13 prohibió *“15 h ahorradas”*, *“3x más eficiencia”*, *“2 horas”*. Sin datos propios, sustituir por **mecanismo cuantificado**: *“Gratis hasta 30 gimnastas · 7 días de Starter completo sin tarjeta · 19 €/mes a partir de 31 gimnastas”*. Cumple la promesa sin inventar.
-- **HIGH**: Sustituir el subtítulo por bullets escaneables:
-  - Gimnastas por nivel y aparato (GAF, GAM, Rítmica)
-  - Cuotas recurrentes y avisos automáticos a familias
-  - Pase de lista por sesión, desde el móvil
-  - Puesta en marcha guiada, sin migración manual
-- **MEDIUM**: A/B test sobre *“14 chats de WhatsApp”* — el número comunica branded voice pero resta seriedad para una Directora que proyecta comprar a su junta directiva. Variante neutra: *“y fuera de WhatsApp”*.
+**Findings (marco 4U):** Useful y Ultra-specific fuertes (cifras concretas: 30 gimnastas gratis, GAF/GAM/rítmica nombrados). Unique bien comunicado vía la comparativa. Urgent sigue débil — sin fecha límite ni motivo real para actuar hoy vs. la semana que viene (mismo hallazgo que el informe anterior).
+
+**Fixes (Priority: MEDIUM):** Sin cambios respecto al informe previo — añadir un elemento de urgencia auténtico si existe (cupo de acompañamiento, cierre de temporada), no fabricado.
 
 ---
 
-### 3. Social Proof — **Score: 2 / 10**
-**Estado real**
-- Sección **sin heading**, sin fondo distintivo, con un único párrafo: *“Zaltyko está enfocado en academias de gimnasia artística femenina, artística masculina y rítmica. Una herramienta específica para dirección, entrenadores, gimnastas y familias.”*. No contiene cifras, ni nombres, ni logos.
+### 3. Social Proof [Score: 2/10]
 
-**Fixes**
-- **HIGH** (decisión recomendada): **Eliminar la sección** mientras no haya cita verificada con academia real. Hoy comunica *“nadie nos usa todavía”* justo donde el comprador busca *“¿alguien como yo lo usa?”*. Cómo: `src/app/page.tsx:89` eliminar `<SocialProofSection />` con comentario `// Sustituir por prueba real cuando exista permiso de academia piloto`.
-- **HIGH** (objetivo 7 días): pedir 1 cita + nº de gimnastas al único piloto real (verificado en `Changelog interno.md` 2026-07-08) y reescribir la sección como: *“La academia [nombre], con [N] gimnastas, lleva su temporada 2026-27 con Zaltyko.”* + cita atribuida. Acción con mayor retorno de CRO por hora invertida.
-- **HIGH**: si en 14 días no hay permiso, sustituir por un pull-quote interno (no nombre ficticio): *“Nacimos de una observación: las directoras dedicaban las tardes a perseguir cuotas por WhatsApp en vez de planificar la temporada.”*
+**Findings:**
+- **Sigue sin resolver** — es el hallazgo HIGH más antiguo de los tres informes consecutivos (2026-03, 07-14, y este). `SocialProofSection.tsx` todavía contiene el comentario literal `// Stats removed - no real data to support these numbers` y `// TODO: Add real stats when available from production data`. Cero testimonios, logos, cifras o ratings en toda la home.
+- Los 3 iconos sociales del footer (Twitter/LinkedIn/Instagram) siguen deshabilitados con `title="Próximamente"` — honesto, pero sigue leyendo como "esta empresa recién empieza" en vez de ayudar.
 
----
-
-### 4. Features / Módulos — **Score: 7 / 10**
-**Estado real** (`ModulesSection.tsx`, 8 tarjetas)
-- *“Hecho para cómo funciona un club de gimnasia”* — conecta con la promesa.
-- Icono plano teal + 4 bullets. Tras la limpieza del Addendum 3 ya no son “8 tarjetas con icono en cuadrado de gradiente”.
-- *“Categorías por edad y nivel”* (Eventos) ya reescrito (OK post-fix spanglish).
-- *“Asistencia automática”* / *“en tiempo real”* ya reescrito a *“asistencia por sesión”*.
-- CTA inferior *“Ver todas las funcionalidades →”* → `/features`.
-
-**Fixes**
-- **MEDIUM**: el orden actual (Gimnastas, Clases, Cobros, Eventos, Evaluaciones, Comunicación, Reportes, Multi-Academia) **no refleja el dolor del ICP**. Reordenar por relevancia para una Directora que evalúa Zaltyko: 1) Cobros, 2) Clases & Horarios, 3) Comunicación, 4) Gimnastas, 5) Eventos, 6) Evaluaciones, 7) Reportes, 8) Multi-Academia. Solo mover el array `modules` (`ModulesSection.tsx:19-69`).
-- **MEDIUM**: dos tarjetas (`Gimnastas`, `Multi-Academia`) tienen `lg:col-span-2` sin motivo funcional. Alinear a `lg:col-span-1` salvo que la tarjeta destaque una feature (recomiendo destacar **Cobros** con `lg:col-span-2` y micro-copy *“Lo que más usan las directoras”*).
-- **MEDIUM**: añadir micro-beneficio en una línea debajo de cada título: ej. *“Ficha técnica por gimnasta, nivel y aparato”* / *“Avisos automáticos y domiciliación para no perseguir cuotas”*.
-- **LOW**: cada tarjeta termina en bullets no cliqueables. Si `/features/<slug>` existiera, hacerlos enlaces.
+**Fixes (Priority: HIGH — tercera vez que se marca; la que más tarda en resolverse):**
+- Si ya existe al menos una academia piloto (el informe 07-14 referenciaba una real en el changelog), pedirle permiso para una cita con nombre + academia + resultado concreto, y reemplazar la sección. Es la única acción de esta lista que puede mover el score de 74 a 85+ por sí sola.
+- Si aún no hay permiso, no dejar la sección vacía: sustituir por un bloque verídico de "cómo te acompañamos en la puesta en marcha" con pasos concretos, mientras llega el primer testimonio citable.
 
 ---
 
-### 5. Comparativas — **Score: 5 / 10**
-**Estado real**: dos tablas consecutivas.
-- *¿Por qué no seguir con Excel?* (`ComparisonSection.tsx`, 1.168–2.235): Zaltyko vs Excel vs Software genérico. 10 filas. Buena base, ya con claim *“Puesta en marcha guiada”* (sin cifras inventadas, OK post-fix).
-- *Software específico para gimnasia* (`WhyZaltykoSection.tsx`, 2.235–3.376): Zaltyko vs Software genérico. 7 filas. **Solapa** con la anterior.
+### 4. Features and Benefits [Score: 8/10]
 
-**Fixes**
-- **HIGH**: **fusionar** en una única tabla de 3 columnas (la de `ComparisonSection.tsx`). Borrar `WhyZaltykoSection.tsx` y su import en `src/app/page.tsx:8`. Migración segura: grep confirma 0 imports fuera de `page.tsx`.
-- **MEDIUM**: la fila *“Puesta en marcha”* tiene “Guiada / Manual / Según proveedor” — wins para Zaltyko pero no cuantifica. Sustituir por *“Migración desde Excel incluida”* (verificable tras `ImportExportPanel` cableado el 2026-07-13).
-- **MEDIUM**: “Software genérico” debería poder decir *“Clupik / iClassPro”* al menos en la primera mención. Nombra a la competencia da credibilidad.
-- **LOW**: dos tablas usan radios distintos (`rounded-2xl` vs `rounded-3xl`); unificar al token `rounded-card` (10 px) definido en el Addendum 5.
+**Findings:** `ModulesSection` (bento grid, feature→beneficio bien traducido, "Cobros" destacado con `lg:col-span-2` y copy "Lo que más usan las directoras") y `SeoExtendedSection` (antes/después escaneable) siguen sólidos. El orden de módulos (Cobros primero) ya coincide con lo que recomendaba el informe anterior — parece ya aplicado.
+
+**Fixes (Priority: LOW):** Ninguna captura real del producto acompaña las tarjetas de módulos, solo iconos — un mockup por módulo principal subiría credibilidad sin tocar copy.
 
 ---
 
-### 6. Cluster Discovery / SEO extendido — **Score: 4 / 10 (para CRO de home)**
-**Estado real**
-- 1.504 px desktop / 2.220 px mobile de **clusters SEO en la home**. Decisión deliberada de producto (alimentar SEO programático), pero **compite** con la conversión.
-- 6 tarjetas “Acceso rápido” (3 países × 2 modalidades) + matriz completa + “52 páginas específicas”.
-- Botón *“Explorar clusters SEO →”* → `/es/gimnasia-artistica/espana`.
+### 5. Objection Handling [Score: 7/10]
 
-**Fixes**
-- **HIGH**: el CTA del cluster lleva a una página de cluster, no a registro. Si quieres SEO, perfecto; si quieres conversión, **duplica el objetivo del hero**. Opciones:
-  - (recomendada) Mover el bloque entero a `<details>` colapsado por defecto justo después de la comparativa y antes del CTA final. Quita 1.504 px del fold.
-  - (alternativa) Mantener visible solo las 4 tarjetas “Acceso rápido”.
-- **MEDIUM**: el claim *“52 páginas específicas”* no es verificable a simple vista. Sustituir por *“Cobertura específica para España, México, Argentina, Colombia, Chile y Perú en gimnasia artística y rítmica”* (países enumerables en `ClusterDiscoverySection.tsx:22-28`).
-- **MEDIUM**: añadir `aria-label` claro a cada tarjeta de cluster (`Acceder a contenido de gimnasia artística en España`).
+**Findings:**
+- FAQ cubre 8 objeciones bien elegidas, incluida la de protección de datos de menores (crítica en este nicho).
+- **Bug todavía presente, con contenido distinto al de julio**: el schema `FAQPage` en `src/app/page.tsx:204-209` (pregunta de menores) dice *"Sí. Zaltyko aísla los datos por academia, registra consentimientos firmados por las familias y aplica controles de acceso por rol según la normativa española de protección de datos de menores. Si quieres, te enviamos el resumen técnico antes de empezar."* — mientras que la respuesta **visible** en `FaqSection.tsx` dice algo más cauto: *"Zaltyko aísla los datos por academia y aplica controles de acceso por rol y relación autorizada. La gestión de consentimientos y las obligaciones legales de tu academia deben revisarse conforme a la política de privacidad y al asesoramiento aplicable."* Son respuestas distintas a la misma pregunta — el schema es hoy **más afirmativo** que la copia visible (el riesgo cambió de dirección respecto al informe anterior, pero sigue siendo el mismo bug de fondo: contenido estructurado que no coincide con lo que lee la usuaria).
+- Las otras 7 preguntas del schema sí coinciden palabra por palabra con `FaqSection.tsx` — el desalineamiento es puntual, no generalizado.
+- Sigue faltando una pregunta directa de precio en el FAQ (mismo hallazgo que antes).
 
----
-
-### 7. Before/After (SEO extendido) — **Score: 7 / 10**
-**Estado real** (`SeoExtendedSection.tsx`)
-- *“De la gestión manual al control total.”*
-- 4 pares antes/después.
-- CTA *“Crea tu academia gratis”* cierra el bloque. Microcopy: *“Puesta en marcha guiada · Sin compromiso”*.
-- **Stats “15 h/0/100%/3x” eliminadas** (verificado en código). OK post-fix.
-
-**Fixes**
-- **MEDIUM**: cada par debería anclar **la objeción** que resuelve. Ejemplos:
-  - Antes: *“Cobros manuales y persecución de morosos”* → Después: *“Recordatorios automáticos a familias (configura el día y listo)”*.
-  - Antes: *“Inscripciones a competiciones caóticas”* → Después: *“Inscripción online por categoría, con lista de espera”*.
-- **MEDIUM**: añadir tercera columna **Dolor** (3 columnas: *Dolor / Antes / Después con Zaltyko*). Refuerza especificidad vertical.
-- **LOW**: el bloque vive a `6.410 → 7.309` px en desktop, **muy abajo**. Si el cluster se mueve a `<details>` (Fix §6), este pasa a posición primaria post-comparativa — palanca alta.
+**Fixes (Priority: MEDIUM):**
+- Alinear la respuesta del schema (`page.tsx:204-209`) a la redacción legal más cautelosa que ya aprobó el equipo en `FaqSection.tsx` — 10 minutos, evita que Google indexe una afirmación más fuerte que la que la propia página sostiene.
+- Añadir "¿Cuánto cuesta Zaltyko?" al FAQ visible y a su schema correspondiente.
 
 ---
 
-### 8. FAQ — **Score: 8 / 10**
-**Estado real** (`FaqSection.tsx`)
-- 8 preguntas, tono honesto post-fix 2026-07-13 (*“sin prometer duración cerrada”*, *“la migración la acompañamos”*, *“el pase de lista está puliéndose para pista”*).
-- CTA *“Ver planes y precios”* → `/pricing#planes`. CTA correo *“hola@zaltyko.com”*.
+### 6. Call-to-Action [Score: 8/10]
 
-**Fixes**
-- **HIGH**: **falta** la pregunta más buscada en vertical infantil/RGPD: *“¿Cumple con la normativa de protección de datos de menores?”*. Sustituir *“¿Qué pasa con mis datos si cancelo?”* (información ya en otros lugares). Respuesta sugerida, alineada con [[Mensajes aprobados]]: *“Sí. Zaltyko aísla los datos por academia, registra consentimientos firmados por las familias y sigue la normativa española de protección de datos de menores. Si quieres, te enviamos el resumen técnico.”* (usar *“aislamiento por academia”* y *“controles de acceso”*, NO *“RGPD Compliant”*).
-- **MEDIUM**: el acordeón abre la primera pregunta por defecto. Abrir en su lugar *“¿Cuánto tiempo tarda en configurarse?”* — la objeción más común en compra SaaS.
-- **MEDIUM** (bug detectado en tiempo de auditoría): el schema `FAQPage` (`page.tsx:166-238`) contiene 8 preguntas que **no coinciden 1:1 con las de la sección visible**. Google puede tratarlo como cloaking si compara. **Fix 1 h**: alinear al carácter. El propio §7 de la auditoría 2026-07-13 ya marcaba esta regla.
-- **LOW**: añadir `trackFAQOpen` por pregunta (`analytics.faqOpen(question)`) usando el helper existente (`src/lib/analytics.ts`).
+**Findings:** CTA repetido de forma consistente (Navbar, Hero, SeoExtended, FinalCta, StickyCtaBar), buen contraste, secundario "Ver planes" presente, micro-conversión de email en el CTA final ya resuelta como newsletter coherente (ver tabla de arriba).
+
+**Fixes (Priority: LOW):** Ninguno urgente.
 
 ---
 
-### 9. CTA Final & Form — **Score: 6 / 10**
-**Estado real** (`FinalCtaSection.tsx`)
-- Fondo navy con `zaltyko-motion-lines` (textura de marca).
-- H2 *“¿Listo para dirigir tu academia con más control?”*.
-- 4 bullets con check blanco (copy aprobado en [[Mensajes aprobados]]).
-- CTA primario `Crea tu academia gratis` + secundario `Ver planes y precios`.
-- **Formulario de email** (`EmailCapture` con `source=final_cta`):
-  - 1 campo `type=email`, **sin `name`**, **sin `autocomplete`**, **sin `aria-label`**, **sin `<label>`**. `id` generado por runtime.
-  - Validación solo HTML5 (`required` + `type=email`).
-  - Sin política de privacidad adyacente.
-  - Botón *“Suscribirme”* — **conflicto de intención**: el bloque dice *“registro de academia”*, el botón dice *“suscríbete a newsletter”*.
-  - Tras éxito: *“Te hemos registrado. Pronto recibirás novedades.”* — ambiguo.
-  - Endpoint `/api/leads` con `getGrowthVisitorId()` + tracking de `posthog`. Analítica correcta.
+### 7. Footer and Secondary Elements [Score: 7/10]
 
-**Fixes**
-- **HIGH (bug)**: añadir `name="email"`, `autoComplete="email"`, `inputMode="email"`, `aria-label="Tu correo electrónico"` y un `<label>` visible en `EmailCapture.tsx:81-90` y `113-122`. Pieza de 5 minutos que sube CR ~3-5 %.
-- **HIGH (cambio de copy + destino)**: decidir si este form es **lead magnet de newsletter** o **pre-registro acelerado**. Hoy mezcla ambos. Opciones:
-  - (recomendada) Renombrar a *“Si prefieres, déjanos tu correo y te llamamos antes de la próxima temporada”*. Botón *“Quiero que me contactéis”*. Mismo endpoint, sin contradecir el CTA principal.
-  - (alternativa) Cambiar el botón a *“Empezar mi academia gratis”* y redirigir a `/auth/register?role=owner&email=…` con el email prellenado — el form pasa de lead magnet a capturador de cuentas incompletas.
-- **MEDIUM**: añadir microcopy de privacidad *“Sin spam. Tu correo se guarda solo para esta comunicación.”*
-- **MEDIUM**: mensaje de éxito *“Te hemos registrado. Pronto recibirás novedades.”* → *“Listo. Te llegará un correo en las próximas 24 h con ideas de gestión para academias.”*
-- **LOW**: mover la línea *“Trabajáis con datos de menores: cada academia está aislada y cada rol ve solo lo suyo.”* junto al form, con icono candado, para reforzar confianza justo antes del clic.
+**Findings:** Sin cambios relevantes desde julio — badges de confianza correctos, iconos sociales deshabilitados siguen restando más de lo que aportan.
+
+**Fixes (Priority: LOW):** Quitar los 3 iconos "Próximamente" del footer (mismo hallazgo, ahora con 9+ días más de antigüedad sin resolver).
 
 ---
 
-### Footer — **Score: 7 / 10**
-**Estado real** (`Footer.tsx`)
-- Badge superior: **4 sellos blancos** (privacidad por diseño · SSL encriptado · Cancelación libre · Soporte en español). OK post-fix de la regla RGPD Compliant.
-- 4 columnas (Producto, Recursos, Empresa, Legal) + columna de logo.
-- Iconos de redes deshabilitados (Twitter / LinkedIn / Instagram) con `title="Próximamente"`. El schema Organization ya **no** declara `sameAs`. Honesto y OK.
+## Copy Score: 62/100
 
-**Fixes**
-- **MEDIUM**: el badge *“SSL Encriptado”* es commodity de navegador en 2026. Reordenar a *“Privacidad por diseño”* y *“Cancelación libre”* primero, mover SSL al último.
-- **LOW**: añadir dirección física / sede social / NIF en microcopy al final para reforzar confianza B2B (verificar antes con el usuario).
-- **LOW**: si en 6 meses los iconos “Próximamente” siguen sin existir, eliminarlos (`Footer.tsx:79-87`).
-
----
-
-## Resumen de métricas detectadas (Playwright)
-
-| Métrica | Desktop (1440×900) | Mobile (390×844) | Estado |
-|---|---|---|---|
-| Altura total del documento | 10.154 px | 14.748 px | Rojo (largo) |
-| Secciones por encima del primer fold | 1 (hero) | 1 (hero) | OK |
-| CTAs principales visibles sin scroll | 2 (navy + hero) | 1 (hero — el de navbar está oculto) | Amarillo |
-| Top del CTA principal (px) | 716 | 642 | Amarillo |
-| Overflow horizontal | no | no | OK |
-| `console.error` | 0 | 0 | OK |
-| `pageerror` | 0 | 0 | OK |
-| `requestfailed` | 0 | 0 | OK |
-| Recursos transferidos | 1,25 MB | 1,25 MB | OK |
-| Recursos decodificados | 4,83 MB | 4,83 MB | Amarillo (auditar bundle) |
-| Logo footer (loading=lazy) | `natural: 0×0` | `natural: 0×0` | No crítico |
-| Formularios en home | 1 | 1 | OK |
-
-Notas:
-- `responseEnd ≈ 22 s` desktop es **compilación inicial de Next dev**, no trasladable a producción. Mobile (warm): 1,7 s.
-- `decodedBytes = 4,83 MB` sugiere revisar con `@next/bundle-analyzer` que no se carguen deps de auth/Stripe/CSP antes del LCP público.
-
----
-
-## Copy Score: 80 / 100
-
-| Dimensión | Puntuación | Notas |
+| Dimension | Score | Notes |
 |---|---|---|
-| Claridad | 9 / 10 | La promesa se entiende en 5 segundos. |
-| Urgencia | 4 / 10 | Sin fecha, sin cuenta atrás. Solo el trial de 7 días (única urgencia real). |
-| Especificidad | 8 / 10 | Cifras verificadas (19 €/mes, 30 gimnastas, 75 gimnastas, 7 días). |
-| Prueba | 2 / 10 | Sin testimonios ni logos. Solo marca y copy. |
-| Orientación a la acción | 9 / 10 | 5 CTAs primarios, todos apuntando a `/auth/register?role=owner`. |
+| Clarity | 8/10 | Oferta y audiencia clarísimas; el H1 en participio pasado exige un segundo extra de lectura. |
+| Urgency | 4/10 | Evergreen en toda la página, sin cambios desde julio. |
+| Specificity | 8/10 | Cifras concretas (30 gimnastas, GAF/GAM/rítmica) mantenidas. |
+| Proof | 2/10 | Cero evidencia de terceros — el hallazgo más persistente de los tres informes. |
+| Action Orientation | 8/10 | CTA consistente y repetido en las 5 apariciones. |
 
 ---
 
-## Form Audit (CTA final)
+## Form Audit
 
-| Elemento | Estado actual | Mejora propuesta |
-|---|---|---|
-| Recuento de campos | 1 (email) | OK mantener 1; añadir `name` + `autocomplete` |
-| Labels | Solo placeholder, sin `<label>` | Añadir `<label>` visible + `aria-label` |
-| Texto del botón | “Suscribirme” | Cambiar a “Empezar mi academia gratis” o “Quiero que me contactéis” |
-| Validación | HTML5 `required` + `type=email` | OK; añadir mensaje específico de error |
-| Required vs optional | Único campo required | OK |
-| Auto-fill | sin `autocomplete` | `autoComplete="email"` |
-| Input types | `type="email"` | OK; añadir `inputMode="email"` |
-| Privacidad | sin línea específica | Añadir micro “Sin spam. Te puedes dar de baja en un clic.” |
-| Mensaje de éxito | Ambiguo | Cambiar a “Te llegará un correo en 24 h con ideas de gestión.” |
+El único formulario de la home (`EmailCapture` en `FinalCtaSection`, variante inline) ya resuelve todos los puntos de accesibilidad marcados como HIGH en julio (`name`, `autoComplete`, `inputMode`, `aria-label`, `<label htmlFor>` con `sr-only`, manejo de error visible). Sin hallazgos nuevos que corregir aquí.
+
+**Fix (Priority: LOW):** El mensaje de éxito ("¡Genial! Te hemos registrado. Pronto recibirás novedades.") sigue siendo genérico — cambiar a algo más específico ("Te llegará un correo en 24h con ideas de gestión") es una mejora menor pendiente del informe anterior.
 
 ---
 
 ## Mobile Audit
 
-- **CTA móvil above-the-fold: solo el icono de menú.** El `Crear cuenta gratis` está dentro de `<div className="hidden … md:flex">` (`Navbar.tsx:81-98`) y **no se renderiza en mobile** (`rect: {0,0,0,0}` en la captura). El usuario móvil solo tiene el CTA del hero (642 px) y el sticky bar que aparece tras 50 % de scroll.
-  - **Decisión recomendada**: en mobile mostrar el CTA como texto “Acceder” en la esquina superior derecha, no como botón ancho.
-- Texto body mínimo **16 px** cumplido. Hero H1 a `text-5xl` debería bajar a `text-4xl` en mobile para no empujar el CTA fuera del primer 70 %.
-- Inputs del form tienen `pl-10` (icono mail a la izquierda) → en mobile ocupa toda la línea, OK.
-- Sticky CTA bar aparece a `window.innerHeight * 0.5` → bien calibrado.
-- Sin scroll horizontal: OK.
-- Sin animaciones `animate-ping` / `animate-bounce` en la home pública (verificado por búsqueda en componentes). Limpieza post-Addenda 2/3.
+- **CTA principal thumb-reachable**: sí, confirmado en captura 375px — botones a ancho completo, alcanzables sin desplazar el pulgar.
+- **Bug del eyebrow/nav** (§1): se reproduce igual en mobile.
+- **StickyCtaBar**: funciona correctamente en scroll, con buen texto truncado y CTA visible.
+- **Hallazgo nuevo — tabla comparativa sin affordance de scroll en mobile**: en 375px, `ComparisonSection` solo muestra 3 de sus 4 columnas (Funcionalidad, Zaltyko, Excel/Sheets); la columna "Software genérico" solo es visible con scroll horizontal, sin ninguna señal visual (sombra, flecha, "desliza →") que indique que hay más contenido. Muchas visitantes en mobile no llegarán a verla, perdiendo un tercio del argumento comparativo justo en el dispositivo donde llega la mayoría del tráfico.
+- Texto ≥16px, sin scroll horizontal general, sin animaciones intrusivas: todo OK, sin cambios respecto a julio.
+
+**Fixes (Priority: MEDIUM):**
+- Añadir sombra/flecha de scroll a la tabla comparativa en mobile, o convertirla en tarjetas apiladas por debajo de un breakpoint.
+
+---
+
+## Page Speed Impact Assessment
+
+No se corrió Lighthouse/PageSpeed Insights en esta sesión (el informe de julio sí tenía métricas Playwright reales — `decodedBytes = 4,83 MB`, marcado en amarillo). Verificación rápida de red en `zaltyko.com`: todas las peticiones (JS de Next, prefetch de `/auth/login`, `/auth/register`, `/pricing`) responden 200 sin latencia visible. No sustituye una medición de LCP/CLS real.
+
+**Fix (Priority: MEDIUM):** Correr Lighthouse sobre la home ya reparada (antes bloqueada por el redirect) y confirmar si el hallazgo de `4,83 MB` decodificados de julio sigue vigente.
 
 ---
 
 ## A/B Test Recommendations
 
-1. **H1 mobile más bajo** — *Si* bajamos `text-5xl` → `text-4xl` en mobile, *entonces* el % de CTA above-the-fold sube de ~78 % actual a 100 %, *porque* la usuaria no necesita desplazar para ver el botón.
-2. **Copy del H1 estacional** — *Si* en tráfico estival (jun-sept) probamos *“Empieza la temporada con cuotas cobradas, grupos listos y lista pasada.”*, *entonces* el CTR del CTA sube 5-15 % sobre el baseline, *porque* aterriza en el dolor real del momento de compra. (Variante de la opción #5 de la auditoría 2026-07-13.)
-3. **CTA en 1ª persona** — *Si* cambiamos *“Crea tu academia gratis”* → *“Crear mi academia gratis”*, *entonces* el click-through rate sube 5-15 % (benchmark SaaS self-serve), *porque* la propietaria siente propiedad sobre el verbo.
-4. **Form = pre-registro** — *Si* cambiamos *“Suscribirme”* → *“Empezar mi academia gratis”* + redirect a `/auth/register?role=owner&email=…`, *entonces* sube 10-25 % el % de registros completos desde la home, *porque* alinea intención con acción.
-5. **Comparativa única** — *Si* fusionamos las dos tablas, *entonces* la sección se acorta ~1.200 px en desktop y reduce scroll profundo, *porque* la redundancia diluye el argumento.
-6. **Clusters SEO colapsados** — *Si* movemos el bloque *“Especialistas en tu país y modalidad”* a un `<details>` cerrado por defecto, *entonces* el tiempo al primer scroll significativo baja, *porque* el visitante comercial no tiene que pasar por SEO para llegar al CTA.
-7. **FAQ abre por la pregunta correcta** — *Si* abrimos por defecto *“¿Cuánto tiempo tarda en configurarse?”*, *entonces* la objeción de tiempo muere antes del CTA, *porque* la Directora SaaS pregunta tiempo antes que modalidades.
-8. **Sticky bar con urgencia real** — *Si* la sticky muestra cuenta atrás del trial de 7 días tras 60 s en la home, *entonces* el CTR sube, *porque* activa urgencia verificable (no fabricada).
-9. **Cita piloto real** — *Si* añadimos 1 cita del club activo, *entonces* el engagement sube, *porque* el visitante busca *“¿alguien como yo lo está usando?”* y hoy no encuentra nada.
-10. **Clusters ocultos a tráfico de pago** — *Si* detectamos `utm_source` de Ads y ocultamos el bloque clusters, *entonces* acortamos la página y mejoramos la conversión de campaña, *porque* el tráfico Ads llega con intención de compra, no de exploración.
+1. Si corregimos el solape del eyebrow con el nav fijo, entonces la percepción de calidad del hero sube, porque hoy el primer elemento visible en el 100% de las visitas se ve roto.
+2. Si sustituimos `SocialProofSection` por un testimonio real o un bloque verídico de "cómo te acompañamos", entonces sube la tasa de scroll-to-CTA, porque hoy no hay ningún motivo de confianza entre el hero y la comparativa.
+3. Si alineamos la respuesta del schema FAQ (menores/datos) con la copia visible ya aprobada, entonces se reduce el riesgo de que Google muestre una promesa más fuerte de la que la página sostiene.
+4. Si convertimos la tabla comparativa en tarjetas apiladas en mobile, entonces sube el tiempo en página y el CTR hacia el CTA final en mobile, porque hoy un tercio del argumento es invisible sin gesto de swipe.
+5. Si añadimos "¿Cuánto cuesta Zaltyko?" al FAQ, entonces baja la salida hacia `/pricing` sin conversión, porque resolvemos la objeción de precio sin sacar a la visitante de la página.
 
 ---
 
 ## Prioritized Fix List
 
 ### Quick Wins (esta semana)
-1. **(HIGH, 30 min)** Alinear `FAQPage` schema con preguntas visibles. Actualizar `src/app/page.tsx:166-238` 1:1 con `FaqSection.tsx:7-40`.
-2. **(HIGH, 30 min)** Bug del formulario: añadir `name`, `autoComplete`, `aria-label`, `<label>` en `EmailCapture.tsx:81-90` y `113-122`.
-3. **(HIGH, 15 min)** Bug del navbar móvil: añadir el CTA en mobile. `Navbar.tsx:99-107` mover el botón fuera de `hidden … md:flex` y mostrarlo siempre como texto corto.
-4. **(HIGH, 1 h)** Mover `ClusterDiscoverySection` a `<details>` colapsado por defecto, entre la comparativa y la sección Before/After.
-5. **(HIGH, 1 h)** Fusionar las dos comparativas: borrar `WhyZaltykoSection.tsx` y su import + render en `src/app/page.tsx:8, 95`.
-6. **(HIGH, 30 min)** Cambiar `text-5xl` por `clamp()` en `HeroSection.tsx:42` para mobile.
-7. **(MEDIUM, 1 h)** Decidir destino del form del CTA final (lead magnet vs pre-registro) y reescribir `EmailCapture.tsx` + `FinalCtaSection.tsx` con un único copy coherente.
-8. **(MEDIUM, 1 h)** Quitar del render la sección SocialProof vacía (`src/app/page.tsx:89`) mientras no haya cita real.
+1. **(HIGH, 10 min)** Corregir el padding del Hero para que el eyebrow no quede detrás del Navbar fijo.
+2. **(MEDIUM, 10 min)** Alinear la respuesta del schema FAQ sobre datos de menores (`page.tsx:204-209`) con la redacción ya aprobada en `FaqSection.tsx`.
+3. **(LOW, 5 min)** Quitar los 3 iconos sociales deshabilitados del footer.
+4. **(MEDIUM, 30 min)** Añadir "¿Cuánto cuesta Zaltyko?" al FAQ visible y a su schema.
 
-### Mid-term (este mes)
-9. **(MEDIUM, 2 h)** Reordenar el array `modules` en `ModulesSection.tsx:19-69` por relevancia para la Directora (Cobros primero).
-10. **(MEDIUM, 4 h)** Plan de pruebas A/B documentado en vault (P0, items 1–4) con hipótesis, métrica y umbral de éxito.
-11. **(MEDIUM, 3 h)** Implementar pre-registro `/auth/register?role=owner&email=…` + tests e2e `tests/e2e-zaltyko-public.spec.ts`.
-12. **(MEDIUM, 1 h)** Auditoría de bundle con `@next/bundle-analyzer` para confirmar < 1 MB decodificado en la home pública.
-13. **(MEDIUM, 2 h)** Reemplazar la sección `SeoExtendedSection` por una tabla de 3 columnas Dolor / Antes / Después, conservando el CTA.
-14. **(MEDIUM, 2 h)** Pedir permiso + cita al club piloto, reescribir `SocialProofSection.tsx`, volver a habilitar la sección en `page.tsx`.
+### Medium-Term (este mes)
+1. **(HIGH)** Reemplazar `SocialProofSection` por contenido verídico (proceso real o testimonio, en cuanto haya permiso) — tercera vez que este informe lo marca como el fix de mayor impacto pendiente.
+2. **(MEDIUM)** Arreglar la tabla comparativa en mobile (affordance de scroll o layout de tarjetas).
+3. **(MEDIUM)** Correr Lighthouse real sobre la home ya reparada y actuar sobre LCP/bundle si hace falta.
+4. **(LOW)** Borrar `WhyZaltykoSection.tsx` del repo (huérfano, ya sin imports).
+5. **(LOW)** Colapsar también la grid de "Acceso rápido" de `ClusterDiscoverySection` si se quiere acortar aún más el fold antes del CTA final.
 
 ### Strategic (este trimestre)
-15. **(STRATEGIC, 1 semana)** Dividir `home` en dos rutas: `/` (conversión, 6 secciones, < 4.000 px) y `/se/que-es` (SEO programático, conservando clusters). Decisión de arquitectura.
-16. **(STRATEGIC, 1 semana)** Captura real del producto para el hero. Sustituir el visual ilustrativo por un `<Image>` con `priority` que muestre el panel real.
-17. **(STRATEGIC, decisión)** Decidir **qué hace el form del CTA final** definitivamente (lead magnet vs pre-registro). Hoy mezcla ambos.
-18. **(STRATEGIC, 2 semanas)** Página `/clubes/[slug]` con caso piloto público. Habilita bloques de social proof reales en toda la home y `/pricing`.
+1. Publicar el primer testimonio real con nombre, foto y resultado concreto — la pieza que más puede mover el score.
+2. Añadir un elemento de urgencia genuino ligado a un hito real (cierre de temporada, cupo de acompañamiento).
+3. Captura real del producto en el hero, sustituyendo el visual ilustrativo.
 
 ---
 
-## Before/After Wireframe (textual)
+## Before/After Wireframe Suggestions
 
-### Actual
-
+**Hero — Antes:**
 ```
-[NAVBAR] Logo | Academias Eventos Producto Precios Ayuda | Iniciar sesión [Crear cuenta gratis]
-                                                                                      <- STICKY
-
-[HERO]
- eyebrow: GIMNASIA ARTÍSTICA · GAM · RÍTMICA
- H1: Las cuotas cobradas, los grupos montados y la lista pasada.
- Sub: Sin Excel y sin 14 chats de WhatsApp.
- Párrafo descriptivo (3 líneas).
- [Crea tu academia gratis] [Ver planes]
- micro: Sin tarjeta · Puesta en marcha guiada · Sin compromiso
-                                                  [Pase de lista ilustrativo]
-[Sin heading] Párrafo sin prueba.
-
-[Comparativa 1] ¿Por qué no seguir con Excel? (10 filas, 3 columnas)
-
-[Comparativa 2] Software específico para gimnasia (7 filas, 3 columnas) <- DUPLICADA
-
-[Módulos] Hecho para cómo funciona un club de gimnasia (8 cards)
-
-[Clusters SEO] Especialistas en tu país y modalidad (4 cards + matriz + CTA)
-
-[Before/After] De la gestión manual al control total (4 pares)
-
-[FAQ] 8 preguntas, acordeón
-
-[CTA Final] Fondo navy + bullets + CTA + form de 1 campo sin label
-
-[FOOTER]
+[Nav fijo translúcido, ~88px]
+[Eyebrow — parcialmente tapado por el nav]
+[H1] [Subheadline] [Body copy]
+[CTA primario] [CTA secundario]
+[Microcopy de riesgo]
 ```
 
-### Recomendada
-
+**Hero — Después:**
 ```
-[NAVBAR] Logo | nav 5 ítems | Iniciar sesión [Crear cuenta gratis visible siempre]
-
-[HERO] Texto mobile-first: el CTA a 480 px del top en vez de 642.
-       H1 con clamp(), bullets con icono.
-                                                  [Captura real del producto]
-
-[Comparativa única] Zaltyko / Excel + WhatsApp / Software genérico (Clupik, iClassPro)
-
-[Módulos reordenados] Cobros primero, Multi-Academia al final.
-
-<details> Especialistas en tu país y modalidad [+12%, país × modalidad] <- COLAPSADO
-
-[Before/After Dolor / Antes / Después]
-
-[FAQ abre por "¿Cuánto tarda?" + pregunta de menores/RGPD]
-
-[CTA Final navy + bullets + 1 CTA primario + form pre-registro a /auth/register]
-
-[FOOTER]
+[Nav fijo translúcido, ~88px]
+—— espacio de separación real ≥ altura del nav ——
+[Eyebrow, completamente visible]
+[H1] [Subheadline] [Body copy]
+[CTA primario] [CTA secundario]
+[Microcopy de riesgo]
 ```
 
----
-
-## Riesgos y notas para el usuario
-
-- **Cero academia en `landing_cta_primary_click`** en este momento (Addendum 3 confirmó baseline: 2 academias, 0 leads, 0 trials, 0 checkouts). Las tasas aquí son `[SUPUESTO]` basadas en benchmarks de SaaS self-serve. Cualquier afirmación de impacto monetario (X € al mes) es orientativa, no proyectable.
-- **Bloqueos por [[Mensajes aprobados]]**: cualquier cambio de copy de la promesa principal, del nombre de planes o de claims de privacidad/seguridad necesita actualizar esa nota antes. La actual no prohíbe los arreglos propuestos aquí (salvo *“100% seguro”*, *“RGPD Compliant”*, *“2 horas”*, *“15 h ahorradas”*, *“3x más eficiencia”* y promesas de duración cerrada sin evidencia).
-- **Coordinación multi-agente**: antes de aplicar cualquier Quick Win, releer `vault/06-Roadmap-y-Tareas/Changelog interno.md`. El CTA ya fue coordinado en los Addenda 1–2 de la auditoría 2026-07-13; este informe se basa en esos cambios ya en `src/`.
-- **No se ha aplicado ningún cambio** como parte de este análisis. Es un informe de CRO, no una pasada de código.
-- **Servidor de dev**: se levantó `pnpm dev` para capturar la home real. El proceso queda corriendo en background (ID `b1o5mnfys`). Si quieres pararlo para liberar el puerto, dímelo.
+**Social Proof — sigue pendiente desde 2026-07-14:**
+```
+Antes:  [Párrafo de propuesta de valor reformulado, sin nombre de nadie]
+Después: ["Cita real" — Nombre, Rol, Academia — resultado concreto]
+         o, mientras no exista: [3-4 pasos verídicos de puesta en marcha]
+```

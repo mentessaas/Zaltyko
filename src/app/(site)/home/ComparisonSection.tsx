@@ -110,7 +110,8 @@ export default function ComparisonSection() {
         </div>
 
         {/* Table */}
-        <div className="overflow-x-auto rounded-2xl border border-gray-200 shadow-lg">
+        <div className="relative">
+          <div className="overflow-x-auto rounded-2xl border border-gray-200 shadow-lg">
           <table className="w-full bg-white">
             {/* Header */}
             <thead>
@@ -159,6 +160,13 @@ export default function ComparisonSection() {
               ))}
             </tbody>
           </table>
+          </div>
+          {/* Fade que indica scroll horizontal en mobile — en desktop la tabla
+              cabe entera y este overlay no aporta nada, por eso solo md:hidden. */}
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-y-0 right-0 w-10 rounded-r-2xl bg-gradient-to-l from-white to-transparent md:hidden"
+          />
         </div>
 
         {/* Bottom note */}
