@@ -48,6 +48,8 @@ export function EditAthleteDialog({
     setStatus,
     groupId,
     setGroupId,
+    additionalGroupIds,
+    toggleAdditionalGroup,
     sportConfigId,
     setSportConfigId,
     programCode,
@@ -161,6 +163,8 @@ export function EditAthleteDialog({
           groups={groups}
           athleteLabel={terms.athlete}
           groupLabel={terms.group}
+          additionalGroupIds={additionalGroupIds}
+          onToggleAdditionalGroup={toggleAdditionalGroup}
           onNameChange={setName}
           onDobChange={setDob}
           onGroupIdChange={(nextGroupId) => {

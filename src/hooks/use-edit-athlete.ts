@@ -29,6 +29,13 @@ export function useEditAthlete({
   const [level, setLevel] = useState(initialLevel.level);
   const [status, setStatus] = useState(athlete.status);
   const [groupId, setGroupId] = useState(athlete.groupId ?? "");
+  // Grupos adicionales (multi-grupo). El principal es `groupId`.
+  const [additionalGroupIds, setAdditionalGroupIds] = useState<string[]>(
+    (athlete.groupIds ?? []).filter((id) => id !== (athlete.groupId ?? ""))
+  );
+  const [initialGroupIds, setInitialGroupIds] = useState<string[]>(
+    athlete.groupIds ?? (athlete.groupId ? [athlete.groupId] : [])
+  );
   const [sportConfigId, setSportConfigId] = useState(athlete.primarySportConfigId ?? "");
   const [programCode, setProgramCode] = useState(athlete.programCode ?? "");
   const [error, setError] = useState<string | null>(null);
@@ -69,6 +76,9 @@ export function useEditAthlete({
     setLevel(parsed.level);
     setStatus(athlete.status);
     setGroupId(athlete.groupId ?? "");
+    const initialGids = athlete.groupIds ?? (athlete.groupId ? [athlete.groupId] : []);
+    setInitialGroupIds(initialGids);
+    setAdditionalGroupIds(initialGids.filter((id) => id !== (athlete.groupId ?? "")));
     setSportConfigId(athlete.primarySportConfigId ?? "");
     setProgramCode(athlete.programCode ?? "");
     setCategory(athlete.categoryCode ?? parsed.category);
@@ -84,6 +94,29 @@ export function useEditAthlete({
       notifySms: false,
     });
   }, [open, athlete]);
+
+  // Cargar pertenencias multi-grupo reales al abrir (el listado puede no incluirlas).
+  useEffect(() => {
+    if (!open) return;
+    const abortController = new AbortController();
+    (async () => {
+      try {
+        const response = await fetch(`/api/athletes/${athlete.id}`, {
+          signal: abortController.signal,
+          headers: { "x-academy-id": academyId },
+        });
+        if (!response.ok) return;
+        const data = await response.json();
+        const gids: string[] = data?.data?.groupIds ?? [];
+        if (gids.length === 0) return;
+        setInitialGroupIds(gids);
+        setAdditionalGroupIds(gids.filter((id) => id !== (athlete.groupId ?? "")));
+      } catch {
+        // silencioso: si falla, se conservan los valores iniciales del prop
+      }
+    })();
+    return () => abortController.abort();
+  }, [open, athlete.id, athlete.groupId, academyId]);
 
   // Fetch guardians when dialog opens
   useEffect(() => {
@@ -134,19 +167,38 @@ export function useEditAthlete({
     return computedAgeYears != null ? `${computedAgeYears} años` : "";
   }, [computedAgeYears]);
 
+  // Conjunto de grupos objetivo (principal + adicionales), principal primero.
+  const targetGroupIds = useMemo(
+    () => Array.from(new Set([groupId, ...additionalGroupIds].filter(Boolean))),
+    [groupId, additionalGroupIds]
+  );
+
+  const groupsChanged = useMemo(() => {
+    const target = new Set(targetGroupIds);
+    const initial = new Set(initialGroupIds);
+    if (target.size !== initial.size) return true;
+    for (const id of target) if (!initial.has(id)) return true;
+    // También cambia si cambia el principal (posición 0), aunque el conjunto sea igual.
+    return (initialGroupIds[0] ?? null) !== (targetGroupIds[0] ?? null);
+  }, [targetGroupIds, initialGroupIds]);
+
+  const toggleAdditionalGroup = (id: string) => {
+    setAdditionalGroupIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  };
+
   const hasChanges = useMemo(() => {
     return (
       name.trim() !== athlete.name ||
       dob !== formatDob(athlete.dob) ||
       (!usesSportConfig && composedLevel !== (athlete.level ?? null)) ||
       status !== athlete.status ||
-      (groupId || null) !== (athlete.groupId ?? null) ||
+      groupsChanged ||
       (sportConfigId || null) !== (athlete.primarySportConfigId ?? null) ||
       (programCode || null) !== (athlete.programCode ?? null) ||
       (category || null) !== (athlete.categoryCode ?? null) ||
       (level || null) !== (athlete.levelCode ?? null)
     );
-  }, [name, dob, composedLevel, usesSportConfig, status, groupId, sportConfigId, programCode, category, level, athlete]);
+  }, [name, dob, composedLevel, usesSportConfig, status, groupsChanged, sportConfigId, programCode, category, level, athlete]);
 
   const handleSave = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -160,7 +212,9 @@ export function useEditAthlete({
         const nextLevel = composedLevel;
         if (!usesSportConfig && nextLevel !== (athlete.level ?? null)) payload.level = nextLevel;
         if (status !== athlete.status) payload.status = status;
-        if ((groupId || null) !== (athlete.groupId ?? null)) payload.groupId = groupId || null;
+        // Multi-grupo: se envía el conjunto completo (principal primero). El backend
+        // reconcilia group_athletes y fija athletes.group_id = groupIds[0].
+        if (groupsChanged) payload.groupIds = targetGroupIds;
         if ((sportConfigId || null) !== (athlete.primarySportConfigId ?? null)) {
           payload.primarySportConfigId = sportConfigId || null;
         }
@@ -404,6 +458,8 @@ export function useEditAthlete({
     setStatus,
     groupId,
     setGroupId,
+    additionalGroupIds,
+    toggleAdditionalGroup,
     sportConfigId,
     setSportConfigId,
     programCode,

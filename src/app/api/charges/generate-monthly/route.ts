@@ -1,16 +1,14 @@
 import { randomUUID } from "node:crypto";
 import { apiCreated, apiError, apiSuccess } from "@/lib/api-response";
-import { and, eq, inArray, or, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, or } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
-import { academies, athletes, charges, groups, groupAthletes } from "@/db/schema";
+import { athletes, charges, groups, groupAthletes } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
 import { handleApiError } from "@/lib/api-error-handler";
 import { verifyAcademyAccess, verifyGroupAccess } from "@/lib/permissions";
-import { getMonthlyFeeForAthlete } from "@/lib/billing/athlete-fees";
 import { formatPeriodToMonthName } from "@/lib/billing/athlete-fees";
-import { logger } from "@/lib/logger";
 
 const GenerateMonthlyChargesSchema = z.object({
   academyId: z.string().uuid(),
@@ -42,122 +40,108 @@ export const POST = withTenant(async (request, context) => {
       }
     }
 
-    // Get active athletes (from academy or specific group)
-    let athletesList: Array<{ id: string; name: string; groupId: string | null }> = [];
-
-    if (body.groupId) {
-      // Get athletes from specific group
-      const groupAthletesList = await db
-        .select({
-          id: athletes.id,
-          name: athletes.name,
-          groupId: athletes.groupId,
-        })
-        .from(groupAthletes)
-        .innerJoin(athletes, eq(groupAthletes.athleteId, athletes.id))
-        .where(
-          and(
-            eq(groupAthletes.groupId, body.groupId),
-            eq(groupAthletes.tenantId, context.tenantId),
-            eq(athletes.academyId, body.academyId),
-            eq(athletes.status, "active"),
-            body.sportConfigId ? eq(athletes.primarySportConfigId, body.sportConfigId) : undefined
-          )
-        )
-        .limit(1000);
-
-      athletesList = groupAthletesList.map((ga) => ({
-        id: ga.id,
-        name: ga.name,
-        // Se factura el grupo solicitado, no el group_id legacy del atleta:
-        // un atleta puede pertenecer a varios grupos y su group_id legacy
-        // podría apuntar a otro distinto del que se está facturando.
-        groupId: body.groupId!,
-      }));
-    } else {
-      // Get all active athletes from academy
-      const allAthletes = await db
-        .select({
-          id: athletes.id,
-          name: athletes.name,
-          groupId: athletes.groupId,
-        })
-        .from(athletes)
-        .where(
-          and(
-            eq(athletes.academyId, body.academyId),
-            eq(athletes.tenantId, context.tenantId),
-            eq(athletes.status, "active"),
-            body.sportConfigId ? eq(athletes.primarySportConfigId, body.sportConfigId) : undefined
-          )
-        )
-        .limit(1000);
-
-      // Para los atletas sin group_id legacy, resolver su grupo facturable
-      // desde la M2M group_athletes (primera pertenencia). Antes se saltaban
-      // silenciosamente y no se les generaba cargo.
-      const athletesMissingGroup = allAthletes.filter((a) => !a.groupId).map((a) => a.id);
-      if (athletesMissingGroup.length > 0) {
-        const memberships = await db
-          .select({
-            athleteId: groupAthletes.athleteId,
-            groupId: groupAthletes.groupId,
-          })
-          .from(groupAthletes)
-          .where(
-            and(
-              eq(groupAthletes.tenantId, context.tenantId),
-              inArray(groupAthletes.athleteId, athletesMissingGroup)
-            )
-          );
-
-        const firstGroupByAthlete = new Map<string, string>();
-        for (const membership of memberships) {
-          if (!firstGroupByAthlete.has(membership.athleteId)) {
-            firstGroupByAthlete.set(membership.athleteId, membership.groupId);
-          }
-        }
-
-        for (const athlete of allAthletes) {
-          if (!athlete.groupId) {
-            athlete.groupId = firstGroupByAthlete.get(athlete.id) ?? null;
-          }
-        }
-      }
-
-      athletesList = allAthletes;
+    // Multi-grupo: se genera un cargo por cada pertenencia a grupo del atleta
+    // (cada grupo con su propia cuota = custom_fee_cents del vínculo ?? cuota del
+    // grupo). La fuente de verdad de pertenencia es group_athletes; athletes.group_id
+    // se usa solo como fallback legacy para datos aún no reconciliados.
+    interface Membership {
+      athleteId: string;
+      groupId: string;
+      feeCents: number;
+      groupName: string;
     }
 
-    if (athletesList.length === 0) {
-      return apiSuccess(
-        { message: "No hay personas activas para generar cargos.", created: 0, skipped: 0 }
-      );
+    // Cuotas y nombres de todos los grupos de la academia (pocos por academia).
+    const academyGroups = await db
+      .select({ id: groups.id, name: groups.name, monthlyFeeCents: groups.monthlyFeeCents })
+      .from(groups)
+      .where(and(eq(groups.academyId, body.academyId), isNull(groups.deletedAt)));
+
+    const groupInfo = new Map(academyGroups.map((g) => [g.id, g]));
+
+    // 1. Pertenencias vía group_athletes (con override por vínculo).
+    const membershipRows = await db
+      .select({
+        athleteId: athletes.id,
+        groupId: groupAthletes.groupId,
+        customFeeCents: groupAthletes.customFeeCents,
+      })
+      .from(groupAthletes)
+      .innerJoin(athletes, eq(groupAthletes.athleteId, athletes.id))
+      .where(
+        and(
+          eq(groupAthletes.tenantId, context.tenantId),
+          eq(athletes.academyId, body.academyId),
+          eq(athletes.status, "active"),
+          isNull(athletes.deletedAt),
+          body.groupId ? eq(groupAthletes.groupId, body.groupId) : undefined,
+          body.sportConfigId ? eq(athletes.primarySportConfigId, body.sportConfigId) : undefined
+        )
+      )
+      .limit(5000);
+
+    // 2. Fallback legacy: atletas activos con group_id que aún no tienen fila en
+    //    group_athletes para ese grupo (datos previos a la reconciliación).
+    const legacyRows = await db
+      .select({
+        athleteId: athletes.id,
+        groupId: athletes.groupId,
+      })
+      .from(athletes)
+      .where(
+        and(
+          eq(athletes.academyId, body.academyId),
+          eq(athletes.tenantId, context.tenantId),
+          eq(athletes.status, "active"),
+          isNull(athletes.deletedAt),
+          body.groupId ? eq(athletes.groupId, body.groupId) : undefined,
+          body.sportConfigId ? eq(athletes.primarySportConfigId, body.sportConfigId) : undefined
+        )
+      )
+      .limit(5000);
+
+    const memberships: Membership[] = [];
+    const seen = new Set<string>();
+    let skipped = 0;
+
+    const pushMembership = (athleteId: string, groupId: string | null, customFeeCents: number | null) => {
+      if (!groupId) return;
+      const key = `${athleteId}:${groupId}`;
+      if (seen.has(key)) return;
+      const info = groupInfo.get(groupId);
+      if (!info) return; // grupo de otra academia o borrado
+      const feeCents = customFeeCents ?? info.monthlyFeeCents ?? 0;
+      if (!feeCents || feeCents <= 0) {
+        skipped++;
+        return; // sin cuota definida
+      }
+      seen.add(key);
+      memberships.push({ athleteId, groupId, feeCents, groupName: info.name });
+    };
+
+    membershipRows.forEach((row) => pushMembership(row.athleteId, row.groupId, row.customFeeCents));
+    legacyRows.forEach((row) => pushMembership(row.athleteId, row.groupId, null));
+
+    if (memberships.length === 0) {
+      return apiSuccess({
+        message: "No hay pertenencias con cuota definida para generar cargos.",
+        created: 0,
+        skipped,
+      });
     }
 
     // Calculate due date (last day of the month)
     const [year, month] = body.period.split("-").map(Number);
     const lastDay = new Date(year, month, 0).getDate();
     const dueDate = `${year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
-
-    // Get group names for labels
-    const groupIds = Array.from(new Set(athletesList.map((a) => a.groupId).filter(Boolean) as string[]));
-    const groupsMap = new Map<string, string>();
-    if (groupIds.length > 0) {
-      const groupsList = await db
-        .select({ id: groups.id, name: groups.name })
-        .from(groups)
-        .where(and(eq(groups.academyId, body.academyId), inArray(groups.id, groupIds)));
-
-      groupsList.forEach((g) => {
-        groupsMap.set(g.id, g.name);
-      });
-    }
+    const monthName = formatPeriodToMonthName(body.period);
 
     const newCharges: Array<{
       id: string;
       tenantId: string;
       academyId: string;
       athleteId: string;
+      groupId: string;
       label: string;
       amountCents: number;
       currency: string;
@@ -166,31 +150,9 @@ export const POST = withTenant(async (request, context) => {
       status: "pending";
     }> = [];
 
-    let skipped = 0;
-
-    // Process each athlete
-    for (const athlete of athletesList) {
-      if (!athlete.groupId) {
-        skipped++;
-        continue; // Skip athletes without group
-      }
-
-      // Calculate monthly fee
-      let monthlyFeeCents: number;
-      try {
-        monthlyFeeCents = await getMonthlyFeeForAthlete(body.academyId, athlete.id, athlete.groupId);
-      } catch (error) {
-        logger.error(`Error calculating fee for athlete ${athlete.id}:`, error);
-        skipped++;
-        continue;
-      }
-
-      if (monthlyFeeCents === 0 || monthlyFeeCents === null) {
-        skipped++;
-        continue; // Skip athletes with no fee
-      }
-
-      // Check for existing charges if skipDuplicates is true
+    // Process each membership
+    for (const membership of memberships) {
+      // Check for existing charge (per grupo) if skipDuplicates is true
       if (body.skipDuplicates) {
         const existingCharges = await db
           .select({ id: charges.id })
@@ -198,8 +160,9 @@ export const POST = withTenant(async (request, context) => {
           .where(
             and(
               eq(charges.academyId, body.academyId),
-              eq(charges.athleteId, athlete.id),
+              eq(charges.athleteId, membership.athleteId),
               eq(charges.period, body.period),
+              eq(charges.groupId, membership.groupId),
               or(eq(charges.status, "pending"), eq(charges.status, "paid"), eq(charges.status, "overdue"))
             )
           )
@@ -207,21 +170,18 @@ export const POST = withTenant(async (request, context) => {
 
         if (existingCharges.length > 0) {
           skipped++;
-          continue; // Skip if charge already exists
+          continue; // Skip if charge already exists for this group/period
         }
       }
-
-      // Create charge
-      const groupName = groupsMap.get(athlete.groupId) || "desconocido";
-      const monthName = formatPeriodToMonthName(body.period);
 
       newCharges.push({
         id: randomUUID(),
         tenantId: context.tenantId,
         academyId: body.academyId,
-        athleteId: athlete.id,
-        label: `Cuota ${groupName} – ${monthName}`,
-        amountCents: monthlyFeeCents,
+        athleteId: membership.athleteId,
+        groupId: membership.groupId,
+        label: `Cuota ${membership.groupName} – ${monthName}`,
+        amountCents: membership.feeCents,
         currency: "EUR",
         period: body.period,
         dueDate,

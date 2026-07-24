@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { eq, and, ne } from "drizzle-orm";
+import { eq, and, notInArray } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
@@ -36,7 +36,9 @@ const UpdateSchema = z.object({
   dob: updateDateStringSchema,
   level: z.string().max(120).nullable().optional(),
   status: z.enum(athleteStatusOptions).optional(),
+  // groupId = grupo principal (compat). groupIds = conjunto multi-grupo a reconciliar.
   groupId: z.string().uuid().nullable().optional(),
+  groupIds: z.array(z.string().uuid()).max(20).optional(),
   primarySportConfigId: z.string().uuid().nullable().optional(),
   programCode: z.string().trim().min(1).max(80).nullable().optional(),
   levelCode: z.string().trim().min(1).max(80).nullable().optional(),
@@ -60,6 +62,103 @@ async function getAthleteTenant(athleteId: string) {
     .limit(1);
 
   return row ?? null;
+}
+
+type PrimaryGroupRow = {
+  id: string;
+  sportConfigId: string | null;
+  programCode: string | null;
+  levelCode: string | null;
+  categoryCode: string | null;
+};
+
+/**
+ * Resuelve el conjunto de grupos objetivo a partir del body. `groupIds` tiene
+ * prioridad (multi-grupo); `groupId` se mantiene por compatibilidad (grupo único
+ * = principal). Si ninguno viene en el body, devuelve undefined (no tocar grupos).
+ */
+function resolveGroupTarget(body: { groupId?: string | null; groupIds?: string[] }): {
+  targetGroupIds: string[] | undefined;
+  primaryGroupId: string | null | undefined;
+} {
+  if (body.groupIds !== undefined) {
+    const targetGroupIds = Array.from(new Set(body.groupIds));
+    return { targetGroupIds, primaryGroupId: targetGroupIds[0] ?? null };
+  }
+  if (body.groupId !== undefined) {
+    return {
+      targetGroupIds: body.groupId ? [body.groupId] : [],
+      primaryGroupId: body.groupId ?? null,
+    };
+  }
+  return { targetGroupIds: undefined, primaryGroupId: undefined };
+}
+
+/** Valida que todos los grupos objetivo pertenezcan a la academia/tenant. */
+async function validateTargetGroups(
+  targetGroupIds: string[],
+  primaryGroupId: string | null,
+  tenantId: string,
+  academyId: string
+): Promise<{ ok: true; primary: PrimaryGroupRow | null } | { ok: false }> {
+  let primary: PrimaryGroupRow | null = null;
+  for (const gid of targetGroupIds) {
+    const [row] = await db
+      .select({
+        id: groups.id,
+        academyId: groups.academyId,
+        tenantId: groups.tenantId,
+        sportConfigId: groups.sportConfigId,
+        programCode: groups.programCode,
+        levelCode: groups.levelCode,
+        categoryCode: groups.categoryCode,
+      })
+      .from(groups)
+      .where(eq(groups.id, gid))
+      .limit(1);
+
+    if (!row || row.tenantId !== tenantId || row.academyId !== academyId) {
+      return { ok: false };
+    }
+    if (gid === primaryGroupId) {
+      primary = {
+        id: row.id,
+        sportConfigId: row.sportConfigId,
+        programCode: row.programCode,
+        levelCode: row.levelCode,
+        categoryCode: row.categoryCode,
+      };
+    }
+  }
+  return { ok: true, primary };
+}
+
+/**
+ * Reconcilia group_athletes para que refleje exactamente el conjunto objetivo:
+ * elimina las pertenencias que ya no están e inserta las nuevas, preservando la
+ * fila (y su custom_fee_cents) de los grupos que se mantienen.
+ */
+async function reconcileAthleteGroups(athleteId: string, tenantId: string, targetGroupIds: string[]) {
+  if (targetGroupIds.length === 0) {
+    await db.delete(groupAthletes).where(eq(groupAthletes.athleteId, athleteId));
+    return;
+  }
+
+  await db
+    .delete(groupAthletes)
+    .where(and(eq(groupAthletes.athleteId, athleteId), notInArray(groupAthletes.groupId, targetGroupIds)));
+
+  await db
+    .insert(groupAthletes)
+    .values(
+      targetGroupIds.map((gid) => ({
+        id: randomUUID(),
+        tenantId,
+        groupId: gid,
+        athleteId,
+      }))
+    )
+    .onConflictDoNothing();
 }
 
 async function validateSportAssignment(params: {
@@ -155,7 +254,17 @@ const getAthleteHandler = withTenant(async (_request, context) => {
     return apiError("ATHLETE_NOT_FOUND", "Athlete not found", 404);
   }
 
-  return apiSuccess(athlete);
+  // Pertenencias multi-grupo (fuente de verdad). El grupo principal va primero.
+  const memberships = await db
+    .select({ groupId: groupAthletes.groupId })
+    .from(groupAthletes)
+    .where(eq(groupAthletes.athleteId, athleteId));
+
+  const groupIdSet = new Set<string>();
+  if (athlete.groupId) groupIdSet.add(athlete.groupId);
+  memberships.forEach((m) => groupIdSet.add(m.groupId));
+
+  return apiSuccess({ ...athlete, groupIds: Array.from(groupIdSet) });
 });
 
 export const GET = withRateLimit(
@@ -209,43 +318,21 @@ const updateAthleteHandler = withTenant(async (request, context) => {
     updates.status = body.status;
   }
 
-  let selectedGroup:
-    | {
-        id: string;
-        academyId: string;
-        tenantId: string;
-        sportConfigId: string | null;
-        programCode: string | null;
-        levelCode: string | null;
-        categoryCode: string | null;
-      }
-    | null = null;
+  const { targetGroupIds, primaryGroupId } = resolveGroupTarget(body);
+  let selectedGroup: PrimaryGroupRow | null = null;
 
-  if (body.groupId !== undefined) {
-    if (body.groupId) {
-      const [groupRow] = await db
-        .select({
-          id: groups.id,
-          academyId: groups.academyId,
-          tenantId: groups.tenantId,
-          sportConfigId: groups.sportConfigId,
-          programCode: groups.programCode,
-          levelCode: groups.levelCode,
-          categoryCode: groups.categoryCode,
-        })
-        .from(groups)
-        .where(eq(groups.id, body.groupId))
-        .limit(1);
-
-      if (!groupRow || groupRow.tenantId !== existing.tenantId || groupRow.academyId !== existing.academyId) {
-        return apiError("GROUP_NOT_FOUND", "Group not found", 404);
-      }
-
-      selectedGroup = groupRow;
-      updates.groupId = groupRow.id;
-    } else {
-      updates.groupId = null;
+  if (targetGroupIds !== undefined) {
+    const validation = await validateTargetGroups(
+      targetGroupIds,
+      primaryGroupId ?? null,
+      existing.tenantId,
+      existing.academyId
+    );
+    if (!validation.ok) {
+      return apiError("GROUP_NOT_FOUND", "Group not found", 404);
     }
+    selectedGroup = validation.primary;
+    updates.groupId = primaryGroupId ?? null;
   }
 
   const nextSportConfigId =
@@ -293,6 +380,17 @@ const updateAthleteHandler = withTenant(async (request, context) => {
     .set(updates)
     .where(eq(athletes.id, athleteId))
     .returning();
+
+  if (targetGroupIds !== undefined) {
+    await reconcileAthleteGroups(athleteId, existing.tenantId, targetGroupIds);
+    if (primaryGroupId) {
+      await syncChargesForAthleteCurrentPeriod({
+        academyId: existing.academyId,
+        athleteId,
+        groupId: primaryGroupId,
+      });
+    }
+  }
 
   await upsertAthleteSportConfig({
     tenantId: existing.tenantId,
@@ -357,44 +455,21 @@ const patchAthleteHandler = withTenant(async (request, context) => {
   if (body.level !== undefined) {
     updates.level = body.level ?? null;
   }
-  let nextGroupId: string | null | undefined;
-  let selectedGroup:
-    | {
-        id: string;
-        academyId: string;
-        tenantId: string;
-        sportConfigId: string | null;
-        programCode: string | null;
-        levelCode: string | null;
-        categoryCode: string | null;
-      }
-    | null = null;
+  const { targetGroupIds, primaryGroupId } = resolveGroupTarget(body);
+  let selectedGroup: PrimaryGroupRow | null = null;
 
-  if (body.groupId !== undefined) {
-    if (body.groupId) {
-      const [groupRow] = await db
-        .select({
-          id: groups.id,
-          academyId: groups.academyId,
-          tenantId: groups.tenantId,
-          sportConfigId: groups.sportConfigId,
-          programCode: groups.programCode,
-          levelCode: groups.levelCode,
-          categoryCode: groups.categoryCode,
-        })
-        .from(groups)
-        .where(eq(groups.id, body.groupId))
-        .limit(1);
-
-      if (!groupRow || groupRow.tenantId !== athleteRow.tenantId || groupRow.academyId !== athleteRow.academyId) {
-        return apiError("GROUP_NOT_FOUND", "Group not found", 404);
-      }
-      selectedGroup = groupRow;
-      nextGroupId = groupRow.id;
-    } else {
-      nextGroupId = null;
+  if (targetGroupIds !== undefined) {
+    const validation = await validateTargetGroups(
+      targetGroupIds,
+      primaryGroupId ?? null,
+      athleteRow.tenantId,
+      athleteRow.academyId
+    );
+    if (!validation.ok) {
+      return apiError("GROUP_NOT_FOUND", "Group not found", 404);
     }
-    updates.groupId = nextGroupId;
+    selectedGroup = validation.primary;
+    updates.groupId = primaryGroupId ?? null;
   }
 
   if (body.status !== undefined) {
@@ -442,33 +517,17 @@ const patchAthleteHandler = withTenant(async (request, context) => {
 
   await db.update(athletes).set(updates).where(eq(athletes.id, athleteId));
 
-  if (body.groupId !== undefined) {
-    // group_athletes refleja el grupo principal (athletes.group_id). Al cambiar
-    // de grupo se eliminan las pertenencias a OTROS grupos (evitando acumular
-    // filas obsoletas que inflarían rosters/capacidad) y se conserva la fila del
-    // grupo destino si ya existía, para no perder su custom_fee_cents.
-    if (nextGroupId) {
-      await db
-        .delete(groupAthletes)
-        .where(and(eq(groupAthletes.athleteId, athleteId), ne(groupAthletes.groupId, nextGroupId)));
-
-      await db
-        .insert(groupAthletes)
-        .values({
-          id: randomUUID(),
-          tenantId: athleteRow.tenantId,
-          groupId: nextGroupId,
-          athleteId,
-        })
-        .onConflictDoNothing();
-
+  if (targetGroupIds !== undefined) {
+    // group_athletes es la fuente de verdad de pertenencia (multi-grupo). Se
+    // reconcilia al conjunto objetivo, preservando el custom_fee_cents de los
+    // grupos que se mantienen.
+    await reconcileAthleteGroups(athleteId, athleteRow.tenantId, targetGroupIds);
+    if (primaryGroupId) {
       await syncChargesForAthleteCurrentPeriod({
         academyId: athleteRow.academyId,
         athleteId,
-        groupId: nextGroupId,
+        groupId: primaryGroupId,
       });
-    } else {
-      await db.delete(groupAthletes).where(eq(groupAthletes.athleteId, athleteId));
     }
   }
 

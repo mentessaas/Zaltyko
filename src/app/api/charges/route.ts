@@ -126,23 +126,28 @@ export const GET = withTenant(async (request, context) => {
       conditions.push(eq(charges.athleteId, query.athleteId));
     }
 
-    // If groupId or sportConfigId is provided, filter by matching athletes.
-    let athleteIds: string[] | undefined;
-    if (query.groupId || query.sportConfigId) {
-      const groupAthletes = await db
+    // Filtro por grupo: se aplica sobre el grupo del cargo (multi-grupo), no sobre
+    // el grupo principal del atleta, para no mezclar cuotas de grupos distintos.
+    if (query.groupId) {
+      conditions.push(eq(charges.groupId, query.groupId));
+    }
+
+    // Filtro por configuración deportiva: los cargos no la llevan, así que se
+    // resuelve por los atletas de esa rama/modalidad.
+    if (query.sportConfigId) {
+      const matchedAthletes = await db
         .select({ athleteId: athletes.id })
         .from(athletes)
         .where(
           and(
             eq(athletes.academyId, query.academyId),
             eq(athletes.tenantId, context.tenantId),
-            query.groupId ? eq(athletes.groupId, query.groupId) : undefined,
-            query.sportConfigId ? eq(athletes.primarySportConfigId, query.sportConfigId) : undefined
+            eq(athletes.primarySportConfigId, query.sportConfigId)
           )
         )
-        .limit(1000); // Reasonable limit
+        .limit(1000);
 
-      athleteIds = groupAthletes.map((a) => a.athleteId);
+      const athleteIds = matchedAthletes.map((a) => a.athleteId);
       if (athleteIds.length === 0) {
         return apiSuccess({ items: [], total: 0, page: query.page, limit: query.limit });
       }
@@ -182,13 +187,15 @@ export const GET = withTenant(async (request, context) => {
         notes: charges.notes,
         createdAt: charges.createdAt,
         updatedAt: charges.updatedAt,
-        groupId: athletes.groupId,
+        // Grupo del cargo (multi-grupo); cae al grupo principal del atleta para
+        // cargos legacy sin group_id.
+        groupId: sql<string | null>`coalesce(${charges.groupId}, ${athletes.groupId})`,
         groupName: groups.name,
       })
       .from(charges)
       .innerJoin(athletes, eq(charges.athleteId, athletes.id))
       .leftJoin(billingItems, eq(charges.billingItemId, billingItems.id))
-      .leftJoin(groups, eq(athletes.groupId, groups.id))
+      .leftJoin(groups, sql`${groups.id} = coalesce(${charges.groupId}, ${athletes.groupId})`)
       .where(and(...conditions))
       .orderBy(desc(charges.createdAt), asc(charges.period))
       .limit(pageSize)
