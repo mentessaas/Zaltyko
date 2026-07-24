@@ -1,5 +1,6 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Modal } from "@/components/ui/modal";
 import { useEditAthlete } from "@/hooks/use-edit-athlete";
@@ -127,22 +128,16 @@ export function EditAthleteDialog({
             Eliminar {terms.athlete.toLowerCase()}
           </button>
           <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={handleClose}
-              className="rounded-md border border-border px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
-              disabled={isPending}
-            >
+            <Button type="button" variant="outline" onClick={handleClose} disabled={isPending}>
               Cancelar
-            </button>
-            <button
+            </Button>
+            <Button
               type="submit"
               form="edit-athlete-form"
-              className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white shadow hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
               disabled={isPending || !hasChanges}
             >
               {isPending ? "Guardando..." : "Guardar cambios"}
-            </button>
+            </Button>
           </div>
         </div>
       }

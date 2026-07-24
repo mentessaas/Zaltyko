@@ -6,6 +6,7 @@ import { athleteStatusOptions } from "@/lib/athletes/constants";
 import { createClient } from "@/lib/supabase/client";
 import { CATEGORY_OPTIONS, LEVEL_OPTIONS, RELATIONSHIP_OPTIONS } from "@/types/athlete-edit";
 
+import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { Calendar as CalendarIcon, ChevronDown, ChevronUp } from "lucide-react";
 import type { SportConfigOption } from "@/components/groups/types";
@@ -261,22 +262,12 @@ export function CreateAthleteDialog({
       description={`Añade un ${athleteTermLower} a tu academia.`}
       footer={
         <div className="flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={handleClose}
-            className="min-h-11 rounded-xl border border-zaltyko-indigo px-4 py-2 text-sm font-medium text-zaltyko-indigo transition hover:bg-zaltyko-indigo/5 disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={isPending}
-          >
+          <Button type="button" variant="outline" onClick={handleClose} disabled={isPending}>
             Cancelar
-          </button>
-          <button
-            type="submit"
-            form="create-athlete-form"
-            className="min-h-11 rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white shadow-soft transition hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={isPending}
-          >
+          </Button>
+          <Button type="submit" form="create-athlete-form" disabled={isPending}>
             {isPending ? "Guardando..." : `Guardar ${athleteTermLower}`}
-          </button>
+          </Button>
         </div>
       }
     >
