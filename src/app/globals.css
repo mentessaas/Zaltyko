@@ -64,7 +64,9 @@ body {
     --input: 214 24% 84%;
     --ring: 175 74% 45%;
  
-    --radius: 1.125rem;
+    /* Base de la escala de radio. 10px = tarjetas/filas; de aquí se derivan
+       6/8/12/16/20. Antes era 1.125rem (18px), que inflaba inputs y botones. */
+    --radius: 0.625rem;
 
     --chart-1: 175 74% 45%;
     --chart-2: 238 51% 34%;

@@ -137,6 +137,26 @@ export const DELETE = withTenant(async (request, context) => {
       return apiError("CHARGE_NOT_FOUND", "Charge not found", 404);
     }
 
+    // Un cargo con dinero de por medio es un registro contable: borrarlo
+    // destruiria la trazabilidad del pago. Solo se pueden borrar cargos que
+    // nunca llegaron a cobrarse; para el resto existe cancelar/reembolsar.
+    const SETTLED_STATUSES = ["paid", "partial", "refunded"] as const;
+    if ((SETTLED_STATUSES as readonly string[]).includes(existing.status)) {
+      return apiError(
+        "CHARGE_NOT_DELETABLE",
+        "No se puede eliminar un cargo con pagos registrados. Cancélalo o emite un reembolso para conservar el historial.",
+        409
+      );
+    }
+
+    if (existing.stripeChargeId || existing.stripePaymentIntentId) {
+      return apiError(
+        "CHARGE_NOT_DELETABLE",
+        "No se puede eliminar un cargo vinculado a un pago de Stripe. Cancélalo o emite un reembolso para conservar el historial.",
+        409
+      );
+    }
+
     await db.delete(charges).where(and(eq(charges.id, chargeId), eq(charges.tenantId, context.tenantId)));
 
     return apiSuccess({ ok: true });

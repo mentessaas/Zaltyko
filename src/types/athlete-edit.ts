@@ -7,6 +7,7 @@ export interface AthleteSummary {
   status: (typeof athleteStatusOptions)[number];
   dob: string | null;
   groupId: string | null;
+  groupIds?: string[] | null;
   groupName?: string | null;
   primarySportConfigId?: string | null;
   programCode?: string | null;

@@ -8,6 +8,25 @@ source:
 
 # Decisiones
 
+## 2026-07-24 (2) - Multi-grupo real por atleta con cuota por grupo
+
+| Campo | Valor |
+| --- | --- |
+| Contexto | La decisión previa del mismo día dejó multi-grupo como fork de producto pendiente (una alumna en varios grupos simultáneos, cada uno con su cuota). El owner decidió adoptarlo. Supera esa parte de la decisión anterior. |
+| Decisión | (1) `group_athletes` es la fuente de verdad de pertenencia; un atleta puede pertenecer a **varios grupos a la vez**. `athletes.group_id` pasa a ser el "grupo principal" (denormalizado, display + defaults de config deportiva). (2) **Facturación: un cargo por grupo** = `group_athletes.custom_fee_cents ?? groups.monthly_fee_cents`. Se añadió `charges.group_id` para distinguir/deduplicar los cargos de cada grupo en el mismo periodo. (3) UI: alta con grupo principal; edición permite añadir "grupos adicionales" (multi-select). |
+| Consecuencia | El alta/edición (`POST` y `PUT`/`PATCH` de atletas) acepta `groupIds[]` y reconcilia `group_athletes` (añade/quita, preservando `custom_fee_cents`). `generate-monthly` emite un cargo por pertenencia; el listado de cargos filtra y muestra por el grupo del cargo. `sync-charges` es group-scoped para no pisar cargos de otros grupos. Esto cambia la semántica anterior de "un cargo por atleta". |
+| Estado | Activa en código (`athletes/route.ts`, `athletes/[athleteId]/route.ts`, `charges/generate-monthly/route.ts`, `charges/route.ts`, `sync-charges.ts`, schema `charges`, form/hook de atleta). Migración `20260724130000_add_group_id_to_charges.sql` (aditiva) creada; **no aplicada**. Typecheck limpio; tests de facturación multi-grupo, atletas y clases en verde. Pendiente QA manual del multi-select en la app corriendo (no verificable aquí). |
+
+## 2026-07-24 - La agenda del atleta se desacopla del grupo; la cuota sigue siendo por grupo
+
+| Campo | Valor |
+| --- | --- |
+| Contexto | Una auditoría del modelo de gimnasia (horarios personalizados de varias horas y varios días por alumna) encontró que el schema ya soporta multi-grupo/multi-clase (`group_athletes`, `class_groups`, `class_enrollments`, `class_weekdays`), pero facturación mensual, horario del atleta y detección de conflictos todavía leían el campo legacy `athletes.group_id` (marcado `@deprecated`), ignorando la relación real. El brief de la auditoría asumía "cuota por horas contratadas", pero la fuente canónica ([[Pricing]]) documenta **cuota por grupo** (flat + override por atleta vía `group_athletes.custom_fee_cents`), con punch passes y make-up tokens como evolución futura, no cuota por horas. |
+| Decisión | (1) La **agenda/horario** de la alumna se desacopla del grupo único: horario, conflictos y capacidad se resuelven sobre `group_athletes` (todos los grupos) + `class_enrollments` + `athlete_extra_classes`, no sobre `athletes.group_id`. (2) El **modelo de cobro se mantiene como está** (cuota por grupo + override por atleta). Las horas variables por alumna se cubren hoy con el override manual. (3) **No** se introduce "cuota por horas" automática: queda diferida a la validación comercial de la Fase 4 (10 entrevistas); si algún día se adopta, exige actualizar [[Pricing]], [[Mensajes aprobados]] y esta nota antes de tocar código. La evolución sancionada del cobro sigue siendo punch passes / make-up tokens ([[Tarea - Skill tracking y make-up tokens MVP]]). |
+| Consecuencia | Un atleta ve su horario completo y sus conflictos se detectan bien; la capacidad de clase cuenta la ocupación real (miembros de grupo + inscripciones extra), no solo los "extras". La generación mensual de cargos deja de saltar atletas cuya pertenencia solo vive en la M2M y factura el grupo correcto. Modelo vigente: **un grupo principal por atleta**. `athletes.group_id` es el grupo principal (denormalizado, sigue siendo válido para display) y `group_athletes` lo refleja 1:1; el PATCH de atletas ahora **reemplaza** la pertenencia al cambiar de grupo en vez de acumular filas obsoletas (que inflaban rosters/capacidad), preservando el `custom_fee_cents` del grupo destino. |
+| Decisión de producto pendiente | ~~El brief apuntaba a multi-grupo real; quedaba como fork pendiente.~~ **RESUELTO el mismo día**: el owner adoptó multi-grupo real. Ver `2026-07-24 (2) - Multi-grupo real por atleta con cuota por grupo` arriba, que supera esta fila. |
+| Estado | Activa en código (`get-athlete-schedule.ts`, `schedule-conflicts.ts`, `class-enrollments/route.ts`, `charges/generate-monthly/route.ts`, `athletes/[athleteId]/route.ts`). Migración de reconciliación `20260724120000_reconcile_group_athletes_primary.sql` creada, parte no destructiva idempotente; **no aplicada** (pendiente de ejecutar/revisar en Supabase). Typecheck limpio y tests verdes de clases/facturación/asistencia. |
+
 ## 2026-07-16 - Los recursos de comunicación pertenecen a una academia
 
 | Campo | Valor |

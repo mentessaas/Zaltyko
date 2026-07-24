@@ -13,6 +13,10 @@ interface AthleteBasicInfoFormProps {
   groups: GroupOption[];
   athleteLabel?: string;
   groupLabel?: string;
+  // Grupos adicionales (multi-grupo). Si onToggleAdditionalGroup no se pasa, la
+  // sección no se muestra (compat con formularios de un solo grupo).
+  additionalGroupIds?: string[];
+  onToggleAdditionalGroup?: (groupId: string) => void;
   onNameChange: (value: string) => void;
   onDobChange: (value: string) => void;
   onGroupIdChange: (value: string) => void;
@@ -27,6 +31,8 @@ export function AthleteBasicInfoForm({
   groups,
   athleteLabel = "atleta",
   groupLabel = "Grupo",
+  additionalGroupIds = [],
+  onToggleAdditionalGroup,
   onNameChange,
   onDobChange,
   onGroupIdChange,
@@ -115,6 +121,36 @@ export function AthleteBasicInfoForm({
           </p>
         </div>
       </div>
+
+      {onToggleAdditionalGroup && groups.length > 0 && (
+        <div className="mt-6 space-y-2">
+          <label className="text-sm font-medium text-foreground">Grupos adicionales</label>
+          <p className="text-xs text-muted-foreground">
+            Una alumna puede entrenar en varios grupos a la vez. Cada grupo adicional genera su propia cuota.
+          </p>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {groups
+              .filter((group) => group.id !== groupId)
+              .map((group) => {
+                const checked = additionalGroupIds.includes(group.id);
+                return (
+                  <label
+                    key={group.id}
+                    className="flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => onToggleAdditionalGroup(group.id)}
+                      className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
+                    />
+                    <span className="text-foreground">{group.name}</span>
+                  </label>
+                );
+              })}
+          </div>
+        </div>
+      )}
     </section>
   );
 }

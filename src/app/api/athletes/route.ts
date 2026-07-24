@@ -62,7 +62,9 @@ const BodySchema = z.object({
   status: z.enum(athleteStatusOptions).optional(),
   age: z.number().int().min(0).optional(),
   contacts: z.array(ContactSchema).optional(),
+  // groupId = grupo principal (compat). groupIds = pertenencia multi-grupo.
   groupId: z.string().uuid().optional(),
+  groupIds: z.array(z.string().uuid()).max(20).optional(),
   primarySportConfigId: z.string().uuid().nullable().optional(),
   programCode: z.string().trim().min(1).max(80).nullable().optional(),
   levelCode: z.string().trim().min(1).max(80).nullable().optional(),
@@ -114,6 +116,12 @@ const createAthleteHandler = withTenant(async (request, context) => {
       throw error;
     }
 
+    // Conjunto de grupos solicitados (multi-grupo). El primero es el principal.
+    const requestedGroupIds = Array.from(
+      new Set(body.groupIds ?? (body.groupId ? [body.groupId] : []))
+    );
+    const primaryGroupId = requestedGroupIds[0] ?? null;
+
     let groupRow: {
       id: string;
       sportConfigId: string | null;
@@ -122,9 +130,9 @@ const createAthleteHandler = withTenant(async (request, context) => {
       categoryCode: string | null;
     } | null = null;
 
-    // Verificar acceso al grupo si se proporciona
-    if (body.groupId) {
-      const groupAccess = await verifyGroupAccess(body.groupId, context.tenantId, body.academyId);
+    // Verificar acceso a cada grupo solicitado
+    for (const gid of requestedGroupIds) {
+      const groupAccess = await verifyGroupAccess(gid, context.tenantId, body.academyId);
       if (!groupAccess.allowed) {
         return apiError(groupAccess.reason ?? "GROUP_NOT_FOUND", "Group not found", 404);
       }
@@ -138,10 +146,17 @@ const createAthleteHandler = withTenant(async (request, context) => {
           categoryCode: groups.categoryCode,
         })
         .from(groups)
-        .where(and(eq(groups.id, body.groupId), eq(groups.tenantId, context.tenantId), eq(groups.academyId, body.academyId)))
+        .where(and(eq(groups.id, gid), eq(groups.tenantId, context.tenantId), eq(groups.academyId, body.academyId)))
         .limit(1);
 
-      groupRow = selectedGroup ?? null;
+      if (!selectedGroup) {
+        return apiError("GROUP_NOT_FOUND", "Group not found", 404);
+      }
+
+      // El grupo principal aporta la config deportiva por defecto del atleta.
+      if (gid === primaryGroupId) {
+        groupRow = selectedGroup;
+      }
     }
 
     const effectiveSportConfigId = body.primarySportConfigId ?? groupRow?.sportConfigId ?? null;
@@ -214,7 +229,7 @@ const createAthleteHandler = withTenant(async (request, context) => {
         programCode: effectiveProgramCode,
         levelCode: effectiveLevelCode,
         categoryCode: effectiveCategoryCode,
-        groupId: body.groupId ?? null,
+        groupId: primaryGroupId,
       });
 
       if (effectiveSportConfigId) {
@@ -249,16 +264,18 @@ const createAthleteHandler = withTenant(async (request, context) => {
         await tx.insert(familyContacts).values(rows).onConflictDoNothing();
       }
 
-      // Asociar con grupo si existe
-      if (body.groupId) {
+      // Asociar con todos los grupos solicitados (multi-grupo)
+      if (requestedGroupIds.length > 0) {
         await tx
           .insert(groupAthletes)
-          .values({
-            id: randomUUID(),
-            tenantId: context.tenantId,
-            groupId: body.groupId,
-            athleteId,
-          })
+          .values(
+            requestedGroupIds.map((gid) => ({
+              id: randomUUID(),
+              tenantId: context.tenantId!,
+              groupId: gid,
+              athleteId,
+            }))
+          )
           .onConflictDoNothing();
       }
     });
