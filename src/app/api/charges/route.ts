@@ -185,6 +185,10 @@ export const GET = withTenant(async (request, context) => {
         paymentMethod: charges.paymentMethod,
         paidAt: charges.paidAt,
         notes: charges.notes,
+        // La UI los usa para no ofrecer "eliminar" en cargos ligados a un pago
+        // real de Stripe (el servidor los rechaza con 409).
+        stripeChargeId: charges.stripeChargeId,
+        stripePaymentIntentId: charges.stripePaymentIntentId,
         createdAt: charges.createdAt,
         updatedAt: charges.updatedAt,
         // Grupo del cargo (multi-grupo); cae al grupo principal del atleta para
