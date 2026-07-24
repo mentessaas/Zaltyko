@@ -19,7 +19,19 @@ const config = {
           teal: "#00796B",
           coral: "#FF6B57",
           white: "#F8FAFC",
+          // Superficie cálida de paneles, modales y tarjetas. Estaba en uso en
+          // toda la app (incl. el fondo de los modales) pero no definida: sin
+          // token Tailwind no generaba nada y los paneles quedaban transparentes.
+          "warm-white": "#FDFCFA",
           mist: "#CBD5E1",
+          // Grises de texto/superficie alineados con la escala slate del brand.
+          neutral: {
+            DEFAULT: "#64748B",
+            dark: "#334155",
+            light: "#94A3B8",
+          },
+          // Rojo semántico para estados de error/destructivo.
+          danger: "#DC2626",
           primary: {
             DEFAULT: "#00796B", // Deep Teal — color de acción/marca (botones, links)
             dark: "#00695C",
@@ -30,6 +42,8 @@ const config = {
           electric: "#1FC7B6",
           accent: {
             DEFAULT: "#2B2E83",
+            // Variante clara del indigo, legible sobre fondo claro (titulares).
+            light: "#4A4EAF",
             teal: "#00796B",
             coral: "#FF6B57",
             amber: "#FF6B57",
@@ -38,6 +52,7 @@ const config = {
           bg: {
             DEFAULT: "#F8FAFC",
             paper: "#FFFFFF",
+            light: "#F1F5F9",
             dark: "#0F172A",
           },
           text: {
@@ -63,6 +78,10 @@ const config = {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
         },
+        // Alias de compatibilidad: 38 archivos (incluido el <Button> por defecto)
+        // usan `hover:bg-primary-dark`, que no resolvía a nada -> el CTA principal
+        // no tenía ningún estado hover. Pendiente unificar en `zaltyko-primary-dark`.
+        "primary-dark": "#00695C",
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
           foreground: "hsl(var(--secondary-foreground))",
