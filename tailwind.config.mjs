@@ -117,28 +117,46 @@ const config = {
       // zaltyko-mist (sin sombra); nivel 1 = shadow-soft (hover/activo); nivel 2 =
       // shadow-medium (overlays/modales). shadow-brand/indigo/lift/glow quedan como
       // acentos puntuales, no como base de reposo de ningún componente nuevo.
+      // ESCALA ÚNICA DE ELEVACIÓN.
+      // Convivían 7 niveles sin relación entre sí (shadow-sm/md/lg/xl/2xl grises
+      // de Tailwind + soft/medium de marca), así que dos tarjetas equivalentes
+      // levitaban distinto. Se redefinen los nombres genéricos para que compartan
+      // la misma rampa, con tinte navy en lugar de gris plano: da profundidad sin
+      // ensuciar el color de fondo.
       boxShadow: {
-        soft: "0 2px 8px rgba(15, 23, 42, 0.06)",
-        medium: "0 8px 24px rgba(15, 23, 42, 0.08)",
-        glass: "0 2px 8px rgba(15, 23, 42, 0.06)",
-        glow: "0 0 0 3px rgba(31, 199, 182, 0.15)",
-        // Sombras con tinte de marca (reemplazan las grises planas)
-        brand: "0 8px 30px rgba(0, 121, 107, 0.12)",
-        indigo: "0 8px 30px rgba(43, 46, 131, 0.12)",
-        lift: "0 16px 40px -12px rgba(0, 121, 107, 0.25)",
+        // Rampa: reposo -> hover -> flotante -> overlay
+        sm: "0 1px 2px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.05)",
+        soft: "0 1px 2px rgba(15, 23, 42, 0.04), 0 2px 6px rgba(15, 23, 42, 0.05)",
+        md: "0 2px 4px rgba(15, 23, 42, 0.04), 0 4px 12px rgba(15, 23, 42, 0.07)",
+        medium: "0 2px 4px rgba(15, 23, 42, 0.04), 0 4px 12px rgba(15, 23, 42, 0.07)",
+        lg: "0 4px 8px rgba(15, 23, 42, 0.05), 0 8px 24px rgba(15, 23, 42, 0.09)",
+        xl: "0 8px 16px rgba(15, 23, 42, 0.06), 0 16px 40px rgba(15, 23, 42, 0.11)",
+        "2xl": "0 12px 24px rgba(15, 23, 42, 0.08), 0 24px 56px rgba(15, 23, 42, 0.13)",
+        glass: "0 1px 2px rgba(15, 23, 42, 0.04), 0 2px 6px rgba(15, 23, 42, 0.05)",
+        // Focus/acento: anillo teal en vez de sombra difusa.
+        glow: "0 0 0 3px rgba(31, 199, 182, 0.18)",
+        brand: "0 8px 24px rgba(0, 121, 107, 0.14)",
+        indigo: "0 8px 24px rgba(43, 46, 131, 0.14)",
+        lift: "0 16px 40px -12px rgba(0, 121, 107, 0.28)",
       },
+      // ESCALA ÚNICA DE RADIO.
+      // El problema no era que faltara un sistema, sino que convivían dos: los
+      // nombres semánticos (control/card/modal, 70 usos) y los genéricos de
+      // Tailwind (rounded-md/lg/xl/2xl, ~1.800 usos) con valores muy grandes
+      // (--radius valía 18px, así que rounded-md daba 16px y todo se veía
+      // hinchado). En vez de reescribir 1.800 clases, se redefine a qué resuelve
+      // cada nombre para que TODAS caigan sobre la misma escala 6/8/10/12/16/20.
       borderRadius: {
-        lg: "var(--radius)",
-        md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)",
-        xl: "1rem",
-        "2xl": "1.5rem",
-        "3xl": "2rem",
-        // Sistema de radio de marca (Fase 2 del sistema de diseño, 2026-07-14):
-        // 3 niveles con nombre en vez de valores arbitrarios sueltos por componente.
-        control: "6px", // botones, inputs, chips
-        card: "10px", // tarjetas, filas, paneles
-        modal: "16px", // modales, sheets, overlays
+        sm: "calc(var(--radius) - 4px)", // 6px  · chips, badges
+        md: "calc(var(--radius) - 2px)", // 8px  · inputs, botones
+        lg: "var(--radius)", //            10px · tarjetas, filas
+        xl: "calc(var(--radius) + 2px)", // 12px · paneles
+        "2xl": "calc(var(--radius) + 6px)", // 16px · modales, secciones
+        "3xl": "calc(var(--radius) + 10px)", // 20px · superficies hero
+        // Alias semánticos: mismo valor que su equivalente de la escala.
+        control: "calc(var(--radius) - 4px)",
+        card: "var(--radius)",
+        modal: "calc(var(--radius) + 6px)",
       },
       backgroundImage: {
         "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",
