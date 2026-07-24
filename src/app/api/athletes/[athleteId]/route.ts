@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { eq, and } from "drizzle-orm";
+import { eq, and, ne } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
@@ -443,7 +443,15 @@ const patchAthleteHandler = withTenant(async (request, context) => {
   await db.update(athletes).set(updates).where(eq(athletes.id, athleteId));
 
   if (body.groupId !== undefined) {
+    // group_athletes refleja el grupo principal (athletes.group_id). Al cambiar
+    // de grupo se eliminan las pertenencias a OTROS grupos (evitando acumular
+    // filas obsoletas que inflarían rosters/capacidad) y se conserva la fila del
+    // grupo destino si ya existía, para no perder su custom_fee_cents.
     if (nextGroupId) {
+      await db
+        .delete(groupAthletes)
+        .where(and(eq(groupAthletes.athleteId, athleteId), ne(groupAthletes.groupId, nextGroupId)));
+
       await db
         .insert(groupAthletes)
         .values({

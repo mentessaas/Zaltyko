@@ -1,17 +1,18 @@
 "use server";
 
 import { cookies } from "next/headers";
-import { and, asc, eq, gte, lte, or } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import {
   athletes,
   athleteExtraClasses,
   classCoachAssignments,
+  classEnrollments,
   classGroups,
-  classSessions,
   classWeekdays,
   classes,
   coaches,
+  groupAthletes,
   groups,
 } from "@/db/schema";
 import { getCurrentProfile, getTenantId } from "@/lib/authz";
@@ -47,7 +48,7 @@ export async function getAthleteSchedule(params: {
   endDate?: string; // ISO date string
 }): Promise<{ items: AthleteScheduleItem[]; error?: string }> {
   try {
-    const { athleteId, academyId, startDate, endDate } = params;
+    const { athleteId, academyId } = params;
 
     // Obtener usuario actual
     const cookieStore = await cookies();
@@ -91,93 +92,106 @@ export async function getAthleteSchedule(params: {
       return { items: [], error: "ATHLETE_NOT_FOUND" };
     }
 
-    const scheduleItems: AthleteScheduleItem[] = [];
+    // Resolver todos los grupos del atleta: la M2M group_athletes es la fuente
+    // vigente; athletes.group_id se mantiene como fallback legacy. Antes esta
+    // acción leía solo athletes.group_id, así que un atleta en varios grupos
+    // veía un horario incompleto.
+    const memberships = await db
+      .select({ groupId: groupAthletes.groupId })
+      .from(groupAthletes)
+      .where(eq(groupAthletes.athleteId, athleteId));
 
-    // 1. Obtener clases base (del grupo del atleta)
-    // Las clases base pueden estar relacionadas de dos formas:
-    // - A través de class_groups (tabla intermedia)
-    // - A través de classes.groupId (campo directo)
+    const groupIdSet = new Set<string>(memberships.map((row) => row.groupId));
     if (athlete.groupId) {
-      // Obtener clases a través de class_groups
-      const baseClassesViaTable = await db
-        .select({
-          id: classes.id,
-          name: classes.name,
-          startTime: classes.startTime,
-          endTime: classes.endTime,
-          groupName: groups.name,
-        })
-        .from(classes)
-        .innerJoin(classGroups, eq(classes.id, classGroups.classId))
-        .innerJoin(groups, eq(classGroups.groupId, groups.id))
-        .where(
-          and(
-            eq(classGroups.groupId, athlete.groupId),
-            eq(classes.academyId, academyId),
-            eq(classes.isExtra, false) // Solo clases base
-          )
-        );
+      groupIdSet.add(athlete.groupId);
+    }
+    const groupIds = Array.from(groupIdSet);
 
-      // Obtener clases a través de groupId directo
-      const baseClassesViaDirect = await db
-        .select({
-          id: classes.id,
-          name: classes.name,
-          startTime: classes.startTime,
-          endTime: classes.endTime,
-          groupName: groups.name,
-        })
-        .from(classes)
-        .innerJoin(groups, eq(classes.groupId, groups.id))
-        .where(
-          and(
-            eq(classes.groupId, athlete.groupId),
-            eq(classes.academyId, academyId),
-            eq(classes.isExtra, false) // Solo clases base
-          )
-        );
-
-      // Combinar y deduplicar por ID
-      const allBaseClasses = new Map<string, typeof baseClassesViaTable[0]>();
-      baseClassesViaTable.forEach((cls) => {
-        allBaseClasses.set(cls.id, cls);
-      });
-      baseClassesViaDirect.forEach((cls) => {
-        if (!allBaseClasses.has(cls.id)) {
-          allBaseClasses.set(cls.id, cls);
-        }
-      });
-
-      const baseClasses = Array.from(allBaseClasses.values());
-
-      // Obtener weekdays y coaches para cada clase base
-      for (const cls of baseClasses) {
-        const weekdays = await db
-          .select({ weekday: classWeekdays.weekday })
-          .from(classWeekdays)
-          .where(eq(classWeekdays.classId, cls.id));
-
-        const [coachAssignment] = await db
-          .select({ coachName: coaches.name })
-          .from(classCoachAssignments)
-          .innerJoin(coaches, eq(classCoachAssignments.coachId, coaches.id))
-          .where(eq(classCoachAssignments.classId, cls.id))
-          .limit(1);
-
-        scheduleItems.push({
-          id: cls.id,
-          name: cls.name ?? "Clase sin nombre",
-          type: "base",
-          startTime: cls.startTime ? String(cls.startTime) : null,
-          endTime: cls.endTime ? String(cls.endTime) : null,
-          weekdays: weekdays.map((w) => w.weekday),
-          coachName: coachAssignment?.coachName ?? null,
-          groupName: cls.groupName ?? null,
-        });
-      }
+    interface RawClass {
+      id: string;
+      name: string | null;
+      startTime: unknown;
+      endTime: unknown;
+      groupName: string | null;
+      type: "base" | "extra";
     }
 
-    // 2. Obtener clases extra
+    // Deduplicado por classId; el origen "base" (grupo) tiene prioridad sobre "extra".
+    const classesById = new Map<string, RawClass>();
+    const addClass = (cls: RawClass) => {
+      const existing = classesById.get(cls.id);
+      if (!existing || (existing.type === "extra" && cls.type === "base")) {
+        classesById.set(cls.id, cls);
+      }
+    };
+
+    // 1. Clases base de todos los grupos del atleta (class_groups + classes.groupId).
+    if (groupIds.length > 0) {
+      const [baseViaTable, baseViaDirect] = await Promise.all([
+        db
+          .select({
+            id: classes.id,
+            name: classes.name,
+            startTime: classes.startTime,
+            endTime: classes.endTime,
+            groupName: groups.name,
+          })
+          .from(classes)
+          .innerJoin(classGroups, eq(classes.id, classGroups.classId))
+          .innerJoin(groups, eq(classGroups.groupId, groups.id))
+          .where(
+            and(
+              inArray(classGroups.groupId, groupIds),
+              eq(classes.academyId, academyId),
+              eq(classes.isExtra, false)
+            )
+          ),
+        db
+          .select({
+            id: classes.id,
+            name: classes.name,
+            startTime: classes.startTime,
+            endTime: classes.endTime,
+            groupName: groups.name,
+          })
+          .from(classes)
+          .innerJoin(groups, eq(classes.groupId, groups.id))
+          .where(
+            and(
+              inArray(classes.groupId, groupIds),
+              eq(classes.academyId, academyId),
+              eq(classes.isExtra, false)
+            )
+          ),
+      ]);
+
+      [...baseViaTable, ...baseViaDirect].forEach((cls) =>
+        addClass({ ...cls, type: "base" })
+      );
+    }
+
+    // 2. Clases donde el atleta está inscrito como extra (class_enrollments).
+    const enrollmentClasses = await db
+      .select({
+        id: classes.id,
+        name: classes.name,
+        startTime: classes.startTime,
+        endTime: classes.endTime,
+      })
+      .from(classEnrollments)
+      .innerJoin(classes, eq(classEnrollments.classId, classes.id))
+      .where(
+        and(
+          eq(classEnrollments.athleteId, athleteId),
+          eq(classEnrollments.academyId, academyId)
+        )
+      );
+
+    enrollmentClasses.forEach((cls) =>
+      addClass({ ...cls, groupName: null, type: "extra" })
+    );
+
+    // 3. Clases extra individuales (athlete_extra_classes).
     const extraClasses = await db
       .select({
         id: classes.id,
@@ -194,53 +208,36 @@ export async function getAthleteSchedule(params: {
         )
       );
 
-    // Obtener weekdays y coaches para cada clase extra
-    for (const cls of extraClasses) {
-      const weekdays = await db
-        .select({ weekday: classWeekdays.weekday })
-        .from(classWeekdays)
-        .where(eq(classWeekdays.classId, cls.id));
+    extraClasses.forEach((cls) =>
+      addClass({ ...cls, groupName: null, type: "extra" })
+    );
 
-      const [coachAssignment] = await db
-        .select({ coachName: coaches.name })
-        .from(classCoachAssignments)
-        .innerJoin(coaches, eq(classCoachAssignments.coachId, coaches.id))
-        .where(eq(classCoachAssignments.classId, cls.id))
-        .limit(1);
+    // 4. Enriquecer cada clase con sus weekdays y su coach asignado.
+    const scheduleItems: AthleteScheduleItem[] = [];
+    for (const cls of classesById.values()) {
+      const [weekdays, coachAssignment] = await Promise.all([
+        db
+          .select({ weekday: classWeekdays.weekday })
+          .from(classWeekdays)
+          .where(eq(classWeekdays.classId, cls.id)),
+        db
+          .select({ coachName: coaches.name })
+          .from(classCoachAssignments)
+          .innerJoin(coaches, eq(classCoachAssignments.coachId, coaches.id))
+          .where(eq(classCoachAssignments.classId, cls.id))
+          .limit(1),
+      ]);
 
       scheduleItems.push({
         id: cls.id,
         name: cls.name ?? "Clase sin nombre",
-        type: "extra",
+        type: cls.type,
         startTime: cls.startTime ? String(cls.startTime) : null,
         endTime: cls.endTime ? String(cls.endTime) : null,
         weekdays: weekdays.map((w) => w.weekday),
-        coachName: coachAssignment?.coachName ?? null,
-        groupName: null,
+        coachName: coachAssignment[0]?.coachName ?? null,
+        groupName: cls.groupName ?? null,
       });
-    }
-
-    // 3. Si hay filtros de fecha, también obtener sesiones específicas
-    if (startDate || endDate) {
-      const sessionConditions = [
-        eq(classSessions.classId, classes.id),
-        startDate ? gte(classSessions.sessionDate, startDate) : undefined,
-        endDate ? lte(classSessions.sessionDate, endDate) : undefined,
-      ].filter(Boolean);
-
-      // Obtener sesiones de clases base
-      if (athlete.groupId) {
-        const baseClassIds = scheduleItems.filter((item) => item.type === "base").map((item) => item.id);
-        if (baseClassIds.length > 0) {
-          // Aquí podríamos añadir sesiones específicas si es necesario
-        }
-      }
-
-      // Obtener sesiones de clases extra
-      const extraClassIds = scheduleItems.filter((item) => item.type === "extra").map((item) => item.id);
-      if (extraClassIds.length > 0) {
-        // Aquí podríamos añadir sesiones específicas si es necesario
-      }
     }
 
     // Ordenar por tipo (base primero) y luego por hora

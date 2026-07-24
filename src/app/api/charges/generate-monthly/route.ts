@@ -69,7 +69,10 @@ export const POST = withTenant(async (request, context) => {
       athletesList = groupAthletesList.map((ga) => ({
         id: ga.id,
         name: ga.name,
-        groupId: ga.groupId,
+        // Se factura el grupo solicitado, no el group_id legacy del atleta:
+        // un atleta puede pertenecer a varios grupos y su group_id legacy
+        // podría apuntar a otro distinto del que se está facturando.
+        groupId: body.groupId!,
       }));
     } else {
       // Get all active athletes from academy
@@ -89,6 +92,38 @@ export const POST = withTenant(async (request, context) => {
           )
         )
         .limit(1000);
+
+      // Para los atletas sin group_id legacy, resolver su grupo facturable
+      // desde la M2M group_athletes (primera pertenencia). Antes se saltaban
+      // silenciosamente y no se les generaba cargo.
+      const athletesMissingGroup = allAthletes.filter((a) => !a.groupId).map((a) => a.id);
+      if (athletesMissingGroup.length > 0) {
+        const memberships = await db
+          .select({
+            athleteId: groupAthletes.athleteId,
+            groupId: groupAthletes.groupId,
+          })
+          .from(groupAthletes)
+          .where(
+            and(
+              eq(groupAthletes.tenantId, context.tenantId),
+              inArray(groupAthletes.athleteId, athletesMissingGroup)
+            )
+          );
+
+        const firstGroupByAthlete = new Map<string, string>();
+        for (const membership of memberships) {
+          if (!firstGroupByAthlete.has(membership.athleteId)) {
+            firstGroupByAthlete.set(membership.athleteId, membership.groupId);
+          }
+        }
+
+        for (const athlete of allAthletes) {
+          if (!athlete.groupId) {
+            athlete.groupId = firstGroupByAthlete.get(athlete.id) ?? null;
+          }
+        }
+      }
 
       athletesList = allAthletes;
     }
