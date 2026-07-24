@@ -2,15 +2,21 @@ import * as Sentry from "@sentry/nextjs";
 
 const SENTRY_DSN = process.env.NEXT_PUBLIC_SENTRY_DSN;
 
+function tracesSampler(samplingContext: {
+  parentSampled?: boolean;
+  transactionContext?: { status?: string };
+}) {
+  if (samplingContext.parentSampled === false) return 0;
+  const status = samplingContext.transactionContext?.status;
+  if (status && ["internal_error", "server_error"].includes(status)) {
+    return 1.0;
+  }
+  return 0.1;
+}
+
 Sentry.init({
   dsn: SENTRY_DSN,
-  // Tracing (APM) deshabilitado en cliente: BrowserTracing era lo que
-  // quedaba dominando el chunk compartido por todas las páginas (~165KB
-  // sin usar en la home, medido con PageSpeed Insights) despues de sacar
-  // Replay. Se sacrifica APM de rendimiento en el navegador a cambio de
-  // velocidad de carga; la captura de errores (lo que realmente importa
-  // para monitoreo de produccion) sigue completa mas abajo.
-  tracesSampleRate: 0,
+  tracesSampler,
   debug: false,
   replaysOnErrorSampleRate: 1.0,
   replaysSessionSampleRate: 0.05,
