@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useMemo, useState, useTransition } from "react";
 
 import { Modal } from "@/components/ui/modal";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast-provider";
 import { CoachOption, AthleteOption, GroupSummary, SportConfigOption } from "./types";
 import { createClient } from "@/lib/supabase/client";
@@ -56,6 +57,8 @@ export function EditGroupDialog({
   );
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const assistantsLookup = useMemo(() => new Set(assistantIds), [assistantIds]);
   const athleteLookup = useMemo(() => new Set(selectedAthletes), [selectedAthletes]);
@@ -232,6 +235,42 @@ export function EditGroupDialog({
     });
   };
 
+  const handleDelete = async () => {
+    setIsDeleting(true);
+    setError(null);
+    try {
+      const response = await fetch(`/api/groups/${group.id}`, {
+        method: "DELETE",
+        headers: { "x-academy-id": academyId },
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.message ?? data.error ?? `No se pudo eliminar el ${groupTermLower}.`);
+      }
+
+      setDeleteDialogOpen(false);
+      await onUpdated();
+      onClose();
+      pushToast({
+        title: `${groupTerm} eliminado`,
+        description: `El ${groupTermLower} se eliminó correctamente.`,
+        variant: "success",
+      });
+    } catch (err: unknown) {
+      const errMsg =
+        err instanceof Error ? err.message : `Error desconocido al eliminar el ${groupTermLower}.`;
+      setError(errMsg);
+      pushToast({
+        title: `No se pudo eliminar el ${groupTermLower}`,
+        description: errMsg,
+        variant: "error",
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <Modal
       open={open}
@@ -239,23 +278,33 @@ export function EditGroupDialog({
       title={`Editar ${groupTermLower}`}
       description={`Modifica la información del ${groupTermLower}, responsables y ${athleteTermPluralLower}.`}
       footer={
-        <div className="flex justify-end gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-4">
           <button
             type="button"
-            onClick={handleClose}
-            className="rounded-md border border-border px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={isPending}
+            onClick={() => setDeleteDialogOpen(true)}
+            className="text-sm font-semibold text-red-600 hover:underline disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={isPending || isDeleting}
           >
-            Cancelar
+            Eliminar {groupTermLower}
           </button>
-          <button
-            type="submit"
-            form="edit-group-form"
-            className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white shadow hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={isPending}
-          >
-            {isPending ? "Guardando…" : "Guardar cambios"}
-          </button>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={handleClose}
+              className="rounded-md border border-border px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={isPending || isDeleting}
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              form="edit-group-form"
+              className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white shadow hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={isPending || isDeleting}
+            >
+              {isPending ? "Guardando…" : "Guardar cambios"}
+            </button>
+          </div>
         </div>
       }
     >
@@ -558,6 +607,18 @@ export function EditGroupDialog({
           </div>
         </div>
       </form>
+
+      <ConfirmDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title={`Eliminar ${groupTermLower}`}
+        description={`¿Seguro que quieres eliminar "${group.name}"? Esta acción no se puede deshacer. Las ${athleteTermPluralLower} no se eliminan, pero dejarán de pertenecer a este ${groupTermLower} y perderán su cuota asociada.`}
+        variant="destructive"
+        confirmText="Eliminar"
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteDialogOpen(false)}
+        loading={isDeleting}
+      />
     </Modal>
   );
 }
