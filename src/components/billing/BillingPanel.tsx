@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { TooltipOnboarding } from "@/components/tooltips/TooltipOnboarding";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { StudentChargesTab } from "./StudentChargesTab";
 import { CollectionStatsCard } from "./CollectionStatsCard";
 import { BillingRiskWidget } from "@/components/dashboard/BillingRiskWidget";
@@ -406,23 +407,20 @@ export const BillingPanel = memo(function BillingPanel({ academyId, userId, spor
               </p>
             )}
             {summary.planCode === "free" && summary.trial.eligible && (
-              <button
-                type="button"
-                onClick={startTrial}
-                disabled={loadingAction === "trial"}
-                className="min-h-11 rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-dark disabled:opacity-60"
-              >
+              <Button type="button" onClick={startTrial} disabled={loadingAction === "trial"}>
                 {loadingAction === "trial" ? "Activando prueba…" : "Probar Starter 7 días sin tarjeta"}
-              </button>
+              </Button>
             )}
             {summary.hasManagedSubscription && (
               <TooltipOnboarding
                 tooltipId="tooltip_payments"
                 message="Configura pagos una sola vez y deja de perseguir a padres cada mes."
               >
-                <button
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="mt-2"
                   onClick={openPortal}
-                  className="mt-2 min-h-11 rounded-xl border border-zaltyko-indigo px-3 py-2 text-sm font-medium text-zaltyko-indigo transition-colors hover:bg-zaltyko-indigo/5"
                   disabled={loadingAction === "portal"}
                 >
                   {loadingAction === "portal" ? (
@@ -442,7 +440,7 @@ export const BillingPanel = memo(function BillingPanel({ academyId, userId, spor
                       Gestionar en Stripe
                     </span>
                   )}
-                </button>
+                </Button>
               </TooltipOnboarding>
             )}
           </div>
@@ -489,8 +487,9 @@ export const BillingPanel = memo(function BillingPanel({ academyId, userId, spor
                       Hasta {plan.athleteLimit} {athletesTermLower} incluidos
                     </p>
                   )}
-                  <button
-                    className="mt-4 min-h-11 w-full rounded-xl bg-zaltyko-teal px-4 py-2 font-medium text-white transition hover:bg-primary-dark disabled:bg-zaltyko-mist disabled:text-slate-500"
+                  <Button
+                    type="button"
+                    className="mt-4 w-full"
                     disabled={isFree || isCurrent || loadingAction === code || loadingAction === "portal"}
                     onClick={() => (summary?.hasManagedSubscription ? openPortal() : triggerCheckout(code))}
                   >
@@ -503,7 +502,7 @@ export const BillingPanel = memo(function BillingPanel({ academyId, userId, spor
                       : summary?.hasManagedSubscription
                       ? "Gestionar cambio"
                       : "Seleccionar"}
-                  </button>
+                  </Button>
                 </div>
               </article>
             );
