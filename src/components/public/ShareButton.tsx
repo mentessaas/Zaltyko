@@ -1,4 +1,5 @@
 "use client";
+import { Button } from "@/components/ui/button";
 
 import { Share2 } from "lucide-react";
 import { useState } from "react";
@@ -39,13 +40,10 @@ export function ShareButton({ eventId, eventTitle }: ShareButtonProps) {
   };
 
   return (
-    <button
-      onClick={handleShare}
-      className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition-all hover:bg-muted hover:border-zaltyko-primary/50"
-    >
+    <Button type="button" variant="outline" size="sm" onClick={handleShare}>
       <Share2 className="h-4 w-4" />
       {copied ? "¡Copiado!" : "Compartir"}
-    </button>
+    </Button>
   );
 }
 
