@@ -1,4 +1,5 @@
 "use client";
+import { Button } from "@/components/ui/button";
 
 import { FormEvent, useState, useTransition } from "react";
 
@@ -100,22 +101,12 @@ export function CreateCoachDialog({ academyId, sportConfigs, open, onClose, onCr
       description={`Invita a ${coachTermLower}s, asistentes o personal de apoyo para que gestionen clases.`}
       footer={
         <div className="flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={handleClose}
-            className="rounded-md border border-border px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={isPending}
-          >
+          <Button type="button" variant="outline" onClick={handleClose} disabled={isPending}>
             Cancelar
-          </button>
-          <button
-            type="submit"
-            form="create-coach-form"
-            className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white shadow hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={isPending}
-          >
+          </Button>
+          <Button type="submit" form="create-coach-form" disabled={isPending}>
             {isPending ? "Guardando…" : `Guardar ${coachTermLower}`}
-          </button>
+          </Button>
         </div>
       }
     >

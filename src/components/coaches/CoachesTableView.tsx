@@ -1,4 +1,5 @@
 "use client";
+import { Button } from "@/components/ui/button";
 
 import Link from "next/link";
 import { FormEvent, useMemo, useState, useTransition } from "react";
@@ -157,23 +158,15 @@ export function CoachesTableView({ academyId, coaches, classes, sportConfigs, gr
               </option>
             ))}
           </select>
-          <button
-            type="submit"
-            disabled={isPending}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow hover:bg-primary/90 disabled:opacity-60"
-          >
+          <Button type="submit" size="sm" disabled={isPending}>
             Filtrar
-          </button>
+          </Button>
         </form>
 
         <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => setCreateOpen(true)}
-            className="inline-flex items-center justify-center rounded-md bg-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-emerald-600"
-          >
+          <Button type="button" size="sm" onClick={() => setCreateOpen(true)}>
             Nuevo {coachTermLower}
-          </button>
+          </Button>
         </div>
       </section>
 
@@ -191,13 +184,9 @@ export function CoachesTableView({ academyId, coaches, classes, sportConfigs, gr
               : `Aún no has creado ningún ${coachTermLower}. Crea tu primer ${coachTermLower} para asignarlo a clases y ${groupTermLower}s.`}
           </p>
           {!hasActiveFilters && (
-            <button
-              type="button"
-              onClick={() => setCreateOpen(true)}
-              className="inline-flex items-center justify-center rounded-md bg-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-emerald-600"
-            >
+            <Button type="button" onClick={() => setCreateOpen(true)}>
               Crear primer {coachTermLower}
-            </button>
+            </Button>
           )}
         </div>
       ) : (
