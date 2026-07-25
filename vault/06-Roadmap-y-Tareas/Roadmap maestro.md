@@ -39,6 +39,10 @@ source:
 - Integraciones, add-ons monetizables, multi-sede avanzado.
 - IA visible y util.
 - Marketplace/empleo como canal de revenue (5 lineas de monetizacion en [[Modelo de negocio]]).
+- Simulador de capacidad/rentabilidad (m², aparatos, entrenadores, horario →
+  capacidad máxima, punto de equilibrio, facturación potencial, cuándo
+  contratar otro entrenador). Idea propuesta 2026-07-24, sin validar ni
+  priorizar; posible gancho de conversión para academias nuevas.
 
 ## Proximos pasos sugeridos (continuidad para agentes)
 

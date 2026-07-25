@@ -1,0 +1,91 @@
+{
+  "expo": {
+    "name": "Zaltyko",
+    "slug": "zaltyko",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "zaltyko",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0F172A"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.mentessaas.zaltyko",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSUserNotificationsUsageDescription": "Te avisamos de nuevas clases, avisos y pagos de tu academia.",
+        "NSCameraUsageDescription": "Necesitamos la cámara para subir fotos de progreso y documentos.",
+        "NSPhotoLibraryUsageDescription": "Elige fotos para subir a tu perfil o a la academia.",
+        "NSPhotoLibraryAddUsageDescription": "Guarda recibos y justificantes en tu galería.",
+        "NSFaceIDUsageDescription": "Usa Face ID para volver a entrar a Zaltyko sin escribir la contraseña."
+      },
+      "associatedDomains": ["applinks:zaltyko.com"]
+    },
+    "android": {
+      "package": "com.mentessaas.zaltyko",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0F172A"
+      },
+      "permissions": [
+        "android.permission.INTERNET",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT",
+        "android.permission.CAMERA",
+        "android.permission.READ_MEDIA_IMAGES"
+      ],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [{ "scheme": "https", "host": "zaltyko.com", "pathPrefix": "/" }],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/icon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-local-authentication",
+      [
+        "expo-notifications",
+        {
+          "color": "#0F172A",
+          "defaultChannel": "default",
+          "sounds": []
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#0F172A"
+        }
+      ]
+    ],
+    "description": "Zaltyko es la app companion para familias, atletas y entrenadores de tu academia. Consulta la agenda, las cuotas y los avisos de tu academia, y recibe notificaciones instantáneas cuando hay novedades. Los pagos se gestionan en la web para cumplir con las políticas de la App Store.",
+    "experiments": {},
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "REPLACE_WITH_EAS_PROJECT_ID"
+      }
+    }
+  }
+}

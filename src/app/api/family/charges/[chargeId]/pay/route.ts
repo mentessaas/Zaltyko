@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
 
-import { createClient } from "@/lib/supabase/server";
+import { getAuthenticatedRequestUser } from "@/lib/supabase/request-user";
 import { resolveFamilyChargeAccess } from "@/lib/family/payment-access";
 import { collectCharge } from "@/lib/stripe/charge-collection-service";
 import { logger } from "@/lib/logger";
@@ -15,6 +14,7 @@ export const dynamic = "force-dynamic";
  *
  * Permite a un padre/madre pagar una cuota pendiente con la tarjeta guardada.
  * Verifica que el cargo pertenece a uno de sus hijos y dispara collectCharge.
+ * Acepta cookies (web) o Authorization: Bearer <jwt> (app móvil).
  */
 export async function POST(request: Request) {
   try {
@@ -25,11 +25,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "CHARGE_ID_REQUIRED" }, { status: 400 });
     }
 
-    const cookieStore = await cookies();
-    const supabase = await createClient(cookieStore);
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const user = await getAuthenticatedRequestUser(request);
     if (!user || !user.email) {
       return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
     }

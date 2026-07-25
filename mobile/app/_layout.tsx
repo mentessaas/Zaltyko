@@ -9,9 +9,8 @@
 // index.ts antes de expo-router/entry, para que esté listo antes de que
 // PushProvider importe expo-notifications y dispare el warning de Keychain.
 
-import 'react-native-gesture-handler';
-import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { useEffect } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { SplashScreen, Stack } from 'expo-router';

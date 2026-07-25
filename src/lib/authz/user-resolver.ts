@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
+import { createBearerSupabaseClient, getBearerToken } from "@/lib/supabase/bearer-client";
 import { getDevSessionFromCookieStore } from "@/lib/dev-session";
 import { logger } from "@/lib/logger";
 
@@ -55,7 +56,35 @@ export async function resolveUserId(
     }
   }
 
+  // Clientes sin cookies (app móvil, PWA) mandan Authorization: Bearer <jwt>.
+  // Se valida la firma contra Supabase antes de confiar en el userId.
+  const bearerUserId = await resolveUserIdFromBearer(request);
+  if (bearerUserId) {
+    return bearerUserId;
+  }
+
   return null;
+}
+
+async function resolveUserIdFromBearer(request: Request): Promise<string | null> {
+  const token = getBearerToken(request);
+  if (!token) return null;
+
+  try {
+    const supabase = createBearerSupabaseClient(token);
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser(token);
+    if (error || !user) {
+      logger.warn("Bearer token rejected by Supabase", { error: error?.message });
+      return null;
+    }
+    return user.id;
+  } catch (err) {
+    logger.warn("Failed to validate bearer token", { err });
+    return null;
+  }
 }
 
 function isTrustedInternalRequest(request: Request): boolean {

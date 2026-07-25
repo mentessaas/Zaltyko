@@ -9,6 +9,224 @@ source:
 
 # Changelog interno
 
+## 2026-07-25 - Apps nativas: cierre Bearer auth (Inicio→Agenda→Avisos) + infra de tests móvil
+
+Continuación de las semanas 1-8 (ver entradas 2026-07-23/24 más abajo, aún sin commitear cuando empezó esta sesión). Foco: cerrar la compatibilidad Bearer entre la app móvil y el backend para el flujo login → Inicio → Agenda → Avisos, y dejar mobile/ con verificación automática real (antes no tenía ni lint config ni tests).
+
+**Bearer auth — estado verificado, no todo era nuevo de esta sesión:**
+- `src/lib/authz/user-resolver.ts` (`resolveUserId`, usado por `withTenant`): ya tenía fallback a `Authorization: Bearer <jwt>` cuando no hay cookies (valida firma contra Supabase antes de confiar en el userId). Esto significa que **todos** los endpoints que usan `withTenant` — incluido `/api/notifications`, `/api/notifications/unread-count`, `/api/notifications/read-all`, `/api/notifications/[id]` (Avisos) — ya son bearer-compatibles sin tocarlos.
+- `/api/me` (nuevo, bearer-only): perfil + rol + academia activa, primer request de la app tras login.
+- `/api/me/schedule` (Agenda) y `/api/me/events`: ya resuelven bearer directamente con `createBearerSupabaseClient`. `/api/me/events` tenía un bug de nombre de columna (`academy_id` vs `active_academy_id` en `profiles`) ya corregido.
+- `/api/family/children` y `/api/family/charges/[chargeId]/pay`: migrados a un helper nuevo compartido `src/lib/supabase/request-user.ts:getAuthenticatedRequestUser()` que intenta cookies (web) y cae a bearer (móvil) — antes solo aceptaban cookies y rechazaban a la app con 401.
+- `/api/me/delete-account` (bearer-only, Apple Guideline 5.1.1): confirmado presente y correcto.
+- `src/lib/notifications/push-service.ts` + `src/lib/notifications/expo-push.ts`: envío nativo (Expo Push) agregado al envío web (VAPID) existente, mismo contrato `{sent, failed}`.
+- **Nuevo esta sesión**: `tests/lib/user-resolver-bearer.test.ts` (4 tests: resuelve por bearer, rechaza token inválido, no intenta bearer sin header, prioriza cookies sobre bearer) y `tests/lib/push-service-expo.test.ts` (3 tests: agrega Expo aunque no haya subs web, respeta `EXPO_PUSH_ENABLED=false`, un fallo de Expo no rompe el caller). Antes de esta sesión ninguno de los dos caminos tenía test directo.
+
+**Infra de verificación en `mobile/` (no existía ninguna):**
+- `mobile/eslint.config.mjs`: faltaba por completo — `npm run lint` fallaba porque ESLint 9 heredaba el flat config raíz de Next.js (`eslint-config-next`) en vez de `eslint-config-expo`. Config nuevo sobre `eslint-config-expo/flat.js`.
+- `mobile/vitest.config.ts` + `mobile/package.json` (`"test": "vitest run"`, `vitest` como devDependency): tampoco existía ningún test runner. Cubre solo lógica pura por ahora (no hay jest-expo/RN Testing Library para `.tsx`):
+  - `mobile/lib/api/client.test.ts` (6 tests): adjunta Bearer desde la sesión de Supabase, retry único ante 401 con refresh, propaga error si el refresh también falla, no llama a fetch sin sesión, envuelve errores de red como `ApiClientError`, serializa body en POST.
+  - `mobile/lib/auth/role-router.test.ts` (6 tests): parent/athlete nunca ven tabs admin (`billing`), coach tiene home propio (no "home"/no "billing"), owner/admin/super_admin comparten tabs, rol desconocido cae a `parent` por defecto, agenda/avisos apuntan a las mismas rutas en todos los roles.
+- Limpieza: 3 warnings de lint reales corregidos (`StyleSheet` sin usar en `RefreshableScrollView.tsx`, `Device` sin usar en `push/register.ts`, `apiPatch` sin usar en `api/endpoints.ts`) + auto-fix de `Array<T>` → `T[]` e imports duplicados donde aplicaba.
+- `mobile/README.md`: corregido (decía `pnpm`, el proyecto usa `npm` — hay `package-lock.json`, no `pnpm-lock.yaml`) + sección nueva de verificación (`typecheck`/`lint`/`test`).
+
+**Verificación ejecutada:**
+- `mobile/`: `npm run typecheck` limpio, `npm run lint` limpio (0 errores, 0 warnings), `npx vitest run` → 12/12 tests verdes.
+- Backend: `pnpm typecheck` limpio, `npx vitest run` completo → **109 archivos / 764 tests verdes** (sin regressions de los cambios de bearer auth).
+
+**No verificado — bloqueo de entorno, no de código:**
+- No se pudo abrir el simulador de iOS: `mcp Claude Code iOS Simulator` devuelve "Xcode is installed but not selected", requiere `sudo xcode-select -s /Applications/Xcode.app/Contents/Developer` con contraseña del usuario (no disponible en este entorno). No hay herramienta de emulador Android disponible en esta sesión.
+- En consecuencia, el flujo real login → Inicio → Agenda → Avisos **no se probó en dispositivo/simulador real** esta sesión — solo se verificó por lectura de código + tests unitarios + typecheck. Riesgo residual: bugs de UI/runtime que solo aparecen en el device (ej. shape de respuesta inesperado, deep link, keychain) no quedan cubiertos.
+- Pendiente para la próxima sesión: correr `sudo xcode-select -s /Applications/Xcode.app/Contents/Developer`, luego repetir la verificación en simulador con una cuenta real (parent/coach) para confirmar visualmente Inicio→Agenda→Avisos sin 401.
+
+**Coordinación con trabajo concurrente:** durante esta sesión otro agente estuvo trabajando en paralelo sobre el mismo working directory, añadiendo una función de "Mensajes" (`mobile/app/messages/`, `mobile/components/messages/`, tab nueva en `mobile/lib/auth/role-router.ts` y `mobile/app/(tabs)/_layout.tsx`) y de "Progreso" (`src/app/api/me/progress/route.ts`, `mobile/components/progress/`). Esos archivos se dejaron **intencionalmente fuera de este commit** — están en el working directory sin commitear, listos para que esa sesión los cierre — para no atribuirme ni interferir con un trabajo ajeno todavía en curso. `mobile/lib/auth/role-router.test.ts` se escribió sin asumir el set exacto de tabs para no romperse cuando esa tab se añada.
+
+**Limpieza fuera de alcance pero cubierta por la regla de la guía de agentes:** se detectaron y borraron 14 archivos `nombre 2.ext` sin rastrear (`src/app/(site)/[locale]/page 2.tsx`, `src/app/api/billing/route 2.ts`, `src/app/api/super-admin/route 2.ts`, `src/app/auth/signup/page 2.tsx`, `src/app/{ayuda,integraciones,politica-privacidad,sobre-nosotros,terminos}/page 2.tsx`, `src/lib/family/access-policy 2.ts`, `tests/lib/{attendance-service,family-scope-service,progress-service,update-class-helpers}.test 2.ts`). Comparados contra su original con `diff`: todos eran versiones más viejas/simples (algunos idénticos, otros con menos funcionalidad — ej. stubs de `redirect()` en vez de las páginas reales) — basura de sincronización de filesystem, no trabajo en curso. `pnpm typecheck` se re-verificó limpio tras borrarlos.
+
+Vault: actualizado este Changelog. `Roadmap maestro.md` no se tocó esta sesión (su diff pendiente ya estaba del trabajo previo, ver entrada de Semana 8 más abajo).
+
+## 2026-07-24 - Multi-grupo real por atleta con cuota por grupo
+
+Decisión de producto tomada por el owner (ver [[Decisiones#2026-07-24 (2) - Multi-grupo real por atleta con cuota por grupo]]). Una alumna puede pertenecer a varios grupos a la vez y cada grupo genera su propia cuota.
+
+Datos:
+- `charges.group_id` (nuevo, aditivo) + índices `charges_group_id_idx` y `charges_academy_athlete_period_group_idx`. Schema Drizzle (`src/db/schema/charges.ts`) + migración `supabase/migrations/20260724130000_add_group_id_to_charges.sql` (**no aplicada**).
+
+Backend:
+- `src/app/api/athletes/route.ts` (POST) y `src/app/api/athletes/[athleteId]/route.ts` (PUT + PATCH): aceptan `groupIds[]` (además de `groupId` por compat). Helpers compartidos `resolveGroupTarget`/`validateTargetGroups`/`reconcileAthleteGroups` reconcilian `group_athletes` (añaden/quitan preservando `custom_fee_cents`). El GET del atleta ahora devuelve `groupIds`. `athletes.group_id` = grupo principal (`groupIds[0]`).
+- `src/app/api/charges/generate-monthly/route.ts`: reescrito a **un cargo por pertenencia a grupo** (custom_fee ?? cuota del grupo), dedupe por `(atleta, periodo, group_id)`, con fallback legacy. Cubierto por `tests/api-charges-generate-monthly.test.ts` (2 tests).
+- `src/app/api/charges/route.ts`: el listado filtra por `charges.group_id` y muestra el grupo del cargo (coalesce con el legacy).
+- `src/lib/billing/sync-charges.ts`: group-scoped (filtra por `group_id`) para no pisar los cargos de otros grupos del mismo periodo.
+
+UI:
+- `AthleteBasicInfoForm` + `use-edit-athlete` + `EditAthleteDialog`: sección "Grupos adicionales" (multi-checkbox) en la edición; el alta mantiene grupo principal único (se añaden más desde edición). El hook carga las pertenencias reales al abrir y envía `groupIds` al guardar.
+- **Pendiente QA manual**: el multi-select no se pudo verificar en la app corriendo desde aquí.
+
+Verificación: `pnpm typecheck` limpio; suites de atletas, facturación (incl. multi-grupo), cargos, clases y asistencia en verde. Sin tocar wrappers de auth ni RLS.
+
+## 2026-07-24 - Coherencia horario/facturación: desacoplar la agenda del grupo legacy
+
+Origen: auditoría del modelo de gimnasia (¿soporta horarios personalizados de varias horas/días por alumna?). Ver decisión completa en [[Decisiones#2026-07-24 - La agenda del atleta se desacopla del grupo; la cuota sigue siendo por grupo]].
+
+Problema de fondo: el schema ya soporta multi-grupo/multi-clase, pero tres flujos leían el campo legacy `athletes.group_id` (`@deprecated`) en vez de la relación real `group_athletes`, produciendo horarios incompletos, conflictos no detectados, capacidad mal contada y cargos inconsistentes en atletas multi-grupo.
+
+Cambios de código (sin migraciones — solo lógica de lectura):
+
+- `src/lib/classes/schedule-conflicts.ts`: nuevo helper `resolveAthleteGroupIds()` que resuelve **todos** los grupos del atleta (`group_athletes` + fallback legacy). `hasScheduleConflictForAthlete` y `checkScheduleConflict` lo usan en vez de `athletes.group_id`. `hasScheduleConflictForAthlete` ahora también considera el vínculo directo `classes.group_id` y las clases extra (`athlete_extra_classes`), que antes se ignoraban.
+- `src/app/actions/classes/get-athlete-schedule.ts`: reescrito para unir clases de todos los grupos (`group_athletes`) + `class_enrollments` + `athlete_extra_classes`, deduplicando con prioridad "base" sobre "extra". Eliminado el bloque de código muerto de "sesiones por fecha" (stubs que no hacían nada). Antes solo miraba `athlete.group_id` e ignoraba `class_enrollments`.
+- `src/app/api/class-enrollments/route.ts`: el control de capacidad estaba roto (contaba `classEnrollments.id` en vez de `count(*)` y solo miraba los "extras", ignorando a los miembros del grupo). Ahora la ocupación real se calcula con `getClassAthletes()` (grupo + enrollments, deduplicado).
+- `src/app/api/charges/generate-monthly/route.ts`: al facturar un grupo concreto ahora se usa la cuota de **ese** grupo (antes usaba `athlete.group_id`, que podía apuntar a otro grupo). Al facturar toda la academia, se resuelve el grupo facturable desde `group_athletes` para los atletas sin `group_id` legacy (antes se saltaban sin generar cargo). Se mantiene la semántica de **un cargo por atleta** (modelo cuota-por-grupo de [[Pricing]]); no se introdujo multi-cargo ni cuota por horas.
+- `src/app/api/athletes/[athleteId]/route.ts`: raíz de la divergencia. El PATCH **acumulaba** filas en `group_athletes` al cambiar de grupo (insertaba el nuevo sin quitar el anterior), dejando pertenencias obsoletas que inflaban rosters y capacidad. Ahora borra las pertenencias a otros grupos y conserva/inserta la del grupo destino (sin perder su `custom_fee_cents`). Así `group_athletes` refleja 1:1 el grupo principal.
+- `supabase/migrations/20260724120000_reconcile_group_athletes_primary.sql`: reconciliación de datos históricos. Parte 1 (no destructiva, idempotente): inserta la pertenencia al grupo principal si falta. Parte 2 (destructiva, comentada): limpieza de filas obsoletas, a ejecutar solo tras revisión manual. **No aplicada** — pendiente de correr en Supabase.
+
+Modelo vigente confirmado: **un grupo principal por atleta**. Multi-grupo real (varios grupos simultáneos por alumna) NO se implementó: no hay UI ni decisión de pricing, y contradiría "un cargo por atleta". Queda como fork de producto documentado en [[Decisiones#2026-07-24 - La agenda del atleta se desacopla del grupo; la cuota sigue siendo por grupo]].
+
+Modelo de cobro: **sin cambios de pricing.** La cuota sigue siendo por grupo + override por atleta (`group_athletes.custom_fee_cents`), que ya cubre horas variables de forma manual. "Cuota por horas" queda diferida a validación comercial; punch passes / make-up tokens siguen siendo la evolución sancionada.
+
+Verificación: `pnpm typecheck` limpio; `vitest run` de api-classes, api-class-sessions, api-attendance, api-billing, api-charges-sport-config, attendance-service, update-class-helpers y billing.integration → 28/28 verde. Sin migraciones, sin tocar wrappers de auth ni RLS. `athletes.group_id` sigue como fallback; su eliminación con backfill queda en backlog.
+
+Vault: actualizadas Decisiones (nueva entrada) y este Changelog.
+
+## 2026-07-24 - Apps nativas: account deletion, legal screen y copy de store (Semana 8)
+
+- Nuevo endpoint backend `src/app/api/me/delete-account/route.ts` (POST) para auto-eliminación de cuenta (Apple Guideline 5.1.1 + Google data-deletion). Acepta solo Bearer token (uso móvil). Validaciones y comportamiento:
+  - Body requiere `confirm: "ELIMINAR MI CUENTA"` literal (Zod `z.literal`) para impedir borrados accidentales.
+  - Verifica el JWT vía `createBearerSupabaseClient` + `supabase.auth.getUser()`.
+  - Purgabest-effort: `DELETE FROM push_tokens WHERE user_id = ?` antes de borrar el usuario.
+  - Llama a `deleteAuthUser(userId)` (admin-operations ya existente) — los cascades de FK en `profiles` y resto de tablas referenciadas a `auth.users.id` se aplican automáticamente.
+  - Devuelve `apiSuccess({ok: true})` o `apiError` con códigos `UNAUTHENTICATED` / `CONFIRMATION_REQUIRED` / `INTERNAL_ERROR`.
+  - **Limitación explícita**: NO anonimiza datos históricos (asistencia, pagos) — se conservan por obligación legal. NO envía email de despedida. Ambos quedan como follow-up fuera de MVP.
+- App móvil:
+  - Nuevo endpoint tipado `lib/api/endpoints.ts:deleteMyAccount()` que POSTa a `/api/me/delete-account` con la frase de confirmación hardcodeada.
+  - Nueva pantalla `mobile/app/profile/legal.tsx`: sección "Documentos legales" con botones que abren `/politica-privacidad` y `/terminos` en WebBrowser (Safari/Chrome, NO WebView). Sección "Eliminar mi cuenta" con modal de confirmación que exige escribir la frase literal antes de habilitar el botón "Eliminar definitivamente". Tras éxito, cierra sesión y redirige a login.
+  - `app/(tabs)/profile.tsx` añade Card "Legal y privacidad" con CTA a `/profile/legal` (reemplaza el patrón anterior de "Cerrar sesión" como única acción final).
+- `app.json` añade campo `description` (sin localization por ahora — EAS Submit acepta un único string). Descripción explica el caso B2B companion para evitar preguntas de Apple/Google.
+- **No incluido en este commit (requiere trabajo de diseño, no de código)**:
+  - `assets/icon.png` 1024×1024 sin transparencia (placeholder actual; Apple rechaza si rounded corners o alpha).
+  - `assets/splash.png` y `assets/adaptive-icon.png` en las medidas exactas.
+  - Screenshots por dispositivo (iPhone 6.7"/6.1", Android phone/tablet) — para generar con `npx expo prebuild` + simulador o device real.
+  - Textos de listing (subtítulo 30 chars, keywords 100 chars, descripción larga 4000 chars) localizados es+en para App Store Connect y Google Play Console.
+  - Demo account para que Apple pruebe login.
+  - Sign in with Apple si en el futuro se añade login social (no aplica al MVP — solo email+password).
+- Sin migraciones. El endpoint nuevo es 100% additive; no se cambió ningún route existente.
+
+**Pendiente de validación manual (no automatizable aquí):**
+- Probar `POST /api/me/delete-account` con cuenta real vía `curl -H "Authorization: Bearer <jwt>"` y verificar que la fila en `auth.users` desaparece y los cascades borran `profiles` y resto.
+- Confirmar que la app tras eliminación redirige a login sin sesión residual en SecureStore.
+- Apple/Google review: incluir nota en "Review notes" explicando que el modelo es B2B companion (pagos en web), que el login es email+password sin redes sociales (no requiere Sign in with Apple), y que la app tiene flujo de account deletion accesible desde Perfil → Legal y privacidad.
+
+**Siguiente paso (Semana 9-10):** `eas init` + `eas build --profile production` para iOS y Android. Subir el .ipa a App Store Connect (TestFlight) y el .aab a Google Play Internal Testing (necesita 12 testers durante 14 días por la regla de cuentas nuevas de Google). Mientras esos builds progresan, se generan los assets de diseño (icon, splash, screenshots) en paralelo.
+
+Vault: no se modificaron notas del vault salvo este changelog.
+
+## 2026-07-24 - Apps nativas: avisos en vivo + lock biométrico + pulido UX (Semana 7)
+
+- Avisos (`app/(tabs)/notifications.tsx`) reescrito sobre `/api/notifications` + Realtime Supabase. Nuevo wrapper `lib/realtime/subscribe.ts:subscribeToUserNotifications(profileId, onNew)` que abre canal `realtime:notifications:<id>` filtrado por `user_id=eq.<id>` y solo emite INSERT (mismo patrón que `subscribeToNotifications` del backend, pero en cliente móvil). TanStack Query mantiene la cache local; la inserción realtime inyecta el aviso nuevo al principio del array (con guard de id duplicado). Cabecera con conteo "N sin leer" + CTA "Marcar todo como leído" vía `PUT /api/notifications/read-all`. `RefreshControl` para pull-to-refresh.
+- Nuevos endpoints tipados en `lib/api/endpoints.ts`: `getNotifications`, `getUnreadCount`, `markAllNotificationsRead`, `deleteNotification`. `getNotifications` maneja el shape `{items: [...]}` del backend deserializando a array plano (igual que `/api/family/children`).
+- Bug detectado y corregido: `apiPut` no existía en `lib/api/client.ts` (solo `apiGet/apiPost/apiPatch/apiDelete`). Añadido y exportado.
+- Lock biométrico (`lib/biometrics/index.ts` + `components/auth/BiometricGate.tsx`):
+  - Default ON. Flag persistido en SecureStore (`biometric_lock_enabled`); el usuario puede apagarlo desde Perfil.
+  - Re-auth vía `expo-local-authentication` (Face ID / huella) al volver del background tras >30s. Umbral corto = fricción, umbral largo = seguridad floja — 30s es el sweet spot.
+  - Hook escucha `AppState`: al ir a background graba `last_active_at`; al volver evalúa el lock; auto-intenta autenticar para minimizar toques; reintento manual con CTA.
+  - `BiometricGate` envuelve `<Tabs>` en `(tabs)/_layout.tsx` — toda la app autenticada pasa por el gate. Login (`(auth)/login.tsx`) NO se bloquea (el usuario acaba de meter creds).
+  - Toggle "Bloqueo con biometría" en `app/(tabs)/profile.tsx` con `Switch`, solo visible si `canUseBiometrics()` (hardware + enrolled). Los permisos iOS `NSFaceIDUsageDescription` y Android `USE_BIOMETRIC`/`USE_FINGERPRINT` ya estaban en `app.json` desde Semana 1; el plugin `expo-local-authentication` también.
+- Pulido UX:
+  - Nuevo `components/ui/RefreshableScrollView.tsx`: `ScrollView` con `RefreshControl` preconfigurado (color primario, spinner tint). Aplicado a home (`(tabs)/index.tsx`), schedule, `family/child/[id]`, `family/invoices`. El home invalida las queries según rol en `onRefresh`.
+  - Nuevo `components/ui/ErrorBanner.tsx`: banner inline rojo con icono + mensaje + retry opcional, no bloqueante. Usado en `app/coach/attendance/[sessionId].tsx` en lugar de `Alert.alert` para errores de guardado (éxito sigue con Alert). Mejora el feedback continuo y permite reintentar sin tap extra.
+  - Login mantiene su mensaje inline (no usa ErrorBanner porque ya está en un formulario compacto).
+- Refactor: corregido un archivo que se había creado por error en `/Users/elvisvaldesinerarte/Desktop/_PROYECTOS/Zaltyko/app/coach/attendance/[sessionId].tsx` (fuera de `mobile/`); movido a `mobile/app/coach/attendance/[sessionId].tsx` con `ErrorBanner` ya integrado.
+- `mobile/` ahora tiene 42 archivos (6 nuevos). Sin cambios en `src/` del backend. Sin migraciones. Sin tocar wrappers de auth ni RLS. La app móvil sigue consumiendo exclusivamente las APIs ya existentes.
+
+**Pendiente de validación manual (no automatizable aquí):**
+- Flujo realtime real: enviar POST a `/api/messages/send` (o cualquier emisor de notifications) con la app móvil abierta → el aviso debe aparecer al instante en la bandeja sin pull-to-refresh.
+- Biometría en device real (Face ID en simulador funciona pero el prompt es simulado).
+- Probar toggle off/on del lock; verificar que con lock OFF el gate nunca se muestra.
+- Verificar pull-to-refresh en cada screen sin colisionar con el `ScrollView` anidado.
+
+**Siguiente paso (Semana 8):** assets de stores — icon 1024×1024 sin transparencia, splash multi-tamaño, screenshots 6.7"/6.1"/tablet, copy localizada es+en, privacy policy URL ya live (existe `/politica-privacidad`), endpoint `DELETE /api/me` para account deletion (verificar si ya existe, si no añadir), Sign in with Apple si el backend lo ofrece.
+
+Vault: no se modificaron notas del vault salvo este changelog.
+
+## 2026-07-24 - Apps nativas: portal coach y toma de asistencia (Semana 5-6)
+
+- `mobile/lib/api/endpoints.ts` añade el bloque "Coach: sessions, attendance, athletes" con `ClassSessionRow`, `ClassAthlete`, `AttendanceStatus`, `AttendanceRecord` y wrappers `getSessions({from,to,classId,coachId})`, `getClassAthletes(classId)`, `getSessionAttendance(sessionId)`, `upsertAttendance(sessionId, entries)`. Respeta shapes reales del backend (`/api/attendance` devuelve array directo, POST acepta `{sessionId, entries: [{athleteId, status, notes}]}` con `status` enum `present|absent|late|excused`).
+- `mobile/components/coach/SessionCard.tsx` (memoized): bloque de hora a la izquierda + clase + academia + coach opcional + badge verde si la asistencia ya fue marcada + CTA full-width "Tomar asistencia" / "Editar asistencia".
+- `mobile/components/attendance/StudentRow.tsx` (memoized): avatar con inicial, nombre, grupo, 4 botones toggle (A/T/F/J) con colores semánticos (`success`/`warning`/`danger`/`info`) + accesibilidad (`accessibilityRole=button`, `accessibilityLabel` por atleta, `accessibilityState.selected`). Bug detectado y corregido en revisión: la primera versión usaba `useCallback` dentro de `.map()` (violación de Rules of Hooks) — se eliminó el `useCallback` porque `StudentRow` ya está `memo`-izado y `onChange` se recrea cada render en el padre (`useCallback` solo añade coste, no valor).
+- `mobile/app/coach/attendance/[sessionId].tsx`: pantalla de marcado. Resuelve la `ClassSessionRow` desde la cache de `['class-sessions']` (sin segundo GET), carga atletas de la clase y asistencia existente en paralelo (queries separadas), hidrata `statusMap` local con `useEffect` cuando llegan los datos. `useMutation` envía upsert batch y muestra `Alert.alert` según resultado. Header con conteo "X de Y marcados" para feedback inmediato.
+- `mobile/app/(tabs)/index.tsx`: `CoachHome` ahora muestra sesiones reales de hoy (`getSessions({from: today, to: today})` con `staleTime: 60s`), orden por hora de inicio. Cada `SessionCard` marca asistencia cuando `session.status === 'completed'` (placeholder mientras no exista un GET dedicado a "ya marqué"). CTA navega a `/coach/attendance/[sessionId]`.
+- `mobile/` ahora tiene 36 archivos (4 nuevos). Sin cambios en `src/` del backend — todo lo necesario ya estaba disponible.
+- Sin migraciones, sin tocar RLS, sin tocar wrappers de auth, sin tocar API routes.
+
+**Pendiente de validación manual (no automatizable aquí):**
+- Flujo coach completo en dispositivo real con sesión programada: tomar asistencia, validar que el POST batchea correctamente, refrescar la home y ver el badge verde.
+- Edge case: sesión sin atletas inscritos (el `EmptyState` ya está implementado pero requiere datos de prueba).
+- Validar que el coach cuyo `userId` no coincide con `session.coachId` recibe 403 del backend; la UI no filtra por coach todavía — el backend ya lo hace por membership.
+
+**Siguiente paso (Semana 7):** realtime (suscripción a `notifications` del usuario vía Supabase Realtime para aviso en foreground sin necesidad de pull), biometría (Face ID / huella para re-entrar tras cerrar la app), pulido UX (estados de error tipados, retry exponencial en mutations, dark mode).
+
+Vault: no se modificaron notas del vault salvo este changelog.
+
+## 2026-07-23 - Apps nativas: portal familia real (Semana 3-4)
+
+- `mobile/lib/api/endpoints.ts`: capa tipada sobre `apiGet/apiPost/apiPatch/apiDelete`. Cubre los 9 endpoints que consume la app: `/api/me`, `/api/family/children`, `/api/me/schedule`, `/api/athletes/[id]/classes`, `/api/class-enrollments`, `/api/me/charges`, `/api/family/charges/[id]/pay`, `/api/me/events`, `/api/events/[id]/register`. Manejo explícito del shape no-estándar de `/api/family/children` (`{ children }` en vez de `{ data: children }`) — el cliente genérico no se tocó.
+- Componentes nuevos memoizados: `ChildCard` (avatar + nombre + academia), `ClassCard` (badge día/hora + body), `InvoiceCard` (estado + importe + CTA "Pagar en web" vía WebBrowser), `EventCard` (fecha + título + "Apuntarme"). Helpers UI: `EmptyState` (icon + título + CTA opcional) y `Skeleton` + `SkeletonGroup` (pulso sin librería externa).
+- Pantallas nuevas con TanStack Query (`staleTime` 60s para datos de portal):
+  - `app/family/child/[id].tsx`: nombre + academia + clases inscritas del atleta + CTA "Ver facturas".
+  - `app/family/invoices.tsx`: lista de cuotas con CTA "Pagar en web" (Apple Guideline 3.1.3(f): companion B2B → no IAP ni Stripe in-app).
+- Pantallas actualizadas con datos reales:
+  - `app/(tabs)/index.tsx`: parent ve lista real de hijos + top-3 eventos próximos; otros roles mantienen shell.
+  - `app/(tabs)/schedule.tsx`: consume `/api/me/schedule`, estados loading/error/empty diferenciados.
+  - `app/(tabs)/profile.tsx`: añade CTA "Mis facturas" para parent/athlete.
+- Pago de facturas: `getChargePayUrl(chargeId)` POST a `/api/family/charges/[id]/pay`, abre WebBrowser (Safari/Chrome, NO WebView in-app) con `presentationStyle=FULL_SCREEN`.
+- Inscripción (`enrollInClass`) y cancelación (`cancelEnrollment`) están tipadas correctamente (POST requiere `{academyId, classId, athleteId}`; DELETE no requiere body) pero NO se exponen en UI todavía — falta el catálogo de clases disponibles. Documentado como pendiente para Fase 2 o cuando se priorice UX de enrollment.
+- `mobile/` ahora tiene 32 archivos. Sin cambios en `src/` del backend.
+- `npx tsc --types node --noEmit -p tsconfig.json` → 0 errores.
+
+**Pendiente de validar manualmente:** flows reales con cuenta parent + hijo inscrito en clases + cuota pendiente. Requiere instalar deps en `mobile/` y dispositivo físico (push) o emulador (resto).
+
+**Siguiente paso (Semana 5-6):** portal coach — clases de hoy, tomar asistencia, notas rápidas. Listado de sesiones por día, marcado de asistencia por atleta, validaciones locales.
+
+Vault: no se modificaron notas del vault salvo este changelog.
+
+## 2026-07-23 - Apps nativas: push nativo iOS+Android (Semana 2)
+
+- Nuevo módulo backend `src/lib/notifications/expo-push.ts` con `sendExpoPushToUser(userId, payload)` y `isExpoPushConfigured()`. Lee de la tabla `push_tokens` (ya existente) filtrando por prefijo `ExponentPushToken[…]` — no requiere migración para distinguir de web/VAPID.
+- Batches de hasta 100 mensajes por request a `https://exp.host/--/api/v2/push/send` (recomendación oficial). Tickets con `DeviceNotRegistered` desactivan el token (`is_active=false`) sin borrarlo, para permitir re-registro si el usuario reinstala la app.
+- `push-service.ts` modificado mínimamente: `sendPushToUser` ahora suma también el resultado de Expo Push al agregado `{sent, failed}`. El contrato externo no cambia — los 5 callers existentes (mensajes, anuncios, conversaciones, cron `scheduled-notifications`, dispatcher) reciben push en ambos canales automáticamente.
+- Feature flag `EXPO_PUSH_ENABLED` (default activo). Para apagar en producción puntual basta con `EXPO_PUSH_ENABLED=false`. Web Push VAPID sigue independiente.
+- App móvil: `lib/push/{permissions,register,handler,PushProvider}.tsx`. Pide permiso, obtiene `ExpoPushTokenAsync`, lo registra en `/api/push-tokens` (endpoint ya existente con `withBearerTenant`), configura canal Android por defecto y maneja taps con deep linking opcional vía `data.url`.
+- `app/_layout.tsx` monta `<PushProvider>` alrededor del `<Stack>`. El registro se dispara al pasar a `authenticated`; el handler de notificaciones se instala una sola vez al cargar el módulo.
+- Verificación: `tsc --types node --noEmit` PASS (0 errores relacionados con los dos archivos tocados). El backend sigue exponiendo la misma API; el `/api/push-tokens` POST no necesitó cambios.
+- Sin migraciones, sin tocar RLS, sin tocar wrappers de auth, sin tocar API routes, sin tocar el dispatcher. Solo `push-service.ts` (additive) y un archivo nuevo.
+
+**Pendiente de validación manual (no automatizable aquí):**
+- Probar push en simulador/dispositivo real con cuenta de prueba y un trigger real (ej. POST a `/api/messages/send` con un destinatario que tenga token Expo).
+- Confirmar que `DeviceNotRegistered` desactiva el token y que el siguiente intento ya no envía a ese device.
+
+**Siguiente paso (Semana 3-4):** portal familia real (lista de hijos, agenda, inscripción, eventos, facturas con CTA "Pagar en web").
+
+Vault: no se modificaron notas del vault salvo este changelog.
+
+## 2026-07-23 - Apps nativas iOS+Android: scaffolding de Semana 1
+
+- Se creó el plan canónico del proyecto móvil en `/Users/elvisvaldesinerarte/.claude/plans/nesecito-crrear-una-app-linked-catmull.md` y se aprobó con stack **Expo SDK 53 + React Native 0.79 + TypeScript + Expo Router**, distribución vía EAS, push con Expo Push, auth Supabase JWT contra `withBearerTenant`.
+- Se eliminó la carpeta huérfana `ZaltykoMobile/` (artefactos `.expo`, `ios/Pods`, `node_modules` sin código fuente).
+- Se inicializó `mobile/` con `package.json`, `app.json` (incluye permission strings NS*, intent filters Android, scheme `zaltyko`, new architecture ON), `eas.json` (perfiles development/preview/production + submit iOS/Android), `tsconfig.json` estricto con `noUncheckedIndexedAccess`, `babel.config.js`, `metro.config.js`, `.easignore`, `.env.example` y `README.md`.
+- Auth: `lib/auth/supabase.ts` con `secureStoreAdapter` (expo-secure-store + Keychain/Keystore) y `detectSessionInUrl:false`; `useSession()` hidrata sesión, perfil vía `/api/me`, refresca tokens automáticamente y expone `signOut`.
+- API client: `lib/api/client.ts` con bearer token desde `supabase.auth.getSession()`, retry único ante 401 con `supabase.auth.refreshSession()`, desestructuración de `apiSuccess` en `data`, `ApiClientError` tipado.
+- Navegación: `app/_layout.tsx` con `QueryClientProvider` + `SafeAreaProvider` + `GestureHandlerRootView`; `(auth)/login.tsx` con email/password + enlaces a signup/reset en WebBrowser; `(tabs)/_layout.tsx` elige tabs según rol vía `lib/auth/role-router.ts` (parent/coach/athlete/owner/admin/super_admin).
+- Componentes UI base memoizados: `Button` (4 variantes × 3 tamaños), `Input` (label/error/hint), `Card`.
+- `lib/query/client.ts` TanStack Query con staleTime 30s, retry 1, refetchOnReconnect.
+- Theme tokens `lib/theme.ts` replica los colores Zaltyko (indigo-600, slate-900 bg) sincronizados manualmente con `tailwind.config.ts`.
+- Root `.gitignore` añade exclusiones para `/mobile/{node_modules,.expo,dist,android,ios,.env}`; root `tsconfig.json` excluye `mobile/` para que el typecheck de Next.js no toque React Native.
+- `vault/00-Inicio/Guia de trabajo para agentes.md` leída y aplicada: este commit es solo scaffolding local, no toca APIs, no aplica migraciones, no despliega, no modifica rutas existentes de `src/`.
+
+**No verificado todavía (próxima sesión):** `pnpm --filter mobile install`, `pnpm --filter mobile typecheck`, `eas init`. Requiere Expo CLI local y credenciales de EAS no presentes en este entorno. Hasta que esos pasos no corran, **no ejecutar** `eas build`.
+
+**Siguiente paso (Semana 2):** wiring de push — registrar Expo Push token en `/api/push-tokens` (ruta ya existente), handler foreground/background/killed, y extender `src/lib/notifications/push-service.ts` para enviar a la API de Expo Push cuando `provider='expo'` en `push_tokens`.
+
+Vault: no se modificaron notas del vault salvo este changelog. Sin migraciones ni decisiones de producto.
+
 ## 2026-07-23 - Inicio del cierre integral del mapa de objeciones
 
 - Se creó `docs/plans/2026-07-23-objection-closure-matrix.md` como matriz canónica de las doce objeciones del director, con respuesta aprobada, capacidad, evidencia y estado de cierre.

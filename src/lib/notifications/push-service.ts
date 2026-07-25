@@ -3,6 +3,10 @@ import { pushSubscriptions } from "@/db/schema/push-subscriptions";
 import { eq, and } from "drizzle-orm";
 import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
 import { logger } from "@/lib/logger";
+import {
+  sendExpoPushToUser,
+  isExpoPushConfigured,
+} from "./expo-push";
 
 export type PushSubscriptionRow = InferSelectModel<typeof pushSubscriptions>;
 export type NewPushSubscription = InferInsertModel<typeof pushSubscriptions>;
@@ -100,16 +104,21 @@ export function getVapidPublicKey(): string {
 
 /**
  * Send a push notification to a specific user
+ *
+ * Envía a TODOS los dispositivos del usuario:
+ * - Web push (VAPID) desde `pushSubscriptions`.
+ * - Nativo (iOS + Android) vía Expo Push API desde `push_tokens`
+ *   cuando `EXPO_PUSH_ENABLED` no es "false".
+ *
+ * El agregado de ambos canales se devuelve en `{ sent, failed }` para
+ * mantener la compatibilidad con todos los callers existentes
+ * (mensajes, anuncios, cron, dispatcher, push/send).
  */
 export async function sendPushToUser(
   userId: string,
   payload: WebPushPayload
 ): Promise<{ sent: number; failed: number }> {
   const subscriptions = await getUserPushSubscriptions(userId);
-
-  if (subscriptions.length === 0) {
-    return { sent: 0, failed: 0 };
-  }
 
   let sent = 0;
   let failed = 0;
@@ -132,6 +141,26 @@ export async function sendPushToUser(
         await unsubscribeUser(userId, subscription.endpoint);
       }
       failed++;
+    }
+  }
+
+  // Native (Expo Push): aditivo, no rompe web push. Si no hay tokens
+  // Expo del usuario, devuelve sent=0/failed=0 sin error.
+  if (isExpoPushConfigured()) {
+    try {
+      const expoResult = await sendExpoPushToUser(userId, {
+        title: payload.title,
+        body: payload.body,
+        data: payload.data,
+      });
+      sent += expoResult.sent;
+      failed += expoResult.failed;
+    } catch (error) {
+      logger.error(
+        `[push-service] Expo Push dispatch failed user=${userId}: ${String(error)}`
+      );
+      // No contamos como failed individual: el error ya está logueado
+      // y un fallo del backend de Expo no debe romper el caller.
     }
   }
 

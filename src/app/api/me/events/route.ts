@@ -25,13 +25,13 @@ export async function GET(request: NextRequest) {
     // Get user's profile
     const { data: profiles } = await supabase
       .from('profiles')
-      .select('id, role, academy_id')
+      .select('id, role, active_academy_id')
       .eq('user_id', user.id)
       .limit(1);
 
     const profile = profiles?.[0];
 
-    if (!profile) {
+    if (!profile || !profile.active_academy_id) {
       return NextResponse.json({ data: [] });
     }
 
@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
     let query = supabase
       .from('events')
       .select('*')
-      .eq('academy_id', profile.academy_id);
+      .eq('academy_id', profile.active_academy_id);
 
     // Filter by date
     const today = new Date().toISOString().split('T')[0];

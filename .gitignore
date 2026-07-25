@@ -24,6 +24,16 @@
 /Zaltyko
 /ZaltykoMobile
 /brand kit
+
+# mobile/ (Expo React Native app — ver /mobile/README.md)
+/mobile/node_modules
+/mobile/.expo
+/mobile/dist
+/mobile/web-build
+/mobile/android
+/mobile/ios
+/mobile/.env
+/mobile/google-service-account.json
 /test-results
 /playwright-report
 /output/playwright/
