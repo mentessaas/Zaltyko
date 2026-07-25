@@ -1,4 +1,5 @@
 "use client";
+import { Button } from "@/components/ui/button";
 
 import { useState, useRef } from "react";
 import { Upload, FileText, X, CheckCircle2, AlertCircle } from "lucide-react";
@@ -261,18 +262,11 @@ Pedro López`}
 
         {/* Footer */}
         <div className="flex items-center justify-end gap-3 border-t border-border px-6 py-4">
-          <button
-            onClick={handleClose}
-            className="rounded-md border border-border px-4 py-2 text-sm font-medium hover:bg-muted transition-colors"
-          >
+          <Button type="button" variant="outline" onClick={handleClose}>
             Cancelar
-          </button>
+          </Button>
           {parsedAthletes.length > 0 && (
-            <button
-              onClick={handleImport}
-              disabled={isImporting}
-              className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
+            <Button type="button" onClick={handleImport} disabled={isImporting}>
               {isImporting ? (
                 <>
                   <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
@@ -284,7 +278,7 @@ Pedro López`}
                   Importar {parsedAthletes.length} atleta{parsedAthletes.length !== 1 ? "s" : ""}
                 </>
               )}
-            </button>
+            </Button>
           )}
         </div>
       </div>

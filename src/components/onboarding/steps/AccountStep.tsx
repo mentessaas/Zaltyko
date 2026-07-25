@@ -1,4 +1,5 @@
 "use client";
+import { Button } from "@/components/ui/button";
 
 import { FormEvent } from "react";
 
@@ -57,13 +58,9 @@ export function AccountStep({
             Paso completado
           </span>
         </div>
-        <button
-          type="button"
-          onClick={onNext}
-          className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-primary/90"
-        >
+        <Button type="button" onClick={onNext}>
           Ir al siguiente paso
-        </button>
+        </Button>
       </div>
     );
   }
@@ -141,13 +138,9 @@ export function AccountStep({
         />
       </div>
       <div className="flex flex-wrap items-center gap-3">
-        <button
-          type="submit"
-          className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-70"
-          disabled={loading}
-        >
+        <Button type="submit" disabled={loading}>
           Crear cuenta y continuar
-        </button>
+        </Button>
       </div>
     </form>
   );
