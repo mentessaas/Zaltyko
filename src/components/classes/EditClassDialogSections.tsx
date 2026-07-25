@@ -1,4 +1,5 @@
 "use client";
+import { Button } from "@/components/ui/button";
 
 import type { SportConfigOption } from "@/components/groups/types";
 import { WEEKDAY_OPTIONS } from "@/lib/classes/constants";
@@ -42,29 +43,23 @@ export function EditClassFooter({
       <button
         type="button"
         onClick={onDelete}
-        className="inline-flex min-h-11 items-center justify-center rounded-xl border border-zaltyko-coral/35 px-4 py-2 text-sm font-semibold text-zaltyko-coral transition hover:bg-zaltyko-coral/10 disabled:cursor-not-allowed disabled:opacity-60"
+        className="text-sm font-semibold text-zaltyko-coral hover:underline disabled:cursor-not-allowed disabled:opacity-60"
         disabled={isPending || isDeleting}
       >
         {isDeleting ? "Eliminando…" : `Eliminar ${classTermLower}`}
       </button>
       <div className="flex justify-end gap-2">
-        <button
-          type="button"
-          onClick={onClose}
-          className="min-h-11 rounded-xl border border-zaltyko-indigo px-4 py-2 text-sm font-medium text-zaltyko-indigo transition hover:bg-zaltyko-indigo/5 disabled:cursor-not-allowed disabled:opacity-60"
-          disabled={isPending}
-        >
+        <Button type="button" variant="outline" onClick={onClose} disabled={isPending}>
           Cancelar
-        </button>
-        <button
+        </Button>
+        <Button
           type="submit"
           form="edit-class-form"
-          className="min-h-11 rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white shadow-soft transition hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-60"
           disabled={isPending}
           title={!hasChanges ? "No hay cambios detectados. Haz clic para guardar de todas formas." : undefined}
         >
           {isPending ? "Guardando…" : "Guardar cambios"}
-        </button>
+        </Button>
       </div>
     </div>
   );

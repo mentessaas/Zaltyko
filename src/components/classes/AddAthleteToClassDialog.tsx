@@ -1,4 +1,5 @@
 "use client";
+import { Button } from "@/components/ui/button";
 
 import { FormEvent, useState, useTransition } from "react";
 
@@ -193,22 +194,16 @@ export function AddAthleteToClassDialog({
       description={`Selecciona los ${athletesTermLower} que quieres añadir como ${classTermLower} extra. Los ${athletesTermLower} que ya están en la ${classTermLower} por ${groupTermLower} base no aparecen en esta lista.`}
       footer={
         <div className="flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={handleClose}
-            className="min-h-11 rounded-xl border border-zaltyko-indigo px-4 py-2 text-sm font-medium text-zaltyko-indigo transition hover:bg-zaltyko-indigo/5 disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={isPending}
-          >
+          <Button type="button" variant="outline" onClick={handleClose} disabled={isPending}>
             Cancelar
-          </button>
-          <button
+          </Button>
+          <Button
             type="submit"
             form="add-athlete-form"
-            className="min-h-11 rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white shadow-soft transition hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-60"
             disabled={isPending || selectedAthleteIds.size === 0}
           >
             {isPending ? "Añadiendo..." : `Añadir ${selectedAthleteIds.size} ${selectedAthleteIds.size === 1 ? athleteTermLower : athletesTermLower}`}
-          </button>
+          </Button>
         </div>
       }
     >

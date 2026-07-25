@@ -1,4 +1,5 @@
 "use client";
+import { Button } from "@/components/ui/button";
 
 import { FormEvent, useEffect, useMemo, useState, useTransition } from "react";
 
@@ -221,22 +222,12 @@ export function AttendanceDialog({
       widthClassName="w-full max-w-4xl"
       footer={
         <div className="flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={handleClose}
-            className="min-h-11 rounded-xl border border-zaltyko-indigo px-4 py-2 text-sm font-medium text-zaltyko-indigo transition hover:bg-zaltyko-indigo/5 disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={isPending}
-          >
+          <Button type="button" variant="outline" onClick={handleClose} disabled={isPending}>
             Cancelar
-          </button>
-          <button
-            type="submit"
-            form="attendance-form"
-            className="min-h-11 rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white shadow-soft transition hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={isPending}
-          >
+          </Button>
+          <Button type="submit" form="attendance-form" disabled={isPending}>
             {isPending ? "Guardando…" : `Guardar ${attendanceTermLower}`}
-          </button>
+          </Button>
         </div>
       }
     >

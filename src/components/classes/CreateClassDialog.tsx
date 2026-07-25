@@ -1,4 +1,5 @@
 "use client";
+import { Button } from "@/components/ui/button";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { Controller, useForm } from "react-hook-form";
@@ -242,22 +243,12 @@ export function CreateClassDialog({
       description={`Define los datos básicos de ${classTermLower}, ${terms.apparatus.toLowerCase()}s y ${coachTermLower}s compatibles con la rama.`}
       footer={
         <div className="flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={handleClose}
-            className="min-h-11 rounded-xl border border-zaltyko-indigo px-4 py-2 text-sm font-medium text-zaltyko-indigo transition hover:bg-zaltyko-indigo/5 disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={isSubmitting}
-          >
+          <Button type="button" variant="outline" onClick={handleClose} disabled={isSubmitting}>
             Cancelar
-          </button>
-          <button
-            type="submit"
-            form="create-class-form"
-            className="min-h-11 rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white shadow-soft transition hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={isSubmitting || !isValid}
-          >
+          </Button>
+          <Button type="submit" form="create-class-form" disabled={isSubmitting || !isValid}>
             {isSubmitting ? "Guardando..." : `Guardar ${classTermLower}`}
-          </button>
+          </Button>
         </div>
       }
     >
