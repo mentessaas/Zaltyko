@@ -1,4 +1,5 @@
 "use client";
+import { Button } from "@/components/ui/button";
 
 import type { PlanSummary, BillingSummary, PlanCode } from "@/types/billing";
 import { PRODUCT_PLAN_BY_CODE, formatPlanAmount } from "@/lib/plans/catalog";
@@ -97,8 +98,9 @@ export function PlanSelector({
                     Hasta {plan.athleteLimit} gimnastas incluidos
                   </p>
                 )}
-                <button
-                  className="mt-4 w-full rounded-md bg-primary px-4 py-2 text-white disabled:opacity-50"
+                <Button
+                  type="button"
+                  className="mt-4 w-full"
                   disabled={isFree || isCurrent || loadingAction === code || disabled}
                   onClick={() => onSelectPlan(code)}
                 >
@@ -109,7 +111,7 @@ export function PlanSelector({
                     : loadingAction === code
                     ? "Redirigiendo…"
                     : "Seleccionar"}
-                </button>
+                </Button>
               </div>
             </article>
           );

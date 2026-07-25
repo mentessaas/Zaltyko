@@ -1,4 +1,5 @@
 "use client";
+import { Button } from "@/components/ui/button";
 
 import type { BillingSummary, PlanSummary } from "@/types/billing";
 
@@ -86,13 +87,16 @@ export function BillingSummary({
           </p>
         )}
         {summary.hasStripeCustomer && (
-          <button
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="mt-3"
             onClick={onOpenPortal}
-            className="mt-3 rounded-md border px-3 py-2 text-sm"
             disabled={isOpeningPortal}
           >
             {isOpeningPortal ? "Abriendo portal…" : "Gestionar en Stripe"}
-          </button>
+          </Button>
         )}
       </div>
     </section>

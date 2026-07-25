@@ -335,24 +335,16 @@ export function AthletesEmptyState({
       }
       action={
         !hasActiveFilters ? (
-          <button
-            type="button"
-            onClick={onImportClick}
-            className="inline-flex min-h-11 items-center justify-center rounded-xl border border-zaltyko-indigo bg-white px-4 py-2 text-sm font-semibold text-zaltyko-indigo shadow-soft transition-all hover:bg-zaltyko-indigo/5"
-          >
+          <Button type="button" variant="outline" onClick={onImportClick}>
             Importar CSV
-          </button>
+          </Button>
         ) : undefined
       }
       secondaryAction={
         !hasActiveFilters ? (
-          <button
-            type="button"
-            onClick={onCreate}
-            className="inline-flex min-h-11 items-center justify-center rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white shadow-soft transition-all hover:bg-primary-dark"
-          >
+          <Button type="button" onClick={onCreate}>
             Crear primer {terms.athlete.toLowerCase()}
-          </button>
+          </Button>
         ) : undefined
       }
     />

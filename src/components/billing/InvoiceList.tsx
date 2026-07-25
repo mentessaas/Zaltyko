@@ -1,4 +1,5 @@
 "use client";
+import { Button } from "@/components/ui/button";
 
 import { useState, useMemo } from "react";
 
@@ -60,13 +61,15 @@ export function InvoiceList({
             <option value="uncollectible">No cobrables</option>
             <option value="void">Anuladas</option>
           </select>
-          <button
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
             onClick={onSync}
             disabled={isSyncing || loading || disabled}
-            className="inline-flex items-center justify-center rounded-md border border-primary/20 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary hover:bg-primary/20 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isSyncing ? "Sincronizando…" : "Sincronizar recibos"}
-          </button>
+          </Button>
           {loading && <p className="text-sm text-muted-foreground">Cargando…</p>}
         </div>
       </div>
