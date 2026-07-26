@@ -7,7 +7,6 @@ const routes = [
   "src/app/api/athletes/[athleteId]/guardians/route.ts",
   "src/app/api/athletes/[athleteId]/route.ts",
   "src/app/api/athletes/route.ts",
-  "src/app/api/billing/payment-method/route.ts",
   "src/app/api/billing/portal/route.ts",
   "src/app/api/classes/route.ts",
   "src/app/api/events/[id]/route.ts",
