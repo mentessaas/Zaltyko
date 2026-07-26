@@ -8,6 +8,15 @@ source:
 
 # Decisiones
 
+## 2026-07-25 - Notas compartidas con familias: no construir la notificación sin la vista
+
+| Campo | Valor |
+| --- | --- |
+| Contexto | Auditoría de funcionalidad a medias (tras el trabajo de unificación visual) encontró `// TODO: Si sharedWithParents es true, enviar notificación a padres` en `src/app/api/coach-notes/route.ts`. Al investigar el alcance real: no existe ninguna vista en el portal de familias que muestre notas de entrenador, con o sin el flag `sharedWithParents`. El dato se guarda y el entrenador puede marcarlo al crear la nota, pero no hay endpoint `family/*` ni pantalla que lo exponga. |
+| Decisión | No se construye la notificación de forma aislada, porque avisaría a un padre de algo que no puede ver. Se registra como feature de tres capas (endpoint de consulta family-facing + pantalla en el portal + notificación) en [[Backlog priorizado]], P1, 2026-07-25. Requiere decidir primero el alcance de privacidad: ¿el padre ve todas las notas marcadas como compartidas, o hay una capa adicional de aprobación/tipo de nota? Esa es una decisión de producto que no me correspondía tomar en silencio. |
+| Consecuencia | El TODO sigue en el código sin resolver a propósito; no se creó ningún endpoint ni pantalla nueva. Si otro agente ve el mismo TODO, debe leer esta entrada antes de implementarlo solo la notificación. |
+| Estado | Sin implementar, documentado como decisión deliberada de no-construir-todavía, no como bug pendiente. |
+
 ## 2026-07-24 (2) - Multi-grupo real por atleta con cuota por grupo
 
 | Campo | Valor |
