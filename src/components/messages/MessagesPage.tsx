@@ -5,11 +5,14 @@ import { useSearchParams } from "next/navigation";
 import { ConversationList } from "./ConversationList";
 import { MessageBubble } from "./MessageBubble";
 import { MessageInput } from "./MessageInput";
+import { NewConversationDialog } from "./NewConversationDialog";
 import {
   ContextGroupAlertComposer,
   type MessageSessionContext,
 } from "./ContextGroupAlertComposer";
 import { logger } from "@/lib/logger";
+
+const STAFF_ROLES = new Set(["owner", "admin", "coach", "super_admin"]);
 
 interface Participant {
   userId: string;
@@ -61,11 +64,11 @@ export function MessagesPage({
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const canStartConversation = false;
-  const emptyStateHint =
-    currentUserRole === "parent" || currentUserRole === "athlete"
-      ? "Las nuevas conversaciones se habilitan desde la academia o por invitación del staff."
-      : "La creación manual de conversaciones desde este panel se habilitará cuando esté lista la selección guiada de destinatarios.";
+  const [isNewConversationOpen, setIsNewConversationOpen] = useState(false);
+  const canStartConversation = Boolean(currentUserRole && STAFF_ROLES.has(currentUserRole) && academyId);
+  const emptyStateHint = canStartConversation
+    ? undefined
+    : "Las nuevas conversaciones se habilitan desde la academia o por invitación del staff.";
 
   // Fetch conversations
   const fetchConversations = useCallback(async () => {
@@ -183,6 +186,7 @@ export function MessagesPage({
           conversations={conversations}
           selectedId={selectedConversation?.id}
           onSelect={selectConversation}
+          onNewConversation={canStartConversation ? () => setIsNewConversationOpen(true) : undefined}
           canStartConversation={canStartConversation}
           emptyStateHint={emptyStateHint}
         />
@@ -305,6 +309,18 @@ export function MessagesPage({
           </div>
         )}
       </div>
+
+      {academyId && canStartConversation && (
+        <NewConversationDialog
+          open={isNewConversationOpen}
+          onClose={() => setIsNewConversationOpen(false)}
+          academyId={academyId}
+          onCreated={(conversationId) => {
+            fetchConversations();
+            void selectConversation(conversationId);
+          }}
+        />
+      )}
     </div>
   );
 }
