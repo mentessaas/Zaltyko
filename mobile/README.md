@@ -1,6 +1,6 @@
 # Zaltyko Mobile
 
-App nativa iOS + Android para Zaltyko. Stack: **Expo SDK 53 + React Native 0.79 + TypeScript + Expo Router**. Reutiliza el backend Next.js existente (Supabase Auth bearer → `withBearerTenant`).
+App nativa iOS + Android para Zaltyko. Stack: **Expo SDK 57 + React Native 0.86 + TypeScript + Expo Router**. Reutiliza el backend Next.js existente (Supabase Auth bearer → `withBearerTenant`).
 
 ## Setup local
 

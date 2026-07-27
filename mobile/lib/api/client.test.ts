@@ -101,6 +101,25 @@ describe('apiGet/apiPost - cliente API móvil', () => {
     await expect(apiGet('/api/me')).rejects.toMatchObject({ code: 'NETWORK_ERROR' });
   });
 
+  it('si el backend no responde, aborta por timeout en vez de colgarse indefinidamente', async () => {
+    const fetchMock = vi.fn((_url: string, init: RequestInit) => {
+      // Simula fetch real: la promesa solo se resuelve/rechaza cuando se
+      // aborta la signal — sin esto la request nunca terminaría.
+      return new Promise((_resolve, reject) => {
+        init.signal?.addEventListener('abort', () => {
+          const err = new Error('Aborted');
+          err.name = 'AbortError';
+          reject(err);
+        });
+      });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(apiGet('/api/me', { timeoutMs: 10 })).rejects.toMatchObject({
+      code: 'TIMEOUT',
+    });
+  });
+
   it('apiPost serializa el body y fuerza Content-Type json', async () => {
     const fetchMock = vi.fn().mockResolvedValue(jsonResponse(200, { ok: true, data: { ok: true } }));
     vi.stubGlobal('fetch', fetchMock);

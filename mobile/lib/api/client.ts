@@ -33,7 +33,15 @@ interface RequestOpts {
   // Si true y la API devuelve 401, intenta refresh una vez.
   retryOnAuthError?: boolean;
   signal?: AbortSignal;
+  // Endpoints públicos (ej. preview de invitación) no requieren sesión.
+  // Si hay una sesión igual se manda, por si el endpoint la usa opcionalmente.
+  requireAuth?: boolean;
+  // Sin esto una request se queda colgada indefinidamente si el backend
+  // no responde (visto en carne propia con el dev server sobrecargado).
+  timeoutMs?: number;
 }
+
+const DEFAULT_TIMEOUT_MS = 20_000;
 
 async function getFreshToken(): Promise<string | null> {
   // getSession lee de SecureStore; refresca el access token si está vencido.
@@ -50,7 +58,7 @@ async function request<T>(
   const url = `${base}${path}`;
 
   const token = opts.token ?? (await getFreshToken());
-  if (!token) {
+  if (!token && opts.requireAuth !== false) {
     throw new ApiClientError({
       code: 'NO_SESSION',
       message: 'No hay sesión activa. Vuelve a iniciar sesión.',
@@ -60,15 +68,22 @@ async function request<T>(
 
   const headers: Record<string, string> = {
     Accept: 'application/json',
-    Authorization: `Bearer ${token}`,
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...(opts.headers ?? {}),
   };
   if (opts.body !== undefined) headers['Content-Type'] = 'application/json';
 
+  // AbortController propio para el timeout; si además el caller pasó su
+  // propio signal, cancelamos el nuestro cuando el suyo se dispare.
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), opts.timeoutMs ?? DEFAULT_TIMEOUT_MS);
+  const onExternalAbort = () => controller.abort();
+  opts.signal?.addEventListener('abort', onExternalAbort);
+
   const init: RequestInit = {
     method,
     headers,
-    ...(opts.signal ? { signal: opts.signal } : {}),
+    signal: controller.signal,
   };
   if (opts.body !== undefined) init.body = JSON.stringify(opts.body);
 
@@ -76,11 +91,19 @@ async function request<T>(
   try {
     res = await fetch(url, init);
   } catch (err) {
+    const timedOut = err instanceof Error && err.name === 'AbortError';
     throw new ApiClientError({
-      code: 'NETWORK_ERROR',
-      message: err instanceof Error ? err.message : 'Error de red',
+      code: timedOut ? 'TIMEOUT' : 'NETWORK_ERROR',
+      message: timedOut
+        ? 'La solicitud tardó demasiado. Revisa tu conexión e inténtalo de nuevo.'
+        : err instanceof Error
+          ? err.message
+          : 'Error de red',
       status: 0,
     });
+  } finally {
+    clearTimeout(timeoutId);
+    opts.signal?.removeEventListener('abort', onExternalAbort);
   }
 
   // 401 → refrescar una vez y reintentar

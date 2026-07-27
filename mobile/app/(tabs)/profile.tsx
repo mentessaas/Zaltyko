@@ -65,7 +65,7 @@ export default function ProfileScreen() {
         ) : null}
       </Card>
 
-      {(profile.role === 'parent' || profile.role === 'athlete') && (
+      {profile.role === 'parent' && (
         <Card title="Mi cuenta">
           <Button
             title="Mis facturas"

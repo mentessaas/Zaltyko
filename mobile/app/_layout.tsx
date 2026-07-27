@@ -17,7 +17,7 @@ import { SplashScreen, Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 
 import { queryClient } from '@/lib/query/client';
-import { useSession } from '@/lib/auth/use-session';
+import { SessionProvider, useSession } from '@/lib/auth/SessionProvider';
 import { PushProvider } from '@/lib/push/PushProvider';
 import { colors } from '@/lib/theme';
 
@@ -27,6 +27,22 @@ SplashScreen.preventAutoHideAsync().catch(() => {
 });
 
 export default function RootLayout() {
+  return (
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.bg }}>
+      <SafeAreaProvider>
+        <QueryClientProvider client={queryClient}>
+          <SessionProvider>
+            <RootLayoutInner />
+          </SessionProvider>
+        </QueryClientProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
+  );
+}
+
+// Aparte de RootLayout porque useSession() necesita estar DENTRO de
+// <SessionProvider>, no en el mismo componente que lo declara.
+function RootLayoutInner() {
   const session = useSession();
 
   useEffect(() => {
@@ -36,24 +52,18 @@ export default function RootLayout() {
   }, [session.status]);
 
   return (
-    <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.bg }}>
-      <SafeAreaProvider>
-        <QueryClientProvider client={queryClient}>
-          <PushProvider>
-            <StatusBar style="auto" />
-            <Stack
-              screenOptions={{
-                headerStyle: { backgroundColor: colors.bg },
-                headerTintColor: colors.textInverse,
-                contentStyle: { backgroundColor: colors.bg },
-              }}
-            >
-              <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            </Stack>
-          </PushProvider>
-        </QueryClientProvider>
-      </SafeAreaProvider>
-    </GestureHandlerRootView>
+    <PushProvider>
+      <StatusBar style="auto" />
+      <Stack
+        screenOptions={{
+          headerStyle: { backgroundColor: colors.bg },
+          headerTintColor: colors.textInverse,
+          contentStyle: { backgroundColor: colors.bg },
+        }}
+      >
+        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      </Stack>
+    </PushProvider>
   );
 }
