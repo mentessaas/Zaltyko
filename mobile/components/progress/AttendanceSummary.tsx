@@ -31,6 +31,7 @@ function AttendanceSummaryImpl({ data }: Props) {
         icon="calendar-outline"
         title="Sin asistencia registrada"
         description="Aparecerá aquí cuando el entrenador pase lista."
+        tone="light"
       />
     );
   }

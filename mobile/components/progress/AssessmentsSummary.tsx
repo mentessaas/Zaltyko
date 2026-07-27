@@ -25,6 +25,7 @@ function AssessmentsSummaryImpl({ data }: Props) {
         icon="ribbon-outline"
         title="Sin evaluaciones todavía"
         description="Cuando el entrenador registre progreso técnico aparecerá aquí."
+        tone="light"
       />
     );
   }

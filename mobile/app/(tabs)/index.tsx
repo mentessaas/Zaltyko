@@ -116,6 +116,7 @@ function ParentHome() {
           <EmptyState
             icon="alert-circle-outline"
             title="No se pudieron cargar"
+            tone="light"
             action={
               <Button
                 title="Reintentar"
@@ -129,6 +130,7 @@ function ParentHome() {
             icon="people-outline"
             title="Sin hijos vinculados"
             description="Si acabas de crear tu cuenta, el equipo de tu academia te vinculará pronto."
+            tone="light"
           />
         ) : (
           <View style={{ gap: spacing.sm }}>
@@ -147,12 +149,13 @@ function ParentHome() {
         {eventsQuery.isLoading ? (
           <SkeletonGroup count={2} />
         ) : eventsQuery.error ? (
-          <EmptyState icon="alert-circle-outline" title="No se pudieron cargar" />
+          <EmptyState icon="alert-circle-outline" title="No se pudieron cargar" tone="light" />
         ) : !eventsQuery.data || eventsQuery.data.length === 0 ? (
           <EmptyState
             icon="calendar-outline"
             title="Sin eventos próximos"
             description="Cuando se publiquen nuevos eventos aparecerán aquí."
+            tone="light"
           />
         ) : (
           <View style={{ gap: spacing.md }}>
@@ -202,12 +205,13 @@ function CoachHome() {
       {sessionsQuery.isLoading ? (
         <SkeletonGroup count={2} />
       ) : sessionsQuery.error ? (
-        <EmptyState icon="alert-circle-outline" title="No se pudieron cargar" />
+        <EmptyState icon="alert-circle-outline" title="No se pudieron cargar" tone="light" />
       ) : sessions.length === 0 ? (
         <EmptyState
           icon="calendar-outline"
           title="Sin clases hoy"
           description="Cuando haya sesiones programadas aparecerán aquí."
+          tone="light"
         />
       ) : (
         <View style={{ gap: spacing.md }}>
@@ -238,7 +242,7 @@ function AthleteHome() {
         {progressQuery.isLoading ? (
           <SkeletonGroup count={2} />
         ) : progressQuery.error ? (
-          <EmptyState icon="alert-circle-outline" title="No se pudo cargar la asistencia" />
+          <EmptyState icon="alert-circle-outline" title="No se pudo cargar la asistencia" tone="light" />
         ) : (
           <AttendanceSummary data={progressQuery.data?.attendance ?? null} />
         )}
@@ -248,7 +252,7 @@ function AthleteHome() {
         {progressQuery.isLoading ? (
           <SkeletonGroup count={2} />
         ) : progressQuery.error ? (
-          <EmptyState icon="alert-circle-outline" title="No se pudo cargar el progreso" />
+          <EmptyState icon="alert-circle-outline" title="No se pudo cargar el progreso" tone="light" />
         ) : (
           <AssessmentsSummary data={progressQuery.data?.assessments ?? []} />
         )}
@@ -271,7 +275,7 @@ function AdminHome() {
       {kpisQuery.isLoading ? (
         <SkeletonGroup count={2} />
       ) : kpisQuery.error ? (
-        <EmptyState icon="alert-circle-outline" title="No se pudieron cargar los KPIs" />
+        <EmptyState icon="alert-circle-outline" title="No se pudieron cargar los KPIs" tone="light" />
       ) : (
         <View style={styles.kpiGrid}>
           <KpiTile label="Atletas" value={kpis?.athletes ?? 0} />

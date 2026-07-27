@@ -18,7 +18,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { supabase } from '@/lib/auth/supabase';
 import { webBaseUrl } from '@/lib/api/client';
-import { colors, spacing, typography } from '@/lib/theme';
+import { colors, radii, shadows, spacing, typography } from '@/lib/theme';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -66,8 +66,11 @@ export default function LoginScreen() {
       style={styles.flex}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <ScrollView contentContainerStyle={styles.scroll}>
+      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <View style={styles.brand}>
+          <View style={styles.logoBadge}>
+            <Text style={styles.logoLetter}>Z</Text>
+          </View>
           <Text style={styles.brandTitle}>Zaltyko</Text>
           <Text style={styles.brandSubtitle}>Gestiona tu academia desde el bolsillo</Text>
         </View>
@@ -96,14 +99,19 @@ export default function LoginScreen() {
 
           {error ? <Text style={styles.error}>{error}</Text> : null}
 
-          <Button title="Entrar" onPress={onSubmit} loading={loading} fullWidth />
-
-          <Pressable onPress={onOpenReset} hitSlop={8}>
+          <Pressable onPress={onOpenReset} hitSlop={8} style={styles.forgotLink}>
             <Text style={styles.link}>¿Olvidaste la contraseña?</Text>
           </Pressable>
-          <Pressable onPress={onOpenSignup} hitSlop={8}>
-            <Text style={styles.link}>Crear cuenta nueva</Text>
-          </Pressable>
+
+          <Button title="Entrar" onPress={onSubmit} loading={loading} fullWidth />
+
+          <View style={styles.divider}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>o</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          <Button title="Crear cuenta nueva" variant="secondary" onPress={onOpenSignup} fullWidth />
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -114,29 +122,54 @@ const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: colors.bg },
   scroll: {
     flexGrow: 1,
+    justifyContent: 'center',
     paddingHorizontal: spacing.xl,
-    paddingTop: spacing.xxxl,
-    paddingBottom: spacing.xxl,
+    paddingVertical: spacing.xxl,
     gap: spacing.xxl,
   },
-  brand: { gap: spacing.sm, marginTop: spacing.xxl },
+  brand: { gap: spacing.xs, alignItems: 'center', marginBottom: spacing.md },
+  logoBadge: {
+    width: 64,
+    height: 64,
+    borderRadius: radii.xl,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.md,
+    ...shadows.md,
+  },
+  logoLetter: {
+    fontSize: 30,
+    lineHeight: 36,
+    fontWeight: '700',
+    color: colors.primaryFg,
+  },
   brandTitle: {
     ...typography.display,
     color: colors.textInverse,
+    textAlign: 'center',
   },
   brandSubtitle: {
     ...typography.body,
     color: '#94A3B8',
+    textAlign: 'center',
   },
   form: { gap: spacing.md },
   error: {
     ...typography.caption,
     color: '#FCA5A5',
   },
+  forgotLink: { alignSelf: 'flex-end', marginTop: -spacing.xs },
   link: {
     ...typography.caption,
     color: colors.primary,
-    textAlign: 'center',
-    marginTop: spacing.sm,
   },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginVertical: spacing.xs,
+  },
+  dividerLine: { flex: 1, height: 1, backgroundColor: colors.borderDark },
+  dividerText: { ...typography.caption, color: '#94A3B8' },
 });

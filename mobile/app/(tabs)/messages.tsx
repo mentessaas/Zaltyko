@@ -50,7 +50,7 @@ export default function MessagesScreen() {
           <SkeletonGroup count={4} />
         ) : listQuery.error ? (
           <Card>
-            <EmptyState icon="alert-circle-outline" title="No se pudieron cargar los mensajes" />
+            <EmptyState icon="alert-circle-outline" title="No se pudieron cargar los mensajes" tone="light" />
           </Card>
         ) : (
           <Card>
@@ -58,6 +58,7 @@ export default function MessagesScreen() {
               icon="chatbubbles-outline"
               title="Sin conversaciones todavía"
               description="Cuando la academia inicie una conversación contigo aparecerá aquí."
+              tone="light"
             />
           </Card>
         )

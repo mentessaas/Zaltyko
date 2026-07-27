@@ -71,12 +71,14 @@ export default function ChildDetailScreen() {
             <EmptyState
               icon="alert-circle-outline"
               title="No se pudieron cargar las clases"
+              tone="light"
             />
           ) : sessions.length === 0 ? (
             <EmptyState
               icon="calendar-outline"
               title="Aún no está inscrito"
               description="Inscribe al atleta desde la agenda para ver sus clases aquí."
+              tone="light"
             />
           ) : (
             <View style={{ gap: spacing.sm }}>
@@ -103,7 +105,7 @@ export default function ChildDetailScreen() {
           {progressQuery.isLoading ? (
             <SkeletonGroup count={2} />
           ) : progressQuery.error ? (
-            <EmptyState icon="alert-circle-outline" title="No se pudo cargar la asistencia" />
+            <EmptyState icon="alert-circle-outline" title="No se pudo cargar la asistencia" tone="light" />
           ) : (
             <AttendanceSummary data={progressQuery.data?.attendance ?? null} />
           )}
@@ -113,7 +115,7 @@ export default function ChildDetailScreen() {
           {progressQuery.isLoading ? (
             <SkeletonGroup count={2} />
           ) : progressQuery.error ? (
-            <EmptyState icon="alert-circle-outline" title="No se pudo cargar el progreso" />
+            <EmptyState icon="alert-circle-outline" title="No se pudo cargar el progreso" tone="light" />
           ) : (
             <AssessmentsSummary data={progressQuery.data?.assessments ?? []} />
           )}

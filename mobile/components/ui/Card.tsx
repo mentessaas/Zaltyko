@@ -3,7 +3,7 @@
 import { memo, type ReactNode } from 'react';
 import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 
-import { colors, radii, spacing, typography } from '@/lib/theme';
+import { colors, radii, shadows, spacing, typography } from '@/lib/theme';
 
 interface Props {
   title?: string;
@@ -36,6 +36,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: spacing.lg,
     gap: spacing.md,
+    ...shadows.sm,
   },
   header: { gap: spacing.xs },
   title: {

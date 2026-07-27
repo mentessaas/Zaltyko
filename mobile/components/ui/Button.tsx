@@ -12,7 +12,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 
-import { colors, radii, spacing, typography } from '@/lib/theme';
+import { colors, radii, shadows, spacing, typography } from '@/lib/theme';
 
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
 type Size = 'sm' | 'md' | 'lg';
@@ -78,7 +78,7 @@ const styles = StyleSheet.create({
   base: {
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: radii.md,
+    borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: 'transparent',
   },
@@ -100,12 +100,12 @@ const VARIANTS: Record<
   { container: ViewStyle; pressed: ViewStyle; text: { color: string } }
 > = {
   primary: {
-    container: { backgroundColor: colors.primary, borderColor: colors.primary },
+    container: { backgroundColor: colors.primary, borderColor: colors.primary, ...shadows.sm },
     pressed: { backgroundColor: colors.primaryHover },
     text: { color: colors.primaryFg },
   },
   secondary: {
-    container: { backgroundColor: colors.surface, borderColor: colors.border },
+    container: { backgroundColor: colors.surface, borderColor: colors.border, ...shadows.sm },
     pressed: { backgroundColor: colors.surfaceMuted },
     text: { color: colors.text },
   },
@@ -115,7 +115,7 @@ const VARIANTS: Record<
     text: { color: colors.primary },
   },
   danger: {
-    container: { backgroundColor: colors.danger, borderColor: colors.danger },
+    container: { backgroundColor: colors.danger, borderColor: colors.danger, ...shadows.sm },
     pressed: { backgroundColor: '#B91C1C' },
     text: { color: '#FFFFFF' },
   },

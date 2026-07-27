@@ -12,6 +12,10 @@ interface Props {
   title: string;
   description?: string;
   action?: ReactNode;
+  // 'dark' (default): para uso directo sobre el fondo oscuro de pantalla.
+  // 'light': para uso dentro de un <Card> (superficie blanca) — si no se
+  // especifica ahí, el título queda blanco sobre blanco e invisible.
+  tone?: 'dark' | 'light';
 }
 
 function EmptyStateImpl({
@@ -19,11 +23,13 @@ function EmptyStateImpl({
   title,
   description,
   action,
+  tone = 'dark',
 }: Props) {
+  const onLight = tone === 'light';
   return (
     <View style={styles.wrap}>
       <Ionicons name={icon} size={48} color={colors.textMuted} />
-      <Text style={styles.title}>{title}</Text>
+      <Text style={[styles.title, onLight && styles.titleOnLight]}>{title}</Text>
       {description ? <Text style={styles.desc}>{description}</Text> : null}
       {action ? <View style={styles.action}>{action}</View> : null}
     </View>
@@ -44,6 +50,7 @@ const styles = StyleSheet.create({
     color: colors.textInverse,
     textAlign: 'center',
   },
+  titleOnLight: { color: colors.text },
   desc: {
     ...typography.body,
     color: colors.textMuted,

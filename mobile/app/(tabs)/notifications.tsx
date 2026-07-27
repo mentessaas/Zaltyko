@@ -112,6 +112,7 @@ export default function NotificationsScreen() {
             <EmptyState
               icon="alert-circle-outline"
               title="No se pudieron cargar los avisos"
+              tone="light"
             />
           </Card>
         ) : (
@@ -120,6 +121,7 @@ export default function NotificationsScreen() {
               icon="notifications-off-outline"
               title="Sin avisos por ahora"
               description="Cuando la academia envíe un comunicado aparecerá aquí al instante."
+              tone="light"
             />
           </Card>
         )

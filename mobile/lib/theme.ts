@@ -18,6 +18,7 @@ export const colors = {
   primary: '#4F46E5', // indigo-600
   primaryHover: '#4338CA', // indigo-700
   primaryFg: '#FFFFFF',
+  primarySoft: 'rgba(99, 102, 241, 0.16)',
 
   // Semantic
   success: '#16A34A', // green-600
@@ -58,6 +59,32 @@ export const typography = {
   body: { fontSize: 16, lineHeight: 22, fontWeight: '400' as const },
   caption: { fontSize: 13, lineHeight: 18, fontWeight: '400' as const },
   label: { fontSize: 14, lineHeight: 20, fontWeight: '500' as const },
+} as const;
+
+// Elevación para que Card/Input/Button se despeguen del fondo oscuro en
+// vez de leerse como bloques planos. shadow* para iOS, elevation para Android.
+export const shadows = {
+  sm: {
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.16,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  md: {
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  lg: {
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.26,
+    shadowRadius: 20,
+    elevation: 9,
+  },
 } as const;
 
 export type ColorKey = keyof typeof colors;

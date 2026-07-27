@@ -11,7 +11,7 @@
 
 import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { useMutation, useQuery } from '@tanstack/react-query';
 
@@ -68,8 +68,9 @@ export default function InviteScreen() {
   if (!token) {
     return (
       <View style={styles.flex}>
+        <Stack.Screen options={{ title: 'Invitación', headerBackTitle: 'Atrás' }} />
         <Card>
-          <EmptyState icon="link-outline" title="Link de invitación inválido" />
+          <EmptyState icon="link-outline" title="Link de invitación inválido" tone="light" />
         </Card>
       </View>
     );
@@ -77,6 +78,7 @@ export default function InviteScreen() {
 
   return (
     <View style={styles.flex}>
+      <Stack.Screen options={{ title: 'Invitación', headerBackTitle: 'Atrás' }} />
       <View style={styles.content}>
         <Text style={styles.title}>Invitación a Zaltyko</Text>
 
@@ -90,6 +92,7 @@ export default function InviteScreen() {
               icon="alert-circle-outline"
               title="Esta invitación ya no es válida"
               description="Puede haber expirado o ya haberse usado. Pide a tu academia que te envíe una nueva."
+              tone="light"
             />
           </Card>
         ) : (
