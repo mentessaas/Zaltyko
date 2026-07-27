@@ -46,12 +46,19 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<Omit<SessionState, 'refresh' | 'signOut'>>(EMPTY);
 
   const fetchProfile = useCallback(async (token: string): Promise<ZaltykoProfile | null> => {
-    try {
-      return await apiGet<ZaltykoProfile>('/api/me', { token });
-    } catch (err) {
-      console.warn('[SessionProvider] /api/me falló:', err);
-      return null;
+    // Un intento extra antes de rendirnos: fallos transitorios (red,
+    // fetch cancelado al pasar la app a segundo plano) no deberían
+    // bastar para tirar la sesión — ver hydrate() más abajo.
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        return await apiGet<ZaltykoProfile>('/api/me', { token });
+      } catch (err) {
+        console.warn('[SessionProvider] /api/me falló:', err);
+        if (attempt === 1) return null;
+        await new Promise((resolve) => setTimeout(resolve, 800));
+      }
     }
+    return null;
   }, []);
 
   const hydrate = useCallback(
@@ -61,12 +68,15 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         return;
       }
       const profile = await fetchProfile(session.access_token);
-      setState({
+      setState((prev) => ({
         status: 'authenticated',
         session,
-        profile,
+        // Si el fetch (con reintento) sigue fallando pero ya había un
+        // perfil cargado, lo conservamos — un error transitorio no
+        // debe tirar una sesión ya funcionando a pantalla en blanco.
+        profile: profile ?? prev.profile,
         accessToken: session.access_token,
-      });
+      }));
     },
     [fetchProfile]
   );

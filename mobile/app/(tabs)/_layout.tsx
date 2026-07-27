@@ -5,19 +5,33 @@
 
 import { Redirect, Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { BiometricGate } from '@/components/auth/BiometricGate';
 import { WelcomeGate } from '@/components/onboarding/WelcomeGate';
+import { Button } from '@/components/ui/Button';
 import { useSession } from '@/lib/auth/use-session';
 import { tabsForRole } from '@/lib/auth/role-router';
-import { colors } from '@/lib/theme';
+import { colors, spacing, typography } from '@/lib/theme';
 
 export default function TabsLayout() {
-  const { status, profile } = useSession();
+  const { status, profile, refresh } = useSession();
 
   if (status === 'loading') return null;
   if (status === 'unauthenticated') return <Redirect href="/(auth)/login" />;
-  if (!profile) return null;
+  if (!profile) {
+    // El fetch de /api/me falló incluso tras el reintento interno de
+    // SessionProvider (sin perfil previo al que volver) — mostramos un
+    // estado real en vez de dejar la pantalla en blanco sin salida.
+    return (
+      <View style={errorStyles.flex}>
+        <Ionicons name="cloud-offline-outline" size={48} color={colors.textMuted} />
+        <Text style={errorStyles.title}>No se pudo cargar tu perfil</Text>
+        <Text style={errorStyles.body}>Revisa tu conexión e inténtalo de nuevo.</Text>
+        <Button title="Reintentar" variant="secondary" onPress={() => refresh()} />
+      </View>
+    );
+  }
 
   const tabs = tabsForRole(profile.role);
 
@@ -51,6 +65,19 @@ export default function TabsLayout() {
     </WelcomeGate>
   );
 }
+
+const errorStyles = StyleSheet.create({
+  flex: {
+    flex: 1,
+    backgroundColor: colors.bg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.md,
+    padding: spacing.xl,
+  },
+  title: { ...typography.title, color: colors.textInverse, textAlign: 'center' },
+  body: { ...typography.body, color: '#94A3B8', textAlign: 'center' },
+});
 
 function iconFor(name: string): keyof typeof Ionicons.glyphMap {
   switch (name) {
