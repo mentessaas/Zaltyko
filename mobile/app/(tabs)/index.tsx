@@ -24,6 +24,7 @@ import {
   getUpcomingEvents,
   getSessions,
   getMyProgress,
+  getMyKpis,
 } from '@/lib/api/endpoints';
 import { colors, spacing, typography } from '@/lib/theme';
 
@@ -46,6 +47,9 @@ export default function HomeScreen() {
     }
     if (profile.role === 'athlete') {
       tasks.push(queryClient.invalidateQueries({ queryKey: ['progress'] }));
+    }
+    if (profile.role === 'owner' || profile.role === 'admin' || profile.role === 'super_admin') {
+      tasks.push(queryClient.invalidateQueries({ queryKey: ['kpis'] }));
     }
     await Promise.all(tasks);
   };
@@ -254,10 +258,40 @@ function AthleteHome() {
 }
 
 function AdminHome() {
+  const kpisQuery = useQuery({
+    queryKey: ['kpis'],
+    queryFn: getMyKpis,
+    staleTime: 60 * 1000,
+  });
+
+  const kpis = kpisQuery.data;
+
   return (
-    <Card title="Resumen" subtitle="KPIs principales de la academia">
-      <Text style={styles.placeholder}>Próximamente: dashboard resumido (Fase 2)</Text>
+    <Card title="Resumen" subtitle="De un vistazo — reportes completos en la web">
+      {kpisQuery.isLoading ? (
+        <SkeletonGroup count={2} />
+      ) : kpisQuery.error ? (
+        <EmptyState icon="alert-circle-outline" title="No se pudieron cargar los KPIs" />
+      ) : (
+        <View style={styles.kpiGrid}>
+          <KpiTile label="Atletas" value={kpis?.athletes ?? 0} />
+          <KpiTile label="Entrenadores" value={kpis?.coaches ?? 0} />
+          <KpiTile label="Grupos" value={kpis?.groups ?? 0} />
+          <KpiTile label="Clases esta semana" value={kpis?.classesThisWeek ?? 0} />
+          <KpiTile label="Evaluaciones" value={kpis?.assessments ?? 0} />
+          <KpiTile label="Asistencia (7 días)" value={`${kpis?.attendancePercent ?? 0}%`} />
+        </View>
+      )}
     </Card>
+  );
+}
+
+function KpiTile({ label, value }: { label: string; value: number | string }) {
+  return (
+    <View style={styles.kpiTile}>
+      <Text style={styles.kpiValue}>{value}</Text>
+      <Text style={styles.kpiLabel}>{label}</Text>
+    </View>
   );
 }
 
@@ -278,9 +312,8 @@ const styles = StyleSheet.create({
     color: '#94A3B8',
   },
   card: { gap: spacing.md },
-  placeholder: {
-    ...typography.body,
-    color: colors.textMuted,
-    fontStyle: 'italic',
-  },
+  kpiGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
+  kpiTile: { width: '30%', gap: 2 },
+  kpiValue: { ...typography.title, color: colors.text, fontWeight: '700' },
+  kpiLabel: { ...typography.caption, color: colors.textMuted },
 });

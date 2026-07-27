@@ -4,6 +4,7 @@
 
 import { memo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 import { colors, radii, spacing, typography } from '@/lib/theme';
 import type { AttendanceStatus } from '@/lib/api/endpoints';
@@ -14,6 +15,7 @@ interface Props {
   groupName: string | null;
   status: AttendanceStatus | null;
   onChange: (athleteId: string, status: AttendanceStatus) => void;
+  onEvaluate?: (athleteId: string, name: string) => void;
 }
 
 const OPTIONS: { value: AttendanceStatus; label: string; short: string; color: string }[] = [
@@ -23,7 +25,7 @@ const OPTIONS: { value: AttendanceStatus; label: string; short: string; color: s
   { value: 'excused', label: 'Justif.', short: 'J', color: colors.info },
 ];
 
-function StudentRowImpl({ athleteId, name, groupName, status, onChange }: Props) {
+function StudentRowImpl({ athleteId, name, groupName, status, onChange, onEvaluate }: Props) {
   const initial = name.trim().charAt(0).toUpperCase();
 
   return (
@@ -35,6 +37,16 @@ function StudentRowImpl({ athleteId, name, groupName, status, onChange }: Props)
         <Text style={styles.name}>{name}</Text>
         {groupName ? <Text style={styles.group}>{groupName}</Text> : null}
       </View>
+      {onEvaluate ? (
+        <Pressable
+          onPress={() => onEvaluate(athleteId, name)}
+          accessibilityRole="button"
+          accessibilityLabel={`Registrar progreso de ${name}`}
+          style={styles.evaluateBtn}
+        >
+          <Ionicons name="ribbon-outline" size={18} color={colors.primary} />
+        </Pressable>
+      ) : null}
       <View style={styles.actions}>
         {OPTIONS.map((opt) => {
           const active = status === opt.value;
@@ -90,6 +102,14 @@ const styles = StyleSheet.create({
   },
   avatarText: { ...typography.label, color: colors.primaryFg, fontWeight: '700' },
   body: { flex: 1, gap: 2 },
+  evaluateBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: radii.full,
+    backgroundColor: colors.surfaceMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   name: { ...typography.body, color: colors.text, fontWeight: '600' },
   group: { ...typography.caption, color: colors.textMuted },
   actions: { flexDirection: 'row', gap: spacing.xs },

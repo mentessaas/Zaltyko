@@ -18,10 +18,13 @@ import {
 import { useQuery, useMutation } from '@tanstack/react-query';
 
 import { StudentRow } from '@/components/attendance/StudentRow';
+import { AssessmentModal } from '@/components/coach/AssessmentModal';
+import { GroupAlertModal } from '@/components/coach/GroupAlertModal';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorBanner } from '@/components/ui/ErrorBanner';
 import { SkeletonGroup } from '@/components/ui/Skeleton';
+import { useSession } from '@/lib/auth/use-session';
 import {
   getClassAthletes,
   getClassSession,
@@ -33,6 +36,7 @@ import { colors, spacing, typography } from '@/lib/theme';
 
 export default function AttendanceScreen() {
   const { sessionId } = useLocalSearchParams<{ sessionId: string }>();
+  const { profile } = useSession();
 
   const sessionQuery = useQuery({
     queryKey: ['class-sessions', sessionId],
@@ -71,6 +75,9 @@ export default function AttendanceScreen() {
     setStatusMap((prev) => ({ ...prev, [athleteId]: status }));
   }, []);
 
+  const [evaluating, setEvaluating] = useState<{ id: string; name: string } | null>(null);
+  const [showGroupAlert, setShowGroupAlert] = useState(false);
+
   const saveMutation = useMutation({
     mutationFn: () => {
       const entries = Object.entries(statusMap).map(([athleteId, status]) => ({
@@ -102,6 +109,13 @@ export default function AttendanceScreen() {
             <Text style={styles.meta}>
               {Object.keys(statusMap).length} de {athletes.length} marcados
             </Text>
+            {profile?.academyId ? (
+              <Button
+                title="Enviar aviso al grupo"
+                variant="secondary"
+                onPress={() => setShowGroupAlert(true)}
+              />
+            ) : null}
           </View>
         ) : null}
 
@@ -139,6 +153,7 @@ export default function AttendanceScreen() {
                 groupName={a.groupName}
                 status={statusMap[a.id] ?? null}
                 onChange={onChange}
+                onEvaluate={(id, name) => setEvaluating({ id, name })}
               />
             ))}
           </View>
@@ -154,6 +169,23 @@ export default function AttendanceScreen() {
           />
         ) : null}
       </ScrollView>
+
+      <AssessmentModal
+        athlete={evaluating}
+        sessionId={sessionId}
+        onClose={() => setEvaluating(null)}
+        onSaved={() => Alert.alert('Guardado', 'Progreso registrado.')}
+      />
+
+      {profile?.academyId && sessionId ? (
+        <GroupAlertModal
+          visible={showGroupAlert}
+          academyId={profile.academyId}
+          sessionId={sessionId}
+          onClose={() => setShowGroupAlert(false)}
+          onSent={(count) => Alert.alert('Enviado', `Aviso entregado a ${count} familia(s)/atleta(s).`)}
+        />
+      ) : null}
     </>
   );
 }

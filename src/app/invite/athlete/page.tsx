@@ -57,6 +57,7 @@ export default async function AthleteInvitationPage({ searchParams }: AthleteInv
         "Podrás consultar evaluaciones, eventos y avisos importantes del club.",
         "Tu experiencia queda separada del shell administrativo para que todo sea más claro.",
       ]}
+      appDeepLink={`zaltyko://invite/athlete?token=${encodeURIComponent(token)}`}
       form={
         <AcceptInvitationForm
           token={token}

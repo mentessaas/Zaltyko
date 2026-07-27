@@ -1,10 +1,9 @@
 import { eq, and, gt } from "drizzle-orm";
-import { cookies } from "next/headers";
 import { z } from "zod";
 
 import { db } from "@/db";
 import { invitations, profiles, memberships, roleMembers } from "@/db/schema";
-import { createClient } from "@/lib/supabase/server";
+import { getAuthenticatedRequestUser } from "@/lib/supabase/request-user";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { handleApiError } from "@/lib/api-error-handler";
 import { resolveUserHome } from "@/lib/auth/resolve-user-home";
@@ -18,14 +17,10 @@ const bodySchema = z.object({
   name: z.string().optional(),
 });
 
+// Acepta cookies (web) o Authorization: Bearer <jwt> (app móvil, deep link de invitación).
 export async function POST(request: Request) {
   try {
-    // Get authenticated user from session
-    const cookieStore = await cookies();
-    const supabase = await createClient(cookieStore);
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const user = await getAuthenticatedRequestUser(request);
 
     if (!user) {
       return apiError("UNAUTHENTICATED", "Debes iniciar sesión para aceptar la invitación", 401);

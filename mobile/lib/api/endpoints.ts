@@ -372,3 +372,51 @@ export const createAssessment = (
     assessmentType: 'coach_feedback',
     ...input,
   });
+
+// ===== KPIs de un vistazo (owner/admin/super_admin) =====
+// A propósito solo números — reportes y analítica completa siguen en
+// la web, ver /api/me/kpis.
+
+export interface AcademyKpis {
+  athletes: number;
+  coaches: number;
+  groups: number;
+  classesThisWeek: number;
+  assessments: number;
+  attendancePercent: number;
+}
+
+export const getMyKpis = () => apiGet<AcademyKpis>('/api/me/kpis');
+
+// ===== Invitaciones (deep link) =====
+// Vista previa pública (sin sesión) + aceptar (requiere sesión con el
+// mismo email de la invitación). El alta de cuenta nueva sigue en la
+// web — ver mobile/app/invite/[type].tsx.
+
+export interface InvitationPreview {
+  email: string;
+  role: string;
+  expired: boolean;
+  academyNames: string[];
+}
+
+export const getInvitationPreview = (token: string) =>
+  apiGet<InvitationPreview>(`/api/invitations/lookup?token=${encodeURIComponent(token)}`, {
+    requireAuth: false,
+  });
+
+export const acceptInvitation = (token: string) =>
+  apiPost<{ success: true; role: string; academyId: string | null; redirectUrl: string }>(
+    '/api/invitations/complete',
+    { token }
+  );
+
+// ===== Coach: aviso al grupo de una sesión =====
+// Crea (o reutiliza) la conversación de grupo de la clase y manda el
+// mensaje a todas las familias/atletas vinculados, con push incluido.
+
+export const sendGroupAlert = (academyId: string, sessionId: string, content: string) =>
+  apiPost<{ conversationId: string; messageId: string; recipientCount: number }>(
+    `/api/messages/group-alert?academyId=${academyId}`,
+    { sessionId, content }
+  );
