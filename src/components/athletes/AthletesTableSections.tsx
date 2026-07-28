@@ -12,6 +12,14 @@ import { TooltipOnboarding } from "@/components/tooltips/TooltipOnboarding";
 import type { SportConfigOption } from "@/components/groups/types";
 import type { AthleteListItem, GroupOption } from "@/types";
 
+/**
+ * Base compartida de los chips de filtro (píldoras de estado). Antes cada uno
+ * repetía su propia cadena de clases con alturas de 40px, que competían
+ * visualmente con los botones reales de la barra.
+ */
+const FILTER_CHIP =
+  "inline-flex h-8 items-center rounded-full border px-3 text-xs font-medium transition-colors";
+
 export interface AthleteTerms {
   athlete: string;
   athletes: string;
@@ -203,32 +211,28 @@ export function AthletesToolbar({
             className="min-h-11 w-20 rounded-card border border-zaltyko-mist bg-white px-2 py-2 text-sm focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15"
           />
         </div>
-        <button
-          type="submit"
-          disabled={isPending}
-          className="min-h-10 rounded-full bg-zaltyko-teal px-4 py-2 text-xs font-semibold text-white hover:bg-primary-dark disabled:opacity-60"
-        >
+        <Button type="submit" size="sm" disabled={isPending}>
           Filtrar
-        </button>
+        </Button>
         <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={() => onStatusChange("active")}
-            className="min-h-10 rounded-full border border-zaltyko-teal/40 bg-zaltyko-teal/10 px-3 py-2 text-xs font-medium text-zaltyko-teal hover:bg-zaltyko-teal/15"
+            className={`${FILTER_CHIP} border-zaltyko-teal/40 bg-zaltyko-teal/10 text-zaltyko-teal hover:bg-zaltyko-teal/15`}
           >
             Activos
           </button>
           <button
             type="button"
             onClick={() => onStatusChange("trial")}
-            className="min-h-10 rounded-full border border-zaltyko-indigo/30 bg-zaltyko-indigo/10 px-3 py-2 text-xs font-medium text-zaltyko-indigo hover:bg-zaltyko-indigo/15"
+            className={`${FILTER_CHIP} border-zaltyko-indigo/30 bg-zaltyko-indigo/10 text-zaltyko-indigo hover:bg-zaltyko-indigo/15`}
           >
             Prueba
           </button>
           <button
             type="button"
             onClick={onClearFilters}
-            className="min-h-10 rounded-full border border-zaltyko-mist bg-white px-3 py-2 text-xs text-zaltyko-text-secondary hover:bg-zaltyko-white"
+            className={`${FILTER_CHIP} border-zaltyko-mist bg-white text-zaltyko-text-secondary hover:bg-zaltyko-bg`}
           >
             Limpiar
           </button>
@@ -255,23 +259,15 @@ export function AthletesToolbar({
           </button>
         </div>
 
-        <button
-          type="button"
-          onClick={onImportClick}
-          className="inline-flex min-h-11 items-center justify-center rounded-xl border border-zaltyko-indigo bg-white px-3 py-2 text-sm font-medium text-zaltyko-indigo hover:bg-zaltyko-indigo/5"
-        >
-          <Upload className="mr-2 h-4 w-4" />
+        <Button type="button" variant="outline" size="sm" onClick={onImportClick}>
+          <Upload className="h-4 w-4" />
           Importar CSV
-        </button>
+        </Button>
 
-        <button
-          type="button"
-          onClick={onExportCSV}
-          className="inline-flex min-h-11 items-center justify-center rounded-xl border border-zaltyko-indigo bg-white px-3 py-2 text-sm font-medium text-zaltyko-indigo hover:bg-zaltyko-indigo/5"
-        >
-          <Download className="mr-2 h-4 w-4" />
+        <Button type="button" variant="outline" size="sm" onClick={onExportCSV}>
+          <Download className="h-4 w-4" />
           Exportar
-        </button>
+        </Button>
 
         {selectedCount > 0 && (
           <div className="flex items-center gap-2 rounded-xl border border-zaltyko-teal/40 bg-zaltyko-teal/10 px-3 py-2">
@@ -304,13 +300,9 @@ export function AthletesToolbar({
           tooltipId="tooltip_add_athlete"
           message={`Añade al menos 5 ${terms.athletes.toLowerCase()} clave para ver todo el valor del sistema.`}
         >
-          <button
-            type="button"
-            onClick={onCreate}
-            className="inline-flex min-h-11 items-center justify-center rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white shadow-soft hover:bg-primary-dark"
-          >
+          <Button type="button" size="sm" onClick={onCreate}>
             Nuevo {terms.athlete.toLowerCase()}
-          </button>
+          </Button>
         </TooltipOnboarding>
       </div>
     </section>
@@ -343,24 +335,16 @@ export function AthletesEmptyState({
       }
       action={
         !hasActiveFilters ? (
-          <button
-            type="button"
-            onClick={onImportClick}
-            className="inline-flex min-h-11 items-center justify-center rounded-xl border border-zaltyko-indigo bg-white px-4 py-2 text-sm font-semibold text-zaltyko-indigo shadow-soft transition-all hover:bg-zaltyko-indigo/5"
-          >
+          <Button type="button" variant="outline" onClick={onImportClick}>
             Importar CSV
-          </button>
+          </Button>
         ) : undefined
       }
       secondaryAction={
         !hasActiveFilters ? (
-          <button
-            type="button"
-            onClick={onCreate}
-            className="inline-flex min-h-11 items-center justify-center rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white shadow-soft transition-all hover:bg-primary-dark"
-          >
+          <Button type="button" onClick={onCreate}>
             Crear primer {terms.athlete.toLowerCase()}
-          </button>
+          </Button>
         ) : undefined
       }
     />

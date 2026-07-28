@@ -1,4 +1,5 @@
 "use client";
+import { Button } from "@/components/ui/button";
 
 import { useState } from "react";
 import { Mail, Send } from "lucide-react";
@@ -121,11 +122,7 @@ export function EventContact({ eventId, eventTitle, contactEmail }: EventContact
         </div>
       )}
 
-      <button
-        type="submit"
-        disabled={isSubmitting}
-        className="flex w-full items-center justify-center gap-2 rounded-lg bg-zaltyko-primary px-6 py-3 text-sm font-semibold text-white transition-all hover:bg-primary-dark disabled:opacity-50 disabled:cursor-not-allowed"
-      >
+      <Button type="submit" className="w-full" disabled={isSubmitting}>
         {isSubmitting ? (
           <>
             <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
@@ -137,7 +134,7 @@ export function EventContact({ eventId, eventTitle, contactEmail }: EventContact
             Enviar mensaje
           </>
         )}
-      </button>
+      </Button>
 
       {contactEmail && (
         <p className="text-center text-xs text-muted-foreground">

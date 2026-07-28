@@ -131,9 +131,15 @@ export function GroupsDashboard({
         return;
       }
 
-      const data = await response.json();
-      if (Array.isArray(data.athleteIds)) {
-        setCurrentAthleteIds(data.athleteIds);
+      // La API envuelve la respuesta en { ok, data } (apiSuccess), así que hay
+      // que desestructurar `data`. Leer `payload.athleteIds` directamente
+      // devolvía siempre undefined -> selección vacía -> guardar el diálogo
+      // vaciaba las pertenencias del grupo. Se acepta el shape plano como
+      // fallback por compatibilidad.
+      const payload = await response.json();
+      const athleteIds = payload?.data?.athleteIds ?? payload?.athleteIds;
+      if (Array.isArray(athleteIds)) {
+        setCurrentAthleteIds(athleteIds);
       } else {
         setCurrentAthleteIds([]);
       }

@@ -1,4 +1,5 @@
 "use client";
+import { Button } from "@/components/ui/button";
 
 import { FormEvent } from "react";
 import Link from "next/link";
@@ -281,20 +282,12 @@ export function AcademyStep({
         <LimitIndicator academyId={null} resource="academies" className="mt-2" />
       )}
       <div className="flex flex-wrap items-center gap-3">
-        <button
-          type="button"
-          onClick={onGoBack}
-          className="rounded-md border border-border px-3 py-2 text-sm font-medium hover:bg-muted"
-        >
+        <Button type="button" variant="outline" onClick={onGoBack}>
           Volver
-        </button>
-        <button
-          type="submit"
-          className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-70"
-          disabled={loading}
-        >
+        </Button>
+        <Button type="submit" disabled={loading}>
           Guardar y continuar
-        </button>
+        </Button>
       </div>
     </form>
   );

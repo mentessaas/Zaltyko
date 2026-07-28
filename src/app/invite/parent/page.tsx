@@ -57,6 +57,7 @@ export default async function ParentInvitationPage({ searchParams }: ParentInvit
         "Podrás seguir asistencia, avisos importantes y movimientos relevantes de tus hijos.",
         "Después podrás actualizar tus datos de contacto y, si aplica, gestionar pagos.",
       ]}
+      appDeepLink={`zaltyko://invite/parent?token=${encodeURIComponent(token)}`}
       form={
         <AcceptInvitationForm
           token={token}

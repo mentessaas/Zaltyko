@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
 
-import { createClient } from "@/lib/supabase/server";
+import { getAuthenticatedRequestUser } from "@/lib/supabase/request-user";
 import { getFamilyChildrenForUser } from "@/lib/family/scope-service";
 import { logger } from "@/lib/logger";
 
@@ -11,14 +10,11 @@ export const dynamic = "force-dynamic";
  * GET /api/family/children
  * Returns the athletes (children) linked to the authenticated parent user.
  * Links are established via family_contacts.email matching the parent's auth email.
+ * Acepta cookies (web) o Authorization: Bearer <jwt> (app móvil).
  */
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const cookieStore = await cookies();
-    const supabase = await createClient(cookieStore);
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const user = await getAuthenticatedRequestUser(request);
 
     if (!user || !user.email) {
       return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });

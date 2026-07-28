@@ -1,4 +1,5 @@
 "use client";
+import { Button } from "@/components/ui/button";
 
 import { FormEvent, useEffect, useMemo, useState, useTransition } from "react";
 
@@ -238,22 +239,12 @@ export function EditCoachDialog({
             Eliminar {coachTermLower}
           </button>
           <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={handleClose}
-              className="rounded-md border border-border px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
-              disabled={isPending}
-            >
+            <Button type="button" variant="outline" onClick={handleClose} disabled={isPending}>
               Cancelar
-            </button>
-            <button
-              type="submit"
-              form="edit-coach-form"
-              className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white shadow hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
-              disabled={isPending || !hasChanges}
-            >
+            </Button>
+            <Button type="submit" form="edit-coach-form" disabled={isPending || !hasChanges}>
               {isPending || isAssigning ? "Guardando…" : "Guardar cambios"}
-            </button>
+            </Button>
           </div>
         </div>
       }

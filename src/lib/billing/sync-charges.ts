@@ -34,7 +34,9 @@ export async function syncChargesForAthleteCurrentPeriod(
   const currentPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 
   try {
-    // Buscar cargos del periodo actual con estados pendientes
+    // Buscar el cargo pendiente del periodo actual para ESTE grupo. Con multi-grupo
+    // un atleta puede tener un cargo por grupo en el mismo periodo, así que la
+    // sincronización se limita al grupo indicado para no pisar los demás.
     const pendingCharges = await db
       .select({
         id: charges.id,
@@ -48,6 +50,7 @@ export async function syncChargesForAthleteCurrentPeriod(
           eq(charges.academyId, academyId),
           eq(charges.athleteId, athleteId),
           eq(charges.period, currentPeriod),
+          eq(charges.groupId, groupId),
           inArray(charges.status, ["pending", "overdue"])
         )
       );

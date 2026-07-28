@@ -17,8 +17,44 @@ import {
   classWeekdays,
   classes,
   coaches,
+  groupAthletes,
   groups,
 } from "@/db/schema";
+
+/**
+ * Resuelve todos los grupos a los que pertenece un atleta.
+ *
+ * Fuente principal: la tabla many-to-many `group_athletes`. Se mantiene el
+ * campo legacy `athletes.group_id` como fallback mientras existan datos que
+ * aún no se migraron a la M2M. Antes esta lógica leía solo `athletes.group_id`,
+ * lo que ignoraba a los atletas asignados a más de un grupo.
+ */
+async function resolveAthleteGroupIds(
+  academyId: string,
+  athleteId: string
+): Promise<string[]> {
+  const [athlete] = await db
+    .select({ groupId: athletes.groupId })
+    .from(athletes)
+    .where(and(eq(athletes.id, athleteId), eq(athletes.academyId, academyId)))
+    .limit(1);
+
+  if (!athlete) {
+    return [];
+  }
+
+  const memberships = await db
+    .select({ groupId: groupAthletes.groupId })
+    .from(groupAthletes)
+    .where(eq(groupAthletes.athleteId, athleteId));
+
+  const groupIds = new Set<string>(memberships.map((row) => row.groupId));
+  if (athlete.groupId) {
+    groupIds.add(athlete.groupId);
+  }
+
+  return Array.from(groupIds);
+}
 
 export interface ScheduleConflict {
   hasConflict: boolean;
@@ -133,32 +169,26 @@ export async function hasScheduleConflictForAthlete(
 
   // 1. Obtener todas las clases donde el atleta está
 
-  // 1.1. Clases por grupo principal
-  const [athlete] = await db
-    .select({
-      groupId: athletes.groupId,
-    })
-    .from(athletes)
-    .where(and(eq(athletes.id, athleteId), eq(athletes.academyId, academyId)))
-    .limit(1);
-
-  if (!athlete) {
-    return { hasConflict: false };
-  }
+  // 1.1. Clases por los grupos del atleta (todos, vía group_athletes + legacy)
+  const groupIds = await resolveAthleteGroupIds(academyId, athleteId);
 
   const classIdsFromGroups: string[] = [];
-  if (athlete.groupId) {
-    const groupClasses = await db
-      .select({
-        classId: classGroups.classId,
-      })
-      .from(classGroups)
-      .where(eq(classGroups.groupId, athlete.groupId));
-
-    classIdsFromGroups.push(...groupClasses.map((row) => row.classId));
+  if (groupIds.length > 0) {
+    const [groupClassRows, directClassRows] = await Promise.all([
+      db
+        .select({ classId: classGroups.classId })
+        .from(classGroups)
+        .where(inArray(classGroups.groupId, groupIds)),
+      db
+        .select({ id: classes.id })
+        .from(classes)
+        .where(and(eq(classes.academyId, academyId), inArray(classes.groupId, groupIds))),
+    ]);
+    classIdsFromGroups.push(...groupClassRows.map((row) => row.classId));
+    classIdsFromGroups.push(...directClassRows.map((row) => row.id));
   }
 
-  // 1.2. Clases por enrollment
+  // 1.2. Clases por enrollment extra
   const enrollmentClasses = await db
     .select({
       classId: classEnrollments.classId,
@@ -173,9 +203,24 @@ export async function hasScheduleConflictForAthlete(
 
   const enrollmentClassIds = enrollmentClasses.map((row) => row.classId);
 
+  // 1.3. Clases extra individuales (athlete_extra_classes)
+  const extraClasses = await db
+    .select({
+      classId: athleteExtraClasses.classId,
+    })
+    .from(athleteExtraClasses)
+    .where(
+      and(
+        eq(athleteExtraClasses.athleteId, athleteId),
+        eq(athleteExtraClasses.academyId, academyId)
+      )
+    );
+
+  const extraClassIds = extraClasses.map((row) => row.classId);
+
   // Combinar todas las clases donde el atleta está
   const allClassIds = Array.from(
-    new Set([...classIdsFromGroups, ...enrollmentClassIds])
+    new Set([...classIdsFromGroups, ...enrollmentClassIds, ...extraClassIds])
   ).filter((id) => id !== excludeClassId); // Excluir la clase que estamos editando
 
   if (allClassIds.length === 0) {
@@ -368,17 +413,11 @@ export async function checkScheduleConflict(params: {
 
   // Validar conflictos para atleta
   if (athleteId) {
-    // 1. Clases base del grupo del atleta
-    const [athlete] = await db
-      .select({
-        groupId: athletes.groupId,
-      })
-      .from(athletes)
-      .where(and(eq(athletes.id, athleteId), eq(athletes.academyId, academyId)))
-      .limit(1);
+    // 1. Clases base de todos los grupos del atleta (group_athletes + legacy)
+    const groupIds = await resolveAthleteGroupIds(academyId, athleteId);
 
-    if (athlete?.groupId) {
-      // Obtener clases del grupo
+    if (groupIds.length > 0) {
+      // Obtener clases de los grupos
       const groupClasses = await db
         .select({
           id: classes.id,
@@ -391,7 +430,7 @@ export async function checkScheduleConflict(params: {
         .innerJoin(classGroups, eq(classes.id, classGroups.classId))
         .where(
           and(
-            eq(classGroups.groupId, athlete.groupId),
+            inArray(classGroups.groupId, groupIds),
             eq(classes.academyId, academyId),
             excludeClassId ? ne(classes.id, excludeClassId) : undefined
           )

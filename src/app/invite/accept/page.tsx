@@ -61,6 +61,12 @@ export default async function AcceptInvitationPage({ searchParams }: AcceptPageP
       </div>
 
       <div className="rounded-xl border bg-card p-6 shadow">
+        <a
+          href={`zaltyko://invite/coach?token=${encodeURIComponent(token)}`}
+          className="mb-4 flex items-center justify-center gap-2 rounded-md border border-zaltyko-primary/30 bg-zaltyko-primary/5 px-4 py-2.5 text-sm font-medium text-zaltyko-primary transition-colors hover:bg-zaltyko-primary/10"
+        >
+          ¿Ya tienes la app Zaltyko? Ábrela aquí
+        </a>
         <AcceptInvitationForm
           token={token}
           email={invitation.email}

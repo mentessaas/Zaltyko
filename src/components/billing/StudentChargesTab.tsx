@@ -353,11 +353,19 @@ export function StudentChargesTab({ academyId, sportConfigs = [] }: StudentCharg
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="font-display text-2xl font-semibold text-zaltyko-navy">Cobros a {athletesTermLower}</h2>
-        <p className="text-sm text-muted-foreground">
-          Controla cuotas, matrículas y otros cargos a {athletesTermLower}.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="font-display text-2xl font-semibold text-zaltyko-navy">Cobros a {athletesTermLower}</h2>
+          <p className="text-sm text-muted-foreground">
+            Controla cuotas, matrículas y otros cargos a {athletesTermLower}.
+          </p>
+        </div>
+        <Link
+          href={`/app/${academyId}/billing/items`}
+          className="text-sm font-medium text-primary hover:underline"
+        >
+          Conceptos de cobro
+        </Link>
       </div>
 
       {/* Filtros */}

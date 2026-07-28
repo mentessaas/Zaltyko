@@ -188,6 +188,7 @@ export function RegisterForm() {
           <Label htmlFor="fullName">Nombre completo</Label>
           <Input
             id="fullName"
+            name="fullName"
             type="text"
             value={fullName}
             onChange={(e) => setFullName(e.target.value)}
@@ -200,6 +201,7 @@ export function RegisterForm() {
           <Label htmlFor="email">Correo electrónico</Label>
           <Input
             id="email"
+            name="email"
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -212,6 +214,7 @@ export function RegisterForm() {
           <Label htmlFor="password">Contraseña</Label>
           <Input
             id="password"
+            name="password"
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}

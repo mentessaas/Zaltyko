@@ -280,7 +280,12 @@ const FEATURE_REQUIREMENTS: Record<TransactionalFeature, readonly string[]> = {
   stripePlatformWebhook: ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"],
   stripeConnectWebhook: ["STRIPE_SECRET_KEY", "STRIPE_CONNECT_WEBHOOK_SECRET"],
   cron: ["CRON_SECRET"],
-  email: ["BREVO_API_KEY", "BREVO_SENDER_EMAIL", "BREVO_SENDER_NAME", "BREVO_REPLY_TO"],
+  // BREVO_REPLY_TO NO va aquí: sendEmailWithLogging ya cae a
+  // config.brevo.supportEmail si falta, así que exigirla como requisito
+  // de "readiness" era más estricto que lo que el código realmente
+  // necesita — con las otras 3 puestas pero sin esta, sendEmail()
+  // simulaba el envío en dev en vez de mandarlo de verdad.
+  email: ["BREVO_API_KEY", "BREVO_SENDER_EMAIL", "BREVO_SENDER_NAME"],
   push: [
     "VAPID_PUBLIC_KEY",
     "NEXT_PUBLIC_VAPID_PUBLIC_KEY",

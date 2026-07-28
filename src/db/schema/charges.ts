@@ -4,6 +4,7 @@ import { academies } from "./academies";
 import { athletes } from "./athletes";
 import { billingItems } from "./billing-items";
 import { classes } from "./classes";
+import { groups } from "./groups";
 import { chargeStatusEnum, paymentMethodEnum } from "./enums";
 
 export const charges = pgTable(
@@ -19,6 +20,9 @@ export const charges = pgTable(
       .references(() => athletes.id, { onDelete: "cascade" }),
     billingItemId: uuid("billing_item_id").references(() => billingItems.id, { onDelete: "set null" }),
     classId: uuid("class_id").references(() => classes.id, { onDelete: "set null" }),
+    // Grupo al que corresponde la cuota. Con multi-grupo, un atleta puede tener
+    // un cargo por cada grupo al que pertenece en el mismo periodo.
+    groupId: uuid("group_id").references(() => groups.id, { onDelete: "set null" }),
     label: text("label").notNull(),
     amountCents: integer("amount_cents").notNull(),
     currency: text("currency").notNull().default("EUR"),
@@ -48,6 +52,13 @@ export const charges = pgTable(
     ),
     academyStatusIdx: index("charges_academy_status_idx").on(table.academyId, table.status),
     classIdIdx: index("charges_class_id_idx").on(table.classId),
+    groupIdIdx: index("charges_group_id_idx").on(table.groupId),
+    academyAthletePeriodGroupIdx: index("charges_academy_athlete_period_group_idx").on(
+      table.academyId,
+      table.athleteId,
+      table.period,
+      table.groupId
+    ),
     paymentIntentIdx: index("charges_payment_intent_idx").on(table.stripePaymentIntentId),
   })
 );

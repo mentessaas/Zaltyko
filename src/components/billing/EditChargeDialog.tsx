@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { Modal } from "@/components/ui/modal";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Button } from "@/components/ui/button";
 
 interface Charge {
@@ -12,6 +13,8 @@ interface Charge {
   label: string;
   amountCents: number;
   dueDate: string | null;
+  stripeChargeId?: string | null;
+  stripePaymentIntentId?: string | null;
 }
 
 interface EditChargeDialogProps {
@@ -20,6 +23,21 @@ interface EditChargeDialogProps {
   open: boolean;
   onClose: () => void;
   onUpdated: () => void;
+}
+
+/**
+ * Un cargo con dinero de por medio es un registro contable y no se puede borrar
+ * (el servidor lo rechaza con 409). Se refleja aqui para no ofrecer una accion
+ * que va a fallar: para esos casos el camino es cancelar o reembolsar.
+ */
+const SETTLED_STATUSES = ["paid", "partial", "refunded"];
+
+function isChargeDeletable(charge: Charge) {
+  return (
+    !SETTLED_STATUSES.includes(charge.status) &&
+    !charge.stripeChargeId &&
+    !charge.stripePaymentIntentId
+  );
 }
 
 export function EditChargeDialog({
@@ -39,6 +57,9 @@ export function EditChargeDialog({
   );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const deletable = isChargeDeletable(charge);
 
   useEffect(() => {
     if (open) {
@@ -100,6 +121,31 @@ export function EditChargeDialog({
     }
   };
 
+  const handleDelete = async () => {
+    setIsDeleting(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/charges/${charge.id}`, {
+        method: "DELETE",
+        headers: { "x-academy-id": academyId },
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message ?? data.error ?? "No se pudo eliminar el cargo.");
+      }
+
+      setDeleteDialogOpen(false);
+      onUpdated();
+      onClose();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Error desconocido al eliminar el cargo.");
+      setDeleteDialogOpen(false);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <Modal
       title="Editar cargo"
@@ -107,13 +153,29 @@ export function EditChargeDialog({
       open={open}
       onClose={onClose}
       footer={
-        <div className="flex justify-end gap-2">
-          <Button variant="outline" onClick={onClose} disabled={loading}>
-            Cancelar
-          </Button>
-          <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? "Guardando..." : "Guardar"}
-          </Button>
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          {deletable ? (
+            <button
+              type="button"
+              onClick={() => setDeleteDialogOpen(true)}
+              className="text-sm font-semibold text-red-600 hover:underline disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={loading || isDeleting}
+            >
+              Eliminar cargo
+            </button>
+          ) : (
+            <span className="text-xs text-muted-foreground">
+              Un cargo con pagos registrados no se puede eliminar: cancélalo o reembólsalo.
+            </span>
+          )}
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={onClose} disabled={loading || isDeleting}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSubmit} disabled={loading || isDeleting}>
+              {loading ? "Guardando..." : "Guardar"}
+            </Button>
+          </div>
         </div>
       }
     >
@@ -200,6 +262,18 @@ export function EditChargeDialog({
           />
         </div>
       </form>
+
+      <ConfirmDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title="Eliminar cargo"
+        description={`¿Seguro que quieres eliminar el cargo "${charge.label}"? Esta acción no se puede deshacer.`}
+        variant="destructive"
+        confirmText="Eliminar"
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteDialogOpen(false)}
+        loading={isDeleting}
+      />
     </Modal>
   );
 }

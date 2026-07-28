@@ -7,6 +7,7 @@ import { academies, athletes, classEnrollments, classes, classWeekdays } from "@
 import { withTenant } from "@/lib/authz";
 import { handleApiError } from "@/lib/api-error-handler";
 import { hasScheduleConflictForAthlete } from "@/lib/classes/schedule-conflicts";
+import { getClassAthletes } from "@/lib/classes/get-class-athletes";
 
 const BodySchema = z.object({
   academyId: z.string().uuid(),
@@ -149,13 +150,12 @@ export const POST = withTenant(async (request, context) => {
       .limit(1);
 
     if (classWithCapacity && classWithCapacity.capacity) {
-      // Contar inscripciones actuales (extras) en esta clase
-      const [{ count: currentCount }] = await db
-        .select({ count: classEnrollments.id })
-        .from(classEnrollments)
-        .where(eq(classEnrollments.classId, body.classId));
+      // Ocupación real = atletas del grupo + inscripciones extra (deduplicado).
+      // No basta con contar class_enrollments: los miembros del grupo asignado
+      // a la clase también ocupan plaza.
+      const currentAthletes = await getClassAthletes(body.classId, body.academyId);
 
-      if (Number(currentCount) >= classWithCapacity.capacity) {
+      if (currentAthletes.length >= classWithCapacity.capacity) {
         return apiError("CLASS_FULL", "La clase ha alcanzado su capacidad máxima.", 400);
       }
     }

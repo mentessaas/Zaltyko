@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import { eq, and, isNull } from "drizzle-orm";
+import { eq, and, isNull, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { academies, invitations, academyRoles } from "@/db/schema";
@@ -14,6 +14,7 @@ import type { AuditAction, AuditModule } from "@/db/schema/audit-logs";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { sendEmailWithLogging } from "@/lib/email/email-service";
 import { escapeHtml } from "@/lib/email/escape-html";
+import { logger } from "@/lib/logger";
 
 const bodySchema = z.object({
   academyId: z.string().uuid(),
@@ -69,22 +70,62 @@ export const POST = withTenant(async (request, context) => {
     roleName = role[0].name;
   }
 
-  await db.insert(invitations).values({
-    id: randomUUID(),
-    tenantId: context.tenantId,
-    email: parsed.data.email.toLowerCase(),
-    role: parsed.data.role,
-    roleId: parsed.data.roleId || null,
-    token,
-    status: "pending",
-    invitedBy: context.profile.userId,
-    academyIds: [parsed.data.academyId],
-    defaultAcademyId: parsed.data.academyId,
-    expiresAt,
-    customMessage: parsed.data.customMessage || null,
-    permissions: parsed.data.customPermissions || null,
-    sendEmail: parsed.data.sendEmail ? "true" : "false",
-  });
+  // (tenantId, email) es único en la tabla sin importar el estado —
+  // sin este chequeo, reinvitar a alguien que ya aceptó (o simplemente
+  // volver a invitar tras un typo/expiración) rompía con un 500 de
+  // constraint en vez de reenviar. Si ya aceptó, no lo pisamos.
+  const normalizedEmail = parsed.data.email.toLowerCase();
+  const [existingInvitation] = await db
+    .select({ id: invitations.id, status: invitations.status })
+    .from(invitations)
+    .where(and(eq(invitations.tenantId, context.tenantId), eq(invitations.email, normalizedEmail)))
+    .limit(1);
+
+  if (existingInvitation?.status === "accepted") {
+    return apiError(
+      "ALREADY_ACCEPTED",
+      "Esta persona ya aceptó una invitación anterior y tiene cuenta.",
+      409
+    );
+  }
+
+  await db
+    .insert(invitations)
+    .values({
+      id: randomUUID(),
+      tenantId: context.tenantId,
+      email: normalizedEmail,
+      role: parsed.data.role,
+      roleId: parsed.data.roleId || null,
+      token,
+      status: "pending",
+      invitedBy: context.profile.userId,
+      academyIds: [parsed.data.academyId],
+      defaultAcademyId: parsed.data.academyId,
+      expiresAt,
+      customMessage: parsed.data.customMessage || null,
+      permissions: parsed.data.customPermissions || null,
+      sendEmail: parsed.data.sendEmail ? "true" : "false",
+    })
+    .onConflictDoUpdate({
+      target: [invitations.tenantId, invitations.email],
+      set: {
+        role: parsed.data.role,
+        roleId: parsed.data.roleId || null,
+        token,
+        status: "pending",
+        invitedBy: context.profile.userId,
+        academyIds: [parsed.data.academyId],
+        defaultAcademyId: parsed.data.academyId,
+        expiresAt,
+        acceptedAt: null,
+        customMessage: parsed.data.customMessage || null,
+        permissions: parsed.data.customPermissions || null,
+        sendEmail: parsed.data.sendEmail ? "true" : "false",
+        resendCount: sql`(${invitations.resendCount}::int + 1)::text`,
+        lastResentAt: new Date(),
+      },
+    });
 
   if (parsed.data.role === "coach") {
     await markChecklistItem({
@@ -170,9 +211,15 @@ export const POST = withTenant(async (request, context) => {
         metadata: { role: parsed.data.role },
       });
       emailSent = true;
-    } catch {
+    } catch (error) {
       // La invitación sigue siendo válida y el owner recibe el enlace para
       // compartirlo/reintentar; el fallo de proveedor no revierte el negocio.
+      // Se loguea porque antes este catch tragaba el error sin dejar rastro
+      // en ningún log de servidor — un fallo real de envío pasaba
+      // totalmente desapercibido.
+      logger.error("[invitations] sendEmailWithLogging falló:", error, {
+        email: parsed.data.email,
+      });
       emailSent = false;
     }
   }

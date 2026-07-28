@@ -1,4 +1,5 @@
 "use client";
+import { Button } from "@/components/ui/button";
 
 import Link from "next/link";
 import type { GuardianSummary, GuardianFormData } from "@/types/athlete-edit";
@@ -85,21 +86,12 @@ export function GuardianItem({
             </label>
           </div>
           <div className="flex flex-wrap justify-end gap-2">
-            <button
-              type="button"
-              onClick={onCancel}
-              className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-muted"
-              disabled={isSaving}
-            >
+            <Button type="button" variant="outline" size="sm" onClick={onCancel} disabled={isSaving}>
               Cancelar
-            </button>
-            <button
-              type="submit"
-              className="rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-white shadow hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
-              disabled={isSaving}
-            >
+            </Button>
+            <Button type="submit" size="sm" disabled={isSaving}>
               {isSaving ? "Guardando…" : "Guardar contacto"}
-            </button>
+            </Button>
             <button
               type="button"
               onClick={onRemove}

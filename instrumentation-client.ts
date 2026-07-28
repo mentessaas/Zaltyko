@@ -51,14 +51,19 @@ Sentry.init({
 });
 
 if (typeof window !== "undefined") {
-  Sentry.lazyLoadIntegration("replayIntegration").then((replayIntegration) => {
-    Sentry.addIntegration(
-      replayIntegration({
-        maskAllText: true,
-        blockAllMedia: true,
-      })
-    );
-  });
+  Sentry.lazyLoadIntegration("replayIntegration")
+    .then((replayIntegration) => {
+      Sentry.addIntegration(
+        replayIntegration({
+          maskAllText: true,
+          blockAllMedia: true,
+        })
+      );
+    })
+    .catch(() => {
+      // Session Replay es best-effort: un bloqueador de anuncios u otra
+      // extensión puede impedir la carga del chunk. No debe romper la app.
+    });
 }
 
 export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;

@@ -8,6 +8,9 @@ interface InvitationPageShellProps {
   highlights: string[];
   form: React.ReactNode;
   backHref?: string;
+  // zaltyko://invite/<role>?token=... — si ya tiene la app instalada,
+  // evita el registro/login duplicado en el navegador.
+  appDeepLink?: string;
 }
 
 export function InvitationPageShell({
@@ -17,6 +20,7 @@ export function InvitationPageShell({
   highlights,
   form,
   backHref = "/auth/login",
+  appDeepLink,
 }: InvitationPageShellProps) {
   return (
     <div className="min-h-screen bg-muted/30">
@@ -58,6 +62,14 @@ export function InvitationPageShell({
         </section>
 
         <aside className="self-start rounded-lg border border-border bg-background p-6 shadow-sm sm:p-8">
+          {appDeepLink ? (
+            <a
+              href={appDeepLink}
+              className="mb-6 flex items-center justify-center gap-2 rounded-md border border-zaltyko-primary/30 bg-zaltyko-primary/5 px-4 py-2.5 text-sm font-medium text-zaltyko-primary transition-colors hover:bg-zaltyko-primary/10"
+            >
+              ¿Ya tienes la app Zaltyko? Ábrela aquí
+            </a>
+          ) : null}
           {form}
         </aside>
       </div>

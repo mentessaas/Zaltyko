@@ -1,4 +1,5 @@
 "use client";
+import { Button } from "@/components/ui/button";
 
 import { useState } from "react";
 import { Mail, Send } from "lucide-react";
@@ -141,13 +142,14 @@ export function ContactAcademyForm({ academyId, academyName }: ContactAcademyFor
           </div>
 
           <div className="flex gap-3">
-            <button
+            <Button
               type="button"
+              variant="outline"
+              className="flex-1"
               onClick={() => setIsOpen(false)}
-              className="flex-1 rounded-lg border border-border bg-muted px-4 py-2 font-medium text-foreground transition hover:bg-muted/80"
             >
               Cancelar
-            </button>
+            </Button>
             <button
               type="submit"
               disabled={isSubmitting}

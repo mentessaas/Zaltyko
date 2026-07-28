@@ -362,56 +362,8 @@ describe("API Billing Upgrades & Downgrades", () => {
         });
     });
 
-    describe("Payment Method Updates", () => {
-        it("debe permitir actualizar método de pago", async () => {
-            const mockSubscription = { id: "sub-123", userId: mockUserData.id, stripeCustomerId: "cus_123" };
-            setMockDbResult([mockSubscription], []);
-
-            vi.mock("@/db", () => ({
-                db: mockDb,
-            }));
-
-            vi.mock("@/lib/authz", () => ({
-                withTenant: (handler: any) => async (request: Request, context: any) => {
-                    return handler(request, { ...context, userId: mockUserData.id, tenantId: "tenant-123" });
-                },
-            }));
-
-            const { POST } = await import("@/app/api/billing/payment-method/route");
-            const request = new NextRequest("http://localhost/api/billing/payment-method", {
-                method: "POST",
-                body: JSON.stringify({ payment_method: "pm_new" }),
-            });
-
-            const response = await POST(request, {});
-            const data = await response.json();
-
-            expect(response.status).toBe(404);
-            expect(data.error).toBe("FEATURE_DISABLED");
-        });
-
-        it("debe rechazar sin método de pago", async () => {
-            setMockDbResult([], []);
-
-            vi.mock("@/db", () => ({
-                db: mockDb,
-            }));
-
-            vi.mock("@/lib/authz", () => ({
-                withTenant: (handler: any) => async (request: Request, context: any) => {
-                    return handler(request, { ...context, userId: mockUserData.id, tenantId: "tenant-123" });
-                },
-            }));
-
-            const { POST } = await import("@/app/api/billing/payment-method/route");
-            const request = new NextRequest("http://localhost/api/billing/payment-method", {
-                method: "POST",
-                body: JSON.stringify({}),
-            });
-
-            const response = await POST(request, {});
-
-            expect(response.status).toBe(404);
-        });
-    });
+    // Payment Method Updates: el endpoint /api/billing/payment-method se eliminó
+    // (código muerto sin feature flag activo ni consumidor en el frontend; el
+    // flujo real de cambio de método de pago es el Stripe Customer Portal via
+    // /api/billing/portal, ya cubierto en otros tests de este archivo).
 });
