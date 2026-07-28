@@ -41,6 +41,7 @@ export const POST = withRateLimit(async (request: NextRequest) => {
       demo: "Solicitar demo",
       network: "Plan Network / multi-sede",
       sales: "Información de ventas",
+      migracion: "Migrar datos o coordinar varias sedes",
       support: "Soporte técnico",
       billing: "Cobros",
       partnership: "Colaboración",

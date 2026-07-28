@@ -71,7 +71,7 @@ export const ContactRequestSchema = z
     email: z.string().trim().email().max(254),
     academy: z.string().trim().max(140).nullable().optional(),
     reason: z
-      .enum(["demo", "network", "sales", "support", "billing", "partnership", "other"])
+      .enum(["demo", "network", "sales", "migracion", "support", "billing", "partnership", "other"])
       .default("demo"),
     plan: z.enum(COMMERCIAL_PLAN_SLUGS).nullable().optional(),
     visitorId: z.string().uuid().nullable().optional(),
