@@ -49,6 +49,20 @@ export default function AcceptInvitationForm({
   const [confirmPassword, setConfirmPassword] = useState("");
   const [pending, setPending] = useState(false);
   const [completed, setCompleted] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+
+  // El botón decía "Cerrar sesión" pero solo navegaba a /auth/login sin
+  // invalidar la sesión — con la cookie todavía válida, /auth/login
+  // redirige de vuelta al dashboard y parece que "no hace nada".
+  async function handleSignOutAndSwitch() {
+    setSigningOut(true);
+    try {
+      const supabase = createClient();
+      await supabase.auth.signOut();
+    } finally {
+      router.push("/auth/login");
+    }
+  }
 
   // Usuario autenticado con el mismo email → solo botón de aceptar
   if (isAuthenticated && isSameEmail) {
@@ -105,8 +119,13 @@ export default function AcceptInvitationForm({
         </div>
 
         <div className="space-y-3">
-          <Button variant="outline" className="w-full" onClick={() => router.push("/auth/login")}>
-            Cerrar sesión y usar otra cuenta
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={handleSignOutAndSwitch}
+            disabled={signingOut}
+          >
+            {signingOut ? "Cerrando sesión..." : "Cerrar sesión y usar otra cuenta"}
           </Button>
           <Button variant="ghost" className="w-full" onClick={() => router.push("/dashboard")}>
             Ir a mi dashboard actual

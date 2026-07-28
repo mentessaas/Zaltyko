@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { emailLogs } from "@/db/schema";
 import { sendEmail } from "@/lib/brevo";
 import { config } from "@/config";
+import { logger } from "@/lib/logger";
 
 export interface SendEmailOptions {
   to: string;
@@ -36,19 +37,25 @@ export async function sendEmailWithLogging(options: SendEmailOptions): Promise<b
   }
 
   // Crear log antes de enviar
-  const [logEntry] = await db
-    .insert(emailLogs)
-    .values({
-      tenantId: tenantId || null,
-      academyId: academyId || null,
-      userId: userId || null,
-      toEmail: to,
-      subject,
-      template: template || null,
-      status: "pending",
-      metadata: dedupeKey ? { ...(metadata ?? {}), dedupeKey } : metadata || null,
-    })
-    .returning({ id: emailLogs.id });
+  let logEntry: { id: string };
+  try {
+    [logEntry] = await db
+      .insert(emailLogs)
+      .values({
+        tenantId: tenantId || null,
+        academyId: academyId || null,
+        userId: userId || null,
+        toEmail: to,
+        subject,
+        template: template || null,
+        status: "pending",
+        metadata: dedupeKey ? { ...(metadata ?? {}), dedupeKey } : metadata || null,
+      })
+      .returning({ id: emailLogs.id });
+  } catch (error) {
+    logger.error("[email-service] insert emailLogs falló:", error, { to, template });
+    throw error;
+  }
 
   try {
     await sendEmail({
@@ -68,6 +75,11 @@ export async function sendEmailWithLogging(options: SendEmailOptions): Promise<b
       .where(eq(emailLogs.id, logEntry.id));
     return true;
   } catch (error: unknown) {
+    // Antes este catch no dejaba rastro en ningún log de servidor —
+    // solo en emailLogs.errorMessage, invisible salvo consultando la
+    // BD directamente. Un fallo real de envío pasaba totalmente
+    // desapercibido en desarrollo.
+    logger.error("[email-service] sendEmail falló:", error, { to, template });
     // Actualizar log con error
     await db
       .update(emailLogs)

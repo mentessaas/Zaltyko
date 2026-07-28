@@ -14,6 +14,7 @@ import type { AuditAction, AuditModule } from "@/db/schema/audit-logs";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { sendEmailWithLogging } from "@/lib/email/email-service";
 import { escapeHtml } from "@/lib/email/escape-html";
+import { logger } from "@/lib/logger";
 
 const bodySchema = z.object({
   academyId: z.string().uuid(),
@@ -210,9 +211,15 @@ export const POST = withTenant(async (request, context) => {
         metadata: { role: parsed.data.role },
       });
       emailSent = true;
-    } catch {
+    } catch (error) {
       // La invitación sigue siendo válida y el owner recibe el enlace para
       // compartirlo/reintentar; el fallo de proveedor no revierte el negocio.
+      // Se loguea porque antes este catch tragaba el error sin dejar rastro
+      // en ningún log de servidor — un fallo real de envío pasaba
+      // totalmente desapercibido.
+      logger.error("[invitations] sendEmailWithLogging falló:", error, {
+        email: parsed.data.email,
+      });
       emailSent = false;
     }
   }
