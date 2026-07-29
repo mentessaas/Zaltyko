@@ -9,6 +9,36 @@ source:
 
 # Changelog interno
 
+## 2026-07-29 - ZAL-11 verificación Brevo: DKIM/return-path OK y entrega E2E confirmada; falta SPF en el ápex
+
+Verificación hecha desde fuentes objetivas (DNS público + `email_logs` de producción), sin depender de acceso al panel de Brevo.
+
+**1. Autenticación DNS de `zaltyko.com`**
+
+| Registro | Estado | Valor observado |
+|---|---|---|
+| DKIM `brevo1._domainkey` | OK | CNAME → `b1.zaltyko-com.dkim.brevo.com` |
+| DKIM `brevo2._domainkey` | OK | CNAME → `b2.zaltyko-com.dkim.brevo.com` |
+| Propiedad de dominio | OK | TXT `brevo-code:157b92ef889dff5d2baca10073c7d5ef` en el ápex |
+| Return-path / subdominio de marca | OK | `mail.zaltyko.com` CNAME → `mail-zaltyko-com.brand.brevosend.com`, con SPF propio `v=spf1 include:spf.brevo.com -all` |
+| DMARC | Presente, sin enforcement | `v=DMARC1; p=none; rua=mailto:rua@dmarc.brevo.com` |
+| **SPF en el ápex** | **Ausente** | `zaltyko.com` no publica ningún `v=spf1` |
+
+El SPF ausente en la raíz **no rompe la entrega**: el `MAIL FROM` es `mail.zaltyko.com`, que sí tiene SPF, y la alineación DMARC relajada se cumple por dominio organizacional; además DKIM firma con `d=zaltyko.com`. Queda como deuda de anti-spoofing en el backlog (Media / Terra).
+
+**2. Evidencia E2E**
+
+`email_logs` en producción (`aws-1-eu-north-1.pooler.supabase.com`):
+
+- 3 filas `status='sent'`, plantilla `academy-invitation`, destinatario real externo (Gmail), `sent_at` 2026-07-28 17:36Z / 18:06Z / 18:22Z, `error_message` null.
+- 2 filas `status='failed'` del 2026-07-17 con `El email 'replyTo' no es válido: Equipo Zaltyko <hola@zaltyko.com>`. Causa: `email-service.ts` pasaba `config.brevo.fromAdmin` (cadena con display name) a `replyTo`, que `src/lib/brevo.ts:47` valida con `isValidEmail` y rechaza. **Ya corregido** en el commit `72ef1f34` (`replyTo: process.env.BREVO_REPLY_TO ?? config.brevo.supportEmail`); los envíos correctos del 28 son posteriores al fix.
+
+Los envíos correctos del 2026-07-28 prueban además que Vercel Production tiene las cuatro variables Brevo completas, ya que `getFeatureReadiness("email")` (`src/lib/env.ts:283`) exige `BREVO_API_KEY`, `BREVO_SENDER_EMAIL`, `BREVO_SENDER_NAME` y `BREVO_REPLY_TO` y falla cerrado en producción si falta alguna.
+
+**Conclusión:** los dos criterios de aceptación de ZAL-11 quedan satisfechos con evidencia, por lo que ZAL-1 deja de estar bloqueado por Brevo. Riesgo residual anotado: `BREVO_REPLY_TO` se lee crudo del entorno y solo se valida en el momento del envío, así que un valor con display name en Vercel volvería a romper todos los correos — es exactamente el fallo del 2026-07-17.
+
+Sin cambios de código en este heartbeat. Vault: actualizados `Changelog interno` y `Backlog priorizado`.
+
 ## 2026-07-29 - ZAL-4 cobertura HTTP de rutas /api/family/payment-method y /api/family/charges/*
 
 - Se añadió `tests/api-family-payments.test.ts` (38 tests, todos verdes) cubriendo los cinco handlers que ZAL-2 tenía sin cobertura HTTP directa:
