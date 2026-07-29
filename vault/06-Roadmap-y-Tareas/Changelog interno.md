@@ -1,13 +1,40 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-07-18
+last_reviewed: 2026-07-29
 source:
   - ../ROADMAP.md
   - ../AGENTS.md
 ---
 
 # Changelog interno
+
+## 2026-07-29 - ZAL-4 cobertura HTTP de rutas /api/family/payment-method y /api/family/charges/*
+
+- Se añadió `tests/api-family-payments.test.ts` (38 tests, todos verdes) cubriendo los cinco handlers que ZAL-2 tenía sin cobertura HTTP directa:
+  - `POST /api/family/payment-method/setup-intent`: validación Zod del body, 401 sin sesión, 403 sin perfil, 403 cuando `resolveFamilyPaymentAccess` deniega, 409 si la academia no está Connect-ready, flujo feliz que reusa customer + crea SetupIntent y devuelve `{clientSecret, publishableKey, stripeAccountId}`, 500 si `createFamilySetupIntent` lanza.
+  - `GET /api/family/payment-method?academyId=...`: 400 con academyId no UUID, 401 sin sesión, 403 cuando el acceso de familia está denegado, `{hasCard:false, connectReady, card:null}` sin tarjeta, payload con brand/last4/expMonth/expYear cuando hay tarjeta, 500 si el servicio falla.
+  - `POST /api/family/payment-method`: 400 body inválido, 401 sin usuario, 403 sin perfil, 409 si la academia no tiene Stripe Connect, guardado exitoso propagando `saveDefaultPaymentMethod` con academyId/profileId/paymentMethodId/stripeAccountId correctos, 500 ante excepción.
+  - `DELETE /api/family/payment-method`: 400 academyId no UUID, 401 sin sesión, 403 acceso denegado, no-op con `{ok:true}` si la academia no tiene stripeAccountId (no llama `removeDefaultPaymentMethod`), desvinculación real cuando sí hay cuenta Connect, 500 ante excepción.
+  - `POST /api/family/charges/[chargeId]/pay`: 401 sin sesión, 403 si `resolveFamilyChargeAccess` devuelve null, mapeo de `collectCharge` → 200 `{ok,status:'paid'}` | 409 `REQUIRES_ACTION` | 409 con reason cuando skipped | 402 con reason cuando failed, 500 ante excepción.
+  - `GET /api/family/charges/[chargeId]/receipt`: 401 sin sesión, 403 acceso denegado, 404 si no hay fila en `receipts`, 404 si la fila existe pero `pdfUrl` es null, `{url, receiptNumber}` cuando hay pdfUrl, 500 ante excepción de DB.
+- Mocks vía `vi.hoisted` para auth/profile/access/service states y para `next/headers`, `@/lib/supabase/server`, `@/lib/authz/profile-service`, `@/lib/family/payment-access`, `@/lib/stripe/family-customers-service`, `@/lib/stripe/charge-collection-service`, `@/lib/logger`, `@/db`, `@/db/schema` y `@/lib/env`. Sin red ni DB real.
+- Validación: `vitest run tests/api-family-payments.test.ts` PASS 38/38 (2.5s). ESLint 0 errors / 0 warnings. `tsc --noEmit` sin errores nuevos en el archivo (los 513 errores preexistentes son todos de `mobile/*`, fuera del scope de ZAL-4).
+- Sin cambios en código de producción, sin migraciones, sin tocar RLS ni `withTenant`. Las rutas usan el patrón ya documentado en la vault (auth vía cookies Supabase + `resolveFamilyPaymentAccess` / `resolveFamilyChargeAccess`, fuera de `withTenant`).
+- Commit `4db12f26` incluye además archivos `mobile/*` que ya estaban staged en el índice desde runs previos (no introducidos por este cambio); el autor de esos archivos debe decidir si los quiere en este commit o en otro posterior.
+
+Vault: actualizado `Changelog interno`.
+
+## 2026-07-29 - ZAL-1 remitente confirmado por CEO; docs alineadas; verificación Brevo pendiente
+
+- Tras respuesta del CEO a la interacción `ask_user_questions 0cedeccb` del issue [ZAL-1](/ZAL/issues/ZAL-1), el remitente transaccional de Brevo queda fijado en `hola@zaltyko.com` (alias `Equipo Zaltyko`, ya presente en `src/config.ts` como `fromAdmin`). `BREVO_SENDER_NAME=Zaltyko` y `BREVO_REPLY_TO=soporte@zaltyko.com` se mantienen sin cambios.
+- Se actualizaron los ocho archivos de despliegue/desarrollo que listaban el placeholder histórico `BREVO_SENDER_EMAIL=noreply@zaltyko.com`: `docs/VARIABLES-VERCEL.md`, `docs/VERCEL-DEPLOYMENT.md`, `docs/VERCEL_ENV_VARIABLES.md`, `docs/DEPLOY-VERCEL.md`, `docs/DEPLOYMENT.md`, `docs/DEPLOY_NOW.md`, `docs/cicd-setup.md` y `docs/development-guide.md`. `docs/audit/ENVIRONMENT_AUDIT.md` ya documentaba el valor esperado `hola@zaltyko.com`, por lo que el cambio lo alinea.
+- `src/lib/brevo.ts` y `src/lib/env.ts` no se tocan: ya leen `BREVO_SENDER_EMAIL`/etc. del entorno sin asumir un literal; `getFeatureReadiness("email")` (env:283) sigue exigiendo las cuatro variables Brevo y `sendEmail` (brevo:62-65) mantiene el fail-closed en producción (`EMAIL_NOT_CONFIGURED:*`).
+- `.env.example` mantiene defaults genéricos (`admin@yourdomain.com`/`YourAppName`/`soporte@yourdomain.com`) — esos defaults nunca han sido los valores cargados en Vercel.
+- Pendiente externo (CEO, no automatizable desde código): terminar la verificación del remitente en Brevo (DKIM/SPF/return-path sobre `hola@zaltyko.com`), actualizar el valor de `BREVO_SENDER_EMAIL` en Vercel Production/Preview si difiere, y enviar la evidencia E2E (`messageId` Brevo o `email_logs.status=sent`). El envío real se ejecutará tras el resto de bloqueos del no-go (Stripe Connect sandbox, KV/WAF/alertas), no ahora.
+- Sin cambios en código, secretos reales, SQL, migraciones, RLS, dependencias, tests ni deploy. Vault: `Backlog priorizado.md` (línea 219) NO se ha movido a Resuelto porque la verificación sigue pendiente; se revaluará cuando llegue la evidencia de envío end-to-end.
+
+Vault: actualizados `Changelog interno`.
 
 ## 2026-07-23 - Inicio del cierre integral del mapa de objeciones
 
