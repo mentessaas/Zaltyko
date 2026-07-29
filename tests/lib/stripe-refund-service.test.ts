@@ -137,6 +137,15 @@ describe("refundCharge", () => {
       amountCents: 1500,
       actorUserId: "user_1",
     });
+    expect(state.refundCreate).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ amount: 1500, payment_intent: "pi_1" }),
+      expect.objectContaining({
+        stripeAccount: "acct_1",
+        idempotencyKey: "refund_charge_1_0_1500",
+      })
+    );
+    expect(state.updates).toHaveLength(0);
 
     state.selectResults = [[charge], [{ refundedCents: 1500 }], []];
     state.refundCreate.mockResolvedValueOnce({ id: "re_2", status: "succeeded" });
@@ -162,6 +171,41 @@ describe("refundCharge", () => {
     });
     expect(state.updates).toHaveLength(1);
     expect(state.updates[0]).toMatchObject({ status: "refunded" });
+  });
+
+  it("es idempotente si el cargo ya estaba marcado como reembolsado", async () => {
+    state.selectResults = [[{ ...charge, status: "refunded" }]];
+
+    const result = await refundCharge({
+      chargeId: "charge_1",
+      actorUserId: "user_1",
+    });
+
+    expect(result).toEqual({ ok: false, reason: "NOT_REFUNDABLE:refunded" });
+    expect(state.refundCreate).not.toHaveBeenCalled();
+    expect(state.inserts).toHaveLength(0);
+    expect(state.updates).toHaveLength(0);
+  });
+
+  it("rechaza importes cero o negativos", async () => {
+    const zeroResult = await refundCharge({
+      chargeId: "charge_1",
+      amountCents: 0,
+      actorUserId: "user_1",
+    });
+
+    state.selectResults = [[charge], [{ refundedCents: 0 }]];
+    const negativeResult = await refundCharge({
+      chargeId: "charge_1",
+      amountCents: -100,
+      actorUserId: "user_1",
+    });
+
+    expect(zeroResult).toEqual({ ok: false, reason: "INVALID_AMOUNT" });
+    expect(negativeResult).toEqual({ ok: false, reason: "INVALID_AMOUNT" });
+    expect(state.refundCreate).not.toHaveBeenCalled();
+    expect(state.inserts).toHaveLength(0);
+    expect(state.updates).toHaveLength(0);
   });
 });
 

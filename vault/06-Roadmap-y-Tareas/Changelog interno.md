@@ -9,6 +9,18 @@ source:
 
 # Changelog interno
 
+## 2026-07-30 - Cierre reproducible de ZAL-31
+
+- Se completó `tests/lib/stripe-refund-service.test.ts` conservando los tres tests originales y los cinco casos que ya estaban en `00f687f`; el archivo queda con 10 tests en dos bloques `describe`.
+- Lista exacta de los `it(...)` incorporados por ZAL-31:
+  - `it("es idempotente si el cargo ya estaba marcado como reembolsado")` dentro de `describe("refundCharge")`.
+  - `it("rechaza importes cero o negativos")`.
+- Se reforzó `it("acumula dos parciales y marca el cargo como reembolsado al completar el total")` para comprobar explícitamente que la primera operación usa `refund_charge_1_0_1500` y todavía no actualiza el cargo.
+- Verificación local reproducible: `pnpm exec vitest run tests/lib/stripe-refund-service.test.ts` PASS, 10/10 tests en 1,69 s; `git diff --check -- tests/lib/stripe-refund-service.test.ts` PASS.
+- Evidencia limitada a mocks locales (`vi.hoisted`/`vi.fn`) de Stripe, transacción, DB y auditoría. No se llamó Stripe sandbox/live, no se aplicó SQL remoto y no se ejecutó navegador, Playwright ni axe.
+
+Vault: actualizado `Changelog interno`. No hay nueva decisión de producto, arquitectura o seguridad.
+
 ## 2026-07-23 - Inicio del cierre integral del mapa de objeciones
 
 - Se creó `docs/plans/2026-07-23-objection-closure-matrix.md` como matriz canónica de las doce objeciones del director, con respuesta aprobada, capacidad, evidencia y estado de cierre.
