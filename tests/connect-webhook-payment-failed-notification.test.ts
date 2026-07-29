@@ -336,6 +336,33 @@ describe("POST /api/stripe/connect/webhook — payment_intent.payment_failed", (
     expect(mockSendChargePaymentFailedNotification).not.toHaveBeenCalled();
   });
 
+  // Este es el camino real de ZAL-8: `collectDueChargesForAcademy` ya dejo el
+  // cargo en `failed` de forma sincrona al recibir el decline, y la notificacion
+  // llega despues por webhook. Si alguien añade "failed" al early-return que
+  // protege `paid`/`refunded`, TODOS los rechazos reales dejarian de notificar
+  // en silencio y los demas tests (que usan `pending`) seguirian en verde.
+  it("sigue notificando cuando el cargo ya esta en failed (estado tras collectDueChargesForAcademy)", async () => {
+    mocks.pushCharge(makeChargeRow({ status: "failed" }));
+    mockConstructEvent.mockImplementation(() =>
+      buildPaymentIntentFailedEvent({ declineCode: "card_declined" })
+    );
+
+    const response = await postWebhook(JSON.stringify({ type: "payment_intent.payment_failed" }));
+
+    expect(response.status).toBe(200);
+    expect(mockSendChargePaymentFailedNotification).toHaveBeenCalledTimes(1);
+    expect(mockSendChargePaymentFailedNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        chargeId: CHARGE_ID,
+        tenantId: TENANT_ID,
+        academyId: ACADEMY_ID,
+        athleteId: ATHLETE_ID,
+        paymentIntentId: PAYMENT_INTENT_ID,
+        failureReason: "card_declined",
+      })
+    );
+  });
+
   it("usa `code` del last_payment_error como fallback cuando decline_code es null", async () => {
     // El webhook reconciliador prioriza `decline_code` sobre `code`; pasamos
     // `decline_code: null` para asegurar que cae al `code` (`insufficient_funds`).
