@@ -135,7 +135,10 @@ test.describe("Stripe Connect E2E — SetupIntent + off-session collect + cron",
     );
     expect(res.status()).toBe(401);
     const body = await res.json().catch(() => ({}));
-    expect(["UNAUTHORIZED", "FORBIDDEN"]).toContain(body?.error);
+    // Contrato de `withTenant` (src/lib/authz.ts): sin sesión resuelta devuelve
+    // 401 + `UNAUTHENTICATED`. `UNAUTHORIZED`/`FORBIDDEN` corresponden a 403
+    // (sesión válida sin permiso sobre la academia), no a este caso.
+    expect(body?.error).toBe("UNAUTHENTICATED");
   });
 
   test("cron collect-charges: 401 sin CRON_SECRET, 503 sin env", async ({ request }) => {
@@ -168,8 +171,6 @@ test.describe("Stripe Connect E2E — SetupIntent + off-session collect + cron",
   });
 
   test("family payment-method GET: contrato 401/200 según sesión", async ({ browser }) => {
-    const anon = await request.post("/api/family/payment-method");
-    void anon; // reservas, el assert real va abajo
     const ctx = await browser.newContext();
     const page = await ctx.newPage();
     try {
