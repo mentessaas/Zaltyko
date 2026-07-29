@@ -33,8 +33,9 @@ import { expect, test, type APIRequestContext, type Page } from "@playwright/tes
  *      y un `stripeAccountId` válido.
  *   3. E2E_ALLOW_PROVISIONING=true y `E2E_ACADEMY_ID` apuntando a una academia
  *      AISLADA (no operativa). El script `scripts/prepare-e2e-auth.ts` aprovisiona
- *      owner/coach/super-admin; ver `scripts/prepare-e2e-family-auth.ts` (futuro)
- *      para crear el usuario parent con un `family` storage state.
+ *      owner/coach/super-admin; `scripts/prepare-e2e-family-auth.ts` crea el
+ *      usuario parent + athlete para el `family` storage state, y
+ *      `scripts/seed-e2e-charge.ts` deja un cargo `pending` cobrable.
  *   4. `stripe listen --forward-to http://127.0.0.1:3000/api/stripe/connect/webhook`
  *      corriendo con `STRIPE_CONNECT_WEBHOOK_SECRET` sincronizado.
  *   5. `pnpm dev` arriba con `E2E_STRIPE_CONNECT_FLOW=1`.
@@ -46,6 +47,8 @@ import { expect, test, type APIRequestContext, type Page } from "@playwright/tes
  *   - E2E_ACADEMY_ID              academia demo (uuid).
  *   - E2E_OWNER_STORAGE_STATE     sesión owner (opcional, para casos owner).
  *   - E2E_FAMILY_STORAGE_STATE    sesión family/parent (opcional, para casos familia).
+ *   - E2E_CHARGE_ID               cargo pending a cobrar en el bloque live
+ *                                 (opcional; si falta se busca por API).
  *   - CRON_SECRET                 secreto para golpear /api/cron/collect-charges.
  */
 
@@ -204,7 +207,7 @@ test.describe("Stripe Connect E2E — SetupIntent + off-session collect + cron",
   // con los pasos siguientes, ejecutables en una academia sandbox con la suite
   // activada:
   //
-  //   1. Storage state:家族がログイン → POST /api/family/payment-method/setup-intent
+  //   1. Storage state: familia logueada → POST /api/family/payment-method/setup-intent
   //      con { academyId }                          → asserts: clientSecret, publishableKey, stripeAccountId.
   //   2. En el navegador, stripe.confirmCardSetup(clientSecret, { payment_method: { card } })
   //      con `pm_card_visa` (success)               → asserts: setupIntent.status === "succeeded".
@@ -331,40 +334,50 @@ test.describe("Stripe Connect E2E — SetupIntent + off-session collect + cron",
     const ctx = await browser.newContext({ storageState: ownerStorageState });
     const page = await ctx.newPage();
     try {
-      // Buscamos un cargo pending de la familia E2E en la academia y lo cobramos
-      // off-session. El cargo se crea via /api/charges (ruta de owner) en el
-      // test anterior o vía seed manual; aquí solo consumimos la ruta collect.
-      // Si no hay cargo, se crea uno on-the-fly mínimo contra el athlete seed.
-      const listRes = await page.request.get(
-        `${baseURL}/api/charges?academyId=${academyId}&status=pending&limit=1`
-      );
-      let chargeId: string | undefined;
-      if (listRes.status() === 200) {
+      // El cargo lo siembra `pnpm tsx scripts/seed-e2e-charge.ts`, que lo deja
+      // en `pending` para el athlete de la familia E2E (idempotente entre runs).
+      // Se puede pasar explícito con E2E_CHARGE_ID; si no, lo buscamos por API.
+      let chargeId = process.env.E2E_CHARGE_ID;
+      if (!chargeId) {
+        const listRes = await page.request.get(
+          `${baseURL}/api/charges?academyId=${academyId}&status=pending&limit=1`
+        );
+        expect(listRes.status(), "listar cargos pending debe ser 200").toBe(200);
         const list = unwrapData<{ items: Array<{ id: string }> }>(await listRes.json());
         chargeId = list?.items?.[0]?.id;
       }
 
-      test.skip(!chargeId, "No hay cargo pending en la academia E2E — créalo con pnpm tsx scripts/seed-e2e-charge.ts (no provisto en este heartbeat; QA lo prepara manualmente).");
+      // En el bloque live no vale saltar: si opt-in E2E_LIVE_STRIPE=1 y no hay
+      // cargo, es un error de setup y debe romper (si no, el test "pasa" sin
+      // haber cobrado nada — exactamente la regresión silenciosa de ZAL-3).
+      expect(
+        chargeId,
+        "No hay cargo pending en la academia E2E. Córrelo con: E2E_ALLOW_PROVISIONING=true pnpm tsx scripts/seed-e2e-charge.ts"
+      ).toBeTruthy();
 
       const collectRes = await page.request.post(
         `${baseURL}/api/charges/${chargeId}/collect`
       );
-      // 200 (paid) si la familia tiene tarjeta guardada y Stripe test acepta la
-      // captura; 409 si requiere acción (3DS en test cards); 402 si falla.
-      expect([200, 402, 409]).toContain(collectRes.status());
       const body = await collectRes.json().catch(() => ({}));
-      if (collectRes.status() === 200) {
-        const collect = unwrapData<{ status: string; stripePaymentIntentId?: string }>(body);
-        expect(collect?.status).toBe("paid");
-        expect(collect?.stripePaymentIntentId).toMatch(/^pi_[a-zA-Z0-9]+/);
-      }
+
+      // Con `tok_visa` (4242, sin 3DS) guardado en el test anterior, el cobro
+      // off-session TIENE que capturar. 402/409 significan tarjeta rechazada o
+      // SCA requerido: son fallos reales del flujo, no resultados aceptables.
+      expect(
+        collectRes.status(),
+        `collect off-session debe ser 200 (paid). Respuesta: ${JSON.stringify(body)}`
+      ).toBe(200);
+
+      const collect = unwrapData<{ status: string; stripePaymentIntentId?: string }>(body);
+      expect(collect?.status).toBe("paid");
+      expect(collect?.stripePaymentIntentId).toMatch(/^pi_[a-zA-Z0-9]+/);
     } finally {
       await ctx.close();
     }
   });
 });
 
-// ---------- Helpers compartidos (placeholder para扩展 futuras) ----------
+// ---------- Helpers compartidos (placeholder para extensiones futuras) ----------
 
 /** Helper de fetch seguro para usar desde Specs con context autenticado. */
 export async function authedFetch(
