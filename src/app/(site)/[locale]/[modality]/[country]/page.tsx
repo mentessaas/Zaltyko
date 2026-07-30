@@ -27,12 +27,24 @@ const UNAVAILABLE_MODALITY_COPY = {
     headline: (modalityLabel: string) => `${modalityLabel}: próximamente`,
     description: (modalityLabel: string) =>
       `Estamos especializados en gimnasia artística y rítmica. Te avisamos cuando podamos atender bien ${modalityLabel}.`,
+    keywords: (modalityLabel: string, countryLabel: string) => [
+      "Zaltyko",
+      "academias de gimnasia",
+      modalityLabel,
+      countryLabel,
+    ],
   },
   en: {
     badge: "Coming soon",
     headline: (modalityLabel: string) => `${modalityLabel}: coming soon`,
     description: (modalityLabel: string) =>
       `We're focused on artistic and rhythmic gymnastics today. We'll let you know when we can serve ${modalityLabel} well.`,
+    keywords: (modalityLabel: string, countryLabel: string) => [
+      "Zaltyko",
+      "gymnastics academies",
+      modalityLabel,
+      countryLabel,
+    ],
   },
 } as const;
 
@@ -99,6 +111,7 @@ export async function generateMetadata({
   const canonicalUrl = `${baseUrl}/${locale}/${modality}/${country}`;
   const isAvailable = AVAILABLE_MODALITIES[modalityKey];
   const modalityLabel = MODALITIES[modalityKey].label[locale as Locale];
+  const countryLabel = COUNTRIES[countryKey].label[locale as Locale];
   const unavailableCopy = UNAVAILABLE_MODALITY_COPY[locale as "es" | "en"];
   const metadataTitle = isAvailable
     ? content.meta.title
@@ -110,7 +123,9 @@ export async function generateMetadata({
   return {
     title: metadataTitle,
     description: metadataDescription,
-    keywords: content.meta.keywords,
+    keywords: isAvailable
+      ? content.meta.keywords
+      : unavailableCopy.keywords(modalityLabel, countryLabel),
     alternates: {
       canonical: canonicalUrl,
       languages: {
