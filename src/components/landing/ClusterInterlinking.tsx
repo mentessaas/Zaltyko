@@ -17,8 +17,8 @@ interface ClusterInterlinkingProps {
   countryLabel: string;
   relatedByModality: Array<{ slug: CountrySlug; label: string; url: string }>;
   relatedByCountry: Array<{ slug: ModalitySlug; label: string; url: string }>;
-  federationName: string;
-  competitions: string[];
+  federationName?: string;
+  competitions?: string[];
 }
 
 function ClusterInterlinkingImpl({
@@ -119,25 +119,27 @@ function ClusterInterlinkingImpl({
         </div>
 
         {/* Federation & Competitions */}
-        <div className="bg-white rounded-2xl p-8 border border-gray-100 shadow-sm mb-12">
-          <div className="grid md:grid-cols-2 gap-8">
-            <div>
-              <h4 className="font-semibold text-gray-900 mb-3">{t.federation}</h4>
-              <p className="text-gray-600">{federationName}</p>
-            </div>
-            <div>
-              <h4 className="font-semibold text-gray-900 mb-3">{t.competitions}</h4>
-              <ul className="space-y-2">
-                {competitions.slice(0, 3).map((comp, i) => (
-                  <li key={i} className="flex items-center gap-2 text-gray-600 text-sm">
-                    <span className="w-1.5 h-1.5 rounded-full bg-zaltyko-teal" />
-                    {comp}
-                  </li>
-                ))}
-              </ul>
+        {federationName && competitions && (
+          <div className="bg-white rounded-2xl p-8 border border-gray-100 shadow-sm mb-12">
+            <div className="grid md:grid-cols-2 gap-8">
+              <div>
+                <h4 className="font-semibold text-gray-900 mb-3">{t.federation}</h4>
+                <p className="text-gray-600">{federationName}</p>
+              </div>
+              <div>
+                <h4 className="font-semibold text-gray-900 mb-3">{t.competitions}</h4>
+                <ul className="space-y-2">
+                  {competitions.slice(0, 3).map((comp, i) => (
+                    <li key={i} className="flex items-center gap-2 text-gray-600 text-sm">
+                      <span className="w-1.5 h-1.5 rounded-full bg-zaltyko-teal" />
+                      {comp}
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* CTA */}
         <div className="text-center">

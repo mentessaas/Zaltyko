@@ -9,6 +9,12 @@ source:
 
 # Changelog interno
 
+## 2026-07-30 - Gate de disponibilidad en clústeres país de acrobática y trampolín
+
+- `src/app/(site)/[locale]/[modality]/[country]/page.tsx`: la disponibilidad se deriva de `AVAILABLE_MODALITIES`; para modalidades no disponibles, hero y metadata usan el mensaje aprobado de “Próximamente”, se omiten los pain points y no se envían claims federativos al interlinking. Canonical y hreflang permanecen sin cambios.
+- `src/components/landing/ClusterInterlinking.tsx`: los datos de federación y competiciones pasan a ser opcionales y el bloque solo se renderiza cuando ambos están presentes; los enlaces entre países y modalidades se conservan.
+- Fuente de copy: `vault/04-Marketing/Brief - Copy acrobática y trampolín.md` en el commit `d495ad31b`; no se reescribieron los JSON de clúster ni la página madre de modalidad.
+
 ## 2026-07-29 - ZAL-11 verificación Brevo: DKIM/return-path OK y entrega E2E confirmada; falta SPF en el ápex
 
 Verificación hecha desde fuentes objetivas (DNS público + `email_logs` de producción), sin depender de acceso al panel de Brevo.
