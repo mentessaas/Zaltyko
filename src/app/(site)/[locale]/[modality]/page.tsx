@@ -169,7 +169,7 @@ export default async function ModalityPage({ params }: ModalityPageProps) {
             </h1>
             <p className="text-xl text-gray-600 mb-8">{t.subtitle}</p>
             <Link
-              href="/contact?type=demo"
+              href="/auth/register?role=owner"
               className={cn(
                 buttonVariants({ variant: "default", size: "lg" }),
                 "bg-zaltyko-teal hover:bg-primary-dark text-white shadow-soft transition-all duration-300 text-base px-8 py-6 group inline-flex items-center"

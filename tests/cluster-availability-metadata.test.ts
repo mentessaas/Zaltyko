@@ -9,6 +9,10 @@ const routeSource = readFileSync(
   ),
   "utf8"
 );
+const modalityRouteSource = readFileSync(
+  join(process.cwd(), "src/app/(site)/[locale]/[modality]/page.tsx"),
+  "utf8"
+);
 
 describe("country cluster availability metadata", () => {
   it("gates JSON keywords behind the modality availability flag", () => {
@@ -22,5 +26,14 @@ describe("country cluster availability metadata", () => {
     ["en", "gymnastics academies"],
   ])("keeps neutral unavailable keywords for %s", (_locale, neutralKeyword) => {
     expect(routeSource).toContain(`"${neutralKeyword}"`);
+  });
+
+  it("keeps the owner registration CTA for every modality", () => {
+    expect(modalityRouteSource).toContain(
+      'href="/auth/register?role=owner"'
+    );
+    expect(modalityRouteSource).not.toContain('href="/contact?type=demo"');
+    expect(modalityRouteSource).toContain('cta: "Crear academia gratis"');
+    expect(modalityRouteSource).toContain('cta: "Create free academy"');
   });
 });

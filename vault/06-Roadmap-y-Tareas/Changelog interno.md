@@ -9,6 +9,14 @@ source:
 
 # Changelog interno
 
+## 2026-07-31 - ZAL-64 preserva el registro owner en páginas de modalidad
+
+- `src/app/(site)/[locale]/[modality]/page.tsx` mantiene el literal validado `Crear academia gratis` / `Create free academy` y cambia su destino común de `/contact?type=demo` a `/auth/register?role=owner`.
+- Al ser un único CTA compartido por todas las modalidades, acrobática y trampolín reciben exactamente el mismo registro owner que artística y rítmica; no se añadió ningún CTA demo/contacto condicional para modalidades no soportadas.
+- `tests/cluster-availability-metadata.test.ts` protege el destino de registro, la ausencia del destino demo anterior y ambos literales aprobados.
+- Fuente: criterio 3 de `vault/04-Marketing/Brief - Copy acrobática y trampolín.md` (commit `d495ad31b`) y `vault/04-Marketing/Mensajes aprobados.md`. No se modificó copy público, pricing, checkout, contacto, migraciones ni servicios externos.
+- Verificación local: contrato estático PASS para destino owner, ausencia del CTA demo y literales ES/EN. El test Vitest no arrancó porque falta `@testing-library/jest-dom/vitest`; `pnpm typecheck` no arrancó con dependencias completas (faltan, entre otras, `next` y `drizzle-orm`); `pnpm lint` quedó bloqueado porque el script anidado usa pnpm global 10.22.0 frente al 9.15.3 exigido y la invocación directa confirmó que falta `eslint`. Son bloqueos preexistentes del entorno, no fallos del CTA. Capturas Playwright pendientes de autorización explícita del board.
+
 ## 2026-07-30 - Gate de disponibilidad en clústeres país de acrobática y trampolín
 
 - `src/app/(site)/[locale]/[modality]/[country]/page.tsx`: la disponibilidad se deriva de `AVAILABLE_MODALITIES`; para modalidades no disponibles, hero y metadata (incluidas keywords neutrales en ES/EN) usan el mensaje aprobado de “Próximamente”, se omiten los pain points y no se envían claims federativos al interlinking. Canonical y hreflang permanecen sin cambios.
