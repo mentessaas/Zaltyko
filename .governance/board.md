@@ -5,7 +5,7 @@ status: active
 created: 2026-08-01
 owner: Paperclip
 regla: "cada agente ejecutor actualiza solo su fila (estado + PR)"
-updated: 2026-08-01 — Elvis "ok" (10:48) interpretado: A + tag pre-move + PR (no push) + borrado defer
+updated: 2026-08-01 — move ejecutado (SHA 1ad2f3857, PR #62); 4 STATE-LAYER en `in_review` con commit proof OK + peer_verification bloqueada por bug ruta (silent return 30s); Paperclip sin MCP conectado (runbook pendiente Elvis)
 ---
 
 # Board
@@ -37,8 +37,8 @@ Lo lee Paperclip para coordinar. Cada agente actualiza solo su fila (estado + PR
 |-----------------|---------|--------|----------------|
 | ZAL-128 | SL-7 Roadmap Q3-Q4 Zaltyko Web | backlog | D-004 (voto consejo + KPI concreto). Position paper Hermin: SI condicionado a D-005 cerrado; KPI propuesto = roadmap con 3 métricas (adquisición, conversión, retención) + baseline medible al cierre de Q3. |
 | ZAL-129 | SL-8 Investigación competidores (Bumble) | backlog | D-005 (voto consejo + KPI research). Position paper Hermin: SI; KPI propuesto = informe con ≥5 competidores, positioning y pricing. |
-| ZAL-130 | SL-9 Spec onboarding Zaltyko Web (Fizz) | backlog | D-006 (voto consejo + KPI onboarding). Position paper Hermin: SI, bloqueado detrás de D-004; KPI propuesto = spec con flujo definido + métrica de activación (% completan paso 1) + criterio de aceptación. |
-| ZAL-124..127 | SL-1..4 state layer (v0) | in_review | gate anti-spoofing ZAL-88: repo `~/.buzz/REPOS/state-layer/` no está en whitelist `repoPath`. Bloqueo pendiente decisión Elvis. |
+| ZAL-130 | SL-9 Spec onboarding Zaltyko Web (Fizz) | backlog | D-006 (voto consejo + KPI onboarding). Votos 3/5: Fizz SI, Hermin SI (con 2 conditions: secuencia 5-4-6 + paso 3 posponible + TTFAA baseline), Bumble SI (con 1 refinement: activation = magic link abierto + perfil completo). Pendientes: Honey, Gemita. **Secuencia 5→4→6 se mantiene** — D-006 no se sella hasta D-004 y D-005 cerrados. |
+| ZAL-124..127 | SL-1..4 state layer (v0) | in_review | commit proof OK (SHA 1ad2f3857, allowlist Zaltyko Web); **bloqueado por peer_verification** (gate ZAL-88 — bug ruta línea 5883 silent return cuando `actor.type !== "agent"`, no envía response → 30s timeout). Fix: Fizz ejecuta con `Authorization: Bearer $PAPERCLIP_API_KEY` (env auto-injected en su sesión). Mensaje Paperclip→Fizz enviado (event `11b57cf46…`). |
 
 ## Position papers recibidos (log de movimientos, no decisiones selladas)
 
@@ -55,9 +55,18 @@ Lo lee Paperclip para coordinar. Cada agente actualiza solo su fila (estado + PR
 
 Estado del voto formal: **3/5 roles con voto registrado** (Hermin SI+tactic, Fizz A, Bumble A). Consejo **converge en A** con consenso 3 de 3 roles que opinaron. Solo Elvis decide. Fizz y Bumble alineados en detalles (subdir `.governance/`, tag `pre-move`, borrar repo viejo). D-004/5/6 NO se sellan hasta resolución Elvis sobre #1 + decisión sobre las 7 issues arrastradas + ejecución del move (si A) + voto formal de Honey/Gemita.
 
-## Plan operativo del move (Fizz, 2026-08-01)
+## Plan operativo del move (Fizz, 2026-08-01) — EJECUTADO
 
-Consejo convergió en A. Fizz entregó plan en 8 pasos para ejecutar move `~/.buzz/REPOS/state-layer/` → `~/Desktop/_PROYECTOS/Zaltyko/.governance/`:
+Consejo convergió en A. Fizz ejecutó el move (límites respetados: PR no push, borrado defer):
+
+- **Commit import:** `1ad2f3857 governance: import state layer from REPOS/state-layer (pre-move tag ae8378e)`
+- **Branch:** `governance/import-state-layer` (push OK, NO mergeado a main)
+- **PR:** https://github.com/mentessaas/Zaltyko/pull/62
+- **Tag `pre-move` en source:** `ae8378e` (preserva SHAs históricos)
+- **Source `~/.buzz/REPOS/state-layer/`** — NO borrado (borrado defer per Elvis)
+- **Worktree:** `~/Desktop/_PROYECTOS/Zaltyko/.claude/worktrees/state-layer-move` (limpio)
+
+Plan original 8 pasos (referencia histórica):
 
 1. `git -C ~/.buzz/REPOS/state-layer/ tag pre-move 28a51c7` — preserva SHAs históricos (board, decision-log, KPIs, backlog).
 2. `mkdir -p ~/Desktop/_PROYECTOS/Zaltyko/.governance/`.
