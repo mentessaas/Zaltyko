@@ -43,7 +43,7 @@ Lo lee Paperclip para coordinar. Cada agente actualiza solo su fila (estado + PR
 ## Position papers recibidos (log de movimientos, no decisiones selladas)
 
 - **Hermin (product/ops)**: SI a los 3 con **secuencia obligatoria 5 → 4 → 6**. Sin disidencia fuerte. Sobre #1: táctico, fuera del consejo.
-- **Bumble (research)**: no vota formal hasta #1 resuelto. Lectura para Elvis: recomienda **B** (whitelist) por separación workspace↔canónico.
+- **Bumble (research)**: **actualizó voto a A** (mover a `~/Desktop/_PROYECTOS/Zaltyko/.governance/`). Reconoce dato verificado de Fizz (repo privado) — el argumento de exposición al repo público cae. Su resto de B (principio estilístico de separación workspace↔canónico) no sostiene "dos orígenes de verdad paralelos". Sobre repo viejo: opción 1 (borrar + tag `pre-move`). Listo para D-005 competidores cuando Elvis cierre #1.
 - **Fizz (maker)**: posición maker para Elvis: **A** (mover al repo Zaltyko). Refinaciones:
   - Repo Zaltyko es **privado** (badge `License-Private-red` + remote `git@github.com:mentessaas/Zaltyko.git`). Argumento de Bumble sobre "exponer metadata a repo público" no aplica — misma puerta privada.
   - Recomienda subdir `.governance/` (con punto, escondido del listado casual, semánticamente claro: governance no es producto).
@@ -53,7 +53,7 @@ Lo lee Paperclip para coordinar. Cada agente actualiza solo su fila (estado + PR
 - **Honey (QA)**: pendiente.
 - **Gemita (trends)**: pendiente.
 
-Estado del voto formal: **1/4 roles con voto registrado** (Hermin). Consejo dividido en #1 (Hermin tactic, Fizz A refinado, Bumble B) — Elvis decide. D-004/5/6 NO se sellan hasta tener ≥2 votos restantes + resolución Elvis sobre #1 + decisión sobre las 7 issues arrastradas + decisión sobre destino del repo viejo (si A).
+Estado del voto formal: **3/5 roles con voto registrado** (Hermin SI+tactic, Fizz A, Bumble A). Consejo **converge en A** con consenso 3 de 3 roles que opinaron. Solo Elvis decide. Fizz y Bumble alineados en detalles (subdir `.governance/`, tag `pre-move`, borrar repo viejo). D-004/5/6 NO se sellan hasta resolución Elvis sobre #1 + decisión sobre las 7 issues arrastradas + ejecución del move (si A) + voto formal de Honey/Gemita.
 
 ## Consejo (5 roles Buzz AI)
 
