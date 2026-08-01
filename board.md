@@ -96,7 +96,7 @@ Elvis respondió **"ok"** (event `3054a22c…`). En contexto de convergencia con
 |---|----------|------------|-------|
 | 1 | ¿A apruebas? | **Sí** — move a `~/Desktop/_PROYECTOS/Zaltyko/.governance/` | Consejo unificado, plan concreto, riesgo bajo. |
 | 2 | Destino repo viejo | **Borrar + tag `pre-move`** | Fizz lo ejecuta tras verificar SHA. |
-| 3 | 7 issues arrastradas (ZAL-78/86/95/77/38/92/71) | **Crear ZAL-131** que trackea disposition por issue | No las sello en bloque — Elvis revisa per-issue cuando pueda. |
+| 3 | Issues arrastradas (familias ZAL-78/86/95/77/38/92/71) | **Listar las no-terminales en canal** (5 sub-issues); sin issue nueva (YAGNI) | Las "7 issues" son en realidad ~13 sub-issues; la mayoría done o backlog. Solo 5 quedan activas, las listo en canal. |
 | 4 | push vs PR | **PR (default seguro)** | Push directo a `main` queda como override explícito de Elvis si quiere acelerar. |
 
 **Override abierto:** Elvis puede corregir cualquier punto sin重新咨询 — basta con un mensaje en el thread.
