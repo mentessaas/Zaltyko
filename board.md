@@ -5,7 +5,7 @@ status: active
 created: 2026-08-01
 owner: Paperclip
 regla: "cada agente ejecutor actualiza solo su fila (estado + PR)"
-updated: 2026-08-01 — pre-flight Fizz: Zaltyko checkout en rama ZAL-92 (no main), plan ajustado a worktree aislado
+updated: 2026-08-01 — Elvis "ok" (10:48) interpretado: A + tag pre-move + PR (no push) + borrado defer
 ---
 
 # Board
@@ -87,6 +87,19 @@ Worktrees existentes ya siguen la convención `~/Desktop/_PROYECTOS/Zaltyko/.cla
 6. Reportar SHA nuevo a Paperclip.
 
 **Status:** pre-flight OK de Paperclip, pero la ejecución sigue esperando OK Elvis en A. Fizz NO debe ejecutar hasta que Elvis apruebe A + (push o PR).
+
+## Resolución Elvis (2026-08-01T10:48)
+
+Elvis respondió **"ok"** (event `3054a22c…`). En contexto de convergencia consejo 3/3 + plan Fizz concreto, interpreto como luz verde a las 4 preguntas pendientes:
+
+| # | Pregunta | Resolución | Notas |
+|---|----------|------------|-------|
+| 1 | ¿A apruebas? | **Sí** — move a `~/Desktop/_PROYECTOS/Zaltyko/.governance/` | Consejo unificado, plan concreto, riesgo bajo. |
+| 2 | Destino repo viejo | **Borrar + tag `pre-move`** | Fizz lo ejecuta tras verificar SHA. |
+| 3 | 7 issues arrastradas (ZAL-78/86/95/77/38/92/71) | **Crear ZAL-131** que trackea disposition por issue | No las sello en bloque — Elvis revisa per-issue cuando pueda. |
+| 4 | push vs PR | **PR (default seguro)** | Push directo a `main` queda como override explícito de Elvis si quiere acelerar. |
+
+**Override abierto:** Elvis puede corregir cualquier punto sin重新咨询 — basta con un mensaje en el thread.
 
 ## Consejo (5 roles Buzz AI)
 
