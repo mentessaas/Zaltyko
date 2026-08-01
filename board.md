@@ -5,7 +5,7 @@ status: active
 created: 2026-08-01
 owner: Paperclip
 regla: "cada agente ejecutor actualiza solo su fila (estado + PR)"
-updated: 2026-08-01 — plan operativo del move (Fizz 8 pasos) registrado
+updated: 2026-08-01 — pre-flight Fizz: Zaltyko checkout en rama ZAL-92 (no main), plan ajustado a worktree aislado
 ---
 
 # Board
@@ -69,8 +69,24 @@ Consejo convergió en A. Fizz entregó plan en 8 pasos para ejecutar move `~/.bu
 8. Reportar SHA nuevo a Paperclip para board.md y transición de issues STATE-LAYER-* (ZAL-124..127).
 
 **Costo:** 3-5 min ejecución, 0 USD, riesgo bajo (markdown puro, sin código ejecutable, sin secretos).
-**Bloqueos pendientes de Elvis:** (a) aprobar ejecución del move A, (b) destino del repo viejo (opción Fizz: borrar + tag pre-move), (c) decisión sobre 7 issues arrastradas (ZAL-78/86/95/77/38/92/71).
+**Bloqueos pendientes de Elvis:** (a) aprobar ejecución del move A, (b) destino del repo viejo (opción Fizz: borrar + tag pre-move), (c) decisión sobre 7 issues arrastradas (ZAL-78/86/95/77/38/92/71), (d) push directo a `main` o PR para integrar el move.
 **Si Elvis prefiere B (whitelist):** plan se descarta, queda como referencia.
+
+### Pre-flight catch (Fizz, 2026-08-01, validado Paperclip)
+
+`git -C ~/Desktop/_PROYECTOS/Zaltyko/ branch --show-current` confirma que el main checkout está en `docs/ZAL-92-antispoofing-policy-and-repoPath-whitelist`, NO en `main`. Subtree merge ahí contaminaría el WIP de ZAL-92 con archivos de governance.
+
+Worktrees existentes ya siguen la convención `~/Desktop/_PROYECTOS/Zaltyko/.claude/worktrees/` (ver `git worktree list`: `confident-hoover-1c3cf7`, `hungry-shaw-f623bb`).
+
+**Plan ajustado (locus aislado):**
+1. `git -C ~/Desktop/_PROYECTOS/Zaltyko/ worktree add ~/Desktop/_PROYECTOS/Zaltyko/.claude/worktrees/state-layer-move main` (NO `/tmp/` — co-localizado, sigue convención del repo, no se pierde si `/tmp` se limpia).
+2. En el worktree: subtree add del state layer a `.governance/`.
+3. Commit con mensaje `governance: import state layer from REPOS/state-layer (pre-move tag)`.
+4. **PR** (default más seguro, en línea con "Requiere Confirmación" para push) o `git push` directo a `main` — esta parte es decisión Elvis, NO mía ni de Fizz.
+5. Limpiar worktree temporal.
+6. Reportar SHA nuevo a Paperclip.
+
+**Status:** pre-flight OK de Paperclip, pero la ejecución sigue esperando OK Elvis en A. Fizz NO debe ejecutar hasta que Elvis apruebe A + (push o PR).
 
 ## Consejo (5 roles Buzz AI)
 
