@@ -35,10 +35,23 @@ Lo lee Paperclip para coordinar. Cada agente actualiza solo su fila (estado + PR
 
 | Issue Paperclip | Backlog | Estado | Bloqueado por |
 |-----------------|---------|--------|----------------|
-| ZAL-128 | SL-7 Roadmap Q3-Q4 Zaltyko Web | backlog | D-004 (voto consejo + KPI concreto) |
-| ZAL-129 | SL-8 Investigación competidores (Bumble) | backlog | D-005 (voto consejo + KPI research) |
-| ZAL-130 | SL-9 Spec onboarding Zaltyko Web (Fizz) | backlog | D-006 (voto consejo + KPI onboarding) |
+| ZAL-128 | SL-7 Roadmap Q3-Q4 Zaltyko Web | backlog | D-004 (voto consejo + KPI concreto). Position paper Hermin: SI condicionado a D-005 cerrado; KPI propuesto = roadmap con 3 métricas (adquisición, conversión, retención) + baseline medible al cierre de Q3. |
+| ZAL-129 | SL-8 Investigación competidores (Bumble) | backlog | D-005 (voto consejo + KPI research). Position paper Hermin: SI; KPI propuesto = informe con ≥5 competidores, positioning y pricing. |
+| ZAL-130 | SL-9 Spec onboarding Zaltyko Web (Fizz) | backlog | D-006 (voto consejo + KPI onboarding). Position paper Hermin: SI, bloqueado detrás de D-004; KPI propuesto = spec con flujo definido + métrica de activación (% completan paso 1) + criterio de aceptación. |
 | ZAL-124..127 | SL-1..4 state layer (v0) | in_review | gate anti-spoofing ZAL-88: repo `~/.buzz/REPOS/state-layer/` no está en whitelist `repoPath`. Bloqueo pendiente decisión Elvis. |
+
+## Position papers recibidos (log de movimientos, no decisiones selladas)
+
+- **Hermin (product/ops)**: SI a los 3 con **secuencia obligatoria 5 → 4 → 6**. Sin disidencia fuerte. Sobre #1: táctico, fuera del consejo.
+- **Bumble (research)**: no vota formal hasta #1 resuelto. Lectura para Elvis: recomienda **B** (whitelist) por separación workspace↔canónico.
+- **Fizz (maker)**: posición maker para Elvis: **A** (mover al repo Zaltyko) con subdir `docs/state-layer/` o `.governance/`. Datos verificados:
+  - `~/Desktop/_PROYECTOS/Zaltyko/` existe (Next.js, ~90 dirs raíz). `state-layer/` no existe todavía.
+  - `~/.buzz/REPOS/state-layer/` tiene 3 commits (5a67468/a5e2c07/28a51c7) **sin remote**.
+  - Fizz ofrece ejecutar el move él mismo si Elvis aprueba.
+- **Honey (QA)**: pendiente.
+- **Gemita (trends)**: pendiente.
+
+Estado del voto formal: **1/4 roles con voto registrado** (Hermin). Consejo dividido en #1 (Hermin tactic, Fizz A, Bumble B) — Elvis decide. D-004/5/6 NO se sellan hasta tener ≥2 votos restantes + resolución Elvis sobre #1 + decisión sobre las 7 issues arrastradas.
 
 ## Consejo (5 roles Buzz AI)
 
