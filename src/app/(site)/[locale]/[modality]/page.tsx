@@ -111,6 +111,7 @@ export default async function ModalityPage({ params }: ModalityPageProps) {
   // Get all countries for this modality
   const countries = getCountriesForModality(locale as Locale, modalityKey);
   const modalityLabel = MODALITIES[modalityKey].label[locale as Locale];
+  const available = AVAILABLE_MODALITIES[modalityKey];
 
   const labels = {
     es: {
@@ -164,20 +165,27 @@ export default async function ModalityPage({ params }: ModalityPageProps) {
               </ol>
             </nav>
 
+            {!available && (
+              <span className="inline-flex rounded-full bg-muted px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-4">
+                {t.comingSoon}
+              </span>
+            )}
             <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 mb-4">
               {t.title}
             </h1>
             <p className="text-xl text-gray-600 mb-8">{t.subtitle}</p>
-            <Link
-              href="/auth/register?role=owner"
-              className={cn(
-                buttonVariants({ variant: "default", size: "lg" }),
-                "bg-zaltyko-teal hover:bg-primary-dark text-white shadow-soft transition-all duration-300 text-base px-8 py-6 group inline-flex items-center"
-              )}
-            >
-              {t.cta}
-              <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
-            </Link>
+            {available && (
+              <Link
+                href="/auth/register?role=owner"
+                className={cn(
+                  buttonVariants({ variant: "default", size: "lg" }),
+                  "bg-zaltyko-teal hover:bg-primary-dark text-white shadow-soft transition-all duration-300 text-base px-8 py-6 group inline-flex items-center"
+                )}
+              >
+                {t.cta}
+                <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+              </Link>
+            )}
           </div>
         </div>
       </section>
