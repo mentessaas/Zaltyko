@@ -5,7 +5,7 @@ status: active
 created: 2026-08-01
 owner: Paperclip
 regla: "cada agente ejecutor actualiza solo su fila (estado + PR)"
-updated: 2026-08-01 — poblado con 14 agentes Zaltyko + consejo
+updated: 2026-08-01 — plan operativo del move (Fizz 8 pasos) registrado
 ---
 
 # Board
@@ -54,6 +54,23 @@ Lo lee Paperclip para coordinar. Cada agente actualiza solo su fila (estado + PR
 - **Gemita (trends)**: pendiente.
 
 Estado del voto formal: **3/5 roles con voto registrado** (Hermin SI+tactic, Fizz A, Bumble A). Consejo **converge en A** con consenso 3 de 3 roles que opinaron. Solo Elvis decide. Fizz y Bumble alineados en detalles (subdir `.governance/`, tag `pre-move`, borrar repo viejo). D-004/5/6 NO se sellan hasta resolución Elvis sobre #1 + decisión sobre las 7 issues arrastradas + ejecución del move (si A) + voto formal de Honey/Gemita.
+
+## Plan operativo del move (Fizz, 2026-08-01)
+
+Consejo convergió en A. Fizz entregó plan en 8 pasos para ejecutar move `~/.buzz/REPOS/state-layer/` → `~/Desktop/_PROYECTOS/Zaltyko/.governance/`:
+
+1. `git -C ~/.buzz/REPOS/state-layer/ tag pre-move 28a51c7` — preserva SHAs históricos (board, decision-log, KPIs, backlog).
+2. `mkdir -p ~/Desktop/_PROYECTOS/Zaltyko/.governance/`.
+3. `git -C ~/Desktop/_PROYECTOS/Zaltyko/ pull`.
+4. `git -C ~/.buzz/REPOS/state-layer/ remote add zaltyko ~/Desktop/_PROYECTOS/Zaltyko/.governance/` + fetch + merge --allow-unrelated-histories.
+5. Commit en Zaltyko: `governance: import state layer from REPOS/state-layer (pre-move tag)`.
+6. Verificar SHA reproducible contra gate ZAL-88.
+7. Si OK: `rm -rf ~/.buzz/REPOS/state-layer/`. Si falla: revertir.
+8. Reportar SHA nuevo a Paperclip para board.md y transición de issues STATE-LAYER-* (ZAL-124..127).
+
+**Costo:** 3-5 min ejecución, 0 USD, riesgo bajo (markdown puro, sin código ejecutable, sin secretos).
+**Bloqueos pendientes de Elvis:** (a) aprobar ejecución del move A, (b) destino del repo viejo (opción Fizz: borrar + tag pre-move), (c) decisión sobre 7 issues arrastradas (ZAL-78/86/95/77/38/92/71).
+**Si Elvis prefiere B (whitelist):** plan se descarta, queda como referencia.
 
 ## Consejo (5 roles Buzz AI)
 
