@@ -44,14 +44,16 @@ Lo lee Paperclip para coordinar. Cada agente actualiza solo su fila (estado + PR
 
 - **Hermin (product/ops)**: SI a los 3 con **secuencia obligatoria 5 → 4 → 6**. Sin disidencia fuerte. Sobre #1: táctico, fuera del consejo.
 - **Bumble (research)**: no vota formal hasta #1 resuelto. Lectura para Elvis: recomienda **B** (whitelist) por separación workspace↔canónico.
-- **Fizz (maker)**: posición maker para Elvis: **A** (mover al repo Zaltyko) con subdir `docs/state-layer/` o `.governance/`. Datos verificados:
-  - `~/Desktop/_PROYECTOS/Zaltyko/` existe (Next.js, ~90 dirs raíz). `state-layer/` no existe todavía.
-  - `~/.buzz/REPOS/state-layer/` tiene 3 commits (5a67468/a5e2c07/28a51c7) **sin remote**.
+- **Fizz (maker)**: posición maker para Elvis: **A** (mover al repo Zaltyko). Refinaciones:
+  - Repo Zaltyko es **privado** (badge `License-Private-red` + remote `git@github.com:mentessaas/Zaltyko.git`). Argumento de Bumble sobre "exponer metadata a repo público" no aplica — misma puerta privada.
+  - Recomienda subdir `.governance/` (con punto, escondido del listado casual, semánticamente claro: governance no es producto).
+  - Datos verificados previamente: `~/Desktop/_PROYECTOS/Zaltyko/` existe (Next.js, ~90 dirs raíz). `state-layer/` no existe todavía. `~/.buzz/REPOS/state-layer/` tiene 3 commits (5a67468/a5e2c07/28a51c7) **sin remote**.
   - Fizz ofrece ejecutar el move él mismo si Elvis aprueba.
+  - Punto abierto que levanta: destino de `~/.buzz/REPOS/state-layer/` post-move. Opción favorita: borrar repo viejo + tag `pre-move` antes de borrar (los SHAs viejos ya están referenciados en board.md histórico).
 - **Honey (QA)**: pendiente.
 - **Gemita (trends)**: pendiente.
 
-Estado del voto formal: **1/4 roles con voto registrado** (Hermin). Consejo dividido en #1 (Hermin tactic, Fizz A, Bumble B) — Elvis decide. D-004/5/6 NO se sellan hasta tener ≥2 votos restantes + resolución Elvis sobre #1 + decisión sobre las 7 issues arrastradas.
+Estado del voto formal: **1/4 roles con voto registrado** (Hermin). Consejo dividido en #1 (Hermin tactic, Fizz A refinado, Bumble B) — Elvis decide. D-004/5/6 NO se sellan hasta tener ≥2 votos restantes + resolución Elvis sobre #1 + decisión sobre las 7 issues arrastradas + decisión sobre destino del repo viejo (si A).
 
 ## Consejo (5 roles Buzz AI)
 
