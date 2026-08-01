@@ -31,6 +31,15 @@ Lo lee Paperclip para coordinar. Cada agente actualiza solo su fila (estado + PR
 | `c07d53ca-...` | QA | Tests, smoke, validación | en_espera | - | - |
 | `87261eba-...` | Mobile Developer | Mobile apps Zaltyko | en_espera | - | - |
 
+## Backlog en posición de partida (Paperclip, costo 0 USD)
+
+| Issue Paperclip | Backlog | Estado | Bloqueado por |
+|-----------------|---------|--------|----------------|
+| ZAL-128 | SL-7 Roadmap Q3-Q4 Zaltyko Web | backlog | D-004 (voto consejo + KPI concreto) |
+| ZAL-129 | SL-8 Investigación competidores (Bumble) | backlog | D-005 (voto consejo + KPI research) |
+| ZAL-130 | SL-9 Spec onboarding Zaltyko Web (Fizz) | backlog | D-006 (voto consejo + KPI onboarding) |
+| ZAL-124..127 | SL-1..4 state layer (v0) | in_review | gate anti-spoofing ZAL-88: repo `~/.buzz/REPOS/state-layer/` no está en whitelist `repoPath`. Bloqueo pendiente decisión Elvis. |
+
 ## Consejo (5 roles Buzz AI)
 
 | Rol | Quién (handle) | Disparador | Estado |

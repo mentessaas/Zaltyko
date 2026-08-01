@@ -18,8 +18,9 @@ Items priorizados. Cada fila referencia un KPI de `KPIs.md` y declara el `Tipo d
 | SL-4 | Crear `board.md` con fila por agente ejecutor | Formato estable (KPIs.md) | otro (operación) | medium | Paperclip | `board.md` (v0) |
 | SL-5 | Primer board poblado con los 14 agentes Zaltyko | Decisiones reales/semana | otro (operación) | medium | TBD | `board.md` |
 | SL-6 | Onboarding del proceso de consejo (cómo se convoca, formato position paper, tie-breaker) | Decisiones reales/semana | otro (gobernanza) | medium | TBD | `GUIDES/CONSEJO_ONBOARDING.md` |
+| SL-7 | Roadmap Q3-Q4 Zaltyko Web (pricing, ICP, lanzamiento) | Pendiente (definido en D-004) | pricing (market x2) | high | TBD | `RESEARCH/ROADMAP_Q3-Q4_ZALTYKO_WEB.md` |
+| SL-8 | Investigación de competidores Zaltyko (due diligence Bumble) | Pendiente (definido en D-005) | pricing (market x2) | medium | Bumble | `RESEARCH/COMPETIDORES_ZALTYKO.md` |
+| SL-9 | Spec de onboarding Zaltyko Web (drafting Fizz) | Pendiente (definido en D-006) | arquitectura (product x2) | high | Fizz | `RESEARCH/SPEC_ONBOARDING_ZALTYKO_WEB.md` |
 
 ## Próximos items (sin asignar, esperando decisión de Elvis)
-- Roadmap Q3-Q4 Zaltyko Web (pricing, ICP, lanzamiento).
-- Investigación de competidores Zaltyko (a cargo de Bumble, due diligence).
-- Spec de onboarding Zaltyko Web (a cargo de Fizz, drafting).
+- (reservado SL-10..) primer item no-state-layer que dependa de los SL-7/8/9.
