@@ -39,6 +39,11 @@ export const athletes = pgTable(
     primaryApparatus: text("primary_apparatus"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
+    // ZAL-138 [D-006 v0] — tracking del flujo first-athlete via magic link.
+    // Atleta confirmado = magic_link_opened_at IS NOT NULL AND profile_completed_at IS NOT NULL.
+    inviteEmail: text("invite_email"),
+    magicLinkOpenedAt: timestamp("magic_link_opened_at", { withTimezone: true }),
+    profileCompletedAt: timestamp("profile_completed_at", { withTimezone: true }),
   },
   (table) => ({
     tenantAcademyIdx: index("athletes_tenant_academy_idx").on(table.tenantId, table.academyId),
@@ -48,5 +53,12 @@ export const athletes = pgTable(
     primarySportConfigIdx: index("athletes_primary_sport_config_idx").on(table.primarySportConfigId),
     // Índice compuesto para queries comunes de académicos con filtro de status
     academyStatusIdx: index("athletes_academy_status_idx").on(table.academyId, table.status),
+    inviteEmailIdx: index("athletes_invite_email_idx").on(table.inviteEmail),
+    // ZAL-138 — índice para KPI TTFAA: academias con al menos un atleta activado.
+    activationIdx: index("athletes_activation_idx").on(
+      table.academyId,
+      table.magicLinkOpenedAt,
+      table.profileCompletedAt
+    ),
   })
 );

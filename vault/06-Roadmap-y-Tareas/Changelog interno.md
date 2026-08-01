@@ -9,6 +9,137 @@ source:
 
 # Changelog interno
 
+## 2026-08-01 - ZAL-137 auditoría y gate condicional CP/teléfono en onboarding owner (D-006 v0)
+
+Diagnóstico read-first antes de tocar código, alineado con la decisión de diseño del board (`ver SPEC_ONBOARDING_ZALTYKO_WEB.md §Gates`):
+
+- **Estado real del repo verificado**: `apps/web/src/...` del comentario de Fizz no existe en este repo. La ruta viva es `src/app/onboarding/owner/page.tsx` + `src/components/onboarding/OwnerOnboardingForm.tsx` + `src/app/api/onboarding/owner/route.ts`. Es flujo crear-desde-cero, no hay claim legacy. `contactEmail` ya está indexado (`academies_contact_email_idx`) y `contactPhone` también (`academies_contact_phone_idx`) — el índice ya está disponible para la query de match.
+- **Decisión adoptada en código**:
+  - **Happy path** (email matchea `academies.contactEmail`): el server component hace `findClaimableAcademyByEmail(user.email)` (case-insensitive sobre índice) y renderiza `OwnerClaimCard` con un único botón "Confirmar y entrar". Sin CP/teléfono en el formulario, porque la verificación de ownership es el match de email.
+  - **Fallback** (sin match, o la academia seed sin `contactEmail`): se renderiza el formulario existente con un nuevo campo `Teléfono de contacto` marcado como requerido, validado con `validatePhoneNumber` (prefijo `+`, 8-15 dígitos E.164) antes de enviar.
+  - Se añadió `POST /api/onboarding/owner/claim` con `claimAcademy()` en transacción: crea perfil (con `onConflictDoNothing` para doble-click), reasigna `academies.ownerId`, inserta membership `owner` (idempotente vía unique index), sincroniza `profile.tenantId` y `profile.activeAcademyId` para que `resolveUserHome` mande al dashboard en lugar de devolver al wizard.
+- **Aislamiento de tenant**: el claim reusa el `tenantId` que la academia seed ya tiene (NO genera uno nuevo). Si el caller intenta reclamar con email distinto al `contactEmail` registrado, devuelve 403 `CLAIM_EMAIL_MISMATCH` sin tocar la academia.
+- **Persistencia de contacto en fallback**: `academies.contactEmail` y `academies.contactPhone` ahora se persisten al crear la academia desde el wizard (`createAcademy` extiende su `CreateAcademyBodySchema`). Sirve para verificación manual de propiedad y como contacto de la academia recién creada.
+
+Cambios concretos:
+
+- **Nuevo**: `src/lib/onboarding/owner-claim.ts` (helper de búsqueda y servicio de claim).
+- **Nuevo**: `src/components/onboarding/OwnerClaimCard.tsx` (UI mínima del happy path).
+- **Nuevo**: `src/app/api/onboarding/owner/claim/route.ts` (endpoint HTTP del claim).
+- **Nuevo**: `tests/api/owner-claim.test.ts` (cobertura de helper + endpoint + fallback con phone; cubre match case-insensitive, mismatch email, academy inexistente, doble-click via ON CONFLICT, 401/400/201 HTTP, INVALID_PHONE 400, compatibilidad con body sin phone).
+- **Modificado**: `src/app/onboarding/owner/page.tsx` (branching server-side por match).
+- **Modificado**: `src/components/onboarding/OwnerOnboardingForm.tsx` (acepta `suggestedFullName` + `requireContactPhone`, valida y envía `contactPhone`).
+- **Modificado**: `src/app/api/onboarding/owner/route.ts` (schema acepta `contactPhone`, valida con `validatePhoneNumber`, persiste `user.email` y `contactPhone` en la academia creada).
+- **Modificado**: `src/app/api/academies/academies.lib.ts` (`CreateAcademyBodySchema` acepta `contactEmail`/`contactPhone`; el insert los persiste).
+
+**Fuera de alcance (debe coordinarse con otros agents):**
+
+- ZAL-138 (magic links para primeras atletas) — no tocado.
+- ZAL-139 (plantillas Resend d0/d2/d7) — no tocado.
+- ZAL-140 (baseline TTFAA) — no tocado.
+- `OnboardingChecklist` ya respeta el gate "first class skipeable/retomable" del SPEC: el item `setup_weekly_schedule` se marca al crear las starter classes en el fallback, pero el owner puede saltarlo en cualquier momento. El happy path (claim) no toca checklist porque las starter classes no son parte de la academia seed (se crean bajo demanda en el dashboard).
+
+## 2026-08-01 - ZAL-138 magic links Supabase para primeras atletas (D-006 v0 gate 1)
+
+Cierra el deliverable 2 del SPEC `vault/06-Roadmap-y-Tareas/SPEC_ONBOARDING_ZALTYKO_WEB.md` (ZAL-130 / D-006 v0): el owner puede invitar hasta 10 primeras atletas por magic link Supabase, y la definición operativa del KPI TTFAA queda anclada a `athletes.magic_link_opened_at IS NOT NULL AND athletes.profile_completed_at IS NOT NULL`.
+
+### Definición operativa de "atleta confirmado"
+
+- **Magic link abierto**: `athletes.magic_link_opened_at` queda seteado cuando la atleta abre el magic link (`acceptInvitationByEmail` corre al final del callback de Supabase).
+- **Perfil completo**: `athletes.profile_completed_at` queda seteado cuando envía nombre (requerido) y opcionalmente `dob`/`level` (`POST /api/athlete-invitations/[invitationId]/profile`).
+- El KPI TTFAA se calcula contra `athletes`, no contra `athlete_invitations`. La tabla de invitaciones es operativa (ciclo de vida + auditoría + retry) y alimenta el panel del owner con `last_error` cuando Supabase falla.
+
+### Límites, idempotencia y seguridad en la frontera
+
+- `MAX_BULK_INVITES = 10` validado en el schema Zod (mensaje explícito al cliente). Un array de 11 devuelve 400 `INVALID_INVITE_PAYLOAD` antes de tocar Supabase.
+- `template` validado con regex `^[a-z0-9_]+$/i` para evitar inyección en el lookup de plantilla. `customMessage` capped a 500 chars.
+- `email` se normaliza a lowercase y se trimea; dedup intra-batch antes de generar magic links (mismo email dos veces en el POST = una sola invitación).
+- **Reintento seguro**: índice único parcial `athlete_invitations_active_unique` sobre `(academy_id, email_normalized) WHERE status IN ('pending','sent','opened')`. Si el owner reenvía para el mismo email mientras la invitación está activa, `inviteFirstAthletes` reusa la fila, regenera el magic link y sube `attempt_count` (sin duplicar fila ni notificar doble al destinatario).
+- **Carrera concurrente**: el INSERT va con `onConflictDoNothing({ target: [academy_id, email_normalized] })`. Si dos requests paralelos chocan, el perdedor re-lee la fila ganadora y la trata como reintento (no se pierde el envío).
+- **No exposición de tokens**: la respuesta de la API nunca devuelve `magic_link_token` ni `action_link`. El token se queda server-side y solo se usa para auditoría / retry logging.
+- **Aislamiento por tenant**: el helper exige `tenantId` + `academyId` resueltos por `withTenant`. Antes de generar magic links, valida que `academies.tenantId === options.tenantId` (defensa explícita aunque el caller ya pasó por el wrapper). Si no coincide, devuelve `ACADEMY_NOT_FOUND` para todos los emails del batch.
+
+### Flujo end-to-end
+
+1. Owner: `POST /api/academies/[academyId]/athlete-invitations` con `{ emails, template?, customMessage? }`.
+2. Backend: genera magic link vía `auth.admin.generateLink({ type: 'magiclink', email, options: { redirectTo } })`, persiste `athlete_invitations`, envía email vía Resend con plantilla custom (pendiente ZAL-139).
+3. Atleta abre el email → Supabase verifica el token → redirige a `${origin}/api/athlete-invitations/accept`.
+4. `accept/route.ts` lee la sesión Supabase → empareja por `email_normalized` → marca `magic_link_opened_at`, crea `athletes` stub con `userId` apuntando al `auth.users` recién creado → redirige al formulario de perfil.
+5. Atleta envía nombre + dob + level → `POST /api/athlete-invitations/[invitationId]/profile` → cierra D-006 v0 gate 1 con `profile_completed_at`.
+
+### Aislamiento en endpoints públicos (callback + profile)
+
+Estos dos endpoints NO usan `withTenant` porque la atleta todavía no tiene perfil Zaltyko: su única credencial es la sesión Supabase. La defensa es:
+
+- `accept`: solo lee email de sesión + actualiza invitación matching. No recibe `academyId` del cliente; resuelve por `email_normalized`.
+- `profile`: recibe `invitationId` por URL, verifica que `invitations.email === user.email` (case-insensitive). Sin este match, un usuario Supabase autenticado con email A no puede cerrar el perfil de una invitación con email B.
+- Rate limit por IP en ambos (`getClientIdentifier(request)` sin userId).
+
+### Permisos y autorización
+
+- `GET/POST /api/academies/[academyId]/athlete-invitations` → con `withTenant`, permiso `athletes:read` / `athletes:create` (entry explícita en `getRequiredRoutePermission` antes del match por prefix, para no chocar con la regla broad `/api/academies`).
+- `GET/POST /api/athlete-invitations/accept` → público con rate limit.
+- `POST /api/athlete-invitations/[invitationId]/profile` → sesión Supabase + match de email.
+
+### Cambios concretos
+
+- **Nuevo**: `drizzle/0006_athlete_invitations.sql` (tabla `athlete_invitations`, índice único parcial, índice por token, columnas nuevas en `athletes`: `invite_email`, `magic_link_opened_at`, `profile_completed_at`, índice compuesto `athletes_activation_idx` para el KPI).
+- **Nuevo**: `src/db/schema/athlete-invitations.ts` (schema Drizzle + tipos inferidos).
+- **Nuevo**: `src/lib/athletes/invitations.ts` (`inviteFirstAthletes`, `acceptInvitationByEmail`, `completeAthleteProfile`, `listInvitationsForAcademy`, constantes `MAX_BULK_INVITES`/`INVITATION_TTL_HOURS`/`INVITATION_STATUS`, schemas Zod, generador de magic link inyectable para tests).
+- **Nuevo**: `src/app/api/academies/[academyId]/athlete-invitations/route.ts` (POST bulk + GET listado con summary de confirmados).
+- **Nuevo**: `src/app/api/athlete-invitations/accept/route.ts` (callback público; GET y POST para tolerar el método que use Supabase).
+- **Nuevo**: `src/app/api/athlete-invitations/[invitationId]/profile/route.ts` (cierre de gate 1).
+- **Nuevo**: `tests/api/athlete-invitations.test.ts` (cobertura: dedup intra-batch, idempotencia de retry con `attempt_count` incremental, `ACADEMY_NOT_FOUND` si la academia/tenant no coinciden, persistencia de `last_error` cuando Supabase falla, validación de max 10 y template regex, marcado de `magic_link_opened_at` al primer clic y no-op al segundo, `completeAthleteProfile` setea ambos campos + `TENANT_MISMATCH`).
+- **Modificado**: `src/db/schema/athletes.ts` (columnas D-006 v0 + índices nuevos).
+- **Modificado**: `src/db/schema/index.ts` (export del nuevo schema).
+- **Modificado**: `src/lib/authz/route-permissions.ts` (entry específica para `/api/academies/[^/]+/athlete-invitations` con `athletes:read`/`athletes:create`).
+- **Ajuste de continuidad**: `claimAcademy()` toma `pg_advisory_xact_lock` por `userId` dentro de la transacción, haciendo efectivo el contrato de doble-click concurrente; el test HTTP usa un UUID válido para atravesar el schema Zod.
+
+### Verificación ejecutada
+
+- **Tests**: `corepack pnpm@9.15.3 install` + `vitest run tests/api/athlete-invitations.test.ts` → **16/16 pasan** (cubren dedup, idempotencia con `attempt_count` incremental, `ACADEMY_NOT_FOUND`, persistencia de `last_error` cuando Supabase falla, validación max 10 + template regex + dob vacío, marcado de `magic_link_opened_at` al primer clic + no-op al segundo, `completeAthleteProfile` con `TENANT_MISMATCH`). En la primera corrida había 3 fallos por un bug en el mock de `db.update` (sólo aplicaba los cambios cuando se llamaba `.limit()`, mientras que el helper usa `await ... .where()` directo). Reescrito para que `then` aplique el `set` pendiente: mock ahora refleja el comportamiento real de Drizzle.
+- **Typecheck**: `corepack pnpm@9.15.3 typecheck` queda limpio para los archivos de ZAL-138 (`src/lib/athletes/invitations.ts`, las 3 rutas API y los schemas). Los errores que quedan en el repo son de ZAL-137 (`src/app/api/onboarding/owner/claim/route.ts(71,5)`: `owner_claimed` no está en `EventType`) y de `mobile/*` por dependencias Expo no instaladas — preexistentes, fuera de alcance de este PR.
+- **Refactor derivado del typecheck**: `acceptInvitationByEmail` antes llamaba `supabase.auth.admin.getUserByEmail(email)` para recuperar el `userId` y crear el athlete stub. Esa API no existe en `GoTrueAdminApi` (sólo `getUserById`/`listUsers`). Reemplazado por el resolver, que ahora expone `getCurrentUser(): Promise<{ id; email } | null>` — la sesión Supabase ya está abierta cuando la atleta abre el magic link, así que `user.id` viene gratis de `supabase.auth.getUser()`. La API pública del helper queda más simple (un solo round-trip al server client en vez de dos) y la API mockeable para tests queda más coherente.
+- **Migración**: NO se aplicó a la DB real (ver `vault/00-Inicio/Guia de trabajo para agentes.md` §Migraciones — sólo el board autoriza migraciones remotas). Pendiente ejecutar `pnpm db:migrate` antes de mergear a main.
+- **Llamadas a Supabase**: ningún endpoint probado contra Supabase real en este heartbeat. El generador mockeable del helper garantiza que los tests no dependen del SDK.
+
+### Riesgos residuales / pendientes
+
+1. **Migración sin aplicar**: la tabla `athlete_invitations` y las columnas nuevas en `athletes` no existen en la DB hasta que se ejecute `pnpm db:migrate`. Coordinar con el board antes del primer uso en producción.
+2. **Plantilla de email**: el endpoint de invite genera el magic link pero no envía email (queda como TODO explícito para ZAL-139 — plantillas Resend d0/d2/d7 con QA de copy). Sin ZAL-139 desplegado, el destinatario nunca recibe el magic link y el flujo muere en `pending`. Documentado en el SPEC como dependencia del gate 3.
+3. **UI cliente**: hay endpoints pero no hay formulario para que el owner pegue la lista de emails. Queda para una issue hija (probablemente ZAL-141 o back into ZAL-138 UI). El owner puede usar `curl` para probar el flujo end-to-end hoy.
+4. **Páginas de aterrizaje**: `/onboarding/athlete/profile?invitation=...` y `/onboarding/athlete/expired` aún no existen. El callback redirige ahí, pero las páginas devuelven 404 hasta que se creen. No bloquea el flujo server-side pero sí bloquea E2E en navegador.
+5. **onConflictDoNothing con índice parcial**: Drizzle genera `ON CONFLICT (academy_id, email_normalized) DO NOTHING` sin la cláusula WHERE del índice parcial. En la práctica el índice único parcial rechaza el duplicado al nivel DB y `inserted.length === 0` activa el camino de re-lectura, así que el comportamiento observable es correcto. Pero para v1 conviene considerar mover a ON CONFLICT explícito con raw SQL que incluya el WHERE.
+
+### Coordina con
+
+- ZAL-139 (Content): sin plantillas Resend, no hay email que llegue al destinatario. Gate 3 del SPEC bloquea el flujo real hasta que ZAL-139 cierre.
+- ZAL-140 (Data & Analytics): las columnas `athletes.magic_link_opened_at` + `athletes.profile_completed_at` son la fuente del KPI TTFAA. El baseline pre-rollout lo mide ZAL-140.
+- Platform & Security: requiere revisión antes de mergear a main — la ruta pública `/api/athlete-invitations/accept` no usa `withTenant` por diseño (la atleta no tiene tenant Zaltyko todavía), y eso es una desviación de la regla "todas las APIs tenant usan withTenant". La excepción está documentada arriba con la defensa por match de email + rate limit + expiración del token.
+
+Vault: actualizadas `Changelog interno.md`, `athletes.ts`, `athlete-invitations.ts`, `index.ts`, `route-permissions.ts`, `invitations.ts`, `route.ts` (POST/GET bulk), `accept/route.ts`, `[invitationId]/profile/route.ts`, `0006_athlete_invitations.sql`, `athlete-invitations.test.ts`.
+
+**Verificación**:
+
+- `pnpm typecheck` no arrancó: `node_modules/` está vacío en este workspace y la `engines.pnpm` requerida (9.15.3) difiere del pnpm disponible (9.15.4). Bloqueo preexistente del entorno, no del cambio.
+- Tests escritos pero no ejecutados localmente por el mismo motivo (sin deps). Cobertura definida: 9 escenarios cubriendo match, mismatch, fallback con/sin phone, doble-click, HTTP 401/400/201/403/404.
+
+**Riesgos residuales / pendientes**:
+
+1. La academia seed actualmente no existe en este workspace (DB local sin academias pre-registradas con `contactEmail`). El happy path solo se activa cuando se siembra una. QA debe poblar al menos una academia seed con `contactEmail` para validar el flujo end-to-end.
+2. El claim no fuerza trial ni suscripción; reutiliza el estado actual de la academia. Si la academia seed ya tenía `isTrialActive = false`, el owner reclamante hereda esa condición. Documentar como gap si QA detecta fricción.
+3. Si la academia seed no tiene `ownerId` válido (lo cual violaría el `notNull` del schema), la migración previa al deploy del flujo debe garantizar que existe un perfil placeholder. **No se ejecutó ninguna migración** — esto es una nota para el responsable del seed, no para este PR.
+
+**Handoff a QA** (orden sugerido):
+
+1. Crear academia seed con `contactEmail = duena@test.com`, `ownerId = <profile_placeholder>`.
+2. Login con `duena@test.com` → debe aterrizar en `/onboarding/owner` mostrando `OwnerClaimCard` con mensaje "Te identificamos como dueña de [nombre]".
+3. Click "Confirmar y entrar" → debe redirigir a `/app/<id>/dashboard` con sesión activa como owner.
+4. Repetir con email que NO matchea ningún `contactEmail` → debe mostrar el formulario completo con el campo "Teléfono de contacto" requerido y validación `+XX ...`.
+5. Intentar POST manual a `/api/onboarding/owner/claim` con `academyId` ajeno y `userEmail` distinto → debe responder 403 `CLAIM_EMAIL_MISMATCH` sin tocar la academia objetivo.
+
+Vault: actualizado `Changelog interno`. PR pendiente de autorización explícita del board antes de merge (regla común del AGENTS).
+
 ## 2026-07-31 - ZAL-64 preserva el registro owner en páginas de modalidad
 
 - `src/app/(site)/[locale]/[modality]/page.tsx` mantiene el literal validado `Crear academia gratis` / `Create free academy` y cambia su destino común de `/contact?type=demo` a `/auth/register?role=owner`.
@@ -23,6 +154,34 @@ source:
 - `src/components/landing/ClusterInterlinking.tsx`: los datos de federación y competiciones pasan a ser opcionales y el bloque solo se renderiza cuando ambos están presentes; los enlaces entre países y modalidades se conservan.
 - `tests/cluster-availability-metadata.test.ts`: contrato enfocado que exige el gate de keywords y vocabulario neutral para modalidades no disponibles en español e inglés.
 - Fuente de copy: `vault/04-Marketing/Brief - Copy acrobática y trampolín.md` en el commit `d495ad31b`; no se reescribieron los JSON de clúster ni la página madre de modalidad.
+
+## 2026-07-30 - Verificación de `collect` detenida por dependencia de test faltante
+
+- Se intentó revalidar `tests/api/charges-collect-handler.test.ts` con `corepack pnpm vitest run ...` usando la versión requerida por el repo (`9.15.3`).
+- El arranque de Vitest falló antes de ejecutar tests porque el workspace no resuelve `@testing-library/jest-dom/vitest` desde `tests/setup.ts`.
+- No se tocaron rutas de producción ni migraciones en esta pasada; el hallazgo queda como bloqueo de entorno de test, no de lógica de `collect`.
+- El brief de convivencia legacy/canónico queda creado y actualizado como contexto operativo para la decisión de rutas.
+
+## 2026-07-30 - Inventario inicial de convivencia `legacy dashboard` vs workspace canónico
+
+- Se revisó la superficie pública y el header reutilizable para validar la decisión de compatibilidad vigente.
+- Hallazgo útil: `events` ya usa destino canónico `/app/{academyId}/events` cuando `academyId` está disponible; `marketplace` y `empleo` siguen como excepciones globales porque no tienen equivalente canónico por academia en este workspace.
+- No se introdujeron nuevas rutas públicas hacia `/dashboard/*` donde ya exista equivalente moderno por academia en esta pasada.
+- Se actualizó `vault/01-Producto/Brief - convivencia legacy dashboard.md` con este inventario para reducir ambigüedad operativa.
+
+## 2026-07-31 - Confirmación de excepciones públicas legacy
+
+- Se releyeron las superficies públicas de `marketplace` y `empleo` y siguen publicando `dashboardHrefTemplate` hacia `/dashboard/marketplace/mis-productos` y `/dashboard/empleo/mis-postulaciones`.
+- No existe equivalente canónico por academia en este workspace para esos dos destinos, así que permanecen como compatibilidad global temporal y no como regresión nueva.
+- El resto de enlaces públicos ya usa rutas modernas o templates canónicos cuando existe destino por academia.
+- Sin cambios de código en esta pasada. Vault: actualizado `Changelog interno`.
+
+## 2026-07-29 - Brief de convivencia legacy `/dashboard/*` y workspace canónico
+
+- Se creó `vault/01-Producto/Brief - convivencia legacy dashboard.md` para consolidar el alcance funcional de la decisión vigente sobre `legacy dashboard` vs `workspace` canónico.
+- El brief deja explícitos: problema, buyer/dueño, recorridos por rol, estados esperados, criterios de aceptación, exclusiones, riesgos y evidencia necesaria.
+- La decisión de producto sigue siendo la misma: compatibilidad temporal de seis meses para rutas legacy, redirección a `/app/[academyId]/*` cuando exista equivalente moderno y retirada física solo con evidencia de uso.
+- Sin cambios de código ni migraciones en este heartbeat. Vault: actualizados `Brief - convivencia legacy dashboard` y `Changelog interno`.
 
 ## 2026-07-29 - ZAL-11 verificación Brevo: DKIM/return-path OK y entrega E2E confirmada; falta SPF en el ápex
 
