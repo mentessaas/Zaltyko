@@ -5,29 +5,53 @@ status: active
 created: 2026-08-01
 owner: Paperclip
 regla: "cada agente ejecutor actualiza solo su fila (estado + PR)"
+updated: 2026-08-01 — poblado con 14 agentes Zaltyko + consejo
 ---
 
 # Board
 
-Lo lee Paperclip para coordinar. Cada agente ejecutor actualiza solo su fila (estado + PR). Una fila por agente ejecutor.
+Lo lee Paperclip para coordinar. Cada agente actualiza solo su fila (estado + PR). Una fila por agente ejecutor (Zaltyko) y por rol del consejo (Buzz).
 
-| Item | Quién | Qué | Orden | Estado | PR a revisar | Bloqueado por |
-|------|-------|-----|-------|--------|--------------|---------------|
-| STATE-LAYER | Paperclip | Construir 4 artefactos + seed | 1→3→2→4 | ejecutando | REPOS/state-layer (commit inicial) | - |
-| Investigación competidores Zaltyko | Bumble | Due diligence, comparativa 2+ opciones | 2 | en_espera | - | STATE-LAYER |
-| Spec onboarding Zaltyko Web | Fizz | Drafting + specs implementación | 3 | en_espera | - | STATE-LAYER |
-| Documentación consejo (convocatoria, position paper) | Hermin | Guía operativa | 4 | en_espera | - | STATE-LAYER |
-| Riesgos Zaltyko (seguridad, presupuesto, blast radius) | Hermin | Análisis y veto enum | continuo | en_espera | - | - |
-| Research trends Zaltyko Web | Gemita | Tendencias, benchmark | 5 | en_espera | - | STATE-LAYER |
-| QA + smoke tests state layer | Honey | Validar formato + integridad | 6 | en_espera | - | STATE-LAYER |
+## Ejecutores Zaltyko (14 agentes Paperclip)
+
+| Agent | Quién | Qué | Estado inicial | PR | Bloqueado por |
+|-------|-------|-----|----------------|----|----------------|
+| `65d16bd7-...` | Product Lead | Roadmap Zaltyko Web, priorización de features, specs | en_espera | - | primer item real del backlog |
+| `175643b5-...` | Product Designer / UX Researcher | UX flows, research, wireframes | en_espera | - | - |
+| `5d63f5f6-...` | Content | Copy, blog posts, communications | en_espera | - | - |
+| `3e2e66b2-...` | Customer Support | User feedback, tickets | en_espera | - | - |
+| `41412a19-...` | Summarizer (paused) | Status summaries, recap | pausado | - | - |
+| `acade097-...` | Developer | General engineering | en_espera | - | - |
+| `2e390dcf-...` | Reflection Coach (paused) | Process improvement, retrospectives | pausado | - | - |
+| `96d648c9-...` | Data & Analytics | Métricas, dashboards | en_espera | - | - |
+| `7af0b3b8-...` | CEO (codex_local) | Decisiones estratégicas, escalación | en_espera | - | - |
+| `6909a098-...` | Platform & Security | Auth, RLS, infra, riesgos | en_espera | - | - |
+| `5bcea506-...` | Web Developer | Frontend Zaltyko Web | en_espera | - | - |
+| `04643dd6-...` | Marketing | GTM, posicionamiento, campañas | en_espera | - | - |
+| `c07d53ca-...` | QA | Tests, smoke, validación | en_espera | - | - |
+| `87261eba-...` | Mobile Developer | Mobile apps Zaltyko | en_espera | - | - |
+
+## Consejo (5 roles Buzz AI)
+
+| Rol | Quién (handle) | Disparador | Estado |
+|-----|----------------|------------|--------|
+| market / GTM | @Bumble | Decisión con 2+ opciones o data previa faltante | en_espera |
+| product / maker | @Fizz | Implementación práctica, drafting, PRs | en_espera |
+| research / trends | @Gemita | Investigación, benchmark, tendencias | en_espera |
+| QA / validación | @Honey | Smoke tests, validación de artefactos | en_espera |
+| risk / gobernanza | @Hermin | Riesgos, vetos enum, documentación proceso | en_espera |
+
+Writer único del decision-log = @Zaltyko Paperclip. Los roles proponen, Paperclip sella.
 
 ## Convenciones de estado
 - `en_espera` — fila existe pero la dependencia upstream no cerró.
 - `ejecutando` — owner activo.
 - `bloqueado` — esperando input externo (anotar `Bloqueado por`).
+- `pausado` — agente pausado administrativamente (no asignar trabajo nuevo).
 - `done` — PR mergeado o artefacto publicado.
 
 ## Reglas
 - Paperclip no debate. Convierte decisiones del decision-log en filas de este board.
 - Cada agente actualiza solo su fila.
 - Si una fila queda `bloqueado` >7 días, Paperclip la sube al consejo para re-priorización.
+- Filas `pausado` no reciben trabajo nuevo sin despausar el agente.
