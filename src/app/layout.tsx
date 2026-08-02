@@ -12,6 +12,7 @@ import { OfflineBanner } from "@/components/ui/offline-banner";
 import { UpdateBanner } from "@/components/ui/update-banner";
 import { InstallPrompt } from "@/components/ui/install-prompt";
 import { PostHogProvider } from "@/components/PostHogProvider";
+import { UtmCapture } from "@/components/UtmCapture";
 import { getPublicSiteUrl } from "@/lib/seo/site-url";
 
 const spaceGrotesk = Space_Grotesk({
@@ -139,6 +140,10 @@ export default function RootLayout({
           </PostHogProvider>
         </AppProviders>
         <ServiceWorkerRegister />
+        {/* ZAL-157 [GTM-DEP.1] — captura UTM first-touch en cada page view.
+            Idempotente: solo persiste si la URL trae UTMs y sessionStorage
+            está vacío. Sin UTMs en URL ni storage, no hace nada. */}
+        <UtmCapture />
         <Analytics />
         <SpeedInsights />
       </body>

@@ -244,7 +244,7 @@ export async function POST(request: Request) {
         contactPhone: normalizedPhone,
         // ZAL-157 [GTM-DEP.1] — UTMs first-touch. createAcademy los persiste
         // en `academies.utm_*`. El canal se resuelve en ZAL-159.
-        utm: parsed.data.utm ?? null,
+        utm: parsed.data.utm,
       },
       {
         profile: {

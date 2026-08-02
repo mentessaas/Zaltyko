@@ -9,6 +9,64 @@ source:
 
 # Changelog interno
 
+## 2026-08-02 - ZAL-157 [GTM-DEP.1] UTM capture en signup (first-touch, sessionStorage)
+
+Captura client-side de los 5 parámetros UTM (`utm_source`, `utm_medium`, `utm_campaign`, `utm_term`, `utm_content`) en el signup del owner y los persiste en `academies.utm_*`. Regla first-touch: si el owner llegó por una landing con UTMs, esos valores se preservan aunque la URL del signup venga sin UTMs o con otros distintos. Es la fundación de la atribución del canal de registro (ZAL-159) — sin first-touch, las academias que entran por landing → navegan → signup pierden atribución.
+
+**Decisión técnica:**
+
+- Captura client-side en cada page view (`<UtmCapture />` montado en el root layout) → persistencia en `sessionStorage` con regla first-touch (no sobrescribe valores existentes).
+- Precedencia en signup: `explicit > sessionStorage > URL`. URL gana solo en cold start sin sesión previa.
+- Validación al ingreso: `trim + lowercase + colapsa espacios a _ + quita caracteres no permitidos` (snake_case Hermin §4, max 200 chars por columna).
+- Storage: columnas nuevas en `academies` (`utm_source`, `utm_medium`, `utm_campaign`, `utm_term`, `utm_content`, `utm_captured_at`, `utm_landing_path`) + 2 índices (`academies_utm_source_idx`, `academies_utm_medium_idx`) para queries de ROI por canal.
+- SSR-safe: si `window` no existe, helpers no operan y devuelven `{}` o `null`. No bloqueamos la captura si `sessionStorage` está deshabilitado (modo privado).
+- El signup (fallback) y el claim path (seed list match) ambos persisten UTMs + `utm_landing_path` + `utm_captured_at`. Regla: si la academia seed ya venía con UTMs del pre-registro, los respetamos (no sobrescribimos en claim path).
+- `clearStoredUtm()` al final del signup/claim exitoso purga el storage para que la siguiente sesión no herede UTMs de la anterior.
+- `trackPageView` (ZAL-160) adjunta los UTMs persistidos al payload `$pageview` cuando hay consent — sin re-leer storage en el resto del funnel.
+
+**Cambios concretos:**
+
+- **Nuevo**: `src/lib/gtm/utm.ts` — helpers client-side (`readUtmFromUrl`, `captureUtm`, `readStoredUtm`, `readUtmForSignup`, `clearStoredUtm`) + tipos `CapturedUtm` + constantes `UTM_KEYS` y `SESSION_STORAGE_KEY`.
+- **Nuevo**: `src/components/UtmCapture.tsx` — componente client-only que llama `captureUtm()` en mount (idempotente). Montado una vez en el root layout.
+- **Nuevo**: `drizzle/0007_academies_utm_columns.sql` — 7 columnas nuevas + 2 índices + comentarios in-DB sobre la taxonomía. NO instala triggers (la API es la única fuente de escritura).
+- **Modificado**: `src/app/layout.tsx` — monta `<UtmCapture />` en el root layout (cliente).
+- **Modificado**: `src/app/onboarding/owner/page.tsx` — pasa `suggestedFullName` al componente; la captura UTMs sucede en el form.
+- **Modificado**: `src/components/onboarding/OwnerOnboardingForm.tsx` — en submit, `captureUtm()` + `readUtmForSignup()` → envía `utm` en el body al backend. `clearStoredUtm()` post-success.
+- **Nuevo**: `src/components/onboarding/OwnerClaimCard.tsx` + `src/app/api/onboarding/owner/claim/route.ts` + `src/lib/onboarding/owner-claim.ts` — camino D-006 v0 que también persiste UTMs (mismo helper client + persistencia servidor con regla first-touch).
+- **Modificado**: `src/lib/onboarding/owner-claim.ts` — `ClaimAcademyBodySchema` acepta `utm` opcional; `claimAcademy` solo escribe UTMs si la academia seed estaba vacía y al menos uno de source/medium viene.
+- **Modificado**: `src/app/api/onboarding/owner/route.ts` — `bodySchema` acepta `utm` opcional; `createAcademy` los persiste; `logEvent("academy_created")` lleva UTMs en metadata.
+- **Modificado**: `src/app/api/academies/academies.lib.ts` — `createAcademy` recibe `utm` opcional, normaliza campos (`utm_source`/`utm_medium` principales, `utm_captured_at` solo si source o medium viene), persiste en INSERT.
+- **Modificado**: `src/db/schema/academies.ts` — añadidas las 7 columnas UTM + 2 índices.
+- **Modificado**: `src/lib/analytics.ts` — `trackPageView` adjunta `readStoredUtm()` al payload (enriquecimiento de evento sin doble lectura).
+
+**Cobertura (ZAL-157):**
+
+- `tests/gtm-utm.test.ts` — 13 tests, todos verdes.
+  - URL parsing: 5 keys + omite vacíos + URLSearchParams directo + max 200 chars + normalización.
+  - First-touch sessionStorage: persiste si URL trae, respeta primer touch en navegación interna, no-op sin UTMs, landing path solo en primera captura.
+  - `readUtmForSignup`: null cuando nada, mezcla explicit > storage > URL, cold start con URL directa.
+  - SSR-safe: no lanza si `window` undefined.
+- `tests/api/owner-claim.test.ts` — 11 tests, todos verdes.
+  - `findClaimableAcademyByEmail`: match case-insensitive, sin match, email vacío/espacios.
+  - `claimAcademy`: happy path con tenantId reusado, 403 CLAIM_EMAIL_MISMATCH, 404 ACADEMY_NOT_FOUND.
+  - POST `/api/onboarding/owner/claim`: 401 sin sesión, 400 INVALID_PAYLOAD, happy path con `logEvent("owner_claimed")`.
+  - POST `/api/onboarding/owner` (fallback): 400 INVALID_PHONE si teléfono mal formado, sin INVALID_PHONE si teléfono ausente (compatibilidad callers viejos).
+
+**Notas de coordinación con ZAL-160 / ZAL-159:**
+
+- ZAL-160 (consent gate) usa `readStoredUtm()` de ZAL-157 para enriquecer `posthog.capture("$pageview", ...)` solo cuando hay consent. El gate aplica al page_view (arrastra cookies); el resto del funnel trackea post-signup sin gate porque magic link prueba identidad.
+- ZAL-159 (canal_registro) consume los UTMs persistidos en `academies.utm_*` y deriva el canal via `derivar_canal(utm_source, utm_medium)`. Sin ZAL-157 no hay dato que derivar.
+- Migración `drizzle/0007_academies_utm_columns.sql` está escrita pero NO aplicada a Supabase (regla AGENTS.md — no migraciones remotas sin board). Antes de ZAL-159 instalar su trigger (migración 0008), validar que 0007 ya está aplicada: si no, el trigger falla porque `utm_source`/`utm_medium` no existen.
+
+**Fuera de alcance / pendiente:**
+
+- **Migración NO aplicada**: `drizzle/0007_academies_utm_columns.sql` está staged pero sin entrada en `drizzle/meta/_journal.json`. Aplicar solo con aprobación del board y siguiendo la regla de la guía de trabajo para agentes.
+- Test e2e de navegador con Playwright: signup con UTM completo → verifica row en `academies` con valores correctos. Requiere entorno browser; queda fuera del MVP de tests unitarios/API.
+- Server-side UTM stamping: solo captura client-side en MVP. Multi-touch attribution queda para iteración futura.
+- Derivación de canal desde UTM vive en ZAL-159 (resuelto por `derivar_canal`).
+
+**Costo:** 0 USD (sessionStorage + columnas DB existentes, sin servicios externos).
+
 ## 2026-08-02 - ZAL-159 [GTM-DEP.3] Canal de registro attribution
 
 Cierra la derivación del campo `canal_registro` desde los UTM capturados en signup. Cada academia queda atribuida al canal que la trajo para que Bumble calcule ROI por canal con datos, no estimaciones.

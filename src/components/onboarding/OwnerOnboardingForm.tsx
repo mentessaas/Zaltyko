@@ -21,6 +21,8 @@ import { findCitiesByRegion } from "@/lib/citiesByRegion";
 import { resolveAcademySpecialization } from "@/lib/specialization/registry";
 import { getStarterClassPresets, getStarterGroupPresets } from "@/lib/specialization/operational-presets";
 import { getSportConfigSeedByVariant, getSportConfigSeedsByCountry } from "@/lib/sport-config/catalog";
+import { validatePhoneNumber } from "@/lib/validation/phone";
+import { captureUtm, readUtmForSignup, clearStoredUtm } from "@/lib/gtm/utm";
 
 const ACADEMY_KIND_OPTIONS = [
   { value: "recreational", label: "Recreativa" },
@@ -28,13 +30,29 @@ const ACADEMY_KIND_OPTIONS = [
   { value: "mixed", label: "Mixta" },
 ] as const;
 
-export function OwnerOnboardingForm() {
+interface OwnerOnboardingFormProps {
+  suggestedFullName?: string;
+  /**
+   * Si true (camino fallback cuando el email no matchea la seed list),
+   * el campo de teléfono es obligatorio para escalar a revisión manual.
+   * Si false (no debería ocurrir hoy, pero queda como default conservador),
+   * sigue siendo opcional pero visible — preferimos pedirlo a inventarlo
+   * después.
+   */
+  requireContactPhone?: boolean;
+}
+
+export function OwnerOnboardingForm({
+  suggestedFullName = "",
+  requireContactPhone = false,
+}: OwnerOnboardingFormProps) {
   const initialSeed = getSportConfigSeedsByCountry("es")[0];
   const router = useRouter();
   const toast = useToast();
   const [pending, setPending] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const [fullName, setFullName] = useState("");
+  const [fullName, setFullName] = useState(suggestedFullName);
+  const [contactPhone, setContactPhone] = useState("");
   const [academyName, setAcademyName] = useState("");
   const [disciplineVariant, setDisciplineVariant] = useState<string>(
     initialSeed?.defaultDisciplineVariant ?? "general"
@@ -180,7 +198,36 @@ export function OwnerOnboardingForm() {
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    const trimmedPhone = contactPhone.trim();
+    if (requireContactPhone && !trimmedPhone) {
+      toast.pushToast({
+        title: "Falta el teléfono de contacto",
+        description:
+          "Necesitamos un teléfono para verificar la propiedad de la academia. Te enviaremos un SMS o te llamaremos.",
+        variant: "error",
+      });
+      return;
+    }
+    if (trimmedPhone) {
+      const phoneCheck = validatePhoneNumber(trimmedPhone);
+      if (!phoneCheck.valid) {
+        toast.pushToast({
+          title: "Teléfono inválido",
+          description: phoneCheck.error ?? "Revisa el formato del teléfono.",
+          variant: "error",
+        });
+        return;
+      }
+    }
+
     setPending(true);
+
+    // ZAL-157 [GTM-DEP.1] — capturamos UTMs en el submit (primer touch
+    // si llegó a esta página sin landing con UTMs, ej. URL con gclid
+    // directo al signup). sessionStorage + URL → back-end.
+    captureUtm();
+    const utm = readUtmForSignup();
 
     try {
       const response = await fetch("/api/onboarding/owner", {
@@ -189,6 +236,7 @@ export function OwnerOnboardingForm() {
         body: JSON.stringify({
           fullName,
           academyName,
+          contactPhone: trimmedPhone || null,
           disciplineVariant,
           activeDisciplineVariants,
           academyKind,
@@ -199,6 +247,7 @@ export function OwnerOnboardingForm() {
           activeProgramCodesByVariant,
           activeApparatusCodesByVariant,
           starterGroupsByVariant,
+          utm: utm ?? null,
         }),
       });
 
@@ -214,6 +263,7 @@ export function OwnerOnboardingForm() {
         variant: "success",
       });
 
+      clearStoredUtm();
       router.push(payload.data.redirectUrl);
       router.refresh();
     } catch (error) {
@@ -240,6 +290,26 @@ export function OwnerOnboardingForm() {
             required
             disabled={pending}
           />
+        </div>
+        <div className="space-y-2 sm:col-span-2">
+          <Label htmlFor="contactPhone">
+            Teléfono de contacto {requireContactPhone ? "" : "(opcional)"}
+          </Label>
+          <Input
+            id="contactPhone"
+            value={contactPhone}
+            onChange={(event) => setContactPhone(event.target.value)}
+            placeholder="+34 600 000 000"
+            required={requireContactPhone}
+            disabled={pending}
+            inputMode="tel"
+            autoComplete="tel"
+          />
+          <p className="text-xs text-muted-foreground">
+            {requireContactPhone
+              ? "Necesitamos un teléfono para verificar la propiedad de la academia."
+              : "Si nos lo facilitas, te avisaremos por aquí ante incidencias críticas de tu academia."}
+          </p>
         </div>
         <div className="space-y-2 sm:col-span-2">
           <Label htmlFor="academyName">Nombre de tu academia</Label>
