@@ -1,5 +1,7 @@
 import { getOptionalEnvVar, isProduction } from "./env";
 import { logger } from "./logger";
+import { hasAnalyticsConsent } from "./consent/state";
+import { readStoredUtm } from "./gtm/utm";
 
 export interface AnalyticsPayload {
   userId?: string;
@@ -61,11 +63,31 @@ export async function trackPageView(path: string, properties?: Record<string, un
     return;
   }
 
+  // ZAL-160 [GTM-DEP.4] — page_view requiere consent activo. Sin consent
+  // (unset o revoked) descartamos el evento sin persistir ni disparar
+  // carga de posthog-js. Es la regla de RESEARCH/DATA_GOVERNANCE_TAXONOMY_GTM
+  // §5: el evento de visita requiere consent previo porque arrastra cookies.
+  // El resto del funnel (signup, claim, invite) sí puede trackearse post-
+  // signup sin este gate porque el magic link prueba identidad.
+  if (!hasAnalyticsConsent()) {
+    if (!isProduction()) {
+      logger.debug("page_view descartado: sin consent activo", { path });
+    }
+    return;
+  }
+
+  // Adjuntar UTMs persistidos (first-touch de la sesión, ver ZAL-157) si
+  // están presentes. Esto enriquece el evento sin leer storage en el
+  // resto del funnel — solo el page_view consentido los necesita para
+  // atribuir el origen de la visita al canal.
+  const storedUtm = readStoredUtm();
+  const enrichedProperties = { ...properties, ...storedUtm };
+
   try {
     const mod = await loadPostHog();
     mod?.posthog.capture("$pageview", {
       path,
-      ...properties,
+      ...enrichedProperties,
     });
   } catch (error) {
     logger.warn("Failed to track pageview", { path, error });

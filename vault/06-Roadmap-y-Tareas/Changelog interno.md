@@ -67,6 +67,61 @@ Captura client-side de los 5 parámetros UTM (`utm_source`, `utm_medium`, `utm_c
 
 **Costo:** 0 USD (sessionStorage + columnas DB existentes, sin servicios externos).
 
+## 2026-08-02 - ZAL-160 [GTM-DEP.4] page_view consentido (analytics gating client-side)
+
+Cierra el gate de `page_view` para que solo se persista cuando hay consent activo. Sin consent (`unset` o `revoked`) el evento se descarta y no se carga `posthog-js` ni se ejecuta `posthog.capture`. El resto del funnel (signup/claim/invite/activation) sigue trackeándose post-signup porque el magic link prueba identidad — esta restricción aplica solo al evento de visita porque arrastra cookies.
+
+**Decisión técnica:**
+
+- Contrato read-only en `src/lib/consent/state.ts` (`getConsentSnapshot`, `subscribeConsent`, `hasAnalyticsConsent`). Pensado para que el storage real de ZAL-156.2 lo reemplace sin tocar a los consumidores.
+- Stub default-deny en `src/lib/consent/store.ts` con `localStorage` clave `zaltyko.consent.v1` (versionada). Valores posibles: `granted` / `revoked` / `unset` (default). SSR-safe: server-side devuelve `unset`, ningún listener se ejecuta.
+- `trackPageView` ahora consulta `hasAnalyticsConsent()` antes de cualquier side effect. Si es `false`, loguea en dev y retorna sin invocar `posthog-js`. Si es `true`, adjunta UTMs desde `readStoredUtm()` (first-touch de ZAL-157) al payload `$pageview`.
+- `usePageTracking` (PostHogProvider) consulta consent en cada navegación (pushState/popstate) — sin cache — para que un cambio de consent a mitad de sesión se refleje en el siguiente page_view sin reload. Adicional: si el usuario otorga consent DESPUÉS del mount (caso banner de cookies), re-trackea la página actual una vez.
+- Default-deny confirmado por tests: `unset` + cualquier UTM descarta; `granted` + UTM emite y adjunta UTMs; `revoked` + UTM descarta.
+
+**Cambios concretos:**
+
+- **Nuevo**: `src/lib/consent/state.ts` — contrato read-only (tipos + 3 funciones).
+- **Nuevo**: `src/lib/consent/store.ts` — stub default-deny con `readConsent` / `writeConsent` / `subscribeConsent`. SSR-safe, storage corrupto → `unset`, valor `unset` purga la clave.
+- **Nuevo**: `tests/consent-gate.test.ts` — cobertura de la matriz completa (3 estados × 2 UTM × escenarios extra de persistencia/suscripción).
+- **Modificado**: `src/lib/analytics.ts` — `trackPageView` consulta `hasAnalyticsConsent()` y adjunta UTMs persistidos solo cuando hay consent.
+- **Modificado**: `src/components/PostHogProvider.tsx` — `usePageTracking` consulta consent en cada navegación y se suscribe para re-trackear cuando se otorga consent después del mount.
+
+**Cobertura (ZAL-160):**
+
+- `tests/consent-gate.test.ts` — 20 tests, todos verdes.
+- Matriz cubierta explícitamente:
+  - `unset` + sin UTM → descarta
+  - `unset` + con UTM → descarta (consent es gate duro)
+  - `granted` + sin UTM → emite sin UTM en payload
+  - `granted` + con UTM completo (5 keys + landing_path) → emite con UTM adjunto
+  - `granted` + UTM parcial → emite solo las claves presentes
+  - `revoked` + sin UTM → descarta
+  - `revoked` + con UTM → descarta (revocación apaga tracking)
+- Suscripción: callback idempotente, grant/revoke notifica, unsubscriber detiene, múltiples listeners independientes.
+- Persistencia: sobrevive relectura, clave versionada, `unset` purga, storage corrupto → `unset`.
+
+**Coordinación con ZAL-156.2 (consent gate tracking):**
+
+- ZAL-156.2 es la issue designada para el storage canónico de consent. El stub actual vive en `src/lib/consent/store.ts`; cuando ZAL-156.2 entregue su implementación, el reemplazo debe mantener la API expuesta por `src/lib/consent/state.ts` (`readConsent`, `subscribeConsent`). Los consumidores (`trackPageView`, `usePageTracking`) NO deberían requerir cambios.
+- Dependencia declarada en ZAL-160. Mientras 156.2 no esté en `done`, el storage real es este stub. El gate funciona end-to-end contra el stub; el día que 156.2 lo reemplace, no hay re-trabajo del gate.
+- Si 156.2 introduce un banner UI de cookies, ese banner debe llamar `writeConsent("granted")` / `writeConsent("revoked")` desde `src/lib/consent/store.ts` (o del módulo equivalente en 156.2 si expone esa función). No meterse en cómo se captura el consent — eso es scope de 156.2.
+
+**Fuera de alcance / pendiente:**
+
+- UI del banner de cookies para capturar el consent del usuario — eso es ZAL-156.2. El gate de ZAL-160 funciona contra cualquier productor que setee `writeConsent`.
+- Test e2e de navegador con Playwright del flujo consent-grant → page_view emitido → revoke → page_view descartado. Requiere banner UI, queda bloqueado hasta 156.2.
+- Sync entre pestañas del consent via `storage` event. Single-tab es suficiente para MVP; si Bumble pide cross-tab en una iteración futura, se añade en `store.ts`.
+- Pre-existing tests al margen: `tests/gtm-utm.test.ts` y `tests/api/owner-claim.test.ts` ya fueron arreglados en ZAL-157 (`utm_landing_path` se incluye ahora en el JSON principal de sessionStorage y el mock de `withTransaction` provee la forma completa de db para que `tx.select/insert/update` funcionen). Total verde: 44 tests (13 + 20 + 11).
+
+**Riesgos / notas:**
+
+- Si `posthog-js` se carga via `<Analytics />` de Vercel en `layout.tsx`, eso es independiente del gate de page_view. El gate de ZAL-160 aplica específicamente a `posthog.capture("$pageview", ...)`, no a Vercel Analytics. Revisar si Vercel Analytics necesita su propio gate (separado, decisión de producto) — out of scope de ZAL-160.
+- Si en producción el opt-in se captura vía banner visible antes de cualquier navegación, el usuario verá la home antes de poder aceptar. Eso es comportamiento esperado: el primer page_view se descarta, y los siguientes (post-accept) se trackean. Si producto quiere lo contrario, hay que mover el banner al SSR/edge — out of scope.
+- El stub de `store.ts` no cifra ni firma el valor en `localStorage`. Si 156.2 quiere integridad criptográfica, debe vivir en su reemplazo, no aquí.
+
+**Costo:** 0 USD (gate client-side, sin servicios externos nuevos).
+
 ## 2026-08-02 - ZAL-159 [GTM-DEP.3] Canal de registro attribution
 
 Cierra la derivación del campo `canal_registro` desde los UTM capturados en signup. Cada academia queda atribuida al canal que la trajo para que Bumble calcule ROI por canal con datos, no estimaciones.
