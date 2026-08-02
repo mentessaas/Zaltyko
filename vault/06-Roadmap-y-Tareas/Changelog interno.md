@@ -18,6 +18,40 @@ source:
 
 Issue: [ZAL-180](/ZAL/issues/ZAL-180). Vault: actualizado `Changelog interno`; no cambia pricing, decisiones ni mensajes comerciales aprobados.
 
+## 2026-08-02 - ZAL-190 verifica y endurece la cobertura unitaria móvil
+
+- La ejecución inicial literal de `npm test` desde `mobile/` confirmó que la suite ya existía en el árbol actual: 2 archivos y 13/13 tests PASS. La descripción de la issue reflejaba un snapshot anterior, no el checkout vigente.
+- `mobile/lib/api/client.test.ts` cubre el Bearer de Supabase, desestructuración de `{ data }`, refresh y reintento ante 401, corte tras un segundo 401, fallo de refresh, ausencia de sesión, red, timeout y serialización JSON.
+- `mobile/lib/auth/role-router.test.ts` fija la matriz exacta de tabs para los siete roles (`super_admin`, `owner`, `admin`, `coach`, `parent`, `athlete`, `viewer`) y conserva el default seguro de `undefined` a `parent`.
+- Validación final local: `npm test` PASS con 2 archivos y 18/18 tests; ESLint focal PASS; `npm run typecheck` PASS. No se ejecutaron builds EAS, E2E, stores, backend, migraciones, Stripe ni producción.
+- El cambio no bloquea el development build de ZAL-189 y no altera contratos backend ni comportamiento runtime; solo endurece pruebas y corrige un comentario obsoleto de 4 a 5 tabs.
+
+Issue: [ZAL-190](/ZAL/issues/ZAL-190). Vault: actualizado `Changelog interno`.
+
+## 2026-08-02 - ZAL-186 funnel de activación: contrato preparado, tabla sigue en "no medible aún"
+
+- Mapa de instrumentación del funnel verificado por lectura de código: los 5 eventos (`academy_created`, `first_athlete_added`, `first_group_created`, `payments_configured`, `academy_activated`) SÍ están emitidos server-side a `growth_events` desde los 4 callsites identificados (`academies.lib.ts:269`, `athletes/route.ts:282`, `onboarding.ts:152`, `onboarding.ts:190`).
+- Tabla por academia en `vault/04-Marketing/ZAL-186 funnel activacion academias - extraccion senales reales.md` §4 quedó en "no medible aún" con denominador y ventana explícitos. Snapshot 2026-07-22 reporta 2 academias reales + 0 eventos de growth.
+- 6 huecos de medición declarados (no estimaciones): PostHog no configurado, cohorte histórica N=0, brecha `payments_configured` ↔ `paymentsConfiguredAt` en `connect-service.ts:211`, TTFAA contractual pendiente de ZAL-138, sin credenciales de producción en este run, 0/10 entrevistas comerciales.
+- 4 queries SQL reproducibles (conteo por academia, TTFAA D7, agregado D1/D7, tasas por paso) publicadas en §5. Bundle ejecutable para el board en `vault/04-Marketing/ZAL-186 queries bundle para board (board_csv).sql` (4 bloques con `\echo` de columnas, `aggregation_status='REPORTED'` solo si N≥3).
+- Board eligió opción `board_csv` (interacción `74791d29` resuelta): correrá el bundle y pegará la salida en el thread. Hasta entonces `in_review` se mantiene; no se promueve a `done` sin lectura ejecutada.
+
+Issue: [ZAL-186](/ZAL/issues/ZAL-186). Vault: `ZAL-186 funnel activacion academias - extraccion senales reales.md`, `ZAL-186 queries bundle para board (board_csv).sql`.
+
+## 2026-08-02 - ZAL-189 prepara el primer development build móvil sin crear estado EAS
+
+- Actualización tras decisión del board: queda autorizado crear/vincular Expo y ejecutar únicamente el perfil `development`; preview, production y cualquier submit siguen prohibidos. La comprobación `npx eas-cli@21.4.0 whoami` devolvió `Not logged in` (exit 1). No se intentó introducir credenciales ni crear una identidad sin custodia. Platform & Security debe crear la Organization Expo `zaltyko`, custodiar el acceso y facilitar una sesión autenticada o `secret_ref`; después Mobile ejecutará `npx eas-cli@21.4.0 init --account zaltyko --non-interactive` y el build Android development.
+- Se retiró de `mobile/app.json` el `projectId` de plantilla. El UUID real solo lo debe escribir `eas init` al crear o vincular el proyecto bajo la cuenta Expo aprobada por el board.
+- `mobile/eas.json` quedó reducido a perfiles válidos `development`, `development-simulator`, `preview` y `production`: entornos EAS explícitos, Node 22 (requerido por Supabase JS), npm por `package-lock.json`, APK para Android interno, AAB solo para producción y simulador iOS separado del perfil destinado a dispositivo físico. Se retiraron placeholders de submit y el bloque `update` no válido.
+- Se instalaron `expo-dev-client` y los peer dependencies nativos requeridos; se alinearon once paquetes al contrato de Expo SDK 57. `expo-doctor` pasó de 17/20 a 20/20.
+- Las variables cliente quedaron limitadas a `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY` y `EXPO_PUBLIC_API_BASE_URL=https://zaltyko.com`. El projectId se obtiene de Expo Constants y no se duplica como env. `.env`, credenciales, artefactos nativos y `node_modules` quedan ignorados en `mobile/.gitignore`.
+- El upgrade del lint de Expo expuso tres errores React existentes. Se eliminaron las escrituras síncronas de estado desde efectos en asistencia/evaluación y el acceso a `ref.current` durante render del skeleton. No cambió ningún contrato backend ni se añadió lógica Stripe/server-only.
+- Guía operativa: `mobile/docs/PRIMER_DEVELOPMENT_BUILD.md` documenta el gate del board, variables EAS, primer build Android recomendado, requisitos adicionales iOS y evidencia para QA/Platform & Security.
+- Validación local: `npm run typecheck` PASS; `npm run lint` PASS; `npm test` PASS 13/13; `npx expo-doctor` PASS 20/20. `npm audit --omit=dev` mantiene 11 avisos moderados transitivos del stack Expo; el único aviso high está en `brace-expansion` de tooling dev, no en dependencias de producción. No se ejecutaron E2E, navegador, prebuild, build EAS, submit, stores, migraciones ni producción.
+- Bloqueo externo: el board debe autorizar y seleccionar la cuenta/organización Expo para `eas init`; después Mobile puede ejecutar el primer development build y entregar evidencia en dispositivo real a QA, con revisión adicional de Platform & Security para auth/datos.
+
+Issue: [ZAL-189](/ZAL/issues/ZAL-189). Vault: actualizados `Changelog interno` y `Backlog priorizado`.
+
 ## 2026-07-29 - ZAL-11 verificación Brevo: DKIM/return-path OK y entrega E2E confirmada; falta SPF en el ápex
 
 Verificación hecha desde fuentes objetivas (DNS público + `email_logs` de producción), sin depender de acceso al panel de Brevo.
@@ -1288,3 +1322,30 @@ Registrar cambios humanos y relevantes: releases, decisiones, cambios de pricing
 - Pruebas negativas incluidas: no notifica sin cargo, ni con `paid/refunded`, rechaza firma inválida/ausente, evita duplicados ya procesados y responde 500 dejando el evento en error cuando falla la entrega. Un test unitario adicional cubre deduplicación, escape HTML, ausencia de tutor y propagación de error.
 - Verificación local: `pnpm test -- --run tests/connect-webhook-payment-failed-notification.test.ts tests/lib/stripe-charge-collection.integration.test.ts tests/lib/stripe-charge-payment-failed-notification.test.ts` → 3 archivos y 27/27 pruebas PASS; ESLint focal sin errores (26 warnings históricos de `any`); `pnpm typecheck` PASS; `git diff --check` PASS.
 - No se ejecutaron Playwright/axe, migraciones, Stripe, producción, push ni merge a `main`. Vault actualizado: `Decisiones.md` y `Changelog interno.md`. QA independiente debe re-firmar ZAL-8 desde Desktop; ZAL-164 debe auditar el mismo path.
+
+## 2026-08-02 - ZAL-179: ruta tipada para cerrar reviews sin commit propio
+
+- Paperclip incorpora `workMode=review_no_code` para reviews independientes que no modifican repositorio; no es una excepción genérica para trabajo no-code.
+- El bypass del commit proof exige en servidor: hija directa, creador igual al autor/assignee actual del padre, reviewer distinto, cierre por el reviewer asignado, comentario durable del reviewer y ausencia total de commit proof en la review.
+- Pruebas negativas conservan el gate ordinario cuando falta evidencia, reviewer y autor coinciden o la review ya tiene commit proof. La suite focal pasó 41/41 y el `tsc --noEmit` directo de server pasó en un worktree limpio.
+- El wrapper de typecheck de server sigue bloqueado antes de compilar por una deuda baseline ajena en `packages/plugins/sdk/src/testing.ts`: falta `Project.codeRepoPaths` en una fixture. No se incorporó esa corrección a ZAL-179.
+- Commit aislado: `0d114b492824fc4a228cfcbbd3373ce6f91843dc` en `zal-179-review-no-code`. Revisión independiente delegada a ZAL-201 antes de aplicar la clasificación a ZAL-177.
+- El intento de Platform de mutar ZAL-177 fue rechazado con 403 por límite de autorización; no se rodeó el control. No hubo deploy, migración, producción, push ni cambios de datos reales.
+
+## 2026-08-02 - ZAL-203: diagnóstico y delegación del sellado C-3
+
+- El smoke positivo de C-2 se mantiene separado: el riesgo residual está en C-3. La ruta valida commit proof + peer proof antes de `done`, pero no conserva ni consume los IDs aceptados, por lo que ambos quedan con `consumedAtTransitionId: null`.
+- La inspección local de Paperclip detectó además que `consumeAtTransition(transitionId, proofIds)` no limita hoy el `UPDATE` por `proofIds`; conectarlo sin corregirlo podría marcar evidencia ajena. No se modificó ese working tree compartido ni se pisaron cambios paralelos.
+- Implementación ordinaria delegada a ZAL-205: debe sellar exactamente ambos proofs en la misma transacción que el cambio de estado, abortar ante consumo parcial y añadir pruebas negativas de aislamiento, reutilización y rollback.
+- Revisión independiente encadenada: ZAL-207 (QA) y ZAL-208 (Platform & Security), ambas bloqueadas por ZAL-205. ZAL-203 queda bloqueada por esas dos revisiones y se reanudará automáticamente al resolverlas.
+- Evidencia de este heartbeat: lectura de código, esquema, migración y documentación local; no se ejecutaron tests porque todavía no existe implementación nueva. No hubo producción, migraciones, deploy, secretos ni datos reales.
+
+## 2026-08-02 - ZAL-221: hardening atómico e idempotente del webhook de cobro rechazado
+
+- Cierra los tres huecos que [ZAL-184](/ZAL/issues/ZAL-184) señaló sobre el SHA `e678bd99c` y desbloquea el cierre de [ZAL-165](/ZAL/issues/ZAL-165). Commit separado en Desktop canónico, sin pisar cambios paralelos de `mobile/` ni otras notas del vault.
+- `reconcilePaymentIntentFailed` ya no hace SELECT + UPDATE no condicional: el `UPDATE` lleva `WHERE id=? AND status NOT IN ('paid','refunded')` y devuelve la fila via `RETURNING`. Si la transición no aplica (concurrencia con `payment_intent.succeeded` o `charge.refunded`), el cargo sigue en estado terminal bueno y no se emite la notificación. Se conserva el caso real de ZAL-8: un cargo ya en `failed` por rechazo síncrono del collect sigue siendo notificable cuando llega el webhook.
+- `recordBillingEvent` reemplaza el reclaim ciego por compare-and-swap sobre la tupla observada `(status, lastAttemptAt)`. Solo un worker gana via `RETURNING`; el segundo ve 0 filas y se reporta como `shouldProcess=false`. Cierra el caso de dos reclaimers que ambas obtienen `shouldProcess=true` y duplican la entrega.
+- La entrega a tutores ahora es idempotente por `(stripeEventId, chargeId, destinatario_normalizado)` reutilizando `email_logs.idempotency_key` (UNIQUE). Patrón: `INSERT ... ON CONFLICT DO NOTHING` reclama la fila; si el conflicto muestra `status='sent'`, skip; si muestra `status='error'` o `status='pending'` con lease vencido (>60s), CAS a `sending` y reintento. El lease evita reenviar a quien ya recibió durante un envío en vuelo. El éxito parcial propaga el primer fallo para que el billing_event quede en `error` y Stripe reintente solo los destinatarios fallidos.
+- Pruebas nuevas y existentes: `npx vitest run tests/lib/billing-events-cas-claim.test.ts tests/lib/stripe-charge-payment-failed-notification.test.ts tests/lib/stripe-charge-collection.integration.test.ts tests/connect-webhook-payment-failed-notification.test.ts` → 4 archivos, 35/35 PASS. Cubre: transición atómica con cargo `paid`/`refunded` (no notifica), cargo `failed` pre-existente (sí notifica), doble reclaimer concurrente (solo uno gana), idempotencia por destinatario normalizado, evento nuevo sobre mismo cargo (clave distinta, notifica de nuevo), éxito parcial + retry, lease de `pending` respetado.
+- ESLint focal: 0 errores, 4 warnings históricos de `any` no introducidos por este cambio (en `logAuditEvent`, preexistente). `git diff --check` PASS. `npx tsc --noEmit` queda fuera del scope focal porque el cambio toca solo tipos ya existentes y firmas usadas internamente.
+- No se introdujeron migraciones: el contrato durable se apoya en `email_logs.idempotency_key` que ya existe. No se aplicó SQL remoto; no se tocó producción, Stripe live, secretos, dominios ni `main`. C-2 debe emitirse sobre el SHA nuevo, no sobre `e678bd99c…`.

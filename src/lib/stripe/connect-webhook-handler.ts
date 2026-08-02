@@ -52,7 +52,8 @@ export async function processConnectEvent(
       case "payment_intent.payment_failed":
         await reconcilePaymentIntentFailed(
           event.data.object as Stripe.PaymentIntent,
-          event.account ?? null
+          event.account ?? null,
+          event.id
         );
         break;
       case "payment_intent.canceled":

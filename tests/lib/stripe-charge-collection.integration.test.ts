@@ -48,7 +48,18 @@ const {
       state.updateSets.push(values);
       return updateChain;
     }),
-    where: vi.fn(() => Promise.resolve(undefined)),
+    where: vi.fn(() => updateChain),
+    returning: vi.fn(() => {
+      // El WHERE de reconcilePaymentIntentFailed excluye estados
+      // terminales buenos (paid/refunded). Devolvemos `[]` cuando el
+      // cargo observado esta en uno de esos estados para emular que el
+      // UPDATE no aplico la transicion y el caller no debe notificar.
+      const status = state.chargeRow?.status;
+      if (status === "paid" || status === "refunded") {
+        return Promise.resolve([]);
+      }
+      return Promise.resolve([{ id: state.chargeRow?.id ?? "row" }]);
+    }),
   };
 
   const insertChain: any = {
@@ -305,7 +316,11 @@ describe("charge-reconcile-service", () => {
     expect(state.updateSets).toHaveLength(0);
   });
 
-  it("payment_intent.payment_failed no pisa un cargo ya pagado", async () => {
+  it("payment_intent.payment_failed no pisa un cargo ya pagado (transicion atomica, RETURNING vacio)", async () => {
+    // Bajo el WHERE excluyente, el UPDATE se intenta pero RETURNING
+    // devuelve `[]`: el cargo sigue siendo `paid` en la DB y no se
+    // emite la notificacion. Esto cierra el TOCTOU entre el SELECT
+    // inicial y el UPDATE.
     state.chargeRow = { ...baseCharge, id: "charge_4", status: "paid", stripeAccountId: "acct_123" };
 
     await reconcilePaymentIntentFailed({
@@ -313,7 +328,22 @@ describe("charge-reconcile-service", () => {
       metadata: { chargeId: "charge_4", academyId: "academy_1", tenantId: "tenant_1" },
     } as any, "acct_123");
 
-    expect(state.updateSets).toHaveLength(0);
+    expect(state.updateSets).toHaveLength(1);
+    expect(state.updateSets.at(-1)).toMatchObject({ status: "failed" });
+    expect(sendChargePaymentFailedNotificationMock).not.toHaveBeenCalled();
+  });
+
+  it("payment_intent.payment_failed no pisa un cargo ya reembolsado", async () => {
+    state.chargeRow = { ...baseCharge, id: "charge_4b", status: "refunded", stripeAccountId: "acct_123" };
+
+    await reconcilePaymentIntentFailed({
+      id: "pi_9b",
+      metadata: { chargeId: "charge_4b", academyId: "academy_1", tenantId: "tenant_1" },
+    } as any, "acct_123");
+
+    expect(state.updateSets).toHaveLength(1);
+    expect(state.updateSets.at(-1)).toMatchObject({ status: "failed" });
+    expect(sendChargePaymentFailedNotificationMock).not.toHaveBeenCalled();
   });
 
   it("payment_intent.canceled devuelve el cargo a pendiente si seguía debiéndose", async () => {
