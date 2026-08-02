@@ -32,6 +32,9 @@ const state = {
     contactEmail: string | null;
     contactPhone: string | null;
     ownerId: string;
+    utmSource?: string | null;
+    utmMedium?: string | null;
+    canalRegistro?: string | null;
   },
   profile: null as null | { id: string; role: string; name: string | null },
   membership: null as null | { academyId: string; role: string },
@@ -58,15 +61,17 @@ const createChain = (handler: (table: string) => unknown) => {
       state.calls.push({ table, method: "limit", args: [n] });
       const result = handler(table);
       // Resuelve como thenable para mantener contrato drizzle.
-      (chain as Record<string, unknown>).then = (onFulfilled: (v: unknown) => unknown) =>
-        Promise.resolve(result).then(onFulfilled);
+      (chain as Record<string, unknown>).then = (
+        onFulfilled: (v: unknown) => unknown
+      ) => Promise.resolve(result).then(onFulfilled);
       return chain;
     };
     chain.returning = wrap("returning");
     chain.onConflictDoNothing = () => chain;
     chain.onConflictDoUpdate = () => chain;
-    (chain as Record<string, unknown>).then = (onFulfilled: (v: unknown) => unknown) =>
-      Promise.resolve(handler(table)).then(onFulfilled);
+    (chain as Record<string, unknown>).then = (
+      onFulfilled: (v: unknown) => unknown
+    ) => Promise.resolve(handler(table)).then(onFulfilled);
     return chain;
   };
   return make;
@@ -133,9 +138,28 @@ vi.mock("@/db", () => ({
 }));
 
 vi.mock("@/db/schema", () => ({
-  academies: { _name: "academies", id: "a.id", name: "a.name", ownerId: "a.ownerId", contactEmail: "a.contactEmail" },
-  memberships: { _name: "memberships", academyId: "m.academyId", userId: "m.userId", role: "m.role" },
-  profiles: { _name: "profiles", id: "p.id", userId: "p.userId", name: "p.name", role: "p.role", tenantId: "p.tenantId", activeAcademyId: "p.activeAcademyId" },
+  academies: {
+    _name: "academies",
+    id: "a.id",
+    name: "a.name",
+    ownerId: "a.ownerId",
+    contactEmail: "a.contactEmail",
+  },
+  memberships: {
+    _name: "memberships",
+    academyId: "m.academyId",
+    userId: "m.userId",
+    role: "m.role",
+  },
+  profiles: {
+    _name: "profiles",
+    id: "p.id",
+    userId: "p.userId",
+    name: "p.name",
+    role: "p.role",
+    tenantId: "p.tenantId",
+    activeAcademyId: "p.activeAcademyId",
+  },
   // El fallback path de /api/onboarding/owner acaba invocando
   // activateAcademySportConfig → ensureCountry / ensureDiscipline / etc.
   // Declaramos el shape mínimo de las tablas que el seed consulta
@@ -157,7 +181,9 @@ vi.mock("@/lib/db-transactions", () => ({
   // que db (select/insert/update/execute). Reusamos la misma shape del mock
   // de @/db para que tx.select / tx.insert / tx.update funcionen en los
   // happy-path sin tener que mockear drizzle dos veces.
-  withTransaction: async <T>(handler: (tx: unknown) => Promise<T>): Promise<T> =>
+  withTransaction: async <T>(
+    handler: (tx: unknown) => Promise<T>
+  ): Promise<T> =>
     handler({
       select: (...args: unknown[]) => {
         state.calls.push({ table: "*select", method: "select", args });
@@ -228,7 +254,9 @@ vi.mock("@/lib/sport-config/seed", () => ({
 
 vi.mock("@/lib/event-logging", () => ({
   logEvent: vi.fn(async (entry: unknown) => {
-    state.log.push(entry as { academyId: string; eventType: string; metadata: unknown });
+    state.log.push(
+      entry as { academyId: string; eventType: string; metadata: unknown }
+    );
   }),
 }));
 
@@ -237,7 +265,11 @@ vi.mock("@/lib/logger", () => ({
 }));
 
 vi.mock("next/headers", () => ({
-  cookies: vi.fn(async () => ({ get: vi.fn(), set: vi.fn(), getAll: vi.fn(() => []) })),
+  cookies: vi.fn(async () => ({
+    get: vi.fn(),
+    set: vi.fn(),
+    getAll: vi.fn(() => []),
+  })),
 }));
 
 const getUserMock = vi.fn();
@@ -276,7 +308,9 @@ beforeEach(async () => {
     POST_ONBOARDING = (await import("@/app/api/onboarding/owner/route")).POST;
   }
   if (!findClaimableAcademyByEmail) {
-    ({ findClaimableAcademyByEmail } = await import("@/lib/onboarding/owner-claim"));
+    ({ findClaimableAcademyByEmail } = await import(
+      "@/lib/onboarding/owner-claim"
+    ));
   }
   if (!claimAcademy) {
     ({ claimAcademy } = await import("@/lib/onboarding/owner-claim"));
@@ -316,23 +350,32 @@ describe("claimAcademy (servicio)", () => {
     const result = await claimAcademy({
       userId: "user_1",
       userEmail: "duena@clubdemo.com",
-      body: { academyId: "00000000-0000-0000-0000-000000000001", fullName: "Maria Garcia" },
+      body: {
+        academyId: "00000000-0000-0000-0000-000000000001",
+        fullName: "Maria Garcia",
+      },
     });
 
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.academyId).toBe("00000000-0000-0000-0000-000000000001");
       expect(result.tenantId).toBe("tenant_seed");
-      expect(result.redirectUrl).toBe("/app/00000000-0000-0000-0000-000000000001/dashboard");
+      expect(result.redirectUrl).toBe(
+        "/app/00000000-0000-0000-0000-000000000001/dashboard"
+      );
     }
 
     // Verifica que se reusó el tenantId del seed (NO se generó uno nuevo —
     // crítico para no romper aislamiento de datos ya creados en la academia).
-    const profileInsert = state.calls.find((c) => c.table === "profiles" && c.method === "values");
+    const profileInsert = state.calls.find(
+      (c) => c.table === "profiles" && c.method === "values"
+    );
     expect(profileInsert).toBeDefined();
     const insertValues = profileInsert!.args[0] as Record<string, unknown>;
     expect(insertValues.tenantId).toBe("tenant_seed");
-    expect(insertValues.activeAcademyId).toBe("00000000-0000-0000-0000-000000000001");
+    expect(insertValues.activeAcademyId).toBe(
+      "00000000-0000-0000-0000-000000000001"
+    );
     expect(insertValues.role).toBe("owner");
 
     // membership insertada con role=owner (noConflictDoNothing seguro).
@@ -340,23 +383,33 @@ describe("claimAcademy (servicio)", () => {
       (c) => c.table === "memberships" && c.method === "values"
     );
     expect(membershipInsert).toBeDefined();
-    const membershipValues = membershipInsert!.args[0] as Record<string, unknown>;
+    const membershipValues = membershipInsert!.args[0] as Record<
+      string,
+      unknown
+    >;
     expect(membershipValues.role).toBe("owner");
-    expect(membershipValues.academyId).toBe("00000000-0000-0000-0000-000000000001");
+    expect(membershipValues.academyId).toBe(
+      "00000000-0000-0000-0000-000000000001"
+    );
 
     // academies.ownerId reasignado al nuevo perfil.
     const academyUpdate = state.calls.find(
       (c) => c.table === "academies" && c.method === "set"
     );
     expect(academyUpdate).toBeDefined();
-    expect((academyUpdate!.args[0] as Record<string, unknown>).ownerId).toBe("profile_new");
+    expect((academyUpdate!.args[0] as Record<string, unknown>).ownerId).toBe(
+      "profile_new"
+    );
   });
 
   it("devuelve 403 CLAIM_EMAIL_MISMATCH si el caller intenta reclamar con email distinto", async () => {
     const result = await claimAcademy({
       userId: "user_2",
       userEmail: "atacante@otro.com",
-      body: { academyId: "00000000-0000-0000-0000-000000000001", fullName: "Atacante" },
+      body: {
+        academyId: "00000000-0000-0000-0000-000000000001",
+        fullName: "Atacante",
+      },
     });
 
     expect(result.ok).toBe(false);
@@ -378,12 +431,58 @@ describe("claimAcademy (servicio)", () => {
     expect(profileInserts).toHaveLength(0);
   });
 
+  it("captura el canal una sola vez al reclamar una academia pre-registrada sin UTM", async () => {
+    await claimAcademy({
+      userId: "user_1",
+      userEmail: "duena@clubdemo.com",
+      body: {
+        academyId: "00000000-0000-0000-0000-000000000001",
+        fullName: "Maria Garcia",
+        utm: { utm_source: "instagram", utm_medium: "cpc" },
+      },
+    });
+
+    const academyUpdate = state.calls.find(
+      (call) => call.table === "academies" && call.method === "set"
+    );
+    const values = academyUpdate?.args[0] as Record<string, unknown>;
+    expect(values.utmSource).toBe("instagram");
+    expect(values.utmMedium).toBe("cpc");
+    expect(values.canalRegistro).toBe("paid");
+  });
+
+  it("conserva UTM y canal existentes al reclamar una academia ya atribuida", async () => {
+    if (!state.academy) throw new Error("fixture academy missing");
+    state.academy.utmSource = "google_organic";
+    state.academy.utmMedium = "organic";
+    state.academy.canalRegistro = "organic";
+
+    await claimAcademy({
+      userId: "user_1",
+      userEmail: "duena@clubdemo.com",
+      body: {
+        academyId: "00000000-0000-0000-0000-000000000001",
+        fullName: "Maria Garcia",
+        utm: { utm_source: "google_ads", utm_medium: "cpc" },
+      },
+    });
+
+    const academyUpdate = state.calls.find(
+      (call) => call.table === "academies" && call.method === "set"
+    );
+    const values = academyUpdate?.args[0] as Record<string, unknown>;
+    expect(values).toEqual({ ownerId: "profile_new" });
+  });
+
   it("devuelve 404 ACADEMY_NOT_FOUND cuando el academyId no existe", async () => {
     state.academy = null;
     const result = await claimAcademy({
       userId: "user_1",
       userEmail: "duena@clubdemo.com",
-      body: { academyId: "00000000-0000-0000-0000-000000000000", fullName: "X" },
+      body: {
+        academyId: "00000000-0000-0000-0000-000000000000",
+        fullName: "X",
+      },
     });
     expect(result.ok).toBe(false);
     if (!result.ok) {
@@ -398,7 +497,10 @@ describe("POST /api/onboarding/owner/claim (HTTP)", () => {
     const response = await POST_CLAIM(
       new Request("http://localhost/api/onboarding/owner/claim", {
         method: "POST",
-        body: JSON.stringify({ academyId: "00000000-0000-0000-0000-000000000001", fullName: "Maria" }),
+        body: JSON.stringify({
+          academyId: "00000000-0000-0000-0000-000000000001",
+          fullName: "Maria",
+        }),
       })
     );
     expect(response.status).toBe(401);
@@ -422,13 +524,18 @@ describe("POST /api/onboarding/owner/claim (HTTP)", () => {
     const response = await POST_CLAIM(
       new Request("http://localhost/api/onboarding/owner/claim", {
         method: "POST",
-        body: JSON.stringify({ academyId: "00000000-0000-0000-0000-000000000001", fullName: "Maria Garcia" }),
+        body: JSON.stringify({
+          academyId: "00000000-0000-0000-0000-000000000001",
+          fullName: "Maria Garcia",
+        }),
       })
     );
     expect(response.status).toBe(201);
     const body = await response.json();
     expect(body.data.academyId).toBe("00000000-0000-0000-0000-000000000001");
-    expect(body.data.redirectUrl).toBe("/app/00000000-0000-0000-0000-000000000001/dashboard");
+    expect(body.data.redirectUrl).toBe(
+      "/app/00000000-0000-0000-0000-000000000001/dashboard"
+    );
     expect(state.log).toHaveLength(1);
     expect(state.log[0].eventType).toBe("owner_claimed");
   });

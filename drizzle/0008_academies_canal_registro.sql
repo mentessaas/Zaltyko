@@ -7,18 +7,12 @@
 -- en `vault/06-Roadmap-y-Tareas/Changelog interno.md`.
 --
 -- Reglas que aplica el trigger:
---   1. BEFORE INSERT: deriva el canal desde los UTM del primer touch y lo
---      guarda como snapshot inmutable. Si la academia entra sin UTMs, queda
---      como `direct` — es dato, no falla.
---   2. BEFORE UPDATE OF utm_source, utm_medium: recalcula SOLO cuando se
---      tocan explícitamente las columnas UTM (p.ej. claim path rellena
---      UTMs sobre un pre-registro vacío). Updates no relacionados con UTM
---      dejan el snapshot intacto (regla first-touch §3).
---   3. La taxonomía deriva `paid > social > email > organic > direct` con
---      `unknown` cuando hay datos parciales no normalizables. Está
---      espejada en `src/lib/gtm/canal.ts::resolveCanal()` y, en PL/pgSQL,
---      en la función `academies_canal_registro_derive()` más abajo — los
---      tests verifican que ambas coinciden.
+--   1. BEFORE INSERT: deriva el canal desde los UTM del primer touch.
+--   2. Un único BEFORE UPDATE cubre el signup efectivo de una academia
+--      pre-registrada sin UTM. Solo actúa si el snapshot anterior era
+--      `direct`/NULL y ambos UTM anteriores estaban vacíos.
+--   3. Cualquier actualización posterior conserva el snapshot first-touch.
+--   4. UTM ausente o inválido cae en `direct`; no existe un sexto bucket.
 
 -- Columna snapshot (NULL permitido para backfill tolerante).
 ALTER TABLE "academies"
@@ -28,90 +22,50 @@ ALTER TABLE "academies"
 -- Comentario in-DB de la taxonomía (lo consume Bumble/Data para entender
 -- el enum sin abrir el vault).
 COMMENT ON COLUMN "academies"."canal_registro" IS
-	'Canal de atribución first-touch del registro de la academia. Derivado en signup desde utm_source + utm_medium (regla paid > social > email > organic > direct; ver `src/lib/gtm/canal.ts` para la taxonomía completa). Valores: paid | social | email | organic | direct | unknown. Snapshot inmutable — solo se recalcula si se hace UPDATE explícito sobre utm_source/utm_medium.';
+	'Canal de atribución first-touch del registro de la academia. Derivado en signup desde utm_source + utm_medium (regla paid > social > email > organic > direct; ver `src/lib/gtm/canal.ts` para la taxonomía completa). Valores: paid | social | email | organic | direct. UTM ausente o inválido = direct. Snapshot inmutable tras la primera captura.';
 --> statement-breakpoint
 
--- Función PL/pgSQL que espeja `resolveCanal()` 1:1. Mantener ambas en sync:
--- si se modifica la taxonomía en TS, propagar el cambio aquí.
+-- Función pura SQL que espeja `derivar_canal()` 1:1. El orden de los CASE
+-- expresa la precedencia completa: medium=cpc gana sobre una fuente social,
+-- y una fuente paid gana sobre medium=email/social/organic.
+CREATE OR REPLACE FUNCTION "academies_canal_registro_value"(
+	utm_source_value text,
+	utm_medium_value text
+)
+	RETURNS text
+	LANGUAGE sql
+	IMMUTABLE
+	PARALLEL SAFE
+AS $$
+	SELECT CASE
+		WHEN lower(coalesce(trim(utm_medium_value), '')) = 'cpc'
+			OR lower(coalesce(trim(utm_source_value), '')) IN ('google_ads', 'meta_ads', 'tiktok_ads')
+			THEN 'paid'
+		WHEN lower(coalesce(trim(utm_medium_value), '')) = 'social'
+			OR lower(coalesce(trim(utm_source_value), '')) IN ('instagram', 'tiktok', 'facebook', 'linkedin', 'whatsapp')
+			THEN 'social'
+		WHEN lower(coalesce(trim(utm_medium_value), '')) = 'email'
+			OR lower(coalesce(trim(utm_source_value), '')) = 'resend_email'
+			THEN 'email'
+		WHEN lower(coalesce(trim(utm_medium_value), '')) = 'organic'
+			OR lower(coalesce(trim(utm_source_value), '')) = 'google_organic'
+			THEN 'organic'
+		ELSE 'direct'
+	END;
+$$;
+--> statement-breakpoint
+
+-- Wrapper de trigger: toda escritura usa la misma función pura, incluido el
+-- backfill de filas históricas.
 CREATE OR REPLACE FUNCTION "academies_canal_registro_derive"()
 	RETURNS trigger
 	LANGUAGE plpgsql
 AS $$
-DECLARE
-	source text;
-	medium text;
 BEGIN
-	source := lower(coalesce(trim(NEW."utm_source"), ''));
-	medium := lower(coalesce(trim(NEW."utm_medium"), ''));
-
-	-- Sin UTM → direct (default; el owner llegó sin parámetros).
-	IF source = '' AND medium = '' THEN
-		NEW."canal_registro" := 'direct';
-		RETURN NEW;
-	END IF;
-
-	-- 1) paid — sources específicas de ads o medium=cpc/ppc/paid.
-	IF source IN ('google_ads', 'meta_ads', 'tiktok_ads') THEN
-		NEW."canal_registro" := 'paid';
-		RETURN NEW;
-	END IF;
-
-	-- 2) social — incluye whatsapp explícitamente (no es direct).
-	IF source IN ('instagram', 'tiktok', 'facebook', 'linkedin', 'whatsapp') THEN
-		NEW."canal_registro" := 'social';
-		RETURN NEW;
-	END IF;
-
-	-- 3) email.
-	IF source = 'resend_email' THEN
-		NEW."canal_registro" := 'email';
-		RETURN NEW;
-	END IF;
-
-	-- 4) organic.
-	IF source = 'google_organic' THEN
-		NEW."canal_registro" := 'organic';
-		RETURN NEW;
-	END IF;
-
-	-- `google` (alias) → según medium. Sin medium se conserva el default
-	-- conservador de Search Ads (paid).
-	IF source = 'google' THEN
-		IF medium = '' THEN
-			NEW."canal_registro" := 'paid';
-		ELSIF medium IN ('cpc', 'ppc', 'paid') THEN
-			NEW."canal_registro" := 'paid';
-		ELSIF medium = 'organic' THEN
-			NEW."canal_registro" := 'organic';
-		ELSIF medium = 'email' THEN
-			NEW."canal_registro" := 'email';
-		ELSIF medium = 'social' THEN
-			NEW."canal_registro" := 'social';
-		ELSE
-			NEW."canal_registro" := 'unknown';
-		END IF;
-		RETURN NEW;
-	END IF;
-
-	-- Medium informativo rescata un source desconocido o ausente (cubre
-	-- `utm_medium=cpc` sin source, `spam_site + cpc`, etc.).
-	IF medium <> '' THEN
-		IF medium IN ('cpc', 'ppc', 'paid') THEN
-			NEW."canal_registro" := 'paid';
-		ELSIF medium = 'social' THEN
-			NEW."canal_registro" := 'social';
-		ELSIF medium = 'email' THEN
-			NEW."canal_registro" := 'email';
-		ELSIF medium = 'organic' THEN
-			NEW."canal_registro" := 'organic';
-		ELSE
-			NEW."canal_registro" := 'unknown';
-		END IF;
-		RETURN NEW;
-	END IF;
-
-	-- Source presente pero desconocido, sin medium que rescate.
-	NEW."canal_registro" := 'unknown';
+	NEW."canal_registro" := "academies_canal_registro_value"(
+		NEW."utm_source",
+		NEW."utm_medium"
+	);
 	RETURN NEW;
 END;
 $$;
@@ -126,29 +80,37 @@ CREATE TRIGGER "academies_canal_registro_bi"
 	EXECUTE FUNCTION "academies_canal_registro_derive"();
 --> statement-breakpoint
 
--- BEFORE UPDATE OF utm_source, utm_medium: solo se recalcula cuando se
--- hace un UPDATE explícito sobre los campos UTM. Updates sobre otras
--- columnas dejan el snapshot intacto (regla first-touch §3).
+-- Excepción acotada para academias pre-registradas: el claim del owner es
+-- su signup efectivo. La condición impide cualquier recálculo posterior.
 DROP TRIGGER IF EXISTS "academies_canal_registro_bu" ON "academies";
 --> statement-breakpoint
 CREATE TRIGGER "academies_canal_registro_bu"
 	BEFORE UPDATE OF "utm_source", "utm_medium" ON "academies"
 	FOR EACH ROW
+	WHEN (
+		coalesce(trim(OLD."utm_source"), '') = ''
+		AND coalesce(trim(OLD."utm_medium"), '') = ''
+		AND (
+			coalesce(trim(NEW."utm_source"), '') <> ''
+			OR coalesce(trim(NEW."utm_medium"), '') <> ''
+		)
+		AND (OLD."canal_registro" IS NULL OR OLD."canal_registro" = 'direct')
+	)
 	EXECUTE FUNCTION "academies_canal_registro_derive"();
 --> statement-breakpoint
 
 -- Backfill idempotente: cubre academias existentes pre-ZAL-159 aplicando la
--- misma lógica. Si ya tienen canal_registro seteado por el trigger tras la
--- última migración, el UPDATE OF utm_source/utm_medium lo recalcula pero
--- es determinístico (mismas reglas → mismo resultado).
+-- misma función pura sin tocar los UTM ni reatribuir snapshots existentes.
 UPDATE "academies"
-	SET "utm_source" = "utm_source"
+	SET "canal_registro" = "academies_canal_registro_value"(
+		"utm_source",
+		"utm_medium"
+	)
 	WHERE "canal_registro" IS NULL;
 --> statement-breakpoint
 
 -- Bumble/ROI query: filtro por canal. Índices parciales para los canales
--- frecuentes (paid, social, email, organic) — direct y unknown suelen ser
--- la mayoría ruidosa.
+-- frecuentes (paid, social, email, organic) — direct suele ser la mayoría.
 CREATE INDEX IF NOT EXISTS "academies_canal_paid_idx"
 	ON "academies" ("tenant_id", "created_at")
 	WHERE "canal_registro" = 'paid';

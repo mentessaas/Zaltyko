@@ -13,13 +13,12 @@
  *   google_organic                             → organic
  *   google                                     → según utm_medium
  *
- * `direct` cuando no hay UTMs o el source no matchea la taxonomía y el
- * medium tampoco. `unknown` cuando hay datos parciales (UTM presente
- * pero no normalizable) — distinto de `direct` para que Bumble/Data pueda
- * filtrar la causa.
+ * `direct` cuando no hay UTMs o cuando los valores presentes no pertenecen
+ * a la taxonomía aceptada. El contrato deliberadamente solo expone cinco
+ * canales para que un UTM inválido no cree un bucket paralelo.
  */
 
-export type CanalRegistro = "paid" | "social" | "email" | "organic" | "direct" | "unknown";
+export type CanalRegistro = "paid" | "social" | "email" | "organic" | "direct";
 
 export interface UtmLike {
   utm_source?: string | null;
@@ -73,49 +72,25 @@ function resolveFromNormalized(
     return "direct";
   }
 
-  // 1) paid — sources específicas de ads.
-  if (source && PAID_SOURCES.has(source)) {
+  // La evaluación sigue el orden contractual completo. El medium participa
+  // en cada nivel de precedencia; por ejemplo, instagram+cpc es paid y
+  // google_ads+email sigue siendo paid.
+  if (medium === "cpc" || (source && PAID_SOURCES.has(source))) {
     return "paid";
   }
-  // 2) social — incluye whatsapp explícitamente (no es direct).
-  if (source && SOCIAL_SOURCES.has(source)) {
+  if (medium === "social" || (source && SOCIAL_SOURCES.has(source))) {
     return "social";
   }
-  // 3) email.
-  if (source && EMAIL_SOURCES.has(source)) {
+  if (medium === "email" || (source && EMAIL_SOURCES.has(source))) {
     return "email";
   }
-  // 4) organic.
-  if (source && ORGANIC_SOURCES.has(source)) {
+  if (medium === "organic" || (source && ORGANIC_SOURCES.has(source))) {
     return "organic";
   }
 
-  // 5) `google` alias: el medium determina el canal. Sin medium
-  // informativo, default conservador a `paid` (la mayoría de landings con
-  // utm_source=google vienen de Search Ads).
-  if (source === "google") {
-    if (!medium) return "paid";
-    if (medium === "cpc" || medium === "ppc" || medium === "paid") return "paid";
-    if (medium === "organic") return "organic";
-    if (medium === "email") return "email";
-    if (medium === "social") return "social";
-    return "unknown";
-  }
-
-  // 6) Medium informativo gana sobre un source desconocido o ausente
-  // (cubre `utm_medium=cpc` sin source, `spam_site + cpc`, etc. — un medium
-  // claro siempre es mejor que un source basura).
-  if (medium) {
-    if (medium === "cpc" || medium === "ppc" || medium === "paid") return "paid";
-    if (medium === "social") return "social";
-    if (medium === "email") return "email";
-    if (medium === "organic") return "organic";
-    return "unknown";
-  }
-
-  // 7) Source presente pero desconocido y medium ausente: no podemos
-  // atribuir, queda como `unknown` para que Bumble filtre vs `direct`.
-  return "unknown";
+  // `google` solo es un alias genérico: sin medium válido no permite inferir
+  // paid ni organic. Cualquier combinación fuera de taxonomía cae a direct.
+  return "direct";
 }
 
 export const CANAL_LABELS: Record<CanalRegistro, string> = {
@@ -124,5 +99,4 @@ export const CANAL_LABELS: Record<CanalRegistro, string> = {
   email: "Email",
   organic: "Organic",
   direct: "Direct",
-  unknown: "Unknown",
 };

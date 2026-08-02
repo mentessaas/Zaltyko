@@ -128,7 +128,9 @@ export async function claimAcademy(
 
   // Serialize claims per account: dos pestañas concurrentes deben compartir
   // la misma transacción antes de crear perfil, membership y ownerId.
-  await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${input.userId}))`);
+  await tx.execute(
+    sql`select pg_advisory_xact_lock(hashtext(${input.userId}))`
+  );
 
   const [academy] = await tx
     .select({
@@ -234,49 +236,45 @@ export async function claimAcademy(
     };
   }
 
-  // ZAL-157 [GTM-DEP.1] — UTMs first-touch en el claim path. Regla: si la
-// academia seed ya venía con UTMs del pre-registro, los respetamos (no
-// sobrescribimos). Solo escribimos cuando al menos uno de los UTMs
-// principales (source/medium) llega y la academia estaba vacía.
-const shouldWriteUtm = Boolean(
-  input.body.utm &&
-    (input.body.utm.utm_source || input.body.utm.utm_medium)
-);
+  // ZAL-157 [GTM-DEP.1] — UTMs first-touch en el claim path. Si la academia
+  // seed ya venía con UTMs del pre-registro, se respetan. Solo se escribe
+  // cuando source/medium llega y ambos campos persistidos estaban vacíos.
+  const shouldWriteUtm = Boolean(
+    input.body.utm && (input.body.utm.utm_source || input.body.utm.utm_medium)
+  );
 
-const updateSet: Record<string, unknown> = { ownerId: profileId };
+  const updateSet: Record<string, unknown> = { ownerId: profileId };
 
-if (shouldWriteUtm) {
-  const [currentUtm] = await tx
-    .select({
-      utmSource: academies.utmSource,
-      utmMedium: academies.utmMedium,
-    })
-    .from(academies)
-    .where(eq(academies.id, academy.id))
-    .limit(1);
+  if (shouldWriteUtm) {
+    const [currentUtm] = await tx
+      .select({
+        utmSource: academies.utmSource,
+        utmMedium: academies.utmMedium,
+      })
+      .from(academies)
+      .where(eq(academies.id, academy.id))
+      .limit(1);
 
-  const isEmpty = !currentUtm?.utmSource && !currentUtm?.utmMedium;
-  if (isEmpty && input.body.utm) {
-    updateSet.utmSource = input.body.utm.utm_source ?? null;
-    updateSet.utmMedium = input.body.utm.utm_medium ?? null;
-    updateSet.utmCampaign = input.body.utm.utm_campaign ?? null;
-    updateSet.utmTerm = input.body.utm.utm_term ?? null;
-    updateSet.utmContent = input.body.utm.utm_content ?? null;
-    updateSet.utmLandingPath = input.body.utm.utm_landing_path ?? null;
-    updateSet.utmCapturedAt = new Date();
-    // ZAL-159 [GTM-DEP.3] — recalcular el canal de registro con los UTMs
-    // que acabamos de persistir. El trigger PL/pgSQL (migration 0008)
-    // también lo haría en un BEFORE UPDATE OF utm_source,utm_medium; lo
-    // pasamos explícito en el SET para que la fila devuelta a la API ya
-    // tenga el valor correcto sin re-leer.
-    updateSet.canalRegistro = derivar_canal(
-      input.body.utm.utm_source ?? null,
-      input.body.utm.utm_medium ?? null
-    );
+    const isEmpty = !currentUtm?.utmSource && !currentUtm?.utmMedium;
+    if (isEmpty && input.body.utm) {
+      updateSet.utmSource = input.body.utm.utm_source ?? null;
+      updateSet.utmMedium = input.body.utm.utm_medium ?? null;
+      updateSet.utmCampaign = input.body.utm.utm_campaign ?? null;
+      updateSet.utmTerm = input.body.utm.utm_term ?? null;
+      updateSet.utmContent = input.body.utm.utm_content ?? null;
+      updateSet.utmLandingPath = input.body.utm.utm_landing_path ?? null;
+      updateSet.utmCapturedAt = new Date();
+      // Este claim es el signup efectivo de una academia pre-registrada sin
+      // UTM. Se permite exactamente esta primera captura; cambios posteriores
+      // conservan el snapshot.
+      updateSet.canalRegistro = derivar_canal(
+        input.body.utm.utm_source ?? null,
+        input.body.utm.utm_medium ?? null
+      );
+    }
   }
-}
 
-await tx.update(academies).set(updateSet).where(eq(academies.id, academy.id));
+  await tx.update(academies).set(updateSet).where(eq(academies.id, academy.id));
 
   await tx
     .insert(memberships)

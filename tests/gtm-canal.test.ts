@@ -8,11 +8,12 @@
  * - email: resend_email
  * - organic: google_organic
  * - google (alias): según medium
- * - direct: sin UTMs
- * - unknown: source/medium presentes pero no normalizables
+ * - direct: sin UTMs o UTM inválido
  */
 
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
 import {
   derivar_canal,
@@ -54,40 +55,38 @@ describe("resolveCanal — email y organic", () => {
 
 describe("resolveCanal — google alias", () => {
   it("google + cpc → paid", () => {
-    expect(
-      resolveCanal({ utm_source: "google", utm_medium: "cpc" })
-    ).toBe("paid");
+    expect(resolveCanal({ utm_source: "google", utm_medium: "cpc" })).toBe(
+      "paid"
+    );
   });
   it("google + organic → organic", () => {
-    expect(
-      resolveCanal({ utm_source: "google", utm_medium: "organic" })
-    ).toBe("organic");
+    expect(resolveCanal({ utm_source: "google", utm_medium: "organic" })).toBe(
+      "organic"
+    );
   });
   it("google + email → email", () => {
-    expect(
-      resolveCanal({ utm_source: "google", utm_medium: "email" })
-    ).toBe("email");
+    expect(resolveCanal({ utm_source: "google", utm_medium: "email" })).toBe(
+      "email"
+    );
   });
   it("google + social → social", () => {
-    expect(
-      resolveCanal({ utm_source: "google", utm_medium: "social" })
-    ).toBe("social");
+    expect(resolveCanal({ utm_source: "google", utm_medium: "social" })).toBe(
+      "social"
+    );
   });
-  it("google sin medium → paid (default conservador para Search Ads)", () => {
-    expect(resolveCanal({ utm_source: "google" })).toBe("paid");
+  it("google sin medium → direct", () => {
+    expect(resolveCanal({ utm_source: "google" })).toBe("direct");
   });
-  it("google + medium informativo pero desconocido → unknown", () => {
-    expect(
-      resolveCanal({ utm_source: "google", utm_medium: "weird" })
-    ).toBe("unknown");
+  it("google + medium desconocido → direct", () => {
+    expect(resolveCanal({ utm_source: "google", utm_medium: "weird" })).toBe(
+      "direct"
+    );
   });
 });
 
 describe("resolveCanal — medium-only inference", () => {
   it.each([
     ["cpc", "paid"],
-    ["ppc", "paid"],
-    ["paid", "paid"],
     ["social", "social"],
     ["email", "email"],
     ["organic", "organic"],
@@ -95,8 +94,8 @@ describe("resolveCanal — medium-only inference", () => {
     expect(resolveCanal({ utm_medium: medium })).toBe(expected);
   });
 
-  it("medium desconocido sin source → unknown", () => {
-    expect(resolveCanal({ utm_medium: "weird" })).toBe("unknown");
+  it("medium desconocido sin source → direct", () => {
+    expect(resolveCanal({ utm_medium: "weird" })).toBe("direct");
   });
 });
 
@@ -115,14 +114,14 @@ describe("resolveCanal — edge cases", () => {
     expect(resolveCanal({ utm_source: "  Google_Ads  " })).toBe("paid");
   });
 
-  it("source no reconocido + medium conocido → unknown si medium no ayuda", () => {
-    expect(
-      resolveCanal({ utm_source: "spam_site", utm_medium: "cpc" })
-    ).toBe("paid"); // medium=cpc gana
+  it("source no reconocido + medium conocido → aplica el medium", () => {
+    expect(resolveCanal({ utm_source: "spam_site", utm_medium: "cpc" })).toBe(
+      "paid"
+    ); // medium=cpc gana
   });
 
-  it("source no reconocido + medium ausente → unknown", () => {
-    expect(resolveCanal({ utm_source: "spam_site" })).toBe("unknown");
+  it("source no reconocido + medium ausente → direct", () => {
+    expect(resolveCanal({ utm_source: "spam_site" })).toBe("direct");
   });
 });
 
@@ -142,27 +141,31 @@ describe("derivar_canal — firma posicional del spec", () => {
     ["meta_ads", "social", "paid"],
     ["tiktok_ads", "organic", "paid"],
     ["instagram", "email", "social"],
-    ["tiktok", "paid", "social"],
+    ["tiktok", "organic", "social"],
     ["whatsapp", "social", "social"], // explícito: whatsapp NO es direct
-    ["resend_email", "paid", "email"], // email gana sobre paid si source=resend_email
-    ["google_organic", "cpc", "organic"], // organic gana sobre paid si source=google_organic
+    ["resend_email", "organic", "email"],
+    ["google_organic", "email", "email"],
+
+    // El medium también participa en la precedencia global.
+    ["instagram", "cpc", "paid"],
+    ["resend_email", "cpc", "paid"],
+    ["google_organic", "cpc", "paid"],
+    ["google_ads", "social", "paid"],
 
     // Conflictivos con `google` alias.
     ["google", "cpc", "paid"],
     ["google", "organic", "organic"],
     ["google", "email", "email"],
     ["google", "social", "social"],
-    ["google", null, "paid"], // default conservador Search Ads
-    ["google", "weird", "unknown"],
+    ["google", null, "direct"],
+    ["google", "weird", "direct"],
 
     // Medium-only.
     [null, "cpc", "paid"],
-    [null, "ppc", "paid"],
-    [null, "paid", "paid"],
     [null, "social", "social"],
     [null, "email", "email"],
     [null, "organic", "organic"],
-    [null, "weird", "unknown"],
+    [null, "weird", "direct"],
     [null, "", "direct"],
 
     // Vacíos / nulos.
@@ -171,22 +174,19 @@ describe("derivar_canal — firma posicional del spec", () => {
     [undefined, undefined, "direct"],
 
     // Source desconocido.
-    ["spam_site", null, "unknown"],
+    ["spam_site", null, "direct"],
     ["spam_site", "cpc", "paid"], // medium rescata
-  ])(
-    "derivar_canal(%p, %p) → %p",
-    (source, medium, expected) => {
-      expect(derivar_canal(source, medium)).toBe(expected);
-    }
-  );
+  ])("derivar_canal(%p, %p) → %p", (source, medium, expected) => {
+    expect(derivar_canal(source, medium)).toBe(expected);
+  });
 
   it("normaliza case y espacios (igual que resolveCanal)", () => {
     expect(derivar_canal("  Google_Ads  ", " CPC ")).toBe("paid");
     expect(derivar_canal("META_ADS", undefined)).toBe("paid");
   });
 
-  it("whatsapp con medium arbitrario sigue siendo social (regla Hermin §4)", () => {
-    expect(derivar_canal("whatsapp", "cpc")).toBe("social");
+  it("whatsapp es social salvo que medium=cpc active la precedencia paid", () => {
+    expect(derivar_canal("whatsapp", "cpc")).toBe("paid");
     expect(derivar_canal("whatsapp", "")).toBe("social");
   });
 });
@@ -198,6 +198,28 @@ describe("CANAL_LABELS — etiqueta humana para dashboards", () => {
     expect(CANAL_LABELS.email).toBeTruthy();
     expect(CANAL_LABELS.organic).toBeTruthy();
     expect(CANAL_LABELS.direct).toBeTruthy();
-    expect(CANAL_LABELS.unknown).toBeTruthy();
+  });
+});
+
+describe("migración 0008 — snapshot first-touch", () => {
+  const migration = readFileSync(
+    resolve(process.cwd(), "drizzle/0008_academies_canal_registro.sql"),
+    "utf8"
+  );
+
+  it("usa una función SQL pura e inmutable con fallback direct", () => {
+    expect(migration).toContain(
+      'CREATE OR REPLACE FUNCTION "academies_canal_registro_value"'
+    );
+    expect(migration).toContain("IMMUTABLE");
+    expect(migration).toContain("ELSE 'direct'");
+    expect(migration).not.toContain("'unknown'");
+  });
+
+  it("limita el UPDATE trigger a la primera captura de una pre-registrada", () => {
+    expect(migration).toContain('OLD."canal_registro" IS NULL');
+    expect(migration).toContain("OLD.\"canal_registro\" = 'direct'");
+    expect(migration).toContain("coalesce(trim(OLD.\"utm_source\"), '') = ''");
+    expect(migration).toContain("coalesce(trim(NEW.\"utm_source\"), '') <> ''");
   });
 });

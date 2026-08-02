@@ -106,7 +106,12 @@ describe("createAcademy — derivación de canal_registro por bucket de UTM", ()
     ["paid via medium=cpc sin source", undefined, "cpc", "paid"],
     // social
     ["social (instagram)", "instagram", undefined, "social"],
-    ["social (whatsapp — explícito, NO direct)", "whatsapp", undefined, "social"],
+    [
+      "social (whatsapp — explícito, NO direct)",
+      "whatsapp",
+      undefined,
+      "social",
+    ],
     ["social (facebook)", "facebook", "social", "social"],
     ["social (linkedin)", "linkedin", undefined, "social"],
     // email
@@ -118,13 +123,31 @@ describe("createAcademy — derivación de canal_registro por bucket de UTM", ()
     ["google + organic → organic", "google", "organic", "organic"],
     ["google + email → email", "google", "email", "email"],
     ["google + social → social", "google", "social", "social"],
-    ["google sin medium → paid (default conservador)", "google", undefined, "paid"],
-    // direct / unknown
+    ["google sin medium → direct", "google", undefined, "direct"],
+    // direct / invalid
     ["sin UTMs → direct", undefined, undefined, "direct"],
     ["medium solo 'email' → email", undefined, "email", "email"],
     ["medium solo 'social' → social", undefined, "social", "social"],
-    ["source desconocido sin medium → unknown", "spam_site", undefined, "unknown"],
-    ["source desconocido + medium conocido → medium gana", "spam_site", "cpc", "paid"],
+    [
+      "source desconocido sin medium → direct",
+      "spam_site",
+      undefined,
+      "direct",
+    ],
+    [
+      "source desconocido + medium conocido → medium gana",
+      "spam_site",
+      "cpc",
+      "paid",
+    ],
+    ["precedencia: instagram + cpc → paid", "instagram", "cpc", "paid"],
+    ["precedencia: resend_email + cpc → paid", "resend_email", "cpc", "paid"],
+    [
+      "precedencia: google_organic + email → email",
+      "google_organic",
+      "email",
+      "email",
+    ],
   ])("%s", async (_label, source, medium, expected) => {
     const result = await createAcademy(
       {
@@ -132,12 +155,13 @@ describe("createAcademy — derivación de canal_registro por bucket de UTM", ()
         academyType: "artistica",
         disciplineVariant: "artistic_female",
         countryCode: "ES",
-        utm: source || medium
-          ? {
-              utm_source: source ?? null,
-              utm_medium: medium ?? null,
-            }
-          : undefined,
+        utm:
+          source || medium
+            ? {
+                utm_source: source ?? null,
+                utm_medium: medium ?? null,
+              }
+            : undefined,
       },
       {
         profile: {

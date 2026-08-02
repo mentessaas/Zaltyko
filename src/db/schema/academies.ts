@@ -1,4 +1,11 @@
-import { boolean, index, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import {
+  boolean,
+  index,
+  pgTable,
+  text,
+  timestamp,
+  uuid,
+} from "drizzle-orm/pg-core";
 
 import { profiles } from "./profiles";
 import { academyTypeEnum } from "./enums";
@@ -17,7 +24,9 @@ export const academies = pgTable(
     discipline: text("discipline"),
     disciplineVariant: text("discipline_variant"),
     federationConfigVersion: text("federation_config_version"),
-    specializationStatus: text("specialization_status").notNull().default("legacy"),
+    specializationStatus: text("specialization_status")
+      .notNull()
+      .default("legacy"),
     publicDescription: text("public_description"),
     isPublic: boolean("is_public").notNull().default(true),
     logoUrl: text("logo_url"),
@@ -38,7 +47,9 @@ export const academies = pgTable(
     trialStartsAt: timestamp("trial_starts_at", { withTimezone: true }),
     trialEndsAt: timestamp("trial_ends_at", { withTimezone: true }),
     isTrialActive: boolean("is_trial_active").notNull().default(false),
-    paymentsConfiguredAt: timestamp("payments_configured_at", { withTimezone: true }),
+    paymentsConfiguredAt: timestamp("payments_configured_at", {
+      withTimezone: true,
+    }),
     // Settings extendidos
     timezone: text("timezone"),
     brandingColors: text("branding_colors"), // JSON con colores y fuentes
@@ -65,18 +76,28 @@ export const academies = pgTable(
     // definido en `drizzle/0008_academies_canal_registro.sql`. La API TS
     // también lo calcula vía `derivar_canal()` para devolver el valor en la
     // respuesta sin un roundtrip extra. Regla: paid > social > email >
-    // organic > direct (con `unknown` para datos parciales no normalizables).
+    // organic > direct. UTM ausente o inválido queda en `direct`.
     canalRegistro: text("canal_registro"),
   },
   (table) => ({
     tenantIdx: index("academies_tenant_id_idx").on(table.tenantId),
     publicIdx: index("academies_is_public_idx").on(table.isPublic),
-    locationIdx: index("academies_location_idx").on(table.country, table.region, table.city),
+    locationIdx: index("academies_location_idx").on(
+      table.country,
+      table.region,
+      table.city
+    ),
     typeIdx: index("academies_type_idx").on(table.academyType),
     countryCodeIdx: index("academies_country_code_idx").on(table.countryCode),
-    disciplineVariantIdx: index("academies_discipline_variant_idx").on(table.disciplineVariant),
-    contactEmailIdx: index("academies_contact_email_idx").on(table.contactEmail),
-    contactPhoneIdx: index("academies_contact_phone_idx").on(table.contactPhone),
+    disciplineVariantIdx: index("academies_discipline_variant_idx").on(
+      table.disciplineVariant
+    ),
+    contactEmailIdx: index("academies_contact_email_idx").on(
+      table.contactEmail
+    ),
+    contactPhoneIdx: index("academies_contact_phone_idx").on(
+      table.contactPhone
+    ),
     utmSourceIdx: index("academies_utm_source_idx").on(table.utmSource),
     utmMediumIdx: index("academies_utm_medium_idx").on(table.utmMedium),
   })
