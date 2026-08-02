@@ -63,7 +63,7 @@ import {
   hasAnalyticsConsent,
   subscribeConsent,
 } from "@/lib/consent/state";
-import { writeConsent } from "@/lib/consent/store";
+import { readConsent, writeConsent } from "@/lib/consent/store";
 import { initAnalytics, trackPageView } from "@/lib/analytics";
 
 function makeMemoryStorage(): Storage {
@@ -92,11 +92,38 @@ function makeMemoryStorage(): Storage {
 
 function stubBrowserEnvironment(): void {
   const storage = makeMemoryStorage();
-  vi.stubGlobal("window", {
+  // Como el test environment es `node` (no jsdom), necesitamos un stub
+  // de `window` que satisfaga el contrato mínimo que requiere el store
+  // canónico de ZAL-156.2: `localStorage`, `location`, y un mecanismo
+  // para suscribirse y despachar `storage` events. Usamos un
+  // `EventTarget` real para los listeners — el `store.ts` invoca
+  // `window.addEventListener("storage", ...)` y los tests disparan
+  // eventos vía `window.dispatchEvent(...)`.
+  const target = new EventTarget();
+  const stub = {
     localStorage: storage,
     sessionStorage: storage,
     location: { pathname: "/", search: "" },
+    addEventListener: target.addEventListener.bind(target),
+    removeEventListener: target.removeEventListener.bind(target),
+    dispatchEvent: target.dispatchEvent.bind(target),
+  };
+  vi.stubGlobal("window", stub);
+}
+
+/**
+ * Simula un `StorageEvent` en entorno node (donde `StorageEvent` no
+ * existe). El listener del store solo lee `event.key`, así que basta
+ * con un `Event` "storage" enriquecido con la propiedad `key`.
+ */
+function makeStorageEvent(key: string, newValue: string | null): Event {
+  const event = new Event("storage");
+  Object.defineProperty(event, "key", { value: key, configurable: true });
+  Object.defineProperty(event, "newValue", {
+    value: newValue,
+    configurable: true,
   });
+  return event;
 }
 
 beforeEach(async () => {
@@ -106,13 +133,24 @@ beforeEach(async () => {
   utmReadStub.mockReset();
   utmReadStub.mockReturnValue(null);
 
-  // Reset consent a "unset" antes de cada test (purga localStorage).
-  writeConsent("unset");
+  // ZAL-156.2 — limpiamos el binding de `storage` event entre tests
+  // porque el stub de `window` cambia en cada test (se recrea el
+  // EventTarget). Sin este reset, el segundo test "hereda" el binding
+  // del primero sobre un window que ya no existe, y los storage events
+  // quedan colgados en un EventTarget inalcanzable.
+  const { __resetConsentForTests } = await import("@/lib/consent/store");
+  __resetConsentForTests();
 
-  // Asegura un entorno browser con storage vacío.
+  // Asegura un entorno browser con storage vacío antes de cualquier
+  // operación de consent (necesario para ZAL-156.2: la primera llamada
+  // a writeConsent/readConsent/subscribeConsent instala el listener de
+  // `storage` event, que requiere addEventListener en window).
   stubBrowserEnvironment();
   // Limpia explícitamente la clave de consent.
-  window.localStorage.clear();
+  globalThis.window.localStorage.clear();
+
+  // Reset consent a "unset" antes de cada test (purga localStorage).
+  writeConsent("unset");
 });
 
 afterEach(() => {
@@ -320,5 +358,98 @@ describe("persistencia de consent", () => {
   it("storage corrupto (valor inválido) se trata como 'unset'", () => {
     window.localStorage.setItem("zaltyko.consent.v1", "consentimiento_v2");
     expect(getConsentSnapshot().value).toBe("unset");
+  });
+});
+
+/**
+ * ZAL-156.2 [GTM-DEP.2] — sincronización cross-tab y hardening del
+ * store canónico. Cubre el `storage` event desde otra pestaña y el
+ * test hook de reset.
+ */
+describe("ZAL-156.2 — sincronización cross-tab vía storage event", () => {
+  it("storage event desde 'otra pestaña' notifica a los listeners con el valor nuevo", () => {
+    writeConsent("granted");
+    const cb = vi.fn();
+    subscribeConsent(cb);
+    cb.mockClear();
+
+    // En un browser real, cuando otra pestaña hace `setItem`, esa misma
+    // escritura queda visible para esta pestaña (localStorage es
+    // compartido por origen). Simulamos esa escritura antes del evento.
+    window.localStorage.setItem("zaltyko.consent.v1", "revoked");
+    const event = makeStorageEvent("zaltyko.consent.v1", "revoked");
+    window.dispatchEvent(event);
+
+    expect(cb).toHaveBeenCalledWith(
+      expect.objectContaining({ value: "revoked" })
+    );
+  });
+
+  it("storage event con valor 'unset' (removeItem en otra pestaña) también notifica", () => {
+    writeConsent("granted");
+    const cb = vi.fn();
+    subscribeConsent(cb);
+    cb.mockClear();
+
+    // En la práctica `removeItem` dispara un storage event con
+    // `newValue: null`. El listener no debe distinguir — relee storage.
+    window.localStorage.removeItem("zaltyko.consent.v1");
+    const event = makeStorageEvent("zaltyko.consent.v1", null);
+    window.dispatchEvent(event);
+
+    expect(cb).toHaveBeenCalledWith(
+      expect.objectContaining({ value: "unset" })
+    );
+  });
+
+  it("storage event con key distinta a la del consent NO notifica", () => {
+    writeConsent("unset");
+    const cb = vi.fn();
+    subscribeConsent(cb);
+    cb.mockClear();
+
+    const event = makeStorageEvent("alguna.otra.clave", "cualquiera");
+    window.dispatchEvent(event);
+
+    expect(cb).not.toHaveBeenCalled();
+  });
+
+  it("el storage event se instala perezosamente (no se añade hasta primer uso)", async () => {
+    // Importamos el módulo de reset para limpiar estado entre tests.
+    const { __resetConsentForTests } = await import("@/lib/consent/store");
+    __resetConsentForTests();
+
+    // Antes de cualquier operación de consent, no debería haber binding
+    // de storage. Pero como jsdom no expone el listener set directamente,
+    // verificamos el side effect: una vez que invocamos readConsent,
+    // un storage event posterior SÍ debe disparar a los listeners.
+    readConsent();
+    const cb = vi.fn();
+    subscribeConsent(cb);
+    cb.mockClear();
+
+    // Simulamos que otra pestaña acaba de escribir "granted" — la
+    // escritura ya está visible en localStorage de esta pestaña.
+    window.localStorage.setItem("zaltyko.consent.v1", "granted");
+    const event = makeStorageEvent("zaltyko.consent.v1", "granted");
+    window.dispatchEvent(event);
+
+    expect(cb).toHaveBeenCalledWith(
+      expect.objectContaining({ value: "granted" })
+    );
+  });
+
+  it("__resetConsentForTests limpia el listener registry", async () => {
+    const { __resetConsentForTests } = await import("@/lib/consent/store");
+    writeConsent("unset");
+    const cb = vi.fn();
+    subscribeConsent(cb);
+    cb.mockClear();
+
+    __resetConsentForTests();
+
+    // Tras el reset, escribir no debe notificar al listener antiguo.
+    writeConsent("granted");
+    expect(cb).not.toHaveBeenCalled();
   });
 });

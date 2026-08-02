@@ -13,6 +13,7 @@ import { UpdateBanner } from "@/components/ui/update-banner";
 import { InstallPrompt } from "@/components/ui/install-prompt";
 import { PostHogProvider } from "@/components/PostHogProvider";
 import { UtmCapture } from "@/components/UtmCapture";
+import { CookieConsentBanner } from "@/components/CookieConsentBanner";
 import { getPublicSiteUrl } from "@/lib/seo/site-url";
 
 const spaceGrotesk = Space_Grotesk({
@@ -144,6 +145,11 @@ export default function RootLayout({
             Idempotente: solo persiste si la URL trae UTMs y sessionStorage
             está vacío. Sin UTMs en URL ni storage, no hace nada. */}
         <UtmCapture />
+        {/* ZAL-156.2 [GTM-DEP.2] — banner de consent (solo visible cuando
+            el storage está en "unset"). Elige Aceptar/Rechazar y persiste
+            vía writeConsent del store canónico. Una vez optó, no vuelve
+            a salir. */}
+        <CookieConsentBanner />
         <Analytics />
         <SpeedInsights />
       </body>

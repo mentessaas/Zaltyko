@@ -9,6 +9,124 @@ source:
 
 # Changelog interno
 
+## 2026-08-02 - ZAL-156.2 [GTM-DEP.2] Storage canónico de consent (cross-tab + banner UI)
+
+Cierra el último sub-issue de GTM-DEP. Reemplaza el stub default-deny de
+ZAL-160 por el storage canónico: sincronización cross-tab vía `storage`
+event y banner UI de cookies WCAG-AA. Misma API expuesta por
+`src/lib/consent/state.ts` — los consumidores (`trackPageView`,
+`usePageTracking`) no requirieron cambios, como anticipaba el diseño de
+ZAL-160.
+
+**Decisión técnica:**
+
+- `src/lib/consent/store.ts` deja de ser "stub" y pasa a ser la
+  implementación de referencia del storage de consent. Mantiene
+  `localStorage` con clave versionada (`zaltyko.consent.v1`) y misma
+  semántica de default-deny.
+- Sincronización entre pestañas del mismo origen: el store instala un
+  `storage` event listener en `window` perezosamente (primera llamada
+  a `readConsent` / `writeConsent` / `subscribeConsent`). Cuando otra
+  pestaña escribe o purga, los listeners locales reciben el snapshot
+  vigente y `usePageTracking` re-trackea si el cambio es a `granted`.
+- `__resetConsentForTests()` (solo en no-prod) limpia el listener
+  registry y resetea el flag de binding. Necesario en tests porque el
+  stub de `window` cambia entre tests.
+- Banner UI `<CookieConsentBanner />`:
+  - Solo visible cuando el consent está en `unset`. Una vez que el
+    usuario opta, el banner no vuelve a salir ni en reload.
+  - Dos opciones: Aceptar (`granted`) / Rechazar (`revoked`). Sin
+    botón "X" — sería un patrón oscuro (cerrar sin elegir ≡ denegar,
+    pero el storage queda en `unset` y el banner reaparece).
+  - WCAG 2.2 AA: `role="dialog"`, `aria-labelledby`/`aria-describedby`,
+    `autoFocus` en Aceptar, `motion-reduce:animate-none` para usuarios
+    que lo prefieren reducido.
+  - Copy alineado con `vault/04-Marketing/Mensajes aprobados.md`:
+    "privacidad por diseño", sin prometer "RGPD Compliant".
+
+**Cambios concretos:**
+
+- **Modificado**: `src/lib/consent/store.ts` — añadida sincronización
+  cross-tab vía `storage` event (binding perezoso), listener registry
+  con `Set<ConsentListener>`, helper de tests `__resetConsentForTests`.
+- **Modificado**: `src/lib/consent/state.ts` — comentario del módulo
+  actualizado: el store ya no es "stub", es la implementación
+  canónica. La API expuesta (`getConsentSnapshot`, `subscribeConsent`,
+  `hasAnalyticsConsent`) no cambia.
+- **Nuevo**: `src/components/CookieConsentBanner.tsx` — banner
+  minimalista WCAG-AA, Aceptar/Rechazar, copia aprobada.
+- **Modificado**: `src/app/layout.tsx` — monta `<CookieConsentBanner />`
+  en el root layout, junto a `<UtmCapture />` (todos client-only).
+- **Modificado**: `tests/consent-gate.test.ts` — añadidos 5 tests
+  para la sincronización cross-tab (storage event con key válida,
+  removeItem, key distinta, instalación perezosa, reset de test hook).
+  El stub de `window` ahora incluye `addEventListener` /
+  `dispatchEvent` basados en `EventTarget` para soportar el binding;
+  helper `makeStorageEvent` polyfill del constructor (no existe en
+  el test environment node).
+
+**Cobertura (ZAL-156.2):**
+
+- `tests/consent-gate.test.ts` — 25 tests, todos verdes (+5 vs ZAL-160).
+  - Cross-tab: storage event desde "otra pestaña" notifica con el
+    valor nuevo; `removeItem` también notifica (vía `newValue: null`);
+    storage event con key distinta a la del consent NO notifica.
+  - Instalación: el listener se instala perezosamente en el primer
+    uso (no se añade hasta `readConsent` / `writeConsent` /
+    `subscribeConsent`).
+  - Test hook: `__resetConsentForTests()` limpia el registry y
+    resetea el flag de binding.
+- Tests previos (matriz consent × UTM, persistencia, suscripción) sin
+  cambios — siguen verdes, confirma que la API expuesta por `state.ts`
+  no cambió.
+
+**Coordinación con ZAL-160:**
+
+- ZAL-160 ya anticipaba este reemplazo: "ZAL-156.2 es la issue
+  designada para el storage canónico de consent. El stub actual vive
+  en `src/lib/consent/store.ts`; cuando ZAL-156.2 entregue su
+  implementación, el reemplazo debe mantener la API expuesta por
+  `src/lib/consent/state.ts`". Confirmado: el store mantiene la
+  misma API; los consumidores no requirieron cambios.
+- Si en el futuro se quiere endurecer el storage con HMAC o server-side
+  sync (Supabase), la sustitución sigue siendo de una sola pieza en
+  `store.ts` sin tocar a los consumidores.
+
+**Fuera de alcance / pendiente:**
+
+- Migración de consentimientos ya escritos con la v1 del stub: la clave
+  no cambia, así que no requiere migración. Si en una iteración futura
+  se cambia la versión (`v1` → `v2`), se necesitará una migración
+  explícita para no perder consentimientos existentes.
+- Sincronización del consent entre dispositivos para usuarios
+  autenticados (persistir también en Supabase con `user_consent_log`).
+  El alcance actual es single-device. El banner funciona en ambos
+  casos (el storage client es lo que el gate consulta), pero la
+  auditoría forense del consent para GDPR Data Subject Access Request
+  queda fuera de scope (ZAL-156 issue separada si aplica).
+- Localización del banner: copy actual en español, alineado con el
+  mercado hispano (LATAM + US Hispanic). Otros locales no son scope.
+- `prefers-reduced-motion` cubre el `animate-in`, pero el icono o la
+  jerarquía visual no cambian. Si se quiere un banner más sobrio (sin
+  borde redondeado, sin shadow), decisión de producto separada.
+
+**Riesgos / notas:**
+
+- El banner se monta en el root layout sincrónicamente. En SSR
+  devuelve `null` (no hay `window`); en cliente, antes del `useEffect`
+  también devuelve `null` para evitar parpadeo si el usuario ya optó.
+  El primer paint con `unset` mostrará el banner con un slide-in.
+- `dispatchEvent` para `storage` en producción: el browser real
+  dispara el evento automáticamente. El store no hace
+  `dispatchEvent` propio — solo escucha. El path de `writeConsent`
+  notifica a los listeners locales por su cuenta (no necesita
+  disparar `storage` porque el browser ya lo hace).
+- El test environment es `node` (no jsdom), por eso el stub
+  `EventTarget` y el polyfill de `StorageEvent`. En jsdom o browsers
+  reales esto no aplica.
+
+**Costo:** 0 USD (storage canónico client-side, sin servicios externos).
+
 ## 2026-08-02 - ZAL-157 [GTM-DEP.1] UTM capture en signup (first-touch, sessionStorage)
 
 Captura client-side de los 5 parámetros UTM (`utm_source`, `utm_medium`, `utm_campaign`, `utm_term`, `utm_content`) en el signup del owner y los persiste en `academies.utm_*`. Regla first-touch: si el owner llegó por una landing con UTMs, esos valores se preservan aunque la URL del signup venga sin UTMs o con otros distintos. Es la fundación de la atribución del canal de registro (ZAL-159) — sin first-touch, las academias que entran por landing → navegan → signup pierden atribución.

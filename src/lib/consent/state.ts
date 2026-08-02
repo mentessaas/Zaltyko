@@ -1,12 +1,12 @@
 /**
- * ZAL-160 [GTM-DEP.4] — Contrato read-only del estado de consent de analytics.
+ * ZAL-156.2 [GTM-DEP.2] — Contrato read-only del estado de consent de analytics.
  *
  * El gate de `page_view` consume este contrato; NO persiste por su cuenta.
- * El almacenamiento real vive en `src/lib/consent/store.ts` (stub por defecto,
- * default-deny, safe para SSR), que ZAL-156.2 ["consent gate tracking"]
- * reemplazará cuando su storage canónico esté listo. La interfaz pública
- * está pensada para que el reemplazo sea de una sola pieza sin tocar al
- * consumidor (`trackPageView`, `usePageTracking`).
+ * El almacenamiento canónico vive en `src/lib/consent/store.ts`
+ * (default-deny, localStorage versionado, sincronizado entre pestañas vía
+ * `storage` event, SSR-safe). La interfaz pública está pensada para que
+ * el reemplazo del backend sea de una sola pieza sin tocar al consumidor
+ * (`trackPageView`, `usePageTracking`, banner de cookies).
  *
  * Regla de precedencia (de RESEARCH/DATA_GOVERNANCE_TAXONOMY_GTM.md §5):
  *   page_view requiere consent activo. Sin consent, se descarta.
