@@ -379,6 +379,21 @@ describe("POST /api/stripe/connect/webhook — payment_intent.payment_failed", (
     );
   });
 
+  it("deja el evento en error y responde 500 si falla la notificacion al tutor", async () => {
+    mocks.pushCharge(makeChargeRow({ status: "failed" }));
+    mockSendChargePaymentFailedNotification.mockRejectedValueOnce(
+      new Error("BREVO_API_ERROR:503")
+    );
+
+    const response = await postWebhook(JSON.stringify({ type: "payment_intent.payment_failed" }));
+
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toMatchObject({ error: "PROCESSING_FAILED" });
+    expect(mockUpdateBillingEventStatus).toHaveBeenCalledWith(
+      "billing-event-1",
+      expect.objectContaining({ status: "error", errorMessage: "BREVO_API_ERROR:503" })
+    );
+  });
 
   it("devuelve 400 SIGNATURE_VERIFICATION_FAILED cuando la firma no es valida", async () => {
     mockConstructEvent.mockImplementation(() => {

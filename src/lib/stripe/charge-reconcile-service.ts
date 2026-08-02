@@ -1,9 +1,10 @@
 import Stripe from "stripe";
-import { eq, or } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { charges } from "@/db/schema";
 import { logger } from "@/lib/logger";
+import { sendChargePaymentFailedNotification } from "@/lib/stripe/notification-service";
 
 /**
  * Reconciliacion idempotente del ledger a partir de eventos de pago de Stripe
@@ -15,6 +16,7 @@ interface ChargeLookup {
   id: string;
   tenantId: string;
   academyId: string;
+  athleteId: string;
   amountCents: number;
   currency: string;
   status: string;
@@ -22,23 +24,21 @@ interface ChargeLookup {
 }
 
 async function findChargeForPaymentIntent(pi: Stripe.PaymentIntent): Promise<ChargeLookup | null> {
-  const metaChargeId = pi.metadata?.chargeId;
   const [row] = await db
     .select({
       id: charges.id,
       tenantId: charges.tenantId,
       academyId: charges.academyId,
+      athleteId: charges.athleteId,
       amountCents: charges.amountCents,
       currency: charges.currency,
       status: charges.status,
       stripeAccountId: charges.stripeAccountId,
     })
     .from(charges)
-    .where(
-      metaChargeId
-        ? or(eq(charges.id, metaChargeId), eq(charges.stripePaymentIntentId, pi.id))
-        : eq(charges.stripePaymentIntentId, pi.id)
-    )
+    // El PaymentIntent persistido es la autoridad de lookup. La metadata se
+    // valida después contra esa misma fila y nunca puede seleccionar otra.
+    .where(eq(charges.stripePaymentIntentId, pi.id))
     .limit(1);
   return row ?? null;
 }
@@ -119,6 +119,20 @@ export async function reconcilePaymentIntentFailed(
       updatedAt: new Date(),
     })
     .where(eq(charges.id, charge.id));
+
+  await sendChargePaymentFailedNotification({
+    chargeId: charge.id,
+    tenantId: charge.tenantId,
+    academyId: charge.academyId,
+    athleteId: charge.athleteId,
+    amountCents: charge.amountCents,
+    currency: charge.currency,
+    paymentIntentId: pi.id,
+    failureReason:
+      pi.last_payment_error?.decline_code ??
+      pi.last_payment_error?.code ??
+      "payment_failed",
+  });
 }
 
 export async function reconcilePaymentIntentCanceled(

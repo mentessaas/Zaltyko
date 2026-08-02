@@ -23,6 +23,7 @@ const {
   getConnectAccountMock,
   isConnectReadyMock,
   resolvePayerCustomerForAthleteMock,
+  sendChargePaymentFailedNotificationMock,
   dbLike,
   state,
 } = vi.hoisted(() => {
@@ -73,6 +74,7 @@ const {
     getConnectAccountMock: vi.fn(),
     isConnectReadyMock: vi.fn(),
     resolvePayerCustomerForAthleteMock: vi.fn(),
+    sendChargePaymentFailedNotificationMock: vi.fn(),
     dbLike,
     state,
   };
@@ -92,6 +94,11 @@ vi.mock("@/lib/stripe/connect-service", () => ({
 
 vi.mock("@/lib/stripe/family-customers-service", () => ({
   resolvePayerCustomerForAthlete: (...args: any[]) => resolvePayerCustomerForAthleteMock(...args),
+}));
+
+vi.mock("@/lib/stripe/notification-service", () => ({
+  sendChargePaymentFailedNotification: (...args: any[]) =>
+    sendChargePaymentFailedNotificationMock(...args),
 }));
 
 vi.mock("@/lib/db-transactions", () => ({
@@ -150,6 +157,7 @@ beforeEach(() => {
   getConnectAccountMock.mockResolvedValue(readyAccount);
   isConnectReadyMock.mockReturnValue(true);
   resolvePayerCustomerForAthleteMock.mockResolvedValue(payerWithCard);
+  sendChargePaymentFailedNotificationMock.mockResolvedValue(true);
 });
 
 describe("collectCharge", () => {

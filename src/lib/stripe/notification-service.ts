@@ -2,7 +2,14 @@ import Stripe from "stripe";
 import { and, eq } from "drizzle-orm";
 
 import { db } from "@/db";
-import { memberships, profiles, authUsers, auditLogs } from "@/db/schema";
+import {
+  memberships,
+  profiles,
+  authUsers,
+  auditLogs,
+  guardianAthletes,
+  guardians,
+} from "@/db/schema";
 import { sendEmail } from "@/lib/brevo";
 import { config } from "@/config";
 import { logger } from "@/lib/logger";
@@ -57,6 +64,81 @@ async function notifyOwners(
       });
     }
   }
+}
+
+export interface ChargePaymentFailedNotification {
+  chargeId: string;
+  tenantId: string;
+  academyId: string;
+  athleteId: string;
+  amountCents: number;
+  currency: string;
+  paymentIntentId: string;
+  failureReason: string;
+}
+
+function escapeHtml(value: string): string {
+  return value.replace(
+    /[&<>"']/g,
+    (character) =>
+      ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#039;",
+      })[character] ?? character
+  );
+}
+
+/**
+ * Notifica a los tutores del atleta cuando falla un cargo Connect.
+ *
+ * Un fallo de entrega se propaga para que el webhook quede en estado `error`
+ * y Stripe pueda reintentarlo. Si no existe un tutor con email habilitado, el
+ * evento se considera procesado sin inventar un destinatario alternativo.
+ */
+export async function sendChargePaymentFailedNotification(
+  notification: ChargePaymentFailedNotification
+): Promise<boolean> {
+  const recipients = await db
+    .select({ email: guardians.email })
+    .from(guardianAthletes)
+    .innerJoin(guardians, eq(guardianAthletes.guardianId, guardians.id))
+    .where(
+      and(
+        eq(guardianAthletes.tenantId, notification.tenantId),
+        eq(guardianAthletes.athleteId, notification.athleteId),
+        eq(guardians.tenantId, notification.tenantId),
+        eq(guardians.notifyEmail, true)
+      )
+    );
+
+  const emails = Array.from(
+    new Set(
+      recipients
+        .map((recipient) => recipient.email?.trim())
+        .filter((email): email is string => Boolean(email))
+    )
+  );
+  if (emails.length === 0) return false;
+
+  const amount = `${(notification.amountCents / 100).toFixed(2)} ${notification.currency.toUpperCase()}`;
+  const subject = "Zaltyko · Cobro rechazado";
+  const text = `No se pudo completar el cargo ${notification.chargeId} por ${amount}. Motivo: ${notification.failureReason}. Referencia: ${notification.paymentIntentId}.`;
+  const html = `<div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;"><h2 style="color: #0D47A1; font-family: Poppins, sans-serif; font-weight: 700;">Zaltyko · Cobro rechazado</h2><p>Hola,</p><p>No se pudo completar el cargo <strong>${escapeHtml(notification.chargeId)}</strong> por <strong>${escapeHtml(amount)}</strong>.</p><p>Motivo: <strong>${escapeHtml(notification.failureReason)}</strong>.</p><p>Referencia de pago: <strong>${escapeHtml(notification.paymentIntentId)}</strong>.</p></div>`;
+
+  for (const email of emails) {
+    await sendEmail({
+      to: email,
+      subject,
+      html,
+      text,
+      replyTo: config.brevo.supportEmail,
+    });
+  }
+
+  return true;
 }
 
 /**

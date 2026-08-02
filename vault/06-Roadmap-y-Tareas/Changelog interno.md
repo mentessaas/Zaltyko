@@ -1269,3 +1269,13 @@ Registrar cambios humanos y relevantes: releases, decisiones, cambios de pricing
 - Se añadió `tests/audit/objection-closure.contract.test.ts`, que protege los artefactos del mapa, el runbook, las exportaciones por tenant, la lista de espera, el filtrado de respuestas internas y los claims retirados.
 - La lista de espera de clases dejó de consultar el endpoint incorrecto de reportes y ahora consume `/api/class-waiting-list`, valida la respuesta estandarizada y muestra las entradas reales del tenant.
 - Se retiró el botón de adjuntos deshabilitado del compositor de mensajes; el flujo queda simplificado a texto hasta disponer de almacenamiento y permisos de archivos completos.
+
+## 2026-08-02 - ZAL-165: implementación y hardening de ZAL-8 reescritos en Desktop canónico
+
+- El board desbloqueó el gate registrando de forma aditiva `/Users/elvisvaldesinerarte/Desktop/_PROYECTOS/Zaltyko` en `projects.codeRepoPaths`. Ese es el único `repoPath` que debe reportarse para esta re-firma.
+- La comprobación local confirmó que `12a83f6` y `fbd896f` no resolvían desde Desktop y que el HEAD previo `c274698e0` solo contenía una nota del vault. No se reutilizó esa evidencia como si fuera un merge válido.
+- Se reescribió el comportamiento en Desktop: `reconcilePaymentIntentFailed` localiza el cargo por `stripePaymentIntentId`, valida cuenta y metadata, conserva `paid|refunded`, mantiene notificable el estado `failed` dejado por el decline síncrono y envía el aviso después de persistir la reconciliación.
+- `sendChargePaymentFailedNotification` obtiene únicamente tutores vinculados al atleta dentro del tenant y con email habilitado, deduplica destinatarios, escapa datos incorporados al HTML y propaga fallos de Brevo para que `billing_events` quede en `error` y Stripe pueda reintentar. Sin destinatario no inventa fallback.
+- Pruebas negativas incluidas: no notifica sin cargo, ni con `paid/refunded`, rechaza firma inválida/ausente, evita duplicados ya procesados y responde 500 dejando el evento en error cuando falla la entrega. Un test unitario adicional cubre deduplicación, escape HTML, ausencia de tutor y propagación de error.
+- Verificación local: `pnpm test -- --run tests/connect-webhook-payment-failed-notification.test.ts tests/lib/stripe-charge-collection.integration.test.ts tests/lib/stripe-charge-payment-failed-notification.test.ts` → 3 archivos y 27/27 pruebas PASS; ESLint focal sin errores (26 warnings históricos de `any`); `pnpm typecheck` PASS; `git diff --check` PASS.
+- No se ejecutaron Playwright/axe, migraciones, Stripe, producción, push ni merge a `main`. Vault actualizado: `Decisiones.md` y `Changelog interno.md`. QA independiente debe re-firmar ZAL-8 desde Desktop; ZAL-164 debe auditar el mismo path.
