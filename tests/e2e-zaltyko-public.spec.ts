@@ -72,6 +72,45 @@ test.describe("Zaltyko public site smoke", () => {
     await expect(page.getByRole("heading", { level: 1 })).toContainText(/acrobatic/i);
   });
 
+  test("locale redirect preserves first-touch UTM attribution", async ({ page }) => {
+    const firstTouch =
+      "/es?utm_source=Google%20Ads%20(LATAM)&utm_medium=cpc&utm_campaign=first-touch&utm_term=academia&utm_content=hero_v1";
+    await gotoPublic(page, firstTouch);
+
+    await expect(page).toHaveURL((url) => url.pathname === "/");
+    const firstTouchAttribution = {
+      utm_source: "google_ads_latam",
+      utm_medium: "cpc",
+      utm_campaign: "first-touch",
+      utm_term: "academia",
+      utm_content: "hero_v1",
+      utm_landing_path: "/es",
+    };
+    await expect
+      .poll(() =>
+        page
+          .evaluate(() =>
+            JSON.parse(window.sessionStorage.getItem("zaltyko.utm.v1") ?? "null"),
+          )
+          .catch(() => null),
+      )
+      .toEqual(firstTouchAttribution);
+
+    await gotoPublic(
+      page,
+      "/en?utm_source=tiktok_ads&utm_medium=social&utm_campaign=second-touch",
+    );
+    await expect
+      .poll(() =>
+        page
+          .evaluate(() =>
+            JSON.parse(window.sessionStorage.getItem("zaltyko.utm.v1") ?? "null"),
+          )
+          .catch(() => null),
+      )
+      .toEqual(firstTouchAttribution);
+  });
+
   test("help center links resolve to real guide pages", async ({ page }) => {
     await gotoPublic(page, "/help");
     const emptyLinks = await page.locator('a[href="#"]').count();

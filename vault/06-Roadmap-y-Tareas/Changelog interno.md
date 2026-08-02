@@ -1721,3 +1721,9 @@ Registrar cambios humanos y relevantes: releases, decisiones, cambios de pricing
 - Se añadió `tests/audit/objection-closure.contract.test.ts`, que protege los artefactos del mapa, el runbook, las exportaciones por tenant, la lista de espera, el filtrado de respuestas internas y los claims retirados.
 - La lista de espera de clases dejó de consultar el endpoint incorrecto de reportes y ahora consume `/api/class-waiting-list`, valida la respuesta estandarizada y muestra las entradas reales del tenant.
 - Se retiró el botón de adjuntos deshabilitado del compositor de mensajes; el flujo queda simplificado a texto hasta disponer de almacenamiento y permisos de archivos completos.
+## 2026-08-02 - ZAL-202 preserva UTM en redirects públicos localizados
+
+- `/es` y `/en` reenvían los cinco parámetros UTM admitidos al destino canónico junto con el path de entrada validado, evitando que el redirect SSR ocurra antes de la captura cliente.
+- `captureUtm` reconoce ese landing path reenviado y mantiene la regla first-touch: una visita posterior con UTM2 no sobrescribe UTM1 ni su landing original.
+- El cambio no altera el consentimiento: `page_view` continúa bajo el gate default-deny existente; solo se corrige la persistencia temporal de atribución en `sessionStorage`.
+- Regresión añadida en Vitest y Playwright público contra localhost. Sin migraciones, deploys ni operaciones externas.

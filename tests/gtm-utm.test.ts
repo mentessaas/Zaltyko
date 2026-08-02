@@ -13,6 +13,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  buildUtmRedirectTarget,
   captureUtm,
   clearStoredUtm,
   readStoredUtm,
@@ -148,6 +149,52 @@ describe("captureUtm — first-touch sessionStorage", () => {
     // Segunda navegación interna sin UTMs nuevos: NO actualiza el path
     captureUtm({ search: "", path: "/pricing", storage });
     expect(readStoredUtm(storage).utm_landing_path).toBe("/es/ritmica");
+  });
+
+  it("recupera los cinco UTM y el landing original después de un redirect SSR", () => {
+    const destination = buildUtmRedirectTarget(
+      {
+        utm_source: "Google Ads (LATAM)",
+        utm_medium: "cpc",
+        utm_campaign: "first-touch",
+        utm_term: "academia",
+        utm_content: "hero_v1",
+        ignored: "no-forward",
+      },
+      "/es"
+    );
+
+    expect(destination).not.toContain("ignored");
+    captureUtm({ search: destination.split("?")[1], path: "/", storage });
+
+    expect(readStoredUtm(storage)).toEqual({
+      utm_source: "google_ads_latam",
+      utm_medium: "cpc",
+      utm_campaign: "first-touch",
+      utm_term: "academia",
+      utm_content: "hero_v1",
+      utm_landing_path: "/es",
+    });
+  });
+
+  it("mantiene UTM1 tras otro redirect con UTM2", () => {
+    const first = buildUtmRedirectTarget(
+      { utm_source: "google_ads", utm_campaign: "first-touch" },
+      "/es"
+    );
+    const second = buildUtmRedirectTarget(
+      { utm_source: "tiktok_ads", utm_campaign: "second-touch" },
+      "/en"
+    );
+
+    captureUtm({ search: first.split("?")[1], path: "/", storage });
+    captureUtm({ search: second.split("?")[1], path: "/", storage });
+
+    expect(readStoredUtm(storage)).toMatchObject({
+      utm_source: "google_ads",
+      utm_campaign: "first-touch",
+      utm_landing_path: "/es",
+    });
   });
 });
 

@@ -24,6 +24,7 @@ export const UTM_KEYS = [
 export type UtmKey = (typeof UTM_KEYS)[number];
 
 export const SESSION_STORAGE_KEY = "zaltyko.utm.v1";
+export const UTM_LANDING_PATH_PARAM = "utm_landing_path";
 const LANDING_PATH_KEY = "zaltyko.utm_landing.v1";
 
 export interface CapturedUtm {
@@ -53,7 +54,9 @@ function normalize(raw: string | null | undefined): string | null {
  * Lee los UTMs presentes en una URL (window.location.search).
  * Devuelve solo los que pasan normalización; omite los vacíos.
  */
-export function readUtmFromUrl(search: string | URLSearchParams): Partial<CapturedUtm> {
+export function readUtmFromUrl(
+  search: string | URLSearchParams
+): Partial<CapturedUtm> {
   const params =
     typeof search === "string" ? new URLSearchParams(search) : search;
   const out: Partial<CapturedUtm> = {};
@@ -67,7 +70,54 @@ export function readUtmFromUrl(search: string | URLSearchParams): Partial<Captur
 }
 
 function hasAnyUtm(record: Partial<CapturedUtm>): boolean {
-  return UTM_KEYS.some((k) => typeof record[k] === "string" && record[k]!.length > 0);
+  return UTM_KEYS.some(
+    (k) => typeof record[k] === "string" && record[k]!.length > 0
+  );
+}
+
+function readSearchParam(value: string | string[] | undefined): string | null {
+  const candidate = Array.isArray(value) ? value[0] : value;
+  return typeof candidate === "string" && candidate.trim() ? candidate : null;
+}
+
+function normalizeLandingPath(raw: string | null | undefined): string | null {
+  if (!raw || !raw.startsWith("/") || raw.startsWith("//")) return null;
+  const path = raw.split(/[?#]/, 1)[0]?.slice(0, 2048);
+  return path || null;
+}
+
+/**
+ * Conserva la atribución al atravesar un redirect SSR. El destino recibe
+ * únicamente los cinco UTM admitidos y el path de entrada validado; el
+ * capturador cliente normaliza los valores después del redirect.
+ */
+export function buildUtmRedirectTarget(
+  searchParams: Readonly<Record<string, string | string[] | undefined>>,
+  landingPath: string,
+  destination = "/"
+): string {
+  const forwarded = new URLSearchParams();
+  for (const key of UTM_KEYS) {
+    const value = readSearchParam(searchParams[key]);
+    if (value) forwarded.set(key, value);
+  }
+
+  if (forwarded.size === 0) return destination;
+
+  const safeLandingPath = normalizeLandingPath(landingPath);
+  if (safeLandingPath) {
+    forwarded.set(UTM_LANDING_PATH_PARAM, safeLandingPath);
+  }
+
+  return `${destination}?${forwarded.toString()}`;
+}
+
+export function readForwardedLandingPath(
+  search: string | URLSearchParams
+): string | null {
+  const params =
+    typeof search === "string" ? new URLSearchParams(search) : search;
+  return normalizeLandingPath(params.get(UTM_LANDING_PATH_PARAM));
 }
 
 /**
@@ -118,13 +168,18 @@ export function captureUtm(
     storage?: Storage | null;
   } = {}
 ): Partial<CapturedUtm> {
-  const search = options.search ?? (typeof window !== "undefined" ? window.location.search : "");
+  const search =
+    options.search ??
+    (typeof window !== "undefined" ? window.location.search : "");
   const path =
     options.path ??
     (typeof window !== "undefined" ? window.location.pathname : "");
-  const storage = options.storage ?? (typeof window !== "undefined" ? window.sessionStorage : null);
+  const storage =
+    options.storage ??
+    (typeof window !== "undefined" ? window.sessionStorage : null);
 
   const fromUrl = readUtmFromUrl(search);
+  const forwardedLandingPath = readForwardedLandingPath(search);
   const existing = readStoredUtm(storage);
 
   // First-touch: si la sesión ya tiene UTMs, los respetamos aunque la URL
@@ -142,9 +197,12 @@ export function captureUtm(
       const previousLanding = storage?.getItem(LANDING_PATH_KEY);
       if (previousLanding) {
         merged.utm_landing_path = previousLanding;
-      } else if (path) {
-        merged.utm_landing_path = path;
-        storage?.setItem(LANDING_PATH_KEY, path);
+      } else {
+        const landingPath = forwardedLandingPath ?? normalizeLandingPath(path);
+        if (landingPath) {
+          merged.utm_landing_path = landingPath;
+          storage?.setItem(LANDING_PATH_KEY, landingPath);
+        }
       }
     } catch {
       // ignore
@@ -175,7 +233,8 @@ export function readUtmForSignup(
 ): Partial<CapturedUtm> | null {
   const fromStorage = readStoredUtm(options.storage);
   const fromSearch = readUtmFromUrl(
-    options.search ?? (typeof window !== "undefined" ? window.location.search : "")
+    options.search ??
+      (typeof window !== "undefined" ? window.location.search : "")
   );
   const merged: Partial<CapturedUtm> = {
     ...fromSearch,
