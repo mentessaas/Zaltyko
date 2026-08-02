@@ -20,6 +20,7 @@ import { seedOnboardingForAcademy, markWizardStep } from "@/lib/onboarding";
 import { trackEvent } from "@/lib/analytics";
 import { logEvent } from "@/lib/event-logging";
 import { activateAcademySportConfig } from "@/lib/sport-config/seed";
+import { derivar_canal } from "@/lib/gtm/canal";
 import type { DatabaseClient } from "@/lib/db-transactions";
 import {
   inferDisciplineFromVariant,
@@ -49,6 +50,24 @@ export const CreateAcademyBodySchema = z.object({
   disciplineVariant: z.enum(DISCIPLINE_VARIANTS).optional(),
   tenantId: z.string().uuid().optional(),
   ownerProfileId: z.string().uuid().optional(),
+  // D-006 v0 — contacto para verificación manual de ownership cuando el
+  // email del owner no está en la seed list. Validamos formato antes de
+  // aceptar la academia.
+  contactEmail: z.string().email().max(254).nullable().optional(),
+  contactPhone: z.string().trim().min(8).max(32).nullable().optional(),
+  // ZAL-157 [GTM-DEP.1] — UTMs first-touch. Todos opcionales; el caller es
+  // responsable de leerlos (de sessionStorage + URL) antes de invocar.
+  utm: z
+    .object({
+      utm_source: z.string().max(200).nullable().optional(),
+      utm_medium: z.string().max(200).nullable().optional(),
+      utm_campaign: z.string().max(200).nullable().optional(),
+      utm_term: z.string().max(200).nullable().optional(),
+      utm_content: z.string().max(200).nullable().optional(),
+      utm_landing_path: z.string().max(500).nullable().optional(),
+    })
+    .partial()
+    .optional(),
 });
 
 export const QuerySchema = z.object({
@@ -160,6 +179,15 @@ export async function createAcademy(
   const countryName =
     body.country ?? getCountryNameFromCode(normalizedCountryCode);
 
+  // ZAL-159 [GTM-DEP.3] — calculamos el canal de atribución en TS para
+  // devolverlo en la respuesta sin un roundtrip extra a la DB. El trigger
+  // PL/pgSQL (migration 0008) es la fuente canónica para escrituras que
+  // no pasan por createAcademy (ej. seeds, admin directa).
+  const canalRegistro = derivar_canal(
+    body.utm?.utm_source ?? null,
+    body.utm?.utm_medium ?? null
+  );
+
   await client.insert(academies).values({
     id: academyId,
     tenantId,
@@ -171,6 +199,8 @@ export async function createAcademy(
     academyType,
     discipline,
     disciplineVariant,
+    contactEmail: body.contactEmail ?? null,
+    contactPhone: body.contactPhone ?? null,
     // federationConfigVersion/specializationStatus se corrigen abajo con el
     // resultado real de activateAcademySportConfig - no adivinar aquí si el
     // país+variante tiene catálogo propio, eso es responsabilidad exclusiva
@@ -181,6 +211,23 @@ export async function createAcademy(
     trialStartsAt: null,
     trialEndsAt: null,
     isTrialActive: false,
+    // ZAL-157 [GTM-DEP.1] — UTMs first-touch. Solo se persisten si al
+    // menos uno de los UTMs principales (source/medium) viene con valor;
+    // un body.utm={} explícito se trata como "el owner no llegó con UTMs"
+    // y queda como `direct` en la atribución de ZAL-159.
+    utmSource: body.utm?.utm_source ?? null,
+    utmMedium: body.utm?.utm_medium ?? null,
+    utmCampaign: body.utm?.utm_campaign ?? null,
+    utmTerm: body.utm?.utm_term ?? null,
+    utmContent: body.utm?.utm_content ?? null,
+    utmLandingPath: body.utm?.utm_landing_path ?? null,
+    utmCapturedAt:
+      body.utm?.utm_source || body.utm?.utm_medium ? new Date() : null,
+    // ZAL-159 [GTM-DEP.3] — snapshot first-touch del canal de registro.
+    // Espejado por el trigger BEFORE INSERT (ver migración 0008). Aquí lo
+    // pasamos explícito para no depender del trigger en el camino TS y
+    // poder devolverlo en la respuesta sin re-leer.
+    canalRegistro,
   });
 
   const activatedSportConfig = await activateAcademySportConfig(
@@ -297,6 +344,7 @@ export async function createAcademy(
     id: academyId,
     tenantId,
     academyType,
+    canalRegistro,
   };
 }
 

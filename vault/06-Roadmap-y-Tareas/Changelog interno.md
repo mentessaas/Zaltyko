@@ -9,6 +9,53 @@ source:
 
 # Changelog interno
 
+## 2026-08-02 - ZAL-159 [GTM-DEP.3] Canal de registro attribution
+
+Cierra la derivación del campo `canal_registro` desde los UTM capturados en signup. Cada academia queda atribuida al canal que la trajo para que Bumble calcule ROI por canal con datos, no estimaciones.
+
+**Decisión técnica:**
+
+- Regla de precedencia `paid > social > email > organic > direct` implementada como función pura `derivar_canal(utm_source, utm_medium)` en `src/lib/gtm/canal.ts`, con alias `resolveCanal({utm_source, utm_medium})` para compatibilidad con la cobertura previa. Ambas firmas pasan por la misma lógica `resolveFromNormalized()` para evitar divergencia.
+- Medium informativo gana sobre un source desconocido o ausente (cubre `utm_medium=cpc` sin source, `spam_site + cpc`, etc.). Un medium claro siempre es mejor que un source basura.
+- Persistencia en dos capas: TS (`createAcademy` calcula `canal_registro` y lo pasa en el INSERT para devolverlo en la respuesta sin re-leer) + DB (trigger PL/pgSQL BEFORE INSERT + BEFORE UPDATE OF utm_source,utm_medium espeja la misma lógica y la fuente canónica).
+- Snapshot inmutable: el trigger BEFORE UPDATE solo recalcula cuando se modifican explícitamente `utm_source`/`utm_medium`. Updates no relacionados con UTM dejan el snapshot intacto (regla first-touch §3).
+- Taxonomía `whatsapp → social` explícita (no `direct`) en línea con la nota de Hermin §4.
+- `google` como alias genérico: el medium determina el canal; sin medium, default conservador `paid` (la mayoría de landings con `utm_source=google` vienen de Search Ads).
+- `unknown` para datos parciales no normalizables (source desconocido sin medium que rescate), distinguible de `direct` para que Bumble pueda filtrar la causa.
+
+**Cambios concretos:**
+
+- **Nuevo**: `drizzle/0008_academies_canal_registro.sql` — column `academies.canal_registro` + función `academies_canal_registro_derive()` (PL/pgSQL) + trigger BEFORE INSERT + trigger BEFORE UPDATE OF utm_source,utm_medium + backfill idempotente + 5 índices parciales por canal (paid/social/email/organic/direct) sobre `(tenant_id, created_at)` para queries de ROI Bumble.
+- **Modificado**: `src/lib/gtm/canal.ts` — extraído `resolveFromNormalized()` para que `resolveCanal()` y el nuevo `derivar_canal()` compartan cuerpo; refactor del alias `google` sin medium a default `paid`; medium informativo gana sobre source desconocido.
+- **Modificado**: `src/db/schema/academies.ts` — añadida `canalRegistro: text("canal_registro")`.
+- **Modificado**: `src/app/api/academies/academies.lib.ts` — `createAcademy` calcula `canalRegistro` con `derivar_canal(utm_source, utm_medium)` y lo persiste en el INSERT; el valor también se devuelve en `createAcademyResult` para evitar re-lectura.
+- **Modificado**: `src/lib/onboarding/owner-claim.ts` — `claimAcademy` recalcula `canalRegistro` cuando rellena UTMs en el claim path (cuando el seed venía vacío y el signup trae UTMs nuevos).
+- **Modificado**: `src/app/api/onboarding/owner/route.ts` — expone `canalRegistro` en la respuesta (`apiCreated({...canalRegistro})`) y en el metadata del `logEvent("academy_created")` para que el funnel post-signup vea el canal.
+- **Modificado**: `drizzle/0008_academies_canal_registro.sql` — la función PL/pgSQL espeja `resolveFromNormalized` (medium informativo gana sobre source desconocido).
+- **Modificado**: `tests/gtm-canal.test.ts` — añadidos tests parametrizados de `derivar_canal` (32 casos cubriendo cada rama de precedencia + conflictivos + vacío) + tests de normalización (case/espacios) + tests de `CANAL_LABELS`.
+- **Nuevo**: `tests/gtm-canal-create-academy.test.ts` — smoke test end-to-end que verifica que `createAcademy` escribe `canalRegistro` correcto para cada bucket de la taxonomía (20 casos: paid ×3, social ×5, email, organic, google ×5 alias, direct, medium solo ×3, unknown ×2).
+
+**Cobertura (ZAL-159):**
+
+- `tests/gtm-canal.test.ts` — 58 tests, todos verdes (incluyendo los 32 nuevos de `derivar_canal`).
+- `tests/gtm-canal-create-academy.test.ts` — 20 tests, todos verdes (uno por bucket de la taxonomía).
+- Total canal: **78 tests verdes**.
+
+**Fuera de alcance / pendiente:**
+
+- **Migración NO aplicada a DB**: `drizzle/0008_academies_canal_registro.sql` está escrita pero NO se ejecutó contra Supabase (regla AGENTS.md — no ejecutar migraciones remotas sin aprobación del board). Para aplicarla a una DB real: correr manualmente el archivo (idempotente — todas las sentencias usan `IF NOT EXISTS` / `OR REPLACE` / `DROP IF EXISTS`) o regenerar con `pnpm db:generate` después de añadir la entrada correspondiente en `drizzle/meta/_journal.json`.
+- **Misma situación para `drizzle/0007_academies_utm_columns.sql`** (ZAL-157, del autor previo): no aplicado aún, sin entrada en el `_journal.json`. Antes de aplicar 0008, validar que 0007 ya está aplicada en la DB objetivo — si no, las columnas `utm_source`/`utm_medium` no existirán y el trigger 0008 fallará al instalarse.
+- **Asimetría con `_journal.json`**: tanto 0007 como 0008 son archivos staged (hand-written SQL), no snapshots drizzle. Un `pnpm db:generate` futuro puede regenerarlas como snapshots y duplicar trabajo. Mantener el flag "staged, no regenerar con kit" en la cabecera de cada archivo.
+- Test e2e de navegador con Playwright del flujo signup→canal: queda para otro heartbeat. Cobertura TS ya cubre todos los buckets; el e2e solo verificaría integración con el `<UtmCapture />` + persistencia visual.
+
+**Notas de coordinación:**
+
+- El `_journal.json` actual va hasta 0005. Los archivos 0006, 0007 y 0008 son todos manuales. Cualquier agente que corra `drizzle-kit generate` debe saber que va a generar conflictos (snapshot diff vs DB real). Sugerencia: si se hace generate, alinear primero `_journal.json` con los hand-written aplicando en orden.
+- Pre-existing tests fallando al margen (no introducidos por ZAL-159): `tests/gtm-utm.test.ts` (3 fallos de normalización/landing_path) y `tests/api/owner-claim.test.ts` (2 fallos por `tx.select is not a function` en mock). Estos vienen del trabajo previo de ZAL-137/ZAL-157 y deben coordinarse con otro heartbeat — no los toqué para mantener el scope de ZAL-159 aislado.
+- `resolveCanal` se preservó como firma por compatibilidad con los tests existentes en `gtm-canal.test.ts`; el spec de ZAL-159 nombra la firma posicional `derivar_canal(utm_source, utm_medium)`, expuesta como alias del mismo cuerpo.
+
+**Costo:** 0 USD (cálculo en DB trigger, sin servicios externos).
+
 ## 2026-08-01 - ZAL-137 auditoría y gate condicional CP/teléfono en onboarding owner (D-006 v0)
 
 Diagnóstico read-first antes de tocar código, alineado con la decisión de diseño del board (`ver SPEC_ONBOARDING_ZALTYKO_WEB.md §Gates`):

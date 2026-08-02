@@ -48,6 +48,25 @@ export const academies = pgTable(
     stripeWebhookSecret: text("stripe_webhook_secret"),
     taxId: text("tax_id"),
     invoicePrefix: text("invoice_prefix").default("INV"),
+    // ZAL-157 [GTM-DEP.1] — atribución first-touch de UTMs en signup.
+    // Taxonomía reconciliada §4 (RESEARCH/DATA_GOVERNANCE_TAXONOMY_GTM.md):
+    // google_ads, meta_ads, tiktok_ads, instagram, tiktok, facebook,
+    // linkedin, whatsapp, resend_email, google_organic, google (alias).
+    // Vacío/null = tráfico direct sin UTM.
+    utmSource: text("utm_source"),
+    utmMedium: text("utm_medium"),
+    utmCampaign: text("utm_campaign"),
+    utmTerm: text("utm_term"),
+    utmContent: text("utm_content"),
+    utmCapturedAt: timestamp("utm_captured_at", { withTimezone: true }),
+    utmLandingPath: text("utm_landing_path"),
+    // ZAL-159 [GTM-DEP.3] — canal de atribución first-touch del registro.
+    // Persistido por el trigger BEFORE INSERT/UPDATE OF utm_source,utm_medium
+    // definido en `drizzle/0008_academies_canal_registro.sql`. La API TS
+    // también lo calcula vía `derivar_canal()` para devolver el valor en la
+    // respuesta sin un roundtrip extra. Regla: paid > social > email >
+    // organic > direct (con `unknown` para datos parciales no normalizables).
+    canalRegistro: text("canal_registro"),
   },
   (table) => ({
     tenantIdx: index("academies_tenant_id_idx").on(table.tenantId),
@@ -58,5 +77,7 @@ export const academies = pgTable(
     disciplineVariantIdx: index("academies_discipline_variant_idx").on(table.disciplineVariant),
     contactEmailIdx: index("academies_contact_email_idx").on(table.contactEmail),
     contactPhoneIdx: index("academies_contact_phone_idx").on(table.contactPhone),
+    utmSourceIdx: index("academies_utm_source_idx").on(table.utmSource),
+    utmMediumIdx: index("academies_utm_medium_idx").on(table.utmMedium),
   })
 );
