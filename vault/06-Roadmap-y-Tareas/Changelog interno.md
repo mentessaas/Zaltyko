@@ -9,6 +9,15 @@ source:
 
 # Changelog interno
 
+## 2026-08-02 - ZAL-180 rehace F1+F2 de modalidad en el repo canónico
+
+- `src/app/(site)/[locale]/[modality]/page.tsx` conserva el registro Free en `/auth/register?role=owner` para modalidades disponibles y no muestra esa CTA en modalidades marcadas como no disponibles.
+- Acrobática y trampolín muestran `Próximamente` / `Coming soon` y sustituyen el subtítulo operativo por el mensaje bilingüe aprobado en `vault/04-Marketing/Brief - Copy acrobática y trampolín.md`; artística y rítmica mantienen su copy de descubrimiento.
+- Verificación local: `pnpm exec eslint 'src/app/(site)/[locale]/[modality]/page.tsx'` terminó con 0 errores y 2 warnings preexistentes; `pnpm typecheck` PASS; `git diff --check` PASS.
+- No se ejecutaron Playwright, axe, E2E, publicación, deploy, producción ni operaciones externas.
+
+Issue: [ZAL-180](/ZAL/issues/ZAL-180). Vault: actualizado `Changelog interno`; no cambia pricing, decisiones ni mensajes comerciales aprobados.
+
 ## 2026-07-29 - ZAL-11 verificación Brevo: DKIM/return-path OK y entrega E2E confirmada; falta SPF en el ápex
 
 Verificación hecha desde fuentes objetivas (DNS público + `email_logs` de producción), sin depender de acceso al panel de Brevo.
