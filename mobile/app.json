@@ -2,17 +2,12 @@
   "expo": {
     "name": "Zaltyko",
     "slug": "zaltyko",
+    "owner": "zaltyko",
     "version": "0.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "scheme": "zaltyko",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#0F172A"
-    },
     "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": false,
@@ -46,7 +41,13 @@
         {
           "action": "VIEW",
           "autoVerify": true,
-          "data": [{ "scheme": "https", "host": "zaltyko.com", "pathPrefix": "/" }],
+          "data": [
+            {
+              "scheme": "https",
+              "host": "zaltyko.com",
+              "pathPrefix": "/"
+            }
+          ],
           "category": ["BROWSABLE", "DEFAULT"]
         }
       ]
@@ -75,16 +76,14 @@
           "resizeMode": "contain",
           "backgroundColor": "#0F172A"
         }
-      ]
+      ],
+      "expo-font"
     ],
     "description": "Zaltyko es la app companion para familias, atletas y entrenadores de tu academia. Consulta la agenda, las cuotas y los avisos de tu academia, y recibe notificaciones instantáneas cuando hay novedades. Los pagos se gestionan en la web para cumplir con las políticas de la App Store.",
     "experiments": {},
     "extra": {
       "router": {
         "origin": false
-      },
-      "eas": {
-        "projectId": "REPLACE_WITH_EAS_PROJECT_ID"
       }
     }
   }

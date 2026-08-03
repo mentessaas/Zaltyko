@@ -70,6 +70,25 @@ describe('apiGet/apiPost - cliente API móvil', () => {
     expect(fetchMock.mock.calls[1]![1].headers.Authorization).toBe('Bearer refreshed-token');
   });
 
+  it('si el reintento también devuelve 401, no refresca ni reintenta una segunda vez', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse(401, { ok: false, error: { code: 'UNAUTHENTICATED', message: 'Token vencido' } }))
+      .mockResolvedValueOnce(jsonResponse(401, { ok: false, error: { code: 'UNAUTHENTICATED', message: 'Sesión expirada' } }));
+    vi.stubGlobal('fetch', fetchMock);
+    refreshSessionMock.mockResolvedValue({
+      data: { session: { access_token: 'refreshed-token' } },
+      error: null,
+    });
+
+    await expect(apiGet('/api/me')).rejects.toMatchObject({
+      code: 'UNAUTHENTICATED',
+      status: 401,
+    });
+    expect(refreshSessionMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it('si el refresh también falla tras un 401, propaga el error sin loop infinito', async () => {
     const fetchMock = vi
       .fn()

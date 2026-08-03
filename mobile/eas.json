@@ -5,8 +5,7 @@
   },
   "build": {
     "base": {
-      "node": "20.11.1",
-      "pnpm": "9.15.3",
+      "node": "22.14.0",
       "env": {
         "EXPO_NO_TYPESCRIPT_SETUP": "1",
         "EAS_BUILD_DISABLE_TYPESCRIPT": "0"
@@ -16,59 +15,32 @@
       "extends": "base",
       "developmentClient": true,
       "distribution": "internal",
-      "ios": {
-        "simulator": true,
-        "resourceClass": "m-medium"
-      },
+      "environment": "development",
       "android": {
-        "buildType": "apk",
-        "gradleCommand": ":app:assembleDebug"
+        "buildType": "apk"
+      }
+    },
+    "development-simulator": {
+      "extends": "development",
+      "ios": {
+        "simulator": true
       }
     },
     "preview": {
       "extends": "base",
       "distribution": "internal",
-      "ios": {
-        "resourceClass": "m-medium"
-      },
+      "environment": "preview",
       "android": {
-        "buildType": "apk",
-        "gradleCommand": ":app:assembleRelease"
+        "buildType": "apk"
       }
     },
     "production": {
       "extends": "base",
+      "environment": "production",
       "autoIncrement": true,
-      "ios": {
-        "resourceClass": "m-medium"
-      },
       "android": {
-        "buildType": "app-bundle",
-        "gradleCommand": ":app:bundleRelease"
+        "buildType": "app-bundle"
       }
-    }
-  },
-  "submit": {
-    "production": {
-      "ios": {
-        "ascAppId": "REPLACE_WITH_APP_STORE_CONNECT_ID",
-        "appleTeamId": "REPLACE_WITH_APPLE_TEAM_ID"
-      },
-      "android": {
-        "serviceAccountKeyPath": "./google-service-account.json",
-        "track": "internal",
-        "releaseStatus": "draft"
-      }
-    }
-  },
-  "update": {
-    "production": {
-      "branch": "production",
-      "channel": "production"
-    },
-    "preview": {
-      "branch": "preview",
-      "channel": "preview"
     }
   }
 }

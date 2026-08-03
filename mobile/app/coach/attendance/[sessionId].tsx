@@ -7,14 +7,8 @@
 //    botón "Guardar" envía un upsert batch a /api/attendance.
 
 import { Stack, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
-import {
-  Alert,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useQuery, useMutation } from '@tanstack/react-query';
 
 import { StudentRow } from '@/components/attendance/StudentRow';
@@ -60,22 +54,32 @@ export default function AttendanceScreen() {
     staleTime: 30 * 1000,
   });
 
-  // Estado local: athleteId → status. Inicializa con lo que devuelve el backend.
-  const [statusMap, setStatusMap] = useState<Record<string, AttendanceStatus>>({});
-  useEffect(() => {
-    if (!attendanceQuery.data) return;
+  const persistedStatusMap = useMemo(() => {
     const next: Record<string, AttendanceStatus> = {};
-    for (const r of attendanceQuery.data) {
+    for (const r of attendanceQuery.data ?? []) {
       next[r.athleteId] = r.status;
     }
-    setStatusMap(next);
+    return next;
   }, [attendanceQuery.data]);
+  const [statusOverrides, setStatusOverrides] = useState<
+    Record<string, AttendanceStatus>
+  >({});
+  const statusMap = useMemo(
+    () => ({ ...persistedStatusMap, ...statusOverrides }),
+    [persistedStatusMap, statusOverrides]
+  );
 
-  const onChange = useCallback((athleteId: string, status: AttendanceStatus) => {
-    setStatusMap((prev) => ({ ...prev, [athleteId]: status }));
-  }, []);
+  const onChange = useCallback(
+    (athleteId: string, status: AttendanceStatus) => {
+      setStatusOverrides((prev) => ({ ...prev, [athleteId]: status }));
+    },
+    []
+  );
 
-  const [evaluating, setEvaluating] = useState<{ id: string; name: string } | null>(null);
+  const [evaluating, setEvaluating] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
   const [showGroupAlert, setShowGroupAlert] = useState(false);
 
   const saveMutation = useMutation({
@@ -86,9 +90,10 @@ export default function AttendanceScreen() {
       }));
       return upsertAttendance(sessionId ?? '', entries);
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       Alert.alert('Guardado', 'Asistencia registrada.');
-      attendanceQuery.refetch();
+      await attendanceQuery.refetch();
+      setStatusOverrides({});
     },
   });
 
@@ -97,13 +102,17 @@ export default function AttendanceScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ title: 'Asistencia', headerBackTitle: 'Atrás' }} />
+      <Stack.Screen
+        options={{ title: 'Asistencia', headerBackTitle: 'Atrás' }}
+      />
       <ScrollView style={styles.flex} contentContainerStyle={styles.content}>
         {session ? (
           <View style={styles.header}>
             <Text style={styles.title}>Sesión del {session.sessionDate}</Text>
             <Text style={styles.meta}>
-              {session.startTime ? `${session.startTime.slice(0, 5)}` : 'Sin hora'}
+              {session.startTime
+                ? `${session.startTime.slice(0, 5)}`
+                : 'Sin hora'}
               {session.endTime ? ` – ${session.endTime.slice(0, 5)}` : ''}
             </Text>
             <Text style={styles.meta}>
@@ -183,7 +192,12 @@ export default function AttendanceScreen() {
           academyId={profile.academyId}
           sessionId={sessionId}
           onClose={() => setShowGroupAlert(false)}
-          onSent={(count) => Alert.alert('Enviado', `Aviso entregado a ${count} familia(s)/atleta(s).`)}
+          onSent={(count) =>
+            Alert.alert(
+              'Enviado',
+              `Aviso entregado a ${count} familia(s)/atleta(s).`
+            )
+          }
         />
       ) : null}
     </>
@@ -192,7 +206,11 @@ export default function AttendanceScreen() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: colors.bg },
-  content: { padding: spacing.lg, gap: spacing.lg, paddingBottom: spacing.xxxl },
+  content: {
+    padding: spacing.lg,
+    gap: spacing.lg,
+    paddingBottom: spacing.xxxl,
+  },
   header: { gap: spacing.xs },
   title: { ...typography.display, color: colors.textInverse },
   meta: { ...typography.body, color: '#94A3B8' },

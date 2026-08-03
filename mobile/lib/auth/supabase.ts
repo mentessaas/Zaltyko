@@ -16,7 +16,8 @@ import { secureStoreAdapter } from './secure-store';
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
-const apiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL ?? 'https://app.zaltyko.com';
+const apiBaseUrl =
+  process.env.EXPO_PUBLIC_API_BASE_URL ?? 'https://zaltyko.com';
 
 if (!supabaseUrl || !supabaseAnonKey) {
   // No throw para no romper el bundling; el cliente falla al primer uso
