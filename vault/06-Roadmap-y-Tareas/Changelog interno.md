@@ -9,6 +9,28 @@ source:
 
 # Changelog interno
 
+## 2026-08-03 - ZAL-250 materializa el KPI first-party pricing→contacto en código
+
+- Las cinco correcciones aceptadas por el board tras el PASS-WITH-CHANGES de Data en [ZAL-241](/ZAL/issues/ZAL-241) quedaron implementadas en código, sin cambiar pricing, Stripe, landing, campañas, copy público, datos reales ni producción.
+- Helper puro `src/lib/growth/pricing-contact.ts` (`calculatePricingToContactMetric`) aplica la fórmula: cohorte rolling de 30 días (`cohortStart = cohortEnd - 30d`), denominador = visitantes únicos con `pricing_viewed` dentro de la cohorte, numerador = intersección cohorte ∩ `contact_submitted` con `reason IN (demo, network, sales)`. Constantes exportadas: `PRICING_TO_CONTACT_WINDOW_DAYS = 30`, `PRICING_TO_CONTACT_MIN_DENOMINATOR = 30`. Estado `sin base` mientras denominador < 30; tasa = `null` y `status = "baseline"` solo cuando denominador ≥ 30. Probabilidad de billing `0%` (no consume Stripe ni infra externa).
+- `ContactRequestSchema.visitorId` pasó de `nullable().optional()` a `z.string().uuid()` (obligatorio); `/api/contact` ya no rellena `null` cuando falta. La ausencia de `visitorId` se rechaza en Zod con 400, alineando el contrato con la regla "mientras falte, el estado obligatorio es `sin base`".
+- `src/lib/growth/dashboard.ts` consume el helper: nueva query restringida a la cohorte (`gte/lte occurredAt` + `inArray eventName`), `pricingVisitors` y `contactSubmitters` ahora vienen del cálculo, `intentToContactRate` se reemplaza por `pricingToContact.rate`, y se añade `intentToContactStatus: "sin base" | "baseline"` al contrato de métricas.
+- `/super-admin/growth` deja de etiquetar "Plan → contacto" y pasa a "Pricing → contacto (30 días)" con pill explícita del estado y leyenda `N={pricingVisitors}/30 · motivos demo, network y sales`, de modo que el KPI no se presenta como baseline sin que el gate dispare.
+- Tests focales (`tests/growth-contact.test.ts`) ampliados a 5 casos del KPI: migración de motivo, reemplazo de visitorId legacy en `localStorage` por UUID v4, rechazo de contacto sin `visitorId` (undefined y null), cohorte rolling de 30 días con intersección correcta y motivos no comerciales excluidos, y gate N<30→N≥30 que transiciona de `sin base` a `baseline` con tasa = 6,7% cuando N=30 y 2 contactos comerciales. Total suite `tests/growth-contact.test.ts`: 5/5 PASS; suite de validación `tests/phase4-commercial-validation.test.ts`: 6/6 PASS. `pnpm exec prettier --check` PASS sobre los 6 archivos tocados; ESLint focal limpio sobre cada archivo modificado.
+- Sin embargo, el diff de los archivos del repo sigue en working tree: **no se commiteó**, **no se pusheó**, **no se aplicó migraciones remotas**, **no se tocó Stripe live**, **no se leyeron secretos**, **no se publicaron claims**. La transición a `in_review` espera a que la PR quede firmada con SHA canónico (gate C-1+C-3) y peer-verification (gate C-2) antes de promover `done`.
+
+Issue: [ZAL-250](/ZAL/issues/ZAL-250). Vault: actualizados `Changelog interno` y referencia cruzada en `04-Marketing/Decisiones.md` (sección D-005).
+
+## 2026-08-03 - ZAL-129 due diligence competitiva y D-005
+
+- Se redactó el position paper de 243 palabras en `RESEARCH/COMPETIDORES_ZALTYKO.md`: voto Marketing a favor de mantener pricing v3.0 y competir por foco vertical + baja fricción, sin cambiar precios, Stripe, landing ni claims públicos.
+- Fuentes oficiales verificadas: Gymdesk 75 USD/mes hasta 50 miembros; Pike13 139 USD/mes anual; Amilia 99 USD/mes más fees/onboarding; Clupik Pro 39 €/mes. iClassPro y Jackrabbit quedaron marcados como evidencia histórica no revalidada, no apta para claims.
+- D-005 quedó aprobada con voto Marketing + segundo voto market aceptado por el board. Product Lead validó 10/10 claims, sin retractos ([ZAL-242](/ZAL/issues/ZAL-242)).
+- Data emitió PASS-WITH-CHANGES y el board aceptó cinco correcciones antes de leer el KPI secundario como baseline: ventana/cohorte, motivos comerciales, `visitorId` obligatorio, fórmula alineada y gate N≥30 materializado ([ZAL-241](/ZAL/issues/ZAL-241)). Mientras falte cualquiera o N<30, el estado obligatorio es `sin base`; implementación delegada a Engineering en [ZAL-250](/ZAL/issues/ZAL-250).
+- No se cambió pricing, Stripe, landing, campañas, copy público, datos reales ni producción.
+
+Issue: [ZAL-129](/ZAL/issues/ZAL-129). Vault: actualizados `Decisiones` de Marketing y `Changelog interno`; evidencia en `RESEARCH/COMPETIDORES_ZALTYKO.md`.
+
 ## 2026-08-03 - ZAL-239 revisión semanal: se corta el meta-trabajo y se reactiva producto
 
 - Medición sobre 115 issues abiertas: **60 de meta-trabajo contra 42 de producto** (52 % vs 37 %), 58 bloqueadas, 7 de 14 agentes ociosos, burn en 1.186,71 USD sobre budget de 1.000 (118,7 %).
