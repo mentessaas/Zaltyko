@@ -1,7 +1,7 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-07-18
+last_reviewed: 2026-08-03
 source:
   - ../PRODUCT-ANALYSIS.md
   - ../BUSINESS-ANALYSIS.md
@@ -16,6 +16,46 @@ source:
 ---
 
 # Backlog priorizado
+
+## Revisión semanal de prioridades — 2026-08-03 (ZAL-239)
+
+**Medición del reparto de esfuerzo sobre 115 issues abiertas: 60 de meta-trabajo contra 42 de producto (52 % vs 37 %).**
+Peor que la medición del board del 2026-08-02. En paralelo: 58 issues bloqueadas, 7 de
+14 agentes ociosos y burn en 1.186,71 USD sobre un budget de 1.000 (118,7 %).
+De las 58 bloqueadas, ~30 no esperaban a nadie externo: esperaban la mecánica del gate.
+
+Orden de prioridad vigente. El criterio es uno solo: **¿esto le cambia algo a una
+academia que usa Zaltyko?** Si la respuesta es no, va después de lo que sí.
+
+1. **Activación** — que una academia que se registra llegue a usar el producto.
+   ZAL-138 (magic links primeras atletas, Web Developer), ZAL-137, ZAL-139/141,
+   ZAL-140 (baseline TTFAA).
+2. **Cobros** — que Zaltyko pueda cobrar. Bloqueada entera a la espera de secretos
+   de sandbox del board: ZAL-42 → ZAL-2/3/10/13/14/25/27/44.
+3. **GTM y evidencia real de mercado** — ZAL-186 (señales de activación reales),
+   ZAL-187 (ICP vs academias reales), ZAL-188 (entrevistas), ZAL-128 (roadmap Q3-Q4,
+   Product Lead), ZAL-129 (competidores, Marketing).
+4. **Instrumentación de tracking** — ZAL-156 a ZAL-160, ZAL-202. El gate de privacidad
+   ya está cerrado; lo que queda es ejecución.
+5. **Móvil** — ZAL-189/190/212/214. Bloqueada a la espera de la cuenta Expo. Si no
+   llega esta semana, se congela para no seguir gastando en una línea que no avanza.
+6. **Corrección del gate** — una sola línea: ZAL-215 (`operation_verification`),
+   ZAL-224 (`review_no_code`), ZAL-231 (exención de productivity reviews). No se abren
+   más issues de auditoría sobre la auditoría.
+
+**Cancelado por decisión de priorización:** la cadena de productivity/watchdog reviews
+(ZAL-145, ZAL-146 directas; ZAL-222/223/226/227/228/238 y ZAL-234 delegadas).
+Regla vigente: una review que no produce trabajo accionable para producto se cierra,
+no se escala.
+
+**Deuda y riesgo nuevos detectados en esta revisión:**
+
+| Riesgo | Detalle | Owner |
+|---|---|---|
+| El CEO no puede ejecutar priorización | `PATCH`/`POST comments` devuelven 403 sobre issues asignadas a otros agentes. Toda decisión que toca trabajo ajeno cuesta una issue extra de delegación. | Board (escalado 2026-08-03) |
+| Entregable verificado que no se puede cerrar | F1+F2 terminado y con QA PASS (SHA `994a8da94`), pero ZAL-70/71 devuelven 409. Sin ruta de override auditada. | Board (escalado 2026-08-03) |
+| Burn sobre presupuesto | 118,7 % del budget mensual, con el overrun originado en reintentos y auto-auditoría, no en producto. | Board (escalado 2026-08-03) |
+| Capacidad ociosa | 7 de 14 agentes idle mientras 42 issues de producto esperan. Los 4 agentes activos estaban todos en maquinaria del gate. | CEO — corregido parcialmente en esta revisión |
 
 ## Cierre integral de objeciones del director — 2026-07-23
 
@@ -39,6 +79,8 @@ bloqueados.
 
 | Estado | Tarea | Dueño | Criterio de aceptación | Evidencia |
 |---|---|---|---|---|
+| Alerta board 2026-08-03 | Burn mensual supera 1.000 USD y exige decisión sobre `monthBudgetCents` | Board/operador autorizado; CEO no autoriza nuevos gastos | Board decide entre (a) elevar `monthBudgetCents` por encima de 1.084 USD, (b) recortar runs no críticos manteniendo el budget, (c) aceptar overrun y revisar al cierre del mes. El CEO mantiene la política de no comprar créditos, no elevar planes ni modificar el Token Plan hasta que el board se pronuncie en [ZAL-13](/ZAL/issues/ZAL-13) o vía `request_board_approval` | Panel de compañía 2026-08-03 00:38Z: `monthSpendCents=108368` (`1.083,68 USD`) sobre `monthBudgetCents=100000` (`108,37 %`). Salto de 884,49 USD a 1.083,68 USD en <24h por 142 runs con `provider_quota` el 2026-08-02. Alerta propagada en [ZAL-149](/ZAL/issues/ZAL-149) comment `6fec83a8-52f1-43cf-88ea-10c5d66f0686` y en `Decisiones.md` `## 2026-08-03 - Burn mensual supera el umbral operativo y requiere decisión board` |
+| Bloqueado externo 2026-08-02 | Crear/vincular el proyecto Expo/EAS de Zaltyko y ejecutar el primer development build en dispositivo físico. | Platform & Security: crear Organization Expo `zaltyko`, custodiar el acceso y facilitar sesión autenticada o `secret_ref`; Mobile: ejecutar `eas init` y build development; QA: dispositivo | `eas init --account zaltyko --non-interactive` escribe `expo.owner` y un `expo.extra.eas.projectId` real; entorno EAS development configurado; APK development instalado y abierto en Android físico; auth Bearer y navegación por rol entregadas a QA. | Board autorizó development el 2026-08-02. `npx eas-cli@21.4.0 whoami` devuelve `Not logged in` (exit 1); no hay sesión ni `secret_ref`. Código local preparado en `mobile/` y guía exacta en `mobile/docs/PRIMER_DEVELOPMENT_BUILD.md`. Preview/production/submit fuera de alcance. |
 | Resuelto 2026-07-16 | Cerrar bypass de permisos para membership baseline sin rol personalizado. | Sol | Deny-by-default; owner/coach/parent/athlete/viewer/super_admin probados por método y academia; ninguna ruta sensible depende de navegación. | 506/506 Vitest; suites `authz-*`, tenant resolver y membership cross-academy. AUTH-001/ROLE-001/MT-001 cerrados. |
 | Resuelto 2026-07-16 | Cerrar los 32 resource scopes dinámicos marcados por el auditor. | Sol | Cada ruta demuestra tenant, academia, capability y ownership/asignación/participant/self con negativa BOLA; contador manual-review a 0 o excepción documentada. | 292 rutas; `resourceScopeManualReview=0`; 49/49 focalizadas; `docs/audit/API_AUTHORIZATION_MATRIX.md`. |
 | Resuelto 2026-07-16 | Reparar e integrar las suites API sensibles excluidas de Vitest. | Sol | Athletes, classes/sessions/attendance, billing y tenancy pasan bajo un harness compatible; ningún test crítico queda skipped/excluded. | 86 archivos y 618/618 tests bajo gate normal y `test:security`; sin exclusiones Vitest. Envelopes, endpoints 410, Stripe, tenancy y TSX actualizados. |

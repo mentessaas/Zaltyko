@@ -1,13 +1,25 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-07-29
+last_reviewed: 2026-08-03
 source:
   - ../ROADMAP.md
   - ../AGENTS.md
 ---
 
 # Changelog interno
+
+## 2026-08-03 - ZAL-239 revisión semanal: se corta el meta-trabajo y se reactiva producto
+
+- Medición sobre 115 issues abiertas: **60 de meta-trabajo contra 42 de producto** (52 % vs 37 %), 58 bloqueadas, 7 de 14 agentes ociosos, burn en 1.186,71 USD sobre budget de 1.000 (118,7 %).
+- Cancelada la cadena de productivity/watchdog reviews: ZAL-145 y ZAL-146 directamente; ZAL-222/223/226/227/228/238 delegadas al Developer y ZAL-234 a Platform & Security (el control-plane devuelve 403 al CEO sobre issues asignadas a otros agentes).
+- Reactivadas tres líneas de producto sin dependencias externas: ZAL-128 roadmap Q3-Q4 → Product Lead, ZAL-129 due diligence de competidores → Marketing, ZAL-138 magic links de primeras atletas → Web Developer (comentario durable; el `PATCH` quedó en 422 por estar en stage de review).
+- Registrada la regla permanente: una productivity o watchdog review que no produce trabajo accionable para producto se cierra, no se escala ni genera child issues.
+- Escalación consolidada al board (`request_board_approval`) con cuatro decisiones y recomendación explícita: exención del gate para cierres no-code (rec. A: ZAL-215/224/231), secretos del sandbox Stripe de ZAL-42 (rec. A), cuenta Expo de ZAL-213/214 (rec. A, con congelación de móvil si no llega esta semana) y presupuesto (rec. A: mantener 1.000 y medir el efecto del corte).
+- Verificado que el entregable F1+F2 es real: SHA `994a8da9420c2afedf5f78350275e2bdbdff826c` existe y toca `src/app/(site)/[locale]/[modality]/page.tsx`; QA emitió PASS en ZAL-181. El cierre de ZAL-70/71 devuelve 409 por mecánica del gate, no por falta de evidencia.
+- No se tocó producción, dinero real, datos personales, secretos ni publicación externa.
+
+Issue: [ZAL-239](/ZAL/issues/ZAL-239). Vault: actualizados `Decisiones`, `Backlog priorizado` y `Changelog interno`.
 
 ## 2026-08-02 - ZAL-180 rehace F1+F2 de modalidad en el repo canónico
 
@@ -1349,3 +1361,15 @@ Registrar cambios humanos y relevantes: releases, decisiones, cambios de pricing
 - Pruebas nuevas y existentes: `npx vitest run tests/lib/billing-events-cas-claim.test.ts tests/lib/stripe-charge-payment-failed-notification.test.ts tests/lib/stripe-charge-collection.integration.test.ts tests/connect-webhook-payment-failed-notification.test.ts` → 4 archivos, 35/35 PASS. Cubre: transición atómica con cargo `paid`/`refunded` (no notifica), cargo `failed` pre-existente (sí notifica), doble reclaimer concurrente (solo uno gana), idempotencia por destinatario normalizado, evento nuevo sobre mismo cargo (clave distinta, notifica de nuevo), éxito parcial + retry, lease de `pending` respetado.
 - ESLint focal: 0 errores, 4 warnings históricos de `any` no introducidos por este cambio (en `logAuditEvent`, preexistente). `git diff --check` PASS. `npx tsc --noEmit` queda fuera del scope focal porque el cambio toca solo tipos ya existentes y firmas usadas internamente.
 - No se introdujeron migraciones: el contrato durable se apoya en `email_logs.idempotency_key` que ya existe. No se aplicó SQL remoto; no se tocó producción, Stripe live, secretos, dominios ni `main`. C-2 debe emitirse sobre el SHA nuevo, no sobre `e678bd99c…`.
+
+## 2026-08-03 - CEO heartbeat ZAL-168: revalidación del 7-puntos y alerta de burn
+
+- Revalidación del checklist de [ZAL-168](/ZAL/issues/ZAL-168) tras el despertar anticipado (cancelación de [ZAL-232](/ZAL/issues/ZAL-232), 30h antes del monitor previsto 2026-08-04 06:07Z). Tres cambios materiales respecto del 2026-08-02: (a) `codeRepoPaths` poblado en los 5 proyectos operativos, (b) [ZAL-150](/ZAL/issues/ZAL-150) cerrado bajo peer-verification C-2, (c) burn mensual del panel por encima del umbral de 1.000 USD.
+- Burn vivo: `monthSpendCents=108368` (`1.083,68 USD`) sobre `monthBudgetCents=100000` (`108,37 %`). Alerta amarilla → roja emitida al board vía [ZAL-149](/ZAL/issues/ZAL-149). CEO no autoriza nuevos gastos; board decide entre elevar `monthBudgetCents`, recortar runs no críticos o aceptar el overrun. Se mantiene la política de no comprar créditos, modificar planes ni tocar el Token Plan sin decisión explícita.
+- codeRepoPaths: los cinco proyectos operativos del gate C-1+C-3 (`Zaltyko Web — Product Completion`, `Reliability, Security & Production Readiness`, `Growth & Content`, `Zaltyko Mobile`, `Customer Operations & Product Evidence`) ya tienen paths no nulos. El gate ya no debe rechazar con `409 RepoNotRegistered` para issues de esos proyectos; cualquier rechazo vivo se escala a [ZAL-118](/ZAL/issues/ZAL-118) con SHA y request concreto. Engineering Lead y Platform & Security siguen siendo los dueños del cierre formal de ZAL-118 (smoke del gate + transición a `done`).
+- Aprobación pendiente: `bd01f01c-fe45-4671-94c7-ec99cc8cb4b2` (`request_board_approval`) sobre `78e699578ce8f1912b825e76580fac42eeff5021` y rama `fix/zal-180-f1-f2-canonical` para [ZAL-221](/ZAL/issues/ZAL-221) (hardening webhook cobro rechazado). Reviewers solicitados: Engineering Lead, QA, Platform & Security. Sin decisión board, CEO no muta el SHA supersesor ni reabre [ZAL-71](/ZAL/issues/ZAL-71).
+- Cadena F1+F2: [ZAL-71](/ZAL/issues/ZAL-71) sigue `blocked` con peer-verification FAIL confirmada sobre `3507438`; SHA candidato `78e699578` (ZAL-221) espera a board vía aprobación `bd01f01c`. ZAL-167 sigue como escalado formal al board para reabrir ZAL-70/ZAL-71 si la aprobación no prospera.
+- Auditoría C-5 v2: [ZAL-91](/ZAL/issues/ZAL-91) sigue `in_review`; nueva política `Antifabricación Zaltyko` publicada vía PR #64 (`6811dcbf1` en master, branch `vault/zal-169-antispoofing-policy`). [ZAL-164](/ZAL/issues/ZAL-164) sigue `in_review` (critical) sincronizado con `e678bd99c` en repo Desktop; bloqueada por las reviews independientes ZAL-183 y ZAL-184 antes de la re-firma de ZAL-8.
+- Board-action ZAL-13/25/27/42: sin cambio desde 2026-07-31. CEO no publica secretos, `.env*`, ni entrega Stripe CLI. Plazo 7 días desde 2026-08-02 vence 2026-08-09 06:07Z; si no hay board-action, congelar D-006 y emitir escalado formal en [ZAL-13](/ZAL/issues/ZAL-13).
+- Disposición: ZAL-168 sigue `in_progress` con monitor real programado para 2026-08-04 06:07Z (o wake anticipado si reaparece burn > 1.000 USD con streak de fallos, board-action, o cambio de estado en ZAL-89/ZAL-118/ZAL-71/ZAL-91/ZAL-164). Comentario espejo con la tabla completa publicado en [ZAL-149](/ZAL/issues/ZAL-149).
+- No se tocaron producto, producción, secretos, datos reales, pricing, campañas, publicaciones ni E2E de navegador. CEO no compró créditos, no modificó planes, no alteró el Token Plan, no tocó `.env*`, no escribió secretos ni DNS, no publicó campañas.
