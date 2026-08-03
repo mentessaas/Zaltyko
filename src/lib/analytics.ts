@@ -27,10 +27,34 @@ function loadPostHog() {
   return posthogModulePromise;
 }
 
-// Initialize PostHog (call once in your app initialization)
+// ZAL-247 — `initAnalytics` es idempotente: el provider la invoca cada vez
+// que el consent pasa a `granted` (incluido el snapshot inicial), y sin este
+// guard un grant -> revoke -> grant volvería a llamar `posthog.init`.
+let initPromise: Promise<void> | null = null;
+
+// Initialize PostHog (call once consent is granted)
 export async function initAnalytics() {
   if (typeof window === "undefined") return;
 
+  // ZAL-247 — el gate de consent vivía solo aguas abajo, en `trackPageView`.
+  // Eso descargaba e inicializaba posthog-js para usuarios en `unset` /
+  // `revoked`, dejando activo el capture automático de `pageleave` y
+  // contradiciendo la garantía "sin consentimiento no se carga PostHog".
+  // Ahora la carga del módulo y el `init` quedan detrás del consent; el
+  // provider re-invoca esta función cuando el estado pasa a `granted`.
+  if (!hasAnalyticsConsent()) {
+    if (!isProduction()) {
+      logger.debug("initAnalytics omitido: sin consent activo");
+    }
+    return;
+  }
+
+  if (initPromise) return initPromise;
+  initPromise = runInit();
+  return initPromise;
+}
+
+async function runInit(): Promise<void> {
   const key = process.env.NEXT_PUBLIC_POSTHOG_KEY;
   const host = process.env.NEXT_PUBLIC_POSTHOG_HOST || "https://app.posthog.com";
 
@@ -173,3 +197,23 @@ export const analytics = {
   leadCaptured: (source?: string, plan?: string) =>
     trackEvent("lead_captured", { metadata: { source, plan } }),
 };
+
+// --- test hooks -------------------------------------------------------------
+
+/**
+ * ZAL-247 — expone si el import dinámico de `posthog-js` llegó a dispararse.
+ * Es la única forma de aseverar "sin consent, posthog-js no se carga" sin
+ * inspeccionar el grafo de módulos de vitest. Solo para tests.
+ */
+export function __isPostHogLoadedForTests(): boolean {
+  return posthogModulePromise !== null;
+}
+
+/** ZAL-247 — resetea el estado de carga/init entre tests. */
+export function __resetAnalyticsForTests(): void {
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("__resetAnalyticsForTests is not available in production");
+  }
+  posthogModulePromise = null;
+  initPromise = null;
+}

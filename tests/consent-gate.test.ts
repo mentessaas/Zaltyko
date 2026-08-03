@@ -1,4 +1,6 @@
 /**
+ * @vitest-environment jsdom
+ *
  * ZAL-160 [GTM-DEP.4] — cobertura del gate de consent para `page_view`.
  *
  * Cubre la matriz: cada estado de consent × cada combinación UTM.
@@ -12,10 +14,19 @@
  * También cubre: cambio de consent en caliente (grant post-mount re-trackea;
  * revoke no emite nada nuevo), SSR-safe, y persistencia por versión de clave.
  *
- * Estrategia: mockeamos `posthog-js` via `vi.mock("@/lib/analytics")` para
- * que `trackPageView` no necesite la red real ni cargue el módulo dinámico.
- * Los UTMs se inyectan via `vi.mock("@/lib/gtm/utm")` con un stub que
- * devuelve lo que el test configure (presente o ausente).
+ * ZAL-247 — se suma un bloque de integración que monta `PostHogProvider` de
+ * verdad (React Testing Library sobre jsdom). Los tests unitarios anteriores
+ * pasaban sin detectar los 3 bugs de integración porque solo ejercitaban
+ * `trackPageView` de forma aislada: el hook sin montar, la doble emisión del
+ * pageview inicial y el `initAnalytics` incondicional solo son observables
+ * con el provider en el árbol.
+ *
+ * Estrategia: mockeamos `posthog-js` para que `trackPageView` no necesite la
+ * red real. Los UTMs se inyectan via `vi.mock("@/lib/gtm/utm")` con un stub
+ * que devuelve lo que el test configure (presente o ausente). Los tests
+ * unitarios usan un stub de `window` en memoria; los de integración liberan
+ * ese stub (`vi.unstubAllGlobals`) para trabajar sobre el jsdom real, que es
+ * lo que React necesita para renderizar.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -58,13 +69,22 @@ vi.mock("@/lib/gtm/utm", async () => {
   };
 });
 
+import { createElement } from "react";
+import { act, cleanup, render } from "@testing-library/react";
+
 import {
   getConsentSnapshot,
   hasAnalyticsConsent,
   subscribeConsent,
 } from "@/lib/consent/state";
 import { readConsent, writeConsent } from "@/lib/consent/store";
-import { initAnalytics, trackPageView } from "@/lib/analytics";
+import {
+  __isPostHogLoadedForTests,
+  __resetAnalyticsForTests,
+  initAnalytics,
+  trackPageView,
+} from "@/lib/analytics";
+import { PostHogProvider } from "@/components/PostHogProvider";
 
 function makeMemoryStorage(): Storage {
   const data = new Map<string, string>();
@@ -132,6 +152,11 @@ beforeEach(async () => {
   posthogDebug.mockReset();
   utmReadStub.mockReset();
   utmReadStub.mockReturnValue(null);
+
+  // ZAL-247 — el estado de carga/init de posthog-js es module-level; sin
+  // reset, un test con consent "contagia" al siguiente que asevera que
+  // posthog-js NO se cargó.
+  __resetAnalyticsForTests();
 
   // ZAL-156.2 — limpiamos el binding de `storage` event entre tests
   // porque el stub de `window` cambia en cada test (se recrea el
@@ -451,5 +476,170 @@ describe("ZAL-156.2 — sincronización cross-tab vía storage event", () => {
     // Tras el reset, escribir no debe notificar al listener antiguo.
     writeConsent("granted");
     expect(cb).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * ZAL-247 [GTM-DEP.4] — integración real del gate montando `PostHogProvider`.
+ *
+ * Estos casos son los que fallaban antes del fix:
+ *   - el hook `usePageTracking` no estaba montado en ningún árbol, así que
+ *     con `capture_pageview: false` la app no emitía ningún `$pageview`;
+ *   - con consent previo se emitían DOS `$pageview` por mount (llamada
+ *     directa + snapshot síncrono de `subscribeConsent`);
+ *   - `initAnalytics` se llamaba incondicionalmente, cargando posthog-js y
+ *     activando `capture_pageleave` para usuarios sin consent.
+ */
+describe("ZAL-247 — integración: PostHogProvider montado", () => {
+  /** Cuenta solo los `$pageview` (ignora otros eventos). */
+  function pageviewCalls(): Array<Record<string, unknown>> {
+    return posthogCapture.mock.calls
+      .filter((call) => call[0] === "$pageview")
+      .map((call) => call[1] as Record<string, unknown>);
+  }
+
+  async function mountProvider() {
+    let result: ReturnType<typeof render> | undefined;
+    await act(async () => {
+      result = render(createElement(PostHogProvider, null, "app"));
+    });
+    // Deja correr las microtareas de `trackPageView` / `initAnalytics`.
+    await act(async () => {
+      await Promise.resolve();
+    });
+    return result!;
+  }
+
+  beforeEach(async () => {
+    // El `beforeEach` global instala un stub de `window` en memoria pensado
+    // para los tests unitarios. React necesita el `window`/`document` reales
+    // de jsdom, así que aquí soltamos el stub y trabajamos sobre el DOM real.
+    vi.unstubAllGlobals();
+    vi.stubEnv("NEXT_PUBLIC_POSTHOG_KEY", "phc_test_key");
+
+    const { __resetConsentForTests } = await import("@/lib/consent/store");
+    __resetConsentForTests();
+    __resetAnalyticsForTests();
+    window.localStorage.clear();
+    window.history.pushState({}, "", "/pricing");
+
+    posthogCapture.mockReset();
+    posthogInit.mockReset();
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllEnvs();
+  });
+
+  it("consent 'unset' al montar → 0 eventos y posthog-js NO se carga", async () => {
+    // storage vacío = "unset" (default-deny)
+    await mountProvider();
+
+    expect(pageviewCalls()).toHaveLength(0);
+    expect(posthogInit).not.toHaveBeenCalled();
+    expect(__isPostHogLoadedForTests()).toBe(false);
+  });
+
+  it("consent 'revoked' al montar → 0 eventos y posthog-js NO se carga", async () => {
+    writeConsent("revoked");
+    await mountProvider();
+
+    expect(pageviewCalls()).toHaveLength(0);
+    expect(posthogInit).not.toHaveBeenCalled();
+    expect(__isPostHogLoadedForTests()).toBe(false);
+  });
+
+  it("consent 'granted' desde el arranque → exactamente 1 $pageview (no 2)", async () => {
+    writeConsent("granted");
+    await mountProvider();
+
+    const calls = pageviewCalls();
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toMatchObject({ path: "/pricing" });
+    expect(posthogInit).toHaveBeenCalledTimes(1);
+  });
+
+  it("grant a mitad de sesión (sin reload) → exactamente 1 $pageview de la ruta actual", async () => {
+    await mountProvider();
+    expect(pageviewCalls()).toHaveLength(0);
+
+    await act(async () => {
+      writeConsent("granted");
+      await Promise.resolve();
+    });
+
+    const calls = pageviewCalls();
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toMatchObject({ path: "/pricing" });
+  });
+
+  it("grant → revoke → grant sobre la misma ruta no vuelve a contar la visita", async () => {
+    writeConsent("granted");
+    await mountProvider();
+    expect(pageviewCalls()).toHaveLength(1);
+
+    await act(async () => {
+      writeConsent("revoked");
+      writeConsent("granted");
+      await Promise.resolve();
+    });
+
+    expect(pageviewCalls()).toHaveLength(1);
+  });
+
+  it("'revoked' tras 'granted' → la navegación posterior no emite eventos nuevos", async () => {
+    writeConsent("granted");
+    await mountProvider();
+    expect(pageviewCalls()).toHaveLength(1);
+
+    await act(async () => {
+      writeConsent("revoked");
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      window.history.pushState({}, "", "/onboarding/owner");
+      await Promise.resolve();
+    });
+
+    expect(pageviewCalls()).toHaveLength(1);
+  });
+
+  it("con consent, cada navegación emite su propio $pageview (incluida una ruta repetida)", async () => {
+    writeConsent("granted");
+    await mountProvider();
+
+    await act(async () => {
+      window.history.pushState({}, "", "/onboarding/owner");
+      await Promise.resolve();
+    });
+    await act(async () => {
+      window.history.pushState({}, "", "/pricing");
+      await Promise.resolve();
+    });
+
+    expect(pageviewCalls().map((call) => call.path)).toEqual([
+      "/pricing",
+      "/onboarding/owner",
+      "/pricing",
+    ]);
+  });
+
+  it("al desmontar se restaura history.pushState y se corta el tracking", async () => {
+    writeConsent("granted");
+    const view = await mountProvider();
+    expect(pageviewCalls()).toHaveLength(1);
+
+    await act(async () => {
+      view.unmount();
+    });
+
+    await act(async () => {
+      window.history.pushState({}, "", "/otra-ruta");
+      await Promise.resolve();
+    });
+
+    expect(pageviewCalls()).toHaveLength(1);
   });
 });
