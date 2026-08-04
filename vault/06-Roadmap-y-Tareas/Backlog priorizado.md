@@ -19,6 +19,14 @@ source:
 
 ## Revisión semanal de prioridades — 2026-08-03 (ZAL-239)
 
+**Medición PM 2026-08-03 17:25Z:** 108 issues abiertas, 27 de meta-trabajo (25 %).
+Mejor ratio que a las 13:30Z (37 %) pero solo porque el denominador creció, no porque el numerador baje.
+La cadena de productivity reviews y peer-verifications se auto-replica: ZAL-252, ZAL-253 y ZAL-254
+creadas en los últimos 90 minutos. 21 de 62 blocked mencionan SHA/codeGates/peer-verif/maintainer (34 %).
+**Único punto de palanca estructural:** ZAL-231 (PR con SHA `51e740b70` ya commiteado, falta push humano).
+**Palanca operativa inmediata:** approval `acd8185b-4a8f-42a9-8ce2-51263ca56cbc` (`request_board_approval`)
+pendiente de decisión — flipear `recovery.pause.codeGates` a `false` destrabaría 21 issues de un golpe.
+
 **Medición del reparto de esfuerzo sobre 115 issues abiertas: 60 de meta-trabajo contra 42 de producto (52 % vs 37 %).**
 Peor que la medición del board del 2026-08-02. En paralelo: 58 issues bloqueadas, 7 de
 14 agentes ociosos y burn en 1.186,71 USD sobre un budget de 1.000 (118,7 %).
@@ -29,7 +37,9 @@ academia que usa Zaltyko?** Si la respuesta es no, va después de lo que sí.
 
 1. **Activación** — que una academia que se registra llegue a usar el producto.
    ZAL-138 (magic links primeras atletas, Web Developer), ZAL-137, ZAL-139/141,
-   ZAL-140 (baseline TTFAA).
+   ZAL-140 (baseline TTFAA), ZAL-328 (status semánticas academy churned/fraud_hold,
+   P&S — schema + helper + filter done, pendiente peer review del Web Developer),
+   ZAL-329/330/331 (child issues derivados de ZAL-328).
 2. **Cobros** — que Zaltyko pueda cobrar. Bloqueada entera a la espera de secretos
    de sandbox del board: ZAL-42 → ZAL-2/3/10/13/14/25/27/44.
 3. **GTM y evidencia real de mercado** — ZAL-186 (señales de activación reales),
