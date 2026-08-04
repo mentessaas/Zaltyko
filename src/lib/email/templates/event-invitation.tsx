@@ -1,3 +1,5 @@
+import { escapeHtml } from "../escape-html";
+
 export function EventInvitationTemplate({
   eventName,
   eventDate,
@@ -13,6 +15,14 @@ export function EventInvitationTemplate({
   academyName: string;
   rsvpUrl?: string;
 }) {
+  // ZAL-314 B4 — escapar interpolaciones de variables de usuario.
+  const safeEventName = escapeHtml(eventName);
+  const safeEventDate = escapeHtml(eventDate);
+  const safeEventTime = eventTime ? escapeHtml(eventTime) : "";
+  const safeEventLocation = eventLocation ? escapeHtml(eventLocation) : "";
+  const safeAcademyName = escapeHtml(academyName);
+  const safeRsvpUrl = rsvpUrl ? escapeHtml(rsvpUrl) : "";
+
   return `
 <!DOCTYPE html>
 <html>
@@ -37,17 +47,17 @@ export function EventInvitationTemplate({
                 Hola,
               </p>
               <p style="margin: 0 0 20px 0; color: #374151; font-size: 16px; line-height: 1.5;">
-                <strong>${academyName}</strong> te invita a participar en:
+                <strong>${safeAcademyName}</strong> te invita a participar en:
               </p>
               <div style="background-color: #f0fdf4; border-left: 4px solid #10b981; border-radius: 6px; padding: 20px; margin: 20px 0;">
-                <h2 style="margin: 0 0 15px 0; color: #111827; font-size: 20px; font-weight: 600;">${eventName}</h2>
-                <p style="margin: 5px 0; color: #111827; font-size: 16px;"><strong>📅 Fecha:</strong> ${eventDate}</p>
-                ${eventTime ? `<p style="margin: 5px 0; color: #111827; font-size: 16px;"><strong>🕐 Hora:</strong> ${eventTime}</p>` : ""}
-                ${eventLocation ? `<p style="margin: 5px 0; color: #111827; font-size: 16px;"><strong>📍 Ubicación:</strong> ${eventLocation}</p>` : ""}
+                <h2 style="margin: 0 0 15px 0; color: #111827; font-size: 20px; font-weight: 600;">${safeEventName}</h2>
+                <p style="margin: 5px 0; color: #111827; font-size: 16px;"><strong>📅 Fecha:</strong> ${safeEventDate}</p>
+                ${eventTime ? `<p style="margin: 5px 0; color: #111827; font-size: 16px;"><strong>🕐 Hora:</strong> ${safeEventTime}</p>` : ""}
+                ${eventLocation ? `<p style="margin: 5px 0; color: #111827; font-size: 16px;"><strong>📍 Ubicación:</strong> ${safeEventLocation}</p>` : ""}
               </div>
               ${rsvpUrl ? `
               <div style="text-align: center; margin: 30px 0;">
-                <a href="${rsvpUrl}" style="display: inline-block; padding: 12px 24px; background-color: #10b981; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: 600;">Confirmar Asistencia</a>
+                <a href="${safeRsvpUrl}" style="display: inline-block; padding: 12px 24px; background-color: #10b981; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: 600;">Confirmar Asistencia</a>
               </div>
               ` : ""}
               <p style="margin: 20px 0 0 0; color: #6b7280; font-size: 14px; line-height: 1.5;">
@@ -58,7 +68,7 @@ export function EventInvitationTemplate({
           <tr>
             <td style="padding: 20px 30px; text-align: center; background-color: #f9fafb; border-radius: 0 0 8px 8px; border-top: 1px solid #e5e7eb;">
               <p style="margin: 0; color: #6b7280; font-size: 12px;">
-                Este es un mensaje automático de ${academyName}. Por favor no respondas a este correo.
+                Este es un mensaje automático de ${safeAcademyName}. Por favor no respondas a este correo.
               </p>
             </td>
           </tr>

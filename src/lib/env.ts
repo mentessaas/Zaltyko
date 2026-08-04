@@ -48,6 +48,8 @@ const serverEnvSchema = z.object({
 
   // Feature flags
   DISABLE_ONBOARDING_AUTOMATIONS: z.string().optional(),
+  ONBOARDING_OWNER_SEQUENCE_ENABLED: z.string().optional(),
+  ZALTYKO_EMAIL_DOMAIN: z.string().optional(),
   NEXT_PUBLIC_DISABLE_ANALYTICS: z.string().optional(),
 
   // Sentry

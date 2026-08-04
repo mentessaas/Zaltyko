@@ -27,6 +27,14 @@
     {
       "path": "/api/cron/collect-charges",
       "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/cron/onboarding-owner?step=d2",
+      "schedule": "0 */2 * * *"
+    },
+    {
+      "path": "/api/cron/onboarding-owner?step=d7",
+      "schedule": "0 10 * * *"
     }
   ],
   "env": {

@@ -1,3 +1,5 @@
+import { escapeHtml } from "../escape-html";
+
 export function PaymentReminderTemplate({
   athleteName,
   amount,
@@ -11,6 +13,14 @@ export function PaymentReminderTemplate({
   academyName: string;
   paymentUrl?: string;
 }) {
+  // ZAL-314 B4 — escapar interpolaciones de variables de usuario. paymentUrl
+  // se asume validado por el caller (ZAL-178 ya controla pagos); escape por
+  // defensa en profundidad.
+  const safeAthleteName = escapeHtml(athleteName);
+  const safeDueDate = escapeHtml(dueDate);
+  const safeAcademyName = escapeHtml(academyName);
+  const safePaymentUrl = paymentUrl ? escapeHtml(paymentUrl) : "";
+
   return `
 <!DOCTYPE html>
 <html>
@@ -35,17 +45,17 @@ export function PaymentReminderTemplate({
                 Hola,
               </p>
               <p style="margin: 0 0 20px 0; color: #374151; font-size: 16px; line-height: 1.5;">
-                Te recordamos que tienes un pago pendiente para <strong>${athleteName}</strong>.
+                Te recordamos que tienes un pago pendiente para <strong>${safeAthleteName}</strong>.
               </p>
               <div style="background-color: #fef2f2; border-left: 4px solid #dc2626; border-radius: 6px; padding: 20px; margin: 20px 0;">
                 <p style="margin: 0 0 10px 0; color: #991b1b; font-size: 14px; font-weight: 600; text-transform: uppercase;">Detalles del Pago</p>
                 <p style="margin: 5px 0; color: #111827; font-size: 18px; font-weight: 600;"><strong>Monto:</strong> ${amount.toFixed(2)} €</p>
-                <p style="margin: 5px 0; color: #111827; font-size: 16px;"><strong>Fecha de Vencimiento:</strong> ${dueDate}</p>
-                <p style="margin: 5px 0; color: #111827; font-size: 16px;"><strong>Academia:</strong> ${academyName}</p>
+                <p style="margin: 5px 0; color: #111827; font-size: 16px;"><strong>Fecha de Vencimiento:</strong> ${safeDueDate}</p>
+                <p style="margin: 5px 0; color: #111827; font-size: 16px;"><strong>Academia:</strong> ${safeAcademyName}</p>
               </div>
               ${paymentUrl ? `
               <div style="text-align: center; margin: 30px 0;">
-                <a href="${paymentUrl}" style="display: inline-block; padding: 12px 24px; background-color: #dc2626; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: 600;">Realizar Pago</a>
+                <a href="${safePaymentUrl}" style="display: inline-block; padding: 12px 24px; background-color: #dc2626; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: 600;">Realizar Pago</a>
               </div>
               ` : ""}
               <p style="margin: 20px 0 0 0; color: #6b7280; font-size: 14px; line-height: 1.5;">
@@ -56,7 +66,7 @@ export function PaymentReminderTemplate({
           <tr>
             <td style="padding: 20px 30px; text-align: center; background-color: #f9fafb; border-radius: 0 0 8px 8px; border-top: 1px solid #e5e7eb;">
               <p style="margin: 0; color: #6b7280; font-size: 12px;">
-                Este es un mensaje automático de ${academyName}. Por favor no respondas a este correo.
+                Este es un mensaje automático de ${safeAcademyName}. Por favor no respondas a este correo.
               </p>
             </td>
           </tr>

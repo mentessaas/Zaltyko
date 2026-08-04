@@ -30,6 +30,13 @@ import { getSportConfigSeedByVariant } from "@/lib/sport-config/catalog";
 import { withTransaction } from "@/lib/db-transactions";
 import { logEvent } from "@/lib/event-logging";
 import { normalizePhoneNumber, validatePhoneNumber } from "@/lib/validation/phone";
+// ZAL-314 B1 — enganche d0 al evento academy_created. La funcion
+// `enqueueOnboardingOwnerD0` honra `ONBOARDING_OWNER_SEQUENCE_ENABLED`
+// y el modo test, por lo que es seguro invocarla en este flujo.
+// El envio queda dentro del try/catch para no romper el signup si Brevo
+// falla o si la secuencia esta desactivada.
+import { enqueueOnboardingOwnerD0 } from "@/lib/onboarding-owner-integration";
+import { logger } from "@/lib/logger";
 
 const bodySchema = z.object({
   fullName: z.string().trim().min(2).max(120),
@@ -468,6 +475,19 @@ export async function POST(request: Request) {
       canal_registro: setup.result.canalRegistro,
     },
   });
+
+  // ZAL-314 B1 — disparador d0 del integrador onboarding-owner. Se ejecuta
+  // despues de `logEvent` y dentro del mismo request; si Brevo falla o la
+  // secuencia esta desactivada (board no ha autorizado sales freeze), el
+  // helper registra SKIPPED y no rompe el signup.
+  try {
+    await enqueueOnboardingOwnerD0({ academyId: setup.result.id });
+  } catch (error) {
+    logger.error("onboarding-owner d0 enqueue failed", {
+      academyId: setup.result.id,
+      error,
+    });
+  }
 
   return apiCreated({
     academyId: setup.result.id,

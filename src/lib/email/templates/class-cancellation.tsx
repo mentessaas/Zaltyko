@@ -1,3 +1,5 @@
+import { escapeHtml } from "../escape-html";
+
 export function ClassCancellationTemplate({
   athleteName,
   className,
@@ -13,6 +15,15 @@ export function ClassCancellationTemplate({
   academyName: string;
   reason?: string;
 }) {
+  // ZAL-314 B4 — escapar interpolaciones de variables de usuario. reason
+  // es texto libre introducido por el staff; potencialmente hostíl.
+  const safeAthleteName = escapeHtml(athleteName);
+  const safeClassName = escapeHtml(className);
+  const safeSessionDate = escapeHtml(sessionDate);
+  const safeSessionTime = sessionTime ? escapeHtml(sessionTime) : "";
+  const safeAcademyName = escapeHtml(academyName);
+  const safeReason = reason ? escapeHtml(reason) : "";
+
   return `
 <!DOCTYPE html>
 <html>
@@ -37,15 +48,15 @@ export function ClassCancellationTemplate({
                 Hola,
               </p>
               <p style="margin: 0 0 20px 0; color: #374151; font-size: 16px; line-height: 1.5;">
-                Lamentamos informarte que la clase de <strong>${className}</strong> programada para <strong>${athleteName}</strong> el día <strong>${sessionDate}</strong>${sessionTime ? ` a las ${sessionTime}` : ""} ha sido cancelada.
+                Lamentamos informarte que la clase de <strong>${safeClassName}</strong> programada para <strong>${safeAthleteName}</strong> el día <strong>${safeSessionDate}</strong>${sessionTime ? ` a las ${safeSessionTime}` : ""} ha sido cancelada.
               </p>
               <div style="background-color: #fffbeb; border-left: 4px solid #f59e0b; border-radius: 6px; padding: 20px; margin: 20px 0;">
                 <p style="margin: 0 0 10px 0; color: #92400e; font-size: 14px; font-weight: 600; text-transform: uppercase;">Detalles de la Clase Cancelada</p>
-                <p style="margin: 5px 0; color: #111827; font-size: 16px;"><strong>Clase:</strong> ${className}</p>
-                <p style="margin: 5px 0; color: #111827; font-size: 16px;"><strong>Fecha:</strong> ${sessionDate}</p>
-                ${sessionTime ? `<p style="margin: 5px 0; color: #111827; font-size: 16px;"><strong>Hora:</strong> ${sessionTime}</p>` : ""}
-                <p style="margin: 5px 0; color: #111827; font-size: 16px;"><strong>Academia:</strong> ${academyName}</p>
-                ${reason ? `<p style="margin: 10px 0 0 0; color: #111827; font-size: 14px;"><strong>Motivo:</strong> ${reason}</p>` : ""}
+                <p style="margin: 5px 0; color: #111827; font-size: 16px;"><strong>Clase:</strong> ${safeClassName}</p>
+                <p style="margin: 5px 0; color: #111827; font-size: 16px;"><strong>Fecha:</strong> ${safeSessionDate}</p>
+                ${sessionTime ? `<p style="margin: 5px 0; color: #111827; font-size: 16px;"><strong>Hora:</strong> ${safeSessionTime}</p>` : ""}
+                <p style="margin: 5px 0; color: #111827; font-size: 16px;"><strong>Academia:</strong> ${safeAcademyName}</p>
+                ${reason ? `<p style="margin: 10px 0 0 0; color: #111827; font-size: 14px;"><strong>Motivo:</strong> ${safeReason}</p>` : ""}
               </div>
               <p style="margin: 20px 0 0 0; color: #6b7280; font-size: 14px; line-height: 1.5;">
                 Si tienes alguna pregunta o necesitas reprogramar, por favor contacta con la academia.
@@ -55,7 +66,7 @@ export function ClassCancellationTemplate({
           <tr>
             <td style="padding: 20px 30px; text-align: center; background-color: #f9fafb; border-radius: 0 0 8px 8px; border-top: 1px solid #e5e7eb;">
               <p style="margin: 0; color: #6b7280; font-size: 12px;">
-                Este es un mensaje automático de ${academyName}. Por favor no respondas a este correo.
+                Este es un mensaje automático de ${safeAcademyName}. Por favor no respondas a este correo.
               </p>
             </td>
           </tr>

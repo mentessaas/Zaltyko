@@ -1,3 +1,5 @@
+import { escapeHtml } from "../escape-html";
+
 export function AttendanceReminderTemplate({
   athleteName,
   className,
@@ -11,6 +13,15 @@ export function AttendanceReminderTemplate({
   sessionTime?: string;
   academyName: string;
 }) {
+  // ZAL-314 B4 — escapar interpolaciones de variables de usuario. athleteName
+  // y academyName vienen de la BD sin validacion HTML; className/sessionDate
+  // tambien son editables por el owner de la academia.
+  const safeAthleteName = escapeHtml(athleteName);
+  const safeClassName = escapeHtml(className);
+  const safeSessionDate = escapeHtml(sessionDate);
+  const safeSessionTime = sessionTime ? escapeHtml(sessionTime) : "";
+  const safeAcademyName = escapeHtml(academyName);
+
   return `
 <!DOCTYPE html>
 <html>
@@ -35,14 +46,14 @@ export function AttendanceReminderTemplate({
                 Hola,
               </p>
               <p style="margin: 0 0 20px 0; color: #374151; font-size: 16px; line-height: 1.5;">
-                Te recordamos que <strong>${athleteName}</strong> tiene clase de <strong>${className}</strong> el día <strong>${sessionDate}</strong>${sessionTime ? ` a las ${sessionTime}` : ""}.
+                Te recordamos que <strong>${safeAthleteName}</strong> tiene clase de <strong>${safeClassName}</strong> el día <strong>${safeSessionDate}</strong>${sessionTime ? ` a las ${safeSessionTime}` : ""}.
               </p>
               <div style="background-color: #f3f4f6; border-radius: 6px; padding: 20px; margin: 20px 0;">
                 <p style="margin: 0 0 10px 0; color: #6b7280; font-size: 14px; font-weight: 600; text-transform: uppercase;">Detalles de la clase</p>
-                <p style="margin: 5px 0; color: #111827; font-size: 16px;"><strong>Clase:</strong> ${className}</p>
-                <p style="margin: 5px 0; color: #111827; font-size: 16px;"><strong>Fecha:</strong> ${sessionDate}</p>
-                ${sessionTime ? `<p style="margin: 5px 0; color: #111827; font-size: 16px;"><strong>Hora:</strong> ${sessionTime}</p>` : ""}
-                <p style="margin: 5px 0; color: #111827; font-size: 16px;"><strong>Academia:</strong> ${academyName}</p>
+                <p style="margin: 5px 0; color: #111827; font-size: 16px;"><strong>Clase:</strong> ${safeClassName}</p>
+                <p style="margin: 5px 0; color: #111827; font-size: 16px;"><strong>Fecha:</strong> ${safeSessionDate}</p>
+                ${sessionTime ? `<p style="margin: 5px 0; color: #111827; font-size: 16px;"><strong>Hora:</strong> ${safeSessionTime}</p>` : ""}
+                <p style="margin: 5px 0; color: #111827; font-size: 16px;"><strong>Academia:</strong> ${safeAcademyName}</p>
               </div>
               <p style="margin: 20px 0 0 0; color: #6b7280; font-size: 14px; line-height: 1.5;">
                 Si tienes alguna pregunta o necesitas cancelar la clase, por favor contacta con la academia.
@@ -52,7 +63,7 @@ export function AttendanceReminderTemplate({
           <tr>
             <td style="padding: 20px 30px; text-align: center; background-color: #f9fafb; border-radius: 0 0 8px 8px; border-top: 1px solid #e5e7eb;">
               <p style="margin: 0; color: #6b7280; font-size: 12px;">
-                Este es un mensaje automático de ${academyName}. Por favor no respondas a este correo.
+                Este es un mensaje automático de ${safeAcademyName}. Por favor no respondas a este correo.
               </p>
             </td>
           </tr>

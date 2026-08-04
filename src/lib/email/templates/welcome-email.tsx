@@ -1,3 +1,5 @@
+import { escapeHtml } from "../escape-html";
+
 export function WelcomeEmailTemplate({
   userName,
   academyName,
@@ -7,6 +9,14 @@ export function WelcomeEmailTemplate({
   academyName: string;
   loginUrl?: string;
 }) {
+  // ZAL-314 B4 — escapar interpolaciones de variables de usuario para
+  // evitar XSS stored si academy_name o user_name contienen `<`, `>`, `&`,
+  // `'` o `"`. URLs ya validadas por el caller; aqui se escapan por
+  // defensa en profundidad.
+  const safeUserName = escapeHtml(userName);
+  const safeAcademyName = escapeHtml(academyName);
+  const safeLoginUrl = loginUrl ? escapeHtml(loginUrl) : "";
+
   return `
 <!DOCTYPE html>
 <html>
@@ -28,10 +38,10 @@ export function WelcomeEmailTemplate({
           <tr>
             <td style="padding: 30px;">
               <p style="margin: 0 0 20px 0; color: #374151; font-size: 16px; line-height: 1.5;">
-                Hola <strong>${userName}</strong>,
+                Hola <strong>${safeUserName}</strong>,
               </p>
               <p style="margin: 0 0 20px 0; color: #374151; font-size: 16px; line-height: 1.5;">
-                ¡Bienvenido a <strong>${academyName}</strong>! Estamos emocionados de tenerte como parte de nuestra comunidad.
+                ¡Bienvenido a <strong>${safeAcademyName}</strong>! Estamos emocionados de tenerte como parte de nuestra comunidad.
               </p>
               <div style="background-color: #f3f4f6; border-radius: 6px; padding: 20px; margin: 20px 0;">
                 <p style="margin: 0 0 10px 0; color: #6b7280; font-size: 14px; font-weight: 600; text-transform: uppercase;">¿Qué puedes hacer ahora?</p>
@@ -44,7 +54,7 @@ export function WelcomeEmailTemplate({
               </div>
               ${loginUrl ? `
               <div style="text-align: center; margin: 30px 0;">
-                <a href="${loginUrl}" style="display: inline-block; padding: 12px 24px; background-color: #4f46e5; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: 600;">Acceder a mi cuenta</a>
+                <a href="${safeLoginUrl}" style="display: inline-block; padding: 12px 24px; background-color: #4f46e5; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: 600;">Acceder a mi cuenta</a>
               </div>
               ` : ""}
               <p style="margin: 20px 0 0 0; color: #6b7280; font-size: 14px; line-height: 1.5;">
@@ -55,7 +65,7 @@ export function WelcomeEmailTemplate({
           <tr>
             <td style="padding: 20px 30px; text-align: center; background-color: #f9fafb; border-radius: 0 0 8px 8px; border-top: 1px solid #e5e7eb;">
               <p style="margin: 0; color: #6b7280; font-size: 12px;">
-                Este es un mensaje automático de ${academyName}. Por favor no respondas a este correo.
+                Este es un mensaje automático de ${safeAcademyName}. Por favor no respondas a este correo.
               </p>
             </td>
           </tr>

@@ -14,13 +14,37 @@ export interface SendEmailOptions {
   academyId?: string;
   userId?: string;
   metadata?: Record<string, unknown>;
+  /**
+   * Clave legacy de deduplicacion. Tambien se escribe en
+   * `email_logs.metadata->>'dedupeKey'` para mantener compatibilidad con el
+   * chequeo de dedupe actual.
+   */
   dedupeKey?: string;
+  /**
+   * Idempotency key canonica (ZAL-314 B1). Se persiste en la columna
+   * `email_logs.idempotency_key` (unique index). Tambien se usa como base
+   * para el chequeo de dedupe cuando `dedupeKey` no se pasa.
+   */
+  idempotencyKey?: string;
 }
 
 export async function sendEmailWithLogging(options: SendEmailOptions): Promise<boolean> {
-  const { to, subject, html, template, tenantId, academyId, userId, metadata, dedupeKey } = options;
+  const {
+    to,
+    subject,
+    html,
+    template,
+    tenantId,
+    academyId,
+    userId,
+    metadata,
+    dedupeKey,
+    idempotencyKey,
+  } = options;
 
-  if (dedupeKey) {
+  const effectiveDedupeKey = dedupeKey ?? idempotencyKey;
+
+  if (effectiveDedupeKey) {
     const [existing] = await db
       .select({ id: emailLogs.id })
       .from(emailLogs)
@@ -28,7 +52,7 @@ export async function sendEmailWithLogging(options: SendEmailOptions): Promise<b
         and(
           eq(emailLogs.template, template ?? "transactional"),
           inArray(emailLogs.status, ["pending", "sent"]),
-          sql`${emailLogs.metadata} ->> 'dedupeKey' = ${dedupeKey}`
+          sql`${emailLogs.metadata} ->> 'dedupeKey' = ${effectiveDedupeKey}`
         )
       )
       .limit(1);
@@ -46,7 +70,10 @@ export async function sendEmailWithLogging(options: SendEmailOptions): Promise<b
       subject,
       template: template || null,
       status: "pending",
-      metadata: dedupeKey ? { ...(metadata ?? {}), dedupeKey } : metadata || null,
+      idempotencyKey: idempotencyKey ?? null,
+      metadata: effectiveDedupeKey
+        ? { ...(metadata ?? {}), dedupeKey: effectiveDedupeKey }
+        : metadata || null,
     })
     .returning({ id: emailLogs.id });
 
