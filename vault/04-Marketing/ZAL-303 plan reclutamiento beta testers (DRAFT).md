@@ -1,7 +1,16 @@
 ---
-status: draft
+status: draft (board-approved, awaiting gate closures for outreach activation)
 owner: marketing
-last_reviewed: 2026-08-04 (round 3)
+last_reviewed: 2026-08-04 (round 4)
+board_decisions_received:
+  - interaction: 6e63e4f2-0f14-4eec-acaa-3dcbc10e75f9 (ask_user_questions, answered 2026-08-04T13:40:32Z)
+  - D1 aprobacion general: ajustes (aprobar con ajustes, recomendado Marketing)
+  - D2 sales freeze: excepcion_sin_oferta (excepción al freeze sin oferta comercial, recomendado Marketing)
+  - D3 beneficio al cierre: reconocimiento (solo reconocimiento + acceso anticipado, recomendado Marketing)
+  - D4 shortlist: board (board humano selecciona, recomendado Marketing)
+  - D5 UE/Espana: excluir (excluidos del cohorte inicial, recomendado Marketing)
+  - D6 gates §6: subconjunto (duros = PII menores + P&S + ZAL-13/27/42; soft = ZAL-139/ZAL-158, recomendado Marketing)
+  - D7 cierre administrativo: registrar_repo (asociar ZAL-303 al proyecto Zaltyko Web — Product Completion que ya tiene el repo registrado, arregla causa raíz del SHA gate ZAL-88, recomendado Marketing)
 board_feedback_incorporated:
   - 2026-08-04 board comment (interaction c7b2f970 prior): GDPR por ubicación del usuario, flagging UE pre-contact, DPA por tester UE — incorporado en §5.8 y §6.
   - 2026-08-04 board comment (comment 0557a88c-f347-49e5-a159-b9dc5dc586c5): GDPR se dispara por ubicación del usuario, **alcanza con UNO SOLO tester en UE/España**; país/región de cada candidato debe quedar EXPLÍCITO, no asumido. Reforzado con callout en §0 + encabezado en §5.8.
@@ -71,25 +80,26 @@ scope: ZAL-303 — borrador de plan de reclutamiento de beta testers (NO ejecuta
 > comunicarles que la beta abierta a UE/España llega en una fase
 > posterior. Esa decisión también es del board.
 
-### 0.2 Decisiones que el board debe tomar (bloque único)
+### 0.2 Decisiones tomadas por el board (interaction 6e63e4f2, resuelta 2026-08-04T13:40:32Z)
 
-Estas seis decisiones son las únicas que dependen del board para que
-Marketing pueda pasar de borrador a preparación operativa. Ninguna
-implica contactar a nadie todavía. La columna **Recomendación
-Marketing** es una propuesta, no una decisión tomada.
+El board respondió las seis decisiones operativas (D1-D6) en la
+interaction `6e63e4f2-0f14-4eec-acaa-3dcbc10e75f9`. En las seis adoptó
+la recomendación de Marketing.
 
-| # | Decisión | Opciones | Recomendación Marketing |
-| --- | --- | --- | --- |
-| D1 | ¿Se aprueba el plan en general? | Aprobar / aprobar con ajustes / rehacer | Aprobar con ajustes. El plan cubre los 5 puntos del brief; lo que falta es input del board, no trabajo de Marketing. |
-| D2 | ¿El outreach beta es excepción al sales freeze (decisión 2026-07-29)? | Sí, es excepción / no, espera al fin del freeze | Sí, **pero solo como reclutamiento sin oferta comercial**: nada de precios, descuentos ni compromiso de compra en el mensaje. Ver §5.4. |
-| D3 | ¿Qué se ofrece al tester al cierre del beta? | Gift card / N meses gratis / descuento sobre pricing v3 / solo reconocimiento | **Solo reconocimiento + acceso anticipado** mientras pricing v3 siga sin validar (§5.5). Comprometer meses gratis o descuento ata a un pricing que aún puede cambiar. |
-| D4 | ¿Quién arma la shortlist inicial de candidatos? | Board humano / Marketing propone y board valida / Marketing autónomo | **Board humano**, con país/región por candidato. Marketing no tiene contactos cálidos propios y el scraping está descartado (§3.1). |
-| D5 | ¿UE/España entra en el cohorte inicial? | Sí, con P&S por tester / no, fase posterior | **No en el cohorte inicial.** Excluir UE/España baja el coste de cumplimiento de golpe (§0.1) y permite arrancar sin depender de DPA firmado por tester. Reevaluable en cohorte 2. |
-| D6 | ¿Qué gates de §6 son duros y cuáles son soft? | Todos duros / subconjunto duro | **Duros**: PII de menores (§5.1), P&S approval, ZAL-13/27/42 en verde. **Soft**: ZAL-139/ZAL-158, que bloquean el onboarding por email pero no el kickoff uno-a-uno. |
+| # | Decisión | Respuesta board | Recomendación Marketing adoptada | Implicación operativa |
+| --- | --- | --- | --- | --- |
+| D1 | ¿Se aprueba el plan en general? | `ajustes` | Aprobar con ajustes | Plan vigente. Ajustes se reflejan en los puntos D2-D6. |
+| D2 | ¿El outreach beta es excepción al sales freeze? | `excepcion_sin_oferta` | Sí, pero **sin oferta comercial** | Outreach puede proceder como reclutamiento; el mensaje (§3.2) NO menciona precios, descuentos ni compromiso de compra. |
+| D3 | ¿Qué se ofrece al tester al cierre del beta? | `reconocimiento` | Solo reconocimiento + acceso anticipado | NO se regalan meses gratis ni descuentos sobre pricing v3. El tester recibe carta de agradecimiento + reconocimiento + acceso anticipado si el tester lo desea. |
+| D4 | ¿Quién arma la shortlist inicial? | `board` | Board humano con país/región por candidato | Marketing NO contacta por su cuenta. Board identifica 3-5 contactos cálidos y registra país/región de cada uno. |
+| D5 | ¿UE/España entra en el cohorte inicial? | `excluir` | No en el cohorte inicial | Shortlist inicial queda restringida a testers fuera de UE/España. UE/España se reabre cuando P&S haya firmado DPA genérico (futura ronda). |
+| D6 | ¿Qué gates de §6 son duros y cuáles soft? | `subconjunto` | Duros: PII menores + P&S + ZAL-13/27/42. Soft: ZAL-139/ZAL-158 | El outreach espera solo a los 3 gates duros. ZAL-139/ZAL-158 son soft: bloquean emails transaccionales pero NO bloquean el kickoff uno-a-uno. |
 
-> **Nota de alcance:** aunque el board apruebe las seis, el outreach
-> sigue sin arrancar hasta que los gates duros de §6 estén verdes.
-> Aprobar D1-D6 desbloquea la preparación, no la ejecución.
+> **Nota de alcance:** aunque el board aprobó las seis, el outreach
+> sigue sin arrancar hasta que los gates **duros** de §6 estén verdes
+> (PII menores, P&S approval, ZAL-13/27/42 en verde). D1-D6 desbloquean
+> la **preparación**, no la ejecución. Las gates soft se reabren su
+> momento sin re-discutir este issue.
 
 ## 1. Perfil del tester ideal
 
@@ -248,15 +258,19 @@ Qué te pediríamos:
 - 1 sesión de cierre de 60 min y una encuesta corta.
 - Reportar bugs críticos en menos de 24h por el canal que acordemos.
 
-Qué ofrecemos a cambio (sujeto a aprobación final del board):
-- Acceso completo a las funciones core durante el beta.
-- Comunicación directa con el equipo de producto durante las 4 semanas.
-- [Beneficio concreto al cierre, p.ej. gift card / meses gratis /
-  descuento, que el board debe definir antes del outreach].
+Qué ofrecemos a cambio (aprobado por board el 2026-08-04, D3 =
+`reconocimiento`):
+- Acceso completo a las funciones core durante las 4 semanas del beta.
+- Comunicación directa con el equipo de producto durante el beta.
+- Reconocimiento como "beta founding academy" al cierre + acceso
+  anticipado a funciones nuevas (sin compromiso de pricing).
 
 Lo que NO es:
-- No es una venta ni un descuento de pricing v3.
+- No es una venta ni un descuento de pricing v3 (el board exceptuó
+  el outreach del sales freeze solo como reclutamiento, sin oferta
+  comercial).
 - No vamos a pedirte datos de tus atletas (todo sintético en el beta).
+- No prometemos meses gratis ni descuentos (decision D3 del board).
 - Puedes parar cuando quieras, sin penalización.
 
 ¿Te encaja? Si sí, te paso los detalles del proceso y el formulario de
@@ -293,16 +307,16 @@ consentimiento. Si no encaja ahora, sin problema — gracias por leer.
 
 **Tiempo total estimado por tester**: 6-8 horas en 4 semanas.
 
-### 4.2 Lo que Zaltyko ofrece (sujeto a aprobación board)
+### 4.2 Lo que Zaltyko ofrece (aprobado por board, D3)
 
-Esto **NO se compromete hasta que board apruebe**:
+Per D3 = `reconocimiento` (interaction 6e63e4f2, 2026-08-04):
 
 - Acceso completo a funciones core durante 4 semanas.
 - Comunicación directa con el equipo durante el beta.
-- [Beneficio al cierre: gift card / meses gratis / descuento] — board
-  debe decidir antes del outreach. **No usar como palanca de venta**.
-- Carta de agradecimiento + reconocimiento como "beta founding academy"
-  si el tester lo desea (sin publicar nada sin consentimiento explícito).
+- **Reconocimiento** como "beta founding academy" al cierre + acceso
+  anticipado a funciones nuevas (sin compromiso de pricing v3).
+  Carta de agradecimiento con consentimiento explícito del tester
+  (sin publicar nada sin permiso). **No usar como palanca de venta.**
 - SLA de respuesta a bugs: crítico <24h, no-crítico <72h.
 
 ### 4.3 Lo que Zaltyko NO ofrece
@@ -486,20 +500,37 @@ no por cohorte.**
 ## 6. Gates que deben estar verdes antes de activar outreach
 
 Lista de condiciones que el board debe verificar antes de aprobar el
-inicio del outreach. **Si alguno está en rojo, el outreach no arranca.**
+inicio del outreach. **Si alguno de los gates duros está en rojo, el
+outreach no arranca.** Los gates soft bloquean emails transaccionales
+pero NO bloquean el kickoff uno-a-uno. Los gates marcados **CERRADO**
+se resolvieron vía D1-D6 en interaction `6e63e4f2` (2026-08-04).
+
+### 6.1 Gates duros (bloqueantes de outreach)
 
 | Gate | Owner | Estado al 2026-08-04 | Acción |
 | --- | --- | --- | --- |
-| Board approval explícita del plan de outreach beta | Board | Pendiente | Revisar este documento y pronunciarse. |
-| Pronunciamiento sobre sales freeze y outreach beta | Board | Pendiente | Decidir si el outreach beta es excepción al freeze o no. |
-| P&S approval de datos sintéticos + DPA + manejo de PII tester | Platform & Security (6909a098) | Pendiente | Revisar §5.1, §5.2, §5.8. Firmar §7.6 RGPD/LGPD. |
-| **Flagging UE/España en shortlist + P&S review pre-contact por tester** | Board (flagging) + P&S (review) | Pendiente | Por cada tester en la shortlist: registrar país/región, marcar "UE-tester pending P&S review" si aplica, obtener firma P&S ANTES de outreach. Procedimiento en §5.8. |
+| Board approval explícita del plan de outreach beta | Board | **CERRADO** vía D1 = `ajustes` (interaction 6e63e4f2) | Plan vigente. Sin más acción del board sobre este gate. |
+| Pronunciamiento sobre sales freeze y outreach beta | Board | **CERRADO** vía D2 = `excepcion_sin_oferta` (interaction 6e63e4f2) | Outreach puede proceder como reclutamiento; el mensaje (§3.2) NO menciona precios, descuentos ni compromiso de compra. |
+| PII de atletas menores mitigada (datos sintéticos por defecto) | Marketing + P&S | Pendiente | Confirmar §5.1 antes de outreach. P&S firma §7.6 RGPD/LGPD. |
+| P&S approval de DPA genérico + manejo de PII tester | Platform & Security (6909a098) | Pendiente | Revisar §5.1, §5.2, §5.8. Firmar §7.6 RGPD/LGPD. Requisito permanente, no exceptuado por D5. |
+| ZAL-13/27/42 (Stripe Connect E2E QA) cierre en verde | Engineering Lead + QA + board | Bloqueado por cadena | Necesario porque el beta incluye flujo de cobros. |
+
+### 6.2 Gates soft (bloquean emails transaccionales pero NO el kickoff uno-a-uno)
+
+| Gate | Owner | Estado al 2026-08-04 | Acción |
+| --- | --- | --- | --- |
+| **Shortlist inicial (board humano)** | Board humano | Pendiente operativo, **D4 = `board` cerrado** | Board identifica 3-5 contactos cálidos y registra país/región de cada uno. Marketing NO contacta por su cuenta. |
+| **UE/España flagging (modificado por D5)** | Board + P&S | **CERRADO** vía D5 = `excluir` para cohorte 1 | Cohorte inicial NO incluye UE/España. UE/España se reabre en cohorte 2 cuando P&S haya firmado DPA genérico. Flagging individual dentro del cohorte vigente (resto de países) sigue procediendo. |
+| **Beneficio al cierre del beta** | Marketing (preparación) + board (formaliza) | **CERRADO** vía D3 = `reconocimiento` | Solo reconocimiento + acceso anticipado. NO meses gratis ni descuentos sobre pricing v3. Carta de agradecimiento + reconocimiento como "beta founding academy" si el tester lo desea. |
+| Revisión final del mensaje base (§3.2) por board | Board | Pendiente | Personalización + tono final antes de enviar. |
 | ZAL-158 (Consent gate) cierre + instrumentación Gate 1 operativa | Board activa Web Dev + P&S | Bloqueado por ZAL-139 in_review + board activation | Necesario para que el tester firme consentimiento con copy aprobada. |
 | ZAL-139 (Resend templates d0/d2/d7) cierre + board aprobación §A/§B | Board §A (privacy) + §B (sales freeze) | in_review con board | Necesario porque la cadena de emails de onboarding del tester cae bajo esta cadena. |
-| ZAL-13/27/42 (Stripe Connect E2E QA) cierre en verde | Engineering Lead + QA + board | Bloqueado por cadena | Necesario porque el beta incluye flujo de cobros. |
-| Definición del beneficio al cierre del beta (gift card / meses gratis / descuento) | Board | Pendiente | Sin esto, el outreach no puede comprometer nada en §4.2. |
-| Selección de shortlist inicial de candidatos contactables + país/región | Board humano | Pendiente | Board identifica 3-5 contactos cálidos, registra país/región de cada uno. Marketing NO contacta por su cuenta. |
-| Revisión final del mensaje base (§3.2) por board | Board | Pendiente | Personalización + tono final antes de enviar. |
+
+> **Resumen de gates al 2026-08-04 (post-D1-D6):** 4 gates duros
+> pendientes (PII menores mitigada operativa, P&S approval DPA
+> genérico, ZAL-13/27/42 verde). 4 gates soft pendientes (shortlist
+> construida por board, revisión final mensaje, ZAL-158, ZAL-139). El
+> outreach no arranca hasta que los 3 gates duros estén verdes.
 
 ## 7. Cambios de esta versión
 
@@ -519,3 +550,20 @@ inicio del outreach. **Si alguno está en rojo, el outreach no arranca.**
   board (D1-D6) consolidadas en un bloque único, con recomendación de
   Marketing por decisión. Motivo: las dos interactions previas
   expiraron sin respuesta y el pedido estaba disperso entre §5 y §6.
+- 2026-08-04 (round 4) — Aplicadas las **respuestas del board a las 6
+  decisiones operativas** de la interaction `6e63e4f2-0f14-4eec-acaa-3dcbc10e75f9`
+  (resuelta 2026-08-04T13:40:32Z). El board adoptó las 6 recomendaciones
+  de Marketing (D1 `ajustes`, D2 `excepcion_sin_oferta`, D3
+  `reconocimiento`, D4 `board`, D5 `excluir`, D6 `subconjunto`).
+  Cambios concretos:
+  - Frontmatter: nueva clave `board_decisions_received` con las 7
+    respuestas (incluida D7 cierre administrativo). Status cambia a
+    `draft (board-approved, awaiting gate closures for outreach activation)`.
+  - §0.2 reformulada como "Decisiones tomadas por el board", con la
+    respuesta efectiva + implicación operativa por decisión.
+  - §6 reestructurada en §6.1 (gates duros) + §6.2 (gates soft) según
+    D6. 4 gates marcados como **CERRADO vía D1-D6** (aprobación plan,
+    sales freeze, definición beneficio, flagging UE/España). 3 gates
+    duros siguen pendientes (PII menores operativa, P&S DPA genérico,
+    ZAL-13/27/42 verde). ZAL-158/ZAL-139 clasificados como soft, no
+    bloquean kickoff uno-a-uno.
