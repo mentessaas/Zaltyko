@@ -9,6 +9,49 @@ source:
 
 # Changelog interno
 
+## 2026-08-04 - ZAL-324 cierra 4 de 5 gaps de activación d0/d2/d7 (post-veredicto ZAL-311)
+
+- Trabajo de Web Developer (`5bcea506`) sobre el veredicto APROBADO CON CAMBIOS REQUERIDOS de [ZAL-311](/ZAL/issues/ZAL-311). Commit `fe01ae3d` (rama `marketing/zal-303-rgpd-feedback`, 10 archivos, +~700 líneas). 24/24 tests vitest verdes en los 3 módulos nuevos.
+- **Gap 2 (URL allowlist)** — `src/lib/onboarding/next-step-urls.ts`. Cobertura completa de `CHECKLIST_KEYS` y `WIZARD_STEP_KEYS`, más aliases `billing_setup` y `first_communication`. `resolveNextStepUrl` rechaza claves fuera del allowlist (lanza, no cae a default). Tests: cobertura completa, rechazo de keys externas, query params codificados.
+- **Gap 4 (owner_locale)** — `src/lib/onboarding/template-helpers.ts`. Helper `resolveOwnerLocale` con fallthrough literal a `es` (sin migración de schema en v0.2). Override vía `OWNER_DEFAULT_LOCALE`. `pickLocalized` con semántica `in` para distinguir "clave presente con null" de "clave ausente".
+- **Gap 5 (RGPD unsubscribe/preferences)** — Rutas públicas `/api/unsubscribe` y `/api/preferences` con HMAC-SHA256 (secret desde `UNSUBSCRIBE_HMAC_SECRET` con fallback a `INTERNAL_AUTH_SECRET`, logueado una vez al boot), rate-limit STRICT (5 req/min), validación Zod y persistencia en `email_logs` para audit. Páginas `/unsubscribe` y `/preferences` como cliente ligero con dos switches (operativos / comerciales, RGPD Art. 6(1)(b) vs 6(1)(a)).
+- **Gap 1 (copy drift)** — Parcialmente cubierto en código preexistente: `src/lib/onboarding.ts:62` ya persiste `definition.label` desde `CHECKLIST_DEFINITIONS` al seedear. El drift del attachment §3 es copy y queda en manos de Marketing Agent (sin código nuevo desde Web Developer).
+- **Gap 3 (churned/fraud_hold)** — Derivado a [ZAL-328](/ZAL/issues/ZAL-328) `[D-006/WD→P&S] Modelar status semanticas academy` como child de ZAL-324, asignado a Platform & Security (`6909a098`). Implica migración + RLS.
+- **Verificación local**: `npx vitest run` con 24/24 tests verdes; `npx tsc --noEmit` sin errores en archivos nuevos. Sin sandbox real ejecutado (requiere `UNSUBSCRIBE_HMAC_SECRET` provisto por board vía `secret_ref`).
+- **Disposición ZAL-324**: `blocked` con self-owned unblockDescriptor que apunta a 3 unblock paths: (a) peer-verification cross-agent del SHA `fe01ae3d` por Engineering Lead o P&S, (b) board publica `## Review: APPROVED` literal en el thread, (c) board baja runtime-flags `recovery.pause.codeGates`. C-1 anclado (proof id `91913180`). Sin producción, secretos, datos reales ni publicación externa. Pendiente para activar la secuencia d0/d2/d7: P&S cierra ZAL-328, Marketing corrige §3, Engineering Lead integra los módulos en el emitter real (vive en ZAL-137 o donde se monte el renderer de plantillas).
+- Issue: [ZAL-324](/ZAL/issues/ZAL-324). Child creado: [ZAL-328](/ZAL/issues/ZAL-328). Vault: actualizadas Changelog y Decisiones.
+
+## 2026-08-04 - Board aprueba Opción A sobre burn/cap (wake del CEO por approval_approved)
+
+- Wake del CEO disparado por la aprobación del board sobre [2e454e67](/ZAL/approvals/2e454e67-76a7-4dce-813d-038580adac21) el 2026-08-04 13:22Z (decidida 4 min después del último run). Sin `decisionNote`: aprobación silenciosa equivale a "como está" y la única opción ejecutable sin dato adicional del board era A (mantener cap en $1.000 + priorizar failover).
+- Recepción registrada en el mismo hilo ([8e56e945](/ZAL/comments/8e56e945-aa0a-4bde-98ab-7d432860455c)) detallando trabajo derivado: nada nuevo a abrir, ZAL-290 priorizado, ZAL-298 (medición) bloqueado hasta el 2026-08-07T07:00:00Z. Sin producción, secretos ni publicación externa en el wake.
+- Snapshot actual de burn (2026-08-04 13:25Z): `monthSpendCents=177.406` → 177,41% del cap (baseline era 168,88% a 03:30Z, hoy 175,22–177,41%, todavía sin medición válida por estar dentro de las primeras 24 h post-contención). Hoy van **231 runs · 115 succ · 25 fail · 14 provider_quota** (down from yesterday's 58 provider_quota en igual punto del día — cadencia cortada reduciendo fallos por cuota en proporción a heartbeats).
+- Bloqueos `blocked`: 59 (+7 vs baseline 52). Movimiento marginal todavía, esperable porque la contención sólo lleva horas; la métrica de drenaje se mide en ZAL-298 el 2026-08-07. Si para entonces no ha bajado, contención A no era el driver dominante y hay que revisar costo por run en lugar de cadencia.
+- Sin nuevas escalaciones. Próximo wake CEO previsto: 2026-08-07T07:00:00Z.
+
+## 2026-08-04 - ZAL-130 se reencuadra como spec as-built y vuelve a Product Lead tras anular el gate fantasma de Fizz
+
+- El recovery llegó etiquetado `adapter_failed / stranded_assigned_issue`. El adapter no era la causa raíz: la issue estaba parada por un gate procedimental inválido y por una entrega fantasma nunca corregida.
+- **Gate fantasma anulado**: la descripción nombra a **Fizz** como owner ("rol consejo product/maker en D-001"). Fizz no figura en el roster activo de 14 agentes. Misma clase que el gate de Gemita ya arbitrado en [ZAL-138](/ZAL/issues/ZAL-138). Se anula el "position paper ≤300 palabras + voto async": no hay quién lo vote.
+- **Sin bloqueo real**: `blockedBy: []`. Los 5 `unresolvedBlockerCount` del `blockerAttention` derivaban de menciones en comentarios (`relatedWork`), no de dependencias formales. Tras el arbitraje, `blockerAttention` queda en 0.
+- **Entrega fantasma confirmada por tercera vez** (2026-08-01 → 2026-08-03 → 2026-08-04): `RESEARCH/SPEC_ONBOARDING_ZALTYKO_WEB.md` no existe en disco, `git rev-parse 3ee4fa1` devuelve *unknown revision*, y `GET /api/issues/ZAL-130` sigue con `workProducts: []`. El commit proof citado en el comentario del 2026-08-01 nunca se registró. No se acepta como entregado.
+- **La implementación adelantó a la spec**: [ZAL-137](/ZAL/issues/ZAL-137), [ZAL-138](/ZAL/issues/ZAL-138) (commit `bb818b057`) y [ZAL-139](/ZAL/issues/ZAL-139) están en `in_review`. La spec deja de ser artefacto de diseño previo y pasa a ser documentación *as-built* para el piloto de 5 academias.
+- **El KPI ya existía**: ZAL-130 pedía "proponer un KPI de onboarding", pero [ZAL-140](/ZAL/issues/ZAL-140) ya entregó el contrato TTFAA — `vault/06-Roadmap-y-Tareas/TTFAA - baseline pre-rollout y contrato de medicion.md`, 203 líneas verificadas en disco, commit `c274698e0` resuelve, work-product aprobado con peer independiente. Se adopta por referencia en vez de inventar métrica nueva.
+- Estado final: `blocked` → `todo`, `high` → `medium`, assignee CEO → Product Lead (`65d16bd7`, que ya era el `returnOwnerAgentId` del propio recovery). Recovery action cerrada. Diagnóstico durable en el comentario `456c039f`.
+- Sin producción, secretos, datos reales, pagos ni publicación externa. CEO no redactó el entregable: el contrato de recovery es restaurar la ruta de ejecución, no hacer el trabajo.
+
+Issue: [ZAL-130](/ZAL/issues/ZAL-130). Vault: actualizados `Decisiones` y `Changelog interno`.
+
+## 2026-08-04 - ZAL-149 convierte el burn recheck en una delegación ejecutable a Platform & Security
+
+- El snapshot del board confirmó 1.639,40 USD consumidos sobre 1.000 USD (163,9 %), una tasa aproximada de 22,4 USD/h y 32 cierres dependientes de [ZAL-136](/ZAL/issues/ZAL-136), [ZAL-237](/ZAL/issues/ZAL-237) y [ZAL-231](/ZAL/issues/ZAL-231).
+- Verificación Git local en el repo Paperclip: `054c19845a6b99c680da8019c6c1a461c5cdccef` existe, es un commit y está contenido únicamente en `fix/zal-231-no-code-sha-gate`. Por ello no se presenta como integrado ni activo todavía.
+- Se creó [ZAL-279](/ZAL/issues/ZAL-279), `critical`, asignada a Platform & Security: integrar el fix en el runtime local activo, ejecutar smoke focal, cerrar los tres bugs raíz con evidencia reproducible y reanudar [ZAL-273](/ZAL/issues/ZAL-273) sobre las tres pendientes reales actuales ([ZAL-253](/ZAL/issues/ZAL-253), [ZAL-235](/ZAL/issues/ZAL-235) y [ZAL-260](/ZAL/issues/ZAL-260)).
+- Se consolidó la regla operativa: no hace falta review formal del board para cerrar un fix local reproducible, pero un commit aislado en una rama no equivale a fix publicado; integración y smoke siguen siendo obligatorios. No se abren tickets individuales por rechazos repetidos del gate.
+- Sin merge, restart ni smoke ejecutados por CEO; sin producción, secretos, datos reales, pagos ni publicación externa.
+
+Issue: [ZAL-149](/ZAL/issues/ZAL-149). Vault: actualizados `Decisiones` y `Changelog interno`; `Backlog priorizado` no cambia porque [ZAL-279](/ZAL/issues/ZAL-279) ya materializa el owner y la acción.
+
 ## 2026-08-04 - ZAL-138 entrega el backend de magic links Supabase para primeras atletas (D-006)
 
 - Issue [ZAL-138](/ZAL/issues/ZAL-138) avanza por arbitraje CEO del gate fantasma (voto de Gemita, removida del roster). `blockedBy: []` confirmado antes de empezar; no había bloqueador real, sólo procedimental. Web Developer retoma el alcance D-006 del spec ZAL-130 sin esperar nueva ronda de board.
