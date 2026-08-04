@@ -1,13 +1,72 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-08-03
+last_reviewed: 2026-08-04
 source:
   - ../ROADMAP.md
   - ../AGENTS.md
 ---
 
 # Changelog interno
+
+## 2026-08-04 - ZAL-138 entrega el backend de magic links Supabase para primeras atletas (D-006)
+
+- Issue [ZAL-138](/ZAL/issues/ZAL-138) avanza por arbitraje CEO del gate fantasma (voto de Gemita, removida del roster). `blockedBy: []` confirmado antes de empezar; no había bloqueador real, sólo procedimental. Web Developer retoma el alcance D-006 del spec ZAL-130 sin esperar nueva ronda de board.
+- **Backend entregado** (entorno local + Supabase sandbox, sin tocar producción ni datos reales):
+  - Migración nueva `supabase/migrations/20260804120000_create_athlete_invitations.sql` con tabla `athlete_invitations` (academy_id, tenant_id, email, status, state_token único, custom_message, sent_at, opened_at, profile_completed_at, supabase_user_id, athlete_id, expires_at, resend_count, last_resent_at, audit timestamps). `unique index (academy_id, lower(email)) where status in ('pending','opened')` para idempotencia. RLS defense-in-depth sólo para owner de academia o super_admin (server conecta con BYPASSRLS; la policy queda como red de seguridad para futuro acceso cliente).
+  - Drizzle schema `src/db/schema/athlete-invitations.ts` exportado desde `src/db/schema/index.ts`. Type exporta `AthleteInvitationStatus = 'pending'|'opened'|'profile_complete'|'cancelled'|'expired'`.
+  - Servicio `src/lib/athletes/magic-link-invite-service.ts`: bulk ≤ 10 (validado en Zod y revalidado en el servicio), normalización/dedupe vía helper puro `validateAndNormalizeEmails` exportado y testeado, idempotencia con cooldown de 5 min y cupo `MAX_RESENDS = 5`, magic links vía `auth.admin.generateLink({ type: 'magiclink' })` con `redirectTo` construido SIEMPRE contra `getAppUrl()` (dominio canónico, nunca valor del cliente), email saliente por `sendEmailWithLogging` con plantilla personalizable (escape HTML obligatorio) y `dedupeKey` por invitación para evitar reenvíos duplicados por error de UI. `first_athlete_invited` se trackea sólo en el envío inicial; la activación confirmada se trackea con evento separado `athlete_confirmed` (no agregado todavía — pendiente de consumer en el dashboard de growth).
+- **API nueva**:
+  - `POST /api/athletes/invite` (withTenant, owner/admin/super_admin): bulk, valida límite, valida academyId vía `verifyAcademyAccess`, llama al servicio. Respuesta: `{ batch: {total,sent,resent,skipped}, results[], errors[] }`. NO expone action_link ni state_token.
+  - `GET /api/athletes/invite?academyId=<uuid>` (withTenant): lista con flag `confirmed` (status === profile_complete) — base para el panel del owner.
+  - `POST /api/athletes/invite/cancel/[invitationId]` (withTenant): cancela invitación activa.
+  - `GET /api/athletes/invite/state/[stateToken]` (público, sin auth): valida state token post-verifyOtp para que la página sepa qué mostrar. NO devuelve supabase_user_id ni athlete_id.
+  - `POST /api/athletes/invite/complete-profile` (sesión Supabase activa): crea/actualiza `profiles` (rol=athlete) y `athletes` en transacción, marca invitación como `profile_complete` con athlete_id linkeado. Idempotente: si la invitación ya está profile_complete, devuelve la fila existente sin crear otra.
+- **Página magic** `/invite/athlete/magic` (server component): extrae `state` del query, valida sesión Supabase, si no hay sesión redirige a login preservando `next`. Tras verifyOtp, llama `markInvitationOpened(id, user.id)` idempotente — NO marca si el email autenticado no coincide con el de la invitación. Email mismatch y expiración se renderizan como pantalla de error específica (sin opción de auto-recuperación porque podría habilitar auto-serve fuera del flujo invitado).
+- **Componente** `src/components/invitations/AthleteMagicLinkCompleteForm.tsx`: formulario del perfil del atleta con escape y validación Zod del lado cliente. Email pre-rellenado y deshabilitado (ya verificado por magic link). Errores se traducen a copy humano (INVITATION_NOT_OPENED → "cierra sesión y abre el enlace desde el correo"; INVITATION_EXPIRED → mensaje específico).
+- **Tests**: `tests/lib/magic-link-invite-service.test.ts` cubre constantes, normalización (trim + lowercase), dedupe case-insensitive, validación de emails inválidos (vacíos, espacios internos, sin dominio), alias `+` y subdominios. **9/9 PASS**. Tests de integración contra Supabase sandbox + E2E del flujo completo (UI owner → email → callback → perfil → athletes row) quedan pendientes de sandbox Supabase disponible — la guía operativa autoriza esta suite contra sandbox sin necesidad de aprobación del board.
+- **Lo que NO se hizo**: UI del owner para enviar el batch (la página `/app/[academyId]/onboarding/athletes/invite` queda pendiente de scope — el backend ya está listo para consumirlo); tests E2E con navegador contra localhost; peer-verification cross-agent para promover `done`; cualquier merge a `main` o deploy; producción, datos reales, Stripe live, secretos o campañas.
+- **Verificación local**: `pnpm exec eslint` focal sobre los 7 archivos nuevos sin errores (sólo warning preexistente en `src/lib/athletes/sync-users.ts:127`); `npx tsc --noEmit` sin nuevos errores sobre los archivos de ZAL-138 (los errores de `Button.tsx`/`button.tsx` son preexistentes del repo y no tocan este scope). **Migración NO aplicada**: queda en `supabase/migrations/20260804120000_create_athlete_invitations.sql` esperando `drizzle-kit push` contra sandbox. La guía operativa lo prohíbe sin orden explícita.
+
+Issue: [ZAL-138](/ZAL/issues/ZAL-138). Vault: actualizados `Changelog interno` (esta entrada). `Decisiones` no requiere update (decisión arquitectónica: tabla dedicada para no contaminar `invitations` con la semántica distinta de magic links Supabase). `Backlog priorizado`: añadir ticket para UI owner + E2E sandbox cuando ZAL-138 cierre.
+
+## 2026-08-04 - Inspección CEO: se desatasca el gate SHA y la cola baja de 69 a 55 bloqueadas
+
+- Inspección programada [ZAL-168](/ZAL/issues/ZAL-168) ejecutada contra el control plane, no contra el resumen previo. Los 7 puntos del checklist quedaron registrados en [ZAL-149](/ZAL/issues/ZAL-149).
+- **Hallazgo**: 32 de las 69 issues bloqueadas colgaban de [ZAL-136](/ZAL/issues/ZAL-136), [ZAL-237](/ZAL/issues/ZAL-237) y [ZAL-231](/ZAL/issues/ZAL-231), los tres `blocked` y **sin assignee**. Pasan a `critical` con Platform & Security como dueño.
+- **Cascada de reintentos cortada**: 9 issues canceladas y consolidadas en [ZAL-273](/ZAL/issues/ZAL-273) (barrido único en lote). Causa: la ventana de frescura de 60 s de la peer-verification vence entre heartbeats, y cada vencimiento generaba un ticket nuevo. La frescura no previene fabricación de SHAs — eso lo previene el requisito de peer distinto, que se mantiene intacto.
+- **3 productivity reviews canceladas**: [ZAL-193](/ZAL/issues/ZAL-193), [ZAL-251](/ZAL/issues/ZAL-251), [ZAL-254](/ZAL/issues/ZAL-254).
+- **Gates fantasma barridos**: [ZAL-138](/ZAL/issues/ZAL-138) (magic links de primeras atletas) esperaba el voto de Gemita, removida del roster; pasa a `todo` con Web Developer. [ZAL-191](/ZAL/issues/ZAL-191) referenciaba a Gemita y Hermin; pasa a Marketing. Ambas verificadas con `blockedBy: []`.
+- **Cadencia recortada**: Product Lead y QA de 3600 s a 21600 s. Estaban `idle` despertando cada hora sobre colas 100 % bloqueadas. Platform & Security y Developer mantienen cadencia rápida porque tienen los bugs críticos.
+- **Burn escalado al board**: 1.551,95 USD = 155 % del cap, +468 USD en 24 h. `request_board_approval` `5a1b314a` con recomendación de no ampliar el cap y concentrar el gasto.
+- **Alcance del bug del gate ampliado con evidencia de primera mano**: el `PATCH status=done` sobre [ZAL-168](/ZAL/issues/ZAL-168) fue rechazado con `409 ProofRequired` pese a ser una inspección sin código. Documentado en [ZAL-231](/ZAL/issues/ZAL-231). No se abrió issue de reintento, en aplicación de la regla nueva.
+- Regresión detectada: [ZAL-118](/ZAL/issues/ZAL-118) volvió de `in_review` a `blocked`.
+- Sucesora: [ZAL-274](/ZAL/issues/ZAL-274), con los bloques de producto **antes** que los de governance y métrica obligatoria de producto vs meta-trabajo.
+
+Sin merge a `main`, sin despliegue y sin validación en producción.
+
+## 2026-08-03 - ZAL-200 cierra a done tras cross-agent peer-verification fresca sobre SHA 7c65298d2
+
+- [ZAL-200](/ZAL/issues/ZAL-200) cierra a `done` (Engineering Lead acade097, completedAt 2026-08-03T20:33:31.936Z) tras la reapertura administrativa por ventana 60s expirada del primer cierre.
+- SHA gate ZAL-88 satisfecho por **C-1 (commit proofs)** + **C-2 (peer-verification)** + **C-3 (veredicto QA)**:
+  - C-1: `7c1da92d` (QA, c07d53ca) + `6c0bcf8a` (Platform & Security, 6909a098), ambos sobre SHA `7c65298d2` (`feat(gtm): ZAL-157 [GTM-DEP.1] UTM capture first-touch en signup owner`).
+  - C-2: `f12c3b57-...` emitida por acade097 (Engineering Lead) sobre mismo SHA, desde peer worktree `/Users/elvisvaldesinerarte/.paperclip/instances/default/worktrees/zal-236-c2-englead` (DISTINTO del repoPath del author). Verificación literal: `cat-file -t = commit`, `log -1 --format=%H = 7c65298d21b4fed18b779c80b2c318fcb69a2610`. Independencia C-2 confirmada: actor=acade097 ≠ authors.
+  - C-3: veredicto QA **APROBADO — sin bloqueantes de seguridad** publicado en comment `8f2781a8-d2e7-4668-9c96-e539ff836fca` (2026-08-02T20:55Z). Cubre aislamiento tenant/auth, validación/sanitización UTM (snake_case Hermin §4), SQL aditivo/idempotente (`IF NOT EXISTS`), índices y orden 0007 → 0008, riesgos de almacenamiento externo y logging accidental.
+- Patrón confirmado: SHA `7c65298d2` recibió DOS peer-verifications (primera `f085bb23` cerró a done; reapertura por gate freshness; segunda `f12c3b57` cerró definitivamente). La ventana 60s es **per-PATCH done**, no per-SHA: el mismo SHA puede recibir múltiples peer-verifications válidas si se re-emiten entre heartbeats. Memoria: `feedback_paperclip_peer_verify_sha_reuse.md`.
+- Aplicación de la migración `drizzle/0007_academies_utm_columns.sql` queda fuera de alcance de la review; staged pero no aplicada (regla `AGENTS.md`).
+- Siguiente gate natural: QA final de ZAL-157 (`1af42ba3-...`) sigue bloqueada esperando que la implementación ZAL-157 cierre formalmente; el path completo ZAL-156 → ZAL-157 → ZAL-198 → ZAL-200 → QA final sigue el orden previsto.
+
+Issue: [ZAL-200](/ZAL/issues/ZAL-200). Vault: nuevo `qa/ZAL-200 cierre verificado 2026-08-03.md` con detalle de hallazgos y patrón cross-agent.
+
+## 2026-08-03 - Cierre ejecutivo de ZAL-78 tras remediación verificable F1+F2
+
+- Se reconcilió la escalación histórica con el estado actual: los SHA `3507438` y `2afd9073` de la cadena original siguen inválidos, pero la remediación [ZAL-180](/ZAL/issues/ZAL-180) entregó el commit canónico `994a8da9420c2afedf5f78350275e2bdbdff826c` y cerró con peer-verification fresca desde un worktree independiente.
+- [ZAL-181](/ZAL/issues/ZAL-181) cerró la QA independiente con veredicto `APPROVED`; el archivo actual conserva el CTA owner para modalidades disponibles y muestra `Próximamente` sin CTA operativa en las no disponibles.
+- El board aceptó cerrar [ZAL-78](/ZAL/issues/ZAL-78) mediante `request_confirmation` `8a5d285f-cb15-4089-a017-6318166029ba`. No se reabren las reviews canceladas [ZAL-73](/ZAL/issues/ZAL-73) y [ZAL-74](/ZAL/issues/ZAL-74), ni se crea otra cadena de meta-trabajo; [ZAL-86](/ZAL/issues/ZAL-86) conserva la línea separada del gate anti-spoofing.
+- Verificación de este heartbeat: `git cat-file -t 994a8da9420c2afedf5f78350275e2bdbdff826c` → `commit`; `git show --stat` confirma 34 líneas modificadas en la ruta de modalidad y 9 líneas de changelog. No se ejecutaron tests nuevos porque la implementación y QA ya estaban cerradas con evidencia focal.
+- Evidencia local solamente: no se hizo merge a `main`, push, deploy, publicación, producción, migraciones, secretos, datos reales ni operaciones de dinero.
+
+Issue: [ZAL-78](/ZAL/issues/ZAL-78). Vault: actualizados `Decisiones` y `Changelog interno`; `Backlog priorizado` no cambia porque no surge deuda nueva.
 
 ## 2026-08-03 - ZAL-250 materializa el KPI first-party pricing→contacto en código
 
