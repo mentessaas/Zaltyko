@@ -1,7 +1,7 @@
 ---
 status: draft
 owner: marketing
-last_reviewed: 2026-08-04 (round 2)
+last_reviewed: 2026-08-04 (round 3)
 board_feedback_incorporated:
   - 2026-08-04 board comment (interaction c7b2f970 prior): GDPR por ubicación del usuario, flagging UE pre-contact, DPA por tester UE — incorporado en §5.8 y §6.
   - 2026-08-04 board comment (comment 0557a88c-f347-49e5-a159-b9dc5dc586c5): GDPR se dispara por ubicación del usuario, **alcanza con UNO SOLO tester en UE/España**; país/región de cada candidato debe quedar EXPLÍCITO, no asumido. Reforzado con callout en §0 + encabezado en §5.8.
@@ -70,6 +70,26 @@ scope: ZAL-303 — borrador de plan de reclutamiento de beta testers (NO ejecuta
 > es **excluir candidatos UE/España de la shortlist inicial** y
 > comunicarles que la beta abierta a UE/España llega en una fase
 > posterior. Esa decisión también es del board.
+
+### 0.2 Decisiones que el board debe tomar (bloque único)
+
+Estas seis decisiones son las únicas que dependen del board para que
+Marketing pueda pasar de borrador a preparación operativa. Ninguna
+implica contactar a nadie todavía. La columna **Recomendación
+Marketing** es una propuesta, no una decisión tomada.
+
+| # | Decisión | Opciones | Recomendación Marketing |
+| --- | --- | --- | --- |
+| D1 | ¿Se aprueba el plan en general? | Aprobar / aprobar con ajustes / rehacer | Aprobar con ajustes. El plan cubre los 5 puntos del brief; lo que falta es input del board, no trabajo de Marketing. |
+| D2 | ¿El outreach beta es excepción al sales freeze (decisión 2026-07-29)? | Sí, es excepción / no, espera al fin del freeze | Sí, **pero solo como reclutamiento sin oferta comercial**: nada de precios, descuentos ni compromiso de compra en el mensaje. Ver §5.4. |
+| D3 | ¿Qué se ofrece al tester al cierre del beta? | Gift card / N meses gratis / descuento sobre pricing v3 / solo reconocimiento | **Solo reconocimiento + acceso anticipado** mientras pricing v3 siga sin validar (§5.5). Comprometer meses gratis o descuento ata a un pricing que aún puede cambiar. |
+| D4 | ¿Quién arma la shortlist inicial de candidatos? | Board humano / Marketing propone y board valida / Marketing autónomo | **Board humano**, con país/región por candidato. Marketing no tiene contactos cálidos propios y el scraping está descartado (§3.1). |
+| D5 | ¿UE/España entra en el cohorte inicial? | Sí, con P&S por tester / no, fase posterior | **No en el cohorte inicial.** Excluir UE/España baja el coste de cumplimiento de golpe (§0.1) y permite arrancar sin depender de DPA firmado por tester. Reevaluable en cohorte 2. |
+| D6 | ¿Qué gates de §6 son duros y cuáles son soft? | Todos duros / subconjunto duro | **Duros**: PII de menores (§5.1), P&S approval, ZAL-13/27/42 en verde. **Soft**: ZAL-139/ZAL-158, que bloquean el onboarding por email pero no el kickoff uno-a-uno. |
+
+> **Nota de alcance:** aunque el board apruebe las seis, el outreach
+> sigue sin arrancar hasta que los gates duros de §6 estén verdes.
+> Aprobar D1-D6 desbloquea la preparación, no la ejecución.
 
 ## 1. Perfil del tester ideal
 
@@ -491,3 +511,11 @@ inicio del outreach. **Si alguno está en rojo, el outreach no arranca.**
   de flagging UE/España pre-contact + P&S review por tester. §6 suma
   gate explícito "Flagging UE/España en shortlist + P&S review
   pre-contact por tester".
+- 2026-08-04 (round 2) — Callout BLOQUEANTE en §0.1 con el criterio
+  duro de GDPR-por-ubicación (alcanza con un solo tester en UE/España)
+  y encabezado de §5.8 reforzado citando los comments board c7b2f970 y
+  0557a88c.
+- 2026-08-04 (round 3) — Añadida §0.2 con las seis decisiones del
+  board (D1-D6) consolidadas en un bloque único, con recomendación de
+  Marketing por decisión. Motivo: las dos interactions previas
+  expiraron sin respuesta y el pedido estaba disperso entre §5 y §6.
