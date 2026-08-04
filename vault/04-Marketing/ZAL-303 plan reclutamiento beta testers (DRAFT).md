@@ -1,9 +1,10 @@
 ---
 status: draft
 owner: marketing
-last_reviewed: 2026-08-04
+last_reviewed: 2026-08-04 (round 2)
 board_feedback_incorporated:
   - 2026-08-04 board comment (interaction c7b2f970 prior): GDPR por ubicación del usuario, flagging UE pre-contact, DPA por tester UE — incorporado en §5.8 y §6.
+  - 2026-08-04 board comment (comment 0557a88c-f347-49e5-a159-b9dc5dc586c5): GDPR se dispara por ubicación del usuario, **alcanza con UNO SOLO tester en UE/España**; país/región de cada candidato debe quedar EXPLÍCITO, no asumido. Reforzado con callout en §0 + encabezado en §5.8.
 sources:
   - ../03-Negocio/ICP y segmentos.md
   - ../03-Negocio/ZAL-187 contraste ICP vs academias reales.md
@@ -39,6 +40,36 @@ scope: ZAL-303 — borrador de plan de reclutamiento de beta testers (NO ejecuta
   del tester), PII del dueño, NDA, sales freeze, pricing v3 sin validar.
   Ver §5 con detalle.
 - **Gates que deben estar verdes antes de activar outreach** (ver §6).
+
+### 0.1 BLOQUEANTE — GDPR por ubicación del tester (board feedback 2026-08-04)
+
+> **Criterio duro, no asumido:** el RGPD **se dispara por la
+> ubicación del tester**, NO por la ubicación de Zaltyko. **Alcanza con
+> UNO SOLO tester residente en la UE o en España** para activar
+> obligaciones RGPD completas sobre Zaltyko como responsable o
+> encargado del tratamiento, incluso si Zaltyko opera fuera de la UE.
+>
+> **Implicación operativa (visible, no opcional):**
+>
+> 1. **País/región de cada candidato es dato OBLIGATORIO** en la
+>    shortlist. Sin país/región registrado → el candidato NO entra al
+>    cohorte hasta que se documente.
+> 2. **Cualquier candidato en UE/España = flag explícito**
+>    `UE-tester pending P&S review` en la shortlist. Procedimiento
+>    completo en §5.8 paso 1-5.
+> 3. **P&S (6909a098) revisa caso por caso, firma DPA y visto bueno
+>    individual ANTES de cualquier outreach.** No se aprueba por
+>    cohorte; se aprueba por tester individual.
+> 4. **Re-evaluación por cada candidato nuevo** que se sume después
+>    del kickoff. No es evento de una vez.
+> 5. **Visibilidad**: la shortlist con flags UE/non-UE vive en el
+>    vault; **NO se pega a issues públicos ni a mensajes salientes**
+>    ni a tooling externo antes de que P&S apruebe.
+>
+> Si el board no quiere asumir este coste de cumplimiento, la opción
+> es **excluir candidatos UE/España de la shortlist inicial** y
+> comunicarles que la beta abierta a UE/España llega en una fase
+> posterior. Esa decisión también es del board.
 
 ## 1. Perfil del tester ideal
 
@@ -377,13 +408,25 @@ pausarse.
 
 ### 5.8 Compliance GDPR/LGPD multi-país
 
-**Principio de extraterritorialidad del RGPD (board feedback 2026-08-04)**:
-el RGPD **aplica por la ubicación del usuario (tester), no por la
-ubicación de Zaltyko**. Un solo tester residente en la UE o en España
-activa obligaciones RGPD completas sobre Zaltyko como responsable o
-encargado del tratamiento, aunque Zaltyko opere fuera de la UE. Esto
-cambia el coste de cumplimiento real: no es "si Zaltyko entra a la UE"
-sino "si CUALQUIER tester está en la UE".
+> **BLOQUEANTE — criterio explícito (board feedback 2026-08-04,
+> ref. comment 0557a88c):** el RGPD se dispara por la **ubicación del
+> tester (usuario)**, NO por la ubicación de Zaltyko. **Alcanza con
+> UNO SOLO tester residente en la UE o en España** para activar
+> obligaciones RGPD completas. País/región de cada candidato debe
+> estar **explícitamente registrado** en la shortlist antes de
+> cualquier outreach. UE/España = flag visible + P&S approval
+> individual pre-contact. Resumen ejecutivo en §0.1.
+
+**Principio de extraterritorialidad del RGPD (board feedback
+2026-08-04, ref. comments c7b2f970 + 0557a88c)**: el RGPD **aplica por
+la ubicación del usuario (tester), no por la ubicación de Zaltyko**.
+Un solo tester residente en la UE o en España activa obligaciones
+RGPD completas sobre Zaltyko como responsable o encargado del
+tratamiento, aunque Zaltyko opere fuera de la UE. Esto cambia el
+coste de cumplimiento real: no es "si Zaltyko entra a la UE" sino
+"si CUALQUIER tester está en la UE". Operativamente, si excluir UE/España
+de la shortlist inicial baja el coste de cumplimiento, esa es una
+decisión del board (resumida en §0.1 punto 5).
 
 Por tester, jurisdiction + marco legal:
 
