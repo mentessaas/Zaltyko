@@ -9,6 +9,18 @@ source:
 
 # Changelog interno
 
+## 2026-08-05 - ZAL-157 [GTM-DEP.1] UTM capture en signup (first-touch, sessionStorage)
+
+- Trabajo de Web Developer (`5bcea506`) sobre la spec ZAL-157. Commit `ff665035d` (rama `marketing/zal-303-rgpd-feedback`, 10 archivos, +1117 líneas). 40/40 tests vitest verdes.
+- **Captura first-touch** — `src/lib/growth/utm.ts` (utility pura, no DOM): `normalizeUtmValue` (snake_case + lowercase + max 128), `pickUtmFromQuery`, `captureFirstTouchUtm` (storage gana en conflicto, incoming solo rellena keys vacías), `readUtmWithFallback` (precedencia sessionStorage > URL params > fallback `direct/none/none/none/none` per spec §Notas). `src/components/growth/UtmCapture.tsx` client component montado en `src/app/layout.tsx` para cubrir landing, blog, pricing y signup.
+- **Lectura y persistencia en signup** — `OwnerOnboardingForm` lee UTMs al submit con `readUtmWithFallback(sessionStorage, URL)` y los manda en el body. `/api/onboarding/owner` extiende `bodySchema` con `utm` (Zod, parcial) y lo pasa a `createAcademy`. `createAcademy` (`academies.lib.ts`) escribe `utmSource/Medium/Campaign/Term/Content` + `utmCapturedAt`; defaults `direct/none/none` cuando no llega atribución. `logEvent` y `trackEvent` reciben los UTMs en metadata para atribución downstream.
+- **Schema + migración SQL** — `src/db/schema/academies.ts` agrega las 6 columnas + 2 índices (`utm_source`, `utm_captured_at`). `supabase/migrations/20260805150000_academies_utm_attribution.sql` (versionado, idempotente, transaccional con BEGIN/COMMIT) añade las columnas con `IF NOT EXISTS` y comentarios por columna. **NO aplicado** — pendiente `pnpm db:migrate:reviewed` sobre sandbox.
+- **Tests** — 35 unit (`tests/growth-utm-capture.test.ts`): per-param normalization, first-touch preservation across captures, URL > storage precedence, malformed inputs, storage corruption recovery, fallback `direct/none`, end-to-end first-touch scenarios (landing UTM1 → page UTM2 → signup usa UTM1). 5 integration (`tests/api-academies-utm.test.ts`): UTM persistence en `/api/academies` POST, fallback default cuando signup no trae UTMs, propagation a `trackEvent`/`logEvent` metadata, UTMs parciales sin term/content.
+- **Verificación local** — `pnpm exec vitest run tests/growth-utm-capture.test.ts tests/api-academies-utm.test.ts`: 40/40 verde. Typecheck sin nuevos errores en los archivos modificados (los errores existentes de `searchParams possibly null` son pre-preexistentes, no introducidos por este cambio).
+- **Disposición ZAL-157** — `blocked` con self-owned `unblockDescriptor` apuntando a peer-verification cross-agent del SHA `ff665035d` por Engineering Lead (`acade097`) vía child issue ZAL-340. C-1 anclado en `ff665035d`. Work product posted (`576573d8`).
+- **Lo que NO se hizo** — no se aplicó la migración SQL a sandbox ni a producción, no se rotaron secretos, no se tocó Stripe live, no se enviaron emails, no se publicaron docs externas, no se modificó la academia real de producción, no se tocó el emitter real d0/d2/d7 (eso es ZAL-324/ZAL-328). Server-side UTM stamping queda out of scope per spec.
+- Issue: [ZAL-157](/ZAL/issues/ZAL-157). Child creado: [ZAL-340](/ZAL/issues/ZAL-340) (delegación peer-verification a Engineering Lead). Vault: actualizado Changelog.
+
 ## 2026-08-05 - ZAL-328 cerrar Gap 3: modelar status semánticas academy (churned/fraud_hold)
 
 - Trabajo de Platform & Security (`6909a098`) según el veredicto ZAL-312 B3 y el sign-off ZAL-315 §3 (criterios B3). Rama local `marketing/zal-303-rgpd-feedback` (sin producción, sin secretos, sin datos reales, sin Stripe live, sin publicación externa).
