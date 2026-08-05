@@ -108,6 +108,20 @@ export const academies = pgTable(
     stripeWebhookSecret: text("stripe_webhook_secret"),
     taxId: text("tax_id"),
     invoicePrefix: text("invoice_prefix").default("INV"),
+    /**
+     * Atribución de registro del owner (ZAL-157 [GTM-DEP.1]). Captura
+     * first-touch en sesión: el primer set de UTMs del visitante queda
+     * persistido aquí al crear la academia. Si no hay UTMs al signup se
+     * registra `direct/none/none/none/none` para mantener trazabilidad.
+     * Validación: snake_case, lowercase, sin espacios (ver
+     * `src/lib/growth/utm.ts#normalizeUtmValue`).
+     */
+    utmSource: text("utm_source"),
+    utmMedium: text("utm_medium"),
+    utmCampaign: text("utm_campaign"),
+    utmTerm: text("utm_term"),
+    utmContent: text("utm_content"),
+    utmCapturedAt: timestamp("utm_captured_at", { withTimezone: true }),
   },
   (table) => ({
     tenantIdx: index("academies_tenant_id_idx").on(table.tenantId),
@@ -123,5 +137,7 @@ export const academies = pgTable(
       table.status,
       table.isPublic
     ),
+    utmSourceIdx: index("academies_utm_source_idx").on(table.utmSource),
+    utmCapturedAtIdx: index("academies_utm_captured_at_idx").on(table.utmCapturedAt),
   })
 );
