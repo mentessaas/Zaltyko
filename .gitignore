@@ -26,6 +26,7 @@
 /brand kit
 /test-results
 /playwright-report
+/playwright-report-zal336
 /output/playwright/
 /coverage
 /.playwright-cli
