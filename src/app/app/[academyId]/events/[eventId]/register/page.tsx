@@ -54,9 +54,9 @@ interface EventDetails {
 
 export default function EventRegistrationPage() {
   const router = useRouter();
-  const params = useParams();
-  const academyId = params.academyId as string;
-  const eventId = params.eventId as string;
+  const params = useParams() as { academyId?: string; eventId?: string } | null;
+  const academyId = params?.academyId ?? "";
+  const eventId = params?.eventId ?? "";
 
   const [event, setEvent] = useState<EventDetails | null>(null);
   const [loading, setLoading] = useState(true);

@@ -85,10 +85,10 @@ const getNotificationColor = (type: string) => {
 };
 
 export default function NotificationsPage() {
-  const params = useParams();
+  const params = useParams() as { academyId?: string } | null;
   const router = useRouter();
   const academyContext = useAcademyContext();
-  const academyId = params.academyId as string;
+  const academyId = params?.academyId ?? "";
 
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(true);

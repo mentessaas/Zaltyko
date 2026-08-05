@@ -29,7 +29,8 @@ interface MyEventRegistration {
 
 export default function MyEventsPage() {
   const router = useRouter();
-  const { academyId } = useParams();
+  const params = useParams() as { academyId?: string } | null;
+  const academyId = params?.academyId ?? "";
 
   const [registrations, setRegistrations] = useState<MyEventRegistration[]>([]);
   const [loading, setLoading] = useState(true);
