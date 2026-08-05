@@ -18,6 +18,8 @@ import { db } from "@/db";
 import { academies, memberships, profiles } from "@/db/schema";
 import { apiError } from "@/lib/api-response";
 import { derivar_canal } from "@/lib/gtm/canal";
+import { hasAnyUtm } from "@/lib/gtm/utm";
+import { OptionalUtmPayloadSchema } from "@/lib/gtm/utm-payload-schema";
 import type { DatabaseClient } from "@/lib/db-transactions";
 
 export interface ClaimableAcademy {
@@ -82,18 +84,9 @@ export const ClaimAcademyBodySchema = z.object({
   fullName: z.string().trim().min(2).max(120),
   // ZAL-157 [GTM-DEP.1] — UTMs first-touch para atribución del canal.
   // Todos opcionales; si ninguno viene, la academia queda como `direct`
-  // (resuelto por ZAL-159). Validación max 200 chars por Hermin §4.
-  utm: z
-    .object({
-      utm_source: z.string().max(200).nullable().optional(),
-      utm_medium: z.string().max(200).nullable().optional(),
-      utm_campaign: z.string().max(200).nullable().optional(),
-      utm_term: z.string().max(200).nullable().optional(),
-      utm_content: z.string().max(200).nullable().optional(),
-      utm_landing_path: z.string().max(500).nullable().optional(),
-    })
-    .partial()
-    .optional(),
+  // (resuelto por ZAL-159). El schema compartido normaliza server-side
+  // (Hermin §4: snake_case, minúsculas) — ver utm-payload-schema.ts.
+  utm: OptionalUtmPayloadSchema,
 });
 
 export interface ClaimAcademyInput {
@@ -237,26 +230,36 @@ export async function claimAcademy(
   }
 
   // ZAL-157 [GTM-DEP.1] — UTMs first-touch en el claim path. Si la academia
-  // seed ya venía con UTMs del pre-registro, se respetan. Solo se escribe
-  // cuando source/medium llega y ambos campos persistidos estaban vacíos.
-  const shouldWriteUtm = Boolean(
-    input.body.utm && (input.body.utm.utm_source || input.body.utm.utm_medium)
-  );
+  // seed ya venía con un touch del pre-registro, se respeta entero. Ambas
+  // decisiones ("llega un touch" y "ya existe un touch") miran los CINCO
+  // parámetros: mirar solo source/medium descartaba touches formados por
+  // campaign/term/content y podía sobrescribir una atribución parcial.
+  const shouldWriteUtm = hasAnyUtm(input.body.utm);
 
   const updateSet: Record<string, unknown> = { ownerId: profileId };
 
-  if (shouldWriteUtm) {
+  if (shouldWriteUtm && input.body.utm) {
     const [currentUtm] = await tx
       .select({
         utmSource: academies.utmSource,
         utmMedium: academies.utmMedium,
+        utmCampaign: academies.utmCampaign,
+        utmTerm: academies.utmTerm,
+        utmContent: academies.utmContent,
       })
       .from(academies)
       .where(eq(academies.id, academy.id))
       .limit(1);
 
-    const isEmpty = !currentUtm?.utmSource && !currentUtm?.utmMedium;
-    if (isEmpty && input.body.utm) {
+    const alreadyAttributed = hasAnyUtm({
+      utm_source: currentUtm?.utmSource,
+      utm_medium: currentUtm?.utmMedium,
+      utm_campaign: currentUtm?.utmCampaign,
+      utm_term: currentUtm?.utmTerm,
+      utm_content: currentUtm?.utmContent,
+    });
+
+    if (!alreadyAttributed) {
       updateSet.utmSource = input.body.utm.utm_source ?? null;
       updateSet.utmMedium = input.body.utm.utm_medium ?? null;
       updateSet.utmCampaign = input.body.utm.utm_campaign ?? null;

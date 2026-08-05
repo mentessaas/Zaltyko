@@ -21,6 +21,8 @@ import { trackEvent } from "@/lib/analytics";
 import { logEvent } from "@/lib/event-logging";
 import { activateAcademySportConfig } from "@/lib/sport-config/seed";
 import { derivar_canal } from "@/lib/gtm/canal";
+import { hasAnyUtm } from "@/lib/gtm/utm";
+import { OptionalUtmPayloadSchema } from "@/lib/gtm/utm-payload-schema";
 import type { DatabaseClient } from "@/lib/db-transactions";
 import {
   inferDisciplineFromVariant,
@@ -56,18 +58,10 @@ export const CreateAcademyBodySchema = z.object({
   contactEmail: z.string().email().max(254).nullable().optional(),
   contactPhone: z.string().trim().min(8).max(32).nullable().optional(),
   // ZAL-157 [GTM-DEP.1] — UTMs first-touch. Todos opcionales; el caller es
-  // responsable de leerlos (de sessionStorage + URL) antes de invocar.
-  utm: z
-    .object({
-      utm_source: z.string().max(200).nullable().optional(),
-      utm_medium: z.string().max(200).nullable().optional(),
-      utm_campaign: z.string().max(200).nullable().optional(),
-      utm_term: z.string().max(200).nullable().optional(),
-      utm_content: z.string().max(200).nullable().optional(),
-      utm_landing_path: z.string().max(500).nullable().optional(),
-    })
-    .partial()
-    .optional(),
+  // responsable de leerlos (de sessionStorage + URL) antes de invocar. El
+  // schema compartido normaliza server-side, así que el insert nunca recibe
+  // el literal externo — ver utm-payload-schema.ts.
+  utm: OptionalUtmPayloadSchema,
 });
 
 export const QuerySchema = z.object({
@@ -211,18 +205,17 @@ export async function createAcademy(
     trialStartsAt: null,
     trialEndsAt: null,
     isTrialActive: false,
-    // ZAL-157 [GTM-DEP.1] — UTMs first-touch. Solo se persisten si al
-    // menos uno de los UTMs principales (source/medium) viene con valor;
-    // un body.utm={} explícito se trata como "el owner no llegó con UTMs"
-    // y queda como `direct` en la atribución de ZAL-159.
+    // ZAL-157 [GTM-DEP.1] — UTMs first-touch. El snapshot se persiste
+    // completo cuando llega CUALQUIERA de los cinco parámetros: un touch
+    // formado solo por `utm_campaign` (o term/content) es atribución
+    // válida y antes se perdía por mirar solo source/medium.
     utmSource: body.utm?.utm_source ?? null,
     utmMedium: body.utm?.utm_medium ?? null,
     utmCampaign: body.utm?.utm_campaign ?? null,
     utmTerm: body.utm?.utm_term ?? null,
     utmContent: body.utm?.utm_content ?? null,
     utmLandingPath: body.utm?.utm_landing_path ?? null,
-    utmCapturedAt:
-      body.utm?.utm_source || body.utm?.utm_medium ? new Date() : null,
+    utmCapturedAt: hasAnyUtm(body.utm) ? new Date() : null,
     // ZAL-159 [GTM-DEP.3] — snapshot first-touch del canal de registro.
     // Espejado por el trigger BEFORE INSERT (ver migración 0008). Aquí lo
     // pasamos explícito para no depender del trigger en el camino TS y

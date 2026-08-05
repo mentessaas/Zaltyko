@@ -183,3 +183,83 @@ describe("createAcademy — derivación de canal_registro por bucket de UTM", ()
     expect(result.canalRegistro).toBe(expected);
   });
 });
+
+/**
+ * ZAL-157 [GTM-DEP.1] — regresión P1 de ZAL-198: el snapshot first-touch se
+ * decide sobre los CINCO parámetros. Antes `utmCapturedAt` se fijaba solo si
+ * llegaba source o medium, así que un touch formado por campaign/term/content
+ * se persistía sin marca temporal y quedaba indistinguible de un registro sin
+ * atribución.
+ */
+describe("createAcademy — contrato completo de los cinco UTM", () => {
+  const baseBody = {
+    name: "Academia Test",
+    academyType: "artistica" as const,
+    disciplineVariant: "artistic_female" as const,
+    countryCode: "ES",
+  };
+
+  const context = {
+    profile: {
+      id: "profile-test",
+      userId: "user-test",
+      role: "owner",
+      tenantId: "tenant-test",
+    },
+  };
+
+  it.each([["utm_campaign"], ["utm_term"], ["utm_content"]])(
+    "marca utm_captured_at con un touch formado solo por %s",
+    async (key) => {
+      const result = await createAcademy(
+        { ...baseBody, utm: { [key]: "zal_ago_awareness" } },
+        context
+      );
+
+      expect("error" in result).toBe(false);
+      const insert = findAcademyInsert();
+      expect(insert.payload.utmCapturedAt).toBeInstanceOf(Date);
+    }
+  );
+
+  it("persiste el snapshot completo de los cinco parámetros", async () => {
+    await createAcademy(
+      {
+        ...baseBody,
+        utm: {
+          utm_source: "instagram",
+          utm_medium: "social",
+          utm_campaign: "zal_onboarding_ago_awareness",
+          utm_term: "academia",
+          utm_content: "hero_v1",
+          utm_landing_path: "/es/trampolin/espana",
+        },
+      },
+      context
+    );
+
+    const insert = findAcademyInsert();
+    expect(insert.payload).toMatchObject({
+      utmSource: "instagram",
+      utmMedium: "social",
+      utmCampaign: "zal_onboarding_ago_awareness",
+      utmTerm: "academia",
+      utmContent: "hero_v1",
+      utmLandingPath: "/es/trampolin/espana",
+    });
+    expect(insert.payload.utmCapturedAt).toBeInstanceOf(Date);
+  });
+
+  it("no marca utm_captured_at cuando no llega ningún UTM", async () => {
+    await createAcademy({ ...baseBody, utm: undefined }, context);
+    expect(findAcademyInsert().payload.utmCapturedAt).toBeNull();
+  });
+
+  it("no marca utm_captured_at cuando solo llega el landing path", async () => {
+    await createAcademy(
+      { ...baseBody, utm: { utm_landing_path: "/precios" } },
+      context
+    );
+    expect(findAcademyInsert().payload.utmCapturedAt).toBeNull();
+  });
+});

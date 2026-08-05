@@ -38,7 +38,15 @@ export interface CapturedUtm {
 
 const MAX_VALUE_LENGTH = 200;
 
-function normalize(raw: string | null | undefined): string | null {
+/**
+ * Normalizador canónico de un valor UTM. Es isomórfico a propósito: el
+ * cliente lo aplica al capturar y el servidor lo vuelve a aplicar sobre el
+ * body entrante (ver `utm-payload-schema.ts`), porque el body es input
+ * externo y no hay garantía de que haya pasado por el capturador.
+ *
+ * Devuelve `null` cuando el valor no deja nada utilizable tras normalizar.
+ */
+export function normalizeUtmValue(raw: string | null | undefined): string | null {
   if (typeof raw !== "string") return null;
   const trimmed = raw.trim().toLowerCase();
   if (!trimmed) return null;
@@ -61,7 +69,7 @@ export function readUtmFromUrl(
     typeof search === "string" ? new URLSearchParams(search) : search;
   const out: Partial<CapturedUtm> = {};
   for (const key of UTM_KEYS) {
-    const normalized = normalize(params.get(key));
+    const normalized = normalizeUtmValue(params.get(key));
     if (normalized) {
       out[key] = normalized;
     }
@@ -69,7 +77,21 @@ export function readUtmFromUrl(
   return out;
 }
 
-function hasAnyUtm(record: Partial<CapturedUtm>): boolean {
+/**
+ * ¿El payload contiene al menos uno de los CINCO parámetros UTM?
+ *
+ * `utm_landing_path` queda deliberadamente fuera: es metadato del touch, no
+ * atribución, y por sí solo no debe marcar la academia como atribuida.
+ *
+ * Esta es la única definición de "hay touch" en el código: la usan la
+ * captura cliente, el insert de `createAcademy` y el claim del owner, para
+ * que un touch formado solo por `utm_campaign`/`utm_term`/`utm_content`
+ * cuente igual que uno con `utm_source`.
+ */
+export function hasAnyUtm(
+  record: Partial<Record<UtmKey, string | null | undefined>> | null | undefined
+): boolean {
+  if (!record) return false;
   return UTM_KEYS.some(
     (k) => typeof record[k] === "string" && record[k]!.length > 0
   );
@@ -80,7 +102,9 @@ function readSearchParam(value: string | string[] | undefined): string | null {
   return typeof candidate === "string" && candidate.trim() ? candidate : null;
 }
 
-function normalizeLandingPath(raw: string | null | undefined): string | null {
+export function normalizeUtmLandingPath(
+  raw: string | null | undefined
+): string | null {
   if (!raw || !raw.startsWith("/") || raw.startsWith("//")) return null;
   const path = raw.split(/[?#]/, 1)[0]?.slice(0, 2048);
   return path || null;
@@ -104,7 +128,7 @@ export function buildUtmRedirectTarget(
 
   if (forwarded.size === 0) return destination;
 
-  const safeLandingPath = normalizeLandingPath(landingPath);
+  const safeLandingPath = normalizeUtmLandingPath(landingPath);
   if (safeLandingPath) {
     forwarded.set(UTM_LANDING_PATH_PARAM, safeLandingPath);
   }
@@ -117,7 +141,7 @@ export function readForwardedLandingPath(
 ): string | null {
   const params =
     typeof search === "string" ? new URLSearchParams(search) : search;
-  return normalizeLandingPath(params.get(UTM_LANDING_PATH_PARAM));
+  return normalizeUtmLandingPath(params.get(UTM_LANDING_PATH_PARAM));
 }
 
 /**
@@ -198,7 +222,7 @@ export function captureUtm(
       if (previousLanding) {
         merged.utm_landing_path = previousLanding;
       } else {
-        const landingPath = forwardedLandingPath ?? normalizeLandingPath(path);
+        const landingPath = forwardedLandingPath ?? normalizeUtmLandingPath(path);
         if (landingPath) {
           merged.utm_landing_path = landingPath;
           storage?.setItem(LANDING_PATH_KEY, landingPath);

@@ -474,6 +474,72 @@ describe("claimAcademy (servicio)", () => {
     expect(values).toEqual({ ownerId: "profile_new" });
   });
 
+  // ZAL-157 [GTM-DEP.1] — regresión P1 de ZAL-198: las decisiones "llega un
+  // touch" y "ya existe un touch" deben mirar los CINCO parámetros. Mirando
+  // solo source/medium, el claim descartaba touches parciales y podía
+  // sobrescribir una atribución preexistente formada por campaign/term/content.
+  it("captura un touch formado solo por campaign, term o content", async () => {
+    await claimAcademy({
+      userId: "user_1",
+      userEmail: "duena@clubdemo.com",
+      body: {
+        academyId: "00000000-0000-0000-0000-000000000001",
+        fullName: "Maria Garcia",
+        utm: {
+          utm_campaign: "zal_onboarding_ago_awareness",
+          utm_content: "hero_v1",
+        },
+      },
+    });
+
+    const academyUpdate = state.calls.find(
+      (call) => call.table === "academies" && call.method === "set"
+    );
+    const values = academyUpdate?.args[0] as Record<string, unknown>;
+    expect(values.utmCampaign).toBe("zal_onboarding_ago_awareness");
+    expect(values.utmContent).toBe("hero_v1");
+    expect(values.utmCapturedAt).toBeInstanceOf(Date);
+  });
+
+  it("conserva una atribución preexistente formada solo por campaign", async () => {
+    if (!state.academy) throw new Error("fixture academy missing");
+    state.academy.utmCampaign = "seed_preregistro";
+
+    await claimAcademy({
+      userId: "user_1",
+      userEmail: "duena@clubdemo.com",
+      body: {
+        academyId: "00000000-0000-0000-0000-000000000001",
+        fullName: "Maria Garcia",
+        utm: { utm_source: "google_ads", utm_medium: "cpc" },
+      },
+    });
+
+    const academyUpdate = state.calls.find(
+      (call) => call.table === "academies" && call.method === "set"
+    );
+    const values = academyUpdate?.args[0] as Record<string, unknown>;
+    expect(values).toEqual({ ownerId: "profile_new" });
+  });
+
+  it("no escribe UTMs cuando el body solo trae landing path", async () => {
+    await claimAcademy({
+      userId: "user_1",
+      userEmail: "duena@clubdemo.com",
+      body: {
+        academyId: "00000000-0000-0000-0000-000000000001",
+        fullName: "Maria Garcia",
+        utm: { utm_landing_path: "/precios" },
+      },
+    });
+
+    const academyUpdate = state.calls.find(
+      (call) => call.table === "academies" && call.method === "set"
+    );
+    const values = academyUpdate?.args[0] as Record<string, unknown>;
+    expect(values).toEqual({ ownerId: "profile_new" });
+  });
+
   it("devuelve 404 ACADEMY_NOT_FOUND cuando el academyId no existe", async () => {
     state.academy = null;
     const result = await claimAcademy({

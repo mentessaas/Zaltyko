@@ -9,6 +9,55 @@ source:
 
 # Changelog interno
 
+## 2026-08-05 - ZAL-157 [GTM-DEP.1] Cierre de los tres P1 de la revisión de Engineering (ZAL-198)
+
+Aplica los hallazgos de la revisión independiente de ZAL-198 sobre la
+captura UTM first-touch. No cambia el contrato de datos ni la migración
+`0007`; corrige dónde y cómo se decide la atribución.
+
+**P1 — captura no global en el App Router.** `UtmCapture` corría
+`captureUtm()` en un `useEffect([])`. El root layout no se re-monta entre
+navegaciones cliente, así que un touch que aparecía en una URL alcanzada
+por navegación SPA nunca llegaba a `sessionStorage` y se perdía al seguir
+al onboarding. Ahora el efecto depende de `usePathname()` y de la query
+string, dentro de un boundary de `Suspense` (obligatorio por
+`useSearchParams()` para no forzar render dinámico del árbol estático que
+cuelga del root layout). La regla first-touch no cambia: `captureUtm()`
+sigue siendo idempotente y el primer touch gana.
+
+**P1 — normalización solo en cliente.** Los schemas de
+`/api/onboarding/owner`, `ClaimAcademyBodySchema` y
+`CreateAcademyBodySchema` aceptaban el literal externo y lo escribían tal
+cual en `academies.utm_*`: la normalización vivía solo en el capturador,
+que cualquier caller puede saltarse. Se centraliza en
+`src/lib/gtm/utm-payload-schema.ts`, que aplica vía `.transform()` el
+MISMO normalizador que usa el cliente (`normalizeUtmValue`, ahora
+exportado). Un valor que no deja nada tras normalizar se degrada a `null`
+en vez de rechazar el request — perder un parámetro de atribución no debe
+romper un signup; el cap crudo (500 chars) sí rechaza con 400.
+
+**P1 — contrato incompleto de los cinco UTM.** `createAcademy` fijaba
+`utm_captured_at` mirando solo `utm_source`/`utm_medium`, y el claim
+decidía "hay touch" / "ya existe touch" con el mismo criterio parcial: un
+touch formado por `utm_campaign`/`utm_term`/`utm_content` se descartaba y
+una atribución preexistente parcial podía sobrescribirse. Ambas decisiones
+pasan por `hasAnyUtm()`, única definición de "hay touch" en el código, que
+mira los cinco parámetros. `utm_landing_path` queda deliberadamente fuera:
+es metadato del touch, no atribución.
+
+**Evidencia local:** 165/165 verdes (`gtm-utm`, `gtm-utm-server-normalization`,
+`gtm-utm-capture-navigation`, `api/owner-claim`, `gtm-canal-create-academy`,
+`gtm-canal`, `consent-gate`). El test de navegación reproduce el defecto P1
+contra el componente anterior (2 fallos) y pasa con el fix. ESLint focal
+limpio (2 warnings preexistentes de imports sin usar, fuera de alcance);
+`tsc --noEmit` sin errores en `src/` ni `tests/`; `git diff --check` limpio.
+
+**Pendiente, sin cambios respecto a la revisión:** el E2E Playwright que
+completa signup/claim y verifica la fila `academies` sigue sin existir, y
+el orden `0007 → 0008` sigue fuera de `drizzle/meta/_journal.json` (owner:
+Platform & Security, ZAL-200). No se ejecutaron migraciones remotas ni
+operaciones sobre producción.
+
 ## 2026-08-02 - ZAL-156.2 [GTM-DEP.2] Storage canónico de consent (cross-tab + banner UI)
 
 Cierra el último sub-issue de GTM-DEP. Reemplaza el stub default-deny de

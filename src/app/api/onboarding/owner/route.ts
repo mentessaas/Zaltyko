@@ -14,6 +14,7 @@ import {
 import { createClient } from "@/lib/supabase/server";
 import { apiCreated, apiError } from "@/lib/api-response";
 import { createAcademy } from "@/app/api/academies/academies.lib";
+import { OptionalUtmPayloadSchema } from "@/lib/gtm/utm-payload-schema";
 import {
   getCountryNameFromCode,
   mapDisciplineVariantToAcademyType,
@@ -71,18 +72,9 @@ const bodySchema = z.object({
     .optional(),
   // ZAL-157 [GTM-DEP.1] — UTMs first-touch. Todos opcionales; si ninguno
   // viene, el canal de registro será `direct` (resuelto por ZAL-159).
-  // Validación max 200 chars por Hermin §4 (snake_case, sin espacios).
-  utm: z
-    .object({
-      utm_source: z.string().trim().max(200).nullable().optional(),
-      utm_medium: z.string().trim().max(200).nullable().optional(),
-      utm_campaign: z.string().trim().max(200).nullable().optional(),
-      utm_term: z.string().trim().max(200).nullable().optional(),
-      utm_content: z.string().trim().max(200).nullable().optional(),
-      utm_landing_path: z.string().trim().max(500).nullable().optional(),
-    })
-    .partial()
-    .optional(),
+  // El schema compartido normaliza server-side (lowercase + snake_case +
+  // saneo) antes de que el valor llegue a la DB — ver utm-payload-schema.ts.
+  utm: OptionalUtmPayloadSchema,
 });
 
 const BRANCH_PREFIX: Record<string, string> = {
