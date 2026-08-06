@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { Button } from '@/components/ui/Button';
 import { colors, radii, spacing, typography } from '@/lib/theme';
+import { formatSessionDateTime } from '@/lib/schedule/next-class';
 import type { ClassSessionRow } from '@/lib/api/endpoints';
 
 interface Props {
@@ -26,10 +27,15 @@ function SessionCardImpl({ session, attendanceMarked, onMark }: Props) {
     <View style={styles.card}>
       <View style={styles.row}>
         <View style={styles.timeBox}>
-          <Text style={styles.time}>{formatTime(session.startTime, session.endTime)}</Text>
+          <Text style={styles.time}>
+            {formatTime(session.startTime, session.endTime)}
+          </Text>
         </View>
         <View style={{ flex: 1 }}>
           <Text style={styles.title}>{session.className}</Text>
+          <Text style={styles.meta}>
+            {formatSessionDateTime(session.sessionDate, session.startTime)}
+          </Text>
           <Text style={styles.meta}>{session.academyName}</Text>
           {session.coachName ? (
             <Text style={styles.meta}>Coach: {session.coachName}</Text>

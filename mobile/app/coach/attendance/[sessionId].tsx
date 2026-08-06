@@ -28,6 +28,7 @@ import {
   type AttendanceStatus,
 } from '@/lib/api/endpoints';
 import { colors, spacing, typography } from '@/lib/theme';
+import { formatSessionDateTime } from '@/lib/schedule/next-class';
 
 export default function AttendanceScreen() {
   const { sessionId } = useLocalSearchParams<{ sessionId: string }>();
@@ -67,14 +68,14 @@ export default function AttendanceScreen() {
   >({});
   const statusMap = useMemo(
     () => ({ ...persistedStatusMap, ...statusOverrides }),
-    [persistedStatusMap, statusOverrides]
+    [persistedStatusMap, statusOverrides],
   );
 
   const onChange = useCallback(
     (athleteId: string, status: AttendanceStatus) => {
       setStatusOverrides((prev) => ({ ...prev, [athleteId]: status }));
     },
-    []
+    [],
   );
 
   const [evaluating, setEvaluating] = useState<{
@@ -115,7 +116,10 @@ export default function AttendanceScreen() {
       <ScrollView style={styles.flex} contentContainerStyle={styles.content}>
         {session ? (
           <View style={styles.header}>
-            <Text style={styles.title}>Sesión del {session.sessionDate}</Text>
+            <Text style={styles.title}>
+              Sesión del{' '}
+              {formatSessionDateTime(session.sessionDate, session.startTime)}
+            </Text>
             <Text style={styles.meta}>
               {session.startTime
                 ? `${session.startTime.slice(0, 5)}`
@@ -209,7 +213,7 @@ export default function AttendanceScreen() {
           onSent={(count) =>
             Alert.alert(
               'Enviado',
-              `Aviso entregado a ${count} familia(s)/atleta(s).`
+              `Aviso entregado a ${count} familia(s)/atleta(s).`,
             )
           }
         />

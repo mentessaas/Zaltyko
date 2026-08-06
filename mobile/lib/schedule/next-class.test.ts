@@ -3,6 +3,7 @@ import { describe, it, expect } from 'vitest';
 import {
   nextClassFromSchedule,
   formatNextClassWhen,
+  formatSessionDateTime,
   type NextClassOccurrence,
 } from './next-class';
 import type { ScheduleItem } from '@/lib/api/endpoints';
@@ -112,5 +113,34 @@ describe('formatNextClassWhen', () => {
     // Intl.DateTimeFormat('es-ES', weekday: 'long') → "jueves"
     expect(label).toContain('jueves');
     expect(label).toContain('17:00');
+  });
+});
+
+describe('formatSessionDateTime', () => {
+  it('formatea fecha y hora de sesión en es-ES', () => {
+    const label = formatSessionDateTime('2026-08-06', '17:30');
+
+    expect(label).toContain('6 de agosto');
+    expect(label).toContain('17:30');
+  });
+
+  it('mantiene el día de una fecha ISO date-only en cualquier timezone local', () => {
+    const label = formatSessionDateTime('2026-08-06', '00:15');
+
+    expect(label).toContain('6 de agosto');
+    expect(label).toContain('00:15');
+  });
+
+  it('acepta un ISO con timestamp y devuelve el fallback si es inválido', () => {
+    const iso = '2026-08-06T17:30:00+02:00';
+    const expected = new Intl.DateTimeFormat('es-ES', {
+      day: 'numeric',
+      month: 'long',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(new Date(iso));
+
+    expect(formatSessionDateTime(iso, '17:30')).toBe(expected);
+    expect(formatSessionDateTime('not-a-date', '17:30')).toBe('not-a-date');
   });
 });
