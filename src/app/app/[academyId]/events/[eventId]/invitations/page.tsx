@@ -44,9 +44,7 @@ interface Invitation {
 
 export default function EventInvitationsPage() {
   const router = useRouter();
-  const params = useParams() as { academyId?: string; eventId?: string } | null;
-  const academyId = params?.academyId ?? "";
-  const eventId = params?.eventId ?? "";
+  const { academyId, eventId } = useParams();
 
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [loading, setLoading] = useState(true);

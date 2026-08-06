@@ -66,7 +66,7 @@ export default function ApplyPage() {
     resumeUrl: "",
   });
 
-  const listingId = (params?.id as string) ?? "";
+  const listingId = params.id as string;
 
   useEffect(() => {
     checkUser();
