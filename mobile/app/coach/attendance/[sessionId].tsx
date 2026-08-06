@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorBanner } from '@/components/ui/ErrorBanner';
 import { SkeletonGroup } from '@/components/ui/Skeleton';
+import { SuccessBanner } from '@/components/ui/SuccessBanner';
 import { useSession } from '@/lib/auth/use-session';
 import {
   getClassAthletes,
@@ -81,6 +82,7 @@ export default function AttendanceScreen() {
     name: string;
   } | null>(null);
   const [showGroupAlert, setShowGroupAlert] = useState(false);
+  const [savedNotice, setSavedNotice] = useState<string | null>(null);
 
   const saveMutation = useMutation({
     mutationFn: () => {
@@ -90,8 +92,13 @@ export default function AttendanceScreen() {
       }));
       return upsertAttendance(sessionId ?? '', entries);
     },
+    onMutate: () => {
+      // Limpia el aviso de un guardado anterior antes de empezar uno nuevo
+      // para que no quede stale si el siguiente guardado falla.
+      setSavedNotice(null);
+    },
     onSuccess: async () => {
-      Alert.alert('Guardado', 'Asistencia registrada.');
+      setSavedNotice('Asistencia registrada.');
       await attendanceQuery.refetch();
       setStatusOverrides({});
     },
@@ -126,6 +133,13 @@ export default function AttendanceScreen() {
               />
             ) : null}
           </View>
+        ) : null}
+
+        {savedNotice ? (
+          <SuccessBanner
+            message={savedNotice}
+            onDismiss={() => setSavedNotice(null)}
+          />
         ) : null}
 
         {saveMutation.error ? (
