@@ -1,11 +1,20 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-08-05
+last_reviewed: 2026-08-06
 source:
   - ../ROADMAP.md
   - ../AGENTS.md
 ---
+
+## 2026-08-06 - ZAL-367: disposition "close as productive" sobre ZAL-42 high_churn; blocked por recovery.pause.codeGates falso-positivo
+
+- Verdict Engineering Lead (acade097) sobre productivity review de ZAL-42 (asignada a Platform & Security 6909a098): **close as productive**. El churn observado (1 run/10 comments in 1h, 2 runs/10 comments in 6h, 1497 cents) es involuntario y 100% esperado: ZAL-42 está done-ready (board completó `stripe login` + `stripe listen` + `STRIPE_WEBHOOK_SECRET` 2026-08-05 20:57 UTC; PlatSec confirmó `whsec_` en `.env.local` del worktree `zal-25-sandbox-guard` 2026-08-05 21:42 UTC) pero PATCH done retorna 409 `RecoveryPausedUntilGitGate`.
+- ZAL-42 NO es code-bearing (`billingCode=null`, `labels=[]`, `originKind=manual`, `workMode=standard`): el C-4 gate (`recovery.pause.codeGates` default ON desde ZAL-90) emite falsa positiva sobre issues NON_CODE-bearing en proyectos con `codebase` registrado. Per memory `feedback_paperclip_c4_project_codebase.md`, el fix condicional a `isCodeIssue` no está desplegado en este dev environment (reproducido también en ZAL-345).
+- Cierre canónico NON_CODE: verdict comment (id `6a3444f1`) + PATCH blocked con `unblockDescriptor` self-owned (acade097) + memo vault `vault/06-Roadmap-y-Tareas/ZAL-367 review productivity ZAL-42 2026-08-06.md`. Cierre real del status requiere board action (3 opciones documentadas, recomendado A: DB-level close ZAL-367 + ZAL-42 dado que ambas dispositions están decididas).
+- Sin cambios de código, migraciones, secretos, ni producción. Sin afectar al worktree zal-25-sandbox-guard ni a Stripe CLI en ejecución. Solo persistencia de disposition + unblockDescriptor.
+
+Issue: [ZAL-367](/ZAL/issues/ZAL-367). Vault memo: `vault/06-Roadmap-y-Tareas/ZAL-367 review productivity ZAL-42 2026-08-06.md`. Comentario durable: `6a3444f1-e4c9-4806-8a47-801f014baebf`. Status final: `blocked` (transitioned 2026-08-06T00:16:21.424Z).
 
 ## 2026-08-05 - ZAL-217: cierre `review_no_code` endurecido (defensa contra INSERT de own-proof + check de status post-lock + test de dos conexiones)
 
@@ -1665,3 +1674,20 @@ Registrar cambios humanos y relevantes: releases, decisiones, cambios de pricing
 - ZAL-346 ahora `blocked` con unblockDescriptor self-owned apuntando a la interaction del board. Memo durable actualizado en `vault/06-Roadmap-y-Tareas/ZAL-346 review productivity ZAL-335 2026-08-05.md`.
 - Patrón estructural a registrar: **productivity reviews de meta-issues que tocan vault caen en self-deadlock cuando el CEO ancla C-1 propio**. La matrix rule 1 (`hasLiveCommitProof` → code) es correcta para code-bearing issues pero agresiva para productivity reviews que necesitan touchedPaths en vault/ (workMode `standard` no marca non-code). Lección operativa consolidada en feedback memory.
 - Sin producción, secretos, datos reales, pricing, campañas, publicaciones ni E2E de navegador. Costo ~0 USD (verificación API + decisión + interaction).
+
+## 2026-08-06 - ZAL-370: HIBP k-anonymity password check (reemplazo del toggle Pro de Supabase)
+
+- Entrega técnica en [ZAL-370](/ZAL/issues/ZAL-370). Reemplazo del toggle nativo "Leaked Password Protection" de Supabase Pro — la org está en Free y el board decidió no upgradear solo por esto. Implementación con la API pública de HaveIBeenPwned en modo k-anonymity: solo el prefijo de 5 chars del SHA-1 sale del proceso, la contraseña completa y el hash completo nunca.
+- Commit `2bedfe83d`:
+  - `src/lib/security/pwned-password.ts` (helper): SHA-1 → primeros 5 chars hex → GET `api.pwnedpasswords.com/range/<prefix>`. `Add-Padding: true` + User-Agent no-default per HIBP. Timeout 3s + AbortController. **Fail-open** en red/5xx/timeout (log warn, deja pasar al usuario) — el coste de bloquear registros legítimos por un blip externo supera el coste de seguridad marginal. `failOpenOnHttpError:false` opcional para casos que exijan fail-closed.
+  - `src/components/RegisterForm.tsx`: check cliente antes de `supabase.auth.signUp`. Toast localizado en ES.
+  - `src/components/AcceptInvitationForm.tsx`: idem para signup via invitación.
+  - `src/app/api/profile/password/route.ts`: **defense-in-depth** server-side antes de `supabase.auth.updateUser`, devuelve `400 PASSWORD_PWNED` en hit. Esta capa es la autoritativa — un cliente malicioso puede saltarse el form.
+  - Mobile hereda via `WebBrowser.openBrowserAsync(${webBaseUrl()}/auth/signup)` (el login mobile no tiene signup nativo en MVP).
+  - `tests/unit/pwned-password.test.ts`: **17 tests verdes**. Cubren SHA-1 canónico ("password" / "password123"), parser de la respuesta HIBP (CRLF/LF, padding lines, malformed lines, empty body), match/no-match del sufijo, fail-open en network/5xx/timeout/empty-password, y aserción explícita de que el plaintext y el hash completo NO salen del proceso (solo el prefijo de 5 chars llega al `fetch`).
+- Verificación local: `npx vitest run` → 17 passed; `tsc --noEmit` sobre archivos tocados → 0 errores; `eslint` → 0 warnings.
+- Work product `cde89c76` y commit proof `123b16c4` registrados con atribución de agente (X-Paperclip-Agent-Id + X-Paperclip-Run-Id + Authorization triple header).
+- PATCH `done` retorna `409 RecoveryPausedUntilGitGate` (recovery.pause.codeGates, ZAL-90 C-4 default ON). El SHA gate ZAL-88 está satisfecho, pero el flag corre ANTES y bloquea todo code issue del proyecto "Governance e Integridad de Evidencia" (verificado independientemente para ZAL-42, ZAL-248, ZAL-346). ZAL-370 queda `blocked` con unblockDescriptor self-owned apuntando al board. Unblock paths: (A) `PATCH /api/companies/{id}/runtime-flags` con `recovery.pause.codeGates=false`, después PATCH `done` cierra atómicamente; (B) literal `## Review: APPROVED` en el thread bypasea el gate.
+- Out of scope (pre-existente): `/auth/reset-password` no existe en web (mobile login abre URL que 404ea); `src/components/register-form.tsx` (lowercase, 129 líneas) es dead code no importado por ningún route.
+- Patrón a registrar: **HIBP k-anonymity sin estado local** — la API pública es sin auth, gratis, sin rate limit agresivo, y solo expone un prefijo de 5 chars. Aplicable a cualquier producto que necesite "leaked password protection" sin pagar Supabase Pro / Auth0 / Okta. Vale la pena considerar si es candidato a skill reutilizable (mobile + web + cualquier futuro flujo).
+- Sin producción, secretos, datos reales, pricing, campañas, publicaciones ni E2E de navegador. Costo ~0 USD (sin red externa en CI, los tests mockean fetch).
