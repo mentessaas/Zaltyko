@@ -39,7 +39,9 @@ export interface NextClassOccurrence {
 
 // Parsea "HH:MM" del inicio/fin del rango "10:00 - 11:00". Si el formato
 // es inesperado, devuelve null y el caller decide qué hacer.
-function parseStartEnd(timeRange: string): { hours: number; minutes: number } | null {
+function parseStartEnd(
+  timeRange: string,
+): { hours: number; minutes: number } | null {
   const start = timeRange.split('-')[0]?.trim();
   if (!start) return null;
   const [h, m] = start.split(':');
@@ -50,7 +52,9 @@ function parseStartEnd(timeRange: string): { hours: number; minutes: number } | 
   return { hours, minutes };
 }
 
-function parseEnd(timeRange: string): { hours: number; minutes: number } | null {
+function parseEnd(
+  timeRange: string,
+): { hours: number; minutes: number } | null {
   const end = timeRange.split('-')[1]?.trim();
   if (!end) return null;
   const [h, m] = end.split(':');
@@ -70,7 +74,7 @@ function parseEnd(timeRange: string): { hours: number; minutes: number } | null 
  */
 export function nextClassFromSchedule(
   items: ScheduleItem[] | undefined,
-  options: { now?: Date; windowDays?: number } = {}
+  options: { now?: Date; windowDays?: number } = {},
 ): NextClassOccurrence | null {
   if (!items || items.length === 0) return null;
   const now = options.now ?? new Date();
@@ -127,7 +131,7 @@ export function nextClassFromSchedule(
 /** Formatea día+hora en es-ES para mostrar al atleta. Ej: "miércoles 13 ago · 18:30". */
 export function formatNextClassWhen(
   occurrence: NextClassOccurrence,
-  locale: string = 'es-ES'
+  locale: string = 'es-ES',
 ): string {
   const dayLabel = new Intl.DateTimeFormat(locale, {
     weekday: 'long',
@@ -139,6 +143,32 @@ export function formatNextClassWhen(
     minute: '2-digit',
   }).format(occurrence.start);
   return `${dayLabel} · ${timeLabel}`;
+}
+
+/** Formatea una fecha de sesión (fecha ISO + hora local opcional) en es-ES. */
+export function formatSessionDateTime(
+  sessionDate: string,
+  startTime?: string | null,
+): string {
+  // `YYYY-MM-DD` representa una fecha de calendario, no un instante UTC.
+  // Añadir la hora sin zona evita que `new Date()` la desplace al día anterior.
+  const dateValue = /^\d{4}-\d{2}-\d{2}$/.test(sessionDate)
+    ? `${sessionDate}T${startTime?.slice(0, 8) || '00:00:00'}`
+    : sessionDate;
+  const parsed = new Date(dateValue);
+
+  if (Number.isNaN(parsed.getTime())) return sessionDate;
+
+  const options: Intl.DateTimeFormatOptions = {
+    day: 'numeric',
+    month: 'long',
+  };
+  if (startTime) {
+    options.hour = '2-digit';
+    options.minute = '2-digit';
+  }
+
+  return new Intl.DateTimeFormat('es-ES', options).format(parsed);
 }
 
 /** Re-exporta el array de días para tests o etiquetas que lo necesiten. */
