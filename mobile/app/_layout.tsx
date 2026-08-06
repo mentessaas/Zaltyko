@@ -15,11 +15,19 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { SplashScreen, Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import * as WebBrowser from 'expo-web-browser';
 
 import { queryClient } from '@/lib/query/client';
 import { SessionProvider, useSession } from '@/lib/auth/SessionProvider';
 import { PushProvider } from '@/lib/push/PushProvider';
 import { colors } from '@/lib/theme';
+
+// Cierra el browser in-app si la app se cold-start vía el deep link
+// `zaltyko://auth/callback` (retorno de Google OAuth). Idempotente.
+// El módulo lib/auth/google-oauth.ts también lo llama al importarse, pero
+// tenerlo en el root garantiza que corre incluso si el callback llega
+// antes de que login.tsx se haya cargado.
+WebBrowser.maybeCompleteAuthSession();
 
 // Evita que el splash se oculte automáticamente; lo controlamos aquí.
 SplashScreen.preventAutoHideAsync().catch(() => {

@@ -1,6 +1,8 @@
-// Pantalla de login con email + contraseña usando Supabase Auth.
-// "Crear cuenta" abre la web (no implementamos signup nativo en MVP —
-// el funnel de alta es más complejo y vive en /auth/signup de la web).
+// Pantalla de login con email + contraseña, más "Continuar con Google" nativo.
+// "Crear cuenta nueva" sigue abriendo la web: el signup con email tiene
+// fricción (selección de rol, onboarding, validación HIBP) que vive en
+// /auth/signup de la web; en cambio el signup con Google puede ser nativo
+// porque Google ya provee email verificado + nombre + avatar.
 
 import { useCallback, useState } from 'react';
 import {
@@ -17,6 +19,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { supabase } from '@/lib/auth/supabase';
+import { signInWithGoogle } from '@/lib/auth/google-oauth';
 import { webBaseUrl } from '@/lib/api/client';
 import { colors, radii, shadows, spacing, typography } from '@/lib/theme';
 
@@ -24,6 +27,7 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const onSubmit = useCallback(async () => {
@@ -59,6 +63,22 @@ export default function LoginScreen() {
     WebBrowser.openBrowserAsync(`${webBaseUrl()}/auth/reset-password`, {
       presentationStyle: WebBrowser.WebBrowserPresentationStyle.FULL_SCREEN,
     });
+  }, []);
+
+  const onGoogle = useCallback(async () => {
+    setError(null);
+    setGoogleLoading(true);
+    const result = await signInWithGoogle();
+    setGoogleLoading(false);
+    if (result.error) {
+      setError(
+        result.cancelled
+          ? 'Inicio de sesión con Google cancelado'
+          : result.error
+      );
+      return;
+    }
+    // Sesión creada: el cambio de estado dispara redirect vía (auth)/_layout.
   }, []);
 
   return (
@@ -110,6 +130,15 @@ export default function LoginScreen() {
             <Text style={styles.dividerText}>o</Text>
             <View style={styles.dividerLine} />
           </View>
+
+          <Button
+            title="Continuar con Google"
+            variant="secondary"
+            onPress={onGoogle}
+            loading={googleLoading}
+            disabled={loading}
+            fullWidth
+          />
 
           <Button title="Crear cuenta nueva" variant="secondary" onPress={onOpenSignup} fullWidth />
         </View>
