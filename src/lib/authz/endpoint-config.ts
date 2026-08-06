@@ -1,0 +1,142 @@
+/**
+ * Configuración de endpoints que requieren casos especiales de autenticación/autorización
+ *
+ * ⚠️ SECURITY WARNING: isFlexibleTenantEndpoint permite obtener tenantId de forma flexible.
+ * Esto confía en que cada handler NO OLVIDE validar el tenant. Use con precaución.
+ * Los endpoints que usan tenant flexible deben VALIDAR EXPLÍCITAMENTE que el tenantId
+ * del request coincide con el tenantId del usuario autenticado.
+ */
+
+export interface EndpointConfig {
+  /** Endpoints que pueden acceder sin tenantId (públicos o especiales) */
+  publicEndpoints: string[];
+  /** Endpoints que pueden obtener tenantId del body/params */
+  flexibleTenantEndpoints: string[];
+  /** Endpoints que requieren tenantId pero pueden obtenerlo de academyId */
+  academyBasedEndpoints: string[];
+}
+
+/**
+ * Determina si un endpoint es público (no requiere tenantId)
+ */
+export function isPublicEndpoint(pathname: string, method: string): boolean {
+  const publicPatterns = [
+    { path: "/api/academies", method: "GET" },
+    { path: "/api/public", method: "GET" },
+  ];
+
+  return publicPatterns.some(
+    (pattern) => pathname.startsWith(pattern.path) && method === pattern.method
+  );
+}
+
+/**
+ * Determina si un endpoint puede crear academias (no requiere tenantId inicial)
+ */
+export function isAcademyCreationEndpoint(pathname: string, method: string): boolean {
+  return method === "POST" && pathname.startsWith("/api/academies");
+}
+
+/**
+ * Determina si un endpoint puede obtener tenantId de forma flexible
+ */
+export function isFlexibleTenantEndpoint(pathname: string): boolean {
+  const flexiblePatterns = [
+    "/api/dashboard/",
+    "/api/tooltips",
+    "/api/groups",
+    "/api/athletes",
+    "/api/events",
+    // Usuarios sin academia todavía deben poder consultar y responder sus
+    // propias solicitudes de vínculo. Los handlers validan profile/target.
+    "/api/link-requests",
+  ];
+
+  return flexiblePatterns.some((pattern) => pathname.startsWith(pattern));
+}
+
+/**
+ * Extrae el academyId de diferentes fuentes (header, path, query)
+ */
+export function extractAcademyId(
+  request: Request,
+  context?: { params?: Record<string, string> }
+): string | undefined {
+  // Los params de una ruta dinámica son el contexto más específico.
+  const paramAcademyId = context?.params?.academyId;
+  if (paramAcademyId) {
+    return paramAcademyId;
+  }
+
+  // Desde query params
+  const url = new URL(request.url);
+  const queryAcademyId = url.searchParams.get("academyId");
+  if (queryAcademyId) {
+    return queryAcademyId;
+  }
+
+  // Desde pathname (rutas dinamicas como /api/dashboard/[academyId]/...).
+  // Debe ir despues del query param: rutas estaticas bajo /api/dashboard/
+  // (p.ej. /api/dashboard/kpi-trends) no tienen un academyId en el path y
+  // este regex capturaria el propio nombre de la ruta como si lo fuera.
+  const pathname = new URL(request.url).pathname;
+  const dashboardMatch = pathname.match(/^\/api\/dashboard\/([^/]+)/);
+  if (dashboardMatch) {
+    return dashboardMatch[1];
+  }
+
+  // Header legacy. Nunca se autoriza por sí solo: el wrapper lo verifica en DB
+  // y extractVerifiedAcademyCandidate rechaza conflictos con path/query/body.
+  const headerAcademyId = request.headers.get("x-academy-id");
+  if (headerAcademyId) {
+    return headerAcademyId;
+  }
+
+  return undefined;
+}
+
+/**
+ * Resolves academyId from server-controlled route context first, then from the
+ * request. JSON bodies are read from a clone so handlers retain the original
+ * stream. The value is still verified against ownership/membership in DB.
+ */
+export async function extractVerifiedAcademyCandidate(
+  request: Request,
+  context?: { params?: Record<string, string> }
+): Promise<{ academyId?: string; conflict: boolean }> {
+  const url = new URL(request.url);
+  const pathAcademyId =
+    context?.params?.academyId ??
+    url.pathname.match(/^\/api\/dashboard\/([^/]+)/)?.[1];
+  const queryAcademyId = url.searchParams.get("academyId") ?? undefined;
+  const headerAcademyId = request.headers.get("x-academy-id") ?? undefined;
+  let bodyAcademyId: string | undefined;
+
+  if (
+    new Set(["POST", "PUT", "PATCH", "DELETE"]).has(request.method.toUpperCase()) &&
+    (request.headers.get("content-type")?.toLowerCase() ?? "").includes("application/json")
+  ) {
+    try {
+      const body = (await request.clone().json()) as { academyId?: unknown };
+      bodyAcademyId =
+        typeof body?.academyId === "string" && body.academyId.length > 0
+          ? body.academyId
+          : undefined;
+    } catch {
+      bodyAcademyId = undefined;
+    }
+  }
+
+  const candidates = [
+    pathAcademyId,
+    queryAcademyId,
+    bodyAcademyId,
+    headerAcademyId,
+  ].filter((value): value is string => Boolean(value));
+  const distinctCandidates = new Set(candidates);
+
+  return {
+    academyId: candidates[0],
+    conflict: distinctCandidates.size > 1,
+  };
+}

@@ -1,0 +1,294 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dependency-security:
+    name: Dependency Security & SBOM
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Audit production dependencies
+        run: pnpm audit:dependencies --prod
+
+      - name: Audit environment contract
+        run: pnpm audit:env
+
+      - name: Generate CycloneDX SBOM
+        run: pnpm sbom:generate
+
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: zaltyko-sbom-${{ github.sha }}
+          path: sbom.cdx.json
+          if-no-files-found: error
+
+  lint-and-typecheck:
+    name: Lint & Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Type check
+        run: pnpm typecheck
+
+  test:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run unit tests with coverage
+        run: pnpm vitest run --coverage
+
+      - name: Upload coverage to Codecov
+        if: always()
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage/lcov.info
+          flags: unittests
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm build
+        env:
+          NODE_ENV: production
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key-for-ci-build
+          DATABASE_URL: postgresql://placeholder:placeholder@placeholder:5432/placeholder
+          INTERNAL_AUTH_SECRET: placeholder-internal-auth-secret-for-ci-build
+          SUPABASE_JWT_SECRET: placeholder-supabase-jwt-secret-for-ci-build
+
+  # Smoke tests require a running database and services
+  smoke-test:
+    name: Smoke Tests
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run smoke tests against production
+        run: pnpm exec tsx smoke-test.ts
+        env:
+          SMOKE_BASE_URL: https://zaltyko.com
+
+  e2e-readiness:
+    name: E2E Credentials Readiness
+    runs-on: ubuntu-latest
+    outputs:
+      enabled: ${{ steps.check.outputs.enabled }}
+    steps:
+      - id: check
+        name: Confirm required E2E secrets are configured
+        env:
+          E2E_AUTH_EMAIL: ${{ secrets.E2E_AUTH_EMAIL }}
+          E2E_AUTH_PASSWORD: ${{ secrets.E2E_AUTH_PASSWORD }}
+          E2E_ACADEMY_ID: ${{ secrets.E2E_ACADEMY_ID }}
+        run: |
+          missing=0
+          for name in E2E_AUTH_EMAIL E2E_AUTH_PASSWORD E2E_ACADEMY_ID; do
+            if [ -z "${!name}" ]; then
+              echo "Missing required E2E secret: ${name}"
+              missing=1
+            fi
+          done
+
+          if [ "$missing" -eq 0 ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  validate-rls:
+    name: Validate RLS Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run validate:rls
+        run: pnpm validate:rls
+
+  check-migrations:
+    name: Check Drizzle Migrations Integrity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run check:migrations
+        run: pnpm check:migrations
+
+  e2e-public:
+    name: E2E Public (no auth)
+    runs-on: ubuntu-latest
+    needs: smoke-test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run public E2E
+        run: pnpm test:e2e:public:ci
+        env:
+          BASE_URL: https://zaltyko.com
+
+  e2e-auth:
+    name: E2E Authenticated Flows
+    runs-on: ubuntu-latest
+    needs: [e2e-public, e2e-readiness]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.e2e-readiness.outputs.enabled == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Generate auth storage state
+        run: pnpm test:e2e:auth
+        env:
+          E2E_AUTH_EMAIL: ${{ secrets.E2E_AUTH_EMAIL }}
+          E2E_AUTH_PASSWORD: ${{ secrets.E2E_AUTH_PASSWORD }}
+          E2E_ACADEMY_ID: ${{ secrets.E2E_ACADEMY_ID }}
+          BASE_URL: https://zaltyko.com
+
+      - name: Run authenticated E2E
+        run: pnpm test:e2e
+        env:
+          BASE_URL: https://zaltyko.com
+          E2E_STORAGE_STATE: .auth/user.json
+          E2E_ACADEMY_ID: ${{ secrets.E2E_ACADEMY_ID }}
+          E2E_PROFILE_ID: ${{ secrets.E2E_PROFILE_ID }}
+          E2E_ATHLETE_ID: ${{ secrets.E2E_ATHLETE_ID }}

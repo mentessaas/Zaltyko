@@ -1,0 +1,268 @@
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+import Link from "next/link";
+import { ArrowRight, MapPin, Users, Trophy } from "lucide-react";
+import { Locale } from "@/i18n";
+import {
+  MODALITIES,
+  COUNTRIES,
+  AVAILABLE_MODALITIES,
+  getCountriesForModality,
+  type ModalitySlug,
+  type CountrySlug,
+} from "@/lib/seo/clusters";
+import { cn } from "@/lib/utils";
+import { buttonVariants } from "@/components/ui/button";
+import { getPublicSiteUrl } from "@/lib/seo/site-url";
+
+const VALID_LOCALES = ["es", "en"] as const;
+const VALID_MODALITIES = Object.keys(MODALITIES) as ModalitySlug[];
+
+interface ModalityPageProps {
+  params: Promise<{
+    locale: string;
+    modality: string;
+  }>;
+}
+
+// Generate static params for all modality pages
+export async function generateStaticParams() {
+  const params: Array<{ locale: string; modality: string }> = [];
+
+  for (const locale of VALID_LOCALES) {
+    for (const modality of VALID_MODALITIES) {
+      const modalitySlug = MODALITIES[modality][locale as Locale];
+      if (!modalitySlug) continue;
+      params.push({
+        locale,
+        modality: modalitySlug,
+      });
+    }
+  }
+
+  return params;
+}
+
+// Generate metadata for each modality page
+export async function generateMetadata({
+  params,
+}: ModalityPageProps): Promise<Metadata> {
+  const { locale, modality } = await params;
+
+  const modalityKey = Object.keys(MODALITIES).find(
+    (key) => MODALITIES[key as ModalitySlug][locale as Locale] === modality
+  ) as ModalitySlug | undefined;
+
+  if (!modalityKey) {
+    return { title: "Modality Not Found" };
+  }
+
+  const modalityLabel = MODALITIES[modalityKey].label[locale as Locale];
+  const baseUrl = getPublicSiteUrl();
+  const canonicalUrl = `${baseUrl}/${locale}/${modality}`;
+
+  const titles = {
+    es: {
+      title: `${modalityLabel} en Latinoamérica | Zaltyko`,
+      description: `Encuentra academias de ${modalityLabel.toLowerCase()} en España, México, Argentina, Colombia, Chile y Perú. Software de gestión especializado.`,
+    },
+    en: {
+      title: `${modalityLabel} in Latin America | Zaltyko`,
+      description: `Find ${modalityLabel.toLowerCase()} academies in Spain, Mexico, Argentina, Colombia, Chile and Peru. Specialized management software.`,
+    },
+  };
+
+  const t = titles[locale as "es" | "en"];
+
+  return {
+    title: t.title,
+    description: t.description,
+    alternates: {
+      canonical: canonicalUrl,
+    },
+    openGraph: {
+      title: t.title,
+      description: t.description,
+      url: canonicalUrl,
+      siteName: "Zaltyko",
+      locale: locale === "es" ? "es_ES" : "en_US",
+      type: "website",
+    },
+  };
+}
+
+export default async function ModalityPage({ params }: ModalityPageProps) {
+  const { locale, modality } = await params;
+
+  // Validate locale
+  if (!VALID_LOCALES.includes(locale as (typeof VALID_LOCALES)[number])) {
+    notFound();
+  }
+
+  // Find the modality key
+  const modalityKey = Object.keys(MODALITIES).find(
+    (key) => MODALITIES[key as ModalitySlug][locale as Locale] === modality
+  ) as ModalitySlug | undefined;
+
+  if (!modalityKey) {
+    notFound();
+  }
+
+  // Get all countries for this modality
+  const countries = getCountriesForModality(locale as Locale, modalityKey);
+  const modalityLabel = MODALITIES[modalityKey].label[locale as Locale];
+  const available = AVAILABLE_MODALITIES[modalityKey];
+
+  const labels = {
+    es: {
+      title: `${modalityLabel} por país`,
+      subtitle: "Encuentra la academia perfecta para ti",
+      unavailableSubtitle: `Estamos especializados en gimnasia artística y rítmica. Te avisamos cuando podamos atender bien ${modalityLabel}.`,
+      cta: "Crear academia gratis",
+      otherModalities: "Ver otras modalidades",
+      comingSoon: "Próximamente",
+    },
+    en: {
+      title: `${modalityLabel} by country`,
+      subtitle: "Find the perfect academy for you",
+      unavailableSubtitle: `We're focused on artistic and rhythmic gymnastics today. We'll let you know when we can serve ${modalityLabel} well.`,
+      cta: "Create free academy",
+      otherModalities: "View other modalities",
+      comingSoon: "Coming soon",
+    },
+  };
+
+  const t = labels[locale as "es" | "en"];
+
+  // Get other modalities for the footer link
+  const otherModalities = Object.keys(MODALITIES)
+    .filter((key) => key !== modalityKey)
+    .map((key) => ({
+      slug: key,
+      label: MODALITIES[key as ModalitySlug].label[locale as Locale],
+      url: `/${locale}/${MODALITIES[key as ModalitySlug][locale as Locale]}`,
+      available: AVAILABLE_MODALITIES[key as ModalitySlug],
+    }));
+
+  return (
+    <>
+      {/* Hero */}
+      <section className="relative min-h-[50vh] flex items-center overflow-hidden bg-gradient-to-br from-zaltyko-white via-white to-zaltyko-teal/5">
+        <div className="absolute inset-0">
+          <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-gradient-to-br from-zaltyko-teal/10 via-zaltyko-indigo/5 to-transparent rounded-full blur-3xl" />
+          <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-gradient-to-tr from-zaltyko-indigo/8 via-zaltyko-teal/5 to-transparent rounded-full blur-3xl" />
+        </div>
+
+        <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-20">
+          <div className="max-w-2xl">
+            <nav className="mb-6 text-sm">
+              <ol className="flex items-center gap-2 text-gray-500">
+                <li>
+                  <Link href={`/${locale}`} className="hover:text-zaltyko-teal transition-colors">
+                    {locale === "es" ? "Inicio" : "Home"}
+                  </Link>
+                </li>
+                <li className="mx-1">/</li>
+                <li className="text-gray-900 font-medium">{modalityLabel}</li>
+              </ol>
+            </nav>
+
+            {!available && (
+              <span className="mb-4 inline-flex rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                {t.comingSoon}
+              </span>
+            )}
+            <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 mb-4">
+              {t.title}
+            </h1>
+            <p className="text-xl text-gray-600 mb-8">
+              {available ? t.subtitle : t.unavailableSubtitle}
+            </p>
+            {available && (
+              <Link
+                href="/auth/register?role=owner"
+                className={cn(
+                  buttonVariants({ variant: "default", size: "lg" }),
+                  "bg-zaltyko-teal hover:bg-primary-dark text-white shadow-soft transition-all duration-300 text-base px-8 py-6 group inline-flex items-center"
+                )}
+              >
+                {t.cta}
+                <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+              </Link>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* Countries Grid */}
+      <section className="py-20 bg-white">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {countries.map((country) => (
+              <Link
+                key={country.slug}
+                href={country.url}
+                className="group bg-zaltyko-white hover:bg-zaltyko-teal/5 rounded-2xl p-6 border border-zaltyko-mist hover:border-zaltyko-teal/30 transition-all duration-300"
+              >
+                <div className="flex items-start justify-between mb-4">
+                  <div>
+                    <h3 className="font-semibold text-gray-900 text-lg group-hover:text-zaltyko-indigo transition-colors">
+                      {country.label}
+                    </h3>
+                    <p className="text-sm text-gray-500 capitalize">{modalityLabel}</p>
+                  </div>
+                  <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-zaltyko-teal transition-colors" />
+                </div>
+
+                <div className="flex items-center gap-4 text-sm text-gray-600">
+                  <span className="flex items-center gap-1">
+                    <Users className="h-4 w-4" />
+                    {COUNTRIES[country.slug].code}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Trophy className="h-4 w-4" />
+                    RFEG
+                  </span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Other Modalities */}
+      <section className="py-12 surface-subtle border-t border-border">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-gray-500">{t.otherModalities}</p>
+            <div className="flex gap-3">
+              {otherModalities.map((mod) =>
+                mod.available ? (
+                  <Link
+                    key={mod.slug}
+                    href={mod.url}
+                    className="text-sm font-medium text-gray-700 hover:text-zaltyko-teal transition-colors"
+                  >
+                    {mod.label}
+                  </Link>
+                ) : (
+                  <span
+                    key={mod.slug}
+                    aria-disabled="true"
+                    title={t.comingSoon}
+                    className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground cursor-not-allowed select-none"
+                  >
+                    {mod.label}
+                    <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
+                      {t.comingSoon}
+                    </span>
+                  </span>
+                )
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
+    </>
+  );
+}
