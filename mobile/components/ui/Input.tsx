@@ -1,7 +1,7 @@
 // Input controlado, con label y mensaje de error. Auto-crece con el contenido.
 // Tipografía y bordes coherentes con Button.
 
-import { forwardRef, useState } from 'react';
+import { forwardRef, useId, useState } from 'react';
 import {
   StyleSheet,
   Text,
@@ -18,15 +18,36 @@ interface Props extends Omit<TextInputProps, 'style'> {
   hint?: string;
 }
 
+// RN 0.86 typings no exponen `accessibilityLabelledBy`/`accessibilityDescribedBy`
+// sobre `TextInput`, pero el runtime los acepta en iOS+Android. Lo tipamos
+// localmente para no perder el check del resto de props.
+type A11yRefAttrs = {
+  accessibilityLabelledBy?: string;
+  accessibilityDescribedBy?: string;
+};
+
 export const Input = forwardRef<TextInput, Props>(function Input(
   { label, error, hint, onFocus, onBlur, ...rest },
   ref
 ) {
   const [focused, setFocused] = useState(false);
+  const reactId = useId();
+  const labelId = `input-label-${reactId}`;
+  const messageId = `input-msg-${reactId}`;
+  // El error tiene prioridad sobre el hint como descripción accesible.
+  const describedById = error ? messageId : hint ? messageId : undefined;
 
   return (
     <View style={styles.wrap}>
-      {label ? <Text style={styles.label}>{label}</Text> : null}
+      {label ? (
+        <Text
+          nativeID={labelId}
+          style={styles.label}
+          importantForAccessibility="no-hide-descendants"
+        >
+          {label}
+        </Text>
+      ) : null}
       <TextInput
         ref={ref}
         {...rest}
@@ -44,10 +65,30 @@ export const Input = forwardRef<TextInput, Props>(function Input(
           error ? styles.inputError : null,
         ]}
         placeholderTextColor={colors.textMuted}
-        accessibilityLabel={label}
+        // El label llega vía nativeID (más robusto que accessibilityLabel en iOS);
+        // el mensaje (error con prioridad sobre hint) llega vía describedBy.
+        {...({
+          accessibilityLabelledBy: label ? labelId : undefined,
+          accessibilityDescribedBy: describedById,
+        } as A11yRefAttrs)}
       />
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-      {!error && hint ? <Text style={styles.hint}>{hint}</Text> : null}
+      {/*
+        Slot de mensaje siempre montado para que TalkBack/VoiceOver anuncien
+        cambios al entrar/salir el error (p.ej. al perder foco tras un submit).
+        `polite` no interrumpe; el contenido vacío se oculta de a11y y visualmente.
+      */}
+      <Text
+        nativeID={messageId}
+        accessibilityLiveRegion="polite"
+        accessibilityRole="text"
+        style={[
+          styles.message,
+          error ? styles.error : hint ? styles.hint : styles.messageHidden,
+        ]}
+        importantForAccessibility={error || hint ? 'auto' : 'no-hide-descendants'}
+      >
+        {error || hint || ''}
+      </Text>
     </View>
   );
 });
@@ -72,6 +113,14 @@ const styles = StyleSheet.create({
   },
   inputFocused: { borderColor: colors.primary },
   inputError: { borderColor: colors.danger },
+  message: {
+    ...typography.caption,
+  },
+  messageHidden: {
+    width: 0,
+    height: 0,
+    overflow: 'hidden',
+  },
   error: {
     ...typography.caption,
     color: colors.danger,
