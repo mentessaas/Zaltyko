@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/toast-provider";
 import { AuthPageShell } from "@/components/auth/AuthPageShell";
 import { isValidEmail, normalizeEmail } from "@/lib/validation/email-utils";
+import { checkPwnedPassword, PWNED_PASSWORD_MESSAGE } from "@/lib/security/pwned-password";
 
 const ROLE_OPTIONS = [
   {
@@ -48,6 +49,7 @@ export function RegisterForm() {
   const [fullName, setFullName] = useState("");
   const [role, setRole] = useState<RegisterRole>("owner");
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const router = useRouter();
   const supabase = createClient();
   const toast = useToast();
@@ -90,6 +92,25 @@ export function RegisterForm() {
         variant: "error",
       });
       return;
+    }
+
+    // Verificar que la contraseña no aparezca en filtraciones públicas conocidas
+    // (HaveIBeenPwned, k-anonymity). Falla en abierto si la API no responde —
+    // el helper registra el caso y deja pasar al usuario.
+    try {
+      const pwned = await checkPwnedPassword(password);
+      if (pwned.pwned) {
+        toast.pushToast({
+          title: "Contraseña comprometida",
+          description: PWNED_PASSWORD_MESSAGE,
+          variant: "error",
+        });
+        return;
+      }
+    } catch {
+      // Nunca bloquear el signup por un fallo del check (la API externa puede
+      // estar caída); la política fail-open del helper ya cubre este caso,
+      // pero un try/catch adicional protege contra errores inesperados.
     }
 
     setLoading(true);
@@ -140,6 +161,34 @@ export function RegisterForm() {
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGoogleSignUp = async () => {
+    setGoogleLoading(true);
+    try {
+      const next = `/auth/redirect?initial_role=${encodeURIComponent(role)}`;
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
+        },
+      });
+      if (error) {
+        toast.pushToast({
+          title: "Error al continuar con Google",
+          description: error.message,
+          variant: "error",
+        });
+        setGoogleLoading(false);
+      }
+    } catch {
+      toast.pushToast({
+        title: "Error inesperado",
+        description: "No se pudo continuar con Google",
+        variant: "error",
+      });
+      setGoogleLoading(false);
     }
   };
 
@@ -220,7 +269,7 @@ export function RegisterForm() {
             placeholder="Mínimo 8 caracteres"
           />
         </div>
-        <Button type="submit" className="w-full" disabled={loading}>
+        <Button type="submit" className="w-full" disabled={loading || googleLoading}>
           {loading ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -231,6 +280,25 @@ export function RegisterForm() {
           )}
         </Button>
       </form>
+
+      <div className="mt-4">
+        <Button
+          type="button"
+          onClick={handleGoogleSignUp}
+          variant="outline"
+          className="w-full"
+          disabled={googleLoading || loading}
+        >
+          {googleLoading ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Conectando...
+            </>
+          ) : (
+            "Crear cuenta con Google"
+          )}
+        </Button>
+      </div>
 
       {role === "owner" && (
         <p className="mt-4 text-center text-xs text-muted-foreground">
