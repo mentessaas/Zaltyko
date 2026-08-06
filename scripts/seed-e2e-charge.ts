@@ -101,14 +101,20 @@ async function upsertPendingCharge(pool: Pool, tenantId: string, athleteId: stri
     const chargeId = existing.rows[0].id;
     await pool.query(
       `
-        update charges set
+      update charges set
           status = 'pending',
           amount_cents = $2,
           paid_at = null,
           payment_method = null,
           stripe_payment_intent_id = null,
           stripe_charge_id = null,
-          attempt_count = 0,
+          -- Stripe conserva las claves idempotentes; nunca reutilices una
+          -- clave charge_collect_<id>_<intento> en un rerun del E2E.
+          attempt_count = (
+            select count(*)::int
+            from payment_attempts
+            where charge_id = $1::uuid
+          ),
           last_attempt_at = null,
           updated_at = now()
         where id = $1::uuid

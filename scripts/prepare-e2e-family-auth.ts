@@ -164,13 +164,12 @@ async function ensureGuardianLink(pool: Pool, profileId: string, athleteId: stri
   // (legacy); cubrimos ambos para no depender de la migración de academias.
   const guardian = await pool.query<{ id: string }>(
     `
-      insert into guardians (tenant_id, profile_id, name, email, relationship, is_primary)
-      values ($1::uuid, $2::uuid, 'E2E Family', $3, 'parent', true)
+    insert into guardians (tenant_id, profile_id, name, email, relationship)
+      values ($1::uuid, $2::uuid, 'E2E Family', $3, 'parent')
       on conflict (profile_id) do update set
         name = excluded.name,
         email = excluded.email,
-        relationship = excluded.relationship,
-        is_primary = true
+        relationship = excluded.relationship
       returning id
     `,
     [tenantId, profileId, familyEmail]
