@@ -4,6 +4,7 @@ import { eq, or } from "drizzle-orm";
 import { db } from "@/db";
 import { charges } from "@/db/schema";
 import { logger } from "@/lib/logger";
+import { sendChargePaymentFailedNotification } from "@/lib/stripe/notification-service";
 
 /**
  * Reconciliacion idempotente del ledger a partir de eventos de pago de Stripe
@@ -15,6 +16,7 @@ interface ChargeLookup {
   id: string;
   tenantId: string;
   academyId: string;
+  athleteId: string;
   amountCents: number;
   currency: string;
   status: string;
@@ -28,6 +30,7 @@ async function findChargeForPaymentIntent(pi: Stripe.PaymentIntent): Promise<Cha
       id: charges.id,
       tenantId: charges.tenantId,
       academyId: charges.academyId,
+      athleteId: charges.athleteId,
       amountCents: charges.amountCents,
       currency: charges.currency,
       status: charges.status,
@@ -119,6 +122,27 @@ export async function reconcilePaymentIntentFailed(
       updatedAt: new Date(),
     })
     .where(eq(charges.id, charge.id));
+
+  try {
+    await sendChargePaymentFailedNotification({
+      chargeId: charge.id,
+      tenantId: charge.tenantId,
+      academyId: charge.academyId,
+      athleteId: charge.athleteId,
+      amountCents: charge.amountCents,
+      currency: charge.currency || "eur",
+      paymentIntentId: pi.id,
+      failureReason:
+        pi.last_payment_error?.decline_code ?? pi.last_payment_error?.code ?? "payment_failed",
+    });
+  } catch (error) {
+    logger.error("payment_intent.failed notification delivery failed", error, {
+      chargeId: charge.id,
+      tenantId: charge.tenantId,
+      academyId: charge.academyId,
+      paymentIntentId: pi.id,
+    });
+  }
 }
 
 export async function reconcilePaymentIntentCanceled(

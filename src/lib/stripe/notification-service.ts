@@ -2,8 +2,20 @@ import Stripe from "stripe";
 import { and, eq } from "drizzle-orm";
 
 import { db } from "@/db";
-import { memberships, profiles, authUsers, auditLogs } from "@/db/schema";
+import {
+  academies,
+  athletes,
+  memberships,
+  profiles,
+  authUsers,
+  auditLogs,
+  guardians,
+  guardianAthletes,
+  familyContacts,
+} from "@/db/schema";
 import { sendEmail } from "@/lib/brevo";
+import { sendEmailWithLogging } from "@/lib/email/email-service";
+import { escapeHtml } from "@/lib/email/escape-html";
 import { config } from "@/config";
 import { logger } from "@/lib/logger";
 import type { WebhookContext } from "@/lib/stripe/webhook-handler";
@@ -73,6 +85,63 @@ async function logAuditEvent(
     module: "billing" as any,
     status: "success" as any,
     meta,
+  });
+}
+
+export async function sendChargePaymentFailedNotification(params: {
+  chargeId: string;
+  tenantId: string;
+  academyId: string;
+  athleteId: string;
+  amountCents: number;
+  currency: string;
+  paymentIntentId: string;
+  failureReason: string;
+}): Promise<boolean> {
+  const [recipient] = await db
+    .select({
+      athleteName: athletes.name,
+      academyName: academies.name,
+      guardianEmail: guardians.email,
+      familyContactEmail: familyContacts.email,
+    })
+    .from(athletes)
+    .innerJoin(academies, eq(athletes.academyId, academies.id))
+    .leftJoin(guardianAthletes, eq(athletes.id, guardianAthletes.athleteId))
+    .leftJoin(guardians, eq(guardianAthletes.guardianId, guardians.id))
+    .leftJoin(familyContacts, eq(athletes.id, familyContacts.athleteId))
+    .where(and(eq(athletes.id, params.athleteId), eq(athletes.academyId, params.academyId)))
+    .limit(1);
+
+  const email = recipient?.guardianEmail || recipient?.familyContactEmail;
+  if (!email) {
+    logger.warn("Cobro rechazado sin email de tutor", {
+      chargeId: params.chargeId,
+      academyId: params.academyId,
+    });
+    return false;
+  }
+
+  const athleteName = escapeHtml(recipient.athleteName || "el atleta");
+  const academyNameRaw = recipient?.academyName || "tu academia";
+  const academyName = escapeHtml(academyNameRaw);
+  const amount = `${(params.amountCents / 100).toFixed(2)} ${params.currency.toUpperCase()}`;
+  const html = `<div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;"><h2 style="color: #0D47A1; font-family: Poppins, sans-serif; font-weight: 700;">Pago rechazado</h2><p>Hola,</p><p>No se pudo completar el cobro de <strong>${amount}</strong> para <strong>${athleteName}</strong> en ${academyName}.</p><p>Revisa o actualiza el método de pago para que la academia pueda volver a intentarlo.</p></div>`;
+
+  return sendEmailWithLogging({
+    to: email,
+    subject: `Pago rechazado - ${academyNameRaw}`,
+    html,
+    template: "payment-failed",
+    tenantId: params.tenantId,
+    academyId: params.academyId,
+    metadata: {
+      chargeId: params.chargeId,
+      athleteId: params.athleteId,
+      paymentIntentId: params.paymentIntentId,
+      failureReason: params.failureReason,
+    },
+    dedupeKey: `payment-failed:${params.chargeId}:${params.paymentIntentId}`,
   });
 }
 
