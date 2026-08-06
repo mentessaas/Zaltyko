@@ -2,6 +2,7 @@
   "expo": {
     "name": "Zaltyko",
     "slug": "zaltyko",
+    "owner": "zaltyko",
     "version": "0.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
