@@ -1,7 +1,7 @@
 // Estado vacío reutilizable. Se muestra cuando una query devuelve []
 // o cuando el filtro activo excluye todo.
 
-import { memo, type ReactNode } from 'react';
+import { memo, useId, type ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -26,12 +26,39 @@ function EmptyStateImpl({
   tone = 'dark',
 }: Props) {
   const onLight = tone === 'light';
+  // WCAG: el conjunto ícono + título + descripción es una sola "imagen"
+  // semántica para TalkBack/VoiceOver, evitando doble anuncio.
+  const a11yLabel = description ? `${title}. ${description}` : title;
   return (
-    <View style={styles.wrap}>
-      <Ionicons name={icon} size={48} color={colors.textMuted} />
-      <Text style={[styles.title, onLight && styles.titleOnLight]}>{title}</Text>
-      {description ? <Text style={styles.desc}>{description}</Text> : null}
-      {action ? <View style={styles.action}>{action}</View> : null}
+    <View
+      style={styles.wrap}
+      accessible
+      accessibilityRole="image"
+      accessibilityLabel={a11yLabel}
+    >
+      <Ionicons
+        name={icon}
+        size={48}
+        color={colors.textMuted}
+        importantForAccessibility="no-hide-descendants"
+        accessible={false}
+      />
+      <Text
+        style={[styles.title, onLight && styles.titleOnLight]}
+        importantForAccessibility="no-hide-descendants"
+      >
+        {title}
+      </Text>
+      {description ? (
+        <Text style={styles.desc} importantForAccessibility="no-hide-descendants">
+          {description}
+        </Text>
+      ) : null}
+      {action ? (
+        <View style={styles.action} importantForAccessibility="no-hide-descendants">
+          {action}
+        </View>
+      ) : null}
     </View>
   );
 }
