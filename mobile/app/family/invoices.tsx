@@ -6,6 +6,7 @@ import { Stack } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 
+import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { SkeletonGroup } from '@/components/ui/Skeleton';
 import { InvoiceCard } from '@/components/family/InvoiceCard';
@@ -43,9 +44,13 @@ export default function InvoicesScreen() {
               icon="alert-circle-outline"
               title="No se pudieron cargar las cuotas"
               action={
-                <Text onPress={() => refetch()} style={styles.retry}>
-                  Reintentar
-                </Text>
+                <Button
+                  title="Reintentar"
+                  variant="secondary"
+                  size="sm"
+                  onPress={() => refetch()}
+                  accessibilityLabel="Reintentar cargar las cuotas"
+                />
               }
             />
           ) : charges.length === 0 ? (
@@ -68,5 +73,4 @@ const styles = StyleSheet.create({
   content: { padding: spacing.lg, gap: spacing.sm },
   title: { ...typography.display, color: colors.textInverse },
   subtitle: { ...typography.body, color: '#94A3B8' },
-  retry: { ...typography.label, color: colors.primary, marginTop: spacing.md },
 });
