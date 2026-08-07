@@ -61,6 +61,10 @@ const collectHandler = withTenant(async (request, context) => {
               clientSecret: result.clientSecret,
               stripeAccountId: result.stripeAccountId,
               publishableKey,
+              // `paymentMethodId` lo necesita el cliente para re-attach el PM en
+              // `stripe.confirmCardPayment`: Stripe limpia `payment_method` del
+              // PI cuando off-session lanza `authentication_required`.
+              paymentMethodId: result.paymentMethodId,
             }
           : undefined
       );
