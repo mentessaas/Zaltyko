@@ -56,9 +56,13 @@ export async function GET(request: Request) {
     const { search, type, country, region, city, page, limit } = parsed.data;
 
     // Construir filtros
+    // ZAL-328: el directorio público debe excluir academias en `churned` o
+    // `fraud_hold` (criterio B3 §3.3 + ZAL-315 §3.1). Mantenemos `isSuspended=false`
+    // por defensa en profundidad durante la transición con el flag legacy.
     const filters: ReturnType<typeof eq | typeof ilike>[] = [
       eq(academies.isPublic, true),
       eq(academies.isSuspended, false),
+      sql`${academies.status} NOT IN ('churned', 'fraud_hold')`,
     ];
 
     if (search) {

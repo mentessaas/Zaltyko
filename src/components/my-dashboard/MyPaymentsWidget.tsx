@@ -6,6 +6,8 @@ import { CreditCard, AlertCircle, CheckCircle, Clock, ArrowRight, Loader2, Recei
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FamilyPaymentMethodCard } from "@/components/billing/FamilyPaymentMethodCard";
+import { confirmScaChallenge, parseScaRecoveryDetails } from "@/lib/stripe/confirm-sca-client";
+import { waitForChargePaid } from "@/lib/billing/wait-for-charge-paid";
 
 interface ChargeData {
   id: string;
@@ -42,7 +44,34 @@ export function MyPaymentsWidget({ charges, academyId }: MyPaymentsWidgetProps) 
         if (json.error === "NO_SAVED_CARD") {
           setActionError("Añade una tarjeta para poder pagar.");
         } else if (json.error === "REQUIRES_ACTION") {
-          setActionError("Tu banco pide autenticación. Inténtalo desde tu app bancaria.");
+          // El banco pide 3DS: completamos el reto aquí mismo con el
+          // client_secret del PaymentIntent en vez de derivar a la app bancaria.
+          const sca = parseScaRecoveryDetails(json.details);
+          if (!sca) {
+            setActionError("Tu banco pide autenticación. Inténtalo desde tu app bancaria.");
+            return;
+          }
+          const confirmation = await confirmScaChallenge(sca);
+          if (!confirmation.ok) {
+            setActionError(confirmation.message);
+            return;
+          }
+          // El reto 3DS fue OK en Stripe, pero el webhook
+          // `payment_intent.succeeded` reconcilia la fila en DB con asincronía.
+          // Sondeamos el endpoint de status hasta `paid` (o 5s) y solo
+          // entonces refrescamos: si no, ganamos la carrera y la lista muestra
+          // el cargo aún en "Pago fallido".
+          await waitForChargePaid({
+            fetchStatus: async (signal) => {
+              const r = await fetch(`/api/family/charges/${chargeId}/status`, { signal });
+              if (!r.ok) return null;
+              const j = await r.json().catch(() => null);
+              const status = (j?.data?.status ?? null) as string | null;
+              return status ? { status } : null;
+            },
+          });
+          router.refresh();
+          return;
         } else if (json.error === "CONNECT_NOT_READY") {
           setActionError("La academia aún no tiene activados los pagos con tarjeta.");
         } else {

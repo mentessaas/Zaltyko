@@ -42,6 +42,7 @@ export * from "./assessment-scores";
 export * from "./coach-notes";
 export * from "./guardians";
 export * from "./invitations";
+export * from "./athlete-invitations";
 export * from "./auth-users";
 export * from "./class-coach-assignments";
 export * from "./coach-sport-configs";

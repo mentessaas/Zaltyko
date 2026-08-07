@@ -14,6 +14,8 @@ import { EditChargeDialog } from "./EditChargeDialog";
 import { GenerateChargesDialog } from "./GenerateChargesDialog";
 import { RegisterPaymentDialog } from "./RegisterPaymentDialog";
 import { getTerminologyForSportConfig } from "@/lib/sport-config/terminology";
+import { confirmScaChallenge, parseScaRecoveryDetails } from "@/lib/stripe/confirm-sca-client";
+import { waitForChargePaid } from "@/lib/billing/wait-for-charge-paid";
 import { logger } from "@/lib/logger";
 
 interface ChargeItem {
@@ -275,6 +277,40 @@ export function StudentChargesTab({ academyId, sportConfigs = [] }: StudentCharg
       const res = await fetch(`/api/charges/${charge.id}/collect`, { method: "POST" });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
+        // SCA/3DS: el banco exige autenticación. La API devuelve el client_secret
+        // del PaymentIntent para completar el reto sin salir del dashboard.
+        const sca =
+          body?.error === "REQUIRES_ACTION" ? parseScaRecoveryDetails(body?.details) : null;
+        if (sca) {
+          const confirmation = await confirmScaChallenge(sca);
+          if (!confirmation.ok) {
+            throw new Error(confirmation.message);
+          }
+          // El reto 3DS fue OK del lado de Stripe, pero el webhook
+          // `payment_intent.succeeded` reconcilia la fila en DB con asincronía.
+          // Sondeamos el endpoint de status hasta `paid` (o 5s) y solo
+          // entonces mostramos el toast de éxito: si no, ganamos la carrera
+          // y mostramos "Cobro autenticado" sobre un cargo aún en "Pago
+          // fallido".
+          const poll = await waitForChargePaid({
+            fetchStatus: async (signal) => {
+              const r = await fetch(`/api/charges/${charge.id}/status`, { signal });
+              if (!r.ok) return null;
+              const json = await r.json().catch(() => null);
+              const status = (json?.data?.status ?? null) as string | null;
+              return status ? { status } : null;
+            },
+          });
+          toast.pushToast({
+            title: poll.reachedPaid ? "Cobro realizado" : "Cobro autenticado",
+            description: poll.reachedPaid
+              ? "La cuota se ha cobrado con tarjeta."
+              : "Autenticación completada. El cargo aparecerá como pagado en unos segundos.",
+            variant: "success",
+          });
+          loadCharges();
+          return;
+        }
         throw new Error(body?.message ?? body?.error ?? "No se pudo cobrar.");
       }
       toast.pushToast({ title: "Cobro realizado", description: "La cuota se ha cobrado con tarjeta.", variant: "success" });

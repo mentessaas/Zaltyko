@@ -6,10 +6,17 @@ export const PUBLIC_GROWTH_EVENT_NAMES = [
   "contact_started",
 ] as const;
 
-export const COMMERCIAL_PLAN_SLUGS = ["free", "starter", "growth", "network"] as const;
+export const COMMERCIAL_PLAN_SLUGS = [
+  "free",
+  "starter",
+  "growth",
+  "network",
+] as const;
 export type CommercialPlanSlug = (typeof COMMERCIAL_PLAN_SLUGS)[number];
 
-export function toCommercialPlanSlug(planCode: string | null | undefined): CommercialPlanSlug | null {
+export function toCommercialPlanSlug(
+  planCode: string | null | undefined
+): CommercialPlanSlug | null {
   if (planCode === "pro" || planCode === "starter") return "starter";
   if (planCode === "premium" || planCode === "growth") return "growth";
   if (planCode === "free" || planCode === "network") return planCode;
@@ -29,7 +36,10 @@ const safeProperties = z
   .superRefine((properties, context) => {
     const entries = Object.entries(properties);
     if (entries.length > 12) {
-      context.addIssue({ code: z.ZodIssueCode.custom, message: "Demasiadas propiedades" });
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Demasiadas propiedades",
+      });
     }
 
     const forbiddenKey = /email|name|phone|message|password|token|secret/i;
@@ -49,7 +59,12 @@ export const PublicGrowthEventSchema = z
     eventName: z.enum(PUBLIC_GROWTH_EVENT_NAMES),
     visitorId: z.string().uuid(),
     planCode: z.enum(COMMERCIAL_PLAN_SLUGS).nullable().optional(),
-    source: z.string().trim().min(1).max(64).regex(/^[a-z0-9_-]+$/i),
+    source: z
+      .string()
+      .trim()
+      .min(1)
+      .max(64)
+      .regex(/^[a-z0-9_-]+$/i),
     properties: safeProperties,
   })
   .strict();
@@ -58,7 +73,13 @@ export const LeadCaptureSchema = z
   .object({
     email: z.string().trim().email().max(254),
     name: z.string().trim().min(2).max(100).nullable().optional(),
-    source: z.string().trim().min(1).max(64).regex(/^[a-z0-9_-]+$/i).default("landing_page"),
+    source: z
+      .string()
+      .trim()
+      .min(1)
+      .max(64)
+      .regex(/^[a-z0-9_-]+$/i)
+      .default("landing_page"),
     plan: z.enum(COMMERCIAL_PLAN_SLUGS).nullable().optional(),
     eventId: z.string().uuid().nullable().optional(),
     visitorId: z.string().uuid().nullable().optional(),
@@ -71,11 +92,26 @@ export const ContactRequestSchema = z
     email: z.string().trim().email().max(254),
     academy: z.string().trim().max(140).nullable().optional(),
     reason: z
-      .enum(["demo", "network", "sales", "support", "billing", "partnership", "other"])
+      .enum([
+        "demo",
+        "network",
+        "sales",
+        "migracion",
+        "support",
+        "billing",
+        "partnership",
+        "other",
+      ])
       .default("demo"),
     plan: z.enum(COMMERCIAL_PLAN_SLUGS).nullable().optional(),
-    visitorId: z.string().uuid().nullable().optional(),
-    source: z.string().trim().min(1).max(64).regex(/^[a-z0-9_-]+$/i).default("contact_form"),
+    visitorId: z.string().uuid(),
+    source: z
+      .string()
+      .trim()
+      .min(1)
+      .max(64)
+      .regex(/^[a-z0-9_-]+$/i)
+      .default("contact_form"),
     message: z.string().trim().min(10).max(2_000),
     honeypot: z.string().max(100).nullable().optional(),
     submissionId: z.string().uuid(),
@@ -91,9 +127,18 @@ export const CommercialInterviewInputSchema = z
     academyName: z.string().trim().min(2).max(140),
     contactName: nullableShortText,
     contactEmail: z.string().trim().email().max(254).nullable().optional(),
-    countryCode: z.string().trim().length(2).toUpperCase().nullable().optional(),
+    countryCode: z
+      .string()
+      .trim()
+      .length(2)
+      .toUpperCase()
+      .nullable()
+      .optional(),
     city: nullableShortText,
-    modality: z.enum(["artistica", "ritmica", "mixta", "otra"]).nullable().optional(),
+    modality: z
+      .enum(["artistica", "ritmica", "mixta", "otra"])
+      .nullable()
+      .optional(),
     athleteCount: z.number().int().min(0).max(100_000).nullable().optional(),
     coachCount: z.number().int().min(0).max(10_000).nullable().optional(),
     locationCount: z.number().int().min(1).max(1_000).default(1),
@@ -107,8 +152,12 @@ export const CommercialInterviewInputSchema = z
     freePlanExpectation: nullableLongText,
     upgradeTrigger: nullableLongText,
     betaInterest: z.enum(["unknown", "yes", "no", "maybe"]).default("unknown"),
-    willingnessToPay: z.enum(["unknown", "yes", "no", "maybe"]).default("unknown"),
-    status: z.enum(["scheduled", "completed", "no_show", "cancelled"]).default("scheduled"),
+    willingnessToPay: z
+      .enum(["unknown", "yes", "no", "maybe"])
+      .default("unknown"),
+    status: z
+      .enum(["scheduled", "completed", "no_show", "cancelled"])
+      .default("scheduled"),
     scheduledAt: z.string().datetime({ offset: true }).nullable().optional(),
     completedAt: z.string().datetime({ offset: true }).nullable().optional(),
     notes: nullableLongText,
@@ -142,7 +191,11 @@ export const CommercialInterviewInputSchema = z
     ];
 
     for (const [field, fieldValue] of required) {
-      if (fieldValue === null || fieldValue === undefined || fieldValue === "") {
+      if (
+        fieldValue === null ||
+        fieldValue === undefined ||
+        fieldValue === ""
+      ) {
         context.addIssue({
           code: z.ZodIssueCode.custom,
           path: [field],
@@ -152,4 +205,6 @@ export const CommercialInterviewInputSchema = z
     }
   });
 
-export type CommercialInterviewInput = z.infer<typeof CommercialInterviewInputSchema>;
+export type CommercialInterviewInput = z.infer<
+  typeof CommercialInterviewInputSchema
+>;
