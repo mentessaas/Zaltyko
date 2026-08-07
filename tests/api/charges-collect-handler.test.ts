@@ -155,6 +155,7 @@ describe("POST /api/charges/[chargeId]/collect — contrato HTTP", () => {
       paymentIntentId: "pi_sca_42",
       clientSecret: "pi_sca_42_secret_abc",
       stripeAccountId: "acct_academy_1",
+      paymentMethodId: "pm_family_1",
     });
 
     const request = new Request(
@@ -181,12 +182,15 @@ describe("POST /api/charges/[chargeId]/collect — contrato HTTP", () => {
 
     // === ZAL-10: el 409 ya es accionable. `details` lleva todo lo que el cliente
     // necesita para lanzar `stripe.confirmCardPayment` sobre la cuenta conectada
-    // sin sacar al usuario del producto.
+    // sin sacar al usuario del producto. Incluye el `paymentMethodId` porque
+    // Stripe limpia el PM del PI cuando off-session lanza
+    // `authentication_required` y el cliente debe re-attacharlo explícitamente.
     expect(body.details).toEqual({
       paymentIntentId: "pi_sca_42",
       clientSecret: "pi_sca_42_secret_abc",
       stripeAccountId: "acct_academy_1",
       publishableKey: "pk_test_123",
+      paymentMethodId: "pm_family_1",
     });
 
     // === El servicio subyacente recibió el id del cargo.
@@ -201,6 +205,7 @@ describe("POST /api/charges/[chargeId]/collect — contrato HTTP", () => {
       paymentIntentId: "pi_sca_43",
       clientSecret: null,
       stripeAccountId: "acct_academy_1",
+      paymentMethodId: "pm_family_1",
     });
 
     const response = await POST(
@@ -344,6 +349,7 @@ describe("POST /api/family/charges/[chargeId]/pay — contrato SCA del portal fa
       paymentIntentId: "pi_sca_99",
       clientSecret: "pi_sca_99_secret_xyz",
       stripeAccountId: "acct_academy_1",
+      paymentMethodId: "pm_family_99",
     });
 
     const response = await FAMILY_POST(
@@ -362,11 +368,13 @@ describe("POST /api/family/charges/[chargeId]/pay — contrato SCA del portal fa
     });
 
     // ZAL-10: la familia ya puede completar el 3DS desde el portal.
+    // `paymentMethodId` viaja para que `confirmCardPayment` lo re-attach.
     expect(body.details).toEqual({
       paymentIntentId: "pi_sca_99",
       clientSecret: "pi_sca_99_secret_xyz",
       stripeAccountId: "acct_academy_1",
       publishableKey: "pk_test_123",
+      paymentMethodId: "pm_family_99",
     });
   });
 

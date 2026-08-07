@@ -56,6 +56,9 @@ export async function POST(request: Request) {
               clientSecret: result.clientSecret,
               stripeAccountId: result.stripeAccountId,
               publishableKey,
+              // Re-attach explícito del PM en `confirmCardPayment` (Stripe lo
+              // limpia del PI cuando off-session exige SCA).
+              paymentMethodId: result.paymentMethodId,
             }
           : undefined
       );

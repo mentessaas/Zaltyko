@@ -19,6 +19,11 @@ export type CollectResult =
       // que el cliente complete el 3DS con Stripe.js sin salir del producto.
       clientSecret: string | null;
       stripeAccountId: string;
+      // payment_method que el servicio usó al crear el PI. Cuando Stripe lanza
+      // `authentication_required` deja el PI sin PM, pero conserva la intención;
+      // pasamos este id al cliente para que `confirmCardPayment` lo re-attach
+      // explícitamente (sin él da `payment_intent_unexpected_state`).
+      paymentMethodId: string;
     }
   | { ok: false; status: "failed"; reason: string; paymentIntentId?: string }
   | { ok: false; status: "skipped"; reason: string };
@@ -149,6 +154,7 @@ export async function collectCharge(chargeId: string): Promise<CollectResult> {
           paymentIntentId: pi.id,
           clientSecret: pi.client_secret ?? null,
           stripeAccountId: account.stripeAccountId,
+          paymentMethodId: payer.defaultPaymentMethodId,
         };
       }
       return {
@@ -197,6 +203,7 @@ export async function collectCharge(chargeId: string): Promise<CollectResult> {
         paymentIntentId: paymentIntent.id,
         clientSecret: paymentIntent.client_secret ?? null,
         stripeAccountId: account.stripeAccountId,
+        paymentMethodId: payer.defaultPaymentMethodId,
       };
     }
     return { ok: false, status: "failed", reason: paymentIntent.status, paymentIntentId: paymentIntent.id };
