@@ -34,6 +34,29 @@ source:
 
 Issue: [ZAL-410](/ZAL/issues/ZAL-410). Parent: [ZAL-10](/ZAL/issues/ZAL-10). QA: [ZAL-408](/ZAL/issues/ZAL-408). Branch: `feat/zal-10-sca-recovery`. Vault: esta entrada.
 
+## 2026-08-07 - ZAL-395: P&S review + vault handover para ZAL-392 Plan B LLM failover router
+
+- Platform & Security ejecutó wake de [ZAL-395](/ZAL/issues/ZAL-395) (ZAL-398 child de [ZAL-392](/ZAL/issues/ZAL-392)). Implementación completa en `feat/zal-392-llm-failover-router` SHA `89b2fd43be11f4978c11bcd63ef5498033f10262` (worktree `~/.claude/worktrees/zal-392-failover`, autor MentesSaaS <mentessaas@gmail.com>, board delivery 2026-08-06 20:08 +0200). Verificado: SHA real (no fabricado — anti-ZAL-78/91 confirmado vía `git cat-file -t 89b2fd43b` desde `~/.claude/worktrees/zal-392-failover` y desde `main` raíz).
+- **Scope**: 14 files changed, 1707 insertions(+), 28 deletions(-). Cubre los 5 subcomponentes del DESIGN.md (provider catalog, circuit breaker, router, telemetry, heartbeat glue) + route board-only + openapi.
+- **Verificación independiente re-ejecutada en este heartbeat**:
+  - `cd server && npx vitest run src/services/llm-failover/` → **36/36 PASS** (router 314 líneas, circuit-breaker, provider-catalog, telemetry). Tests cubren: happy path, failover a siguiente adaptador, chain exhausted, thrown errors sin failover, non-LLM bypass, `modelProfile=null` sin failover, anotación aditiva del trace, unknown adapter sintetiza `provider_quota`.
+  - `cd server && npx tsc -p tsconfig.json --noEmit` → clean (sin output). Error preexistente en `packages/plugins/sdk/src/testing.ts:1060` no introducido por este SHA.
+- **Controles de seguridad verificados**:
+  - `assertBoard(req)` en `routes/llm-failover.ts:21` antes de cualquier lectura; `actorMiddleware` global (`app.ts:228-233`) garantiza actor resuelto. En `local_trusted` default board; en `authenticated` mode sin sesión queda `actor.type="none"` → 403.
+  - `PAPERCLIP_FAILOVER_CHAIN` sanitizado por whitelist `LLM_ADAPTER_TYPES` (no hay vector de inyección).
+  - Non-LLM adapters (`process`, `http`, `openclaw_gateway`, `acpx_local`, `cursor_cloud`) bypass correcto.
+  - Thrown errors (infraestructura) NO triggerean failover — evita enmascarar OOM/network/sandbox-crash con failover de cuota.
+  - Mutex serializado en circuit breaker (`withLock()`) previene race half-open vs fresh failure.
+  - Telemetry sin PII (sin runId/agentId/user content) — solo provider + counters, board-only de todos modos.
+  - `resultJson.failover` puramente aditivo; `classifyAdapterFailureForRecovery` (`recovery/service.ts:382-417`) solo mira `errorCode`/`error`/regex — no regresión.
+- **Hygiene**: 0 secrets en diff (los hits `token` son `authToken ?? undefined` reubicado y texto en DESIGN.md), 0 cambios a `package.json`/`pnpm-lock.yaml`/`.env*`, 0 migraciones Drizzle/Prisma, 0 cambios a auth/RLS/billing/rutas admin.
+- **Observaciones (no bloqueantes)**: (1) `recordFailoverAttempt` solo cuenta switches, no quota-failures-without-switch — documentar en runbook. (2) Sin rate limit en `/api/internal/llm-failover/stats` — riesgo bajo (read-only). (3) Restart del server resetea breakers — NO restartear durante outage. (4) `assertBoard` no filtra por `companyId` en multi-tenant cloud — pre-requisito para deploy multi-tenant (no aplica a Zaltyko actual single-node). (5) ZAL-296 (per-agent dry-run) + ZAL-392 (per-profile) son complementarios; board debe decidir si promover ZAL-296 a live dado que ZAL-392 ya provee failover estructural. (6) SHA gate ZAL-88 pendiente: `89b2fd43b` no tiene C-1 autoral anclado (commit board delivery, no agent commit-proof) — mi C-2 cross-agent queda bloqueada por `feedback_paperclip_peer_verification_requires_author_c1` hasta que el board/anclaje se pronuncie (mismo patrón que ZAL-296 / ZAL-298).
+- **Vault handover durable**: `vault/02-Tecnologia/ZAL-392 Plan B LLM failover router review.md` (P&S review completo con diff scope, controles, observaciones, recomendaciones operativas, cross-references). Changelog: esta entrada. Sin cambios a `Decisiones.md` (la decisión board `1364ea18` sigue vigente y este review la ejecuta, no la modifica).
+- **Disposition ZAL-395**: `done`. El entregable de ZAL-395 (review P&S + vault handover) está completo y commiteado en esta entrada; el C-1 autoral pendiente sobre `89b2fd43b` pertenece a ZAL-392 (el issue code-bearing), no a ZAL-395, y no bloquea el cierre de este child. Sin secretos, sin cambios de producción, sin dinero real, sin publicación, sin migración. Costo del heartbeat: <$0.10.
+- **Corrección de durabilidad (run 197b95c1, 2026-08-07)**: los runs previos (`e4655ee0`, `d928f987`) reportaron el handover como "durable" y la issue como `done`, pero la verificación de este heartbeat encontró (1) el review doc **untracked** (`??`) y el changelog **sin commitear** (` M`) — un `git clean -fd` los habría destruido; (2) la issue en `in_progress`, no `done`. Causa del bucle: el comment `resume:true` sobre issue cerrada la reabre (`issue_reopened_via_comment`) y el run no hizo PATCH de vuelta. Corregido aquí: artefactos commiteados + PATCH `done` como última acción. Patrón registrado en memoria `feedback_work_product_handoff`.
+
+Issue: [ZAL-395](/ZAL/issues/ZAL-395). Parent: [ZAL-392](/ZAL/issues/ZAL-392). Vault: `vault/02-Tecnologia/ZAL-392 Plan B LLM failover router review.md` + esta entrada. Branch: `feat/zal-392-llm-failover-router`. SHA: `89b2fd43be11f4978c11bcd63ef5498033f10262`.
+
 ## 2026-08-06 - ZAL-402: F-17 P2 — sessionDate del coach se formatea a locale es-ES
 
 - Mobile Developer ejecutó wake de ZAL-402 (hijo de [ZAL-396](/ZAL/issues/ZAL-396), issue `f0088b8a-4a55-489a-b8ab-2006acb27c6a`). Recomendación HIJO-6 del audit: `coach/attendance/[sessionId].tsx:117` mostraba `Sesión del ${session.sessionDate}` (literal ISO `YYYY-MM-DD`) — debería decir `Sesión del 6 de agosto`.
