@@ -4,6 +4,7 @@ import { Locale } from "@/i18n";
 import {
   MODALITIES,
   COUNTRIES,
+  AVAILABLE_MODALITIES,
   getClusterContent,
   getRelatedByModality,
   getRelatedByCountry,
@@ -142,6 +143,7 @@ export default async function ClusterPage({ params }: ClusterPageProps) {
   // Get labels
   const modalityLabel = MODALITIES[modalityKey].label[locale as Locale];
   const countryLabel = COUNTRIES[countryKey].label[locale as Locale];
+  const available = AVAILABLE_MODALITIES[modalityKey];
 
   // URL info for schema
   const baseUrl = getPublicSiteUrl();
@@ -183,9 +185,10 @@ export default async function ClusterPage({ params }: ClusterPageProps) {
         countryLabel={countryLabel}
         modalitySlug={modality}
         countrySlug={country}
+        available={available}
       />
 
-      <ClusterPainPointsSection content={content} locale={locale as "es" | "en"} />
+      <ClusterPainPointsSection content={content} locale={locale as "es" | "en"} available={available} />
 
       <ClusterInterlinking
         locale={locale as "es" | "en"}
@@ -197,6 +200,7 @@ export default async function ClusterPage({ params }: ClusterPageProps) {
         relatedByCountry={relatedByCountry}
         federationName={content.federation.name}
         competitions={content.federation.competitions}
+        available={available}
       />
     </>
   );

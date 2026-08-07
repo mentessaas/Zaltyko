@@ -6,6 +6,7 @@ import type { ClusterContent } from "@/lib/seo/clusters";
 interface ClusterPainPointsSectionProps {
   content: ClusterContent;
   locale: "es" | "en";
+  available?: boolean;
 }
 
 const painPointIcons = {
@@ -48,6 +49,7 @@ const solutionTitles = {
 export default function ClusterPainPointsSection({
   content,
   locale,
+  available: _available = true,
 }: ClusterPainPointsSectionProps) {
   const titles = painPointTitles[locale];
   const solution = solutionTitles[locale];

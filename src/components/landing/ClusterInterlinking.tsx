@@ -19,6 +19,7 @@ interface ClusterInterlinkingProps {
   relatedByCountry: Array<{ slug: ModalitySlug; label: string; url: string }>;
   federationName: string;
   competitions: string[];
+  available?: boolean;
 }
 
 function ClusterInterlinkingImpl({
@@ -31,6 +32,7 @@ function ClusterInterlinkingImpl({
   relatedByCountry,
   federationName,
   competitions,
+  available = true,
 }: ClusterInterlinkingProps) {
   const labels = {
     es: {
@@ -140,18 +142,20 @@ function ClusterInterlinkingImpl({
         </div>
 
         {/* CTA */}
-        <div className="text-center">
-          <Link
-            href="/auth/register"
-            className={cn(
-              buttonVariants({ variant: "default", size: "lg" }),
-              "bg-zaltyko-teal hover:bg-primary-dark text-white shadow-soft transition-all duration-300 text-base px-8 py-6 group inline-flex items-center"
-            )}
-          >
-            {t.cta}
-            <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
-          </Link>
-        </div>
+        {available && (
+          <div className="text-center">
+            <Link
+              href="/auth/register"
+              className={cn(
+                buttonVariants({ variant: "default", size: "lg" }),
+                "bg-zaltyko-teal hover:bg-primary-dark text-white shadow-soft transition-all duration-300 text-base px-8 py-6 group inline-flex items-center"
+              )}
+            >
+              {t.cta}
+              <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+            </Link>
+          </div>
+        )}
       </div>
     </section>
   );

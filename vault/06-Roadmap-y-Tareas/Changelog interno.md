@@ -7,6 +7,16 @@ source:
   - ../AGENTS.md
 ---
 
+## 2026-08-07 - ZAL-40: gate F3/F4 country + Cluster components sobre `AVAILABLE_MODALITIES`
+
+- `src/app/(site)/[locale]/[modality]/[country]/page.tsx`: importa `AVAILABLE_MODALITIES` y propaga `available` a `ClusterHeroSection`, `ClusterPainPointsSection` y `ClusterInterlinking`. Es la superficie con más URLs indexadas y quedaba con el flag sin leer.
+- `src/components/landing/ClusterHeroSection.tsx`: acepta `available?: boolean`; cuando `available === false` muestra la etiqueta `Próximamente` / `Coming soon` y oculta los CTAs `Crear mi academia gratis` y `Ver planes`. Para `available === true` mantiene los CTAs y enlaces existentes.
+- `src/components/landing/ClusterInterlinking.tsx`: acepta `available?: boolean`; oculta el CTA final cuando `available === false`. El interlinking de países/modalidades relacionadas se mantiene en ambos casos para no romper la navegación SEO.
+- `src/components/landing/ClusterPainPointsSection.tsx`: acepta `available?: boolean` (lo recibe desde el padre aunque la sección no mute por ahora — la promesa específica del JSON por país/modalidad queda como contenido separado, fuera del gate de código).
+- Verificación local: `pnpm exec tsc --noEmit --pretty false` 0 errores en los cuatro archivos; `pnpm exec eslint` sobre los mismos 0 errores y 5 warnings (4 preexistentes, 1 nuevo de `no-unused-vars` consistente con los demás).
+- Sin merge, deploy, publicación, migraciones ni operaciones externas. Vault: `Backlog priorizado.md` no se toca (la tarea ya estaba cerrada a nivel de brief).
+- Issue: [ZAL-40](/ZAL/issues/ZAL-40). Branch: `fix/zal-40-country-cluster-gate`. Complementa F1+F2 de [ZAL-180](/ZAL/issues/ZAL-180) extendiendo la mitigación a `[locale]/[modality]/[country]` y los componentes `Cluster*`.
+
 ## 2026-08-07 - ZAL-410: ZAL-10 SCA 3DS — confirmar con `payment_method` y cerrar la race de refresco (cierre técnico)
 
 - Web Developer ejecutó wake de [ZAL-410](/ZAL/issues/ZAL-410) (hijo de [ZAL-10](/ZAL/issues/ZAL-10) `in_review`); QA de [ZAL-408](/ZAL/issues/ZAL-408) cerró en **FAIL** dos defectos sobre la rama `feat/zal-10-sca-recovery`. El reciente commit `204110c94` y `f83d6610b` ya tenían aplicadas las dos correcciones en código; este heartbeat fija los contratos que faltaban.
