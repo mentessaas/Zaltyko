@@ -217,12 +217,16 @@ describe("collectCharge", () => {
 
     // ZAL-10: el client_secret viaja hasta el handler para que owner/familia
     // completen el 3DS con Stripe.js sobre la cuenta conectada.
+    // `paymentMethodId` también: Stripe limpia el PM del PI cuando off-session
+    // lanza `authentication_required`, así que el servicio lo re-attach
+    // explícitamente desde `resolvePayerCustomerForAthlete.defaultPaymentMethodId`.
     expect(result).toEqual({
       ok: false,
       status: "requires_action",
       paymentIntentId: "pi_2",
       clientSecret: "pi_2_secret_abc",
       stripeAccountId: "acct_123",
+      paymentMethodId: "pm_1",
     });
     const lastUpdate = state.updateSets.at(-1);
     expect(lastUpdate).toMatchObject({ status: "failed", attemptCount: 1, stripePaymentIntentId: "pi_2" });

@@ -1,11 +1,38 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-08-06
+last_reviewed: 2026-08-07
 source:
   - ../ROADMAP.md
   - ../AGENTS.md
 ---
+
+## 2026-08-07 - ZAL-410: ZAL-10 SCA 3DS — confirmar con `payment_method` y cerrar la race de refresco (cierre técnico)
+
+- Web Developer ejecutó wake de [ZAL-410](/ZAL/issues/ZAL-410) (hijo de [ZAL-10](/ZAL/issues/ZAL-10) `in_review`); QA de [ZAL-408](/ZAL/issues/ZAL-408) cerró en **FAIL** dos defectos sobre la rama `feat/zal-10-sca-recovery`. El reciente commit `204110c94` y `f83d6610b` ya tenían aplicadas las dos correcciones en código; este heartbeat fija los contratos que faltaban.
+- **Defecto 1 (bloqueante) — reto 3DS nunca se abre**: `stripe.confirmCardPayment(clientSecret)` sin `payment_method` devolvía `payment_intent_unexpected_state` porque Stripe limpia el PM del PI cuando off-session lanza `authentication_required` (PI queda `requires_payment_method` con `payment_method: null`). Fix en código:
+  - `src/lib/stripe/charge-collection-service.ts:155-157` y `:204-206`: `requires_action` devuelve ya `paymentMethodId: payer.defaultPaymentMethodId` (la tarjeta que el servicio usó al crear el PI).
+  - `src/app/api/charges/[chargeId]/collect/route.ts:67` y `src/app/api/family/charges/[chargeId]/pay/route.ts:61`: ambos 409 `REQUIRES_ACTION` propagan `paymentMethodId` en `details`.
+  - `src/lib/stripe/confirm-sca-client.ts:54-80`: `tryConfirm` invoca `stripe.confirmCardPayment(clientSecret, { payment_method: pmId })` (si `paymentMethodId` está disponible) y reintenta una vez si Stripe responde `payment_intent_unexpected_state`.
+  - `ScaRecoveryDetails.paymentMethodId?: string | null` y `parseScaRecoveryDetails` ya lo aceptan (`tests/lib/stripe-confirm-sca-client.test.ts:139-159`).
+- **Defecto 2 (race UI vs webhook)** — refresco inmediato tras `confirmCardPayment` mostraba "Cobro autenticado" sobre cargo todavía en `failed` (`payment_intent.succeeded` llega async). Fix:
+  - `src/lib/billing/wait-for-charge-paid.ts`: polling helper que acota hasta `paid` (interval 500ms, timeout 5s) con `AbortController` por tick.
+  - `src/app/api/charges/[chargeId]/status/route.ts` (owner `withTenant`) y `src/app/api/family/charges/[chargeId]/status/route.ts` (Supabase auth + `resolveFamilyChargeAccess`): exponen `{ id, status }` para el sondeo. Solo `id` y `status` (sin totales ni datos sensibles).
+  - `src/components/billing/StudentChargesTab.tsx:295-310` y `src/components/my-dashboard/MyPaymentsWidget.tsx:64-72`: tras `confirmScaChallenge` invocan `waitForChargePaid` antes de `loadCharges()` / `router.refresh()`; el toast distingue `"Cobro realizado"` (llegamos a `paid`) de `"Cobro autenticado"` (timeout — `payment_intent.succeeded` aterrizará en los siguientes segundos).
+- **Contratos que faltaban en test, pineados en este heartbeat**:
+  - **Integration test del servicio corregido**: `tests/lib/stripe-charge-collection.integration.test.ts:208-232` usaba `toEqual({...})` con 4 campos para el resultado `requires_action`. El fix añadió `paymentMethodId: "pm_1"` (5º campo), pero el test quedó con el shape antiguo y fallaba — la regresión silenciosa que la QA detectó como "pasan 50/50 con el bug presente". Actualizado: ahora pinea explícitamente `paymentMethodId: "pm_1"` para que cualquier reversión del fix rompa el test.
+  - **Helper de polling cubierto de cero**: `tests/lib/wait-for-charge-paid.test.ts` (nuevo, 6 casos): (a) primer tick `paid` → `reachedPaid: true, timedOut: false`; (b) llega `paid` antes del timeout → sale del bucle en cuanto se ve; (c) `AbortController.abort()` se llama tras cada tick; (d) tolera fetch que lanza (`mockRejectedValueOnce`); (e) agota `timeoutMs` → `reachedPaid: false, timedOut: true`; (f) `fetchStatus` que devuelve `null` (endpoint irregular) sigue sondeando.
+  - **SCA client ya cubierto**: `tests/lib/stripe-confirm-sca-client.test.ts` (8 casos) pinea `confirmCardPayment` con `{ payment_method }`, reintento con mismo PM ante `payment_intent_unexpected_state`, compatibilidad legacy sin PM, mensaje de error al usuario, carga de Stripe sobre `stripeAccount`, y `parseScaRecoveryDetails` con/sin `paymentMethodId`.
+  - **Handlers HTTP cubiertos**: `tests/api/charges-collect-handler.test.ts` (12 casos, incluye `paymentMethodId: "pm_family_1"` explícito en `body.details`) y `tests/api-payments-connect-charges.test.ts:535-551` (404/403/200/409 SCA/409 skipped/402 failed).
+- **Verificación ejecutada en este heartbeat**:
+  - `pnpm test tests/lib/stripe-confirm-sca-client.test.ts tests/lib/wait-for-charge-paid.test.ts tests/lib/stripe-charge-collection.integration.test.ts tests/api/charges-collect-handler.test.ts tests/api-family-payments.test.ts tests/api-payments-connect-charges.test.ts` → **114/114 verde** (incluye el integration test recién corregido y los 6 nuevos del polling).
+  - `pnpm lint:app src/lib/stripe/confirm-sca-client.ts src/lib/billing/wait-for-charge-paid.ts tests/lib/wait-for-charge-paid.test.ts tests/lib/stripe-charge-collection.integration.test.ts` → exit 0 (los errores `/contact/` que reporta `pnpm lint:app` global son de `src/app/unsubscribe/page.tsx`, pre-existentes y fuera del alcance de ZAL-410).
+  - `pnpm typecheck` falla solo en `MarketplaceFilters.tsx`, `MessagesPage.tsx`, `AutoBreadcrumb.tsx`, `AcademiesFilters.tsx`, `EventsFilters.tsx`, `TicketFilters.tsx` con `TS18047: X is possibly 'null'` — pre-existentes en `main`, sin relación con el SCA.
+- **Lo que NO se hizo (y por qué)**: no se ejecutó el recorrido navegador E2E con tarjeta SCA-trigger. ZAL-408 lo señala: la única academia con `charges_enabled=true` es *Aurora Elite Demo* en Supabase de producción, y su familia fixture tiene `4242…4242` (no dispara SCA). Montar el recorrido exige decidir antes dónde se aprovisiona academia E2E con tarjeta de prueba que fuerce SCA; QA no tocó producción y cualquier decisión de seed requiere board.
+- **Disposition ZAL-410**: status `done` cuando esta entrada queda commiteada y el SHA gate ZAL-88 se cierra con C-1 vivo (PASA-el-SHA-gate per-issue per memoria). El fix vive en `feat/zal-10-sca-recovery` con commit a crear tras esta entrada; las pruebas nuevas cierran la brecha "test pasa 50/50 con el bug presente" que el QA documentó. Recorrido navegador queda como deber board-side (semilla academia E2E con SCA-forcing card).
+- Sin secretos, sin cambios de producción, sin dinero real, sin publicación, sin migración de DB. Costo del heartbeat: <$0.10.
+
+Issue: [ZAL-410](/ZAL/issues/ZAL-410). Parent: [ZAL-10](/ZAL/issues/ZAL-10). QA: [ZAL-408](/ZAL/issues/ZAL-408). Branch: `feat/zal-10-sca-recovery`. Vault: esta entrada.
 
 ## 2026-08-06 - ZAL-402: F-17 P2 — sessionDate del coach se formatea a locale es-ES
 
@@ -1909,3 +1936,14 @@ Registrar cambios humanos y relevantes: releases, decisiones, cambios de pricing
 - Revisión Marketing contra brief en [ZAL-68](/ZAL/issues/ZAL-68): 6/6 criterios cumplidos (sin reclamar soporte activo, etiqueta consistente, CTA preservado, sin claims nuevos, copy alineado con producto real, decisión 2026-07-29 respetada). Veredicto APROBADO registrado (2026-08-04). Board ratifica SHAs como reales (af93ca57, 2026-08-02). C-5 v2 ratificación P&S (e6a7b188, 2026-08-02).
 - Disposición final del issue (wake de 2026-08-06 ~21:25Z): `PATCH status=done` retorna 200 (completedAt 2026-08-06T21:33:03Z). SHA gate ZAL-88 per-issue satisfecho por C-1 (`7a28cf93`, Marketing) + C-2 (`afd740a6`, Engineering Lead acade097) emitidos en heartbeats previos. Brief + ratificaciones quedan en vault; la implementación ya está mergeada en `main` vía ZAL-45/ZAL-180 (HEAD `994a8da94` ratificado, QA PASS en ZAL-181).
 - Sin producción, secretos, datos reales, pricing, campañas, publicaciones, ni E2E de navegador. Costo ~0 USD. Cierre de coordinación, no de código. Issue: [ZAL-38](/ZAL/issues/ZAL-38). Vault: `vault/04-Marketing/Brief - Copy acrobática y trampolín.md` (SHA `d495ad31b`).
+
+## 2026-08-07 - ZAL-27: schema del sandbox E2E aplicado; gate de secretos aún incompleto
+
+- El proyecto Supabase `aeeootdmuiqkfeernskw` (`Zaltyko E2E Sandbox`, región `eu-north-1`, estado `ACTIVE_HEALTHY`) quedó enlazado mediante Supabase CLI usando el pooler IPv4. La `DATABASE_URL` inyectada apuntaba al host directo no resoluble en esta red; no se tocó producción `jegxfahsvugilbthbked`.
+- `pnpm db:migrate:ledger` en dry-run detectó tres migraciones pendientes. Antes de aplicar se corrigió `supabase/migrations/20260805120000_academies_status_semantics.sql`: el `CHECK (status ...)` estaba antes de crear la columna `status`, por lo que un sandbox sin esa columna fallaba con `42703`. El orden ahora es columnas → constraint; no se cambió el contrato funcional.
+- Aplicación remota controlada al sandbox: las tres migraciones (`20260804120000_create_athlete_invitations.sql`, `20260805120000_academies_status_semantics.sql`, `20260805150000_academies_utm_attribution.sql`) aplicaron en una transacción. Verificación posterior: ledger `45 migraciones verificadas; no hay pendientes`; REST service-role confirma tabla `athlete_invitations`, columnas de status y UTM presentes.
+- Academia demo aislada verificada: UUID `7ea0690c-99f2-4466-8a96-f251e1235d57`, `status=active`, `is_suspended=false`; `stripe_accounts` confirma `acct_1Tyau3Dd5HlYiTSY`, `charges_enabled=true`, `details_submitted=true`, `onboarding_status=complete`.
+- Stripe CLI: configuración local presente y `stripe listen --forward-to http://127.0.0.1:3000/api/webhooks/stripe` permaneció ejecutándose durante el probe, sin imprimir ni persistir el signing secret en la evidencia. **No se declara webhook listo** porque `STRIPE_WEBHOOK_SECRET` no está proyectado en el adapter.
+- Gate residual: `CRON_SECRET` sigue proyectado como placeholder de 3 bytes y `STRIPE_WEBHOOK_SECRET` sigue ausente. No se generan, leen ni publican secretos desde este agente. Owner del unblock: board/operador autorizado; acción exacta: corregir ambos `secret_ref` con valores reales del sandbox y despertar [ZAL-27](/ZAL/issues/ZAL-27) para repetir la verificación no reveladora. Hasta entonces, QA no debe ejecutar `E2E_LIVE_STRIPE=1`.
+- Validaciones locales: integridad de migraciones `OK` (6 Drizzle + 45 Supabase). El validador RLS local continúa reportando el gap preexistente de `athlete_invitations` en la fuente estática por su parser de policies sin nombre entrecomillado; la migración aplicada sí crea RLS y las dos policies en sandbox. Requiere revisión separada, no se usa como evidencia de readiness productivo.
+- Sin producción, dinero real, datos personales reales, publicaciones ni Stripe live. Issue: [ZAL-27](/ZAL/issues/ZAL-27).
