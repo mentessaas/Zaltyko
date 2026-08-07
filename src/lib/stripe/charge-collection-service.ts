@@ -11,7 +11,15 @@ import { logger } from "@/lib/logger";
 
 export type CollectResult =
   | { ok: true; status: "paid"; paymentIntentId: string }
-  | { ok: false; status: "requires_action"; paymentIntentId: string }
+  | {
+      ok: false;
+      status: "requires_action";
+      paymentIntentId: string;
+      // client_secret del PaymentIntent: scope de un solo intento, necesario para
+      // que el cliente complete el 3DS con Stripe.js sin salir del producto.
+      clientSecret: string | null;
+      stripeAccountId: string;
+    }
   | { ok: false; status: "failed"; reason: string; paymentIntentId?: string }
   | { ok: false; status: "skipped"; reason: string };
 
@@ -135,7 +143,13 @@ export async function collectCharge(chargeId: string): Promise<CollectResult> {
         .where(eq(charges.id, charge.id));
 
       if (requiresAction && pi?.id) {
-        return { ok: false, status: "requires_action", paymentIntentId: pi.id };
+        return {
+          ok: false,
+          status: "requires_action",
+          paymentIntentId: pi.id,
+          clientSecret: pi.client_secret ?? null,
+          stripeAccountId: account.stripeAccountId,
+        };
       }
       return {
         ok: false,
@@ -177,7 +191,13 @@ export async function collectCharge(chargeId: string): Promise<CollectResult> {
       return { ok: true, status: "paid", paymentIntentId: paymentIntent.id };
     }
     if (paymentIntent.status === "requires_action") {
-      return { ok: false, status: "requires_action", paymentIntentId: paymentIntent.id };
+      return {
+        ok: false,
+        status: "requires_action",
+        paymentIntentId: paymentIntent.id,
+        clientSecret: paymentIntent.client_secret ?? null,
+        stripeAccountId: account.stripeAccountId,
+      };
     }
     return { ok: false, status: "failed", reason: paymentIntent.status, paymentIntentId: paymentIntent.id };
   });

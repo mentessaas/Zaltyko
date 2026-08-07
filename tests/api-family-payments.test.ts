@@ -690,7 +690,7 @@ describe("API /api/family/charges/[chargeId]/pay", () => {
     const response = await POST(request);
 
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ ok: true, status: "paid" });
+    expect(await response.json()).toEqual({ ok: true, data: { status: "paid" } });
     expect(serviceMocks.collectCharge).toHaveBeenCalledWith(CHARGE_ID);
   });
 
