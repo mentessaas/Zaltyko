@@ -14,6 +14,7 @@ import { EditChargeDialog } from "./EditChargeDialog";
 import { GenerateChargesDialog } from "./GenerateChargesDialog";
 import { RegisterPaymentDialog } from "./RegisterPaymentDialog";
 import { getTerminologyForSportConfig } from "@/lib/sport-config/terminology";
+import { confirmScaChallenge, parseScaRecoveryDetails } from "@/lib/stripe/confirm-sca-client";
 import { logger } from "@/lib/logger";
 
 interface ChargeItem {
@@ -275,6 +276,23 @@ export function StudentChargesTab({ academyId, sportConfigs = [] }: StudentCharg
       const res = await fetch(`/api/charges/${charge.id}/collect`, { method: "POST" });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
+        // SCA/3DS: el banco exige autenticación. La API devuelve el client_secret
+        // del PaymentIntent para completar el reto sin salir del dashboard.
+        const sca =
+          body?.error === "REQUIRES_ACTION" ? parseScaRecoveryDetails(body?.details) : null;
+        if (sca) {
+          const confirmation = await confirmScaChallenge(sca);
+          if (!confirmation.ok) {
+            throw new Error(confirmation.message);
+          }
+          toast.pushToast({
+            title: "Cobro autenticado",
+            description: "Se completó la autenticación y el cobro se ha procesado.",
+            variant: "success",
+          });
+          loadCharges();
+          return;
+        }
         throw new Error(body?.message ?? body?.error ?? "No se pudo cobrar.");
       }
       toast.pushToast({ title: "Cobro realizado", description: "La cuota se ha cobrado con tarjeta.", variant: "success" });

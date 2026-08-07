@@ -8,6 +8,7 @@ import { charges } from "@/db/schema";
 import { apiError, apiSuccess } from "@/lib/api-response";
 import { withTenant } from "@/lib/authz";
 import { handleApiError } from "@/lib/api-error-handler";
+import { getOptionalEnvVar } from "@/lib/env";
 import { getUserIdentifier, withRateLimit } from "@/lib/rate-limit";
 import { verifyAcademyAccess } from "@/lib/permissions";
 import { collectCharge } from "@/lib/stripe/charge-collection-service";
@@ -49,10 +50,19 @@ const collectHandler = withTenant(async (request, context) => {
       return apiSuccess({ status: "paid", paymentIntentId: result.paymentIntentId });
     }
     if (result.status === "requires_action") {
+      const publishableKey = getOptionalEnvVar("NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY");
       return apiError(
         "REQUIRES_ACTION",
         "El pago necesita autenticación del titular de la tarjeta (SCA).",
-        409
+        409,
+        result.clientSecret && publishableKey
+          ? {
+              paymentIntentId: result.paymentIntentId,
+              clientSecret: result.clientSecret,
+              stripeAccountId: result.stripeAccountId,
+              publishableKey,
+            }
+          : undefined
       );
     }
     if (result.status === "skipped") {

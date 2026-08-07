@@ -6,6 +6,7 @@ import { CreditCard, AlertCircle, CheckCircle, Clock, ArrowRight, Loader2, Recei
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FamilyPaymentMethodCard } from "@/components/billing/FamilyPaymentMethodCard";
+import { confirmScaChallenge, parseScaRecoveryDetails } from "@/lib/stripe/confirm-sca-client";
 
 interface ChargeData {
   id: string;
@@ -42,7 +43,20 @@ export function MyPaymentsWidget({ charges, academyId }: MyPaymentsWidgetProps) 
         if (json.error === "NO_SAVED_CARD") {
           setActionError("Añade una tarjeta para poder pagar.");
         } else if (json.error === "REQUIRES_ACTION") {
-          setActionError("Tu banco pide autenticación. Inténtalo desde tu app bancaria.");
+          // El banco pide 3DS: completamos el reto aquí mismo con el
+          // client_secret del PaymentIntent en vez de derivar a la app bancaria.
+          const sca = parseScaRecoveryDetails(json.details);
+          if (!sca) {
+            setActionError("Tu banco pide autenticación. Inténtalo desde tu app bancaria.");
+            return;
+          }
+          const confirmation = await confirmScaChallenge(sca);
+          if (!confirmation.ok) {
+            setActionError(confirmation.message);
+            return;
+          }
+          router.refresh();
+          return;
         } else if (json.error === "CONNECT_NOT_READY") {
           setActionError("La academia aún no tiene activados los pagos con tarjeta.");
         } else {

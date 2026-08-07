@@ -210,12 +210,20 @@ describe("collectCharge", () => {
     paymentIntentsCreate.mockRejectedValue({
       code: "authentication_required",
       message: "This payment requires authentication.",
-      payment_intent: { id: "pi_2" },
+      payment_intent: { id: "pi_2", client_secret: "pi_2_secret_abc" },
     });
 
     const result = await collectCharge("charge_1");
 
-    expect(result).toEqual({ ok: false, status: "requires_action", paymentIntentId: "pi_2" });
+    // ZAL-10: el client_secret viaja hasta el handler para que owner/familia
+    // completen el 3DS con Stripe.js sobre la cuenta conectada.
+    expect(result).toEqual({
+      ok: false,
+      status: "requires_action",
+      paymentIntentId: "pi_2",
+      clientSecret: "pi_2_secret_abc",
+      stripeAccountId: "acct_123",
+    });
     const lastUpdate = state.updateSets.at(-1);
     expect(lastUpdate).toMatchObject({ status: "failed", attemptCount: 1, stripePaymentIntentId: "pi_2" });
     expect(state.insertedAttempts[0]).toMatchObject({ status: "requires_action" });
