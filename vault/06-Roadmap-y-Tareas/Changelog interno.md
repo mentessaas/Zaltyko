@@ -2908,6 +2908,30 @@ La nota del issue original sigue vigente: Aurora Elite Demo (única academia con
 - Sin merge, deploy, publicación, migraciones ni operaciones externas. Vault: `Backlog priorizado.md` no se toca (la tarea ya estaba cerrada a nivel de brief).
 - Issue: [ZAL-40](/ZAL/issues/ZAL-40). Branch: `fix/zal-40-country-cluster-gate`. Complementa F1+F2 de [ZAL-180](/ZAL/issues/ZAL-180) extendiendo la mitigación a `[locale]/[modality]/[country]` y los componentes `Cluster*`.
 
+## 2026-08-07 - ZAL-410: recorrido E2E live del reto 3DS (owner + familia) — cierra la brecha que el board señaló en ZAL-10
+
+- Web Developer ejecutó wake de reactivación sobre [ZAL-410](/ZAL/issues/ZAL-410). El board rechazó aprobar el cierre de [ZAL-10](/ZAL/issues/ZAL-10) con una objeción concreta: *"no veo evidencia de la prueba EN VIVO con la tarjeta 4000 0027 6000 3184 que la propia decisión pide como condición — solo tests automatizados"*. La objeción era correcta y el hueco era estructural, no de esfuerzo: `c4e4895b3` fija el **contrato** (que el 409 lleva `paymentMethodId`, que existe el sondeo de status) pero **ningún test ejercita `confirmCardPayment` contra Stripe ni abre el reto** — que es justo donde QA-ZAL-408 encontró el bug con 50/50 verde.
+- **Entregado**: `tests/e2e-zaltyko-sca-3ds-flow.spec.ts` (SHA `2bab8762f`, rama `test/zal-410-sca-3ds-e2e` sobre `feat/zal-10-sca-recovery`). 4 tests en serie sobre los dos puntos de entrada del criterio de aceptación:
+  1. Familia guarda la tarjeta 3DS: SetupIntent → reto → `succeeded` → `last4 = 3184`.
+  2. `POST /api/charges/[id]/collect` → 409 `REQUIRES_ACTION` con `details.paymentMethodId` (el defecto 1 de ZAL-408 a nivel de contrato HTTP).
+  3. Owner: botón *Cobrar* → reto → toast → cargo `paid`.
+  4. Familia: *Pagar ahora* → reto → cargo `paid`.
+- **Por qué la tarjeta importa**: `tok_visa` (4242) nunca dispara SCA — por eso la suite Connect existente (`e2e-zaltyko-stripe-connect-flow.spec.ts`) pasaba con el bug presente. Se usa `tok_threeDSecureRequired` = `4000 0027 6000 3184`, que exige 3DS en **todas** las transacciones, también off-session.
+- **`completeThreeDsChallenge()`** no fija la jerarquía de iframes de Stripe (`__privateStripeFrame` → `challengeFrame` → `acsFrame`, que Stripe cambia sin avisar): recorre `page.frames()` recursivo — incluye cross-origin — y pulsa el primer frame que exponga `#test-source-authorize-3ds` o un botón "Complete authentication". Sobrevive a re-anidados. Acepta `{ action: "fail" }` para el camino de autenticación fallida.
+- **Verificación ejecutada en este heartbeat**:
+  - `tsc --noEmit` → **0 errores en el spec nuevo** (los 390 reportados son de `mobile/`, preexistentes del worktree sin deps de Expo instaladas).
+  - `eslint tests/e2e-zaltyko-sca-3ds-flow.spec.ts` → **exit 0**.
+  - `playwright --list` → los **4 tests se descubren**.
+  - Sin `E2E_SCA_3DS_FLOW=1` → **4 skipped**. Skip limpio: no corre en CI ni rompe el gate.
+  - Con opt-in y `BASE_URL` muerto → **1 failed, 7 skipped**. Es la propiedad que faltaba en ZAL-408: la suite **no puede pasar en silencio sin entorno real**.
+- **Lo que esto NO es**: no es la evidencia live que el board pide. Es la maquinaria que hace que esa evidencia se produzca con un comando en vez de una sesión manual. `docs/RUNBOOK_E2E_SCA_3DS.md` deja aprovisionamiento y ejecución en pasos copiables, con el bloqueante explícito arriba del todo.
+- **Bloqueante acotado (corrige la entrada anterior)**: no es acceso a Stripe — QA ya midió contra la cuenta conectada de test `acct_1Tyau3…` con esa misma tarjeta, y de ahí salió la causa raíz. Lo que falta es más estrecho: **no hay academia con `charges_enabled=true` fuera de producción**. El recorrido por navegador necesita una fila de academia sobre la que pinchar botones, y aprovisionarla implica decidir dónde (dos de tres opciones escriben en la base de producción) + un `secret_ref` para las credenciales del entorno elegido.
+- **Disposición**: interacción `ask_user_questions` abierta en el hilo de ZAL-10 (`8c202f55`, `wake_assignee`) con tres opciones — (A) proyecto Supabase de test dedicado *(recomendada)*, (B) academia E2E dedicada dentro del Supabase de producción, (C) reusar Aurora Elite Demo cambiando la tarjeta fixture *(no recomendada)*. ZAL-410 y ZAL-10 siguen **`in_review`**; ZAL-10 **no** se pide cerrar: la condición del board no está cumplida. Relacionado: [ZAL-13](/ZAL/issues/ZAL-13) (bloqueadores externos de QA E2E de cobros, board) cubre la misma raíz y sigue `blocked`.
+- Corrige la entrada previa de ZAL-410, que anticipaba `done`: la issue quedó en `in_review` y el cierre depende del board.
+- Sin secretos leídos ni impresos, sin cambios de producción, sin dinero real, sin publicación, sin migración de DB.
+
+Issue: [ZAL-410](/ZAL/issues/ZAL-410). Parent: [ZAL-10](/ZAL/issues/ZAL-10). QA: [ZAL-408](/ZAL/issues/ZAL-408). Commit proof: `9da21436-09c6-4156-85be-df9fe205651f`.
+
 ## 2026-08-07 - ZAL-410: ZAL-10 SCA 3DS — confirmar con `payment_method` y cerrar la race de refresco (cierre técnico)
 
 - Web Developer ejecutó wake de [ZAL-410](/ZAL/issues/ZAL-410) (hijo de [ZAL-10](/ZAL/issues/ZAL-10) `in_review`); QA de [ZAL-408](/ZAL/issues/ZAL-408) cerró en **FAIL** dos defectos sobre la rama `feat/zal-10-sca-recovery`. El reciente commit `204110c94` y `f83d6610b` ya tenían aplicadas las dos correcciones en código; este heartbeat fija los contratos que faltaban.
