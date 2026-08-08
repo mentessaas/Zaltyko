@@ -46,13 +46,47 @@ const solutionTitles = {
   },
 };
 
+const comingSoonCopy = {
+  es: {
+    badge: "Próximamente",
+    headline: "Estamos preparando esta gestión para ti",
+    body:
+      "Cuando lancemos el soporte oficial para esta modalidad, encontrarás aquí los problemas específicos que resolvemos y las funcionalidades de Zaltyko adaptadas al sector.",
+  },
+  en: {
+    badge: "Coming soon",
+    headline: "We're preparing this management for you",
+    body:
+      "Once we launch official support for this modality, you'll find here the specific problems we solve and Zaltyko's features tailored to the sector.",
+  },
+};
+
 export default function ClusterPainPointsSection({
   content,
   locale,
-  available: _available = true,
+  available = true,
 }: ClusterPainPointsSectionProps) {
   const titles = painPointTitles[locale];
   const solution = solutionTitles[locale];
+  const comingSoon = comingSoonCopy[locale];
+
+  if (!available) {
+    return (
+      <section className="py-20 bg-white">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="mx-auto flex max-w-2xl flex-col items-center text-center">
+            <span className="mb-4 inline-flex rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              {comingSoon.badge}
+            </span>
+            <h2 className="font-display text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
+              {comingSoon.headline}
+            </h2>
+            <p className="text-lg text-gray-600">{comingSoon.body}</p>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="py-20 bg-white">

@@ -4,6 +4,33 @@ owner: producto
 last_reviewed: 2026-08-08T23:30Z
 source:
 
+## 2026-08-08 - Web Developer: ZAL-448 cerrar superficies operativas restantes del gate de disponibilidad (tras FAIL de ZAL-446)
+
+[ZAL-426](/ZAL/issues/ZAL-426) pidió re-verificar el copy tras SHA `e6b9b5d8e`; [ZAL-446](/ZAL/issues/ZAL-446) verificó FAIL porque el hero decía "Próximamente" pero el resto de la página seguía afirmando operatividad. Cierre técnico en este heartbeat sin merge, deploy, publicación, migraciones ni operaciones externas.
+
+**Comportamiento que queda activo en `src/app/(site)/[locale]/[modality]/[country]/page.tsx`:**
+
+- **ClusterInterlinking** (`src/components/landing/ClusterInterlinking.tsx`): ahora propaga `AVAILABLE_MODALITIES` para gatear cada tarjeta de "Otros deportes en {país}": si la modalidad destino está disponible se renderiza `<Link>`; si no, `<span aria-disabled>` con badge `Próximamente` + icono `Clock` (mismo patrón que [ZAL-180](/ZAL/issues/ZAL-180) ya aplicó a "Otras modalidades" en `[locale]/[modality]/page.tsx`). La tarjeta de "Otras {modalidad} en Latinoamérica" (misma modalidad, otros países) sigue siendo Link porque es navegación, no claim operativo. El bloque Federación + Competiciones se reemplaza por un placeholder `Próximamente` bilingüe con icono `Clock` cuando `available=false` (antes se renderizaba como si la modalidad estuviera operativa). El CTA "Probar gratis" ya estaba gateado en `e6b9b5d8e` y se mantiene.
+- **ClusterPainPointsSection** (`src/components/landing/ClusterPainPointsSection.tsx`): el prop `available` pasaba como `_available` (ignorado) en `e6b9b5d8e` con la promesa de cerrar F1+F2 aquí. Ahora ramifica: `available=false` → bloque centrado con badge `Próximamente` + headline "Estamos preparando esta gestión para ti" + body bilingüe; `available=true` → comportamiento previo intacto (2 pain points + bloque "La solución Zaltyko" con las 4 features). `content` y `solutionTitles` ya no se referencian en la rama `!available`, así que no se renderizan claims operativos para modalidades no disponibles.
+- **JSON sin tocar**: `src/content/clusters/**` mantiene los titulares operativos porque esa pieza la trabaja Content en una subtarea editorial separada (ver hallazgo 4 de ZAL-446). El gate de runtime en componentes evita que esos titulares lleguen al HTML servido por la ruta gateada.
+
+**Evidencia ejecutada en este heartbeat:**
+
+- `pnpm exec eslint src/components/landing/ClusterInterlinking.tsx src/components/landing/ClusterPainPointsSection.tsx 'src/app/(site)/[locale]/[modality]/[country]/page.tsx' src/components/landing/ClusterHeroSection.tsx` → **0 errores**; 2 warnings pre-existentes en `ClusterInterlinking.tsx` (`modality`/`country` no usados, vienen de `e6b9b5d8e`) y 2 warnings pre-existentes en `ClusterHeroSection.tsx` (`countrySlug`/`baseUrl` no usados, del original). Ninguno introducido por este cambio.
+- `pnpm typecheck` → 0 errores en mis 4 archivos. Los 553 errores restantes en el output completo son pre-existentes: `mobile/` (vite/bun-types, fuera de scope ZAL-448), casing `Button.tsx` vs `button.tsx` (cross-OS, no toca esta rama), `support/tickets/[id]/responses/route.ts` (pre-existente documentado en changelog 2026-07-08). Ninguno introducido por este cambio.
+- Inspección manual del árbol de render por modalidad:
+  - `artistic`/`rhythmic` (available): hero completo, pain points + solución, interlinking con tarjetas Link en ambos lados, Federación/Competiciones visible, CTA final. Sin regresión.
+  - `acrobatic`/`trampoline` (available=false): hero con badge `Próximamente` y sin CTAs, sección de pain points reemplazada por placeholder bilingüe, interlinking con tarjetas Link solo para `artistic`/`rhythmic` (las de `acrobatic`/`trampoline` salen como span con badge), Federación/Competiciones reemplazada por placeholder con icono, sin CTA final. Cumple criterio 1 ("con available=false, ninguna sección visible afirma que Zaltyko gestiona ya la modalidad").
+
+**Lo que NO se hace** (autoridad delegada NO incluye / fuera de scope ZAL-448):
+
+- Sin merge, push, deploy, publicación, migración de DB, secretos, datos reales, Stripe live ni publicación externa.
+- Sin tocar `src/content/clusters/**` (es la subtarea editorial separada que pidió ZAL-446).
+- Sin tocar `ClusterHeroSection.tsx` (ya gateado en `e6b9b5d8e` y verificado por ZAL-446 PASS).
+- Sin tocar `pricing/`, `decisiones/` ni rutas (criterio 5 de ZAL-448).
+
+Issue: [ZAL-448](/ZAL/issues/ZAL-448). Parent: [ZAL-426](/ZAL/issues/ZAL-426) `blocked` (re-verificación de copy tras SHA `e6b9b5d8e`). Ancestro: [ZAL-40](/ZAL/issues/ZAL-40) `in_review`. Branch: `fix/zal-40-country-cluster-gate`. Vault: esta entrada.
+
 ## 2026-08-08 - Web Developer: ZAL-158 corte 1 cherry-pick al branch `fix/zal-40-country-cluster-gate` (resume del run d18cc0d8 fallido por quota)
 
 Run anterior `d18cc0d8-1a3a-4491-9b63-b35b10e92da2` produjo commit `de4dcd985c53de350b2ca0c988eb898dd4ca21f` en `feat/zal-158-owner-consent-cut1` (PR #66 contra `zal-45-gate-disponibilidad-pais`) pero falló con `provider_quota` antes de cerrar el control-plane writes. La harness despertó este run sobre la rama `fix/zal-40-country-cluster-gate` (worktree actual de la ZAL-40 SEO gate).
@@ -2471,3 +2498,11 @@ La duplicidad queda consolidada: el fix vive en commit `288249761ba4` (ZAL-389 +
 - Mayor concentración por proveedor/modelo: anthropic/MiniMax-M3 **$2.358,14**; por agente: Developer **$768,50**, CEO **$721,09**, Platform & Security **$621,92**.
 
 **No se hizo:** no se tocó código de producto, producción, secretos, Stripe, datos reales ni publicaciones. Esta evidencia de control-plane no implica readiness ni adopción de Zaltyko.
+
+## 2026-08-08 - ZAL-164: C-5 v2 cerrada tras peer-verification C-2 independiente
+
+- La auditoría retrospectiva C-5 v2 quedó corroborada por Platform & Security en [ZAL-443](/ZAL/issues/ZAL-443), con veredicto `Review: APPROVED`: **10/10 issues y 15/15 referencias SHA coinciden** con la re-ejecución independiente.
+- Se confirma el método corregido: extraer SHA exclusivamente del comentario que firma el cierre y ejecutar `git -C /Users/elvisvaldesinerarte/Desktop/_PROYECTOS/Zaltyko cat-file -t <sha>` desde el repo canónico. La clasificación final es: PASS técnico con cierre prematuro ZAL-7; PASS ZAL-68 (5/5 SHAs); PASS post-reapertura ZAL-70; FAIL por SHA no resoluble/fabricación ZAL-8, ZAL-40, ZAL-62, ZAL-63, ZAL-71, ZAL-73 y ZAL-74.
+- La fabricación #5 queda confirmada para ZAL-8: el cierre real citó `12a83f6` y `fbd896f`, ambos no resolubles; el SHA histórico `8f12f911` no se utilizó en C-5 v2.
+- Disposición: ZAL-164 puede cerrarse como entregada tras C-2. ZAL-71 mantiene la acción board delegada en ZAL-167; ZAL-70 queda fuera de esa reapertura porque su cierre post-reapertura cita `dd42e4772`, verificable.
+- Sin cambios de producto, producción, migraciones, secretos, Stripe live, datos reales ni publicaciones externas. Vault: actualizada esta entrada de `Changelog interno.md`; no se modifica `Decisiones.md` porque no se tomó una decisión de negocio nueva.
