@@ -4,6 +4,22 @@ owner: producto
 last_reviewed: 2026-08-08T23:30Z
 source:
 
+## 2026-08-09 - Engineering Lead: ZAL-451 desacopla el catálogo SEO del bundle cliente
+
+El FAIL de QA de [ZAL-450](/ZAL/issues/ZAL-450) confirmó que las rutas de modalidades no disponibles devolvían HTTP 500 porque `ClusterInterlinking.tsx` importaba en runtime `AVAILABLE_MODALITIES` desde `src/lib/seo/clusters.ts`; ese módulo contiene imports dinámicos server-only hacia `@/db` y `node:fs`/`node:crypto` podían entrar al grafo cliente.
+
+**Cambio aplicado:**
+
+- Se creó `src/lib/seo/availability.ts` como módulo puro con `MODALITIES`, `AVAILABLE_MODALITIES`, `COUNTRIES` y los tipos derivados `ModalitySlug`, `CountrySlug` y `ClusterKey`.
+- `src/lib/seo/clusters.ts` mantiene reexportaciones compatibles para consumidores server-side, pero `ClusterInterlinking.tsx` importa sus constantes/tipos desde `availability.ts` y no arrastra el módulo de datos.
+- Se preservaron el gate `available=false`, el JSON editorial, canonical/hreflang, pricing, Stripe y las rutas.
+
+**Evidencia local:** las cuatro rutas `/es/trampolin/espana`, `/es/gimnasia-acrobatica/espana`, `/en/trampoline/spain` y `/en/acrobatic-gymnastics/spain` devolvieron `200` en `next dev` local; cada HTML contiene el placeholder de federación y `Próximamente/Coming soon`, sin `/auth/register`, CTA operativa ni claims de solución. Las rutas artística disponibles también devolvieron `200` con CTA y canonical.
+
+**Limitaciones honestas:** el build global sigue bloqueado por un grafo preexistente `node:crypto → src/lib/security/pwned-password.ts → src/components/AcceptInvitationForm.tsx`, fuera de este fix. `pnpm typecheck` global sigue fallando por errores preexistentes de `mobile/`, casing `Button/button` y `FormData.get`; lint focalizado no reportó errores.
+
+Sin merge, deploy, publicación, migraciones, secretos, datos reales ni Stripe live. Vault: actualizada esta entrada; no se cambia pricing ni contenido editorial.
+
 ## 2026-08-08 - Web Developer: ZAL-448 cerrar superficies operativas restantes del gate de disponibilidad (tras FAIL de ZAL-446)
 
 [ZAL-426](/ZAL/issues/ZAL-426) pidió re-verificar el copy tras SHA `e6b9b5d8e`; [ZAL-446](/ZAL/issues/ZAL-446) verificó FAIL porque el hero decía "Próximamente" pero el resto de la página seguía afirmando operatividad. Cierre técnico en este heartbeat sin merge, deploy, publicación, migraciones ni operaciones externas.

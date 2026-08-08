@@ -7,7 +7,11 @@ import Link from "next/link";
 import { ArrowRight, Globe, Layers, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
-import { AVAILABLE_MODALITIES, type ModalitySlug, type CountrySlug } from "@/lib/seo/clusters";
+import {
+  AVAILABLE_MODALITIES,
+  type CountrySlug,
+  type ModalitySlug,
+} from "@/lib/seo/availability";
 
 interface ClusterInterlinkingProps {
   locale: "es" | "en";
