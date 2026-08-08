@@ -219,7 +219,71 @@ describe("migración 0008 — snapshot first-touch", () => {
   it("limita el UPDATE trigger a la primera captura de una pre-registrada", () => {
     expect(migration).toContain('OLD."canal_registro" IS NULL');
     expect(migration).toContain("OLD.\"canal_registro\" = 'direct'");
-    expect(migration).toContain("coalesce(trim(OLD.\"utm_source\"), '') = ''");
-    expect(migration).toContain("coalesce(trim(NEW.\"utm_source\"), '') <> ''");
+    expect(migration).toContain(
+      '"academies_canal_registro_norm"(OLD."utm_source") = \'\''
+    );
+    expect(migration).toContain(
+      '"academies_canal_registro_norm"(NEW."utm_source") <> \'\''
+    );
+  });
+
+  // F1 (QA ZAL-176): `trim()` de SQL solo recorta espacios, `String.trim()`
+  // de JS recorta todo el whitespace. Sin normalización compartida,
+  // "\tgoogle_ads" daba paid en TS y direct en Postgres.
+  it("normaliza el whitespace igual que TS en vez de usar trim() a secas", () => {
+    expect(migration).toContain(
+      'CREATE OR REPLACE FUNCTION "academies_canal_registro_norm"'
+    );
+    expect(migration).toContain("'^[[:space:]]+|[[:space:]]+$'");
+    expect(migration).not.toContain("lower(coalesce(trim(");
+  });
+
+  // F2 (QA ZAL-176 + bloqueante de Platform & Security en ZAL-174): el
+  // trigger anterior era `BEFORE UPDATE OF utm_source, utm_medium`, así que
+  // un `UPDATE academies SET canal_registro = 'organic'` no se interceptaba.
+  it("intercepta cualquier UPDATE, no solo el de las columnas UTM", () => {
+    expect(migration).toContain(
+      'CREATE OR REPLACE FUNCTION "academies_canal_registro_update_guard"'
+    );
+    expect(migration).toContain('BEFORE UPDATE ON "academies"');
+    expect(migration).not.toContain(
+      'BEFORE UPDATE OF "utm_source", "utm_medium"'
+    );
+    expect(migration).toContain('NEW."canal_registro" := OLD."canal_registro"');
+  });
+
+  it("desactiva el guard solo para el backfill y lo reactiva después", () => {
+    const disable = migration.indexOf(
+      'DISABLE TRIGGER "academies_canal_registro_bu"'
+    );
+    const backfill = migration.indexOf('UPDATE "academies"\n\tSET');
+    const enable = migration.indexOf(
+      'ENABLE TRIGGER "academies_canal_registro_bu"'
+    );
+    expect(disable).toBeGreaterThan(-1);
+    expect(backfill).toBeGreaterThan(-1);
+    expect(enable).toBeGreaterThan(-1);
+    expect(disable).toBeLessThan(backfill);
+    expect(backfill).toBeLessThan(enable);
+  });
+
+  it("no promete en el COMMENT más inmutabilidad de la que aplica", () => {
+    expect(migration).not.toContain("Snapshot inmutable tras la primera");
+    expect(migration).toContain("academies_canal_registro_bu");
+  });
+});
+
+// F1 — lado TS de la paridad. Los mismos valores se verificaron contra
+// Postgres 14.20 al aplicar la migración (evidencia en ZAL-159).
+describe("derivar_canal — paridad de whitespace con la función SQL", () => {
+  it.each([
+    ["\tgoogle_ads", null, "paid"],
+    ["instagram\n", null, "social"],
+    [null, "\r\ncpc\r\n", "paid"],
+    ["  \t Meta_Ads \n ", null, "paid"],
+    ["  whatsapp  ", null, "social"],
+    ["\t\n  \r", "  \t", "direct"],
+  ] as const)("source=%j medium=%j → %s", (source, medium, expected) => {
+    expect(derivar_canal(source, medium)).toBe(expected);
   });
 });

@@ -255,6 +255,10 @@ test.describe("Stripe Connect E2E — SetupIntent + off-session collect + cron",
     const ctx = await browser.newContext({ storageState: familyStorageState });
     const page = await ctx.newPage();
     try {
+      // Stripe.js necesita un origen web real. En about:blank la inicializacion
+      // de Connect puede fallar aunque la clave y la cuenta sean validas.
+      await page.goto(`${baseURL}/auth/login`, { waitUntil: "domcontentloaded" });
+
       // 1) SetupIntent desde la app real
       const siRes = await page.request.post(
         `${baseURL}/api/family/payment-method/setup-intent`,
@@ -275,8 +279,27 @@ test.describe("Stripe Connect E2E — SetupIntent + off-session collect + cron",
       // iframe cross-origin). Esto ejercita la API real de Stripe test mode.
       const confirmResult = await page.evaluate(
         async ({ clientSecret, stripeAccountId, publishableKey }) => {
-          // @ts-expect-error — Stripe.js cargado via CDN en runtime
-          const Stripe = (await import("https://js.stripe.com/v3/")).default;
+          const Stripe = await new Promise<
+            (publishableKey: string, options: { stripeAccount: string }) => unknown
+          >((resolve, reject) => {
+            const existing = (window as Window & { Stripe?: unknown }).Stripe;
+            if (typeof existing === "function") {
+              resolve(existing as (publishableKey: string, options: { stripeAccount: string }) => unknown);
+              return;
+            }
+            const script = document.createElement("script");
+            script.src = "https://js.stripe.com/v3/";
+            script.onload = () => {
+              const loaded = (window as Window & { Stripe?: unknown }).Stripe;
+              if (typeof loaded === "function") {
+                resolve(loaded as (publishableKey: string, options: { stripeAccount: string }) => unknown);
+              } else {
+                reject(new Error("Stripe.js no expuso window.Stripe"));
+              }
+            };
+            script.onerror = () => reject(new Error("No se pudo cargar Stripe.js"));
+            document.head.appendChild(script);
+          });
           const stripe = Stripe(publishableKey, { stripeAccount: stripeAccountId });
           // createPaymentMethod con pm_card_visa — payment_method de prueba
           // integrado en Stripe (success). NO requiere tarjeta real.
@@ -319,9 +342,13 @@ test.describe("Stripe Connect E2E — SetupIntent + off-session collect + cron",
         `${baseURL}/api/family/payment-method?academyId=${academyId}`
       );
       expect(getRes.status()).toBe(200);
-      const stored = unwrapData<{ cardBrand?: string; cardLast4?: string }>(await getRes.json());
-      expect(stored?.cardLast4).toBe("4242"); // pm_card_visa / tok_visa → 4242
-      expect(stored?.cardBrand?.toLowerCase()).toBe("visa");
+      const stored = unwrapData<{
+        cardBrand?: string;
+        cardLast4?: string;
+        card?: { brand?: string; last4?: string };
+      }>(await getRes.json());
+      expect(stored?.card?.last4 ?? stored?.cardLast4).toBe("4242"); // pm_card_visa / tok_visa -> 4242
+      expect((stored?.card?.brand ?? stored?.cardBrand)?.toLowerCase()).toBe("visa");
     } finally {
       await ctx.close();
     }
@@ -369,9 +396,9 @@ test.describe("Stripe Connect E2E — SetupIntent + off-session collect + cron",
         `collect off-session debe ser 200 (paid). Respuesta: ${JSON.stringify(body)}`
       ).toBe(200);
 
-      const collect = unwrapData<{ status: string; stripePaymentIntentId?: string }>(body);
+      const collect = unwrapData<{ status: string; paymentIntentId?: string }>(body);
       expect(collect?.status).toBe("paid");
-      expect(collect?.stripePaymentIntentId).toMatch(/^pi_[a-zA-Z0-9]+/);
+      expect(collect?.paymentIntentId).toMatch(/^pi_[a-zA-Z0-9]+/);
     } finally {
       await ctx.close();
     }
@@ -396,9 +423,12 @@ export async function authedFetch(
   });
 }
 
-/** Helper para serializar respuestas con la envoltura `apiSuccess` de Zaltyko. */
-export function unwrapData<T>(payload: { data?: T; ok?: boolean }): T | undefined {
-  return payload?.data;
+/**
+ * Acepta tanto respuestas nuevas envueltas en `data` como las rutas Stripe
+ * que conservan su contrato directo por compatibilidad.
+ */
+export function unwrapData<T>(payload: { data?: T; ok?: boolean } & T): T | undefined {
+  return payload?.data ?? payload;
 }
 
 /** Helper para navegar a una ruta autenticada con reintento ante ERR_EMPTY_RESPONSE. */

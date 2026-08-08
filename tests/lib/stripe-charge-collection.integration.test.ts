@@ -23,6 +23,7 @@ const {
   getConnectAccountMock,
   isConnectReadyMock,
   resolvePayerCustomerForAthleteMock,
+  sendChargePaymentFailedNotificationMock,
   dbLike,
   state,
 } = vi.hoisted(() => {
@@ -73,6 +74,7 @@ const {
     getConnectAccountMock: vi.fn(),
     isConnectReadyMock: vi.fn(),
     resolvePayerCustomerForAthleteMock: vi.fn(),
+    sendChargePaymentFailedNotificationMock: vi.fn(),
     dbLike,
     state,
   };
@@ -92,6 +94,20 @@ vi.mock("@/lib/stripe/connect-service", () => ({
 
 vi.mock("@/lib/stripe/family-customers-service", () => ({
   resolvePayerCustomerForAthlete: (...args: any[]) => resolvePayerCustomerForAthleteMock(...args),
+}));
+
+vi.mock("@/lib/stripe/notification-service", () => ({
+  sendChargePaymentFailedNotification: (...args: any[]) =>
+    sendChargePaymentFailedNotificationMock(...args),
+}));
+
+vi.mock("@/lib/logger", () => ({
+  logger: {
+    error: vi.fn(),
+    warn: vi.fn(),
+    info: vi.fn(),
+    debug: vi.fn(),
+  },
 }));
 
 vi.mock("@/lib/db-transactions", () => ({
@@ -306,6 +322,34 @@ describe("charge-reconcile-service", () => {
     } as any, "acct_123");
 
     expect(state.updateSets).toHaveLength(0);
+  });
+
+  it("payment_intent.payment_failed sigue reconciliando aunque falle la notificación", async () => {
+    state.chargeRow = { ...baseCharge, id: "charge_9", status: "pending", stripeAccountId: "acct_123" };
+    sendChargePaymentFailedNotificationMock.mockRejectedValueOnce(new Error("brevo down"));
+
+    await expect(
+      reconcilePaymentIntentFailed(
+        {
+          id: "pi_10",
+          metadata: { chargeId: "charge_9", academyId: "academy_1", tenantId: "tenant_1" },
+          last_payment_error: { code: "card_declined", decline_code: "generic_decline" },
+        } as any,
+        "acct_123"
+      )
+    ).resolves.toBeUndefined();
+
+    expect(state.updateSets.at(-1)).toMatchObject({
+      status: "failed",
+      stripePaymentIntentId: "pi_10",
+    });
+    expect(sendChargePaymentFailedNotificationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        chargeId: "charge_9",
+        paymentIntentId: "pi_10",
+        failureReason: "generic_decline",
+      })
+    );
   });
 
   it("payment_intent.canceled devuelve el cargo a pendiente si seguía debiéndose", async () => {

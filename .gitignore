@@ -1,5 +1,6 @@
 # dependencies
 /node_modules
+mobile/node_modules
 
 # next.js
 /.next/
@@ -13,6 +14,8 @@
 /next-env.d.ts
 /.env
 /.env.*
+mobile/.env
+mobile/.env.*
 /.npmrc
 /.prettierrc
 /.dockerignore
