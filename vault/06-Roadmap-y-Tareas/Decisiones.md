@@ -8,6 +8,15 @@ source:
 
 # Decisiones
 
+## 2026-08-09 - ZAL-451: catálogo de disponibilidad SEO aislado del bundle cliente
+
+| Campo | Valor |
+| --- | --- |
+| Contexto | [ZAL-450](/ZAL/issues/ZAL-450) detectó que un import runtime de `AVAILABLE_MODALITIES` desde `src/lib/seo/clusters.ts` arrastraba imports server-only hacia el bundle de `ClusterInterlinking`, provocando `UnhandledSchemeError` con `node:fs`. |
+| Decisión | Mantener `MODALITIES`, `AVAILABLE_MODALITIES`, `COUNTRIES` y sus tipos derivados en `src/lib/seo/availability.ts`, un módulo sin side-effects de servidor. `clusters.ts` conserva reexportaciones para compatibilidad server-side; los componentes cliente importan el catálogo puro directamente. |
+| Consecuencia | El gate de modalidades no disponibles sigue siendo el mismo, pero las superficies cliente no conocen el grafo de DB. No cambia el JSON editorial, canonical/hreflang, pricing, Stripe ni las rutas. |
+| Estado | Aplicada localmente el 2026-08-09. Sin producción ni merge; el build global conserva un fallo preexistente distinto en `node:crypto` desde `AcceptInvitationForm`. |
+
 ## 2026-08-08 - ZAL-158 corte 1: cherry-pick al branch activo + re-anclaje de C-1 al nuevo SHA
 
 | Campo | Valor |
