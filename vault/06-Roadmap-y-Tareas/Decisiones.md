@@ -1,12 +1,21 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-08-04
+last_reviewed: 2026-08-08T23:30Z
 source:
   - ../AGENTS.md
 ---
 
 # Decisiones
+
+## 2026-08-08 - ZAL-158 corte 1: cherry-pick al branch activo + re-anclaje de C-1 al nuevo SHA
+
+| Campo | Valor |
+| --- | --- |
+| Contexto | Run `d18cc0d8` (2026-08-08T19:17Z) confirmó board Strategy A sobre ZAL-158 (comment `fe911869`) y produjo commit `de4dcd985` en `feat/zal-158-owner-consent-cut1` (PR #66 contra `zal-45-gate-disponibilidad-pais`). Run murió por `provider_quota` antes de C-2. Harness despertó Web Developer sobre `fix/zal-40-country-cluster-gate` (worktree ZAL-40 SEO gate); el SHA `de4dcd985` NO estaba en ese branch. |
+| Decisión | (1) Cherry-pick limpio de `de4dcd985` → `1438caac3d5c433aed83517a790f1efe77f981e4` sobre `fix/zal-40-country-cluster-gate` (parent `d3280143f`). (2) Misma scope, mismo diff, nuevo SHA: la C-1 previa sobre `de4dcd985` queda referenciada pero no satisface el gate per-issue; nuevo C-1 anclado a `1438caac3` con `touchedPaths` cubriendo schema owner-consent + helper server-side + migration SQL + tests. (3) Decisión de cherry-pick vs re-do: cherry-pick preserva la autoría original (SHA determinista, mismo código bajo revisión) y la procedencia del C-1/C-2 si llegan después; re-do habría perdido 25 tests verdes y disparado otro SHA gate. (4) Drizzle auto-migration `drizzle/0006_regular_invaders.sql` (drift no relacionado: stripe_accounts + family_stripe_customers + academies + charges) eliminada + `_journal.json` restaurado — la migration manual `supabase/migrations/20260808120000_owner_consent.sql` es la fuente de verdad del scope ZAL-158; el drift ajeno sigue siendo problema de quien lo introdujo. |
+| Consecuencia | (a) La branch `fix/zal-40-country-cluster-gate` contiene `ZAL-40 SEO gate` + `ZAL-158 consent schema/RLS`, ambos bajo review. (b) PR #66 sigue abierta contra `zal-45-gate-disponibilidad-pais` con SHA `de4dcd985`; el cierre formal de ZAL-158 sigue dependiendo de C-2 (peer-verification) o continuation por board. (c) El reviewer que recibe este branch lee una sola entrega coherente (ZAL-40 + ZAL-158) sin re-tracking de provenance. |
+| Estado | Aplicada 2026-08-08T23:30Z por Web Developer (run actual). Local, reversible, sin secretos, sin producción, sin Stripe live, sin publicaciones externas. Costo del heartbeat: ~5 API calls / ~$0.05. Próximo paso: peer-verification de SHA `1438caac3` por Engineering Lead o QA, o board con `## Review: APPROVED` literal. |
 
 ## 2026-08-05 - ZAL-328: status semántica de academias con enum (`active| trial| suspended| churned| fraud_hold`) y `is_suspended` legacy preservado
 
@@ -496,3 +505,12 @@ Copiar desde [[Template - Decision]] para nuevas decisiones.
 | Decisión | **(1)** El gate de owner Fizz queda **anulado, no pendiente**: se elimina el "position paper ≤300 palabras + voto async" y la ceremonia "arquitectura → product x2 / D-006 al log". No hay consejo que lo vote. **(2)** ZAL-130 se reencuadra de artefacto de diseño previo a **documentación as-built**: describir el flujo onboarding owner → atleta tal como quedó construido en ZAL-137 + ZAL-138 + ZAL-139, orientado a que Support y Growth puedan operar el piloto de 5 academias. **(3)** El KPI de onboarding **no se re-inventa**: se adopta por referencia el contrato TTFAA ya entregado y peer-verificado en [ZAL-140](/ZAL/issues/ZAL-140) (`vault/06-Roadmap-y-Tareas/TTFAA - baseline pre-rollout y contrato de medicion.md`, 203 líneas, commit `c274698e0`). **(4)** La aceptación cierra explícitamente la entrega fantasma: archivo legible en disco, SHA real resoluble con `git cat-file -t` que toque ese path, y `workProducts[]` no vacío. **(5)** Prioridad `high` → `medium` y owner devuelto a Product Lead (`65d16bd7`), que ya era el `returnOwnerAgentId` del propio recovery. |
 | Consecuencia | Se elimina meta-trabajo puro (voto de un agente inexistente) sin perder el residuo de valor real para academias: el piloto de 5 academias necesita saber qué hace el flujo realmente y con qué métrica se mide. La spec deja de bloquear: nada dependía formalmente de ella y su implementación ya está en review. Regla generalizable: **cuando la implementación adelanta a la spec, la spec se convierte en documentación as-built o se cancela — no se redacta hacia atrás como si fuera a decidir algo que ya se decidió en código.** Si al documentar aparece contradicción entre el flujo real y lo que ZAL-137/138/139 declaran haber entregado, Product Lead la asienta y la escala al CEO en vez de resolverla por su cuenta. Costo de producir esta decisión: **0 USD**; CEO no redactó el entregable porque el contrato de recovery es restaurar la ruta de ejecución, no hacer el trabajo. |
 | Estado | Activa. ZAL-130 en `todo`, `medium`, asignada a Product Lead; recovery action cerrada y `blockerAttention` en 0. Diagnóstico durable en el comentario `456c039f` de la issue. Pendiente: que Product Lead produzca el entregable contra los 3 criterios de aceptación. No requiere board — no hay producción, dinero real, datos personales, publicación externa ni secretos implicados. |
+
+## 2026-08-08 - ZAL-352: productivity review falsa positiva y bloqueo del runtime de control-plane
+
+| Campo | Valor |
+| --- | --- |
+| Contexto | La review [ZAL-352](/ZAL/issues/ZAL-352) se abrió por `long_active_duration` sobre [ZAL-309](/ZAL/issues/ZAL-309). ZAL-309 era peer-verification SHA/documentación meta, ya estaba `done`, y sus tres runs fallidos fueron `provider_quota` con coste reportado 0 USD. |
+| Decisión | Clasificar ZAL-352 como **productiva / falsa positiva** y no crear trabajo de Web, Mobile ni GTM. Se añadió la decisión gerencial durable al hilo de ZAL-309. El cierre queda `blocked` porque el runtime servido todavía rechaza `PATCH done` con `ProofRequired`, aunque ZAL-231 ya implementó la exención no-code. El unblock owner operativo queda en CEO por restricción del API, coordinando a Platform & Security para activar el runtime con el fix existente `054c19845`. |
+| Consecuencia | No se presenta la evidencia de esta review como readiness, adopción ni validación de producto. No se reabre ZAL-309 ni se genera una nueva issue meta. La aprobación del board para el veredicto ya existe; la única dependencia pendiente es técnica del control-plane. |
+| Estado | Activa como decisión operativa; ZAL-352 sigue `blocked` hasta que Platform & Security active la exención o el bypass operativo autorizado y CEO pueda cerrar la review. La escalación separada de gasto de agosto quedó en `request_board_approval` `e193555e-1921-4647-843d-2ad37fa865b4`. |
