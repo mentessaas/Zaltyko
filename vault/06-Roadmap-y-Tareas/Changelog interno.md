@@ -4,6 +4,31 @@ owner: producto
 last_reviewed: 2026-08-08T23:30Z
 source:
 
+## 2026-08-09 - Web Developer: ZAL-137 claim-academy happy path implementado (re-issue)
+
+Re-toma del trabajo que el board aprobó el 2026-08-02 pero que no llegó al árbol (el SHA gate y la quiescencia del branch de trabajo dejaron ZAL-137 sin aterrizar). Esta entrega pone el código en disco sobre `zaltyko-onboarding-ZAL-137` (commit `4ae588a27`), respetando el scope de ZAL-130 v0 (sin multi-academy, sin billing, sin athlete self-serve).
+
+**Cambio aplicado:**
+
+- Helper `src/lib/auth/claim-academy.ts` con `normalizeClaimEmail` puro + `findClaimableAcademyByEmail` (case-insensitive sobre `academies.contactEmail`, índice `academies_contact_email_idx` ya existente).
+- Componente `src/components/onboarding/OwnerClaimCard.tsx` (single-action confirm + redirect).
+- Endpoint `src/app/api/onboarding/owner/claim/route.ts` con `pg_advisory_xact_lock(hashtext(user.id))`, re-verifica match server-side (defense in depth → 403 `CLAIM_EMAIL_MISMATCH`), upsert profile + memberships con `onConflictDoNothing`.
+- `src/app/onboarding/owner/page.tsx` ahora chequea `findClaimableAcademyByEmail` y renderiza `OwnerClaimCard` cuando hay match; si no, sigue con `OwnerOnboardingForm` (rama create-from-scratch).
+- Test `tests/claim-academy-helper.test.ts` pinning del contrato de normalización.
+- Audit doc `vault/06-Roadmap-y-Tareas/ZAL-137 audit onboarding owner 2026-08-09.md`.
+
+**Evidencia local:**
+
+- `pnpm test -- tests/claim-academy-helper.test.ts` → 8/8 PASS.
+- `pnpm typecheck` sobre los archivos tocados → 0 errores (los errores pre-existentes son de `mobile/` y ajenos).
+- `pnpm lint:app` sobre los archivos tocados → 0 errores.
+
+**Lo que NO se hace (scope-guard):**
+
+- No multi-academy, no billing, no athlete self-serve.
+- No se modifica `resolveUserHome` ni las políticas RLS (claim hereda el `tenantId` del academy registrado).
+- No se cambia el redirect post-submit para usuarios que ya tienen academia — siguen yendo a `/app/{id}/dashboard` con el checklist widget.
+
 ## 2026-08-09 - Engineering Lead: ZAL-451 desacopla el catálogo SEO del bundle cliente
 
 El FAIL de QA de [ZAL-450](/ZAL/issues/ZAL-450) confirmó que las rutas de modalidades no disponibles devolvían HTTP 500 porque `ClusterInterlinking.tsx` importaba en runtime `AVAILABLE_MODALITIES` desde `src/lib/seo/clusters.ts`; ese módulo contiene imports dinámicos server-only hacia `@/db` y `node:fs`/`node:crypto` podían entrar al grafo cliente.
