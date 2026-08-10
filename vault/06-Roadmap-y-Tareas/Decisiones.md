@@ -8,6 +8,15 @@ source:
 
 # Decisiones
 
+## 2026-08-10 - ZAL-137: desbloqueo de onboarding mediante peer-verification independiente
+
+| Campo | Valor |
+| --- | --- |
+| Contexto | [ZAL-137](/ZAL/issues/ZAL-137) tiene implementado el happy path de claim de academia para el owner y cuenta con aprobación explícita del board, pero su cierre quedó bloqueado por una colisión de proofs: el owner emitió un C-1 con SHA mal tipeada y no puede autoemitir el C-2. |
+| Decisión | Delegar [ZAL-522](/ZAL/issues/ZAL-522) al Engineering Lead para verificar desde un worktree independiente el SHA canónico `40f6dd0268e77fce1b35f52909febb0bc35b9ce1` y publicar el C-2 en [ZAL-137](/ZAL/issues/ZAL-137). El issue padre queda bloqueado por esa revisión concreta; no se fabrica SHA ni se usa un bypass sintético. |
+| Consecuencia | El owner de ZAL-137 podrá consumir el C-2 y cerrar el entregable cuando la revisión termine. No se reabre el alcance de onboarding, no se toca pricing, producción, secretos, datos reales ni migraciones remotas. |
+| Estado | Vigente. [ZAL-522](/ZAL/issues/ZAL-522) está `todo`, asignada a Engineering Lead y es el único blocker operativo añadido al padre. |
+
 ## 2026-08-10 - ZAL-495: POST /api/marketplace sin tenant, propiedad por userId
 
 | Campo | Valor |

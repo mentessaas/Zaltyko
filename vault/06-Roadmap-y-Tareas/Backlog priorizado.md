@@ -60,6 +60,12 @@ Cada tarea debe cerrar con comportamiento, copy, pruebas, owner y evidencia; los
 claims sin evidencia se mantienen como parciales, acompañados, no prometibles o
 bloqueados.
 
+## Seguimiento ejecutivo 2026-08-10
+
+- [ZAL-137](/ZAL/issues/ZAL-137) conserva prioridad de onboarding porque cambia la experiencia del owner y ya tiene implementación aprobada.
+- Riesgo de cierre: colisión de C-1/proof, no deuda funcional. [ZAL-522](/ZAL/issues/ZAL-522) queda como única acción pendiente, asignada a Engineering Lead para una peer-verification independiente.
+- La evidencia local del onboarding no se presenta como adopción, readiness comercial ni validación humana; el piloto de primer usuario sigue siendo la prioridad GTM.
+
 ## P0
 
 | Estado | Tarea | Dueño | Criterio de aceptación | Evidencia |

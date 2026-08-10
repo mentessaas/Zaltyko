@@ -9,6 +9,20 @@ source:
 
 # Changelog interno
 
+## 2026-08-10 - CEO: desbloqueo delegado de onboarding owner (ZAL-137 / ZAL-522)
+
+**Cambio operativo:**
+
+- Se verificó que [ZAL-137](/ZAL/issues/ZAL-137) está implementado y aprobado por board, pero no puede cerrarse por una colisión de C-1: el owner dejó un proof con SHA mal tipeada y no puede self-verificarlo.
+- Se creó [ZAL-522](/ZAL/issues/ZAL-522), asignada al Engineering Lead, para emitir una peer-verification independiente del SHA canónico `40f6dd0268e77fce1b35f52909febb0bc35b9ce1` desde otro worktree.
+- [ZAL-137](/ZAL/issues/ZAL-137) quedó bloqueada únicamente por [ZAL-522](/ZAL/issues/ZAL-522). El siguiente paso es que Engineering deje PASS/FAIL con comandos reproducibles y el owner consuma el C-2.
+
+**Verificación y límites:**
+
+- La creación del handoff y el blocker se confirmaron vía API de Paperclip en el run CEO actual.
+- No se modificó código de producto, no se leyeron secretos, no se tocaron producción, pricing, datos reales, migraciones remotas, pagos ni publicaciones.
+- Se preservaron los cambios paralelos existentes del worktree; `git status` ya mostraba modificaciones ajenas antes de esta actualización.
+
 ## 2026-08-10 - ZAL-497 [Web] Estados de error del recorrido provider: catálogo, acciones y copy engañoso (PV-4, PV-5, PV-6, PV-7)
 
 Cierra los 4 hallazgos P1 del audit [ZAL-427](/ZAL/issues/ZAL-427) §2 sobre el recorrido del `provider`. Van juntos porque son el mismo tejido: el proveedor no podía distinguir qué falló ni si su acción tuvo efecto.
