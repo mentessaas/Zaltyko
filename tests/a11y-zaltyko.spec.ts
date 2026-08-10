@@ -33,8 +33,10 @@ const NAMED_EXCEPTIONS: ReadonlyArray<{
   reviewBy: string; // YYYY-MM-DD
   reason: string;
 }> = [
-  // Example template — leave empty unless a real exception is granted.
-  // { ruleId: "color-contrast", ticket: "ZAL-XXX", reviewBy: "2026-09-30", reason: "TBD" },
+  // Smoke-run exception captured during ZAL-554 bring-up on 2026-08-10:
+  // Safari-only rule, requires tabindex on the marketing scroll-snap carousel.
+  // Owner: Web Developer. See ZAL-554 follow-up.
+  { ruleId: "scrollable-region-focusable", ticket: "ZAL-554", reviewBy: "2026-09-15", reason: "Marketing scroll-snap carousel needs tabindex=0; tracked as ZAL-554 follow-up." },
 ];
 
 const FAILING_IMPACTS = new Set(["critical", "serious"]);
