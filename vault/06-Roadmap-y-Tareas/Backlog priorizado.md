@@ -1,7 +1,7 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-07-18
+last_reviewed: 2026-08-09
 source:
   - ../PRODUCT-ANALYSIS.md
   - ../BUSINESS-ANALYSIS.md
@@ -16,6 +16,31 @@ source:
 ---
 
 # Backlog priorizado
+
+## Auditoría CEO ZAL-462 — estado operativo 2026-08-09
+
+La fuente actual de costes es `/api/companies/{companyId}/costs/summary`: `407699` centavos sobre cap `1000000` (`40,77%`). El snapshot de 2026-08-04 (`167,97%` sobre cap `100000`) es histórico y no debe reutilizarse como estado actual. No hay `request_board_approval` nuevo: el umbral operativo del 80% no se alcanzó.
+
+Reglas vigentes para priorizar:
+
+- Priorizar issues que cambien la experiencia de una academia; no abrir tickets por heartbeats sin trabajo accionable.
+- `blocked` solo con bloqueador real, owner y acción; `in_review` solo con reviewer, interacción o monitor persistente.
+- Mantener SHA + peer independiente para código/cambios sensibles; no exigir commits no-op ni C-2 repetitivo a docs, copy, briefs y operaciones no-code verificables.
+- La referencia a Gemita quedó eliminada de los gates activos. Privacy/security corresponde a Platform & Security; aceptación funcional a Product Lead; el triage GTM a Marketing.
+
+**Estado Paperclip:** 60 bloqueadas, 27 en revisión, 2 en curso, 1 listas para tomar y 9 en backlog. Esto se trata como deuda de flujo, no como readiness ni adopción del producto.
+
+## Contención operativa — 2026-08-04
+
+Estas tareas son deuda sistémica acotada; no deben desplazar producto real para academias salvo donde reducen gasto o desbloquean entrega.
+
+| Prioridad | Estado | Tarea | Dueño | Criterio de aceptación |
+| --- | --- | --- | --- | --- |
+| P0 | Reconciliado 2026-08-09 | Snapshot histórico de contención de agosto y approval `3a992918-ddcb-487a-8dfb-fcd8772f57fd`; la telemetría actual está en 40,77% del cap vigente. | CEO + board | Vigilar `/costs/summary`; elevar aprobación solo desde 80% del cap actual o ante gasto externo. |
+| P0 | Bloqueado | [ZAL-290](/ZAL/issues/ZAL-290) — failover, circuit-breaker y alertas para `provider_quota`/auth vencida. | Engineering Lead | Diseño probado localmente, reintentos no acumulativos y separación de cualquier cuota/secreto externo. |
+| P0 | Resuelto 2026-08-07 | [ZAL-291](/ZAL/issues/ZAL-291) — simplificar peer-verification no-code/bajo riesgo. | Engineering Lead | Docs/copy/no-code cierran con evidencia verificable sin commit no-op ni C-2 temporizada; código sigue fail-closed. |
+| P1 | Resuelto 2026-08-05 | [ZAL-292](/ZAL/issues/ZAL-292) — reducir issues en `in_review`; la cola residual se sigue vigilando con la regla de reviewer real. | Product Lead | Cada review conserva reviewer, evidencia y próxima acción; monitores sin acción se cierran sin reemplazo. |
+| P1 | Resuelto 2026-08-04 | [ZAL-293](/ZAL/issues/ZAL-293) — redistribuir cola de Platform & Security por custodia real. | Engineering Lead | Security conserva solo custodia genuina; QA/Engineering absorben trabajo local; bloqueos falsos pasan a `todo`. |
 
 ## Cierre integral de objeciones del director — 2026-07-23
 
@@ -45,11 +70,12 @@ bloqueados.
 | Pendiente Día 4 | Migrar tokens de invitación a digest irreversible con transición compatible. | Sol | La base solo conserva hash; resolución y aceptación mantienen compatibilidad durante la rotación. | Hoy son UUID criptográficos de un uso y expiran, pero están almacenados en claro. |
 | Pendiente Día 4 | Añadir nonce ledger al webhook inbound Mailgun. | Sol | Un `token` firmado solo puede consumirse una vez dentro de la ventana de cinco minutos. | HMAC, timestamp y escape están cubiertos; falta replay persistente dentro de la tolerancia. |
 | Pendiente Día 4 | Completar paginación, observabilidad y destinatarios de cron. | Sol | Jobs procesan backlog sin starvation, exponen métricas/alertas y resuelven email real antes de marcar envío. | Lease y límites locales ya evitan solape; academias/backlog y email programado necesitan cierre operativo. |
-| Bloqueado externo Día 4 / confirmado 2026-07-18 | Repetir Stripe Connect en test mode y verificar readiness Vercel KV/Brevo. | Sol + operaciones | SCA, rechazo, refund, replay y webhook observados en deployment autorizado; Preview/Production comparan nombres de env, KV permite rutas privadas sin degradar el fail-closed y Brevo entrega. | `next start` local devolvió 429 correctamente al faltar KV. No usar dinero real ni copiar valores; requiere configuración y autorización externa. |
+| Bloqueado externo Día 4 / reconfirmado 2026-07-29 | Repetir Stripe Connect en test mode y verificar readiness Vercel KV/Brevo. | Sol + operaciones | SCA, rechazo, refund, replay y webhook observados en deployment autorizado; Preview/Production comparan nombres de env, KV permite rutas privadas sin degradar el fail-closed y Brevo entrega. | `next start` local devolvió 429 correctamente al faltar KV. No usar dinero real ni copiar valores; requiere configuración y autorización externa. 2026-07-29: infraestructura y suite E2E ya listas (ZAL-3/ZAL-14); el único faltante son credenciales `sk_test_*`/`pk_test_*` de academia demo aislada + webhook signing secret, rastreadas en ZAL-13 y escaladas al board. Ventas congeladas hasta cierre en verde. |
 | Parcial 2026-07-16 / migración no aplicada | Probar y endurecer RLS intratenant para familia, atleta y coach. | Sol | JWT parent solo ve hijos; athlete solo propio; coach solo asignado; academia B devuelve 0 filas/403 tanto por Data API como API servidor. Completar dominios secundarios y PostgREST local antes de cerrar. | PostgreSQL efímero real verde con rollback para Día 2 + Día 3 y roles owner/coach/parent/athlete/viewer/super-admin/anónimo; `docs/audit/RLS_SEMANTIC_MATRIX.md`. MT-002/003 siguen parciales hasta PostgREST/Realtime y promoción. |
 | Parcial 2026-07-16 / migración no aplicada | Completar least privilege RLS en comunicación, eventos hijos, finanzas secundarias y diagnóstico. | Sol | Ninguna tabla tenant-wide concede más que el rol/recurso requerido; matriz Data API cubre cada dominio y Realtime. | Comunicación tiene `academy_id` y policies versionadas; faltan promoción revisada, PostgREST/Realtime y los demás dominios. |
 | Parcial 2026-07-16 / migración no aplicada | Eliminar tablas de producto en `public` sin RLS. | Sol | Los diez catálogos deportivos tienen RLS y grants mínimos; `__drizzle_migrations` es la única excepción interna aprobada. | Migración Día 2 + PostgreSQL aislado verde; `verify:permissive-policies` debe quedar verde después de la promoción revisada. |
 | Nuevo 2026-07-16 | Medir presupuesto de conexiones Supavisor/Vercel antes de alterar `DATABASE_POOL_MAX=5`. | tech/DB | Observabilidad documenta clientes/backend, p95 y saturación; el presupuesto por instancia cabe en el límite real con margen. | Panel Supabase/Vercel sin registrar secretos ni consultas mutantes. |
+| Resuelto 2026-08-10 | ZAL-496 — `userId`/`sellerType` del POST /api/marketplace salen del schema y se derivan server-side. | Web Dev | Publicar desde `/marketplace/nuevo` ya no devuelve 400 por campos que el usuario no puede ver; `userId` insertado coincide con la sesión (anti-IDOR); `sellerType` refleja el rol del perfil (provider/coach/athlete/academy/external). | Hallazgo PV-3 de la auditoría ZAL-427 (SHA `a784a0ca2`). `tests/api-marketplace.test.ts` 10/10 PASS; `pnpm lint` limpio; typecheck sin nuevos errores. Pendiente: PV-2 del mismo audit (POST exige tenant, provider no tiene) sigue bloqueando a `provider` en el recorrido real. |
 
 | Estado | Tarea | Dueño | Criterio de aceptación | Pruebas/Evidencia |
 | --- | --- | --- | --- | --- |
@@ -170,6 +196,7 @@ bloqueados.
 
 | Tarea                                                                                                                | Dueño             | Evidencia                                                                                                                                |
 | -------------------------------------------------------------------------------------------------------------------- | ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Alinear copy público de acrobática y trampolín con producto real (follow-up ZAL-22).                                 | marketing/content | Brief `vault/04-Marketing/Brief - Copy acrobática y trampolín.md`; issue [ZAL-38](/ZAL/issues/ZAL-38). No depende de la decisión `2026-07-29` (ventas congeladas) porque es corrección de promesa, no campaña. |
 | Profundizar SEO localizado e i18n.                                                                                   | marketing/tech    | [[SEO y geo]].                                                                                                                           |
 | Definir add-ons monetizables.                                                                                        | negocio/producto  | [[Modelo de negocio]].                                                                                                                   |
 | Crear playbooks de CS por plan.                                                                                      | ventas            | [[Customer success]].                                                                                                                    |

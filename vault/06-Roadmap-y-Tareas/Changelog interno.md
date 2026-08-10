@@ -9,6 +9,36 @@ source:
 
 # Changelog interno
 
+## 2026-08-10 - ZAL-496 [Web] marketplace: `userId`/`sellerType` salen del schema y se derivan server-side
+
+Hallazgo **PV-3 (P0)** del recorrido `provider` auditado en `vault/03-Negocio/RESEARCH/ZAL-427 auditoria UX recorrido provider 2026-08-10.md` §2 (SHA `a784a0ca2`). `CreateMarketplaceSchema` exigía `userId: z.string().uuid()` (`src/app/api/marketplace/route.ts:16`) y `sellerType` con default `"external"`; `MarketplaceForm` los recibía por props (`MarketplaceForm.tsx:34`), pero `/marketplace/nuevo/page.tsx:14` monta el form **sin props**. Resultado: `userId: undefined` → `ZodError` → `400 VALIDATION_ERROR` en cada intento de publicar, y `sellerType` se persistía como `"external"` aunque el autor fuese una academia, un coach o un proveedor registrado. El handler ya insertaba `userId: context.userId` sin usar el valor validado, así que el campo era un obstáculo puro.
+
+**Decisión técnica (mínima, no refactor):** sacar `userId` y `sellerType` del schema y derivarlos en el servidor. `userId` es la sesión (no se acepta valor del cliente → anti-IDOR). `sellerType` sale del rol del perfil via `sellerTypeForRole(role)`: `admin`/`owner` → `academy`, `coach` → `coach`, `athlete` → `athlete`, `provider` → `provider`, `super_admin`/`parent` → `external`. La columna `marketplace_listings.sellerType` es `text` en DB, así que añadir `"provider"` no exige migración; actualizo el comentario del schema para reflejar el contrato actual.
+
+**Cambios:**
+
+- `src/app/api/marketplace/route.ts` — `CreateMarketplaceSchema` sin `userId`/`sellerType`; nueva helper `sellerTypeForRole(role)` única responsable de la asignación; inserta `userId = context.userId` y `sellerType = sellerTypeForRole(context.profile?.role)`. Si el cliente envía esos campos, el servidor los ignora.
+- `src/components/marketplace/MarketplaceForm.tsx` — `MarketplaceFormProps` solo conserva `onSuccess`; `userId`/`sellerType` se retiran del body enviado a la API. `onSuccess` sin props → fallback `router.push("/marketplace")` se mantiene (PV-8 queda intacto y fuera de scope).
+- `src/db/schema/marketplace.ts` — comentario `sellerType` ampliado a `academy, coach, athlete, provider, external`.
+- `tests/api-marketplace.test.ts` — nuevo, 10 tests PASS: POST sin `userId`/`sellerType` devuelve 201; `userId`mpostor y `sellerType`mpostor del body se ignoran; mapping rol→sellerType verificado para `provider`, `owner`, `admin`, `coach`, `athlete`, `parent`; payload incompleto sigue devolviendo 400.
+- `vault/06-Roadmap-y-Tareas/Backlog priorizado.md` — entrada resuelta 2026-08-10 en P0.
+
+**Evidencia de verificación:**
+
+- `pnpm test tests/api-marketplace.test.ts --run` → 10/10 PASS.
+- `pnpm test tests/ui-select-options.test.tsx --run` → 6/6 PASS (no regresión del fix PV-1/ZAL-494).
+- `pnpm lint` → limpio.
+- `pnpm typecheck` → sin nuevos errores; los preexistentes siguen en `mobile/` (RN 0.86) y `src/app/api/support/tickets/[id]/responses/route.ts` (FormData), no relacionados.
+
+**Mejora de seguridad colateral:** el cambio cierra de raíz el IDOR `userId` que el schema tenía latente (validaba un campo que el handler ignoraba, así que un cliente podría haber enviado cualquier UUID antes de la sesión actual y la validación habría pasado — pero el `insert` usaba `context.userId`, no `validated.userId`, así que en la práctica nunca publicó en nombre de otro. Quitar el campo del schema elimina la confusión entre contrato y realidad).
+
+**Pendiente para abordar en otro ticket (no resuelta por ZAL-496):**
+
+- **PV-2 del mismo audit**: `POST /api/marketplace` sigue en `withTenant`, por lo que un `provider` recibe `403 TENANT_MISSING` por diseño de rol. El recorrido del proveedor no podrá completarse en navegador hasta que Backend/Security decida entre (a) añadir `/api/marketplace` a `isFlexibleTenantEndpoint` con validación explícita de `userId` en el handler, o (b) dar tenant propio al `provider`. Owner sugerido en la auditoría: Backend / Security.
+- **PV-4, PV-5, PV-7, PV-8, PV-9, PV-10, PV-11, PV-12, PV-13** siguen abiertos en la auditoría ZAL-427 como P1/P2/P3.
+
+No se tocaron pricing, RLS, migraciones, secretos, producción ni publicación.
+
 ## 2026-08-10 - ZAL-494 [UI] ui/select no expone opciones: desplegables pintan vacíos
 
 Hallazgo **PV-1 (P0)** del recorrido `provider` auditado en `vault/03-Negocio/RESEARCH/ZAL-427 auditoria UX recorrido provider 2026-08-10.md` §2 (SHA `a784a0ca2`). `src/components/ui/select.tsx` envolvía los `<SelectTrigger>` y `<SelectContent>` en `<div>`s, así que los `<option>` no eran hijos directos del `<select>`; `HTMLSelectElement.options` los ignoraba y el proveedor no podía elegir Categoría en `MarketplaceForm` ni Prioridad/Categoría en `AnnouncementForm`. Mismo componente aceptaba `id` en `<SelectTrigger>`, dejando huérfanos los `<Label htmlFor>` (PV-11, WCAG 1.3.1 y 4.1.2).

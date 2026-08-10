@@ -11,10 +11,46 @@ import { apiSuccess, apiError, apiCreated } from "@/lib/api-response";
 import { logger } from "@/lib/logger";
 import { demoMarketplaceListing } from "@/lib/public/demo-listings";
 
-// Validation schemas
+//-sellerType values stored in marketplace_listings.sellerType (text at DB level).
+// The API contract is a single source of truth for what the catalogue can render.
+const MARKETPLACE_SELLER_TYPES = [
+  "academy",
+  "coach",
+  "athlete",
+  "provider",
+  "external",
+] as const;
+type MarketplaceSellerType = (typeof MARKETPLACE_SELLER_TYPES)[number];
+
+// Deriva el tipo de vendedor a partir del rol de plataforma. La auditoría
+// ZAL-427 (PV-3) detectó que `sellerType` se enviaba siempre como
+// "external" desde /marketplace/nuevo, opacando si el autor era un
+// proveedor registrado, una academia o un coach. Esta función es la
+// única responsable de la asignación.
+function sellerTypeForRole(role: string | null | undefined): MarketplaceSellerType {
+  switch (role) {
+    case "admin":
+    case "owner":
+      return "academy";
+    case "coach":
+      return "coach";
+    case "athlete":
+      return "athlete";
+    case "provider":
+      return "provider";
+    case "super_admin":
+    case "parent":
+    default:
+      return "external";
+  }
+}
+
+// Validation schema. `userId` y `sellerType` salen del schema: ambos son
+// derivados del contexto server-side (sesión y rol del perfil) y no son
+// valores que el cliente debiera poder forzar. Mantenerlos en el body
+// abría la puerta a publicar en nombre de otro usuario (IDOR) y a
+// falsificar el tipo de vendedor.
 const CreateMarketplaceSchema = z.object({
-  userId: z.string().uuid("Invalid user ID"),
-  sellerType: z.enum(["academy", "coach", "athlete", "external"]),
   type: z.enum(["product", "service"]),
   category: z.enum([
     "equipment", "clothing", "supplements", "books", "particular_training",
@@ -104,9 +140,14 @@ export const POST = withTenant(async (request: Request, context: TenantContext) 
     const body = await request.json();
     const validated = CreateMarketplaceSchema.parse(body);
 
+    // userId y sellerType se derivan server-side del contexto de la sesión;
+    // ignorar cualquier valor que el cliente intentara fijar en el body.
+    const userId = context.userId;
+    const sellerType = sellerTypeForRole(context.profile?.role);
+
     const [listing] = await db.insert(marketplaceListings).values({
-      userId: context.userId,
-      sellerType: validated.sellerType,
+      userId,
+      sellerType,
       type: validated.type,
       category: validated.category,
       title: validated.title,

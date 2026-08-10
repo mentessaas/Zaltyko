@@ -26,12 +26,10 @@ const CATEGORIES = [
 ];
 
 interface MarketplaceFormProps {
-  userId?: string;
-  sellerType?: string;
   onSuccess?: () => void;
 }
 
-export function MarketplaceForm({ userId, sellerType = "external", onSuccess }: MarketplaceFormProps) {
+export function MarketplaceForm({ onSuccess }: MarketplaceFormProps) {
   const router = useRouter();
   const toast = useToast();
   const [loading, setLoading] = useState(false);
@@ -55,12 +53,14 @@ export function MarketplaceForm({ userId, sellerType = "external", onSuccess }: 
     setLoading(true);
 
     try {
+      // NO enviamos userId ni sellerType: ambos los deriva el servidor
+      // desde la sesión y el rol del perfil (ver ZAL-496 / PV-3 de la
+      // auditoría ZAL-427). Mandarlos desde cliente abriría un IDOR y
+      // permitiría falsear el tipo de vendedor.
       const response = await fetch("/api/marketplace", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          userId,
-          sellerType,
           type: formData.type,
           category: formData.category,
           title: formData.title,
