@@ -1,14 +1,20 @@
 "use client";
 
+import * as React from "react";
 import type { FormEvent } from "react";
 import Link from "next/link";
 import { CheckSquare, Download, LayoutGrid, List, Square, Upload, Users } from "lucide-react";
 
 import { athleteStatusOptions } from "@/lib/athletes/constants";
-import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { AlertBadge } from "@/components/shared/AlertBadge";
 import { TooltipOnboarding } from "@/components/tooltips/TooltipOnboarding";
+import {
+  DataTable,
+  type DataTableColumn,
+  type DataTableSelection,
+  type DataTableSortState,
+} from "@/components/ui/data-table";
 import type { SportConfigOption } from "@/components/groups/types";
 import type { AthleteListItem, GroupOption } from "@/types";
 
@@ -370,7 +376,6 @@ export function AthletesEmptyState({
 export function AthletesDataTable({
   academyId,
   athletes,
-  allAthletesCount,
   filteredCount,
   currentPage,
   totalPages,
@@ -381,7 +386,6 @@ export function AthletesDataTable({
   terms,
   sortBy,
   sortOrder,
-  onToggleSelectAll,
   onToggleSelectAthlete,
   onSortChange,
   onEdit,
@@ -389,7 +393,6 @@ export function AthletesDataTable({
 }: {
   academyId: string;
   athletes: AthleteListItem[];
-  allAthletesCount: number;
   filteredCount: number;
   currentPage: number;
   totalPages: number;
@@ -400,110 +403,208 @@ export function AthletesDataTable({
   terms: AthleteTerms;
   sortBy: SortBy;
   sortOrder: SortOrder;
-  onToggleSelectAll: () => void;
   onToggleSelectAthlete: (id: string) => void;
   onSortChange: (sortBy: SortBy) => void;
   onEdit: (athlete: AthleteListItem) => void;
   onPageChange: (page: number) => void;
 }) {
+  // El `onSortChange` externo alterna asc/desc; el DataTable maneja el toggle
+  // cuando recibe onChange. Si el usuario cambia de columna, resetea a asc.
+  const handleSortChange = React.useCallback(
+    (column: string) => {
+      // El DataTable emite el column id; solo permitimos valores válidos de
+      // SortBy (los ids de columna están restringidos a esos tres valores).
+      if (column !== "name" && column !== "age" && column !== "createdAt") {
+        return;
+      }
+      if (sortBy === column && sortOrder === "asc") {
+        onSortChange(column); // toggle a desc
+      } else if (sortBy !== column) {
+        onSortChange(column); // nueva columna → asc
+      }
+    },
+    [sortBy, sortOrder, onSortChange]
+  );
+
+  const sortState: DataTableSortState = {
+    column: sortBy,
+    direction: sortOrder,
+  };
+
+  // allSelected: comportamiento histórico. Se conserva la semántica del
+  // botón "seleccionar todos" de la implementación previa: solo marca
+  // checked cuando TODAS las filas visibles (paginadas) están seleccionadas.
+  const allVisibleSelected =
+    athletes.length > 0 && athletes.every((a) => selectedAthletes.has(a.id));
+  const someVisibleSelected =
+    !allVisibleSelected && athletes.some((a) => selectedAthletes.has(a.id));
+
+  const selectionConfig: DataTableSelection<AthleteListItem> = {
+    selected: selectedAthletes,
+    getKey: (row) => row.id,
+    onToggle: onToggleSelectAthlete,
+    onToggleAll: () => {
+      if (allVisibleSelected) {
+        athletes.forEach((a) => onToggleSelectAthlete(a.id));
+      } else {
+        athletes.forEach((a) => {
+          if (!selectedAthletes.has(a.id)) onToggleSelectAthlete(a.id);
+        });
+      }
+    },
+    allSelected: allVisibleSelected,
+    someSelected: someVisibleSelected,
+    rowLabel: (row) => row.name,
+  };
+
+  const columns: DataTableColumn<AthleteListItem>[] = React.useMemo(
+    () => [
+      {
+        id: "name",
+        header: "Nombre",
+        sortable: true,
+        sortValue: (row) => row.name,
+        cell: (row) => (
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-zaltyko-teal">{row.name}</span>
+              {athletesWithAlerts.has(row.id) && (
+                <AlertBadge type="attendance" severity="medium" className="text-[10px]" />
+              )}
+            </div>
+            {row.dob && (
+              <p className="text-xs text-muted-foreground">
+                Nacido el {row.dob.slice(0, 10)}
+              </p>
+            )}
+            {row.primarySportConfigId && (
+              <span className="inline-flex w-fit rounded-full border border-zaltyko-mist bg-zaltyko-white px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+                {sportConfigNameById.get(row.primarySportConfigId) ??
+                  "Configuración deportiva"}
+              </span>
+            )}
+          </div>
+        ),
+      },
+      {
+        id: "level",
+        header: "Nivel",
+        cell: (row) => row.level ?? "—",
+      },
+      {
+        id: "status",
+        header: "Estado",
+        cell: (row) => <span className="capitalize">{row.status}</span>,
+      },
+      {
+        id: "age",
+        header: "Edad",
+        sortable: true,
+        sortValue: (row) => row.age,
+        align: "right",
+        className: "tabular-nums",
+        cell: (row) => row.age ?? "—",
+      },
+      {
+        id: "guardianCount",
+        header: "Familia",
+        align: "right",
+        className: "tabular-nums",
+        cell: (row) => Number(row.guardianCount ?? 0),
+      },
+      {
+        id: "group",
+        header: `${terms.group} principal`,
+        cell: (row) =>
+          row.groupName ? (
+            <span
+              className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold"
+              style={
+                row.groupColor
+                  ? { borderColor: row.groupColor, color: row.groupColor }
+                  : undefined
+              }
+            >
+              <span
+                className="h-2 w-2 rounded-full"
+                style={{ backgroundColor: row.groupColor ?? "currentColor" }}
+              />
+              {row.groupName}
+            </span>
+          ) : (
+            <span className="text-xs text-muted-foreground">
+              Sin {terms.group.toLowerCase()}
+            </span>
+          ),
+      },
+      {
+        id: "actions",
+        header: <span className="sr-only">Acciones</span>,
+        align: "right",
+        cell: (row) => (
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              onEdit(row);
+            }}
+            className="text-xs font-semibold text-zaltyko-teal hover:underline"
+          >
+            Editar
+          </button>
+        ),
+      },
+    ],
+    [athletesWithAlerts, sportConfigNameById, terms.group, onEdit]
+  );
+
+  const totalPagesSafe = Math.max(1, totalPages);
+
   return (
     <div className="overflow-hidden rounded-[22px] border border-slate-200/80 bg-white shadow-[0_18px_50px_-32px_rgba(15,23,42,0.45)]">
-      <div className="divide-y divide-slate-100 md:hidden">
-        {athletes.map((athlete) => (
+      <DataTable<AthleteListItem>
+        data={athletes}
+        columns={columns}
+        getRowKey={(row) => row.id}
+        ariaLabel={`Listado de ${terms.athletes.toLowerCase()}`}
+        itemLabel={terms.athletes.toLowerCase()}
+        sort={sortState}
+        onSortChange={handleSortChange}
+        selection={selectionConfig}
+        pagination={
+          totalPagesSafe > 1
+            ? {
+                page: currentPage,
+                pageSize: itemsPerPage,
+              }
+            : undefined
+        }
+        onPaginationChange={(next) => onPageChange(next.page)}
+        pageCount={totalPagesSafe}
+        totalCount={filteredCount}
+        rowHref={(row) => `/app/${academyId}/athletes/${row.id}`}
+        rowClassName={(row) =>
+          athletesWithAlerts.has(row.id)
+            ? "[&_td]:bg-amber-50/30"
+            : undefined
+        }
+        mobileCard={(row) => (
           <AthleteMobileCard
-            key={athlete.id}
             academyId={academyId}
-            athlete={athlete}
-            selected={selectedAthletes.has(athlete.id)}
-            hasAlert={athletesWithAlerts.has(athlete.id)}
-            sportConfigName={athlete.primarySportConfigId ? sportConfigNameById.get(athlete.primarySportConfigId) : undefined}
+            athlete={row}
+            selected={selectedAthletes.has(row.id)}
+            hasAlert={athletesWithAlerts.has(row.id)}
+            sportConfigName={
+              row.primarySportConfigId
+                ? sportConfigNameById.get(row.primarySportConfigId)
+                : undefined
+            }
             terms={terms}
-            onToggleSelect={() => onToggleSelectAthlete(athlete.id)}
-            onEdit={() => onEdit(athlete)}
+            onToggleSelect={() => onToggleSelectAthlete(row.id)}
+            onEdit={() => onEdit(row)}
           />
-        ))}
-      </div>
-      <div className="hidden overflow-x-auto md:block">
-      <table className="min-w-full divide-y divide-slate-100 text-sm">
-        <thead className="bg-zaltyko-white">
-          <tr className="text-left text-xs uppercase tracking-[0.05em] text-slate-600">
-            <th className="w-8 px-2 py-3 font-medium">
-              <button
-                type="button"
-                onClick={onToggleSelectAll}
-                className="p-1 hover:text-zaltyko-teal"
-                aria-label={`Seleccionar todos los ${terms.athletes.toLowerCase()}`}
-              >
-                {selectedAthletes.size === allAthletesCount && allAthletesCount > 0 ? (
-                  <CheckSquare className="h-4 w-4" />
-                ) : (
-                  <Square className="h-4 w-4" />
-                )}
-              </button>
-            </th>
-            <th className="px-4 py-3 font-medium">
-              <SortableHeader active={sortBy === "name"} order={sortOrder} onClick={() => onSortChange("name")}>
-                Nombre
-              </SortableHeader>
-            </th>
-            <th className="px-4 py-3 font-medium">Nivel</th>
-            <th className="px-4 py-3 font-medium">Estado</th>
-            <th className="px-4 py-3 text-right font-medium">
-              <SortableHeader active={sortBy === "age"} order={sortOrder} alignRight onClick={() => onSortChange("age")}>
-                Edad
-              </SortableHeader>
-            </th>
-            <th className="px-4 py-3 text-right font-medium">Familia</th>
-            <th className="px-4 py-3 font-medium">{terms.group} principal</th>
-            <th className="px-4 py-3 text-right font-medium">Acciones</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-100 bg-white text-zaltyko-navy">
-          {athletes.map((athlete) => (
-            <AthletesTableRow
-              key={athlete.id}
-              academyId={academyId}
-              athlete={athlete}
-              selected={selectedAthletes.has(athlete.id)}
-              hasAlert={athletesWithAlerts.has(athlete.id)}
-              sportConfigName={athlete.primarySportConfigId ? sportConfigNameById.get(athlete.primarySportConfigId) : undefined}
-              terms={terms}
-              onToggleSelect={() => onToggleSelectAthlete(athlete.id)}
-              onEdit={() => onEdit(athlete)}
-            />
-          ))}
-        </tbody>
-      </table>
-      </div>
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between border-t border-zaltyko-mist px-4 py-3">
-          <p className="text-sm text-muted-foreground">
-            Mostrando {(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, filteredCount)} de{" "}
-            {filteredCount} {terms.athletes.toLowerCase()}
-          </p>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onPageChange(Math.max(1, currentPage - 1))}
-              disabled={currentPage === 1}
-            >
-              Anterior
-            </Button>
-            <span className="text-sm">
-              {currentPage} / {totalPages}
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
-              disabled={currentPage === totalPages}
-            >
-              Siguiente
-            </Button>
-          </div>
-        </div>
-      )}
+        )}
+      />
     </div>
   );
 }
@@ -569,115 +670,5 @@ function AthleteMobileCard({
         </div>
       </div>
     </article>
-  );
-}
-
-function SortableHeader({
-  active,
-  order,
-  alignRight = false,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  order: SortOrder;
-  alignRight?: boolean;
-  onClick: () => void;
-  children: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`${alignRight ? "ml-auto" : ""} flex items-center gap-1 hover:text-zaltyko-teal`}
-    >
-      {children}
-      {active && (order === "asc" ? " ↑" : " ↓")}
-    </button>
-  );
-}
-
-function AthletesTableRow({
-  academyId,
-  athlete,
-  selected,
-  hasAlert,
-  sportConfigName,
-  terms,
-  onToggleSelect,
-  onEdit,
-}: {
-  academyId: string;
-  athlete: AthleteListItem;
-  selected: boolean;
-  hasAlert: boolean;
-  sportConfigName?: string;
-  terms: AthleteTerms;
-  onToggleSelect: () => void;
-  onEdit: () => void;
-}) {
-  return (
-    <tr className="odd:bg-white even:bg-zaltyko-white/40 transition-colors hover:bg-zaltyko-teal/[0.05]">
-      <td className="px-2 py-3">
-        <button
-          type="button"
-          onClick={onToggleSelect}
-          className="p-1 hover:text-zaltyko-teal"
-          aria-label={`${selected ? "Deseleccionar" : "Seleccionar"} ${athlete.name}`}
-        >
-          {selected ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}
-        </button>
-      </td>
-      <td className="px-4 py-3">
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <Link
-              href={`/app/${academyId}/athletes/${athlete.id}`}
-              className="font-semibold text-zaltyko-teal transition hover:underline"
-            >
-              {athlete.name}
-            </Link>
-            {hasAlert && <AlertBadge type="attendance" severity="medium" className="text-[10px]" />}
-          </div>
-          {athlete.dob && (
-            <p className="text-xs text-muted-foreground">
-              Nacido el {athlete.dob.slice(0, 10)}
-            </p>
-          )}
-          {athlete.primarySportConfigId && (
-            <span className="inline-flex w-fit rounded-full border border-zaltyko-mist bg-zaltyko-white px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
-              {sportConfigName ?? "Configuración deportiva"}
-            </span>
-          )}
-        </div>
-      </td>
-      <td className="px-4 py-3">{athlete.level ?? "—"}</td>
-      <td className="px-4 py-3 capitalize">{athlete.status}</td>
-      <td className="px-4 py-3 text-right tabular-nums">{athlete.age ?? "—"}</td>
-      <td className="px-4 py-3 text-right tabular-nums">{Number(athlete.guardianCount ?? 0)}</td>
-      <td className="px-4 py-3">
-        {athlete.groupName ? (
-          <span
-            className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold"
-            style={athlete.groupColor ? { borderColor: athlete.groupColor, color: athlete.groupColor } : undefined}
-          >
-            <span
-              className="h-2 w-2 rounded-full"
-              style={{
-                backgroundColor: athlete.groupColor ?? "currentColor",
-              }}
-            />
-            {athlete.groupName}
-          </span>
-        ) : (
-          <span className="text-xs text-muted-foreground">Sin {terms.group.toLowerCase()}</span>
-        )}
-      </td>
-      <td className="px-4 py-3 text-right">
-        <button type="button" onClick={onEdit} className="text-xs font-semibold text-zaltyko-teal hover:underline">
-          Editar
-        </button>
-      </td>
-    </tr>
   );
 }

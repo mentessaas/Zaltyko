@@ -1,9 +1,11 @@
 "use client";
 
+import * as React from "react";
 import { FormEvent, useMemo, useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
+import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { CreateClassDialog } from "@/components/classes/CreateClassDialog";
 import { EditClassDialog } from "@/components/classes/EditClassDialog";
 import { RecurringIndicator } from "@/components/shared/RecurringIndicator";
@@ -236,217 +238,18 @@ export function ClassesTableView({
           )}
         </div>
       ) : (
-        <>
-        {/* Cards — móvil */}
-        <ul className="space-y-3 md:hidden">
-          {classes.map((item) => (
-            <li key={item.id} className="rounded-2xl border border-zaltyko-mist bg-white p-4 shadow-soft">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Link
-                      href={`/app/${academyId}/classes/${item.id}`}
-                      className="font-semibold text-zaltyko-teal hover:underline"
-                    >
-                      {item.name}
-                    </Link>
-                    {starterClassNames.has(item.name) && (
-                      <span className="rounded-full border border-zaltyko-teal/30 bg-zaltyko-teal/10 px-2 py-0.5 text-[11px] font-semibold text-zaltyko-teal">
-                        Plantilla inicial
-                      </span>
-                    )}
-                  </div>
-                  <p className="mt-1 text-xs text-muted-foreground">{formatSchedule(item)}</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setEditing(item)}
-                  className="shrink-0 text-xs font-semibold text-zaltyko-teal hover:underline"
-                >
-                  Editar
-                </button>
-              </div>
-
-              <div className="mt-3 flex items-center justify-between text-xs">
-                <span className="text-muted-foreground">Capacidad</span>
-                <span className="tabular-nums font-medium text-zaltyko-navy">{item.capacity ?? "—"}</span>
-              </div>
-
-              <div className="mt-3 flex flex-wrap gap-2 text-xs">
-                {item.coaches.length === 0 ? (
-                  <span className="rounded-full bg-muted px-3 py-1 text-muted-foreground">
-                    Sin {coachTermPluralLower} asignados
-                  </span>
-                ) : (
-                  item.coaches.map((coach) => (
-                    <span key={coach.id} className="rounded-full bg-zaltyko-indigo/10 px-3 py-1 text-zaltyko-indigo">
-                      {coach.name}
-                    </span>
-                  ))
-                )}
-              </div>
-
-              <div className="mt-2 flex flex-wrap gap-2 text-xs">
-                {item.groups.length === 0 ? (
-                  <span className="rounded-full bg-muted px-3 py-1 text-muted-foreground">
-                    Sin {groupTermLower} vinculado
-                  </span>
-                ) : (
-                  item.groups.map((group) => (
-                    <span
-                      key={group.id}
-                      className="inline-flex items-center gap-2 rounded-full border px-3 py-1 font-medium"
-                      style={group.color ? { borderColor: group.color, color: group.color } : undefined}
-                    >
-                      <span className="h-2 w-2 rounded-full" style={{ backgroundColor: group.color ?? "currentColor" }} />
-                      {group.name}
-                    </span>
-                  ))
-                )}
-              </div>
-            </li>
-          ))}
-        </ul>
-
-        {/* Tabla — escritorio */}
-        <div className="hidden overflow-x-auto rounded-2xl border border-zaltyko-mist bg-white shadow-soft md:block">
-          <table className="min-w-full divide-y divide-slate-100 text-sm">
-            <thead className="bg-zaltyko-white">
-              <tr className="text-left text-xs uppercase tracking-[0.05em] text-slate-400">
-                <th className="px-4 py-3 font-medium">Nombre</th>
-                <th className="px-4 py-3 font-medium">Horario</th>
-                <th className="px-4 py-3 font-medium text-right">Capacidad</th>
-                <th className="px-4 py-3 font-medium">{terms.coach}s</th>
-                <th className="px-4 py-3 font-medium">{terms.groups} vinculados</th>
-                <th className="px-4 py-3 font-medium text-right">Acciones</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 bg-white text-zaltyko-navy">
-            {classes.map((item) => (
-              <tr key={item.id} className="hover:bg-zaltyko-white/80">
-                <td className="px-4 py-3">
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <Link
-                        href={`/app/${academyId}/classes/${item.id}`}
-                        className="font-semibold text-zaltyko-teal hover:underline"
-                      >
-                        {item.name}
-                      </Link>
-                      {starterClassNames.has(item.name) && (
-                        <span className="rounded-full border border-zaltyko-teal/30 bg-zaltyko-teal/10 px-2 py-0.5 text-[11px] font-semibold text-zaltyko-teal">
-                          Plantilla inicial
-                        </span>
-                      )}
-                      {item.autoGenerateSessions && (
-                        <RecurringIndicator
-                          classId={item.id}
-                          academyId={academyId}
-                          autoGenerateSessions={item.autoGenerateSessions}
-                        />
-                      )}
-                    </div>
-                    {item.createdAt && (
-                      <p className="text-xs text-muted-foreground">
-                        Creada el {item.createdAt.slice(0, 10)}
-                      </p>
-                    )}
-                    {item.sportConfigId && (
-                      <span className="inline-flex w-fit rounded-full border border-zaltyko-mist bg-zaltyko-white px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
-                        {sportConfigNameById.get(item.sportConfigId) ?? "Configuración deportiva"}
-                      </span>
-                    )}
-                    {(item.technicalFocus || (item.apparatus?.length ?? 0) > 0) && (
-                      <div className="flex flex-wrap gap-2">
-                        {item.technicalFocus && (
-                          <span className="rounded-full bg-muted px-2.5 py-1 text-[11px] text-muted-foreground">
-                            {item.technicalFocus}
-                          </span>
-                        )}
-                        {(item.apparatus ?? []).map((apparatus) => (
-                          <span
-                            key={apparatus}
-                            className="rounded-full border border-zaltyko-mist bg-white px-2.5 py-1 text-[11px] text-muted-foreground"
-                          >
-                            {apparatusLabels[apparatus] || apparatus}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </td>
-                <td className="px-4 py-3">{formatSchedule(item)}</td>
-                <td className="px-4 py-3 text-right tabular-nums">
-                  <div className="flex flex-col items-end gap-1">
-                    <span>{item.capacity ?? "—"}</span>
-                    {item.capacity && item.capacity > 0 && (
-                      <AlertBadge type="capacity" severity="medium" className="text-[10px]" />
-                    )}
-                  </div>
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex flex-wrap gap-2 text-xs">
-                    {item.coaches.length === 0 ? (
-                      <span className="rounded-full bg-muted px-3 py-1 text-muted-foreground">
-                        Sin {coachTermPluralLower} asignados
-                      </span>
-                    ) : (
-                      item.coaches.map((coach) => (
-                        <span
-                          key={coach.id}
-                          className="rounded-full bg-zaltyko-indigo/10 px-3 py-1 text-zaltyko-indigo"
-                        >
-                          {coach.name}
-                        </span>
-                      ))
-                    )}
-                  </div>
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex flex-wrap gap-2 text-xs">
-                    {item.groups.length === 0 ? (
-                      <span className="rounded-full bg-muted px-3 py-1 text-muted-foreground">
-                        Sin {groupTermLower} vinculado
-                      </span>
-                    ) : (
-                      item.groups.map((group) => (
-                        <span
-                          key={group.id}
-                          className="inline-flex items-center gap-2 rounded-full border px-3 py-1 font-medium"
-                          style={
-                            group.color
-                              ? {
-                                  borderColor: group.color,
-                                  color: group.color,
-                                }
-                              : undefined
-                          }
-                        >
-                          <span
-                            className="h-2 w-2 rounded-full"
-                            style={{ backgroundColor: group.color ?? "currentColor" }}
-                          />
-                          {group.name}
-                        </span>
-                      ))
-                    )}
-                  </div>
-                </td>
-                <td className="px-4 py-3 text-right">
-                  <button
-                    type="button"
-                    onClick={() => setEditing(item)}
-                    className="text-xs font-semibold text-zaltyko-teal hover:underline"
-                  >
-                    Editar
-                  </button>
-                </td>
-              </tr>
-            ))}
-            </tbody>
-          </table>
-        </div>
-        </>
+        <ClassesDataTable
+          academyId={academyId}
+          classes={classes}
+          apparatusLabels={apparatusLabels}
+          sportConfigNameById={sportConfigNameById}
+          starterClassNames={starterClassNames}
+          terms={terms}
+          coachTermPluralLower={coachTermPluralLower}
+          groupTermLower={groupTermLower}
+          formatSchedule={formatSchedule}
+          onEdit={setEditing}
+        />
       )}
 
       <CreateClassDialog
@@ -474,5 +277,279 @@ export function ClassesTableView({
         />
       )}
     </div>
+  );
+}
+
+interface ClassesDataTableProps {
+  academyId: string;
+  classes: ClassItem[];
+  apparatusLabels: Record<string, string>;
+  sportConfigNameById: Map<string, string>;
+  starterClassNames: Set<string>;
+  terms: {
+    coach: string;
+    group: string;
+    groups: string;
+  };
+  coachTermPluralLower: string;
+  groupTermLower: string;
+  formatSchedule: (item: ClassItem) => string;
+  onEdit: (item: ClassItem) => void;
+}
+
+/**
+ * Vista de tabla + cards móvil para Clases. Comparte el DataTable genérico
+ * con el piloto de Atletas (mismas guarantees: 4 estados, accesibilidad,
+ * responsive, opt-in features). El estado vacío real se renderiza en el
+ * padre (`ClassesTableView`) para preservar la CTA contextual "Crear
+ * primera clase" cuando no hay filtros activos.
+ */
+function ClassesDataTable({
+  academyId,
+  classes,
+  apparatusLabels,
+  sportConfigNameById,
+  starterClassNames,
+  terms,
+  coachTermPluralLower,
+  groupTermLower,
+  formatSchedule,
+  onEdit,
+}: ClassesDataTableProps) {
+  const columns = React.useMemo<DataTableColumn<ClassItem>[]>(
+    () => [
+      {
+        id: "name",
+        header: "Nombre",
+        sortable: true,
+        sortValue: (item) => item.name,
+        cell: (item) => (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-zaltyko-teal">{item.name}</span>
+              {starterClassNames.has(item.name) && (
+                <span className="rounded-full border border-zaltyko-teal/30 bg-zaltyko-teal/10 px-2 py-0.5 text-[11px] font-semibold text-zaltyko-teal">
+                  Plantilla inicial
+                </span>
+              )}
+              {item.autoGenerateSessions && (
+                <RecurringIndicator
+                  classId={item.id}
+                  academyId={academyId}
+                  autoGenerateSessions={item.autoGenerateSessions}
+                />
+              )}
+            </div>
+            {item.createdAt && (
+              <p className="text-xs text-muted-foreground">
+                Creada el {item.createdAt.slice(0, 10)}
+              </p>
+            )}
+            {item.sportConfigId && (
+              <span className="inline-flex w-fit rounded-full border border-zaltyko-mist bg-zaltyko-white px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+                {sportConfigNameById.get(item.sportConfigId) ??
+                  "Configuración deportiva"}
+              </span>
+            )}
+            {(item.technicalFocus || (item.apparatus?.length ?? 0) > 0) && (
+              <div className="flex flex-wrap gap-2">
+                {item.technicalFocus && (
+                  <span className="rounded-full bg-muted px-2.5 py-1 text-[11px] text-muted-foreground">
+                    {item.technicalFocus}
+                  </span>
+                )}
+                {(item.apparatus ?? []).map((apparatus) => (
+                  <span
+                    key={apparatus}
+                    className="rounded-full border border-zaltyko-mist bg-white px-2.5 py-1 text-[11px] text-muted-foreground"
+                  >
+                    {apparatusLabels[apparatus] || apparatus}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        ),
+      },
+      {
+        id: "schedule",
+        header: "Horario",
+        cell: (item) => formatSchedule(item),
+      },
+      {
+        id: "capacity",
+        header: "Capacidad",
+        align: "right",
+        className: "tabular-nums",
+        cell: (item) => (
+          <div className="flex flex-col items-end gap-1">
+            <span>{item.capacity ?? "—"}</span>
+            {item.capacity && item.capacity > 0 && (
+              <AlertBadge type="capacity" severity="medium" className="text-[10px]" />
+            )}
+          </div>
+        ),
+      },
+      {
+        id: "coaches",
+        header: `${terms.coach}s`,
+        cell: (item) => (
+          <div className="flex flex-wrap gap-2 text-xs">
+            {item.coaches.length === 0 ? (
+              <span className="rounded-full bg-muted px-3 py-1 text-muted-foreground">
+                Sin {coachTermPluralLower} asignados
+              </span>
+            ) : (
+              item.coaches.map((coach) => (
+                <span
+                  key={coach.id}
+                  className="rounded-full bg-zaltyko-indigo/10 px-3 py-1 text-zaltyko-indigo"
+                >
+                  {coach.name}
+                </span>
+              ))
+            )}
+          </div>
+        ),
+      },
+      {
+        id: "groups",
+        header: `${terms.groups} vinculados`,
+        cell: (item) => (
+          <div className="flex flex-wrap gap-2 text-xs">
+            {item.groups.length === 0 ? (
+              <span className="rounded-full bg-muted px-3 py-1 text-muted-foreground">
+                Sin {groupTermLower} vinculado
+              </span>
+            ) : (
+              item.groups.map((group) => (
+                <span
+                  key={group.id}
+                  className="inline-flex items-center gap-2 rounded-full border px-3 py-1 font-medium"
+                  style={
+                    group.color
+                      ? { borderColor: group.color, color: group.color }
+                      : undefined
+                  }
+                >
+                  <span
+                    className="h-2 w-2 rounded-full"
+                    style={{ backgroundColor: group.color ?? "currentColor" }}
+                  />
+                  {group.name}
+                </span>
+              ))
+            )}
+          </div>
+        ),
+      },
+      {
+        id: "actions",
+        header: <span className="sr-only">Acciones</span>,
+        align: "right",
+        cell: (item) => (
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              onEdit(item);
+            }}
+            className="text-xs font-semibold text-zaltyko-teal hover:underline"
+          >
+            Editar
+          </button>
+        ),
+      },
+    ],
+    [
+      academyId,
+      apparatusLabels,
+      coachTermPluralLower,
+      formatSchedule,
+      groupTermLower,
+      onEdit,
+      sportConfigNameById,
+      starterClassNames,
+      terms.coach,
+      terms.groups,
+    ]
+  );
+
+  return (
+    <DataTable<ClassItem>
+      data={classes}
+      columns={columns}
+      getRowKey={(item) => item.id}
+      ariaLabel={`Listado de clases`}
+      itemLabel="clases"
+      rowHref={(item) => `/app/${academyId}/classes/${item.id}`}
+      mobileCard={(item) => (
+        <article className="rounded-2xl border border-zaltyko-mist bg-white p-4 shadow-soft">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <Link
+                  href={`/app/${academyId}/classes/${item.id}`}
+                  className="font-semibold text-zaltyko-teal hover:underline"
+                >
+                  {item.name}
+                </Link>
+                {starterClassNames.has(item.name) && (
+                  <span className="rounded-full border border-zaltyko-teal/30 bg-zaltyko-teal/10 px-2 py-0.5 text-[11px] font-semibold text-zaltyko-teal">
+                    Plantilla inicial
+                  </span>
+                )}
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">{formatSchedule(item)}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => onEdit(item)}
+              className="shrink-0 text-xs font-semibold text-zaltyko-teal hover:underline"
+            >
+              Editar
+            </button>
+          </div>
+
+          <div className="mt-3 flex items-center justify-between text-xs">
+            <span className="text-muted-foreground">Capacidad</span>
+            <span className="tabular-nums font-medium text-zaltyko-navy">{item.capacity ?? "—"}</span>
+          </div>
+
+          <div className="mt-3 flex flex-wrap gap-2 text-xs">
+            {item.coaches.length === 0 ? (
+              <span className="rounded-full bg-muted px-3 py-1 text-muted-foreground">
+                Sin {coachTermPluralLower} asignados
+              </span>
+            ) : (
+              item.coaches.map((coach) => (
+                <span key={coach.id} className="rounded-full bg-zaltyko-indigo/10 px-3 py-1 text-zaltyko-indigo">
+                  {coach.name}
+                </span>
+              ))
+            )}
+          </div>
+
+          <div className="mt-2 flex flex-wrap gap-2 text-xs">
+            {item.groups.length === 0 ? (
+              <span className="rounded-full bg-muted px-3 py-1 text-muted-foreground">
+                Sin {groupTermLower} vinculado
+              </span>
+            ) : (
+              item.groups.map((group) => (
+                <span
+                  key={group.id}
+                  className="inline-flex items-center gap-2 rounded-full border px-3 py-1 font-medium"
+                  style={group.color ? { borderColor: group.color, color: group.color } : undefined}
+                >
+                  <span className="h-2 w-2 rounded-full" style={{ backgroundColor: group.color ?? "currentColor" }} />
+                  {group.name}
+                </span>
+              ))
+            )}
+          </div>
+        </article>
+      )}
+    />
   );
 }

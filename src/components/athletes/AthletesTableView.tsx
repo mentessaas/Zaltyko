@@ -253,14 +253,6 @@ export const AthletesTableView = memo(function AthletesTableView({
     });
   };
 
-  const toggleSelectAll = () => {
-    if (selectedAthletes.size === paginatedAthletes.length) {
-      setSelectedAthletes(new Set());
-    } else {
-      setSelectedAthletes(new Set(paginatedAthletes.map((athlete) => athlete.id)));
-    }
-  };
-
   const toggleSelectAthlete = (id: string) => {
     setSelectedAthletes((current) => {
       const next = new Set(current);
@@ -375,7 +367,6 @@ export const AthletesTableView = memo(function AthletesTableView({
       ) : (
         <AthletesDataTable
           academyId={academyId}
-          allAthletesCount={athletes.length}
           athletes={paginatedAthletes}
           athletesWithAlerts={athletesWithAlerts}
           currentPage={currentPage}
@@ -390,7 +381,6 @@ export const AthletesTableView = memo(function AthletesTableView({
           onEdit={setEditing}
           onPageChange={setCurrentPage}
           onSortChange={handleSortChange}
-          onToggleSelectAll={toggleSelectAll}
           onToggleSelectAthlete={toggleSelectAthlete}
         />
       )}
