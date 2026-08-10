@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 
 type Status = "loading" | "ready" | "saving" | "saved" | "error";
 
@@ -213,12 +214,12 @@ function PreferencesPageInner() {
         </fieldset>
 
         <div className="mt-6 flex items-center justify-between gap-2">
-          <a
+          <Link
             href={`/unsubscribe?token=${encodeURIComponent(token)}`}
             className="text-sm text-muted-foreground underline"
           >
             Darme de baja de todo
-          </a>
+          </Link>
           <button
             type="button"
             onClick={() => void onSave(prefs)}
