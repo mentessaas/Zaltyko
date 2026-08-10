@@ -25,11 +25,11 @@ const securityHeaders = [
     key: "Content-Security-Policy",
     value: [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.supabase.co https://*.stripe.com https://vercel.live https://va.vercel-scripts.com https://*.posthog.com https://*.google-analytics.com",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.supabase.co https://*.stripe.com https://vercel.live https://va.vercel-scripts.com https://*.posthog.com https://*.google-analytics.com https://browser.sentry-cdn.com https://js.sentry-cdn.com",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' data: https://fonts.gstatic.com",
       "img-src 'self' data: blob: https:",
-      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.stripe.com https://*.posthog.com https://*.google-analytics.com https://vercel.live",
+      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.stripe.com https://*.posthog.com https://*.google-analytics.com https://vercel.live https://*.sentry.io https://*.ingest.sentry.io https://*.ingest.us.sentry.io",
       "frame-src 'self' https://*.stripe.com https://*.supabase.co",
       "frame-ancestors 'none'",
       "base-uri 'self'",
