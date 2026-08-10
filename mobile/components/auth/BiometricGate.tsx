@@ -8,6 +8,7 @@ import { AppState, type AppStateStatus, StyleSheet, Text, View } from 'react-nat
 import { Ionicons } from '@expo/vector-icons';
 
 import { Button } from '@/components/ui/Button';
+import { useSession } from '@/lib/auth/use-session';
 import {
   authenticate,
   canUseBiometrics,
@@ -22,6 +23,7 @@ interface Props {
 }
 
 export function BiometricGate({ children }: Props) {
+  const { status: sessionStatus, signOut } = useSession();
   const [locked, setLocked] = useState(false);
   const [checking, setChecking] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -113,6 +115,17 @@ export function BiometricGate({ children }: Props) {
         fullWidth
       />
       {error ? <Text style={styles.error}>{error}</Text> : null}
+      {sessionStatus === 'authenticated' ? (
+        <Button
+          title="Cerrar sesión"
+          onPress={() => {
+            setLocked(false);
+            void signOut();
+          }}
+          variant="ghost"
+          accessibilityLabel="Cerrar sesión y volver a la pantalla de inicio"
+        />
+      ) : null}
     </View>
   );
 }

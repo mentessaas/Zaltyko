@@ -46,7 +46,7 @@ function ConversationRowImpl({ item, onPress }: Props) {
       onPress={onPress}
       style={[styles.row, unread && styles.rowUnread]}
       accessibilityRole="button"
-      accessibilityLabel={`Conversación con ${label}`}
+      accessibilityLabel={`Conversación con ${label}${unread ? `. ${item.unreadCount} ${item.unreadCount === 1 ? 'mensaje no leído' : 'mensajes no leídos'}` : ''}`}
     >
       <View style={styles.avatar}>
         <Text style={styles.avatarText}>{initial}</Text>
