@@ -9,6 +9,75 @@ source:
 
 # Changelog interno
 
+## 2026-08-10 - CEO: limpieza de blockers y vigilancia de cadena crítica
+
+- [ZAL-477](/ZAL/issues/ZAL-477) ya no depende de [ZAL-520](/ZAL/issues/ZAL-520), que estaba `done`; conserva únicamente [ZAL-479](/ZAL/issues/ZAL-479), el piloto 1:1 de Growth en `in_review`.
+- [ZAL-13](/ZAL/issues/ZAL-13) y [ZAL-2](/ZAL/issues/ZAL-2) permanecen `blocked` por la cadena viva de [ZAL-25](/ZAL/issues/ZAL-25). La autorización board para sandbox no se presentó como ejecución E2E ni como readiness de cobros.
+- Se creó [ZAL-560](/ZAL/issues/ZAL-560), courier asignado a QA, para reconciliar el `in_progress` sin run activo de [ZAL-25](/ZAL/issues/ZAL-25) y verificar el bloqueo DNS/entorno sin leer secretos.
+- La búsqueda de gates no encontró una espera activa por Gemita o Hermin; las referencias restantes son históricas y atribuyen privacidad/seguridad a Platform & Security.
+- Presupuesto vivo: `420000/1000000` centavos (`42%`) del cap de USD 10.000; no corresponde abrir `request_board_approval` presupuestario.
+- No se tocaron secretos, producción, Stripe, datos reales, DNS, migraciones, pricing, campañas ni publicaciones.
+
+Vault: actualizadas `Decisiones.md`, `Changelog interno.md` y `Backlog priorizado.md`.
+
+## 2026-08-10 - CEO: triage de mejoras BuilderHunt en [ZAL-551](/ZAL/issues/ZAL-551)
+
+- Se persistió el plan de ejecución en el documento `plan` de [ZAL-551](/ZAL/issues/ZAL-551), con ocho entregables, criterios de aceptación, owners y dos olas de prioridad.
+- Primer lote creado: [ZAL-558](/ZAL/issues/ZAL-558) A1 pre-push/paridad CI para Engineering Lead; [ZAL-556](/ZAL/issues/ZAL-556) A2/A3 gates estáticos para Platform & Security; [ZAL-553](/ZAL/issues/ZAL-553) A5 inventario de cobertura para QA; [ZAL-559](/ZAL/issues/ZAL-559) B1/B2 DataTable y skeletons para Web Developer.
+- Verificación posterior: [ZAL-556](/ZAL/issues/ZAL-556), [ZAL-558](/ZAL/issues/ZAL-558) y [ZAL-559](/ZAL/issues/ZAL-559) quedaron `in_progress` por activación automática del control-plane; [ZAL-553](/ZAL/issues/ZAL-553) permanece en `todo`.
+- Segunda ola creada en `backlog`: [ZAL-557](/ZAL/issues/ZAL-557) B3 data-fetching; [ZAL-554](/ZAL/issues/ZAL-554) B4 a11y multi-viewport; [ZAL-555](/ZAL/issues/ZAL-555) A4 limpieza de scripts; [ZAL-552](/ZAL/issues/ZAL-552) A6/B6 rutas HTTP y UI.
+- B5 modo oscuro real queda diferido: no cambia el flujo crítico de una academia y no tiene evidencia de demanda suficiente para desplazar producto.
+- La consulta viva de compañía registra `419772/1000000` centavos (`41,98%`) del cap de USD 10.000; no se creó `request_board_approval` presupuestario.
+- Se conservaron los cambios paralelos existentes del worktree. No se tocó código de producto, producción, secretos, datos reales, migraciones remotas, Stripe live, pricing, campañas, publicaciones ni releases.
+
+Vault: actualizadas `Decisiones.md`, `Changelog interno.md` y `Backlog priorizado.md`.
+
+## 2026-08-10 - CEO: heartbeat de gasto vivo, gates fantasma y carga de Platform & Security
+
+- La consulta viva `/api/companies/{companyId}/costs/summary` registra `458553/1000000` centavos (`45,86%`) del cap de USD 10.000. Está por debajo del umbral del 80%; no se creó ni reintentó una aprobación de presupuesto.
+- La revisión del backlog confirmó `43` issues `blocked`, `18` `in_review`, `2` `in_progress`, `0` `todo` y `14` `backlog`. Es deuda de flujo, no readiness, adopción o validación humana.
+- El barrido de gates no encontró una referencia activa a Gemita o Hermin como firma pendiente en las issues revisadas; [ZAL-156](/ZAL/issues/ZAL-156) conserva solo trazabilidad histórica y bloqueadores técnicos. No se reabrieron [ZAL-138](/ZAL/issues/ZAL-138), [ZAL-140](/ZAL/issues/ZAL-140) ni [ZAL-191](/ZAL/issues/ZAL-191).
+- [ZAL-495](/ZAL/issues/ZAL-495) fue reasignada de Platform & Security a Engineering Lead: es revisión técnica de authz/provider sin secretos. [ZAL-330](/ZAL/issues/ZAL-330) permanece con Platform & Security por custodia de variables de sandbox.
+- No se tocó código de producto, producción, migraciones remotas, secretos, datos reales, Stripe live, pricing, campañas, publicaciones ni releases de stores. Git y cambios paralelos existentes se conservaron.
+
+Vault: actualizadas `Backlog priorizado.md`, `Decisiones.md` y `Changelog interno.md`.
+
+## 2026-08-10 - Decision CEO [ZAL-540](/ZAL/issues/ZAL-540): no crear agente dedicado de bugs
+
+- Se evaluo la propuesta de asignar un agente 100% a encontrar y reportar bugs durante la meta de 90 dias.
+- La evidencia actual no justifica ampliar el roster: hay QA existente pero sus 3 issues abiertas estan bloqueadas; la cola de bugs tiene 24 issues abiertas, de las cuales 18 estan bloqueadas y solo 1 esta en progreso. El cuello es desbloqueo y entrega, no capacidad de descubrimiento.
+- Se decide no crear ni contratar un agente nuevo. Support mantiene la evidencia de incidentes; QA reproduce y valida; Product Lead acepta y prioriza; Engineering Lead decide y entrega la correccion.
+- No se tocaron codigo, produccion, datos reales, secretos, pricing, publicaciones ni configuraciones externas. El backlog no recibe deuda nueva por esta decision.
+- Reapertura solo si durante dos semanas consecutivas los defectos P0/P1 reproducibles superan la capacidad de QA o un defecto de release queda sin owner y siguiente accion.
+
+## 2026-08-10 - ZAL-532 [Web] sesión detecta duplicación con rama paralela y revierte cambios locales
+
+Wake asignado a este agente para [ZAL-532](/ZAL/issues/ZAL-532). Antes de tocar `src/components/contact/ContactForm.tsx` revisé `git log -3 -- <archivo>` (no vi nada relevante) pero NO revisé `git log --all -- <archivo>`. Empecé a instrumentar `contact_submit_attempted` + `contact_submit_failed` con `category` (validation/rate_limit/unauthorized/server_error/client_error/network) y `http_status`. `pnpm typecheck` y `pnpm lint` pasaron limpios.
+
+**Detectado antes de commitear:** `git log --all -- src/components/contact/ContactForm.tsx` reveló que el commit `9b98a352b99057ee373adab8793fb0da33455721` (rama `zaltyko-onboarding-ZAL-137`, autor `QA Agent (c07d53ca)`, push a `origin/zaltyko-onboarding-ZAL-137`) ya entrega la misma instrumentación con un shape ligeramente distinto: `status_bucket` (4xx/5xx/network, 3 valores), `server_code` desde el payload, `status` (HTTP), `honeypot_filled` en el evento `attempted`, y 62 líneas de tests en `tests/phase4-commercial-validation.test.ts`. El autor pidió C-2 peer-verification sobre ese SHA para cerrar con SHA gate; ese SHA está pendiente.
+
+**Acción:** revertidos mis cambios no commiteados con `git checkout -- src/components/contact/ContactForm.tsx src/lib/growth/contracts.ts`. Mi branch (`zal-45-gate-disponibilidad-pais`) queda sin divergencia — el fix canónico está en la otra rama y se mergea con quien corresponda. Esta entrada del changelog queda como evidencia del trabajo hecho y revertido.
+
+**Lección operativa:** la regla de coordinación `Guia de trabajo para agentes.md §Coordinacion entre agentes en paralelo` ("Antes de empezar, mira quien mas anduvo ahi") debería extenderse a `git log --all` cuando la rama local no refleja lo que está vivo en otras ramas remotas. Un `git log --all -- src/...` con grep de la issue ID en los mensajes de commit habría revelado el `9b98a352b` antes de empezar a escribir encima. Lo aplico a partir de ahora.
+
+**Fuera de scope (no tocado):** honeypot, rate limit, `isHydrated` gating, copy del formulario, schema Zod, route handler, middleware, RLS, secretos, producción, Stripe live. No se añadieron migraciones.
+
+Vault: actualizada `Changelog interno.md`.
+
+## 2026-08-10 - CEO: cancelar rutina duplicada y corregir gate fantasma de ZAL-157
+
+**Cambios operativos:**
+
+- [ZAL-513](/ZAL/issues/ZAL-513) quedó `cancelled`: era una ejecución rutinaria duplicada de [ZAL-239](/ZAL/issues/ZAL-239). Se conserva un solo hilo de revisión para no seguir generando meta-trabajo.
+- [ZAL-157](/ZAL/issues/ZAL-157) recibió un handoff CEO corregido: Engineering Lead (`acade097`) está activo en el roster actual y no es un gate fantasma. Platform & Security ya publicó el C-2 PASS sobre `ff665035d` en [ZAL-444](/ZAL/issues/ZAL-444); el owner Web Developer debe consumirlo y reintentar el cierre.
+- El intento del CEO de editar directamente el `unblockDescriptor` de [ZAL-157](/ZAL/issues/ZAL-157) fue rechazado con HTTP 403 porque el control-plane solo permite que el agente asignado se nombre a sí mismo como owner del unblock. No se reintentó ni se creó otra peer-review.
+
+**Evidencia y límites:**
+
+- Dashboard Paperclip: `404407` centavos gastados sobre `1000000` (`40,44%`) del cap vigente de USD 10.000; no se alcanza el umbral del 80% y no se crea approval de presupuesto.
+- Se mantuvo la separación entre evidencia local/sandbox, producción, adopción y validación humana. No se tocaron código de producto, producción, secretos, datos reales, Stripe live, pricing, campañas, publicaciones ni releases de stores.
+- Git del repo de producto: rama `zal-45-gate-disponibilidad-pais`, HEAD `0ea0792c8`; se preservaron la modificación y los archivos no rastreados ajenos ya presentes.
+
 ## 2026-08-10 - CEO: desbloqueo delegado de onboarding owner (ZAL-137 / ZAL-522)
 
 **Cambio operativo:**
@@ -2058,3 +2127,31 @@ Registrar cambios humanos y relevantes: releases, decisiones, cambios de pricing
 - La causa observable sigue siendo principalmente `provider_quota`: hoy fueron `42/51` fallos y en el mes `389/684` fallos. La prioridad sigue siendo cerrar failover, circuit-breaker y retry-cap, no abrir más meta-trabajo.
 - Se generó una solicitud de contención duplicada [f8e4c2bd-6bd3-4689-9a39-c07123d3d4ff](/ZAL/approvals/f8e4c2bd-6bd3-4689-9a39-c07123d3d4ff) al aplicar por error el cap histórico de `1.000 USD`; no se ejecutó ninguna pausa ni aumento de cap. La decisión vigente del board es no volver a escalar presupuesto hasta superar `10.000 USD`.
 - Separación de evidencia: gasto agregado de control-plane y decisión de gobernanza; no implica readiness de producto, adopción, producción ni autorización para secretos, pagos reales o publicaciones.
+
+## 2026-08-10 - ZAL-527 [Web] peer-verification C-2 sobre ZAL-523 emitido y ZAL-527 cerrado
+
+- **C-2 peer-verification POSTeada sobre [ZAL-523](/ZAL/issues/ZAL-523)** (HTTP 201, proof id `5baf92d5-93d0-4b29-98f6-c21c3a14d46f`).
+- **SHA verificado:** `6ca2eb459d986244bd6a452e10d91a8836c4ff33` (Mobile Developer, branch `zaltyko-mobile-ZAL-523`).
+  - repoPath: `/Users/elvisvaldesinerarte/Desktop/_PROYECTOS/Zaltyko`
+  - peerWorktree: `/private/tmp/zaltyko-peer-zal-527` (detached HEAD pinned al SHA, preexistente de un peer-verification anterior)
+  - `git cat-file -t` → `commit`; `git log -1 --format=%H` → mismo SHA exacto (literales exigidos por ZAL-187 schema).
+- **Estado del SHA gate (ZAL-88) en ZAL-523:** C-1 commit proof anclado por Mobile Developer (work-product `3c341e5b-dbeb-4030-bd11-021370768418`, SHA `6ca2eb459`) + C-2 peer-verification vivo (proof `5baf92d5-...`) = SHA gate con dos pruebas atribuidas a agentes distintos y SHA idéntico. Mobile Developer puede ahora `PATCH status=done` y la transición debería cerrar atómicamente (cross-agent PATCH boundary lo bloquea, queda en su cancha o escalado al board via `## Review: APPROVED` path A).
+- **Cierre de [ZAL-527](/ZAL/issues/ZAL-527):** PATCH labelIds con slug `process` PRIMERO (corrección de ZAL-187 / ZAL-463 — combinar labelIds + status en un solo PATCH dispara `ProofRequired`), después `PATCH status=done`. Transición atómica → `done` a las `2026-08-10T15:19:38Z`. La regla 7 de ZAL-291 clasifica meta-tasks de peer-verification en proyectos con codeRepoPaths como `code`; el label `process` es la salida self-service (ZAL-431 verificado).
+- **Auth correcto:** JWT fresco minteado con `mint_jwt_wd.mjs` (sin `responsible_user_id`, evita atribución user que devuelve 403 `AgentActorRequired` por ZAL-523); sin PAPERCLIP_API_KEY. Endpoints correctos: `POST /api/issues/{id}/completion-proofs/peer-verifications` con body `{sha, repoPath, peerWorktree, commands, commandOutput}` y `commandOutput` como string newline-separated (no array, fix ZAL-246).
+- **Probe residue en ZAL-523:** Mobile Developer documentó 3 work-products adicionales (`88b4dbfd`/`d7ffcaf4`/`99078d65`) que dejó durante exploración del endpoint antes de conocer la schema ZAL-88. La API no expone DELETE ni supersede de work-products (verified); el C-1 canónico es `3c341e5b`, `88b4dbfd` es duplicado inofensivo del mismo SHA, los otros 2 fallaron validación. La gate acepta cualquiera de los SHA vivos cuando el C-2 referencia el canónico.
+- **Próximo paso (no bloqueador):** Mobile Developer cierra ZAL-523 vía `PATCH status=done`; si el SHA gate sigue rechazando por motivo residual, board path A (`## Review: APPROVED` literal) está ahora habilitada porque ambos proofs están atribuidos a agentes distintos (5bcea506 vs 87261eba).
+
+## 2026-08-10 - Web Developer: ZAL-559 [B1+B2] DataTable unificado y skeleton parametrizado
+
+- **SHA:** `e5af0d07740e466b4dacceb7d3ac0a76088f1f2a` (`e5af0d077`) en `zal-45-gate-disponibilidad-pais`. 9 archivos, `+1586/-711` líneas.
+- **`src/components/ui/data-table.tsx` reescrito** con cuatro estados explícitos y mutuamente excluyentes (loading / error / empty / filtered-empty) y features opt-in: selection con checkbox indeterminate, sort estable (asc ↔ desc) controlado o interno, `mobileCard` slot para `<md`, `rowHref`, `rowClassName`, `getRowKey`, paginación opcional, `ariaLabel`, `itemLabel`. Mantiene hand-rolled sobre primitives ya existentes (lucide-react, shadcn Button) — **sin** `@tanstack/react-table`.
+- **`src/components/ui/data-table-skeleton.tsx` creado** con `DataTableSkeletonColumn` (width, align, multiline, pill) y `DataTableSkeletonProps` (rows, columns, columnCount, showFilters, filterCount). Replica la forma columnar del DataTable para que el shimmer refleje visualmente la tabla real.
+- **Pilotos migrados**:
+  - **Atletas (`AthletesTableSections.tsx` + `AthletesTableView.tsx`):** 8 columnas (selección + nombre/nivel/estado/edad/familia/grupo/acciones), sort controlado (name/age/createdAt), paginación `>1` página, mobile cards vía `AthleteMobileCard`, 3 empty states diferenciados (`empty` con CTA "Crear", `filtered-empty` con CTA "Limpiar", `error` con retry). Removidos los helpers `SortableHeader` y `AthletesTableRow` ya no usados.
+  - **Clases (`ClassesTableView.tsx`):** 6 columnas (nombre/horario/capacidad/entrenadores/grupos/acciones) con cards móvil inline (starter badge, schedule, capacity, coach chips, group chips coloreados), `rowHref` al detalle. Preserva CTA contextual "Crear primera clase" en el padre.
+- **Fuera de scope, decisión:** `CoachesTableSkeleton`, `AcademiesGridSkeleton`, `EventsGridSkeleton`, `CalendarSkeleton` no son tablas en el sentido `filas × columnas` (son grids/calendarios/cards con sus propios componentes). El contrato compartido con esos skeletons sería artificial; el shape de la shimmer ya está cubierto por el fallback `columnCount` del `DataTableSkeleton` si en el futuro algún consumidor quiere reutilizarlo.
+- **Verificación local:** `pnpm vitest run tests/ui-data-table.test.tsx` → 18/18 pasan (4 estados + sort + selection incl. indeterminate + rowHref + mobileCard + skeleton parametrizado). `pnpm typecheck` limpio en archivos tocados (errores preexistentes en `mobile/` y `src/app/api/support/tickets/[id]/responses/route.ts` no relacionados).
+- **Sin nuevos componentes de UI ni deprecaciones visibles.** No se tocaron APIs, secretos, producción, Stripe, datos reales, migraciones, pricing, campañas ni publicaciones.
+- **Handoff a QA:** validar el sort controlado de Atletas (asc ↔ desc en name/age/createdAt), la indeterminate checkbox, los 3 empty states distintos (no se deben confundir loading/error/empty/filtered-empty), y el card móvil de Clases con chips de coaches/grupos coloreados. Si QA aprueba, [ZAL-559](/ZAL/issues/ZAL-559) transita a `in_review` con board approval.
+
+Vault: este changelog. Sin código fuera del scope.
