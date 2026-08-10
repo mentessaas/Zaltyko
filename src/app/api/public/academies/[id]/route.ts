@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
@@ -61,7 +61,8 @@ export async function GET(request: Request, context: RouteContext) {
           and(
             eq(academies.id, id),
             eq(academies.isPublic, true),
-            eq(academies.isSuspended, false)
+            eq(academies.isSuspended, false),
+            sql`${academies.status} NOT IN ('churned', 'fraud_hold')`
           )
         )
         .limit(1);
@@ -114,6 +115,7 @@ export async function GET(request: Request, context: RouteContext) {
           .eq("id", id)
           .eq("is_public", true)
           .eq("is_suspended", false)
+          .not("status", "in", "(churned,fraud_hold)")
           .single();
         
         if (!supabaseError && academyData) {
