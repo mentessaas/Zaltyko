@@ -8,6 +8,7 @@ import {
   isPublicEndpoint,
   isAcademyCreationEndpoint,
   isFlexibleTenantEndpoint,
+  isAuthenticatedNoTenantEndpoint,
   extractVerifiedAcademyCandidate,
 } from "./authz/endpoint-config";
 import {
@@ -348,6 +349,116 @@ export function withTenant<Ctx extends Record<string, unknown>>(
       }
 
       logger.error("Error in withTenant", error);
+      return NextResponse.json(
+        {
+          error: "INTERNAL_ERROR",
+          message: "Error interno del servidor",
+        },
+        { status: 500 }
+      );
+    }
+  };
+}
+
+/**
+ * Wrapper equivalente a `withTenant` para endpoints autenticados que NO
+ * requieren tenantId. Pensado para roles globales (provider, super_admin)
+ * que operan recursos propios sin academia/tenant (ver ZAL-495 opción a).
+ *
+ * Reglas:
+ * - Resuelve userId (cookie/bearer).
+ * - Carga profile y exige `canLogin` (super_admin siempre pasa).
+ * - Acepta role `super_admin`, `provider`, o cualquier perfil con tenantId.
+ *   Otros roles (athlete, parent, coach sin academia, …) → 403 INSUFFICIENT_ROLE.
+ * - NO llama getTenantId/resolveTenantWithUpdate/extractVerifiedAcademyCandidate.
+ * - Pasa al handler `{ ...contextWithParams, userId, profile, tenantId: '' }`
+ *   para preservar la firma TenantContext.
+ * - Maneja errores con el mismo patrón que withTenant.
+ *
+ * ⚠️ El handler es responsable de validar propiedad del recurso contra
+ * `context.userId` (server-derived) y NO contra campos del body. Ver
+ * `route.ts:108` del marketplace para el patrón correcto.
+ */
+export function withAuthenticatedNoTenant<
+  Ctx extends Record<string, unknown>,
+>(
+  handler: (request: Request, context: TenantContext<Ctx>) => Promise<Response>
+) {
+  return async (request: Request, context: any) => {
+    try {
+      const params = context.params ? await context.params : context.params;
+      const contextWithParams = { ...context, params };
+
+      const userId = await resolveUserId(request, contextWithParams);
+      if (!userId) {
+        return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
+      }
+
+      const profile = await getCurrentProfile(userId);
+      if (!profile) {
+        return NextResponse.json(
+          { error: "PROFILE_NOT_FOUND" },
+          { status: 404 }
+        );
+      }
+
+      if (!profile.canLogin && profile.role !== "super_admin") {
+        return NextResponse.json(
+          {
+            error: "LOGIN_DISABLED",
+            message:
+              "Tu cuenta no tiene acceso activado. Contacta al administrador.",
+          },
+          { status: 403 }
+        );
+      }
+
+      const role = profile.role ?? "";
+      const hasTenant = Boolean(profile.tenantId);
+      const allowed =
+        role === "super_admin" || role === "provider" || hasTenant;
+      if (!allowed) {
+        return NextResponse.json(
+          {
+            error: "INSUFFICIENT_ROLE",
+            message:
+              "Tu rol no tiene permisos para publicar sin academia asociada.",
+          },
+          { status: 403 }
+        );
+      }
+
+      return handler(request, {
+        ...contextWithParams,
+        tenantId: "",
+        userId,
+        profile,
+      });
+    } catch (error) {
+      if (error instanceof UnauthenticatedError) {
+        return NextResponse.json(
+          { error: error.code },
+          { status: error.statusCode }
+        );
+      }
+      if (error instanceof ProfileNotFoundError) {
+        return NextResponse.json(
+          { error: error.code },
+          { status: error.statusCode }
+        );
+      }
+      if (error instanceof LoginDisabledError) {
+        return NextResponse.json(
+          {
+            error: error.code,
+            message:
+              "Tu cuenta no tiene acceso activado. Contacta al administrador.",
+          },
+          { status: error.statusCode }
+        );
+      }
+
+      logger.error("Error in withAuthenticatedNoTenant", error);
       return NextResponse.json(
         {
           error: "INTERNAL_ERROR",

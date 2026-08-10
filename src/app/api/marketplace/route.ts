@@ -5,7 +5,7 @@ import { marketplaceListings } from "@/db/schema";
 import { marketplaceCategoryEnum, marketplaceListingTypeEnum } from "@/db/schema/enums";
 import { eq, desc, like, and, or } from "drizzle-orm";
 import { z } from "zod";
-import { withTenant, type TenantContext } from "@/lib/authz";
+import { withAuthenticatedNoTenant, type TenantContext } from "@/lib/authz";
 import { escapeLikeSearch } from "@/lib/helpers";
 import { apiSuccess, apiError, apiCreated } from "@/lib/api-response";
 import { logger } from "@/lib/logger";
@@ -131,10 +131,12 @@ export async function GET(request: Request) {
   });
 }
 
-export const POST = withTenant(async (request: Request, context: TenantContext) => {
+export const POST = withAuthenticatedNoTenant(async (request: Request, context: TenantContext) => {
   try {
-    if (!context.tenantId) {
-      return apiError("TENANT_REQUIRED", "Tenant requerido", 403);
+    // ZAL-499: contexto sin tenantId por diseño (rol provider sin academia).
+    // El wrapper garantiza userId server-derived y rol permitido.
+    if (!context.userId) {
+      return apiError("UNAUTHENTICATED", "Sesión requerida", 401);
     }
 
     const body = await request.json();

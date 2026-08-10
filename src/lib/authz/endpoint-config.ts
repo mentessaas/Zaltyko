@@ -14,6 +14,15 @@ export interface EndpointConfig {
   flexibleTenantEndpoints: string[];
   /** Endpoints que requieren tenantId pero pueden obtenerlo de academyId */
   academyBasedEndpoints: string[];
+  /**
+   * Endpoints autenticados que NO requieren tenantId. La propiedad del
+   * recurso debe validarse en el handler contra `context.userId` (u otra
+   * fuente server-derived). Inicialmente solo POST /api/marketplace
+   * (rol `provider` sin academia/tenant por diseño — ZAL-495).
+   * NO añadir aquí endpoints que tocan datos multi-tenant sin validar
+   * propiedad por usuario server-side.
+   */
+  authenticatedNoTenantEndpoints: string[];
 }
 
 /**
@@ -27,6 +36,27 @@ export function isPublicEndpoint(pathname: string, method: string): boolean {
 
   return publicPatterns.some(
     (pattern) => pathname.startsWith(pattern.path) && method === pattern.method
+  );
+}
+
+/**
+ * Determina si un endpoint autenticado puede operar sin tenantId.
+ *
+ * Caso de uso: roles globales sin academia (provider, super_admin) que
+ * deben poder crear recursos propios. La autorización fina por recurso
+ * se delega al handler contra `context.userId` server-derived.
+ *
+ * ⚠️ Solo aplica a POST: GET/DELETE sobre los mismos paths siguen
+ * gobernados por `withTenant` salvo que se añadan explícitamente.
+ */
+export function isAuthenticatedNoTenantEndpoint(
+  pathname: string,
+  method: string
+): boolean {
+  const patterns = ["/api/marketplace"];
+  return (
+    method === "POST" &&
+    patterns.some((pattern) => pathname.startsWith(pattern))
   );
 }
 

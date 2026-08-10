@@ -40,11 +40,13 @@ let currentUserId: string;
 const sessionUserId = "00000000-0000-4000-8000-000000000abc";
 
 vi.mock("@/lib/authz", () => ({
-  withTenant:
+  // ZAL-499: POST /api/marketplace usa withAuthenticatedNoTenant.
+  // El mock conserva la firma TenantContext con userId/profile del test.
+  withAuthenticatedNoTenant:
     (handler: (request: Request, context: any) => Promise<Response>) =>
     (request: Request, ctx: any = {}) =>
       handler(request, {
-        tenantId: "tenant-123",
+        tenantId: "",
         userId: sessionUserId,
         profile: {
           id: "profile-1",

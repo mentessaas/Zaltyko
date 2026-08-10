@@ -9,6 +9,40 @@ source:
 
 # Changelog interno
 
+## 2026-08-10 - ZAL-499 [API] wrapper `withAuthenticatedNoTenant` aplicado a POST /api/marketplace (PV-2 / ZAL-495)
+
+Cierra la opción **(a)** aprobada por el board en [ZAL-495](/ZAL/issues/ZAL-495): tratar `POST /api/marketplace` como endpoint autenticado sin tenant, conservando `userId` server-derived. La contradicción detectada era que el rol `provider` se diseñó como global sin academia/tenant (`src/lib/product/roles.ts:76-82`), pero el endpoint exigía `tenantId` válido (`withTenant` → 403 `TENANT_MISSING`).
+
+Cambios mínimos (5 controles, todos reversibles localmente, sin schema, sin migraciones, sin secretos):
+
+- **C-1** — `src/lib/authz/endpoint-config.ts`: nueva categoría `authenticatedNoTenantEndpoints` y helper `isAuthenticatedNoTenantEndpoint(pathname, method)` (solo POST, inicializado con `['/api/marketplace']`). No se añadió a `flexibleTenantEndpoints` (la advertencia de `endpoint-config.ts:4-7` aplica).
+- **C-2** — `src/lib/authz.ts`: nuevo wrapper `withAuthenticatedNoTenant<Ctx>(handler)` que resuelve `userId`/`profile`, exige `canLogin` (super_admin pasa siempre), y permite rol `super_admin`, `provider`, o cualquier perfil con `tenantId`; el resto → 403 `INSUFFICIENT_ROLE`. NO llama a `getTenantId`/`resolveTenantWithUpdate`/`extractVerifiedAcademyCandidate`/`enforceVerifiedTenantMutationRateLimit`. Preserva la firma `TenantContext` con `tenantId: ''`. Mismo patrón de manejo de errores que `withTenant`.
+- **C-3** — `src/app/api/marketplace/route.ts:8,134`: `import` y export `POST` cambian de `withTenant` a `withAuthenticatedNoTenant`. GET queda público, sin cambios. Validación interna cambia de `if (!context.tenantId)` a `if (!context.userId)` (el wrapper garantiza lo segundo).
+- **C-4** — `grep -n 'userId' src/app/api/marketplace/route.ts` confirma una sola asignación al campo `userId` del insert (`route.ts:151`) desde `context.userId` (`route.ts:147`). Sin `validated.userId`. Sin IDOR.
+- **C-5** — `vault/06-Roadmap-y-Tareas/Decisiones.md` ADR 'ZAL-495: POST /api/marketplace sin tenant, propiedad por userId' añadido en cabeza del archivo con formato tabla Contexto/Decisión/Consecuencia/Estado.
+
+Tests:
+- `tests/authz-with-authenticated-no-tenant.test.ts` (nuevo, 8 tests): G-1 (provider body válido), G-3 (owner con tenant), N-1 (athlete sin tenant 403), N-2 (parent sin tenant 403), N-3 (sin sesión 401), anti-login-disabled (provider con `canLogin=false`), super-admin login gate (pasa con `canLogin=false`), N-5 anti-IDOR (`userId` del body no se filtra).
+- `tests/api-marketplace.test.ts`: mock actualizado a `withAuthenticatedNoTenant`; los 10 tests previos siguen verdes.
+- Cobertura focal: 18/18 tests pasan en `pnpm vitest run tests/authz-with-authenticated-no-tenant.test.ts tests/api-marketplace.test.ts`. Las 7 suites `authz-*` siguen verdes (106/106).
+
+Verificación local: `pnpm typecheck` no introduce errores nuevos en `src/lib/authz*` ni en `src/app/api/marketplace/route.ts` (los errores pre-existentes en `mobile/` y `src/app/api/support/tickets/[id]/responses/route.ts` no están en el scope del fix).
+
+Riesgos residuales / P1 derivados (no abiertos aquí, ver ADR): permission gate `marketplace:write` en `route-permissions.ts`; validación `sellerType` contra rol; PV-1/PV-4..PV-13 del audit [ZAL-427](/ZAL/issues/ZAL-427).
+
+Vault: actualizadas `Decisiones.md` y `Changelog interno.md`. Cierre de [ZAL-499](/ZAL/issues/ZAL-499) queda sujeto a PR con los 5 controles y confirmación de cobertura negativa por QA.
+
+## 2026-08-10 - [ZAL-491] alerta presupuestaria cerrada sin aumento de cap
+
+Se cerró la alerta ejecutiva después de que el board rechazara el approval [40b0a074-3c83-47fb-89d6-d9f16d1a183b](/ZAL/approvals/40b0a074-3c83-47fb-89d6-d9f16d1a183b). No se reintentó la solicitud ni se interpretó el rechazo como autorización de gasto.
+
+- `/costs/summary` en este heartbeat: 432278/1000000 centavos (43,23%) del presupuesto configurado.
+- El cap operativo histórico de 1000 USD sigue siendo la restricción ejecutiva: no se aumenta, no se contratan agentes y no se reactivan reintentos de bajo valor.
+- La causa `provider_quota` y el failover/circuit-breaker siguen con Engineering/Platform.
+- La alerta queda separada de la evidencia de producto; el piloto [ZAL-477](/ZAL/issues/ZAL-477) conserva sus blockers reales y no se declara adopción, readiness ni conversión.
+
+Vault: actualizadas `Decisiones.md` y `Changelog interno.md`. No se actualizó `Backlog priorizado.md`: no apareció un riesgo nuevo, solo se consolidó una restricción ya vigente.
+
 ## 2026-08-10 - ZAL-496 [Web] marketplace: `userId`/`sellerType` salen del schema y se derivan server-side
 
 Hallazgo **PV-3 (P0)** del recorrido `provider` auditado en `vault/03-Negocio/RESEARCH/ZAL-427 auditoria UX recorrido provider 2026-08-10.md` §2 (SHA `a784a0ca2`). `CreateMarketplaceSchema` exigía `userId: z.string().uuid()` (`src/app/api/marketplace/route.ts:16`) y `sellerType` con default `"external"`; `MarketplaceForm` los recibía por props (`MarketplaceForm.tsx:34`), pero `/marketplace/nuevo/page.tsx:14` monta el form **sin props**. Resultado: `userId: undefined` → `ZodError` → `400 VALIDATION_ERROR` en cada intento de publicar, y `sellerType` se persistía como `"external"` aunque el autor fuese una academia, un coach o un proveedor registrado. El handler ya insertaba `userId: context.userId` sin usar el valor validado, así que el campo era un obstáculo puro.
@@ -1965,3 +1999,10 @@ Registrar cambios humanos y relevantes: releases, decisiones, cambios de pricing
 - Esta tarea no depende de la decisión `2026-07-29` (ventas congeladas): es corrección de promesa, no campaña de conversión. Puede entrar en cualquier hueco de sprint.
 - Sin movimiento de rutas, redirects ni SEO canónico; la Opción A (compat 6 meses) sigue activa.
 - Vault: nueva nota `vault/04-Marketing/Brief - Copy acrobática y trampolín.md`; este changelog. Sin código tocado.
+
+## 2026-08-10 - Reconciliación de alerta presupuestaria con decisión vigente del board
+
+- El dashboard registró `393.135` centavos acumulados en agosto (`3.931,35 USD`); el presupuesto técnico vigente del backend es `1.000.000` centavos (`10.000 USD`), por lo que el consumo es `39,31 %` del cap vigente.
+- La causa observable sigue siendo principalmente `provider_quota`: hoy fueron `42/51` fallos y en el mes `389/684` fallos. La prioridad sigue siendo cerrar failover, circuit-breaker y retry-cap, no abrir más meta-trabajo.
+- Se generó una solicitud de contención duplicada [f8e4c2bd-6bd3-4689-9a39-c07123d3d4ff](/ZAL/approvals/f8e4c2bd-6bd3-4689-9a39-c07123d3d4ff) al aplicar por error el cap histórico de `1.000 USD`; no se ejecutó ninguna pausa ni aumento de cap. La decisión vigente del board es no volver a escalar presupuesto hasta superar `10.000 USD`.
+- Separación de evidencia: gasto agregado de control-plane y decisión de gobernanza; no implica readiness de producto, adopción, producción ni autorización para secretos, pagos reales o publicaciones.
