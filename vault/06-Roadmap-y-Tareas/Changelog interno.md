@@ -13,10 +13,10 @@ source:
 
 - [ZAL-477](/ZAL/issues/ZAL-477) ya no depende de [ZAL-520](/ZAL/issues/ZAL-520), que estaba `done`; conserva únicamente [ZAL-479](/ZAL/issues/ZAL-479), el piloto 1:1 de Growth en `in_review`.
 - [ZAL-13](/ZAL/issues/ZAL-13) y [ZAL-2](/ZAL/issues/ZAL-2) permanecen `blocked` por la cadena viva de [ZAL-25](/ZAL/issues/ZAL-25). La autorización board para sandbox no se presentó como ejecución E2E ni como readiness de cobros.
-- Se creó [ZAL-560](/ZAL/issues/ZAL-560), courier asignado a QA, para reconciliar el `in_progress` sin run activo de [ZAL-25](/ZAL/issues/ZAL-25) y verificar el bloqueo DNS/entorno sin leer secretos.
+- [ZAL-560](/ZAL/issues/ZAL-560) terminó el courier de QA: [ZAL-25](/ZAL/issues/ZAL-25) está `in_review`, sin el blocker terminal [ZAL-437](/ZAL/issues/ZAL-437), con `request_confirmation` pendiente y DNS egress de Supabase aún fallando. La evidencia Stripe queda clasificada como test/sandbox.
 - La búsqueda de gates no encontró una espera activa por Gemita o Hermin; las referencias restantes son históricas y atribuyen privacidad/seguridad a Platform & Security.
-- Presupuesto vivo: `420000/1000000` centavos (`42%`) del cap de USD 10.000; no corresponde abrir `request_board_approval` presupuestario.
-- No se tocaron secretos, producción, Stripe, datos reales, DNS, migraciones, pricing, campañas ni publicaciones.
+- Presupuesto vivo: `426682/1000000` centavos (`42,67%`) del cap de USD 10.000; no corresponde abrir `request_board_approval` presupuestario.
+- No se tocaron secretos, producción ni Stripe live; tampoco datos reales, DNS, migraciones, pricing, campañas ni publicaciones. La evidencia de QA en Stripe test mode está separada de producción y no se presenta como readiness.
 
 Vault: actualizadas `Decisiones.md`, `Changelog interno.md` y `Backlog priorizado.md`.
 
@@ -2153,5 +2153,25 @@ Registrar cambios humanos y relevantes: releases, decisiones, cambios de pricing
 - **Verificación local:** `pnpm vitest run tests/ui-data-table.test.tsx` → 18/18 pasan (4 estados + sort + selection incl. indeterminate + rowHref + mobileCard + skeleton parametrizado). `pnpm typecheck` limpio en archivos tocados (errores preexistentes en `mobile/` y `src/app/api/support/tickets/[id]/responses/route.ts` no relacionados).
 - **Sin nuevos componentes de UI ni deprecaciones visibles.** No se tocaron APIs, secretos, producción, Stripe, datos reales, migraciones, pricing, campañas ni publicaciones.
 - **Handoff a QA:** validar el sort controlado de Atletas (asc ↔ desc en name/age/createdAt), la indeterminate checkbox, los 3 empty states distintos (no se deben confundir loading/error/empty/filtered-empty), y el card móvil de Clases con chips de coaches/grupos coloreados. Si QA aprueba, [ZAL-559](/ZAL/issues/ZAL-559) transita a `in_review` con board approval.
+
+Vault: este changelog. Sin código fuera del scope.
+
+## 2026-08-10 - Product Designer: ZAL-567 [B7] Sistema de diseño documentado (DESIGN.md) + auditoría de gradientes
+
+- **Deliverables:**
+  - **`docs/design/DESIGN.md` creado** con frontmatter YAML (paleta, radios, spacing, componentes) y secciones narrativas en el mismo formato que el `DESIGN.md` de BuilderHunt. Define: One Accent Rule (Deep Teal único interactivo), Two-Role Secondary (Deep Indigo = dato, Electric Teal = highlight), Status Quota Rule (máx 1 destructive por viewport), Shell-Only Glass Rule, regla de `tabular-nums` sobre Inter para cifras (no `font-mono`). 4 named rules explícitas + lista cerrada de excepciones documentadas.
+  - **`docs/design/GRADIENT_AUDIT.md` creado** — lista exhaustiva de **36 archivos UI con gradients + 2 email templates** (el brief decía 14; el codebase creció desde el triage de ZAL-551). Disposiciones: 27 mantener (excepción documentada), 6 eliminar, 3 decisión humana (cluster owner / email owner), 2 sustituir por tokens Zaltyko brand.
+  - **`docs/design-system.md` y `docs/styleguide.md` movidos a `docs/design/archive/`** y marcados con aviso `SUPERSEDED — 2026-08-10`. Quedan por trazabilidad histórica (paleta morada v0.x), no para uso.
+- **Issues hijas sugeridas (no creadas en este commit, ver `GRADIENT_AUDIT.md` §"Disposiciones que requieren ticket separado"):**
+  - ZAL-568 (sugerida): limpiar gradients en `Hero.tsx`, `LoginForm.tsx`, `ContactAcademyForm.tsx`, `MyDashboardPage.tsx` (7 archivos tocados, sin pricing ni RLS).
+  - ZAL-569 (sugerida): quitar `.text-gradient` de `globals.css` (encadenada a ZAL-568).
+  - ZAL-570 (sugerida): sustituir `ClusterDiscoverySection.tsx` y `ClusterStatsSection.tsx` por equivalentes Zaltyko brand.
+  - ZAL-571 (sugerida): sustituir gradient en `FAQSection.tsx:53` + `faq/page.tsx:145` (Tailwind `blue-50` → Zaltyko `primary/5`).
+  - ZAL-572 (sugerida, **requiere Product Lead + board**): limpiar gradients en `PlanComparison.tsx` (pricing surface).
+  - ZAL-573 (sugerida): cluster owner decide `ClusterCTASection.tsx` (color rojo de cluster, no Zaltyko brand).
+  - ZAL-574 (sugerida): eliminar gradient en `OptimizedOwnerProfile.tsx:258`.
+- **Coordinación con [ZAL-559](/ZAL/issues/ZAL-559):** el nuevo `DataTable` ya nace alineado a este documento (sin gradients en `data-table.tsx` ni `data-table-skeleton.tsx`, surface-elevated + rounded-card + shadow-soft). Audit cruzado: sin colisión.
+- **Sin cambios de código de producto.** Solo docs nuevos + 2 archivos movidos a archive/ + 2 archivos marcados con aviso `SUPERSEDED`. No se tocaron `tailwind.config.mjs`, `src/app/globals.css`, APIs, secretos, producción, Stripe, datos reales, migraciones, pricing, campañas ni publicaciones.
+- **Próximo paso:** QA visual cross-page para validar que las excepciones documentadas se ven como deben verse (top strips, page-header fades, ambient radial). Si QA aprueba, [ZAL-567](/ZAL/issues/ZAL-567) transita a `done`.
 
 Vault: este changelog. Sin código fuera del scope.

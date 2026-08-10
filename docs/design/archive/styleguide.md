@@ -1,5 +1,7 @@
 # Zaltyko Style Guide
 
+> **SUPERSEDED — 2026-08-10.** Este style guide describe la paleta original (morado/lavanda, v0.x) y queda archivado. La fuente de verdad vigente es [`../DESIGN.md`](../DESIGN.md) (ZAL-567). Mantenido en `docs/design/archive/` por trazabilidad histórica, no para uso.
+
 ## Paleta de Colores
 
 ### Colores Principales

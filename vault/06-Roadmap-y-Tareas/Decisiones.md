@@ -1,12 +1,66 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-08-09
+last_reviewed: 2026-08-10
 source:
   - ../AGENTS.md
 ---
 
 # Decisiones
+
+## 2026-08-10 - CEO: limpieza de blockers y vigilancia de cadena crítica
+
+| Campo | Valor |
+| --- | --- |
+| Evidencia | El corte vivo de compañía registra `426682/1000000` centavos (`42,67%`) del cap mensual vigente de USD 10.000. [ZAL-477](/ZAL/issues/ZAL-477) conservaba [ZAL-520](/ZAL/issues/ZAL-520) como blocker aunque estaba `done`; [ZAL-479](/ZAL/issues/ZAL-479) es el único blocker vivo. [ZAL-13](/ZAL/issues/ZAL-13) y [ZAL-2](/ZAL/issues/ZAL-2) siguen en la cadena E2E de Stripe test por [ZAL-25](/ZAL/issues/ZAL-25). |
+| Decisión | Retirar el blocker terminal de [ZAL-477](/ZAL/issues/ZAL-477) y conservarlo `blocked` por [ZAL-479](/ZAL/issues/ZAL-479). No reabrir ni duplicar trabajo de Growth/Support. Mantener [ZAL-13](/ZAL/issues/ZAL-13) y [ZAL-2](/ZAL/issues/ZAL-2) bloqueadas: la autorización de sandbox existente no equivale a evidencia E2E ejecutada. |
+| Gates fantasma | La búsqueda de Gemita/Hermin no encontró una firma activa pendiente; las menciones encontradas son históricas y dicen que la autoridad vigente es Platform & Security. No se reasigna ni se crea trabajo espejo. |
+| Consecuencia | El piloto GTM queda esperando el resultado real de Growth; [ZAL-560](/ZAL/issues/ZAL-560) terminó la reconciliación de QA. [ZAL-25](/ZAL/issues/ZAL-25) permanece `in_review`, sin blockers terminales, con una `request_confirmation` pendiente y DNS egress de Supabase aún externo al control del equipo. No se declara adopción, readiness, ingresos ni validación humana. |
+| Límites | No se leyeron secretos, no se ejecutaron cobros/reembolsos reales, no se tocó producción ni Stripe live, ni se modificaron DNS, datos reales, migraciones remotas, pricing ni publicaciones. La evidencia de QA en Stripe test mode queda separada y no implica readiness. |
+| Estado | Vigente. |
+
+## 2026-08-10 - CEO: triage de mejoras BuilderHunt en [ZAL-551](/ZAL/issues/ZAL-551)
+
+| Campo | Valor |
+| --- | --- |
+| Contexto | El board pidió convertir la comparación con BuilderHunt en entregables portables a Next.js/Supabase, sin adoptar su stack ni confundir evidencia local con readiness. No había issues existentes para estas 12 mejoras. |
+| Evidencia operativa | La API viva de compañía registra `419772/1000000` centavos (`41,98%`) del cap vigente de USD 10.000; está por debajo del 80% y no requiere aprobación presupuestaria. El repo tiene cambios paralelos de vault sin commit, que se conservaron. |
+| Decisión | Abrir ocho entregables agrupados por superficie: primer lote [ZAL-558](/ZAL/issues/ZAL-558), [ZAL-556](/ZAL/issues/ZAL-556), [ZAL-553](/ZAL/issues/ZAL-553) y [ZAL-559](/ZAL/issues/ZAL-559); segunda ola [ZAL-557](/ZAL/issues/ZAL-557), [ZAL-554](/ZAL/issues/ZAL-554), [ZAL-555](/ZAL/issues/ZAL-555) y [ZAL-552](/ZAL/issues/ZAL-552). B5 (modo oscuro) queda diferido sin issue de implementación. |
+| Owners | Engineering Lead: A1, A4, A6/B6. Platform & Security: A2/A3. QA: A5 y B4. Web Developer: B1/B2 y B3. Product Lead conserva alcance y aceptación funcional; Engineering Lead arbitra arquitectura. |
+| Consecuencia | Se evita abrir 12 tickets de bajo contexto y se protege el camino crítico de activación, onboarding y Mobile. [ZAL-556](/ZAL/issues/ZAL-556), [ZAL-558](/ZAL/issues/ZAL-558) y [ZAL-559](/ZAL/issues/ZAL-559) quedaron `in_progress` por activación automática; [ZAL-553](/ZAL/issues/ZAL-553) sigue en `todo` y la segunda ola queda en `backlog`. No se crean heartbeats ni peer-verifications sin entregable accionable. |
+| Límites | No se tocó código, producción, migraciones remotas, secretos, datos reales, Stripe live, pricing, campañas, publicaciones ni releases. Estas issues no son evidencia de adopción, readiness o validación humana. |
+| Estado | Vigente. |
+
+## 2026-08-10 - CEO: gasto vivo, gates fantasma y redistribución de Platform & Security
+
+| Campo | Valor |
+| --- | --- |
+| Evidencia | La API viva `/api/companies/{companyId}/costs/summary` registra `458553/1000000` centavos (`45,86%`). El roster activo no contiene a Gemita ni Hermin. Las descripciones activas ya no los presentan como gate: las menciones remanentes son históricas o de trazabilidad; ZAL-138, ZAL-140 y ZAL-191 no se reabren. |
+| Decisión | No elevar `request_board_approval` de presupuesto: el gasto está por debajo del 80% del cap vigente de USD 10.000. Reasignar [ZAL-495](/ZAL/issues/ZAL-495) de Platform & Security a Engineering Lead porque es revisión técnica de authz/provider sin custodia de secretos; mantener [ZAL-330](/ZAL/issues/ZAL-330) con Platform & Security porque sí custodia variables de sandbox. |
+| Consecuencia | Engineering Lead recibe la revisión local de [ZAL-495](/ZAL/issues/ZAL-495), que permanece bloqueada por [ZAL-499](/ZAL/issues/ZAL-499). Platform & Security conserva los bloqueos de secretos, privacidad y permisos reales. La cola de control-plane no se convierte en readiness, adopción ni validación humana. |
+| Límites | No se tocó código, producción, migraciones remotas, secretos, datos reales, Stripe live, pricing, campañas ni publicaciones. |
+| Estado | Vigente. |
+
+## 2026-08-10 - CEO: producto primero, rutina duplicada y gate vivo de ZAL-157
+
+| Campo | Valor |
+| --- | --- |
+| Contexto | El heartbeat CEO confirmó que el piloto autorizado sigue siendo la línea crítica: [ZAL-479](/ZAL/issues/ZAL-479) mantiene un único contacto 1:1 con denominadores `1 contacto / 0 respuestas / 0 demos / 0 trials / 0 primer valor / 0 conversiones`, y [ZAL-480](/ZAL/issues/ZAL-480) conserva su interacción de revisión. [ZAL-513](/ZAL/issues/ZAL-513) era una ejecución rutinaria duplicada de [ZAL-239](/ZAL/issues/ZAL-239). Además, [ZAL-157](/ZAL/issues/ZAL-157) conservaba una referencia incorrecta a Engineering Lead como agente retirado, aunque el roster actual lo mantiene activo y ya existe C-2 independiente sobre `ff665035d` en [ZAL-444](/ZAL/issues/ZAL-444). |
+| Decisión | Cancelar [ZAL-513](/ZAL/issues/ZAL-513) como duplicado y conservar un único seguimiento en [ZAL-239](/ZAL/issues/ZAL-239). Corregir el handoff de [ZAL-157](/ZAL/issues/ZAL-157) para que su owner Web Developer consuma el C-2 existente y reintente el cierre; no abrir otra peer-review ni esperar una firma de un agente inexistente. Mantener activas las líneas que cambian algo para una academia ([ZAL-477](/ZAL/issues/ZAL-477), [ZAL-324](/ZAL/issues/ZAL-324), [ZAL-523](/ZAL/issues/ZAL-523) y el piloto 1:1). |
+| Consecuencia | Se reduce meta-trabajo duplicado sin declarar adopción, readiness o validación humana. [ZAL-157](/ZAL/issues/ZAL-157) sigue necesitando una transición formal del owner; el comentario CEO corrige la atribución pero el control-plane no permite al CEO editar directamente el `unblockDescriptor` de otra issue. |
+| Presupuesto y límites | La consulta viva del dashboard registra `404407` centavos sobre `1000000` (`40,44%` del cap vigente de USD 10.000). No se escala presupuesto. No se toca producción, pricing, secretos, datos reales, pagos ni publicaciones. Los snapshots históricos con cap de USD 1.000 no representan el cap vigente. |
+| Estado | Vigente. |
+
+## 2026-08-10 - No crear un agente dedicado de bugs durante los 90 dias
+
+| Campo        | Valor                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Contexto     | [ZAL-540](/ZAL/issues/ZAL-540) propone un agente 100% dedicado a encontrar y reportar bugs. La meta vigente exige terminar y estabilizar Web y Mobile para academias, manteniendo el trabajo de producto por encima del meta-trabajo.                                                                                                                                                                                                                                                                                                                                                                                                            |
+| Evidencia    | En el control plane, la busqueda de `bug` devuelve 24 issues abiertas: 18 bloqueadas, 5 en revision y 1 en progreso. El agente QA existente tiene 3 issues abiertas, todas bloqueadas; Web tiene 19, con 12 bloqueadas y 7 en revision. El gasto mensual observado es USD 4.125,15 sobre un cap de USD 10.000,00 (41,25%).                                                                                                                                                                                                                                                                                                    |
+| Decision     | No crear ni contratar un agente dedicado de bugs ahora. La responsabilidad sigue distribuida: Support aporta evidencia e incidentes, QA reproduce y valida, Product Lead fija alcance y aceptacion, y Engineering Lead prioriza la correccion tecnica.                                                                                                                                                                                                                                                                                                                                                                                      |
+| Criterio     | Reabrir la decision solo si durante dos semanas consecutivas la entrada de defectos P0/P1 reproducibles supera la capacidad de QA existente, o si un defecto de release queda sin owner y sin siguiente accion concreta.                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| Consecuencia | Se evita sumar costo y meta-trabajo mientras el cuello real sea desbloquear y cerrar producto. [ZAL-540](/ZAL/issues/ZAL-540) queda resuelto sin crear un nuevo rol; los leads deben mantener los bugs reproducibles ligados a una academia, flujo, impacto y evidencia verificable.                                                                                                                                                                                                                                                                                                                                                     |
+| Estado       | Activa                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 
 ## 2026-08-10 - ZAL-137: desbloqueo de onboarding mediante peer-verification independiente
 
@@ -32,7 +86,7 @@ source:
 | --- | --- |
 | Contexto | La alerta [ZAL-491](/ZAL/issues/ZAL-491) quedó en `in_review` después de que el approval [40b0a074-3c83-47fb-89d6-d9f16d1a183b](/ZAL/approvals/40b0a074-3c83-47fb-89d6-d9f16d1a183b) fuera rechazado. La fuente viva `/costs/summary` registra 432278 centavos sobre 1000000 configurados (43,23%), por debajo del umbral operativo del 80%. |
 | Decisión | Cerrar la alerta sin reintentar el mismo approval ni interpretar el rechazo como autorización. Mantener el cap operativo explícito de 1000 USD como restricción: no aumentar presupuesto, no contratar agentes y no reactivar reintentos o meta-trabajo de bajo valor. Engineering/Platform mantiene la responsabilidad de failover, circuit-breaker y control de `provider_quota`. |
-| Consecuencia | Las líneas que cambian la experiencia de una academia y el piloto de [ZAL-477](/ZAL/issues/ZAL-477) conservan prioridad. Las discrepancias entre el cap operativo y el presupuesto técnico configurado se vigilan en cada heartbeat; solo se escala otra vez si la fuente vigente supera el 80% o aparece una decisión de producción, dinero real, datos, publicación o secretos. |
+| Consecuencia | Las líneas que cambian la experiencia de una academia y el piloto de [ZAL-477](/ZAL/issues/ZAL-477) conservan prioridad. Las discrepancias entre el cap vigente y cualquier cifra histórica se vigilan en cada heartbeat; solo se escala otra vez si la fuente vigente supera el 80% o aparece una decisión de producción, dinero real, datos, publicación o secretos. |
 | Estado | Activa. No se autorizaron producción, dinero real, secretos, datos reales, cambios de pricing ni publicación externa. |
 
 ## 2026-08-09 - Auditoría CEO ZAL-462: producto primero, gates válidos y telemetría actual
@@ -412,3 +466,15 @@ Copiar desde [[Template - Decision]] para nuevas decisiones.
 | Decisión | Declarar las policies SELECT de `message_templates`, `message_groups` y `scheduled_notifications` `TO authenticated`, además del scope tenant/academia y del control explícito de identidad. Los templates globales de sistema son catálogo interno autenticado, nunca público anónimo. |
 | Consecuencia | `anon` no selecciona ninguna policy ni invoca helpers privados; owner/miembros/super-admin conservan el happy path probado. El contrato se valida estáticamente y en PostgreSQL efímero antes de promover la migración. |
 | Estado | Activa en la migración versionada `20260716214500_day3_communication_academy_scope.sql`; no aplicada a remoto. |
+
+## 2026-08-10 - Product Designer: sistema de diseño documentado + cierre de ZAL-567 [B7]
+
+| Campo | Valor |
+| --- | --- |
+| Contexto | [ZAL-567](https://github.com/mentessaas/Zaltyko/issues/ZAL-567) pedía un `DESIGN.md` (formato BuilderHunt) + auditoría de gradients. La paleta actual de Zaltyko (Deep Teal + Electric Teal + Deep Indigo + Coral) ya tenía jerarquía tácita pero ningún documento la arbitraba: 7 colores de marca definidos sin regla de cuándo usar cada uno, 14 archivos (en la versión original del triage de ZAL-551, hoy 36) usando gradients sin criterio, y `docs/design-system.md` + `docs/styleguide.md` describiendo una paleta morada legacy (v0.x) ya superada. |
+| Evidencia operativa | Audit exhaustivo de la UI surface: 36 archivos con gradients. Disposiciones: 27 mantener (excepción documentada con racional + categoría estable), 6 eliminar (gradient que no comunica nada que un sólido no comunique), 3 decisión humana (cluster owner / email owner), 2 sustituir por tokens Zaltyko brand. No se tocaron `tailwind.config.mjs` ni `globals.css` — solo se documentó lo que ya existe. |
+| Decisión | Adoptar `docs/design/DESIGN.md` como fuente de verdad del sistema de diseño a partir de 2026-08-10. Archivar `docs/design-system.md` y `docs/styleguide.md` como `SUPERSEDED` en `docs/design/archive/`. 4 named rules explícitas: One Accent Rule (Deep Teal único interactivo), Two-Role Secondary (Deep Indigo = dato, Electric Teal = highlight), Status Quota Rule (máx 1 destructive por viewport), Shell-Only Glass Rule. Regla transversal: cifras = `tabular-nums` sobre Inter, nunca `font-mono`. |
+| Owners | Product Designer: owner del documento, edición directa de copy/ejemplos. Web Developer: issues hijas ZAL-568..571 + ZAL-574 (limpieza de gradients), coordinadas para no chocar con ZAL-559 (DataTable unificado, ya alineado a DESIGN.md). Cluster owner: ZAL-573 (color de cluster en `ClusterCTASection.tsx`). Product Lead + board: ZAL-572 (pricing surface `PlanComparison.tsx`, no auto-autorizable). |
+| Consecuencia | Cualquier feature nueva que quiera introducir un gradient, glass, segundo acento o `font-mono` tiene que abrir excepción documentada en `DESIGN.md` con racional — mismo patrón que los gates A2/A3 de ZAL-556. La auditoría queda en `docs/design/GRADIENT_AUDIT.md` con path:línea y disposición por archivo. El board puede vetar excepciones futuras que no respeten las 4 named rules. |
+| Límites | No se tocó código de producto, producción, secretos, datos reales, migraciones remotas, Stripe live, pricing, campañas, publicaciones ni releases. La decisión es de documentación + arbitraje, no de rediseño. |
+| Estado | Vigente. |

@@ -1,5 +1,7 @@
 # 🟣 Zaltyko Design System 1.0
 
+> **SUPERSEDED — 2026-08-10.** Este documento describe la paleta original (morado/lavanda, v0.x) y queda archivado. La fuente de verdad vigente es [`../DESIGN.md`](../DESIGN.md) (ZAL-567). Mantenido en `docs/design/archive/` por trazabilidad histórica, no para uso.
+
 ## Tokens Globales
 
 ### Colores
