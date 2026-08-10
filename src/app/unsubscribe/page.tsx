@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 type Status = "idle" | "loading" | "success" | "error";
@@ -31,6 +31,14 @@ type ApiResponse = ApiSuccess | ApiError;
  *      a reducir frecuencia sin perder todo).
  */
 export default function UnsubscribePage() {
+  return (
+    <Suspense fallback={null}>
+      <UnsubscribePageInner />
+    </Suspense>
+  );
+}
+
+function UnsubscribePageInner() {
   const searchParams = useSearchParams();
   const token = useMemo(() => searchParams.get("token") ?? "", [searchParams]);
 

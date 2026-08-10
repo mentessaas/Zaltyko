@@ -14,16 +14,16 @@ const SHA1_RANDOM = "0123456789ABCDEF0123456789ABCDEF01234567";
 
 describe("pwned-password (HIBP k-anonymity) helper", () => {
   describe("sha1Hex", () => {
-    it("computes the canonical SHA-1 of 'password'", () => {
-      expect(sha1Hex("password")).toBe(SHA1_PASSWORD);
+    it("computes the canonical SHA-1 of 'password'", async () => {
+      expect(await sha1Hex("password")).toBe(SHA1_PASSWORD);
     });
 
-    it("computes the canonical SHA-1 of 'password123'", () => {
-      expect(sha1Hex("password123")).toBe(SHA1_PASSWORD123);
+    it("computes the canonical SHA-1 of 'password123'", async () => {
+      expect(await sha1Hex("password123")).toBe(SHA1_PASSWORD123);
     });
 
-    it("returns 40 uppercase hex chars", () => {
-      const hash = sha1Hex("anything");
+    it("returns 40 uppercase hex chars", async () => {
+      const hash = await sha1Hex("anything");
       expect(hash).toMatch(/^[0-9A-F]{40}$/);
     });
   });

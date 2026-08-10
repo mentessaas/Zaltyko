@@ -1,5 +1,3 @@
-import { createHash } from "node:crypto";
-
 /**
  * HaveIBeenPwned (HIBP) k-anonymity password check.
  *
@@ -70,10 +68,17 @@ export type PwnedPasswordOptions = {
 
 /**
  * Compute SHA-1 of the input, uppercase hex (40 chars).
+ * Uses Web Crypto (available in both browsers and the Node/Edge runtimes
+ * Next.js targets) instead of `node:crypto` so this module stays safe to
+ * import from client components.
  * Exported for testing.
  */
-export function sha1Hex(input: string): string {
-  return createHash("sha1").update(input, "utf8").digest("hex").toUpperCase();
+export async function sha1Hex(input: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-1", new TextEncoder().encode(input));
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("")
+    .toUpperCase();
 }
 
 /**
@@ -123,7 +128,7 @@ export async function checkPwnedPassword(
     return { pwned: false, count: 0, unavailable: false };
   }
 
-  const fullHash = sha1Hex(password);
+  const fullHash = await sha1Hex(password);
   const prefix = fullHash.slice(0, 5);
   const url = `${HIBP_RANGE_ENDPOINT}${prefix}`;
 

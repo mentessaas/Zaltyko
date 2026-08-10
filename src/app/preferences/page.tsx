@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 type Status = "loading" | "ready" | "saving" | "saved" | "error";
@@ -29,6 +29,14 @@ interface Prefs {
  * (RGPD Art. 6(1)(a) marketing) sin perder los emails operativos.
  */
 export default function PreferencesPage() {
+  return (
+    <Suspense fallback={null}>
+      <PreferencesPageInner />
+    </Suspense>
+  );
+}
+
+function PreferencesPageInner() {
   const searchParams = useSearchParams();
   const token = useMemo(() => searchParams.get("token") ?? "", [searchParams]);
 
