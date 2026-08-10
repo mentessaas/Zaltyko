@@ -42,6 +42,7 @@ export * from "./assessment-scores";
 export * from "./coach-notes";
 export * from "./guardians";
 export * from "./invitations";
+export * from "./athlete-invitations";
 export * from "./auth-users";
 export * from "./class-coach-assignments";
 export * from "./coach-sport-configs";
@@ -89,3 +90,6 @@ export * from "./leads";
 export * from "./growth-events";
 export * from "./commercial-interviews";
 export * from "./leak-profitability";
+
+// ZAL-158 [GTM-DEP.2] Server-side consent storage
+export * from "./owner-consent";

@@ -8,14 +8,20 @@ type PublicGrowthEvent = z.input<typeof PublicGrowthEventSchema>;
 type GrowthEventInput = Omit<PublicGrowthEvent, "eventId" | "visitorId">;
 
 const VISITOR_STORAGE_KEY = "zaltyko_growth_visitor_id";
+const UUID_V4_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 let inMemoryVisitorId: string | null = null;
 
+function isUuidV4(value: string | null): value is string {
+  return Boolean(value && UUID_V4_PATTERN.test(value));
+}
+
 export function getGrowthVisitorId(): string {
-  if (inMemoryVisitorId) return inMemoryVisitorId;
+  if (isUuidV4(inMemoryVisitorId)) return inMemoryVisitorId;
 
   try {
     const existing = window.localStorage.getItem(VISITOR_STORAGE_KEY);
-    if (existing) {
+    if (isUuidV4(existing)) {
       inMemoryVisitorId = existing;
       return existing;
     }

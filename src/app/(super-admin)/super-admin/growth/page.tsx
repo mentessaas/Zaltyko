@@ -1,4 +1,10 @@
-import { ArrowRight, BadgeEuro, FlaskConical, Target, UsersRound } from "lucide-react";
+import {
+  ArrowRight,
+  BadgeEuro,
+  FlaskConical,
+  Target,
+  UsersRound,
+} from "lucide-react";
 
 import { CommercialInterviewWorkspace } from "@/components/growth/CommercialInterviewWorkspace";
 import { getGrowthDashboardData } from "@/lib/growth/dashboard";
@@ -45,9 +51,10 @@ export default async function SuperAdminGrowthPage() {
     {
       label: "Academias activadas",
       value: `${metrics.activatedAcademies}`,
-      detail: metrics.averageTimeToValueHours === null
-        ? "Hito server-side · sin base de time-to-value"
-        : `Time-to-value medio: ${metrics.averageTimeToValueHours} h`,
+      detail:
+        metrics.averageTimeToValueHours === null
+          ? "Hito server-side · sin base de time-to-value"
+          : `Time-to-value medio: ${metrics.averageTimeToValueHours} h`,
       icon: UsersRound,
     },
   ];
@@ -73,8 +80,9 @@ export default async function SuperAdminGrowthPage() {
             De pricing publicado a evidencia de compra
           </h1>
           <p className="mt-4 max-w-2xl text-sm leading-6 text-white/65 sm:text-base">
-            Fuente first-party para pricing, contacto, trial, checkout y suscripción. Las entrevistas
-            solo cuentan cuando incluyen tamaño, herramientas, dolor, precio y objeción reales.
+            Fuente first-party para pricing, contacto, trial, checkout y
+            suscripción. Las entrevistas solo cuentan cuando incluyen tamaño,
+            herramientas, dolor, precio y objeción reales.
           </p>
         </div>
       </header>
@@ -82,26 +90,42 @@ export default async function SuperAdminGrowthPage() {
       <section aria-labelledby="growth-kpis-heading">
         <div className="mb-4 flex items-end justify-between gap-4">
           <div>
-            <p className="text-xs uppercase tracking-[0.24em] text-white/65">Decisión semanal</p>
-            <h2 id="growth-kpis-heading" className="mt-1 font-display text-xl font-semibold text-white">
+            <p className="text-xs uppercase tracking-[0.24em] text-white/65">
+              Decisión semanal
+            </p>
+            <h2
+              id="growth-kpis-heading"
+              className="mt-1 font-display text-xl font-semibold text-white"
+            >
               KPIs de salida de Fase 4
             </h2>
           </div>
-          <p className="text-right text-xs text-white/65">Sin histórico suficiente: no se fija objetivo de conversión aún.</p>
+          <p className="text-right text-xs text-white/65">
+            Sin histórico suficiente: no se fija objetivo de conversión aún.
+          </p>
         </div>
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
           {primaryMetrics.map((metric) => {
             const Icon = metric.icon;
             return (
-              <article key={metric.label} className="rounded-2xl border border-white/10 bg-white/[0.055] p-5 shadow-2xl shadow-black/10">
+              <article
+                key={metric.label}
+                className="rounded-2xl border border-white/10 bg-white/[0.055] p-5 shadow-2xl shadow-black/10"
+              >
                 <div className="flex items-center justify-between gap-3">
-                  <p className="text-xs font-medium uppercase tracking-[0.16em] text-white/50">{metric.label}</p>
+                  <p className="text-xs font-medium uppercase tracking-[0.16em] text-white/50">
+                    {metric.label}
+                  </p>
                   <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-zaltyko-electric/10 text-zaltyko-electric">
                     <Icon className="h-4 w-4" aria-hidden="true" />
                   </span>
                 </div>
-                <p className="mt-5 font-display text-3xl font-semibold text-white">{metric.value}</p>
-                <p className="mt-2 text-xs leading-5 text-white/50">{metric.detail}</p>
+                <p className="mt-5 font-display text-3xl font-semibold text-white">
+                  {metric.value}
+                </p>
+                <p className="mt-2 text-xs leading-5 text-white/50">
+                  {metric.detail}
+                </p>
               </article>
             );
           })}
@@ -112,20 +136,42 @@ export default async function SuperAdminGrowthPage() {
         <article className="rounded-2xl border border-white/10 bg-white/[0.045] p-5 sm:p-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <p className="text-xs uppercase tracking-[0.2em] text-white/65">Funnel acumulado</p>
-              <h2 className="mt-1 font-display text-xl font-semibold text-white">Señales observables</h2>
+              <p className="text-xs uppercase tracking-[0.2em] text-white/65">
+                Señales first-party
+              </p>
+              <h2 className="mt-1 font-display text-xl font-semibold text-white">
+                Funnel comercial
+              </h2>
             </div>
-            <p className="rounded-full border border-white/10 px-3 py-1 text-xs text-white/55">
-              Plan → contacto: {rateLabel(metrics.intentToContactRate)}
-            </p>
+            <div className="text-right">
+              <p className="rounded-full border border-white/10 px-3 py-1 text-xs text-white/55">
+                Pricing → contacto (30 días):{" "}
+                {rateLabel(metrics.intentToContactRate)}
+              </p>
+              <p className="mt-2 text-[11px] text-white/45">
+                Estado: {metrics.intentToContactStatus} · N=
+                {metrics.pricingVisitors}/30 · motivos demo, network y sales
+              </p>
+            </div>
           </div>
-          <ol className="mt-6 grid gap-2 sm:grid-cols-4 xl:grid-cols-7" aria-label="Funnel comercial">
+          <ol
+            className="mt-6 grid gap-2 sm:grid-cols-4 xl:grid-cols-7"
+            aria-label="Funnel comercial"
+          >
             {funnel.map(([label, value], index) => (
-              <li key={label} className="relative rounded-xl border border-white/10 bg-black/10 px-3 py-4">
-                <p className="font-display text-2xl font-semibold text-white">{value}</p>
+              <li
+                key={label}
+                className="relative rounded-xl border border-white/10 bg-black/10 px-3 py-4"
+              >
+                <p className="font-display text-2xl font-semibold text-white">
+                  {value}
+                </p>
                 <p className="mt-1 text-xs leading-4 text-white/50">{label}</p>
                 {index < funnel.length - 1 && (
-                  <ArrowRight className="absolute -right-3 top-1/2 z-10 hidden h-4 w-4 -translate-y-1/2 text-zaltyko-electric/70 xl:block" aria-hidden="true" />
+                  <ArrowRight
+                    className="absolute -right-3 top-1/2 z-10 hidden h-4 w-4 -translate-y-1/2 text-zaltyko-electric/70 xl:block"
+                    aria-hidden="true"
+                  />
                 )}
               </li>
             ))}
@@ -133,10 +179,16 @@ export default async function SuperAdminGrowthPage() {
         </article>
 
         <article className="rounded-2xl border border-zaltyko-teal/20 bg-zaltyko-teal/[0.07] p-5 sm:p-6">
-          <p className="text-xs uppercase tracking-[0.2em] text-zaltyko-electric">Criterio humano</p>
+          <p className="text-xs uppercase tracking-[0.2em] text-zaltyko-electric">
+            Criterio humano
+          </p>
           <div className="mt-3 flex items-baseline justify-between gap-4">
-            <h2 className="font-display text-xl font-semibold text-white">10 academias distintas</h2>
-            <span className="font-display text-lg text-white">{interviewProgress}%</span>
+            <h2 className="font-display text-xl font-semibold text-white">
+              10 academias distintas
+            </h2>
+            <span className="font-display text-lg text-white">
+              {interviewProgress}%
+            </span>
           </div>
           <progress
             className="mt-5 h-2 w-full overflow-hidden rounded-full accent-zaltyko-teal"
@@ -147,17 +199,28 @@ export default async function SuperAdminGrowthPage() {
           <dl className="mt-5 grid grid-cols-2 gap-3 text-sm">
             <div>
               <dt className="text-white/65">Precio fácil medio</dt>
-              <dd className="mt-1 font-semibold text-white">{metrics.averageEasyPriceEur === null ? "—" : `${metrics.averageEasyPriceEur} €`}</dd>
+              <dd className="mt-1 font-semibold text-white">
+                {metrics.averageEasyPriceEur === null
+                  ? "—"
+                  : `${metrics.averageEasyPriceEur} €`}
+              </dd>
             </div>
             <div>
               <dt className="text-white/65">Precio límite medio</dt>
-              <dd className="mt-1 font-semibold text-white">{metrics.averageLimitPriceEur === null ? "—" : `${metrics.averageLimitPriceEur} €`}</dd>
+              <dd className="mt-1 font-semibold text-white">
+                {metrics.averageLimitPriceEur === null
+                  ? "—"
+                  : `${metrics.averageLimitPriceEur} €`}
+              </dd>
             </div>
           </dl>
         </article>
       </section>
 
-      <CommercialInterviewWorkspace interviews={data.interviews} leads={data.leads} />
+      <CommercialInterviewWorkspace
+        interviews={data.interviews}
+        leads={data.leads}
+      />
     </div>
   );
 }

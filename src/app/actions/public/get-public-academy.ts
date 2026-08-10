@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { createClient } from "@supabase/supabase-js";
 
 import { db } from "@/db";
@@ -62,7 +62,8 @@ export async function getPublicAcademy(
         and(
           eq(academies.id, academyId),
           eq(academies.isPublic, true),
-          eq(academies.isSuspended, false)
+          eq(academies.isSuspended, false),
+          sql`${academies.status} NOT IN ('churned', 'fraud_hold')`
         )
       )
       .limit(1);
@@ -132,6 +133,7 @@ export async function getPublicAcademy(
         .eq("id", academyId)
         .eq("is_public", true)
         .eq("is_suspended", false)
+        .not("status", "in", "(churned,fraud_hold)")
         .single();
       
       if (academyError || !academy) {
@@ -196,4 +198,3 @@ export async function getPublicAcademy(
     }
   }
 }
-

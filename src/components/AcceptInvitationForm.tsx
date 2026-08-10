@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { FormField, validators } from "@/components/ui/form-field";
 import { useToast } from "@/components/ui/toast-provider";
 import { logger } from "@/lib/logger";
+import { checkPwnedPassword, PWNED_PASSWORD_MESSAGE } from "@/lib/security/pwned-password";
 
 interface AcceptInvitationFormProps {
   token: string;
@@ -180,6 +181,23 @@ export default function AcceptInvitationForm({
         variant: "error",
       });
       return;
+    }
+
+    // Verificar que la contraseña no aparezca en filtraciones públicas (HIBP,
+    // k-anonymity). Falla en abierto si la API no responde.
+    try {
+      const pwned = await checkPwnedPassword(password);
+      if (pwned.pwned) {
+        toast.pushToast({
+          title: "Contraseña comprometida",
+          description: PWNED_PASSWORD_MESSAGE,
+          variant: "error",
+        });
+        return;
+      }
+    } catch {
+      // Never block the invitation signup on the breach check (helper is
+      // fail-open, this catch is belt-and-suspenders).
     }
 
     setPending(true);

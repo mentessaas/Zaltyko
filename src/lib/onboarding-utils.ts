@@ -33,7 +33,7 @@ export const CHECKLIST_DEFINITIONS: ChecklistDefinition[] = [
   },
   {
     key: "create_first_group",
-    label: "Crea tu primer grupo de entrenamiento",
+    label: "Crea tu primer grupo",
     description: "Sin grupos no hay orden. Organiza a tus gimnastas por nivel y horarios.",
     auto: true,
   },
@@ -51,18 +51,18 @@ export const CHECKLIST_DEFINITIONS: ChecklistDefinition[] = [
   },
   {
     key: "enable_payments",
-    label: "Activa métodos de pago",
+    label: "Activa los cobros de tu academia",
     description: "Automatiza cobros y olvídate de perseguir a padres cada mes.",
     auto: true,
   },
   {
     key: "send_first_communication",
-    label: "Envía tu primera comunicación a padres",
+    label: "Envía tu primera comunicación a las familias",
     description: "Hazles saber que todo se gestionará desde Zaltyko a partir de ahora.",
   },
   {
     key: "login_again",
-    label: "Vuelve a entrar a Zaltyko",
+    label: "Vuelve a Zaltyko",
     description: "Un segundo inicio de sesión demuestra que el producto engancha.",
     auto: true,
   },

@@ -12,6 +12,7 @@ import { OfflineBanner } from "@/components/ui/offline-banner";
 import { UpdateBanner } from "@/components/ui/update-banner";
 import { InstallPrompt } from "@/components/ui/install-prompt";
 import { PostHogProvider } from "@/components/PostHogProvider";
+import { UtmCapture } from "@/components/growth/UtmCapture";
 import { getPublicSiteUrl } from "@/lib/seo/site-url";
 
 const spaceGrotesk = Space_Grotesk({
@@ -129,6 +130,7 @@ export default function RootLayout({
         className={cn(bodyFont.variable, spaceGrotesk.variable, "font-sans antialiased")}
         suppressHydrationWarning
       >
+        <UtmCapture />
         <OfflineBanner />
         <UpdateBanner />
         <InstallPrompt />

@@ -21,7 +21,12 @@ export async function GET() {
         isPublic: academies.isPublic,
       })
       .from(academies)
-      .where(eq(academies.isSuspended, false));
+      .where(
+        and(
+          eq(academies.isSuspended, false),
+          sql`${academies.status} NOT IN ('churned', 'fraud_hold')`
+        )
+      );
 
     const countriesSet = new Set<string>();
     const regionsSet = new Set<string>();
@@ -66,4 +71,3 @@ export async function GET() {
     return handleApiError(error, { endpoint: "/api/public/academies/filter-options", method: "GET" });
   }
 }
-

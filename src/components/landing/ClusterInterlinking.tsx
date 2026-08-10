@@ -4,10 +4,14 @@ import { memo } from "react";
 
 
 import Link from "next/link";
-import { ArrowRight, Globe, Layers } from "lucide-react";
+import { ArrowRight, Globe, Layers, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
-import type { ModalitySlug, CountrySlug } from "@/lib/seo/clusters";
+import {
+  AVAILABLE_MODALITIES,
+  type CountrySlug,
+  type ModalitySlug,
+} from "@/lib/seo/availability";
 
 interface ClusterInterlinkingProps {
   locale: "es" | "en";
@@ -19,6 +23,7 @@ interface ClusterInterlinkingProps {
   relatedByCountry: Array<{ slug: ModalitySlug; label: string; url: string }>;
   federationName: string;
   competitions: string[];
+  available?: boolean;
 }
 
 function ClusterInterlinkingImpl({
@@ -31,6 +36,7 @@ function ClusterInterlinkingImpl({
   relatedByCountry,
   federationName,
   competitions,
+  available = true,
 }: ClusterInterlinkingProps) {
   const labels = {
     es: {
@@ -40,6 +46,9 @@ function ClusterInterlinkingImpl({
       cta: "Probar gratis",
       federation: "Federación",
       competitions: "Competiciones principales",
+      comingSoon: "Próximamente",
+      federationComingSoon:
+        "La integración con la federación y el seguimiento de competiciones estará disponible cuando lancemos el soporte oficial.",
     },
     en: {
       title: "Explore more academies",
@@ -48,6 +57,9 @@ function ClusterInterlinkingImpl({
       cta: "Try for free",
       federation: "Federation",
       competitions: "Main competitions",
+      comingSoon: "Coming soon",
+      federationComingSoon:
+        "Federation integration and competition tracking will be available once we launch official support.",
     },
   };
 
@@ -102,56 +114,89 @@ function ClusterInterlinkingImpl({
               <h3 className="font-semibold text-gray-900 text-lg">{t.sameCountry}</h3>
             </div>
             <div className="space-y-3">
-              {relatedByCountry.map((item) => (
-                <Link
-                  key={item.slug}
-                  href={item.url}
-                  className="flex items-center justify-between p-3 rounded-xl bg-muted hover:bg-purple-50 transition-colors group"
-                >
-                  <span className="text-gray-700 group-hover:text-purple-700 font-medium">
-                    {item.label}
+              {relatedByCountry.map((item) =>
+                AVAILABLE_MODALITIES[item.slug] ? (
+                  <Link
+                    key={item.slug}
+                    href={item.url}
+                    className="flex items-center justify-between p-3 rounded-xl bg-muted hover:bg-purple-50 transition-colors group"
+                  >
+                    <span className="text-gray-700 group-hover:text-purple-700 font-medium">
+                      {item.label}
+                    </span>
+                    <ArrowRight className="h-4 w-4 text-gray-400 group-hover:text-purple-500 transition-colors" />
+                  </Link>
+                ) : (
+                  <span
+                    key={item.slug}
+                    aria-disabled="true"
+                    title={t.comingSoon}
+                    className="flex items-center justify-between p-3 rounded-xl bg-muted cursor-not-allowed select-none"
+                  >
+                    <span className="text-muted-foreground font-medium">{item.label}</span>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-background px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      <Clock className="h-3 w-3" />
+                      {t.comingSoon}
+                    </span>
                   </span>
-                  <ArrowRight className="h-4 w-4 text-gray-400 group-hover:text-purple-500 transition-colors" />
-                </Link>
-              ))}
+                )
+              )}
             </div>
           </div>
         </div>
 
-        {/* Federation & Competitions */}
-        <div className="bg-white rounded-2xl p-8 border border-gray-100 shadow-sm mb-12">
-          <div className="grid md:grid-cols-2 gap-8">
-            <div>
-              <h4 className="font-semibold text-gray-900 mb-3">{t.federation}</h4>
-              <p className="text-gray-600">{federationName}</p>
-            </div>
-            <div>
-              <h4 className="font-semibold text-gray-900 mb-3">{t.competitions}</h4>
-              <ul className="space-y-2">
-                {competitions.slice(0, 3).map((comp, i) => (
-                  <li key={i} className="flex items-center gap-2 text-gray-600 text-sm">
-                    <span className="w-1.5 h-1.5 rounded-full bg-zaltyko-teal" />
-                    {comp}
-                  </li>
-                ))}
-              </ul>
+        {/* Federation & Competitions — gated on availability */}
+        {available ? (
+          <div className="bg-white rounded-2xl p-8 border border-gray-100 shadow-sm mb-12">
+            <div className="grid md:grid-cols-2 gap-8">
+              <div>
+                <h4 className="font-semibold text-gray-900 mb-3">{t.federation}</h4>
+                <p className="text-gray-600">{federationName}</p>
+              </div>
+              <div>
+                <h4 className="font-semibold text-gray-900 mb-3">{t.competitions}</h4>
+                <ul className="space-y-2">
+                  {competitions.slice(0, 3).map((comp, i) => (
+                    <li key={i} className="flex items-center gap-2 text-gray-600 text-sm">
+                      <span className="w-1.5 h-1.5 rounded-full bg-zaltyko-teal" />
+                      {comp}
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </div>
           </div>
-        </div>
+        ) : (
+          <div className="bg-white rounded-2xl p-8 border border-gray-100 shadow-sm mb-12">
+            <div className="flex items-start gap-4">
+              <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center shrink-0">
+                <Clock className="h-5 w-5 text-muted-foreground" />
+              </div>
+              <div>
+                <span className="mb-2 inline-flex rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  {t.comingSoon}
+                </span>
+                <p className="text-gray-700">{t.federationComingSoon}</p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* CTA */}
-        <div className="text-center">
-          <Link
-            href="/auth/register"
-            className={cn(
-              buttonVariants({ variant: "default", size: "lg" }),
-              "bg-zaltyko-teal hover:bg-primary-dark text-white shadow-soft transition-all duration-300 text-base px-8 py-6 group inline-flex items-center"
-            )}
-          >
-            {t.cta}
-            <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
-          </Link>
-        </div>
+        {available && (
+          <div className="text-center">
+            <Link
+              href="/auth/register"
+              className={cn(
+                buttonVariants({ variant: "default", size: "lg" }),
+                "bg-zaltyko-teal hover:bg-primary-dark text-white shadow-soft transition-all duration-300 text-base px-8 py-6 group inline-flex items-center"
+              )}
+            >
+              {t.cta}
+              <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+            </Link>
+          </div>
+        )}
       </div>
     </section>
   );

@@ -4,6 +4,7 @@ const mocks = vi.hoisted(() => ({
   update: vi.fn(),
   createNotification: vi.fn(),
   getUserById: vi.fn(),
+  isAcademyBlockedFromSending: vi.fn(),
 }));
 
 vi.mock("@/db", () => ({
@@ -19,7 +20,10 @@ vi.mock("@/lib/supabase/admin", () => ({
 }));
 vi.mock("@/lib/brevo", () => ({ sendEmail: vi.fn() }));
 vi.mock("@/lib/growth/events", () => ({ recordGrowthEvent: vi.fn() }));
-vi.mock("@/lib/logger", () => ({ logger: { error: vi.fn() } }));
+vi.mock("@/lib/logger", () => ({ logger: { error: vi.fn(), warn: vi.fn() } }));
+vi.mock("@/lib/academy-status", () => ({
+  isAcademyBlockedFromSending: mocks.isAcademyBlockedFromSending,
+}));
 
 import {
   notifyTrialOwner,
@@ -30,6 +34,12 @@ describe("trial lifecycle delivery", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.getUserById.mockResolvedValue({ data: { user: { email: undefined } } });
+    mocks.isAcademyBlockedFromSending.mockResolvedValue({
+      blocked: false,
+      reason: null,
+      status: "trial",
+      isFraudHold: false,
+    });
   });
 
   it("usa el ID interno del perfil para la notificación", async () => {
@@ -48,6 +58,27 @@ describe("trial lifecycle delivery", () => {
       expect.objectContaining({ userId: "profile-1", tenantId: "tenant-1" })
     );
     expect(mocks.getUserById).toHaveBeenCalledWith("auth-user-1");
+  });
+
+  it("omite el correo cuando la academia está en fraud_hold", async () => {
+    mocks.isAcademyBlockedFromSending.mockResolvedValue({
+      blocked: true,
+      reason: "fraud_hold",
+      status: "fraud_hold",
+      isFraudHold: true,
+    });
+    mocks.createNotification.mockResolvedValue({ id: "notification-1" });
+
+    await notifyTrialOwner({
+      academyId: "academy-1",
+      tenantId: "tenant-1",
+      ownerProfileId: "profile-1",
+      ownerAuthUserId: "auth-user-1",
+      academyName: "Academia Uno",
+      kind: "expired",
+    });
+
+    expect(mocks.getUserById).not.toHaveBeenCalled();
   });
 
   it("libera únicamente la marca reclamada para permitir el reintento", async () => {

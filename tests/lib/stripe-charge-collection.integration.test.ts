@@ -23,6 +23,7 @@ const {
   getConnectAccountMock,
   isConnectReadyMock,
   resolvePayerCustomerForAthleteMock,
+  sendChargePaymentFailedNotificationMock,
   dbLike,
   state,
 } = vi.hoisted(() => {
@@ -47,7 +48,18 @@ const {
       state.updateSets.push(values);
       return updateChain;
     }),
-    where: vi.fn(() => Promise.resolve(undefined)),
+    where: vi.fn(() => updateChain),
+    returning: vi.fn(() => {
+      // El WHERE de reconcilePaymentIntentFailed excluye estados
+      // terminales buenos (paid/refunded). Devolvemos `[]` cuando el
+      // cargo observado esta en uno de esos estados para emular que el
+      // UPDATE no aplico la transicion y el caller no debe notificar.
+      const status = state.chargeRow?.status;
+      if (status === "paid" || status === "refunded") {
+        return Promise.resolve([]);
+      }
+      return Promise.resolve([{ id: state.chargeRow?.id ?? "row" }]);
+    }),
   };
 
   const insertChain: any = {
@@ -73,6 +85,7 @@ const {
     getConnectAccountMock: vi.fn(),
     isConnectReadyMock: vi.fn(),
     resolvePayerCustomerForAthleteMock: vi.fn(),
+    sendChargePaymentFailedNotificationMock: vi.fn(),
     dbLike,
     state,
   };
@@ -92,6 +105,11 @@ vi.mock("@/lib/stripe/connect-service", () => ({
 
 vi.mock("@/lib/stripe/family-customers-service", () => ({
   resolvePayerCustomerForAthlete: (...args: any[]) => resolvePayerCustomerForAthleteMock(...args),
+}));
+
+vi.mock("@/lib/stripe/notification-service", () => ({
+  sendChargePaymentFailedNotification: (...args: any[]) =>
+    sendChargePaymentFailedNotificationMock(...args),
 }));
 
 vi.mock("@/lib/db-transactions", () => ({
@@ -150,6 +168,7 @@ beforeEach(() => {
   getConnectAccountMock.mockResolvedValue(readyAccount);
   isConnectReadyMock.mockReturnValue(true);
   resolvePayerCustomerForAthleteMock.mockResolvedValue(payerWithCard);
+  sendChargePaymentFailedNotificationMock.mockResolvedValue(true);
 });
 
 describe("collectCharge", () => {
@@ -191,12 +210,24 @@ describe("collectCharge", () => {
     paymentIntentsCreate.mockRejectedValue({
       code: "authentication_required",
       message: "This payment requires authentication.",
-      payment_intent: { id: "pi_2" },
+      payment_intent: { id: "pi_2", client_secret: "pi_2_secret_abc" },
     });
 
     const result = await collectCharge("charge_1");
 
-    expect(result).toEqual({ ok: false, status: "requires_action", paymentIntentId: "pi_2" });
+    // ZAL-10: el client_secret viaja hasta el handler para que owner/familia
+    // completen el 3DS con Stripe.js sobre la cuenta conectada.
+    // `paymentMethodId` también: Stripe limpia el PM del PI cuando off-session
+    // lanza `authentication_required`, así que el servicio lo re-attach
+    // explícitamente desde `resolvePayerCustomerForAthlete.defaultPaymentMethodId`.
+    expect(result).toEqual({
+      ok: false,
+      status: "requires_action",
+      paymentIntentId: "pi_2",
+      clientSecret: "pi_2_secret_abc",
+      stripeAccountId: "acct_123",
+      paymentMethodId: "pm_1",
+    });
     const lastUpdate = state.updateSets.at(-1);
     expect(lastUpdate).toMatchObject({ status: "failed", attemptCount: 1, stripePaymentIntentId: "pi_2" });
     expect(state.insertedAttempts[0]).toMatchObject({ status: "requires_action" });
@@ -297,7 +328,11 @@ describe("charge-reconcile-service", () => {
     expect(state.updateSets).toHaveLength(0);
   });
 
-  it("payment_intent.payment_failed no pisa un cargo ya pagado", async () => {
+  it("payment_intent.payment_failed no pisa un cargo ya pagado (transicion atomica, RETURNING vacio)", async () => {
+    // Bajo el WHERE excluyente, el UPDATE se intenta pero RETURNING
+    // devuelve `[]`: el cargo sigue siendo `paid` en la DB y no se
+    // emite la notificacion. Esto cierra el TOCTOU entre el SELECT
+    // inicial y el UPDATE.
     state.chargeRow = { ...baseCharge, id: "charge_4", status: "paid", stripeAccountId: "acct_123" };
 
     await reconcilePaymentIntentFailed({
@@ -305,7 +340,22 @@ describe("charge-reconcile-service", () => {
       metadata: { chargeId: "charge_4", academyId: "academy_1", tenantId: "tenant_1" },
     } as any, "acct_123");
 
-    expect(state.updateSets).toHaveLength(0);
+    expect(state.updateSets).toHaveLength(1);
+    expect(state.updateSets.at(-1)).toMatchObject({ status: "failed" });
+    expect(sendChargePaymentFailedNotificationMock).not.toHaveBeenCalled();
+  });
+
+  it("payment_intent.payment_failed no pisa un cargo ya reembolsado", async () => {
+    state.chargeRow = { ...baseCharge, id: "charge_4b", status: "refunded", stripeAccountId: "acct_123" };
+
+    await reconcilePaymentIntentFailed({
+      id: "pi_9b",
+      metadata: { chargeId: "charge_4b", academyId: "academy_1", tenantId: "tenant_1" },
+    } as any, "acct_123");
+
+    expect(state.updateSets).toHaveLength(1);
+    expect(state.updateSets.at(-1)).toMatchObject({ status: "failed" });
+    expect(sendChargePaymentFailedNotificationMock).not.toHaveBeenCalled();
   });
 
   it("payment_intent.canceled devuelve el cargo a pendiente si seguía debiéndose", async () => {

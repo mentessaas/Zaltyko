@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import * as Sentry from "@sentry/nextjs";
-import { logger } from "@/lib/logger";
+import { logger, redactError, redactSensitive } from "@/lib/logger";
 
 export default function Error({
   error,
@@ -19,11 +19,15 @@ export default function Error({
     });
     
     // Capture to Sentry
-    Sentry.captureException(error, {
+    Sentry.captureException(redactError(error), {
       tags: {
         component: "ErrorBoundary",
         digest: error.digest,
       },
+      extra: redactSensitive({
+        component: "ErrorBoundary",
+        digest: error.digest,
+      }),
     });
   }, [error]);
 
@@ -58,4 +62,3 @@ export default function Error({
     </div>
   );
 }
-

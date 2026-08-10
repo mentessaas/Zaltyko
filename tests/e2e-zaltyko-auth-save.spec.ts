@@ -34,6 +34,19 @@ const authStates = [
           process.env.E2E_SUPER_ADMIN_STORAGE_STATE ?? ".auth/super-admin.json",
       }
     : null,
+  // Family/parent — aprovisionado por `scripts/prepare-e2e-family-auth.ts`.
+  // Necesario para que `tests/e2e-zaltyko-stripe-connect-flow.spec.ts` pueda
+  // golpear /api/family/payment-method/setup-intent con sesión real y reemplazar
+  // la verificación manual de SetupIntent declarada en
+  // `docs/COBROS_Y_CUOTAS.md` l. 85-95. ZAL-3.
+  process.env.E2E_FAMILY_EMAIL && process.env.E2E_FAMILY_PASSWORD
+    ? {
+        label: "family",
+        email: process.env.E2E_FAMILY_EMAIL,
+        password: process.env.E2E_FAMILY_PASSWORD,
+        path: process.env.E2E_FAMILY_STORAGE_STATE ?? ".auth/family.json",
+      }
+    : null,
 ].filter((authState): authState is NonNullable<typeof authState> =>
   Boolean(authState)
 );

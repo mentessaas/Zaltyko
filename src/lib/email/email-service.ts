@@ -4,6 +4,8 @@ import { db } from "@/db";
 import { emailLogs } from "@/db/schema";
 import { sendEmail } from "@/lib/brevo";
 import { config } from "@/config";
+import { isAcademyBlockedFromSending } from "@/lib/academy-status";
+import { logger } from "@/lib/logger";
 
 export interface SendEmailOptions {
   to: string;
@@ -19,6 +21,20 @@ export interface SendEmailOptions {
 
 export async function sendEmailWithLogging(options: SendEmailOptions): Promise<boolean> {
   const { to, subject, html, template, tenantId, academyId, userId, metadata, dedupeKey } = options;
+
+  // Última barrera común para emisores transaccionales que ya aportan
+  // academyId. Así un caller nuevo no puede saltarse el contrato de status.
+  if (academyId) {
+    const eligibility = await isAcademyBlockedFromSending(academyId);
+    if (eligibility.blocked) {
+      logger.warn("Email omitido: academia no elegible", {
+        academyId,
+        reason: eligibility.reason,
+        template: template ?? "transactional",
+      });
+      return false;
+    }
+  }
 
   if (dedupeKey) {
     const [existing] = await db

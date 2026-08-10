@@ -3,6 +3,35 @@ import { boolean, index, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-c
 import { profiles } from "./profiles";
 import { academyTypeEnum } from "./enums";
 
+export const academyStatusValues = [
+  "active",
+  "trial",
+  "suspended",
+  "churned",
+  "fraud_hold",
+] as const;
+
+export type AcademyStatus = (typeof academyStatusValues)[number];
+
+export const academyFraudHoldReasonValues = [
+  "payment_fraud_signal",
+  "owner_identity_failure",
+  "chargeback_threshold",
+  "manual_review",
+  "other",
+] as const;
+
+export type AcademyFraudHoldReason = (typeof academyFraudHoldReasonValues)[number];
+
+export const academyChurnedReasonValues = [
+  "trial_expired_no_payment",
+  "owner_cancellation",
+  "manual_closure",
+  "other",
+] as const;
+
+export type AcademyChurnedReason = (typeof academyChurnedReasonValues)[number];
+
 export const academies = pgTable(
   "academies",
   {
@@ -33,6 +62,37 @@ export const academies = pgTable(
       .notNull()
       .references(() => profiles.id, { onDelete: "cascade" }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+    /**
+     * Status semántica de la academia. Modela el ciclo de vida más allá del
+     * flag binario `is_suspended`. Valores:
+     * - active:        pago al día, operativa.
+     * - trial:         trial activo, aún no configuró pagos.
+     * - suspended:     bloqueada temporalmente (típicamente por Soporte/Seguridad).
+     * - churned:       estado terminal, no se enviá emails transaccionales soft.
+     * - fraud_hold:    decisión de seguridad, congelada por sospecha de fraude.
+     *                  Decisión humana, NUNCA auto-clear (criterio B3 §3.3 v0.2).
+     *
+     * Backfill: `20260805120000_academies_status_semantics.sql` rellena las filas
+     * existentes desde `is_suspended` + `is_trial_active` durante la transición.
+     * La transición mantiene `is_suspended` como flag por compatibilidad de UI
+     * (super-admin toggle), pero el gate de envío (§6 spec v0.2) usa `status`.
+     */
+    status: text("status").notNull().default("active"),
+    statusUpdatedAt: timestamp("status_updated_at", { withTimezone: true }),
+    churnedAt: timestamp("churned_at", { withTimezone: true }),
+    churnedReason: text("churned_reason"),
+    churnedReasonNotes: text("churned_reason_notes"),
+    fraudHoldAt: timestamp("fraud_hold_at", { withTimezone: true }),
+    fraudHoldReason: text("fraud_hold_reason"),
+    fraudHoldReasonNotes: text("fraud_hold_reason_notes"),
+    fraudHoldActorId: uuid("fraud_hold_actor_id").references(() => profiles.id, {
+      onDelete: "set null",
+    }),
+    fraudHoldClearedAt: timestamp("fraud_hold_cleared_at", { withTimezone: true }),
+    fraudHoldClearedActorId: uuid("fraud_hold_cleared_actor_id").references(
+      () => profiles.id,
+      { onDelete: "set null" }
+    ),
     isSuspended: boolean("is_suspended").notNull().default(false),
     suspendedAt: timestamp("suspended_at", { withTimezone: true }),
     trialStartsAt: timestamp("trial_starts_at", { withTimezone: true }),
@@ -48,6 +108,20 @@ export const academies = pgTable(
     stripeWebhookSecret: text("stripe_webhook_secret"),
     taxId: text("tax_id"),
     invoicePrefix: text("invoice_prefix").default("INV"),
+    /**
+     * Atribución de registro del owner (ZAL-157 [GTM-DEP.1]). Captura
+     * first-touch en sesión: el primer set de UTMs del visitante queda
+     * persistido aquí al crear la academia. Si no hay UTMs al signup se
+     * registra `direct/none/none/none/none` para mantener trazabilidad.
+     * Validación: snake_case, lowercase, sin espacios (ver
+     * `src/lib/growth/utm.ts#normalizeUtmValue`).
+     */
+    utmSource: text("utm_source"),
+    utmMedium: text("utm_medium"),
+    utmCampaign: text("utm_campaign"),
+    utmTerm: text("utm_term"),
+    utmContent: text("utm_content"),
+    utmCapturedAt: timestamp("utm_captured_at", { withTimezone: true }),
   },
   (table) => ({
     tenantIdx: index("academies_tenant_id_idx").on(table.tenantId),
@@ -58,5 +132,12 @@ export const academies = pgTable(
     disciplineVariantIdx: index("academies_discipline_variant_idx").on(table.disciplineVariant),
     contactEmailIdx: index("academies_contact_email_idx").on(table.contactEmail),
     contactPhoneIdx: index("academies_contact_phone_idx").on(table.contactPhone),
+    statusIdx: index("academies_status_idx").on(table.status),
+    statusPublicIdx: index("academies_status_public_idx").on(
+      table.status,
+      table.isPublic
+    ),
+    utmSourceIdx: index("academies_utm_source_idx").on(table.utmSource),
+    utmCapturedAtIdx: index("academies_utm_captured_at_idx").on(table.utmCapturedAt),
   })
 );
