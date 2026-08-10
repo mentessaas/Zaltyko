@@ -78,6 +78,34 @@ describe("refundCharge", () => {
     expect(state.updates.at(-1)).toMatchObject({ status: "refunded" });
   });
 
+  it("registra un reembolso parcial con idempotencia por importe y conserva el cargo pagado", async () => {
+    const result = await refundCharge({
+      chargeId: "charge_1",
+      amountCents: 1500,
+      reason: "customer_request",
+      actorUserId: "user_1",
+    });
+
+    expect(result).toEqual({ ok: true, refundId: "re_1" });
+    expect(state.refundCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ amount: 1500, payment_intent: "pi_1" }),
+      expect.objectContaining({
+        stripeAccount: "acct_1",
+        idempotencyKey: "refund_charge_1_0_1500",
+      })
+    );
+    expect(state.inserts).toEqual([
+      expect.objectContaining({
+        chargeId: "charge_1",
+        stripeRefundId: "re_1",
+        amountCents: 1500,
+        reason: "customer_request",
+        status: "succeeded",
+      }),
+    ]);
+    expect(state.updates).toHaveLength(0);
+  });
+
   it("no duplica el ledger si Stripe devuelve el mismo refund al reintentar", async () => {
     state.selectResults = [[charge], [{ refundedCents: 0 }], [{ id: "existing" }]];
     const result = await refundCharge({ chargeId: "charge_1", actorUserId: "user_1" });
