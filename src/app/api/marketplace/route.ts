@@ -50,6 +50,28 @@ function sellerTypeForRole(role: string | null | undefined): MarketplaceSellerTy
 // valores que el cliente debiera poder forzar. Mantenerlos en el body
 // abría la puerta a publicar en nombre de otro usuario (IDOR) y a
 // falsificar el tipo de vendedor.
+//
+// PV-6 (auditoría ZAL-427): exigimos al menos un canal de contacto
+// (whatsapp/email/phone) con z.refine. Antes los tres eran opcionales y
+// `priceType` por defecto era `contact` ("A convenir") → se podía
+// publicar un anuncio "A convenir" sin forma de convenir nada.
+const ContactSchema = z
+  .object({
+    whatsapp: z.string().optional(),
+    email: z.string().email().optional(),
+    phone: z.string().optional(),
+  })
+  .refine(
+    (c) =>
+      Boolean((c.whatsapp ?? "").trim()) ||
+      Boolean((c.email ?? "").trim()) ||
+      Boolean((c.phone ?? "").trim()),
+    {
+      message: "Necesitamos al menos una forma de que te contacten.",
+      path: ["whatsapp"],
+    }
+  );
+
 const CreateMarketplaceSchema = z.object({
   type: z.enum(["product", "service"]),
   category: z.enum([
@@ -61,18 +83,20 @@ const CreateMarketplaceSchema = z.object({
   priceCents: z.number().int().min(0).optional(),
   currency: z.string().default("eur"),
   priceType: z.enum(["fixed", "negotiable", "contact"]).default("contact"),
-  contact: z.object({
-    whatsapp: z.string().optional(),
-    email: z.string().email().optional(),
-    phone: z.string().optional(),
-  }).optional(),
+  contact: ContactSchema.optional(),
   images: z.array(z.string()).optional(),
   location: z.object({
     country: z.string(),
     province: z.string().optional(),
     city: z.string(),
   }).optional(),
-});
+}).refine(
+  (v) => Boolean(v.contact),
+  {
+    message: "Necesitamos al menos una forma de que te contacten.",
+    path: ["contact"],
+  }
+);
 
 
 export async function GET(request: Request) {
@@ -164,7 +188,23 @@ export const POST = withAuthenticatedNoTenant(async (request: Request, context: 
     return apiCreated({ item: listing });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return apiError("VALIDATION_ERROR", "Error de validación", 400);
+      // PV-4: el primer issue del ZodError se devuelve como `details`
+      // para que el cliente pueda anclar el mensaje al campo. Antes
+      // toda la ZodError se descartaba y el cliente solo recibía
+      // `VALIDATION_ERROR` genérico.
+      const first = error.issues[0];
+      return apiError(
+        "VALIDATION_ERROR",
+        first?.message ?? "Error de validación",
+        400,
+        {
+          field: first?.path?.join(".") ?? null,
+          issues: error.issues.map((i) => ({
+            path: i.path,
+            message: i.message,
+          })),
+        }
+      );
     }
     logger.error("Error creating marketplace listing:", error);
     return apiError("INTERNAL_ERROR", "Error interno", 500);

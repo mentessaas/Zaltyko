@@ -200,4 +200,72 @@ describe("API /api/marketplace — ZAL-496 PV-3", () => {
     expect(response.status).toBe(400);
     expect(insertCalls).toHaveLength(0);
   });
+
+  // PV-6 (auditoría ZAL-427): un anuncio sin canal de contacto no es
+  // publicable. Antes los tres campos eran opcionales y `priceType` por
+  // defecto era "contact" → se podía publicar un anuncio "A convenir"
+  // sin forma de convenir.
+  it("rechaza con 400 cuando no hay canal de contacto (PV-6)", async () => {
+    const payload = { ...validPayload };
+    delete (payload as Record<string, unknown>).contact;
+    const response = await callPost(payload);
+
+    expect(response.status).toBe(400);
+    const body = await response.json();
+    expect(body.code).toBe("VALIDATION_ERROR");
+    expect(JSON.stringify(body)).toContain(
+      "Necesitamos al menos una forma de que te contacten"
+    );
+    expect(insertCalls).toHaveLength(0);
+  });
+
+  it("rechaza con 400 cuando contact viene con los tres campos vacíos (PV-6)", async () => {
+    const response = await callPost({
+      ...validPayload,
+      contact: { whatsapp: "", email: "", phone: "" },
+    });
+
+    expect(response.status).toBe(400);
+    const body = await response.json();
+    expect(body.code).toBe("VALIDATION_ERROR");
+    expect(JSON.stringify(body)).toContain(
+      "Necesitamos al menos una forma de que te contacten"
+    );
+    expect(insertCalls).toHaveLength(0);
+  });
+
+  it("acepta cuando contact trae solo whatsapp (PV-6)", async () => {
+    const response = await callPost({
+      ...validPayload,
+      contact: { whatsapp: "+34 600 000 000" },
+    });
+
+    expect(response.status).toBe(201);
+    expect(insertCalls).toHaveLength(1);
+    expect(insertCalls[0].payload.contact).toEqual({
+      whatsapp: "+34 600 000 000",
+    });
+  });
+
+  it("acepta cuando contact trae solo phone (PV-6)", async () => {
+    const response = await callPost({
+      ...validPayload,
+      contact: { phone: "+34 600 000 001" },
+    });
+
+    expect(response.status).toBe(201);
+    expect(insertCalls).toHaveLength(1);
+  });
+
+  // PV-4 (auditoría ZAL-427): la respuesta 400 debe incluir el campo
+  // que falló en `details.field`, no solo el código genérico.
+  it("incluye el campo que falló en details (PV-4)", async () => {
+    const response = await callPost({ ...validPayload, title: "ab" });
+
+    expect(response.status).toBe(400);
+    const body = await response.json();
+    expect(body.code).toBe("VALIDATION_ERROR");
+    expect(body.details).toBeDefined();
+    expect(body.details.field).toBe("title");
+  });
 });

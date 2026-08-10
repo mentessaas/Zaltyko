@@ -9,6 +9,32 @@ source:
 
 # Changelog interno
 
+## 2026-08-10 - ZAL-497 [Web] Estados de error del recorrido provider: catálogo, acciones y copy engañoso (PV-4, PV-5, PV-6, PV-7)
+
+Cierra los 4 hallazgos P1 del audit [ZAL-427](/ZAL/issues/ZAL-427) §2 sobre el recorrido del `provider`. Van juntos porque son el mismo tejido: el proveedor no podía distinguir qué falló ni si su acción tuvo efecto.
+
+**Cambios:**
+
+- **PV-5 — `src/app/dashboard/marketplace/mis-productos/page.tsx`** — estado distinguible loading / ready / error (con `LoadState` discriminated union). Antes `setListings([])` se ejecutaba en cualquier `!res.ok` y caía al empty state con copy "Aún no tienes productos publicados", que mentía al proveedor con 20 anuncios tras un 401. Ahora 401 → tarjeta "Tu sesión ha caducado" con CTA `/login`; 5xx / red → `ErrorState` con reintento (`onRetry={fetchListings}`); ready con `listings.length === 0` → empty state real con icono `Inbox` y copy "Cuando publiques tu primer anuncio aparecerá aquí".
+- **PV-7 — `src/app/dashboard/marketplace/mis-productos/page.tsx`** — feedback de fallo en toggle y delete. Antes `handleStatusToggle`/`handleDelete` solo mostraban toast en `catch` (red), nunca en 4xx/5xx: el proveedor creía que había pausado un anuncio que seguía activo. Ahora cualquier respuesta no-2xx mapea a `copyForToggleError`/`copyForDeleteError` (401 → sesión caducada; 403 → sin permisos con CTA contacto; 404 → anuncio ya no existe; resto → "vuelve a intentarlo"). `confirm()` nativo reemplazado por `ConfirmDialog` del sistema de diseño (`variant="destructive"`).
+- **PV-4 — `src/components/marketplace/MarketplaceForm.tsx` + `src/app/api/marketplace/route.ts`** — copy accionable por tipo de error. Antes `error.message || "Revisa los datos e inténtalo de nuevo"` y el 403 `TENANT_MISSING` llegaba sin `message` desde `authz.ts:278`, así que un fallo de permisos se mostraba como error de datos. Ahora `copyForPublishError(status, body)` mapea por status: 401 → "Tu sesión ha caducado"; 403 → "Tu cuenta de proveedor todavía no puede publicar. Escríbenos y lo activamos." con enlace `/contacto`; 400/VALIDATION_ERROR → "Faltan datos en el formulario" + errores anclados al campo (`<p role="alert">` bajo cada input, `aria-invalid` en el `SelectTrigger`/`Input`, `border-red-500`); servidor → "Vuelve a intentarlo en unos segundos". El banner de error a nivel formulario usa `role="alert"` y variantes `error`/`warning`. La API devuelve `details.field` y `details.issues[]` del primer ZodError para que el cliente pueda anclar.
+- **PV-6 — `src/app/api/marketplace/route.ts:58-99`** — `ContactSchema` con `z.refine` exige al menos un canal de contacto (whatsapp/email/phone no vacíos); el schema raíz además exige `contact` presente. Antes los tres eran opcionales y `priceType` por defecto era `contact` → "A convenir" sin forma de convenir. El form cliente valida con `validateClient()` y muestra "Necesitamos al menos una forma de que te contacten." bajo los tres inputs y en toast cuando es el único error.
+
+**Tests:**
+
+- `tests/api-marketplace.test.ts` — 4 tests nuevos (PV-4, PV-6): rechaza sin `contact` (400 + código), rechaza con tres canales vacíos, acepta solo-whatsapp, acepta solo-phone, `details.field` apunta a `title` cuando el título es corto. Total **15/15 PASS** (`vitest run tests/api-marketplace.test.ts`).
+- Regresión cruzada: `tests/ui-select-options.test.tsx` (6/6) y `tests/components-critical.test.tsx` (10/10) siguen verdes — el fix PV-5/PV-7 no toca el `<select>` que arregló ZAL-494.
+
+**Verificación local:**
+
+- `pnpm typecheck` — sin errores nuevos en mis archivos; los errores pre-existentes en `mobile/` y `src/app/api/support/tickets/[id]/responses/route.ts` quedan fuera de scope (consistente con notas previas del changelog).
+- `pnpm lint` (lint:app sobre `src/`) — limpio.
+- No se levantaron servidores Next.js locales; el puerto 3100 disponible correspondía al control plane de Paperclip, no a Zaltyko. La verificación funcional se apoyó en vitest.
+
+**Fuera de scope:** PV-2 (403 TENANT_MISSING por `withTenant`) lo cerró ZAL-499/ZAL-495 con `withAuthenticatedNoTenant`. PV-8 (router.push fallback) sigue intacto. El recorrido end-to-end del `provider` ahora puede completarse hasta el formulario, pero **el 403 sigue apareciendo** hasta que un admin active el flag de proveedor — el copy nuevo lo explica al usuario en lugar de mentirle.
+
+No se tocaron pricing, RLS, migraciones, secretos, producción ni publicación.
+
 ## 2026-08-10 - ZAL-499 [API] wrapper `withAuthenticatedNoTenant` aplicado a POST /api/marketplace (PV-2 / ZAL-495)
 
 Cierra la opción **(a)** aprobada por el board en [ZAL-495](/ZAL/issues/ZAL-495): tratar `POST /api/marketplace` como endpoint autenticado sin tenant, conservando `userId` server-derived. La contradicción detectada era que el rol `provider` se diseñó como global sin academia/tenant (`src/lib/product/roles.ts:76-82`), pero el endpoint exigía `tenantId` válido (`withTenant` → 403 `TENANT_MISSING`).

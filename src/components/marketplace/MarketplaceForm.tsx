@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,14 +26,34 @@ const CATEGORIES = [
   { value: "other", label: "Otro" },
 ];
 
+// PV-6: al menos un canal de contacto obligatorio. Si los tres llegan
+// vacíos, el cliente bloquea el envío y la API responde 400 con el
+// mismo mensaje (ver `route.ts`). El default `contact` para priceType
+// hace obligatorio que el contacto exista, así que el caso "A convenir"
+// sin teléfono cae al guard.
+const CONTACT_REQUIRED_MSG =
+  "Necesitamos al menos una forma de que te contacten.";
+
 interface MarketplaceFormProps {
   onSuccess?: () => void;
+}
+
+interface FormErrors {
+  category?: string;
+  title?: string;
+  description?: string;
+  contact?: string;
+  city?: string;
+  // Errores a nivel de formulario (no atados a un campo concreto):
+  // por ejemplo un 403 de permisos.
+  form?: { title: string; description: React.ReactNode; variant: "error" | "warning" };
 }
 
 export function MarketplaceForm({ onSuccess }: MarketplaceFormProps) {
   const router = useRouter();
   const toast = useToast();
   const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState<FormErrors>({});
   const [formData, setFormData] = useState({
     type: "product",
     category: "",
@@ -48,8 +69,51 @@ export function MarketplaceForm({ onSuccess }: MarketplaceFormProps) {
     city: "",
   });
 
+  // PV-6 + PV-4: validación cliente que devuelve errores anclados al
+  // campo, no al toast. Devuelve un objeto FormErrors listo para
+  // pintar bajo el input correspondiente.
+  function validateClient(): FormErrors {
+    const e: FormErrors = {};
+    if (!formData.category) {
+      e.category = "Selecciona una categoría.";
+    }
+    if (!formData.title.trim() || formData.title.trim().length < 3) {
+      e.title = "El título debe tener al menos 3 caracteres.";
+    }
+    if (!formData.city.trim()) {
+      e.city = "Indica la ciudad donde ofreces el producto o servicio.";
+    }
+    const hasContact =
+      formData.contactWhatsapp.trim().length > 0 ||
+      formData.contactEmail.trim().length > 0 ||
+      formData.contactPhone.trim().length > 0;
+    if (!hasContact) {
+      e.contact = CONTACT_REQUIRED_MSG;
+    }
+    return e;
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // PV-4: la validación de cliente muestra mensajes anclados al campo,
+    // no en toast genérico.
+    const clientErrors = validateClient();
+    if (Object.keys(clientErrors).length > 0) {
+      setErrors(clientErrors);
+      // Si solo es falta de contacto, toast para que se note arriba del
+      // formulario (el error anclado queda en su sección).
+      if (clientErrors.contact && !clientErrors.category && !clientErrors.title && !clientErrors.city) {
+        toast.pushToast({
+          title: "Falta información de contacto",
+          description: CONTACT_REQUIRED_MSG,
+          variant: "error",
+        });
+      }
+      return;
+    }
+
+    setErrors({});
     setLoading(true);
 
     try {
@@ -86,19 +150,37 @@ export function MarketplaceForm({ onSuccess }: MarketplaceFormProps) {
         } else {
           router.push("/marketplace");
         }
-      } else {
-        const error = await response.json();
-        toast.pushToast({
-          title: "No se pudo publicar el anuncio",
-          description: error.message || "Revisa los datos e inténtalo de nuevo.",
-          variant: "error",
-        });
+        return;
       }
-    } catch (error) {
-      logger.error("Error", error);
+
+      // PV-4: el copy se mapea por código/status, no por
+      // `error.message || fallback`. El 403 TENANT_MISSING llega sin
+      // `message` desde authz.ts:278 y antes se mostraba como error de
+      // datos.
+      const body = await safeJson(response);
+      const copy = copyForPublishError(response.status, body);
+      setErrors({ form: copy });
       toast.pushToast({
-        title: "No se pudo publicar el anuncio",
-        description: "Inténtalo de nuevo en unos segundos.",
+        title: copy.title,
+        description:
+          typeof copy.description === "string"
+            ? copy.description
+            : "Revisa los detalles bajo el formulario.",
+        variant: copy.variant,
+      });
+    } catch (error) {
+      logger.error("Marketplace publish", error);
+      setErrors({
+        form: {
+          title: "No pudimos publicar tu anuncio",
+          description:
+            "Vuelve a intentarlo en unos segundos. Si el problema persiste, contáctanos.",
+          variant: "error",
+        },
+      });
+      toast.pushToast({
+        title: "No pudimos publicar tu anuncio",
+        description: "Vuelve a intentarlo en unos segundos.",
         variant: "error",
       });
     } finally {
@@ -107,7 +189,25 @@ export function MarketplaceForm({ onSuccess }: MarketplaceFormProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className="space-y-6" noValidate>
+      {errors.form && (
+        // Banner de error a nivel formulario (PV-4). Solo aparece para
+        // errores que NO son de campo: permisos, servidor. Los errores
+        // de validación van anclados a su input.
+        <div
+          role="alert"
+          className={
+            "rounded-md border p-3 text-sm " +
+            (errors.form.variant === "warning"
+              ? "border-amber-300 bg-amber-50 text-amber-900"
+              : "border-red-300 bg-red-50 text-red-900")
+          }
+        >
+          <p className="font-semibold">{errors.form.title}</p>
+          <div className="mt-1">{errors.form.description}</div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <Label htmlFor="type">Tipo</Label>
@@ -124,8 +224,17 @@ export function MarketplaceForm({ onSuccess }: MarketplaceFormProps) {
 
         <div>
           <Label htmlFor="category">Categoría *</Label>
-          <Select value={formData.category} onValueChange={(v) => setFormData({ ...formData, category: v })} required>
-            <SelectTrigger>
+          <Select
+            value={formData.category}
+            onValueChange={(v) => {
+              setFormData({ ...formData, category: v });
+              if (errors.category) setErrors((e) => ({ ...e, category: undefined }));
+            }}
+          >
+            <SelectTrigger
+              aria-invalid={!!errors.category}
+              className={errors.category ? "border-red-500 focus:ring-red-500" : undefined}
+            >
               <SelectValue placeholder="Selecciona categoría" />
             </SelectTrigger>
             <SelectContent>
@@ -134,6 +243,9 @@ export function MarketplaceForm({ onSuccess }: MarketplaceFormProps) {
               ))}
             </SelectContent>
           </Select>
+          {errors.category && (
+            <p className="text-xs text-red-600 mt-1" role="alert">{errors.category}</p>
+          )}
         </div>
       </div>
 
@@ -142,10 +254,18 @@ export function MarketplaceForm({ onSuccess }: MarketplaceFormProps) {
         <Input
           id="title"
           value={formData.title}
-          onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+          onChange={(e) => {
+            setFormData({ ...formData, title: e.target.value });
+            if (errors.title) setErrors((er) => ({ ...er, title: undefined }));
+          }}
           placeholder="Ej: Colchonetas de gimnasia profesional"
+          aria-invalid={!!errors.title}
+          className={errors.title ? "border-red-500 focus-visible:ring-red-500" : undefined}
           required
         />
+        {errors.title && (
+          <p className="text-xs text-red-600 mt-1" role="alert">{errors.title}</p>
+        )}
       </div>
 
       <div>
@@ -189,7 +309,7 @@ export function MarketplaceForm({ onSuccess }: MarketplaceFormProps) {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Contacto</CardTitle>
+          <CardTitle className="text-lg">Contacto *</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -198,8 +318,12 @@ export function MarketplaceForm({ onSuccess }: MarketplaceFormProps) {
               <Input
                 id="contactWhatsapp"
                 value={formData.contactWhatsapp}
-                onChange={(e) => setFormData({ ...formData, contactWhatsapp: e.target.value })}
+                onChange={(e) => {
+                  setFormData({ ...formData, contactWhatsapp: e.target.value });
+                  if (errors.contact) setErrors((er) => ({ ...er, contact: undefined }));
+                }}
                 placeholder="+34 600 000 000"
+                aria-invalid={!!errors.contact}
               />
             </div>
             <div>
@@ -208,8 +332,12 @@ export function MarketplaceForm({ onSuccess }: MarketplaceFormProps) {
                 id="contactEmail"
                 type="email"
                 value={formData.contactEmail}
-                onChange={(e) => setFormData({ ...formData, contactEmail: e.target.value })}
+                onChange={(e) => {
+                  setFormData({ ...formData, contactEmail: e.target.value });
+                  if (errors.contact) setErrors((er) => ({ ...er, contact: undefined }));
+                }}
                 placeholder="email@ejemplo.com"
+                aria-invalid={!!errors.contact}
               />
             </div>
             <div>
@@ -217,11 +345,21 @@ export function MarketplaceForm({ onSuccess }: MarketplaceFormProps) {
               <Input
                 id="contactPhone"
                 value={formData.contactPhone}
-                onChange={(e) => setFormData({ ...formData, contactPhone: e.target.value })}
+                onChange={(e) => {
+                  setFormData({ ...formData, contactPhone: e.target.value });
+                  if (errors.contact) setErrors((er) => ({ ...er, contact: undefined }));
+                }}
                 placeholder="+34 600 000 000"
+                aria-invalid={!!errors.contact}
               />
             </div>
           </div>
+          {errors.contact && (
+            <p className="text-xs text-red-600" role="alert">{errors.contact}</p>
+          )}
+          <p className="text-xs text-muted-foreground">
+            Necesitamos al menos una forma de que te contacten.
+          </p>
         </CardContent>
       </Card>
 
@@ -252,9 +390,17 @@ export function MarketplaceForm({ onSuccess }: MarketplaceFormProps) {
               <Input
                 id="city"
                 value={formData.city}
-                onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                onChange={(e) => {
+                  setFormData({ ...formData, city: e.target.value });
+                  if (errors.city) setErrors((er) => ({ ...er, city: undefined }));
+                }}
+                aria-invalid={!!errors.city}
+                className={errors.city ? "border-red-500 focus-visible:ring-red-500" : undefined}
                 required
               />
+              {errors.city && (
+                <p className="text-xs text-red-600 mt-1" role="alert">{errors.city}</p>
+              )}
             </div>
           </div>
         </CardContent>
@@ -265,4 +411,65 @@ export function MarketplaceForm({ onSuccess }: MarketplaceFormProps) {
       </Button>
     </form>
   );
+}
+
+async function safeJson(res: Response): Promise<Record<string, unknown> | null> {
+  try {
+    return (await res.json()) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+// PV-4: el código que llega del backend determina el copy, no el
+// `message` (que en 403 TENANT_MISSING viene vacío desde authz.ts).
+function copyForPublishError(
+  status: number,
+  body: Record<string, unknown> | null
+): NonNullable<FormErrors["form"]> {
+  const code = typeof body?.error === "string" ? body.error : (body?.code as string | undefined);
+
+  if (status === 401) {
+    return {
+      title: "Tu sesión ha caducado",
+      description: (
+        <span>
+          Inicia sesión de nuevo y vuelve a intentarlo.{" "}
+          <Link href="/login" className="underline">Ir al login</Link>
+        </span>
+      ),
+      variant: "warning",
+    };
+  }
+
+  if (status === 403) {
+    // TENANT_MISSING / FORBIDDEN: el problema es de permisos del
+    // proveedor, no de los datos. Antes se mostraba como
+    // "Revisa los datos e inténtalo de nuevo" porque `message` venía
+    // vacío y caía al fallback.
+    return {
+      title: "Tu cuenta de proveedor todavía no puede publicar",
+      description: (
+        <span>
+          Escríbenos y lo activamos.{" "}
+          <Link href="/contacto" className="underline">Abrir formulario de contacto</Link>
+        </span>
+      ),
+      variant: "warning",
+    };
+  }
+
+  if (status === 400 || code === "VALIDATION_ERROR") {
+    return {
+      title: "Faltan datos en el formulario",
+      description: "Revisa los campos marcados en rojo y vuelve a intentarlo.",
+      variant: "error",
+    };
+  }
+
+  return {
+    title: "No pudimos publicar tu anuncio",
+    description: "Vuelve a intentarlo en unos segundos. Si el problema persiste, contáctanos.",
+    variant: "error",
+  };
 }
