@@ -14,9 +14,12 @@ import { spawnSync } from "node:child_process";
 import * as path from "node:path";
 
 const HERE = __dirname;
-const TARGET_DIR = path.join(HERE, "..", "..", "..", "node_modules", ".bin", "tsx");
+
+// Invoke tsx via `npx --no-install` rather than a hard-coded `node_modules/.bin`
+// path: under pnpm the bin is a shell wrapper, so `node <wrapper>` fails, and the
+// literal path is brittle with respect to where the repo is checked out.
 function runGate(script: string, args: string[]): number {
-  const proc = spawnSync("node", [TARGET_DIR, script, ...args], {
+  const proc = spawnSync("npx", ["--no-install", "tsx", script, ...args], {
     stdio: "inherit",
     cwd: process.cwd(),
   });
