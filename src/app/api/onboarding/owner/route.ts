@@ -57,6 +57,22 @@ const bodySchema = z.object({
   starterGroupsByVariant: z
     .record(z.array(z.string().trim().min(1).max(80)))
     .optional(),
+  /**
+   * ZAL-157: UTMs first-touch leídos por el cliente
+   * (`sessionStorage` > URL params > fallback `direct/none/...`). Validación
+   * de formato se hace en `src/lib/growth/utm.ts` antes del POST; el server
+   * vuelve a validar longitud y patrón como defensa en profundidad.
+   */
+  utm: z
+    .object({
+      utm_source: z.string().trim().min(1).max(128),
+      utm_medium: z.string().trim().min(1).max(128),
+      utm_campaign: z.string().trim().min(1).max(128),
+      utm_term: z.string().trim().min(1).max(128),
+      utm_content: z.string().trim().min(1).max(128),
+    })
+    .partial()
+    .optional(),
 });
 
 const BRANCH_PREFIX: Record<string, string> = {
@@ -196,6 +212,7 @@ export async function POST(request: Request) {
           getCountryNameFromCode(parsed.data.countryCode),
         region: parsed.data.region,
         city: parsed.data.city,
+        utm: parsed.data.utm,
       },
       {
         profile: {
@@ -408,6 +425,9 @@ export async function POST(request: Request) {
         parsed.data.countryCode,
       academyType: setup.result.academyType,
       disciplineVariant: parsed.data.disciplineVariant,
+      utm_source: parsed.data.utm?.utm_source ?? null,
+      utm_medium: parsed.data.utm?.utm_medium ?? null,
+      utm_campaign: parsed.data.utm?.utm_campaign ?? null,
     },
   });
 

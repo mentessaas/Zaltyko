@@ -112,47 +112,75 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     <ToastContext.Provider value={value}>
       {children}
       <div className="pointer-events-none fixed bottom-4 right-4 z-[2000] flex w-full max-w-md flex-col gap-3 px-4 sm:bottom-6 sm:right-6 sm:px-0">
-        {toasts.map((toast) => {
-          const config = variantConfig[toast.variant];
-          const Icon = config.icon;
-          
-          return (
-            <div
-              key={toast.id}
-              className={cn(
-                "pointer-events-auto animate-in slide-in-from-right-full overflow-hidden rounded-lg border-l-4 shadow-lg transition-all duration-300",
-                config.borderColor,
-                config.bgColor
-              )}
-            >
-              <div className="flex items-start gap-3 px-4 py-3">
-                <Icon className={cn("h-5 w-5 shrink-0 mt-0.5", config.iconColor)} />
-                <div className="flex-1 min-w-0">
-                  <p className={cn("text-sm font-semibold", config.textColor)}>{toast.title}</p>
-                  {toast.description && (
-                    <p className={cn("mt-1 text-sm", config.textColor, "opacity-80")}>
-                      {toast.description}
-                    </p>
-                  )}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => dismissToast(toast.id)}
-                  className={cn(
-                    "shrink-0 rounded p-1 transition-colors hover:bg-black/5 dark:hover:bg-white/5",
-                    config.textColor,
-                    "opacity-60 hover:opacity-100"
-                  )}
-                  aria-label="Cerrar notificación"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-          );
-        })}
+        <ToastLiveRegion
+          aria-live="polite"
+          toasts={toasts.filter((t) => t.variant === "info" || t.variant === "success")}
+          onDismiss={dismissToast}
+        />
+        <ToastLiveRegion
+          aria-live="assertive"
+          toasts={toasts.filter((t) => t.variant === "error" || t.variant === "warning")}
+          onDismiss={dismissToast}
+        />
       </div>
     </ToastContext.Provider>
+  );
+}
+
+interface ToastLiveRegionProps {
+  toasts: ToastDefinition[];
+  onDismiss: (id: string) => void;
+  "aria-live": "polite" | "assertive";
+}
+
+function ToastLiveRegion({ toasts, onDismiss, "aria-live": ariaLive }: ToastLiveRegionProps) {
+  if (toasts.length === 0) return null;
+  const role = ariaLive === "assertive" ? "alert" : "status";
+  return (
+    <div role={role} aria-live={ariaLive} aria-atomic="true" className="flex flex-col gap-3">
+      {toasts.map((toast) => (
+        <ToastItem key={toast.id} toast={toast} onDismiss={onDismiss} />
+      ))}
+    </div>
+  );
+}
+
+function ToastItem({ toast, onDismiss }: { toast: ToastDefinition; onDismiss: (id: string) => void }) {
+  const config = variantConfig[toast.variant];
+  const Icon = config.icon;
+
+  return (
+    <div
+      className={cn(
+        "pointer-events-auto animate-in slide-in-from-right-full overflow-hidden rounded-lg border-l-4 shadow-lg transition-all duration-300",
+        config.borderColor,
+        config.bgColor
+      )}
+    >
+      <div className="flex items-start gap-3 px-4 py-3">
+        <Icon className={cn("h-5 w-5 shrink-0 mt-0.5", config.iconColor)} aria-hidden="true" />
+        <div className="flex-1 min-w-0">
+          <p className={cn("text-sm font-semibold", config.textColor)}>{toast.title}</p>
+          {toast.description && (
+            <p className={cn("mt-1 text-sm", config.textColor, "opacity-80")}>
+              {toast.description}
+            </p>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={() => onDismiss(toast.id)}
+          className={cn(
+            "shrink-0 rounded p-1 transition-colors hover:bg-black/5 dark:hover:bg-white/5",
+            config.textColor,
+            "opacity-60 hover:opacity-100"
+          )}
+          aria-label="Cerrar aviso"
+        >
+          <X className="h-4 w-4" aria-hidden="true" />
+        </button>
+      </div>
+    </div>
   );
 }
 

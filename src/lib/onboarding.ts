@@ -21,6 +21,21 @@ import {
 import { getOptionalEnvVar, isTest } from "./env";
 import type { DatabaseClient } from "./db-transactions";
 
+/**
+ * Re-export del gate de envío para que el integrador de d0/d2/d7 lo
+ * consuma desde el módulo de onboarding sin acoplar a la ubicación física
+ * del helper. ZAL-328 (spec v0.2 §6 + ZAL-315 §3.3 #4).
+ */
+export {
+  isAcademyBlockedFromSending,
+  academyMayReceiveOnboardingEmail,
+  getAcademySendingEligibilityBulk,
+  BLOCKED_SENDING_STATUS_VALUES,
+  describeBlockingReason,
+  type AcademySendingEligibility,
+  type AcademySendingBlockReason,
+} from "./academy-status";
+
 function shouldSkipOnboardingAutomation() {
   return (
     getOptionalEnvVar("DISABLE_ONBOARDING_AUTOMATIONS") === "true" || isTest()

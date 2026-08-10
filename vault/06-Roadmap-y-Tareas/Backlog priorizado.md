@@ -1,7 +1,7 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-07-18
+last_reviewed: 2026-08-03
 source:
   - ../PRODUCT-ANALYSIS.md
   - ../BUSINESS-ANALYSIS.md
@@ -16,6 +16,56 @@ source:
 ---
 
 # Backlog priorizado
+
+## Revisión semanal de prioridades — 2026-08-03 (ZAL-239)
+
+**Medición PM 2026-08-03 17:25Z:** 108 issues abiertas, 27 de meta-trabajo (25 %).
+Mejor ratio que a las 13:30Z (37 %) pero solo porque el denominador creció, no porque el numerador baje.
+La cadena de productivity reviews y peer-verifications se auto-replica: ZAL-252, ZAL-253 y ZAL-254
+creadas en los últimos 90 minutos. 21 de 62 blocked mencionan SHA/codeGates/peer-verif/maintainer (34 %).
+**Único punto de palanca estructural:** ZAL-231 (PR con SHA `51e740b70` ya commiteado, falta push humano).
+**Palanca operativa inmediata:** approval `acd8185b-4a8f-42a9-8ce2-51263ca56cbc` (`request_board_approval`)
+pendiente de decisión — flipear `recovery.pause.codeGates` a `false` destrabaría 21 issues de un golpe.
+
+**Medición del reparto de esfuerzo sobre 115 issues abiertas: 60 de meta-trabajo contra 42 de producto (52 % vs 37 %).**
+Peor que la medición del board del 2026-08-02. En paralelo: 58 issues bloqueadas, 7 de
+14 agentes ociosos y burn en 1.186,71 USD sobre un budget de 1.000 (118,7 %).
+De las 58 bloqueadas, ~30 no esperaban a nadie externo: esperaban la mecánica del gate.
+
+Orden de prioridad vigente. El criterio es uno solo: **¿esto le cambia algo a una
+academia que usa Zaltyko?** Si la respuesta es no, va después de lo que sí.
+
+1. **Activación** — que una academia que se registra llegue a usar el producto.
+   ZAL-138 (magic links primeras atletas, Web Developer), ZAL-137, ZAL-139/141,
+   ZAL-140 (baseline TTFAA), ZAL-328 (status semánticas academy churned/fraud_hold,
+   P&S — schema + helper + filter done, pendiente peer review del Web Developer),
+   ZAL-329/330/331 (child issues derivados de ZAL-328).
+2. **Cobros** — que Zaltyko pueda cobrar. Bloqueada entera a la espera de secretos
+   de sandbox del board: ZAL-42 → ZAL-2/3/10/13/14/25/27/44.
+3. **GTM y evidencia real de mercado** — ZAL-186 (señales de activación reales),
+   ZAL-187 (ICP vs academias reales), ZAL-188 (entrevistas), ZAL-128 (roadmap Q3-Q4,
+   Product Lead), ZAL-129 (competidores, Marketing).
+4. **Instrumentación de tracking** — ZAL-156 a ZAL-160, ZAL-202. El gate de privacidad
+   ya está cerrado; lo que queda es ejecución.
+5. **Móvil** — ZAL-189/190/212/214. Bloqueada a la espera de la cuenta Expo. Si no
+   llega esta semana, se congela para no seguir gastando en una línea que no avanza.
+6. **Corrección del gate** — una sola línea: ZAL-215 (`operation_verification`),
+   ZAL-224 (`review_no_code`), ZAL-231 (exención de productivity reviews). No se abren
+   más issues de auditoría sobre la auditoría.
+
+**Cancelado por decisión de priorización:** la cadena de productivity/watchdog reviews
+(ZAL-145, ZAL-146 directas; ZAL-222/223/226/227/228/238 y ZAL-234 delegadas).
+Regla vigente: una review que no produce trabajo accionable para producto se cierra,
+no se escala.
+
+**Deuda y riesgo nuevos detectados en esta revisión:**
+
+| Riesgo | Detalle | Owner |
+|---|---|---|
+| El CEO no puede ejecutar priorización | `PATCH`/`POST comments` devuelven 403 sobre issues asignadas a otros agentes. Toda decisión que toca trabajo ajeno cuesta una issue extra de delegación. | Board (escalado 2026-08-03) |
+| Entregable verificado que no se puede cerrar | F1+F2 terminado y con QA PASS (SHA `994a8da94`), pero ZAL-70/71 devuelven 409. Sin ruta de override auditada. | Board (escalado 2026-08-03) |
+| Burn sobre presupuesto | 118,7 % del budget mensual, con el overrun originado en reintentos y auto-auditoría, no en producto. | Board (escalado 2026-08-03) |
+| Capacidad ociosa | 7 de 14 agentes idle mientras 42 issues de producto esperan. Los 4 agentes activos estaban todos en maquinaria del gate. | CEO — corregido parcialmente en esta revisión |
 
 ## Cierre integral de objeciones del director — 2026-07-23
 
@@ -39,6 +89,8 @@ bloqueados.
 
 | Estado | Tarea | Dueño | Criterio de aceptación | Evidencia |
 |---|---|---|---|---|
+| Alerta board 2026-08-03 | Burn mensual supera 1.000 USD y exige decisión sobre `monthBudgetCents` | Board/operador autorizado; CEO no autoriza nuevos gastos | Board decide entre (a) elevar `monthBudgetCents` por encima de 1.084 USD, (b) recortar runs no críticos manteniendo el budget, (c) aceptar overrun y revisar al cierre del mes. El CEO mantiene la política de no comprar créditos, no elevar planes ni modificar el Token Plan hasta que el board se pronuncie en [ZAL-13](/ZAL/issues/ZAL-13) o vía `request_board_approval` | Panel de compañía 2026-08-03 00:38Z: `monthSpendCents=108368` (`1.083,68 USD`) sobre `monthBudgetCents=100000` (`108,37 %`). Salto de 884,49 USD a 1.083,68 USD en <24h por 142 runs con `provider_quota` el 2026-08-02. Alerta propagada en [ZAL-149](/ZAL/issues/ZAL-149) comment `6fec83a8-52f1-43cf-88ea-10c5d66f0686` y en `Decisiones.md` `## 2026-08-03 - Burn mensual supera el umbral operativo y requiere decisión board` |
+| Bloqueado externo 2026-08-02 | Crear/vincular el proyecto Expo/EAS de Zaltyko y ejecutar el primer development build en dispositivo físico. | Platform & Security: crear Organization Expo `zaltyko`, custodiar el acceso y facilitar sesión autenticada o `secret_ref`; Mobile: ejecutar `eas init` y build development; QA: dispositivo | `eas init --account zaltyko --non-interactive` escribe `expo.owner` y un `expo.extra.eas.projectId` real; entorno EAS development configurado; APK development instalado y abierto en Android físico; auth Bearer y navegación por rol entregadas a QA. | Board autorizó development el 2026-08-02. `npx eas-cli@21.4.0 whoami` devuelve `Not logged in` (exit 1); no hay sesión ni `secret_ref`. Código local preparado en `mobile/` y guía exacta en `mobile/docs/PRIMER_DEVELOPMENT_BUILD.md`. Preview/production/submit fuera de alcance. |
 | Resuelto 2026-07-16 | Cerrar bypass de permisos para membership baseline sin rol personalizado. | Sol | Deny-by-default; owner/coach/parent/athlete/viewer/super_admin probados por método y academia; ninguna ruta sensible depende de navegación. | 506/506 Vitest; suites `authz-*`, tenant resolver y membership cross-academy. AUTH-001/ROLE-001/MT-001 cerrados. |
 | Resuelto 2026-07-16 | Cerrar los 32 resource scopes dinámicos marcados por el auditor. | Sol | Cada ruta demuestra tenant, academia, capability y ownership/asignación/participant/self con negativa BOLA; contador manual-review a 0 o excepción documentada. | 292 rutas; `resourceScopeManualReview=0`; 49/49 focalizadas; `docs/audit/API_AUTHORIZATION_MATRIX.md`. |
 | Resuelto 2026-07-16 | Reparar e integrar las suites API sensibles excluidas de Vitest. | Sol | Athletes, classes/sessions/attendance, billing y tenancy pasan bajo un harness compatible; ningún test crítico queda skipped/excluded. | 86 archivos y 618/618 tests bajo gate normal y `test:security`; sin exclusiones Vitest. Envelopes, endpoints 410, Stripe, tenancy y TSX actualizados. |
@@ -94,6 +146,7 @@ bloqueados.
 | Nuevo 2026-07-16 | Restaurar contrato canónico de `/` y eliminar overflow del cluster. | Terra + Luna | Decisión landing/redirect explícita; canonicals correctos; sin scroll horizontal 320/375/768/1440. | `docs/audit/UI_UX_AUDIT.md` UI-001. |
 | Nuevo 2026-07-16 | Validar TLS DB y readiness de entorno/rate limit. | Sol | CA confiable; deploy falla si una feature habilitada no tiene env; KV/WAF comprobado. | `docs/audit/SECURITY_AUDIT.md` SEC-003/005. |
 | Nuevo 2026-07-16 | Recuperar baseline Vitest y supply-chain scan. | Terra + Sol | 479/479 y auditoría productiva válida/SBOM en CI. | `docs/audit/LOCAL_SETUP.md` TEST-001/SEC-007. |
+| Nuevo 2026-07-29 | SCA/3DS sin flujo de recuperación: el 409 `REQUIRES_ACTION` no devuelve `clientSecret` ni `recoveryUrl`, así que ni owner ni familia pueden completar la autenticación desde el producto (se les remite a la app del banco). Además `/api/family/charges/[id]/pay` responde con `NextResponse.json` crudo en vez de `apiError` (sin `code`/`message`), y el cliente depende del literal `error === "REQUIRES_ACTION"`. | tech/cobros | El handler propaga el `clientSecret` del PaymentIntent (o una URL de recuperación firmada); dashboard owner y portal familia disparan `stripe.confirmCardPayment` y refrescan el cargo. Ruta familia migrada a `apiError`. QA verifica con tarjeta de test 3DS de Stripe. | ZAL-9. Contrato actual congelado en `tests/api/charges-collect-handler.test.ts` (9/9 verde) — ese test falla a propósito cuando se añada el campo, para forzar su actualización. **Resuelto 2026-07-29 por ZAL-10**: 409 incluye `details: { paymentIntentId, clientSecret, stripeAccountId }`; fronts `StudentChargesTab` y `MyPaymentsWidget` llaman `confirmScaChallenge`; familia migrado a `apiError`/`apiSuccess` (literal `error === "REQUIRES_ACTION"` preservado); `collectCharge` reusa el PaymentIntent existente (cero doble cobro). Cobertura: 12/12 handler + 21/21 service integration + 38/38 family payments. Pendiente QA E2E con `4000 0027 6000 3184`. |
 
 | Estado                                        | Tarea                                                                                                                                                                            | Dueño                 | Criterio de aceptacion                                                                                                                                                                                                                      | Pruebas/Evidencia                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -176,6 +229,7 @@ bloqueados.
 | AI churn predictor y recepcionista virtual WhatsApp (Fase 3, inspirado en WellnessLiving/Amilia).                    | producto          | Pendiente plan tecnico; referencia: seccion 9.4 y 9.7 de [[../../docs/marketing/zaltyko-competitors]].                                   |
 | Website builder y federation-ready architecture (Fase 3+, inspirado en Uplifter/Amilia).                             | producto/tech     | Pendiente RFC; referencia: seccion 9.3-9.4 de [[../../docs/marketing/zaltyko-competitors]].                                              |
 | Modulo de competiciones con acta digital (Fase 3, inspirado en Clupik).                                              | producto          | Pendiente plan tecnico; referencia: seccion 9.9 de [[../../docs/marketing/zaltyko-competitors]].                                         |
+| Unificar el codigo de error 401 en la API. `withTenant` (`src/lib/authz.ts`, 3 sitios) y `src/lib/authz/errors.ts` devuelven `UNAUTHENTICATED`; ~50 rutas sin wrapper devuelven `UNAUTHORIZED` para el mismo caso (sin sesion), y `API_ERROR_CODES` en `src/lib/constants.ts` solo declara `UNAUTHORIZED`. Lo semanticamente correcto es `UNAUTHENTICATED`=401 / `UNAUTHORIZED`=403, asi que el fix es migrar las rutas sueltas, no el wrapper. Requiere QA de auth: cambia el contrato de respuesta que consumen web y movil. | tech              | Detectado en ZAL-15 al corregir el drift del test de `collect` 401. Hoy ninguna suite cubre ambos codigos a la vez.                      |
 
 ## Auditoria tecnica 2026-06-25/26 — Puntos abiertos
 
@@ -216,7 +270,8 @@ Trabajo de auditoria mergeado a `security/audit-remediation` via **PR #8 (`cf092
 - **Media / Luna:** ejecutar axe/teclado/zoom 400% cuando exista autorización para Playwright y sesiones aisladas; no afirmar WCAG AA antes de ello.
 - **Media / Sol:** generar SBOM en CI y bloquear advisories explotables; mantener `pnpm audit` como gate después del override de `protobufjs`.
 - **Resuelto 2026-07-21 / Sol:** promover y verificar las migraciones RLS Día 2/3 en Supabase con ledger y rollback revisados. Pendiente: PostgREST/Realtime y least-privilege secundario.
-- **Crítica / Sol/Terra:** completar paridad externa Vercel KV/WAF/alertas y Stripe sandbox/rotación/SCA, con evidencia read-only o sandbox. Brevo ya está configurado y responde HTTP 200; queda verificar entrega con remitente aprobado sin enviar campañas.
+- **Crítica / Sol/Terra:** completar paridad externa Vercel KV/WAF/alertas y Stripe sandbox/rotación/SCA, con evidencia read-only o sandbox. Brevo ya **no** forma parte de este pendiente: entrega verificada el 2026-07-29 (ZAL-11, ver Changelog) con DKIM `brevo1/brevo2._domainkey` publicados, return-path `mail.zaltyko.com` y 3 filas `email_logs.status='sent'` del 2026-07-28.
+- **Media / Terra:** publicar registro SPF (`v=spf1 include:spf.brevo.com ~all`) en el ápex de `zaltyko.com`. Hoy el SPF solo existe en el subdominio `mail.zaltyko.com`; el dominio raíz no declara política, así que no hay defensa contra spoofing del `MAIL FROM` en `@zaltyko.com`, y DMARC está en `p=none` (solo monitorización). No bloquea la entrega actual: DKIM alinea y DMARC pasa vía DKIM.
 - **Media / Luna:** obtener sesiones aisladas por rol y autorización para axe/Playwright antes de afirmar WCAG AA o cerrar UI-003/A11Y-001.
 - **Media / Sol:** configurar bucket Supabase privado, URLs firmadas/proxy autorizado y escaneo antimalware para uploads; validar descarga anónima denegada.
 - **Baja / Terra:** archivar o etiquetar documentos históricos que aún describen NextAuth; no reintroducir `NEXTAUTH_*` en nuevos entornos.

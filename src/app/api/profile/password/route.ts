@@ -3,6 +3,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { logger } from "@/lib/logger";
+import { checkPwnedPassword } from "@/lib/security/pwned-password";
 
 const ChangePasswordSchema = z.object({
   currentPassword: z.string().min(1),
@@ -26,6 +27,25 @@ export async function PATCH(request: Request) {
     }
 
     const body = ChangePasswordSchema.parse(await request.json());
+
+    // Defense-in-depth: rechazar contraseñas comprometidas ANTES de tocar
+    // Supabase. El formulario cliente también las rechaza, pero un cliente
+    // arbitrario puede saltarse esa validación y llegar aquí con un body
+    // construido a mano. HIBP (k-anonymity) sólo envía el prefijo de 5
+    // caracteres del hash — la contraseña completa nunca sale del proceso.
+    const pwned = await checkPwnedPassword(body.newPassword);
+    if (pwned.pwned) {
+      return apiError(
+        "PASSWORD_PWNED",
+        "Esta contraseña aparece en filtraciones públicas conocidas. Elige otra contraseña para mantener tu cuenta segura.",
+        400
+      );
+    }
+    if (pwned.unavailable) {
+      // Fail-open: la API externa estaba caída. Log para que el equipo de
+      // seguridad pueda alertar, pero no bloqueamos al usuario.
+      logger.warn("HIBP password check unavailable; allowing password change");
+    }
 
     // Verificar contraseña actual
     const { error: signInError } = await supabase.auth.signInWithPassword({

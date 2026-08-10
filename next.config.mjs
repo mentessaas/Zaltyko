@@ -123,7 +123,7 @@ const nextConfig = {
 };
 
 // Wrap Next.js config with Sentry
-export default withSentryConfig(nextConfig, {
+const sentryConfig = withSentryConfig(nextConfig, {
   // For all available options, see:
   // https://github.com/getsentry/sentry-webpack-plugin#options
 
@@ -149,3 +149,9 @@ export default withSentryConfig(nextConfig, {
     automaticVercelMonitors: true,
   },
 });
+
+// Sentry 10.64 injects this experimental option, which breaks Next's internal
+// Pages Router error prerender on Next 15.5.21 (`/_error` -> `/404`).
+delete sentryConfig.experimental?.clientTraceMetadata;
+
+export default sentryConfig;
