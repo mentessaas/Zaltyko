@@ -50,6 +50,7 @@ export async function getUserSubscription(userId: string): Promise<ActiveSubscri
       planCode: plans.code,
       athleteLimit: plans.athleteLimit,
       academyLimit: plans.academyLimit,
+      stripeSubscriptionId: subscriptions.stripeSubscriptionId,
       status: subscriptions.status,
     })
     .from(subscriptions)
@@ -57,7 +58,10 @@ export async function getUserSubscription(userId: string): Promise<ActiveSubscri
     .where(eq(subscriptions.userId, userId))
     .limit(1);
 
-  const hasAccess = hasSubscriptionAccess(row?.status);
+  const hasAccess = hasSubscriptionAccess({
+    stripeSubscriptionId: row?.stripeSubscriptionId,
+    status: row?.status,
+  });
   const planCode = hasAccess
     ? ((row?.planCode as PlanCode | undefined) ?? "free")
     : "free";

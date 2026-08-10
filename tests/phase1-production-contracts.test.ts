@@ -135,9 +135,15 @@ describe("Phase 1 production contracts", () => {
   });
 
   it("does not grant paid access for an abandoned or incomplete Checkout", () => {
-    expect(hasSubscriptionAccess("incomplete")).toBe(false);
-    expect(hasSubscriptionAccess("active")).toBe(true);
-    expect(hasSubscriptionAccess("past_due")).toBe(true);
+    expect(
+      hasSubscriptionAccess({ stripeSubscriptionId: null, status: "incomplete" })
+    ).toBe(false);
+    expect(
+      hasSubscriptionAccess({ stripeSubscriptionId: "sub_123", status: "active" })
+    ).toBe(true);
+    expect(
+      hasSubscriptionAccess({ stripeSubscriptionId: "sub_123", status: "past_due" })
+    ).toBe(true);
     expect(
       isSubscriptionManaged({ stripeSubscriptionId: "sub_123", status: "incomplete" })
     ).toBe(true);

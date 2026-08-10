@@ -3,6 +3,17 @@ status: active
 owner: producto
 last_reviewed: 2026-07-18
 source:
+
+## 2026-08-10 - Engineering: acceso de suscripción requiere respaldo Stripe (ZAL-542)
+
+- `hasSubscriptionAccess` ahora exige simultáneamente un estado con acceso y un `stripe_subscription_id` no nulo; se actualizaron sus consumidores server-side para pasar ambos campos.
+- `getEstimatedMRR` filtra suscripciones `active` sin respaldo Stripe. `src/lib/growth/dashboard.ts` ya tenía ese filtro y se conserva sin duplicarlo.
+- Se añadieron cuatro pruebas focales para `active`/`trialing`/`canceled` con y sin `stripe_subscription_id`, y se actualizó el contrato existente de Fase 1.
+- Evidencia local: `pnpm test tests/lib/subscription-status.test.ts` → 4/4 PASS; suite combinada con el contrato de Fase 1 → 11/11 PASS; ESLint focal → 0 errores y 1 warning preexistente en `src/lib/limits.ts`.
+- `pnpm typecheck` sigue fallando por baseline ajeno en `mobile/` (módulos ausentes, tipos React Native y casing `Button`/`button`) y `src/app/api/support/tickets/[id]/responses/route.ts` (`FormData.get`); no reporta errores en los archivos tocados por ZAL-542.
+- No se tocaron datos, migraciones remotas, producción, Stripe live ni secretos. La limpieza de las dos filas huérfanas y el CHECK constraint quedan fuera de este cambio.
+
+Vault: actualizado este changelog; `Estado actual de Zaltyko.md`, `Decisiones.md` y `Backlog priorizado.md` no requieren cambio adicional.
   - ../ROADMAP.md
   - ../AGENTS.md
 ---
