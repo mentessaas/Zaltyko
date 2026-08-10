@@ -370,8 +370,8 @@ export function AttendanceReport({
             </div>
             <div className="space-y-2">
               <Label htmlFor="sport-config-id">Rama / modalidad</Label>
-              <Select value={sportConfigId || "all"} onValueChange={(value) => setSportConfigId(value === "all" ? "" : value)}>
-                <SelectTrigger id="sport-config-id">
+              <Select id="sport-config-id" value={sportConfigId || "all"} onValueChange={(value) => setSportConfigId(value === "all" ? "" : value)}>
+                <SelectTrigger>
                   <SelectValue placeholder="Todas las ramas" />
                 </SelectTrigger>
                 <SelectContent>
@@ -405,8 +405,8 @@ export function AttendanceReport({
             {reportType === "athlete" && (
               <div className="space-y-2">
                 <Label htmlFor="athlete-id">{terms.athlete}</Label>
-                <Select value={athleteId || "all"} onValueChange={(value) => setAthleteId(value === "all" ? "" : value)}>
-                  <SelectTrigger id="athlete-id">
+                <Select id="athlete-id" value={athleteId || "all"} onValueChange={(value) => setAthleteId(value === "all" ? "" : value)}>
+                  <SelectTrigger>
                     <SelectValue placeholder={`Selecciona ${athleteTermLower}`} />
                   </SelectTrigger>
                   <SelectContent>
@@ -423,8 +423,8 @@ export function AttendanceReport({
             {reportType === "group" && (
               <div className="space-y-2">
                 <Label htmlFor="group-id">{terms.group}</Label>
-                <Select value={groupId || "all"} onValueChange={(value) => setGroupId(value === "all" ? "" : value)}>
-                  <SelectTrigger id="group-id">
+                <Select id="group-id" value={groupId || "all"} onValueChange={(value) => setGroupId(value === "all" ? "" : value)}>
+                  <SelectTrigger>
                     <SelectValue placeholder={`Selecciona ${groupTermLower}`} />
                   </SelectTrigger>
                   <SelectContent>

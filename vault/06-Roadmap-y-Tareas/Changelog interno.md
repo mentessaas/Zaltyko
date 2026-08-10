@@ -1,13 +1,79 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-08-02
+last_reviewed: 2026-08-10
 source:
   - ../ROADMAP.md
   - ../AGENTS.md
 ---
 
 # Changelog interno
+
+## 2026-08-10 - ZAL-494 [UI] ui/select no expone opciones: desplegables pintan vacíos
+
+Hallazgo **PV-1 (P0)** del recorrido `provider` auditado en `vault/03-Negocio/RESEARCH/ZAL-427 auditoria UX recorrido provider 2026-08-10.md` §2 (SHA `a784a0ca2`). `src/components/ui/select.tsx` envolvía los `<SelectTrigger>` y `<SelectContent>` en `<div>`s, así que los `<option>` no eran hijos directos del `<select>`; `HTMLSelectElement.options` los ignoraba y el proveedor no podía elegir Categoría en `MarketplaceForm` ni Prioridad/Categoría en `AnnouncementForm`. Mismo componente aceptaba `id` en `<SelectTrigger>`, dejando huérfanos los `<Label htmlFor>` (PV-11, WCAG 1.3.1 y 4.1.2).
+
+**Decisión técnica (mínima, sin reemplazar el wrapper por un listbox accesible):** mantener la API pública (`Select`/`SelectTrigger`/`SelectContent`/`SelectValue`/`SelectItem`) y proyectar los `<option>` como hijos directos del `<select>`. `Select` aplana los hijos en `React.Children.forEach`: si encuentra un `<SelectTrigger>` extrae `className`/`id` y los aplica al `<select>` real (PV-11), y reemplaza el nodo por sus hijos; los demás hijos (incluido `<SelectContent>`, ahora Fragment) se conservan. `SelectItem` deja de fijar `selected` (React 18+ avisa y el `<select>` controlado ya marca el match). `SelectValue` pasa a Fragment para silenciar `validateDOMNesting` por `<span>` dentro de `<select>`.
+
+**Cambios:**
+
+- `src/components/ui/select.tsx` — reescrito: flatten de `SelectTrigger`, `SelectContent` y `SelectValue` ahora Fragments/`null`, `id` y `className` se aplican al `<select>` real.
+- 7 callers actualizados para mover `id` de `<SelectTrigger>` a `<Select>` (consumidores con `<Label htmlFor>`): `AnnouncementForm.tsx` (2), `AttendanceReport.tsx` (3), `ProgressReport.tsx` (1), `DocumentUploadModal.tsx` (1).
+- `tests/ui-select-options.test.tsx` — 6 tests verdes (jsdom + @testing-library/react): opciones como hijos directos del `<select>`, lista larga tipo MarketplaceForm (11 categorías), selección por teclado vía `userEvent.selectOptions`, id pasado por `<Select>`, id heredado de `<SelectTrigger>` para compat, y asociación `<Label htmlFor>` → `<select>` real.
+- Lint y typecheck de los 5 ficheros tocados limpios. Errores preexistentes en `mobile/` (RN 0.86 casing/types) y `src/app/api/support/tickets/[id]/responses/route.ts` (FormData) no relacionados; no se tocaron.
+
+**Evidencia de verificación:**
+
+- `pnpm test tests/ui-select-options.test.tsx tests/components-critical.test.tsx` → 16/16 PASS.
+- Sonda `expect(container.querySelector("select").options.length).toBe(2)` que fallaba en `a784a0ca2` ahora pasa.
+- `<Label htmlFor="category">Categoría</Label>` resuelve a `screen.getByLabelText("Categoría")` (era el `<div>` anterior, ahora apunta al `<select>` real).
+
+**Radio vivo:** 28 archivos importaban `SelectTrigger`; los 7 con `id` se migraron en este cambio. Los ~20 con `className` (anchos `w-[Xpx]`) siguen funcionando: `Select` reenvía `triggerClassName` al `<select>`, así que la apariencia no se pierde. No se tocó pricing, RLS, migraciones, secretos, producción ni publicación.
+
+**Pendiente para QA:** validar visualmente que ningún desplegable del producto perdió su tamaño (sólo los `<SelectTrigger className="w-[180px]">`-style siguen aplicando al `<select>` real, ahora `w-full` por defecto más el override). Sugerido: añadir a `tests/e2e-zaltyko-full.spec.ts` un flujo `MarketplaceForm` que rellene Categoría y confirme que el POST sale con `category` no vacío.
+
+## 2026-08-09 - ZAL-481 piloto Web/Mobile: bloqueadores de tooling y dominio resueltos
+
+Se revisó el recorrido mínimo de acceso, configuración de academia, primer registro operativo y trial Starter/billing con datos sintéticos/locales. El corte compatible queda deliberadamente separado: Web mantiene creación/configuración de academia, activación de trial y checkout/portal owner-only; Mobile usa los contratos backend existentes para login/perfil y operación diaria del coach (sesiones, asistencia y evaluación). Mobile no duplica lógica server-only ni ofrece billing SaaS administrativo en la app nativa.
+
+**Bloqueadores reproducidos y resolución:**
+
+- **Mobile no verificable por instalación incompleta:** `mobile/` no tenía dependencias instaladas; `tsc`, Vitest y ESLint fallaban antes de compilar (`expo/tsconfig.base` ausente y `--ext` inválido en ESLint 9). Se ejecutó `npm ci` local (sin modificar lockfile), se corrigieron `lint`/`lint:fix` al formato ESLint flat y el tooling quedó verde.
+- **Mobile abría el alias antiguo:** el fallback y la plantilla `EXPO_PUBLIC_API_BASE_URL` apuntaban a `https://app.zaltyko.com`, mientras la URL canónica y universal links del proyecto son `https://zaltyko.com`. Se alinearon `mobile/lib/auth/supabase.ts` y `mobile/.env.example`; no se leyeron ni modificaron variables externas.
+- **No bloqueador funcional descartado:** no se encontró un fallo reproducible en los contratos de claim de owner, creación/listado de sesiones, asistencia, autenticación/autorización, planes o trial. Los 43 tests Web focales pasan.
+
+**Evidencia local/sandbox:**
+
+- Mobile: `npm run typecheck` PASS; `npm test -- --run` PASS, 2 archivos/13 tests; `npm run lint` PASS; `npx expo export --platform web` PASS.
+- Web/backend: Vitest focal PASS, 7 archivos/43 tests (`owner-claim`, auth completa, sesiones, asistencia, billing plans, trial lifecycle y billing integration).
+- Web UI local: Playwright Chromium público PASS, 2/2 tests (`tests/e2e-zaltyko-public.spec.ts`), incluyendo sitemap/robots y formulario de contacto local.
+- `npm audit --omit=dev` de Mobile sigue reportando 9 high/17 moderate transitorias en la cadena Expo/Metro. No se ejecutó `npm audit fix --force`: propone downgrade mayor de Expo y es riesgo de plataforma separado, no se mezcló con el bloqueador del piloto.
+
+**Handoff:** release candidate local listo para revisión independiente de QA/Platform & Security. No se ejecutaron producción, migraciones remotas, Stripe live, secretos, datos reales ni publicación. Pendiente antes de cualquier build distribuido: confirmar que el pipeline de Mobile inyecte `EXPO_PUBLIC_API_BASE_URL=https://zaltyko.com` y realizar la validación humana de dispositivo; el código ya tiene fallback canónico.
+
+Vault: actualizado `Changelog interno.md`; sin cambio de dirección de producto ni migración.
+
+## 2026-08-09 - ZAL-462 auditoría operativa CEO y limpieza de gates fantasma
+
+Se revisó el flujo de trabajo completo contra Paperclip, la vault y el estado de git, manteniendo cambios paralelos sin revertir.
+
+**Evidencia actual de operación:**
+
+- Paperclip: 99 issues abiertas (`60 blocked`, `27 in_review`, `2 in_progress`, `1 todo`, `9 backlog`).
+- Costes: `/costs/summary` devuelve `407699` centavos sobre cap `1000000` (`40,77%`). El dato `167,97%` de la auditoría del 2026-08-04 queda etiquetado como snapshot histórico de la aprobación `3a992918-ddcb-487a-8dfb-fcd8772f57fd`; no se elevó un nuevo approval porque el gasto actual está bajo 80%.
+- La rama local `zal-45-gate-disponibilidad-pais` está 8 commits por delante de `origin`; existen cambios ajenos sin commit en la vault y se conservaron.
+- La señal de balance por texto de issues sigue siendo mala: 77 issues contienen lenguaje de control/gobernanza frente a 63 con lenguaje de producto. Es una heurística de triage, no evidencia de adopción ni readiness.
+
+**Acciones ejecutadas:**
+
+- [ZAL-156](/ZAL/issues/ZAL-156): se eliminó la dependencia fantasma de Gemita, se pasó a `todo` y se reasignó la aceptación funcional a Product Lead.
+- [ZAL-158](/ZAL/issues/ZAL-158): se reemplazó el gate de privacidad de Hermin por Platform & Security y se pasó a `todo`.
+- [ZAL-191](/ZAL/issues/ZAL-191): se eliminó la referencia operativa a Gemita y se pasó a `todo` para triage de Marketing.
+- [ZAL-138](/ZAL/issues/ZAL-138) no se desbloqueó porque su bloqueo vigente es C-2 SHA real; [ZAL-140](/ZAL/issues/ZAL-140) ya estaba cerrada.
+
+**Decisión operativa:** producto primero; `blocked` solo con dependencia real y acción nombrada; `in_review` solo con reviewer/interacción/monitor persistente; SHA + peer para código y cambios sensibles; sin no-op/C-2 repetitivo para docs, copy, briefs u operaciones no-code verificables. Los límites de producción, dinero real, datos personales, secretos y publicación externa no cambian.
+
+**Vault:** actualizadas `Decisiones.md`, `Changelog interno.md` y `Backlog priorizado.md`.
 
 ## 2026-08-08 - ZAL-158 [GTM-DEP.2] corte 1 schema/RLS-only entregado, pendiente C-2
 

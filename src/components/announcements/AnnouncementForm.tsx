@@ -138,12 +138,13 @@ export function AnnouncementForm({ open, onClose, academyId, onSuccess }: Announ
             <div className="space-y-2">
               <Label htmlFor="priority">Prioridad</Label>
               <Select
+                id="priority"
                 value={formData.priority}
                 onValueChange={(value) =>
                   setFormData({ ...formData, priority: value })
                 }
               >
-                <SelectTrigger id="priority">
+                <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -159,12 +160,13 @@ export function AnnouncementForm({ open, onClose, academyId, onSuccess }: Announ
             <div className="space-y-2">
               <Label htmlFor="category">Categoría</Label>
               <Select
+                id="category"
                 value={formData.category}
                 onValueChange={(value) =>
                   setFormData({ ...formData, category: value })
                 }
               >
-                <SelectTrigger id="category">
+                <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
