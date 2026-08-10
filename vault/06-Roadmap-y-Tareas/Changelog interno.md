@@ -7579,3 +7579,10 @@ OK
 ```
 
 Vault: actualizado `Changelog interno.md`; no cambian `Decisiones.md`, `Pricing.md`, `Mensajes aprobados.md` ni `Backlog priorizado.md`.
+
+## 2026-08-10 - ZAL-296: corrección de evidencia del failover router dry-run
+
+- Se corrigió el router per-agent de Paperclip para emitir `logger.warn` estructurado con `event: "provider_failover"`, `phase: "skip"` y `reason: "max_attempts_zero"` cuando una declaración opta por cero intentos. El comportamiento dry-run no cambia: el breaker no se muta y el adaptador primario sigue siendo el ejecutado.
+- Se añadió `vault/02-Tecnologia/ZAL-296 failover router dry-run log format.md` con los contratos `info`/`warn`, motivos de descarte y agregación `jq` para la matriz de observación.
+- Evidencia local: 19/19 tests de `execution-router.test.ts` y 17/17 tests de `agent.test.ts` pasan; C-1 actualizado en ZAL-296 sobre SHA `e946c78d1e92d800ddc6445847942104c992a7b4`.
+- La peer-verification C-2 independiente queda pendiente en [ZAL-334](/ZAL/issues/ZAL-334) sobre el SHA actualizado. No se activó modo live, no se tocaron proveedores, secretos, producción ni cupos de cuota.
