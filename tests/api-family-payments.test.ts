@@ -710,6 +710,7 @@ describe("API /api/family/charges/[chargeId]/pay", () => {
     const response = await POST(request);
 
     expect(response.status).toBe(409);
+    expect(response.headers.get("Cache-Control")).toBe("private, no-store");
     expect((await response.json()).error).toBe("REQUIRES_ACTION");
   });
 

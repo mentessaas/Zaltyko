@@ -27,6 +27,11 @@ export interface ApiErrorResponse {
   details?: unknown;
 }
 
+export interface ApiErrorOptions {
+  headers?: HeadersInit;
+  statusText?: string;
+}
+
 export type ApiResponse<T = unknown> = ApiSuccessResponse<T> | ApiErrorResponse;
 
 // ============================================
@@ -65,7 +70,13 @@ export function apiCreated<T>(data: T, meta?: ResponseMeta): NextResponse<ApiSuc
  * Usage: return apiError('NOT_FOUND', 'Resource not found', 404)
  *        return apiError('VALIDATION_ERROR', 'Invalid data', 400, { field: 'email' })
  */
-export function apiError(code: string, message: string, status: number, details?: unknown): NextResponse<ApiErrorResponse> {
+export function apiError(
+  code: string,
+  message: string,
+  status: number,
+  details?: unknown,
+  options?: ApiErrorOptions
+): NextResponse<ApiErrorResponse> {
   return NextResponse.json(
     {
       ok: false,
@@ -74,7 +85,11 @@ export function apiError(code: string, message: string, status: number, details?
       message,
       ...(details !== undefined ? { details } : {}),
     } as ApiErrorResponse,
-    { status }
+    {
+      status,
+      ...(options?.headers ? { headers: options.headers } : {}),
+      ...(options?.statusText ? { statusText: options.statusText } : {}),
+    }
   );
 }
 
