@@ -42,6 +42,21 @@ import { expect, test, type APIRequestContext, type Page } from "@playwright/tes
  *   6. Tarjeta de prueba: `pm_card_visa` (success), `pm_card_chargeCustomerFail`
  *      (rechazo), o `pm_card_authenticationRequired` (SCA).
  *
+ * Runbook reproducible (verificado 2026-08-10, 7/7 verde en chromium):
+ *   E2E_ALLOW_PROVISIONING=true pnpm tsx scripts/prepare-e2e-auth.ts
+ *   E2E_ALLOW_PROVISIONING=true pnpm tsx scripts/prepare-e2e-family-auth.ts
+ *   E2E_FAMILY_EMAIL=e2e-family@zaltyko.test E2E_FAMILY_PASSWORD=$E2E_AUTH_PASSWORD \
+ *     E2E_FAMILY_STORAGE_STATE=.auth/family.json E2E_OWNER_STORAGE_STATE=.auth/owner.json \
+ *     pnpm test:e2e:auth
+ *   E2E_ALLOW_PROVISIONING=true pnpm tsx scripts/seed-e2e-charge.ts   # imprime chargeId
+ *   E2E_STRIPE_CONNECT_FLOW=1 E2E_LIVE_STRIPE=1 E2E_CHARGE_ID=<chargeId> \
+ *     E2E_FAMILY_STORAGE_STATE=.auth/family.json E2E_OWNER_STORAGE_STATE=.auth/owner.json \
+ *     pnpm test:e2e:stripe
+ *
+ *   Playwright NO carga `.env.local` para este spec: `E2E_ACADEMY_ID`, `CRON_SECRET`
+ *   y los storage states deben venir en el entorno del proceso o los 5 tests de
+ *   contrato se saltan en silencio.
+ *
  * Variables leídas:
  *   - E2E_STRIPE_CONNECT_FLOW=1   habilita la suite (sin esto, se salta).
  *   - E2E_ACADEMY_ID              academia demo (uuid).
