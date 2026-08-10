@@ -169,6 +169,7 @@ describe("POST /api/charges/[chargeId]/collect — contrato HTTP", () => {
 
     // === STATUS ===
     expect(response.status).toBe(409);
+    expect(response.headers.get("Cache-Control")).toBe("private, no-store");
 
     const body = await response.json();
 
@@ -214,6 +215,7 @@ describe("POST /api/charges/[chargeId]/collect — contrato HTTP", () => {
     );
 
     expect(response.status).toBe(409);
+    expect(response.headers.get("Cache-Control")).toBe("private, no-store");
     const body = await response.json();
     expect(body.error).toBe("REQUIRES_ACTION");
     expect(body).not.toHaveProperty("details");
@@ -252,6 +254,7 @@ describe("POST /api/charges/[chargeId]/collect — contrato HTTP", () => {
     );
 
     expect(response.status).toBe(409);
+    expect(response.headers.get("Cache-Control")).toBeNull();
     const body = await response.json();
     expect(body).toMatchObject({
       ok: false,
@@ -357,6 +360,7 @@ describe("POST /api/family/charges/[chargeId]/pay — contrato SCA del portal fa
     );
 
     expect(response.status).toBe(409);
+    expect(response.headers.get("Cache-Control")).toBe("private, no-store");
     const body = await response.json();
 
     // `MyPaymentsWidget.payCharge` sigue comparando `json.error === "REQUIRES_ACTION"`

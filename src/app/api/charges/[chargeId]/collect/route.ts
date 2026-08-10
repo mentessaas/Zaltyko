@@ -66,7 +66,8 @@ const collectHandler = withTenant(async (request, context) => {
               // PI cuando off-session lanza `authentication_required`.
               paymentMethodId: result.paymentMethodId,
             }
-          : undefined
+          : undefined,
+        { headers: { "Cache-Control": "private, no-store" } }
       );
     }
     if (result.status === "skipped") {

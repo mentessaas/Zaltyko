@@ -17,10 +17,65 @@ export interface LogContext {
   [key: string]: unknown;
 }
 
+const REDACTED_VALUE = "[REDACTED]";
+const SENSITIVE_KEYS = new Set(["clientSecret", "client_secret"]);
+
+/**
+ * Clona un valor de logging y redacciona secretos SCA aunque estén anidados
+ * dentro de arrays u objetos. Los ciclos se reemplazan para que la propia
+ * protección no vuelva a fallar al serializar el contexto.
+ */
+export function redactSensitive<T>(value: T): T {
+  const seen = new WeakSet<object>();
+
+  const redact = (current: unknown, key?: string): unknown => {
+    if (key && SENSITIVE_KEYS.has(key)) {
+      return REDACTED_VALUE;
+    }
+    if (current === null || typeof current !== "object") {
+      return current;
+    }
+    if (seen.has(current)) {
+      return "[Circular]";
+    }
+    seen.add(current);
+
+    if (Array.isArray(current)) {
+      return current.map((item) => redact(item));
+    }
+    if (current instanceof Date) {
+      return current.toISOString();
+    }
+
+    return Object.fromEntries(
+      Object.entries(current).map(([property, child]) => [property, redact(child, property)])
+    );
+  };
+
+  return redact(value) as T;
+}
+
+export function redactError(error: Error): Error {
+  const sanitized = new Error(error.message);
+  sanitized.name = error.name;
+  sanitized.stack = error.stack;
+
+  for (const [key, value] of Object.entries(error)) {
+    Object.defineProperty(sanitized, key, {
+      value: SENSITIVE_KEYS.has(key) ? REDACTED_VALUE : redactSensitive(value),
+      enumerable: true,
+      configurable: true,
+      writable: true,
+    });
+  }
+
+  return sanitized;
+}
+
 class Logger {
   private formatMessage(level: LogLevel, message: string, context?: LogContext): string {
     const timestamp = new Date().toISOString();
-    const contextStr = context ? ` ${JSON.stringify(context)}` : "";
+    const contextStr = context ? ` ${JSON.stringify(redactSensitive(context))}` : "";
     return `[${timestamp}] [${level.toUpperCase()}] ${message}${contextStr}`;
   }
 
@@ -30,25 +85,26 @@ class Logger {
     }
 
     try {
+      const safeContext = redactSensitive(context);
       if (error instanceof Error) {
-        Sentry.captureException(error, {
+        Sentry.captureException(redactError(error), {
           level,
-          tags: context as Record<string, string>,
+          tags: safeContext as Record<string, string>,
           extra: {
             message,
-            ...context,
+            ...safeContext,
           },
         });
       } else {
         Sentry.captureMessage(message, {
           level,
-          tags: context as Record<string, string>,
-          extra: context,
+          tags: safeContext as Record<string, string>,
+          extra: safeContext,
         });
       }
     } catch (sentryError) {
       // Fallback a console si Sentry falla
-      console.error("Failed to send to Sentry:", sentryError);
+      console.error("Failed to send to Sentry:", redactSensitive(sentryError));
     }
   }
 
@@ -72,14 +128,14 @@ class Logger {
   }
 
   error(message: string, error?: Error | unknown, context?: LogContext): void {
-    const errorContext: LogContext = {
+    const errorContext = redactSensitive<LogContext>({
       ...context,
       error: error instanceof Error ? {
         message: error.message,
         stack: error.stack,
         name: error.name,
       } : String(error),
-    };
+    });
     console.error(this.formatMessage(LogLevel.ERROR, message, errorContext));
     
     // Enviar errores a Sentry en producción

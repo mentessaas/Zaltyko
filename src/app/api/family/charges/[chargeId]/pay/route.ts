@@ -60,7 +60,8 @@ export async function POST(request: Request) {
               // limpia del PI cuando off-session exige SCA).
               paymentMethodId: result.paymentMethodId,
             }
-          : undefined
+          : undefined,
+        { headers: { "Cache-Control": "private, no-store" } }
       );
     }
     if (result.status === "skipped") {
