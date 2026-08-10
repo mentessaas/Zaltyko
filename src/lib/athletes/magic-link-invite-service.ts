@@ -13,6 +13,7 @@ import { escapeHtml } from "@/lib/email/escape-html";
 import { getAppUrl } from "@/lib/env";
 import { trackEvent } from "@/lib/analytics";
 import { logger } from "@/lib/logger";
+import { isAcademyBlockedFromSending } from "@/lib/academy-status";
 
 export const ATHLETE_INVITE_BULK_MAX = 10;
 export const ATHLETE_INVITE_DEFAULT_EXPIRES_DAYS = 7;
@@ -207,6 +208,26 @@ export async function createAthleteInviteBatch(
   // Recover `original` semantics: validateAndNormalizeEmails returns
   // { original, email } for valid items; restore the original text.
   const normalizedFull = normalized.map((n) => ({ original: n.original, email: n.email }));
+
+  // No generar ni reenviar magic links para academias suspendidas, churned o
+  // en revisión de fraude. Los links ya emitidos no se revocan aquí: este gate
+  // controla únicamente nuevas emisiones y reenvíos.
+  const eligibility = await isAcademyBlockedFromSending(input.academyId);
+  if (eligibility.blocked) {
+    return {
+      results: [],
+      sent: 0,
+      resent: 0,
+      skipped: 0,
+      errors: [
+        ...errors,
+        ...normalizedFull.map(({ original }) => ({
+          email: original,
+          reason: `ACADEMY_STATUS_BLOCKED:${eligibility.reason ?? "not_found"}`,
+        })),
+      ],
+    };
+  }
 
   const results: AthleteInviteResultItem[] = [];
 

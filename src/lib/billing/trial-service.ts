@@ -5,6 +5,7 @@ import { academies, academyTrials, plans, profiles, subscriptions } from "@/db/s
 import { sendEmail } from "@/lib/brevo";
 import { recordGrowthEvent } from "@/lib/growth/events";
 import { logger } from "@/lib/logger";
+import { isAcademyBlockedFromSending } from "@/lib/academy-status";
 import { createNotification } from "@/lib/notifications/notification-service";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import {
@@ -278,6 +279,16 @@ export async function notifyTrialOwner(params: {
     message,
     data: { academyId: params.academyId, href: `/app/${params.academyId}/billing` },
   });
+
+  const eligibility = await isAcademyBlockedFromSending(params.academyId);
+  if (eligibility.blocked) {
+    logger.warn("Trial email omitido: academia no elegible", {
+      academyId: params.academyId,
+      kind: params.kind,
+      reason: eligibility.reason,
+    });
+    return;
+  }
 
   try {
     const supabase = getSupabaseAdminClient();

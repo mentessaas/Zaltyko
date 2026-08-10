@@ -8,6 +8,7 @@ import { profiles, academies } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { logger } from "@/lib/logger";
 import { apiSuccess, apiError } from "@/lib/api-response";
+import { isAcademyBlockedFromSending } from "@/lib/academy-status";
 
 const BodySchema = z.object({
   academyId: z.string().uuid(),
@@ -53,6 +54,15 @@ export async function POST(request: Request) {
       .limit(1);
 
     const academyName = academy?.name || "tu academia";
+
+    const eligibility = await isAcademyBlockedFromSending(academyId);
+    if (eligibility.blocked) {
+      return apiError(
+        "ACADEMY_EMAIL_BLOCKED",
+        "La academia no puede recibir este email en su estado actual",
+        409
+      );
+    }
 
     // Enviar email de bienvenida
     await sendEmail({

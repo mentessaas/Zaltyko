@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -50,7 +50,8 @@ async function contactHandler(request: Request, context?: { params?: Promise<{ i
         and(
           eq(academies.id, id),
           eq(academies.isPublic, true),
-          eq(academies.isSuspended, false)
+          eq(academies.isSuspended, false),
+          sql`${academies.status} NOT IN ('churned', 'fraud_hold')`
         )
       )
       .limit(1);

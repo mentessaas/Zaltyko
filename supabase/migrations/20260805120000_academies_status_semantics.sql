@@ -28,7 +28,13 @@
 BEGIN;
 
 -- -----------------------------------------------------------------------------
--- 1) Enum-style check constraint (idempotente por si re-ejecuta el ledger)
+-- 1) Columna de status (debe existir antes del CHECK)
+-- -----------------------------------------------------------------------------
+ALTER TABLE academies
+  ADD COLUMN IF NOT EXISTS status text NOT NULL DEFAULT 'active';
+
+-- -----------------------------------------------------------------------------
+-- 2) Enum-style check constraint (idempotente por si re-ejecuta el ledger)
 -- -----------------------------------------------------------------------------
 ALTER TABLE academies
   DROP CONSTRAINT IF EXISTS academies_status_values_check;
@@ -38,11 +44,8 @@ ALTER TABLE academies
   CHECK (status IN ('active', 'trial', 'suspended', 'churned', 'fraud_hold'));
 
 -- -----------------------------------------------------------------------------
--- 2) Columnas aditivas (todas idempotentes con IF NOT EXISTS)
+-- 3) Columnas aditivas (todas idempotentes con IF NOT EXISTS)
 -- -----------------------------------------------------------------------------
-ALTER TABLE academies
-  ADD COLUMN IF NOT EXISTS status text NOT NULL DEFAULT 'active';
-
 ALTER TABLE academies
   ADD COLUMN IF NOT EXISTS status_updated_at timestamptz;
 
