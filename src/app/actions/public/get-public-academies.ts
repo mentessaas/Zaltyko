@@ -67,6 +67,7 @@ export async function getPublicAcademies(
   const filters: ReturnType<typeof eq | typeof ilike>[] = [
     eq(academies.isPublic, true),
     eq(academies.isSuspended, false),
+    sql`${academies.status} NOT IN ('churned', 'fraud_hold')`,
   ];
 
   if (search) {
@@ -180,7 +181,8 @@ export async function getPublicAcademies(
         .from("academies")
         .select("*", { count: "exact" })
         .eq("is_public", true)
-        .eq("is_suspended", false);
+        .eq("is_suspended", false)
+        .not("status", "in", "(churned,fraud_hold)");
       
       if (search) {
         query = query.ilike("name", `%${search}%`);

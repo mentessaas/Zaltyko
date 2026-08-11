@@ -8,7 +8,7 @@ App nativa iOS + Android para Zaltyko. Stack: **Expo SDK 57 + React Native 0.86 
 cd mobile
 npm install                # el proyecto usa npm (package-lock.json), no pnpm
 cp .env.example .env       # rellenar EXPO_PUBLIC_* con valores reales
-eas init                   # solo la primera vez, asigna EAS_PROJECT_ID
+npx eas-cli@21.4.0 init    # gate del board: crea/vincula el projectId real
 npx expo prebuild          # genera ios/ y android/
 npm run ios                # simulador iOS
 npm run android             # emulador Android
@@ -21,6 +21,11 @@ npm run build:dev             # development build (incluye dev-client)
 npm run build:preview         # build interno (TestFlight / Play internal)
 npm run build:prod            # build de producción
 ```
+
+El procedimiento exacto, gates externos y evidencia para QA están en
+[`docs/PRIMER_DEVELOPMENT_BUILD.md`](docs/PRIMER_DEVELOPMENT_BUILD.md). No uses un
+`projectId` de plantilla ni ejecutes builds/submissions de producción sin
+aprobación explícita del board.
 
 ## Verificación
 

@@ -16,6 +16,7 @@ smoke-test.ts
 /docs/
 src/app/agents
 ZaltykoMobile
+mobile
 zaltyko-branding
 .playwright-mcp
 .worktrees

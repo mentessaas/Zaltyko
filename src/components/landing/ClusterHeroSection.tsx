@@ -17,6 +17,7 @@ interface ClusterHeroSectionProps {
   countryLabel: string;
   modalitySlug: string;
   countrySlug: string;
+  available?: boolean;
 }
 
 function ClusterHeroSectionImpl({
@@ -26,8 +27,10 @@ function ClusterHeroSectionImpl({
   countryLabel,
   modalitySlug,
   countrySlug,
+  available = true,
 }: ClusterHeroSectionProps) {
   const baseUrl = getPublicSiteUrl();
+  const comingSoonLabel = locale === "es" ? "Próximamente" : "Coming soon";
 
   return (
     <section className="relative flex min-h-[70vh] items-center bg-white">
@@ -60,6 +63,12 @@ function ClusterHeroSectionImpl({
             {content.hero.badge}
           </p>
 
+          {!available && (
+            <span className="mb-4 inline-flex rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              {comingSoonLabel}
+            </span>
+          )}
+
           {/* H1 */}
           <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-bold leading-[1.05] tracking-tight text-gray-900 mb-6">
             {content.hero.headline}
@@ -71,28 +80,30 @@ function ClusterHeroSectionImpl({
           </p>
 
           {/* CTAs */}
-          <div className="flex flex-col sm:flex-row gap-4 mb-6">
-            <Link
-              href="/auth/register?role=owner"
-              className={cn(
-                buttonVariants({ variant: "default", size: "lg" }),
-                "bg-zaltyko-teal hover:bg-primary-dark text-white shadow-soft transition-all duration-300 text-base px-8 py-6 group"
-              )}
-            >
-              <Sparkles className="mr-2 h-5 w-5" />
-              {locale === "es" ? "Crear mi academia gratis" : "Create my academy for free"}
-              <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
-            </Link>
-            <Link
-              href="/pricing"
-              className={cn(
-                buttonVariants({ variant: "outline", size: "lg" }),
-                "border-zaltyko-mist text-zaltyko-navy hover:border-zaltyko-teal hover:bg-zaltyko-white text-base px-8 py-6"
-              )}
-            >
-              {locale === "es" ? "Ver planes" : "View plans"}
-            </Link>
-          </div>
+          {available && (
+            <div className="flex flex-col sm:flex-row gap-4 mb-6">
+              <Link
+                href="/auth/register?role=owner"
+                className={cn(
+                  buttonVariants({ variant: "default", size: "lg" }),
+                  "bg-zaltyko-teal hover:bg-primary-dark text-white shadow-soft transition-all duration-300 text-base px-8 py-6 group"
+                )}
+              >
+                <Sparkles className="mr-2 h-5 w-5" />
+                {locale === "es" ? "Crear mi academia gratis" : "Create my academy for free"}
+                <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+              </Link>
+              <Link
+                href="/pricing"
+                className={cn(
+                  buttonVariants({ variant: "outline", size: "lg" }),
+                  "border-zaltyko-mist text-zaltyko-navy hover:border-zaltyko-teal hover:bg-zaltyko-white text-base px-8 py-6"
+                )}
+              >
+                {locale === "es" ? "Ver planes" : "View plans"}
+              </Link>
+            </div>
+          )}
 
           {/* Trust indicators */}
           <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-zaltyko-text-secondary">

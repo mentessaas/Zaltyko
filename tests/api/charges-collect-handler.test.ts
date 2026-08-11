@@ -5,22 +5,21 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  *
  * El test de integración `tests/lib/stripe-charge-collection.integration.test.ts`
  * ya cubre el servicio (`collectCharge`) cuando el banco exige SCA y devuelve
- * `{ ok: false, status: "requires_action", paymentIntentId }`. Faltaba cubrir
- * el handler HTTP que traduce ese resultado en un 409 `REQUIRES_ACTION` para
- * el dashboard del owner (`StudentChargesTab.handleCollectCard`) y el portal
- * familia (`MyPaymentsWidget.payCharge`). Este archivo cierra ese hueco.
+ * `{ ok: false, status: "requires_action", paymentIntentId, clientSecret }`.
+ * Aquí se congela el contrato HTTP que traduce ese resultado en un 409
+ * `REQUIRES_ACTION` para el dashboard del owner (`StudentChargesTab.handleCollectCard`)
+ * y el portal familia (`MyPaymentsWidget.payCharge`).
  *
- * Además documenta —de forma honesta y reproducible— el contrato actual de la
- * respuesta: el body 409 lleva `error/code/message` pero **NO** incluye un
- * `recoveryUrl` ni un `clientSecret` accionable. El owner sí ve el texto de SCA
- * (`StudentChargesTab` propaga `body.message`), pero ni owner ni familia reciben
- * nada con lo que *completar* la autenticación: no hay handoff a Stripe.js ni
- * enlace de recuperación. Apuntado como deuda en el backlog.
+ * ZAL-10 cerró el gap que ZAL-9 documentó: el body 409 ahora incluye `details`
+ * con `clientSecret`, `stripeAccountId`, `publishableKey` y `paymentIntentId`,
+ * de forma que ambos clientes pueden lanzar `stripe.confirmCardPayment` y
+ * completar el 3DS sin salir del producto. El `client_secret` tiene scope de un
+ * solo PaymentIntent sobre la cuenta conectada — mismo modelo ya usado en
+ * `/api/family/payment-method/setup-intent` para el alta de tarjeta.
  *
- * El portal familia va por otra ruta (`/api/family/charges/[chargeId]/pay`), que
- * responde 409 con `{ error: "REQUIRES_ACTION" }` **sin** `message` ni `code`
- * (usa `NextResponse.json` crudo en vez de `apiError`). Se cubre abajo porque el
- * mensaje que ve la familia depende de ese literal exacto en `MyPaymentsWidget`.
+ * La ruta del portal familia (`/api/family/charges/[chargeId]/pay`) migró de
+ * `NextResponse.json` crudo a `apiError`/`apiSuccess`. El literal `error` se
+ * conserva porque `MyPaymentsWidget` lo compara de forma exacta.
  */
 
 const mocks = vi.hoisted(() => ({
@@ -74,6 +73,14 @@ vi.mock("@/lib/permissions", () => ({
 
 vi.mock("@/lib/stripe/charge-collection-service", () => ({
   collectCharge: (...args: any[]) => mocks.collectChargeMock(...args),
+}));
+
+// La clave publicable de Stripe viaja en el body 409 para que el cliente pueda
+// inicializar Stripe.js sobre la cuenta conectada (mismo patrón que el alta de
+// tarjeta en `/api/family/payment-method/setup-intent`).
+vi.mock("@/lib/env", () => ({
+  getOptionalEnvVar: (name: string) =>
+    name === "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY" ? "pk_test_123" : undefined,
 }));
 
 // Chain mínima de drizzle: solo el `select(...).from(...).where(...).limit(...)`
@@ -141,11 +148,14 @@ beforeEach(async () => {
 });
 
 describe("POST /api/charges/[chargeId]/collect — contrato HTTP", () => {
-  it("devuelve 409 REQUIRES_ACTION cuando el banco exige SCA (caso principal)", async () => {
+  it("devuelve 409 REQUIRES_ACTION con el clientSecret del PaymentIntent (recuperacion SCA)", async () => {
     mocks.collectChargeMock.mockResolvedValue({
       ok: false,
       status: "requires_action",
       paymentIntentId: "pi_sca_42",
+      clientSecret: "pi_sca_42_secret_abc",
+      stripeAccountId: "acct_academy_1",
+      paymentMethodId: "pm_family_1",
     });
 
     const request = new Request(
@@ -159,10 +169,11 @@ describe("POST /api/charges/[chargeId]/collect — contrato HTTP", () => {
 
     // === STATUS ===
     expect(response.status).toBe(409);
+    expect(response.headers.get("Cache-Control")).toBe("private, no-store");
 
     const body = await response.json();
 
-    // === CODE / ERROR / MESSAGE (presente en la respuesta actual) ===
+    // === CODE / ERROR / MESSAGE ===
     expect(body).toMatchObject({
       ok: false,
       error: "REQUIRES_ACTION",
@@ -170,20 +181,44 @@ describe("POST /api/charges/[chargeId]/collect — contrato HTTP", () => {
       message: expect.stringContaining("autenticación"),
     });
 
-    // === GAP DOCUMENTADO: contrato actual NO incluye recoveryUrl ni clientSecret.
-    // Sin uno de los dos, ni el owner ni la familia pueden *completar* el 3DS:
-    // sólo se les informa de que hace falta. Esto es lo que ZAL-9 levanta.
-    // Cuando se añada el flujo de recuperación, este test deberá actualizarse
-    // para exigir `recoveryUrl` o `clientSecret` (ver backlog priorizado).
-    expect(body).not.toHaveProperty("recoveryUrl");
-    expect(body).not.toHaveProperty("clientSecret");
-    expect(body).not.toHaveProperty("paymentIntentId");
-    expect(body).not.toHaveProperty("details");
+    // === ZAL-10: el 409 ya es accionable. `details` lleva todo lo que el cliente
+    // necesita para lanzar `stripe.confirmCardPayment` sobre la cuenta conectada
+    // sin sacar al usuario del producto. Incluye el `paymentMethodId` porque
+    // Stripe limpia el PM del PI cuando off-session lanza
+    // `authentication_required` y el cliente debe re-attacharlo explícitamente.
+    expect(body.details).toEqual({
+      paymentIntentId: "pi_sca_42",
+      clientSecret: "pi_sca_42_secret_abc",
+      stripeAccountId: "acct_academy_1",
+      publishableKey: "pk_test_123",
+      paymentMethodId: "pm_family_1",
+    });
 
-    // === El servicio subyacente recibió el id del cargo (es la pieza que
-    // cualquier flujo de recuperación futura necesita propagar al cliente).
+    // === El servicio subyacente recibió el id del cargo.
     expect(mocks.collectChargeMock).toHaveBeenCalledTimes(1);
     expect(mocks.collectChargeMock).toHaveBeenCalledWith("charge_1");
+  });
+
+  it("omite `details` si Stripe no devolvió client_secret (no se puede recuperar)", async () => {
+    mocks.collectChargeMock.mockResolvedValue({
+      ok: false,
+      status: "requires_action",
+      paymentIntentId: "pi_sca_43",
+      clientSecret: null,
+      stripeAccountId: "acct_academy_1",
+      paymentMethodId: "pm_family_1",
+    });
+
+    const response = await POST(
+      new Request("http://localhost/api/charges/charge_1/collect", { method: "POST" }),
+      { params: Promise.resolve({ chargeId: "charge_1" }) }
+    );
+
+    expect(response.status).toBe(409);
+    expect(response.headers.get("Cache-Control")).toBe("private, no-store");
+    const body = await response.json();
+    expect(body.error).toBe("REQUIRES_ACTION");
+    expect(body).not.toHaveProperty("details");
   });
 
   it("devuelve 200 con {status: 'paid', paymentIntentId} cuando el cobro succeeded", async () => {
@@ -219,6 +254,7 @@ describe("POST /api/charges/[chargeId]/collect — contrato HTTP", () => {
     );
 
     expect(response.status).toBe(409);
+    expect(response.headers.get("Cache-Control")).toBeNull();
     const body = await response.json();
     expect(body).toMatchObject({
       ok: false,
@@ -309,11 +345,14 @@ describe("POST /api/charges/[chargeId]/collect — contrato HTTP", () => {
 });
 
 describe("POST /api/family/charges/[chargeId]/pay — contrato SCA del portal familia", () => {
-  it("devuelve 409 {error: 'REQUIRES_ACTION'} cuando el banco exige SCA", async () => {
+  it("devuelve 409 REQUIRES_ACTION con clientSecret y formato apiError", async () => {
     mocks.collectChargeMock.mockResolvedValue({
       ok: false,
       status: "requires_action",
       paymentIntentId: "pi_sca_99",
+      clientSecret: "pi_sca_99_secret_xyz",
+      stripeAccountId: "acct_academy_1",
+      paymentMethodId: "pm_family_99",
     });
 
     const response = await FAMILY_POST(
@@ -321,22 +360,62 @@ describe("POST /api/family/charges/[chargeId]/pay — contrato SCA del portal fa
     );
 
     expect(response.status).toBe(409);
+    expect(response.headers.get("Cache-Control")).toBe("private, no-store");
     const body = await response.json();
 
-    // `MyPaymentsWidget.payCharge` compara `json.error === "REQUIRES_ACTION"`
-    // literalmente para mostrar "Tu banco pide autenticación...". Si este
-    // literal cambia, la familia cae al mensaje genérico de tarjeta rechazada.
-    expect(body.error).toBe("REQUIRES_ACTION");
+    // `MyPaymentsWidget.payCharge` sigue comparando `json.error === "REQUIRES_ACTION"`
+    // literalmente. `apiError` mantiene ese literal en `error` además de `code`.
+    expect(body).toMatchObject({
+      ok: false,
+      error: "REQUIRES_ACTION",
+      code: "REQUIRES_ACTION",
+    });
 
-    // GAP: a diferencia del handler de owner, esta ruta usa `NextResponse.json`
-    // crudo en vez de `apiError`, así que ni siquiera hay `code`/`message`/`ok`.
-    // Y tampoco hay `clientSecret`/`recoveryUrl`: la familia no puede completar
-    // el 3DS desde el portal, sólo se le pide que use su app bancaria.
-    expect(body).not.toHaveProperty("clientSecret");
-    expect(body).not.toHaveProperty("recoveryUrl");
-    expect(body).not.toHaveProperty("paymentIntentId");
-    expect(body).not.toHaveProperty("code");
-    expect(body).not.toHaveProperty("ok");
+    // ZAL-10: la familia ya puede completar el 3DS desde el portal.
+    // `paymentMethodId` viaja para que `confirmCardPayment` lo re-attach.
+    expect(body.details).toEqual({
+      paymentIntentId: "pi_sca_99",
+      clientSecret: "pi_sca_99_secret_xyz",
+      stripeAccountId: "acct_academy_1",
+      publishableKey: "pk_test_123",
+      paymentMethodId: "pm_family_99",
+    });
+  });
+
+  it("preserva los literales de error que el widget compara (NO_SAVED_CARD)", async () => {
+    mocks.collectChargeMock.mockResolvedValue({
+      ok: false,
+      status: "skipped",
+      reason: "NO_SAVED_CARD",
+    });
+
+    const response = await FAMILY_POST(
+      new Request("http://localhost/api/family/charges/charge_1/pay", { method: "POST" })
+    );
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({
+      ok: false,
+      error: "NO_SAVED_CARD",
+    });
+  });
+
+  it("devuelve 200 apiSuccess cuando el cobro succeeded sin SCA", async () => {
+    mocks.collectChargeMock.mockResolvedValue({
+      ok: true,
+      status: "paid",
+      paymentIntentId: "pi_ok_9",
+    });
+
+    const response = await FAMILY_POST(
+      new Request("http://localhost/api/family/charges/charge_1/pay", { method: "POST" })
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      ok: true,
+      data: { status: "paid" },
+    });
   });
 
   it("no llama a collectCharge si el cargo no pertenece a un hijo del usuario", async () => {

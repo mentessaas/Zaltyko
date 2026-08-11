@@ -1,5 +1,5 @@
 import Stripe from "stripe";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { billingEvents } from "@/db/schema";
@@ -20,7 +20,13 @@ export interface BillingEventClaim {
 }
 
 /**
- * Registra un evento de billing en la base de datos
+ * Registra un evento de billing en la base de datos.
+ *
+ * Comparte la deduplicacion de Stripe (stripeEventId UNIQUE) y ademas usa
+ * compare-and-swap sobre (status, lastAttemptAt) observados para evitar que
+ * dos reclaimers obtengan shouldProcess=true sobre el mismo evento: el
+ * primero gana via RETURNING, el segundo ve 0 filas y se reporta como
+ * shouldProcess=false.
  */
 export async function recordBillingEvent(event: Stripe.Event): Promise<BillingEventClaim> {
   const stripeObject = event.data.object as { id?: string };
@@ -69,7 +75,21 @@ export async function recordBillingEvent(event: Stripe.Event): Promise<BillingEv
     return { id: existing.id, shouldProcess: false, previousStatus: existing.status };
   }
 
-  await db
+  // Compare-and-swap: el WHERE fija la tupla observada (status +
+  // lastAttemptAt). Si otro worker ya reclamo el lease y avanzo a
+  // 'processing' (o cambio lastAttemptAt), esta transicion no aplica y
+  // RETURNING devuelve 0 filas. Asi garantizamos que solo UN reclaimer
+  // obtiene shouldProcess=true.
+  //
+  // Se acepta `lastAttemptAt` potencialmente null en el row leido: si la
+  // fila se acaba de crear y todavia no se ha persistido el valor, el CAS
+  // hace `lastAttemptAt IS NULL` para no perder la transicion.
+  const lastAttemptAtMatch =
+    existing.lastAttemptAt === null
+      ? sql`${billingEvents.lastAttemptAt} IS NULL`
+      : eq(billingEvents.lastAttemptAt, existing.lastAttemptAt);
+
+  const claimed = await db
     .update(billingEvents)
     .set({
       status: "processing",
@@ -78,7 +98,18 @@ export async function recordBillingEvent(event: Stripe.Event): Promise<BillingEv
       payload: event as unknown as Record<string, unknown>,
       lastAttemptAt: now,
     })
-    .where(eq(billingEvents.id, existing.id));
+    .where(
+      and(
+        eq(billingEvents.id, existing.id),
+        eq(billingEvents.status, existing.status),
+        lastAttemptAtMatch
+      )
+    )
+    .returning({ id: billingEvents.id });
+
+  if (claimed.length === 0) {
+    return { id: existing.id, shouldProcess: false, previousStatus: existing.status };
+  }
 
   return { id: existing.id, shouldProcess: true, previousStatus: existing.status };
 }

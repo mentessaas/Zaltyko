@@ -13,12 +13,14 @@ const EVENT_ID = "evt_test_failed_456";
 
 const mocks = vi.hoisted(() => {
   const chargeQueue: unknown[][] = [];
+  const state = { lastPoppedStatus: null as string | null };
   return {
     chargeQueue,
+    state,
     // No se mockea aqui: la implementacion la controlan los tests via
     // `mockImplementation` (sin .once) y el handler `setupWebhookMocks`
     // los resetea y vuelve a configurar antes de cada test.
-    pushCharge(row: unknown) {
+    pushCharge(row: any) {
       chargeQueue.push([row]);
     },
     pushNoCharge() {
@@ -26,6 +28,19 @@ const mocks = vi.hoisted(() => {
     },
     resetChargeQueue() {
       chargeQueue.length = 0;
+      state.lastPoppedStatus = null;
+    },
+    /**
+     * Devuelve `[]` cuando el cargo observado estaba en estado terminal
+     * bueno (paid/refunded) — el WHERE excluyente del UPDATE atomicamente
+     * no aplica y no debemos notificar. En cualquier otro caso devuelve
+     * una fila ficticia para simular la transicion aplicada.
+     */
+    returningForUpdate() {
+      if (state.lastPoppedStatus === "paid" || state.lastPoppedStatus === "refunded") {
+        return Promise.resolve([]);
+      }
+      return Promise.resolve([{ id: "charge_id_under_test" }]);
     },
   };
 });
@@ -85,12 +100,17 @@ vi.mock("@/db", () => {
       "offset",
       "set",
       "values",
-      "returning",
     ]) {
       chain[method] = vi.fn(() => chain);
     }
     chain.limit = vi.fn(() => {
       const next = mocks.chargeQueue.length ? mocks.chargeQueue.shift() : [];
+      const row = next[0] as { status?: string } | undefined;
+      // Guardamos el status observado para que el update chain emule el
+      // camino atomico: si ya era terminal bueno, RETURNING devuelve [].
+      if (row && typeof row.status === "string") {
+        mocks.state.lastPoppedStatus = row.status;
+      }
       return Promise.resolve(next);
     });
     return chain;
@@ -110,10 +130,10 @@ vi.mock("@/db", () => {
       "set",
       "values",
       "limit",
-      "returning",
     ]) {
       chain[method] = vi.fn(() => chain);
     }
+    chain.returning = vi.fn(() => mocks.returningForUpdate());
     return chain;
   };
 
@@ -131,12 +151,12 @@ vi.mock("@/db", () => {
       "set",
       "values",
       "limit",
-      "returning",
       "onConflictDoNothing",
       "onConflictDoUpdate",
     ]) {
       chain[method] = vi.fn(() => chain);
     }
+    chain.returning = vi.fn(() => Promise.resolve([{ id: "inserted_row_id" }]));
     return chain;
   };
 
@@ -379,6 +399,21 @@ describe("POST /api/stripe/connect/webhook — payment_intent.payment_failed", (
     );
   });
 
+  it("deja el evento en error y responde 500 si falla la notificacion al tutor", async () => {
+    mocks.pushCharge(makeChargeRow({ status: "failed" }));
+    mockSendChargePaymentFailedNotification.mockRejectedValueOnce(
+      new Error("BREVO_API_ERROR:503")
+    );
+
+    const response = await postWebhook(JSON.stringify({ type: "payment_intent.payment_failed" }));
+
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toMatchObject({ error: "PROCESSING_FAILED" });
+    expect(mockUpdateBillingEventStatus).toHaveBeenCalledWith(
+      "billing-event-1",
+      expect.objectContaining({ status: "error", errorMessage: "BREVO_API_ERROR:503" })
+    );
+  });
 
   it("devuelve 400 SIGNATURE_VERIFICATION_FAILED cuando la firma no es valida", async () => {
     mockConstructEvent.mockImplementation(() => {

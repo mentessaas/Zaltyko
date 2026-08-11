@@ -29,22 +29,10 @@ import { activateAcademySportConfig } from "@/lib/sport-config/seed";
 import { getSportConfigSeedByVariant } from "@/lib/sport-config/catalog";
 import { withTransaction } from "@/lib/db-transactions";
 import { logEvent } from "@/lib/event-logging";
-import { normalizePhoneNumber, validatePhoneNumber } from "@/lib/validation/phone";
 
 const bodySchema = z.object({
   fullName: z.string().trim().min(2).max(120),
   academyName: z.string().trim().min(3).max(120),
-  // D-006 v0 — phone es requerido en el camino fallback (no match en seed).
-  // Permitimos string vacío o null para no romper callers que todavía no lo
-  // envían (la API devolverá 400 si llega vacío cuando se marque como
-  // requerido por el cliente).
-  contactPhone: z
-    .string()
-    .trim()
-    .max(32)
-    .nullable()
-    .optional()
-    .transform((value) => (value && value.length > 0 ? value : null)),
   disciplineVariant: z.enum([
     "artistic_female",
     "artistic_male",
@@ -69,17 +57,19 @@ const bodySchema = z.object({
   starterGroupsByVariant: z
     .record(z.array(z.string().trim().min(1).max(80)))
     .optional(),
-  // ZAL-157 [GTM-DEP.1] — UTMs first-touch. Todos opcionales; si ninguno
-  // viene, el canal de registro será `direct` (resuelto por ZAL-159).
-  // Validación max 200 chars por Hermin §4 (snake_case, sin espacios).
+  /**
+   * ZAL-157: UTMs first-touch leídos por el cliente
+   * (`sessionStorage` > URL params > fallback `direct/none/...`). Validación
+   * de formato se hace en `src/lib/growth/utm.ts` antes del POST; el server
+   * vuelve a validar longitud y patrón como defensa en profundidad.
+   */
   utm: z
     .object({
-      utm_source: z.string().trim().max(200).nullable().optional(),
-      utm_medium: z.string().trim().max(200).nullable().optional(),
-      utm_campaign: z.string().trim().max(200).nullable().optional(),
-      utm_term: z.string().trim().max(200).nullable().optional(),
-      utm_content: z.string().trim().max(200).nullable().optional(),
-      utm_landing_path: z.string().trim().max(500).nullable().optional(),
+      utm_source: z.string().trim().min(1).max(128),
+      utm_medium: z.string().trim().min(1).max(128),
+      utm_campaign: z.string().trim().min(1).max(128),
+      utm_term: z.string().trim().min(1).max(128),
+      utm_content: z.string().trim().min(1).max(128),
     })
     .partial()
     .optional(),
@@ -115,22 +105,6 @@ export async function POST(request: Request) {
     return apiError(
       "INVALID_PAYLOAD",
       "Datos inválidos para crear la academia",
-      400
-    );
-  }
-
-  // D-006 v0 — validamos formato del teléfono antes de aceptar la academia.
-  // Si viene vacío, lo aceptamos (compatibilidad con callers viejos); el form
-  // cliente es el que decide si exigirlo (path fallback).
-  const normalizedPhone = parsed.data.contactPhone
-    ? normalizePhoneNumber(parsed.data.contactPhone)
-    : null;
-
-  if (parsed.data.contactPhone && !normalizedPhone) {
-    const validation = validatePhoneNumber(parsed.data.contactPhone);
-    return apiError(
-      "INVALID_PHONE",
-      validation.error ?? "Formato de teléfono inválido",
       400
     );
   }
@@ -238,12 +212,6 @@ export async function POST(request: Request) {
           getCountryNameFromCode(parsed.data.countryCode),
         region: parsed.data.region,
         city: parsed.data.city,
-        // D-006 v0 — persistimos el contacto del owner en la academia para
-        // verificación manual cuando no matcheó la seed list.
-        contactEmail: user.email ?? null,
-        contactPhone: normalizedPhone,
-        // ZAL-157 [GTM-DEP.1] — UTMs first-touch. createAcademy los persiste
-        // en `academies.utm_*`. El canal se resuelve en ZAL-159.
         utm: parsed.data.utm,
       },
       {
@@ -457,15 +425,9 @@ export async function POST(request: Request) {
         parsed.data.countryCode,
       academyType: setup.result.academyType,
       disciplineVariant: parsed.data.disciplineVariant,
-      // ZAL-157 — UTMs first-touch ya persistidos en academies por
-      // createAcademy; los devolvemos en metadata para que el funnel
-      // post-signup vea el canal sin re-leer.
-      utm: parsed.data.utm ?? null,
-      // ZAL-159 — canal de atribución derivado en `createAcademy` (la
-      // fuente canónica sigue siendo el trigger 0008). Lo exponemos en
-      // metadata para que Bumble/Data consulte el evento sin re-leer la
-      // academia.
-      canal_registro: setup.result.canalRegistro,
+      utm_source: parsed.data.utm?.utm_source ?? null,
+      utm_medium: parsed.data.utm?.utm_medium ?? null,
+      utm_campaign: parsed.data.utm?.utm_campaign ?? null,
     },
   });
 
@@ -474,9 +436,5 @@ export async function POST(request: Request) {
     redirectUrl: `/app/${setup.result.id}/dashboard`,
     tenantId: setup.result.tenantId,
     sportConfigFallback: setup.usesGenericFallback,
-    // ZAL-159 — explícito en la respuesta para que el cliente (sign-up
-    // CTA siguiente paso, p.ej. conectar Stripe) pueda etiquetar eventos
-    // sin re-leer.
-    canalRegistro: setup.result.canalRegistro,
   });
 }

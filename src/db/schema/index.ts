@@ -90,3 +90,6 @@ export * from "./leads";
 export * from "./growth-events";
 export * from "./commercial-interviews";
 export * from "./leak-profitability";
+
+// ZAL-158 [GTM-DEP.2] Server-side consent storage
+export * from "./owner-consent";

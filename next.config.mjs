@@ -25,11 +25,11 @@ const securityHeaders = [
     key: "Content-Security-Policy",
     value: [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.supabase.co https://*.stripe.com https://vercel.live https://va.vercel-scripts.com https://*.posthog.com https://*.google-analytics.com",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.supabase.co https://*.stripe.com https://vercel.live https://va.vercel-scripts.com https://*.posthog.com https://*.google-analytics.com https://browser.sentry-cdn.com https://js.sentry-cdn.com",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' data: https://fonts.gstatic.com",
       "img-src 'self' data: blob: https:",
-      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.stripe.com https://*.posthog.com https://*.google-analytics.com https://vercel.live",
+      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.stripe.com https://*.posthog.com https://*.google-analytics.com https://vercel.live https://*.sentry.io https://*.ingest.sentry.io https://*.ingest.us.sentry.io",
       "frame-src 'self' https://*.stripe.com https://*.supabase.co",
       "frame-ancestors 'none'",
       "base-uri 'self'",
@@ -39,9 +39,11 @@ const securityHeaders = [
 ];
 
 const nextConfig = {
-  // TypeScript still runs during build; ESLint runs explicitly via `pnpm lint`.
+  // El typecheck corre en el job de CI (Lint & Type Check) antes de mergear a main;
+  // repetirlo aquí agotaba el límite de build de Vercel (2 cores / 8 GB) y mataba
+  // cada deploy en "Checking validity of types" sin emitir un error.
   typescript: {
-    ignoreBuildErrors: false,
+    ignoreBuildErrors: true,
   },
   // ESLint runs via the dedicated CI job (Lint & Type Check); skip it during next build.
   eslint: {
@@ -123,7 +125,7 @@ const nextConfig = {
 };
 
 // Wrap Next.js config with Sentry
-export default withSentryConfig(nextConfig, {
+const sentryConfig = withSentryConfig(nextConfig, {
   // For all available options, see:
   // https://github.com/getsentry/sentry-webpack-plugin#options
 
@@ -149,3 +151,9 @@ export default withSentryConfig(nextConfig, {
     automaticVercelMonitors: true,
   },
 });
+
+// Sentry 10.64 injects this experimental option, which breaks Next's internal
+// Pages Router error prerender on Next 15.5.21 (`/_error` -> `/404`).
+delete sentryConfig.experimental?.clientTraceMetadata;
+
+export default sentryConfig;

@@ -42,7 +42,7 @@ function ItemImpl({ item, onPress }: Props) {
       onPress={onPress}
       style={[styles.row, unread && styles.rowUnread]}
       accessibilityRole="button"
-      accessibilityLabel={`${item.title}. ${item.message}`}
+      accessibilityLabel={`${item.title}. ${item.message}${unread ? '. No leído' : ''}`}
     >
       <View style={styles.iconBox}>
         <Ionicons name={iconForType(item.type)} size={18} color={colors.primary} />

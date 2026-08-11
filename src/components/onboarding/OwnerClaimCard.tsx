@@ -2,78 +2,55 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, ShieldCheck } from "lucide-react";
+import { Building2, Loader2, ShieldCheck } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/toast-provider";
-import { captureUtm, readUtmForSignup, clearStoredUtm } from "@/lib/gtm/utm";
 
 interface OwnerClaimCardProps {
   academyId: string;
   academyName: string;
-  city: string | null;
-  region: string | null;
-  country: string | null;
-  contactPhone: string | null;
-  suggestedFullName: string;
 }
 
-export function OwnerClaimCard({
-  academyId,
-  academyName,
-  city,
-  region,
-  country,
-  contactPhone,
-  suggestedFullName,
-}: OwnerClaimCardProps) {
+/**
+ * Tarjeta "claim academy" — se renderiza cuando el email del usuario
+ * autenticado matchea `academies.contactEmail` de una academia registrada.
+ * Single-action: un solo botón "Confirmar y entrar" → POST
+ * `/api/onboarding/owner/claim`. El endpoint hace el upsert del profile con
+ * el `tenantId` existente de la academia (NO genera uno nuevo) + advisory
+ * lock + `onConflictDoNothing` memberships.
+ *
+ * Si el caller (otro agent, doble click, race) ya creó el perfil primero,
+ * el endpoint responde 200 con redirect existente — no se duplica.
+ */
+export function OwnerClaimCard({ academyId, academyName }: OwnerClaimCardProps) {
   const router = useRouter();
   const toast = useToast();
-  const [fullName, setFullName] = useState(suggestedFullName);
   const [pending, setPending] = useState(false);
 
-  const locationLabel = [city, region, country].filter(Boolean).join(", ");
-
-  async function handleConfirm(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function handleClaim() {
     setPending(true);
-
-    // ZAL-157 [GTM-DEP.1] — capturamos UTMs en el click de claim. Si el
-    // owner llegó por una campaña (gclid en la URL del signup o
-    // sessionStorage de la landing previa), los enviamos al backend.
-    captureUtm();
-    const utm = readUtmForSignup();
-
     try {
       const response = await fetch("/api/onboarding/owner/claim", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ academyId, fullName, utm: utm ?? null }),
+        body: JSON.stringify({ academyId }),
       });
-      const payload = (await response.json().catch(() => null)) as
-        | { data?: { redirectUrl?: string } }
-        | { error?: string; message?: string }
-        | null;
+
+      const payload = await response.json().catch(() => null);
 
       if (!response.ok) {
-        throw new Error(
-          (payload && "message" in payload && payload.message) ||
-            "No se pudo reclamar la academia."
-        );
+        throw new Error(payload?.error ?? "No se pudo confirmar la academia.");
       }
 
+      const redirectUrl = payload?.data?.redirectUrl ?? `/app/${academyId}/dashboard`;
+
       toast.pushToast({
-        title: "Academia reclamada",
+        title: "Academia vinculada",
         description: "Entrando a tu espacio de trabajo.",
         variant: "success",
       });
 
-      clearStoredUtm();
-      const redirectUrl =
-        (payload && "data" in payload && payload.data?.redirectUrl) ||
-        `/app/${academyId}/dashboard`;
       router.push(redirectUrl);
       router.refresh();
     } catch (error) {
@@ -88,55 +65,50 @@ export function OwnerClaimCard({
   }
 
   return (
-    <form onSubmit={handleConfirm} className="space-y-6">
-      <div className="space-y-3">
-        <div className="flex items-start gap-3 rounded-lg border border-emerald-200 bg-emerald-50/80 p-4">
-          <ShieldCheck className="mt-0.5 h-5 w-5 text-emerald-700" />
+    <div className="space-y-6">
+      <div className="rounded-xl border bg-muted/30 p-5">
+        <div className="flex items-start gap-3">
+          <Building2 className="mt-1 h-5 w-5 text-primary" aria-hidden="true" />
           <div className="space-y-1">
-            <p className="text-sm font-medium text-emerald-900">
-              Te identificamos como dueña de {academyName}.
+            <p className="text-sm font-medium uppercase tracking-wide text-primary">
+              Academia detectada
             </p>
-            {locationLabel ? (
-              <p className="text-xs text-emerald-800">{locationLabel}</p>
-            ) : null}
-            <p className="text-xs text-emerald-800">
-              Tu email coincide con el contacto que registramos para esta academia,
-              así que no necesitas pedir código postal ni teléfono. Confirma tu
-              nombre y entra.
+            <p className="text-lg font-semibold text-foreground">{academyName}</p>
+            <p className="text-sm text-muted-foreground">
+              Encontramos una academia registrada con tu email. Confirma que es tuya para
+              entrar a tu espacio. No te pediremos teléfono ni datos adicionales.
             </p>
-            {contactPhone ? (
-              <p className="text-xs text-emerald-800">
-                Si necesitamos contactarte, usaremos {contactPhone}.
-              </p>
-            ) : null}
           </div>
         </div>
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="claimFullName">Tu nombre</Label>
-        <Input
-          id="claimFullName"
-          value={fullName}
-          onChange={(event) => setFullName(event.target.value)}
-          placeholder="Maria Garcia"
-          required
-          disabled={pending}
-          minLength={2}
-          maxLength={120}
-        />
+      <div className="flex items-start gap-3 rounded-lg border border-border bg-card p-4 text-sm">
+        <ShieldCheck className="mt-0.5 h-4 w-4 text-primary" aria-hidden="true" />
+        <p className="text-muted-foreground">
+          Si esta no es tu academia, cierra sesión y regístrate con otro email — o contacta
+          a soporte.
+        </p>
       </div>
 
-      <Button type="submit" className="w-full" disabled={pending}>
+      <Button
+        type="button"
+        className="w-full"
+        disabled={pending}
+        onClick={handleClaim}
+        data-testid="owner-claim-confirm"
+      >
         {pending ? (
           <>
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            Preparando tu academia...
+            Vinculando academia...
           </>
         ) : (
-          "Confirmar y entrar"
+          <>
+            <Building2 className="mr-2 h-4 w-4" />
+            Confirmar y entrar
+          </>
         )}
       </Button>
-    </form>
+    </div>
   );
 }

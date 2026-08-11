@@ -120,7 +120,14 @@ export function WelcomeGate({ children }: Props) {
       </View>
 
       <View style={styles.actions}>
-        {!isLast ? (
+        {step > 0 ? (
+          <Button
+            title="Atrás"
+            variant="ghost"
+            onPress={() => setStep((s) => Math.max(0, s - 1))}
+            accessibilityLabel="Volver al slide anterior"
+          />
+        ) : !isLast ? (
           <Button title="Saltar" variant="ghost" onPress={finish} />
         ) : (
           <View />

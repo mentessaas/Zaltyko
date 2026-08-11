@@ -1,8 +1,14 @@
 // Skeleton rectangular con pulso. Sin librería externa —
 // Animated.loop + opacity es suficiente para el MVP.
 
-import { memo, useEffect, useRef } from 'react';
-import { Animated, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { memo, useEffect, useState } from 'react';
+import {
+  Animated,
+  StyleSheet,
+  View,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
 
 import { colors, radii } from '@/lib/theme';
 
@@ -13,13 +19,21 @@ interface Props {
 }
 
 function SkeletonImpl({ width = '100%', height = 16, style }: Props) {
-  const opacity = useRef(new Animated.Value(0.4)).current;
+  const [opacity] = useState(() => new Animated.Value(0.4));
 
   useEffect(() => {
     const loop = Animated.loop(
       Animated.sequence([
-        Animated.timing(opacity, { toValue: 0.8, duration: 700, useNativeDriver: true }),
-        Animated.timing(opacity, { toValue: 0.4, duration: 700, useNativeDriver: true }),
+        Animated.timing(opacity, {
+          toValue: 0.8,
+          duration: 700,
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacity, {
+          toValue: 0.4,
+          duration: 700,
+          useNativeDriver: true,
+        }),
       ])
     );
     loop.start();
@@ -46,7 +60,13 @@ const styles = StyleSheet.create({
   },
 });
 
-export function SkeletonGroup({ count = 3, gap = 12 }: { count?: number; gap?: number }) {
+export function SkeletonGroup({
+  count = 3,
+  gap = 12,
+}: {
+  count?: number;
+  gap?: number;
+}) {
   return (
     <View style={{ gap }}>
       {Array.from({ length: count }).map((_, i) => (

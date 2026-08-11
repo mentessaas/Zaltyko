@@ -1,14 +1,36 @@
-import {
-  boolean,
-  index,
-  pgTable,
-  text,
-  timestamp,
-  uuid,
-} from "drizzle-orm/pg-core";
+import { boolean, index, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
 import { profiles } from "./profiles";
 import { academyTypeEnum } from "./enums";
+
+export const academyStatusValues = [
+  "active",
+  "trial",
+  "suspended",
+  "churned",
+  "fraud_hold",
+] as const;
+
+export type AcademyStatus = (typeof academyStatusValues)[number];
+
+export const academyFraudHoldReasonValues = [
+  "payment_fraud_signal",
+  "owner_identity_failure",
+  "chargeback_threshold",
+  "manual_review",
+  "other",
+] as const;
+
+export type AcademyFraudHoldReason = (typeof academyFraudHoldReasonValues)[number];
+
+export const academyChurnedReasonValues = [
+  "trial_expired_no_payment",
+  "owner_cancellation",
+  "manual_closure",
+  "other",
+] as const;
+
+export type AcademyChurnedReason = (typeof academyChurnedReasonValues)[number];
 
 export const academies = pgTable(
   "academies",
@@ -24,9 +46,7 @@ export const academies = pgTable(
     discipline: text("discipline"),
     disciplineVariant: text("discipline_variant"),
     federationConfigVersion: text("federation_config_version"),
-    specializationStatus: text("specialization_status")
-      .notNull()
-      .default("legacy"),
+    specializationStatus: text("specialization_status").notNull().default("legacy"),
     publicDescription: text("public_description"),
     isPublic: boolean("is_public").notNull().default(true),
     logoUrl: text("logo_url"),
@@ -42,14 +62,43 @@ export const academies = pgTable(
       .notNull()
       .references(() => profiles.id, { onDelete: "cascade" }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+    /**
+     * Status semántica de la academia. Modela el ciclo de vida más allá del
+     * flag binario `is_suspended`. Valores:
+     * - active:        pago al día, operativa.
+     * - trial:         trial activo, aún no configuró pagos.
+     * - suspended:     bloqueada temporalmente (típicamente por Soporte/Seguridad).
+     * - churned:       estado terminal, no se enviá emails transaccionales soft.
+     * - fraud_hold:    decisión de seguridad, congelada por sospecha de fraude.
+     *                  Decisión humana, NUNCA auto-clear (criterio B3 §3.3 v0.2).
+     *
+     * Backfill: `20260805120000_academies_status_semantics.sql` rellena las filas
+     * existentes desde `is_suspended` + `is_trial_active` durante la transición.
+     * La transición mantiene `is_suspended` como flag por compatibilidad de UI
+     * (super-admin toggle), pero el gate de envío (§6 spec v0.2) usa `status`.
+     */
+    status: text("status").notNull().default("active"),
+    statusUpdatedAt: timestamp("status_updated_at", { withTimezone: true }),
+    churnedAt: timestamp("churned_at", { withTimezone: true }),
+    churnedReason: text("churned_reason"),
+    churnedReasonNotes: text("churned_reason_notes"),
+    fraudHoldAt: timestamp("fraud_hold_at", { withTimezone: true }),
+    fraudHoldReason: text("fraud_hold_reason"),
+    fraudHoldReasonNotes: text("fraud_hold_reason_notes"),
+    fraudHoldActorId: uuid("fraud_hold_actor_id").references(() => profiles.id, {
+      onDelete: "set null",
+    }),
+    fraudHoldClearedAt: timestamp("fraud_hold_cleared_at", { withTimezone: true }),
+    fraudHoldClearedActorId: uuid("fraud_hold_cleared_actor_id").references(
+      () => profiles.id,
+      { onDelete: "set null" }
+    ),
     isSuspended: boolean("is_suspended").notNull().default(false),
     suspendedAt: timestamp("suspended_at", { withTimezone: true }),
     trialStartsAt: timestamp("trial_starts_at", { withTimezone: true }),
     trialEndsAt: timestamp("trial_ends_at", { withTimezone: true }),
     isTrialActive: boolean("is_trial_active").notNull().default(false),
-    paymentsConfiguredAt: timestamp("payments_configured_at", {
-      withTimezone: true,
-    }),
+    paymentsConfiguredAt: timestamp("payments_configured_at", { withTimezone: true }),
     // Settings extendidos
     timezone: text("timezone"),
     brandingColors: text("branding_colors"), // JSON con colores y fuentes
@@ -59,46 +108,36 @@ export const academies = pgTable(
     stripeWebhookSecret: text("stripe_webhook_secret"),
     taxId: text("tax_id"),
     invoicePrefix: text("invoice_prefix").default("INV"),
-    // ZAL-157 [GTM-DEP.1] — atribución first-touch de UTMs en signup.
-    // Taxonomía reconciliada §4 (RESEARCH/DATA_GOVERNANCE_TAXONOMY_GTM.md):
-    // google_ads, meta_ads, tiktok_ads, instagram, tiktok, facebook,
-    // linkedin, whatsapp, resend_email, google_organic, google (alias).
-    // Vacío/null = tráfico direct sin UTM.
+    /**
+     * Atribución de registro del owner (ZAL-157 [GTM-DEP.1]). Captura
+     * first-touch en sesión: el primer set de UTMs del visitante queda
+     * persistido aquí al crear la academia. Si no hay UTMs al signup se
+     * registra `direct/none/none/none/none` para mantener trazabilidad.
+     * Validación: snake_case, lowercase, sin espacios (ver
+     * `src/lib/growth/utm.ts#normalizeUtmValue`).
+     */
     utmSource: text("utm_source"),
     utmMedium: text("utm_medium"),
     utmCampaign: text("utm_campaign"),
     utmTerm: text("utm_term"),
     utmContent: text("utm_content"),
     utmCapturedAt: timestamp("utm_captured_at", { withTimezone: true }),
-    utmLandingPath: text("utm_landing_path"),
-    // ZAL-159 [GTM-DEP.3] — canal de atribución first-touch del registro.
-    // Persistido por el trigger BEFORE INSERT/UPDATE OF utm_source,utm_medium
-    // definido en `drizzle/0008_academies_canal_registro.sql`. La API TS
-    // también lo calcula vía `derivar_canal()` para devolver el valor en la
-    // respuesta sin un roundtrip extra. Regla: paid > social > email >
-    // organic > direct. UTM ausente o inválido queda en `direct`.
-    canalRegistro: text("canal_registro"),
   },
   (table) => ({
     tenantIdx: index("academies_tenant_id_idx").on(table.tenantId),
     publicIdx: index("academies_is_public_idx").on(table.isPublic),
-    locationIdx: index("academies_location_idx").on(
-      table.country,
-      table.region,
-      table.city
-    ),
+    locationIdx: index("academies_location_idx").on(table.country, table.region, table.city),
     typeIdx: index("academies_type_idx").on(table.academyType),
     countryCodeIdx: index("academies_country_code_idx").on(table.countryCode),
-    disciplineVariantIdx: index("academies_discipline_variant_idx").on(
-      table.disciplineVariant
-    ),
-    contactEmailIdx: index("academies_contact_email_idx").on(
-      table.contactEmail
-    ),
-    contactPhoneIdx: index("academies_contact_phone_idx").on(
-      table.contactPhone
+    disciplineVariantIdx: index("academies_discipline_variant_idx").on(table.disciplineVariant),
+    contactEmailIdx: index("academies_contact_email_idx").on(table.contactEmail),
+    contactPhoneIdx: index("academies_contact_phone_idx").on(table.contactPhone),
+    statusIdx: index("academies_status_idx").on(table.status),
+    statusPublicIdx: index("academies_status_public_idx").on(
+      table.status,
+      table.isPublic
     ),
     utmSourceIdx: index("academies_utm_source_idx").on(table.utmSource),
-    utmMediumIdx: index("academies_utm_medium_idx").on(table.utmMedium),
+    utmCapturedAtIdx: index("academies_utm_captured_at_idx").on(table.utmCapturedAt),
   })
 );

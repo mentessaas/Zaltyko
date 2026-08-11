@@ -1,7 +1,7 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-08-09
+last_reviewed: 2026-08-03
 source:
   - ../PRODUCT-ANALYSIS.md
   - ../BUSINESS-ANALYSIS.md
@@ -17,30 +17,55 @@ source:
 
 # Backlog priorizado
 
-## Auditoría CEO ZAL-462 — estado operativo 2026-08-09
+## Revisión semanal de prioridades — 2026-08-03 (ZAL-239)
 
-La fuente actual de costes es `/api/companies/{companyId}/costs/summary`: `407699` centavos sobre cap `1000000` (`40,77%`). El snapshot de 2026-08-04 (`167,97%` sobre cap `100000`) es histórico y no debe reutilizarse como estado actual. No hay `request_board_approval` nuevo: el umbral operativo del 80% no se alcanzó.
+**Medición PM 2026-08-03 17:25Z:** 108 issues abiertas, 27 de meta-trabajo (25 %).
+Mejor ratio que a las 13:30Z (37 %) pero solo porque el denominador creció, no porque el numerador baje.
+La cadena de productivity reviews y peer-verifications se auto-replica: ZAL-252, ZAL-253 y ZAL-254
+creadas en los últimos 90 minutos. 21 de 62 blocked mencionan SHA/codeGates/peer-verif/maintainer (34 %).
+**Único punto de palanca estructural:** ZAL-231 (PR con SHA `51e740b70` ya commiteado, falta push humano).
+**Palanca operativa inmediata:** approval `acd8185b-4a8f-42a9-8ce2-51263ca56cbc` (`request_board_approval`)
+pendiente de decisión — flipear `recovery.pause.codeGates` a `false` destrabaría 21 issues de un golpe.
 
-Reglas vigentes para priorizar:
+**Medición del reparto de esfuerzo sobre 115 issues abiertas: 60 de meta-trabajo contra 42 de producto (52 % vs 37 %).**
+Peor que la medición del board del 2026-08-02. En paralelo: 58 issues bloqueadas, 7 de
+14 agentes ociosos y burn en 1.186,71 USD sobre un budget de 1.000 (118,7 %).
+De las 58 bloqueadas, ~30 no esperaban a nadie externo: esperaban la mecánica del gate.
 
-- Priorizar issues que cambien la experiencia de una academia; no abrir tickets por heartbeats sin trabajo accionable.
-- `blocked` solo con bloqueador real, owner y acción; `in_review` solo con reviewer, interacción o monitor persistente.
-- Mantener SHA + peer independiente para código/cambios sensibles; no exigir commits no-op ni C-2 repetitivo a docs, copy, briefs y operaciones no-code verificables.
-- La referencia a Gemita quedó eliminada de los gates activos. Privacy/security corresponde a Platform & Security; aceptación funcional a Product Lead; el triage GTM a Marketing.
+Orden de prioridad vigente. El criterio es uno solo: **¿esto le cambia algo a una
+academia que usa Zaltyko?** Si la respuesta es no, va después de lo que sí.
 
-**Estado Paperclip:** 60 bloqueadas, 27 en revisión, 2 en curso, 1 listas para tomar y 9 en backlog. Esto se trata como deuda de flujo, no como readiness ni adopción del producto.
+1. **Activación** — que una academia que se registra llegue a usar el producto.
+   ZAL-138 (magic links primeras atletas, Web Developer), ZAL-137, ZAL-139/141,
+   ZAL-140 (baseline TTFAA), ZAL-328 (status semánticas academy churned/fraud_hold,
+   P&S — schema + helper + filter done, pendiente peer review del Web Developer),
+   ZAL-329/330/331 (child issues derivados de ZAL-328).
+2. **Cobros** — que Zaltyko pueda cobrar. Bloqueada entera a la espera de secretos
+   de sandbox del board: ZAL-42 → ZAL-2/3/10/13/14/25/27/44.
+3. **GTM y evidencia real de mercado** — ZAL-186 (señales de activación reales),
+   ZAL-187 (ICP vs academias reales), ZAL-188 (entrevistas), ZAL-128 (roadmap Q3-Q4,
+   Product Lead), ZAL-129 (competidores, Marketing).
+4. **Instrumentación de tracking** — ZAL-156 a ZAL-160, ZAL-202. El gate de privacidad
+   ya está cerrado; lo que queda es ejecución.
+5. **Móvil** — ZAL-189/190/212/214. Bloqueada a la espera de la cuenta Expo. Si no
+   llega esta semana, se congela para no seguir gastando en una línea que no avanza.
+6. **Corrección del gate** — una sola línea: ZAL-215 (`operation_verification`),
+   ZAL-224 (`review_no_code`), ZAL-231 (exención de productivity reviews). No se abren
+   más issues de auditoría sobre la auditoría.
 
-## Contención operativa — 2026-08-04
+**Cancelado por decisión de priorización:** la cadena de productivity/watchdog reviews
+(ZAL-145, ZAL-146 directas; ZAL-222/223/226/227/228/238 y ZAL-234 delegadas).
+Regla vigente: una review que no produce trabajo accionable para producto se cierra,
+no se escala.
 
-Estas tareas son deuda sistémica acotada; no deben desplazar producto real para academias salvo donde reducen gasto o desbloquean entrega.
+**Deuda y riesgo nuevos detectados en esta revisión:**
 
-| Prioridad | Estado | Tarea | Dueño | Criterio de aceptación |
-| --- | --- | --- | --- | --- |
-| P0 | Reconciliado 2026-08-09 | Snapshot histórico de contención de agosto y approval `3a992918-ddcb-487a-8dfb-fcd8772f57fd`; la telemetría actual está en 40,77% del cap vigente. | CEO + board | Vigilar `/costs/summary`; elevar aprobación solo desde 80% del cap actual o ante gasto externo. |
-| P0 | Bloqueado | [ZAL-290](/ZAL/issues/ZAL-290) — failover, circuit-breaker y alertas para `provider_quota`/auth vencida. | Engineering Lead | Diseño probado localmente, reintentos no acumulativos y separación de cualquier cuota/secreto externo. |
-| P0 | Resuelto 2026-08-07 | [ZAL-291](/ZAL/issues/ZAL-291) — simplificar peer-verification no-code/bajo riesgo. | Engineering Lead | Docs/copy/no-code cierran con evidencia verificable sin commit no-op ni C-2 temporizada; código sigue fail-closed. |
-| P1 | Resuelto 2026-08-05 | [ZAL-292](/ZAL/issues/ZAL-292) — reducir issues en `in_review`; la cola residual se sigue vigilando con la regla de reviewer real. | Product Lead | Cada review conserva reviewer, evidencia y próxima acción; monitores sin acción se cierran sin reemplazo. |
-| P1 | Resuelto 2026-08-04 | [ZAL-293](/ZAL/issues/ZAL-293) — redistribuir cola de Platform & Security por custodia real. | Engineering Lead | Security conserva solo custodia genuina; QA/Engineering absorben trabajo local; bloqueos falsos pasan a `todo`. |
+| Riesgo | Detalle | Owner |
+|---|---|---|
+| El CEO no puede ejecutar priorización | `PATCH`/`POST comments` devuelven 403 sobre issues asignadas a otros agentes. Toda decisión que toca trabajo ajeno cuesta una issue extra de delegación. | Board (escalado 2026-08-03) |
+| Entregable verificado que no se puede cerrar | F1+F2 terminado y con QA PASS (SHA `994a8da94`), pero ZAL-70/71 devuelven 409. Sin ruta de override auditada. | Board (escalado 2026-08-03) |
+| Burn sobre presupuesto | 118,7 % del budget mensual, con el overrun originado en reintentos y auto-auditoría, no en producto. | Board (escalado 2026-08-03) |
+| Capacidad ociosa | 7 de 14 agentes idle mientras 42 issues de producto esperan. Los 4 agentes activos estaban todos en maquinaria del gate. | CEO — corregido parcialmente en esta revisión |
 
 ## Cierre integral de objeciones del director — 2026-07-23
 
@@ -64,18 +89,19 @@ bloqueados.
 
 | Estado | Tarea | Dueño | Criterio de aceptación | Evidencia |
 |---|---|---|---|---|
+| Alerta board 2026-08-03 | Burn mensual supera 1.000 USD y exige decisión sobre `monthBudgetCents` | Board/operador autorizado; CEO no autoriza nuevos gastos | Board decide entre (a) elevar `monthBudgetCents` por encima de 1.084 USD, (b) recortar runs no críticos manteniendo el budget, (c) aceptar overrun y revisar al cierre del mes. El CEO mantiene la política de no comprar créditos, no elevar planes ni modificar el Token Plan hasta que el board se pronuncie en [ZAL-13](/ZAL/issues/ZAL-13) o vía `request_board_approval` | Panel de compañía 2026-08-03 00:38Z: `monthSpendCents=108368` (`1.083,68 USD`) sobre `monthBudgetCents=100000` (`108,37 %`). Salto de 884,49 USD a 1.083,68 USD en <24h por 142 runs con `provider_quota` el 2026-08-02. Alerta propagada en [ZAL-149](/ZAL/issues/ZAL-149) comment `6fec83a8-52f1-43cf-88ea-10c5d66f0686` y en `Decisiones.md` `## 2026-08-03 - Burn mensual supera el umbral operativo y requiere decisión board` |
+| Bloqueado externo 2026-08-02 | Crear/vincular el proyecto Expo/EAS de Zaltyko y ejecutar el primer development build en dispositivo físico. | Platform & Security: crear Organization Expo `zaltyko`, custodiar el acceso y facilitar sesión autenticada o `secret_ref`; Mobile: ejecutar `eas init` y build development; QA: dispositivo | `eas init --account zaltyko --non-interactive` escribe `expo.owner` y un `expo.extra.eas.projectId` real; entorno EAS development configurado; APK development instalado y abierto en Android físico; auth Bearer y navegación por rol entregadas a QA. | Board autorizó development el 2026-08-02. `npx eas-cli@21.4.0 whoami` devuelve `Not logged in` (exit 1); no hay sesión ni `secret_ref`. Código local preparado en `mobile/` y guía exacta en `mobile/docs/PRIMER_DEVELOPMENT_BUILD.md`. Preview/production/submit fuera de alcance. |
 | Resuelto 2026-07-16 | Cerrar bypass de permisos para membership baseline sin rol personalizado. | Sol | Deny-by-default; owner/coach/parent/athlete/viewer/super_admin probados por método y academia; ninguna ruta sensible depende de navegación. | 506/506 Vitest; suites `authz-*`, tenant resolver y membership cross-academy. AUTH-001/ROLE-001/MT-001 cerrados. |
 | Resuelto 2026-07-16 | Cerrar los 32 resource scopes dinámicos marcados por el auditor. | Sol | Cada ruta demuestra tenant, academia, capability y ownership/asignación/participant/self con negativa BOLA; contador manual-review a 0 o excepción documentada. | 292 rutas; `resourceScopeManualReview=0`; 49/49 focalizadas; `docs/audit/API_AUTHORIZATION_MATRIX.md`. |
 | Resuelto 2026-07-16 | Reparar e integrar las suites API sensibles excluidas de Vitest. | Sol | Athletes, classes/sessions/attendance, billing y tenancy pasan bajo un harness compatible; ningún test crítico queda skipped/excluded. | 86 archivos y 618/618 tests bajo gate normal y `test:security`; sin exclusiones Vitest. Envelopes, endpoints 410, Stripe, tenancy y TSX actualizados. |
 | Pendiente Día 4 | Migrar tokens de invitación a digest irreversible con transición compatible. | Sol | La base solo conserva hash; resolución y aceptación mantienen compatibilidad durante la rotación. | Hoy son UUID criptográficos de un uso y expiran, pero están almacenados en claro. |
 | Pendiente Día 4 | Añadir nonce ledger al webhook inbound Mailgun. | Sol | Un `token` firmado solo puede consumirse una vez dentro de la ventana de cinco minutos. | HMAC, timestamp y escape están cubiertos; falta replay persistente dentro de la tolerancia. |
 | Pendiente Día 4 | Completar paginación, observabilidad y destinatarios de cron. | Sol | Jobs procesan backlog sin starvation, exponen métricas/alertas y resuelven email real antes de marcar envío. | Lease y límites locales ya evitan solape; academias/backlog y email programado necesitan cierre operativo. |
-| Bloqueado externo Día 4 / reconfirmado 2026-07-29 | Repetir Stripe Connect en test mode y verificar readiness Vercel KV/Brevo. | Sol + operaciones | SCA, rechazo, refund, replay y webhook observados en deployment autorizado; Preview/Production comparan nombres de env, KV permite rutas privadas sin degradar el fail-closed y Brevo entrega. | `next start` local devolvió 429 correctamente al faltar KV. No usar dinero real ni copiar valores; requiere configuración y autorización externa. 2026-07-29: infraestructura y suite E2E ya listas (ZAL-3/ZAL-14); el único faltante son credenciales `sk_test_*`/`pk_test_*` de academia demo aislada + webhook signing secret, rastreadas en ZAL-13 y escaladas al board. Ventas congeladas hasta cierre en verde. |
+| Bloqueado externo Día 4 / confirmado 2026-07-18 | Repetir Stripe Connect en test mode y verificar readiness Vercel KV/Brevo. | Sol + operaciones | SCA, rechazo, refund, replay y webhook observados en deployment autorizado; Preview/Production comparan nombres de env, KV permite rutas privadas sin degradar el fail-closed y Brevo entrega. | `next start` local devolvió 429 correctamente al faltar KV. No usar dinero real ni copiar valores; requiere configuración y autorización externa. |
 | Parcial 2026-07-16 / migración no aplicada | Probar y endurecer RLS intratenant para familia, atleta y coach. | Sol | JWT parent solo ve hijos; athlete solo propio; coach solo asignado; academia B devuelve 0 filas/403 tanto por Data API como API servidor. Completar dominios secundarios y PostgREST local antes de cerrar. | PostgreSQL efímero real verde con rollback para Día 2 + Día 3 y roles owner/coach/parent/athlete/viewer/super-admin/anónimo; `docs/audit/RLS_SEMANTIC_MATRIX.md`. MT-002/003 siguen parciales hasta PostgREST/Realtime y promoción. |
 | Parcial 2026-07-16 / migración no aplicada | Completar least privilege RLS en comunicación, eventos hijos, finanzas secundarias y diagnóstico. | Sol | Ninguna tabla tenant-wide concede más que el rol/recurso requerido; matriz Data API cubre cada dominio y Realtime. | Comunicación tiene `academy_id` y policies versionadas; faltan promoción revisada, PostgREST/Realtime y los demás dominios. |
 | Parcial 2026-07-16 / migración no aplicada | Eliminar tablas de producto en `public` sin RLS. | Sol | Los diez catálogos deportivos tienen RLS y grants mínimos; `__drizzle_migrations` es la única excepción interna aprobada. | Migración Día 2 + PostgreSQL aislado verde; `verify:permissive-policies` debe quedar verde después de la promoción revisada. |
 | Nuevo 2026-07-16 | Medir presupuesto de conexiones Supavisor/Vercel antes de alterar `DATABASE_POOL_MAX=5`. | tech/DB | Observabilidad documenta clientes/backend, p95 y saturación; el presupuesto por instancia cabe en el límite real con margen. | Panel Supabase/Vercel sin registrar secretos ni consultas mutantes. |
-| Resuelto 2026-08-10 | ZAL-496 — `userId`/`sellerType` del POST /api/marketplace salen del schema y se derivan server-side. | Web Dev | Publicar desde `/marketplace/nuevo` ya no devuelve 400 por campos que el usuario no puede ver; `userId` insertado coincide con la sesión (anti-IDOR); `sellerType` refleja el rol del perfil (provider/coach/athlete/academy/external). | Hallazgo PV-3 de la auditoría ZAL-427 (SHA `a784a0ca2`). `tests/api-marketplace.test.ts` 10/10 PASS; `pnpm lint` limpio; typecheck sin nuevos errores. Pendiente: PV-2 del mismo audit (POST exige tenant, provider no tiene) sigue bloqueando a `provider` en el recorrido real. |
 
 | Estado | Tarea | Dueño | Criterio de aceptación | Pruebas/Evidencia |
 | --- | --- | --- | --- | --- |
@@ -196,7 +222,6 @@ bloqueados.
 
 | Tarea                                                                                                                | Dueño             | Evidencia                                                                                                                                |
 | -------------------------------------------------------------------------------------------------------------------- | ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| Alinear copy público de acrobática y trampolín con producto real (follow-up ZAL-22).                                 | marketing/content | Brief `vault/04-Marketing/Brief - Copy acrobática y trampolín.md`; issue [ZAL-38](/ZAL/issues/ZAL-38). No depende de la decisión `2026-07-29` (ventas congeladas) porque es corrección de promesa, no campaña. |
 | Profundizar SEO localizado e i18n.                                                                                   | marketing/tech    | [[SEO y geo]].                                                                                                                           |
 | Definir add-ons monetizables.                                                                                        | negocio/producto  | [[Modelo de negocio]].                                                                                                                   |
 | Crear playbooks de CS por plan.                                                                                      | ventas            | [[Customer success]].                                                                                                                    |

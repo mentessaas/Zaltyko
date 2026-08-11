@@ -1,5 +1,5 @@
 import Stripe from "stripe";
-import { eq, or } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
 
 import { db } from "@/db";
 import { charges } from "@/db/schema";
@@ -24,7 +24,6 @@ interface ChargeLookup {
 }
 
 async function findChargeForPaymentIntent(pi: Stripe.PaymentIntent): Promise<ChargeLookup | null> {
-  const metaChargeId = pi.metadata?.chargeId;
   const [row] = await db
     .select({
       id: charges.id,
@@ -37,11 +36,9 @@ async function findChargeForPaymentIntent(pi: Stripe.PaymentIntent): Promise<Cha
       stripeAccountId: charges.stripeAccountId,
     })
     .from(charges)
-    .where(
-      metaChargeId
-        ? or(eq(charges.id, metaChargeId), eq(charges.stripePaymentIntentId, pi.id))
-        : eq(charges.stripePaymentIntentId, pi.id)
-    )
+    // El PaymentIntent persistido es la autoridad de lookup. La metadata se
+    // valida después contra esa misma fila y nunca puede seleccionar otra.
+    .where(eq(charges.stripePaymentIntentId, pi.id))
     .limit(1);
   return row ?? null;
 }
@@ -105,44 +102,67 @@ export async function reconcilePaymentIntentSucceeded(
 
 export async function reconcilePaymentIntentFailed(
   pi: Stripe.PaymentIntent,
-  eventAccountId: string | null
+  eventAccountId: string | null,
+  stripeEventId?: string
 ): Promise<void> {
   const charge = await findChargeForPaymentIntent(pi);
   if (!charge) return;
   assertPaymentIntentContext(charge, pi, eventAccountId);
-  // Un fallo tardio no debe revertir un cargo ya pagado o reembolsado.
-  if (charge.status === "paid" || charge.status === "refunded") return;
 
-  await db
+  // Transicion atomica: el WHERE excluye estados terminales buenos
+  // (paid/refunded) y devuelve la fila solo si efectivamente la transicion
+  // aplico. Esto cierra el TOCTOU entre el SELECT inicial y el UPDATE:
+  // un cargo que pasa a paid/refunded entre ambas llamadas NO sera
+  // sobrescrito por un fallo tardio.
+  //
+  // El estado previo observado puede ser `pending`, `failed` (caso real de
+  // ZAL-8: cargo ya en failed por rechazo sincrono del collect) o cualquier
+  // estado no terminal; todos permiten la notificacion. La deduplicacion
+  // real de la entrega se delega a email_logs.idempotency_key (UNIQUE).
+  const now = new Date();
+  const updated = await db
     .update(charges)
     .set({
       status: "failed",
       stripePaymentIntentId: pi.id,
-      lastAttemptAt: new Date(),
-      updatedAt: new Date(),
+      lastAttemptAt: now,
+      updatedAt: now,
     })
-    .where(eq(charges.id, charge.id));
+    .where(
+      and(
+        eq(charges.id, charge.id),
+        ne(charges.status, "paid"),
+        ne(charges.status, "refunded")
+      )
+    )
+    .returning({ id: charges.id });
 
-  try {
-    await sendChargePaymentFailedNotification({
+  if (updated.length === 0) {
+    // El cargo ya esta en estado terminal bueno (paid/refunded) en el
+    // momento del UPDATE: una transicion concurrente gano. No notificamos
+    // porque ya no es un fallo real para el cliente.
+    logger.info("payment_intent.payment_failed omitido: cargo en estado terminal bueno", {
       chargeId: charge.id,
-      tenantId: charge.tenantId,
-      academyId: charge.academyId,
-      athleteId: charge.athleteId,
-      amountCents: charge.amountCents,
-      currency: charge.currency || "eur",
       paymentIntentId: pi.id,
-      failureReason:
-        pi.last_payment_error?.decline_code ?? pi.last_payment_error?.code ?? "payment_failed",
+      stripeEventId,
     });
-  } catch (error) {
-    logger.error("payment_intent.failed notification delivery failed", error, {
-      chargeId: charge.id,
-      tenantId: charge.tenantId,
-      academyId: charge.academyId,
-      paymentIntentId: pi.id,
-    });
+    return;
   }
+
+  await sendChargePaymentFailedNotification({
+    chargeId: charge.id,
+    tenantId: charge.tenantId,
+    academyId: charge.academyId,
+    athleteId: charge.athleteId,
+    amountCents: charge.amountCents,
+    currency: charge.currency,
+    paymentIntentId: pi.id,
+    stripeEventId: stripeEventId ?? null,
+    failureReason:
+      pi.last_payment_error?.decline_code ??
+      pi.last_payment_error?.code ??
+      "payment_failed",
+  });
 }
 
 export async function reconcilePaymentIntentCanceled(

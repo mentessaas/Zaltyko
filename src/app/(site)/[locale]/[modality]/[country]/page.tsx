@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Locale } from "@/i18n";
 import {
-  AVAILABLE_MODALITIES,
   MODALITIES,
   COUNTRIES,
+  AVAILABLE_MODALITIES,
   getClusterContent,
   getRelatedByModality,
   getRelatedByCountry,
@@ -20,33 +20,6 @@ import { getPublicSiteUrl } from "@/lib/seo/site-url";
 const VALID_LOCALES = ["es", "en"] as const;
 const VALID_MODALITIES = Object.keys(MODALITIES) as ModalitySlug[];
 const VALID_COUNTRIES = ["espana", "mexico", "argentina", "colombia", "chile", "peru"] as const;
-
-const UNAVAILABLE_MODALITY_COPY = {
-  es: {
-    badge: "Próximamente",
-    headline: (modalityLabel: string) => `${modalityLabel}: próximamente`,
-    description: (modalityLabel: string) =>
-      `Estamos especializados en gimnasia artística y rítmica. Te avisamos cuando podamos atender bien ${modalityLabel}.`,
-    keywords: (modalityLabel: string, countryLabel: string) => [
-      "Zaltyko",
-      "academias de gimnasia",
-      modalityLabel,
-      countryLabel,
-    ],
-  },
-  en: {
-    badge: "Coming soon",
-    headline: (modalityLabel: string) => `${modalityLabel}: coming soon`,
-    description: (modalityLabel: string) =>
-      `We're focused on artistic and rhythmic gymnastics today. We'll let you know when we can serve ${modalityLabel} well.`,
-    keywords: (modalityLabel: string, countryLabel: string) => [
-      "Zaltyko",
-      "gymnastics academies",
-      modalityLabel,
-      countryLabel,
-    ],
-  },
-} as const;
 
 interface ClusterPageProps {
   params: Promise<{
@@ -109,23 +82,11 @@ export async function generateMetadata({
 
   const baseUrl = getPublicSiteUrl();
   const canonicalUrl = `${baseUrl}/${locale}/${modality}/${country}`;
-  const isAvailable = AVAILABLE_MODALITIES[modalityKey];
-  const modalityLabel = MODALITIES[modalityKey].label[locale as Locale];
-  const countryLabel = COUNTRIES[countryKey].label[locale as Locale];
-  const unavailableCopy = UNAVAILABLE_MODALITY_COPY[locale as "es" | "en"];
-  const metadataTitle = isAvailable
-    ? content.meta.title
-    : `${unavailableCopy.headline(modalityLabel)} | Zaltyko`;
-  const metadataDescription = isAvailable
-    ? content.meta.description
-    : unavailableCopy.description(modalityLabel);
 
   return {
-    title: metadataTitle,
-    description: metadataDescription,
-    keywords: isAvailable
-      ? content.meta.keywords
-      : unavailableCopy.keywords(modalityLabel, countryLabel),
+    title: content.meta.title,
+    description: content.meta.description,
+    keywords: content.meta.keywords,
     alternates: {
       canonical: canonicalUrl,
       languages: {
@@ -134,8 +95,8 @@ export async function generateMetadata({
       },
     },
     openGraph: {
-      title: metadataTitle,
-      description: metadataDescription,
+      title: content.meta.title,
+      description: content.meta.description,
       url: canonicalUrl,
       siteName: "Zaltyko",
       locale: locale === "es" ? "es_ES" : "en_US",
@@ -175,8 +136,6 @@ export default async function ClusterPage({ params }: ClusterPageProps) {
     notFound();
   }
 
-  const isAvailable = AVAILABLE_MODALITIES[modalityKey];
-
   // Get related clusters
   const relatedByModality = getRelatedByModality(locale as Locale, modalityKey, countryKey, 4);
   const relatedByCountry = getRelatedByCountry(locale as Locale, countryKey, modalityKey, 4);
@@ -184,18 +143,7 @@ export default async function ClusterPage({ params }: ClusterPageProps) {
   // Get labels
   const modalityLabel = MODALITIES[modalityKey].label[locale as Locale];
   const countryLabel = COUNTRIES[countryKey].label[locale as Locale];
-  const unavailableCopy = UNAVAILABLE_MODALITY_COPY[locale as "es" | "en"];
-  const displayedContent = isAvailable
-    ? content
-    : {
-        ...content,
-        hero: {
-          ...content.hero,
-          badge: unavailableCopy.badge,
-          headline: unavailableCopy.headline(modalityLabel),
-          subheadline: unavailableCopy.description(modalityLabel),
-        },
-      };
+  const available = AVAILABLE_MODALITIES[modalityKey];
 
   // URL info for schema
   const baseUrl = getPublicSiteUrl();
@@ -231,17 +179,16 @@ export default async function ClusterPage({ params }: ClusterPageProps) {
     <>
       <Schema json={breadcrumbSchema} />
       <ClusterHeroSection
-        content={displayedContent}
+        content={content}
         locale={locale as "es" | "en"}
         modalityLabel={modalityLabel}
         countryLabel={countryLabel}
         modalitySlug={modality}
         countrySlug={country}
+        available={available}
       />
 
-      {isAvailable && (
-        <ClusterPainPointsSection content={content} locale={locale as "es" | "en"} />
-      )}
+      <ClusterPainPointsSection content={content} locale={locale as "es" | "en"} available={available} />
 
       <ClusterInterlinking
         locale={locale as "es" | "en"}
@@ -251,8 +198,9 @@ export default async function ClusterPage({ params }: ClusterPageProps) {
         countryLabel={countryLabel}
         relatedByModality={relatedByModality}
         relatedByCountry={relatedByCountry}
-        federationName={isAvailable ? content.federation.name : undefined}
-        competitions={isAvailable ? content.federation.competitions : undefined}
+        federationName={content.federation.name}
+        competitions={content.federation.competitions}
+        available={available}
       />
     </>
   );

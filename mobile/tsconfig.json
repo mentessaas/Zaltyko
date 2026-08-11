@@ -10,34 +10,14 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "jsx": "react-jsx",
-    "baseUrl": ".",
-    "typeRoots": [
-      "./node_modules/@types"
-    ],
+    "typeRoots": ["./node_modules/@types"],
     "paths": {
-      "@/*": [
-        "./*"
-      ],
-      "@components/*": [
-        "./components/*"
-      ],
-      "@lib/*": [
-        "./lib/*"
-      ],
-      "@app/*": [
-        "./app/*"
-      ]
+      "@/*": ["./*"],
+      "@components/*": ["./components/*"],
+      "@lib/*": ["./lib/*"],
+      "@app/*": ["./app/*"]
     }
   },
-  "include": [
-    "**/*.ts",
-    "**/*.tsx"
-  ],
-  "exclude": [
-    "node_modules",
-    "dist",
-    ".expo",
-    "android",
-    "ios"
-  ]
+  "include": ["**/*.ts", "**/*.tsx"],
+  "exclude": ["node_modules", "dist", ".expo", "android", "ios"]
 }

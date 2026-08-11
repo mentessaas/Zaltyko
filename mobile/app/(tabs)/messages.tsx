@@ -6,16 +6,21 @@ import { useCallback, useState } from 'react';
 import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
+import * as WebBrowser from 'expo-web-browser';
 
+import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { SkeletonGroup } from '@/components/ui/Skeleton';
 import { ConversationRow } from '@/components/messages/ConversationRow';
+import { webBaseUrl } from '@/lib/api/client';
 import { getConversations } from '@/lib/api/endpoints';
+import { useSession } from '@/lib/auth/use-session';
 import { colors, spacing, typography } from '@/lib/theme';
 
 export default function MessagesScreen() {
   const router = useRouter();
+  const { profile } = useSession();
   const [refreshing, setRefreshing] = useState(false);
 
   const listQuery = useQuery({
@@ -29,6 +34,18 @@ export default function MessagesScreen() {
     await listQuery.refetch();
     setRefreshing(false);
   }, [listQuery]);
+
+  // ZAL-399 (F-7 P1): empty state sugiere pasividad. Para parent/athlete
+  // añadimos un CTA discreto que abre el formulario de contacto en la web,
+  // donde la academia sí puede iniciar la conversación. Coach/admin tienen
+  // su propia lógica de mensajería y no necesitan este atajo.
+  const showContactCta = profile?.role === 'parent' || profile?.role === 'athlete';
+
+  const onContactAcademy = useCallback(() => {
+    WebBrowser.openBrowserAsync(`${webBaseUrl()}/contact`, {
+      presentationStyle: WebBrowser.WebBrowserPresentationStyle.FULL_SCREEN,
+    });
+  }, []);
 
   const items = listQuery.data ?? [];
 
@@ -59,6 +76,15 @@ export default function MessagesScreen() {
               title="Sin conversaciones todavía"
               description="Cuando la academia inicie una conversación contigo aparecerá aquí."
               tone="light"
+              action={
+                showContactCta ? (
+                  <Button
+                    title="Contactar academia en la web"
+                    variant="ghost"
+                    onPress={onContactAcademy}
+                  />
+                ) : null
+              }
             />
           </Card>
         )

@@ -3,7 +3,7 @@
 // aparato ni rúbrica por habilidad (eso es trabajo de escritorio); solo
 // un comentario libre, tipo assessmentType 'coach_feedback'.
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
   KeyboardAvoidingView,
   Modal,
@@ -27,12 +27,18 @@ interface Props {
   onSaved: () => void;
 }
 
-export function AssessmentModal({ athlete, sessionId, onClose, onSaved }: Props) {
+export function AssessmentModal({
+  athlete,
+  sessionId,
+  onClose,
+  onSaved,
+}: Props) {
   const [comment, setComment] = useState('');
 
-  useEffect(() => {
-    if (athlete) setComment('');
-  }, [athlete]);
+  const close = () => {
+    setComment('');
+    onClose();
+  };
 
   const saveMutation = useMutation({
     mutationFn: () =>
@@ -43,7 +49,7 @@ export function AssessmentModal({ athlete, sessionId, onClose, onSaved }: Props)
       }),
     onSuccess: () => {
       onSaved();
-      onClose();
+      close();
     },
   });
 
@@ -53,7 +59,7 @@ export function AssessmentModal({ athlete, sessionId, onClose, onSaved }: Props)
       transparent
       animationType="fade"
       onRequestClose={() => {
-        if (!saveMutation.isPending) onClose();
+        if (!saveMutation.isPending) close();
       }}
     >
       <KeyboardAvoidingView
@@ -88,7 +94,7 @@ export function AssessmentModal({ athlete, sessionId, onClose, onSaved }: Props)
             <Button
               title="Cancelar"
               variant="ghost"
-              onPress={onClose}
+              onPress={close}
               disabled={saveMutation.isPending}
             />
             <Button
@@ -119,5 +125,9 @@ const styles = StyleSheet.create({
   },
   title: { ...typography.title, color: colors.text },
   subtitle: { ...typography.body, color: colors.textMuted },
-  actions: { flexDirection: 'row', justifyContent: 'flex-end', gap: spacing.sm },
+  actions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: spacing.sm,
+  },
 });

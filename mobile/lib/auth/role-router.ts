@@ -14,7 +14,7 @@ export interface TabConfig {
 }
 
 // Tabs visibles por rol. Una sola lista: la pantalla Home adapta su
-// contenido según rol, pero las pestañas son siempre 4 para mantener
+// contenido según rol, pero las pestañas son siempre 5 para mantener
 // coherencia visual y reducir complejidad de navegación.
 const TABS_BY_ROLE: Record<ZaltykoRole, TabConfig[]> = {
   super_admin: [
@@ -57,7 +57,7 @@ const TABS_BY_ROLE: Record<ZaltykoRole, TabConfig[]> = {
     { key: 'schedule', title: 'Agenda', href: '/(tabs)/schedule', icon: 'calendar' },
     { key: 'messages', title: 'Mensajes', href: '/(tabs)/messages', icon: 'message' },
     { key: 'notifications', title: 'Avisos', href: '/(tabs)/notifications', icon: 'bell' },
-    { key: 'profile', title: 'Ajustes', href: '/(tabs)/profile', icon: 'user' },
+    { key: 'profile', title: 'Perfil', href: '/(tabs)/profile', icon: 'user' },
   ],
   viewer: [
     { key: 'home', title: 'Inicio', href: '/(tabs)', icon: 'home' },

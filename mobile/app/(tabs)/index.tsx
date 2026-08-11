@@ -11,6 +11,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChildCard } from '@/components/family/ChildCard';
 import { EventCard } from '@/components/events/EventCard';
 import { SessionCard } from '@/components/coach/SessionCard';
+import { NextClassCard } from '@/components/schedule/NextClassCard';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { SkeletonGroup } from '@/components/ui/Skeleton';
 import { Card } from '@/components/ui/Card';
@@ -25,7 +26,9 @@ import {
   getSessions,
   getMyProgress,
   getMyKpis,
+  getMySchedule,
 } from '@/lib/api/endpoints';
+import { nextClassFromSchedule } from '@/lib/schedule/next-class';
 import { colors, spacing, typography } from '@/lib/theme';
 
 export default function HomeScreen() {
@@ -47,6 +50,7 @@ export default function HomeScreen() {
     }
     if (profile.role === 'athlete') {
       tasks.push(queryClient.invalidateQueries({ queryKey: ['progress'] }));
+      tasks.push(queryClient.invalidateQueries({ queryKey: ['me', 'schedule'] }));
     }
     if (profile.role === 'owner' || profile.role === 'admin' || profile.role === 'super_admin') {
       tasks.push(queryClient.invalidateQueries({ queryKey: ['kpis'] }));
@@ -230,14 +234,28 @@ function CoachHome() {
 }
 
 function AthleteHome() {
+  const router = useRouter();
   const progressQuery = useQuery({
     queryKey: ['progress'],
     queryFn: () => getMyProgress(),
     staleTime: 60 * 1000,
   });
+  const scheduleQuery = useQuery({
+    queryKey: ['me', 'schedule'],
+    queryFn: getMySchedule,
+    staleTime: 60 * 1000,
+  });
+
+  const goToSchedule = () => router.push('/(tabs)/schedule');
 
   return (
     <>
+      <NextClassCard
+        loading={scheduleQuery.isLoading}
+        occurrence={nextClassFromSchedule(scheduleQuery.data)}
+        onPressCta={goToSchedule}
+      />
+
       <Card title="Asistencia" subtitle="Últimos 30 días">
         {progressQuery.isLoading ? (
           <SkeletonGroup count={2} />

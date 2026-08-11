@@ -117,6 +117,7 @@ export default async function ModalityPage({ params }: ModalityPageProps) {
     es: {
       title: `${modalityLabel} por país`,
       subtitle: "Encuentra la academia perfecta para ti",
+      unavailableSubtitle: `Estamos especializados en gimnasia artística y rítmica. Te avisamos cuando podamos atender bien ${modalityLabel}.`,
       cta: "Crear academia gratis",
       otherModalities: "Ver otras modalidades",
       comingSoon: "Próximamente",
@@ -124,6 +125,7 @@ export default async function ModalityPage({ params }: ModalityPageProps) {
     en: {
       title: `${modalityLabel} by country`,
       subtitle: "Find the perfect academy for you",
+      unavailableSubtitle: `We're focused on artistic and rhythmic gymnastics today. We'll let you know when we can serve ${modalityLabel} well.`,
       cta: "Create free academy",
       otherModalities: "View other modalities",
       comingSoon: "Coming soon",
@@ -166,14 +168,16 @@ export default async function ModalityPage({ params }: ModalityPageProps) {
             </nav>
 
             {!available && (
-              <span className="inline-flex rounded-full bg-muted px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-4">
+              <span className="mb-4 inline-flex rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                 {t.comingSoon}
               </span>
             )}
             <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 mb-4">
               {t.title}
             </h1>
-            <p className="text-xl text-gray-600 mb-8">{t.subtitle}</p>
+            <p className="text-xl text-gray-600 mb-8">
+              {available ? t.subtitle : t.unavailableSubtitle}
+            </p>
             {available && (
               <Link
                 href="/auth/register?role=owner"

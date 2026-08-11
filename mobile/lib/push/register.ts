@@ -2,12 +2,10 @@
 // en el backend Zaltyko vía /api/push-tokens (que ya existe y usa
 // withBearerTenant + tabla push_tokens).
 //
-// Por qué EXPO_PUBLIC_EAS_PROJECT_ID:
-// - `getExpoPushTokenAsync` lo necesita para builds de producción
-//   (development builds no lo requieren). En dev basta con omitirlo.
-// - Se inyecta en build desde .env (process.env) y se copia a
-//   app.json extra.eas.projectId por `eas env` o manualmente.
+// `eas init` escribe el projectId canónico en app.json. Expo Constants lo
+// expone en runtime; no se duplica en una variable EXPO_PUBLIC_*.
 
+import Constants from 'expo-constants';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
@@ -23,28 +21,15 @@ export async function registerForPushNotifications(): Promise<RegisteredToken | 
   const granted = await ensurePushPermission();
   if (!granted) return null;
 
-  const projectId = process.env.EXPO_PUBLIC_EAS_PROJECT_ID || undefined;
+  const projectId =
+    Constants.expoConfig?.extra?.eas?.projectId ??
+    Constants.easConfig?.projectId;
 
   try {
-    const expoToken = await Notifications.getExpoPushTokenAsync(
-      projectId ? { projectId } : {}
-    );
-
     const platform: 'ios' | 'android' =
       Platform.OS === 'ios' ? 'ios' : 'android';
 
-    // Persistir en backend. Si falla, log y seguir — la app funciona
-    // sin push; el usuario puede tener notificaciones web como fallback.
-    await apiPost('/api/push-tokens', {
-      token: expoToken.data,
-      platform,
-    }).catch((err) => {
-      console.warn('[push] failed to register token with backend:', err);
-    });
-
-    // Android: crear canal por defecto (Expo lo hace, pero lo dejamos
-    // explícito para que las notificaciones lleguen cuando la app está
-    // cerrada con importancia por defecto).
+    // Android exige crear el canal antes de solicitar el token/permisos.
     if (platform === 'android') {
       await Notifications.setNotificationChannelAsync('default', {
         name: 'Zaltyko',
@@ -54,6 +39,23 @@ export async function registerForPushNotifications(): Promise<RegisteredToken | 
         sound: 'default',
       });
     }
+
+    if (!projectId) {
+      throw new Error(
+        'EAS projectId no configurado; ejecuta eas init con la cuenta del board'
+      );
+    }
+
+    const expoToken = await Notifications.getExpoPushTokenAsync({ projectId });
+
+    // Persistir en backend. Si falla, log y seguir — la app funciona
+    // sin push; el usuario puede tener notificaciones web como fallback.
+    await apiPost('/api/push-tokens', {
+      token: expoToken.data,
+      platform,
+    }).catch((err) => {
+      console.warn('[push] failed to register token with backend:', err);
+    });
 
     return { token: expoToken.data, platform };
   } catch (err) {

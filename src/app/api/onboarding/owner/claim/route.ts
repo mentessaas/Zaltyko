@@ -1,13 +1,41 @@
+import { eq } from "drizzle-orm";
 import { cookies } from "next/headers";
+import { sql } from "drizzle-orm";
+import { z } from "zod";
 
+import { db } from "@/db";
+import { academies, memberships, profiles } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
 import { apiCreated, apiError } from "@/lib/api-response";
-import { claimAcademy, ClaimAcademyBodySchema } from "@/lib/onboarding/owner-claim";
+import { normalizeClaimEmail } from "@/lib/auth/claim-academy";
 import { withTransaction } from "@/lib/db-transactions";
-import { logEvent } from "@/lib/event-logging";
+
+const bodySchema = z.object({
+  academyId: z.string().uuid(),
+});
 
 export const dynamic = "force-dynamic";
 
+/**
+ * POST /api/onboarding/owner/claim
+ *
+ * Implementa la rama "claim" del onboarding owner (ZAL-130 spec v0 D-006,
+ * cortada por ZAL-137). El caller (page.tsx) ya filtró que el email del
+ * usuario matchea `academies.contactEmail` antes de renderizar
+ * `OwnerClaimCard`; este endpoint **re-verifica** el match case-insensitive
+ * como defensa en profundidad y rechaza con 403 `CLAIM_EMAIL_MISMATCH`
+ * si llega un academyId cuyo `contactEmail` no es del caller.
+ *
+ * Concurrencia: `pg_advisory_xact_lock(hashtext(user.id))` dentro de
+ * `withTransaction` previene el race de doble-click que crearía dos
+ * profiles para el mismo `userId`. `onConflictDoNothing` en
+ * profiles.userId + memberships(user_id, academy_id) cubre el caso donde
+ * la request concurrente ya ganó el lock.
+ *
+ * Tenant isolation: el profile del nuevo owner recibe el `tenantId` del
+ * academy (NO se genera uno nuevo) — claim cross-tenant es imposible
+ * porque el email del caller debe matchear el `contactEmail` registrado.
+ */
 export async function POST(request: Request) {
   const cookieStore = await cookies();
   const supabase = await createClient(cookieStore);
@@ -15,72 +43,114 @@ export async function POST(request: Request) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) {
+  if (!user || !user.email) {
     return apiError(
       "UNAUTHENTICATED",
-      "Debes iniciar sesión para reclamar la academia.",
+      "Debes iniciar sesión para confirmar la academia",
       401
     );
   }
 
-  if (!user.email) {
-    return apiError(
-      "EMAIL_REQUIRED",
-      "Tu cuenta no tiene un email asociado. Contacta a soporte para reclamar la academia.",
-      400
-    );
-  }
-
-  // Capturamos el email ya validado para evitar el narrowing incompleto
-  // dentro del callback async de withTransaction.
-  const userEmail = user.email;
-
-  const parsed = ClaimAcademyBodySchema.safeParse(
-    await request.json().catch(() => null)
-  );
-
+  const parsed = bodySchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
-    return apiError(
-      "INVALID_PAYLOAD",
-      "Datos inválidos para reclamar la academia",
-      400
-    );
+    return apiError("INVALID_PAYLOAD", "academyId requerido", 400);
   }
 
-  // Serialize per-user claims: dos requests concurrentes del mismo usuario
-  // no deben terminar creando perfiles duplicados ni reasignando ownerId
-  // dos veces. El caller (page.tsx) ya filtra por email, así que el riesgo
-  // real son dos pestañas que disparan el POST a la vez.
-  const result = await withTransaction(async (tx) =>
-    claimAcademy(
-      {
+  const callerEmail = normalizeClaimEmail(user.email);
+  if (!callerEmail) {
+    return apiError("INVALID_EMAIL", "Email de usuario vacío", 400);
+  }
+
+  const setup = await withTransaction(async (tx) => {
+    // Serialize claim per user. Doble-click o dos requests concurrentes no
+    // pueden crear dos profiles ni dos memberships para el mismo user.
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${user.id}))`);
+
+    const [academy] = await tx
+      .select({
+        id: academies.id,
+        name: academies.name,
+        tenantId: academies.tenantId,
+        ownerId: academies.ownerId,
+        contactEmail: academies.contactEmail,
+      })
+      .from(academies)
+      .where(eq(academies.id, parsed.data.academyId))
+      .limit(1);
+
+    if (!academy) {
+      return { error: apiError("ACADEMY_NOT_FOUND", "Academia no encontrada", 404) };
+    }
+
+    if (normalizeClaimEmail(academy.contactEmail) !== callerEmail) {
+      return {
+        error: apiError(
+          "CLAIM_EMAIL_MISMATCH",
+          "Esta academia no está registrada con tu email",
+          403
+        ),
+      };
+    }
+
+    // Si el user ya tiene profile + membership, devolvemos redirect existente.
+    const [existingMembership] = await tx
+      .select({ academyId: memberships.academyId, role: memberships.role })
+      .from(memberships)
+      .where(eq(memberships.userId, user.id))
+      .limit(1);
+
+    if (existingMembership) {
+      return {
+        existingAcademyId: existingMembership.academyId,
+      };
+    }
+
+    // Upsert profile: si ya existe uno (otro flujo lo creó), onConflictDoNothing.
+    const fallbackName =
+      user.email?.split("@")[0]?.trim() || "Owner";
+
+    await tx
+      .insert(profiles)
+      .values({
         userId: user.id,
-        userEmail,
-        body: parsed.data,
-      },
-      tx
-    )
-  );
+        name: fallbackName,
+        role: "owner",
+        tenantId: academy.tenantId,
+        activeAcademyId: academy.id,
+        canLogin: true,
+      })
+      .onConflictDoNothing({ target: profiles.userId });
 
-  if (!result.ok) {
-    return result.response;
-  }
+    // Membership: idem onConflictDoNothing para resistir doble-click.
+    // tenantId no es columna de memberships — se deriva vía academy.
+    // Si por alguna razón externa el profile desapareció (admin DELETE),
+    // la FK de memberships.user_id fallará y la transacción rollbackea
+    // antes del commit; el caller verá un 500 con detalle.
+    await tx
+      .insert(memberships)
+      .values({
+        userId: user.id,
+        academyId: academy.id,
+        role: "owner",
+      })
+      .onConflictDoNothing();
 
-  await logEvent({
-    academyId: result.academyId,
-    eventType: "owner_claimed",
-    metadata: {
-      source: "magic_link_match",
-      // ZAL-157 — los UTMs llegan del cliente en el body; el helper ya los
-      // persiste en la academia. Los reenviamos al log para que el funnel
-      // post-signup tenga el canal sin tener que re-leer la academia.
-      utm: parsed.data.utm ?? null,
-    },
+    return {
+      createdAcademyId: academy.id,
+    };
   });
 
+  if ("error" in setup) {
+    return setup.error;
+  }
+
+  const academyId =
+    "existingAcademyId" in setup
+      ? setup.existingAcademyId
+      : setup.createdAcademyId;
+
   return apiCreated({
-    academyId: result.academyId,
-    tenantId: result.tenantId,
-    redirectUrl: result.redirectUrl,
+    academyId,
+    redirectUrl: `/app/${academyId}/dashboard`,
   });
 }
