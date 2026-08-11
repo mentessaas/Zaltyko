@@ -112,6 +112,12 @@ DROP POLICY IF EXISTS "marketing_outreach_super_admin_all" ON "marketing_outreac
 CREATE POLICY "marketing_outreach_super_admin_all" ON "marketing_outreach"
   FOR ALL USING (is_super_admin()) WITH CHECK (is_super_admin());
 
+-- FK academy_id -> academies.id. Idempotente via DROP IF EXISTS + ADD CONSTRAINT
+-- (mismo patron que `commercial_interviews_consent_demo.sql` para CHECKs).
+-- Esto permite reaplicar la migracion sin fallar por "constraint already
+-- exists" en runners de sandbox y locales que no trackean historial.
+ALTER TABLE "marketing_outreach"
+  DROP CONSTRAINT IF EXISTS "marketing_outreach_academy_id_academies_id_fk";
 ALTER TABLE "marketing_outreach"
   ADD CONSTRAINT "marketing_outreach_academy_id_academies_id_fk"
   FOREIGN KEY ("academy_id") REFERENCES "public"."academies"("id") ON DELETE SET NULL;

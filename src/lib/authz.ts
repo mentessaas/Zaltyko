@@ -36,6 +36,141 @@ function getAuthorizedAgentIds(): Set<string> {
       .filter(Boolean)
   );
 }
+
+/**
+ * Shared secret usado para verificar la firma HMAC-SHA256 de los requests
+ * firmados por agentes Paperclip en el camino de `withAgentAuth`. Se mantiene
+ * como variable de entorno (NO como constante en el codigo ni en logs) y se
+ * configura de forma identica en cada agente autorizado. La ausencia de la
+ * variable cierra el camino de agente por defensa-en-profundidad: en ese
+ * estado, aunque `MARKETING_OUTREACH_AGENT_IDS` siga poblada, no se acepta
+ * ningun caller con `x-paperclip-agent-id` (se cae a super_admin).
+ */
+function getAgentSharedSecret(): string {
+  return (process.env.MARKETING_OUTREACH_AGENT_SHARED_SECRET ?? "").trim();
+}
+
+/**
+ * Ventana maxima de skew admitida entre el timestamp firmado y el reloj del
+ * servidor (en segundos). 300s = 5 min, suficiente para tolerancia operativa
+ * sin permitir replay indefinido. Configurable por entorno si se necesita
+ * abrir/cerrar la ventana en algun despliegue especifico.
+ */
+function getAgentSignatureMaxSkewSeconds(): number {
+  const raw = process.env.MARKETING_OUTREACH_AGENT_MAX_SKEW_SECONDS;
+  const parsed = raw ? Number.parseInt(raw, 10) : NaN;
+  if (Number.isFinite(parsed) && parsed > 0) return parsed;
+  return 300;
+}
+
+/**
+ * Comparacion constant-time de dos strings hexadecimales. Evita timing
+ * side-channels que filtren byte-a-byte la firma esperada.
+ */
+function timingSafeEqualHex(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i += 1) {
+    diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return diff === 0;
+}
+
+/**
+ * Hash del body del request en SHA-256 hex. Si el body no se puede leer
+ * (stream ya consumido, content-encoding desconocido, etc.), devuelve el hash
+ * del string vacio para mantener la verificacion deterministic pero exigir
+ * la misma firma en cliente y servidor.
+ */
+async function sha256HexOfRequestBody(request: Request): Promise<string> {
+  try {
+    const cloned = request.clone();
+    const text = await cloned.text();
+    const { createHash } = await import("node:crypto");
+    return createHash("sha256").update(text, "utf8").digest("hex");
+  } catch {
+    const { createHash } = await import("node:crypto");
+    return createHash("sha256").update("", "utf8").digest("hex");
+  }
+}
+
+/**
+ * Verifica la firma HMAC-SHA256 del request contra el secret compartido.
+ * Devuelve true solo si TODAS las condiciones se cumplen:
+ *   - agentId pertenece al allowlist.
+ *   - timestamp presente, numerico y dentro de la ventana de skew.
+ *   - signature presente y matches HMAC-SHA256 sobre la cadena canonica.
+ *
+ * El path de agente exige las tres firmas porque cualquiera de las tres por
+ * sola (header solo, header+timestamp, header+firma-invalida) es
+ * insuficientemente autentica. El caller sigue intentando con super_admin
+ * si esto falla — el camino NO es mutuamente excluyente.
+ */
+async function verifyAgentSignature(request: Request): Promise<{
+  ok: boolean;
+  agentId?: string;
+  reason?:
+    | "AGENT_ID_NOT_ALLOWLISTED"
+    | "AGENT_TIMESTAMP_MISSING"
+    | "AGENT_TIMESTAMP_INVALID"
+    | "AGENT_TIMESTAMP_SKEW"
+    | "AGENT_SIGNATURE_MISSING"
+    | "AGENT_SIGNATURE_INVALID"
+    | "AGENT_SECRET_UNSET";
+}> {
+  const allowlist = getAuthorizedAgentIds();
+  const agentId = request.headers.get("x-paperclip-agent-id")?.trim() ?? "";
+
+  if (!agentId) {
+    return { ok: false, reason: "AGENT_ID_NOT_ALLOWLISTED" };
+  }
+  if (!allowlist.has(agentId)) {
+    return { ok: false, reason: "AGENT_ID_NOT_ALLOWLISTED" };
+  }
+
+  const secret = getAgentSharedSecret();
+  if (!secret) {
+    // Defensa-en-profundidad: sin secret, el camino de agente esta cerrado.
+    return { ok: false, reason: "AGENT_SECRET_UNSET" };
+  }
+
+  const timestampHeader = request.headers.get("x-paperclip-agent-timestamp");
+  if (!timestampHeader) {
+    return { ok: false, reason: "AGENT_TIMESTAMP_MISSING" };
+  }
+  const timestamp = Number.parseInt(timestampHeader, 10);
+  if (!Number.isFinite(timestamp)) {
+    return { ok: false, reason: "AGENT_TIMESTAMP_INVALID" };
+  }
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  if (
+    Math.abs(nowSeconds - timestamp) > getAgentSignatureMaxSkewSeconds()
+  ) {
+    return { ok: false, reason: "AGENT_TIMESTAMP_SKEW" };
+  }
+
+  const providedSignature =
+    request.headers.get("x-paperclip-agent-signature")?.trim() ?? "";
+  if (!providedSignature) {
+    return { ok: false, reason: "AGENT_SIGNATURE_MISSING" };
+  }
+
+  const method = request.method.toUpperCase();
+  const pathname = new URL(request.url).pathname;
+  const bodyHash = await sha256HexOfRequestBody(request);
+  const canonical = `${agentId}\n${method}\n${pathname}\n${timestamp}\n${bodyHash}`;
+
+  const { createHmac } = await import("node:crypto");
+  const expectedSignature = createHmac("sha256", secret)
+    .update(canonical, "utf8")
+    .digest("hex");
+
+  if (!timingSafeEqualHex(providedSignature, expectedSignature)) {
+    return { ok: false, reason: "AGENT_SIGNATURE_INVALID" };
+  }
+
+  return { ok: true, agentId };
+}
 import { logger } from "@/lib/logger";
 import { db } from "@/db";
 import { profiles } from "@/db/schema";
@@ -127,20 +262,28 @@ async function enforceVerifiedTenantMutationRateLimit(
  * Wrapper para endpoints operados por un Paperclip agent autorizado (ZAL-582
  * / ZAL-580 / ZAL-576). Acepta UNA de las dos vias:
  *
- * 1. Header `x-paperclip-agent-id` cuyo valor este en el allowlist
- *    configurado por `MARKETING_OUTREACH_AGENT_IDS` (CSV). Es el camino
- *    pensado para agentes Paperclip que disparan outreach manual 1:1 sin
- *    sesion humana.
+ * 1. Camino de agente: triple header `x-paperclip-agent-id` (allowlist),
+ *    `x-paperclip-agent-timestamp` (unix epoch s, ventana 5 min) y
+ *    `x-paperclip-agent-signature` (HMAC-SHA256 del secret compartido sobre
+ *    `${agentId}\n${method}\n${pathname}\n${timestamp}\n${sha256(body)}`).
+ *    El secret se lee de `MARKETING_OUTREACH_AGENT_SHARED_SECRET` (env,
+ *    nunca en codigo ni en logs). Si el secret no esta configurado, el
+ *    camino de agente queda cerrado por defensa-en-profundidad aunque el
+ *    header del allowlist matchee — la ausencia del secret convierte
+ *    cualquier intento de usar el header en 401, no en 500.
  * 2. Sesion autenticada cuyo profile tenga rol global `super_admin` (camino
  *    operativo de Marketing; conserva el resto del wrapper de super-admin).
  *
- * En ambos casos el handler recibe `agentId` resuelto (header o `profile.id`)
- * para que `created_by_agent_id` quede auditado en cada INSERT.
+ * En ambos casos el handler recibe `agentId` resuelto (header validado o
+ * `super-admin:<profile.id>`) para que `created_by_agent_id` quede auditado
+ * en cada INSERT.
  *
- * Sandbox/local: si `NODE_ENV !== "production"` y
- * `MARKETING_OUTREACH_DEV_BYPASS_AGENT=true`, se acepta cualquier
- * `x-paperclip-agent-id` (incluso vacio, en cuyo caso se usa `dev-agent`).
- * Esta puerta existe solo para que `scripts/run-rls-semantics-local.sh` y
+ * Sandbox/local: si `NODE_ENV !== "production"`,
+ * `MARKETING_OUTREACH_DEV_BYPASS_AGENT=true` Y el secret de agente esta
+ * vacio, se acepta cualquier `x-paperclip-agent-id` (incluso vacio, en cuyo
+ * caso se usa `dev-agent`). La condicion extra sobre el secret evita que
+ * un dev que olvidó setearlo termine exponiendo el bypass a produccion
+ * accidentalmente. Esta puerta existe solo para que `scripts/run-rls-…` y
  * los tests vitest puedan llamar al endpoint; nunca en produccion.
  */
 export function withAgentAuth<Ctx extends Record<string, unknown>>(
@@ -158,31 +301,54 @@ export function withAgentAuth<Ctx extends Record<string, unknown>>(
       const params = context.params ? await context.params : context.params;
       const contextWithParams = { ...context, params };
 
-      const allowlist = getAuthorizedAgentIds();
       const headerAgentId =
         request.headers.get("x-paperclip-agent-id")?.trim() || "";
 
-      if (headerAgentId && allowlist.has(headerAgentId)) {
-        return handler(request, {
-          ...contextWithParams,
-          agentId: headerAgentId,
-          userId: null,
-          profile: null,
-        });
+      // Camino de agente: solo si hay header, el allowlist matchea, el secret
+      // esta configurado y la firma HMAC verifica.
+      if (headerAgentId) {
+        const verification = await verifyAgentSignature(request);
+        if (verification.ok && verification.agentId) {
+          return handler(request, {
+            ...contextWithParams,
+            agentId: verification.agentId,
+            userId: null,
+            profile: null,
+          });
+        }
+
+        // El caller presento header de agente pero NO autentico: NO aceptamos
+        // el bypass de dev en este caso (seria una evasion del nuevo control)
+        // y tampoco caemos a super_admin automaticamente — exigimos o firma
+        // valida o sesion super_admin explicita.
+        const isDevBypass =
+          process.env.NODE_ENV !== "production" &&
+          process.env.MARKETING_OUTREACH_DEV_BYPASS_AGENT === "true" &&
+          getAgentSharedSecret() === "";
+
+        if (isDevBypass) {
+          return handler(request, {
+            ...contextWithParams,
+            agentId: headerAgentId,
+            userId: null,
+            profile: null,
+          });
+        }
+
+        if (!isDevBypass) {
+          return NextResponse.json(
+            { error: "AGENT_AUTH_FAILED" },
+            { status: 401 }
+          );
+        }
       }
 
+      // Camino de agente sin header (incluye dev bypass sin header) cae a
+      // super_admin o, en sandbox con bypass explicito, a `dev-agent`.
       const isDevBypass =
         process.env.NODE_ENV !== "production" &&
-        process.env.MARKETING_OUTREACH_DEV_BYPASS_AGENT === "true";
-
-      if (isDevBypass && headerAgentId) {
-        return handler(request, {
-          ...contextWithParams,
-          agentId: headerAgentId,
-          userId: null,
-          profile: null,
-        });
-      }
+        process.env.MARKETING_OUTREACH_DEV_BYPASS_AGENT === "true" &&
+        getAgentSharedSecret() === "";
 
       if (isDevBypass && !headerAgentId) {
         return handler(request, {
