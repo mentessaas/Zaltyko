@@ -29,6 +29,14 @@ export class SuperAdminRequiredError extends AppError {
   }
 }
 
+export class AgentRequiredError extends AppError {
+  constructor(message = "AGENT_REQUIRED") {
+    super("AGENT_REQUIRED", message, 403);
+    this.name = "AgentRequiredError";
+    Object.setPrototypeOf(this, AgentRequiredError.prototype);
+  }
+}
+
 export class TenantMissingError extends AppError {
   constructor() {
     super("TENANT_MISSING", "TENANT_MISSING", 403);

@@ -90,12 +90,22 @@ describe("Phase 4 commercial validation contracts", () => {
       willingnessToPay: "yes",
       status: "completed",
       completedAt: "2026-07-13T10:00:00.000Z",
+      // ZAL-583: una entrevista completada exige evidencia de demo
+      // (`commercial_interviews_demo_evidence_check`).
+      demoStartedAt: "2026-07-13T09:00:00.000Z",
+      demoEndedAt: "2026-07-13T09:45:00.000Z",
+      attendeesCount: 3,
+      consentAt: "2026-07-13T09:05:00.000Z",
+      consentTextVersion: "v1-2026-07-13",
     });
     const values = toCommercialInterviewValues(parsed);
 
     expect(values.countryCode).toBe("ES");
     expect(values.easyPriceEurCents).toBe(1_900);
     expect(values.limitPriceEurCents).toBe(3_900);
+    expect(values.demoEndedAt).toEqual(new Date("2026-07-13T09:45:00.000Z"));
+    expect(values.attendeesCount).toBe(3);
+    expect(values.consentTextVersion).toBe("v1-2026-07-13");
   });
 
   it("deduplicates the same academy despite casing and accents", () => {

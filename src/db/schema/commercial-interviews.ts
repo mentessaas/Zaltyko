@@ -37,6 +37,13 @@ export const commercialInterviews = pgTable(
     status: text("status").notNull().default("scheduled"),
     scheduledAt: timestamp("scheduled_at", { withTimezone: true }),
     completedAt: timestamp("completed_at", { withTimezone: true }),
+    // Evidencia de consentimiento + demo (ZAL-583). Hacen que `consented` y
+    // `demos_held` sean reconstruibles con SQL puro sobre esta tabla.
+    consentAt: timestamp("consent_at", { withTimezone: true }),
+    consentTextVersion: text("consent_text_version"),
+    demoStartedAt: timestamp("demo_started_at", { withTimezone: true }),
+    demoEndedAt: timestamp("demo_ended_at", { withTimezone: true }),
+    attendeesCount: integer("attendees_count"),
     notes: text("notes"),
     createdByProfileId: uuid("created_by_profile_id").references(() => profiles.id, {
       onDelete: "set null",
@@ -53,6 +60,8 @@ export const commercialInterviews = pgTable(
       table.completedAt
     ),
     leadIdx: index("commercial_interviews_lead_idx").on(table.leadId),
+    consentIdx: index("commercial_interviews_consent_idx").on(table.consentAt),
+    demoEndedIdx: index("commercial_interviews_demo_ended_idx").on(table.demoEndedAt),
     academyFingerprintUnique: uniqueIndex("commercial_interviews_academy_fingerprint_unique").on(
       table.academyFingerprint
     ),
@@ -79,6 +88,27 @@ export const commercialInterviews = pgTable(
     completedEvidenceCheck: check(
       "commercial_interviews_completed_evidence_check",
       sql`${table.status} <> 'completed' or (${table.completedAt} is not null and ${table.athleteCount} is not null and nullif(btrim(${table.currentTools}), '') is not null and nullif(btrim(${table.biggestPain}), '') is not null and nullif(btrim(${table.primaryObjection}), '') is not null and ${table.easyPriceEurCents} is not null and ${table.limitPriceEurCents} is not null)`
+    ),
+    // ZAL-583: evidencia de consentimiento y demo.
+    consentTextVersionCheck: check(
+      "commercial_interviews_consent_text_version_check",
+      sql`${table.consentTextVersion} is null or ${table.consentTextVersion} ~ '^v[0-9]+-[0-9]{4}-[0-9]{2}-[0-9]{2}$'`
+    ),
+    consentImpliesVersionCheck: check(
+      "commercial_interviews_consent_implies_version_check",
+      sql`${table.consentAt} is null or ${table.consentTextVersion} is not null`
+    ),
+    attendeesCountCheck: check(
+      "commercial_interviews_attendees_count_check",
+      sql`${table.attendeesCount} is null or ${table.attendeesCount} between 1 and 50`
+    ),
+    demoTimelineCheck: check(
+      "commercial_interviews_demo_timeline_check",
+      sql`${table.demoStartedAt} is null or ${table.demoEndedAt} is null or ${table.demoStartedAt} <= ${table.demoEndedAt}`
+    ),
+    demoEvidenceCheck: check(
+      "commercial_interviews_demo_evidence_check",
+      sql`${table.status} <> 'completed' or ${table.demoEndedAt} is not null`
     ),
   })
 );
