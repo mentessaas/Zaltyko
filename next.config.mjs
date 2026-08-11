@@ -39,9 +39,11 @@ const securityHeaders = [
 ];
 
 const nextConfig = {
-  // TypeScript still runs during build; ESLint runs explicitly via `pnpm lint`.
+  // El typecheck corre en el job de CI (Lint & Type Check) antes de mergear a main;
+  // repetirlo aquí agotaba el límite de build de Vercel (2 cores / 8 GB) y mataba
+  // cada deploy en "Checking validity of types" sin emitir un error.
   typescript: {
-    ignoreBuildErrors: false,
+    ignoreBuildErrors: true,
   },
   // ESLint runs via the dedicated CI job (Lint & Type Check); skip it during next build.
   eslint: {
