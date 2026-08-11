@@ -107,6 +107,13 @@ export function CommercialInterviewWorkspace({ interviews, leads }: CommercialIn
       status,
       scheduledAt: toIsoDate(optionalString(formData, "scheduledAt")),
       completedAt: toIsoDate(optionalString(formData, "completedAt")),
+      // ZAL-583: evidencia de consentimiento y demo. Sin `demoEndedAt` una
+      // entrevista no puede quedar `completed` (contrato + CHECK en DB).
+      consentAt: toIsoDate(optionalString(formData, "consentAt")),
+      consentTextVersion: optionalString(formData, "consentTextVersion"),
+      demoStartedAt: toIsoDate(optionalString(formData, "demoStartedAt")),
+      demoEndedAt: toIsoDate(optionalString(formData, "demoEndedAt")),
+      attendeesCount: optionalNumber(formData, "attendeesCount"),
       notes: optionalString(formData, "notes"),
     };
 
@@ -217,6 +224,31 @@ export function CommercialInterviewWorkspace({ interviews, leads }: CommercialIn
           <div>
             <Label htmlFor="completedAt" className={fieldLabelClassName}>Fecha realizada {requiredWhenCompleted && "*"}</Label>
             <Input id="completedAt" name="completedAt" type="datetime-local" required={requiredWhenCompleted} defaultValue={toLocalDate(editing?.completedAt ?? null)} className={inputClassName} />
+          </div>
+        </fieldset>
+
+        <fieldset className="mt-7 grid gap-4 sm:grid-cols-2">
+          <legend className="mb-3 font-display text-sm font-semibold text-white">Consentimiento y demo</legend>
+          <div>
+            <Label htmlFor="demoStartedAt" className={fieldLabelClassName}>Inicio de la demo</Label>
+            <Input id="demoStartedAt" name="demoStartedAt" type="datetime-local" defaultValue={toLocalDate(editing?.demoStartedAt ?? null)} className={inputClassName} />
+          </div>
+          <div>
+            <Label htmlFor="demoEndedAt" className={fieldLabelClassName}>Cierre de la demo {requiredWhenCompleted && "*"}</Label>
+            <Input id="demoEndedAt" name="demoEndedAt" type="datetime-local" required={requiredWhenCompleted} defaultValue={toLocalDate(editing?.demoEndedAt ?? null)} className={inputClassName} />
+          </div>
+          <div>
+            <Label htmlFor="attendeesCount" className={fieldLabelClassName}>Asistentes de la academia</Label>
+            <Input id="attendeesCount" name="attendeesCount" type="number" min={1} max={50} defaultValue={editing?.attendeesCount ?? ""} className={inputClassName} />
+          </div>
+          <div>
+            <Label htmlFor="consentAt" className={fieldLabelClassName}>Consentimiento recibido</Label>
+            <Input id="consentAt" name="consentAt" type="datetime-local" defaultValue={toLocalDate(editing?.consentAt ?? null)} className={inputClassName} />
+          </div>
+          <div className="sm:col-span-2">
+            <Label htmlFor="consentTextVersion" className={fieldLabelClassName}>Versión del texto de consentimiento</Label>
+            <Input id="consentTextVersion" name="consentTextVersion" placeholder="v1-2026-08-01" pattern="^v[0-9]+-[0-9]{4}-[0-9]{2}-[0-9]{2}$" defaultValue={editing?.consentTextVersion ?? ""} className={inputClassName} />
+            <p className="mt-1 text-xs text-white/50">Obligatoria si hay consentimiento. Formato vN-AAAA-MM-DD.</p>
           </div>
         </fieldset>
 

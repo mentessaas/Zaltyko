@@ -85,6 +85,9 @@ export const ContactRequestSchema = z
 const nullableShortText = z.string().trim().max(180).nullable().optional();
 const nullableLongText = z.string().trim().max(2_000).nullable().optional();
 
+/** vN-YYYY-MM-DD; mismo formato que `marketing_outreach` (ZAL-580). */
+const CONSENT_TEXT_VERSION_PATTERN = /^v[0-9]+-[0-9]{4}-[0-9]{2}-[0-9]{2}$/;
+
 export const CommercialInterviewInputSchema = z
   .object({
     leadId: z.string().uuid().nullable().optional(),
@@ -111,6 +114,20 @@ export const CommercialInterviewInputSchema = z
     status: z.enum(["scheduled", "completed", "no_show", "cancelled"]).default("scheduled"),
     scheduledAt: z.string().datetime({ offset: true }).nullable().optional(),
     completedAt: z.string().datetime({ offset: true }).nullable().optional(),
+    // ZAL-583: evidencia de consentimiento + demo. Todos opcionales y
+    // nullables (`.default(null)`) para no romper clientes existentes; las
+    // invariantes se aplican en `superRefine` y espejan los CHECK de la tabla.
+    consentAt: z.string().datetime({ offset: true }).nullable().optional().default(null),
+    consentTextVersion: z
+      .string()
+      .trim()
+      .regex(CONSENT_TEXT_VERSION_PATTERN, "consentTextVersion debe coincidir con vN-YYYY-MM-DD")
+      .nullable()
+      .optional()
+      .default(null),
+    demoStartedAt: z.string().datetime({ offset: true }).nullable().optional().default(null),
+    demoEndedAt: z.string().datetime({ offset: true }).nullable().optional().default(null),
+    attendeesCount: z.number().int().min(1).max(50).nullable().optional().default(null),
     notes: nullableLongText,
   })
   .strict()
@@ -129,6 +146,28 @@ export const CommercialInterviewInputSchema = z
       });
     }
 
+    // Espeja `commercial_interviews_consent_implies_version_check`.
+    if (value.consentAt && !value.consentTextVersion) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["consentTextVersion"],
+        message: "consentTextVersion es obligatorio cuando hay consentAt",
+      });
+    }
+
+    // Espeja `commercial_interviews_demo_timeline_check`.
+    if (
+      value.demoStartedAt &&
+      value.demoEndedAt &&
+      new Date(value.demoStartedAt) > new Date(value.demoEndedAt)
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["demoEndedAt"],
+        message: "demoEndedAt no puede ser anterior a demoStartedAt",
+      });
+    }
+
     if (value.status !== "completed") return;
 
     const required: Array<[keyof typeof value, unknown]> = [
@@ -139,6 +178,9 @@ export const CommercialInterviewInputSchema = z
       ["easyPriceEur", value.easyPriceEur],
       ["limitPriceEur", value.limitPriceEur],
       ["completedAt", value.completedAt],
+      // Espeja `commercial_interviews_demo_evidence_check`: sin cierre de demo
+      // la fila no puede quedar `completed` (fallaria en DB con 500).
+      ["demoEndedAt", value.demoEndedAt],
     ];
 
     for (const [field, fieldValue] of required) {

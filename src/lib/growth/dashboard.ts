@@ -35,6 +35,12 @@ export interface CommercialInterviewRow {
   status: string;
   scheduledAt: string | null;
   completedAt: string | null;
+  // ZAL-583: evidencia de consentimiento y demo (denominadores `consented` y `demos_held`).
+  consentAt: string | null;
+  consentTextVersion: string | null;
+  demoStartedAt: string | null;
+  demoEndedAt: string | null;
+  attendeesCount: number | null;
   notes: string | null;
   createdAt: string;
 }
@@ -220,6 +226,11 @@ export async function getGrowthDashboardData(): Promise<GrowthDashboardData> {
       status: row.status,
       scheduledAt: row.scheduledAt?.toISOString() ?? null,
       completedAt: row.completedAt?.toISOString() ?? null,
+      consentAt: row.consentAt?.toISOString() ?? null,
+      consentTextVersion: row.consentTextVersion ?? null,
+      demoStartedAt: row.demoStartedAt?.toISOString() ?? null,
+      demoEndedAt: row.demoEndedAt?.toISOString() ?? null,
+      attendeesCount: row.attendeesCount ?? null,
       notes: row.notes,
       createdAt: row.createdAt.toISOString(),
     })),
