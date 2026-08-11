@@ -46,6 +46,7 @@ import {
   findingFromNode,
   lineOf,
   readSource,
+  safeScanFile,
   walkFiles,
   type Finding,
 } from "./lib/walker";
@@ -300,7 +301,7 @@ function main() {
     if (!fs.existsSync(root)) continue;
     for (const file of walkFiles(root, (p) => p.endsWith("/route.ts") || p.endsWith("/route.tsx"))) {
       scanned.push(file);
-      findings.push(...scanFile(file));
+      findings.push(...safeScanFile(scanFile, file));
     }
   }
 

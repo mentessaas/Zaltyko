@@ -47,6 +47,7 @@ import {
   findingFromNode,
   lineOf,
   readSource,
+  safeScanFile,
   walkFiles,
   type Finding,
 } from "./lib/walker";
@@ -278,7 +279,7 @@ function main() {
       // as parent guards, not as findings themselves.
       if (!file.endsWith(`${path.sep}page.tsx`) && !file.endsWith("/page.tsx")) continue;
       scanned += 1;
-      findings.push(...scanFile(file));
+      findings.push(...safeScanFile(scanFile, file));
     }
   }
   emitReport("orphan-app-route", scanned, findings);
