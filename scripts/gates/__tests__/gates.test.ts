@@ -16,14 +16,15 @@
  * to validate static-gate outputs without pulling a heavyweight test stack
  * into the gates dir. CI can wire this into `pnpm gate:test` and gate:all.
  */
-import { spawnSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
 
+import { runTsx } from "../lib/run-tsx";
 import { scanFile as scanReadsFile } from "../unbounded-reads";
 import { scanFile as scanAuthFile } from "../auth-before-validate";
 
 const ROOT = path.resolve(__dirname, "..");
+const REPO_ROOT = path.resolve(ROOT, "..", "..");
 const POSITIVE_DIR = path.join(ROOT, "__fixtures__", "positive");
 const NEGATIVE_DIR = path.join(ROOT, "__fixtures__", "negative");
 const AUTH_POSITIVE = path.join(POSITIVE_DIR, "auth-order");
@@ -105,20 +106,26 @@ function main() {
     (f) => f.rule === "A3/validate-before-auth",
   );
 
-  // Smoke-test the gate scripts via tsx end-to-end against the
-  // positive/negative fixtures, asserting exit code reflects strictness.
-  // We invoke tsx via `npx --no-install tsx …` so the test runs even when
-  // `.bin/tsx` is a shell wrapper (avoids the ESM-vs-shebang trap).
-  const tsx = (script: string, ...args: string[]) => [
-    path.join(ROOT, "unbounded-reads.ts") || path.join(ROOT, "auth-before-validate.ts"),
-  ];
+  // Smoke-test the gate scripts end-to-end against the positive/negative
+  // fixtures, asserting the exit code reflects strictness.
+  //
+  // Two things this deliberately does NOT do, because both previously hid a
+  // broken CI entrypoint behind a green run:
+  //   1. It does not shell out to `npx` (cwd-sensitive; hangs inside this repo).
+  //   2. It does not treat `status !== 0` as success — a spawn that never ran
+  //      reports `status === null`, which would satisfy a `!== 0` assertion.
   const checkExit = (label: string, scriptPath: string, args: string[], expectNonZero: boolean) => {
-    const proc = spawnSync("npx", ["--no-install", "tsx", scriptPath, ...args], {
-      cwd: path.join(ROOT, "..", "..", ".."),
-      encoding: "utf8",
-    });
-    const ok = expectNonZero ? proc.status !== 0 : proc.status === 0;
-    note(label, ok, `exit=${proc.status} stderr=${(proc.stderr || "").slice(0, 200)}`);
+    const proc = runTsx(scriptPath, args, { cwd: REPO_ROOT, stdio: "pipe" });
+    let ok: boolean;
+    let detail: string;
+    if (proc.error || proc.status === null) {
+      ok = false;
+      detail = `failed to launch: ${proc.error?.message ?? `signal ${proc.signal}`}`;
+    } else {
+      ok = expectNonZero ? proc.status === 1 : proc.status === 0;
+      detail = `exit=${proc.status} stderr=${(proc.stderr || "").slice(0, 200)}`;
+    }
+    note(label, ok, detail);
   };
 
   checkExit(
@@ -145,6 +152,33 @@ function main() {
     ["--root", POSITIVE_DIR],
     false,
   );
+
+  // Exercise the CI entrypoint itself (`pnpm gate:all`). Until now nothing
+  // covered run-all.ts, so a runner that could not launch its child gates still
+  // produced a fully green self-test run — the exact gap that let a broken
+  // `gate:all` ship twice. Scoped to fixtures via --root to stay fast.
+  //
+  // The *positive* case is the load-bearing one: a gate that fails to launch
+  // also exits 1, so it is indistinguishable from "found violations" on the
+  // negative fixtures. Only "clean tree must exit 0" catches a broken runner.
+  const checkRunAll = (label: string, root: string, expectNonZero: boolean) => {
+    const proc = runTsx(path.join(ROOT, "run-all.ts"), ["--root", root], {
+      cwd: REPO_ROOT,
+      stdio: "pipe",
+    });
+    const combined = `${proc.stdout || ""}${proc.stderr || ""}`;
+    if (proc.error || proc.status === null) {
+      note(label, false, `failed to launch: ${proc.error?.message ?? `signal ${proc.signal}`}`);
+      return;
+    }
+    // A runner that cannot spawn its gates must not look like a clean pass.
+    const launchFailed = combined.includes("[gates] failed to run");
+    const ok = !launchFailed && (expectNonZero ? proc.status === 1 : proc.status === 0);
+    note(label, ok, `exit=${proc.status}${launchFailed ? " (child gate failed to launch)" : ""}`);
+  };
+
+  checkRunAll("gate:all entrypoint — negative fixtures exit 1", NEGATIVE_DIR, true);
+  checkRunAll("gate:all entrypoint — positive fixtures exit 0", POSITIVE_DIR, false);
 
   process.stdout.write("\n===== gate self-tests =====\n");
   for (const t of trace) {
