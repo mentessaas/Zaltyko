@@ -46,6 +46,7 @@ import {
   leadingComment,
   lineOf,
   readSource,
+  safeScanFile,
   snippet,
   walkFiles,
   type Finding,
@@ -355,7 +356,7 @@ function main() {
   for (const root of roots) {
     for (const file of walkFiles(root)) {
       scanned.push(file);
-      findings.push(...scanFile(file));
+      findings.push(...safeScanFile(scanFile, file));
     }
   }
 

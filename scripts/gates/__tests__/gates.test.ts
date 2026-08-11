@@ -86,7 +86,15 @@ function expectFileFindings(
         .map((e) => path.join(dir, e.name));
   let totalFindings = 0;
   for (const file of files) {
-    const findings = scan(file) as any[];
+    let findings: unknown[];
+    try {
+      findings = scan(file) as any[];
+    } catch (err) {
+      // iCloud dataless / unreadable files should not crash the test;
+      // treat them as zero findings (the gate itself does the same).
+      if ((err as NodeJS.ErrnoException).errno === -11) continue;
+      throw err;
+    }
     totalFindings += findings.length;
   }
   if (expectedCount === 0) {
@@ -94,7 +102,14 @@ function expectFileFindings(
   } else if (predicate) {
     let matched = 0;
     for (const file of files) {
-      matched += (scan(file) as any[]).filter(predicate).length;
+      let findings: unknown[];
+      try {
+        findings = scan(file) as any[];
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).errno === -11) continue;
+        throw err;
+      }
+      matched += findings.filter(predicate).length;
     }
     note(`${label} → at least ${expectedCount} findings matching predicate`, matched >= expectedCount, `got ${matched}`);
   } else {

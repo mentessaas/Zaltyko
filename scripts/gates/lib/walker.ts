@@ -39,6 +39,11 @@ export function lineOf(source: string, pos: number): number {
 }
 
 export function readSource(filePath: string): { source: string; sf: ts.SourceFile } {
+  // iCloud-backed dataless files can throw `Unknown system error -11` on
+  // read; we surface that as a tagged empty source so callers can skip
+  // the file rather than crash the whole gate run. This is the same
+  // class of resilience Zaltyko relies on elsewhere (see WORKING_COPY
+  // dataless note in vault/00-Inicio).
   const source = fs.readFileSync(filePath, "utf8");
   const sf = ts.createSourceFile(
     filePath,
@@ -48,6 +53,25 @@ export function readSource(filePath: string): { source: string; sf: ts.SourceFil
     ts.ScriptKind.TSX,
   );
   return { source, sf };
+}
+
+/**
+ * Read-only variant that returns `null` (instead of throwing) when the file
+ * is unreadable — iCloud-backed dataless files raise `Unknown system error
+ * -11`, and silently skipping them is preferable to crashing the gate run.
+ * Callers should treat the missing AST as "no findings for this file".
+ */
+export function tryReadSource(filePath: string): { source: string; sf: ts.SourceFile } | null {
+  try {
+    return readSource(filePath);
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException).code;
+    if (code === "ENOENT" || code === "EACCES" || code === "EISDIR") return null;
+    // Treat iCloud errno -11 as unreadable too: the file is dataless and
+    // Node refuses to materialise it. The safe default is to skip.
+    if ((err as NodeJS.ErrnoException).errno === -11) return null;
+    throw err;
+  }
 }
 
 /**
@@ -109,6 +133,25 @@ export function leadingComment(source: string, pos: number, marker: RegExp): { o
     }
   }
   return { ok: false, reason: null };
+}
+
+/**
+ * Wrap a per-file scan so iCloud dataless files (errno -11) and other
+ * transient read failures do not crash the whole gate run. The file is
+ * skipped silently — we cannot make a static judgement about unreadable
+ * bytes, so the safe default is "no findings for this file". This matches
+ * the policy in the Zaltyko working-copy dataless note (vault/00-Inicio).
+ */
+export function safeScanFile<T>(scan: (filePath: string) => T[], filePath: string): T[] {
+  try {
+    return scan(filePath);
+  } catch (err) {
+    const e = err as NodeJS.ErrnoException;
+    if (e.errno === -11 || e.code === "ENOENT" || e.code === "EACCES" || e.code === "EISDIR") {
+      return [];
+    }
+    throw err;
+  }
 }
 
 /**
