@@ -6,6 +6,45 @@ All notable changes to Zaltyko are documented here. Format follows
 > SHA referenced corresponds to commits on `zaltyko-onboarding-ZAL-137`.
 > For commits on previous branches, refer to the git history directly.
 
+## 2026-08-11 — ZAL-556 gate runner hardening
+
+### Fixed
+
+- `scripts/gates/run-all.ts` no longer shells out to `npx --no-install tsx`.
+  `npx` resolution is cwd-sensitive and hangs reproducibly inside this repo
+  (>7 min at 0% CPU, no child process spawned), which left `pnpm gate:all` —
+  the CI entrypoint — unusable. tsx is now resolved through Node's own
+  resolver (`require.resolve("tsx/cli")`) and run with `process.execPath`.
+- `run-all.ts` conflated a gate that *found violations* with a gate that
+  *failed to launch*: both collapsed into exit 1 via `proc.status ?? 1`. A
+  launch failure is now reported explicitly on stderr.
+- `gates.test.ts` spawned its end-to-end smoke tests with `cwd` set to the
+  repo's **parent** directory (`path.join(ROOT, "..", "..", "..")` where
+  `ROOT` is `scripts/gates`), so they never exercised the failing path.
+- `gates.test.ts` asserted `status !== 0` for the negative fixtures. A spawn
+  that never ran reports `status === null`, which satisfies that assertion —
+  a total failure to execute scored as a pass. Now asserts `status === 1` and
+  fails explicitly on launch errors.
+- Removed a dead, non-functional `tsx` helper in `gates.test.ts`.
+
+### Added
+
+- `scripts/gates/lib/run-tsx.ts` — deterministic tsx invocation shared by the
+  runner and the tests.
+- Self-test coverage for `run-all.ts` itself (2 new cases, 10/10 total).
+  Nothing previously covered the CI entrypoint, which is why a broken
+  `gate:all` shipped twice behind a green self-test run.
+
+### Notes
+
+- 394 of the 1.356 `src/**/*.ts{,x}` files in the local working copy are
+  iCloud-evicted (`compressed,dataless`); reading one blocks indefinitely at
+  0% CPU. Full-tree local scans cannot complete until they are materialised.
+  This affects `tsc` and `npx` equally and does not apply to CI. See
+  `docs/audit/STATIC_GATES.md`.
+- Re-measured over the 962 readable files: A2 = 401 findings, A3 = 21,
+  proportionally consistent with the earlier full-tree 514 / 28.
+
 ## 2026-08-10 — ZAL-556 static gates
 
 ### Added
@@ -25,7 +64,7 @@ All notable changes to Zaltyko are documented here. Format follows
   — manual fixtures for both gates.
 - `scripts/gates/__tests__/gates.test.ts` — self-test runner that runs
   each gate in-process against the fixtures plus an end-to-end smoke test
-  via `npx tsx`.
+  via `npx tsx` (replaced by a deterministic runner on 2026-08-11).
 - `pnpm gate:reads`, `pnpm gate:reads:strict`, `pnpm gate:auth`,
   `pnpm gate:auth:strict`, `pnpm gate:all`, `pnpm gate:test`.
 - `docs/audit/STATIC_GATES.md` — full operator guide, including limits

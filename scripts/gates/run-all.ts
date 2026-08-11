@@ -10,25 +10,32 @@
  *
  * but with a unified report at the end so reviewers can scan both summaries.
  */
-import { spawnSync } from "node:child_process";
 import * as path from "node:path";
+
+import { runTsx } from "./lib/run-tsx";
 
 const HERE = __dirname;
 
-// Invoke tsx via `npx --no-install` rather than a hard-coded `node_modules/.bin`
-// path: under pnpm the bin is a shell wrapper, so `node <wrapper>` fails, and the
-// literal path is brittle with respect to where the repo is checked out.
+// tsx is resolved through Node's module resolver rather than `npx` or a
+// `node_modules/.bin` path — see lib/run-tsx.ts for why both of those break.
 function runGate(script: string, args: string[]): number {
-  const proc = spawnSync("npx", ["--no-install", "tsx", script, ...args], {
-    stdio: "inherit",
-    cwd: process.cwd(),
-  });
-  return proc.status ?? 1;
+  const proc = runTsx(script, args, { stdio: "inherit" });
+  if (proc.error || proc.status === null) {
+    // Failing to launch the gate is not "no violations found" — surface it.
+    process.stderr.write(
+      `[gates] failed to run ${path.basename(script)}: ${proc.error?.message ?? `signal ${proc.signal}`}\n`,
+    );
+    return 1;
+  }
+  return proc.status;
 }
 
 function main() {
-  const readsStatus = runGate(path.join(HERE, "unbounded-reads.ts"), ["--strict"]);
-  const authStatus = runGate(path.join(HERE, "auth-before-validate.ts"), ["--strict"]);
+  // Extra CLI args (e.g. `--root <dir>`) are forwarded to both gates so this
+  // entrypoint can be exercised against fixtures in the self-tests.
+  const forwarded = process.argv.slice(2);
+  const readsStatus = runGate(path.join(HERE, "unbounded-reads.ts"), ["--strict", ...forwarded]);
+  const authStatus = runGate(path.join(HERE, "auth-before-validate.ts"), ["--strict", ...forwarded]);
 
   if (readsStatus !== 0 || authStatus !== 0) {
     process.stdout.write(`\n[gates] violations — A2=${readsStatus}, A3=${authStatus}\n`);

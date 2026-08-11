@@ -203,12 +203,59 @@ título informativo; el gate seguirá silenciando el hallazgo.
 | A2   | 1.356 (`src/`)      | 514       | primeros 25 en `pnpm gate:reads`                                                 |
 | A3   |   245 (`route.ts`)  | 28        |主要集中在 `onboarding/*`, `lemonsqueezy/webhook`, `contact`, `family/*`, `public/*` |
 
+Re-medición 2026-08-11 sobre el **subconjunto legible** del árbol (962 de
+1.356 archivos; ver "Limitación del entorno" abajo): A2 = 401 hallazgos,
+A3 = 21. Las proporciones son consistentes con el escaneo completo previo.
+
 Nota: la cantidad de A2 **no es un bug**; es el contrato esperado — toda
 cadena Drizzle que toque más de una fila debe justificarse.
 
 El modo `--strict` retorna exit 1 cuando hay al menos un hallazgo. En
 local se trata como advisory. En CI, combinarlo con `--strict` en los
 worktrees donde se exige.
+
+## Limitación del entorno: archivos `dataless` (iCloud)
+
+En la copia de trabajo local (`~/Desktop/_PROYECTOS/Zaltyko`, bajo sync de
+iCloud Desktop) **394 de los 1.356** archivos `.ts/.tsx` de `src/` están
+evictados: `ls -lO` los marca `compressed,dataless` y son placeholders sin
+contenido local.
+
+Consecuencia práctica: `fs.readFileSync` sobre uno de ellos **se bloquea
+indefinidamente a 0% de CPU** esperando una descarga que no llega
+(`brctl download` no los materializa). Por eso un `pnpm gate:all` sin
+`--root` puede quedarse colgado sin emitir una sola línea. No es un
+defecto de los gates: `tsc` y `npx` se cuelgan igual en este árbol.
+
+Cómo distinguirlo de un bug del gate:
+
+```sh
+# Si esto imprime > 0, el árbol local está degradado, no el gate.
+find src -name '*.ts' -o -name '*.tsx' | xargs ls -lO | grep -c dataless
+```
+
+En CI (checkout limpio, sin iCloud) la condición no se da. Para trabajar
+en local sobre el subconjunto legible, usar `--root` apuntando a una copia
+filtrada. Deliberadamente **no** se añadió detección de `dataless` a los
+gates: es específico de macOS/iCloud y no corresponde a un control de
+seguridad.
+
+## Invocación de `tsx` (por qué no `npx`)
+
+`run-all.ts` resuelve el CLI de tsx con `require.resolve("tsx/cli")` y lo
+ejecuta con `process.execPath` (ver `scripts/gates/lib/run-tsx.ts`). Las
+dos alternativas obvias están descartadas por motivos concretos:
+
+- `node_modules/.bin/tsx` — bajo pnpm es un wrapper de shell; `node <wrapper>`
+  falla. Además el path literal es frágil.
+- `npx --no-install tsx` — la resolución depende del cwd y en este repo se
+  cuelga de forma reproducible (>7 min, 0% CPU, sin proceso hijo), mientras
+  que desde el directorio padre responde en ~1,7 s.
+
+Nota de resolución: `require.resolve("tsx/dist/cli.mjs")` lanza
+`ERR_PACKAGE_PATH_NOT_EXPORTED`; el subpath publicado en `exports` es
+`tsx/cli`. Hay fallback al campo `bin` de `tsx/package.json`.
+
 
 ## Diseño experimental
 
@@ -217,9 +264,15 @@ worktrees donde se exige.
 - `scripts/gates/__fixtures__/{positive,negative}/` — casos de prueba
   manuales para cada gate.
 - `scripts/gates/__tests__/gates.test.ts` — runner sin dependencia de
-  vitest; se puede mover a vitest cuando exista un setup formal.
+  vitest; se puede mover a vitest cuando exista un setup formal. Cubre
+  también `run-all.ts` end-to-end: hasta 2026-08-11 nada ejercitaba el
+  entrypoint de CI, así que un runner incapaz de lanzar sus gates hijos
+  seguía dando verde.
+- `scripts/gates/lib/run-tsx.ts` — invocación determinista de tsx.
 - `scripts/gates/run-all.ts` — invoca ambos gates en modo strict y
-  resume.
+  resume. Distingue "el gate encontró violaciones" (exit 1) de "el gate no
+  llegó a ejecutarse" (`status === null`), que antes se colapsaban en el
+  mismo código de salida.
 
 ## Fuera de alcance (deferred)
 
