@@ -1,14 +1,14 @@
 /**
- * Aggregate runner: invokes A2 and A3 in sequence and exits non-zero if either
- * gate reports a finding. Useful in CI:
+ * Aggregate runner: invokes A2, A3 and A4 in sequence and exits non-zero if
+ * any gate reports a finding. Useful in CI:
  *
  *   pnpm gate:all
  *
  * Equivalent to:
  *
- *   pnpm gate:reads --strict && pnpm gate:auth --strict
+ *   pnpm gate:reads --strict && pnpm gate:auth --strict && pnpm gate:orphan --strict
  *
- * but with a unified report at the end so reviewers can scan both summaries.
+ * but with a unified report at the end so reviewers can scan all summaries.
  */
 import * as path from "node:path";
 
@@ -31,14 +31,17 @@ function runGate(script: string, args: string[]): number {
 }
 
 function main() {
-  // Extra CLI args (e.g. `--root <dir>`) are forwarded to both gates so this
+  // Extra CLI args (e.g. `--root <dir>`) are forwarded to all gates so this
   // entrypoint can be exercised against fixtures in the self-tests.
   const forwarded = process.argv.slice(2);
   const readsStatus = runGate(path.join(HERE, "unbounded-reads.ts"), ["--strict", ...forwarded]);
   const authStatus = runGate(path.join(HERE, "auth-before-validate.ts"), ["--strict", ...forwarded]);
+  const orphanStatus = runGate(path.join(HERE, "orphan-app-route.ts"), ["--strict", ...forwarded]);
 
-  if (readsStatus !== 0 || authStatus !== 0) {
-    process.stdout.write(`\n[gates] violations — A2=${readsStatus}, A3=${authStatus}\n`);
+  if (readsStatus !== 0 || authStatus !== 0 || orphanStatus !== 0) {
+    process.stdout.write(
+      `\n[gates] violations — A2=${readsStatus}, A3=${authStatus}, A4=${orphanStatus}\n`,
+    );
     process.exitCode = 1;
   } else {
     process.stdout.write("\n[gates] all clean.\n");

@@ -1,5 +1,5 @@
 /**
- * Self-test runner for both gates.
+ * Self-test runner for all gates (A2, A3, A4).
  *
  * Usage:
  *   pnpm gate:test
@@ -9,8 +9,11 @@
  *   2. Run A2 against the negative fixture. Expect ≥ 5 findings (one per `badN`).
  *   3. Run A3 (auth-before-validate) against the positive fixture. Expect 0 findings.
  *   4. Run A3 against the negative fixture. Expect ≥ 3 findings (POST/PATCH/PUT).
- *   5. Run A2 and A3 against a *combined* mixed fixture (positive + negative)
- *      and ensure the gate does not explode on combined input.
+ *   5. Run A4 (orphan-app-route) against the positive fixture. Expect 0 findings.
+ *   6. Run A4 against the negative fixture. Expect ≥ 3 findings (one per leak shape).
+ *   7. Run A2/A3/A4 against combined mixed fixtures and ensure no gate explodes.
+ *   8. Exercise the CI entrypoint (`pnpm gate:all`) directly so a runner that
+ *      cannot launch its children cannot fake a green run.
  *
  * No vitest dependency; we use a plain assertion runner because the goal is
  * to validate static-gate outputs without pulling a heavyweight test stack
@@ -22,6 +25,7 @@ import * as path from "node:path";
 import { runTsx } from "../lib/run-tsx";
 import { scanFile as scanReadsFile } from "../unbounded-reads";
 import { scanFile as scanAuthFile } from "../auth-before-validate";
+import { scanFile as scanOrphanFile } from "../orphan-app-route";
 
 const ROOT = path.resolve(__dirname, "..");
 const REPO_ROOT = path.resolve(ROOT, "..", "..");
@@ -29,6 +33,8 @@ const POSITIVE_DIR = path.join(ROOT, "__fixtures__", "positive");
 const NEGATIVE_DIR = path.join(ROOT, "__fixtures__", "negative");
 const AUTH_POSITIVE = path.join(POSITIVE_DIR, "auth-order");
 const AUTH_NEGATIVE = path.join(NEGATIVE_DIR, "auth-order");
+const ORPHAN_POSITIVE = path.join(ROOT, "__fixtures__", "orphan-app-route", "positive");
+const ORPHAN_NEGATIVE = path.join(ROOT, "__fixtures__", "orphan-app-route", "negative");
 
 type Expectation = {
   label: string;
@@ -44,15 +50,40 @@ function note(label: string, ok: boolean, detail = "") {
   if (!ok) failures.push(`${label}: ${detail}`);
 }
 
+function listFilesRecursive(dir: string, predicate: (p: string) => boolean = () => true): string[] {
+  const out: string[] = [];
+  if (!fs.existsSync(dir)) return out;
+  const stack = [dir];
+  while (stack.length) {
+    const current = stack.pop() as string;
+    for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
+      const full = path.join(current, entry.name);
+      if (entry.isDirectory()) {
+        stack.push(full);
+      } else if (entry.isFile() && predicate(full)) {
+        out.push(full);
+      }
+    }
+  }
+  return out;
+}
+
 function expectFileFindings(
   label: string,
   scan: (p: string) => unknown[],
   dir: string,
   expectedCount: number,
   predicate?: (finding: any) => boolean,
+  options: { recursive?: boolean; fileFilter?: (p: string) => boolean } = {},
 ) {
-  const entries = fs.readdirSync(dir, { withFileTypes: true });
-  const files = entries.filter((e) => e.isFile()).map((e) => path.join(dir, e.name));
+  const isRecursive = options.recursive ?? false;
+  const fileFilter = options.fileFilter ?? (() => true);
+  const files = isRecursive
+    ? listFilesRecursive(dir, fileFilter)
+    : fs
+        .readdirSync(dir, { withFileTypes: true })
+        .filter((e) => e.isFile())
+        .map((e) => path.join(dir, e.name));
   let totalFindings = 0;
   for (const file of files) {
     const findings = scan(file) as any[];
@@ -106,6 +137,26 @@ function main() {
     (f) => f.rule === "A3/validate-before-auth",
   );
 
+  // A4 positive = 0 findings (whitelisted + escape hatch + page-auth + parent-layout)
+  expectFileFindings(
+    "A4 orphan-app-route (positive)",
+    (p) => scanOrphanFile(p),
+    ORPHAN_POSITIVE,
+    0,
+    undefined,
+    { recursive: true, fileFilter: (p) => p.endsWith("page.tsx") },
+  );
+
+  // A4 negative = ≥3 findings (one per leak shape: no-auth, no-layout, whitelist-shaped-but-bare)
+  expectFileFindings(
+    "A4 orphan-app-route (negative)",
+    (p) => scanOrphanFile(p),
+    ORPHAN_NEGATIVE,
+    3,
+    (f) => f.rule === "A4/orphan-app-route",
+    { recursive: true, fileFilter: (p) => p.endsWith("page.tsx") },
+  );
+
   // Smoke-test the gate scripts end-to-end against the positive/negative
   // fixtures, asserting the exit code reflects strictness.
   //
@@ -150,6 +201,18 @@ function main() {
     "tsx A3 positive fixture",
     path.join(ROOT, "auth-before-validate.ts"),
     ["--root", POSITIVE_DIR],
+    false,
+  );
+  checkExit(
+    "tsx A4 negative fixture strict",
+    path.join(ROOT, "orphan-app-route.ts"),
+    ["--root", ORPHAN_NEGATIVE, "--strict"],
+    true,
+  );
+  checkExit(
+    "tsx A4 positive fixture",
+    path.join(ROOT, "orphan-app-route.ts"),
+    ["--root", ORPHAN_POSITIVE],
     false,
   );
 
