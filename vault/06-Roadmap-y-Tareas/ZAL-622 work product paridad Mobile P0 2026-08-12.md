@@ -271,3 +271,38 @@ Error: Unknown system error -11: Unknown system error -11, read
     syscall: 'read'
 ```
 El error sale del loader ESM antes de cargar cualquier módulo de test, tanto desde `mobile/` como desde `/tmp` (cambiando cwd). `node -e "require('fs').readFileSync(...)"` funciona; `node -e "import('...')"` también (`exists: true`, `len: 5960`). El síntoma es que el loader ESM de Node 22 hace un `readSync` sincrónico que devuelve `EAGAIN` sin reintentar — comportamiento conocido en interacciones Node 22 + macOS con algunos FS events. Mitigación en este heartbeat: validación estática (todas las 14 claves contractuales presentes en `error-codes.ts` y referenciadas en `error-codes.test.ts`) + `tsc --noEmit` pasa (excepto `vitest.config.ts` con `@types/node` no instalado, preexistente). Si reaparece en CI hay que forzar Node 20 LTS.
+
+### Corrección de la causa raíz (v0.6, 2026-08-12) — el diagnóstico anterior era incorrecto
+
+El diagnóstico "bug de Node 22 + macOS, mitigar con Node 20 LTS" quedó **refutado**. Node 20.20.2 (`/opt/homebrew/opt/node@20/bin/node`) falla con el mismo `errno -11`. En macOS `errno -11` es `EDEADLK` ("Resource deadlock avoided"), el mismo error que `git status` reportaba al indexar.
+
+Causa real: **iCloud Drive había desalojado (evicted) archivos de `mobile/node_modules`**, dejándolos como `dataless`. Evidencia literal:
+
+```
+$ stat -f "%N flags=%Sf size=%z blocks=%b" node_modules/vitest/dist/cli.js
+node_modules/vitest/dist/cli.js flags=compressed,dataless size=284 blocks=0
+```
+
+En `node_modules/vitest/dist`: 27 archivos legibles, 4 ilegibles (`cli.js`, `snapshot.js`, `spy.js`, `suite.d.ts`). Barrido completo de `mobile/node_modules`: **1410 archivos dataless** de 38 387. Por eso fallaba incluso un test trivial (`expect(1+1).toBe(2)`): lo que no se podía leer era el propio binario de vitest, no el código de test.
+
+Remedio aplicado: `rm -rf node_modules && npm ci --include=optional` (directorio gitignored y reproducible desde `package-lock.json`; no toca código fuente). Tras eso vitest corre normalmente. **La suite mobile no estaba "sin verificar por un bug de Node": estaba sin verificar por un `node_modules` corrupto, y al repararlo apareció un fallo real** (ver abajo).
+
+### Fallo real destapado al reparar la verificación (v0.6)
+
+Con vitest funcionando, la suite completa de `mobile/` da:
+
+```
+Test Files  1 failed | 8 passed (9)
+     Tests  1 failed | 146 passed (147)
+```
+
+El único fallo está en código de **Fase 0 de esta misma issue** (commit `e31236dc8`), archivo `lib/api/client.test.ts:257`:
+
+- Test: `un 500 sin código reconocible cae en HTTP_5xx con retryable=true`.
+- Esperado: `code: 'HTTP_5xx'`. Recibido: `code: 'BOOM'`.
+- Origen: `lib/api/client.ts:172` hace `const code = rawCode ?? (res.status >= 500 ? 'HTTP_5xx' : ...)`. Si el backend manda un `code` no reconocido en un 500 (`BOOM`), `rawCode` **no** es nullish, así que nunca cae al `HTTP_5xx`; el código crudo del backend se propaga.
+- No es regresión de la reinstalación: árbol limpio en `mobile/lib/api/`, el test y el `client.ts` están commiteados tal cual en `e31236dc8`.
+
+Impacto acotado: `retryable`/`nextAction` siguen correctos (se infieren del status), y AC-10 se mantiene porque `message` sí sale de la tabla y nunca del backend. Lo que se filtra a la UI como identificador es el `code` crudo. Queda como trabajo de Fase 3, **no** se arregla en este heartbeat (heartbeat de recuperación: registrar disposición, no producir entregable).
+
+Los 3 archivos de test de Fases 0–2 pasan aislados: `Tests  54 passed (54)` para `dashboard.test.ts` (14) + `error-codes.test.ts` (12) + `idempotency.test.ts` (15) — la suma 41 vs 54 se explica por bloques `it` anidados/parametrizados que `grep -c "  it("` no cuenta.
