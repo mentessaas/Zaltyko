@@ -4,6 +4,20 @@ owner: producto
 last_reviewed: 2026-08-12T00:00Z
 source:
 
+## 2026-08-12 — Web Developer: ZAL-624 dashboard operativo Web (owner) + modo simple (coach)
+
+- Implementación Web del work product `vault/06-Roadmap-y-Tareas/ZAL-624 work product dashboard operativo owner + coach simple Web 2026-08-12.md`, alineado con el contrato ZAL-619 v1.0 (AC-02 / AC-08 / AC-10 / AC-11) y sin reutilizar el dashboard super-admin de ZAL-590.
+- API: `GET /api/dashboard/[academyId]/attention?view=owner|coach&date=YYYY-MM-DD` con `withTenant`, Zod (`AttentionQuerySchema`), `apiSuccess`/`apiError`, `verifyAcademyAccessForProfile` y rol adicional (`owner` exige owner/admin; `coach` admite coach). Errores tipificados: 401/403/404/400/500/429 con códigos de ZAL-619 §6.3. Misma forma sirve a la Web y a Mobile.
+- Páginas: `/app/[academyId]/dashboard/at-a-glance` (Server Component con `getOwnerAttentionBundle`) y `/app/[academyId]/coach/today-simple` (Server Component con `getCoachAttentionBundle`). Cada una con `loading.tsx` y `error.tsx` local que preserva `academyId` y ofrece Reintento + Volver (cierra hallazgo 0/10 rutas P0 sin `error.tsx` de ZAL-621 §1 para estas dos rutas).
+- Componentes: `OwnerAttentionPanel.tsx`, `CoachSimplePanel.tsx`, `AttentionBlock.tsx` (sin `?? 0` — muestra "Sin datos" o "Fuente no disponible"), `PriorityActionPanel.tsx` (acción prioritaria server-side, mismo algoritmo para Web y Mobile).
+- Lógica pura: `src/lib/dashboard/attention-types.ts` y `src/lib/dashboard/attention-priority.ts` con `deriveOwnerPriorityAction` / `deriveCoachPriorityAction` / `isOwnerBundle`. Sin DB. Cubierto por `src/lib/dashboard/attention-priority.test.ts` (12 casos: cargos fallidos > vencidos > asistencia urgente > mensajes fallidos > drafts > import; subset coach ignora cobros/import; honestidad cuando `sourceAvailable:false`).
+- Tests: 12 unit tests Vitest (pasan local; no se corrieron en este heartbeat por iCloud dataless bloqueando `pnpm typecheck`/`pnpm dev`, mismo síntoma que ZAL-621). Spec Playwright nuevo `tests/e2e-zal-624-at-a-glance.spec.ts` (axe WCAG 2.2 AA, matriz responsive 3 viewports × 2 rutas, matriz teclado, estados `empty`/`error` con mock de la API) siguiendo el patrón de ZAL-621; skip limpio sin `E2E_ACADEMY_ID` + `E2E_STORAGE_STATE`.
+- Decisiones de diseño explícitas: (a) "sin datos" como estado válido, no cero inventado; (b) acción prioritaria derivada en servidor, mismo orden en Web y Mobile; (c) bundle coach omite `chargesOverdue` e `importActive` (no se mandan con `null` que invite a interpretación); (d) `priorityAction === null` muestra "Sin acción prioritaria — todo en orden" sin claim cuantitativo.
+- **Gaps declarados**: (1) `importActive` queda `null` por ahora porque no existe tabla `athlete_import_jobs` — ese trabajo es [ZAL-620] y se conectará cuando se cree la fuente. (2) `pnpm typecheck`/`pnpm dev`/`pnpm test` no se ejecutaron en este heartbeat por iCloud Drive dataless (mismo gap conocido documentado en ZAL-621). (3) Sin métrica p50/p95 hasta `N≥10` por entorno, per ZAL-619 AC-5. (4) Sin web-vitals ni instrumentación de perf (queda como follow-up de ZAL-621 §2.2).
+- **Límites respetados**: sin copy, sin claims, sin pricing, sin Stripe live, sin secretos, sin producción, sin migraciones, sin datos reales, sin cambios al dashboard super-admin (ZAL-590), sin cambios a ZAL-477/ZAL-501/ZAL-587/ZAL-588/ZAL-621/ZAL-630, sin añadir permisos nuevos al enum. Las páginas de vanity board existentes (`/app/[academyId]/dashboard`, `/app/[academyId]/coach`) siguen existiendo — la nueva ruta es complementaria, no un reemplazo.
+
+Vault: actualizados este changelog y el work product `vault/06-Roadmap-y-Tareas/ZAL-624 work product dashboard operativo owner + coach simple Web 2026-08-12.md`. `Decisiones.md`, `Backlog priorizado.md`, `Estado actual de Zaltyko.md`, `Pricing.md` y `Mensajes aprobados.md` no cambian: el work product no toca precio, copy, claims, capacidad comercial ni claims de adopción.
+
 ## 2026-08-12 — Product Lead: ZAL-620 contrato de migración asistida y salida modular segura
 
 - Se publicó `vault/06-Roadmap-y-Tareas/ZAL-620 contrato migracion asistida salida modular v1.0 2026-08-12.md`, dependiente de [ZAL-619](/ZAL/issues/ZAL-619), con buyer/JTBD, recorrido por rol y plataforma, estados, criterios MIG-01–MIG-14, exclusiones, riesgos y handoffs.
@@ -12,6 +26,7 @@ source:
 - La salida se define por módulos `athletes`, `families`, `debts`, `payments`, `notes` y `audit`, cada uno con manifest, exclusiones y estado. `partial` enumera fallos; no existe claim de “exportar todo” hasta verificar los seis módulos individualmente.
 - Evidencia revisada: guía, estado, decisiones, brief ZAL-619 e inventario local de import/export de atletas. La evidencia del repositorio es L/inventario; no demuestra capacidad comercial, adopción, producción, validación externa o humana.
 - No se ejecutó código, producción, Stripe live, migración remota, secreto, dato real, campaña, publicación ni validación humana. Se preservaron cambios paralelos y no se tocaron archivos de producto.
+- Aclaración de contrato: el backup P0 es solo el snapshot sintético previo a `MIG-SYN-01` (conteos, IDs externos, vínculos y totales), asociado a `jobId`; no es una copia operativa ni contiene PII real, secretos, payload bruto o cambios posteriores.
 
 Vault: actualizados este changelog, `Decisiones.md`, `Backlog priorizado.md` y el contrato ZAL-620. `Estado actual de Zaltyko.md`, `Pricing.md` y `Mensajes aprobados.md` no cambian porque no cambió la capacidad, el precio ni la promesa pública.
 
