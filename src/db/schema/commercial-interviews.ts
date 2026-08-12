@@ -60,8 +60,15 @@ export const commercialInterviews = pgTable(
       table.completedAt
     ),
     leadIdx: index("commercial_interviews_lead_idx").on(table.leadId),
-    consentIdx: index("commercial_interviews_consent_idx").on(table.consentAt),
-    demoEndedIdx: index("commercial_interviews_demo_ended_idx").on(table.demoEndedAt),
+    // Indices parciales: la migracion los crea con `WHERE ... IS NOT NULL`, asi
+    // que el companion debe declararlos igual o `drizzle-kit generate` produce
+    // un diff espurio que intenta recrearlos como indices totales.
+    consentIdx: index("commercial_interviews_consent_idx")
+      .on(table.consentAt)
+      .where(sql`${table.consentAt} is not null`),
+    demoEndedIdx: index("commercial_interviews_demo_ended_idx")
+      .on(table.demoEndedAt)
+      .where(sql`${table.demoEndedAt} is not null`),
     academyFingerprintUnique: uniqueIndex("commercial_interviews_academy_fingerprint_unique").on(
       table.academyFingerprint
     ),
