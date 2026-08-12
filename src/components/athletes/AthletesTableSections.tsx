@@ -533,7 +533,7 @@ function AthleteMobileCard({
         <button
           type="button"
           onClick={onToggleSelect}
-          className="mt-0.5 shrink-0 rounded-lg p-1 text-slate-400 hover:text-zaltyko-teal"
+          className="mt-0.5 shrink-0 rounded-lg p-1 text-slate-500 hover:text-zaltyko-teal"
           aria-label={`${selected ? "Deseleccionar" : "Seleccionar"} ${athlete.name}`}
         >
           {selected ? <CheckSquare className="h-5 w-5 text-zaltyko-teal" /> : <Square className="h-5 w-5" />}

@@ -58,7 +58,7 @@ export function OperationsPulse({ academyId }: { academyId: string }) {
     <section className="overflow-hidden rounded-[24px] border border-slate-200/80 bg-white shadow-[0_18px_50px_-28px_rgba(15,23,42,0.38)]">
       <div className="flex flex-col gap-4 border-b border-slate-100 px-5 py-5 sm:flex-row sm:items-start sm:justify-between sm:px-6">
         <div>
-          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Ritmo de la academia</p>
+          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">Ritmo de la academia</p>
           <div className="mt-1 flex items-center gap-3">
             <h2 className="font-display text-xl font-bold tracking-[-0.02em] text-slate-950">Pulso operativo</h2>
             <span className={cn(
@@ -103,7 +103,7 @@ export function OperationsPulse({ academyId }: { academyId: string }) {
           </p>
           <p className="mt-1 text-sm font-medium text-slate-500">{activeMetric.label.toLowerCase()} actuales</p>
           {delta === null ? (
-            <p className="mt-3 text-xs font-semibold text-slate-400">Sin serie comparable</p>
+            <p className="mt-3 text-xs font-semibold text-slate-500">Sin serie comparable</p>
           ) : (
             <p className={cn("mt-3 inline-flex items-center gap-1 text-xs font-semibold", delta >= 0 ? "text-emerald-700" : "text-rose-600")}>
               <ArrowUpRight className={cn("h-3.5 w-3.5", delta < 0 && "rotate-90")} />
@@ -126,7 +126,7 @@ export function OperationsPulse({ academyId }: { academyId: string }) {
               <line x1="10" x2="630" y1="170" y2="170" stroke="#E2E8F0" strokeDasharray="4 8" />
             </svg>
           ) : (
-            <div className="flex h-full min-h-[150px] items-center justify-center text-sm text-slate-400">
+            <div className="flex h-full min-h-[150px] items-center justify-center text-sm text-slate-500">
               {series ? "Aún no hay suficientes datos para dibujar la evolución." : "Cargando evolución…"}
             </div>
           )}
