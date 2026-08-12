@@ -111,7 +111,7 @@ export function AcademySidebar() {
           if (sectionItems.length === 0) return null;
           return (
             <div key={section.label}>
-              <p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-white/45">{section.label}</p>
+              <p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-white/60">{section.label}</p>
               <ul className="space-y-1">
                 {sectionItems.map((item) => {
             const Icon = item.icon;
