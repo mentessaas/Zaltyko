@@ -13,7 +13,7 @@ phase_0_commit: e31236dc8 feat(mobile): ZAL-622 Phase 0 — ApiClientError retry
 phase_1_shipped: true
 phase_1_commit: 2a0e97c1a feat(mobile): ZAL-622 Phase 1 — attendance cancelled bloquea, save_failed etiquetado, idempotencyKey cliente
 phase_2_shipped: true
-phase_2_commit: pending (este heartbeat) feat(mobile): ZAL-622 Fase 2 — cliente dashboard.get compartido + AdminHome bloques
+phase_2_commit: 50f7025ad feat(mobile): ZAL-622 Fase 2 — cliente dashboard.get compartido + AdminHome bloques
 ---
 
 # ZAL-622 — Paridad Mobile del primer valor bajo contratos compartidos
