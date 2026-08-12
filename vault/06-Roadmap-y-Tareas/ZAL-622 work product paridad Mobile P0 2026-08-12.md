@@ -5,10 +5,11 @@ issue: ZAL-622
 parent: ZAL-610
 contract: ZAL-619 (v1.0, done)
 blocker: ninguno formal — ZAL-635 [ZAL-634] Fijar contrato dashboard.get compartido Web/Mobile cerrado 2026-08-12T17:46Z
-version: 0.7
+version: 0.8
 last_reviewed: 2026-08-12
-disposition: explicit_continuation — Fase 3 (AC-04 mensajes) no depende de decisión abierta
+disposition: explicit_continuation — Fase 3 (AC-04 mensajes) shipped en este sprint; queda Fase 4 (cobros) y siguientes
 last_disposition_fix: 2026-08-12T18:22:31Z (recovery run 66ae954a — bloqueado → in_progress, blockedBy=[], unblockDescriptor=null)
+last_sprint_shipped: 2026-08-12T20:34:36Z (Fase 3 + fix client.ts:172)
 ---
 evidence_scope: local-repository (mobile/ + src/ + vault); no production or human validation
 phase_0_shipped: true
@@ -17,6 +18,8 @@ phase_1_shipped: true
 phase_1_commit: 2a0e97c1a feat(mobile): ZAL-622 Phase 1 — attendance cancelled bloquea, save_failed etiquetado, idempotencyKey cliente
 phase_2_shipped: true
 phase_2_commit: 50f7025ad feat(mobile): ZAL-622 Fase 2 — cliente dashboard.get compartido + AdminHome bloques
+phase_3_shipped: true
+phase_3_commit: ee4c1883c feat(mobile): ZAL-622 Fase 3 — mensajes sent/pending/failed + retry + aislamiento
 ---
 
 # ZAL-622 — Paridad Mobile del primer valor bajo contratos compartidos
@@ -335,3 +338,63 @@ Wake reason: `issue_commented` por ZAL-640 (Web Dev) — heads-up de materializa
 **Limitación de verificación preservada:** `vitest` corre desde la reinstalación de `node_modules` (v0.6); la suite da `Test Files  1 failed | 8 passed (9)`, `Tests  1 failed | 146 passed (147)`. El único fallo es `client.test.ts:257`, que entra en el fix #1 de este sprint.
 
 **Categoría:** local-repository. No se ha ejecutado E2E, no hay validación humana, no se ha tocado producción, no se ha hecho release.
+
+### v0.8 — Fase 3 shipped + fix client.ts:172 (2026-08-12T20:34:36Z)
+
+Commit: `ee4c1883c feat(mobile): ZAL-622 Fase 3 — mensajes sent/pending/failed + retry + aislamiento`. 5 archivos cambiados, +276 / -9.
+
+**Entregables:**
+
+1. **`mobile/lib/api/client.ts`** — regla asimétrica explícita en el manejo de códigos no reconocidos:
+   - 5xx con código desconocido → bucket `HTTP_5xx` (cerraba el test que v0.6 dejó fallando).
+   - 4xx con código desconocido → se conserva el código crudo para logs/soporte; el `message` en UI sigue saliendo del FALLBACK (AC-10: nunca el `message` del backend).
+   - Cualquier status + código conocido → se respeta tal cual.
+   - Helper `isKnownErrorCode()` exportado desde `error-codes.ts`.
+
+2. **`mobile/lib/api/error-codes.ts`** — nuevo helper `isKnownErrorCode(code: string | undefined): boolean`. Verifica contra la unión de `CONTRACT_ERROR_CODES` + `CLIENT_ERROR_CODES`. Trata `undefined`/`null` como desconocido.
+
+3. **`mobile/components/messages/MessageBubble.tsx`** — prop opcional `deliveryStatus: 'pending' | 'sent' | 'failed'` + `onRetry` cuando failed. Render:
+   - `pending` → ícono `time-outline` + label "Enviando…".
+   - `sent` → ícono `checkmark` silencioso (default si la prop se omite para mensajes confirmados).
+   - `failed` → ícono `alert-circle` en color `colors.danger` + Pressable que llama a `onRetry`, con `accessibilityLabel="No enviado. Toca para reintentar."` y `hitSlop=8` para touch target ≥ 44pt.
+   - Mensajes ajenos SIEMPRE se renderizan como `sent` (el destinatario no conoce el estado interno del emisor).
+
+4. **`mobile/app/messages/[id].tsx`** — mutación optimista con preservación de payload:
+   - `onMutate`: inserta `PendingMessage` al final del hilo con `status: 'pending'`. `PendingMessage` extiende `ConversationMessage` con `status: 'pending' | 'failed'`, así encaja en el FlatList sin acoplar tipos.
+   - `onSuccess`: limpia el pending y refetchea (mensaje confirmado aparece como `sent` por default).
+   - `onError`: marca el pending como `failed` — el usuario ve el mensaje con CTA "Reintentar" sin reescribirlo, y `onRetry` repite el mismo payload contra el mismo endpoint.
+
+5. **`mobile/lib/api/endpoints.test.ts`** — nuevo `describe('aislamiento y errores esperados en getConversations (ZAL-622 AC-04 + §6.5)')` con 4 tests:
+   - Lista vacía → `[]` (no error). La UI muestra empty state, no banner de error.
+   - `FORBIDDEN_ROLE` 403 → `nextAction=contact_support`.
+   - `AUTH_REQUIRED` 401 → `nextAction=reauth` (crítico: una sesión vencida no debe degenerar a "Sin conversaciones" como si no hubiera nada).
+   - `UNAUTHENTICATED` 401 (código real del backend, distinto del contractual `AUTH_REQUIRED`) → código crudo preservado, `message` no contiene "Stack trace" (AC-10 + asimetría 4xx documentada).
+
+**Verificación (evidence gate):**
+
+```
+$ git -C /Users/elvisvaldesinerarte/Desktop/_PROYECTOS/Zaltyko log --oneline -1 ee4c1883c
+ee4c1883c feat(mobile): ZAL-622 Fase 3 — mensajes sent/pending/failed + retry + aislamiento
+
+$ ls -la mobile/lib/api/client.ts mobile/lib/api/error-codes.ts \
+        mobile/components/messages/MessageBubble.tsx \
+        "mobile/app/messages/[id].tsx" mobile/lib/api/endpoints.test.ts
+-rw-r--r--  7818 mobile/lib/api/client.ts                   (217 líneas)
+-rw-r--r--  6824 mobile/lib/api/error-codes.ts              (202 líneas)
+-rw-r--r--  5131 mobile/components/messages/MessageBubble.tsx (159 líneas)
+-rw-r--r--  7610 mobile/app/messages/[id].tsx               (209 líneas)
+-rw-r--r-- 15779 mobile/lib/api/endpoints.test.ts           (421 líneas)
+
+$ cd mobile && pnpm exec vitest run 2>&1 | tail -4
+ Test Files  9 passed (9)
+      Tests  151 passed (151)        # 147 previos + 4 nuevos de aislamiento
+
+$ cd mobile && pnpm exec tsc --noEmit
+(sin output = sin errores)
+```
+
+**Lo que cambia en AC-04:** antes la app sólo mostraba `sent` o nada tras un POST; ahora la UI distingue `pending` durante el envío, `sent` confirmado, y `failed` con retry — y el backend puede responder con cualquier código (incluso uno nuevo) sin que un 5xx contamine el árbol de errores con un código desconocido del backend.
+
+**Pendiente en AC-04:** estado `read` por destinatario requiere un endpoint que devuelva por mensaje la lista de lectores. Hoy no existe en backend. La fase 3 cubre el ciclo emisor; el ciclo lector queda para Fase 9 (transversal, gated por decisión cross-equipo).
+
+**Siguiente paso concreto:** Fase 4 (AC-06 cobros) — extender `Charge.status` con `partial`, `failed`, `due` y mapa de color/copy. Es mobile-only (sin decisión cruzada) y desbloquea el contrato visual de la familia.
