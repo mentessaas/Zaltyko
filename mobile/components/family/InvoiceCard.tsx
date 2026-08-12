@@ -8,7 +8,13 @@ import * as WebBrowser from 'expo-web-browser';
 
 import { Button } from '@/components/ui/Button';
 import { webBaseUrl, ApiClientError } from '@/lib/api/client';
-import { getChargePayUrl, type Charge } from '@/lib/api/endpoints';
+import {
+  getChargePayUrl,
+  type Charge,
+  CHARGE_STATUS_LABEL,
+  isChargePayable,
+  type ChargeStatus,
+} from '@/lib/api/endpoints';
 import { colors, radii, spacing, typography } from '@/lib/theme';
 
 interface Props {
@@ -22,18 +28,20 @@ function formatAmount(cents: number, currency: string): string {
   return `${amount.toFixed(2)} ${symbol}`;
 }
 
-function statusColor(status: Charge['status']) {
+function statusColor(status: ChargeStatus): string {
   switch (status) {
     case 'paid':
       return colors.success;
     case 'overdue':
+    case 'failed':
       return colors.danger;
-    case 'pending':
+    case 'due':
+    case 'partial':
       return colors.warning;
+    case 'draft':
+      return colors.info;
     case 'cancelled':
     case 'refunded':
-      return colors.textMuted;
-    default:
       return colors.textMuted;
   }
 }
@@ -66,7 +74,7 @@ function InvoiceCardImpl({ charge }: Props) {
         </View>
         <View style={[styles.badge, { backgroundColor: statusColor(charge.status) + '22' }]}>
           <Text style={[styles.badgeText, { color: statusColor(charge.status) }]}>
-            {charge.status}
+            {CHARGE_STATUS_LABEL[charge.status]}
           </Text>
         </View>
       </View>
@@ -74,7 +82,7 @@ function InvoiceCardImpl({ charge }: Props) {
       {charge.dueDate ? (
         <Text style={styles.meta}>Vence: {new Date(charge.dueDate).toLocaleDateString()}</Text>
       ) : null}
-      {charge.status === 'pending' || charge.status === 'overdue' ? (
+      {isChargePayable(charge.status) ? (
         <Pressable onPress={onPay} style={({ pressed }) => pressed && styles.pressed}>
           <Button title="Pagar en web" variant="primary" fullWidth />
         </Pressable>

@@ -88,6 +88,52 @@ export const cancelEnrollment = (enrollmentId: string) =>
 
 // ===== Charges / invoices =====
 
+// Estados contractuales del Cargo según ZAL-619 §3.6 + tabla de
+// estados (Cargo): `draft`, `due`, `partial`, `paid`, `overdue`,
+// `failed`, `refunded`, `cancelled`. La app NO inventa estados
+// fuera de este set (AC-11). `paid` requiere respaldo del mecanismo
+// de pago; la UI nunca afirma recibo legal.
+export type ChargeStatus =
+  | 'draft'
+  | 'due'
+  | 'partial'
+  | 'paid'
+  | 'overdue'
+  | 'failed'
+  | 'refunded'
+  | 'cancelled';
+
+export const CHARGE_STATUSES = [
+  'draft',
+  'due',
+  'partial',
+  'paid',
+  'overdue',
+  'failed',
+  'refunded',
+  'cancelled',
+] as const satisfies readonly ChargeStatus[];
+
+// Copy localizado para badges de cargo. NO usa palabras que
+// afirmarían recibo legal ("Recibo emitido", "Factura válida", etc.).
+export const CHARGE_STATUS_LABEL: Record<ChargeStatus, string> = {
+  draft: 'Borrador',
+  due: 'Pendiente de vencer',
+  partial: 'Pago parcial',
+  paid: 'Pagado',
+  overdue: 'Vencido',
+  failed: 'Pago fallido',
+  refunded: 'Reembolsado',
+  cancelled: 'Cancelado',
+};
+
+// ¿El CTA "Pagar en web" debe mostrarse? Solo en estados no pagados
+// donde aún hay acción posible para la familia. `paid`/`refunded`/
+// `cancelled`/`draft` no son accionables; `partial` permite completar
+// el pago; `due`/`overdue`/`failed` requieren pago.
+export const isChargePayable = (status: ChargeStatus): boolean =>
+  status === 'due' || status === 'overdue' || status === 'partial' || status === 'failed';
+
 export interface Charge {
   id: string;
   athleteId: string;
@@ -96,7 +142,7 @@ export interface Charge {
   amountCents: number;
   currency: string;
   label: string | null;
-  status: 'pending' | 'paid' | 'overdue' | 'cancelled' | 'refunded';
+  status: ChargeStatus;
   dueDate: string | null;
   paidAt: string | null;
   period: string | null;

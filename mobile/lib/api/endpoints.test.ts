@@ -15,6 +15,9 @@ import {
   getSessionAttendance,
   sendGroupAlert,
   upsertAttendance,
+  CHARGE_STATUSES,
+  CHARGE_STATUS_LABEL,
+  isChargePayable,
 } from './endpoints';
 
 // endpoints.ts es la frontera de contrato con el backend: define qué ruta
@@ -417,5 +420,74 @@ describe('aislamiento y errores esperados en getConversations (ZAL-622 AC-04 + �
       status: 401,
       message: expect.not.stringContaining('Stack trace'),
     });
+  });
+});
+
+describe('estados contractuales del Cargo (ZAL-622 AC-06 + ZAL-619 §3.6)', () => {
+  it('CHARGE_STATUSES expone los 8 estados del contrato en orden estable', () => {
+    // El contrato fija exactamente 8 estados. Cualquier drift (un backend
+    // que añade uno nuevo sin actualizar la app) debe fallar aquí para que
+    // la decisión sea explícita, no silenciosa.
+    expect(CHARGE_STATUSES).toEqual([
+      'draft',
+      'due',
+      'partial',
+      'paid',
+      'overdue',
+      'failed',
+      'refunded',
+      'cancelled',
+    ]);
+  });
+
+  it('cada estado contractual tiene etiqueta localizada (AC-10/AC-11)', () => {
+    // Misma longitud: no hay estado sin label. Garantiza que la UI NUNCA
+    // muestre el enum crudo al usuario.
+    expect(Object.keys(CHARGE_STATUS_LABEL).sort()).toEqual([...CHARGE_STATUSES].sort());
+  });
+
+  it('las etiquetas localizadas NO afirman recibo legal ni validez fiscal', () => {
+    // ZAL-619 §3.6: "no se afirma recibo fiscal ni validez legal".
+    // Si alguien añade "Recibo emitido" / "Factura válida" / "Válido
+    // ante Hacienda" a un label, este test lo bloquea.
+    const LEGAL_CLAIMS = [
+      'recibo',
+      'factura',
+      'haciend',
+      'fiscal',
+      'legal',
+      'válido',
+      'valido',
+      'certific',
+    ];
+    for (const status of CHARGE_STATUSES) {
+      const label = CHARGE_STATUS_LABEL[status].toLowerCase();
+      for (const claim of LEGAL_CLAIMS) {
+        expect(label).not.toContain(claim);
+      }
+    }
+  });
+
+  it('isChargePayable cubre exactamente los 4 estados con acción de pago', () => {
+    // La familia puede actuar (Pagar en web) en due/overdue/partial/failed.
+    // NO en paid (ya está pagado), ni en refunded/cancelled/draft (sin
+    // acción posible o aún no emitido por el dueño).
+    const payable: string[] = [];
+    const notPayable: string[] = [];
+    for (const s of CHARGE_STATUSES) {
+      if (isChargePayable(s)) payable.push(s);
+      else notPayable.push(s);
+    }
+    expect(payable.sort()).toEqual(['due', 'failed', 'overdue', 'partial']);
+    expect(notPayable.sort()).toEqual(['cancelled', 'draft', 'paid', 'refunded']);
+  });
+
+  it('los 4 estados `paid`/`refunded`/`cancelled`/`draft` NO son accionables', () => {
+    // Refuerza el invariante: la UI no muestra "Pagar en web" para cargos
+    // ya pagados, ya devueltos, ya cancelados o en borrador.
+    expect(isChargePayable('paid')).toBe(false);
+    expect(isChargePayable('refunded')).toBe(false);
+    expect(isChargePayable('cancelled')).toBe(false);
+    expect(isChargePayable('draft')).toBe(false);
   });
 });
