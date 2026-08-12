@@ -2,9 +2,9 @@
 //   - parent: lista real de hijos + eventos próximos
 //   - coach: sesiones de hoy, CTA para tomar asistencia
 //   - athlete: shell
-//   - owner/admin: shell — dashboard real en Fase 2
+//   - owner/admin: bundle de atención compartido Web/Mobile (Fase 2, ZAL-622)
 
-import { StyleSheet, Text, View } from 'react-native';
+import { Linking, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
@@ -25,9 +25,14 @@ import {
   getUpcomingEvents,
   getSessions,
   getMyProgress,
-  getMyKpis,
   getMySchedule,
 } from '@/lib/api/endpoints';
+import {
+  getAttention,
+  renderCount,
+  type OwnerAttentionBundle,
+  type TodaySession,
+} from '@/lib/api/dashboard';
 import { nextClassFromSchedule } from '@/lib/schedule/next-class';
 import { colors, spacing, typography } from '@/lib/theme';
 
@@ -53,7 +58,7 @@ export default function HomeScreen() {
       tasks.push(queryClient.invalidateQueries({ queryKey: ['me', 'schedule'] }));
     }
     if (profile.role === 'owner' || profile.role === 'admin' || profile.role === 'super_admin') {
-      tasks.push(queryClient.invalidateQueries({ queryKey: ['kpis'] }));
+      tasks.push(queryClient.invalidateQueries({ queryKey: ['dashboard', 'attention'] }));
     }
     await Promise.all(tasks);
   };
@@ -77,7 +82,7 @@ export default function HomeScreen() {
       {(profile.role === 'owner' ||
         profile.role === 'admin' ||
         profile.role === 'super_admin') ? (
-        <AdminHome />
+        <AdminHome academyId={profile.academyId} />
       ) : null}
 
       <Card title="Atajos" style={styles.card}>
@@ -279,42 +284,312 @@ function AthleteHome() {
   );
 }
 
-function AdminHome() {
-  const kpisQuery = useQuery({
-    queryKey: ['kpis'],
-    queryFn: getMyKpis,
+function AdminHome({ academyId }: { academyId: string | null }) {
+  // El contrato ZAL-619 §6.2 + ZAL-635 fija el shape compartido Web/Mobile
+  // para el bundle "attention". Reemplaza al antiguo getMyKpis() (números
+  // desnudos, ?? 0) por bloques con enlaces y estados vacío/error/parcial
+  // explícitos. Render correcto para owner/admin/super_admin; para coach
+  // se mantiene CoachHome y un refactor a view=coach queda en Fase 9.
+  const router = useRouter();
+  const attentionQuery = useQuery({
+    queryKey: ['dashboard', 'attention', academyId, 'owner'],
+    queryFn: () => {
+      if (!academyId) {
+        // El servidor rechaza sin academyId; cortocircuitar en cliente
+        // para no mostrar "Cargando…" infinito cuando el perfil todavía
+        // no tiene academia asignada (caso soporte o cuenta recién creada).
+        return Promise.reject(new Error('ACADEMY_REQUIRED'));
+      }
+      return getAttention(academyId, 'owner') as Promise<OwnerAttentionBundle>;
+    },
+    enabled: !!academyId,
     staleTime: 60 * 1000,
   });
 
-  const kpis = kpisQuery.data;
+  if (!academyId) {
+    return (
+      <Card title="Resumen">
+        <EmptyState
+          icon="business-outline"
+          title="Sin academia asignada"
+          description="Cuando formes parte de una academia verás aquí el panel operativo."
+          tone="light"
+        />
+      </Card>
+    );
+  }
+
+  if (attentionQuery.isLoading) {
+    return (
+      <Card title="Resumen" subtitle="De un vistazo">
+        <SkeletonGroup count={3} />
+      </Card>
+    );
+  }
+
+  if (attentionQuery.error) {
+    // ApiClientError ya pasó por translateError: el .message es seguro.
+    const err = attentionQuery.error as Error & { message?: string };
+    return (
+      <Card title="Resumen" subtitle="De un vistazo">
+        <EmptyState
+          icon="alert-circle-outline"
+          title="No se pudo cargar el panel"
+          description={err.message ?? 'Reintenta en unos segundos.'}
+          tone="light"
+          action={
+            <Button
+              title="Reintentar"
+              variant="secondary"
+              onPress={() => attentionQuery.refetch()}
+            />
+          }
+        />
+      </Card>
+    );
+  }
+
+  const bundle = attentionQuery.data;
+  if (!bundle) return null;
 
   return (
-    <Card title="Resumen" subtitle="De un vistazo — reportes completos en la web">
-      {kpisQuery.isLoading ? (
-        <SkeletonGroup count={2} />
-      ) : kpisQuery.error ? (
-        <EmptyState icon="alert-circle-outline" title="No se pudieron cargar los KPIs" tone="light" />
+    <>
+      {bundle.priorityAction ? (
+        <PriorityActionBanner
+          label={bundle.priorityAction.label}
+          onOpen={() => openHref(router, bundle.priorityAction!.href)}
+        />
+      ) : null}
+
+      {bundle.importActive ? (
+        <ImportActiveCard
+          state={bundle.importActive.state}
+          filename={bundle.importActive.filename}
+          onOpen={() => openHref(router, bundle.importActive!.href)}
+        />
+      ) : null}
+
+      <TodaySessionsCard today={bundle.today} />
+
+      <BlockTile
+        title="Asistencia pendiente"
+        display={renderCount(bundle.attendancePending)}
+        emptyLabel="Sin asistencia pendiente"
+        unavailableLabel="Fuente no disponible"
+        href={bundle.attendancePending.href}
+        onOpen={() => openHref(router, bundle.attendancePending.href)}
+      />
+
+      <MessagesPendingCard
+        unsent={bundle.messagesPending.unsent}
+        failed={bundle.messagesPending.failed}
+        unread={bundle.messagesPending.unread}
+        sourceAvailable={bundle.messagesPending.sourceAvailable}
+        href={bundle.messagesPending.href}
+        onOpen={() => openHref(router, bundle.messagesPending.href)}
+      />
+
+      <ChargesOverdueCard
+        overdue={bundle.chargesOverdue.overdue}
+        failed={bundle.chargesOverdue.failed}
+        sourceAvailable={bundle.chargesOverdue.sourceAvailable}
+        href={bundle.chargesOverdue.href}
+        onOpen={() => openHref(router, bundle.chargesOverdue.href)}
+      />
+
+      <BlockTile
+        title="Borradores de progreso"
+        display={renderCount(bundle.progressDrafts)}
+        emptyLabel="Sin borradores"
+        unavailableLabel="Fuente no disponible"
+        href={bundle.progressDrafts.href}
+        onOpen={() => openHref(router, bundle.progressDrafts.href)}
+      />
+    </>
+  );
+}
+
+// El bundle compartido devuelve `href` como ruta relativa a la versión
+// web (p.ej. `/app/abc/billing/overdue`). En Fase 2 Mobile abre esos
+// enlaces en el navegador companion via Linking.openURL; en Fase 3 se
+// introducirá una tabla de mapeo href → ruta interna Expo Router para
+// las acciones que ya tienen pantalla nativa (asistencia, mensajes).
+function openHref(router: ReturnType<typeof useRouter>, href: string | null): void {
+  if (!href) return;
+  // Convención actual del contrato: href es SIEMPRE una ruta web.
+  // Si en el futuro algún bloque expone rutas internas, distinguirlas
+  // aquí (p.ej. prefijo `/app/` → web, prefijo `/mobile/` → router).
+  void Linking.openURL(href).catch(() => {
+    // Si el dispositivo no puede abrir el link (sin browser), navegar a
+    // la pestaña de avisos como fallback informativo. Nunca throw a UI.
+    router.push('/(tabs)/notifications');
+  });
+}
+
+function PriorityActionBanner({
+  label,
+  onOpen,
+}: {
+  label: string;
+  onOpen: () => void;
+}) {
+  return (
+    <Card style={styles.priorityBanner}>
+      <Text style={styles.priorityLabel}>{label}</Text>
+      <Button title="Resolver" variant="primary" fullWidth onPress={onOpen} />
+    </Card>
+  );
+}
+
+function ImportActiveCard({
+  state,
+  filename,
+  onOpen,
+}: {
+  state: string;
+  filename: string | null;
+  onOpen: () => void;
+}) {
+  return (
+    <Card title="Importación en curso">
+      <Text style={styles.importState}>{state}</Text>
+      {filename ? <Text style={styles.importFilename}>{filename}</Text> : null}
+      <Button title="Ver detalle" variant="secondary" fullWidth onPress={onOpen} />
+    </Card>
+  );
+}
+
+function TodaySessionsCard({ today }: { today: TodaySession[] }) {
+  return (
+    <Card title="Hoy" subtitle="Sesiones programadas">
+      {today.length === 0 ? (
+        <EmptyState
+          icon="calendar-outline"
+          title="Sin sesiones hoy"
+          description="Cuando haya clases programadas aparecerán aquí."
+          tone="light"
+        />
       ) : (
-        <View style={styles.kpiGrid}>
-          <KpiTile label="Atletas" value={kpis?.athletes ?? 0} />
-          <KpiTile label="Entrenadores" value={kpis?.coaches ?? 0} />
-          <KpiTile label="Grupos" value={kpis?.groups ?? 0} />
-          <KpiTile label="Clases esta semana" value={kpis?.classesThisWeek ?? 0} />
-          <KpiTile label="Evaluaciones" value={kpis?.assessments ?? 0} />
-          <KpiTile label="Asistencia (7 días)" value={`${kpis?.attendancePercent ?? 0}%`} />
+        <View style={{ gap: spacing.sm }}>
+          {today.slice(0, 5).map((s) => (
+            <View key={s.sessionId} style={styles.sessionRow}>
+              <Text style={styles.sessionClass}>{s.className ?? 'Clase'}</Text>
+              <Text style={styles.sessionTime}>{formatTime(s.startsAt)}</Text>
+              <Text style={styles.sessionStatus}>
+                {s.attendanceRecorded ? 'Asistencia tomada' : 'Sin marcar'}
+              </Text>
+            </View>
+          ))}
         </View>
       )}
     </Card>
   );
 }
 
-function KpiTile({ label, value }: { label: string; value: number | string }) {
+function BlockTile({
+  title,
+  display,
+  emptyLabel,
+  unavailableLabel,
+  href,
+  onOpen,
+}: {
+  title: string;
+  display: ReturnType<typeof renderCount>;
+  emptyLabel: string;
+  unavailableLabel: string;
+  href: string | null;
+  onOpen: () => void;
+}) {
+  const value =
+    display.kind === 'value'
+      ? String(display.value)
+      : display.kind === 'empty'
+        ? emptyLabel
+        : unavailableLabel;
   return (
-    <View style={styles.kpiTile}>
-      <Text style={styles.kpiValue}>{value}</Text>
-      <Text style={styles.kpiLabel}>{label}</Text>
-    </View>
+    <Card title={title}>
+      <Text style={styles.tileValue}>{value}</Text>
+      {href ? (
+        <Button title="Ver detalle" variant="secondary" fullWidth onPress={onOpen} />
+      ) : null}
+    </Card>
   );
+}
+
+function MessagesPendingCard({
+  unsent,
+  failed,
+  unread,
+  sourceAvailable,
+  href,
+  onOpen,
+}: {
+  unsent: number;
+  failed: number;
+  unread: number;
+  sourceAvailable: boolean;
+  href: string | null;
+  onOpen: () => void;
+}) {
+  return (
+    <Card title="Mensajes pendientes">
+      {!sourceAvailable ? (
+        <Text style={styles.tileMuted}>Fuente no disponible</Text>
+      ) : (
+        <View style={{ gap: spacing.xs }}>
+          <Text style={styles.lineItem}>Sin enviar: {unsent}</Text>
+          <Text style={styles.lineItem}>Fallidos: {failed}</Text>
+          <Text style={styles.lineItem}>No leídos: {unread}</Text>
+        </View>
+      )}
+      {href ? (
+        <Button title="Ver mensajes" variant="secondary" fullWidth onPress={onOpen} />
+      ) : null}
+    </Card>
+  );
+}
+
+function ChargesOverdueCard({
+  overdue,
+  failed,
+  sourceAvailable,
+  href,
+  onOpen,
+}: {
+  overdue: number;
+  failed: number;
+  sourceAvailable: boolean;
+  href: string | null;
+  onOpen: () => void;
+}) {
+  return (
+    <Card title="Cargos vencidos o fallidos">
+      {!sourceAvailable ? (
+        <Text style={styles.tileMuted}>Fuente no disponible</Text>
+      ) : overdue + failed === 0 ? (
+        <Text style={styles.tileMuted}>Sin cargos vencidos</Text>
+      ) : (
+        <View style={{ gap: spacing.xs }}>
+          <Text style={styles.lineItem}>Vencidos: {overdue}</Text>
+          <Text style={styles.lineItem}>Fallidos: {failed}</Text>
+        </View>
+      )}
+      {href ? (
+        <Button title="Ver cargos" variant="secondary" fullWidth onPress={onOpen} />
+      ) : null}
+    </Card>
+  );
+}
+
+function formatTime(iso: string): string {
+  // El bundle devuelve startsAt en ISO. Para Fase 2, mostrar HH:mm local.
+  // Si el parseo falla, mostrar la cadena cruda.
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  return `${hh}:${mm}`;
 }
 
 const styles = StyleSheet.create({
@@ -334,8 +609,55 @@ const styles = StyleSheet.create({
     color: '#94A3B8',
   },
   card: { gap: spacing.md },
-  kpiGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
-  kpiTile: { width: '30%', gap: 2 },
-  kpiValue: { ...typography.title, color: colors.text, fontWeight: '700' },
-  kpiLabel: { ...typography.caption, color: colors.textMuted },
+  priorityBanner: {
+    backgroundColor: '#FEF3C7',
+    borderColor: '#F59E0B',
+  },
+  priorityLabel: {
+    ...typography.body,
+    color: '#92400E',
+    fontWeight: '600',
+  },
+  importState: {
+    ...typography.body,
+    color: colors.text,
+    fontWeight: '600',
+  },
+  importFilename: {
+    ...typography.caption,
+    color: colors.textMuted,
+  },
+  tileValue: {
+    ...typography.title,
+    color: colors.text,
+    fontWeight: '700',
+  },
+  tileMuted: {
+    ...typography.body,
+    color: colors.textMuted,
+  },
+  lineItem: {
+    ...typography.body,
+    color: colors.text,
+  },
+  sessionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: spacing.xs,
+  },
+  sessionClass: {
+    ...typography.body,
+    color: colors.text,
+    flex: 1,
+  },
+  sessionTime: {
+    ...typography.caption,
+    color: colors.textMuted,
+    marginRight: spacing.sm,
+  },
+  sessionStatus: {
+    ...typography.caption,
+    color: colors.textMuted,
+  },
 });
