@@ -14,6 +14,7 @@ import {
   deleteMyAccount,
   getSessionAttendance,
   sendGroupAlert,
+  upsertAttendance,
 } from './endpoints';
 
 // endpoints.ts es la frontera de contrato con el backend: define qué ruta
@@ -292,6 +293,58 @@ describe('propagación de errores del backend', () => {
     await expect(getSessionAttendance('sess-ajena')).rejects.toMatchObject({
       code: 'FORBIDDEN',
       status: 403,
+    });
+  });
+});
+
+describe('idempotencia de mutaciones (ZAL-619 §6.2 + AC-09)', () => {
+  it('upsertAttendance SIN idempotencyKey NO manda el header (compatibilidad hacia atrás)', async () => {
+    const fetchMock = stubFetch({ ok: true, data: { ok: true } });
+
+    await upsertAttendance('sess-1', [
+      { athleteId: 'a1', status: 'present' },
+    ]);
+
+    expect(calledUrl(fetchMock)).toBe('https://app.zaltyko.test/api/attendance');
+    expect(calledInit(fetchMock).headers['Idempotency-Key']).toBeUndefined();
+  });
+
+  it('upsertAttendance CON idempotencyKey la manda como header `Idempotency-Key`', async () => {
+    const fetchMock = stubFetch({ ok: true, data: { ok: true } });
+    const idemKey = '11111111-2222-4333-8444-555555555555';
+
+    await upsertAttendance(
+      'sess-1',
+      [{ athleteId: 'a1', status: 'present' }],
+      { idempotencyKey: idemKey }
+    );
+
+    expect(calledInit(fetchMock).headers['Idempotency-Key']).toBe(idemKey);
+    // El body sigue siendo { sessionId, entries } — el header va aparte.
+    expect(JSON.parse(calledInit(fetchMock).body as string)).toEqual({
+      sessionId: 'sess-1',
+      entries: [{ athleteId: 'a1', status: 'present' }],
+    });
+  });
+
+  it('un 409 IDEMPOTENCY_CONFLICT del backend llega como ApiClientError traducible', async () => {
+    // Cuando el backend implemente el header, un cambio de payload con la
+    // misma clave debe responder 409 con este code. La UI lo traduce
+    // (ver error-codes.ts) a copy seguro y nextAction=contact_support.
+    stubFetch(
+      { ok: false, error: { code: 'IDEMPOTENCY_CONFLICT', message: 'distinto payload' } },
+      409
+    );
+
+    await expect(
+      upsertAttendance('sess-1', [{ athleteId: 'a1', status: 'present' }], {
+        idempotencyKey: 'fixed-key',
+      })
+    ).rejects.toMatchObject({
+      code: 'IDEMPOTENCY_CONFLICT',
+      status: 409,
+      retryable: false,
+      nextAction: 'contact_support',
     });
   });
 });

@@ -220,12 +220,14 @@ export const getSessionAttendance = (sessionId: string) =>
 
 export const upsertAttendance = (
   sessionId: string,
-  entries: { athleteId: string; status?: AttendanceStatus; notes?: string }[]
+  entries: { athleteId: string; status?: AttendanceStatus; notes?: string }[],
+  opts?: { idempotencyKey?: string }
 ) =>
-  apiPost<{ ok: true }>(`/api/attendance`, {
-    sessionId,
-    entries,
-  });
+  apiPost<{ ok: true }>(
+    `/api/attendance`,
+    { sessionId, entries },
+    opts?.idempotencyKey ? { idempotencyKey: opts.idempotencyKey } : {}
+  );
 
 // ===== Notifications =====
 

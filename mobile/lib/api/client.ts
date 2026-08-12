@@ -56,6 +56,13 @@ interface RequestOpts {
   // Sin esto una request se queda colgada indefinidamente si el backend
   // no responde (visto en carne propia con el dev server sobrecargado).
   timeoutMs?: number;
+  // ZAL-619 §6.2 + AC-09: clave de idempotencia para mutaciones. Cuando
+  // el backend la implemente, devolverá el mismo resultado lógico ante
+  // reintentos con la misma clave, o `IDEMPOTENCY_CONFLICT` ante payload
+  // distinto con la misma clave. Mientras tanto, el upsert SQL es
+  // naturalmente idempotente y la app sólo persiste la clave para que
+  // un reintento por error de red no genere una nueva cada vez.
+  idempotencyKey?: string;
 }
 
 const DEFAULT_TIMEOUT_MS = 20_000;
@@ -89,6 +96,7 @@ async function request<T>(
   const headers: Record<string, string> = {
     Accept: 'application/json',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(opts.idempotencyKey ? { 'Idempotency-Key': opts.idempotencyKey } : {}),
     ...(opts.headers ?? {}),
   };
   if (opts.body !== undefined) headers['Content-Type'] = 'application/json';
