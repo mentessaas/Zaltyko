@@ -5,8 +5,11 @@ issue: ZAL-622
 parent: ZAL-610
 contract: ZAL-619 (v1.0, done)
 blocker: ninguno formal — ZAL-635 [ZAL-634] Fijar contrato dashboard.get compartido Web/Mobile cerrado 2026-08-12T17:46Z
-version: 0.5
+version: 0.7
 last_reviewed: 2026-08-12
+disposition: explicit_continuation — Fase 3 (AC-04 mensajes) no depende de decisión abierta
+last_disposition_fix: 2026-08-12T18:22:31Z (recovery run 66ae954a — bloqueado → in_progress, blockedBy=[], unblockDescriptor=null)
+---
 evidence_scope: local-repository (mobile/ + src/ + vault); no production or human validation
 phase_0_shipped: true
 phase_0_commit: e31236dc8 feat(mobile): ZAL-622 Phase 0 — ApiClientError retryable + nextAction + error translator
@@ -306,3 +309,29 @@ El único fallo está en código de **Fase 0 de esta misma issue** (commit `e312
 Impacto acotado: `retryable`/`nextAction` siguen correctos (se infieren del status), y AC-10 se mantiene porque `message` sí sale de la tabla y nunca del backend. Lo que se filtra a la UI como identificador es el `code` crudo. Queda como trabajo de Fase 3, **no** se arregla en este heartbeat (heartbeat de recuperación: registrar disposición, no producir entregable).
 
 Los 3 archivos de test de Fases 0–2 pasan aislados: `Tests  54 passed (54)` para `dashboard.test.ts` (14) + `error-codes.test.ts` (12) + `idempotency.test.ts` (15) — la suma 41 vs 54 se explica por bloques `it` anidados/parametrizados que `grep -c "  it("` no cuenta.
+
+### v0.7 — Heartbeat de coordinación (2026-08-12, post-recovery)
+
+Wake reason: `issue_commented` por ZAL-640 (Web Dev) — heads-up de materialización de 4 archivos dataless en `src/db/schema/{permissions,class-sessions,attendance-records}.ts` + `src/components/dashboard/DashboardSidebar.tsx` en `gates/ZAL-556` HEAD=5c9273d27.
+
+**Coordinación:**
+
+- HEAD `gates/ZAL-556` = `5c9273d27` (ZAL-622 v0.6) — coincide con ZAL-640.
+- Mobile working tree limpio para estos 4 paths: `git ls-files -s` los muestra tracked, no hay diff local.
+- Mi diff en `mobile/` está vacío en este run — no toco los paths avisados.
+- Sigo el principio del contrato ZAL-619 §6.2: Mobile consume el endpoint compartido `GET /api/dashboard/[academyId]/attention`; **no** se modifica el schema, los componentes Web del dashboard, ni el sidebar.
+
+**Estado confirmado del heartbeat (sin nuevo entregable):**
+
+- Disposición `in_progress`, `blockedBy=[]`, `unblockDescriptor=null`. Sin decisión abierta pendiente.
+- Fases 0–2 shipped; el fallo de `client.test.ts:257` (código crudo `BOOM` en 500) queda como **trabajo explícito de Fase 3** (mismo archivo, mismo `translateError`).
+- Próximo entregable concreto: **Fase 3 (AC-04 mensajes)** — `mobile/app/(tabs)/messages.tsx` (103 líneas) + `mobile/components/messages/MessageBubble.tsx` (56 líneas) + `mobile/components/messages/ConversationRow.tsx` (112 líneas). Sin bloqueador cross-equipo; el contrato ZAL-619 §6.5 ya fija los códigos `DELIVERY_FAILED` + mapeo a `nextAction`.
+- Lo que se publicará en este sprint, en este orden:
+  1. Fix acotado en `client.ts:172` para que códigos no reconocidos en 5xx caigan al fallback `HTTP_5xx` (cierra la grieta destapada en v0.6).
+  2. `MessageBubble` con estados `sent | read | failed` visibles + CTA "Reintentar" en `failed`.
+  3. Test negativo de aislamiento: `parent` no debe poder listar conversaciones de otra familia (`getConversations` ya filtra en backend; el test verifica que la UI degrada con empty state, no expone el error).
+  4. Mapeo `error.code` → copy localizado (continuación de Fase 0 AC-10), incluyendo `DELIVERY_FAILED` que aún no estaba en la tabla.
+
+**Limitación de verificación preservada:** `vitest` corre desde la reinstalación de `node_modules` (v0.6); la suite da `Test Files  1 failed | 8 passed (9)`, `Tests  1 failed | 146 passed (147)`. El único fallo es `client.test.ts:257`, que entra en el fix #1 de este sprint.
+
+**Categoría:** local-repository. No se ha ejecutado E2E, no hay validación humana, no se ha tocado producción, no se ha hecho release.
