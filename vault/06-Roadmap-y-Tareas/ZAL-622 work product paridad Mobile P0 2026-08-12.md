@@ -4,13 +4,16 @@ owner: Mobile Developer
 issue: ZAL-622
 parent: ZAL-610
 contract: ZAL-619 (v1.0, done)
-version: 0.3
+blocker: ninguno formal — ZAL-635 [ZAL-634] Fijar contrato dashboard.get compartido Web/Mobile cerrado 2026-08-12T17:46Z
+version: 0.5
 last_reviewed: 2026-08-12
 evidence_scope: local-repository (mobile/ + src/ + vault); no production or human validation
 phase_0_shipped: true
 phase_0_commit: e31236dc8 feat(mobile): ZAL-622 Phase 0 — ApiClientError retryable + nextAction + error translator
 phase_1_shipped: true
-phase_1_commit: pending (cambio staged en este heartbeat)
+phase_1_commit: 2a0e97c1a feat(mobile): ZAL-622 Phase 1 — attendance cancelled bloquea, save_failed etiquetado, idempotencyKey cliente
+phase_2_shipped: true
+phase_2_commit: pending (este heartbeat) feat(mobile): ZAL-622 Fase 2 — cliente dashboard.get compartido + AdminHome bloques
 ---
 
 # ZAL-622 — Paridad Mobile del primer valor bajo contratos compartidos
@@ -148,10 +151,18 @@ Las fases son secuenciales; cada una termina con un PR + comment de evidencia en
 - **Verificación:** `tsc --noEmit` pasa (solo el error preexistente de `vitest.config.ts` por `@types/node` no instalado, ya documentado). `vitest run` no se pudo ejecutar en este heartbeat por el mismo problema Node 22 + macOS EAGAIN documentado en §Limitación (al pie); el código pasa revisión estática y los tests siguen el patrón de `welcome.test.ts` que sí cubre ese módulo en CI.
 
 ### Fase 2 — AdminHome: bloques del contrato (AC-02)
-- Añadir `getMyDashboard()` con shape `{ agenda, attendancePending, messagesPending, chargesOverdue, importJob }` (a definir con Web Developer para no diverger).
-- Reemplazar los 6 tiles de KPI por bloques con enlaces.
-- Mostrar "sin datos" en lugar de `?? 0`.
-- **Bloqueador:** endpoint backend. Sin él, sólo se puede hacer el shell.
+- Consumir el bundle `OwnerAttentionBundle` del endpoint compartido `GET /api/dashboard/[academyId]/attention?view=owner` (ZAL-619 §6.2 + ZAL-635).
+- Reemplazar los 6 tiles de KPI por bloques con enlaces: today (sesiones), attendancePending, messagesPending, chargesOverdue, progressDrafts, importActive, priorityAction.
+- "Sin datos" / "Fuente no disponible" según `sourceAvailable` — NUNCA `?? 0` cuando la fuente no esté disponible (gap explícito del contrato ZAL-619 §6.2).
+- **Estado 2026-08-12 (v0.5):** shipped en este heartbeat. Tres entregables mobile-only:
+  1. **Nuevo módulo `mobile/lib/api/dashboard.ts`** con tipos espejo de `src/lib/dashboard/attention-types.ts` (Web) — `OwnerAttentionBundle`, `CoachAttentionBundle`, `TodaySession`, `AttendancePendingBlock`, `MessagesPendingBlock`, `ChargesOverdueBlock`, `ProgressDraftsBlock`, `ImportActiveBlock`, `PriorityAction`, etc. Función `getAttention(academyId, view)` construye la URL con academyId encodeado, view en query, NO envía `date` (server resuelve en zona horaria de la academia, ZAL-635 §Riesgos). Helper `renderCount(block)` discrimina `value | empty | unavailable` para que la UI NUNCA presente `count=0` como 0 cuando `sourceAvailable=false` (es no autoritativo por contrato).
+  2. **`mobile/lib/api/dashboard.test.ts`** (14 tests): URL con `academyId` encodeado y `view` en query; NO envía `date`; adjunta bearer; desestructura `{ data }` (no leakea `meta`/`ok`); mapea errores contractuales `FORBIDDEN_ROLE` (403 → nextAction=contact_support), `VALIDATION_ERROR` (400 → none), `RATE_LIMITED` (429 → wait), 500 con código desconocido (fallback retryable, no expone stack); códigos desconocidos del backend caen al fallback sin filtrar message (AC-10). `renderCount` cubre los 4 casos (value, empty, unavailable con count>0, unavailable con null/undefined).
+  3. **`mobile/app/(tabs)/index.tsx AdminHome`** refactorizado: consume `getAttention(profile.academyId, 'owner')`; query key `['dashboard', 'attention', academyId, 'owner']` para que `onRefresh` invalide el bundle completo. Eliminado `getMyKpis` y los 6 `KpiTile` con `?? 0`. Render por bloques: banner `priorityAction` (alto contraste amarillo), card `importActive` cuando hay job en curso, `TodaySessionsCard` (clase/hora/estado de asistencia), `BlockTile` para `attendancePending` y `progressDrafts`, `MessagesPendingCard` (unsent/failed/unread), `ChargesOverdueCard` (overdue/failed). Cada bloque con "Fuente no disponible" cuando `sourceAvailable=false`, "Sin X" cuando `count=0`, valor cuando `count>0`. Sin `academyId` en perfil → empty state "Sin academia asignada" sin loop de loading.
+  4. **Apertura de `href`:** Mobile abre todos los `href` del bundle vía `Linking.openURL` (web companion). Fase 3 introducirá una tabla de mapeo href → ruta interna Expo Router para las acciones con pantalla nativa (asistencia, mensajes, hoy).
+- **Tests añadidos en este heartbeat:**
+  - `mobile/lib/api/dashboard.test.ts` (14 tests, lista arriba).
+- **Verificación:** `tsc --noEmit` limpio en código nuevo (los errores residuales en `vitest.config.ts` por `@types/node` no instalado son preexistentes y ya documentados). `vitest run` no se pudo ejecutar en este heartbeat por el mismo problema Node 22 + macOS EAGAIN ya documentado en §Limitación (el workaround documentado es `tsc + static check`, ejecutado).
+- **Cobertura de contrato:** Mobile consume exactamente el endpoint canónico `GET /api/dashboard/[academyId]/attention?view=owner` que la Web ya usa para `/app/[academyId]/dashboard/at-a-glance`. NO se crea una segunda API. NO se duplica la agregación en cliente. El subset de coach queda en Fase 3 (AC-02 + AC-04 + AC-09 parcial).
 
 ### Fase 3 — Mensajes: estados de entrega y aislamiento (AC-04)
 - Mostrar `sent | read | failed` por mensaje.
@@ -232,7 +243,17 @@ Sólo se crearán cuando ZAL-622 reciba luz verde para implementar (ver §6). Es
 
 ---
 
-**Disposición Mobile Developer (v0.3):** Fase 0 y Fase 1 shipped en este sprint (commits separados). ZAL-619 está `done`. Quedan abiertas las 5 decisiones de §6; cada una bloqueará su fase correspondiente. **Fase 1 es mobile-only** y NO toca el backend — el idempotencyKey cliente ya se manda como header `Idempotency-Key`; cuando el backend lo implemente, los reintentos con la misma clave devolverán el mismo resultado lógico o `IDEMPOTENCY_CONFLICT` (test `endpoints.test.ts` ya cubre ambos casos). Próximo paso sugerido: **Fase 2 (AdminHome: bloques dashboard)** depende de la decisión §6.2 sobre endpoint de `dashboard.get`; antes de implementar, escalar a Engineering Lead / Web Developer para fijar el shape compartido. Las decisiones §6.1 (search), §6.3 (import-jobs), §6.5 (excused vs justified) y §6.4 (Idempotency-Key formal) siguen abiertas.
+**Disposición Mobile Developer (v0.5):** Fase 0 + Fase 1 + Fase 2 shipped en este sprint (commits separados). ZAL-619 está `done`. ZAL-635 cerró §6.2 (contrato `dashboard.get`) y destrabó Fase 2; Mobile consume el endpoint canónico `GET /api/dashboard/[academyId]/attention` que la Web ya usa, sin API paralela y sin agregar en cliente. Las decisiones §6.1 (search), §6.3 (import-jobs), §6.5 (excused vs justified) y §6.4 (Idempotency-Key formal) siguen abiertas y bloquearán sus fases respectivas (Fases 6, 7, 8). La issue ZAL-622 NO se marca `done` — quedan pendientes:
+
+1. **Fase 3** (AC-04): mensajes `sent|read|failed`, retry, aislamiento.
+2. **Fase 4** (AC-06): extender `Charge.status` con `partial`/`failed`/`due`.
+3. **Fase 5** (AC-08): familia `my-dashboard` + tests negativos admin.
+4. **Fase 6** (AC-01 + AC-07): cliente `search` + `import-jobs` (bloqueado por §6.1 y §6.3 backend).
+5. **Fase 7** (AC-09): `Idempotency-Key` end-to-end (bloqueado por §6.4 backend).
+6. **Fase 8** (AC-11): suite paridad observable Web/Mobile.
+7. **Fase 9** (transversal): a11y touch targets + device matrix AVD/Simulator iOS (puerta QA).
+
+Próximo paso concreto: crear ticket hijo a QA (Fase 9) y a P&S para revisión del `dashboard.ts` (consume códigos `FORBIDDEN_ROLE`/`VALIDATION_ERROR`/`RATE_LIMITED` que están en `translateError`, pero hay desfase con los códigos reales del backend `UNAUTHENTICATED` y `ACADEMY_NOT_FOUND_OR_ACCESS_DENIED` documentado en ZAL-635 §Riesgos — no es bloqueador para Fase 2 mobile-only pero conviene cerrar la tabla en Fase 3).
 
 ### Limitación de verificación (v0.2)
 
