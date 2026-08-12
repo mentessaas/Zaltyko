@@ -126,7 +126,9 @@ async function loadTodaySessions(
         )
       )
       .groupBy(attendanceRecords.sessionId);
-    const recordedMap = new Map(attendanceCounts.map((row) => [row.sessionId, Number(row.recorded)]));
+    const recordedMap = new Map<string, number>(
+      attendanceCounts.map((row) => [row.sessionId, Number(row.recorded)])
+    );
 
     return {
       ok: true,
