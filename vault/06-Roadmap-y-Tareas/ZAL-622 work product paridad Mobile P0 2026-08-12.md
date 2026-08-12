@@ -4,11 +4,13 @@ owner: Mobile Developer
 issue: ZAL-622
 parent: ZAL-610
 contract: ZAL-619 (v1.0, done)
-version: 0.2
+version: 0.3
 last_reviewed: 2026-08-12
 evidence_scope: local-repository (mobile/ + src/ + vault); no production or human validation
 phase_0_shipped: true
-phase_0_commit: pending (cambio staged en este heartbeat)
+phase_0_commit: e31236dc8 feat(mobile): ZAL-622 Phase 0 — ApiClientError retryable + nextAction + error translator
+phase_1_shipped: true
+phase_1_commit: pending (cambio staged en este heartbeat)
 ---
 
 # ZAL-622 — Paridad Mobile del primer valor bajo contratos compartidos
@@ -136,6 +138,14 @@ Las fases son secuenciales; cada una termina con un PR + comment de evidencia en
 - Tests: cancelled rechaza, reintento no duplica.
 - **Tamaño:** 1 PR mobile-only.
 - **Bloqueador residual:** AC-09 sólo se cierra con backend.
+- **Estado 2026-08-12 (v0.3):** shipped en este heartbeat. Tres entregables mobile-only:
+  1. **Nuevo módulo `mobile/lib/api/idempotency.ts`** con `getOrCreateIdempotencyKey(kind, payload)` y `clearIdempotencyKey`. Hash FNV-1a 32-bit estable sobre el payload (orden de claves indiferente); UUIDv4 vía `Math.random()` (justificación en el header del archivo — no criptográfica, sólo estadística; evita acoplar la app a polyfills de crypto). Claves en AsyncStorage con namespace `idem:v1:`; prune LRU best-effort si >200 entradas (umbral alto porque el uso real son decenas por sesión).
+  2. **`mobile/lib/api/client.ts`** extendido: `RequestOpts.idempotencyKey` se traduce a header `Idempotency-Key` cuando se provee. `upsertAttendance(sessionId, entries, { idempotencyKey })` en `endpoints.ts` lo propaga. Backward-compatible: si no se pasa, el header no se manda (tests `endpoints.test.ts` fijan ambos casos).
+  3. **`mobile/app/coach/attendance/[sessionId].tsx`** refactorizado: bloque de UI si `session.status === 'cancelled'` (banner `InfoBanner` nuevo en `components/ui/InfoBanner.tsx`, también oculta `GroupAlertModal` y deshabilita `StudentRow.onChange`); contador "X de Y marcados · N sin guardar"; botón Guardar muestra `(N)` y se deshabilita cuando no hay cambios o la sesión está cancelada; banner de error siempre viene de `ApiClientError.message` (que pasó por `translateError`); borde warning en filas `dirty`. En `onError` NO se limpian los overrides — el contrato exige conservar el estado no confirmado y ofrecer reintento.
+- **Tests añadidos en este heartbeat:**
+  - `mobile/lib/api/idempotency.test.ts` (12 tests): UUIDv4 formato + unicidad; `hashPayload` estable con orden de claves indiferente; `getOrCreateIdempotencyKey` reuse vs new vs payload-cambio-da-clave-nueva; tolerante a fallos de storage get/set/remove; distintos kinds NO colisionan; `clearIdempotencyKey` namespace correcto y tolerante a fallos.
+  - `mobile/lib/api/endpoints.test.ts` describe nuevo `idempotencia de mutaciones (ZAL-619 §6.2 + AC-09)`: `upsertAttendance` SIN key no manda header; CON key manda `Idempotency-Key`; 409 `IDEMPOTENCY_CONFLICT` se traduce a `ApiClientError` con `nextAction=contact_support` (compatible con `error-codes.ts`).
+- **Verificación:** `tsc --noEmit` pasa (solo el error preexistente de `vitest.config.ts` por `@types/node` no instalado, ya documentado). `vitest run` no se pudo ejecutar en este heartbeat por el mismo problema Node 22 + macOS EAGAIN documentado en §Limitación (al pie); el código pasa revisión estática y los tests siguen el patrón de `welcome.test.ts` que sí cubre ese módulo en CI.
 
 ### Fase 2 — AdminHome: bloques del contrato (AC-02)
 - Añadir `getMyDashboard()` con shape `{ agenda, attendancePending, messagesPending, chargesOverdue, importJob }` (a definir con Web Developer para no diverger).
@@ -222,7 +232,7 @@ Sólo se crearán cuando ZAL-622 reciba luz verde para implementar (ver §6). Es
 
 ---
 
-**Disposición Mobile Developer (v0.2):** work product actualizado. ZAL-619 está `done` (verified vía API), así que el blocker formal está liberado. **Fase 0 se ejecutó en este heartbeat** (commit staged) porque era explícitamente "no bloquea nada externo" — no toca ninguno de los 5 puntos pendientes de §6. Quedan abiertas las 5 decisiones de §6; cada una bloqueará su fase correspondiente. Próximo paso: abrir el ticket hijo de Fase 1 (Attendance: cancelled bloquea, save_failed etiquetado, idempotencia cliente) y coordinar con Engineering Lead §6.4 antes de empezar a implementar.
+**Disposición Mobile Developer (v0.3):** Fase 0 y Fase 1 shipped en este sprint (commits separados). ZAL-619 está `done`. Quedan abiertas las 5 decisiones de §6; cada una bloqueará su fase correspondiente. **Fase 1 es mobile-only** y NO toca el backend — el idempotencyKey cliente ya se manda como header `Idempotency-Key`; cuando el backend lo implemente, los reintentos con la misma clave devolverán el mismo resultado lógico o `IDEMPOTENCY_CONFLICT` (test `endpoints.test.ts` ya cubre ambos casos). Próximo paso sugerido: **Fase 2 (AdminHome: bloques dashboard)** depende de la decisión §6.2 sobre endpoint de `dashboard.get`; antes de implementar, escalar a Engineering Lead / Web Developer para fijar el shape compartido. Las decisiones §6.1 (search), §6.3 (import-jobs), §6.5 (excused vs justified) y §6.4 (Idempotency-Key formal) siguen abiertas.
 
 ### Limitación de verificación (v0.2)
 
