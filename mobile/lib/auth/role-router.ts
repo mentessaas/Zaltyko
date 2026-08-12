@@ -78,3 +78,50 @@ export function tabsForRole(role: ZaltykoRole | undefined): TabConfig[] {
 export function shouldRedirectToWeb(role: ZaltykoRole | undefined): boolean {
   return false;
 }
+
+// Rutas internas reservadas a roles admin/coach. Mobile las monta
+// como pantallas Expo Router pero NO las expone a través de las tabs
+// de parent/athlete/viewer. Esta lista es la fuente de verdad para
+// que un deep link (`expo-linking://coach/attendance/123`) no burle
+// el filtro de tabs y muestre UI admin a un padre.
+//
+// AC-08 (ZAL-622 Fase 5): tests negativos verifican que un parent
+// no llega a estas rutas. La defensa en backend es con `withTenant`
+// + `verifyAcademyAccessForProfile`; aquí bloqueamos en cliente para
+// no tener que esperar al 403 para redirigir.
+const ADMIN_ROUTE_PREFIXES: readonly string[] = [
+  '/coach/',            // pantallas de coach (asistencia, etc.)
+  '/super-admin/',      // panel super-admin (si alguna vez se monta)
+  '/(super-admin)/',    // variante con grupo de Expo Router
+];
+
+export function isAdminRoute(path: string): boolean {
+  if (!path) return false;
+  // Normalizamos para que '/coach/attendance/123' y 'coach/attendance/123'
+  // caigan en la misma regla.
+  const normalized = path.startsWith('/') ? path : `/${path}`;
+  return ADMIN_ROUTE_PREFIXES.some((prefix) => normalized.startsWith(prefix));
+}
+
+/**
+ * Decide si un rol puede navegar a una ruta interna. Usado por el
+ * layout `(tabs)/_layout.tsx` para proteger deep links: si un padre
+ * intenta abrir `/coach/attendance/...` vía deep link, devolvemos
+ * `false` y el layout lo redirige a la pestaña "home".
+ *
+ * Roles admin (owner/admin/super_admin/coach) acceden a todo.
+ * parent/athlete/viewer NO acceden a rutas admin/coach.
+ */
+export function canAccessRoute(
+  role: ZaltykoRole | undefined,
+  path: string,
+): boolean {
+  if (!role) return false;
+  if (!isAdminRoute(path)) return true;
+  return (
+    role === 'super_admin' ||
+    role === 'owner' ||
+    role === 'admin' ||
+    role === 'coach'
+  );
+}

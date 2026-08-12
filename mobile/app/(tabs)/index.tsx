@@ -1,10 +1,11 @@
 // Home adaptado por rol. Cada rol ve un contenido distinto:
-//   - parent: lista real de hijos + eventos próximos
+//   - parent: my-dashboard bundle (próx. clases, avisos no leídos,
+//     cargos pendientes) + lista real de hijos (Fase 5, ZAL-622)
 //   - coach: sesiones de hoy, CTA para tomar asistencia
 //   - athlete: shell
 //   - owner/admin: bundle de atención compartido Web/Mobile (Fase 2, ZAL-622)
 
-import { Linking, StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
@@ -33,6 +34,12 @@ import {
   type OwnerAttentionBundle,
   type TodaySession,
 } from '@/lib/api/dashboard';
+import {
+  getFamilyDashboard,
+  renderFamilyCount,
+  type FamilyDashboardBundle,
+  type ScheduleItem,
+} from '@/lib/api/family-dashboard';
 import { nextClassFromSchedule } from '@/lib/schedule/next-class';
 import { colors, spacing, typography } from '@/lib/theme';
 
@@ -49,6 +56,8 @@ export default function HomeScreen() {
     if (profile.role === 'parent') {
       tasks.push(queryClient.invalidateQueries({ queryKey: ['family', 'children'] }));
       tasks.push(queryClient.invalidateQueries({ queryKey: ['events', 'upcoming'] }));
+      // Fase 5 (AC-08): my-dashboard de la familia.
+      tasks.push(queryClient.invalidateQueries({ queryKey: ['family', 'dashboard'] }));
     }
     if (profile.role === 'coach') {
       tasks.push(queryClient.invalidateQueries({ queryKey: ['class-sessions'] }));
@@ -115,6 +124,17 @@ function ParentHome() {
     queryFn: () => getUpcomingEvents(),
     staleTime: 5 * 60 * 1000,
   });
+  // Fase 5 (AC-08): my-dashboard de la familia. Compone próximas
+  // clases, avisos no leídos y cargos pendientes en paralelo. Una
+  // fuente caída NO oculta las otras dos (aislamiento de fallos en
+  // `getFamilyDashboard`); un error contractual (AUTH_REQUIRED /
+  // FORBIDDEN_ROLE) sí rechaza para que la UI muestre error, no
+  // "Sin datos".
+  const familyDashboardQuery = useQuery<FamilyDashboardBundle>({
+    queryKey: ['family', 'dashboard'],
+    queryFn: getFamilyDashboard,
+    staleTime: 60 * 1000,
+  });
 
   return (
     <>
@@ -154,6 +174,15 @@ function ParentHome() {
         )}
       </Card>
 
+      <NextClassesCard block={familyDashboardQuery.data?.nextClasses} loading={familyDashboardQuery.isLoading} />
+
+      <UnreadCard block={familyDashboardQuery.data?.unread} loading={familyDashboardQuery.isLoading} />
+
+      <PendingChargesCard
+        block={familyDashboardQuery.data?.pendingCharges}
+        loading={familyDashboardQuery.isLoading}
+      />
+
       <Card title="Próximos eventos" subtitle="De tu academia">
         {eventsQuery.isLoading ? (
           <SkeletonGroup count={2} />
@@ -179,6 +208,159 @@ function ParentHome() {
         )}
       </Card>
     </>
+  );
+}
+
+function NextClassesCard({
+  block,
+  loading,
+}: {
+  block: FamilyDashboardBundle['nextClasses'] | undefined;
+  loading: boolean;
+}) {
+  const router = useRouter();
+  if (loading) {
+    return (
+      <Card title="Tus próximas clases">
+        <SkeletonGroup count={2} />
+      </Card>
+    );
+  }
+  if (!block) return null;
+  return (
+    <Card title="Tus próximas clases" subtitle="Agenda de tus hijos">
+      {!block.sourceAvailable ? (
+        <Text style={styles.tileMuted}>Fuente no disponible</Text>
+      ) : block.items.length === 0 ? (
+        <Text style={styles.tileMuted}>Sin clases próximas</Text>
+      ) : (
+        <View style={{ gap: spacing.xs }}>
+          {block.items.map((cls: ScheduleItem) => (
+            <PressableScheduleRow
+              key={cls.id}
+              cls={cls}
+              onPress={() => router.push('/(tabs)/schedule')}
+            />
+          ))}
+        </View>
+      )}
+      <Button
+        title="Ver agenda completa"
+        variant="secondary"
+        fullWidth
+        onPress={() => router.push(block.href)}
+      />
+    </Card>
+  );
+}
+
+function PressableScheduleRow({
+  cls,
+  onPress,
+}: {
+  cls: ScheduleItem;
+  onPress: () => void;
+}) {
+  // Pressable envuelve la fila completa para que el touch target
+  // supere 44pt (Fase 9 transversal).
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${cls.className}, ${cls.day} ${cls.time}`}
+      style={styles.scheduleRow}
+    >
+      <Text style={styles.scheduleClass}>{cls.className}</Text>
+      <Text style={styles.scheduleWhen}>{cls.day} · {cls.time}</Text>
+    </Pressable>
+  );
+}
+
+function UnreadCard({
+  block,
+  loading,
+}: {
+  block: FamilyDashboardBundle['unread'] | undefined;
+  loading: boolean;
+}) {
+  const router = useRouter();
+  if (loading) {
+    return (
+      <Card title="Avisos y mensajes">
+        <SkeletonGroup count={2} />
+      </Card>
+    );
+  }
+  if (!block) return null;
+  const display = renderFamilyCount({
+    count: block.notifications + block.conversations,
+    sourceAvailable: block.sourceAvailable,
+  });
+  let body: string;
+  if (display.kind === 'unavailable') {
+    body = 'Fuente no disponible';
+  } else if (display.kind === 'empty') {
+    body = 'Sin avisos pendientes';
+  } else {
+    body = `${display.value} sin leer`;
+  }
+  return (
+    <Card title="Avisos y mensajes" subtitle="Notificaciones y conversaciones">
+      {!block.sourceAvailable ? (
+        <Text style={styles.tileMuted}>Fuente no disponible</Text>
+      ) : (
+        <View style={{ gap: spacing.xs }}>
+          <Text style={styles.lineItem}>Notificaciones: {block.notifications}</Text>
+          <Text style={styles.lineItem}>Conversaciones: {block.conversations}</Text>
+          <Text style={styles.summaryLine}>{body}</Text>
+        </View>
+      )}
+      <Button
+        title="Ver avisos"
+        variant="secondary"
+        fullWidth
+        onPress={() => router.push(block.href)}
+      />
+    </Card>
+  );
+}
+
+function PendingChargesCard({
+  block,
+  loading,
+}: {
+  block: FamilyDashboardBundle['pendingCharges'] | undefined;
+  loading: boolean;
+}) {
+  const router = useRouter();
+  if (loading) {
+    return (
+      <Card title="Cargos pendientes">
+        <SkeletonGroup count={2} />
+      </Card>
+    );
+  }
+  if (!block) return null;
+  return (
+    <Card title="Cargos pendientes" subtitle="Cuotas por pagar de tus hijos">
+      {!block.sourceAvailable ? (
+        <Text style={styles.tileMuted}>Fuente no disponible</Text>
+      ) : block.items.length === 0 ? (
+        <Text style={styles.tileMuted}>Sin cargos pendientes</Text>
+      ) : (
+        <View style={{ gap: spacing.xs }}>
+          <Text style={styles.lineItem}>
+            {block.items.length} {block.items.length === 1 ? 'cargo por pagar' : 'cargos por pagar'}
+          </Text>
+        </View>
+      )}
+      <Button
+        title="Ver cargos"
+        variant="secondary"
+        fullWidth
+        onPress={() => router.push(block.href)}
+      />
+    </Card>
   );
 }
 
@@ -659,5 +841,27 @@ const styles = StyleSheet.create({
   sessionStatus: {
     ...typography.caption,
     color: colors.textMuted,
+  },
+  scheduleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.xs,
+    minHeight: 44, // touch target mínimo (a11y, Fase 9)
+  },
+  scheduleClass: {
+    ...typography.body,
+    color: colors.text,
+    flex: 1,
+  },
+  scheduleWhen: {
+    ...typography.caption,
+    color: colors.textMuted,
+  },
+  summaryLine: {
+    ...typography.caption,
+    color: colors.textMuted,
+    marginTop: spacing.xs,
   },
 });
