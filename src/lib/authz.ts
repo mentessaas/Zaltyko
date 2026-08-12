@@ -12,29 +12,11 @@ import {
 } from "./authz/endpoint-config";
 import {
   SuperAdminRequiredError,
-  AgentRequiredError,
   UnauthenticatedError,
   ProfileNotFoundError,
   TenantMissingError,
   LoginDisabledError,
 } from "./authz/errors";
-
-/**
- * Allowlist de ids de Paperclip agents autorizados a registrar outreach
- * manual 1:1 (ZAL-582 / ZAL-580 / ZAL-576). Configurable por entorno via
- * `MARKETING_OUTREACH_AGENT_IDS=id1,id2,...`. Mantener sincronizado con la
- * lista operativa que registra Marketing en `Decisiones.md`. Si la variable
- * esta vacia o ausente, solo se acepta super_admin autenticado.
- */
-function getAuthorizedAgentIds(): Set<string> {
-  const raw = process.env.MARKETING_OUTREACH_AGENT_IDS ?? "";
-  return new Set(
-    raw
-      .split(",")
-      .map((value) => value.trim())
-      .filter(Boolean)
-  );
-}
 import { logger } from "@/lib/logger";
 import { db } from "@/db";
 import { profiles } from "@/db/schema";
@@ -120,123 +102,6 @@ async function enforceVerifiedTenantMutationRateLimit(
       },
     }
   );
-}
-
-/**
- * Wrapper para endpoints operados por un Paperclip agent autorizado (ZAL-582
- * / ZAL-580 / ZAL-576). Acepta UNA de las dos vias:
- *
- * 1. Header `x-paperclip-agent-id` cuyo valor este en el allowlist
- *    configurado por `MARKETING_OUTREACH_AGENT_IDS` (CSV). Es el camino
- *    pensado para agentes Paperclip que disparan outreach manual 1:1 sin
- *    sesion humana.
- * 2. Sesion autenticada cuyo profile tenga rol global `super_admin` (camino
- *    operativo de Marketing; conserva el resto del wrapper de super-admin).
- *
- * En ambos casos el handler recibe `agentId` resuelto (header o `profile.id`)
- * para que `created_by_agent_id` quede auditado en cada INSERT.
- *
- * Sandbox/local: si `NODE_ENV !== "production"` y
- * `MARKETING_OUTREACH_DEV_BYPASS_AGENT=true`, se acepta cualquier
- * `x-paperclip-agent-id` (incluso vacio, en cuyo caso se usa `dev-agent`).
- * Esta puerta existe solo para que `scripts/run-rls-semantics-local.sh` y
- * los tests vitest puedan llamar al endpoint; nunca en produccion.
- */
-export function withAgentAuth<Ctx extends Record<string, unknown>>(
-  handler: (
-    request: Request,
-    context: Ctx & {
-      agentId: string;
-      userId?: string | null;
-      profile?: ProfileRow | null;
-    }
-  ) => Promise<Response>
-) {
-  return async (request: Request, context: any) => {
-    try {
-      const params = context.params ? await context.params : context.params;
-      const contextWithParams = { ...context, params };
-
-      const allowlist = getAuthorizedAgentIds();
-      const headerAgentId =
-        request.headers.get("x-paperclip-agent-id")?.trim() || "";
-
-      if (headerAgentId && allowlist.has(headerAgentId)) {
-        return handler(request, {
-          ...contextWithParams,
-          agentId: headerAgentId,
-          userId: null,
-          profile: null,
-        });
-      }
-
-      const isDevBypass =
-        process.env.NODE_ENV !== "production" &&
-        process.env.MARKETING_OUTREACH_DEV_BYPASS_AGENT === "true";
-
-      if (isDevBypass && headerAgentId) {
-        return handler(request, {
-          ...contextWithParams,
-          agentId: headerAgentId,
-          userId: null,
-          profile: null,
-        });
-      }
-
-      if (isDevBypass && !headerAgentId) {
-        return handler(request, {
-          ...contextWithParams,
-          agentId: "dev-agent",
-          userId: null,
-          profile: null,
-        });
-      }
-
-      const userId = await resolveUserId(request, contextWithParams);
-      if (!userId) {
-        return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
-      }
-
-      const profile = await getCurrentProfile(userId);
-      if (!profile) {
-        return NextResponse.json(
-          { error: "PROFILE_NOT_FOUND" },
-          { status: 404 }
-        );
-      }
-
-      assertSuperAdmin(profile);
-
-      return handler(request, {
-        ...contextWithParams,
-        agentId: headerAgentId || `super-admin:${profile.id}`,
-        userId,
-        profile,
-      });
-    } catch (error) {
-      if (error instanceof SuperAdminRequiredError) {
-        return NextResponse.json(
-          { error: error.code },
-          { status: error.statusCode }
-        );
-      }
-      if (error instanceof AgentRequiredError) {
-        return NextResponse.json(
-          { error: error.code },
-          { status: error.statusCode }
-        );
-      }
-
-      logger.error("Error in withAgentAuth", error);
-      return NextResponse.json(
-        {
-          error: "INTERNAL_ERROR",
-          message: "Error interno del servidor",
-        },
-        { status: 500 }
-      );
-    }
-  };
 }
 
 export function withSuperAdmin<Ctx extends Record<string, unknown>>(
