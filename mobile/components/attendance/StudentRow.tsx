@@ -14,6 +14,12 @@ interface Props {
   name: string;
   groupName: string | null;
   status: AttendanceStatus | null;
+  /**
+   * Si true, el cambio aún no se guardó en el backend (status override
+   * pendiente). ZAL-622 Phase 1: pista visual sutil de "dirty" para
+   * distinguir confirmado vs pendiente sin inventar un estado nuevo.
+   */
+  dirty?: boolean;
   onChange: (athleteId: string, status: AttendanceStatus) => void;
   onEvaluate?: (athleteId: string, name: string) => void;
 }
@@ -25,11 +31,14 @@ const OPTIONS: { value: AttendanceStatus; label: string; short: string; color: s
   { value: 'excused', label: 'Justif.', short: 'J', color: colors.info },
 ];
 
-function StudentRowImpl({ athleteId, name, groupName, status, onChange, onEvaluate }: Props) {
+function StudentRowImpl({ athleteId, name, groupName, status, dirty, onChange, onEvaluate }: Props) {
   const initial = name.trim().charAt(0).toUpperCase();
 
   return (
-    <View style={styles.row}>
+    <View
+      style={[styles.row, dirty && styles.rowDirty]}
+      accessibilityLabel={`${name}${dirty ? ', cambio sin guardar' : ''}`}
+    >
       <View style={styles.avatar}>
         <Text style={styles.avatarText}>{initial}</Text>
       </View>
@@ -91,6 +100,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     padding: spacing.md,
+  },
+  rowDirty: {
+    borderColor: colors.warning,
+    borderWidth: 1.5,
   },
   avatar: {
     width: 40,
