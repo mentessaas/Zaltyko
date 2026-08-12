@@ -1,8 +1,95 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-08-10T00:00Z
+last_reviewed: 2026-08-12T00:00Z
 source:
+
+## 2026-08-12 — Product Lead: ZAL-620 contrato de migración asistida y salida modular segura
+
+- Se publicó `vault/06-Roadmap-y-Tareas/ZAL-620 contrato migracion asistida salida modular v1.0 2026-08-12.md`, dependiente de [ZAL-619](/ZAL/issues/ZAL-619), con buyer/JTBD, recorrido por rol y plataforma, estados, criterios MIG-01–MIG-14, exclusiones, riesgos y handoffs.
+- Decisiones de frontera: CSV/XLSX plano con preview antes de mutar; mapping visible; errores por fila; `external_id` como identidad primaria; sin dedupe semántico automático ni fusión de gemelas; colores ignorados con aviso; comentarios no se importan y requieren confirmación; celdas combinadas rechazadas; fórmulas no ejecutadas.
+- Histórico financiero admitido solo si es EUR, tiene fecha/importe/tipo/estado de origen/referencia/vínculo y reconcilia con totales sintéticos. No crea pagos Stripe, recibos legales ni estados `paid` por inferencia.
+- La salida se define por módulos `athletes`, `families`, `debts`, `payments`, `notes` y `audit`, cada uno con manifest, exclusiones y estado. `partial` enumera fallos; no existe claim de “exportar todo” hasta verificar los seis módulos individualmente.
+- Evidencia revisada: guía, estado, decisiones, brief ZAL-619 e inventario local de import/export de atletas. La evidencia del repositorio es L/inventario; no demuestra capacidad comercial, adopción, producción, validación externa o humana.
+- No se ejecutó código, producción, Stripe live, migración remota, secreto, dato real, campaña, publicación ni validación humana. Se preservaron cambios paralelos y no se tocaron archivos de producto.
+
+Vault: actualizados este changelog, `Decisiones.md`, `Backlog priorizado.md` y el contrato ZAL-620. `Estado actual de Zaltyko.md`, `Pricing.md` y `Mensajes aprobados.md` no cambian porque no cambió la capacidad, el precio ni la promesa pública.
+
+## 2026-08-12 — Product Lead: ZAL-619 contrato P0 ICP gimnasia Web/Mobile
+
+- Se publicó `vault/06-Roadmap-y-Tareas/ZAL-619 contrato P0 ICP gimnasia Web Mobile v1.0 2026-08-12.md`, con buyer/JTBD, recorridos mínimos de dueño, coach y familia en Web/Mobile, alcance P0, estados, errores, contratos API compartidos, AC-01–AC-12, métricas y exclusiones.
+- El brief reutiliza ZAL-478 como hito comercial canónico y no duplica trial/activación/billing owner-only. Define online-first, importación asistida mínima con preview/mapping/totales/rollback sintético y Web/Mobile bajo el mismo backend; Excel semántico complejo, offline total, garantías legales, soporte horario, pricing nuevo y claims quedan fuera.
+- Evidencia revisada: vault/repositorio local y Paperclip para ZAL-478/ZAL-610; no se ejecutó código, producción, Stripe live, migración remota, publicación, campaña, secreto o datos reales. La especificación no equivale a capacidad comercial, adopción, readiness ni validación humana.
+- Handoff: Product Designer/UX investiga estados y tareas; Data & Analytics define eventos/denominadores/rendimiento; Engineering decide arquitectura; QA deriva la matriz; Growth/Support quedan limitados a discovery/runbook sin claims.
+
+Vault: actualizados este changelog, `Decisiones.md` y el brief ZAL-619. `Estado actual de Zaltyko.md` no se modifica porque no cambió la capacidad implementada; `Pricing.md` y `Mensajes aprobados.md` no requieren cambio porque no cambian precios ni promesas públicas.
+
+## 2026-08-12T13:34Z — CEO: se restaura el camino de revisión de ZAL-610
+
+- El bridge local de Paperclip respondió fuera del sandbox; se hizo checkout de ZAL-610 y se verificó que el documento `plan` tiene una única revisión vigente: `b44be1b5-2a54-4a60-a236-b198a14de33e`.
+- Se creó la `request_confirmation` board-only `f54a727e-5c76-43f5-b09e-ca5f6bdf0973`, pendiente, con `continuationPolicy=wake_assignee`, para aceptar o pedir cambios al plan. Se enlazó al documento y revisión correctos mediante idempotency key estable.
+- ZAL-610 quedó `in_review` con camino de revisión real. No se crean subtareas ni se inicia implementación hasta aceptación explícita; el feedback mantiene la meta de 90 días, pricing v3.0 y las restricciones de claims.
+- Sin código, producción, Stripe live, datos reales, secretos, pricing, campañas, claims, publicaciones, stores, migraciones remotas ni cambios sensibles de permisos. La evidencia local/control-plane no se presenta como readiness, adopción o validación humana.
+
+Vault: actualizados `Estado actual de Zaltyko.md`, `Decisiones.md`, esta entrada y la nota de veredicto ZAL-610. `Backlog priorizado.md` no cambia: no aparece deuda nueva ni se crean subtareas antes de la aceptación.
+
+## 2026-08-12 — Product Lead: review de productividad ZAL-614 sobre ZAL-610
+
+- Se revisó la alerta `long_active_duration` de ZAL-610: 6 h 1 min activos frente al umbral de 6 h, 2 runs vinculados (1 terminal y 1 activo), 2 comentarios en 6 h, 0 churn y 0 coste.
+- Veredicto: **productiva con continuación controlada y ventana de snooze**. El plan ejecutivo ya estaba publicado con alcance, prioridades, owners, criterios, exclusiones y separación de evidencia; no se justifica descomponer, rerutear, bloquear ni cancelar.
+- Próxima acción: CEO/owner acepta o rechaza el plan; solo después se convierten las líneas aprobadas en subtareas, sin duplicar ZAL-477, ZAL-501 o ZAL-587. Si no hay decisión/handoff tras 6 h, revisar la acción exacta pendiente y no crear heartbeats periódicos.
+- Control-plane: el acceso desde este heartbeat no respondió en el endpoint local configurado; el veredicto y la evidencia quedan registrados en la nota de work product para la disposición administrativa posterior. No se fabricó un estado de issue ni un comentario remoto.
+- No hubo cambios de código, producción, Stripe live, secretos, datos reales, pricing, claims, campañas, publicaciones, stores ni migraciones remotas.
+
+## 2026-08-12 - Web Developer: WCAG AA contraste dashboard y athletes (ZAL-604)
+
+- Sustitución de los 5 selectores reportados por ZAL-482 QA B1 (color-contrast axe-core 4.11) por tokens con ratio ≥ 4.5:1 verificado a mano:
+  - `src/components/academy/AcademySidebar.tsx:114` — `text-white/45` → `text-white/60` (sidebar labels sobre `bg-zaltyko-navy` `#0F172A`: 4.29 → 6.81:1).
+  - `src/components/dashboard/OperationsPulse.tsx:61, 106, 129` — `text-slate-400` → `text-slate-500` (label "Ritmo de la academia", "Sin serie comparable", "Cargando evolución…" sobre cards blancos/grises: 2.43–2.57 → 4.80–4.86:1).
+  - `src/components/athletes/AthletesTableSections.tsx:536` — `text-slate-400` → `text-slate-500` (icono checkbox sobre card blanca: 2.57 → 4.86:1).
+- Spec focal nuevo `tests/e2e-zal-604-a11y-focal.spec.ts` añade navegación/teclado/overflow en desktop 1280×800, 390×844 y 320×568 sobre `/app/${academyId}/dashboard` y `/app/${academyId}/athletes`. Coexiste con `tests/a11y-zaltyko.spec.ts` (axe WCAG 2.2 AA ya cubre las dos rutas).
+- **Gap de verificación local**: `pnpm dev`, `npx tsc --noEmit` y `npx next lint` fallan con `errno -11` por archivos iCloud Drive `dataless` (fix ya documentado en `f620fb49f` para el walker de gates, pero Next dev no tolera esta condición). `nc -z db.aeeootdmuiqkfeernskw.supabase.co 443` → `getaddrinfo` falla (mismo B2 de ZAL-482). `tsc` focalizado solo sobre el spec nuevo reporta 0 errores.
+- Acción QA: re-ejecutar `pnpm test:a11y --project=chromium` y `pnpm exec playwright test tests/e2e-zal-604-a11y-focal.spec.ts --project=chromium` con `E2E_ACADEMY_ID` + `E2E_STORAGE_STATE` cuando iCloud dataless esté materializado y DNS egress Supabase restaurado. Work product completo en [[ZAL-604 work product WCAG AA contraste dashboard athletes 2026-08-12]].
+- Sin tocar copy, permisos, auth, datos, migraciones, secretos, producción ni `tailwind.config.mjs`/`globals.css`. Cambios reversibles por revert.
+
+## 2026-08-12 - Engineering Lead: ZAL-607 falsa positiva de run silencioso
+
+- El run original `90fbc122-9544-4ebf-852f-aef9e9c2becc` terminó con `status=failed`, `acpx_turn_failed`, lease de entorno fallida y coste 0 USD; no era un proceso activo recuperable.
+- ZAL-607 se cerró `done` como revisión administrativa stale después de registrar la evidencia en Paperclip. No se canceló el run activo de la revisión ni se alteró ZAL-604.
+- El SHA `2c130093c1cc05032516db1ee41d340edbc87c25` y el work product de ZAL-604 quedaron preservados. ZAL-604 conserva su bloqueo real por la verificación independiente de QA ZAL-605.
+- Evidencia de control-plane y repo local; sin cambios de producto, producción, secretos, datos reales, migraciones, pagos ni publicaciones. La evidencia no equivale a PASS de QA, readiness o validación humana.
+
+## 2026-08-10 - QA: disposición in_review de ZAL-25 con cargo durable en Stripe test
+
+- Veredicto: PARTIAL-PASS. [ZAL-25](/ZAL/issues/ZAL-25) pasó a `in_review` con `request_confirmation` `4a30692c` dirigida al board (acceptLabel "Aceptar cierre (done)", rejectLabel "Reabrir con feedback").
+- Contrato API: 4/4 PASS (`tests/e2e-zaltyko-stripe-connect-flow.spec.ts` modo `E2E_STRIPE_CONNECT_FLOW=1`): SetupIntent 401/400/503, collect 404/403/409, family GET 200.
+- Live flow contra `acct_1Tyau3Dd5HlYiTSY`: cargo `9bc9b80b-829a-426f-ba4d-e6ef8f10c851` cobrado, `pi_3U2zgJDd5HlYiTSY1CkOUIcN` con `status=paid`, `attempt_count=2`. Re-verificación durable independiente del egress Supabase: `stripe charges retrieve ch_3U2zgJDd5HlYiTSY1JZksOlB --stripe-account acct_1Tyau3Dd5HlYiTSY` confirma `amount=1500`, `captured=true`, `currency=eur`.
+- Evidencia durable: comment `b6f07e0d` (3612 bytes) en la issue y work product `vault/06-Roadmap-y-Tareas/qa/ZAL-25 live E2E evidencia 2026-08-10.md` (11399 bytes).
+- Cambios locales reversibles sin commitear (42 líneas): `scripts/prepare-e2e-family-auth.ts` retira `is_primary` de `guardians` (pertenece a `guardian_athletes`, fix de script, no schema); `tests/e2e-zaltyko-stripe-connect-flow.spec.ts` carga Stripe.js v3 vía `<script>` (window.Stripe, no ESM default export) y refina `unwrapData` para tolerar payloads crudos o envueltos. Decisión de working tree delegada al board junto con accept/reject.
+- Hallazgos colaterales (no bloquean ZAL-3): (a) webhook Connect devuelve 400 porque `STRIPE_CONNECT_WEBHOOK_SECRET` local no matchea `stripe listen` (P&S documente matching); (b) el spec live necesita encadenar SetupIntent→collect en el mismo test (deuda de harness trivial).
+- Dependencias: ZAL-437 (P&S sandbox) `done` 2026-08-10T16:45Z con C-2 cross-agent; ZAL-439 (Eng. Lead schema drift) `done` 2026-08-09T03:13:46Z; ZAL-356 (cuenta Connect TEST) `done` con peer-verification de Engineering Lead. Egress Supabase intermitente (>=5to día, B2 piloto ZAL-482) no bloquea porque Stripe es durable.
+- Parent [ZAL-13](/ZAL/issues/ZAL-13) sigue `blocked` sin movimiento desde 2026-08-09T08:26:13Z; QA no propaga child→parent (ZAL-27 done 2026-08-08) y solo el board puede re-asignar o publicar `## Review: APPROVED`.
+
+Sin producción, Stripe live, secretos, datos reales, migraciones remotas, pricing, campañas, claims, publicaciones ni releases. Evidencia local/sandbox; no constituye readiness, adopción ni validación humana.
+
+## 2026-08-10 - CEO: cierre de limpieza administrativa ZAL-545
+
+- Se actualizó la descripción de [ZAL-156](/ZAL/issues/ZAL-156) para retirar la referencia nominal al gate fantasma y dejar la nota “referencia histórica, sustituida por Platform & Security”. La descripción declara que no existe firma ni blocker pendiente de un agente retirado.
+- Verificación de control-plane: cero menciones a “Hermin”; el único blocker de [ZAL-156](/ZAL/issues/ZAL-156), [ZAL-160](/ZAL/issues/ZAL-160), y su estado `blocked` no fueron modificados. [ZAL-545](/ZAL/issues/ZAL-545) quedó `done` con etiqueta `process` y comentario de evidencia.
+- Sin código, nuevas reviews, secretos, datos, producción, pricing, campañas, publicaciones, stores ni migraciones remotas. Esta limpieza administrativa no constituye readiness, adopción ni validación humana.
+
+Vault: actualizado este changelog y el backlog priorizado; `Decisiones.md` no requiere una decisión nueva.
+
+## 2026-08-10 - Engineering: acceso de suscripción requiere respaldo Stripe (ZAL-542)
+
+- `hasSubscriptionAccess` ahora exige simultáneamente un estado con acceso y un `stripe_subscription_id` no nulo; se actualizaron sus consumidores server-side para pasar ambos campos.
+- `getEstimatedMRR` filtra suscripciones `active` sin respaldo Stripe. `src/lib/growth/dashboard.ts` ya tenía ese filtro y se conserva sin duplicarlo.
+- Se añadieron cuatro pruebas focales para `active`/`trialing`/`canceled` con y sin `stripe_subscription_id`, y se actualizó el contrato existente de Fase 1.
+- Evidencia local: `pnpm test tests/lib/subscription-status.test.ts` → 4/4 PASS; suite combinada con el contrato de Fase 1 → 11/11 PASS; ESLint focal → 0 errores y 1 warning preexistente en `src/lib/limits.ts`.
+- `pnpm typecheck` sigue fallando por baseline ajeno en `mobile/` (módulos ausentes, tipos React Native y casing `Button`/`button`) y `src/app/api/support/tickets/[id]/responses/route.ts` (`FormData.get`); no reporta errores en los archivos tocados por ZAL-542.
+- No se tocaron datos, migraciones remotas, producción, Stripe live ni secretos. La limpieza de las dos filas huérfanas y el CHECK constraint quedan fuera de este cambio.
+
+Vault: actualizado este changelog; `Estado actual de Zaltyko.md`, `Decisiones.md` y `Backlog priorizado.md` no requieren cambio adicional.
 
 ## 2026-08-10 - Engineering: hardening SCA y redacción de secretos para ZAL-524
 
@@ -69,6 +156,47 @@ Vault: actualizado el work product de [ZAL-328](/ZAL/issues/ZAL-328) y este chan
 - [ZAL-489](/ZAL/issues/ZAL-489) y [ZAL-437](/ZAL/issues/ZAL-437) fueron reasignadas a QA: el entregable es verificación en sandbox/E2E y no requiere custodiar secretos. Se conservaron `blocked`, sus blockers y los gates del board; [ZAL-330](/ZAL/issues/ZAL-330) permanece con Platform & Security por secret refs/runtime.
 - El barrido de gates fantasma no encontró bloqueos activos exclusivamente dependientes de Gemita/Hermin. ZAL-138 y ZAL-191 están cerradas; ZAL-156 sigue bloqueada por ZAL-157/ZAL-160, no por un agente retirado.
 - No se cambió código ni se actuó sobre producción, Stripe live, secretos, datos reales, pricing, campañas, publicaciones, stores o migraciones remotas. El workspace de este run solo contenía `cancel.json`; no se usó como evidencia de readiness.
+
+Vault: actualizadas `Estado actual de Zaltyko.md`, `Decisiones.md`, `Changelog interno.md` y `Backlog priorizado.md`.
+
+## 2026-08-12 — Engineering Lead: ZAL-611 mantiene bloqueo por bridge de Paperclip
+
+- La nueva evidencia del board no resuelve el run silencioso de CEO: último output `2026-08-12T07:30:19.379Z`, sin tail de log; el PID `24534` sigue siendo un ACP genérico y no demuestra continuidad de la invocación.
+- Se conserva el run sin cancelarlo ni recuperarlo. ZAL-611 queda con disposición `blocked` por el bridge/control-plane no disponible; el runtime/operador de Paperclip debe restaurarlo y aportar contexto del owner de CEO antes de decidir.
+- Evidencia durable: `vault/06-Roadmap-y-Tareas/ZAL-611 review run silencioso CEO 2026-08-12.md`. No hubo cambios de producto, producción, secretos, datos reales, Stripe live, pricing, campañas, claims, publicaciones, stores ni migraciones remotas.
+
+## 2026-08-12T07:30Z — CEO: ZAL-610 plan publicado y pendiente de confirmación
+
+- Se publicó el documento `plan` de [ZAL-610](/ZAL/issues/ZAL-610) en Paperclip, revisión `b44be1b5-2a54-4a60-a236-b198a14de33e`, y se dejó el resumen ejecutivo en el hilo.
+- La recomendación mantiene la meta de 90 días y prioriza primer valor Web/Mobile, importación asistida mínima y cobros; no cambia pricing v3.0, claims ni crea subtareas.
+- La `request_confirmation` no se creó: dos payloads fueron rechazados por validación del endpoint (`payload` ausente y `payload.version=1` requerido). El PATCH de estado posterior agotó timeout; el estado administrativo no se presenta como sincronizado hasta una lectura confirmatoria.
+- Cap vivo: `budgetMonthlyCents=1000000`, `spentMonthlyCents=454947` (45,49%); no se eleva aprobación presupuestaria.
+- No hubo producción, Stripe live, datos reales, secretos, pricing, campañas, publicaciones, stores, migraciones remotas ni permisos sensibles.
+
+## 2026-08-12 — CEO: análisis ZAL-610 sobre necesidades del dueño de academia
+
+- Se contrastó el feedback del ICP gimnasia (80–150 gimnastas, 2–5 entrenadores, Excel/WhatsApp/papel) con la guía operativa, estado, decisiones, pricing, mensajes, buyer personas, rutas de import/export, offline, cobros y Mobile.
+- Se registró la nota durable [[ZAL-610 veredicto CEO necesidades dueño academia y factibilidad roadmap 2026-08-12]] con matriz requisito → estado → gap → decisión, secuencia Web/Mobile, owners, criterios de aceptación, claims prohibidos y preguntas para 3–5 dueños/directores.
+- Hallazgos clave: importación actual CSV fila a fila sin preview/rollback/dedupe/histórico; exportación XLSX acotada de atletas; offline mutacional deshabilitado; cobros y Mobile tienen piezas y evidencia de test, pero no sustituyen validación humana, device/sandbox completo ni readiness.
+- Decisión ejecutiva: no cambia el rumbo de 90 días ni el pricing v3.0. P0 queda en primer valor Web/Mobile, importación asistida mínima y cierre funcional de cobros; exportación integral es P1; offline se investiga antes de implementarse. No se crean subtareas hasta revisar/aceptar el plan.
+- No hubo código, producción, Stripe live, migraciones remotas, datos reales, secretos, pricing, claims, campañas, publicaciones ni stores. Evidencia local, test/sandbox, producción, validación externa y validación humana quedan separadas; baseline comercial continúa sin muestra suficiente.
+
+## 2026-08-11 — CEO: triage de blockers del P0 comercial ZAL-477
+
+- Se consultaron inbox, heartbeat-context, blockers y roster. El inbox CEO contiene ZAL-477, ZAL-13 y ZAL-2; ZAL-575 está activo y actualizado, ZAL-13 espera board/operador y ZAL-2 depende de ZAL-13.
+- ZAL-586 sigue bloqueada por ZAL-582 y ZAL-583. Ambas son subtareas técnicas existentes, asignadas a Web Developer y listas en `todo`; no se creó una issue duplicada ni se ejecutaron cambios técnicos desde CEO.
+- Se intentó iniciar la acción sobre ZAL-477, pero Paperclip rechazó el checkout por los blockers no terminales ZAL-575 y ZAL-586. No se fuerza el estado ni se maquilla la prioridad; el siguiente paso pertenece a Web Developer y Marketing según sus issues existentes.
+- No se re-comentó ninguna issue bloqueada sin respuesta previa. No hubo producción, secretos, Stripe live, DNS, datos reales, pricing, campañas, publicaciones, stores, migraciones remotas ni cambios de permisos.
+- Control de burn: `435794/1000000` centavos (43,58%); sin approval presupuestario.
+
+Vault: actualizadas `Estado actual de Zaltyko.md`, `Decisiones.md`, `Changelog interno.md` y `Backlog priorizado.md`.
+
+## 2026-08-10T18:04Z - CEO: blocker del piloto reconciliado
+
+- Verificado en Paperclip que la interacción de aprobación del runbook [ZAL-480](/ZAL/issues/ZAL-480) quedó aceptada.
+- Actualizado [ZAL-477](/ZAL/issues/ZAL-477) sin cambiar su estado: se retiró [ZAL-480](/ZAL/issues/ZAL-480) como blocker directo y se conservaron [ZAL-479](/ZAL/issues/ZAL-479) y [ZAL-520](/ZAL/issues/ZAL-520) como dependencias vivas.
+- [ZAL-479](/ZAL/issues/ZAL-479) mantiene un único contacto 1:1 y monitor externo para 2026-08-11 08:00 UTC; [ZAL-520](/ZAL/issues/ZAL-520) sigue con Support para aplicar G1/G5 y cerrar la rev. 2.
+- No se presenta control-plane, local o sandbox como adopción, readiness, ingresos o validación humana. No se tocó código, producción, secretos, pagos, datos reales, pricing, campañas, claims, publicaciones, stores ni migraciones remotas.
 
 Vault: actualizadas `Decisiones.md`, `Changelog interno.md` y `Backlog priorizado.md`.
 
@@ -2972,3 +3100,140 @@ Vault: actualizadas `Decisiones.md`, `Backlog priorizado.md`, `Estado actual de 
 - Se barrió el roster contra las issues abiertas: no existen asignaciones a agentes inexistentes. Gemita y Hermin quedan únicamente como referencias históricas/contextuales; no se creó trabajo adicional ni se reabrieron gates.
 - No se reintentaron disposiciones de las ocho issues CEO bloqueadas porque los hilos ya tienen una actualización de bloqueo sin contexto nuevo. Se conservaron los owners y dependencias reales: piloto [ZAL-477](/ZAL/issues/ZAL-477), cierre no-code [ZAL-506](/ZAL/issues/ZAL-506), remediación de cuota [ZAL-355](/ZAL/issues/ZAL-355) y cadena sandbox/E2E [ZAL-25](/ZAL/issues/ZAL-25).
 - No hubo cambios de código, producción, Stripe live, secretos, datos reales, pricing, campañas, claims, publicaciones, stores ni migraciones remotas. La evidencia sigue separada de readiness, adopción, validación externa y validación humana.
+
+## 2026-08-10 — CEO: subtarea acotada para limpiar gate fantasma en GTM
+
+- El barrido de roster y issues encontró una referencia histórica a “privacy review Hermin” dentro de [ZAL-156](/ZAL/issues/ZAL-156). No existe un gate activo asignado a un agente retirado: el blocker real sigue siendo [ZAL-160](/ZAL/issues/ZAL-160) → [ZAL-177](/ZAL/issues/ZAL-177).
+- Se creó [ZAL-545](/ZAL/issues/ZAL-545), asignada a Platform & Security, para corregir la descripción de ZAL-156 y conservar trazabilidad sin generar otra review ni cambiar el producto.
+- Presupuesto vivo: `413249/1000000` centavos (41,32%); no se escaló. No se tocó código, producción, Stripe live, secretos, datos reales, pricing, campañas, claims, publicaciones, stores ni migraciones remotas.
+
+Vault: actualizadas `Decisiones.md`, `Changelog interno.md` y `Backlog priorizado.md`. Evidencia de control-plane separada de readiness, adopción y validación humana.
+
+## 2026-08-10T16:30Z - QA: ZAL-437 fixture verificado, gate ZAL-88 descubierto
+
+QA (`c07d53ca`) asimiló el desbloqueo CEO del 2026-08-10T15:06Z (`e71ee31b`) sobre [ZAL-437](/ZAL/issues/ZAL-437) y aplicó el fixture sandbox sin modificar secretos.
+
+**Discriminante (este heartbeat):**
+
+- `.env.local:41` `E2E_ACADEMY_ID` = `44444444-aaaa-bbbb-cccc-444444444444` (correcto, revertido por P&S el 2026-08-08 según entrada anterior de este changelog; UUID corresponde a la academia Aurora Elite Demo con familia E2E + cargos + Connect `acct_1Tyau3Dd5HlYiTSY` en el proyecto Supabase `jegxfahsvuglilbthbked` que `.env.local` apunta).
+- `.env.local:10` `DATABASE_URL` = `aws-1-eu-north-1.pooler.supabase.com:6543` (IPv4-alcanzable; workaround DNS al host directo `db.jegxfahsvuglilbthbked.supabase.co` que solo resuelve AAAA).
+- `nslookup db.aeeootdmuiqkfeernskw.supabase.co` → A vacío, AAAA `2a05:d016:2b6:b300:b84e:549b:10cb:235`. `db.jegxfahsvuglilbthbked.supabase.co` → A vacío, AAAA `2a05:d016:571:a418:d836:cd7b:4c56:4b98`. Pooler IPv4 OK.
+
+**Aplicado (reversible, local, autoridad delegada):**
+
+- `E2E_ALLOW_PROVISIONING=true pnpm tsx scripts/seed-e2e-charge.ts` → `charge: reset existente 9bc9b80b-829a-426f-ba4d-e6ef8f10c851 → pending (1500 cents, 2026-08)`. `chargeId=9bc9b80b-829a-426f-ba4d-e6ef8f10c851`. Idempotente, mismo cargo que P&S verificó el 2026-08-08. Ningún secret tocado, ninguna migración remota.
+- `pnpm dev` arrancó (`Ready in 11.5s`) y `/api/health` 200 tras middleware 8.2s.
+- Spec `tests/e2e-zaltyko-stripe-connect-flow.spec.ts` con `E2E_STRIPE_CONNECT_FLOW=1` (chromium, sin `E2E_LIVE_STRIPE`): 1 pass / 1 fail / 5 not-run (serial mode). El fail (`collect: 401 sin sesión, 404 con charge inexistente, 409 si academia no lista`) NO es defecto del fixture: `.auth/owner.json` del 2026-07-29 tiene sesión caduca → API responde 401 correctamente, el test esperaba `[404, 403, 409]`. Storage state hygiene, separado.
+
+**Bloqueador descubierto (este heartbeat):**
+
+- `PATCH /api/issues/{ZAL-437}` con `status: done` → `409 PeerVerificationRequired` (ZAL-88 anti-spoofing SHA gate). El label `process` ya estaba presente (`19b02861-cddb-48c9-bc07-3360c58fc0c7`), `billingCode=null`, `workMode=standard`. La exención no-code (`054c19845`) no aplicó porque el gate exige peer-verification o `## Review: APPROVED` literal del board en este thread.
+- Work product: `vault/06-Roadmap-y-Tareas/qa/ZAL-437 fixture verification 2026-08-10.md` (full discriminante + comandos reproducibles).
+
+**Disposición aplicada en Paperclip:**
+
+- ZAL-437 → `blocked` con `unblockDescriptor` describiendo: fixture verificado + cargo reseedeado + work product, gate ZAL-88 como nuevo blocker. Unblock path (board/CEO-only): publicar `## Review: APPROVED` literal en este thread, o cambiar `workMode=review_no_code` (Engineering Lead), o peer-verification de HEAD SHA por otro agent. QA no ancló C-1 propio (regla meta-task).
+- ZAL-25 (parent) sigue `blocked` con `blockedBy=['ZAL-437']` (ZAL-439 ya no aparece en `blockedBy` — Engineering Lead cerró el schema drift con ZAL-439 `done` per relatedWork).
+- Comment `c83dc68a` (agent c07d53ca, atribución correcta al run actual) con discriminante completa + separación sandbox/prod.
+
+**Sin código nuevo, sin schema, sin secretos, sin producción, sin Stripe live, sin publicación**
+
+Costo del heartbeat: ~4 API calls (1 PATCH label 400 fallido, 1 PATCH done 409, 1 POST comment 201, 1 PATCH blocked 200). Token budget OK. Próximo paso: heartbeat autónomo espera board approval (`## Review: APPROVED` literal) para cerrar ZAL-437 → done.
+
+## 2026-08-10T16:36Z - CEO: ZAL-545 corrige gate fantasma Hermin
+
+- Se reasignó [ZAL-545](/ZAL/issues/ZAL-545) de Platform & Security a CEO: la acción era administrativa y consistía en editar la descripción del parent [ZAL-156](/ZAL/issues/ZAL-156), sin secretos ni revisión de seguridad.
+- Se actualizó y verificó la descripción persistida de [ZAL-156](/ZAL/issues/ZAL-156): Hermin queda como referencia histórica, no como blocker ni firma pendiente; Product Lead conserva aceptación funcional y Platform & Security conserva privacidad/seguridad.
+- [ZAL-545](/ZAL/issues/ZAL-545) tiene comentario de cierre, etiqueta `process` y quedó asignada a CEO en `todo`. El gate ZAL-88 rechazó dos veces `done` por falta de commit proof; no se fabricó SHA ni se reintentó una tercera vez en este heartbeat.
+- No se tocó código, producción, Stripe live, secretos, datos reales, pricing, campañas, claims, publicaciones, stores ni migraciones remotas. [ZAL-138](/ZAL/issues/ZAL-138), [ZAL-140](/ZAL/issues/ZAL-140) y [ZAL-191](/ZAL/issues/ZAL-191) permanecen terminales.
+
+Presupuesto vivo: `415050/1000000` centavos (41,5%); no hay approval pendiente ni corresponde escalar gasto. Vault: actualizadas `Decisiones.md`, `Changelog interno.md` y `Backlog priorizado.md`.
+
+## 2026-08-10T16:58Z - CEO: retirar blocker terminal de ZAL-2
+
+- El control-plane confirmó que [ZAL-7](/ZAL/issues/ZAL-7) ya está `done`; se retiró como dependencia de [ZAL-2](/ZAL/issues/ZAL-2).
+- [ZAL-2](/ZAL/issues/ZAL-2) permanece `blocked` únicamente por [ZAL-25](/ZAL/issues/ZAL-25), que sigue ejecutando la QA E2E de Stripe test mode. No se reintentó la suite ni se usaron secretos, cobros/reembolsos reales o producción.
+- Gasto vivo consultado después de la limpieza: `457495/1000000` centavos (45,75% del cap vigente de USD 10.000); 0 approvals pendientes y no corresponde escalar presupuesto.
+
+Vault: actualizada esta entrada. No hubo cambio de código, pricing, campañas, claims, publicaciones, stores, migraciones remotas ni datos reales.
+
+## 2026-08-10T17:21Z - CEO: decisión operativa para cerrar el runbook concierge
+
+- Se registró en [ZAL-520](/ZAL/issues/ZAL-520) la decisión CEO sobre G1 y G5: CEO decide sobre notificación/descartar notificación de brecha con Platform & Security como asesor; el primer piloto opera con un único operador y suspende cobertura si no está disponible.
+- El board aceptó el gate de [ZAL-480](/ZAL/issues/ZAL-480). Customer Support conserva la ejecución de la rev. 2: debe aplicar las decisiones, mantener G7/G8 y `L-NO-PRECIO`, registrar la revisión y cerrar [ZAL-520](/ZAL/issues/ZAL-520) con evidencia.
+- No se inició el piloto ni se tocaron datos reales, producción, pagos, pricing, campañas, claims, publicaciones, stores, secretos o migraciones remotas. La evidencia comercial sigue en 1 contacto, 0 respuestas, 0 demos, 0 trials, 0 primer valor y 0 conversiones.
+
+Vault: actualizadas `Decisiones.md`, `Changelog interno.md` y `Backlog priorizado.md`.
+
+## 2026-08-10T18:50Z - CEO: redistribución de ZAL-503 a Engineering Lead
+
+- [ZAL-503](/ZAL/issues/ZAL-503) se reasignó de Platform & Security a Engineering Lead: el entregable es portar o descartar un endpoint `operation_verifications` ausente, sin custodia de secretos ni revisión de seguridad.
+- La disposición quedó en `todo` para Engineering Lead, con acción ejecutable y sin blocker de primera clase ficticio. [ZAL-461](/ZAL/issues/ZAL-461) conserva [ZAL-503](/ZAL/issues/ZAL-503) como dependencia.
+- [ZAL-330](/ZAL/issues/ZAL-330) permanece con Platform & Security por su dependencia real de variables/secretos sandbox. No se creó agente ni meta-trabajo nuevo.
+- No hubo cambios de producto, código, producción, Stripe live, secretos, datos reales, pricing, campañas, claims, publicaciones, stores ni migraciones remotas. Gasto vivo: `419410/1000000` centavos (41,94%), sin escalación.
+
+Vault: actualizadas `Decisiones.md`, `Changelog interno.md` y `Backlog priorizado.md`.
+
+## 2026-08-11 - Engineering Lead: cierre de review de productividad ZAL-573
+
+- [ZAL-573](/ZAL/issues/ZAL-573) quedó resuelta como **productiva con continuación y ventana de snooze** sobre [ZAL-570](/ZAL/issues/ZAL-570). El detector reportó 18 h 42 min de actividad, pero solo había 3 runs muestreados, 2 fallos terminales, 1 run activo, 1 run en cada ventana rolling y 124 centavos de coste.
+- Se verificó que el alcance sigue acotado al pre-check del cargo `pending` antes de `collect`; el diff local ya contiene ese cambio. No se descompone, rerutea, bloquea ni cancela la ejecución de QA.
+- Próxima acción: QA termina el run activo y publica evidencia del camino positivo y de los negativos de setup. La evidencia local/control-plane permanece separada de producción, Stripe live, readiness y validación humana.
+- No hubo cambios de producción, secretos, datos reales, pricing, campañas, publicaciones, stores ni migraciones remotas.
+
+Vault: actualizadas esta entrada, `Decisiones.md` y el memo `ZAL-573 review productivity ZAL-570 2026-08-11.md`. No se actualizó `Backlog priorizado.md` porque no se creó deuda ni follow-up nuevo.
+
+## 2026-08-11 — CEO: ZAL-13 queda bloqueada solo por acción externa válida
+
+- [ZAL-25](/ZAL/issues/ZAL-25) terminó `done` con veredicto QA **PARTIAL-PASS** en Stripe test/sandbox. La evidencia durable confirma contrato API 4/4 y cargo de prueba capturado; no confirma producción ni readiness. El egress de Supabase sigue pendiente para la cobertura completa.
+- Se retiró de [ZAL-13](/ZAL/issues/ZAL-13) la dependencia terminal de [ZAL-25](/ZAL/issues/ZAL-25). El parent permanece `blocked` por la acción concreta del board/operador: variables Stripe test por canal seguro y egress sandbox o espejo local aprobado.
+- [ZAL-26](/ZAL/issues/ZAL-26) confirmó que el ápex ya tiene un único SPF válido (`include:_spf.mail.hostinger.com include:spf.brevo.com ~all`) y el TXT de Brevo separado. No se ejecuta el cambio DNS original ni se endurece DMARC; añadir un segundo SPF sería inseguro.
+- No se tocaron código, producción, Stripe live, secretos, datos reales, pricing, campañas, claims, publicaciones, stores ni migraciones remotas. La cifra viva del control-plane está por debajo del 80% del cap vigente.
+
+Vault: actualizadas `Estado actual de Zaltyko.md`, `Decisiones.md`, esta entrada y `Backlog priorizado.md`.
+
+## 2026-08-11 — CEO: disposición de ZAL-2 tras PARTIAL-PASS de Stripe test
+
+- [ZAL-25](/ZAL/issues/ZAL-25) queda terminal con veredicto **PARTIAL-PASS**: 4/4 contratos API y un cargo capturado en Stripe test/sandbox. No se presenta como producción, readiness, adopción ni validación humana.
+- Se corrigió el grafo de [ZAL-2](/ZAL/issues/ZAL-2): se retiró el blocker terminal [ZAL-25](/ZAL/issues/ZAL-25) y se mantuvo [ZAL-13](/ZAL/issues/ZAL-13) como dependencia board/operador para habilitar el entorno Stripe test y el egress/espejo autorizado. La QA completa sigue sin cierre.
+- No se abrió una subtarea duplicada: [ZAL-570](/ZAL/issues/ZAL-570) ya contiene el seguimiento del pre-check del harness; el `400` del webhook queda como discrepancia de configuración de firma, no como bug de código confirmado.
+- Se redactaron los valores concretos de secretos efímeros, claves públicas y firmas webhook presentes en la evidencia local. No se leyeron, almacenaron ni publicaron secretos nuevos.
+- Verificación de control-plane: `budgetMonthlyCents=1000000`, `spentMonthlyCents=433327` (43,33%); sin escalación presupuestaria. No hubo código, producción, Stripe live, datos reales, pricing, campañas, publicaciones, stores ni migraciones remotas.
+
+## 2026-08-11T18:15Z - CEO: approval recibido y ZAL-13 queda bloqueada por handoff externo
+
+- Se leyó el approval [1f96356e-9f64-400f-aabb-708b4b5e3161](/ZAL/approvals/1f96356e-9f64-400f-aabb-708b4b5e3161) y sus issues enlazadas. El alcance aprobado es únicamente `secure_test_handoff`: Stripe test y egress/espejo sandbox; no contiene secretos ni habilita producción.
+- Se confirmó la cadena: [ZAL-27](/ZAL/issues/ZAL-27) `done`, [ZAL-25](/ZAL/issues/ZAL-25) `done` con PARTIAL-PASS, [ZAL-330](/ZAL/issues/ZAL-330) `blocked` por `secret_ref` sandbox placeholder/MISSING, [ZAL-2](/ZAL/issues/ZAL-2) `blocked` por [ZAL-13](/ZAL/issues/ZAL-13). [ZAL-26](/ZAL/issues/ZAL-26) mantiene resuelto el SPF único; no se añade otro SPF ni se cambia DMARC.
+- Se dejó comentario de recepción en el approval y se actualizó [ZAL-13](/ZAL/issues/ZAL-13) a `blocked` con descriptor: CEO mantiene seguimiento; board/operador debe re-apuntar los `secret_ref` a valores reales del sandbox no productivo y confirmar egress o espejo local aprobado. QA ejecuta después la suite live y devuelve PASS/FAIL.
+- El primer PATCH de bloqueo fue rechazado porque un agente no puede nombrar `board` como owner del descriptor; se corrigió una sola vez usando CEO como owner operativo, con la acción board-only explícita. No hubo segundo reintento del mismo payload.
+- El run `f739c4e1-5cd0-45f5-80a2-a0047356d808` terminó por `provider_quota`/capacidad del modelo, con cero tokens de salida. No es evidencia de fallo de producto ni justifica reintentos de bajo valor.
+- Burn vivo: `435281/1000000` centavos (43,53%); no se eleva aprobación presupuestaria. No hubo código, producción, Stripe live, secretos, datos reales, DNS, DMARC, migraciones remotas, pricing, campañas, claims, publicaciones ni stores.
+
+## 2026-08-11 — CEO: ZAL-587 troceado y secuenciado
+
+- Se leyó la guía operativa, el estado actual, Decisiones, Changelog, Backlog y el estado de git antes de coordinar. El checkout asignado no tenía checkout de repo utilizable en el workspace efímero; el repo canónico compartido conserva cambios paralelos no relacionados y no se revirtieron.
+- Se validó el roster vivo: no existen Gemita ni Hermin; Platform & Security, Web Developer, Engineering Lead y QA sí están activos en el roster. ZAL-567, ZAL-559, ZAL-554 y ZAL-576 están `done`; ZAL-557 está `backlog` y se mantiene fuera de blockers.
+- Se crearon las subtareas [ZAL-588](/ZAL/issues/ZAL-588) F0 P0, [ZAL-589](/ZAL/issues/ZAL-589) F1 P0, [ZAL-590](/ZAL/issues/ZAL-590) F2, [ZAL-591](/ZAL/issues/ZAL-591) F3, [ZAL-592](/ZAL/issues/ZAL-592) F4, [ZAL-593](/ZAL/issues/ZAL-593) F5, [ZAL-594](/ZAL/issues/ZAL-594) F6 y [ZAL-595](/ZAL/issues/ZAL-595) aceptación QA consolidada. Después se añadió [ZAL-596](/ZAL/issues/ZAL-596) como revisión explícita de aislamiento de F2 por Platform & Security; ahora bloquea F3 junto con F2. Todas tienen owner, objetivo, criterios y `parentId`/`goalId`; los blockers de fase son de primera clase.
+- F0 contiene la fuga sin esperar UI; F1 recupera tickets perdidos; F2 concentra agregación SQL y contrato honesto; F3–F6 evitan charts sin base, Realtime explosivo, placeholders y regresiones móvil/a11y. No se reintroducen DAU/WAU/MAU, sesiones, churn ni series fabricadas.
+- Verificación de control-plane: `budgetMonthlyCents=1000000`, `spentMonthlyCents=435571` (43,6%). No se supera el umbral del 80% y no se crea aprobación presupuestaria.
+- No hubo cambios de producto en este heartbeat, producción, secretos, datos reales, Stripe live, pricing, campañas, claims, publicaciones, stores, migraciones remotas ni permisos sensibles. La ejecución queda delegada a las subtareas.
+
+## 2026-08-12 — CEO: ZAL-610 aceptada y desglose de producto creado
+
+- El board/usuario aceptó el plan ejecutivo `b44be1b5` y se crearon 11 subtareas de producto/evidencia [ZAL-619](/ZAL/issues/ZAL-619)–[ZAL-629](/ZAL/issues/ZAL-629), con owners activos y blockers explícitos.
+- Se preserva Web/Mobile en paralelo bajo contratos compartidos. Migración asistida, rendimiento/a11y, dashboard, privacidad y QA quedan secuenciados; offline depende de discovery y no se implementa todavía.
+- Cobros/piloto/GTM/Support reutilizan issues existentes; no se generó meta-trabajo duplicado.
+- Gasto vivo: `458775/1000000` centavos (45,88%); sin escalación. No hubo código, producción, Stripe live, datos reales, secretos, pricing, claims, campañas, publicaciones, stores ni migraciones remotas.
+
+Vault: actualizadas `Estado actual de Zaltyko.md`, `Decisiones.md`, `Changelog interno.md` y `Backlog priorizado.md`.
+
+## 2026-08-12 — Web Developer: ZAL-621 work product — a11y/perf de recorridos Web P0
+
+- Se auditó la cobertura a11y/perf de las 10 rutas Web P0 del contrato [`ZAL-619`](./ZAL-619%20contrato%20P0%20ICP%20gimnasia%20Web%20Mobile%20v1.0%202026-08-12.md): dashboard, classes, attendance, comms, announcements, messages, evaluations, billing, my-dashboard, athletes. Solo dashboard y athletes tenían cobertura previa (axe WCAG AA + matriz responsive/teclado heredada de ZAL-604 focal).
+- Se entregó `tests/e2e-zal-621-a11y-journeys.spec.ts` (commit `d0b723b3eaef78c22c732794c8c4554bd0b60e8a`, 233 LOC) con 294 tests declarados vía `pnpm exec playwright test --list`: axe WCAG 2.2 AA sobre las 8 rutas no cubiertas + matriz responsive 3 viewports × 10 rutas + matriz teclado/foco 3 viewports × 10 rutas. Mismo patrón que `e2e-zal-604-a11y-focal.spec.ts`; skip limpio sin `E2E_ACADEMY_ID`/`E2E_STORAGE_STATE`.
+- Hallazgos estáticos (sin levantar dev server): 0/10 rutas P0 tienen `error.tsx` propio (cualquier error burbujea al boundary raíz en `src/app/error.tsx`, sano pero sin contexto de academia); 0 hits de `web-vitals`/`onLCP`/`onINP`/`onCLS` en `src/lib` y `src/app` (no hay instrumentación p50/p95 reproducible); la búsqueda vive como command palette en `src/components/search/GlobalSearchDialog.tsx`, no como ruta `/search` dedicada.
+- Auditoría estática de no duplicación Web/Mobile del contrato backend ZAL-619 §6: Web consume `/api/search`, `/api/dashboard/*`, `/api/attendance`, `/api/comms`, `/api/evaluations`, `/api/charges`; Mobile usa bearer sobre los mismos endpoints. Sin reglas de validación/autorización duplicadas en cliente.
+- No se pudo ejecutar el spec ni `pnpm dev` en este heartbeat: `pnpm typecheck` falla con `TS6053: File 'src/types/athletes.ts' not found` (mismo síntoma que `git status` reporta "Resource deadlock avoided" al indexar `src/components/dashboard/DashboardSidebar.tsx` — iCloud Drive dataless errno -11, no regresión de código). `nc -z db.aeeootdmuiqkfeernskw.supabase.co 443` → `nodename nor servname provided` (B2 ZAL-482/ZAL-604). `pnpm exec playwright test --list` sí corrió y devolvió 294 tests registrados.
+- Esta evidencia es local/sandbox y **no es** readiness, adopción ni validación humana. QA debe re-ejecutar el spec cuando iCloud dataless esté resuelto y `E2E_ACADEMY_ID` + `E2E_STORAGE_STATE` estén disponibles; comandos literales en el work product.
+- Recomendaciones P0 separadas, no implementadas aquí: `error.tsx` por ruta P0 con reset preservando academia; cliente `web-vitals` reportando a `/api/telemetry/perf` con `requestId`/`academyId`/`route`/`device`/`viewport` para que ZAL-619 AC-5 sea medible sin claim externo.
+- Sin código de producción, Stripe live, datos reales, secretos, pricing, claims, campañas, publicaciones, stores, ni cambios sensibles de permisos. Vault: nuevo `ZAL-621 work product Web P0 a11y perf journeys 2026-08-12.md`; sin cambios en `Decisiones.md` (no cambia dirección), `Backlog priorizado.md` (ZAL-628 QA queda como issue dependiente ya creada en el desglose ZAL-610), `Pricing.md` ni `Mensajes aprobados.md`.
