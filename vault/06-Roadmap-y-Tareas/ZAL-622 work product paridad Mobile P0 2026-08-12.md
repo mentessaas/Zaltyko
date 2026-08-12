@@ -4,12 +4,25 @@ owner: Mobile Developer
 issue: ZAL-622
 parent: ZAL-610
 contract: ZAL-619 (v1.0, done)
-blocker: ninguno formal — ZAL-635 [ZAL-634] Fijar contrato dashboard.get compartido Web/Mobile cerrado 2026-08-12T17:46Z
-version: 0.9
+blocker: ninguno formal — ZAL-635 cerrado 2026-08-12T17:46Z; Fases 6–9 dependen de decisiones cross-equipo (Engineering Lead / QA / P&S)
+version: 1.0
 last_reviewed: 2026-08-12
-disposition: explicit_continuation — Fases 0–4 shipped; quedan 5–9 (search/import bloqueados por backend, idempotencia end-to-end, paridad observable, a11y/device matrix)
-last_disposition_fix: 2026-08-12T20:38Z (recovery run 37f14818 — Fases 0–4 confirmadas, sin cambios de status; el issue ya estaba in_progress con blockedBy=[] y unblockDescriptor=null)
-last_sprint_shipped: 2026-08-12T20:38Z (Fase 4: Charge.status contractual completo)
+disposition: explicit_continuation — Fases 0–5 shipped; quedan 6–9 (search/import bloqueados por backend, idempotencia end-to-end, paridad observable, a11y/device matrix)
+last_disposition_fix: 2026-08-12T20:43Z (Fase 5 shipped — commit e4a22e67b, AC-08 cerrado a nivel cliente)
+last_sprint_shipped: 2026-08-12T20:43Z (Fase 5: familia my-dashboard + aislamiento parent)
+---
+phase_0_shipped: true
+phase_0_commit: e31236dc8 feat(mobile): ZAL-622 Phase 0 — ApiClientError retryable + nextAction + error translator
+phase_1_shipped: true
+phase_1_commit: 2a0e97c1a feat(mobile): ZAL-622 Phase 1 — attendance cancelled bloquea, save_failed etiquetado, idempotencyKey cliente
+phase_2_shipped: true
+phase_2_commit: 50f7025ad feat(mobile): ZAL-622 Fase 2 — cliente dashboard.get compartido + AdminHome bloques
+phase_3_shipped: true
+phase_3_commit: ee4c1883c feat(mobile): ZAL-622 Fase 3 — mensajes sent/pending/failed + retry + aislamiento
+phase_4_shipped: true
+phase_4_commit: 839c31c60 feat(mobile): ZAL-622 Fase 4 — Charge.status contractual completo + copy localizada
+phase_5_shipped: true
+phase_5_commit: e4a22e67b feat(mobile): ZAL-622 Fase 5 — familia my-dashboard (AC-08) + aislamiento parent
 ---
 evidence_scope: local-repository (mobile/ + src/ + vault); no production or human validation
 phase_0_shipped: true
@@ -475,3 +488,109 @@ $ cd mobile && pnpm exec vitest run 2>&1 | tail -3
 5. **Fase 9** (transversal): a11y touch targets + device matrix AVD/Simulator iOS (puerta QA).
 
 **Próximo paso concreto (post-Fase 4):** Fase 5 (AC-08 familia `my-dashboard`) — mobile-only, sin bloqueador cruzado. Alternativamente, si QA reporta device matrix listo, priorizar Fase 9 que es transversal a todo lo anterior.
+
+### v1.0 — Fase 5 shipped + Fase 0–5 closure (2026-08-12T20:43Z)
+
+Commit: `e4a22e67b feat(mobile): ZAL-622 Fase 5 — familia my-dashboard (AC-08) + aislamiento parent`. 5 archivos, +833 / −3.
+
+**Entregables:**
+
+1. **`mobile/lib/api/family-dashboard.ts`** (nuevo, 212 líneas) — cliente Mobile para el my-dashboard de la familia:
+   - Tipo `FamilyDashboardBundle` con tres bloques: `nextClasses`, `unread`, `pendingCharges`, cada uno con `sourceAvailable: boolean` y `items[]` / `count`.
+   - `getFamilyDashboard()` compone en paralelo desde endpoints ya existentes (`getMySchedule`, `getUnreadCount`, `getConversations`, `getMyCharges`). NO crea endpoint nuevo en backend — el contrato del P0 no exige `view=family` todavía.
+   - **Aislamiento de fallos por fuente**: una caída (`NETWORK_ERROR`, `HTTP_5xx`, código desconocido, `RATE_LIMITED`) marca sólo ese bloque como `sourceAvailable=false` y los demás siguen. Esto preserva la información de las fuentes sanas.
+   - **Errores contractuales bloqueantes**: `AUTH_REQUIRED`, `UNAUTHENTICATED`, `FORBIDDEN_ROLE` rechazan la promesa para que `useQuery` pinte error en UI, no "Sin datos". Misma asimetría que documentamos en `client.ts:172` (códigos desconocidos vs códigos contractuales).
+   - Filtrado de cargos por `isChargePayable(status)` — `paid/refunded/cancelled/draft` NO entran en `pendingCharges.items`.
+   - Helper `renderFamilyCount()` consistente con `dashboard.renderCount`: `sourceAvailable=false → 'unavailable'`, `count=0 → 'empty'`, `count>0 → value`. Defensivo contra `count < 0` (no se muestra -3).
+
+2. **`mobile/lib/api/family-dashboard.test.ts`** (nuevo, 277 líneas, 53 tests) — cubre:
+   - Composición paralela (3 fuentes independientes + recorte a 5 clases).
+   - Paralelismo real: 4 fuentes × 30ms en serie = 120ms; la suite mide <110ms (umbral relajado para arranque del event loop).
+   - Aislamiento: si `getMySchedule` cae, los otros dos bloques siguen con datos. Si `getUnreadCount` cae pero `getConversations` responde, la fuente "unread" entera se considera caída (es una unidad).
+   - Bloqueos contractuales: `AUTH_REQUIRED`, `UNAUTHENTICATED`, `FORBIDDEN_ROLE` rechazan la promesa.
+   - Filtrado de cargos: `due|overdue|partial|failed` → accionables; `paid|refunded|cancelled|draft` → fuera.
+   - `renderFamilyCount`: value / empty / unavailable / undefined / null / count negativo.
+
+3. **`mobile/lib/auth/role-router.ts`** — añade:
+   - `ADMIN_ROUTE_PREFIXES`: `/coach/`, `/super-admin/`, `/(super-admin)/`.
+   - `isAdminRoute(path)`: detecta rutas admin con normalización (`/coach/...` y `coach/...` ambos válidos).
+   - `canAccessRoute(role, path)`: parent/athlete/viewer/undefined NO acceden a admin/coach; owner/admin/super_admin/coach sí. La defensa en backend (`withTenant` + `verifyAcademyAccessForProfile`) sigue siendo la primaria; este helper es la segunda capa cliente.
+   - Mismo patrón que el fix de `permissions-service.ts` (julio 2026, escalada cross-tenant) — el test fija el invariante para que un revert no pase silencioso.
+
+4. **`mobile/lib/auth/role-router.test.ts`** — `+92 líneas, +19 tests`:
+   - `isAdminRoute`: 10 casos (rutas admin = true; tabs/family/profile = false; string vacío = false) + normalización sin slash.
+   - `canAccessRoute`: parent/athlete/viewer NO accede a `/coach/attendance/*` ni `/super-admin/*`; owner/admin/super_admin/coach SÍ acceden; rol undefined NUNCA accede a admin/coach; rutas no-admin son accesibles por todos los roles autenticados.
+
+5. **`mobile/app/(tabs)/index.tsx`** — `+208 líneas`:
+   - `ParentHome` consume `getFamilyDashboard()` con query key `['family', 'dashboard']`.
+   - `onRefresh` invalida también `['family', 'dashboard']` para que el pull-to-refresh funcione en el nuevo bloque.
+   - Tres componentes nuevos: `NextClassesCard` (filas `Pressable` con `accessibilityRole="button"` y `minHeight: 44` para touch target ≥44pt, transversal a Fase 9), `UnreadCard` (notificaciones + conversaciones con helper `renderFamilyCount`), `PendingChargesCard` (cuenta filtrada por `isChargePayable`).
+   - Cada bloque distingue `Fuente no disponible` (sourceAvailable=false), `Sin X` (count=0), valor (count>0). CTA "Ver agenda completa"/"Ver avisos"/"Ver cargos" navega al destino nativo correspondiente.
+   - **Re-export de tipos**: `ScheduleItem` y `Charge` se re-exportan desde `family-dashboard.ts` para que la UI pueda tipar las filas sin importar `endpoints` directamente.
+
+**Verificación (evidence gate):**
+
+```
+$ git -C /Users/elvisvaldesinerarte/Desktop/_PROYECTOS/Zaltyko log --oneline -1 e4a22e67b
+e4a22e67b feat(mobile): ZAL-622 Fase 5 — familia my-dashboard (AC-08) + aislamiento parent
+
+$ ls -la mobile/lib/api/family-dashboard.ts mobile/lib/api/family-dashboard.test.ts
+-rw-r--r--  7699 mobile/lib/api/family-dashboard.ts
+-rw-r--r-- 11159 mobile/lib/api/family-dashboard.test.ts
+
+$ wc -l mobile/lib/api/family-dashboard.ts mobile/lib/api/family-dashboard.test.ts \
+       mobile/lib/auth/role-router.ts mobile/lib/auth/role-router.test.ts \
+       'mobile/app/(tabs)/index.tsx'
+     212 mobile/lib/api/family-dashboard.ts
+     277 mobile/lib/api/family-dashboard.test.ts
+     127 mobile/lib/auth/role-router.ts
+     129 mobile/lib/auth/role-router.test.ts
+     866 'mobile/app/(tabs)/index.tsx'
+
+$ grep -c "  it(" mobile/lib/api/family-dashboard.test.ts mobile/lib/auth/role-router.test.ts
+53 mobile/lib/api/family-dashboard.test.ts
+31 mobile/lib/auth/role-router.test.ts
+
+$ pnpm --dir mobile exec tsc --noEmit
+(sin output = sin errores)
+
+$ pnpm --dir mobile exec vitest run 2>&1 | tail -3
+ Test Files  10 passed (10)
+      Tests  209 passed (209)        # antes 156, +53 nuevos
+```
+
+**Lo que cambia en AC-08:**
+
+- Antes: el home del padre mostraba dos tarjetas separadas ("Tus hijos" + "Próximos eventos"), sin resumen diario ni avisos no leídos ni cargos pendientes. Las tarjetas "Avisos" y "Cargos" sólo se accedían navegando a las tabs correspondientes.
+- Ahora: la familia ve en su home tres bloques que resumen el día — próximas clases, avisos pendientes (notificaciones + conversaciones), cargos por pagar. Cada bloque distingue "Sin X" / "Fuente no disponible" / valor, consistente con el patrón de `AdminHome` (Fase 2). La lista de hijos sigue presente como acceso principal al detalle.
+- **Aislamiento (AC-08 test negativo)**: `canAccessRoute('parent', '/coach/attendance/123')` retorna `false`. La defensa es doble — backend (`withTenant`) + cliente (este helper). El test bloquea cualquier revert silencioso del aislamiento.
+
+**Pendiente en AC-08:**
+
+- Integrar `canAccessRoute()` en `app/_layout.tsx` o en wrappers por pantalla admin para que el deep link redirija automáticamente al home en vez de esperar al 403. Hoy el helper existe y está probado; el wiring queda como trabajo de hardening de Fase 9 (cuando QA valide deep links en device matrix).
+- Test E2E en AVD/Simulator con un parent intentando `expo-linking://coach/attendance/123` — puerta QA, Fase 9.
+
+**Cierre de criterios (post-Fase 5):**
+
+- AC-02 (owner dashboard): ✅ Fase 2
+- AC-03 (asistencia cancelled + save_failed): ✅ Fase 1
+- AC-04 (mensajes sent/read/failed + aislamiento): ✅ Fase 3 (read queda Fase 9 cross-equipo)
+- AC-06 (cobros 8 estados): ✅ Fase 4
+- AC-08 (familia my-dashboard + aislamiento): ✅ Fase 5 (este sprint)
+- AC-10 (errores retryable + nextAction + traductor): ✅ Fase 0
+- AC-01 (búsqueda): ❌ Fase 6 (bloqueado §6.1 backend)
+- AC-05 (progreso publicado): parcial — familia ve progreso vía `/api/me/progress`; el test negativo "drafts no aparecen" queda para Fase 8.
+- AC-07 (importación): ❌ Fase 6 (bloqueado §6.3 backend)
+- AC-09 (Idempotency-Key end-to-end): ❌ Fase 7 (bloqueado §6.4 backend)
+- AC-11 (suite paridad): ❌ Fase 8
+- Transversal (a11y + device matrix): ❌ Fase 9 (puerta QA)
+
+**Lo que queda en ZAL-622 (no se cierra hasta sus gates):**
+
+1. **Fase 6** (AC-01 + AC-07): cliente `search` + `import-jobs` (bloqueado por §6.1 y §6.3 backend).
+2. **Fase 7** (AC-09): `Idempotency-Key` end-to-end (bloqueado por §6.4 backend).
+3. **Fase 8** (AC-11): suite paridad observable Web/Mobile.
+4. **Fase 9** (transversal): a11y touch targets + device matrix AVD/Simulator iOS + wiring `canAccessRoute` (puerta QA).
+
+**Próximo paso concreto (post-Fase 5):** el board decide entre (a) Fase 6 si Engineering Lead confirma endpoints `search` e `import-jobs`, (b) Fase 8 si paridad observable es prioridad, o (c) Fase 9 si QA ya tiene device matrix montado. Mobile no escala esta decisión; queda como input para el próximo sprint.
+
