@@ -158,6 +158,26 @@ const FALLBACK: ErrorTranslation = {
 };
 
 /**
+ * Indica si un código forma parte del set conocido (contractual o de
+ * cliente). Útil para que el cliente HTTP decida cuándo conservar un
+ * código crudo del backend y cuándo colapsarlo al bucket HTTP genérico.
+ *
+ * Por contrato (ver client.ts):
+ * - 5xx con código desconocido → HTTP_5xx (el bucket es más accionable que
+ *   el código crudo del backend).
+ * - 4xx con código desconocido → se conserva el código crudo para que
+ *   logs y soporte puedan identificarlo, pero el `message` que ve la UI
+ *   viene de FALLBACK (nunca del backend).
+ */
+export function isKnownErrorCode(code: string | undefined): boolean {
+  if (!code) return false;
+  return (
+    (CONTRACT_ERROR_CODES as readonly string[]).includes(code) ||
+    (CLIENT_ERROR_CODES as readonly string[]).includes(code)
+  );
+}
+
+/**
  * Traduce un código (contractual o de cliente) a copy localizado seguro y
  * a la metadata que la UI necesita para decidir si reintentar, pedir
  * re-auth o derivar a soporte.

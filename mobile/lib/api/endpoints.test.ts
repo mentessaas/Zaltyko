@@ -348,3 +348,74 @@ describe('idempotencia de mutaciones (ZAL-619 §6.2 + AC-09)', () => {
     });
   });
 });
+
+describe('aislamiento y errores esperados en getConversations (ZAL-622 AC-04 + §6.5)', () => {
+  // El backend filtra conversaciones por membership server-side. La app
+  // móvil NUNCA debe poder listar conversaciones de otra familia aunque
+  // el filtro falle — la degradación correcta es lista vacía (empty
+  // state) o error traducible, nunca datos cruzados.
+
+  it('lista vacía para un parent sin conversaciones devuelve [] (no error)', async () => {
+    // Caso normal: el backend responde 200 con items vacío. La UI debe
+    // mostrar empty state localizado, no un error banner genérico.
+    stubFetch({ items: [] });
+
+    await expect(getConversations()).resolves.toEqual([]);
+  });
+
+  it('FORBIDDEN_ROLE (rol sin acceso a mensajería) se traduce a nextAction=contact_support', async () => {
+    // Si un parent pierde acceso a mensajería por un cambio de rol o
+    // academia, el backend responde 403 con code contractual. La UI lo
+    // muestra como "No tienes permiso" con CTA a soporte, no como
+    // pantalla de error recuperable.
+    stubFetch(
+      { ok: false, error: { code: 'FORBIDDEN_ROLE', message: 'No es tu academia' } },
+      403
+    );
+
+    await expect(getConversations()).rejects.toMatchObject({
+      code: 'FORBIDDEN_ROLE',
+      status: 403,
+      retryable: false,
+      nextAction: 'contact_support',
+    });
+  });
+
+  it('AUTH_REQUIRED (token expirado) se traduce a nextAction=reauth, NO como lista vacía', async () => {
+    // Crítico para aislamiento: si la sesión venció, la app no debe
+    // mostrar "Sin conversaciones" como si no hubiera nada — debe
+    // pedir re-auth para que el backend pueda decidir qué conversaciones
+    // realmente le corresponden al usuario actual.
+    refreshSessionMock.mockResolvedValue({ data: { session: null }, error: null });
+    stubFetch(
+      { ok: false, error: { code: 'AUTH_REQUIRED', message: 'Token vencido' } },
+      401
+    );
+
+    await expect(getConversations()).rejects.toMatchObject({
+      code: 'AUTH_REQUIRED',
+      status: 401,
+      retryable: false,
+      nextAction: 'reauth',
+    });
+  });
+
+  it('UNAUTHENTICATED (código real del backend) NO se colapsa a HTTP_401 cuando es 4xx', async () => {
+    // El backend real usa `UNAUTHENTICATED` en vez del contractual
+    // `AUTH_REQUIRED`. Como es 4xx con código desconocido, la política
+    // asimétrica de client.ts conserva el código crudo para que
+    // logs/soporte lo identifiquen, pero el `message` mostrado en UI
+    // viene del FALLBACK (nunca del backend — ver AC-10).
+    refreshSessionMock.mockResolvedValue({ data: { session: null }, error: null });
+    stubFetch(
+      { ok: false, error: { code: 'UNAUTHENTICATED', message: 'Stack trace: at foo' } },
+      401
+    );
+
+    await expect(getConversations()).rejects.toMatchObject({
+      code: 'UNAUTHENTICATED', // código crudo preservado, no colapsado a HTTP_401
+      status: 401,
+      message: expect.not.stringContaining('Stack trace'),
+    });
+  });
+});

@@ -14,6 +14,7 @@ import { supabase, API_BASE } from '@/lib/auth/supabase';
 import {
   translateError,
   inferRetryableFromStatus,
+  isKnownErrorCode,
   type NextAction,
 } from './error-codes';
 
@@ -169,7 +170,18 @@ async function request<T>(
   if (!res.ok) {
     const errBody = payload as { error?: { code?: string; message?: string } } | null;
     const rawCode = errBody?.error?.code;
-    const code = rawCode ?? (res.status >= 500 ? 'HTTP_5xx' : `HTTP_${res.status}`);
+    // Regla asimétrica por contrato:
+    // - 5xx + código desconocido → HTTP_5xx (el bucket es accionable y
+    //   estable; el código crudo del backend se considera ruido de soporte).
+    // - 4xx + código desconocido → conservamos el código crudo para que
+    //   logs/soporte lo identifiquen, pero el `message` mostrado en UI
+    //   viene de FALLBACK (translateError), NUNCA del backend.
+    // - Cualquier status + código conocido → se respeta tal cual.
+    const code = isKnownErrorCode(rawCode)
+      ? rawCode!
+      : res.status >= 500
+        ? 'HTTP_5xx'
+        : (rawCode ?? `HTTP_${res.status}`);
     const t = translateError(code);
     throw new ApiClientError({
       code,
