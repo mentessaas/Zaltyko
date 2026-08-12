@@ -17,6 +17,7 @@ pnpm gate:reads:strict   # A2 unbounded-reads, exit 1 si hay hallazgos
 pnpm gate:auth           # A3 auth-before-validate, modo advisory
 pnpm gate:auth:strict    # A3 auth-before-validate, exit 1 si hay hallazgos
 pnpm gate:all            # corre ambos en modo --strict
+pnpm gate:operational    # snapshot durable + retención 14d (ZAL-617)
 pnpm gate:test           # self-test (positivos + negativos, tsx subprocess)
 ```
 
@@ -293,3 +294,53 @@ Nota de resolución: `require.resolve("tsx/dist/cli.mjs")` lanza
 3. Si añades un nuevo alias para `db`/`tx`, sustituir el reconocimiento
    literal por una heurística con `lvalue.text` buscando el sufijo del
    archivo de cliente de DB.
+
+## Operational runner (ZAL-617)
+
+`pnpm gate:operational` ejecuta los tres gates en modo `--json`, los
+combina en un manifiesto con timestamp UTC y los persiste en
+`docs/audit/evidence/gates/<UTC-timestamp>.json`. Cada invocación
+también aplica la política de retención: borra manifiestos con mtime
+mayor a `GATE_RETENTION_DAYS` (default 14, cierra la ventana de 3 días
+que ZAL-24 marcó como insuficiente).
+
+```bash
+pnpm gate:operational                  # run + retention (default 14d)
+pnpm gate:operational -- --dry-run     # retention only, sin escribir
+pnpm gate:retention                    # alias de dry-run
+GATE_RETENTION_DAYS=30 pnpm gate:operational
+```
+
+El runner operacional **no bloquea**: corre los gates en modo
+informativo (sin `--strict`), exit 0 mientras el runner mismo no
+colapse. El entrypoint CI-bloqueante sigue siendo `pnpm gate:all`.
+
+Forma del manifiesto persistido:
+
+```json
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-08-12T13:56:36.120Z",
+  "retentionDays": 14,
+  "repoRoot": "...",
+  "runnerVersion": "1.0.0",
+  "dryRun": false,
+  "retention": { "kept": 0, "removed": 0, "symlinks": 0 },
+  "gates": [
+    {
+      "gate": "unbounded-reads",
+      "status": 0,
+      "json": { "gate": "...", "scannedFiles": 1355, "findings": [...], "exit": "violations" },
+      "error": null,
+      "durationMs": 68175,
+      "startedAt": "2026-08-12T13:55:28.000Z"
+    }
+  ]
+}
+```
+
+`.github/workflows/gates.yml` corre el runner diario a las 02:07 UTC y
+sube el directorio `docs/audit/evidence/gates/` como artifact con
+`retention-days: 14`, manteniendo la cota extremo a extremo. El propio
+runner está excluido del repo vía `.gitignore` (`/docs/audit/evidence/gates/*.json`)
+— los manifiestos se regeneran desde cero en cualquier checkout limpio.

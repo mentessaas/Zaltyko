@@ -20,9 +20,11 @@
  * into the gates dir. CI can wire this into `pnpm gate:test` and gate:all.
  */
 import * as fs from "node:fs";
+import * as os from "node:os";
 import * as path from "node:path";
 
 import { runTsx } from "../lib/run-tsx";
+import { applyRetention } from "../lib/retention";
 import { scanFile as scanReadsFile } from "../unbounded-reads";
 import { scanFile as scanAuthFile } from "../auth-before-validate";
 import { scanFile as scanOrphanFile } from "../orphan-app-route";
@@ -257,6 +259,49 @@ function main() {
 
   checkRunAll("gate:all entrypoint — negative fixtures exit 1", NEGATIVE_DIR, true);
   checkRunAll("gate:all entrypoint — positive fixtures exit 0", POSITIVE_DIR, false);
+
+  // Retention helper (ZAL-617): file-age cutoff under a temp dir.
+  // Uses an explicit `now` so the test is fully deterministic regardless of
+  // wall-clock drift. Three files are stamped at -20d, -10d, -1d relative to
+  // `now`; with retention=14d only the -20d one should be removed.
+  const retentionRoot = fs.mkdtempSync(path.join(os.tmpdir(), "gates-retention-"));
+  const old = path.join(retentionRoot, "old.json");
+  const mid = path.join(retentionRoot, "mid.json");
+  const fresh = path.join(retentionRoot, "fresh.json");
+  fs.writeFileSync(old, "{}");
+  fs.writeFileSync(mid, "{}");
+  fs.writeFileSync(fresh, "{}");
+  const DAY_MS = 24 * 60 * 60 * 1000;
+  const referenceNow = new Date();
+  const backdate = (p: string, daysAgo: number) => {
+    const t = referenceNow.getTime() - daysAgo * DAY_MS;
+    fs.utimesSync(p, new Date(t), new Date(t));
+  };
+  backdate(old, 20);
+  backdate(mid, 10);
+  backdate(fresh, 1);
+  const retentionResult = applyRetention(retentionRoot, 14, referenceNow);
+  const stillThere = new Set(fs.readdirSync(retentionRoot));
+  note(
+    "retention removes only files older than window",
+    stillThere.has("mid.json") && stillThere.has("fresh.json") && !stillThere.has("old.json"),
+    `kept=${retentionResult.kept.length} removed=${retentionResult.removed.length}`,
+  );
+  note(
+    "retention is idempotent on a second pass",
+    applyRetention(retentionRoot, 14, referenceNow).removed.length === 0,
+    "second pass should not remove anything",
+  );
+  fs.rmSync(retentionRoot, { recursive: true, force: true });
+
+  // Retention input validation: retentionDays must be >= 1.
+  let threw = false;
+  try {
+    applyRetention(os.tmpdir(), 0);
+  } catch {
+    threw = true;
+  }
+  note("retention rejects retentionDays < 1", threw, "expected throw on retentionDays=0");
 
   process.stdout.write("\n===== gate self-tests =====\n");
   for (const t of trace) {
