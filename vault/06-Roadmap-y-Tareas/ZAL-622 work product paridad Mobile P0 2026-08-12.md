@@ -5,11 +5,11 @@ issue: ZAL-622
 parent: ZAL-610
 contract: ZAL-619 (v1.0, done)
 blocker: ninguno formal — ZAL-635 [ZAL-634] Fijar contrato dashboard.get compartido Web/Mobile cerrado 2026-08-12T17:46Z
-version: 0.8
+version: 0.9
 last_reviewed: 2026-08-12
-disposition: explicit_continuation — Fase 3 (AC-04 mensajes) shipped en este sprint; queda Fase 4 (cobros) y siguientes
-last_disposition_fix: 2026-08-12T18:22:31Z (recovery run 66ae954a — bloqueado → in_progress, blockedBy=[], unblockDescriptor=null)
-last_sprint_shipped: 2026-08-12T20:34:36Z (Fase 3 + fix client.ts:172)
+disposition: explicit_continuation — Fases 0–4 shipped; quedan 5–9 (search/import bloqueados por backend, idempotencia end-to-end, paridad observable, a11y/device matrix)
+last_disposition_fix: 2026-08-12T20:38Z (recovery run 37f14818 — Fases 0–4 confirmadas, sin cambios de status; el issue ya estaba in_progress con blockedBy=[] y unblockDescriptor=null)
+last_sprint_shipped: 2026-08-12T20:38Z (Fase 4: Charge.status contractual completo)
 ---
 evidence_scope: local-repository (mobile/ + src/ + vault); no production or human validation
 phase_0_shipped: true
@@ -20,6 +20,8 @@ phase_2_shipped: true
 phase_2_commit: 50f7025ad feat(mobile): ZAL-622 Fase 2 — cliente dashboard.get compartido + AdminHome bloques
 phase_3_shipped: true
 phase_3_commit: ee4c1883c feat(mobile): ZAL-622 Fase 3 — mensajes sent/pending/failed + retry + aislamiento
+phase_4_shipped: true
+phase_4_commit: 839c31c60 feat(mobile): ZAL-622 Fase 4 — Charge.status contractual completo + copy localizada
 ---
 
 # ZAL-622 — Paridad Mobile del primer valor bajo contratos compartidos
@@ -398,3 +400,78 @@ $ cd mobile && pnpm exec tsc --noEmit
 **Pendiente en AC-04:** estado `read` por destinatario requiere un endpoint que devuelva por mensaje la lista de lectores. Hoy no existe en backend. La fase 3 cubre el ciclo emisor; el ciclo lector queda para Fase 9 (transversal, gated por decisión cross-equipo).
 
 **Siguiente paso concreto:** Fase 4 (AC-06 cobros) — extender `Charge.status` con `partial`, `failed`, `due` y mapa de color/copy. Es mobile-only (sin decisión cruzada) y desbloquea el contrato visual de la familia.
+
+### v0.9 — Fase 4 shipped + heartbeat recovery (2026-08-12T20:38Z)
+
+Commit: `839c31c60 feat(mobile): ZAL-622 Fase 4 — Charge.status contractual completo + copy localizada`. 3 archivos, +134 / −8.
+
+**Entregables:**
+
+1. **`mobile/lib/api/endpoints.ts`** — `ChargeStatus` union completa alineada con ZAL-619 §3.6:
+   ```
+   draft | due | partial | paid | overdue | failed | refunded | cancelled
+   ```
+   Antes: `pending | paid | overdue | cancelled | refunded` (5 estados). Faltan 3 (`due`, `partial`, `failed`) + 1 (`draft`). El nombre `pending` desaparece de la app — el equivalente contractual es `due` ("pendiente de vencer"). Cualquier backend que devuelva un estado fuera de este set cae en la asimetría documentada en `client.ts:172` y se degrada a `HTTP_5xx` (5xx) o preserva el código crudo (4xx) con `message` siempre del FALLBACK.
+
+2. **`CHARGE_STATUS_LABEL: Record<ChargeStatus, string>`** — copy localizada:
+   - `draft` → "Borrador"
+   - `due` → "Pendiente de vencer"
+   - `partial` → "Pago parcial"
+   - `paid` → "Pagado"
+   - `overdue` → "Vencido"
+   - `failed` → "Pago fallido"
+   - `refunded` → "Reembolsado"
+   - `cancelled` → "Cancelado"
+   - **Sin claims legales/fiscales/hacienda**: el contrato §3.6 dice "no se afirma recibo fiscal ni validez legal"; el test `no afirman recibo legal ni validez fiscal` fija este invariante y rompe el build si alguien añade "Recibo emitido" / "Factura válida" / "Válido ante Hacienda".
+
+3. **`isChargePayable(status)`** — predicado explícito para el CTA "Pagar en web". Cubre exactamente `due | overdue | partial | failed`. NO `paid` (ya pagado), NO `refunded` (devuelto), NO `cancelled` (sin acción), NO `draft` (aún no emitido por el dueño). La familia ve el CTA solo cuando hay acción real; los cargos ya liquidados quedan como estado, no como tarea.
+
+4. **`mobile/components/family/InvoiceCard.tsx`** refactorizado:
+   - `statusColor` exhaustivo para los 8 estados (`paid` success, `overdue`/`failed` danger, `due`/`partial` warning, `draft` info, `cancelled`/`refunded` muted). El `default` que tenía antes desaparecía estados desconocidos en gris; ahora es exhaustivo y la verificación de TS lo asegura.
+   - Badge usa `CHARGE_STATUS_LABEL[charge.status]` — la familia ve "Pagado" o "Pago parcial", nunca el enum crudo `paid`/`partial`.
+   - CTA "Pagar en web" governed por `isChargePayable(charge.status)`.
+
+5. **5 tests nuevos en `endpoints.test.ts`** (describe `estados contractuales del Cargo`):
+   - `CHARGE_STATUSES` expone los 8 estados en orden estable.
+   - `CHARGE_STATUS_LABEL` exhaustivo sobre `CHARGE_STATUSES`.
+   - Labels NO contienen "recibo/factura/hacienda/fiscal/legal/válido/certific".
+   - `isChargePayable` cubre exactamente los 4 estados con acción.
+   - `paid`/`refunded`/`cancelled`/`draft` NO son accionables (refuerza el invariante).
+
+**Verificación (evidence gate):**
+
+```
+$ git -C /Users/elvisvaldesinerarte/Desktop/_PROYECTOS/Zaltyko log --oneline -1 839c31c60
+839c31c60 feat(mobile): ZAL-622 Fase 4 — Charge.status contractual completo + copy localizada
+
+$ wc -l mobile/lib/api/endpoints.ts mobile/components/family/InvoiceCard.tsx \
+       mobile/lib/api/endpoints.test.ts
+     158 mobile/lib/api/endpoints.ts        (+48)
+     94 mobile/components/family/InvoiceCard.tsx (+11)
+    493 mobile/lib/api/endpoints.test.ts    (+72)
+
+$ cd mobile && pnpm exec tsc --noEmit
+(sin output = sin errores)
+
+$ cd mobile && pnpm exec vitest run 2>&1 | tail -3
+ Test Files  9 passed (9)
+      Tests  156 passed (156)        # antes 151, +5 nuevos
+```
+
+**Lo que cambia en AC-06:**
+- Antes: la app mostraba el enum crudo (`paid`, `pending`...) con un fallback gris para cualquier estado no reconocido. La familia nunca veía "Pago parcial" o "Pago fallido", aunque el backend los devolviera — quedaban como `textMuted` indistinguibles del badge de "Cancelado".
+- Ahora: 8 estados visibles con copy localizada y color semántico, sin claims legales, y CTA de pago solo donde hay acción posible.
+
+**Pendiente en AC-06:**
+- Verificar visualmente el badge en device matrix (puerta QA, Fase 9).
+- Confirmar con Engineering Lead que `/api/me/charges` no devuelve nunca el antiguo `pending` (los seeds y los fixtures de tests deberían usar los 8 nombres contractuales; revisar `tests/fixtures/`).
+
+**Lo que queda en ZAL-622 (no se cierra hasta sus gates):**
+
+1. **Fase 5** (AC-08): familia `my-dashboard` + tests negativos admin.
+2. **Fase 6** (AC-01 + AC-07): cliente `search` + `import-jobs` (bloqueado por §6.1 y §6.3 backend).
+3. **Fase 7** (AC-09): `Idempotency-Key` end-to-end (bloqueado por §6.4 backend).
+4. **Fase 8** (AC-11): suite paridad observable Web/Mobile.
+5. **Fase 9** (transversal): a11y touch targets + device matrix AVD/Simulator iOS (puerta QA).
+
+**Próximo paso concreto (post-Fase 4):** Fase 5 (AC-08 familia `my-dashboard`) — mobile-only, sin bloqueador cruzado. Alternativamente, si QA reporta device matrix listo, priorizar Fase 9 que es transversal a todo lo anterior.
