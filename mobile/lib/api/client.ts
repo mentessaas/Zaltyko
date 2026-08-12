@@ -6,22 +6,39 @@
 //   - Errores vienen como { ok: false, error: { code, message } }
 //   - Bearer token = access JWT de Supabase (mismo que valida withBearerTenant)
 //   - Ante 401, intenta refresh UNA vez y repite. Si vuelve a fallar, propagar.
+//   - Los errores se traducen al set mínimo del contrato ZAL-619 §6.3
+//     (ver ./error-codes.ts): nunca exponemos el `message` del backend
+//     cuando el código es desconocido (AC-10: sin stack trace ni secretos).
 
 import { supabase, API_BASE } from '@/lib/auth/supabase';
+import {
+  translateError,
+  inferRetryableFromStatus,
+  type NextAction,
+} from './error-codes';
 
 export interface ApiError {
   code: string;
+  /** Copy localized seguro para UI; viene de translateError(), NO del backend. */
   message: string;
   status: number;
+  /** Si la operación puede reintentarse con expectativa de éxito. */
+  retryable: boolean;
+  /** Acción que la UI debería ofrecer. */
+  nextAction: NextAction;
 }
 
 export class ApiClientError extends Error {
   code: string;
   status: number;
+  retryable: boolean;
+  nextAction: NextAction;
   constructor(err: ApiError) {
     super(err.message);
     this.code = err.code;
     this.status = err.status;
+    this.retryable = err.retryable;
+    this.nextAction = err.nextAction;
     this.name = 'ApiClientError';
   }
 }
@@ -59,10 +76,13 @@ async function request<T>(
 
   const token = opts.token ?? (await getFreshToken());
   if (!token && opts.requireAuth !== false) {
+    const t = translateError('NO_SESSION');
     throw new ApiClientError({
       code: 'NO_SESSION',
-      message: 'No hay sesión activa. Vuelve a iniciar sesión.',
+      message: t.message,
       status: 0,
+      retryable: t.retryable,
+      nextAction: t.nextAction,
     });
   }
 
@@ -92,14 +112,14 @@ async function request<T>(
     res = await fetch(url, init);
   } catch (err) {
     const timedOut = err instanceof Error && err.name === 'AbortError';
+    const code = timedOut ? 'TIMEOUT' : 'NETWORK_ERROR';
+    const t = translateError(code);
     throw new ApiClientError({
-      code: timedOut ? 'TIMEOUT' : 'NETWORK_ERROR',
-      message: timedOut
-        ? 'La solicitud tardó demasiado. Revisa tu conexión e inténtalo de nuevo.'
-        : err instanceof Error
-          ? err.message
-          : 'Error de red',
+      code,
+      message: t.message,
       status: 0,
+      retryable: t.retryable,
+      nextAction: t.nextAction,
     });
   } finally {
     clearTimeout(timeoutId);
@@ -125,16 +145,32 @@ async function request<T>(
     try {
       payload = JSON.parse(text);
     } catch {
-      payload = { ok: false, error: { code: 'INVALID_JSON', message: text } };
+      // Si el body no es JSON, marcarlo pero seguir con el status.
+      // Esto NO se filtra a la UI: translateError() decide qué copy mostrar.
+      const t = translateError('INVALID_JSON');
+      throw new ApiClientError({
+        code: 'INVALID_JSON',
+        message: t.message,
+        status: res.status,
+        retryable: t.retryable,
+        nextAction: t.nextAction,
+      });
     }
   }
 
   if (!res.ok) {
     const errBody = payload as { error?: { code?: string; message?: string } } | null;
+    const rawCode = errBody?.error?.code;
+    const code = rawCode ?? (res.status >= 500 ? 'HTTP_5xx' : `HTTP_${res.status}`);
+    const t = translateError(code);
     throw new ApiClientError({
-      code: errBody?.error?.code ?? `HTTP_${res.status}`,
-      message: errBody?.error?.message ?? res.statusText,
+      code,
+      // SIEMPRE copy de la tabla — NUNCA el `message` del backend cuando el
+      // código es desconocido (AC-10: nunca exponer stack trace ni secretos).
+      message: t.message,
       status: res.status,
+      retryable: t.retryable ?? inferRetryableFromStatus(res.status),
+      nextAction: t.nextAction,
     });
   }
 
