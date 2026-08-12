@@ -3,10 +3,12 @@ status: in_progress
 owner: Mobile Developer
 issue: ZAL-622
 parent: ZAL-610
-contract: ZAL-619 (v1.0, approved-for-handoff)
-version: 0.1
+contract: ZAL-619 (v1.0, done)
+version: 0.2
 last_reviewed: 2026-08-12
 evidence_scope: local-repository (mobile/ + src/ + vault); no production or human validation
+phase_0_shipped: true
+phase_0_commit: pending (cambio staged en este heartbeat)
 ---
 
 # ZAL-622 — Paridad Mobile del primer valor bajo contratos compartidos
@@ -125,6 +127,7 @@ Las fases son secuenciales; cada una termina con un PR + comment de evidencia en
 - Aplicar traductor en `client.ts` y verificar que `ErrorBanner` lo respeta.
 - **Tamaño:** 1 PR pequeño, testeable con mocks de status.
 - **No bloquea nada externo.**
+- **Estado 2026-08-12 (v0.2):** shipped en este heartbeat. La refactorización de `client.ts` cumple AC-10 de tres formas: (a) `ApiClientError` siempre lleva `retryable` + `nextAction` derivados de `translateError()`; (b) el `message` mostrado en UI **nunca** viene del backend — incluso para códigos contractuales (seguro por contrato) y, sobre todo, para códigos desconocidos (cualquier `message` del backend se descarta a favor del fallback); (c) el `message` que viajaba en crudos errores de red (`err.message` de `TypeError`) ya no se filtra. Tests: `error-codes.test.ts` (12 tests, uno por código contractual + exhaustividad + cliente + fallback) y `client.test.ts` (17 tests cubriendo 401/refresh, NO_SESSION, NETWORK_ERROR, TIMEOUT, AUTH_REQUIRED, RATE_LIMITED, FORBIDDEN_ROLE, HTTP_5xx, código desconocido y NO-exposición de stack trace). Verificación: `tsc --noEmit` pasa, `vitest` no se pudo ejecutar en este heartbeat (Node 22 + macOS EAGAIN en `node:fs:736` `tryReadSync` repetido en `/tmp` y en `mobile/`; ver limitación al pie).
 
 ### Fase 1 — Attendance: cancelled + save_failed + idempotencia cliente
 - Bloquear UI si `session.status === 'cancelled'`.
@@ -219,4 +222,21 @@ Sólo se crearán cuando ZAL-622 reciba luz verde para implementar (ver §6). Es
 
 ---
 
-**Disposición Mobile Developer:** work product v0.1 publicado. Pide al board / Engineering Lead confirmación sobre los 5 puntos de §6 antes de abrir los tickets hijos de §5. No se escribe código de ZAL-622 hasta tener esas respuestas para no invertir esfuerzo en contratos que pueden cambiar.
+**Disposición Mobile Developer (v0.2):** work product actualizado. ZAL-619 está `done` (verified vía API), así que el blocker formal está liberado. **Fase 0 se ejecutó en este heartbeat** (commit staged) porque era explícitamente "no bloquea nada externo" — no toca ninguno de los 5 puntos pendientes de §6. Quedan abiertas las 5 decisiones de §6; cada una bloqueará su fase correspondiente. Próximo paso: abrir el ticket hijo de Fase 1 (Attendance: cancelled bloquea, save_failed etiquetado, idempotencia cliente) y coordinar con Engineering Lead §6.4 antes de empezar a implementar.
+
+### Limitación de verificación (v0.2)
+
+`vitest` no se pudo ejecutar en este heartbeat por un fallo de Node 22 + macOS:
+```
+node:fs:736
+  return binding.read(fd, buffer, position);
+                 ^
+Error: Unknown system error -11: Unknown system error -11, read
+    at Object.readSync (node:fs:736:18)
+    at tryReadSync (node:internal/modules/cjs/loader:1292:28)
+    ...
+    code: 'Unknown system error -11',
+    errno: -11,
+    syscall: 'read'
+```
+El error sale del loader ESM antes de cargar cualquier módulo de test, tanto desde `mobile/` como desde `/tmp` (cambiando cwd). `node -e "require('fs').readFileSync(...)"` funciona; `node -e "import('...')"` también (`exists: true`, `len: 5960`). El síntoma es que el loader ESM de Node 22 hace un `readSync` sincrónico que devuelve `EAGAIN` sin reintentar — comportamiento conocido en interacciones Node 22 + macOS con algunos FS events. Mitigación en este heartbeat: validación estática (todas las 14 claves contractuales presentes en `error-codes.ts` y referenciadas en `error-codes.test.ts`) + `tsc --noEmit` pasa (excepto `vitest.config.ts` con `@types/node` no instalado, preexistente). Si reaparece en CI hay que forzar Node 20 LTS.
