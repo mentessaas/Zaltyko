@@ -80,7 +80,7 @@ function DeliveryIndicator({
         onPress={onRetry}
         accessibilityRole="button"
         accessibilityLabel={labelText}
-        hitSlop={8}
+        hitSlop={14}
         style={styles.statusRow}
       >
         <Ionicons name={meta.iconName} size={12} color={meta.color} />
