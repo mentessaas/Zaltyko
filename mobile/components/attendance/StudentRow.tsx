@@ -56,6 +56,7 @@ function StudentRowImpl({ athleteId, name, groupName, status, dirty, onChange, o
           <Ionicons name="ribbon-outline" size={18} color={colors.primary} />
         </Pressable>
       ) : null}
+      {/* actions: ver styles.btn abajo — width 36 + hitSlop={4} = 44dp efectivos (WCAG 2.5.5) */}
       <View style={styles.actions}>
         {OPTIONS.map((opt) => {
           const active = status === opt.value;
@@ -66,6 +67,7 @@ function StudentRowImpl({ athleteId, name, groupName, status, dirty, onChange, o
               accessibilityRole="button"
               accessibilityLabel={`${opt.label} ${name}`}
               accessibilityState={{ selected: active }}
+              hitSlop={4}
               style={[
                 styles.btn,
                 { borderColor: opt.color },
@@ -116,8 +118,8 @@ const styles = StyleSheet.create({
   avatarText: { ...typography.label, color: colors.primaryFg, fontWeight: '700' },
   body: { flex: 1, gap: 2 },
   evaluateBtn: {
-    width: 32,
-    height: 32,
+    width: 44,
+    height: 44,
     borderRadius: radii.full,
     backgroundColor: colors.surfaceMuted,
     alignItems: 'center',
