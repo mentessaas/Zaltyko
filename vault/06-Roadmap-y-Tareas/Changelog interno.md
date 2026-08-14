@@ -3262,3 +3262,15 @@ Vault: actualizadas `Estado actual de Zaltyko.md`, `Decisiones.md`, `Changelog i
 - No hubo producción, Stripe live, cobros/reembolsos reales, datos reales, secretos, pricing, claims, campañas, publicaciones, stores, migraciones remotas, borrados ni cambios sensibles de permisos.
 
 Vault: actualizadas `Estado actual de Zaltyko.md`, `Decisiones.md`, `Backlog priorizado.md` y `Changelog interno.md`; el tablero ejecutivo queda como registro operativo del vault.
+
+## 2026-08-14 — Engineering Lead: ZAL-627 implementación sandbox de migración asistida
+
+- Se implementó el contrato puro `src/lib/migration/sandbox.ts` y las rutas `src/app/api/migrations/sandbox/` para preview, mapping, errores por fila, deduplicación explícita, reconciliación financiera, commit/rollback e idempotencia.
+- La salida modular entrega CSV + manifest por `athletes`, `families`, `debts`, `payments`, `notes` y `audit`; los módulos no disponibles se declaran `partial`. No se añade “exportar todo”.
+- El guard sandbox exige la academia sintética MIG-SYN-01, mantiene scope por tenant/academia y no toca DB productiva, Stripe, secretos, datos reales ni migraciones remotas.
+- Evidencia focal: `tests/lib/sandbox-migration.test.ts`, 12 casos; `pnpm exec vitest run tests/lib/sandbox-migration.test.ts --reporter=dot` produjo `Tests 12 passed (12)`. El runner dejó una advertencia ambiental `close timed out` por Vite abierto; no se oculta en el work product.
+- Se documentaron discrepancias de los fixtures Data: cargo de saldo de apertura separado del total operativo, sentinel sintético `Sin Nombre` rechazado y XLSX multisheet fuera de P0.
+
+Esta evidencia es local/sandbox sintética (L/T), no producción, portabilidad universal ni validación humana. QA conserva la verificación independiente en su issue separada.
+
+Vault: añadidos `ZAL-627 work product implementación sandbox migración 2026-08-14.md` y esta entrada. No cambian `Decisiones.md`, `Pricing.md` ni `Mensajes aprobados.md`.
