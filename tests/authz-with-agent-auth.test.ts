@@ -81,14 +81,21 @@ async function callAgent(args: {
   headers?: Record<string, string>;
 }) {
   const url = `http://localhost${args.pathname ?? "/api/admin/marketing/outreach"}`;
-  const request = new Request(url, {
-    method: args.method ?? "POST",
+  const method = (args.method ?? "POST").toUpperCase();
+  // GET/HEAD no admiten body segun la spec de fetch — incluir `body: ""` aunque
+  // sea vacio dispara "Request with GET/HEAD method cannot have body" antes de
+  // llegar al handler bajo prueba. Omitimos el body solo para esos metodos.
+  const init: RequestInit = {
+    method,
     headers: {
       "content-type": "application/json",
       ...(args.headers ?? {}),
     },
-    body: args.body ?? "",
-  });
+  };
+  if (method !== "GET" && method !== "HEAD") {
+    init.body = args.body ?? "";
+  }
+  const request = new Request(url, init);
   return handler(request, {} as any);
 }
 
