@@ -19,6 +19,7 @@ pnpm gate:auth:strict    # A3 auth-before-validate, exit 1 si hay hallazgos
 pnpm gate:all            # corre ambos en modo --strict
 pnpm gate:operational    # snapshot durable + retención 14d (ZAL-617)
 pnpm gate:test           # self-test (positivos + negativos, tsx subprocess)
+pnpm exec vitest run tests/gates-static.test.ts --config vitest.gates.config.ts
 ```
 
 El flag `--json` produce un payload JSON para artefactos de CI:
@@ -26,7 +27,7 @@ El flag `--json` produce un payload JSON para artefactos de CI:
 ```json
 {
   "gate": "unbounded-reads",
-  "scannedFiles": 1356,
+  "scannedFiles": 1380,
   "findings": [ { "file": "...", "line": 17, "rule": "A2/unbounded-read", "reason": "...", "hint": "..." } ],
   "exit": "violations"
 }
@@ -130,13 +131,16 @@ Cualquier llamada a estas funciones en el orden top-down del handler:
 | Función                  | Tipo                       |
 |--------------------------|----------------------------|
 | `withTenant`             | HOF (envuelve el handler)  |
+| `withBearerTenant`       | HOF bearer (envuelve el handler) |
 | `withSuperAdmin`         | HOF (envuelve el handler)  |
+| `requireAuth`            | Guard de auth              |
 | `resolveUserId`          | manual                     |
 | `getBearerToken`         | manual                     |
 | `createBearerSupabaseClient` | manual                  |
 | `assertSuperAdmin`       | manual                     |
 | `getCurrentProfile`      | manual                     |
 | `verifyWebhookSignature` | webhook                    |
+| `supabase.auth.getUser(...)` | Guard bearer/session     |
 
 Si el handler **se exporta como resultado de `withTenant(...)` o
 `withSuperAdmin(...)`**, el gate lo trata como auth-first por construcción
@@ -168,13 +172,16 @@ título informativo; el gate seguirá silenciando el hallazgo.
 
 1. Por cada `route.ts`, `getExportedHandlers` agrupa los exports cuyo
    nombre sea método HTTP.
-2. `analyseWrapper` mira si el LHS del export es un HOF; si es
-   `withTenant`/`withSuperAdmin`, lo clasifica como auth-first.
+2. `analyseWrapper` resuelve aliases locales del mismo archivo y mira si
+   el LHS del export contiene un HOF; `withTenant`,
+   `withBearerTenant`, `withSuperAdmin` y `requireAuth`
+   se clasifican como auth-first.
 3. Para inline handlers (arrow/function), `unwrapHandlerExpression`
-   atraviesa HOFs (e.g. `withRateLimit(withTenant(handler))`) hasta el
-   handler interno.
-4. `checkOrdering` recorre el body. Lleva dos banderas: `firstAuth`
-   y `firstValidate`. El primero que se cruce define el orden.
+   atraviesa aliases y HOFs (e.g. `withRateLimit(withTenant(handler))`)
+   hasta el handler interno.
+4. `checkOrdering` recorre el body y conserva la posición AST mínima de
+   `firstAuth` y `firstValidate`; así un recorrido interno en
+   cualquier orden no puede ocultar una validación anterior a una auth posterior.
    - Si `validate` aparece en o antes de `auth`, emite hallazgo.
 5. Nested functions dentro del handler se **ignoran** (su orden es
    opaco al análisis estático). Ese es el punto donde el escape hatch
@@ -194,6 +201,9 @@ título informativo; el gate seguirá silenciando el hallazgo.
   por error, el gate no los señala. Si **no** usan `withTenant` pero el
   signature check va dentro del body parse, marcar con
   `@auth-flexible route-guard-reason: ls-signature checks body before auth`.
+- **Aliases entre módulos**: no se resuelven; sólo aliases declarados en el
+  mismo `route.ts` se siguen. Si el wrapper llega desde otro módulo,
+  mantener un escape hatch explícito o adaptar el conjunto de primitivas.
 - **Dev routes bajo `/api/dev/...`**: actualmente se marcan como cualquier
   otra ruta; añadir `@auth-flexible` por archivo.
 
@@ -210,6 +220,25 @@ A3 = 21. Las proporciones son consistentes con el escaneo completo previo.
 
 Nota: la cantidad de A2 **no es un bug**; es el contrato esperado — toda
 cadena Drizzle que toque más de una fila debe justificarse.
+
+Re-medición local del branch `gates/ZAL-556` el 2026-08-15, después de los
+ajustes de runner y tolerancia a archivos iCloud:
+
+| Gate | Archivos escaneados | Hallazgos | Disposición |
+|------|---------------------|-----------|-------------|
+| A2   | 1.380               | 515       | advisory; `--strict` devuelve exit 1 |
+| A3   |   307 (`route.ts`)  | 28        | advisory; `--strict` devuelve exit 1 |
+| A4   |    65 (`page.tsx`)  | 0         | existente, sin hallazgos |
+
+Este snapshot es evidencia local del worktree, no evidencia de producción,
+adopción, seguridad desplegada o validación humana. La cuenta de archivos
+incluye entradas que el walker no pudo materializar cuando iCloud devolvió
+`errno=-11`; esas entradas quedan sin juicio estático y deben re-ejecutarse en
+un checkout CI materializado. Los hallazgos se reportan con archivo, línea,
+regla, motivo y hint; el modo advisory permite cuantificar la deuda actual
+antes de promover una política strict. La suite Vitest focal puede emitir sus
+resultados antes de que el runner local cierre por la condición iCloud; el
+self-test `pnpm gate:test` sigue siendo el chequeo operativo del gate.
 
 El modo `--strict` retorna exit 1 cuando hay al menos un hallazgo. En
 local se trata como advisory. En CI, combinarlo con `--strict` en los
@@ -243,9 +272,14 @@ seguridad.
 
 ## Invocación de `tsx` (por qué no `npx`)
 
-`run-all.ts` resuelve el CLI de tsx con `require.resolve("tsx/cli")` y lo
-ejecuta con `process.execPath` (ver `scripts/gates/lib/run-tsx.ts`). Las
-dos alternativas obvias están descartadas por motivos concretos:
+`run-all.ts` ejecuta cada gate con `process.execPath --import tsx`
+(ver `scripts/gates/lib/run-tsx.ts`). Esta forma usa el loader de TypeScript
+sin abrir el IPC local que el CLI de `tsx` intenta crear en algunos sandboxes.
+
+La invocación anterior mediante `require.resolve("tsx/cli")` quedó descartada
+porque el CLI abre ese pipe local y puede recibir `EPERM` aunque el checkout y
+los archivos sean legibles. Las dos alternativas obvias siguen descartadas por
+motivos concretos:
 
 - `node_modules/.bin/tsx` — bajo pnpm es un wrapper de shell; `node <wrapper>`
   falla. Además el path literal es frágil.

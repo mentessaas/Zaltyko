@@ -11,8 +11,12 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+const BodySchema = z.object({ name: z.string() });
+
 // Hypothetical auth helpers from the Zaltyko app.
 declare function withTenant<T>(handler: T): T;
+declare function withBearerTenant<T>(handler: T): T;
+declare function withRateLimit<T>(handler: T, options?: any): T;
 declare function resolveUserId(req: Request, ctx: any): Promise<string | null>;
 declare function verifyWebhookSignature(req: Request, secret: string): Promise<boolean>;
 
@@ -49,4 +53,12 @@ export const CRON = async (request: Request) => {
   return NextResponse.json({ ok: true, body });
 };
 
-export const _noop = [POST, PUT, StripeWebhook, CRON];
+// 5. Same-file aliases and nested wrappers must preserve the auth-first
+// classification used by the real API routes.
+const bearerHandler = withBearerTenant(async (request: Request) => {
+  const body = BodySchema.parse(await request.json());
+  return NextResponse.json({ ok: true, body });
+});
+export const HEAD = withRateLimit(bearerHandler);
+
+export const _noop = [POST, PUT, StripeWebhook, CRON, HEAD];

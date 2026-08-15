@@ -16,31 +16,6 @@
  * no PATH lookup, no package-manager shim, no network, no cwd sensitivity.
  */
 import { spawnSync, type SpawnSyncReturns } from "node:child_process";
-import { createRequire } from "node:module";
-import * as path from "node:path";
-
-const require_ = createRequire(__filename);
-
-/**
- * Absolute path to tsx's CLI entrypoint, resolved via Node module resolution.
- *
- * `tsx/cli` is the subpath its `exports` map publishes for the binary; note that
- * resolving `tsx/dist/cli.mjs` directly throws ERR_PACKAGE_PATH_NOT_EXPORTED.
- * The fallback reads the package's own `bin` field so this keeps working if a
- * future tsx renames that subpath.
- */
-export function resolveTsxCli(): string {
-  try {
-    return require_.resolve("tsx/cli");
-  } catch {
-    const pkgPath = require_.resolve("tsx/package.json");
-    const pkg = require_("tsx/package.json") as { bin?: string | Record<string, string> };
-    const bin = typeof pkg.bin === "string" ? pkg.bin : pkg.bin?.tsx;
-    if (!bin) throw new Error("cannot resolve the tsx CLI: no bin entry in tsx/package.json");
-    return path.resolve(path.dirname(pkgPath), bin);
-  }
-}
-
 export interface RunTsxOptions {
   cwd?: string;
   /** "inherit" streams to the parent (CI logs); "pipe" captures for assertions. */
@@ -59,7 +34,11 @@ export function runTsx(
   args: string[] = [],
   options: RunTsxOptions = {},
 ): SpawnSyncReturns<string> {
-  return spawnSync(process.execPath, [resolveTsxCli(), script, ...args], {
+  // `tsx/cli` starts an IPC server for its transform cache. Sandboxed runners
+  // may deny that local pipe even though ordinary file execution is allowed.
+  // Node's tsx loader gives the same TypeScript execution without that IPC
+  // side channel and works both locally and in CI.
+  return spawnSync(process.execPath, ["--import", "tsx", script, ...args], {
     stdio: options.stdio ?? "inherit",
     cwd: options.cwd ?? process.cwd(),
     encoding: "utf8",

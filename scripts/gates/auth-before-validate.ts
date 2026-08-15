@@ -54,7 +54,9 @@ import {
 const METHOD_NAMES = new Set(["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"]);
 const AUTH_PRIMITIVES = new Set([
   "withTenant",
+  "withBearerTenant",
   "withSuperAdmin",
+  "requireAuth",
   "resolveUserId",
   "getBearerToken",
   "createBearerSupabaseClient",
@@ -82,6 +84,36 @@ interface ExportInfo {
   declaration: ts.Node;
   isWrappedInAuthHOF: boolean;
   wrapFn: string | null;
+}
+
+type LocalBindings = Map<string, ts.Expression>;
+
+function getLocalBindings(sf: ts.SourceFile): LocalBindings {
+  const bindings: LocalBindings = new Map();
+  for (const stmt of sf.statements) {
+    if (!ts.isVariableStatement(stmt)) continue;
+    for (const decl of stmt.declarationList.declarations) {
+      if (ts.isIdentifier(decl.name) && decl.initializer) {
+        bindings.set(decl.name.text, decl.initializer);
+      }
+    }
+  }
+  return bindings;
+}
+
+/** Resolve same-file aliases without crossing module boundaries. */
+function resolveLocalAlias(node: ts.Expression, bindings: LocalBindings): ts.Expression {
+  let current = node;
+  const seen = new Set<string>();
+  for (let depth = 0; depth < 16 && ts.isIdentifier(current); depth++) {
+    const name = current.text;
+    if (seen.has(name)) break;
+    seen.add(name);
+    const target = bindings.get(name);
+    if (!target) break;
+    current = target;
+  }
+  return current;
 }
 
 function getExportedHandlers(sf: ts.SourceFile): ExportInfo[] {
@@ -117,8 +149,8 @@ function getExportedHandlers(sf: ts.SourceFile): ExportInfo[] {
  * whether the outermost HOF is a recognised auth wrapper. If it is, the
  * gate treats the export as auth-first by construction and skips it.
  */
-function analyseWrapper(info: ExportInfo): ExportInfo {
-  const init = info.init;
+function analyseWrapper(info: ExportInfo, bindings: LocalBindings): ExportInfo {
+  const init = resolveLocalAlias(info.init, bindings);
   const isAuthCall = (e: ts.Node): boolean =>
     ts.isCallExpression(e) && ts.isIdentifier(e.expression) && AUTH_PRIMITIVES.has(e.expression.text);
 
@@ -130,15 +162,28 @@ function analyseWrapper(info: ExportInfo): ExportInfo {
 
   // Recurse through nested HOFs (e.g. `withRateLimit(withTenant(handler), ...)`).
   let cursor: ts.Node | undefined = init;
+  const seen = new Set<ts.Node>();
   let depth = 0;
-  while (cursor && ts.isCallExpression(cursor) && depth < 16) {
+  while (cursor && depth < 16) {
+    if (seen.has(cursor)) break;
+    seen.add(cursor);
+    if (ts.isIdentifier(cursor)) {
+      const resolved = resolveLocalAlias(cursor, bindings);
+      if (resolved === cursor) break;
+      cursor = resolved;
+      depth++;
+      continue;
+    }
+    if (!ts.isCallExpression(cursor)) break;
     const callee = cursor.expression;
     if (ts.isIdentifier(callee) && AUTH_PRIMITIVES.has(callee.text)) {
       info.isWrappedInAuthHOF = true;
       info.wrapFn = callee.text;
       break;
     }
-    cursor = cursor.arguments[0];
+    const firstArg = cursor.arguments[0];
+    if (!firstArg) break;
+    cursor = firstArg;
     depth++;
   }
   return info;
@@ -155,31 +200,49 @@ interface OrderingViolation {
  * any auth primitive. Returns the offending validation expression if so.
  */
 function checkOrdering(handler: ts.Node, sf: ts.SourceFile): OrderingViolation | null {
-  let firstValidate: { line: number; node: ts.Node; text: string } | null = null;
-  let firstAuth: { line: number; name: string } | null = null;
+  let firstValidate: { pos: number; node: ts.Node; text: string } | null = null;
+  let firstAuth: { pos: number; name: string } | null = null;
 
   const stack: ts.Node[] = [handler];
 
-  const isAuthCallee = (node: ts.Node): boolean => {
-    if (!ts.isIdentifier(node)) return false;
-    if (!AUTH_PRIMITIVES.has(node.text)) return false;
-    const p = node.parent;
-    return !!p && ts.isCallExpression(p) && p.expression === node;
+  const isAuthCall = (node: ts.Node): string | null => {
+    if (ts.isIdentifier(node) && AUTH_PRIMITIVES.has(node.text)) {
+      const p = node.parent;
+      if (p && ts.isCallExpression(p) && p.expression === node) return node.text;
+    }
+
+    // Bearer routes authenticate with supabase.auth.getUser(...). This is a
+    // property-access call rather than an identifier callee, but it is still
+    // an auth guard in the real Zaltyko handlers.
+    if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression)) {
+      const getUser = node.expression;
+      const auth = getUser.expression;
+      if (
+        getUser.name.text === "getUser" &&
+        ts.isPropertyAccessExpression(auth) &&
+        auth.name.text === "auth"
+      ) {
+        return "auth.getUser";
+      }
+    }
+
+    return null;
   };
 
   while (stack.length) {
     const node = stack.pop() as ts.Node;
 
     // Auth primitive?
-    if (isAuthCallee(node)) {
-      const line = lineOf(sf.text, node.getStart(sf));
-      if (firstAuth === null || line < firstAuth.line) {
-        firstAuth = { line, name: (node as ts.Identifier).text };
+    const authName = isAuthCall(node);
+    if (authName) {
+      const pos = node.getStart(sf);
+      if (firstAuth === null || pos < firstAuth.pos) {
+        firstAuth = { pos, name: authName };
       }
     }
 
     // Validation primitive?
-    if (ts.isCallExpression(node) && firstValidate === null) {
+    if (ts.isCallExpression(node)) {
       const callee = node.expression;
       if (ts.isPropertyAccessExpression(callee)) {
         const owner = callee.expression;
@@ -187,19 +250,17 @@ function checkOrdering(handler: ts.Node, sf: ts.SourceFile): OrderingViolation |
 
         // request.{json|formData|text|arrayBuffer|blob}()
         if (ts.isIdentifier(owner) && owner.text === "request" && VALIDATION_PRIMITIVES.has(name)) {
-          firstValidate = {
-            line: lineOf(sf.text, node.getStart(sf)),
-            node,
-            text: `request.${name}()`,
-          };
+          const pos = node.getStart(sf);
+          if (firstValidate === null || pos < firstValidate.pos) {
+            firstValidate = { pos, node, text: `request.${name}()` };
+          }
         }
         // <anything>.parse(...) or .safeParse(...)
-        if (!firstValidate && (name === "parse" || name === "safeParse" || name === "parseAsync" || name === "safeParseAsync")) {
-          firstValidate = {
-            line: lineOf(sf.text, node.getStart(sf)),
-            node,
-            text: `<expr>.${name}(...)`,
-          };
+        if (name === "parse" || name === "safeParse" || name === "parseAsync" || name === "safeParseAsync") {
+          const pos = node.getStart(sf);
+          if (firstValidate === null || pos < firstValidate.pos) {
+            firstValidate = { pos, node, text: `<expr>.${name}(...)` };
+          }
         }
       }
     }
@@ -214,7 +275,7 @@ function checkOrdering(handler: ts.Node, sf: ts.SourceFile): OrderingViolation |
     });
   }
 
-  if (firstValidate && (!firstAuth || firstAuth.line > firstValidate.line)) {
+  if (firstValidate && (!firstAuth || firstAuth.pos > firstValidate.pos)) {
     return {
       validationNode: firstValidate.node,
       validationText: firstValidate.text,
@@ -246,10 +307,17 @@ function hasAuthFlexibleAnnotation(comments: string[]): boolean {
  * Unwrap a chain of HOFs (e.g. `withRateLimit(withTenant(handler))`) and
  * return the innermost handler expression.
  */
-function unwrapHandlerExpression(node: ts.Expression | undefined): ts.Expression | undefined {
+function unwrapHandlerExpression(
+  node: ts.Expression | undefined,
+  bindings: LocalBindings,
+): ts.Expression | undefined {
   let cur: ts.Expression | undefined = node;
+  const seen = new Set<ts.Node>();
   while (cur && ts.isCallExpression(cur)) {
+    if (seen.has(cur)) return undefined;
+    seen.add(cur);
     cur = cur.arguments[0] as ts.Expression | undefined;
+    if (cur) cur = resolveLocalAlias(cur, bindings);
   }
   return cur;
 }
@@ -257,11 +325,12 @@ function unwrapHandlerExpression(node: ts.Expression | undefined): ts.Expression
 export function scanFile(filePath: string): Finding[] {
   const out: Finding[] = [];
   const { source, sf } = readSource(filePath);
+  const bindings = getLocalBindings(sf);
 
-  for (const exp of getExportedHandlers(sf).map(analyseWrapper)) {
+  for (const exp of getExportedHandlers(sf).map((info) => analyseWrapper(info, bindings))) {
     if (exp.isWrappedInAuthHOF) continue; // auth-first by construction
 
-    const inner = unwrapHandlerExpression(exp.init);
+    const inner = unwrapHandlerExpression(resolveLocalAlias(exp.init, bindings), bindings);
     if (!inner) continue;
 
     let body: ts.Node | undefined;
