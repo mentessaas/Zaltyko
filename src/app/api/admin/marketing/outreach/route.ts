@@ -173,10 +173,11 @@ export const GET = withAgentAuth(async (request) => {
 
   const denominatorsRow = await db
     .select({
-      attempts: count(sql`*`),
-      replies: count(sql`case when ${marketingOutreach.replyAt} is not null then 1 end`),
-      consented: count(sql`case when ${marketingOutreach.consentAt} is not null then 1 end`),
-      demosHeld: count(sql`case when ${marketingOutreach.demoSessionId} is not null then 1 end`),
+      // COUNT(column) ignores NULL and counts only recorded events.
+      attempts: count(marketingOutreach.sentAt),
+      replies: count(marketingOutreach.replyAt),
+      consented: count(marketingOutreach.consentAt),
+      demosHeld: count(marketingOutreach.demoSessionId),
     })
     .from(marketingOutreach)
     .where(whereClause ?? sql`true`);
