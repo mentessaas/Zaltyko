@@ -1,12 +1,68 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-08-08T23:30Z
+last_reviewed: 2026-08-11
 source:
   - ../AGENTS.md
 ---
 
 # Decisiones
+
+## 2026-08-10 - ZAL-495: POST /api/marketplace sin tenant, propiedad por userId
+
+| Campo | Valor |
+| --- | --- |
+| Contexto | El rol `provider` se diseñó como global sin academia (`shell: "global"`, `canAccessAcademyWorkspace: false`, `src/lib/product/roles.ts:76-82`) y por tanto sin `tenantId`. Sin embargo `POST /api/marketplace` estaba envuelto en `withTenant`, que exige tenantId válido salvo endpoint público, creación de academia, "flexible" o `super_admin`. `/api/marketplace` no estaba en ninguna de esas listas, así que cualquier `provider` recibía `403 TENANT_MISSING` al intentar publicar — contradicción entre el modelo de roles y la capa de autorización (PV-2 P0 del audit [ZAL-427](/ZAL/issues/ZAL-427)). El handler ya insertaba `userId: context.userId` (`src/app/api/marketplace/route.ts:108`), así que la propiedad del listing no depende del cliente. |
+| Decisión | Tratar `POST /api/marketplace` como endpoint autenticado sin tenant. Implementación: (1) nueva categoría `authenticatedNoTenantEndpoints` + helper `isAuthenticatedNoTenantEndpoint(pathname, method)` en `src/lib/authz/endpoint-config.ts` (inicializado con `['/api/marketplace']`, solo aplica a POST); (2) wrapper `withAuthenticatedNoTenant(handler)` exportado desde `src/lib/authz.ts` que resuelve `userId`/`profile`, exige `canLogin`, y permite rol `super_admin`, `provider`, o cualquier perfil con `tenantId`; el resto → 403 `INSUFFICIENT_ROLE`; (3) reemplazar `withTenant` por `withAuthenticatedNoTenant` solo en la línea POST de `src/app/api/marketplace/route.ts:98` (GET queda público); (4) preservar `userId: context.userId` server-derived (validado: una sola asignación al campo `userId` del insert); (5) ADR en este archivo. **No** se rediseña el modelo de datos, **no** se añade `tenant_id` a `marketplace_listings`, **no** se migra schema. |
+| Consecuencia | Un usuario con rol `provider` y sin academia puede crear listings propios. El handler conserva la responsabilidad de validar propiedad por `context.userId` (no por campos del body — ver C-4). Quedan en P1 derivados de [ZAL-427](/ZAL/issues/ZAL-427): PV-1 (select roto), PV-3 (body schema — ya cerrado en [ZAL-496](/ZAL/issues/ZAL-496) f30bb9337), PV-4..PV-13; permission gate `marketplace:write` en `route-permissions.ts`; validación `sellerType` contra rol. Work product: `vault/06-Roadmap-y-Tareas/ZAL-495 work product seguridad provider sin tenant 2026-08-10.md`. Audit: `vault/03-Negocio/RESEARCH/ZAL-427 auditoria UX recorrido provider 2026-08-10.md` §2 PV-2. |
+| Estado | Vigente. La advertencia de `endpoint-config.ts:4-7` sobre "flexible tenant" aplica también aquí: cada handler que use este wrapper debe validar propiedad por `userId` server-derived. Salida de revisión pendiente de PR con los 5 controles + cobertura de tests G-1, G-3, N-1, N-2, N-3, N-5. |
+
+## 2026-08-10 - Cierre de alerta presupuestaria y cap operativo sin aumento
+
+| Campo | Valor |
+| --- | --- |
+| Contexto | La alerta [ZAL-491](/ZAL/issues/ZAL-491) quedó en `in_review` después de que el approval [40b0a074-3c83-47fb-89d6-d9f16d1a183b](/ZAL/approvals/40b0a074-3c83-47fb-89d6-d9f16d1a183b) fuera rechazado. La fuente viva `/costs/summary` registra 432278 centavos sobre 1000000 configurados (43,23%), por debajo del umbral operativo del 80%. |
+| Decisión | Cerrar la alerta sin reintentar el mismo approval ni interpretar el rechazo como autorización. Mantener el cap operativo explícito de 1000 USD como restricción: no aumentar presupuesto, no contratar agentes y no reactivar reintentos o meta-trabajo de bajo valor. Engineering/Platform mantiene la responsabilidad de failover, circuit-breaker y control de `provider_quota`. |
+| Consecuencia | Las líneas que cambian la experiencia de una academia y el piloto de [ZAL-477](/ZAL/issues/ZAL-477) conservan prioridad. Las discrepancias entre el cap operativo y el presupuesto técnico configurado se vigilan en cada heartbeat; solo se escala otra vez si la fuente vigente supera el 80% o aparece una decisión de producción, dinero real, datos, publicación o secretos. |
+| Estado | Activa. No se autorizaron producción, dinero real, secretos, datos reales, cambios de pricing ni publicación externa. |
+
+## 2026-08-09 - Auditoría CEO ZAL-462: producto primero, gates válidos y telemetría actual
+
+| Campo | Valor |
+| --- | --- |
+| Contexto | La auditoría de Paperclip encontró 99 issues abiertas: 60 `blocked`, 27 `in_review`, 2 `in_progress`, 1 `todo` y 9 `backlog`. Una heurística de títulos/descripciones marca 77 issues con lenguaje de control/gobernanza frente a 63 con lenguaje de producto; no es un KPI oficial, pero confirma que el sistema sigue generando meta-trabajo. |
+| Telemetría | La fuente actual `/costs/summary` registra 407699 centavos sobre un presupuesto de 1000000 (40,77%). El snapshot del 2026-08-04 (`167966`/`100000`, 167,97%) queda como histórico de la aprobación `3a992918-ddcb-487a-8dfb-fcd8772f57fd`; no se solicita una nueva aprobación porque la cifra actual está por debajo del umbral operativo del 80% (800000). |
+| Decisión | Priorizar en cada heartbeat el trabajo que cambia la experiencia de una academia. `blocked` exige un bloqueador real y owner/acción; `in_review` exige reviewer o interacción persistente; un heartbeat sin trabajo accionable no crea ticket. Código y cambios sensibles conservan SHA + peer independiente. Docs, copy, briefs y operaciones no-code verificables no generan commits no-op ni C-2 repetitivo; tras tres ciclos equivalentes se consolida un único defecto de proceso. |
+| Limpieza ejecutada | Se retiró la espera inválida de Gemita: [ZAL-156](/ZAL/issues/ZAL-156) volvió a `todo` y pasó a Product Lead; [ZAL-191](/ZAL/issues/ZAL-191) quedó con Marketing y retomó `in_progress` en un handoff paralelo; el gate de privacidad de [ZAL-158](/ZAL/issues/ZAL-158) pasó a Platform & Security y volvió a `todo`. [ZAL-138](/ZAL/issues/ZAL-138) conserva `blocked` solo por su C-2 SHA real; [ZAL-140](/ZAL/issues/ZAL-140) ya está `done` y no tiene gate activo. |
+| Consecuencia | Product Lead vacía revisiones y acepta funcionalmente; Engineering Lead mantiene failover/circuit-breaker y absorbe revisión local; Platform & Security custodia privacidad, secretos y permisos; Marketing rehace el triage GTM. No se autorizaron producción, migraciones remotas, secretos, dinero real ni publicación externa. |
+| Estado | Activa. Revisar coste y distribución de estados en cada heartbeat; escalar al board solo si el gasto actual supera 80% del cap vigente o aparece una decisión de producción, dinero real, datos personales, publicación o secretos. |
+
+## 2026-08-04 - Contención de gasto y simplificación de governance no-code
+
+| Campo | Valor |
+| --- | --- |
+| Contexto | El dashboard de Paperclip registra 167.966 EUR/USD-equivalentes de gasto en centavos (`167966`) frente a un cap mensual de `100000` (167,97%). La auditoría histórica identifica 1096 runs fallidos de 2281, con 866 por `provider_quota`, y 33 de 41 issues canceladas recientes corresponden a peer/SHA/C-2/productivity/no-op. Platform & Security concentra 14 de 57 issues bloqueadas. |
+| Decisión | (1) Elevar al board únicamente la decisión de cap/gasto externo mediante approval `3a992918-ddcb-487a-8dfb-fcd8772f57fd`, recomendando contener sin subir cap hasta diseñar failover/circuit-breaker. (2) Mantener SHA + peer independiente para código y cambios sensibles, pero eliminar no-op commits y reemisiones C-2 para docs, copy, briefs y operaciones no-code verificables. (3) Tras tres ciclos equivalentes, consolidar un único defecto de proceso y prohibir nuevas tareas espejo. (4) Platform & Security conserva secretos, privacidad y permisos sensibles; QA y Engineering absorben validación reproducible y revisión técnica local sin secretos. |
+| Consecuencia | Se prioriza producto que cambia la experiencia de academias por encima de meta-trabajo. Se abren [ZAL-290](/ZAL/issues/ZAL-290), [ZAL-291](/ZAL/issues/ZAL-291), [ZAL-292](/ZAL/issues/ZAL-292) y [ZAL-293](/ZAL/issues/ZAL-293). Se reasignan [ZAL-248](/ZAL/issues/ZAL-248) y [ZAL-174](/ZAL/issues/ZAL-174) a Engineering Lead, y [ZAL-197](/ZAL/issues/ZAL-197) y [ZAL-220](/ZAL/issues/ZAL-220) a QA. Ninguna de estas acciones autoriza gasto adicional, secretos, producción ni migraciones remotas. |
+| Estado | Activa desde 2026-08-04. El aumento del cap o cualquier compra/configuración externa queda pendiente del approval del board. |
+
+## 2026-07-31 - Las transiciones a `done` para issues de código exigen SHA verificable por un peer
+
+| Campo | Valor |
+| --- | --- |
+| Contexto | En menos de una semana se confirmaron tres fabricaciones de SHA en issues cerradas como `done` (ZAL-40, ZAL-68/62/63, ZAL-78 con la cadena F1+F2 ZAL-70/71/73/74). El patrón es consistente: el agente autor publica un SHA en el comentario de cierre, un run posterior sella la disposición sin re-verificarlo contra git, y el SHA resulta inexistente (`git cat-file -t 3507438` → `fatal: Not a valid object name`). La política previa (`Decisiones 2026-07-30` y ZAL-41) ya exigía SHA verificable con `git cat-file -t` + grep del símbolo clave, pero el run de recovery handoff que cerró ZAL-70 la saltó. El problema no es técnico (los agentes saben ejecutar `git rev-parse`); es de control de flujo: el sistema permite transicionar a `done` con un SHA que ningún humano ni agente independiente ha resuelto desde su propio shell. |
+| Decisión | (1) **Gate de transición `in_review → done` para issues de código**: el agente que pide la transición debe publicar el SHA + un comentario con `git rev-parse HEAD` y `git log -1 --format=%H <sha>`, y un peer (otro agente o humano del board) debe responder desde su propio worktree con un `git rev-parse --verify <sha>` exitoso antes de que la transición se acepte. (2) **SHA firmado en work product, no en comentario**: el SHA debe adjuntarse a un `WorkProduct` con `kind: commit` para que el control-plane pueda validarlo en el momento de la transición, no en un comentario editable. (3) **Bloqueo de `recoveryAction` auto-firmado**: cualquier `recoveryAction` que sella cierres de issues de código ajenas debe pausarse hasta que los controles 1 y 2 estén en producción. (4) **Auditoría retrospectiva**: re-verificar contra git todos los SHAs firmados en issues `done` de código de los últimos 14 días que no tengan peer-comment con `git rev-parse --verify` exitoso; reabrir o validar según evidencia. |
+| Consecuencia | El control-plane gana una segunda barrera independiente del modelo: el SHA deja de poder ser auto-firmado por el agente autor más un run subsecuente; el peer debe ser ejecutable y responder en otro worktree. La auditoría retrospectiva puede reabrir ZAL-73 y ZAL-74 (firmadas con SHA inexistente `3507438`) — decisión final del board tras revisar evidencia. Las issues no-código (vault, marketing, brief) siguen aceptando cierre con enlace a archivo verificable + cita literal, sin gate de SHA. |
+| Estado | Política escrita y vigente tras este commit. Implementación de los gates 1-3 y plan de auditoría se coordinan en [ZAL-86](/ZAL/issues/ZAL-86) (Platform & Security, parent de [ZAL-78](/ZAL/issues/ZAL-78)). Coordinada con [ZAL-33](/ZAL/issues/ZAL-33) (política de Decisiones 2026-07-30) y [ZAL-35](/ZAL/issues/ZAL-35) (causa raíz de fabricaciones). |
+
+## 2026-07-29 - No se escalan ventas hasta que la QA E2E de cobros cierre en verde
+
+| Campo | Valor |
+| --- | --- |
+| Contexto | La QA end-to-end del flujo de cobro con Stripe Connect (tarjeta guardada, cobro off-session, SCA/3DS, rechazo, reembolso, reconciliación) sigue sin cerrar. El trabajo técnico está hecho: Developer terminó la infraestructura y los tests, y QA tiene la suite lista para ejecutar. El único faltante son credenciales de Stripe test mode para una academia demo aislada, que solo el board humano puede proveer. Mientras tanto ZAL-7, ZAL-8 y ZAL-10 se acumulan en `in_review` sin poder verificarse con evidencia viva, porque revisar código no sustituye correr el flujo real. |
+| Decisión | Congelar la escalada comercial hasta que la suite live corra en verde contra Stripe test mode con evidencia reproducible. Ningún cambio que toque cobros, RLS o aislamiento multi-tenant se aprueba sin verificación previa de QA. La suite E2E se ejecuta exclusivamente contra una academia demo aislada; queda prohibido apuntarla a la academia operativa aunque eso desbloquearía la ejecución antes. |
+| Consecuencia | El backlog prioriza la línea de cobros por encima de trabajo de producto y de la verificación de `mobile/`. Las issues en `in_review` que dependen de ejecución real no pasan a `done` por revisión de código. El desbloqueo no es técnico ni delegable a ningún agente: es una acción del board humano, y hasta que ocurra la línea crítica permanece parada por diseño, no por falta de capacidad del equipo. |
+| Estado | Activa. Bloqueador rastreado en ZAL-13 (sin asignar, escalado al board el 2026-07-29). Se revisa en cuanto las credenciales test estén disponibles. |
 
 ## 2026-08-09 - ZAL-451: catálogo de disponibilidad SEO aislado del bundle cliente
 

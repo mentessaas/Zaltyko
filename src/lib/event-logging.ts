@@ -4,6 +4,7 @@ import { logger } from "@/lib/logger";
 
 export type EventType =
   | "academy_created"
+  | "owner_claimed"
   | "group_created"
   | "athlete_created"
   | "charge_created"

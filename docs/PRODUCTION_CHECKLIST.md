@@ -9,7 +9,7 @@ Fuente operativa para habilitar una academia real. No marcar una tarea como comp
 | Dominio | Operativo | `https://zaltyko.com` con SSL y canonicals consolidados |
 | Migraciones | Operativas | Ledger con 40 migraciones Supabase + 6 Drizzle y cero pendientes verificados |
 | Stripe Connect | Parcial | Webhook registrado y onboarding probado en test mode |
-| Cobros E2E | Pendiente | Guardar tarjeta, off-session, SCA, rechazo, reembolso y reconciliación |
+| Cobros E2E | Parcial | Automatizado y verde 2026-08-10 (ZAL-3): guardar tarjeta, cobro off-session y cron. Sigue manual: SCA, rechazo, reembolso y reconciliación |
 | Brevo | Configurado externamente | API key Sensitive en Vercel Production/Preview y cuenta responde 200; no se envió correo de producción |
 | Cron | Configurado en código | Verificar ejecuciones y resultados en Vercel |
 | E2E por roles | Parcial | Smoke 10/10 y axe en superficies verificadas; falta revisión manual WCAG y entrega Stripe firmada |

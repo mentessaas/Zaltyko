@@ -250,8 +250,8 @@ export function ProgressReport({ academyId, academyCountry, athleteId, initialDa
             {!athleteId && (
               <div className="space-y-2">
                 <Label htmlFor="athlete-id">ID de {specialization.labels.athleteSingular} *</Label>
-                <Select value={selectedAthleteId || "all"} onValueChange={(value) => setSelectedAthleteId(value === "all" ? "" : value)}>
-                  <SelectTrigger id="athlete-id">
+                <Select id="athlete-id" value={selectedAthleteId || "all"} onValueChange={(value) => setSelectedAthleteId(value === "all" ? "" : value)}>
+                  <SelectTrigger>
                     <SelectValue placeholder={`Selecciona ${specialization.labels.athleteSingular.toLowerCase()}`} />
                   </SelectTrigger>
                   <SelectContent>

@@ -1,7 +1,7 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-08-10T00:00Z
+last_reviewed: 2026-08-11
 source:
 
 ## 2026-08-10 - Engineering: hardening SCA y redacción de secretos para ZAL-524
@@ -628,7 +628,7 @@ La nota del issue original sigue vigente: Aurora Elite Demo (única academia con
 - (c) board emite peer-verification sobre SHA `c4e4895b3` (alternativa `## Review: APPROVED` + peer-verification de otro agent), o
 - (d) QA agent retoma ZAL-408 y postea resultado de la verificación live en este hilo.
 
-`last_reviewed: 2026-08-08` actualizado en frontmatter.
+`last_reviewed: 2026-08-11
 
 ## 2026-08-07 - ZAL-396: cierre a `blocked` por SHA gate ZAL-88 per-issue (PL resolvió F-0 = HIJO-7)
 
@@ -1223,6 +1223,749 @@ Issue: [ZAL-186](/ZAL/issues/ZAL-186). Vault: `ZAL-186 funnel activacion academi
 
 Issue: [ZAL-189](/ZAL/issues/ZAL-189). Vault: actualizados `Changelog interno` y `Backlog priorizado`.
 
+## 2026-08-10 - ZAL-497 [Web] Estados de error del recorrido provider: catálogo, acciones y copy engañoso (PV-4, PV-5, PV-6, PV-7)
+
+Cierra los 4 hallazgos P1 del audit [ZAL-427](/ZAL/issues/ZAL-427) §2 sobre el recorrido del `provider`. Van juntos porque son el mismo tejido: el proveedor no podía distinguir qué falló ni si su acción tuvo efecto.
+
+**Cambios:**
+
+- **PV-5 — `src/app/dashboard/marketplace/mis-productos/page.tsx`** — estado distinguible loading / ready / error (con `LoadState` discriminated union). Antes `setListings([])` se ejecutaba en cualquier `!res.ok` y caía al empty state con copy "Aún no tienes productos publicados", que mentía al proveedor con 20 anuncios tras un 401. Ahora 401 → tarjeta "Tu sesión ha caducado" con CTA `/login`; 5xx / red → `ErrorState` con reintento (`onRetry={fetchListings}`); ready con `listings.length === 0` → empty state real con icono `Inbox` y copy "Cuando publiques tu primer anuncio aparecerá aquí".
+- **PV-7 — `src/app/dashboard/marketplace/mis-productos/page.tsx`** — feedback de fallo en toggle y delete. Antes `handleStatusToggle`/`handleDelete` solo mostraban toast en `catch` (red), nunca en 4xx/5xx: el proveedor creía que había pausado un anuncio que seguía activo. Ahora cualquier respuesta no-2xx mapea a `copyForToggleError`/`copyForDeleteError` (401 → sesión caducada; 403 → sin permisos con CTA contacto; 404 → anuncio ya no existe; resto → "vuelve a intentarlo"). `confirm()` nativo reemplazado por `ConfirmDialog` del sistema de diseño (`variant="destructive"`).
+- **PV-4 — `src/components/marketplace/MarketplaceForm.tsx` + `src/app/api/marketplace/route.ts`** — copy accionable por tipo de error. Antes `error.message || "Revisa los datos e inténtalo de nuevo"` y el 403 `TENANT_MISSING` llegaba sin `message` desde `authz.ts:278`, así que un fallo de permisos se mostraba como error de datos. Ahora `copyForPublishError(status, body)` mapea por status: 401 → "Tu sesión ha caducado"; 403 → "Tu cuenta de proveedor todavía no puede publicar. Escríbenos y lo activamos." con enlace `/contacto`; 400/VALIDATION_ERROR → "Faltan datos en el formulario" + errores anclados al campo (`<p role="alert">` bajo cada input, `aria-invalid` en el `SelectTrigger`/`Input`, `border-red-500`); servidor → "Vuelve a intentarlo en unos segundos". El banner de error a nivel formulario usa `role="alert"` y variantes `error`/`warning`. La API devuelve `details.field` y `details.issues[]` del primer ZodError para que el cliente pueda anclar.
+- **PV-6 — `src/app/api/marketplace/route.ts:58-99`** — `ContactSchema` con `z.refine` exige al menos un canal de contacto (whatsapp/email/phone no vacíos); el schema raíz además exige `contact` presente. Antes los tres eran opcionales y `priceType` por defecto era `contact` → "A convenir" sin forma de convenir. El form cliente valida con `validateClient()` y muestra "Necesitamos al menos una forma de que te contacten." bajo los tres inputs y en toast cuando es el único error.
+
+**Tests:**
+
+- `tests/api-marketplace.test.ts` — 4 tests nuevos (PV-4, PV-6): rechaza sin `contact` (400 + código), rechaza con tres canales vacíos, acepta solo-whatsapp, acepta solo-phone, `details.field` apunta a `title` cuando el título es corto. Total **15/15 PASS** (`vitest run tests/api-marketplace.test.ts`).
+- Regresión cruzada: `tests/ui-select-options.test.tsx` (6/6) y `tests/components-critical.test.tsx` (10/10) siguen verdes — el fix PV-5/PV-7 no toca el `<select>` que arregló ZAL-494.
+
+**Verificación local:**
+
+- `pnpm typecheck` — sin errores nuevos en mis archivos; los errores pre-existentes en `mobile/` y `src/app/api/support/tickets/[id]/responses/route.ts` quedan fuera de scope (consistente con notas previas del changelog).
+- `pnpm lint` (lint:app sobre `src/`) — limpio.
+- No se levantaron servidores Next.js locales; el puerto 3100 disponible correspondía al control plane de Paperclip, no a Zaltyko. La verificación funcional se apoyó en vitest.
+
+**Fuera de scope:** PV-2 (403 TENANT_MISSING por `withTenant`) lo cerró ZAL-499/ZAL-495 con `withAuthenticatedNoTenant`. PV-8 (router.push fallback) sigue intacto. El recorrido end-to-end del `provider` ahora puede completarse hasta el formulario, pero **el 403 sigue apareciendo** hasta que un admin active el flag de proveedor — el copy nuevo lo explica al usuario en lugar de mentirle.
+
+No se tocaron pricing, RLS, migraciones, secretos, producción ni publicación.
+
+## 2026-08-10 - ZAL-499 [API] wrapper `withAuthenticatedNoTenant` aplicado a POST /api/marketplace (PV-2 / ZAL-495)
+
+Cierra la opción **(a)** aprobada por el board en [ZAL-495](/ZAL/issues/ZAL-495): tratar `POST /api/marketplace` como endpoint autenticado sin tenant, conservando `userId` server-derived. La contradicción detectada era que el rol `provider` se diseñó como global sin academia/tenant (`src/lib/product/roles.ts:76-82`), pero el endpoint exigía `tenantId` válido (`withTenant` → 403 `TENANT_MISSING`).
+
+Cambios mínimos (5 controles, todos reversibles localmente, sin schema, sin migraciones, sin secretos):
+
+- **C-1** — `src/lib/authz/endpoint-config.ts`: nueva categoría `authenticatedNoTenantEndpoints` y helper `isAuthenticatedNoTenantEndpoint(pathname, method)` (solo POST, inicializado con `['/api/marketplace']`). No se añadió a `flexibleTenantEndpoints` (la advertencia de `endpoint-config.ts:4-7` aplica).
+- **C-2** — `src/lib/authz.ts`: nuevo wrapper `withAuthenticatedNoTenant<Ctx>(handler)` que resuelve `userId`/`profile`, exige `canLogin` (super_admin pasa siempre), y permite rol `super_admin`, `provider`, o cualquier perfil con `tenantId`; el resto → 403 `INSUFFICIENT_ROLE`. NO llama a `getTenantId`/`resolveTenantWithUpdate`/`extractVerifiedAcademyCandidate`/`enforceVerifiedTenantMutationRateLimit`. Preserva la firma `TenantContext` con `tenantId: ''`. Mismo patrón de manejo de errores que `withTenant`.
+- **C-3** — `src/app/api/marketplace/route.ts:8,134`: `import` y export `POST` cambian de `withTenant` a `withAuthenticatedNoTenant`. GET queda público, sin cambios. Validación interna cambia de `if (!context.tenantId)` a `if (!context.userId)` (el wrapper garantiza lo segundo).
+- **C-4** — `grep -n 'userId' src/app/api/marketplace/route.ts` confirma una sola asignación al campo `userId` del insert (`route.ts:151`) desde `context.userId` (`route.ts:147`). Sin `validated.userId`. Sin IDOR.
+- **C-5** — `vault/06-Roadmap-y-Tareas/Decisiones.md` ADR 'ZAL-495: POST /api/marketplace sin tenant, propiedad por userId' añadido en cabeza del archivo con formato tabla Contexto/Decisión/Consecuencia/Estado.
+
+Tests:
+- `tests/authz-with-authenticated-no-tenant.test.ts` (nuevo, 8 tests): G-1 (provider body válido), G-3 (owner con tenant), N-1 (athlete sin tenant 403), N-2 (parent sin tenant 403), N-3 (sin sesión 401), anti-login-disabled (provider con `canLogin=false`), super-admin login gate (pasa con `canLogin=false`), N-5 anti-IDOR (`userId` del body no se filtra).
+- `tests/api-marketplace.test.ts`: mock actualizado a `withAuthenticatedNoTenant`; los 10 tests previos siguen verdes.
+- Cobertura focal: 18/18 tests pasan en `pnpm vitest run tests/authz-with-authenticated-no-tenant.test.ts tests/api-marketplace.test.ts`. Las 7 suites `authz-*` siguen verdes (106/106).
+
+Verificación local: `pnpm typecheck` no introduce errores nuevos en `src/lib/authz*` ni en `src/app/api/marketplace/route.ts` (los errores pre-existentes en `mobile/` y `src/app/api/support/tickets/[id]/responses/route.ts` no están en el scope del fix).
+
+Riesgos residuales / P1 derivados (no abiertos aquí, ver ADR): permission gate `marketplace:write` en `route-permissions.ts`; validación `sellerType` contra rol; PV-1/PV-4..PV-13 del audit [ZAL-427](/ZAL/issues/ZAL-427).
+
+Vault: actualizadas `Decisiones.md` y `Changelog interno.md`. Cierre de [ZAL-499](/ZAL/issues/ZAL-499) queda sujeto a PR con los 5 controles y confirmación de cobertura negativa por QA.
+
+## 2026-08-10 - [ZAL-491] alerta presupuestaria cerrada sin aumento de cap
+
+Se cerró la alerta ejecutiva después de que el board rechazara el approval [40b0a074-3c83-47fb-89d6-d9f16d1a183b](/ZAL/approvals/40b0a074-3c83-47fb-89d6-d9f16d1a183b). No se reintentó la solicitud ni se interpretó el rechazo como autorización de gasto.
+
+- `/costs/summary` en este heartbeat: 432278/1000000 centavos (43,23%) del presupuesto configurado.
+- El cap operativo histórico de 1000 USD sigue siendo la restricción ejecutiva: no se aumenta, no se contratan agentes y no se reactivan reintentos de bajo valor.
+- La causa `provider_quota` y el failover/circuit-breaker siguen con Engineering/Platform.
+- La alerta queda separada de la evidencia de producto; el piloto [ZAL-477](/ZAL/issues/ZAL-477) conserva sus blockers reales y no se declara adopción, readiness ni conversión.
+
+Vault: actualizadas `Decisiones.md` y `Changelog interno.md`. No se actualizó `Backlog priorizado.md`: no apareció un riesgo nuevo, solo se consolidó una restricción ya vigente.
+
+## 2026-08-10 - ZAL-496 [Web] marketplace: `userId`/`sellerType` salen del schema y se derivan server-side
+
+Hallazgo **PV-3 (P0)** del recorrido `provider` auditado en `vault/03-Negocio/RESEARCH/ZAL-427 auditoria UX recorrido provider 2026-08-10.md` §2 (SHA `a784a0ca2`). `CreateMarketplaceSchema` exigía `userId: z.string().uuid()` (`src/app/api/marketplace/route.ts:16`) y `sellerType` con default `"external"`; `MarketplaceForm` los recibía por props (`MarketplaceForm.tsx:34`), pero `/marketplace/nuevo/page.tsx:14` monta el form **sin props**. Resultado: `userId: undefined` → `ZodError` → `400 VALIDATION_ERROR` en cada intento de publicar, y `sellerType` se persistía como `"external"` aunque el autor fuese una academia, un coach o un proveedor registrado. El handler ya insertaba `userId: context.userId` sin usar el valor validado, así que el campo era un obstáculo puro.
+
+**Decisión técnica (mínima, no refactor):** sacar `userId` y `sellerType` del schema y derivarlos en el servidor. `userId` es la sesión (no se acepta valor del cliente → anti-IDOR). `sellerType` sale del rol del perfil via `sellerTypeForRole(role)`: `admin`/`owner` → `academy`, `coach` → `coach`, `athlete` → `athlete`, `provider` → `provider`, `super_admin`/`parent` → `external`. La columna `marketplace_listings.sellerType` es `text` en DB, así que añadir `"provider"` no exige migración; actualizo el comentario del schema para reflejar el contrato actual.
+
+**Cambios:**
+
+- `src/app/api/marketplace/route.ts` — `CreateMarketplaceSchema` sin `userId`/`sellerType`; nueva helper `sellerTypeForRole(role)` única responsable de la asignación; inserta `userId = context.userId` y `sellerType = sellerTypeForRole(context.profile?.role)`. Si el cliente envía esos campos, el servidor los ignora.
+- `src/components/marketplace/MarketplaceForm.tsx` — `MarketplaceFormProps` solo conserva `onSuccess`; `userId`/`sellerType` se retiran del body enviado a la API. `onSuccess` sin props → fallback `router.push("/marketplace")` se mantiene (PV-8 queda intacto y fuera de scope).
+- `src/db/schema/marketplace.ts` — comentario `sellerType` ampliado a `academy, coach, athlete, provider, external`.
+- `tests/api-marketplace.test.ts` — nuevo, 10 tests PASS: POST sin `userId`/`sellerType` devuelve 201; `userId`mpostor y `sellerType`mpostor del body se ignoran; mapping rol→sellerType verificado para `provider`, `owner`, `admin`, `coach`, `athlete`, `parent`; payload incompleto sigue devolviendo 400.
+- `vault/06-Roadmap-y-Tareas/Backlog priorizado.md` — entrada resuelta 2026-08-10 en P0.
+
+**Evidencia de verificación:**
+
+- `pnpm test tests/api-marketplace.test.ts --run` → 10/10 PASS.
+- `pnpm test tests/ui-select-options.test.tsx --run` → 6/6 PASS (no regresión del fix PV-1/ZAL-494).
+- `pnpm lint` → limpio.
+- `pnpm typecheck` → sin nuevos errores; los preexistentes siguen en `mobile/` (RN 0.86) y `src/app/api/support/tickets/[id]/responses/route.ts` (FormData), no relacionados.
+
+**Mejora de seguridad colateral:** el cambio cierra de raíz el IDOR `userId` que el schema tenía latente (validaba un campo que el handler ignoraba, así que un cliente podría haber enviado cualquier UUID antes de la sesión actual y la validación habría pasado — pero el `insert` usaba `context.userId`, no `validated.userId`, así que en la práctica nunca publicó en nombre de otro. Quitar el campo del schema elimina la confusión entre contrato y realidad).
+
+**Pendiente para abordar en otro ticket (no resuelta por ZAL-496):**
+
+- **PV-2 del mismo audit**: `POST /api/marketplace` sigue en `withTenant`, por lo que un `provider` recibe `403 TENANT_MISSING` por diseño de rol. El recorrido del proveedor no podrá completarse en navegador hasta que Backend/Security decida entre (a) añadir `/api/marketplace` a `isFlexibleTenantEndpoint` con validación explícita de `userId` en el handler, o (b) dar tenant propio al `provider`. Owner sugerido en la auditoría: Backend / Security.
+- **PV-4, PV-5, PV-7, PV-8, PV-9, PV-10, PV-11, PV-12, PV-13** siguen abiertos en la auditoría ZAL-427 como P1/P2/P3.
+
+No se tocaron pricing, RLS, migraciones, secretos, producción ni publicación.
+
+## 2026-08-10 - ZAL-494 [UI] ui/select no expone opciones: desplegables pintan vacíos
+
+Hallazgo **PV-1 (P0)** del recorrido `provider` auditado en `vault/03-Negocio/RESEARCH/ZAL-427 auditoria UX recorrido provider 2026-08-10.md` §2 (SHA `a784a0ca2`). `src/components/ui/select.tsx` envolvía los `<SelectTrigger>` y `<SelectContent>` en `<div>`s, así que los `<option>` no eran hijos directos del `<select>`; `HTMLSelectElement.options` los ignoraba y el proveedor no podía elegir Categoría en `MarketplaceForm` ni Prioridad/Categoría en `AnnouncementForm`. Mismo componente aceptaba `id` en `<SelectTrigger>`, dejando huérfanos los `<Label htmlFor>` (PV-11, WCAG 1.3.1 y 4.1.2).
+
+**Decisión técnica (mínima, sin reemplazar el wrapper por un listbox accesible):** mantener la API pública (`Select`/`SelectTrigger`/`SelectContent`/`SelectValue`/`SelectItem`) y proyectar los `<option>` como hijos directos del `<select>`. `Select` aplana los hijos en `React.Children.forEach`: si encuentra un `<SelectTrigger>` extrae `className`/`id` y los aplica al `<select>` real (PV-11), y reemplaza el nodo por sus hijos; los demás hijos (incluido `<SelectContent>`, ahora Fragment) se conservan. `SelectItem` deja de fijar `selected` (React 18+ avisa y el `<select>` controlado ya marca el match). `SelectValue` pasa a Fragment para silenciar `validateDOMNesting` por `<span>` dentro de `<select>`.
+
+**Cambios:**
+
+- `src/components/ui/select.tsx` — reescrito: flatten de `SelectTrigger`, `SelectContent` y `SelectValue` ahora Fragments/`null`, `id` y `className` se aplican al `<select>` real.
+- 7 callers actualizados para mover `id` de `<SelectTrigger>` a `<Select>` (consumidores con `<Label htmlFor>`): `AnnouncementForm.tsx` (2), `AttendanceReport.tsx` (3), `ProgressReport.tsx` (1), `DocumentUploadModal.tsx` (1).
+- `tests/ui-select-options.test.tsx` — 6 tests verdes (jsdom + @testing-library/react): opciones como hijos directos del `<select>`, lista larga tipo MarketplaceForm (11 categorías), selección por teclado vía `userEvent.selectOptions`, id pasado por `<Select>`, id heredado de `<SelectTrigger>` para compat, y asociación `<Label htmlFor>` → `<select>` real.
+- Lint y typecheck de los 5 ficheros tocados limpios. Errores preexistentes en `mobile/` (RN 0.86 casing/types) y `src/app/api/support/tickets/[id]/responses/route.ts` (FormData) no relacionados; no se tocaron.
+
+**Evidencia de verificación:**
+
+- `pnpm test tests/ui-select-options.test.tsx tests/components-critical.test.tsx` → 16/16 PASS.
+- Sonda `expect(container.querySelector("select").options.length).toBe(2)` que fallaba en `a784a0ca2` ahora pasa.
+- `<Label htmlFor="category">Categoría</Label>` resuelve a `screen.getByLabelText("Categoría")` (era el `<div>` anterior, ahora apunta al `<select>` real).
+
+**Radio vivo:** 28 archivos importaban `SelectTrigger`; los 7 con `id` se migraron en este cambio. Los ~20 con `className` (anchos `w-[Xpx]`) siguen funcionando: `Select` reenvía `triggerClassName` al `<select>`, así que la apariencia no se pierde. No se tocó pricing, RLS, migraciones, secretos, producción ni publicación.
+
+**Pendiente para QA:** validar visualmente que ningún desplegable del producto perdió su tamaño (sólo los `<SelectTrigger className="w-[180px]">`-style siguen aplicando al `<select>` real, ahora `w-full` por defecto más el override). Sugerido: añadir a `tests/e2e-zaltyko-full.spec.ts` un flujo `MarketplaceForm` que rellene Categoría y confirme que el POST sale con `category` no vacío.
+
+## 2026-08-09 - ZAL-481 piloto Web/Mobile: bloqueadores de tooling y dominio resueltos
+
+Se revisó el recorrido mínimo de acceso, configuración de academia, primer registro operativo y trial Starter/billing con datos sintéticos/locales. El corte compatible queda deliberadamente separado: Web mantiene creación/configuración de academia, activación de trial y checkout/portal owner-only; Mobile usa los contratos backend existentes para login/perfil y operación diaria del coach (sesiones, asistencia y evaluación). Mobile no duplica lógica server-only ni ofrece billing SaaS administrativo en la app nativa.
+
+**Bloqueadores reproducidos y resolución:**
+
+- **Mobile no verificable por instalación incompleta:** `mobile/` no tenía dependencias instaladas; `tsc`, Vitest y ESLint fallaban antes de compilar (`expo/tsconfig.base` ausente y `--ext` inválido en ESLint 9). Se ejecutó `npm ci` local (sin modificar lockfile), se corrigieron `lint`/`lint:fix` al formato ESLint flat y el tooling quedó verde.
+- **Mobile abría el alias antiguo:** el fallback y la plantilla `EXPO_PUBLIC_API_BASE_URL` apuntaban a `https://app.zaltyko.com`, mientras la URL canónica y universal links del proyecto son `https://zaltyko.com`. Se alinearon `mobile/lib/auth/supabase.ts` y `mobile/.env.example`; no se leyeron ni modificaron variables externas.
+- **No bloqueador funcional descartado:** no se encontró un fallo reproducible en los contratos de claim de owner, creación/listado de sesiones, asistencia, autenticación/autorización, planes o trial. Los 43 tests Web focales pasan.
+
+**Evidencia local/sandbox:**
+
+- Mobile: `npm run typecheck` PASS; `npm test -- --run` PASS, 2 archivos/13 tests; `npm run lint` PASS; `npx expo export --platform web` PASS.
+- Web/backend: Vitest focal PASS, 7 archivos/43 tests (`owner-claim`, auth completa, sesiones, asistencia, billing plans, trial lifecycle y billing integration).
+- Web UI local: Playwright Chromium público PASS, 2/2 tests (`tests/e2e-zaltyko-public.spec.ts`), incluyendo sitemap/robots y formulario de contacto local.
+- `npm audit --omit=dev` de Mobile sigue reportando 9 high/17 moderate transitorias en la cadena Expo/Metro. No se ejecutó `npm audit fix --force`: propone downgrade mayor de Expo y es riesgo de plataforma separado, no se mezcló con el bloqueador del piloto.
+
+**Handoff:** release candidate local listo para revisión independiente de QA/Platform & Security. No se ejecutaron producción, migraciones remotas, Stripe live, secretos, datos reales ni publicación. Pendiente antes de cualquier build distribuido: confirmar que el pipeline de Mobile inyecte `EXPO_PUBLIC_API_BASE_URL=https://zaltyko.com` y realizar la validación humana de dispositivo; el código ya tiene fallback canónico.
+
+Vault: actualizado `Changelog interno.md`; sin cambio de dirección de producto ni migración.
+
+## 2026-08-09 - ZAL-462 auditoría operativa CEO y limpieza de gates fantasma
+
+Se revisó el flujo de trabajo completo contra Paperclip, la vault y el estado de git, manteniendo cambios paralelos sin revertir.
+
+**Evidencia actual de operación:**
+
+- Paperclip: 99 issues abiertas (`60 blocked`, `27 in_review`, `2 in_progress`, `1 todo`, `9 backlog`).
+- Costes: `/costs/summary` devuelve `407699` centavos sobre cap `1000000` (`40,77%`). El dato `167,97%` de la auditoría del 2026-08-04 queda etiquetado como snapshot histórico de la aprobación `3a992918-ddcb-487a-8dfb-fcd8772f57fd`; no se elevó un nuevo approval porque el gasto actual está bajo 80%.
+- La rama local `zal-45-gate-disponibilidad-pais` está 8 commits por delante de `origin`; existen cambios ajenos sin commit en la vault y se conservaron.
+- La señal de balance por texto de issues sigue siendo mala: 77 issues contienen lenguaje de control/gobernanza frente a 63 con lenguaje de producto. Es una heurística de triage, no evidencia de adopción ni readiness.
+
+**Acciones ejecutadas:**
+
+- [ZAL-156](/ZAL/issues/ZAL-156): se eliminó la dependencia fantasma de Gemita, se pasó a `todo` y se reasignó la aceptación funcional a Product Lead.
+- [ZAL-158](/ZAL/issues/ZAL-158): se reemplazó el gate de privacidad de Hermin por Platform & Security y se pasó a `todo`.
+- [ZAL-191](/ZAL/issues/ZAL-191): se eliminó la referencia operativa a Gemita y se pasó a `todo` para triage de Marketing.
+- [ZAL-138](/ZAL/issues/ZAL-138) no se desbloqueó porque su bloqueo vigente es C-2 SHA real; [ZAL-140](/ZAL/issues/ZAL-140) ya estaba cerrada.
+
+**Decisión operativa:** producto primero; `blocked` solo con dependencia real y acción nombrada; `in_review` solo con reviewer/interacción/monitor persistente; SHA + peer para código y cambios sensibles; sin no-op/C-2 repetitivo para docs, copy, briefs u operaciones no-code verificables. Los límites de producción, dinero real, datos personales, secretos y publicación externa no cambian.
+
+**Vault:** actualizadas `Decisiones.md`, `Changelog interno.md` y `Backlog priorizado.md`.
+
+## 2026-08-08 - ZAL-158 [GTM-DEP.2] corte 1 schema/RLS-only entregado, pendiente C-2
+
+Corte 1 del split en 3 cortes aprobado por el board en [ZAL-441](/ZAL/issues/ZAL-441) (Strategy A + Plan B).
+
+**Deliverable verificado:**
+
+- SHA `de4dcd985c53de350b2ca0c988eb898dd4ca21f6` en rama `feat/zal-158-owner-consent-cut1`, 738 insertions, 5 archivos.
+- `src/db/schema/owner-consent.ts` (Drizzle): `owner_consent` 1-fila-por-owner con soft-revoke + `owner_consent_audit` append-only con trigger `BEFORE UPDATE/DELETE` que lanza EXCEPTION. Constraints CHECK replican regex `^vN-YYYY-MM-DD$` (policy_version) y `<source>:<id 1-128>` (consent_proof).
+- `supabase/migrations/20260808120000_owner_consent.sql`: companion SQL versionado con `app_config` + `current_policy_version()` (C1), RLS `owner_self_read` para ambas tablas (defense-in-depth per Decisiones 2026-07-09), `app_config` sembrado con `consent.policy_version = v1-2026-08-01`.
+- `src/lib/consent/owner-consent.ts`: helper server-side puro (sin I/O). Predicate `isConsentGrantedAndActive(consent, currentPolicyVersion)` evaluado al momento (no cacheado, C2), regex/enums exportados (C3), helper `appendAuditEvent` (C4).
+- `tests/owner-consent.test.ts`: 25/25 tests verdes (vitest). Cubre regex, predicate de gating, validación `consent_proof` ↔ `source`, edge case re-grant por policy bump.
+- `pnpm drizzle-kit check` → Everything fine (schema ↔ migration consistente).
+- 0 cambios de comportamiento runtime. Capa de wiring (`withTenant` API, captura en signup/claim, revocación) queda para corte 2.
+
+**HMAC del API de revocación (Plan B aprobado en ZAL-441):** derivado de `NEXTAUTH_SECRET` con namespacing y validación de entropía mínima, reemplazado por secret dedicado en corte 2. No bloquea corte 1.
+
+**Estado de cierre:** ZAL-158 sigue en `in_review` con C-1 anchored (board ya emitió `## Review: APPROVED` literal en ZAL-158 thread 2026-08-08T17:46:20Z, replicado por ZAL-441 a 17:45:41Z). PATCH `status=done` devuelve 409 `PeerVerificationRequired` per `feedback_paperclip_auto_approve_conditional.md` (C-1 vivo exige C-2). Comentario de evidencia + opciones (C-2 board directo / supersede C-1) en ZAL-158 (`e86a2ec3-9380-4133-8304-ed82e97cb3dc`) y ZAL-441 (`691952c9-cef9-494c-ae75-089c857570a6`).
+
+**Acción siguiente:** decisión board entre C-2 directo o supersede C-1. Ningún PATCH que cierre la issue está agent-side.
+
+**Refs:** PR #66 contra `zal-45-gate-disponibilidad-pais`; ZAL-160 (page_view consentido) queda habilitada para re-verificar el contrato read-only con storage real cuando ZAL-158 corte 1 cierre.
+
+## 2026-08-04 - ZAL-289 contención operativa tras auditoría del board
+
+Se convirtió la auditoría del board en trabajo ejecutable y se separó la evidencia de control-plane de cualquier claim de readiness de producto.
+
+**Estado verificado en Paperclip:**
+
+- Gasto mensual: `167966` centavos contra cap `100000` (167,97%).
+- Cola: 57 issues bloqueadas y 43 en `in_review`.
+- Platform & Security: 14 bloqueadas y gasto mensual `29997` centavos.
+- Meta-trabajo: 33 de 41 canceladas actuales coinciden con peer/SHA/C-2/productivity/no-op.
+- Fallos del 2026-08-04: 20; 13 por `provider_quota`. La auditoría histórica reporta 866 fallos de quota sobre 1096 fallos totales.
+
+**Acciones ejecutadas:**
+
+- Approval de board `3a992918-ddcb-487a-8dfb-fcd8772f57fd` para decidir contención/cap; recomendación: no subir el cap antes de diseñar failover y circuit-breaker.
+- [ZAL-290](/ZAL/issues/ZAL-290): diseño de failover, backoff y alertas, owner Engineering Lead.
+- [ZAL-291](/ZAL/issues/ZAL-291): simplificación del gate no-code y límite de tres ciclos, owner Engineering Lead.
+- [ZAL-292](/ZAL/issues/ZAL-292): vaciado de `in_review` con owners y próximas acciones, owner Product Lead.
+- [ZAL-293](/ZAL/issues/ZAL-293): redistribución completa de la cola de Platform & Security, owner Engineering Lead.
+- Reasignadas a Engineering Lead [ZAL-248](/ZAL/issues/ZAL-248) y [ZAL-174](/ZAL/issues/ZAL-174); reasignadas a QA [ZAL-197](/ZAL/issues/ZAL-197) y [ZAL-220](/ZAL/issues/ZAL-220). Todas pasaron de `blocked` a `todo` porque son trabajo local/reproducible sin secretos.
+
+**Límites:**
+
+- No se ejecutaron cambios de producción, migraciones remotas, secretos, cuentas externas, compras ni cambios de proveedor.
+- Las cifras son evidencia del control-plane, no validación externa, adopción ni readiness de Zaltyko.
+
+**Vault:** actualizadas `Decisiones.md`, `Changelog interno.md` y `Backlog priorizado.md`.
+
+## 2026-08-02 - ZAL-3 [Stripe Connect] la notificación de cobro fallido es best-effort
+
+Se endureció `reconcilePaymentIntentFailed(...)` para que un fallo al enviar la notificación al tutor no tumbe el webhook ni revierta la reconciliación del cargo. El cargo sigue quedando en `failed`, el error se registra con `logger.error` y el webhook de Connect conserva el contrato idempotente.
+
+**Cambios concretos:**
+
+- `src/lib/stripe/charge-reconcile-service.ts` ahora envuelve `sendChargePaymentFailedNotification(...)` en `try/catch`.
+- `tests/lib/stripe-charge-collection.integration.test.ts` añade un caso negativo: si la notificación falla, la reconciliación sigue resolviendo en `undefined` y el update del cargo se conserva.
+
+**Verificación:**
+
+- Ejecutado `corepack pnpm vitest run tests/lib/stripe-charge-collection.integration.test.ts tests/connect-webhook-payment-failed-notification.test.ts tests/lib/stripe-connect-webhook-handler.test.ts`.
+- Resultado: 30/30 tests verdes.
+
+**Vault:** actualizado. Sin cambios adicionales en `Decisiones`.
+
+## 2026-08-02 - ZAL-3 [Stripe Connect] notificación de cobro fallido al tutor/familia
+
+Se añadió la notificación operativa para `payment_intent.payment_failed` en el reconciliador de Stripe Connect: cuando un `PaymentIntent` falla y sigue asociado a un cargo pendiente/failed de la misma academia/tenant, el webhook ahora deriva `chargeId`, `tenantId`, `academyId`, `athleteId`, importe y motivo de fallo hacia un email transaccional con logging y dedupe por `chargeId + paymentIntentId`.
+
+**Cambios concretos:**
+
+- `src/lib/stripe/charge-reconcile-service.ts` llama a `sendChargePaymentFailedNotification(...)` tras marcar el cargo como `failed`.
+- `src/lib/stripe/notification-service.ts` resuelve el destinatario desde `guardians` o `familyContacts`, protege el render del subject/cuerpo si falta `academyName` y usa `sendEmailWithLogging` para conservar trazabilidad.
+- `tests/connect-webhook-payment-failed-notification.test.ts` ya cubría el flujo; se verificó el helper contra esa suite sin cambiar el contrato.
+- `tests/e2e-zaltyko-stripe-connect-flow.spec.ts` mantiene el ajuste para cargar Stripe.js desde un origen web real antes de confirmar el SetupIntent.
+
+**Verificación:**
+
+- Ejecutado `corepack pnpm vitest run tests/connect-webhook-payment-failed-notification.test.ts`.
+- Resultado: 9/9 tests verdes.
+
+**Vault:** actualizado. Sin cambios adicionales en `Decisiones`.
+
+## 2026-08-02 - ZAL-158 [GTM-DEP.2] Consent gate tracking — disposition `blocked` (compliance gate)
+
+Run `e791afbb-1a8a-4113-aa5c-65713e6e80b8` terminó `failed` por cuota (429 del modelo, no bug técnico). Inspección: el run no produjo código (no hay SHAs nuevos para `owner_consent` ni cambios en disco). Levanto el trabajo en este heartbeat (`5b186b1c-ccc3-486c-8619-34e9ff11771e`) pero **no escribo código**: la propia issue ZAL-158 declara a Hermin (Data Protection) como BLOQUEANTE para instrumentar (§6 de `RESEARCH/DATA_GOVERNANCE_TAXONOMY_GTM.md`).
+
+**Disposition registrada:** ZAL-158 → `blocked`.
+
+**Unblock descriptor:**
+
+- `owner: "board"` — el board debe activar a Hermin para ejecutar privacy review sobre los campos propuestos de `owner_consent` y coordinar con Content (5d63f5f6) para empujar ZAL-139 a `done`.
+- `blockedByIssueIds: ["ce0c2713-a772-49d5-b07d-2a145826a72a"]` — ZAL-139 Resend templates. Cuando cierre, el email gating copy queda liberado.
+
+**Por qué NO se instrumentó nada (regla Web Developer "cambios sensibles sin QA y Platform/Security"):**
+
+- `owner_consent` schema (Drizzle) + migración: si Hermin pide campos distintos, retroceder migración es caro. Espero sign-off.
+- API `withTenant` + Zod: depende del schema aprobado.
+- Capture en signup/claim: depende del schema + API.
+- Email gating Resend d0/d2/d7: depende de ZAL-139 cierre.
+- Audit log: depende del esquema que Hermin apruebe.
+- Tests unitarios: dependen del schema.
+- Test e2e (Playwright): fuera de mi scope sin autorización explícita del board.
+
+**Lo que YA está en repo y queda como contrato público para el futuro `owner_consent`:**
+
+- `src/lib/consent/state.ts` — read-only (`getConsentSnapshot`, `subscribeConsent`, `hasAnalyticsConsent`). Diseñado para que el storage real lo reemplace sin tocar consumidores.
+- `src/lib/consent/store.ts` (ZAL-156.2, commit `d950a9286`) — storage cliente-side con localStorage versionado, cross-tab sync, default-deny. Pieza análoga del lado cliente.
+- ZAL-160 (commit `3963ae569`) wired el gate de `page_view` contra `hasAnalyticsConsent()`. 25 tests verdes. Sigue `in_review` esperando cierre de ZAL-158 para re-verificar el swap stub→storage real.
+
+**Próximos pasos (cuando Hermin apruebe + ZAL-139 cierre):**
+
+1. Ajustar campos de `owner_consent` si Hermin pidió cambios (especialmente `policy_version`, `source` enum, `revocation_reason` formato).
+2. Crear migration Drizzle + `src/db/schema/owner-consent.ts`. Aplicar local, NO remoto.
+3. API `src/app/api/consent/route.ts` con `withTenant` + Zod. Respuestas `apiSuccess`/`apiError`. Aislamiento por `tenantId` + `profileId` del owner.
+4. Capture signup/claim: hook en flujo existente con `source: 'signup' | 'claim'`, `policy_version: 'v1-2026-08-01'`, `granted_at: now()`. **No pre-checked, no bundled.**
+5. Email gating: en worker/cron Resend d0/d2/d7, leer `owner_consent` antes de encolar; `revoked_at IS NOT NULL OR granted = false` → parar. Footer de cada mail con link de revocación.
+6. Audit log por cada grant/revoke/import con `actor_id`, `timestamp`, `delta_json`.
+7. Tests unitarios grant/revoke/re-grant/re-import. Mantener verde `tests/consent-gate.test.ts` (lo prometió ZAL-160 al board).
+8. Mencionar a Web Developer en ZAL-158 al cerrar para que ZAL-160 re-verifique swap stub→storage real y cierre a `done`.
+
+**Limitaciones de este run:**
+
+- No se tocó código, no se aplicaron migraciones, no se ejecutaron servicios externos.
+- Si el board prefiere que instrumente sin esperar a Hermin (riesgo de retrabajo), responder en el hilo de ZAL-158.
+
+**Vault:** Changelog actualizado. Sin cambios en código ni en `Decisiones` (la decisión de no-instrumentar-pendiente-Hermin queda en el hilo de Paperclip, no es decisión de vault).
+
+---
+
+## 2026-08-02 - ZAL-156.2 [GTM-DEP.2] Storage canónico de consent (cross-tab + banner UI)
+
+Cierra el último sub-issue de GTM-DEP. Reemplaza el stub default-deny de
+ZAL-160 por el storage canónico: sincronización cross-tab vía `storage`
+event y banner UI de cookies WCAG-AA. Misma API expuesta por
+`src/lib/consent/state.ts` — los consumidores (`trackPageView`,
+`usePageTracking`) no requirieron cambios, como anticipaba el diseño de
+ZAL-160.
+
+**Decisión técnica:**
+
+- `src/lib/consent/store.ts` deja de ser "stub" y pasa a ser la
+  implementación de referencia del storage de consent. Mantiene
+  `localStorage` con clave versionada (`zaltyko.consent.v1`) y misma
+  semántica de default-deny.
+- Sincronización entre pestañas del mismo origen: el store instala un
+  `storage` event listener en `window` perezosamente (primera llamada
+  a `readConsent` / `writeConsent` / `subscribeConsent`). Cuando otra
+  pestaña escribe o purga, los listeners locales reciben el snapshot
+  vigente y `usePageTracking` re-trackea si el cambio es a `granted`.
+- `__resetConsentForTests()` (solo en no-prod) limpia el listener
+  registry y resetea el flag de binding. Necesario en tests porque el
+  stub de `window` cambia entre tests.
+- Banner UI `<CookieConsentBanner />`:
+  - Solo visible cuando el consent está en `unset`. Una vez que el
+    usuario opta, el banner no vuelve a salir ni en reload.
+  - Dos opciones: Aceptar (`granted`) / Rechazar (`revoked`). Sin
+    botón "X" — sería un patrón oscuro (cerrar sin elegir ≡ denegar,
+    pero el storage queda en `unset` y el banner reaparece).
+  - WCAG 2.2 AA: `role="dialog"`, `aria-labelledby`/`aria-describedby`,
+    `autoFocus` en Aceptar, `motion-reduce:animate-none` para usuarios
+    que lo prefieren reducido.
+  - Copy alineado con `vault/04-Marketing/Mensajes aprobados.md`:
+    "privacidad por diseño", sin prometer "RGPD Compliant".
+
+**Cambios concretos:**
+
+- **Modificado**: `src/lib/consent/store.ts` — añadida sincronización
+  cross-tab vía `storage` event (binding perezoso), listener registry
+  con `Set<ConsentListener>`, helper de tests `__resetConsentForTests`.
+- **Modificado**: `src/lib/consent/state.ts` — comentario del módulo
+  actualizado: el store ya no es "stub", es la implementación
+  canónica. La API expuesta (`getConsentSnapshot`, `subscribeConsent`,
+  `hasAnalyticsConsent`) no cambia.
+- **Nuevo**: `src/components/CookieConsentBanner.tsx` — banner
+  minimalista WCAG-AA, Aceptar/Rechazar, copia aprobada.
+- **Modificado**: `src/app/layout.tsx` — monta `<CookieConsentBanner />`
+  en el root layout, junto a `<UtmCapture />` (todos client-only).
+- **Modificado**: `tests/consent-gate.test.ts` — añadidos 5 tests
+  para la sincronización cross-tab (storage event con key válida,
+  removeItem, key distinta, instalación perezosa, reset de test hook).
+  El stub de `window` ahora incluye `addEventListener` /
+  `dispatchEvent` basados en `EventTarget` para soportar el binding;
+  helper `makeStorageEvent` polyfill del constructor (no existe en
+  el test environment node).
+
+**Cobertura (ZAL-156.2):**
+
+- `tests/consent-gate.test.ts` — 25 tests, todos verdes (+5 vs ZAL-160).
+  - Cross-tab: storage event desde "otra pestaña" notifica con el
+    valor nuevo; `removeItem` también notifica (vía `newValue: null`);
+    storage event con key distinta a la del consent NO notifica.
+  - Instalación: el listener se instala perezosamente en el primer
+    uso (no se añade hasta `readConsent` / `writeConsent` /
+    `subscribeConsent`).
+  - Test hook: `__resetConsentForTests()` limpia el registry y
+    resetea el flag de binding.
+- Tests previos (matriz consent × UTM, persistencia, suscripción) sin
+  cambios — siguen verdes, confirma que la API expuesta por `state.ts`
+  no cambió.
+
+**Coordinación con ZAL-160:**
+
+- ZAL-160 ya anticipaba este reemplazo: "ZAL-156.2 es la issue
+  designada para el storage canónico de consent. El stub actual vive
+  en `src/lib/consent/store.ts`; cuando ZAL-156.2 entregue su
+  implementación, el reemplazo debe mantener la API expuesta por
+  `src/lib/consent/state.ts`". Confirmado: el store mantiene la
+  misma API; los consumidores no requirieron cambios.
+- Si en el futuro se quiere endurecer el storage con HMAC o server-side
+  sync (Supabase), la sustitución sigue siendo de una sola pieza en
+  `store.ts` sin tocar a los consumidores.
+
+**Fuera de alcance / pendiente:**
+
+- Migración de consentimientos ya escritos con la v1 del stub: la clave
+  no cambia, así que no requiere migración. Si en una iteración futura
+  se cambia la versión (`v1` → `v2`), se necesitará una migración
+  explícita para no perder consentimientos existentes.
+- Sincronización del consent entre dispositivos para usuarios
+  autenticados (persistir también en Supabase con `user_consent_log`).
+  El alcance actual es single-device. El banner funciona en ambos
+  casos (el storage client es lo que el gate consulta), pero la
+  auditoría forense del consent para GDPR Data Subject Access Request
+  queda fuera de scope (ZAL-156 issue separada si aplica).
+- Localización del banner: copy actual en español, alineado con el
+  mercado hispano (LATAM + US Hispanic). Otros locales no son scope.
+- `prefers-reduced-motion` cubre el `animate-in`, pero el icono o la
+  jerarquía visual no cambian. Si se quiere un banner más sobrio (sin
+  borde redondeado, sin shadow), decisión de producto separada.
+
+**Riesgos / notas:**
+
+- El banner se monta en el root layout sincrónicamente. En SSR
+  devuelve `null` (no hay `window`); en cliente, antes del `useEffect`
+  también devuelve `null` para evitar parpadeo si el usuario ya optó.
+  El primer paint con `unset` mostrará el banner con un slide-in.
+- `dispatchEvent` para `storage` en producción: el browser real
+  dispara el evento automáticamente. El store no hace
+  `dispatchEvent` propio — solo escucha. El path de `writeConsent`
+  notifica a los listeners locales por su cuenta (no necesita
+  disparar `storage` porque el browser ya lo hace).
+- El test environment es `node` (no jsdom), por eso el stub
+  `EventTarget` y el polyfill de `StorageEvent`. En jsdom o browsers
+  reales esto no aplica.
+
+**Costo:** 0 USD (storage canónico client-side, sin servicios externos).
+
+## 2026-08-02 - ZAL-157 [GTM-DEP.1] UTM capture en signup (first-touch, sessionStorage)
+
+Captura client-side de los 5 parámetros UTM (`utm_source`, `utm_medium`, `utm_campaign`, `utm_term`, `utm_content`) en el signup del owner y los persiste en `academies.utm_*`. Regla first-touch: si el owner llegó por una landing con UTMs, esos valores se preservan aunque la URL del signup venga sin UTMs o con otros distintos. Es la fundación de la atribución del canal de registro (ZAL-159) — sin first-touch, las academias que entran por landing → navegan → signup pierden atribución.
+
+**Decisión técnica:**
+
+- Captura client-side en cada page view (`<UtmCapture />` montado en el root layout) → persistencia en `sessionStorage` con regla first-touch (no sobrescribe valores existentes).
+- Precedencia en signup: `explicit > sessionStorage > URL`. URL gana solo en cold start sin sesión previa.
+- Validación al ingreso: `trim + lowercase + colapsa espacios a _ + quita caracteres no permitidos` (snake_case Hermin §4, max 200 chars por columna).
+- Storage: columnas nuevas en `academies` (`utm_source`, `utm_medium`, `utm_campaign`, `utm_term`, `utm_content`, `utm_captured_at`, `utm_landing_path`) + 2 índices (`academies_utm_source_idx`, `academies_utm_medium_idx`) para queries de ROI por canal.
+- SSR-safe: si `window` no existe, helpers no operan y devuelven `{}` o `null`. No bloqueamos la captura si `sessionStorage` está deshabilitado (modo privado).
+- El signup (fallback) y el claim path (seed list match) ambos persisten UTMs + `utm_landing_path` + `utm_captured_at`. Regla: si la academia seed ya venía con UTMs del pre-registro, los respetamos (no sobrescribimos en claim path).
+- `clearStoredUtm()` al final del signup/claim exitoso purga el storage para que la siguiente sesión no herede UTMs de la anterior.
+- `trackPageView` (ZAL-160) adjunta los UTMs persistidos al payload `$pageview` cuando hay consent — sin re-leer storage en el resto del funnel.
+
+**Cambios concretos:**
+
+- **Nuevo**: `src/lib/gtm/utm.ts` — helpers client-side (`readUtmFromUrl`, `captureUtm`, `readStoredUtm`, `readUtmForSignup`, `clearStoredUtm`) + tipos `CapturedUtm` + constantes `UTM_KEYS` y `SESSION_STORAGE_KEY`.
+- **Nuevo**: `src/components/UtmCapture.tsx` — componente client-only que llama `captureUtm()` en mount (idempotente). Montado una vez en el root layout.
+- **Nuevo**: `drizzle/0007_academies_utm_columns.sql` — 7 columnas nuevas + 2 índices + comentarios in-DB sobre la taxonomía. NO instala triggers (la API es la única fuente de escritura).
+- **Modificado**: `src/app/layout.tsx` — monta `<UtmCapture />` en el root layout (cliente).
+- **Modificado**: `src/app/onboarding/owner/page.tsx` — pasa `suggestedFullName` al componente; la captura UTMs sucede en el form.
+- **Modificado**: `src/components/onboarding/OwnerOnboardingForm.tsx` — en submit, `captureUtm()` + `readUtmForSignup()` → envía `utm` en el body al backend. `clearStoredUtm()` post-success.
+- **Nuevo**: `src/components/onboarding/OwnerClaimCard.tsx` + `src/app/api/onboarding/owner/claim/route.ts` + `src/lib/onboarding/owner-claim.ts` — camino D-006 v0 que también persiste UTMs (mismo helper client + persistencia servidor con regla first-touch).
+- **Modificado**: `src/lib/onboarding/owner-claim.ts` — `ClaimAcademyBodySchema` acepta `utm` opcional; `claimAcademy` solo escribe UTMs si la academia seed estaba vacía y al menos uno de source/medium viene.
+- **Modificado**: `src/app/api/onboarding/owner/route.ts` — `bodySchema` acepta `utm` opcional; `createAcademy` los persiste; `logEvent("academy_created")` lleva UTMs en metadata.
+- **Modificado**: `src/app/api/academies/academies.lib.ts` — `createAcademy` recibe `utm` opcional, normaliza campos (`utm_source`/`utm_medium` principales, `utm_captured_at` solo si source o medium viene), persiste en INSERT.
+- **Modificado**: `src/db/schema/academies.ts` — añadidas las 7 columnas UTM + 2 índices.
+- **Modificado**: `src/lib/analytics.ts` — `trackPageView` adjunta `readStoredUtm()` al payload (enriquecimiento de evento sin doble lectura).
+
+**Cobertura (ZAL-157):**
+
+- `tests/gtm-utm.test.ts` — 13 tests, todos verdes.
+  - URL parsing: 5 keys + omite vacíos + URLSearchParams directo + max 200 chars + normalización.
+  - First-touch sessionStorage: persiste si URL trae, respeta primer touch en navegación interna, no-op sin UTMs, landing path solo en primera captura.
+  - `readUtmForSignup`: null cuando nada, mezcla explicit > storage > URL, cold start con URL directa.
+  - SSR-safe: no lanza si `window` undefined.
+- `tests/api/owner-claim.test.ts` — 11 tests, todos verdes.
+  - `findClaimableAcademyByEmail`: match case-insensitive, sin match, email vacío/espacios.
+  - `claimAcademy`: happy path con tenantId reusado, 403 CLAIM_EMAIL_MISMATCH, 404 ACADEMY_NOT_FOUND.
+  - POST `/api/onboarding/owner/claim`: 401 sin sesión, 400 INVALID_PAYLOAD, happy path con `logEvent("owner_claimed")`.
+  - POST `/api/onboarding/owner` (fallback): 400 INVALID_PHONE si teléfono mal formado, sin INVALID_PHONE si teléfono ausente (compatibilidad callers viejos).
+
+**Notas de coordinación con ZAL-160 / ZAL-159:**
+
+- ZAL-160 (consent gate) usa `readStoredUtm()` de ZAL-157 para enriquecer `posthog.capture("$pageview", ...)` solo cuando hay consent. El gate aplica al page_view (arrastra cookies); el resto del funnel trackea post-signup sin gate porque magic link prueba identidad.
+- ZAL-159 (`canal_registro`) consume los UTMs persistidos en `academies.utm_*` y deriva el canal vía `derivar_canal(utm_source, utm_medium)`. Sin ZAL-157 no hay dato que derivar.
+- Migración `drizzle/0007_academies_utm_columns.sql` está escrita pero NO aplicada a Supabase (regla AGENTS.md — no migraciones remotas sin board). Antes de ZAL-159 instalar su trigger (migración 0008), validar que 0007 ya está aplicada: si no, el trigger falla porque `utm_source`/`utm_medium` no existen.
+
+**Fuera de alcance / pendiente:**
+
+- **Migración NO aplicada**: `drizzle/0007_academies_utm_columns.sql` está staged pero sin entrada en `drizzle/meta/_journal.json`. Aplicar solo con aprobación del board y siguiendo la regla de la guía de trabajo para agentes.
+- Test e2e de navegador con Playwright: signup con UTM completo → verifica row en `academies` con valores correctos. Requiere entorno browser; queda fuera del MVP de tests unitarios/API.
+- Server-side UTM stamping: solo captura client-side en MVP. Multi-touch attribution queda para iteración futura.
+- Derivación de canal desde UTM vive en ZAL-159 (resuelto por `derivar_canal`).
+
+**Costo:** 0 USD (sessionStorage + columnas DB existentes, sin servicios externos).
+
+## 2026-08-02 - ZAL-160 [GTM-DEP.4] page_view consentido (analytics gating client-side)
+
+Cierra el gate de `page_view` para que solo se persista cuando hay consent activo. Sin consent (`unset` o `revoked`) el evento se descarta y no se carga `posthog-js` ni se ejecuta `posthog.capture`. El resto del funnel (signup/claim/invite/activation) sigue trackeándose post-signup porque el magic link prueba identidad — esta restricción aplica solo al evento de visita porque arrastra cookies.
+
+**Decisión técnica:**
+
+- Contrato read-only en `src/lib/consent/state.ts` (`getConsentSnapshot`, `subscribeConsent`, `hasAnalyticsConsent`). Pensado para que el storage real de ZAL-156.2 lo reemplace sin tocar a los consumidores.
+- Stub default-deny en `src/lib/consent/store.ts` con `localStorage` clave `zaltyko.consent.v1` (versionada). Valores posibles: `granted` / `revoked` / `unset` (default). SSR-safe: server-side devuelve `unset`, ningún listener se ejecuta.
+- `trackPageView` ahora consulta `hasAnalyticsConsent()` antes de cualquier side effect. Si es `false`, loguea en dev y retorna sin invocar `posthog-js`. Si es `true`, adjunta UTMs desde `readStoredUtm()` (first-touch de ZAL-157) al payload `$pageview`.
+- `usePageTracking` (PostHogProvider) consulta consent en cada navegación (pushState/popstate) — sin cache — para que un cambio de consent a mitad de sesión se refleje en el siguiente page_view sin reload. Adicional: si el usuario otorga consent DESPUÉS del mount (caso banner de cookies), re-trackea la página actual una vez.
+- Default-deny confirmado por tests: `unset` + cualquier UTM descarta; `granted` + UTM emite y adjunta UTMs; `revoked` + UTM descarta.
+
+**Cambios concretos:**
+
+- **Nuevo**: `src/lib/consent/state.ts` — contrato read-only (tipos + 3 funciones).
+- **Nuevo**: `src/lib/consent/store.ts` — stub default-deny con `readConsent` / `writeConsent` / `subscribeConsent`. SSR-safe, storage corrupto → `unset`, valor `unset` purga la clave.
+- **Nuevo**: `tests/consent-gate.test.ts` — cobertura de la matriz completa (3 estados × 2 UTM × escenarios extra de persistencia/suscripción).
+- **Modificado**: `src/lib/analytics.ts` — `trackPageView` consulta `hasAnalyticsConsent()` y adjunta UTMs persistidos solo cuando hay consent.
+- **Modificado**: `src/components/PostHogProvider.tsx` — `usePageTracking` consulta consent en cada navegación y se suscribe para re-trackear cuando se otorga consent después del mount.
+
+**Cobertura (ZAL-160):**
+
+- `tests/consent-gate.test.ts` — 20 tests, todos verdes.
+- Matriz cubierta explícitamente:
+  - `unset` + sin UTM → descarta
+  - `unset` + con UTM → descarta (consent es gate duro)
+  - `granted` + sin UTM → emite sin UTM en payload
+  - `granted` + con UTM completo (5 keys + landing_path) → emite con UTM adjunto
+  - `granted` + UTM parcial → emite solo las claves presentes
+  - `revoked` + sin UTM → descarta
+  - `revoked` + con UTM → descarta (revocación apaga tracking)
+- Suscripción: callback idempotente, grant/revoke notifica, unsubscriber detiene, múltiples listeners independientes.
+- Persistencia: sobrevive relectura, clave versionada, `unset` purga, storage corrupto → `unset`.
+
+**Coordinación con ZAL-156.2 (consent gate tracking):**
+
+- ZAL-156.2 es la issue designada para el storage canónico de consent. El stub actual vive en `src/lib/consent/store.ts`; cuando ZAL-156.2 entregue su implementación, el reemplazo debe mantener la API expuesta por `src/lib/consent/state.ts` (`readConsent`, `subscribeConsent`). Los consumidores (`trackPageView`, `usePageTracking`) NO deberían requerir cambios.
+- Dependencia declarada en ZAL-160. Mientras 156.2 no esté en `done`, el storage real es este stub. El gate funciona end-to-end contra el stub; el día que 156.2 lo reemplace, no hay re-trabajo del gate.
+- Si 156.2 introduce un banner UI de cookies, ese banner debe llamar `writeConsent("granted")` / `writeConsent("revoked")` desde `src/lib/consent/store.ts` (o del módulo equivalente en 156.2 si expone esa función). No meterse en cómo se captura el consent — eso es scope de 156.2.
+
+**Fuera de alcance / pendiente:**
+
+- UI del banner de cookies para capturar el consent del usuario — eso es ZAL-156.2. El gate de ZAL-160 funciona contra cualquier productor que setee `writeConsent`.
+- Test e2e de navegador con Playwright del flujo consent-grant → page_view emitido → revoke → page_view descartado. Requiere banner UI, queda bloqueado hasta 156.2.
+- Sync entre pestañas del consent via `storage` event. Single-tab es suficiente para MVP; si Bumble pide cross-tab en una iteración futura, se añade en `store.ts`.
+- Pre-existing tests al margen: `tests/gtm-utm.test.ts` y `tests/api/owner-claim.test.ts` ya fueron arreglados en ZAL-157 (`utm_landing_path` se incluye ahora en el JSON principal de sessionStorage y el mock de `withTransaction` provee la forma completa de db para que `tx.select/insert/update` funcionen). Total verde: 44 tests (13 + 20 + 11).
+
+**Riesgos / notas:**
+
+- Si `posthog-js` se carga via `<Analytics />` de Vercel en `layout.tsx`, eso es independiente del gate de page_view. El gate de ZAL-160 aplica específicamente a `posthog.capture("$pageview", ...)`, no a Vercel Analytics. Revisar si Vercel Analytics necesita su propio gate (separado, decisión de producto) — out of scope de ZAL-160.
+- Si en producción el opt-in se captura vía banner visible antes de cualquier navegación, el usuario verá la home antes de poder aceptar. Eso es comportamiento esperado: el primer page_view se descarta, y los siguientes (post-accept) se trackean. Si producto quiere lo contrario, hay que mover el banner al SSR/edge — out of scope.
+- El stub de `store.ts` no cifra ni firma el valor en `localStorage`. Si 156.2 quiere integridad criptográfica, debe vivir en su reemplazo, no aquí.
+
+**Costo:** 0 USD (gate client-side, sin servicios externos nuevos).
+
+## 2026-08-02 - ZAL-159 [GTM-DEP.3] Canal de registro attribution
+
+Cierra la derivación del campo `canal_registro` desde los UTM capturados en signup. Cada academia queda atribuida al canal que la trajo para que Bumble calcule ROI por canal con datos, no estimaciones.
+
+**Decisión técnica:**
+
+- Regla de precedencia `paid > social > email > organic > direct` implementada como función pura `derivar_canal(utm_source, utm_medium)` en `src/lib/gtm/canal.ts`, con alias `resolveCanal({utm_source, utm_medium})` para compatibilidad con la cobertura previa. Ambas firmas pasan por la misma lógica `resolveFromNormalized()` para evitar divergencia.
+- La precedencia se aplica en el orden contractual completo: `utm_medium=cpc` o source paid → paid; después social, email y organic. Por ejemplo, `instagram+cpc → paid`, mientras `google_ads+email → paid`.
+- Persistencia en dos capas: TS (`createAcademy` calcula `canal_registro` y lo pasa en el INSERT para devolverlo sin re-leer) + DB (función SQL pura/inmutable y trigger BEFORE INSERT).
+- Snapshot first-touch: el único UPDATE permitido es el claim/signup efectivo de una academia pre-registrada cuyos UTM anteriores estaban vacíos y cuyo canal era `direct`/NULL. Cualquier actualización posterior conserva la atribución.
+- Taxonomía `whatsapp → social` explícita (no `direct`) en línea con la nota de Hermin §4.
+- `google` como alias genérico: solo el medium válido determina el canal; sin medium o con UTM inválido cae a `direct`, igual que exige el alcance aceptado.
+
+**Cambios concretos:**
+
+- **Nuevo**: `drizzle/0008_academies_canal_registro.sql` — columna `academies.canal_registro` + función pura `academies_canal_registro_value()` + wrapper de trigger + BEFORE INSERT + UPDATE guardado para el primer claim + backfill idempotente + 5 índices parciales por canal sobre `(tenant_id, created_at)`.
+- **Modificado**: `src/lib/gtm/canal.ts` — `resolveCanal()` y `derivar_canal()` comparten la misma precedencia exacta y exponen solo `paid | social | email | organic | direct`.
+- **Modificado**: `src/db/schema/academies.ts` — añadida `canalRegistro: text("canal_registro")`.
+- **Modificado**: `src/app/api/academies/academies.lib.ts` — `createAcademy` calcula `canalRegistro` con `derivar_canal(utm_source, utm_medium)` y lo persiste en el INSERT; el valor también se devuelve en `createAcademyResult` para evitar re-lectura.
+- **Modificado**: `src/lib/onboarding/owner-claim.ts` — `claimAcademy` recalcula `canalRegistro` cuando rellena UTMs en el claim path (cuando el seed venía vacío y el signup trae UTMs nuevos).
+- **Modificado**: `src/app/api/onboarding/owner/route.ts` — expone `canalRegistro` en la respuesta (`apiCreated({...canalRegistro})`) y en el metadata del `logEvent("academy_created")` para que el funnel post-signup vea el canal.
+- **Modificado**: `tests/gtm-canal.test.ts` — cobertura parametrizada de cada rama, conflictos de precedencia, normalización, UTM inválido → direct y contrato estático de la migración inmutable.
+- **Nuevo**: `tests/gtm-canal-create-academy.test.ts` — smoke de servicio que verifica que `createAcademy` escribe el snapshot correcto para los cinco canales y los conflictos relevantes.
+- **Modificado**: `tests/api/owner-claim.test.ts` — verifica primera captura en claim y que una atribución existente no se sobrescribe.
+
+**Cobertura (ZAL-159):**
+
+- Corrección versionada en commit `0c596123c` sobre la implementación base `9ce0d727e`.
+- `tests/gtm-canal.test.ts` + `tests/gtm-canal-create-academy.test.ts`: **83/83 verdes**.
+- `tests/api/owner-claim.test.ts` + `tests/gtm-utm.test.ts`: **26/26 verdes**.
+- ESLint focalizado: 0 errores (2 warnings preexistentes en el test de claim). `git diff --check`: limpio.
+- `pnpm typecheck` global no es evidencia verde: falla en el árbol `mobile/` por dependencias Expo/React Native ausentes y un conflicto de casing `Button.tsx`/`button.tsx`; no se detectó un error focalizado en este cambio.
+- `pnpm check:migrations` falla de forma explícita por los SQL 0006, 0007 y 0008 fuera de `drizzle/meta/_journal.json`. No se alteró el journal ni se aplicó SQL; el versionado queda como gate de Platform/Security en [ZAL-174](/ZAL/issues/ZAL-174).
+
+**Fuera de alcance / pendiente:**
+
+- **Migración NO aplicada a DB**: `drizzle/0008_academies_canal_registro.sql` está escrita pero NO se ejecutó contra Supabase (regla AGENTS.md — no ejecutar migraciones remotas sin aprobación del board). Para aplicarla a una DB real: correr manualmente el archivo (idempotente — todas las sentencias usan `IF NOT EXISTS` / `OR REPLACE` / `DROP IF EXISTS`) o regenerar con `pnpm db:generate` después de añadir la entrada correspondiente en `drizzle/meta/_journal.json`.
+- **Misma situación para `drizzle/0007_academies_utm_columns.sql`** (ZAL-157, del autor previo): no aplicado aún, sin entrada en el `_journal.json`. Antes de aplicar 0008, validar que 0007 ya está aplicada en la DB objetivo — si no, las columnas `utm_source`/`utm_medium` no existirán y el trigger 0008 fallará al instalarse.
+- **Asimetría con `_journal.json`**: tanto 0007 como 0008 son archivos staged (hand-written SQL), no snapshots drizzle. Un `pnpm db:generate` futuro puede regenerarlas como snapshots y duplicar trabajo. Mantener el flag "staged, no regenerar con kit" en la cabecera de cada archivo.
+- Test E2E de navegador signup→canal no ejecutado: Playwright requiere autorización explícita del board. Se delega a QA con ese gate visible.
+
+**Notas de coordinación:**
+
+- El `_journal.json` actual va hasta 0005. Los archivos 0006, 0007 y 0008 son todos manuales. Cualquier agente que corra `drizzle-kit generate` debe saber que va a generar conflictos (snapshot diff vs DB real). Sugerencia: si se hace generate, alinear primero `_journal.json` con los hand-written aplicando en orden.
+- Revisión de Supabase changelog 2026-08-02: los avisos recientes afectan versionado de extensiones y upgrades de PostgreSQL, no el SQL aditivo de esta tarea. La migración permanece local/no aplicada y pasa a revisión de Platform/Security en [ZAL-174](/ZAL/issues/ZAL-174).
+- Handoff encadenado: Engineering Lead en [ZAL-175](/ZAL/issues/ZAL-175) y QA en [ZAL-176](/ZAL/issues/ZAL-176). QA permanece bloqueada hasta ambos veredictos y debe obtener autorización explícita del board antes de Playwright.
+- `resolveCanal` se preservó como firma por compatibilidad con los tests existentes en `gtm-canal.test.ts`; el spec de ZAL-159 nombra la firma posicional `derivar_canal(utm_source, utm_medium)`, expuesta como alias del mismo cuerpo.
+
+**Costo:** 0 USD (cálculo en DB trigger, sin servicios externos).
+
+## 2026-08-01 - ZAL-137 auditoría y gate condicional CP/teléfono en onboarding owner (D-006 v0)
+
+Diagnóstico read-first antes de tocar código, alineado con la decisión de diseño del board (`ver SPEC_ONBOARDING_ZALTYKO_WEB.md §Gates`):
+
+- **Estado real del repo verificado**: `apps/web/src/...` del comentario de Fizz no existe en este repo. La ruta viva es `src/app/onboarding/owner/page.tsx` + `src/components/onboarding/OwnerOnboardingForm.tsx` + `src/app/api/onboarding/owner/route.ts`. Es flujo crear-desde-cero, no hay claim legacy. `contactEmail` ya está indexado (`academies_contact_email_idx`) y `contactPhone` también (`academies_contact_phone_idx`) — el índice ya está disponible para la query de match.
+- **Decisión adoptada en código**:
+  - **Happy path** (email matchea `academies.contactEmail`): el server component hace `findClaimableAcademyByEmail(user.email)` (case-insensitive sobre índice) y renderiza `OwnerClaimCard` con un único botón "Confirmar y entrar". Sin CP/teléfono en el formulario, porque la verificación de ownership es el match de email.
+  - **Fallback** (sin match, o la academia seed sin `contactEmail`): se renderiza el formulario existente con un nuevo campo `Teléfono de contacto` marcado como requerido, validado con `validatePhoneNumber` (prefijo `+`, 8-15 dígitos E.164) antes de enviar.
+  - Se añadió `POST /api/onboarding/owner/claim` con `claimAcademy()` en transacción: crea perfil (con `onConflictDoNothing` para doble-click), reasigna `academies.ownerId`, inserta membership `owner` (idempotente vía unique index), sincroniza `profile.tenantId` y `profile.activeAcademyId` para que `resolveUserHome` mande al dashboard en lugar de devolver al wizard.
+- **Aislamiento de tenant**: el claim reusa el `tenantId` que la academia seed ya tiene (NO genera uno nuevo). Si el caller intenta reclamar con email distinto al `contactEmail` registrado, devuelve 403 `CLAIM_EMAIL_MISMATCH` sin tocar la academia.
+- **Persistencia de contacto en fallback**: `academies.contactEmail` y `academies.contactPhone` ahora se persisten al crear la academia desde el wizard (`createAcademy` extiende su `CreateAcademyBodySchema`). Sirve para verificación manual de propiedad y como contacto de la academia recién creada.
+
+Cambios concretos:
+
+- **Nuevo**: `src/lib/onboarding/owner-claim.ts` (helper de búsqueda y servicio de claim).
+- **Nuevo**: `src/components/onboarding/OwnerClaimCard.tsx` (UI mínima del happy path).
+- **Nuevo**: `src/app/api/onboarding/owner/claim/route.ts` (endpoint HTTP del claim).
+- **Nuevo**: `tests/api/owner-claim.test.ts` (cobertura de helper + endpoint + fallback con phone; cubre match case-insensitive, mismatch email, academy inexistente, doble-click via ON CONFLICT, 401/400/201 HTTP, INVALID_PHONE 400, compatibilidad con body sin phone).
+- **Modificado**: `src/app/onboarding/owner/page.tsx` (branching server-side por match).
+- **Modificado**: `src/components/onboarding/OwnerOnboardingForm.tsx` (acepta `suggestedFullName` + `requireContactPhone`, valida y envía `contactPhone`).
+- **Modificado**: `src/app/api/onboarding/owner/route.ts` (schema acepta `contactPhone`, valida con `validatePhoneNumber`, persiste `user.email` y `contactPhone` en la academia creada).
+- **Modificado**: `src/app/api/academies/academies.lib.ts` (`CreateAcademyBodySchema` acepta `contactEmail`/`contactPhone`; el insert los persiste).
+
+**Fuera de alcance (debe coordinarse con otros agents):**
+
+- ZAL-138 (magic links para primeras atletas) — no tocado.
+- ZAL-139 (plantillas Resend d0/d2/d7) — no tocado.
+- ZAL-140 (baseline TTFAA) — no tocado.
+- `OnboardingChecklist` ya respeta el gate "first class skipeable/retomable" del SPEC: el item `setup_weekly_schedule` se marca al crear las starter classes en el fallback, pero el owner puede saltarlo en cualquier momento. El happy path (claim) no toca checklist porque las starter classes no son parte de la academia seed (se crean bajo demanda en el dashboard).
+
+## 2026-08-01 - ZAL-138 magic links Supabase para primeras atletas (D-006 v0 gate 1)
+
+Cierra el deliverable 2 del SPEC `vault/06-Roadmap-y-Tareas/SPEC_ONBOARDING_ZALTYKO_WEB.md` (ZAL-130 / D-006 v0): el owner puede invitar hasta 10 primeras atletas por magic link Supabase, y la definición operativa del KPI TTFAA queda anclada a `athletes.magic_link_opened_at IS NOT NULL AND athletes.profile_completed_at IS NOT NULL`.
+
+### Definición operativa de "atleta confirmado"
+
+- **Magic link abierto**: `athletes.magic_link_opened_at` queda seteado cuando la atleta abre el magic link (`acceptInvitationByEmail` corre al final del callback de Supabase).
+- **Perfil completo**: `athletes.profile_completed_at` queda seteado cuando envía nombre (requerido) y opcionalmente `dob`/`level` (`POST /api/athlete-invitations/[invitationId]/profile`).
+- El KPI TTFAA se calcula contra `athletes`, no contra `athlete_invitations`. La tabla de invitaciones es operativa (ciclo de vida + auditoría + retry) y alimenta el panel del owner con `last_error` cuando Supabase falla.
+
+### Límites, idempotencia y seguridad en la frontera
+
+- `MAX_BULK_INVITES = 10` validado en el schema Zod (mensaje explícito al cliente). Un array de 11 devuelve 400 `INVALID_INVITE_PAYLOAD` antes de tocar Supabase.
+- `template` validado con regex `^[a-z0-9_]+$/i` para evitar inyección en el lookup de plantilla. `customMessage` capped a 500 chars.
+- `email` se normaliza a lowercase y se trimea; dedup intra-batch antes de generar magic links (mismo email dos veces en el POST = una sola invitación).
+- **Reintento seguro**: índice único parcial `athlete_invitations_active_unique` sobre `(academy_id, email_normalized) WHERE status IN ('pending','sent','opened')`. Si el owner reenvía para el mismo email mientras la invitación está activa, `inviteFirstAthletes` reusa la fila, regenera el magic link y sube `attempt_count` (sin duplicar fila ni notificar doble al destinatario).
+- **Carrera concurrente**: el INSERT va con `onConflictDoNothing({ target: [academy_id, email_normalized] })`. Si dos requests paralelos chocan, el perdedor re-lee la fila ganadora y la trata como reintento (no se pierde el envío).
+- **No exposición de tokens**: la respuesta de la API nunca devuelve `magic_link_token` ni `action_link`. El token se queda server-side y solo se usa para auditoría / retry logging.
+- **Aislamiento por tenant**: el helper exige `tenantId` + `academyId` resueltos por `withTenant`. Antes de generar magic links, valida que `academies.tenantId === options.tenantId` (defensa explícita aunque el caller ya pasó por el wrapper). Si no coincide, devuelve `ACADEMY_NOT_FOUND` para todos los emails del batch.
+
+### Flujo end-to-end
+
+1. Owner: `POST /api/academies/[academyId]/athlete-invitations` con `{ emails, template?, customMessage? }`.
+2. Backend: genera magic link vía `auth.admin.generateLink({ type: 'magiclink', email, options: { redirectTo } })`, persiste `athlete_invitations`, envía email vía Resend con plantilla custom (pendiente ZAL-139).
+3. Atleta abre el email → Supabase verifica el token → redirige a `${origin}/api/athlete-invitations/accept`.
+4. `accept/route.ts` lee la sesión Supabase → empareja por `email_normalized` → marca `magic_link_opened_at`, crea `athletes` stub con `userId` apuntando al `auth.users` recién creado → redirige al formulario de perfil.
+5. Atleta envía nombre + dob + level → `POST /api/athlete-invitations/[invitationId]/profile` → cierra D-006 v0 gate 1 con `profile_completed_at`.
+
+### Aislamiento en endpoints públicos (callback + profile)
+
+Estos dos endpoints NO usan `withTenant` porque la atleta todavía no tiene perfil Zaltyko: su única credencial es la sesión Supabase. La defensa es:
+
+- `accept`: solo lee email de sesión + actualiza invitación matching. No recibe `academyId` del cliente; resuelve por `email_normalized`.
+- `profile`: recibe `invitationId` por URL, verifica que `invitations.email === user.email` (case-insensitive). Sin este match, un usuario Supabase autenticado con email A no puede cerrar el perfil de una invitación con email B.
+- Rate limit por IP en ambos (`getClientIdentifier(request)` sin userId).
+
+### Permisos y autorización
+
+- `GET/POST /api/academies/[academyId]/athlete-invitations` → con `withTenant`, permiso `athletes:read` / `athletes:create` (entry explícita en `getRequiredRoutePermission` antes del match por prefix, para no chocar con la regla broad `/api/academies`).
+- `GET/POST /api/athlete-invitations/accept` → público con rate limit.
+- `POST /api/athlete-invitations/[invitationId]/profile` → sesión Supabase + match de email.
+
+### Cambios concretos
+
+- **Nuevo**: `drizzle/0006_athlete_invitations.sql` (tabla `athlete_invitations`, índice único parcial, índice por token, columnas nuevas en `athletes`: `invite_email`, `magic_link_opened_at`, `profile_completed_at`, índice compuesto `athletes_activation_idx` para el KPI).
+- **Nuevo**: `src/db/schema/athlete-invitations.ts` (schema Drizzle + tipos inferidos).
+- **Nuevo**: `src/lib/athletes/invitations.ts` (`inviteFirstAthletes`, `acceptInvitationByEmail`, `completeAthleteProfile`, `listInvitationsForAcademy`, constantes `MAX_BULK_INVITES`/`INVITATION_TTL_HOURS`/`INVITATION_STATUS`, schemas Zod, generador de magic link inyectable para tests).
+- **Nuevo**: `src/app/api/academies/[academyId]/athlete-invitations/route.ts` (POST bulk + GET listado con summary de confirmados).
+- **Nuevo**: `src/app/api/athlete-invitations/accept/route.ts` (callback público; GET y POST para tolerar el método que use Supabase).
+- **Nuevo**: `src/app/api/athlete-invitations/[invitationId]/profile/route.ts` (cierre de gate 1).
+- **Nuevo**: `tests/api/athlete-invitations.test.ts` (cobertura: dedup intra-batch, idempotencia de retry con `attempt_count` incremental, `ACADEMY_NOT_FOUND` si la academia/tenant no coinciden, persistencia de `last_error` cuando Supabase falla, validación de max 10 y template regex, marcado de `magic_link_opened_at` al primer clic y no-op al segundo, `completeAthleteProfile` setea ambos campos + `TENANT_MISMATCH`).
+- **Modificado**: `src/db/schema/athletes.ts` (columnas D-006 v0 + índices nuevos).
+- **Modificado**: `src/db/schema/index.ts` (export del nuevo schema).
+- **Modificado**: `src/lib/authz/route-permissions.ts` (entry específica para `/api/academies/[^/]+/athlete-invitations` con `athletes:read`/`athletes:create`).
+- **Ajuste de continuidad**: `claimAcademy()` toma `pg_advisory_xact_lock` por `userId` dentro de la transacción, haciendo efectivo el contrato de doble-click concurrente; el test HTTP usa un UUID válido para atravesar el schema Zod.
+
+### Verificación ejecutada
+
+- **Tests**: `corepack pnpm@9.15.3 install` + `vitest run tests/api/athlete-invitations.test.ts` → **16/16 pasan** (cubren dedup, idempotencia con `attempt_count` incremental, `ACADEMY_NOT_FOUND`, persistencia de `last_error` cuando Supabase falla, validación max 10 + template regex + dob vacío, marcado de `magic_link_opened_at` al primer clic + no-op al segundo, `completeAthleteProfile` con `TENANT_MISMATCH`). En la primera corrida había 3 fallos por un bug en el mock de `db.update` (sólo aplicaba los cambios cuando se llamaba `.limit()`, mientras que el helper usa `await ... .where()` directo). Reescrito para que `then` aplique el `set` pendiente: mock ahora refleja el comportamiento real de Drizzle.
+- **Typecheck**: `corepack pnpm@9.15.3 typecheck` queda limpio para los archivos de ZAL-138 (`src/lib/athletes/invitations.ts`, las 3 rutas API y los schemas). Los errores que quedan en el repo son de ZAL-137 (`src/app/api/onboarding/owner/claim/route.ts(71,5)`: `owner_claimed` no está en `EventType`) y de `mobile/*` por dependencias Expo no instaladas — preexistentes, fuera de alcance de este PR.
+- **Refactor derivado del typecheck**: `acceptInvitationByEmail` antes llamaba `supabase.auth.admin.getUserByEmail(email)` para recuperar el `userId` y crear el athlete stub. Esa API no existe en `GoTrueAdminApi` (sólo `getUserById`/`listUsers`). Reemplazado por el resolver, que ahora expone `getCurrentUser(): Promise<{ id; email } | null>` — la sesión Supabase ya está abierta cuando la atleta abre el magic link, así que `user.id` viene gratis de `supabase.auth.getUser()`. La API pública del helper queda más simple (un solo round-trip al server client en vez de dos) y la API mockeable para tests queda más coherente.
+- **Migración**: NO se aplicó a la DB real (ver `vault/00-Inicio/Guia de trabajo para agentes.md` §Migraciones — sólo el board autoriza migraciones remotas). Pendiente ejecutar `pnpm db:migrate` antes de mergear a main.
+- **Llamadas a Supabase**: ningún endpoint probado contra Supabase real en este heartbeat. El generador mockeable del helper garantiza que los tests no dependen del SDK.
+
+### Riesgos residuales / pendientes
+
+1. **Migración sin aplicar**: la tabla `athlete_invitations` y las columnas nuevas en `athletes` no existen en la DB hasta que se ejecute `pnpm db:migrate`. Coordinar con el board antes del primer uso en producción.
+2. **Plantilla de email**: el endpoint de invite genera el magic link pero no envía email (queda como TODO explícito para ZAL-139 — plantillas Resend d0/d2/d7 con QA de copy). Sin ZAL-139 desplegado, el destinatario nunca recibe el magic link y el flujo muere en `pending`. Documentado en el SPEC como dependencia del gate 3.
+3. **UI cliente**: hay endpoints pero no hay formulario para que el owner pegue la lista de emails. Queda para una issue hija (probablemente ZAL-141 o back into ZAL-138 UI). El owner puede usar `curl` para probar el flujo end-to-end hoy.
+4. **Páginas de aterrizaje**: `/onboarding/athlete/profile?invitation=...` y `/onboarding/athlete/expired` aún no existen. El callback redirige ahí, pero las páginas devuelven 404 hasta que se creen. No bloquea el flujo server-side pero sí bloquea E2E en navegador.
+5. **onConflictDoNothing con índice parcial**: Drizzle genera `ON CONFLICT (academy_id, email_normalized) DO NOTHING` sin la cláusula WHERE del índice parcial. En la práctica el índice único parcial rechaza el duplicado al nivel DB y `inserted.length === 0` activa el camino de re-lectura, así que el comportamiento observable es correcto. Pero para v1 conviene considerar mover a ON CONFLICT explícito con raw SQL que incluya el WHERE.
+
+### Coordina con
+
+- ZAL-139 (Content): sin plantillas Resend, no hay email que llegue al destinatario. Gate 3 del SPEC bloquea el flujo real hasta que ZAL-139 cierre.
+- ZAL-140 (Data & Analytics): las columnas `athletes.magic_link_opened_at` + `athletes.profile_completed_at` son la fuente del KPI TTFAA. El baseline pre-rollout lo mide ZAL-140.
+- Platform & Security: requiere revisión antes de mergear a main — la ruta pública `/api/athlete-invitations/accept` no usa `withTenant` por diseño (la atleta no tiene tenant Zaltyko todavía), y eso es una desviación de la regla "todas las APIs tenant usan withTenant". La excepción está documentada arriba con la defensa por match de email + rate limit + expiración del token.
+
+Vault: actualizadas `Changelog interno.md`, `athletes.ts`, `athlete-invitations.ts`, `index.ts`, `route-permissions.ts`, `invitations.ts`, `route.ts` (POST/GET bulk), `accept/route.ts`, `[invitationId]/profile/route.ts`, `0006_athlete_invitations.sql`, `athlete-invitations.test.ts`.
+
+**Verificación**:
+
+- `pnpm typecheck` no arrancó: `node_modules/` está vacío en este workspace y la `engines.pnpm` requerida (9.15.3) difiere del pnpm disponible (9.15.4). Bloqueo preexistente del entorno, no del cambio.
+- Tests escritos pero no ejecutados localmente por el mismo motivo (sin deps). Cobertura definida: 9 escenarios cubriendo match, mismatch, fallback con/sin phone, doble-click, HTTP 401/400/201/403/404.
+
+**Riesgos residuales / pendientes**:
+
+1. La academia seed actualmente no existe en este workspace (DB local sin academias pre-registradas con `contactEmail`). El happy path solo se activa cuando se siembra una. QA debe poblar al menos una academia seed con `contactEmail` para validar el flujo end-to-end.
+2. El claim no fuerza trial ni suscripción; reutiliza el estado actual de la academia. Si la academia seed ya tenía `isTrialActive = false`, el owner reclamante hereda esa condición. Documentar como gap si QA detecta fricción.
+3. Si la academia seed no tiene `ownerId` válido (lo cual violaría el `notNull` del schema), la migración previa al deploy del flujo debe garantizar que existe un perfil placeholder. **No se ejecutó ninguna migración** — esto es una nota para el responsable del seed, no para este PR.
+
+**Handoff a QA** (orden sugerido):
+
+1. Crear academia seed con `contactEmail = duena@test.com`, `ownerId = <profile_placeholder>`.
+2. Login con `duena@test.com` → debe aterrizar en `/onboarding/owner` mostrando `OwnerClaimCard` con mensaje "Te identificamos como dueña de [nombre]".
+3. Click "Confirmar y entrar" → debe redirigir a `/app/<id>/dashboard` con sesión activa como owner.
+4. Repetir con email que NO matchea ningún `contactEmail` → debe mostrar el formulario completo con el campo "Teléfono de contacto" requerido y validación `+XX ...`.
+5. Intentar POST manual a `/api/onboarding/owner/claim` con `academyId` ajeno y `userEmail` distinto → debe responder 403 `CLAIM_EMAIL_MISMATCH` sin tocar la academia objetivo.
+
+Vault: actualizado `Changelog interno`. PR pendiente de autorización explícita del board antes de merge (regla común del AGENTS).
+
+## 2026-07-31 - ZAL-64 preserva el registro owner en páginas de modalidad
+
+- `src/app/(site)/[locale]/[modality]/page.tsx` mantiene el literal validado `Crear academia gratis` / `Create free academy` y cambia su destino común de `/contact?type=demo` a `/auth/register?role=owner`.
+- Al ser un único CTA compartido por todas las modalidades, acrobática y trampolín reciben exactamente el mismo registro owner que artística y rítmica; no se añadió ningún CTA demo/contacto condicional para modalidades no soportadas.
+- `tests/cluster-availability-metadata.test.ts` protege el destino de registro, la ausencia del destino demo anterior y ambos literales aprobados.
+- Fuente: criterio 3 de `vault/04-Marketing/Brief - Copy acrobática y trampolín.md` (commit `d495ad31b`) y `vault/04-Marketing/Mensajes aprobados.md`. No se modificó copy público, pricing, checkout, contacto, migraciones ni servicios externos.
+- Verificación local: contrato estático PASS para destino owner, ausencia del CTA demo y literales ES/EN. El test Vitest no arrancó porque falta `@testing-library/jest-dom/vitest`; `pnpm typecheck` no arrancó con dependencias completas (faltan, entre otras, `next` y `drizzle-orm`); `pnpm lint` quedó bloqueado porque el script anidado usa pnpm global 10.22.0 frente al 9.15.3 exigido y la invocación directa confirmó que falta `eslint`. Son bloqueos preexistentes del entorno, no fallos del CTA. Capturas Playwright pendientes de autorización explícita del board.
+
+## 2026-07-30 - Gate de disponibilidad en clústeres país de acrobática y trampolín
+
+- `src/app/(site)/[locale]/[modality]/[country]/page.tsx`: la disponibilidad se deriva de `AVAILABLE_MODALITIES`; para modalidades no disponibles, hero y metadata (incluidas keywords neutrales en ES/EN) usan el mensaje aprobado de “Próximamente”, se omiten los pain points y no se envían claims federativos al interlinking. Canonical y hreflang permanecen sin cambios.
+- `src/components/landing/ClusterInterlinking.tsx`: los datos de federación y competiciones pasan a ser opcionales y el bloque solo se renderiza cuando ambos están presentes; los enlaces entre países y modalidades se conservan.
+- `tests/cluster-availability-metadata.test.ts`: contrato enfocado que exige el gate de keywords y vocabulario neutral para modalidades no disponibles en español e inglés.
+- Fuente de copy: `vault/04-Marketing/Brief - Copy acrobática y trampolín.md` en el commit `d495ad31b`; no se reescribieron los JSON de clúster ni la página madre de modalidad.
+
+## 2026-07-30 - Verificación de `collect` detenida por dependencia de test faltante
+
+- Se intentó revalidar `tests/api/charges-collect-handler.test.ts` con `corepack pnpm vitest run ...` usando la versión requerida por el repo (`9.15.3`).
+- El arranque de Vitest falló antes de ejecutar tests porque el workspace no resuelve `@testing-library/jest-dom/vitest` desde `tests/setup.ts`.
+- No se tocaron rutas de producción ni migraciones en esta pasada; el hallazgo queda como bloqueo de entorno de test, no de lógica de `collect`.
+- El brief de convivencia legacy/canónico queda creado y actualizado como contexto operativo para la decisión de rutas.
+
+## 2026-07-30 - Inventario inicial de convivencia `legacy dashboard` vs workspace canónico
+
+- Se revisó la superficie pública y el header reutilizable para validar la decisión de compatibilidad vigente.
+- Hallazgo útil: `events` ya usa destino canónico `/app/{academyId}/events` cuando `academyId` está disponible; `marketplace` y `empleo` siguen como excepciones globales porque no tienen equivalente canónico por academia en este workspace.
+- No se introdujeron nuevas rutas públicas hacia `/dashboard/*` donde ya exista equivalente moderno por academia en esta pasada.
+- Se actualizó `vault/01-Producto/Brief - convivencia legacy dashboard.md` con este inventario para reducir ambigüedad operativa.
+
+## 2026-07-31 - Confirmación de excepciones públicas legacy
+
+- Se releyeron las superficies públicas de `marketplace` y `empleo` y siguen publicando `dashboardHrefTemplate` hacia `/dashboard/marketplace/mis-productos` y `/dashboard/empleo/mis-postulaciones`.
+- No existe equivalente canónico por academia en este workspace para esos dos destinos, así que permanecen como compatibilidad global temporal y no como regresión nueva.
+- El resto de enlaces públicos ya usa rutas modernas o templates canónicos cuando existe destino por academia.
+- Sin cambios de código en esta pasada. Vault: actualizado `Changelog interno`.
+
+## 2026-07-29 - Brief de convivencia legacy `/dashboard/*` y workspace canónico
+
+- Se creó `vault/01-Producto/Brief - convivencia legacy dashboard.md` para consolidar el alcance funcional de la decisión vigente sobre `legacy dashboard` vs `workspace` canónico.
+- El brief deja explícitos: problema, buyer/dueño, recorridos por rol, estados esperados, criterios de aceptación, exclusiones, riesgos y evidencia necesaria.
+- La decisión de producto sigue siendo la misma: compatibilidad temporal de seis meses para rutas legacy, redirección a `/app/[academyId]/*` cuando exista equivalente moderno y retirada física solo con evidencia de uso.
+- Sin cambios de código ni migraciones en este heartbeat. Vault: actualizados `Brief - convivencia legacy dashboard` y `Changelog interno`.
+
+
 ## 2026-07-29 - ZAL-11 verificación Brevo: DKIM/return-path OK y entrega E2E confirmada; falta SPF en el ápex
 
 Verificación hecha desde fuentes objetivas (DNS público + `email_logs` de producción), sin depender de acceso al panel de Brevo.
@@ -1422,6 +2165,7 @@ Construye la capa de cobro real sobre el ledger `charges` existente, manteniendo
 **Estado de verificación**: `pnpm typecheck` en verde, ESLint sin errores nuevos, `vitest run` 462/462 (incluye 7 nuevos de `mapOnboardingStatus/isConnectReady`). **NO verificado end-to-end contra Stripe real** (requiere claves live/test y una cuenta Connect): onboarding, cobro off-session, SCA/3DS, webhooks y reembolsos necesitan QA en sandbox antes de producción. **Migraciones NO aplicadas a la DB real** (5 nuevas: stripe_accounts, family_stripe_customers, extend charges, payment_attempts, refunds) — ejecutar el runner de migraciones antes de usar. Env nuevas: `STRIPE_CONNECT_WEBHOOK_SECRET`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`.
 
 **Deuda resuelta (mismo día, tras las 10 fases)**:
+
 - `/api/me/charges` (bearer/móvil) **reescrito**: usaba columnas inexistentes (`first_name/last_name`, `guardians.user_id`, `charges.amount/description/paid_date`, `profiles.academy_id`). Ahora identifica al usuario por bearer y lee con Drizzle server-side (`getFamilyChildrenForUser` + atleta propio por `athletes.userId`), con columnas reales (`name`, `amountCents`, `paidAt`, `guardian_athletes`).
 - **LemonSqueezy eliminado** (código muerto): borrados `src/utils/lemon.ts`, `src/components/lemon-button.tsx`, `src/app/api/lemonsqueezy/webhook/`; retiradas las env `LEMONSQUEEZY_*` y la entrada de rate-limit (sustituida por `/api/stripe/connect/webhook`).
 - **Descuento por hermanos**: `discountCategoryEnum += 'sibling'` (migración `20260715120000_*`) + tipo en `discount-calculator`.
@@ -2411,24 +3155,28 @@ Registrar cambios humanos y relevantes: releases, decisiones, cambios de pricing
 - Pruebas focalizadas: 41/41, más cobertura directa del bearer y del bloqueo financiero. Gate completo: typecheck y lint limpios; Vitest 508/508 (65 archivos); auditor estricto 292 rutas, 0 `risky`; RLS declarada 69/69; migraciones 6 Drizzle + 38 Supabase; build de producción 219 rutas; `git diff --check` limpio.
 - No se cambiaron schemas, migraciones, datos, credenciales ni producción. Riesgo residual para Día 2: MT-002/003, porque `validate:rls` demuestra presencia de policies pero no least privilege intratenant con JWT parent/athlete/coach reales.
 - Vault: actualizados `Changelog interno`, `Registro de riesgos` y `Backlog priorizado`; no se añadió decisión arquitectónica nueva.
+
 ## 2026-07-21 - Cierre local del Día 5 de auditoría UI
 
 - Se verificó la compilación `next start` con el navegador integrado, en modo read-only, contra `/` y `/es/gimnasia-artistica` a 375×812 y 1440×900.
 - El contrato actual `/` → cluster localizado es estable; `scrollWidth === innerWidth` en ambos viewports y las tarjetas se apilan sin clipping. Se enlazaron capturas nuevas en `docs/audit/evidence/ui/` y `docs/audit/UI_UX_AUDIT.md`.
 - Se detectó autofill local en el formulario de login durante una captura; la evidencia fue sobrescrita y no se conservaron valores. No se aprovisionaron cuentas ni se ejecutaron acciones autenticadas.
 - Quedan pendientes explícitos: sesiones visuales por rol y axe/Playwright con autorización. Los cuatro breakpoints 320/375/768/1440 px ya pasan el spot-check público sin overflow. No se declara conformidad WCAG completa.
+
 ## 2026-07-21 - Cierre local del Día 6: runtime y supply chain
 
 - `pnpm verify:production` volvió a pasar completo: 293 APIs sin riesgos estáticos/semánticos, RLS 69/69, migraciones 6+40, typecheck, lint, 90 archivos/640 tests y build de 219 páginas.
 - Se fijó runtime Node 20 (CI + `.nvmrc`, engines `>=20 <23`) y pnpm 9.15.3.
 - `pnpm audit` detectó y resolvió `protobufjs@7.6.4` (CVE-2026-59877) mediante override `^7.6.5` y lockfile regenerado; la auditoría posterior quedó en cero vulnerabilidades.
 - Pendiente P2: SBOM y política de bloqueo de advisories en CI. No cambia el no-go externo por KV/Brevo/Stripe/Vercel.
+
 ## 2026-07-21 - Cierre del Día 7 y decisión de release
 
 - Regresión final local verde: `pnpm test:security` 90 archivos/640 tests, `pnpm verify:production`, auditor API sin `risky`/`semanticRisks`, RLS semántica estática PASS, migraciones 6+40 y build 219 páginas.
 - Smoke UI público read-only en 320/375/768/1440 px sin overflow. No se ejecutaron escrituras, cobros, deploys, SQL remoto ni Playwright/axe adicional.
 - **Decisión: NO-GO para producción.** Quedan bloqueos externos: promoción revisada de RLS Día 2/3, paridad Vercel KV/Brevo/WAF/alertas, Stripe sandbox/rotación/SCA, entrega de email y evidencia autenticada por rol.
 - La auditoría queda lista para handoff; la decisión debe reabrirse únicamente con credenciales/aprobaciones y pruebas enlazadas.
+
 ## 2026-07-21 - Corrección de pendientes locales post-auditoría
 
 - Se retiró `next-auth` porque no existen imports activos; Supabase Auth SSR queda como contrato canónico. `AGENTS.md`, `.env.example` y auditorías activas fueron alineados.

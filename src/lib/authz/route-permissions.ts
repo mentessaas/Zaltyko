@@ -317,6 +317,10 @@ export function getRequiredRoutePermission(pathname: string, method: string): Pe
   if (/^\/api\/academies\/[^/]+\/roles(?:\/|$)/.test(pathname)) {
     return "settings:users";
   }
+  // ZAL-138 [D-006 v0] — bulk invite first athletes via magic link.
+  if (/^\/api\/academies\/[^/]+\/athlete-invitations(?:\/|$)/.test(pathname)) {
+    return normalizedMethod === "GET" ? "athletes:read" : "athletes:create";
+  }
   const match = ROUTE_PERMISSIONS.find(
     (route) => pathname === route.prefix || pathname.startsWith(`${route.prefix}/`)
   );

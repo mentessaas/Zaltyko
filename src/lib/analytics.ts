@@ -1,5 +1,7 @@
 import { getOptionalEnvVar, isProduction } from "./env";
 import { logger } from "./logger";
+import { hasAnalyticsConsent } from "./consent/state";
+import { readStoredUtm } from "./gtm/utm";
 
 export interface AnalyticsPayload {
   userId?: string;
@@ -25,10 +27,34 @@ function loadPostHog() {
   return posthogModulePromise;
 }
 
-// Initialize PostHog (call once in your app initialization)
+// ZAL-247 — `initAnalytics` es idempotente: el provider la invoca cada vez
+// que el consent pasa a `granted` (incluido el snapshot inicial), y sin este
+// guard un grant -> revoke -> grant volvería a llamar `posthog.init`.
+let initPromise: Promise<void> | null = null;
+
+// Initialize PostHog (call once consent is granted)
 export async function initAnalytics() {
   if (typeof window === "undefined") return;
 
+  // ZAL-247 — el gate de consent vivía solo aguas abajo, en `trackPageView`.
+  // Eso descargaba e inicializaba posthog-js para usuarios en `unset` /
+  // `revoked`, dejando activo el capture automático de `pageleave` y
+  // contradiciendo la garantía "sin consentimiento no se carga PostHog".
+  // Ahora la carga del módulo y el `init` quedan detrás del consent; el
+  // provider re-invoca esta función cuando el estado pasa a `granted`.
+  if (!hasAnalyticsConsent()) {
+    if (!isProduction()) {
+      logger.debug("initAnalytics omitido: sin consent activo");
+    }
+    return;
+  }
+
+  if (initPromise) return initPromise;
+  initPromise = runInit();
+  return initPromise;
+}
+
+async function runInit(): Promise<void> {
   const key = process.env.NEXT_PUBLIC_POSTHOG_KEY;
   const host = process.env.NEXT_PUBLIC_POSTHOG_HOST || "https://app.posthog.com";
 
@@ -61,11 +87,31 @@ export async function trackPageView(path: string, properties?: Record<string, un
     return;
   }
 
+  // ZAL-160 [GTM-DEP.4] — page_view requiere consent activo. Sin consent
+  // (unset o revoked) descartamos el evento sin persistir ni disparar
+  // carga de posthog-js. Es la regla de RESEARCH/DATA_GOVERNANCE_TAXONOMY_GTM
+  // §5: el evento de visita requiere consent previo porque arrastra cookies.
+  // El resto del funnel (signup, claim, invite) sí puede trackearse post-
+  // signup sin este gate porque el magic link prueba identidad.
+  if (!hasAnalyticsConsent()) {
+    if (!isProduction()) {
+      logger.debug("page_view descartado: sin consent activo", { path });
+    }
+    return;
+  }
+
+  // Adjuntar UTMs persistidos (first-touch de la sesión, ver ZAL-157) si
+  // están presentes. Esto enriquece el evento sin leer storage en el
+  // resto del funnel — solo el page_view consentido los necesita para
+  // atribuir el origen de la visita al canal.
+  const storedUtm = readStoredUtm();
+  const enrichedProperties = { ...properties, ...storedUtm };
+
   try {
     const mod = await loadPostHog();
     mod?.posthog.capture("$pageview", {
       path,
-      ...properties,
+      ...enrichedProperties,
     });
   } catch (error) {
     logger.warn("Failed to track pageview", { path, error });
@@ -151,3 +197,23 @@ export const analytics = {
   leadCaptured: (source?: string, plan?: string) =>
     trackEvent("lead_captured", { metadata: { source, plan } }),
 };
+
+// --- test hooks -------------------------------------------------------------
+
+/**
+ * ZAL-247 — expone si el import dinámico de `posthog-js` llegó a dispararse.
+ * Es la única forma de aseverar "sin consent, posthog-js no se carga" sin
+ * inspeccionar el grafo de módulos de vitest. Solo para tests.
+ */
+export function __isPostHogLoadedForTests(): boolean {
+  return posthogModulePromise !== null;
+}
+
+/** ZAL-247 — resetea el estado de carga/init entre tests. */
+export function __resetAnalyticsForTests(): void {
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("__resetAnalyticsForTests is not available in production");
+  }
+  posthogModulePromise = null;
+  initPromise = null;
+}

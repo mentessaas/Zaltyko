@@ -151,10 +151,11 @@ export function DocumentUploadModal({
               Tipo de documento <span className="text-red-500">*</span>
             </Label>
             <Select
+              id="documentType"
               value={watchedDocumentType}
               onValueChange={(value) => setValue("documentType", value as DocumentType)}
             >
-              <SelectTrigger id="documentType">
+              <SelectTrigger>
                 <SelectValue placeholder="Selecciona el tipo" />
               </SelectTrigger>
               <SelectContent>

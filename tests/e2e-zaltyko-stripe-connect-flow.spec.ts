@@ -42,6 +42,21 @@ import { expect, test, type APIRequestContext, type Page } from "@playwright/tes
  *   6. Tarjeta de prueba: `pm_card_visa` (success), `pm_card_chargeCustomerFail`
  *      (rechazo), o `pm_card_authenticationRequired` (SCA).
  *
+ * Runbook reproducible (verificado 2026-08-10, 7/7 verde en chromium):
+ *   E2E_ALLOW_PROVISIONING=true pnpm tsx scripts/prepare-e2e-auth.ts
+ *   E2E_ALLOW_PROVISIONING=true pnpm tsx scripts/prepare-e2e-family-auth.ts
+ *   E2E_FAMILY_EMAIL=e2e-family@zaltyko.test E2E_FAMILY_PASSWORD=$E2E_AUTH_PASSWORD \
+ *     E2E_FAMILY_STORAGE_STATE=.auth/family.json E2E_OWNER_STORAGE_STATE=.auth/owner.json \
+ *     pnpm test:e2e:auth
+ *   E2E_ALLOW_PROVISIONING=true pnpm tsx scripts/seed-e2e-charge.ts   # imprime chargeId
+ *   E2E_STRIPE_CONNECT_FLOW=1 E2E_LIVE_STRIPE=1 E2E_CHARGE_ID=<chargeId> \
+ *     E2E_FAMILY_STORAGE_STATE=.auth/family.json E2E_OWNER_STORAGE_STATE=.auth/owner.json \
+ *     pnpm test:e2e:stripe
+ *
+ *   Playwright NO carga `.env.local` para este spec: `E2E_ACADEMY_ID`, `CRON_SECRET`
+ *   y los storage states deben venir en el entorno del proceso o los 5 tests de
+ *   contrato se saltan en silencio.
+ *
  * Variables leídas:
  *   - E2E_STRIPE_CONNECT_FLOW=1   habilita la suite (sin esto, se salta).
  *   - E2E_ACADEMY_ID              academia demo (uuid).
@@ -255,6 +270,10 @@ test.describe("Stripe Connect E2E — SetupIntent + off-session collect + cron",
     const ctx = await browser.newContext({ storageState: familyStorageState });
     const page = await ctx.newPage();
     try {
+      // Stripe.js necesita un origen web real. En about:blank la inicializacion
+      // de Connect puede fallar aunque la clave y la cuenta sean validas.
+      await page.goto(`${baseURL}/auth/login`, { waitUntil: "domcontentloaded" });
+
       // 1) SetupIntent desde la app real
       const siRes = await page.request.post(
         `${baseURL}/api/family/payment-method/setup-intent`,
@@ -275,8 +294,27 @@ test.describe("Stripe Connect E2E — SetupIntent + off-session collect + cron",
       // iframe cross-origin). Esto ejercita la API real de Stripe test mode.
       const confirmResult = await page.evaluate(
         async ({ clientSecret, stripeAccountId, publishableKey }) => {
-          // @ts-expect-error — Stripe.js cargado via CDN en runtime
-          const Stripe = (await import("https://js.stripe.com/v3/")).default;
+          const Stripe = await new Promise<
+            (publishableKey: string, options: { stripeAccount: string }) => unknown
+          >((resolve, reject) => {
+            const existing = (window as Window & { Stripe?: unknown }).Stripe;
+            if (typeof existing === "function") {
+              resolve(existing as (publishableKey: string, options: { stripeAccount: string }) => unknown);
+              return;
+            }
+            const script = document.createElement("script");
+            script.src = "https://js.stripe.com/v3/";
+            script.onload = () => {
+              const loaded = (window as Window & { Stripe?: unknown }).Stripe;
+              if (typeof loaded === "function") {
+                resolve(loaded as (publishableKey: string, options: { stripeAccount: string }) => unknown);
+              } else {
+                reject(new Error("Stripe.js no expuso window.Stripe"));
+              }
+            };
+            script.onerror = () => reject(new Error("No se pudo cargar Stripe.js"));
+            document.head.appendChild(script);
+          });
           const stripe = Stripe(publishableKey, { stripeAccount: stripeAccountId });
           // createPaymentMethod con pm_card_visa — payment_method de prueba
           // integrado en Stripe (success). NO requiere tarjeta real.
@@ -319,9 +357,13 @@ test.describe("Stripe Connect E2E — SetupIntent + off-session collect + cron",
         `${baseURL}/api/family/payment-method?academyId=${academyId}`
       );
       expect(getRes.status()).toBe(200);
-      const stored = unwrapData<{ cardBrand?: string; cardLast4?: string }>(await getRes.json());
-      expect(stored?.cardLast4).toBe("4242"); // pm_card_visa / tok_visa → 4242
-      expect(stored?.cardBrand?.toLowerCase()).toBe("visa");
+      const stored = unwrapData<{
+        cardBrand?: string;
+        cardLast4?: string;
+        card?: { brand?: string; last4?: string };
+      }>(await getRes.json());
+      expect(stored?.card?.last4 ?? stored?.cardLast4).toBe("4242"); // pm_card_visa / tok_visa -> 4242
+      expect((stored?.card?.brand ?? stored?.cardBrand)?.toLowerCase()).toBe("visa");
     } finally {
       await ctx.close();
     }
@@ -369,9 +411,9 @@ test.describe("Stripe Connect E2E — SetupIntent + off-session collect + cron",
         `collect off-session debe ser 200 (paid). Respuesta: ${JSON.stringify(body)}`
       ).toBe(200);
 
-      const collect = unwrapData<{ status: string; stripePaymentIntentId?: string }>(body);
+      const collect = unwrapData<{ status: string; paymentIntentId?: string }>(body);
       expect(collect?.status).toBe("paid");
-      expect(collect?.stripePaymentIntentId).toMatch(/^pi_[a-zA-Z0-9]+/);
+      expect(collect?.paymentIntentId).toMatch(/^pi_[a-zA-Z0-9]+/);
     } finally {
       await ctx.close();
     }
@@ -396,9 +438,12 @@ export async function authedFetch(
   });
 }
 
-/** Helper para serializar respuestas con la envoltura `apiSuccess` de Zaltyko. */
-export function unwrapData<T>(payload: { data?: T; ok?: boolean }): T | undefined {
-  return payload?.data;
+/**
+ * Acepta tanto respuestas nuevas envueltas en `data` como las rutas Stripe
+ * que conservan su contrato directo por compatibilidad.
+ */
+export function unwrapData<T>(payload: { data?: T; ok?: boolean } & T): T | undefined {
+  return payload?.data ?? payload;
 }
 
 /** Helper para navegar a una ruta autenticada con reintento ante ERR_EMPTY_RESPONSE. */

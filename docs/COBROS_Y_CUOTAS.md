@@ -80,12 +80,22 @@ Los webhooks de plataforma y Connect deben tener secretos distintos.
 - Corregido el retorno de onboarding a Ajustes → Cobros.
 - Tests unitarios e integración cubren éxito, rechazo, SCA, reembolso, idempotencia y protección lógica contra doble cobro.
 
+## Verificado E2E contra Stripe test mode (2026-08-10, ZAL-3)
+
+`tests/e2e-zaltyko-stripe-connect-flow.spec.ts` — 7/7 verde en chromium contra
+`http://127.0.0.1:3000` con `sk_test_*` / `pk_test_*` y la academia E2E aislada.
+Reproducible con `pnpm test:e2e:stripe` (ver runbook en la cabecera del spec).
+
+- [x] Guardar tarjeta de prueba: SetupIntent + `confirmCardSetup` con `tok_visa`, persistida vía `POST /api/family/payment-method` (display `4242`).
+- [x] Cobro off-session: `POST /api/charges/[id]/collect` sobre cargo `pending` sembrado → `200`, `status=paid`, `paymentIntentId` `pi_*`.
+- [x] Cron `GET /api/cron/collect-charges` autenticado con `CRON_SECRET` → `200` con totales `academies/attempted/paid/failed/skipped` (o `ALREADY_RUNNING`).
+- [x] Contratos de autorización: `401` sin sesión, `403/404/409` cross-tenant y sin Connect listo; ninguno devuelve `500`.
+
 ## Pendiente antes de academia piloto
 
 - [ ] Confirmar variables Connect correctas en el deployment activo.
-- [ ] Guardar tarjeta real de prueba mediante Elements.
-- [ ] Ejecutar cobro inmediato.
-- [ ] Ejecutar cobro off-session.
+- [ ] Guardar tarjeta mediante el UI de Elements (el E2E cubre la API, no los iframes).
+- [ ] Ejecutar cobro inmediato desde el panel owner.
 - [ ] Verificar SCA/3DS y recuperación de `requires_action`.
 - [ ] Verificar tarjeta rechazada y notificación.
 - [ ] Verificar reembolso parcial y total.
