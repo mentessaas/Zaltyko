@@ -11,26 +11,17 @@
 //   - IDs en string (uuid). Fechas en ISO string — formatear en UI.
 
 import { apiGet, apiPost, apiPut, apiDelete } from './client';
+import { normalizeMeProfile, type RawMeProfile, type ZaltykoProfile } from '@/lib/auth/roles';
 
 // ===== Profile =====
 
-export interface MeProfile {
-  id: string;
-  email: string;
-  fullName: string | null;
-  role:
-    | 'super_admin'
-    | 'owner'
-    | 'admin'
-    | 'coach'
-    | 'parent'
-    | 'athlete'
-    | 'viewer';
-  academyId: string | null;
-  academyName: string | null;
-}
+// El tipo del perfil (incluida la lista de roles, con `provider`) es
+// el del contrato en lib/auth/roles.ts — una sola fuente de verdad,
+// para que añadir un rol en el backend no requiera recordar dos sitios.
+export type MeProfile = ZaltykoProfile;
 
-export const getMe = () => apiGet<MeProfile>('/api/me');
+export const getMe = async (): Promise<MeProfile> =>
+  normalizeMeProfile(await apiGet<RawMeProfile>('/api/me'));
 
 // ===== Family children =====
 

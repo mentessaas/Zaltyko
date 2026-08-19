@@ -2,7 +2,7 @@
 // Coincide con el portal limitado de CLAUDE.md: parent/athlete solo ven
 // su información, no la admin. Coach ve lo suyo. Owner/admin ven todo.
 
-import type { ZaltykoRole } from './use-session';
+import { capabilitiesForRole, isZaltykoRole, UNKNOWN_ROLE_FALLBACK, type ZaltykoRole } from './roles';
 
 export type TabKey = 'home' | 'schedule' | 'messages' | 'notifications' | 'profile' | 'classes' | 'billing';
 
@@ -66,11 +66,27 @@ const TABS_BY_ROLE: Record<ZaltykoRole, TabConfig[]> = {
     { key: 'notifications', title: 'Avisos', href: '/(tabs)/notifications', icon: 'bell' },
     { key: 'profile', title: 'Perfil', href: '/(tabs)/profile', icon: 'user' },
   ],
+  // provider (ZAL-768): shell "global" en el backend — sin academia,
+  // sin familia, sin billing. Mobile NO es su superficie de trabajo,
+  // así que no recibe Agenda (clases de academia) ni Mensajes
+  // (mensajería tenant-scoped): solo avisos y perfil. La pantalla de
+  // inicio se mantiene declarada porque el layout de tabs mapea
+  // 'home' → la ruta `index` de Expo Router; su contenido para
+  // provider lo define ZAL-427 con Producto/UX, no este contrato.
+  provider: [
+    { key: 'home', title: 'Inicio', href: '/(tabs)', icon: 'home' },
+    { key: 'notifications', title: 'Avisos', href: '/(tabs)/notifications', icon: 'bell' },
+    { key: 'profile', title: 'Perfil', href: '/(tabs)/profile', icon: 'user' },
+  ],
 };
 
 export function tabsForRole(role: ZaltykoRole | undefined): TabConfig[] {
-  if (!role) return TABS_BY_ROLE.parent; // default seguro
-  return TABS_BY_ROLE[role] ?? TABS_BY_ROLE.parent;
+  if (!role) return TABS_BY_ROLE.parent; // sesión cargando: default seguro
+  // Un rol que el backend manda pero mobile no conoce NO puede caer a
+  // `parent`: eso le daría el portal de familia. Cae al rol de menor
+  // privilegio (ver UNKNOWN_ROLE_FALLBACK en roles.ts).
+  if (!isZaltykoRole(role)) return TABS_BY_ROLE[UNKNOWN_ROLE_FALLBACK];
+  return TABS_BY_ROLE[role] ?? TABS_BY_ROLE[UNKNOWN_ROLE_FALLBACK];
 }
 
 // Para Fase 2: decidir si un rol debería ser redirigido a la web
@@ -99,8 +115,30 @@ export function isAdminRoute(path: string): boolean {
   if (!path) return false;
   // Normalizamos para que '/coach/attendance/123' y 'coach/attendance/123'
   // caigan en la misma regla.
-  const normalized = path.startsWith('/') ? path : `/${path}`;
+  const normalized = normalizePath(path);
   return ADMIN_ROUTE_PREFIXES.some((prefix) => normalized.startsWith(prefix));
+}
+
+function normalizePath(path: string): string {
+  return path.startsWith('/') ? path : `/${path}`;
+}
+
+// Rutas ligadas a una academia o a la familia. Un rol con shell
+// "global" (hoy solo `provider`) no pertenece a ninguna academia, así
+// que estas rutas no son "suyas" ni siquiera en modo lectura: el
+// backend responderá 403 y, sin este filtro, un deep link
+// (`zaltyko://family/invoices`) dejaría al proveedor mirando el portal
+// de familia mientras el fetch falla.
+const ACADEMY_SCOPED_ROUTE_PREFIXES: readonly string[] = [
+  '/family/',            // portal de familia (hijos, facturas)
+  '/(tabs)/schedule',    // agenda de clases de la academia
+  '/(tabs)/messages',    // mensajería tenant-scoped
+];
+
+export function isAcademyScopedRoute(path: string): boolean {
+  if (!path) return false;
+  const normalized = normalizePath(path);
+  return ACADEMY_SCOPED_ROUTE_PREFIXES.some((prefix) => normalized.startsWith(prefix));
 }
 
 /**
@@ -111,12 +149,22 @@ export function isAdminRoute(path: string): boolean {
  *
  * Roles admin (owner/admin/super_admin/coach) acceden a todo.
  * parent/athlete/viewer NO acceden a rutas admin/coach.
+ * provider (shell "global", ZAL-768) además NO accede a rutas de
+ * academia ni al portal de familia: solo avisos, perfil e inicio.
  */
 export function canAccessRoute(
   role: ZaltykoRole | undefined,
   path: string,
 ): boolean {
   if (!role) return false;
+
+  // Sin superficie de trabajo en mobile (provider): deny-list amplia.
+  // Se decide por capacidad, no por igualdad de string, para que un
+  // futuro rol "global" herede el mismo aislamiento sin tocar esto.
+  if (!capabilitiesForRole(role).hasMobileWorkSurface) {
+    return !isAdminRoute(path) && !isAcademyScopedRoute(path);
+  }
+
   if (!isAdminRoute(path)) return true;
   return (
     role === 'super_admin' ||

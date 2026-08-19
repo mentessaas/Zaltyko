@@ -17,8 +17,35 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // `endpoints` directamente porque `family-dashboard.ts` los invoca
 // desde el módulo real; el mock del transporte nos da control sobre
 // cada endpoint por su path.
+//
+// `ApiClientError` se stubea con una clase equivalente (mismos campos
+// que la real en client.ts) porque `family-dashboard.ts` la instancia
+// en el guard de rol (ZAL-768) y un `vi.fn()` no es construible. No se
+// usa `importOriginal` a propósito: client.ts arrastra react-native,
+// que no resuelve bajo el entorno `node` de vitest.
 vi.mock('./client', () => {
+  class ApiClientError extends Error {
+    code: string;
+    status: number;
+    retryable: boolean;
+    nextAction: unknown;
+    constructor(err: {
+      code: string;
+      message: string;
+      status: number;
+      retryable: boolean;
+      nextAction: unknown;
+    }) {
+      super(err.message);
+      this.code = err.code;
+      this.status = err.status;
+      this.retryable = err.retryable;
+      this.nextAction = err.nextAction;
+      this.name = 'ApiClientError';
+    }
+  }
   return {
+    ApiClientError,
     apiGet: vi.fn(),
     apiPost: vi.fn(),
     apiPut: vi.fn(),
@@ -44,7 +71,7 @@ vi.mock('./endpoints', () => {
   };
 });
 
-import { getFamilyDashboard, renderFamilyCount } from './family-dashboard';
+import { getFamilyDashboard, getMyDashboard, renderFamilyCount } from './family-dashboard';
 import {
   getMySchedule,
   getUnreadCount,
@@ -274,4 +301,28 @@ describe('renderFamilyCount', () => {
       kind: 'unavailable',
     });
   });
+});
+
+// ZAL-768: `FamilyDashboardRole` se derivaba de una lista manual que
+// omitía `provider`, así que el compilador no obligaba a que ese rol
+// pasara por el guard. Ahora deriva de ZaltykoRole; estos tests fijan
+// el comportamiento en runtime.
+describe('getMyDashboard — provider no accede al dashboard familiar (ZAL-768)', () => {
+  it('provider es rechazado con FORBIDDEN_ROLE sin tocar la red', async () => {
+    await expect(getMyDashboard('provider')).rejects.toMatchObject({
+      code: 'FORBIDDEN_ROLE',
+      status: 403,
+    });
+    expect(mockedGetMySchedule).not.toHaveBeenCalled();
+    expect(mockedGetMyCharges).not.toHaveBeenCalled();
+  });
+
+  it.each(['owner', 'admin', 'coach', 'super_admin', 'viewer', 'provider'] as const)(
+    '%s (rol no familiar) es rechazado',
+    async (role) => {
+      await expect(getMyDashboard(role)).rejects.toMatchObject({
+        code: 'FORBIDDEN_ROLE',
+      });
+    }
+  );
 });

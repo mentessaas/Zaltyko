@@ -27,7 +27,9 @@
 //     que el resto de la app; códigos desconocidos caen al fallback
 //     de `translateError` sin filtrar `message` del backend.
 
-import { apiGet } from './client';
+import { ApiClientError, apiGet } from './client';
+import { translateError } from './error-codes';
+import type { ZaltykoRole } from '@/lib/auth/roles';
 import {
   getMySchedule,
   getUnreadCount,
@@ -138,6 +140,41 @@ export async function getFamilyDashboard(): Promise<FamilyDashboardBundle> {
       href: '/family/invoices',
     },
   };
+}
+
+// Nombre de contrato para las pantallas familia. Mantener `getFamilyDashboard`
+// como alias de implementación evita romper consumidores de Fase 5, mientras
+// que la frontera pública deja explícito que el backend decide el rol y el
+// tenant a partir del Bearer (nunca desde un academyId enviado por Mobile).
+//
+// ZAL-768: se deriva de `ZaltykoRole` en vez de re-listar los roles a mano.
+// La lista manual anterior omitía `provider`, así que el compilador dejaba
+// de avisar cuando un rol nuevo del backend llegaba a esta frontera. Ahora
+// añadir un rol en roles.ts lo obliga a pasar por este guard.
+export type FamilyDashboardRole = ZaltykoRole;
+
+/**
+ * Entry point de contrato para la pantalla familia. El rol es opcional para
+ * conservar compatibilidad con callers que dejan que el backend lo resuelva
+ * desde el Bearer; cuando está disponible, este guard evita que una pantalla
+ * admin/coach/owner reutilice accidentalmente datos familiares.
+ */
+export function getMyDashboard(
+  role?: FamilyDashboardRole,
+): Promise<FamilyDashboardBundle> {
+  if (role && role !== 'parent' && role !== 'athlete') {
+    const translation = translateError('FORBIDDEN_ROLE');
+    return Promise.reject(
+      new ApiClientError({
+        code: 'FORBIDDEN_ROLE',
+        message: translation.message,
+        status: 403,
+        retryable: translation.retryable,
+        nextAction: translation.nextAction,
+      }),
+    );
+  }
+  return getFamilyDashboard();
 }
 
 interface SourceOk<T> {
