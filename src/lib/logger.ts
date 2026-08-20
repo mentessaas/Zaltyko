@@ -18,7 +18,23 @@ export interface LogContext {
 }
 
 const REDACTED_VALUE = "[REDACTED]";
-const SENSITIVE_KEYS = new Set(["clientSecret", "client_secret"]);
+const SENSITIVE_KEYS = new Set([
+  "clientSecret",
+  "client_secret",
+  "apiKey",
+  "api_key",
+  "apikey",
+  "authorization",
+  "Authorization",
+  "bearer",
+  "Bearer",
+  "token",
+  "accessToken",
+  "refreshToken",
+  "authToken",
+  "password",
+  "secret",
+]);
 
 /**
  * Clona un valor de logging y redacciona secretos SCA aunque estén anidados

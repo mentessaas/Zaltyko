@@ -85,11 +85,16 @@ export function WhatsAppPage({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         phone: config.phone,
-        apiKey: config.apiKey,
+        academyId,
       }),
     });
 
-    return response.ok;
+    if (!response.ok) {
+      const error = await response.json().catch(() => null);
+      throw new Error(error?.message || "Error al verificar la conexión");
+    }
+
+    return response.json();
   };
 
   const handleSaveConfig = async () => {
