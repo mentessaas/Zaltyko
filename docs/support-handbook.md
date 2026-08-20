@@ -1,6 +1,27 @@
 # Guía Interna de Soporte y Operaciones – GymnaSaaS
 
-> Última actualización: 2025-11-10
+> Última actualización (cuerpo técnico §1–§7): 2025-11-10
+
+## 0. Origen y enlaces (Customer Support, 2026-08-20)
+
+> Bloque agregado por ZAL-860. **No reemplaza** el runbook concierge ni la
+> rev 2; solo enlaza el cuerpo técnico con los materiales vigentes. Para
+> troubleshooting de piloto, **lee primero** los documentos vigentes.
+
+- **Runbook concierge piloto** — gate `854bc9dd`, rev 2 `a8219014`
+  (publicada por ZAL-480). Cubre §0–§7. Es la fuente operativa del piloto.
+- **Macros de respuesta** — rev 3 `e7314ba7` (publicada por ZAL-520).
+  Incluye macro `L-NO-PRECIO`.
+- **Customer success** — `vault/04-Marketing/Customer success.md`
+  (marcado **desactualizado** vs runbook). Define d0/d3/d7/d14 por plan.
+- **Onboarding y activación** — `vault/04-Marketing/Onboarding y
+  activacion.md` (marcado **desactualizado**). Complementa §4 del runbook.
+
+**Documentos de soporte del piloto (ZAL-860):** FAQ objeciones, registro
+mínimo §5 (peer-verify C-2) y plantilla §6 — ver `docs/onboarding-piloto-*.md`.
+
+**Límites:** este handbook NO es el runbook. Para piloto usá `a8219014`;
+este doc conserva los flujos técnicos 3.x para soporte fuera del piloto.
 
 ## 1. Panorama general
 - **App**: Next.js 14 (App Router) + Tailwind + Supabase (Auth + Postgres con Drizzle ORM).
