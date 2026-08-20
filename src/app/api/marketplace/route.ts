@@ -5,16 +5,74 @@ import { marketplaceListings } from "@/db/schema";
 import { marketplaceCategoryEnum, marketplaceListingTypeEnum } from "@/db/schema/enums";
 import { eq, desc, like, and, or } from "drizzle-orm";
 import { z } from "zod";
-import { withTenant, type TenantContext } from "@/lib/authz";
+import { withAuthenticatedNoTenant, type TenantContext } from "@/lib/authz";
 import { escapeLikeSearch } from "@/lib/helpers";
 import { apiSuccess, apiError, apiCreated } from "@/lib/api-response";
 import { logger } from "@/lib/logger";
 import { demoMarketplaceListing } from "@/lib/public/demo-listings";
 
-// Validation schemas
+//-sellerType values stored in marketplace_listings.sellerType (text at DB level).
+// The API contract is a single source of truth for what the catalogue can render.
+const MARKETPLACE_SELLER_TYPES = [
+  "academy",
+  "coach",
+  "athlete",
+  "provider",
+  "external",
+] as const;
+type MarketplaceSellerType = (typeof MARKETPLACE_SELLER_TYPES)[number];
+
+// Deriva el tipo de vendedor a partir del rol de plataforma. La auditoría
+// ZAL-427 (PV-3) detectó que `sellerType` se enviaba siempre como
+// "external" desde /marketplace/nuevo, opacando si el autor era un
+// proveedor registrado, una academia o un coach. Esta función es la
+// única responsable de la asignación.
+function sellerTypeForRole(role: string | null | undefined): MarketplaceSellerType {
+  switch (role) {
+    case "admin":
+    case "owner":
+      return "academy";
+    case "coach":
+      return "coach";
+    case "athlete":
+      return "athlete";
+    case "provider":
+      return "provider";
+    case "super_admin":
+    case "parent":
+    default:
+      return "external";
+  }
+}
+
+// Validation schema. `userId` y `sellerType` salen del schema: ambos son
+// derivados del contexto server-side (sesión y rol del perfil) y no son
+// valores que el cliente debiera poder forzar. Mantenerlos en el body
+// abría la puerta a publicar en nombre de otro usuario (IDOR) y a
+// falsificar el tipo de vendedor.
+//
+// PV-6 (auditoría ZAL-427): exigimos al menos un canal de contacto
+// (whatsapp/email/phone) con z.refine. Antes los tres eran opcionales y
+// `priceType` por defecto era `contact` ("A convenir") → se podía
+// publicar un anuncio "A convenir" sin forma de convenir nada.
+const ContactSchema = z
+  .object({
+    whatsapp: z.string().optional(),
+    email: z.string().email().optional(),
+    phone: z.string().optional(),
+  })
+  .refine(
+    (c) =>
+      Boolean((c.whatsapp ?? "").trim()) ||
+      Boolean((c.email ?? "").trim()) ||
+      Boolean((c.phone ?? "").trim()),
+    {
+      message: "Necesitamos al menos una forma de que te contacten.",
+      path: ["whatsapp"],
+    }
+  );
+
 const CreateMarketplaceSchema = z.object({
-  userId: z.string().uuid("Invalid user ID"),
-  sellerType: z.enum(["academy", "coach", "athlete", "external"]),
   type: z.enum(["product", "service"]),
   category: z.enum([
     "equipment", "clothing", "supplements", "books", "particular_training",
@@ -25,18 +83,20 @@ const CreateMarketplaceSchema = z.object({
   priceCents: z.number().int().min(0).optional(),
   currency: z.string().default("eur"),
   priceType: z.enum(["fixed", "negotiable", "contact"]).default("contact"),
-  contact: z.object({
-    whatsapp: z.string().optional(),
-    email: z.string().email().optional(),
-    phone: z.string().optional(),
-  }).optional(),
+  contact: ContactSchema.optional(),
   images: z.array(z.string()).optional(),
   location: z.object({
     country: z.string(),
     province: z.string().optional(),
     city: z.string(),
   }).optional(),
-});
+}).refine(
+  (v) => Boolean(v.contact),
+  {
+    message: "Necesitamos al menos una forma de que te contacten.",
+    path: ["contact"],
+  }
+);
 
 
 export async function GET(request: Request) {
@@ -95,18 +155,25 @@ export async function GET(request: Request) {
   });
 }
 
-export const POST = withTenant(async (request: Request, context: TenantContext) => {
+export const POST = withAuthenticatedNoTenant(async (request: Request, context: TenantContext) => {
   try {
-    if (!context.tenantId) {
-      return apiError("TENANT_REQUIRED", "Tenant requerido", 403);
+    // ZAL-499: contexto sin tenantId por diseño (rol provider sin academia).
+    // El wrapper garantiza userId server-derived y rol permitido.
+    if (!context.userId) {
+      return apiError("UNAUTHENTICATED", "Sesión requerida", 401);
     }
 
     const body = await request.json();
     const validated = CreateMarketplaceSchema.parse(body);
 
+    // userId y sellerType se derivan server-side del contexto de la sesión;
+    // ignorar cualquier valor que el cliente intentara fijar en el body.
+    const userId = context.userId;
+    const sellerType = sellerTypeForRole(context.profile?.role);
+
     const [listing] = await db.insert(marketplaceListings).values({
-      userId: context.userId,
-      sellerType: validated.sellerType,
+      userId,
+      sellerType,
       type: validated.type,
       category: validated.category,
       title: validated.title,
@@ -121,7 +188,30 @@ export const POST = withTenant(async (request: Request, context: TenantContext) 
     return apiCreated({ item: listing });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return apiError("VALIDATION_ERROR", "Error de validación", 400);
+      // PV-4: el primer issue del ZodError se devuelve como `details`
+      // para que el cliente pueda anclar el mensaje al campo. Antes
+      // toda la ZodError se descartaba y el cliente solo recibía
+      // `VALIDATION_ERROR` genérico.
+      const first = error.issues[0];
+      const rawField = first?.path?.[0];
+      const field =
+        rawField === "whatsapp" || rawField === "email" || rawField === "phone"
+          ? "contact"
+          : typeof rawField === "string"
+            ? rawField
+            : null;
+      return apiError(
+        "VALIDATION_ERROR",
+        first?.message ?? "Error de validación",
+        400,
+        {
+          field,
+          issues: error.issues.map((i) => ({
+            path: i.path,
+            message: i.message,
+          })),
+        }
+      );
     }
     logger.error("Error creating marketplace listing:", error);
     return apiError("INTERNAL_ERROR", "Error interno", 500);
