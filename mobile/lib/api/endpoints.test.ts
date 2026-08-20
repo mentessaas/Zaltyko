@@ -19,6 +19,8 @@ import {
   CHARGE_STATUS_LABEL,
   isChargePayable,
 } from './endpoints';
+import { ApiClientError } from './client';
+import { getMyDashboard } from './family-dashboard';
 
 // endpoints.ts es la frontera de contrato con el backend: define qué ruta
 // se llama, cómo se arma el query-string y cómo se desenvuelve la respuesta.
@@ -420,6 +422,71 @@ describe('aislamiento y errores esperados en getConversations (ZAL-622 AC-04 + �
       status: 401,
       message: expect.not.stringContaining('Stack trace'),
     });
+  });
+});
+
+describe('family my-dashboard aislamiento (ZAL-622 AC-08)', () => {
+  it('parent recibe el resumen compuesto sin aceptar academyId desde el cliente', async () => {
+    const fetchMock = vi.fn();
+    for (const response of [
+      jsonResponse({ ok: true, data: [{ id: 'class-1', className: 'Infantil', day: 'lun', time: '17:00', location: 'Sala 1', coach: 'Ana' }] }),
+      jsonResponse({ ok: true, data: { count: 1 } }),
+      jsonResponse({ ok: true, data: { items: [{ id: 'conversation-1', unreadCount: 2 }] } }),
+      jsonResponse({ ok: true, data: [{ id: 'charge-1', status: 'due' }] }),
+    ]) {
+      fetchMock.mockResolvedValueOnce(response);
+    }
+    vi.stubGlobal('fetch', fetchMock);
+
+    const bundle = await getMyDashboard('parent');
+
+    expect(bundle.nextClasses.items[0]?.id).toBe('class-1');
+    expect(bundle.unread).toMatchObject({ notifications: 1, conversations: 2 });
+    expect(bundle.pendingCharges.items[0]?.id).toBe('charge-1');
+    expect(fetchMock.mock.calls.map(([url]) => new URL(url as string).pathname)).toEqual([
+      '/api/me/schedule',
+      '/api/notifications/unread-count',
+      '/api/messages/conversations',
+      '/api/me/charges',
+    ]);
+    for (const [url] of fetchMock.mock.calls) {
+      expect(new URL(url as string).search).toBe('');
+    }
+  });
+
+  it('admin recibe ApiClientError FORBIDDEN_ROLE y nextAction=contact_support', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    const request = getMyDashboard('admin');
+    await expect(request).rejects.toBeInstanceOf(ApiClientError);
+    await expect(request).rejects.toMatchObject({
+      code: 'FORBIDDEN_ROLE',
+      nextAction: 'contact_support',
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('coach recibe ApiClientError FORBIDDEN_ROLE y no un dashboard vacío', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(getMyDashboard('coach')).rejects.toMatchObject({
+      code: 'FORBIDDEN_ROLE',
+      nextAction: 'contact_support',
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('owner recibe ApiClientError FORBIDDEN_ROLE y no datos de familia', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(getMyDashboard('owner')).rejects.toMatchObject({
+      code: 'FORBIDDEN_ROLE',
+      nextAction: 'contact_support',
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });
 
