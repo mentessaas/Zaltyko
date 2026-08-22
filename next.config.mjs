@@ -4,44 +4,18 @@ import { withSentryConfig } from "@sentry/nextjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-const securityHeaders = [
-  {
-    key: "Strict-Transport-Security",
-    value: "max-age=31536000; includeSubDomains; preload",
-  },
-  {
-    key: "X-Frame-Options",
-    value: "DENY",
-  },
-  {
-    key: "X-Content-Type-Options",
-    value: "nosniff",
-  },
-  {
-    key: "Referrer-Policy",
-    value: "strict-origin-when-cross-origin",
-  },
-  {
-    key: "Content-Security-Policy",
-    value: [
-      "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.supabase.co https://*.stripe.com https://vercel.live https://va.vercel-scripts.com https://*.posthog.com https://*.google-analytics.com",
-      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-      "font-src 'self' data: https://fonts.gstatic.com",
-      "img-src 'self' data: blob: https:",
-      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.stripe.com https://*.posthog.com https://*.google-analytics.com https://vercel.live",
-      "frame-src 'self' https://*.stripe.com https://*.supabase.co",
-      "frame-ancestors 'none'",
-      "base-uri 'self'",
-      "form-action 'self' https://*.supabase.co",
-    ].join("; "),
-  },
-];
+// Security headers (HSTS, CSP con nonce, X-Frame-Options, X-Content-Type-Options,
+// Referrer-Policy, Permissions-Policy) y redirección www↔apex se aplican desde
+// middleware.ts para generar nonces por request (CSP estricta).
+// El bloque `securityHeaders` que vivía aquí se eliminó porque next.config.mjs
+// sólo permite headers estáticos y no puede emitir un nonce por request.
 
 const nextConfig = {
-  // TypeScript still runs during build; ESLint runs explicitly via `pnpm lint`.
+  // El typecheck corre en el job de CI (Lint & Type Check) antes de mergear a main;
+  // repetirlo aquí agotaba el límite de build de Vercel (2 cores / 8 GB) y mataba
+  // cada deploy en "Checking validity of types" sin emitir un error.
   typescript: {
-    ignoreBuildErrors: false,
+    ignoreBuildErrors: true,
   },
   // ESLint runs via the dedicated CI job (Lint & Type Check); skip it during next build.
   eslint: {
@@ -92,18 +66,12 @@ const nextConfig = {
   poweredByHeader: false,
   reactStrictMode: true,
 
-  // Headers de seguridad
-  async headers() {
-    return [
-      {
-        source: "/(.*)",
-        headers: securityHeaders,
-      },
-    ];
-  },
+  // Headers de seguridad: ver middleware.ts (nonce por request).
 
   // Consolidar señales SEO en el dominio canónico: el dominio de despliegue
   // de Vercel no debe competir con zaltyko.com por indexación/backlinks.
+  // El manejo www↔apex con 301 vive en middleware.ts para evitar ciclos
+  // y poder reflejar el path completo sin doble match.
   async redirects() {
     return [
       {
