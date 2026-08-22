@@ -360,6 +360,92 @@ export function withTenant<Ctx extends Record<string, unknown>>(
 }
 
 /**
+ * Autentica una sesión sin exigir que el usuario tenga un tenant.
+ *
+ * Algunos actores globales (por ejemplo, `provider`) pueden operar en el
+ * marketplace sin pertenecer a una academia. El handler sigue siendo
+ * responsable de autorizar el recurso concreto; este wrapper solo resuelve la
+ * identidad y entrega un tenant vacío cuando no existe.
+ */
+export function withAuthenticatedNoTenant<Ctx extends Record<string, unknown>>(
+  handler: (request: Request, context: TenantContext<Ctx>) => Promise<Response>
+) {
+  return async (request: Request, context: any) => {
+    try {
+      const params = context.params ? await context.params : context.params;
+      const contextWithParams = { ...context, params };
+
+      const userId = await resolveUserId(request, contextWithParams);
+      if (!userId) {
+        return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
+      }
+
+      const profile = await getCurrentProfile(userId);
+      if (!profile) {
+        return NextResponse.json(
+          { error: "PROFILE_NOT_FOUND" },
+          { status: 404 }
+        );
+      }
+
+      if (!profile.canLogin && profile.role !== "super_admin") {
+        return NextResponse.json(
+          {
+            error: "LOGIN_DISABLED",
+            message:
+              "Tu cuenta no tiene acceso activado. Contacta al administrador.",
+          },
+          { status: 403 }
+        );
+      }
+
+      // El tenant es informativo para handlers que lo aceptan; su ausencia es
+      // válida aquí y no debe convertir la autenticación en un 403.
+      const tenantId = profile.tenantId ?? "";
+
+      return handler(request, {
+        ...contextWithParams,
+        tenantId,
+        userId,
+        profile,
+      });
+    } catch (error) {
+      if (error instanceof UnauthenticatedError) {
+        return NextResponse.json(
+          { error: error.code },
+          { status: error.statusCode }
+        );
+      }
+      if (error instanceof ProfileNotFoundError) {
+        return NextResponse.json(
+          { error: error.code },
+          { status: error.statusCode }
+        );
+      }
+      if (error instanceof LoginDisabledError) {
+        return NextResponse.json(
+          {
+            error: error.code,
+            message:
+              "Tu cuenta no tiene acceso activado. Contacta al administrador.",
+          },
+          { status: error.statusCode }
+        );
+      }
+
+      logger.error("Error in withAuthenticatedNoTenant", error);
+      return NextResponse.json(
+        {
+          error: "INTERNAL_ERROR",
+          message: "Error interno del servidor",
+        },
+        { status: 500 }
+      );
+    }
+  };
+}
+
+/**
  * Resuelve userId desde Authorization: Bearer <token>.
  * Complemento de withTenant para clientes mobile/PWA que usan bearer.
  * Valida firma via Supabase auth.getUser(token).
