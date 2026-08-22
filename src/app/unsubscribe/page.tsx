@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 
 type Status = "idle" | "loading" | "success" | "error";
 
@@ -30,7 +31,15 @@ type ApiResponse = ApiSuccess | ApiError;
  *   5. Mostrar confirmacion final con link a `/preferences` (RGPD: opcion
  *      a reducir frecuencia sin perder todo).
  */
-function UnsubscribeInner() {
+export default function UnsubscribePage() {
+  return (
+    <Suspense fallback={null}>
+      <UnsubscribePageInner />
+    </Suspense>
+  );
+}
+
+function UnsubscribePageInner() {
   const searchParams = useSearchParams();
   const token = useMemo(() => searchParams.get("token") ?? "", [searchParams]);
 
@@ -117,9 +126,9 @@ function UnsubscribeInner() {
             <p className="mt-2">
               Si tu enlace expiro (30 dias), solicita uno nuevo desde el pie del
               ultimo email o contactanos en{" "}
-              <a className="underline" href="/contact">
+              <Link className="underline" href="/contact">
                 nuestra pagina de soporte
-              </a>
+              </Link>
               .
             </p>
           </div>
@@ -134,9 +143,9 @@ function UnsubscribeInner() {
             <p className="mt-2 text-sm text-muted-foreground">
               Recibiras un email de confirmacion. Si solo quieres reducir la
               frecuencia, cambia tus{" "}
-              <a className="underline" href={`/preferences?token=${encodeURIComponent(token)}`}>
+              <Link className="underline" href={`/preferences?token=${encodeURIComponent(token)}`}>
                 preferencias
-              </a>{" "}
+              </Link>{" "}
               en lugar de darte de baja.
             </p>
             <button
@@ -157,38 +166,14 @@ function UnsubscribeInner() {
               No volveras a recibir emails de Zaltyko salvo los operativos
               directamente relacionados con el servicio (cobros, seguridad,
               magic links). Si fue un error, contactanos en{" "}
-              <a className="underline" href="/contact">
+              <Link className="underline" href="/contact">
                 soporte
-              </a>
+              </Link>
               .
             </p>
           </div>
         )}
       </div>
     </main>
-  );
-}
-
-
-/**
- * Suspense boundary requerido: useSearchParams() no puede prerenderizarse
- * estaticamente sin el (missed-suspense-with-csr-bailout).
- */
-export default function UnsubscribePage() {
-  return (
-    <Suspense
-      fallback={
-        <main className="min-h-screen flex items-center justify-center bg-background px-4">
-          <div className="w-full max-w-lg rounded-lg border border-border bg-card p-8 shadow-sm">
-            <h1 className="text-2xl font-semibold text-foreground">
-              Darse de baja de emails
-            </h1>
-            <p className="mt-4 text-muted-foreground">Cargando...</p>
-          </div>
-        </main>
-      }
-    >
-      <UnsubscribeInner />
-    </Suspense>
   );
 }

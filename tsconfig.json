@@ -39,6 +39,7 @@
   "exclude": [
     "node_modules",
     "ZaltykoMobile",
+    "mobile",
     "zaltyko-branding",
     ".playwright-mcp",
     "scripts/fix-fk.ts",

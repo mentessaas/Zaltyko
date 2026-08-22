@@ -1527,16 +1527,16 @@ Costo del heartbeat: ~3 API calls (1 PATCH ZAL-441 fallido ProofRequired + 1 PAT
 
 - `dig +short aws-1-eu-north-1.pooler.supabase.com A` → `13.60.102.132`, `51.21.189.77` (AWS ELB EU-NORTH-1, IPv4).
 - `dig +short db.jegxfahsvugilbthbked.supabase.co A` → vacío (AAAA-only). `dig +short ... AAAA` → `2a05:d016:571:a418:d836:cd7b:4c56:4b98`.
-- `psql "postgresql://postgres.jegxfahsvugilbthbked:Mentessaas550501@aws-1-eu-north-1.pooler.supabase.com:6543/postgres?sslmode=require" -c "select version();"` → `PostgreSQL 17.6 on aarch64-unknown-linux-gnu` (HTTP 200 desde este host, sin túneles).
+- `psql "postgresql://postgres.jegxfahsvugilbthbked:[REDACTED-rotate-me]@aws-1-eu-north-1.pooler.supabase.com:6543/postgres?sslmode=require" -c "select version();"` → `PostgreSQL 17.6 on aarch64-unknown-linux-gnu` (HTTP 200 desde este host, sin túneles).
 - `curl -sS https://jegxfahsvugilbthbked.supabase.co/auth/v1/health` → 401 (gateway Supabase alcanzable).
 - `curl -sS "https://jegxfahsvugilbthbked.supabase.co/rest/v1/academies?select=id,name,is_suspended,tenant_id"` con service role JWT → 2 filas: `c0346990-e49f-44c5-84e7-1ad2c6579b7c` (MentesSaas Academy, Stripe acct_1TtTOdD6epI0CHnR charges_enabled=false) y `44444444-aaaa-bbbb-cccc-444444444444` (Aurora Elite Demo, Stripe acct_1Tyau3Dd5HlYiTSY charges_enabled=true). **La academia `7ea0690c-99f2-4466-8a96-f251e1235d57` NO existe en el proyecto real `.env.local`**, solo existe en el sandbox `aeeootdmuiqkfeernskw` referenciado por changelog ZAL-27.
 - Notar: `acct_1Tyau3Dd5HlYiTSY` aparece en stripe_accounts de AMBOS proyectos (sandbox y prod) — es la misma Connect account (id a nivel Stripe), apuntada desde dos DBs distintas. Eso explica el espejismo.
-- Shell env del run tiene `DATABASE_URL=postgresql://postgres:aKnJrawOtplxtWko@db.aeeootdmuiqkfeernskw.supabase.co:5432/postgres` + `NEXT_PUBLIC_SUPABASE_URL=https://aeeootdmuiqkfeernskw.supabase.co` — distinto de `.env.local` (prod). `dotenv.config` no override por defecto, así que el shell env ganaba al seed script y le hacía apuntar al sandbox inalcanzable. El heartbeat previo no detectó esa inconsistencia.
+- Shell env del run tiene `DATABASE_URL=postgresql://postgres:[REDACTED-rotate-me]@db.aeeootdmuiqkfeernskw.supabase.co:5432/postgres` + `NEXT_PUBLIC_SUPABASE_URL=https://aeeootdmuiqkfeernskw.supabase.co` — distinto de `.env.local` (prod). `dotenv.config` no override por defecto, así que el shell env ganaba al seed script y le hacía apuntar al sandbox inalcanzable. El heartbeat previo no detectó esa inconsistencia.
 
 **Aplicado (reversible, local, autoridad delegada):**
 
 - `.env.local:41` — `E2E_ACADEMY_ID` revertido de `7ea0690c-99f2-4466-8a96-f251e1235d57` → `44444444-aaaa-bbbb-cccc-444444444444` (Aurora Elite Demo, academia que de hecho tiene la familia E2E, los cargos E2E y la Connect acct_1Tyau3Dd5HlYiTSY con charges_enabled=true en el proyecto que `.env.local` apunta). Diff: 1 línea. Ningún secret tocado.
-- `E2E_ALLOW_PROVISIONING=true E2E_ACADEMY_ID=44444444-aaaa-bbbb-cccc-444444444444 DATABASE_URL=postgresql://postgres.jegxfahsvugilbthbked:Mentessaas550501@aws-1-eu-north-1.pooler.supabase.com:6543/postgres?sslmode=require pnpm tsx scripts/seed-e2e-charge.ts` → stdout:
+- `E2E_ALLOW_PROVISIONING=true E2E_ACADEMY_ID=44444444-aaaa-bbbb-cccc-444444444444 DATABASE_URL=postgresql://postgres.jegxfahsvugilbthbked:[REDACTED-rotate-me]@aws-1-eu-north-1.pooler.supabase.com:6543/postgres?sslmode=require pnpm tsx scripts/seed-e2e-charge.ts` → stdout:
   ```
   charge: reset existente 9bc9b80b-829a-426f-ba4d-e6ef8f10c851 → pending (1500 cents, 2026-08)
   chargeId=9bc9b80b-829a-426f-ba4d-e6ef8f10c851
@@ -2474,6 +2474,18 @@ Vault: actualizado `Changelog interno`.
 - Sin cambios en código, secretos reales, SQL, migraciones, RLS, dependencias, tests ni deploy. Vault: `Backlog priorizado.md` (línea 219) NO se ha movido a Resuelto porque la verificación sigue pendiente; se revaluará cuando llegue la evidencia de envío end-to-end.
 
 Vault: actualizados `Changelog interno`.
+
+## 2026-07-30 - Cierre reproducible de ZAL-31
+
+- Se completó `tests/lib/stripe-refund-service.test.ts` conservando los tres tests originales y los cinco casos que ya estaban en `00f687f`; el archivo queda con 10 tests en dos bloques `describe`.
+- Lista exacta de los `it(...)` incorporados por ZAL-31:
+  - `it("es idempotente si el cargo ya estaba marcado como reembolsado")` dentro de `describe("refundCharge")`.
+  - `it("rechaza importes cero o negativos")`.
+- Se reforzó `it("acumula dos parciales y marca el cargo como reembolsado al completar el total")` para comprobar explícitamente que la primera operación usa `refund_charge_1_0_1500` y todavía no actualiza el cargo.
+- Verificación local reproducible: `pnpm exec vitest run tests/lib/stripe-refund-service.test.ts` PASS, 10/10 tests en 1,69 s; `git diff --check -- tests/lib/stripe-refund-service.test.ts` PASS.
+- Evidencia limitada a mocks locales (`vi.hoisted`/`vi.fn`) de Stripe, transacción, DB y auditoría. No se llamó Stripe sandbox/live, no se aplicó SQL remoto y no se ejecutó navegador, Playwright ni axe.
+
+Vault: actualizado `Changelog interno`. No hay nueva decisión de producto, arquitectura o seguridad.
 
 ## 2026-07-23 - Inicio del cierre integral del mapa de objeciones
 
