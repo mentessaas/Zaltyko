@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 type Status = "idle" | "loading" | "success" | "error";
@@ -30,7 +30,7 @@ type ApiResponse = ApiSuccess | ApiError;
  *   5. Mostrar confirmacion final con link a `/preferences` (RGPD: opcion
  *      a reducir frecuencia sin perder todo).
  */
-export default function UnsubscribePage() {
+function UnsubscribeInner() {
   const searchParams = useSearchParams();
   const token = useMemo(() => searchParams.get("token") ?? "", [searchParams]);
 
@@ -166,5 +166,29 @@ export default function UnsubscribePage() {
         )}
       </div>
     </main>
+  );
+}
+
+
+/**
+ * Suspense boundary requerido: useSearchParams() no puede prerenderizarse
+ * estaticamente sin el (missed-suspense-with-csr-bailout).
+ */
+export default function UnsubscribePage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="min-h-screen flex items-center justify-center bg-background px-4">
+          <div className="w-full max-w-lg rounded-lg border border-border bg-card p-8 shadow-sm">
+            <h1 className="text-2xl font-semibold text-foreground">
+              Darse de baja de emails
+            </h1>
+            <p className="mt-4 text-muted-foreground">Cargando...</p>
+          </div>
+        </main>
+      }
+    >
+      <UnsubscribeInner />
+    </Suspense>
   );
 }
