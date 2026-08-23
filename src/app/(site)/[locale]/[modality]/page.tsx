@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowRight, MapPin, Users, Trophy } from "lucide-react";
+import { ArrowRight, Users, Trophy } from "lucide-react";
 import { Locale } from "@/i18n";
 import {
   MODALITIES,
@@ -9,7 +9,6 @@ import {
   AVAILABLE_MODALITIES,
   getCountriesForModality,
   type ModalitySlug,
-  type CountrySlug,
 } from "@/lib/seo/clusters";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
@@ -111,7 +110,7 @@ export default async function ModalityPage({ params }: ModalityPageProps) {
   // Get all countries for this modality
   const countries = getCountriesForModality(locale as Locale, modalityKey);
   const modalityLabel = MODALITIES[modalityKey].label[locale as Locale];
-  const available = AVAILABLE_MODALITIES[modalityKey];
+  const available = AVAILABLE_MODALITIES[modalityKey] === true;
 
   const labels = {
     es: {
@@ -133,6 +132,9 @@ export default async function ModalityPage({ params }: ModalityPageProps) {
   };
 
   const t = labels[locale as "es" | "en"];
+  const heroCta = available
+    ? { href: "/auth/register?role=owner", label: t.cta }
+    : null;
 
   // Get other modalities for the footer link
   const otherModalities = Object.keys(MODALITIES)
@@ -178,15 +180,15 @@ export default async function ModalityPage({ params }: ModalityPageProps) {
             <p className="text-xl text-gray-600 mb-8">
               {available ? t.subtitle : t.unavailableSubtitle}
             </p>
-            {available && (
+            {heroCta && (
               <Link
-                href="/auth/register?role=owner"
+                href={heroCta.href}
                 className={cn(
                   buttonVariants({ variant: "default", size: "lg" }),
                   "bg-zaltyko-teal hover:bg-primary-dark text-white shadow-soft transition-all duration-300 text-base px-8 py-6 group inline-flex items-center"
                 )}
               >
-                {t.cta}
+                {heroCta.label}
                 <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
               </Link>
             )}
