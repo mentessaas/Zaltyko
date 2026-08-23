@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 
 type Status = "idle" | "loading" | "success" | "error";
 
@@ -117,9 +118,9 @@ function UnsubscribeInner() {
             <p className="mt-2">
               Si tu enlace expiro (30 dias), solicita uno nuevo desde el pie del
               ultimo email o contactanos en{" "}
-              <a className="underline" href="/contact">
+              <Link className="underline" href="/contact">
                 nuestra pagina de soporte
-              </a>
+              </Link>
               .
             </p>
           </div>
@@ -157,9 +158,9 @@ function UnsubscribeInner() {
               No volveras a recibir emails de Zaltyko salvo los operativos
               directamente relacionados con el servicio (cobros, seguridad,
               magic links). Si fue un error, contactanos en{" "}
-              <a className="underline" href="/contact">
+              <Link className="underline" href="/contact">
                 soporte
-              </a>
+              </Link>
               .
             </p>
           </div>

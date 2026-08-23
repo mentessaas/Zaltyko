@@ -134,7 +134,10 @@ function getExportedHandlers(sf: ts.SourceFile): ExportInfo[] {
     } else if (ts.isFunctionDeclaration(stmt) && stmt.name && METHOD_NAMES.has(stmt.name.text)) {
       out.push({
         exportName: stmt.name.text,
-        init: stmt,
+        // ZAL-fix: una FunctionDeclaration no es un ts.Expression (falta el
+        // brand `_expressionBrand`). La envolvemos en un cast porque
+        // `analyseWrapper` solo la usa como nodo de partida para el walk.
+        init: stmt as unknown as ts.Expression,
         declaration: stmt,
         isWrappedInAuthHOF: false,
         wrapFn: null,
@@ -181,7 +184,7 @@ function analyseWrapper(info: ExportInfo, bindings: LocalBindings): ExportInfo {
       info.wrapFn = callee.text;
       break;
     }
-    const firstArg = cursor.arguments[0];
+    const firstArg: ts.Expression | undefined = cursor.arguments[0] as ts.Expression | undefined;
     if (!firstArg) break;
     cursor = firstArg;
     depth++;
@@ -199,7 +202,7 @@ interface OrderingViolation {
  * Detect if the given handler body executes a validation primitive BEFORE
  * any auth primitive. Returns the offending validation expression if so.
  */
-function checkOrdering(handler: ts.Node, sf: ts.SourceFile): OrderingViolation | null {
+function checkOrdering(handler: ts.Node, sf: ts.SourceFile, sourceText: string): OrderingViolation | null {
   let firstValidate: { pos: number; node: ts.Node; text: string } | null = null;
   let firstAuth: { pos: number; name: string } | null = null;
 
@@ -279,7 +282,7 @@ function checkOrdering(handler: ts.Node, sf: ts.SourceFile): OrderingViolation |
     return {
       validationNode: firstValidate.node,
       validationText: firstValidate.text,
-      validationLine: firstValidate.line,
+      validationLine: lineOf(sourceText, firstValidate.pos),
     };
   }
   return null;
@@ -339,7 +342,7 @@ export function scanFile(filePath: string): Finding[] {
     }
     if (!body) continue;
 
-    const violation = checkOrdering(body, sf);
+    const violation = checkOrdering(body, sf, source);
     if (!violation) continue;
 
     const declStart = exp.declaration.getStart(sf);

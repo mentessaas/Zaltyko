@@ -41,10 +41,12 @@
     "ZaltykoMobile",
     "zaltyko-branding",
     ".playwright-mcp",
+    "mobile",
     "scripts/fix-fk.ts",
     "scripts/e2e-auth-test.ts",
     "scripts/e2e-check-errors.ts",
     "scripts/e2e-full-flows.ts",
+    "scripts/gates/__fixtures__",
     "smoke-test.ts",
     "tests"
   ]

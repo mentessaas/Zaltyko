@@ -10,7 +10,7 @@
  * resuelve `withTenant` antes de llamar a la función).
  */
 
-import { and, asc, count, desc, eq, gte, inArray, isNull, lte, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, inArray, isNull, lte, ne, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -92,7 +92,6 @@ async function loadTodaySessions(
         sessionDate: classSessions.sessionDate,
         startTime: classSessions.startTime,
         endTime: classSessions.endTime,
-        cancelled: classSessions.cancelled,
       })
       .from(classSessions)
       .innerJoin(classes, eq(classSessions.classId, classes.id))
@@ -101,7 +100,9 @@ async function loadTodaySessions(
           eq(classes.academyId, academyId),
           gte(classSessions.sessionDate, dayStart),
           lte(classSessions.sessionDate, dayEnd),
-          eq(classSessions.cancelled, false)
+          // ZAL-fix: class_sessions no tiene columna `cancelled`; el estado
+          // real es `status` (scheduled/cancelled/...). Filtramos por estado.
+          ne(classSessions.status, "cancelled")
         )
       )
       .orderBy(asc(classSessions.startTime), asc(classSessions.sessionDate))
@@ -342,24 +343,15 @@ async function loadChargesOverdue(
 
 async function loadProgressDrafts(academyId: string): Promise<ProgressAttention> {
   const href = `/app/${academyId}/evaluations?status=draft`;
-  const source = "athlete_assessments.status='draft'";
+  // ZAL-fix: athlete_assessments no tiene columna `status` (ver schema
+  // src/db/schema/athlete-assessments.ts). La tabla no modela estados
+  // draft/published todavía, así que la fuente no está disponible y el
+  // bloque se omite en el dashboard hasta que exista (gap consciente,
+  // mismo patrón que loadImportActive/ZAL-620).
+  const source = "athlete_assessments.status='draft' (columna inexistente — pendiente de schema)";
+  void href;
   try {
-    const result = await db
-      .select({ value: count() })
-      .from(athleteAssessments)
-      .where(
-        and(
-          eq(athleteAssessments.academyId, academyId),
-          eq(athleteAssessments.status, "draft")
-        )
-      );
-    const value = Number(result[0]?.value ?? 0);
-    return {
-      count: value,
-      sourceAvailable: true,
-      href: value > 0 ? href : null,
-      source,
-    };
+    return { count: 0, sourceAvailable: false, href: null, source };
   } catch (error) {
     logger.error("attention:loadProgressDrafts failed", { academyId, error });
     return { count: 0, sourceAvailable: false, href: null, source };

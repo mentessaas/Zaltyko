@@ -1,0 +1,10 @@
+external_id,name,dob,status,group_name,sport_config_code,program_code,level_code,category_code,academy_id,family_external_id,notes
+A-001,Sintético Uno,2012-04-03,active,base_3,RFEG-2026-V2,ESCUELA,INI_1,PREBENJAMIN,00000000-aaaa-0000-0000-000000000001,FAM-A-001,
+A-002,Sintético Uno Gemela,2012-04-03,active,base_3,RFEG-2026-V2,ESCUELA,INI_1,PREBENJAMIN,00000000-aaaa-0000-0000-000000000001,FAM-A-002,
+A-001,Sintético Uno Dup,2012-04-03,active,base_3,RFEG-2026-V2,ESCUELA,INI_1,PREBENJAMIN,00000000-aaaa-0000-0000-000000000001,FAM-A-001,external_id repetido con payload modificado
+A-003,Sintético Dos,03/04/2012,active,Base 3,RFEG-2026-V2,ESCUELA,INI_1,PREBENJAMIN,00000000-aaaa-0000-0000-000000000001,FAM-A-003,fecha ambigua por locale
+A-004,Sintético Tres,,active,Base 3,RFEG-2026-V2,ESCUELA,INI_1,PREBENJAMIN,00000000-aaaa-0000-0000-000000000001,FAM-A-004,sin dob
+,Sin Nombre,2012-04-03,active,Base 3,RFEG-2026-V2,ESCUELA,INI_1,PREBENJAMIN,00000000-aaaa-0000-0000-000000000001,FAM-A-005,fila sin name obligatorio
+A-006,Sintético Cuatro,2012-04-03,active,base_3_no_existe,RFEG-2026-V2,ESCUELA,INI_1,PREBENJAMIN,00000000-aaaa-0000-0000-000000000001,FAM-A-006,grupo no existe en academia
+A-007,Sintético Cinco,2012-04-03,active,Base 3,RFEG-NO-EXISTE,ESCUELA,INI_1,PREBENJAMIN,00000000-aaaa-0000-0000-000000000001,FAM-A-007,sport_config_code no está en el catálogo activo
+A-008,Sintético Seis,2012-04-03,inactive,Base 3,RFEG-2026-V2,ESCUELA,INI_1,PREBENJAMIN,00000000-aaaa-0000-0000-000000000001,FAM-A-008,status inactive válido
