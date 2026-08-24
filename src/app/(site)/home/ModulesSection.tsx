@@ -12,6 +12,7 @@ import {
   Shield,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import Reveal from "@/components/motion/Reveal";
 
 const modules = [
   {
@@ -85,14 +86,17 @@ export default function ModulesSection() {
 
         {/* Modules grid — bento (tamaños variados) */}
         <div className="grid md:grid-cols-2 lg:grid-cols-4 lg:grid-flow-dense gap-6">
-          {modules.map((module) => (
-            <div
+          {modules.map((module, index) => (
+            <Reveal
               key={module.title}
-              className={cn(
-                "rounded-card border border-zaltyko-mist bg-white p-6 transition-colors hover:border-zaltyko-teal",
-                module.span
-              )}
+              delay={(index % 4) * 80}
+              className={cn("h-full", module.span)}
             >
+              <div
+                className={cn(
+                  "h-full rounded-card border border-zaltyko-mist bg-white p-6 transition-all duration-200 hover:-translate-y-1.5 hover:border-zaltyko-teal hover:shadow-lift"
+                )}
+              >
               {/* Icon */}
               <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-[6px] bg-zaltyko-primary-ultralight">
                 <module.icon className="h-6 w-6 text-zaltyko-teal" />
@@ -117,20 +121,23 @@ export default function ModulesSection() {
                   </li>
                 ))}
               </ul>
-            </div>
+              </div>
+            </Reveal>
           ))}
         </div>
 
         {/* Bottom CTA */}
-        <div className="text-center mt-12">
-          <Link
-            href="/features" 
-            className="inline-flex items-center gap-2 font-semibold text-zaltyko-teal transition-all hover:gap-3"
-          >
-            Ver todas las funcionalidades
-            <span className="text-xl">→</span>
-          </Link>
-        </div>
+        <Reveal>
+          <div className="text-center mt-12">
+            <Link
+              href="/features"
+              className="inline-flex items-center gap-2 font-semibold text-zaltyko-teal transition-all hover:gap-3"
+            >
+              Ver todas las funcionalidades
+              <span className="text-xl">→</span>
+            </Link>
+          </div>
+        </Reveal>
       </div>
     </section>
   );

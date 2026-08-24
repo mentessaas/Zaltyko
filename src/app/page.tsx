@@ -14,7 +14,21 @@ import FaqSection from "@/app/(site)/home/FaqSection";
 import FinalCtaSection from "@/app/(site)/home/FinalCtaSection";
 import Footer from "@/app/(site)/Footer";
 import StickyCtaBar from "@/app/(site)/home/StickyCtaBar";
+import Marquee from "@/components/motion/Marquee";
 import { getPublicSiteUrl } from "@/lib/seo/site-url";
+
+const HOME_MARQUEE_ITEMS = [
+  "Gimnastas por nivel y aparato",
+  "Cuotas recurrentes",
+  "Asistencia por sesión",
+  "Portal de familias",
+  "Evaluaciones técnicas",
+  "Eventos y competiciones",
+  "Recibos automáticos",
+  "Comunicación interna",
+  "Multi-sede",
+  "Informes de dirección",
+];
 
 const baseUrl = getPublicSiteUrl();
 
@@ -85,6 +99,9 @@ export default function HomePage() {
       <main>
         {/* Hero con H1 principal */}
         <HeroSection />
+
+        {/* Cinta continua de características */}
+        <Marquee items={HOME_MARQUEE_ITEMS} />
 
         {/* Social proof - logos y estadísticas */}
         <SocialProofSection />

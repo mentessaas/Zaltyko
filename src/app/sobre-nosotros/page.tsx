@@ -4,6 +4,7 @@ import Navbar from "@/app/(site)/Navbar";
 import Footer from "@/app/(site)/Footer";
 import { Target, Heart, TrendingUp, Shield } from "lucide-react";
 import { Schema } from "@/components/Schema";
+import Reveal from "@/components/motion/Reveal";
 import { getPublicSiteUrl } from "@/lib/seo/site-url";
 
 const baseUrl = getPublicSiteUrl();
@@ -78,21 +79,24 @@ export default function AboutPage() {
       {/* Hero */}
       <section className="pt-32 pb-16 bg-gradient-to-b from-zaltyko-primary/5 to-transparent">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 text-center">
-          <span className="inline-block text-sm font-semibold text-zaltyko-primary uppercase tracking-wider mb-4">
-            Sobre Nosotros
-          </span>
-          <h1 className="font-display text-4xl font-bold tracking-tight text-zaltyko-text-main sm:text-5xl">
-            Facilitando la gestión de la gimnasia
-          </h1>
-          <p className="mt-6 mx-auto max-w-2xl text-lg text-zaltyko-text-secondary">
-            Nacimos para resolver los problemas administrativos que enfrentan las academias de gimnasia cada día.
-          </p>
+          <Reveal>
+            <span className="inline-block text-sm font-semibold text-zaltyko-primary uppercase tracking-wider mb-4">
+              Sobre Nosotros
+            </span>
+            <h1 className="font-display text-4xl font-bold tracking-tight text-zaltyko-text-main sm:text-5xl">
+              Facilitando la gestión de la gimnasia
+            </h1>
+            <p className="mt-6 mx-auto max-w-2xl text-lg text-zaltyko-text-secondary">
+              Nacimos para resolver los problemas administrativos que enfrentan las academias de gimnasia cada día.
+            </p>
+          </Reveal>
         </div>
       </section>
 
       {/* Story */}
       <section className="py-16 bg-white">
         <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
+          <Reveal>
           <h2 className="text-2xl font-bold text-zaltyko-text-main mb-6">Nuestra historia</h2>
           <div className="prose prose-lg text-zaltyko-text-secondary">
             <p>
@@ -114,6 +118,7 @@ export default function AboutPage() {
               con la comunidad de gimnasia, añadiendo funciones que realmente importan.
             </p>
           </div>
+          </Reveal>
         </div>
       </section>
 
