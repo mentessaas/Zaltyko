@@ -223,7 +223,7 @@ export function RegisterForm() {
                 onClick={() => setRole(option.value)}
                 className={`rounded-xl border px-4 py-3 text-left transition ${
                   role === option.value
-                    ? "border-zaltyko-teal bg-zaltyko-teal/10 text-zaltyko-navy"
+                    ? "border-zaltyko-teal bg-zaltyko-teal/10 text-foreground"
                     : "border-border bg-background text-muted-foreground hover:border-zaltyko-teal/50"
                 }`}
               >

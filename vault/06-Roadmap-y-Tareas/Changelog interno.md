@@ -5,6 +5,16 @@ last_reviewed: 2026-08-19T11:11Z
 source:
 ---
 
+# 2026-08-24 — Ox Alpha: Oleadas 4-6 — migración de tokens al dashboard completo
+
+- Migración sistemática de tokens dark a **115 archivos** restantes de `src/components/` (billing, coach, coaches, calendar, settings, events, evaluations, athletes detail, growth, dashboard restante, ui/stats-card…) y páginas de `src/app/app/` y `src/app/dashboard/`: mismos reemplazos conservadores de las oleadas anteriores (`bg-white`→`bg-card`, `slate-*`→tokens, `zaltyko-mist`→`border-border`). Excluidos `motion/` y `charts/` (ya tokenizados).
+- Verificado en vivo con sesión real: `/attendance` 200 con EmptyState real («Aún no has registrado ninguna sesión» + CTA), `/billing` 200 (plan actual, recibos, sincronización Stripe), `/events` `/evaluations` `/settings` `/messages` `/reports` todas 200. `/coach/today` devuelve 404 para super_admin por gating de rol — comportamiento preexistente, no relacionado con estilos.
+- `pnpm typecheck` sin errores nuevos; `pnpm lint:app` 0 errores.
+- Nota operativa: tras migrar 115 archivos el dev server recompila todo bajo demanda (hasta ~90s por ruta la primera vez); es frío inicial, no regresión.
+- Pendiente menor: topbar de super-admin mantiene su estilo claro propio; unificación de modales (ui/modal → ui/dialog) y formularios a react-hook-form quedan como deuda del plan original.
+
+Vault: actualizada esta entrada de `Changelog interno.md`; `Decisiones.md` y `Backlog priorizado.md` no cambian.
+
 # 2026-08-24 — Ox Alpha: Oleada 3 — Clases + Grupos con tokens de marca
 
 - Migración sistemática de tokens dark en los 15 componentes de `src/components/classes/` y `src/components/groups/` (ClassesDashboard, ClassesTableView, ClassesCalendarView, ClassDetailView, ClassAnalyticsWidget, diálogos de sesión/asistencia, GroupsDashboard, GroupView, GroupCard): `bg-white`→`bg-card`, `border-zaltyko-mist`/`border-slate-*`→`border-border`, `text-slate-*`/`text-zaltyko-navy`→`text-foreground`/`text-muted-foreground`, `bg-slate-*`→`bg-muted`. Reemplazos conservadores y ordenados (hover:bg-white→hover:bg-muted, variantes /90 /80 /60 primero).

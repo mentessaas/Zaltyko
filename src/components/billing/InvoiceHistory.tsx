@@ -32,7 +32,7 @@ const STATUS_CONFIG = {
     pending: {
         label: "Pendiente",
         icon: Clock,
-        color: "text-zaltyko-navy bg-zaltyko-mist/40 border-transparent",
+        color: "text-foreground bg-zaltyko-mist/40 border-transparent",
     },
     failed: {
         label: "Fallida",

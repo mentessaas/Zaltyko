@@ -111,9 +111,9 @@ export function AthleteDetailTabs({
   const totalSessions = Object.values(attendanceTotals).reduce((sum, value) => sum + value, 0);
 
   const detailCardClass =
-    "rounded-2xl border border-zaltyko-mist bg-white p-6 shadow-soft";
+    "rounded-2xl border border-border bg-card p-6 shadow-soft";
   const subtlePanelClass =
-    "rounded-xl border border-zaltyko-mist/70 bg-zaltyko-warm-white px-4 py-3";
+    "rounded-xl border border-border/70 bg-zaltyko-warm-white px-4 py-3";
 
   return (
     <Tabs defaultValue="info" className="w-full">
@@ -131,7 +131,7 @@ export function AthleteDetailTabs({
           <header className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <p className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-teal">{terms.athlete}</p>
-              <h1 className="font-display text-3xl font-semibold text-zaltyko-navy">{athlete.name}</h1>
+              <h1 className="font-display text-3xl font-semibold text-foreground">{athlete.name}</h1>
               <div className="mt-3 flex flex-wrap gap-3 text-xs">
                 <span className="rounded-full bg-zaltyko-teal/10 px-3 py-1 font-medium text-zaltyko-teal">
                   Estado: {athlete.status}
@@ -162,7 +162,7 @@ export function AthleteDetailTabs({
                 )}
               </div>
             </div>
-            <div className="text-right text-sm text-zaltyko-text-secondary">
+            <div className="text-right text-sm text-muted-foreground">
               <p>
                 Registrado el{" "}
                 {athlete.createdAt
@@ -176,18 +176,18 @@ export function AthleteDetailTabs({
         </section>
 
         <section className={detailCardClass}>
-          <h2 className="font-display text-lg font-semibold text-zaltyko-navy">Resumen de {attendanceTermLower}</h2>
-          <p className="text-sm text-zaltyko-text-secondary">
+          <h2 className="font-display text-lg font-semibold text-foreground">Resumen de {attendanceTermLower}</h2>
+          <p className="text-sm text-muted-foreground">
             Total de sesiones con registro: {totalSessions}
           </p>
           <div className="mt-4 grid gap-3">
             {Object.entries(attendanceTotals).map(([status, value]) => (
               <div
                 key={status}
-                className="flex items-center justify-between rounded-xl border border-zaltyko-mist/70 bg-zaltyko-warm-white px-3 py-2 text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-text-secondary"
+                className="flex items-center justify-between rounded-xl border border-border/70 bg-zaltyko-warm-white px-3 py-2 text-xs font-medium uppercase tracking-[0.05em] text-muted-foreground"
               >
                 <span>{STATUS_LABELS[status] ?? status}</span>
-                <span className="font-display text-base font-semibold text-zaltyko-navy">{value}</span>
+                <span className="font-display text-base font-semibold text-foreground">{value}</span>
               </div>
             ))}
           </div>
@@ -197,13 +197,13 @@ export function AthleteDetailTabs({
       <TabsContent value="attendance" className="space-y-4">
         <section className={`${detailCardClass} space-y-4`}>
           <header>
-            <h2 className="font-display text-lg font-semibold text-zaltyko-navy">Sesiones recientes</h2>
-            <p className="text-sm text-zaltyko-text-secondary">
+            <h2 className="font-display text-lg font-semibold text-foreground">Sesiones recientes</h2>
+            <p className="text-sm text-muted-foreground">
               Últimos registros de {attendanceTermLower} y su estado.
             </p>
           </header>
           {recentSessions.length === 0 ? (
-            <p className="text-sm text-zaltyko-text-secondary">
+            <p className="text-sm text-muted-foreground">
               Todavía no hay sesiones con {attendanceTermLower} registrada para este {athleteTermLower}.
             </p>
           ) : (
@@ -214,8 +214,8 @@ export function AthleteDetailTabs({
                   className={`${subtlePanelClass} flex flex-wrap items-center justify-between gap-3 text-sm`}
                 >
                   <div>
-                    <p className="font-semibold text-zaltyko-navy">{session.className ?? "Clase"}</p>
-                    <p className="text-xs text-zaltyko-text-secondary">
+                    <p className="font-semibold text-foreground">{session.className ?? "Clase"}</p>
+                    <p className="text-xs text-muted-foreground">
                       {session.sessionDate} ·{" "}
                       {session.startTime && session.endTime
                         ? `${session.startTime} – ${session.endTime}`
@@ -241,7 +241,7 @@ export function AthleteDetailTabs({
       <TabsContent value="competition" className="space-y-4">
         {competitionSection ?? (
           <section className={detailCardClass}>
-            <p className="text-sm text-zaltyko-text-secondary">
+            <p className="text-sm text-muted-foreground">
               Todavía no hay historial de {terms.competition.toLowerCase()} configurado para este {athleteTermLower}.
             </p>
           </section>
@@ -255,36 +255,36 @@ export function AthleteDetailTabs({
       <TabsContent value="contacts" className="space-y-4">
         <section className={`${detailCardClass} space-y-4`}>
           <header>
-            <h2 className="font-display text-lg font-semibold text-zaltyko-navy">Contactos</h2>
-            <p className="text-sm text-zaltyko-text-secondary">
+            <h2 className="font-display text-lg font-semibold text-foreground">Contactos</h2>
+            <p className="text-sm text-muted-foreground">
               Personas asociadas para notificaciones, permisos y seguimiento.
             </p>
           </header>
 
           <div className="space-y-3">
             {contacts.length === 0 && guardians.length === 0 ? (
-              <p className="text-sm text-zaltyko-text-secondary">
+              <p className="text-sm text-muted-foreground">
                 No hay contactos registrados para este {athleteTermLower}.
               </p>
             ) : (
               <>
                 {contacts.length > 0 && (
                   <div className="space-y-2">
-                    <h3 className="text-sm font-semibold text-zaltyko-navy">Familia / tutores</h3>
+                    <h3 className="text-sm font-semibold text-foreground">Familia / tutores</h3>
                     <ul className="space-y-2 text-sm">
                       {contacts.map((contact) => (
                         <li
                           key={contact.id}
                           className={subtlePanelClass}
                         >
-                          <p className="font-semibold text-zaltyko-navy">
+                          <p className="font-semibold text-foreground">
                             {contact.name}
                             {contact.relationship ? ` · ${contact.relationship}` : ""}
                           </p>
-                          <p className="text-xs text-zaltyko-text-secondary">
+                          <p className="text-xs text-muted-foreground">
                             {contact.email ?? "Sin correo"} · {contact.phone ?? "Sin teléfono"}
                           </p>
-                          <p className="text-[11px] text-zaltyko-text-secondary">
+                          <p className="text-[11px] text-muted-foreground">
                             Notificaciones:{" "}
                             {[
                               contact.notifyEmail ? "Email" : null,
@@ -301,14 +301,14 @@ export function AthleteDetailTabs({
 
                 {guardians.length > 0 && (
                   <div className="space-y-2">
-                    <h3 className="text-sm font-semibold text-zaltyko-navy">Guardianes</h3>
+                    <h3 className="text-sm font-semibold text-foreground">Guardianes</h3>
                     <ul className="space-y-2 text-sm">
                       {guardians.map((guardian) => (
                         <li
                           key={guardian.id}
                           className={subtlePanelClass}
                         >
-                          <p className="font-semibold text-zaltyko-navy">
+                          <p className="font-semibold text-foreground">
                             {guardian.name}
                             {guardian.isPrimary ? (
                               <span className="ml-2 rounded-full bg-zaltyko-teal/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.05em] text-zaltyko-teal">
@@ -316,10 +316,10 @@ export function AthleteDetailTabs({
                               </span>
                             ) : null}
                           </p>
-                          <p className="text-xs text-zaltyko-text-secondary">
+                          <p className="text-xs text-muted-foreground">
                             {guardian.email ?? "Sin correo"} · {guardian.phone ?? "Sin teléfono"}
                           </p>
-                          <p className="text-[11px] text-zaltyko-text-secondary">
+                          <p className="text-[11px] text-muted-foreground">
                             {guardian.relationship ?? "Relación no especificada"}
                           </p>
                         </li>

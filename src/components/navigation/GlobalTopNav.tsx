@@ -148,7 +148,7 @@ export function GlobalTopNav({
         "sticky top-0 z-50 w-full border-b backdrop-blur",
         isDarkTheme
           ? "border-white/10 bg-zaltyko-navy/95 text-white supports-[backdrop-filter]:bg-zaltyko-navy/95"
-          : "border-zaltyko-mist/70 bg-white/95 supports-[backdrop-filter]:bg-white/80",
+          : "border-border/70 bg-white/95 supports-[backdrop-filter]:bg-card/80",
       )}
     >
       {/* Layout base: logo | navegación | acciones */}
@@ -163,10 +163,10 @@ export function GlobalTopNav({
             )}
           </Link>
           {currentAcademyId && academyName ? (
-            <div className="hidden min-w-0 border-l border-zaltyko-mist pl-3 lg:block">
-              <p className="truncate text-sm font-semibold text-zaltyko-navy">{academyName}</p>
+            <div className="hidden min-w-0 border-l border-border pl-3 lg:block">
+              <p className="truncate text-sm font-semibold text-foreground">{academyName}</p>
               {academyType ? (
-                <p className="truncate text-[10px] capitalize text-slate-600">{formatAcademyType(academyType)}</p>
+                <p className="truncate text-[10px] capitalize text-muted-foreground">{formatAcademyType(academyType)}</p>
               ) : null}
             </div>
           ) : null}
@@ -200,7 +200,7 @@ export function GlobalTopNav({
                 "flex max-w-full items-center gap-1 overflow-x-auto rounded-2xl px-2 py-1 lg:gap-1.5 lg:px-3",
                 isDarkTheme
                   ? "border border-white/10 bg-white/5 shadow-none"
-                  : "border border-zaltyko-mist/60 bg-white/80 shadow-soft"
+                  : "border border-border/60 bg-card/80 shadow-soft"
               )}
             >
               {navItems.map((item) => {
@@ -267,7 +267,7 @@ export function GlobalTopNav({
               aria-label="Menú de usuario"
               className={cn(
                 "flex items-center gap-2 rounded-lg border px-2.5 py-1.5 font-sans transition-all duration-200 active:scale-[0.98]",
-                isDarkTheme ? "border-white/10 bg-white/5 hover:bg-white/10" : "border-zaltyko-mist bg-white hover:bg-zaltyko-white",
+                isDarkTheme ? "border-white/10 bg-white/5 hover:bg-white/10" : "border-border bg-card hover:bg-zaltyko-white",
               )}
             >
               <span className={cn(
@@ -292,7 +292,7 @@ export function GlobalTopNav({
               <div
                 className={cn(
                   "absolute right-0 z-[100] mt-2 max-h-[calc(100vh-120px)] w-64 overflow-y-auto rounded-xl border p-3 shadow-medium",
-                  isDarkTheme ? "border-white/10 bg-zaltyko-navy/95 backdrop-blur" : "border-zaltyko-mist bg-white",
+                  isDarkTheme ? "border-white/10 bg-zaltyko-navy/95 backdrop-blur" : "border-border bg-card",
                 )}
               >
                 <div className={cn("space-y-2 border-b pb-3", isDarkTheme ? "border-white/10" : "border-border")}>

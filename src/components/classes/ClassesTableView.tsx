@@ -310,7 +310,7 @@ export function ClassesTableView({
 
         {/* Tabla — escritorio */}
         <div className="hidden overflow-x-auto rounded-2xl border border-border bg-card shadow-soft md:block">
-          <table className="min-w-full divide-y divide-slate-100 text-sm">
+          <table className="min-w-full divide-y divide-border text-sm">
             <thead className="bg-zaltyko-white">
               <tr className="text-left text-xs uppercase tracking-[0.05em] text-muted-foreground">
                 <th className="px-4 py-3 font-medium">Nombre</th>
@@ -321,7 +321,7 @@ export function ClassesTableView({
                 <th className="px-4 py-3 font-medium text-right">Acciones</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 bg-card text-foreground">
+            <tbody className="divide-y divide-border bg-card text-foreground">
             {classes.map((item) => (
               <tr key={item.id} className="hover:bg-zaltyko-white/80">
                 <td className="px-4 py-3">

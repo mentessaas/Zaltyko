@@ -43,7 +43,7 @@ function ClusterEventsSectionImpl({
   }
 
   return (
-    <section className="py-20 bg-white">
+    <section className="py-20 bg-card">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="flex items-end justify-between mb-12">

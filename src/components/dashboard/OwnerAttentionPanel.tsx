@@ -33,7 +33,7 @@ function formatHour(iso: string): string {
 function TodaySessionList({ sessions }: { sessions: TodaySessionAttention[] }) {
   if (sessions.length === 0) {
     return (
-      <p className="text-sm text-slate-500 dark:text-slate-400" data-testid="today-empty">
+      <p className="text-sm text-muted-foreground dark:text-muted-foreground" data-testid="today-empty">
         No hay clases programadas para hoy. Si esperas alguna, revisa la
         planificación de la semana.
       </p>
@@ -41,7 +41,7 @@ function TodaySessionList({ sessions }: { sessions: TodaySessionAttention[] }) {
   }
   return (
     <ul
-      className="divide-y divide-slate-100 dark:divide-slate-800"
+      className="divide-y divide-border dark:divide-slate-800"
       data-testid="today-list"
     >
       {sessions.map((session) => (
@@ -50,10 +50,10 @@ function TodaySessionList({ sessions }: { sessions: TodaySessionAttention[] }) {
           className="flex flex-col gap-1 py-3 sm:flex-row sm:items-center sm:justify-between"
         >
           <div>
-            <p className="font-medium text-slate-900 dark:text-slate-50">
+            <p className="font-medium text-foreground dark:text-slate-50">
               {session.className ?? "Clase sin nombre"}
             </p>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
+            <p className="text-xs text-muted-foreground dark:text-muted-foreground">
               {formatHour(session.startsAt)}
               {session.groupName ? ` · ${session.groupName}` : ""}
             </p>
@@ -105,16 +105,16 @@ export function OwnerAttentionPanel({
       className="mx-auto flex max-w-5xl flex-col gap-6 p-4 sm:p-6"
     >
       <header>
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground dark:text-muted-foreground">
           Panel del dueño · {bundle.date}
         </p>
         <h1
           id="owner-attention-title"
-          className="mt-1 text-2xl font-semibold text-slate-900 dark:text-slate-50"
+          className="mt-1 text-2xl font-semibold text-foreground dark:text-slate-50"
         >
           Tu academia de un vistazo
         </h1>
-        <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+        <p className="mt-1 text-sm text-muted-foreground dark:text-slate-300">
           {headerSubtitle}
         </p>
       </header>
@@ -124,11 +124,11 @@ export function OwnerAttentionPanel({
       <section aria-labelledby="today-title">
         <h2
           id="today-title"
-          className="mb-3 text-lg font-semibold text-slate-900 dark:text-slate-50"
+          className="mb-3 text-lg font-semibold text-foreground dark:text-slate-50"
         >
           Clases de hoy
         </h2>
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+        <div className="rounded-2xl border border-border bg-card p-4 dark:border-slate-700 dark:bg-slate-900">
           <TodaySessionList sessions={bundle.today} />
         </div>
       </section>
@@ -136,7 +136,7 @@ export function OwnerAttentionPanel({
       <section aria-labelledby="kpis-title">
         <h2
           id="kpis-title"
-          className="mb-3 text-lg font-semibold text-slate-900 dark:text-slate-50"
+          className="mb-3 text-lg font-semibold text-foreground dark:text-slate-50"
         >
           Indicadores
         </h2>
@@ -207,21 +207,21 @@ export function OwnerAttentionPanel({
       <section aria-labelledby="overdue-detail-title">
         <h2
           id="overdue-detail-title"
-          className="mb-3 text-lg font-semibold text-slate-900 dark:text-slate-50"
+          className="mb-3 text-lg font-semibold text-foreground dark:text-slate-50"
         >
           Cargos pendientes (top {bundle.chargesOverdue.items.length})
         </h2>
         {bundle.chargesOverdue.sourceAvailable ? (
           bundle.chargesOverdue.items.length === 0 ? (
             <p
-              className="text-sm text-slate-500 dark:text-slate-400"
+              className="text-sm text-muted-foreground dark:text-muted-foreground"
               data-testid="charges-empty"
             >
               No hay cargos pendientes.
             </p>
           ) : (
             <ul
-              className="divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white dark:divide-slate-800 dark:border-slate-700 dark:bg-slate-900"
+              className="divide-y divide-border rounded-2xl border border-border bg-card dark:divide-slate-800 dark:border-slate-700 dark:bg-slate-900"
               data-testid="charges-list"
             >
               {bundle.chargesOverdue.items.map((item) => (
@@ -230,15 +230,15 @@ export function OwnerAttentionPanel({
                   className="flex items-center justify-between gap-3 p-4 text-sm"
                 >
                   <div>
-                    <p className="font-medium text-slate-900 dark:text-slate-50">
+                    <p className="font-medium text-foreground dark:text-slate-50">
                       {item.displayName}
                     </p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                    <p className="text-xs text-muted-foreground dark:text-muted-foreground">
                       {item.dueDate ? `Vencimiento: ${item.dueDate}` : "Sin fecha"}
                     </p>
                   </div>
                   <div className="flex flex-col items-end gap-1">
-                    <span className="font-semibold tabular-nums text-slate-900 dark:text-slate-50">
+                    <span className="font-semibold tabular-nums text-foreground dark:text-slate-50">
                       {(item.amountCents / 100).toLocaleString("es-ES", {
                         style: "currency",
                         currency: item.currency || "EUR",
@@ -260,7 +260,7 @@ export function OwnerAttentionPanel({
           )
         ) : (
           <p
-            className="text-sm text-slate-500 dark:text-slate-400"
+            className="text-sm text-muted-foreground dark:text-muted-foreground"
             data-testid="charges-source-unavailable"
           >
             Fuente no disponible. Reintenta o contacta con soporte.
@@ -268,7 +268,7 @@ export function OwnerAttentionPanel({
         )}
       </section>
 
-      <p className="text-xs text-slate-500 dark:text-slate-400">
+      <p className="text-xs text-muted-foreground dark:text-muted-foreground">
         Este panel se alimenta de las fuentes declaradas en cada bloque y se
         actualiza al recargar la página. Las cifras no son engagement ni
         adopción: son tareas operativas concretas.

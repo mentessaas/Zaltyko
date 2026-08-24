@@ -82,7 +82,7 @@ export function DashboardHeroSection({
             <h1 className="font-display text-2xl font-semibold tracking-normal text-foreground lg:text-3xl">
               {academyName ?? "Academia"} · {labels.disciplineName}
             </h1>
-            <p className="max-w-2xl text-sm leading-6 text-zaltyko-text-secondary">
+            <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
               Hola {profileName ?? "equipo"}. {welcomeMessage}
             </p>
           </div>
@@ -95,7 +95,7 @@ export function DashboardHeroSection({
               <div className="group relative">
                 <button
                   type="button"
-                  className="flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-semibold text-zaltyko-text-secondary transition hover:border-zaltyko-teal hover:text-zaltyko-teal"
+                  className="flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-semibold text-muted-foreground transition hover:border-zaltyko-teal hover:text-zaltyko-teal"
                 >
                   <span className="max-w-[120px] truncate">{academyName ?? "Academia"}</span>
                   <ChevronDown className="h-3 w-3" />
@@ -160,7 +160,7 @@ export function SportBreakdownSection({
         {items.map((item) => (
           <div key={item.sportConfigId} className="rounded-xl border border-border bg-zaltyko-warm-white p-4">
             <p className="text-sm font-semibold text-foreground">{item.branchName}</p>
-            <p className="text-xs text-zaltyko-text-secondary">{item.disciplineName}</p>
+            <p className="text-xs text-muted-foreground">{item.disciplineName}</p>
             <div className="mt-4 grid grid-cols-3 gap-2 text-center">
               <SportBreakdownMetric value={item.athletes} label={labels.athletesPlural} />
               <SportBreakdownMetric value={item.groups} label={`${labels.groupLabel}s`} />
@@ -191,7 +191,7 @@ export function StarterSetupSection({
           <p className="text-sm font-semibold text-foreground">
             Tu academia ya arrancó con una base recomendada para {labels.disciplineName.toLowerCase()}
           </p>
-          <p className="text-sm text-slate-700">
+          <p className="text-sm text-foreground">
             Ahora toca revisar responsables, ajustar horarios y adaptar la plantilla inicial a tu realidad diaria.
           </p>
         </div>
@@ -382,7 +382,7 @@ function SportBreakdownMetric({ value, label }: { value: number; label: string }
   return (
     <div>
       <p className="font-display text-xl font-semibold text-foreground">{value}</p>
-      <p className="text-[11px] text-zaltyko-text-secondary">{label}</p>
+      <p className="text-[11px] text-muted-foreground">{label}</p>
     </div>
   );
 }

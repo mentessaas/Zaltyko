@@ -25,7 +25,7 @@ interface AthleteProfileHeaderProps {
 
 const STATUS_COLORS: Record<string, string> = {
   active: "bg-zaltyko-teal/10 text-zaltyko-teal border-zaltyko-teal/20",
-  inactive: "bg-zaltyko-mist/30 text-zaltyko-text-secondary border-zaltyko-mist",
+  inactive: "bg-zaltyko-mist/30 text-muted-foreground border-border",
   suspended: "bg-zaltyko-coral/10 text-zaltyko-coral border-zaltyko-coral/20",
   pending: "bg-zaltyko-indigo/10 text-zaltyko-indigo border-zaltyko-indigo/20",
 };
@@ -74,7 +74,7 @@ export function AthleteProfileHeader({
 
   if (loading) {
     return (
-      <div className="rounded-2xl border border-zaltyko-mist bg-white p-6 shadow-soft">
+      <div className="rounded-2xl border border-border bg-card p-6 shadow-soft">
         <div className="flex items-center gap-4">
           <div className="h-16 w-16 animate-pulse rounded-2xl bg-zaltyko-mist/40" />
           <div className="space-y-2">
@@ -104,7 +104,7 @@ export function AthleteProfileHeader({
   };
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-zaltyko-mist bg-white shadow-soft">
+    <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-soft">
       <div className="zaltyko-motion-lines h-24 bg-zaltyko-navy" />
 
       <div className="px-6 pb-6">
@@ -115,7 +115,7 @@ export function AthleteProfileHeader({
 
           <div className="flex-1 min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="truncate font-display text-2xl font-bold text-zaltyko-navy">
+              <h1 className="truncate font-display text-2xl font-bold text-foreground">
                 {athlete.name}
               </h1>
               <Badge
@@ -125,7 +125,7 @@ export function AthleteProfileHeader({
               </Badge>
             </div>
 
-            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-zaltyko-text-secondary">
+            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
               {athlete.age !== null && (
                 <span className="flex items-center gap-1">
                   <User className="h-3.5 w-3.5" />
@@ -164,7 +164,7 @@ export function AthleteProfileHeader({
                 </span>
               )}
               {athlete.competitiveLevel && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-zaltyko-mist/30 px-2 py-1 text-xs font-medium text-zaltyko-text-secondary">
+                <span className="inline-flex items-center gap-1 rounded-full bg-zaltyko-mist/30 px-2 py-1 text-xs font-medium text-muted-foreground">
                   {athlete.competitiveLevel}
                 </span>
               )}

@@ -17,7 +17,7 @@ const PLACEHOLDER_CLASSES = [
 
 export function PopularClassesWidget({ academyId }: PopularClassesWidgetProps) {
   return (
-    <Card className="border-zaltyko-mist/80 shadow-soft">
+    <Card className="border-border/80 shadow-soft">
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-base font-display font-semibold">
           <Star className="h-5 w-5 text-zaltyko-indigo" />
@@ -35,8 +35,8 @@ export function PopularClassesWidget({ academyId }: PopularClassesWidgetProps) {
                 {index + 1}
               </span>
               <div>
-                <p className="text-sm font-medium text-zaltyko-navy">{cls.name}</p>
-                <p className="text-xs text-zaltyko-text-secondary">{cls.athletes} atletas</p>
+                <p className="text-sm font-medium text-foreground">{cls.name}</p>
+                <p className="text-xs text-muted-foreground">{cls.athletes} atletas</p>
               </div>
             </div>
             <div className="flex items-center gap-1 text-zaltyko-teal">

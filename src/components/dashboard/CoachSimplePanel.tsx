@@ -34,7 +34,7 @@ function TodaySessionList({ sessions }: { sessions: TodaySessionAttention[] }) {
   if (sessions.length === 0) {
     return (
       <p
-        className="text-sm text-slate-500 dark:text-slate-400"
+        className="text-sm text-muted-foreground dark:text-muted-foreground"
         data-testid="coach-today-empty"
       >
         No tienes clases programadas para hoy. Si esperas alguna, habla con
@@ -44,7 +44,7 @@ function TodaySessionList({ sessions }: { sessions: TodaySessionAttention[] }) {
   }
   return (
     <ul
-      className="divide-y divide-slate-100 dark:divide-slate-800"
+      className="divide-y divide-border dark:divide-slate-800"
       data-testid="coach-today-list"
     >
       {sessions.map((session) => (
@@ -53,10 +53,10 @@ function TodaySessionList({ sessions }: { sessions: TodaySessionAttention[] }) {
           className="flex flex-col gap-1 py-3 sm:flex-row sm:items-center sm:justify-between"
         >
           <div>
-            <p className="font-medium text-slate-900 dark:text-slate-50">
+            <p className="font-medium text-foreground dark:text-slate-50">
               {session.className ?? "Clase sin nombre"}
             </p>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
+            <p className="text-xs text-muted-foreground dark:text-muted-foreground">
               {formatHour(session.startsAt)}
             </p>
           </div>
@@ -88,16 +88,16 @@ export function CoachSimplePanel({
       className="mx-auto flex max-w-3xl flex-col gap-6 p-4 sm:p-6"
     >
       <header>
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground dark:text-muted-foreground">
           Modo simple · {bundle.date}
         </p>
         <h1
           id="coach-simple-title"
-          className="mt-1 text-2xl font-semibold text-slate-900 dark:text-slate-50"
+          className="mt-1 text-2xl font-semibold text-foreground dark:text-slate-50"
         >
           Lo que tienes que hacer hoy
         </h1>
-        <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+        <p className="mt-1 text-sm text-muted-foreground dark:text-slate-300">
           {headerSubtitle}
         </p>
       </header>
@@ -107,11 +107,11 @@ export function CoachSimplePanel({
       <section aria-labelledby="coach-today-title">
         <h2
           id="coach-today-title"
-          className="mb-3 text-lg font-semibold text-slate-900 dark:text-slate-50"
+          className="mb-3 text-lg font-semibold text-foreground dark:text-slate-50"
         >
           Tus clases de hoy
         </h2>
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+        <div className="rounded-2xl border border-border bg-card p-4 dark:border-slate-700 dark:bg-slate-900">
           <TodaySessionList sessions={bundle.today} />
         </div>
       </section>
@@ -119,7 +119,7 @@ export function CoachSimplePanel({
       <section aria-labelledby="coach-kpis-title">
         <h2
           id="coach-kpis-title"
-          className="mb-3 text-lg font-semibold text-slate-900 dark:text-slate-50"
+          className="mb-3 text-lg font-semibold text-foreground dark:text-slate-50"
         >
           Resumen
         </h2>
@@ -157,7 +157,7 @@ export function CoachSimplePanel({
         </div>
       </section>
 
-      <p className="text-xs text-slate-500 dark:text-slate-400">
+      <p className="text-xs text-muted-foreground dark:text-muted-foreground">
         Este panel es de solo lectura para tu rol. Para tareas administrativas
         (cobros, permisos, importación), contacta con el dueño de la academia.
       </p>

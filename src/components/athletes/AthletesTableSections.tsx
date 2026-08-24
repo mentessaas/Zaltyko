@@ -516,7 +516,7 @@ export function AthletesDataTable({
 }) {
   return (
     <div className="overflow-hidden rounded-[22px] border border-border bg-card shadow-[0_18px_50px_-32px_rgba(15,23,42,0.45)]">
-      <div className="divide-y divide-slate-100 md:hidden">
+      <div className="divide-y divide-border md:hidden">
         {athletes.map((athlete) => (
           <AthleteMobileCard
             key={athlete.id}
@@ -584,7 +584,7 @@ export function AthletesDataTable({
       </table>
       </div>
       {totalPages > 1 && (
-        <div className="flex items-center justify-between border-t border-zaltyko-mist px-4 py-3">
+        <div className="flex items-center justify-between border-t border-border px-4 py-3">
           <p className="text-sm text-muted-foreground">
             Mostrando {(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, filteredCount)} de{" "}
             {filteredCount} {terms.athletes.toLowerCase()}
@@ -641,7 +641,7 @@ function AthleteMobileCard({
         <button
           type="button"
           onClick={onToggleSelect}
-          className="mt-0.5 shrink-0 rounded-lg p-1 text-slate-500 hover:text-zaltyko-teal"
+          className="mt-0.5 shrink-0 rounded-lg p-1 text-muted-foreground hover:text-zaltyko-teal"
           aria-label={`${selected ? "Deseleccionar" : "Seleccionar"} ${athlete.name}`}
         >
           {selected ? <CheckSquare className="h-5 w-5 text-zaltyko-teal" /> : <Square className="h-5 w-5" />}
@@ -649,10 +649,10 @@ function AthleteMobileCard({
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <Link href={`/app/${academyId}/athletes/${athlete.id}`} className="truncate font-display text-base font-bold text-slate-950 hover:text-zaltyko-teal">
+              <Link href={`/app/${academyId}/athletes/${athlete.id}`} className="truncate font-display text-base font-bold text-foreground hover:text-zaltyko-teal">
                 {athlete.name}
               </Link>
-              <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+              <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                 <span>{athlete.level ?? "Sin nivel"}</span>
                 <span aria-hidden="true">·</span>
                 <span className="capitalize">{athlete.status}</span>
@@ -663,7 +663,7 @@ function AthleteMobileCard({
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
             {athlete.groupName ? (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 font-semibold text-slate-600">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 font-semibold text-muted-foreground">
                 <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: athlete.groupColor ?? "#94a3b8" }} />
                 {athlete.groupName}
               </span>
@@ -753,7 +753,7 @@ function AthletesTableRow({
             </p>
           )}
           {athlete.primarySportConfigId && (
-            <span className="inline-flex w-fit rounded-full border border-zaltyko-mist bg-zaltyko-white px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+            <span className="inline-flex w-fit rounded-full border border-border bg-zaltyko-white px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
               {sportConfigName ?? "Configuración deportiva"}
             </span>
           )}

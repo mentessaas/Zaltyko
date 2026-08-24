@@ -301,7 +301,7 @@ export function ClassDetailView({
                 <th className="px-4 py-3 font-medium text-right">Acciones</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 bg-card text-foreground">
+            <tbody className="divide-y divide-border bg-card text-foreground">
               {sessions.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">

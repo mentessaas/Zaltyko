@@ -23,7 +23,7 @@ export function SummaryCard({ title, period, metrics, chart }: SummaryCardProps)
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="text-base font-medium">{title}</CardTitle>
-          <span className="text-xs text-zaltyko-text-secondary">{period}</span>
+          <span className="text-xs text-muted-foreground">{period}</span>
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -31,7 +31,7 @@ export function SummaryCard({ title, period, metrics, chart }: SummaryCardProps)
         <div className="space-y-4">
           {metrics.map((metric, index) => (
             <div key={index} className="flex items-center justify-between">
-              <span className="text-sm text-zaltyko-text-secondary">{metric.label}</span>
+              <span className="text-sm text-muted-foreground">{metric.label}</span>
               <div className="flex items-center gap-2">
                 <span className="text-base font-semibold text-zaltyko-text-main">{metric.value}</span>
                 <div

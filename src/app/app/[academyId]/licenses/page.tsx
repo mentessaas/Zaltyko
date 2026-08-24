@@ -194,9 +194,9 @@ export default async function LicensesPage({ params }: LicensesPageProps) {
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
-            <Shield className="mx-auto mb-2 h-8 w-8 text-zaltyko-navy" />
-            <p className="font-display text-2xl font-bold text-zaltyko-navy">{licenses.length}</p>
-            <p className="text-sm text-zaltyko-text-secondary">Total licencias</p>
+            <Shield className="mx-auto mb-2 h-8 w-8 text-foreground" />
+            <p className="font-display text-2xl font-bold text-foreground">{licenses.length}</p>
+            <p className="text-sm text-muted-foreground">Total licencias</p>
           </CardContent>
         </Card>
       </div>
@@ -211,7 +211,7 @@ export default async function LicensesPage({ params }: LicensesPageProps) {
                 <p className="font-medium text-zaltyko-indigo">
                   {expiringLicenses.length} licencia{expiringLicenses.length > 1 ? "s" : ""} por caducar
                 </p>
-                <p className="text-sm text-zaltyko-text-secondary">
+                <p className="text-sm text-muted-foreground">
                   Revisa y renueva antes de la fecha de caducidad.
                 </p>
               </div>
@@ -226,7 +226,7 @@ export default async function LicensesPage({ params }: LicensesPageProps) {
           <CardContent className="flex flex-col items-center justify-center py-12 text-center">
             <FileText className="mb-4 h-12 w-12 text-zaltyko-mist" />
             <h3 className="font-semibold mb-2">No hay atletas</h3>
-            <p className="text-sm text-zaltyko-text-secondary">
+            <p className="text-sm text-muted-foreground">
               Agrega atletas a la academia para gestionar sus licencias.
             </p>
           </CardContent>
@@ -248,7 +248,7 @@ export default async function LicensesPage({ params }: LicensesPageProps) {
                 </CardHeader>
                 <CardContent>
                   {athleteLicenses.length === 0 ? (
-                    <p className="py-4 text-center text-sm text-zaltyko-text-secondary">
+                    <p className="py-4 text-center text-sm text-muted-foreground">
                       Sin licencias federativas registradas.
                     </p>
                   ) : (
@@ -259,7 +259,7 @@ export default async function LicensesPage({ params }: LicensesPageProps) {
                         return (
                           <div
                             key={license.id}
-                            className="flex items-center justify-between rounded-xl border border-zaltyko-mist bg-zaltyko-warm-white p-3"
+                            className="flex items-center justify-between rounded-xl border border-border bg-zaltyko-warm-white p-3"
                           >
                             <div className="flex items-center gap-3">
                               <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${
@@ -270,7 +270,7 @@ export default async function LicensesPage({ params }: LicensesPageProps) {
                                 <Shield className={`h-5 w-5 ${
                                   status.status === "active" ? "text-zaltyko-teal" :
                                   status.status === "expiring" ? "text-zaltyko-indigo" :
-                                  status.status === "expired" ? "text-zaltyko-coral" : "text-zaltyko-text-secondary"
+                                  status.status === "expired" ? "text-zaltyko-coral" : "text-muted-foreground"
                                 }`} />
                               </div>
                               <div>
@@ -280,15 +280,15 @@ export default async function LicensesPage({ params }: LicensesPageProps) {
                                     {status.label}
                                   </Badge>
                                 </div>
-                                <p className="text-xs text-zaltyko-text-secondary">
+                                <p className="text-xs text-muted-foreground">
                                   {license.federation} · {license.licenseNumber}
                                 </p>
                                 {license.sportConfigId && (
-                                  <p className="text-xs text-zaltyko-text-secondary">
+                                  <p className="text-xs text-muted-foreground">
                                     Rama: {sportConfigNameById.get(license.sportConfigId) ?? "Configurada"}
                                   </p>
                                 )}
-                                <div className="mt-1 flex items-center gap-3 text-xs text-zaltyko-text-secondary">
+                                <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
                                   <span className="flex items-center gap-1">
                                     <Calendar className="h-3 w-3" />
                                     Válida: {license.validFrom
@@ -302,7 +302,7 @@ export default async function LicensesPage({ params }: LicensesPageProps) {
                             </div>
                             <div className="text-right">
                               {license.medicalCertificateExpiry && (
-                                <p className="text-xs text-zaltyko-text-secondary">
+                                <p className="text-xs text-muted-foreground">
                                   Certificado: {format(new Date(license.medicalCertificateExpiry), "dd MMM yyyy", { locale: es })}
                                 </p>
                               )}

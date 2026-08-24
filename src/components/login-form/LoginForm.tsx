@@ -166,7 +166,7 @@ export function LoginForm() {
               <h2 className="text-3xl font-display font-bold text-zaltyko-text-main mb-2">
                 Bienvenido de nuevo
               </h2>
-              <p className="text-zaltyko-text-secondary">
+              <p className="text-muted-foreground">
                 Inicia sesión para continuar gestionando tu academia
               </p>
             </div>
@@ -183,7 +183,7 @@ export function LoginForm() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="h-12 rounded-xl border-border/60 bg-white/80 backdrop-blur focus:border-zaltyko-primary focus:ring-2 focus:ring-zaltyko-primary/20 transition-all"
+                  className="h-12 rounded-xl border-border/60 bg-card/80 backdrop-blur focus:border-zaltyko-primary focus:ring-2 focus:ring-zaltyko-primary/20 transition-all"
                   placeholder="tu@email.com"
                 />
               </div>
@@ -197,7 +197,7 @@ export function LoginForm() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="h-12 rounded-xl border-border/60 bg-white/80 backdrop-blur focus:border-zaltyko-primary focus:ring-2 focus:ring-zaltyko-primary/20 transition-all"
+                  className="h-12 rounded-xl border-border/60 bg-card/80 backdrop-blur focus:border-zaltyko-primary focus:ring-2 focus:ring-zaltyko-primary/20 transition-all"
                   placeholder="••••••••"
                 />
               </div>
@@ -220,7 +220,7 @@ export function LoginForm() {
               </Button>
             </form>
 
-            <p className="text-center text-sm pt-6 text-zaltyko-text-secondary">
+            <p className="text-center text-sm pt-6 text-muted-foreground">
               ¿Aún no tienes cuenta?{" "}
               <Link
                 href="/onboarding"
@@ -250,7 +250,7 @@ export function LoginForm() {
                   <h3 className="font-display text-xl font-bold text-zaltyko-text-main">
                     Gestiona tu academia
                   </h3>
-                  <p className="text-sm text-zaltyko-text-secondary">
+                  <p className="text-sm text-muted-foreground">
                     Todo en un solo lugar
                   </p>
                 </div>
@@ -260,12 +260,12 @@ export function LoginForm() {
                 <div className="h-24 rounded-2xl bg-gradient-to-br from-zaltyko-bg to-white border border-zaltyko-border/50 p-4 flex flex-col justify-center">
                   <Users className="h-6 w-6 text-zaltyko-primary mb-2" />
                   <p className="text-xs font-semibold text-zaltyko-text-main">Atletas</p>
-                  <p className="text-xs text-zaltyko-text-secondary">Gestión total</p>
+                  <p className="text-xs text-muted-foreground">Gestión total</p>
                 </div>
                 <div className="h-24 rounded-2xl bg-gradient-to-br from-zaltyko-bg to-white border border-zaltyko-border/50 p-4 flex flex-col justify-center">
                   <TrendingUp className="h-6 w-6 text-zaltyko-accent-teal mb-2" />
                   <p className="text-xs font-semibold text-zaltyko-text-main">Estadísticas</p>
-                  <p className="text-xs text-zaltyko-text-secondary">En tiempo real</p>
+                  <p className="text-xs text-muted-foreground">En tiempo real</p>
                 </div>
               </div>
             </div>
@@ -279,7 +279,7 @@ export function LoginForm() {
                 <p className="text-sm font-medium text-zaltyko-text-main">
                   &quot;Zaltyko ha transformado cómo gestionamos nuestras clases. ¡Es increíble!&quot;
                 </p>
-                <p className="text-xs text-zaltyko-text-secondary mt-2">
+                <p className="text-xs text-muted-foreground mt-2">
                   María García · Club Gimnasia Elite
                 </p>
               </div>

@@ -158,7 +158,7 @@ export function ContactForm({ defaultReason = "demo", defaultPlan }: ContactForm
     >
       <input type="text" name="company" tabIndex={-1} autoComplete="off" className="hidden" aria-hidden="true" />
       {publicPlans.has(defaultPlan as CommercialPlanSlug) && (
-        <p className="rounded-lg border border-zaltyko-teal/25 bg-zaltyko-teal/10 px-4 py-3 text-sm text-zaltyko-navy">
+        <p className="rounded-lg border border-zaltyko-teal/25 bg-zaltyko-teal/10 px-4 py-3 text-sm text-foreground">
           Interés seleccionado: <strong className="capitalize">{defaultPlan}</strong>
         </p>
       )}
@@ -263,7 +263,7 @@ export function ContactForm({ defaultReason = "demo", defaultPlan }: ContactForm
         {!isHydrated ? "Preparando formulario..." : submitting ? "Enviando..." : "Enviar mensaje"}
       </button>
 
-      <p className="text-center text-xs text-zaltyko-text-secondary">
+      <p className="text-center text-xs text-muted-foreground">
         Al enviar este formulario, aceptas nuestra{" "}
         <Link href="/politica-privacidad" className="underline hover:text-zaltyko-primary">
           política de privacidad

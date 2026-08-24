@@ -165,7 +165,7 @@ export default async function AthleteDetailPage({ params }: PageProps) {
     <div className="space-y-5 py-6 lg:py-8">
       <Link
         href={`/app/${academyId}/athletes`}
-        className="inline-flex items-center gap-2 text-sm font-semibold text-zaltyko-text-secondary transition hover:text-zaltyko-teal"
+        className="inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground transition hover:text-zaltyko-teal"
       >
         ← Volver a {athleteTerms.athletes.toLowerCase()}
       </Link>

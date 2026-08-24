@@ -32,7 +32,7 @@ export function UpcomingClassesCard({ title, date, classes }: UpcomingClassesCar
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="text-base font-medium">{title}</CardTitle>
-          <span className="text-xs text-zaltyko-text-secondary">{date}</span>
+          <span className="text-xs text-muted-foreground">{date}</span>
         </div>
       </CardHeader>
       <CardContent>
@@ -40,20 +40,20 @@ export function UpcomingClassesCard({ title, date, classes }: UpcomingClassesCar
           {classes.map((classItem) => (
             <div key={classItem.id} className="flex gap-4 pb-4 border-b border-zaltyko-border last:border-0 last:pb-0">
               <div className="flex flex-col items-center gap-1 pt-1">
-                <span className="text-xs font-medium text-zaltyko-text-secondary">{classItem.time}</span>
+                <span className="text-xs font-medium text-muted-foreground">{classItem.time}</span>
                 <div className="w-px flex-1 bg-zaltyko-border" />
               </div>
               <div className="flex-1 space-y-2">
                 <div className="flex items-start justify-between">
                   <div>
                     <h4 className="text-sm font-medium text-zaltyko-text-main">{classItem.title}</h4>
-                    <p className="text-xs text-zaltyko-text-secondary mt-0.5">
+                    <p className="text-xs text-muted-foreground mt-0.5">
                       {classItem.time} - {classItem.duration}
                     </p>
                   </div>
-                  <span className="text-xs text-zaltyko-text-secondary">{classItem.scheduledIn}</span>
+                  <span className="text-xs text-muted-foreground">{classItem.scheduledIn}</span>
                 </div>
-                <div className="flex flex-wrap items-center gap-3 text-xs text-zaltyko-text-secondary">
+                <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                   {classItem.instructor && (
                     <div className="flex items-center gap-1.5">
                       <Avatar className="h-5 w-5">

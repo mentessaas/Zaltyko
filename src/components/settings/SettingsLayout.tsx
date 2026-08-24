@@ -36,8 +36,8 @@ export function SettingsLayout({ children, activeSection = "basic" }: SettingsLa
   return (
     <div className="flex flex-col gap-6 lg:flex-row">
       <aside className="w-full shrink-0 lg:w-64">
-        <div className="overflow-hidden rounded-2xl border border-zaltyko-mist bg-white shadow-soft">
-          <div className="border-b border-zaltyko-mist bg-zaltyko-navy px-4 py-5 text-white">
+        <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-soft">
+          <div className="border-b border-border bg-zaltyko-navy px-4 py-5 text-white">
             <h2 className="flex items-center gap-2 font-display text-lg font-semibold">
               <Settings className="h-5 w-5 text-zaltyko-teal" />
               Configuración
@@ -58,7 +58,7 @@ export function SettingsLayout({ children, activeSection = "basic" }: SettingsLa
                     "flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition",
                     isActive
                       ? "bg-zaltyko-teal/10 font-medium text-zaltyko-teal"
-                      : "text-zaltyko-text-secondary hover:bg-zaltyko-warm-white hover:text-zaltyko-navy"
+                      : "text-muted-foreground hover:bg-zaltyko-warm-white hover:text-foreground"
                   )}
                 >
                   <Icon className="h-4 w-4" />

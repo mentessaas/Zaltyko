@@ -154,7 +154,7 @@ export function BottomNav() {
           isVisible ? "translate-y-0" : "translate-y-full"
         )}
       >
-        <div className="border-t border-zaltyko-mist/70 bg-white/95 shadow-soft backdrop-blur">
+        <div className="border-t border-border/70 bg-white/95 shadow-soft backdrop-blur">
           <div className="safe-area-bottom flex h-16 items-center justify-around px-2">
             {bottomNavItems.map((item) => {
               const Icon = item.icon;

@@ -125,7 +125,7 @@ export default async function MessagesRoute({ params, searchParams }: PageProps)
         }
       />
 
-      <div className="min-h-[560px] overflow-hidden rounded-[24px] border border-slate-200/80 bg-white shadow-[0_18px_50px_-32px_rgba(15,23,42,0.45)]">
+      <div className="min-h-[560px] overflow-hidden rounded-[24px] border border-border/80 bg-card shadow-[0_18px_50px_-32px_rgba(15,23,42,0.45)]">
         <InternalMessagesPage
           academyId={academyId}
           currentUserId={profile.id}

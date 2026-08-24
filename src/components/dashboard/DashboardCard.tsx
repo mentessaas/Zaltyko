@@ -145,7 +145,7 @@ export function DashboardCard({
           <Icon className="h-6 w-6" strokeWidth={1.8} />
         </div>
       </div>
-      <p className="relative text-sm font-medium leading-relaxed text-zaltyko-text-secondary">{subtitle}</p>
+      <p className="relative text-sm font-medium leading-relaxed text-muted-foreground">{subtitle}</p>
 
       {hasTrendData && (
         <div className="relative -mb-2 -mx-1 mt-auto pt-1">

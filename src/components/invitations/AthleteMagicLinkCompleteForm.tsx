@@ -98,8 +98,8 @@ export function AthleteMagicLinkCompleteForm(props: Props) {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {props.customMessage && (
-        <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+        <div className="rounded-md border border-border bg-muted/50 p-3 text-sm text-foreground">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
             Mensaje del club
           </p>
           <p className="mt-1 whitespace-pre-wrap">{props.customMessage}</p>

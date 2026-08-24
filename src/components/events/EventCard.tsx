@@ -81,9 +81,9 @@ export function EventCard({
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
-            <h3 className="line-clamp-2 font-display text-lg font-semibold text-zaltyko-navy">{event.title}</h3>
+            <h3 className="line-clamp-2 font-display text-lg font-semibold text-foreground">{event.title}</h3>
             {showAcademy && event.academyName && (
-              <p className="mt-1 text-sm text-zaltyko-text-secondary">{event.academyName}</p>
+              <p className="mt-1 text-sm text-muted-foreground">{event.academyName}</p>
             )}
           </div>
           <div className="flex flex-col items-end gap-1">
@@ -124,7 +124,7 @@ export function EventCard({
 
         {/* Ubicación */}
         {(event.cityName || event.provinceName || event.countryName) && (
-          <div className="flex items-center gap-1.5 text-zaltyko-text-secondary">
+          <div className="flex items-center gap-1.5 text-muted-foreground">
             <MapPin className="h-3.5 w-3.5 shrink-0" />
             <span className="line-clamp-1 text-xs">
               {[event.cityName, event.provinceName, event.countryName].filter(Boolean).join(", ")}
@@ -136,7 +136,7 @@ export function EventCard({
         <div className="flex items-center justify-between gap-2 pt-1">
           {event.maxCapacity ? (
             <div className="flex items-center gap-1.5">
-              <Users className="h-3.5 w-3.5 text-zaltyko-text-secondary" />
+              <Users className="h-3.5 w-3.5 text-muted-foreground" />
               <EventCapacityBadge
                 current={event.registrationCount || 0}
                 max={event.maxCapacity}
@@ -148,16 +148,16 @@ export function EventCard({
           )}
           {event.registrationFee !== undefined && (
             <div className="flex items-center gap-1.5">
-              <Ticket className="h-3.5 w-3.5 text-zaltyko-text-secondary" />
-              <span className="text-sm font-medium text-zaltyko-navy">{formatPrice(event.registrationFee)}</span>
+              <Ticket className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="text-sm font-medium text-foreground">{formatPrice(event.registrationFee)}</span>
             </div>
           )}
         </div>
 
         {/* Countdown */}
         {showCountdown && isUpcoming && event.startDate && (
-          <div className="border-t border-zaltyko-mist pt-2">
-            <p className="mb-2 text-center text-xs text-zaltyko-text-secondary">
+          <div className="border-t border-border pt-2">
+            <p className="mb-2 text-center text-xs text-muted-foreground">
               {isRegistrationOpen ? "El evento comienza en:" : "Próximamente:"}
             </p>
             <EventCountdown targetDate={event.startDate} size="sm" />

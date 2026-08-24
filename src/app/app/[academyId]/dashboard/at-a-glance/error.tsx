@@ -32,10 +32,10 @@ export default function OwnerAtAGlanceError({
       className="mx-auto flex max-w-3xl flex-col gap-4 p-4 sm:p-6"
       data-testid="at-a-glance-error"
     >
-      <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-50">
+      <h1 className="text-xl font-semibold text-foreground dark:text-slate-50">
         No pudimos cargar tu panel
       </h1>
-      <p className="text-sm text-slate-600 dark:text-slate-300">
+      <p className="text-sm text-muted-foreground dark:text-slate-300">
         La consulta al panel de atención falló. Tus datos están a salvo;
         puedes reintentar o volver al panel anterior.
       </p>
@@ -49,13 +49,13 @@ export default function OwnerAtAGlanceError({
         </button>
         <Link
           href="../dashboard"
-          className="rounded-md border border-slate-300 px-4 py-2 font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
+          className="rounded-md border border-border px-4 py-2 font-medium text-foreground hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
         >
           Volver al panel anterior
         </Link>
         <Link
           href="../support"
-          className="rounded-md border border-slate-300 px-4 py-2 font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
+          className="rounded-md border border-border px-4 py-2 font-medium text-foreground hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
         >
           Contactar soporte
         </Link>

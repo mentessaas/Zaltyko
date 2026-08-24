@@ -30,7 +30,7 @@ export interface AttentionBlockProps {
 }
 
 const baseCardClass =
-  "flex h-full flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition focus-within:ring-2 focus-within:ring-sky-500 dark:border-slate-700 dark:bg-slate-900";
+  "flex h-full flex-col justify-between rounded-2xl border border-border bg-card p-5 shadow-sm transition focus-within:ring-2 focus-within:ring-sky-500 dark:border-slate-700 dark:bg-slate-900";
 
 export function AttentionBlock({
   id,
@@ -49,10 +49,10 @@ export function AttentionBlock({
       : "";
   const valueClass =
     value === null
-      ? "text-slate-400"
+      ? "text-muted-foreground"
       : tone === "primary"
         ? "text-3xl font-semibold text-amber-900 dark:text-amber-100"
-        : "text-3xl font-semibold text-slate-900 dark:text-slate-50";
+        : "text-3xl font-semibold text-foreground dark:text-slate-50";
 
   const display =
     value === null
@@ -68,7 +68,7 @@ export function AttentionBlock({
       <div>
         <h3
           id={`${id}-title`}
-          className="text-sm font-medium text-slate-600 dark:text-slate-300"
+          className="text-sm font-medium text-muted-foreground dark:text-slate-300"
         >
           {title}
         </h3>
@@ -81,7 +81,7 @@ export function AttentionBlock({
         {subtitle ? (
           <p
             id={`${id}-subtitle`}
-            className="mt-1 text-xs text-slate-500 dark:text-slate-400"
+            className="mt-1 text-xs text-muted-foreground dark:text-muted-foreground"
           >
             {subtitle}
           </p>
@@ -89,7 +89,7 @@ export function AttentionBlock({
       </div>
       <div className="mt-4 flex items-center justify-between text-xs">
         <span
-          className="truncate text-slate-400 dark:text-slate-500"
+          className="truncate text-muted-foreground dark:text-muted-foreground"
           title={`Fuente: ${source}`}
         >
           Fuente: {source}

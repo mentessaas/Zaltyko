@@ -141,29 +141,29 @@ export function UpgradeModal({ open, onClose, currentPlan, targetPlan, onConfirm
                 {step === "preview" ? (
                     <div className="space-y-6">
                         {/* Plan Preview */}
-                        <div className="rounded-card border border-zaltyko-mist border-b-2 border-b-zaltyko-teal bg-white p-6">
+                        <div className="rounded-card border border-border border-b-2 border-b-zaltyko-teal bg-card p-6">
                             <div className="flex items-center justify-between mb-4">
-                                <h3 className="text-2xl font-bold text-zaltyko-navy">{planDetails.name}</h3>
+                                <h3 className="text-2xl font-bold text-foreground">{planDetails.name}</h3>
                                 <Badge className="bg-zaltyko-primary-ultralight text-zaltyko-teal border-transparent">
                                     Upgrade
                                 </Badge>
                             </div>
                             <div className="flex items-baseline gap-2 mb-4">
-                                <span className="text-4xl font-bold tabular-nums text-zaltyko-navy">€{planDetails.price}</span>
-                                <span className="text-zaltyko-text-secondary">/mes</span>
+                                <span className="text-4xl font-bold tabular-nums text-foreground">€{planDetails.price}</span>
+                                <span className="text-muted-foreground">/mes</span>
                             </div>
                             <div className="space-y-2">
                                 {planDetails.features.map((feature, idx) => (
                                     <div key={idx} className="flex items-center gap-2">
                                         <Check className="w-4 h-4 text-zaltyko-teal" />
-                                        <span className="text-sm text-zaltyko-text-secondary">{feature}</span>
+                                        <span className="text-sm text-muted-foreground">{feature}</span>
                                     </div>
                                 ))}
                             </div>
                         </div>
 
                         {/* Pricing Breakdown */}
-                        <div className="space-y-3 rounded-card border border-zaltyko-mist bg-zaltyko-white p-4">
+                        <div className="space-y-3 rounded-card border border-border bg-zaltyko-white p-4">
                             <div className="flex justify-between text-sm">
                                 <span className="text-zaltyko-text-light">Plan {planDetails.name}</span>
                                 <span className="font-semibold">€{planDetails.price}/mes</span>
@@ -174,7 +174,7 @@ export function UpgradeModal({ open, onClose, currentPlan, targetPlan, onConfirm
                                         <span className="text-zaltyko-text-light">Crédito por tiempo restante</span>
                                         <span className="font-semibold text-zaltyko-teal">-€{prorationAmount}</span>
                                     </div>
-                                    <div className="border-t border-zaltyko-mist pt-2 flex justify-between">
+                                    <div className="border-t border-border pt-2 flex justify-between">
                                         <span className="font-semibold">Total hoy</span>
                                         <span className="font-bold text-lg tabular-nums">€{planDetails.price - prorationAmount}</span>
                                     </div>
@@ -186,13 +186,13 @@ export function UpgradeModal({ open, onClose, currentPlan, targetPlan, onConfirm
                         </div>
 
                         {/* Info Box */}
-                        <div className="flex items-start gap-3 rounded-card border border-zaltyko-mist bg-zaltyko-primary-ultralight p-4">
+                        <div className="flex items-start gap-3 rounded-card border border-border bg-zaltyko-primary-ultralight p-4">
                             <Zap className="w-5 h-5 mt-0.5 text-zaltyko-teal" />
                             <div className="flex-1">
-                                <p className="text-sm font-semibold text-zaltyko-navy mb-1">
+                                <p className="text-sm font-semibold text-foreground mb-1">
                                     Upgrade instantáneo
                                 </p>
-                                <p className="text-xs text-zaltyko-text-secondary">
+                                <p className="text-xs text-muted-foreground">
                                     Tu plan se actualizará inmediatamente después de confirmar el pago.
                                     Tendrás acceso a todas las nuevas funciones de inmediato.
                                 </p>
