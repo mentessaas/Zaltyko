@@ -347,10 +347,10 @@ export function GroupView({ academyId, group, availableAthletes, availableCoache
                   </div>
                   <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
                     {clazz.coachNames.length === 0 ? (
-                      <span className="rounded-full bg-white/60 px-3 py-1">Sin {pluralizeFirstWord(specialization.labels.coachLabel).toLowerCase()} asignados</span>
+                      <span className="rounded-full bg-card/60 px-3 py-1">Sin {pluralizeFirstWord(specialization.labels.coachLabel).toLowerCase()} asignados</span>
                     ) : (
                       clazz.coachNames.map((name) => (
-                        <span key={name} className="rounded-full bg-white/60 px-3 py-1 font-medium">
+                        <span key={name} className="rounded-full bg-card/60 px-3 py-1 font-medium">
                           {name}
                         </span>
                       ))

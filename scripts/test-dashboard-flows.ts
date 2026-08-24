@@ -27,3 +27,10 @@ if (!SUPABASE_URL || !ANON_KEY || !SERVICE_KEY) {
 
 const TEST_USERS = [
   { email: "test-superadmin@zaltyko.demo", password: "Test123!@#", role: "super_admin" },
+];
+
+// @deprecated Script truncado y sin uso: la referencia vigente es
+// scripts/prepare-e2e-auth.ts. No ejecutar; las credenciales de prueba
+// deben provisionarse vía el flujo E2E aprobado.
+void TEST_USERS;
+

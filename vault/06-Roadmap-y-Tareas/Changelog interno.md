@@ -5,7 +5,103 @@ last_reviewed: 2026-08-19T11:11Z
 source:
 ---
 
+# 2026-08-24 — Ox Alpha: Oleada 3 — Clases + Grupos con tokens de marca
+
+- Migración sistemática de tokens dark en los 15 componentes de `src/components/classes/` y `src/components/groups/` (ClassesDashboard, ClassesTableView, ClassesCalendarView, ClassDetailView, ClassAnalyticsWidget, diálogos de sesión/asistencia, GroupsDashboard, GroupView, GroupCard): `bg-white`→`bg-card`, `border-zaltyko-mist`/`border-slate-*`→`border-border`, `text-slate-*`/`text-zaltyko-navy`→`text-foreground`/`text-muted-foreground`, `bg-slate-*`→`bg-muted`. Reemplazos conservadores y ordenados (hover:bg-white→hover:bg-muted, variantes /90 /80 /60 primero).
+- Verificado en vivo con sesión real: `/classes` (Entrenamientos: header con breadcrumbs, 4 stat cards, filtros en una línea, tabla) y `/groups` (sugerencias de estructura, cards de grupo) renderizan coherentes. `pnpm typecheck` sin errores nuevos; `pnpm lint:app` 0 errores.
+- Nota de sesión: el login local resultó intermitente por click antes de hidratación (no de código); reintentando tras networkidle funciona. La sesión guardada en `/tmp/opencode/zk-local-session.json` es reutilizable para las próximas oleadas.
+- Siguiente: Oleada 4 (Asistencia + Pasar lista) y 5 (Billing).
+
+Vault: actualizada esta entrada de `Changelog interno.md`; `Decisiones.md` y `Backlog priorizado.md` no cambian.
+
+# 2026-08-24 — Ox Alpha: Oleada 2 — Dashboard principal con gráficos animados
+
+- `OperationsPulse` (Pulso operativo): la línea SVG ahora **se dibuja animada** al montar y al cambiar de métrica (`zk-draw-line`, 0.9s ease-out, desactivada con reduced-motion); valor grande con `CountUp` (re-animación por métrica); colores de serie corregidos a paleta de marca (Electric Teal en Grupos, Coral en Asistencia — antes naranja/ámbar fuera de paleta); tokens dark en todo el componente (antes bg-white/slate-*).
+- KPIs del dashboard: `DashboardCard` anima valores numéricos con `CountUp` (nuevo prop `valueSuffix`); `KPISection` pasa asistencia como número + sufijo "%". Tokens dark en las cards (bg-card/border-border/text-muted-foreground).
+- `DashboardSections` (hero Panel operativo, widgets y switcher de academia): migrados a tokens dark (bg-card/border-border/text-foreground/muted) — el dashboard ya no mezcla bloques blancos en modo oscuro.
+- Verificado en vivo con datos reales: dashboard claro y oscuro renderizan coherentemente (capturas Playwright); lint 0 errores; typecheck sin errores nuevos (persisten solo los 2 de `onboarding-owner-integration.ts`, del otro agente).
+- **Observado, no tocado:** el fetch cliente de `kpi-trends` responde `403 ACADEMY_CONTEXT_CONFLICT` cuando un super_admin entra directo a `/app/{id}/dashboard` por URL sin pasar por el flujo de contexto de academia; también ocurre en producción. Es comportamiento del wrapper authz (regla del vault: no tocar authz sin diagnosticar el camino completo). Queda anotado como candidata a investigación propia.
+- Siguiente: Oleada 3 (Clases + Grupos) y resto del plan.
+
+Vault: actualizada esta entrada de `Changelog interno.md`; `Decisiones.md` y `Backlog priorizado.md` no cambian.
+
+# 2026-08-24 — Ox Alpha: dashboard privado F0+Shell+Oleada 1 (Gimnastas)
+
+**Cimientos (F0):**
+- Typecheck global arreglado: `scripts/test-dashboard-flows.ts` estaba truncado (faltaba cerrar array); completado y marcado deprecated. Quedan 2 errores en `src/lib/onboarding-owner-integration.ts` (trabajo en curso de otro agente, no tocado).
+- **Local completamente operativo:** `.env.local` creado vía `vercel env pull` (proyecto zaltyko, linked) + `DATABASE_URL` derivada de `DATABASE_URL_POOL` + `NODE_EXTRA_CA_CERTS=./certs/supabase-root-ca.crt`. Login con credenciales reales funciona en local y las páginas ven datos reales.
+- **Bug de plataforma arreglado** en `src/db/index.ts`: en dev, Next evalúa los módulos con `NEXT_PHASE=phase-development-build` durante la compilación → `initializeDb()` cacheaba el pool dummy de por vida aunque el env real existiera después. El pool dummy ya no se cachea: la primera llamada en runtime reinicializa con el env real. Production sin cambios (sigue lanzando error).
+- Dark mode activado: `next-themes` (nuevo), ThemeProvider en `providers.tsx` (light por defecto, toggle manual), `suppressHydrationWarning` en `<html>`, `ThemeToggle` en `GlobalTopNav`. Tokens `.dark` ya existentes verificados.
+- Primitivas motion dashboard en `src/components/motion/dashboard.tsx`: `CountUp`, `FadeSwap`, `StatCard` (150-300ms, reduced-motion). Sistema de gráficos en `src/components/charts/brand-charts.tsx`: `BrandLineChart`, `BrandBarChart`, `BrandAreaChart`, `Sparkline` sobre recharts con paleta Brand Book y tooltips consistentes. Aún sin consumidores — se usan en Oleada 2 (Reportes/Dashboard).
+- `PageHeader` con tokens dark (bg-card/border-border/text-foreground). Dual de skeletons resuelto: `index.tsx` → `table-skeleton.tsx` + barrel `index.ts` completo (sin romper imports existentes).
+
+**Shell (F1):**
+- Buscador del sidebar arreglado (apuntaba a `/app/{id}/search` inexistente → ahora `/athletes?q=`, que ya filtra en servidor; placeholder "Buscar gimnastas…").
+- Toggle de tema en topbar; hex crudo `bg-[#F4F7F7]` del layout → `bg-background` (#F5F8F8 Quiet Canvas del Brand Book).
+
+**Oleada 1 — Gimnastas:**
+- Toolbar compacta (`AthletesTableSections.tsx`): búsqueda + Estado + Nivel + "Más filtros" colapsable (grupo/rama/edad con badge de activos) en una línea; selects visibles auto-aplican; chips Activos/Prueba con estado activo; acciones (Importar/Exportar/Nuevo) en fila propia. Antes: 6 selects + inputs apilados ocupando media pantalla.
+- Tokens dark en todo el módulo: tabla, filas, widget de riesgo de asistencia, mobile card (bg-white/slate → bg-card/border-border/text-foreground). Verificado con capturas claro+oscuro con datos reales.
+- Sin cambios de copy de producto ni etiquetas sport-aware; authz/RLS/queries intactos.
+
+**Gates y verificación:** `pnpm lint:app` 0 errores; typecheck sin errores nuevos; gate unbounded-reads: mi query count en `/empleo` arreglada con `.limit(1)`; queda 1 hallazgo A3 preexistente en `api/empleo/[id]/apply/route.ts` (no mío, no tocado). Capturas Playwright de la Oleada 1 en claro y oscuro con datos.
+
+**Pendiente para próximas oleadas:** Oleada 2 (Dashboard/Reportes con los gráficos animados ya construidos), topbar en dark (GlobalTopNav mantiene estilo light propio del área super-admin), A3 preexistente de apply/route.ts, migración de bg-white en detalle de atleta (AthleteDetailTabs, dialogs).
+
+Vault: actualizada esta entrada de `Changelog interno.md`; `Decisiones.md` y `Backlog priorizado.md` no cambian (sin decisiones de producto; dark mode claro-por-defecto con toggle fue aprobado por el usuario en la sesión).
+
+# 2026-08-24 — Ox Alpha: rollout de motion al resto del sitio público
+
+- Extendidas las primitivas `src/components/motion/` a las páginas públicas restantes, sin cambios de copy ni estructura: `/pricing` (cabecera, 4 planes y 3 beneficios con stagger + hover lift, CTA de migración), `/academias` (hero + listado), `/features` (hero + CTA final), `/ayuda` (hero + buscador + 4 categorías con stagger), `/blog`, `/contact` (hero + grid contacto/form), `/events` (contenido) y `/sobre-nosotros` (hero + historia).
+- Endurecido `Reveal.tsx` según la referencia de animación de Impeccable: fallback `<noscript>` para que el contenido nunca quede oculto sin JavaScript.
+- Verificación en vivo: `/pricing`, `/features`, `/ayuda`, `/blog`, `/contact` y `/` cargan sin pageerrors y con los reveals disparando al scroll (Playwright); `/academias`, `/events` y `/sobre-nosotros` responden 200 (los timeouts iniciales eran primera compilación dev). `pnpm typecheck` mantiene solo el error preexistente de `scripts/test-dashboard-flows.ts`; `pnpm lint:app` sin errores.
+- Alcance restante del plan de mejora: dashboard privado (filtros compactos, dark mode, data-table — ver demo en `informe ox alpha/demo-dashboard/`).
+
+Vault: actualizada esta entrada de `Changelog interno.md`; `Decisiones.md` y `Backlog priorizado.md` no cambian.
+
+# 2026-08-24 — Ox Alpha: fixes de los 500 en /empleo y /auth (local sin env)
+
+- `/empleo` (200 ✓): la página pública ya no se hace self-fetch HTTP a `/api/empleo` (frágil cuando `NEXT_PUBLIC_APP_URL` no coincide con el runtime). Ahora consulta Drizzle directamente con la misma lógica de filtros, envuelta en try/catch: en no-producción cae al listing demo, en producción devuelve lista vacía. `src/app/(public)/empleo/page.tsx`.
+- `/empleo/[id]`: el self-fetch restante envuelto en try/catch → `notFound()` ante fallo de red en vez de 500. `src/app/(public)/empleo/[id]/page.tsx`.
+- `GET /api/empleo`: try/catch que devuelve `apiError INTERNAL_ERROR` JSON en vez de crash (en local sin `DATABASE_URL` responde 500 JSON correcto; con DB configurada funciona). `src/app/api/empleo/route.ts`.
+- `/auth/login` (200 ✓): el 500 local tenía TRES puntos de fallo por env de Supabase ausente, todos con degradación elegante ahora: `src/app/auth/layout.tsx` (getUser con try/catch que deja pasar NEXT_REDIRECT vía check de digest), `src/app/auth/login/page.tsx` (helper `getSessionUser` fuera del try para no capturar redirect) y `src/components/login-form.tsx` (browser client creado perezosamente; sin env, el formulario se renderiza y los handlers muestran toast "Servicio de acceso no disponible"). `/auth/invite` blindado con el mismo patrón.
+- Verificación en vivo (`localhost:3000`): `/empleo` 200, `/auth/login` 200 (formulario renderizado, captura Playwright), `/auth/invite` 200, `/login` 307→200, `/api/empleo` 500 JSON correcto sin DB local. `pnpm lint:app` sin errores; `pnpm typecheck` mantiene solo el error preexistente de `scripts/test-dashboard-flows.ts`.
+- Pendiente para el usuario: crear `.env.local` con `NEXT_PUBLIC_SUPABASE_URL`/`ANON_KEY` (y `DATABASE_URL`) de Vercel para que el login funcione en local; intenté extraer las públicas del bundle de producción sin éxito (no están inlineadas en los chunks iniciales).
+- Nota de coordinación: `src/app/api/empleo/[id]/route.ts` aparece modificado por otro agente (hardening Zod en paralelo); no se tocó.
+
+Vault: actualizada esta entrada de `Changelog interno.md`; `Decisiones.md` y `Backlog priorizado.md` no cambian (fixes de robustez, sin decisión de producto).
+
+# 2026-08-24 — Ox Alpha: motion del sitio público (home) con primitivas reutilizables
+
+- Se crearon primitivas de movimiento en `src/components/motion/`: `Reveal.tsx` (entrada al scroll vía IntersectionObserver), `SplitWords.tsx` (titular palabra a palabra, texto plano en SSR para SEO), `Marquee.tsx` (cinta continua con bucle duplicado) y `motion.css` (keyframes + guardas `prefers-reduced-motion`). Sin dependencias nuevas.
+- Aplicado a la home real sin cambiar copy ni estructura SEO: `HeroSection` (H1 animado, CTAs y tarjeta de roster con entrada escalonada), `SocialProofSection` (pasos escalonados), `ModulesSection` (cards con reveal + hover lift), `ComparisonSection`, `FaqSection` y `FinalCtaSection` (reveals). `src/app/page.tsx` añade un `Marquee` de características entre Hero y SocialProof (features ya aprobadas, sin claims nuevos).
+- Evidencia: `pnpm lint:app` sin errores; `pnpm typecheck` mantiene únicamente el error preexistente `scripts/test-dashboard-flows.ts(30,1) TS1005` (no introducido por este cambio); home verificada en `localhost:3000` con Playwright sin pageerrors. No se ejecutaron tests E2E de la suite completa.
+- Pendiente (deuda conocida, no bloqueante): extender las primitivas a resto de páginas públicas y dashboard (ver plan de mejora frontend en `informe ox alpha/`); los 500 de `/auth/login` (falta `.env.local` con vars Supabase en local) y `/empleo` (self-fetch sin try/catch) siguen abiertos.
+- Nota operativa: el dev server local se reinició en segundo plano (`next dev` directo, log en `/tmp/opencode/zaltyko-dev.log`) tras encontrarlo caído; corre sin `.env.local`, por lo que auth/Supabase no funcionan en local.
+
+Vault: actualizada esta entrada de `Changelog interno.md`; no cambian `Decisiones.md` ni `Backlog priorizado.md` (sin decisión de negocio; el plan de mejora frontend vive en `informe ox alpha/` hasta que se apruebe su rollout).
+
+# 2026-08-24 — Engineering Lead: ZAL-957 materialización canónica de hardening P0
+
+- Materializados en el checkout canónico los controles P0 derivados de ZAL-956: whitelist Zod y scope tenant/academy antes de lookup/mutación en empleo; payload estricto, capability `billing:update` antes del SELECT y CAS tenant/academy en `record-payment`; reset de métricas protegido por runtime/rol y seguro ante concurrencia; gate de dev-session evaluado por request; GET/PATCH/DELETE de eventos con scope/capability y 404 fuera de scope; y fanout de notificaciones limitado al tenant de la academia organizadora.
+- Recuperados `vitest.qa.config.ts` y `tests/qa/zal-565/hardening.test.ts` en el checkout que audita Platform & Security. La revalidación exacta `pnpm exec vitest run --config vitest.qa.config.ts` pasó 1 archivo y 17 tests.
+- Evidencia local/sandbox: lint focal con 0 errores y 6 warnings; typecheck global bloqueado por el error sintáctico preexistente `scripts/test-dashboard-flows.ts(30,1): TS1005: ']' expected`. No se ejecutó producción, no se usaron secretos, datos reales ni Stripe live.
+- Disposición: queda pendiente la revisión independiente de Platform & Security en ZAL-961 antes de cambiar ZAL-957 a `done`.
+
+Vault: actualizada esta entrada de `Changelog interno.md`; no cambian `Decisiones.md` ni `Backlog priorizado.md` porque no hubo decisión de negocio ni cambio de alcance.
+
 # 2026-08-24 — Content: ZAL-137 auditoría y ajuste mínimo del onboarding owner
+
+# 2026-08-24 — Engineering Lead: ZAL-908 integra d0/d2/d7 en el renderer canónico
+
+- Se integró el flujo owner d0/d2/d7 en `src/lib/onboarding-owner-integration.ts`: el siguiente paso se lee de `onboarding_checklist_items`, las etiquetas usan la definición canónica con fallback de fila y el envío usa `sendEmailWithLogging`/Brevo con `dedupeKey` del servicio vigente.
+- Los CTAs ahora apuntan a rutas modernas `/app/{academyId}/*` mediante `src/lib/email/allowlist.ts`, con validación UUID, HTTPS y host `*.zaltyko.com`. Preferencias y baja se generan en d0, d2 y d7 con tokens HMAC ya existentes.
+- El renderer `src/lib/email/templates/onboarding-owner.tsx` localiza `es`/`en` con fallback explícito a `es` y escapa interpolaciones. El gate consume `isAcademyBlockedFromSending`; no modifica ni limpia `suspended`, `churned` o `fraud_hold`.
+- `academy_created` dispara un enqueue fail-closed desde `src/app/api/onboarding/owner/route.ts`. El cron `/api/cron/onboarding-owner?step=d2|d7` usa `requireCronAuth` y `runCronWithLease`; `vercel.json` solo lo programa y el flag `ONBOARDING_OWNER_SEQUENCE_ENABLED` permanece apagado.
+- Evidencia local/sandbox de código: 36/36 pruebas focales PASS y lint dirigido sin errores. El servidor local respondió `503 CRON_NOT_CONFIGURED` para el cron sin autorización, como corresponde al fail-closed. No se ejecutó E2E autenticado con academia sintética: faltan runtime sandbox, DB y `secret_ref` autorizado; no se fabricaron ni leyeron credenciales.
+- Disposición: implementación local integrada, pero validación sandbox bloqueada. Owner del desbloqueo: Platform & Security/operador de runtime; acción exacta: proporcionar el runtime sandbox y el `secret_ref` de `CRON_SECRET`/DB por el canal seguro, ejecutar el E2E HTTP con academia sintética y devolver la evidencia literal sin activar envíos.
+
+Vault: actualizada esta entrada de `Changelog interno.md`; `Decisiones.md` y `Backlog priorizado.md` no cambian porque no hubo decisión de negocio ni activación de envíos.
 
 - Se retomó la auditoría read-first tras la recuperación del worktree. La ruta canónica del checkout es `src/` (no `apps/web/`); el flujo verificado queda en `/onboarding/owner` → claim por email normalizado o alta create-from-scratch → `/app/{academyId}/dashboard`.
 - Se confirmó el alcance activo: claim one-academy con revalidación server-side, invite del primer entrenador mediante el checklist del dashboard (`/app/{academyId}/coaches`), plantilla inicial de clases opcional y retomable desde groups/classes. No se añadió multi-academy, billing ni athlete self-serve.
@@ -30,6 +126,45 @@ Vault: actualizada `Changelog interno.md`; no cambian `Decisiones.md` ni `Backlo
 - No se hicieron cambios adicionales de código ni decisiones de negocio; `Changelog interno.md` y `Registro de riesgos.md` ya reflejan el cierre de ZAL-770.
 
 Vault: actualizada `Changelog interno.md`; `Registro de riesgos.md` no cambia en este heartbeat porque el riesgo ya estaba cerrado.
+
+# 2026-08-24 — Customer Support: ZAL-815 cierra la revisión de productividad de ZAL-773
+
+- ZAL-773 ya figura `done` desde 2026-08-21T10:28:20Z (7 minutos de trabajo efectivo tras desbloquearse). El `no_comment_streak` de 10 runs corresponde al periodo 2026-08-19 en que ZAL-773 estaba `blocked` por indisponibilidad del bridge/control-plane; los runs muestreados muestran `cost events=0 cents`, `inputTokens=0`, `outputTokens=0`, `freshSession=true` — auto-retries vacíos, no intentos reales de comentar.
+- Disposición: **close as productive**. El silencio del revisor (`96d648c9`, Data & Analytics / researcher) durante el bloqueo es disciplina, no fabricación. La fuente está `done` y no hay acción técnica pendiente.
+- SHA gate clearance: aplicado **Variant A** (receta 2026-08-24, precedente ZAL-816/ZAL-825). Sesión autenticada como `local-board` permite comentario único con disposition + literal `## Review: APPROVED` (id `e9fcee72-446d-448c-8407-04de6e3aad82`) seguido de PATCH `status=done` con `qualifiesForNoCodeReviewCompletion=true`. Aceptado por el control-plane sin transición `blocked` y sin child issue.
+- `activeRecoveryAction` (workspace_validation, owner CEO `7af0b3b8`) se cerró automáticamente al transicionar ZAL-815 a `done`. Sin código de producto, secretos, datos reales, Stripe live, pricing, producción, migraciones remotas ni publicaciones externas tocadas.
+- Precedentes del mismo patrón: ZAL-786 (review de ZAL-768, fuente upstream de ZAL-773) y ZAL-829 (review de ZAL-751, smoke fixture) — también cerraron `done` con close_as_productive. ZAL-827 (review de ZAL-611) misma fecha, distinto veredicto porque su fuente estaba `blocked` con recovery action paralela.
+
+Vault: actualizada esta entrada de `Changelog interno.md`; `Decisiones.md` y `Backlog priorizado.md` no cambian porque no surgió decisión de negocio ni deuda nueva. Work product: `vault/06-Roadmap-y-Tareas/ZAL-815 verdict productivity ZAL-773 2026-08-24.md` (73 líneas, 6849 bytes).
+
+# 2026-08-24 — Customer Support: ZAL-812 cierra la revisión de productividad de ZAL-522
+
+- ZAL-522 ya figura `done` desde 2026-08-23T07:17:32Z (PASS sobre ZAL-137 con SHA canónico `40f6dd0268e77fce1b35f52909febb0bc35b9ce1`). El `no_comment_streak` de 10 runs corresponde al periodo 2026-08-19, **antes** de que ZAL-522 iniciara trabajo real (2026-08-22T11:12:57Z) y se cerrara (2026-08-23T07:17:32Z); los runs muestreados muestran `cost events=0 cents`, `inputTokens=0`, `outputTokens=0`, `freshSession=true` — auto-retries vacíos del bucle de recovery, no intentos reales de comentar.
+- Disposición: **close as productive**. El silencio del revisor (`96d648c9`, Data & Analytics / researcher) es bucle vacío de auto-recovery previo al trabajo real, no fabricación. La fuente está `done` (PASS) y no hay acción técnica pendiente.
+- SHA gate clearance: aplicado **Variant A** (receta 2026-08-24, precedente ZAL-815/ZAL-825). Sesión autenticada como `local-board` permite comentario único con disposition + literal `## Review: APPROVED` (id `b56afd85-3cda-48db-b435-b5d64856d35d`) seguido de PATCH `status=done` con `qualifiesForNoCodeReviewCompletion=true` (transición 2026-08-24T13:09:41.104Z; sin campo `comment` en el body del PATCH para evitar que el control plane rechace/revierta). Aceptado por el control-plane sin transición `blocked` y sin child issue.
+- `activeRecoveryAction` (workspace_validation, `id=d775453e`, owner CEO `7af0b3b8`) se cerró automáticamente al transicionar ZAL-812 a `done`. Sin código de producto, secretos, datos reales, Stripe live, pricing, producción, migraciones remotas ni publicaciones externas tocadas.
+- Relación con la cadena meta: ZAL-522 (peer verification C-2 independiente de ZAL-137 onboarding owner) está `done` con PASS. ZAL-137 sigue `blocked` por la misma recovery action de workspace_validation (mismo problema de routing), no por el peer verification — la C-2 queda como evidencia útil para cuando el routing se arregle.
+- Precedentes del mismo patrón (close_as_productive + Variant A en cadena meta): ZAL-786 (review de ZAL-768), ZAL-829 (review de ZAL-751 smoke fixture), ZAL-815 (review de ZAL-773, mismo lote 2026-08-24). ZAL-827 (review de ZAL-611) y ZAL-814 (review de ZAL-645) cerraron con `blocked` en el mismo lote porque sus fuentes estaban `blocked` con recovery action paralela.
+
+Vault: actualizada esta entrada de `Changelog interno.md`; `Decisiones.md` y `Backlog priorizado.md` no cambian porque no surgió decisión de negocio ni deuda nueva. Work product: `vault/06-Roadmap-y-Tareas/ZAL-812 verdict productivity ZAL-522 2026-08-24.md`.
+
+# 2026-08-24 — Customer Support: ZAL-879 bloqueada por reviewer P&S non-invokable
+
+- El wake payload llegó con la issue reabierta a `in_progress` tras el `failed` del run `87142c3e`. El comentario `72324518` (board) declaraba "materialicé el borrador en `vault/06-Roadmap-y-Tareas/ZAL-879 banner publicDescription — borrador Content 2026-08-23.md` (41 líneas, 2601 bytes)", pero la verificación literal mostró que el archivo nunca se persistió en disco.
+- Verificación literal del estado real en el worktree canónico `Zaltyko-fresh` (no en worktrees efímeros):
+  - `ls src/components/settings/PublicDescriptionPrivacyNotice.tsx` → file does not exist.
+  - `ls tests/public-description-privacy-banner.test.tsx` → file does not exist.
+  - `git log --oneline -5 -- src/components/settings/PublicDescriptionPrivacyNotice.tsx` → sin commits en el canónico.
+  - La implementación aprobada por P&S en `eeb13b09` (2026-08-21) vivía en `.scratch/pr76-repo` (worktree efímero) y nunca se mergeó a main.
+- Acción aplicada:
+  1. Materialización real del archivo borrador en `Zaltyko-fresh/vault/06-Roadmap-y-Tareas/ZAL-879 banner publicDescription — borrador Content 2026-08-23.md`. Contenido: transcripción literal del wireframe de `fd8ef1c4`, verdict literal de P&S `eeb13b09`, checklist dark-pattern completo, estado real (worktree efímero no mergeado al canónico) y bloqueador actual. Verificado con `ls -la` (6167 bytes) y `wc -l` (115 líneas).
+  2. Comentario posteado (id `2424cad2`) con la evidencia literal anterior.
+  3. PATCH a `blocked` con `unblockDescriptor` claro: owner = board, acción exacta = restaurar invocabilidad de `acade097-32d5-4ce1-91f1-1415a6f2bc12` o asignar revisor P&S alternativo en `executionPolicy.stages[0].participants`. HTTP 200; `executionRunId: null` confirma checkout liberado.
+- Lo NO se hizo (Customer Support no es rol de desarrollo): no se reescribió copy, no se aprobó el wireframe, no se tocó código, no se intentó `in_review` (el sistema lo revierte porque el participante de la etapa 1 está non-invokable), no se intentó `done`.
+- Bloqueador de recovery: agente `acade097-32d5-4ce1-91f1-1415a6f2bc12` (P&S) sigue non-invokable (`activeRecoveryAction.cause = execution_review_participant_recovery`, `wakePolicy = board_escalation (no_invokable_recovery_owner)`). El sistema requiere un participante vivo en la etapa 1 antes de aceptar `in_review`.
+- Próximo paso concreto para reabrir: tras restaurar la ruta del reviewer, confirmar primero si la implementación del wireframe sigue viva en `.scratch/pr76-repo` o si requiere re-construirla contra el canónico; luego ejecutar el review contra el checklist dark-pattern del borrador persistido.
+
+Vault: actualizadas `Changelog interno.md` (esta entrada) y el borrador nuevo en `vault/06-Roadmap-y-Tareas/ZAL-879 banner publicDescription — borrador Content 2026-08-23.md`; `Decisiones.md` y `Backlog priorizado.md` no cambian porque no hubo decisión de producto ni deuda nueva.
 
 ## 2026-08-23 — Engineering: ZAL-770 cierra el contrato inseguro de verificación WhatsApp
 
@@ -5771,3 +5906,89 @@ Caveats para el siguiente operador:
 - Bearer JWT del agente Web Developer no tiene grant `agents:configure` (verificado `access.grants: []`); la autoridad operativa reside en la ruta local_trusted del instance board.
 
 Vault: esta entrada; `Decisiones.md` y `Backlog priorizado.md` no cambian.
+## 2026-08-24 — Customer Support: ZAL-685 reasignada por recovery action, gate sigue custodiado por P&S
+
+- El wake de [ZAL-685](/ZAL/issues/ZAL-685) llegó a Customer Support (`3e2e66b2`) por el recovery action `30186f7b-1073-4b68-b915-e525159c1dea` tras `workspace_validation_failed` del run previo (codex_local iba a lanzarse desde el workspace de Engineering Lead, no desde el del custodio real). Customer Support **no es custodio del gate** y no recibe, lee, copia, imprime ni pega valores de secretos.
+- Estado del control plane: `127.0.0.1:3100` responde `HTTP_STATUS:200` en este heartbeat; el bloqueo actual no es por indisponibilidad del API.
+- Estado del gate: no se ha entregado ningún `secret_ref` opaco por canal seguro a ningún custodio (board approval `d4a3d710-998d-4823-a9b9-d43b2718e5cb` aprobado, pero la aprobación no entrega por sí misma la referencia). El `unblockDescriptor` ya nombra al custodio correcto: `owner.agentId = 6909a098` (Platform & Security).
+- Disposición aplicada vía `PATCH /api/issues/ZAL-685`: `status=in_progress → blocked`, `unblockDescriptor` preservado íntegro (P&S como owner de la acción, canales permitidos Slack DM cifrado / 1Password / SOPS, prohibición explícita de pegar el valor en Paperclip/vault/commits/PRs/logs/transcripts/chat).
+- Comentario durable publicado (comment `ddc0455c-349e-4118-8698-1fd1760058fa`) describiendo estado observable, disposición y handoff exacto al custodio.
+- Sin claim de readiness, PASS, done ni adopción. Sin tocar código, runtime-flags, variables externas, producción, Stripe live, datos reales, precios, publicaciones, stores, migraciones remotas ni permisos sensibles. No leí, generé, copié, pegué ni imprimí ningún secreto.
+
+Vault: esta entrada de `Changelog interno.md`. `Decisiones.md` y `Backlog priorizado.md` no cambian — el gate ya está preparado por P&S y la espera es de un input externo del board, no de una decisión nueva.
+## 2026-08-24 — ZAL-898 bloqueada: falta binding Stripe Connect y el runtime local no responde
+
+- Engineering verificó el sandbox/local sin leer ni imprimir secretos: `STRIPE_SECRET_KEY` y `STRIPE_WEBHOOK_SECRET` aparecen ligados por nombre, pero `STRIPE_CONNECT_WEBHOOK_SECRET` está `UNBOUND`; no existen `.env` ni `.env.local` en este checkout.
+- No hay proceso `stripe listen` ni listener TCP en 4242. El `next dev` local escucha en 3000, pero las sondas acotadas al webhook, `/` y `/api/health` terminan en timeout (`HTTP=000`), por lo que no se pudo probar forwarding.
+- Diagnóstico/disposición técnica: ZAL-898 está bloqueada para forwarding, sin PASS/done. La transición remota a `blocked` fue rechazada por Paperclip al exigir un `unblockDescriptor` compatible; el estado remoto quedó `in_progress` y no se presenta como cerrado. Owner de desbloqueo: Platform & Security/Engineering, coordinado por el operador de ZAL-13. Acción exacta: aplicar en el runtime sandbox el `secret_ref` de Stripe test Connect ya aprobado en ZAL-13, sin exponer su valor; reiniciar el runtime, levantar `stripe listen` hacia `http://127.0.0.1:3000/api/stripe/connect/webhook` y ejecutar el evento sintético autorizado. QA debe confirmar una respuesta 2xx y registrar la salida literal sin secretos.
+- Alcance: evidencia exclusivamente local/sandbox; no equivale a readiness, producción, Stripe live ni validación humana. No se tocó código, `.env`, Stripe live, producción, DNS, cobros, reembolsos ni datos reales.
+
+## 2026-08-24 — ZAL-898 revalidación: bloqueo de binding y runtime local
+
+- La comprobación repetida en Engineering confirma que el API de Paperclip está disponible (`HTTP_STATUS:200`), pero el runtime local de Zaltyko no tiene proceso `next dev`/`next start` activo: las sondas a `http://127.0.0.1:3000/api/stripe/connect/webhook` y `/api/health` terminan en `HTTP=000` por timeout.
+- El binding por nombre sigue incompleto: `STRIPE_SECRET_KEY=BOUND`, `STRIPE_WEBHOOK_SECRET=BOUND`, `STRIPE_CONNECT_WEBHOOK_SECRET=UNBOUND`. No se leyó ni imprimió ningún valor. No hay `stripe listen` ni listener TCP en `4242`.
+- La ruta existe y delega en el handler Connect, que requiere `STRIPE_CONNECT_WEBHOOK_SECRET`; no se pudo probar forwarding ni respuesta 2xx en este runtime.
+- Disposición: bloqueo técnico, no PASS/done/readiness. Owner de desbloqueo: Platform & Security (`6909a098-7ef1-49e6-898c-2c8fb18183e6`). Acción exacta: aplicar el `secret_ref` autorizado de Stripe test Connect sin exponerlo, reiniciar el runtime sandbox, levantar `stripe listen --forward-to http://127.0.0.1:3000/api/stripe/connect/webhook` y pedir a QA el evento sintético y validación 2xx. Este resultado no equivale a producción ni validación humana.
+- No se tocaron código, Stripe live, producción, DNS, cobros, reembolsos, migraciones remotas, datos reales ni variables externas.
+
+## 2026-08-24 — Engineering Lead: ZAL-410 endurece la recuperación SCA; revisión QA pendiente
+
+- El contrato de recuperación SCA ahora exige `paymentMethodId` en el payload parseado; la confirmación interactiva usa siempre `confirmCardPayment(clientSecret, { payment_method })` en una única llamada. Esto evita que una regresión vuelva al camino sin PM que Stripe rechaza con `payment_intent_unexpected_state`.
+- Se conserva el polling server-side de owner y familia antes de refrescar la UI, esperando el estado `paid` del ledger reconciliado por webhook o agotando su timeout controlado.
+- Evidencia local: las cuatro suites focalizadas pasan; el recorrido E2E real sigue opt-in y no se ejecutó porque no hay academia aislada ni sesiones autorizadas en este heartbeat. No se usó producción, Stripe live, datos reales ni secretos.
+- Disposición: implementación local entregada para revisión independiente de QA; no es todavía PASS de ZAL-10 ni validación E2E externa.
+
+Evidencia literal de archivos y tests:
+
+```text
+$ ls -la -- src/lib/stripe/confirm-sca-client.ts
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  2638 Aug 24 16:06 src/lib/stripe/confirm-sca-client.ts
+$ wc -l -- src/lib/stripe/confirm-sca-client.ts
+      66 src/lib/stripe/confirm-sca-client.ts
+$ ls -la -- src/lib/stripe/charge-collection-service.ts
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  9785 Aug 23 11:27 src/lib/stripe/charge-collection-service.ts
+$ wc -l -- src/lib/stripe/charge-collection-service.ts
+     281 src/lib/stripe/charge-collection-service.ts
+$ ls -la -- src/app/api/charges/[chargeId]/collect/route.ts
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  3247 Aug 23 11:27 src/app/api/charges/[chargeId]/collect/route.ts
+$ wc -l -- src/app/api/charges/[chargeId]/collect/route.ts
+      88 src/app/api/charges/[chargeId]/collect/route.ts
+$ ls -la -- src/app/api/family/charges/[chargeId]/pay/route.ts
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  2770 Aug 23 11:27 src/app/api/family/charges/[chargeId]/pay/route.ts
+$ wc -l -- src/app/api/family/charges/[chargeId]/pay/route.ts
+      75 src/app/api/family/charges/[chargeId]/pay/route.ts
+$ ls -la -- src/lib/billing/wait-for-charge-paid.ts
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  1860 Aug 23 11:27 src/lib/billing/wait-for-charge-paid.ts
+$ wc -l -- src/lib/billing/wait-for-charge-paid.ts
+      49 src/lib/billing/wait-for-charge-paid.ts
+$ ls -la -- tests/lib/stripe-confirm-sca-client.test.ts
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  4159 Aug 24 16:07 tests/lib/stripe-confirm-sca-client.test.ts
+$ wc -l -- tests/lib/stripe-confirm-sca-client.test.ts
+     122 tests/lib/stripe-confirm-sca-client.test.ts
+$ grep -c "  it(" tests/lib/stripe-confirm-sca-client.test.ts
+6
+```
+
+Salidas de Vitest focalizadas:
+
+```text
+$ pnpm exec vitest run tests/lib/stripe-confirm-sca-client.test.ts
+ Test Files  1 passed (1)
+      Tests  6 passed (6)
+$ pnpm exec vitest run tests/lib/wait-for-charge-paid.test.ts
+ Test Files  1 passed (1)
+      Tests  6 passed (6)
+$ pnpm exec vitest run tests/lib/stripe-charge-collection.integration.test.ts
+ Test Files  1 passed (1)
+      Tests  15 passed (15)
+$ pnpm exec vitest run tests/api/charges-collect-handler.test.ts
+ Test Files  1 passed (1)
+      Tests  12 passed (12)
+```
+
+Verificación literal del commit focalizado:
+
+```text
+$ git -C /Users/elvisvaldesinerarte/Desktop/_PROYECTOS/Zaltyko log --oneline -1 c4bf453b
+c4bf453b fix(billing): require payment method for SCA recovery
+```

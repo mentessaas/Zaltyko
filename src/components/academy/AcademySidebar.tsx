@@ -37,8 +37,10 @@ export function AcademySidebar() {
 
   const handleSearch = (event: React.FormEvent) => {
     event.preventDefault();
+    // La ruta /search no existe; el buscador lleva al listado de gimnastas,
+    // que ya filtra por ?q= en servidor.
     if (searchQuery.trim()) {
-      router.push(`${basePath}/search?q=${encodeURIComponent(searchQuery.trim())}`);
+      router.push(`${basePath}/athletes?q=${encodeURIComponent(searchQuery.trim())}`);
     }
   };
 
@@ -63,7 +65,7 @@ export function AcademySidebar() {
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/70" />
           <input
             type="search"
-            placeholder="Buscar en la academia..."
+            placeholder="Buscar gimnastas…"
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
             className="w-full rounded-card border border-white/10 bg-white/[0.06] py-2.5 pl-9 pr-3 text-sm text-white placeholder:text-white/70 focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15"

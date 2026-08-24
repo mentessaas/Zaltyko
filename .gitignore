@@ -57,3 +57,5 @@
 /output
 /promts /
 /tmp
+.vercel
+.env*

@@ -62,14 +62,14 @@ export function AttendanceRiskWidget({ academyId }: AttendanceRiskWidgetProps) {
   );
 
   return (
-    <div className="rounded-2xl border border-zaltyko-mist bg-white p-4 shadow-soft">
+    <div className="rounded-2xl border border-border bg-card p-4 shadow-soft">
       <div className="mb-3 flex items-start justify-between gap-3">
         <div>
-          <h3 className="font-semibold text-zaltyko-navy">Riesgo de asistencia</h3>
+          <h3 className="font-semibold text-foreground">Riesgo de asistencia</h3>
           <p className="text-xs text-muted-foreground">Últimos 30 días</p>
         </div>
         {!isLoading && !error ? (
-          <span className="rounded-full bg-zaltyko-white px-2.5 py-1 text-xs font-semibold text-zaltyko-navy">
+          <span className="rounded-full bg-zaltyko-white px-2.5 py-1 text-xs font-semibold text-foreground">
             {alerts.length}
           </span>
         ) : null}
@@ -87,9 +87,9 @@ export function AttendanceRiskWidget({ academyId }: AttendanceRiskWidgetProps) {
             <Link
               key={alert.athleteId}
               href={`/app/${academyId}/athletes/${alert.athleteId}`}
-              className="block rounded-xl border border-zaltyko-mist px-3 py-2 transition hover:border-zaltyko-teal/50 hover:bg-zaltyko-white"
+              className="block rounded-xl border border-border px-3 py-2 transition hover:border-zaltyko-teal/50 hover:bg-zaltyko-white"
             >
-              <p className="truncate text-sm font-semibold text-zaltyko-navy">{alert.athleteName}</p>
+              <p className="truncate text-sm font-semibold text-foreground">{alert.athleteName}</p>
               <p className="text-xs text-muted-foreground">
                 {Math.round(alert.attendanceRate)}% asistencia · umbral {Math.round(alert.threshold)}%
               </p>

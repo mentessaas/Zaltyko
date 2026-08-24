@@ -6,6 +6,7 @@ import { ArrowUpRight, ArrowDownRight } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Sparkline } from "./Sparkline";
+import { CountUp } from "@/components/motion/dashboard";
 
 const COLOR_TO_VARIANT: Record<string, "default" | "success" | "warning" | "danger" | "info"> = {
   sky: "info",
@@ -45,6 +46,8 @@ const ACCENT_TO_HEX: Record<string, string> = {
 export interface DashboardCardProps {
   title: string;
   value: string | number;
+  /** Sufijo del valor (ej. "%") cuando es numérico y se anima con CountUp. */
+  valueSuffix?: string;
   subtitle: string;
   href: string;
   icon: LucideIcon;
@@ -63,6 +66,7 @@ export { StatsCard } from "@/components/ui/stats-card";
 export function DashboardCard({
   title,
   value,
+  valueSuffix,
   subtitle,
   href,
   icon: Icon,
@@ -87,7 +91,7 @@ export function DashboardCard({
     <Link
       href={href}
       className={cn(
-        "group relative flex flex-col gap-3 overflow-hidden rounded-2xl border border-zaltyko-mist/80 bg-white p-6 shadow-soft transition-all duration-300 hover:-translate-y-0.5 hover:border-zaltyko-teal/40 hover:shadow-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.99]"
+        "group relative flex flex-col gap-3 overflow-hidden rounded-2xl border border-border bg-card p-6 shadow-soft transition-all duration-300 hover:-translate-y-0.5 hover:border-zaltyko-teal/40 hover:shadow-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.99]"
       )}
     >
       {/* Barra de acento superior */}
@@ -102,7 +106,7 @@ export function DashboardCard({
       <div className="relative flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <p className="text-xs font-medium uppercase tracking-[0.05em] text-slate-600">
+            <p className="text-xs font-medium uppercase tracking-[0.05em] text-muted-foreground">
               {title}
             </p>
             {trend && (
@@ -121,7 +125,13 @@ export function DashboardCard({
               </span>
             )}
           </div>
-          <p className="mt-1 font-display text-3xl font-bold tracking-normal text-foreground">{value}</p>
+          <p className="mt-1 font-display text-3xl font-bold tracking-normal text-foreground">
+            {typeof value === "number" ? (
+              <CountUp value={value} suffix={valueSuffix} />
+            ) : (
+              value
+            )}
+          </p>
         </div>
         <div
           className={cn(

@@ -162,36 +162,36 @@ export function ClassAnalyticsWidget({
     <div className="space-y-6">
       {/* Stats overview */}
       <div className="grid gap-4 md:grid-cols-3">
-        <div className="rounded-2xl border border-zaltyko-mist bg-white p-4 shadow-soft">
-          <p className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-text-secondary">
+        <div className="rounded-2xl border border-border bg-card p-4 shadow-soft">
+          <p className="text-xs font-medium uppercase tracking-[0.05em] text-muted-foreground">
             Asistencia general
           </p>
-          <p className="mt-1 font-display text-2xl font-semibold text-zaltyko-navy">{analytics.overallAttendanceRate}%</p>
-          <p className="text-xs text-zaltyko-text-secondary">
+          <p className="mt-1 font-display text-2xl font-semibold text-foreground">{analytics.overallAttendanceRate}%</p>
+          <p className="text-xs text-muted-foreground">
             {analytics.totalPresent} de {analytics.totalAttendance} registros
           </p>
         </div>
-        <div className="rounded-2xl border border-zaltyko-mist bg-white p-4 shadow-soft">
-          <p className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-text-secondary">
+        <div className="rounded-2xl border border-border bg-card p-4 shadow-soft">
+          <p className="text-xs font-medium uppercase tracking-[0.05em] text-muted-foreground">
             Sesiones totales
           </p>
-          <p className="mt-1 font-display text-2xl font-semibold text-zaltyko-navy">{analytics.totalSessions}</p>
-          <p className="text-xs text-zaltyko-text-secondary">En el período seleccionado</p>
+          <p className="mt-1 font-display text-2xl font-semibold text-foreground">{analytics.totalSessions}</p>
+          <p className="text-xs text-muted-foreground">En el período seleccionado</p>
         </div>
-        <div className="rounded-2xl border border-zaltyko-mist bg-white p-4 shadow-soft">
-          <p className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-text-secondary">
+        <div className="rounded-2xl border border-border bg-card p-4 shadow-soft">
+          <p className="text-xs font-medium uppercase tracking-[0.05em] text-muted-foreground">
             Clases analizadas
           </p>
-          <p className="mt-1 font-display text-2xl font-semibold text-zaltyko-navy">{analytics.classAttendance.length}</p>
-          <p className="text-xs text-zaltyko-text-secondary">Con registros de asistencia</p>
+          <p className="mt-1 font-display text-2xl font-semibold text-foreground">{analytics.classAttendance.length}</p>
+          <p className="text-xs text-muted-foreground">Con registros de asistencia</p>
         </div>
       </div>
 
       {/* Attendance by class */}
-      <div className="rounded-2xl border border-zaltyko-mist bg-white p-4 shadow-soft">
+      <div className="rounded-2xl border border-border bg-card p-4 shadow-soft">
         <h3 className="mb-4 text-sm font-semibold">Asistencia por clase</h3>
         {analytics.classAttendance.length === 0 ? (
-          <p className="text-sm text-zaltyko-text-secondary">No hay datos de asistencia disponibles.</p>
+          <p className="text-sm text-muted-foreground">No hay datos de asistencia disponibles.</p>
         ) : (
           <div className="space-y-3">
             {analytics.classAttendance.slice(0, 8).map((clazz) => (
@@ -220,12 +220,12 @@ export function ClassAnalyticsWidget({
 
       {/* Popular days and hours */}
       <div className="grid gap-4 md:grid-cols-2">
-        <div className="rounded-2xl border border-zaltyko-mist bg-white p-4 shadow-soft">
+        <div className="rounded-2xl border border-border bg-card p-4 shadow-soft">
           <h3 className="mb-4 text-sm font-semibold">Días más populares</h3>
           <div className="space-y-2">
             {analytics.popularDays.map((day) => (
               <div key={day.day} className="flex items-center gap-3">
-                <div className="w-20 text-sm text-zaltyko-text-secondary">{day.dayName}</div>
+                <div className="w-20 text-sm text-muted-foreground">{day.dayName}</div>
                 <div className="flex-1">
                   <div className="h-2 rounded-full bg-zaltyko-mist/35">
                     <div
@@ -240,15 +240,15 @@ export function ClassAnalyticsWidget({
           </div>
         </div>
 
-        <div className="rounded-2xl border border-zaltyko-mist bg-white p-4 shadow-soft">
+        <div className="rounded-2xl border border-border bg-card p-4 shadow-soft">
           <h3 className="mb-4 text-sm font-semibold">Horarios más populares</h3>
           {analytics.popularHours.length === 0 ? (
-            <p className="text-sm text-zaltyko-text-secondary">No hay datos de horarios disponibles.</p>
+            <p className="text-sm text-muted-foreground">No hay datos de horarios disponibles.</p>
           ) : (
             <div className="space-y-2">
               {analytics.popularHours.map((hour) => (
                 <div key={hour.hour} className="flex items-center gap-3">
-                  <div className="w-16 text-sm text-zaltyko-text-secondary">
+                  <div className="w-16 text-sm text-muted-foreground">
                     {hour.hour.toString().padStart(2, "0")}:00
                   </div>
                   <div className="flex-1">
@@ -268,7 +268,7 @@ export function ClassAnalyticsWidget({
       </div>
 
       {/* Sessions per week */}
-      <div className="rounded-2xl border border-zaltyko-mist bg-white p-4 shadow-soft">
+      <div className="rounded-2xl border border-border bg-card p-4 shadow-soft">
         <h3 className="mb-4 text-sm font-semibold">Sesiones por semana</h3>
         <div className="flex items-end gap-2">
           {analytics.weeks.map((week, index) => {
@@ -288,7 +288,7 @@ export function ClassAnalyticsWidget({
                     </div>
                   )}
                 </div>
-                <p className="mt-2 text-center text-xs text-zaltyko-text-secondary">{week.week}</p>
+                <p className="mt-2 text-center text-xs text-muted-foreground">{week.week}</p>
               </div>
             );
           })}

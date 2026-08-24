@@ -18,6 +18,7 @@ import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { getRoleLabel } from "@/lib/roles";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { GlobalSearch } from "@/components/search/GlobalSearch";
 import {
   isAcademyNavigationActive,
@@ -231,8 +232,11 @@ export function GlobalTopNav({
         </nav>
         )}
 
-        {/* Acciones: menú móvil + notificaciones + menú de usuario siempre compacto */}
+        {/* Acciones: menú móvil + tema + notificaciones + menú de usuario siempre compacto */}
         <div className="flex items-center justify-end gap-2 sm:gap-2.5">
+          {/* Toggle de tema claro/oscuro */}
+          <ThemeToggle />
+
           {/* Notification Bell - Solo mostrar si hay una academia activa */}
           {currentAcademyId && (
             <div className="hidden md:block">
