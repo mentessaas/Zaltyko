@@ -5,6 +5,42 @@ last_reviewed: 2026-08-19T11:11Z
 source:
 ---
 
+# 2026-08-24 — Content: ZAL-137 auditoría y ajuste mínimo del onboarding owner
+
+- Se retomó la auditoría read-first tras la recuperación del worktree. La ruta canónica del checkout es `src/` (no `apps/web/`); el flujo verificado queda en `/onboarding/owner` → claim por email normalizado o alta create-from-scratch → `/app/{academyId}/dashboard`.
+- Se confirmó el alcance activo: claim one-academy con revalidación server-side, invite del primer entrenador mediante el checklist del dashboard (`/app/{academyId}/coaches`), plantilla inicial de clases opcional y retomable desde groups/classes. No se añadió multi-academy, billing ni athlete self-serve.
+- Ajuste mínimo en `OwnerClaimCard`: los errores de API muestran el `message` estandarizado en vez del código interno. Se eliminó un import no usado del endpoint claim y se amplió el contrato focal para fijar ese comportamiento.
+- Evidencia local: `tests/onboarding-owner-flow.test.ts` (3/3) y `tests/claim-academy-helper.test.ts` (8/8) pasan. El typecheck global no produjo una salida final utilizable en este worktree; no se presenta como PASS ni se atribuye a un error de sintaxis no reproducido. El lint dirigido reporta 0 errores y warnings preexistentes del dashboard.
+- No hubo producción, datos reales, migraciones remotas, Stripe live, secretos ni publicación externa. Validación humana/E2E autenticada queda pendiente de QA.
+
+Vault: actualizadas `vault/06-Roadmap-y-Tareas/Changelog interno.md` y la nota de auditoría existente; `Decisiones.md` y `Backlog priorizado.md` no cambian.
+
+# 2026-08-24 — Engineering Lead: recuperación de ZAL-89 devuelta a Platform & Security
+
+- El run enlazado de ZAL-89 terminó `failed` con `acpx_turn_failed: Internal error: Credit balance is too low`. El bridge local de Paperclip se confirmó accesible; no se tocó código, producción ni el entregable C-2.
+- Se resolvió la acción `stranded_assigned_issue` con hand-back: ZAL-89 quedó en `todo`, asignada a Platform & Security, sin acción de recuperación activa. Retry requerido: obtener presupuesto/créditos disponibles o cambiar a un adaptador autorizado y reintentar desde la implementación existente.
+- Esto no es `done`, PASS, readiness ni validación de la implementación; es una disposición operativa de runtime.
+
+Vault: actualizada `Changelog interno.md`; no cambian `Decisiones.md` ni `Backlog priorizado.md` porque no hubo decisión de producto ni deuda nueva.
+
+# 2026-08-24 — Web Developer: verificación canónica de ZAL-770/ZAL-745
+
+- Re-ejecutado en el repo canónico `pnpm exec vitest run tests/api-zal745-marketplace-communications.test.ts` con `16 tests` y `16 passed`.
+- El contrato queda alineado: `/api/whatsapp/verify` valida solo `phone`, usa credenciales Twilio del servidor, la UI deja de pedir `apiKey` y la suite confirma rechazo del payload sintético con `apiKey`.
+- No se hicieron cambios adicionales de código ni decisiones de negocio; `Changelog interno.md` y `Registro de riesgos.md` ya reflejan el cierre de ZAL-770.
+
+Vault: actualizada `Changelog interno.md`; `Registro de riesgos.md` no cambia en este heartbeat porque el riesgo ya estaba cerrado.
+
+## 2026-08-23 — Engineering: ZAL-770 cierra el contrato inseguro de verificación WhatsApp
+
+- `/api/whatsapp/verify` ya no acepta `apiKey` en el body ni lo reenvía como Bearer. El handler ahora valida solo `phone`, falla cerrado si llega un payload con secretos y usa credenciales Twilio del servidor (`TWILIO_*`) para verificar la conexión.
+- La pantalla de WhatsApp dejó de pedir API key en el navegador; `WhatsAppSettingsPanel` muestra una nota de que la verificación usa credenciales del servidor, y el panel invalida `isConfigured` cuando cambia la configuración para exigir re-verificación o guardado.
+- `tests/api-zal745-marketplace-communications.test.ts` cubre el contrato nuevo: flujo feliz con Twilio server-side y rechazo del `apiKey` sintético en el body.
+- Verificación local: `pnpm exec vitest run tests/api-zal745-marketplace-communications.test.ts` termina con `Tests 16 passed (16)`. `pnpm exec eslint ...` solo reporta 6 warnings preexistentes en la suite de prueba.
+- No hubo producción, datos reales, migraciones remotas, Stripe live ni publicación externa.
+
+Vault: actualizadas `Changelog interno.md` y `Registro de riesgos.md`. `Decisiones.md` no cambia: no se tomó una decisión nueva de negocio o arquitectura; solo se cerró un riesgo de implementación.
+
 ## 2026-08-19 — Engineering: ZAL-771 corrige cardinalidad del riesgo Checklist pendiente
 
 - El agregado de riesgo de `src/lib/superadmin-dashboard.ts` cuenta academias distintas después del `leftJoin` de ítems de checklist incompletos, evitando duplicar una academia cuando tiene varios pendientes.
