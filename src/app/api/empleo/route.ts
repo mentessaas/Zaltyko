@@ -64,26 +64,31 @@ export async function GET(request: Request) {
 
   const offset = (page - 1) * limit;
 
-  const listings = await db.select()
-    .from(empleoListings)
-    .where(and(...conditions))
-    .orderBy(desc(empleoListings.createdAt))
-    .limit(limit)
-    .offset(offset);
+  try {
+    const listings = await db.select()
+      .from(empleoListings)
+      .where(and(...conditions))
+      .orderBy(desc(empleoListings.createdAt))
+      .limit(limit)
+      .offset(offset);
 
-  const [countResult] = await db.select({ count: count() })
-    .from(empleoListings)
-    .where(and(...conditions));
+    const [countResult] = await db.select({ count: count() })
+      .from(empleoListings)
+      .where(and(...conditions));
 
-  const items = listings.length === 0 && process.env.NODE_ENV !== "production" ? [demoEmploymentListing] : listings;
-  const total = listings.length === 0 && process.env.NODE_ENV !== "production" ? 1 : countResult?.count ?? 0;
+    const items = listings.length === 0 && process.env.NODE_ENV !== "production" ? [demoEmploymentListing] : listings;
+    const total = listings.length === 0 && process.env.NODE_ENV !== "production" ? 1 : countResult?.count ?? 0;
 
-  return apiSuccess({
-    items,
-    total,
-    page,
-    pageSize: limit,
-  }, { total, page, pageSize: limit });
+    return apiSuccess({
+      items,
+      total,
+      page,
+      pageSize: limit,
+    }, { total, page, pageSize: limit });
+  } catch (error) {
+    logger.error("Error listing employment listings:", error);
+    return apiError("INTERNAL_ERROR", "Error al listar las ofertas", 500);
+  }
 }
 
 export const POST = withTenant(async (request: Request, context: TenantContext) => {
