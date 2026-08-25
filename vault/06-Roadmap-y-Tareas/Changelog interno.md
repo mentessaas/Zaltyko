@@ -5,6 +5,17 @@ last_reviewed: 2026-08-25T11:21Z
 source:
 ---
 
+## 2026-08-25 — Ox Alpha: Oleadas B-C — activación y producto (import, onboarding, soft-delete, portal)
+
+- **B1/B2 — Importación CSV**: `academyId` opcional en `CsvRowSchema` (inferido del `formData` o de la única academia del tenant), plantilla sin columna `academyId`, `formData.append("academyId")` desde el panel, y marcado automático del checklist `add_5_athletes` tras importar ≥5 gimnastas (antes solo alta manual).
+- **B3 — Onboarding d0/d2/d7**: adoptado WIP de ZAL-908 (crédito: integración, plantillas, allowlist, cron), corregidos 5 errores TS en `getNextPending`/`resolveOnboardingOwnerNextStepUrl`/`ownerEmail`, flag `ONBOARDING_OWNER_SEQUENCE_ENABLED` activo en Vercel prod+preview y local, 5/5 tests de contrato pasan, typecheck verde.
+- **C1 — Baja no destructiva**: `DELETE /api/athletes/[id]` exige estado `archived` previo y hace soft-delete con `deletedAt` (preserva historial financiero y evaluaciones); `GET`/`PUT` y listados filtran `isNull(deletedAt)`.
+- **C2 — Riesgo de asistencia a padres**: `createAttendanceNotifications` ahora envía email a tutores del atleta en riesgo (dedupe diario `attendance-risk:athleteId:date`).
+- **C3 — Scores por habilidad en portal familiar**: `MyDashboardPage` enriquece evaluaciones con `assessmentScores→skillCatalog`, `MyAssessmentsWidget` renderiza pills `skill: score/10`.
+- **C4 — Reportes por plan Growth**: nuevo `lib/plans/gate.ts` con `getAcademyPlanGate` (usa `getActiveSubscription`), `scheduledReports` devuelve `UPGRADE_REQUIRED` 402 si no es `premium`/`network`.
+
+Evidencia: typecheck 0 errores, lint 0, `authz-stale-tenant` 3/3.
+
 ## 2026-08-25 — Developer: ZAL-687 revalidación fresca; hidratación OK, typecheck sigue bloqueado
 
 - Los cuatro archivos re-evicted de `src/types/` siguen hidratados (`flags=-`).

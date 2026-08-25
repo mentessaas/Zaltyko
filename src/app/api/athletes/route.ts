@@ -384,6 +384,7 @@ export const GET = withTenant(async (request, context) => {
 
   // Always filter by tenant
   conditions.push(sql`${athletes.tenantId} = ${effectiveTenantId}`);
+  conditions.push(sql`${athletes.deletedAt} IS NULL`);
 
   if (levelList.length > 0) {
     // Use eq/inArray for simple cases, sql for complex
