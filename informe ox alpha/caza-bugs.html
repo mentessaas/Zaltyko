@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Caza de bugs · Zaltyko — Informe Ox Alpha</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0d1017; --bg2:#131826; --ink:#e8edf4; --ink2:#a7b2c5; --ink3:#6f7b92;
+  --line:#232c3e; --line2:#1a2233;
+  --crit:#ff8f8f; --high:#f2c66d; --med:#9aaaff; --low:#7fd8a4; --accent:#8fd6c6;
+  --fd:"Space Grotesk",sans-serif; --fb:"Manrope",sans-serif; --fm:"JetBrains Mono",monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--ink);font-family:var(--fb);font-size:16px;line-height:1.7;-webkit-font-smoothing:antialiased}
+::selection{background:rgba(143,214,198,.25)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:4px}
+::-webkit-scrollbar{width:11px}::-webkit-scrollbar-thumb{background:var(--line);border-radius:6px;border:2px solid var(--bg)}
+.wrap{max-width:1080px;margin:0 auto;padding:0 28px}
+
+.progress{position:fixed;top:0;left:0;right:0;height:2px;z-index:100}
+.progress span{display:block;height:100%;width:0;background:var(--accent)}
+
+.shell{max-width:1180px;margin:0 auto;display:grid;grid-template-columns:230px minmax(0,1fr);gap:64px;padding:0 32px}
+.side{position:sticky;top:0;align-self:start;height:100vh;display:flex;flex-direction:column;justify-content:center;padding:48px 0}
+.brand{font-family:var(--fm);font-size:13px;color:var(--ink);margin-bottom:26px}
+.brand span{color:var(--ink3)}
+.toc{display:flex;flex-direction:column;border-left:1px solid var(--line)}
+.toc a{position:relative;color:var(--ink3);text-decoration:none;font-size:13.5px;padding:8px 0 8px 18px;transition:color .15s}
+.toc a::before{content:"";position:absolute;left:-1px;top:50%;translate:0 -50%;width:2px;height:0;background:var(--accent);transition:height .18s}
+.toc a:hover{color:var(--ink)}
+.toc a.active{color:var(--ink)}
+.toc a.active::before{height:calc(100% - 12px)}
+
+.hero{padding:110px 0 70px;max-width:900px}
+.hero h1{font-family:var(--fd);font-weight:700;font-size:clamp(36px,4.6vw,56px);line-height:1.08;letter-spacing:-.02em;text-wrap:balance}
+.lede{margin-top:24px;font-size:17px;color:var(--ink2);max-width:62ch}
+.byline{margin-top:26px;font-family:var(--fm);font-size:12px;color:var(--ink3)}
+
+section{padding:70px 0;border-top:1px solid var(--line2)}
+h2{font-family:var(--fd);font-weight:700;font-size:29px;line-height:1.15;letter-spacing:-.01em;margin-bottom:12px;text-wrap:balance}
+section>p.lead{color:var(--ink2);max-width:64ch;margin-bottom:28px}
+h3{font-size:16px;font-weight:700;margin:26px 0 10px}
+code{font-family:var(--fm);font-size:.82em;background:var(--bg2);border:1px solid var(--line);border-radius:5px;padding:1.5px 6px;color:var(--accent);white-space:nowrap}
+
+.callout{background:linear-gradient(160deg,rgba(143,214,198,.07),rgba(154,170,255,.05));border:1px solid var(--line);border-radius:14px;padding:24px 28px;margin-bottom:32px;box-shadow:0 12px 34px rgba(0,0,0,.25)}
+.callout strong{color:var(--accent)}
+
+.bug{background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:22px 26px;margin-bottom:14px}
+.bug-head{display:flex;align-items:flex-start;gap:14px;margin-bottom:8px}
+.tag{font-family:var(--fm);font-size:11px;padding:3px 10px;border-radius:999px;white-space:nowrap;margin-top:4px}
+.t-crit{color:var(--crit);background:rgba(255,143,143,.1)}
+.t-high{color:var(--high);background:rgba(242,198,109,.09)}
+.t-med{color:var(--med);background:rgba(154,170,255,.1)}
+.t-low{color:var(--low);background:rgba(127,216,164,.09)}
+.t-info{color:var(--ink3);background:var(--line)}
+.bug h3{margin:0;font-size:15.5px}
+.bug .where{font-family:var(--fm);font-size:11.5px;color:var(--ink3);display:block;margin-top:4px}
+.bug p{font-size:14px;color:var(--ink2);margin-top:8px}
+.bug p strong{color:var(--ink)}
+.bug .scen{border-left:2px solid var(--line);padding-left:14px;margin-top:8px;font-size:13.5px;color:var(--ink2)}
+
+ul.checks{list-style:none;display:grid;gap:9px}
+ul.checks li{padding-left:24px;position:relative;font-size:14px;color:var(--ink2)}
+ul.checks li::before{content:"";position:absolute;left:2px;top:.62em;width:9px;height:5px;border-left:2px solid var(--low);border-bottom:2px solid var(--low);rotate:-45deg}
+
+footer{border-top:1px solid var(--line2);padding:44px 0 70px;color:var(--ink3);font-size:13px;text-align:center}
+@media(max-width:960px){
+  .shell{grid-template-columns:1fr;gap:0;padding:0 20px}
+  .side{position:static;height:auto;padding:24px 0}
+  .toc{flex-direction:row;flex-wrap:wrap;border:none;gap:2px}
+  .toc a{padding:8px 12px;border-radius:8px}
+  .toc a::before{display:none}
+  .toc a.active{background:var(--bg2)}
+  .hero{padding:60px 0 40px}
+}
+@media print{
+  :root{--bg:#fff;--ink:#111;--ink2:#333;--ink3:#666;--line:#ddd;--line2:#eee;--bg2:#f5f5f5}
+  .side,.progress{display:none}
+  .shell{display:block}
+  .bug{page-break-inside:avoid}
+}
+</style>
+</head>
+<body>
+<div class="progress"><span id="pbar"></span></div>
+
+<div class="shell">
+  <aside class="side">
+    <p class="brand">Ox Alpha<span>/ caza de bugs</span></p>
+    <nav class="toc" aria-label="Índice">
+      <a href="#metodo" class="active">Método</a>
+      <a href="#criticos">Críticos</a>
+      <a href="#altos">Altos</a>
+      <a href="#medios">Medios</a>
+      <a href="#bajos">Bajos</a>
+      <a href="#limpio">Verificado limpio</a>
+    </nav>
+    <div style="margin-top:40px;display:grid;gap:14px">
+      <div><p style="font-family:var(--fm);font-size:10.5px;text-transform:uppercase;letter-spacing:.12em;color:var(--ink3)">Alcance</p><p style="font-size:13px;color:var(--ink2)">Todo el repo (~200k LOC) + WIP del otro agente</p></div>
+      <div><p style="font-family:var(--fm);font-size:10.5px;text-transform:uppercase;letter-spacing:.12em;color:var(--ink3)">Fecha</p><p style="font-size:13px;color:var(--ink2)">25 ago 2026</p></div>
+      <div><p style="font-family:var(--fm);font-size:10.5px;text-transform:uppercase;letter-spacing:.12em;color:var(--ink3)">Modo</p><p style="font-size:13px;color:var(--ink2)">Solo informe, sin fixes</p></div>
+    </div>
+  </aside>
+
+  <main>
+    <header class="hero">
+      <h1>Caza de bugs:<br>lo que la superficie no cuenta.</h1>
+      <p class="lede">Barrido exhaustivo del repositorio completo con línea base automatizada (2.953 tests, typecheck, lint, gates, audit de dependencias) y cinco revisiones en profundidad por dominio crítico: auth/authz, pagos, crons, email/tokens y APIs públicas.</p>
+      <p class="byline">Informe Ox Alpha · 25 ago 2026 · Solo lectura, sin fixes aplicados</p>
+    </header>
+
+    <!-- MÉTODO -->
+    <section id="metodo">
+      <h2>Método y línea base</h2>
+      <p class="lead">Cinco revisiones en profundidad por dominio, cada una trazando flujos completos (no grep), más la batería automatizada. Todo hallazgo incluye evidencia <code>archivo:línea</code> y escenario de fallo concreto.</p>
+      <ul class="checks">
+        <li><strong>2.953 tests ejecutados:</strong> 2.921 pasan. Los 30 fallos se reducen a 2 reales (regresión conocida de <code>audit-hardening.test.ts</code> por el refactor <code>isDevSessionEnabled</code> del WIP) + 28 falsos porque <strong>Vitest está escaneando <code>mobile/node_modules</code></strong> (bug de configuración del runner).</li>
+        <li><strong>Typecheck:</strong> 5 errores, todos en el WIP del otro agente (<code>onboarding-owner-integration.ts</code>).</li>
+        <li><strong>Lint:</strong> 0 errores, 0 warnings. <strong>Dependencias:</strong> 28 vulnerabilidades (14 high, ya conocidas — overrides activos).</li>
+        <li><strong>Gates propios:</strong> A2 en <code>lib/dashboard/kpi-trends.ts</code> y A3 en <code>empleo/[id]/apply</code> (preexistentes, documentados).</li>
+      </ul>
+    </section>
+
+    <!-- CRÍTICOS -->
+    <section id="criticos">
+      <h2>Críticos</h2>
+      <p class="lead">Tres bugs con impacto directo en datos de clientes o ingresos. Recomendación: arreglo esta semana.</p>
+
+      <div class="bug">
+        <div class="bug-head"><span class="tag t-crit">Crítico</span><h3>Acceso cross-tenant persistente tras ser eliminado de una academia</h3></div>
+        <span class="where">api/academy-memberships/[membershipId]/route.ts:83-98 · lib/authz/tenant-resolver.ts:60-66 · lib/authz/profile-updater.ts:16-19</span>
+        <p><code>profiles.tenantId</code> se escribe <strong>solo una vez</strong> (primer join) y <code>DELETE /api/academy-memberships/[id]</code> nunca lo limpia. <code>getTenantId()</code> cae a ese tenant obsoleto cuando la petición no lleva academyId, mientras la autorización se evalúa contra la academia activa actual: <strong>rol en la academia B, datos de la academia A</strong>.</p>
+        <p class="scen"><strong>Escenario:</strong> ex-empleado eliminado de la academia A sigue leyendo y escribiendo gimnastas, cobros y grupos de A indefinidamente. Confirmado trazando la cadena completa.</p>
+      </div>
+
+      <div class="bug">
+        <div class="bug-head"><span class="tag t-crit">Crítico</span><h3>Inyección HTML en emails de eventos — phishing desde el dominio propio</h3></div>
+        <span class="where">lib/notifications/event-email-content.ts:53-62 (vía eventsNotifier → events.lib.ts:224)</span>
+        <p><code>event.title</code>, <code>description</code> y sobre todo <code>contactWebsite</code> se interpolan sin escapar en el HTML del email. <code>contactWebsite</code> va dentro de un <code>href</code>: breakout de atributo + URL <code>javascript:</code>.</p>
+        <p class="scen"><strong>Escenario:</strong> una academia crea un evento con título malicioso y notifica a la ciudad/provincia/país — phishing enviado masivamente desde el remitente legítimo de Zaltyko. Es la única plantilla viva sin escapar (onboarding-owner sí escapa correctamente).</p>
+      </div>
+
+      <div class="bug">
+        <div class="bug-head"><span class="tag t-crit">Crítico funcional</span><h3>El cron <code>daily-alerts</code> nunca se ejecuta en producción</h3></div>
+        <span class="where">vercel.json (crons) vs api/cron/daily-alerts/route.ts:12</span>
+        <p>La ruta existe, está autenticada, con lease y testada — pero <strong>no está registrada en <code>vercel.json</code></strong>. Las alertas de capacidad, pagos y asistencia no se generan nunca en producción. Feature muerta silenciosa.</p>
+      </div>
+    </section>
+
+    <!-- ALTOS -->
+    <section id="altos">
+      <h2>Altos</h2>
+      <p class="lead">Nueve bugs con impacto real en privacidad, ingresos o confianza. Arreglo recomendado este sprint.</p>
+
+      <div class="bug"><div class="bug-head"><span class="tag t-high">Alto</span><h3>Eventos borrador y cancelados expuestos en todas las superficies públicas</h3></div>
+        <span class="where">api/public/events/route.ts:65 · api/public/events/[id]/route.ts:56 · actions/public/get-public-event*.ts</span>
+        <p>Filtran solo <code>isPublic=true</code> sin <code>status='published'</code> (el contrato que sí usa <code>lib/seo/clusters.ts:357</code>). Un evento borrador o cancelado —con tarifas, adjuntos y contacto— aparece públicamente y parece registrable.</p>
+      </div>
+
+      <div class="bug"><div class="bug-head"><span class="tag t-high">Alto</span><h3>IDOR: cualquier oferta de empleo legible por ID sin importar estado</h3></div>
+        <span class="where">api/empleo/[id]/route.ts:37-57</span>
+        <p>El GET público no tiene wrapper de auth y su WHERE es solo <code>id</code> — sin filtro <code>status='active'</code> (que el listado sí aplica). Borradores con notas internas de salario y cerrados quedan fetchables para siempre con el UUID.</p>
+      </div>
+
+      <div class="bug"><div class="bug-head"><span class="tag t-high">Alto</span><h3>Listings ocultos/vendidos del marketplace exponen contacto del vendedor</h3></div>
+        <span class="where">api/marketplace/[id]/route.ts:20-29</span>
+        <p>GET público sin filtro de estado devuelve la fila completa incluido el jsonb <code>contact</code> (WhatsApp/teléfono/email) y el <code>userId</code>. Un vendedor que oculta su listing tras vender —o por acoso— sigue siendo localizable.</p>
+      </div>
+
+      <div class="bug"><div class="bug-head"><span class="tag t-high">Alto</span><h3>Reembolsos parciales marcan el cargo completo como <code>refunded</code></h3></div>
+        <span class="where">lib/stripe/charge-reconcile-service.ts:183-204</span>
+        <p>El handler de <code>charge.refunded</code> ignora <code>amount_refunded</code>: un reembolso de 1 céntimo marca el cargo entero como reembolsado (la deuda desaparece de las estadísticas) y nunca inserta en la tabla <code>refunds</code>, divergiendo el ledger de Stripe.</p>
+      </div>
+
+      <div class="bug"><div class="bug-head"><span class="tag t-high">Alto</span><h3>Carrera de doble pago: cobro con tarjeta vs registro manual de efectivo</h3></div>
+        <span class="where">quick-actions/record-payment/route.ts:45-84 · api/charges/[chargeId]/route.ts vs lib/stripe/charge-collection-service.ts:50-211</span>
+        <p><code>collectCharge</code> serializa con advisory lock, pero <code>record-payment</code> y el PATCH no lo toman. Si el staff registra efectivo mientras la captura de Stripe está en vuelo (tarda segundos), la familia <strong>paga dos veces</strong> y la fila final solo muestra el cobro con tarjeta.</p>
+      </div>
+
+      <div class="bug"><div class="bug-head"><span class="tag t-high">Alto</span><h3>Cargos duplicados por check-then-insert en generación masiva/mensual</h3></div>
+        <span class="where">api/charges/bulk/route.ts:63-103 · api/charges/generate-monthly/route.ts:158-208 · schema/charges.ts:41-52</span>
+        <p>La dedupe depende solo de un SELECT previo: el índice <code>(academyId, athleteId, period)</code> <strong>no es unique</strong>. Dos peticiones concurrentes (doble click, dos admins) insertan los mismos cargos dos veces — y ambos son cobrables con tarjeta guardada.</p>
+      </div>
+
+      <div class="bug"><div class="bug-head"><span class="tag t-high">Alto</span><h3>Notificaciones programadas a grupos: siempre <code>failed</code> (placeholder en producción)</h3></div>
+        <span class="where">api/cron/scheduled-notifications/route.ts:124-126, 160-174</span>
+        <p>Toda notificación con <code>groupId</code> produce cero destinatarios (rama placeholder) y muere como <code>failed</code>. Además, un solo fallo parcial envenena el registro completo (9 de 10 entregados → marcado failed, sin reintento ni dedupe).</p>
+      </div>
+
+      <div class="bug"><div class="bug-head"><span class="tag t-high">Alto</span><h3>Open redirect vía backslash en <code>next</code>/<code>callbackUrl</code></h3></div>
+        <span class="where">lib/auth/safe-next-path.ts:1-7 · auth/callback/route.ts · auth/confirm/route.ts · login-form.tsx:32</span>
+        <p>La validación rechaza <code>//</code> pero no <code>\</code>: <code>next="/\evil.com"</code> pasa y los browsers normalizan la barra invertida en el header Location → redirect off-site tras completar el login con sesión válida. Phishing post-autenticación.</p>
+      </div>
+
+      <div class="bug"><div class="bug-head"><span class="tag t-high">Alto (WIP otro agente)</span><h3>Recordatorios de pago: ventanas de fecha exacta sin catch-up + deadlock de log pendiente</h3></div>
+        <span class="where">lib/email/triggers.ts:216 · lib/email/email-service.ts:39-67</span>
+        <p>Cada recordatorio (-3, 0, +3, +7 días) matchea exactamente un día calendario: si el cron falla ese día, la ventana se pierde para siempre. Además el log se inserta como <code>pending</code> antes de enviar: si el proceso muere ahí, la clave de dedupe bloquea el envío para siempre.</p>
+      </div>
+    </section>
+
+    <!-- MEDIOS -->
+    <section id="medios">
+      <h2>Medios</h2>
+      <p class="lead">Once hallazgos de impacto moderado o condicionado.</p>
+
+      <div class="bug"><div class="bug-head"><span class="tag t-med">Medio</span><h3>Captura de Stripe dentro de la transacción DB: rollback tras éxito = pago invisible</h3></div>
+        <span class="where">lib/stripe/charge-collection-service.ts:51-194</span>
+        <p>Si algo falla entre el éxito de Stripe y el commit, el rollback borra <code>stripePaymentIntentId</code>: el webhook de éxito no encuentra el cargo y el dinero cobrado queda <code>pending</code>. Un reintento tras expirar la idempotencia (~24h) crea un PaymentIntent nuevo → doble cobro real.</p>
+      </div>
+
+      <div class="bug"><div class="bug-head"><span class="tag t-med">Medio</span><h3>PATCH de cargos sin guards de estado terminal; DELETE borra cargos pagados</h3></div>
+        <span class="where">api/charges/[chargeId]/route.ts:13-146</span>
+        <p><code>amountCents</code> editable en cargos ya pagados (rompe la reconciliación con <code>CONNECT_AMOUNT_MISMATCH</code>), transiciones libres <code>refunded→paid</code>, y DELETE hard-deleta cargos pagados con PaymentIntent vivo — destruyendo la pista de dinero.</p>
+      </div>
+
+      <div class="bug"><div class="bug-head"><span class="tag t-med">Medio</span><h3>Eventos tardíos de Stripe sobreescriben estados cancelados por admin</h3></div>
+        <span class="where">lib/stripe/charge-reconcile-service.ts:87-100, 123-138</span>
+        <p><code>payment_intent.succeeded/failed</code> tardíos no comparan timestamps ni respetan <code>cancelled</code>: un evento viejo resucita un cargo anulado o marca como fallido uno cancelado deliberadamente (con email de «cobro rechazado» incluido).</p>
+      </div>
+
+      <div class="bug"><div class="bug-head"><span class="tag t-med">Medio</span><h3>Dedupe de emails: carrera TOCTOU y filas <code>pending</code> que suprimen envíos para siempre</h3></div>
+        <span class="where">lib/email/email-service.ts:39-67</span>
+        <p>Dedupe check-then-insert sin usar el índice único existente (dos llamadas concurrentes = email duplicado); una muerte de proceso tras insertar <code>pending</code> bloquea esa <code>dedupeKey</code> permanentemente.</p>
+      </div>
+
+      <div class="bug"><div class="bug-head"><span class="tag t-med">Medio</span><h3>Baja de emails sensible a mayúsculas — GDPR</h3></div>
+        <span class="where">onboarding-owner-integration.ts:109-123 vs api/unsubscribe/route.ts:87-99</span>
+        <p>El token normaliza el email a minúsculas, pero <code>hasUnsubscribed()</code> compara contra el email crudo de <code>authUsers</code>. Con <code>Owner@Example.com</code>, la baja no matchea y la secuencia sigue enviando tras el clic de «baja».</p>
+      </div>
+
+      <div class="bug"><div class="bug-head"><span class="tag t-med">Medio</span><h3>Paginación sin validar en endpoints públicos → 500s y scraping sin límite</h3></div>
+        <span class="where">api/marketplace/route.ts:102-156 · api/empleo/route.ts:43-44</span>
+        <p><code>?page=0</code> → OFFSET negativo → 500; <code>?limit=999999999</code> vuelca el catálogo completo con contactos; marketplace cuenta totales trayendo todas las filas a memoria; sin try/catch en el handler. Empleo: <code>?limit=foo</code> → NaN → 500.</p>
+      </div>
+
+      <div class="bug"><div class="bug-head"><span class="tag t-med">Medio</span><h3>GETs públicos sin rate limiting y con <code>count(*)</code> sin acotar</h3></div>
+        <span class="where">middleware.ts:304-314 · api/public/events/route.ts:130-135</span>
+        <p>El middleware solo limita mutaciones: los GETs anónimos a <code>/api/public/*</code> (con <code>limit</code> hasta 1000 y count por petición) están sin medir. El límite de 5/min configurado para academias nunca dispara para GETs.</p>
+      </div>
+
+      <div class="bug"><div class="bug-head"><span class="tag t-med">Medio</span><h3><code>collect-charges</code> mueve dinero de Stripe dentro de la transacción del lease</h3></div>
+        <span class="where">lib/cron-lease.ts:19-29 · api/cron/collect-charges/route.ts:27-52</span>
+        <p>La conexión externa queda <code>idle in transaction</code> durante llamadas a Stripe de varios segundos (riesgo de terminación del pooler) y puede agotar el pool (<code>max: 5</code>) saltándose cargos por timeout.</p>
+      </div>
+
+      <div class="bug"><div class="bug-head"><span class="tag t-med">Medio</span><h3><code>class-reminders</code> es un no-op silencioso que reporta éxito</h3></div>
+        <span class="where">lib/alerts/class-reminders.ts:100-113 · api/cron/class-reminders/route.ts:33-37</span>
+        <p>Todo envío está comentado con TODO; el loop solo hace lecturas N+1 y el cron responde «sent successfully». Las familias nunca reciben recordatorios y el monitoreo ve verde.</p>
+      </div>
+
+      <div class="bug"><div class="bug-head"><span class="tag t-med">Medio (config)</span><h3>Vitest escanea <code>mobile/node_modules</code> — 28 falsos fallos por run</h3></div>
+        <span class="where">vitest.config.ts</span>
+        <p>El include del runner arrastra tests de expo/jest-dom/tsconfig-paths desde los node_modules de la app móvil: 15 archivos fallan siempre y ensucian cualquier lectura de CI.</p>
+      </div>
+
+      <div class="bug"><div class="bug-head"><span class="tag t-med">Medio</span><h3>Matemática de fechas en UTC vs Europe/Madrid (latente)</h3></div>
+        <span class="where">charge-collection-service.ts:257 · email/triggers.ts:190-201 · alerts/class-reminders.ts:26-28</span>
+        <p>«Hoy» se calcula en UTC contra columnas con semántica de Madrid. Hoy es inocuo porque los crons disparan 07:00-10:00 UTC; mover un schedule a la banda 00:00-02:00 UTC desplaza cobros y recordatorios un día.</p>
+      </div>
+    </section>
+
+    <!-- BAJOS -->
+    <section id="bajos">
+      <h2>Bajos</h2>
+      <p class="lead">Doce hallazgos latentes o de impacto menor, con evidencia completa en el detalle.</p>
+      <div class="bug"><div class="bug-head"><span class="tag t-low">Bajo</span><h3>Límites de plan con TOCTOU (count-then-insert)</h3></div><span class="where">lib/limits.ts:206-249 · api/athletes/route.ts:87-115</span><p>N peticiones concurrentes al límite-1 superan el cap del plan. Bypass real, impacto indirecto.</p></div>
+      <div class="bug"><div class="bug-head"><span class="tag t-low">Bajo</span><h3>Comparación timing-unsafe + header estático de impersonación universal</h3></div><span class="where">lib/authz/user-resolver.ts:20-24, 61-65</span><p><code>INTERNAL_AUTH_HEADER === secret</code> con <code>===</code> (no constante en tiempo) y sin expiración: si el secreto filtra, es una llave universal de suplantación sin rotación.</p></div>
+      <div class="bug"><div class="bug-head"><span class="tag t-low">Bajo</span><h3>JWT sin <code>exp</code> aceptado indefinidamente en el gate de super-admin</h3></div><span class="where">middleware.ts:124-138</span><p>El validador solo rechaza <code>exp</code> si existe y está vencido. Supabase siempre lo emite, pero tooling externo podría mintear tokens eternos.</p></div>
+      <div class="bug"><div class="bug-head"><span class="tag t-low">Bajo</span><h3>Cookie de dev-session sin firmar = impersonación de cualquier usuario si los flags lo permiten</h3></div><span class="where">lib/dev-session.ts:32-46 · lib/dev.ts:11-18</span><p>Base64 JSON sin MAC; en un deploy no-Vercel (<code>VERCEL_ENV</code> unset = «no producción») con el flag activo, es bypass total de auth.</p></div>
+      <div class="bug"><div class="bug-head"><span class="tag t-low">Bajo</span><h3><code>customPermissions</code> se conceden bajo una denegación (<code>missing_role</code>)</h3></div><span class="where">lib/authz/permissions-service.ts:140-149</span><p>Si el rol asignado desaparece (hard-delete), los permisos custom del assignment siguen otorgándose pese al <code>denied</code>.</p></div>
+      <div class="bug"><div class="bug-head"><span class="tag t-low">Bajo</span><h3>Filtro de disciplinas públicas rechaza <code>trampoline</code> y <code>parkour</code></h3></div><span class="where">api/public/events/route.ts:12 · events.lib.ts:17</span><p>Allowlist hardcodeada a 3 valores mientras el enum y la DB ya contienen eventos de esas ramas: invisibles al filtrar.</p></div>
+      <div class="bug"><div class="bug-head"><span class="tag t-low">Bajo</span><h3>Clusters SEO sin excluir <code>churned</code>/<code>fraud_hold</code></h3></div><span class="where">lib/seo/clusters.ts:265-268, 318-324</span><p>Los directorios públicos excluyen academias en fraude/churn; los landing pages SEO no — contradice la política ZAL-328.</p></div>
+      <div class="bug"><div class="bug-head"><span class="tag t-low">Bajo</span><h3>Moneda de cargo free-form sin validar ISO-4217</h3></div><span class="where">api/charges/route.ts:21 · charge-collection-service.ts:105</span><p>Un typo fluye directo a <code>paymentIntents.create({currency})</code>.</p></div>
+      <div class="bug"><div class="bug-head"><span class="tag t-low">Bajo</span><h3>Índice «unique» de recibos no es unique</h3></div><span class="where">db/schema/receipts.ts:36</span><p><code>receipts_number_unique</code> se declara con <code>index()</code>, no <code>uniqueIndex()</code>: numeración duplicable bajo concurrencia (latente, sin inserts aún).</p></div>
+      <div class="bug"><div class="bug-head"><span class="tag t-low">Bajo</span><h3>Flag de marketing se escribe pero nadie lo lee; sin re-suscripción</h3></div><span class="where">api/preferences/route.ts:106-128</span><p>El opt-out de marketing no es consultado por ningún sender; cualquier baja es permanente sin camino de vuelta.</p></div>
+      <div class="bug"><div class="bug-head"><span class="tag t-low">Bajo</span><h3>Recordatorios de asistencia (código muerto) enviarían a TODA la academia</h3></div><span class="where">email/triggers.ts:47-58</span><p>El join de tutores no filtra por la sesión; sin dedupeKey. Código sin callers hoy — bomba latente si se cablea.</p></div>
+      <div class="bug"><div class="bug-head"><span class="tag t-low">Bajo</span><h3>Ventanas one-shot de onboarding d2/d7 sin backfill</h3></div><span class="where">onboarding-owner-integration.ts:38-41, 296-304</span><p>Ventanas de ±2h/±6h un solo día: si esa ejecución falla, el propietario nunca recibe d2/d7.</p></div>
+    </section>
+
+    <!-- LIMPIO -->
+    <section id="limpio">
+      <h2>Verificado limpio</h2>
+      <p class="lead">Trazado activamente sin encontrar bugs — tan importante como lo encontrado.</p>
+      <ul class="checks">
+        <li>Verificación de firmas de webhooks (Stripe/Connect): <code>constructEvent</code> con tolerancia 300s, secreto requerido, sin bypass.</li>
+        <li>Orden y dedupe de eventos de suscripciones/facturas: <code>billing_events</code> único + lease CAS + re-fetch canónico desde Stripe.</li>
+        <li>Aislamiento tenant en <code>globalSearch</code> y en stats/registrations/waitlist de eventos: <code>tenantId</code> verificado en cada query.</li>
+        <li>Cero SQL injection en los paths auditados: orderBy estático, fragmentos <code>sql</code> parametrizados, LIKE con escape (salvo wildcards %/_ cosméticos en academias).</li>
+        <li>Verificación de tokens de email: comparación constante en tiempo, expiración + future-expiry en todos los paths; transporte Brevo JSON (sin CRLF injection).</li>
+        <li>Parsing de cookies chunked de Supabase y verificación HS256 del middleware: alg fijado, <code>timingSafeEqual</code> con check de longitud.</li>
+        <li>Carrera de aceptación de invitaciones: claim single-use con UPDATE condicional en transacción — correcto.</li>
+        <li>Contratos de quick-actions modales genuinamente conductuales (jsdom + Testing Library, incluido el edge «200 con body no-JSON»).</li>
+        <li>Lease de crons: <code>pg_try_advisory_xact_lock</code> se libera en commit/rollback — sin stuck leases.</li>
+      </ul>
+    </section>
+
+    <footer>
+      <p>Caza de bugs Ox Alpha · 25 de agosto de 2026 · Solo informe: ningún fix aplicado</p>
+      <p style="margin-top:6px">Metodología: 2.953 tests + 5 revisiones de dominio con trazado de flujos completos + triaje contra deuda ya documentada</p>
+    </footer>
+  </main>
+</div>
+
+<script>
+(function(){
+  var bar=document.getElementById("pbar");
+  function onScroll(){var h=document.documentElement;var max=h.scrollHeight-h.clientHeight;bar.style.width=(max>0?(h.scrollTop/max)*100:0)+"%";}
+  document.addEventListener("scroll",onScroll,{passive:true});onScroll();
+  var links=Array.from(document.querySelectorAll(".toc a"));
+  var sections=Array.from(document.querySelectorAll("section"));
+  function spy(){var cur=sections[0];sections.forEach(function(s){if(s.getBoundingClientRect().top<=140)cur=s;});
+    links.forEach(function(a){a.classList.toggle("active",a.hash==="#"+cur.id);});}
+  document.addEventListener("scroll",spy,{passive:true});spy();
+})();
+</script>
+</body>
+</html>

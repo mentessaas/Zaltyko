@@ -1,9 +1,33 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-08-25T06:57Z
+last_reviewed: 2026-08-25T09:52Z
 source:
 ---
+
+# 2026-08-25 — Ox Alpha: caza exhaustiva de bugs en todo el repo (solo informe)
+
+Barrido completo: 2.953 tests + typecheck + lint + gates + audit de deps + 5 revisiones de dominio con trazado de flujos (auth/authz, pagos, crons, email/tokens, APIs públicas). **Informe priorizado completo en `informe ox alpha/caza-bugs.html`** (3 críticos, 9 altos, 11 medios, 12 bajos + superficies verificadas limpias). Sin fixes aplicados.
+
+- **Críticos:** (1) `profiles.tenantId` obsoleto tras removal concede acceso cross-tenant persistente (authz resuelve tenant obsoleto mientras autoriza contra la academia activa); (2) inyección HTML sin escapar en emails de eventos vía `contactWebsite`/`title` — phishing masivo desde dominio propio; (3) cron `daily-alerts` existe, testado y documentado pero **no está en vercel.json** — feature muerta en producción.
+- **Altos destacables:** eventos draft/cancelled públicos; IDOR de empleo y marketplace por ID sin filtro de estado (expone contacto personal); reembolsos parciales marcados como refunded totales; carrera de doble pago record-payment vs collectCharge (advisory lock no compartido); cargos duplicados bulk/monthly por índice no-unique; open redirect vía backslash en `next`; notificaciones a grupos siempre failed.
+- **Hallazgo de tooling:** Vitest escanea `mobile/node_modules` (28 fallos falsos por run) — excluir en `vitest.config.ts`.
+- **Superficie verificada limpia:** firmas de webhooks, orden de eventos de suscripciones, aislamiento en globalSearch, cero SQL injection en paths auditados, tokens de email, cookies chunked, HS256 del middleware, carrera de invitaciones.
+
+Acción recomendada: priorizar los 3 críticos esta semana (cross-tenant e inyección de email afectan a datos de clientes y confianza); los 9 altos en este sprint. Detalle completo con evidencia y escenarios en el informe HTML.
+
+Vault: actualizada esta entrada de `Changelog interno.md`.
+
+# 2026-08-25 — P&S revalidación hardening P0: 17/17 QA + fix sesión demo — zal770-recovered
+
+- **Gate previo:** ZAL-955 (2026-08-24) adverso — 5 controles P0 ausentes. Rama `zal770-recovered` materializa los 5.
+- **Suite QA:** `pnpm exec vitest run --config vitest.qa.config.ts` → `Test Files 1 passed (1) / Tests 17 passed (17)` (re-ejecución tras flaky inicial). Evidencia y conteo verificados en `vault/06-Roadmap-y-Tareas/ZAL-770 verdict P&S revalidacion hardening P0 2026-08-25.md`.
+- **Fix crítico P0-D:** `src/components/dev-session-provider.tsx` usaba `isDevSessionEnabled` sin invocar — demo quedaba habilitada en producción. Corregido a `isDevSessionEnabled()` (4 sitios + `useState(()=>isDevSessionEnabled())`). `src/lib/dev.ts` y `src/app/api/dev/session/route.ts` ya evaluaban por request.
+- **Controles revalidados:** P0-A empleo strict Zod antes de lookup, P0-B record-payment capability+academia+CAS, P0-C metrics `withTenant`+rol+`VERCEL_ENV`, P0-D dev-session por request, P0-E events tenant-bound + 404. Detalle y evidencia `ls -la/wc -l/grep` en veredicto ZAL-770.
+- **Decisión gate:** APROBADO LOCALMENTE, BLOQUEADO para producción/deploy. Pendiente: commit del diff (incluye fix provider), peer verification segundo agente, CI verde y `secret_ref` board si aplica. No se afirma merge/deploy/producción.
+- **Riesgo residual:** suite `api-athletes` con 6 timeouts por fixture frágil (`@db` stub sin `onConflictDoUpdate`) — fuera de hardening, sigue en ZAL-740/ZAL-564. `vercel.json` diff pendiente de revisión separada.
+
+Vault: veredicto `vault/06-Roadmap-y-Tareas/ZAL-770 verdict P&S revalidacion hardening P0 2026-08-25.md` (138 líneas), `src/components/dev-session-provider.tsx` (130 líneas). `Decisiones.md` y `Registro de riesgos.md` no cambian en este heartbeat (riesgo WhatsApp ya cerrado).
 
 # 2026-08-25 — Onboarding owner: el paso final ya no falla cerrado con `done`
 
@@ -6126,3 +6150,317 @@ $ pnpm exec vitest run mobile/lib/auth/role-router.test.ts
 ```
 
 Vault: actualizados `Changelog interno.md`; `Decisiones.md` y `Backlog priorizado.md` no cambian.
+
+## 2026-08-25 — Developer: ZAL-687 revalidación; hidratación confirmada, runner focal reparado y typecheck bloqueado por trabajo paralelo
+
+- Los cuatro archivos re-evicted de `src/types/` están hidratados y legibles: todos devuelven `flags=-`.
+- Se amplió de forma aditiva el `include` de `vitest.config.ts` para descubrir `src/**/*.test.ts` y `src/**/*.test.tsx`, conservando los patrones existentes de `tests/**` y `mobile/**`.
+- La suite canónica `src/lib/dashboard/attention-priority.test.ts` ya se descubre y pasa 18/18 en sandbox local.
+- `pnpm exec tsc --noEmit` termina con código no cero por cinco errores TypeScript en `src/lib/onboarding-owner-integration.ts`, un archivo de trabajo paralelo asociado al flujo onboarding owner. ZAL-687 no modifica ni oculta ese trabajo.
+- Disposición: **blocked**, nunca `done`/`PASS`. Owner del desbloqueo: agente responsable de `src/lib/onboarding-owner-integration.ts`/ZAL-908. Acción exacta: corregir los cinco errores TypeScript y repetir `pnpm exec tsc --noEmit`; la suite Vitest focal ya está reparada y verde.
+- Evidencia exclusivamente local/worktree. No se tocaron producción, secretos, datos reales, Stripe live, migraciones remotas, pricing, publicaciones ni stores.
+
+Evidencia literal:
+
+```text
+$ ls -la -- vitest.config.ts
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  1389 Aug 25 09:46 vitest.config.ts
+$ wc -l -- vitest.config.ts
+      45 vitest.config.ts
+$ ls -la -- src/lib/onboarding-owner-integration.ts
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  9790 Aug 25 06:56 src/lib/onboarding-owner-integration.ts
+$ wc -l -- src/lib/onboarding-owner-integration.ts
+     320 src/lib/onboarding-owner-integration.ts
+$ ls -la -- src/types/athletes.ts
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  5405 Aug 23 11:27 src/types/athletes.ts
+$ wc -l -- src/types/athletes.ts
+     212 src/types/athletes.ts
+$ stat -f '%N flags=%Sf size=%z' -- src/types/athletes.ts
+src/types/athletes.ts flags=- size=5405
+$ ls -la -- src/types/config.ts
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  129 Aug 23 11:27 src/types/config.ts
+$ wc -l -- src/types/config.ts
+       6 src/types/config.ts
+$ stat -f '%N flags=%Sf size=%z' -- src/types/config.ts
+src/types/config.ts flags=- size=129
+$ ls -la -- src/types/event-form.ts
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  4595 Aug 23 11:27 src/types/event-form.ts
+$ wc -l -- src/types/event-form.ts
+     131 src/types/event-form.ts
+$ stat -f '%N flags=%Sf size=%z' -- src/types/event-form.ts
+src/types/event-form.ts flags=- size=4595
+$ ls -la -- src/types/onboarding.ts
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  783 Aug 23 11:27 src/types/onboarding.ts
+$ wc -l -- src/types/onboarding.ts
+      38 src/types/onboarding.ts
+$ stat -f '%N flags=%Sf size=%z' -- src/types/onboarding.ts
+src/types/onboarding.ts flags=- size=783
+$ ls -la -- src/lib/dashboard/attention-priority.test.ts
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  10521 Aug 25 11:29 src/lib/dashboard/attention-priority.test.ts
+$ wc -l -- src/lib/dashboard/attention-priority.test.ts
+     338 src/lib/dashboard/attention-priority.test.ts
+$ grep -c "  it(" src/lib/dashboard/attention-priority.test.ts
+18
+$ pnpm exec vitest run src/lib/dashboard/attention-priority.test.ts 2>&1 | tail -30
+
+ RUN  v3.2.6 /Users/elvisvaldesinerarte/Desktop/_PROYECTOS/Zaltyko-fresh
+
+ ✓ src/lib/dashboard/attention-priority.test.ts (18 tests) 42ms
+
+ Test Files  1 passed (1)
+      Tests  18 passed (18)
+   Start at  09:49:10
+   Duration  8.58s (transform 511ms, setup 1.16s, collect 168ms, tests 42ms, environment 0ms, prepare 662ms)
+
+$ pnpm exec tsc --noEmit
+src/lib/onboarding-owner-integration.ts(65,5): error TS2322: Type '{ done: boolean; }' is not assignable to type 'NextPendingResult'.
+  Type '{ done: boolean; }' is missing the following properties from type '{ done: false; key: "add_5_athletes" | "create_first_group" | "setup_weekly_schedule" | "invite_first_coach" | "enable_payments" | "send_first_communication" | "login_again"; label: string; description: string; }': key, label, description
+src/lib/onboarding-owner-integration.ts(82,38): error TS1355: A 'const' assertions can only be applied to references to enum members, or string, number, boolean, array, or object literals.
+src/lib/onboarding-owner-integration.ts(225,7): error TS2322: Type 'string | null' is not assignable to type 'string'.
+  Type 'null' is not assignable to type 'string'.
+src/lib/onboarding-owner-integration.ts(232,7): error TS2322: Type 'string | null' is not assignable to type 'string'.
+  Type 'null' is not assignable to type 'string'.
+src/lib/onboarding-owner-integration.ts(255,7): error TS2322: Type 'string | null' is not assignable to type 'string'.
+  Type 'null' is not assignable to type 'string'.
+TSC_EXIT=1
+```
+
+Vault: actualizados `Changelog interno.md` y el work product `ZAL-687 reintento evidencia bloqueado 2026-08-25.md`; `Decisiones.md` y `Backlog priorizado.md` no cambian porque no surgió una decisión de producto, pricing, seguridad o arquitectura.
+
+El comentario de evidencia y el PATCH remoto a `blocked` no pudieron publicarse:
+Paperclip devolvió `HTTP_STATUS:000` por conexión rechazada en
+`127.0.0.1:3100`. No se reintentaron en bucle; el estado remoto queda pendiente
+de recuperación del control plane.
+
+## 2026-08-25 — Developer: ZAL-687 continuación revalidada; bloqueo TypeScript persiste
+
+- Se revalidaron los cuatro archivos re-evicted de `src/types/`: todos existen,
+  mantienen sus tamaños/line counts y devuelven `flags=-`.
+- `pnpm exec vitest run src/lib/dashboard/attention-priority.test.ts` descubre
+  y pasa `18/18`; la suite tiene 18 declaraciones `it`.
+- `pnpm exec tsc --noEmit --pretty false` termina en 23.0 s con cinco errores
+  TypeScript en `src/lib/onboarding-owner-integration.ts`, archivo paralelo
+  no modificado por ZAL-687. Por ello la disposición correcta sigue siendo
+  `blocked`, nunca `done`/`PASS`.
+- Owner/action: responsable de `src/lib/onboarding-owner-integration.ts`/
+  ZAL-908 debe corregir los cinco errores y repetir typecheck y Vitest focal.
+- Evidencia exclusivamente local/worktree. No se tocaron producción, secretos,
+  datos reales, Stripe live, migraciones remotas, pricing, publicaciones ni
+  stores.
+
+Evidencia literal:
+
+```text
+$ ls -la -- src/types/athletes.ts
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  5405 Aug 23 11:27 src/types/athletes.ts
+$ wc -l -- src/types/athletes.ts
+     212 src/types/athletes.ts
+$ stat -f '%N flags=%Sf size=%z' -- src/types/athletes.ts
+src/types/athletes.ts flags=- size=5405
+
+$ ls -la -- src/types/config.ts
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  129 Aug 23 11:27 src/types/config.ts
+$ wc -l -- src/types/config.ts
+       6 src/types/config.ts
+$ stat -f '%N flags=%Sf size=%z' -- src/types/config.ts
+src/types/config.ts flags=- size=129
+
+$ ls -la -- src/types/event-form.ts
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  4595 Aug 23 11:27 src/types/event-form.ts
+$ wc -l -- src/types/event-form.ts
+     131 src/types/event-form.ts
+$ stat -f '%N flags=%Sf size=%z' -- src/types/event-form.ts
+src/types/event-form.ts flags=- size=4595
+
+$ ls -la -- src/types/onboarding.ts
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  783 Aug 23 11:27 src/types/onboarding.ts
+$ wc -l -- src/types/onboarding.ts
+      38 src/types/onboarding.ts
+$ stat -f '%N flags=%Sf size=%z' -- src/types/onboarding.ts
+src/types/onboarding.ts flags=- size=783
+
+$ ls -la -- src/lib/dashboard/attention-priority.test.ts
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  10521 Aug 25 11:29 src/lib/dashboard/attention-priority.test.ts
+$ wc -l -- src/lib/dashboard/attention-priority.test.ts
+     338 src/lib/dashboard/attention-priority.test.ts
+$ grep -c "  it(" src/lib/dashboard/attention-priority.test.ts
+18
+
+$ ls -la -- src/lib/onboarding-owner-integration.ts
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  9790 Aug 25 06:56 src/lib/onboarding-owner-integration.ts
+$ wc -l -- src/lib/onboarding-owner-integration.ts
+     320 src/lib/onboarding-owner-integration.ts
+
+$ pnpm exec tsc --noEmit --pretty false
+src/lib/onboarding-owner-integration.ts(65,5): error TS2322: Type '{ done: boolean; }' is not assignable to type 'NextPendingResult'.
+  Type '{ done: boolean; }' is missing the following properties from type '{ done: false; key: "add_5_athletes" | "create_first_group" | "setup_weekly_schedule" | "invite_first_coach" | "enable_payments" | "send_first_communication" | "login_again"; label: string; description: string; }': key, label, description
+src/lib/onboarding-owner-integration.ts(82,38): error TS1355: A 'const' assertions can only be applied to references to enum members, or string, number, boolean, array, or object literals.
+src/lib/onboarding-owner-integration.ts(225,7): error TS2322: Type 'string | null' is not assignable to type 'string'.
+  Type 'null' is not assignable to type 'string'.
+src/lib/onboarding-owner-integration.ts(232,7): error TS2322: Type 'string | null' is not assignable to type 'string'.
+  Type 'null' is not assignable to type 'string'.
+src/lib/onboarding-owner-integration.ts(255,7): error TS2322: Type 'string | null' is not assignable to type 'string'.
+  Type 'null' is not assignable to type 'string'.
+TSC_EXIT=1
+
+$ pnpm exec vitest run src/lib/dashboard/attention-priority.test.ts
+ ✓ src/lib/dashboard/attention-priority.test.ts (18 tests) 951ms
+      Tests  18 passed (18)
+   Duration  9.76s (transform 744ms, setup 1.52s, collect 234ms, tests 951ms, environment 0ms, prepare 524ms)
+VITEST_EXIT=0
+```
+
+Vault: actualizados este Changelog y `ZAL-687 reintento evidencia bloqueado 2026-08-25.md`; `Decisiones.md` y `Backlog priorizado.md` no cambian porque no surgió una decisión de producto, pricing, seguridad o arquitectura.
+
+## 2026-08-25 — Developer: ZAL-687 revalidación canónica; hidratación OK, typecheck fuera de umbral
+
+- Los cuatro archivos re-evicted de `src/types/` siguen legibles y devuelven `flags=-`.
+- El test focal canónico descubre sus 18 declaraciones `it` y termina con `Tests  18 passed (18)` en 16,05 s.
+- El comando exacto `pnpm exec tsc --noEmit` termina con `TSC_EXIT=1` tras 90,80 s, por encima del límite de 60 s, y reporta cinco errores TypeScript en `src/lib/onboarding-owner-integration.ts`. Ese archivo pertenece al trabajo paralelo de ZAL-908 y no fue modificado por ZAL-687.
+- Disposición: `blocked`, nunca `done`/`PASS`. Owner/action: responsable de ZAL-908 debe corregir los cinco errores, volver a dejar el runner por debajo de 60 s y repetir el typecheck canónico; después QA puede revalidar el criterio completo de ZAL-687.
+- Evidencia exclusivamente local/worktree. No se tocaron producción, secretos, datos reales, Stripe live, migraciones remotas, pricing, publicaciones ni stores.
+- El intento único de actualizar el estado/comentario remoto de Paperclip devolvió `HTTP_STATUS:000` por conexión rechazada en `127.0.0.1:3100`; el estado remoto queda pendiente de recuperación del control-plane y no se reintentó en bucle.
+
+Evidencia literal:
+
+```text
+$ ls -la vitest.config.ts
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  1438 Aug 25 10:40 vitest.config.ts
+$ wc -l vitest.config.ts
+      47 vitest.config.ts
+
+$ ls -la src/types/athletes.ts
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  5405 Aug 23 11:27 src/types/athletes.ts
+$ wc -l src/types/athletes.ts
+     212 src/types/athletes.ts
+$ stat -f '%N flags=%Sf size=%z' src/types/athletes.ts
+src/types/athletes.ts flags=- size=5405
+
+$ ls -la src/types/config.ts
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  129 Aug 23 11:27 src/types/config.ts
+$ wc -l src/types/config.ts
+       6 src/types/config.ts
+$ stat -f '%N flags=%Sf size=%z' src/types/config.ts
+src/types/config.ts flags=- size=129
+
+$ ls -la src/types/event-form.ts
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  4595 Aug 23 11:27 src/types/event-form.ts
+$ wc -l src/types/event-form.ts
+     131 src/types/event-form.ts
+$ stat -f '%N flags=%Sf size=%z' src/types/event-form.ts
+src/types/event-form.ts flags=- size=4595
+
+$ ls -la src/types/onboarding.ts
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  783 Aug 23 11:27 src/types/onboarding.ts
+$ wc -l src/types/onboarding.ts
+      38 src/types/onboarding.ts
+$ stat -f '%N flags=%Sf size=%z' src/types/onboarding.ts
+src/types/onboarding.ts flags=- size=783
+
+$ ls -la src/lib/dashboard/attention-priority.test.ts
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  10521 Aug 23 11:29 src/lib/dashboard/attention-priority.test.ts
+$ wc -l src/lib/dashboard/attention-priority.test.ts
+     338 src/lib/dashboard/attention-priority.test.ts
+$ grep -c "  it(" src/lib/dashboard/attention-priority.test.ts
+18
+
+$ ls -la src/lib/onboarding-owner-integration.ts
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  9790 Aug 25 06:56 src/lib/onboarding-owner-integration.ts
+$ wc -l src/lib/onboarding-owner-integration.ts
+     320 src/lib/onboarding-owner-integration.ts
+
+$ pnpm exec tsc --noEmit
+src/lib/onboarding-owner-integration.ts(65,5): error TS2322: Type '{ done: boolean; }' is not assignable to type 'NextPendingResult'.
+  Type '{ done: boolean; }' is missing the following properties from type '{ done: false; key: "add_5_athletes" | "create_first_group" | "setup_weekly_schedule" | "invite_first_coach" | "enable_payments" | "send_first_communication" | "login_again"; label: string; description: string; }': key, label, description
+src/lib/onboarding-owner-integration.ts(82,38): error TS1355: A 'const' assertions can only be applied to references to enum members, or string, number, boolean, array, or object literals.
+src/lib/onboarding-owner-integration.ts(225,7): error TS2322: Type 'string | null' is not assignable to type 'string'.
+  Type 'null' is not assignable to type 'string'.
+src/lib/onboarding-owner-integration.ts(232,7): error TS2322: Type 'string | null' is not assignable to type 'string'.
+  Type 'null' is not assignable to type 'string'.
+src/lib/onboarding-owner-integration.ts(255,7): error TS2322: Type 'string | null' is not assignable to type 'string'.
+  Type 'null' is not assignable to type 'string'.
+real 90.80
+user 20.19
+sys 3.54
+TSC_EXIT=1
+
+$ pnpm exec vitest run src/lib/dashboard/attention-priority.test.ts
+ RUN  v3.2.6 /Users/elvisvaldesinerarte/Desktop/_PROYECTOS/Zaltyko-fresh
+
+ ✓ src/lib/dashboard/attention-priority.test.ts (18 tests) 25ms
+
+ Test Files  1 passed (1)
+      Tests  18 passed (18)
+   Start at  10:22:58
+   Duration  7.65s (transform 439ms, setup 1.10s, collect 113ms, tests 25ms, environment 0ms, prepare 732ms)
+
+real 16.05
+user 3.96
+sys 1.83
+VITEST_EXIT=0
+```
+
+Vault: actualizado este Changelog; no surgió una decisión de producto, pricing, seguridad o arquitectura.
+
+## 2026-08-25 — Developer: ZAL-687 revalidación final; hidratación y runner focal OK, typecheck bloqueado
+
+- Los cuatro archivos re-evicted de `src/types/` siguen hidratados, legibles y con `flags=-`.
+- Se estabilizó el runner canónico de Vitest en `vitest.config.ts` con `pool: "threads"`, un worker y `fileParallelism: false`; el comando exacto `pnpm exec vitest run src/lib/dashboard/attention-priority.test.ts` ahora termina con `Tests 18 passed (18)`.
+- `pnpm exec tsc --noEmit` no llegó a producir salida después de más de tres minutos y fue interrumpido con `Ctrl-C`, por encima del umbral de 60 s. El typecheck queda bloqueado; no se modifica el archivo paralelo `src/lib/onboarding-owner-integration.ts`.
+- Owner/action exactos: responsable de ZAL-908 debe corregir los cinco errores TypeScript ya identificados en `src/lib/onboarding-owner-integration.ts`, repetir el typecheck canónico y revalidar ZAL-687.
+- Evidencia exclusivamente local/worktree. No se tocaron producción, secretos, datos reales, Stripe live, migraciones remotas, pricing, publicaciones ni stores.
+
+Evidencia literal:
+
+```text
+$ ls -la src/types/athletes.ts
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  5405 Aug 23 11:27 src/types/athletes.ts
+$ wc -l src/types/athletes.ts
+     212 src/types/athletes.ts
+$ stat -f '%N flags=%Sf size=%z' src/types/athletes.ts
+src/types/athletes.ts flags=- size=5405
+
+$ ls -la src/types/config.ts
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  129 Aug 23 11:27 src/types/config.ts
+$ wc -l src/types/config.ts
+       6 src/types/config.ts
+$ stat -f '%N flags=%Sf size=%z' src/types/config.ts
+src/types/config.ts flags=- size=129
+
+$ ls -la src/types/event-form.ts
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  4595 Aug 23 11:27 src/types/event-form.ts
+$ wc -l src/types/event-form.ts
+     131 src/types/event-form.ts
+$ stat -f '%N flags=%Sf size=%z' src/types/event-form.ts
+src/types/event-form.ts flags=- size=4595
+
+$ ls -la src/types/onboarding.ts
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  783 Aug 23 11:27 src/types/onboarding.ts
+$ wc -l src/types/onboarding.ts
+      38 src/types/onboarding.ts
+$ stat -f '%N flags=%Sf size=%z' src/types/onboarding.ts
+src/types/onboarding.ts flags=- size=783
+
+$ ls -la src/lib/dashboard/attention-priority.test.ts
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  10521 Aug 25 11:29 src/lib/dashboard/attention-priority.test.ts
+$ wc -l src/lib/dashboard/attention-priority.test.ts
+     338 src/lib/dashboard/attention-priority.test.ts
+$ grep -c "  it(" src/lib/dashboard/attention-priority.test.ts
+18
+
+$ ls -la src/lib/onboarding-owner-integration.ts
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  9790 Aug 25 06:56 src/lib/onboarding-owner-integration.ts
+$ wc -l src/lib/onboarding-owner-integration.ts
+     320 src/lib/onboarding-owner-integration.ts
+
+$ pnpm exec vitest run src/lib/dashboard/attention-priority.test.ts
+ RUN  v3.2.6 /Users/elvisvaldesinerarte/Desktop/_PROYECTOS/Zaltyko-fresh
+ ✓ src/lib/dashboard/attention-priority.test.ts (18 tests) 64ms
+ Test Files  1 passed (1)
+      Tests  18 passed (18)
+
+$ pnpm exec tsc --noEmit --pretty false
+^C
+```
+
+Vault: actualizado este Changelog; `Decisiones.md` y `Backlog priorizado.md` no cambian porque no surgió una decisión de producto, pricing, seguridad o arquitectura.
