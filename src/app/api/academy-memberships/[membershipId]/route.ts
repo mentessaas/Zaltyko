@@ -25,6 +25,7 @@ export const DELETE = withTenant(async (_request, context) => {
       profileTenantId: profiles.tenantId,
       activeAcademyId: profiles.activeAcademyId,
       academyName: academies.name,
+      academyTenantId: academies.tenantId,
     })
     .from(memberships)
     .innerJoin(profiles, eq(profiles.userId, memberships.userId))
@@ -82,10 +83,23 @@ export const DELETE = withTenant(async (_request, context) => {
 
   await db.delete(memberships).where(eq(memberships.id, membership.id));
 
-  if (membership.activeAcademyId === membership.academyId) {
+  // Si el perfil apuntaba al tenant de la academia desvinculada, recalcular:
+  // dejar el tenant obsoleto concedería acceso cross-tenant persistente.
+  const tenantIsStale =
+    membership.profileTenantId !== null &&
+    membership.profileTenantId === membership.academyTenantId;
+
+  if (
+    membership.activeAcademyId === membership.academyId ||
+    tenantIsStale
+  ) {
     const [nextMembership] = await db
-      .select({ academyId: memberships.academyId })
+      .select({
+        academyId: memberships.academyId,
+        academyTenantId: academies.tenantId,
+      })
       .from(memberships)
+      .innerJoin(academies, eq(academies.id, memberships.academyId))
       .where(eq(memberships.userId, membership.userId))
       .limit(1);
 
@@ -93,6 +107,9 @@ export const DELETE = withTenant(async (_request, context) => {
       .update(profiles)
       .set({
         activeAcademyId: nextMembership?.academyId ?? null,
+        ...(tenantIsStale
+          ? { tenantId: nextMembership?.academyTenantId ?? null }
+          : {}),
       })
       .where(eq(profiles.id, membership.profileId));
   }
