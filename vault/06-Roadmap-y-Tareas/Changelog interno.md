@@ -65,6 +65,20 @@ EXIT_CODE=130
 
 Vault: actualizado este Changelog y el work product `ZAL-687 reintento evidencia bloqueado 2026-08-25.md`; `Decisiones.md` y `Backlog priorizado.md` no cambian porque no surgió una decisión de producto, pricing, seguridad o arquitectura.
 
+# 2026-08-25 — Ox Alpha: análisis 360º de lógica de negocio y producto (solo informe)
+
+Mapa completo de la lógica de negocio implementada contrastada con Pricing v3.0 y mensajes aprobados. **Informe en `informe ox alpha/analisis-producto.html`** (lenguaje de producto). Hallazgos principales:
+
+- **Monetización:** límites y precios exactos vs Pricing v3.0, pero SIN feature-gating por plan (Growth se vende solo por capacidad; los flags de producto son globales apagados). Network sin producto detrás (defendible solo con el copy actual de venta asistida).
+- **Brechas promesa-realidad con riesgo comercial:** recordatorios de clase no automáticos (la función existe en triggers.ts — falta cablear al cron); categorías de eventos por edad/nivel son texto libre (requisito central federado); «informes programados» flaggeado off; «portal completo» invita a expectativas.
+- **Incoherencias:** Network «precio a medida» vs 99€ en catálogo; CTA de Starter «Solicitar demo» con flujo self-serve; descuentos sin trazabilidad del importe original; coach puede agendar pero no crear clases; atleta puede iniciar comunicaciones.
+- **Huecos de ciclo:** baja de gimnasta DESTRUCTIVA (borrado físico con cascada — se pierde el historial financiero; deletedAt modelada e ignorada); trial del gimnasta huérfano (no expira ni convierte); alerta de riesgo de asistencia no llega a la familia (TODO).
+- **Lo genuinamente bien:** trial de 7 días (máquina de conversión madura), cobros con Stripe Connect, pasar lista móvil, portal familiar con separación atleta/tutor, onboarding con estructura inicial de gimnasia por rama, evaluaciones con catálogo federativo.
+- **Top 10 oportunidades de bajo esfuerzo** (detalle en el informe): cablear recordatorios al cron, encender d0/d2/d7, importación que marque checklist, quitar UUID del CSV, Mis eventos al nav, gatear reportes por Growth, CTA Starter a checkout, soft delete de gimnastas, email de riesgo a padres, scores por habilidad a la familia.
+
+Vault: actualizada esta entrada de `Changelog interno.md`.
+
+
 # 2026-08-25 — Ox Alpha: fixes de la caza de bugs (26 de 35 hallazgos, Oleadas 1-4)
 
 Aplicados los fixes del informe `informe ox alpha/caza-bugs.html`. Commiteados por oleadas en `zal770-recovered`. Resumen: 3/3 críticos (cross-tenant con test de regresión, inyección HTML en emails, cron daily-alerts), 7/9 altos (status published en eventos, IDOR empleo/marketplace, reembolsos parciales en ledger refunds, advisory lock anti-doble-pago, migración de índices únicos APLICADA a producción vía `db:migrate:reviewed --only` con 0 duplicados previos verificados, open redirect backslash, ventanas de recordatorios con catch-up), 8/11 medios (guards terminales de cargos, dedupe email respaldado por índice único + TTL pending, lowercase unsubscribe PENDIENTE en WIP ajeno, clamps paginación, rate limit GETs públicos, class-reminders honesto, Vitest sin mobile/node_modules, customPermissions), 8/12 bajos (timingSafe, exp JWT, allowlist trampoline/parkour, fraud_hold en clusters, enum ISO moneda, TOCTOU límites con lock, trigger asistencia corregido, uniqueIndex recibos).
