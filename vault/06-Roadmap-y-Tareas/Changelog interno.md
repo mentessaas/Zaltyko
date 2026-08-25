@@ -5,6 +5,12 @@ last_reviewed: 2026-08-25T11:21Z
 source:
 ---
 
+## 2026-08-25 — Ox Alpha: HMAC dev-session + marketing consent (cierre de Oleadas B-C)
+
+- **Fix 27 — HMAC dev-session**: `serializeDevSession` firma el payload base64 con `INTERNAL_AUTH_SECRET` (HMAC-SHA256) y `parseDevSessionCookie` verifica con `timingSafeEqual`; cookies sin firma (versión antigua) rechazadas cuando hay secreto configurado. Cierra impersonación forgeable.
+- **Fix 33 — Marketing consent**: nuevo `lib/email/marketing-consent.ts` con `hasMarketingOptOut(email)` que revisa `emailLogs` (unsubscribe + preferences_update marketing=false); listo para cablear en futuros senders de nurturing (documentado como pendiente wiring).
+- **Verificación**: typecheck 0 errores, `authz-stale-tenant` 3/3, onboarding 5/5.
+
 ## 2026-08-25 — Ox Alpha: Oleadas B-C — activación y producto (import, onboarding, soft-delete, portal)
 
 - **B1/B2 — Importación CSV**: `academyId` opcional en `CsvRowSchema` (inferido del `formData` o de la única academia del tenant), plantilla sin columna `academyId`, `formData.append("academyId")` desde el panel, y marcado automático del checklist `add_5_athletes` tras importar ≥5 gimnastas (antes solo alta manual).
