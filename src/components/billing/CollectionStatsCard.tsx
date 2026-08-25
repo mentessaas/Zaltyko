@@ -55,9 +55,9 @@ export function CollectionStatsCard({ academyId }: Props) {
       </CardHeader>
       <CardContent>
         {loading ? (
-          <p className="text-sm text-zaltyko-text-secondary">Cargando…</p>
+          <p className="text-sm text-muted-foreground">Cargando…</p>
         ) : !stats ? (
-          <p className="text-sm text-zaltyko-text-secondary">Sin datos.</p>
+          <p className="text-sm text-muted-foreground">Sin datos.</p>
         ) : (
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
             <Metric label="Cobrado" value={formatEur(stats.collectedCents)} tone="ok" />
@@ -94,8 +94,8 @@ function Metric({
           ? "text-amber-600"
           : "text-foreground";
   return (
-    <div className="rounded-lg border border-zaltyko-mist bg-white p-3">
-      <p className="text-xs text-zaltyko-text-secondary">{label}</p>
+    <div className="rounded-lg border border-border bg-card p-3">
+      <p className="text-xs text-muted-foreground">{label}</p>
       <p className={`mt-1 text-lg font-semibold ${color}`}>{value}</p>
     </div>
   );

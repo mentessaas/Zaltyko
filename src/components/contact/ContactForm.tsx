@@ -63,6 +63,22 @@ export function ContactForm({ defaultReason = "demo", defaultPlan }: ContactForm
       ? (defaultPlan as CommercialPlanSlug)
       : null;
 
+    // Telemetria: registrar el intento de envio ANTES del fetch para distinguir
+    // "no llego a pulsar enviar" (sin attempted) de "rompio entre pulsar y servidor" (con attempted pero sin submitted).
+    capturePublicGrowthEvent({
+      eventName: "contact_submit_attempted",
+      planCode: plan,
+      source: "public_contact",
+      properties: {
+        ...getPublicAttribution(),
+        reason,
+        has_academy: Boolean(academy),
+        honeypot_filled: Boolean(formData.get("company")),
+      },
+    });
+
+    let failureReported = false;
+
     try {
       const response = await fetch("/api/contact", {
         method: "POST",
@@ -83,6 +99,24 @@ export function ContactForm({ defaultReason = "demo", defaultPlan }: ContactForm
 
       if (!response.ok) {
         const payload = await response.json().catch(() => null);
+        const serverCode =
+          payload && typeof payload === "object" && "code" in payload
+            ? String((payload as { code: unknown }).code)
+            : "unknown";
+        const statusBucket = response.status >= 500 ? "5xx" : "4xx";
+        capturePublicGrowthEvent({
+          eventName: "contact_submit_failed",
+          planCode: plan,
+          source: "public_contact",
+          properties: {
+            ...getPublicAttribution(),
+            reason,
+            status: response.status,
+            status_bucket: statusBucket,
+            server_code: serverCode,
+          },
+        });
+        failureReported = true;
         throw new Error(payload?.message ?? payload?.error ?? "No se pudo enviar el mensaje.");
       }
 
@@ -92,6 +126,20 @@ export function ContactForm({ defaultReason = "demo", defaultPlan }: ContactForm
         message: "Mensaje enviado. Te responderemos desde el equipo de Zaltyko.",
       });
     } catch (error) {
+      if (!failureReported) {
+        // No llegamos al servidor o el fetch tiro antes de obtener respuesta.
+        capturePublicGrowthEvent({
+          eventName: "contact_submit_failed",
+          planCode: plan,
+          source: "public_contact",
+          properties: {
+            ...getPublicAttribution(),
+            reason,
+            status_bucket: "network",
+            server_code: "client_exception",
+          },
+        });
+      }
       setState({
         status: "error",
         message: error instanceof Error ? error.message : "No se pudo enviar el mensaje.",
@@ -110,7 +158,7 @@ export function ContactForm({ defaultReason = "demo", defaultPlan }: ContactForm
     >
       <input type="text" name="company" tabIndex={-1} autoComplete="off" className="hidden" aria-hidden="true" />
       {publicPlans.has(defaultPlan as CommercialPlanSlug) && (
-        <p className="rounded-lg border border-zaltyko-teal/25 bg-zaltyko-teal/10 px-4 py-3 text-sm text-zaltyko-navy">
+        <p className="rounded-lg border border-zaltyko-teal/25 bg-zaltyko-teal/10 px-4 py-3 text-sm text-foreground">
           Interés seleccionado: <strong className="capitalize">{defaultPlan}</strong>
         </p>
       )}
@@ -215,7 +263,7 @@ export function ContactForm({ defaultReason = "demo", defaultPlan }: ContactForm
         {!isHydrated ? "Preparando formulario..." : submitting ? "Enviando..." : "Enviar mensaje"}
       </button>
 
-      <p className="text-center text-xs text-zaltyko-text-secondary">
+      <p className="text-center text-xs text-muted-foreground">
         Al enviar este formulario, aceptas nuestra{" "}
         <Link href="/politica-privacidad" className="underline hover:text-zaltyko-primary">
           política de privacidad

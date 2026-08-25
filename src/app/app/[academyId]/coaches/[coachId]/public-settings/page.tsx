@@ -43,9 +43,9 @@ export default async function CoachPublicSettingsPage({ params }: PageProps) {
           { label: "Perfil Público" },
         ]}
       />
-      <div className="rounded-2xl border border-zaltyko-mist bg-white p-6 shadow-soft">
-        <h1 className="font-display text-2xl font-bold text-zaltyko-navy">Configuración de Perfil Público</h1>
-        <p className="mt-1 text-zaltyko-text-secondary">
+      <div className="rounded-2xl border border-border bg-card p-6 shadow-soft">
+        <h1 className="font-display text-2xl font-bold text-foreground">Configuración de Perfil Público</h1>
+        <p className="mt-1 text-muted-foreground">
           Personaliza tu perfil público visible para padres y atletas
         </p>
       </div>

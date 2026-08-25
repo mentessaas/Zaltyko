@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { and, asc, eq, ilike, sql } from "drizzle-orm";
+import { and, asc, eq, ilike, isNull, sql } from "drizzle-orm";
 import { Users } from "lucide-react";
 
 import { db } from "@/db";
@@ -86,6 +86,7 @@ export default async function AcademyAthletesPage({ params, searchParams }: Page
   const guardianCount = sql<number>`count(distinct ${guardianAthletes.id})`;
 
   const conditions = [
+    isNull(athletes.deletedAt),
     eq(athletes.academyId, academyId),
     statusFilter ? eq(athletes.status, statusFilter) : undefined,
     levelFilter ? eq(athletes.level, levelFilter) : undefined,

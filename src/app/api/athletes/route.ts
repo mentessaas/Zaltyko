@@ -84,6 +84,12 @@ const createAthleteHandler = withTenant(async (request, context) => {
       return apiError(academyAccess.reason ?? "ACADEMY_ACCESS_DENIED", "Access denied", 403);
     }
 
+    // Lock por academia: serializa count-then-insert para que N peticiones
+    // concurrentes al límite-1 no superen el cap del plan (TOCTOU).
+    await db.execute(
+      sql`select pg_advisory_xact_lock(hashtext(${body.academyId || context.tenantId || "athletes"}))`
+    );
+
     // Verificar límites del plan antes de crear el atleta
     try {
       await assertWithinPlanLimits(context.tenantId, body.academyId, "athletes");
@@ -378,6 +384,7 @@ export const GET = withTenant(async (request, context) => {
 
   // Always filter by tenant
   conditions.push(sql`${athletes.tenantId} = ${effectiveTenantId}`);
+  conditions.push(sql`${athletes.deletedAt} IS NULL`);
 
   if (levelList.length > 0) {
     // Use eq/inArray for simple cases, sql for complex

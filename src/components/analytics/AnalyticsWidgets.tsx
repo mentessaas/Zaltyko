@@ -70,7 +70,7 @@ interface Filters {
 function ChartSkeleton({ height = 300 }: { height?: number }) {
   return (
     <div
-      className="animate-pulse bg-slate-100 rounded-lg"
+      className="animate-pulse bg-muted rounded-lg"
       style={{ height }}
     />
   );
@@ -78,7 +78,7 @@ function ChartSkeleton({ height = 300 }: { height?: number }) {
 
 function StatsCardSkeleton() {
   return (
-    <div className="animate-pulse bg-slate-100 rounded-2xl h-32" />
+    <div className="animate-pulse bg-muted rounded-2xl h-32" />
   );
 }
 
@@ -86,8 +86,8 @@ function StatsCardSkeleton() {
 function CustomTooltip({ active, payload, label, formatter }: any) {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-white p-3 rounded-lg shadow-lg border border-slate-200">
-        <p className="font-medium text-slate-900">{label}</p>
+      <div className="bg-card p-3 rounded-lg shadow-lg border border-border">
+        <p className="font-medium text-foreground">{label}</p>
         {payload.map((entry: any, index: number) => (
           <p key={index} className="text-sm" style={{ color: entry.color }}>
             {entry.name}: {formatter ? formatter(entry.value) : entry.value}

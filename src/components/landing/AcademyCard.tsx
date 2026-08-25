@@ -26,7 +26,7 @@ const AcademyCard = memo(function AcademyCard({ academy, locale }: AcademyCardPr
   const t = labels[locale];
 
   return (
-    <Card className="group card-hover h-full overflow-hidden border border-gray-100 bg-white hover:border-zaltyko-teal/30">
+    <Card className="group card-hover h-full overflow-hidden border border-gray-100 bg-card hover:border-zaltyko-teal/30">
       <CardContent className="p-5">
         {/* Logo and Name */}
         <div className="flex items-start gap-4 mb-4">

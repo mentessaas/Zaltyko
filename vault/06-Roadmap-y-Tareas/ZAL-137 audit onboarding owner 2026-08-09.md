@@ -1,4 +1,4 @@
-# ZAL-137 — auditoría onboarding owner existente (2026-08-09)
+# ZAL-137 — auditoría onboarding owner existente (actualización read-first 2026-08-24)
 
 ## Objetivo
 
@@ -19,31 +19,35 @@ Restricciones: no inventar multi-academy, billing ni athlete self-serve.
 
 ### Rutas verificadas
 
-- `src/app/onboarding/owner/page.tsx` — server component, gate Supabase + `resolveUserHome`. Renderiza SOLO `<OwnerOnboardingForm />`.
+- `src/app/onboarding/owner/page.tsx` — server component, gate Supabase + `resolveUserHome`. Renderiza `<OwnerClaimCard />` cuando el email coincide con `academies.contactEmail`; si no, `<OwnerOnboardingForm />`.
 - `src/app/onboarding/layout.tsx` — wrapper mínimo, `force-dynamic`.
 - `src/app/(site)/onboarding/page.tsx` — entrypoint público. Redirige a `/onboarding/owner` si destination es `owner_setup`.
 - `src/components/onboarding/OwnerOnboardingForm.tsx` — formulario create-from-scratch (country/rama/tipo/grupos). Hardcoded `countryCode = "es"`, soporta toggle starter groups en panel avanzado.
+- `src/components/onboarding/OwnerClaimCard.tsx` + `src/lib/auth/claim-academy.ts` — rama claim por email normalizado (trim + lowercase).
+- `src/app/api/onboarding/owner/claim/route.ts` — POST autenticado por Supabase; revalida email, hereda `tenantId`, bloquea la carrera por usuario y crea membership owner idempotente.
 - `src/app/api/onboarding/owner/route.ts` — POST: crea profile + academy + grupos + clases starter; marca `create_first_group` y `setup_weekly_schedule`. Retorna `{academyId, redirectUrl: '/app/{id}/dashboard'}`.
 - `src/lib/auth/resolve-user-home.ts` — devuelve `owner_setup` cuando no hay profile + no hay invitación pendiente. Para usuarios con profile+membership, deriva a `academy_workspace` o `global_dashboard`.
 - `src/lib/onboarding.ts` — `markChecklistItem`, `markWizardStep`, `getOnboardingStatus`. WIZARD_STEPS = academy / athletes / payments-team / brand / activation. CHECKLIST_KEYS = `add_5_athletes`, `create_first_group`, `setup_weekly_schedule`, `invite_first_coach`, `enable_payments`, `send_first_communication`, `login_again`.
-- `src/lib/onboarding/next-step-urls.ts` — allowlist `next_step_key → path`. Cubre todos los wizard + checklist keys + aliases (billing_setup, first_communication). Implementación: ZAL-324 Gap 2.
+- `src/lib/onboarding/next-step-urls.ts` — allowlist `next_step_key → path` para emails; no es el redirect del alta owner.
+- `src/components/dashboard/OnboardingChecklist.tsx` + `src/components/dashboard/DashboardPage.tsx` — el dashboard consume el checklist y expone el CTA del paso pendiente; `/app/{academyId}/groups`, `/classes` y `/coaches` existen.
 
 ### Gaps vs ZAL-130 spec
 
 | Capacidad                                          | Estado actual                                      | Gap                                                                                                          |
 |----------------------------------------------------|----------------------------------------------------|--------------------------------------------------------------------------------------------------------------|
-| claim academy                                      | NO existe en código (`OwnerClaimCard`, helper, endpoint). El flow actual es solo create-from-scratch. | Falta flujo de claim cuando `user.email` matchea `academies.contactEmail` (case-insensitive, índice dedicado `academies_contact_email_idx`). |
-| invite (primer entrenador)                         | Existe checklist item `invite_first_coach` y wizard step `payments-team`; no existe UI de invite en el onboarding flow. | Sin acción visible post-claim; el dashboard tiene la checklist widget. Aceptable: post-submit → dashboard. |
-| first class skipeable                              | Funciona implícitamente: el toggle en panel avanzado desmarca starter groups; la API hace `if (selectedStarterGroups.length === 0) continue` y no crea starter classes. | Descubrible pero implícito. No requiere cambio. |
-| first class retomable                              | Si owner desmarca todos los starter groups, no se crean starter classes; dashboard permite crear classes después. | El form es one-shot; dashboard cubre la retomabilidad. No requiere cambio. |
-| navegación al siguiente paso                       | API redirect = `/app/{id}/dashboard` (hardcoded). Dashboard tiene checklist widget + next-step widget. | Acceptable: el dashboard muestra el siguiente paso (wizard + checklist). Alternativa: usar `NEXT_STEP_URLS`. |
+| claim academy                                      | Implementado en `045dde0c`: la página detecta el email y el endpoint revalida el match, hereda el tenant existente y evita duplicados. | Falta cobertura focal del endpoint/UI; no se amplía a selección de varias academias. |
+| invite (primer entrenador)                         | Existe `invite_first_coach`, el CTA apunta a `/app/{academyId}/coaches` y la ruta existe; se muestra desde el dashboard tras el alta. | No hay paso separado dentro del formulario owner; se conserva el handoff al dashboard. |
+| first class skipeable                              | El panel avanzado permite dejar `starterGroupsByVariant` vacío; la API omite grupos y clases starter cuando no hay selección. | El comportamiento es poco descubrible; debe comunicarse explícitamente como opcional/saltear por ahora. |
+| first class retomable                              | Tras omitir la plantilla, el alta redirige al dashboard y `DashboardOnboardingPanel` apunta a `/app/{academyId}/groups`; después permite configurar `/classes`. | Debe quedar cubierto por test de contrato para evitar que un cambio vuelva a dejar al owner sin siguiente paso. |
+| navegación al siguiente paso                       | POST owner y claim redirigen a `/app/{academyId}/dashboard`; el dashboard carga checklist y CTA contextual. | No usar `/app` legacy ni `NEXT_STEP_URLS` de emails como destino del alta; validar el contrato dashboard → groups/classes/coaches. |
 
 ### Verificación adicional
 
 - `git log -S 'OwnerClaimCard'` → solo aparece en commits docs (ZAL-396, ZAL-336, ZAL-157, ZAL-138). NO hay commit de feature que añada el componente.
 - `git log -S 'findClaimableAcademyByEmail'` → mismo resultado (solo docs).
 - `git log -S 'owner/claim'` → mismo resultado (solo docs).
-- **El trabajo reclamado por el agente el 2026-08-01 ("OwnerClaimCard, /api/onboarding/owner/claim, pg_advisory_xact_lock") NO está en el árbol actual.** El board aprobó el 2026-08-02 basándose en esa afirmación. La aprobación quedó pendiente de cierre por SHA gate.
+- El trabajo claim sí está en el árbol actual en el commit `045dde0c` (el changelog histórico cita otro SHA de una rama anterior; se debe verificar siempre contra el checkout actual antes de cerrar).
+- La auditoría actual es read-first y no implica producción, sandbox, cuentas reales, cambios de pricing ni publicación externa.
 
 ### Contratos que sí existen (reusables)
 
@@ -58,12 +62,11 @@ Restricciones: no inventar multi-academy, billing ni athlete self-serve.
 
 Siguiendo el principio de cambios mínimos:
 
-1. **Helper `findClaimableAcademyByEmail`** — query case-insensitive sobre `academies.contactEmail`, devuelve `{id, name, tenantId}` o null. Pure logic, testeable.
-2. **Componente `OwnerClaimCard`** — server-friendly card con botón "Confirmar y entrar". POST → `/api/onboarding/owner/claim`. Tenant isolation: el handler reusa `tenantId` del academy.
-3. **Endpoint POST `/api/onboarding/owner/claim`** — `pg_advisory_xact_lock(user.id)` + upsert profile (role=owner, tenantId=academy.tenantId, activeAcademyId=academy.id) + `onConflictDoNothing` memberships (resistente doble-click).
-4. **Modificar `src/app/onboarding/owner/page.tsx`** — chequeo claim primero: si `findClaimableAcademyByEmail` retorna algo → render `OwnerClaimCard`; si no → `OwnerOnboardingForm`.
-5. **Test del helper** — pure logic, sin DB.
-6. **Verificación local** — `pnpm typecheck` (al menos del subset tocado).
+1. **Claim** — ya implementado; verificar contrato y conservar el límite one-academy.
+2. **Invite** — conservar el handoff al dashboard y verificar la ruta real de coaches, sin duplicar el endpoint de invitaciones.
+3. **First class** — hacer explícito en el formulario que la plantilla es opcional y que puede retomarse desde el dashboard; no cambiar la transacción de creación más allá de lo necesario.
+4. **Navegación** — fijar en tests que alta/claim llegan al dashboard y que el CTA pendiente apunta a groups/classes/coaches según el estado.
+5. **Verificación local** — suite focal del paquete web, typecheck/lint dirigidos y evidencia separada de validación humana/producción.
 
 ## Lo que NO se hace (scope guard)
 

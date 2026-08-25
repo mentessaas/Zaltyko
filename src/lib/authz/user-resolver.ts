@@ -1,3 +1,4 @@
+import { timingSafeEqual } from "crypto";
 import { cookies } from "next/headers";
 
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
@@ -18,6 +19,7 @@ export async function resolveUserId(
   context?: { params?: Record<string, string> }
 ): Promise<string | null> {
   const isInternal = isTrustedInternalRequest(request);
+  // Comparación en tiempo constante para el secreto interno (evita side-channel)
   const headerUserId = request.headers.get("x-user-id");
   if (headerUserId && isInternal && UUID_REGEX.test(headerUserId)) {
     return headerUserId;
@@ -61,5 +63,8 @@ export async function resolveUserId(
 function isTrustedInternalRequest(request: Request): boolean {
   const secret = process.env.INTERNAL_AUTH_SECRET;
   if (!secret) return false;
-  return request.headers.get(INTERNAL_AUTH_HEADER) === secret;
+  const provided = request.headers.get(INTERNAL_AUTH_HEADER);
+  if (!provided || provided.length !== secret.length) return false;
+  // Comparación en tiempo constante: el header impersona a cualquier usuario.
+  return timingSafeEqual(Buffer.from(provided), Buffer.from(secret));
 }

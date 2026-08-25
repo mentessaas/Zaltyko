@@ -1,8 +1,6 @@
 {
   "framework": "nextjs",
-  "regions": [
-    "arn1"
-  ],
+  "regions": ["arn1"],
   "crons": [
     {
       "path": "/api/cron/class-reminders",
@@ -27,6 +25,18 @@
     {
       "path": "/api/cron/collect-charges",
       "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/cron/daily-alerts",
+      "schedule": "30 6 * * *"
+    },
+    {
+      "path": "/api/cron/onboarding-owner?step=d2",
+      "schedule": "0 10 * * *"
+    },
+    {
+      "path": "/api/cron/onboarding-owner?step=d7",
+      "schedule": "30 10 * * *"
     }
   ],
   "env": {

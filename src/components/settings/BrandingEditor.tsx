@@ -102,7 +102,7 @@ export function BrandingEditor({ data, onChange, disabled = false, preview = tru
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 font-display text-zaltyko-navy">
+        <CardTitle className="flex items-center gap-2 font-display text-foreground">
           <Palette className="h-5 w-5 text-zaltyko-teal" />
           Branding
         </CardTitle>
@@ -113,7 +113,7 @@ export function BrandingEditor({ data, onChange, disabled = false, preview = tru
       <CardContent className="space-y-6">
         {/* Colores */}
         <div className="space-y-4">
-          <h4 className="text-sm font-medium text-zaltyko-navy">Colores</h4>
+          <h4 className="text-sm font-medium text-foreground">Colores</h4>
           <div className="grid gap-4 md:grid-cols-3">
             <ColorPicker
               label="Color primario"
@@ -137,8 +137,8 @@ export function BrandingEditor({ data, onChange, disabled = false, preview = tru
         </div>
 
         {/* Tipografía */}
-        <div className="space-y-4 border-t border-zaltyko-mist pt-4">
-          <h4 className="flex items-center gap-2 text-sm font-medium text-zaltyko-navy">
+        <div className="space-y-4 border-t border-border pt-4">
+          <h4 className="flex items-center gap-2 text-sm font-medium text-foreground">
             <Type className="h-4 w-4 text-zaltyko-indigo" />
             Tipografía
           </h4>
@@ -146,7 +146,7 @@ export function BrandingEditor({ data, onChange, disabled = false, preview = tru
             <div className="space-y-2">
               <Label>Fuente para encabezados</Label>
               <select
-                className="w-full rounded-card border border-zaltyko-mist bg-white px-3 py-2 text-sm"
+                className="w-full rounded-card border border-border bg-card px-3 py-2 text-sm"
                 value={localData.fontHeading}
                 onChange={(e) => handleChange("fontHeading", e.target.value)}
                 disabled={disabled}
@@ -161,7 +161,7 @@ export function BrandingEditor({ data, onChange, disabled = false, preview = tru
             <div className="space-y-2">
               <Label>Fuente para texto</Label>
               <select
-                className="w-full rounded-card border border-zaltyko-mist bg-white px-3 py-2 text-sm"
+                className="w-full rounded-card border border-border bg-card px-3 py-2 text-sm"
                 value={localData.fontBody}
                 onChange={(e) => handleChange("fontBody", e.target.value)}
                 disabled={disabled}
@@ -177,8 +177,8 @@ export function BrandingEditor({ data, onChange, disabled = false, preview = tru
         </div>
 
         {/* Logos */}
-        <div className="space-y-4 border-t border-zaltyko-mist pt-4">
-          <h4 className="flex items-center gap-2 text-sm font-medium text-zaltyko-navy">
+        <div className="space-y-4 border-t border-border pt-4">
+          <h4 className="flex items-center gap-2 text-sm font-medium text-foreground">
             <Image className="h-4 w-4 text-zaltyko-indigo" />
             Logotipos
           </h4>
@@ -208,10 +208,10 @@ export function BrandingEditor({ data, onChange, disabled = false, preview = tru
 
         {/* Preview en tiempo real */}
         {preview && (
-          <div className="border-t border-zaltyko-mist pt-4">
-            <h4 className="mb-4 text-sm font-medium text-zaltyko-navy">Vista previa</h4>
+          <div className="border-t border-border pt-4">
+            <h4 className="mb-4 text-sm font-medium text-foreground">Vista previa</h4>
             <div
-              className="rounded-2xl border border-zaltyko-mist bg-zaltyko-warm-white p-6"
+              className="rounded-2xl border border-border bg-zaltyko-warm-white p-6"
               style={{
                 fontFamily: localData.fontBody,
               }}
@@ -241,7 +241,7 @@ export function BrandingEditor({ data, onChange, disabled = false, preview = tru
                   >
                     Nombre de la Academia
                   </h3>
-                  <p className="text-sm text-zaltyko-text-secondary">
+                  <p className="text-sm text-muted-foreground">
                     Subtítulo de ejemplo
                   </p>
                 </div>

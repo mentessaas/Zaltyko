@@ -208,7 +208,7 @@ export default async function AttendanceOverviewPage({ params }: PageProps) {
           {sessionsWithGroups.map((session) => {
             const attendanceCount = countMap.get(session.id) ?? 0;
             return (
-              <li key={session.id} className="rounded-[20px] border border-slate-200/80 bg-white p-4 shadow-[0_16px_36px_-28px_rgba(15,23,42,0.45)]">
+              <li key={session.id} className="rounded-[20px] border border-border/80 bg-card p-4 shadow-[0_16px_36px_-28px_rgba(15,23,42,0.45)]">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="font-medium">{session.className ?? "Clase"}</p>
@@ -257,9 +257,9 @@ export default async function AttendanceOverviewPage({ params }: PageProps) {
         </ul>
 
         {/* Tabla — escritorio */}
-        <div className="hidden overflow-x-auto rounded-[22px] border border-slate-200/80 bg-white shadow-[0_18px_50px_-32px_rgba(15,23,42,0.45)] md:block">
-          <table className="min-w-full divide-y divide-slate-100 text-sm">
-            <thead className="bg-slate-50/80">
+        <div className="hidden overflow-x-auto rounded-[22px] border border-border/80 bg-card shadow-[0_18px_50px_-32px_rgba(15,23,42,0.45)] md:block">
+          <table className="min-w-full divide-y divide-border text-sm">
+            <thead className="bg-muted/50/80">
               <tr className="text-left text-xs uppercase tracking-wide text-muted-foreground">
                 <th className="px-4 py-3 font-medium">Clase</th>
                 <th className="px-4 py-3 font-medium">Fecha</th>
@@ -270,11 +270,11 @@ export default async function AttendanceOverviewPage({ params }: PageProps) {
                 <th className="px-4 py-3 font-medium text-right">Acciones</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 bg-white text-foreground">
+            <tbody className="divide-y divide-border bg-card text-foreground">
               {sessionsWithGroups.map((session) => {
                 const attendanceCount = countMap.get(session.id) ?? 0;
                 return (
-                  <tr key={session.id} className="transition-colors hover:bg-slate-50">
+                  <tr key={session.id} className="transition-colors hover:bg-muted/50">
                     <td className="px-4 py-3 font-medium">{session.className ?? "Clase"}</td>
                     <td className="px-4 py-3">{formatShortDateForCountry(session.sessionDate, academy?.country ?? null)}</td>
                     <td className="px-4 py-3">

@@ -4,6 +4,7 @@ import { Metadata } from "next";
 import { and, eq, gte, inArray, isNull, lte } from "drizzle-orm";
 
 import { db } from "@/db";
+import { assessmentScores, skillCatalog } from "@/db/schema";
 import { academies, memberships, profiles, athletes, guardians, guardianAthletes, groups, classes, classSessions, classEnrollments, attendanceRecords, charges, groupAthletes, coaches, billingItems, athleteAssessments } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
 import { getDevSessionFromCookieStore } from "@/lib/dev-session";
@@ -584,6 +585,7 @@ export default async function MyDashboard({ params, searchParams }: PageProps) {
     apparatus: string | null;
     overallComment: string | null;
     assessedByName: string | null;
+    scores: { skillName: string; score: number }[];
   }[] = [];
 
   if (targetAthleteId) {
@@ -605,6 +607,25 @@ export default async function MyDashboard({ params, searchParams }: PageProps) {
       .orderBy(athleteAssessments.assessmentDate)
       .limit(5);
 
+    const assessmentIds = assessmentRows.map((r) => r.id);
+    const scoresMap = new Map<string, { skillName: string; score: number }[]>();
+    if (assessmentIds.length > 0) {
+      const scoreRows = await db
+        .select({
+          assessmentId: assessmentScores.assessmentId,
+          skillName: skillCatalog.name,
+          score: assessmentScores.score,
+        })
+        .from(assessmentScores)
+        .innerJoin(skillCatalog, eq(skillCatalog.id, assessmentScores.skillId))
+        .where(inArray(assessmentScores.assessmentId, assessmentIds));
+      for (const row of scoreRows) {
+        const arr = scoresMap.get(row.assessmentId) ?? [];
+        arr.push({ skillName: row.skillName, score: row.score });
+        scoresMap.set(row.assessmentId, arr);
+      }
+    }
+
     assessmentsData = assessmentRows
       .map((item) => ({
         id: item.id,
@@ -612,6 +633,7 @@ export default async function MyDashboard({ params, searchParams }: PageProps) {
         apparatus: item.apparatus,
         overallComment: item.overallComment ?? null,
         assessedByName: null,
+        scores: scoresMap.get(item.id) ?? [],
       }))
       .reverse();
   }

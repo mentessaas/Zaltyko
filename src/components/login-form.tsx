@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/toast-provider";
 import { AuthPageShell } from "@/components/auth/AuthPageShell";
 import { isValidEmail, normalizeEmail } from "@/lib/validation/email-utils";
+import { getSafeAuthNextPath } from "@/lib/auth/safe-next-path";
 
 export function LoginForm() {
   const [email, setEmail] = useState("");
@@ -19,13 +20,26 @@ export function LoginForm() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
-  const supabase = createClient();
+  // Cliente creado perezosamente: sin env de Supabase el formulario se renderiza
+  // igualmente y los handlers informan del problema en vez de tumbar la página.
+  let supabase: ReturnType<typeof createClient> | null = null;
+  try {
+    supabase = createClient();
+  } catch {
+    supabase = null;
+  }
   const toast = useToast();
   const noticeShownRef = useRef(false);
   const callbackUrl = searchParams.get("callbackUrl");
-  const nextPath = callbackUrl?.startsWith("/") && !callbackUrl.startsWith("//")
-    ? callbackUrl
-    : "/auth/redirect";
+  const nextPath = getSafeAuthNextPath(callbackUrl);
+
+  const authUnavailable = () => {
+    toast.pushToast({
+      title: "Servicio de acceso no disponible",
+      description: "La autenticación no está configurada en este entorno. Contacta con soporte si el problema continúa.",
+      variant: "error",
+    });
+  };
 
   useEffect(() => {
     if (noticeShownRef.current) return;
@@ -80,6 +94,10 @@ export function LoginForm() {
       return;
     }
     
+    if (!supabase) {
+      authUnavailable();
+      return;
+    }
     setLoading(true);
     try {
       const normalizedEmail = normalizeEmail(email);
@@ -132,6 +150,10 @@ export function LoginForm() {
       return;
     }
     
+    if (!supabase) {
+      authUnavailable();
+      return;
+    }
     setMagicLinkLoading(true);
     try {
       const normalizedEmail = normalizeEmail(email);
@@ -164,6 +186,10 @@ export function LoginForm() {
   };
 
   const handleGoogleSignIn = async () => {
+    if (!supabase) {
+      authUnavailable();
+      return;
+    }
     setGoogleLoading(true);
     try {
       const { error } = await supabase.auth.signInWithOAuth({

@@ -45,7 +45,7 @@ export function AuthPageShell({
           </div>
 
           <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center py-10">
-            <div className="rounded-2xl border border-white/10 bg-zaltyko-white p-6 text-zaltyko-navy shadow-medium sm:p-8">
+            <div className="rounded-2xl border border-white/10 bg-zaltyko-white p-6 text-foreground shadow-medium sm:p-8">
               <div className="space-y-5">
                 <Image
                   src="/branding/zaltyko/logo-zaltyko.svg"
@@ -59,10 +59,10 @@ export function AuthPageShell({
                   <p className="text-xs font-medium uppercase tracking-[0.16em] text-zaltyko-teal">
                     Acceso seguro
                   </p>
-                  <h1 className="font-display text-3xl font-semibold tracking-normal text-zaltyko-navy sm:text-4xl">
+                  <h1 className="font-display text-3xl font-semibold tracking-normal text-foreground sm:text-4xl">
                     {title}
                   </h1>
-                  <p className="text-sm leading-6 text-zaltyko-text-secondary sm:text-base">
+                  <p className="text-sm leading-6 text-muted-foreground sm:text-base">
                     {description}
                   </p>
                 </div>
@@ -70,7 +70,7 @@ export function AuthPageShell({
 
               <div className="mt-8">{children}</div>
 
-              <div className="mt-6 text-sm text-zaltyko-text-secondary">{footer}</div>
+              <div className="mt-6 text-sm text-muted-foreground">{footer}</div>
             </div>
           </div>
         </section>

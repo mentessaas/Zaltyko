@@ -113,11 +113,11 @@ export function FamilyPaymentMethodCard({ academyId }: Props) {
       </CardHeader>
       <CardContent className="space-y-4">
         {loading ? (
-          <div className="flex items-center gap-2 text-sm text-zaltyko-text-secondary">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" /> Cargando…
           </div>
         ) : !connectReady ? (
-          <p className="text-sm text-zaltyko-text-secondary">
+          <p className="text-sm text-muted-foreground">
             Esta academia aún no tiene activados los pagos con tarjeta.
           </p>
         ) : setup && stripePromise ? (
@@ -140,7 +140,7 @@ export function FamilyPaymentMethodCard({ academyId }: Props) {
               <CreditCard className="h-4 w-4" />
               <span className="capitalize">{card.brand}</span> ···· {card.last4}
               {card.expMonth && card.expYear ? (
-                <span className="text-zaltyko-text-secondary">
+                <span className="text-muted-foreground">
                   {String(card.expMonth).padStart(2, "0")}/{card.expYear}
                 </span>
               ) : null}

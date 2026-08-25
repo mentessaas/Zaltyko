@@ -69,7 +69,7 @@ export function RegistrationChart({ data, eventTitle }: RegistrationChartProps) 
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle className="font-display text-zaltyko-navy">Inscripciones</CardTitle>
+            <CardTitle className="font-display text-foreground">Inscripciones</CardTitle>
             <CardDescription>
               {eventTitle && `Inscripciones para ${eventTitle}`}
             </CardDescription>
@@ -88,26 +88,26 @@ export function RegistrationChart({ data, eventTitle }: RegistrationChartProps) 
         {/* Summary Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="space-y-1">
-            <p className="font-display text-2xl font-bold text-zaltyko-navy">{totalRegistrations}</p>
-            <p className="text-xs text-zaltyko-text-secondary">Total</p>
+            <p className="font-display text-2xl font-bold text-foreground">{totalRegistrations}</p>
+            <p className="text-xs text-muted-foreground">Total</p>
           </div>
           <div className="space-y-1">
             <p className="font-display text-2xl font-bold text-zaltyko-teal">
               {data.registrations.confirmed}
             </p>
-            <p className="text-xs text-zaltyko-text-secondary">Confirmados</p>
+            <p className="text-xs text-muted-foreground">Confirmados</p>
           </div>
           <div className="space-y-1">
             <p className="font-display text-2xl font-bold text-zaltyko-indigo">
               {data.registrations.pending}
             </p>
-            <p className="text-xs text-zaltyko-text-secondary">Pendientes</p>
+            <p className="text-xs text-muted-foreground">Pendientes</p>
           </div>
           <div className="space-y-1">
             <p className="font-display text-2xl font-bold text-zaltyko-coral">
               {data.registrations.waitlisted}
             </p>
-            <p className="text-xs text-zaltyko-text-secondary">En espera</p>
+            <p className="text-xs text-muted-foreground">En espera</p>
           </div>
         </div>
 
@@ -126,7 +126,7 @@ export function RegistrationChart({ data, eventTitle }: RegistrationChartProps) 
                 style={{ width: `${Math.min(100, data.capacity.utilizationPercent || 0)}%` }}
               />
             </div>
-            <p className="text-xs text-zaltyko-text-secondary">
+            <p className="text-xs text-muted-foreground">
               {data.capacity.total - (data.capacity.available || 0)} de {data.capacity.total} lugares ocupados
               {data.capacity.available !== null && data.capacity.available > 0 && (
                 <span className="ml-2 text-zaltyko-teal">
@@ -200,7 +200,7 @@ export function RegistrationChart({ data, eventTitle }: RegistrationChartProps) 
 
         {/* Empty State */}
         {totalRegistrations === 0 && (
-          <div className="absolute inset-0 flex items-center justify-center text-zaltyko-text-secondary">
+          <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
             <div className="text-center">
               <p className="text-sm">No hay inscripciones todavía</p>
             </div>
@@ -249,7 +249,7 @@ export function RegistrationTrendChart({ data }: RegistrationTrendChartProps) {
           <CardTitle>Tendencia de Inscripciones</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex h-[200px] items-center justify-center text-zaltyko-text-secondary">
+          <div className="flex h-[200px] items-center justify-center text-muted-foreground">
             No hay datos suficientes para mostrar la tendencia
           </div>
         </CardContent>

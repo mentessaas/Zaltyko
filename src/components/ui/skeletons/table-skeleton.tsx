@@ -193,7 +193,8 @@ export function ListSkeleton({
  */
 export interface GridSkeletonProps {
   items?: number;
-  cols?: "grid-cols-1" | "grid-cols-2" | "grid-cols-3" | "grid-cols-4";
+  /** Clases de columnas responsive del grid. */
+  cols?: string;
 }
 
 export function GridSkeleton({

@@ -69,13 +69,13 @@ export function PushPermissionPrompt({
               "flex h-10 w-10 items-center justify-center rounded-full",
               permission === "granted"
                 ? "bg-green-100 dark:bg-green-900"
-                : "bg-slate-100 dark:bg-slate-800"
+                : "bg-muted dark:bg-slate-800"
             )}
           >
             {permission === "granted" ? (
               <Bell className="h-5 w-5 text-green-600 dark:text-green-400" />
             ) : (
-              <BellOff className="h-5 w-5 text-slate-500" />
+              <BellOff className="h-5 w-5 text-muted-foreground" />
             )}
           </div>
         )}
@@ -152,8 +152,8 @@ export function PushPermissionBadge({ className }: { className?: string }) {
     return (
       <span
         className={cn(
-          "inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1 text-xs",
-          "text-slate-600 dark:bg-slate-800 dark:text-slate-400",
+          "inline-flex items-center gap-1 rounded-full bg-muted px-2 py-1 text-xs",
+          "text-muted-foreground dark:bg-slate-800 dark:text-muted-foreground",
           className
         )}
       >

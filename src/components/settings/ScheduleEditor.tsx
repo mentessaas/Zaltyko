@@ -112,7 +112,7 @@ export function ScheduleEditor({ data, onChange, disabled = false }: ScheduleEdi
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 font-display text-zaltyko-navy">
+        <CardTitle className="flex items-center gap-2 font-display text-foreground">
           <Clock className="h-5 w-5 text-zaltyko-teal" />
           Horarios de operación
         </CardTitle>
@@ -126,11 +126,11 @@ export function ScheduleEditor({ data, onChange, disabled = false }: ScheduleEdi
           {DAYS_OF_WEEK.map((day) => (
             <div key={day.value} className="space-y-2">
               <div className="text-center text-sm font-medium">{day.label}</div>
-              <div className="min-h-[120px] space-y-2 rounded-xl border border-zaltyko-mist bg-zaltyko-warm-white p-2">
+              <div className="min-h-[120px] space-y-2 rounded-xl border border-border bg-zaltyko-warm-white p-2">
                 {slotsByDay[day.value]?.map((slot) => (
                   <div
                     key={slot.id}
-                    className="relative rounded-lg bg-zaltyko-teal/10 p-2 text-xs text-zaltyko-navy"
+                    className="relative rounded-lg bg-zaltyko-teal/10 p-2 text-xs text-foreground"
                   >
                     <div className="font-medium">
                       {formatTime(slot.startTime)} - {formatTime(slot.endTime)}
@@ -148,7 +148,7 @@ export function ScheduleEditor({ data, onChange, disabled = false }: ScheduleEdi
                   </div>
                 ))}
                 {slotsByDay[day.value]?.length === 0 && (
-                  <div className="flex h-full items-center justify-center text-xs text-zaltyko-text-secondary">
+                  <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
                     Cerrado
                   </div>
                 )}
@@ -159,17 +159,17 @@ export function ScheduleEditor({ data, onChange, disabled = false }: ScheduleEdi
 
         {/* Editor de nuevo horario */}
         {!disabled && (
-          <div className="border-t border-zaltyko-mist pt-4">
+          <div className="border-t border-border pt-4">
             {editingSlot ? (
-              <div className="rounded-2xl border border-zaltyko-mist bg-zaltyko-warm-white p-4">
-                <h4 className="mb-4 text-sm font-medium text-zaltyko-navy">
+              <div className="rounded-2xl border border-border bg-zaltyko-warm-white p-4">
+                <h4 className="mb-4 text-sm font-medium text-foreground">
                   {editingSlot.id ? "Editar horario" : "Nuevo horario"}
                 </h4>
                 <div className="grid gap-4 md:grid-cols-4">
                   <div className="space-y-2">
                     <Label>Día de la semana</Label>
                     <select
-                      className="w-full rounded-card border border-zaltyko-mist bg-white px-3 py-2 text-sm"
+                      className="w-full rounded-card border border-border bg-card px-3 py-2 text-sm"
                       value={editingSlot.dayOfWeek}
                       onChange={(e) =>
                         setEditingSlot({ ...editingSlot, dayOfWeek: Number(e.target.value) })
@@ -223,7 +223,7 @@ export function ScheduleEditor({ data, onChange, disabled = false }: ScheduleEdi
         )}
 
         {data.slots.length === 0 && (
-          <p className="text-center text-sm text-zaltyko-text-secondary">
+          <p className="text-center text-sm text-muted-foreground">
             No hay horarios configurados. Agrega los horarios de operación de tu academia.
           </p>
         )}

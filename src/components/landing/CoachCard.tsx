@@ -28,7 +28,7 @@ const CoachCard = memo(function CoachCard({ coach, locale }: CoachCardProps) {
   const t = labels[locale];
 
   return (
-    <Card className="group card-hover h-full overflow-hidden border border-gray-100 bg-white hover:border-zaltyko-indigo/30">
+    <Card className="group card-hover h-full overflow-hidden border border-gray-100 bg-card hover:border-zaltyko-indigo/30">
       <CardContent className="p-5">
         {/* Photo and Name */}
         <div className="flex items-start gap-4 mb-4">
@@ -93,7 +93,7 @@ const CoachCard = memo(function CoachCard({ coach, locale }: CoachCardProps) {
         {coach.academySlug && (
           <Link
             href={`/coaches/${coach.academySlug}`}
-            className="inline-flex items-center text-sm font-medium text-zaltyko-indigo hover:text-zaltyko-navy transition-colors pt-3 border-t border-gray-100"
+            className="inline-flex items-center text-sm font-medium text-zaltyko-indigo hover:text-foreground transition-colors pt-3 border-t border-gray-100"
           >
             {t.viewProfile}
             <svg

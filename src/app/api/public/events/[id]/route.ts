@@ -56,7 +56,8 @@ export async function GET(request: Request, context: RouteContext) {
       .where(
         and(
           eq(events.id, id),
-          eq(events.isPublic, true)
+          eq(events.isPublic, true),
+          eq(events.status, 'published')
         )
       )
       .limit(1);

@@ -31,15 +31,7 @@ type ApiResponse = ApiSuccess | ApiError;
  *   5. Mostrar confirmacion final con link a `/preferences` (RGPD: opcion
  *      a reducir frecuencia sin perder todo).
  */
-export default function UnsubscribePage() {
-  return (
-    <Suspense fallback={null}>
-      <UnsubscribePageInner />
-    </Suspense>
-  );
-}
-
-function UnsubscribePageInner() {
+function UnsubscribeInner() {
   const searchParams = useSearchParams();
   const token = useMemo(() => searchParams.get("token") ?? "", [searchParams]);
 
@@ -143,9 +135,9 @@ function UnsubscribePageInner() {
             <p className="mt-2 text-sm text-muted-foreground">
               Recibiras un email de confirmacion. Si solo quieres reducir la
               frecuencia, cambia tus{" "}
-              <Link className="underline" href={`/preferences?token=${encodeURIComponent(token)}`}>
+              <a className="underline" href={`/preferences?token=${encodeURIComponent(token)}`}>
                 preferencias
-              </Link>{" "}
+              </a>{" "}
               en lugar de darte de baja.
             </p>
             <button
@@ -175,5 +167,29 @@ function UnsubscribePageInner() {
         )}
       </div>
     </main>
+  );
+}
+
+
+/**
+ * Suspense boundary requerido: useSearchParams() no puede prerenderizarse
+ * estaticamente sin el (missed-suspense-with-csr-bailout).
+ */
+export default function UnsubscribePage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="min-h-screen flex items-center justify-center bg-background px-4">
+          <div className="w-full max-w-lg rounded-lg border border-border bg-card p-8 shadow-sm">
+            <h1 className="text-2xl font-semibold text-foreground">
+              Darse de baja de emails
+            </h1>
+            <p className="mt-4 text-muted-foreground">Cargando...</p>
+          </div>
+        </main>
+      }
+    >
+      <UnsubscribeInner />
+    </Suspense>
   );
 }

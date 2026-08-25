@@ -40,7 +40,9 @@ export function OwnerClaimCard({ academyId, academyName }: OwnerClaimCardProps) 
       const payload = await response.json().catch(() => null);
 
       if (!response.ok) {
-        throw new Error(payload?.error ?? "No se pudo confirmar la academia.");
+        throw new Error(
+          payload?.message ?? payload?.error ?? "No se pudo confirmar la academia."
+        );
       }
 
       const redirectUrl = payload?.data?.redirectUrl ?? `/app/${academyId}/dashboard`;

@@ -240,7 +240,7 @@ export default async function AcademyLayout({ params, children }: LayoutProps) {
   return (
     <AcademyProvider value={contextValue}>
       <ToastProvider>
-        <div className="flex min-h-screen flex-col bg-[#F4F7F7]">
+        <div className="flex min-h-screen flex-col bg-background">
           <DashboardSkipLink />
           <GlobalTopNav
             userRole={profile.role}

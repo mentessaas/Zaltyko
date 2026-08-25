@@ -87,7 +87,7 @@ export function TimezoneSelector({ value, onChange, disabled = false }: Timezone
         name="timezone"
         searchPlaceholder="Buscar zona horaria..."
       />
-      <p className="text-xs text-zaltyko-text-secondary">
+      <p className="text-xs text-muted-foreground">
         La zona horaria afecta la programación de clases y eventos
       </p>
     </div>

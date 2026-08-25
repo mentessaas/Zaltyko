@@ -213,7 +213,7 @@ export default function SettingsPage() {
   if (loading) {
     return (
       <div className="flex h-[400px] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-zaltyko-text-secondary" />
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     );
   }
@@ -222,13 +222,13 @@ export default function SettingsPage() {
     <SettingsLayout activeSection={activeTab}>
       <div className="mx-auto max-w-[1500px] space-y-6">
         {/* Header */}
-        <div className="relative overflow-hidden rounded-[24px] border border-slate-200/80 bg-white p-6 shadow-[0_18px_50px_-32px_rgba(15,23,42,0.45)]">
+        <div className="relative overflow-hidden rounded-[24px] border border-border/80 bg-card p-6 shadow-[0_18px_50px_-32px_rgba(15,23,42,0.45)]">
           <div className="zaltyko-motion-lines pointer-events-none absolute inset-x-0 top-0 h-24 opacity-70" />
           <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <div className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.14em] text-zaltyko-teal"><Settings2 className="h-4 w-4" /> Configuración</div>
-            <h1 className="font-display text-3xl font-bold tracking-[-0.03em] text-zaltyko-navy">Ajustes de la academia</h1>
-            <p className="text-sm text-zaltyko-text-secondary">
+            <h1 className="font-display text-3xl font-bold tracking-[-0.03em] text-foreground">Ajustes de la academia</h1>
+            <p className="text-sm text-muted-foreground">
               Gestiona la información, branding y configuración de tu academia
             </p>
           </div>
@@ -319,15 +319,15 @@ export default function SettingsPage() {
                       </option>
                     ))}
                   </Select>
-                  <p className="text-xs text-zaltyko-text-secondary">
+                  <p className="text-xs text-muted-foreground">
                     Esta especialización define niveles, aparatos, evaluaciones y etiquetas visibles en la operación diaria.
                   </p>
                 </div>
 
-                <div className="space-y-3 rounded-xl border border-zaltyko-mist bg-zaltyko-warm-white p-4">
+                <div className="space-y-3 rounded-xl border border-border bg-zaltyko-warm-white p-4">
                   <div>
                     <Label>Ramas activas</Label>
-                    <p className="text-xs text-zaltyko-text-secondary">
+                    <p className="text-xs text-muted-foreground">
                       Una misma academia puede operar varias ramas sin mezclar aparatos, programas ni terminología.
                     </p>
                   </div>
@@ -335,7 +335,7 @@ export default function SettingsPage() {
                     {MULTI_BRANCH_VARIANTS.map((type) => (
                       <label
                         key={type.value}
-                        className="flex items-start gap-2 rounded-lg border border-zaltyko-mist bg-white p-3 text-sm"
+                        className="flex items-start gap-2 rounded-lg border border-border bg-card p-3 text-sm"
                       >
                         <input
                           type="checkbox"
@@ -344,8 +344,8 @@ export default function SettingsPage() {
                           onChange={() => toggleActiveDisciplineVariant(type.value)}
                         />
                         <span>
-                          <span className="block font-medium text-zaltyko-navy">{type.label}</span>
-                          <span className="text-xs text-zaltyko-text-secondary">
+                          <span className="block font-medium text-foreground">{type.label}</span>
+                          <span className="text-xs text-muted-foreground">
                             {settings.sportConfigs.find((config) => config.defaultDisciplineVariant === type.value)
                               ?.apparatus.map((item) => item.name)
                               .slice(0, 4)
@@ -357,25 +357,25 @@ export default function SettingsPage() {
                   </div>
                 </div>
 
-                <div className="space-y-3 rounded-xl border border-zaltyko-mist bg-white p-4">
+                <div className="space-y-3 rounded-xl border border-border bg-card p-4">
                   <div>
                     <Label>Programas y aparatos activos por rama</Label>
-                    <p className="text-xs text-zaltyko-text-secondary">
+                    <p className="text-xs text-muted-foreground">
                       Estos códigos controlan qué opciones aparecen al crear grupos, clases, evaluaciones y resultados.
                     </p>
                   </div>
                   <div className="grid gap-3">
                     {activeSportConfigEditors.map((editor) => (
-                      <div key={editor.variant} className="space-y-3 rounded-lg border border-zaltyko-mist bg-zaltyko-warm-white p-4">
+                      <div key={editor.variant} className="space-y-3 rounded-lg border border-border bg-zaltyko-warm-white p-4">
                         <div>
-                          <p className="font-medium text-zaltyko-navy">{editor.label}</p>
-                          <p className="text-xs text-zaltyko-text-secondary">
+                          <p className="font-medium text-foreground">{editor.label}</p>
+                          <p className="text-xs text-muted-foreground">
                             Mantén al menos un programa y un aparato activo.
                           </p>
                         </div>
 
                         <div className="space-y-2">
-                          <p className="text-xs font-medium uppercase text-zaltyko-text-secondary">Programas</p>
+                          <p className="text-xs font-medium uppercase text-muted-foreground">Programas</p>
                           <div className="flex flex-wrap gap-2">
                             {editor.programs.map((program) => {
                               const selected = (settings.activeProgramCodesByVariant[editor.variant] ?? []).includes(program.code);
@@ -385,8 +385,8 @@ export default function SettingsPage() {
                                   key={program.code}
                                   className={`flex items-center gap-2 rounded-full border px-3 py-1 text-xs ${
                                     locked
-                                      ? "border-zaltyko-teal/30 bg-zaltyko-teal/10 text-zaltyko-navy"
-                                      : "border-zaltyko-mist bg-white text-zaltyko-text-secondary"
+                                      ? "border-zaltyko-teal/30 bg-zaltyko-teal/10 text-foreground"
+                                      : "border-border bg-card text-muted-foreground"
                                   }`}
                                 >
                                   <input
@@ -407,7 +407,7 @@ export default function SettingsPage() {
                         </div>
 
                         <div className="space-y-2">
-                          <p className="text-xs font-medium uppercase text-zaltyko-text-secondary">Aparatos</p>
+                          <p className="text-xs font-medium uppercase text-muted-foreground">Aparatos</p>
                           <div className="flex flex-wrap gap-2">
                             {editor.apparatus.map((apparatus) => {
                               const selected = (settings.activeApparatusCodesByVariant[editor.variant] ?? []).includes(apparatus.code);
@@ -417,8 +417,8 @@ export default function SettingsPage() {
                                   key={apparatus.code}
                                   className={`flex items-center gap-2 rounded-full border px-3 py-1 text-xs ${
                                     locked
-                                      ? "border-zaltyko-teal/30 bg-zaltyko-teal/10 text-zaltyko-navy"
-                                      : "border-zaltyko-mist bg-white text-zaltyko-text-secondary"
+                                      ? "border-zaltyko-teal/30 bg-zaltyko-teal/10 text-foreground"
+                                      : "border-border bg-card text-muted-foreground"
                                   }`}
                                 >
                                   <input
@@ -438,12 +438,12 @@ export default function SettingsPage() {
                           </div>
                         </div>
 
-                        <div className="space-y-3 rounded-lg border border-zaltyko-mist bg-white p-3">
+                        <div className="space-y-3 rounded-lg border border-border bg-card p-3">
                           <div>
-                            <p className="text-xs font-medium uppercase text-zaltyko-text-secondary">
+                            <p className="text-xs font-medium uppercase text-muted-foreground">
                               Terminología visible
                             </p>
-                            <p className="text-xs text-zaltyko-text-secondary">
+                            <p className="text-xs text-muted-foreground">
                               Estos términos se aplican solo a esta rama dentro de esta academia.
                             </p>
                           </div>
@@ -536,12 +536,12 @@ export default function SettingsPage() {
                   </div>
                 </div>
 
-                <div className="rounded-2xl border border-zaltyko-mist bg-zaltyko-warm-white p-4 text-sm">
-                  <p className="font-medium text-zaltyko-navy">Configuración técnica activa</p>
-                  <p className="mt-1 text-zaltyko-text-secondary">
+                <div className="rounded-2xl border border-border bg-zaltyko-warm-white p-4 text-sm">
+                  <p className="font-medium text-foreground">Configuración técnica activa</p>
+                  <p className="mt-1 text-muted-foreground">
                     {settings.federationConfigVersion} · estado {settings.specializationStatus}
                   </p>
-                  <p className="mt-2 text-xs text-zaltyko-text-secondary">
+                  <p className="mt-2 text-xs text-muted-foreground">
                     Si la academia ya opera con datos reales, cambiar disciplina o país debe tratarse como migración guiada.
                   </p>
                 </div>
@@ -560,7 +560,7 @@ export default function SettingsPage() {
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
                     <Label htmlFor="isPublic">Visible en directorio público</Label>
-                    <p className="text-xs text-zaltyko-text-secondary">
+                    <p className="text-xs text-muted-foreground">
                       Permite que tu academia aparezca en búsquedas públicas
                     </p>
                   </div>
@@ -658,45 +658,45 @@ function TerminologyPreview({ terminology }: { terminology: Record<string, strin
   const lower = (value: string) => value.toLocaleLowerCase();
 
   return (
-    <div className="rounded-lg border border-zaltyko-mist bg-zaltyko-warm-white p-3">
-      <div className="flex items-center gap-2 text-xs font-medium uppercase text-zaltyko-text-secondary">
+    <div className="rounded-lg border border-border bg-zaltyko-warm-white p-3">
+      <div className="flex items-center gap-2 text-xs font-medium uppercase text-muted-foreground">
         <Eye className="h-3.5 w-3.5" />
         Vista previa operativa
       </div>
 
       <div className="mt-3 grid gap-3 lg:grid-cols-3">
-        <div className="rounded-lg border border-zaltyko-mist bg-white p-3">
-          <p className="text-xs font-medium text-zaltyko-text-secondary">Acciones</p>
+        <div className="rounded-lg border border-border bg-card p-3">
+          <p className="text-xs font-medium text-muted-foreground">Acciones</p>
           <div className="mt-2 flex flex-wrap gap-2">
             <span className="rounded-md bg-zaltyko-teal px-2 py-1 text-xs font-medium text-white">
               Nuevo {lower(terms.athlete)}
             </span>
-            <span className="rounded-md border border-zaltyko-mist px-2 py-1 text-xs text-zaltyko-navy">
+            <span className="rounded-md border border-border px-2 py-1 text-xs text-foreground">
               Crear {lower(terms.group)}
             </span>
           </div>
         </div>
 
-        <div className="rounded-lg border border-zaltyko-mist bg-white p-3">
-          <p className="text-xs font-medium text-zaltyko-text-secondary">Listado</p>
-          <div className="mt-2 grid grid-cols-3 gap-1 text-[11px] text-zaltyko-text-secondary">
+        <div className="rounded-lg border border-border bg-card p-3">
+          <p className="text-xs font-medium text-muted-foreground">Listado</p>
+          <div className="mt-2 grid grid-cols-3 gap-1 text-[11px] text-muted-foreground">
             <span>{terms.athlete}</span>
             <span>{terms.group}</span>
             <span>{terms.apparatus}</span>
           </div>
-          <div className="mt-1 grid grid-cols-3 gap-1 rounded bg-zaltyko-warm-white px-2 py-1 text-xs text-zaltyko-navy">
+          <div className="mt-1 grid grid-cols-3 gap-1 rounded bg-zaltyko-warm-white px-2 py-1 text-xs text-foreground">
             <span>Lucía</span>
             <span>{terms.team}</span>
             <span>{terms.routine}</span>
           </div>
         </div>
 
-        <div className="rounded-lg border border-zaltyko-mist bg-white p-3">
-          <p className="text-xs font-medium text-zaltyko-text-secondary">Estados</p>
-          <p className="mt-2 text-xs text-zaltyko-navy">
+        <div className="rounded-lg border border-border bg-card p-3">
+          <p className="text-xs font-medium text-muted-foreground">Estados</p>
+          <p className="mt-2 text-xs text-foreground">
             Sin {lower(terms.group)} asignado
           </p>
-          <p className="mt-1 text-xs text-zaltyko-text-secondary">
+          <p className="mt-1 text-xs text-muted-foreground">
             {terms.license}: pendiente · {terms.attendance}: registrada
           </p>
         </div>

@@ -4,6 +4,7 @@ import Navbar from "@/app/(site)/Navbar";
 import Footer from "@/app/(site)/Footer";
 import { Target, Heart, TrendingUp, Shield, MapPin, ArrowRight, Sparkles } from "lucide-react";
 import { Schema } from "@/components/Schema";
+import Reveal from "@/components/motion/Reveal";
 import { getPublicSiteUrl } from "@/lib/seo/site-url";
 
 const baseUrl = getPublicSiteUrl();
@@ -61,10 +62,11 @@ export default function AboutPage() {
 
       {/* Hero */}
       <section className="pt-32 pb-16 bg-gradient-to-b from-zaltyko-primary/5 to-transparent">
-        <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 text-center">
-          <span className="inline-block text-sm font-semibold text-zaltyko-primary uppercase tracking-wider mb-4">
-            Sobre Nosotros
-          </span>
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 text-center">
+          <Reveal>
+            <span className="inline-block text-sm font-semibold text-zaltyko-primary uppercase tracking-wider mb-4">
+              Sobre Nosotros
+            </span>
           <h1 className="font-display text-4xl font-bold tracking-tight text-zaltyko-text-main sm:text-5xl">
             Zaltyko empezó mucho antes de escribir la primera línea de código
           </h1>
@@ -72,6 +74,7 @@ export default function AboutPage() {
             La historia de un entrenador de gimnasia que decidió construir la herramienta
             que su academia necesitaba.
           </p>
+          </Reveal>
         </div>
       </section>
 

@@ -5,11 +5,11 @@ import { WEEKDAY_OPTIONS } from "@/lib/classes/constants";
 import type { CoachOption, GroupOption } from "./edit-class-dialog-model";
 
 const fieldClassName =
-  "w-full rounded-card border border-zaltyko-mist bg-white px-3 py-2 text-sm shadow-none focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15";
-const labelClassName = "text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy";
+  "w-full rounded-card border border-border bg-card px-3 py-2 text-sm shadow-none focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15";
+const labelClassName = "text-xs font-medium uppercase tracking-[0.05em] text-foreground";
 const selectedChipClassName = "border-zaltyko-teal bg-zaltyko-teal/10 text-zaltyko-teal";
 const unselectedChipClassName =
-  "border-zaltyko-mist bg-white text-zaltyko-text-secondary hover:border-zaltyko-teal hover:text-zaltyko-teal";
+  "border-border bg-card text-muted-foreground hover:border-zaltyko-teal hover:text-zaltyko-teal";
 
 export function EditClassError({ error }: { error: string | null }) {
   if (!error) return null;
@@ -141,7 +141,7 @@ export function ClassScheduleSection({
               );
             })}
           </div>
-          <p className="text-xs text-zaltyko-text-secondary">
+          <p className="text-xs text-muted-foreground">
             Selecciona uno o varios días. Déjalo vacío para {classTermLower}s flexibles.
           </p>
         </div>
@@ -297,17 +297,17 @@ export function ClassAssignmentsSection({
 }) {
   return (
     <div className="grid gap-4 md:grid-cols-2">
-      <section className="space-y-3 rounded-2xl border border-dashed border-zaltyko-mist p-4">
+      <section className="space-y-3 rounded-2xl border border-dashed border-border p-4">
         <header>
-          <h3 className="text-sm font-semibold text-zaltyko-navy">{terms.coach}s asignados</h3>
-          <p className="text-xs text-zaltyko-text-secondary">
+          <h3 className="text-sm font-semibold text-foreground">{terms.coach}s asignados</h3>
+          <p className="text-xs text-muted-foreground">
             Selecciona quiénes tienen acceso directo a esta {classTermLower}.
           </p>
         </header>
 
         <div className="grid gap-2">
           {compatibleCoaches.length === 0 ? (
-            <p className="text-sm text-zaltyko-text-secondary">
+            <p className="text-sm text-muted-foreground">
               No hay {coachTermPluralLower} disponibles para esta rama.
             </p>
           ) : (
@@ -323,17 +323,17 @@ export function ClassAssignmentsSection({
         </div>
       </section>
 
-      <section className="space-y-3 rounded-2xl border border-dashed border-zaltyko-mist p-4">
+      <section className="space-y-3 rounded-2xl border border-dashed border-border p-4">
         <header>
-          <h3 className="text-sm font-semibold text-zaltyko-navy">{terms.groups} asignados</h3>
-          <p className="text-xs text-zaltyko-text-secondary">
+          <h3 className="text-sm font-semibold text-foreground">{terms.groups} asignados</h3>
+          <p className="text-xs text-muted-foreground">
             Selecciona los {groupTermLower}s que participan en esta {classTermLower}.
           </p>
         </header>
 
         <div className="grid gap-2">
           {!hasGroups ? (
-            <p className="text-sm text-zaltyko-text-secondary">
+            <p className="text-sm text-muted-foreground">
               No hay {groupTermLower}s registrados en la academia.
             </p>
           ) : (
@@ -374,26 +374,26 @@ export function ClassAdvancedOptionsSection({
   onWaitingListEnabledChange: (value: boolean) => void;
 }) {
   return (
-    <div className="space-y-4 rounded-2xl border border-zaltyko-mist bg-zaltyko-warm-white p-4">
-      <h3 className="text-sm font-semibold text-zaltyko-navy">Opciones avanzadas</h3>
+    <div className="space-y-4 rounded-2xl border border-border bg-zaltyko-warm-white p-4">
+      <h3 className="text-sm font-semibold text-foreground">Opciones avanzadas</h3>
 
       <div className="flex flex-wrap gap-4">
-        <label className="flex items-center gap-2 text-sm text-zaltyko-navy">
+        <label className="flex items-center gap-2 text-sm text-foreground">
           <input
             type="checkbox"
             checked={allowsFreeTrial}
             onChange={(event) => onAllowsFreeTrialChange(event.target.checked)}
-            className="rounded border-zaltyko-mist text-zaltyko-teal focus:ring-zaltyko-teal"
+            className="rounded border-border text-zaltyko-teal focus:ring-zaltyko-teal"
           />
           Permite {classTermLower} de prueba gratuita
         </label>
 
-        <label className="flex items-center gap-2 text-sm text-zaltyko-navy">
+        <label className="flex items-center gap-2 text-sm text-foreground">
           <input
             type="checkbox"
             checked={waitingListEnabled}
             onChange={(event) => onWaitingListEnabledChange(event.target.checked)}
-            className="rounded border-zaltyko-mist text-zaltyko-teal focus:ring-zaltyko-teal"
+            className="rounded border-border text-zaltyko-teal focus:ring-zaltyko-teal"
           />
           Habilitar lista de espera cuando esté llena
         </label>
@@ -422,7 +422,7 @@ export function ClassAdvancedOptionsSection({
             onChange={(event) => onCancellationHoursBeforeChange(Number(event.target.value))}
             className={fieldClassName}
           />
-          <p className="text-xs text-zaltyko-text-secondary">Horas antes de la {classTermLower}</p>
+          <p className="text-xs text-muted-foreground">Horas antes de la {classTermLower}</p>
         </div>
       </div>
     </div>
@@ -441,18 +441,18 @@ function CoachOptionRow({
   return (
     <label
       className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-sm transition ${
-        checked ? "border-zaltyko-teal/60 bg-zaltyko-teal/10" : "border-zaltyko-mist bg-white"
+        checked ? "border-zaltyko-teal/60 bg-zaltyko-teal/10" : "border-border bg-card"
       }`}
     >
       <input
         type="checkbox"
         checked={checked}
         onChange={onToggle}
-        className="rounded border-zaltyko-mist text-zaltyko-teal focus:ring-zaltyko-teal"
+        className="rounded border-border text-zaltyko-teal focus:ring-zaltyko-teal"
       />
       <div>
-        <p className="font-medium text-zaltyko-navy">{coach.name}</p>
-        <p className="text-xs text-zaltyko-text-secondary">{coach.email ?? "Sin correo"}</p>
+        <p className="font-medium text-foreground">{coach.name}</p>
+        <p className="text-xs text-muted-foreground">{coach.email ?? "Sin correo"}</p>
       </div>
     </label>
   );
@@ -470,18 +470,18 @@ function GroupOptionRow({
   return (
     <label
       className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-sm transition ${
-        checked ? "border-zaltyko-teal/60 bg-zaltyko-teal/10" : "border-zaltyko-mist bg-white"
+        checked ? "border-zaltyko-teal/60 bg-zaltyko-teal/10" : "border-border bg-card"
       }`}
     >
       <input
         type="checkbox"
         checked={checked}
         onChange={onToggle}
-        className="rounded border-zaltyko-mist text-zaltyko-teal focus:ring-zaltyko-teal"
+        className="rounded border-border text-zaltyko-teal focus:ring-zaltyko-teal"
       />
       <div className="flex items-center gap-2">
         {group.color && <span className="h-3 w-3 rounded-full" style={{ backgroundColor: group.color }} />}
-        <p className="font-medium text-zaltyko-navy">{group.name}</p>
+        <p className="font-medium text-foreground">{group.name}</p>
       </div>
     </label>
   );

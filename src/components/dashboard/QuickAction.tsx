@@ -27,9 +27,9 @@ export function QuickAction({
             onClick={onClick}
             disabled={disabled}
             className={cn(
-                "group relative flex w-full items-center gap-4 rounded-2xl border border-zaltyko-mist bg-white p-4 text-left shadow-soft transition-all duration-150",
+                "group relative flex w-full items-center gap-4 rounded-2xl border border-border bg-card p-4 text-left shadow-soft transition-all duration-150",
                 "hover:border-zaltyko-teal/40 hover:bg-zaltyko-white",
-                "disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-zaltyko-mist disabled:hover:bg-white disabled:hover:shadow-soft",
+                "disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-border disabled:hover:bg-card disabled:hover:shadow-soft",
                 variant === "destructive" && "border-zaltyko-coral/40 bg-zaltyko-coral/5",
                 variant === "secondary" && "border-zaltyko-indigo/25 bg-zaltyko-indigo/5"
             )}
@@ -48,7 +48,7 @@ export function QuickAction({
 
             <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                    <h4 className="truncate text-sm font-semibold text-zaltyko-navy">{label}</h4>
+                    <h4 className="truncate text-sm font-semibold text-foreground">{label}</h4>
                     {badge && badge > 0 ? (
                         <Badge
                             variant={variant === "destructive" ? "error" : "default"}
@@ -58,12 +58,12 @@ export function QuickAction({
                         </Badge>
                     ) : null}
                 </div>
-                <p className="mt-0.5 truncate text-xs text-zaltyko-text-secondary">
+                <p className="mt-0.5 truncate text-xs text-muted-foreground">
                     {description}
                 </p>
             </div>
 
-            <div className="shrink-0 text-slate-600 transition-colors group-hover:text-zaltyko-teal">
+            <div className="shrink-0 text-muted-foreground transition-colors group-hover:text-zaltyko-teal">
                 <svg
                     xmlns="http://www.w3.org/2000/svg"
                     width="20"

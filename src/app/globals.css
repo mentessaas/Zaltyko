@@ -419,3 +419,27 @@ body {
     @apply hidden;
   }
 }
+
+/* ===== Motion del dashboard (Ox Alpha) ===== */
+/* Dibujado de línea para gráficos SVG (Pulso operativo). El dasharray se
+   anima con longitud genérica grande; reduced-motion lo muestra directo. */
+@keyframes zk-draw {
+  from {
+    stroke-dashoffset: 2400;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.zk-draw-line {
+  stroke-dasharray: 2400;
+  animation: zk-draw 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .zk-draw-line {
+    stroke-dasharray: none;
+    animation: none;
+  }
+}

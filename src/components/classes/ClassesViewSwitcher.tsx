@@ -27,14 +27,14 @@ export function ClassesViewSwitcher({ initialView = "table" }: ClassesViewSwitch
   }, [router, searchParams]);
 
   return (
-    <div className="inline-flex items-center rounded-xl border border-zaltyko-mist bg-white p-1 shadow-soft">
+    <div className="inline-flex items-center rounded-xl border border-border bg-card p-1 shadow-soft">
       <button
         type="button"
         onClick={() => handleViewChange("table")}
         className={`min-h-9 rounded-lg px-3 py-1.5 text-sm font-medium transition ${
           view === "table"
             ? "bg-zaltyko-teal text-white shadow-soft"
-            : "text-zaltyko-text-secondary hover:bg-zaltyko-warm-white hover:text-zaltyko-navy"
+            : "text-muted-foreground hover:bg-zaltyko-warm-white hover:text-foreground"
         }`}
       >
         Tabla
@@ -45,7 +45,7 @@ export function ClassesViewSwitcher({ initialView = "table" }: ClassesViewSwitch
         className={`min-h-9 rounded-lg px-3 py-1.5 text-sm font-medium transition ${
           view === "calendar"
             ? "bg-zaltyko-teal text-white shadow-soft"
-            : "text-zaltyko-text-secondary hover:bg-zaltyko-warm-white hover:text-zaltyko-navy"
+            : "text-muted-foreground hover:bg-zaltyko-warm-white hover:text-foreground"
         }`}
       >
         Calendario

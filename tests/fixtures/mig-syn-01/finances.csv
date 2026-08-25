@@ -1,0 +1,6 @@
+external_id,kind,occurred_on,amount_eur,currency,origin_status,origin_reference,family_external_id,athlete_external_id,academy_id,notes
+FIN-CHG-001,charge,2026-01-05,150.00,EUR,pending,REF-A,FAM-A-001,A-001,00000000-aaaa-0000-0000-000000000001,
+FIN-CHG-002,charge,2026-02-05,135.00,EUR,pending,REF-B,FAM-A-002,A-002,00000000-aaaa-0000-0000-000000000001,
+FIN-PAY-001,payment,2026-01-10,150.00,EUR,paid,REF-PAY-A,FAM-A-001,A-001,00000000-aaaa-0000-0000-000000000001,cubre cargo CHG-001
+FIN-REF-001,refund,2026-01-12,0.00,EUR,paid,REF-REF-A,FAM-A-001,A-001,00000000-aaaa-0000-0000-000000000001,reembolso cero por reconciliación
+FIN-CHG-003,charge,2026-03-05,135.00,EUR,pending,REF-C,FAM-A-003,A-003,00000000-aaaa-0000-0000-000000000001,saldo apertura esperado 135.00 EUR

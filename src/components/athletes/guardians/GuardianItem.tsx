@@ -123,7 +123,7 @@ export function GuardianItem({
             {guardian.email ?? "Sin correo"} · {guardian.phone ?? "Sin teléfono"}
           </p>
           <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-            <span className="rounded-full bg-white/60 px-2 py-0.5 font-semibold text-foreground">
+            <span className="rounded-full bg-card/60 px-2 py-0.5 font-semibold text-foreground">
               Relación: {guardian.linkRelationship ?? guardian.email ?? "No especificada"}
             </span>
             {guardian.isPrimary ? (

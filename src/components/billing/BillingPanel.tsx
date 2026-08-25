@@ -366,8 +366,8 @@ export const BillingPanel = memo(function BillingPanel({ academyId, userId, spor
         </TabsList>
 
         <TabsContent value="plans" className="space-y-8">
-          <section className="rounded-2xl border border-zaltyko-mist bg-white p-6 shadow-soft">
-        <h2 className="font-display text-xl font-semibold text-zaltyko-navy">Plan actual</h2>
+          <section className="rounded-2xl border border-border bg-card p-6 shadow-soft">
+        <h2 className="font-display text-xl font-semibold text-foreground">Plan actual</h2>
         {loadingSummary ? (
           <p className="text-sm text-muted-foreground">Cargando información…</p>
         ) : !summary ? (
@@ -388,20 +388,20 @@ export const BillingPanel = memo(function BillingPanel({ academyId, userId, spor
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-muted-foreground">
               <p>
-                <span className="font-medium text-zaltyko-navy">Límite {athletesTermLower}:</span> {summary.athleteLimit ?? "Ilimitado"}
+                <span className="font-medium text-foreground">Límite {athletesTermLower}:</span> {summary.athleteLimit ?? "Ilimitado"}
               </p>
               <p>
-                <span className="font-medium text-zaltyko-navy">Límite clases:</span> {summary.classLimit ?? "Ilimitado"}
+                <span className="font-medium text-foreground">Límite clases:</span> {summary.classLimit ?? "Ilimitado"}
               </p>
             </div>
             {currentPlanInfo && (
               <p className="text-sm text-muted-foreground">
-                <span className="font-medium text-zaltyko-navy">Cuota:</span> {formatPlanPrice(currentPlanInfo)} /{" "}
+                <span className="font-medium text-foreground">Cuota:</span> {formatPlanPrice(currentPlanInfo)} /{" "}
                 {translateBillingInterval(currentPlanInfo.billingInterval) ?? "mes"}
               </p>
             )}
             {summary.trial.active && summary.trial.endsAt && (
-              <p className="rounded-xl border border-zaltyko-teal/30 bg-zaltyko-teal/5 p-3 text-sm text-zaltyko-navy">
+              <p className="rounded-xl border border-zaltyko-teal/30 bg-zaltyko-teal/5 p-3 text-sm text-foreground">
                 Starter está desbloqueado sin tarjeta hasta el {new Date(summary.trial.endsAt).toLocaleDateString("es-ES")}.
               </p>
             )}
@@ -451,7 +451,7 @@ export const BillingPanel = memo(function BillingPanel({ academyId, userId, spor
 
       <section className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="font-display text-xl font-semibold text-zaltyko-navy">Planes disponibles</h2>
+          <h2 className="font-display text-xl font-semibold text-foreground">Planes disponibles</h2>
           {loadingPlans && <p className="text-sm text-muted-foreground">Sincronizando con Stripe…</p>}
         </div>
         <div className="grid gap-4 md:grid-cols-3">
@@ -467,14 +467,14 @@ export const BillingPanel = memo(function BillingPanel({ academyId, userId, spor
             return (
               <article
                 key={plan.code}
-                className={`flex h-full flex-col rounded-2xl border bg-white p-6 shadow-soft transition hover:border-zaltyko-teal/40 ${
-                  plan.code === "pro" ? "border-zaltyko-teal" : "border-zaltyko-mist"
+                className={`flex h-full flex-col rounded-2xl border bg-card p-6 shadow-soft transition hover:border-zaltyko-teal/40 ${
+                  plan.code === "pro" ? "border-zaltyko-teal" : "border-border"
                 }`}
               >
                 <div className="space-y-2">
-                  <h3 className="font-display text-lg font-semibold text-zaltyko-navy">{resolvePlanTitle(plan)}</h3>
+                  <h3 className="font-display text-lg font-semibold text-foreground">{resolvePlanTitle(plan)}</h3>
                   <p className="text-sm text-muted-foreground">{resolvePlanDescription(plan, athletesTermLower)}</p>
-                  <p className="mt-2 font-display text-2xl font-bold text-zaltyko-navy">
+                  <p className="mt-2 font-display text-2xl font-bold text-foreground">
                     {formatPlanPrice(plan)}{" "}
                     {plan.billingInterval ? (
                       <span className="text-sm font-normal text-muted-foreground">
@@ -490,7 +490,7 @@ export const BillingPanel = memo(function BillingPanel({ academyId, userId, spor
                     </p>
                   )}
                   <button
-                    className="mt-4 min-h-11 w-full rounded-xl bg-zaltyko-teal px-4 py-2 font-medium text-white transition hover:bg-primary-dark disabled:bg-zaltyko-mist disabled:text-slate-500"
+                    className="mt-4 min-h-11 w-full rounded-xl bg-zaltyko-teal px-4 py-2 font-medium text-white transition hover:bg-primary-dark disabled:bg-zaltyko-mist disabled:text-muted-foreground"
                     disabled={isFree || isCurrent || loadingAction === code || loadingAction === "portal"}
                     onClick={() => (summary?.hasManagedSubscription ? openPortal() : triggerCheckout(code))}
                   >
@@ -513,13 +513,13 @@ export const BillingPanel = memo(function BillingPanel({ academyId, userId, spor
 
       <section className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="font-display text-xl font-semibold text-zaltyko-navy">Recibos de suscripción</h2>
+          <h2 className="font-display text-xl font-semibold text-foreground">Recibos de suscripción</h2>
           {loadingHistory && <p className="text-sm text-muted-foreground">Cargando…</p>}
         </div>
-        <div className="overflow-x-auto rounded-2xl border border-zaltyko-mist bg-white shadow-soft">
-          <table className="min-w-full divide-y divide-slate-100 text-sm">
+        <div className="overflow-x-auto rounded-2xl border border-border bg-card shadow-soft">
+          <table className="min-w-full divide-y divide-border text-sm">
             <thead className="bg-zaltyko-white">
-              <tr className="text-left text-xs uppercase tracking-[0.05em] text-slate-400">
+              <tr className="text-left text-xs uppercase tracking-[0.05em] text-muted-foreground">
                 <th className="px-4 py-3 font-medium">Fecha</th>
                 <th className="px-4 py-3 font-medium">Período</th>
                 <th className="px-4 py-3 font-medium">Estado</th>
@@ -528,7 +528,7 @@ export const BillingPanel = memo(function BillingPanel({ academyId, userId, spor
                 <th className="px-4 py-3 font-medium text-right">Acciones</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 bg-white text-zaltyko-navy">
+            <tbody className="divide-y divide-border bg-card text-foreground">
               {history.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
@@ -590,7 +590,7 @@ export const BillingPanel = memo(function BillingPanel({ academyId, userId, spor
                             href={invoice.invoicePdf}
                             target="_blank"
                             rel="noreferrer"
-                            className="ml-3 inline-flex items-center gap-1 text-xs text-zaltyko-text-secondary hover:text-zaltyko-teal"
+                            className="ml-3 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-zaltyko-teal"
                           >
                             <svg
                               xmlns="http://www.w3.org/2000/svg"

@@ -4,6 +4,7 @@ import Navbar from "@/app/(site)/Navbar";
 import Footer from "@/app/(site)/Footer";
 import { Mail, Clock, MessageCircle } from "lucide-react";
 import { ContactForm } from "@/components/contact/ContactForm";
+import Reveal from "@/components/motion/Reveal";
 import { getPublicSiteUrl } from "@/lib/seo/site-url";
 
 const baseUrl = getPublicSiteUrl();
@@ -55,21 +56,24 @@ export default async function ContactPage({ searchParams }: ContactPageProps) {
       {/* Hero */}
       <section className="pt-32 pb-16 bg-gradient-to-b from-zaltyko-primary/5 to-transparent">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 text-center">
-          <span className="inline-block text-sm font-semibold text-zaltyko-primary uppercase tracking-wider mb-4">
-            Contacto
-          </span>
-          <h1 className="font-display text-4xl font-bold tracking-tight text-zaltyko-text-main sm:text-5xl">
-            Cuéntanos sobre tu academia
-          </h1>
-          <p className="mt-6 mx-auto max-w-2xl text-lg text-zaltyko-text-secondary">
-            Te respondemos por email en horario laboral con una propuesta concreta para tu caso.
-          </p>
+          <Reveal>
+            <span className="inline-block text-sm font-semibold text-zaltyko-primary uppercase tracking-wider mb-4">
+              Contacto
+            </span>
+            <h1 className="font-display text-4xl font-bold tracking-tight text-zaltyko-text-main sm:text-5xl">
+              Cuéntanos sobre tu academia
+            </h1>
+            <p className="mt-6 mx-auto max-w-2xl text-lg text-zaltyko-text-secondary">
+              Te respondemos por email en horario laboral con una propuesta concreta para tu caso.
+            </p>
+          </Reveal>
         </div>
       </section>
 
       {/* Contact Info & Form */}
       <section className="py-16 bg-white">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <Reveal>
           <div className="grid gap-12 lg:grid-cols-2">
             {/* Contact Info */}
             <div>
@@ -115,6 +119,7 @@ export default async function ContactPage({ searchParams }: ContactPageProps) {
               <ContactForm defaultReason={type} defaultPlan={selectedPlan} />
             </div>
           </div>
+          </Reveal>
         </div>
       </section>
 

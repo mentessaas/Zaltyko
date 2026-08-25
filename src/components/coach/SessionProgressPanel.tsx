@@ -103,10 +103,10 @@ function SessionProgressPanelImpl({
 
   if (!selectedAthlete) {
     return (
-      <div className="rounded-2xl border border-dashed border-zaltyko-mist bg-white p-8 text-center">
-        <Sparkles className="mx-auto h-8 w-8 text-zaltyko-text-secondary" aria-hidden="true" />
-        <h3 className="mt-3 font-semibold text-zaltyko-navy">Sin personas para evaluar</h3>
-        <p className="mt-1 text-sm text-zaltyko-text-secondary">La evaluación rápida se habilitará cuando la clase tenga miembros.</p>
+      <div className="rounded-2xl border border-dashed border-border bg-card p-8 text-center">
+        <Sparkles className="mx-auto h-8 w-8 text-muted-foreground" aria-hidden="true" />
+        <h3 className="mt-3 font-semibold text-foreground">Sin personas para evaluar</h3>
+        <p className="mt-1 text-sm text-muted-foreground">La evaluación rápida se habilitará cuando la clase tenga miembros.</p>
       </div>
     );
   }
@@ -116,15 +116,15 @@ function SessionProgressPanelImpl({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-700">Paso 2</p>
-          <h2 id="session-progress-title" className="mt-1 text-xl font-semibold text-zaltyko-navy">Progreso técnico rápido</h2>
-          <p className="mt-1 text-sm text-zaltyko-text-secondary">Registra una observación por modalidad y {apparatusTerm.toLowerCase()} sin salir de la sesión.</p>
+          <h2 id="session-progress-title" className="mt-1 text-xl font-semibold text-foreground">Progreso técnico rápido</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Registra una observación por modalidad y {apparatusTerm.toLowerCase()} sin salir de la sesión.</p>
         </div>
         <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-2 text-sm text-sky-800">
           <span className="font-semibold">{savedCount}</span> {savedCount === 1 ? "registro" : "registros"} en esta sesión
         </div>
       </div>
 
-      <div className="grid gap-5 rounded-2xl border border-zaltyko-mist/70 bg-white p-5 shadow-soft lg:grid-cols-[1.15fr_0.85fr]">
+      <div className="grid gap-5 rounded-2xl border border-border/70 bg-card p-5 shadow-soft lg:grid-cols-[1.15fr_0.85fr]">
         <div className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="quick-progress-athlete">{athleteTerm}</Label>
@@ -135,11 +135,11 @@ function SessionProgressPanelImpl({
                 setSelectedAthleteId(event.target.value);
                 setFeedback(null);
               }}
-              className="min-h-11 w-full rounded-xl border border-zaltyko-mist bg-white px-3 text-sm focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15"
+              className="min-h-11 w-full rounded-xl border border-border bg-card px-3 text-sm focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15"
             >
               {athletes.map((athlete) => <option key={athlete.id} value={athlete.id}>{athlete.name}</option>)}
             </select>
-            <p className="text-xs text-zaltyko-text-secondary">{selectedAthlete.disciplineName} · {selectedAthlete.branchName}</p>
+            <p className="text-xs text-muted-foreground">{selectedAthlete.disciplineName} · {selectedAthlete.branchName}</p>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -150,7 +150,7 @@ function SessionProgressPanelImpl({
                 value={apparatus}
                 onChange={(event) => setApparatus(event.target.value)}
                 disabled={selectedAthlete.apparatus.length === 0}
-                className="min-h-11 w-full rounded-xl border border-zaltyko-mist bg-white px-3 text-sm focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15 disabled:bg-zaltyko-white disabled:text-zaltyko-text-secondary"
+                className="min-h-11 w-full rounded-xl border border-border bg-card px-3 text-sm focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15 disabled:bg-zaltyko-white disabled:text-muted-foreground"
               >
                 {selectedAthlete.apparatus.length === 0 ? <option value="">Seguimiento general</option> : null}
                 {selectedAthlete.apparatus.map((item) => <option key={item.code} value={item.code}>{item.name}</option>)}
@@ -162,7 +162,7 @@ function SessionProgressPanelImpl({
                 id="quick-progress-type"
                 value={assessmentType}
                 onChange={(event) => setAssessmentType(event.target.value as QuickAssessmentType)}
-                className="min-h-11 w-full rounded-xl border border-zaltyko-mist bg-white px-3 text-sm focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15"
+                className="min-h-11 w-full rounded-xl border border-border bg-card px-3 text-sm focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15"
               >
                 {ASSESSMENT_TYPES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
               </select>
