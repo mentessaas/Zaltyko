@@ -54,7 +54,7 @@ export const PRODUCT_PLANS: ProductPlan[] = [
     classLimit: 20,
     academyLimit: 1,
     cta: "Solicitar demo",
-    ctaHref: "/contact?type=demo&plan=starter",
+    ctaHref: "/auth/register?role=owner",
     checkoutMode: "self-serve",
     features: [
       "Hasta 75 gimnastas · 1 academia",

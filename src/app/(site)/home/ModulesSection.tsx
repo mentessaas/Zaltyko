@@ -44,7 +44,7 @@ const modules = [
     title: "Eventos",
     description: "Inscripciones a competiciones con categorías por edad y nivel, y lista de espera gestionada.",
     icon: Award,
-    features: ["Inscripciones online", "Categorías por edad y nivel", "Lista de espera", "Comunicación"],
+    features: ["Inscripciones online", "Gestión de plazas", "Lista de espera", "Comunicación"],
   },
   {
     title: "Evaluaciones",
@@ -56,7 +56,7 @@ const modules = [
     title: "Reportes",
     description: "Informes de asistencia, cobros, ocupación y evolución para decidir dirección con datos reales.",
     icon: BarChart3,
-    features: ["Export multi-formato", "Informes programados", "Panel de dirección", "Métricas claras"],
+    features: ["Export multi-formato", "Panel de dirección", "Métricas de ocupación y cobros", "Datos para decidir"],
   },
   {
     title: "Multi-Sede",

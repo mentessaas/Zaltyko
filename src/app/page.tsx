@@ -197,7 +197,7 @@ export default function HomePage() {
               name: "¿Cuánto cuesta Zaltyko?",
               acceptedAnswer: {
                 "@type": "Answer",
-                text: "Free es gratis hasta 30 gimnastas y 1 academia. Starter cuesta 19€/mes (hasta 75 gimnastas), Growth 49€/mes (hasta 200 gimnastas) y Network, para academias multi-sede, tiene onboarding acompañado y precio a medida. Puedes ver el detalle completo en la página de planes.",
+                text: "Free es gratis hasta 30 gimnastas y 1 academia. Starter cuesta 19€/mes (hasta 75 gimnastas), Growth 49€/mes (hasta 200 gimnastas) y Network, para academias multi-sede, cuesta 99€/mes con onboarding acompañado. Puedes ver el detalle completo en la página de planes.",
               },
             },
             {

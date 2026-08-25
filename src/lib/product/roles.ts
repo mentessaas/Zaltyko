@@ -154,6 +154,7 @@ export function isLimitedAcademyWorkspacePath(pathname: string | null | undefine
   const basePath = `/app/${academyId}`;
   const allowedPaths = [
     `${basePath}/my-dashboard`,
+    `${basePath}/my-events`,
     `${basePath}/messages`,
     `${basePath}/notifications`,
   ];
