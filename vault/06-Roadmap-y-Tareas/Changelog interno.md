@@ -5,6 +5,15 @@ last_reviewed: 2026-08-19T11:11Z
 source:
 ---
 
+# 2026-08-24 — Ox Alpha: causa raíz del ACADEMY_CONTEXT_CONFLICT arreglada + deuda menor
+
+- **Fix authz (`src/lib/authz/endpoint-config.ts`):** el regex que extraía academyId del path (`/^\/api\/dashboard\/([^/]+)/`) capturaba `kpi-trends` como si fuera un academyId en `/api/dashboard/kpi-trends?academyId=X`, y el desajuste con el query param disparaba `403 ACADEMY_CONTEXT_CONFLICT` en **cada llamada** al Pulso operativo — también en producción (por eso «Cargando datos» perpetuo). Ahora solo segmentos con forma de UUID cuentan como academyId del path. Verificado con sesión real: la API devuelve `ok:true` con las series de 14 días. Las demás rutas dashboard usan `/[academyId]/` en el path y no estaban afectadas. Diagnóstico previo completo antes de tocar (regla del vault); el cambio es en extracción de candidato, no en verificación de membresía.
+- Topbar theme-aware en áreas de academia (antes `bg-white/95` hardcodeado: quedaba blanca en dark).
+- 37 `loading.tsx` nuevos (detalle, listado, reportes) con los skeletons existentes — rutas que cargaban sin estado de carga.
+- Login local intermitente documentado: el click del botón a veces no registra antes de hidratación; pulsar Enter en el campo funciona siempre (quirk del harness de testing, no reprodurible por usuarios reales).
+
+Vault: actualizada esta entrada de `Changelog interno.md`; `Decisiones.md` no cambia (fix de bug con diagnóstico, no decisión de producto).
+
 # 2026-08-24 — Ox Alpha: Oleadas 4-6 — migración de tokens al dashboard completo
 
 - Migración sistemática de tokens dark a **115 archivos** restantes de `src/components/` (billing, coach, coaches, calendar, settings, events, evaluations, athletes detail, growth, dashboard restante, ui/stats-card…) y páginas de `src/app/app/` y `src/app/dashboard/`: mismos reemplazos conservadores de las oleadas anteriores (`bg-white`→`bg-card`, `slate-*`→tokens, `zaltyko-mist`→`border-border`). Excluidos `motion/` y `charts/` (ya tokenizados).
