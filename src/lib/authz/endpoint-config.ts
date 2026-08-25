@@ -105,9 +105,12 @@ export async function extractVerifiedAcademyCandidate(
   context?: { params?: Record<string, string> }
 ): Promise<{ academyId?: string; conflict: boolean }> {
   const url = new URL(request.url);
+  // Solo segmentos con forma de UUID cuentan como academyId del path:
+  // /api/dashboard/kpi-trends tiene un nombre de sub-recurso donde el regex
+  // genérico veía un "academyId" y entraba en conflicto con el query param.
   const pathAcademyId =
     context?.params?.academyId ??
-    url.pathname.match(/^\/api\/dashboard\/([^/]+)/)?.[1];
+    url.pathname.match(/^\/api\/dashboard\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?:\/|$)/i)?.[1];
   const queryAcademyId = url.searchParams.get("academyId") ?? undefined;
   const headerAcademyId = request.headers.get("x-academy-id") ?? undefined;
   let bodyAcademyId: string | undefined;

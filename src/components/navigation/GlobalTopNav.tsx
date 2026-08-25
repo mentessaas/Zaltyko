@@ -148,7 +148,7 @@ export function GlobalTopNav({
         "sticky top-0 z-50 w-full border-b backdrop-blur",
         isDarkTheme
           ? "border-white/10 bg-zaltyko-navy/95 text-white supports-[backdrop-filter]:bg-zaltyko-navy/95"
-          : "border-border/70 bg-white/95 supports-[backdrop-filter]:bg-card/80",
+          : "border-border/70 bg-background/95 supports-[backdrop-filter]:bg-background/80",
       )}
     >
       {/* Layout base: logo | navegación | acciones */}
@@ -267,7 +267,7 @@ export function GlobalTopNav({
               aria-label="Menú de usuario"
               className={cn(
                 "flex items-center gap-2 rounded-lg border px-2.5 py-1.5 font-sans transition-all duration-200 active:scale-[0.98]",
-                isDarkTheme ? "border-white/10 bg-white/5 hover:bg-white/10" : "border-border bg-card hover:bg-zaltyko-white",
+                isDarkTheme ? "border-white/10 bg-white/5 hover:bg-white/10" : "border-border bg-card hover:bg-muted",
               )}
             >
               <span className={cn(
