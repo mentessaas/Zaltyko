@@ -11,7 +11,6 @@ import { Switch } from "@/components/ui/switch";
 
 export interface WhatsAppSettings {
   phoneNumber: string;
-  apiKey: string;
   notificationsEnabled: boolean;
 }
 
@@ -24,7 +23,6 @@ interface WhatsAppSettingsPanelProps {
 
 const DEFAULT_SETTINGS: WhatsAppSettings = {
   phoneNumber: "",
-  apiKey: "",
   notificationsEnabled: true,
 };
 
@@ -58,7 +56,7 @@ export function WhatsAppSettingsPanel({
     }
   };
 
-  const isConfigured = localSettings.phoneNumber && localSettings.apiKey;
+  const isConfigured = Boolean(localSettings.phoneNumber);
 
   return (
     <Card>
@@ -88,21 +86,10 @@ export function WhatsAppSettingsPanel({
           </p>
         </div>
 
-        {/* API Key */}
-        <div className="space-y-2">
-          <Label htmlFor="whatsapp-api-key">API Key de WhatsApp Business</Label>
-          <Input
-            id="whatsapp-api-key"
-            type="password"
-            value={localSettings.apiKey}
-            onChange={(e) => handleChange("apiKey", e.target.value)}
-            placeholder="Tu API key"
-            disabled={disabled}
-          />
-          <p className="text-xs text-muted-foreground">
-            Obtén tu API key desde el panel de WhatsApp Business API
-          </p>
-        </div>
+        <p className="text-xs text-muted-foreground">
+          Las credenciales de Twilio se administran de forma segura en el servidor;
+          nunca las pegues en este formulario.
+        </p>
 
         {/* Verificar conexión */}
         <div className="flex items-center gap-4">

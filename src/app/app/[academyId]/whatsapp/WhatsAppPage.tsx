@@ -4,14 +4,13 @@ import { useEffect, useMemo, useState } from "react";
 import { MessageCircle, Send, History, Settings } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
-import { WhatsAppSettingsPanel, DEFAULT_SETTINGS } from "@/components/whatsapp/WhatsAppSettings";
+import { WhatsAppSettingsPanel } from "@/components/whatsapp/WhatsAppSettings";
 import { WhatsAppMessagePanel, type WhatsAppTemplate } from "@/components/whatsapp/WhatsAppMessagePanel";
 import { WhatsAppHistory, type MessageStatus, type WhatsAppMessage } from "@/components/whatsapp/WhatsAppHistory";
 import { getTerminologyForSportConfig } from "@/lib/sport-config/terminology";
 
 interface WhatsAppConfig {
   phone: string;
-  apiKey: string;
   isConfigured: boolean;
 }
 
@@ -85,7 +84,7 @@ export function WhatsAppPage({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         phone: config.phone,
-        apiKey: config.apiKey,
+        academyId,
       }),
     });
 
@@ -98,7 +97,6 @@ export function WhatsAppPage({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         whatsappPhone: config.phone,
-        whatsappApiKey: config.apiKey,
       }),
     });
 
@@ -264,14 +262,12 @@ export function WhatsAppPage({
             <WhatsAppSettingsPanel
               settings={{
                 phoneNumber: config.phone,
-                apiKey: config.apiKey,
                 notificationsEnabled: true,
               }}
               onChange={(newSettings) => {
                 setConfig({
                   ...config,
                   phone: newSettings.phoneNumber,
-                  apiKey: newSettings.apiKey,
                 });
               }}
               onVerify={handleVerifyConnection}

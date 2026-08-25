@@ -5,6 +5,66 @@ last_reviewed: 2026-08-25T11:21Z
 source:
 ---
 
+## 2026-08-26 — Engineering Lead: ZAL-800 elimina secretos del cliente en verify de WhatsApp
+
+- Se materializó el contrato `{ phone, academyId? }` con Zod estricto en
+  `POST /api/whatsapp/verify`. Las claves de credenciales en body, query o
+  headers se rechazan antes de cualquier llamada externa; no se reenvía ningún
+  valor de cliente al proveedor.
+- La verificación usa `TWILIO_ACCOUNT_SID` y `TWILIO_AUTH_TOKEN` server-side con
+  Basic Auth contra Twilio, timeout de 5 s y errores upstream diferenciados.
+  Sin configuración server-side devuelve 200 simulado sin tocar la red.
+- La UI dejó de pedir, conservar y enviar `apiKey`; el panel explica que las
+  credenciales se administran en el servidor. El logger añade redacción de
+  claves sensibles y de texto libre Authorization/Bearer.
+- La suite focal de comunicaciones cubre Twilio server-side sintético,
+  simulación sin env, rechazo en body y rechazo en query/header. La suite del
+  logger cubre redacción de Authorization/Bearer.
+- Disposición: **implementation-ready-for-ps**, no `done`/`PASS`. C-2 de
+  Platform & Security queda pendiente sobre el SHA que se publique; la
+  evidencia local no equivale a readiness productivo.
+
+Evidencia literal:
+
+```text
+$ ls -la -- src/app/api/whatsapp/verify/route.ts
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  3608 Aug 26 00:25 src/app/api/whatsapp/verify/route.ts
+$ wc -l -- src/app/api/whatsapp/verify/route.ts
+     118 src/app/api/whatsapp/verify/route.ts
+$ grep -RnE "(apiKey|api_key)" src/app/api/whatsapp/verify | wc -l
+       0
+
+$ ls -la -- tests/api-zal745-marketplace-communications.test.ts
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  16238 Aug 26 00:25 tests/api-zal745-marketplace-communications.test.ts
+$ wc -l -- tests/api-zal745-marketplace-communications.test.ts
+     428 tests/api-zal745-marketplace-communications.test.ts
+$ grep -c "  it(" tests/api-zal745-marketplace-communications.test.ts
+18
+$ pnpm exec vitest run tests/api-zal745-marketplace-communications.test.ts 2>&1 | tail -30
+ Test Files  1 passed (1)
+      Tests  18 passed (18)
+
+$ ls -la -- tests/lib/logger-redaction.test.ts
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  2555 Aug 26 00:25 tests/lib/logger-redaction.test.ts
+$ wc -l -- tests/lib/logger-redaction.test.ts
+      75 tests/lib/logger-redaction.test.ts
+$ grep -c "  it(" tests/lib/logger-redaction.test.ts
+3
+$ pnpm exec vitest run tests/lib/logger-redaction.test.ts 2>&1 | tail -30
+ Test Files  1 passed (1)
+      Tests  3 passed (3)
+
+$ pnpm exec tsc --noEmit --pretty false
+TSC_EXIT=0
+
+$ git diff --check
+```
+
+Vault: actualizados `Changelog interno.md` y el work product de ZAL-800;
+`Decisiones.md` y `Backlog priorizado.md` no cambian porque la opción 1 ya fue
+aprobada por board y no se tomó una decisión nueva de producto, pricing o
+arquitectura.
+
 ## 2026-08-25 — Ox Alpha: HMAC dev-session + marketing consent (cierre de Oleadas B-C)
 
 - **Fix 27 — HMAC dev-session**: `serializeDevSession` firma el payload base64 con `INTERNAL_AUTH_SECRET` (HMAC-SHA256) y `parseDevSessionCookie` verifica con `timingSafeEqual`; cookies sin firma (versión antigua) rechazadas cuando hay secreto configurado. Cierra impersonación forgeable.

@@ -9,11 +9,22 @@ vi.mock("@sentry/nextjs", () => sentryMocks);
 vi.mock("@/lib/env", () => ({ isProduction: () => true }));
 vi.unmock("@/lib/logger");
 
-import { logger, redactSensitive } from "@/lib/logger";
+import { logger, redactSensitive, redactSensitiveText } from "@/lib/logger";
 
 describe("redactSensitive", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("redacta Authorization y Bearer dentro de texto libre", () => {
+    const value = "Authorization: Bearer bearer-secret; Bearer another-secret";
+
+    expect(redactSensitiveText(value)).toBe(
+      "Authorization: Bearer [REDACTED]; Bearer [REDACTED]",
+    );
+    expect(redactSensitive({ message: value })).toEqual({
+      message: "Authorization: Bearer [REDACTED]; Bearer [REDACTED]",
+    });
   });
 
   it("redacta clientSecret y client_secret recursivamente en objetos y arrays", () => {
