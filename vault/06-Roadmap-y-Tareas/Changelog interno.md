@@ -1,9 +1,49 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-08-19T11:11Z
+last_reviewed: 2026-08-25T06:57Z
 source:
 ---
+
+# 2026-08-25 — Onboarding owner: el paso final ya no falla cerrado con `done`
+
+- `src/lib/onboarding-owner-integration.ts`: el gate y el envío de la secuencia ahora tratan `done` como un cierre válido sin CTA, en vez de pasar ese estado por `buildNextStepUrl` y cortar la secuencia por `NEXT_STEP_URL_INVALID`. Se añadió `resolveOnboardingOwnerNextStepUrl()` para mantener el contrato allowlisted en los pasos reales y dejar el correo final sin enlace cuando ya no hay siguiente paso.
+- `tests/onboarding-owner-integration-contract.test.ts`: se añadió cobertura del caso `done` y se conservó la cobertura de allowlist/escape/template.
+- `tests/security-headers-preview.test.ts` fue movido a `tests/security-headers-preview.spec.ts` para que el smoke de Playwright no rompa el runner de Vitest.
+- Verificación local: `pnpm exec vitest run tests/onboarding-owner-integration-contract.test.ts tests/quick-actions-modal-contract.test.tsx` pasó 14/14.
+
+Evidencia literal:
+
+```text
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  9790 Aug 25 06:56 /Users/elvisvaldesinerarte/Desktop/_PROYECTOS/Zaltyko/src/lib/onboarding-owner-integration.ts
+     320 /Users/elvisvaldesinerarte/Desktop/_PROYECTOS/Zaltyko/src/lib/onboarding-owner-integration.ts
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  3925 Aug 25 06:56 /Users/elvisvaldesinerarte/Desktop/_PROYECTOS/Zaltyko/tests/onboarding-owner-integration-contract.test.ts
+     104 /Users/elvisvaldesinerarte/Desktop/_PROYECTOS/Zaltyko/tests/onboarding-owner-integration-contract.test.ts
+5
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  2636 Aug 25 06:55 /Users/elvisvaldesinerarte/Desktop/_PROYECTOS/Zaltyko/tests/security-headers-preview.spec.ts
+      48 /Users/elvisvaldesinerarte/Desktop/_PROYECTOS/Zaltyko/tests/security-headers-preview.spec.ts
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  15361 Aug 24 13:42 /Users/elvisvaldesinerarte/Desktop/_PROYECTOS/Zaltyko/tests/quick-actions-modal-contract.test.tsx
+     425 /Users/elvisvaldesinerarte/Desktop/_PROYECTOS/Zaltyko/tests/quick-actions-modal-contract.test.tsx
+9
+Tests  14 passed (14)
+```
+
+Vault: actualizada esta entrada de `Changelog interno.md`; `Decisiones.md` no cambia.
+
+# 2025-08-25 — Ox Alpha: auditoría del trabajo sin commitear (ZAL-908 + hardening)
+
+Auditoría profunda del snapshot de Zaltyko-fresh (25 archivos modificados + onboarding-owner sin trackear). **Sus tests pasan (30/30)** y la calidad general es alta, pero el snapshot auditado **no compila**:
+
+- **Bloqueante (en el snapshot auditado):** 4-5 errores TS en `src/lib/onboarding-owner-integration.ts` (unión discriminada de `resolveOnboardingOwnerNextStepUrl`, `null as const` inválido, `ownerEmail` nullable sin estrechar). La entrada del 2026-08-25 de arriba describe su arreglo en curso — verificar contra su checkout canónico.
+- **Alto — refactor incompleto:** `isDevSessionEnabled` pasó de constante a función pero `dev-session-provider.tsx` (líneas 47, 59, 84, 110) la usa como valor; una función siempre es truthy → el provider llama `POST /api/dev/session` en cada carga (404 visibles) y trata la sesión demo como siempre activa. **Regresión verificada:** `tests/audit-hardening.test.ts` 4 tests fallando en este snapshot; actualizar a `isDevSessionEnabled()`.
+- **Alto — serverless:** enqueue del email d0 fire-and-forget (`void enqueue...`) en `api/onboarding/owner/route.ts:492` — usar `after()` o await.
+- **Medio:** crons de vercel.json con query strings (`?step=d2`) sin soporte documentado (validar con `vercel crons trigger` o dividir rutas); tests de contrato ZAL-908 mayormente grep-based; `vitest.qa.config.ts` sin script; `idempotencyKey` aceptado y descartado en record-payment.
+- **Coordinación:** la evidencia de su entrada cita `/Zaltyko/` — hay DOS checkouts activos del repo (Zaltyko y Zaltyko-fresh) con agentes trabajando en paralelo; el snapshot de Zaltyko-fresh puede quedar atrás del canónico.
+- **Bien hecho:** hardening de tenant en events/record-payment/notificaciones, capability checks, rewrite de whatsapp-verify que elimina exposición de apiKey, firma HMAC de email links sólida, cron auth correcto, sin secretos en el diff.
+
+Acción: comunicar hallazgos al agente de ZAL-908 antes de commitear (build roto + regresión de test son bloqueantes). Push de `zal770-recovered` realizado con los commits de Ox Alpha; su trabajo sigue sin commitear en este árbol.
+
+Vault: actualizada esta entrada de `Changelog interno.md`.
 
 # 2026-08-24 — Ox Alpha: causa raíz del ACADEMY_CONTEXT_CONFLICT arreglada + deuda menor
 
@@ -6011,3 +6051,78 @@ Verificación literal del commit focalizado:
 $ git -C /Users/elvisvaldesinerarte/Desktop/_PROYECTOS/Zaltyko log --oneline -1 c4bf453b
 c4bf453b fix(billing): require payment method for SCA recovery
 ```
+
+## 2026-08-25 — ZAL-967 materializa suites P0 Web y descubre Mobile desde Vitest raíz
+
+- Se materializaron seis suites contractuales ejecutables para las rutas reales de guardians, assessments, assessment-videos, coach-compensation, profile y owner-claim.
+- `vitest.config.ts` ahora incluye `mobile/**/*.test.ts`; la suite Mobile `mobile/lib/auth/role-router.test.ts` es descubrible desde el runner raíz.
+- Evidencia exclusivamente local; no se tocaron producción, secretos, datos reales, Stripe live, migraciones remotas ni publicaciones. La cobertura añadida es contractual/estática y no sustituye E2E, sandbox, validación externa ni validación humana.
+
+Evidencia literal:
+
+```text
+$ ls -la tests/api-athlete-guardians.test.ts
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  1098 Aug 25 07:33 tests/api-athlete-guardians.test.ts
+$ wc -l tests/api-athlete-guardians.test.ts
+     27 tests/api-athlete-guardians.test.ts
+$ grep -c "  it(" tests/api-athlete-guardians.test.ts
+3
+$ pnpm exec vitest run tests/api-athlete-guardians.test.ts
+      Tests  3 passed (3)
+
+$ ls -la tests/api-assessments.test.ts
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  986 Aug 25 07:33 tests/api-assessments.test.ts
+$ wc -l tests/api-assessments.test.ts
+     24 tests/api-assessments.test.ts
+$ grep -c "  it(" tests/api-assessments.test.ts
+3
+$ pnpm exec vitest run tests/api-assessments.test.ts
+      Tests  3 passed (3)
+
+$ ls -la tests/api-assessment-videos.test.ts
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  831 Aug 25 07:34 tests/api-assessment-videos.test.ts
+$ wc -l tests/api-assessment-videos.test.ts
+     22 tests/api-assessment-videos.test.ts
+$ grep -c "  it(" tests/api-assessment-videos.test.ts
+3
+$ pnpm exec vitest run tests/api-assessment-videos.test.ts
+      Tests  3 passed (3)
+
+$ ls -la tests/api-coach-compensation.test.ts
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  961 Aug 25 07:33 tests/api-coach-compensation.test.ts
+$ wc -l tests/api-coach-compensation.test.ts
+     25 tests/api-coach-compensation.test.ts
+$ grep -c "  it(" tests/api-coach-compensation.test.ts
+3
+$ pnpm exec vitest run tests/api-coach-compensation.test.ts
+      Tests  3 passed (3)
+
+$ ls -la tests/api-profile.test.ts
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  1175 Aug 25 07:34 tests/api-profile.test.ts
+$ wc -l tests/api-profile.test.ts
+     27 tests/api-profile.test.ts
+$ grep -c "  it(" tests/api-profile.test.ts
+3
+$ pnpm exec vitest run tests/api-profile.test.ts
+      Tests  3 passed (3)
+
+$ ls -la tests/api-owner-claim.test.ts
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  941 Aug 25 07:34 tests/api-owner-claim.test.ts
+$ wc -l tests/api-owner-claim.test.ts
+     24 tests/api-owner-claim.test.ts
+$ grep -c "  it(" tests/api-owner-claim.test.ts
+3
+$ pnpm exec vitest run tests/api-owner-claim.test.ts
+      Tests  3 passed (3)
+
+$ ls -la mobile/lib/auth/role-router.test.ts
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  8352 Aug 23 11:29 mobile/lib/auth/role-router.test.ts
+$ wc -l mobile/lib/auth/role-router.test.ts
+     232 mobile/lib/auth/role-router.test.ts
+$ grep -c "  it(" mobile/lib/auth/role-router.test.ts
+13
+$ pnpm exec vitest run mobile/lib/auth/role-router.test.ts
+      Tests  71 passed (71)
+```
+
+Vault: actualizados `Changelog interno.md`; `Decisiones.md` y `Backlog priorizado.md` no cambian.
