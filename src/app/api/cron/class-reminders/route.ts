@@ -30,9 +30,14 @@ export async function GET(request: Request) {
       }
     }
 
+      // Los envíos están sin implementar (TODO en class-reminders.ts):
+      // reportar "sent successfully" sería mentir al monitoreo.
       return {
         ok: true,
-        message: "Class reminders sent successfully",
+        skipped: true,
+        reason: "REMINDERS_NOT_IMPLEMENTED",
+        message:
+          "Recordatorios de clase no implementados todavía: no se envió ningún email",
         academiesProcessed: allAcademies.length,
       };
     });

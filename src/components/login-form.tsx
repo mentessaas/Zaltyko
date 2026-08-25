@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/toast-provider";
 import { AuthPageShell } from "@/components/auth/AuthPageShell";
 import { isValidEmail, normalizeEmail } from "@/lib/validation/email-utils";
+import { getSafeAuthNextPath } from "@/lib/auth/safe-next-path";
 
 export function LoginForm() {
   const [email, setEmail] = useState("");
@@ -30,9 +31,7 @@ export function LoginForm() {
   const toast = useToast();
   const noticeShownRef = useRef(false);
   const callbackUrl = searchParams.get("callbackUrl");
-  const nextPath = callbackUrl?.startsWith("/") && !callbackUrl.startsWith("//")
-    ? callbackUrl
-    : "/auth/redirect";
+  const nextPath = getSafeAuthNextPath(callbackUrl);
 
   const authUnavailable = () => {
     toast.pushToast({

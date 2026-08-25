@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 import { db } from "@/db";
 import { marketplaceListings } from "@/db/schema";
 import { marketplaceCategoryEnum, marketplaceListingTypeEnum } from "@/db/schema/enums";
-import { eq, desc, like, and, or } from "drizzle-orm";
+import { eq, desc, like, and, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { withAuthenticatedNoTenant, type TenantContext } from "@/lib/authz";
 import { escapeLikeSearch } from "@/lib/helpers";
@@ -100,59 +100,65 @@ const CreateMarketplaceSchema = z.object({
 
 
 export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const category = searchParams.get("category");
-  const type = searchParams.get("type");
-  const search = searchParams.get("search");
-  const page = parseInt(searchParams.get("page") || "1");
-  const limit = parseInt(searchParams.get("limit") || "20");
+  try {    const { searchParams } = new URL(request.url);
+    const category = searchParams.get("category");
+    const type = searchParams.get("type");
+    const search = searchParams.get("search");
+    const rawPage = parseInt(searchParams.get("page") || "1", 10);
+    const rawLimit = parseInt(searchParams.get("limit") || "20", 10);
+    const page = Number.isFinite(rawPage) && rawPage > 0 ? rawPage : 1;
+    const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, 100) : 20;
 
-  const conditions: any[] = [eq(marketplaceListings.status, "active")];
+    const conditions: any[] = [eq(marketplaceListings.status, "active")];
 
-  if (category) {
-    const validCategory = marketplaceCategoryEnum.enumValues.includes(category as typeof marketplaceCategoryEnum.enumValues[number])
-      ? category as typeof marketplaceCategoryEnum.enumValues[number]
-      : null;
-    if (validCategory) conditions.push(eq(marketplaceListings.category, validCategory));
+    if (category) {
+      const validCategory = marketplaceCategoryEnum.enumValues.includes(category as typeof marketplaceCategoryEnum.enumValues[number])
+        ? category as typeof marketplaceCategoryEnum.enumValues[number]
+        : null;
+      if (validCategory) conditions.push(eq(marketplaceListings.category, validCategory));
+    }
+    if (type) {
+      const validType = marketplaceListingTypeEnum.enumValues.includes(type as typeof marketplaceListingTypeEnum.enumValues[number])
+        ? type as typeof marketplaceListingTypeEnum.enumValues[number]
+        : null;
+      if (validType) conditions.push(eq(marketplaceListings.type, validType));
+    }
+    if (search) {
+      const escaped = escapeLikeSearch(search);
+      conditions.push(or(
+        like(marketplaceListings.title, `%${escaped}%`),
+        like(marketplaceListings.description, `%${escaped}%`)
+      ));
+    }
+
+    const whereClause = conditions.length > 1 ? and(...conditions) : conditions[0];
+    const offset = (page - 1) * limit;
+
+    const listings = await db.select()
+      .from(marketplaceListings)
+      .where(whereClause)
+      .orderBy(desc(marketplaceListings.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    const [countRow] = await db.select({ count: sql<number>`count(*)::int` })
+      .from(marketplaceListings)
+      .where(whereClause);
+
+    const items = listings.length === 0 && process.env.NODE_ENV !== "production" ? [demoMarketplaceListing] : listings;
+    const itemTotal = listings.length === 0 && process.env.NODE_ENV !== "production" ? 1 : countRow?.count ?? 0;
+
+    return apiSuccess({
+      items,
+      total: itemTotal,
+      page,
+      pageSize: limit,
+      totalPages: Math.ceil(itemTotal / limit),
+    });
+  } catch (error) {
+    logger.error("Error listing marketplace listings:", error);
+    return apiError("INTERNAL_ERROR", "Error al listar los anuncios", 500);
   }
-  if (type) {
-    const validType = marketplaceListingTypeEnum.enumValues.includes(type as typeof marketplaceListingTypeEnum.enumValues[number])
-      ? type as typeof marketplaceListingTypeEnum.enumValues[number]
-      : null;
-    if (validType) conditions.push(eq(marketplaceListings.type, validType));
-  }
-  if (search) {
-    const escaped = escapeLikeSearch(search);
-    conditions.push(or(
-      like(marketplaceListings.title, `%${escaped}%`),
-      like(marketplaceListings.description, `%${escaped}%`)
-    ));
-  }
-
-  const whereClause = conditions.length > 1 ? and(...conditions) : conditions[0];
-  const offset = (page - 1) * limit;
-
-  const listings = await db.select()
-    .from(marketplaceListings)
-    .where(whereClause)
-    .orderBy(desc(marketplaceListings.createdAt))
-    .limit(limit)
-    .offset(offset);
-
-  const total = await db.select({ count: marketplaceListings.id })
-    .from(marketplaceListings)
-    .where(whereClause);
-
-  const items = listings.length === 0 && process.env.NODE_ENV !== "production" ? [demoMarketplaceListing] : listings;
-  const itemTotal = listings.length === 0 && process.env.NODE_ENV !== "production" ? 1 : total.length;
-
-  return apiSuccess({
-    items,
-    total: itemTotal,
-    page,
-    pageSize: limit,
-    totalPages: Math.ceil(itemTotal / limit),
-  });
 }
 
 export const POST = withAuthenticatedNoTenant(async (request: Request, context: TenantContext) => {

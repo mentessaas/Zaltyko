@@ -40,8 +40,10 @@ export async function GET(request: Request) {
   const category = searchParams.get("category");
   const jobType = searchParams.get("jobType");
   const search = searchParams.get("search");
-  const page = parseInt(searchParams.get("page") || "1");
-  const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 100);
+  const rawPage = parseInt(searchParams.get("page") || "1", 10);
+  const rawLimit = parseInt(searchParams.get("limit") || "20", 10);
+  const page = Number.isFinite(rawPage) && rawPage > 0 ? rawPage : 1;
+  const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, 100) : 20;
 
   const conditions = [eq(empleoListings.status, "active")];
 

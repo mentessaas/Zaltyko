@@ -1,9 +1,90 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-08-25T09:52Z
+last_reviewed: 2026-08-25T11:21Z
 source:
 ---
+
+## 2026-08-25 — Developer: ZAL-687 revalidación fresca; hidratación OK, typecheck sigue bloqueado
+
+- Los cuatro archivos re-evicted de `src/types/` siguen hidratados (`flags=-`).
+- `pnpm exec vitest run src/lib/dashboard/attention-priority.test.ts` descubre la suite y devuelve `Tests 18 passed (18)`.
+- El typecheck canónico no cumple: `time pnpm exec tsc --noEmit --pretty false` fue interrumpido tras `2:03.72 total`, y una ejecución acotada reprodujo cinco errores TypeScript en `src/lib/onboarding-owner-integration.ts`, trabajo paralelo que ZAL-687 no modifica.
+- Disposición: `blocked`, nunca `done`/`PASS`. Owner/action: responsable de ZAL-908 debe corregir ese archivo, conseguir typecheck exit 0 en menos de 60 s y solicitar la revalidación completa.
+- El control plane devolvió conexión rechazada en `127.0.0.1:3100`; no se reintentó la escritura remota en bucle.
+
+Evidencia literal:
+
+```text
+$ ls -la -- src/types/athletes.ts
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  5405 Aug 23 11:27 src/types/athletes.ts
+$ wc -l -- src/types/athletes.ts
+     212 src/types/athletes.ts
+src/types/athletes.ts flags=- size=5405
+
+$ ls -la -- src/types/config.ts
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  129 Aug 23 11:27 src/types/config.ts
+$ wc -l -- src/types/config.ts
+       6 src/types/config.ts
+src/types/config.ts flags=- size=129
+
+$ ls -la -- src/types/event-form.ts
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  4595 Aug 23 11:27 src/types/event-form.ts
+$ wc -l -- src/types/event-form.ts
+     131 src/types/event-form.ts
+src/types/event-form.ts flags=- size=4595
+
+$ ls -la -- src/types/onboarding.ts
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  783 Aug 23 11:27 src/types/onboarding.ts
+$ wc -l -- src/types/onboarding.ts
+      38 src/types/onboarding.ts
+src/types/onboarding.ts flags=- size=783
+
+$ ls -la -- src/lib/dashboard/attention-priority.test.ts
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  10521 Aug 25 11:29 src/lib/dashboard/attention-priority.test.ts
+$ wc -l -- src/lib/dashboard/attention-priority.test.ts
+     338 src/lib/dashboard/attention-priority.test.ts
+$ grep -c "  it(" src/lib/dashboard/attention-priority.test.ts
+18
+
+$ ls -la -- src/lib/onboarding-owner-integration.ts
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  9790 Aug 25 06:56 src/lib/onboarding-owner-integration.ts
+$ wc -l -- src/lib/onboarding-owner-integration.ts
+     320 src/lib/onboarding-owner-integration.ts
+
+$ pnpm exec vitest run src/lib/dashboard/attention-priority.test.ts
+ RUN v3.2.6 /Users/elvisvaldesinerarte/Desktop/_PROYECTOS/Zaltyko-fresh
+ ✓ src/lib/dashboard/attention-priority.test.ts (18 tests) 82ms
+ Test Files 1 passed (1)
+      Tests 18 passed (18)
+
+$ time pnpm exec tsc --noEmit --pretty false
+pnpm exec tsc --noEmit --pretty false  12.87s user 4.00s system 13% cpu 2:03.72 total
+EXIT_CODE=130
+```
+
+Vault: actualizado este Changelog y el work product `ZAL-687 reintento evidencia bloqueado 2026-08-25.md`; `Decisiones.md` y `Backlog priorizado.md` no cambian porque no surgió una decisión de producto, pricing, seguridad o arquitectura.
+
+# 2026-08-25 — Ox Alpha: fixes de la caza de bugs (26 de 35 hallazgos, Oleadas 1-4)
+
+Aplicados los fixes del informe `informe ox alpha/caza-bugs.html`. Commiteados por oleadas en `zal770-recovered`. Resumen: 3/3 críticos (cross-tenant con test de regresión, inyección HTML en emails, cron daily-alerts), 7/9 altos (status published en eventos, IDOR empleo/marketplace, reembolsos parciales en ledger refunds, advisory lock anti-doble-pago, migración de índices únicos APLICADA a producción vía `db:migrate:reviewed --only` con 0 duplicados previos verificados, open redirect backslash, ventanas de recordatorios con catch-up), 8/11 medios (guards terminales de cargos, dedupe email respaldado por índice único + TTL pending, lowercase unsubscribe PENDIENTE en WIP ajeno, clamps paginación, rate limit GETs públicos, class-reminders honesto, Vitest sin mobile/node_modules, customPermissions), 8/12 bajos (timingSafe, exp JWT, allowlist trampoline/parkour, fraud_hold en clusters, enum ISO moneda, TOCTOU límites con lock, trigger asistencia corregido, uniqueIndex recibos).
+Pendientes documentados (9): reestructuras transaccionales de pagos (13/15/20 — requieren suite Stripe test), HMAC dev-session (27), flag marketing (33), backfill d2/d7 y función-vs-valor en dev-session-provider (35/17 — WIP del agente de ZAL-908, detalle en el informe).
+
+**Migración aplicada a producción:** `20260825120000_charges_receipts_uniqueness.sql` (anti-doble-cargo + recibos únicos; 0 duplicados previos verificados).
+
+Vault: actualizada esta entrada de `Changelog interno.md`.
+
+
+# 2026-08-25 — P&S revisión periódica de bloqueadores (ZAL-920/946/928 + hardening) — sin acción externa
+
+- **Gate previo:** `zal770-recovered` APROBADO LOCALMENTE 17/17 (`vitest.qa.config.ts`) tras fix `dev-session-provider.tsx`; sigue BLOQUEADO para producción (peer + CI + board). Veredicto `ZAL-770 verdict P&S revalidacion hardening P0 2026-08-25.md` (138 líneas).
+- **ZAL-920** `blocked` — restaurar adapter P&S: board debe conceder `agents:configure` o recargar crédito `claude_local`; P&S no auto-otorga grants (403 verificado). Sin riesgo productivo.
+- **ZAL-946** `blocked` — `secret_ref` E2E sandbox: board debe entregar `secret_ref` por canal seguro (1Password/Slack cifrado, prohibido Paperclip). Sandbox actual `jegxfahsvugilbthbked` pooler `aws-1-eu-north-1` → **región UE (cumple GDPR)**. Sin secretos leídos/copiados.
+- **ZAL-928** `blocked` self-fallback — review ZAL-295 PASS técnico pero `recovery.pause.codeGates=true` deniega `done` (C-4 intencional). Board levanta toggle y cierra.
+- **GDPR gaps escalados (no vistos buenos legales):** DPA Stripe/Supabase/Brevo sin evidencia; derechos borrado/portabilidad sin camino operativo; menores Art.8 parental verificable no confirmado; base legal contrato vs consentimiento sin separar. Requieren board + legal humana antes de datos reales. Residencia UE OK, cookies gate OK, brechas 72h OK.
+- **Conservación:** cambios ajenos paralelos preservados en `zal770-recovered`; sin deploy/migración remota/Stripe live/datos reales/secrets. Playwright/axe localhost/sandbox siguen autorizados sin board.
+
+Vault: `vault/06-Roadmap-y-Tareas/ZAL-P&S-bloqueadores-revision-2026-08-25.md` (118 líneas) + evidencia `ls -la/wc -l/grep` y `Tests 17 passed`. `Decisiones.md` y `Registro de riesgos.md` no cambian (gaps documentados para board).
 
 # 2026-08-25 — Ox Alpha: caza exhaustiva de bugs en todo el repo (solo informe)
 
@@ -6464,3 +6545,12 @@ $ pnpm exec tsc --noEmit --pretty false
 ```
 
 Vault: actualizado este Changelog; `Decisiones.md` y `Backlog priorizado.md` no cambian porque no surgió una decisión de producto, pricing, seguridad o arquitectura.
+
+## 2026-08-25 — Developer: ZAL-651 restablece sesión de Platform & Security tras 429
+
+- Se inspeccionó el estado del agente Platform & Security sin leer valores de secretos: la ruta operativa vigente era `opencode_local`, el último run observable terminó `succeeded` y `lastError` era nulo.
+- El operador local ejecutó `POST /api/agents/{id}/runtime-state/reset-session` con `{}`. La respuesta literal confirmó `sessionId=null`, `sessionParamsJson=null`, `lastError=null`, `lastRunStatus=succeeded` y `clearedTaskSessions=1`.
+- No se cambió `adapterConfig.env`, ningún `secret_ref`, producción, datos reales ni el adapter de [ZAL-649](/ZAL/issues/ZAL-649); tampoco se ejecutó la peer-verificación.
+- Disposición operativa: ZAL-651 queda lista para cerrar; la continuación de [ZAL-649](/ZAL/issues/ZAL-649) corresponde a su responsable y debe conservar el Evidence Gate, sin declarar PASS por esta limpieza de runtime.
+
+Vault: actualizada esta entrada de `Changelog interno.md`; `Decisiones.md` y `Backlog priorizado.md` no cambian porque no surgió una decisión de producto, pricing, arquitectura ni una deuda nueva.

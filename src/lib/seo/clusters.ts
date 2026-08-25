@@ -1,4 +1,5 @@
 import type { Locale } from '@/i18n';
+import { notInArray } from 'drizzle-orm';
 import {
   COUNTRIES,
   MODALITIES,
@@ -265,6 +266,7 @@ export async function getClusterAcademies(
   const conditions = [
     eq(academies.isPublic, true),
     eq(academies.isSuspended, false),
+    notInArray(academies.status, ["churned", "fraud_hold"]),
   ];
 
   // @ts-ignore - country is stored as code
@@ -319,6 +321,7 @@ export async function getClusterCoaches(
       and(
         eq(academies.isPublic, true),
         eq(academies.isSuspended, false),
+        notInArray(academies.status, ["churned", "fraud_hold"]),
         sql`${academies.country} = ${countryCode}`
       )
     )

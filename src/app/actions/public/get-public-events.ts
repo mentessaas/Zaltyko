@@ -8,7 +8,7 @@ import { events, academies } from "@/db/schema";
 import type { EventFilters, PublicEventListResult, PublicEvent } from "@/types/events";
 
 const EVENT_LEVELS = ["internal", "local", "national", "international"] as const;
-const EVENT_DISCIPLINES = ["artistic_female", "artistic_male", "rhythmic"] as const;
+const EVENT_DISCIPLINES = ["artistic_female", "artistic_male", "rhythmic", "trampoline", "parkour"] as const;
 
 const GetPublicEventsSchema = z.object({
   search: z.string().optional(),
@@ -41,6 +41,7 @@ export async function getPublicEvents(
   // Construir filtros - solo eventos públicos
   const filters: ReturnType<typeof eq | typeof ilike | typeof sql>[] = [
     eq(events.isPublic, true),
+          eq(events.status, 'published'),
   ];
 
   if (search) {
