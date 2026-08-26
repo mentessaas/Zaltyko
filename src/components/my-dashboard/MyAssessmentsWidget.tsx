@@ -16,7 +16,10 @@ interface MyAssessmentsWidgetProps {
     apparatus: string | null;
     overallComment: string | null;
     assessedByName: string | null;
+<<<<<<< HEAD
     scores?: { skillName: string; score: number }[];
+=======
+>>>>>>> origin/main
   }>;
   athleteName?: string;
 }
@@ -71,6 +74,7 @@ export function MyAssessmentsWidget({
               {assessment.overallComment && (
                 <p className="mt-2 text-sm text-muted-foreground">{assessment.overallComment}</p>
               )}
+<<<<<<< HEAD
               {assessment.scores && assessment.scores.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {assessment.scores.map((sc) => (
@@ -80,6 +84,8 @@ export function MyAssessmentsWidget({
                   ))}
                 </div>
               )}
+=======
+>>>>>>> origin/main
             </div>
           ))}
         </div>

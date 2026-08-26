@@ -55,6 +55,7 @@ function initializeDb() {
       throw new Error("Failed to initialize database connection. Please check DATABASE_URL configuration.");
     }
 
+<<<<<<< HEAD
     // Solo en desarrollo crear pool dummy para evitar crash inmediato.
     // IMPORTANTE: no cachear el dummy — durante la compilación dev Next evalúa
     // este módulo con NEXT_PHASE=phase-development-build y, si lo cacheáramos,
@@ -62,12 +63,22 @@ function initializeDb() {
     // exista. Sin caché, la primera llamada en runtime reinicializa bien.
     logger.warn("Using dummy database connection for development");
     const dummyPool = new Pool({
+=======
+    // Solo en desarrollo crear pool dummy para evitar crash inmediato
+    logger.warn("Using dummy database connection for development");
+    poolInstance = new Pool({
+>>>>>>> origin/main
       connectionString: "postgresql://dummy:dummy@localhost:5432/dummy",
       max: 1,
       connectionTimeoutMillis: 1000,
       idleTimeoutMillis: 1000,
     });
+<<<<<<< HEAD
     return drizzle(dummyPool);
+=======
+    dbInstance = drizzle(poolInstance);
+    return dbInstance;
+>>>>>>> origin/main
   }
 }
 

@@ -1,6 +1,10 @@
 export const dynamic = 'force-dynamic';
 
+<<<<<<< HEAD
 import { and, eq, sql } from "drizzle-orm";
+=======
+import { and, eq } from "drizzle-orm";
+>>>>>>> origin/main
 import { apiError, apiSuccess } from "@/lib/api-response";
 import { z } from "zod";
 
@@ -85,6 +89,7 @@ export const PATCH = withTenant(async (request, context) => {
       updateData.dueDate = body.dueDate ? body.dueDate.split("T")[0] : null;
     }
 
+<<<<<<< HEAD
     // Mismo advisory lock que collectCharge/record-payment: serializa contra
     // capturas automáticas en vuelo.
     await db.execute(sql`select pg_advisory_xact_lock(hashtext(${chargeId}))`);
@@ -100,6 +105,8 @@ export const PATCH = withTenant(async (request, context) => {
       }
     }
 
+=======
+>>>>>>> origin/main
     const [updated] = await db
       .update(charges)
       .set(updateData)

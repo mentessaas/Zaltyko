@@ -3,6 +3,7 @@ import { z } from "zod";
 import { withTenant } from "@/lib/authz";
 import { db } from "@/db";
 import { charges } from "@/db/schema";
+<<<<<<< HEAD
 import { and, eq, isNull, ne, sql } from "drizzle-orm";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { logger } from "@/lib/logger";
@@ -15,6 +16,11 @@ const RecordPaymentSchema = z.object({
     paymentMethod: z.enum(["cash", "transfer", "bizum", "card_manual", "other"]),
     idempotencyKey: z.string().min(1).max(200).optional(),
 }).strict();
+=======
+import { eq } from "drizzle-orm";
+import { apiSuccess, apiError } from "@/lib/api-response";
+import { logger } from "@/lib/logger";
+>>>>>>> origin/main
 
 /**
  * POST /api/quick-actions/record-payment
@@ -23,6 +29,7 @@ const RecordPaymentSchema = z.object({
 export const POST = withTenant(async (req, context) => {
     try {
         const { tenantId } = context;
+<<<<<<< HEAD
         const parsed = RecordPaymentSchema.safeParse(await req.json());
         if (!parsed.success) {
             return apiError("VALIDATION_ERROR", "Payload de pago no válido", 400, parsed.error.flatten());
@@ -64,6 +71,27 @@ export const POST = withTenant(async (req, context) => {
             return apiError("PAYMENT_ALREADY_RECORDED", "El cargo ya no admite otro pago", 409);
         }
 
+=======
+        const body = await req.json();
+
+        const { chargeId, amountCents, paymentMethod = "cash" } = body;
+
+        if (!chargeId) {
+            return apiError("VALIDATION_ERROR", "chargeId es requerido", 400);
+        }
+
+        // Verificar que el cargo existe
+        const [charge] = await db
+            .select()
+            .from(charges)
+            .where(eq(charges.id, chargeId))
+            .limit(1);
+
+        if (!charge || charge.tenantId !== tenantId) {
+            return apiError("NOT_FOUND", "Cargo no encontrado", 404);
+        }
+
+>>>>>>> origin/main
         // Actualizar el cargo como pagado
         const [updatedCharge] = await db
             .update(charges)
@@ -72,6 +100,7 @@ export const POST = withTenant(async (req, context) => {
                 paidAt: new Date(),
                 paymentMethod,
             })
+<<<<<<< HEAD
             .where(and(
                 eq(charges.id, chargeId),
                 eq(charges.tenantId, tenantId),
@@ -88,6 +117,12 @@ export const POST = withTenant(async (req, context) => {
         }
 
         return apiSuccess({ charge: updatedCharge });
+=======
+            .where(eq(charges.id, chargeId))
+            .returning();
+
+        return apiSuccess({ success: true, data: updatedCharge });
+>>>>>>> origin/main
     } catch (error) {
         logger.error("Error recording payment:", error);
         return apiError("INTERNAL_ERROR", "Error al registrar el pago", 500);

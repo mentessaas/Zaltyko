@@ -262,7 +262,11 @@ export function MyDashboardPage({
       )}
 
       {isParent && guardianAthletes.length === 0 ? (
+<<<<<<< HEAD
           <Card className="border-dashed border-border bg-card/80">
+=======
+          <Card className="border-dashed border-slate-300 bg-white/80">
+>>>>>>> origin/main
           <CardContent className="flex flex-col items-start gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-start gap-3">
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
@@ -286,7 +290,11 @@ export function MyDashboardPage({
 
       {/* Stats rápidos */}
       <div className="grid gap-3 sm:grid-cols-3">
+<<<<<<< HEAD
         <div className="rounded-[20px] border border-border/80 bg-card p-4 shadow-[0_16px_36px_-30px_rgba(15,23,42,0.5)]">
+=======
+        <div className="rounded-[20px] border border-slate-200/80 bg-white p-4 shadow-[0_16px_36px_-30px_rgba(15,23,42,0.5)]">
+>>>>>>> origin/main
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100">
               <TrendingUp className="h-5 w-5 text-emerald-600" />
@@ -302,7 +310,11 @@ export function MyDashboardPage({
             </div>
           </div>
         </div>
+<<<<<<< HEAD
         <div className="rounded-[20px] border border-border/80 bg-card p-4 shadow-[0_16px_36px_-30px_rgba(15,23,42,0.5)]">
+=======
+        <div className="rounded-[20px] border border-slate-200/80 bg-white p-4 shadow-[0_16px_36px_-30px_rgba(15,23,42,0.5)]">
+>>>>>>> origin/main
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100">
               <Calendar className="h-5 w-5 text-blue-600" />
@@ -318,7 +330,11 @@ export function MyDashboardPage({
             </div>
           </div>
         </div>
+<<<<<<< HEAD
         <div className="rounded-[20px] border border-border/80 bg-card p-4 shadow-[0_16px_36px_-30px_rgba(15,23,42,0.5)]">
+=======
+        <div className="rounded-[20px] border border-slate-200/80 bg-white p-4 shadow-[0_16px_36px_-30px_rgba(15,23,42,0.5)]">
+>>>>>>> origin/main
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-purple-100">
               <ClipboardList className="h-5 w-5 text-purple-600" />

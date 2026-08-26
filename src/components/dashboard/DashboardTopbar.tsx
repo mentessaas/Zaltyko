@@ -64,7 +64,11 @@ export function DashboardTopbar({
             </Avatar>
             <div className="hidden md:block">
               <p className="text-sm font-medium text-zaltyko-text-main">{userName}</p>
+<<<<<<< HEAD
               {userEmail && <p className="text-xs text-muted-foreground">{userEmail}</p>}
+=======
+              {userEmail && <p className="text-xs text-zaltyko-text-secondary">{userEmail}</p>}
+>>>>>>> origin/main
             </div>
           </div>
         </div>

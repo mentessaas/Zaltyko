@@ -5,7 +5,10 @@ import { desc, eq } from "drizzle-orm";
 import { EventsFilters } from "@/components/public/EventsFilters";
 import { EventsGrid } from "@/components/public/EventsGrid";
 import { PublicPageHeader } from "@/components/public/PublicPageHeader";
+<<<<<<< HEAD
 import Reveal from "@/components/motion/Reveal";
+=======
+>>>>>>> origin/main
 import { db } from "@/db";
 import { events, academies } from "@/db/schema";
 import { getPublicSiteUrl } from "@/lib/seo/site-url";
@@ -139,9 +142,13 @@ export default async function EventsPage() {
       </div>
 
       <div className="container mx-auto px-4 py-8">
+<<<<<<< HEAD
         <Reveal>
           <EventsContent events={events} />
         </Reveal>
+=======
+        <EventsContent events={events} />
+>>>>>>> origin/main
       </div>
     </div>
   );

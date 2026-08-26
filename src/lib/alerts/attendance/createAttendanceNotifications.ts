@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
@@ -6,6 +7,10 @@ import { createNotification } from "@/lib/notifications/notification-service";
 import { detectAttendanceAlerts } from "../attendance-alerts";
 import { sendEmailWithLogging } from "@/lib/email/email-service";
 import { logger } from "@/lib/logger";
+=======
+import { createNotification } from "@/lib/notifications/notification-service";
+import { detectAttendanceAlerts } from "../attendance-alerts";
+>>>>>>> origin/main
 
 /**
  * Crea notificaciones para alertas de asistencia
@@ -42,6 +47,7 @@ export async function createAttendanceNotifications(
       });
     }
 
+<<<<<<< HEAD
     // Enviar email a padres/tutores del atleta en riesgo
     try {
       const athleteGuardians = await db
@@ -68,6 +74,9 @@ export async function createAttendanceNotifications(
     } catch (error) {
       logger.warn("No se pudo enviar email de riesgo a padres", { error, athleteId: alert.athleteId });
     }
+=======
+    // TODO: Enviar email a padres usando el servicio de email
+>>>>>>> origin/main
   }
 }
 

@@ -6,7 +6,10 @@ import { ArrowUpRight, ArrowDownRight } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Sparkline } from "./Sparkline";
+<<<<<<< HEAD
 import { CountUp } from "@/components/motion/dashboard";
+=======
+>>>>>>> origin/main
 
 const COLOR_TO_VARIANT: Record<string, "default" | "success" | "warning" | "danger" | "info"> = {
   sky: "info",
@@ -46,8 +49,11 @@ const ACCENT_TO_HEX: Record<string, string> = {
 export interface DashboardCardProps {
   title: string;
   value: string | number;
+<<<<<<< HEAD
   /** Sufijo del valor (ej. "%") cuando es numérico y se anima con CountUp. */
   valueSuffix?: string;
+=======
+>>>>>>> origin/main
   subtitle: string;
   href: string;
   icon: LucideIcon;
@@ -66,7 +72,10 @@ export { StatsCard } from "@/components/ui/stats-card";
 export function DashboardCard({
   title,
   value,
+<<<<<<< HEAD
   valueSuffix,
+=======
+>>>>>>> origin/main
   subtitle,
   href,
   icon: Icon,
@@ -91,7 +100,11 @@ export function DashboardCard({
     <Link
       href={href}
       className={cn(
+<<<<<<< HEAD
         "group relative flex flex-col gap-3 overflow-hidden rounded-2xl border border-border bg-card p-6 shadow-soft transition-all duration-300 hover:-translate-y-0.5 hover:border-zaltyko-teal/40 hover:shadow-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.99]"
+=======
+        "group relative flex flex-col gap-3 overflow-hidden rounded-2xl border border-zaltyko-mist/80 bg-white p-6 shadow-soft transition-all duration-300 hover:-translate-y-0.5 hover:border-zaltyko-teal/40 hover:shadow-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.99]"
+>>>>>>> origin/main
       )}
     >
       {/* Barra de acento superior */}
@@ -106,7 +119,11 @@ export function DashboardCard({
       <div className="relative flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
+<<<<<<< HEAD
             <p className="text-xs font-medium uppercase tracking-[0.05em] text-muted-foreground">
+=======
+            <p className="text-xs font-medium uppercase tracking-[0.05em] text-slate-600">
+>>>>>>> origin/main
               {title}
             </p>
             {trend && (
@@ -125,6 +142,7 @@ export function DashboardCard({
               </span>
             )}
           </div>
+<<<<<<< HEAD
           <p className="mt-1 font-display text-3xl font-bold tracking-normal text-foreground">
             {typeof value === "number" ? (
               <CountUp value={value} suffix={valueSuffix} />
@@ -132,6 +150,9 @@ export function DashboardCard({
               value
             )}
           </p>
+=======
+          <p className="mt-1 font-display text-3xl font-bold tracking-normal text-foreground">{value}</p>
+>>>>>>> origin/main
         </div>
         <div
           className={cn(
@@ -145,7 +166,11 @@ export function DashboardCard({
           <Icon className="h-6 w-6" strokeWidth={1.8} />
         </div>
       </div>
+<<<<<<< HEAD
       <p className="relative text-sm font-medium leading-relaxed text-muted-foreground">{subtitle}</p>
+=======
+      <p className="relative text-sm font-medium leading-relaxed text-zaltyko-text-secondary">{subtitle}</p>
+>>>>>>> origin/main
 
       {hasTrendData && (
         <div className="relative -mb-2 -mx-1 mt-auto pt-1">

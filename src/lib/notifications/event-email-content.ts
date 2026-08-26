@@ -1,5 +1,6 @@
 import { config } from "@/config";
 
+<<<<<<< HEAD
 /**
  * Escapa caracteres con significado HTML para prevenir inyección de markup
  * en emails generados con datos introducidos por academias (título,
@@ -27,6 +28,8 @@ function safeWebsiteUrl(value: string): string | null {
   }
 }
 
+=======
+>>>>>>> origin/main
 export interface EventData {
   title: string;
   description: string | null;
@@ -73,6 +76,7 @@ export function generateEventEmailContent(
     country: "academias de tu país",
   }[notificationType];
 
+<<<<<<< HEAD
   const title = escapeHtml(event.title);
   const academyNameEscaped = escapeHtml(academyName);
   const description = event.description ? escapeHtml(event.description) : "";
@@ -82,10 +86,13 @@ export function generateEventEmailContent(
   const websiteUrl = event.contactWebsite ? safeWebsiteUrl(event.contactWebsite) : null;
   const websiteEscaped = websiteUrl ? escapeHtml(websiteUrl) : "";
 
+=======
+>>>>>>> origin/main
   const subject = `Nuevo evento: ${event.title} - ${academyName}`;
 
   const html = `
     <div style="font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+<<<<<<< HEAD
       <h2 style="color: #0D47A1; font-family: Poppins, sans-serif; font-weight: 700;">Nuevo evento de ${academyNameEscaped}</h2>
       <div style="background-color: #f9fafb; padding: 20px; border-radius: 8px; margin: 20px 0;">
         <h3 style="color: #1f2937; margin-top: 0;">${title}</h3>
@@ -100,6 +107,22 @@ export function generateEventEmailContent(
       </div>
       <p style="color: #6b7280; font-size: 12px;">
         Has recibido esta notificación porque formas parte del ${notificationTypeText} de ${academyNameEscaped}.
+=======
+      <h2 style="color: #0D47A1; font-family: Poppins, sans-serif; font-weight: 700;">Nuevo evento de ${academyName}</h2>
+      <div style="background-color: #f9fafb; padding: 20px; border-radius: 8px; margin: 20px 0;">
+        <h3 style="color: #1f2937; margin-top: 0;">${event.title}</h3>
+        ${event.description ? `<p style="color: #4b5563; line-height: 1.6;">${event.description}</p>` : ""}
+        <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #e5e7eb;">
+          <p style="color: #6b7280; margin: 8px 0;"><strong>Fecha:</strong> ${dateText}</p>
+          ${locationText ? `<p style="color: #6b7280; margin: 8px 0;"><strong>Ubicación:</strong> ${locationText}</p>` : ""}
+          ${event.contactEmail ? `<p style="color: #6b7280; margin: 8px 0;"><strong>Contacto:</strong> ${event.contactEmail}</p>` : ""}
+          ${event.contactPhone ? `<p style="color: #6b7280; margin: 8px 0;"><strong>Teléfono:</strong> ${event.contactPhone}</p>` : ""}
+          ${event.contactWebsite ? `<p style="color: #6b7280; margin: 8px 0;"><strong>Web:</strong> <a href="${event.contactWebsite}" style="color: #0D47A1;">${event.contactWebsite}</a></p>` : ""}
+        </div>
+      </div>
+      <p style="color: #6b7280; font-size: 12px;">
+        Has recibido esta notificación porque formas parte del ${notificationTypeText} de ${academyName}.
+>>>>>>> origin/main
       </p>
       <p style="color: #6b7280; font-size: 12px;">
         Si tienes alguna pregunta, puedes responder a este correo o contactarnos en ${config.brevo.supportEmail}

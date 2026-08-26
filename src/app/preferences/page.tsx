@@ -2,6 +2,10 @@
 
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
+<<<<<<< HEAD
+=======
+import Link from "next/link";
+>>>>>>> origin/main
 
 type Status = "loading" | "ready" | "saving" | "saved" | "error";
 
@@ -27,11 +31,24 @@ interface Prefs {
  * Pagina publica `/preferences` (ZAL-324 Gap 5).
  * Espejo de `/unsubscribe` pero permite ajustar el consentimiento granular
  * (RGPD Art. 6(1)(a) marketing) sin perder los emails operativos.
+<<<<<<< HEAD
  *
  * useSearchParams() exige un Suspense boundary para prerender estatico
  * (Next.js App Router). El export default envuelve PreferencesInner en <Suspense>.
  */
 function PreferencesInner() {
+=======
+ */
+export default function PreferencesPage() {
+  return (
+    <Suspense fallback={null}>
+      <PreferencesPageInner />
+    </Suspense>
+  );
+}
+
+function PreferencesPageInner() {
+>>>>>>> origin/main
   const searchParams = useSearchParams();
   const token = useMemo(() => searchParams.get("token") ?? "", [searchParams]);
 
@@ -208,12 +225,20 @@ function PreferencesInner() {
         </fieldset>
 
         <div className="mt-6 flex items-center justify-between gap-2">
+<<<<<<< HEAD
           <a
+=======
+          <Link
+>>>>>>> origin/main
             href={`/unsubscribe?token=${encodeURIComponent(token)}`}
             className="text-sm text-muted-foreground underline"
           >
             Darme de baja de todo
+<<<<<<< HEAD
           </a>
+=======
+          </Link>
+>>>>>>> origin/main
           <button
             type="button"
             onClick={() => void onSave(prefs)}
@@ -233,6 +258,7 @@ function PreferencesInner() {
     </main>
   );
 }
+<<<<<<< HEAD
 
 
 /**
@@ -257,3 +283,5 @@ export default function PreferencesPage() {
     </Suspense>
   );
 }
+=======
+>>>>>>> origin/main

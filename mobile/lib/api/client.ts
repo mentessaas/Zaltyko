@@ -6,6 +6,7 @@
 //   - Errores vienen como { ok: false, error: { code, message } }
 //   - Bearer token = access JWT de Supabase (mismo que valida withBearerTenant)
 //   - Ante 401, intenta refresh UNA vez y repite. Si vuelve a fallar, propagar.
+<<<<<<< HEAD
 //   - Los errores se traducen al set mínimo del contrato ZAL-619 §6.3
 //     (ver ./error-codes.ts): nunca exponemos el `message` del backend
 //     cuando el código es desconocido (AC-10: sin stack trace ni secretos).
@@ -27,19 +28,34 @@ export interface ApiError {
   retryable: boolean;
   /** Acción que la UI debería ofrecer. */
   nextAction: NextAction;
+=======
+
+import { supabase, API_BASE } from '@/lib/auth/supabase';
+
+export interface ApiError {
+  code: string;
+  message: string;
+  status: number;
+>>>>>>> origin/main
 }
 
 export class ApiClientError extends Error {
   code: string;
   status: number;
+<<<<<<< HEAD
   retryable: boolean;
   nextAction: NextAction;
+=======
+>>>>>>> origin/main
   constructor(err: ApiError) {
     super(err.message);
     this.code = err.code;
     this.status = err.status;
+<<<<<<< HEAD
     this.retryable = err.retryable;
     this.nextAction = err.nextAction;
+=======
+>>>>>>> origin/main
     this.name = 'ApiClientError';
   }
 }
@@ -57,6 +73,7 @@ interface RequestOpts {
   // Sin esto una request se queda colgada indefinidamente si el backend
   // no responde (visto en carne propia con el dev server sobrecargado).
   timeoutMs?: number;
+<<<<<<< HEAD
   // ZAL-619 §6.2 + AC-09: clave de idempotencia para mutaciones. Cuando
   // el backend la implemente, devolverá el mismo resultado lógico ante
   // reintentos con la misma clave, o `IDEMPOTENCY_CONFLICT` ante payload
@@ -64,6 +81,8 @@ interface RequestOpts {
   // naturalmente idempotente y la app sólo persiste la clave para que
   // un reintento por error de red no genere una nueva cada vez.
   idempotencyKey?: string;
+=======
+>>>>>>> origin/main
 }
 
 const DEFAULT_TIMEOUT_MS = 20_000;
@@ -84,6 +103,7 @@ async function request<T>(
 
   const token = opts.token ?? (await getFreshToken());
   if (!token && opts.requireAuth !== false) {
+<<<<<<< HEAD
     const t = translateError('NO_SESSION');
     throw new ApiClientError({
       code: 'NO_SESSION',
@@ -91,13 +111,22 @@ async function request<T>(
       status: 0,
       retryable: t.retryable,
       nextAction: t.nextAction,
+=======
+    throw new ApiClientError({
+      code: 'NO_SESSION',
+      message: 'No hay sesión activa. Vuelve a iniciar sesión.',
+      status: 0,
+>>>>>>> origin/main
     });
   }
 
   const headers: Record<string, string> = {
     Accept: 'application/json',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
+<<<<<<< HEAD
     ...(opts.idempotencyKey ? { 'Idempotency-Key': opts.idempotencyKey } : {}),
+=======
+>>>>>>> origin/main
     ...(opts.headers ?? {}),
   };
   if (opts.body !== undefined) headers['Content-Type'] = 'application/json';
@@ -121,6 +150,7 @@ async function request<T>(
     res = await fetch(url, init);
   } catch (err) {
     const timedOut = err instanceof Error && err.name === 'AbortError';
+<<<<<<< HEAD
     const code = timedOut ? 'TIMEOUT' : 'NETWORK_ERROR';
     const t = translateError(code);
     throw new ApiClientError({
@@ -129,6 +159,16 @@ async function request<T>(
       status: 0,
       retryable: t.retryable,
       nextAction: t.nextAction,
+=======
+    throw new ApiClientError({
+      code: timedOut ? 'TIMEOUT' : 'NETWORK_ERROR',
+      message: timedOut
+        ? 'La solicitud tardó demasiado. Revisa tu conexión e inténtalo de nuevo.'
+        : err instanceof Error
+          ? err.message
+          : 'Error de red',
+      status: 0,
+>>>>>>> origin/main
     });
   } finally {
     clearTimeout(timeoutId);
@@ -154,6 +194,7 @@ async function request<T>(
     try {
       payload = JSON.parse(text);
     } catch {
+<<<<<<< HEAD
       // Si el body no es JSON, marcarlo pero seguir con el status.
       // Esto NO se filtra a la UI: translateError() decide qué copy mostrar.
       const t = translateError('INVALID_JSON');
@@ -164,11 +205,15 @@ async function request<T>(
         retryable: t.retryable,
         nextAction: t.nextAction,
       });
+=======
+      payload = { ok: false, error: { code: 'INVALID_JSON', message: text } };
+>>>>>>> origin/main
     }
   }
 
   if (!res.ok) {
     const errBody = payload as { error?: { code?: string; message?: string } } | null;
+<<<<<<< HEAD
     const rawCode = errBody?.error?.code;
     // Regla asimétrica por contrato:
     // - 5xx + código desconocido → HTTP_5xx (el bucket es accionable y
@@ -191,6 +236,12 @@ async function request<T>(
       status: res.status,
       retryable: t.retryable ?? inferRetryableFromStatus(res.status),
       nextAction: t.nextAction,
+=======
+    throw new ApiClientError({
+      code: errBody?.error?.code ?? `HTTP_${res.status}`,
+      message: errBody?.error?.message ?? res.statusText,
+      status: res.status,
+>>>>>>> origin/main
     });
   }
 
@@ -214,4 +265,8 @@ export const apiDelete = <T>(path: string, opts: RequestOpts = {}) =>
   request<T>('DELETE', path, opts);
 
 // URL base para construir links que redirigen a la web (pagos, settings).
+<<<<<<< HEAD
 export const webBaseUrl = (): string => API_BASE;
+=======
+export const webBaseUrl = (): string => API_BASE;
+>>>>>>> origin/main

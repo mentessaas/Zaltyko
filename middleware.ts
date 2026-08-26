@@ -124,12 +124,16 @@ function verifyJwtHs256(token: string, secret: string): { valid: boolean; payloa
 function validateClaims(payload: Record<string, unknown>): boolean {
   const now = Date.now();
 
+<<<<<<< HEAD
   // `exp` es obligatorio: un token firmado sin expiración sería válido eterno.
   if (typeof payload.exp !== "number") {
     console.warn("JWT sin exp: rechazado");
     return false;
   }
   if (now >= payload.exp * 1000) {
+=======
+  if (typeof payload.exp === "number" && now >= payload.exp * 1000) {
+>>>>>>> origin/main
     console.warn("JWT expired");
     return false;
   }
@@ -318,6 +322,7 @@ export async function middleware(req: NextRequest) {
     rateLimitHeaders = rateLimitResult.headers;
   }
 
+<<<<<<< HEAD
   // 1b. Rate limit GETs públicos: endpoints anónimos con count(*) por
   // petición; sin esto, un loop barato fuerza escaneos completos sin medir.
   if (isApiPath(pathname) && !isMutation(req.method) && pathname.startsWith("/api/public")) {
@@ -332,6 +337,8 @@ export async function middleware(req: NextRequest) {
     rateLimitHeaders = rateLimitResult.headers;
   }
 
+=======
+>>>>>>> origin/main
   // 2. Rate limit academy app + super-admin paths
   if (isAcademyAppPath(pathname)) {
     const rateLimitResult = await checkRateLimit(req, {

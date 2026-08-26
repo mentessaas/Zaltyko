@@ -1,7 +1,10 @@
 "use client";
 
 import { Building2, FileSpreadsheet, CreditCard, Users } from "lucide-react";
+<<<<<<< HEAD
 import Reveal from "@/components/motion/Reveal";
+=======
+>>>>>>> origin/main
 
 // No hay todavía cifras de clientes que citar (ver LANDING-CRO.md). En vez de
 // dejar la sección sin ningún elemento de confianza, describe el proceso real
@@ -39,6 +42,7 @@ export default function SocialProofSection() {
         </p>
         <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
           {steps.map((step, index) => (
+<<<<<<< HEAD
             <Reveal key={step.title} delay={index * 90}>
               <div className="text-center">
                 <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-control bg-zaltyko-primary-ultralight">
@@ -49,6 +53,16 @@ export default function SocialProofSection() {
                 <p className="text-sm text-zaltyko-text-secondary">{step.description}</p>
               </div>
             </Reveal>
+=======
+            <div key={step.title} className="text-center">
+              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-control bg-zaltyko-primary-ultralight">
+                <step.icon className="h-6 w-6 text-zaltyko-teal" />
+              </div>
+              <p className="mb-1 text-xs font-semibold text-zaltyko-text-light">Paso {index + 1}</p>
+              <h3 className="mb-2 font-display text-base font-bold text-zaltyko-navy">{step.title}</h3>
+              <p className="text-sm text-zaltyko-text-secondary">{step.description}</p>
+            </div>
+>>>>>>> origin/main
           ))}
         </div>
       </div>

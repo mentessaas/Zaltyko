@@ -21,7 +21,11 @@ export function RevenueTrendChart({ academyId }: RevenueTrendChartProps) {
   const maxRevenue = Math.max(...MONTHLY_DATA.map((d) => d.revenue));
 
   return (
+<<<<<<< HEAD
     <Card className="border-border/80 shadow-soft">
+=======
+    <Card className="border-zaltyko-mist/80 shadow-soft">
+>>>>>>> origin/main
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-base font-display font-semibold">
           <TrendingUp className="h-5 w-5 text-zaltyko-teal" />
@@ -43,13 +47,21 @@ export function RevenueTrendChart({ academyId }: RevenueTrendChartProps) {
                     style={{ height: `${height}%` }}
                   />
                 </div>
+<<<<<<< HEAD
                 <span className="text-xs text-muted-foreground">{data.month}</span>
+=======
+                <span className="text-xs text-zaltyko-text-secondary">{data.month}</span>
+>>>>>>> origin/main
               </div>
             );
           })}
         </div>
         <div className="mt-4 flex items-center justify-between rounded-lg bg-zaltyko-white p-3">
+<<<<<<< HEAD
           <span className="text-sm text-muted-foreground">vs. mes anterior</span>
+=======
+          <span className="text-sm text-zaltyko-text-secondary">vs. mes anterior</span>
+>>>>>>> origin/main
           <span className="flex items-center gap-1 text-sm font-semibold text-zaltyko-teal">
             <TrendingUp className="h-4 w-4" />
             +8.2%

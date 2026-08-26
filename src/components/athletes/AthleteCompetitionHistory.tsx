@@ -104,16 +104,27 @@ export function AthleteCompetitionHistory({
     .sort((a, b) => a - b)[0];
 
   return (
+<<<<<<< HEAD
     <section className="space-y-4 rounded-2xl border border-border bg-card p-6 shadow-soft">
+=======
+    <section className="space-y-4 rounded-2xl border border-zaltyko-mist bg-white p-6 shadow-soft">
+>>>>>>> origin/main
       <header className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div>
           <p className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-teal">
             Historial de {terms.competition.toLowerCase()}
           </p>
+<<<<<<< HEAD
           <h2 className="font-display text-lg font-semibold text-foreground">
             Resultados por evento, rama y {terms.apparatus.toLowerCase()}
           </h2>
           <p className="text-sm text-muted-foreground">
+=======
+          <h2 className="font-display text-lg font-semibold text-zaltyko-navy">
+            Resultados por evento, rama y {terms.apparatus.toLowerCase()}
+          </h2>
+          <p className="text-sm text-zaltyko-text-secondary">
+>>>>>>> origin/main
             Consulta resultados registrados desde {terms.competition.toLowerCase()}s y torneos.
           </p>
         </div>
@@ -128,7 +139,11 @@ export function AthleteCompetitionHistory({
         <select
           value={sportConfigFilter}
           onChange={(event) => setSportConfigFilter(event.target.value)}
+<<<<<<< HEAD
           className="h-10 rounded-lg border border-border bg-card px-3 text-sm"
+=======
+          className="h-10 rounded-lg border border-zaltyko-mist bg-white px-3 text-sm"
+>>>>>>> origin/main
         >
           <option value="all">Todas las ramas</option>
           {sportConfigs.map((config) => (
@@ -143,6 +158,7 @@ export function AthleteCompetitionHistory({
       </div>
 
       {isLoading ? (
+<<<<<<< HEAD
         <p className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
           Cargando resultados...
         </p>
@@ -151,6 +167,16 @@ export function AthleteCompetitionHistory({
           <Trophy className="mx-auto mb-3 h-10 w-10 text-zaltyko-mist" />
           <p className="text-sm font-medium text-foreground">Sin resultados registrados</p>
           <p className="mt-1 text-sm text-muted-foreground">
+=======
+        <p className="rounded-xl border border-dashed border-zaltyko-mist p-6 text-center text-sm text-zaltyko-text-secondary">
+          Cargando resultados...
+        </p>
+      ) : filteredResults.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-zaltyko-mist p-8 text-center">
+          <Trophy className="mx-auto mb-3 h-10 w-10 text-zaltyko-mist" />
+          <p className="text-sm font-medium text-zaltyko-navy">Sin resultados registrados</p>
+          <p className="mt-1 text-sm text-zaltyko-text-secondary">
+>>>>>>> origin/main
             Cuando se guarden resultados en eventos o {terms.competition.toLowerCase()}s, aparecerán aquí.
           </p>
         </div>
@@ -159,6 +185,7 @@ export function AthleteCompetitionHistory({
           {filteredResults.map((result) => (
             <article
               key={result.id}
+<<<<<<< HEAD
               className="rounded-xl border border-border bg-zaltyko-warm-white p-4"
             >
               <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
@@ -167,6 +194,16 @@ export function AthleteCompetitionHistory({
                     {result.eventTitle ?? "Resultado sin evento"}
                   </p>
                   <p className="text-xs text-muted-foreground">
+=======
+              className="rounded-xl border border-zaltyko-mist bg-zaltyko-warm-white p-4"
+            >
+              <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                <div>
+                  <p className="font-semibold text-zaltyko-navy">
+                    {result.eventTitle ?? "Resultado sin evento"}
+                  </p>
+                  <p className="text-xs text-zaltyko-text-secondary">
+>>>>>>> origin/main
                     {formatDate(result.createdAt)}
                     {result.round ? ` · ${result.round}` : ""}
                     {result.subdivision ? ` · ${result.subdivision}` : ""}
@@ -192,6 +229,7 @@ export function AthleteCompetitionHistory({
                 )}
               </div>
               <div className="mt-4 grid grid-cols-3 gap-2 text-center sm:max-w-md">
+<<<<<<< HEAD
                 <div className="rounded-lg bg-card px-3 py-2">
                   <p className="text-xs text-muted-foreground">D</p>
                   <p className="font-display text-lg font-semibold text-foreground">{formatScore(result.dScore)}</p>
@@ -207,6 +245,23 @@ export function AthleteCompetitionHistory({
               </div>
               {result.notes && (
                 <p className="mt-3 text-sm text-muted-foreground">{result.notes}</p>
+=======
+                <div className="rounded-lg bg-white px-3 py-2">
+                  <p className="text-xs text-zaltyko-text-secondary">D</p>
+                  <p className="font-display text-lg font-semibold text-zaltyko-navy">{formatScore(result.dScore)}</p>
+                </div>
+                <div className="rounded-lg bg-white px-3 py-2">
+                  <p className="text-xs text-zaltyko-text-secondary">E</p>
+                  <p className="font-display text-lg font-semibold text-zaltyko-navy">{formatScore(result.eScore)}</p>
+                </div>
+                <div className="rounded-lg bg-white px-3 py-2">
+                  <p className="text-xs text-zaltyko-text-secondary">Final</p>
+                  <p className="font-display text-lg font-semibold text-zaltyko-navy">{formatScore(result.finalScore)}</p>
+                </div>
+              </div>
+              {result.notes && (
+                <p className="mt-3 text-sm text-zaltyko-text-secondary">{result.notes}</p>
+>>>>>>> origin/main
               )}
             </article>
           ))}

@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Zaltyko — Informe Integral · ox alpha</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..900;1,9..144,300..900&family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    /* Colores de marca Zaltyko (tailwind.config.mjs) */
+    --teal-deep: #00796B;
+    --teal-electric: #1FC7B6;
+    --indigo: #2B2E83;
+    --coral: #FF6B57;
+    --navy: #0F172A;
+
+    --ink: var(--navy);
+    --ink-2: #131c2e;
+    --panel: #16223a;
+    --line: #26334d;
+    --paper: #f8fafc;
+    --muted: #94a3b8;
+    --amber: var(--teal-electric);
+    --amber-dim: rgba(31,199,182,.13);
+    --red: var(--coral);
+    --green: #34d399;
+    --blue: #7c9ff0;
+    --serif: 'Fraunces', serif;
+    --sans: 'Instrument Sans', sans-serif;
+    --mono: 'IBM Plex Mono', monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--ink);
+    color: var(--paper);
+    font-family: var(--sans);
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection { background: var(--teal-electric); color: var(--navy); }
+
+  /* grain overlay */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    pointer-events: none; z-index: 999;
+    opacity: .05;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 clamp(20px, 5vw, 56px); }
+
+  /* ---------- NAV ---------- */
+  nav {
+    position: sticky; top: 0; z-index: 50;
+    backdrop-filter: blur(12px);
+    background: rgba(15,23,42,.82);
+    border-bottom: 1px solid var(--line);
+  }
+  nav .wrap { display: flex; align-items: center; justify-content: space-between; height: 60px; }
+  .brand {
+    font-family: var(--mono); font-size: 13px; letter-spacing: .08em;
+    background: linear-gradient(120deg, var(--teal-deep), var(--teal-electric));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    font-weight: 600;
+  }
+  .brand b { color: var(--coral); -webkit-text-fill-color: var(--coral); font-weight: 600; }
+  nav ul { display: flex; gap: 22px; list-style: none; }
+  nav a { color: var(--muted); text-decoration: none; font-size: 13px; font-weight: 500; transition: color .2s; }
+  nav a:hover { color: var(--amber); }
+  @media (max-width: 720px) { nav ul { display: none; } }
+
+  /* ---------- HERO ---------- */
+  header { padding: clamp(70px, 11vw, 130px) 0 clamp(48px, 7vw, 80px); position: relative; overflow: hidden; }
+  header::after {
+    content: '';
+    position: absolute; right: -220px; top: -220px;
+    width: 640px; height: 640px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(31,199,182,.14) 0%, transparent 62%);
+    pointer-events: none;
+  }
+  header::before {
+    content: '';
+    position: absolute; left: -260px; bottom: -300px;
+    width: 560px; height: 560px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(43,46,131,.35) 0%, transparent 65%);
+    pointer-events: none;
+  }
+  .kicker {
+    font-family: var(--mono); font-size: 12px; letter-spacing: .22em;
+    text-transform: uppercase; color: var(--amber); margin-bottom: 26px;
+    display: flex; align-items: center; gap: 14px;
+  }
+  .kicker::before { content: ''; width: 42px; height: 1px; background: var(--amber); }
+  h1 {
+    font-family: var(--serif); font-weight: 500;
+    font-size: clamp(40px, 6.4vw, 76px);
+    line-height: 1.04; letter-spacing: -.015em;
+    max-width: 15ch;
+  }
+  h1 em {
+    font-style: italic; font-weight: 400;
+    background: linear-gradient(120deg, #1FC7B6, #2B2E83 130%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .hero-sub { margin-top: 28px; max-width: 58ch; color: var(--muted); font-size: 17px; }
+  .hero-meta {
+    margin-top: 44px; display: flex; flex-wrap: wrap; gap: 10px;
+    font-family: var(--mono); font-size: 12px;
+  }
+  .chip {
+    border: 1px solid var(--line); border-radius: 99px;
+    padding: 6px 14px; color: var(--muted); background: rgba(255,255,255,.02);
+  }
+  .chip.hot { border-color: rgba(255,107,87,.5); color: var(--coral); }
+
+  /* ---------- GRADIENTE DE MARCA ---------- */
+  .brand-bar {
+    height: 4px; border-radius: 99px; margin-top: 40px;
+    background: linear-gradient(120deg, #00796B 0%, #1FC7B6 45%, #2B2E83 100%);
+    max-width: 320px;
+  }
+
+  /* ---------- SCORE STRIP ---------- */
+  .scores {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1px; background: var(--line);
+    border: 1px solid var(--line); border-radius: 14px; overflow: hidden;
+    margin: 30px 0 0;
+  }
+  .score { background: var(--ink-2); padding: 24px 20px; }
+  .score .n { font-family: var(--serif); font-size: 38px; font-weight: 600; line-height: 1; }
+  .score .l { font-family: var(--mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-top: 10px; }
+  .good { color: var(--green); } .warn { color: var(--amber); } .bad { color: var(--red); } .info { color: var(--blue); }
+
+  /* ---------- SECTIONS ---------- */
+  section { padding: clamp(52px, 8vw, 96px) 0 0; }
+  .sec-head { display: flex; align-items: baseline; gap: 18px; margin-bottom: 34px; }
+  .sec-num { font-family: var(--mono); font-size: 13px; color: var(--amber); }
+  h2 { font-family: var(--serif); font-weight: 500; font-size: clamp(28px, 3.6vw, 42px); letter-spacing: -.01em; }
+  h3 { font-family: var(--serif); font-weight: 600; font-size: 20px; margin: 34px 0 14px; }
+
+  p { color: #c9c6cf; }
+  section p + p { margin-top: 14px; }
+  strong { color: var(--paper); }
+  code {
+    font-family: var(--mono); font-size: .86em;
+    background: rgba(31,199,182,.1); color: var(--teal-electric);
+    padding: 2px 7px; border-radius: 5px;
+  }
+
+  .panel {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 14px; padding: clamp(22px, 3.5vw, 34px);
+    margin-top: 22px;
+  }
+
+  /* verdict callouts */
+  .verdict {
+    border-left: 3px solid var(--amber);
+    background: linear-gradient(90deg, var(--amber-dim), transparent 70%);
+    border-radius: 0 12px 12px 0;
+    padding: 20px 24px; margin-top: 26px; font-size: 16px;
+  }
+  .verdict.crit { border-color: var(--coral); background: linear-gradient(90deg, rgba(255,107,87,.12), transparent 70%); }
+
+  /* lists */
+  ul.clean { list-style: none; margin-top: 14px; }
+  ul.clean li { padding: 11px 0 11px 30px; position: relative; border-bottom: 1px dashed var(--line); color: #c9c6cf; }
+  ul.clean li:last-child { border-bottom: none; }
+  ul.clean li::before { content: '→'; position: absolute; left: 0; color: var(--amber); font-family: var(--mono); }
+  ul.check li::before { content: '✓'; color: var(--green); }
+  ul.cross li::before { content: '✕'; color: var(--red); }
+
+  /* tables */
+  .tbl-scroll { overflow-x: auto; margin-top: 22px; border: 1px solid var(--line); border-radius: 14px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 640px; }
+  th {
+    text-align: left; font-family: var(--mono); font-size: 11px; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--muted); font-weight: 500;
+    padding: 15px 18px; background: var(--ink-2); border-bottom: 1px solid var(--line);
+  }
+  td { padding: 15px 18px; border-bottom: 1px solid var(--line); vertical-align: top; color: #c9c6cf; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,.02); }
+  .tag {
+    display: inline-block; font-family: var(--mono); font-size: 11px;
+    padding: 3px 10px; border-radius: 99px; white-space: nowrap;
+  }
+  .tag.p0 { background: rgba(255,107,87,.14); color: var(--coral); border: 1px solid rgba(255,107,87,.4); }
+  .tag.p1 { background: var(--amber-dim); color: var(--amber); border: 1px solid rgba(232,163,61,.35); }
+  .tag.p2 { background: rgba(43,46,131,.35); color: #9aa4f5; border: 1px solid rgba(124,159,240,.4); }
+
+  /* two-col */
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; margin-top: 22px; }
+  @media (max-width: 800px) { .cols { grid-template-columns: 1fr; } }
+  .col-card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 26px; }
+  .col-card h4 { font-family: var(--mono); font-size: 12px; letter-spacing: .14em; text-transform: uppercase; margin-bottom: 16px; }
+
+  /* stats grid */
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-top: 22px; }
+  .stat { border: 1px solid var(--line); border-radius: 12px; padding: 18px; background: var(--ink-2); }
+  .stat .v { font-family: var(--serif); font-size: 30px; font-weight: 600; color: var(--paper); }
+  .stat .k { font-size: 12.5px; color: var(--muted); margin-top: 6px; }
+
+  /* footer */
+  footer { margin-top: clamp(60px, 9vw, 110px); border-top: 1px solid var(--line); padding: 44px 0 60px; }
+  footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16px; font-family: var(--mono); font-size: 12px; color: var(--muted); }
+
+  /* reveal animation */
+  .reveal { opacity: 0; transform: translateY(18px); animation: rise .7s cubic-bezier(.2,.7,.2,1) forwards; }
+  @keyframes rise { to { opacity: 1; transform: none; } }
+  header .reveal:nth-child(1) { animation-delay: .05s; }
+  header .reveal:nth-child(2) { animation-delay: .15s; }
+  header .reveal:nth-child(3) { animation-delay: .25s; }
+  header .reveal:nth-child(4) { animation-delay: .35s; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <div class="brand">zaltyko<b>/</b>informe-integral</div>
+    <ul>
+      <li><a href="#resumen">Resumen</a></li>
+      <li><a href="#arquitectura">Arquitectura</a></li>
+      <li><a href="#calidad">Calidad</a></li>
+      <li><a href="#seguridad">Seguridad</a></li>
+      <li><a href="#producto">Producto</a></li>
+      <li><a href="#negocio">Negocio</a></li>
+      <li><a href="#mejoras">Mejoras</a></li>
+    </ul>
+  </div>
+</nav>
+
+<header>
+  <div class="wrap">
+    <div class="kicker reveal">Informe de análisis integral · ox alpha</div>
+    <h1 class="reveal">Zaltyko: un producto <em>maduro</em> que aún no ha vendido nada</h1>
+    <p class="hero-sub reveal">Análisis profundo del código, la seguridad, el producto y el negocio. Ingeniería excepcional para su etapa, dos deudas de seguridad serias, deuda estructural declarada y comercialmente en cero absoluto.</p>
+    <div class="hero-meta reveal">
+      <span class="chip">Fecha: 23 ago 2026</span>
+      <span class="chip">Next.js 15.5 · Supabase · Drizzle · Stripe</span>
+      <span class="chip hot">2 alertas críticas de seguridad</span>
+      <span class="chip">Modo solo lectura — nada fue modificado</span>
+    </div>
+    <div class="brand-bar reveal"></div>
+    <div class="scores reveal">
+      <div class="score"><div class="n info">~200k</div><div class="l">líneas TS en src/</div></div>
+      <div class="score"><div class="n good">Apto</div><div class="l">calidad de ingeniería</div></div>
+      <div class="score"><div class="n bad">D+</div><div class="l">postura de producción</div></div>
+      <div class="score"><div class="n warn">74</div><div class="l">CRO landing /100</div></div>
+      <div class="score"><div class="n bad">0€</div><div class="l">MRR documentado</div></div>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+<!-- ============ RESUMEN ============ -->
+<section id="resumen">
+  <div class="sec-head"><span class="sec-num">01</span><h2>Resumen ejecutivo</h2></div>
+  <p>Zaltyko es un SaaS multi-tenant para academias de gimnasia con una base técnica notablemente madura: <strong>~189 tablas Drizzle</strong>, <strong>306 rutas API</strong> todas bajo wrappers de autorización, RLS validada automáticamente en CI (~330 políticas), ledger de migraciones con SHA-256, 132 suites de tests unitarios, 17 specs E2E Playwright, auditoría WCAG 2.2 AA y gates estáticos propios (<code>gate:all</code>, <code>verify:production</code>).</p>
+  <p>Sin embargo, hay una tensión clara entre la inversión técnica y el resultado comercial: el funnel real es <strong>2 academias Free, 0 leads, 0 suscripciones, 0 entrevistas de pricing</strong>. Y antes de crecer, hay dos problemas de seguridad que deben resolverse esta misma semana.</p>
+  <div class="verdict crit">
+    <strong>Hallazgo más grave:</strong> existe una clave <code>service_role</code> de Supabase hardcodeada en <code>scripts/test-dashboard-flows.ts</code> y ya presente en el historial de git. Borrar el archivo no basta: hay que <strong>rotar la credencial inmediatamente</strong>.
+  </div>
+  <div class="verdict crit">
+    <strong>Segundo hallazgo:</strong> los security headers prometidos (CSP, HSTS, X-Frame-Options…) figuran en comentarios de <code>next.config.mjs</code> como si se aplicaran desde middleware, pero <strong>el middleware no los implementa</strong> y no están en <code>vercel.json</code>. La app de producción va sin ninguna de estas protecciones.
+  </div>
+  <div class="verdict">
+    <strong>Tesis general:</strong> el proyecto no necesita más infraestructura ni más módulos. Necesita cerrar las dos brechas de seguridad, decidir la duplicación legacy <code>/dashboard/*</code> vs <code>/app/[academyId]/*</code>, reducir el burn de meta-trabajo de agentes (118,7% del presupuesto mensual) y pasar a validar comercialmente con clientes reales.
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="v">189</div><div class="k">tablas Drizzle en 83 archivos</div></div>
+    <div class="stat"><div class="v">306</div><div class="k">rutas API (~80 dominios)</div></div>
+    <div class="stat"><div class="v">236</div><div class="k">rutas API con wrapper authz</div></div>
+    <div class="stat"><div class="v">330</div><div class="k">políticas RLS declaradas</div></div>
+    <div class="stat"><div class="v">48</div><div class="k">migraciones SQL versionadas</div></div>
+    <div class="stat"><div class="v">132</div><div class="k">suites Vitest + 17 E2E</div></div>
+    <div class="stat"><div class="v">14</div><div class="k">TODO/FIXME en todo src/ (señal buena)</div></div>
+    <div class="stat"><div class="v">216</div><div class="k">páginas compiladas en build</div></div>
+  </div>
+</section>
+
+<!-- ============ ARQUITECTURA ============ -->
+<section id="arquitectura">
+  <div class="sec-head"><span class="sec-num">02</span><h2>Arquitectura</h2></div>
+
+  <h3>Puntos fuertes</h3>
+  <ul class="clean check">
+    <li><strong>Aislamiento multi-tenant serio:</strong> wrappers <code>withTenant</code> / <code>withSuperAdmin</code> / <code>withBearerTenant</code>, auditoría clasificó 272/272 rutas con 0 mutaciones sin auth conocida, escalada cross-tenant cerrada y documentada.</li>
+    <li><strong>Disciplina de datos:</strong> ledger SHA-256 con advisory lock para migraciones Supabase, prohibido <code>drizzle-kit push</code> remoto, verificación RLS automatizada en CI.</li>
+    <li><strong>Middleware sólido:</strong> i18n → rate-limit mutantes (sliding window sobre Vercel KV) → gate super-admin con verificación HS256 real (<code>timingSafeEqual</code>) fail-closed.</li>
+    <li><strong>Vault operativa excepcional:</strong> decisiones, changelog, riesgos y backlog con evidencia y fechas — trazabilidad poco común en proyectos de este tamaño.</li>
+    <li><strong>Código limpio:</strong> solo 14 TODO/FIXME/HACK en ~200k líneas y 0 <code>console.log</code>.</li>
+  </ul>
+
+  <h3>Deuda estructural con evidencia</h3>
+  <div class="tbl-scroll">
+    <table>
+      <thead><tr><th>Deuda</th><th>Evidencia</th><th>Impacto</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>Doble dashboard legacy</strong></td>
+          <td><code>/dashboard/*</code> convive con <code>/app/[academyId]/*</code>: ~24 módulos duplicados</td>
+          <td>Mayor deuda estructural; decisión humana bloqueada desde junio ("Opción A", Elvis). Mantiene coste de mantenimiento x2 en cada cambio.</td>
+        </tr>
+        <tr>
+          <td><strong>Archivos gigantes</strong></td>
+          <td><code>citiesByRegion.ts</code> (1.654 líneas), <code>SuperAdminUserDetail.tsx</code> (1.006), <code>settings/route.ts</code> (825), <code>dashboard.ts</code> (853)</td>
+          <td>Dificultan revisión y testing granular; citiesByRegion debería ser JSON lazy-load (el patrón ya existe en <code>geo-loader.ts</code>).</td>
+        </tr>
+        <tr>
+          <td><strong>RLS matizada</strong></td>
+          <td>La app conecta como rol <code>postgres</code> con BYPASSRLS (vault, 03-07-2026)</td>
+          <td>La RLS es defensa en profundidad para el cliente Supabase, no barrera server-side. El aislamiento real depende al 100% de los wrappers authz.</td>
+        </tr>
+        <tr>
+          <td><strong>Métricas en memoria</strong></td>
+          <td><code>src/lib/metrics.ts</code> pierde datos en serverless</td>
+          <td>Observabilidad débil: sin feature flags, sin auditoría transversal persistente.</td>
+        </tr>
+        <tr>
+          <td><strong>Build relajado</strong></td>
+          <td><code>ignoreBuildErrors</code> y <code>ignoreDuringBuilds: true</code> en next.config</td>
+          <td>La calidad depende de que CI corra antes del deploy; cualquier deploy fuera de CI compila silenciando errores.</td>
+        </tr>
+        <tr>
+          <td><strong>Auditorías históricas sin marcar</strong></td>
+          <td>INCONSISTENCY-AUDIT.md (28/100 coherencia marketing↔código) mezcla bugs ya resueltos con deuda viva</td>
+          <td>Induce trabajo redundante: nadie sabe qué hallazgos siguen vivos.</td>
+        </tr>
+        <tr>
+          <td><strong>Docker residual</strong></td>
+          <td>Builder node:21 vs runtime node:18, <code>npm install</code> sin lockfile, root, sin HEALTHCHECK</td>
+          <td>Falsa sensación de paridad de deploy (el deploy real es Vercel).</td>
+        </tr>
+        <tr>
+          <td><strong>Móvil casi sin tests</strong></td>
+          <td>App Expo SDK 57 seria pero solo 1 archivo de test</td>
+          <td>Riesgo en flujos auth/asistencia cuando se desbloquee la cuenta Expo.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============ CALIDAD ============ -->
+<section id="calidad">
+  <div class="sec-head"><span class="sec-num">03</span><h2>Calidad y testing</h2></div>
+  <p>La infraestructura de calidad es <strong>muy superior a lo habitual</strong> en un proyecto pre-revenue: gates estáticos con self-tests (<code>unbounded-reads</code>, <code>auth-before-validate</code>, <code>orphan-app-route</code>), auditoría de env contract, verificación semántica de RLS, detección de políticas permisivas con allowlist aprobada, SBOM CycloneDX, y CI en GitHub Actions con jobs de dependencias, lint/typecheck, vitest coverage, build, smoke Chromium y validate-rls.</p>
+  <ul class="clean">
+    <li><strong>Release gate:</strong> <code>pnpm verify:production</code> orquesta 9 comprobaciones (279 APIs, RLS, lint, typecheck, 435 pruebas, build de 216 páginas).</li>
+    <li><strong>E2E:</strong> flujos críticos autenticados sin aprovisionar usuarios fabricados; SCA/3DS, Stripe Connect, role smoke, coach workspace.</li>
+    <li><strong>a11y:</strong> axe WCAG 2.2 AA + specs dedicadas (toast live-region, focal points, journeys).</li>
+    <li><strong>Seguridad:</strong> config dedicada <code>vitest.security.config.ts</code> y test de contrato PWA.</li>
+    <li><strong>Gaps:</strong> mobile/ con 1 test; falta spec E2E que falle si desaparecen CSP/HSTS (evitaría regresiones de headers).</li>
+  </ul>
+</section>
+
+<!-- ============ SEGURIDAD ============ -->
+<section id="seguridad">
+  <div class="sec-head"><span class="sec-num">04</span><h2>Seguridad</h2></div>
+
+  <div class="cols">
+    <div class="col-card">
+      <h4 class="good">✓ Fortalezas reales</h4>
+      <ul class="clean check" style="margin-top:0">
+        <li>Stripe webhooks: firma <code>constructEvent</code> + tolerancia 300s, idempotencia, también en Connect. Mailgun con comparación timing-safe.</li>
+        <li>Rate limiting sliding window en middleware para toda mutación API, con exclusión justificada de webhooks/crons.</li>
+        <li>Super-admin: HS256 con <code>timingSafeEqual</code>, validación exp/iat con skew, fallback remoto a Supabase.</li>
+        <li>Cron auth: CRON_SECRET timing-safe, falla cerrada (503).</li>
+        <li>Zod en 182+ route files; gate vigila orden auth→validación.</li>
+        <li>~330 políticas RLS con endurecimiento iterativo documentado.</li>
+      </ul>
+    </div>
+    <div class="col-card">
+      <h4 class="bad">✕ Huecos encontrados</h4>
+      <ul class="clean cross" style="margin-top:0">
+        <li><strong>CRÍTICO:</strong> service_role key de Supabase hardcodeada en <code>scripts/test-dashboard-flows.ts</code>; anon keys en <code>auto-configure-db.ts</code> y <code>setup-db-connection.ts</code>. La service_role vive en el historial git → rotar ya.</li>
+        <li><strong>ALTO:</strong> cero security headers en producción (sin CSP, HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy).</li>
+        <li><strong>MEDIO:</strong> build silencia errores de tipos/lint fuera de CI.</li>
+        <li><strong>MEDIO:</strong> Docker prod descuidado (Node desalineado, npm install sin lockfile, root).</li>
+        <li><strong>BAJO:</strong> <code>/api/dev/session</code> excluido del rate limit por prefijo (hoy seguro por doble gate NODE_ENV, pero superficie evitable).</li>
+        <li><strong>BAJO:</strong> tokens de invitación en claro (único item P0-Día-4 abierto con alcance real).</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PRODUCTO ============ -->
+<section id="producto">
+  <div class="sec-head"><span class="sec-num">05</span><h2>Estado del producto (vault)</h2></div>
+  <p>Según el vault (revisión 2026-08-03), el proyecto está en <strong>hardening avanzado post-Fase 4 con release en NO-GO</strong> hasta cerrar: entrega firmada de Stripe Connect, antimalware externo, PostgREST/Realtime y revisión manual WCAG. Además hay cambios locales paralelos sin commit (árbol no reproducible).</p>
+  <h3>Prioridades vigentes del backlog</h3>
+  <div class="tbl-scroll">
+    <table>
+      <thead><tr><th>#</th><th>Prioridad</th><th>Estado</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>Activación: magic links primeras atletas, TTFAA</td><td>Activa</td></tr>
+        <tr><td>2</td><td>Cobros</td><td>Bloqueada por secretos sandbox (decisión del board)</td></tr>
+        <tr><td>3</td><td>GTM / evidencia real de mercado</td><td>Activa, sin resultados aún</td></tr>
+        <tr><td>4</td><td>Tracking</td><td>Activa</td></tr>
+        <tr><td>5</td><td>Móvil</td><td>Congelada sin cuenta Expo</td></tr>
+        <tr><td>6</td><td>Corregir el propio gate de agentes</td><td>Bloqueante interno</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="verdict crit">
+    <strong>Riesgo organizativo mayor:</strong> burn del <strong>118,7%</strong> del presupuesto mensual en meta-trabajo de agentes (52% de las issues eran meta-trabajo vs 37% producto), 58 issues bloqueadas por mecánica interna del gate y capacidad ociosa (7/14 agentes idle). Resolver <code>recovery.pause.codeGates</code> / ZAL-231 destraba por sí solo ~21-30 issues de producto.
+  </div>
+</section>
+
+<!-- ============ NEGOCIO ============ -->
+<section id="negocio">
+  <div class="sec-head"><span class="sec-num">06</span><h2>Negocio y marketing</h2></div>
+
+  <h3>Modelo (Pricing v3.0, desde 2026-06-24)</h3>
+  <p>Freemium agresivo con monetización diferida por comunidad: el SaaS es loss-leader y el dinero vendrá de add-ons, marketplace B2B (PAWSGRIP), marketplace de padres <code>/descubre</code>, eventos y partnerships (objetivo 500+ academias). Planes: Trial 7 días sin tarjeta → Free 0€ (30 gimnastas) → Starter 19€ (75) → Growth 49€ (200) → Network 99€ multi-sede. Stripe live verificado con precios activos.</p>
+
+  <h3>Scores de auditorías existentes</h3>
+  <div class="tbl-scroll">
+    <table>
+      <thead><tr><th>Auditoría</th><th>Fecha</th><th>Score</th><th>Nota</th></tr></thead>
+      <tbody>
+        <tr><td>BUSINESS-ANALYSIS</td><td>2026-03-26</td><td class="warn">52/100 (D+)</td><td>Obsoleta parcialmente; bugs de pricing ya corregidos por v3.0</td></tr>
+        <tr><td>PRODUCT-ANALYSIS</td><td>2026-03-26</td><td class="warn">52/100</td><td>Core ops 72, monetización 25, UX 38</td></tr>
+        <tr><td>MARKETING-AUDIT</td><td>2026-03-26</td><td class="warn">69/100 (C)</td><td>Prueba social = debilidad mayor</td></tr>
+        <tr><td>SEO-AUDIT</td><td>2026-03-26</td><td class="warn">68/100</td><td>Falta blog; sitemap corregible</td></tr>
+        <tr><td>GEO-AUDIT</td><td>2026-03-27</td><td class="warn">58/100</td><td><code>llms.txt</code> ya creado después</td></tr>
+        <tr><td>LANDING-CRO</td><td>2026-07-23</td><td class="warn">74/100</td><td>Social proof 2/10; hero con bug visual</td></tr>
+        <tr><td>Coherencia marketing↔código</td><td>2026-03-26</td><td class="bad">28/100</td><td>54 hallazgos (12 críticos); varios ya resueltos sin actualizar el doc</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Realidad comercial documentada</h3>
+  <div class="verdict crit">
+    A 2026-07-13, reconfirmado 2026-08-03: <strong>2 academias Free, 0 leads, 0 trials, 0 suscripciones Stripe-backed, 0 eventos academy_activated, 0/10 entrevistas</strong>. La cifra antigua de "~150+ academias, MRR ~570-1.140€" de BUSINESS-ANALYSIS.md está desmentida explícitamente por el vault. Además, hasta hace poco el middleware redirigía toda <code>/</code> a un cluster SEO: la home llevaba meses inalcanzable en producción.
+  </div>
+
+  <h3>Top oportunidades CRO/marketing</h3>
+  <ul class="clean">
+    <li><strong>Prueba social real (2/10):</strong> 1 testimonio verificable de las academias piloto + reviews en Capterra/G2/Google Business. Es la palanca única que puede llevar CRO de 74 a 85+.</li>
+    <li><strong>Fix del hero:</strong> eyebrow renderizado detrás del navbar fijo (visible al 100% de visitas; fix CSS de minutos).</li>
+    <li><strong>Blog/contenido SEO:</strong> único gap grande del canal principal; los clusters país×modalidad (~54 páginas) ya existen como activo.</li>
+    <li><strong>Alinear schema FAQPage con copy visible</strong> + añadir pregunta de precio al FAQ.</li>
+    <li><strong>Activación como métrica rectora:</strong> import CSV visible y pase de lista simplificado (5-6 clics hoy) — son exactamente los dos miedos del ICP: "meter 300 alumnas a mano" y "que las entrenadoras lo usen". Cada semana de fricción en jun-septiembre cuesta una cohorte anual.</li>
+  </ul>
+</section>
+
+<!-- ============ MEJORAS ============ -->
+<section id="mejoras">
+  <div class="sec-head"><span class="sec-num">07</span><h2>Mejoras priorizadas</h2></div>
+  <p>Roadmap consolidado de todas las áreas analizadas, ordenado por impacto y urgencia.</p>
+  <div class="tbl-scroll">
+    <table>
+      <thead><tr><th>Prio</th><th>Acción</th><th>Área</th><th>Por qué ahora</th></tr></thead>
+      <tbody>
+        <tr><td><span class="tag p0">P0</span></td><td><strong>Rotar la service_role key de Supabase</strong> y externalizar claves de scripts a env vars; considerar purga del historial</td><td>Seguridad</td><td>Secreto commiteado y vivo en git history. Es el riesgo número uno del proyecto.</td></tr>
+        <tr><td><span class="tag p0">P0</span></td><td><strong>Implementar security headers</strong> (CSP con nonce, HSTS, X-Frame-Options DENY, X-Content-Type-Options, Referrer-Policy, Permissions-Policy) en middleware o vercel.json + spec E2E que falle si desaparecen</td><td>Seguridad</td><td>El comentario de next.config promete algo que no existe; producción va desnuda de protecciones.</td></tr>
+        <tr><td><span class="tag p0">P0</span></td><td><strong>Decidir la Opción A del dashboard legacy</strong> y ejecutar redirects/deprecación de <code>/dashboard/*</code></td><td>Arquitectura</td><td>Bloqueada desde junio; es la mayor deuda estructural y duplica el coste de cada cambio.</td></tr>
+        <tr><td><span class="tag p0">P0</span></td><td><strong>Destrabar el meta-trabajo:</strong> resolver <code>recovery.pause.codeGates</code> / ZAL-231 y reducir burn de agentes</td><td>Organización</td><td>Destranca ~21-30 issues de producto según el propio backlog; burn 118,7% insostenible.</td></tr>
+        <tr><td><span class="tag p1">P1</span></td><td><strong>Hashing de tokens de invitación</strong> (digest irreversible con transición compatible)</td><td>Seguridad</td><td>Único item P0-Día-4 abierto con alcance real.</td></tr>
+        <tr><td><span class="tag p1">P1</span></td><td><strong>Observabilidad persistente:</strong> exportar métricas a Sentry/log drain o tabla <code>metrics_samples</code>; nonce ledger Mailgun; paginación y métricas en los 6 crons</td><td>Infraestructura</td><td>Las métricas en memoria se pierden en serverless; deuda Día-4 abierta.</td></tr>
+        <tr><td><span class="tag p1">P1</span></td><td><strong>Activar validación comercial:</strong> las 10 entrevistas de pricing + QA del portal de padres con usuarios reales</td><td>Negocio</td><td>Prerrequisito explícito de Fase 5; hoy el funnel tiene denominador cero.</td></tr>
+        <tr><td><span class="tag p1">P1</span></td><td><strong>Marcar auditorías históricas</strong> (INCONSISTENCY-AUDIT, SYSTEMS-ANALYSIS, BUSINESS-ANALYSIS) con estado por hallazgo: resuelto / pendiente</td><td>Docs</td><td>Evita trabajo redundante sobre bugs ya corregidos.</td></tr>
+        <tr><td><span class="tag p1">P1</span></td><td><strong>Prueba social:</strong> 1 testimonio verificable + perfiles Capterra/G2/Google Business</td><td>Marketing</td><td>Score 2/10 repetido en 3 auditorías; palanca única de CRO 74→85+.</td></tr>
+        <tr><td><span class="tag p1">P1</span></td><td><strong>Endurecer build:</strong> quitar <code>ignoreBuildErrors</code>/<code>ignoreDuringBuilds</code> una vez limpio typecheck</td><td>Calidad</td><td>Segunda barrera barata contra regresiones en deploy fuera de CI.</td></tr>
+        <tr><td><span class="tag p2">P2</span></td><td><strong>Particionar archivos gigantes:</strong> extraer servicios de settings/route.ts (825), dividir SuperAdminUserDetail (1.006), mover citiesByRegion (1.654) a JSON lazy-load</td><td>Código</td><td>Mantenibilidad; el patrón lazy-load ya existe en geo-loader.ts.</td></tr>
+        <tr><td><span class="tag p2">P2</span></td><td><strong>Endurecer o eliminar Docker prod</strong> (Node LTS alineado, npm ci, non-root, HEALTHCHECK)</td><td>Infraestructura</td><td>Elimina falsa paridad de deploy; el deploy real es Vercel.</td></tr>
+        <tr><td><span class="tag p2">P2</span></td><td><strong>Cerrar o blindar /api/dev/session</strong> (host allowlist) y quitarlo de exclusiones del rate limit</td><td>Seguridad</td><td>Superficie evitable aunque hoy esté gated por NODE_ENV.</td></tr>
+        <tr><td><span class="tag p2">P2</span></td><td><strong>Tests smoke de mobile/</strong> (auth, asistencia) aprovechando las factories existentes</td><td>Mobile</td><td>Preparar desbloqueo Expo; hoy 1 solo test.</td></tr>
+        <tr><td><span class="tag p2">P2</span></td><td><strong>Blog/contenido SEO</strong> sobre la base de clusters país×modalidad + runbook de rotación de secretos en vault</td><td>Marketing/Ops</td><td>Único gap grande del canal principal; institucionaliza la respuesta a incidentes de secretos.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="verdict" style="margin-top:34px">
+    <strong>Conclusión final:</strong> Zaltyko tiene calidad de ingeniería de serie A (gates propios, RLS semántica auditada, vault impecable) con resultados comerciales de pre-seed (2 academias Free, 0€). La ruta correcta no es construir más: es <strong>rotar el secreto filtrado, poner los security headers, matar el dashboard legacy, destrabar el meta-trabajo y salir a validar con clientes reales</strong>. Todo lo demás puede esperar.
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>zaltyko / informe integral · generado por ox alpha</span>
+    <span>23 ago 2026 · análisis en modo solo lectura — ningún archivo del proyecto fue modificado</span>
+  </div>
+</footer>
+
+</body>
+</html>

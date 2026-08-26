@@ -4,8 +4,11 @@ export const PUBLIC_GROWTH_EVENT_NAMES = [
   "pricing_viewed",
   "pricing_plan_selected",
   "contact_started",
+<<<<<<< HEAD
   "contact_submit_attempted",
   "contact_submit_failed",
+=======
+>>>>>>> origin/main
 ] as const;
 
 export const COMMERCIAL_PLAN_SLUGS = [

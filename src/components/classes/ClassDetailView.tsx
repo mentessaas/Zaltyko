@@ -197,15 +197,24 @@ export function ClassDetailView({
   const primaryButtonClass =
     "inline-flex min-h-11 items-center justify-center rounded-xl bg-zaltyko-teal px-4 py-2 text-sm font-semibold text-white shadow-soft transition hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-60";
   const subtlePanelClass =
+<<<<<<< HEAD
     "rounded-xl border border-border/70 bg-zaltyko-warm-white";
 
   return (
     <div className="space-y-8">
       <section className="relative overflow-hidden rounded-2xl border border-border bg-card p-6 shadow-soft">
+=======
+    "rounded-xl border border-zaltyko-mist/70 bg-zaltyko-warm-white";
+
+  return (
+    <div className="space-y-8">
+      <section className="relative overflow-hidden rounded-2xl border border-zaltyko-mist bg-white p-6 shadow-soft">
+>>>>>>> origin/main
         <div className="zaltyko-motion-lines pointer-events-none absolute inset-x-0 top-0 h-24 opacity-70" />
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div className="relative space-y-2">
             <p className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-teal">{classTerm}</p>
+<<<<<<< HEAD
             <h1 className="font-display text-3xl font-semibold text-foreground">{classInfo.name}</h1>
             <p className="text-sm text-muted-foreground">{formatSchedule()}</p>
             <p className="text-xs text-muted-foreground">
@@ -213,6 +222,15 @@ export function ClassDetailView({
             </p>
             {classInfo.technicalFocus && (
               <p className="max-w-3xl text-sm text-muted-foreground">{classInfo.technicalFocus}</p>
+=======
+            <h1 className="font-display text-3xl font-semibold text-zaltyko-navy">{classInfo.name}</h1>
+            <p className="text-sm text-zaltyko-text-secondary">{formatSchedule()}</p>
+            <p className="text-xs text-zaltyko-text-secondary">
+              Capacidad objetivo: {classInfo.capacity ?? "No definida"}
+            </p>
+            {classInfo.technicalFocus && (
+              <p className="max-w-3xl text-sm text-zaltyko-text-secondary">{classInfo.technicalFocus}</p>
+>>>>>>> origin/main
             )}
             {classInfo.apparatus.length > 0 && (
               <div className="flex flex-wrap gap-2 text-xs">
@@ -228,7 +246,11 @@ export function ClassDetailView({
             )}
             <div className="flex flex-wrap gap-2 text-xs">
               {classInfo.coaches.length === 0 ? (
+<<<<<<< HEAD
                 <span className="rounded-full bg-zaltyko-mist/30 px-3 py-1 text-muted-foreground">
+=======
+                <span className="rounded-full bg-zaltyko-mist/30 px-3 py-1 text-zaltyko-text-secondary">
+>>>>>>> origin/main
                   Sin {terms.coach.toLowerCase()}s asignados
                 </span>
               ) : (
@@ -283,16 +305,28 @@ export function ClassDetailView({
 
       <section className="space-y-4">
         <header className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+<<<<<<< HEAD
           <h2 className="font-display text-xl font-semibold text-foreground">Sesiones recientes</h2>
           <p className="text-xs text-muted-foreground">
+=======
+          <h2 className="font-display text-xl font-semibold text-zaltyko-navy">Sesiones recientes</h2>
+          <p className="text-xs text-zaltyko-text-secondary">
+>>>>>>> origin/main
             Haz clic en “Registrar {attendanceTermLower}” para actualizar el estado de los {athleteTermPluralLower}.
           </p>
         </header>
 
+<<<<<<< HEAD
         <div className="overflow-x-auto rounded-2xl border border-border bg-card shadow-soft">
           <table className="min-w-full divide-y divide-zaltyko-mist text-sm">
             <thead className="bg-zaltyko-warm-white">
               <tr className="text-left text-xs uppercase tracking-[0.05em] text-muted-foreground">
+=======
+        <div className="overflow-x-auto rounded-2xl border border-zaltyko-mist bg-white shadow-soft">
+          <table className="min-w-full divide-y divide-zaltyko-mist text-sm">
+            <thead className="bg-zaltyko-warm-white">
+              <tr className="text-left text-xs uppercase tracking-[0.05em] text-zaltyko-text-secondary">
+>>>>>>> origin/main
                 <th className="px-4 py-3 font-medium">Fecha</th>
                 <th className="px-4 py-3 font-medium">Horario</th>
                 <th className="px-4 py-3 font-medium">{terms.coach}</th>
@@ -301,10 +335,17 @@ export function ClassDetailView({
                 <th className="px-4 py-3 font-medium text-right">Acciones</th>
               </tr>
             </thead>
+<<<<<<< HEAD
             <tbody className="divide-y divide-border bg-card text-foreground">
               {sessions.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
+=======
+            <tbody className="divide-y divide-slate-100 bg-white text-zaltyko-navy">
+              {sessions.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-4 py-8 text-center text-zaltyko-text-secondary">
+>>>>>>> origin/main
                     Todavía no hay sesiones registradas.
                   </td>
                 </tr>
@@ -314,7 +355,11 @@ export function ClassDetailView({
                     <td className="px-4 py-3 font-medium">
                       {session.sessionDate}
                       {session.notes && (
+<<<<<<< HEAD
                         <p className="text-xs text-muted-foreground">{session.notes}</p>
+=======
+                        <p className="text-xs text-zaltyko-text-secondary">{session.notes}</p>
+>>>>>>> origin/main
                       )}
                     </td>
                     <td className="px-4 py-3">
@@ -348,11 +393,19 @@ export function ClassDetailView({
         </div>
       </section>
 
+<<<<<<< HEAD
       <section className="space-y-4 rounded-2xl border border-border bg-card p-6 shadow-soft">
         <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="font-display text-xl font-semibold text-foreground">{athleteTermPlural} de esta {classTermLower}</h2>
             <p className="text-xs text-muted-foreground">
+=======
+      <section className="space-y-4 rounded-2xl border border-zaltyko-mist bg-white p-6 shadow-soft">
+        <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="font-display text-xl font-semibold text-zaltyko-navy">{athleteTermPlural} de esta {classTermLower}</h2>
+            <p className="text-xs text-zaltyko-text-secondary">
+>>>>>>> origin/main
               Lista de {athleteTermPluralLower} que participan en esta {classTermLower}. Incluye {athleteTermPluralLower} del {groupTermLower} base y extras añadidos manualmente.
             </p>
           </div>
@@ -366,7 +419,11 @@ export function ClassDetailView({
         </header>
 
         {classAthletes.length === 0 ? (
+<<<<<<< HEAD
           <p className="text-sm text-muted-foreground">
+=======
+          <p className="text-sm text-zaltyko-text-secondary">
+>>>>>>> origin/main
             No hay {athleteTermPluralLower} asignados a esta {classTermLower}. Añade {groupTermLower}s a la {classTermLower} o {athleteTermPluralLower} extra manualmente.
           </p>
         ) : (
@@ -378,9 +435,15 @@ export function ClassDetailView({
               >
                 <div className="flex items-center gap-3">
                   <div>
+<<<<<<< HEAD
                     <p className="font-semibold text-foreground">{athlete.name}</p>
                     {athlete.groupName && (
                       <p className="text-xs text-muted-foreground">
+=======
+                    <p className="font-semibold text-zaltyko-navy">{athlete.name}</p>
+                    {athlete.groupName && (
+                      <p className="text-xs text-zaltyko-text-secondary">
+>>>>>>> origin/main
                         {terms.group} principal: {athlete.groupName}
                       </p>
                     )}

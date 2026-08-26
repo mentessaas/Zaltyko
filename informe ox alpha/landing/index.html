@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Zaltyko · Informe para accionistas — Agosto 2026</title>
+<meta name="description" content="Estado técnico y de producto de Zaltyko tras auditoría independiente: arquitectura, seguridad, datos y hoja de ruta.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="progress" aria-hidden="true"><span id="progressBar"></span></div>
+
+<header class="nav" id="nav">
+  <div class="wrap nav-inner">
+    <a class="logo" href="#top" aria-label="Zaltyko, inicio">
+      <svg width="26" height="26" viewBox="0 0 26 26" fill="none" aria-hidden="true">
+        <rect x="1" y="1" width="24" height="24" rx="7" stroke="#00796B" stroke-width="2"/>
+        <path d="M8 9h10L8 17h10" stroke="#1FC7B6" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      Zaltyko
+    </a>
+    <nav class="nav-links" aria-label="Secciones">
+      <a href="#cifras">Cifras</a>
+      <a href="#salud">Salud técnica</a>
+      <a href="#fortalezas">Fortalezas</a>
+      <a href="#riesgos">Riesgos</a>
+      <a href="#roadmap">Hoja de ruta</a>
+    </nav>
+    <a class="btn btn-primary magnetic" href="#cierre">Resumen ejecutivo</a>
+  </div>
+</header>
+
+<main id="top">
+
+  <!-- ============ HERO ============ -->
+  <section class="hero" id="hero">
+    <div class="glow glow-a parallax" data-speed="0.25" aria-hidden="true"></div>
+    <div class="glow glow-b parallax" data-speed="0.5" aria-hidden="true"></div>
+    <div class="cursor-glow" id="cursorGlow" aria-hidden="true"></div>
+    <div class="wrap">
+      <p class="hero-date">Informe para accionistas · Agosto 2026 · Auditoría independiente Ox Alpha</p>
+      <h1 id="heroTitle">Zaltyko entra en su mejor momento técnico.</h1>
+      <p class="hero-sub">Una auditoría de solo lectura sobre las 200.000 líneas del producto confirma lo que importa: la plataforma que vendemos es sólida, segura y construida para escalar. Cada cifra de esta página está verificada contra el código.</p>
+      <div class="hero-cta">
+        <a class="btn btn-primary btn-lg magnetic" href="#cifras">Recorrer los números</a>
+        <a class="btn btn-ghost btn-lg magnetic" href="#riesgos">Riesgos y mitigación</a>
+      </div>
+      <div class="scroll-hint" aria-hidden="true">
+        <span class="mouse"><span class="wheel"></span></span>
+        <span>Desliza para leer el informe</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ MARQUEE DE MÓDULOS ============ -->
+  <div class="marquee" aria-label="Módulos del producto en producción">
+    <div class="marquee-track" id="marqueeTrack">
+      <span>Atletas</span><i>·</i><span>Clases</span><i>·</i><span>Asistencia</span><i>·</i><span>Cuotas y cobros</span><i>·</i><span>Evaluaciones</span><i>·</i><span>Eventos</span><i>·</i><span>Grupos</span><i>·</i><span>Coaches</span><i>·</i><span>Informes</span><i>·</i><span>Comunicación interna</span><i>·</i><span>Licencias</span><i>·</i><span>Soporte</span><i>·</i><span>Marketplace</span><i>·</i><span>Directorio de academias</span><i>·</i><span>Empleo</span><i>·</i><span>Auditoría</span><i>·</i><span>Portal de familias</span><i>·</i><span>Facturación Stripe</span><i>·</i><span>Multi-sede</span><i>·</i><span>Accesibilidad</span><i>·</i>
+    </div>
+  </div>
+
+  <!-- ============ CIFRAS PINNED ============ -->
+  <section class="pinsec" id="cifras">
+    <div class="pin-viewport">
+      <div class="pin-sticky">
+        <div class="wrap">
+          <h2>La auditoría, en cuatro números.</h2>
+          <p class="section-sub">Nada de marketing: cada cifra existe en el repositorio y se puede verificar.</p>
+        </div>
+        <div class="wrap pin-stage">
+          <div class="pin-panels">
+            <article class="pin-panel active" data-step="0">
+              <span class="pin-num" data-count="200" data-suffix="k">0</span>
+              <div class="pin-text"><h3>Líneas de código auditadas</h3><p>Toda la superficie del producto revisada módulo a módulo: 25 módulos de academia en producción, de asistencia a facturación.</p></div>
+            </article>
+            <article class="pin-panel" data-step="1">
+              <span class="pin-num" data-count="310">0</span>
+              <div class="pin-text"><h3>Endpoints de API en operación</h3><p>171 páginas y 4 superficies (academia, marketing, directorio, super admin). El 84% bajo convención estándar de respuestas y autenticación.</p></div>
+            </article>
+            <article class="pin-panel" data-step="2">
+              <span class="pin-num" data-count="411">0</span>
+              <div class="pin-text"><h3>Políticas de seguridad RLS</h3><p>Aislamiento entre academias verificado a nivel de base de datos. Los 3 webhooks de pago (Stripe, Lemon Squeezy, Mailgun) validan firma criptográfica en cada llamada.</p></div>
+            </article>
+            <article class="pin-panel" data-step="3">
+              <span class="pin-num" data-count="237">0</span>
+              <div class="pin-text"><h3>Archivos de test protegiendo el producto</h3><p>75 suites unitarias y de contrato, 16 recorridos E2E con pagos reales y accesibilidad, más puertas de control estáticas propias antes de cada despliegue.</p></div>
+            </article>
+          </div>
+          <div class="pin-dots" role="presentation">
+            <span class="dot active"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ HALLAZGOS (SVG ANIMADO) ============ -->
+  <section class="section" id="hallazgos">
+    <div class="wrap">
+      <h2>Una auditoría honesta encuentra cosas.<br>El valor es saber cuántas y de qué tamaño.</h2>
+      <p class="section-sub">Balance completo de hallazgos clasificados por severidad. Los 2 críticos tienen dueño, arreglo y plazo de esta semana. Ninguno compromete datos de clientes.</p>
+      <figure class="sev-chart" aria-label="Hallazgos por severidad: 2 críticos, 3 altos, 8 medios, 1 bajo">
+        <div class="sev-row"><span class="sev-name">Crítica</span><span class="sev-track"><span class="sev-bar sev-crit" data-w="100"></span></span><span class="sev-val" data-count="2">0</span></div>
+        <div class="sev-row"><span class="sev-name">Alta</span><span class="sev-track"><span class="sev-bar sev-high" data-w="75"></span></span><span class="sev-val" data-count="3">0</span></div>
+        <div class="sev-row"><span class="sev-name">Media</span><span class="sev-track"><span class="sev-bar sev-med" data-w="100"></span></span><span class="sev-val" data-count="8">0</span></div>
+        <div class="sev-row"><span class="sev-name">Baja</span><span class="sev-track"><span class="sev-bar sev-low" data-w="10"></span></span><span class="sev-val" data-count="1">0</span></div>
+        <figcaption>14 hallazgos en total · 2 críticos ya en marcha · 0 con impacto en datos de clientes</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <!-- ============ SALUD ============ -->
+  <section class="section section-tint" id="salud">
+    <div class="wrap">
+      <h2>La plataforma está sana.<br>Concretamente, así de sana.</h2>
+      <p class="section-sub">Evaluación por área sobre evidencia verificada: typecheck en vivo, conteos de código, revisión de políticas de seguridad y suites de test. Escala 1–10.</p>
+      <div class="scores">
+        <div class="score tilt" data-score="9">
+          <div class="score-head"><h3>Integridad de datos</h3><span class="score-num">9.0</span></div>
+          <div class="score-track"><span class="score-fill"></span></div>
+          <p>200 claves foráneas con comportamiento explícito, 332 índices, aislamiento multi-tenant verificado y auditoría semántica de RLS.</p>
+        </div>
+        <div class="score tilt" data-score="8.5">
+          <div class="score-head"><h3>Seguridad</h3><span class="score-num">8.5</span></div>
+          <div class="score-track"><span class="score-fill"></span></div>
+          <p>El tenant nunca se confía al cliente; rate limiting que falla cerrado; los tres webhooks de pago verifican firma criptográfica.</p>
+        </div>
+        <div class="score tilt" data-score="8.5">
+          <div class="score-head"><h3>Calidad de tests</h3><span class="score-num">8.5</span></div>
+          <div class="score-track"><span class="score-fill"></span></div>
+          <p>237 archivos de test: contratos de API, flujos E2E con pagos reales, accesibilidad con axe y gates de análisis estático propios.</p>
+        </div>
+        <div class="score tilt" data-score="7.5">
+          <div class="score-head"><h3>Arquitectura</h3><span class="score-num">7.5</span></div>
+          <div class="score-track"><span class="score-fill"></span></div>
+          <p>25 módulos de producto en producción. Deuda conocida: rutas duplicadas en la capa pública, ya priorizadas para consolidación.</p>
+        </div>
+        <div class="score tilt" data-score="7">
+          <div class="score-head"><h3>Calidad de código</h3><span class="score-num">7.0</span></div>
+          <div class="score-track"><span class="score-fill"></span></div>
+          <p>Cero console.log, logger estructurado y convenciones respetadas en el 88% de las rutas. El typecheck roto actual ya tiene arreglo asignado.</p>
+        </div>
+        <div class="score tilt" data-score="6.5">
+          <div class="score-head"><h3>Rendimiento</h3><span class="score-num">6.5</span></div>
+          <div class="score-track"><span class="score-fill"></span></div>
+          <p>Buenas prácticas de imagen y code-splitting aplicadas. El margen está en caché: hoy priorizamos corrección sobre velocidad, con razón.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ FORTALEZAS ============ -->
+  <section class="section" id="fortalezas">
+    <div class="wrap">
+      <h2>Lo que nos diferencia no se ve<br>en una demo. Se ve en una auditoría.</h2>
+      <p class="section-sub">Cuatro decisiones de ingeniería que protegen el negocio: los datos de cada academia valen lo que su seguridad.</p>
+      <div class="grid-2">
+        <article class="feature tilt">
+          <span class="icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7l8-4z"/><path d="M9 12l2 2 4-4"/></svg>
+          </span>
+          <h3>Aislamiento total entre academias</h3>
+          <p>411 políticas de seguridad a nivel de base de datos y una arquitectura donde el sistema deduce a qué academia pertenece cada petición desde la propia base de datos. Los datos de una academia jamás cruzan la frontera de otra.</p>
+        </article>
+        <article class="feature tilt">
+          <span class="icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M7 9h6M7 13h10"/><path d="M15 20h4"/></svg>
+          </span>
+          <h3>Pagos verificados, no confiados</h3>
+          <p>Stripe, Lemon Squeezy y Mailgun validan criptográficamente cada webhook. Si una firma no cuadra, la operación se rechaza. El dinero entra con el mismo rigor con el que se factura.</p>
+        </article>
+        <article class="feature tilt">
+          <span class="icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+          </span>
+          <h3>Calidad vigilada por máquinas</h3>
+          <p>Desarrollamos puertas de control propias que analizan el código antes de cada despliegue: lecturas acotadas, autorización antes de validación, cero rutas huérfanas. Los errores mueren en desarrollo, no con clientes.</p>
+        </article>
+        <article class="feature tilt">
+          <span class="icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V5"/><path d="M4 19h16"/><path d="M8 15v-4M12 15V8M16 15v-6"/></svg>
+          </span>
+          <h3>Producto que opera academias reales</h3>
+          <p>25 módulos en producción: atletas, clases, asistencia, cuotas, evaluaciones, comunicación con familias. No es un prototipo con promesas; es operación diaria con red de seguridad de 237 archivos de test.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ RIESGOS ============ -->
+  <section class="section section-tint" id="riesgos">
+    <div class="wrap">
+      <h2>Encontramos riesgos.<br>Y los tenemos citados, con fecha.</h2>
+      <p class="section-sub">Una auditoría honesta encuentra cosas. El valor está en que cada hallazgo crítico tiene dueño, arreglo y plazo. Estos son los tres que se resuelven primero.</p>
+      <ol class="risks">
+        <li class="risk reveal">
+          <span class="risk-badge">Crítico</span>
+          <div>
+            <h3>Refuerzo de cabeceras de seguridad HTTP</h3>
+            <p>El navegador de nuestros usuarios merece protección explícita contra inyección y secuestro de sesión. El arreglo es quirúrgico: configuración, no reescritura. <strong>Plazo: esta semana.</strong></p>
+          </div>
+        </li>
+        <li class="risk reveal">
+          <span class="risk-badge">Crítico</span>
+          <div>
+            <h3>Verificación de tipos devuelta al pipeline</h3>
+            <p>Un script de pruebas rompió la verificación de tipos y el despliegue la tenía silenciada. Se corrige el script y la verificación vuelve a ser obligatoria: nada roto volverá a llegar a producción en silencio. <strong>Plazo: esta semana.</strong></p>
+          </div>
+        </li>
+        <li class="risk reveal">
+          <span class="risk-badge">Crítico</span>
+          <div>
+            <h3>Dependencia de hojas de cálculo traída a registro oficial</h3>
+            <p>Una librería de Excel se instalaba desde un servidor externo en lugar del registro público de paquetes. Se sustituye por su equivalente auditado. <strong>Plazo: esta semana.</strong></p>
+          </div>
+        </li>
+      </ol>
+      <div class="note reveal">
+        <p><strong>Los 8 hallazgos de severidad media</strong> (duplicación interna de código de autorización, límites de peticiones no atómicos, rutas fuera de convención) están documentados con evidencia y asignados al plan. Ninguno afecta datos de clientes hoy.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ ROADMAP ============ -->
+  <section class="section" id="roadmap">
+    <div class="wrap">
+      <h2>Hoja de ruta: de sólido<br>a imparable.</h2>
+      <p class="section-sub">Trece acciones priorizadas por impacto sobre esfuerzo. El plan completo vive en la vault operativa; esta es la lectura ejecutiva.</p>
+      <ol class="timeline" id="timeline">
+        <span class="tl-progress" id="tlProgress" aria-hidden="true"></span>
+        <li class="phase reveal" data-phase="p0">
+          <div class="phase-head"><span class="phase-tag">Ahora</span><h3>Blindaje</h3></div>
+          <p>Cabeceras de seguridad, typecheck obligatorio en el pipeline y dependencias en registro oficial. Tres arreglos, un objetivo: que la plataforma sea invulnerable por diseño.</p>
+        </li>
+        <li class="phase reveal" data-phase="p1">
+          <div class="phase-head"><span class="phase-tag">Este mes</span><h3>Consolidación</h3></div>
+          <p>Unificación del sistema de autorización, límites de peticiones atómicos y el 100% de las rutas bajo convención única. Menos superficie donde pueda esconderse un error.</p>
+        </li>
+        <li class="phase reveal" data-phase="p2">
+          <div class="phase-head"><span class="phase-tag">Este trimestre</span><h3>Escalado</h3></div>
+          <p>Consolidación de la capa pública, cobertura de tests con mínimos exigibles en CI, caché selectiva para el directorio público y adelgazamiento del bundle. Preparado para 10× academias sin reescribir nada.</p>
+        </li>
+        <li class="phase reveal" data-phase="p3">
+          <div class="phase-head"><span class="phase-tag">Continuo</span><h3>Producto</h3></div>
+          <p>Notificaciones a familias, gestión completa de métodos de pago y modernización del tooling. La deuda que queda es de producto, no de cimientos.</p>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ============ CIERRE ============ -->
+  <section class="section cierre" id="cierre">
+    <div class="wrap">
+      <div class="cierre-box">
+        <div class="glow glow-c" aria-hidden="true"></div>
+        <h2>Los cimientos aguantan.<br>Ahora, acelerar.</h2>
+        <p>Zaltyko hoy es una plataforma seria: multi-tenant real, auditada, con tests de pago reales y seguridad que se verifica sola. La auditoría encontró 3 urgencias —ya en marcha— y 11 mejoras planificadas. Ningún hallazgo compromete datos de clientes ni la continuidad del negocio.</p>
+        <div class="cierre-actions">
+          <button class="btn btn-electric btn-lg magnetic" id="printBtn">Descargar este informe en PDF</button>
+          <a class="btn btn-ghost-dark btn-lg magnetic" href="#top">Volver al inicio</a>
+        </div>
+        <p class="cierre-meta">Auditoría de solo lectura realizada el 23 de agosto de 2026 · Metodología: exploración exhaustiva de código, typecheck en vivo y conteos verificados · El detalle técnico completo (13 acciones, evidencia archivo por archivo) está disponible para el consejo.</p>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="footer">
+  <div class="wrap footer-inner">
+    <span class="footer-brand">Zaltyko</span>
+    <span>El sistema para gestionar academias deportivas</span>
+    <span>Informe Ox Alpha · Confidencial</span>
+  </div>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>

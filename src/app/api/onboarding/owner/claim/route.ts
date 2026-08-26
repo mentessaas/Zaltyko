@@ -3,6 +3,10 @@ import { cookies } from "next/headers";
 import { sql } from "drizzle-orm";
 import { z } from "zod";
 
+<<<<<<< HEAD
+=======
+import { db } from "@/db";
+>>>>>>> origin/main
 import { academies, memberships, profiles } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
 import { apiCreated, apiError } from "@/lib/api-response";
@@ -104,6 +108,7 @@ export async function POST(request: Request) {
       };
     }
 
+<<<<<<< HEAD
     const [existingProfile] = await tx
       .select({ id: profiles.id, role: profiles.role })
       .from(profiles)
@@ -127,6 +132,13 @@ export async function POST(request: Request) {
       user.email?.split("@")[0]?.trim() || "Owner";
 
     const profileId = existingProfile?.id ?? (await tx
+=======
+    // Upsert profile: si ya existe uno (otro flujo lo creó), onConflictDoNothing.
+    const fallbackName =
+      user.email?.split("@")[0]?.trim() || "Owner";
+
+    await tx
+>>>>>>> origin/main
       .insert(profiles)
       .values({
         userId: user.id,
@@ -136,6 +148,7 @@ export async function POST(request: Request) {
         activeAcademyId: academy.id,
         canLogin: true,
       })
+<<<<<<< HEAD
       .onConflictDoNothing({ target: profiles.userId })
       .returning({ id: profiles.id }))[0]?.id;
 
@@ -164,6 +177,9 @@ export async function POST(request: Request) {
       .update(academies)
       .set({ ownerId: profileId })
       .where(eq(academies.id, academy.id));
+=======
+      .onConflictDoNothing({ target: profiles.userId });
+>>>>>>> origin/main
 
     // Membership: idem onConflictDoNothing para resistir doble-click.
     // tenantId no es columna de memberships — se deriva vía academy.
@@ -197,4 +213,8 @@ export async function POST(request: Request) {
     academyId,
     redirectUrl: `/app/${academyId}/dashboard`,
   });
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> origin/main

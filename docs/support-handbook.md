@@ -1,5 +1,6 @@
 # Guía Interna de Soporte y Operaciones – GymnaSaaS
 
+<<<<<<< HEAD
 > Última actualización (cuerpo técnico §1–§7): 2025-11-10
 
 ## 0. Origen y enlaces (Customer Support, 2026-08-20)
@@ -22,6 +23,9 @@ mínimo §5 (peer-verify C-2) y plantilla §6 — ver `docs/onboarding-piloto-*.
 
 **Límites:** este handbook NO es el runbook. Para piloto usá `a8219014`;
 este doc conserva los flujos técnicos 3.x para soporte fuera del piloto.
+=======
+> Última actualización: 2025-11-10
+>>>>>>> origin/main
 
 ## 1. Panorama general
 - **App**: Next.js 14 (App Router) + Tailwind + Supabase (Auth + Postgres con Drizzle ORM).

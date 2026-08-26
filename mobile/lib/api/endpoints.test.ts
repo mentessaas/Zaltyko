@@ -14,6 +14,7 @@ import {
   deleteMyAccount,
   getSessionAttendance,
   sendGroupAlert,
+<<<<<<< HEAD
   upsertAttendance,
   CHARGE_STATUSES,
   CHARGE_STATUS_LABEL,
@@ -21,6 +22,9 @@ import {
 } from './endpoints';
 import { ApiClientError } from './client';
 import { getMyDashboard } from './family-dashboard';
+=======
+} from './endpoints';
+>>>>>>> origin/main
 
 // endpoints.ts es la frontera de contrato con el backend: define qué ruta
 // se llama, cómo se arma el query-string y cómo se desenvuelve la respuesta.
@@ -301,6 +305,7 @@ describe('propagación de errores del backend', () => {
     });
   });
 });
+<<<<<<< HEAD
 
 describe('idempotencia de mutaciones (ZAL-619 §6.2 + AC-09)', () => {
   it('upsertAttendance SIN idempotencyKey NO manda el header (compatibilidad hacia atrás)', async () => {
@@ -558,3 +563,5 @@ describe('estados contractuales del Cargo (ZAL-622 AC-06 + ZAL-619 §3.6)', () =
     expect(isChargePayable('draft')).toBe(false);
   });
 });
+=======
+>>>>>>> origin/main

@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+<<<<<<< HEAD
 import {
   tabsForRole,
   shouldRedirectToWeb,
@@ -6,6 +7,9 @@ import {
   isAcademyScopedRoute,
   canAccessRoute,
 } from './role-router';
+=======
+import { tabsForRole, shouldRedirectToWeb } from './role-router';
+>>>>>>> origin/main
 
 describe('tabsForRole', () => {
   it.each([
@@ -43,6 +47,7 @@ describe('shouldRedirectToWeb', () => {
     expect(shouldRedirectToWeb(undefined)).toBe(false);
   });
 });
+<<<<<<< HEAD
 
 describe('isAdminRoute', () => {
   it.each([
@@ -230,3 +235,5 @@ describe('canAccessRoute — aislamiento de provider (ZAL-768)', () => {
     expect(canAccessRoute('coach', '/coach/attendance/x')).toBe(true);
   });
 });
+=======
+>>>>>>> origin/main

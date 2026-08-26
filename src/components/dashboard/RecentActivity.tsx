@@ -56,7 +56,11 @@ function RecentActivityImpl({ items, academyCountry }: RecentActivityProps) {
               <span
                 className={cn(
                   "mt-0.5 inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-xs font-bold uppercase tracking-wide",
+<<<<<<< HEAD
                   ACTION_COLORS[item.action] ?? "bg-muted/500/10 text-muted-foreground"
+=======
+                  ACTION_COLORS[item.action] ?? "bg-slate-500/10 text-slate-500"
+>>>>>>> origin/main
                 )}
               >
                 {item.userName ? item.userName.slice(0, 1).toUpperCase() : "?"}

@@ -166,7 +166,11 @@ export default function CalendarView({
         {/* Controles principales */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           {/* Selector de vista */}
+<<<<<<< HEAD
           <div className="inline-flex rounded-xl border border-border bg-card p-1 shadow-soft">
+=======
+          <div className="inline-flex rounded-xl border border-zaltyko-mist bg-white p-1 shadow-soft">
+>>>>>>> origin/main
             <button
               type="button"
               onClick={() => toggleView("week")}
@@ -174,7 +178,11 @@ export default function CalendarView({
                 "flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-all",
                 currentView === "week"
                   ? "bg-zaltyko-teal text-white shadow-soft"
+<<<<<<< HEAD
                   : "text-muted-foreground hover:bg-zaltyko-white"
+=======
+                  : "text-slate-500 hover:bg-zaltyko-white"
+>>>>>>> origin/main
               )}
             >
               <CalendarIcon className="h-4 w-4" />
@@ -187,7 +195,11 @@ export default function CalendarView({
                 "flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-all",
                 currentView === "month"
                   ? "bg-zaltyko-teal text-white shadow-soft"
+<<<<<<< HEAD
                   : "text-muted-foreground hover:bg-zaltyko-white"
+=======
+                  : "text-slate-500 hover:bg-zaltyko-white"
+>>>>>>> origin/main
               )}
             >
               <CalendarIcon className="h-4 w-4" />
@@ -200,7 +212,11 @@ export default function CalendarView({
                 "flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-all",
                 currentView === "agenda"
                   ? "bg-zaltyko-teal text-white shadow-soft"
+<<<<<<< HEAD
                   : "text-muted-foreground hover:bg-zaltyko-white"
+=======
+                  : "text-slate-500 hover:bg-zaltyko-white"
+>>>>>>> origin/main
               )}
             >
               <List className="h-4 w-4" />
@@ -261,12 +277,20 @@ export default function CalendarView({
 
     const baseStyles = cn(
       "group relative flex flex-col gap-1 rounded-xl border px-2.5 py-2 text-xs transition-all",
+<<<<<<< HEAD
       "hover:border-zaltyko-teal/40 hover:bg-card active:scale-[0.99]",
+=======
+      "hover:border-zaltyko-teal/40 hover:bg-white active:scale-[0.99]",
+>>>>>>> origin/main
       session.isPlaceholder
         ? "border-dashed border-zaltyko-coral/35 bg-zaltyko-coral/10 text-zaltyko-coral"
         : session.isExtra
           ? "border-zaltyko-indigo/25 bg-zaltyko-indigo/10 text-zaltyko-indigo"
+<<<<<<< HEAD
           : "border-border bg-card text-foreground",
+=======
+          : "border-zaltyko-mist bg-white text-zaltyko-navy",
+>>>>>>> origin/main
       isSessionToday && "ring-2 ring-zaltyko-teal/30 ring-offset-1",
       getStatusColor(session.status)
     );
@@ -337,7 +361,11 @@ export default function CalendarView({
           rangeEnd={rangeEnd}
         />
       ) : currentView === "week" ? (
+<<<<<<< HEAD
         <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-soft">
+=======
+        <div className="overflow-hidden rounded-2xl border border-zaltyko-mist bg-white shadow-soft">
+>>>>>>> origin/main
           <div className="grid grid-cols-1 gap-px bg-zaltyko-mist/70 sm:grid-cols-7">
             {weekDays.map((day) => {
               const iso = formatDateToISOString(day, academyCountry);
@@ -351,7 +379,11 @@ export default function CalendarView({
                 <div
                   key={iso}
                   className={cn(
+<<<<<<< HEAD
                     "flex min-h-[200px] flex-col bg-card p-4 transition-colors",
+=======
+                    "flex min-h-[200px] flex-col bg-white p-4 transition-colors",
+>>>>>>> origin/main
                     isDayToday && "bg-zaltyko-teal/5",
                     isWeekend && "bg-zaltyko-white"
                   )}
@@ -388,7 +420,11 @@ export default function CalendarView({
                   {/* Sesiones */}
                   <div className="flex-1 space-y-2">
                     {daySessions.length === 0 ? (
+<<<<<<< HEAD
                       <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-border bg-zaltyko-white py-8">
+=======
+                      <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-zaltyko-mist bg-zaltyko-white py-8">
+>>>>>>> origin/main
                         <p className="text-xs text-muted-foreground">Sin sesiones</p>
                       </div>
                     ) : (
@@ -401,6 +437,7 @@ export default function CalendarView({
           </div>
         </div>
       ) : (
+<<<<<<< HEAD
         <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-soft">
           {/* Encabezados de días de la semana */}
           <div className="grid grid-cols-7 gap-px border-b border-border bg-zaltyko-mist/70">
@@ -408,6 +445,15 @@ export default function CalendarView({
               <div
                 key={index}
                 className="bg-zaltyko-white px-3 py-2 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+=======
+        <div className="overflow-hidden rounded-2xl border border-zaltyko-mist bg-white shadow-soft">
+          {/* Encabezados de días de la semana */}
+          <div className="grid grid-cols-7 gap-px border-b border-zaltyko-mist bg-zaltyko-mist/70">
+            {["L", "M", "X", "J", "V", "S", "D"].map((day, index) => (
+              <div
+                key={index}
+                className="bg-zaltyko-white px-3 py-2 text-center text-xs font-semibold uppercase tracking-wide text-slate-400"
+>>>>>>> origin/main
               >
                 {day}
               </div>
@@ -430,7 +476,11 @@ export default function CalendarView({
                   <div
                     key={`${weekIndex}-${iso}`}
                     className={cn(
+<<<<<<< HEAD
                       "flex min-h-[120px] flex-col bg-card p-2 transition-colors",
+=======
+                      "flex min-h-[120px] flex-col bg-white p-2 transition-colors",
+>>>>>>> origin/main
                       !isCurrentMonth && "opacity-40",
                       isDayToday && "bg-zaltyko-teal/5 ring-2 ring-zaltyko-teal/20",
                       isWeekend && isCurrentMonth && "bg-zaltyko-white"
@@ -459,7 +509,11 @@ export default function CalendarView({
                         renderSessionChip(session, true)
                       )}
                       {daySessions.length > 2 && (
+<<<<<<< HEAD
                         <div className="rounded bg-zaltyko-white px-1.5 py-0.5 text-[9px] font-semibold text-muted-foreground">
+=======
+                        <div className="rounded bg-zaltyko-white px-1.5 py-0.5 text-[9px] font-semibold text-zaltyko-text-secondary">
+>>>>>>> origin/main
                           +{daySessions.length - 2} más
                         </div>
                       )}

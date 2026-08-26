@@ -43,7 +43,11 @@ function ClusterEventsSectionImpl({
   }
 
   return (
+<<<<<<< HEAD
     <section className="py-20 bg-card">
+=======
+    <section className="py-20 bg-white">
+>>>>>>> origin/main
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="flex items-end justify-between mb-12">

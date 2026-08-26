@@ -164,11 +164,19 @@ export function SportLegacyMigrationAssistant({
                     setApplyAll(false);
                   }}
                   className={`rounded-xl border p-4 text-left text-sm ${
+<<<<<<< HEAD
                     entityType === type ? "border-zaltyko-teal bg-zaltyko-teal/10" : "border-border bg-card"
                   }`}
                 >
                   <span className="block font-medium text-foreground">{entityLabels[type]}</span>
                   <span className="text-muted-foreground">{data[type].length} pendiente(s)</span>
+=======
+                    entityType === type ? "border-zaltyko-teal bg-zaltyko-teal/10" : "border-zaltyko-mist bg-white"
+                  }`}
+                >
+                  <span className="block font-medium text-zaltyko-navy">{entityLabels[type]}</span>
+                  <span className="text-zaltyko-text-secondary">{data[type].length} pendiente(s)</span>
+>>>>>>> origin/main
                 </button>
               ))}
             </div>
@@ -192,7 +200,11 @@ export function SportLegacyMigrationAssistant({
               </Button>
             </div>
 
+<<<<<<< HEAD
             <label className="flex items-center gap-2 text-sm text-muted-foreground">
+=======
+            <label className="flex items-center gap-2 text-sm text-zaltyko-text-secondary">
+>>>>>>> origin/main
               <input
                 type="checkbox"
                 checked={applyAll}
@@ -205,18 +217,31 @@ export function SportLegacyMigrationAssistant({
             </label>
 
             {entityType === "coaches" && (
+<<<<<<< HEAD
               <p className="rounded-lg border border-border bg-zaltyko-warm-white px-3 py-2 text-xs text-muted-foreground">
+=======
+              <p className="rounded-lg border border-zaltyko-mist bg-zaltyko-warm-white px-3 py-2 text-xs text-zaltyko-text-secondary">
+>>>>>>> origin/main
                 {entityLabels.coaches} sin scope están disponibles para todas las ramas como compatibilidad legacy. Al asignarles una {terms.branch.toLowerCase()} aquí quedarán acotados a esa configuración.
               </p>
             )}
 
             {!applyAll && (
+<<<<<<< HEAD
               <div className="max-h-56 overflow-y-auto rounded-xl border border-border bg-zaltyko-warm-white p-2">
                 {currentItems.length === 0 ? (
                   <p className="p-3 text-sm text-muted-foreground">No hay registros pendientes en esta categoría.</p>
                 ) : (
                   currentItems.map((item) => (
                     <label key={item.id} className="flex items-center gap-2 rounded-lg p-2 text-sm hover:bg-muted">
+=======
+              <div className="max-h-56 overflow-y-auto rounded-xl border border-zaltyko-mist bg-zaltyko-warm-white p-2">
+                {currentItems.length === 0 ? (
+                  <p className="p-3 text-sm text-zaltyko-text-secondary">No hay registros pendientes en esta categoría.</p>
+                ) : (
+                  currentItems.map((item) => (
+                    <label key={item.id} className="flex items-center gap-2 rounded-lg p-2 text-sm hover:bg-white">
+>>>>>>> origin/main
                       <input
                         type="checkbox"
                         checked={selectedIds.includes(item.id)}
@@ -232,7 +257,11 @@ export function SportLegacyMigrationAssistant({
         )}
 
         {message && (
+<<<<<<< HEAD
           <p className="rounded-lg border border-border bg-card px-3 py-2 text-sm text-muted-foreground">
+=======
+          <p className="rounded-lg border border-zaltyko-mist bg-white px-3 py-2 text-sm text-zaltyko-text-secondary">
+>>>>>>> origin/main
             {message}
           </p>
         )}

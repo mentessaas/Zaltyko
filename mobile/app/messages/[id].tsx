@@ -2,6 +2,7 @@
 // más reciente, tal como la devuelve la API) y permite responder.
 // No hay selector de destinatario: solo se puede responder en
 // conversaciones que ya existen (ver comentario en (tabs)/messages.tsx).
+<<<<<<< HEAD
 //
 // Estado de entrega optimista (ZAL-622 AC-04): mientras el POST está en
 // vuelo, mostramos el mensaje al final del hilo con indicador "Enviando…"
@@ -9,6 +10,8 @@
 // mensaje real del refetch (estado `sent`). Si el POST falla, conservamos
 // el mensaje en el hilo con un CTA "Reintentar" que repite el mismo
 // payload — cumple AC-04 (`failed` + retry) sin perder el contenido.
+=======
+>>>>>>> origin/main
 
 import { useCallback, useMemo, useRef, useState } from 'react';
 import {
@@ -36,6 +39,7 @@ import {
 } from '@/lib/api/endpoints';
 import { colors, radii, spacing } from '@/lib/theme';
 
+<<<<<<< HEAD
 interface PendingMessage {
   /** Identificador local estable mientras el POST está en vuelo. */
   id: string;
@@ -49,13 +53,20 @@ interface PendingMessage {
   createdAt: string;
 }
 
+=======
+>>>>>>> origin/main
 export default function ConversationThreadScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { profile } = useSession();
   const queryClient = useQueryClient();
+<<<<<<< HEAD
   const listRef = useRef<FlatList<ConversationMessage | PendingMessage>>(null);
   const [draft, setDraft] = useState('');
   const [pending, setPending] = useState<PendingMessage | null>(null);
+=======
+  const listRef = useRef<FlatList<ConversationMessage>>(null);
+  const [draft, setDraft] = useState('');
+>>>>>>> origin/main
 
   const title = useMemo(() => {
     const conversations = queryClient.getQueryData<Conversation[]>(['messages', 'conversations']);
@@ -75,6 +86,7 @@ export default function ConversationThreadScreen() {
 
   const sendMutation = useMutation({
     mutationFn: (content: string) => sendConversationMessage(id ?? '', content),
+<<<<<<< HEAD
     onMutate: (content) => {
       // Optimista: mostramos el mensaje al final del hilo como `pending`.
       setPending({
@@ -92,15 +104,22 @@ export default function ConversationThreadScreen() {
       // mensaje confirmado por el servidor y la UI lo rendereará como
       // `sent` (estado por defecto en MessageBubble).
       setPending(null);
+=======
+    onSuccess: () => {
+      setDraft('');
+>>>>>>> origin/main
       messagesQuery.refetch().then(() => {
         listRef.current?.scrollToEnd({ animated: true });
       });
     },
+<<<<<<< HEAD
     onError: () => {
       // Conservamos el mensaje visible como `failed` para que el CTA
       // "Reintentar" del MessageBubble pueda repetir el mismo payload.
       setPending((prev) => (prev ? { ...prev, status: 'failed' } : prev));
     },
+=======
+>>>>>>> origin/main
   });
 
   const onSend = useCallback(() => {
@@ -109,6 +128,7 @@ export default function ConversationThreadScreen() {
     sendMutation.mutate(content);
   }, [draft, sendMutation]);
 
+<<<<<<< HEAD
   const onRetry = useCallback(() => {
     if (!pending || pending.status !== 'failed') return;
     sendMutation.mutate(pending.content);
@@ -120,6 +140,9 @@ export default function ConversationThreadScreen() {
   const items: Array<ConversationMessage | PendingMessage> = pending
     ? [...serverItems, pending]
     : serverItems;
+=======
+  const items = messagesQuery.data?.items ?? [];
+>>>>>>> origin/main
 
   return (
     <>
@@ -146,6 +169,7 @@ export default function ConversationThreadScreen() {
               <EmptyState icon="chatbubble-outline" title="Sin mensajes todavía" />
             )
           }
+<<<<<<< HEAD
           renderItem={({ item }) => {
             const isOwn = item.senderId === profile?.id;
             // PendingMessage tiene `status`, ConversationMessage no.
@@ -159,6 +183,11 @@ export default function ConversationThreadScreen() {
               />
             );
           }}
+=======
+          renderItem={({ item }) => (
+            <MessageBubble item={item} isOwn={item.senderId === profile?.id} />
+          )}
+>>>>>>> origin/main
         />
 
         <View style={styles.inputRow}>

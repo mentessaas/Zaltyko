@@ -5,7 +5,10 @@ import { headers } from "next/headers";
 import { ArrowLeft, MapPin, Calendar, Briefcase, Building } from "lucide-react";
 import { AdBanner } from "@/components/advertising/AdBanner";
 import { canUsePublicDemoData, demoEmploymentListing } from "@/lib/public/demo-listings";
+<<<<<<< HEAD
 import { logger } from "@/lib/logger";
+=======
+>>>>>>> origin/main
 import { getPublicSiteUrl } from "@/lib/seo/site-url";
 
 interface Props {
@@ -26,6 +29,7 @@ async function getListing(id: string) {
   if (canUsePublicDemoData(id)) {
     return { item: demoEmploymentListing };
   }
+<<<<<<< HEAD
   try {
     const baseUrl = await getBaseUrl();
     const res = await fetch(`${baseUrl}/api/empleo/${id}`, {
@@ -39,6 +43,15 @@ async function getListing(id: string) {
     logger.error("Error fetching employment listing:", error);
     return null;
   }
+=======
+  const baseUrl = await getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/empleo/${id}`, {
+    cache: "no-store",
+  });
+  if (!res.ok) return null;
+  const payload = await res.json();
+  return payload?.data ?? payload;
+>>>>>>> origin/main
 }
 
 async function getAds(zone: string) {

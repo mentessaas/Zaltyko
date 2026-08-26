@@ -197,8 +197,13 @@ export function ChurnReport({ academyId, academyCountry }: ChurnReportProps) {
       "schedule": "bg-red-100 text-red-800",
       "other": "bg-muted text-muted-foreground",
       "payment_failed": "bg-red-100 text-red-800",
+<<<<<<< HEAD
       "archived": "bg-muted text-foreground",
       "deleted": "bg-muted text-foreground",
+=======
+      "archived": "bg-slate-100 text-slate-800",
+      "deleted": "bg-slate-100 text-slate-800",
+>>>>>>> origin/main
       "unregistered": "bg-muted text-muted-foreground",
     };
     return colors[reason] || "bg-muted";

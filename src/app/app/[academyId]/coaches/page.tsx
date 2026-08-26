@@ -211,12 +211,21 @@ export default async function AcademyCoachesPage({ params, searchParams }: PageP
 
   return (
     <div className="space-y-6 py-6 lg:py-8">
+<<<<<<< HEAD
       <header className="relative overflow-hidden rounded-2xl border border-border bg-card p-6 shadow-soft">
         <div className="zaltyko-motion-lines pointer-events-none absolute inset-x-0 top-0 h-24 opacity-70" />
         <div className="relative space-y-2">
           <p className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-teal">Staff técnico</p>
           <h1 className="font-display text-3xl font-semibold text-foreground">{terms.coach}s</h1>
           <p className="text-sm text-muted-foreground">
+=======
+      <header className="relative overflow-hidden rounded-2xl border border-zaltyko-mist bg-white p-6 shadow-soft">
+        <div className="zaltyko-motion-lines pointer-events-none absolute inset-x-0 top-0 h-24 opacity-70" />
+        <div className="relative space-y-2">
+          <p className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-teal">Staff técnico</p>
+          <h1 className="font-display text-3xl font-semibold text-zaltyko-navy">{terms.coach}s</h1>
+          <p className="text-sm text-zaltyko-text-secondary">
+>>>>>>> origin/main
             Controla al staff técnico, asigna clases y mantén sus datos de contacto al día.
           </p>
         </div>

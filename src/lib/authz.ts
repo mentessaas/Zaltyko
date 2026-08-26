@@ -399,6 +399,26 @@ export function withAuthenticatedNoTenant<Ctx extends Record<string, unknown>>(
         );
       }
 
+<<<<<<< HEAD
+=======
+      // Gate de roles (semántica ZAL-499 / PR #67): solo super_admin, provider
+      // o perfiles con academia pueden operar sin tenant explícito. Un athlete,
+      // parent o coach sin tenantId no debe poder publicar en el marketplace.
+      const role = profile.role ?? "";
+      const hasTenant = Boolean(profile.tenantId);
+      const allowed = role === "super_admin" || role === "provider" || hasTenant;
+      if (!allowed) {
+        return NextResponse.json(
+          {
+            error: "INSUFFICIENT_ROLE",
+            message:
+              "Tu rol no tiene permisos para publicar sin academia asociada.",
+          },
+          { status: 403 }
+        );
+      }
+
+>>>>>>> origin/main
       // El tenant es informativo para handlers que lo aceptan; su ausencia es
       // válida aquí y no debe convertir la autenticación en un 403.
       const tenantId = profile.tenantId ?? "";

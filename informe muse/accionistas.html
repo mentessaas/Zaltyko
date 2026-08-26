@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Zaltyko — Informe para Accionistas · 23 ago 2026</title>
+<meta name="description" content="Informe para accionistas Zaltyko: tesis, tracción, economía, roadmap y gobierno. Confidencial.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config={
+  theme:{
+    extend:{
+      colors:{
+        zaltyko:{ navy:'#0F172A', indigo:'#2B2E83', teal:'#00796B', coral:'#FF6B57', electric:'#1FC7B6', mist:'#CBD5E1', white:'#F8FAFC',
+          primary:{DEFAULT:'#00796B', dark:'#00695C', light:'#14B8A6', ultralight:'#E6FFFC'}
+        }
+      },
+      fontFamily:{ sans:['Manrope','system-ui','sans-serif'], display:['Space Grotesk','Manrope','sans-serif'] },
+      boxShadow:{ soft:'0 2px 8px rgba(15,23,42,.06)', medium:'0 8px 24px rgba(15,23,42,.08)', brand:'0 8px 30px rgba(0,121,107,.12)', lift:'0 16px 40px -12px rgba(0,121,107,.25)' },
+      borderRadius:{ card:'10px', modal:'16px', control:'6px' }
+    }
+  }
+}
+</script>
+<style>
+html{scroll-behavior:smooth;scroll-padding-top:84px}
+body{-webkit-font-smoothing:antialiased}
+::selection{background:#1FC7B6;color:#fff}
+.reveal{opacity:0;transform:translateY(18px);transition:opacity .7s cubic-bezier(.16,1,.3,1), transform .7s cubic-bezier(.16,1,.3,1)}
+.reveal.in{opacity:1;transform:none}
+@media(prefers-reduced-motion:reduce){.reveal{opacity:1;transform:none;transition:none}}
+.mono{font-variant-ligatures:none}
+.marquee{overflow:hidden;white-space:nowrap;border-top:1px solid #E2E8F0;border-bottom:1px solid #E2E8F0}
+.marquee-track{display:inline-flex;animation:marquee 22s linear infinite}
+@keyframes marquee{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+.progress{height:6px;background:#E2E8F0;border-radius:999px;overflow:hidden}
+.progress i{display:block;height:100%;border-radius:999px;transform-origin:left;transform:scaleX(0);transition:transform 1.2s cubic-bezier(.16,1,.3,1)}
+.progress.in i{transform:scaleX(1)}
+.count{font-variant-numeric:tabular-nums}
+</style>
+</head>
+<body class="bg-zaltyko-white text-zaltyko-navy font-sans">
+
+<!-- NAV 64px single line -->
+<header class="sticky top-0 z-40 bg-white/85 backdrop-blur-xl border-b border-slate-200">
+  <div class="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 h-[64px] flex items-center justify-between gap-6">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 rounded-control bg-zaltyko-navy grid place-items-center text-white font-display font-bold text-[13px]">Z</div>
+      <div>
+        <div class="font-display font-bold tracking-tight leading-none">Zaltyko</div>
+        <div class="text-[10px] tracking-[0.14em] uppercase font-semibold text-slate-500 -mt-0.5">Informe accionistas · 23 ago 2026</div>
+      </div>
+      <span class="hidden md:inline-flex ml-2 text-[11px] font-semibold tracking-wide px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200">CONFIDENCIAL</span>
+    </div>
+    <nav class="hidden lg:flex items-center gap-1 text-sm font-medium">
+      <a href="#tesis" class="px-3 py-2 rounded-control hover:bg-slate-50">Tesis</a>
+      <a href="#traccion" class="px-3 py-2 rounded-control hover:bg-slate-50">Tracción</a>
+      <a href="#economia" class="px-3 py-2 rounded-control hover:bg-slate-50">Economía</a>
+      <a href="#roadmap" class="px-3 py-2 rounded-control hover:bg-slate-50">Roadmap</a>
+      <a href="#riesgos" class="px-3 py-2 rounded-control hover:bg-slate-50">Riesgos</a>
+    </nav>
+    <div class="flex items-center gap-2">
+      <a href="index.html" class="hidden sm:inline-flex text-sm font-semibold px-4 py-2 rounded-control border border-zaltyko-mist hover:border-zaltyko-navy/20">Auditoría técnica</a>
+      <a href="#cta" class="inline-flex items-center gap-2 bg-zaltyko-teal text-white font-semibold text-sm px-5 py-2.5 rounded-control shadow-brand hover:bg-zaltyko-primary-dark hover:shadow-lift transition-all active:scale-[0.98]">Descargar deck <span class="w-5 h-5 rounded-full bg-white/15 grid place-items-center text-[10px]">↗</span></a>
+    </div>
+  </div>
+</header>
+
+<!-- HERO split 50/50 -->
+<section class="relative bg-white overflow-hidden">
+  <div class="absolute inset-0 bg-gradient-to-br from-zaltyko-indigo/[0.04] via-transparent to-zaltyko-electric/[0.06] pointer-events-none"></div>
+  <div class="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 pt-10 lg:pt-14 pb-10 lg:pb-16 relative">
+    <div class="grid lg:grid-cols-2 gap-10 lg:gap-14 items-center">
+      <div class="reveal">
+        <div class="inline-flex items-center gap-2 text-[11px] font-semibold tracking-[0.14em] uppercase text-zaltyko-teal bg-zaltyko-primary-ultralight border border-zaltyko-electric/20 px-3 py-1.5 rounded-full"><span class="w-1.5 h-1.5 rounded-full bg-zaltyko-teal animate-pulse"></span> Piloto listo · escala en Q4</div>
+        <h1 class="font-display font-bold tracking-tight text-[clamp(32px,4.6vw,54px)] leading-[0.95] mt-4">El sistema operativo<br>de la <span class="text-zaltyko-teal">gimnasia</span> española.</h1>
+        <p class="mt-4 text-[17px] leading-relaxed text-slate-600 max-w-[52ch]">Zaltyko ordena gimnastas, grupos, horarios y cuotas sin Excel ni WhatsApp. Modelo validado, billing responsable y gobierno por vault.</p>
+        <div class="mt-6 flex flex-wrap gap-3">
+          <a href="#economia" class="inline-flex items-center gap-2 bg-zaltyko-navy text-white font-semibold px-6 py-3 rounded-control hover:bg-black transition active:scale-[0.98]">Ver economía <span class="opacity-60">→</span></a>
+          <a href="index.html" class="inline-flex items-center gap-2 bg-white border border-zaltyko-mist font-semibold px-6 py-3 rounded-control hover:border-slate-300 transition">Auditoría 52/100</a>
+        </div>
+        <div class="mt-6 flex flex-wrap gap-3 text-xs text-slate-500">
+          <span class="inline-flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-500"></span> Sin custodia de fondos</span>
+          <span>·</span><span>Stripe Connect Standard</span>
+          <span>·</span><span>Recibos ≠ factura fiscal</span>
+        </div>
+      </div>
+
+      <!-- Right visual: live dashboard preview (real components, not fake div) -->
+      <div class="reveal lg:pl-4" style="transition-delay:.12s">
+        <div class="relative">
+          <div class="rounded-modal border border-slate-200 bg-white shadow-medium overflow-hidden">
+            <div class="h-9 flex items-center justify-between px-4 border-b border-slate-100 bg-slate-50/60">
+              <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-red-400"></span><span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span><span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span></div>
+              <div class="text-[11px] font-semibold tracking-wide text-slate-500">app · Base 3 · Hoy 17:30</div>
+              <div class="text-[11px] font-bold">2<span class="text-slate-400">/4</span></div>
+            </div>
+            <div class="p-4 grid grid-cols-3 gap-3">
+              <div class="rounded-card border border-slate-200 p-3">
+                <div class="text-[11px] tracking-wide uppercase font-semibold text-slate-500">Gimnastas</div>
+                <div class="font-display text-2xl font-bold count" data-count="1374">0</div>
+                <div class="text-[11px] text-emerald-600 font-semibold">+12 esta semana</div>
+                <div class="progress mt-2"><i style="background:#00796B;width:72%"></i></div>
+              </div>
+              <div class="rounded-card border border-slate-200 p-3">
+                <div class="text-[11px] tracking-wide uppercase font-semibold text-slate-500">Cobro</div>
+                <div class="font-display text-2xl font-bold">19€<span class="text-sm text-slate-400">/mes</span></div>
+                <div class="text-[11px] text-slate-500">Starter 75 · Growth 200</div>
+                <div class="progress mt-2"><i style="background:#2B2E83;width:52%"></i></div>
+              </div>
+              <div class="rounded-card border border-slate-200 p-3 bg-zaltyko-navy text-white">
+                <div class="text-[11px] tracking-wide uppercase font-semibold text-white/60">Score</div>
+                <div class="font-display text-2xl font-bold">52<span class="text-sm text-white/60">/100</span></div>
+                <div class="text-[11px] text-white/70">D+ · hardening</div>
+                <div class="progress mt-2 bg-white/15"><i style="background:#1FC7B6;width:52%"></i></div>
+              </div>
+            </div>
+            <div class="px-4 pb-4">
+              <div class="rounded-card border border-slate-200 divide-y">
+                <div class="flex items-center justify-between px-3 py-2.5"><div><div class="text-sm font-semibold">Lucía M.</div><div class="text-xs text-slate-500">Base 3 · GAF</div></div><span class="text-xs font-semibold px-2 py-1 rounded bg-emerald-50 text-emerald-700">Presente</span></div>
+                <div class="flex items-center justify-between px-3 py-2.5"><div><div class="text-sm font-semibold">Vera S.</div><div class="text-xs text-slate-500">Base 2 · Rítmica</div></div><span class="text-xs font-semibold px-2 py-1 rounded bg-amber-50 text-amber-700">Tarde</span></div>
+                <div class="flex items-center justify-between px-3 py-2.5"><div><div class="text-sm font-semibold">Noa P.</div><div class="text-xs text-slate-500">Base 3 · GAF</div></div><span class="text-xs font-semibold px-2 py-1 rounded bg-red-50 text-red-700">Ausente</span></div>
+              </div>
+            </div>
+          </div>
+          <!-- floating KPIs -->
+          <div class="absolute -bottom-4 -left-3 hidden lg:flex items-center gap-2 bg-white border border-slate-200 rounded-full shadow-soft px-3 py-2 text-xs font-semibold">
+            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Stripe Connect verificado · test
+          </div>
+          <div class="absolute -top-3 -right-3 hidden lg:flex bg-zaltyko-teal text-white text-xs font-bold px-3 py-2 rounded-full shadow-brand">Puesta en marcha guiada</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Logo wall UNDER hero (not inside) -->
+<div class="marquee bg-white">
+  <div class="marquee-track py-3 text-sm font-semibold tracking-wide text-slate-600">
+    <span class="px-8">GIMNASIA ARTÍSTICA</span><span class="text-zaltyko-mist">·</span><span class="px-8">RÍTMICA</span><span class="text-zaltyko-mist">·</span><span class="px-8">ACROBÁTICA</span><span class="text-zaltyko-mist">·</span><span class="px-8">TRAMPOLÍN</span><span class="text-zaltyko-mist">·</span><span class="px-8">FREE 30</span><span class="text-zaltyko-mist">·</span><span class="px-8">STARTER 75 · 19€</span><span class="text-zaltyko-mist">·</span><span class="px-8">GROWTH 200 · 49€</span><span class="text-zaltyko-mist">·</span><span class="px-8">NETWORK MULTI-SEDE</span><span class="text-zaltyko-mist">·</span>
+    <span class="px-8">GIMNASIA ARTÍSTICA</span><span class="text-zaltyko-mist">·</span><span class="px-8">RÍTMICA</span><span class="text-zaltyko-mist">·</span><span class="px-8">ACROBÁTICA</span><span class="text-zaltyko-mist">·</span><span class="px-8">TRAMPOLÍN</span><span class="text-zaltyko-mist">·</span><span class="px-8">FREE 30</span><span class="text-zaltyko-mist">·</span><span class="px-8">STARTER 75 · 19€</span><span class="text-zaltyko-mist">·</span><span class="px-8">GROWTH 200 · 49€</span><span class="text-zaltyko-mist">·</span><span class="px-8">NETWORK MULTI-SEDE</span><span class="text-zaltyko-mist">·</span>
+  </div>
+</div>
+
+<!-- TESIS -->
+<section id="tesis" class="py-14 lg:py-20 bg-zaltyko-white">
+  <div class="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="max-w-3xl reveal">
+      <div class="text-[11px] font-semibold tracking-[0.16em] uppercase text-zaltyko-teal">Por qué ahora</div>
+      <h2 class="font-display font-bold text-3xl lg:text-[38px] tracking-tight leading-none mt-2">Tesis en 30 segundos.</h2>
+      <p class="text-slate-600 mt-3 leading-relaxed">Un vertical ignorado, con dolor operativo real y disposición a pagar por orden. Zaltyko ya tiene el dominio modelado; falta cerrar el loop valor → cobro → retención.</p>
+    </div>
+    <div class="grid md:grid-cols-3 gap-4 mt-8">
+      <div class="reveal rounded-card bg-white border border-slate-200 p-6 shadow-soft hover:shadow-medium transition">
+        <div class="w-9 h-9 rounded-control bg-zaltyko-primary-ultralight text-zaltyko-teal grid place-items-center">◉</div>
+        <h3 class="font-display font-semibold text-lg mt-3">Dolor caro y frecuente</h3>
+        <p class="text-sm text-slate-600 mt-1.5">Cuotas impagadas, grupos descuadrados y lista en papel. El Excel se rompe a las 75 gimnastas.</p>
+        <div class="mt-4 text-xs font-semibold text-zaltyko-teal">Evidencia: 70+ tablas · 26 módulos</div>
+      </div>
+      <div class="reveal rounded-card bg-white border border-slate-200 p-6 shadow-soft hover:shadow-medium transition" style="transition-delay:.06s">
+        <div class="w-9 h-9 rounded-control bg-indigo-50 text-zaltyko-indigo grid place-items-center">⬢</div>
+        <h3 class="font-display font-semibold text-lg mt-3">Moat de dominio</h3>
+        <p class="text-sm text-slate-600 mt-1.5">Niveles por aparato, asistencia por sesión, evaluaciones técnicas y familias informadas.</p>
+        <div class="mt-4 text-xs font-semibold text-zaltyko-indigo">Pricing v3.0 · 30 / 75 / 200</div>
+      </div>
+      <div class="reveal rounded-card bg-zaltyko-navy text-white p-6 shadow-brand" style="transition-delay:.12s">
+        <div class="w-9 h-9 rounded-control bg-white/10 grid place-items-center">★</div>
+        <h3 class="font-display font-semibold text-lg mt-3">Canal B2B</h3>
+        <p class="text-sm text-white/70 mt-1.5">Federaciones RFEG como distribución: un contrato = 15–150× un referral.</p>
+        <div class="mt-4 text-xs font-semibold text-zaltyko-electric">Ask Q4: landing federaciones + pitch</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TRACCIÓN -->
+<section id="traccion" class="py-14 lg:py-20 bg-white border-t border-slate-200">
+  <div class="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex flex-wrap items-end justify-between gap-4 reveal">
+      <div>
+        <div class="text-[11px] font-semibold tracking-[0.16em] uppercase text-zaltyko-teal">Tracción & evidencia</div>
+        <h2 class="font-display font-bold text-3xl lg:text-[38px] tracking-tight leading-none mt-2">Hecho. Medible. Verificable.</h2>
+      </div>
+      <a href="index.html" class="text-sm font-semibold text-zaltyko-indigo hover:underline">Ver auditoría completa →</a>
+    </div>
+
+    <div class="grid lg:grid-cols-12 gap-4 mt-8">
+      <!-- bento: hero + 4 -->
+      <div class="lg:col-span-7 reveal rounded-modal border border-slate-200 bg-white shadow-soft p-6">
+        <div class="flex items-center justify-between">
+          <h3 class="font-semibold">Estado del sistema</h3><span class="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">Hardening</span>
+        </div>
+        <div class="grid grid-cols-3 gap-4 mt-4">
+          <div><div class="text-3xl font-display font-bold count" data-count="1374">0</div><div class="text-xs text-slate-500">Archivos TS/TSX</div></div>
+          <div><div class="text-3xl font-display font-bold">306</div><div class="text-xs text-slate-500">Route handlers</div></div>
+          <div><div class="text-3xl font-display font-bold">70+</div><div class="text-xs text-slate-500">Tablas Drizzle</div></div>
+        </div>
+        <div class="grid grid-cols-3 gap-4 mt-6 text-sm">
+          <div class="rounded-card border border-slate-200 p-3"><div class="text-xs uppercase tracking-wide font-semibold text-slate-500">Auth</div><div class="font-semibold text-emerald-600">withTenant + RLS</div><div class="text-xs text-slate-500">IP + tenant rate-limit</div></div>
+          <div class="rounded-card border border-slate-200 p-3"><div class="text-xs uppercase tracking-wide font-semibold text-slate-500">Migraciones</div><div class="font-semibold">40 + 6 ledger</div><div class="text-xs text-slate-500">SHA-256 transaccional</div></div>
+          <div class="rounded-card border border-slate-200 p-3"><div class="text-xs uppercase tracking-wide font-semibold text-slate-500">Calidad</div><div class="font-semibold">71 suites</div><div class="text-xs text-slate-500">Vitest + Playwright + axe</div></div>
+        </div>
+        <div class="mt-6">
+          <div class="flex justify-between text-xs font-semibold"><span>Convergencia</span><span>52/100</span></div>
+          <div class="progress mt-1.5"><i style="background:linear-gradient(90deg,#00796B,#1FC7B6);width:52%"></i></div>
+          <div class="flex gap-2 mt-2 text-[11px]"><span class="px-2 py-1 rounded-full bg-slate-100">Business 52</span><span class="px-2 py-1 rounded-full bg-slate-100">Producto 52</span><span class="px-2 py-1 rounded-full bg-slate-100">Sistemas 52</span><span class="px-2 py-1 rounded-full bg-emerald-50 text-emerald-700">Marketing 69</span></div>
+        </div>
+      </div>
+
+      <div class="lg:col-span-5 grid gap-4">
+        <div class="reveal rounded-card bg-zaltyko-navy text-white p-6 shadow-brand">
+          <div class="text-xs tracking-wide uppercase font-semibold text-white/60">Stripe Connect — sin custodia</div>
+          <h3 class="font-display font-semibold text-xl mt-1">Cobro serio. Riesgo contenido.</h3>
+          <ul class="mt-3 space-y-2 text-sm text-white/75 list-disc list-inside">
+            <li>Cuenta conectada por academia — fondos directos</li>
+            <li>Recibos internos ≠ factura fiscal (academias responsables)</li>
+            <li>Webhooks firmados, idempotentes, con bloqueo</li>
+          </ul>
+          <div class="mt-4 inline-flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-full bg-white/10 border border-white/15">Onboarding test OK · webhook registrado <span class="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></span></div>
+        </div>
+        <div class="reveal rounded-card bg-white border border-slate-200 p-6 shadow-soft" style="transition-delay:.06s">
+          <h3 class="font-semibold">Gaps que bloquean valor</h3>
+          <div class="mt-3 space-y-2">
+            <div class="flex items-center justify-between p-2.5 rounded-control bg-red-50 border border-red-200"><span class="text-sm font-medium">Evaluaciones 25/100</span><span class="text-xs font-bold text-red-600">P0</span></div>
+            <div class="flex items-center justify-between p-2.5 rounded-control bg-amber-50 border border-amber-200"><span class="text-sm font-medium">Asistencia 35/100</span><span class="text-xs font-bold text-amber-700">P1</span></div>
+            <div class="flex items-center justify-between p-2.5 rounded-control bg-slate-50 border border-slate-200"><span class="text-sm font-medium">Portal familia</span><span class="text-xs font-bold text-slate-600">P1</span></div>
+          </div>
+          <div class="text-xs text-slate-500 mt-3">40% de schemas sin UI completa — es donde se gana o se pierde retención.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ECONOMIA: avoid long spec sheet — use 2-col card grid -->
+<section id="economia" class="py-14 lg:py-20 bg-zaltyko-white border-t border-slate-200">
+  <div class="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="max-w-3xl reveal">
+      <div class="text-[11px] font-semibold tracking-[0.16em] uppercase text-zaltyko-teal">Economía</div>
+      <h2 class="font-display font-bold text-3xl lg:text-[38px] tracking-tight leading-none mt-2">Unit economics claros.</h2>
+      <p class="text-slate-600 mt-3">Pricing v3.0 sin bug: Free 30, Starter 75 (19€), Growth 200 (49€). El salto 30→75 crea upgrade natural.</p>
+    </div>
+
+    <div class="grid lg:grid-cols-3 gap-4 mt-8">
+      <div class="reveal rounded-card bg-white border border-slate-200 p-6 text-center shadow-soft">
+        <div class="text-xs tracking-wide uppercase font-semibold text-slate-500">Free</div><div class="font-display text-4xl font-bold mt-1">0€</div><div class="text-sm text-slate-600">30 gimnastas · 1 academia</div><div class="text-xs text-slate-500 mt-1">3 grupos · 10 clases</div>
+        <div class="mt-4 h-1.5 bg-slate-100 rounded-full overflow-hidden"><i class="block h-full bg-slate-300" style="width:30%"></i></div>
+      </div>
+      <div class="reveal rounded-card bg-white border-2 border-zaltyko-teal p-6 text-center shadow-brand" style="transition-delay:.06s">
+        <div class="text-xs tracking-wide uppercase font-semibold text-zaltyko-teal">Starter · Pro</div><div class="font-display text-4xl font-bold mt-1">19€<span class="text-lg text-slate-400">/mes</span></div><div class="text-sm text-slate-600">75 gimnastas · 5 grupos · 20 clases</div><span class="mt-3 inline-block text-xs font-bold px-2.5 py-1 rounded-full bg-zaltyko-teal text-white">Self-serve</span>
+      </div>
+      <div class="reveal rounded-card bg-zaltyko-navy text-white p-6 text-center shadow-medium" style="transition-delay:.12s">
+        <div class="text-xs tracking-wide uppercase font-semibold text-white/60">Growth · Premium</div><div class="font-display text-4xl font-bold mt-1">49€<span class="text-lg text-white/60">/mes</span></div><div class="text-sm text-white/70">200 gimnastas · 10 grupos · 40 clases</div><span class="mt-3 inline-block text-xs font-bold px-2.5 py-1 rounded-full bg-white text-zaltyko-navy">Highlight</span>
+      </div>
+    </div>
+    <div class="text-center mt-3"><span class="inline-flex text-xs font-semibold px-3 py-1 rounded-full bg-white border border-slate-200">Network 99€ · multi-sede · onboarding acompañado · no autoservicio</span></div>
+
+    <div class="grid lg:grid-cols-12 gap-4 mt-6">
+      <div class="lg:col-span-7 reveal rounded-card bg-white border border-slate-200 p-6 shadow-soft">
+        <h3 class="font-semibold">MRR y sensibilidad</h3>
+        <div class="mt-4 grid grid-cols-3 gap-3 text-center">
+          <div class="rounded-card bg-slate-50 border border-slate-200 p-4"><div class="text-xs uppercase tracking-wide font-semibold text-slate-500">ARPU 150 academias</div><div class="font-display text-2xl font-bold">4–8€</div><div class="text-xs text-slate-500">/mes</div></div>
+          <div class="rounded-card bg-slate-50 border border-slate-200 p-4"><div class="text-xs uppercase tracking-wide font-semibold text-slate-500">MRR hoy</div><div class="font-display text-2xl font-bold">570–1.140€</div><div class="text-xs text-slate-500">30–60 Pro</div></div>
+          <div class="rounded-card bg-emerald-50 border border-emerald-200 p-4"><div class="text-xs uppercase tracking-wide font-semibold text-emerald-700">Federación</div><div class="font-display text-2xl font-bold text-emerald-700">+5–50k€</div><div class="text-xs text-emerald-700">/año por contrato</div></div>
+        </div>
+        <div class="mt-4 flex flex-wrap gap-2 text-xs"><span class="px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200">Annual sin price anual → P0</span><span class="px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200">Trial sin nurturing · P0</span><span class="px-2.5 py-1 rounded-full bg-red-50 text-red-700 border border-red-200">Cancel no cancela Stripe · P0</span></div>
+      </div>
+      <div class="lg:col-span-5 reveal rounded-card bg-white border border-slate-200 p-6 shadow-soft" style="transition-delay:.06s">
+        <h3 class="font-semibold">Uso de fondos — próximo tramo</h3>
+        <div class="mt-4 space-y-3">
+          <div><div class="flex justify-between text-sm font-medium"><span>Producto (evaluaciones, clases, familia)</span><span>45%</span></div><div class="progress mt-1.5"><i style="background:#00796B;width:45%"></i></div></div>
+          <div><div class="flex justify-between text-sm font-medium"><span>Growth (federaciones, referral, SEO)</span><span>25%</span></div><div class="progress mt-1.5"><i style="background:#2B2E83;width:25%"></i></div></div>
+          <div><div class="flex justify-between text-sm font-medium"><span>Infra & hardening (health, RLS, CI)</span><span>20%</span></div><div class="progress mt-1.5"><i style="background:#1FC7B6;width:20%"></i></div></div>
+          <div><div class="flex justify-between text-sm font-medium"><span>Operaciones & soporte piloto</span><span>10%</span></div><div class="progress mt-1.5"><i style="background:#FF6B57;width:10%"></i></div></div>
+        </div>
+        <div class="mt-4 text-xs text-slate-500">No se necesita reescribir. Se necesita cerrar valor → cobro → retención.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ROADMAP sticky-stack lite -->
+<section id="roadmap" class="py-14 lg:py-20 bg-white border-t border-slate-200">
+  <div class="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="reveal">
+      <div class="text-[11px] font-semibold tracking-[0.16em] uppercase text-zaltyko-teal">Roadmap</div>
+      <h2 class="font-display font-bold text-3xl lg:text-[38px] tracking-tight leading-none mt-2">De piloto a escala sin deuda.</h2>
+    </div>
+    <div class="grid lg:grid-cols-2 gap-6 mt-8">
+      <div class="reveal rounded-modal border border-slate-200 bg-white shadow-soft p-6">
+        <div class="inline-flex text-xs font-bold tracking-wide px-2.5 py-1 rounded-full bg-zaltyko-navy text-white">Q3 · Hardening · 4–6 sem</div>
+        <div class="mt-4 space-y-4">
+          <div class="flex gap-3"><div class="w-7 h-7 rounded-full bg-emerald-50 text-emerald-700 grid place-items-center text-xs font-bold">1</div><div><div class="font-semibold">Blindaje</div><div class="text-sm text-slate-600">Health + RLS en CI + flags DB + CI obligatorio</div></div></div>
+          <div class="flex gap-3"><div class="w-7 h-7 rounded-full bg-amber-50 text-amber-700 grid place-items-center text-xs font-bold">2</div><div><div class="font-semibold">Monetización</div><div class="text-sm text-slate-600">Annual + churn + trial emails + Brevo verificado</div></div></div>
+          <div class="flex gap-3"><div class="w-7 h-7 rounded-full bg-indigo-50 text-indigo-700 grid place-items-center text-xs font-bold">3</div><div><div class="font-semibold">UX crítica</div><div class="text-sm text-slate-600">Evaluaciones + clases + attendance + pricing real</div></div></div>
+          <div class="flex gap-3"><div class="w-7 h-7 rounded-full bg-zaltyko-teal text-white grid place-items-center text-xs">✓</div><div><div class="font-semibold text-zaltyko-teal">Gate piloto</div><div class="text-sm text-slate-600">3 academias · Stripe E2E · checklist verde</div></div></div>
+        </div>
+      </div>
+      <div class="reveal rounded-modal border border-slate-200 bg-zaltyko-navy text-white p-6 shadow-medium" style="transition-delay:.06s">
+        <div class="inline-flex text-xs font-bold tracking-wide px-2.5 py-1 rounded-full bg-white text-zaltyko-navy">Q4 · Producto & growth · 6–8 sem</div>
+        <div class="mt-4 space-y-4 text-white/80">
+          <div class="flex gap-3"><div class="w-7 h-7 rounded-full bg-white/10 grid place-items-center text-xs">◉</div><div><div class="font-semibold text-white">Portal familia completo</div><div class="text-sm text-white/60">Calendario hijos, evaluaciones, pagos, ausencias</div></div></div>
+          <div class="flex gap-3"><div class="w-7 h-7 rounded-full bg-white/10 grid place-items-center text-xs">⬢</div><div><div class="font-semibold text-white">Reportes & comunicación</div><div class="text-sm text-white/60">Hub + export + segmentación + lectura</div></div></div>
+          <div class="flex gap-3"><div class="w-7 h-7 rounded-full bg-white/10 grid place-items-center text-xs">★</div><div><div class="font-semibold text-white">Eventos federativos</div><div class="text-sm text-white/60">Listados RFEG + inscripciones federadas</div></div></div>
+          <div class="flex gap-3"><div class="w-7 h-7 rounded-full bg-zaltyko-electric text-zaltyko-navy grid place-items-center text-xs">✓</div><div><div class="font-semibold text-zaltyko-electric">Gate amplio</div><div class="text-sm text-white/60">0 P0/P1 + métricas activación/uso + vault al día</div></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="reveal mt-6 rounded-card border border-slate-200 bg-white shadow-soft p-4 flex flex-wrap gap-2 text-xs">
+      <span class="font-semibold">Checklist de salida:</span>
+      <span class="px-2.5 py-1 rounded-full bg-slate-50 border">typecheck + lint + build verde</span>
+      <span class="px-2.5 py-1 rounded-full bg-slate-50 border">validate:rls + check:migrations</span>
+      <span class="px-2.5 py-1 rounded-full bg-slate-50 border">audit:api-routes:strict + gate:all</span>
+      <span class="px-2.5 py-1 rounded-full bg-slate-50 border">E2E por roles + WCAG 2.2 AA</span>
+      <span class="px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700">vault al día</span>
+    </div>
+  </div>
+</section>
+
+<!-- RIESGOS accordion -->
+<section id="riesgos" class="py-14 lg:py-20 bg-zaltyko-white border-t border-slate-200">
+  <div class="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="reveal">
+      <div class="text-[11px] font-semibold tracking-[0.16em] uppercase text-zaltyko-teal">Riesgos & mitigaciones</div>
+      <h2 class="font-display font-bold text-3xl tracking-tight leading-none mt-2">Riesgo nombrado es riesgo gestionable.</h2>
+    </div>
+    <div class="mt-6 grid lg:grid-cols-2 gap-4">
+      <div class="space-y-3">
+        <details class="reveal group rounded-card bg-white border border-slate-200 p-4 open:shadow-soft" open>
+          <summary class="flex items-center justify-between cursor-pointer list-none"><span class="font-semibold">Monetización frágil</span><span class="text-slate-400 group-open:rotate-180 transition">⌃</span></summary>
+          <p class="text-sm text-slate-600 mt-2">Annual sin price, trial sin nurturing, cancel no cancela Stripe. Mitigación: Q3-Sem2 con Stripe prices + cron trial-lifecycle + emails día 1/3/7/10/13/15.</p>
+          <div class="mt-2 text-xs font-semibold text-amber-700">P0 · 1–2 sem · +700–2.000€/mes</div>
+        </details>
+        <details class="reveal group rounded-card bg-white border border-slate-200 p-4" style="transition-delay:.04s">
+          <summary class="flex items-center justify-between cursor-pointer list-none"><span class="font-semibold">UX incompleta → churn</span><span class="text-slate-400 group-open:rotate-180 transition">⌃</span></summary>
+          <p class="text-sm text-slate-600 mt-2">Evaluaciones y portal familia son el moat. Sin ellos, el piloto no retiene. Mitigación: evaluaciones mínimas + portal familia en Q3–Q4.</p>
+          <div class="mt-2 text-xs font-semibold text-red-600">40% schemas sin UI</div>
+        </details>
+        <details class="reveal group rounded-card bg-white border border-slate-200 p-4" style="transition-delay:.08s">
+          <summary class="flex items-center justify-between cursor-pointer list-none"><span class="font-semibold">Observabilidad volátil</span><span class="text-slate-400 group-open:rotate-180 transition">⌃</span></summary>
+          <p class="text-sm text-slate-600 mt-2">Métricas en RAM (cold start). Mitigación: tabla app_metrics + /api/health + p95/p99 + alertas Sentry. 4–6h.</p>
+        </details>
+      </div>
+      <div class="reveal rounded-card bg-zaltyko-navy text-white p-6 shadow-brand" style="transition-delay:.06s">
+        <h3 class="font-display font-semibold text-xl">Gobernanza: vault-first</h3>
+        <p class="text-sm text-white/70 mt-2">Cada cambio de producto/negocio actualiza <span class="font-mono text-white">vault/</span>, <span class="font-mono text-white">Backlog</span> y <span class="font-mono text-white">Decisiones</span>. Nunca secretos en docs. Guías canónicas en <span class="font-mono text-zaltyko-electric">Guia de trabajo para agentes.md</span>.</p>
+        <div class="mt-4 grid grid-cols-2 gap-3 text-xs">
+          <div class="rounded-card bg-white/10 border border-white/15 p-3"><div class="font-bold">No reescribir</div><div class="text-white/60">Cerrar valor → cobro → retención</div></div>
+          <div class="rounded-card bg-white/10 border border-white/15 p-3"><div class="font-bold">Evidencia</div><div class="text-white/60">Sin “+120 academias” sin datos</div></div>
+        </div>
+        <a href="index.html" class="mt-4 inline-flex text-sm font-semibold px-4 py-2 rounded-control bg-white text-zaltyko-navy hover:bg-slate-100 transition">Ver auditoría técnica completa →</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA dark -->
+<section id="cta" class="py-14 lg:py-16 bg-zaltyko-navy relative overflow-hidden">
+  <div class="absolute inset-0 bg-gradient-to-br from-zaltyko-indigo/30 via-transparent to-zaltyko-teal/20 pointer-events-none"></div>
+  <div class="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 relative">
+    <div class="rounded-modal bg-white p-6 lg:p-8 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 shadow-lift">
+      <div>
+        <div class="text-[11px] font-semibold tracking-[0.16em] uppercase text-zaltyko-teal">Siguiente paso</div>
+        <h2 class="font-display font-bold text-2xl lg:text-3xl tracking-tight mt-1">Aprobación para piloto de 3 academias.</h2>
+        <p class="text-slate-600 mt-2 max-w-2xl">Con hardening Q3-Sem1–2 cerrado, piloto medido con métricas semanales y gobierno vault. Sin escalar hasta 0 P0/P1.</p>
+      </div>
+      <div class="flex flex-wrap gap-3">
+        <a href="#" onclick="window.print();return false" class="inline-flex items-center gap-2 bg-zaltyko-teal text-white font-semibold px-6 py-3 rounded-control shadow-brand hover:bg-zaltyko-primary-dark transition active:scale-[0.98]">Imprimir informe <span class="w-5 h-5 rounded-full bg-white/15 grid place-items-center text-xs">↗</span></a>
+        <a href="index.html" class="inline-flex items-center gap-2 bg-white border border-slate-200 font-semibold px-6 py-3 rounded-control hover:border-slate-300">Auditoría 52/100</a>
+      </div>
+    </div>
+    <div class="text-center text-xs text-white/50 mt-6 font-mono">Confidencial · Solo accionistas · 23 ago 2026 · Zaltyko · vault/00-Inicio/Home.md</div>
+  </div>
+</section>
+
+<footer class="py-8 bg-white border-t border-slate-200">
+  <div class="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-3 text-xs text-slate-500">
+    <div>© 2026 Zaltyko · MentesSaaS · Todos los derechos reservados</div>
+    <div class="flex gap-4"><a href="index.html" class="hover:text-zaltyko-navy">Auditoría</a><a href="#tesis" class="hover:text-zaltyko-navy">Tesis</a><a href="#economia" class="hover:text-zaltyko-navy">Economía</a></div>
+  </div>
+</footer>
+
+<script>
+// reveal
+const ro=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting)e.target.classList.add('in')}),{threshold:.14});
+document.querySelectorAll('.reveal, .progress').forEach(el=>ro.observe(el));
+// counters
+const counters=document.querySelectorAll('[data-count]');
+const co=new IntersectionObserver(es=>{
+  es.forEach(e=>{
+    if(!e.isIntersecting) return;
+    const el=e.target, target=+el.dataset.count, dur=900, t0=performance.now();
+    function tick(now){
+      const p=Math.min(1,(now-t0)/dur);
+      const eased=1-Math.pow(1-p,3);
+      el.textContent=Math.round(eased*target).toLocaleString('es-ES');
+      if(p<1) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+    co.unobserve(el);
+  })
+},{threshold:.5});
+counters.forEach(el=>co.observe(el));
+// progress animate when in view already handled by .progress.in
+document.querySelectorAll('.progress').forEach(el=>{
+  const io2=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting)el.classList.add('in')}),{threshold:.3});
+  io2.observe(el);
+});
+</script>
+</body>
+</html>

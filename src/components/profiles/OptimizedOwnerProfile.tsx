@@ -212,7 +212,11 @@ export function OptimizedOwnerProfile({
             </div>
             <Link
               href={`/super-admin/users/${targetProfileId}`}
+<<<<<<< HEAD
               className="inline-flex items-center gap-2 rounded-md border border-amber-600/40 bg-card px-3 py-2 text-sm font-semibold text-amber-900 transition hover:bg-amber-50"
+=======
+              className="inline-flex items-center gap-2 rounded-md border border-amber-600/40 bg-white px-3 py-2 text-sm font-semibold text-amber-900 transition hover:bg-amber-50"
+>>>>>>> origin/main
             >
               <ArrowLeft className="h-4 w-4" strokeWidth={2} />
               Volver a Super Admin

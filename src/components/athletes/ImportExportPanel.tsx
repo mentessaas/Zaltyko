@@ -27,10 +27,18 @@ export default function ImportExportPanel({ tenantId, academyId, onImported }: I
   const [summary, setSummary] = useState<ImportSummary | null>(null);
   const [customTenantId, setCustomTenantId] = useState(tenantId ?? "");
 
+<<<<<<< HEAD
   const templateCsv = [
     "name,dob,level,status,groupId,groupName,sportConfigCode,programCode,levelCode,categoryCode",
     "Lucía Márquez,2010-05-14,Base 3,active,,Artística Femenina Base 3,ES:artistic_female,base,base_3,infantil",
     "Martín Ortega,2011-09-02,Iniciación,active,,Artística Masculina Iniciación,ES:artistic_male,recreativo,,alevin",
+=======
+  const templateAcademyId = academyId ?? "ACADEMY_UUID";
+  const templateCsv = [
+    "name,academyId,dob,level,status,groupId,groupName,sportConfigCode,programCode,levelCode,categoryCode",
+    `Lucía Márquez,${templateAcademyId},2010-05-14,Base 3,active,,Artística Femenina Base 3,ES:artistic_female,base,base_3,infantil`,
+    `Martín Ortega,${templateAcademyId},2011-09-02,Iniciación,active,,Artística Masculina Iniciación,ES:artistic_male,recreativo,,alevin`,
+>>>>>>> origin/main
   ]
     .map((line) => line.trim())
     .join("\n");
@@ -58,7 +66,10 @@ export default function ImportExportPanel({ tenantId, academyId, onImported }: I
     const formData = new FormData();
     formData.append("file", file);
     formData.append("tenantId", effectiveTenantId);
+<<<<<<< HEAD
     if (academyId) formData.append("academyId", academyId);
+=======
+>>>>>>> origin/main
 
     try {
       const response = await fetch("/api/athletes/import", {

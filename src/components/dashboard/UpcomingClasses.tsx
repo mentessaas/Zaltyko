@@ -50,6 +50,7 @@ function UpcomingClassesImpl({ classes, academyId, academyCountry }: UpcomingCla
   }, [academyId]);
 
   return (
+<<<<<<< HEAD
     <div className="space-y-5 rounded-2xl border border-border bg-card p-6 shadow-soft">
       <header className="flex items-center justify-between gap-3">
         <div>
@@ -57,6 +58,15 @@ function UpcomingClassesImpl({ classes, academyId, academyCountry }: UpcomingCla
             Próximas clases
           </p>
           <h3 className="mt-1 font-display text-xl font-semibold text-foreground">
+=======
+    <div className="space-y-5 rounded-2xl border border-zaltyko-mist bg-white p-6 shadow-soft">
+      <header className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-[0.12em] text-slate-600">
+            Próximas clases
+          </p>
+          <h3 className="mt-1 font-display text-xl font-semibold text-zaltyko-navy">
+>>>>>>> origin/main
             {classes.length > 0 ? "Programadas para los próximos días" : "Sin clases programadas"}
           </h3>
           <p className="mt-1 text-xs text-muted-foreground">
@@ -78,7 +88,11 @@ function UpcomingClassesImpl({ classes, academyId, academyCountry }: UpcomingCla
 
       <div className="space-y-3">
         {displayedClasses.length === 0 ? (
+<<<<<<< HEAD
           <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-zaltyko-white px-4 py-8 text-center">
+=======
+          <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-zaltyko-mist bg-zaltyko-white px-4 py-8 text-center">
+>>>>>>> origin/main
             <CalendarClock className="mb-2 h-8 w-8 text-muted-foreground/60" />
             <p className="text-sm text-muted-foreground">
               No hay clases próximas programadas
@@ -91,14 +105,22 @@ function UpcomingClassesImpl({ classes, academyId, academyCountry }: UpcomingCla
           displayedClasses.map((item) => (
             <div
               key={item.id}
+<<<<<<< HEAD
               className="flex flex-col gap-3 rounded-xl border border-border bg-card px-4 py-3 text-sm transition hover:border-zaltyko-teal/40 hover:bg-zaltyko-white"
+=======
+              className="flex flex-col gap-3 rounded-xl border border-zaltyko-mist bg-white px-4 py-3 text-sm transition hover:border-zaltyko-teal/40 hover:bg-zaltyko-white"
+>>>>>>> origin/main
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <Link
                       href={`/app/${academyId}/classes/${item.classId}`}
+<<<<<<< HEAD
                       className="font-semibold text-foreground transition hover:text-zaltyko-teal"
+=======
+                      className="font-semibold text-zaltyko-navy transition hover:text-zaltyko-teal"
+>>>>>>> origin/main
                     >
                       {item.className ?? "Clase sin nombre"}
                     </Link>
@@ -123,7 +145,11 @@ function UpcomingClassesImpl({ classes, academyId, academyCountry }: UpcomingCla
                     )}
                   </p>
                 </div>
+<<<<<<< HEAD
                 <CalendarClock className="h-4 w-4 shrink-0 text-muted-foreground" strokeWidth={1.6} />
+=======
+                <CalendarClock className="h-4 w-4 shrink-0 text-slate-600" strokeWidth={1.6} />
+>>>>>>> origin/main
               </div>
               <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                 <div className="inline-flex items-center gap-1 rounded-full bg-zaltyko-white px-2 py-1 text-xs">
@@ -145,13 +171,21 @@ function UpcomingClassesImpl({ classes, academyId, academyCountry }: UpcomingCla
                   </span>
                 )}
                 {item.isSessionPlaceholder && (
+<<<<<<< HEAD
                   <span className="rounded-full border border-dashed border-zaltyko-navy/35 px-2 py-1 text-[0.7rem] font-semibold text-foreground">
+=======
+                  <span className="rounded-full border border-dashed border-zaltyko-navy/35 px-2 py-1 text-[0.7rem] font-semibold text-zaltyko-navy">
+>>>>>>> origin/main
                     Sesiones no generadas
                   </span>
                 )}
               </div>
               {!item.isSessionPlaceholder && (
+<<<<<<< HEAD
                 <div className="flex items-center gap-2 border-t border-border/60 pt-1">
+=======
+                <div className="flex items-center gap-2 border-t border-zaltyko-mist/60 pt-1">
+>>>>>>> origin/main
                   <Button
                     variant="outline"
                     size="sm"

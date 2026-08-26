@@ -31,7 +31,19 @@ type ApiResponse = ApiSuccess | ApiError;
  *   5. Mostrar confirmacion final con link a `/preferences` (RGPD: opcion
  *      a reducir frecuencia sin perder todo).
  */
+<<<<<<< HEAD
 function UnsubscribeInner() {
+=======
+export default function UnsubscribePage() {
+  return (
+    <Suspense fallback={null}>
+      <UnsubscribePageInner />
+    </Suspense>
+  );
+}
+
+function UnsubscribePageInner() {
+>>>>>>> origin/main
   const searchParams = useSearchParams();
   const token = useMemo(() => searchParams.get("token") ?? "", [searchParams]);
 
@@ -135,9 +147,15 @@ function UnsubscribeInner() {
             <p className="mt-2 text-sm text-muted-foreground">
               Recibiras un email de confirmacion. Si solo quieres reducir la
               frecuencia, cambia tus{" "}
+<<<<<<< HEAD
               <a className="underline" href={`/preferences?token=${encodeURIComponent(token)}`}>
                 preferencias
               </a>{" "}
+=======
+              <Link className="underline" href={`/preferences?token=${encodeURIComponent(token)}`}>
+                preferencias
+              </Link>{" "}
+>>>>>>> origin/main
               en lugar de darte de baja.
             </p>
             <button
@@ -169,6 +187,7 @@ function UnsubscribeInner() {
     </main>
   );
 }
+<<<<<<< HEAD
 
 
 /**
@@ -193,3 +212,5 @@ export default function UnsubscribePage() {
     </Suspense>
   );
 }
+=======
+>>>>>>> origin/main

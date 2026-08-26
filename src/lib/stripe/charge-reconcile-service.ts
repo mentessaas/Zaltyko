@@ -2,7 +2,11 @@ import Stripe from "stripe";
 import { and, eq, ne } from "drizzle-orm";
 
 import { db } from "@/db";
+<<<<<<< HEAD
 import { charges, refunds } from "@/db/schema";
+=======
+import { charges } from "@/db/schema";
+>>>>>>> origin/main
 import { logger } from "@/lib/logger";
 import { sendChargePaymentFailedNotification } from "@/lib/stripe/notification-service";
 
@@ -185,7 +189,11 @@ export async function reconcileChargeRefunded(
   eventAccountId: string | null
 ): Promise<void> {
   const [row] = await db
+<<<<<<< HEAD
     .select({ id: charges.id, status: charges.status, stripeAccountId: charges.stripeAccountId, tenantId: charges.tenantId, academyId: charges.academyId, currency: charges.currency })
+=======
+    .select({ id: charges.id, status: charges.status, stripeAccountId: charges.stripeAccountId })
+>>>>>>> origin/main
     .from(charges)
     .where(eq(charges.stripeChargeId, stripeCharge.id))
     .limit(1);
@@ -198,6 +206,7 @@ export async function reconcileChargeRefunded(
   }
   if (row.status === "refunded") return;
 
+<<<<<<< HEAD
   // Registrar el reembolso en el ledger (parciales incluidos) para que el
   // cálculo de restante de refund-service no diverja de Stripe.
   await db
@@ -222,5 +231,10 @@ export async function reconcileChargeRefunded(
   await db
     .update(charges)
     .set({ status: fullyRefunded ? "refunded" : "paid", updatedAt: new Date() })
+=======
+  await db
+    .update(charges)
+    .set({ status: "refunded", updatedAt: new Date() })
+>>>>>>> origin/main
     .where(eq(charges.id, row.id));
 }

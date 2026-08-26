@@ -419,6 +419,7 @@ body {
     @apply hidden;
   }
 }
+<<<<<<< HEAD
 
 /* ===== Motion del dashboard (Ox Alpha) ===== */
 /* Dibujado de línea para gráficos SVG (Pulso operativo). El dasharray se
@@ -443,3 +444,5 @@ body {
     animation: none;
   }
 }
+=======
+>>>>>>> origin/main

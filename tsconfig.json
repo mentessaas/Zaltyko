@@ -39,14 +39,23 @@
   "exclude": [
     "node_modules",
     "ZaltykoMobile",
+<<<<<<< HEAD
     "zaltyko-branding",
     ".playwright-mcp",
     "mobile",
+=======
+    "mobile",
+    "zaltyko-branding",
+    ".playwright-mcp",
+>>>>>>> origin/main
     "scripts/fix-fk.ts",
     "scripts/e2e-auth-test.ts",
     "scripts/e2e-check-errors.ts",
     "scripts/e2e-full-flows.ts",
+<<<<<<< HEAD
     "scripts/gates/__fixtures__",
+=======
+>>>>>>> origin/main
     "smoke-test.ts",
     "tests"
   ]

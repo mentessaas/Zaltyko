@@ -23,10 +23,17 @@ export function WelcomeBanner({ academyName, userName, academyId, isNewUser = fa
   const displayName = userName || "equipo";
 
   return (
+<<<<<<< HEAD
     <div className="relative rounded-card border border-border border-b-2 border-b-zaltyko-teal bg-card p-6 shadow-soft">
       <button
         onClick={() => setDismissed(true)}
         className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-control text-zaltyko-text-light transition hover:bg-zaltyko-white hover:text-foreground"
+=======
+    <div className="relative rounded-card border border-zaltyko-mist border-b-2 border-b-zaltyko-teal bg-white p-6 shadow-soft">
+      <button
+        onClick={() => setDismissed(true)}
+        className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-control text-zaltyko-text-light transition hover:bg-zaltyko-white hover:text-zaltyko-navy"
+>>>>>>> origin/main
         aria-label="Cerrar"
       >
         <X className="h-4 w-4" />
@@ -37,11 +44,19 @@ export function WelcomeBanner({ academyName, userName, academyId, isNewUser = fa
           <div className="flex h-10 w-10 items-center justify-center rounded-control bg-zaltyko-primary-ultralight">
             {isNewUser ? <Users className="h-5 w-5 text-zaltyko-teal" /> : <Rocket className="h-5 w-5 text-zaltyko-teal" />}
           </div>
+<<<<<<< HEAD
           <h2 className="font-display text-2xl font-bold text-foreground">
             {isNewUser ? `¡Bienvenido a Zaltyko, ${displayName}!` : `¡Hola de nuevo, ${displayName}!`}
           </h2>
         </div>
         <p className="text-base leading-relaxed text-muted-foreground">
+=======
+          <h2 className="font-display text-2xl font-bold text-zaltyko-navy">
+            {isNewUser ? `¡Bienvenido a Zaltyko, ${displayName}!` : `¡Hola de nuevo, ${displayName}!`}
+          </h2>
+        </div>
+        <p className="text-base leading-relaxed text-zaltyko-text-secondary">
+>>>>>>> origin/main
           {isNewUser ? (
             <>
               <strong className="text-zaltyko-teal">{academyName || "Tu academia"}</strong> ya está creada.

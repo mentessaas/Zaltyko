@@ -4,7 +4,10 @@ import Link from "next/link";
 import Navbar from "@/app/(site)/Navbar";
 import Footer from "@/app/(site)/Footer";
 import FeaturesSection from "@/app/(site)/FeaturesSection";
+<<<<<<< HEAD
 import Reveal from "@/components/motion/Reveal";
+=======
+>>>>>>> origin/main
 import { Schema } from "@/components/Schema";
 import { getPublicSiteUrl } from "@/lib/seo/site-url";
 
@@ -52,6 +55,7 @@ export default function FeaturesPage() {
         {/* Hero simple para features */}
         <section className="pt-32 pb-16 bg-gradient-to-b from-zaltyko-primary/5 to-transparent">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 text-center">
+<<<<<<< HEAD
             <Reveal>
               <span className="inline-block text-sm font-semibold text-zaltyko-primary uppercase tracking-wider mb-4">
                 Funcionalidades
@@ -63,6 +67,17 @@ export default function FeaturesPage() {
                 Gimnastas, coaches, cobros, evaluaciones y eventos en una sola plataforma pensada para gimnasia artística y rítmica.
               </p>
             </Reveal>
+=======
+            <span className="inline-block text-sm font-semibold text-zaltyko-primary uppercase tracking-wider mb-4">
+              Funcionalidades
+            </span>
+            <h1 className="font-display text-4xl font-bold tracking-tight text-zaltyko-text-main sm:text-5xl">
+              Funcionalidades para tu academia de gimnasia
+            </h1>
+            <p className="mt-6 mx-auto max-w-2xl text-lg text-zaltyko-text-secondary">
+              Gimnastas, coaches, cobros, evaluaciones y eventos en una sola plataforma pensada para gimnasia artística y rítmica.
+            </p>
+>>>>>>> origin/main
           </div>
         </section>
         <FeaturesSection />
@@ -70,6 +85,7 @@ export default function FeaturesPage() {
         {/* CTA final */}
         <section className="py-16 bg-white">
           <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 text-center">
+<<<<<<< HEAD
             <Reveal>
               <h2 className="font-display text-3xl font-bold tracking-tight text-zaltyko-text-main sm:text-4xl">
                 Prueba Zaltyko con tu academia
@@ -95,6 +111,31 @@ export default function FeaturesPage() {
                 7 días de Starter sin tarjeta · Sin permanencia
               </p>
             </Reveal>
+=======
+            <h2 className="font-display text-3xl font-bold tracking-tight text-zaltyko-text-main sm:text-4xl">
+              Prueba Zaltyko con tu academia
+            </h2>
+            <p className="mt-4 text-lg text-zaltyko-text-secondary">
+              Crea tu academia gratis, importa a tus gimnastas y explora cada funcionalidad en un clic.
+            </p>
+            <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:justify-center">
+              <Link
+                href="/auth/register?role=owner"
+                className="inline-flex items-center justify-center rounded-full bg-zaltyko-primary px-8 py-3 font-semibold text-white hover:bg-primary-dark"
+              >
+                Crear academia gratis
+              </Link>
+              <Link
+                href="/pricing"
+                className="inline-flex items-center justify-center rounded-full border-2 border-zaltyko-primary px-8 py-3 font-semibold text-zaltyko-primary hover:bg-zaltyko-primary/10"
+              >
+                Ver planes y precios
+              </Link>
+            </div>
+            <p className="mt-4 text-sm text-zaltyko-text-secondary">
+              7 días de Starter sin tarjeta · Sin permanencia
+            </p>
+>>>>>>> origin/main
           </div>
         </section>
       </main>

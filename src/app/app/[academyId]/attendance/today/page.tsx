@@ -66,7 +66,11 @@ export default async function AttendanceTodayPage({ params }: PageProps) {
   return (
     <div className="space-y-6 p-4 sm:p-6 lg:p-8">
       <header className="space-y-1 py-4">
+<<<<<<< HEAD
         <h1 className="font-display text-2xl font-bold text-foreground">Pasar lista</h1>
+=======
+        <h1 className="font-display text-2xl font-bold text-zaltyko-navy">Pasar lista</h1>
+>>>>>>> origin/main
         <p className="text-sm text-muted-foreground">Sesiones de hoy · {todayStr}</p>
       </header>
 
@@ -92,11 +96,19 @@ export default async function AttendanceTodayPage({ params }: PageProps) {
               <li key={session.id}>
                 <Link
                   href={`/app/${academyId}/attendance/today/${session.id}`}
+<<<<<<< HEAD
                   className="flex min-h-[64px] items-center justify-between rounded-2xl border border-border bg-card px-4 py-3 shadow-soft active:border-zaltyko-teal"
                 >
                   <div className="min-w-0">
                     <p className="truncate font-semibold text-foreground">{session.className ?? "Clase"}</p>
                     <p className="truncate text-xs text-muted-foreground">
+=======
+                  className="flex min-h-[64px] items-center justify-between rounded-2xl border border-zaltyko-mist bg-white px-4 py-3 shadow-soft active:border-zaltyko-teal"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate font-semibold text-zaltyko-navy">{session.className ?? "Clase"}</p>
+                    <p className="truncate text-xs text-zaltyko-text-secondary">
+>>>>>>> origin/main
                       {session.startTime
                         ? formatTimeForCountry(`${todayStr}T${session.startTime}`, academy.country)
                         : "Sin horario"}

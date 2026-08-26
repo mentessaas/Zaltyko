@@ -4,6 +4,7 @@ export { CoachesTableSkeleton } from "./CoachesTableSkeleton";
 export { EventsGridSkeleton } from "./EventsGridSkeleton";
 export { AcademiesGridSkeleton } from "./AcademiesGridSkeleton";
 export { CalendarSkeleton } from "./CalendarSkeleton";
+<<<<<<< HEAD
 export {
   TableSkeleton,
   CardSkeleton,
@@ -18,3 +19,5 @@ export {
   type ListSkeletonProps,
   type GridSkeletonProps,
 } from "./table-skeleton";
+=======
+>>>>>>> origin/main

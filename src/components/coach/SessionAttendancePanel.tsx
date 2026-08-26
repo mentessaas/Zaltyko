@@ -110,10 +110,17 @@ function SessionAttendancePanelImpl({
 
   if (athletes.length === 0) {
     return (
+<<<<<<< HEAD
       <div className="rounded-2xl border border-dashed border-border bg-card p-8 text-center">
         <UsersRound className="mx-auto h-8 w-8 text-muted-foreground" aria-hidden="true" />
         <h3 className="mt-3 font-semibold text-foreground">La clase todavía no tiene {athletesTerm.toLowerCase()}</h3>
         <p className="mt-1 text-sm text-muted-foreground">Añade miembros al grupo o inscripciones extra antes de pasar lista.</p>
+=======
+      <div className="rounded-2xl border border-dashed border-zaltyko-mist bg-white p-8 text-center">
+        <UsersRound className="mx-auto h-8 w-8 text-zaltyko-text-secondary" aria-hidden="true" />
+        <h3 className="mt-3 font-semibold text-zaltyko-navy">La clase todavía no tiene {athletesTerm.toLowerCase()}</h3>
+        <p className="mt-1 text-sm text-zaltyko-text-secondary">Añade miembros al grupo o inscripciones extra antes de pasar lista.</p>
+>>>>>>> origin/main
       </div>
     );
   }
@@ -123,10 +130,17 @@ function SessionAttendancePanelImpl({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zaltyko-teal">Paso 1</p>
+<<<<<<< HEAD
           <h2 id="session-attendance-title" className="mt-1 text-xl font-semibold text-foreground">
             {attendanceTerm} de la sesión
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
+=======
+          <h2 id="session-attendance-title" className="mt-1 text-xl font-semibold text-zaltyko-navy">
+            {attendanceTerm} de la sesión
+          </h2>
+          <p className="mt-1 text-sm text-zaltyko-text-secondary">
+>>>>>>> origin/main
             Marca todas presentes y cambia únicamente las excepciones.
           </p>
         </div>
@@ -136,35 +150,59 @@ function SessionAttendancePanelImpl({
         </Button>
       </div>
 
+<<<<<<< HEAD
       <div className="flex flex-col gap-3 rounded-2xl border border-border/70 bg-zaltyko-white p-3 sm:flex-row sm:items-center sm:justify-between">
         <label className="relative block flex-1">
           <span className="sr-only">Buscar {athleteTerm.toLowerCase()}</span>
           <Search className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" aria-hidden="true" />
+=======
+      <div className="flex flex-col gap-3 rounded-2xl border border-zaltyko-mist/70 bg-zaltyko-white p-3 sm:flex-row sm:items-center sm:justify-between">
+        <label className="relative block flex-1">
+          <span className="sr-only">Buscar {athleteTerm.toLowerCase()}</span>
+          <Search className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-zaltyko-text-secondary" aria-hidden="true" />
+>>>>>>> origin/main
           <Input
             type="search"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder={`Buscar ${athleteTerm.toLowerCase()}…`}
+<<<<<<< HEAD
             className="min-h-11 bg-card pl-9"
           />
         </label>
         <p className="text-sm font-medium text-foreground" aria-live="polite">
+=======
+            className="min-h-11 bg-white pl-9"
+          />
+        </label>
+        <p className="text-sm font-medium text-zaltyko-navy" aria-live="polite">
+>>>>>>> origin/main
           {registeredCount}/{athletes.length} registradas
         </p>
       </div>
 
       <div className="space-y-3">
         {filteredAthletes.map((athlete) => (
+<<<<<<< HEAD
           <article key={athlete.id} className="rounded-2xl border border-border/70 bg-card p-4 shadow-soft">
+=======
+          <article key={athlete.id} className="rounded-2xl border border-zaltyko-mist/70 bg-white p-4 shadow-soft">
+>>>>>>> origin/main
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   {athlete.groupColor ? (
                     <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: athlete.groupColor }} aria-hidden="true" />
                   ) : null}
+<<<<<<< HEAD
                   <h3 className="truncate font-semibold text-foreground">{athlete.name}</h3>
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground">
+=======
+                  <h3 className="truncate font-semibold text-zaltyko-navy">{athlete.name}</h3>
+                </div>
+                <p className="mt-1 text-xs text-zaltyko-text-secondary">
+>>>>>>> origin/main
                   {[athlete.groupName, athlete.branchName].filter(Boolean).join(" · ")}
                 </p>
               </div>
@@ -183,7 +221,11 @@ function SessionAttendancePanelImpl({
                       "min-h-11 rounded-xl border px-3 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zaltyko-teal focus-visible:ring-offset-2",
                       statusMap[athlete.id] === option.value
                         ? option.activeClassName
+<<<<<<< HEAD
                         : "border-border bg-card text-muted-foreground hover:border-zaltyko-teal/40"
+=======
+                        : "border-zaltyko-mist bg-white text-zaltyko-text-secondary hover:border-zaltyko-teal/40"
+>>>>>>> origin/main
                     )}
                   >
                     {option.label}
@@ -205,7 +247,11 @@ function SessionAttendancePanelImpl({
         ))}
       </div>
 
+<<<<<<< HEAD
       <div className="sticky bottom-4 z-10 flex flex-col gap-3 rounded-2xl border border-border bg-white/95 p-3 shadow-medium backdrop-blur sm:flex-row sm:items-center sm:justify-between">
+=======
+      <div className="sticky bottom-4 z-10 flex flex-col gap-3 rounded-2xl border border-zaltyko-mist bg-white/95 p-3 shadow-medium backdrop-blur sm:flex-row sm:items-center sm:justify-between">
+>>>>>>> origin/main
         <div
           aria-live={feedback?.type === "error" ? "assertive" : "polite"}
           role={feedback?.type === "error" ? "alert" : "status"}

@@ -29,7 +29,10 @@ type TrendKey = keyof KpiTrends;
 interface MetricCard {
   title: string;
   value: string | number;
+<<<<<<< HEAD
   valueSuffix?: string;
+=======
+>>>>>>> origin/main
   subtitle: string;
   href: string;
   icon: LucideIcon;
@@ -95,8 +98,12 @@ function KPISectionImpl({ metrics, academyId, labels }: KPISectionProps) {
     },
     {
       title: "Asistencia",
+<<<<<<< HEAD
       value: metrics.attendancePercent,
       valueSuffix: "%",
+=======
+      value: `${metrics.attendancePercent}%`,
+>>>>>>> origin/main
       subtitle: "Últimos 7 días",
       href: `/app/${academyId}/attendance`,
       icon: UserCheck,
@@ -112,7 +119,10 @@ function KPISectionImpl({ metrics, academyId, labels }: KPISectionProps) {
           key={card.title}
           title={card.title}
           value={card.value}
+<<<<<<< HEAD
           valueSuffix={card.valueSuffix}
+=======
+>>>>>>> origin/main
           subtitle={card.subtitle}
           href={card.href}
           icon={card.icon}
