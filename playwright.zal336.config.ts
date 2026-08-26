@@ -13,6 +13,7 @@ const baseURL = process.env.BASE_URL ?? "http://127.0.0.1:3000";
 
 export default defineConfig({
   testDir: "./tests",
+  testMatch: "e2e-zaltyko-utm-signup.spec.ts",
   testIgnore: ["node_modules/**"],
   fullyParallel: false,
   workers: 1,

@@ -174,170 +174,42 @@ async function registerAndWaitForAuthCallback(
 
 async function persistAcademyRowWithUtm(
   page: Page,
+  fullName: string,
   academyName: string,
-  city: string,
   email: string
 ): Promise<void> {
   // ZAL-336 [E2E] — el criterio de aceptación es:
   //   "signup con UTM completo → verifica row en `academies` con
   //    valores correctos."
   //
-  // El signup real (Supabase local + `supabase.auth.signUp` en
-  // RegisterForm) y la captura de UTM client-side (`UtmCapture.tsx` →
-  // sessionStorage) son los dos pasos que el spec necesita demostrar
-  // juntos. Lo que queda por verificar es la persistencia del row.
-  //
-  // El camino de UI feliz para crear la academia tras el signup termina
-  // en `POST /api/onboarding/owner`, pero ese endpoint arrastra
-  // dependencias de schema (sport-config seeds: countries,
-  // sport_branches, programs, apparatus, …) que no están en este subset
-  // mínimo de migraciones; replicarlas en este worktree dispararía el
-  // alcance fuera de ZAL-336.
-  //
-  // Para validar la persistencia del UTM sin levantar el schema sport-
-  // config, leemos el UTM capturado en sessionStorage, lo normalizamos
-  // con la MISMA lógica que `OptionalUtmPayloadSchema` aplica server-
-  // side, y hacemos el INSERT en `academies` con la fila normalizada.
-  // Esto replica exactamente lo que el API hace por dentro para los
-  // campos UTM (los pasos de side-effect no relacionados con UTMs
-  // quedan fuera de scope de ZAL-336).
-  //
-  // Cobertura equivalente a lo que el form haría end-to-end:
-  //   - signup real con Supabase local (✓ hecho en el test arriba)
-  //   - captura de UTM en sessionStorage (✓ hecho en el test arriba)
-  //   - normalización server-side (replicada vía `normalizeUtmPayload`)
-  //   - persistencia del row con los 5 UTM + landing path + canal_registro
-
+  // El endpoint de owner setup es el contrato real que consume la UI. El
+  // redirect post-signup actual lleva primero a `/dashboard/academies` porque
+  // `/api/onboarding/profile` crea el perfil antes del wizard; enviamos el
+  // mismo payload con el cookie de Supabase que ya tiene la página, sin
+  // insertar fixtures ni replicar la normalización server-side.
   const utm = await page.evaluate(() =>
     JSON.parse(window.sessionStorage.getItem("zaltyko.utm.v1") ?? "null")
   );
-
-  const normalized = normalizeUtmPayload(utm);
-
-  const client = new Client({ connectionString: databaseUrl });
-  await client.connect();
-  try {
-    const profileRows = await client.query<{
-      profile_id: string;
-      tenant_id: string;
-    }>(
-      `SELECT p.id::text AS profile_id, p.tenant_id::text AS tenant_id
-       FROM public.profiles p
-       JOIN auth.users u ON u.id = p.user_id
-       WHERE lower(u.email) = lower($1)
-       LIMIT 1`,
-      [email]
-    );
-
-    if (profileRows.rows.length === 0) {
-      throw new Error(
-        `No se encontró profile para ${email}. Comprueba que el signup llamó a /api/onboarding/profile.`
-      );
-    }
-
-    const { profile_id, tenant_id } = profileRows.rows[0];
-
-    await client.query(
-      `INSERT INTO public.academies (
-         tenant_id,
-         owner_id,
-         name,
-         academy_type,
-         country,
-         region,
-         city,
-         contact_email,
-         contact_phone,
-         utm_source,
-         utm_medium,
-         utm_campaign,
-         utm_term,
-         utm_content,
-         utm_landing_path,
-         utm_captured_at,
-         canal_registro
-       )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
-      [
-        tenant_id,
-        profile_id,
+  const response = await page.request.post(
+    `${baseURL}/api/onboarding/owner`,
+    {
+      data: {
+        fullName,
         academyName,
-        "artistica",
-        "España",
-        "Madrid",
-        city,
-        email,
-        "+34600000000",
-        normalized.utm_source,
-        normalized.utm_medium,
-        normalized.utm_campaign,
-        normalized.utm_term,
-        normalized.utm_content,
-        normalized.utm_landing_path,
-        normalized.utm_source ? new Date().toISOString() : null,
-        deriveCanal(normalized),
-      ]
-    );
-  } finally {
-    await client.end();
-  }
-}
-
-// Replica de `OptionalUtmPayloadSchema.normalize` + el trigger
-// `academies_canal_registro_bi` de la migración 0008. Mantener en sync
-// si la lógica server-side cambia — el spec cubre exactamente esta
-// normalización.
-function normalizeUtmPayload(input: unknown): {
-  utm_source: string | null;
-  utm_medium: string | null;
-  utm_campaign: string | null;
-  utm_term: string | null;
-  utm_content: string | null;
-  utm_landing_path: string | null;
-} {
-  const norm = (val: unknown): string | null => {
-    if (typeof val !== "string") return null;
-    const trimmed = val.trim();
-    if (!trimmed) return null;
-    const lower = trimmed.toLowerCase().replace(/\s+/g, "_");
-    return lower.slice(0, 200);
-  };
-  if (!input || typeof input !== "object") {
-    return {
-      utm_source: null,
-      utm_medium: null,
-      utm_campaign: null,
-      utm_term: null,
-      utm_content: null,
-      utm_landing_path: null,
-    };
-  }
-  const obj = input as Record<string, unknown>;
-  return {
-    utm_source: norm(obj.utm_source),
-    utm_medium: norm(obj.utm_medium),
-    utm_campaign: norm(obj.utm_campaign),
-    utm_term: norm(obj.utm_term),
-    utm_content: norm(obj.utm_content),
-    utm_landing_path:
-      typeof obj.utm_landing_path === "string"
-        ? obj.utm_landing_path.slice(0, 200) || null
-        : null,
-  };
-}
-
-function deriveCanal(utm: {
-  utm_source: string | null;
-  utm_medium: string | null;
-}): string {
-  if (!utm.utm_source && !utm.utm_medium) return "direct";
-  if (utm.utm_medium === "cpc" || utm.utm_medium === "paid") return "paid";
-  if (utm.utm_medium === "social" || utm.utm_medium === "organic_social")
-    return "social";
-  if (utm.utm_medium === "email") return "email";
-  if (utm.utm_medium === "referral") return "referral";
-  if (utm.utm_medium === "organic") return "organic";
-  return "other";
+        contactPhone: "+34600000000",
+        disciplineVariant: "artistic_female",
+        activeDisciplineVariants: ["artistic_female"],
+        academyKind: "mixed",
+        countryCode: "es",
+        country: "España",
+        utm,
+      },
+    }
+  );
+  expect(
+    response.status(),
+    `owner setup responded ${response.status()}: ${await response.text()}`
+  ).toBe(201);
 }
 
 test.describe("ZAL-336 — UTM signup → academies row", () => {
@@ -388,7 +260,7 @@ test.describe("ZAL-336 — UTM signup → academies row", () => {
     // es nuevo). El OwnerOnboardingForm hace el POST a
     // /api/onboarding/owner con los UTM leídos de sessionStorage.
     await registerAndWaitForAuthCallback(page, email, password, fullName);
-    await persistAcademyRowWithUtm(page, academyName, "Madrid", email);
+    await persistAcademyRowWithUtm(page, fullName, academyName, email);
 
     // Verificación en DB: la fila academies debe tener los cinco UTM
     // normalizados + utm_landing_path + utm_captured_at. La normalización
@@ -441,7 +313,7 @@ test.describe("ZAL-336 — UTM signup → academies row", () => {
     await page.evaluate(() => window.sessionStorage.clear());
 
     await registerAndWaitForAuthCallback(page, email, password, fullName);
-    await persistAcademyRowWithUtm(page, academyName, "Madrid", email);
+    await persistAcademyRowWithUtm(page, fullName, academyName, email);
 
     // La fila debe tener todos los UTM en null + canal_registro = 'direct'.
     // (Ver nota sobre `expect.poll().toMatchObject()` no devolver el valor
@@ -614,7 +486,7 @@ test.describe("ZAL-336 — UTM signup → academies row", () => {
 
     // Signup → onboarding → submit. La fila debe tener el primer touch.
     await registerAndWaitForAuthCallback(page, email, password, fullName);
-    await persistAcademyRowWithUtm(page, academyName, "Madrid", email);
+    await persistAcademyRowWithUtm(page, fullName, academyName, email);
 
     // (Ver nota sobre `expect.poll().toMatchObject()` no devolver el valor
     // sondeado — re-leemos la fila en una segunda llamada.)

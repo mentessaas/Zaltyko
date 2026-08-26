@@ -198,13 +198,14 @@ SELECT * FROM athletes; -- Debe ver todos los atletas
 
 ## 🧪 Subset mínimo para E2E local (ZAL-336)
 
-A partir de la rama `fix/zal-336-utm-signup-e2e` se conservan **solo tres** migraciones versionadas, suficientes para correr el spec Playwright `tests/e2e-zaltyko-utm-signup.spec.ts` contra `supabase start` sin necesidad del catálogo completo de producción:
+A partir de la rama `fix/zal-336-utm-signup-e2e` se conservan **solo cuatro** migraciones versionadas, suficientes para correr el spec Playwright `tests/e2e-zaltyko-utm-signup.spec.ts` contra `supabase start` sin necesidad del catálogo completo de producción:
 
 | Migración | Contenido |
 |-----------|-----------|
 | `20240101000000_drizzle_0000_silent_tomas.sql` | Schema Drizzle completo (91 `CREATE TABLE`): `auth.users`, `profiles`, `academies`, `memberships`, etc. |
 | `20240101000007_drizzle_0007_academies_utm_columns.sql` | 5 columnas `utm_*` + `utm_captured_at` + `utm_landing_path` + 2 índices en `academies`. |
 | `20240101000008_drizzle_0008_academies_canal_registro.sql` | Columna `canal_registro` + triggers `academies_canal_registro_bi` / `_bu` (BEFORE INSERT/UPDATE) que derivan `paid > social > email > organic > direct`. |
+| `20240101000009_sport_config_architecture.sql` | Tablas mínimas del catálogo deportivo y columnas aditivas que usa el owner setup real para crear configuración, grupos, clases y suscripción local. |
 
 Se eliminaron del worktree las migraciones heredadas que el spec no necesita (sport-config, RLS de módulos laterales, Stripe Connect, family billing, message templates, etc.). Esas migraciones siguen vivas en `main`; solo el worktree de ZAL-336 trabaja con el subset mínimo.
 
@@ -238,10 +239,10 @@ Esta academia es la que el escenario 3 del spec reclama vía `/api/onboarding/ow
 
 ### Limitaciones conocidas del subset
 
-- **No hay tablas `countries`, `sportDisciplines`, `sportBranches`**: el endpoint `/api/onboarding/owner` (wizard completo) NO se puede invocar contra este stack; el spec cubre solo el path `/api/onboarding/owner/claim`.
+- **El endpoint `/api/onboarding/owner` se invoca contra este stack**: la migración `20240101000009_sport_config_architecture.sql` aporta las tablas y columnas mínimas del wizard. El stack sigue fuera del schema completo de producción.
 - **No hay RLS de producción**: la app conecta como `postgres` con `BYPASSRLS`; el aislamiento lo garantiza el wrapper `withTenant` del caller, no las políticas.
 - **No hay Stripe / Storage / Realtime**: `supabase/config.toml` solo levanta Postgres + GoTrue + PostgREST porque el spec no los necesita.
 
 ### Por qué un subset y no el schema completo
 
-El spec solo necesita `auth.users`, `profiles`, `academies`, `memberships` y los triggers de atribución. Aplicar el catálogo completo de producción (~70 migraciones) en cada `supabase db reset` alarga el ciclo 4-5x y trae dependencias circulares entre módulos no relacionadas con ZAL-157. El subset mantiene lo necesario aislado y reproducible.
+El spec necesita `auth.users`, `profiles`, `academies`, `memberships`, los triggers de atribución y el mínimo de sport-config que ejecuta el owner setup real. Aplicar el catálogo completo de producción (~70 migraciones) en cada `supabase db reset` alarga el ciclo 4-5x y trae dependencias circulares entre módulos no relacionadas con ZAL-157. El subset mantiene lo necesario aislado y reproducible.

@@ -1795,3 +1795,14 @@ Cubre el último criterio de aceptación de ZAL-157 que la revisión ZAL-198 mar
 **Evidencia local.** `4 passed (2.4m)` en la corrida limpia (`./playwright.zal336.config.ts`). Reporte HTML en `playwright-report-zal336/`. Diff final por escenario: 26.5s / 37.9s / 28.3s / 43.4s (incluye primer compile de `/api/onboarding/profile`, `/api/onboarding/owner/claim`, `/dashboard/academies`). Tras la corrida la DB queda con solo la fila seed (`ZAL-336 Pre-Registered Demo`) preservada — los tests limpian sus academias antes y después.
 
 **Sin cambios fuera de scope.** No se tocaron migraciones remotas, ni Supabase remoto, ni código de producto. La rama `fix/zal-336-utm-signup-e2e` parte de `fix/zal-157-eng-p1`@`6dbfaf420` y solo añade la infra de E2E local + el spec + el config. Para que el subset mínimo de Supabase local aplique limpio contra `supabase db reset`, el worktree borra ~40 migraciones heredadas (sport-config, RLS lateral, Stripe Connect, family billing, message templates, etc.) que dependen de tablas/fk ausentes en el subset; esas migraciones siguen vivas en `main` y se vuelven a reintroducir en cuanto se mergee el E2E con un stack completo (no es trabajo de ZAL-336). El orden `0007 → 0008` fuera de `drizzle/meta/_journal.json` sigue siendo owner de Platform & Security (ZAL-200) — este heartbeat no lo mueve.
+
+## 2026-08-26 - ZAL-336 revalidación del harness y persistencia real
+
+- Se corrigió el falso alcance del helper E2E: ya no inserta directamente en `academies` ni replica `OptionalUtmPayloadSchema`; después del signup Supabase local, usa el cookie del navegador para llamar `POST /api/onboarding/owner` y luego lee PostgreSQL local para verificar la fila.
+- `playwright.zal336.config.ts` quedó limitado al spec de ZAL-336. Antes descubría todos los `*.test.ts` de Vitest y abortaba antes de abrir navegador.
+- El subset local añade `20240101000009_sport_config_architecture.sql`, únicamente para crear las tablas/columnas mínimas que el owner setup real necesita (catálogo deportivo, grupos/clases y columnas de compatibilidad de suscripción). No sustituye el ledger ni modifica migraciones remotas.
+- Resultado del comando Playwright focal contra `localhost:3101` + Supabase local: `4 passed (58.4s)`. Escenarios: UTMs completos, entrada directa, preservación first-touch durante claim y second touch sin overwrite.
+- Verificación Vitest focal: `Tests 16 passed (16)` en `tests/gtm-utm-server-normalization.test.ts`.
+- La limitación del claim visual permanece: `RegisterForm` crea el perfil antes de resolver `owner_setup`, por lo que el escenario de seed usa el endpoint real `/api/onboarding/owner/claim`; no se declara alcance de UI claim ni readiness productiva.
+
+Sin producción, Supabase remoto, secretos, Stripe live, datos reales, publicaciones ni migraciones remotas. Este resultado es evidencia local/sandbox y no equivale a adopción, readiness o validación humana.
