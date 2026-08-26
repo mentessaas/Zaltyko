@@ -2,8 +2,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Navbar from "@/app/(site)/Navbar";
 import Footer from "@/app/(site)/Footer";
+<<<<<<< HEAD
+import { Target, Heart, TrendingUp, Shield } from "lucide-react";
+import { Schema } from "@/components/Schema";
+import Reveal from "@/components/motion/Reveal";
+=======
 import { Target, Heart, TrendingUp, Shield, MapPin, ArrowRight, Sparkles } from "lucide-react";
 import { Schema } from "@/components/Schema";
+>>>>>>> origin/main
 import { getPublicSiteUrl } from "@/lib/seo/site-url";
 
 const baseUrl = getPublicSiteUrl();
@@ -11,13 +17,21 @@ const baseUrl = getPublicSiteUrl();
 export const metadata: Metadata = {
   title: "Sobre Nosotros | Zaltyko - Software para academias de gimnasia",
   description:
+<<<<<<< HEAD
+    "Conoce la historia de Zaltyko. Nuestra misión es digitalizar y simplificar la gestión de academias de gimnasia en España y Latinoamérica.",
+=======
     "Zaltyko nace de la experiencia real de un entrenador de gimnasia artística. Conoce la historia detrás de la plataforma y hacia dónde va.",
+>>>>>>> origin/main
   alternates: {
     canonical: `${baseUrl}/sobre-nosotros`,
   },
   openGraph: {
     title: "Sobre Nosotros | Zaltyko",
+<<<<<<< HEAD
+    description: "Nacimos para resolver los problemas administrativos de las academias de gimnasia. Conoce nuestra historia, equipo y valores.",
+=======
     description: "Zaltyko nace desde dentro de la gimnasia. Conoce la historia real detrás de la plataforma.",
+>>>>>>> origin/main
     url: `${baseUrl}/sobre-nosotros`,
     siteName: "Zaltyko",
     type: "website",
@@ -36,13 +50,21 @@ const values = [
     icon: Heart,
     title: "Pasión",
     description:
+<<<<<<< HEAD
+      "Entendemos la gimnasia porque hemos crecido con ella. Nuestro equipo incluye ex-gimnastas, entrenadores y padres que conocen los retos diarios.",
+=======
       "Entendemos la gimnasia porque vivimos de ella. Cada decisión de producto parte de lo que se necesita de verdad en el día a día de una academia.",
+>>>>>>> origin/main
   },
   {
     icon: TrendingUp,
     title: "Innovación",
     description:
+<<<<<<< HEAD
+      "Mejoramos constantemente basándonos en el feedback de nuestra comunidad. Cada funcionalidad se diseña resolviendo problemas reales.",
+=======
       "Construimos junto a entrenadores y propietarios de academias, no en su lugar. Cada funcionalidad nace de un problema real, no de una suposición.",
+>>>>>>> origin/main
   },
   {
     icon: Shield,
@@ -52,7 +74,27 @@ const values = [
   },
 ];
 
+<<<<<<< HEAD
+const team = [
+  {
+    name: "Carlos García",
+    role: "CEO & Fundador",
+    bio: "Ex-gerente de academia con 15 años en el sector.",
+  },
+  {
+    name: "María López",
+    role: "CTO",
+    bio: "Ingeniera con experiencia en startups tecnológicas.",
+  },
+  {
+    name: "Javier Ruiz",
+    role: "Producto",
+    bio: "Ex-entrenador de gimnasia artística, conoce el sector.",
+  },
+];
+=======
 const journey = ["Cuba", "México", "España"];
+>>>>>>> origin/main
 
 export default function AboutPage() {
   return (
@@ -61,6 +103,20 @@ export default function AboutPage() {
 
       {/* Hero */}
       <section className="pt-32 pb-16 bg-gradient-to-b from-zaltyko-primary/5 to-transparent">
+<<<<<<< HEAD
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 text-center">
+          <Reveal>
+            <span className="inline-block text-sm font-semibold text-zaltyko-primary uppercase tracking-wider mb-4">
+              Sobre Nosotros
+            </span>
+            <h1 className="font-display text-4xl font-bold tracking-tight text-zaltyko-text-main sm:text-5xl">
+              Facilitando la gestión de la gimnasia
+            </h1>
+            <p className="mt-6 mx-auto max-w-2xl text-lg text-zaltyko-text-secondary">
+              Nacimos para resolver los problemas administrativos que enfrentan las academias de gimnasia cada día.
+            </p>
+          </Reveal>
+=======
         <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 text-center">
           <span className="inline-block text-sm font-semibold text-zaltyko-primary uppercase tracking-wider mb-4">
             Sobre Nosotros
@@ -72,12 +128,38 @@ export default function AboutPage() {
             La historia de un entrenador de gimnasia que decidió construir la herramienta
             que su academia necesitaba.
           </p>
+>>>>>>> origin/main
         </div>
       </section>
 
       {/* Story */}
       <section className="py-16 bg-white">
         <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
+<<<<<<< HEAD
+          <Reveal>
+          <h2 className="text-2xl font-bold text-zaltyko-text-main mb-6">Nuestra historia</h2>
+          <div className="prose prose-lg text-zaltyko-text-secondary">
+            <p>
+              Zaltyko nació en 2023 cuando Carlos, gerente de una academia de gimnasia en Madrid,
+              decidió que había una forma mejor de gestionar su negocio.
+            </p>
+            <p>
+              Después de años usando hojas de cálculo, sistemas obsoletos y procesos manuales,
+              se reunió con María, una desarrolladora especializada en software para empresas,
+              para crear una solución moderna adaptada a las necesidades específicas de las
+              academias de gimnasia.
+            </p>
+            <p>
+              Hoy, Zaltyko ayuda a academias en España y Latinoamérica a gestionar atletas,
+              clases, familias y pagos desde una misma plataforma.
+            </p>
+            <p>
+              Pero esto es solo el comienzo. Nuestra misión es seguir creciendo junto
+              con la comunidad de gimnasia, añadiendo funciones que realmente importan.
+            </p>
+          </div>
+          </Reveal>
+=======
           <div className="prose prose-lg text-zaltyko-text-secondary">
             <p>
               Soy Elvis, entrenador de gimnasia artística y fundador de Zaltyko.
@@ -154,6 +236,7 @@ export default function AboutPage() {
               — Elvis, Fundador de Zaltyko · Entrenador de gimnasia artística
             </footer>
           </blockquote>
+>>>>>>> origin/main
         </div>
       </section>
 
@@ -180,6 +263,26 @@ export default function AboutPage() {
         </div>
       </section>
 
+<<<<<<< HEAD
+      {/* Team */}
+      <section className="py-16 bg-white">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <h2 className="text-2xl font-bold text-zaltyko-text-main text-center mb-12">
+            Nuestro equipo
+          </h2>
+          <div className="grid gap-8 md:grid-cols-3">
+            {team.map((member, index) => (
+              <div key={index} className="text-center">
+                <div className="mx-auto h-24 w-24 rounded-full bg-gradient-to-br from-zaltyko-primary to-zaltyko-primary-dark flex items-center justify-center text-white text-3xl font-bold">
+                  {member.name.charAt(0)}
+                </div>
+                <h3 className="mt-4 font-semibold text-zaltyko-text-main">{member.name}</h3>
+                <p className="text-sm text-zaltyko-primary font-medium">{member.role}</p>
+                <p className="mt-2 text-sm text-zaltyko-text-secondary">{member.bio}</p>
+              </div>
+            ))}
+          </div>
+=======
       {/* Founder */}
       <section className="py-16 bg-white">
         <div className="mx-auto max-w-md px-4 sm:px-6 lg:px-8 text-center">
@@ -192,10 +295,29 @@ export default function AboutPage() {
             Entrenador de gimnasia artística. Nacido en Cuba, con años en México y hoy
             entrenando en España.
           </p>
+>>>>>>> origin/main
         </div>
       </section>
 
       {/* CTA */}
+<<<<<<< HEAD
+      <section className="py-16 bg-zaltyko-primary">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 text-center">
+          <h2 className="text-3xl font-bold text-white">¿Quieres formar parte de nuestra historia?</h2>
+          <p className="mt-4 text-lg text-white/80">
+            Únete a las academias que ya confían en Zaltyko.
+          </p>
+          <div className="mt-8 flex justify-center gap-4">
+            <Link
+              href="/auth/register"
+              className="rounded-full bg-white px-8 py-3 font-semibold text-zaltyko-primary hover:bg-muted"
+            >
+              Crear academia gratis
+            </Link>
+            <Link
+              href="/contact"
+              className="rounded-full border-2 border-white px-8 py-3 font-semibold text-white hover:bg-white/10"
+=======
       <section className="relative overflow-hidden bg-zaltyko-navy py-20">
         <div className="absolute inset-0 zaltyko-motion-lines opacity-60" />
         <div className="relative mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 text-center">
@@ -217,6 +339,7 @@ export default function AboutPage() {
             <Link
               href="/contact"
               className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/20 bg-white/10 px-8 py-4 text-base font-bold text-white backdrop-blur-sm transition-all duration-300 hover:bg-white/20"
+>>>>>>> origin/main
             >
               Contactar
             </Link>
@@ -224,6 +347,10 @@ export default function AboutPage() {
         </div>
       </section>
 
+<<<<<<< HEAD
+
+=======
+>>>>>>> origin/main
       {/* Organization Schema */}
       <Schema
         json={{
@@ -234,6 +361,10 @@ export default function AboutPage() {
             name: "Zaltyko",
             url: baseUrl,
             logo: `${baseUrl}/branding/zaltyko/logo-zaltyko-dark.svg`,
+<<<<<<< HEAD
+            description: "Software especializado para la gestión de academias de gimnasia.",
+            foundingDate: "2023",
+=======
             description: "Software especializado para la gestión de academias de gimnasia, creado por un entrenador de gimnasia artística.",
             founder: {
               "@type": "Person",
@@ -241,6 +372,7 @@ export default function AboutPage() {
               jobTitle: "Fundador",
               description: "Entrenador de gimnasia artística.",
             },
+>>>>>>> origin/main
             contactPoint: {
               "@type": "ContactPoint",
               email: "hola@zaltyko.com",
@@ -256,6 +388,40 @@ export default function AboutPage() {
         }}
       />
 
+<<<<<<< HEAD
+      {/* Team Schema - Person */}
+      <Schema
+        json={{
+          "@context": "https://schema.org",
+          "@type": "ItemList",
+          itemListElement: [
+            {
+              "@type": "Person",
+              name: "Carlos García",
+              jobTitle: "CEO & Fundador",
+              worksFor: { "@type": "Organization", name: "Zaltyko" },
+              description: "Ex-gerente de academia con 15 años en el sector.",
+            },
+            {
+              "@type": "Person",
+              name: "María López",
+              jobTitle: "CTO",
+              worksFor: { "@type": "Organization", name: "Zaltyko" },
+              description: "Ingeniera con experiencia en startups tecnológicas.",
+            },
+            {
+              "@type": "Person",
+              name: "Javier Ruiz",
+              jobTitle: "Producto",
+              worksFor: { "@type": "Organization", name: "Zaltyko" },
+              description: "Ex-entrenador de gimnasia artística.",
+            },
+          ],
+        }}
+      />
+
+=======
+>>>>>>> origin/main
       <Footer />
     </div>
   );

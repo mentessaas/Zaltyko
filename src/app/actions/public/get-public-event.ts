@@ -53,7 +53,12 @@ export async function getPublicEvent(
     .where(
       and(
         eq(events.id, eventId),
+<<<<<<< HEAD
+        eq(events.isPublic, true),
+          eq(events.status, 'published')
+=======
         eq(events.isPublic, true)
+>>>>>>> origin/main
       )
     )
     .limit(1);

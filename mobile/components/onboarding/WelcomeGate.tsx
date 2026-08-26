@@ -50,6 +50,16 @@ const ROLE_COPY: Record<ZaltykoRole, { icon: keyof typeof Ionicons.glyphMap; tex
     icon: 'eye-outline',
     text: 'Consulta la agenda y los avisos de la academia desde aquí.',
   },
+<<<<<<< HEAD
+  // provider (ZAL-768): la app no es su superficie de trabajo. El copy
+  // no promete productos, catálogo ni ninguna gestión — eso vive en la
+  // web y lo definirá ZAL-427 si alguna vez llega a mobile.
+  provider: {
+    icon: 'notifications-outline',
+    text: 'Recibe aquí los avisos que te manden y consulta tu perfil. Tu trabajo como proveedor se gestiona en la web.',
+  },
+=======
+>>>>>>> origin/main
 };
 
 export function WelcomeGate({ children }: Props) {

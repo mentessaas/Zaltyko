@@ -52,10 +52,17 @@ interface StudentChargesTabProps {
 }
 
 const STATUS_COLORS: Record<string, string> = {
+<<<<<<< HEAD
+  pending: "bg-zaltyko-mist/30 text-muted-foreground",
+  paid: "bg-zaltyko-teal/12 text-zaltyko-teal",
+  overdue: "bg-zaltyko-coral/12 text-zaltyko-coral",
+  cancelled: "bg-zaltyko-white text-muted-foreground",
+=======
   pending: "bg-zaltyko-mist/30 text-slate-600",
   paid: "bg-zaltyko-teal/12 text-zaltyko-teal",
   overdue: "bg-zaltyko-coral/12 text-zaltyko-coral",
   cancelled: "bg-zaltyko-white text-zaltyko-text-secondary",
+>>>>>>> origin/main
   partial: "bg-zaltyko-indigo/10 text-zaltyko-indigo",
   failed: "bg-red-100 text-red-700",
   refunded: "bg-amber-100 text-amber-700",
@@ -390,25 +397,41 @@ export function StudentChargesTab({ academyId, sportConfigs = [] }: StudentCharg
   return (
     <div className="space-y-6">
       <div>
+<<<<<<< HEAD
+        <h2 className="font-display text-2xl font-semibold text-foreground">Cobros a {athletesTermLower}</h2>
+=======
         <h2 className="font-display text-2xl font-semibold text-zaltyko-navy">Cobros a {athletesTermLower}</h2>
+>>>>>>> origin/main
         <p className="text-sm text-muted-foreground">
           Controla cuotas, matrículas y otros cargos a {athletesTermLower}.
         </p>
       </div>
 
       {/* Filtros */}
+<<<<<<< HEAD
+      <section className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-5 shadow-soft xl:flex-row xl:items-center xl:justify-between">
+=======
       <section className="flex flex-col gap-4 rounded-2xl border border-zaltyko-mist bg-white p-5 shadow-soft xl:flex-row xl:items-center xl:justify-between">
+>>>>>>> origin/main
         <div className="flex flex-wrap gap-3">
           <input
             type="month"
             value={period}
             onChange={(e) => setPeriod(e.target.value)}
+<<<<<<< HEAD
+            className="min-h-11 rounded-card border border-border bg-card px-3 py-2 text-sm focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15"
+=======
             className="min-h-11 rounded-card border border-zaltyko-mist bg-white px-3 py-2 text-sm focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15"
+>>>>>>> origin/main
           />
           <select
             value={sportConfigId}
             onChange={(e) => setSportConfigId(e.target.value)}
+<<<<<<< HEAD
+            className="min-h-11 rounded-card border border-border bg-card px-3 py-2 text-sm focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15"
+=======
             className="min-h-11 rounded-card border border-zaltyko-mist bg-white px-3 py-2 text-sm focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15"
+>>>>>>> origin/main
           >
             <option value="">Todas las ramas</option>
             {sportConfigs.map((config) => (
@@ -420,7 +443,11 @@ export function StudentChargesTab({ academyId, sportConfigs = [] }: StudentCharg
           <select
             value={groupId}
             onChange={(e) => setGroupId(e.target.value)}
+<<<<<<< HEAD
+            className="min-h-11 rounded-card border border-border bg-card px-3 py-2 text-sm focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15"
+=======
             className="min-h-11 rounded-card border border-zaltyko-mist bg-white px-3 py-2 text-sm focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15"
+>>>>>>> origin/main
             disabled={loadingGroups}
           >
             <option value="">Todos los {groupsTermLower}</option>
@@ -446,7 +473,11 @@ export function StudentChargesTab({ academyId, sportConfigs = [] }: StudentCharg
               setStatusFilter(e.target.value);
               setOnlyPendingOverdue(false); // Reset checkbox when manually selecting status
             }}
+<<<<<<< HEAD
+            className="min-h-11 rounded-card border border-border bg-card px-3 py-2 text-sm focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15"
+=======
             className="min-h-11 rounded-card border border-zaltyko-mist bg-white px-3 py-2 text-sm focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15"
+>>>>>>> origin/main
           >
             <option value="">Todos los estados</option>
             <option value="pending">Pendiente</option>
@@ -457,7 +488,11 @@ export function StudentChargesTab({ academyId, sportConfigs = [] }: StudentCharg
             <option value="failed">Fallido</option>
             <option value="refunded">Reembolsado</option>
           </select>
+<<<<<<< HEAD
+          <label className="flex min-h-11 items-center gap-2 rounded-card border border-border bg-card px-3 py-2 text-sm">
+=======
           <label className="flex min-h-11 items-center gap-2 rounded-card border border-zaltyko-mist bg-white px-3 py-2 text-sm">
+>>>>>>> origin/main
             <input
               type="checkbox"
               checked={onlyPendingOverdue}
@@ -486,6 +521,18 @@ export function StudentChargesTab({ academyId, sportConfigs = [] }: StudentCharg
       {/* Cards de resumen */}
       {!loading && (
         <div className="grid gap-4 sm:grid-cols-3">
+<<<<<<< HEAD
+          <div className="rounded-2xl border border-border bg-card p-4 shadow-soft">
+            <p className="text-xs font-medium uppercase tracking-[0.05em] text-muted-foreground">
+              Total del periodo
+            </p>
+            <p className="mt-1 font-display text-xl font-semibold text-foreground">
+              {formatAmount(summaryMetrics.total)}
+            </p>
+          </div>
+          <div className="rounded-2xl border border-border bg-card p-4 shadow-soft">
+            <p className="text-xs font-medium uppercase tracking-[0.05em] text-muted-foreground">
+=======
           <div className="rounded-2xl border border-zaltyko-mist bg-white p-4 shadow-soft">
             <p className="text-xs font-medium uppercase tracking-[0.05em] text-slate-400">
               Total del periodo
@@ -496,14 +543,20 @@ export function StudentChargesTab({ academyId, sportConfigs = [] }: StudentCharg
           </div>
           <div className="rounded-2xl border border-zaltyko-mist bg-white p-4 shadow-soft">
             <p className="text-xs font-medium uppercase tracking-[0.05em] text-slate-400">
+>>>>>>> origin/main
               Cobrado
             </p>
             <p className="mt-1 font-display text-xl font-semibold text-zaltyko-teal">
               {formatAmount(summaryMetrics.paid)}
             </p>
           </div>
+<<<<<<< HEAD
+          <div className="rounded-2xl border border-border bg-card p-4 shadow-soft">
+            <p className="text-xs font-medium uppercase tracking-[0.05em] text-muted-foreground">
+=======
           <div className="rounded-2xl border border-zaltyko-mist bg-white p-4 shadow-soft">
             <p className="text-xs font-medium uppercase tracking-[0.05em] text-slate-400">
+>>>>>>> origin/main
               Pendiente / Atrasado
             </p>
             <p className="mt-1 font-display text-xl font-semibold text-zaltyko-coral">
@@ -537,7 +590,11 @@ export function StudentChargesTab({ academyId, sportConfigs = [] }: StudentCharg
         {/* Cards — móvil */}
         <ul className="space-y-3 md:hidden">
           {charges.map((charge) => (
+<<<<<<< HEAD
+            <li key={charge.id} className="rounded-2xl border border-border bg-card p-4 shadow-soft">
+=======
             <li key={charge.id} className="rounded-2xl border border-zaltyko-mist bg-white p-4 shadow-soft">
+>>>>>>> origin/main
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <Link
@@ -550,7 +607,11 @@ export function StudentChargesTab({ academyId, sportConfigs = [] }: StudentCharg
                     {charge.groupName || "—"} · {formatPeriod(charge.period)}
                   </p>
                 </div>
+<<<<<<< HEAD
+                <p className="shrink-0 font-display font-semibold text-foreground">
+=======
                 <p className="shrink-0 font-display font-semibold text-zaltyko-navy">
+>>>>>>> origin/main
                   {formatAmount(charge.amountCents, charge.currency)}
                 </p>
               </div>
@@ -565,7 +626,11 @@ export function StudentChargesTab({ academyId, sportConfigs = [] }: StudentCharg
                 </Badge>
               </div>
 
+<<<<<<< HEAD
+              <div className="mt-3 flex flex-wrap items-center justify-end gap-2 border-t border-border/60 pt-3">
+=======
               <div className="mt-3 flex flex-wrap items-center justify-end gap-2 border-t border-zaltyko-mist/60 pt-3">
+>>>>>>> origin/main
                 {(charge.status === "pending" || charge.status === "overdue" || charge.status === "failed") && (
                   <>
                     <Button
@@ -609,10 +674,17 @@ export function StudentChargesTab({ academyId, sportConfigs = [] }: StudentCharg
         </ul>
 
         {/* Tabla — escritorio */}
+<<<<<<< HEAD
+        <div className="hidden overflow-x-auto rounded-2xl border border-border bg-card shadow-soft md:block">
+          <table className="min-w-full divide-y divide-border text-sm">
+            <thead className="bg-zaltyko-white">
+              <tr className="text-left text-xs uppercase tracking-[0.05em] text-muted-foreground">
+=======
         <div className="hidden overflow-x-auto rounded-2xl border border-zaltyko-mist bg-white shadow-soft md:block">
           <table className="min-w-full divide-y divide-slate-100 text-sm">
             <thead className="bg-zaltyko-white">
               <tr className="text-left text-xs uppercase tracking-[0.05em] text-slate-400">
+>>>>>>> origin/main
                 <th className="px-4 py-3 font-medium">{terms.athlete}</th>
                 <th className="px-4 py-3 font-medium">{terms.group}</th>
                 <th className="px-4 py-3 font-medium">Concepto</th>
@@ -624,7 +696,11 @@ export function StudentChargesTab({ academyId, sportConfigs = [] }: StudentCharg
                 <th className="px-4 py-3 font-medium text-right">Acciones</th>
               </tr>
             </thead>
+<<<<<<< HEAD
+            <tbody className="divide-y divide-border bg-card">
+=======
             <tbody className="divide-y divide-slate-100 bg-white">
+>>>>>>> origin/main
               {charges.map((charge) => (
                 <tr key={charge.id} className="hover:bg-zaltyko-white/80">
                   <td className="px-4 py-3">

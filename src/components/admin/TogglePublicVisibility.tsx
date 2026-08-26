@@ -70,7 +70,11 @@ export function TogglePublicVisibility({
       } ${isLoading ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
     >
       <span
+<<<<<<< HEAD
+        className={`inline-block h-4 w-4 transform rounded-full bg-card transition-transform ${
+=======
         className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+>>>>>>> origin/main
           isPublic ? "translate-x-6" : "translate-x-1"
         }`}
       />

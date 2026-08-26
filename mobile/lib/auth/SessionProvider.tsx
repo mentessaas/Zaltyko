@@ -9,6 +9,15 @@ import { createContext, useCallback, useContext, useEffect, useState, type React
 import type { Session } from '@supabase/supabase-js';
 
 import { apiGet } from '@/lib/api/client';
+<<<<<<< HEAD
+import { normalizeMeProfile, type RawMeProfile, type ZaltykoProfile, type ZaltykoRole } from './roles';
+import { supabase } from './supabase';
+
+// El contrato de roles vive en './roles' (ZAL-768). Se re-exporta aquí
+// para no tocar los ~12 imports existentes de '@/lib/auth/use-session',
+// que a su vez re-exporta desde este archivo.
+export type { ZaltykoProfile, ZaltykoRole };
+=======
 import { supabase } from './supabase';
 
 export type ZaltykoRole = 'super_admin' | 'owner' | 'admin' | 'coach' | 'parent' | 'athlete' | 'viewer';
@@ -21,6 +30,7 @@ export interface ZaltykoProfile {
   academyId: string | null;
   academyName: string | null;
 }
+>>>>>>> origin/main
 
 export interface SessionState {
   status: 'loading' | 'authenticated' | 'unauthenticated';
@@ -51,7 +61,15 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     // bastar para tirar la sesión — ver hydrate() más abajo.
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
+<<<<<<< HEAD
+        // /api/me devuelve el rol como string del enum de Postgres.
+        // Se estrecha en runtime: un rol que mobile no conoce cae a
+        // `viewer`, nunca a `parent` (ver roles.ts).
+        const raw = await apiGet<RawMeProfile>('/api/me', { token });
+        return normalizeMeProfile(raw);
+=======
         return await apiGet<ZaltykoProfile>('/api/me', { token });
+>>>>>>> origin/main
       } catch (err) {
         console.warn('[SessionProvider] /api/me falló:', err);
         if (attempt === 1) return null;

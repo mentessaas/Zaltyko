@@ -61,8 +61,46 @@ export async function getTenantId(
     return getAcademyTenantForUser({ academyId, profile });
   }
 
+<<<<<<< HEAD
+  // Preferir el tenant de la academia activa: profiles.tenantId es el tenant
+  // "de nacimiento" (solo se escribe en el primer join) y puede quedar
+  // obsoleto tras cambios o bajas de academia.
+  if (profile.activeAcademyId) {
+    const activeTenant = await getAcademyTenantForUser({
+      academyId: profile.activeAcademyId,
+      profile,
+    });
+    if (activeTenant) {
+      return activeTenant;
+    }
+  }
+
+  // Fallback al tenantId del perfil, verificado contra membresía vigente:
+  // sin esta comprobación, un ex-miembro seguiría operando con el tenant de
+  // la academia que lo desvinculó.
+  if (profile.tenantId) {
+    const [stillMember] = await db
+      .select({ id: memberships.id })
+      .from(memberships)
+      .innerJoin(academies, eq(academies.id, memberships.academyId))
+      .where(
+        and(
+          eq(academies.tenantId, profile.tenantId),
+          eq(memberships.userId, profile.userId)
+        )
+      )
+      .limit(1);
+
+    if (stillMember) {
+      return profile.tenantId;
+    }
+  }
+
+  return null;
+=======
   // Fallback al tenantId del perfil
   return profile.tenantId ?? null;
+>>>>>>> origin/main
 }
 
 /**

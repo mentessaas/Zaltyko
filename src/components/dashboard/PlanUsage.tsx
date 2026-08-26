@@ -43,6 +43,16 @@ export function PlanUsage({ plan, academyId }: PlanUsageProps) {
     : "";
 
   return (
+<<<<<<< HEAD
+    <div className="flex flex-col gap-3 rounded-2xl border border-border/70 bg-card p-4 shadow-soft">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+            Estado del plan
+          </p>
+          <h3 className="mt-0.5 font-display text-base font-semibold text-foreground">{effectivePlanName}</h3>
+          <p className="text-[10px] text-muted-foreground">Estado: {getPlanStatusLabel(plan.status)}</p>
+=======
     <div className="flex flex-col gap-3 rounded-2xl border border-zaltyko-mist/70 bg-white p-4 shadow-soft">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
@@ -51,6 +61,7 @@ export function PlanUsage({ plan, academyId }: PlanUsageProps) {
           </p>
           <h3 className="mt-0.5 font-display text-base font-semibold text-zaltyko-navy">{effectivePlanName}</h3>
           <p className="text-[10px] text-zaltyko-text-secondary">Estado: {getPlanStatusLabel(plan.status)}</p>
+>>>>>>> origin/main
         </div>
         <Link
           href={`/app/${academyId}/billing`}
@@ -62,7 +73,11 @@ export function PlanUsage({ plan, academyId }: PlanUsageProps) {
       </div>
 
       <div className="space-y-1.5">
+<<<<<<< HEAD
+        <div className="flex items-center justify-between text-[10px] font-medium text-muted-foreground">
+=======
         <div className="flex items-center justify-between text-[10px] font-medium text-zaltyko-text-secondary">
+>>>>>>> origin/main
           <span>Resumen</span>
           <span className="text-xs font-semibold text-foreground">
             {usageSummary}{classesSummary}
@@ -78,7 +93,11 @@ export function PlanUsage({ plan, academyId }: PlanUsageProps) {
 
       {/* Links a becas y descuentos (solo si el plan no es "free") */}
       {plan.planCode !== "free" && (
+<<<<<<< HEAD
+        <div className="mt-3 flex flex-wrap gap-2 border-t border-border/60 pt-3">
+=======
         <div className="mt-3 flex flex-wrap gap-2 border-t border-zaltyko-mist/60 pt-3">
+>>>>>>> origin/main
           <Link
             href={`/app/${academyId}/billing/scholarships`}
             className="inline-flex items-center gap-1 text-[10px] font-semibold text-zaltyko-teal transition hover:underline"

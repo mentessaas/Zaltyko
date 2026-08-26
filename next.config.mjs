@@ -4,6 +4,13 @@ import { withSentryConfig } from "@sentry/nextjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
+<<<<<<< HEAD
+// Security headers (HSTS, CSP con nonce, X-Frame-Options, X-Content-Type-Options,
+// Referrer-Policy, Permissions-Policy) y redirección www↔apex se aplican desde
+// middleware.ts para generar nonces por request (CSP estricta).
+// El bloque `securityHeaders` que vivía aquí se eliminó porque next.config.mjs
+// sólo permite headers estáticos y no puede emitir un nonce por request.
+=======
 const securityHeaders = [
   {
     key: "Strict-Transport-Security",
@@ -37,6 +44,7 @@ const securityHeaders = [
     ].join("; "),
   },
 ];
+>>>>>>> origin/main
 
 const nextConfig = {
   // El typecheck corre en el job de CI (Lint & Type Check) antes de mergear a main;
@@ -94,6 +102,14 @@ const nextConfig = {
   poweredByHeader: false,
   reactStrictMode: true,
 
+<<<<<<< HEAD
+  // Headers de seguridad: ver middleware.ts (nonce por request).
+
+  // Consolidar señales SEO en el dominio canónico: el dominio de despliegue
+  // de Vercel no debe competir con zaltyko.com por indexación/backlinks.
+  // El manejo www↔apex con 301 vive en middleware.ts para evitar ciclos
+  // y poder reflejar el path completo sin doble match.
+=======
   // Headers de seguridad
   async headers() {
     return [
@@ -106,6 +122,7 @@ const nextConfig = {
 
   // Consolidar señales SEO en el dominio canónico: el dominio de despliegue
   // de Vercel no debe competir con zaltyko.com por indexación/backlinks.
+>>>>>>> origin/main
   async redirects() {
     return [
       {

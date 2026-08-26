@@ -82,7 +82,11 @@ export function EventRegistrationsPanel({ event }: EventRegistrationsPanelProps)
       <CardHeader>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
+<<<<<<< HEAD
+            <CardTitle className="font-display text-xl text-foreground">Inscripciones</CardTitle>
+=======
             <CardTitle className="font-display text-xl text-zaltyko-navy">Inscripciones</CardTitle>
+>>>>>>> origin/main
             <CardDescription>Gestiona las inscripciones al evento</CardDescription>
           </div>
           <Button size="sm">
@@ -94,6 +98,20 @@ export function EventRegistrationsPanel({ event }: EventRegistrationsPanelProps)
       <CardContent>
         {/* Resumen */}
         <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-4">
+<<<<<<< HEAD
+          <div className="rounded-xl border border-border bg-zaltyko-warm-white p-3 text-center">
+            <Users className="mx-auto mb-1 h-5 w-5 text-zaltyko-teal" />
+            <p className="font-display text-2xl font-bold text-foreground">{confirmedCount}</p>
+            <p className="text-xs text-muted-foreground">Confirmados</p>
+          </div>
+          <div className="rounded-xl border border-border bg-zaltyko-warm-white p-3 text-center">
+            <Clock className="mx-auto mb-1 h-5 w-5 text-zaltyko-indigo" />
+            <p className="font-display text-2xl font-bold text-foreground">{pendingCount}</p>
+            <p className="text-xs text-muted-foreground">Pendientes</p>
+          </div>
+          {event.maxCapacity && (
+            <div className="col-span-2 rounded-xl border border-border bg-zaltyko-warm-white p-3 text-center">
+=======
           <div className="rounded-xl border border-zaltyko-mist bg-zaltyko-warm-white p-3 text-center">
             <Users className="mx-auto mb-1 h-5 w-5 text-zaltyko-teal" />
             <p className="font-display text-2xl font-bold text-zaltyko-navy">{confirmedCount}</p>
@@ -106,6 +124,7 @@ export function EventRegistrationsPanel({ event }: EventRegistrationsPanelProps)
           </div>
           {event.maxCapacity && (
             <div className="col-span-2 rounded-xl border border-zaltyko-mist bg-zaltyko-warm-white p-3 text-center">
+>>>>>>> origin/main
               <EventCapacityBadge
                 current={confirmedCount}
                 max={event.maxCapacity}
@@ -136,11 +155,19 @@ export function EventRegistrationsPanel({ event }: EventRegistrationsPanelProps)
 
           <TabsContent value="registrations" className="mt-4">
             {loading ? (
+<<<<<<< HEAD
+              <p className="py-4 text-center text-muted-foreground">Cargando...</p>
+            ) : registrations.length === 0 ? (
+              <div className="py-8 text-center">
+                <Users className="mx-auto mb-3 h-12 w-12 text-zaltyko-mist" />
+                <p className="text-muted-foreground">Aún no hay inscripciones. Empieza añadiendo una.</p>
+=======
               <p className="py-4 text-center text-zaltyko-text-secondary">Cargando...</p>
             ) : registrations.length === 0 ? (
               <div className="py-8 text-center">
                 <Users className="mx-auto mb-3 h-12 w-12 text-zaltyko-mist" />
                 <p className="text-zaltyko-text-secondary">Aún no hay inscripciones. Empieza añadiendo una.</p>
+>>>>>>> origin/main
                 <Button variant="outline" size="sm" className="mt-4">
                   <UserPlus className="h-4 w-4 mr-2" />
                   Inscribir atleta
@@ -151,7 +178,11 @@ export function EventRegistrationsPanel({ event }: EventRegistrationsPanelProps)
                 {registrations.map((registration) => (
                   <div
                     key={registration.id}
+<<<<<<< HEAD
+                    className="flex items-center justify-between rounded-xl border border-border bg-card p-3 transition-colors hover:border-zaltyko-teal/40"
+=======
                     className="flex items-center justify-between rounded-xl border border-zaltyko-mist bg-white p-3 transition-colors hover:border-zaltyko-teal/40"
+>>>>>>> origin/main
                   >
                     <div className="flex items-center gap-3">
                       <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-zaltyko-teal/10">
@@ -160,8 +191,13 @@ export function EventRegistrationsPanel({ event }: EventRegistrationsPanelProps)
                         </span>
                       </div>
                       <div>
+<<<<<<< HEAD
+                        <p className="text-sm font-medium text-foreground">{registration.athleteName}</p>
+                        <p className="text-xs text-muted-foreground">
+=======
                         <p className="text-sm font-medium text-zaltyko-navy">{registration.athleteName}</p>
                         <p className="text-xs text-zaltyko-text-secondary">
+>>>>>>> origin/main
                           {registration.categoryName || "Sin categoría"}
                         </p>
                       </div>
@@ -180,18 +216,30 @@ export function EventRegistrationsPanel({ event }: EventRegistrationsPanelProps)
 
           <TabsContent value="waitlist" className="mt-4">
             {loading ? (
+<<<<<<< HEAD
+              <p className="py-4 text-center text-muted-foreground">Cargando...</p>
+            ) : waitlist.length === 0 ? (
+              <div className="py-8 text-center">
+                <List className="mx-auto mb-3 h-12 w-12 text-zaltyko-mist" />
+                <p className="text-muted-foreground">No hay nadie en lista de espera</p>
+=======
               <p className="py-4 text-center text-zaltyko-text-secondary">Cargando...</p>
             ) : waitlist.length === 0 ? (
               <div className="py-8 text-center">
                 <List className="mx-auto mb-3 h-12 w-12 text-zaltyko-mist" />
                 <p className="text-zaltyko-text-secondary">No hay nadie en lista de espera</p>
+>>>>>>> origin/main
               </div>
             ) : (
               <div className="space-y-2">
                 {waitlist.map((entry) => (
                   <div
                     key={entry.id}
+<<<<<<< HEAD
+                    className="flex items-center justify-between rounded-xl border border-border bg-card p-3 transition-colors hover:border-zaltyko-teal/40"
+=======
                     className="flex items-center justify-between rounded-xl border border-zaltyko-mist bg-white p-3 transition-colors hover:border-zaltyko-teal/40"
+>>>>>>> origin/main
                   >
                     <div className="flex items-center gap-3">
                       <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-zaltyko-indigo/10">
@@ -200,8 +248,13 @@ export function EventRegistrationsPanel({ event }: EventRegistrationsPanelProps)
                         </span>
                       </div>
                       <div>
+<<<<<<< HEAD
+                        <p className="text-sm font-medium text-foreground">{entry.athleteName}</p>
+                        <p className="text-xs text-muted-foreground">
+=======
                         <p className="text-sm font-medium text-zaltyko-navy">{entry.athleteName}</p>
                         <p className="text-xs text-zaltyko-text-secondary">
+>>>>>>> origin/main
                           {entry.categoryName || "Sin categoría"}
                         </p>
                       </div>

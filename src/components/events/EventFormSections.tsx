@@ -17,9 +17,15 @@ import { FileUpload } from "./FileUpload";
 import { LocationSelect } from "./LocationSelect";
 
 const fieldClassName =
+<<<<<<< HEAD
+  "w-full rounded-card border border-border bg-card px-4 py-2.5 text-sm text-foreground shadow-none focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15 disabled:bg-zaltyko-warm-white disabled:text-muted-foreground";
+const labelClassName = "mb-2 block text-xs font-medium uppercase tracking-[0.05em] text-foreground";
+const sectionClassName = "sm:col-span-2 border-t border-border pt-4";
+=======
   "w-full rounded-card border border-zaltyko-mist bg-white px-4 py-2.5 text-sm text-zaltyko-navy shadow-none focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15 disabled:bg-zaltyko-warm-white disabled:text-zaltyko-text-secondary";
 const labelClassName = "mb-2 block text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy";
 const sectionClassName = "sm:col-span-2 border-t border-zaltyko-mist pt-4";
+>>>>>>> origin/main
 const errorTextClassName = "mt-1 text-xs text-zaltyko-coral";
 
 export interface SportConfigOption {
@@ -143,7 +149,11 @@ export function EventDetailsSection({
             </option>
           ))}
         </select>
+<<<<<<< HEAD
+        <p className="mt-2 text-xs text-muted-foreground">
+=======
         <p className="mt-2 text-xs text-zaltyko-text-secondary">
+>>>>>>> origin/main
           Se usa para cargar tipos de competición y evitar mezclar ramas.
         </p>
       </div>
@@ -266,7 +276,11 @@ export function EventDetailsSection({
           render={({ field }) => (
             <div className="flex items-center gap-2">
               <Switch id="isPublic" checked={field.value ?? false} onCheckedChange={(checked) => field.onChange(checked)} />
+<<<<<<< HEAD
+              <Label htmlFor="isPublic" className="cursor-pointer text-sm font-medium text-foreground">
+=======
               <Label htmlFor="isPublic" className="cursor-pointer text-sm font-medium text-zaltyko-navy">
+>>>>>>> origin/main
                 Evento público (aparecerá en el directorio público)
               </Label>
             </div>
@@ -332,7 +346,11 @@ export function EventMediaSection({
 export function EventNotificationSection({ control }: { control: Control<EventFormValues> }) {
   return (
     <div className={sectionClassName}>
+<<<<<<< HEAD
+      <h3 className="mb-4 font-display text-base font-semibold text-foreground">Opciones de notificación</h3>
+=======
       <h3 className="mb-4 font-display text-base font-semibold text-zaltyko-navy">Opciones de notificación</h3>
+>>>>>>> origin/main
       <div className="space-y-3">
         {(
           [
@@ -348,7 +366,11 @@ export function EventNotificationSection({ control }: { control: Control<EventFo
             name={key}
             render={({ field }) => (
               <div className="flex items-center justify-between">
+<<<<<<< HEAD
+                <Label htmlFor={key} className="cursor-pointer text-sm font-medium text-foreground">
+=======
                 <Label htmlFor={key} className="cursor-pointer text-sm font-medium text-zaltyko-navy">
+>>>>>>> origin/main
                   {label}
                 </Label>
                 <Switch id={key} checked={field.value ?? false} onCheckedChange={(checked) => field.onChange(checked)} />
@@ -434,7 +456,11 @@ export function EventContactSection({ register, errors }: Pick<EventFormSectionP
 export function EventRegistrationSection({ control, register }: Pick<EventFormSectionProps, "control" | "register">) {
   return (
     <div className={sectionClassName}>
+<<<<<<< HEAD
+      <h3 className="mb-4 font-display text-base font-semibold text-foreground">Inscripciones</h3>
+=======
       <h3 className="mb-4 font-display text-base font-semibold text-zaltyko-navy">Inscripciones</h3>
+>>>>>>> origin/main
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <label htmlFor="status" className={labelClassName}>
@@ -510,7 +536,11 @@ export function EventRegistrationSection({ control, register }: Pick<EventFormSe
                   checked={field.value ?? false}
                   onCheckedChange={(checked) => field.onChange(checked)}
                 />
+<<<<<<< HEAD
+                <Label htmlFor="allowWaitlist" className="cursor-pointer text-sm font-medium text-foreground">
+=======
                 <Label htmlFor="allowWaitlist" className="cursor-pointer text-sm font-medium text-zaltyko-navy">
+>>>>>>> origin/main
                   Permitir lista de espera cuando el evento esté lleno
                 </Label>
               </div>

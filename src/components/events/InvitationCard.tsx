@@ -50,7 +50,11 @@ const statusConfig = {
     label: "Pendiente",
     icon: Clock,
     variant: "outline" as const,
+<<<<<<< HEAD
+    className: "border-border bg-zaltyko-mist/30 text-muted-foreground",
+=======
     className: "border-zaltyko-mist bg-zaltyko-mist/30 text-zaltyko-text-secondary",
+>>>>>>> origin/main
   },
   sent: {
     label: "Enviada",
@@ -74,7 +78,11 @@ const statusConfig = {
     label: "Expirada",
     icon: AlertCircle,
     variant: "outline" as const,
+<<<<<<< HEAD
+    className: "border-border bg-zaltyko-warm-white text-muted-foreground",
+=======
     className: "border-zaltyko-mist bg-zaltyko-warm-white text-zaltyko-text-secondary",
+>>>>>>> origin/main
   },
 };
 
@@ -223,7 +231,11 @@ export const InvitationCard = memo(function InvitationCard({
             </div>
           )}
 
+<<<<<<< HEAD
+          <div className="space-y-1 text-xs text-muted-foreground">
+=======
           <div className="space-y-1 text-xs text-zaltyko-text-secondary">
+>>>>>>> origin/main
             {invitation.invitedByName && (
               <p>Invitada por: {invitation.invitedByName}</p>
             )}
@@ -302,8 +314,13 @@ export function InvitationStats({ stats }: InvitationStatsProps) {
     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
       <Card>
         <CardContent className="pt-4">
+<<<<<<< HEAD
+          <div className="font-display text-2xl font-bold text-foreground">{stats.total}</div>
+          <p className="text-xs text-muted-foreground">Total</p>
+=======
           <div className="font-display text-2xl font-bold text-zaltyko-navy">{stats.total}</div>
           <p className="text-xs text-zaltyko-text-secondary">Total</p>
+>>>>>>> origin/main
         </CardContent>
       </Card>
 

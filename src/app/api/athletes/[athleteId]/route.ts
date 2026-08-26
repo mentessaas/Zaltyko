@@ -1,5 +1,9 @@
 import { randomUUID } from "node:crypto";
+<<<<<<< HEAD
+import { eq, and, isNull } from "drizzle-orm";
+=======
 import { eq, and } from "drizzle-orm";
+>>>>>>> origin/main
 import { z } from "zod";
 
 import { db } from "@/db";
@@ -54,9 +58,17 @@ async function getAthleteTenant(athleteId: string) {
       programCode: athletes.programCode,
       levelCode: athletes.levelCode,
       categoryCode: athletes.categoryCode,
+<<<<<<< HEAD
+      deletedAt: athletes.deletedAt,
+      status: athletes.status,
+    })
+    .from(athletes)
+    .where(and(eq(athletes.id, athleteId), isNull(athletes.deletedAt)))
+=======
     })
     .from(athletes)
     .where(eq(athletes.id, athleteId))
+>>>>>>> origin/main
     .limit(1);
 
   return row ?? null;
@@ -148,7 +160,11 @@ const getAthleteHandler = withTenant(async (_request, context) => {
   const [athlete] = await db
     .select()
     .from(athletes)
+<<<<<<< HEAD
+    .where(and(eq(athletes.id, athleteId), eq(athletes.tenantId, tenantId), isNull(athletes.deletedAt)))
+=======
     .where(and(eq(athletes.id, athleteId), eq(athletes.tenantId, tenantId)))
+>>>>>>> origin/main
     .limit(1);
 
   if (!athlete) {
@@ -179,7 +195,11 @@ const updateAthleteHandler = withTenant(async (request, context) => {
   const [existing] = await db
     .select()
     .from(athletes)
+<<<<<<< HEAD
+    .where(and(eq(athletes.id, athleteId), eq(athletes.tenantId, tenantId), isNull(athletes.deletedAt)))
+=======
     .where(and(eq(athletes.id, athleteId), eq(athletes.tenantId, tenantId)))
+>>>>>>> origin/main
     .limit(1);
 
   if (!existing) {
@@ -504,9 +524,32 @@ const deleteAthleteHandler = withTenant(async (_request, context) => {
     return apiError("FORBIDDEN", "Access denied", 403);
   }
 
+<<<<<<< HEAD
+  // Baja no destructiva: soft delete preserva historial financiero y evaluaciones.
+  // Exige estado archived antes de permitir el archivado para evitar borrados accidentales.
+  if (athleteRow.status !== "archived") {
+    const [archived] = await db
+      .update(athletes)
+      .set({ status: "archived", deletedAt: new Date() })
+      .where(and(eq(athletes.id, athleteId), isNull(athletes.deletedAt)))
+      .returning({ id: athletes.id });
+    if (!archived) {
+      return apiError("ATHLETE_NOT_FOUND", "Athlete not found", 404);
+    }
+    return apiSuccess({ ok: true, archived: true });
+  }
+
+  await db
+    .update(athletes)
+    .set({ deletedAt: new Date() })
+    .where(eq(athletes.id, athleteId));
+
+  return apiSuccess({ ok: true, deleted: true });
+=======
   await db.delete(athletes).where(eq(athletes.id, athleteId));
 
   return apiSuccess({ ok: true });
+>>>>>>> origin/main
 });
 
 export const DELETE = withRateLimit(

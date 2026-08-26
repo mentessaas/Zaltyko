@@ -94,13 +94,22 @@ export function EventsList({ academyId, events, sportConfigs = [], academyCountr
 
   return (
     <div className="space-y-6">
+<<<<<<< HEAD
+      <div className="relative overflow-hidden rounded-[24px] border border-border/80 bg-card p-6 shadow-[0_18px_50px_-32px_rgba(15,23,42,0.45)]">
+=======
       <div className="relative overflow-hidden rounded-[24px] border border-slate-200/80 bg-white p-6 shadow-[0_18px_50px_-32px_rgba(15,23,42,0.45)]">
+>>>>>>> origin/main
         <div className="zaltyko-motion-lines pointer-events-none absolute inset-x-0 top-0 h-24 opacity-70" />
         <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-teal">Eventos</p>
+<<<<<<< HEAD
+            <h2 className="font-display text-3xl font-bold tracking-[-0.03em] text-foreground">Agenda de academia</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+=======
             <h2 className="font-display text-3xl font-bold tracking-[-0.03em] text-zaltyko-navy">Agenda de academia</h2>
             <p className="mt-1 text-sm text-zaltyko-text-secondary">
+>>>>>>> origin/main
               Gestiona competiciones, evaluaciones y citas clave de {specialization.labels.disciplineName.toLowerCase()}
             </p>
           </div>
@@ -115,7 +124,11 @@ export function EventsList({ academyId, events, sportConfigs = [], academyCountr
         <Card className="border-dashed">
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Calendar className="mb-4 h-12 w-12 text-zaltyko-teal" />
+<<<<<<< HEAD
+            <p className="mb-4 text-center text-sm text-muted-foreground">
+=======
             <p className="mb-4 text-center text-sm text-zaltyko-text-secondary">
+>>>>>>> origin/main
               Aún no hay eventos. Empieza añadiendo uno.
             </p>
             <Button onClick={() => setIsCreateOpen(true)}>
@@ -127,7 +140,11 @@ export function EventsList({ academyId, events, sportConfigs = [], academyCountr
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {events.map((event) => (
+<<<<<<< HEAD
+            <Card key={event.id} className="group relative overflow-hidden border-border/80 transition hover:-translate-y-0.5 hover:border-zaltyko-teal/40 hover:shadow-[0_20px_48px_-30px_rgba(0,121,107,0.35)]">
+=======
             <Card key={event.id} className="group relative overflow-hidden border-slate-200/80 transition hover:-translate-y-0.5 hover:border-zaltyko-teal/40 hover:shadow-[0_20px_48px_-30px_rgba(0,121,107,0.35)]">
+>>>>>>> origin/main
               <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-zaltyko-teal/70 via-zaltyko-electric/60 to-zaltyko-indigo/60 opacity-60 transition-opacity group-hover:opacity-100" />
               <CardHeader>
                 <div className="flex items-start justify-between">

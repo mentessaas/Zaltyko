@@ -150,4 +150,150 @@ describe('apiGet/apiPost - cliente API móvil', () => {
     expect(init.headers['Content-Type']).toBe('application/json');
     expect(init.body).toBe(JSON.stringify({ note: 'hola' }));
   });
+<<<<<<< HEAD
+
+  // ---- AC-10: cada ApiClientError lleva retryable + nextAction ----
+  // La UI nunca debe tener que adivinar si un error es reintentable: lo
+  // decide el traductor de códigos en client.ts.
+
+  it('NETWORK_ERROR expone retryable=true y nextAction="retry"', async () => {
+    const fetchMock = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(apiGet('/api/me')).rejects.toMatchObject({
+      code: 'NETWORK_ERROR',
+      retryable: true,
+      nextAction: 'retry',
+    });
+  });
+
+  it('TIMEOUT expone retryable=true y nextAction="retry"', async () => {
+    const fetchMock = vi.fn((_url: string, init: RequestInit) =>
+      new Promise((_resolve, reject) => {
+        init.signal?.addEventListener('abort', () => {
+          const err = new Error('Aborted');
+          err.name = 'AbortError';
+          reject(err);
+        });
+      })
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(apiGet('/api/me', { timeoutMs: 10 })).rejects.toMatchObject({
+      code: 'TIMEOUT',
+      retryable: true,
+      nextAction: 'retry',
+    });
+  });
+
+  it('NO_SESSION (sin sesión) expone nextAction="reauth"', async () => {
+    getSessionMock.mockResolvedValue({ data: { session: null } });
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(apiGet('/api/me')).rejects.toMatchObject({
+      code: 'NO_SESSION',
+      retryable: false,
+      nextAction: 'reauth',
+    });
+  });
+
+  it('un código contractual conocido (AUTH_REQUIRED) se traduce a nextAction="reauth"', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse(401, { ok: false, error: { code: 'AUTH_REQUIRED', message: 'Token vencido' } })
+      );
+    vi.stubGlobal('fetch', fetchMock);
+    // 401 dispara refresh; simulamos que el refresh también devuelve 401 para
+    // que el error AUTH_REQUIRED se propague. Sin sesión refreshed, el cliente
+    // re-lanza el 401 original.
+    refreshSessionMock.mockResolvedValue({ data: { session: null }, error: null });
+
+    await expect(apiGet('/api/me')).rejects.toMatchObject({
+      code: 'AUTH_REQUIRED',
+      retryable: false,
+      nextAction: 'reauth',
+    });
+  });
+
+  it('un código contractual conocido (RATE_LIMITED) se traduce a nextAction="wait"', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse(429, { ok: false, error: { code: 'RATE_LIMITED', message: 'Too many requests' } })
+      );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(apiGet('/api/me')).rejects.toMatchObject({
+      code: 'RATE_LIMITED',
+      retryable: true,
+      nextAction: 'wait',
+    });
+  });
+
+  it('un código contractual conocido (FORBIDDEN_ROLE) se traduce a nextAction="contact_support"', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse(403, { ok: false, error: { code: 'FORBIDDEN_ROLE', message: 'No permitido' } })
+      );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(apiGet('/api/me')).rejects.toMatchObject({
+      code: 'FORBIDDEN_ROLE',
+      retryable: false,
+      nextAction: 'contact_support',
+    });
+  });
+
+  it('un 500 sin código reconocible cae en HTTP_5xx con retryable=true', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse(500, { ok: false, error: { code: 'BOOM', message: 'internal' } })
+      );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(apiGet('/api/me')).rejects.toMatchObject({
+      code: 'HTTP_5xx',
+      retryable: true,
+      nextAction: 'retry',
+    });
+  });
+
+  it('un código contractual desconocido (ej. backend envia uno nuevo) cae al fallback retryable', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse(400, { ok: false, error: { code: 'SOMETHING_NEW_FROM_BACKEND', message: 'x' } })
+      );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(apiGet('/api/me')).rejects.toMatchObject({
+      code: 'SOMETHING_NEW_FROM_BACKEND',
+      retryable: true,
+      nextAction: 'retry',
+    });
+  });
+
+  it('NUNCA expone el `message` del backend en errores desconocidos (AC-10)', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse(400, {
+          ok: false,
+          error: { code: 'SOMETHING_NEW', message: 'Stack trace: at foo.bar (secret.txt:1:1)' },
+        })
+      );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(apiGet('/api/me')).rejects.toMatchObject({
+      code: 'SOMETHING_NEW',
+      // El `.message` de la ApiClientError NO debe contener el stack del backend.
+      message: expect.not.stringContaining('Stack trace'),
+    });
+  });
+=======
+>>>>>>> origin/main
 });

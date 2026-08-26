@@ -1,0 +1,7 @@
+external_id,kind,occurred_on,amount_eur,currency,origin_status,origin_reference,family_external_id,athlete_external_id,academy_id,notes
+FIN-NO-DATE,charge,,50.00,EUR,pending,REF-X,FAM-A-001,A-001,00000000-aaaa-0000-0000-000000000001,sin fecha — IMPORT_ROW_INVALID
+FIN-NO-AMOUNT,charge,2026-04-01,,EUR,pending,REF-Y,FAM-A-001,A-001,00000000-aaaa-0000-0000-000000000001,importe vacío — IMPORT_ROW_INVALID
+FIN-USD,charge,2026-04-02,50.00,USD,pending,REF-Z,FAM-A-001,A-001,00000000-aaaa-0000-0000-000000000001,moneda distinta de EUR — rechazado
+FIN-AMBIG-AMT,charge,2026-04-03,"150,00",EUR,pending,REF-W,FAM-A-001,A-001,00000000-aaaa-0000-0000-000000000001,separador decimal ambiguo — rechazado
+FIN-NO-IDENTITY,charge,2026-04-04,40.00,EUR,pending,REF-V,,,00000000-aaaa-0000-0000-000000000001,sin vínculo a familia/atleta — IMPORT_ROW_INVALID
+FIN-BANK-STMT,payment,2026-04-05,40.00,EUR,paid,,FAM-A-001,A-001,00000000-aaaa-0000-0000-000000000001,extracto bancario sin referencia de cargo — fuente pendiente fuera del dominio

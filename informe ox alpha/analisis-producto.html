@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Análisis 360º de producto · Zaltyko — Ox Alpha</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0d1017; --bg2:#131826; --ink:#e8edf4; --ink2:#a7b2c5; --ink3:#6f7b92;
+  --line:#232c3e; --line2:#1a2233;
+  --teal:#00796B; --electric:#1FC7B6; --indigo:#2B2E83; --coral:#FF6B57;
+  --crit:#ff8f8f; --high:#f2c66d; --med:#9aaaff; --low:#7fd8a4; --accent:#8fd6c6;
+  --fd:"Space Grotesk",sans-serif; --fb:"Manrope",sans-serif; --fm:"JetBrains Mono",monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--ink);font-family:var(--fb);font-size:16px;line-height:1.7;-webkit-font-smoothing:antialiased}
+::selection{background:rgba(31,199,182,.25)}
+:focus-visible{outline:2px solid var(--electric);outline-offset:3px;border-radius:4px}
+::-webkit-scrollbar{width:11px}::-webkit-scrollbar-thumb{background:var(--line);border-radius:6px;border:2px solid var(--bg)}
+.wrap{max-width:1080px;margin:0 auto;padding:0 28px}
+.progress{position:fixed;top:0;left:0;right:0;height:2px;z-index:100}
+.progress span{display:block;height:100%;width:0;background:var(--electric)}
+.shell{max-width:1180px;margin:0 auto;display:grid;grid-template-columns:230px minmax(0,1fr);gap:64px;padding:0 32px}
+.side{position:sticky;top:0;align-self:start;height:100vh;display:flex;flex-direction:column;justify-content:center;padding:48px 0}
+.brand{font-family:var(--fm);font-size:13px;color:var(--ink);margin-bottom:26px}
+.brand span{color:var(--ink3)}
+.toc{display:flex;flex-direction:column;border-left:1px solid var(--line)}
+.toc a{position:relative;color:var(--ink3);text-decoration:none;font-size:13.5px;padding:8px 0 8px 18px;transition:color .15s}
+.toc a::before{content:"";position:absolute;left:-1px;top:50%;translate:0 -50%;width:2px;height:0;background:var(--electric);transition:height .18s}
+.toc a:hover{color:var(--ink)}
+.toc a.active{color:var(--ink)}
+.toc a.active::before{height:calc(100% - 12px)}
+.hero{padding:110px 0 70px;max-width:900px}
+.hero h1{font-family:var(--fd);font-weight:700;font-size:clamp(36px,4.6vw,56px);line-height:1.08;letter-spacing:-.02em;text-wrap:balance}
+.hero h1 em{font-style:normal;color:var(--electric)}
+.lede{margin-top:24px;font-size:17px;color:var(--ink2);max-width:62ch}
+.byline{margin-top:26px;font-family:var(--fm);font-size:12px;color:var(--ink3)}
+section{padding:70px 0;border-top:1px solid var(--line2)}
+h2{font-family:var(--fd);font-weight:700;font-size:29px;line-height:1.15;letter-spacing:-.01em;margin-bottom:12px;text-wrap:balance}
+section>p.lead{color:var(--ink2);max-width:64ch;margin-bottom:28px}
+h3{font-size:16px;font-weight:700;margin:26px 0 10px;color:var(--ink)}
+code{font-family:var(--fm);font-size:.82em;background:var(--bg2);border:1px solid var(--line);border-radius:5px;padding:1.5px 6px;color:var(--electric)}
+.card{background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:22px 26px;margin-bottom:14px}
+.card h3{margin:0 0 8px}
+.card p{font-size:14px;color:var(--ink2);margin-top:6px}
+.card p strong{color:var(--ink)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+.ok{color:var(--low)} .warn{color:var(--high)} .bad{color:var(--crit)}
+table{width:100%;border-collapse:collapse;font-size:14px;margin-top:16px}
+th{text-align:left;font-family:var(--fm);font-size:10.5px;font-weight:500;text-transform:uppercase;letter-spacing:.1em;color:var(--ink3);padding:12px 14px;border-bottom:1px solid var(--line)}
+td{padding:12px 14px;border-bottom:1px solid var(--line2);vertical-align:top;color:var(--ink2)}
+tr:hover td{background:rgba(31,199,182,.03)}
+.pill{display:inline-block;font-family:var(--fm);font-size:10.5px;padding:2px 9px;border-radius:999px;white-space:nowrap}
+.p-ok{color:var(--low);background:rgba(127,216,164,.09)}
+.p-part{color:var(--high);background:rgba(242,198,109,.09)}
+.p-no{color:var(--crit);background:rgba(255,143,143,.1)}
+.callout{background:linear-gradient(160deg,rgba(31,199,182,.07),rgba(43,46,131,.06));border:1px solid var(--line);border-radius:14px;padding:24px 28px;margin:26px 0}
+.callout strong{color:var(--electric)}
+ul.list{list-style:none;display:grid;gap:9px}
+ul.list li{padding-left:24px;position:relative;font-size:14px;color:var(--ink2)}
+ul.list li::before{content:"";position:absolute;left:2px;top:.62em;width:9px;height:5px;border-left:2px solid var(--electric);border-bottom:2px solid var(--electric);rotate:-45deg}
+.num{font-family:var(--fd);font-weight:700;font-size:15px;color:var(--ink3);width:30px;height:30px;border:1px solid var(--line);border-radius:50%;display:inline-flex;align-items:center;justify-content:center;margin-right:12px;flex:none}
+.opp{display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:start;background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:16px 20px;margin-bottom:10px}
+.opp b{font-size:14.5px;color:var(--ink)}
+.opp p{font-size:13px;color:var(--ink2);margin-top:3px}
+.eff{font-family:var(--fm);font-size:10.5px;padding:3px 10px;border-radius:999px;white-space:nowrap;margin-top:4px}
+.e-bajo{color:var(--low);background:rgba(127,216,164,.09)}
+.e-med{color:var(--high);background:rgba(242,198,109,.09)}
+footer{border-top:1px solid var(--line2);padding:44px 0 70px;color:var(--ink3);font-size:13px;text-align:center}
+@media(max-width:960px){.shell{grid-template-columns:1fr;gap:0;padding:0 20px}.side{position:static;height:auto;padding:24px 0}.toc{flex-direction:row;flex-wrap:wrap;border:none;gap:2px}.toc a{padding:8px 12px;border-radius:8px}.toc a::before{display:none}.toc a.active{background:var(--bg2)}.hero{padding:60px 0 40px}.grid2,.grid3{grid-template-columns:1fr}}
+@media print{:root{--bg:#fff;--ink:#111;--ink2:#333;--ink3:#666;--line:#ddd;--line2:#eee;--bg2:#f5f5f5}.side,.progress{display:none}.shell{display:block}.card,.bug{page-break-inside:avoid}}
+</style>
+</head>
+<body>
+<div class="progress"><span id="pbar"></span></div>
+
+<div class="shell">
+  <aside class="side">
+    <p class="brand">Ox Alpha<span>/ análisis 360º</span></p>
+    <nav class="toc" aria-label="Índice">
+      <a href="#hoy" class="active">Cómo funciona hoy</a>
+      <a href="#bien">Lo genuinamente bien</a>
+      <a href="#brechas">Brechas promesa-realidad</a>
+      <a href="#incoherencias">Incoherencias internas</a>
+      <a href="#huecos">Huecos de ciclo</a>
+      <a href="#oportunidades">Oportunidades</a>
+      <a href="#conclusion">Conclusión</a>
+    </nav>
+    <div style="margin-top:40px;display:grid;gap:14px">
+      <div><p style="font-family:var(--fm);font-size:10.5px;text-transform:uppercase;letter-spacing:.12em;color:var(--ink3)">Alcance</p><p style="font-size:13px;color:var(--ink2)">Monetización, ciclo del gimnasta, roles, onboarding, promesas vs código</p></div>
+      <div><p style="font-family:var(--fm);font-size:10.5px;text-transform:uppercase;letter-spacing:.12em;color:var(--ink3)">Fecha</p><p style="font-size:13px;color:var(--ink2)">25 ago 2026</p></div>
+      <div><p style="font-family:var(--fm);font-size:10.5px;text-transform:uppercase;letter-spacing:.12em;color:var(--ink3)">Modo</p><p style="font-size:13px;color:var(--ink2)">Solo lectura, lenguaje de producto</p></div>
+    </div>
+  </aside>
+
+  <main>
+    <header class="hero">
+      <h1>Zaltyko hoy:<br>lo que el código dice<br>que es el producto.</h1>
+      <p class="lede">Análisis 360º de la lógica de negocio implementada: monetización, ciclo del gimnasta, roles, onboarding y cada promesa de la landing contrastada con lo que el código hace de verdad. La conclusión corta: <em>el producto es más real de lo que el marketing cuenta, y cuenta cosas que el producto no hace.</em></p>
+      <p class="byline">Ox Alpha · 25 ago 2026 · Solo lectura · Pricing v3.0 como referencia</p>
+    </header>
+
+    <!-- HOY -->
+    <section id="hoy">
+      <h2>Cómo funciona Zaltyko hoy</h2>
+      <p class="lead">El mapa de la lógica de negocio tal como está implementada, dominio a dominio.</p>
+
+      <h3>Monetización: capacidad sí, features no</h3>
+      <p style="font-size:14.5px;color:var(--ink2);max-width:70ch">Los límites del catálogo aplican exactamente: Free 30 gimnastas / 1 academia / 3 grupos / 10 clases; Starter 75 / 5 / 20; Growth 200 / 10 / 40; Network ilimitado. Los precios también (19 / 49 / 99 €). Pero <strong>la única puerta por plan es la cantidad</strong>: no hay feature-gating — portal de familias, cobros y comunicación no distinguen Free de Growth. Los flags de producto (analítica avanzada, reportes hub, WhatsApp) son variables de entorno globales apagadas, no plan contratado. Hoy Growth se vende casi exclusivamente por más gimnastas.</p>
+
+      <h3>El trial de 7 días: la pieza mejor diseñada</h3>
+      <p style="font-size:14.5px;color:var(--ink2);max-width:70ch">Al expirar no hay bloqueo ni pérdida: revierte a límites Free conservando todos los datos, con mensaje explícito de que puede contratar cuando quiera. Recordatorio el día 5, aviso al expirar, cooldown de 365 días anti-abuso, claims idempotentes. Es una máquina de conversión bien pensada.</p>
+
+      <h3>Cobros a familias: real y sofisticado</h3>
+      <p style="font-size:14.5px;color:var(--ink2);max-width:70ch">Tres flujos: generación mensual de cargos (anti-duplicados), cobro automático off-session con tarjeta guardada vía Stripe Connect (la academia es el merchant; Zaltyko nunca toca tarjetas), y recordatorios por email en 4 ventanas (-3, 0, +3, +7 días). Manejo de SCA/3DS, reintentos y reconciliación por webhooks. Matiz interno: «recurrente» es regeneración mensual + cargo automático, no suscripciones Stripe por familia — funcionalmente equivalente para el cliente.</p>
+
+      <h3>Ciclo del gimnasta y roles</h3>
+      <p style="font-size:14.5px;color:var(--ink2);max-width:70ch">Estados: trial / activo / inactivo / pausa / archivado (cambio manual, sin máquina de estados). Asistencia por sesión sólida con alerta de riesgo (&lt;70% en 30 días). Evaluaciones con motor real (catálogo de habilidades por aparato con dificultad, scores 1-10, PDF, videos) y el portal familiar muestra evaluaciones y gráfico de progreso. El coach tiene un workspace genuino de «su día» (clases de hoy → sesión → asistencia/progreso/comunicación). La familia tiene un portal propio deliberadamente pequeño: atleta ve vida deportiva, tutor añade lo económico — separación madura.</p>
+
+      <h3>Onboarding</h3>
+      <p style="font-size:14.5px;color:var(--ink2);max-width:70ch">Registro → claim de academia (match por email) o creación con estructura inicial de gimnasia por rama (GAF/GAM/Rítmica: 3 grupos con clases de tarde preconfiguradas, aforo y lista de espera). Checklist de 7 pasos con completado automático real (Stripe Connect solo al confirmar el webhook — sin flags falsos). Secuencia de emails d0/d2/d7 con CTA dinámico al siguiente paso pendiente, RGPD incluido — diseñada completa pero apagada por flag.</p>
+    </section>
+
+    <!-- BIEN -->
+    <section id="bien">
+      <h2>Lo genuinamente bien</h2>
+      <p class="lead">Superficies que cumplen la promesa con calidad — vendibles hoy sin matices.</p>
+      <div class="grid2">
+        <div class="card"><h3 class="ok">Pasar lista desde el móvil</h3><p>La promesa mejor cubierta. Flujo dedicado «Pasar lista hoy», workspace del coach por sesión con asistencia/progreso/comunicación, responsive verificado.</p></div>
+        <div class="card"><h3 class="ok">Cobros y seguimiento de impagos</h3><p>Cobro automático con tarjeta guardada, detección de vencidos con aviso a dirección, recordatorio manual por cargo, 4 ventanas de email a familias. Implementado de verdad.</p></div>
+        <div class="card"><h3 class="ok">Portal de familias</h3><p>Propio, no un admin recortado: horario, asistencia, evaluaciones, pagos (solo tutores), mensajes, multi-hijo. La separación atleta/tutor es una decisión de producto madura.</p></div>
+        <div class="card"><h3 class="ok">Trial de 7 días sin tarjeta</h3><p>Ciclo completo con reversión suave, preservación de datos, recordatorios y anti-abuso. Listo para ser el motor de conversión.</p></div>
+        <div class="card"><h3 class="ok">Comunicación interna</h3><p>Mensajes por grupo con historial auditable, anuncios, notificaciones push/email/in-app. Coherente con la decisión de «comunicación interna primero».</p></div>
+        <div class="card"><h3 class="ok">Evaluaciones técnicas</h3><p>Catálogo federativo por país, scores por aparato, historial exportable a PDF, gráficos de progreso visibles para la familia. El diferenciador pedagógico existe.</p></div>
+      </div>
+    </section>
+
+    <!-- BRECHAS -->
+    <section id="brechas">
+      <h2>Brechas promesa vs realidad</h2>
+      <p class="lead">Cada promesa pública contrastada con el código. Ordenado por riesgo comercial: lo que una directora descubriría en la primera demo.</p>
+
+      <table>
+        <tr><th>Promesa (landing/vault)</th><th>Estado real</th><th>¿Vendible hoy?</th><th>Cerrar brecha</th></tr>
+        <tr><td>Cuotas recurrentes + avisos automáticos + seguimiento de impagos</td><td><span class="pill p-part">Parcial</span> Recurrente y emails de cuota reales; alertas internas con envío a padres en TODO; flag de marketing nunca leído antes de enviar</td><td>Sí, con matices (no prometer otros canales)</td><td><span class="pill p-ok">Bajo</span></td></tr>
+        <tr><td>Recordatorios de clase a familias</td><td><span class="pill p-no">No existe como automático</span> El cron responde oficialmente «REMINDERS_NOT_IMPLEMENTED». La función de email (24h antes) ya está escrita en triggers.ts — solo falta cablearla al cron</td><td>Con matices — no ponerlo en primer plano</td><td><span class="pill p-ok">Bajo-medio</span></td></tr>
+        <tr><td>Eventos con «categorías por edad y nivel»</td><td><span class="pill p-part">Parcial</span> Inscripciones y lista de espera reales, pero las categorías son texto libre: sin edad ni nivel estructurados. Para gimnasia federada es EL requisito</td><td>Con matices — un cliente federado lo detecta en la demo</td><td><span class="pill p-part">Medio</span></td></tr>
+        <tr><td>«Informes programados»</td><td><span class="pill p-no">Desactivado por flag</span> Panel de dirección y exportaciones sí existen; «programados» hardcodeado a false con aviso en pantalla</td><td>Con matices — quitar el bullet del copy hoy</td><td><span class="pill p-ok">Bajo (copy)</span></td></tr>
+        <tr><td>«Portal de familias completo»</td><td><span class="pill p-ok">Implementado</span> La palabra «completo» invita a comparar contra expectativas (chat, fotos, justificantes, pago online desde el portal)</td><td>Sí — acotar el adjetivo</td><td><span class="pill p-ok">Bajo (copy)</span></td></tr>
+        <tr><td>Network multi-sede</td><td><span class="pill p-no">Sin producto</span> Solo plan con todo ilimitado excluido del checkout + venta asistida. No hay sede, switcher ni reportes consolidados. El copy actual («diagnóstico + acompañamiento») es defendible</td><td>Sí tal como está redactado — no vender panel multi-sede</td><td><span class="pill p-part">Alto (producto) / Bajo (copy)</span></td></tr>
+        <tr><td>«Importación desde Excel»</td><td><span class="pill p-part">Parcial</span> CSV real con validaciones serias, pero la plantilla exige pegar el UUID interno de la academia y no marca el checklist. Sin .xlsx nativo</td><td>Sí con matices («Excel o CSV» ok; «sube tu Excel» no)</td><td><span class="pill p-ok">Bajo</span></td></tr>
+        <tr><td>Evaluaciones con rúbricas configurables</td><td><span class="pill p-part">Parcial</span> El modelo de rúbricas está completo pero tras un feature flag apagado: la API devuelve siempre vacío. Evaluaciones sin rúbrica funcionan</td><td>Con matices — el diferenciador pedagógico está construido pero cerrado</td><td><span class="pill p-ok">Bajo (activar flag)</span></td></tr>
+      </table>
+    </section>
+
+    <!-- INCOHERENCIAS -->
+    <section id="incoherencias">
+      <h2>Incoherencias internas de reglas</h2>
+      <p class="lead">Reglas que se contradicen entre sí o con el mensaje público.</p>
+      <div class="card"><h3>Network: «precio a medida» vs 99 €/mes</h3><p>La FAQ pública dice «precio a medida»; el catálogo interno fija 99 €. Dos mensajes públicos distintos para el mismo plan.</p></div>
+      <div class="card"><h3>Starter: botón «Solicitar demo» con flujo self-serve</h3><p>El catálogo marca Starter como checkout directo de Stripe, pero el botón lleva a contacto. Fricción innecesaria en el plan de entrada.</p></div>
+      <div class="card"><h3>Growth sin diferenciador más allá de capacidad</h3><p>«Reportes ejecutivos y automatizaciones» no están gateados por plan — un cliente Free puede usarlos si los flags globales se activan. Sin feature-gating, no hay palanca de upsell Starter→Growth.</p></div>
+      <div class="card"><h3>Doble sistema de recordatorios</h3><p><code>lib/alerts/**</code> (esqueleto con TODOs a padres) convive con <code>lib/email/triggers.ts</code> (funcional: clase 24h, 4 ventanas de cuota, invitaciones, cancelaciones). El problema no es capacidad: es que la mitad funcional no tiene crons que la dispersen.</p></div>
+      <div class="card"><h3>Coach puede agendar sesiones pero no crear clases</h3><p>Permiso de <code>classes:schedule</code> sin <code>classes:create</code>: acciones posibles vía API bloqueadas en otras — errores confusos justo en las vistas genéricas.</p></div>
+      <div class="card"><h3>Descuentos sin trazabilidad</h3><p>Aplicar un descuento (o beca) sobrescribe el importe del cargo sin dejar rastro del original. Para academias que gestionan becas, es una carencia de auditoría.</p></div>
+      <div class="card"><h3>El atleta puede iniciar comunicaciones</h3><p>Los permisos del portal limitado incluyen <code>communications:send</code> para atletas — revisar si es intención o efecto colateral frente a «comunicación interna primero».</p></div>
+    </section>
+
+    <!-- HUECOS -->
+    <section id="huecos">
+      <h2>Huecos del ciclo de vida</h2>
+      <p class="lead">Tres agujeros de producto donde el ciclo del gimnasta y de la academia se rompe.</p>
+      <div class="card"><h3 class="bad">1. La baja de un gimnasta es destructiva</h3><p>No hay flujo de baja: ni wizard, ni encuesta de salida, ni fecha efectiva. El borrado es <strong>físico con cascada</strong> — se pierden asistencia, evaluaciones, documentos y <strong>el historial financiero completo</strong> (cuotas pendientes desaparecen sin cobro final). La columna <code>deletedAt</code> está modelada pero ignorada, y los estados pausa/archivado existen precisamente para evitar esto sin que nada guíe hacia ellos.</p></div>
+      <div class="card"><h3 class="bad">2. El trial del gimnasta es huérfano</h3><p>El estado <code>trial</code> existe, es filtrable… y nadie lo gestiona: no expira, no convierte, no hay fecha límite. Para el go-to-market gymnastics-first (captación de pruebas), la conversión clave está sin instrumentar — irónicamente, la academia tiene un trial lifecycle maduro que el gimnasta no.</p></div>
+      <div class="card"><h3 class="bad">3. La alerta de riesgo no llega a la familia</h3><p>El sistema detecta baja asistencia y avisa a dirección y coaches — pero el email a los padres es un TODO. La retención se juega exactamente ahí: el momento en que el sistema sabe que algo va mal y la familia no se entera.</p></div>
+      <div class="card"><h3>Piezas decorativas</h3><p>Kanban de gimnastas vacío («Cargando…» perpetuo), badge de predicción de asistencia sin cablear, importador simple de nombres desconectado, super-admin con Cobros y Ajustes escondidos por rotos, y <code>my-events</code> funcional pero ausente del menú familiar (nadie lo descubre salvo por URL).</p></div>
+    </section>
+
+    <!-- OPORTUNIDADES -->
+    <section id="oportunidades">
+      <h2>Oportunidades de bajo esfuerzo, alto retorno</h2>
+      <p class="lead">Ordenadas por retorno sobre esfuerzo, según lo ya construido en el código.</p>
+
+      <div class="opp"><span class="num">1</span><div><b>Cablear los recordatorios de clase al cron</b><p>La función de email (24h antes, por inscripciones reales) ya existe y fue corregida en la caza de bugs. Falta invocarla desde el cron existente. Es la brecha promesa-real más visible del producto.</p></div><span class="eff e-bajo">Bajo</span></div>
+      <div class="opp"><span class="num">2</span><div><b>Encender la secuencia d0/d2/d7</b><p>Motor, plantillas, dedupe, RGPD y allowlist: todo listo y probado. Activar el flag + programar el barrido. El abandono post-registro deja de no tener red.</p></div><span class="eff e-bajo">Bajo</span></div>
+      <div class="opp"><span class="num">3</span><div><b>Que importar 50 gimnastas marque el checklist</b><p>Hoy solo cuenta el alta manual. Un conteo post-importación elimina la fricción más visible para una academia existente.</p></div><span class="eff e-bajo">Bajo</span></div>
+      <div class="opp"><span class="num">4</span><div><b>Quitar el UUID de academia de la plantilla CSV</b><p>Inferirlo server-side convierte la importación de «documento técnico» en «Excel con nombres».</p></div><span class="eff e-bajo">Bajo</span></div>
+      <div class="opp"><span class="num">5</span><div><b>«Mis eventos» al menú familiar</b><p>La ruta y la API funcionan; solo falta la entrada en el registro de navegación.</p></div><span class="eff e-bajo">Bajo</span></div>
+      <div class="opp"><span class="num">6</span><div><b>Gatear reportes ejecutivos por plan Growth</b><p>El planCode ya está en el contexto. Crea el primer diferenciador real Starter→Growth (hoy Growth se vende solo por capacidad).</p></div><span class="eff e-bajo">Bajo</span></div>
+      <div class="opp"><span class="num">7</span><div><b>CTA de Starter a checkout directo</b><p>El endpoint de Stripe ya funciona; el botón dice «Solicitar demo».</p></div><span class="eff e-bajo">Bajo</span></div>
+      <div class="opp"><span class="num">8</span><div><b>Soft delete en la baja del gimnasta</b><p><code>deletedAt</code> ya está modelada: convertir el borrado físico en soft delete + estado archivado protege el historial financiero (y la confianza del cliente).</p></div><span class="eff e-med">Medio</span></div>
+      <div class="opp"><span class="num">9</span><div><b>Email de riesgo de asistencia a los padres</b><p>El servicio existe; falta cerrar el TODO. Es el momento de mayor valor de retención del producto.</p></div><span class="eff e-med">Medio</span></div>
+      <div class="opp"><span class="num">10</span><div><b>Mostrar scores por habilidad a la familia</b><p>Ya existen en el historial; el widget familiar solo muestra el comentario. El «momento orgullo» que renueva suscripciones.</p></div><span class="eff e-med">Medio</span></div>
+    </section>
+
+    <!-- CONCLUSION -->
+    <section id="conclusion">
+      <h2>Conclusión</h2>
+      <div class="callout">
+        <strong>Zaltyko es más real de lo que su marketing cuenta, y cuenta cosas que su producto no hace.</strong> El núcleo comercial (cobros, trial, asistencia, portal) está implementado con calidad de ingeniería notable; las mayores brechas no son de construcción sino de <strong>conexión</strong>: funciones escritas sin cron que las disperse, checklists fuera de la vista diaria, un diferenciador de Growth inexistente y una secuencia de activación apagada. Con diez arreglos de bajo esfuerzo —todos sobre código ya existente— el producto alcanzaría prácticamente el 100% de sus promesas públicas actuales.
+      </div>
+      <ul class="list">
+        <li><strong>Se puede vender hoy, sin mentir:</strong> pasar lista móvil, cobros con tarjeta guardada, seguimiento de impagos, portal familiar, evaluaciones con progreso, comunicación interna, trial sin tarjeta.</li>
+        <li><strong>Se vende con matices:</strong> recordatorios automáticos de clase, categorías federadas de eventos, informes programados, importación «desde Excel».</li>
+        <li><strong>No se puede prometer aún:</strong> panel multi-sede autoservicio, notificaciones push configurables, justificantes de familia.</li>
+        <li><strong>Riesgo silencioso mayor:</strong> la baja destructiva de gimnastas — cada academia que borra un alumno pierde su historia financiera sin saberlo.</li>
+      </ul>
+    </section>
+
+    <footer>
+      <p>Análisis 360º Ox Alpha · 25 de agosto de 2026 · Solo lectura: ningún cambio de código</p>
+      <p style="margin-top:6px">Fuentes: 5 revisiones de dominio trazando código real + Pricing v3.0 y mensajes aprobados de la vault</p>
+    </footer>
+  </main>
+</div>
+
+<script>
+(function(){
+  var bar=document.getElementById("pbar");
+  function onScroll(){var h=document.documentElement;var max=h.scrollHeight-h.clientHeight;bar.style.width=(max>0?(h.scrollTop/max)*100:0)+"%";}
+  document.addEventListener("scroll",onScroll,{passive:true});onScroll();
+  var links=Array.from(document.querySelectorAll(".toc a"));
+  var sections=Array.from(document.querySelectorAll("section"));
+  function spy(){var cur=sections[0];sections.forEach(function(s){if(s.getBoundingClientRect().top<=140)cur=s;});
+    links.forEach(function(a){a.classList.toggle("active",a.hash==="#"+cur.id);});}
+  document.addEventListener("scroll",spy,{passive:true});spy();
+})();
+</script>
+</body>
+</html>

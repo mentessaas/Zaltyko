@@ -385,7 +385,11 @@ export function AssessmentForm({ academyId, athletes, skills, groups = [] }: Ass
             <button
               type="button"
               onClick={refresh}
+<<<<<<< HEAD
+              className="ml-4 rounded-md border border-amber-300 bg-card px-3 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-100"
+=======
               className="ml-4 rounded-md border border-amber-300 bg-white px-3 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-100"
+>>>>>>> origin/main
             >
               Refrescar sesión demo
             </button>

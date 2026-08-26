@@ -1,0 +1,78 @@
+{
+  "schema_version": "mig-syn-01.1",
+  "issue": "ZAL-626",
+  "parent_contract": "ZAL-620",
+  "ancestor_contract": "ZAL-619",
+  "generated_at_utc": "2026-08-12",
+  "generator": ".paperclip-scratch/zal626-fixtures/generate-xlsx.mjs",
+  "data_classification": "synthetic",
+  "pii": false,
+  "real_ids": false,
+  "synthetic_academy_id": "00000000-aaaa-0000-0000-000000000001",
+  "expected_currency": "EUR",
+  "expected_total_charges_eur": 285.0,
+  "expected_total_payments_eur": 150.0,
+  "expected_total_refunds_eur": 0.0,
+  "expected_opening_balance_eur": 135.0,
+  "fixtures": {
+    "athletes.csv": {
+      "rows": 9,
+      "purpose": "CSV happy-path con gemelas, duplicado de external_id, fecha ambigua, sin nombre, grupo inexistente, sport_config inexistente",
+      "sha256": "8b52589f676c05b929f58113e90c9f0897ac5af62863ed131cb90f9efd7bdd86"
+    },
+    "athletes-flat.xlsx": {
+      "rows": 5,
+      "purpose": "XLSX espejo de athletes.csv sin filas conflictivas; usado para validar el camino XLSX",
+      "sha256": "0105ee06b91b5174094f41c524eacd210fe12563ef8462af09c0025853c26720"
+    },
+    "athletes-multisheet.xlsx": {
+      "rows_main": 5,
+      "sheets": ["Atletas", "Notas", "Resumen"],
+      "purpose": "XLSX con 3 hojas; solo Atletas es válida en P0; Notas y Resumen se ignoran",
+      "sha256": "d201eb7ae3d0e46a9ff90fe22cf1baa66f672af10202b8dc49cf11ce1392e711"
+    },
+    "finances.csv": {
+      "rows": 4,
+      "purpose": "Cargos 285.00 / Pagos 150.00 / Reembolsos 0.00 / Saldo apertura 135.00 EUR",
+      "sha256": "33791401e94a401a6eb40f78ae2c84ed7b7f85e741f99abe611c8240bfda1777"
+    },
+    "finances.xlsx": {
+      "rows": 4,
+      "purpose": "Misma reconciliación que finances.csv en formato XLSX",
+      "sha256": "5a7825125ed3c12e4aa31daa4957d1b7266ac811a47425c8b00c6e2f20503735"
+    },
+    "finances-rejected.csv": {
+      "rows": 6,
+      "purpose": "Casos rechazados: sin fecha, sin importe, USD, separador decimal ambiguo, sin identidad, extracto bancario sin referencia",
+      "sha256": "607bf68dcddc6be7b1386964be8ee7151cf52f1e129a5ffff6a5d82793de823f"
+    },
+    "finances-mismatch.xlsx": {
+      "rows": 3,
+      "purpose": "CHG-002 alterado a 200.00 EUR; debe disparar IMPORT_TOTAL_MISMATCH y bloquear commit",
+      "sha256": "5389c94524d5b1306c308b85ff4476b6d092ae3fce2591ccf3a793397aa9c906"
+    }
+  },
+  "qa_injected_artifacts": [
+    {
+      "name": "athletes-with-colors.xlsx",
+      "method": "abrir athletes-flat.xlsx en Numbers/LibreOffice, aplicar color de relleno a A2 y un comentario a B2; guardar",
+      "expected": "preview acepta con warning de color y warning de comentario; commit solo procede tras confirmación explícita del dueño"
+    },
+    {
+      "name": "athletes-with-merged-cells.xlsx",
+      "method": "abrir athletes-flat.xlsx en Numbers/LibreOffice, combinar celdas B3:D3 (name+dob+status); guardar",
+      "expected": "rechazo estructural IMPORT_STRUCTURE_UNSUPPORTED antes de preview; cero registros creados"
+    }
+  ],
+  "exclusions": [
+    "Sin nombres reales",
+    "Sin correos",
+    "Sin teléfonos",
+    "Sin IDs externos que coincidan con academias reales",
+    "Sin conexión a Stripe",
+    "Sin secretos",
+    "Sin contacto con producción",
+    "Sin migraciones remotas",
+    "Sin pricing ni claims públicos"
+  ]
+}

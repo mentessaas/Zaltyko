@@ -1,9 +1,44 @@
 /**
  * Test Dashboard Flows for each user role
+<<<<<<< HEAD
+ *
+ * CONFIGURATION: Set the following environment variables before running:
+ *   - NEXT_PUBLIC_SUPABASE_URL (required)
+ *   - SUPABASE_ANON_KEY (required)
+ *   - SUPABASE_SERVICE_ROLE_KEY (required)
+ *
+ * Security: This script does NOT contain any credentials in source. All
+ * sensitive values must be provided via environment. See .env.example.
+ *
+ * @deprecated Use scripts/prepare-e2e-auth.ts instead. Kept for reference only.
+=======
+>>>>>>> origin/main
  */
 
 import { createClient } from "@supabase/supabase-js";
 
+<<<<<<< HEAD
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const ANON_KEY = process.env.SUPABASE_ANON_KEY;
+const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!SUPABASE_URL || !ANON_KEY || !SERVICE_KEY) {
+  throw new Error(
+    "Missing required env vars: NEXT_PUBLIC_SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY. " +
+    "Copy .env.example to .env.local and fill in the values from your Supabase dashboard."
+  );
+}
+
+const TEST_USERS = [
+  { email: "test-superadmin@zaltyko.demo", password: "Test123!@#", role: "super_admin" },
+];
+
+// @deprecated Script truncado y sin uso: la referencia vigente es
+// scripts/prepare-e2e-auth.ts. No ejecutar; las credenciales de prueba
+// deben provisionarse vía el flujo E2E aprobado.
+void TEST_USERS;
+
+=======
 const SUPABASE_URL = "https://jegxfahsvugilbthbked.supabase.co";
 const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImplZ3hmYWhzdnVnaWxidGhia2VkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI1MjU5MjgsImV4cCI6MjA3ODEwMTkyOH0.1AnSfOAxpt0eUJnHk5UG0AnwyEkgsfbjU8cR76E-wv8";
 const SERVICE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImplZ3hmYWhzdnVnaWxidGhia2VkIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MjUyNTkyOCwiZXhwIjoyMDc4MTAxOTI4fQ.qQEEbfv4M0_T76fB7zeeREJuyEijlbTFhJgy06C_nmE";
@@ -77,3 +112,4 @@ async function runTests() {
 }
 
 runTests().catch(console.error);
+>>>>>>> origin/main

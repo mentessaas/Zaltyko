@@ -19,6 +19,28 @@ export interface LogContext {
 
 const REDACTED_VALUE = "[REDACTED]";
 const SENSITIVE_KEYS = new Set(["clientSecret", "client_secret"]);
+<<<<<<< HEAD
+const SENSITIVE_KEY_PATTERN = /(?:client[-_]?secret|api[-_]?key|authorization|bearer|token|password|secret)/i;
+
+function isSensitiveKey(key: string): boolean {
+  return SENSITIVE_KEYS.has(key) || SENSITIVE_KEY_PATTERN.test(key);
+}
+
+/** Redacta credenciales embebidas en mensajes libres antes de loguearlos. */
+export function redactSensitiveText(value: string): string {
+  return value
+    .replace(
+      /(\bauthorization\s*:\s*(?:bearer|basic)\s+)[^\s,;"']+/gi,
+      "$1[REDACTED]",
+    )
+    .replace(/(\bbearer\s+)[^\s,;"']+/gi, "$1[REDACTED]")
+    .replace(
+      /(\b(?:api[-_]?key|token|secret|password)\s*[:=]\s*)["']?[^\s,;}"']+/gi,
+      "$1[REDACTED]",
+    );
+}
+=======
+>>>>>>> origin/main
 
 /**
  * Clona un valor de logging y redacciona secretos SCA aunque estén anidados
@@ -29,9 +51,18 @@ export function redactSensitive<T>(value: T): T {
   const seen = new WeakSet<object>();
 
   const redact = (current: unknown, key?: string): unknown => {
+<<<<<<< HEAD
+    if (key && isSensitiveKey(key)) {
+      return REDACTED_VALUE;
+    }
+    if (typeof current === "string") {
+      return redactSensitiveText(current);
+    }
+=======
     if (key && SENSITIVE_KEYS.has(key)) {
       return REDACTED_VALUE;
     }
+>>>>>>> origin/main
     if (current === null || typeof current !== "object") {
       return current;
     }
@@ -56,6 +87,15 @@ export function redactSensitive<T>(value: T): T {
 }
 
 export function redactError(error: Error): Error {
+<<<<<<< HEAD
+  const sanitized = new Error(redactSensitiveText(error.message));
+  sanitized.name = error.name;
+  sanitized.stack = error.stack ? redactSensitiveText(error.stack) : error.stack;
+
+  for (const [key, value] of Object.entries(error)) {
+    Object.defineProperty(sanitized, key, {
+      value: isSensitiveKey(key) ? REDACTED_VALUE : redactSensitive(value),
+=======
   const sanitized = new Error(error.message);
   sanitized.name = error.name;
   sanitized.stack = error.stack;
@@ -63,6 +103,7 @@ export function redactError(error: Error): Error {
   for (const [key, value] of Object.entries(error)) {
     Object.defineProperty(sanitized, key, {
       value: SENSITIVE_KEYS.has(key) ? REDACTED_VALUE : redactSensitive(value),
+>>>>>>> origin/main
       enumerable: true,
       configurable: true,
       writable: true,
@@ -76,7 +117,11 @@ class Logger {
   private formatMessage(level: LogLevel, message: string, context?: LogContext): string {
     const timestamp = new Date().toISOString();
     const contextStr = context ? ` ${JSON.stringify(redactSensitive(context))}` : "";
+<<<<<<< HEAD
+    return `[${timestamp}] [${level.toUpperCase()}] ${redactSensitiveText(message)}${contextStr}`;
+=======
     return `[${timestamp}] [${level.toUpperCase()}] ${message}${contextStr}`;
+>>>>>>> origin/main
   }
 
   private captureToSentry(level: Sentry.SeverityLevel, message: string, error?: Error | unknown, context?: LogContext): void {
@@ -91,12 +136,20 @@ class Logger {
           level,
           tags: safeContext as Record<string, string>,
           extra: {
+<<<<<<< HEAD
+            message: redactSensitiveText(message),
+=======
             message,
+>>>>>>> origin/main
             ...safeContext,
           },
         });
       } else {
+<<<<<<< HEAD
+        Sentry.captureMessage(redactSensitiveText(message), {
+=======
         Sentry.captureMessage(message, {
+>>>>>>> origin/main
           level,
           tags: safeContext as Record<string, string>,
           extra: safeContext,

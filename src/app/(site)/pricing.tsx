@@ -3,6 +3,10 @@ import Link from "next/link";
 
 import { PricingPageTracker } from "@/components/growth/PricingPageTracker";
 import { TrackedPlanLink } from "@/components/growth/TrackedPlanLink";
+<<<<<<< HEAD
+import Reveal from "@/components/motion/Reveal";
+=======
+>>>>>>> origin/main
 import type { CommercialPlanSlug } from "@/lib/growth/contracts";
 import { PRODUCT_PLANS, formatPlanAmount } from "@/lib/plans/catalog";
 
@@ -60,6 +64,24 @@ export default function PricingSection() {
           </div>
         </div>
 
+<<<<<<< HEAD
+        <Reveal>
+          <div className="text-center">
+            <span className="text-xs font-semibold uppercase tracking-[0.08em] text-zaltyko-teal">
+              Planes
+            </span>
+            <h2 className="mt-4 font-display text-3xl font-semibold text-foreground sm:text-4xl">
+              Planes pensados por etapa de academia
+            </h2>
+            <p className="mt-3 font-sans text-base text-muted-foreground">
+              No vendemos módulos sueltos: vendemos dirección diaria, cobros claros y seguimiento técnico para gimnasia artística y rítmica.
+            </p>
+            <p className="mt-2 font-sans text-sm text-muted-foreground">
+              Crea tu academia y activa la prueba desde Facturación. Después eliges si continúas; no se realiza ningún cargo automático.
+            </p>
+          </div>
+        </Reveal>
+=======
         <div className="text-center">
           <span className="text-xs font-semibold uppercase tracking-[0.08em] text-zaltyko-teal">
             Planes
@@ -74,6 +96,7 @@ export default function PricingSection() {
             Crea tu academia y activa la prueba desde Facturación. Después eliges si continúas; no se realiza ningún cargo automático.
           </p>
         </div>
+>>>>>>> origin/main
 
         {/* Annual billing toggle */}
         <div className="mt-8 flex justify-center">
@@ -94,6 +117,17 @@ export default function PricingSection() {
         </div>
 
         <div className="mt-8 grid items-center gap-6 md:grid-cols-2 xl:grid-cols-4">
+<<<<<<< HEAD
+          {plans.map((plan, index) => (
+            <Reveal key={plan.title} delay={index * 80} className="h-full">
+              <article
+                className={`flex h-full flex-col rounded-card border bg-card p-8 transition-all duration-200 hover:-translate-y-1.5 hover:shadow-lift ${
+                  plan.highlight
+                    ? "border-zaltyko-mist border-b-[3px] border-b-zaltyko-teal"
+                    : "border-zaltyko-mist"
+                }`}
+              >
+=======
           {plans.map((plan) => (
             <article
               key={plan.title}
@@ -103,6 +137,7 @@ export default function PricingSection() {
                   : "border-zaltyko-mist"
               }`}
             >
+>>>>>>> origin/main
               <div className="mb-2 flex items-baseline justify-between">
                 <h3 className="font-display text-xl font-semibold text-foreground">{plan.title}</h3>
                 {plan.highlight && (
@@ -134,11 +169,30 @@ export default function PricingSection() {
               >
                 {plan.cta}
               </TrackedPlanLink>
+<<<<<<< HEAD
+              </article>
+            </Reveal>
+=======
             </article>
+>>>>>>> origin/main
           ))}
         </div>
 
         <div className="mt-16 grid gap-6 md:grid-cols-3">
+<<<<<<< HEAD
+          {commonBenefits.map((benefit, index) => {
+            const Icon = benefit.icon;
+            return (
+              <Reveal key={benefit.title} delay={index * 90}>
+                <article className="h-full rounded-3xl border border-border bg-card p-6 shadow-lg transition-all duration-200 hover:-translate-y-1 hover:shadow-xl">
+                  <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-zaltyko-accent/20 text-zaltyko-accent">
+                    <Icon className="h-5 w-5" />
+                  </span>
+                  <h3 className="mt-4 font-display text-lg font-semibold text-foreground">{benefit.title}</h3>
+                  <p className="mt-2 font-sans text-sm text-muted-foreground">{benefit.description}</p>
+                </article>
+              </Reveal>
+=======
           {commonBenefits.map((benefit) => {
             const Icon = benefit.icon;
             return (
@@ -152,10 +206,29 @@ export default function PricingSection() {
                 <h3 className="mt-4 font-display text-lg font-semibold text-foreground">{benefit.title}</h3>
                 <p className="mt-2 font-sans text-sm text-muted-foreground">{benefit.description}</p>
               </article>
+>>>>>>> origin/main
             );
           })}
         </div>
 
+<<<<<<< HEAD
+        <Reveal>
+          <div className="mt-16 rounded-3xl border border-border bg-muted/50 p-8 text-center">
+            <h3 className="font-display text-2xl font-semibold text-foreground">
+              ¿Necesitas migrar datos o coordinar varias sedes?
+            </h3>
+            <p className="mt-3 font-sans text-sm text-slate-600">
+              Hacemos una sesión de diagnóstico y definimos una puesta en marcha para que tu equipo pueda operar sin fricción.
+            </p>
+            <Link
+              href="/contact?type=migracion"
+              className="mt-6 inline-flex items-center justify-center rounded-full border border-border px-6 py-3 text-sm font-semibold text-foreground hover:bg-muted"
+            >
+              Hablar de migración
+            </Link>
+          </div>
+        </Reveal>
+=======
         <div className="mt-16 rounded-3xl border border-border bg-muted/50 p-8 text-center">
           <h3 className="font-display text-2xl font-semibold text-foreground">
             ¿Necesitas migrar datos o coordinar varias sedes?
@@ -170,6 +243,7 @@ export default function PricingSection() {
             Hablar de migración
           </Link>
         </div>
+>>>>>>> origin/main
       </div>
     </section>
   );

@@ -20,8 +20,13 @@ DATABASE_URL_DIRECT=postgresql://... (sin pgbouncer)
 
 # Supabase
 NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
+<<<<<<< HEAD
+NEXT_PUBLIC_SUPABASE_ANON_KEY=[REDACTED-JWT]
+SUPABASE_SERVICE_ROLE_KEY=[REDACTED-JWT]
+=======
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+>>>>>>> origin/main
 
 # Aplicación
 NEXT_PUBLIC_APP_URL=https://tu-dominio.com

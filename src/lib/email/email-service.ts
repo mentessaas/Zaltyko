@@ -1,4 +1,8 @@
+<<<<<<< HEAD
+import { and, eq, inArray, sql, or, gte } from "drizzle-orm";
+=======
 import { and, eq, inArray, sql } from "drizzle-orm";
+>>>>>>> origin/main
 
 import { db } from "@/db";
 import { emailLogs } from "@/db/schema";
@@ -37,6 +41,12 @@ export async function sendEmailWithLogging(options: SendEmailOptions): Promise<b
   }
 
   if (dedupeKey) {
+<<<<<<< HEAD
+    // Los logs pending de más de 1h se consideran huérfanos (proceso muerto
+    // entre insert y envío) y no bloquean reintentos.
+    const staleCutoff = new Date(Date.now() - 60 * 60 * 1000);
+=======
+>>>>>>> origin/main
     const [existing] = await db
       .select({ id: emailLogs.id })
       .from(emailLogs)
@@ -44,14 +54,27 @@ export async function sendEmailWithLogging(options: SendEmailOptions): Promise<b
         and(
           eq(emailLogs.template, template ?? "transactional"),
           inArray(emailLogs.status, ["pending", "sent"]),
+<<<<<<< HEAD
+          sql`${emailLogs.metadata} ->> 'dedupeKey' = ${dedupeKey}`,
+          or(
+            inArray(emailLogs.status, ["sent"]),
+            gte(emailLogs.createdAt, staleCutoff)
+          )
+=======
           sql`${emailLogs.metadata} ->> 'dedupeKey' = ${dedupeKey}`
+>>>>>>> origin/main
         )
       )
       .limit(1);
     if (existing) return false;
   }
 
+<<<<<<< HEAD
+  // Crear log antes de enviar. Con dedupeKey se rellena idempotencyKey para
+  // que el índice único de la tabla respalde la dedupe ante carreras.
+=======
   // Crear log antes de enviar
+>>>>>>> origin/main
   const [logEntry] = await db
     .insert(emailLogs)
     .values({
@@ -62,10 +85,22 @@ export async function sendEmailWithLogging(options: SendEmailOptions): Promise<b
       subject,
       template: template || null,
       status: "pending",
+<<<<<<< HEAD
+      idempotencyKey: dedupeKey ? `email:${dedupeKey}` : null,
+      metadata: dedupeKey ? { ...(metadata ?? {}), dedupeKey } : metadata || null,
+    })
+    .onConflictDoNothing()
+    .returning({ id: emailLogs.id });
+
+  // Carrera: otra petición insertó el mismo dedupeKey → este envío cede.
+  if (!logEntry) return false;
+
+=======
       metadata: dedupeKey ? { ...(metadata ?? {}), dedupeKey } : metadata || null,
     })
     .returning({ id: emailLogs.id });
 
+>>>>>>> origin/main
   try {
     await sendEmail({
       to,

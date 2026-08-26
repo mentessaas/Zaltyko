@@ -74,7 +74,11 @@ export function PublicCoachProfile({ coach }: PublicCoachProfileProps) {
                                 )}
                             </div>
                             {coach.yearsExperience && (
+<<<<<<< HEAD
+                                <div className="absolute -bottom-2 -right-2 rounded-full bg-card px-4 py-2 shadow-lg">
+=======
                                 <div className="absolute -bottom-2 -right-2 rounded-full bg-white px-4 py-2 shadow-lg">
+>>>>>>> origin/main
                                     <div className="flex items-center gap-1 text-sm font-semibold text-zaltyko-indigo">
                                         <Calendar className="h-4 w-4" />
                                         {coach.yearsExperience} años
@@ -138,11 +142,19 @@ export function PublicCoachProfile({ coach }: PublicCoachProfileProps) {
                     <div className="lg:col-span-2 space-y-8">
                         {/* Bio */}
                         {coach.publicBio && (
+<<<<<<< HEAD
+                            <section className="rounded-2xl border border-border bg-card p-8 shadow-sm">
+                                <h2 className="mb-4 text-2xl font-bold text-foreground">
+                                    Sobre mí
+                                </h2>
+                                <p className="whitespace-pre-wrap text-muted-foreground leading-relaxed">
+=======
                             <section className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
                                 <h2 className="mb-4 text-2xl font-bold text-slate-900">
                                     Sobre mí
                                 </h2>
                                 <p className="whitespace-pre-wrap text-slate-600 leading-relaxed">
+>>>>>>> origin/main
                                     {coach.publicBio}
                                 </p>
                             </section>
@@ -150,8 +162,13 @@ export function PublicCoachProfile({ coach }: PublicCoachProfileProps) {
 
                         {/* Achievements */}
                         {coach.achievements && coach.achievements.length > 0 && (
+<<<<<<< HEAD
+                            <section className="rounded-2xl border border-border bg-card p-8 shadow-sm">
+                                <h2 className="mb-6 flex items-center gap-2 text-2xl font-bold text-foreground">
+=======
                             <section className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
                                 <h2 className="mb-6 flex items-center gap-2 text-2xl font-bold text-slate-900">
+>>>>>>> origin/main
                                     <Award className="h-6 w-6 text-zaltyko-teal" />
                                     Logros y Reconocimientos
                                 </h2>
@@ -161,16 +178,28 @@ export function PublicCoachProfile({ coach }: PublicCoachProfileProps) {
                                             key={index}
                                             className="border-l-4 border-zaltyko-teal bg-zaltyko-teal/5 p-4 rounded-r-lg"
                                         >
+<<<<<<< HEAD
+                                            <h3 className="font-semibold text-foreground">
+                                                {achievement.title}
+                                            </h3>
+                                            {achievement.description && (
+                                                <p className="mt-1 text-sm text-muted-foreground">
+=======
                                             <h3 className="font-semibold text-slate-900">
                                                 {achievement.title}
                                             </h3>
                                             {achievement.description && (
                                                 <p className="mt-1 text-sm text-slate-600">
+>>>>>>> origin/main
                                                     {achievement.description}
                                                 </p>
                                             )}
                                             {achievement.date && (
+<<<<<<< HEAD
+                                                <p className="mt-1 text-xs text-muted-foreground">
+=======
                                                 <p className="mt-1 text-xs text-slate-500">
+>>>>>>> origin/main
                                                     {achievement.date}
                                                 </p>
                                             )}
@@ -182,8 +211,13 @@ export function PublicCoachProfile({ coach }: PublicCoachProfileProps) {
 
                         {/* Photo Gallery */}
                         {coach.photoGallery && coach.photoGallery.length > 0 && (
+<<<<<<< HEAD
+                            <section className="rounded-2xl border border-border bg-card p-8 shadow-sm">
+                                <h2 className="mb-6 text-2xl font-bold text-foreground">
+=======
                             <section className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
                                 <h2 className="mb-6 text-2xl font-bold text-slate-900">
+>>>>>>> origin/main
                                     Galería
                                 </h2>
                                 <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
@@ -210,8 +244,13 @@ export function PublicCoachProfile({ coach }: PublicCoachProfileProps) {
                     <div className="space-y-6">
                         {/* Certifications */}
                         {coach.certifications && coach.certifications.length > 0 && (
+<<<<<<< HEAD
+                            <section className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+                                <h3 className="mb-4 flex items-center gap-2 text-lg font-bold text-foreground">
+=======
                             <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                                 <h3 className="mb-4 flex items-center gap-2 text-lg font-bold text-slate-900">
+>>>>>>> origin/main
                                     <Star className="h-5 w-5 text-zaltyko-teal" />
                                     Certificaciones
                                 </h3>
@@ -219,6 +258,15 @@ export function PublicCoachProfile({ coach }: PublicCoachProfileProps) {
                                     {coach.certifications.map((cert, index) => (
                                         <div
                                             key={index}
+<<<<<<< HEAD
+                                            className="rounded-lg border border-border bg-muted/50 p-3"
+                                        >
+                                            <p className="font-semibold text-foreground text-sm">
+                                                {cert.name}
+                                            </p>
+                                            <p className="text-xs text-muted-foreground">{cert.issuer}</p>
+                                            <p className="text-xs text-muted-foreground">{cert.date}</p>
+=======
                                             className="rounded-lg border border-slate-100 bg-slate-50 p-3"
                                         >
                                             <p className="font-semibold text-slate-900 text-sm">
@@ -226,6 +274,7 @@ export function PublicCoachProfile({ coach }: PublicCoachProfileProps) {
                                             </p>
                                             <p className="text-xs text-slate-600">{cert.issuer}</p>
                                             <p className="text-xs text-slate-500">{cert.date}</p>
+>>>>>>> origin/main
                                             {cert.url && (
                                                 <a
                                                     href={cert.url}
@@ -243,11 +292,19 @@ export function PublicCoachProfile({ coach }: PublicCoachProfileProps) {
                         )}
 
                         {/* Academy Info */}
+<<<<<<< HEAD
+                        <section className="rounded-card border border-border bg-card p-6 shadow-soft">
+                            <h3 className="mb-3 text-lg font-bold text-foreground">
+                                Academia
+                            </h3>
+                            <p className="mb-4 text-foreground">{coach.academyName}</p>
+=======
                         <section className="rounded-card border border-zaltyko-mist bg-white p-6 shadow-soft">
                             <h3 className="mb-3 text-lg font-bold text-slate-900">
                                 Academia
                             </h3>
                             <p className="mb-4 text-slate-700">{coach.academyName}</p>
+>>>>>>> origin/main
                             <Link href={`/academies/${coach.academySlug}`}>
                                 <Button className="w-full">
                                     Ver Academia

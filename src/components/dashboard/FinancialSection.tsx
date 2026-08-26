@@ -28,7 +28,11 @@ export function FinancialSection({
   }
 
   return (
+<<<<<<< HEAD
+    <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-soft">
+=======
     <section className="overflow-hidden rounded-2xl border border-zaltyko-mist bg-white shadow-soft">
+>>>>>>> origin/main
       <button
         type="button"
         onClick={onToggleFinancials}
@@ -39,9 +43,15 @@ export function FinancialSection({
           <span className="font-medium">Métricas Financieras</span>
         </div>
         {showFinancials ? (
+<<<<<<< HEAD
+          <ChevronUp className="h-4 w-4 text-muted-foreground" />
+        ) : (
+          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+=======
           <ChevronUp className="h-4 w-4 text-zaltyko-text-secondary" />
         ) : (
           <ChevronDown className="h-4 w-4 text-zaltyko-text-secondary" />
+>>>>>>> origin/main
         )}
       </button>
       {showFinancials && (

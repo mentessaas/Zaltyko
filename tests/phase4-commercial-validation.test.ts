@@ -46,6 +46,71 @@ describe("Phase 4 commercial validation contracts", () => {
     ).toBe(false);
   });
 
+<<<<<<< HEAD
+  it("acepta los nuevos eventos ZAL-532 contact_submit_attempted y contact_submit_failed", () => {
+    // ZAL-532: cerrar el agujero de instrumentacion entre contact_started y contact_submitted.
+    // Estos eventos distinguen "no pulso enviar" de "rompio entre pulsar y servidor".
+    expect(
+      PublicGrowthEventSchema.safeParse({
+        eventId,
+        eventName: "contact_submit_attempted",
+        visitorId,
+        source: "public_contact",
+        properties: {
+          reason: "demo",
+          has_academy: false,
+          honeypot_filled: false,
+          path: "/contact",
+        },
+      }).success
+    ).toBe(true);
+
+    expect(
+      PublicGrowthEventSchema.safeParse({
+        eventId,
+        eventName: "contact_submit_failed",
+        visitorId,
+        source: "public_contact",
+        properties: {
+          reason: "demo",
+          status: 429,
+          status_bucket: "4xx",
+          server_code: "RATE_LIMIT",
+          path: "/contact",
+        },
+      }).success
+    ).toBe(true);
+
+    // Rechaza el status como string en el bucket (debe ser numero o string, no objeto).
+    expect(
+      PublicGrowthEventSchema.safeParse({
+        eventId,
+        eventName: "contact_submit_failed",
+        visitorId,
+        source: "public_contact",
+        properties: {
+          reason: "demo",
+          status_bucket: { unexpected: "shape" },
+          server_code: "X",
+          path: "/contact",
+        },
+      }).success
+    ).toBe(false);
+
+    // Rechaza si la source no encaja con el patron snake_case.
+    expect(
+      PublicGrowthEventSchema.safeParse({
+        eventId,
+        eventName: "contact_submit_attempted",
+        visitorId,
+        source: "Public Contact",
+        properties: {},
+      }).success
+    ).toBe(false);
+  });
+
+=======
+>>>>>>> origin/main
   it("does not count a completed interview without the required evidence", () => {
     const result = CommercialInterviewInputSchema.safeParse({
       academyName: "Club Norte",

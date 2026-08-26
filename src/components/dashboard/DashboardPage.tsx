@@ -554,7 +554,11 @@ export function DashboardPage({
         <button
           type="button"
           onClick={() => setShowMoreWidgets((value) => !value)}
+<<<<<<< HEAD
+          className="flex min-h-11 w-full items-center justify-between rounded-2xl border border-border bg-card px-4 py-3 text-sm font-medium text-foreground shadow-soft"
+=======
           className="flex min-h-11 w-full items-center justify-between rounded-2xl border border-zaltyko-mist bg-white px-4 py-3 text-sm font-medium text-zaltyko-navy shadow-soft"
+>>>>>>> origin/main
           aria-expanded={showMoreWidgets}
         >
           {showMoreWidgets ? "Ver menos" : "Ver más: desglose técnico y próximos eventos"}

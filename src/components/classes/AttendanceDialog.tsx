@@ -16,7 +16,11 @@ const STATUS_OPTIONS: { value: AttendanceStatus; label: string }[] = [
 ];
 
 const fieldClassName =
+<<<<<<< HEAD
+  "rounded-card border border-border bg-card px-3 py-2 text-sm shadow-none focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15";
+=======
   "rounded-card border border-zaltyko-mist bg-white px-3 py-2 text-sm shadow-none focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15";
+>>>>>>> origin/main
 
 interface AthleteOption {
   id: string;
@@ -298,19 +302,32 @@ export function AttendanceDialog({
 
         <div className="max-h-[420px] space-y-3 overflow-y-auto pr-2">
           {filteredAthletes.length === 0 && (
+<<<<<<< HEAD
+            <p className="text-sm text-muted-foreground">
+=======
             <p className="text-sm text-zaltyko-text-secondary">
+>>>>>>> origin/main
               No se encontraron {athleteTermPluralLower} con ese criterio.
             </p>
           )}
           {filteredAthletes.map((athlete) => (
             <div
               key={athlete.id}
+<<<<<<< HEAD
+              className="rounded-xl border border-border/70 bg-card px-4 py-3 shadow-soft"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium text-foreground">{athlete.name}</p>
+                  <p className="text-xs text-muted-foreground">{athlete.id}</p>
+=======
               className="rounded-xl border border-zaltyko-mist/70 bg-white px-4 py-3 shadow-soft"
             >
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="text-sm font-medium text-zaltyko-navy">{athlete.name}</p>
                   <p className="text-xs text-zaltyko-text-secondary">{athlete.id}</p>
+>>>>>>> origin/main
                   {athlete.groupName && (
                     <span
                       className="mt-1 inline-flex items-center gap-2 rounded-full border px-2 py-0.5 text-[11px] uppercase tracking-wide"

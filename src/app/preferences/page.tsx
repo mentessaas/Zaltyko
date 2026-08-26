@@ -2,7 +2,10 @@
 
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
+<<<<<<< HEAD
+=======
 import Link from "next/link";
+>>>>>>> origin/main
 
 type Status = "loading" | "ready" | "saving" | "saved" | "error";
 
@@ -28,6 +31,13 @@ interface Prefs {
  * Pagina publica `/preferences` (ZAL-324 Gap 5).
  * Espejo de `/unsubscribe` pero permite ajustar el consentimiento granular
  * (RGPD Art. 6(1)(a) marketing) sin perder los emails operativos.
+<<<<<<< HEAD
+ *
+ * useSearchParams() exige un Suspense boundary para prerender estatico
+ * (Next.js App Router). El export default envuelve PreferencesInner en <Suspense>.
+ */
+function PreferencesInner() {
+=======
  */
 export default function PreferencesPage() {
   return (
@@ -38,6 +48,7 @@ export default function PreferencesPage() {
 }
 
 function PreferencesPageInner() {
+>>>>>>> origin/main
   const searchParams = useSearchParams();
   const token = useMemo(() => searchParams.get("token") ?? "", [searchParams]);
 
@@ -214,12 +225,20 @@ function PreferencesPageInner() {
         </fieldset>
 
         <div className="mt-6 flex items-center justify-between gap-2">
+<<<<<<< HEAD
+          <a
+=======
           <Link
+>>>>>>> origin/main
             href={`/unsubscribe?token=${encodeURIComponent(token)}`}
             className="text-sm text-muted-foreground underline"
           >
             Darme de baja de todo
+<<<<<<< HEAD
+          </a>
+=======
           </Link>
+>>>>>>> origin/main
           <button
             type="button"
             onClick={() => void onSave(prefs)}
@@ -239,3 +258,30 @@ function PreferencesPageInner() {
     </main>
   );
 }
+<<<<<<< HEAD
+
+
+/**
+ * Suspense boundary requerido: useSearchParams() no puede prerenderizarse
+ * estaticamente sin el (missed-suspense-with-csr-bailout).
+ */
+export default function PreferencesPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="min-h-screen flex items-center justify-center bg-background px-4">
+          <div className="w-full max-w-lg rounded-lg border border-border bg-card p-8 shadow-sm">
+            <h1 className="text-2xl font-semibold text-foreground">
+              Preferencias de email
+            </h1>
+            <p className="mt-4 text-muted-foreground">Cargando...</p>
+          </div>
+        </main>
+      }
+    >
+      <PreferencesInner />
+    </Suspense>
+  );
+}
+=======
+>>>>>>> origin/main

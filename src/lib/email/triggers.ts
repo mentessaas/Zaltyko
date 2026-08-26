@@ -1,6 +1,11 @@
 import { db } from "@/db";
+<<<<<<< HEAD
+import { athletes, guardians, guardianAthletes, familyContacts, classSessions, classes, charges, events, academies, classEnrollments } from "@/db/schema";
+import { eq, and, gte, lt, lte, inArray } from "drizzle-orm";
+=======
 import { athletes, guardians, guardianAthletes, familyContacts, classSessions, classes, charges, events, academies } from "@/db/schema";
 import { eq, and, lte, inArray } from "drizzle-orm";
+>>>>>>> origin/main
 import { sendEmailWithLogging } from "./email-service";
 import { AttendanceReminderTemplate } from "./templates/attendance-reminder";
 import { PaymentReminderTemplate } from "./templates/payment-reminder";
@@ -22,6 +27,10 @@ export async function triggerAttendanceReminders(): Promise<number> {
   const sessions = await db
     .select({
       sessionId: classSessions.id,
+<<<<<<< HEAD
+      classId: classSessions.classId,
+=======
+>>>>>>> origin/main
       sessionDate: classSessions.sessionDate,
       startTime: classSessions.startTime,
       className: classes.name,
@@ -43,7 +52,12 @@ export async function triggerAttendanceReminders(): Promise<number> {
   let sentCount = 0;
 
   for (const session of sessions) {
+<<<<<<< HEAD
+    // Solo atletas inscritos en ESA clase (antes: todos los atletas de la
+    // academia recibían el recordatorio de cada sesión).
+=======
     // Obtener atletas inscritos en la clase
+>>>>>>> origin/main
     const enrolledAthletes = await db
       .select({
         athleteId: athletes.id,
@@ -51,11 +65,23 @@ export async function triggerAttendanceReminders(): Promise<number> {
         guardianEmail: guardians.email,
         familyContactEmail: familyContacts.email,
       })
+<<<<<<< HEAD
+      .from(classEnrollments)
+      .innerJoin(athletes, eq(classEnrollments.athleteId, athletes.id))
+      .leftJoin(guardianAthletes, eq(athletes.id, guardianAthletes.athleteId))
+      .leftJoin(guardians, eq(guardianAthletes.guardianId, guardians.id))
+      .leftJoin(familyContacts, eq(athletes.id, familyContacts.athleteId))
+      .where(and(
+        eq(classEnrollments.classId, session.classId),
+        eq(athletes.academyId, session.academyId)
+      ));
+=======
       .from(athletes)
       .leftJoin(guardianAthletes, eq(athletes.id, guardianAthletes.athleteId))
       .leftJoin(guardians, eq(guardianAthletes.guardianId, guardians.id))
       .leftJoin(familyContacts, eq(athletes.id, familyContacts.athleteId))
       .where(eq(athletes.academyId, session.academyId));
+>>>>>>> origin/main
 
     for (const athlete of enrolledAthletes) {
       const email = athlete.guardianEmail || athlete.familyContactEmail;
@@ -77,6 +103,10 @@ export async function triggerAttendanceReminders(): Promise<number> {
           template: "attendance-reminder",
           tenantId: session.tenantId,
           academyId: session.academyId,
+<<<<<<< HEAD
+          dedupeKey: `attendance-reminder:${session.sessionId}:${athlete.athleteId}`,
+=======
+>>>>>>> origin/main
           metadata: {
             sessionId: session.sessionId,
             athleteId: athlete.athleteId,
@@ -182,8 +212,14 @@ export async function triggerPaymentReminders(): Promise<number> {
 /**
  * Recordatorios de pago programados en 4 ventanas relativas al vencimiento:
  *  -3 dias (proximo), dia de vencimiento, +3 y +7 dias (vencido).
+<<<<<<< HEAD
+ * Pensado para ejecutarse UNA vez al dia desde el cron. Cada offset cubre la
+ * ventana [hoy-offset, hoy]: la dedupe permanente por cargo+offset evita
+ * duplicados y una ejecucion fallida se recupera al dia siguiente.
+=======
  * Pensado para ejecutarse UNA vez al dia desde el cron: cada cargo cae como
  * mucho en una ventana por ejecucion, evitando duplicados sin tabla extra.
+>>>>>>> origin/main
  */
 const REMINDER_OFFSETS_DAYS = [-3, 0, 3, 7] as const;
 
@@ -195,10 +231,26 @@ export async function triggerScheduledPaymentReminders(now: Date = new Date()): 
   let sentCount = 0;
 
   for (const offset of REMINDER_OFFSETS_DAYS) {
+<<<<<<< HEAD
+    // Ventana [hoy-offset, hoy-offset+1): el recordatorio corresponde a cargos
+    // cuyo vencimiento cae en esa fecha. Con rango (no fecha exacta), si el
+    // cron falla un día el recordatorio se recupera en la siguiente ejecución
+    // (la dedupe por charge+offset evita duplicados dentro de la misma ventana).
+    const target = new Date(now);
+    target.setDate(target.getDate() - offset);
+    const targetStr = toDateOnly(target);
+    // Ventana hasta hoy: si una ejecución diaria falló, los cargos vencidos en
+    // días previos se recuperan aquí. La dedupe permanente por
+    // charge+offset impide duplicados en re-ejecuciones.
+    const windowEnd = new Date(now);
+    windowEnd.setDate(windowEnd.getDate() + 1);
+    const windowEndStr = toDateOnly(windowEnd);
+=======
     // dueDate = hoy - offset  =>  hoy = dueDate + offset (offset dias despues del vencimiento).
     const target = new Date(now);
     target.setDate(target.getDate() - offset);
     const targetStr = toDateOnly(target);
+>>>>>>> origin/main
 
     const dueCharges = await db
       .select({
@@ -213,7 +265,11 @@ export async function triggerScheduledPaymentReminders(now: Date = new Date()): 
       })
       .from(charges)
       .innerJoin(academies, eq(charges.academyId, academies.id))
+<<<<<<< HEAD
+      .where(and(inArray(charges.status, ["pending", "overdue", "failed"]), gte(charges.dueDate, targetStr), lt(charges.dueDate, windowEndStr)));
+=======
       .where(and(inArray(charges.status, ["pending", "overdue", "failed"]), eq(charges.dueDate, targetStr)));
+>>>>>>> origin/main
 
     for (const charge of dueCharges) {
       if (!charge.athleteId) continue;
@@ -457,6 +513,10 @@ export async function triggerClassCancellation(
   const [session] = await db
     .select({
       sessionId: classSessions.id,
+<<<<<<< HEAD
+      classId: classSessions.classId,
+=======
+>>>>>>> origin/main
       sessionDate: classSessions.sessionDate,
       startTime: classSessions.startTime,
       className: classes.name,

@@ -3,7 +3,10 @@ import { cookies } from "next/headers";
 import { sql } from "drizzle-orm";
 import { z } from "zod";
 
+<<<<<<< HEAD
+=======
 import { db } from "@/db";
+>>>>>>> origin/main
 import { academies, memberships, profiles } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
 import { apiCreated, apiError } from "@/lib/api-response";
@@ -105,11 +108,37 @@ export async function POST(request: Request) {
       };
     }
 
+<<<<<<< HEAD
+    const [existingProfile] = await tx
+      .select({ id: profiles.id, role: profiles.role })
+      .from(profiles)
+      .where(eq(profiles.userId, user.id))
+      .limit(1);
+
+    if (existingProfile && !["owner", "admin"].includes(existingProfile.role)) {
+      return {
+        error: apiError(
+          "OWNER_SETUP_NOT_ALLOWED",
+          "Tu cuenta ya pertenece a un flujo de invitación. Accede desde tu academia asignada.",
+          403
+        ),
+      };
+    }
+
+    // Reutilizar un profile owner parcialmente creado por un reintento, o
+    // crear uno nuevo. El tenant del claim siempre es el de la academia
+    // registrada; no se genera ni se acepta un tenant desde el cliente.
+    const fallbackName =
+      user.email?.split("@")[0]?.trim() || "Owner";
+
+    const profileId = existingProfile?.id ?? (await tx
+=======
     // Upsert profile: si ya existe uno (otro flujo lo creó), onConflictDoNothing.
     const fallbackName =
       user.email?.split("@")[0]?.trim() || "Owner";
 
     await tx
+>>>>>>> origin/main
       .insert(profiles)
       .values({
         userId: user.id,
@@ -119,7 +148,38 @@ export async function POST(request: Request) {
         activeAcademyId: academy.id,
         canLogin: true,
       })
+<<<<<<< HEAD
+      .onConflictDoNothing({ target: profiles.userId })
+      .returning({ id: profiles.id }))[0]?.id;
+
+    if (!profileId) {
+      return {
+        error: apiError(
+          "CLAIM_RETRY_REQUIRED",
+          "No se pudo preparar tu perfil. Inténtalo de nuevo.",
+          409
+        ),
+      };
+    }
+
+    await tx
+      .update(profiles)
+      .set({
+        tenantId: academy.tenantId,
+        activeAcademyId: academy.id,
+      })
+      .where(eq(profiles.id, profileId));
+
+    // `ownerId` es la autoridad de ownership de la academia. Actualizarlo es
+    // parte del claim: la membership por sí sola no convierte una academia
+    // pre-registrada en propiedad del usuario que la reclama.
+    await tx
+      .update(academies)
+      .set({ ownerId: profileId })
+      .where(eq(academies.id, academy.id));
+=======
       .onConflictDoNothing({ target: profiles.userId });
+>>>>>>> origin/main
 
     // Membership: idem onConflictDoNothing para resistir doble-click.
     // tenantId no es columna de memberships — se deriva vía academy.
@@ -153,4 +213,8 @@ export async function POST(request: Request) {
     academyId,
     redirectUrl: `/app/${academyId}/dashboard`,
   });
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> origin/main

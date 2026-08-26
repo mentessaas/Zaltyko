@@ -23,9 +23,15 @@ interface ContactInput {
 
 
 const fieldClassName =
+<<<<<<< HEAD
+  "w-full rounded-card border border-border bg-card px-3 py-2 text-sm shadow-none focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15";
+const compactFieldClassName =
+  "rounded-card border border-border bg-card px-3 py-2 text-sm shadow-none focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15";
+=======
   "w-full rounded-card border border-zaltyko-mist bg-white px-3 py-2 text-sm shadow-none focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15";
 const compactFieldClassName =
   "rounded-card border border-zaltyko-mist bg-white px-3 py-2 text-sm shadow-none focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15";
+>>>>>>> origin/main
 
 interface CreateAthleteDialogProps {
   academyId: string;
@@ -290,7 +296,11 @@ export function CreateAthleteDialog({
         {/* Campos esenciales */}
         <div className="space-y-4">
           <div className="space-y-2">
+<<<<<<< HEAD
+            <label className="text-xs font-medium uppercase tracking-[0.05em] text-foreground">Nombre completo *</label>
+=======
             <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">Nombre completo *</label>
+>>>>>>> origin/main
             <input
               value={name}
               onChange={(event) => setName(event.target.value)}
@@ -302,7 +312,11 @@ export function CreateAthleteDialog({
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
+<<<<<<< HEAD
+              <label className="text-xs font-medium uppercase tracking-[0.05em] text-foreground">Fecha de nacimiento</label>
+=======
               <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">Fecha de nacimiento</label>
+>>>>>>> origin/main
               <div className="flex items-center gap-2">
                 <input
                   ref={birthdateInputRef}
@@ -315,20 +329,32 @@ export function CreateAthleteDialog({
                 <button
                   type="button"
                   onClick={() => birthdateInputRef.current?.showPicker?.()}
+<<<<<<< HEAD
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition hover:border-zaltyko-teal hover:text-zaltyko-teal"
+=======
                   className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-zaltyko-mist bg-white text-zaltyko-text-secondary transition hover:border-zaltyko-teal hover:text-zaltyko-teal"
+>>>>>>> origin/main
                   aria-label="Seleccionar fecha"
                 >
                   <CalendarIcon className="h-4 w-4" strokeWidth={1.8} />
                 </button>
               </div>
               {computedAgeLabel && (
+<<<<<<< HEAD
+                <p className="text-xs text-muted-foreground">Edad: {computedAgeLabel}</p>
+=======
                 <p className="text-xs text-zaltyko-text-secondary">Edad: {computedAgeLabel}</p>
+>>>>>>> origin/main
               )}
             </div>
 
             {groups.length > 0 && (
               <div className="space-y-2">
+<<<<<<< HEAD
+                <label className="text-xs font-medium uppercase tracking-[0.05em] text-foreground">{groupTerm}</label>
+=======
                 <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">{groupTerm}</label>
+>>>>>>> origin/main
                 <select
                   value={groupId}
                   onChange={(event) => {
@@ -354,7 +380,11 @@ export function CreateAthleteDialog({
 
             {sportConfigs.length > 0 && (
               <div className="space-y-2">
+<<<<<<< HEAD
+                <label className="text-xs font-medium uppercase tracking-[0.05em] text-foreground">Modalidad / rama</label>
+=======
                 <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">Modalidad / rama</label>
+>>>>>>> origin/main
                 <select
                   value={effectiveSportConfigId}
                   onChange={(event) => {
@@ -382,7 +412,11 @@ export function CreateAthleteDialog({
         <button
           type="button"
           onClick={() => setShowAdvanced(!showAdvanced)}
+<<<<<<< HEAD
+          className="flex w-full items-center justify-between rounded-xl border border-border bg-zaltyko-warm-white px-3 py-2 text-sm font-medium text-muted-foreground transition hover:border-zaltyko-teal hover:text-zaltyko-teal"
+=======
           className="flex w-full items-center justify-between rounded-xl border border-zaltyko-mist bg-zaltyko-warm-white px-3 py-2 text-sm font-medium text-zaltyko-text-secondary transition hover:border-zaltyko-teal hover:text-zaltyko-teal"
+>>>>>>> origin/main
         >
           <span>Configuración avanzada</span>
           {showAdvanced ? (
@@ -398,7 +432,11 @@ export function CreateAthleteDialog({
             <div className="grid gap-4 sm:grid-cols-4">
               {programOptions.length > 0 && (
                 <div className="space-y-2">
+<<<<<<< HEAD
+                  <label className="text-xs font-medium uppercase tracking-[0.05em] text-foreground">Programa</label>
+=======
                   <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">Programa</label>
+>>>>>>> origin/main
                   <select
                     value={programCode}
                     onChange={(event) => {
@@ -417,7 +455,11 @@ export function CreateAthleteDialog({
                 </div>
               )}
               <div className="space-y-2">
+<<<<<<< HEAD
+                <label className="text-xs font-medium uppercase tracking-[0.05em] text-foreground">{terms.category}</label>
+=======
                 <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">{terms.category}</label>
+>>>>>>> origin/main
                 <select
                   value={category}
                   onChange={(event) => setCategory(event.target.value)}
@@ -432,7 +474,11 @@ export function CreateAthleteDialog({
                 </select>
               </div>
               <div className="space-y-2">
+<<<<<<< HEAD
+                <label className="text-xs font-medium uppercase tracking-[0.05em] text-foreground">{terms.level}</label>
+=======
                 <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">{terms.level}</label>
+>>>>>>> origin/main
                 <select
                   value={level}
                   onChange={(event) => setLevel(event.target.value)}
@@ -447,7 +493,11 @@ export function CreateAthleteDialog({
                 </select>
               </div>
               <div className="space-y-2">
+<<<<<<< HEAD
+                <label className="text-xs font-medium uppercase tracking-[0.05em] text-foreground">Estado</label>
+=======
                 <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">Estado</label>
+>>>>>>> origin/main
                 <select
                   value={status}
                   onChange={(event) =>
@@ -467,7 +517,11 @@ export function CreateAthleteDialog({
             {/* Contactos familiares */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
+<<<<<<< HEAD
+                <h3 className="text-sm font-semibold text-foreground">
+=======
                 <h3 className="text-sm font-semibold text-zaltyko-navy">
+>>>>>>> origin/main
                   Contactos familiares {contacts.length > 1 ? `(${contacts.length})` : ""}
                 </h3>
                 <button
@@ -480,9 +534,15 @@ export function CreateAthleteDialog({
               </div>
 
               {contacts.map((contact, index) => (
+<<<<<<< HEAD
+                <div key={index} className="space-y-3 rounded-xl border border-border/70 bg-card p-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold uppercase tracking-[0.05em] text-muted-foreground">
+=======
                 <div key={index} className="space-y-3 rounded-xl border border-zaltyko-mist/70 bg-white p-3">
                   <div className="flex items-center justify-between">
                     <p className="text-xs font-semibold uppercase tracking-[0.05em] text-zaltyko-text-secondary">
+>>>>>>> origin/main
                       Contacto #{index + 1}
                     </p>
                     {contacts.length > 1 && (
@@ -563,7 +623,11 @@ export function CreateAthleteDialog({
                     </select>
                   </div>
 
+<<<<<<< HEAD
+                  <div className="flex gap-4 text-xs text-muted-foreground">
+=======
                   <div className="flex gap-4 text-xs text-zaltyko-text-secondary">
+>>>>>>> origin/main
                     <label className="inline-flex items-center gap-2">
                       <input
                         type="checkbox"
@@ -575,7 +639,11 @@ export function CreateAthleteDialog({
                             return copy;
                           })
                         }
+<<<<<<< HEAD
+                        className="rounded border-border text-zaltyko-teal focus:ring-zaltyko-teal"
+=======
                         className="rounded border-zaltyko-mist text-zaltyko-teal focus:ring-zaltyko-teal"
+>>>>>>> origin/main
                       />
                       Recibir correos
                     </label>
@@ -590,7 +658,11 @@ export function CreateAthleteDialog({
                             return copy;
                           })
                         }
+<<<<<<< HEAD
+                        className="rounded border-border text-zaltyko-teal focus:ring-zaltyko-teal"
+=======
                         className="rounded border-zaltyko-mist text-zaltyko-teal focus:ring-zaltyko-teal"
+>>>>>>> origin/main
                       />
                       Recibir SMS
                     </label>

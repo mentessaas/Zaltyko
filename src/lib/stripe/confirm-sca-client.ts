@@ -16,7 +16,11 @@ export interface ScaRecoveryDetails {
   clientSecret: string;
   stripeAccountId: string;
   publishableKey: string;
+<<<<<<< HEAD
+  paymentMethodId: string;
+=======
   paymentMethodId?: string | null;
+>>>>>>> origin/main
 }
 
 export function parseScaRecoveryDetails(details: unknown): ScaRecoveryDetails | null {
@@ -26,7 +30,12 @@ export function parseScaRecoveryDetails(details: unknown): ScaRecoveryDetails | 
     typeof d.paymentIntentId === "string" &&
     typeof d.clientSecret === "string" &&
     typeof d.stripeAccountId === "string" &&
+<<<<<<< HEAD
+    typeof d.publishableKey === "string" &&
+    typeof d.paymentMethodId === "string"
+=======
     typeof d.publishableKey === "string"
+>>>>>>> origin/main
   ) {
     return d as unknown as ScaRecoveryDetails;
   }
@@ -47,6 +56,20 @@ export async function confirmScaChallenge(
     return { ok: false, message: "No se pudo cargar Stripe para completar la autenticación." };
   }
 
+<<<<<<< HEAD
+  // Stripe elimina `payment_method` del PaymentIntent cuando un cobro
+  // off-session falla con `authentication_required`. Re-attachamos el PM
+  // conocido en la única confirmación interactiva; sin él Stripe devuelve
+  // `payment_intent_unexpected_state` y el reto no llega a abrirse.
+  const { error, paymentIntent } = await stripe.confirmCardPayment(details.clientSecret, {
+    payment_method: details.paymentMethodId,
+  });
+
+  if (error) {
+    return { ok: false, message: error.message ?? "No se pudo completar la autenticación." };
+  }
+  if (paymentIntent?.status === "succeeded" || paymentIntent?.status === "processing") {
+=======
   // Helper: si Stripe dice que el PI no tiene PM, reintentamos una vez
   // adjuntando el `paymentMethodId` que viajaba en `details`. Esto cubre el
   // caso típico de SCA off-session: Stripe limpia el PM del PI y exige que el
@@ -83,6 +106,7 @@ export async function confirmScaChallenge(
     return { ok: false, message: result.error.message ?? "No se pudo completar la autenticación." };
   }
   if (result.paymentIntent?.status === "succeeded" || result.paymentIntent?.status === "processing") {
+>>>>>>> origin/main
     return { ok: true };
   }
   return { ok: false, message: "La autenticación no se completó. Inténtalo de nuevo." };

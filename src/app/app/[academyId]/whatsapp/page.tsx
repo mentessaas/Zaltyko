@@ -91,8 +91,16 @@ export default async function WhatsAppRoutePage({ params }: PageProps) {
   // WhatsApp config - these would come from settings or academy metadata
   const whatsappConfig = {
     phone: "",
+<<<<<<< HEAD
+    isConfigured: Boolean(
+      process.env.TWILIO_ACCOUNT_SID &&
+        process.env.TWILIO_AUTH_TOKEN &&
+        process.env.TWILIO_WHATSAPP_FROM,
+    ),
+=======
     apiKey: "",
     isConfigured: false,
+>>>>>>> origin/main
   };
 
   // Get classes for recipient selection

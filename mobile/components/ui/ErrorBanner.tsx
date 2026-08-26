@@ -28,7 +28,11 @@ function ErrorBannerImpl({ message, onRetry, action }: Props) {
       {action ? (
         <View style={styles.action}>{action}</View>
       ) : onRetry ? (
+<<<<<<< HEAD
+        <Pressable onPress={onRetry} hitSlop={14} style={styles.retry}>
+=======
         <Pressable onPress={onRetry} hitSlop={8} style={styles.retry}>
+>>>>>>> origin/main
           <Ionicons name="refresh" size={16} color={colors.danger} />
         </Pressable>
       ) : null}

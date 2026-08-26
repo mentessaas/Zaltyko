@@ -9,7 +9,11 @@ import { handleApiError } from "@/lib/api-error-handler";
 export const dynamic = "force-dynamic";
 
 const EVENT_LEVELS = ["internal", "local", "national", "international"] as const;
+<<<<<<< HEAD
+const EVENT_DISCIPLINES = ["artistic_female", "artistic_male", "rhythmic", "trampoline", "parkour"] as const;
+=======
 const EVENT_DISCIPLINES = ["artistic_female", "artistic_male", "rhythmic"] as const;
+>>>>>>> origin/main
 
 const QuerySchema = z.object({
   country: z.string().optional(),
@@ -64,6 +68,10 @@ export async function GET(request: Request) {
     // Construir filtros - solo eventos públicos
     const filters: SQL[] = [
       eq(events.isPublic, true),
+<<<<<<< HEAD
+          eq(events.status, 'published'),
+=======
+>>>>>>> origin/main
     ];
 
     if (search) {

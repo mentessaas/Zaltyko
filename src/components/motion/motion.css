@@ -1,0 +1,83 @@
+/* Primitivas de movimiento del sitio público Zaltyko.
+   Todas las animaciones se desactivan con prefers-reduced-motion. */
+
+@keyframes zk-rise {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes zk-marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+/* Reveal: entrada al hacer scroll (controlada por IntersectionObserver) */
+.zk-reveal {
+  opacity: 0;
+  transform: translateY(26px);
+  transition:
+    opacity 0.6s ease-out,
+    transform 0.6s cubic-bezier(0.2, 0.7, 0.2, 1);
+  will-change: opacity, transform;
+}
+
+.zk-reveal.zk-reveal-in {
+  opacity: 1;
+  transform: none;
+}
+
+/* Palabras del titular con entrada escalonada */
+.zk-word {
+  display: inline-block;
+  animation: zk-rise 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation-delay: calc(var(--zk-i) * 65ms + 120ms);
+}
+
+/* Filas de una lista con entrada escalonada */
+.zk-row {
+  animation: zk-rise 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation-delay: var(--zk-delay, 0ms);
+}
+
+/* Marquee continuo; el track se duplica para bucle perfecto */
+.zk-marquee {
+  overflow: hidden;
+  user-select: none;
+}
+
+.zk-marquee-track {
+  display: flex;
+  align-items: center;
+  gap: var(--zk-marquee-gap, 34px);
+  width: max-content;
+  animation: zk-marquee var(--zk-marquee-duration, 38s) linear infinite;
+  will-change: transform;
+}
+
+.zk-marquee:hover .zk-marquee-track {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .zk-reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  .zk-word,
+  .zk-row {
+    animation: none;
+  }
+  .zk-marquee-track {
+    animation: none;
+    flex-wrap: wrap;
+    width: auto;
+  }
+}

@@ -138,8 +138,15 @@ export async function getUserPermissions(
     .limit(1);
 
   if (!role.length) {
+<<<<<<< HEAD
+    // Denegación: sin permisos heredados ni custom (el rol que los respaldaba
+    // ya no existe; concederlos sería escalada).
+    return {
+      permissions: [],
+=======
     return {
       permissions: member.customPermissions as Permission[] || [],
+>>>>>>> origin/main
       roleId: null,
       roleName: null,
       isOwner: false,

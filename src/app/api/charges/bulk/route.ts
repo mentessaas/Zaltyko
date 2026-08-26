@@ -100,7 +100,16 @@ export const POST = withTenant(async (request, context) => {
       });
     }
 
+<<<<<<< HEAD
+        await db
+      .insert(charges)
+      .values(newCharges)
+      // Respaldo de BD anti-doble-cargo (índice único academy/athlete/period):
+      // una carrera concurrente no duplica los cargos.
+      .onConflictDoNothing();
+=======
     await db.insert(charges).values(newCharges);
+>>>>>>> origin/main
 
     return apiCreated(
       {

@@ -8,8 +8,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
  *      se llama con `{ payment_method }` para que el reto 3DS se abra (Stripe
  *      limpia el PM del PI cuando off-session lanza `authentication_required`,
  *      sin re-attach da `payment_intent_unexpected_state`).
+<<<<<<< HEAD
+ *   2. Si falta `paymentMethodId`, el payload no se considera recuperable.
+=======
  *   2. Si Stripe responde `payment_intent_unexpected_state` en el primer
  *      intento, reintentamos con el PM explícitamente.
+>>>>>>> origin/main
  *   3. Si Stripe confirma `succeeded`, devolvemos `ok: true`.
  */
 
@@ -63,6 +67,11 @@ describe("confirmScaChallenge — propagacion de paymentMethodId", () => {
     });
   });
 
+<<<<<<< HEAD
+  it("devuelve el error de Stripe sin reintentar la confirmación", async () => {
+    const confirmCardPayment = vi.fn().mockResolvedValue({
+      error: { code: "card_error", message: "La tarjeta fue rechazada." },
+=======
   it("reintenta con payment_method si Stripe responde payment_intent_unexpected_state", async () => {
     const confirmCardPayment = vi
       .fn()
@@ -107,17 +116,26 @@ describe("confirmScaChallenge — propagacion de paymentMethodId", () => {
   it("devuelve ok:false con el mensaje de Stripe si el reto falla tras reintento", async () => {
     const confirmCardPayment = vi.fn().mockResolvedValue({
       error: { code: "payment_intent_unexpected_state", message: "missing a payment method" },
+>>>>>>> origin/main
       paymentIntent: null,
     });
     mocks.loadStripe.mockResolvedValue({ confirmCardPayment });
 
     const result = await confirmScaChallenge(baseDetails);
 
+<<<<<<< HEAD
+    expect(result).toEqual({ ok: false, message: "La tarjeta fue rechazada." });
+    expect(confirmCardPayment).toHaveBeenCalledTimes(1);
+    expect(confirmCardPayment).toHaveBeenCalledWith(baseDetails.clientSecret, {
+      payment_method: baseDetails.paymentMethodId,
+    });
+=======
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.message).toContain("missing a payment method");
     }
     expect(confirmCardPayment).toHaveBeenCalledTimes(2);
+>>>>>>> origin/main
   });
 
   it("carga Stripe sobre la cuenta conectada de la academia", async () => {
@@ -147,15 +165,23 @@ describe("parseScaRecoveryDetails", () => {
     expect(parsed?.paymentMethodId).toBe("pm_x");
   });
 
+<<<<<<< HEAD
+  it("rechaza payload sin paymentMethodId porque no puede abrir el reto", () => {
+=======
   it("sigue aceptando payload sin paymentMethodId (compatibilidad)", () => {
+>>>>>>> origin/main
     const parsed = parseScaRecoveryDetails({
       paymentIntentId: "pi_y",
       clientSecret: "pi_y_secret",
       stripeAccountId: "acct_y",
       publishableKey: "pk_y",
     });
+<<<<<<< HEAD
+    expect(parsed).toBeNull();
+=======
     expect(parsed).not.toBeNull();
     expect(parsed?.paymentMethodId).toBeUndefined();
+>>>>>>> origin/main
   });
 
   it("rechaza payload sin campos requeridos", () => {

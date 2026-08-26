@@ -77,7 +77,11 @@ function ClusterCTASectionImpl({
             href="/onboarding"
             className={cn(
               buttonVariants({ variant: "default", size: "lg" }),
+<<<<<<< HEAD
+              "bg-card text-red-700 hover:bg-muted shadow-lg hover:shadow-xl transition-all duration-300 text-base px-8 py-6 group"
+=======
               "bg-white text-red-700 hover:bg-muted shadow-lg hover:shadow-xl transition-all duration-300 text-base px-8 py-6 group"
+>>>>>>> origin/main
             )}
           >
             <Sparkles className="mr-2 h-5 w-5" />

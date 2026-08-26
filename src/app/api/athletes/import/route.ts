@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
+<<<<<<< HEAD
+import { and, eq, inArray, sql } from "drizzle-orm";
+=======
 import { and, eq, inArray } from "drizzle-orm";
+>>>>>>> origin/main
 import { parse } from "csv-parse/sync";
 import { z } from "zod";
 
@@ -16,6 +20,10 @@ import { validateDateWithError, formatDateForDB } from "@/lib/validation/date-ut
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { logger } from "@/lib/logger";
 import { getAcademySportConfigOptions, verifyAcademySportConfig } from "@/lib/sport-config/service";
+<<<<<<< HEAD
+import { markChecklistItem } from "@/lib/onboarding";
+=======
+>>>>>>> origin/main
 
 const optionalUuid = z
   .string()
@@ -26,7 +34,11 @@ const optionalUuid = z
 
 const CsvRowSchema = z.object({
   name: z.string().min(1),
+<<<<<<< HEAD
+  academyId: z.string().uuid().optional(),
+=======
   academyId: z.string().uuid(),
+>>>>>>> origin/main
   dob: z.string().optional(),
   level: z.string().optional(),
   status: z.enum(athleteStatusOptions).optional(),
@@ -98,7 +110,32 @@ const handler = withTenant(async (request, context) => {
     return apiError("TENANT_REQUIRED", "Tenant ID is required", 400);
   }
 
+<<<<<<< HEAD
+  // Inferir la academia de cada fila: la del formData o, si el tenant tiene
+  // una única academia, esa. Evita exigir UUIDs internos en el CSV.
+  const formAcademyId = (formData as unknown as { get(name: string): unknown }).get("academyId");
+  let defaultAcademyId: string | undefined =
+    typeof formAcademyId === "string" && formAcademyId ? formAcademyId : undefined;
+  if (!defaultAcademyId) {
+    const tenantAcademies = await db
+      .select({ id: academies.id })
+      .from(academies)
+      .where(eq(academies.tenantId, effectiveTenantId));
+    if (tenantAcademies.length === 1) {
+      defaultAcademyId = tenantAcademies[0].id;
+    }
+  }
+  records = records.map((row) => ({
+    ...row,
+    academyId: row.academyId || defaultAcademyId,
+  }));
+
+  const academyIds = Array.from(
+    new Set(records.map((row) => row.academyId).filter((v): v is string => Boolean(v)))
+  );
+=======
   const academyIds = Array.from(new Set(records.map((row) => row.academyId)));
+>>>>>>> origin/main
 
   const academiesRows = await db
     .select({ id: academies.id })
@@ -116,6 +153,18 @@ const handler = withTenant(async (request, context) => {
   };
 
   for (const [index, record] of records.entries()) {
+<<<<<<< HEAD
+    if (!record.academyId) {
+      summary.skipped += 1;
+      summary.errors.push({
+        row: index + 2,
+        reason:
+          "Falta la academia y el tenant tiene más de una: indica la columna academyId.",
+      });
+      continue;
+    }
+=======
+>>>>>>> origin/main
     if (!validAcademyIds.has(record.academyId)) {
       summary.skipped += 1;
       summary.errors.push({
@@ -323,6 +372,34 @@ const handler = withTenant(async (request, context) => {
     }
   }
 
+<<<<<<< HEAD
+    // Igual que en el alta manual: la importación cuenta para el paso
+    // "Añade al menos 5 atletas" del checklist de onboarding.
+    if (summary.created > 0) {
+      const touchedAcademies = Array.from(
+        new Set(records.map((row) => row.academyId).filter(Boolean))
+      ) as string[];
+      for (const academyIdTouched of touchedAcademies) {
+        try {
+          const [countResult] = await db
+            .select({ count: sql<number>`count(*)::int` })
+            .from(athletes)
+            .where(eq(athletes.academyId, academyIdTouched));
+          if (Number(countResult?.count ?? 0) >= 5) {
+            await markChecklistItem({
+              academyId: academyIdTouched,
+              tenantId: effectiveTenantId,
+              key: "add_5_athletes",
+            });
+          }
+        } catch (error) {
+          logger.warn("No se pudo marcar el checklist tras importar", { error, academyIdTouched });
+        }
+      }
+    }
+
+=======
+>>>>>>> origin/main
     return apiSuccess(summary);
   } catch (error) {
     return handleApiError(error, { endpoint: "/api/athletes/import", method: "POST" });

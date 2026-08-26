@@ -2,7 +2,11 @@ import Stripe from "stripe";
 import { and, eq, ne } from "drizzle-orm";
 
 import { db } from "@/db";
+<<<<<<< HEAD
+import { charges, refunds } from "@/db/schema";
+=======
 import { charges } from "@/db/schema";
+>>>>>>> origin/main
 import { logger } from "@/lib/logger";
 import { sendChargePaymentFailedNotification } from "@/lib/stripe/notification-service";
 
@@ -185,7 +189,11 @@ export async function reconcileChargeRefunded(
   eventAccountId: string | null
 ): Promise<void> {
   const [row] = await db
+<<<<<<< HEAD
+    .select({ id: charges.id, status: charges.status, stripeAccountId: charges.stripeAccountId, tenantId: charges.tenantId, academyId: charges.academyId, currency: charges.currency })
+=======
     .select({ id: charges.id, status: charges.status, stripeAccountId: charges.stripeAccountId })
+>>>>>>> origin/main
     .from(charges)
     .where(eq(charges.stripeChargeId, stripeCharge.id))
     .limit(1);
@@ -198,8 +206,35 @@ export async function reconcileChargeRefunded(
   }
   if (row.status === "refunded") return;
 
+<<<<<<< HEAD
+  // Registrar el reembolso en el ledger (parciales incluidos) para que el
+  // cálculo de restante de refund-service no diverja de Stripe.
+  await db
+    .insert(refunds)
+    .values({
+      tenantId: row.tenantId,
+      academyId: row.academyId,
+      chargeId: row.id,
+      stripeRefundId:
+        stripeCharge.refunds?.data?.[0]?.id ?? `re_${stripeCharge.id}_${stripeCharge.amount_refunded}`,
+      amountCents: stripeCharge.amount_refunded,
+      currency: row.currency ?? "eur",
+      status: "succeeded",
+      reason: stripeCharge.refunds?.data?.[0]?.reason ?? null,
+    })
+    .onConflictDoNothing();
+
+  // Solo un reembolso TOTAL marca el cargo como refunded; un parcial deja el
+  // cargo cobrado con el importe reembolsado registrable vía refunds.
+  const fullyRefunded = stripeCharge.amount_refunded >= stripeCharge.amount;
+
+  await db
+    .update(charges)
+    .set({ status: fullyRefunded ? "refunded" : "paid", updatedAt: new Date() })
+=======
   await db
     .update(charges)
     .set({ status: "refunded", updatedAt: new Date() })
+>>>>>>> origin/main
     .where(eq(charges.id, row.id));
 }

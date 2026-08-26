@@ -4,6 +4,10 @@ import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+<<<<<<< HEAD
+import Reveal from "@/components/motion/Reveal";
+=======
+>>>>>>> origin/main
 
 const faqs = [
   {
@@ -69,6 +73,17 @@ export default function FaqSection() {
         {/* FAQ accordion */}
         <div className="space-y-3">
           {faqs.map((faq, i) => (
+<<<<<<< HEAD
+            <Reveal key={i} delay={Math.min(i, 5) * 60}>
+              <div
+                className={cn(
+                  "rounded-2xl border transition-all duration-200",
+                  openIndex === i
+                    ? "border-zaltyko-teal/30 bg-zaltyko-teal/5 shadow-soft"
+                    : "border-gray-200 bg-white hover:border-gray-300"
+                )}
+              >
+=======
             <div
               key={i}
               className={cn(
@@ -78,6 +93,7 @@ export default function FaqSection() {
                   : "border-gray-200 bg-white hover:border-gray-300"
               )}
             >
+>>>>>>> origin/main
               <button
                 onClick={() => setOpenIndex(openIndex === i ? null : i)}
                 className="w-full flex items-center justify-between px-6 py-5 text-left"
@@ -104,7 +120,12 @@ export default function FaqSection() {
                   </p>
                 </div>
               )}
+<<<<<<< HEAD
+              </div>
+            </Reveal>
+=======
             </div>
+>>>>>>> origin/main
           ))}
         </div>
 

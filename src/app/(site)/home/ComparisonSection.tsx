@@ -2,6 +2,10 @@
 
 import { Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+<<<<<<< HEAD
+import Reveal from "@/components/motion/Reveal";
+=======
+>>>>>>> origin/main
 
 const comparisonFeatures = [
   {
@@ -97,6 +101,24 @@ export default function ComparisonSection() {
     <section className="surface-subtle py-24">
       <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
         {/* Header */}
+<<<<<<< HEAD
+        <Reveal>
+          <div className="text-center mb-12">
+            <span className="inline-block px-4 py-1.5 bg-zaltyko-teal/10 text-zaltyko-indigo text-sm font-semibold rounded-full mb-4">
+              Comparativa
+            </span>
+            <h2 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-4">
+              ¿Por qué no seguir con Excel?
+            </h2>
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+              Comparamos Zaltyko con las alternativas más comunes para que veas la diferencia.
+            </p>
+          </div>
+        </Reveal>
+
+        {/* Table */}
+        <Reveal delay={120}>
+=======
         <div className="text-center mb-12">
           <span className="inline-block px-4 py-1.5 bg-zaltyko-teal/10 text-zaltyko-indigo text-sm font-semibold rounded-full mb-4">
             Comparativa
@@ -110,6 +132,7 @@ export default function ComparisonSection() {
         </div>
 
         {/* Table */}
+>>>>>>> origin/main
         <div className="relative">
           <div className="overflow-x-auto rounded-2xl border border-gray-200 shadow-lg">
           <table className="w-full bg-white">
@@ -168,6 +191,10 @@ export default function ComparisonSection() {
             className="pointer-events-none absolute inset-y-0 right-0 w-10 rounded-r-2xl bg-gradient-to-l from-white to-transparent md:hidden"
           />
         </div>
+<<<<<<< HEAD
+        </Reveal>
+=======
+>>>>>>> origin/main
 
         {/* Bottom note */}
         <p className="text-center text-sm text-gray-500 mt-6">

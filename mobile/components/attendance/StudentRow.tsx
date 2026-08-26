@@ -14,6 +14,15 @@ interface Props {
   name: string;
   groupName: string | null;
   status: AttendanceStatus | null;
+<<<<<<< HEAD
+  /**
+   * Si true, el cambio aún no se guardó en el backend (status override
+   * pendiente). ZAL-622 Phase 1: pista visual sutil de "dirty" para
+   * distinguir confirmado vs pendiente sin inventar un estado nuevo.
+   */
+  dirty?: boolean;
+=======
+>>>>>>> origin/main
   onChange: (athleteId: string, status: AttendanceStatus) => void;
   onEvaluate?: (athleteId: string, name: string) => void;
 }
@@ -25,11 +34,22 @@ const OPTIONS: { value: AttendanceStatus; label: string; short: string; color: s
   { value: 'excused', label: 'Justif.', short: 'J', color: colors.info },
 ];
 
+<<<<<<< HEAD
+function StudentRowImpl({ athleteId, name, groupName, status, dirty, onChange, onEvaluate }: Props) {
+  const initial = name.trim().charAt(0).toUpperCase();
+
+  return (
+    <View
+      style={[styles.row, dirty && styles.rowDirty]}
+      accessibilityLabel={`${name}${dirty ? ', cambio sin guardar' : ''}`}
+    >
+=======
 function StudentRowImpl({ athleteId, name, groupName, status, onChange, onEvaluate }: Props) {
   const initial = name.trim().charAt(0).toUpperCase();
 
   return (
     <View style={styles.row}>
+>>>>>>> origin/main
       <View style={styles.avatar}>
         <Text style={styles.avatarText}>{initial}</Text>
       </View>
@@ -47,6 +67,10 @@ function StudentRowImpl({ athleteId, name, groupName, status, onChange, onEvalua
           <Ionicons name="ribbon-outline" size={18} color={colors.primary} />
         </Pressable>
       ) : null}
+<<<<<<< HEAD
+      {/* actions: ver styles.btn abajo — width 36 + hitSlop={4} = 44dp efectivos (WCAG 2.5.5) */}
+=======
+>>>>>>> origin/main
       <View style={styles.actions}>
         {OPTIONS.map((opt) => {
           const active = status === opt.value;
@@ -57,6 +81,10 @@ function StudentRowImpl({ athleteId, name, groupName, status, onChange, onEvalua
               accessibilityRole="button"
               accessibilityLabel={`${opt.label} ${name}`}
               accessibilityState={{ selected: active }}
+<<<<<<< HEAD
+              hitSlop={4}
+=======
+>>>>>>> origin/main
               style={[
                 styles.btn,
                 { borderColor: opt.color },
@@ -92,6 +120,13 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     padding: spacing.md,
   },
+<<<<<<< HEAD
+  rowDirty: {
+    borderColor: colors.warning,
+    borderWidth: 1.5,
+  },
+=======
+>>>>>>> origin/main
   avatar: {
     width: 40,
     height: 40,
@@ -103,8 +138,13 @@ const styles = StyleSheet.create({
   avatarText: { ...typography.label, color: colors.primaryFg, fontWeight: '700' },
   body: { flex: 1, gap: 2 },
   evaluateBtn: {
+<<<<<<< HEAD
+    width: 44,
+    height: 44,
+=======
     width: 32,
     height: 32,
+>>>>>>> origin/main
     borderRadius: radii.full,
     backgroundColor: colors.surfaceMuted,
     alignItems: 'center',

@@ -99,7 +99,11 @@ export default function ClusterStatsSection({
           {stats.map((stat, index) => (
             <div
               key={index}
+<<<<<<< HEAD
+              className="text-center p-8 rounded-2xl bg-card border border-gray-100 shadow-sm hover:shadow-md transition-shadow"
+=======
               className="text-center p-8 rounded-2xl bg-white border border-gray-100 shadow-sm hover:shadow-md transition-shadow"
+>>>>>>> origin/main
             >
               <div
                 className={`w-14 h-14 ${stat.bg} rounded-2xl flex items-center justify-center mx-auto mb-4`}
@@ -116,7 +120,11 @@ export default function ClusterStatsSection({
 
         {/* Featured Academies */}
         {content.socialProof.academies.length > 0 && (
+<<<<<<< HEAD
+          <div className="mt-12 p-8 rounded-2xl bg-card border border-gray-100 shadow-sm">
+=======
           <div className="mt-12 p-8 rounded-2xl bg-white border border-gray-100 shadow-sm">
+>>>>>>> origin/main
             <h3 className="font-semibold text-gray-900 text-center mb-6">
               {locale === "es"
                 ? "Academias que confian en nosotros"

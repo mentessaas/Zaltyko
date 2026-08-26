@@ -1,7 +1,11 @@
 #!/usr/bin/env tsx
 /* eslint-disable no-console */
 import { config } from "dotenv";
+<<<<<<< HEAD
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+=======
 import { existsSync, readFileSync } from "node:fs";
+>>>>>>> origin/main
 import { resolve } from "node:path";
 
 import { Pool, type PoolClient } from "pg";
@@ -32,18 +36,30 @@ interface Options {
   apply: boolean;
   bootstrap: boolean;
   acknowledgeExistingHistory: boolean;
+<<<<<<< HEAD
+  onlyFilename?: string;
+  evidenceFile?: string;
+=======
+>>>>>>> origin/main
 }
 
 function usage(message?: string): never {
   if (message) console.error(`[db:migrate:ledger] ${message}`);
   console.error(
+<<<<<<< HEAD
+    "Uso: pnpm db:migrate:ledger [--apply] [--only <archivo.sql>] [--evidence-file <ruta>] [--bootstrap --acknowledge-existing-history]"
+=======
     "Uso: pnpm db:migrate:ledger [--apply] [--bootstrap --acknowledge-existing-history]"
+>>>>>>> origin/main
   );
   console.error("Por defecto hace dry-run y no escribe nada.");
   process.exit(1);
 }
 
 function parseOptions(args: string[]): Options {
+<<<<<<< HEAD
+  const options: Options = {
+=======
   const allowed = new Set([
     "--apply",
     "--bootstrap",
@@ -53,11 +69,36 @@ function parseOptions(args: string[]): Options {
   if (unknown) usage(`Opción desconocida: ${unknown}`);
 
   const options = {
+>>>>>>> origin/main
     apply: args.includes("--apply"),
     bootstrap: args.includes("--bootstrap"),
     acknowledgeExistingHistory: args.includes("--acknowledge-existing-history"),
   };
 
+<<<<<<< HEAD
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+    if (arg === "--only" || arg === "--evidence-file") {
+      const value = args[index + 1];
+      if (!value || value.startsWith("--")) {
+        usage(`${arg} requiere un valor.`);
+      }
+      if (arg === "--only") options.onlyFilename = value;
+      if (arg === "--evidence-file") options.evidenceFile = value;
+      index += 1;
+      continue;
+    }
+    if (
+      !new Set(["--apply", "--bootstrap", "--acknowledge-existing-history"]).has(
+        arg
+      )
+    ) {
+      usage(`Opción desconocida: ${arg}`);
+    }
+  }
+
+=======
+>>>>>>> origin/main
   if (
     options.bootstrap &&
     (!options.apply || !options.acknowledgeExistingHistory)
@@ -69,6 +110,12 @@ function parseOptions(args: string[]): Options {
       "--acknowledge-existing-history solo se permite junto a --bootstrap."
     );
   }
+<<<<<<< HEAD
+  if (options.onlyFilename && options.bootstrap) {
+    usage("--only no se puede combinar con --bootstrap.");
+  }
+=======
+>>>>>>> origin/main
   return options;
 }
 
@@ -164,6 +211,12 @@ async function insertLedgerRow(
 async function main() {
   const options = parseOptions(process.argv.slice(2));
   const migrations = loadSqlMigrations(MIGRATIONS_DIR);
+<<<<<<< HEAD
+  if (options.onlyFilename && !migrations.some((migration) => migration.filename === options.onlyFilename)) {
+    usage(`No existe la migración seleccionada: ${options.onlyFilename}`);
+  }
+=======
+>>>>>>> origin/main
   const pool = getPool();
   const client = await pool.connect();
 
@@ -202,7 +255,24 @@ async function main() {
       throw new Error(`Ledger divergente:\n- ${mismatches.join("\n- ")}`);
     }
 
+<<<<<<< HEAD
+    const pending = options.onlyFilename
+      ? reconciliation.pending.filter(
+          (migration) => migration.filename === options.onlyFilename
+        )
+      : reconciliation.pending;
+
+    if (options.onlyFilename && pending.length === 0) {
+      console.log(
+        `[db:migrate:ledger] OK: ${options.onlyFilename} ya está verificada en el ledger; no se ejecutó SQL.`
+      );
+      return;
+    }
+
+    if (pending.length === 0) {
+=======
     if (reconciliation.pending.length === 0) {
+>>>>>>> origin/main
       console.log(
         `[db:migrate:ledger] OK: ${ledgerRows.length} migraciones verificadas; no hay pendientes.`
       );
@@ -210,10 +280,23 @@ async function main() {
     }
 
     console.log("[db:migrate:ledger] Migraciones pendientes:");
+<<<<<<< HEAD
+    pending.forEach((migration) =>
+      console.log(`- ${migration.filename} (${migration.checksum})`)
+    );
+
+    if (options.onlyFilename && reconciliation.pending.length !== pending.length) {
+      console.log(
+        `[db:migrate:ledger] Selección explícita: se omiten ${reconciliation.pending.length - pending.length} migraciones pendientes no seleccionadas.`
+      );
+    }
+
+=======
     reconciliation.pending.forEach((migration) =>
       console.log(`- ${migration.filename} (${migration.checksum})`)
     );
 
+>>>>>>> origin/main
     if (!options.apply) {
       console.log(
         "[db:migrate:ledger] Dry-run: no se ejecutó SQL. Repite con --apply tras revisar los archivos."
@@ -222,10 +305,18 @@ async function main() {
     }
 
     await client.query("begin");
+<<<<<<< HEAD
+    let executionResults: unknown;
+    try {
+      for (const migration of pending) {
+        console.log(`[db:migrate:ledger] Aplicando ${migration.filename}`);
+        executionResults = await client.query(migration.sql);
+=======
     try {
       for (const migration of reconciliation.pending) {
         console.log(`[db:migrate:ledger] Aplicando ${migration.filename}`);
         await client.query(migration.sql);
+>>>>>>> origin/main
         await insertLedgerRow(client, migration, "ledger");
       }
       await client.query("commit");
@@ -234,8 +325,41 @@ async function main() {
       throw error;
     }
 
+<<<<<<< HEAD
+    if (options.evidenceFile && executionResults) {
+      const resultList = (Array.isArray(executionResults)
+        ? executionResults
+        : [executionResults]) as Array<{
+        command?: string;
+        rowCount?: number | null;
+        rows?: unknown[];
+      }>;
+      writeFileSync(
+        resolve(options.evidenceFile),
+        `${JSON.stringify(
+          {
+            generatedAt: new Date().toISOString(),
+            migration: options.onlyFilename ?? null,
+            results: resultList.map((result) => ({
+              command: result.command ?? null,
+              rowCount: result.rowCount ?? null,
+              rows: result.rows ?? [],
+            })),
+          },
+          null,
+          2
+        )}\n`,
+        "utf8"
+      );
+      console.log(`[db:migrate:ledger] Evidencia escrita en ${options.evidenceFile}`);
+    }
+
+    console.log(
+      `[db:migrate:ledger] Aplicadas ${pending.length} migraciones en una transacción.`
+=======
     console.log(
       `[db:migrate:ledger] Aplicadas ${reconciliation.pending.length} migraciones en una transacción.`
+>>>>>>> origin/main
     );
   } finally {
     try {

@@ -14,8 +14,27 @@ import FaqSection from "@/app/(site)/home/FaqSection";
 import FinalCtaSection from "@/app/(site)/home/FinalCtaSection";
 import Footer from "@/app/(site)/Footer";
 import StickyCtaBar from "@/app/(site)/home/StickyCtaBar";
+<<<<<<< HEAD
+import Marquee from "@/components/motion/Marquee";
 import { getPublicSiteUrl } from "@/lib/seo/site-url";
 
+const HOME_MARQUEE_ITEMS = [
+  "Gimnastas por nivel y aparato",
+  "Cuotas recurrentes",
+  "Asistencia por sesión",
+  "Portal de familias",
+  "Evaluaciones técnicas",
+  "Eventos y competiciones",
+  "Recibos automáticos",
+  "Comunicación interna",
+  "Multi-sede",
+  "Informes de dirección",
+];
+
+=======
+import { getPublicSiteUrl } from "@/lib/seo/site-url";
+
+>>>>>>> origin/main
 const baseUrl = getPublicSiteUrl();
 
 export const metadata: Metadata = {
@@ -86,6 +105,12 @@ export default function HomePage() {
         {/* Hero con H1 principal */}
         <HeroSection />
 
+<<<<<<< HEAD
+        {/* Cinta continua de características */}
+        <Marquee items={HOME_MARQUEE_ITEMS} />
+
+=======
+>>>>>>> origin/main
         {/* Social proof - logos y estadísticas */}
         <SocialProofSection />
 
@@ -180,7 +205,11 @@ export default function HomePage() {
               name: "¿Cuánto cuesta Zaltyko?",
               acceptedAnswer: {
                 "@type": "Answer",
+<<<<<<< HEAD
+                text: "Free es gratis hasta 30 gimnastas y 1 academia. Starter cuesta 19€/mes (hasta 75 gimnastas), Growth 49€/mes (hasta 200 gimnastas) y Network, para academias multi-sede, cuesta 99€/mes con onboarding acompañado. Puedes ver el detalle completo en la página de planes.",
+=======
                 text: "Free es gratis hasta 30 gimnastas y 1 academia. Starter cuesta 19€/mes (hasta 75 gimnastas), Growth 49€/mes (hasta 200 gimnastas) y Network, para academias multi-sede, tiene onboarding acompañado y precio a medida. Puedes ver el detalle completo en la página de planes.",
+>>>>>>> origin/main
               },
             },
             {

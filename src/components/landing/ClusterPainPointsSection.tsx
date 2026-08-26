@@ -72,7 +72,11 @@ export default function ClusterPainPointsSection({
 
   if (!available) {
     return (
+<<<<<<< HEAD
+      <section className="py-20 bg-card">
+=======
       <section className="py-20 bg-white">
+>>>>>>> origin/main
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mx-auto flex max-w-2xl flex-col items-center text-center">
             <span className="mb-4 inline-flex rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -89,7 +93,11 @@ export default function ClusterPainPointsSection({
   }
 
   return (
+<<<<<<< HEAD
+    <section className="py-20 bg-card">
+=======
     <section className="py-20 bg-white">
+>>>>>>> origin/main
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
           <h2 className="font-display text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
@@ -106,7 +114,11 @@ export default function ClusterPainPointsSection({
 
         <div className="grid md:grid-cols-2 gap-8 mb-16">
           {/* Pain Point 1 - Generic */}
+<<<<<<< HEAD
+          <div className="bg-zaltyko-white rounded-2xl p-8 border border-border shadow-soft">
+=======
           <div className="bg-zaltyko-white rounded-2xl p-8 border border-zaltyko-mist shadow-soft">
+>>>>>>> origin/main
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-xl bg-zaltyko-coral/10 flex items-center justify-center">
                 <painPointIcons.generic className="h-5 w-5 text-zaltyko-coral" />
@@ -117,7 +129,11 @@ export default function ClusterPainPointsSection({
           </div>
 
           {/* Pain Point 2 - Specific */}
+<<<<<<< HEAD
+          <div className="bg-zaltyko-white rounded-2xl p-8 border border-border shadow-soft">
+=======
           <div className="bg-zaltyko-white rounded-2xl p-8 border border-zaltyko-mist shadow-soft">
+>>>>>>> origin/main
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-xl bg-zaltyko-indigo/10 flex items-center justify-center">
                 <painPointIcons.specific className="h-5 w-5 text-zaltyko-indigo" />
@@ -129,14 +145,22 @@ export default function ClusterPainPointsSection({
         </div>
 
         {/* Solution */}
+<<<<<<< HEAD
+        <div className="rounded-card border border-border bg-zaltyko-white p-8 md:p-12 shadow-soft">
+=======
         <div className="rounded-card border border-zaltyko-mist bg-zaltyko-white p-8 md:p-12 shadow-soft">
+>>>>>>> origin/main
           <h3 className="font-display text-2xl sm:text-3xl font-bold text-gray-900 mb-8 text-center">
             {solution.title}
           </h3>
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {solution.features.map((feature) => (
               <div key={feature.text} className="flex items-start gap-3">
+<<<<<<< HEAD
+                <div className="w-8 h-8 rounded-lg bg-card shadow-sm flex items-center justify-center shrink-0">
+=======
                 <div className="w-8 h-8 rounded-lg bg-white shadow-sm flex items-center justify-center shrink-0">
+>>>>>>> origin/main
                   <CheckCircle2 className="h-4 w-4 text-zaltyko-teal" />
                 </div>
                 <p className="text-gray-700 text-sm leading-snug">{feature.text}</p>

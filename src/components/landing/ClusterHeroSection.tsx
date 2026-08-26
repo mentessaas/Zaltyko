@@ -33,7 +33,11 @@ function ClusterHeroSectionImpl({
   const comingSoonLabel = locale === "es" ? "Próximamente" : "Coming soon";
 
   return (
+<<<<<<< HEAD
+    <section className="relative flex min-h-[70vh] items-center bg-card">
+=======
     <section className="relative flex min-h-[70vh] items-center bg-white">
+>>>>>>> origin/main
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-20 lg:py-28">
         <div className="max-w-3xl">
           {/* Breadcrumb */}
@@ -97,7 +101,11 @@ function ClusterHeroSectionImpl({
                 href="/pricing"
                 className={cn(
                   buttonVariants({ variant: "outline", size: "lg" }),
+<<<<<<< HEAD
+                  "border-border text-foreground hover:border-zaltyko-teal hover:bg-zaltyko-white text-base px-8 py-6"
+=======
                   "border-zaltyko-mist text-zaltyko-navy hover:border-zaltyko-teal hover:bg-zaltyko-white text-base px-8 py-6"
+>>>>>>> origin/main
                 )}
               >
                 {locale === "es" ? "Ver planes" : "View plans"}
@@ -106,7 +114,11 @@ function ClusterHeroSectionImpl({
           )}
 
           {/* Trust indicators */}
+<<<<<<< HEAD
+          <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
+=======
           <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-zaltyko-text-secondary">
+>>>>>>> origin/main
             <span className="flex items-center gap-1">
               <Shield className="h-4 w-4 text-zaltyko-teal" />
               {locale === "es" ? "Sin tarjeta de crédito" : "No credit card required"}

@@ -74,7 +74,11 @@ export const ContextGroupAlertComposer = memo(function ContextGroupAlertComposer
             <h2 id="group-alert-title" className="font-medium text-foreground">
               Aviso a las familias · {session.className}
             </h2>
+<<<<<<< HEAD
+            <p className="text-xs text-foreground">
+=======
             <p className="text-xs text-slate-700">
+>>>>>>> origin/main
               {session.groupName ? `${session.groupName} · ` : ""}
               {session.sessionDate}. Quedará en el historial interno y generará una notificación.
             </p>

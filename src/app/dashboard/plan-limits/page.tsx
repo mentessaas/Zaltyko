@@ -117,7 +117,11 @@ export default function PlanLimitsPage() {
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
           <div className="mb-4 inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent"></div>
+<<<<<<< HEAD
+          <p className="text-muted-foreground">Verificando límites...</p>
+=======
           <p className="text-slate-400">Verificando límites...</p>
+>>>>>>> origin/main
         </div>
       </div>
     );
@@ -204,7 +208,11 @@ export default function PlanLimitsPage() {
                   />
                   <div className="flex-1">
                     <p className="font-semibold text-white">{academy.name ?? "Academia sin nombre"}</p>
+<<<<<<< HEAD
+                    <p className="text-xs text-muted-foreground">ID: {academy.id}</p>
+=======
                     <p className="text-xs text-slate-400">ID: {academy.id}</p>
+>>>>>>> origin/main
                   </div>
                   {isSelected && (
                     <CheckCircle className="h-5 w-5 text-emerald-400" strokeWidth={2} />
@@ -213,7 +221,11 @@ export default function PlanLimitsPage() {
               );
             })}
           </div>
+<<<<<<< HEAD
+          <p className="mt-4 text-xs text-muted-foreground">
+=======
           <p className="mt-4 text-xs text-slate-400">
+>>>>>>> origin/main
             Seleccionadas: {selectedAcademies.length} / {academyViolation.limit}
           </p>
         </div>

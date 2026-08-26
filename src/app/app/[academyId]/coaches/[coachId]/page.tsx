@@ -149,29 +149,50 @@ export default async function CoachDetailPage({ params }: PageProps) {
     <div className="space-y-8 py-6 lg:py-8">
       <Link
         href={`/app/${academyId}/coaches`}
+<<<<<<< HEAD
+        className="inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground transition hover:text-zaltyko-teal"
+=======
         className="inline-flex items-center gap-2 text-sm font-semibold text-zaltyko-text-secondary transition hover:text-zaltyko-teal"
+>>>>>>> origin/main
       >
         ← Volver a entrenadores
       </Link>
 
+<<<<<<< HEAD
+      <section className="rounded-2xl border border-border bg-card p-6 shadow-soft">
+        <header className="flex flex-wrap items-start justify-between gap-4">
+          <div className="space-y-2">
+            <p className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-teal">Entrenador</p>
+            <h1 className="font-display text-3xl font-semibold text-foreground">{coachRow.name}</h1>
+            <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+=======
       <section className="rounded-2xl border border-zaltyko-mist bg-white p-6 shadow-soft">
         <header className="flex flex-wrap items-start justify-between gap-4">
           <div className="space-y-2">
             <p className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-teal">Entrenador</p>
             <h1 className="font-display text-3xl font-semibold text-zaltyko-navy">{coachRow.name}</h1>
             <div className="flex flex-wrap gap-2 text-xs text-zaltyko-text-secondary">
+>>>>>>> origin/main
               <span className="rounded-full bg-zaltyko-teal/10 px-3 py-1 font-semibold text-zaltyko-teal">
                 Clases asignadas: {classAssignments.length}
               </span>
               <span className="rounded-full bg-zaltyko-indigo/10 px-3 py-1 font-semibold text-zaltyko-indigo">
                 Grupos principales: {principalGroups.length}
               </span>
+<<<<<<< HEAD
+              <span className="rounded-full bg-zaltyko-mist/30 px-3 py-1 font-semibold text-muted-foreground">
+=======
               <span className="rounded-full bg-zaltyko-mist/30 px-3 py-1 font-semibold text-zaltyko-text-secondary">
+>>>>>>> origin/main
                 Grupos asistente: {assistantGroups.length}
               </span>
             </div>
           </div>
+<<<<<<< HEAD
+          <div className="text-right text-sm text-muted-foreground">
+=======
           <div className="text-right text-sm text-zaltyko-text-secondary">
+>>>>>>> origin/main
             <p>
               Alta:{" "}
               {coachRow.createdAt
@@ -183,6 +204,25 @@ export default async function CoachDetailPage({ params }: PageProps) {
         </header>
 
         <div className="mt-6 grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-3">
+<<<<<<< HEAD
+          <div className="rounded-xl border border-border/70 bg-zaltyko-warm-white p-4">
+            <p className="text-xs uppercase tracking-[0.05em] text-muted-foreground">Correo</p>
+            <p className="mt-1 font-semibold text-foreground">
+              {coachRow.email ?? "No especificado"}
+            </p>
+          </div>
+          <div className="rounded-xl border border-border/70 bg-zaltyko-warm-white p-4">
+            <p className="text-xs uppercase tracking-[0.05em] text-muted-foreground">Teléfono</p>
+            <p className="mt-1 font-semibold text-foreground">
+              {coachRow.phone ?? "No especificado"}
+            </p>
+          </div>
+          <div className="rounded-xl border border-border/70 bg-zaltyko-warm-white p-4">
+            <p className="text-xs uppercase tracking-[0.05em] text-muted-foreground">
+              Tenant ID
+            </p>
+            <p className="mt-1 break-all font-semibold text-foreground">{coachRow.tenantId}</p>
+=======
           <div className="rounded-xl border border-zaltyko-mist/70 bg-zaltyko-warm-white p-4">
             <p className="text-xs uppercase tracking-[0.05em] text-zaltyko-text-secondary">Correo</p>
             <p className="mt-1 font-semibold text-zaltyko-navy">
@@ -200,21 +240,33 @@ export default async function CoachDetailPage({ params }: PageProps) {
               Tenant ID
             </p>
             <p className="mt-1 break-all font-semibold text-zaltyko-navy">{coachRow.tenantId}</p>
+>>>>>>> origin/main
           </div>
         </div>
       </section>
 
       <section className="grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+<<<<<<< HEAD
+        <div className="space-y-4 rounded-2xl border border-border bg-card p-6 shadow-soft">
+          <header>
+            <h2 className="font-display text-lg font-semibold text-foreground">Clases asignadas</h2>
+            <p className="text-sm text-muted-foreground">
+=======
         <div className="space-y-4 rounded-2xl border border-zaltyko-mist bg-white p-6 shadow-soft">
           <header>
             <h2 className="font-display text-lg font-semibold text-zaltyko-navy">Clases asignadas</h2>
             <p className="text-sm text-zaltyko-text-secondary">
+>>>>>>> origin/main
               Clases en las que figura como entrenador responsable.
             </p>
           </header>
 
           {classAssignments.length === 0 ? (
+<<<<<<< HEAD
+            <p className="text-sm text-muted-foreground">
+=======
             <p className="text-sm text-zaltyko-text-secondary">
+>>>>>>> origin/main
               Aún no tiene clases asignadas. Desde la vista de clases puedes asignarlo.
             </p>
           ) : (
@@ -229,11 +281,19 @@ export default async function CoachDetailPage({ params }: PageProps) {
                 return (
                 <div
                   key={classItem.id}
+<<<<<<< HEAD
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/70 bg-zaltyko-warm-white px-4 py-3 text-sm"
+                >
+                  <div>
+                    <p className="font-semibold text-foreground">{classItem.name ?? "Clase"}</p>
+                    <p className="text-xs text-muted-foreground">
+=======
                   className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-zaltyko-mist/70 bg-zaltyko-warm-white px-4 py-3 text-sm"
                 >
                   <div>
                     <p className="font-semibold text-zaltyko-navy">{classItem.name ?? "Clase"}</p>
                     <p className="text-xs text-zaltyko-text-secondary">
+>>>>>>> origin/main
                         {weekdayLabel} ·{" "}
                         {classItem.startTime && classItem.endTime
                           ? `${classItem.startTime} – ${classItem.endTime}`
@@ -255,31 +315,50 @@ export default async function CoachDetailPage({ params }: PageProps) {
           )}
         </div>
 
+<<<<<<< HEAD
+        <div className="space-y-4 rounded-2xl border border-border bg-card p-6 shadow-soft">
+          <header>
+            <h2 className="font-display text-lg font-semibold text-foreground">Grupos</h2>
+            <p className="text-sm text-muted-foreground">
+=======
         <div className="space-y-4 rounded-2xl border border-zaltyko-mist bg-white p-6 shadow-soft">
           <header>
             <h2 className="font-display text-lg font-semibold text-zaltyko-navy">Grupos</h2>
             <p className="text-sm text-zaltyko-text-secondary">
+>>>>>>> origin/main
               Equipos o grupos donde participa como responsable o asistente.
             </p>
           </header>
 
           <div className="space-y-3 text-sm">
             {principalGroups.length === 0 && assistantGroups.length === 0 ? (
+<<<<<<< HEAD
+              <p className="text-sm text-muted-foreground">
+=======
               <p className="text-sm text-zaltyko-text-secondary">
+>>>>>>> origin/main
                 Todavía no participa en ningún grupo. Puedes asignarlo desde el módulo de grupos.
               </p>
             ) : (
               <>
                 {principalGroups.length > 0 && (
                   <div className="space-y-2">
+<<<<<<< HEAD
+                    <h3 className="text-xs font-semibold uppercase tracking-[0.05em] text-muted-foreground">
+=======
                     <h3 className="text-xs font-semibold uppercase tracking-[0.05em] text-zaltyko-text-secondary">
+>>>>>>> origin/main
                       Entrenador principal
                     </h3>
                     <ul className="space-y-2">
                       {principalGroups.map((group) => (
                         <li
                           key={group.id}
+<<<<<<< HEAD
+                          className="flex items-center justify-between rounded-xl border border-border/70 bg-zaltyko-warm-white px-3 py-2"
+=======
                           className="flex items-center justify-between rounded-xl border border-zaltyko-mist/70 bg-zaltyko-warm-white px-3 py-2"
+>>>>>>> origin/main
                         >
                           <span
                             className="inline-flex items-center gap-2 font-semibold"
@@ -311,14 +390,22 @@ export default async function CoachDetailPage({ params }: PageProps) {
 
                 {assistantGroups.length > 0 && (
                   <div className="space-y-2">
+<<<<<<< HEAD
+                    <h3 className="text-xs font-semibold uppercase tracking-[0.05em] text-muted-foreground">
+=======
                     <h3 className="text-xs font-semibold uppercase tracking-[0.05em] text-zaltyko-text-secondary">
+>>>>>>> origin/main
                       Asistente
                     </h3>
                     <ul className="space-y-2">
                       {assistantGroups.map((group) => (
                         <li
                           key={group.id}
+<<<<<<< HEAD
+                          className="flex items-center justify-between rounded-xl border border-border/70 bg-zaltyko-warm-white px-3 py-2"
+=======
                           className="flex items-center justify-between rounded-xl border border-zaltyko-mist/70 bg-zaltyko-warm-white px-3 py-2"
+>>>>>>> origin/main
                         >
                           <span
                             className="inline-flex items-center gap-2"
@@ -353,15 +440,32 @@ export default async function CoachDetailPage({ params }: PageProps) {
         </div>
       </section>
 
+<<<<<<< HEAD
+      <section className="rounded-2xl border border-border bg-card p-6 shadow-soft">
+        <header className="mb-4">
+          <h2 className="font-display text-lg font-semibold text-foreground">Sesiones lideradas recientemente</h2>
+          <p className="text-sm text-muted-foreground">
+=======
       <section className="rounded-2xl border border-zaltyko-mist bg-white p-6 shadow-soft">
         <header className="mb-4">
           <h2 className="font-display text-lg font-semibold text-zaltyko-navy">Sesiones lideradas recientemente</h2>
           <p className="text-sm text-zaltyko-text-secondary">
+>>>>>>> origin/main
             Sesiones del calendario donde figuró como entrenador principal.
           </p>
         </header>
 
         {recentSessions.length === 0 ? (
+<<<<<<< HEAD
+          <p className="text-sm text-muted-foreground">
+            No hay registros recientes de sesiones con este entrenador.
+          </p>
+        ) : (
+          <div className="overflow-hidden rounded-2xl border border-border">
+            <table className="min-w-full divide-y divide-zaltyko-mist text-sm">
+              <thead className="bg-zaltyko-warm-white">
+                <tr className="text-left text-xs uppercase tracking-[0.05em] text-muted-foreground">
+=======
           <p className="text-sm text-zaltyko-text-secondary">
             No hay registros recientes de sesiones con este entrenador.
           </p>
@@ -370,13 +474,18 @@ export default async function CoachDetailPage({ params }: PageProps) {
             <table className="min-w-full divide-y divide-zaltyko-mist text-sm">
               <thead className="bg-zaltyko-warm-white">
                 <tr className="text-left text-xs uppercase tracking-[0.05em] text-zaltyko-text-secondary">
+>>>>>>> origin/main
                   <th className="px-4 py-3 font-medium">Clase</th>
                   <th className="px-4 py-3 font-medium">Fecha</th>
                   <th className="px-4 py-3 font-medium">Horario</th>
                   <th className="px-4 py-3 font-medium text-right">Asistencia</th>
                 </tr>
               </thead>
+<<<<<<< HEAD
+              <tbody className="divide-y divide-border bg-card text-foreground">
+=======
               <tbody className="divide-y divide-slate-100 bg-white text-zaltyko-navy">
+>>>>>>> origin/main
                 {recentSessions.map((session) => (
                   <tr key={session.id} className="transition hover:bg-zaltyko-warm-white/80">
                     <td className="px-4 py-3 font-semibold">

@@ -11,6 +11,19 @@
 //   - IDs en string (uuid). Fechas en ISO string — formatear en UI.
 
 import { apiGet, apiPost, apiPut, apiDelete } from './client';
+<<<<<<< HEAD
+import { normalizeMeProfile, type RawMeProfile, type ZaltykoProfile } from '@/lib/auth/roles';
+
+// ===== Profile =====
+
+// El tipo del perfil (incluida la lista de roles, con `provider`) es
+// el del contrato en lib/auth/roles.ts — una sola fuente de verdad,
+// para que añadir un rol en el backend no requiera recordar dos sitios.
+export type MeProfile = ZaltykoProfile;
+
+export const getMe = async (): Promise<MeProfile> =>
+  normalizeMeProfile(await apiGet<RawMeProfile>('/api/me'));
+=======
 
 // ===== Profile =====
 
@@ -31,6 +44,7 @@ export interface MeProfile {
 }
 
 export const getMe = () => apiGet<MeProfile>('/api/me');
+>>>>>>> origin/main
 
 // ===== Family children =====
 
@@ -88,6 +102,55 @@ export const cancelEnrollment = (enrollmentId: string) =>
 
 // ===== Charges / invoices =====
 
+<<<<<<< HEAD
+// Estados contractuales del Cargo según ZAL-619 §3.6 + tabla de
+// estados (Cargo): `draft`, `due`, `partial`, `paid`, `overdue`,
+// `failed`, `refunded`, `cancelled`. La app NO inventa estados
+// fuera de este set (AC-11). `paid` requiere respaldo del mecanismo
+// de pago; la UI nunca afirma recibo legal.
+export type ChargeStatus =
+  | 'draft'
+  | 'due'
+  | 'partial'
+  | 'paid'
+  | 'overdue'
+  | 'failed'
+  | 'refunded'
+  | 'cancelled';
+
+export const CHARGE_STATUSES = [
+  'draft',
+  'due',
+  'partial',
+  'paid',
+  'overdue',
+  'failed',
+  'refunded',
+  'cancelled',
+] as const satisfies readonly ChargeStatus[];
+
+// Copy localizado para badges de cargo. NO usa palabras que
+// afirmarían recibo legal ("Recibo emitido", "Factura válida", etc.).
+export const CHARGE_STATUS_LABEL: Record<ChargeStatus, string> = {
+  draft: 'Borrador',
+  due: 'Pendiente de vencer',
+  partial: 'Pago parcial',
+  paid: 'Pagado',
+  overdue: 'Vencido',
+  failed: 'Pago fallido',
+  refunded: 'Reembolsado',
+  cancelled: 'Cancelado',
+};
+
+// ¿El CTA "Pagar en web" debe mostrarse? Solo en estados no pagados
+// donde aún hay acción posible para la familia. `paid`/`refunded`/
+// `cancelled`/`draft` no son accionables; `partial` permite completar
+// el pago; `due`/`overdue`/`failed` requieren pago.
+export const isChargePayable = (status: ChargeStatus): boolean =>
+  status === 'due' || status === 'overdue' || status === 'partial' || status === 'failed';
+
+=======
+>>>>>>> origin/main
 export interface Charge {
   id: string;
   athleteId: string;
@@ -96,7 +159,11 @@ export interface Charge {
   amountCents: number;
   currency: string;
   label: string | null;
+<<<<<<< HEAD
+  status: ChargeStatus;
+=======
   status: 'pending' | 'paid' | 'overdue' | 'cancelled' | 'refunded';
+>>>>>>> origin/main
   dueDate: string | null;
   paidAt: string | null;
   period: string | null;
@@ -220,12 +287,23 @@ export const getSessionAttendance = (sessionId: string) =>
 
 export const upsertAttendance = (
   sessionId: string,
+<<<<<<< HEAD
+  entries: { athleteId: string; status?: AttendanceStatus; notes?: string }[],
+  opts?: { idempotencyKey?: string }
+) =>
+  apiPost<{ ok: true }>(
+    `/api/attendance`,
+    { sessionId, entries },
+    opts?.idempotencyKey ? { idempotencyKey: opts.idempotencyKey } : {}
+  );
+=======
   entries: { athleteId: string; status?: AttendanceStatus; notes?: string }[]
 ) =>
   apiPost<{ ok: true }>(`/api/attendance`, {
     sessionId,
     entries,
   });
+>>>>>>> origin/main
 
 // ===== Notifications =====
 

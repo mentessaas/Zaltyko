@@ -18,7 +18,11 @@ const CreateChargeSchema = z.object({
   classId: z.string().uuid().optional().nullable(),
   label: z.string().min(1),
   amountCents: z.number().int().positive(),
+<<<<<<< HEAD
+  currency: z.enum(["eur", "usd", "mxn", "cop", "ars", "clp", "pen"]).default("eur"),
+=======
   currency: z.string().default("EUR"),
+>>>>>>> origin/main
   period: z.string().regex(/^\d{4}-\d{2}$/), // Format: YYYY-MM
   dueDate: z.string().optional(), // ISO date string
   notes: z.string().optional(),

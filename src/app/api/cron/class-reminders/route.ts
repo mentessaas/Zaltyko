@@ -1,6 +1,10 @@
+<<<<<<< HEAD
+import { triggerAttendanceReminders } from "@/lib/email/triggers";
+=======
 import { sendClassReminders } from "@/lib/alerts/class-reminders";
 import { db } from "@/db";
 import { academies } from "@/db/schema";
+>>>>>>> origin/main
 import { logger } from "@/lib/logger";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { requireCronAuth } from "@/lib/cron-auth";
@@ -12,6 +16,16 @@ export async function GET(request: Request) {
 
   try {
     const execution = await runCronWithLease("cron:class-reminders", async () => {
+<<<<<<< HEAD
+      // Recordatorios de clase (email 24h antes) a los inscritos reales de
+      // cada sesión de mañana. Dedupe por sesión+atleta en el log de emails.
+      const sent = await triggerAttendanceReminders();
+
+      return {
+        ok: true,
+        message: "Recordatorios de clase procesados",
+        remindersSent: sent,
+=======
       // Obtener todas las academias activas
       const allAcademies = await db
       .select({
@@ -34,6 +48,7 @@ export async function GET(request: Request) {
         ok: true,
         message: "Class reminders sent successfully",
         academiesProcessed: allAcademies.length,
+>>>>>>> origin/main
       };
     });
     if (!execution.acquired) {

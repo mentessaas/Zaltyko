@@ -12,6 +12,10 @@ import {
   Shield,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+<<<<<<< HEAD
+import Reveal from "@/components/motion/Reveal";
+=======
+>>>>>>> origin/main
 
 const modules = [
   {
@@ -43,7 +47,11 @@ const modules = [
     title: "Eventos",
     description: "Inscripciones a competiciones con categorías por edad y nivel, y lista de espera gestionada.",
     icon: Award,
+<<<<<<< HEAD
+    features: ["Inscripciones online", "Gestión de plazas", "Lista de espera", "Comunicación"],
+=======
     features: ["Inscripciones online", "Categorías por edad y nivel", "Lista de espera", "Comunicación"],
+>>>>>>> origin/main
   },
   {
     title: "Evaluaciones",
@@ -55,7 +63,11 @@ const modules = [
     title: "Reportes",
     description: "Informes de asistencia, cobros, ocupación y evolución para decidir dirección con datos reales.",
     icon: BarChart3,
+<<<<<<< HEAD
+    features: ["Export multi-formato", "Panel de dirección", "Métricas de ocupación y cobros", "Datos para decidir"],
+=======
     features: ["Export multi-formato", "Informes programados", "Panel de dirección", "Métricas claras"],
+>>>>>>> origin/main
   },
   {
     title: "Multi-Sede",
@@ -85,6 +97,19 @@ export default function ModulesSection() {
 
         {/* Modules grid — bento (tamaños variados) */}
         <div className="grid md:grid-cols-2 lg:grid-cols-4 lg:grid-flow-dense gap-6">
+<<<<<<< HEAD
+          {modules.map((module, index) => (
+            <Reveal
+              key={module.title}
+              delay={(index % 4) * 80}
+              className={cn("h-full", module.span)}
+            >
+              <div
+                className={cn(
+                  "h-full rounded-card border border-zaltyko-mist bg-white p-6 transition-all duration-200 hover:-translate-y-1.5 hover:border-zaltyko-teal hover:shadow-lift"
+                )}
+              >
+=======
           {modules.map((module) => (
             <div
               key={module.title}
@@ -93,6 +118,7 @@ export default function ModulesSection() {
                 module.span
               )}
             >
+>>>>>>> origin/main
               {/* Icon */}
               <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-[6px] bg-zaltyko-primary-ultralight">
                 <module.icon className="h-6 w-6 text-zaltyko-teal" />
@@ -117,11 +143,29 @@ export default function ModulesSection() {
                   </li>
                 ))}
               </ul>
+<<<<<<< HEAD
+              </div>
+            </Reveal>
+=======
             </div>
+>>>>>>> origin/main
           ))}
         </div>
 
         {/* Bottom CTA */}
+<<<<<<< HEAD
+        <Reveal>
+          <div className="text-center mt-12">
+            <Link
+              href="/features"
+              className="inline-flex items-center gap-2 font-semibold text-zaltyko-teal transition-all hover:gap-3"
+            >
+              Ver todas las funcionalidades
+              <span className="text-xl">→</span>
+            </Link>
+          </div>
+        </Reveal>
+=======
         <div className="text-center mt-12">
           <Link
             href="/features" 
@@ -131,6 +175,7 @@ export default function ModulesSection() {
             <span className="text-xl">→</span>
           </Link>
         </div>
+>>>>>>> origin/main
       </div>
     </section>
   );

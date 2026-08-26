@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Zaltyko — Demo Home · Propuesta accionistas</title>
+<meta name="description" content="Demo de home Zaltyko con marca y movimiento. No estática, profesional.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config={
+  theme:{
+    extend:{
+      colors:{
+        zaltyko:{ navy:'#0F172A', indigo:'#2B2E83', teal:'#00796B', coral:'#FF6B57', electric:'#1FC7B6', mist:'#CBD5E1', white:'#F8FAFC',
+          'primary-dark':'#00695C', 'warm-white':'#FFF7ED' },
+        background:'hsl(210 33% 97%)', foreground:'hsl(222 47% 11%)', border:'hsl(214 24% 88%)'
+      },
+      fontFamily:{ sans:['Manrope','system-ui','sans-serif'], display:['Space Grotesk','Manrope','sans-serif'] },
+      boxShadow:{ soft:'0 2px 8px rgba(15,23,42,.06)', medium:'0 8px 24px rgba(15,23,42,.08)', brand:'0 8px 30px rgba(0,121,107,.12)', lift:'0 16px 40px -12px rgba(0,121,107,.25)' },
+      borderRadius:{ card:'10px', modal:'16px', control:'6px', xl:'1rem', '2xl':'1.5rem' }
+    }
+  }
+}
+</script>
+<style>
+html{scroll-behavior:smooth;scroll-padding-top:80px}
+body{-webkit-font-smoothing:antialiased}
+::selection{background:#1FC7B6;color:#fff}
+.reveal{opacity:0;transform:translateY(14px);transition:opacity .6s cubic-bezier(.16,1,.3,1),transform .6s cubic-bezier(.16,1,.3,1)}
+.reveal.in{opacity:1;transform:none}
+@media(prefers-reduced-motion:reduce){.reveal{opacity:1;transform:none;transition:none} .marquee-track{animation:none!important}}
+.zaltyko-motion-lines{background-image:url("data:image/svg+xml,%3Csvg width='680' height='180' viewBox='0 0 680 180' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 115C110 78 190 164 292 96C395 27 478 20 680 66' stroke='%231FC7B6' stroke-opacity='.12'/%3E%3Cpath d='M0 145C120 110 204 184 308 120C420 51 494 52 680 90' stroke='%232B2E83' stroke-opacity='.16' stroke-dasharray='5 7'/%3E%3Cpath d='M0 84C118 58 204 130 312 66C425 0 520 6 680 42' stroke='%23FF6B57' stroke-opacity='.10'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right top;background-size:min(680px,100%) auto}
+.marquee{overflow:hidden;white-space:nowrap;border-top:1px solid #E2E8F0;border-bottom:1px solid #E2E8F0}
+.marquee-track{display:inline-flex;animation:marquee 24s linear infinite}
+@keyframes marquee{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+.count{font-variant-numeric:tabular-nums}
+/* bento img overlay tint */
+.tint-teal{background:linear-gradient(180deg, rgba(0,121,107,.08), rgba(0,121,107,.0))}
+.tint-indigo{background:linear-gradient(180deg, rgba(43,46,131,.08), rgba(43,46,131,.0))}
+</style>
+</head>
+<body class="bg-[#F8FAFC] text-[#0F172A] font-sans overflow-x-hidden">
+
+<!-- NAV 64-72px single line -->
+<header class="fixed left-0 right-0 top-0 z-50">
+  <nav id="nav" class="transition-all duration-300 border-b border-transparent bg-white/80 backdrop-blur-md py-3">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div class="flex h-16 items-center justify-between">
+        <a href="#" class="flex items-center gap-2.5 group">
+          <div class="w-8 h-8 rounded-control bg-zaltyko-navy text-white grid place-items-center font-display font-bold text-sm group-hover:scale-[1.02] transition">Z</div>
+          <span class="font-display font-bold tracking-tight">Zaltyko</span>
+          <span class="hidden sm:inline-flex ml-2 text-[11px] font-semibold tracking-[0.08em] uppercase text-zaltyko-teal bg-zaltyko-teal/10 border border-zaltyko-teal/20 px-2.5 py-1 rounded-full">Demo home</span>
+        </a>
+        <div class="hidden md:flex items-center gap-1 rounded-2xl border border-zaltyko-mist/70 bg-white/80 px-2 py-1 shadow-soft">
+          <a href="#modulos" class="px-4 py-2 rounded-xl text-sm font-medium text-slate-600 hover:bg-zaltyko-white hover:text-zaltyko-teal transition">Producto</a>
+          <a href="#comparativa" class="px-4 py-2 rounded-xl text-sm font-medium text-slate-600 hover:bg-zaltyko-white hover:text-zaltyko-teal transition">Comparativa</a>
+          <a href="#faq" class="px-4 py-2 rounded-xl text-sm font-medium text-slate-600 hover:bg-zaltyko-white hover:text-zaltyko-teal transition">FAQ</a>
+          <a href="#precios" class="px-4 py-2 rounded-xl text-sm font-medium text-slate-600 hover:bg-zaltyko-white hover:text-zaltyko-teal transition">Precios</a>
+        </div>
+        <div class="flex items-center gap-2 sm:gap-3">
+          <a href="#" class="hidden sm:inline text-sm font-semibold text-zaltyko-navy hover:text-zaltyko-teal transition">Iniciar sesión</a>
+          <a href="#cta" class="inline-flex items-center gap-1.5 bg-zaltyko-teal text-white font-semibold text-sm px-5 py-2.5 rounded-full shadow-soft hover:bg-zaltyko-primary-dark hover:shadow-medium active:scale-[0.99] transition">Crear cuenta gratis <span class="text-white/80">→</span></a>
+          <button id="menuBtn" class="md:hidden w-11 h-11 grid place-items-center rounded-xl border border-slate-200 bg-white" aria-label="Abrir menú">☰</button>
+        </div>
+      </div>
+    </div>
+    <div id="mobileNav" class="hidden md:hidden border-t border-slate-200 bg-white">
+      <div class="px-4 py-4 space-y-1">
+        <a href="#modulos" class="block px-4 py-3 rounded-xl hover:bg-slate-50">Producto</a>
+        <a href="#comparativa" class="block px-4 py-3 rounded-xl hover:bg-slate-50">Comparativa</a>
+        <a href="#faq" class="block px-4 py-3 rounded-xl hover:bg-slate-50">FAQ</a>
+        <a href="#precios" class="block px-4 py-3 rounded-xl hover:bg-slate-50">Precios</a>
+      </div>
+    </div>
+  </nav>
+</header>
+
+<!-- HERO split 50/50 — cabe en viewport -->
+<section class="relative bg-white pt-28 pb-10 lg:pt-32 lg:pb-14">
+  <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+    <div class="grid lg:grid-cols-2 gap-10 lg:gap-12 items-center">
+      <div class="reveal max-w-2xl">
+        <p class="text-xs font-semibold uppercase tracking-[0.08em] text-zaltyko-teal">Gimnasia artística · GAM · Rítmica</p>
+        <h1 class="mt-3 font-display font-bold leading-[0.96] tracking-tight text-[clamp(30px,5vw,56px)]">Las cuotas cobradas, los grupos montados y la lista pasada.</h1>
+        <p class="mt-3 font-display text-xl font-medium text-slate-600">Sin Excel y sin los chats de WhatsApp del club.</p>
+        <p class="mt-4 max-w-xl text-[16px] leading-relaxed text-slate-600">Software solo para gimnasia: grupos, cobros, horarios y familias. De hojas sueltas al orden.</p>
+        <div class="mt-6 flex flex-wrap gap-3">
+          <a href="#" class="inline-flex items-center gap-2 bg-zaltyko-teal text-white font-semibold px-7 py-3 rounded-xl shadow-brand hover:bg-zaltyko-primary-dark hover:shadow-lift active:scale-[0.99] transition">Crea tu academia gratis <span>→</span></a>
+          <a href="#precios" class="inline-flex items-center gap-2 bg-white border border-zaltyko-mist text-zaltyko-indigo font-semibold px-7 py-3 rounded-xl hover:border-zaltyko-indigo/30 hover:bg-zaltyko-white transition">Ver planes</a>
+        </div>
+        <p class="mt-4 flex flex-wrap gap-x-3 gap-y-1 text-sm text-slate-600">
+          <span class="inline-flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Sin tarjeta</span><span>·</span><span>Puesta en marcha guiada</span><span>·</span><span>Sin permanencia</span>
+        </p>
+      </div>
+
+      <!-- Right: live roster preview with motion -->
+      <div class="reveal" style="transition-delay:.08s">
+        <div class="relative rounded-card border border-zaltyko-mist bg-white shadow-medium overflow-hidden">
+          <div class="flex items-center justify-between px-5 py-4 border-b border-zaltyko-mist">
+            <div><div class="font-display text-sm font-bold">Entrenamiento · Base 3</div><div class="text-xs text-slate-500">Hoy · 17:30 · <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> En curso</span></div></div>
+            <div class="text-right"><div class="font-display text-xl font-bold"><span class="count" data-count="2">0</span><span class="text-slate-400">/4</span></div><div class="text-xs text-slate-500">presentes</div></div>
+          </div>
+          <ul id="roster" class="divide-y divide-slate-100">
+            <li class="flex items-center justify-between gap-3 px-5 py-3"><div><div class="text-sm font-semibold">Lucía M.</div><div class="text-xs text-slate-500">Base 3 · GAF</div></div><span class="text-xs font-semibold px-2.5 py-1 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">Presente</span></li>
+            <li class="flex items-center justify-between gap-3 px-5 py-3"><div><div class="text-sm font-semibold">Martín O.</div><div class="text-xs text-slate-500">Iniciación · GAM</div></div><span class="text-xs font-semibold px-2.5 py-1 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">Presente</span></li>
+            <li class="flex items-center justify-between gap-3 px-5 py-3"><div><div class="text-sm font-semibold">Vera S.</div><div class="text-xs text-slate-500">Base 2 · Rítmica</div></div><span class="text-xs font-semibold px-2.5 py-1 rounded bg-amber-50 text-amber-700 border border-amber-200">Tarde</span></li>
+            <li class="flex items-center justify-between gap-3 px-5 py-3"><div><div class="text-sm font-semibold">Noa P.</div><div class="text-xs text-slate-500">Base 3 · GAF</div></div><span class="text-xs font-semibold px-2.5 py-1 rounded bg-red-50 text-red-700 border border-red-200">Ausente</span></li>
+          </ul>
+          <div class="px-5 py-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
+            <span class="text-xs font-medium text-slate-600">Sesión guardada · 17:34</span>
+            <span class="text-xs font-bold text-zaltyko-teal">Ver asistencia →</span>
+          </div>
+        </div>
+        <p class="mt-2 text-xs text-slate-500 text-center">Pase de lista en un toque — verificado en móvil.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Marquee único (max 1 por página) -->
+<div class="marquee bg-white">
+  <div class="marquee-track py-2.5 text-xs font-semibold tracking-[0.14em] uppercase text-slate-500">
+    <span class="px-6">Gimnasia artística</span><span class="text-zaltyko-mist">·</span><span class="px-6">Gimnasia rítmica</span><span class="px-6">Acrobática</span><span class="text-zaltyko-mist">·</span><span class="px-6">Trampolín</span><span class="text-zaltyko-mist">·</span><span class="px-6">GAF · GAM</span><span class="text-zaltyko-mist">·</span><span class="px-6">Niveles por aparato</span><span class="text-zaltyko-mist">·</span><span class="px-6">Cuotas recurrentes</span><span class="text-zaltyko-mist">·</span>
+    <span class="px-6">Gimnasia artística</span><span class="text-zaltyko-mist">·</span><span class="px-6">Gimnasia rítmica</span><span class="px-6">Acrobática</span><span class="text-zaltyko-mist">·</span><span class="px-6">Trampolín</span><span class="text-zaltyko-mist">·</span><span class="px-6">GAF · GAM</span><span class="text-zaltyko-mist">·</span><span class="px-6">Niveles por aparato</span><span class="text-zaltyko-mist">·</span><span class="px-6">Cuotas recurrentes</span><span class="text-zaltyko-mist">·</span>
+  </div>
+</div>
+
+<!-- SocialProof: 4 pasos con stagger -->
+<section class="py-12 bg-white border-y border-slate-200">
+  <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+    <p class="text-center text-xs font-semibold uppercase tracking-[0.08em] text-zaltyko-teal">Cómo te acompañamos</p>
+    <div class="grid gap-8 sm:grid-cols-2 lg:grid-cols-4 mt-8">
+      <div class="reveal text-center"><div class="mx-auto w-12 h-12 rounded-control bg-zaltyko-teal/10 grid place-items-center text-zaltyko-teal">1</div><h3 class="mt-3 font-display font-bold">Configuras</h3><p class="text-sm text-slate-600">Sedes, grupos y niveles por modalidad.</p></div>
+      <div class="reveal text-center" style="transition-delay:.06s"><div class="mx-auto w-12 h-12 rounded-control bg-zaltyko-teal/10 grid place-items-center text-zaltyko-teal">2</div><h3 class="mt-3 font-display font-bold">Importas</h3><p class="text-sm text-slate-600">Gimnastas desde Excel/CSV sin copiar una a una.</p></div>
+      <div class="reveal text-center" style="transition-delay:.12s"><div class="mx-auto w-12 h-12 rounded-control bg-zaltyko-teal/10 grid place-items-center text-zaltyko-teal">3</div><h3 class="mt-3 font-display font-bold">Activas</h3><p class="text-sm text-slate-600">Cobros y horarios listos para clase.</p></div>
+      <div class="reveal text-center" style="transition-delay:.18s"><div class="mx-auto w-12 h-12 rounded-control bg-zaltyko-teal/10 grid place-items-center text-zaltyko-teal">4</div><h3 class="mt-3 font-display font-bold">Sumas equipo</h3><p class="text-sm text-slate-600">Coaches y familias con acceso por rol.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- Modules bento: 1 hero + varied, con fotos reales y tints -->
+<section id="modulos" class="py-14 lg:py-20 bg-[#F8FAFC]">
+  <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+    <div class="max-w-3xl mx-auto text-center reveal">
+      <p class="text-xs font-semibold uppercase tracking-[0.08em] text-zaltyko-teal">Funcionalidades</p>
+      <h2 class="mt-2 font-display text-4xl sm:text-5xl font-bold tracking-tight">Hecho para cómo funciona un club</h2>
+      <p class="mt-3 text-lg text-slate-600">Niveles, aparatos, GAF/GAM/rítmica, cuotas por grupo, rúbricas. Un CRM genérico no sabe ni escribirlo.</p>
+    </div>
+
+    <div class="grid md:grid-cols-2 lg:grid-cols-4 lg:grid-flow-dense gap-5 mt-10">
+      <!-- Hero Cobros lg:col-span-2 tall with image -->
+      <div class="reveal lg:col-span-2 rounded-card border border-zaltyko-mist bg-white overflow-hidden hover:shadow-brand hover:-translate-y-1 transition-all duration-300">
+        <div class="h-40 relative">
+          <img src="https://picsum.photos/seed/zaltyko-cobros/800/400" alt="Cobros" class="w-full h-full object-cover">
+          <div class="absolute inset-0 tint-teal"></div>
+          <span class="absolute left-3 top-3 text-xs font-bold px-2.5 py-1 rounded-full bg-white shadow-soft">Más usado</span>
+        </div>
+        <div class="p-6">
+          <h3 class="font-display font-bold text-lg">Cobros</h3>
+          <p class="text-sm text-slate-600 mt-1">Cuotas recurrentes, avisos automáticos y seguimiento de impagos sin perseguir.</p>
+          <div class="mt-3 flex flex-wrap gap-2 text-xs"><span class="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">Pagos recurrentes</span><span class="px-2.5 py-1 rounded-full bg-slate-50 border">Avisos automáticos</span></div>
+        </div>
+      </div>
+      <!-- 2 standard -->
+      <div class="reveal rounded-card border border-zaltyko-mist bg-white p-6 hover:shadow-brand hover:-translate-y-1 transition-all duration-300 tint-indigo" style="transition-delay:.06s">
+        <img src="https://picsum.photos/seed/zaltyko-clases/600/360" alt="" class="w-full h-28 object-cover rounded-xl mb-4">
+        <h3 class="font-display font-bold">Clases & Horarios</h3>
+        <p class="text-sm text-slate-600 mt-1">Calendario, aforo, pase de lista y waiting lists.</p>
+        <ul class="mt-3 space-y-1.5 text-xs text-slate-600"><li class="flex gap-2"><span class="w-1.5 h-1.5 rounded-full bg-zaltyko-teal mt-1.5"></span>Calendario interactivo</li><li class="flex gap-2"><span class="w-1.5 h-1.5 rounded-full bg-zaltyko-teal mt-1.5"></span>Pase por sesión</li></ul>
+      </div>
+      <div class="reveal rounded-card border border-zaltyko-mist bg-zaltyko-indigo text-white p-6 hover:shadow-medium hover:-translate-y-1 transition-all duration-300" style="transition-delay:.12s">
+        <h3 class="font-display font-bold">Comunicación</h3>
+        <p class="text-sm text-white/80 mt-1">Mensajes por grupo, plantillas y notificaciones internas.</p>
+        <div class="mt-4 rounded-xl bg-white/10 p-3 text-xs leading-relaxed">“Entreno Base 3 cancelado hoy por festivo. Recuperamos el sábado 10h.”<div class="mt-1 text-white/60">Enviado a 18 familias · 17:12</div></div>
+      </div>
+      <!-- row 2 -->
+      <div class="reveal rounded-card border border-zaltyko-mist bg-white p-6 hover:shadow-brand hover:-translate-y-1 transition"><h3 class="font-display font-bold">Gimnastas</h3><p class="text-sm text-slate-600 mt-1">Fichas por nivel, categoría y aparatos, con documentación y evolución.</p></div>
+      <div class="reveal rounded-card border border-zaltyko-mist bg-white p-6 hover:shadow-brand hover:-translate-y-1 transition" style="transition-delay:.06s"><h3 class="font-display font-bold">Eventos</h3><p class="text-sm text-slate-600 mt-1">Inscripciones por edad/nivel con lista de espera gestionada.</p></div>
+      <div class="reveal rounded-card border border-zaltyko-mist bg-white p-6 hover:shadow-brand hover:-translate-y-1 transition" style="transition-delay:.12s"><h3 class="font-display font-bold">Evaluaciones</h3><p class="text-sm text-slate-600 mt-1">Rúbricas, vídeos y export a PDF con progreso.</p></div>
+      <div class="reveal rounded-card border border-zaltyko-mist bg-white p-6 hover:shadow-brand hover:-translate-y-1 transition" style="transition-delay:.18s"><h3 class="font-display font-bold">Reportes</h3><p class="text-sm text-slate-600 mt-1">Asistencia, cobros y ocupación para dirección.</p></div>
+      <div class="reveal lg:col-span-1 rounded-card border border-zaltyko-mist bg-white p-6 hover:shadow-brand hover:-translate-y-1 transition hidden lg:block"><h3 class="font-display font-bold">Multi-Sede</h3><p class="text-sm text-slate-600 mt-1">Network con diagnóstico y aislamiento por academia.</p></div>
+    </div>
+
+    <div class="text-center mt-8">
+      <a href="#" class="inline-flex items-center gap-2 font-semibold text-zaltyko-teal hover:gap-3 transition">Ver todas las funcionalidades <span>→</span></a>
+    </div>
+  </div>
+</section>
+
+<!-- Comparison: 3 cards destacadas + colapsable (no 10 filas visibles) -->
+<section id="comparativa" class="py-14 lg:py-20 bg-white">
+  <div class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+    <div class="text-center reveal">
+      <span class="inline-flex px-3 py-1 rounded-full bg-zaltyko-teal/10 text-zaltyko-indigo text-xs font-semibold">Comparativa</span>
+      <h2 class="mt-3 font-display text-4xl sm:text-5xl font-bold tracking-tight">¿Por qué no seguir con Excel?</h2>
+      <p class="mt-3 text-lg text-slate-600">Lo que se rompe a las 75 gimnastas no se arregla con otra pestaña.</p>
+    </div>
+    <div class="grid md:grid-cols-3 gap-4 mt-8">
+      <div class="reveal rounded-card border-2 border-zaltyko-teal bg-zaltyko-teal/5 p-6 text-center shadow-brand">
+        <div class="text-xs font-bold tracking-wide uppercase text-zaltyko-teal">Zaltyko · Recomendado</div>
+        <div class="mt-2 space-y-2 text-sm"><div class="flex items-center justify-center gap-2"><span class="w-5 h-5 rounded-full bg-zaltyko-teal text-white grid place-items-center text-xs">✓</span> Cobros automáticos</div><div class="flex items-center justify-center gap-2"><span class="w-5 h-5 rounded-full bg-zaltyko-teal text-white grid place-items-center text-xs">✓</span> Pase por sesión</div><div class="flex items-center justify-center gap-2"><span class="w-5 h-5 rounded-full bg-zaltyko-teal text-white grid place-items-center text-xs">✓</span> Familias informadas</div></div>
+        <a href="#" class="mt-4 inline-flex bg-zaltyko-teal text-white font-semibold px-5 py-2.5 rounded-full text-sm shadow-soft">Crear cuenta gratis</a>
+      </div>
+      <div class="reveal rounded-card border border-slate-200 bg-slate-50 p-6 text-center" style="transition-delay:.06s"><div class="text-xs font-semibold text-slate-500">Excel / Sheets</div><p class="text-sm text-slate-600 mt-2">Manual, sin avisos, sin roles, se rompe al compartir.</p><div class="mt-3 text-xs text-slate-400">✕ Cobros · ✕ Pase lista · ✕ Familias</div></div>
+      <div class="reveal rounded-card border border-slate-200 bg-slate-50 p-6 text-center" style="transition-delay:.12s"><div class="text-xs font-semibold text-slate-500">Software genérico</div><p class="text-sm text-slate-600 mt-2">CRM sin gimnasia: niveles y aparatos no existen.</p><div class="mt-3 text-xs text-slate-400">— Limitado · — Sin rúbricas</div></div>
+    </div>
+    <details class="reveal mt-6 rounded-card border border-slate-200 bg-white p-4">
+      <summary class="cursor-pointer font-semibold list-none flex items-center justify-between">Ver comparativa completa (10 puntos) <span class="text-slate-400">⌄</span></summary>
+      <div class="mt-4 overflow-x-auto rounded-xl border border-slate-200">
+        <table class="w-full text-sm bg-white"><thead class="bg-slate-50"><tr><th class="text-left p-3">Funcionalidad</th><th class="text-center p-3 bg-zaltyko-teal text-white">Zaltyko</th><th class="text-center p-3">Excel</th><th class="text-center p-3">Genérico</th></tr></thead><tbody class="divide-y"><tr><td class="p-3">Puesta en marcha</td><td class="text-center p-3 bg-emerald-50">Import Excel</td><td class="text-center p-3">Manual</td><td class="text-center p-3">Según proveedor</td></tr><tr><td class="p-3">Soporte en español</td><td class="text-center p-3 bg-emerald-50">✓</td><td class="text-center p-3">—</td><td class="text-center p-3">Limitado</td></tr><tr><td class="p-3">7 días Starter sin tarjeta</td><td class="text-center p-3 bg-emerald-50">✓</td><td class="text-center p-3">—</td><td class="text-center p-3">—</td></tr></tbody></table>
+      </div>
+    </details>
+  </div>
+</section>
+
+<!-- Testimonios carrusel (no 6 líneas) -->
+<section class="py-14 bg-[#F8FAFC] border-y border-slate-200">
+  <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+    <div class="flex items-end justify-between gap-4 reveal">
+      <h2 class="font-display text-2xl sm:text-3xl font-bold">Historias de pista</h2>
+      <div class="hidden sm:flex gap-2"><button id="prev" class="w-9 h-9 rounded-full border bg-white grid place-items-center">‹</button><button id="next" class="w-9 h-9 rounded-full border bg-white grid place-items-center">›</button></div>
+    </div>
+    <div id="carousel" class="mt-6 flex gap-4 overflow-x-auto snap-x snap-mandatory scroll-smooth pb-2" style="scrollbar-width:none">
+      <div class="min-w-[320px] sm:min-w-[380px] snap-start rounded-card border border-slate-200 bg-white p-6 shadow-soft"><p class="text-sm leading-relaxed">“Pasamos de perseguir cuotas por WhatsApp a cobrar a tiempo. El aviso automático nos ahorró 6 horas al mes.”</p><div class="mt-4 text-sm font-semibold">Dirección · Club GAF 120 gimnastas</div><div class="text-xs text-slate-500">Starter · 19€/mes</div></div>
+      <div class="min-w-[320px] sm:min-w-[380px] snap-start rounded-card border border-slate-200 bg-white p-6 shadow-soft"><p class="text-sm leading-relaxed">“El pase de lista desde el móvil cambió los entrenos. Una pantalla, un toque.”</p><div class="mt-4 text-sm font-semibold">Coordinación · Rítmica 80 gimnastas</div></div>
+      <div class="min-w-[320px] sm:min-w-[380px] snap-start rounded-card border border-slate-200 bg-white p-6 shadow-soft"><p class="text-sm leading-relaxed">“Las familias por fin ven progreso sin preguntar cada semana.”</p><div class="mt-4 text-sm font-semibold">Familia · Base 3</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ acordeón + precios teaser -->
+<section id="faq" class="py-14 lg:py-20 bg-white">
+  <div class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+    <div class="grid lg:grid-cols-2 gap-10">
+      <div class="reveal">
+        <h2 class="font-display text-3xl font-bold tracking-tight">Preguntas que nos hacen en demo</h2>
+        <div class="mt-6 space-y-3">
+          <details class="group rounded-card border border-slate-200 bg-white p-4 open:shadow-soft" open><summary class="flex justify-between cursor-pointer list-none font-semibold">¿Para qué modalidades sirve? <span class="text-slate-400 group-open:rotate-180 transition">⌃</span></summary><p class="text-sm text-slate-600 mt-2">Artística femenina, masculina y rítmica. Mixta si trabajas varias.</p></details>
+          <details class="group rounded-card border border-slate-200 bg-white p-4"><summary class="flex justify-between cursor-pointer list-none font-semibold">¿Migráis datos de Excel? <span class="text-slate-400 group-open:rotate-180 transition">⌃</span></summary><p class="text-sm text-slate-600 mt-2">Sí, gimnastas vía CSV/Excel. Resto con puesta en marcha guiada.</p></details>
+          <details class="group rounded-card border border-slate-200 bg-white p-4"><summary class="flex justify-between cursor-pointer list-none font-semibold">¿Y la protección de menores? <span class="text-slate-400 group-open:rotate-180 transition">⌃</span></summary><p class="text-sm text-slate-600 mt-2">Aislamiento por academia + roles + RLS. Consentimientos según tu asesoría.</p></details>
+        </div>
+      </div>
+      <div id="precios" class="reveal rounded-modal border border-slate-200 bg-slate-50 p-6" style="transition-delay:.06s">
+        <h3 class="font-display font-bold text-xl">Precios claros</h3>
+        <div class="mt-4 grid grid-cols-3 gap-3 text-center">
+          <div class="rounded-card bg-white border p-4"><div class="text-xs font-semibold text-slate-500">Free</div><div class="font-display text-2xl font-bold">0€</div><div class="text-xs text-slate-500">30</div></div>
+          <div class="rounded-card bg-zaltyko-navy text-white p-4 shadow-brand"><div class="text-xs font-semibold text-white/70">Starter</div><div class="font-display text-2xl font-bold">19€</div><div class="text-xs text-white/70">75</div></div>
+          <div class="rounded-card bg-white border p-4"><div class="text-xs font-semibold text-slate-500">Growth</div><div class="font-display text-2xl font-bold">49€</div><div class="text-xs text-slate-500">200</div></div>
+        </div>
+        <p class="text-xs text-slate-500 mt-3">Sin permanencia. Cancela cuando quieras.</p>
+        <a href="#" class="mt-4 inline-flex w-full justify-center bg-zaltyko-teal text-white font-semibold py-3 rounded-xl shadow-soft">Crear cuenta gratis</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Final CTA indigo con motion-lines -->
+<section id="cta" class="relative overflow-hidden bg-zaltyko-navy text-white">
+  <div class="absolute inset-0 zaltyko-motion-lines opacity-40"></div>
+  <div class="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-14 lg:py-16">
+    <div class="rounded-modal bg-white text-zaltyko-navy p-6 lg:p-8 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 shadow-lift reveal">
+      <div><h2 class="font-display text-2xl lg:text-3xl font-bold tracking-tight">Empieza gratis. Ordena la próxima clase.</h2><p class="text-slate-600 mt-1">Sin tarjeta. Puesta en marcha guiada por modalidad y tamaño.</p></div>
+      <a href="#" class="inline-flex items-center gap-2 bg-zaltyko-teal text-white font-semibold px-7 py-3 rounded-full shadow-brand hover:bg-zaltyko-primary-dark hover:shadow-lift active:scale-[0.99] transition">Crear tu academia gratis <span>→</span></a>
+    </div>
+  </div>
+</section>
+
+<footer class="bg-zaltyko-navy text-white">
+  <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10">
+    <div class="flex flex-col sm:flex-row justify-between gap-4 text-sm text-white/60">
+      <span>© 2026 Zaltyko · Software para academias de gimnasia</span>
+      <span>Artística femenina, masculina y rítmica · Soporte en español</span>
+    </div>
+  </div>
+</footer>
+
+<div class="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 hidden md:flex items-center gap-3 bg-white border border-slate-200 rounded-full shadow-medium px-2 py-2">
+  <span class="text-sm font-medium px-3">¿Lista para ordenar la próxima clase?</span>
+  <a href="#" class="bg-zaltyko-teal text-white font-semibold px-5 py-2 rounded-full text-sm">Crear cuenta gratis</a>
+</div>
+
+<script>
+// nav scroll
+const nav=document.getElementById('nav');
+addEventListener('scroll',()=>{ if(scrollY>20) nav.classList.add('bg-white/95','shadow-soft','backdrop-blur-lg'); else nav.classList.remove('bg-white/95','shadow-soft'); }, {passive:true});
+// mobile
+document.getElementById('menuBtn').onclick=()=>document.getElementById('mobileNav').classList.toggle('hidden');
+// reveal + counters
+const ro=new IntersectionObserver(es=>es.forEach(e=>{ if(e.isIntersecting) e.target.classList.add('in') }),{threshold:.15});
+document.querySelectorAll('.reveal').forEach(el=>ro.observe(el));
+const counters=document.querySelectorAll('.count');
+const co=new IntersectionObserver(es=>es.forEach(e=>{
+  if(!e.isIntersecting) return;
+  const el=e.target, t=+el.dataset.count;
+  let cur=0; const step=Math.max(1,Math.round(t/18));
+  const id=setInterval(()=>{ cur=Math.min(t,cur+step); el.textContent=cur; if(cur>=t) clearInterval(id); }, 40);
+  co.unobserve(el);
+}),{threshold:.6});
+counters.forEach(c=>co.observe(c));
+// carousel
+const car=document.getElementById('carousel');
+document.getElementById('next').onclick=()=>car.scrollBy({left:380,behavior:'smooth'});
+document.getElementById('prev').onclick=()=>car.scrollBy({left:-380,behavior:'smooth'});
+</script>
+</body>
+</html>

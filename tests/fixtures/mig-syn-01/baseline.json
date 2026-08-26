@@ -1,0 +1,42 @@
+{
+  "schema_version": "baseline-1.0",
+  "issue": "ZAL-626",
+  "academy_id": "00000000-aaaa-0000-0000-000000000001",
+  "captured_before_job": true,
+  "count_after_commit": {
+    "athletes_created": 4,
+    "athletes_kept_separate": 1,
+    "athletes_duplicates_rejected": 1,
+    "athletes_invalid_rejected": 2,
+    "athletes_ambiguous_hold_for_resolution": 1,
+    "groups_kept_separate_or_resolved": 1,
+    "families_linked": 4,
+    "charges_created": 3,
+    "payments_created": 1,
+    "refunds_created": 0,
+    "external_ids_committed": ["A-001", "A-002", "A-003", "A-004", "A-008", "FIN-CHG-001", "FIN-CHG-002", "FIN-CHG-003", "FIN-PAY-001"]
+  },
+  "totals_reconciliation_eur": {
+    "charges_sum": 285.00,
+    "payments_sum": 150.00,
+    "refunds_sum": 0.00,
+    "opening_balance_observed": 135.00,
+    "expected_opening_balance": 135.00,
+    "mismatch": false
+  },
+  "by_row_decision": [
+    {"row": 2, "external_id": "A-001", "decision": "created", "reason": "external_id único, dob ISO, group ambig resuelto a código del catálogo"},
+    {"row": 3, "external_id": "A-002", "decision": "created", "reason": "gemela con A-001 misma dob pero external_id distinto; no se fusiona"},
+    {"row": 4, "external_id": "A-001", "decision": "rejected", "reason": "external_id duplicado con payload distinto; DUPLICATE_SUSPECTED bloquea commit hasta omitir fila"},
+    {"row": 5, "external_id": "A-003", "decision": "ambiguous_hold", "reason": "fecha 03/04/2012 ambigua por locale; requiere corrección o exclusión explícita"},
+    {"row": 6, "external_id": "A-004", "decision": "created", "reason": "dob ausente permitido; resto válido"},
+    {"row": 7, "external_id": null, "decision": "rejected", "reason": "fila sin name; IMPORT_ROW_INVALID no crea atleta"},
+    {"row": 8, "external_id": "A-006", "decision": "rejected", "reason": "grupo base_3_no_existe no existe en academia"},
+    {"row": 9, "external_id": "A-007", "decision": "rejected", "reason": "sport_config_code RFEG-NO-EXISTE no está en el catálogo activo"},
+    {"row": 10, "external_id": "A-008", "decision": "created", "reason": "status inactive válido"}
+  ],
+  "rollback_comparison": {
+    "expected_state_after_rollback": "baseline igual a pre-job: cero atletas/grupos/familias/cargos/pagos creados por este job; audit log conserva el jobId y los external_ids revertidos",
+    "rollback_failed_state": "estado consistente con pre-job más el intento de rollback; auditoría marcada con rollback_failed y reintento disponible"
+  }
+}

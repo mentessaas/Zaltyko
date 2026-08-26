@@ -289,7 +289,11 @@ export function CommercialInterviewWorkspace({ interviews, leads }: CommercialIn
           </p>
         )}
 
+<<<<<<< HEAD
+        <Button type="submit" disabled={submitting} className="mt-6 min-h-[44px] w-full bg-zaltyko-electric text-foreground hover:bg-zaltyko-electric/90">
+=======
         <Button type="submit" disabled={submitting} className="mt-6 min-h-[44px] w-full bg-zaltyko-electric text-zaltyko-navy hover:bg-zaltyko-electric/90">
+>>>>>>> origin/main
           {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" /> : <CalendarPlus className="mr-2 h-4 w-4" aria-hidden="true" />}
           {submitting ? "Guardando…" : editing ? "Actualizar entrevista" : "Guardar entrevista"}
         </Button>
@@ -301,6 +305,17 @@ export function CommercialInterviewWorkspace({ interviews, leads }: CommercialIn
           <h2 className="mt-1 font-display text-xl font-semibold text-white">Academias entrevistadas</h2>
           <p className="mt-2 text-sm text-white/50">Programar no suma al 10/10. Solo “Completada” con evidencia mínima cuenta.</p>
         </div>
+<<<<<<< HEAD
+        <div className="mt-6 overflow-hidden rounded-xl border border-white/10 bg-card">
+          <Table>
+            <TableHeader><TableRow><TableHead className="text-muted-foreground">Academia</TableHead><TableHead className="text-muted-foreground">Tamaño</TableHead><TableHead className="text-muted-foreground">Precio</TableHead><TableHead className="text-muted-foreground">Estado</TableHead><TableHead><span className="sr-only">Acciones</span></TableHead></TableRow></TableHeader>
+            <TableBody>
+              {interviews.length === 0 ? (
+                <TableRow><TableCell colSpan={5} className="py-12 text-center text-muted-foreground">Aún no hay entrevistas reales registradas.</TableCell></TableRow>
+              ) : interviews.map((interview) => (
+                <TableRow key={interview.id}>
+                  <TableCell><p className="font-semibold">{interview.academyName}</p><p className="mt-1 text-xs text-muted-foreground">{[interview.city, interview.countryCode, interview.modality].filter(Boolean).join(" · ") || "Sin ubicación"}</p></TableCell>
+=======
         <div className="mt-6 overflow-hidden rounded-xl border border-white/10 bg-white">
           <Table>
             <TableHeader><TableRow><TableHead className="text-slate-600">Academia</TableHead><TableHead className="text-slate-600">Tamaño</TableHead><TableHead className="text-slate-600">Precio</TableHead><TableHead className="text-slate-600">Estado</TableHead><TableHead><span className="sr-only">Acciones</span></TableHead></TableRow></TableHeader>
@@ -310,6 +325,7 @@ export function CommercialInterviewWorkspace({ interviews, leads }: CommercialIn
               ) : interviews.map((interview) => (
                 <TableRow key={interview.id}>
                   <TableCell><p className="font-semibold">{interview.academyName}</p><p className="mt-1 text-xs text-slate-500">{[interview.city, interview.countryCode, interview.modality].filter(Boolean).join(" · ") || "Sin ubicación"}</p></TableCell>
+>>>>>>> origin/main
                   <TableCell>{interview.athleteCount ?? "—"} gimnastas</TableCell>
                   <TableCell>{interview.easyPriceEur === null ? "—" : `${interview.easyPriceEur} €`} / {interview.limitPriceEur === null ? "—" : `${interview.limitPriceEur} €`}</TableCell>
                   <TableCell>{statusBadge(interview.status)}</TableCell>

@@ -40,8 +40,15 @@ export async function GET(request: Request) {
   const category = searchParams.get("category");
   const jobType = searchParams.get("jobType");
   const search = searchParams.get("search");
+<<<<<<< HEAD
+  const rawPage = parseInt(searchParams.get("page") || "1", 10);
+  const rawLimit = parseInt(searchParams.get("limit") || "20", 10);
+  const page = Number.isFinite(rawPage) && rawPage > 0 ? rawPage : 1;
+  const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, 100) : 20;
+=======
   const page = parseInt(searchParams.get("page") || "1");
   const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 100);
+>>>>>>> origin/main
 
   const conditions = [eq(empleoListings.status, "active")];
 
@@ -64,6 +71,33 @@ export async function GET(request: Request) {
 
   const offset = (page - 1) * limit;
 
+<<<<<<< HEAD
+  try {
+    const listings = await db.select()
+      .from(empleoListings)
+      .where(and(...conditions))
+      .orderBy(desc(empleoListings.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    const [countResult] = await db.select({ count: count() })
+      .from(empleoListings)
+      .where(and(...conditions));
+
+    const items = listings.length === 0 && process.env.NODE_ENV !== "production" ? [demoEmploymentListing] : listings;
+    const total = listings.length === 0 && process.env.NODE_ENV !== "production" ? 1 : countResult?.count ?? 0;
+
+    return apiSuccess({
+      items,
+      total,
+      page,
+      pageSize: limit,
+    }, { total, page, pageSize: limit });
+  } catch (error) {
+    logger.error("Error listing employment listings:", error);
+    return apiError("INTERNAL_ERROR", "Error al listar las ofertas", 500);
+  }
+=======
   const listings = await db.select()
     .from(empleoListings)
     .where(and(...conditions))
@@ -84,6 +118,7 @@ export async function GET(request: Request) {
     page,
     pageSize: limit,
   }, { total, page, pageSize: limit });
+>>>>>>> origin/main
 }
 
 export const POST = withTenant(async (request: Request, context: TenantContext) => {

@@ -14,7 +14,17 @@ import {
   deleteMyAccount,
   getSessionAttendance,
   sendGroupAlert,
+<<<<<<< HEAD
+  upsertAttendance,
+  CHARGE_STATUSES,
+  CHARGE_STATUS_LABEL,
+  isChargePayable,
 } from './endpoints';
+import { ApiClientError } from './client';
+import { getMyDashboard } from './family-dashboard';
+=======
+} from './endpoints';
+>>>>>>> origin/main
 
 // endpoints.ts es la frontera de contrato con el backend: define qué ruta
 // se llama, cómo se arma el query-string y cómo se desenvuelve la respuesta.
@@ -295,3 +305,263 @@ describe('propagación de errores del backend', () => {
     });
   });
 });
+<<<<<<< HEAD
+
+describe('idempotencia de mutaciones (ZAL-619 §6.2 + AC-09)', () => {
+  it('upsertAttendance SIN idempotencyKey NO manda el header (compatibilidad hacia atrás)', async () => {
+    const fetchMock = stubFetch({ ok: true, data: { ok: true } });
+
+    await upsertAttendance('sess-1', [
+      { athleteId: 'a1', status: 'present' },
+    ]);
+
+    expect(calledUrl(fetchMock)).toBe('https://app.zaltyko.test/api/attendance');
+    expect(calledInit(fetchMock).headers['Idempotency-Key']).toBeUndefined();
+  });
+
+  it('upsertAttendance CON idempotencyKey la manda como header `Idempotency-Key`', async () => {
+    const fetchMock = stubFetch({ ok: true, data: { ok: true } });
+    const idemKey = '11111111-2222-4333-8444-555555555555';
+
+    await upsertAttendance(
+      'sess-1',
+      [{ athleteId: 'a1', status: 'present' }],
+      { idempotencyKey: idemKey }
+    );
+
+    expect(calledInit(fetchMock).headers['Idempotency-Key']).toBe(idemKey);
+    // El body sigue siendo { sessionId, entries } — el header va aparte.
+    expect(JSON.parse(calledInit(fetchMock).body as string)).toEqual({
+      sessionId: 'sess-1',
+      entries: [{ athleteId: 'a1', status: 'present' }],
+    });
+  });
+
+  it('un 409 IDEMPOTENCY_CONFLICT del backend llega como ApiClientError traducible', async () => {
+    // Cuando el backend implemente el header, un cambio de payload con la
+    // misma clave debe responder 409 con este code. La UI lo traduce
+    // (ver error-codes.ts) a copy seguro y nextAction=contact_support.
+    stubFetch(
+      { ok: false, error: { code: 'IDEMPOTENCY_CONFLICT', message: 'distinto payload' } },
+      409
+    );
+
+    await expect(
+      upsertAttendance('sess-1', [{ athleteId: 'a1', status: 'present' }], {
+        idempotencyKey: 'fixed-key',
+      })
+    ).rejects.toMatchObject({
+      code: 'IDEMPOTENCY_CONFLICT',
+      status: 409,
+      retryable: false,
+      nextAction: 'contact_support',
+    });
+  });
+});
+
+describe('aislamiento y errores esperados en getConversations (ZAL-622 AC-04 + §6.5)', () => {
+  // El backend filtra conversaciones por membership server-side. La app
+  // móvil NUNCA debe poder listar conversaciones de otra familia aunque
+  // el filtro falle — la degradación correcta es lista vacía (empty
+  // state) o error traducible, nunca datos cruzados.
+
+  it('lista vacía para un parent sin conversaciones devuelve [] (no error)', async () => {
+    // Caso normal: el backend responde 200 con items vacío. La UI debe
+    // mostrar empty state localizado, no un error banner genérico.
+    stubFetch({ items: [] });
+
+    await expect(getConversations()).resolves.toEqual([]);
+  });
+
+  it('FORBIDDEN_ROLE (rol sin acceso a mensajería) se traduce a nextAction=contact_support', async () => {
+    // Si un parent pierde acceso a mensajería por un cambio de rol o
+    // academia, el backend responde 403 con code contractual. La UI lo
+    // muestra como "No tienes permiso" con CTA a soporte, no como
+    // pantalla de error recuperable.
+    stubFetch(
+      { ok: false, error: { code: 'FORBIDDEN_ROLE', message: 'No es tu academia' } },
+      403
+    );
+
+    await expect(getConversations()).rejects.toMatchObject({
+      code: 'FORBIDDEN_ROLE',
+      status: 403,
+      retryable: false,
+      nextAction: 'contact_support',
+    });
+  });
+
+  it('AUTH_REQUIRED (token expirado) se traduce a nextAction=reauth, NO como lista vacía', async () => {
+    // Crítico para aislamiento: si la sesión venció, la app no debe
+    // mostrar "Sin conversaciones" como si no hubiera nada — debe
+    // pedir re-auth para que el backend pueda decidir qué conversaciones
+    // realmente le corresponden al usuario actual.
+    refreshSessionMock.mockResolvedValue({ data: { session: null }, error: null });
+    stubFetch(
+      { ok: false, error: { code: 'AUTH_REQUIRED', message: 'Token vencido' } },
+      401
+    );
+
+    await expect(getConversations()).rejects.toMatchObject({
+      code: 'AUTH_REQUIRED',
+      status: 401,
+      retryable: false,
+      nextAction: 'reauth',
+    });
+  });
+
+  it('UNAUTHENTICATED (código real del backend) NO se colapsa a HTTP_401 cuando es 4xx', async () => {
+    // El backend real usa `UNAUTHENTICATED` en vez del contractual
+    // `AUTH_REQUIRED`. Como es 4xx con código desconocido, la política
+    // asimétrica de client.ts conserva el código crudo para que
+    // logs/soporte lo identifiquen, pero el `message` mostrado en UI
+    // viene del FALLBACK (nunca del backend — ver AC-10).
+    refreshSessionMock.mockResolvedValue({ data: { session: null }, error: null });
+    stubFetch(
+      { ok: false, error: { code: 'UNAUTHENTICATED', message: 'Stack trace: at foo' } },
+      401
+    );
+
+    await expect(getConversations()).rejects.toMatchObject({
+      code: 'UNAUTHENTICATED', // código crudo preservado, no colapsado a HTTP_401
+      status: 401,
+      message: expect.not.stringContaining('Stack trace'),
+    });
+  });
+});
+
+describe('family my-dashboard aislamiento (ZAL-622 AC-08)', () => {
+  it('parent recibe el resumen compuesto sin aceptar academyId desde el cliente', async () => {
+    const fetchMock = vi.fn();
+    for (const response of [
+      jsonResponse({ ok: true, data: [{ id: 'class-1', className: 'Infantil', day: 'lun', time: '17:00', location: 'Sala 1', coach: 'Ana' }] }),
+      jsonResponse({ ok: true, data: { count: 1 } }),
+      jsonResponse({ ok: true, data: { items: [{ id: 'conversation-1', unreadCount: 2 }] } }),
+      jsonResponse({ ok: true, data: [{ id: 'charge-1', status: 'due' }] }),
+    ]) {
+      fetchMock.mockResolvedValueOnce(response);
+    }
+    vi.stubGlobal('fetch', fetchMock);
+
+    const bundle = await getMyDashboard('parent');
+
+    expect(bundle.nextClasses.items[0]?.id).toBe('class-1');
+    expect(bundle.unread).toMatchObject({ notifications: 1, conversations: 2 });
+    expect(bundle.pendingCharges.items[0]?.id).toBe('charge-1');
+    expect(fetchMock.mock.calls.map(([url]) => new URL(url as string).pathname)).toEqual([
+      '/api/me/schedule',
+      '/api/notifications/unread-count',
+      '/api/messages/conversations',
+      '/api/me/charges',
+    ]);
+    for (const [url] of fetchMock.mock.calls) {
+      expect(new URL(url as string).search).toBe('');
+    }
+  });
+
+  it('admin recibe ApiClientError FORBIDDEN_ROLE y nextAction=contact_support', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    const request = getMyDashboard('admin');
+    await expect(request).rejects.toBeInstanceOf(ApiClientError);
+    await expect(request).rejects.toMatchObject({
+      code: 'FORBIDDEN_ROLE',
+      nextAction: 'contact_support',
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('coach recibe ApiClientError FORBIDDEN_ROLE y no un dashboard vacío', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(getMyDashboard('coach')).rejects.toMatchObject({
+      code: 'FORBIDDEN_ROLE',
+      nextAction: 'contact_support',
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('owner recibe ApiClientError FORBIDDEN_ROLE y no datos de familia', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(getMyDashboard('owner')).rejects.toMatchObject({
+      code: 'FORBIDDEN_ROLE',
+      nextAction: 'contact_support',
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('estados contractuales del Cargo (ZAL-622 AC-06 + ZAL-619 §3.6)', () => {
+  it('CHARGE_STATUSES expone los 8 estados del contrato en orden estable', () => {
+    // El contrato fija exactamente 8 estados. Cualquier drift (un backend
+    // que añade uno nuevo sin actualizar la app) debe fallar aquí para que
+    // la decisión sea explícita, no silenciosa.
+    expect(CHARGE_STATUSES).toEqual([
+      'draft',
+      'due',
+      'partial',
+      'paid',
+      'overdue',
+      'failed',
+      'refunded',
+      'cancelled',
+    ]);
+  });
+
+  it('cada estado contractual tiene etiqueta localizada (AC-10/AC-11)', () => {
+    // Misma longitud: no hay estado sin label. Garantiza que la UI NUNCA
+    // muestre el enum crudo al usuario.
+    expect(Object.keys(CHARGE_STATUS_LABEL).sort()).toEqual([...CHARGE_STATUSES].sort());
+  });
+
+  it('las etiquetas localizadas NO afirman recibo legal ni validez fiscal', () => {
+    // ZAL-619 §3.6: "no se afirma recibo fiscal ni validez legal".
+    // Si alguien añade "Recibo emitido" / "Factura válida" / "Válido
+    // ante Hacienda" a un label, este test lo bloquea.
+    const LEGAL_CLAIMS = [
+      'recibo',
+      'factura',
+      'haciend',
+      'fiscal',
+      'legal',
+      'válido',
+      'valido',
+      'certific',
+    ];
+    for (const status of CHARGE_STATUSES) {
+      const label = CHARGE_STATUS_LABEL[status].toLowerCase();
+      for (const claim of LEGAL_CLAIMS) {
+        expect(label).not.toContain(claim);
+      }
+    }
+  });
+
+  it('isChargePayable cubre exactamente los 4 estados con acción de pago', () => {
+    // La familia puede actuar (Pagar en web) en due/overdue/partial/failed.
+    // NO en paid (ya está pagado), ni en refunded/cancelled/draft (sin
+    // acción posible o aún no emitido por el dueño).
+    const payable: string[] = [];
+    const notPayable: string[] = [];
+    for (const s of CHARGE_STATUSES) {
+      if (isChargePayable(s)) payable.push(s);
+      else notPayable.push(s);
+    }
+    expect(payable.sort()).toEqual(['due', 'failed', 'overdue', 'partial']);
+    expect(notPayable.sort()).toEqual(['cancelled', 'draft', 'paid', 'refunded']);
+  });
+
+  it('los 4 estados `paid`/`refunded`/`cancelled`/`draft` NO son accionables', () => {
+    // Refuerza el invariante: la UI no muestra "Pagar en web" para cargos
+    // ya pagados, ya devueltos, ya cancelados o en borrador.
+    expect(isChargePayable('paid')).toBe(false);
+    expect(isChargePayable('refunded')).toBe(false);
+    expect(isChargePayable('cancelled')).toBe(false);
+    expect(isChargePayable('draft')).toBe(false);
+  });
+});
+=======
+>>>>>>> origin/main

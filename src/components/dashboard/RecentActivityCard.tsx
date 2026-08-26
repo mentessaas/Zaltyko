@@ -31,7 +31,11 @@ export function RecentActivityCard({ title, period, activities }: RecentActivity
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="text-base font-medium">{title}</CardTitle>
+<<<<<<< HEAD
+          <span className="text-xs text-muted-foreground">{period}</span>
+=======
           <span className="text-xs text-zaltyko-text-secondary">{period}</span>
+>>>>>>> origin/main
         </div>
       </CardHeader>
       <CardContent>
@@ -57,11 +61,19 @@ export function RecentActivityCard({ title, period, activities }: RecentActivity
                         <span className="font-semibold">{activity.userName}</span> {activity.action}
                       </p>
                     </div>
+<<<<<<< HEAD
+                    <div className="flex items-center gap-1.5 text-muted-foreground">
+                      <Icon className="h-3.5 w-3.5 shrink-0" />
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">{activity.timeAgo}</p>
+=======
                     <div className="flex items-center gap-1.5 text-zaltyko-text-secondary">
                       <Icon className="h-3.5 w-3.5 shrink-0" />
                     </div>
                   </div>
                   <p className="text-xs text-zaltyko-text-secondary mt-1">{activity.timeAgo}</p>
+>>>>>>> origin/main
                 </div>
               </div>
             );
