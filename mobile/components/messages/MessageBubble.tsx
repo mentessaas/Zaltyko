@@ -48,12 +48,12 @@ const STATUS_META: Record<DeliveryStatus, StatusMeta> = {
   pending: {
     iconName: 'time-outline',
     label: 'Enviando…',
-    color: '#94A3B8',
+    color: colors.onDarkMuted,
   },
   sent: {
     iconName: 'checkmark',
     label: 'Enviado',
-    color: '#94A3B8',
+    color: colors.onDarkMuted,
   },
   failed: {
     iconName: 'alert-circle',
@@ -153,7 +153,7 @@ const styles = StyleSheet.create({
   },
   metaRowOwn: { alignSelf: 'flex-end' },
   metaRowOther: { alignSelf: 'flex-start' },
-  time: { ...typography.caption, color: '#94A3B8', fontSize: 11 },
+  time: { ...typography.caption, color: colors.onDarkMuted, fontSize: 11 },
   statusRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   statusLabel: { ...typography.caption, fontSize: 11 },
 });

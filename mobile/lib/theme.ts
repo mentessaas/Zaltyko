@@ -36,6 +36,26 @@ export const colors = {
   // Disabled
   disabledOverlay: '#F1F5F9', // slate-100 — fondo para estado disabled, distinto de pressed
 
+  // On-dark neutrals (sobre bg/surfaceDark) — ZAL-575 Tier H.2 (ZAL-1058)
+  onDarkMuted: '#94A3B8', // slate-400 — promoción desde 13 literales
+  onDarkSubtle: '#CBD5E1', // slate-300
+  onDarkAccent: '#A5B4FC', // indigo-300
+  onDarkDanger: '#FCA5A5', // red-300 — texto error sobre bg/surfaceDark
+
+  // Soft banner backgrounds (WCAG 1.4.3 sobre texto oscuro)
+  errorSoft: '#FEF2F2', // red-50 — fondo ErrorBanner
+  successSoft: '#F0FDF4', // green-50 — fondo SuccessBanner
+  infoSoft: '#EFF6FF', // sky-50 — fondo InfoBanner
+  warningSoft: '#FEF3C7', // amber-100 — fondo priorityBanner
+
+  // Texto sobre soft banners (≥4.5:1 sobre el fondo claro correspondiente)
+  errorText: '#991B1B', // red-800 — sobre errorSoft (red-50)
+  successText: '#166534', // green-800 — sobre successSoft (green-50)
+  infoText: '#1E40AF', // blue-800 — sobre infoSoft (sky-50)
+
+  // Texto sobre warningSoft
+  warningText: '#92400E', // amber-800
+
   // Border
   border: '#E2E8F0', // slate-200
   borderDark: '#334155', // slate-700

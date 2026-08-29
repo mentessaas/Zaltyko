@@ -153,7 +153,7 @@ const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: colors.bg, justifyContent: 'space-between', padding: spacing.xl },
   content: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.lg },
   title: { ...typography.display, color: colors.textInverse, textAlign: 'center' },
-  body: { ...typography.body, color: '#94A3B8', textAlign: 'center' },
+  body: { ...typography.body, color: colors.onDarkMuted, textAlign: 'center' },
   dots: { flexDirection: 'row', justifyContent: 'center', gap: spacing.sm, marginBottom: spacing.lg },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.borderDark },
   dotActive: { backgroundColor: colors.primary },

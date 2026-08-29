@@ -292,5 +292,5 @@ const styles = StyleSheet.create({
   },
   header: { gap: spacing.xs },
   title: { ...typography.display, color: colors.textInverse },
-  meta: { ...typography.body, color: '#94A3B8' },
+  meta: { ...typography.body, color: colors.onDarkMuted },
 });

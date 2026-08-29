@@ -86,8 +86,8 @@ const styles = StyleSheet.create({
   },
   rowUnread: { borderColor: colors.primary, borderWidth: 1.5 },
   avatar: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     borderRadius: radii.full,
     backgroundColor: colors.primary,
     alignItems: 'center',

@@ -3,7 +3,7 @@
 // no usar IAP).
 
 import { memo, useCallback } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 
 import { Button } from '@/components/ui/Button';
@@ -83,9 +83,7 @@ function InvoiceCardImpl({ charge }: Props) {
         <Text style={styles.meta}>Vence: {new Date(charge.dueDate).toLocaleDateString()}</Text>
       ) : null}
       {isChargePayable(charge.status) ? (
-        <Pressable onPress={onPay} style={({ pressed }) => pressed && styles.pressed}>
-          <Button title="Pagar en web" variant="primary" fullWidth />
-        </Pressable>
+        <Button title="Pagar en web" variant="primary" fullWidth onPress={onPay} />
       ) : null}
     </View>
   );
@@ -102,7 +100,6 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     gap: spacing.sm,
   },
-  pressed: { opacity: 0.7 },
   header: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md },
   label: { ...typography.body, color: colors.text, fontWeight: '600' },
   athlete: { ...typography.caption, color: colors.textMuted },

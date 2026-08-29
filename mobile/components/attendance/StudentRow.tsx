@@ -86,7 +86,7 @@ function StudentRowImpl({ athleteId, name, groupName, status, dirty, onChange, o
                         // success/warning/info necesitan texto oscuro para pasar.
                         ['success', 'warning', 'info'].includes(opt.value)
                         ? colors.text
-                        : '#FFFFFF'
+                        : colors.primaryFg
                       : opt.color,
                   },
                 ]}

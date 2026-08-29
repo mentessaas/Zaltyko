@@ -262,13 +262,15 @@ function PressableScheduleRow({
   onPress: () => void;
 }) {
   // Pressable envuelve la fila completa para que el touch target
-  // supere 44pt (Fase 9 transversal).
+  // supere 44pt (Fase 9 transversal). Pressed state con surfacePressed
+  // (slate-200 #E2E8F0) para diferenciación visual sin colisionar con
+  // disabled (overlay #F1F5F9).
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={`${cls.className}, ${cls.day} ${cls.time}`}
-      style={styles.scheduleRow}
+      style={({ pressed }) => [styles.scheduleRow, pressed && styles.scheduleRowPressed]}
     >
       <Text style={styles.scheduleClass}>{cls.className}</Text>
       <Text style={styles.scheduleWhen}>{cls.day} · {cls.time}</Text>
@@ -788,16 +790,16 @@ const styles = StyleSheet.create({
   },
   academy: {
     ...typography.caption,
-    color: '#94A3B8',
+    color: colors.onDarkMuted,
   },
   card: { gap: spacing.md },
   priorityBanner: {
-    backgroundColor: '#FEF3C7',
-    borderColor: '#F59E0B',
+    backgroundColor: colors.warningSoft,
+    borderColor: colors.warning,
   },
   priorityLabel: {
     ...typography.body,
-    color: '#92400E',
+    color: colors.warningText,
     fontWeight: '600',
   },
   importState: {
@@ -849,6 +851,14 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.xs,
     minHeight: 44, // touch target mínimo (a11y, Fase 9)
+    borderRadius: 10,
+    backgroundColor: colors.surfaceMuted,
+    borderWidth: 1,
+    borderColor: colors.surfaceMuted, // border primario aparece en pressed
+  },
+  scheduleRowPressed: {
+    backgroundColor: colors.surfacePressed,
+    borderColor: colors.primary, // 6.29:1 sobre surface — WCAG 1.4.11 PASS
   },
   scheduleClass: {
     ...typography.body,

@@ -141,6 +141,6 @@ const styles = StyleSheet.create({
     gap: spacing.lg,
   },
   title: { ...typography.title, color: colors.textInverse, textAlign: 'center' },
-  body: { ...typography.body, color: '#94A3B8', textAlign: 'center' },
-  error: { ...typography.caption, color: '#FCA5A5', textAlign: 'center' },
+  body: { ...typography.body, color: colors.onDarkMuted, textAlign: 'center' },
+  error: { ...typography.caption, color: colors.onDarkDanger, textAlign: 'center' },
 });

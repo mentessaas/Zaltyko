@@ -28,7 +28,13 @@ function ErrorBannerImpl({ message, onRetry, action }: Props) {
       {action ? (
         <View style={styles.action}>{action}</View>
       ) : onRetry ? (
-        <Pressable onPress={onRetry} hitSlop={14} style={styles.retry}>
+        <Pressable
+          onPress={onRetry}
+          hitSlop={14}
+          style={styles.retry}
+          accessibilityRole="button"
+          accessibilityLabel="Reintentar"
+        >
           <Ionicons name="refresh" size={16} color={colors.danger} />
         </Pressable>
       ) : null}
@@ -43,14 +49,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    backgroundColor: '#FEF2F2',
+    backgroundColor: colors.errorSoft,
     borderColor: colors.danger,
     borderWidth: 1,
     borderRadius: radii.md,
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
   },
-  text: { ...typography.caption, color: '#991B1B', flex: 1 },
+  text: { ...typography.caption, color: colors.errorText, flex: 1 },
   retry: { padding: spacing.xs },
   action: { marginLeft: spacing.sm },
 });
