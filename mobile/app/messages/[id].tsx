@@ -173,11 +173,16 @@ export default function ConversationThreadScreen() {
           <Pressable
             onPress={onSend}
             disabled={!draft.trim() || sendMutation.isPending}
-            style={[styles.sendBtn, (!draft.trim() || sendMutation.isPending) && styles.sendBtnDisabled]}
+            style={({ pressed }) => [
+              styles.sendBtn,
+              pressed && !(!draft.trim() || sendMutation.isPending) && styles.sendBtnPressed,
+              (!draft.trim() || sendMutation.isPending) && styles.sendBtnDisabled,
+            ]}
             accessibilityRole="button"
             accessibilityLabel="Enviar mensaje"
+            accessibilityState={{ disabled: !draft.trim() || sendMutation.isPending, busy: sendMutation.isPending }}
           >
-            <Ionicons name="send" size={18} color={colors.primaryFg} />
+            <Ionicons name="send" size={18} color={colors.textInverse} />
           </Pressable>
         </View>
       </KeyboardAvoidingView>
@@ -205,5 +210,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  sendBtnDisabled: { opacity: 0.5 },
+  sendBtnPressed: {
+    backgroundColor: colors.primaryHover,
+    borderColor: colors.primaryHover,
+  },
+  sendBtnDisabled: {
+    backgroundColor: colors.disabledOverlay,
+    borderColor: colors.disabledOverlay,
+  },
 });

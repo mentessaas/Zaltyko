@@ -7,6 +7,7 @@ export const colors = {
   bg: '#0F172A', // slate-900 — splash y fondo oscuro
   surface: '#FFFFFF',
   surfaceMuted: '#F8FAFC', // slate-50
+  surfacePressed: '#E2E8F0', // slate-200 — pressed para cards blancas (WCAG 1.4.11 ≥3:1)
   surfaceDark: '#1E293B', // slate-800
 
   // Text
@@ -20,12 +21,20 @@ export const colors = {
   primaryHover: '#4338CA', // indigo-700
   primaryFg: '#FFFFFF',
   primarySoft: 'rgba(99, 102, 241, 0.16)',
+  primarySoftPressed: 'rgba(79, 70, 229, 0.28)', // indigo-600 @ 28% — pressed para CTAs primarySoft (WCAG 1.4.11)
 
   // Semantic
   success: '#16A34A', // green-600
+  successPressed: '#15803D', // green-700 — fondo pressed para texto blanco
   warning: '#F59E0B', // amber-500
+  warningPressed: '#B45309', // amber-700 — fondo pressed para texto blanco
   danger: '#DC2626', // red-600
+  dangerPressed: '#B91C1C', // red-700 — fondo pressed para texto blanco
   info: '#0EA5E9', // sky-500
+  infoPressed: '#0369A1', // sky-700 — fondo pressed para texto blanco
+
+  // Disabled
+  disabledOverlay: '#F1F5F9', // slate-100 — fondo para estado disabled, distinto de pressed
 
   // Border
   border: '#E2E8F0', // slate-200

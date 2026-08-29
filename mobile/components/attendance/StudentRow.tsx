@@ -79,7 +79,16 @@ function StudentRowImpl({ athleteId, name, groupName, status, dirty, onChange, o
               <Text
                 style={[
                   styles.btnText,
-                  { color: active ? '#FFFFFF' : opt.color },
+                  {
+                    color: active
+                      ? // Texto oscuro sobre fondo semántico para cumplir WCAG AA 1.4.3 (≥4.5:1).
+                        // danger (#DC2626) sí pasa con blanco (4.83:1) — solo
+                        // success/warning/info necesitan texto oscuro para pasar.
+                        ['success', 'warning', 'info'].includes(opt.value)
+                        ? colors.text
+                        : '#FFFFFF'
+                      : opt.color,
+                  },
                 ]}
               >
                 {opt.short}
