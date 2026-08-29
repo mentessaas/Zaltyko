@@ -3,10 +3,11 @@
 // entera también se memoiza para no re-renderizar al cambiar otra.
 
 import { memo } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { colors, radii, spacing, typography } from '@/lib/theme';
+import { styles } from '@/components/attendance/StudentRow.styles';
+import { colors } from '@/lib/theme';
 import type { AttendanceStatus } from '@/lib/api/endpoints';
 
 interface Props {
@@ -56,7 +57,8 @@ function StudentRowImpl({ athleteId, name, groupName, status, dirty, onChange, o
           <Ionicons name="ribbon-outline" size={18} color={colors.primary} />
         </Pressable>
       ) : null}
-      {/* actions: ver styles.btn abajo — width 36 + hitSlop={4} = 44dp efectivos (WCAG 2.5.5) */}
+      {/* actions: styles.btn 44x44dp visibles (WCAG 2.5.5 Target Size Enhanced) +
+          hitSlop=4 para un area tactil efectiva 52x52dp en pantallas de alta densidad. */}
       <View style={styles.actions}>
         {OPTIONS.map((opt) => {
           const active = status === opt.value;
@@ -91,50 +93,3 @@ function StudentRowImpl({ athleteId, name, groupName, status, dirty, onChange, o
 }
 
 export const StudentRow = memo(StudentRowImpl);
-
-const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    backgroundColor: colors.surface,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.md,
-  },
-  rowDirty: {
-    borderColor: colors.warning,
-    borderWidth: 1.5,
-  },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: radii.full,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarText: { ...typography.label, color: colors.primaryFg, fontWeight: '700' },
-  body: { flex: 1, gap: 2 },
-  evaluateBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: radii.full,
-    backgroundColor: colors.surfaceMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  name: { ...typography.body, color: colors.text, fontWeight: '600' },
-  group: { ...typography.caption, color: colors.textMuted },
-  actions: { flexDirection: 'row', gap: spacing.xs },
-  btn: {
-    width: 36,
-    height: 36,
-    borderRadius: radii.md,
-    borderWidth: 1.5,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  btnText: { ...typography.caption, fontWeight: '700' },
-});
