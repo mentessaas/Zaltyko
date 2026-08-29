@@ -97,11 +97,7 @@ function CoachSessionWorkspaceImpl({
 
   return (
     <div className="mx-auto max-w-6xl space-y-6 pb-12">
-<<<<<<< HEAD
       <nav aria-label="Ruta de navegación" className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-=======
-      <nav aria-label="Ruta de navegación" className="flex flex-wrap items-center gap-2 text-sm text-zaltyko-text-secondary">
->>>>>>> origin/main
         <Link href={`/app/${academyId}/coach`} className="inline-flex min-h-11 items-center gap-2 font-medium text-zaltyko-indigo hover:text-zaltyko-teal">
           <ArrowLeft className="h-4 w-4" aria-hidden="true" />
           Panel del entrenador
@@ -154,44 +150,27 @@ function CoachSessionWorkspaceImpl({
               type="button"
               onClick={() => selectStep(step.id)}
               className={cn(
-<<<<<<< HEAD
                 "flex min-h-[72px] items-center gap-3 rounded-2xl border bg-card p-4 text-left shadow-soft transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zaltyko-teal focus-visible:ring-offset-2",
                 activeStep === step.id ? "border-zaltyko-teal shadow-brand" : "border-border/70 hover:border-zaltyko-teal/40"
-=======
-                "flex min-h-[72px] items-center gap-3 rounded-2xl border bg-white p-4 text-left shadow-soft transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zaltyko-teal focus-visible:ring-offset-2",
-                activeStep === step.id ? "border-zaltyko-teal shadow-brand" : "border-zaltyko-mist/70 hover:border-zaltyko-teal/40"
->>>>>>> origin/main
               )}
             >
               <span className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-xl", done ? "bg-emerald-100 text-emerald-700" : "bg-zaltyko-white text-zaltyko-indigo")}>
                 {done ? <Check className="h-5 w-5" aria-hidden="true" /> : <Icon className="h-5 w-5" aria-hidden="true" />}
               </span>
-<<<<<<< HEAD
               <span><span className="block text-sm font-semibold text-foreground">{step.label}</span><span className="block text-xs text-muted-foreground">{done ? "Completado" : "Pendiente"}</span></span>
-=======
-              <span><span className="block text-sm font-semibold text-zaltyko-navy">{step.label}</span><span className="block text-xs text-zaltyko-text-secondary">{done ? "Completado" : "Pendiente"}</span></span>
->>>>>>> origin/main
             </button>
           );
         })}
       </section>
 
       <Tabs value={activeStep} onValueChange={selectStep}>
-<<<<<<< HEAD
         <div className="sticky top-2 z-20 rounded-2xl border border-border/70 bg-zaltyko-white/95 p-2 shadow-medium backdrop-blur lg:hidden">
-=======
-        <div className="sticky top-2 z-20 rounded-2xl border border-zaltyko-mist/70 bg-zaltyko-white/95 p-2 shadow-medium backdrop-blur lg:hidden">
->>>>>>> origin/main
           <TabsList className="grid h-auto w-full grid-cols-3">
             {STEP_CONFIG.map((step) => <TabsTrigger key={step.id} value={step.id} className="min-h-11 px-2 text-xs">{step.shortLabel}</TabsTrigger>)}
           </TabsList>
         </div>
 
-<<<<<<< HEAD
         <TabsContent value="attendance" id="attendance" className="mt-0 rounded-3xl border border-border/70 bg-zaltyko-white p-4 shadow-soft sm:p-6">
-=======
-        <TabsContent value="attendance" id="attendance" className="mt-0 rounded-3xl border border-zaltyko-mist/70 bg-zaltyko-white p-4 shadow-soft sm:p-6">
->>>>>>> origin/main
           <SessionAttendancePanel
             sessionId={session.id}
             athletes={athletes}
@@ -203,11 +182,7 @@ function CoachSessionWorkspaceImpl({
           />
         </TabsContent>
 
-<<<<<<< HEAD
         <TabsContent value="progress" id="progress" className="mt-0 rounded-3xl border border-border/70 bg-zaltyko-white p-4 shadow-soft sm:p-6">
-=======
-        <TabsContent value="progress" id="progress" className="mt-0 rounded-3xl border border-zaltyko-mist/70 bg-zaltyko-white p-4 shadow-soft sm:p-6">
->>>>>>> origin/main
           <SessionProgressPanel
             sessionId={session.id}
             sessionDate={session.sessionDate}
@@ -219,19 +194,11 @@ function CoachSessionWorkspaceImpl({
           />
         </TabsContent>
 
-<<<<<<< HEAD
         <TabsContent value="alert" id="alert" className="mt-0 overflow-hidden rounded-3xl border border-border/70 bg-card shadow-soft">
           <div className="border-b border-border/70 bg-zaltyko-white p-5 sm:p-6">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-700">Paso 3</p>
             <h2 className="mt-1 text-xl font-semibold text-foreground">Aviso interno a las familias</h2>
             <p className="mt-1 text-sm text-muted-foreground">El mensaje queda vinculado a esta sesión, genera notificación y conserva el historial dentro de Zaltyko.</p>
-=======
-        <TabsContent value="alert" id="alert" className="mt-0 overflow-hidden rounded-3xl border border-zaltyko-mist/70 bg-white shadow-soft">
-          <div className="border-b border-zaltyko-mist/70 bg-zaltyko-white p-5 sm:p-6">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-700">Paso 3</p>
-            <h2 className="mt-1 text-xl font-semibold text-zaltyko-navy">Aviso interno a las familias</h2>
-            <p className="mt-1 text-sm text-zaltyko-text-secondary">El mensaje queda vinculado a esta sesión, genera notificación y conserva el historial dentro de Zaltyko.</p>
->>>>>>> origin/main
           </div>
           <ContextGroupAlertComposer
             academyId={academyId}
@@ -249,13 +216,8 @@ function CoachSessionWorkspaceImpl({
         </TabsContent>
       </Tabs>
 
-<<<<<<< HEAD
       <div className="flex flex-col gap-3 border-t border-border/70 pt-5 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-muted-foreground">La sesión permanece editable desde su clase y los registros conservan el contexto original.</p>
-=======
-      <div className="flex flex-col gap-3 border-t border-zaltyko-mist/70 pt-5 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm text-zaltyko-text-secondary">La sesión permanece editable desde su clase y los registros conservan el contexto original.</p>
->>>>>>> origin/main
         <Button asChild variant="outline" className="min-h-11">
           <Link href={`/app/${academyId}/classes/${session.classId}`}>Ver detalle de la clase <ChevronRight className="ml-2 h-4 w-4" aria-hidden="true" /></Link>
         </Button>

@@ -431,11 +431,7 @@ export function FinancialReport({
                     <tbody>
                       {reportData.bySportConfig.map((item) => (
                         <tr key={item.sportConfigId ?? "unassigned"} className="border-b last:border-0">
-<<<<<<< HEAD
-                          <td className="py-3 pr-3 font-medium text-foreground">{item.label}</td>
-=======
                           <td className="py-3 pr-3 font-medium text-zaltyko-navy">{item.label}</td>
->>>>>>> origin/main
                           <td className="py-3 pr-3">{item.totalRevenue.toFixed(2)} €</td>
                           <td className="py-3 pr-3 text-green-700">{item.paidAmount.toFixed(2)} €</td>
                           <td className="py-3 pr-3 text-yellow-700">{item.pendingAmount.toFixed(2)} €</td>

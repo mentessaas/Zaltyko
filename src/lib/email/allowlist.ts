@@ -36,6 +36,11 @@ function getBaseUrl(): URL | null {
   }
 }
 
+/** Devuelve el origen configurado después de aplicar la allowlist HTTPS. */
+export function getAllowlistedAppOrigin(): string | null {
+  return getBaseUrl()?.origin ?? null;
+}
+
 function validAcademyId(academyId: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
     academyId

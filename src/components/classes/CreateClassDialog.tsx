@@ -50,20 +50,12 @@ const defaultValues: ClassFormValues = {
 };
 
 const fieldClassName =
-<<<<<<< HEAD
   "w-full rounded-card border border-border bg-card px-3 py-2 text-sm shadow-none focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15";
-=======
-  "w-full rounded-card border border-zaltyko-mist bg-white px-3 py-2 text-sm shadow-none focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15";
->>>>>>> origin/main
 const errorTextClassName = "text-xs text-zaltyko-coral mt-1";
 const selectedChipClassName =
   "border-zaltyko-teal bg-zaltyko-teal/10 text-zaltyko-teal";
 const unselectedChipClassName =
-<<<<<<< HEAD
   "border-border bg-card text-muted-foreground hover:border-zaltyko-teal hover:text-zaltyko-teal";
-=======
-  "border-zaltyko-mist bg-white text-zaltyko-text-secondary hover:border-zaltyko-teal hover:text-zaltyko-teal";
->>>>>>> origin/main
 
 interface CreateClassDialogProps {
   academyId: string;
@@ -282,11 +274,7 @@ export function CreateClassDialog({
         {/* Campos esenciales */}
         <div className="space-y-4">
           <div className="space-y-1">
-<<<<<<< HEAD
             <label className="text-xs font-medium uppercase tracking-[0.05em] text-foreground">
-=======
-            <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">
->>>>>>> origin/main
               Nombre de la {classTermLower} *
             </label>
             <input
@@ -307,33 +295,21 @@ export function CreateClassDialog({
                   key={suggestion.name}
                   type="button"
                   onClick={() => setValue("name", suggestion.name, { shouldValidate: true })}
-<<<<<<< HEAD
                   className="rounded-full border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground transition hover:border-zaltyko-teal hover:bg-zaltyko-teal/10 hover:text-zaltyko-teal"
-=======
-                  className="rounded-full border border-zaltyko-mist bg-white px-3 py-1.5 text-xs font-semibold text-zaltyko-navy transition hover:border-zaltyko-teal hover:bg-zaltyko-teal/10 hover:text-zaltyko-teal"
->>>>>>> origin/main
                   title={suggestion.description}
                 >
                   {suggestion.name}
                 </button>
               ))}
             </div>
-<<<<<<< HEAD
             <p className="text-xs text-muted-foreground">
-=======
-            <p className="text-xs text-zaltyko-text-secondary">
->>>>>>> origin/main
               Sugerencias tecnicas para {specialization.labels.disciplineName.toLowerCase()}.
             </p>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1">
-<<<<<<< HEAD
               <label className="text-xs font-medium uppercase tracking-[0.05em] text-foreground">
-=======
-              <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">
->>>>>>> origin/main
                 Dias de la semana
               </label>
               <div className="flex flex-wrap gap-2">
@@ -365,11 +341,7 @@ export function CreateClassDialog({
             </div>
 
             <div className="space-y-1">
-<<<<<<< HEAD
               <label className="text-xs font-medium uppercase tracking-[0.05em] text-foreground">
-=======
-              <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">
->>>>>>> origin/main
                 Capacidad
               </label>
               <input
@@ -384,11 +356,7 @@ export function CreateClassDialog({
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1">
-<<<<<<< HEAD
               <label className="text-xs font-medium uppercase tracking-[0.05em] text-foreground">
-=======
-              <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">
->>>>>>> origin/main
                 Hora de inicio
               </label>
               <input
@@ -398,11 +366,7 @@ export function CreateClassDialog({
               />
             </div>
             <div className="space-y-1">
-<<<<<<< HEAD
               <label className="text-xs font-medium uppercase tracking-[0.05em] text-foreground">
-=======
-              <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">
->>>>>>> origin/main
                 Hora de fin
               </label>
               <input
@@ -414,11 +378,7 @@ export function CreateClassDialog({
           </div>
 
           <div className="space-y-1">
-<<<<<<< HEAD
             <label className="text-xs font-medium uppercase tracking-[0.05em] text-foreground">
-=======
-            <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">
->>>>>>> origin/main
               Foco tecnico del bloque
             </label>
             <textarea
@@ -429,11 +389,7 @@ export function CreateClassDialog({
           </div>
 
           {coachOptions.length > 0 && (
-<<<<<<< HEAD
             <div className="rounded-xl border border-border bg-zaltyko-warm-white px-3 py-2 text-xs text-muted-foreground">
-=======
-            <div className="rounded-xl border border-zaltyko-mist bg-zaltyko-warm-white px-3 py-2 text-xs text-zaltyko-text-secondary">
->>>>>>> origin/main
               {compatibleCoachOptions.length} de {coachOptions.length} {coachTermLower}s disponibles para esta rama.
             </div>
           )}
@@ -442,11 +398,7 @@ export function CreateClassDialog({
             <div className="grid gap-4 sm:grid-cols-2">
               {groupOptions.length > 0 && (
                 <div className="space-y-1">
-<<<<<<< HEAD
                   <label className="text-xs font-medium uppercase tracking-[0.05em] text-foreground">
-=======
-                  <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">
->>>>>>> origin/main
                     {terms.group} vinculado
                   </label>
                   <select
@@ -466,11 +418,7 @@ export function CreateClassDialog({
 
               {sportConfigs.length > 0 && (
                 <div className="space-y-1">
-<<<<<<< HEAD
                   <label className="text-xs font-medium uppercase tracking-[0.05em] text-foreground">
-=======
-                  <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">
->>>>>>> origin/main
                     Modalidad / rama
                   </label>
                   <select
@@ -492,11 +440,7 @@ export function CreateClassDialog({
           )}
 
           <div className="space-y-1">
-<<<<<<< HEAD
             <label className="text-xs font-medium uppercase tracking-[0.05em] text-foreground">
-=======
-            <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">
->>>>>>> origin/main
               {terms.apparatus}s / material principal
             </label>
             <div className="flex flex-wrap gap-2">
@@ -523,40 +467,24 @@ export function CreateClassDialog({
         <button
           type="button"
           onClick={() => setShowAdvanced(!showAdvanced)}
-<<<<<<< HEAD
           className="flex w-full items-center justify-between rounded-xl border border-border bg-zaltyko-warm-white px-3 py-2 text-sm font-medium text-muted-foreground transition hover:border-zaltyko-teal hover:text-zaltyko-teal"
-=======
-          className="flex w-full items-center justify-between rounded-xl border border-zaltyko-mist bg-zaltyko-warm-white px-3 py-2 text-sm font-medium text-zaltyko-text-secondary transition hover:border-zaltyko-teal hover:text-zaltyko-teal"
->>>>>>> origin/main
         >
           <span>Opciones avanzadas</span>
           {showAdvanced ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
         </button>
 
         {showAdvanced && (
-<<<<<<< HEAD
           <div className="space-y-4 rounded-2xl border border-border bg-zaltyko-warm-white p-4">
-=======
-          <div className="space-y-4 rounded-2xl border border-zaltyko-mist bg-zaltyko-warm-white p-4">
->>>>>>> origin/main
             <Controller
               control={control}
               name="allowsFreeTrial"
               render={({ field }) => (
-<<<<<<< HEAD
                 <label className="flex items-center gap-2 text-sm text-foreground">
-=======
-                <label className="flex items-center gap-2 text-sm text-zaltyko-navy">
->>>>>>> origin/main
                   <input
                     type="checkbox"
                     checked={field.value}
                     onChange={(event) => field.onChange(event.target.checked)}
-<<<<<<< HEAD
                     className="rounded border-border text-zaltyko-teal focus:ring-zaltyko-teal"
-=======
-                    className="rounded border-zaltyko-mist text-zaltyko-teal focus:ring-zaltyko-teal"
->>>>>>> origin/main
                   />
                   Permite {classTermLower} de prueba gratuita
                 </label>
@@ -567,20 +495,12 @@ export function CreateClassDialog({
               control={control}
               name="waitingListEnabled"
               render={({ field }) => (
-<<<<<<< HEAD
                 <label className="flex items-center gap-2 text-sm text-foreground">
-=======
-                <label className="flex items-center gap-2 text-sm text-zaltyko-navy">
->>>>>>> origin/main
                   <input
                     type="checkbox"
                     checked={field.value}
                     onChange={(event) => field.onChange(event.target.checked)}
-<<<<<<< HEAD
                     className="rounded border-border text-zaltyko-teal focus:ring-zaltyko-teal"
-=======
-                    className="rounded border-zaltyko-mist text-zaltyko-teal focus:ring-zaltyko-teal"
->>>>>>> origin/main
                   />
                   Habilitar lista de espera
                 </label>
@@ -589,11 +509,7 @@ export function CreateClassDialog({
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1">
-<<<<<<< HEAD
                 <label className="text-xs font-medium uppercase tracking-[0.05em] text-foreground">
-=======
-                <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">
->>>>>>> origin/main
                   Politica de cancelacion
                 </label>
                 <Controller
@@ -609,11 +525,7 @@ export function CreateClassDialog({
                 />
               </div>
               <div className="space-y-1">
-<<<<<<< HEAD
                 <label className="text-xs font-medium uppercase tracking-[0.05em] text-foreground">
-=======
-                <label className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy">
->>>>>>> origin/main
                   Horas minimas para cancelar
                 </label>
                 <Controller

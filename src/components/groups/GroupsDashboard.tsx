@@ -386,11 +386,7 @@ export function GroupsDashboard({
         </section>
       )}
 
-<<<<<<< HEAD
       <section className="flex flex-col gap-4 rounded-[22px] border border-border/80 bg-card p-5 shadow-[0_18px_50px_-32px_rgba(15,23,42,0.45)] lg:flex-row lg:items-center lg:justify-between">
-=======
-      <section className="flex flex-col gap-4 rounded-[22px] border border-slate-200/80 bg-white p-5 shadow-[0_18px_50px_-32px_rgba(15,23,42,0.45)] lg:flex-row lg:items-center lg:justify-between">
->>>>>>> origin/main
         <div className="flex-1 space-y-2">
           <p className="text-sm font-medium text-foreground">
             Estructura inicial sugerida para {specialization.labels.disciplineName.toLowerCase()}
@@ -454,11 +450,7 @@ export function GroupsDashboard({
       )}
 
       {groups.length === 0 ? (
-<<<<<<< HEAD
         <div className="rounded-[22px] border border-dashed border-border bg-card p-12 text-center shadow-[0_18px_50px_-32px_rgba(15,23,42,0.45)]">
-=======
-        <div className="rounded-[22px] border border-dashed border-slate-300 bg-white p-12 text-center shadow-[0_18px_50px_-32px_rgba(15,23,42,0.45)]">
->>>>>>> origin/main
           <p className="mb-4 text-sm text-muted-foreground">
             {selectedSportConfig
               ? `No hay grupos para ${selectedSportConfig.branchName} · ${selectedSportConfig.disciplineName}.`

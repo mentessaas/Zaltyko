@@ -16,10 +16,6 @@ smoke-test.ts
 /docs/
 src/app/agents
 ZaltykoMobile
-<<<<<<< HEAD
-=======
-mobile
->>>>>>> origin/main
 zaltyko-branding
 .playwright-mcp
 .worktrees

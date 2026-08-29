@@ -3,10 +3,6 @@ import Link from "next/link";
 import { AcademiesFilters } from "@/components/public/AcademiesFilters";
 import { AcademiesGrid } from "@/components/public/AcademiesGrid";
 import { getPublicAcademies } from "@/app/actions/public/get-public-academies";
-<<<<<<< HEAD
-import Reveal from "@/components/motion/Reveal";
-=======
->>>>>>> origin/main
 import { getPublicSiteUrl } from "@/lib/seo/site-url";
 
 export const metadata: Metadata = {
@@ -56,12 +52,7 @@ export default async function AcademiesPage({ searchParams }: AcademiesPageProps
       <section className="relative overflow-hidden border-b border-border bg-gradient-to-br from-zaltyko-primary-light/30 via-zaltyko-primary-light/20 to-transparent">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(120,119,198,0.1),transparent_50%)]" />
         <div className="relative mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-<<<<<<< HEAD
-          <Reveal>
-            <div className="text-center">
-=======
           <div className="text-center">
->>>>>>> origin/main
             <div className="inline-flex items-center gap-2 rounded-full border border-zaltyko-primary/30 bg-zaltyko-primary/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-zaltyko-primary mb-6">
               <span>Directorio público</span>
             </div>
@@ -83,12 +74,7 @@ export default async function AcademiesPage({ searchParams }: AcademiesPageProps
                 </div>
               )}
             </div>
-<<<<<<< HEAD
-            </div>
-          </Reveal>
-=======
           </div>
->>>>>>> origin/main
         </div>
       </section>
 
@@ -97,10 +83,6 @@ export default async function AcademiesPage({ searchParams }: AcademiesPageProps
 
       {/* Listado */}
       <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-<<<<<<< HEAD
-        <Reveal>
-=======
->>>>>>> origin/main
         {result.items.length > 0 ? (
           <>
             <div className="mb-6 flex items-center justify-between">
@@ -114,10 +96,6 @@ export default async function AcademiesPage({ searchParams }: AcademiesPageProps
         ) : (
           <AcademiesGrid academies={result.items} />
         )}
-<<<<<<< HEAD
-        </Reveal>
-=======
->>>>>>> origin/main
 
         {/* Paginación mejorada */}
         {result.totalPages > 1 && (

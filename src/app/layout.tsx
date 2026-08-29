@@ -118,11 +118,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-<<<<<<< HEAD
-    <html lang="es" suppressHydrationWarning>
-=======
     <html lang="es">
->>>>>>> origin/main
       <head>
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#0F172A" />

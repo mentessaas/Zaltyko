@@ -5,10 +5,6 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { invitations } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
-<<<<<<< HEAD
-import { logger } from "@/lib/logger";
-=======
->>>>>>> origin/main
 import AcceptInvitationForm from "@/components/AcceptInvitationForm";
 import { InvitationPageShell } from "@/components/invitations/InvitationPageShell";
 
@@ -99,24 +95,12 @@ export default async function InvitePage({ searchParams }: InvitePageProps) {
     );
   }
 
-<<<<<<< HEAD
-  // Verificar si el usuario actual ya tiene sesión con el mismo email.
-  // Sin env de Supabase o con el servicio caído se continúa como anónimo
-  // en lugar de devolver un 500 (el flujo de invitación sigue funcionando).
-  let user: Awaited<ReturnType<typeof getSessionUser>> = null;
-  try {
-    user = await getSessionUser();
-  } catch (error) {
-    logger.error("No se pudo resolver la sesión en /auth/invite:", error);
-  }
-=======
   // Verificar si el usuario actual ya tiene sesión con el mismo email
   const cookieStore = await cookies();
   const supabase = await createClient(cookieStore);
   const {
     data: { user },
   } = await supabase.auth.getUser();
->>>>>>> origin/main
 
   const userEmail = user?.email?.toLowerCase();
   const isSameEmail = userEmail === invitation.email.toLowerCase();
@@ -152,15 +136,3 @@ export default async function InvitePage({ searchParams }: InvitePageProps) {
   );
 }
 
-<<<<<<< HEAD
-
-async function getSessionUser() {
-  const cookieStore = await cookies();
-  const supabase = await createClient(cookieStore);
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  return user ?? null;
-}
-=======
->>>>>>> origin/main

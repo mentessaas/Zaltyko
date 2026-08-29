@@ -4,6 +4,7 @@ import { describe, expect, it, afterEach } from "vitest";
 import {
   buildHttpsUrlInAllowlist,
   buildNextStepUrl,
+  getAllowlistedAppOrigin,
 } from "@/lib/email/allowlist";
 import {
   OnboardingOwnerTemplate,
@@ -24,6 +25,7 @@ describe("ZAL-908 — contrato d0/d2/d7 integrado", () => {
 
   it("resuelve todos los pasos a rutas modernas HTTPS allowlisted", () => {
     process.env.NEXT_PUBLIC_APP_URL = "https://sandbox.zaltyko.com";
+    expect(getAllowlistedAppOrigin()).toBe("https://sandbox.zaltyko.com");
 
     for (const key of CHECKLIST_KEYS) {
       const result = buildNextStepUrl({ stepKey: key, academyId: ACADEMY_ID });
@@ -90,6 +92,7 @@ describe("ZAL-908 — contrato d0/d2/d7 integrado", () => {
     expect(ownerRoute).toContain("enqueueOnboardingOwnerD0");
     expect(integration).toContain("isAcademyBlockedFromSending");
     expect(integration).not.toContain("update(academies)");
+    expect(integration).toContain("lower(${emailLogs.toEmail})");
     expect(integration).toContain("resolveOnboardingOwnerNextStepUrl");
     expect(cron).toContain("requireCronAuth");
     expect(cron).toContain("runCronWithLease");

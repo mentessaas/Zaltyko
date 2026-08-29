@@ -22,22 +22,14 @@ export function BusinessStatsCard({ title, period, stats }: BusinessStatsCardPro
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="text-base font-medium">{title}</CardTitle>
-<<<<<<< HEAD
-          <span className="text-xs text-muted-foreground">{period}</span>
-=======
           <span className="text-xs text-zaltyko-text-secondary">{period}</span>
->>>>>>> origin/main
         </div>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
           {stats.map((stat, index) => (
             <div key={index} className="flex items-center justify-between py-2 border-b border-zaltyko-border last:border-0">
-<<<<<<< HEAD
-              <span className="text-sm text-muted-foreground">{stat.label}</span>
-=======
               <span className="text-sm text-zaltyko-text-secondary">{stat.label}</span>
->>>>>>> origin/main
               <div className="flex items-center gap-2">
                 <span className="text-base font-semibold text-zaltyko-text-main">{stat.value}</span>
                 <div

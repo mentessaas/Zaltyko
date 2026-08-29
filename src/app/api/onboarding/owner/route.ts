@@ -29,11 +29,8 @@ import { activateAcademySportConfig } from "@/lib/sport-config/seed";
 import { getSportConfigSeedByVariant } from "@/lib/sport-config/catalog";
 import { withTransaction } from "@/lib/db-transactions";
 import { logEvent } from "@/lib/event-logging";
-<<<<<<< HEAD
-import { enqueueOnboardingOwnerD0 } from "@/lib/onboarding-owner-integration";
 import { logger } from "@/lib/logger";
-=======
->>>>>>> origin/main
+import { enqueueOnboardingOwnerD0 } from "@/lib/onboarding-owner-integration";
 
 const bodySchema = z.object({
   fullName: z.string().trim().min(2).max(120),
@@ -436,21 +433,17 @@ export async function POST(request: Request) {
     },
   });
 
-<<<<<<< HEAD
-  // El trigger queda conectado al evento canónico `academy_created`, pero el
-  // integrador permanece fail-closed mientras el flag de secuencia esté
-  // apagado. Un fallo de email nunca debe deshacer la creación de la academia.
-  void enqueueOnboardingOwnerD0({ academyId: setup.result.id }).catch(
-    (error) => {
-      logger.warn("onboarding-owner d0 enqueue failed", {
-        academyId: setup.result.id,
-        error,
-      });
-    }
-  );
+  // La creación de la academia es el evento de entrada de d0. El flag de
+  // secuencia mantiene los envíos desactivados por defecto; si el delivery o
+  // el gate fallan, no se deshace una academia ya creada.
+  try {
+    await enqueueOnboardingOwnerD0({ academyId: setup.result.id });
+  } catch (error) {
+    logger.error("onboarding owner d0 enqueue failed", error, {
+      academyId: setup.result.id,
+    });
+  }
 
-=======
->>>>>>> origin/main
   return apiCreated({
     academyId: setup.result.id,
     redirectUrl: `/app/${setup.result.id}/dashboard`,

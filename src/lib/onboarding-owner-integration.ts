@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, lte} from "drizzle-orm";
+import { and, asc, desc, eq, gte, lte, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -18,6 +18,7 @@ import { isAcademyBlockedFromSending } from "@/lib/academy-status";
 import {
   buildHttpsUrlInAllowlist,
   buildNextStepUrl,
+  getAllowlistedAppOrigin,
   ONBOARDING_OWNER_DONE_KEY,
   type OnboardingOwnerStepKey,
 } from "@/lib/email/allowlist";
@@ -113,12 +114,13 @@ async function readOwnerContext(academyId: string) {
 }
 
 async function hasUnsubscribed(ownerEmail: string): Promise<boolean> {
+  const normalizedEmail = ownerEmail.trim().toLowerCase();
   const [row] = await db
     .select({ id: emailLogs.id })
     .from(emailLogs)
     .where(
       and(
-        eq(emailLogs.toEmail, ownerEmail),
+        sql`lower(${emailLogs.toEmail}) = ${normalizedEmail}`,
         eq(emailLogs.template, "unsubscribe_confirmation"),
         eq(emailLogs.status, "sent")
       )
@@ -233,7 +235,14 @@ export async function sendOnboardingOwnerStep({
       dedupeKey,
     };
   try {
-    const appUrl = new URL(nextUrl.url ?? "https://zaltyko.com").origin;
+    const appUrl = getAllowlistedAppOrigin();
+    if (!appUrl) {
+      return {
+        outcome: "skipped",
+        reason: "APP_URL_INVALID",
+        dedupeKey,
+      };
+    }
     const preferences = buildSignedEmailLinkUrl({
       email: ownerEmail,
       purpose: "preferences",

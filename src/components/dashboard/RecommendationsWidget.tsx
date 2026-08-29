@@ -46,11 +46,7 @@ export function RecommendationsWidget({ academyId, userRole, metrics }: Recommen
   ];
 
   return (
-<<<<<<< HEAD
-    <Card className="border-border/80 shadow-soft">
-=======
     <Card className="border-zaltyko-mist/80 shadow-soft">
->>>>>>> origin/main
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-base font-display font-semibold">
           <Lightbulb className="h-5 w-5 text-zaltyko-teal" />
@@ -65,11 +61,7 @@ export function RecommendationsWidget({ academyId, userRole, metrics }: Recommen
               <div className="mt-0.5 rounded-lg bg-zaltyko-teal/10 p-2">
                 <Icon className="h-4 w-4 text-zaltyko-teal" />
               </div>
-<<<<<<< HEAD
-              <p className="text-sm leading-relaxed text-muted-foreground">{rec.text}</p>
-=======
               <p className="text-sm leading-relaxed text-zaltyko-text-secondary">{rec.text}</p>
->>>>>>> origin/main
             </div>
           );
           return rec.href ? (

@@ -77,11 +77,7 @@ export function SportConfigurationDashboard({ academyId }: SportConfigurationDas
   if (isLoading) {
     return (
       <Card>
-<<<<<<< HEAD
         <CardContent className="p-6 text-sm text-muted-foreground">
-=======
-        <CardContent className="p-6 text-sm text-zaltyko-text-secondary">
->>>>>>> origin/main
           Cargando estado deportivo...
         </CardContent>
       </Card>
@@ -91,11 +87,7 @@ export function SportConfigurationDashboard({ academyId }: SportConfigurationDas
   if (!data) {
     return (
       <Card>
-<<<<<<< HEAD
         <CardContent className="p-6 text-sm text-muted-foreground">
-=======
-        <CardContent className="p-6 text-sm text-zaltyko-text-secondary">
->>>>>>> origin/main
           No se pudo cargar el estado deportivo de la academia.
         </CardContent>
       </Card>
@@ -124,11 +116,7 @@ export function SportConfigurationDashboard({ academyId }: SportConfigurationDas
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
               <div>
                 <p className="font-medium">Datos legacy pendientes de clasificar</p>
-<<<<<<< HEAD
                 <p className="mt-1 text-muted-foreground">
-=======
-                <p className="mt-1 text-zaltyko-text-secondary">
->>>>>>> origin/main
                   {fallbackTerms.athletes}: {data.gaps.athletesWithoutSportConfig} · {fallbackTerms.groups}: {data.gaps.groupsWithoutSportConfig} · Clases: {data.gaps.classesWithoutSportConfig} · {fallbackTerms.coach}s sin scope: {data.gaps.coachesWithoutSportScope}
                 </p>
               </div>
@@ -183,19 +171,11 @@ function SportDashboardBranchCard({
   const terms = getTerminology(item);
 
   return (
-<<<<<<< HEAD
     <div className="rounded-xl border border-border bg-zaltyko-warm-white p-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="font-semibold text-foreground">{item.branchName}</p>
                   <p className="text-xs text-muted-foreground">
-=======
-    <div className="rounded-xl border border-zaltyko-mist bg-zaltyko-warm-white p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="font-semibold text-zaltyko-navy">{item.branchName}</p>
-                  <p className="text-xs text-zaltyko-text-secondary">
->>>>>>> origin/main
                     {item.disciplineName} · {item.countryName}
                   </p>
                 </div>
@@ -249,15 +229,9 @@ function AuditLink({
   const hasPending = value > 0;
 
   return (
-<<<<<<< HEAD
     <div className={`rounded-xl border p-4 ${hasPending ? "border-zaltyko-indigo/25 bg-zaltyko-indigo/10" : "border-border bg-card"}`}>
       <p className="text-xs font-medium uppercase tracking-[0.05em] text-muted-foreground">{label}</p>
       <p className="mt-1 font-display text-2xl font-semibold text-foreground">{value}</p>
-=======
-    <div className={`rounded-xl border p-4 ${hasPending ? "border-zaltyko-indigo/25 bg-zaltyko-indigo/10" : "border-zaltyko-mist bg-white"}`}>
-      <p className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-text-secondary">{label}</p>
-      <p className="mt-1 font-display text-2xl font-semibold text-zaltyko-navy">{value}</p>
->>>>>>> origin/main
       <Button asChild size="sm" variant="outline" className="mt-3" disabled={!hasPending}>
         <a href={href}>{action}</a>
       </Button>
@@ -275,21 +249,12 @@ function Metric({
   icon: React.ReactNode;
 }) {
   return (
-<<<<<<< HEAD
     <div className="rounded-lg bg-card px-2 py-3">
       <div className="mx-auto mb-1 flex h-6 w-6 items-center justify-center text-zaltyko-teal">
         {icon}
       </div>
       <p className="font-display text-lg font-semibold text-foreground">{value}</p>
       <p className="text-[11px] text-muted-foreground">{label}</p>
-=======
-    <div className="rounded-lg bg-white px-2 py-3">
-      <div className="mx-auto mb-1 flex h-6 w-6 items-center justify-center text-zaltyko-teal">
-        {icon}
-      </div>
-      <p className="font-display text-lg font-semibold text-zaltyko-navy">{value}</p>
-      <p className="text-[11px] text-zaltyko-text-secondary">{label}</p>
->>>>>>> origin/main
     </div>
   );
 }

@@ -72,28 +72,17 @@ export function DashboardHeroSection({
   const CTAIcon = primaryCTA.icon;
 
   return (
-<<<<<<< HEAD
-    <section className="zaltyko-motion-lines overflow-hidden rounded-2xl border border-border bg-card px-5 py-5 shadow-soft lg:px-6">
-=======
     <section className="zaltyko-motion-lines overflow-hidden rounded-2xl border border-zaltyko-mist/70 bg-white px-5 py-5 shadow-soft lg:px-6">
->>>>>>> origin/main
       <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
         <div className="flex-1 space-y-3">
           <div className="space-y-1">
             <p className="text-xs font-medium uppercase tracking-[0.16em] text-zaltyko-teal">
               Panel operativo
             </p>
-<<<<<<< HEAD
-            <h1 className="font-display text-2xl font-semibold tracking-normal text-foreground lg:text-3xl">
-              {academyName ?? "Academia"} · {labels.disciplineName}
-            </h1>
-            <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-=======
             <h1 className="font-display text-2xl font-semibold tracking-normal text-zaltyko-navy lg:text-3xl">
               {academyName ?? "Academia"} · {labels.disciplineName}
             </h1>
             <p className="max-w-2xl text-sm leading-6 text-zaltyko-text-secondary">
->>>>>>> origin/main
               Hola {profileName ?? "equipo"}. {welcomeMessage}
             </p>
           </div>
@@ -106,22 +95,13 @@ export function DashboardHeroSection({
               <div className="group relative">
                 <button
                   type="button"
-<<<<<<< HEAD
-                  className="flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-semibold text-muted-foreground transition hover:border-zaltyko-teal hover:text-zaltyko-teal"
-=======
                   className="flex items-center gap-2 rounded-full border border-zaltyko-mist bg-white px-3 py-1.5 text-xs font-semibold text-zaltyko-text-secondary transition hover:border-zaltyko-teal hover:text-zaltyko-teal"
->>>>>>> origin/main
                 >
                   <span className="max-w-[120px] truncate">{academyName ?? "Academia"}</span>
                   <ChevronDown className="h-3 w-3" />
                 </button>
-<<<<<<< HEAD
-                <div className="invisible absolute right-0 top-full z-50 mt-1 w-56 rounded-xl border border-border bg-card p-1 opacity-0 shadow-medium transition-all group-hover:visible group-hover:opacity-100">
-                  <div className="mb-1 border-b border-border px-3 py-2 text-xs font-semibold text-muted-foreground">
-=======
                 <div className="invisible absolute right-0 top-full z-50 mt-1 w-56 rounded-xl border border-zaltyko-mist bg-white p-1 opacity-0 shadow-medium transition-all group-hover:visible group-hover:opacity-100">
                   <div className="mb-1 border-b border-zaltyko-mist px-3 py-2 text-xs font-semibold text-slate-600">
->>>>>>> origin/main
                     Cambiar de academia
                   </div>
                   {tenantAcademies.map((academy) => (
@@ -164,21 +144,13 @@ export function SportBreakdownSection({
   if (items.length === 0) return null;
 
   return (
-<<<<<<< HEAD
-    <section className="rounded-2xl border border-border bg-card p-5 shadow-soft">
-=======
     <section className="rounded-2xl border border-zaltyko-mist bg-white p-5 shadow-soft">
->>>>>>> origin/main
       <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-teal">
             Distribución deportiva
           </p>
-<<<<<<< HEAD
-          <h2 className="font-display text-xl font-semibold text-foreground">Actividad por rama</h2>
-=======
           <h2 className="font-display text-xl font-semibold text-zaltyko-navy">Actividad por rama</h2>
->>>>>>> origin/main
         </div>
         <Button size="sm" variant="outline" onClick={() => onNavigate(`/app/${academyId}/settings`)}>
           Gestionar ramas
@@ -186,15 +158,9 @@ export function SportBreakdownSection({
       </div>
       <div className="grid gap-3 md:grid-cols-3">
         {items.map((item) => (
-<<<<<<< HEAD
-          <div key={item.sportConfigId} className="rounded-xl border border-border bg-zaltyko-warm-white p-4">
-            <p className="text-sm font-semibold text-foreground">{item.branchName}</p>
-            <p className="text-xs text-muted-foreground">{item.disciplineName}</p>
-=======
           <div key={item.sportConfigId} className="rounded-xl border border-zaltyko-mist bg-zaltyko-warm-white p-4">
             <p className="text-sm font-semibold text-zaltyko-navy">{item.branchName}</p>
             <p className="text-xs text-zaltyko-text-secondary">{item.disciplineName}</p>
->>>>>>> origin/main
             <div className="mt-4 grid grid-cols-3 gap-2 text-center">
               <SportBreakdownMetric value={item.athletes} label={labels.athletesPlural} />
               <SportBreakdownMetric value={item.groups} label={`${labels.groupLabel}s`} />
@@ -225,11 +191,7 @@ export function StarterSetupSection({
           <p className="text-sm font-semibold text-foreground">
             Tu academia ya arrancó con una base recomendada para {labels.disciplineName.toLowerCase()}
           </p>
-<<<<<<< HEAD
-          <p className="text-sm text-foreground">
-=======
           <p className="text-sm text-slate-700">
->>>>>>> origin/main
             Ahora toca revisar responsables, ajustar horarios y adaptar la plantilla inicial a tu realidad diaria.
           </p>
         </div>
@@ -243,11 +205,7 @@ export function StarterSetupSection({
         </div>
       </div>
       {recommendation && (
-<<<<<<< HEAD
-        <div className="mt-4 rounded-xl border border-border bg-card/90 p-4">
-=======
         <div className="mt-4 rounded-xl border border-zaltyko-mist bg-white/90 p-4">
->>>>>>> origin/main
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="space-y-1">
               <p className="text-xs font-medium uppercase tracking-[0.12em] text-zaltyko-teal">
@@ -282,11 +240,7 @@ export function QuickNavigationSection({ academyId }: { academyId: string }) {
           <a
             key={link.href}
             href={link.href}
-<<<<<<< HEAD
-            className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4 shadow-soft transition hover:border-zaltyko-teal/40"
-=======
             className="flex items-center gap-3 rounded-2xl border border-zaltyko-mist bg-white p-4 shadow-soft transition hover:border-zaltyko-teal/40"
->>>>>>> origin/main
           >
             <Icon className={`h-5 w-5 ${link.color}`} />
             <div className="min-w-0 flex-1">
@@ -321,11 +275,7 @@ export function DashboardOnboardingPanel({
     : null;
 
   return (
-<<<<<<< HEAD
-    <section className="rounded-2xl border border-border bg-card p-5 shadow-soft">
-=======
     <section className="rounded-2xl border border-zaltyko-mist bg-white p-5 shadow-soft">
->>>>>>> origin/main
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 space-y-2">
           <div className="flex items-center gap-2">
@@ -361,11 +311,7 @@ export function DashboardOnboardingPanel({
       </div>
 
       {showAllSteps && pendingSteps.length > 0 && (
-<<<<<<< HEAD
-        <div className="mt-4 space-y-2 border-t border-border pt-4">
-=======
         <div className="mt-4 space-y-2 border-t border-zaltyko-mist pt-4">
->>>>>>> origin/main
           <p className="mb-2 text-xs font-semibold text-muted-foreground">
             Pasos pendientes ({pendingSteps.length}):
           </p>
@@ -411,11 +357,7 @@ export function RecentActivityPanel({
   onToggle: () => void;
 }) {
   return (
-<<<<<<< HEAD
-    <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-soft">
-=======
     <section className="overflow-hidden rounded-2xl border border-zaltyko-mist bg-white shadow-soft">
->>>>>>> origin/main
       <button
         type="button"
         onClick={onToggle}
@@ -439,13 +381,8 @@ export function RecentActivityPanel({
 function SportBreakdownMetric({ value, label }: { value: number; label: string }) {
   return (
     <div>
-<<<<<<< HEAD
-      <p className="font-display text-xl font-semibold text-foreground">{value}</p>
-      <p className="text-[11px] text-muted-foreground">{label}</p>
-=======
       <p className="font-display text-xl font-semibold text-zaltyko-navy">{value}</p>
       <p className="text-[11px] text-zaltyko-text-secondary">{label}</p>
->>>>>>> origin/main
     </div>
   );
 }

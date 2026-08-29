@@ -518,16 +518,10 @@ export function OwnerOnboardingForm() {
         </div>
         <div className="space-y-3 sm:col-span-2">
           <div className="space-y-1">
-<<<<<<< HEAD
             <Label>Plantilla inicial de clases (opcional)</Label>
             <p className="text-xs text-muted-foreground">
               Si mantienes la estructura inicial, estos entrenamientos se crearán automáticamente.
               Si prefieres configurarlos después, desmarca todos los grupos: podrás retomar tu primera clase desde el dashboard.
-=======
-            <Label>Bloques semanales sugeridos</Label>
-            <p className="text-xs text-muted-foreground">
-              Si mantienes la estructura inicial, estos entrenamientos se crearán automáticamente.
->>>>>>> origin/main
             </p>
           </div>
           <div className="grid gap-3">
@@ -555,13 +549,8 @@ export function OwnerOnboardingForm() {
                       </div>
                     ))}
                   {selectedKeys.length === 0 && (
-<<<<<<< HEAD
                     <p className="text-xs text-muted-foreground" data-testid="owner-onboarding-classes-skipped">
                       Plantilla omitida por ahora. La academia se creará sin grupos ni clases iniciales; podrás configurarlos después desde el dashboard.
-=======
-                    <p className="text-xs text-muted-foreground">
-                      No se crearán grupos iniciales para esta rama.
->>>>>>> origin/main
                     </p>
                   )}
                 </div>

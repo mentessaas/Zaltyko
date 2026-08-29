@@ -229,11 +229,7 @@ export default async function AcademiesPage() {
       )}
 
       {!hasAcademies ? (
-<<<<<<< HEAD
         <div className="rounded-2xl border border-dashed border-muted-foreground/30 bg-card p-8 text-center shadow-sm">
-=======
-        <div className="rounded-2xl border border-dashed border-muted-foreground/30 bg-white p-8 text-center shadow-sm">
->>>>>>> origin/main
           <p className="text-lg font-semibold text-zaltyko-neutral-dark">Todavía no tienes academias asignadas.</p>
           <p className="mt-2 text-sm text-muted-foreground">
             Crea tu primera academia desde el onboarding o invita a tu equipo para comenzar.
