@@ -12,6 +12,7 @@ export const colors = {
   // Text
   text: '#0F172A',
   textMuted: '#64748B', // slate-500
+  textMutedOnDark: '#94A3B8', // slate-400 — sobre bg/surfaceDark
   textInverse: '#FFFFFF',
 
   // Brand
@@ -32,7 +33,7 @@ export const colors = {
 
   // Tab bar
   tabActive: '#4F46E5',
-  tabInactive: '#94A3B8', // slate-400
+  tabInactive: '#475569', // slate-600 — 7.58:1 sobre surface
 } as const;
 
 export const spacing = {

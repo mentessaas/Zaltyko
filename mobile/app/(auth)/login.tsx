@@ -162,7 +162,9 @@ const styles = StyleSheet.create({
   forgotLink: { alignSelf: 'flex-end', marginTop: -spacing.xs },
   link: {
     ...typography.caption,
-    color: colors.primary,
+    // indigo-300: 8.96:1 sobre el navy del fondo. Antes colors.primary
+    // (#4F46E5) daba 2.84:1 — fallaba 4.5 a 14px.
+    color: '#A5B4FC',
   },
   divider: {
     flexDirection: 'row',
