@@ -9,18 +9,13 @@ vi.mock("@sentry/nextjs", () => sentryMocks);
 vi.mock("@/lib/env", () => ({ isProduction: () => true }));
 vi.unmock("@/lib/logger");
 
-<<<<<<< HEAD
 import { logger, redactSensitive, redactSensitiveText } from "@/lib/logger";
-=======
-import { logger, redactSensitive } from "@/lib/logger";
->>>>>>> origin/main
 
 describe("redactSensitive", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-<<<<<<< HEAD
   it("redacta Authorization y Bearer dentro de texto libre", () => {
     const value = "Authorization: Bearer bearer-secret; Bearer another-secret";
 
@@ -32,8 +27,6 @@ describe("redactSensitive", () => {
     });
   });
 
-=======
->>>>>>> origin/main
   it("redacta clientSecret y client_secret recursivamente en objetos y arrays", () => {
     const value = {
       details: {

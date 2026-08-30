@@ -64,10 +64,7 @@ const ACADEMY_NAV: NavigationDefinition[] = [
   { key: "attendance-today", label: "Pasar lista", icon: ClipboardCheck, href: (academyId) => `/app/${academyId}/attendance/today`, roles: ["super_admin", "owner", "admin", "coach"], mobile: true },
   { key: "events", label: "Eventos", icon: Calendar, href: (academyId) => `/app/${academyId}/events`, roles: ["super_admin", "owner", "admin", "coach"] },
   { key: "assessments", label: "Evaluaciones", icon: FileText, href: (academyId) => `/app/${academyId}/assessments`, roles: ["super_admin", "owner", "admin", "coach"] },
-<<<<<<< HEAD
   { key: "my-events", label: "Mis eventos", icon: Calendar, href: (academyId) => `/app/${academyId}/my-events`, roles: ["athlete", "parent"] },
-=======
->>>>>>> origin/main
   { key: "messages", label: "Mensajes", icon: MessageSquare, href: (academyId) => `/app/${academyId}/messages`, roles: ["super_admin", "owner", "admin", "coach", "athlete", "parent"], mobile: true },
   { key: "notifications", label: "Avisos", icon: Megaphone, href: (academyId) => `/app/${academyId}/notifications`, roles: ["athlete", "parent"], mobile: true },
   { key: "announcements", label: "Anuncios", icon: Megaphone, href: (academyId) => `/app/${academyId}/announcements`, roles: ["super_admin", "owner", "admin"] },

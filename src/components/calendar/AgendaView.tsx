@@ -35,11 +35,7 @@ const statusColors: Record<string, string> = {
 };
 
 function getStatusColor(status: string) {
-<<<<<<< HEAD
     return statusColors[status] ?? "bg-zaltyko-white text-muted-foreground border-border";
-=======
-    return statusColors[status] ?? "bg-zaltyko-white text-zaltyko-text-secondary border-zaltyko-mist";
->>>>>>> origin/main
 }
 
 export function AgendaView({ sessions, rangeStart, rangeEnd }: AgendaViewProps) {
@@ -71,11 +67,7 @@ export function AgendaView({ sessions, rangeStart, rangeEnd }: AgendaViewProps) 
 
     if (sortedDates.length === 0) {
         return (
-<<<<<<< HEAD
             <div className="flex min-h-[400px] items-center justify-center rounded-2xl border border-dashed border-border bg-zaltyko-white">
-=======
-            <div className="flex min-h-[400px] items-center justify-center rounded-2xl border border-dashed border-zaltyko-mist bg-zaltyko-white">
->>>>>>> origin/main
                 <div className="text-center">
                     <Calendar className="mx-auto h-12 w-12 text-muted-foreground" />
                     <p className="mt-4 text-lg font-medium text-muted-foreground">
@@ -101,21 +93,13 @@ export function AgendaView({ sessions, rangeStart, rangeEnd }: AgendaViewProps) 
                         {/* Date Header */}
                         <div
                             className={cn(
-<<<<<<< HEAD
                                 "sticky top-0 z-10 flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3 shadow-soft",
-=======
-                                "sticky top-0 z-10 flex items-center gap-3 rounded-2xl border border-zaltyko-mist bg-white px-4 py-3 shadow-soft",
->>>>>>> origin/main
                                 isToday && "border-zaltyko-teal/40 bg-zaltyko-teal/5"
                             )}
                         >
                             <Calendar className={cn("h-5 w-5", isToday ? "text-zaltyko-teal" : "text-muted-foreground")} />
                             <div>
-<<<<<<< HEAD
                                 <p className={cn("font-semibold text-foreground", isToday && "text-zaltyko-teal")}>
-=======
-                                <p className={cn("font-semibold text-zaltyko-navy", isToday && "text-zaltyko-teal")}>
->>>>>>> origin/main
                                     {format(dateObj, "EEEE, d 'de' MMMM", { locale: es })}
                                 </p>
                                 {isToday && (
@@ -133,11 +117,7 @@ export function AgendaView({ sessions, rangeStart, rangeEnd }: AgendaViewProps) 
                                 const content = (
                                     <div
                                         className={cn(
-<<<<<<< HEAD
                                 "group relative flex items-start gap-4 rounded-2xl border border-border bg-card p-4 shadow-soft transition-all hover:border-zaltyko-teal/40",
-=======
-                                "group relative flex items-start gap-4 rounded-2xl border border-zaltyko-mist bg-white p-4 shadow-soft transition-all hover:border-zaltyko-teal/40",
->>>>>>> origin/main
                                 session.isPlaceholder && "border-dashed border-zaltyko-coral/35 bg-zaltyko-coral/10"
                                         )}
                                     >
@@ -164,11 +144,7 @@ export function AgendaView({ sessions, rangeStart, rangeEnd }: AgendaViewProps) 
                                         <div className="flex-1 space-y-2">
                                             <div className="flex items-start justify-between gap-4">
                                                 <div>
-<<<<<<< HEAD
                                                     <h3 className="font-semibold text-foreground">
-=======
-                                                    <h3 className="font-semibold text-zaltyko-navy">
->>>>>>> origin/main
                                                         {session.className || "Clase sin nombre"}
                                                     </h3>
                                                     {session.academyName && (

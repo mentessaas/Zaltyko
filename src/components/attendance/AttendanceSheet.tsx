@@ -28,11 +28,7 @@ const STATUS_OPTIONS: { key: AttendanceStatus; label: string; icon: typeof Check
   { key: "present", label: "Presente", icon: Check, activeClass: "bg-zaltyko-teal text-white border-zaltyko-teal" },
   { key: "absent", label: "Ausente", icon: X, activeClass: "bg-zaltyko-coral text-white border-zaltyko-coral" },
   { key: "late", label: "Tarde", icon: Clock, activeClass: "bg-zaltyko-navy text-white border-zaltyko-navy" },
-<<<<<<< HEAD
   { key: "excused", label: "Justificada", icon: FileText, activeClass: "bg-zaltyko-mist text-foreground border-border" },
-=======
-  { key: "excused", label: "Justificada", icon: FileText, activeClass: "bg-zaltyko-mist text-zaltyko-navy border-zaltyko-mist" },
->>>>>>> origin/main
 ];
 
 export const AttendanceSheet = memo(function AttendanceSheet({
@@ -118,42 +114,25 @@ export const AttendanceSheet = memo(function AttendanceSheet({
 
   return (
     <div className="flex min-h-[calc(100dvh-4rem)] flex-col">
-<<<<<<< HEAD
       <header className="sticky top-0 z-10 -mx-4 border-b-2 border-zaltyko-teal bg-card px-4 py-3 sm:-mx-6 sm:px-6">
         <div className="flex items-center gap-3">
           <Link
             href={backHref}
             className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-muted-foreground hover:bg-zaltyko-white"
-=======
-      <header className="sticky top-0 z-10 -mx-4 border-b-2 border-zaltyko-teal bg-white px-4 py-3 sm:-mx-6 sm:px-6">
-        <div className="flex items-center gap-3">
-          <Link
-            href={backHref}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-zaltyko-text-secondary hover:bg-zaltyko-white"
->>>>>>> origin/main
             aria-label="Volver a las sesiones de hoy"
           >
             <ChevronLeft className="h-5 w-5" />
           </Link>
           <div className="min-w-0 flex-1">
-<<<<<<< HEAD
             <p className="truncate font-display text-base font-bold text-foreground">{className}</p>
             <p className="text-xs font-medium tabular-nums text-muted-foreground">
-=======
-            <p className="truncate font-display text-base font-bold text-zaltyko-navy">{className}</p>
-            <p className="text-xs font-medium tabular-nums text-zaltyko-text-secondary">
->>>>>>> origin/main
               {marked}/{athletes.length} marcadas · {isPending ? "Guardando…" : hasFailures ? "Algunas sin guardar" : "Guardado"}
             </p>
           </div>
           <Button
             variant="outline"
             size="sm"
-<<<<<<< HEAD
             className="h-11 shrink-0 border-border"
-=======
-            className="h-11 shrink-0 border-zaltyko-mist"
->>>>>>> origin/main
             onClick={markAllPresent}
             disabled={marked === athletes.length}
           >
@@ -166,11 +145,7 @@ export const AttendanceSheet = memo(function AttendanceSheet({
         {athletes.map((athlete) => (
           <li key={athlete.id} className="flex items-center gap-3 px-1 py-3 sm:px-0">
             <div className="min-w-0 flex-1">
-<<<<<<< HEAD
               <p className="truncate font-medium text-foreground">{athlete.name}</p>
-=======
-              <p className="truncate font-medium text-zaltyko-navy">{athlete.name}</p>
->>>>>>> origin/main
               {athlete.groupName && (
                 <p className="truncate text-xs text-zaltyko-text-light">{athlete.groupName}</p>
               )}
@@ -191,11 +166,7 @@ export const AttendanceSheet = memo(function AttendanceSheet({
                     onClick={() => saveEntry(athlete.id, key)}
                     className={cn(
                       "flex h-11 w-11 items-center justify-center rounded-lg border transition-colors",
-<<<<<<< HEAD
                       selected ? activeClass : "border-border text-zaltyko-text-light hover:bg-zaltyko-white"
-=======
-                      selected ? activeClass : "border-zaltyko-mist text-zaltyko-text-light hover:bg-zaltyko-white"
->>>>>>> origin/main
                     )}
                   >
                     <Icon className="h-5 w-5" />

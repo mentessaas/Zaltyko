@@ -1,10 +1,215 @@
 ---
 status: active
 owner: producto
-<<<<<<< HEAD
-last_reviewed: 2026-08-25T11:21Z
+last_reviewed: 2026-08-30T02:20Z
 source:
 ---
+
+## 2026-08-30 — Engineering Lead: ZAL-1081 revalidación A3 y handoff técnico
+
+- La revalidación local confirma que los seis artefactos del alcance existen en
+  el checkout efectivo: `canonical.ts`, `canonical-adapter.ts`,
+  `reconciliation.ts`, la migración A3, el test focal y su fixture.
+- La separación pure/writer queda verificable: el contrato y la reconciliación
+  no abren conexiones; el adaptador es `server-only`, persiste `event_id` y
+  usa la clave única de idempotencia sin actualizar retries existentes. La
+  migración solo agrega columnas nullable, checks e índices únicos; no se
+  aplicó a ninguna base remota.
+- El test focal cubre consentimiento vigente/revocado, propiedades prohibidas,
+  tenant/academy, aliases, onboarding, reconciliación DB + Stripe test,
+  discrepancias plan/moneda, transacción opaca, catálogo, retry idempotente,
+  colisión de `event_id` y compatibilidad con filas históricas.
+- Disposición: artefactos verificables y listos para que QA y Platform &
+  Security reintenten sus revisiones independientes de [ZAL-976](/ZAL/issues/ZAL-976)
+  y [ZAL-977](/ZAL/issues/ZAL-977). El typecheck global queda bloqueado por
+  tres errores fuera del alcance A3 en WhatsApp/Marketplace; no se corrigieron
+  archivos paralelos.
+- Evidencia únicamente local/sandbox. No se tocó producción, secretos, datos
+  reales, Stripe live, migraciones remotas ni publicaciones. La API de
+  Paperclip continuó sin responder en `127.0.0.1:3100`, por lo que el estado y
+  comentario remotos quedan pendientes de recuperación del control plane.
+
+Evidencia literal de esta revalidación:
+
+```text
+$ ls -la -- src/lib/growth/canonical.ts
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  17635 Aug 30 01:57 src/lib/growth/canonical.ts
+$ wc -l -- src/lib/growth/canonical.ts
+     608 src/lib/growth/canonical.ts
+$ ls -la -- src/lib/growth/canonical-adapter.ts
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  4217 Aug 30 02:01 src/lib/growth/canonical-adapter.ts
+$ wc -l -- src/lib/growth/canonical-adapter.ts
+     143 src/lib/growth/canonical-adapter.ts
+$ ls -la -- src/lib/growth/reconciliation.ts
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  8002 Aug 29 02:55 src/lib/growth/reconciliation.ts
+$ wc -l -- src/lib/growth/reconciliation.ts
+     281 src/lib/growth/reconciliation.ts
+$ ls -la -- supabase/migrations/20260825090000_growth_events_canonical_a3.sql
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  2314 Aug 30 02:01 supabase/migrations/20260825090000_growth_events_canonical_a3.sql
+$ wc -l supabase/migrations/20260825090000_growth_events_canonical_a3.sql
+      69 supabase/migrations/20260825090000_growth_events_canonical_a3.sql
+$ ls -la -- tests/growth-canonical.test.ts
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  11682 Aug 30 02:05 tests/growth-canonical.test.ts
+$ wc -l -- tests/growth-canonical.test.ts
+     385 tests/growth-canonical.test.ts
+$ grep -c "  it(" tests/growth-canonical.test.ts
+14
+$ ls -la -- tests/fixtures/growth-reconciliation.ts
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  4680 Aug 29 02:40 tests/fixtures/growth-reconciliation.ts
+$ wc -l -- tests/fixtures/growth-reconciliation.ts
+     163 tests/fixtures/growth-reconciliation.ts
+
+$ PATH=/opt/homebrew/bin:$PATH pnpm exec vitest run tests/growth-canonical.test.ts
+ ✓ tests/growth-canonical.test.ts (14 tests) 12ms
+ Test Files  1 passed (1)
+      Tests  14 passed (14)
+
+$ ./node_modules/.bin/prettier --check [artefactos A3 y schema]
+Checking formatting...
+All matched files use Prettier code style!
+$ ./node_modules/.bin/eslint [artefactos A3 y schema] --quiet
+
+$ node --import tsx scripts/check-migrations-integrity.ts
+[check-migrations-integrity] OK: 6 Drizzle (6 SQL) + 51 Supabase migraciones validadas
+
+$ git diff --check
+
+$ PATH=/opt/homebrew/bin:$PATH pnpm exec tsc --noEmit --pretty false
+src/app/app/[academyId]/whatsapp/page.tsx(193,7): error TS2741: Property 'apiKey' is missing in type '{ phone: string; isConfigured: boolean; }' but required in type 'WhatsAppConfig'.
+src/components/marketplace/MarketplaceForm.tsx(128,11): error TS18004: No value exists in scope for the shorthand property 'userId'. Either declare one or provide an initializer.
+src/components/marketplace/MarketplaceForm.tsx(129,11): error TS18004: No value exists in scope for the shorthand property 'sellerType'. Either declare one or provide an initializer.
+$ ls -la -- src/app/app/[academyId]/whatsapp/page.tsx
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  5977 Aug 29 20:57 src/app/app/[academyId]/whatsapp/page.tsx
+$ wc -l -- src/app/app/[academyId]/whatsapp/page.tsx
+     206 src/app/app/[academyId]/whatsapp/page.tsx
+$ ls -la -- src/components/marketplace/MarketplaceForm.tsx
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  17346 Aug 29 20:57 src/components/marketplace/MarketplaceForm.tsx
+$ wc -l -- src/components/marketplace/MarketplaceForm.tsx
+     492 src/components/marketplace/MarketplaceForm.tsx
+```
+
+Vault: documentación operativa actualizada; no cambia
+`Decisiones.md` ni `Backlog priorizado.md` porque no surge una decisión de
+producto, pricing, seguridad o arquitectura. El resultado no sustituye la
+revisión independiente ni autoriza promoción remota.
+
+## 2026-08-30 — Engineering Lead: ZAL-1081 rehidrata los artefactos A3 del colector
+
+- Se verificaron y dejaron disponibles los seis artefactos del contrato A3:
+  `src/lib/growth/canonical.ts`,
+  `src/lib/growth/canonical-adapter.ts`,
+  `src/lib/growth/reconciliation.ts`,
+  `supabase/migrations/20260825090000_growth_events_canonical_a3.sql`,
+  `tests/growth-canonical.test.ts` y
+  `tests/fixtures/growth-reconciliation.ts`.
+- `canonical.ts` mantiene la construcción pura del sobre; el adaptador importa
+  `server-only` y es la única frontera de escritura. El schema y la migración
+  agregan `event_id` separado de la PK interna `id`, metadatos A3 nullable para
+  conservar el histórico, checks de versión/ambiente/evidencia/transacción e
+  índices únicos para `event_id` e idempotencia. No hay backfill ni operación
+  remota.
+- La suite focal cubre consentimiento explícito y revocación, propiedades
+  prohibidas, vínculo tenant/academy, aliases, onboarding, reconciliación DB +
+  Stripe test, discrepancias de plan/moneda, transacciones opacas, catálogo,
+  retries idempotentes y colisiones con filas históricas. La fixture conserva
+  datos sintéticos para reproducir duplicados y discrepancias.
+- Disposición: **artefactos verificables y listos para reintentar ZAL-976 y
+  ZAL-977**. Esta subtarea no sustituye la revisión independiente de QA ni de
+  Platform & Security; no se tocaron producción, migraciones remotas, Stripe
+  live, secretos ni datos reales.
+- Próxima acción: QA y Platform & Security pueden reintentar sus revisiones
+  independientes sobre esta fuente verificable. El comentario y el cambio de
+  estado de Paperclip no pudieron publicarse porque su API local rechazó la
+  conexión en `127.0.0.1:3100`; no se hicieron más reintentos del control plane.
+
+Evidencia literal:
+
+```text
+$ ls -la src/lib/growth/canonical.ts
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  17635 Aug 30 01:57 src/lib/growth/canonical.ts
+$ wc -l src/lib/growth/canonical.ts
+     608 src/lib/growth/canonical.ts
+$ ls -la src/lib/growth/canonical-adapter.ts
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  4217 Aug 30 02:01 src/lib/growth/canonical-adapter.ts
+$ wc -l src/lib/growth/canonical-adapter.ts
+     143 src/lib/growth/canonical-adapter.ts
+$ ls -la src/lib/growth/reconciliation.ts
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  8002 Aug 29 02:55 src/lib/growth/reconciliation.ts
+$ wc -l src/lib/growth/reconciliation.ts
+     281 src/lib/growth/reconciliation.ts
+$ ls -la supabase/migrations/20260825090000_growth_events_canonical_a3.sql
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  2314 Aug 30 02:01 supabase/migrations/20260825090000_growth_events_canonical_a3.sql
+$ wc -l supabase/migrations/20260825090000_growth_events_canonical_a3.sql
+      69 supabase/migrations/20260825090000_growth_events_canonical_a3.sql
+$ ls -la tests/growth-canonical.test.ts
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  11682 Aug 30 02:05 tests/growth-canonical.test.ts
+$ wc -l tests/growth-canonical.test.ts
+     385 tests/growth-canonical.test.ts
+$ grep -c "  it(" tests/growth-canonical.test.ts
+14
+$ ls -la tests/fixtures/growth-reconciliation.ts
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  4680 Aug 29 02:40 tests/fixtures/growth-reconciliation.ts
+$ wc -l tests/fixtures/growth-reconciliation.ts
+     163 tests/fixtures/growth-reconciliation.ts
+
+$ ls -la src/db/schema/growth-events.ts
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  2574 Aug 30 02:01 src/db/schema/growth-events.ts
+$ wc -l src/db/schema/growth-events.ts
+      81 src/db/schema/growth-events.ts
+$ ls -la tests/lib/growth-canonical.test.ts
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  7792 Aug 29 02:55 tests/lib/growth-canonical.test.ts
+$ wc -l tests/lib/growth-canonical.test.ts
+     253 tests/lib/growth-canonical.test.ts
+$ grep -c "  it(" tests/lib/growth-canonical.test.ts
+11
+
+$ /opt/homebrew/bin/pnpm exec vitest run tests/growth-canonical.test.ts
+ ✓ tests/growth-canonical.test.ts (14 tests) 12ms
+      Tests  14 passed (14)
+$ /opt/homebrew/bin/pnpm exec vitest run tests/lib/growth-canonical.test.ts
+ ✓ tests/lib/growth-canonical.test.ts (11 tests) 20ms
+      Tests  11 passed (11)
+
+$ ./node_modules/.bin/prettier --check [seis artefactos TS y schema]
+Checking formatting...
+All matched files use Prettier code style!
+$ ./node_modules/.bin/eslint [seis artefactos TS y schema] --quiet
+$ /opt/homebrew/bin/pnpm exec tsx scripts/check-migrations-integrity.ts
+[check-migrations-integrity] OK: 6 Drizzle (6 SQL) + 51 Supabase migraciones validadas
+```
+
+El typecheck global sigue reportando únicamente tres errores ajenos a A3 en
+`src/app/app/[academyId]/whatsapp/page.tsx` y
+`src/components/marketplace/MarketplaceForm.tsx`; no produjo errores en los
+artefactos focales.
+
+Evidencia de los archivos fuera de alcance señalados por el typecheck:
+
+```text
+$ ls -la src/app/app/[academyId]/whatsapp/page.tsx
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  5977 Aug 29 20:57 src/app/app/[academyId]/whatsapp/page.tsx
+$ wc -l src/app/app/[academyId]/whatsapp/page.tsx
+     206 src/app/app/[academyId]/whatsapp/page.tsx
+$ ls -la src/components/marketplace/MarketplaceForm.tsx
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  17346 Aug 29 20:57 src/components/marketplace/MarketplaceForm.tsx
+$ wc -l src/components/marketplace/MarketplaceForm.tsx
+     492 src/components/marketplace/MarketplaceForm.tsx
+```
+
+## 2026-08-29 — Web Developer: ZAL-1051 resuelve marcadores del merge `a2e9c409`
+
+- Se eliminaron los marcadores `<<<<<<< HEAD` / `=======` / `>>>>>>> origin/main`
+  de los 229 archivos tracked que aún los contenían tras ZAL-1050.
+- La resolución conserva el lado `HEAD` cuando ambos lados tenían contenido
+  conflictivo y conserva adiciones de `origin/main` cuando `HEAD` estaba vacío.
+  Esto mantiene los fixes server-side de WhatsApp, expiración JWT estricta,
+  rate limit de APIs públicas y el gate de roles de `withAuthenticatedNoTenant`.
+- No se ejecutaron migraciones remotas, deploys, producción, secretos, Stripe
+  live ni datos reales. El worktree canónico quedó listo para revisión de
+  Engineering Lead y QA.
+
+Evidencia local: ausencia de marcadores, JSON raíz válido y `git diff --check`
+sin errores.
 
 ## 2026-08-26 — Engineering Lead: ZAL-800 elimina secretos del cliente en verify de WhatsApp
 
@@ -1584,10 +1789,6 @@ Vault: actualizado este changelog y el backlog priorizado; `Decisiones.md` no re
 - No se tocaron datos, migraciones remotas, producción, Stripe live ni secretos. La limpieza de las dos filas huérfanas y el CHECK constraint quedan fuera de este cambio.
 
 Vault: actualizado este changelog; `Estado actual de Zaltyko.md`, `Decisiones.md` y `Backlog priorizado.md` no requieren cambio adicional.
-=======
-last_reviewed: 2026-08-10T00:00Z
-source:
->>>>>>> origin/main
 
 ## 2026-08-10 - Engineering: hardening SCA y redacción de secretos para ZAL-524
 
@@ -1655,7 +1856,6 @@ Vault: actualizado el work product de [ZAL-328](/ZAL/issues/ZAL-328) y este chan
 - El barrido de gates fantasma no encontró bloqueos activos exclusivamente dependientes de Gemita/Hermin. ZAL-138 y ZAL-191 están cerradas; ZAL-156 sigue bloqueada por ZAL-157/ZAL-160, no por un agente retirado.
 - No se cambió código ni se actuó sobre producción, Stripe live, secretos, datos reales, pricing, campañas, publicaciones, stores o migraciones remotas. El workspace de este run solo contenía `cancel.json`; no se usó como evidencia de readiness.
 
-<<<<<<< HEAD
 Vault: actualizadas `Estado actual de Zaltyko.md`, `Decisiones.md`, `Changelog interno.md` y `Backlog priorizado.md`.
 
 ## 2026-08-12 — Engineering Lead: ZAL-611 mantiene bloqueo por bridge de Paperclip
@@ -1697,8 +1897,6 @@ Vault: actualizadas `Estado actual de Zaltyko.md`, `Decisiones.md`, `Changelog i
 - [ZAL-479](/ZAL/issues/ZAL-479) mantiene un único contacto 1:1 y monitor externo para 2026-08-11 08:00 UTC; [ZAL-520](/ZAL/issues/ZAL-520) sigue con Support para aplicar G1/G5 y cerrar la rev. 2.
 - No se presenta control-plane, local o sandbox como adopción, readiness, ingresos o validación humana. No se tocó código, producción, secretos, pagos, datos reales, pricing, campañas, claims, publicaciones, stores ni migraciones remotas.
 
-=======
->>>>>>> origin/main
 Vault: actualizadas `Decisiones.md`, `Changelog interno.md` y `Backlog priorizado.md`.
 
 ## 2026-08-10 - CEO recovery: handoff restaurado en ZAL-417 sin duplicar peer-verification
@@ -1961,28 +2159,16 @@ Costo del heartbeat: ~3 API calls (1 PATCH ZAL-441 fallido ProofRequired + 1 PAT
 
 - `dig +short aws-1-eu-north-1.pooler.supabase.com A` → `13.60.102.132`, `51.21.189.77` (AWS ELB EU-NORTH-1, IPv4).
 - `dig +short db.jegxfahsvugilbthbked.supabase.co A` → vacío (AAAA-only). `dig +short ... AAAA` → `2a05:d016:571:a418:d836:cd7b:4c56:4b98`.
-<<<<<<< HEAD
 - `psql "postgresql://postgres.jegxfahsvugilbthbked:Mentessaas550501@aws-1-eu-north-1.pooler.supabase.com:6543/postgres?sslmode=require" -c "select version();"` → `PostgreSQL 17.6 on aarch64-unknown-linux-gnu` (HTTP 200 desde este host, sin túneles).
 - `curl -sS https://jegxfahsvugilbthbked.supabase.co/auth/v1/health` → 401 (gateway Supabase alcanzable).
 - `curl -sS "https://jegxfahsvugilbthbked.supabase.co/rest/v1/academies?select=id,name,is_suspended,tenant_id"` con service role JWT → 2 filas: `c0346990-e49f-44c5-84e7-1ad2c6579b7c` (MentesSaas Academy, Stripe acct_1TtTOdD6epI0CHnR charges_enabled=false) y `44444444-aaaa-bbbb-cccc-444444444444` (Aurora Elite Demo, Stripe acct_1Tyau3Dd5HlYiTSY charges_enabled=true). **La academia `7ea0690c-99f2-4466-8a96-f251e1235d57` NO existe en el proyecto real `.env.local`**, solo existe en el sandbox `aeeootdmuiqkfeernskw` referenciado por changelog ZAL-27.
 - Notar: `acct_1Tyau3Dd5HlYiTSY` aparece en stripe_accounts de AMBOS proyectos (sandbox y prod) — es la misma Connect account (id a nivel Stripe), apuntada desde dos DBs distintas. Eso explica el espejismo.
 - Shell env del run tiene `DATABASE_URL=postgresql://postgres:aKnJrawOtplxtWko@db.aeeootdmuiqkfeernskw.supabase.co:5432/postgres` + `NEXT_PUBLIC_SUPABASE_URL=https://aeeootdmuiqkfeernskw.supabase.co` — distinto de `.env.local` (prod). `dotenv.config` no override por defecto, así que el shell env ganaba al seed script y le hacía apuntar al sandbox inalcanzable. El heartbeat previo no detectó esa inconsistencia.
-=======
-- `psql "postgresql://postgres.jegxfahsvugilbthbked:[REDACTED-rotate-me]@aws-1-eu-north-1.pooler.supabase.com:6543/postgres?sslmode=require" -c "select version();"` → `PostgreSQL 17.6 on aarch64-unknown-linux-gnu` (HTTP 200 desde este host, sin túneles).
-- `curl -sS https://jegxfahsvugilbthbked.supabase.co/auth/v1/health` → 401 (gateway Supabase alcanzable).
-- `curl -sS "https://jegxfahsvugilbthbked.supabase.co/rest/v1/academies?select=id,name,is_suspended,tenant_id"` con service role JWT → 2 filas: `c0346990-e49f-44c5-84e7-1ad2c6579b7c` (MentesSaas Academy, Stripe acct_1TtTOdD6epI0CHnR charges_enabled=false) y `44444444-aaaa-bbbb-cccc-444444444444` (Aurora Elite Demo, Stripe acct_1Tyau3Dd5HlYiTSY charges_enabled=true). **La academia `7ea0690c-99f2-4466-8a96-f251e1235d57` NO existe en el proyecto real `.env.local`**, solo existe en el sandbox `aeeootdmuiqkfeernskw` referenciado por changelog ZAL-27.
-- Notar: `acct_1Tyau3Dd5HlYiTSY` aparece en stripe_accounts de AMBOS proyectos (sandbox y prod) — es la misma Connect account (id a nivel Stripe), apuntada desde dos DBs distintas. Eso explica el espejismo.
-- Shell env del run tiene `DATABASE_URL=postgresql://postgres:[REDACTED-rotate-me]@db.aeeootdmuiqkfeernskw.supabase.co:5432/postgres` + `NEXT_PUBLIC_SUPABASE_URL=https://aeeootdmuiqkfeernskw.supabase.co` — distinto de `.env.local` (prod). `dotenv.config` no override por defecto, así que el shell env ganaba al seed script y le hacía apuntar al sandbox inalcanzable. El heartbeat previo no detectó esa inconsistencia.
->>>>>>> origin/main
 
 **Aplicado (reversible, local, autoridad delegada):**
 
 - `.env.local:41` — `E2E_ACADEMY_ID` revertido de `7ea0690c-99f2-4466-8a96-f251e1235d57` → `44444444-aaaa-bbbb-cccc-444444444444` (Aurora Elite Demo, academia que de hecho tiene la familia E2E, los cargos E2E y la Connect acct_1Tyau3Dd5HlYiTSY con charges_enabled=true en el proyecto que `.env.local` apunta). Diff: 1 línea. Ningún secret tocado.
-<<<<<<< HEAD
 - `E2E_ALLOW_PROVISIONING=true E2E_ACADEMY_ID=44444444-aaaa-bbbb-cccc-444444444444 DATABASE_URL=postgresql://postgres.jegxfahsvugilbthbked:Mentessaas550501@aws-1-eu-north-1.pooler.supabase.com:6543/postgres?sslmode=require pnpm tsx scripts/seed-e2e-charge.ts` → stdout:
-=======
-- `E2E_ALLOW_PROVISIONING=true E2E_ACADEMY_ID=44444444-aaaa-bbbb-cccc-444444444444 DATABASE_URL=postgresql://postgres.jegxfahsvugilbthbked:[REDACTED-rotate-me]@aws-1-eu-north-1.pooler.supabase.com:6543/postgres?sslmode=require pnpm tsx scripts/seed-e2e-charge.ts` → stdout:
->>>>>>> origin/main
   ```
   charge: reset existente 9bc9b80b-829a-426f-ba4d-e6ef8f10c851 → pending (1500 cents, 2026-08)
   chargeId=9bc9b80b-829a-426f-ba4d-e6ef8f10c851
@@ -2921,8 +3107,6 @@ Vault: actualizado `Changelog interno`.
 
 Vault: actualizados `Changelog interno`.
 
-<<<<<<< HEAD
-=======
 ## 2026-07-30 - Cierre reproducible de ZAL-31
 
 - Se completó `tests/lib/stripe-refund-service.test.ts` conservando los tres tests originales y los cinco casos que ya estaban en `00f687f`; el archivo queda con 10 tests en dos bloques `describe`.
@@ -2935,7 +3119,6 @@ Vault: actualizados `Changelog interno`.
 
 Vault: actualizado `Changelog interno`. No hay nueva decisión de producto, arquitectura o seguridad.
 
->>>>>>> origin/main
 ## 2026-07-23 - Inicio del cierre integral del mapa de objeciones
 
 - Se creó `docs/plans/2026-07-23-objection-closure-matrix.md` como matriz canónica de las doce objeciones del director, con respuesta aprobada, capacidad, evidencia y estado de cierre.
@@ -4628,7 +4811,6 @@ Vault: actualizadas `Decisiones.md`, `Backlog priorizado.md`, `Estado actual de 
 - Se barrió el roster contra las issues abiertas: no existen asignaciones a agentes inexistentes. Gemita y Hermin quedan únicamente como referencias históricas/contextuales; no se creó trabajo adicional ni se reabrieron gates.
 - No se reintentaron disposiciones de las ocho issues CEO bloqueadas porque los hilos ya tienen una actualización de bloqueo sin contexto nuevo. Se conservaron los owners y dependencias reales: piloto [ZAL-477](/ZAL/issues/ZAL-477), cierre no-code [ZAL-506](/ZAL/issues/ZAL-506), remediación de cuota [ZAL-355](/ZAL/issues/ZAL-355) y cadena sandbox/E2E [ZAL-25](/ZAL/issues/ZAL-25).
 - No hubo cambios de código, producción, Stripe live, secretos, datos reales, pricing, campañas, claims, publicaciones, stores ni migraciones remotas. La evidencia sigue separada de readiness, adopción, validación externa y validación humana.
-<<<<<<< HEAD
 
 ## 2026-08-10 — CEO: subtarea acotada para limpiar gate fantasma en GTM
 
@@ -6681,5 +6863,45 @@ Vault: actualizado este Changelog; `Decisiones.md` y `Backlog priorizado.md` no 
 - Disposición operativa: ZAL-651 queda lista para cerrar; la continuación de [ZAL-649](/ZAL/issues/ZAL-649) corresponde a su responsable y debe conservar el Evidence Gate, sin declarar PASS por esta limpieza de runtime.
 
 Vault: actualizada esta entrada de `Changelog interno.md`; `Decisiones.md` y `Backlog priorizado.md` no cambian porque no surgió una decisión de producto, pricing, arquitectura ni una deuda nueva.
-=======
->>>>>>> origin/main
+
+## 2026-08-30 — ZAL-1091: autorización del toggle de recovery bloqueada por control-plane no disponible
+
+- El encargo solicita una autorización board-only y scope-bounded para bajar `recovery.pause.codeGates` a `false` únicamente durante la disposición de ZAL-1081, restaurándolo a `true` inmediatamente después. No se interpreta la asignación como sign-off del board.
+- Se intentó consultar el contexto vivo de Paperclip y su endpoint de identidad desde `PAPERCLIP_API_URL`; ambos devolvieron `HTTP_STATUS:000` por conexión rechazada en `127.0.0.1:3100`. No fue posible leer el hilo completo, crear una `request_confirmation`, publicar comentario ni cambiar el estado de ZAL-1091.
+- Disposición local: **blocked**, no autorización. Owner de desbloqueo: operador del control-plane/board. Acción exacta: restaurar la API de Paperclip; luego el board debe confirmar o rechazar el toggle, designar a Engineering Lead como responsable de restaurar el flag a `true` y mantener ZAL-976/ZAL-977 fuera de alcance.
+- No se modificó `recovery.pause.codeGates`, producción, secretos, Stripe live, datos reales, migraciones, pricing, publicaciones ni código. El worktree ya contenía cambios paralelos ajenos; se conservaron.
+
+Vault: actualizado este `Changelog interno.md`; `Decisiones.md` y `Backlog priorizado.md` no cambian porque no hubo decisión efectiva ni deuda nueva de producto.
+
+## 2026-08-30 — ZAL-1091: board aprueba el toggle scope-bounded para ZAL-1081
+
+- La aprobación del board quedó resuelta como `approved` para bajar temporalmente `recovery.pause.codeGates` a `false` solo durante la disposición de [ZAL-1081](/ZAL/issues/ZAL-1081), con alcance explícito fuera de [ZAL-976](/ZAL/issues/ZAL-976) y [ZAL-977](/ZAL/issues/ZAL-977).
+- Condiciones de ejecución: commit focal y peer proof independientes visibles antes del toggle; PATCH board-only trazable; un único reintento; y restauración inmediata a `true` por Engineering Lead en el heartbeat siguiente.
+- [ZAL-1091](/ZAL/issues/ZAL-1091) se cierra como autorización resuelta. Content no ejecutó el toggle, no tocó producción ni cambió código; la transición y la restauración quedan en el handoff de Engineering sobre [ZAL-1081](/ZAL/issues/ZAL-1081).
+
+Vault: actualizados `Decisiones.md` y este `Changelog interno.md`; no se modifica `Backlog priorizado.md` porque la aprobación no crea deuda ni trabajo de producto nuevo.
+## 2026-08-30 — CEO: ZAL-1089 confirma camino aprobado para disponer ZAL-1081
+
+- La gobernanza de [ZAL-1089](/ZAL/issues/ZAL-1089) queda resuelta: [ZAL-1091](/ZAL/issues/ZAL-1091) registra aprobación del board para bajar temporalmente `recovery.pause.codeGates` solo durante un único intento de disposición de [ZAL-1081](/ZAL/issues/ZAL-1081), con restauración inmediata a `true` por Engineering Lead.
+- El checkout canónico contiene ahora el commit focal real `f2ddfdeea2782cec248fde35e24d1fb1d439fd32` (`feat(growth): materialize canonical A3 collector artifacts`). No corresponde fabricar otro SHA ni crear un commit desde el árbol compartido, que conserva numerosos cambios paralelos ajenos.
+- Condiciones ejecutivas: Engineering Lead verifica el peer proof independiente ya exigido por la aprobación, ejecuta un único reintento y restaura el gate en el heartbeat siguiente. [ZAL-976](/ZAL/issues/ZAL-976) y [ZAL-977](/ZAL/issues/ZAL-977) quedan expresamente fuera de alcance.
+- La API local de Paperclip devolvió `HTTP_STATUS=000` por conexión rechazada en `127.0.0.1:3100`; por eso el comentario y la transición remota de ZAL-1089 no pudieron registrarse en este heartbeat. Esto es un bloqueo del control-plane, no del camino de gobernanza aprobado.
+- No se tocó producción, secretos, Stripe live, datos reales, dominios, migraciones remotas, pricing, campañas, publicaciones ni permisos sensibles.
+
+Evidencia literal del commit:
+
+```text
+$ git -C /Users/elvisvaldesinerarte/Desktop/_PROYECTOS/Zaltyko log --oneline -1 f2ddfdeea2782cec248fde35e24d1fb1d439fd32
+f2ddfdee feat(growth): materialize canonical A3 collector artifacts
+```
+
+Vault: actualizado `Changelog interno.md`; `Decisiones.md` ya contiene la autorización scope-bounded de ZAL-1091 y `Backlog priorizado.md` no cambia porque no surge deuda nueva de producto.
+
+## 2026-08-30 — ZAL-1091: aprobación recibida, ejecución bloqueada por acceso Board
+
+- El board aprobó el toggle temporal `recovery.pause.codeGates=false` únicamente para la disposición de [ZAL-1081](/ZAL/issues/ZAL-1081), con restauración inmediata a `true` por Engineering Lead y exclusión explícita de [ZAL-976](/ZAL/issues/ZAL-976) y [ZAL-977](/ZAL/issues/ZAL-977).
+- El intento de cerrar [ZAL-1091](/ZAL/issues/ZAL-1091) devolvió `409 RecoveryPausedUntilGitGate`; la consulta de runtime flags devolvió `Board access required` para este agente. No se intentó impersonar al board ni realizar un bypass.
+- Disposición vigente: [ZAL-1091](/ZAL/issues/ZAL-1091) queda `blocked` por [ZAL-1105](/ZAL/issues/ZAL-1105), hand-off existente asignado a CEO. Unblock exacto: operador Board aplica el toggle autorizado, Engineering ejecuta un único reintento sobre ZAL-1081 y restaura `true` inmediatamente después.
+- No se tocaron código, producto, producción, secretos, Stripe live, datos reales, migraciones remotas, pricing ni publicaciones. No se fabricó evidencia de SHA, tests o PASS.
+
+Vault: actualizado este `Changelog interno.md`; `Decisiones.md` conserva la decisión aprobada y `Backlog priorizado.md` no cambia porque no surgió deuda de producto.

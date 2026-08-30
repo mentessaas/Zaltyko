@@ -4,7 +4,6 @@ import { JobFilters } from "@/components/empleo/JobFilters";
 import { AdBanner } from "@/components/advertising/AdBanner";
 import { PublicPageHeader } from "@/components/public/PublicPageHeader";
 import { getPublicSiteUrl } from "@/lib/seo/site-url";
-<<<<<<< HEAD
 import { db } from "@/db";
 import { empleoListings } from "@/db/schema";
 import { jobCategoryEnum, jobTypeEnum } from "@/db/schema/enums";
@@ -12,8 +11,6 @@ import { eq, desc, like, and, count } from "drizzle-orm";
 import { escapeLikeSearch } from "@/lib/helpers";
 import { logger } from "@/lib/logger";
 import { demoEmploymentListing } from "@/lib/public/demo-listings";
-=======
->>>>>>> origin/main
 
 export const metadata: Metadata = {
   title: "Bolsa de Empleo en Gimnasia | Zaltyko",
@@ -29,7 +26,6 @@ export const metadata: Metadata = {
   },
 };
 
-<<<<<<< HEAD
 type EmpleoSearch = { category?: string; jobType?: string; search?: string; page?: string };
 
 // Consulta directa a BD (antes: self-fetch HTTP a /api/empleo, frágil en
@@ -88,22 +84,6 @@ async function getJobs(searchParams: EmpleoSearch): Promise<{ items: any[]; tota
     }
     return { items: [], total: 0 };
   }
-=======
-async function getJobs(searchParams: { category?: string; jobType?: string; search?: string; page?: string }) {
-  const params = new URLSearchParams();
-  if (searchParams.category) params.set("category", searchParams.category);
-  if (searchParams.jobType) params.set("jobType", searchParams.jobType);
-  if (searchParams.search) params.set("search", searchParams.search);
-  if (searchParams.page) params.set("page", searchParams.page);
-
-  // Use relative URL for server-side fetches in Next.js
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-  const res = await fetch(`${baseUrl}/api/empleo?${params}`, {
-    cache: "no-store",
-  });
-  const payload = await res.json();
-  return payload?.data ?? payload;
->>>>>>> origin/main
 }
 
 async function getAds(zone: string) {

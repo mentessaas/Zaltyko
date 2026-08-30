@@ -104,11 +104,7 @@ export function DashboardSidebar() {
                               "flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition-colors",
                               childActive
                                 ? "bg-zaltyko-primary-light/50 text-zaltyko-primary-dark"
-<<<<<<< HEAD
                                 : "text-muted-foreground hover:bg-zaltyko-bg hover:text-zaltyko-text-main"
-=======
-                                : "text-zaltyko-text-secondary hover:bg-zaltyko-bg hover:text-zaltyko-text-main"
->>>>>>> origin/main
                             )}
                           >
                             <ChildIcon className="h-3.5 w-3.5" strokeWidth={1.8} />
