@@ -61,7 +61,6 @@ export async function getTenantId(
     return getAcademyTenantForUser({ academyId, profile });
   }
 
-<<<<<<< HEAD
   // Preferir el tenant de la academia activa: profiles.tenantId es el tenant
   // "de nacimiento" (solo se escribe en el primer join) y puede quedar
   // obsoleto tras cambios o bajas de academia.
@@ -97,10 +96,6 @@ export async function getTenantId(
   }
 
   return null;
-=======
-  // Fallback al tenantId del perfil
-  return profile.tenantId ?? null;
->>>>>>> origin/main
 }
 
 /**

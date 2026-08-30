@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 /**
  * Sanitiza un parámetro `next`/`callbackUrl` de post-autenticación.
  *
@@ -16,10 +15,6 @@ export function getSafeAuthNextPath(next: string | null, fallback = "/auth/redir
   // Control de caracteres de control que podrían confundir el parseo del header
   // eslint-disable-next-line no-control-regex
   if (/[\r\n\u0000-\u001f]/.test(next)) {
-=======
-export function getSafeAuthNextPath(next: string | null, fallback = "/auth/redirect"): string {
-  if (!next || !next.startsWith("/") || next.startsWith("//")) {
->>>>>>> origin/main
     return fallback;
   }
 
