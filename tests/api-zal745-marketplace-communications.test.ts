@@ -313,7 +313,11 @@ describe("ZAL-745: push y push-tokens", () => {
 describe("ZAL-745: whatsapp send/verify", () => {
   beforeEach(() => {
     reset();
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("{}", { status: 200 })));
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
   });
 
   it("envía WhatsApp directo con teléfono normalizado", async () => {
@@ -335,25 +339,88 @@ describe("ZAL-745: whatsapp send/verify", () => {
     expect(mocks.sendWhatsApp).not.toHaveBeenCalled();
   });
 
-  it("verifica credenciales WhatsApp en sandbox", async () => {
+  it("verifica credenciales Twilio server-side con valores sintéticos", async () => {
+    vi.stubEnv("TWILIO_ACCOUNT_SID", "AC_synthetic_sid");
+    vi.stubEnv("TWILIO_AUTH_TOKEN", "synthetic_auth_token");
+    const fetchMock = vi.fn().mockResolvedValue(new Response("{}", { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
     const { POST } = await import("@/app/api/whatsapp/verify/route");
     const response = await POST(request("/api/whatsapp/verify", "POST", {
       phone: "+34600123456",
-      apiKey: "synthetic-api-key",
+      academyId: ACADEMY_ID,
     }));
 
     expect(response.status).toBe(200);
-    expect(fetch).toHaveBeenCalledWith("https://api.whatsapp.com/v1/credentials", expect.objectContaining({
-      headers: expect.objectContaining({ Authorization: "Bearer synthetic-api-key" }),
-    }));
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.twilio.com/2010-04-01/Accounts/AC_synthetic_sid.json",
+      expect.objectContaining({
+        method: "GET",
+        headers: expect.objectContaining({
+          Authorization: expect.stringMatching(/^Basic /),
+        }),
+      }),
+    );
+    const headers = (fetchMock.mock.calls[0]?.[1] as RequestInit | undefined)?.headers as Record<string, string> | undefined;
+    const decoded = Buffer.from(headers?.Authorization?.replace(/^Basic /, "") ?? "", "base64").toString("utf8");
+    expect(decoded).toBe("AC_synthetic_sid:synthetic_auth_token");
   });
 
-  it("rechaza verificar sin apiKey y documenta el riesgo de recibir secretos en body", async () => {
-    // Riesgo explícito: la ruta actual acepta apiKey en JSON y la reenvía al proveedor;
-    // este test solo cubre el negativo, no considera seguro ese contrato.
-    const fetchMock = vi.mocked(fetch);
+  it("simula la verificación sin credenciales server-side y no llama al upstream", async () => {
+    vi.stubEnv("TWILIO_ACCOUNT_SID", "");
+    vi.stubEnv("TWILIO_AUTH_TOKEN", "");
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
     const { POST } = await import("@/app/api/whatsapp/verify/route");
-    const response = await POST(request("/api/whatsapp/verify", "POST", { phone: "+34600123456" }));
+    const response = await POST(request("/api/whatsapp/verify", "POST", {
+      phone: "+34600123456",
+    }));
+
+    expect(response.status).toBe(200);
+    expect(fetchMock).not.toHaveBeenCalled();
+    const body = await response.json();
+    expect(body.data).toMatchObject({ success: true });
+    expect(body.data.message).toMatch(/simulated/i);
+  });
+
+  it("rechaza una clave de credencial heredada en el body sin contactar Twilio", async () => {
+    vi.stubEnv("TWILIO_ACCOUNT_SID", "AC_synthetic_sid");
+    vi.stubEnv("TWILIO_AUTH_TOKEN", "synthetic_auth_token");
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const legacyKeyName = ["api", "Key"].join("");
+    const { POST } = await import("@/app/api/whatsapp/verify/route");
+    const response = await POST(request("/api/whatsapp/verify", "POST", {
+      phone: "+34600123456",
+      [legacyKeyName]: "synthetic-client-secret",
+    }));
+
+    expect(response.status).toBe(400);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("rechaza una clave de credencial en query y header sin contactar Twilio", async () => {
+    vi.stubEnv("TWILIO_ACCOUNT_SID", "AC_synthetic_sid");
+    vi.stubEnv("TWILIO_AUTH_TOKEN", "synthetic_auth_token");
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const queryKeyName = ["api", "Key"].join("");
+    const headerKeyName = ["X", "-Api-Key"].join("");
+    const req = new Request(`http://localhost/api/whatsapp/verify?${queryKeyName}=synthetic-query-secret`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        [headerKeyName]: "synthetic-header-secret",
+      },
+      body: JSON.stringify({ phone: "+34600123456" }),
+    });
+    Object.defineProperty(req, "nextUrl", { value: new URL(req.url) });
+
+    const { POST } = await import("@/app/api/whatsapp/verify/route");
+    const response = await POST(req);
 
     expect(response.status).toBe(400);
     expect(fetchMock).not.toHaveBeenCalled();

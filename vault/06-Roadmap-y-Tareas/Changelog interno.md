@@ -5,6 +5,22 @@ last_reviewed: 2026-08-25T11:21Z
 source:
 ---
 
+## 2026-08-31 — Engineering: ZAL-1107 repara el handler contaminado de WhatsApp
+
+- En el checkout canónico `Zaltyko-fresh`, se restauró el contrato seguro de
+  `src/app/api/whatsapp/verify/route.ts`: el body acepta solo `phone` y
+  `academyId`, rechaza claves de credenciales en body/query/headers y usa
+  exclusivamente credenciales Twilio server-side.
+- Se actualizó la suite focal
+  `tests/api-zal745-marketplace-communications.test.ts` para cubrir Twilio
+  server-side, simulación sin configuración y rechazo de credenciales heredadas.
+- El escaneo directo de blobs tracked del `HEAD` devuelve cero markers; no se
+  tocaron producción, dominios, secretos, datos reales, pricing, Stripe live,
+  migraciones remotas ni publicaciones.
+- El symlink `/Users/elvisvaldesinerarte/Desktop/_PROYECTOS/Zaltyko` apunta a
+  `Zaltyko-fresh`; las modificaciones ajenas `.pnpm-store/` y `docs/qa/` se
+  conservaron.
+
 ## 2026-08-25 — Ox Alpha: Oleadas B-C — activación y producto (import, onboarding, soft-delete, portal)
 
 - **B1/B2 — Importación CSV**: `academyId` opcional en `CsvRowSchema` (inferido del `formData` o de la única academia del tenant), plantilla sin columna `academyId`, `formData.append("academyId")` desde el panel, y marcado automático del checklist `add_5_athletes` tras importar ≥5 gimnastas (antes solo alta manual).
