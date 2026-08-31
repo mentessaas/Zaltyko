@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/toast-provider";
+import { mapSupabaseAuthError } from "@/lib/auth/map-supabase-auth-error";
 
 export function LoginForm() {
   const [email, setEmail] = useState("");
@@ -31,7 +32,7 @@ export function LoginForm() {
       if (error) {
         toast.pushToast({
           title: "Error al iniciar sesión",
-          description: error.message,
+          description: mapSupabaseAuthError(error),
           variant: "error",
         });
         return;

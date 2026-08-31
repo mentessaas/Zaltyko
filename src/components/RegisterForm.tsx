@@ -12,6 +12,7 @@ import { useToast } from "@/components/ui/toast-provider";
 import { AuthPageShell } from "@/components/auth/AuthPageShell";
 import { isValidEmail, normalizeEmail } from "@/lib/validation/email-utils";
 import { checkPwnedPassword, PWNED_PASSWORD_MESSAGE } from "@/lib/security/pwned-password";
+import { mapSupabaseAuthError } from "@/lib/auth/map-supabase-auth-error";
 
 const ROLE_OPTIONS = [
   {
@@ -135,7 +136,7 @@ export function RegisterForm() {
       if (error) {
         toast.pushToast({
           title: "No pudimos crear la cuenta",
-          description: error.message,
+          description: mapSupabaseAuthError(error),
           variant: "error",
         });
         return;
@@ -177,7 +178,7 @@ export function RegisterForm() {
       if (error) {
         toast.pushToast({
           title: "Error al continuar con Google",
-          description: error.message,
+          description: mapSupabaseAuthError(error),
           variant: "error",
         });
         setGoogleLoading(false);

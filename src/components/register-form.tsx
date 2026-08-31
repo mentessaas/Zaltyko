@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { isValidEmail, normalizeEmail } from "@/lib/validation/email-utils";
 import { useToast } from "@/components/ui/toast-provider";
 import { logger } from "@/lib/logger";
+import { mapSupabaseAuthError } from "@/lib/auth/map-supabase-auth-error";
 
 export default function RegisterForm() {
   const [email, setEmail] = useState("");
@@ -77,7 +78,7 @@ export default function RegisterForm() {
     if (error) {
       toast.pushToast({
         title: "Error al registrar",
-        description: error.message,
+        description: mapSupabaseAuthError(error),
         variant: "error",
       });
       logger.error("Error al registrar la cuenta:", error.message);

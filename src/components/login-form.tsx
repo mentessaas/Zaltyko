@@ -11,6 +11,7 @@ import { useToast } from "@/components/ui/toast-provider";
 import { AuthPageShell } from "@/components/auth/AuthPageShell";
 import { isValidEmail, normalizeEmail } from "@/lib/validation/email-utils";
 import { getSafeAuthNextPath } from "@/lib/auth/safe-next-path";
+import { mapSupabaseAuthError } from "@/lib/auth/map-supabase-auth-error";
 
 export function LoginForm() {
   const [email, setEmail] = useState("");
@@ -112,7 +113,7 @@ export function LoginForm() {
       if (error) {
         toast.pushToast({
           title: "Error al iniciar sesión",
-          description: error.message,
+          description: mapSupabaseAuthError(error),
           variant: "error",
         });
       } else {
@@ -170,7 +171,7 @@ export function LoginForm() {
       if (error) {
         toast.pushToast({
           title: "Error al enviar enlace mágico",
-          description: error.message,
+          description: mapSupabaseAuthError(error),
           variant: "error",
         });
       } else {
@@ -201,7 +202,7 @@ export function LoginForm() {
       if (error) {
         toast.pushToast({
           title: "Error al iniciar sesión con Google",
-          description: error.message,
+          description: mapSupabaseAuthError(error),
           variant: "error",
         });
         setGoogleLoading(false);

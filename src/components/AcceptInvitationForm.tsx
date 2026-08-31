@@ -13,6 +13,7 @@ import { FormField, validators } from "@/components/ui/form-field";
 import { useToast } from "@/components/ui/toast-provider";
 import { logger } from "@/lib/logger";
 import { checkPwnedPassword, PWNED_PASSWORD_MESSAGE } from "@/lib/security/pwned-password";
+import { mapSupabaseAuthError } from "@/lib/auth/map-supabase-auth-error";
 
 interface AcceptInvitationFormProps {
   token: string;
@@ -163,7 +164,10 @@ export default function AcceptInvitationForm({
       logger.error("Error", error);
       toast.pushToast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Error inesperado.",
+        description:
+          error instanceof Error
+            ? mapSupabaseAuthError({ message: error.message })
+            : "Error inesperado.",
         variant: "error",
       });
     } finally {
@@ -249,7 +253,10 @@ export default function AcceptInvitationForm({
       logger.error("Error", error);
       toast.pushToast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Error inesperado.",
+        description:
+          error instanceof Error
+            ? mapSupabaseAuthError({ message: error.message })
+            : "Error inesperado.",
         variant: "error",
       });
     } finally {
