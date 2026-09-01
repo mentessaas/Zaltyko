@@ -16,6 +16,11 @@ interface Props extends Omit<TextInputProps, 'style'> {
   label?: string;
   error?: string | null;
   hint?: string;
+  /**
+   * 'light' (default): label se lee sobre superficie clara (Card, modal).
+   * 'dark': para montaje directo sobre `colors.bg`. ZAL-1031 P0 a11y.
+   */
+  tone?: 'light' | 'dark';
 }
 
 // RN 0.86 typings no exponen `accessibilityLabelledBy`/`accessibilityDescribedBy`
@@ -27,9 +32,10 @@ type A11yRefAttrs = {
 };
 
 export const Input = forwardRef<TextInput, Props>(function Input(
-  { label, error, hint, onFocus, onBlur, ...rest },
+  { label, error, hint, tone = 'light', onFocus, onBlur, ...rest },
   ref
 ) {
+  const onDark = tone === 'dark';
   const [focused, setFocused] = useState(false);
   const reactId = useId();
   const labelId = `input-label-${reactId}`;
@@ -42,7 +48,7 @@ export const Input = forwardRef<TextInput, Props>(function Input(
       {label ? (
         <Text
           nativeID={labelId}
-          style={styles.label}
+          style={[styles.label, onDark && styles.labelOnDark]}
           importantForAccessibility="no-hide-descendants"
         >
           {label}
@@ -83,7 +89,15 @@ export const Input = forwardRef<TextInput, Props>(function Input(
         accessibilityRole="text"
         style={[
           styles.message,
-          error ? styles.error : hint ? styles.hint : styles.messageHidden,
+          error
+            ? onDark
+              ? styles.errorOnDark
+              : styles.error
+            : hint
+              ? onDark
+                ? styles.hintOnDark
+                : styles.hint
+              : styles.messageHidden,
         ]}
         importantForAccessibility={error || hint ? 'auto' : 'no-hide-descendants'}
       >
@@ -98,6 +112,9 @@ const styles = StyleSheet.create({
   label: {
     ...typography.label,
     color: colors.text,
+  },
+  labelOnDark: {
+    color: colors.textInverse,
   },
   input: {
     ...typography.body,
@@ -125,8 +142,16 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.danger,
   },
+  errorOnDark: {
+    ...typography.caption,
+    color: colors.onDarkDanger,
+  },
   hint: {
     ...typography.caption,
     color: colors.textMuted,
+  },
+  hintOnDark: {
+    ...typography.caption,
+    color: colors.onDarkMuted,
   },
 });

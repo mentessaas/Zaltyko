@@ -78,6 +78,7 @@ export default function LoginScreen() {
         <View style={styles.form}>
           <Input
             label="Email"
+            tone="dark"
             value={email}
             onChangeText={setEmail}
             placeholder="tu@academia.com"
@@ -89,6 +90,7 @@ export default function LoginScreen() {
           />
           <Input
             label="Contraseña"
+            tone="dark"
             value={password}
             onChangeText={setPassword}
             placeholder="••••••••"
