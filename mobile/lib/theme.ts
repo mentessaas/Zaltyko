@@ -7,11 +7,13 @@ export const colors = {
   bg: '#0F172A', // slate-900 — splash y fondo oscuro
   surface: '#FFFFFF',
   surfaceMuted: '#F8FAFC', // slate-50
+  surfacePressed: '#E2E8F0', // slate-200 — pressed para cards blancas. 1.23:1 sobre surface; por sí solo NO cumple WCAG 1.4.11 ≥3:1. EXIGE borde primary acompañante (6.29:1) para que el pressed state cumpla 1.4.11. ZAL-1169.
   surfaceDark: '#1E293B', // slate-800
 
   // Text
   text: '#0F172A',
   textMuted: '#64748B', // slate-500
+  textMutedOnDark: '#94A3B8', // slate-400 — sobre bg/surfaceDark
   textInverse: '#FFFFFF',
 
   // Brand
@@ -19,12 +21,40 @@ export const colors = {
   primaryHover: '#4338CA', // indigo-700
   primaryFg: '#FFFFFF',
   primarySoft: 'rgba(99, 102, 241, 0.16)',
+  primarySoftPressed: 'rgba(79, 70, 229, 0.28)', // indigo-600 @ 28% — pressed para CTAs primarySoft (WCAG 1.4.11)
 
   // Semantic
   success: '#16A34A', // green-600
+  successPressed: '#15803D', // green-700 — fondo pressed para texto blanco
   warning: '#F59E0B', // amber-500
+  warningPressed: '#B45309', // amber-700 — fondo pressed para texto blanco
   danger: '#DC2626', // red-600
+  dangerPressed: '#B91C1C', // red-700 — fondo pressed para texto blanco
   info: '#0EA5E9', // sky-500
+  infoPressed: '#0369A1', // sky-700 — fondo pressed para texto blanco
+
+  // Disabled
+  disabledOverlay: '#F1F5F9', // slate-100 — fondo para estado disabled, distinto de pressed
+
+  // On-dark neutrals (sobre bg/surfaceDark) — ZAL-575 Tier H.2 (ZAL-1058)
+  onDarkMuted: '#94A3B8', // slate-400 — promoción desde 13 literales
+  onDarkSubtle: '#CBD5E1', // slate-300
+  onDarkAccent: '#A5B4FC', // indigo-300
+  onDarkDanger: '#FCA5A5', // red-300 — texto error sobre bg/surfaceDark
+
+  // Soft banner backgrounds (WCAG 1.4.3 sobre texto oscuro)
+  errorSoft: '#FEF2F2', // red-50 — fondo ErrorBanner
+  successSoft: '#F0FDF4', // green-50 — fondo SuccessBanner
+  infoSoft: '#EFF6FF', // sky-50 — fondo InfoBanner
+  warningSoft: '#FEF3C7', // amber-100 — fondo priorityBanner
+
+  // Texto sobre soft banners (≥4.5:1 sobre el fondo claro correspondiente)
+  errorText: '#991B1B', // red-800 — sobre errorSoft (red-50)
+  successText: '#166534', // green-800 — sobre successSoft (green-50)
+  infoText: '#1E40AF', // blue-800 — sobre infoSoft (sky-50)
+
+  // Texto sobre warningSoft
+  warningText: '#92400E', // amber-800
 
   // Border
   border: '#E2E8F0', // slate-200
@@ -32,7 +62,7 @@ export const colors = {
 
   // Tab bar
   tabActive: '#4F46E5',
-  tabInactive: '#94A3B8', // slate-400
+  tabInactive: '#475569', // slate-600 — 7.58:1 sobre surface
 } as const;
 
 export const spacing = {
