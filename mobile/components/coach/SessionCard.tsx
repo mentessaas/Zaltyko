@@ -2,7 +2,7 @@
 // navega al flujo de marcado. Muestra hora, clase y academia.
 
 import { memo } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { Button } from '@/components/ui/Button';
@@ -45,13 +45,12 @@ function SessionCardImpl({ session, attendanceMarked, onMark }: Props) {
           <Ionicons name="checkmark-circle" size={20} color={colors.success} />
         ) : null}
       </View>
-      <Pressable onPress={onMark}>
-        <Button
-          title={attendanceMarked ? 'Editar asistencia' : 'Tomar asistencia'}
-          variant={attendanceMarked ? 'secondary' : 'primary'}
-          fullWidth
-        />
-      </Pressable>
+      <Button
+        title={attendanceMarked ? 'Editar asistencia' : 'Tomar asistencia'}
+        variant={attendanceMarked ? 'secondary' : 'primary'}
+        fullWidth
+        onPress={onMark}
+      />
     </View>
   );
 }

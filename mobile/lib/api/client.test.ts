@@ -150,7 +150,6 @@ describe('apiGet/apiPost - cliente API móvil', () => {
     expect(init.headers['Content-Type']).toBe('application/json');
     expect(init.body).toBe(JSON.stringify({ note: 'hola' }));
   });
-<<<<<<< HEAD
 
   // ---- AC-10: cada ApiClientError lleva retryable + nextAction ----
   // La UI nunca debe tener que adivinar si un error es reintentable: lo
@@ -294,6 +293,4 @@ describe('apiGet/apiPost - cliente API móvil', () => {
       message: expect.not.stringContaining('Stack trace'),
     });
   });
-=======
->>>>>>> origin/main
 });

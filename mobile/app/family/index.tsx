@@ -354,10 +354,10 @@ const styles = StyleSheet.create({
   },
   content: { padding: spacing.lg, gap: spacing.lg, paddingBottom: spacing.xxxl },
   hero: { gap: spacing.xs, paddingTop: spacing.sm, paddingBottom: spacing.sm },
-  eyebrow: { ...typography.label, color: '#A5B4FC', letterSpacing: 1.4 },
+  eyebrow: { ...typography.label, color: colors.onDarkAccent, letterSpacing: 1.4 },
   title: { ...typography.display, color: colors.textInverse },
-  subtitle: { ...typography.body, color: '#CBD5E1' },
-  academy: { ...typography.caption, color: '#94A3B8', marginTop: spacing.xs },
+  subtitle: { ...typography.body, color: colors.onDarkSubtle },
+  academy: { ...typography.caption, color: colors.onDarkMuted, marginTop: spacing.xs },
   stack: { gap: spacing.sm },
   scheduleRow: {
     minHeight: 56,
@@ -365,10 +365,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.surfaceMuted,
     borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.surfaceMuted, // border primario aparece en pressed
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
   },
-  pressed: { opacity: 0.7 },
+  pressed: {
+    backgroundColor: colors.surfacePressed,
+    borderColor: colors.primary, // 6.29:1 sobre surface — WCAG 1.4.11 PASS
+  },
   scheduleCopy: { flex: 1, gap: 2 },
   scheduleClass: { ...typography.body, color: colors.text, fontWeight: '600' },
   scheduleWhen: { ...typography.caption, color: colors.textMuted },
@@ -377,7 +382,7 @@ const styles = StyleSheet.create({
   metricLabel: { ...typography.caption, color: colors.textMuted },
   detail: { ...typography.caption, color: colors.textMuted },
   unavailable: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.surfaceMuted,
     borderRadius: 10,
     borderWidth: 1,
     borderColor: colors.border,

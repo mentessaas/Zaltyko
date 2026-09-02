@@ -49,11 +49,7 @@ export function TodayClassesWidget({ classes, academyId, academyCountry }: Today
             <p className="text-xs font-medium uppercase tracking-[0.12em] text-zaltyko-teal">
               Clases de hoy
             </p>
-<<<<<<< HEAD
             <h3 className="mt-0.5 font-display text-xl font-semibold text-foreground">
-=======
-            <h3 className="mt-0.5 font-display text-xl font-semibold text-zaltyko-navy">
->>>>>>> origin/main
               {sortedClasses.length} {sortedClasses.length === 1 ? "clase programada" : "clases programadas"}
             </h3>
           </div>
@@ -71,21 +67,13 @@ export function TodayClassesWidget({ classes, academyId, academyCountry }: Today
         {sortedClasses.slice(0, 3).map((item) => (
           <div
             key={item.id}
-<<<<<<< HEAD
             className="flex items-center justify-between gap-3 rounded-xl border border-zaltyko-teal/20 bg-card px-4 py-3 transition hover:border-zaltyko-teal/40 hover:bg-zaltyko-white"
-=======
-            className="flex items-center justify-between gap-3 rounded-xl border border-zaltyko-teal/20 bg-white px-4 py-3 transition hover:border-zaltyko-teal/40 hover:bg-zaltyko-white"
->>>>>>> origin/main
           >
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
                 <Link
                   href={`/app/${academyId}/classes/${item.classId}`}
-<<<<<<< HEAD
                   className="font-semibold text-foreground transition hover:text-zaltyko-teal"
-=======
-                  className="font-semibold text-zaltyko-navy transition hover:text-zaltyko-teal"
->>>>>>> origin/main
                 >
                   {item.className ?? "Clase sin nombre"}
                 </Link>

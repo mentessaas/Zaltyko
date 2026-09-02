@@ -4,11 +4,8 @@ import Link from "next/link";
 import { ArrowRight, Play, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
-<<<<<<< HEAD
 import Reveal from "@/components/motion/Reveal";
 import SplitWords from "@/components/motion/SplitWords";
-=======
->>>>>>> origin/main
 
 const clipChip = {
   clipPath: "polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%)",
@@ -50,7 +47,6 @@ export default function HeroSection() {
 
             {/* H1 */}
             <h1 className="mb-6 font-display font-bold leading-[1.05] tracking-tight text-zaltyko-navy text-[clamp(1.875rem,6vw,4.5rem)]">
-<<<<<<< HEAD
               <SplitWords text="Las cuotas cobradas, los grupos montados y la lista pasada." />
             </h1>
             <Reveal delay={550}>
@@ -69,21 +65,6 @@ export default function HeroSection() {
             {/* CTAs */}
             <Reveal delay={750}>
               <div className="mb-6">
-=======
-              Las cuotas cobradas, los grupos montados y la lista pasada.
-            </h1>
-            <p className="mb-3 font-display text-xl font-medium text-zaltyko-text-secondary sm:text-2xl">
-              Sin Excel y sin los chats de WhatsApp del club.
-            </p>
-
-            {/* Subtitle */}
-            <p className="mb-8 max-w-xl text-lg leading-relaxed text-zaltyko-text-secondary">
-              Zaltyko es el software de gestión hecho solo para clubes de gimnasia artística y rítmica: gimnastas por nivel y aparato, cuotas recurrentes, asistencia por sesión y familias informadas.
-            </p>
-
-            {/* CTAs */}
-            <div className="mb-6">
->>>>>>> origin/main
               <div className="flex flex-col sm:flex-row gap-4 mb-4">
                 <Link
                   href="/auth/register?role=owner"
@@ -116,19 +97,12 @@ export default function HeroSection() {
                 <span>·</span>
                 <span>Sin compromiso</span>
               </p>
-<<<<<<< HEAD
               </div>
             </Reveal>
           </div>
 
           {/* Right Content - vista ilustrativa del pase de lista, no una captura del producto */}
           <Reveal delay={400}>
-=======
-            </div>
-          </div>
-
-          {/* Right Content - vista ilustrativa del pase de lista, no una captura del producto */}
->>>>>>> origin/main
           <div className="border-b-2 border-zaltyko-teal">
             <div className="rounded-card border border-zaltyko-mist bg-white shadow-soft">
               <div className="flex items-center justify-between border-b border-zaltyko-mist px-5 py-4">
@@ -141,17 +115,12 @@ export default function HeroSection() {
                 </p>
               </div>
               <ul className="divide-y divide-zaltyko-mist/60">
-<<<<<<< HEAD
                 {rosterPreview.map((athlete, i) => (
                   <li
                     key={athlete.name}
                     className="zk-row flex items-center justify-between gap-3 px-5 py-3"
                     style={{ ["--zk-delay" as string]: `${900 + i * 130}ms` }}
                   >
-=======
-                {rosterPreview.map((athlete) => (
-                  <li key={athlete.name} className="flex items-center justify-between gap-3 px-5 py-3">
->>>>>>> origin/main
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium text-zaltyko-navy">{athlete.name}</p>
                       <p className="truncate text-xs text-zaltyko-text-light">{athlete.group}</p>
@@ -173,10 +142,7 @@ export default function HeroSection() {
               Así se pasa lista desde el móvil, sesión por sesión.
             </p>
           </div>
-<<<<<<< HEAD
           </Reveal>
-=======
->>>>>>> origin/main
         </div>
       </div>
     </section>

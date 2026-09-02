@@ -234,11 +234,7 @@ export function GenerateSessionsDialog({
           </div>
 
           {preview !== null && preview > 0 && (
-<<<<<<< HEAD
             <div className="rounded-xl border border-zaltyko-teal/25 bg-zaltyko-teal/10 p-3 text-sm text-foreground">
-=======
-            <div className="rounded-xl border border-zaltyko-teal/25 bg-zaltyko-teal/10 p-3 text-sm text-zaltyko-navy">
->>>>>>> origin/main
               <p className="font-medium">
                 Se generarán aproximadamente <strong>{preview} sesiones</strong> para los días
                 seleccionados en el rango elegido.
@@ -252,15 +248,9 @@ export function GenerateSessionsDialog({
           )}
 
           {preview === 0 && (
-<<<<<<< HEAD
             <div className="rounded-xl border border-border bg-zaltyko-warm-white p-3 text-sm text-foreground">
               <p>No se generarán sesiones en el rango seleccionado.</p>
               <p className="mt-1 text-xs text-muted-foreground">
-=======
-            <div className="rounded-xl border border-zaltyko-mist bg-zaltyko-warm-white p-3 text-sm text-zaltyko-navy">
-              <p>No se generarán sesiones en el rango seleccionado.</p>
-              <p className="mt-1 text-xs text-zaltyko-text-secondary">
->>>>>>> origin/main
                 Asegúrate de que el rango incluya al menos uno de los días configurados.
               </p>
             </div>

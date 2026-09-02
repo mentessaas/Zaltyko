@@ -13,7 +13,12 @@ interface Props {
 
 function ClassCardImpl({ item }: Props) {
   return (
-    <View style={styles.card}>
+    <View
+      style={styles.card}
+      accessible
+      accessibilityRole="summary"
+      accessibilityLabel={`${item.className}, ${item.day} a las ${item.time}, coach ${item.coach}${item.location ? `, en ${item.location}` : ''}`}
+    >
       <View style={styles.dayBadge}>
         <Text style={styles.dayText}>{item.day.slice(0, 3).toUpperCase()}</Text>
         <Text style={styles.timeText}>{item.time}</Text>

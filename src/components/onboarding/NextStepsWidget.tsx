@@ -106,19 +106,11 @@ export function NextStepsWidget({ academyId, metrics, checklistProgress }: NextS
   const firstStep = nextSteps[0];
 
   return (
-<<<<<<< HEAD
     <div className="space-y-4 rounded-card border border-border border-b-2 border-b-zaltyko-teal bg-card p-6 shadow-soft">
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 space-y-1">
           <div className="flex items-center gap-2">
             <h3 className="text-lg font-semibold text-foreground">Próximo paso recomendado</h3>
-=======
-    <div className="space-y-4 rounded-card border border-zaltyko-mist border-b-2 border-b-zaltyko-teal bg-white p-6 shadow-soft">
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex-1 space-y-1">
-          <div className="flex items-center gap-2">
-            <h3 className="text-lg font-semibold text-zaltyko-navy">Próximo paso recomendado</h3>
->>>>>>> origin/main
             {checklistProgress && (
               <span className="rounded-full bg-zaltyko-primary-ultralight px-2 py-0.5 text-xs font-semibold tabular-nums text-zaltyko-teal">
                 {checklistProgress.completed}/{checklistProgress.total}

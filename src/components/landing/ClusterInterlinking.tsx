@@ -82,11 +82,7 @@ function ClusterInterlinkingImpl({
 
         <div className="grid lg:grid-cols-2 gap-8 mb-12">
           {/* Related by Modality - Same modality, different countries */}
-<<<<<<< HEAD
           <div className="bg-card rounded-2xl p-8 border border-gray-100 shadow-sm">
-=======
-          <div className="bg-white rounded-2xl p-8 border border-gray-100 shadow-sm">
->>>>>>> origin/main
             <div className="flex items-center gap-3 mb-6">
               <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
                 <Globe className="h-5 w-5 text-blue-600" />
@@ -110,11 +106,7 @@ function ClusterInterlinkingImpl({
           </div>
 
           {/* Related by Country - Same country, different modalities */}
-<<<<<<< HEAD
           <div className="bg-card rounded-2xl p-8 border border-gray-100 shadow-sm">
-=======
-          <div className="bg-white rounded-2xl p-8 border border-gray-100 shadow-sm">
->>>>>>> origin/main
             <div className="flex items-center gap-3 mb-6">
               <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center">
                 <Layers className="h-5 w-5 text-purple-600" />
@@ -155,11 +147,7 @@ function ClusterInterlinkingImpl({
 
         {/* Federation & Competitions — gated on availability */}
         {available ? (
-<<<<<<< HEAD
           <div className="bg-card rounded-2xl p-8 border border-gray-100 shadow-sm mb-12">
-=======
-          <div className="bg-white rounded-2xl p-8 border border-gray-100 shadow-sm mb-12">
->>>>>>> origin/main
             <div className="grid md:grid-cols-2 gap-8">
               <div>
                 <h4 className="font-semibold text-gray-900 mb-3">{t.federation}</h4>
@@ -179,11 +167,7 @@ function ClusterInterlinkingImpl({
             </div>
           </div>
         ) : (
-<<<<<<< HEAD
           <div className="bg-card rounded-2xl p-8 border border-gray-100 shadow-sm mb-12">
-=======
-          <div className="bg-white rounded-2xl p-8 border border-gray-100 shadow-sm mb-12">
->>>>>>> origin/main
             <div className="flex items-start gap-4">
               <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center shrink-0">
                 <Clock className="h-5 w-5 text-muted-foreground" />

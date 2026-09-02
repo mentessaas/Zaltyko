@@ -46,7 +46,6 @@ describe("Phase 4 commercial validation contracts", () => {
     ).toBe(false);
   });
 
-<<<<<<< HEAD
   it("acepta los nuevos eventos ZAL-532 contact_submit_attempted y contact_submit_failed", () => {
     // ZAL-532: cerrar el agujero de instrumentacion entre contact_started y contact_submitted.
     // Estos eventos distinguen "no pulso enviar" de "rompio entre pulsar y servidor".
@@ -109,8 +108,6 @@ describe("Phase 4 commercial validation contracts", () => {
     ).toBe(false);
   });
 
-=======
->>>>>>> origin/main
   it("does not count a completed interview without the required evidence", () => {
     const result = CommercialInterviewInputSchema.safeParse({
       academyName: "Club Norte",

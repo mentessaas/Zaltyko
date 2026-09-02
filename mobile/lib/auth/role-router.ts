@@ -2,11 +2,7 @@
 // Coincide con el portal limitado de CLAUDE.md: parent/athlete solo ven
 // su información, no la admin. Coach ve lo suyo. Owner/admin ven todo.
 
-<<<<<<< HEAD
 import { capabilitiesForRole, isZaltykoRole, UNKNOWN_ROLE_FALLBACK, type ZaltykoRole } from './roles';
-=======
-import type { ZaltykoRole } from './use-session';
->>>>>>> origin/main
 
 export type TabKey = 'home' | 'schedule' | 'messages' | 'notifications' | 'profile' | 'classes' | 'billing';
 
@@ -70,7 +66,6 @@ const TABS_BY_ROLE: Record<ZaltykoRole, TabConfig[]> = {
     { key: 'notifications', title: 'Avisos', href: '/(tabs)/notifications', icon: 'bell' },
     { key: 'profile', title: 'Perfil', href: '/(tabs)/profile', icon: 'user' },
   ],
-<<<<<<< HEAD
   // provider (ZAL-768): shell "global" en el backend — sin academia,
   // sin familia, sin billing. Mobile NO es su superficie de trabajo,
   // así que no recibe Agenda (clases de academia) ni Mensajes
@@ -92,13 +87,6 @@ export function tabsForRole(role: ZaltykoRole | undefined): TabConfig[] {
   // privilegio (ver UNKNOWN_ROLE_FALLBACK en roles.ts).
   if (!isZaltykoRole(role)) return TABS_BY_ROLE[UNKNOWN_ROLE_FALLBACK];
   return TABS_BY_ROLE[role] ?? TABS_BY_ROLE[UNKNOWN_ROLE_FALLBACK];
-=======
-};
-
-export function tabsForRole(role: ZaltykoRole | undefined): TabConfig[] {
-  if (!role) return TABS_BY_ROLE.parent; // default seguro
-  return TABS_BY_ROLE[role] ?? TABS_BY_ROLE.parent;
->>>>>>> origin/main
 }
 
 // Para Fase 2: decidir si un rol debería ser redirigido a la web
@@ -106,7 +94,6 @@ export function tabsForRole(role: ZaltykoRole | undefined): TabConfig[] {
 export function shouldRedirectToWeb(role: ZaltykoRole | undefined): boolean {
   return false;
 }
-<<<<<<< HEAD
 
 // Rutas internas reservadas a roles admin/coach. Mobile las monta
 // como pantallas Expo Router pero NO las expone a través de las tabs
@@ -186,5 +173,3 @@ export function canAccessRoute(
     role === 'coach'
   );
 }
-=======
->>>>>>> origin/main

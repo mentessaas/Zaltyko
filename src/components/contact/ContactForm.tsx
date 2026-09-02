@@ -63,7 +63,6 @@ export function ContactForm({ defaultReason = "demo", defaultPlan }: ContactForm
       ? (defaultPlan as CommercialPlanSlug)
       : null;
 
-<<<<<<< HEAD
     // Telemetria: registrar el intento de envio ANTES del fetch para distinguir
     // "no llego a pulsar enviar" (sin attempted) de "rompio entre pulsar y servidor" (con attempted pero sin submitted).
     capturePublicGrowthEvent({
@@ -80,8 +79,6 @@ export function ContactForm({ defaultReason = "demo", defaultPlan }: ContactForm
 
     let failureReported = false;
 
-=======
->>>>>>> origin/main
     try {
       const response = await fetch("/api/contact", {
         method: "POST",
@@ -102,7 +99,6 @@ export function ContactForm({ defaultReason = "demo", defaultPlan }: ContactForm
 
       if (!response.ok) {
         const payload = await response.json().catch(() => null);
-<<<<<<< HEAD
         const serverCode =
           payload && typeof payload === "object" && "code" in payload
             ? String((payload as { code: unknown }).code)
@@ -121,8 +117,6 @@ export function ContactForm({ defaultReason = "demo", defaultPlan }: ContactForm
           },
         });
         failureReported = true;
-=======
->>>>>>> origin/main
         throw new Error(payload?.message ?? payload?.error ?? "No se pudo enviar el mensaje.");
       }
 
@@ -132,7 +126,6 @@ export function ContactForm({ defaultReason = "demo", defaultPlan }: ContactForm
         message: "Mensaje enviado. Te responderemos desde el equipo de Zaltyko.",
       });
     } catch (error) {
-<<<<<<< HEAD
       if (!failureReported) {
         // No llegamos al servidor o el fetch tiro antes de obtener respuesta.
         capturePublicGrowthEvent({
@@ -147,8 +140,6 @@ export function ContactForm({ defaultReason = "demo", defaultPlan }: ContactForm
           },
         });
       }
-=======
->>>>>>> origin/main
       setState({
         status: "error",
         message: error instanceof Error ? error.message : "No se pudo enviar el mensaje.",
@@ -167,11 +158,7 @@ export function ContactForm({ defaultReason = "demo", defaultPlan }: ContactForm
     >
       <input type="text" name="company" tabIndex={-1} autoComplete="off" className="hidden" aria-hidden="true" />
       {publicPlans.has(defaultPlan as CommercialPlanSlug) && (
-<<<<<<< HEAD
         <p className="rounded-lg border border-zaltyko-teal/25 bg-zaltyko-teal/10 px-4 py-3 text-sm text-foreground">
-=======
-        <p className="rounded-lg border border-zaltyko-teal/25 bg-zaltyko-teal/10 px-4 py-3 text-sm text-zaltyko-navy">
->>>>>>> origin/main
           Interés seleccionado: <strong className="capitalize">{defaultPlan}</strong>
         </p>
       )}
@@ -276,11 +263,7 @@ export function ContactForm({ defaultReason = "demo", defaultPlan }: ContactForm
         {!isHydrated ? "Preparando formulario..." : submitting ? "Enviando..." : "Enviar mensaje"}
       </button>
 
-<<<<<<< HEAD
       <p className="text-center text-xs text-muted-foreground">
-=======
-      <p className="text-center text-xs text-zaltyko-text-secondary">
->>>>>>> origin/main
         Al enviar este formulario, aceptas nuestra{" "}
         <Link href="/politica-privacidad" className="underline hover:text-zaltyko-primary">
           política de privacidad

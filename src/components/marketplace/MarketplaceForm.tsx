@@ -1,10 +1,7 @@
 "use client";
 
 import { useState } from "react";
-<<<<<<< HEAD
 import Link from "next/link";
-=======
->>>>>>> origin/main
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,7 +26,6 @@ const CATEGORIES = [
   { value: "other", label: "Otro" },
 ];
 
-<<<<<<< HEAD
 // PV-6: al menos un canal de contacto obligatorio. Si los tres llegan
 // vacíos, el cliente bloquea el envío y la API responde 400 con el
 // mismo mensaje (ver `route.ts`). El default `contact` para priceType
@@ -58,18 +54,6 @@ export function MarketplaceForm({ onSuccess }: MarketplaceFormProps) {
   const toast = useToast();
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
-=======
-interface MarketplaceFormProps {
-  userId?: string;
-  sellerType?: string;
-  onSuccess?: () => void;
-}
-
-export function MarketplaceForm({ userId, sellerType = "external", onSuccess }: MarketplaceFormProps) {
-  const router = useRouter();
-  const toast = useToast();
-  const [loading, setLoading] = useState(false);
->>>>>>> origin/main
   const [formData, setFormData] = useState({
     type: "product",
     category: "",
@@ -85,7 +69,6 @@ export function MarketplaceForm({ userId, sellerType = "external", onSuccess }: 
     city: "",
   });
 
-<<<<<<< HEAD
   // PV-6 + PV-4: validación cliente que devuelve errores anclados al
   // campo, no al toast. Devuelve un objeto FormErrors listo para
   // pintar bajo el input correspondiente.
@@ -138,22 +121,12 @@ export function MarketplaceForm({ userId, sellerType = "external", onSuccess }: 
       // desde la sesión y el rol del perfil (ver ZAL-496 / PV-3 de la
       // auditoría ZAL-427). Mandarlos desde cliente abriría un IDOR y
       // permitiría falsear el tipo de vendedor.
-=======
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-
-    try {
->>>>>>> origin/main
       const response = await fetch("/api/marketplace", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-<<<<<<< HEAD
-=======
           userId,
           sellerType,
->>>>>>> origin/main
           type: formData.type,
           category: formData.category,
           title: formData.title,
@@ -179,7 +152,6 @@ export function MarketplaceForm({ userId, sellerType = "external", onSuccess }: 
         } else {
           router.push("/marketplace");
         }
-<<<<<<< HEAD
         return;
       }
 
@@ -226,21 +198,6 @@ export function MarketplaceForm({ userId, sellerType = "external", onSuccess }: 
       toast.pushToast({
         title: "No pudimos publicar tu anuncio",
         description: "Vuelve a intentarlo en unos segundos.",
-=======
-      } else {
-        const error = await response.json();
-        toast.pushToast({
-          title: "No se pudo publicar el anuncio",
-          description: error.message || "Revisa los datos e inténtalo de nuevo.",
-          variant: "error",
-        });
-      }
-    } catch (error) {
-      logger.error("Error", error);
-      toast.pushToast({
-        title: "No se pudo publicar el anuncio",
-        description: "Inténtalo de nuevo en unos segundos.",
->>>>>>> origin/main
         variant: "error",
       });
     } finally {
@@ -249,7 +206,6 @@ export function MarketplaceForm({ userId, sellerType = "external", onSuccess }: 
   };
 
   return (
-<<<<<<< HEAD
     <form onSubmit={handleSubmit} className="space-y-6" noValidate>
       {errors.form && (
         // Banner de error a nivel formulario (PV-4). Solo aparece para
@@ -269,9 +225,6 @@ export function MarketplaceForm({ userId, sellerType = "external", onSuccess }: 
         </div>
       )}
 
-=======
-    <form onSubmit={handleSubmit} className="space-y-6">
->>>>>>> origin/main
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <Label htmlFor="type">Tipo</Label>
@@ -288,7 +241,6 @@ export function MarketplaceForm({ userId, sellerType = "external", onSuccess }: 
 
         <div>
           <Label htmlFor="category">Categoría *</Label>
-<<<<<<< HEAD
           <Select
             value={formData.category}
             onValueChange={(v) => {
@@ -300,10 +252,6 @@ export function MarketplaceForm({ userId, sellerType = "external", onSuccess }: 
               aria-invalid={!!errors.category}
               className={errors.category ? "border-red-500 focus:ring-red-500" : undefined}
             >
-=======
-          <Select value={formData.category} onValueChange={(v) => setFormData({ ...formData, category: v })} required>
-            <SelectTrigger>
->>>>>>> origin/main
               <SelectValue placeholder="Selecciona categoría" />
             </SelectTrigger>
             <SelectContent>
@@ -312,12 +260,9 @@ export function MarketplaceForm({ userId, sellerType = "external", onSuccess }: 
               ))}
             </SelectContent>
           </Select>
-<<<<<<< HEAD
           {errors.category && (
             <p className="text-xs text-red-600 mt-1" role="alert">{errors.category}</p>
           )}
-=======
->>>>>>> origin/main
         </div>
       </div>
 
@@ -326,7 +271,6 @@ export function MarketplaceForm({ userId, sellerType = "external", onSuccess }: 
         <Input
           id="title"
           value={formData.title}
-<<<<<<< HEAD
           onChange={(e) => {
             setFormData({ ...formData, title: e.target.value });
             if (errors.title) setErrors((er) => ({ ...er, title: undefined }));
@@ -339,12 +283,6 @@ export function MarketplaceForm({ userId, sellerType = "external", onSuccess }: 
         {errors.title && (
           <p className="text-xs text-red-600 mt-1" role="alert">{errors.title}</p>
         )}
-=======
-          onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-          placeholder="Ej: Colchonetas de gimnasia profesional"
-          required
-        />
->>>>>>> origin/main
       </div>
 
       <div>
@@ -388,11 +326,7 @@ export function MarketplaceForm({ userId, sellerType = "external", onSuccess }: 
 
       <Card>
         <CardHeader>
-<<<<<<< HEAD
           <CardTitle className="text-lg">Contacto *</CardTitle>
-=======
-          <CardTitle className="text-lg">Contacto</CardTitle>
->>>>>>> origin/main
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -401,17 +335,12 @@ export function MarketplaceForm({ userId, sellerType = "external", onSuccess }: 
               <Input
                 id="contactWhatsapp"
                 value={formData.contactWhatsapp}
-<<<<<<< HEAD
                 onChange={(e) => {
                   setFormData({ ...formData, contactWhatsapp: e.target.value });
                   if (errors.contact) setErrors((er) => ({ ...er, contact: undefined }));
                 }}
                 placeholder="+34 600 000 000"
                 aria-invalid={!!errors.contact}
-=======
-                onChange={(e) => setFormData({ ...formData, contactWhatsapp: e.target.value })}
-                placeholder="+34 600 000 000"
->>>>>>> origin/main
               />
             </div>
             <div>
@@ -420,17 +349,12 @@ export function MarketplaceForm({ userId, sellerType = "external", onSuccess }: 
                 id="contactEmail"
                 type="email"
                 value={formData.contactEmail}
-<<<<<<< HEAD
                 onChange={(e) => {
                   setFormData({ ...formData, contactEmail: e.target.value });
                   if (errors.contact) setErrors((er) => ({ ...er, contact: undefined }));
                 }}
                 placeholder="email@ejemplo.com"
                 aria-invalid={!!errors.contact}
-=======
-                onChange={(e) => setFormData({ ...formData, contactEmail: e.target.value })}
-                placeholder="email@ejemplo.com"
->>>>>>> origin/main
               />
             </div>
             <div>
@@ -438,7 +362,6 @@ export function MarketplaceForm({ userId, sellerType = "external", onSuccess }: 
               <Input
                 id="contactPhone"
                 value={formData.contactPhone}
-<<<<<<< HEAD
                 onChange={(e) => {
                   setFormData({ ...formData, contactPhone: e.target.value });
                   if (errors.contact) setErrors((er) => ({ ...er, contact: undefined }));
@@ -454,13 +377,6 @@ export function MarketplaceForm({ userId, sellerType = "external", onSuccess }: 
           <p className="text-xs text-muted-foreground">
             Necesitamos al menos una forma de que te contacten.
           </p>
-=======
-                onChange={(e) => setFormData({ ...formData, contactPhone: e.target.value })}
-                placeholder="+34 600 000 000"
-              />
-            </div>
-          </div>
->>>>>>> origin/main
         </CardContent>
       </Card>
 
@@ -491,7 +407,6 @@ export function MarketplaceForm({ userId, sellerType = "external", onSuccess }: 
               <Input
                 id="city"
                 value={formData.city}
-<<<<<<< HEAD
                 onChange={(e) => {
                   setFormData({ ...formData, city: e.target.value });
                   if (errors.city) setErrors((er) => ({ ...er, city: undefined }));
@@ -503,11 +418,6 @@ export function MarketplaceForm({ userId, sellerType = "external", onSuccess }: 
               {errors.city && (
                 <p className="text-xs text-red-600 mt-1" role="alert">{errors.city}</p>
               )}
-=======
-                onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                required
-              />
->>>>>>> origin/main
             </div>
           </div>
         </CardContent>
@@ -519,7 +429,6 @@ export function MarketplaceForm({ userId, sellerType = "external", onSuccess }: 
     </form>
   );
 }
-<<<<<<< HEAD
 
 async function safeJson(res: Response): Promise<Record<string, unknown> | null> {
   try {
@@ -581,5 +490,3 @@ function copyForPublishError(
     variant: "error",
   };
 }
-=======
->>>>>>> origin/main

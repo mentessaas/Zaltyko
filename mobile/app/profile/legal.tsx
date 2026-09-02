@@ -143,6 +143,9 @@ export default function LegalScreen() {
                 }}
                 style={styles.modalCancel}
                 disabled={deleteMutation.isPending}
+                accessibilityRole="button"
+                accessibilityLabel="Cancelar eliminación de cuenta"
+                accessibilityState={{ disabled: deleteMutation.isPending }}
               >
                 <Text style={styles.modalCancelText}>Cancelar</Text>
               </Pressable>

@@ -3,10 +3,11 @@
 // entera también se memoiza para no re-renderizar al cambiar otra.
 
 import { memo } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { colors, radii, spacing, typography } from '@/lib/theme';
+import { styles } from '@/components/attendance/StudentRow.styles';
+import { colors } from '@/lib/theme';
 import type { AttendanceStatus } from '@/lib/api/endpoints';
 
 interface Props {
@@ -14,15 +15,12 @@ interface Props {
   name: string;
   groupName: string | null;
   status: AttendanceStatus | null;
-<<<<<<< HEAD
   /**
    * Si true, el cambio aún no se guardó en el backend (status override
    * pendiente). ZAL-622 Phase 1: pista visual sutil de "dirty" para
    * distinguir confirmado vs pendiente sin inventar un estado nuevo.
    */
   dirty?: boolean;
-=======
->>>>>>> origin/main
   onChange: (athleteId: string, status: AttendanceStatus) => void;
   onEvaluate?: (athleteId: string, name: string) => void;
 }
@@ -34,7 +32,6 @@ const OPTIONS: { value: AttendanceStatus; label: string; short: string; color: s
   { value: 'excused', label: 'Justif.', short: 'J', color: colors.info },
 ];
 
-<<<<<<< HEAD
 function StudentRowImpl({ athleteId, name, groupName, status, dirty, onChange, onEvaluate }: Props) {
   const initial = name.trim().charAt(0).toUpperCase();
 
@@ -43,13 +40,6 @@ function StudentRowImpl({ athleteId, name, groupName, status, dirty, onChange, o
       style={[styles.row, dirty && styles.rowDirty]}
       accessibilityLabel={`${name}${dirty ? ', cambio sin guardar' : ''}`}
     >
-=======
-function StudentRowImpl({ athleteId, name, groupName, status, onChange, onEvaluate }: Props) {
-  const initial = name.trim().charAt(0).toUpperCase();
-
-  return (
-    <View style={styles.row}>
->>>>>>> origin/main
       <View style={styles.avatar}>
         <Text style={styles.avatarText}>{initial}</Text>
       </View>
@@ -67,10 +57,8 @@ function StudentRowImpl({ athleteId, name, groupName, status, onChange, onEvalua
           <Ionicons name="ribbon-outline" size={18} color={colors.primary} />
         </Pressable>
       ) : null}
-<<<<<<< HEAD
-      {/* actions: ver styles.btn abajo — width 36 + hitSlop={4} = 44dp efectivos (WCAG 2.5.5) */}
-=======
->>>>>>> origin/main
+      {/* actions: styles.btn 44x44dp visibles (WCAG 2.5.5 Target Size Enhanced) +
+          hitSlop=4 para un area tactil efectiva 52x52dp en pantallas de alta densidad. */}
       <View style={styles.actions}>
         {OPTIONS.map((opt) => {
           const active = status === opt.value;
@@ -81,10 +69,7 @@ function StudentRowImpl({ athleteId, name, groupName, status, onChange, onEvalua
               accessibilityRole="button"
               accessibilityLabel={`${opt.label} ${name}`}
               accessibilityState={{ selected: active }}
-<<<<<<< HEAD
               hitSlop={4}
-=======
->>>>>>> origin/main
               style={[
                 styles.btn,
                 { borderColor: opt.color },
@@ -94,7 +79,16 @@ function StudentRowImpl({ athleteId, name, groupName, status, onChange, onEvalua
               <Text
                 style={[
                   styles.btnText,
-                  { color: active ? '#FFFFFF' : opt.color },
+                  {
+                    color: active
+                      ? // Texto oscuro sobre fondo semántico para cumplir WCAG AA 1.4.3 (≥4.5:1).
+                        // danger (#DC2626) sí pasa con blanco (4.83:1) — solo
+                        // success/warning/info necesitan texto oscuro para pasar.
+                        ['success', 'warning', 'info'].includes(opt.value)
+                        ? colors.text
+                        : colors.primaryFg
+                      : opt.color,
+                  },
                 ]}
               >
                 {opt.short}
@@ -108,58 +102,3 @@ function StudentRowImpl({ athleteId, name, groupName, status, onChange, onEvalua
 }
 
 export const StudentRow = memo(StudentRowImpl);
-
-const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    backgroundColor: colors.surface,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.md,
-  },
-<<<<<<< HEAD
-  rowDirty: {
-    borderColor: colors.warning,
-    borderWidth: 1.5,
-  },
-=======
->>>>>>> origin/main
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: radii.full,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarText: { ...typography.label, color: colors.primaryFg, fontWeight: '700' },
-  body: { flex: 1, gap: 2 },
-  evaluateBtn: {
-<<<<<<< HEAD
-    width: 44,
-    height: 44,
-=======
-    width: 32,
-    height: 32,
->>>>>>> origin/main
-    borderRadius: radii.full,
-    backgroundColor: colors.surfaceMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  name: { ...typography.body, color: colors.text, fontWeight: '600' },
-  group: { ...typography.caption, color: colors.textMuted },
-  actions: { flexDirection: 'row', gap: spacing.xs },
-  btn: {
-    width: 36,
-    height: 36,
-    borderRadius: radii.md,
-    borderWidth: 1.5,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  btnText: { ...typography.caption, fontWeight: '700' },
-});
