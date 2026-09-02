@@ -95,6 +95,7 @@ export async function toggleAcademyVisibility(
     // Revalidar rutas públicas
     revalidatePath("/academias");
     revalidatePath(`/academias/${academyId}`);
+    revalidatePath("/sitemap.xml");
     revalidatePath("/super-admin/academies/public");
 
     return {
@@ -108,4 +109,3 @@ export async function toggleAcademyVisibility(
     };
   }
 }
-

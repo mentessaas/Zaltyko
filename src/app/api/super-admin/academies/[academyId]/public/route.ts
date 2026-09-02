@@ -64,6 +64,7 @@ export const PUT = withSuperAdmin(async (request, context) => {
     // Revalidar rutas públicas
     revalidatePath("/academias");
     revalidatePath(`/academias/${academyId}`);
+    revalidatePath("/sitemap.xml");
     revalidatePath("/super-admin/academies/public");
 
     return apiSuccess({
@@ -77,4 +78,3 @@ export const PUT = withSuperAdmin(async (request, context) => {
     });
   }
 });
-

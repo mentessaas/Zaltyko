@@ -7,6 +7,7 @@ import { academies, subscriptions, plans, profiles } from "@/db/schema";
 import { withSuperAdmin } from "@/lib/authz";
 import { logAdminAction } from "@/lib/admin-logs";
 import { getSuperAdminAcademyDetail } from "@/lib/super-admin";
+import { revalidatePath } from "next/cache";
 
 export const dynamic = "force-dynamic";
 
@@ -126,6 +127,15 @@ export const PATCH = withSuperAdmin(async (request, context) => {
         status: "active",
       });
     }
+  }
+
+  // El estado de suspensión cambia la indexabilidad de la terminal pública
+  // y su presencia en el sitemap. Invalidar ambos paths evita servir una
+  // copia cacheada durante la transición de estado.
+  if (typeof body?.isSuspended === "boolean") {
+    revalidatePath("/academias");
+    revalidatePath(`/academias/${academyId}`);
+    revalidatePath("/sitemap.xml");
   }
 
   await logAdminAction({
