@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui/toast-provider";
 import { logger } from "@/lib/logger";
+import { mapSupabaseAuthError } from "@/lib/auth/map-supabase-auth-error";
 
 interface Violation {
   resource: string;
@@ -88,7 +89,7 @@ export default function PlanLimitsPage() {
         const error = await response.json();
         toast.pushToast({
           title: "No se pudieron aplicar los ajustes",
-          description: error.message || error.error || "Error desconocido",
+          description: mapSupabaseAuthError({ message: error.message ?? error.error }),
           variant: "error",
         });
         return;

@@ -31,6 +31,7 @@ import { cn } from "@/lib/utils";
 import { formatAcademyType } from "@/lib/formatters";
 import { useToast } from "@/components/ui/toast-provider";
 import { logger } from "@/lib/logger";
+import { mapSupabaseAuthError } from "@/lib/auth/map-supabase-auth-error";
 
 interface UserMembership {
   id: string;
@@ -257,7 +258,7 @@ export function SuperAdminUserDetail({ initialUser, userId }: SuperAdminUserDeta
         const error = await response.json();
         toast.pushToast({
           title: "No se pudo enviar el mensaje",
-          description: error.message || error.error || "Error desconocido",
+          description: mapSupabaseAuthError({ message: error.message ?? error.error }),
           variant: "error",
         });
         return;

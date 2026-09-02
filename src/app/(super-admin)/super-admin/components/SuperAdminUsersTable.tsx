@@ -12,6 +12,7 @@ import { useToast } from "@/components/ui/toast-provider";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { SuperAdminCreateUserDialog } from "./SuperAdminCreateUserDialog";
 import { logger } from "@/lib/logger";
+import { mapSupabaseAuthError } from "@/lib/auth/map-supabase-auth-error";
 
 const ROLE_OPTIONS = ["owner", "admin", "coach", "athlete", "parent", "super_admin"] as const;
 
@@ -177,7 +178,7 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
         const error = await response.json().catch(() => ({}));
         toast.pushToast({
           title: "Error al actualizar usuario",
-          description: error.message || "No se pudo completar la operación",
+          description: mapSupabaseAuthError(error),
           variant: "error",
         });
         return;
@@ -201,7 +202,7 @@ export function SuperAdminUsersTable({ initialItems }: SuperAdminUsersTableProps
       logger.error("Update user failed", error);
       toast.pushToast({
         title: "Error al actualizar usuario",
-        description: error.message || "Ocurrió un error inesperado",
+        description: mapSupabaseAuthError(error),
         variant: "error",
       });
     } finally {

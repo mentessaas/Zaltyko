@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/toast-provider";
 import { logger } from "@/lib/logger";
+import { mapSupabaseAuthError } from "@/lib/auth/map-supabase-auth-error";
 
 const CATEGORIES = [
   { value: "coach", label: "Entrenador" },
@@ -98,7 +99,7 @@ export function JobForm({ academyId, userId, onSuccess }: JobFormProps) {
         const error = await response.json();
         toast.pushToast({
           title: "No se pudo crear el puesto",
-          description: error.message || "Revisa los datos e inténtalo de nuevo.",
+          description: mapSupabaseAuthError(error),
           variant: "error",
         });
       }

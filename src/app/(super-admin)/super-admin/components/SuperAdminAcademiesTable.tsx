@@ -14,6 +14,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { formatAcademyType } from "@/lib/formatters";
 import { SuperAdminCreateAcademyDialog } from "./SuperAdminCreateAcademyDialog";
 import { logger } from "@/lib/logger";
+import { mapSupabaseAuthError } from "@/lib/auth/map-supabase-auth-error";
 
 type SuperAdminAcademyFilters = {
   plan?: string;
@@ -153,7 +154,7 @@ export function SuperAdminAcademiesTable({
         const error = await response.json().catch(() => ({}));
         toast.pushToast({
           title: "Error al actualizar academia",
-          description: error.message || "No se pudo completar la operación",
+          description: mapSupabaseAuthError(error),
           variant: "error",
         });
         return;
@@ -177,7 +178,7 @@ export function SuperAdminAcademiesTable({
       logger.error("Mutation failed", error);
       toast.pushToast({
         title: "Error",
-        description: error.message || "Ocurrió un error inesperado",
+        description: mapSupabaseAuthError(error),
         variant: "error",
       });
     } finally {
