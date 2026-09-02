@@ -1,12 +1,16 @@
 "use server";
 
-import { and, asc, eq, ilike, or, sql } from "drizzle-orm";
+import { and, asc, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
 import { academies } from "@/db/schema";
 import { createClient } from "@supabase/supabase-js";
 import { logger } from "@/lib/logger";
+import {
+  INDEXABLE_ACADEMY_STATUS_VALUES,
+  isAcademyIndexable,
+} from "@/lib/seo/academy-indexability";
 
 const ACADEMY_TYPES = ["artistica", "ritmica", "general"] as const;
 
@@ -53,7 +57,7 @@ export type GetPublicAcademiesResult = {
 
 /**
  * Server action para obtener academias públicas con filtros
- * 
+ *
  * @param input - Filtros de búsqueda
  * @returns Lista paginada de academias públicas
  */
@@ -67,7 +71,7 @@ export async function getPublicAcademies(
   const filters: ReturnType<typeof eq | typeof ilike>[] = [
     eq(academies.isPublic, true),
     eq(academies.isSuspended, false),
-    sql`${academies.status} NOT IN ('churned', 'fraud_hold')`,
+    inArray(academies.status, INDEXABLE_ACADEMY_STATUS_VALUES),
   ];
 
   if (search) {
@@ -82,26 +86,32 @@ export async function getPublicAcademies(
     // Normalizar país: puede venir como "es", "ES", "España", etc.
     // Buscar case-insensitive usando comparación con LOWER
     const normalizedCountry = country.trim().toLowerCase();
-    filters.push(sql`LOWER(TRIM(${academies.country})) = LOWER(TRIM(${normalizedCountry}))`);
+    filters.push(
+      sql`LOWER(TRIM(${academies.country})) = LOWER(TRIM(${normalizedCountry}))`
+    );
   }
 
   if (region) {
     // Normalizar región: puede venir como "andalucia", "Andalucía", etc.
     // Buscar case-insensitive usando comparación con LOWER
     const normalizedRegion = region.trim().toLowerCase();
-    filters.push(sql`LOWER(TRIM(${academies.region})) = LOWER(TRIM(${normalizedRegion}))`);
+    filters.push(
+      sql`LOWER(TRIM(${academies.region})) = LOWER(TRIM(${normalizedRegion}))`
+    );
   }
 
   if (city) {
     // Normalizar ciudad: puede venir como "malaga", "Málaga", etc.
     // Buscar case-insensitive usando comparación con LOWER
     const normalizedCity = city.trim().toLowerCase();
-    filters.push(sql`LOWER(TRIM(${academies.city})) = LOWER(TRIM(${normalizedCity}))`);
+    filters.push(
+      sql`LOWER(TRIM(${academies.city})) = LOWER(TRIM(${normalizedCity}))`
+    );
   }
 
   // Intentar primero con Drizzle, si falla usar Supabase REST API
   let useFallback = false;
-  
+
   try {
     // Contar total de resultados
     const [countResult] = await db
@@ -110,15 +120,17 @@ export async function getPublicAcademies(
       .where(and(...filters));
 
     const total = Number(countResult?.count ?? 0);
-    
+
     // Si el total es 0 pero sabemos que hay academias, puede ser un problema de conexión
     // Intentar el fallback si total es 0 y no hay filtros de búsqueda
     if (total === 0 && !search && !type && !country && !region && !city) {
-      logger.info("⚠️  Total es 0 sin filtros, puede ser problema de conexión. Usando fallback...");
+      logger.info(
+        "⚠️  Total es 0 sin filtros, puede ser problema de conexión. Usando fallback..."
+      );
       useFallback = true;
       throw new Error("Connection issue - using fallback");
     }
-    
+
     const totalPages = Math.ceil(total / limit);
     const offset = (page - 1) * limit;
 
@@ -141,6 +153,8 @@ export async function getPublicAcademies(
         socialFacebook: academies.socialFacebook,
         socialTwitter: academies.socialTwitter,
         socialYoutube: academies.socialYoutube,
+        status: academies.status,
+        isSuspended: academies.isSuspended,
       })
       .from(academies)
       .where(and(...filters))
@@ -155,35 +169,37 @@ export async function getPublicAcademies(
       totalPages,
       hasNextPage: page < totalPages,
       hasPreviousPage: page > 1,
-      items: items.map((item) => ({
-        ...item,
-        academyType: String(item.academyType),
-      })),
+      items: items
+        .filter((item) => isAcademyIndexable({ ...item, isPublic: true }))
+        .map(({ status: _status, isSuspended: _isSuspended, ...item }) => ({
+          ...item,
+          academyType: String(item.academyType),
+        })),
     };
   } catch (error) {
     // Si hay un error de conexión a la base de datos, intentar usar Supabase REST API como fallback
     logger.error("Error al obtener academias públicas con Drizzle:", error);
     logger.info("🔄 Intentando usar Supabase REST API como fallback...");
-    
+
     try {
       // Usar anon key para consultas públicas (no requiere service role)
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
       const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-      
+
       if (!supabaseUrl || !supabaseAnonKey) {
         throw new Error("Supabase URL o Anon Key no configurados");
       }
-      
+
       const supabase = createClient(supabaseUrl, supabaseAnonKey);
-      
+
       // Construir query con filtros
       let query = supabase
         .from("academies")
         .select("*", { count: "exact" })
         .eq("is_public", true)
         .eq("is_suspended", false)
-        .not("status", "in", "(churned,fraud_hold)");
-      
+        .in("status", [...INDEXABLE_ACADEMY_STATUS_VALUES]);
+
       if (search) {
         query = query.ilike("name", `%${search}%`);
       }
@@ -199,24 +215,26 @@ export async function getPublicAcademies(
       if (city) {
         query = query.ilike("city", city);
       }
-      
+
       // Aplicar paginación
       const offset = (page - 1) * limit;
       query = query.range(offset, offset + limit - 1);
       query = query.order("name", { ascending: true });
-      
+
       const { data, error: supabaseError, count } = await query;
-      
+
       if (supabaseError) {
         logger.error("Error en Supabase REST API:", supabaseError);
         throw supabaseError;
       }
-      
+
       const total = count ?? 0;
       const totalPages = Math.ceil(total / limit);
-      
-      logger.info(`✅ Fallback exitoso: ${data?.length ?? 0} academias encontradas`);
-      
+
+      logger.info(
+        `✅ Fallback exitoso: ${data?.length ?? 0} academias encontradas`
+      );
+
       return {
         total,
         page,
@@ -224,29 +242,37 @@ export async function getPublicAcademies(
         totalPages,
         hasNextPage: page < totalPages,
         hasPreviousPage: page > 1,
-        items: (data ?? []).map((item) => ({
-          id: item.id,
-          name: item.name,
-          academyType: String(item.academy_type),
-          country: item.country,
-          region: item.region,
-          city: item.city,
-          publicDescription: item.public_description,
-          logoUrl: item.logo_url,
-          website: item.website,
-          contactEmail: item.contact_email,
-          contactPhone: item.contact_phone,
-          address: item.address,
-          socialInstagram: item.social_instagram,
-          socialFacebook: item.social_facebook,
-          socialTwitter: item.social_twitter,
-          socialYoutube: item.social_youtube,
-        })),
+        items: (data ?? [])
+          .filter((item) =>
+            isAcademyIndexable({
+              status: item.status,
+              isSuspended: item.is_suspended,
+              isPublic: item.is_public,
+            })
+          )
+          .map((item) => ({
+            id: item.id,
+            name: item.name,
+            academyType: String(item.academy_type),
+            country: item.country,
+            region: item.region,
+            city: item.city,
+            publicDescription: item.public_description,
+            logoUrl: item.logo_url,
+            website: item.website,
+            contactEmail: item.contact_email,
+            contactPhone: item.contact_phone,
+            address: item.address,
+            socialInstagram: item.social_instagram,
+            socialFacebook: item.social_facebook,
+            socialTwitter: item.social_twitter,
+            socialYoutube: item.social_youtube,
+          })),
       };
     } catch (fallbackError) {
       // Si el fallback también falla, retornar resultados vacíos
       logger.error("Error en fallback de Supabase:", fallbackError);
-      
+
       return {
         total: 0,
         page,
@@ -258,5 +284,4 @@ export async function getPublicAcademies(
       };
     }
   }
-
 }

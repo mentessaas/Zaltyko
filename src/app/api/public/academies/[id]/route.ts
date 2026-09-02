@@ -1,4 +1,4 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
@@ -6,6 +6,10 @@ import { db } from "@/db";
 import { academies, classes, classWeekdays } from "@/db/schema";
 import { handleApiError } from "@/lib/api-error-handler";
 import { logger } from "@/lib/logger";
+import {
+  INDEXABLE_ACADEMY_STATUS_VALUES,
+  isAcademyIndexable,
+} from "@/lib/seo/academy-indexability";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -13,10 +17,10 @@ interface RouteContext {
 
 /**
  * GET /api/public/academies/[id]
- * 
+ *
  * Obtiene los detalles públicos de una academia específica.
  * Endpoint público (sin autenticación requerida).
- * 
+ *
  * Incluye:
  * - Información básica de la academia
  * - Horarios públicos del grupo principal (solo títulos y días, sin datos privados)
@@ -34,6 +38,8 @@ export async function GET(request: Request, context: RouteContext) {
       city: string | null;
       publicDescription: string | null;
       logoUrl: string | null;
+      status: string | null;
+      isSuspended: boolean | null;
     } | null = null;
 
     let publicSchedule: Array<{
@@ -55,6 +61,8 @@ export async function GET(request: Request, context: RouteContext) {
           city: academies.city,
           publicDescription: academies.publicDescription,
           logoUrl: academies.logoUrl,
+          status: academies.status,
+          isSuspended: academies.isSuspended,
         })
         .from(academies)
         .where(
@@ -62,15 +70,19 @@ export async function GET(request: Request, context: RouteContext) {
             eq(academies.id, id),
             eq(academies.isPublic, true),
             eq(academies.isSuspended, false),
-            sql`${academies.status} NOT IN ('churned', 'fraud_hold')`
+            inArray(academies.status, INDEXABLE_ACADEMY_STATUS_VALUES)
           )
         )
         .limit(1);
 
-      academy = academyResult ? {
-        ...academyResult,
-        academyType: String(academyResult.academyType),
-      } : null;
+      academy =
+        academyResult &&
+        isAcademyIndexable({ ...academyResult, isPublic: true })
+          ? {
+              ...academyResult,
+              academyType: String(academyResult.academyType),
+            }
+          : null;
 
       // Intentar obtener horarios con Drizzle
       if (academy) {
@@ -83,15 +95,10 @@ export async function GET(request: Request, context: RouteContext) {
           })
           .from(classes)
           .innerJoin(classWeekdays, eq(classes.id, classWeekdays.classId))
-          .where(
-            and(
-              eq(classes.academyId, id),
-              eq(classes.isExtra, false)
-            )
-          )
+          .where(and(eq(classes.academyId, id), eq(classes.isExtra, false)))
           .limit(20);
 
-        publicSchedule = scheduleResult.map(s => ({
+        publicSchedule = scheduleResult.map((s) => ({
           className: s.className,
           weekday: s.weekday,
           startTime: s.startTime ? String(s.startTime) : null,
@@ -102,23 +109,39 @@ export async function GET(request: Request, context: RouteContext) {
       // Si falla, usar Supabase REST API como fallback
       logger.error("Error al obtener academia con Drizzle", dbError);
       logger.info("Intentando usar Supabase REST API como fallback");
-      
+
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
       const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-      
+
       if (supabaseUrl && supabaseAnonKey) {
         const supabase = createClient(supabaseUrl, supabaseAnonKey);
-        
+
         const { data: academyData, error: supabaseError } = await supabase
           .from("academies")
           .select("*")
           .eq("id", id)
           .eq("is_public", true)
           .eq("is_suspended", false)
-          .not("status", "in", "(churned,fraud_hold)")
+          .in("status", [...INDEXABLE_ACADEMY_STATUS_VALUES])
           .single();
-        
+
         if (!supabaseError && academyData) {
+          if (
+            !isAcademyIndexable({
+              status: academyData.status,
+              isSuspended: academyData.is_suspended,
+              isPublic: academyData.is_public,
+            })
+          ) {
+            return NextResponse.json(
+              {
+                error: "ACADEMY_NOT_FOUND",
+                message: "Academia no encontrada o no pública",
+              },
+              { status: 404 }
+            );
+          }
+
           academy = {
             id: academyData.id,
             name: academyData.name,
@@ -128,22 +151,26 @@ export async function GET(request: Request, context: RouteContext) {
             city: academyData.city,
             publicDescription: academyData.public_description,
             logoUrl: academyData.logo_url,
+            status: academyData.status,
+            isSuspended: academyData.is_suspended,
           };
           logger.info(`Fallback exitoso: Academia ${academy.name} encontrada`);
-          
+
           // Obtener horarios (simplificado para el fallback)
           const { data: scheduleData } = await supabase
             .from("classes")
-            .select(`
+            .select(
+              `
               name,
               start_time,
               end_time,
               class_weekdays!inner(weekday)
-            `)
+            `
+            )
             .eq("academy_id", id)
             .eq("is_extra", false)
             .limit(20);
-          
+
           if (scheduleData) {
             publicSchedule = scheduleData.map((s: any) => ({
               className: s.name,
@@ -158,14 +185,20 @@ export async function GET(request: Request, context: RouteContext) {
 
     if (!academy) {
       return NextResponse.json(
-        { error: "ACADEMY_NOT_FOUND", message: "Academia no encontrada o no pública" },
+        {
+          error: "ACADEMY_NOT_FOUND",
+          message: "Academia no encontrada o no pública",
+        },
         { status: 404 }
       );
     }
 
     // Agrupar horarios por día de la semana
-    const scheduleByDay: Record<number, Array<{ name: string; startTime: string | null; endTime: string | null }>> = {};
-    
+    const scheduleByDay: Record<
+      number,
+      Array<{ name: string; startTime: string | null; endTime: string | null }>
+    > = {};
+
     for (const schedule of publicSchedule) {
       const weekday = schedule.weekday ?? 0;
       if (!scheduleByDay[weekday]) {
@@ -178,11 +211,20 @@ export async function GET(request: Request, context: RouteContext) {
       });
     }
 
+    const {
+      status: _status,
+      isSuspended: _isSuspended,
+      ...publicAcademy
+    } = academy;
+
     return NextResponse.json({
-      ...academy,
+      ...publicAcademy,
       schedule: scheduleByDay,
     });
   } catch (error) {
-    return handleApiError(error, { endpoint: "/api/public/academies/[id]", method: "GET" });
+    return handleApiError(error, {
+      endpoint: "/api/public/academies/[id]",
+      method: "GET",
+    });
   }
 }

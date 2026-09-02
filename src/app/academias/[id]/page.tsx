@@ -6,28 +6,39 @@ import { AcademySchedule } from "@/components/public/AcademySchedule";
 import { ContactAcademyForm } from "@/components/public/ContactAcademyForm";
 import { NearbyAcademies } from "@/components/public/NearbyAcademies";
 import { getPublicAcademy } from "@/app/actions/public/get-public-academy";
+import { getAcademyRobotsMetadata } from "@/lib/seo/academy-robots";
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 interface AcademyDetailPageProps {
   params: Promise<{ id: string }>;
 }
 
-export async function generateMetadata({ params }: AcademyDetailPageProps): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: AcademyDetailPageProps): Promise<Metadata> {
   const { id } = await params;
   const academy = await getPublicAcademy(id);
 
   if (!academy) {
     return {
       title: "Academia no encontrada",
+      robots: getAcademyRobotsMetadata(false),
     };
   }
 
   return {
     title: `${academy.name} | Directorio de Academias`,
-    description: academy.publicDescription || `Información sobre ${academy.name}`,
+    description:
+      academy.publicDescription || `Información sobre ${academy.name}`,
+    robots: getAcademyRobotsMetadata(true),
   };
 }
 
-export default async function AcademyDetailPage({ params }: AcademyDetailPageProps) {
+export default async function AcademyDetailPage({
+  params,
+}: AcademyDetailPageProps) {
   const { id } = await params;
   const academy = await getPublicAcademy(id);
 
@@ -49,9 +60,13 @@ export default async function AcademyDetailPage({ params }: AcademyDetailPagePro
               ¿Interesado en esta academia?
             </h2>
             <p className="mb-6 text-muted-foreground">
-              Contacta con la academia para más información sobre clases, horarios y disponibilidad.
+              Contacta con la academia para más información sobre clases,
+              horarios y disponibilidad.
             </p>
-            <ContactAcademyForm academyId={academy.id} academyName={academy.name} />
+            <ContactAcademyForm
+              academyId={academy.id}
+              academyName={academy.name}
+            />
           </div>
         </div>
       </section>
@@ -67,4 +82,3 @@ export default async function AcademyDetailPage({ params }: AcademyDetailPagePro
     </div>
   );
 }
-

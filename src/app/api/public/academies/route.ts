@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, ilike, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -6,9 +6,13 @@ import { db } from "@/db";
 import { academies } from "@/db/schema";
 import { handleApiError } from "@/lib/api-error-handler";
 import { logger } from "@/lib/logger";
+import {
+  INDEXABLE_ACADEMY_STATUS_VALUES,
+  isAcademyIndexable,
+} from "@/lib/seo/academy-indexability";
 
 // Forzar ruta dinámica
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 const ACADEMY_TYPES = ["artistica", "ritmica", "general"] as const;
 
@@ -24,10 +28,10 @@ const QuerySchema = z.object({
 
 /**
  * GET /api/public/academies
- * 
+ *
  * Lista academias públicas con filtros opcionales.
  * Endpoint público (sin autenticación requerida).
- * 
+ *
  * Query params:
  * - search: Búsqueda por nombre
  * - type: Tipo de academia (artistica, ritmica, general para mixta artística/rítmica)
@@ -56,13 +60,12 @@ export async function GET(request: Request) {
     const { search, type, country, region, city, page, limit } = parsed.data;
 
     // Construir filtros
-    // ZAL-328: el directorio público debe excluir academias en `churned` o
-    // `fraud_hold` (criterio B3 §3.3 + ZAL-315 §3.1). Mantenemos `isSuspended=false`
-    // por defensa en profundidad durante la transición con el flag legacy.
+    // La lista explícita de estados mantiene el contrato fail-closed: un
+    // estado nuevo o nulo no entra al directorio por accidente.
     const filters: ReturnType<typeof eq | typeof ilike>[] = [
       eq(academies.isPublic, true),
       eq(academies.isSuspended, false),
-      sql`${academies.status} NOT IN ('churned', 'fraud_hold')`,
+      inArray(academies.status, INDEXABLE_ACADEMY_STATUS_VALUES),
     ];
 
     if (search) {
@@ -77,21 +80,27 @@ export async function GET(request: Request) {
       // Normalizar país: puede venir como "es", "ES", "España", etc.
       // Buscar case-insensitive usando comparación con LOWER
       const normalizedCountry = country.trim().toLowerCase();
-      filters.push(sql`LOWER(TRIM(${academies.country})) = LOWER(TRIM(${normalizedCountry}))`);
+      filters.push(
+        sql`LOWER(TRIM(${academies.country})) = LOWER(TRIM(${normalizedCountry}))`
+      );
     }
 
     if (region) {
       // Normalizar región: puede venir como "andalucia", "Andalucía", etc.
       // Buscar case-insensitive usando comparación con LOWER
       const normalizedRegion = region.trim().toLowerCase();
-      filters.push(sql`LOWER(TRIM(${academies.region})) = LOWER(TRIM(${normalizedRegion}))`);
+      filters.push(
+        sql`LOWER(TRIM(${academies.region})) = LOWER(TRIM(${normalizedRegion}))`
+      );
     }
 
     if (city) {
       // Normalizar ciudad: puede venir como "malaga", "Málaga", etc.
       // Buscar case-insensitive usando comparación con LOWER
       const normalizedCity = city.trim().toLowerCase();
-      filters.push(sql`LOWER(TRIM(${academies.city})) = LOWER(TRIM(${normalizedCity}))`);
+      filters.push(
+        sql`LOWER(TRIM(${academies.city})) = LOWER(TRIM(${normalizedCity}))`
+      );
     }
 
     // Contar total de resultados
@@ -113,6 +122,8 @@ export async function GET(request: Request) {
       socialFacebook: string | null;
       socialTwitter: string | null;
       socialYoutube: string | null;
+      status?: string | null;
+      isSuspended?: boolean | null;
     }> = [];
 
     try {
@@ -143,6 +154,8 @@ export async function GET(request: Request) {
           socialFacebook: academies.socialFacebook,
           socialTwitter: academies.socialTwitter,
           socialYoutube: academies.socialYoutube,
+          status: academies.status,
+          isSuspended: academies.isSuspended,
         })
         .from(academies)
         .where(and(...filters))
@@ -156,6 +169,13 @@ export async function GET(request: Request) {
       // Continuar con valores por defecto (total=0, items=[])
     }
 
+    items = items.filter((item) =>
+      isAcademyIndexable({ ...item, isPublic: true })
+    );
+    items = items.map(
+      ({ status: _status, isSuspended: _isSuspended, ...item }) => item
+    );
+
     const totalPages = Math.ceil(total / limit);
 
     return NextResponse.json({
@@ -168,6 +188,9 @@ export async function GET(request: Request) {
       items,
     });
   } catch (error) {
-    return handleApiError(error, { endpoint: "/api/public/academies", method: "GET" });
+    return handleApiError(error, {
+      endpoint: "/api/public/academies",
+      method: "GET",
+    });
   }
 }

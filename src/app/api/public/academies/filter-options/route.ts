@@ -3,10 +3,11 @@ import { db } from "@/db";
 import { academies } from "@/db/schema";
 import { eq, and, sql } from "drizzle-orm";
 import { handleApiError } from "@/lib/api-error-handler";
+import { isAcademyIndexable } from "@/lib/seo/academy-indexability";
 
 /**
  * GET /api/public/academies/filter-options
- * 
+ *
  * Devuelve todas las opciones disponibles para los filtros (países, regiones, ciudades)
  * Incluye academias públicas y no públicas para tener opciones completas
  */
@@ -19,6 +20,8 @@ export async function GET() {
         region: academies.region,
         city: academies.city,
         isPublic: academies.isPublic,
+        status: academies.status,
+        isSuspended: academies.isSuspended,
       })
       .from(academies)
       .where(
@@ -33,10 +36,16 @@ export async function GET() {
     const citiesSet = new Set<string>();
 
     // Filtrar solo academias públicas
-    const publicAcademies = allAcademies.filter((academy) => academy.isPublic === true);
+    const indexableAcademies = allAcademies.filter((academy) =>
+      isAcademyIndexable(academy)
+    );
+    const publicAcademies = indexableAcademies.filter(
+      (academy) => academy.isPublic === true
+    );
 
-    // Si no hay academias públicas, usar todas las no suspendidas para tener opciones
-    const academiesToUse = publicAcademies.length > 0 ? publicAcademies : allAcademies;
+    // Si no hay academias públicas, usar las indexables no públicas para tener opciones
+    const academiesToUse =
+      publicAcademies.length > 0 ? publicAcademies : indexableAcademies;
 
     academiesToUse.forEach((academy) => {
       // Normalizar países (mayúsculas)
@@ -48,14 +57,20 @@ export async function GET() {
       if (academy.region) {
         const normalizedRegion = academy.region.trim();
         if (normalizedRegion) {
-          regionsSet.add(normalizedRegion.charAt(0).toUpperCase() + normalizedRegion.slice(1).toLowerCase());
+          regionsSet.add(
+            normalizedRegion.charAt(0).toUpperCase() +
+              normalizedRegion.slice(1).toLowerCase()
+          );
         }
       }
       // Normalizar ciudades (capitalizar primera letra)
       if (academy.city) {
         const normalizedCity = academy.city.trim();
         if (normalizedCity) {
-          citiesSet.add(normalizedCity.charAt(0).toUpperCase() + normalizedCity.slice(1).toLowerCase());
+          citiesSet.add(
+            normalizedCity.charAt(0).toUpperCase() +
+              normalizedCity.slice(1).toLowerCase()
+          );
         }
       }
     });
@@ -64,10 +79,13 @@ export async function GET() {
       countries: Array.from(countriesSet).sort(),
       regions: Array.from(regionsSet).sort(),
       cities: Array.from(citiesSet).sort(),
-      totalAcademies: allAcademies.length,
+      totalAcademies: indexableAcademies.length,
       publicAcademies: publicAcademies.length,
     });
   } catch (error) {
-    return handleApiError(error, { endpoint: "/api/public/academies/filter-options", method: "GET" });
+    return handleApiError(error, {
+      endpoint: "/api/public/academies/filter-options",
+      method: "GET",
+    });
   }
 }

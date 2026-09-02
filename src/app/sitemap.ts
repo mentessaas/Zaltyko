@@ -1,7 +1,14 @@
 import type { MetadataRoute } from "next";
+import { and, eq, inArray } from "drizzle-orm";
 import { getPublicSiteUrl } from "@/lib/seo/site-url";
 import { MODALITIES, COUNTRIES } from "@/lib/seo/clusters";
 import type { Locale } from "@/i18n";
+import { db } from "@/db";
+import { academies } from "@/db/schema";
+import { isAcademyIndexable } from "@/lib/seo/academy-indexability";
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 const PUBLIC_ROUTES = [
   "/",
@@ -33,7 +40,14 @@ const MODULE_ROUTES = [
 
 const CLUSTER_LOCALES: Locale[] = ["es", "en"];
 const MODALITY_KEYS = Object.keys(MODALITIES) as Array<keyof typeof MODALITIES>;
-const COUNTRY_KEYS = ["espana", "mexico", "argentina", "colombia", "chile", "peru"] as Array<keyof typeof COUNTRIES>;
+const COUNTRY_KEYS = [
+  "espana",
+  "mexico",
+  "argentina",
+  "colombia",
+  "chile",
+  "peru",
+] as Array<keyof typeof COUNTRIES>;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = getPublicSiteUrl();
@@ -54,7 +68,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // Add localized homepage routes only if they resolve to a real page (not a 404/redirect).
   // Currently /es and /en redirect to /, so we omit them to avoid "soft 404" in Search Console.
-  const localizedHomepages: Array<{ url: string; lastModified: Date; changeFrequency: "weekly"; priority: number }> = [];
+  const localizedHomepages: Array<{
+    url: string;
+    lastModified: Date;
+    changeFrequency: "weekly";
+    priority: number;
+  }> = [];
 
   const modalityPages = CLUSTER_LOCALES.flatMap((locale) =>
     MODALITY_KEYS.flatMap((modality) => {
@@ -85,6 +104,42 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     )
   );
 
+  // Contrato: solo academias públicas activas o en trial entran al sitemap.
+  // La consulta es sin caché/revalidación para retirar una URL en cuanto
+  // cambie status o isSuspended. Ante cualquier error no añadimos URLs de
+  // academias: es preferible omitirlas temporalmente que publicar terminales.
+  let academyPages: MetadataRoute.Sitemap = [];
+  try {
+    const academyRows = await db
+      .select({
+        id: academies.id,
+        status: academies.status,
+        isSuspended: academies.isSuspended,
+        isPublic: academies.isPublic,
+        lastModified: academies.statusUpdatedAt,
+        createdAt: academies.createdAt,
+      })
+      .from(academies)
+      .where(
+        and(
+          eq(academies.isPublic, true),
+          eq(academies.isSuspended, false),
+          inArray(academies.status, ["active", "trial"])
+        )
+      );
+
+    academyPages = academyRows
+      .filter((academy) => isAcademyIndexable(academy))
+      .map((academy) => ({
+        url: `${baseUrl}/academias/${academy.id}`,
+        lastModified: academy.lastModified ?? academy.createdAt ?? new Date(),
+        changeFrequency: "daily" as const,
+        priority: 0.7,
+      }));
+  } catch {
+    academyPages = [];
+  }
+
   // Nota: se retiraron las variantes con query param (?category=) de marketplace/empleo:
   // un sitemap no debe listar URLs de filtro, generan contenido duplicado sin valor de indexación propio.
 
@@ -94,5 +149,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...localizedHomepages,
     ...modalityPages,
     ...clusterPages,
+    ...academyPages,
   ];
 }

@@ -4,6 +4,8 @@ import crypto from "crypto";
 import { isDevFeaturesEnabled } from "@/lib/dev";
 import { DEV_SESSION_COOKIE, parseDevSessionCookie } from "@/lib/dev-session";
 import { locales, defaultLocale, type Locale } from "@/i18n";
+import { isAcademyIndexable } from "@/lib/seo/academy-indexability";
+import { getAcademyRobotsHeader } from "@/lib/seo/academy-robots";
 
 // Constants
 const SUPER_ADMIN_PATH = "/super-admin";
@@ -44,9 +46,12 @@ function redirectToLogin(req: NextRequest) {
 }
 
 function extractAccessToken(req: NextRequest) {
-  const tokenCookie = req.cookies.getAll().find(
-    (cookie) => cookie.name.includes("sb-") && cookie.name.endsWith("-access-token")
-  );
+  const tokenCookie = req.cookies
+    .getAll()
+    .find(
+      (cookie) =>
+        cookie.name.includes("sb-") && cookie.name.endsWith("-access-token")
+    );
   if (tokenCookie?.value) return tokenCookie.value;
 
   // @supabase/ssr stores the browser session in a base64url encoded
@@ -64,30 +69,38 @@ function extractAccessToken(req: NextRequest) {
     const payload = encoded.startsWith("base64-")
       ? JSON.parse(Buffer.from(encoded.slice(7), "base64url").toString("utf8"))
       : JSON.parse(encoded);
-    return typeof payload?.access_token === "string" ? payload.access_token : null;
+    return typeof payload?.access_token === "string"
+      ? payload.access_token
+      : null;
   } catch {
     return null;
   }
 }
 
 function base64UrlDecode(input: string) {
-  const padded = input.replace(/-/g, "+").replace(/_/g, "/").padEnd(
-    input.length + ((4 - (input.length % 4)) % 4),
-    "="
-  );
+  const padded = input
+    .replace(/-/g, "+")
+    .replace(/_/g, "/")
+    .padEnd(input.length + ((4 - (input.length % 4)) % 4), "=");
   if (typeof globalThis !== "undefined" && "atob" in globalThis) {
-    return (globalThis as typeof globalThis & { atob: (value: string) => string }).atob(padded);
+    return (
+      globalThis as typeof globalThis & { atob: (value: string) => string }
+    ).atob(padded);
   }
   return Buffer.from(padded, "base64").toString("utf8");
 }
 
-function verifyJwtHs256(token: string, secret: string): { valid: boolean; payload: Record<string, unknown> | null } {
+function verifyJwtHs256(
+  token: string,
+  secret: string
+): { valid: boolean; payload: Record<string, unknown> | null } {
   try {
     const parts = token.split(".");
     if (parts.length !== 3) return { valid: false, payload: null };
 
     const [headerB64, payloadB64, signatureB64] = parts;
-    if (!headerB64 || !payloadB64 || !signatureB64) return { valid: false, payload: null };
+    if (!headerB64 || !payloadB64 || !signatureB64)
+      return { valid: false, payload: null };
 
     const headerJson = base64UrlDecode(headerB64);
     const header = JSON.parse(headerJson) as { alg?: string; typ?: string };
@@ -100,10 +113,13 @@ function verifyJwtHs256(token: string, secret: string): { valid: boolean; payloa
       .digest();
 
     const receivedSignature = Buffer.from(
-      signatureB64.replace(/-/g, "+").replace(/_/g, "/").padEnd(
-        signatureB64.length + ((4 - (signatureB64.length % 4)) % 4),
-        "="
-      ),
+      signatureB64
+        .replace(/-/g, "+")
+        .replace(/_/g, "/")
+        .padEnd(
+          signatureB64.length + ((4 - (signatureB64.length % 4)) % 4),
+          "="
+        ),
       "base64"
     );
 
@@ -115,7 +131,10 @@ function verifyJwtHs256(token: string, secret: string): { valid: boolean; payloa
     }
 
     const payloadJson = base64UrlDecode(payloadB64);
-    return { valid: true, payload: JSON.parse(payloadJson) as Record<string, unknown> };
+    return {
+      valid: true,
+      payload: JSON.parse(payloadJson) as Record<string, unknown>,
+    };
   } catch {
     return { valid: false, payload: null };
   }
@@ -134,7 +153,10 @@ function validateClaims(payload: Record<string, unknown>): boolean {
     return false;
   }
 
-  if (typeof payload.iat === "number" && now < (payload.iat - CLOCK_SKEW_TOLERANCE) * 1000) {
+  if (
+    typeof payload.iat === "number" &&
+    now < (payload.iat - CLOCK_SKEW_TOLERANCE) * 1000
+  ) {
     console.warn("JWT issued in the future");
     return false;
   }
@@ -142,7 +164,9 @@ function validateClaims(payload: Record<string, unknown>): boolean {
   return true;
 }
 
-async function verifySuperAdminWithSupabase(accessToken: string): Promise<boolean> {
+async function verifySuperAdminWithSupabase(
+  accessToken: string
+): Promise<boolean> {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!supabaseUrl || !anonKey) return false;
@@ -176,7 +200,9 @@ function isMutation(method: string) {
 }
 
 function isApiRateLimitExcluded(pathname: string) {
-  return RATE_LIMIT_EXCLUDED_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+  return RATE_LIMIT_EXCLUDED_PREFIXES.some((prefix) =>
+    pathname.startsWith(prefix)
+  );
 }
 
 function isExcludedPath(pathname: string) {
@@ -198,15 +224,76 @@ function isAcademyAppPath(pathname: string) {
   return pathname.startsWith("/app/") || pathname.startsWith("/super-admin/");
 }
 
+function getIndividualAcademyId(pathname: string): string | null {
+  const match = pathname.match(/^\/academias\/([^/]+)$/);
+  if (!match?.[1]) return null;
+  try {
+    return decodeURIComponent(match[1]);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Reads only public academy lifecycle fields for the response-header gate.
+ * Missing configuration, a malformed response, or a network error is
+ * deliberately treated as non-indexable.
+ */
+export async function isPublicAcademyIndexable(
+  academyId: string
+): Promise<boolean> {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!supabaseUrl || !anonKey || !academyId) return false;
+
+  try {
+    const endpoint = new URL("/rest/v1/academies", supabaseUrl);
+    endpoint.searchParams.set("id", `eq.${academyId}`);
+    endpoint.searchParams.set("is_public", "eq.true");
+    endpoint.searchParams.set("select", "status,is_suspended,is_public");
+    endpoint.searchParams.set("limit", "1");
+
+    const response = await fetch(endpoint, {
+      headers: { apikey: anonKey, Accept: "application/json" },
+      cache: "no-store",
+    });
+    if (!response.ok) return false;
+
+    const rows = (await response.json()) as Array<{
+      status?: string | null;
+      is_suspended?: boolean | null;
+      is_public?: boolean | null;
+    }>;
+    if (!Array.isArray(rows) || rows.length !== 1) return false;
+
+    const [academy] = rows;
+    return isAcademyIndexable({
+      status: academy.status,
+      isSuspended: academy.is_suspended,
+      isPublic: academy.is_public,
+    });
+  } catch {
+    return false;
+  }
+}
+
 async function checkRateLimit(
   req: NextRequest,
   body: Record<string, unknown>
-): Promise<{ blockedResponse: NextResponse | null; headers: Record<string, string> }> {
+): Promise<{
+  blockedResponse: NextResponse | null;
+  headers: Record<string, string>;
+}> {
   const pathname = req.nextUrl.pathname;
-  const { rateLimit, getLimitForRoute, getClientIdentifier } = await import("@/lib/rate-limit");
+  const { rateLimit, getLimitForRoute, getClientIdentifier } = await import(
+    "@/lib/rate-limit"
+  );
   const identifier = `${pathname}:${getClientIdentifier(req)}`;
   const result = await rateLimit({ identifier, ...getLimitForRoute(pathname) });
-  const resetSeconds = Math.max(0, result.reset - Math.floor(Date.now() / 1000));
+  const resetSeconds = Math.max(
+    0,
+    result.reset - Math.floor(Date.now() / 1000)
+  );
   const headers = {
     "X-RateLimit-Limit": String(result.limit),
     "X-RateLimit-Remaining": String(result.remaining),
@@ -232,7 +319,9 @@ async function checkRateLimit(
 
 function extractRole(payload: Record<string, unknown> | null) {
   if (!payload) return null;
-  const appMetadata = payload.app_metadata as Record<string, unknown> | undefined;
+  const appMetadata = payload.app_metadata as
+    | Record<string, unknown>
+    | undefined;
   return (
     appMetadata?.role ??
     // E2E identities use a namespaced claim so production role metadata is
@@ -307,7 +396,11 @@ export async function middleware(req: NextRequest) {
   let rateLimitHeaders: Record<string, string> | null = null;
 
   // 1. Rate limit API mutations globally (skips webhooks and crons)
-  if (isApiPath(pathname) && isMutation(req.method) && !isApiRateLimitExcluded(pathname)) {
+  if (
+    isApiPath(pathname) &&
+    isMutation(req.method) &&
+    !isApiRateLimitExcluded(pathname)
+  ) {
     const rateLimitResult = await checkRateLimit(req, {
       ok: false,
       error: "RATE_LIMIT_EXCEEDED",
@@ -320,7 +413,11 @@ export async function middleware(req: NextRequest) {
 
   // 1b. Rate limit GETs públicos: endpoints anónimos con count(*) por
   // petición; sin esto, un loop barato fuerza escaneos completos sin medir.
-  if (isApiPath(pathname) && !isMutation(req.method) && pathname.startsWith("/api/public")) {
+  if (
+    isApiPath(pathname) &&
+    !isMutation(req.method) &&
+    pathname.startsWith("/api/public")
+  ) {
     const rateLimitResult = await checkRateLimit(req, {
       limit: 60,
       window: 60,
@@ -346,7 +443,9 @@ export async function middleware(req: NextRequest) {
   if (isSuperAdminPath(pathname)) {
     const hasDevSession =
       isDevFeaturesEnabled &&
-      Boolean(parseDevSessionCookie(req.cookies.get(DEV_SESSION_COOKIE)?.value));
+      Boolean(
+        parseDevSessionCookie(req.cookies.get(DEV_SESSION_COOKIE)?.value)
+      );
 
     if (!hasDevSession) {
       const token = extractAccessToken(req);
@@ -380,6 +479,14 @@ export async function middleware(req: NextRequest) {
     for (const [header, value] of Object.entries(rateLimitHeaders)) {
       response.headers.set(header, value);
     }
+  }
+
+  const academyId = getIndividualAcademyId(pathname);
+  if (academyId) {
+    const robotsHeader = getAcademyRobotsHeader(
+      await isPublicAcademyIndexable(academyId)
+    );
+    if (robotsHeader) response.headers.set("X-Robots-Tag", robotsHeader);
   }
 
   return response;

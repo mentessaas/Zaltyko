@@ -27,6 +27,12 @@ import { db } from "@/db";
 import { academies, type AcademyStatus } from "@/db/schema/academies";
 import { logger } from "@/lib/logger";
 
+export {
+  INDEXABLE_ACADEMY_STATUS_VALUES,
+  isAcademyIndexable,
+  type AcademyIndexabilityInput,
+} from "@/lib/seo/academy-indexability";
+
 /**
  * Valores de `status` que bloquean el envío de emails transaccionales soft.
  * La lista es SEMÁNTICA: refleja el contrato que el spec v0.2 §6 nombra.
@@ -64,7 +70,9 @@ function reasonToMetric(reason: AcademySendingBlockReason): string {
   return `blocked_sending:${reason}`;
 }
 
-function shouldBlockStatus(status: AcademyStatus | null): AcademySendingBlockReason | null {
+function shouldBlockStatus(
+  status: AcademyStatus | null
+): AcademySendingBlockReason | null {
   if (!status) return null;
   if (status === "suspended") return "suspended";
   if (status === "churned") return "churned";
@@ -269,7 +277,10 @@ export async function getAcademySendingEligibilityBulk(
  * estable y no leakea academyId si el log es agregado.
  */
 export function describeBlockingReason(
-  eligibility: Pick<AcademySendingEligibility, "blocked" | "reason" | "isFraudHold">
+  eligibility: Pick<
+    AcademySendingEligibility,
+    "blocked" | "reason" | "isFraudHold"
+  >
 ): string {
   if (!eligibility.blocked) return "eligible";
   return reasonToMetric(eligibility.reason ?? "not_found");

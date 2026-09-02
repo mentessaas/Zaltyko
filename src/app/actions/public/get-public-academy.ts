@@ -1,11 +1,15 @@
 "use server";
 
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { createClient } from "@supabase/supabase-js";
 
 import { db } from "@/db";
 import { academies, classes, classWeekdays } from "@/db/schema";
 import { logger } from "@/lib/logger";
+import {
+  INDEXABLE_ACADEMY_STATUS_VALUES,
+  isAcademyIndexable,
+} from "@/lib/seo/academy-indexability";
 
 export type PublicAcademyDetail = {
   id: string;
@@ -24,12 +28,15 @@ export type PublicAcademyDetail = {
   socialFacebook: string | null;
   socialTwitter: string | null;
   socialYoutube: string | null;
-  schedule: Record<number, Array<{ name: string; startTime: string | null; endTime: string | null }>>;
+  schedule: Record<
+    number,
+    Array<{ name: string; startTime: string | null; endTime: string | null }>
+  >;
 };
 
 /**
  * Server action para obtener detalles de una academia pública
- * 
+ *
  * @param academyId - ID de la academia
  * @returns Detalles de la academia o null si no existe o no es pública
  */
@@ -56,6 +63,8 @@ export async function getPublicAcademy(
         socialFacebook: academies.socialFacebook,
         socialTwitter: academies.socialTwitter,
         socialYoutube: academies.socialYoutube,
+        status: academies.status,
+        isSuspended: academies.isSuspended,
       })
       .from(academies)
       .where(
@@ -63,12 +72,12 @@ export async function getPublicAcademy(
           eq(academies.id, academyId),
           eq(academies.isPublic, true),
           eq(academies.isSuspended, false),
-          sql`${academies.status} NOT IN ('churned', 'fraud_hold')`
+          inArray(academies.status, INDEXABLE_ACADEMY_STATUS_VALUES)
         )
       )
       .limit(1);
 
-    if (!academy) {
+    if (!academy || !isAcademyIndexable({ ...academy, isPublic: true })) {
       return null;
     }
 
@@ -92,8 +101,11 @@ export async function getPublicAcademy(
       .limit(20); // Limitar a 20 clases
 
     // Agrupar horarios por día de la semana
-    const scheduleByDay: Record<number, Array<{ name: string; startTime: string | null; endTime: string | null }>> = {};
-    
+    const scheduleByDay: Record<
+      number,
+      Array<{ name: string; startTime: string | null; endTime: string | null }>
+    > = {};
+
     for (const schedule of publicSchedule) {
       const weekday = schedule.weekday ?? 0;
       if (!scheduleByDay[weekday]) {
@@ -106,8 +118,14 @@ export async function getPublicAcademy(
       });
     }
 
+    const {
+      status: _status,
+      isSuspended: _isSuspended,
+      ...publicAcademy
+    } = academy;
+
     return {
-      ...academy,
+      ...publicAcademy,
       academyType: String(academy.academyType),
       schedule: scheduleByDay,
     };
@@ -115,17 +133,17 @@ export async function getPublicAcademy(
     // Si hay un error de conexión, usar Supabase REST API como fallback
     logger.error("Error al obtener academia pública con Drizzle:", error);
     logger.info("🔄 Intentando usar Supabase REST API como fallback...");
-    
+
     try {
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
       const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-      
+
       if (!supabaseUrl || !supabaseAnonKey) {
         throw new Error("Supabase URL o Anon Key no configurados");
       }
-      
+
       const supabase = createClient(supabaseUrl, supabaseAnonKey);
-      
+
       // Obtener academia
       const { data: academy, error: academyError } = await supabase
         .from("academies")
@@ -133,30 +151,39 @@ export async function getPublicAcademy(
         .eq("id", academyId)
         .eq("is_public", true)
         .eq("is_suspended", false)
-        .not("status", "in", "(churned,fraud_hold)")
+        .in("status", [...INDEXABLE_ACADEMY_STATUS_VALUES])
         .single();
-      
+
       if (academyError || !academy) {
         logger.error("Error en Supabase REST API:", academyError);
         return null;
       }
-      
+
       // Obtener horarios (simplificado para el fallback)
       const { data: scheduleData } = await supabase
         .from("classes")
-        .select(`
+        .select(
+          `
           name,
           start_time,
           end_time,
           class_weekdays!inner(weekday)
-        `)
+        `
+        )
         .eq("academy_id", academyId)
         .eq("is_extra", false)
         .limit(20);
-      
+
       // Agrupar horarios por día
-      const scheduleByDay: Record<number, Array<{ name: string; startTime: string | null; endTime: string | null }>> = {};
-      
+      const scheduleByDay: Record<
+        number,
+        Array<{
+          name: string;
+          startTime: string | null;
+          endTime: string | null;
+        }>
+      > = {};
+
       if (scheduleData) {
         for (const schedule of scheduleData) {
           const weekday = (schedule.class_weekdays as any)?.[0]?.weekday ?? 0;
@@ -170,9 +197,19 @@ export async function getPublicAcademy(
           });
         }
       }
-      
+
       logger.info(`✅ Fallback exitoso: Academia ${academy.name} encontrada`);
-      
+
+      if (
+        !isAcademyIndexable({
+          status: academy.status,
+          isSuspended: academy.is_suspended,
+          isPublic: academy.is_public,
+        })
+      ) {
+        return null;
+      }
+
       return {
         id: academy.id,
         name: academy.name,
