@@ -253,7 +253,8 @@ export function MyDashboardPage({
               <p className="text-sm text-amber-700">Total: {formatCurrency(totalPendingAmount)}</p>
             </div>
           </div>
-          <Button asChild size="sm" className="bg-amber-600 hover:bg-amber-700">
+          {/* ZAL-575 Tier A paso 4: blanco sobre amber-600 = 3.19:1 (falla AA). amber-700 = 5.02:1. */}
+          <Button asChild size="sm" className="bg-amber-700 hover:bg-amber-800">
             <Link href="#payments">
               Ver detalles
             </Link>

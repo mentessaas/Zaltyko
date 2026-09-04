@@ -52,7 +52,9 @@ body {
     --secondary-foreground: 210 40% 98%;
 
     --muted: 210 24% 95%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    /* 44% (no 46.9%): 46.9% da 4.24:1 sobre --muted y falla WCAG AA.
+       44% -> 4.70 sobre --muted, 5.27 sobre --card/--background. Ver ZAL-575 Tier A paso 1. */
+    --muted-foreground: 215.4 16.3% 44%;
 
     --accent: 238 51% 34%; /* Deep Indigo */
     --accent-foreground: 210 40% 98%;

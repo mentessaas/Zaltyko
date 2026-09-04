@@ -76,11 +76,14 @@ const getNotificationIcon = (type: string) => {
 };
 
 const getNotificationColor = (type: string) => {
-  if (type.includes("invoice") || type.includes("payment")) return "bg-blue-100 text-blue-600";
-  if (type.includes("class") || type.includes("schedule")) return "bg-green-100 text-green-600";
-  if (type.includes("message") || type.includes("contact")) return "bg-red-100 text-red-600";
-  if (type.includes("attendance")) return "bg-yellow-100 text-yellow-600";
-  if (type.includes("event")) return "bg-pink-100 text-pink-600";
+  // ZAL-575 Tier A paso 2: sobre fondos -100 ninguna variante -600 alcanza 4.5:1.
+  // -700 sí (blue 5.49, green 4.57, red 5.30, pink 5.14); yellow usa -800 (6.38)
+  // porque su -700 queda en 4.58, demasiado justo.
+  if (type.includes("invoice") || type.includes("payment")) return "bg-blue-100 text-blue-700";
+  if (type.includes("class") || type.includes("schedule")) return "bg-green-100 text-green-700";
+  if (type.includes("message") || type.includes("contact")) return "bg-red-100 text-red-700";
+  if (type.includes("attendance")) return "bg-yellow-100 text-yellow-800";
+  if (type.includes("event")) return "bg-pink-100 text-pink-700";
   return "bg-muted text-muted-foreground";
 };
 
