@@ -7,7 +7,7 @@ import { academies, subscriptions, plans, profiles } from "@/db/schema";
 import { withSuperAdmin } from "@/lib/authz";
 import { logAdminAction } from "@/lib/admin-logs";
 import { getSuperAdminAcademyDetail } from "@/lib/super-admin";
-import { revalidatePublicAcademySeo } from "@/lib/seo/academy-indexing";
+import { revalidatePublicAcademySeo } from "@/lib/seo/revalidate-academy";
 
 export const dynamic = "force-dynamic";
 
@@ -50,7 +50,6 @@ export const PATCH = withSuperAdmin(async (request, context) => {
   if (typeof body?.isSuspended === "boolean") {
     updates.isSuspended = body.isSuspended;
     updates.suspendedAt = body.isSuspended ? new Date() : null;
-    updates.statusUpdatedAt = new Date();
   }
 
   if (typeof body?.planId === "string" && body.planId.trim().length > 0) {
@@ -173,8 +172,6 @@ export const DELETE = withSuperAdmin(async (request, context) => {
   if (!removed) {
     return apiError("ACADEMY_NOT_FOUND", "Academy not found", 404);
   }
-
-  revalidatePublicAcademySeo(academyId);
 
   await logAdminAction({
     userId: context.userId,

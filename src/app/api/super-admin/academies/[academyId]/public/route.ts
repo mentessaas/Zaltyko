@@ -7,7 +7,7 @@ import { academies } from "@/db/schema";
 import { withSuperAdmin } from "@/lib/authz";
 import { handleApiError } from "@/lib/api-error-handler";
 import { revalidatePath } from "next/cache";
-import { revalidatePublicAcademySeo } from "@/lib/seo/academy-indexing";
+import { revalidatePublicAcademySeo } from "@/lib/seo/revalidate-academy";
 
 interface RouteContext {
   params: Promise<{ academyId: string }>;

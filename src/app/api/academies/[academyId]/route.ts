@@ -6,7 +6,7 @@ import { academies } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { handleApiError } from "@/lib/api-error-handler";
-import { revalidatePublicAcademySeo } from "@/lib/seo/academy-indexing";
+import { revalidatePublicAcademySeo } from "@/lib/seo/revalidate-academy";
 import {
   getCountryNameFromCode,
   inferDisciplineFromVariant,

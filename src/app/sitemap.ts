@@ -1,19 +1,19 @@
 import type { MetadataRoute } from "next";
 import { and, eq, inArray } from "drizzle-orm";
-
 import { db } from "@/db";
 import { academies } from "@/db/schema";
 import { getPublicSiteUrl } from "@/lib/seo/site-url";
 import { MODALITIES, COUNTRIES } from "@/lib/seo/clusters";
 import {
-  INDEXABLE_ACADEMY_STATUSES,
+  INDEXABLE_ACADEMY_STATUS_VALUES,
   isAcademyIndexable,
-} from "@/lib/seo/academy-indexing";
+} from "@/lib/seo/academy-indexability";
 import type { Locale } from "@/i18n";
 
-// El estado terminal puede cambiar fuera de las rutas web. Consultar en cada
-// request evita mantener una URL terminal durante la ventana de ISR.
+// El estado de una academia puede cambiar fuera del ciclo de generación del
+// sitemap. Nunca servimos una lista cacheada de URLs terminales.
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 const PUBLIC_ROUTES = [
   "/",
@@ -97,37 +97,38 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     )
   );
 
+  // Contrato explícito: solo academias públicas `active` o `trial` y sin el
+  // flag legacy `isSuspended` entran al sitemap. Si la consulta falla, se
+  // omiten todas las academias; no inventamos URLs potencialmente terminales.
   let academyPages: MetadataRoute.Sitemap = [];
   try {
-    const publicAcademies = await db
+    const academyRows = await db
       .select({
         id: academies.id,
-        createdAt: academies.createdAt,
-        statusUpdatedAt: academies.statusUpdatedAt,
+        status: academies.status,
         isPublic: academies.isPublic,
         isSuspended: academies.isSuspended,
-        status: academies.status,
+        lastModified: academies.statusUpdatedAt,
+        createdAt: academies.createdAt,
       })
       .from(academies)
       .where(
         and(
           eq(academies.isPublic, true),
           eq(academies.isSuspended, false),
-          inArray(academies.status, INDEXABLE_ACADEMY_STATUSES)
+          inArray(academies.status, INDEXABLE_ACADEMY_STATUS_VALUES)
         )
       );
 
-    academyPages = publicAcademies
+    academyPages = academyRows
       .filter(isAcademyIndexable)
       .map((academy) => ({
         url: `${baseUrl}/academias/${academy.id}`,
-        lastModified: academy.statusUpdatedAt ?? academy.createdAt ?? new Date(),
-        changeFrequency: "weekly" as const,
+        lastModified: academy.lastModified ?? academy.createdAt ?? new Date(),
+        changeFrequency: "daily" as const,
         priority: 0.7,
       }));
   } catch {
-    // El sitemap base sigue siendo válido si la base no está disponible. No
-    // inventamos URLs de academias que podrían estar en estado terminal.
     academyPages = [];
   }
 

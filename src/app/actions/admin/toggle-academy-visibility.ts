@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
@@ -10,7 +10,7 @@ import { academies } from "@/db/schema";
 import { getCurrentProfile } from "@/lib/authz";
 import { createClient } from "@/lib/supabase/server";
 import { logger } from "@/lib/logger";
-import { revalidatePublicAcademySeo } from "@/lib/seo/academy-indexing";
+import { revalidatePublicAcademySeo } from "@/lib/seo/revalidate-academy";
 
 const ToggleVisibilitySchema = z.object({
   academyId: z.string().uuid(),
