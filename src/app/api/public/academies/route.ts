@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, ilike, or, sql } from "drizzle-orm";
+import { and, asc, eq, ilike, inArray, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -6,6 +6,7 @@ import { db } from "@/db";
 import { academies } from "@/db/schema";
 import { handleApiError } from "@/lib/api-error-handler";
 import { logger } from "@/lib/logger";
+import { INDEXABLE_ACADEMY_STATUSES } from "@/lib/seo/academy-indexing";
 
 // Forzar ruta dinámica
 export const dynamic = 'force-dynamic';
@@ -56,13 +57,12 @@ export async function GET(request: Request) {
     const { search, type, country, region, city, page, limit } = parsed.data;
 
     // Construir filtros
-    // ZAL-328: el directorio público debe excluir academias en `churned` o
-    // `fraud_hold` (criterio B3 §3.3 + ZAL-315 §3.1). Mantenemos `isSuspended=false`
-    // por defensa en profundidad durante la transición con el flag legacy.
-    const filters: ReturnType<typeof eq | typeof ilike>[] = [
+    // ZAL-878: el directorio público solo indexa academias activas o en trial.
+    // `isSuspended=false` sigue como defensa en profundidad durante la transición.
+    const filters: Array<ReturnType<typeof eq> | ReturnType<typeof ilike> | ReturnType<typeof inArray>> = [
       eq(academies.isPublic, true),
       eq(academies.isSuspended, false),
-      sql`${academies.status} NOT IN ('churned', 'fraud_hold')`,
+      inArray(academies.status, INDEXABLE_ACADEMY_STATUSES),
     ];
 
     if (search) {

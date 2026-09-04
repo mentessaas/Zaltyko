@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { academies } from "@/db/schema";
-import { eq, and, sql } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { handleApiError } from "@/lib/api-error-handler";
+import { INDEXABLE_ACADEMY_STATUSES } from "@/lib/seo/academy-indexing";
 
 /**
  * GET /api/public/academies/filter-options
@@ -24,7 +25,7 @@ export async function GET() {
       .where(
         and(
           eq(academies.isSuspended, false),
-          sql`${academies.status} NOT IN ('churned', 'fraud_hold')`
+          inArray(academies.status, INDEXABLE_ACADEMY_STATUSES)
         )
       );
 

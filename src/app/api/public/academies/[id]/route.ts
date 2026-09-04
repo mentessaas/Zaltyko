@@ -1,4 +1,4 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
@@ -6,10 +6,18 @@ import { db } from "@/db";
 import { academies, classes, classWeekdays } from "@/db/schema";
 import { handleApiError } from "@/lib/api-error-handler";
 import { logger } from "@/lib/logger";
+import { INDEXABLE_ACADEMY_STATUSES } from "@/lib/seo/academy-indexing";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
 }
+
+type SupabaseClassScheduleRow = {
+  name: string | null;
+  start_time: string | null;
+  end_time: string | null;
+  class_weekdays?: Array<{ weekday: number | null }> | null;
+};
 
 /**
  * GET /api/public/academies/[id]
@@ -62,7 +70,7 @@ export async function GET(request: Request, context: RouteContext) {
             eq(academies.id, id),
             eq(academies.isPublic, true),
             eq(academies.isSuspended, false),
-            sql`${academies.status} NOT IN ('churned', 'fraud_hold')`
+            inArray(academies.status, INDEXABLE_ACADEMY_STATUSES)
           )
         )
         .limit(1);
@@ -115,7 +123,7 @@ export async function GET(request: Request, context: RouteContext) {
           .eq("id", id)
           .eq("is_public", true)
           .eq("is_suspended", false)
-          .not("status", "in", "(churned,fraud_hold)")
+          .in("status", INDEXABLE_ACADEMY_STATUSES)
           .single();
         
         if (!supabaseError && academyData) {
@@ -144,8 +152,10 @@ export async function GET(request: Request, context: RouteContext) {
             .eq("is_extra", false)
             .limit(20);
           
-          if (scheduleData) {
-            publicSchedule = scheduleData.map((s: any) => ({
+          const fallbackSchedules = scheduleData as SupabaseClassScheduleRow[] | null;
+
+          if (fallbackSchedules) {
+            publicSchedule = fallbackSchedules.map((s) => ({
               className: s.name,
               weekday: s.class_weekdays?.[0]?.weekday ?? null,
               startTime: s.start_time ? String(s.start_time) : null,

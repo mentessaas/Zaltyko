@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
@@ -10,6 +10,7 @@ import { academies } from "@/db/schema";
 import { getCurrentProfile } from "@/lib/authz";
 import { createClient } from "@/lib/supabase/server";
 import { logger } from "@/lib/logger";
+import { revalidatePublicAcademySeo } from "@/lib/seo/academy-indexing";
 
 const ToggleVisibilitySchema = z.object({
   academyId: z.string().uuid(),
@@ -93,8 +94,7 @@ export async function toggleAcademyVisibility(
       .where(eq(academies.id, academyId));
 
     // Revalidar rutas públicas
-    revalidatePath("/academias");
-    revalidatePath(`/academias/${academyId}`);
+    revalidatePublicAcademySeo(academyId);
     revalidatePath("/super-admin/academies/public");
 
     return {
@@ -108,4 +108,3 @@ export async function toggleAcademyVisibility(
     };
   }
 }
-

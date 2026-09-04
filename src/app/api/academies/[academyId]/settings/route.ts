@@ -16,6 +16,7 @@ import { withTenant } from "@/lib/authz";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { handleApiError } from "@/lib/api-error-handler";
 import { logger } from "@/lib/logger";
+import { revalidatePublicAcademySeo } from "@/lib/seo/academy-indexing";
 import { activateAcademySportConfig } from "@/lib/sport-config/seed";
 import { getAcademySportConfigOptions } from "@/lib/sport-config/service";
 import { filterSeedCodes, getSportConfigSeedByVariant } from "@/lib/sport-config/catalog";
@@ -788,6 +789,8 @@ export const PATCH = withTenant(async (request, context) => {
     if (!updated) {
       return apiError("ACADEMY_NOT_FOUND", "Academia no encontrada", 404);
     }
+
+    revalidatePublicAcademySeo(academyId);
 
     const sportConfigs = await withSportConfigUsage({
       academyId,
