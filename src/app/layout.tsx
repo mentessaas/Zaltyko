@@ -13,6 +13,7 @@ import { UpdateBanner } from "@/components/ui/update-banner";
 import { InstallPrompt } from "@/components/ui/install-prompt";
 import { PostHogProvider } from "@/components/PostHogProvider";
 import { UtmCapture } from "@/components/growth/UtmCapture";
+import { GoogleAdsTracking } from "@/components/GoogleAdsTracking";
 import { getPublicSiteUrl } from "@/lib/seo/site-url";
 
 const spaceGrotesk = Space_Grotesk({
@@ -134,6 +135,7 @@ export default function RootLayout({
         <OfflineBanner />
         <UpdateBanner />
         <InstallPrompt />
+        <GoogleAdsTracking />
         <AppProviders>
           <PostHogProvider>
             {children}
