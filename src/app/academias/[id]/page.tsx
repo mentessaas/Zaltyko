@@ -5,7 +5,11 @@ import { AcademyInfo } from "@/components/public/AcademyInfo";
 import { AcademySchedule } from "@/components/public/AcademySchedule";
 import { ContactAcademyForm } from "@/components/public/ContactAcademyForm";
 import { NearbyAcademies } from "@/components/public/NearbyAcademies";
-import { getPublicAcademy } from "@/app/actions/public/get-public-academy";
+import {
+  getPublicAcademy,
+  getPublicAcademyIndexingStatus,
+} from "@/app/actions/public/get-public-academy";
+import { NON_INDEXABLE_ACADEMY_ROBOTS } from "@/lib/seo/academy-robots";
 
 interface AcademyDetailPageProps {
   params: Promise<{ id: string }>;
@@ -14,16 +18,28 @@ interface AcademyDetailPageProps {
 export async function generateMetadata({ params }: AcademyDetailPageProps): Promise<Metadata> {
   const { id } = await params;
   const academy = await getPublicAcademy(id);
+  let indexingStatus: Awaited<ReturnType<typeof getPublicAcademyIndexingStatus>> = "noindex";
+
+  try {
+    indexingStatus = await getPublicAcademyIndexingStatus(id);
+  } catch {
+    // La metadata no puede quedar indexable si el estado no se pudo confirmar.
+    indexingStatus = "noindex";
+  }
 
   if (!academy) {
     return {
       title: "Academia no encontrada",
+      robots: NON_INDEXABLE_ACADEMY_ROBOTS,
     };
   }
 
   return {
     title: `${academy.name} | Directorio de Academias`,
     description: academy.publicDescription || `Información sobre ${academy.name}`,
+    ...(indexingStatus === "index"
+      ? {}
+      : { robots: NON_INDEXABLE_ACADEMY_ROBOTS }),
   };
 }
 
@@ -67,4 +83,3 @@ export default async function AcademyDetailPage({ params }: AcademyDetailPagePro
     </div>
   );
 }
-

@@ -1,11 +1,15 @@
 "use server";
 
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { createClient } from "@supabase/supabase-js";
 
 import { db } from "@/db";
 import { academies, classes, classWeekdays } from "@/db/schema";
 import { logger } from "@/lib/logger";
+import {
+  INDEXABLE_ACADEMY_STATUSES,
+  isAcademyIndexable,
+} from "@/lib/seo/academy-indexing";
 
 export type PublicAcademyDetail = {
   id: string;
@@ -26,6 +30,43 @@ export type PublicAcademyDetail = {
   socialYoutube: string | null;
   schedule: Record<number, Array<{ name: string; startTime: string | null; endTime: string | null }>>;
 };
+
+type SupabaseClassScheduleRow = {
+  name: string | null;
+  start_time: string | null;
+  end_time: string | null;
+  class_weekdays?: Array<{ weekday: number | null }> | null;
+};
+
+export type PublicAcademyIndexingStatus = "index" | "noindex" | "not_found";
+
+/**
+ * Devuelve la decisión SEO sin exponer datos de una academia no publicable.
+ * En caso de error se falla cerrado: la página no debe quedar indexable por
+ * una lectura incompleta del estado.
+ */
+export async function getPublicAcademyIndexingStatus(
+  academyId: string
+): Promise<PublicAcademyIndexingStatus> {
+  try {
+    const [academy] = await db
+      .select({
+        isPublic: academies.isPublic,
+        isSuspended: academies.isSuspended,
+        status: academies.status,
+      })
+      .from(academies)
+      .where(eq(academies.id, academyId))
+      .limit(1);
+
+    if (!academy) return "not_found";
+
+    return isAcademyIndexable(academy) ? "index" : "noindex";
+  } catch (error) {
+    logger.error("Error al obtener estado SEO de academia pública:", error);
+    return "noindex";
+  }
+}
 
 /**
  * Server action para obtener detalles de una academia pública
@@ -63,7 +104,7 @@ export async function getPublicAcademy(
           eq(academies.id, academyId),
           eq(academies.isPublic, true),
           eq(academies.isSuspended, false),
-          sql`${academies.status} NOT IN ('churned', 'fraud_hold')`
+          inArray(academies.status, INDEXABLE_ACADEMY_STATUSES)
         )
       )
       .limit(1);
@@ -133,7 +174,7 @@ export async function getPublicAcademy(
         .eq("id", academyId)
         .eq("is_public", true)
         .eq("is_suspended", false)
-        .not("status", "in", "(churned,fraud_hold)")
+        .in("status", INDEXABLE_ACADEMY_STATUSES)
         .single();
       
       if (academyError || !academy) {
@@ -157,9 +198,11 @@ export async function getPublicAcademy(
       // Agrupar horarios por día
       const scheduleByDay: Record<number, Array<{ name: string; startTime: string | null; endTime: string | null }>> = {};
       
-      if (scheduleData) {
-        for (const schedule of scheduleData) {
-          const weekday = (schedule.class_weekdays as any)?.[0]?.weekday ?? 0;
+      const fallbackSchedules = scheduleData as SupabaseClassScheduleRow[] | null;
+
+      if (fallbackSchedules) {
+        for (const schedule of fallbackSchedules) {
+          const weekday = schedule.class_weekdays?.[0]?.weekday ?? 0;
           if (!scheduleByDay[weekday]) {
             scheduleByDay[weekday] = [];
           }

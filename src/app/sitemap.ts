@@ -1,7 +1,19 @@
 import type { MetadataRoute } from "next";
+import { and, eq, inArray } from "drizzle-orm";
+
+import { db } from "@/db";
+import { academies } from "@/db/schema";
 import { getPublicSiteUrl } from "@/lib/seo/site-url";
 import { MODALITIES, COUNTRIES } from "@/lib/seo/clusters";
+import {
+  INDEXABLE_ACADEMY_STATUSES,
+  isAcademyIndexable,
+} from "@/lib/seo/academy-indexing";
 import type { Locale } from "@/i18n";
+
+// El estado terminal puede cambiar fuera de las rutas web. Consultar en cada
+// request evita mantener una URL terminal durante la ventana de ISR.
+export const dynamic = "force-dynamic";
 
 const PUBLIC_ROUTES = [
   "/",
@@ -85,6 +97,40 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     )
   );
 
+  let academyPages: MetadataRoute.Sitemap = [];
+  try {
+    const publicAcademies = await db
+      .select({
+        id: academies.id,
+        createdAt: academies.createdAt,
+        statusUpdatedAt: academies.statusUpdatedAt,
+        isPublic: academies.isPublic,
+        isSuspended: academies.isSuspended,
+        status: academies.status,
+      })
+      .from(academies)
+      .where(
+        and(
+          eq(academies.isPublic, true),
+          eq(academies.isSuspended, false),
+          inArray(academies.status, INDEXABLE_ACADEMY_STATUSES)
+        )
+      );
+
+    academyPages = publicAcademies
+      .filter(isAcademyIndexable)
+      .map((academy) => ({
+        url: `${baseUrl}/academias/${academy.id}`,
+        lastModified: academy.statusUpdatedAt ?? academy.createdAt ?? new Date(),
+        changeFrequency: "weekly" as const,
+        priority: 0.7,
+      }));
+  } catch {
+    // El sitemap base sigue siendo válido si la base no está disponible. No
+    // inventamos URLs de academias que podrían estar en estado terminal.
+    academyPages = [];
+  }
+
   // Nota: se retiraron las variantes con query param (?category=) de marketplace/empleo:
   // un sitemap no debe listar URLs de filtro, generan contenido duplicado sin valor de indexación propio.
 
@@ -94,5 +140,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...localizedHomepages,
     ...modalityPages,
     ...clusterPages,
+    ...academyPages,
   ];
 }
