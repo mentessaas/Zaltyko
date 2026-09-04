@@ -4,6 +4,225 @@ owner: producto
 last_reviewed: 2026-09-03T02:30Z
 source:
 ---
+## 2026-09-05 — ZAL-Tracking-Paid: Google Ads + signup_completed instrumentation
+
+- Audit de paid acquisition Zaltyko (200€ Google + 50€ Meta retargeting) en
+  `~/briefs/hermes/outputs/zaltyko-paid-audit-2026-09-04/ZALTYKO-PAID-ACQUISITION-AUDIT-SPAIN.md`
+  (16 secciones, lectura 2 min del Executive Decision).
+- Implementación técnica en commit `352adf89` (rama `fix/zal-686-studentrow-touch-targets`,
+  sin pushear):
+  - `src/components/RegisterForm.tsx`: emite `cta_click` (micro) y
+    `signup_completed` (primary conversion) con UTMs del first-touch via
+    `readUtmWithFallback` (`src/lib/growth/utm.ts`).
+  - `src/lib/google-ads.ts` (nuevo): helper `trackGoogleAdsConversion()`
+    gated por `NEXT_PUBLIC_GOOGLE_ADS_ID`. NO-OP si env var no definida.
+  - `src/components/GoogleAdsTracking.tsx` (nuevo): monta gtag.js
+    `afterInteractive` solo si la env var existe.
+  - `src/app/layout.tsx`: añade `<GoogleAdsTracking />` tras `<UtmCapture />`.
+- Descubrimiento durante implementación: `academy_created`,
+  `first_athlete_added`, `first_parent_invited`, `subscription_activated`
+  YA existían en el repo. Solo faltaban `cta_click` y `signup_completed`.
+- Decisiones explícitas NO incluidas:
+  - Meta Pixel: test secundario 50€, sin pixel hasta validar Google.
+  - `subscription_started`: ya cubierto por `subscription_activated` via
+    Stripe webhook en `subscription-service.ts`.
+- Verificación: `tsc --noEmit -p tsconfig.json` exit 0; `eslint` exit 0;
+  `next build` BUILD_ID generado (todas las rutas OK).
+- Backups pre-cambio en `~/.hermes/backups/zaltyko-paid-tracking-2026-09-05/`.
+- No se tocó código de academy_created, first_athlete_added ni
+  `subscription-service.ts` (sus eventos ya cubren UTMs y Stripe webhook).
+- No se hicieron cambios en producción, Stripe live, datos reales,
+  migraciones remotas, dominios, secrets ni permisos sensibles.
+
+Vault: actualizados este `Changelog interno.md` y `Backlog priorizado.md`
+(pendiente operativo para Elvis: crear cuenta Google Ads y configurar
+`NEXT_PUBLIC_GOOGLE_ADS_ID` en Vercel antes del primer lanzamiento paid).
+No cambian `Decisiones.md`, `Pricing.md` ni `Mensajes aprobados.md`
+porque no hubo decisión de negocio, pricing o copy comercial.
+
+
+
+## 2026-09-04 — ZAL-1091: disposición `blocked` persistida y verificada
+
+- Tras recuperar el acceso al control-plane, se persistió `ZAL-1091 → blocked`
+  mediante `PATCH /api/issues/ZAL-1091` y se verificó con un GET posterior.
+- El descriptor deja al CEO como owner estructural del desbloqueo, porque
+  Paperclip exige que un agente solo nombre su propio `agentId`; la acción
+  mantiene a Board como autoridad para cualquier nueva autorización explícita.
+- `checkoutRunId` quedó liberado. No se ejecutó el toggle, bypass ni reintento;
+  `recovery.pause.codeGates` permanece en `true` según la decisión Board.
+- No se tocó código, producción, secretos, Stripe live, datos reales,
+  migraciones remotas, dominios, ZAL-976 ni ZAL-977.
+
+Vault: actualizado este `Changelog interno.md`; `Decisiones.md` y
+`Backlog priorizado.md` ya reflejaban la decisión y no requieren cambios.
+
+## 2026-09-04 — ZAL-1091: Board rechaza el toggle y mantiene bloqueada la disposición de ZAL-1081
+
+- La disposición más reciente del Board rechaza explícitamente bajar el flag global
+  `recovery.pause.codeGates` a `false` para cerrar [ZAL-1081](/ZAL/issues/ZAL-1081).
+  Esta decisión supersede la aprobación operativa registrada el 2026-08-30.
+- `recovery.pause.codeGates` debe permanecer en `true`; no se ejecutó ningún toggle,
+  reintento de cierre ni bypass. [ZAL-1081](/ZAL/issues/ZAL-1081) y
+  [ZAL-1091](/ZAL/issues/ZAL-1091) quedan bloqueadas por decisión Board.
+- Unblock owner/action: el Board debe emitir una nueva autorización explícita si
+  cambia de criterio; hasta entonces Engineering Lead no debe reintentar la
+  disposición. [ZAL-976](/ZAL/issues/ZAL-976) y [ZAL-977](/ZAL/issues/ZAL-977)
+  siguen fuera de alcance.
+- El control-plane local continúa indisponible (`HTTP 000`, conexión rechazada en
+  `127.0.0.1:3100`), por lo que el comentario y el PATCH remoto a `blocked` no
+  pudieron persistirse en este heartbeat. No se fabricó evidencia ni se intentó
+  impersonar al Board.
+- En la continuación del 2026-09-04 se agotó el segundo intento consecutivo de
+  persistir ambos writes: consulta de identidad/issue, `POST` de comentario y
+  `PATCH status=blocked` volvieron a fallar con `HTTP 000`. No se reintentará el
+  mismo write durante este heartbeat; el estado local documentado es `blocked`,
+  pendiente de que el control-plane vuelva a estar disponible.
+- No se tocó código, producción, secretos, Stripe live, datos reales, dominios,
+  migraciones remotas, pricing, campañas, publicaciones ni permisos sensibles.
+
+Vault: actualizados `Changelog interno.md`, `Decisiones.md` y `Backlog priorizado.md`.
+
+
+## 2026-09-04 — ZAL-984: QA peer verification de ZAL-336 con veredicto adverso
+
+- La suite Playwright dedicada se ejecutó contra Next local y PostgreSQL sintético local con `E2E_MOCK_AUTH=1`. El primer escenario no pudo observar la captura UTM en `sessionStorage`; los otros tres no se ejecutaron por el modo serial.
+- Diagnóstico reproducible: la respuesta local incluye una CSP sin `'unsafe-eval'`; Next dev emite un error de CSP al evaluar el runtime de React, la hidratación no ocurre y `sessionStorage["zaltyko_first_touch_utm"]` queda `null`. No es un PASS de integración ni readiness.
+- Con `bypassCSP` solo en el harness local, la hidratación se recupera pero el signup sigue en `/auth/register`: `e2e-mock.ts` no está conectado a `src/lib/supabase/client.ts`, `server.ts` ni `middleware.ts`, por lo que la cookie local no crea sesión y los cuatro escenarios no pueden atravesar Auth. Es un segundo bloqueo de integración independiente de la CSP.
+- Los controles unitarios aislados del seam de auth y de la lógica UTM son favorables (runner directo: 4/4, 35/35 y 5/5), pero no compensan el bloqueo browser. El seam declarado sigue acotado a `NODE_ENV=development` + `E2E_MOCK_AUTH=1`, la cookie de cliente local y cookies malformadas rechazadas; no se detecta `NEXT_PUBLIC_E2E_MOCK_AUTH` bajo `src/`.
+- Veredicto: **FAIL local / follow-up requerido**, no bloqueado por falta de evidencia. Owner: Engineering Lead. Acción exacta: resolver CSP–Next dev en el harness/política local y conectar el seam mock de forma segura en cliente/servidor/middleware, luego repetir los cuatro escenarios y los negativos. No se tocó producción, Auth remoto, dominios, secretos, datos reales, Stripe live, pricing ni publicaciones.
+
+Vault: actualizado `Backlog priorizado.md` y este `Changelog interno.md`; no cambian `Decisiones.md`, `Pricing.md` ni `Mensajes aprobados.md` porque no hubo decisión de negocio, pricing o publicación.
+
+
+## 2026-09-04 — ZAL-1110: SEO fail-closed de academias terminales
+
+- Se centralizó `isAcademyIndexable`: únicamente `active`/`trial`, público y
+  sin `isSuspended`; `suspended`, `churned`, `fraud_hold`, nulos y estados
+  desconocidos quedan excluidos.
+- El detalle `/academias/[id]` emite metadata de robots fail-closed y el
+  middleware añade `X-Robots-Tag: noindex, noarchive` cuando el detalle público
+  no es verificable. El sitemap es `force-dynamic`, incluye solo academias
+  elegibles y omite todas ante error de lectura.
+- Las mutaciones de visibilidad, estado/suspensión y settings purgan sitemap,
+  directorio y detalle mediante `revalidatePublicAcademySeo`. No hubo
+  migraciones, producción, dominios, secretos ni datos reales.
+- La revisión del handoff detectó y corrigió una regresión colateral en
+  `middleware.ts`: el commit SEO había retirado HSTS, CSP con nonce,
+  `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy` y la redirección
+  `www → apex`. La restauración queda en el commit local
+  `e0740ba0`; conserva el `X-Robots-Tag` fail-closed y no incorpora cambios
+  de producción.
+- Verificación local: pruebas focales, ESLint dirigido y TypeScript sin emisión
+  pasan; el primer `tsc` incremental fue rechazado por permisos del temporal
+  canónico y se repitió con `--incremental false`.
+- Evidencia literal final: `academy-seo-fail-closed.test.ts` 7/7,
+  `academy-seo-headers.test.ts` 3/3 y `middleware.test.ts` 6/6; los conteos
+  `grep -c "  it("` devuelven 7, 3 y 6 respectivamente. `git diff --check`
+  no reporta salida y `e0740ba0` resuelve como objeto `commit` en el repo
+  canónico.
+- Handoff pendiente: falta cross-review independiente de Platform & Security
+  y QA posterior. El control-plane local rechazó conexión en
+  `127.0.0.1:3100`, por lo que no se simula comentario, aprobación ni cambio
+  de disposición en Paperclip. No se tocó producción, dominios, secretos,
+  datos reales ni migraciones remotas.
+
+Vault: actualizada esta entrada; no cambian pricing, mensajes aprobados ni
+decisiones de negocio.
+
+
+## 2026-09-04 — Engineering Lead: ZAL-800 elimina la regresión de apiKey en la UI de WhatsApp
+
+- El handler y la suite de `POST /api/whatsapp/verify` mantienen el contrato
+  server-side: la UI elimina `apiKey` de `WhatsAppConfig` y
+  `WhatsAppSettings`, no lo envía al PATCH de settings y llama `verify` solo
+  con `phone` y `academyId`.
+- No se aceptan ni persisten credenciales BYO desde la UI. No hubo migraciones:
+  el schema de settings no declara el campo. No se tocó producción, secretos,
+  Stripe live, datos reales ni dominios.
+- Verificación local/sandbox: la suite focal y la prueba de redacción de logger
+  terminaron favorables; ESLint focal y `tsc --noEmit --pretty false` terminaron
+  con código 0 (ESLint conserva 5 warnings preexistentes del test). Prettier
+  focal pasa en esta continuación y la UI queda guardada en el commit local
+  `cc525884`. El wrapper `pnpm exec vitest` no termina en este checkout y no se
+  presenta como evidencia canónica.
+- P&S ya dejó PASS local sobre el handler en la nota de veredicto; la disposición
+  de Paperclip sigue pendiente de registrar porque el servicio local respondió
+  conexión rechazada durante este heartbeat. El issue no se declara `done`.
+
+Evidencia literal del checkout:
+
+```text
+$ ls -la src/app/api/whatsapp/verify/route.ts
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  3608 Aug 31 16:03 src/app/api/whatsapp/verify/route.ts
+$ wc -l src/app/api/whatsapp/verify/route.ts
+     118 src/app/api/whatsapp/verify/route.ts
+$ ls -la tests/api-zal745-marketplace-communications.test.ts
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  16238 Aug 31 16:03 tests/api-zal745-marketplace-communications.test.ts
+$ wc -l tests/api-zal745-marketplace-communications.test.ts
+     428 tests/api-zal745-marketplace-communications.test.ts
+$ grep -c "  it(" tests/api-zal745-marketplace-communications.test.ts
+18
+$ ls -la src/app/app/[academyId]/whatsapp/WhatsAppPage.tsx
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  10393 Sep  4 04:41 src/app/app/[academyId]/whatsapp/WhatsAppPage.tsx
+$ wc -l src/app/app/[academyId]/whatsapp/WhatsAppPage.tsx
+     330 src/app/app/[academyId]/whatsapp/WhatsAppPage.tsx
+$ ls -la src/app/app/[academyId]/whatsapp/page.tsx
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  6151 Sep  4 04:37 src/app/app/[academyId]/whatsapp/page.tsx
+$ wc -l src/app/app/[academyId]/whatsapp/page.tsx
+     228 src/app/app/[academyId]/whatsapp/page.tsx
+$ ls -la src/components/whatsapp/WhatsAppSettings.tsx
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  4698 Sep  4 04:41 src/components/whatsapp/WhatsAppSettings.tsx
+$ wc -l src/components/whatsapp/WhatsAppSettings.tsx
+     162 src/components/whatsapp/WhatsAppSettings.tsx
+$ ls -la src/lib/logger.ts
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  6675 Sep  2 13:37 src/lib/logger.ts
+$ wc -l src/lib/logger.ts
+     239 src/lib/logger.ts
+$ ls -la tests/lib/logger-redaction.test.ts
+-rw-r--r--@ 1 elvisvaldesinerarte  staff  2555 Sep  2 13:37 tests/lib/logger-redaction.test.ts
+$ wc -l tests/lib/logger-redaction.test.ts
+      75 tests/lib/logger-redaction.test.ts
+$ grep -c "  it(" tests/lib/logger-redaction.test.ts
+3
+$ grep -RnE "(apiKey|apikey|api_key)" src/app/api/whatsapp/verify
+$ echo $?
+1
+```
+
+Evidencia literal de ejecución:
+
+```text
+$ ./node_modules/.bin/vitest run tests/api-zal745-marketplace-communications.test.ts --reporter=dot --pool=threads --maxWorkers=1 --minWorkers=1 --no-file-parallelism
+ RUN  v3.2.6 /Users/elvisvaldesinerarte/Desktop/_PROYECTOS/Zaltyko-fresh
+··················
+ Test Files  1 passed (1)
+      Tests  18 passed (18)
+$ ./node_modules/.bin/vitest run tests/lib/logger-redaction.test.ts --reporter=dot --pool=threads --maxWorkers=1 --minWorkers=1 --no-file-parallelism
+ RUN  v3.2.6 /Users/elvisvaldesinerarte/Desktop/_PROYECTOS/Zaltyko-fresh
+···
+ Test Files  1 passed (1)
+      Tests  3 passed (3)
+$ ./node_modules/.bin/eslint [focal files]
+✖ 5 problems (0 errors, 5 warnings)
+ESLINT_EXIT=0
+$ NODE_OPTIONS=--max-old-space-size=4096 ./node_modules/.bin/tsc --noEmit --pretty false
+TSC_EXIT=0
+$ ./node_modules/.bin/prettier --check -- 'src/app/app/[academyId]/whatsapp/WhatsAppPage.tsx' 'src/app/app/[academyId]/whatsapp/page.tsx' src/components/whatsapp/WhatsAppSettings.tsx
+Checking formatting...
+All matched files use Prettier code style!
+PRETTIER_EXIT=0
+$ git -C /Users/elvisvaldesinerarte/Desktop/_PROYECTOS/Zaltyko log --oneline -1 cc525884
+cc525884 fix(whatsapp): remove client api key from settings UI
+$ git -C /Users/elvisvaldesinerarte/Desktop/_PROYECTOS/Zaltyko log --oneline -- 'src/app/app/[academyId]/whatsapp/WhatsAppPage.tsx' 'src/app/app/[academyId]/whatsapp/page.tsx' src/components/whatsapp/WhatsAppSettings.tsx
+cc525884 fix(whatsapp): remove client api key from settings UI
+56844285 fix: resolve contaminated merge markers
+a2e9c409 merge: integrar origin/main para ancestro comun del PR
+5a539f92 fix(whatsapp): remove client secrets from verify
+```
+
+Vault: actualizada la nota operativa de changelog; no cambian las notas de
+decisiones, pricing, mensajes aprobados ni backlog priorizado.
 
 
 ## 2026-09-04 — ZAL-575 Tier A: contraste WCAG AA corregido (Mobile Developer)
