@@ -141,7 +141,11 @@ function reconcileSubscription(
   const dbActive = ["active", "trialing"].includes(db.status);
   const stripeActive = ["active", "trialing"].includes(stripe.status);
   if (!dbActive || !stripeActive) reasons.push("estado");
-  if (db.environment === "live" || stripe.environment === "live") {
+  if (
+    db.environment !== stripe.environment ||
+    db.environment === "live" ||
+    stripe.environment === "live"
+  ) {
     reasons.push("ambiente");
   }
   if (factStripeId(db) !== stripe.subscriptionId) reasons.push("ID");

@@ -252,6 +252,37 @@ describe("contrato canónico A3", () => {
     expect(report.reproducible).toBe(false);
   });
 
+  it("rechaza entornos DB y Stripe distintos aunque coincidan los demás campos", () => {
+    const row = growthReconciliationFixture.rows.find(
+      (candidate) => candidate.transactionId === "tx-good"
+    );
+    const db = growthReconciliationFixture.dbSubscriptions.find(
+      (fact) => fact.transactionId === "tx-good"
+    );
+    const stripe = growthReconciliationFixture.stripeSubscriptions.find(
+      (fact) => fact.transactionId === "tx-good"
+    );
+
+    expect(row).toBeDefined();
+    expect(db).toBeDefined();
+    expect(stripe).toBeDefined();
+
+    const report = reconcileSyntheticGrowthData({
+      rows: [row!],
+      dbSubscriptions: [db!],
+      stripeSubscriptions: [{ ...stripe!, environment: "sandbox" }],
+    });
+
+    expect(report.subscriptionChecks).toEqual([
+      expect.objectContaining({
+        transactionId: "tx-good",
+        reconciled: false,
+        reason: "DB/Stripe discrepante: ambiente",
+      }),
+    ]);
+    expect(report.reproducible).toBe(false);
+  });
+
   it("mantiene la migración aditiva y la frontera server-only verificables", () => {
     const migration = readFileSync(
       "supabase/migrations/20260825090000_growth_events_canonical_a3.sql",
