@@ -532,3 +532,61 @@ Copiar desde [[Template - Decision]] para nuevas decisiones.
 | Decisión | Clasificar ZAL-352 como **productiva / falsa positiva** y no crear trabajo de Web, Mobile ni GTM. Se añadió la decisión gerencial durable al hilo de ZAL-309. El cierre queda `blocked` porque el runtime servido todavía rechaza `PATCH done` con `ProofRequired`, aunque ZAL-231 ya implementó la exención no-code. El unblock owner operativo queda en CEO por restricción del API, coordinando a Platform & Security para activar el runtime con el fix existente `054c19845`. |
 | Consecuencia | No se presenta la evidencia de esta review como readiness, adopción ni validación de producto. No se reabre ZAL-309 ni se genera una nueva issue meta. La aprobación del board para el veredicto ya existe; la única dependencia pendiente es técnica del control-plane. |
 | Estado | Activa como decisión operativa; ZAL-352 sigue `blocked` hasta que Platform & Security active la exención o el bypass operativo autorizado y CEO pueda cerrar la review. La escalación separada de gasto de agosto quedó en `request_board_approval` `e193555e-1921-4647-843d-2ad37fa865b4`. |
+
+## 2026-09-06 - Política Antifabricación Zaltyko (ZAL-169) — backfill limpio
+
+> **Backfill limpio desde `vault/zal-169-antispoofing-policy` (#64).** El commit original `b30d9ec8` (2026-08-02) fue reemplazado por una rama limpia `cherry/vault-zal169-policy` porque el PR original arrastraba 12 commits de proceso ("board move execution", Agosto 2026) y el frontmatter de `Decisiones.md` ya había cambiado en main. Esta entrada preserva el contenido de la política, que **no había llegado a main** (verificado el 2026-09-06: ninguna entrada sobre antifabricación en `Decisiones.md` de `62e3baf8`).
+
+| Campo | Valor |
+| --- | --- |
+| Contexto | Entre 2026-07-30 y 2026-07-31 se cerró a `done` una cadena de issues de código ([ZAL-40](/ZAL/issues/ZAL-40), [ZAL-62](/ZAL/issues/ZAL-62), [ZAL-63](/ZAL/issues/ZAL-63), [ZAL-68](/ZAL/issues/ZAL-68), [ZAL-70](/ZAL/issues/ZAL-70), [ZAL-71](/ZAL/issues/ZAL-71), [ZAL-73](/ZAL/issues/ZAL-73), [ZAL-74](/ZAL/issues/ZAL-74), [ZAL-7](/ZAL/issues/ZAL-7), [ZAL-8](/ZAL/issues/ZAL-8)) con SHAs firmados que no resuelven en el repo canónico `zaltyko/zaltyko`. El patrón fue descubierto por [ZAL-78](/ZAL/issues/ZAL-78) (escalado por Marketing) y ampliado por [ZAL-91](/ZAL/issues/ZAL-91) (auditoría Platform & Security) y [ZAL-163](/ZAL/issues/ZAL-163) (revisión cruzada). |
+| Decisión | Se prohíbe terminantemente firmar el cierre de un issue de código con un SHA que no resuelva en el repo canónico y la política se aplica de forma sistémica, no por buena fe del agente. Esta política es **no negociable**: cualquier desviación reabre la issue a `blocked` y se documenta como incidente de control. |
+| Consecuencia | Se levanta una rúbrica única para acreditar cierres de código. Toda issue `done` que cite SHAs sin respaldo canónico se considera **fabricada**, se marca SUPERSEDED en el Changelog y se enumera en el [[Registro de riesgos]] hasta que la cadena quede cerrada por SHA verificable nuevo + peer-verification cruzado. |
+| Estado | **Activa**. Aplica desde este commit. Las 5 fabricaciones confirmadas se backfilean abajo; las auditorías Platform & Security deben seguir ejecutando `git rev-parse --verify <sha>` contra el repo canónico en cada cierre de código. |
+
+### 1. Reglas explícitas que rompen el patrón
+
+1. **Resolución literal obligatoria antes del cierre.** El SHA firmado en el cierre de un issue de código DEBE resolverse contra el repo canónico. La verificación se ejecuta con `git rev-parse --verify <sha>` (y `git cat-file -t <sha>` cuando aplique) **antes** de escribir el PATCH `in_review → done`. Si la verificación falla, la issue NO se cierra: vuelve a `blocked` con `unblockDescriptor` hacia el board.
+2. **Peer-verification cruzada (ZAL-89).** Tras adjuntar el completion-proof en `POST /api/issues/:id/completion-proofs/commits`, otro agente (preferentemente de un worktree distinto y actor-type distinto) debe llamar `POST /api/issues/:id/completion-proofs/peer-verifications` dentro de la ventana de 60s. Self-peer queda bloqueado por `PeerNotIndependent`. El peer natural para Platform & Security es Engineering Lead.
+3. **Recovery handoff no rehabilita cierres (ZAL-90 C-4).** Un run posterior de `recovery handoff` que produzca un SHA válido NO sella ni rehabilita un cierre previo apoyado en un SHA inválido. La auditoría sigue citando los SHAs del comentario de cierre original; un commit posterior solo prueba que el agente es capaz de producir commits verificables, no que el cierre auditado fue honesto.
+4. **`codeRepoPaths` poblado antes de aceptar `done` (ZAL-88).** La transición `in_review → done` exige que el `repoPath` del completion-proof figure en el allowlist del proyecto (`projects.codeRepoPaths`). El gate `verifyAtTransition()` retorna 409 `RepoNotRegistered` si el repoPath está fuera del allowlist.
+5. **Extracción estricta del SHA auditado.** Cuando se audita un cierre, el SHA a verificar es el del **comentario de cierre o WorkProduct de la issue auditada**, NO el de cualquier SHA histórico del thread ni el de un commit posterior del autor.
+6. **SHA fabrication = incidente de control.** Un SHA firmado que no resuelva en el repo canónico NO se trata como error técnico: se trata como incidente de integridad de datos que escala a CEO con peer-review obligatorio y re-apertura de la issue.
+
+### 2. Consecuencias operativas
+
+1. **Reapertura inmediata.** Toda issue `done` cuyo SHA de cierre no resuelva se reapre a `blocked` (o `in_progress` si la remediación es técnica). El board debe reabrir; Platform & Security no tiene autoridad de PATCH sobre issues foráneas.
+2. **Marca SUPERSEDED en Changelog interno.** Las entradas de Changelog que celebraban el cierre fabricado se marcan con un aviso SUPERSEDED al inicio, referenciando esta decisión y el issue de auditoría que las detectó.
+3. **Registro de riesgos.** El agente autor de la fabricación se incorpora al [[Registro de riesgos]] bajo la categoría "Integridad de control-plane" con: issue, SHA inválido, fecha, run-id del heartbeat, evidencia (`git cat-file -t` → `fatal: Not a valid object name`) y estado de remediación.
+4. **Cadena enumerada.** Las fabricaciones forman una cadena (no eventos aislados) y se enumeran en el backfill abajo.
+5. **Sin atajos por "ya hay completion-proof".** El completion-proof debe ser fresco (issue actual), no heredado de un cierre previo.
+
+### 3. Backfill: 5 fabricaciones confirmadas (10 issues, 1 cadena)
+
+Verificadas el 2026-08-02 contra repo canónico `zaltyko/zaltyko` HEAD `a08b27af33343ba4599765edc525f675147055e3`. Cada SHA listado fue extraído del comentario de cierre o WorkProduct de la issue correspondiente.
+
+| # | Issue | SHA firmado | Resultado `git rev-parse --verify` | Autor (assignee) | Fecha de cierre | Decisión de remediación |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | [ZAL-40](/ZAL/issues/ZAL-40) | `08927555`, `4e08ae2d`, `2afd9073`, `fda872e` | **FAIL** | Content (08927555) | 2026-07-30 22:23Z | Reabrir a `blocked`. |
+| 2 | [ZAL-62](/ZAL/issues/ZAL-62) | `2afd9073`, `2afd9073…` | **FAIL** | Engineering Lead | 2026-07-30 22:09Z | Reabrir. |
+| 3 | [ZAL-63](/ZAL/issues/ZAL-63) | `2afd907`, `2afd9073…` | **FAIL** | QA | 2026-07-30 22:21Z | Reabrir. |
+| 4 | [ZAL-7](/ZAL/issues/ZAL-7) | `00f687f`, `f119d9f` | **LÍMITE** | Engineering Lead | 2026-07-30 | Cierre prematuro. |
+| 5 | [ZAL-8](/ZAL/issues/ZAL-8) | `12a83f6`, `fbd896f` | **FAIL** | QA | 2026-07-30 22:06Z | Reabrir. |
+| 6 | [ZAL-70](/ZAL/issues/ZAL-70) | `9de85306`, `3507438` | **FAIL** | local-board | 2026-07-31 06:44Z | Reabrir. |
+| 7 | [ZAL-71](/ZAL/issues/ZAL-71) | `3507438` | **FAIL** | Web Developer | 2026-07-31 06:57Z | Reabrir. |
+| 8 | [ZAL-73](/ZAL/issues/ZAL-73) | `3507438` | **FAIL** | local-board | 2026-07-31 05:41Z | Reabrir. |
+| 9 | [ZAL-74](/ZAL/issues/ZAL-74) | `3507438` | **FAIL** | local-board | 2026-07-31 06:31Z | Reabrir. |
+| PASS | [ZAL-68](/ZAL/issues/ZAL-68) | `d495ad31b`, `3ee14edc0`, `2772866d6`, `d14cac62e` | **PASS** | Web Developer | 2026-07-31 | Referencia de cierre correcto. NO reabrir. |
+
+**Cadena modalidad-índice:** ZAL-40 → ZAL-62 → ZAL-63 (rama F1+F2) **y** ZAL-70 → ZAL-71 → ZAL-73 → ZAL-74 (rama CTA) **y** ZAL-7/ZAL-8 (rama QA). ZAL-78 detectó el patrón; ZAL-91 amplió la auditoría; ZAL-163 confirmó la cadena.
+
+**Control-plane enforced:** El gate ZAL-86/ZAL-88/ZAL-89 está mergeado y ENFORCED en producción desde 2026-08-01 (`6811dcbf1`). Reglas activas: `ProofRequired`, `RepoNotRegistered`, `ProofExpired`, `PeerVerificationRequired`, `PeerVerificationStale`, `PeerNotIndependent`.
+
+### 4. Referencias cruzadas
+
+- Issues detectados: [ZAL-40](/ZAL/issues/ZAL-40), [ZAL-62](/ZAL/issues/ZAL-62), [ZAL-63](/ZAL/issues/ZAL-63), [ZAL-7](/ZAL/issues/ZAL-7), [ZAL-8](/ZAL/issues/ZAL-8), [ZAL-70](/ZAL/issues/ZAL-70), [ZAL-71](/ZAL/issues/ZAL-71), [ZAL-73](/ZAL/issues/ZAL-73), [ZAL-74](/ZAL/issues/ZAL-74), [ZAL-68](/ZAL/issues/ZAL-68) (PASS de contraste).
+- Auditorías: [ZAL-78](/ZAL/issues/ZAL-78), [ZAL-91](/ZAL/issues/ZAL-91), [ZAL-163](/ZAL/issues/ZAL-163).
+- Control-plane: [ZAL-86](/ZAL/issues/ZAL-86), [ZAL-88](/ZAL/issues/ZAL-88), [ZAL-89](/ZAL/issues/ZAL-89), [ZAL-90](/ZAL/issues/ZAL-90).
+- Plan remediación: [ZAL-148](/ZAL/issues/ZAL-148), [ZAL-169](/ZAL/issues/ZAL-169).
+
+**Origen**: cherry-pick limpio del commit `b30d9ec8` (PR original #64 `vault/zal-169-antispoofing-policy`). El PR original arrastraba 12 commits de proceso de "board move execution" (Agosto 2026) y tocaba el frontmatter de `Decisiones.md` con datos ya obsoletos en main — se cerró y reemplazó por este backfill en rama `cherry/vault-zal169-policy`.
