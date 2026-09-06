@@ -97,3 +97,51 @@ Los negativos verifican que producción no habilita el mock, que la activación 
 Durante el E2E el sandbox emitió warnings `42P01` porque no tiene la tabla opcional `growth_events`; el writer es best-effort y no alteró el POST ni las aserciones de `academies`. Esto no se considera defecto de ZAL-336, pero el fixture local no representa la persistencia de eventos de growth.
 
 Veredicto QA: **PASS local/sandbox**. No equivale a Auth remoto, producción, readiness ni validación humana.
+
+## Revisión peer independiente — 2026-09-04
+
+La repetición desde el checkout compartido, con PostgreSQL sintético efímero en
+localhost y `E2E_MOCK_AUTH=1`, contradice el PASS histórico: la suite dedicada
+terminó con el primer escenario fallido porque
+`sessionStorage["zaltyko_first_touch_utm"]` permaneció `null` durante 30 s;
+los otros tres escenarios no se ejecutaron. El header local confirmó una CSP
+de desarrollo cuyo `script-src` no incluye `'unsafe-eval'`, por lo que Next dev
+no hidrata el runtime de React. Un aislamiento adicional con `bypassCSP` solo
+en el harness recupera la hidratación, pero el signup sigue en `/auth/register`:
+el helper `src/lib/supabase/e2e-mock.ts` no está conectado a
+`src/lib/supabase/client.ts`, `src/lib/supabase/server.ts` ni
+`middleware.ts`.
+
+Evidencia literal de ejecución:
+
+```text
+$ ./node_modules/.bin/playwright test --config=playwright.zal336.config.ts tests/e2e-zaltyko-utm-signup.spec.ts
+Running 4 tests using 1 worker
+1 failed
+3 did not run
+Received value: null; timeout 30000ms en sessionStorage["zaltyko_first_touch_utm"]
+
+$ ./node_modules/.bin/vitest run tests/e2e-auth-mock.test.ts --reporter=dot
+Tests  4 passed (4)
+$ ./node_modules/.bin/vitest run tests/growth-utm-capture.test.ts --reporter=dot
+Tests  35 passed (35)
+$ ./node_modules/.bin/vitest run tests/api-academies-utm.test.ts --reporter=dot
+Tests  5 passed (5)
+$ ./node_modules/.bin/vitest run tests/onboarding-owner-integration-contract.test.ts --reporter=dot
+Tests  5 passed (5)
+```
+
+Conteos literales del checkout peer: el spec Playwright tiene `grep -c
+"  test(" → `4` y `grep -c "  it("` → `0`; `e2e-auth-mock.test.ts` → `4`,
+`growth-utm-capture.test.ts` → `28`, `api-academies-utm.test.ts` → `5` y
+`onboarding-owner-integration-contract.test.ts` → `5`. `rg` no encuentra
+`NEXT_PUBLIC_E2E_MOCK_AUTH` bajo `src/`.
+
+Veredicto peer: **FAIL local/sandbox; follow-up requerido**. Owner: Engineering
+Lead. Acción exacta: ajustar CSP/harness de Next dev sin debilitar la CSP
+productiva, conectar el seam mock solo bajo sus guards en cliente/servidor/
+middleware y repetir los cuatro escenarios y los negativos. No se tocó
+producción, Auth remoto, dominios, secretos, Stripe live, pricing,
+migraciones remotas ni datos reales. El control plane local no respondió al
+intento de comentario ni al PATCH de disposición; la disposición administrativa
+queda pendiente de registrar cuando vuelva el runtime.

@@ -53,6 +53,19 @@ Code changes verificados: tsc OK, eslint OK, next build OK.
   La transición remota a `blocked` quedó persistida y verificada el 2026-09-04;
   el checkout de la issue fue liberado.
 
+## Bloqueo operativo — 2026-09-05 — ZAL-1239 proveedor quota/failover
+
+- El sandbox local confirma `provider_quota` y reintentos encadenados, pero no
+  expone una cadena activa de failover entre proveedores. El cap corporativo se
+  conserva en USD 10.000; no se autoriza elevarlo.
+- Owner/action de desbloqueo: Board/runtime debe confirmar un proveedor
+  secundario ya autorizado o aprobar su contratación y entregar un `secret_ref`
+  opaco por canal seguro. Después, Platform & Security y QA deben revisar y
+  ejecutar el smoke de failover en sandbox.
+- Alerta vigente: escalar si `provider_quota` alcanza o supera 20/día o si la
+  utilización mensual alcanza 85%; cualquier lectura local queda clasificada
+  como evidencia de sandbox, no como validación de producción.
+
 ## Revisión semanal de prioridades — 2026-08-03 (ZAL-239)
 
 **Medición PM 2026-08-03 17:25Z:** 108 issues abiertas, 27 de meta-trabajo (25 %).

@@ -7410,3 +7410,74 @@ TSC_EXIT=0
 ```
 
 Vault: actualizados `Changelog interno.md` y la nota de work product de ZAL-1212; no cambian `Decisiones.md` ni `Backlog priorizado.md` porque no surgió decisión de producto, pricing, seguridad o migración remota.
+
+## 2026-09-05 — Engineering Lead: ZAL-1239 bloquea failover por falta de proveedor secundario autorizado
+
+- Alcance ejecutado únicamente en el sandbox local del control-plane: reproducción sintética del circuito, lectura agregada de runs y dashboard; no hubo producción, proveedores externos, secretos, datos reales, compras, Stripe live, cambios de permisos ni aumento del cap.
+- Presupuesto observado en el snapshot local: `monthSpendCents=51727` (USD 517,27), `monthBudgetCents=1000000` (USD 10.000) y `monthUtilizationPercent=5.17`. No se modificó ningún presupuesto.
+- Ventana comparable del dashboard local (2026-08-29 → 2026-09-04): 4.654 runs, 912 fallidos, 9 `provider_quota` (0,19 %) y 152 `adapter_circuit_open` (3,27 %). Punto más reciente (2026-09-05): 62 runs, 19 fallidos, 0 `provider_quota`, 0 `adapter_circuit_open`; esto es un snapshot de observación, no un before/after causal porque no se activó ningún cambio.
+- Medición separada del endpoint de runs: el lote de 1.000 runs más recientes cubre 2026-09-03 → 2026-09-05 y contiene 431 enlaces `retryOfRunId`, 124 `scheduled_retry` (`transient_failure`), 27 `provider_quota` y 97 `adapter_circuit_open`. La diferencia con el agregado del dashboard impide presentar una única tasa canónica de retry/quota sin una consulta histórica paginada.
+- El circuito sintético abre al quinto `provider_quota`, respeta `retryNotBefore` de 10 minutos, permite un solo probe half-open, bloquea el probe concurrente y vuelve a `closed` después de éxito. El heartbeat mantiene cuatro intentos automáticos acotados con backoff de 2m/10m/30m/2h.
+- El inventario de compañía expone `claude_local`, `codex_local` y `prime_local`; no se confirmó un proveedor secundario autorizado para la cadena de este workload. `GET /api/adapters` respondió `HTTP_STATUS:403` (`Board access required`), y la muestra de runs no contiene anotaciones persistidas de failover.
+- La alerta operacional queda registrada en Backlog: escalar desde `provider_quota >= 20/día` o utilización mensual `>=85%`. No se implementó alerta automática de quota porque el checkout del control-plane no expone un hook/configuración vigente para esa señal.
+- Disposición: `blocked`. Owner de desbloqueo: Board/runtime para confirmar o contratar el segundo proveedor y entregar un `secret_ref` opaco por canal seguro; después Platform & Security y QA deben revisar el failover en sandbox. Evidencia: local/sandbox únicamente; no hay validación de producción, externa ni humana.
+
+Vault: actualizados `Changelog interno.md` y `Backlog priorizado.md`; `Decisiones.md`, `Pricing.md` y `Mensajes aprobados.md` no cambian porque no hubo decisión de producto, pricing, publicación ni aumento de presupuesto.
+
+## 2026-09-05 — Engineering Lead: ZAL-1239 pasa a revisión formal del Board
+
+- No apareció una autorización nueva de proveedor secundario durante el desbloqueo. Para evitar activar una cadena con configuración, runtimeCommandSpec o credenciales heredadas del primario, se abrió la aprobación local `be1d2118-8722-456e-95ec-af5aa7ba821b` y se vinculó a ZAL-1239.
+- La decisión solicitada es confirmar un proveedor secundario ya disponible y autorizado —o aprobar contratación— y entregar únicamente un `secret_ref` opaco por canal seguro. La aprobación no solicita elevar `budgetMonthlyCents`, el presupuesto corporativo de USD 10.000/mes ni ninguna cuota externa.
+- Tras la aprobación, Platform & Security y QA deberán validar en sandbox el fallback por proveedor, el circuit-breaker/retry-cap y la ausencia de filtración de configuración o secretos del primario. La subtarea independiente ZAL-1240 queda como revisión técnica.
+- Disposición operativa: `in_review` con aprobación pendiente. No hubo producción, proveedores externos, secretos, datos reales, compras, Stripe live, cambios de permisos ni publicaciones.
+
+Vault: actualizado `Changelog interno.md`; no cambian `Decisiones.md`, `Pricing.md`, `Mensajes aprobados.md` ni `Backlog priorizado.md` porque la decisión está pendiente y no se modificó producto, pricing, presupuesto o configuración externa.
+
+## 2026-09-06 — Engineering Lead: ZAL-1256 deja Bumble durable y bloquea el quality-gate
+
+- En Buzz Desktop local se hizo durable la etiqueta visible `Bumble` para la entrada existente `builtin:bumble`, con backup reversible. Se preservaron la identidad criptográfica y los demás campos de configuración; no se leyeron ni expusieron secretos.
+- La existencia del ítem de Keychain `buzz-desktop`/`secrets` se confirmó solo por metadatos. La correspondencia opaca con Bumble no pudo completarse porque la lectura protegida requirió Touch ID; queda sin verificar, no se presenta como PASS.
+- La decisión operativa queda: Bumble como quality-gate/fallback, Hermin como consejero activo y sin agente separado `Skeptic`. Los logs locales muestran suscripciones históricas recientes de ambos al canal objetivo, pero no existe evidencia de una mención/respuesta correlacionada.
+- No se ejecutó el E2E de menos de 60 segundos: el transporte local/sandbox no estaba disponible y el único relay configurado es externo; no se contactó relay externo, producción ni datos reales.
+- Se creó la revisión independiente QA `ZAL-1258`, asignada al agente QA. ZAL-1256 queda `blocked` hasta que QA emita su veredicto y se complete la validación opaca de Keychain y el E2E local autorizado.
+
+Vault: actualizado `Changelog interno.md`; no cambian `Decisiones.md`, `Pricing.md`, `Mensajes aprobados.md` ni `Backlog priorizado.md` porque no hubo decisión de producto, pricing, publicación, migración remota o cambio externo.
+
+## 2026-09-06 — Platform & Security: ZAL-1259 sigue bloqueada
+
+- Se retomó la revisión prioritaria de Bumble sin leer ni exponer secretos. La inspección local no sensible de Keychain no encontró el ítem en este contexto y no se solicitó Touch ID; no se puede confirmar la correspondencia opaca de `builtin:bumble`, la igualdad de pubkey/identidad ni la paridad completa con el backup.
+- No se encontró transporte local/sandbox ni implementación/configuración para una mención sintética correlacionada de Bumble y Hermin en el canal `7cdc7b99-d049-49a5-b802-6a6c65d9f920`. No se contactó el relay externo, producción ni datos reales.
+- El control-plane de Paperclip rechazó tanto el comentario como el PATCH de estado: `curl http://127.0.0.1:3100/api/health` → `HTTP_STATUS:000`. No se pudo registrar el resultado ni aplicar `blocked` remotamente.
+- Veredicto operativo: **BLOCKED / no PASS**. Owner de desbloqueo: Board/Engineering. Acción exacta: habilitar una sesión local de Buzz con Touch ID y un transporte local o sandbox sintético autorizado; después QA independiente repite la comparación opaca y el E2E correlacionado (<60 s). No se ejecutaron tests.
+
+Vault: actualizado este `Changelog interno.md`; no se modificó producto, código, producción, secretos, datos reales, migraciones remotas, pricing ni publicaciones.
+
+## 2026-09-06 — Platform & Security: ZAL-1260 sigue bloqueada tras revalidación local
+
+- La inspección se mantuvo en localhost/sandbox: `buzz-relay` está escuchando, pero `GET /health` en `127.0.0.1:3030` responde 200 y la raíz responde `404`/`relay: no community is configured for this host`; no hay una comunidad local configurada para aceptar la mención correlacionada.
+- `GET /health` en `127.0.0.1:9202` devuelve `200 OK`/`OK`. Esto demuestra disponibilidad del proceso/metrics local, no readiness del flujo Bumble/Hermin.
+- La comprobación opaca `security find-generic-password -a builtin:bumble` continúa con `KEYCHAIN_EXIT=44` y no se leyó el valor protegido; la correspondencia Keychain con Bumble sigue sin verificarse.
+- La configuración local observada mantiene las identidades Bumble/Hermin asociadas a relay externo o sin `relay_url`; no se cambió para evitar conectar agentes reales a un relay sintético.
+- No se envió ningún evento, no se contactó relay externo, producción ni datos reales; por tanto no existen timestamps de envío/respuesta ni evidencia de latencia `<60 s`.
+- **Veredicto: BLOCKED / no PASS.** Owner de desbloqueo: Engineering Lead/Board. Acción exacta: entregar un sandbox localhost con comunidad sintética configurada y una sesión autorizada de Buzz que permita verificar el vínculo Keychain sin exponer secretos; después Platform & Security y QA deben repetir la mención Bumble/Hermin y registrar timestamps literales.
+
+Evidencia literal capturada en el heartbeat:
+
+```text
+$ security find-generic-password -a builtin:bumble
+security: SecKeychainSearchCopyNext: The specified item could not be found in the keychain.
+KEYCHAIN_EXIT=44
+
+$ curl -i http://127.0.0.1:3030/health
+HTTP/1.1 200 OK
+
+$ curl -i http://127.0.0.1:3030/
+HTTP/1.1 404 Not Found
+relay: no community is configured for this host
+
+$ curl -i http://127.0.0.1:9202/health
+HTTP/1.1 200 OK
+OK
+```
+
+Vault: actualizado `Changelog interno.md`; no cambian `Decisiones.md`, `Pricing.md`, `Mensajes aprobados.md` ni `Backlog priorizado.md`.

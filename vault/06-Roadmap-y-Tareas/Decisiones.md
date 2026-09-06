@@ -8,6 +8,15 @@ source:
 
 # Decisiones
 
+## 2026-09-04 - ZAL-1091: Board rechaza el toggle scope-bounded de recovery para ZAL-1081
+
+| Campo | Valor |
+| --- | --- |
+| Contexto | La disposición de [ZAL-1081](/ZAL/issues/ZAL-1081) llevaba rechazos `409 RecoveryPausedUntilGitGate` porque `recovery.pause.codeGates=true`. La aprobación anterior del 2026-08-30 permitía bajar temporalmente el flag, pero el Board emitió después una denegación explícita. |
+| Decisión | Mantener `recovery.pause.codeGates=true` y rechazar el toggle global, aunque fuese scope-bounded a un único intento. No ejecutar bypass, reintento ni disposición administrativa mientras no exista una nueva autorización explícita del Board. La aprobación del 2026-08-30 queda supersedida por esta decisión. |
+| Consecuencia | La red anti-spoofing permanece activa para toda la compañía y [ZAL-1081](/ZAL/issues/ZAL-1081) sigue bloqueada. [ZAL-976](/ZAL/issues/ZAL-976) y [ZAL-977](/ZAL/issues/ZAL-977) conservan su flujo independiente. |
+| Estado | Decisión Board recibida y aplicada como disposición operativa: `ZAL-1091=blocked`, persistida y verificada en Paperclip el 2026-09-04 tras un fallo previo del control-plane. Unblock owner/action: Board debe emitir una nueva aprobación; después Engineering Lead podrá ejecutar el procedimiento autorizado y restaurar el flag a `true` inmediatamente. |
+
 ## 2026-08-09 - ZAL-451: catálogo de disponibilidad SEO aislado del bundle cliente
 
 | Campo | Valor |
