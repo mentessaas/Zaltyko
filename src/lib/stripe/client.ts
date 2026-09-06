@@ -15,7 +15,7 @@ export function getStripeClient(): Stripe {
     if (isBuildTime || isTest()) {
       // Retornar un cliente dummy para permitir que el build continúe
       return new Stripe("sk_test_dummy_key_for_build", {
-        apiVersion: "2026-03-25.dahlia",
+        apiVersion: "2026-08-26.dahlia",
       });
     }
     throw new Error("STRIPE_SECRET_KEY debe estar definido para operaciones de suscripción");
@@ -23,7 +23,7 @@ export function getStripeClient(): Stripe {
 
   if (!stripeClient) {
     stripeClient = new Stripe(secretKey, {
-      apiVersion: "2026-03-25.dahlia",
+      apiVersion: "2026-08-26.dahlia",
       timeout: 10000, // 10 segundos — evita requests colgados indefinidamente
     });
   }

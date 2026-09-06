@@ -43,7 +43,7 @@ async function main() {
   }
 
   const url = `${baseUrl.replace(/\/$/, "")}/api/stripe/connect/webhook`;
-  const stripe = new Stripe(secretKey, { apiVersion: "2026-03-25.dahlia" });
+  const stripe = new Stripe(secretKey, { apiVersion: "2026-08-26.dahlia" });
 
   // Idempotencia por URL: no duplicar si ya existe un endpoint Connect con esa URL.
   const existing = await stripe.webhookEndpoints.list({ limit: 100 });

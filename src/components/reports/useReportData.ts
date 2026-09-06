@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 
 interface ReportOptions {
   params?: Record<string, string>;
@@ -26,6 +26,11 @@ export function useReportData<T>(
 
   const { params = {}, dependencies = [], onSuccess, onError } = options || {};
 
+  // Stable string key for `params` so the `refetch` memoization does not flip
+  // identity on every render. Without this, `JSON.stringify(params)` inside the
+  // dep array would create a new string each render and bust the cache.
+  const paramsKey = useMemo(() => JSON.stringify(params), [params]);
+
   const refetch = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -48,7 +53,7 @@ export function useReportData<T>(
     } finally {
       setLoading(false);
     }
-  }, [endpoint, JSON.stringify(params), onSuccess, onError]);
+  }, [endpoint, paramsKey, onSuccess, onError]);
 
   useEffect(() => {
     refetch();

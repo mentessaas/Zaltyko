@@ -288,7 +288,7 @@ export function RegistrationTrendChart({ data }: RegistrationTrendChartProps) {
                   borderRadius: "8px",
                 }}
                 labelFormatter={(value) =>
-                  new Date(value).toLocaleDateString("es-ES", {
+                  new Date(String(value)).toLocaleDateString("es-ES", {
                     year: "numeric",
                     month: "long",
                     day: "numeric",
