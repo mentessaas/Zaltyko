@@ -67,6 +67,17 @@ overrides:
   '@babel/core': ^7.29.6
   '@opentelemetry/core': ^2.9.0
 
+  # --- R1 fix 2026-09-06: pin Playwright a una unica version ---
+  # @axe-core/playwright@4.13.0 introduce playwright-core@1.63.0 como dep
+  # transitiva, dejando el lockfile con dos versiones (1.58.2 directo +
+  # 1.63.0 transitivo). Tras #107 el smoke revienta: `pnpm exec playwright
+  # install` bajo chromium-1208 (1.58.2) pero `playwright test` carga el
+  # transitivo 1.63.0 que espera chromium-1243. Solucion: alinear el devDep
+  # directo con el transitivo (1.63.0) para que haya una sola version.
+  playwright: 1.63.0
+  playwright-core: 1.63.0
+  '@playwright/test': 1.63.0
+
 onlyBuiltDependencies:
   - "@scarf/scarf"
   - "@sentry/cli"
