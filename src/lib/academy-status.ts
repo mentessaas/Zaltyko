@@ -64,7 +64,9 @@ function reasonToMetric(reason: AcademySendingBlockReason): string {
   return `blocked_sending:${reason}`;
 }
 
-function shouldBlockStatus(status: AcademyStatus | null): AcademySendingBlockReason | null {
+function shouldBlockStatus(
+  status: AcademyStatus | null
+): AcademySendingBlockReason | null {
   if (!status) return null;
   if (status === "suspended") return "suspended";
   if (status === "churned") return "churned";
@@ -269,7 +271,10 @@ export async function getAcademySendingEligibilityBulk(
  * estable y no leakea academyId si el log es agregado.
  */
 export function describeBlockingReason(
-  eligibility: Pick<AcademySendingEligibility, "blocked" | "reason" | "isFraudHold">
+  eligibility: Pick<
+    AcademySendingEligibility,
+    "blocked" | "reason" | "isFraudHold"
+  >
 ): string {
   if (!eligibility.blocked) return "eligible";
   return reasonToMetric(eligibility.reason ?? "not_found");

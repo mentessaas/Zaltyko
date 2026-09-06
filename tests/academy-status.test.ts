@@ -90,7 +90,9 @@ describe("academy-status sending gate", () => {
 
     it("returns not_found when academy does not exist", async () => {
       mockSelect.mockReturnValue(buildChain([]));
-      const result = await isAcademyBlockedFromSending("00000000-0000-0000-0000-000000000000");
+      const result = await isAcademyBlockedFromSending(
+        "00000000-0000-0000-0000-000000000000"
+      );
       expect(result.blocked).toBe(true);
       expect(result.reason).toBe("not_found");
       expect(result.status).toBeNull();
@@ -98,9 +100,7 @@ describe("academy-status sending gate", () => {
 
     it("returns blocked=false for status=active", async () => {
       mockSelect.mockReturnValue(
-        buildChain([
-          { id: "a1", status: "active", isSuspended: false },
-        ])
+        buildChain([{ id: "a1", status: "active", isSuspended: false }])
       );
       const result = await isAcademyBlockedFromSending("a1");
       expect(result.blocked).toBe(false);
@@ -111,9 +111,7 @@ describe("academy-status sending gate", () => {
 
     it("returns blocked=false for status=trial", async () => {
       mockSelect.mockReturnValue(
-        buildChain([
-          { id: "a1", status: "trial", isSuspended: false },
-        ])
+        buildChain([{ id: "a1", status: "trial", isSuspended: false }])
       );
       const result = await isAcademyBlockedFromSending("a1");
       expect(result.blocked).toBe(false);
@@ -122,9 +120,7 @@ describe("academy-status sending gate", () => {
 
     it("returns blocked=true with reason=suspended for status=suspended", async () => {
       mockSelect.mockReturnValue(
-        buildChain([
-          { id: "a1", status: "suspended", isSuspended: true },
-        ])
+        buildChain([{ id: "a1", status: "suspended", isSuspended: true }])
       );
       const result = await isAcademyBlockedFromSending("a1");
       expect(result.blocked).toBe(true);
@@ -135,9 +131,7 @@ describe("academy-status sending gate", () => {
 
     it("returns blocked=true with reason=churned for status=churned", async () => {
       mockSelect.mockReturnValue(
-        buildChain([
-          { id: "a1", status: "churned", isSuspended: false },
-        ])
+        buildChain([{ id: "a1", status: "churned", isSuspended: false }])
       );
       const result = await isAcademyBlockedFromSending("a1");
       expect(result.blocked).toBe(true);
@@ -148,9 +142,7 @@ describe("academy-status sending gate", () => {
 
     it("returns blocked=true with reason=fraud_hold for status=fraud_hold", async () => {
       mockSelect.mockReturnValue(
-        buildChain([
-          { id: "a1", status: "fraud_hold", isSuspended: false },
-        ])
+        buildChain([{ id: "a1", status: "fraud_hold", isSuspended: false }])
       );
       const result = await isAcademyBlockedFromSending("a1");
       expect(result.blocked).toBe(true);
@@ -163,9 +155,7 @@ describe("academy-status sending gate", () => {
       // Esto no debería ocurrir tras la migración (el trigger sync lo evita),
       // pero defense in depth: si el legacy flag está a true, bloqueamos.
       mockSelect.mockReturnValue(
-        buildChain([
-          { id: "a1", status: "active", isSuspended: true },
-        ])
+        buildChain([{ id: "a1", status: "active", isSuspended: true }])
       );
       const result = await isAcademyBlockedFromSending("a1");
       expect(result.blocked).toBe(true);
@@ -175,9 +165,7 @@ describe("academy-status sending gate", () => {
 
     it("fraud_hold wins over isSuspended=false (security priority)", async () => {
       mockSelect.mockReturnValue(
-        buildChain([
-          { id: "a1", status: "fraud_hold", isSuspended: false },
-        ])
+        buildChain([{ id: "a1", status: "fraud_hold", isSuspended: false }])
       );
       const result = await isAcademyBlockedFromSending("a1");
       expect(result.blocked).toBe(true);
@@ -186,7 +174,9 @@ describe("academy-status sending gate", () => {
     });
 
     it("returns blocked=true when DB query fails (fail-closed)", async () => {
-      const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+      const consoleError = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
       try {
         mockSelect.mockReturnValue(buildChain(new Error("DB down")));
         const result = await isAcademyBlockedFromSending("a1");
@@ -203,9 +193,7 @@ describe("academy-status sending gate", () => {
       // El check constraint NOT NULL DEFAULT 'active' lo impide en la práctica,
       // pero validamos la rama defensiva.
       mockSelect.mockReturnValue(
-        buildChain([
-          { id: "a1", status: null, isSuspended: false },
-        ])
+        buildChain([{ id: "a1", status: null, isSuspended: false }])
       );
       const result = await isAcademyBlockedFromSending("a1");
       expect(result.blocked).toBe(false);
@@ -251,7 +239,13 @@ describe("academy-status sending gate", () => {
           { id: "a4", status: "trial", isSuspended: false },
         ])
       );
-      const result = await getAcademySendingEligibilityBulk(["a1", "a2", "a3", "a4", "missing"]);
+      const result = await getAcademySendingEligibilityBulk([
+        "a1",
+        "a2",
+        "a3",
+        "a4",
+        "missing",
+      ]);
       expect(result.size).toBe(5);
       const a1 = result.get("a1");
       const a2 = result.get("a2");
@@ -281,9 +275,7 @@ describe("academy-status sending gate", () => {
 
     it("blocks via legacy isSuspended flag in bulk path", async () => {
       mockSelect.mockReturnValue(
-        buildChain([
-          { id: "a1", status: "active", isSuspended: true },
-        ])
+        buildChain([{ id: "a1", status: "active", isSuspended: true }])
       );
       const result = await getAcademySendingEligibilityBulk(["a1"]);
       expect(result.get("a1")?.blocked).toBe(true);
@@ -292,7 +284,9 @@ describe("academy-status sending gate", () => {
     });
 
     it("fails closed: blocks all on DB error", async () => {
-      const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+      const consoleError = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
       try {
         mockSelect.mockReturnValue(buildChain(new Error("DB down")));
         const result = await getAcademySendingEligibilityBulk(["a1", "a2"]);
@@ -310,7 +304,11 @@ describe("academy-status sending gate", () => {
   describe("describeBlockingReason", () => {
     it("returns 'eligible' when not blocked", () => {
       expect(
-        describeBlockingReason({ blocked: false, reason: null, isFraudHold: false })
+        describeBlockingReason({
+          blocked: false,
+          reason: null,
+          isFraudHold: false,
+        })
       ).toBe("eligible");
     });
 
@@ -407,19 +405,56 @@ describe("academy-status sending gate", () => {
       }> = [
         { status: "active", isSuspended: false, blocked: false, reason: null },
         { status: "trial", isSuspended: false, blocked: false, reason: null },
-        { status: "suspended", isSuspended: false, blocked: true, reason: "suspended" },
-        { status: "suspended", isSuspended: true, blocked: true, reason: "suspended" },
-        { status: "churned", isSuspended: false, blocked: true, reason: "churned" },
-        { status: "churned", isSuspended: true, blocked: true, reason: "churned" },
-        { status: "fraud_hold", isSuspended: false, blocked: true, reason: "fraud_hold" },
-        { status: "fraud_hold", isSuspended: true, blocked: true, reason: "fraud_hold" },
+        {
+          status: "suspended",
+          isSuspended: false,
+          blocked: true,
+          reason: "suspended",
+        },
+        {
+          status: "suspended",
+          isSuspended: true,
+          blocked: true,
+          reason: "suspended",
+        },
+        {
+          status: "churned",
+          isSuspended: false,
+          blocked: true,
+          reason: "churned",
+        },
+        {
+          status: "churned",
+          isSuspended: true,
+          blocked: true,
+          reason: "churned",
+        },
+        {
+          status: "fraud_hold",
+          isSuspended: false,
+          blocked: true,
+          reason: "fraud_hold",
+        },
+        {
+          status: "fraud_hold",
+          isSuspended: true,
+          blocked: true,
+          reason: "fraud_hold",
+        },
         // Drift: status=active pero legacy isSuspended=true. Defense in depth.
-        { status: "active", isSuspended: true, blocked: true, reason: "is_suspended_legacy" },
+        {
+          status: "active",
+          isSuspended: true,
+          blocked: true,
+          reason: "is_suspended_legacy",
+        },
       ];
 
       for (const c of cases) {
         mockSelect.mockReturnValue(
-          buildChain([{ id: "x", status: c.status, isSuspended: c.isSuspended }])
+          buildChain([
+            { id: "x", status: c.status, isSuspended: c.isSuspended },
+          ])
         );
         const result = await isAcademyBlockedFromSending("x");
         expect(result.blocked).toBe(c.blocked);

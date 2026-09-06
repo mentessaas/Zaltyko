@@ -39,6 +39,9 @@ describe("sendEmail Brevo configuration", () => {
 
     const { sendEmail } = await import("@/lib/brevo");
 
-    await expect(sendEmail(validEmail)).resolves.toEqual({ messageId: null, simulated: true });
+    await expect(sendEmail(validEmail)).resolves.toEqual({
+      messageId: null,
+      simulated: true,
+    });
   });
 });

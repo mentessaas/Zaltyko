@@ -11,7 +11,9 @@ describe("cron lease", () => {
 
   it("ejecuta el job solo cuando adquiere el advisory lock", async () => {
     dbMock.transaction.mockImplementation((callback) =>
-      callback({ execute: vi.fn().mockResolvedValue({ rows: [{ acquired: true }] }) })
+      callback({
+        execute: vi.fn().mockResolvedValue({ rows: [{ acquired: true }] }),
+      })
     );
     const job = vi.fn().mockResolvedValue("done");
     await expect(runCronWithLease("cron:test", job)).resolves.toEqual({
@@ -26,15 +28,24 @@ describe("cron lease", () => {
     dbMock.transaction.mockImplementation((callback) => {
       call++;
       return callback({
-        execute: vi.fn().mockResolvedValue({ rows: [{ acquired: call === 1 }] }),
+        execute: vi
+          .fn()
+          .mockResolvedValue({ rows: [{ acquired: call === 1 }] }),
       });
     });
     let release!: () => void;
-    const firstJob = vi.fn(() => new Promise<void>((resolve) => { release = resolve; }));
+    const firstJob = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          release = resolve;
+        })
+    );
     const first = runCronWithLease("cron:test", firstJob);
     await Promise.resolve();
     const secondJob = vi.fn();
-    await expect(runCronWithLease("cron:test", secondJob)).resolves.toEqual({ acquired: false });
+    await expect(runCronWithLease("cron:test", secondJob)).resolves.toEqual({
+      acquired: false,
+    });
     expect(secondJob).not.toHaveBeenCalled();
     release();
     await first;
@@ -46,7 +57,10 @@ describe("transactional feature readiness", () => {
     const result = getFeatureReadiness("stripeConnectWebhook", {
       STRIPE_SECRET_KEY: "sk_test_secret",
     });
-    expect(result).toEqual({ ready: false, missing: ["STRIPE_CONNECT_WEBHOOK_SECRET"] });
+    expect(result).toEqual({
+      ready: false,
+      missing: ["STRIPE_CONNECT_WEBHOOK_SECRET"],
+    });
     expect(JSON.stringify(result)).not.toContain("sk_test_secret");
   });
 
