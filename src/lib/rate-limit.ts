@@ -1,6 +1,8 @@
 import { kv } from "@vercel/kv";
+import { createHash } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
+import { normalizeEmail } from "@/lib/validation/email-utils";
 
 /**
  * Rate Limiting using Vercel KV (Redis)
@@ -45,6 +47,32 @@ export interface RateLimitResult {
    * Unix timestamp when the rate limit resets
    */
   reset: number;
+}
+
+/**
+ * Construye la clave de rate-limit por dirección para Gap 5 del veredicto
+ * P&S ZAL-1094. El caller debe invocarlo dentro del handler, después de
+ * verificar el HMAC del enlace, para no calcular ni exponer una clave basada
+ * en input no autenticado.
+ *
+ * Se conservan los primeros 16 bytes del SHA-256 como 32 caracteres hex:
+ * suficiente para separar presupuestos por dirección sin guardar el email.
+ */
+export function getAddressHashRateLimitIdentifier(
+  email: string,
+  pathname: string
+): string {
+  const normalizedEmail = normalizeEmail(email);
+  if (!normalizedEmail) {
+    throw new Error("Cannot derive address rate-limit key from empty email");
+  }
+
+  const addressHash = createHash("sha256")
+    .update(normalizedEmail, "utf8")
+    .digest("hex")
+    .slice(0, 32);
+
+  return `${pathname}:address:${addressHash}`;
 }
 
 /**
@@ -281,6 +309,32 @@ export function getVerifiedTenantRateLimitIdentifier(
 }
 
 /**
+ * Respuesta uniforme para una ventana agotada. Se reutiliza tanto por el
+ * wrapper IP como por la segunda pasada post-verificación por address hash.
+ */
+export function rateLimitExceededResponse(
+  result: RateLimitResult
+): NextResponse {
+  const resetSeconds = result.reset - Math.floor(Date.now() / 1000);
+  return NextResponse.json(
+    {
+      error: "RATE_LIMIT_EXCEEDED",
+      message: "Demasiadas requests. Intenta de nuevo más tarde.",
+      resetIn: resetSeconds,
+    },
+    {
+      status: 429,
+      headers: {
+        "X-RateLimit-Limit": String(result.limit),
+        "X-RateLimit-Remaining": "0",
+        "X-RateLimit-Reset": String(result.reset),
+        "Retry-After": String(resetSeconds),
+      },
+    }
+  );
+}
+
+/**
  * Helper to get user identifier from request headers
  */
 export function getUserIdentifier(request: NextRequest): string {
@@ -335,33 +389,20 @@ export function withRateLimit(
     });
 
     if (!result.success) {
-      const resetSeconds = result.reset - Math.floor(Date.now() / 1000);
-      return NextResponse.json(
-        {
-          error: "RATE_LIMIT_EXCEEDED",
-          message: "Demasiadas requests. Intenta de nuevo más tarde.",
-          resetIn: resetSeconds,
-        },
-        {
-          status: 429,
-          headers: {
-            "X-RateLimit-Limit": String(result.limit),
-            "X-RateLimit-Remaining": "0",
-            "X-RateLimit-Reset": String(result.reset),
-            "Retry-After": String(resetSeconds),
-          },
-        }
-      );
+      return rateLimitExceededResponse(result);
     }
 
     // Execute handler
     try {
       const response = await handler(request, context);
 
-      // Add rate limit headers
-      response.headers.set("X-RateLimit-Limit", String(result.limit));
-      response.headers.set("X-RateLimit-Remaining", String(result.remaining));
-      response.headers.set("X-RateLimit-Reset", String(result.reset));
+      // Preserve the more specific headers when the handler applied a
+      // post-verification limit (for example, the address hash in Gap 5).
+      if (response.status !== 429) {
+        response.headers.set("X-RateLimit-Limit", String(result.limit));
+        response.headers.set("X-RateLimit-Remaining", String(result.remaining));
+        response.headers.set("X-RateLimit-Reset", String(result.reset));
+      }
 
       return response;
     } catch (error) {

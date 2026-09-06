@@ -3,7 +3,13 @@ import { z } from "zod";
 
 import { db } from "@/db";
 import { emailLogs } from "@/db/schema";
-import { withRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
+import {
+  getAddressHashRateLimitIdentifier,
+  rateLimit,
+  rateLimitExceededResponse,
+  withRateLimit,
+  RATE_LIMITS,
+} from "@/lib/rate-limit";
 import { apiError, apiSuccess } from "@/lib/api-response";
 import { verifyEmailLinkToken } from "@/lib/onboarding/email-link-token";
 import { logger } from "@/lib/logger";
@@ -41,96 +47,113 @@ const postSchema = z.object({
   prefs: prefsSchema,
 });
 
-export const GET = withRateLimit(async (request: NextRequest) => {
-  const url = new URL(request.url);
-  const token = url.searchParams.get("token");
-  if (!token) {
-    return apiError("TOKEN_REQUIRED", "Token requerido en query string", 400);
-  }
-  const result = verifyEmailLinkToken(token);
-  if (!result.ok || !result.payload) {
-    return apiError(
-      "INVALID_TOKEN",
-      "Token invalido o expirado. Solicita un nuevo enlace desde el ultimo email.",
-      400
-    );
-  }
-  // v0.2: defaults seguros. v0.3+ deberia leer de una tabla `email_prefs`
-  // por (tenant_id, email) o (profile_id) para recordar la eleccion entre
-  // sesiones; abrir issue separada con Engineering Lead cuando se haga.
-  return apiSuccess({
-    email: result.payload.email,
-    expiresAt: result.payload.expiresAt,
-    current: {
-      transactional: true,
-      marketing: false,
-    },
-  });
-}, { limit: RATE_LIMITS.STRICT.limit, window: RATE_LIMITS.STRICT.window });
-
-export const POST = withRateLimit(async (request: NextRequest) => {
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return apiError("INVALID_JSON", "Body debe ser JSON", 400);
-  }
-  const parsed = postSchema.safeParse(body);
-  if (!parsed.success) {
-    return apiError(
-      "VALIDATION_ERROR",
-      parsed.error.issues[0]?.message ?? "Datos invalidos",
-      400
-    );
-  }
-
-  const result = verifyEmailLinkToken(parsed.data.token);
-  if (!result.ok || !result.payload) {
-    return apiError(
-      "INVALID_TOKEN",
-      "Token invalido o expirado. Solicita un nuevo enlace desde el ultimo email.",
-      400
-    );
-  }
-  if (result.payload.purpose !== "preferences") {
-    return apiError(
-      "WRONG_PURPOSE",
-      "Este enlace no es de preferencias; usa /api/unsubscribe para baja",
-      400
-    );
-  }
-
-  const email = result.payload.email;
-  const prefs = parsed.data.prefs;
-
-  try {
-    await db.insert(emailLogs).values({
-      tenantId: null,
-      academyId: null,
-      userId: null,
-      toEmail: email,
-      subject: "Preferencias de email actualizadas",
-      template: "preferences_update",
-      status: "sent",
-      sentAt: new Date(),
-      metadata: {
-        kind: "preferences",
-        prefs,
-        expiresAt: result.payload.expiresAt,
-        updatedAt: new Date().toISOString(),
+export const GET = withRateLimit(
+  async (request: NextRequest) => {
+    const url = new URL(request.url);
+    const token = url.searchParams.get("token");
+    if (!token) {
+      return apiError("TOKEN_REQUIRED", "Token requerido en query string", 400);
+    }
+    const result = verifyEmailLinkToken(token);
+    if (!result.ok || !result.payload) {
+      return apiError(
+        "INVALID_TOKEN",
+        "Token invalido o expirado. Solicita un nuevo enlace desde el ultimo email.",
+        400
+      );
+    }
+    // v0.2: defaults seguros. v0.3+ deberia leer de una tabla `email_prefs`
+    // por (tenant_id, email) o (profile_id) para recordar la eleccion entre
+    // sesiones; abrir issue separada con Engineering Lead cuando se haga.
+    return apiSuccess({
+      email: result.payload.email,
+      expiresAt: result.payload.expiresAt,
+      current: {
+        transactional: true,
+        marketing: false,
       },
     });
-  } catch (error) {
-    logger.error("preferences audit insert failed", {
-      email,
-      error: error instanceof Error ? error.message : String(error),
-    });
-  }
+  },
+  { limit: RATE_LIMITS.STRICT.limit, window: RATE_LIMITS.STRICT.window }
+);
 
-  return apiSuccess({
-    updated: true,
-    email,
-    prefs,
-    updatedAt: new Date().toISOString(),
-  });
-}, { limit: RATE_LIMITS.STRICT.limit, window: RATE_LIMITS.STRICT.window });
+export const POST = withRateLimit(
+  async (request: NextRequest) => {
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return apiError("INVALID_JSON", "Body debe ser JSON", 400);
+    }
+    const parsed = postSchema.safeParse(body);
+    if (!parsed.success) {
+      return apiError(
+        "VALIDATION_ERROR",
+        parsed.error.issues[0]?.message ?? "Datos invalidos",
+        400
+      );
+    }
+
+    const result = verifyEmailLinkToken(parsed.data.token);
+    if (!result.ok || !result.payload) {
+      return apiError(
+        "INVALID_TOKEN",
+        "Token invalido o expirado. Solicita un nuevo enlace desde el ultimo email.",
+        400
+      );
+    }
+    if (result.payload.purpose !== "preferences") {
+      return apiError(
+        "WRONG_PURPOSE",
+        "Este enlace no es de preferencias; usa /api/unsubscribe para baja",
+        400
+      );
+    }
+
+    const email = result.payload.email;
+    const prefs = parsed.data.prefs;
+    const addressRateLimit = await rateLimit({
+      identifier: getAddressHashRateLimitIdentifier(
+        email,
+        new URL(request.url).pathname
+      ),
+      limit: RATE_LIMITS.STRICT.limit,
+      window: RATE_LIMITS.STRICT.window,
+    });
+    if (!addressRateLimit.success) {
+      return rateLimitExceededResponse(addressRateLimit);
+    }
+
+    try {
+      await db.insert(emailLogs).values({
+        tenantId: null,
+        academyId: null,
+        userId: null,
+        toEmail: email,
+        subject: "Preferencias de email actualizadas",
+        template: "preferences_update",
+        status: "sent",
+        sentAt: new Date(),
+        metadata: {
+          kind: "preferences",
+          prefs,
+          expiresAt: result.payload.expiresAt,
+          updatedAt: new Date().toISOString(),
+        },
+      });
+    } catch (error) {
+      logger.error("preferences audit insert failed", {
+        email,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+
+    return apiSuccess({
+      updated: true,
+      email,
+      prefs,
+      updatedAt: new Date().toISOString(),
+    });
+  },
+  { limit: RATE_LIMITS.STRICT.limit, window: RATE_LIMITS.STRICT.window }
+);
