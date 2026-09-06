@@ -1,7 +1,7 @@
 ---
 status: active
 owner: tech
-last_reviewed: 2026-07-13
+last_reviewed: 2026-09-06
 source:
   - ../docs/DEPLOYMENT.md
   - ../docs/VERCEL-DEPLOYMENT.md
@@ -93,3 +93,14 @@ El gate local de Fase 1 quedó verde el 2026-07-12 con 413 tests y build de 214 
 - Smokes sobre `https://zaltyko.com`: `/pricing` 200; workspace de coach privado 307 a login; GET de asistencia y POST de aviso 401 sin sesión.
 - La verificación funcional autenticada se ejecutó antes de desplegar con una fixture temporal: asistencia, progreso y aviso persistieron; todos los registros de prueba fueron eliminados y la limpieza quedó verificada.
 - Consulta histórica de errores del deployment después de los smokes: sin registros. Persisten solo las advertencias de build ya conocidas de Sentry y `swagger-jsdoc`.
+
+## Promoción Fase 4 — 2026-09-06
+
+- **PR #98 — Promoción a prod de la rama worktree limpia** (`mentessaas/Zaltyko#98`, merge commit `62e3baf8`, target `main`): 30 commits de producto (tier G, RGPD, marketplace, academy-status, vitest config, Fase 1 trial/billing, Fase 2 reconciliación, Fase 3 link assessments ↔ class sessions, nomenclatura federativa, parches de CVEs previos, etc.). Build previa de 214 páginas y gate completo antes del merge.
+- **PR #104 — Backfill vault: Política Antifabricación ZAL-169** (`mentessaas/Zaltyko#104`, merge commit `da21facda`): solo vault/docs. Cierra una tarea pendiente del backlog de auditoría. Commit firmado por la remediación de los eventos `successful_run_missing_state` detectados por el watchdog (ver `vault/06-Roadmap-y-Tareas/Política Antifabricación.md`).
+- **Tag `v0.2.0`** creado y pusheado sobre `62e3baf8` para marcar el hito de Fase 4.
+- **Smoke job post-merge (`da21facda`) reportó rojo** con `browserType.launch: Executable doesn't exist at chromium_headless_shell-1243` — el binario instalado por `pnpm exec playwright install --with-deps chromium` (v1208) no coincide con el que `chromium.launch()` espera (v1243). Diagnóstico: skew entre CLI de Playwright y el `@playwright/test` runtime bajo `tsx` en CI; ningún defecto en el código desplegado. El commit `da21facda` es vault/docs-only y no introduce regresión de runtime.
+- **Remediación aplicada en este runbook (R1 + R2)**:
+  - `smoke-test.ts` ya no tiene la URL hardcoded (`process.env.SMOKE_BASE_URL ?? process.env.BASE_URL ?? 'https://zaltyko.com'`).
+  - Job `smoke-test` de `.github/workflows/ci.yml` ahora delega a `pnpm test:e2e:public:ci` (mismo runner que `e2e-public`), eliminando la versión divergente de Playwright.
+- Próximo smoke esperado: verde en el push siguiente a `fix/audit-2026-09-06-r1-r2`.

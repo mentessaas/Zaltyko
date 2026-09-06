@@ -8,7 +8,10 @@ async function runSmokeTest() {
   const page = await context.newPage();
   
   const errors = [];
-  const appUrl = 'https://zaltyko.vercel.app';
+  // R1 fix 2026-09-06: leer URL de SMOKE_BASE_URL (set en CI), con fallback a
+  // BASE_URL (script @playwright/test) y por ultimo al dominio canonico de prod.
+  // Antes estaba hardcoded al alias *.vercel.app aunque CI ya inyectaba la variable.
+  const appUrl = process.env.SMOKE_BASE_URL ?? process.env.BASE_URL ?? 'https://zaltyko.com';
   
   // Capture console errors
   page.on('console', msg => {

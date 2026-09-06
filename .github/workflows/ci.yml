@@ -159,10 +159,14 @@ jobs:
       - name: Install Playwright browsers
         run: pnpm exec playwright install --with-deps chromium
 
-      - name: Run smoke tests against production
-        run: pnpm exec tsx smoke-test.ts
+      # R1 fix 2026-09-06: delega al runner @playwright/test en lugar de invocar
+      # el script con `tsx`. Asi Playwright CLI y runtime comparten la misma
+      # version (1.58.2), evitando el skew chromium-1208 vs chromium-1243 que
+      # reventaba Playwright al `chromium.launch` en da21facda.
+      - name: Run public smoke tests against production
+        run: pnpm test:e2e:public:ci
         env:
-          SMOKE_BASE_URL: https://zaltyko.com
+          BASE_URL: https://zaltyko.com
 
   e2e-readiness:
     name: E2E Credentials Readiness
