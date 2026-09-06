@@ -40,7 +40,15 @@
     }
   ],
   "env": {
-    "NODE_ENV": "production"
+    "NODE_ENV": "production",
+    "NODE_OPTIONS": "--max-old-space-size=6144",
+    "NEXT_TELEMETRY_DISABLED": "1"
+  },
+  "build": {
+    "env": {
+      "NODE_OPTIONS": "--max-old-space-size=6144",
+      "NEXT_TELEMETRY_DISABLED": "1"
+    }
   },
   "functions": {
     "src/app/api/cron/**/*.ts": {

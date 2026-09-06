@@ -15,15 +15,57 @@ allowBuilds:
   tree-sitter-json: true
   unrs-resolver: true
 
+# Modern pnpm reads overrides from here. The `pnpm.overrides` field in
+# package.json is deprecated and silently ignored — see pnpm WARN at install
+# time. Security CVEs must live here to actually take effect.
 overrides:
-  "@types/react": 18.3.12
-  "@types/react-dom": 18.3.5
+  # React types pinned to match Next 15 / React 18.3 expectations
+  '@types/react': 18.3.12
+  '@types/react-dom': 18.3.5
+
+  # --- Security CVEs (patched versions) ---
+  # brace-expansion: DoS via unbounded expansion (CVE-2026-14257 + bypasses)
+  'brace-expansion@1': ^1.1.17
+  'brace-expansion@2': ^2.1.4
+  'brace-expansion@5': ^5.0.9
+  # fast-uri: host confusion / SSRF (multiple CVEs)
+  fast-uri: ^3.1.6
+  # ip-address: SSRF via leading-zero octets
+  ip-address: ^10.3.1
+  # js-yaml: quadratic CPU consumption in !!omap
+  js-yaml: ^4.2.0
+  # nanoid: custom/non-secure generator infinite loops
+  nanoid: ^4.3.1
+  # browserslist: unbounded memory + prototype write
+  browserslist: ^4.28.7
+  # postcss: path traversal in previous source map + arbitrary file read
+  postcss: 8.5.28
+  'next>postcss': 8.5.28
+  sharp: 0.35.0
+  'next>sharp': 0.35.0
+  # qs / dompurify / flatted / ajv pre-existing pins
+  qs: ^6.14.2
+  dompurify: ^3.4.9
+  flatted: ^3.4.2
+  'eslint>ajv': ^6.14.0
+
+  # --- Pre-existing dependency hygiene pins ---
   ws: ^8.21.0
   path-to-regexp: ^8.4.0
-  protobufjs: ^7.5.6
+  protobufjs: ^7.6.5
   lodash: ^4.18.1
-  immutable: ^3.8.3
+  immutable: ^4.3.9
   form-data: ^4.0.6
+  vite: 6.4.3
+  'picomatch@2': ^2.3.2
+  'picomatch@4': ^4.0.4
+  'minimatch@3': ^3.1.5
+  'minimatch@7': ^7.4.9
+  'minimatch@9': ^9.0.7
+  '@esbuild-kit/core-utils>esbuild': ^0.25.0
+  webpack: ^5.104.1
+  '@babel/core': ^7.29.6
+  '@opentelemetry/core': ^2.9.0
 
 onlyBuiltDependencies:
   - "@scarf/scarf"
