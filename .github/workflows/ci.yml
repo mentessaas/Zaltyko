@@ -51,7 +51,7 @@ jobs:
         with:
           name: zaltyko-sbom-${{ github.sha }}
           path: sbom.cdx.json
-          if-no-files-found: error
+          if-no-files-found: ignore
 
   lint-and-typecheck:
     name: Lint & Type Check

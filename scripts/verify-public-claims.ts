@@ -154,7 +154,7 @@ if (SKIP_STRIPE) {
   // Import dinámico para no cargar Stripe si no hace falta
   const Stripe = (await import("stripe")).default;
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-    apiVersion: "2026-03-25.dahlia",
+    apiVersion: "2026-08-26.dahlia",
     timeout: 10_000,
   });
 
