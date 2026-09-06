@@ -7,7 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/toast-provider";
 import { logger } from "@/lib/logger";
@@ -46,7 +52,11 @@ interface FormErrors {
   city?: string;
   // Errores a nivel de formulario (no atados a un campo concreto):
   // por ejemplo un 403 de permisos.
-  form?: { title: string; description: React.ReactNode; variant: "error" | "warning" };
+  form?: {
+    title: string;
+    description: React.ReactNode;
+    variant: "error" | "warning";
+  };
 }
 
 export function MarketplaceForm({ onSuccess }: MarketplaceFormProps) {
@@ -103,7 +113,12 @@ export function MarketplaceForm({ onSuccess }: MarketplaceFormProps) {
       setErrors(clientErrors);
       // Si solo es falta de contacto, toast para que se note arriba del
       // formulario (el error anclado queda en su sección).
-      if (clientErrors.contact && !clientErrors.category && !clientErrors.title && !clientErrors.city) {
+      if (
+        clientErrors.contact &&
+        !clientErrors.category &&
+        !clientErrors.title &&
+        !clientErrors.city
+      ) {
         toast.pushToast({
           title: "Falta información de contacto",
           description: CONTACT_REQUIRED_MSG,
@@ -125,24 +140,26 @@ export function MarketplaceForm({ onSuccess }: MarketplaceFormProps) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          userId,
-          sellerType,
           type: formData.type,
           category: formData.category,
           title: formData.title,
           description: formData.description,
-          priceCents: formData.price ? Math.round(parseFloat(formData.price) * 100) : null,
+          priceCents: formData.price
+            ? Math.round(parseFloat(formData.price) * 100)
+            : null,
           priceType: formData.priceType,
           contact: {
             whatsapp: formData.contactWhatsapp || undefined,
             email: formData.contactEmail || undefined,
             phone: formData.contactPhone || undefined,
           },
-          location: formData.city ? {
-            country: formData.country,
-            province: formData.province,
-            city: formData.city,
-          } : undefined,
+          location: formData.city
+            ? {
+                country: formData.country,
+                province: formData.province,
+                city: formData.city,
+              }
+            : undefined,
         }),
       });
 
@@ -162,17 +179,27 @@ export function MarketplaceForm({ onSuccess }: MarketplaceFormProps) {
       const body = await safeJson(response);
       const details = body?.details;
       const field =
-        details && typeof details === "object" && "field" in details &&
+        details &&
+        typeof details === "object" &&
+        "field" in details &&
         (details as { field?: unknown }).field;
       if (response.status === 400 && field === "category") {
         const message = "Falta la categoría.";
         setErrors({ category: message });
-        toast.pushToast({ title: "Falta información", description: message, variant: "error" });
+        toast.pushToast({
+          title: "Falta información",
+          description: message,
+          variant: "error",
+        });
         return;
       }
       if (response.status === 400 && field === "contact") {
         setErrors({ contact: CONTACT_REQUIRED_MSG });
-        toast.pushToast({ title: "Falta información", description: CONTACT_REQUIRED_MSG, variant: "error" });
+        toast.pushToast({
+          title: "Falta información",
+          description: CONTACT_REQUIRED_MSG,
+          variant: "error",
+        });
         return;
       }
       const copy = copyForPublishError(response.status, body);
@@ -228,7 +255,10 @@ export function MarketplaceForm({ onSuccess }: MarketplaceFormProps) {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <Label htmlFor="type">Tipo</Label>
-          <Select value={formData.type} onValueChange={(v) => setFormData({ ...formData, type: v })}>
+          <Select
+            value={formData.type}
+            onValueChange={(v) => setFormData({ ...formData, type: v })}
+          >
             <SelectTrigger>
               <SelectValue placeholder="Selecciona tipo" />
             </SelectTrigger>
@@ -245,23 +275,32 @@ export function MarketplaceForm({ onSuccess }: MarketplaceFormProps) {
             value={formData.category}
             onValueChange={(v) => {
               setFormData({ ...formData, category: v });
-              if (errors.category) setErrors((e) => ({ ...e, category: undefined }));
+              if (errors.category)
+                setErrors((e) => ({ ...e, category: undefined }));
             }}
           >
             <SelectTrigger
               aria-invalid={!!errors.category}
-              className={errors.category ? "border-red-500 focus:ring-red-500" : undefined}
+              className={
+                errors.category
+                  ? "border-red-500 focus:ring-red-500"
+                  : undefined
+              }
             >
               <SelectValue placeholder="Selecciona categoría" />
             </SelectTrigger>
             <SelectContent>
               {CATEGORIES.map((cat) => (
-                <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>
+                <SelectItem key={cat.value} value={cat.value}>
+                  {cat.label}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
           {errors.category && (
-            <p className="text-xs text-red-600 mt-1" role="alert">{errors.category}</p>
+            <p className="text-xs text-red-600 mt-1" role="alert">
+              {errors.category}
+            </p>
           )}
         </div>
       </div>
@@ -277,11 +316,17 @@ export function MarketplaceForm({ onSuccess }: MarketplaceFormProps) {
           }}
           placeholder="Ej: Colchonetas de gimnasia profesional"
           aria-invalid={!!errors.title}
-          className={errors.title ? "border-red-500 focus-visible:ring-red-500" : undefined}
+          className={
+            errors.title
+              ? "border-red-500 focus-visible:ring-red-500"
+              : undefined
+          }
           required
         />
         {errors.title && (
-          <p className="text-xs text-red-600 mt-1" role="alert">{errors.title}</p>
+          <p className="text-xs text-red-600 mt-1" role="alert">
+            {errors.title}
+          </p>
         )}
       </div>
 
@@ -290,7 +335,9 @@ export function MarketplaceForm({ onSuccess }: MarketplaceFormProps) {
         <Textarea
           id="description"
           value={formData.description}
-          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+          onChange={(e) =>
+            setFormData({ ...formData, description: e.target.value })
+          }
           placeholder="Describe tu producto o servicio..."
           rows={4}
         />
@@ -304,14 +351,19 @@ export function MarketplaceForm({ onSuccess }: MarketplaceFormProps) {
             type="number"
             step="0.01"
             value={formData.price}
-            onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+            onChange={(e) =>
+              setFormData({ ...formData, price: e.target.value })
+            }
             placeholder="0.00"
           />
         </div>
 
         <div>
           <Label htmlFor="priceType">Tipo de precio</Label>
-          <Select value={formData.priceType} onValueChange={(v) => setFormData({ ...formData, priceType: v })}>
+          <Select
+            value={formData.priceType}
+            onValueChange={(v) => setFormData({ ...formData, priceType: v })}
+          >
             <SelectTrigger>
               <SelectValue placeholder="Selecciona" />
             </SelectTrigger>
@@ -337,7 +389,8 @@ export function MarketplaceForm({ onSuccess }: MarketplaceFormProps) {
                 value={formData.contactWhatsapp}
                 onChange={(e) => {
                   setFormData({ ...formData, contactWhatsapp: e.target.value });
-                  if (errors.contact) setErrors((er) => ({ ...er, contact: undefined }));
+                  if (errors.contact)
+                    setErrors((er) => ({ ...er, contact: undefined }));
                 }}
                 placeholder="+34 600 000 000"
                 aria-invalid={!!errors.contact}
@@ -351,7 +404,8 @@ export function MarketplaceForm({ onSuccess }: MarketplaceFormProps) {
                 value={formData.contactEmail}
                 onChange={(e) => {
                   setFormData({ ...formData, contactEmail: e.target.value });
-                  if (errors.contact) setErrors((er) => ({ ...er, contact: undefined }));
+                  if (errors.contact)
+                    setErrors((er) => ({ ...er, contact: undefined }));
                 }}
                 placeholder="email@ejemplo.com"
                 aria-invalid={!!errors.contact}
@@ -364,7 +418,8 @@ export function MarketplaceForm({ onSuccess }: MarketplaceFormProps) {
                 value={formData.contactPhone}
                 onChange={(e) => {
                   setFormData({ ...formData, contactPhone: e.target.value });
-                  if (errors.contact) setErrors((er) => ({ ...er, contact: undefined }));
+                  if (errors.contact)
+                    setErrors((er) => ({ ...er, contact: undefined }));
                 }}
                 placeholder="+34 600 000 000"
                 aria-invalid={!!errors.contact}
@@ -372,7 +427,9 @@ export function MarketplaceForm({ onSuccess }: MarketplaceFormProps) {
             </div>
           </div>
           {errors.contact && (
-            <p className="text-xs text-red-600" role="alert">{errors.contact}</p>
+            <p className="text-xs text-red-600" role="alert">
+              {errors.contact}
+            </p>
           )}
           <p className="text-xs text-muted-foreground">
             Necesitamos al menos una forma de que te contacten.
@@ -391,7 +448,9 @@ export function MarketplaceForm({ onSuccess }: MarketplaceFormProps) {
               <Input
                 id="country"
                 value={formData.country}
-                onChange={(e) => setFormData({ ...formData, country: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, country: e.target.value })
+                }
               />
             </div>
             <div>
@@ -399,7 +458,9 @@ export function MarketplaceForm({ onSuccess }: MarketplaceFormProps) {
               <Input
                 id="province"
                 value={formData.province}
-                onChange={(e) => setFormData({ ...formData, province: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, province: e.target.value })
+                }
               />
             </div>
             <div>
@@ -409,14 +470,21 @@ export function MarketplaceForm({ onSuccess }: MarketplaceFormProps) {
                 value={formData.city}
                 onChange={(e) => {
                   setFormData({ ...formData, city: e.target.value });
-                  if (errors.city) setErrors((er) => ({ ...er, city: undefined }));
+                  if (errors.city)
+                    setErrors((er) => ({ ...er, city: undefined }));
                 }}
                 aria-invalid={!!errors.city}
-                className={errors.city ? "border-red-500 focus-visible:ring-red-500" : undefined}
+                className={
+                  errors.city
+                    ? "border-red-500 focus-visible:ring-red-500"
+                    : undefined
+                }
                 required
               />
               {errors.city && (
-                <p className="text-xs text-red-600 mt-1" role="alert">{errors.city}</p>
+                <p className="text-xs text-red-600 mt-1" role="alert">
+                  {errors.city}
+                </p>
               )}
             </div>
           </div>
@@ -430,7 +498,9 @@ export function MarketplaceForm({ onSuccess }: MarketplaceFormProps) {
   );
 }
 
-async function safeJson(res: Response): Promise<Record<string, unknown> | null> {
+async function safeJson(
+  res: Response
+): Promise<Record<string, unknown> | null> {
   try {
     return (await res.json()) as Record<string, unknown>;
   } catch {
@@ -444,7 +514,10 @@ function copyForPublishError(
   status: number,
   body: Record<string, unknown> | null
 ): NonNullable<FormErrors["form"]> {
-  const code = typeof body?.error === "string" ? body.error : (body?.code as string | undefined);
+  const code =
+    typeof body?.error === "string"
+      ? body.error
+      : (body?.code as string | undefined);
 
   if (status === 401) {
     return {
@@ -452,7 +525,9 @@ function copyForPublishError(
       description: (
         <span>
           Inicia sesión de nuevo y vuelve a intentarlo.{" "}
-          <Link href="/login" className="underline">Ir al login</Link>
+          <Link href="/login" className="underline">
+            Ir al login
+          </Link>
         </span>
       ),
       variant: "warning",
@@ -469,7 +544,9 @@ function copyForPublishError(
       description: (
         <span>
           Escríbenos y lo activamos.{" "}
-          <Link href="/contact?type=support" className="underline">Abrir formulario de contacto</Link>
+          <Link href="/contact?type=support" className="underline">
+            Abrir formulario de contacto
+          </Link>
         </span>
       ),
       variant: "warning",
@@ -486,7 +563,8 @@ function copyForPublishError(
 
   return {
     title: "No pudimos publicar tu anuncio",
-    description: "No pudimos publicar tu anuncio. Vuelve a intentarlo en unos segundos.",
+    description:
+      "No pudimos publicar tu anuncio. Vuelve a intentarlo en unos segundos.",
     variant: "error",
   };
 }

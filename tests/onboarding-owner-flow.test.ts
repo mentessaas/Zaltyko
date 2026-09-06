@@ -26,10 +26,16 @@ describe("ZAL-137 — contrato del flujo owner", () => {
     const ownerRoute = read("src/app/api/onboarding/owner/route.ts");
 
     expect(form).toContain("Plantilla inicial de clases (opcional)");
-    expect(form).toContain("podrás retomar tu primera clase desde el dashboard");
+    expect(form).toContain(
+      "podrás retomar tu primera clase desde el dashboard"
+    );
     expect(form).toContain("owner-onboarding-classes-skipped");
-    expect(ownerRoute).toContain("if (selectedStarterGroups.length === 0) continue;");
-    expect(ownerRoute).toContain("redirectUrl: `/app/${setup.result.id}/dashboard`");
+    expect(ownerRoute).toContain(
+      "if (selectedStarterGroups.length === 0) continue;"
+    );
+    expect(ownerRoute).toContain(
+      "redirectUrl: `/app/${setup.result.id}/dashboard`"
+    );
   });
 
   it("conserva el siguiente paso en el workspace moderno y el CTA de invite", () => {
@@ -41,8 +47,14 @@ describe("ZAL-137 — contrato del flujo owner", () => {
     expect(dashboard).toContain("DashboardOnboardingPanel");
     expect(dashboard).toContain("/groups");
     expect(dashboard).toContain("/coaches");
-    expect(existsSync(join(root, "src/app/app/[academyId]/groups/page.tsx"))).toBe(true);
-    expect(existsSync(join(root, "src/app/app/[academyId]/classes/page.tsx"))).toBe(true);
-    expect(existsSync(join(root, "src/app/app/[academyId]/coaches/page.tsx"))).toBe(true);
+    expect(
+      existsSync(join(root, "src/app/app/[academyId]/groups/page.tsx"))
+    ).toBe(true);
+    expect(
+      existsSync(join(root, "src/app/app/[academyId]/classes/page.tsx"))
+    ).toBe(true);
+    expect(
+      existsSync(join(root, "src/app/app/[academyId]/coaches/page.tsx"))
+    ).toBe(true);
   });
 });
