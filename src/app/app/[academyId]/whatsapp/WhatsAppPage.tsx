@@ -4,21 +4,20 @@ import { useEffect, useMemo, useState } from "react";
 import { MessageCircle, Send, History, Settings } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
-<<<<<<< HEAD
 import { WhatsAppSettingsPanel } from "@/components/whatsapp/WhatsAppSettings";
-=======
-import { WhatsAppSettingsPanel, DEFAULT_SETTINGS } from "@/components/whatsapp/WhatsAppSettings";
->>>>>>> origin/main
-import { WhatsAppMessagePanel, type WhatsAppTemplate } from "@/components/whatsapp/WhatsAppMessagePanel";
-import { WhatsAppHistory, type MessageStatus, type WhatsAppMessage } from "@/components/whatsapp/WhatsAppHistory";
+import {
+  WhatsAppMessagePanel,
+  type WhatsAppTemplate,
+} from "@/components/whatsapp/WhatsAppMessagePanel";
+import {
+  WhatsAppHistory,
+  type MessageStatus,
+  type WhatsAppMessage,
+} from "@/components/whatsapp/WhatsAppHistory";
 import { getTerminologyForSportConfig } from "@/lib/sport-config/terminology";
 
 interface WhatsAppConfig {
   phone: string;
-<<<<<<< HEAD
-=======
-  apiKey: string;
->>>>>>> origin/main
   isConfigured: boolean;
 }
 
@@ -36,7 +35,12 @@ interface WhatsAppPageProps {
   classes: Array<{ id: string; name: string; sportConfigId: string | null }>;
   groups: Array<{ id: string; name: string; sportConfigId: string | null }>;
   recipients: Recipient[];
-  sportConfigs: Array<{ id: string; branchName: string; disciplineName: string; terminology?: Record<string, string> }>;
+  sportConfigs: Array<{
+    id: string;
+    branchName: string;
+    disciplineName: string;
+    terminology?: Record<string, string>;
+  }>;
   templates: WhatsAppTemplate[];
 }
 
@@ -57,7 +61,13 @@ export function WhatsAppPage({
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
 
   const sportConfigNameById = useMemo(
-    () => new Map(sportConfigs.map((config) => [config.id, `${config.branchName} · ${config.disciplineName}`])),
+    () =>
+      new Map(
+        sportConfigs.map((config) => [
+          config.id,
+          `${config.branchName} · ${config.disciplineName}`,
+        ])
+      ),
     [sportConfigs]
   );
   const terms = getTerminologyForSportConfig(sportConfigs, historySportConfig);
@@ -92,11 +102,7 @@ export function WhatsAppPage({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         phone: config.phone,
-<<<<<<< HEAD
         academyId,
-=======
-        apiKey: config.apiKey,
->>>>>>> origin/main
       }),
     });
 
@@ -109,10 +115,6 @@ export function WhatsAppPage({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         whatsappPhone: config.phone,
-<<<<<<< HEAD
-=======
-        whatsappApiKey: config.apiKey,
->>>>>>> origin/main
       }),
     });
 
@@ -134,9 +136,12 @@ export function WhatsAppPage({
           params.set("sportConfigId", historySportConfig);
         }
 
-        const response = await fetch(`/api/communication/history?${params.toString()}`, {
-          headers: { "x-academy-id": academyId },
-        });
+        const response = await fetch(
+          `/api/communication/history?${params.toString()}`,
+          {
+            headers: { "x-academy-id": academyId },
+          }
+        );
         if (!response.ok) {
           setHistoryMessages([]);
           return;
@@ -144,25 +149,34 @@ export function WhatsAppPage({
 
         const payload = await response.json();
         const items = payload.data?.items ?? [];
-        setHistoryMessages(items.map((item: {
-          id: string;
-          body: string;
-          status: MessageStatus;
-          sportConfigId: string | null;
-          createdAt: string;
-          sentAt: string | null;
-          failedAt: string | null;
-          meta: { errorMessage?: string } | null;
-        }) => ({
-          id: item.id,
-          content: item.body,
-          recipientCount: 1,
-          status: item.status,
-          sportConfigName: item.sportConfigId ? sportConfigNameById.get(item.sportConfigId) ?? "Rama configurada" : null,
-          createdAt: item.createdAt,
-          sentAt: item.sentAt ?? undefined,
-          failureReason: item.meta?.errorMessage ?? (item.failedAt ? "Error de envío" : undefined),
-        })));
+        setHistoryMessages(
+          items.map(
+            (item: {
+              id: string;
+              body: string;
+              status: MessageStatus;
+              sportConfigId: string | null;
+              createdAt: string;
+              sentAt: string | null;
+              failedAt: string | null;
+              meta: { errorMessage?: string } | null;
+            }) => ({
+              id: item.id,
+              content: item.body,
+              recipientCount: 1,
+              status: item.status,
+              sportConfigName: item.sportConfigId
+                ? (sportConfigNameById.get(item.sportConfigId) ??
+                  "Rama configurada")
+                : null,
+              createdAt: item.createdAt,
+              sentAt: item.sentAt ?? undefined,
+              failureReason:
+                item.meta?.errorMessage ??
+                (item.failedAt ? "Error de envío" : undefined),
+            })
+          )
+        );
       } finally {
         setIsHistoryLoading(false);
       }
@@ -188,7 +202,8 @@ export function WhatsAppPage({
         <div>
           <h1 className="text-2xl font-bold">WhatsApp Business</h1>
           <p className="text-muted-foreground">
-            Envía mensajes a {terms.athletes.toLowerCase()} y {terms.parent.toLowerCase()}s de {academyName}
+            Envía mensajes a {terms.athletes.toLowerCase()} y{" "}
+            {terms.parent.toLowerCase()}s de {academyName}
           </p>
         </div>
       </div>
@@ -196,7 +211,8 @@ export function WhatsAppPage({
       {!config.isConfigured && (
         <div className="rounded-card border border-zaltyko-coral/30 bg-zaltyko-coral/10 p-4">
           <p className="text-sm font-medium text-zaltyko-navy">
-            WhatsApp no está configurado. Configura tu cuenta en la pestaña &quot;Configuración&quot; para poder enviar mensajes.
+            WhatsApp no está configurado. Configura tu cuenta en la pestaña
+            &quot;Configuración&quot; para poder enviar mensajes.
           </p>
         </div>
       )}
@@ -241,9 +257,13 @@ export function WhatsAppPage({
                   >
                     <div className="flex items-center justify-between mb-2">
                       <span className="font-medium">{template.name}</span>
-                      <span className="text-xs text-muted-foreground capitalize">{template.category}</span>
+                      <span className="text-xs text-muted-foreground capitalize">
+                        {template.category}
+                      </span>
                     </div>
-                    <p className="text-sm text-muted-foreground line-clamp-2">{template.content}</p>
+                    <p className="text-sm text-muted-foreground line-clamp-2">
+                      {template.content}
+                    </p>
                   </div>
                 ))}
               </div>
@@ -257,7 +277,9 @@ export function WhatsAppPage({
               <div className="max-w-sm">
                 <select
                   value={historySportConfig}
-                  onChange={(event) => setHistorySportConfig(event.target.value)}
+                  onChange={(event) =>
+                    setHistorySportConfig(event.target.value)
+                  }
                   className="h-10 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
                 >
                   <option value="">Todas las ramas</option>
@@ -269,7 +291,10 @@ export function WhatsAppPage({
                 </select>
               </div>
             )}
-            <WhatsAppHistory messages={historyMessages} isLoading={isHistoryLoading} />
+            <WhatsAppHistory
+              messages={historyMessages}
+              isLoading={isHistoryLoading}
+            />
           </div>
         </TabsContent>
 
@@ -278,20 +303,12 @@ export function WhatsAppPage({
             <WhatsAppSettingsPanel
               settings={{
                 phoneNumber: config.phone,
-<<<<<<< HEAD
-=======
-                apiKey: config.apiKey,
->>>>>>> origin/main
                 notificationsEnabled: true,
               }}
               onChange={(newSettings) => {
                 setConfig({
                   ...config,
                   phone: newSettings.phoneNumber,
-<<<<<<< HEAD
-=======
-                  apiKey: newSettings.apiKey,
->>>>>>> origin/main
                 });
               }}
               onVerify={handleVerifyConnection}

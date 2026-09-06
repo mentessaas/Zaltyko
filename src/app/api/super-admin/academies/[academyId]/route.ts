@@ -7,6 +7,7 @@ import { academies, subscriptions, plans, profiles } from "@/db/schema";
 import { withSuperAdmin } from "@/lib/authz";
 import { logAdminAction } from "@/lib/admin-logs";
 import { getSuperAdminAcademyDetail } from "@/lib/super-admin";
+import { revalidatePublicAcademySeo } from "@/lib/seo/revalidate-academy";
 
 export const dynamic = "force-dynamic";
 
@@ -90,6 +91,8 @@ export const PATCH = withSuperAdmin(async (request, context) => {
   if (!updated) {
     return apiError("ACADEMY_NOT_FOUND", "Academy not found", 404);
   }
+
+  revalidatePublicAcademySeo(academyId);
 
   if (planUpdate) {
     if (!updated.ownerId) {

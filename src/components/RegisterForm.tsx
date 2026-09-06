@@ -12,6 +12,31 @@ import { useToast } from "@/components/ui/toast-provider";
 import { AuthPageShell } from "@/components/auth/AuthPageShell";
 import { isValidEmail, normalizeEmail } from "@/lib/validation/email-utils";
 import { checkPwnedPassword, PWNED_PASSWORD_MESSAGE } from "@/lib/security/pwned-password";
+import { trackEvent } from "@/lib/analytics";
+import { trackGoogleAdsConversion } from "@/lib/google-ads";
+import {
+  readUtmWithFallback,
+} from "@/lib/growth/utm";
+
+// Lee UTMs del first-touch capturado por `UtmCapture` (sessionStorage)
+// o de la query string actual. Wrapper sobre `readUtmWithFallback` para
+// tipar más estrecho y evitar repetir la plumbing. Devuelve SIEMPRE los 5
+// campos (con fallback `direct/none/...`) para mantener trazabilidad.
+function readAttribution(): {
+  utm_source: string;
+  utm_medium: string;
+  utm_campaign: string;
+  utm_content: string;
+  utm_term: string;
+} {
+  if (typeof window === "undefined") {
+    return readUtmWithFallback(new URLSearchParams(), undefined);
+  }
+  return readUtmWithFallback(
+    new URLSearchParams(window.location.search),
+    window.sessionStorage,
+  );
+}
 
 const ROLE_OPTIONS = [
   {
@@ -56,6 +81,19 @@ export function RegisterForm() {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Micro-conversion: cta_click. Se emite ANTES de las validaciones para
+    // que Google Ads pueda optimizar por clics en el CTA real, no por
+    // submits completados que terminan en error de validación.
+    void trackEvent("cta_click", {
+      metadata: {
+        cta_id: "register_submit",
+        cta_position: "register_form",
+        ...readAttribution(),
+      },
+    });
+    // Google Ads también recibe cta_click para optimización temprana.
+    trackGoogleAdsConversion("cta_click_register");
 
     if (!fullName.trim()) {
       toast.pushToast({
@@ -150,6 +188,28 @@ export function RegisterForm() {
       });
 
       if (data.session) {
+        // Instrumentación paid-acquisition: emite signup_completed solo
+        // cuando hay sesión (signup funcional, no email-pendiente). La
+        // atribución UTMs viaja en metadata para que PostHog/Google Ads
+        // puedan reconciliar origen paid.
+        const attribution = readAttribution();
+        await trackEvent("signup_completed", {
+          userId: data.session.user.id,
+          metadata: {
+            role,
+            signup_method: "email_password",
+            // `direct` es el fallback cuando no hay UTMs (ver UTM_DIRECT_FALLBACK);
+            // distinguir paid vs organic/direct ayuda a segmentar PostHog.
+            has_utm_source: attribution.utm_source !== "direct",
+            ...attribution,
+          },
+        });
+
+        // Google Ads conversion — el label real lo configura Elvis en la
+        // cuenta de Google Ads (Tools → Conversions) y se mapea aquí cuando
+        // esté listo. Sin label, gtag ignora el evento silenciosamente.
+        trackGoogleAdsConversion("signup_completed");
+
         await fetch("/api/onboarding/profile", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -157,6 +217,14 @@ export function RegisterForm() {
         });
         router.push("/auth/redirect");
       } else {
+        await trackEvent("signup_completed", {
+          metadata: {
+            role,
+            signup_method: "email_password",
+            email_confirmation_pending: true,
+            ...readAttribution(),
+          },
+        });
         router.push("/auth/login?registered=1");
       }
     } finally {
@@ -223,11 +291,7 @@ export function RegisterForm() {
                 onClick={() => setRole(option.value)}
                 className={`rounded-xl border px-4 py-3 text-left transition ${
                   role === option.value
-<<<<<<< HEAD
                     ? "border-zaltyko-teal bg-zaltyko-teal/10 text-foreground"
-=======
-                    ? "border-zaltyko-teal bg-zaltyko-teal/10 text-zaltyko-navy"
->>>>>>> origin/main
                     : "border-border bg-background text-muted-foreground hover:border-zaltyko-teal/50"
                 }`}
               >

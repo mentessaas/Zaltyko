@@ -1,5 +1,4 @@
 // Home adaptado por rol. Cada rol ve un contenido distinto:
-<<<<<<< HEAD
 //   - parent: my-dashboard bundle (próx. clases, avisos no leídos,
 //     cargos pendientes) + lista real de hijos (Fase 5, ZAL-622)
 //   - coach: sesiones de hoy, CTA para tomar asistencia
@@ -7,14 +6,6 @@
 //   - owner/admin: bundle de atención compartido Web/Mobile (Fase 2, ZAL-622)
 
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
-=======
-//   - parent: lista real de hijos + eventos próximos
-//   - coach: sesiones de hoy, CTA para tomar asistencia
-//   - athlete: shell
-//   - owner/admin: shell — dashboard real en Fase 2
-
-import { StyleSheet, Text, View } from 'react-native';
->>>>>>> origin/main
 import { useRouter } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
@@ -35,7 +26,6 @@ import {
   getUpcomingEvents,
   getSessions,
   getMyProgress,
-<<<<<<< HEAD
   getMySchedule,
 } from '@/lib/api/endpoints';
 import {
@@ -50,11 +40,6 @@ import {
   type FamilyDashboardBundle,
   type ScheduleItem,
 } from '@/lib/api/family-dashboard';
-=======
-  getMyKpis,
-  getMySchedule,
-} from '@/lib/api/endpoints';
->>>>>>> origin/main
 import { nextClassFromSchedule } from '@/lib/schedule/next-class';
 import { colors, spacing, typography } from '@/lib/theme';
 
@@ -71,11 +56,8 @@ export default function HomeScreen() {
     if (profile.role === 'parent') {
       tasks.push(queryClient.invalidateQueries({ queryKey: ['family', 'children'] }));
       tasks.push(queryClient.invalidateQueries({ queryKey: ['events', 'upcoming'] }));
-<<<<<<< HEAD
       // Fase 5 (AC-08): my-dashboard de la familia.
       tasks.push(queryClient.invalidateQueries({ queryKey: ['family', 'dashboard'] }));
-=======
->>>>>>> origin/main
     }
     if (profile.role === 'coach') {
       tasks.push(queryClient.invalidateQueries({ queryKey: ['class-sessions'] }));
@@ -85,11 +67,7 @@ export default function HomeScreen() {
       tasks.push(queryClient.invalidateQueries({ queryKey: ['me', 'schedule'] }));
     }
     if (profile.role === 'owner' || profile.role === 'admin' || profile.role === 'super_admin') {
-<<<<<<< HEAD
       tasks.push(queryClient.invalidateQueries({ queryKey: ['dashboard', 'attention'] }));
-=======
-      tasks.push(queryClient.invalidateQueries({ queryKey: ['kpis'] }));
->>>>>>> origin/main
     }
     await Promise.all(tasks);
   };
@@ -113,11 +91,7 @@ export default function HomeScreen() {
       {(profile.role === 'owner' ||
         profile.role === 'admin' ||
         profile.role === 'super_admin') ? (
-<<<<<<< HEAD
         <AdminHome academyId={profile.academyId} />
-=======
-        <AdminHome />
->>>>>>> origin/main
       ) : null}
 
       <Card title="Atajos" style={styles.card}>
@@ -150,7 +124,6 @@ function ParentHome() {
     queryFn: () => getUpcomingEvents(),
     staleTime: 5 * 60 * 1000,
   });
-<<<<<<< HEAD
   // Fase 5 (AC-08): my-dashboard de la familia. Compone próximas
   // clases, avisos no leídos y cargos pendientes en paralelo. Una
   // fuente caída NO oculta las otras dos (aislamiento de fallos en
@@ -162,8 +135,6 @@ function ParentHome() {
     queryFn: getFamilyDashboard,
     staleTime: 60 * 1000,
   });
-=======
->>>>>>> origin/main
 
   return (
     <>
@@ -203,7 +174,6 @@ function ParentHome() {
         )}
       </Card>
 
-<<<<<<< HEAD
       <NextClassesCard block={familyDashboardQuery.data?.nextClasses} loading={familyDashboardQuery.isLoading} />
 
       <UnreadCard block={familyDashboardQuery.data?.unread} loading={familyDashboardQuery.isLoading} />
@@ -213,8 +183,6 @@ function ParentHome() {
         loading={familyDashboardQuery.isLoading}
       />
 
-=======
->>>>>>> origin/main
       <Card title="Próximos eventos" subtitle="De tu academia">
         {eventsQuery.isLoading ? (
           <SkeletonGroup count={2} />
@@ -243,7 +211,6 @@ function ParentHome() {
   );
 }
 
-<<<<<<< HEAD
 function NextClassesCard({
   block,
   loading,
@@ -295,13 +262,15 @@ function PressableScheduleRow({
   onPress: () => void;
 }) {
   // Pressable envuelve la fila completa para que el touch target
-  // supere 44pt (Fase 9 transversal).
+  // supere 44pt (Fase 9 transversal). Pressed state con surfacePressed
+  // (slate-200 #E2E8F0) para diferenciación visual sin colisionar con
+  // disabled (overlay #F1F5F9).
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={`${cls.className}, ${cls.day} ${cls.time}`}
-      style={styles.scheduleRow}
+      style={({ pressed }) => [styles.scheduleRow, pressed && styles.scheduleRowPressed]}
     >
       <Text style={styles.scheduleClass}>{cls.className}</Text>
       <Text style={styles.scheduleWhen}>{cls.day} · {cls.time}</Text>
@@ -397,8 +366,6 @@ function PendingChargesCard({
   );
 }
 
-=======
->>>>>>> origin/main
 function CoachHome() {
   const router = useRouter();
 
@@ -501,7 +468,6 @@ function AthleteHome() {
   );
 }
 
-<<<<<<< HEAD
 function AdminHome({ academyId }: { academyId: string | null }) {
   // El contrato ZAL-619 §6.2 + ZAL-635 fija el shape compartido Web/Mobile
   // para el bundle "attention". Reemplaza al antiguo getMyKpis() (números
@@ -698,38 +664,12 @@ function TodaySessionsCard({ today }: { today: TodaySession[] }) {
               </Text>
             </View>
           ))}
-=======
-function AdminHome() {
-  const kpisQuery = useQuery({
-    queryKey: ['kpis'],
-    queryFn: getMyKpis,
-    staleTime: 60 * 1000,
-  });
-
-  const kpis = kpisQuery.data;
-
-  return (
-    <Card title="Resumen" subtitle="De un vistazo — reportes completos en la web">
-      {kpisQuery.isLoading ? (
-        <SkeletonGroup count={2} />
-      ) : kpisQuery.error ? (
-        <EmptyState icon="alert-circle-outline" title="No se pudieron cargar los KPIs" tone="light" />
-      ) : (
-        <View style={styles.kpiGrid}>
-          <KpiTile label="Atletas" value={kpis?.athletes ?? 0} />
-          <KpiTile label="Entrenadores" value={kpis?.coaches ?? 0} />
-          <KpiTile label="Grupos" value={kpis?.groups ?? 0} />
-          <KpiTile label="Clases esta semana" value={kpis?.classesThisWeek ?? 0} />
-          <KpiTile label="Evaluaciones" value={kpis?.assessments ?? 0} />
-          <KpiTile label="Asistencia (7 días)" value={`${kpis?.attendancePercent ?? 0}%`} />
->>>>>>> origin/main
         </View>
       )}
     </Card>
   );
 }
 
-<<<<<<< HEAD
 function BlockTile({
   title,
   display,
@@ -836,17 +776,6 @@ function formatTime(iso: string): string {
   return `${hh}:${mm}`;
 }
 
-=======
-function KpiTile({ label, value }: { label: string; value: number | string }) {
-  return (
-    <View style={styles.kpiTile}>
-      <Text style={styles.kpiValue}>{value}</Text>
-      <Text style={styles.kpiLabel}>{label}</Text>
-    </View>
-  );
-}
-
->>>>>>> origin/main
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: colors.bg },
   content: {
@@ -861,17 +790,16 @@ const styles = StyleSheet.create({
   },
   academy: {
     ...typography.caption,
-    color: '#94A3B8',
+    color: colors.onDarkMuted,
   },
   card: { gap: spacing.md },
-<<<<<<< HEAD
   priorityBanner: {
-    backgroundColor: '#FEF3C7',
-    borderColor: '#F59E0B',
+    backgroundColor: colors.warningSoft,
+    borderColor: colors.warning,
   },
   priorityLabel: {
     ...typography.body,
-    color: '#92400E',
+    color: colors.warningText,
     fontWeight: '600',
   },
   importState: {
@@ -923,6 +851,14 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.xs,
     minHeight: 44, // touch target mínimo (a11y, Fase 9)
+    borderRadius: 10,
+    backgroundColor: colors.surfaceMuted,
+    borderWidth: 1,
+    borderColor: colors.surfaceMuted, // border primario aparece en pressed
+  },
+  scheduleRowPressed: {
+    backgroundColor: colors.surfacePressed,
+    borderColor: colors.primary, // 6.29:1 sobre surface — WCAG 1.4.11 PASS
   },
   scheduleClass: {
     ...typography.body,
@@ -938,10 +874,4 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     marginTop: spacing.xs,
   },
-=======
-  kpiGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
-  kpiTile: { width: '30%', gap: 2 },
-  kpiValue: { ...typography.title, color: colors.text, fontWeight: '700' },
-  kpiLabel: { ...typography.caption, color: colors.textMuted },
->>>>>>> origin/main
 });

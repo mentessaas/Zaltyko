@@ -139,5 +139,5 @@ const styles = StyleSheet.create({
   content: { padding: spacing.lg, gap: spacing.lg, paddingBottom: spacing.xxxl },
   header: { gap: spacing.xs },
   name: { ...typography.display, color: colors.textInverse },
-  academy: { ...typography.body, color: '#94A3B8' },
+  academy: { ...typography.body, color: colors.onDarkMuted },
 });

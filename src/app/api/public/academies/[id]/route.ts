@@ -1,4 +1,4 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
@@ -6,6 +6,7 @@ import { db } from "@/db";
 import { academies, classes, classWeekdays } from "@/db/schema";
 import { handleApiError } from "@/lib/api-error-handler";
 import { logger } from "@/lib/logger";
+import { INDEXABLE_ACADEMY_STATUS_VALUES } from "@/lib/seo/academy-indexability";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -62,7 +63,7 @@ export async function GET(request: Request, context: RouteContext) {
             eq(academies.id, id),
             eq(academies.isPublic, true),
             eq(academies.isSuspended, false),
-            sql`${academies.status} NOT IN ('churned', 'fraud_hold')`
+            inArray(academies.status, INDEXABLE_ACADEMY_STATUS_VALUES)
           )
         )
         .limit(1);
@@ -115,7 +116,7 @@ export async function GET(request: Request, context: RouteContext) {
           .eq("id", id)
           .eq("is_public", true)
           .eq("is_suspended", false)
-          .not("status", "in", "(churned,fraud_hold)")
+          .in("status", INDEXABLE_ACADEMY_STATUS_VALUES)
           .single();
         
         if (!supabaseError && academyData) {

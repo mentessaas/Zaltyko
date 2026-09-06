@@ -208,21 +208,12 @@ export const EventForm = memo(function EventForm({
           }
         }}
       >
-<<<<<<< HEAD
         <DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto border-border bg-zaltyko-warm-white">
           <DialogHeader>
             <DialogTitle className="font-display text-foreground">
               {effectiveEventId ? "Editar evento" : "Crear nuevo evento"}
             </DialogTitle>
             <DialogDescription className="text-muted-foreground">
-=======
-        <DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto border-zaltyko-mist bg-zaltyko-warm-white">
-          <DialogHeader>
-            <DialogTitle className="font-display text-zaltyko-navy">
-              {effectiveEventId ? "Editar evento" : "Crear nuevo evento"}
-            </DialogTitle>
-            <DialogDescription className="text-zaltyko-text-secondary">
->>>>>>> origin/main
               {effectiveEventId ? "Modifica los detalles del evento existente" : "Crea un nuevo evento para tu academia"}
             </DialogDescription>
           </DialogHeader>

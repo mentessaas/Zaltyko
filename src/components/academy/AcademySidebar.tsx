@@ -37,15 +37,10 @@ export function AcademySidebar() {
 
   const handleSearch = (event: React.FormEvent) => {
     event.preventDefault();
-<<<<<<< HEAD
     // La ruta /search no existe; el buscador lleva al listado de gimnastas,
     // que ya filtra por ?q= en servidor.
     if (searchQuery.trim()) {
       router.push(`${basePath}/athletes?q=${encodeURIComponent(searchQuery.trim())}`);
-=======
-    if (searchQuery.trim()) {
-      router.push(`${basePath}/search?q=${encodeURIComponent(searchQuery.trim())}`);
->>>>>>> origin/main
     }
   };
 
@@ -70,11 +65,7 @@ export function AcademySidebar() {
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/70" />
           <input
             type="search"
-<<<<<<< HEAD
             placeholder="Buscar gimnastas…"
-=======
-            placeholder="Buscar en la academia..."
->>>>>>> origin/main
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
             className="w-full rounded-card border border-white/10 bg-white/[0.06] py-2.5 pl-9 pr-3 text-sm text-white placeholder:text-white/70 focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15"
@@ -122,11 +113,7 @@ export function AcademySidebar() {
           if (sectionItems.length === 0) return null;
           return (
             <div key={section.label}>
-<<<<<<< HEAD
               <p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-white/60">{section.label}</p>
-=======
-              <p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-white/45">{section.label}</p>
->>>>>>> origin/main
               <ul className="space-y-1">
                 {sectionItems.map((item) => {
             const Icon = item.icon;

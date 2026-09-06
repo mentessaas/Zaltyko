@@ -1,6 +1,5 @@
 // Burbuja de mensaje individual. Alineada a la derecha (propia, en
 // color primario) o a la izquierda (ajena, superficie neutra).
-<<<<<<< HEAD
 //
 // Estado de entrega (ZAL-622 AC-04): sólo visible para mensajes propios.
 // Mientras el cliente HTTP está enviando la mutación, marcamos `pending`;
@@ -13,16 +12,10 @@
 import { memo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-=======
-
-import { memo } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
->>>>>>> origin/main
 
 import { colors, radii, spacing, typography } from '@/lib/theme';
 import type { ConversationMessage } from '@/lib/api/endpoints';
 
-<<<<<<< HEAD
 export type DeliveryStatus = 'pending' | 'sent' | 'failed';
 
 interface Props {
@@ -37,11 +30,6 @@ interface Props {
   deliveryStatus?: DeliveryStatus;
   /** Reintentar el envío del mensaje. Obligatorio si `deliveryStatus === 'failed'`. */
   onRetry?: () => void;
-=======
-interface Props {
-  item: ConversationMessage;
-  isOwn: boolean;
->>>>>>> origin/main
 }
 
 function formatTime(iso: string): string {
@@ -50,7 +38,6 @@ function formatTime(iso: string): string {
   return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
 }
 
-<<<<<<< HEAD
 interface StatusMeta {
   iconName: keyof typeof Ionicons.glyphMap;
   label: string;
@@ -61,12 +48,12 @@ const STATUS_META: Record<DeliveryStatus, StatusMeta> = {
   pending: {
     iconName: 'time-outline',
     label: 'Enviando…',
-    color: '#94A3B8',
+    color: colors.onDarkMuted,
   },
   sent: {
     iconName: 'checkmark',
     label: 'Enviado',
-    color: '#94A3B8',
+    color: colors.onDarkMuted,
   },
   failed: {
     iconName: 'alert-circle',
@@ -121,9 +108,6 @@ function MessageBubbleImpl({ item, isOwn, deliveryStatus, onRetry }: Props) {
   // Estado efectivo: mensajes ajenos SIEMPRE se ven confirmados (el
   // destinatario no tiene que conocer el estado interno del emisor).
   const effectiveStatus: DeliveryStatus = isOwn ? (deliveryStatus ?? 'sent') : 'sent';
-=======
-function MessageBubbleImpl({ item, isOwn }: Props) {
->>>>>>> origin/main
   return (
     <View style={[styles.wrap, isOwn ? styles.wrapOwn : styles.wrapOther]}>
       <View style={[styles.bubble, isOwn ? styles.bubbleOwn : styles.bubbleOther]}>
@@ -131,16 +115,12 @@ function MessageBubbleImpl({ item, isOwn }: Props) {
           {item.content}
         </Text>
       </View>
-<<<<<<< HEAD
       <View style={[styles.metaRow, isOwn ? styles.metaRowOwn : styles.metaRowOther]}>
         <Text style={styles.time}>{formatTime(item.createdAt)}</Text>
         {isOwn ? (
           <DeliveryIndicator status={effectiveStatus} onRetry={onRetry} />
         ) : null}
       </View>
-=======
-      <Text style={styles.time}>{formatTime(item.createdAt)}</Text>
->>>>>>> origin/main
     </View>
   );
 }
@@ -166,7 +146,6 @@ const styles = StyleSheet.create({
   text: { ...typography.body },
   textOwn: { color: colors.primaryFg },
   textOther: { color: colors.text },
-<<<<<<< HEAD
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -174,10 +153,7 @@ const styles = StyleSheet.create({
   },
   metaRowOwn: { alignSelf: 'flex-end' },
   metaRowOther: { alignSelf: 'flex-start' },
-  time: { ...typography.caption, color: '#94A3B8', fontSize: 11 },
+  time: { ...typography.caption, color: colors.onDarkMuted, fontSize: 11 },
   statusRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   statusLabel: { ...typography.caption, fontSize: 11 },
-=======
-  time: { ...typography.caption, color: '#94A3B8', fontSize: 11 },
->>>>>>> origin/main
 });

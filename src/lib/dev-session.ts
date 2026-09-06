@@ -1,13 +1,9 @@
-<<<<<<< HEAD
 import { createHmac, timingSafeEqual } from "crypto";
 
-=======
->>>>>>> origin/main
 import { isDevSessionEnabled } from "@/lib/dev";
 
 export const DEV_SESSION_COOKIE = "zaltyko_dev_session";
 
-<<<<<<< HEAD
 function getDevSessionSecret(): string | null {
   return process.env.INTERNAL_AUTH_SECRET || process.env.DEV_SESSION_SECRET || null;
 }
@@ -16,8 +12,6 @@ function signPayload(b64: string, secret: string): string {
   return createHmac("sha256", secret).update(b64).digest("hex");
 }
 
-=======
->>>>>>> origin/main
 export type DevSessionPayload = {
   userId: string;
   profileId: string;
@@ -46,14 +40,10 @@ function decodeBase64(value: string) {
 }
 
 export function serializeDevSession(payload: DevSessionPayload) {
-<<<<<<< HEAD
   const b64 = encodeBase64(JSON.stringify(payload));
   const secret = getDevSessionSecret();
   if (!secret) return b64;
   return `${b64}.${signPayload(b64, secret)}`;
-=======
-  return encodeBase64(JSON.stringify(payload));
->>>>>>> origin/main
 }
 
 export function parseDevSessionCookie(rawValue?: string | null): DevSessionPayload | null {
@@ -62,7 +52,6 @@ export function parseDevSessionCookie(rawValue?: string | null): DevSessionPaylo
   }
 
   try {
-<<<<<<< HEAD
     const secret = getDevSessionSecret();
     let b64 = rawValue;
     if (secret && rawValue.includes(".")) {
@@ -80,9 +69,6 @@ export function parseDevSessionCookie(rawValue?: string | null): DevSessionPaylo
       return null;
     }
     return JSON.parse(decodeBase64(b64)) as DevSessionPayload;
-=======
-    return JSON.parse(decodeBase64(rawValue)) as DevSessionPayload;
->>>>>>> origin/main
   } catch {
     return null;
   }

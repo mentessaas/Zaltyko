@@ -45,11 +45,13 @@ describe("onboarding/next-step-urls (ZAL-324 Gap 2)", () => {
   });
 
   it("resolveNextStepUrl rechaza claves fuera del allowlist", () => {
-    expect(() => resolveNextStepUrl("totally_invalid_key", appUrl)).toThrowError(
-      /no esta en el allowlist/
-    );
+    expect(() =>
+      resolveNextStepUrl("totally_invalid_key", appUrl)
+    ).toThrowError(/no esta en el allowlist/);
     expect(() => resolveNextStepUrl("", appUrl)).toThrowError();
-    expect(() => resolveNextStepUrl("../../../etc/passwd", appUrl)).toThrowError();
+    expect(() =>
+      resolveNextStepUrl("../../../etc/passwd", appUrl)
+    ).toThrowError();
   });
 
   it("isNextStepKey hace type-narrowing correcto", () => {
@@ -59,7 +61,8 @@ describe("onboarding/next-step-urls (ZAL-324 Gap 2)", () => {
 
   it("buildSignedEmailLinkUrl (integrado con email-link-token) genera URL firmada", () => {
     process.env.UNSUBSCRIBE_HMAC_SECRET =
-      process.env.UNSUBSCRIBE_HMAC_SECRET ?? "test-secret-for-vitest-must-be-long";
+      process.env.UNSUBSCRIBE_HMAC_SECRET ??
+      "test-secret-for-vitest-must-be-long";
     const { url, expiresAt } = buildSignedEmailLinkUrl({
       email: "owner@academia.test",
       purpose: "unsubscribe",

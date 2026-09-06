@@ -149,33 +149,19 @@ export function OnboardingChecklist({ academyId }: OnboardingChecklistProps) {
     <div className="space-y-4 rounded-2xl border border-dashed border-muted bg-card/60 p-6 shadow-sm">
       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div className="flex-1">
-<<<<<<< HEAD
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Checklist</p>
           <h2 className="text-xl font-semibold">Completa tu academia</h2>
           <p className="text-sm text-foreground">
-=======
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">Checklist</p>
-          <h2 className="text-xl font-semibold">Completa tu academia</h2>
-          <p className="text-sm text-slate-700">
->>>>>>> origin/main
             Avanza paso a paso para tener tu academia lista en menos de 24 horas.
           </p>
         </div>
         <div className="flex items-center gap-3">
-<<<<<<< HEAD
           <div className="text-right text-sm font-medium text-foreground">
-=======
-          <div className="text-right text-sm font-medium text-slate-700">
->>>>>>> origin/main
             {data?.summary ? `${data.summary.completed}/${data.summary.total} completados` : "—"}
           </div>
           <button
             onClick={() => setIsExpanded(!isExpanded)}
-<<<<<<< HEAD
             className="flex items-center justify-center rounded-md p-2 text-foreground transition-colors hover:bg-muted hover:text-foreground"
-=======
-            className="flex items-center justify-center rounded-md p-2 text-slate-700 transition-colors hover:bg-muted hover:text-foreground"
->>>>>>> origin/main
             aria-label={isExpanded ? "Ocultar pasos" : "Mostrar pasos"}
             aria-expanded={isExpanded}
           >

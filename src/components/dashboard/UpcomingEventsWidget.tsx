@@ -65,28 +65,17 @@ export function UpcomingEventsWidget({ academyId, academyCountry }: UpcomingEven
   }
 
   return (
-<<<<<<< HEAD
     <div className="space-y-4 rounded-2xl border border-border bg-card p-6 shadow-soft">
-=======
-    <div className="space-y-4 rounded-2xl border border-zaltyko-mist bg-white p-6 shadow-soft">
->>>>>>> origin/main
       <header className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-zaltyko-indigo/10 text-zaltyko-indigo">
             <Calendar className="h-5 w-5" />
           </div>
           <div>
-<<<<<<< HEAD
             <p className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
               Próximos eventos
             </p>
             <h3 className="font-display text-lg font-semibold text-foreground">
-=======
-            <p className="text-xs font-medium uppercase tracking-[0.12em] text-slate-600">
-              Próximos eventos
-            </p>
-            <h3 className="font-display text-lg font-semibold text-zaltyko-navy">
->>>>>>> origin/main
               {events.length} {events.length === 1 ? "evento" : "eventos"}
             </h3>
           </div>
@@ -116,7 +105,6 @@ export function UpcomingEventsWidget({ academyId, academyCountry }: UpcomingEven
             <Link
               key={event.id}
               href={`/app/${academyId}/events/${event.id}`}
-<<<<<<< HEAD
               className="group flex flex-col gap-2 rounded-xl border border-border bg-card px-4 py-3 text-sm transition-all hover:border-zaltyko-teal/40 hover:bg-zaltyko-white"
             >
               <div className="flex items-start justify-between gap-3">
@@ -126,17 +114,6 @@ export function UpcomingEventsWidget({ academyId, academyCountry }: UpcomingEven
                     <div className={cn(
                       "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1",
                       isToday || isTomorrow ? "bg-zaltyko-coral/12 text-zaltyko-coral" : "bg-zaltyko-white text-foreground"
-=======
-              className="group flex flex-col gap-2 rounded-xl border border-zaltyko-mist bg-white px-4 py-3 text-sm transition-all hover:border-zaltyko-teal/40 hover:bg-zaltyko-white"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-zaltyko-navy transition-colors group-hover:text-zaltyko-teal">{event.title}</p>
-                  <div className="mt-2 flex flex-wrap items-center gap-3 text-xs font-medium text-muted-foreground">
-                    <div className={cn(
-                      "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1",
-                      isToday || isTomorrow ? "bg-zaltyko-coral/12 text-zaltyko-coral" : "bg-zaltyko-white text-zaltyko-navy"
->>>>>>> origin/main
                     )}>
                       <Calendar className="h-3.5 w-3.5" />
                       {isToday

@@ -13,7 +13,9 @@ import { CHECKLIST_DEFINITIONS } from "@/lib/onboarding-utils";
 describe("onboarding/next-step-label (ZAL-324 Gap 1, Opcion A)", () => {
   const appUrl = "https://zaltyko.com";
 
-  const rows = (overrides: Partial<ChecklistRowLike>[] = []): ChecklistRowLike[] =>
+  const rows = (
+    overrides: Partial<ChecklistRowLike>[] = []
+  ): ChecklistRowLike[] =>
     CHECKLIST_DEFINITIONS.map((definition, index) => ({
       key: definition.key,
       label: definition.label,
@@ -29,7 +31,9 @@ describe("onboarding/next-step-label (ZAL-324 Gap 1, Opcion A)", () => {
   });
 
   it("prefiere CHECKLIST_DEFINITIONS.label sobre la fila persistida (drift del seed)", () => {
-    const stale = rows([{ label: "Etiqueta vieja de una academia ya sembrada" }]);
+    const stale = rows([
+      { label: "Etiqueta vieja de una academia ya sembrada" },
+    ]);
     const resolved = resolveNextStep(stale, appUrl);
     expect(resolved?.key).toBe(CHECKLIST_DEFINITIONS[0].key);
     expect(resolved?.label).toBe(CHECKLIST_DEFINITIONS[0].label);
@@ -38,15 +42,21 @@ describe("onboarding/next-step-label (ZAL-324 Gap 1, Opcion A)", () => {
 
   it("cae a la fila cuando la clave no esta en el catalogo", () => {
     expect(canonicalChecklistLabel("clave_legacy")).toBeNull();
-    expect(resolveNextStepLabel("clave_legacy", "  Etiqueta legacy  ")).toEqual({
-      label: "Etiqueta legacy",
-      labelSource: "row",
-    });
+    expect(resolveNextStepLabel("clave_legacy", "  Etiqueta legacy  ")).toEqual(
+      {
+        label: "Etiqueta legacy",
+        labelSource: "row",
+      }
+    );
   });
 
   it("lanza si no hay etiqueta canonica ni de fila", () => {
-    expect(() => resolveNextStepLabel("clave_legacy", "   ")).toThrow(/no resoluble/);
-    expect(() => resolveNextStepLabel("clave_legacy", null)).toThrow(/no resoluble/);
+    expect(() => resolveNextStepLabel("clave_legacy", "   ")).toThrow(
+      /no resoluble/
+    );
+    expect(() => resolveNextStepLabel("clave_legacy", null)).toThrow(
+      /no resoluble/
+    );
   });
 
   it("salta items completed y skipped y devuelve el primer pending", () => {

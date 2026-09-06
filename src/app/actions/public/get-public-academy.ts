@@ -1,11 +1,12 @@
 "use server";
 
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { createClient } from "@supabase/supabase-js";
 
 import { db } from "@/db";
 import { academies, classes, classWeekdays } from "@/db/schema";
 import { logger } from "@/lib/logger";
+import { INDEXABLE_ACADEMY_STATUS_VALUES } from "@/lib/seo/academy-indexability";
 
 export type PublicAcademyDetail = {
   id: string;
@@ -63,7 +64,7 @@ export async function getPublicAcademy(
           eq(academies.id, academyId),
           eq(academies.isPublic, true),
           eq(academies.isSuspended, false),
-          sql`${academies.status} NOT IN ('churned', 'fraud_hold')`
+          inArray(academies.status, INDEXABLE_ACADEMY_STATUS_VALUES)
         )
       )
       .limit(1);
@@ -133,7 +134,7 @@ export async function getPublicAcademy(
         .eq("id", academyId)
         .eq("is_public", true)
         .eq("is_suspended", false)
-        .not("status", "in", "(churned,fraud_hold)")
+        .in("status", INDEXABLE_ACADEMY_STATUS_VALUES)
         .single();
       
       if (academyError || !academy) {

@@ -219,7 +219,8 @@ export default function AccountForm({ user, profile, academies, defaultAcademyId
                 ))}
               </ul>
               <div className="mt-4">
-                <Button asChild className="bg-amber-600 text-white hover:bg-amber-700">
+                {/* ZAL-575 Tier A paso 4: blanco sobre amber-600 = 3.19:1 (falla AA). amber-700 = 5.02:1. */}
+                <Button asChild className="bg-amber-700 text-white hover:bg-amber-800">
                   <Link href="/dashboard/plan-limits">Ajustar límites ahora</Link>
                 </Button>
               </div>

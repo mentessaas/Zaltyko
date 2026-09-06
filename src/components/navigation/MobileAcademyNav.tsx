@@ -66,11 +66,7 @@ export function MobileAcademyNav() {
         isVisible ? "translate-y-0" : "translate-y-full"
       )}
     >
-<<<<<<< HEAD
       <div className="border-t border-border/70 bg-white/95 shadow-soft backdrop-blur">
-=======
-      <div className="border-t border-zaltyko-mist/70 bg-white/95 shadow-soft backdrop-blur">
->>>>>>> origin/main
         <div className="safe-area-bottom grid h-[72px] grid-cols-5 items-center gap-1 px-2">
           {primaryItems.map((item) => {
             const Icon = item.icon;
@@ -84,11 +80,7 @@ export function MobileAcademyNav() {
                   "flex h-14 min-h-[44px] min-w-0 flex-col items-center justify-center rounded-xl border border-transparent transition-colors",
                   active
                     ? "border-zaltyko-teal/20 bg-zaltyko-teal/12 text-zaltyko-teal"
-<<<<<<< HEAD
                     : "text-muted-foreground hover:bg-zaltyko-white hover:text-foreground"
-=======
-                    : "text-slate-500 hover:bg-zaltyko-white hover:text-zaltyko-navy"
->>>>>>> origin/main
                 )}
                 aria-label={item.label}
                 aria-current={active ? "page" : undefined}
@@ -103,13 +95,8 @@ export function MobileAcademyNav() {
               type="button"
               onClick={() => setMoreOpen((value) => !value)}
               className={cn(
-<<<<<<< HEAD
                 "flex h-14 min-h-[44px] min-w-0 flex-col items-center justify-center rounded-xl border border-transparent text-muted-foreground transition-colors",
                 moreOpen && "bg-muted text-foreground"
-=======
-                "flex h-14 min-h-[44px] min-w-0 flex-col items-center justify-center rounded-xl border border-transparent text-slate-500 transition-colors",
-                moreOpen && "bg-slate-100 text-slate-950"
->>>>>>> origin/main
               )}
               aria-expanded={moreOpen}
               aria-label="Más secciones"
@@ -120,11 +107,7 @@ export function MobileAcademyNav() {
           )}
         </div>
         {moreOpen && secondaryItems.length > 0 && (
-<<<<<<< HEAD
           <div className="border-t border-border bg-card px-3 py-3 shadow-[0_-12px_30px_-20px_rgba(15,23,42,0.45)]">
-=======
-          <div className="border-t border-slate-200 bg-white px-3 py-3 shadow-[0_-12px_30px_-20px_rgba(15,23,42,0.45)]">
->>>>>>> origin/main
             <div className="grid grid-cols-4 gap-2">
               {secondaryItems.map((item) => {
                 const Icon = item.icon;
@@ -139,11 +122,7 @@ export function MobileAcademyNav() {
                     }}
                     className={cn(
                       "flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 text-center text-[11px] font-semibold",
-<<<<<<< HEAD
                       active ? "bg-zaltyko-teal/10 text-zaltyko-teal" : "text-muted-foreground hover:bg-muted/50"
-=======
-                      active ? "bg-zaltyko-teal/10 text-zaltyko-teal" : "text-slate-500 hover:bg-slate-50"
->>>>>>> origin/main
                     )}
                     aria-current={active ? "page" : undefined}
                   >

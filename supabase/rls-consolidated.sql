@@ -1268,8 +1268,6 @@ CREATE POLICY "leads_super_admin_all" ON leads
   FOR ALL USING (is_super_admin()) WITH CHECK (is_super_admin());
 
 -- ============================================================================
-<<<<<<< HEAD
-=======
 -- ATHLETE INVITATIONS (ZAL-138 first-athletes magic links)
 -- ============================================================================
 
@@ -1312,6 +1310,5 @@ CREATE POLICY "athlete_invitations_owner_modify" ON athlete_invitations
   );
 
 -- ============================================================================
->>>>>>> origin/main
 -- END OF CONSOLIDATED RLS POLICIES
 -- ============================================================================

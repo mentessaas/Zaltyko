@@ -153,19 +153,11 @@ export function FinancialMetricsWidget({ academyId }: FinancialMetricsWidgetProp
             {metrics.bySportConfig.map((item) => (
               <div
                 key={item.sportConfigId ?? "unassigned"}
-<<<<<<< HEAD
                 className="grid gap-2 rounded-lg border border-border/50 bg-card px-3 py-2 text-sm sm:grid-cols-7"
               >
                 <span className="font-semibold text-foreground sm:col-span-2">{item.label}</span>
                 <span className="text-green-700">Cobrado €{item.paidAmount.toFixed(2)}</span>
                 <span className="text-foreground">Coste €{item.estimatedCostAmount.toFixed(2)}</span>
-=======
-                className="grid gap-2 rounded-lg border border-border/50 bg-white px-3 py-2 text-sm sm:grid-cols-7"
-              >
-                <span className="font-semibold text-zaltyko-navy sm:col-span-2">{item.label}</span>
-                <span className="text-green-700">Cobrado €{item.paidAmount.toFixed(2)}</span>
-                <span className="text-slate-700">Coste €{item.estimatedCostAmount.toFixed(2)}</span>
->>>>>>> origin/main
                 <span className={cn(item.estimatedMarginAmount < 0 ? "text-red-700" : "text-emerald-700")}>
                   Margen €{item.estimatedMarginAmount.toFixed(2)}
                 </span>

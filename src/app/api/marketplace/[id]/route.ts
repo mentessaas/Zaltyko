@@ -1,11 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { marketplaceListings } from "@/db/schema";
-<<<<<<< HEAD
 import { and, eq } from "drizzle-orm";
-=======
-import { eq } from "drizzle-orm";
->>>>>>> origin/main
 import { logger } from "@/lib/logger";
 import { apiError } from "@/lib/api-response";
 import { canUsePublicDemoData, demoMarketplaceListing } from "@/lib/public/demo-listings";
@@ -21,16 +17,10 @@ export async function GET(
       return NextResponse.json({ item: demoMarketplaceListing });
     }
 
-<<<<<<< HEAD
     // Superficie pública: solo listings activos (hidden/sold requieren auth).
     const [listing] = await db.select()
       .from(marketplaceListings)
       .where(and(eq(marketplaceListings.id, id), eq(marketplaceListings.status, "active")))
-=======
-    const [listing] = await db.select()
-      .from(marketplaceListings)
-      .where(eq(marketplaceListings.id, id))
->>>>>>> origin/main
       .limit(1);
 
     if (!listing) {

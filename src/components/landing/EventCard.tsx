@@ -56,11 +56,7 @@ const EventCard = memo(function EventCard({ event, locale }: EventCardProps) {
     .join(", ");
 
   return (
-<<<<<<< HEAD
     <Card className="group card-hover h-full overflow-hidden border border-gray-100 bg-card hover:border-zaltyko-coral/30">
-=======
-    <Card className="group card-hover h-full overflow-hidden border border-gray-100 bg-white hover:border-zaltyko-coral/30">
->>>>>>> origin/main
       <CardContent className="p-5">
         {/* Date tile + level */}
         <div className="flex items-start justify-between mb-4">

@@ -50,7 +50,6 @@ const ROLE_COPY: Record<ZaltykoRole, { icon: keyof typeof Ionicons.glyphMap; tex
     icon: 'eye-outline',
     text: 'Consulta la agenda y los avisos de la academia desde aquí.',
   },
-<<<<<<< HEAD
   // provider (ZAL-768): la app no es su superficie de trabajo. El copy
   // no promete productos, catálogo ni ninguna gestión — eso vive en la
   // web y lo definirá ZAL-427 si alguna vez llega a mobile.
@@ -58,8 +57,6 @@ const ROLE_COPY: Record<ZaltykoRole, { icon: keyof typeof Ionicons.glyphMap; tex
     icon: 'notifications-outline',
     text: 'Recibe aquí los avisos que te manden y consulta tu perfil. Tu trabajo como proveedor se gestiona en la web.',
   },
-=======
->>>>>>> origin/main
 };
 
 export function WelcomeGate({ children }: Props) {
@@ -156,7 +153,7 @@ const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: colors.bg, justifyContent: 'space-between', padding: spacing.xl },
   content: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.lg },
   title: { ...typography.display, color: colors.textInverse, textAlign: 'center' },
-  body: { ...typography.body, color: '#94A3B8', textAlign: 'center' },
+  body: { ...typography.body, color: colors.onDarkMuted, textAlign: 'center' },
   dots: { flexDirection: 'row', justifyContent: 'center', gap: spacing.sm, marginBottom: spacing.lg },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.borderDark },
   dotActive: { backgroundColor: colors.primary },

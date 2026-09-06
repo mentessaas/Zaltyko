@@ -97,9 +97,23 @@ export default function LoginScreen() {
             autoComplete="password"
           />
 
-          {error ? <Text style={styles.error}>{error}</Text> : null}
+          {error ? (
+            <Text
+              style={styles.error}
+              accessibilityLiveRegion="polite"
+              accessibilityRole="alert"
+            >
+              {error}
+            </Text>
+          ) : null}
 
-          <Pressable onPress={onOpenReset} hitSlop={8} style={styles.forgotLink}>
+          <Pressable
+            onPress={onOpenReset}
+            hitSlop={8}
+            style={styles.forgotLink}
+            accessibilityRole="link"
+            accessibilityLabel="¿Olvidaste la contraseña?"
+          >
             <Text style={styles.link}>¿Olvidaste la contraseña?</Text>
           </Pressable>
 
@@ -151,18 +165,20 @@ const styles = StyleSheet.create({
   },
   brandSubtitle: {
     ...typography.body,
-    color: '#94A3B8',
+    color: colors.onDarkMuted,
     textAlign: 'center',
   },
   form: { gap: spacing.md },
   error: {
     ...typography.caption,
-    color: '#FCA5A5',
+    color: colors.onDarkDanger,
   },
   forgotLink: { alignSelf: 'flex-end', marginTop: -spacing.xs },
   link: {
     ...typography.caption,
-    color: colors.primary,
+    // indigo-300: 8.96:1 sobre el navy del fondo. Antes colors.primary
+    // (#4F46E5) daba 2.84:1 — fallaba 4.5 a 14px.
+    color: colors.onDarkAccent,
   },
   divider: {
     flexDirection: 'row',
@@ -171,5 +187,5 @@ const styles = StyleSheet.create({
     marginVertical: spacing.xs,
   },
   dividerLine: { flex: 1, height: 1, backgroundColor: colors.borderDark },
-  dividerText: { ...typography.caption, color: '#94A3B8' },
+  dividerText: { ...typography.caption, color: colors.onDarkMuted },
 });

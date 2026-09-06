@@ -38,25 +38,13 @@ const tx = vi.hoisted(() => {
 vi.mock("@/lib/db-transactions", () => ({
   withTransaction: (callback: (value: typeof tx) => unknown) => callback(tx),
 }));
-<<<<<<< HEAD
-=======
 vi.mock("@/db", () => ({ db: tx }));
->>>>>>> origin/main
 vi.mock("@/lib/stripe/client", () => ({
   getStripeClient: () => ({ refunds: { create: state.refundCreate } }),
 }));
 vi.mock("@/lib/audit-log", () => ({ createAuditLog: state.audit }));
-<<<<<<< HEAD
 
 import { refundCharge } from "@/lib/stripe/refund-service";
-=======
-vi.mock("@/lib/logger", () => ({
-  logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() },
-}));
-
-import { refundCharge } from "@/lib/stripe/refund-service";
-import { reconcileChargeRefunded } from "@/lib/stripe/charge-reconcile-service";
->>>>>>> origin/main
 
 const charge = {
   id: "charge_1",
@@ -136,8 +124,6 @@ describe("refundCharge", () => {
     expect(result).toEqual({ ok: false, reason: "INVALID_AMOUNT" });
     expect(state.refundCreate).not.toHaveBeenCalled();
   });
-<<<<<<< HEAD
-=======
 
   it("registra un reembolso parcial sin marcar el cargo como reembolsado", async () => {
     const result = await refundCharge({
@@ -280,5 +266,4 @@ describe("reconciliación charge.refunded tras reembolso parcial", () => {
     ).rejects.toThrow("CONNECT_ACCOUNT_MISMATCH");
     expect(state.updates).toHaveLength(0);
   });
->>>>>>> origin/main
 });

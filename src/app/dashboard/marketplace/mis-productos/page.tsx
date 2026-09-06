@@ -2,21 +2,14 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-<<<<<<< HEAD
 import { Eye, Plus, Pause, Play, Inbox, LogIn } from "lucide-react";
-=======
-import { Eye, Edit, Trash2, Plus, Pause, Play } from "lucide-react";
->>>>>>> origin/main
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast-provider";
-<<<<<<< HEAD
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ErrorState } from "@/components/ui/error-state";
 import { logger } from "@/lib/logger";
-=======
->>>>>>> origin/main
 
 interface Listing {
   id: string;
@@ -31,7 +24,6 @@ interface Listing {
   createdAt: string;
 }
 
-<<<<<<< HEAD
 // Estado de carga distinguible de error (PV-5): "loading" sigue mostrando
 // el spinner, "error" muestra ErrorState con causa y reintento, "ready"
 // permite pintar el catálogo o el empty state real.
@@ -40,8 +32,6 @@ type LoadState =
   | { kind: "ready"; listings: Listing[] }
   | { kind: "error"; reason: "unauthorized" | "server"; status: number };
 
-=======
->>>>>>> origin/main
 const CATEGORY_LABELS: Record<string, string> = {
   equipment: "Equipamiento",
   clothing: "Ropa",
@@ -70,17 +60,10 @@ function formatPrice(cents: number | null, currency: string, priceType: string) 
 }
 
 export default function MisProductosPage() {
-<<<<<<< HEAD
   const [state, setState] = useState<LoadState>({ kind: "loading" });
   const [deleting, setDeleting] = useState<string | null>(null);
   const [toggling, setToggling] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Listing | null>(null);
-=======
-  const [listings, setListings] = useState<Listing[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [deleting, setDeleting] = useState<string | null>(null);
-  const [toggling, setToggling] = useState<string | null>(null);
->>>>>>> origin/main
   const toast = useToast();
 
   useEffect(() => {
@@ -88,16 +71,11 @@ export default function MisProductosPage() {
   }, []);
 
   async function fetchListings() {
-<<<<<<< HEAD
     setState({ kind: "loading" });
-=======
-    setLoading(true);
->>>>>>> origin/main
     try {
       const res = await fetch("/api/marketplace/mis-productos");
       if (res.ok) {
         const data = await res.json();
-<<<<<<< HEAD
         setState({ kind: "ready", listings: data.listings ?? [] });
       } else if (res.status === 401) {
         // Sesión caducada: NO pintamos "no tienes productos" porque
@@ -110,33 +88,19 @@ export default function MisProductosPage() {
       // Error de red: tampoco podemos afirmar "no tienes productos".
       logger.error("mis-productos fetch", err);
       setState({ kind: "error", reason: "server", status: 0 });
-=======
-        setListings(data.listings ?? []);
-      }
-    } catch {
-      setListings([]);
-    } finally {
-      setLoading(false);
->>>>>>> origin/main
     }
   }
 
   async function handleStatusToggle(listing: Listing) {
     setToggling(listing.id);
-<<<<<<< HEAD
     const newStatus = listing.status === "active" ? "paused" : "active";
     try {
-=======
-    try {
-      const newStatus = listing.status === "active" ? "paused" : "active";
->>>>>>> origin/main
       const res = await fetch(`/api/marketplace/mis-productos/${listing.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus }),
       });
       if (res.ok) {
-<<<<<<< HEAD
         // Solo actualizamos el estado local si la respuesta fue 2xx
         // (PV-7). Antes el código hacía `setListings` antes del if y
         // mostraba el cambio aunque el servidor hubiera rechazado.
@@ -171,42 +135,23 @@ export default function MisProductosPage() {
         description: "Revisa tu conexión e inténtalo de nuevo.",
         variant: "error",
       });
-=======
-        setListings((prev) =>
-          prev.map((l) => (l.id === listing.id ? { ...l, status: newStatus } : l))
-        );
-        toast.pushToast({
-          title: "Actualizado",
-          description: `Listing ${newStatus === "active" ? "activado" : "pausado"}.`,
-          variant: "info",
-        });
-      }
-    } catch {
-      toast.pushToast({ title: "Error", description: "No se pudo actualizar.", variant: "error" });
->>>>>>> origin/main
     } finally {
       setToggling(null);
     }
   }
 
-<<<<<<< HEAD
   function requestDelete(listing: Listing) {
     // Diálogo del sistema de diseño (PV-7) en lugar de confirm() nativo.
     setConfirmDelete(listing);
   }
 
   async function performDelete(listing: Listing) {
-=======
-  async function handleDelete(listing: Listing) {
-    if (!confirm(`¿Eliminar "${listing.title}"? Esta acción no se puede deshacer.`)) return;
->>>>>>> origin/main
     setDeleting(listing.id);
     try {
       const res = await fetch(`/api/marketplace/mis-productos/${listing.id}`, {
         method: "DELETE",
       });
       if (res.ok) {
-<<<<<<< HEAD
         setState((prev) => {
           if (prev.kind !== "ready") return prev;
           return {
@@ -237,15 +182,6 @@ export default function MisProductosPage() {
     } finally {
       setDeleting(null);
       setConfirmDelete(null);
-=======
-        setListings((prev) => prev.filter((l) => l.id !== listing.id));
-        toast.pushToast({ title: "Eliminado", description: "Listing eliminado.", variant: "info" });
-      }
-    } catch {
-      toast.pushToast({ title: "Error", description: "No se pudo eliminar.", variant: "error" });
-    } finally {
-      setDeleting(null);
->>>>>>> origin/main
     }
   }
 
@@ -267,7 +203,6 @@ export default function MisProductosPage() {
         </Button>
       </div>
 
-<<<<<<< HEAD
       {state.kind === "loading" ? (
         <div className="flex justify-center py-12">
           <div className="h-8 w-8 rounded-full border-2 border-red-500 border-t-transparent animate-spin" />
@@ -316,16 +251,6 @@ export default function MisProductosPage() {
                 Cuando publiques tu primer anuncio aparecerá aquí.
               </p>
             </div>
-=======
-      {loading ? (
-        <div className="flex justify-center py-12">
-          <div className="h-8 w-8 rounded-full border-2 border-red-500 border-t-transparent animate-spin" />
-        </div>
-      ) : listings.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center space-y-3">
-            <p className="text-muted-foreground">Aún no tienes productos publicados.</p>
->>>>>>> origin/main
             <Button asChild>
               <Link href="/marketplace/nuevo">Publica tu primer producto</Link>
             </Button>
@@ -333,11 +258,7 @@ export default function MisProductosPage() {
         </Card>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-<<<<<<< HEAD
           {state.listings.map((listing) => (
-=======
-          {listings.map((listing) => (
->>>>>>> origin/main
             <Card key={listing.id} className="relative overflow-hidden">
               {/* Image */}
               {listing.images && listing.images[0] ? (
@@ -401,7 +322,6 @@ export default function MisProductosPage() {
                     size="sm"
                     className="text-red-600 hover:text-red-700 hover:bg-red-50"
                     disabled={deleting === listing.id}
-<<<<<<< HEAD
                     onClick={() => requestDelete(listing)}
                   >
                     <span className="sr-only">Eliminar</span>
@@ -422,11 +342,6 @@ export default function MisProductosPage() {
                       <path d="M14 11v6" />
                       <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
                     </svg>
-=======
-                    onClick={() => handleDelete(listing)}
-                  >
-                    <Trash2 className="h-3 w-3" />
->>>>>>> origin/main
                   </Button>
                 </div>
               </CardContent>
@@ -434,7 +349,6 @@ export default function MisProductosPage() {
           ))}
         </div>
       )}
-<<<<<<< HEAD
 
       <ConfirmDialog
         open={confirmDelete !== null}
@@ -507,8 +421,3 @@ function copyForDeleteError(status: number): { title: string; description: strin
     description: "Vuelve a intentarlo en unos segundos.",
   };
 }
-=======
-    </div>
-  );
-}
->>>>>>> origin/main

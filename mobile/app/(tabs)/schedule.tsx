@@ -56,5 +56,5 @@ const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: colors.bg },
   content: { padding: spacing.lg, gap: spacing.sm },
   title: { ...typography.display, color: colors.textInverse },
-  subtitle: { ...typography.body, color: '#94A3B8' },
+  subtitle: { ...typography.body, color: colors.onDarkMuted },
 });

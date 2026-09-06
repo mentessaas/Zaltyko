@@ -5,19 +5,11 @@ import { WEEKDAY_OPTIONS } from "@/lib/classes/constants";
 import type { CoachOption, GroupOption } from "./edit-class-dialog-model";
 
 const fieldClassName =
-<<<<<<< HEAD
   "w-full rounded-card border border-border bg-card px-3 py-2 text-sm shadow-none focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15";
 const labelClassName = "text-xs font-medium uppercase tracking-[0.05em] text-foreground";
 const selectedChipClassName = "border-zaltyko-teal bg-zaltyko-teal/10 text-zaltyko-teal";
 const unselectedChipClassName =
   "border-border bg-card text-muted-foreground hover:border-zaltyko-teal hover:text-zaltyko-teal";
-=======
-  "w-full rounded-card border border-zaltyko-mist bg-white px-3 py-2 text-sm shadow-none focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15";
-const labelClassName = "text-xs font-medium uppercase tracking-[0.05em] text-zaltyko-navy";
-const selectedChipClassName = "border-zaltyko-teal bg-zaltyko-teal/10 text-zaltyko-teal";
-const unselectedChipClassName =
-  "border-zaltyko-mist bg-white text-zaltyko-text-secondary hover:border-zaltyko-teal hover:text-zaltyko-teal";
->>>>>>> origin/main
 
 export function EditClassError({ error }: { error: string | null }) {
   if (!error) return null;
@@ -149,11 +141,7 @@ export function ClassScheduleSection({
               );
             })}
           </div>
-<<<<<<< HEAD
           <p className="text-xs text-muted-foreground">
-=======
-          <p className="text-xs text-zaltyko-text-secondary">
->>>>>>> origin/main
             Selecciona uno o varios días. Déjalo vacío para {classTermLower}s flexibles.
           </p>
         </div>
@@ -309,28 +297,17 @@ export function ClassAssignmentsSection({
 }) {
   return (
     <div className="grid gap-4 md:grid-cols-2">
-<<<<<<< HEAD
       <section className="space-y-3 rounded-2xl border border-dashed border-border p-4">
         <header>
           <h3 className="text-sm font-semibold text-foreground">{terms.coach}s asignados</h3>
           <p className="text-xs text-muted-foreground">
-=======
-      <section className="space-y-3 rounded-2xl border border-dashed border-zaltyko-mist p-4">
-        <header>
-          <h3 className="text-sm font-semibold text-zaltyko-navy">{terms.coach}s asignados</h3>
-          <p className="text-xs text-zaltyko-text-secondary">
->>>>>>> origin/main
             Selecciona quiénes tienen acceso directo a esta {classTermLower}.
           </p>
         </header>
 
         <div className="grid gap-2">
           {compatibleCoaches.length === 0 ? (
-<<<<<<< HEAD
             <p className="text-sm text-muted-foreground">
-=======
-            <p className="text-sm text-zaltyko-text-secondary">
->>>>>>> origin/main
               No hay {coachTermPluralLower} disponibles para esta rama.
             </p>
           ) : (
@@ -346,28 +323,17 @@ export function ClassAssignmentsSection({
         </div>
       </section>
 
-<<<<<<< HEAD
       <section className="space-y-3 rounded-2xl border border-dashed border-border p-4">
         <header>
           <h3 className="text-sm font-semibold text-foreground">{terms.groups} asignados</h3>
           <p className="text-xs text-muted-foreground">
-=======
-      <section className="space-y-3 rounded-2xl border border-dashed border-zaltyko-mist p-4">
-        <header>
-          <h3 className="text-sm font-semibold text-zaltyko-navy">{terms.groups} asignados</h3>
-          <p className="text-xs text-zaltyko-text-secondary">
->>>>>>> origin/main
             Selecciona los {groupTermLower}s que participan en esta {classTermLower}.
           </p>
         </header>
 
         <div className="grid gap-2">
           {!hasGroups ? (
-<<<<<<< HEAD
             <p className="text-sm text-muted-foreground">
-=======
-            <p className="text-sm text-zaltyko-text-secondary">
->>>>>>> origin/main
               No hay {groupTermLower}s registrados en la academia.
             </p>
           ) : (
@@ -408,46 +374,26 @@ export function ClassAdvancedOptionsSection({
   onWaitingListEnabledChange: (value: boolean) => void;
 }) {
   return (
-<<<<<<< HEAD
     <div className="space-y-4 rounded-2xl border border-border bg-zaltyko-warm-white p-4">
       <h3 className="text-sm font-semibold text-foreground">Opciones avanzadas</h3>
 
       <div className="flex flex-wrap gap-4">
         <label className="flex items-center gap-2 text-sm text-foreground">
-=======
-    <div className="space-y-4 rounded-2xl border border-zaltyko-mist bg-zaltyko-warm-white p-4">
-      <h3 className="text-sm font-semibold text-zaltyko-navy">Opciones avanzadas</h3>
-
-      <div className="flex flex-wrap gap-4">
-        <label className="flex items-center gap-2 text-sm text-zaltyko-navy">
->>>>>>> origin/main
           <input
             type="checkbox"
             checked={allowsFreeTrial}
             onChange={(event) => onAllowsFreeTrialChange(event.target.checked)}
-<<<<<<< HEAD
             className="rounded border-border text-zaltyko-teal focus:ring-zaltyko-teal"
-=======
-            className="rounded border-zaltyko-mist text-zaltyko-teal focus:ring-zaltyko-teal"
->>>>>>> origin/main
           />
           Permite {classTermLower} de prueba gratuita
         </label>
 
-<<<<<<< HEAD
         <label className="flex items-center gap-2 text-sm text-foreground">
-=======
-        <label className="flex items-center gap-2 text-sm text-zaltyko-navy">
->>>>>>> origin/main
           <input
             type="checkbox"
             checked={waitingListEnabled}
             onChange={(event) => onWaitingListEnabledChange(event.target.checked)}
-<<<<<<< HEAD
             className="rounded border-border text-zaltyko-teal focus:ring-zaltyko-teal"
-=======
-            className="rounded border-zaltyko-mist text-zaltyko-teal focus:ring-zaltyko-teal"
->>>>>>> origin/main
           />
           Habilitar lista de espera cuando esté llena
         </label>
@@ -476,11 +422,7 @@ export function ClassAdvancedOptionsSection({
             onChange={(event) => onCancellationHoursBeforeChange(Number(event.target.value))}
             className={fieldClassName}
           />
-<<<<<<< HEAD
           <p className="text-xs text-muted-foreground">Horas antes de la {classTermLower}</p>
-=======
-          <p className="text-xs text-zaltyko-text-secondary">Horas antes de la {classTermLower}</p>
->>>>>>> origin/main
         </div>
       </div>
     </div>
@@ -499,30 +441,18 @@ function CoachOptionRow({
   return (
     <label
       className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-sm transition ${
-<<<<<<< HEAD
         checked ? "border-zaltyko-teal/60 bg-zaltyko-teal/10" : "border-border bg-card"
-=======
-        checked ? "border-zaltyko-teal/60 bg-zaltyko-teal/10" : "border-zaltyko-mist bg-white"
->>>>>>> origin/main
       }`}
     >
       <input
         type="checkbox"
         checked={checked}
         onChange={onToggle}
-<<<<<<< HEAD
         className="rounded border-border text-zaltyko-teal focus:ring-zaltyko-teal"
       />
       <div>
         <p className="font-medium text-foreground">{coach.name}</p>
         <p className="text-xs text-muted-foreground">{coach.email ?? "Sin correo"}</p>
-=======
-        className="rounded border-zaltyko-mist text-zaltyko-teal focus:ring-zaltyko-teal"
-      />
-      <div>
-        <p className="font-medium text-zaltyko-navy">{coach.name}</p>
-        <p className="text-xs text-zaltyko-text-secondary">{coach.email ?? "Sin correo"}</p>
->>>>>>> origin/main
       </div>
     </label>
   );
@@ -540,30 +470,18 @@ function GroupOptionRow({
   return (
     <label
       className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-sm transition ${
-<<<<<<< HEAD
         checked ? "border-zaltyko-teal/60 bg-zaltyko-teal/10" : "border-border bg-card"
-=======
-        checked ? "border-zaltyko-teal/60 bg-zaltyko-teal/10" : "border-zaltyko-mist bg-white"
->>>>>>> origin/main
       }`}
     >
       <input
         type="checkbox"
         checked={checked}
         onChange={onToggle}
-<<<<<<< HEAD
         className="rounded border-border text-zaltyko-teal focus:ring-zaltyko-teal"
       />
       <div className="flex items-center gap-2">
         {group.color && <span className="h-3 w-3 rounded-full" style={{ backgroundColor: group.color }} />}
         <p className="font-medium text-foreground">{group.name}</p>
-=======
-        className="rounded border-zaltyko-mist text-zaltyko-teal focus:ring-zaltyko-teal"
-      />
-      <div className="flex items-center gap-2">
-        {group.color && <span className="h-3 w-3 rounded-full" style={{ backgroundColor: group.color }} />}
-        <p className="font-medium text-zaltyko-navy">{group.name}</p>
->>>>>>> origin/main
       </div>
     </label>
   );

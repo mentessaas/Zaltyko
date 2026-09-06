@@ -71,17 +71,10 @@ interface StatsCardProps {
 
 function StatsCard({ title, value, icon, description, trend, variant = "default" }: StatsCardProps) {
   const variantStyles = {
-<<<<<<< HEAD
     default: "bg-card border-border",
     success: "bg-card border-zaltyko-teal/30",
     warning: "bg-card border-zaltyko-indigo/25",
     danger: "bg-card border-zaltyko-coral/35",
-=======
-    default: "bg-white border-zaltyko-mist",
-    success: "bg-white border-zaltyko-teal/30",
-    warning: "bg-white border-zaltyko-indigo/25",
-    danger: "bg-white border-zaltyko-coral/35",
->>>>>>> origin/main
   };
 
   const iconStyles = {
@@ -95,13 +88,8 @@ function StatsCard({ title, value, icon, description, trend, variant = "default"
     <div className={`rounded-2xl border p-5 shadow-soft ${variantStyles[variant]}`}>
       <div className="flex items-start justify-between">
         <div>
-<<<<<<< HEAD
           <p className="text-xs font-medium uppercase tracking-[0.05em] text-muted-foreground">{title}</p>
           <p className="mt-1 font-display text-3xl font-bold text-foreground">{value}</p>
-=======
-          <p className="text-xs font-medium uppercase tracking-[0.05em] text-slate-400">{title}</p>
-          <p className="mt-1 font-display text-3xl font-bold text-zaltyko-navy">{value}</p>
->>>>>>> origin/main
           {description && (
             <p className="mt-1 text-xs text-muted-foreground">{description}</p>
           )}
@@ -291,70 +279,38 @@ export function ClassesDashboard({
           </div>
 
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-<<<<<<< HEAD
             <div className="rounded-xl border border-border bg-card p-4">
               <p className="text-xs font-medium uppercase tracking-[0.05em] text-muted-foreground">
                 Listas para operar
               </p>
               <p className="mt-1 font-display text-2xl font-bold text-foreground">{starterSetup.readyCount}</p>
-=======
-            <div className="rounded-xl border border-zaltyko-mist bg-white p-4">
-              <p className="text-xs font-medium uppercase tracking-[0.05em] text-slate-400">
-                Listas para operar
-              </p>
-              <p className="mt-1 font-display text-2xl font-bold text-zaltyko-navy">{starterSetup.readyCount}</p>
->>>>>>> origin/main
               <p className="mt-1 text-xs text-muted-foreground">
                 {starterSetup.completionPercentage}% de la plantilla ya está afinada
               </p>
             </div>
-<<<<<<< HEAD
             <div className="rounded-xl border border-border bg-card p-4">
               <p className="text-xs font-medium uppercase tracking-[0.05em] text-muted-foreground">
                 Responsables pendientes
               </p>
               <p className="mt-1 font-display text-2xl font-bold text-foreground">{starterSetup.missingCoachCount}</p>
-=======
-            <div className="rounded-xl border border-zaltyko-mist bg-white p-4">
-              <p className="text-xs font-medium uppercase tracking-[0.05em] text-slate-400">
-                Responsables pendientes
-              </p>
-              <p className="mt-1 font-display text-2xl font-bold text-zaltyko-navy">{starterSetup.missingCoachCount}</p>
->>>>>>> origin/main
               <p className="mt-1 text-xs text-muted-foreground">
                 {coachLabelPlural} sin asignar en clases base
               </p>
             </div>
-<<<<<<< HEAD
             <div className="rounded-xl border border-border bg-card p-4">
               <p className="text-xs font-medium uppercase tracking-[0.05em] text-muted-foreground">
                 Horarios por cerrar
               </p>
               <p className="mt-1 font-display text-2xl font-bold text-foreground">{starterSetup.flexibleScheduleCount}</p>
-=======
-            <div className="rounded-xl border border-zaltyko-mist bg-white p-4">
-              <p className="text-xs font-medium uppercase tracking-[0.05em] text-slate-400">
-                Horarios por cerrar
-              </p>
-              <p className="mt-1 font-display text-2xl font-bold text-zaltyko-navy">{starterSetup.flexibleScheduleCount}</p>
->>>>>>> origin/main
               <p className="mt-1 text-xs text-muted-foreground">
                 Bloques con días u horas todavía abiertos
               </p>
             </div>
-<<<<<<< HEAD
             <div className="rounded-xl border border-border bg-card p-4">
               <p className="text-xs font-medium uppercase tracking-[0.05em] text-muted-foreground">
                 Estructura pendiente
               </p>
               <p className="mt-1 font-display text-2xl font-bold text-foreground">
-=======
-            <div className="rounded-xl border border-zaltyko-mist bg-white p-4">
-              <p className="text-xs font-medium uppercase tracking-[0.05em] text-slate-400">
-                Estructura pendiente
-              </p>
-              <p className="mt-1 font-display text-2xl font-bold text-zaltyko-navy">
->>>>>>> origin/main
                 {starterSetup.missingTemplateCount + starterSetup.missingGroupCount + starterSetup.missingCapacityCount}
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
@@ -364,11 +320,7 @@ export function ClassesDashboard({
           </div>
 
           {(starterSetup.items.some((item) => !item.isReady) || starterSetup.missingTemplateCount > 0) && (
-<<<<<<< HEAD
             <div className="rounded-xl border border-border bg-card p-4">
-=======
-            <div className="rounded-xl border border-zaltyko-mist bg-white p-4">
->>>>>>> origin/main
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="text-sm font-semibold text-foreground">Puesta a punto guiada</p>
@@ -391,11 +343,7 @@ export function ClassesDashboard({
                   .map((item) => (
                     <div
                       key={item.id}
-<<<<<<< HEAD
                       className="flex flex-col gap-3 rounded-xl border border-dashed border-border p-3 lg:flex-row lg:items-center lg:justify-between"
-=======
-                      className="flex flex-col gap-3 rounded-xl border border-dashed border-zaltyko-mist p-3 lg:flex-row lg:items-center lg:justify-between"
->>>>>>> origin/main
                     >
                       <div className="space-y-2">
                         <Link
@@ -406,11 +354,7 @@ export function ClassesDashboard({
                         </Link>
                         <div className="flex flex-wrap gap-2">
                           {item.issues.map((issue) => (
-<<<<<<< HEAD
                             <Badge key={issue} variant="outline" className="bg-card">
-=======
-                            <Badge key={issue} variant="outline" className="bg-white">
->>>>>>> origin/main
                               {issue}
                             </Badge>
                           ))}
@@ -430,11 +374,7 @@ export function ClassesDashboard({
                 {starterSetup.missingTemplateNames.slice(0, 2).map((name) => (
                   <div
                     key={name}
-<<<<<<< HEAD
                     className="flex flex-col gap-3 rounded-xl border border-dashed border-border p-3 lg:flex-row lg:items-center lg:justify-between"
-=======
-                    className="flex flex-col gap-3 rounded-xl border border-dashed border-zaltyko-mist p-3 lg:flex-row lg:items-center lg:justify-between"
->>>>>>> origin/main
                   >
                     <div className="space-y-1">
                       <p className="text-sm font-semibold text-foreground">{name}</p>

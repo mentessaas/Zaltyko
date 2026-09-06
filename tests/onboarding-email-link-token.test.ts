@@ -57,7 +57,9 @@ describe("onboarding/email-link-token (ZAL-324 Gap 5)", () => {
 
   it("rechaza tokens mal formados", () => {
     expect(verifyEmailLinkToken("not-a-token", NOW_MS).ok).toBe(false);
-    expect(verifyEmailLinkToken("only.one.dot.too.many", NOW_MS).ok).toBe(false);
+    expect(verifyEmailLinkToken("only.one.dot.too.many", NOW_MS).ok).toBe(
+      false
+    );
     expect(verifyEmailLinkToken("", NOW_MS).ok).toBe(false);
     const bad = verifyEmailLinkToken("@@@.@@@", NOW_MS);
     expect(bad.ok).toBe(false);
@@ -100,12 +102,12 @@ describe("onboarding/email-link-token (ZAL-324 Gap 5)", () => {
       purpose: "preferences",
       nowMs: NOW_MS,
     });
-    expect(verifyEmailLinkToken(unsubscribe.token, NOW_MS + 1000).payload?.purpose).toBe(
-      "unsubscribe"
-    );
-    expect(verifyEmailLinkToken(prefs.token, NOW_MS + 1000).payload?.purpose).toBe(
-      "preferences"
-    );
+    expect(
+      verifyEmailLinkToken(unsubscribe.token, NOW_MS + 1000).payload?.purpose
+    ).toBe("unsubscribe");
+    expect(
+      verifyEmailLinkToken(prefs.token, NOW_MS + 1000).payload?.purpose
+    ).toBe("preferences");
   });
 
   it("buildSignedEmailLinkUrl devuelve URL absoluta con token en query", () => {

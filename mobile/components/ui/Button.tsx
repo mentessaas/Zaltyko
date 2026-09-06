@@ -83,7 +83,10 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
   },
   fullWidth: { alignSelf: 'stretch' },
-  disabled: { opacity: 0.5 },
+  disabled: {
+    backgroundColor: colors.disabledOverlay,
+    borderColor: colors.disabledOverlay,
+  },
   text: {
     ...typography.label,
   },
@@ -116,7 +119,7 @@ const VARIANTS: Record<
   },
   danger: {
     container: { backgroundColor: colors.danger, borderColor: colors.danger, ...shadows.sm },
-    pressed: { backgroundColor: '#B91C1C' },
-    text: { color: '#FFFFFF' },
+    pressed: { backgroundColor: colors.dangerPressed },
+    text: { color: colors.textInverse },
   },
 };

@@ -3,7 +3,13 @@
 import { useState } from "react";
 import { MessageCircle, CheckCircle, XCircle, Loader2 } from "lucide-react";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -11,10 +17,6 @@ import { Switch } from "@/components/ui/switch";
 
 export interface WhatsAppSettings {
   phoneNumber: string;
-<<<<<<< HEAD
-=======
-  apiKey: string;
->>>>>>> origin/main
   notificationsEnabled: boolean;
 }
 
@@ -27,10 +29,6 @@ interface WhatsAppSettingsPanelProps {
 
 const DEFAULT_SETTINGS: WhatsAppSettings = {
   phoneNumber: "",
-<<<<<<< HEAD
-=======
-  apiKey: "",
->>>>>>> origin/main
   notificationsEnabled: true,
 };
 
@@ -40,11 +38,18 @@ export function WhatsAppSettingsPanel({
   onVerify,
   disabled = false,
 }: WhatsAppSettingsPanelProps) {
-  const [localSettings, setLocalSettings] = useState<WhatsAppSettings>(settings || DEFAULT_SETTINGS);
+  const [localSettings, setLocalSettings] = useState<WhatsAppSettings>(
+    settings || DEFAULT_SETTINGS
+  );
   const [isVerifying, setIsVerifying] = useState(false);
-  const [verificationStatus, setVerificationStatus] = useState<"idle" | "success" | "error">("idle");
+  const [verificationStatus, setVerificationStatus] = useState<
+    "idle" | "success" | "error"
+  >("idle");
 
-  const handleChange = (field: keyof WhatsAppSettings, value: string | boolean) => {
+  const handleChange = (
+    field: keyof WhatsAppSettings,
+    value: string | boolean
+  ) => {
     const newSettings = { ...localSettings, [field]: value };
     setLocalSettings(newSettings);
     onChange(newSettings);
@@ -64,11 +69,7 @@ export function WhatsAppSettingsPanel({
     }
   };
 
-<<<<<<< HEAD
   const isConfigured = Boolean(localSettings.phoneNumber);
-=======
-  const isConfigured = localSettings.phoneNumber && localSettings.apiKey;
->>>>>>> origin/main
 
   return (
     <Card>
@@ -78,7 +79,8 @@ export function WhatsAppSettingsPanel({
           Configuración de WhatsApp
         </CardTitle>
         <CardDescription>
-          Configura tu cuenta de WhatsApp Business para enviar mensajes a atletas y padres
+          Configura tu cuenta de WhatsApp Business para enviar mensajes a
+          atletas y padres
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -98,28 +100,10 @@ export function WhatsAppSettingsPanel({
           </p>
         </div>
 
-<<<<<<< HEAD
         <p className="text-xs text-muted-foreground">
-          Las credenciales de Twilio se administran de forma segura en el servidor;
-          nunca las pegues en este formulario.
+          Las credenciales de Twilio se administran de forma segura en el
+          servidor; nunca las pegues en este formulario.
         </p>
-=======
-        {/* API Key */}
-        <div className="space-y-2">
-          <Label htmlFor="whatsapp-api-key">API Key de WhatsApp Business</Label>
-          <Input
-            id="whatsapp-api-key"
-            type="password"
-            value={localSettings.apiKey}
-            onChange={(e) => handleChange("apiKey", e.target.value)}
-            placeholder="Tu API key"
-            disabled={disabled}
-          />
-          <p className="text-xs text-muted-foreground">
-            Obtén tu API key desde el panel de WhatsApp Business API
-          </p>
-        </div>
->>>>>>> origin/main
 
         {/* Verificar conexión */}
         <div className="flex items-center gap-4">
@@ -164,7 +148,9 @@ export function WhatsAppSettingsPanel({
           </div>
           <Switch
             checked={localSettings.notificationsEnabled}
-            onCheckedChange={(checked) => handleChange("notificationsEnabled", checked)}
+            onCheckedChange={(checked) =>
+              handleChange("notificationsEnabled", checked)
+            }
             disabled={disabled}
           />
         </div>

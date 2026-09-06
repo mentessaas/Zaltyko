@@ -180,11 +180,7 @@ export function CompetitionResultsPanel({
           <select
             value={athleteId}
             onChange={(event) => setAthleteId(event.target.value)}
-<<<<<<< HEAD
             className="rounded-lg border border-border bg-card px-3 py-2 text-sm md:col-span-2"
-=======
-            className="rounded-lg border border-zaltyko-mist bg-white px-3 py-2 text-sm md:col-span-2"
->>>>>>> origin/main
             required
           >
             <option value="">{terms.athlete}</option>
@@ -197,11 +193,7 @@ export function CompetitionResultsPanel({
           <select
             value={apparatusCode}
             onChange={(event) => setApparatusCode(event.target.value)}
-<<<<<<< HEAD
             className="rounded-lg border border-border bg-card px-3 py-2 text-sm"
-=======
-            className="rounded-lg border border-zaltyko-mist bg-white px-3 py-2 text-sm"
->>>>>>> origin/main
           >
             <option value="">{terms.apparatus}</option>
             {apparatus.map((item) => (
@@ -213,11 +205,7 @@ export function CompetitionResultsPanel({
           <input
             value={round}
             onChange={(event) => setRound(event.target.value)}
-<<<<<<< HEAD
             className="rounded-lg border border-border bg-card px-3 py-2 text-sm"
-=======
-            className="rounded-lg border border-zaltyko-mist bg-white px-3 py-2 text-sm"
->>>>>>> origin/main
             placeholder="Ronda"
           />
           <input
@@ -226,11 +214,7 @@ export function CompetitionResultsPanel({
             step="0.1"
             value={finalScore}
             onChange={(event) => setFinalScore(event.target.value)}
-<<<<<<< HEAD
             className="rounded-lg border border-border bg-card px-3 py-2 text-sm"
-=======
-            className="rounded-lg border border-zaltyko-mist bg-white px-3 py-2 text-sm"
->>>>>>> origin/main
             placeholder="Nota final"
           />
           <input
@@ -238,11 +222,7 @@ export function CompetitionResultsPanel({
             min="1"
             value={rank}
             onChange={(event) => setRank(event.target.value)}
-<<<<<<< HEAD
             className="rounded-lg border border-border bg-card px-3 py-2 text-sm"
-=======
-            className="rounded-lg border border-zaltyko-mist bg-white px-3 py-2 text-sm"
->>>>>>> origin/main
             placeholder="Puesto"
           />
           <input
@@ -251,11 +231,7 @@ export function CompetitionResultsPanel({
             step="0.1"
             value={dScore}
             onChange={(event) => setDScore(event.target.value)}
-<<<<<<< HEAD
             className="rounded-lg border border-border bg-card px-3 py-2 text-sm"
-=======
-            className="rounded-lg border border-zaltyko-mist bg-white px-3 py-2 text-sm"
->>>>>>> origin/main
             placeholder="D"
           />
           <input
@@ -264,21 +240,13 @@ export function CompetitionResultsPanel({
             step="0.1"
             value={eScore}
             onChange={(event) => setEScore(event.target.value)}
-<<<<<<< HEAD
             className="rounded-lg border border-border bg-card px-3 py-2 text-sm"
-=======
-            className="rounded-lg border border-zaltyko-mist bg-white px-3 py-2 text-sm"
->>>>>>> origin/main
             placeholder="E"
           />
           <input
             value={notes}
             onChange={(event) => setNotes(event.target.value)}
-<<<<<<< HEAD
             className="rounded-lg border border-border bg-card px-3 py-2 text-sm md:col-span-3"
-=======
-            className="rounded-lg border border-zaltyko-mist bg-white px-3 py-2 text-sm md:col-span-3"
->>>>>>> origin/main
             placeholder="Notas"
           />
           <Button type="submit" disabled={isPending} className="md:col-span-1">
@@ -287,21 +255,13 @@ export function CompetitionResultsPanel({
         </form>
 
         {results.length === 0 ? (
-<<<<<<< HEAD
           <p className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-=======
-          <p className="rounded-xl border border-dashed border-zaltyko-mist p-6 text-center text-sm text-zaltyko-text-secondary">
->>>>>>> origin/main
             Todavía no hay resultados registrados para este evento.
           </p>
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
-<<<<<<< HEAD
               <thead className="border-b border-border text-left text-xs uppercase text-muted-foreground">
-=======
-              <thead className="border-b border-zaltyko-mist text-left text-xs uppercase text-zaltyko-text-secondary">
->>>>>>> origin/main
                 <tr>
                   <th className="py-2 pr-4 font-medium">{terms.athlete}</th>
                   <th className="py-2 pr-4 font-medium">{terms.apparatus}</th>
@@ -315,11 +275,7 @@ export function CompetitionResultsPanel({
               <tbody className="divide-y divide-zaltyko-mist">
                 {results.map((result) => (
                   <tr key={result.id}>
-<<<<<<< HEAD
                     <td className="py-3 pr-4 font-medium text-foreground">{result.athleteName}</td>
-=======
-                    <td className="py-3 pr-4 font-medium text-zaltyko-navy">{result.athleteName}</td>
->>>>>>> origin/main
                     <td className="py-3 pr-4">
                       {result.apparatus ? apparatusNameByCode.get(result.apparatus) ?? result.apparatus : "-"}
                     </td>

@@ -205,13 +205,8 @@ export function CoachDashboardPage({
 
       {/* Clases de hoy */}
       {todaySessions.length > 0 && (
-<<<<<<< HEAD
         <section className="overflow-hidden rounded-[22px] border border-border/80 bg-card shadow-[0_18px_50px_-32px_rgba(15,23,42,0.45)]">
           <div className="flex items-center justify-between border-b border-border p-5">
-=======
-        <section className="overflow-hidden rounded-[22px] border border-slate-200/80 bg-white shadow-[0_18px_50px_-32px_rgba(15,23,42,0.45)]">
-          <div className="flex items-center justify-between border-b border-slate-100 p-5">
->>>>>>> origin/main
             <div className="flex items-center gap-2">
               <Calendar className="h-5 w-5 text-primary" />
               <h2 className="font-display font-bold tracking-[-0.02em]">Clases de hoy</h2>
@@ -225,19 +220,11 @@ export function CoachDashboardPage({
               Ver todas <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
-<<<<<<< HEAD
           <div className="divide-y divide-border">
             {todaySessions.map((session) => (
               <div
                 key={session.id}
                 className="flex items-center justify-between p-4 transition-colors hover:bg-muted/50"
-=======
-          <div className="divide-y divide-slate-100">
-            {todaySessions.map((session) => (
-              <div
-                key={session.id}
-                className="flex items-center justify-between p-4 transition-colors hover:bg-slate-50"
->>>>>>> origin/main
               >
                 <div className="flex items-center gap-3">
                   {session.groupColor && (
@@ -299,13 +286,8 @@ export function CoachDashboardPage({
       {/* Dos columnas: Mis atletas y Evaluaciones recientes */}
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Mis Atletas */}
-<<<<<<< HEAD
         <section className="overflow-hidden rounded-[22px] border border-border/80 bg-card shadow-[0_18px_50px_-32px_rgba(15,23,42,0.45)]">
           <div className="flex items-center justify-between border-b border-border p-5">
-=======
-        <section className="overflow-hidden rounded-[22px] border border-slate-200/80 bg-white shadow-[0_18px_50px_-32px_rgba(15,23,42,0.45)]">
-          <div className="flex items-center justify-between border-b border-slate-100 p-5">
->>>>>>> origin/main
             <div className="flex items-center gap-2">
               <Users className="h-5 w-5 text-primary" />
               <h2 className="font-display font-bold tracking-[-0.02em]">Mis {specialization.labels.athletesPlural}</h2>
@@ -319,11 +301,7 @@ export function CoachDashboardPage({
               Ver todos <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
-<<<<<<< HEAD
           <div className="max-h-96 divide-y divide-border overflow-y-auto">
-=======
-          <div className="max-h-96 divide-y divide-slate-100 overflow-y-auto">
->>>>>>> origin/main
             {athletes.length === 0 ? (
               <div className="p-8 text-center text-muted-foreground">
                 <Users className="mx-auto h-8 w-8 mb-2 opacity-50" />
@@ -334,11 +312,7 @@ export function CoachDashboardPage({
                 <Link
                   key={athlete.id}
                   href={`/app/${academyId}/athletes/${athlete.id}`}
-<<<<<<< HEAD
                   className="flex items-center justify-between p-4 transition-colors hover:bg-muted/50"
-=======
-                  className="flex items-center justify-between p-4 transition-colors hover:bg-slate-50"
->>>>>>> origin/main
                 >
                   <div className="flex items-center gap-3">
                     {athlete.groupColor && (
@@ -374,13 +348,8 @@ export function CoachDashboardPage({
         </section>
 
         {/* Evaluaciones Recientes */}
-<<<<<<< HEAD
         <section className="overflow-hidden rounded-[22px] border border-border/80 bg-card shadow-[0_18px_50px_-32px_rgba(15,23,42,0.45)]">
           <div className="flex items-center justify-between border-b border-border p-5">
-=======
-        <section className="overflow-hidden rounded-[22px] border border-slate-200/80 bg-white shadow-[0_18px_50px_-32px_rgba(15,23,42,0.45)]">
-          <div className="flex items-center justify-between border-b border-slate-100 p-5">
->>>>>>> origin/main
             <div className="flex items-center gap-2">
               <ClipboardList className="h-5 w-5 text-primary" />
               <h2 className="font-display font-bold tracking-[-0.02em]">Evaluaciones recientes</h2>
@@ -394,11 +363,7 @@ export function CoachDashboardPage({
               Ver todas <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
-<<<<<<< HEAD
           <div className="max-h-96 divide-y divide-border overflow-y-auto">
-=======
-          <div className="max-h-96 divide-y divide-slate-100 overflow-y-auto">
->>>>>>> origin/main
             {recentAssessments.length === 0 ? (
               <div className="p-8 text-center text-muted-foreground">
                 <ClipboardList className="mx-auto h-8 w-8 mb-2 opacity-50" />
@@ -444,13 +409,8 @@ export function CoachDashboardPage({
       </div>
 
       {/* Horario semanal */}
-<<<<<<< HEAD
       <section className="overflow-hidden rounded-[22px] border border-border/80 bg-card shadow-[0_18px_50px_-32px_rgba(15,23,42,0.45)]">
         <div className="flex items-center justify-between border-b border-border p-5">
-=======
-      <section className="overflow-hidden rounded-[22px] border border-slate-200/80 bg-white shadow-[0_18px_50px_-32px_rgba(15,23,42,0.45)]">
-        <div className="flex items-center justify-between border-b border-slate-100 p-5">
->>>>>>> origin/main
           <div className="flex items-center gap-2">
             <Calendar className="h-5 w-5 text-primary" />
           <h2 className="font-display font-bold tracking-[-0.02em]">Mi horario semanal</h2>
@@ -464,11 +424,7 @@ export function CoachDashboardPage({
             Gestión de clases <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
-<<<<<<< HEAD
         <div className="divide-y divide-border">
-=======
-        <div className="divide-y divide-slate-100">
->>>>>>> origin/main
           {classes.length === 0 ? (
               <div className="p-8 text-center text-muted-foreground">
                 <Calendar className="mx-auto h-8 w-8 mb-2 opacity-50" />
@@ -480,11 +436,7 @@ export function CoachDashboardPage({
               .map((cls) => (
                 <div
                   key={cls.id}
-<<<<<<< HEAD
                   className="flex items-center justify-between p-4 transition-colors hover:bg-muted/50"
-=======
-                  className="flex items-center justify-between p-4 transition-colors hover:bg-slate-50"
->>>>>>> origin/main
                 >
                   <div className="flex items-center gap-3">
                     {cls.groupColor && (

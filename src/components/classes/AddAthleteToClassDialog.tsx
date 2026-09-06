@@ -7,11 +7,7 @@ import { useToast } from "@/components/ui/toast-provider";
 import { createClient } from "@/lib/supabase/client";
 
 const fieldClassName =
-<<<<<<< HEAD
   "rounded-card border border-border bg-card px-3 py-2 text-sm shadow-none focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15";
-=======
-  "rounded-card border border-zaltyko-mist bg-white px-3 py-2 text-sm shadow-none focus:border-zaltyko-teal focus:outline-none focus:ring-4 focus:ring-zaltyko-teal/15";
->>>>>>> origin/main
 
 interface AthleteOption {
   id: string;
@@ -249,11 +245,7 @@ export function AddAthleteToClassDialog({
           </div>
         </div>
 
-<<<<<<< HEAD
         <div className="flex items-center justify-between text-xs text-muted-foreground">
-=======
-        <div className="flex items-center justify-between text-xs text-zaltyko-text-secondary">
->>>>>>> origin/main
           <span>
             {selectedAthleteIds.size} {selectedAthleteIds.size === 1 ? athleteTermLower : athletesTermLower} seleccionado{selectedAthleteIds.size !== 1 ? "s" : ""}
           </span>
@@ -268,15 +260,9 @@ export function AddAthleteToClassDialog({
           )}
         </div>
 
-<<<<<<< HEAD
         <div className="max-h-64 space-y-2 overflow-y-auto rounded-xl border border-border bg-zaltyko-warm-white p-3">
           {filteredAthletes.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-=======
-        <div className="max-h-64 space-y-2 overflow-y-auto rounded-xl border border-zaltyko-mist bg-zaltyko-warm-white p-3">
-          {filteredAthletes.length === 0 ? (
-            <p className="text-sm text-zaltyko-text-secondary">
->>>>>>> origin/main
               {availableAthletes.length === 0
                 ? `Todos los ${athletesTermLower} de la academia ya están en esta ${classTermLower}.`
                 : `No hay ${athletesTermLower} que coincidan con los filtros.`}
@@ -285,31 +271,18 @@ export function AddAthleteToClassDialog({
             filteredAthletes.map((athlete) => (
               <label
                 key={athlete.id}
-<<<<<<< HEAD
                 className="flex items-center gap-3 rounded-xl border border-border/70 bg-card px-3 py-2 transition hover:border-zaltyko-teal/40"
-=======
-                className="flex items-center gap-3 rounded-xl border border-zaltyko-mist/70 bg-white px-3 py-2 transition hover:border-zaltyko-teal/40"
->>>>>>> origin/main
               >
                 <input
                   type="checkbox"
                   checked={selectedAthleteIds.has(athlete.id)}
                   onChange={() => toggleAthlete(athlete.id)}
-<<<<<<< HEAD
                   className="h-4 w-4 rounded border-border text-zaltyko-teal focus:ring-zaltyko-teal"
                 />
                 <div className="flex flex-1 flex-col">
                   <span className="font-medium text-foreground">{athlete.name}</span>
                   {athlete.groupName && (
                     <span className="text-xs text-muted-foreground">
-=======
-                  className="h-4 w-4 rounded border-zaltyko-mist text-zaltyko-teal focus:ring-zaltyko-teal"
-                />
-                <div className="flex flex-1 flex-col">
-                  <span className="font-medium text-zaltyko-navy">{athlete.name}</span>
-                  {athlete.groupName && (
-                    <span className="text-xs text-zaltyko-text-secondary">
->>>>>>> origin/main
                       {groupLabel} principal: {athlete.groupName}
                     </span>
                   )}

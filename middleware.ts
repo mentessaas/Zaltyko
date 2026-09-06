@@ -4,6 +4,7 @@ import crypto from "crypto";
 import { isDevFeaturesEnabled } from "@/lib/dev";
 import { DEV_SESSION_COOKIE, parseDevSessionCookie } from "@/lib/dev-session";
 import { locales, defaultLocale, type Locale } from "@/i18n";
+import { getAcademyRobotsHeader } from "@/lib/seo/academy-robots-directives";
 
 // Constants
 const SUPER_ADMIN_PATH = "/super-admin";
@@ -38,6 +39,78 @@ const I18N_MODALITY_PREFIXES = [
   "/acrobatic-gymnastics",
   "/trampoline",
 ];
+
+const STATIC_SECURITY_HEADERS = {
+  "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
+  "X-Content-Type-Options": "nosniff",
+  "X-Frame-Options": "DENY",
+  "X-DNS-Prefetch-Control": "off",
+  "Referrer-Policy": "strict-origin-when-cross-origin",
+  "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=()",
+};
+
+const CSP_SCRIPT_SOURCES_BASE = [
+  "'self'",
+  "https://*.supabase.co",
+  "https://*.stripe.com",
+  "https://vercel.live",
+  "https://va.vercel-scripts.com",
+  "https://*.posthog.com",
+  "https://browser.sentry-cdn.com",
+  "https://js.sentry-cdn.com",
+];
+
+const CSP_CONNECT_SOURCES = [
+  "'self'",
+  "https://*.supabase.co",
+  "wss://*.supabase.co",
+  "https://*.stripe.com",
+  "https://*.posthog.com",
+  "https://vercel.live",
+  "https://*.sentry.io",
+  "https://*.ingest.sentry.io",
+  "https://*.ingest.us.sentry.io",
+];
+
+const WWW_HOSTS = new Set(["www.zaltyko.com", "www.zaltyko.test"]);
+
+function generateNonce() {
+  return crypto.randomBytes(16).toString("base64");
+}
+
+function buildCsp(nonce: string) {
+  return [
+    "default-src 'self'",
+    `script-src ${CSP_SCRIPT_SOURCES_BASE.join(" ")} 'nonce-${nonce}'`,
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src 'self' data: https://fonts.gstatic.com",
+    "img-src 'self' data: blob: https:",
+    `connect-src ${CSP_CONNECT_SOURCES.join(" ")}`,
+    "frame-src 'self' https://*.stripe.com https://*.supabase.co",
+    "frame-ancestors 'none'",
+    "base-uri 'self'",
+    "form-action 'self' https://*.supabase.co",
+    "object-src 'none'",
+    "manifest-src 'self'",
+  ].join("; ");
+}
+
+function applySecurityHeaders(response: NextResponse, nonce: string) {
+  for (const [header, value] of Object.entries(STATIC_SECURITY_HEADERS)) {
+    response.headers.set(header, value);
+  }
+  response.headers.set("Content-Security-Policy", buildCsp(nonce));
+  response.headers.set("x-nonce", nonce);
+  return response;
+}
+
+function apexRedirectResponse(request: NextRequest): NextResponse | null {
+  if (!WWW_HOSTS.has(request.nextUrl.hostname)) return null;
+
+  const targetUrl = new URL(request.url);
+  targetUrl.hostname = request.nextUrl.hostname.slice("www.".length);
+  return NextResponse.redirect(targetUrl, 301);
+}
 
 function redirectToLogin(req: NextRequest) {
   return NextResponse.redirect(new URL(LOGIN_PATH, req.url));
@@ -124,16 +197,12 @@ function verifyJwtHs256(token: string, secret: string): { valid: boolean; payloa
 function validateClaims(payload: Record<string, unknown>): boolean {
   const now = Date.now();
 
-<<<<<<< HEAD
   // `exp` es obligatorio: un token firmado sin expiración sería válido eterno.
   if (typeof payload.exp !== "number") {
     console.warn("JWT sin exp: rechazado");
     return false;
   }
   if (now >= payload.exp * 1000) {
-=======
-  if (typeof payload.exp === "number" && now >= payload.exp * 1000) {
->>>>>>> origin/main
     console.warn("JWT expired");
     return false;
   }
@@ -200,6 +269,40 @@ function shouldRedirectToLocalizedRoute(pathname: string) {
 
 function isAcademyAppPath(pathname: string) {
   return pathname.startsWith("/app/") || pathname.startsWith("/super-admin/");
+}
+
+function getIndividualAcademyId(pathname: string): string | null {
+  const match = pathname.match(/^\/academias\/([^/]+)\/?$/);
+  if (!match?.[1]) return null;
+  try {
+    return decodeURIComponent(match[1]);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * El detalle público es la lectura autoritativa para el header. Ese endpoint
+ * solo responde 200 para academias que cumplen el contrato de indexabilidad;
+ * cualquier 404, error o respuesta no verificable falla cerrado.
+ */
+async function shouldNoIndexAcademy(request: NextRequest): Promise<boolean> {
+  const academyId = getIndividualAcademyId(request.nextUrl.pathname);
+  if (!academyId) return false;
+
+  try {
+    const endpoint = new URL(
+      `/api/public/academies/${encodeURIComponent(academyId)}`,
+      request.url
+    );
+    const response = await fetch(endpoint, {
+      headers: { accept: "application/json" },
+      cache: "no-store",
+    });
+    return !response.ok;
+  } catch {
+    return true;
+  }
 }
 
 async function checkRateLimit(
@@ -294,14 +397,18 @@ function i18nRedirectResponse(request: NextRequest): NextResponse | null {
 
 export async function middleware(req: NextRequest) {
   const pathname = req.nextUrl.pathname;
+  const nonce = generateNonce();
+
+  const apexRedirect = apexRedirectResponse(req);
+  if (apexRedirect) return applySecurityHeaders(apexRedirect, nonce);
 
   if (isExcludedPath(pathname)) {
-    return NextResponse.next();
+    return applySecurityHeaders(NextResponse.next(), nonce);
   }
 
   // 0. i18n redirect (must run before any other gate)
   const i18nResponse = i18nRedirectResponse(req);
-  if (i18nResponse) return i18nResponse;
+  if (i18nResponse) return applySecurityHeaders(i18nResponse, nonce);
 
   const requestHeaders = new Headers(req.headers);
   requestHeaders.set("x-pathname", pathname);
@@ -318,11 +425,12 @@ export async function middleware(req: NextRequest) {
       code: "RATE_LIMIT_EXCEEDED",
       message: "Demasiadas requests. Intenta de nuevo más tarde.",
     });
-    if (rateLimitResult.blockedResponse) return rateLimitResult.blockedResponse;
+    if (rateLimitResult.blockedResponse) {
+      return applySecurityHeaders(rateLimitResult.blockedResponse, nonce);
+    }
     rateLimitHeaders = rateLimitResult.headers;
   }
 
-<<<<<<< HEAD
   // 1b. Rate limit GETs públicos: endpoints anónimos con count(*) por
   // petición; sin esto, un loop barato fuerza escaneos completos sin medir.
   if (isApiPath(pathname) && !isMutation(req.method) && pathname.startsWith("/api/public")) {
@@ -333,19 +441,21 @@ export async function middleware(req: NextRequest) {
       code: "RATE_LIMIT_EXCEEDED",
       message: "Demasiadas requests. Intenta de nuevo más tarde.",
     });
-    if (rateLimitResult.blockedResponse) return rateLimitResult.blockedResponse;
+    if (rateLimitResult.blockedResponse) {
+      return applySecurityHeaders(rateLimitResult.blockedResponse, nonce);
+    }
     rateLimitHeaders = rateLimitResult.headers;
   }
 
-=======
->>>>>>> origin/main
   // 2. Rate limit academy app + super-admin paths
   if (isAcademyAppPath(pathname)) {
     const rateLimitResult = await checkRateLimit(req, {
       error: "RATE_LIMIT_EXCEEDED",
       message: "Demasiadas requests. Intenta de nuevo más tarde.",
     });
-    if (rateLimitResult.blockedResponse) return rateLimitResult.blockedResponse;
+    if (rateLimitResult.blockedResponse) {
+      return applySecurityHeaders(rateLimitResult.blockedResponse, nonce);
+    }
     rateLimitHeaders = rateLimitResult.headers;
   }
 
@@ -357,26 +467,27 @@ export async function middleware(req: NextRequest) {
 
     if (!hasDevSession) {
       const token = extractAccessToken(req);
-      if (!token) return redirectToLogin(req);
+      if (!token) return applySecurityHeaders(redirectToLogin(req), nonce);
 
       const secret = process.env.SUPABASE_JWT_SECRET;
       if (secret) {
         const { valid, payload } = verifyJwtHs256(token, secret);
         if (!valid || !payload || !validateClaims(payload)) {
-          return redirectToLogin(req);
+          return applySecurityHeaders(redirectToLogin(req), nonce);
         }
 
         if (extractRole(payload) !== SUPER_ADMIN_ROLE) {
-          return redirectToLogin(req);
+          return applySecurityHeaders(redirectToLogin(req), nonce);
         }
       } else if (!(await verifySuperAdminWithSupabase(token))) {
         // Verify remotely when the project JWT secret is not available in the
         // deployment environment. Never trust an unverified client claim.
-        return redirectToLogin(req);
+        return applySecurityHeaders(redirectToLogin(req), nonce);
       }
     }
   }
 
+  requestHeaders.set("x-nonce", nonce);
   const response = NextResponse.next({
     request: {
       headers: requestHeaders,
@@ -389,7 +500,11 @@ export async function middleware(req: NextRequest) {
     }
   }
 
-  return response;
+  if (await shouldNoIndexAcademy(req)) {
+    response.headers.set("X-Robots-Tag", getAcademyRobotsHeader(false) as string);
+  }
+
+  return applySecurityHeaders(response, nonce);
 }
 
 export const config = {

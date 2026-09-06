@@ -91,7 +91,7 @@ export default function ProfileScreen() {
                 setLockEnabledState(next);
                 await setLockEnabled(next);
               }}
-              trackColor={{ false: '#94A3B8', true: colors.primary }}
+              trackColor={{ false: colors.onDarkMuted, true: colors.primary }}
               thumbColor={colors.surface}
             />
           </View>

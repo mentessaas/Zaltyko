@@ -68,11 +68,8 @@
   },
   "engines": {
     "node": ">=22"
-<<<<<<< HEAD
-=======
   },
   "overrides": {
     "uuid": "^11.1.1"
->>>>>>> origin/main
   }
 }

@@ -1,12 +1,13 @@
 "use server";
 
-import { and, asc, eq, ilike, or, sql } from "drizzle-orm";
+import { and, asc, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
 import { academies } from "@/db/schema";
 import { createClient } from "@supabase/supabase-js";
 import { logger } from "@/lib/logger";
+import { INDEXABLE_ACADEMY_STATUS_VALUES } from "@/lib/seo/academy-indexability";
 
 const ACADEMY_TYPES = ["artistica", "ritmica", "general"] as const;
 
@@ -64,10 +65,10 @@ export async function getPublicAcademies(
   const { search, type, country, region, city, page, limit } = parsed;
 
   // Construir filtros
-  const filters: ReturnType<typeof eq | typeof ilike>[] = [
+  const filters: Array<ReturnType<typeof eq> | ReturnType<typeof ilike> | ReturnType<typeof inArray>> = [
     eq(academies.isPublic, true),
     eq(academies.isSuspended, false),
-    sql`${academies.status} NOT IN ('churned', 'fraud_hold')`,
+    inArray(academies.status, INDEXABLE_ACADEMY_STATUS_VALUES),
   ];
 
   if (search) {
@@ -101,7 +102,7 @@ export async function getPublicAcademies(
 
   // Intentar primero con Drizzle, si falla usar Supabase REST API
   let useFallback = false;
-  
+
   try {
     // Contar total de resultados
     const [countResult] = await db
@@ -110,7 +111,7 @@ export async function getPublicAcademies(
       .where(and(...filters));
 
     const total = Number(countResult?.count ?? 0);
-    
+
     // Si el total es 0 pero sabemos que hay academias, puede ser un problema de conexión
     // Intentar el fallback si total es 0 y no hay filtros de búsqueda
     if (total === 0 && !search && !type && !country && !region && !city) {
@@ -118,7 +119,7 @@ export async function getPublicAcademies(
       useFallback = true;
       throw new Error("Connection issue - using fallback");
     }
-    
+
     const totalPages = Math.ceil(total / limit);
     const offset = (page - 1) * limit;
 
@@ -182,7 +183,7 @@ export async function getPublicAcademies(
         .select("*", { count: "exact" })
         .eq("is_public", true)
         .eq("is_suspended", false)
-        .not("status", "in", "(churned,fraud_hold)");
+        .in("status", INDEXABLE_ACADEMY_STATUS_VALUES);
       
       if (search) {
         query = query.ilike("name", `%${search}%`);

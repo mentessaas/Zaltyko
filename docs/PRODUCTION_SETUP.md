@@ -31,11 +31,7 @@ https://jegxfahsvugilbthbked.supabase.co
 
 #### `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 ```
-<<<<<<< HEAD
 [REDACTED-JWT]
-=======
-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImplZ3hmYWhzdnVnaWxidGhia2VkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI1MjU5MjgsImV4cCI6MjA3ODEwMTkyOH0.1AnSfOAxpt0eUJnHk5UG0AnwyEkgsfbjU8cR76E-wv8
->>>>>>> origin/main
 ```
 
 #### `SUPABASE_SERVICE_ROLE_KEY` (Requerido)

@@ -50,7 +50,10 @@ function EmptyStateImpl({
         {title}
       </Text>
       {description ? (
-        <Text style={styles.desc} importantForAccessibility="no-hide-descendants">
+        <Text
+          style={[styles.desc, onLight ? styles.descOnLight : styles.descOnDark]}
+          importantForAccessibility="no-hide-descendants"
+        >
           {description}
         </Text>
       ) : null}
@@ -80,8 +83,9 @@ const styles = StyleSheet.create({
   titleOnLight: { color: colors.text },
   desc: {
     ...typography.body,
-    color: colors.textMuted,
     textAlign: 'center',
   },
+  descOnDark: { color: colors.textMutedOnDark }, // 6.96:1 sobre bg navy
+  descOnLight: { color: colors.textMuted }, // 4.97:1 sobre surface blanco
   action: { marginTop: spacing.md },
 });

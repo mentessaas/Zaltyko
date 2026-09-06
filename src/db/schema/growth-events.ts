@@ -1,4 +1,13 @@
-import { index, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import {
+  index,
+  jsonb,
+  pgTable,
+  smallint,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+} from "drizzle-orm/pg-core";
 
 import { academies } from "./academies";
 import { profiles } from "./profiles";
@@ -14,17 +23,37 @@ export const growthEvents = pgTable(
   "growth_events",
   {
     id: uuid("id").primaryKey().defaultRandom(),
+    // Canonical A3 event identity; null only for pre-A3 historical rows.
+    eventId: uuid("event_id"),
     eventName: text("event_name").notNull(),
+    // A3 canonical metadata is nullable so existing first-party rows remain
+    // historical rather than being silently reclassified by the migration.
+    schemaVersion: smallint("schema_version"),
+    environment: text("environment"),
+    evidenceScope: text("evidence_scope"),
+    aliasSource: text("alias_source"),
+    transactionId: text("transaction_id"),
     visitorId: text("visitor_id"),
-    userId: uuid("user_id").references(() => profiles.userId, { onDelete: "set null" }),
-    academyId: uuid("academy_id").references(() => academies.id, { onDelete: "set null" }),
+    userId: uuid("user_id").references(() => profiles.userId, {
+      onDelete: "set null",
+    }),
+    academyId: uuid("academy_id").references(() => academies.id, {
+      onDelete: "set null",
+    }),
     tenantId: uuid("tenant_id"),
     planCode: text("plan_code"),
     source: text("source").notNull().default("app"),
-    properties: jsonb("properties").$type<Record<string, string | number | boolean | null>>(),
+    properties:
+      jsonb("properties").$type<
+        Record<string, string | number | boolean | null>
+      >(),
     idempotencyKey: text("idempotency_key"),
-    occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull().defaultNow(),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    occurredAt: timestamp("occurred_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (table) => ({
     eventOccurredIdx: index("growth_events_event_occurred_idx").on(
@@ -41,6 +70,9 @@ export const growthEvents = pgTable(
     ),
     idempotencyUnique: uniqueIndex("growth_events_idempotency_unique").on(
       table.idempotencyKey
+    ),
+    eventIdUnique: uniqueIndex("growth_events_event_id_unique").on(
+      table.eventId
     ),
   })
 );

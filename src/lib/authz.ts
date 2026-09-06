@@ -399,8 +399,6 @@ export function withAuthenticatedNoTenant<Ctx extends Record<string, unknown>>(
         );
       }
 
-<<<<<<< HEAD
-=======
       // Gate de roles (semántica ZAL-499 / PR #67): solo super_admin, provider
       // o perfiles con academia pueden operar sin tenant explícito. Un athlete,
       // parent o coach sin tenantId no debe poder publicar en el marketplace.
@@ -418,7 +416,6 @@ export function withAuthenticatedNoTenant<Ctx extends Record<string, unknown>>(
         );
       }
 
->>>>>>> origin/main
       // El tenant es informativo para handlers que lo aceptan; su ausencia es
       // válida aquí y no debe convertir la autenticación en un 403.
       const tenantId = profile.tenantId ?? "";

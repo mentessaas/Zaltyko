@@ -7,6 +7,7 @@ import { academies } from "@/db/schema";
 import { withSuperAdmin } from "@/lib/authz";
 import { handleApiError } from "@/lib/api-error-handler";
 import { revalidatePath } from "next/cache";
+import { revalidatePublicAcademySeo } from "@/lib/seo/revalidate-academy";
 
 interface RouteContext {
   params: Promise<{ academyId: string }>;
@@ -62,8 +63,7 @@ export const PUT = withSuperAdmin(async (request, context) => {
       .where(eq(academies.id, academyId));
 
     // Revalidar rutas públicas
-    revalidatePath("/academias");
-    revalidatePath(`/academias/${academyId}`);
+    revalidatePublicAcademySeo(academyId);
     revalidatePath("/super-admin/academies/public");
 
     return apiSuccess({
@@ -77,4 +77,3 @@ export const PUT = withSuperAdmin(async (request, context) => {
     });
   }
 });
-

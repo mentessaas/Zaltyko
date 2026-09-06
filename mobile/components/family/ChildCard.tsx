@@ -49,7 +49,10 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     padding: spacing.md,
   },
-  pressed: { backgroundColor: colors.surfaceMuted },
+  pressed: {
+    backgroundColor: colors.surfaceMuted,
+    borderColor: colors.primary,
+  },
   avatar: {
     width: 44,
     height: 44,

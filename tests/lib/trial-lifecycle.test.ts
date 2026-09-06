@@ -33,7 +33,9 @@ import {
 describe("trial lifecycle delivery", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.getUserById.mockResolvedValue({ data: { user: { email: undefined } } });
+    mocks.getUserById.mockResolvedValue({
+      data: { user: { email: undefined } },
+    });
     mocks.isAcademyBlockedFromSending.mockResolvedValue({
       blocked: false,
       reason: null,
@@ -88,6 +90,9 @@ describe("trial lifecycle delivery", () => {
 
     await releaseTrialNotificationClaim("trial-1", "day_five", now);
 
-    expect(set).toHaveBeenCalledWith({ dayFiveNotifiedAt: null, updatedAt: now });
+    expect(set).toHaveBeenCalledWith({
+      dayFiveNotifiedAt: null,
+      updatedAt: now,
+    });
   });
 });

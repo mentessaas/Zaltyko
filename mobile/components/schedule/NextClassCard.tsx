@@ -158,7 +158,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  ctaPressed: { backgroundColor: colors.primarySoft },
+  ctaPressed: {
+    backgroundColor: colors.primarySoft,
+    borderColor: colors.primaryHover,
+  },
   ctaText: {
     ...typography.label,
     color: colors.primary,

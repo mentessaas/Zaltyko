@@ -47,7 +47,7 @@ function AttendanceSummaryImpl({ data }: Props) {
       <View style={styles.statsRow}>
         <Stat label="Asistió" value={data.present} color={colors.success} />
         <Stat label="Faltó" value={data.absent} color={colors.danger} />
-        <Stat label="Justif." value={data.excused} color={colors.info} />
+        <Stat label="Justif." value={data.excused} color="#0369A1" />
       </View>
       {data.recentRecords.length > 0 ? (
         <View style={{ gap: spacing.xs }}>

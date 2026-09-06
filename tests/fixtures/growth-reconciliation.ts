@@ -1,0 +1,163 @@
+import type {
+  GrowthEventReconciliationRow,
+  SubscriptionReconciliationFact,
+} from "@/lib/growth/reconciliation";
+
+const at = (seconds: number) =>
+  new Date(`2026-08-29T10:00:${String(seconds).padStart(2, "0")}.000Z`);
+
+export const growthReconciliationFixture: {
+  rows: GrowthEventReconciliationRow[];
+  dbSubscriptions: SubscriptionReconciliationFact[];
+  stripeSubscriptions: SubscriptionReconciliationFact[];
+} = {
+  rows: [
+    {
+      eventId: "00000000-0000-4000-8000-000000000101",
+      eventName: "academy_created",
+      idempotencyKey: "v1:academy_created:academy-a",
+      transactionId: null,
+      environment: "sandbox",
+      evidenceScope: "T",
+      occurredAt: at(0),
+      createdAt: new Date(at(0).getTime() + 50),
+      properties: { academy_scope: "single", source: "signup" },
+    },
+    {
+      eventId: "00000000-0000-4000-8000-000000000102",
+      eventName: "academy_created",
+      idempotencyKey: "v1:academy_created:academy-a",
+      transactionId: null,
+      environment: "sandbox",
+      evidenceScope: "T",
+      occurredAt: at(0),
+      createdAt: new Date(at(0).getTime() + 50),
+      properties: { academy_scope: "single", source: "signup" },
+    },
+    {
+      eventId: "00000000-0000-4000-8000-000000000103",
+      eventName: "view_pricing",
+      idempotencyKey: "v1:view_pricing:pricing-a",
+      transactionId: null,
+      environment: "sandbox",
+      evidenceScope: "T",
+      occurredAt: at(0),
+      createdAt: new Date(at(0).getTime() + 60),
+      properties: { platform: "web", surface: "pricing" },
+    },
+    {
+      eventId: "00000000-0000-4000-8000-000000000104",
+      eventName: "subscription_created",
+      idempotencyKey: "v1:subscription_created:tx-good",
+      transactionId: "tx-good",
+      environment: "sandbox",
+      evidenceScope: "T",
+      occurredAt: at(0),
+      createdAt: new Date(at(0).getTime() + 100),
+      properties: {
+        plan_code: "starter",
+        currency: "eur",
+        evidence_source: "db+stripe_test",
+        subscription_lifecycle_version: "1",
+      },
+    },
+    {
+      eventId: "00000000-0000-4000-8000-000000000105",
+      eventName: "subscription_created",
+      idempotencyKey: "v1:subscription_created:tx-plan",
+      transactionId: "tx-plan",
+      environment: "sandbox",
+      evidenceScope: "T",
+      occurredAt: at(0),
+      createdAt: new Date(at(0).getTime() + 120),
+      properties: {
+        plan_code: "starter",
+        currency: "eur",
+        evidence_source: "db+stripe_test",
+        subscription_lifecycle_version: "1",
+      },
+    },
+    {
+      eventId: "00000000-0000-4000-8000-000000000106",
+      eventName: "subscription_created",
+      idempotencyKey: "v1:subscription_created:tx-currency",
+      transactionId: "tx-currency",
+      environment: "sandbox",
+      evidenceScope: "T",
+      occurredAt: at(0),
+      createdAt: new Date(at(0).getTime() + 150),
+      properties: {
+        plan_code: "starter",
+        currency: "eur",
+        evidence_source: "db+stripe_test",
+        subscription_lifecycle_version: "1",
+      },
+    },
+    {
+      eventId: "00000000-0000-4000-8000-000000000107",
+      eventName: "historical_unknown",
+      idempotencyKey: "legacy:unknown",
+      transactionId: null,
+      environment: "sandbox",
+      evidenceScope: "T",
+      occurredAt: at(0),
+      createdAt: new Date(at(0).getTime() + 20),
+      properties: {},
+    },
+  ],
+  dbSubscriptions: [
+    {
+      transactionId: "tx-good",
+      subscriptionId: "db-good",
+      stripeSubscriptionId: "sub-good",
+      status: "active",
+      environment: "test",
+      planCode: "starter",
+      currency: "EUR",
+    },
+    {
+      transactionId: "tx-plan",
+      subscriptionId: "db-plan",
+      stripeSubscriptionId: "sub-plan",
+      status: "active",
+      environment: "test",
+      planCode: "starter",
+      currency: "eur",
+    },
+    {
+      transactionId: "tx-currency",
+      subscriptionId: "db-currency",
+      stripeSubscriptionId: "sub-currency",
+      status: "active",
+      environment: "test",
+      planCode: "starter",
+      currency: "eur",
+    },
+  ],
+  stripeSubscriptions: [
+    {
+      transactionId: "tx-good",
+      subscriptionId: "sub-good",
+      status: "active",
+      environment: "test",
+      planCode: "starter",
+      currency: "eur",
+    },
+    {
+      transactionId: "tx-plan",
+      subscriptionId: "sub-plan",
+      status: "active",
+      environment: "test",
+      planCode: "growth",
+      currency: "eur",
+    },
+    {
+      transactionId: "tx-currency",
+      subscriptionId: "sub-currency",
+      status: "active",
+      environment: "test",
+      planCode: "starter",
+      currency: "usd",
+    },
+  ],
+};

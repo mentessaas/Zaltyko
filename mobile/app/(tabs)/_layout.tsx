@@ -76,7 +76,7 @@ const errorStyles = StyleSheet.create({
     padding: spacing.xl,
   },
   title: { ...typography.title, color: colors.textInverse, textAlign: 'center' },
-  body: { ...typography.body, color: '#94A3B8', textAlign: 'center' },
+  body: { ...typography.body, color: colors.onDarkMuted, textAlign: 'center' },
 });
 
 function iconFor(name: string): keyof typeof Ionicons.glyphMap {

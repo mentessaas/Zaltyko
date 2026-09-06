@@ -3,7 +3,14 @@ import { redirect } from "next/navigation";
 import { desc, eq, and } from "drizzle-orm";
 
 import { db } from "@/db";
-import { academies, athletes, familyContacts, memberships, messageTemplates, profiles } from "@/db/schema";
+import {
+  academies,
+  athletes,
+  familyContacts,
+  memberships,
+  messageTemplates,
+  profiles,
+} from "@/db/schema";
 import { FeatureUnavailableState } from "@/components/product/FeatureUnavailableState";
 import { isFeatureEnabled } from "@/lib/product/features";
 import { createClient } from "@/lib/supabase/server";
@@ -91,16 +98,11 @@ export default async function WhatsAppRoutePage({ params }: PageProps) {
   // WhatsApp config - these would come from settings or academy metadata
   const whatsappConfig = {
     phone: "",
-<<<<<<< HEAD
     isConfigured: Boolean(
       process.env.TWILIO_ACCOUNT_SID &&
         process.env.TWILIO_AUTH_TOKEN &&
-        process.env.TWILIO_WHATSAPP_FROM,
+        process.env.TWILIO_WHATSAPP_FROM
     ),
-=======
-    apiKey: "",
-    isConfigured: false,
->>>>>>> origin/main
   };
 
   // Get classes for recipient selection
@@ -140,12 +142,15 @@ export default async function WhatsAppRoutePage({ params }: PageProps) {
     .where(eq(athletes.academyId, academyId))
     .orderBy(athletes.name);
 
-  const recipientMap = new Map<string, {
-    id: string;
-    name: string;
-    phone: string;
-    sportConfigId: string | null;
-  }>();
+  const recipientMap = new Map<
+    string,
+    {
+      id: string;
+      name: string;
+      phone: string;
+      sportConfigId: string | null;
+    }
+  >();
 
   for (const row of recipientRows) {
     if (!row.phone) continue;
@@ -168,36 +173,48 @@ export default async function WhatsAppRoutePage({ params }: PageProps) {
       sportConfigId: messageTemplates.sportConfigId,
     })
     .from(messageTemplates)
-    .where(and(
-      eq(messageTemplates.tenantId, academy.tenantId),
-      eq(messageTemplates.channel, "whatsapp"),
-      eq(messageTemplates.isActive, true)
-    ))
+    .where(
+      and(
+        eq(messageTemplates.tenantId, academy.tenantId),
+        eq(messageTemplates.channel, "whatsapp"),
+        eq(messageTemplates.isActive, true)
+      )
+    )
     .orderBy(desc(messageTemplates.createdAt));
 
-  const templates = templateRows.length > 0
-    ? templateRows.map((template) => ({
-        id: template.id,
-        name: template.name,
-        content: template.body,
-        category: template.templateType.includes("payment")
-          ? "payment" as const
-          : template.templateType.includes("event")
-            ? "event" as const
-            : template.templateType.includes("schedule") || template.templateType.includes("class")
-              ? "schedule" as const
-              : "reminder" as const,
-        sportConfigId: template.sportConfigId,
-      }))
-    : DEFAULT_WHATSAPP_TEMPLATES;
+  const templates =
+    templateRows.length > 0
+      ? templateRows.map((template) => ({
+          id: template.id,
+          name: template.name,
+          content: template.body,
+          category: template.templateType.includes("payment")
+            ? ("payment" as const)
+            : template.templateType.includes("event")
+              ? ("event" as const)
+              : template.templateType.includes("schedule") ||
+                  template.templateType.includes("class")
+                ? ("schedule" as const)
+                : ("reminder" as const),
+          sportConfigId: template.sportConfigId,
+        }))
+      : DEFAULT_WHATSAPP_TEMPLATES;
 
   return (
     <WhatsAppPage
       academyId={academyId}
       academyName={academy.name}
       whatsappConfig={whatsappConfig}
-      classes={classRows.map((c) => ({ id: c.id, name: c.name, sportConfigId: c.sportConfigId }))}
-      groups={groupRows.map((g) => ({ id: g.id, name: g.name, sportConfigId: g.sportConfigId }))}
+      classes={classRows.map((c) => ({
+        id: c.id,
+        name: c.name,
+        sportConfigId: c.sportConfigId,
+      }))}
+      groups={groupRows.map((g) => ({
+        id: g.id,
+        name: g.name,
+        sportConfigId: g.sportConfigId,
+      }))}
       recipients={Array.from(recipientMap.values())}
       sportConfigs={sportConfigs.map((config) => ({
         id: config.id,

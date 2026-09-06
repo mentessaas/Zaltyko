@@ -6,6 +6,7 @@ import { AcademySchedule } from "@/components/public/AcademySchedule";
 import { ContactAcademyForm } from "@/components/public/ContactAcademyForm";
 import { NearbyAcademies } from "@/components/public/NearbyAcademies";
 import { getPublicAcademy } from "@/app/actions/public/get-public-academy";
+import { getAcademyRobotsMetadata } from "@/lib/seo/academy-robots-directives";
 
 interface AcademyDetailPageProps {
   params: Promise<{ id: string }>;
@@ -18,12 +19,14 @@ export async function generateMetadata({ params }: AcademyDetailPageProps): Prom
   if (!academy) {
     return {
       title: "Academia no encontrada",
+      robots: getAcademyRobotsMetadata(false),
     };
   }
 
   return {
     title: `${academy.name} | Directorio de Academias`,
     description: academy.publicDescription || `Información sobre ${academy.name}`,
+    robots: getAcademyRobotsMetadata(true),
   };
 }
 
@@ -67,4 +70,3 @@ export default async function AcademyDetailPage({ params }: AcademyDetailPagePro
     </div>
   );
 }
-

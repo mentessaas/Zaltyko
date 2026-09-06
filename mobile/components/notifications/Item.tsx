@@ -40,7 +40,7 @@ function ItemImpl({ item, onPress }: Props) {
   return (
     <Pressable
       onPress={onPress}
-      style={[styles.row, unread && styles.rowUnread]}
+      style={({ pressed }) => [styles.row, unread && styles.rowUnread, pressed && styles.rowPressed]}
       accessibilityRole="button"
       accessibilityLabel={`${item.title}. ${item.message}${unread ? '. No leído' : ''}`}
     >
@@ -77,6 +77,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   rowUnread: { borderColor: colors.primary, borderWidth: 1.5 },
+  rowPressed: {
+    backgroundColor: colors.surfacePressed,
+    borderColor: colors.primary, // 6.29:1 sobre surface — WCAG 1.4.11 PASS
+  },
   iconBox: {
     width: 36,
     height: 36,

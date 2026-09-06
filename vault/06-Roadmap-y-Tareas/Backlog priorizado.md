@@ -14,8 +14,57 @@ source:
   - ../07-Auditorias-y-Riesgos/Auditoria MVP gimnasia - 2026-06-23.md
   - ../07-Auditorias-y-Riesgos/Registro de riesgos.md (bloqueantes con Elvis)
 ---
+## Pendiente operativo (post-commit 352adf89) — Tracking paid acquisition
+
+Acciones para Elvis antes del primer lanzamiento de Google Ads:
+
+1. **Crear cuenta Google Ads** y obtener el ID `AW-XXXXXXXXX`.
+2. **Crear conversion labels** en Google Ads (Tools → Conversions):
+   - `signup_completed` (primary)
+   - `cta_click_register` (micro)
+3. **Configurar `NEXT_PUBLIC_GOOGLE_ADS_ID=AW-XXXXXXXXX`** en Vercel
+   (Project Settings → Environment Variables → Production).
+4. **(Opcional pero recomendado) Offline Conversion Import** para
+   `subscription_activated`:
+   - Fuente: tabla `growth_events` event_name='subscription_activated'
+   - Subir CSV diario desde `growth_events` a Google Ads.
+   - O bien, configurar el import automático via API.
+5. **Validar tracking E2E** post-deploy: completar signup real con UTMs
+   de prueba, confirmar eventos en PostHog + Google Ads Tag Assistant.
+6. **Configurar campañas** según audit:
+   - Google BRANDED 20€/mes (defender "zaltyko")
+   - Google CORE 140€/mes (transaccionales academias)
+   - Google COMPETITOR 40€/mes ("kydemy alternativa", etc.)
+   - Meta retargeting 50€/mes (test secundario)
+
+Refs: audit completo en `~/briefs/hermes/outputs/zaltyko-paid-audit-2026-09-04/`.
+Commit: `352adf89` (rama `fix/zal-686-studentrow-touch-targets`, sin pushear).
+Code changes verificados: tsc OK, eslint OK, next build OK.
+
+
 
 # Backlog priorizado
+
+## Bloqueador actual — 2026-09-04 — ZAL-1091 / ZAL-1081
+
+- El Board rechazó el toggle temporal de `recovery.pause.codeGates=false`; el flag
+  permanece en `true` y la disposición de ZAL-1081 no debe reintentarse.
+- Owner/action de desbloqueo: Board debe emitir una nueva autorización explícita.
+  La transición remota a `blocked` quedó persistida y verificada el 2026-09-04;
+  el checkout de la issue fue liberado.
+
+## Bloqueo operativo — 2026-09-05 — ZAL-1239 proveedor quota/failover
+
+- El sandbox local confirma `provider_quota` y reintentos encadenados, pero no
+  expone una cadena activa de failover entre proveedores. El cap corporativo se
+  conserva en USD 10.000; no se autoriza elevarlo.
+- Owner/action de desbloqueo: Board/runtime debe confirmar un proveedor
+  secundario ya autorizado o aprobar su contratación y entregar un `secret_ref`
+  opaco por canal seguro. Después, Platform & Security y QA deben revisar y
+  ejecutar el smoke de failover en sandbox.
+- Alerta vigente: escalar si `provider_quota` alcanza o supera 20/día o si la
+  utilización mensual alcanza 85%; cualquier lectura local queda clasificada
+  como evidencia de sandbox, no como validación de producción.
 
 ## Revisión semanal de prioridades — 2026-08-03 (ZAL-239)
 
@@ -263,6 +312,8 @@ Trabajo de auditoria mergeado a `security/audit-remediation` via **PR #8 (`cf092
 | Pendiente | Definir estrategia de carga local para Vercel Analytics/Speed Insights y eliminar ruido 404 en QA visual. | Los scripts no deben generar errores de consola en una instancia local; configurar mocks o desactivación explícita en modo QA sin ocultar errores de aplicación. |
 
 | Pendiente — revisión 2027-01 | Medir uso de rutas legacy durante seis meses y decidir retirada física. | Mantener redirects y compatibilidad hasta disponer de telemetría; retirar solo si no hay uso relevante y todos los destinos modernos tienen cobertura de permisos/QA. |
+
+| Nuevo 2026-09-04 | ZAL-984 / ZAL-336: la CSP aplicada en desarrollo bloquea la hidratación de Next y, aun aislando CSP, el seam `e2e-mock` no está conectado al cliente/servidor/middleware; el signup no atraviesa Auth local. | Engineering Lead | Ajustar la política de desarrollo o el harness local sin debilitar la CSP productiva, conectar el seam mock solo bajo sus guards y repetir los cuatro escenarios Playwright y los negativos antes de emitir PASS local. |
 ## Auditoría Día 5 — 2026-07-21
 
 - **Media / Luna:** validar `/` y cluster en 320/375/768/1440 px con regresión de reflow y foco.
