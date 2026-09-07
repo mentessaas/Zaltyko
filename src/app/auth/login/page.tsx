@@ -21,6 +21,12 @@ export const metadata: Metadata = {
   },
 };
 
+// La ruta lee cookies() para resolver sesión y redirigir si ya hay login.
+// Next.js 15 requiere marca dinámica explícita cuando se usa cookies() /
+// headers() en una server component, si no aborta con
+// `Dynamic server usage: Route /auth/login couldn't be rendered statically`.
+export const dynamic = "force-dynamic";
+
 export default async function Login() {
   // Si ya hay sesión, redirigir al panel adecuado en lugar de mostrar el login.
   // Sin env de Supabase configurado o con el servicio caído, se muestra el

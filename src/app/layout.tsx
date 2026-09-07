@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Manrope, Space_Grotesk } from "next/font/google";
+import { headers } from "next/headers";
 import "./globals.css";
 import type React from "react";
 import { cn } from "@/lib/utils";
@@ -113,13 +114,18 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // El nonce CSP se genera por request en middleware.ts y se expone vía el
+  // header `x-nonce`. Sin propagarlo a `<html nonce>` y a los `<Script>` que
+  // metan scripts inline (Google Ads, etc.), el navegador bloquea el bundle
+  // de hidratación de React porque el CSP no encuentra un nonce que matchear.
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
   return (
-    <html lang="es" suppressHydrationWarning>
+    <html lang="es" nonce={nonce} suppressHydrationWarning>
       <head>
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#0F172A" />
@@ -135,8 +141,8 @@ export default function RootLayout({
         <OfflineBanner />
         <UpdateBanner />
         <InstallPrompt />
-        <GoogleAdsTracking />
-        <AppProviders>
+        <GoogleAdsTracking nonce={nonce} />
+        <AppProviders nonce={nonce}>
           <PostHogProvider>
             {children}
             <BottomNav />

@@ -23,7 +23,7 @@ import { isGoogleAdsEnabled } from "@/lib/google-ads";
 
 export { trackGoogleAdsConversion, isGoogleAdsEnabled } from "@/lib/google-ads";
 
-export function GoogleAdsTracking() {
+export function GoogleAdsTracking({ nonce }: { nonce?: string }) {
   useEffect(() => {
     if (!isGoogleAdsEnabled()) return;
     // page_view se emite manualmente para mantener consistencia con el resto
@@ -42,8 +42,9 @@ export function GoogleAdsTracking() {
       <Script
         src={`https://www.googletagmanager.com/gtag/js?id=${adsId}`}
         strategy="afterInteractive"
+        nonce={nonce}
       />
-      <Script id="google-ads-init" strategy="afterInteractive">
+      <Script id="google-ads-init" strategy="afterInteractive" nonce={nonce}>
         {`
           window.dataLayer = window.dataLayer || [];
           function gtag(){dataLayer.push(arguments);}
