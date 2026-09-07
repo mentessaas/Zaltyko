@@ -30,6 +30,8 @@
     "test:a11y": "playwright test tests/a11y-zaltyko.spec.ts",
     "audit:sprint3": "playwright test tests/e2e-zaltyko-full.spec.ts tests/e2e-zaltyko-public.spec.ts tests/a11y-zaltyko.spec.ts",
     "test:coverage": "vitest --coverage",
+    "test:qa": "vitest run --config vitest.qa.config.ts",
+    "test:diag": "vitest run --config vitest.diag.config.ts",
     "test:security": "vitest run --config vitest.security.config.ts",
     "audit:dependencies": "pnpm audit --audit-level high",
     "sbom:generate": "pnpm exec cyclonedx-npm --output-file sbom.cdx.json --output-format JSON --validate",

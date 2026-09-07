@@ -54,7 +54,6 @@ export default defineConfig({
             "tests/api-athletes.test.ts",
             "tests/product-roles-navigation.test.ts",
             "tests/api/cron-class-reminders.test.ts",
-            "tests/audit/public-claims.catalog.test.ts",
           ],
         },
       },
