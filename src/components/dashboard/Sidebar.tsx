@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Building2, Calendar, LogOut, User, Users } from "lucide-react";
+import { LogOut } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/client";
 import { isGlobalNavigationActive } from "@/lib/navigation/active";
-import { getGlobalNavigation } from "@/lib/navigation/registry";
+import { getGlobalNavigation, getQuickLinksNavigation } from "@/lib/navigation/registry";
 import { isProfileRole, type ProfileRole } from "@/lib/product/roles";
 import { getRoleLabel } from "@/lib/roles";
 import { cn } from "@/lib/utils";
@@ -24,17 +24,7 @@ export function Sidebar({ user }: SidebarProps) {
   const pathname = usePathname();
   const role: ProfileRole = isProfileRole(user?.role) ? user.role : "owner";
   const navItems = getGlobalNavigation(role);
-  const quickLinks =
-    role === "owner" || role === "admin"
-      ? [
-          { label: "Academias", href: "/dashboard/academies", icon: Building2 },
-          { label: "Equipo", href: "/dashboard/users", icon: Users },
-          { label: "Calendario", href: "/dashboard/calendar", icon: Calendar },
-        ]
-      : [
-          { label: "Mi perfil", href: "/dashboard/profile", icon: User },
-          { label: "Calendario", href: "/dashboard/calendar", icon: Calendar },
-        ];
+  const quickLinks = getQuickLinksNavigation(role);
 
   const isActive = (href: string) => {
     return isGlobalNavigationActive(pathname, href);

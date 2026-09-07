@@ -6,8 +6,10 @@ import { usePathname } from "next/navigation";
 import { BarChart3 } from "lucide-react";
 
 import { isSuperAdminNavigationActive } from "@/lib/navigation/active";
+import { getSuperAdminNavigation } from "@/lib/navigation/registry";
 import { cn } from "@/lib/utils";
-import { SUPER_ADMIN_NAV_ITEMS } from "./nav-items";
+
+const superAdminNavItems = getSuperAdminNavigation();
 
 export function SuperAdminSidebar() {
   const pathname = usePathname();
@@ -27,7 +29,7 @@ export function SuperAdminSidebar() {
           <p className="mt-3 font-display text-lg font-semibold text-white">Super Admin</p>
         </div>
         <nav className="flex-1 space-y-1 font-sans text-sm">
-          {SUPER_ADMIN_NAV_ITEMS.map((item) => {
+          {superAdminNavItems.map((item) => {
             const active = isSuperAdminNavigationActive(pathname, item.href);
             const Icon = item.icon;
             return (

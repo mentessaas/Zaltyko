@@ -8,8 +8,10 @@ import { LogOut, Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import { isSuperAdminNavigationActive } from "@/lib/navigation/active";
+import { getSuperAdminNavigation } from "@/lib/navigation/registry";
 import { cn } from "@/lib/utils";
-import { SUPER_ADMIN_NAV_ITEMS } from "./nav-items";
+
+const superAdminNavItems = getSuperAdminNavigation();
 
 interface SuperAdminHeaderProps {
   userName: string | null;
@@ -72,7 +74,7 @@ export function SuperAdminHeader({ userName, userEmail }: SuperAdminHeaderProps)
       </div>
 
       <nav className="mt-4 hidden flex-wrap gap-2 font-sans text-sm font-medium md:flex lg:hidden">
-        {SUPER_ADMIN_NAV_ITEMS.map((item) => {
+        {superAdminNavItems.map((item) => {
           const active = isSuperAdminNavigationActive(pathname, item.href);
           return (
             <Link
@@ -114,7 +116,7 @@ export function SuperAdminHeader({ userName, userEmail }: SuperAdminHeaderProps)
             </div>
           </div>
           <div className="mt-4 space-y-2 px-6">
-            {SUPER_ADMIN_NAV_ITEMS.map((item) => {
+            {superAdminNavItems.map((item) => {
               const active = isSuperAdminNavigationActive(pathname, item.href);
               const Icon = item.icon;
               return (
