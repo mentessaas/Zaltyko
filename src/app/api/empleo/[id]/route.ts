@@ -1,6 +1,7 @@
 import { db } from "@/db";
 import { empleoListings } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { z } from "zod";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { logger } from "@/lib/logger";
 import { withTenant, type TenantContext } from "@/lib/authz";
@@ -8,6 +9,24 @@ import { verifyAcademyAccess } from "@/lib/permissions";
 import { canUsePublicDemoData, demoEmploymentListing } from "@/lib/public/demo-listings";
 
 type RouteContext = TenantContext<{ params: { id: string } }>;
+
+// Zod schema para PATCH (ZAL-565 hardening): strict mode rechaza unknown keys.
+// Todos los campos son opcionales (PATCH parcial). `isFeatured` se gestiona vía
+// flujo admin separado, no vía PATCH público — por eso NO está aquí: si llega,
+// Zod strict lo rechaza antes de cualquier lookup o mutación.
+const PatchListingSchema = z
+  .object({
+    title: z.string().min(1).max(200).optional(),
+    description: z.string().max(5000).optional(),
+    isActive: z.boolean().optional(),
+  })
+  .strict();
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function isValidUuid(id: string): boolean {
+  return UUID_REGEX.test(id);
+}
 
 export async function GET(
   request: Request,
@@ -39,7 +58,22 @@ export async function GET(
 export const PATCH = withTenant(async (request: Request, context: RouteContext) => {
   try {
     const { id } = context.params;
-    const body = await request.json();
+
+    // UUID validation antes del lookup (ZAL-565: rechazar id inválido antes de consultar).
+    if (!isValidUuid(id)) {
+      return apiError("INVALID_ID", "ID inválido", 400);
+    }
+
+    // Parse y validar body con Zod strict (ZAL-565: rechazar unknown keys / tipos inválidos).
+    let body: z.infer<typeof PatchListingSchema>;
+    try {
+      body = PatchListingSchema.parse(await request.json());
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return apiError("VALIDATION_ERROR", "Validation failed", 400);
+      }
+      throw err;
+    }
 
     const access = await canManageListing(id, context);
     if (!access.allowed) {
@@ -68,6 +102,11 @@ export const PATCH = withTenant(async (request: Request, context: RouteContext) 
 export const DELETE = withTenant(async (_request: Request, context: RouteContext) => {
   try {
     const { id } = context.params;
+
+    // UUID validation antes del lookup (ZAL-565).
+    if (!isValidUuid(id)) {
+      return apiError("INVALID_ID", "ID inválido", 400);
+    }
 
     const access = await canManageListing(id, context);
     if (!access.allowed) {

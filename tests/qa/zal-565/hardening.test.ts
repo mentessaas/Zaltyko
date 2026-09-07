@@ -84,6 +84,7 @@ function mockDb() {
       delete: vi.fn(() => ({
         where: vi.fn(() => ({ returning: vi.fn(async () => { deleteCalls.push(true); return []; }) })),
       })),
+      execute: vi.fn(async () => undefined),
     },
   }));
 }
