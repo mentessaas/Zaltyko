@@ -1,12 +1,14 @@
 ---
-status: open
+status: closed
 owner: producto
-priority: P1 (smoke rojo en main; tabs públicas potencialmente rotas en producción)
+priority_actual: P0 (CSP bloqueaba hidratación de TODA página interactiva en producción; no solo features tabs)
 related:
   - PR #108 (R1 cerrado — version skew fix)
-  - PR #109 (este PR — tracking/diagnóstico R2)
-  - run 34064862265 (CI post-merge en main)
+  - PR #109 (vault: tracking + diagnóstico inicial)
+  - PR #110 (C — nonce propagation + CSP gaps + force-dynamic)
+  - run 34064862265 (CI post-merge en main, síntoma)
 created: 2026-09-07
+closed: 2026-09-07
 ---
 
 # R2 — features tabs hydration smoke regression
@@ -168,3 +170,96 @@ los tests fallidos; los 3 siguientes quedan bloqueados por `serial` mode.
 - `https://zaltyko.com` ya está sirviendo el código con Playwright 1.63.0.
 - **No verificado manualmente**: si `/features` está rota, los usuarios
   reales no pueden cambiar de tab. P1 funcional si se confirma.
+
+---
+
+## Cierre R2 — 2026-09-07
+
+### Severidad real (P0, no P1)
+
+El síntoma capturado por el smoke (features tabs no hidratan) era la punta
+del iceberg. La causa raíz era un CSP estricto que bloqueaba la hidratación
+de **toda página interactiva en producción**, no solo `/features`:
+
+- `<Tabs>` de features — bloqueado
+- `ContactForm` (botón "Enviar mensaje") — bloqueado
+- `ThemeProvider` de `next-themes` (script inline de detección de tema) — bloqueado
+- `GoogleAdsTracking` (gtag init inline + script externo) — bloqueado
+- cualquier `"use client"` con estado o handlers — bloqueado
+
+El smoke solo exponía 1 síntoma porque es serial y muere en el primer fallo.
+
+### Causa raíz
+
+`middleware.ts` emitía una CSP con un nonce por-request, pero el nonce **no
+llegaba a todos los scripts** que el navegador necesitaba ejecutar:
+
+1. `next-themes` `<ThemeProvider>` inyecta su script inline de detección
+   de tema sin nonce → navegador lo bloquea → React no arranca.
+2. `<GoogleAdsTracking>` emitía `<Script>` y `<Script id="google-ads-init">`
+   sin prop `nonce` → ambos bloqueados.
+3. Tres directivas del CSP estaban incompletas (`frame-src https://vercel.live`,
+   `worker-src 'self' blob:`, `manifest-src https://vercel.com`,
+   `connect-src https://*.sentry-cdn.com`) → Vercel Live y Sentry CDN
+   fallaban en dev/prod.
+
+Plus un bug separado en `/auth/login` (Next.js 15 + `cookies()` requiere
+`force-dynamic` explícito, sin él el route aborta con `Dynamic server usage`
+→ 500 en producción).
+
+### Plan ejecutado (D → C)
+
+1. **D: confirmar CSP bloquea hidratación**. Con CSP permisivo (sin nonce,
+   `unsafe-inline`, `unsafe-eval`): 6/6 smoke tests pasan. Con CSP estricto
+   actual: 1/6 pasa (sitemap), el resto muere por timeout de hidratación.
+   Confirmado.
+2. **C: nonce injection + gaps CSP + force-dynamic**:
+   - `src/app/layout.tsx`: lee `x-nonce` de `headers()` y lo propaga a
+     `<html nonce>`, `<GoogleAdsTracking nonce>`, `<AppProviders nonce>`.
+   - `src/app/providers.tsx`: pasa nonce a `<ThemeProvider nonce>` (cierra
+     el gap de `next-themes`).
+   - `src/components/GoogleAdsTracking.tsx`: añade `nonce` a ambos `<Script>`.
+   - `middleware.ts`: añade directivas faltantes y `'unsafe-eval'` solo
+     cuando `NODE_ENV !== "production"` (Next.js dev usa `eval()` para HMR).
+   - `src/app/auth/login/page.tsx`: `export const dynamic = "force-dynamic"`.
+
+### Verificación
+
+```
+pnpm test:e2e:public:ci
+Running 6 tests using 1 worker
+  ✓  1 [chromium] › dynamic sitemap and robots expose current public routes (5.8s)
+  ✓  2 [chromium] › contact form posts to API and shows success feedback (16.5s)
+  ✓  3 [chromium] › features tabs switch visible content (12.1s)  ← R2 original
+  ✓  4 [chromium] › cluster routes render Spanish and English generated content (17.1s)
+  ✓  5 [chromium] › help center links resolve to real guide pages (23.4s)
+  ✓  6 [chromium] › demo dynamic public detail pages do not depend on remote seed data (27.9s)
+  6 passed (1.7m)
+```
+
+Test 2 (contact form) **fallaba antes del fix** por el mismo root cause;
+test 3 era el síntoma original de R2. Ambos verdes ahora.
+
+### Pendiente de verificación post-merge
+
+- [ ] Vercel preview de #110: `/features` cambia tabs, `/contacto` envía,
+      `/auth/login` carga sin 500.
+- [ ] Smoke en main post-merge verde.
+- [ ] Verificación manual final en `https://zaltyko.com/features` para
+      confirmar UX idéntica a antes del CSP.
+
+### Lecciones
+
+- El smoke serial con `__reactProps$` polling no distinguía "no hidratado"
+  de "botón equivocado" — un patrón de test frágil cuando el CSP bloquea
+  scripts. Considerar reemplazar `expectReactHydrated` por
+  `expect(button).toBeEnabled()` + `expect(button).toHaveAttribute(...)`
+  cuando el botón correcto sea identificable sin marcadores internos de React.
+- Validar siempre que el nonce del middleware alcance **todos** los
+  scripts inline (los de las dependencias, no solo los del código de
+  aplicación). La auditoría fue: `<html>` → framework scripts OK → terceros
+  propios OK → dependencias (next-themes) FALLABA → terceros de terceros
+  (Google Ads) FALLABA. Cuatro puntos de fuga.
+- El síntoma "un test falla" puede esconder "toda la app está rota". El
+  modo serial del smoke enmascaró esto aquí; un modo parallel habría
+  mostrado 5 fallos correlacionados a la vez.

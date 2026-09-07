@@ -1,9 +1,49 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-09-07T00:00Z
+last_reviewed: 2026-09-07T11:30Z
 source:
 ---
+## 2026-09-07 — R2 cerrado: CSP bloqueaba hidratación de TODA página interactiva en producción (P0, no P1)
+
+El "smoke rojo en test 3 (features tabs)" era la punta del iceberg. La causa
+raíz era un CSP estricto con nonce que **no llegaba a todos los scripts
+inline** del navegador — incluyendo los de `next-themes` y Google Ads — así
+que React no llegaba a hidratar en ninguna página con `"use client"`. Cada
+form, tab, theme toggle o conversión de Google Ads estaba muerto en
+producción desde el último deploy con CSP estricto.
+
+Causas específicas cerradas en PR #110:
+
+- `next-themes` `<ThemeProvider>` inyectaba su script inline de detección
+  de tema sin nonce. `<AppProviders>` ahora propaga el nonce desde
+  `headers()` al provider.
+- `<GoogleAdsTracking>` emitía `<Script>` y `<Script id="google-ads-init">`
+  sin prop `nonce`. Ambos ahora lo reciben.
+- 4 directivas CSP estaban incompletas (`frame-src https://vercel.live`,
+  `worker-src 'self' blob:`, `manifest-src https://vercel.com`,
+  `connect-src https://*.sentry-cdn.com`).
+- `/auth/login` necesitaba `export const dynamic = "force-dynamic"` —
+  Next.js 15 aborta con `Dynamic server usage` si una server component
+  lee `cookies()` sin flag dinámico explícito (500 en producción).
+
+Plus: `'unsafe-eval'` añadido a `script-src` **solo cuando
+`NODE_ENV !== "production"`** — Next.js dev usa `eval()` para el HMR
+runtime; producción se queda con la superficie XSS cerrada. Vercel define
+`NODE_ENV=production` en cada deploy, así que el fallback no aplica en
+prod.
+
+Verificación local: `pnpm test:e2e:public:ci` → **6/6 verde en 1.7m**.
+Test 2 (contact form) fallaba antes del fix por el mismo root cause;
+test 3 era el síntoma original de R2. Ambos verdes.
+
+Pendiente: verificación en Vercel preview de #110, smoke post-merge en
+main, y check manual en `https://zaltyko.com/features`.
+
+PR: #110 (`fix(csp): R2 — propagate nonce to unblock hydration`).
+Vault actualizado: este changelog + `R2 features tabs hydration
+regression 2026-09-07.md` (marcado `status: closed`).
+
 ## 2026-09-07 — R1 cerrado (Playwright 1.63.0) + R2 abierto (features tabs hydration smoke)
 
 - **R1 cerrado**: PR #108 mergeado a main (`0aa400fc`) — fix de version skew
