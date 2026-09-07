@@ -78,8 +78,19 @@ const SUPER_ADMIN_NAV: NavigationDefinition[] = [
   { key: "users", label: "Usuarios", icon: Users, href: "/super-admin/users", roles: ["super_admin"] },
   { key: "academies", label: "Academias", icon: Building2, href: "/super-admin/academies", roles: ["super_admin"] },
   { key: "public-academies", label: "Academias Públicas", icon: Globe, href: "/super-admin/academies/public", roles: ["super_admin"] },
+  { key: "growth", label: "Growth", icon: BarChart3, href: "/super-admin/growth", roles: ["super_admin"] },
   { key: "logs", label: "Logs", icon: ScrollText, href: "/super-admin/logs", roles: ["super_admin"] },
   // Cobros, Soporte y Configuración ocultos hasta que existan (placeholders/rotos).
+];
+
+// Atajos de la sidebar del dashboard global. Subset destacado de GLOBAL_NAV,
+// filtrado por rol. Antes era un ternario hardcoded en Sidebar.tsx — extraído
+// aquí para que añadir un atajo no requiera editar el componente.
+const QUICK_LINKS_NAV: NavigationDefinition[] = [
+  { key: "academies-quicklink", label: "Academias", icon: Building2, href: "/dashboard/academies", roles: ["owner", "admin"] },
+  { key: "team-quicklink", label: "Equipo", icon: Users, href: "/dashboard/users", roles: ["owner", "admin"] },
+  { key: "profile-quicklink", label: "Mi perfil", icon: User, href: "/dashboard/profile", roles: ["coach", "athlete", "parent", "provider"] },
+  { key: "calendar-quicklink", label: "Calendario", icon: Calendar, href: "/dashboard/calendar", roles: ["owner", "admin", "coach", "athlete", "parent", "provider"] },
 ];
 
 function mapNavigation(
@@ -161,6 +172,10 @@ export function getMobileAcademyNavigation(args: {
 
 export function getSuperAdminNavigation(): NavigationItem[] {
   return mapNavigation(SUPER_ADMIN_NAV, "super_admin");
+}
+
+export function getQuickLinksNavigation(role: ProfileRole): NavigationItem[] {
+  return mapNavigation(QUICK_LINKS_NAV, role);
 }
 
 export function getAcademyBreadcrumbLabel(segment: string): string | null {

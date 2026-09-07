@@ -20,12 +20,15 @@ const tx = vi.hoisted(() => {
       next().then(resolve, reject);
     return chain;
   });
-  const insert = vi.fn(() => ({
-    values: vi.fn((value) => {
+  const insert = vi.fn(() => {
+    const chain: any = {};
+    chain.values = vi.fn((value) => {
       state.inserts.push(value);
-      return Promise.resolve();
-    }),
-  }));
+      chain.onConflictDoNothing = vi.fn().mockResolvedValue(undefined);
+      return chain;
+    });
+    return chain;
+  });
   const update = vi.fn(() => ({
     set: vi.fn((value) => {
       state.updates.push(value);
@@ -45,6 +48,7 @@ vi.mock("@/lib/stripe/client", () => ({
 vi.mock("@/lib/audit-log", () => ({ createAuditLog: state.audit }));
 
 import { refundCharge } from "@/lib/stripe/refund-service";
+import { reconcileChargeRefunded } from "@/lib/stripe/charge-reconcile-service";
 
 const charge = {
   id: "charge_1",
@@ -244,7 +248,10 @@ describe("reconciliación charge.refunded tras reembolso parcial", () => {
   it("marca como reembolsado un cargo que todavía figura como pagado", async () => {
     state.selectResults = [[{ id: "charge_1", status: "paid", stripeAccountId: "acct_1" }]];
 
-    await reconcileChargeRefunded({ id: "ch_1" } as never, "acct_1");
+    await reconcileChargeRefunded(
+      { id: "ch_1", amount: 5000, amount_refunded: 5000 } as never,
+      "acct_1"
+    );
 
     expect(state.updates).toHaveLength(1);
     expect(state.updates[0]).toMatchObject({ status: "refunded" });
@@ -253,7 +260,10 @@ describe("reconciliación charge.refunded tras reembolso parcial", () => {
   it("es idempotente si el cargo ya estaba marcado como reembolsado", async () => {
     state.selectResults = [[{ id: "charge_1", status: "refunded", stripeAccountId: "acct_1" }]];
 
-    await reconcileChargeRefunded({ id: "ch_1" } as never, "acct_1");
+    await reconcileChargeRefunded(
+      { id: "ch_1", amount: 5000, amount_refunded: 5000 } as never,
+      "acct_1"
+    );
 
     expect(state.updates).toHaveLength(0);
   });
@@ -262,7 +272,10 @@ describe("reconciliación charge.refunded tras reembolso parcial", () => {
     state.selectResults = [[{ id: "charge_1", status: "paid", stripeAccountId: "acct_1" }]];
 
     await expect(
-      reconcileChargeRefunded({ id: "ch_1" } as never, "acct_attacker")
+      reconcileChargeRefunded(
+        { id: "ch_1", amount: 5000, amount_refunded: 5000 } as never,
+        "acct_attacker"
+      )
     ).rejects.toThrow("CONNECT_ACCOUNT_MISMATCH");
     expect(state.updates).toHaveLength(0);
   });

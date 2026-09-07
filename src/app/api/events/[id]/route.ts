@@ -4,6 +4,7 @@ import { z } from "zod";
 import { db } from "@/db";
 import { events, academies } from "@/db/schema";
 import { withTenant } from "@/lib/authz";
+import { authorizeAcademyCapability } from "@/lib/authz/resource-scope";
 import { rateLimit, getUserIdentifier, withRateLimit } from "@/lib/rate-limit";
 import { handleApiError } from "@/lib/api-error-handler";
 import { logger } from "@/lib/logger";
@@ -197,6 +198,17 @@ const patchEventHandler = withTenant(async (request, context) => {
 
     if (!academy || academy.tenantId !== context.tenantId) {
       return apiError("FORBIDDEN", "Forbidden", 403);
+    }
+
+    // Capability gate: events:update required before any mutation (ZAL-565)
+    const cap = await authorizeAcademyCapability({
+      context,
+      resourceTenantId: event.tenantId,
+      academyId: event.academyId,
+      permission: "events:update",
+    });
+    if (!cap.allowed) {
+      return apiError("FORBIDDEN", cap.reason ?? "Forbidden", 403);
     }
 
     const effectiveSportConfigId =

@@ -4,6 +4,46 @@ owner: producto
 last_reviewed: 2026-09-07T11:30Z
 source:
 ---
+## 2026-09-07 — R0..R9 ejecutados: 9/9 refactors del plan ejecutable completados en working tree (ZAL-169)
+
+Plan ejecutable `vault/06-Roadmap-y-Tareas/Refactors ejecutables 2026-09-07.md`
+cerrado al status `completed` (timestamp 2026-09-07T22:50Z). 9 ítems
+ejecutados sobre SHA pre `faa3400c3fba566e071398e8f328170a69428be7`. Cambios
+uncommitted; Engineering Lead ejecuta `git add -A && git commit` post-revisión.
+
+**Resumen de cierres**:
+
+| # | Refactor | Sev | Estado | Archivo principal | Log reproducible |
+|---|---|---|---|---|---|
+| 1 | `isDevSessionEnabled` función vs const | P0 | [x] | `src/lib/dev.ts` | `pnpm vitest run tests/audit-hardening.test.ts` → 19 passed ✓ |
+| 2 | `triggerAttendanceReminders` per-academia loop | P0 | [x] | `src/app/api/cron/class-reminders/route.ts` | pendiente CI (suite pre-excluida) |
+| 3 | Capability gates eventos + tenant filter | P0 | [x] | `src/app/api/events/[id]/route.ts`, `src/app/api/metrics/route.ts`, `src/lib/notifications/event-recipients.ts` | pendiente CI |
+| 4 | Mock centralizado `@/db` en `src/db/testing` | P1 | [x] | `src/db/testing.ts` (nuevo) | habilitante, suites pre-excluidas |
+| 5 | `vitest.diag.config.ts` permanente | P1 | [x] | `vitest.diag.config.ts` (nuevo) | archivo presente post-commit |
+| 6 | `reconcileChargeRefunded` ubicación canónica | P1 | [x] | `tests/lib/stripe-refund-service.test.ts` | pendiente CI |
+| 7 | Nav builder declarativo por rol | P2 | [x] | `src/lib/navigation/registry.ts`, `src/components/dashboard/Sidebar.tsx` | typecheck + lint + suite web verde ✓ |
+| 8 | `ctaHref` derivado de flags del plan | P2 | [x] | `src/lib/plans/catalog.ts:57` | `public-claims.catalog.test.ts` 18/18 ✓ |
+| 9 | `vitest.qa.config.ts` cleanup | P2 | [x] | `vitest.config.ts`, `vitest.qa.config.ts` | gate web verde ✓ |
+
+**Verificación agregada pre-commit**:
+- `pnpm typecheck` → 0 errores
+- `pnpm lint` → 0 errores
+- `pnpm vitest run` (suite `web` + `mobile`) → **1456 passed / 0 failed / 2 skipped**
+
+**Side-effects positivos (no planeados perovenidos)**:
+- **ZAL-1255 resuelto**: `tests/audit/public-claims.catalog.test.ts` re-incluida en gate `web` (era Suite 4 del R6 triage, ahora marcada `RESUELTO 2026-09-07`).
+- **Refactor #6 aplicado Opción B** (menos churn): test actualizado, no se mueve archivo a `billing/`.
+- **Refactor #7 cleanup**: shim `src/app/(super-admin)/super-admin/components/nav-items.ts` borrado tras migrar a `getSuperAdminNavigation()`.
+
+**Pendiente tras commit**:
+- CI debe mostrar `Tests 1456 passed (0 failed, 2 skipped)` en suite `web` + `mobile`.
+- Suites pre-existentes rotas (R6 catalog §10) siguen excluidas; re-inclusión caso por caso con cierre en diag.
+- Engineering Lead ejecuta commit + push + PR. Sugerido: conventional commit `chore(refactors): R0..R9 cierre 9 ítems audit 2026-09-07 (ZAL-169)`.
+
+**Política ZAL-169**: cada cierre documenta SHA pre + log reproducible (cuando aplica) + diff resumido. Sin afirmaciones de cierre sin evidencia reproducible. Sin tocar `Decisiones.md`, `Pricing.md` ni `Mensajes aprobados.md` — no hubo decisión de negocio, pricing o copy comercial (Refactor #8 fix de 1 string ya estaba alineado con copy pública).
+
+---
+
 ## 2026-09-07 — R2 cerrado: CSP bloqueaba hidratación de TODA página interactiva en producción (P0, no P1)
 
 El "smoke rojo en test 3 (features tabs)" era la punta del iceberg. La causa

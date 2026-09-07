@@ -105,7 +105,7 @@ export async function notifyCity(
   academyId: string,
   eventId: string
 ): Promise<NotificationResult> {
-  return sendEventNotification(academyId, eventId, "city", (id) => getAcademiesEmailsByLocation(id, "city"));
+  return sendEventNotification(academyId, eventId, "city", (id) => getAcademiesEmailsByLocation(id, "city", undefined));
 }
 
 /**
@@ -115,7 +115,7 @@ export async function notifyProvince(
   academyId: string,
   eventId: string
 ): Promise<NotificationResult> {
-  return sendEventNotification(academyId, eventId, "province", (id) => getAcademiesEmailsByLocation(id, "province"));
+  return sendEventNotification(academyId, eventId, "province", (id) => getAcademiesEmailsByLocation(id, "province", undefined));
 }
 
 /**
@@ -125,5 +125,5 @@ export async function notifyCountry(
   academyId: string,
   eventId: string
 ): Promise<NotificationResult> {
-  return sendEventNotification(academyId, eventId, "country", (id) => getAcademiesEmailsByLocation(id, "country"));
+  return sendEventNotification(academyId, eventId, "country", (id) => getAcademiesEmailsByLocation(id, "country", undefined));
 }
