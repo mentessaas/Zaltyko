@@ -90,33 +90,42 @@ const nextConfig = {
   },
 };
 
-// Wrap Next.js config with Sentry
-const sentryConfig = withSentryConfig(nextConfig, {
-  // For all available options, see:
-  // https://github.com/getsentry/sentry-webpack-plugin#options
+// Skip Sentry's webpack plugin on Vercel preview builds: withSentryConfig runs
+// the @sentry/webpack-plugin (source map generation + upload + bundle transforms)
+// over all 172 routes, which consistently OOMs on the standard 8 GB Vercel
+// preview container. The plugin is also responsible for wiring the
+// `/monitoring` tunnelRoute rewrite — without it, runtime Sentry events from
+// preview would 404 anyway, so server init is also gated (see
+// instrumentation.ts). Production deployments keep the full Sentry treatment.
+const isVercelPreview = process.env.VERCEL_ENV === "preview";
+const sentryConfig = isVercelPreview
+  ? nextConfig
+  : withSentryConfig(nextConfig, {
+      // For all available options, see:
+      // https://github.com/getsentry/sentry-webpack-plugin#options
 
-  org: process.env.SENTRY_ORG,
-  project: process.env.SENTRY_PROJECT,
+      org: process.env.SENTRY_ORG,
+      project: process.env.SENTRY_PROJECT,
 
-  // Only upload source maps in production
-  silent: !process.env.SENTRY_AUTH_TOKEN,
-  hideSourceMaps: true,
+      // Only upload source maps in production
+      silent: !process.env.SENTRY_AUTH_TOKEN,
+      hideSourceMaps: true,
 
-  // Automatically instrument Next.js
-  widenClientFileUpload: true,
+      // Automatically instrument Next.js
+      widenClientFileUpload: true,
 
-  // Route browser requests to Sentry through a Next.js rewrite to circumvent ad-blockers.
-  tunnelRoute: "/monitoring",
+      // Route browser requests to Sentry through a Next.js rewrite to circumvent ad-blockers.
+      tunnelRoute: "/monitoring",
 
-  webpack: {
-    // API actual de Sentry; reemplaza el alias deprecado disableLogger.
-    treeshake: {
-      removeDebugLogging: true,
-    },
-    // API actual de Sentry; crea monitores de los cron definidos en vercel.json.
-    automaticVercelMonitors: true,
-  },
-});
+      webpack: {
+        // API actual de Sentry; reemplaza el alias deprecado disableLogger.
+        treeshake: {
+          removeDebugLogging: true,
+        },
+        // API actual de Sentry; crea monitores de los cron definidos en vercel.json.
+        automaticVercelMonitors: true,
+      },
+    });
 
 // Sentry 10.64 injects this experimental option, which breaks Next's internal
 // Pages Router error prerender on Next 15.5.21 (`/_error` -> `/404`).
