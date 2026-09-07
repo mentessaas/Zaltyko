@@ -36,10 +36,15 @@ export async function getInternalStaffEmails(academyId: string): Promise<string[
 
 /**
  * Obtiene los emails de contacto de academias en la misma ubicación
+ *
+ * Seguridad: filtra por tenantId del organizador. Sin este filtro, una academia
+ * podría recibir invitaciones/notificaciones de academias de OTROS tenants que
+ * casualmente comparten ciudad/provincia/país — fuga cross-tenant (ZAL-565).
  */
 export async function getAcademiesEmailsByLocation(
   academyId: string,
-  locationType: "city" | "province" | "country"
+  locationType: "city" | "province" | "country",
+  tenantId?: string
 ): Promise<string[]> {
   // Obtener la academia organizadora para conocer su ubicación
   const [organizingAcademy] = await db
@@ -47,6 +52,7 @@ export async function getAcademiesEmailsByLocation(
       country: academies.country,
       region: academies.region,
       city: academies.city,
+      tenantId: academies.tenantId,
     })
     .from(academies)
     .where(eq(academies.id, academyId))
@@ -61,6 +67,13 @@ export async function getAcademiesEmailsByLocation(
     eq(academies.isSuspended, false),
     sql`${academies.id} != ${academyId}`, // Excluir la academia organizadora
   ];
+
+  // Aislamiento de tenant: solo academias del mismo tenant del organizador.
+  // Si no se pasa tenantId, usar el tenant de la academia organizadora.
+  const effectiveTenantId = tenantId ?? organizingAcademy.tenantId;
+  if (effectiveTenantId) {
+    filters.push(eq(academies.tenantId, effectiveTenantId));
+  }
 
   if (locationType === "country" && organizingAcademy.country) {
     const normalizedCountry = organizingAcademy.country.trim().toLowerCase();

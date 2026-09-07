@@ -16,20 +16,20 @@ import { withTenant } from "@/lib/authz";
  */
 export const GET = withTenant(async (): Promise<NextResponse> => {
   const uptime = Date.now() - metrics.uptime;
-  
+
   const health = {
     status: metrics.errors.total > 100 ? "warning" : "healthy",
     uptime: Math.floor(uptime / 1000),
     uptimeFormatted: formatUptime(uptime),
   };
-  
+
   return NextResponse.json({
     health,
     metrics: {
       requests: metrics.requests,
       errors: {
         ...metrics.errors,
-        rate: metrics.requests.total > 0 
+        rate: metrics.requests.total > 0
           ? (metrics.errors.total / metrics.requests.total * 100).toFixed(2) + "%"
           : "0%",
       },
@@ -42,10 +42,27 @@ export const GET = withTenant(async (): Promise<NextResponse> => {
 
 /**
  * POST /api/metrics/reset
- * Resetea las métricas (solo disponible en desarrollo)
+ *
+ * Resetea las métricas. Reglas de acceso (ZAL-565):
+ *  - Solo roles autorizados (admin/owner/super_admin).
+ *  - Bloqueado en producción.
+ *  - Bloqueado en Vercel preview (VERCEL_ENV=preview) aunque NODE_ENV sea development.
  */
-export async function POST(req: Request): Promise<NextResponse> {
+export const POST = withTenant(async (_request, context): Promise<NextResponse> => {
+  const role = context.profile?.role;
+
+  // Bloquear producción independientemente del rol.
   if (isProduction()) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  // Bloquear Vercel preview (defense-in-depth).
+  if (process.env.VERCEL_ENV === "preview" || process.env.VERCEL_ENV === "production") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  // Solo roles administrativos pueden resetear.
+  if (role !== "admin" && role !== "owner" && role !== "super_admin") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -57,20 +74,20 @@ export async function POST(req: Request): Promise<NextResponse> {
   metrics.lastReset = new Date().toISOString();
   responseTimes.length = 0;
 
-  logger.info("Metrics reset");
+  logger.info("Metrics reset", { tenantId: context.tenantId, role });
 
   return NextResponse.json({
     message: "Metrics reset successfully",
     timestamp: metrics.lastReset,
   });
-}
+});
 
 function formatUptime(ms: number): string {
   const seconds = Math.floor(ms / 1000);
   const minutes = Math.floor(seconds / 60);
   const hours = Math.floor(minutes / 60);
   const days = Math.floor(hours / 24);
-  
+
   if (days > 0) return `${days}d ${hours % 24}h ${minutes % 60}m`;
   if (hours > 0) return `${hours}h ${minutes % 60}m ${seconds % 60}s`;
   if (minutes > 0) return `${minutes}m ${seconds % 60}s`;
