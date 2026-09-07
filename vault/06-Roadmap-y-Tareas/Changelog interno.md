@@ -1,9 +1,43 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-09-03T02:30Z
+last_reviewed: 2026-09-07T00:00Z
 source:
 ---
+## 2026-09-07 — R1 cerrado (Playwright 1.63.0) + R2 abierto (features tabs hydration smoke)
+
+- **R1 cerrado**: PR #108 mergeado a main (`0aa400fc`) — fix de version skew
+  entre `playwright@1.58.2` (devDep directo) y `playwright@1.63.0` (transitivo
+  via `@axe-core/playwright@4.13.0`). Smoke Tests vuelve a correr en CI tras
+  el bump. Lockfile regenerado: solo `playwright@1.63.0`.
+- **R2 descubierto durante R1**: el smoke post-merge en main (run
+  34064862265) ya no rompe por skew, pero **falla** en el test
+  `tests/e2e-zaltyko-public.spec.ts:58 features tabs switch visible content`
+  con `Timeout 30000ms exceeded while waiting on the predicate` dentro de
+  `expectReactHydrated` (`tests/e2e-zaltyko-public.spec.ts:18`). El
+  `<TabsTrigger>` de Cobros no recibe `__reactProps$` en 30s. Resultado:
+  2 passed, 1 failed (3 retries, mismo error), 3 did not run. Los otros
+  jobs del run CI (Build, Lint, Type, Unit, RLS, Migrations, SBOM,
+  E2E Credentials Readiness, Deploy) todos verdes.
+- **Causa probable**: el componente `src/app/(site)/FeaturesSection.tsx`
+  usa `<Tabs>` / `<TabsTrigger>` / `<TabsContent>` de
+  `@/components/ui/tabs` (shadcn) con `value` controlado por `useState`.
+  Si el bundle JS de la página no termina de hidratar dentro del timeout
+  del test, el click no llega al handler. Es fallo real en producción, NO
+  regresión de #108 — el skew lo enmascaraba al reventar el runner antes
+  de ejecutar ningún test.
+- **Acciones inmediatas abiertas**: PR draft abierto con este changelog +
+  log completo del run en `vault/06-Roadmap-y-Tareas/R2 features tabs
+  hydration regression 2026-09-07.md`. Smoke queda **rojo** en main hasta
+  diagnosticar e hidratar las tabs (o reescribir el test con una espera
+  distinta a `__reactProps$`, que ya no es el patrón recomendado en
+  React 18+/19).
+- **Producción**: Deploy (`34064862243`) corrió y terminó success en main,
+  por lo que zaltyko.com ya está sirviendo el código con el skew corregido
+  pero con las tabs potencialmente rotas. Verificación manual recomendada
+  en `https://zaltyko.com/features` antes de declarar este R1 realmente
+  cerrado.
+
 ## 2026-09-05 — ZAL-Tracking-Paid: Google Ads + signup_completed instrumentation
 
 - Audit de paid acquisition Zaltyko (200€ Google + 50€ Meta retargeting) en
