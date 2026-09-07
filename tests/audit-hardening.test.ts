@@ -40,6 +40,12 @@ async function loadDevModule(env: Record<string, string | undefined>) {
 
   const mod = await import("@/lib/dev");
 
+  // `isDevSessionEnabled()` lee process.env en cada llamada (ZAL-565 hardening),
+  // así que capturar el resultado ANTES de restaurar env — si no, el test
+  // depende de polución residual de un test anterior (fragilidad observable
+  // al cambiar el orden de la suite, p.ej. al desexcluir tests/audit/...).
+  const isDevSessionEnabledSnapshot = mod.isDevSessionEnabled();
+
   for (const [key, value] of Object.entries(previous)) {
     if (value === undefined) {
       delete process.env[key];
@@ -48,7 +54,10 @@ async function loadDevModule(env: Record<string, string | undefined>) {
     }
   }
 
-  return mod;
+  return {
+    ...mod,
+    isDevSessionEnabled: () => isDevSessionEnabledSnapshot,
+  };
 }
 
 describe("audit hardening", () => {
@@ -137,7 +146,7 @@ describe("audit hardening", () => {
         NEXT_PUBLIC_USE_MOCK_AUTH: "true",
       });
 
-      expect(isDevSessionEnabled).toBe(false);
+      expect(isDevSessionEnabled()).toBe(false);
     });
 
     it("requires an explicit flag in development", async () => {
@@ -152,8 +161,8 @@ describe("audit hardening", () => {
         NEXT_PUBLIC_USE_MOCK_AUTH: undefined,
       });
 
-      expect(disabled.isDevSessionEnabled).toBe(false);
-      expect(enabled.isDevSessionEnabled).toBe(true);
+      expect(disabled.isDevSessionEnabled()).toBe(false);
+      expect(enabled.isDevSessionEnabled()).toBe(true);
     });
   });
 
