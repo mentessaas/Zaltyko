@@ -79,19 +79,31 @@ function generateNonce() {
 }
 
 function buildCsp(nonce: string) {
+  const scriptSources = [...CSP_SCRIPT_SOURCES_BASE, `'nonce-${nonce}'`];
+  // Next.js dev mode usa `eval()` para el HMR runtime. En producción no hace
+  // falta y mantenerlo cerrado reduce la superficie XSS. Detectamos dev con
+  // NODE_ENV (Vercel lo define a "production" en cada deploy).
+  if (process.env.NODE_ENV !== "production") {
+    scriptSources.push("'unsafe-eval'");
+  }
+  const connectSources = [
+    ...CSP_CONNECT_SOURCES,
+    "https://*.sentry-cdn.com",
+  ];
   return [
     "default-src 'self'",
-    `script-src ${CSP_SCRIPT_SOURCES_BASE.join(" ")} 'nonce-${nonce}'`,
+    `script-src ${scriptSources.join(" ")}`,
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' data: https://fonts.gstatic.com",
     "img-src 'self' data: blob: https:",
-    `connect-src ${CSP_CONNECT_SOURCES.join(" ")}`,
-    "frame-src 'self' https://*.stripe.com https://*.supabase.co",
+    `connect-src ${connectSources.join(" ")}`,
+    "frame-src 'self' https://*.stripe.com https://*.supabase.co https://vercel.live",
+    "worker-src 'self' blob:",
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self' https://*.supabase.co",
     "object-src 'none'",
-    "manifest-src 'self'",
+    "manifest-src 'self' https://vercel.com",
   ].join("; ");
 }
 

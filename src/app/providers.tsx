@@ -7,7 +7,13 @@ import { DevSessionProvider } from "@/components/dev-session-provider";
 import { ToastProvider } from "@/components/ui/toast-provider";
 import { I18nProvider } from "@/components/providers/i18n-provider";
 
-export function AppProviders({ children }: { children: ReactNode }) {
+export function AppProviders({
+  children,
+  nonce,
+}: {
+  children: ReactNode;
+  nonce?: string;
+}) {
   return (
     <ThemeProvider
       attribute="class"
@@ -15,6 +21,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
       enableSystem={false}
       themes={["light", "dark"]}
       disableTransitionOnChange
+      nonce={nonce}
     >
       <I18nProvider>
         <ToastProvider>

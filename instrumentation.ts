@@ -23,6 +23,12 @@ function tracesSampler(samplingContext: {
 }
 
 export async function register() {
+  // No inicializar Sentry en preview deploys de Vercel: el plugin de webpack
+  // con withSentryConfig se omite ahí (ver next.config.mjs), por lo que la
+  // rewrite /monitoring no existe y los eventos 404-ean. Rastrearíamos
+  // errores que no llegan a ningún lado. Mantener producción igual.
+  if (process.env.VERCEL_ENV === "preview") return;
+
   if (process.env.NEXT_RUNTIME === "nodejs") {
     Sentry.init({
       dsn: SENTRY_DSN,

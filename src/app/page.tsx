@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Schema } from "@/components/Schema";
 import { PRODUCT_PLAN_BY_CODE } from "@/lib/plans/catalog";
 
-// Componentes de la Home
+// Componentes de la Home (marketing landing)
 import Navbar from "@/app/(site)/Navbar";
 import HeroSection from "@/app/(site)/home/HeroSection";
 import SocialProofSection from "@/app/(site)/home/SocialProofSection";
