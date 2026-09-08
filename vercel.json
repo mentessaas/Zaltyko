@@ -31,6 +31,10 @@
       "schedule": "30 6 * * *"
     },
     {
+      "path": "/api/cron/indexnow-submit",
+      "schedule": "0 4 * * *"
+    },
+    {
       "path": "/api/cron/onboarding-owner?step=d2",
       "schedule": "0 10 * * *"
     },
