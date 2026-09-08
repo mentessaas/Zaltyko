@@ -2,7 +2,7 @@ import { Metadata } from "next";
 import { JobForm } from "@/components/empleo/JobForm";
 
 export const metadata: Metadata = {
-  title: "Publicar oferta de empleo | Zaltyko",
+  title: "Publicar oferta de empleo",
   description: "Publica una nueva oferta de empleo para tu academia",
 };
 

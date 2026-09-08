@@ -15,7 +15,7 @@ export const metadata: Metadata = {
     canonical: `${baseUrl}/faq`,
   },
   openGraph: {
-    title: "Preguntas Frecuentes | Zaltyko",
+    title: "Preguntas Frecuentes",
     description:
       "Resolvemos las dudas más comunes sobre Zaltyko: precios, funciones, cancelación y más.",
     url: `${baseUrl}/faq`,

@@ -11,13 +11,13 @@ import { events, academies } from "@/db/schema";
 import { getPublicSiteUrl } from "@/lib/seo/site-url";
 
 export const metadata: Metadata = {
-  title: "Eventos y Competiciones de Gimnasia | Zaltyko",
+  title: "Eventos y Competiciones de Gimnasia",
   description: "Encuentra eventos y competencias de gimnasia cerca de ti. Directorio público de eventos y competiciones.",
   alternates: {
     canonical: `${getPublicSiteUrl()}/events`,
   },
   openGraph: {
-    title: "Eventos y Competiciones de Gimnasia | Zaltyko",
+    title: "Eventos y Competiciones de Gimnasia",
     description: "Encuentra eventos y competencias de gimnasia cerca de ti",
     url: `${getPublicSiteUrl()}/events`,
     type: "website",

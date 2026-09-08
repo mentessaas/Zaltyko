@@ -13,13 +13,13 @@ import { logger } from "@/lib/logger";
 import { demoEmploymentListing } from "@/lib/public/demo-listings";
 
 export const metadata: Metadata = {
-  title: "Bolsa de Empleo en Gimnasia | Zaltyko",
+  title: "Bolsa de Empleo en Gimnasia",
   description: "Encuentra trabajo en academias de gimnasia. Ofertas de empleo para entrenadores, auxiliares y más.",
   alternates: {
     canonical: `${getPublicSiteUrl()}/empleo`,
   },
   openGraph: {
-    title: "Bolsa de Empleo en Gimnasia | Zaltyko",
+    title: "Bolsa de Empleo en Gimnasia",
     description: "Encuentra trabajo en academias de gimnasia",
     url: `${getPublicSiteUrl()}/empleo`,
     type: "website",

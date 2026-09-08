@@ -17,7 +17,7 @@ export const metadata: Metadata = {
     canonical: `${baseUrl}/sobre-nosotros`,
   },
   openGraph: {
-    title: "Sobre Nosotros | Zaltyko",
+    title: "Sobre Nosotros",
     description: "Nacimos para resolver los problemas administrativos de las academias de gimnasia. Conoce nuestra historia, equipo y valores.",
     url: `${baseUrl}/sobre-nosotros`,
     siteName: "Zaltyko",
