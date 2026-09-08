@@ -1,12 +1,18 @@
 /**
- * Validación de variables de entorno usando Zod
- * Garantiza que todas las variables requeridas estén presentes y tengan el tipo correcto
+ * Validación de variables de entorno usando Zod.
+ * Garantiza que todas las variables requeridas estén presentes y tengan el tipo correcto.
  *
- * Importamos la configuración de dotenv aquí para asegurarnos de que
- * las variables de entorno de `.env` y `.env.local` estén cargadas
- * antes de que Zod las valide, independientemente del orden de imports.
+ * `dotenv/config` se carga en instrumentation.ts (server-only, antes de
+ * cualquier otro módulo) — antes vivía aquí y webpack lo emitía en cada
+ * chunk de cliente que importaba `@/lib/env` transitivamente (~150 KiB
+ * de bundles duplicados, observado en PSI 2026-09-08).
+ *
+ * `server-only` protege frente a regresiones: si cualquier `"use client"`
+ * intenta importar este módulo, el build falla con un error claro en
+ * lugar de enviar las constantes de validación al navegador.
  */
-import "dotenv/config";
+import "server-only";
+
 import { z } from "zod";
 
 /**

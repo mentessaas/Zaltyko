@@ -1,6 +1,13 @@
 // Next.js instrumentation file
 // This file is used to initialize Sentry on the server and edge runtime
 
+// Carga .env / .env.local en el servidor antes de cualquier validación.
+// Vivir aquí (en vez de en src/lib/env.ts) evita que `dotenv/config` se
+// emita en los chunks del cliente cuando algo importa `@/lib/env`
+// transitivamente desde un `"use client"`. Coste observado en PSI
+// mobile 2026-09-08: ~150 KiB de chunks duplicados por este bleed.
+import "dotenv/config";
+
 import * as Sentry from "@sentry/nextjs";
 
 const SENTRY_DSN = process.env.SENTRY_DSN || process.env.NEXT_PUBLIC_SENTRY_DSN;
