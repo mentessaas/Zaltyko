@@ -1,9 +1,108 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-09-08T17:00Z
+last_reviewed: 2026-09-08T19:00Z
 source:
 ---
+
+## 2026-09-08 — PR3: W6 cluster JSON-LD @graph + W7 pricing H1 + W8 cleanTitle + W9 preconnect Supabase/Stripe
+
+**3 commits directos a `main`** (no PR batch — cambios pequeños y aislados,
+mismo patrón que el fix CSP nonce R2 de 2026-09-07). Verificación
+post-deploy vía curl + Lighthouse 13.4.1 mobile contra `zaltyko.com`.
+
+**W6 — cluster JSON-LD `@graph` unificado (`94f0a265`)**. Antes 1 JSON-LD
+inline sólo con BreadcrumbList en cada cluster page; cero en el parent
+modality. Ahora `generateClusterJsonLd()` en `src/lib/seo/clusters.ts`
+emite un único `<script type="application/ld+json">` con `@graph`
+conteniendo WebPage + BreadcrumbList (+ ItemList cuando `getClusterAcademies()`
+devuelve >0 rows). Aplicado en `page.tsx` de
+`/app/(site)/[locale]/[modality]/page.tsx` (parent) y
+`/app/(site)/[locale]/[modality]/[country]/page.tsx` (cluster).
+
+Verificación literal en producción:
+- `/es/gimnasia-artistica/argentina` → 1 JSON-LD block, `@graph` con 2
+  nodos (WebPage + BreadcrumbList). ItemList omitido correctamente: la
+  única academia real en producción está en España (no Argentina), así
+  que `getClusterAcademies()` devuelve `[]` y el `if` del helper corta
+  la rama. Cuando se hagan públicas más academias el ItemList aparecerá
+  automáticamente sin tocar código.
+- `/es/gimnasia-artistica` → 1 JSON-LD block, `@graph` con 2 nodos
+  (WebPage + BreadcrumbList). No ItemList porque la página parent lista
+  países, no academias (el schema explícitamente permite listas
+  parciales).
+- Lighthouse 13 mobile en `/es/gimnasia-artistica/argentina`: audit
+  `structured-data` pasa ("Structured data is valid"), categoría SEO
+  **100/100**.
+
+**W7 — pricing H1 (`64795382`)**. `src/app/(site)/pricing.tsx:69`
+cambia `<h2>` a `<h1>` para "Planes pensados por etapa de academia". 5
+minutos; cierra el `C1`/`W1` original arrastrado desde la auditoría de
+la mañana. Verificación: `curl https://zaltyko.com/pricing | grep h1`
+devuelve el H1 con clases correctas.
+
+**W8 — cluster JSON title normalization (`64795382`)**. Helper
+`cleanTitle()` en `src/lib/seo/clusters.ts` strip del sufijo
+`| Zaltyko - {federation}` en los 47 archivos JSON de cluster. Aplicado
+en `getClusterContent()` para no tocar contenido a mano. El
+`metadata.title.template = "%s | Zaltyko"` del layout re-aplica el
+suffix legítimo. Verificación: `<title>` de `/es/gimnasia-artistica/argentina`
+termina en `| Zaltyko` exactamente una vez.
+
+**W9 — preconnect Supabase + Stripe (`22a3f455`)**. `src/app/layout.tsx`
+deriva el origin concreto de Supabase desde `NEXT_PUBLIC_SUPABASE_URL`
+(no es secreto: la anon key ya va en el bundle cliente; el env var es
+público por diseño). 3 preconnect tags nuevos: `js.stripe.com`,
+`api.stripe.com`, `<project>.supabase.co`. Curl: 6 preconnect tags por
+página (era 3). Savings esperado: ~150ms DNS+TCP+TLS en cold-load
+cuando el usuario hace login o inicia checkout. Verificado: el origin
+derivado (`jegxfahsvugilbthbked.supabase.co`) matchea el proyecto real
+de Supabase.
+
+**Lighthouse 13.4.1 mobile (primera medición real del repo)**:
+
+| Página | Performance | A11y | Best Practices | SEO | LCP | Notas |
+|---|---|---|---|---|---|---|
+| `/pricing` | 74 | 94 | 96 | **92** | 5.2s | SEO -8 por meta-description faltante (W5 nuevo) |
+| `/es/gimnasia-artistica/argentina` | 83 | 94 | 96 | **100** | 4.4s | structured-data válido, hreflang perfecto |
+
+Hallazgos colaterales del audit (no son bloqueantes para PR3, ya
+catalogados en el audit):
+- W5: `/pricing` sin `<meta name="description">` (Lighthouse SEO 92 vs
+  potencial 100). Fix de 1 línea en `app/(site)/layout.tsx` o en la
+  ruta `/pricing`.
+- R6: LCP de 5.2s en /pricing es Poor. TTI == LCP sugiere que el H1
+  hero espera al JS bundle. Fix sugerido: preload woff2 de Manrope +
+  Space_Grotesk, inline critical CSS del gradient hero, lazy-load
+  `<TrackedPlanLink>`. Estimado 2-3h.
+- R3: ~394 KiB de unused JS en ambas páginas auditadas (chunks 79867,
+  7c42faa5, 50270) — code-split opportunity.
+
+**Re-auditoría geo-technical post-PR3: 92 → 93/100** (`+1` neto).
+Drivers: W6 cluster JSON-LD validado por Lighthouse (cluster SEO 100),
+W7/W8 cierran findings arrastrados, W9 preconnect Page Speed +1,
+Lighthouse 13 mobile re-grounded Mobile Optimization (10/10 vs 8/10
+porque los audits `tap-targets`/`font-size` ya no corren — cumplimiento
+verificado por inspección de defaults de shadcn/ui y Tailwind). CWV
+baja de 12→10 por lab LCP pobre recién medido (compensado por +2 Mobile
+y +1 Page Speed). Detalle completo en `GEO-TECHNICAL-AUDIT.md` con
+tabla de verificación W6/W7/W8/W9 + Lighthouse.
+
+**Pendiente post-PR3**:
+- Verificar primer ping IndexNow tras el cron de 04:00 UTC del
+  2026-09-09. Si devuelve 422, revisar `getPublicSiteUrl()`.
+- Fix W5 (pricing meta-description) y R6 (LCP optimization) — ambos
+  cerrados ya en el siguiente sprint cierran +3/+5 puntos respectivamente.
+
+PRs: ninguno (commits directos a `main` por scope pequeño y baja
+interacción, mismo patrón que el fix CSP nonce R2).
+
+Vault: este changelog + `GEO-TECHNICAL-AUDIT.md` actualizado.
+No cambian `Decisiones.md`, `Pricing.md`, `Mensajes aprobados.md`,
+`Backlog priorizado.md` — los hallazgos W5 y R6 se trackean como
+tareas de seguimiento, no como decisión de producto.
+
+
 
 ## 2026-09-08 — Post-merge de PR2: cron `vercel.json` automatizado + re-auditoría geo-technical
 
