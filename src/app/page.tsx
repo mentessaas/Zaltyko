@@ -175,10 +175,6 @@ export default function HomePage() {
               areaServed: ["ES", "MX", "AR", "CO", "CL", "PE"],
             },
           ],
-          address: {
-            "@type": "PostalAddress",
-            addressCountry: "ES",
-          },
           areaServed: [
             { "@type": "Country", name: "Spain" },
             { "@type": "Country", name: "Mexico" },
@@ -188,7 +184,6 @@ export default function HomePage() {
             { "@type": "Country", name: "Peru" },
           ],
           sameAs: [
-            "https://linkedin.com/company/zaltyko",
             "https://instagram.com/zaltyko",
           ],
         }}

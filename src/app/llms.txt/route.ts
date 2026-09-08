@@ -48,7 +48,7 @@ El sitio incluye páginas de cluster específicas por país y modalidad para art
 
 - Email: hola@zaltyko.com
 - Website: https://zaltyko.com
-- Social: LinkedIn (company/zaltyko), Instagram (@zaltyko)
+- Social: Instagram (@zaltyko)
 
 ## Localización
 

@@ -219,7 +219,6 @@ export default function AboutPage() {
               { "@type": "Country", name: "Peru" },
             ],
             sameAs: [
-              "https://linkedin.com/company/zaltyko",
               "https://instagram.com/zaltyko",
             ],
           },
