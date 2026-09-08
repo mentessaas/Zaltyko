@@ -66,9 +66,9 @@ export default function PricingSection() {
             <span className="text-xs font-semibold uppercase tracking-[0.08em] text-zaltyko-teal">
               Planes
             </span>
-            <h2 className="mt-4 font-display text-3xl font-semibold text-foreground sm:text-4xl">
+            <h1 className="mt-4 font-display text-3xl font-semibold text-foreground sm:text-4xl">
               Planes pensados por etapa de academia
-            </h2>
+            </h1>
             <p className="mt-3 font-sans text-base text-muted-foreground">
               No vendemos módulos sueltos: vendemos dirección diaria, cobros claros y seguimiento técnico para gimnasia artística y rítmica.
             </p>

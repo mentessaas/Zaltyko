@@ -1,9 +1,18 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-09-07T11:30Z
+last_reviewed: 2026-09-08T07:35Z
 source:
 ---
+
+## 2026-09-08 — Fix crítico (C1) del audit técnico GEO: H1 ausente en /pricing
+
+`/pricing` rendía un `<h2>` ("Planes pensados por etapa de academia") como heading principal sin un `<h1>` en la página. Google y AI Overviews extraen el H1 como señal primaria de "de qué trata esta página" — sin él, los crawlers caen al title tag (menos precisión semántica) y los snippets de citación AI salen más débiles.
+
+Fix: `<h2>` → `<h1>` en `src/app/(site)/pricing.tsx` (PricingSection, único consumer). Mismo styling, mismo texto. `pnpm typecheck` verde.
+
+Cierra el issue C1 del `GEO-TECHNICAL-AUDIT.md` (score subió de 84 → 85). Warnings (W1-W5) siguen abiertos para PR2 separado.
+
 ## 2026-09-07 — R2 cerrado: CSP bloqueaba hidratación de TODA página interactiva en producción (P0, no P1)
 
 El "smoke rojo en test 3 (features tabs)" era la punta del iceberg. La causa
