@@ -124,16 +124,37 @@ export default async function RootLayout({
   // metan scripts inline (Google Ads, etc.), el navegador bloquea el bundle
   // de hidratación de React porque el CSP no encuentra un nonce que matchear.
   const nonce = (await headers()).get("x-nonce") ?? undefined;
+
+  // W9 GEO audit: derive the concrete Supabase origin from a public env var
+  // (NEXT_PUBLIC_* vars are intentionally not secrets — they are already
+  // inlined into client bundles). Skip silently when unset or malformed so
+  // local builds without Supabase configured still render.
+  let supabaseOrigin: string | null = null;
+  const rawSupabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  if (rawSupabaseUrl && !rawSupabaseUrl.includes("your-project")) {
+    try {
+      supabaseOrigin = new URL(rawSupabaseUrl).origin;
+    } catch {
+      supabaseOrigin = null;
+    }
+  }
+
   return (
     <html lang="es" nonce={nonce} suppressHydrationWarning>
       <head>
-        {/* Preconnect to critical third-party origins (W5 GEO audit).
+        {/* Preconnect to critical third-party origins (W5 + W9 GEO audit).
             Wildcards aren't valid in preconnect — concrete subdomains only.
-            Skip Supabase/Stripe until the project-specific subdomain can be
-            promoted to source without leaking per-env values. */}
+            Fonts + PostHog were landed in PR2; Supabase (project-scoped) and
+            Stripe (js.stripe.com + api.stripe.com) added now to cut cold
+            DNS+TCP+TLS when users sign in or start checkout. */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link rel="preconnect" href="https://app.posthog.com" crossOrigin="anonymous" />
+        <link rel="preconnect" href="https://js.stripe.com" crossOrigin="anonymous" />
+        <link rel="preconnect" href="https://api.stripe.com" crossOrigin="anonymous" />
+        {supabaseOrigin && (
+          <link rel="preconnect" href={supabaseOrigin} crossOrigin="anonymous" />
+        )}
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#0F172A" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
