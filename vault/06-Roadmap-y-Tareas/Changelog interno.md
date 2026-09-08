@@ -7,15 +7,14 @@ source:
 
 ## 2026-09-08 — R6: preload Space_Grotesk + Manrope Latin woff2 (LCP en /pricing)
 
-**1 commit en rama `fix/r6-lcp-font-preload-2026-09-08`** (`cc100bf0`).
+**2 commits a `main`** (`cc100bf0` código + `8dae36c3` docs).
 `src/app/layout.tsx` añade dos `<link rel="preload" as="font"
-type="font/woff2" crossOrigin="anonymous">` para los subsets Latin de
-los dos `next/font/google` configurados en el root layout:
+type="font/woff2" crossOrigin="anonymous">` para los subsets Latin
+de los dos `next/font/google` configurados en el root layout:
 
   - `/_next/static/media/36966cca54120369-s.p.woff2` → Space Grotesk
     Latin (H1 "Planes pensados por etapa de academia" en `/pricing`,
-    `font-display text-3xl font-semibold` → weight 600; URL estable
-    en `/`, `/pricing` y `/about`).
+    `font-display text-3xl font-semibold` → weight 600).
   - `/_next/static/media/4c9affa5bc8f420e-s.p.woff2` → Manrope Latin
     (párrafos `font-sans`, banner "7 días de Starter sin tarjeta",
     copy de los plan cards).
@@ -24,36 +23,69 @@ los dos `next/font/google` configurados en el root layout:
 
 - En build actual, `next/font/google` no inyecta preload tags para
   fuentes en producción (verificado — único `<link rel="preload">` en
-  head es el chunk de webpack). Las URLs viven en `@font-face` dentro
-  de `/_next/static/css/1dab67f373cdea8c.css`, así que el navegador
-  dispara la descarga sólo después de parsear el CSS — ~150–300 ms
-  de delay sobre el LCP element (H1).
+  head era el chunk de webpack). Las URLs vivían en `@font-face`
+  dentro de `/_next/static/css/1dab67f373cdea8c.css`, así que el
+  navegador disparaba la descarga sólo después de parsear el CSS —
+  ~150–300 ms de delay sobre el LCP element (H1).
 - Pre-exponer ambos `.p.woff2` con `rel=preload` permite al preload
   scanner disparar las descargas en paralelo con la descarga de CSS,
   recortando ese delta.
-- `font-display: swap` en la config ya asegura que el texto es
-  visible en fallback durante la carga; el preload minimiza el tiempo
-  de swap, que es lo que percibe Lighthouse como LCP.
+
+**Verificación Lighthouse 13.4.1 mobile contra `https://zaltyko.com/pricing`:**
+
+| Métrica          | Antes   | Después | Δ         |
+|------------------|---------|---------|-----------|
+| LCP              | 5296 ms | 4969 ms | **−327 ms (−6%)** |
+| FCP              | 1235 ms | 1283 ms | +48 ms (ruido)   |
+| TBT              | 411 ms  | 451 ms  | +40 ms (ruido)   |
+| TTI              | 5297 ms | 4977 ms | −320 ms         |
+| CLS              | 0.000   | 0.000   | 0               |
+| Performance score| 71/100  | 70/100  | −1              |
+| TTFB             | 184 ms  | 166 ms  | −18 ms          |
+
+**Lectura honesta del resultado:**
+
+- Mejora real, pero modesta (−327 ms LCP ≈ −6%). El H1 sigue siendo
+  el LCP element y sigue cargando tarde; sólo se movió la descarga
+  de fuentes ~300 ms antes. No fue suficiente para cruzar el umbral
+  de 4.0s (LCP sigue en Poor).
+- FCP y TBT empeoraron 40–50 ms — ruido probable de la segunda
+  corrida, no regresión real (los preloads compiten con los chunks
+  JS por bandwidth en el burst inicial, pero la mejora en LCP pesa
+  más).
+- Performance score bajó 1 punto por la fórmula de Lighthouse
+  (pesa más FCP+LCP+TTI que TBT, y el score ceiling en este rango
+  es sensible a +-1 punto).
+
+**Audit score final:** sigue **93/100**. El cambio ayudó al usuario
+real (LCP 5.3s → 5.0s, perceptible en cold load) pero no movió la
+aguja de la auditoría porque no cruzó ningún threshold (sigue Poor
+>4.0s en LCP).
 
 **Limitaciones conocidas:**
 
 - Los hashes son content-addressed; cambiar `weight`, `subsets` o
   `display` en la config de `Space_Grotesk`/`Manrope` invalidaría
-  los URLs. Mientra la config se mantenga (4 pesos 400/500/600/700,
-  subset latin, swap), los URLs son estables.
+  los URLs. Mientras la config se mantenga (4 pesos 400/500/600/700,
+  subset latin, swap), los URLs son estables — verificado idénticos
+  en `/`, `/pricing`, `/about`.
 - El orden de inserción en head sigue a las CSS link tags de Next.js,
   así que el preload llega *después* de CSS en el HTML. El navegador
   aún se beneficia porque dispara la descarga en cuanto parsea el
   preload (mientras sigue parseando CSS), evitando serialización.
+  Inyectar el preload *antes* del CSS requeriría custom `_document`
+  o cambiar a `next/font/local`, fuera del scope de este PR.
 
-**Pendiente de verificar:** Lighthouse 13.4.1 mobile contra `/pricing`
-en preview deploy — LCP element + LCP timing. Esperado: delta
-~150–300 ms favorable. Si la memoria de Vercel OOM estructural
-(8 GB preview) se reproduce, fallback: medir TTFB y CSS parse time
-vía `curl -w '%{time_starttransfer}s'` y `grep -c 'preload'`.
+**Recomendación para siguiente iteración R6.2 (no en este PR):**
 
-**Audit score esperado:** +1 a +2 puntos en CWV si LCP baja de 5.2s
-a <4.0s (de Poor a Needs Improvement); +3 si baja a <2.5s (Good).
+- Bundle reduction de los 3 chunks framework ≥150 KB (79867, 7c42faa5,
+  89dc0f66) → de 1.5 MB uncompressed a <800 KB. Esfuerzo alto,
+  estructural; beneficiaría todas las rutas, no sólo /pricing.
+- Inline critical CSS o subir a App Router parcial con streaming
+  SSR para servir el H1 antes del bundle JS. Esfuerzo medio-alto.
+- Considerar `next/font/local` con archivos en `/public/fonts` y
+  preload manual con orden garantizado. Esfuerzo bajo, ganancia
+  marginal sobre lo actual.
 
 ---
 

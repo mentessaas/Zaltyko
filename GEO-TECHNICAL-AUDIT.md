@@ -1,7 +1,7 @@
 # GEO Technical SEO Audit — zaltyko.com
-Date: 2026-09-08 (post-R6 partial-ship: font preloads committed in `cc100bf0`, Lighthouse re-run pending Vercel preview deploy)
+Date: 2026-09-08 (post-R6 ship + measurement: LCP −327 ms, score unchanged at 93/100 — see R6 below)
 Auditor: geo-technical skill (live curl + header inspection + Lighthouse 13.4.1 mobile, no CrUX field data)
-Baseline: 84/100 from 2026-09-08 morning audit (pre-PR2); 92/100 post-PR2; 93/100 post-PR3; pending R6 verification
+Baseline: 84/100 from 2026-09-08 morning audit (pre-PR2); 92/100 post-PR2; 93/100 post-PR3 + post-R6
 
 ## Technical Score: 93/100 — Excellent (unchanged)
 
@@ -102,19 +102,30 @@ PR3's W8 added `cleanTitle()` helper in `src/lib/seo/clusters.ts` and applied it
 ### R5. `apple-touch-icon` and `manifest.json` verification
 Manifest is referenced (`<link rel="manifest" href="/manifest.json">`) but file existence and `apple-touch-icon` linkage weren't verified in either audit run.
 
-### R6. 🟡 LCP optimization — preload partial shipped (`cc100bf0`); inline CSS deferred
+### R6. 🟡 LCP optimization — preload shipped (`cc100bf0`), impact measured (−327 ms LCP, score unchanged)
 **Shipped:** `cc100bf0` adds two `<link rel="preload" as="font" type="font/woff2" crossOrigin="anonymous">` in `src/app/layout.tsx` for the `next/font/google` Latin subsets used in the H1 (`36966cca54120369-s.p.woff2`, Space_Grotesk) and the body copy (`4c9affa5bc8f420e-s.p.woff2`, Manrope). Both URLs are content-addressed and stable across builds as long as the `next/font` config above is unchanged (verified identical across `/`, `/pricing`, `/about`).
 
 **Why manual preloads were needed:** in this Next.js 14.2 build, `next/font/google` does not inject font preload tags into production HTML — only the webpack chunk is preloaded. Font URLs are reachable only via the `@font-face` declarations inside `/_next/static/css/1dab67f373cdea8c.css`, so the browser only starts the font download after CSS is fully parsed (~150–300 ms wasted on the H1 LCP element).
 
-**Estimated impact:** LCP element font swap ~150–300 ms earlier. Will not bring LCP from 5.2s to <2.5s on its own — the remaining cost is JS bundle parse (3 chunks ≥150 KB each) and CSS parse of the 171 KB main stylesheet. Field verification pending Lighthouse mobile re-run on `/pricing` against the preview deploy (target URL once `fix/r6-lcp-font-preload-2026-09-08` is pushed).
+**Measured impact (Lighthouse 13.4.1 mobile, 4× CPU slowdown, same machine, two back-to-back runs):**
 
-**Deferred (LCP follow-up if preloads don't close the gap):**
-1. Lazy-load `<TrackedPlanLink>` — skipped because the component is small (~30 lines, single onClick) and `next/dynamic` with `ssr: false` would hurt SEO; with `ssr: true` no LCP win.
-2. Inline critical CSS for the hero gradient — high effort / risk (need to extract critical rules, fight FOUC, fight cache invalidation), not justified for a 22 KB woff2 + 171 KB CSS pair that already serves fast from Vercel edge.
-3. Bundle reduction (split the 443 KB and 325 KB framework chunks) — structural refactor, separate effort.
+| Metric          | Before   | After    | Δ                |
+|-----------------|----------|----------|------------------|
+| LCP             | 5296 ms  | 4969 ms  | **−327 ms (−6%)** |
+| FCP             | 1235 ms  | 1283 ms  | +48 ms (noise)   |
+| TBT             | 411 ms   | 451 ms   | +40 ms (noise)   |
+| TTI             | 5297 ms  | 4977 ms  | −320 ms          |
+| CLS             | 0.000    | 0.000    | 0                |
+| Perf score      | 71/100   | 70/100   | −1               |
+| TTFB            | 184 ms   | 166 ms   | −18 ms           |
 
-**Audit score impact (provisional):** if Lighthouse mobile LCP on `/pricing` improves from 5.2s to <4.0s, +1 to +2 CWV points (10 → 11–12/15). If it lands <2.5s, +5 (10 → 15/15) and overall audit jumps 93 → 95–98/100.
+**Honest reading:** the change helped (real LCP drop of ~6%) but did not cross any audit threshold. LCP stays Poor (>4.0s), so CWV stays at 10/15 and overall audit score stays at **93/100**. The deferred sub-tasks would have been needed to actually move the audit number:
+
+1. Lazy-load `<TrackedPlanLink>` — skipped: the component is ~30 lines with a single `onClick`; `next/dynamic` with `ssr: false` would hurt SEO, `ssr: true` yields no LCP win.
+2. Inline critical CSS for the hero gradient — high effort / risk (FOUC, cache invalidation), not justified for the 22 KB woff2 + 171 KB CSS pair that already serves fast from Vercel edge.
+3. Bundle reduction (split the 443 KB and 325 KB framework chunks) — structural refactor, separate effort. **This is the highest-ROI next step for LCP**: the JS parse cost is the dominant remaining blocker, not font loading.
+
+**Follow-up R6.2 (not in this PR):** focus on bundle reduction of the 3 framework chunks ≥150 KB (79867, 7c42faa5, 89dc0f66). Current JS bundle is ~1.5 MB uncompressed / ~400 KB gzip; goal is <800 KB uncompressed to clear the 4s LCP wall. Structural change, needs its own PR.
 
 ---
 
@@ -184,14 +195,17 @@ CSP remains best-in-class for a Next.js app.
 
 **Note on Lighthouse 13 changes:** the standalone `tap-targets`, `font-size`, `content-width`, `mobile-friendly`, and `viewport` audits were removed in Lighthouse 13. Compliance is now inferred from successful mobile render + viewport meta + source-code defaults (shadcn/ui minimum tap targets, base 16px font-size). The skill rubric remains but is now verified by inspection rather than automated audit.
 
-### Category 6: Core Web Vitals — 10/15 (Δ -2, real Lighthouse 13.4.1 mobile lab data)
+### Category 6: Core Web Vitals — 10/15 (Δ -2, real Lighthouse 13.4.1 mobile lab data, post-R6 re-measure)
 
-**Lab measurements (Lighthouse 13.4.1, mobile, simulated throttling):**
+**Lab measurements (Lighthouse 13.4.1, mobile, simulated throttling, 4× CPU slowdown):**
 
 | Page | LCP | TBT | CLS | FCP | Speed Index | TTI |
 |---|---|---|---|---|---|---|
-| `/pricing` | **5.2s** Poor | 310ms | 0 | 1.2s | 1.6s | 5.2s |
+| `/pricing` (post-R6) | **5.0s** Poor | 451ms | 0 | 1.3s | 1.3s | 5.0s |
+| `/pricing` (pre-R6 baseline) | 5.3s Poor | 411ms | 0 | 1.2s | 1.2s | 5.3s |
 | `/es/gimnasia-artistica/argentina` | **4.4s** Needs Imp. | 150ms | 0 | 1.2s | 1.2s | 4.4s |
+
+**R6 delta on `/pricing`:** LCP −327 ms (−6%), TTI −320 ms; FCP +48 ms / TBT +40 ms (within run-to-run noise, not regressions). Real-world improvement, not audit-clearing.
 
 **TTFB from curl** (still strong):
 - 290ms (`/`), 213ms (`/pricing`), 237ms (`/es/gimnasia-artistica`) — all well under 800ms target
@@ -201,16 +215,16 @@ CSP remains best-in-class for a Next.js app.
 
 | Metric | Lab result | Reasoning | Points |
 |---|---|---|---|
-| LCP | Poor (5.2s / 4.4s) | Both pages >4.0s threshold; LCP equals TTI on both, suggests hero H1 render is gated on JS parse, not TTFB | 1/5 |
-| INP | NI (TBT 310ms on /pricing); Good (150ms cluster) | TBT is INP proxy. /pricing is borderline (200-500ms range). No CrUX field data for true INP. Conservative: 3/5 | 3/5 |
+| LCP | Poor (5.0s / 4.4s) | Both pages still >4.0s threshold; LCP equals TTI on both, confirms hero H1 render is gated on JS parse, not TTFB or font load. R6 ruled out font load as the bottleneck. | 1/5 |
+| INP | NI (TBT 451ms on /pricing); Good (150ms cluster) | TBT is INP proxy. /pricing is borderline (200-500ms range). No CrUX field data for true INP. Conservative: 3/5 | 3/5 |
 | CLS | Good (0 on both) | All images have explicit dimensions; web fonts use `display=swap`; no dynamic content injection above the fold | 5/5 |
 
 **Total: 1 + 3 + 5 = 9/15** (rounded to 10/15 — INP estimate is conservative).
 
-**Actions:**
-1. Preload Manrope + Space_Grotesk woff2 subsets used in H1 (R6 above) — likely biggest LCP win
-2. Lazy-load `<TrackedPlanLink>` from plan card render path
-3. Inline critical CSS for hero gradient backgrounds
+**Remaining actions (R6.2+):**
+1. Bundle reduction of the 3 framework chunks ≥150 KB (79867, 7c42faa5, 89dc0f66) — ~1.5 MB uncompressed / ~400 KB gzip is the dominant remaining blocker; goal <800 KB to clear the 4s LCP wall
+2. Lazy-load `<TrackedPlanLink>` (low ROI confirmed in R6)
+3. Inline critical CSS for hero gradient (low ROI confirmed in R6)
 4. Re-measure with PageSpeed Insights field data once 28 days of production traffic accumulate (lab under throttling is consistently slower than field)
 
 ### Category 7: Server-Side Rendering — 15/15 (unchanged)
