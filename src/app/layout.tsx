@@ -127,6 +127,13 @@ export default async function RootLayout({
   return (
     <html lang="es" nonce={nonce} suppressHydrationWarning>
       <head>
+        {/* Preconnect to critical third-party origins (W5 GEO audit).
+            Wildcards aren't valid in preconnect — concrete subdomains only.
+            Skip Supabase/Stripe until the project-specific subdomain can be
+            promoted to source without leaking per-env values. */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link rel="preconnect" href="https://app.posthog.com" crossOrigin="anonymous" />
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#0F172A" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
