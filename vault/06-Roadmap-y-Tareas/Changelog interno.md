@@ -1,9 +1,60 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-09-08T16:15Z
+last_reviewed: 2026-09-08T17:00Z
 source:
 ---
+
+## 2026-09-08 — Post-merge de PR2: cron `vercel.json` automatizado + re-auditoría geo-technical
+
+**vercel.json cron automatizado (`1fe295d6`)**. La entrada
+`/api/cron/indexnow-submit` con schedule `0 4 * * *` (04:00 UTC diario)
+sustituye el `curl` post-deploy manual. Vercel auto-inyecta el header
+`Authorization: Bearer ${CRON_SECRET}` cuando dispara el cron, así que
+`requireCronAuth` lo acepta sin config adicional. Beneficio: cada
+mañana Bing (→ ChatGPT, Perplexity vía Bing) re-crawlea las 12 rutas
+públicas curadas sin intervención. Verificar pickup en
+https://vercel.com/mentessaas-projects/zaltyko/crons tras el primer
+auto-deploy post-push.
+
+**Re-auditoría geo-technical contra `https://zaltyko.com/`: 92/100**
+(Δ +8 vs baseline 84/100). `GEO-TECHNICAL-AUDIT.md` actualizado in-place
+con measurements post-PR2:
+
+| Categoría | Pre | Post | Δ |
+|---|---|---|---|
+| Crawlability | 14/15 | 15/15 | +1 (sitemap `<lastmod>` ahora varied) |
+| Indexability | 9/12 | 12/12 | +3 (W1 canonical clean + W2 hreflang) |
+| Security | 10/10 | 10/10 | — |
+| URL Structure | 7/8 | 7/8 | — |
+| Mobile Optimization | 8/10 | 8/10 | — |
+| Core Web Vitals | n/a | 12/15 | new (TTFB 290/213/237ms; LCP/INP/CLS estimated) |
+| SSR | 15/15 | 15/15 | — |
+| Page Speed | 14/15 | 13/15 | -1 (más conservador sin inner-page image audit) |
+
+Verificación literal en producción:
+- `curl -I https://zaltyko.com/.well-known/indexnow-key.txt` → 200 OK con UUID correcto
+- `/es/gimnasia-artistica` raw HTML contiene `<link rel="alternate" hrefLang="es|en|x-default">`
+- Títulos limpios: `<title>Zaltyko – Software de Gestión...</title>` (sin `| Zaltyko | Zaltyko`)
+- 3 preconnect tags por página (`fonts.googleapis.com`, `fonts.gstatic.com`, `app.posthog.com`)
+- 3 JSON-LD schemas en home (SoftwareApplication + Organization + FAQPage)
+- TTFB: 290ms (home) / 213ms (pricing) / 237ms (cluster) — bajo threshold 800ms
+
+**Pendiente post-PR2 (PR3)**:
+
+- Cluster JSON `meta.title` normalization: helper `cleanTitle()` para
+  strip `| Zaltyko - {federation}` en los 47 archivos JSON de cluster.
+- Pricing H1: `C1`/`W1` original sin cerrar — bajar a `<h1>` el hero
+  "Planes pensados por etapa de academia" (5 min fix).
+- Cluster JSON-LD: 47 cluster pages con 0 schemas; añadir
+  `WebPage` + `BreadcrumbList` + `ItemList` para empujar citation rate.
+- Preconnect Supabase/Stripe: R1, ~150ms cold-load savings.
+- Lighthouse mobile audit para subir tap-target y font-size de 1/2 a 2/2.
+- Verificar primer ping IndexNow a `api.indexnow.org` tras el cron de
+  04:00 UTC del 2026-09-09; si responde 422, revisar
+  `getPublicSiteUrl()` por mismatch `www.zaltyko.com` vs `zaltyko.com`.
+
+Vault: este changelog + `GEO-TECHNICAL-AUDIT.md` actualizado.
 
 ## 2026-09-08 — PR2: GEO Technical SEO quick wins (W1 + W2 + W3 + W5) cerrados
 
