@@ -8,6 +8,7 @@ import {
   COUNTRIES,
   AVAILABLE_MODALITIES,
   getCountriesForModality,
+  getModalityHreflang,
   type ModalitySlug,
   type CountrySlug,
 } from "@/lib/seo/clusters";
@@ -63,11 +64,11 @@ export async function generateMetadata({
 
   const titles = {
     es: {
-      title: `${modalityLabel} en Latinoamérica | Zaltyko`,
+      title: `${modalityLabel} en Latinoamérica`,
       description: `Encuentra academias de ${modalityLabel.toLowerCase()} en España, México, Argentina, Colombia, Chile y Perú. Software de gestión especializado.`,
     },
     en: {
-      title: `${modalityLabel} in Latin America | Zaltyko`,
+      title: `${modalityLabel} in Latin America`,
       description: `Find ${modalityLabel.toLowerCase()} academies in Spain, Mexico, Argentina, Colombia, Chile and Peru. Specialized management software.`,
     },
   };
@@ -79,6 +80,7 @@ export async function generateMetadata({
     description: t.description,
     alternates: {
       canonical: canonicalUrl,
+      languages: getModalityHreflang(modalityKey, baseUrl),
     },
     openGraph: {
       title: t.title,

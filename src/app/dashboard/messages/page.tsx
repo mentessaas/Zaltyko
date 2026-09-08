@@ -8,7 +8,7 @@ import { MessagesPage as MessagesPageComponent } from "@/components/messages/Mes
 import { resolveAcademyWorkspaceUrl } from "@/lib/auth/academy-workspace";
 
 export const metadata = {
-  title: "Mensajes | Zaltyko",
+  title: "Mensajes",
   description: "Gestiona tus conversaciones y mensajes",
 };
 

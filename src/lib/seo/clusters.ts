@@ -220,6 +220,69 @@ export function getRelatedByModality(
   return related;
 }
 
+// Locales that have SEO content published. Keep in sync with VALID_LOCALES
+// in (site)/[locale]/[modality]/[country]/page.tsx.
+const CLUSTER_LOCALES = ['es', 'en'] as const;
+type ClusterLocale = (typeof CLUSTER_LOCALES)[number];
+
+// Build hreflang matrix for a modality page (`/[locale]/[modality]`).
+// Lists locale variants for every modality that has content in that locale,
+// plus an x-default fallback to the site root. Country variants are scoped
+// per-modality below.
+export function getModalityHreflang(
+  modalityKey: ModalitySlug,
+  baseUrl: string,
+): Record<string, string> {
+  const languages: Record<string, string> = {};
+
+  for (const locale of CLUSTER_LOCALES) {
+    const slug = MODALITIES[modalityKey][locale];
+    if (!slug) continue;
+    languages[locale] = `${baseUrl}/${locale}/${slug}`;
+  }
+
+  languages['x-default'] = `${baseUrl}/`;
+  return languages;
+}
+
+// Build hreflang matrix for a country cluster page
+// (`/[locale]/[modality]/[country]`). Emits both locale (`es`, `en`) and
+// language-region (`es-AR`, `es-MX`, ...) variants so Google does not
+// collapse per-country pages into a single es cluster, plus x-default
+// pointing at the root for unmatched locales.
+export function getClusterHreflang(
+  modalityKey: ModalitySlug,
+  countryKey: CountrySlug,
+  baseUrl: string,
+): Record<string, string> {
+  const languages: Record<string, string> = {};
+  const countryCode = COUNTRIES[countryKey]?.code;
+
+  for (const locale of CLUSTER_LOCALES) {
+    const modalitySlug = MODALITIES[modalityKey][locale];
+    const countrySlug = COUNTRIES[countryKey][locale];
+    if (!modalitySlug || !countrySlug) continue;
+    languages[locale] = `${baseUrl}/${locale}/${modalitySlug}/${countrySlug}`;
+  }
+
+  // Per-region tags (es-AR, en-US, ...) so Google disambiguates country
+  // variants even when content is similar across countries.
+  if (countryCode) {
+    const primaryLocale: ClusterLocale = MODALITIES[modalityKey].es
+      ? 'es'
+      : 'en';
+    const primarySlug = MODALITIES[modalityKey][primaryLocale];
+    const primaryCountrySlug = COUNTRIES[countryKey][primaryLocale];
+    if (primarySlug && primaryCountrySlug) {
+      languages[`${primaryLocale}-${countryCode}`] =
+        `${baseUrl}/${primaryLocale}/${primarySlug}/${primaryCountrySlug}`;
+    }
+  }
+
+  languages['x-default'] = `${baseUrl}/`;
+  return languages;
+}
+
 // Get related clusters (same country, different modalities)
 export function getRelatedByCountry(
   locale: Locale,

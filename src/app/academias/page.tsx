@@ -7,13 +7,13 @@ import Reveal from "@/components/motion/Reveal";
 import { getPublicSiteUrl } from "@/lib/seo/site-url";
 
 export const metadata: Metadata = {
-  title: "Directorio de Academias de Gimnasia | Zaltyko",
+  title: "Directorio de Academias de Gimnasia",
   description: "Encuentra academias de gimnasia artística y rítmica cerca de ti.",
   alternates: {
     canonical: `${getPublicSiteUrl()}/academias`,
   },
   openGraph: {
-    title: "Directorio de Academias de Gimnasia | Zaltyko",
+    title: "Directorio de Academias de Gimnasia",
     description: "Encuentra academias de gimnasia artística y rítmica cerca de ti",
     url: `${getPublicSiteUrl()}/academias`,
     type: "website",

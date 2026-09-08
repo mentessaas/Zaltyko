@@ -2,7 +2,7 @@ import { Metadata } from "next";
 import { MarketplaceForm } from "@/components/marketplace/MarketplaceForm";
 
 export const metadata: Metadata = {
-  title: "Nuevo producto/servicio | Zaltyko",
+  title: "Nuevo producto/servicio",
   description: "Publica un nuevo producto o servicio en el marketplace",
 };
 

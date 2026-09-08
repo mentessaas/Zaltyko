@@ -8,6 +8,7 @@ import {
   getClusterContent,
   getRelatedByModality,
   getRelatedByCountry,
+  getClusterHreflang,
   type ModalitySlug,
   type CountrySlug,
 } from "@/lib/seo/clusters";
@@ -89,10 +90,7 @@ export async function generateMetadata({
     keywords: content.meta.keywords,
     alternates: {
       canonical: canonicalUrl,
-      languages: {
-        es: `${baseUrl}/es/${MODALITIES[modalityKey].es}/${COUNTRIES[countryKey].es}`,
-        en: `${baseUrl}/en/${MODALITIES[modalityKey].en}/${COUNTRIES[countryKey].en}`,
-      },
+      languages: getClusterHreflang(modalityKey, countryKey, baseUrl),
     },
     openGraph: {
       title: content.meta.title,
