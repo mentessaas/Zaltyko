@@ -1,7 +1,7 @@
 # GEO Technical SEO Audit — zaltyko.com
-Date: 2026-09-08 (post-W5 re-audit: W5 fix shipped, Lighthouse false-positive confirmed)
+Date: 2026-09-08 (post-R6 partial-ship: font preloads committed in `cc100bf0`, Lighthouse re-run pending Vercel preview deploy)
 Auditor: geo-technical skill (live curl + header inspection + Lighthouse 13.4.1 mobile, no CrUX field data)
-Baseline: 84/100 from 2026-09-08 morning audit (pre-PR2); 92/100 post-PR2; 93/100 post-PR3
+Baseline: 84/100 from 2026-09-08 morning audit (pre-PR2); 92/100 post-PR2; 93/100 post-PR3; pending R6 verification
 
 ## Technical Score: 93/100 — Excellent (unchanged)
 
@@ -102,13 +102,19 @@ PR3's W8 added `cleanTitle()` helper in `src/lib/seo/clusters.ts` and applied it
 ### R5. `apple-touch-icon` and `manifest.json` verification
 Manifest is referenced (`<link rel="manifest" href="/manifest.json">`) but file existence and `apple-touch-icon` linkage weren't verified in either audit run.
 
-### R6. 🆕 LCP optimization (Lighthouse mobile finding)
-Lighthouse 13 mobile LCP measurements: 5.2s on `/pricing` (Poor, >4.0s threshold) and 4.4s on cluster page (Needs Improvement, 2.5–4.0s). Common LCP candidates on these routes: hero H1 typography (no explicit font preload), pricing card backgrounds (gradient CSS, not an image but heavy repaint), and the JS bundle parse cost (TTI = LCP suggests the script is gating the visual). Recommended fixes:
-1. Preload the Manrope (body) and Space_Grotesk (display) woff2 subsets used in H1
-2. Lazy-load the `<TrackedPlanLink>` component (it currently sits in the plan card render path)
-3. Inline critical CSS for the hero / above-the-fold gradient backgrounds
+### R6. 🟡 LCP optimization — preload partial shipped (`cc100bf0`); inline CSS deferred
+**Shipped:** `cc100bf0` adds two `<link rel="preload" as="font" type="font/woff2" crossOrigin="anonymous">` in `src/app/layout.tsx` for the `next/font/google` Latin subsets used in the H1 (`36966cca54120369-s.p.woff2`, Space_Grotesk) and the body copy (`4c9affa5bc8f420e-s.p.woff2`, Manrope). Both URLs are content-addressed and stable across builds as long as the `next/font` config above is unchanged (verified identical across `/`, `/pricing`, `/about`).
 
-Estimated effort: 2-3 hours of focused work; can lift LCP from 5.2s to ~2.5s and recover the +5 CWV points lost in this audit.
+**Why manual preloads were needed:** in this Next.js 14.2 build, `next/font/google` does not inject font preload tags into production HTML — only the webpack chunk is preloaded. Font URLs are reachable only via the `@font-face` declarations inside `/_next/static/css/1dab67f373cdea8c.css`, so the browser only starts the font download after CSS is fully parsed (~150–300 ms wasted on the H1 LCP element).
+
+**Estimated impact:** LCP element font swap ~150–300 ms earlier. Will not bring LCP from 5.2s to <2.5s on its own — the remaining cost is JS bundle parse (3 chunks ≥150 KB each) and CSS parse of the 171 KB main stylesheet. Field verification pending Lighthouse mobile re-run on `/pricing` against the preview deploy (target URL once `fix/r6-lcp-font-preload-2026-09-08` is pushed).
+
+**Deferred (LCP follow-up if preloads don't close the gap):**
+1. Lazy-load `<TrackedPlanLink>` — skipped because the component is small (~30 lines, single onClick) and `next/dynamic` with `ssr: false` would hurt SEO; with `ssr: true` no LCP win.
+2. Inline critical CSS for the hero gradient — high effort / risk (need to extract critical rules, fight FOUC, fight cache invalidation), not justified for a 22 KB woff2 + 171 KB CSS pair that already serves fast from Vercel edge.
+3. Bundle reduction (split the 443 KB and 325 KB framework chunks) — structural refactor, separate effort.
+
+**Audit score impact (provisional):** if Lighthouse mobile LCP on `/pricing` improves from 5.2s to <4.0s, +1 to +2 CWV points (10 → 11–12/15). If it lands <2.5s, +5 (10 → 15/15) and overall audit jumps 93 → 95–98/100.
 
 ---
 

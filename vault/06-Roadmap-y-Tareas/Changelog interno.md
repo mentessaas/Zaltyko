@@ -1,8 +1,60 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-09-08T20:30Z
+last_reviewed: 2026-09-08T21:30Z
 source:
+---
+
+## 2026-09-08 — R6: preload Space_Grotesk + Manrope Latin woff2 (LCP en /pricing)
+
+**1 commit en rama `fix/r6-lcp-font-preload-2026-09-08`** (`cc100bf0`).
+`src/app/layout.tsx` añade dos `<link rel="preload" as="font"
+type="font/woff2" crossOrigin="anonymous">` para los subsets Latin de
+los dos `next/font/google` configurados en el root layout:
+
+  - `/_next/static/media/36966cca54120369-s.p.woff2` → Space Grotesk
+    Latin (H1 "Planes pensados por etapa de academia" en `/pricing`,
+    `font-display text-3xl font-semibold` → weight 600; URL estable
+    en `/`, `/pricing` y `/about`).
+  - `/_next/static/media/4c9affa5bc8f420e-s.p.woff2` → Manrope Latin
+    (párrafos `font-sans`, banner "7 días de Starter sin tarjeta",
+    copy de los plan cards).
+
+**Por qué este cambio:**
+
+- En build actual, `next/font/google` no inyecta preload tags para
+  fuentes en producción (verificado — único `<link rel="preload">` en
+  head es el chunk de webpack). Las URLs viven en `@font-face` dentro
+  de `/_next/static/css/1dab67f373cdea8c.css`, así que el navegador
+  dispara la descarga sólo después de parsear el CSS — ~150–300 ms
+  de delay sobre el LCP element (H1).
+- Pre-exponer ambos `.p.woff2` con `rel=preload` permite al preload
+  scanner disparar las descargas en paralelo con la descarga de CSS,
+  recortando ese delta.
+- `font-display: swap` en la config ya asegura que el texto es
+  visible en fallback durante la carga; el preload minimiza el tiempo
+  de swap, que es lo que percibe Lighthouse como LCP.
+
+**Limitaciones conocidas:**
+
+- Los hashes son content-addressed; cambiar `weight`, `subsets` o
+  `display` en la config de `Space_Grotesk`/`Manrope` invalidaría
+  los URLs. Mientra la config se mantenga (4 pesos 400/500/600/700,
+  subset latin, swap), los URLs son estables.
+- El orden de inserción en head sigue a las CSS link tags de Next.js,
+  así que el preload llega *después* de CSS en el HTML. El navegador
+  aún se beneficia porque dispara la descarga en cuanto parsea el
+  preload (mientras sigue parseando CSS), evitando serialización.
+
+**Pendiente de verificar:** Lighthouse 13.4.1 mobile contra `/pricing`
+en preview deploy — LCP element + LCP timing. Esperado: delta
+~150–300 ms favorable. Si la memoria de Vercel OOM estructural
+(8 GB preview) se reproduce, fallback: medir TTFB y CSS parse time
+vía `curl -w '%{time_starttransfer}s'` y `grep -c 'preload'`.
+
+**Audit score esperado:** +1 a +2 puntos en CWV si LCP baja de 5.2s
+a <4.0s (de Poor a Needs Improvement); +3 si baja a <2.5s (Good).
+
 ---
 
 ## 2026-09-08 — W5: pricing meta-description SERP-ready (Lighthouse false-positive documented)
