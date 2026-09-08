@@ -1,7 +1,7 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-09-09T01:05Z
+last_reviewed: 2026-09-09T01:40Z
 source:
 ---
 
@@ -1121,6 +1121,80 @@ completo, P1 #5 es el siguiente item obligatorio; si prefiere
 mejorar el último tramo de UX sin riesgo, **P2 top-nav** (borrar
 un componente que retorna `null`, ~5 líneas, blast radius trivial)
 es el camino más barato.
+
+PR: #TBD (pendiente push + `gh pr create`).
+Vault actualizado: este changelog.
+
+## 2026-09-09 — PR 8 del critique Operate: top-nav no-op component (P2 — borrar `AcademyTopNav` que retorna `null`)
+
+**Commit**: (pendiente — escribir tras `git commit`).
+
+**Por qué este PR y no P1 #5 (mixed shadow/pastel)** — el critique
+lista P1 #5 como último P1 pendiente, pero el camino más barato es
+matar código muerto: el componente existe solo "por compatibilidad
+con el layout" según su propio docstring (`top-nav.tsx:3-11`),
+retorna `null` literal (`top-nav.tsx:13`), y el único callsite
+(`layout.tsx:261`) lo renderiza dentro de un `<div>` cuyo siguiente
+hijo es `<main>`. P1 #5 es refactor cosmético de tokens con riesgo
+de regresión visual (cambia sombras en el dashboard del cliente
+parent/athlete); PR 8 es limpieza pura, blast radius trivial, no
+toca ningún path de usuario.
+
+**Auditoría previa** (verificar antes de tocar nada):
+- 3 referencias totales a `AcademyTopNav`:
+  - `src/app/app/[academyId]/top-nav.tsx:12` — export del componente.
+  - `src/app/app/[academyId]/layout.tsx:22` — `import { AcademyTopNav } from "./top-nav"`.
+  - `src/app/app/[academyId]/layout.tsx:261` — `<AcademyTopNav />` (render call).
+- Cero referencias en otros archivos (`grep -rn AcademyTopNav src/`).
+- Cero referencias a `top-nav` fuera del archivo propio + layout.
+- Docstring del archivo (`top-nav.tsx:3-11`) ya documenta que "la
+  navegación se maneja desde Sidebar (desktop) y Menú del usuario
+  'S' (todos los tamaños)". El autor original sabía que era muerto.
+
+**Cambio aplicado**:
+- Eliminado `src/app/app/[academyId]/top-nav.tsx` (16 líneas, archivo
+  completo).
+- Removida la línea de import en `layout.tsx:22` (junto a otros
+  imports de `./...` siblings).
+- Removida la línea de render `<AcademyTopNav />` en `layout.tsx:261`.
+  El `<div className="flex flex-1 flex-col">` sigue intacto —
+  contiene el `<main>`, no necesita envoltorio adicional.
+
+**Verificación post-cambio**:
+- `grep -rn "AcademyTopNav\|top-nav" src/` → 0 matches (limpieza
+  total, no quedan referencias huérfanas).
+- `pnpm typecheck` → clean.
+- `pnpm lint` → clean.
+- `pnpm run gate:all` → A2=1, A3=1, A4=0 (sin cambios — `top-nav.tsx`
+  no es una ruta, no toca el A4 orphan detector).
+- Conteo de `"use client"` en `src/app/app/[academyId]/` → baja de
+  13 a 12 (el critique Operate ya documentó que `top-nav.tsx` era
+  el único `"use client"` innecesario, de los 13 totales).
+
+**Lo que NO se hace (scope discipline)**:
+- **No** se consolida `src/components/ui/empty-state.tsx` con
+  `src/components/shared/EmptyState.tsx`. PR 6 ya intentó y
+  descartó esa consolidación por diferencia de APIs (Lucide vs
+  ReactNode icon). Sigue pendiente para un PR dedicado si el
+  usuario quiere.
+- **No** se migran otros inline empty states (athletes/groups/
+  classes/billing/coaches/today) — PR 6 ya decidió esto como
+  scope discipline para mantener el blast radius bajo.
+- **No** se tocan los otros P2 (billing free-plan empty hero,
+  notifications 401, settings Zod nullable trap preventivo) —
+  cada uno merece su PR por scope.
+- **No** se aborda P1 #5 (mixed shadow/pastel) en este PR.
+  El usuario eligió deliberadamente el cleanup barato antes
+  que el refactor cosmético.
+
+**Próximo paso lógico:** PR 9 — candidatos restantes: P1 #5
+(mixed shadow/pastel en `MyDashboardPage.tsx`), P2 (billing
+free-plan empty hero), P2 (notifications 401), P2 (settings Zod
+nullable trap preventivo). Mi recomendación: **P2 notifications
+401** (try/catch + simetría con `app/page.tsx:40-43`, blast
+radius bajo, evita console error para usuarios no-admin). El
+P1 #5 sigue siendo obligatorio si el usuario quiere cerrar el
+critique Operate completo (último P1 abierto).
 
 PR: #TBD (pendiente push + `gh pr create`).
 Vault actualizado: este changelog.

@@ -19,7 +19,6 @@ import {
 import { resolveAcademySpecialization } from "@/lib/specialization/registry";
 import { getDevSessionFromCookieStore } from "@/lib/dev-session";
 
-import { AcademyTopNav } from "./top-nav";
 import { logger } from "@/lib/logger";
 
 interface LayoutProps {
@@ -258,7 +257,6 @@ export default async function AcademyLayout({ params, children }: LayoutProps) {
             <AcademySidebar />
             <MobileAcademyNav />
             <div className="flex flex-1 flex-col">
-              <AcademyTopNav />
               <main id="main-content" className="flex-1 bg-transparent px-4 py-5 pb-24 sm:px-6 lg:px-10 lg:py-7 lg:pb-8" tabIndex={-1}>
                 {children}
               </main>
