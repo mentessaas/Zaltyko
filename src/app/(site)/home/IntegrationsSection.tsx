@@ -10,7 +10,7 @@ const integrations = [
     description: "Controla cuotas, pagos pendientes y recordatorios para que dirección sepa qué falta por cobrar.",
     icon: CreditCard,
     features: ["Pagos pendientes", "Cobros recurrentes", "Historial por familia"],
-    color: "from-violet-600 to-indigo-600",
+    color: "from-zaltyko-indigo to-zaltyko-navy",
   },
   {
     name: "Comunicación con familias",

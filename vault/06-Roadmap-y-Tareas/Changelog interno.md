@@ -1,7 +1,7 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-09-08T21:30Z
+last_reviewed: 2026-09-08T22:15Z
 source:
 ---
 
@@ -366,6 +366,107 @@ secrets por entorno — el ahorro de TTFB no compensa el riesgo.
 PR: #TBD (gh pr create tras push).
 Vault actualizado: este changelog + `GEO-TECHNICAL-AUDIT.md` ya en
 repo (untracked, subo en el PR).
+
+## 2026-09-08 — Polish pass de `src/app/(site)/` desde critique `/impeccable`
+
+**1 commit a `main` (post-PR #TBD, push directo desde `main` local)**
+cubriendo 5 issues priorizados (1×P0, 2×P1, 2×P2) del critique dual
+(`Persuade`, score 22/32, pass 68.75%). Reporte completo en
+`.impeccable/critique/2026-09-08T10-38-02Z__src-app-site.md` (5907 B,
+frontmatter + análisis + 4 preguntas provocadoras).
+
+**Por qué este pase (no antes):**
+
+- El landing tree tenía dos Hero (`Hero.tsx` y `home/HeroSection.tsx`)
+  divergiendo en copy y tipografía — uno vivo, otro huérfano pero
+  todavía en el bundle. Riesgo de drift silencioso + bloat.
+- El `Hero.tsx` huérfano afirmaba "+120 academias, 18k gimnastas,
+  €3.4M procesado" sin evidencia — el PRODUCT.md (Phase 4 baseline)
+  documenta honestamente 2 academias reales, 2 suscripciones activas,
+  0/10 pricing interviews. Fabricación literal que viola el principio
+  "Honest scale".
+- El detector `ai-color-palette` flageó `from-violet-600 to-indigo-600`
+  en `IntegrationsSection.tsx:13` como gradiente canónico de output
+  AI — fácil swap a tokens de marca.
+
+**Cambios aplicados:**
+
+**1. P0 — borrar 6 componentes huérfanos** (508 líneas de bundle,
+  drift eliminado):
+
+  - `src/app/(site)/Hero.tsx` ← stats fabricados (origen del issue).
+  - `src/app/(site)/Cta.tsx`
+  - `src/app/(site)/Faq.tsx` ← NO confundir con
+    `src/app/(site)/faq/page.tsx` que sí está vivo.
+  - `src/app/(site)/Testimonials.tsx` ← NO confundir con
+    `home/TestimonialsSection.tsx` que sí está vivo (y ya tenía copy
+    honesto "Próximamente").
+  - `src/app/(site)/MakerIntro.tsx`
+  - `src/app/(site)/FeaturedTime.tsx`
+
+  Verificado por `Grep "from '.../(site)/X'"` que `page.tsx` (la raíz
+  del segmento `(site)/`) no importa ninguno de los 6 — solo
+  `home/HeroSection.tsx`, `home/ClusterDiscoverySection.tsx`, etc.
+  También verificado que `(site)/pricing.tsx` (no listado como huérfano
+  en la auditoría) **sí** se importa desde `src/app/pricing/page.tsx:5`
+  → preservado.
+
+**2. P1 — eliminar input de búsqueda decorativo en `/ayuda`**
+  (`src/app/ayuda/page.tsx`). Renderizaba un `<input>` sin `onChange` ni
+  filter client-side: funcional deception pura. WCAG 2.2 AA "Error
+  Prevention" gap. Removido: el bloque `<Reveal delay={150}>` que
+  envolvía el `<input>` + el `Search` icon del import. La navegación
+  ya estaba provista por la grid de `helpCategories` + el listado de
+  FAQs, así que no se pierde utilidad real.
+
+**3. P1 — CTA redundancy** (5× "Crea tu academia gratis" + 3×
+  "Solicitar demo"). Decisión de scope: mantener el patrón actual. La
+  redundancia es scroll-flow intencional (cada sección necesita su
+  CTA cerca del lector para evitar que tenga que volver arriba), y
+  Free self-serve ya domina como CTA primario en hero + cada
+  sección-clave. Tracking: re-evaluar cuando tengamos 50+
+  signups para medir conversion rate por posición.
+
+**4. P2 — GAM/Rítmica reconciliation en hero eyebrow**
+  (`home/HeroSection.tsx:45`). Cambiado de `"Gimnasia artística · GAM
+  · Rítmica"` → `"Gimnasia artística · Rítmica"` para alinear con el
+  cluster matrix (`home/ClusterDiscoverySection.tsx` solo shipping
+  GAF + Rítmica). Mantengo el alcance vertical honesto en lugar de
+  expandir el cluster matrix para igualar el copy.
+
+**5. P2 — reemplazar gradiente AI-default con tokens de marca**
+  (`home/IntegrationsSection.tsx:13`). Cambiado
+  `from-violet-600 to-indigo-600` → `from-zaltyko-indigo to-zaltyko-navy`
+  (Cobros card). Las otras 3 entries (`Comunicación`, `Familias`,
+  `Perfil público`) usan variantes de la paleta de marca, no flageadas.
+
+**Qué NO cambié (con razón):**
+
+- **TestimonialsSection placeholder copy** — verificado, ya es
+  honesto: header "Próximamente" + body "Publicaremos experiencias
+  verificadas con familias y directivas cuando tengamos al menos 3
+  entrevistas estructuradas." Cumple el principio "Honest scale".
+- **CTA redundancy cuantitativa** — explicada arriba.
+- **Detector findings cruzados** (hardcoded `#00695C` en
+  `ComparisonSection.tsx`, shadow systems mezclados) — fuera del scope
+  de este pase; tracked para el siguiente.
+
+**Limitaciones / pendiente:**
+
+- No corrí Lighthouse post-merge (no esperaba regresiones: el cambio
+  es puramente removal + 3 edits de copy/className, sin lógica nueva).
+  Si pasa a producción sin issues, queda cerrado.
+- El detector `ai-color-palette` podría flagear otros componentes
+  fuera de este scope; próximo pase debería correr el detector en
+  todo el tree, no solo `(site)/`.
+
+**Próximo paso lógico:** `/impeccable critique src/app/app/` (el
+dashboard Operate multi-persona) — siguiente target obvio ahora que
+el marketing tree está limpio. Task #28 en la queue.
+
+PR: #TBD (pendiente push + `gh pr create`).
+Vault actualizado: este changelog + `.impeccable/critique/2026-09-08T10-38-02Z__src-app-site.md`
++ `PRODUCT.md` (ambos untracked, subo en el PR).
 
 ## 2026-09-07 — R2 cerrado: CSP bloqueaba hidratación de TODA página interactiva en producción (P0, no P1)
 ## 2026-09-07 — R2 cerrado: CSP bloqueaba hidratación de TODA página interactiva en producción (P0, no P1)

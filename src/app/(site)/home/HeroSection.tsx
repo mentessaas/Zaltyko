@@ -42,7 +42,7 @@ export default function HeroSection() {
           {/* Left Content */}
           <div className="max-w-2xl">
             <p className="mb-6 text-xs font-semibold uppercase tracking-[0.08em] text-zaltyko-teal">
-              Gimnasia artística · GAM · Rítmica
+              Gimnasia artística · Rítmica
             </p>
 
             {/* H1 */}

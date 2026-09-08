@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Navbar from "@/app/(site)/Navbar";
 import Footer from "@/app/(site)/Footer";
-import { MessageCircle, Mail, ChevronRight, Search } from "lucide-react";
+import { MessageCircle, Mail, ChevronRight } from "lucide-react";
 import { helpCategories } from "@/lib/help/articles";
 import Reveal from "@/components/motion/Reveal";
 import { getPublicSiteUrl } from "@/lib/seo/site-url";
@@ -83,20 +83,6 @@ export default function HelpPage() {
             <p className="mt-6 mx-auto max-w-2xl text-lg text-zaltyko-text-secondary">
               Guías rápidas sobre gimnastas, cobros, clases y migración desde Excel. Si no encuentras tu respuesta, te respondemos por email en horario laboral.
             </p>
-          </Reveal>
-
-          {/* Search */}
-          <Reveal delay={150}>
-            <div className="mt-8 max-w-xl mx-auto">
-              <div className="relative">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Buscar en la ayuda..."
-                  className="w-full pl-12 pr-4 py-3 rounded-full border border-gray-300 focus:ring-2 focus:ring-zaltyko-primary focus:border-transparent"
-                />
-              </div>
-            </div>
           </Reveal>
         </div>
       </section>
