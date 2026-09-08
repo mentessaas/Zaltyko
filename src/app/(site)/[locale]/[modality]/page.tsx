@@ -8,6 +8,7 @@ import {
   COUNTRIES,
   AVAILABLE_MODALITIES,
   getCountriesForModality,
+  getModalityHreflang,
   type ModalitySlug,
   type CountrySlug,
 } from "@/lib/seo/clusters";
@@ -79,6 +80,7 @@ export async function generateMetadata({
     description: t.description,
     alternates: {
       canonical: canonicalUrl,
+      languages: getModalityHreflang(modalityKey, baseUrl),
     },
     openGraph: {
       title: t.title,
