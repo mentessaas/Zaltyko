@@ -109,9 +109,24 @@ export default function SettingsPage() {
         if (response.ok) {
           const payload = await response.json();
           setSettings(normalizeAcademySettingsPayload(payload));
+        } else {
+          // Antes: `if (response.ok) {...}` sin else. Si GET devolvía 401/403/500,
+          // `settings` quedaba en DEFAULT_SETTINGS y el usuario clickeaba Guardar
+          // con `name=""` → Zod min(3) → 400 silencioso. Ahora se surface el error
+          // en el mismo banner rojo que usa handleSave (P1 #1 del critique Operate).
+          const errorData = await response.json().catch(() => ({}));
+          setError(
+            errorData.message ??
+              `No se pudo cargar la configuración actual (HTTP ${response.status})`
+          );
         }
       } catch (err) {
         logger.error("Error loading settings:", err);
+        setError(
+          err instanceof Error
+            ? `Error de red al cargar la configuración: ${err.message}`
+            : "Error de red al cargar la configuración"
+        );
       } finally {
         setLoading(false);
       }
@@ -232,7 +247,7 @@ export default function SettingsPage() {
               Gestiona la información, branding y configuración de tu academia
             </p>
           </div>
-          <Button onClick={handleSave} disabled={saving}>
+          <Button onClick={handleSave} disabled={saving || error !== null}>
             {saving ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : success ? (

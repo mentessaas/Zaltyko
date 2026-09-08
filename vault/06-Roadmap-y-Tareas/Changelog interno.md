@@ -1,7 +1,7 @@
 ---
 status: active
 owner: producto
-last_reviewed: 2026-09-08T23:20Z
+last_reviewed: 2026-09-08T23:45Z
 source:
 ---
 
@@ -628,6 +628,103 @@ mismo archivo.
 (ver `/tmp/impeccable-critique-src-app-app-body.md`). Cada uno es un
 PR focalizado. Candidato #1: P1 #2 (settings silent fail) por ser el
 más daily-use para Marta y el más barato de cerrar (1 rama `else`).
+
+PR: #TBD (pendiente push + `gh pr create`).
+Vault actualizado: este changelog.
+
+## 2026-09-08 — PR 3 del critique Operate: settings silent fail (P1 #1 — daily-use, 1 rama `else`)
+
+**1 commit a `main`** cerrando el P1 #1 del critique `/impeccable`
+Operate (`src/app/app/`, score 18.5/32). Único cambio funcional: el
+`else { setError(...) }` que el critique señaló explícitamente como
+recomendación.
+
+**Cambios:**
+
+1. **`src/app/app/[academyId]/settings/page.tsx` `loadSettings()`** —
+   la rama `if (response.ok)` ahora tiene su gemelo `else` que
+   surface el fallo al banner rojo compartido con `handleSave`.
+   Antes: GET devolvía 401/403/500 → `settings` quedaba en
+   `DEFAULT_SETTINGS` (incluye `name=""`, rompe Zod `min(3)`) → Marta
+   clickeaba "Guardar" → PATCH devolvía 400 VALIDATION_ERROR → el
+   `errorData.message` genérico ("Los datos proporcionados no son
+   válidos") no decía cuál campo rompió → toast verde nunca aparece
+   porque `setSuccess(true)` solo corre en `response.ok`. Bug completo:
+   persona no sabía si guardó.
+   Después: GET falla → banner rojo con `errorData.message ?? "No se
+   pudo cargar la configuración actual (HTTP 401)"` → persona ve
+   inmediatamente que algo está mal y recarga.
+2. **Catch del fetch ahora también `setError(...)`** — antes solo
+   `logger.error(...)` y continuaba. Ahora el error de red (offline,
+   timeout, CORS raro) también aparece en el banner.
+3. **Save button `disabled={saving || error !== null}`** — si la carga
+   falló, no se puede "guardar" un payload con `name=""` que va a
+   fallar Zod otra vez. El button muestra el icono normal pero está
+   inerte hasta que la persona recargue y `loadSettings()` corra
+   limpio.
+
+**Por qué este approach (no un toast nuevo, no un `aria-invalid` por
+campo):** el critique recomienda literalmente "add `else { setError(...) }`
+branch mirroring the `error.tsx` pattern". El `error.tsx` que cerramos en
+PR 2 usa el mismo banner rojo (`border-zaltyko-coral/35 +
+bg-zaltyko-coral/10`), así que reutilizamos el componente existente y
+el estado `error` que ya comparte `handleSave` — cero nuevas primitivas,
+cero regresión de estilos. `aria-invalid` por campo es trabajo aparte:
+requiere mapear `ZodError.issues[].path` → `id` del input, y el API
+actualmente devuelve solo `message` plano. Eso es scope para PR 4
+("settings Zod trap" P2 #5 del critique) — vale la pena hacerlo
+correctamente, pero ahí.
+
+**Por qué no extraer un helper compartido (academy profile, coach
+profile, athlete profile, billing) en este PR:** mi propuesta original
+mencionaba 4 forms hermanos. Audité cada uno después de aceptar el PR:
+los 4 tienen la misma estructura (load → save con banner) PERO:
+  - academy profile = esta misma página (path `[academyId]/settings`),
+    no hay duplicado.
+  - coach profile y athlete profile usan Server Components que hacen
+    `notFound()` cuando falla el load, no un client banner. Patrón
+    distinto, no extractable sin reescribir.
+  - billing ya tiene un boundary dedicado (StripeConnectCard).
+  El helper que pensaba extraer no tiene usuarios reales. Lo dejo
+  anotado como candidato para PR 5 si la auditoría en vivo encuentra
+  un 5º form que sí comparta el patrón. No invento el helper antes
+  de tiempo.
+
+**Verificación:**
+
+- `pnpm typecheck` → clean (sin output).
+- `npx eslint src/app/app/[academyId]/settings/page.tsx` → 1 warning
+  pre-existente (`react-hooks/preserve-manual-memoization` en el
+  `useCallback` de `handleSave`, líneas 139-167). Verificado con
+  `git stash` que la warning existía antes de mi edit — no es regresión.
+  Quedó fuera de scope (sería fix de hooks deps, otro día).
+- `pnpm gate:all` → A2=1, A3=1, A4=0 (sin cambios; las A2/A3 son
+  pre-existentes en API routes, documentadas en verdict ZAL-588).
+- Diff: 1 archivo, +24 líneas, -7 líneas (net +17, comentario
+  explicativo del fix incluido).
+
+**Lo que NO se hace acá (scope discipline):**
+
+- **No** se mapea `ZodError.issues[].path` → `id` del input →
+  `aria-invalid`. Eso cierra el P2 #5 del critique ("settings Zod trap")
+  y requiere (a) cambiar la API para devolver `errors[]` con path +
+  message, (b) un wrapper `<FormField>` que acepte `errors`. PR 4
+  dedicado.
+- **No** se extrae el `useAcademyFetch` helper que pensé al proponer
+  este PR — los 4 forms supuestos no lo usan. La auditoría confirmó
+  que cada form tiene su propia estructura.
+- **No** se cambia `handleSave` (la rama del critique decía "1 rama
+  else" y la puse en `loadSettings`, que era el hueco real). El save
+  ya hace `setError(errorData.message || ...)` correctamente.
+- **No** se agrega telemetry al error (Sentry capture, etc.). Scope
+  aparte.
+
+**Próximo paso lógico:** PR 4 — candidato natural P1 #2 (header drift
+en settings + coaches) o P2 #5 (settings Zod trap con `aria-invalid`
+per-field). El header drift es más visible (afecta a 2 páginas y unifica
+con `PageHeader` que ya usan 6); el Zod trap es más barato pero requiere
+cambios coordinados API + UI. Recomiendo P1 #2 primero por visibilidad
+y porque cierra el último item puramente UI del critique.
 
 PR: #TBD (pendiente push + `gh pr create`).
 Vault actualizado: este changelog.
